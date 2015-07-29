@@ -7,3 +7,8 @@ In the Samples directory, you will find samples that attempt to break off specif
 ## Requirements
 * Windows 10
 * Visual Studio 2015 with the Windows 10 SDK
+
+## Contributing
+We're always looking for your help to fix bugs and improve the samples.  File those pull requests and we'll be happy to take a look.
+
+Find more information on DirectX 12 on our blog: http://blogs.msdn.com/b/directx/
