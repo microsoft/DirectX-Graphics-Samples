@@ -224,7 +224,7 @@ void D3D1211on12::LoadAssets()
 		ComPtr<ID3DBlob> vertexShader;
 		ComPtr<ID3DBlob> pixelShader;
 
-#if DEBUG
+#ifdef _DEBUG
 		// Enable better shader debugging with the graphics debugging tools.
 		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
