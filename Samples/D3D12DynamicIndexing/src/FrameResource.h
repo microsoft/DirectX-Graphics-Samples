@@ -36,7 +36,7 @@ public:
 	ConstantBuffer* m_pConstantBuffers;
 	UINT64 m_fenceValue;
 
-	vector<XMMATRIX> m_modelMatrices;
+	vector<XMFLOAT4X4> m_modelMatrices;
 	UINT m_cityRowCount;
 	UINT m_cityColumnCount;
 	UINT m_cityMaterialCount;

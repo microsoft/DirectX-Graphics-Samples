@@ -49,7 +49,7 @@ private:
 		XMFLOAT4 velocity;
 		XMFLOAT4 offset;
 		XMFLOAT4 color;
-		XMMATRIX projection;
+		XMFLOAT4X4 projection;
 
 		// Constant buffers are 256-byte aligned. Add padding in the struct to allow multiple buffers
 		// to be array-indexed.
