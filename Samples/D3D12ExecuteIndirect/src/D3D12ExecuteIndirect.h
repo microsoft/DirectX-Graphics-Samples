@@ -32,6 +32,7 @@ private:
 	static const UINT FrameCount = 3;
 	static const UINT TriangleCount = 1024;
 	static const UINT TriangleResourceCount = TriangleCount * FrameCount;
+	static const UINT CommandBufferSizePerFrame;
 	static const UINT ComputeThreadBlockSize = 128;		// Should match the value in compute.hlsl.
 	static const float TriangleHalfWidth;				// The x and y offsets used by the triangle vertices.
 	static const float TriangleDepth;					// The z offset used by the triangle vertices.
@@ -141,8 +142,7 @@ private:
 	ComPtr<ID3D12Resource> m_depthStencil;
 	ComPtr<ID3D12Resource> m_commandBuffer;
 	ComPtr<ID3D12Resource> m_processedCommandBuffers[FrameCount];
-	ComPtr<ID3D12Resource> m_processedCommandBufferCounters[FrameCount];
-	UINT8* m_pMappedUavCounters[FrameCount];
+	ComPtr<ID3D12Resource> m_processedCommandBufferCounterReset;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 
 	void LoadPipeline();
