@@ -12,6 +12,7 @@
 #include "stdafx.h"
 #include "D3D12ExecuteIndirect.h"
 
+const UINT D3D12ExecuteIndirect::CommandBufferSizePerFrame = TriangleCount * sizeof(IndirectCommand);
 const float D3D12ExecuteIndirect::TriangleHalfWidth = 0.05f;
 const float D3D12ExecuteIndirect::TriangleDepth = 1.0f;
 const float D3D12ExecuteIndirect::CullingCutoff = 0.5f;
@@ -354,7 +355,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 			m_constantBufferData[n].velocity = XMFLOAT4(GetRandomFloat(0.01f, 0.02f), 0.0f, 0.0f, 0.0f);
 			m_constantBufferData[n].offset = XMFLOAT4(GetRandomFloat(-5.0f, -1.5f), GetRandomFloat(-1.0f, 1.0f), GetRandomFloat(0.0f, 2.0f), 0.0f);
 			m_constantBufferData[n].color = XMFLOAT4(GetRandomFloat(0.5f, 1.0f), GetRandomFloat(0.5f, 1.0f), GetRandomFloat(0.5f, 1.0f), 1.0f);
-			m_constantBufferData[n].projection = XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 0.01f, 20.0f));
+			XMStoreFloat4x4(&m_constantBufferData[n].projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 0.01f, 20.0f)));
 
 			for (int frame = 0; frame < FrameCount; frame++)
 			{
@@ -410,7 +411,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 	{
 		std::vector<IndirectCommand> commands;
 		commands.resize(TriangleResourceCount);
-		const UINT commandBufferSize = TriangleResourceCount * sizeof(IndirectCommand);
+		const UINT commandBufferSize = CommandBufferSizePerFrame * FrameCount;
 
 		ThrowIfFailed(m_device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -477,23 +478,15 @@ void D3D12ExecuteIndirect::LoadAssets()
 		CD3DX12_CPU_DESCRIPTOR_HANDLE processedCommandsHandle(m_cbvSrvUavHeap->GetCPUDescriptorHandleForHeapStart(), ProcessedCommandsOffset, m_cbvSrvUavDescriptorSize);
 		for (UINT frame = 0; frame < FrameCount; frame++)
 		{
-			// Allocate a buffer large enough to hold all of the indirect commands.
+			// Allocate a buffer large enough to hold all of the indirect commands
+			// for a single frame as well as a UAV counter.
 			ThrowIfFailed(m_device->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(commandBufferSize / FrameCount, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+				&CD3DX12_RESOURCE_DESC::Buffer(CommandBufferSizePerFrame + sizeof(UINT), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+				D3D12_RESOURCE_STATE_COPY_DEST,
 				nullptr,
 				IID_PPV_ARGS(&m_processedCommandBuffers[frame])));
-
-			// Allocate a counter for the UAV.
-			ThrowIfFailed(m_device->CreateCommittedResource(                
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT)),
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr,
-				IID_PPV_ARGS(&m_processedCommandBufferCounters[frame])));
 
 			D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 			uavDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -501,22 +494,32 @@ void D3D12ExecuteIndirect::LoadAssets()
 			uavDesc.Buffer.FirstElement = 0;
 			uavDesc.Buffer.NumElements = TriangleCount;
 			uavDesc.Buffer.StructureByteStride = sizeof(IndirectCommand);
-			uavDesc.Buffer.CounterOffsetInBytes = 0;
+			uavDesc.Buffer.CounterOffsetInBytes = CommandBufferSizePerFrame;
 			uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
 			m_device->CreateUnorderedAccessView(
 				m_processedCommandBuffers[frame].Get(),
-				m_processedCommandBufferCounters[frame].Get(),
+				m_processedCommandBuffers[frame].Get(),
 				&uavDesc,
 				processedCommandsHandle);
 
-			// Map the UAV counters. We don't unmap these until the app closes.
-			// Keeping things mapped for the lifetime of the resource is okay.
-			ThrowIfFailed(m_processedCommandBufferCounters[frame]->Map(0, nullptr, reinterpret_cast<void**>(&m_pMappedUavCounters[frame])));
-			ZeroMemory(m_pMappedUavCounters[frame], sizeof(UINT));
-
 			processedCommandsHandle.Offset(CbvSrvUavDescriptorCountPerFrame, m_cbvSrvUavDescriptorSize);
 		}
+
+		// Allocate a buffer that can be used to reset the UAV counters and initialize
+		// it to 0.
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT)),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&m_processedCommandBufferCounterReset)));
+
+		UINT8* pMappedCounterReset = nullptr;
+		ThrowIfFailed(m_processedCommandBufferCounterReset->Map(0, nullptr, reinterpret_cast<void**>(&pMappedCounterReset)));
+		ZeroMemory(pMappedCounterReset, sizeof(UINT));
+		m_processedCommandBufferCounterReset->Unmap(0, nullptr);
 	}
 
 	// Close the command list and execute it to begin the vertex buffer copy into
@@ -571,8 +574,6 @@ void D3D12ExecuteIndirect::OnUpdate()
 
 	UINT8* destination = m_pCbvDataBegin + (TriangleCount * m_frameIndex * sizeof(ConstantBufferData));
 	memcpy(destination, &m_constantBufferData[0], TriangleCount * sizeof(ConstantBufferData));
-
-	ZeroMemory(m_pMappedUavCounters[m_frameIndex], sizeof(UINT));
 }
 
 // Render the scene.
@@ -655,6 +656,12 @@ void D3D12ExecuteIndirect::PopulateCommandLists()
 
 		m_computeCommandList->SetComputeRoot32BitConstants(RootConstants, 4, reinterpret_cast<void*>(&m_csRootConstants), 0);
 
+		// Reset the UAV counter for this frame.
+		m_computeCommandList->CopyBufferRegion(m_processedCommandBuffers[m_frameIndex].Get(), CommandBufferSizePerFrame, m_processedCommandBufferCounterReset.Get(), 0, sizeof(UINT));
+
+		D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_processedCommandBuffers[m_frameIndex].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		m_computeCommandList->ResourceBarrier(1, &barrier);
+
 		m_computeCommandList->Dispatch(static_cast<UINT>(ceil(TriangleCount / float(ComputeThreadBlockSize))), 1, 1);
 	}
 
@@ -698,19 +705,33 @@ void D3D12ExecuteIndirect::PopulateCommandLists()
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 
-		// Draw the triangles that have not been culled.
-		m_commandList->ExecuteIndirect(
-			m_commandSignature.Get(),
-			TriangleCount,
-			m_enableCulling ? m_processedCommandBuffers[m_frameIndex].Get() : m_commandBuffer.Get(),
-			m_enableCulling ? 0 : TriangleCount * m_frameIndex * sizeof(IndirectCommand),
-			m_enableCulling ? m_processedCommandBufferCounters[m_frameIndex].Get() : nullptr,
-			0);
+		if (m_enableCulling)
+		{
+			// Draw the triangles that have not been culled.
+			m_commandList->ExecuteIndirect(
+				m_commandSignature.Get(),
+				TriangleCount,
+				m_processedCommandBuffers[m_frameIndex].Get(),
+				0,
+				m_processedCommandBuffers[m_frameIndex].Get(),
+				CommandBufferSizePerFrame);
+		}
+		else
+		{
+			// Draw all of the triangles.
+			m_commandList->ExecuteIndirect(
+				m_commandSignature.Get(),
+				TriangleCount,
+				m_commandBuffer.Get(),
+				CommandBufferSizePerFrame * m_frameIndex,
+				nullptr,
+				0);
+		}
 
 		// Indicate that the command buffer may be used by the compute shader
 		// and that the back buffer will now be used to present.
 		barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
-		barriers[0].Transition.StateAfter = m_enableCulling ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+		barriers[0].Transition.StateAfter = m_enableCulling ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 		barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 

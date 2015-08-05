@@ -76,7 +76,7 @@ void FrameResource::SetCityPositions(FLOAT intervalX, FLOAT intervalZ)
 
 			// The y position is based off of the city's row and column 
 			// position to prevent z-fighting.
-			m_modelMatrices[i * m_cityColumnCount + j] = XMMatrixTranslation(cityOffsetX, 0.02f * (i * m_cityColumnCount + j), cityOffsetZ);
+			XMStoreFloat4x4(&m_modelMatrices[i * m_cityColumnCount + j], XMMatrixTranslation(cityOffsetX, 0.02f * (i * m_cityColumnCount + j), cityOffsetZ));
 		}
 	}
 }
@@ -123,17 +123,17 @@ void FrameResource::PopulateCommandList(ID3D12GraphicsCommandList* pCommandList,
 
 void XM_CALLCONV FrameResource::UpdateConstantBuffers(FXMMATRIX view, CXMMATRIX projection)
 {
-	XMMATRIX* pModel;
+	XMMATRIX model;
 	XMFLOAT4X4 mvp;
 
 	for (UINT i = 0; i < m_cityRowCount; i++)
 	{
 		for (UINT j = 0; j < m_cityColumnCount; j++)
 		{
-			pModel = &m_modelMatrices[i * m_cityColumnCount + j];
+			model = XMLoadFloat4x4(&m_modelMatrices[i * m_cityColumnCount + j]);
 
 			// Compute the model-view-projection matrix.
-			XMStoreFloat4x4(&mvp, XMMatrixTranspose(*pModel * view * projection));
+			XMStoreFloat4x4(&mvp, XMMatrixTranspose(model * view * projection));
 
 			// Copy this matrix into the appropriate location in the upload heap subresource.
 			memcpy(&m_pConstantBuffers[i * m_cityColumnCount + j], &mvp, sizeof(mvp));
