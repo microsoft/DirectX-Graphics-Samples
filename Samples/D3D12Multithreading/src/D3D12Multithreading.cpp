@@ -968,7 +968,7 @@ void D3D12Multithreading::SetCommonPipelineState(ID3D12GraphicsCommandList* pCom
 
 	pCommandList->RSSetViewports(1, &m_viewport);
 	pCommandList->RSSetScissorRects(1, &m_scissorRect);
-	pCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	pCommandList->IASetIndexBuffer(&m_indexBufferView);
 	pCommandList->SetGraphicsRootDescriptorTable(3, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());

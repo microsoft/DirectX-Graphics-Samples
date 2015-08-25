@@ -622,7 +622,7 @@ void D3D12nBodyGravity::PopulateCommandList()
 	m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	m_commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 	m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
 	// Indicate that the back buffer will be used as a render target.
