@@ -160,7 +160,7 @@ private:
 	void CreateAsyncContexts();
 	void CreateVertexBuffer();
 	float RandomPercent();
-	void LoadParticles(_Out_writes_(numParticles) Particle* pParticles, _In_ const XMFLOAT3 &center, _In_ const XMFLOAT4 &velocity, float spread, UINT numParticles);
+	void LoadParticles(_Out_writes_(numParticles) Particle* pParticles, const XMFLOAT3 &center, const XMFLOAT4 &velocity, float spread, UINT numParticles);
 	void CreateParticleBuffers();
 	void PopulateCommandList();
 

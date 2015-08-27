@@ -576,7 +576,8 @@ void D3D12Multithreading::LoadContexts()
 	{
 		static unsigned int WINAPI thunk(LPVOID lpParameter)
 		{
-			D3D12Multithreading::Get()->WorkerThread(lpParameter);
+			ThreadParameter* parameter = reinterpret_cast<ThreadParameter*>(lpParameter);
+			D3D12Multithreading::Get()->WorkerThread(parameter->threadIndex);
 			return 0;
 		}
 	};
@@ -601,11 +602,13 @@ void D3D12Multithreading::LoadContexts()
 			FALSE,
 			NULL);
 
+		m_threadParameters[i].threadIndex = i;
+
 		m_threadHandles[i] = reinterpret_cast<HANDLE>(_beginthreadex(
 			nullptr,
 			0,
 			threadwrapper::thunk,
-			reinterpret_cast<LPVOID>(i),
+			reinterpret_cast<LPVOID>(&m_threadParameters[i]),
 			0,
 			nullptr));
 
@@ -873,9 +876,8 @@ void D3D12Multithreading::EndFrame()
 
 // Worker thread body. workerIndex is an integer from 0 to NumContexts 
 // describing the worker's thread index.
-void D3D12Multithreading::WorkerThread(LPVOID workerIndex)
+void D3D12Multithreading::WorkerThread(int threadIndex)
 {
-	int threadIndex = reinterpret_cast<int>(workerIndex);
 	assert(threadIndex >= 0);
 	assert(threadIndex < NumContexts);
 #if !SINGLETHREADED

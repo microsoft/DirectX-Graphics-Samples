@@ -51,7 +51,7 @@ private:
 	};
 
 	// Each geometry gets its own constant buffer.
-	ConstantBufferData m_constantBufferData[FrameCount];
+	ConstantBufferData m_constantBufferData[CbvCountPerFrame];
 	UINT8* m_pCbvDataBegin;
 
 	// Pipeline objects.

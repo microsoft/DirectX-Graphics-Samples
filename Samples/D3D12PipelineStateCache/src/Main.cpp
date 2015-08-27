@@ -12,23 +12,11 @@
 #include "stdafx.h"
 #include "D3D12PipelineStateCache.h"
 
-void CreateConsoleAndPrintDemoInformation()
+FILE* CreateConsoleAndPrintDemoInformation()
 {
 	AllocConsole();
-	HANDLE handleOut = GetStdHandle(STD_OUTPUT_HANDLE);
-	int hCrt = _open_osfhandle((long)handleOut, _O_TEXT);
-	FILE* hfOut = _fdopen(hCrt, "w");
-	setvbuf(hfOut, NULL, _IONBF, 1);
-	*stdout = *hfOut;
-
-	HANDLE handleIn = GetStdHandle(STD_INPUT_HANDLE);
-	hCrt = _open_osfhandle((long)handleIn, _O_TEXT);
-	FILE* hfIn = _fdopen(hCrt, "r");
-	setvbuf(hfIn, NULL, _IONBF, 128);
-	*stdin = *hfIn;
-
-	SMALL_RECT rect = { 0, 0, 100, 100 };
-	SetConsoleWindowInfo(handleOut, TRUE, &rect);
+	FILE *pStreamOut = nullptr;
+	freopen_s(&pStreamOut, "CONOUT$", "w", stdout);
 
 	cout << "=== D3D12 Pipeline State Cache Sample ===" << endl << endl;
 	cout << "\t Input Keys:" << endl;
@@ -44,6 +32,14 @@ void CreateConsoleAndPrintDemoInformation()
 	cout << "\t\t 7 : Toggle Pixelate effect" << endl;
 	cout << "\t\t 8 : Toggle Distort effect" << endl;
 	cout << "\t\t 9 : Toggle Wave effect" << endl;
+
+	return pStreamOut;
+}
+
+void DestroyConsole(FILE* pStream)
+{
+	fclose(pStream);
+	FreeConsole();
 }
 
 _Use_decl_annotations_
@@ -51,6 +47,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
 	D3D12PipelineStateCache sample(1280, 720, L"D3D12 Pipeline State Object Cache Sample");
 
-	CreateConsoleAndPrintDemoInformation();
-	return sample.Run(hInstance, nCmdShow);
+	FILE* pStreamOut = CreateConsoleAndPrintDemoInformation();
+	int result = sample.Run(hInstance, nCmdShow);
+	DestroyConsole(pStreamOut);
+
+	return result;
 }

@@ -23,11 +23,11 @@ MemoryMappedPSOCache::~MemoryMappedPSOCache()
 {
 }
 
-void MemoryMappedPSOCache::Init(LPCWSTR filename)
+void MemoryMappedPSOCache::Init(std::wstring filename)
 {
 	m_filename = filename;
 	WIN32_FIND_DATA findFileData;
-	HANDLE handle = FindFirstFile(filename, &findFileData);
+	HANDLE handle = FindFirstFile(filename.c_str(), &findFileData);
 	bool found = handle != INVALID_HANDLE_VALUE;
 
 	if (found)
@@ -36,7 +36,7 @@ void MemoryMappedPSOCache::Init(LPCWSTR filename)
 	}
 
 	m_file = CreateFile(
-		filename,
+		filename.c_str(),
 		GENERIC_READ | GENERIC_WRITE,
 		0,
 		nullptr,
@@ -47,7 +47,7 @@ void MemoryMappedPSOCache::Init(LPCWSTR filename)
 	if (m_file == INVALID_HANDLE_VALUE)
 	{
 		std::cerr << (L"m_file is invalid\n");
-		std::cerr << (L"Target file is %s\n", filename);
+		std::cerr << (L"Target file is %s\n", filename.c_str());
 		return;
 	}
 
@@ -102,6 +102,6 @@ void MemoryMappedPSOCache::Destroy(bool deleteFile)
 
 	if (deleteFile)
 	{
-		DeleteFile(m_filename);
+		DeleteFile(m_filename.c_str());
 	}
 }

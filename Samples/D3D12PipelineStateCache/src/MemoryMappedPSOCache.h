@@ -17,7 +17,7 @@ public:
 	MemoryMappedPSOCache();
 	~MemoryMappedPSOCache();
 
-	void Init(LPCWSTR filename);
+	void Init(std::wstring filename);
 	void Update(ID3DBlob *pBlob);
 	void Destroy(bool deleteFile);
 
@@ -48,5 +48,5 @@ private:
 	HANDLE m_mapFile;
 	HANDLE m_file;
 	LPVOID m_mapAddress;
-	LPCWSTR m_filename;
+	std::wstring m_filename;
 };

@@ -525,7 +525,8 @@ void D3D12PipelineStateCache::OnKeyUp(WPARAM key)
 {
 	switch (key)
 	{
-	case 'C':	
+	case 'C':
+		WaitForGpu();
 		m_psoLibrary.ClearPSOCache();
 		break;
 

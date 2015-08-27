@@ -27,6 +27,10 @@ PSOLibrary::PSOLibrary(UINT frameCount, UINT cbvRootSignatureIndex) :
 	ZeroMemory(m_inflightPSOFlags, sizeof(m_inflightPSOFlags));
 	ZeroMemory(m_workerThreads, sizeof(m_workerThreads));
 
+	WCHAR path[512];
+	GetAssetsPath(path, _countof(path));
+	m_assetsPath = path;
+
 	m_flagsMutex = CreateMutex(nullptr, FALSE, nullptr);
 }
 
@@ -55,13 +59,9 @@ void PSOLibrary::WaitForThreads()
 
 void PSOLibrary::Build(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignature)
 {
-	WCHAR path[512];
-	GetAssetsPath(path, _countof(path));
-	std::wstring assetsPath(path);
-
 	for (UINT i = 0; i < EffectPipelineTypeCount; i++)
 	{
-		m_diskCaches[i].Init((assetsPath + g_cCacheFileNames[i]).c_str());
+		m_diskCaches[i].Init(m_assetsPath + g_cCacheFileNames[i]);
 	}
 
 	// Always compile the 3D shader and the Ubershader.
@@ -78,7 +78,12 @@ void PSOLibrary::Build(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignatur
 }
 
 
-void PSOLibrary::SetPipelineState(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignature, ID3D12GraphicsCommandList* pCommandList, EffectPipelineType type, UINT frameIndex)
+void PSOLibrary::SetPipelineState(
+	ID3D12Device* pDevice,
+	ID3D12RootSignature* pRootSignature,
+	ID3D12GraphicsCommandList* pCommandList,
+	_In_range_(0, EffectPipelineTypeCount-1) EffectPipelineType type,
+	UINT frameIndex)
 {
 	assert(m_drawIndex < m_maxDrawsPerFrame);
 
@@ -119,6 +124,11 @@ void PSOLibrary::SetPipelineState(ID3D12Device* pDevice, ID3D12RootSignature* pR
 					reinterpret_cast<void*>(&m_workerThreads[type]),
 					CREATE_SUSPENDED,
 					nullptr);
+
+				if (!m_workerThreads[type].threadHandle)
+				{
+					ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+				}
 
 				ResumeThread(m_workerThreads[type].threadHandle);
 
@@ -171,7 +181,7 @@ void PSOLibrary::CompilePSO(CompilePSOThreadData* pDataPackage)
 
 	if (useCache && pLibrary->m_diskCaches[type].GetPointerToStartOfFile() == nullptr)
 	{
-		pLibrary->m_diskCaches[type].Init(g_cCacheFileNames[type]);
+		pLibrary->m_diskCaches[type].Init(pLibrary->m_assetsPath + g_cCacheFileNames[type]);
 	}
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC baseDesc = {};
