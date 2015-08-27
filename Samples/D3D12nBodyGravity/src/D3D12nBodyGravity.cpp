@@ -396,7 +396,7 @@ float D3D12nBodyGravity::RandomPercent()
 	return ret / 5000.0f;
 }
 
-void D3D12nBodyGravity::LoadParticles(Particle* pParticles, const XMFLOAT3& center, const XMFLOAT4& velocity, float spread, UINT numParticles)
+void D3D12nBodyGravity::LoadParticles(_Out_writes_(numParticles) Particle* pParticles, const XMFLOAT3& center, const XMFLOAT4& velocity, float spread, UINT numParticles)
 {
 	srand(0);
 	for (UINT i = 0; i < numParticles; i++)
@@ -622,7 +622,7 @@ void D3D12nBodyGravity::PopulateCommandList()
 	m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	m_commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 	m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
 	// Indicate that the back buffer will be used as a render target.

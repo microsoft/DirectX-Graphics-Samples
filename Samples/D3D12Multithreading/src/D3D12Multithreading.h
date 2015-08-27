@@ -122,7 +122,13 @@ private:
 	FrameResource* m_pCurrentFrameResource;
 	int m_currentFrameResourceIndex;
 
-	void WorkerThread(LPVOID workerIndex);
+	struct ThreadParameter
+	{
+		int threadIndex;
+	};
+	ThreadParameter m_threadParameters[NumContexts];
+
+	void WorkerThread(int threadIndex);
 	void SetCommonPipelineState(ID3D12GraphicsCommandList* pCommandList);
 
 	void LoadPipeline();

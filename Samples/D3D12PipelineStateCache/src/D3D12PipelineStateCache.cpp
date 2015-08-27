@@ -419,7 +419,7 @@ void D3D12PipelineStateCache::PopulateCommandList()
 	ID3D12DescriptorHeap* ppHeaps[] = { m_srvHeap.Get() };
 	m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-	m_commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_commandList->RSSetViewports(1, &m_viewport);
 	m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
@@ -451,7 +451,7 @@ void D3D12PipelineStateCache::PopulateCommandList()
 
 	// Set up the state for a fullscreen quad.
 	m_commandList->IASetVertexBuffers(0, 1, &m_quadVbv);
-	m_commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	const float black[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	m_commandList->ClearRenderTargetView(rtvHandle, black, 0, nullptr);
@@ -525,7 +525,8 @@ void D3D12PipelineStateCache::OnKeyUp(WPARAM key)
 {
 	switch (key)
 	{
-	case 'C':	
+	case 'C':
+		WaitForGpu();
 		m_psoLibrary.ClearPSOCache();
 		break;
 

@@ -189,7 +189,14 @@ public:
 	~PSOLibrary();
 
 	void Build(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignature);
-	void SetPipelineState(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignature, ID3D12GraphicsCommandList* pCommandList, EffectPipelineType type, UINT frameIndex);
+
+	void SetPipelineState(
+		ID3D12Device* pDevice,
+		ID3D12RootSignature* pRootSignature,
+		ID3D12GraphicsCommandList* pCommandList,
+		_In_range_(0, EffectPipelineTypeCount-1) EffectPipelineType type,
+		UINT frameIndex);
+
 	void EndFrame();
 	void ClearPSOCache();
 	void ToggleUberShader();
@@ -230,6 +237,7 @@ private:
 
 	bool m_useUberShaders;
 	bool m_useDiskLibraries;
+	std::wstring m_assetsPath;
 
 	UINT m_cbvRootSignatureIndex;
 	UINT m_maxDrawsPerFrame;
