@@ -339,7 +339,7 @@ void D3D12nBodyGravity::LoadAssets()
 		ThrowIfFailed(m_device->CreateFence(m_renderContextFenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_renderContextFence)));
 		m_renderContextFenceValue++;
 
-		m_renderContextFenceEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+		m_renderContextFenceEvent = CreateEventEx(nullptr, nullptr, FALSE, EVENT_ALL_ACCESS);
 		if (m_renderContextFenceEvent == nullptr)
 		{
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
@@ -526,7 +526,7 @@ void D3D12nBodyGravity::CreateAsyncContexts()
 		ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeAllocator[threadIndex].Get(), nullptr, IID_PPV_ARGS(&m_computeCommandList[threadIndex])));
 		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(&m_threadFences[threadIndex])));
 
-		m_threadFenceEvents[threadIndex] = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+		m_threadFenceEvents[threadIndex] = CreateEventEx(nullptr, nullptr, FALSE, EVENT_ALL_ACCESS);
 		if (m_threadFenceEvents[threadIndex] == nullptr)
 		{
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));

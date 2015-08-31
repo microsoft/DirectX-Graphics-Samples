@@ -535,7 +535,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 		m_fenceValues[m_frameIndex]++;
 
 		// Create an event handle to use for frame synchronization.
-		m_fenceEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+		m_fenceEvent = CreateEventEx(nullptr, nullptr, FALSE, EVENT_ALL_ACCESS);
 		if (m_fenceEvent == nullptr)
 		{
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
