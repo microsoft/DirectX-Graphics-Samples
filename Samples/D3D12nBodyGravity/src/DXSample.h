@@ -30,6 +30,7 @@ protected:
 	virtual bool OnEvent(MSG msg) = 0;
 
 	std::wstring GetAssetFullPath(LPCWSTR assetName);
+	void GetHardwareAdapter(_In_ IDXGIFactory4* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter);
 
 	static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
