@@ -455,10 +455,9 @@ void Graphics::Shutdown(void)
 
 #ifdef _DEBUG
 	ID3D12DebugDevice* debugInterface;
-	g_Device->QueryInterface(&debugInterface);
-	assert(debugInterface != nullptr);
-	if (debugInterface != nullptr)
+	if (SUCCEEDED(g_Device->QueryInterface(&debugInterface)))
 	{
+		assert(debugInterface != nullptr);
 		debugInterface->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL);
 		debugInterface->Release();
 	}
