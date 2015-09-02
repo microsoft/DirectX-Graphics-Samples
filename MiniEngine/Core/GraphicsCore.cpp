@@ -455,9 +455,11 @@ void Graphics::Shutdown(void)
 
 #ifdef _DEBUG
 	ID3D12DebugDevice* debugInterface;
-	g_Device->QueryInterface(&debugInterface);
-	debugInterface->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL);
-	debugInterface->Release();
+	if (SUCCEEDED(g_Device->QueryInterface(&debugInterface)))
+	{
+		debugInterface->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL);
+		debugInterface->Release();
+	}
 #endif
 
 	SAFE_RELEASE(g_Device);
