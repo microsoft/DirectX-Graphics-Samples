@@ -81,28 +81,28 @@ namespace PostEffects
 	BoolVar bToneMapOnlyLuma("Graphics/HDR/Preserve Chroma", false);
 
 	RootSignature PostEffectsRS;
-    ComputePSO	ToneMapCS;
-    ComputePSO	ToneMap2CS;
-	ComputePSO	ApplyBloomCS;
-	ComputePSO	DebugLuminanceHdrCS;
-	ComputePSO	DebugLuminanceLdrCS;
-	ComputePSO	GenerateHistogramCS;
-	ComputePSO	DrawHistogramCS;
-	ComputePSO	AdaptExposureCS;
-	ComputePSO	DownsampleBloom2CS;
-	ComputePSO	DownsampleBloom4CS;
-	ComputePSO	UpsampleAndBlurCS;
-	ComputePSO	BlurCS;
-    ComputePSO	BloomExtractAndDownsampleHdrCS;
-    ComputePSO	BloomExtractAndDownsampleLdrCS;
-	ComputePSO	ExtractLumaCS;
-	ComputePSO	AverageLumaCS;
+	ComputePSO ToneMapCS;
+	ComputePSO ToneMap2CS;
+	ComputePSO ApplyBloomCS;
+	ComputePSO DebugLuminanceHdrCS;
+	ComputePSO DebugLuminanceLdrCS;
+	ComputePSO GenerateHistogramCS;
+	ComputePSO DrawHistogramCS;
+	ComputePSO AdaptExposureCS;
+	ComputePSO DownsampleBloom2CS;
+	ComputePSO DownsampleBloom4CS;
+	ComputePSO UpsampleAndBlurCS;
+	ComputePSO BlurCS;
+	ComputePSO BloomExtractAndDownsampleHdrCS;
+	ComputePSO BloomExtractAndDownsampleLdrCS;
+	ComputePSO ExtractLumaCS;
+	ComputePSO AverageLumaCS;
 
-	GpuBuffer		g_Exposure;
+	StructuredBuffer g_Exposure;
 
 	void UpdateExposure(ComputeContext&);
 	void BlurBuffer(ComputeContext&, ColorBuffer buffer[2], const ColorBuffer& lowerResBuf, uint32_t bufferWidth, uint32_t bufferHeight, float upsampleBlendFactor );
-    void GenerateBloom(ComputeContext&);
+	void GenerateBloom(ComputeContext&);
 	void ExtractLuma(ComputeContext&);
 	void ProcessHDR(ComputeContext&);
 	void ProcessLDR(CommandContext&);
@@ -144,7 +144,7 @@ void PostEffects::Initialize( void )
 #undef CreatePSO
 
 	__declspec(align(16)) float initExposure[] = { Exposure, 1.0f / Exposure, Exposure / PeakIntensity };
-	g_Exposure.Create(L"Exposure", kStructures, 4, 4, initExposure);
+	g_Exposure.Create(L"Exposure", 4, 4, initExposure);
 
 	FXAA::Initialize();
 	MotionBlur::Initialize();
@@ -272,7 +272,7 @@ void PostEffects::ExtractLuma( ComputeContext& Context )
 	Context.TransitionResource(g_LumaLR, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.SetConstants(0, 1.0f / kBloomWidth, 1.0f / kBloomHeight );
 	Context.SetDynamicDescriptor(1, 0, g_LumaLR.GetUAV());
-    Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
+	Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
 	Context.SetPipelineState(ExtractLumaCS);
 	Context.Dispatch2D(kBloomWidth, kBloomHeight);
 }

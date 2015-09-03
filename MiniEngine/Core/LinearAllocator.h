@@ -36,10 +36,10 @@ struct DynAlloc
 	DynAlloc(GpuResource& BaseResource, size_t ThisOffset, size_t ThisSize)
 		: Buffer(BaseResource), Offset(ThisOffset), Size(ThisSize) {}
 
-	GpuResource&	Buffer;		// The D3D buffer associated with this memory.
-	size_t			Offset;		// Offset from start of buffer resource
-	size_t			Size;		// Reserved size of this allocation
-	void*			DataPtr;	// The CPU-writeable address
+	GpuResource& Buffer;	// The D3D buffer associated with this memory.
+	size_t Offset;			// Offset from start of buffer resource
+	size_t Size;			// Reserved size of this allocation
+	void* DataPtr;			// The CPU-writeable address
 	D3D12_GPU_VIRTUAL_ADDRESS GpuAddress;	// The GPU-visible address
 };
 
@@ -59,8 +59,8 @@ public:
 		m_pResource->Unmap(0, nullptr);
 	}
 
-	void*						m_CpuVirtualAddress;
-	D3D12_GPU_VIRTUAL_ADDRESS	m_GpuVirtualAddress;
+	void* m_CpuVirtualAddress;
+	D3D12_GPU_VIRTUAL_ADDRESS m_GpuVirtualAddress;
 };
 
 enum LinearAllocatorType
@@ -68,7 +68,7 @@ enum LinearAllocatorType
 	kInvalidAllocator = -1,
 
 	kGpuExclusive = 0,		// DEFAULT   GPU-writeable (via UAV)
-	kCpuWritable = 1,		// UPLOAD    CPU-writeable (but write combined)
+	kCpuWritable = 1,		// UPLOAD CPU-writeable (but write combined)
 
 	kNumAllocatorTypes
 };

@@ -17,8 +17,8 @@
 
 namespace Utility
 {
-	inline void Print( const char* msg )		{ printf(msg); }
-	inline void Print( const wchar_t* msg )		{ wprintf(msg); }
+	inline void Print( const char* msg ) { printf(msg); }
+	inline void Print( const wchar_t* msg ) { wprintf(msg); }
 
 	inline void Printf( const char* format, ... )
 	{
@@ -80,12 +80,12 @@ namespace Utility
 
 #ifdef RELEASE
 
-	#define ASSERT( isTrue, ... )			(void)(isTrue)
-	#define WARN_ONCE_IF( isTrue, ... )		(void)(isTrue)
-	#define WARN_ONCE_IF_NOT( isTrue, ... )	(void)(isTrue)
+	#define ASSERT( isTrue, ... ) (void)(isTrue)
+	#define WARN_ONCE_IF( isTrue, ... ) (void)(isTrue)
+	#define WARN_ONCE_IF_NOT( isTrue, ... ) (void)(isTrue)
 	#define ERROR( msg, ... )
-	#define DEBUGPRINT( msg, ... )			do {} while(0)
-	#define ASSERT_SUCCEEDED( hr, ... )		(void)(hr)
+	#define DEBUGPRINT( msg, ... ) do {} while(0)
+	#define ASSERT_SUCCEEDED( hr, ... ) (void)(hr)
 
 #else	// !RELEASE
 

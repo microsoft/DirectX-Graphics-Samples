@@ -230,6 +230,8 @@
     <FxCompile Include="Shaders\GenerateHistogramCS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2HCS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2VCS.hlsl" />
+    <FxCompile Include="Shaders\GenerateMipsCS.hlsl" />
+    <FxCompile Include="Shaders\GenerateMipsGammaCS.hlsl" />
     <FxCompile Include="Shaders\LinearizeDepthCS.hlsl" />
     <FxCompile Include="Shaders\MotionBlurFinalPassCS.hlsl" />
     <FxCompile Include="Shaders\MotionBlurFinalPassTemporalCS.hlsl" />

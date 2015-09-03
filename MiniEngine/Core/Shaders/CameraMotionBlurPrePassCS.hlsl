@@ -18,10 +18,10 @@
 
 //#define USE_LINEAR_Z
 
-Texture2D<float3>		ColorBuffer		: register(t0);
-Texture2D<float>		DepthBuffer		: register(t1);
-RWTexture2D<float4>		PrepBuffer		: register(u0);
-RWTexture2D<float2>		MotionBuffer	: register(u1);
+Texture2D<float3> ColorBuffer : register(t0);
+Texture2D<float> DepthBuffer : register(t1);
+RWTexture2D<float4> PrepBuffer : register(u0);
+RWTexture2D<float2> MotionBuffer : register(u1);
 
 cbuffer ConstantBuffer : register(b1)
 {

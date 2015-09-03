@@ -15,8 +15,8 @@
 // The histogram measures logarithmic luminance ranging from 2^-12 up to 2^4.  This should provide a nice window
 // where the exposure would range from 2^-4 up to 2^4.
 
-Texture2D<uint>		LumaBuf		: register( t0 );
-RWByteAddressBuffer	Histogram	: register( u0 );
+Texture2D<uint> LumaBuf : register( t0 );
+RWByteAddressBuffer Histogram : register( u0 );
 
 groupshared uint g_TileHistogram[256];
 

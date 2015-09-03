@@ -200,9 +200,8 @@ void GraphicsContext::ClearUAV( GpuBuffer& Target )
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
 	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicDescriptorHeap.UploadDirect(Target.GetUAV());
-	CD3DX12_RECT ClearRect(0, 0, (LONG)Target.GetElementCount(), 1);
 	const UINT ClearColor[4] = {};
-	m_CommandList->ClearUnorderedAccessViewUint(GpuVisibleHandle, Target.GetUAV(), Target.GetResource(), ClearColor, 1, &ClearRect);
+	m_CommandList->ClearUnorderedAccessViewUint(GpuVisibleHandle, Target.GetUAV(), Target.GetResource(), ClearColor, 0, nullptr);
 }
 
 void ComputeContext::ClearUAV( GpuBuffer& Target )
@@ -212,9 +211,8 @@ void ComputeContext::ClearUAV( GpuBuffer& Target )
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
 	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicDescriptorHeap.UploadDirect(Target.GetUAV());
-	CD3DX12_RECT ClearRect(0, 0, (LONG)Target.GetElementCount(), 1);
 	const UINT ClearColor[4] = {};
-	m_CommandList->ClearUnorderedAccessViewUint(GpuVisibleHandle, Target.GetUAV(), Target.GetResource(), ClearColor, 1, &ClearRect);
+	m_CommandList->ClearUnorderedAccessViewUint(GpuVisibleHandle, Target.GetUAV(), Target.GetResource(), ClearColor, 0, nullptr);
 }
 
 void GraphicsContext::ClearUAV( ColorBuffer& Target )

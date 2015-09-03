@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard	
+// Author:  James Stanard 
 
 #define DYNAMIC_RESOLUTION
 #define DISABLE_DEPTH_TESTS

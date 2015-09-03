@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard	
-//				Alex Nankervis	
+// Author(s):  James Stanard
+//             Alex Nankervis
 //
 
 #include "pch.h"

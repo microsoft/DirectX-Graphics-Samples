@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author:  Julia Careaga 
-//			James Stanard 
+// Author(s):  Julia Careaga
+//             James Stanard
 //
 
 #include "pch.h"
@@ -69,88 +69,88 @@ using namespace ParticleEffects;
 
 namespace ParticleEffects
 {
-	BoolVar					Enable("Graphics/Particle Effects/Enable", true);
-	BoolVar					EnableSpriteSort("Graphics/Particle Effects/Sort Sprites", true);
-	BoolVar					EnableTiledRendering("Graphics/Particle Effects/Tiled Rendering", true);
-	BoolVar					PauseSim("Graphics/Particle Effects/Pause Simulation", false);
+	BoolVar Enable("Graphics/Particle Effects/Enable", true);
+	BoolVar EnableSpriteSort("Graphics/Particle Effects/Sort Sprites", true);
+	BoolVar EnableTiledRendering("Graphics/Particle Effects/Tiled Rendering", true);
+	BoolVar PauseSim("Graphics/Particle Effects/Pause Simulation", false);
 	const char* ResolutionLabels[] = { "High-Res", "Low-Res", "Dynamic" };
-	EnumVar					TiledRes("Graphics/Particle Effects/Tiled Sample Rate", 2, 3, ResolutionLabels);
-	NumVar					DynamicResLevel("Graphics/Particle Effects/Dynamic Resolution Cutoff", 1.0f, -4.0f, 4.0f, 0.5f);
+	EnumVar TiledRes("Graphics/Particle Effects/Tiled Sample Rate", 2, 3, ResolutionLabels);
+	NumVar DynamicResLevel("Graphics/Particle Effects/Dynamic Resolution Cutoff", 1.0f, -4.0f, 4.0f, 0.5f);
 	
-	ComputePSO				s_ParticleSpawnCS;
-	ComputePSO				s_ParticleUpdateCS;
-	ComputePSO				s_ParticleDispatchIndirectArgsCS;
+	ComputePSO s_ParticleSpawnCS;
+	ComputePSO s_ParticleUpdateCS;
+	ComputePSO s_ParticleDispatchIndirectArgsCS;
 
-	GpuBuffer				SpriteVertexBuffer;
+	StructuredBuffer SpriteVertexBuffer;
 	
-	UINT					s_ReproFrame = 0;//201;
-	RandomNumberGenerator	s_RNG;
+	UINT s_ReproFrame = 0;//201;
+	RandomNumberGenerator s_RNG;
 }
 
 struct CBChangesPerView
 {
-	Matrix4		gInvView;
-	Matrix4		gViewProj;
+	Matrix4 gInvView;
+	Matrix4 gViewProj;
 
-	float		gVertCotangent;
-	float		gAspectRatio;
-	float		gRcpFarZ;
-	float		gInvertZ;
+	float gVertCotangent;
+	float gAspectRatio;
+	float gRcpFarZ;
+	float gInvertZ;
 
-	float		gBufferWidth;
-	float		gBufferHeight;
-	float		gRcpBufferWidth;
-	float		gRcpBufferHeight;
+	float gBufferWidth;
+	float gBufferHeight;
+	float gRcpBufferWidth;
+	float gRcpBufferHeight;
 
-	uint32_t	gBinsPerRow;
-	uint32_t	gTileRowPitch;
-	uint32_t	gTilesPerRow;
-	uint32_t	gTilesPerCol;
+	uint32_t gBinsPerRow;
+	uint32_t gTileRowPitch;
+	uint32_t gTilesPerRow;
+	uint32_t gTilesPerCol;
 };
 
 namespace
 {
-	ComputePSO				s_ParticleFinalDispatchIndirectArgsCS;
-	ComputePSO				s_ParticleLargeBinCullingCS; 
-	ComputePSO				s_ParticleBinCullingCS; 
-	ComputePSO				s_ParticleTileCullingCS; 
-	ComputePSO				s_ParticleTileRenderSlowCS[3];	// High-Res, Low-Res, Dynamic-Res
-	ComputePSO				s_ParticleTileRenderFastCS[3]; 	// High-Res, Low-Res, Dynamic-Res (disable depth tests)
-	ComputePSO				s_ParticleDepthBoundsCS;
-	GraphicsPSO				s_NoTileRasterizationPSO;
-	ComputePSO				s_ParticleSortIndirectArgsCS;
-	ComputePSO				s_ParticlePreSortCS;
-	ComputePSO				s_ParticleInnerSortCS;
-	ComputePSO				s_ParticleOuterSortCS;
+	ComputePSO s_ParticleFinalDispatchIndirectArgsCS;
+	ComputePSO s_ParticleLargeBinCullingCS; 
+	ComputePSO s_ParticleBinCullingCS; 
+	ComputePSO s_ParticleTileCullingCS; 
+	ComputePSO s_ParticleTileRenderSlowCS[3];	// High-Res, Low-Res, Dynamic-Res
+	ComputePSO s_ParticleTileRenderFastCS[3]; 	// High-Res, Low-Res, Dynamic-Res (disable depth tests)
+	ComputePSO s_ParticleDepthBoundsCS;
+	GraphicsPSO s_NoTileRasterizationPSO;
+	ComputePSO s_ParticleSortIndirectArgsCS;
+	ComputePSO s_ParticlePreSortCS;
+	ComputePSO s_ParticleInnerSortCS;
+	ComputePSO s_ParticleOuterSortCS;
 
-	RootSignature			RootSig;
+	RootSignature RootSig;
 
-	GpuBuffer				SpriteIndexBuffer;
-	GpuBuffer				SortIndirectArgs;
+	StructuredBuffer SpriteIndexBuffer;
+	IndirectArgsBuffer SortIndirectArgs;
 
-	GpuBuffer				DrawIndirectArgs;
-	GpuBuffer				FinalDispatchIndirectArgs;
-	GpuBuffer				VisibleParticleBuffer;
-	GpuBuffer				BinParticles[2];
-	GpuBuffer				BinCounters[2];
-	GpuBuffer				TileCounters;
-	GpuBuffer				TileHitMasks;
+	IndirectArgsBuffer DrawIndirectArgs;
+	IndirectArgsBuffer FinalDispatchIndirectArgs;
+	StructuredBuffer VisibleParticleBuffer;
+	StructuredBuffer BinParticles[2];
+	StructuredBuffer BinCounters[2];
+	StructuredBuffer TileCounters;
+	ByteAddressBuffer TileHitMasks;
 
-	GpuBuffer				TileDrawPackets;
-	GpuBuffer				TileFastDrawPackets;
-	GpuBuffer				TileDrawDispatchIndirectArgs;
+	StructuredBuffer TileDrawPackets;
+	StructuredBuffer TileFastDrawPackets;
+	IndirectArgsBuffer TileDrawDispatchIndirectArgs;
 
-	CBChangesPerView		s_ChangesPerView;
+	CBChangesPerView s_ChangesPerView;
 
-	GpuResource						TextureArray;
-	D3D12_CPU_DESCRIPTOR_HANDLE		TextureArraySRV;
-	std::vector<std::wstring>		TextureNameArray;
+	GpuResource TextureArray;
+	D3D12_CPU_DESCRIPTOR_HANDLE TextureArraySRV;
+	std::vector<std::wstring> TextureNameArray;
 
-	std::vector<std::unique_ptr<ParticleEffect>>	ParticleEffectsPool;
-	std::vector<ParticleEffect*>	ParticleEffectsActive;
+	std::vector<std::unique_ptr<ParticleEffect>> ParticleEffectsPool;
+	std::vector<ParticleEffect*> ParticleEffectsActive;
 
-	static bool						s_InitComplete = false; 
-	UINT							TotalElapsedFrames;
+	static bool s_InitComplete = false; 
+	UINT TotalElapsedFrames;
 
 	void SetFinalBuffers(ComputeContext& CompContext)
 	{
@@ -218,7 +218,7 @@ namespace
 		{
 			ScopedTimer _p(L"Culling & Sorting", CompContext);
 
-			VisibleParticleBuffer.SetCounterValue(CompContext, 0);
+			CompContext.ResetCounter(VisibleParticleBuffer);
 
 			// The first step inserts each particle into all of the large bins it intersects.  Large bins
 			// are 512x256.
@@ -477,21 +477,14 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 	s_NoTileRasterizationPSO.Finalize();
 
 	__declspec(align(16)) UINT InitialDrawIndirectArgs[4] = { 4, 0, 0, 0 };
-	DrawIndirectArgs.Create(L"ParticleSystem::DrawIndirectArgs", eBufferType::kIndirectArgs,
-		1, sizeof(D3D12_DRAW_ARGUMENTS), InitialDrawIndirectArgs);
+	DrawIndirectArgs.Create(L"ParticleEffects::DrawIndirectArgs", 1, sizeof(D3D12_DRAW_ARGUMENTS), InitialDrawIndirectArgs);
 	__declspec(align(16)) UINT InitialDispatchIndirectArgs[6] = { 0, 1, 1, 0, 1, 1 };
-	FinalDispatchIndirectArgs.Create(L"ParticleSystem::FinalDispatchIndirectArgs", eBufferType::kIndirectArgs,
-		1, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
-	SpriteVertexBuffer.Create(L"ParticleSystem::SpriteVertexBuffer", eBufferType::kCountedStructures,
-		MAX_TOTAL_PARTICLES, sizeof(ParticleVertex));	
-	VisibleParticleBuffer.Create(L"ParticleSystem::VisibleParticleBuffer", eBufferType::kCountedStructures,
-		MAX_TOTAL_PARTICLES, sizeof(ParticleScreenData));	
-	SpriteIndexBuffer.Create(L"ParticleSystem::SpriteIndexBuffer", eBufferType::kStructures,
-		MAX_TOTAL_PARTICLES, sizeof(UINT));	
-	SortIndirectArgs.Create(L"ParticleSystem::SortIndirectArgs", eBufferType::kIndirectArgs,
-		8, sizeof(D3D12_DISPATCH_ARGUMENTS));
-	TileDrawDispatchIndirectArgs.Create(L"ParticleSystem::DrawPackets_IArgs", eBufferType::kIndirectArgs,
-		2, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
+	FinalDispatchIndirectArgs.Create(L"ParticleEffects::FinalDispatchIndirectArgs", 1, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
+	SpriteVertexBuffer.Create(L"ParticleEffects::SpriteVertexBuffer", MAX_TOTAL_PARTICLES, sizeof(ParticleVertex));
+	VisibleParticleBuffer.Create(L"ParticleEffects::VisibleParticleBuffer", MAX_TOTAL_PARTICLES, sizeof(ParticleScreenData));
+	SpriteIndexBuffer.Create(L"ParticleEffects::SpriteIndexBuffer", MAX_TOTAL_PARTICLES, sizeof(UINT));	
+	SortIndirectArgs.Create(L"ParticleEffects::SortIndirectArgs", 8, sizeof(D3D12_DISPATCH_ARGUMENTS));
+	TileDrawDispatchIndirectArgs.Create(L"ParticleEffects::DrawPackets_IArgs", 2, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
 
 	const uint32_t LargeBinsPerRow = DivideByMultiple(MaxDisplayWidth, 4 * BIN_SIZE_X);
 	const uint32_t LargeBinsPerCol = DivideByMultiple(MaxDisplayHeight, 4 * BIN_SIZE_Y);
@@ -506,22 +499,14 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 	const uint32_t PaddedTilesPerRow = AlignUp(TilesPerRow, TILES_PER_BIN_X * 4);
 	const uint32_t PaddedTilesPerCol = AlignUp(TilesPerCol, TILES_PER_BIN_Y * 4);
 
-	BinParticles[0].Create(L"ParticleSystem::BinParticles[0]", eBufferType::kStructures,
-		ParticleBinCapacity, sizeof(UINT));
-	BinParticles[1].Create(L"ParticleSystem::BinParticles[1]", eBufferType::kStructures,
-		ParticleBinCapacity, sizeof(UINT));
-	BinCounters[0].Create(L"ParticleSystem::LargeBinCounters", eBufferType::kStructures,
-		LargeBinsPerRow * LargeBinsPerCol, sizeof(UINT));
-	BinCounters[1].Create(L"ParticleSystem::BinCounters", eBufferType::kStructures,
-		BinsPerRow * BinsPerCol, sizeof(UINT));
-	TileCounters.Create(L"ParticleSystem::TileCounters", eBufferType::kStructures,
-		PaddedTilesPerRow * PaddedTilesPerCol, sizeof(UINT));
-	TileHitMasks.Create(L"ParticleSystem::TileHitMasks", eBufferType::kByteAddress,
-		PaddedTilesPerRow * PaddedTilesPerCol, MAX_PARTICLES_PER_BIN / 8);
-	TileDrawPackets.Create(L"ParticleSystem::DrawPackets", eBufferType::kStructures,
-		TilesPerRow * TilesPerCol, sizeof(UINT));
-	TileFastDrawPackets.Create(L"ParticleSystem::FastDrawPackets", eBufferType::kStructures,
-		TilesPerRow * TilesPerCol, sizeof(UINT));
+	BinParticles[0].Create(L"ParticleEffects::BinParticles[0]", ParticleBinCapacity, sizeof(UINT));
+	BinParticles[1].Create(L"ParticleEffects::BinParticles[1]", ParticleBinCapacity, sizeof(UINT));
+	BinCounters[0].Create(L"ParticleEffects::LargeBinCounters", LargeBinsPerRow * LargeBinsPerCol, sizeof(UINT));
+	BinCounters[1].Create(L"ParticleEffects::BinCounters", BinsPerRow * BinsPerCol, sizeof(UINT));
+	TileCounters.Create(L"ParticleEffects::TileCounters", PaddedTilesPerRow * PaddedTilesPerCol, sizeof(UINT));
+	TileHitMasks.Create(L"ParticleEffects::TileHitMasks", PaddedTilesPerRow * PaddedTilesPerCol, MAX_PARTICLES_PER_BIN / 8);
+	TileDrawPackets.Create(L"ParticleEffects::DrawPackets", TilesPerRow * TilesPerCol, sizeof(UINT));
+	TileFastDrawPackets.Create(L"ParticleEffects::FastDrawPackets", TilesPerRow * TilesPerCol, sizeof(UINT));
 
 	D3D12_RESOURCE_DESC TexDesc = {};
 	TexDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -541,7 +526,7 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 	HeapProps.VisibleNodeMask = 1;
 
 	ID3D12Resource* tex = nullptr;
-    ASSERT_SUCCEEDED( g_Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
+	ASSERT_SUCCEEDED( g_Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
 		&TexDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, MY_IID_PPV_ARGS(&tex)) );
 
 	TextureArray = GpuResource(tex, D3D12_RESOURCE_STATE_COMMON);
@@ -549,9 +534,9 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
 	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    SRVDesc.Format = DXGI_FORMAT_BC3_UNORM_SRGB;
-    SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-    SRVDesc.Texture2DArray.MipLevels = 1;
+	SRVDesc.Format = DXGI_FORMAT_BC3_UNORM_SRGB;
+	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+	SRVDesc.Texture2DArray.MipLevels = 1;
 	SRVDesc.Texture2DArray.ArraySize = 16;
 	
 	TextureArraySRV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -665,7 +650,7 @@ void ParticleEffects::Update(ComputeContext& Context, float timeDelta )
 	if (PauseSim)
 		return;
 
-	SpriteVertexBuffer.SetCounterValue(Context, 0);
+	Context.ResetCounter(SpriteVertexBuffer);
 
 	if (ParticleEffectsActive.size() == 0)
 		return;

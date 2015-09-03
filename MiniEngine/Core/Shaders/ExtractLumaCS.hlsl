@@ -21,7 +21,7 @@ RWTexture2D<uint> LumaResult : register( u0 );
 
 cbuffer cb0
 {
-	float2	g_inverseOutputSize;
+	float2 g_inverseOutputSize;
 }
 
 [numthreads( 8, 8, 1 )]

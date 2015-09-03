@@ -97,7 +97,7 @@ public:
 	// A more powerful function which formats text like printf().  Very slow by comparison, so use it
 	// only if you're going to format text anyway.
 	void DrawFormattedString( const wchar_t* format, ... );
-	void DrawFormattedString( const char*    format, ... );
+	void DrawFormattedString( const char* format, ... );
 
 private:
 
@@ -132,20 +132,20 @@ private:
 	void DrawStringInternal( const std::wstring& str );
 
 	GraphicsContext& m_Context;
-	const TextRenderer::Font*	m_CurrentFont;
-	VertexShaderParams			m_VSParams;
-	PixelShaderParams			m_PSParams;
-	bool						m_VSConstantBufferIsStale;	// Tracks when the CB needs updating
-	bool						m_PSConstantBufferIsStale;	// Tracks when the CB needs updating
-	bool						m_TextureIsStale;
-	bool						m_EnableShadow;
-	float						m_LeftMargin;
-	float						m_TextPosX;
-	float						m_TextPosY;
-	float						m_LineHeight;
-	float						m_ViewWidth;				// Width of the drawable area
-	float						m_ViewHeight;				// Height of the drawable area
-	float						m_ShadowOffsetX;			// Percentage of the font's TextSize should the shadow be offset
-	float						m_ShadowOffsetY;			// Percentage of the font's TextSize should the shadow be offset
-	BOOL						m_HDR;
+	const TextRenderer::Font* m_CurrentFont;
+	VertexShaderParams m_VSParams;
+	PixelShaderParams m_PSParams;
+	bool m_VSConstantBufferIsStale;	// Tracks when the CB needs updating
+	bool m_PSConstantBufferIsStale;	// Tracks when the CB needs updating
+	bool m_TextureIsStale;
+	bool m_EnableShadow;
+	float m_LeftMargin;
+	float m_TextPosX;
+	float m_TextPosY;
+	float m_LineHeight;
+	float m_ViewWidth;				// Width of the drawable area
+	float m_ViewHeight;				// Height of the drawable area
+	float m_ShadowOffsetX;			// Percentage of the font's TextSize should the shadow be offset
+	float m_ShadowOffsetY;			// Percentage of the font's TextSize should the shadow be offset
+	BOOL m_HDR;
 };

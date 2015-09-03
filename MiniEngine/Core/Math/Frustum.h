@@ -36,16 +36,16 @@ namespace Math
 			kNearPlane, kFarPlane, kLeftPlane, kRightPlane, kTopPlane, kBottomPlane
 		};
 
-		Vector3			GetFrustumCorner( CornerID id ) const	{ return m_FrustumCorners[id]; }
-		BoundingPlane	GetFrustumPlane( PlaneID id ) const		{ return m_FrustumPlanes[id]; }
+		Vector3         GetFrustumCorner( CornerID id ) const   { return m_FrustumCorners[id]; }
+		BoundingPlane   GetFrustumPlane( PlaneID id ) const     { return m_FrustumPlanes[id]; }
 
 		// Test whether the bounding sphere intersects the frustum.  Intersection is defined as either being
 		// fully contained in the frustum, or by intersecting one or more of the planes.
 		bool IntersectSphere( BoundingSphere sphere );
 
-		friend Frustum	operator* ( const OrthogonalTransform& xform, const Frustum& frustum );	// Fast
-		friend Frustum	operator* ( const AffineTransform& xform, const Frustum& frustum );		// Slow
-		friend Frustum	operator* ( const Matrix4& xform, const Frustum& frustum );				// Slowest (and most general)
+		friend Frustum  operator* ( const OrthogonalTransform& xform, const Frustum& frustum );	// Fast
+		friend Frustum  operator* ( const AffineTransform& xform, const Frustum& frustum );		// Slow
+		friend Frustum  operator* ( const Matrix4& xform, const Frustum& frustum );				// Slowest (and most general)
 
 	private:
 
@@ -55,8 +55,8 @@ namespace Math
 		// Orthographic frustum constructor (for box-shaped frusta)
 		void ConstructOrthographicFrustum( float Left, float Right, float Top, float Bottom, float NearClip, float FarClip );
 
-		Vector3			m_FrustumCorners[8];		// the corners of the frustum
-		BoundingPlane	m_FrustumPlanes[6];			// the bounding planes
+		Vector3 m_FrustumCorners[8];		// the corners of the frustum
+		BoundingPlane m_FrustumPlanes[6];			// the bounding planes
 	};
 
 	//=======================================================================================================
@@ -74,7 +74,7 @@ namespace Math
 		return true;
 	}
 
-	inline Frustum	operator* ( const OrthogonalTransform& xform, const Frustum& frustum )
+	inline Frustum operator* ( const OrthogonalTransform& xform, const Frustum& frustum )
 	{
 		Frustum result;
 
@@ -90,7 +90,7 @@ namespace Math
 		return result;
 	}
 
-	inline Frustum	operator* ( const AffineTransform& xform, const Frustum& frustum )
+	inline Frustum operator* ( const AffineTransform& xform, const Frustum& frustum )
 	{
 		Frustum result;
 
@@ -105,7 +105,7 @@ namespace Math
 		return result;
 	}
 
-	inline Frustum	operator* ( const Matrix4& mtx, const Frustum& frustum )
+	inline Frustum operator* ( const Matrix4& mtx, const Frustum& frustum )
 	{
 		Frustum result;
 

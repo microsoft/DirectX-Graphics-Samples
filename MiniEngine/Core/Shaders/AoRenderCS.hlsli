@@ -16,13 +16,13 @@
 #endif
 
 #ifdef INTERLEAVE_RESULT
-Texture2DArray<float>	DepthTex	: register(t0);
+Texture2DArray<float> DepthTex : register(t0);
 #else
-Texture2D<float>		DepthTex	: register(t0);
+Texture2D<float> DepthTex : register(t0);
 #endif
-RWTexture2D<float>		Occlusion	: register(u0);
-SamplerState	LinearBorderSampler	: register(s1);
-cbuffer				ConstantBuffer	: register(b1)
+RWTexture2D<float> Occlusion : register(u0);
+SamplerState LinearBorderSampler : register(s1);
+cbuffer ConstantBuffer : register(b1)
 {
 	float4 gInvThicknessTable[3];
 	float4 gSampleWeightTable[3];
@@ -137,7 +137,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 //#define SAMPLE_EXHAUSTIVELY
 
 #ifdef SAMPLE_EXHAUSTIVELY
-	// 68 samples:	sample all cells in *within* a circular radius of 5
+	// 68 samples:  sample all cells in *within* a circular radius of 5
 	ao += gSampleWeightTable[0].x * TestSamples(thisIdx, 1, 0, invThisDepth, gInvThicknessTable[0].x);
 	ao += gSampleWeightTable[0].y * TestSamples(thisIdx, 2, 0, invThisDepth, gInvThicknessTable[0].y);
 	ao += gSampleWeightTable[0].z * TestSamples(thisIdx, 3, 0, invThisDepth, gInvThicknessTable[0].z);

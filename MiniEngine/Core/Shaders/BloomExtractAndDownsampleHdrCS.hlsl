@@ -22,8 +22,8 @@ RWTexture2D<uint> LumaResult : register( u1 );
 
 cbuffer cb0
 {
-	float2	g_inverseOutputSize;
-    float   g_bloomThreshold;
+	float2 g_inverseOutputSize;
+	float g_bloomThreshold;
 }
 
 [numthreads( 8, 8, 1 )]
@@ -50,10 +50,10 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	float ScaledThreshold = g_bloomThreshold * Exposure[1];	// BloomThreshold / Exposure
 
 	// We perform a brightness filter pass, where lone bright pixels will contribute less.
-    color1 *= max(kSmallEpsilon, luma1 - ScaledThreshold) / (luma1 + kSmallEpsilon);
-    color2 *= max(kSmallEpsilon, luma2 - ScaledThreshold) / (luma2 + kSmallEpsilon);
-    color3 *= max(kSmallEpsilon, luma3 - ScaledThreshold) / (luma3 + kSmallEpsilon);
-    color4 *= max(kSmallEpsilon, luma4 - ScaledThreshold) / (luma4 + kSmallEpsilon);
+	color1 *= max(kSmallEpsilon, luma1 - ScaledThreshold) / (luma1 + kSmallEpsilon);
+	color2 *= max(kSmallEpsilon, luma2 - ScaledThreshold) / (luma2 + kSmallEpsilon);
+	color3 *= max(kSmallEpsilon, luma3 - ScaledThreshold) / (luma3 + kSmallEpsilon);
+	color4 *= max(kSmallEpsilon, luma4 - ScaledThreshold) / (luma4 + kSmallEpsilon);
 
 	// The shimmer filter helps remove stray bright pixels from the bloom buffer by inversely weighting
 	// them by their luminance.  The overall effect is to shrink bright pixel regions around the border.

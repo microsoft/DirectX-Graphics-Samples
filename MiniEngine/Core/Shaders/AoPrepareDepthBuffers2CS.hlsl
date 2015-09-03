@@ -11,11 +11,11 @@
 // Author:  James Stanard 
 //
 
-Texture2D<float>		DS4x		: register(t0);
-RWTexture2D<float>		DS8x		: register(u0);
-RWTexture2DArray<float>	DS8xAtlas	: register(u1);
-RWTexture2D<float>		DS16x		: register(u2);
-RWTexture2DArray<float>	DS16xAtlas	: register(u3);
+Texture2D<float> DS4x : register(t0);
+RWTexture2D<float> DS8x : register(u0);
+RWTexture2DArray<float> DS8xAtlas : register(u1);
+RWTexture2D<float> DS16x : register(u2);
+RWTexture2DArray<float> DS16xAtlas : register(u3);
 
 SamplerState		LinearSampler	: register(s0);
 

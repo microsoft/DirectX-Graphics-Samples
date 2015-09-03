@@ -11,5 +11,5 @@
 // Author:  James Stanard 
 //
 
-#define PRESERVE_HUE	1
+#define PRESERVE_HUE 1
 #include "ToneMapCS.hlsl"

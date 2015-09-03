@@ -21,9 +21,9 @@ SamplerState LinearSampler : register( s0 );
 
 cbuffer ConstantBuffer : register( b0 )
 {
-	float2	g_RcpBufferDim;
-	float	g_BloomStrength;
-	float	g_LumaGamma;
+	float2 g_RcpBufferDim;
+	float g_BloomStrength;
+	float g_LumaGamma;
 };
 
 [numthreads( 8, 8, 1 )]
@@ -32,7 +32,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	float2 TexCoord = (DTid.xy + 0.5) * g_RcpBufferDim;
 
 	// Load LDR and bloom
-	float3	ldrColor = SrcColor[DTid.xy] + g_BloomStrength * Bloom.SampleLevel( LinearSampler, TexCoord, 0 );
+	float3 ldrColor = SrcColor[DTid.xy] + g_BloomStrength * Bloom.SampleLevel( LinearSampler, TexCoord, 0 );
 
 	DstColor[DTid.xy] = ldrColor;
 	OutLuma[DTid.xy] = RGBToLogLuminance( ldrColor, g_LumaGamma );

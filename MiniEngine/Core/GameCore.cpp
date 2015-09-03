@@ -78,7 +78,7 @@ namespace GameCore
 		return true;
 	}
 
-	HWND		g_hWnd	= nullptr;
+	HWND g_hWnd = nullptr;
 
 	void InitWindow( const wchar_t* className );
 	LRESULT CALLBACK WndProc( HWND, UINT, WPARAM, LPARAM );

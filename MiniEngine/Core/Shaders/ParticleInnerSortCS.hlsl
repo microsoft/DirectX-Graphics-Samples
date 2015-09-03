@@ -46,7 +46,7 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
 		}
 
 		GroupMemoryBarrierWithGroupSync();
-    }
+	}
 
 	g_SortBuffer[RangeStart + GI] = gs_SortKeys[GI];
 	g_SortBuffer[RangeStart + GI + 1024] = gs_SortKeys[GI + 1024];

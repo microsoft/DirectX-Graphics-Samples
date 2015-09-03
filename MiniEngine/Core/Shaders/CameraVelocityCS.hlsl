@@ -17,8 +17,8 @@
 // its Z=0 maps to the far plane.  With linear Z, Z=0 maps to the eye position.  Both extend to Z=1.
 #define USE_LINEAR_Z
 
-Texture2D<float>		DepthBuffer		: register(t0);
-RWTexture2D<float2>		MotionBuffer	: register(u0);
+Texture2D<float> DepthBuffer : register(t0);
+RWTexture2D<float2> MotionBuffer : register(u0);
 
 cbuffer ConstantBuffer : register(b1)
 {

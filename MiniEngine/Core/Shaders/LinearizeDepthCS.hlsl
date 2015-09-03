@@ -11,10 +11,10 @@
 // Author:  James Stanard 
 //
 
-RWTexture2D<float>		LinearZ		: register(u0);
-Texture2D<float>		Depth		: register(t0);
+RWTexture2D<float> LinearZ : register(u0);
+Texture2D<float> Depth : register(t0);
 
-cbuffer ConstantBuffer	: register(b0)
+cbuffer ConstantBuffer : register(b0)
 {
 	float ZMagic;				// (zFar - zNear) / zNear
 }

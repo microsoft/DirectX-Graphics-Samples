@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard	
+// Author(s):   James Stanard
 
 #include "ParticleUpdateCommon.hlsli"
 #include "ParticleUtility.hlsli"
@@ -19,7 +19,7 @@ StructuredBuffer<uint> g_IndexBuffer : register( t3 );
 ParticleVertexOutput main( uint BillboardVertex : SV_VertexID, uint InstanceId : SV_InstanceID )
 {
 	ParticleVertex In = g_VertexBuffer[ g_IndexBuffer[InstanceId] & 0x3FFFF ];
-    ParticleVertexOutput Out;
+	ParticleVertexOutput Out;
 
 	Out.TexCoord = float2((BillboardVertex >> 1) & 1, BillboardVertex & 1);
 	Out.Color = In.Color;

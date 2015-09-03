@@ -11,9 +11,9 @@
 // Author:  James Stanard 
 //
 
-Texture2D<float3>		ColorBuffer		: register(t0);
-Texture2D<float2>		MotionBuffer	: register(t1);
-RWTexture2D<float4>		PrepBuffer		: register(u0);
+Texture2D<float3> ColorBuffer : register(t0);
+Texture2D<float2> MotionBuffer : register(t1);
+RWTexture2D<float4> PrepBuffer : register(u0);
 
 float4 GetSampleData( uint2 st )
 {

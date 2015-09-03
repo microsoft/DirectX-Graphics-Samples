@@ -92,11 +92,11 @@ void RootSignature::Finalize(D3D12_ROOT_SIGNATURE_FLAGS Flags)
 	ASSERT(m_NumInitializedStaticSamplers == m_NumSamplers);
 
 	D3D12_ROOT_SIGNATURE_DESC RootDesc;
-    RootDesc.NumParameters = m_NumParameters;
-    RootDesc.pParameters = (const D3D12_ROOT_PARAMETER*)m_ParamArray.get();
-    RootDesc.NumStaticSamplers = m_NumSamplers;
-    RootDesc.pStaticSamplers = (const D3D12_STATIC_SAMPLER_DESC*)m_SamplerArray.get();
-    RootDesc.Flags = Flags;
+	RootDesc.NumParameters = m_NumParameters;
+	RootDesc.pParameters = (const D3D12_ROOT_PARAMETER*)m_ParamArray.get();
+	RootDesc.NumStaticSamplers = m_NumSamplers;
+	RootDesc.pStaticSamplers = (const D3D12_STATIC_SAMPLER_DESC*)m_SamplerArray.get();
+	RootDesc.Flags = Flags;
 
 	m_DescriptorTableBitMap = 0;
 	m_MaxDescriptorCacheHandleCount = 0;

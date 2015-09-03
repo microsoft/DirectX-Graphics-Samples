@@ -14,12 +14,12 @@
 
 #define USE_LINEAR_Z
 
-Texture2D<float3>	SrcColor		: register(t0);
-Texture2D<float>	DepthBuffer		: register(t1);
-Texture2D<float4>	TemporalIn		: register(t2);
+Texture2D<float3> SrcColor : register(t0);
+Texture2D<float> DepthBuffer : register(t1);
+Texture2D<float4> TemporalIn : register(t2);
 
-RWTexture2D<float3>	DstColor		: register(u0);		// final output color (blurred and temporally blended)
-RWTexture2D<float4>	TemporalOut		: register(u1);		// color to save for next frame including its validity in alpha
+RWTexture2D<float3> DstColor : register(u0);		// final output color (blurred and temporally blended)
+RWTexture2D<float4> TemporalOut : register(u1);		// color to save for next frame including its validity in alpha
 
 SamplerState LinearSampler : register(s0);
 
@@ -32,8 +32,8 @@ cbuffer ConstantBuffer : register(b1)
 
 struct MRT
 {
-	float3 BlendedColor	: SV_Target0;
-	float4 TemporalOut	: SV_Target1;
+	float3 BlendedColor : SV_Target0;
+	float4 TemporalOut : SV_Target1;
 };
 
 [numthreads( 8, 8, 1 )]

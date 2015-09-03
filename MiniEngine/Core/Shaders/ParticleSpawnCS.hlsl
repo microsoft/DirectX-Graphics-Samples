@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author:  Julia Careaga 
-//			James Stanard 
+// Author:  Julia Careaga
+//          James Stanard 
 //
 
 #include "ParticleUpdateCommon.hlsli"

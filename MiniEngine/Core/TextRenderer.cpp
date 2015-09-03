@@ -180,9 +180,9 @@ namespace TextRenderer
 		return newFont;
 	}
 
-	RootSignature				s_RootSignature;
-	GraphicsPSO					s_TextPSO[2];	// 0: R8G8B8A8_UNORM   1: R11G11B10_FLOAT
-	GraphicsPSO					s_ShadowPSO[2];	// 0: R8G8B8A8_UNORM   1: R11G11B10_FLOAT
+	RootSignature s_RootSignature;
+	GraphicsPSO s_TextPSO[2];	// 0: R8G8B8A8_UNORM   1: R11G11B10_FLOAT
+	GraphicsPSO s_ShadowPSO[2];	// 0: R8G8B8A8_UNORM   1: R11G11B10_FLOAT
 
 
 } // namespace TextRenderer
@@ -272,12 +272,12 @@ void TextContext::ResetSettings( void )
 }
 
 void  TextContext::SetLeftMargin( float x ) { m_LeftMargin = x; }
-void  TextContext::SetCursorX( float x )	{ m_TextPosX = x; }
-void  TextContext::SetCursorY( float y )	{ m_TextPosY = y; }
-void  TextContext::NewLine( void )			{ m_TextPosX = m_LeftMargin; m_TextPosY += m_LineHeight; }
-float TextContext::GetLeftMargin( void )	{ return m_LeftMargin; }
-float TextContext::GetCursorX( void )		{ return m_TextPosX; }
-float TextContext::GetCursorY( void )		{ return m_TextPosY; }
+void  TextContext::SetCursorX( float x ) { m_TextPosX = x; }
+void  TextContext::SetCursorY( float y ) { m_TextPosY = y; }
+void  TextContext::NewLine( void ) { m_TextPosX = m_LeftMargin; m_TextPosY += m_LineHeight; }
+float TextContext::GetLeftMargin( void ) { return m_LeftMargin; }
+float TextContext::GetCursorX( void ) { return m_TextPosX; }
+float TextContext::GetCursorY( void ) { return m_TextPosY; }
 
 
 void TextContext::ResetCursor(float x, float y)

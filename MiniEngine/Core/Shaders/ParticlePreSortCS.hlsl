@@ -77,8 +77,8 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
 	GroupMemoryBarrierWithGroupSync();
 
 	for (uint k = 2; k <= 2048; k <<= 1)
-    { 
-        for (uint j = k >> 1; j > 0; j >>= 1)
+	{
+		for (uint j = k >> 1; j > 0; j >>= 1)
 		{
 			uint Index1 = InsertZeroBit(GI, j);
 			uint Index2 = Index1 ^ j;
@@ -93,7 +93,7 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
 			}
 
 			GroupMemoryBarrierWithGroupSync();
-        }
+		}
 	}
 
 

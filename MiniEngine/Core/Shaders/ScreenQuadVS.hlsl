@@ -8,14 +8,14 @@
 //
 // Developed by Minigraph
 //
-// Author:  James Stanard 
+// Author:  James Stanard
 //
 // The VS for doing a full-screen effect without a vertex buffer.
 
 struct QuadVS_Output
 {
-    float4 Pos : SV_POSITION;              
-    float2 Tex : TEXCOORD0;
+	float4 Pos : SV_POSITION;
+	float2 Tex : TEXCOORD0;
 };
 
 QuadVS_Output main( uint vertID : SV_VertexID )
@@ -23,7 +23,7 @@ QuadVS_Output main( uint vertID : SV_VertexID )
 	float2 uv = float2( (vertID >> 1) & 1, vertID & 1 ) * 2.0f;
 
 	QuadVS_Output Output;
-    Output.Pos = float4( lerp( float2(-1.0f, 1.0f), float2(1.0f, -1.0f), uv ), 0.0f, 1.0f );
-    Output.Tex = uv;
-    return Output;
+	Output.Pos = float4( lerp( float2(-1.0f, 1.0f), float2(1.0f, -1.0f), uv ), 0.0f, 1.0f );
+	Output.Tex = uv;
+	return Output;
 }

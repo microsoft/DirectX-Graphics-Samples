@@ -8,11 +8,11 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard	
+// Author:  James Stanard 
 
 #include "ShaderUtility.hlsli"
 
-Texture2D<float3>	ColorTex	: register(t0);
+Texture2D<float3> ColorTex : register(t0);
 
 SamplerState BilinearFilter : register(s0);
 

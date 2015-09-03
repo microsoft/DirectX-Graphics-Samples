@@ -38,11 +38,11 @@ protected:
 	static std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> sm_DescriptorHeapPool;
 	static ID3D12DescriptorHeap* RequestNewHeap( D3D12_DESCRIPTOR_HEAP_TYPE Type );
 
-	D3D12_DESCRIPTOR_HEAP_TYPE		m_Type;
-	ID3D12DescriptorHeap*			m_CurrentHeap;
-	D3D12_CPU_DESCRIPTOR_HANDLE		m_CurrentHandle;
-	uint32_t						m_DescriptorSize;
-	uint32_t						m_RemainingFreeHandles;
+	D3D12_DESCRIPTOR_HEAP_TYPE m_Type;
+	ID3D12DescriptorHeap* m_CurrentHeap;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_CurrentHandle;
+	uint32_t m_DescriptorSize;
+	uint32_t m_RemainingFreeHandles;
 };
 
 

@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author:  James Stanard 
-//			Julia Careaga 
+// Author(s):   James Stanard 
+//              Julia Careaga
 //
 
 #include "ParticleUtility.hlsli"
@@ -43,8 +43,8 @@ groupshared uint gs_MinMaxDepth[TILES_PER_BIN];
 void BitonicSort(uint GI, uint NumElements, uint NumThreads)
 {
 	for (uint k = 2; k <= NumElements; k *= 2)
-    { 
-        for (uint j = k / 2; j > 0; j /= 2)
+	{
+		for (uint j = k / 2; j > 0; j /= 2)
 		{
 			// Loop over all N/2 unique element pairs
 			for (uint i = GI; i < NumElements / 2; i += NumThreads)
@@ -63,7 +63,7 @@ void BitonicSort(uint GI, uint NumElements, uint NumThreads)
 			}
 
 			GroupMemoryBarrierWithGroupSync();
-        }
+		}
 	}
 }
 

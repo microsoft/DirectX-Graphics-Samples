@@ -19,59 +19,61 @@
 
 namespace Graphics
 {
-	DepthBuffer			g_SceneDepthBuffer;
-	ColorBuffer			g_SceneColorBuffer;
-	ColorBuffer			g_OverlayBuffer;
+	DepthBuffer g_SceneDepthBuffer;
+	ColorBuffer g_SceneColorBuffer;
+	ColorBuffer g_OverlayBuffer;
 
-	ColorBuffer			g_VelocityBuffer;
-	ShadowBuffer		g_ShadowBuffer;
+	ColorBuffer g_VelocityBuffer;
+	ShadowBuffer g_ShadowBuffer;
 
-	ColorBuffer			g_SSAOFullScreen(Color(1.0f, 1.0f, 1.0f));
-	ColorBuffer			g_LinearDepth;
-	ColorBuffer			g_MinMaxDepth8;
-	ColorBuffer			g_MinMaxDepth16;
-	ColorBuffer			g_MinMaxDepth32;
-	ColorBuffer			g_DepthDownsize1;
-	ColorBuffer			g_DepthDownsize2;
-	ColorBuffer			g_DepthDownsize3;
-	ColorBuffer			g_DepthDownsize4;
-	ColorBuffer			g_DepthTiled1;
-	ColorBuffer			g_DepthTiled2;
-	ColorBuffer			g_DepthTiled3;
-	ColorBuffer			g_DepthTiled4;
-	ColorBuffer			g_AOMerged1;
-	ColorBuffer			g_AOMerged2;
-	ColorBuffer			g_AOMerged3;
-	ColorBuffer			g_AOMerged4;
-	ColorBuffer			g_AOSmooth1;
-	ColorBuffer			g_AOSmooth2;
-	ColorBuffer			g_AOSmooth3;
-	ColorBuffer			g_AOHighQuality1;
-	ColorBuffer			g_AOHighQuality2;
-	ColorBuffer			g_AOHighQuality3;
-	ColorBuffer			g_AOHighQuality4;
+	ColorBuffer g_SSAOFullScreen(Color(1.0f, 1.0f, 1.0f));
+	ColorBuffer g_LinearDepth;
+	ColorBuffer g_MinMaxDepth8;
+	ColorBuffer g_MinMaxDepth16;
+	ColorBuffer g_MinMaxDepth32;
+	ColorBuffer g_DepthDownsize1;
+	ColorBuffer g_DepthDownsize2;
+	ColorBuffer g_DepthDownsize3;
+	ColorBuffer g_DepthDownsize4;
+	ColorBuffer g_DepthTiled1;
+	ColorBuffer g_DepthTiled2;
+	ColorBuffer g_DepthTiled3;
+	ColorBuffer g_DepthTiled4;
+	ColorBuffer g_AOMerged1;
+	ColorBuffer g_AOMerged2;
+	ColorBuffer g_AOMerged3;
+	ColorBuffer g_AOMerged4;
+	ColorBuffer g_AOSmooth1;
+	ColorBuffer g_AOSmooth2;
+	ColorBuffer g_AOSmooth3;
+	ColorBuffer g_AOHighQuality1;
+	ColorBuffer g_AOHighQuality2;
+	ColorBuffer g_AOHighQuality3;
+	ColorBuffer g_AOHighQuality4;
 
-	ColorBuffer			g_DoFTileClass[2];
-	ColorBuffer			g_DoFPresortBuffer;
-	ColorBuffer			g_DoFPrefilter;
-	ColorBuffer			g_DoFBlurColor[2];
-	ColorBuffer			g_DoFBlurAlpha[2];
-	GpuBuffer			g_DoFWorkQueue;
-	GpuBuffer			g_DoFFastQueue;
-	GpuBuffer			g_DoFFixupQueue;
+	ColorBuffer g_DoFTileClass[2];
+	ColorBuffer g_DoFPresortBuffer;
+	ColorBuffer g_DoFPrefilter;
+	ColorBuffer g_DoFBlurColor[2];
+	ColorBuffer g_DoFBlurAlpha[2];
+	StructuredBuffer g_DoFWorkQueue;
+	StructuredBuffer g_DoFFastQueue;
+	StructuredBuffer g_DoFFixupQueue;
 
-	ColorBuffer			g_MotionPrepBuffer;
-	ColorBuffer			g_LumaBuffer;
-	ColorBuffer			g_TemporalBuffer[2];
-	ColorBuffer			g_aBloomUAV1[2];	// 640x384 (1/3)
-	ColorBuffer			g_aBloomUAV2[2];	// 320x192 (1/6)  
-	ColorBuffer			g_aBloomUAV3[2];	// 160x96  (1/12)
-	ColorBuffer			g_aBloomUAV4[2];	// 80x48   (1/24)
-	ColorBuffer			g_aBloomUAV5[2];	// 40x24   (1/48)
-	ColorBuffer			g_LumaLR;
-	GpuBuffer			g_Histogram;
-	GpuBuffer			g_FXAAWorkQueueH;
-	GpuBuffer			g_FXAAWorkQueueV;
+	ColorBuffer g_MotionPrepBuffer;
+	ColorBuffer g_LumaBuffer;
+	ColorBuffer g_TemporalBuffer[2];
+	ColorBuffer g_aBloomUAV1[2];	// 640x384 (1/3)
+	ColorBuffer g_aBloomUAV2[2];	// 320x192 (1/6)  
+	ColorBuffer g_aBloomUAV3[2];	// 160x96  (1/12)
+	ColorBuffer g_aBloomUAV4[2];	// 80x48   (1/24)
+	ColorBuffer g_aBloomUAV5[2];	// 40x24   (1/48)
+	ColorBuffer g_LumaLR;
+	ByteAddressBuffer g_Histogram;
+	StructuredBuffer g_FXAAWorkQueueH;
+	StructuredBuffer g_FXAAWorkQueueV;
+	TypedBuffer g_FXAAColorQueueH(DXGI_FORMAT_R11G11B10_FLOAT);
+	TypedBuffer g_FXAAColorQueueV(DXGI_FORMAT_R11G11B10_FLOAT);
 }
 
 #define T2X_COLOR_FORMAT DXGI_FORMAT_R10G10B10A2_UNORM
@@ -121,10 +123,10 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 						g_DepthDownsize2.Create( L"Depth Down-Sized 2", bufferWidth2, bufferHeight2, 1, DXGI_FORMAT_R32_FLOAT, esram );
 						g_DepthDownsize3.Create( L"Depth Down-Sized 3", bufferWidth3, bufferHeight3, 1, DXGI_FORMAT_R32_FLOAT, esram );
 						g_DepthDownsize4.Create( L"Depth Down-Sized 4", bufferWidth4, bufferHeight4, 1, DXGI_FORMAT_R32_FLOAT, esram );
-						g_DepthTiled1.Create( L"Depth De-Interleaved 1", bufferWidth3, bufferHeight3, 16, DXGI_FORMAT_R32_FLOAT, esram );
-						g_DepthTiled2.Create( L"Depth De-Interleaved 2", bufferWidth4, bufferHeight4, 16, DXGI_FORMAT_R32_FLOAT, esram );
-						g_DepthTiled3.Create( L"Depth De-Interleaved 3", bufferWidth5, bufferHeight5, 16, DXGI_FORMAT_R32_FLOAT, esram );
-						g_DepthTiled4.Create( L"Depth De-Interleaved 4", bufferWidth6, bufferHeight6, 16, DXGI_FORMAT_R32_FLOAT, esram );
+						g_DepthTiled1.CreateArray( L"Depth De-Interleaved 1", bufferWidth3, bufferHeight3, 16, DXGI_FORMAT_R32_FLOAT, esram );
+						g_DepthTiled2.CreateArray( L"Depth De-Interleaved 2", bufferWidth4, bufferHeight4, 16, DXGI_FORMAT_R32_FLOAT, esram );
+						g_DepthTiled3.CreateArray( L"Depth De-Interleaved 3", bufferWidth5, bufferHeight5, 16, DXGI_FORMAT_R32_FLOAT, esram );
+						g_DepthTiled4.CreateArray( L"Depth De-Interleaved 4", bufferWidth6, bufferHeight6, 16, DXGI_FORMAT_R32_FLOAT, esram );
 						g_AOMerged1.Create( L"AO Re-Interleaved 1", bufferWidth1, bufferHeight1, 1, DXGI_FORMAT_R8_UNORM, esram );
 						g_AOMerged2.Create( L"AO Re-Interleaved 2", bufferWidth2, bufferHeight2, 1, DXGI_FORMAT_R8_UNORM, esram );
 						g_AOMerged3.Create( L"AO Re-Interleaved 3", bufferWidth3, bufferHeight3, 1, DXGI_FORMAT_R8_UNORM, esram );
@@ -152,9 +154,9 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 					g_DoFBlurColor[1].Create(L"DoF Blur Color", bufferWidth1, bufferHeight1, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram);
 					g_DoFBlurAlpha[0].Create(L"DoF FG Alpha", bufferWidth1, bufferHeight1, 1, DXGI_FORMAT_R8_UNORM, esram);
 					g_DoFBlurAlpha[1].Create(L"DoF FG Alpha", bufferWidth1, bufferHeight1, 1, DXGI_FORMAT_R8_UNORM, esram);
-					g_DoFWorkQueue.Create(L"DoF Work Queue", kCountedStructures, bufferWidth4 * bufferHeight4, 4, esram);
-					g_DoFFastQueue.Create(L"DoF Fast Queue", kCountedStructures, bufferWidth4 * bufferHeight4, 4, esram);
-					g_DoFFixupQueue.Create(L"DoF Fixup Queue", kCountedStructures, bufferWidth4 * bufferHeight4, 4, esram);
+					g_DoFWorkQueue.Create(L"DoF Work Queue", bufferWidth4 * bufferHeight4, 4, esram);
+					g_DoFFastQueue.Create(L"DoF Fast Queue", bufferWidth4 * bufferHeight4, 4, esram);
+					g_DoFFixupQueue.Create(L"DoF Fixup Queue", bufferWidth4 * bufferHeight4, 4, esram);
 				esram.PopStack();	// End depth of field
 
 				g_TemporalBuffer[0].Create( L"Temporal Color 0", bufferWidth, bufferHeight, 1, HDR_MOTION_FORMAT );
@@ -175,7 +177,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 
 			// This is useful for storing per-pixel weights such as motion strength or pixel luminance
 			g_LumaBuffer.Create( L"Luminance", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R8_UNORM, esram );
-			g_Histogram.Create( L"Histogram", kByteAddress, 256, 4, esram );
+			g_Histogram.Create( L"Histogram", 256, 4, esram );
 
 			esram.PushStack();	// Begin tone mapping
 				g_LumaLR.Create( L"Luma Buffer", kBloomWidth, kBloomHeight, 1, DXGI_FORMAT_R8_UINT, esram );
@@ -195,8 +197,10 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 			esram.PopStack();	// End tone mapping
 
 			esram.PushStack();	// Begin antialiasing
-				g_FXAAWorkQueueH.Create( L"FXAA Horizontal Work Queue", kCountedStructures, 512*1024, 16, esram );
-				g_FXAAWorkQueueV.Create( L"FXAA Vertical Work Queue", kCountedStructures, 512*1024, 16, esram );
+				g_FXAAWorkQueueH.Create( L"FXAA Horizontal Work Queue", 512*1024, 4, esram );
+				g_FXAAWorkQueueV.Create( L"FXAA Vertical Work Queue", 512*1024, 4, esram );
+				g_FXAAColorQueueH.Create( L"FXAA Horizontal Color Queue", 512*1024, 4, esram );
+				g_FXAAColorQueueV.Create( L"FXAA Vertical Color Queue", 512*1024, 4, esram );
 			esram.PopStack();	// End antialiasing
 
 		esram.PopStack();	// End post processing
@@ -272,4 +276,6 @@ void Graphics::DestroyRenderingBuffers()
 	g_Histogram.Destroy();
 	g_FXAAWorkQueueH.Destroy();
 	g_FXAAWorkQueueV.Destroy();
+	g_FXAAColorQueueH.Destroy();
+	g_FXAAColorQueueV.Destroy();
 }

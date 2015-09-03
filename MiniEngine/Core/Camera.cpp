@@ -72,9 +72,9 @@ void Camera::UpdateProjMatrix( void )
 	}
 
 	SetProjMatrix( Matrix4(
-		Vector4( X,		0.0f,	0.0f,	0.0f ),
-		Vector4( 0.0f,	Y,		0.0f,	0.0f ),
-		Vector4( 0.0f,	0.0f,   Q1,    -1.0f ),
-		Vector4( 0.0f,	0.0f,	Q2,		0.0f )
+		Vector4( X, 0.0f, 0.0f, 0.0f ),
+		Vector4( 0.0f, Y, 0.0f, 0.0f ),
+		Vector4( 0.0f, 0.0f, Q1, -1.0f ),
+		Vector4( 0.0f, 0.0f, Q2, 0.0f )
 		) );
 }

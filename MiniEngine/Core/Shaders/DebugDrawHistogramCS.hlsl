@@ -11,9 +11,9 @@
 // Author:  James Stanard 
 //
 
-ByteAddressBuffer	Histogram		: register( t0 );
-StructuredBuffer<float> Exposure	: register( t1 );
-RWTexture2D<float3>	ColorBuffer		: register( u0 );
+ByteAddressBuffer Histogram : register( t0 );
+StructuredBuffer<float> Exposure : register( t1 );
+RWTexture2D<float3> ColorBuffer : register( u0 );
 
 groupshared uint gs_hist[256];
 

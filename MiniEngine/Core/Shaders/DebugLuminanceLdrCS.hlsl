@@ -21,9 +21,9 @@ SamplerState LinearSampler : register( s0 );
 
 cbuffer ConstantBuffer : register( b0 )
 {
-	float2	g_RcpBufferDim;
-	float	g_BloomStrength;
-	float	g_LumaGamma;
+	float2 g_RcpBufferDim;
+	float g_BloomStrength;
+	float g_LumaGamma;
 };
 
 
@@ -33,7 +33,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	float2 TexCoord = (DTid.xy + 0.5) * g_RcpBufferDim;
 
 	// Load LDR and bloom
-	float3	ldrColor = SrcColor[DTid.xy] + g_BloomStrength * Bloom.SampleLevel( LinearSampler, TexCoord, 0 );
+	float3 ldrColor = SrcColor[DTid.xy] + g_BloomStrength * Bloom.SampleLevel( LinearSampler, TexCoord, 0 );
 
 	// Load LDR value from HDR buffer
 	float luma = RGBToLuminance( ldrColor );

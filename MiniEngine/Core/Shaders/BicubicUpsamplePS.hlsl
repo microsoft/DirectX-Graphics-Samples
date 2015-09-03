@@ -21,7 +21,7 @@
 
 #include "ShaderUtility.hlsli"
 
-Texture2D<float3>	ColorTex	: register(t0);
+Texture2D<float3> ColorTex : register(t0);
 
 cbuffer Constants : register(b0)
 {
@@ -44,7 +44,7 @@ float3 Cubic( float d1, float3 c0, float3 c1, float3 c2, float3 c3 )
 	float d2 = 1.0 - d1;
 	float d3 = 2.0 - d1;
 
-    return c0 * W2(d0) + c1 * W1(d1) + c2 * W1(d2) + c3 * W2(d3);
+	return c0 * W2(d0) + c1 * W1(d1) + c2 * W1(d2) + c3 * W2(d3);
 }
 
 float3 GetColor( uint s, uint t )

@@ -553,6 +553,12 @@
     <FxCompile Include="Shaders\AoRender2CS.hlsl">
       <Filter>Shaders\SSAO</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\GenerateMipsCS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateMipsGammaCS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\PixelPacking.hlsli">

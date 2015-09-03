@@ -48,7 +48,7 @@ ByteArray ReadFileHelper(const wstring& fileName)
 }
 
 ByteArray ReadFileHelperEx( shared_ptr<wstring> fileName)
-{          
+{
 	ByteArray firstTry = DecompressZippedFile(*fileName + L".gz");
 	if (firstTry != NullFile)
 		return firstTry;
@@ -61,12 +61,12 @@ ByteArray Inflate(ByteArray CompressedSource, int& err, uint32_t ChunkSize = 0x1
 	// Create a dynamic buffer to hold compressed blocks
 	vector<unique_ptr<byte> > blocks;
 
-    z_stream strm  = {};
+	z_stream strm  = {};
 	strm.data_type = Z_BINARY;
-    strm.total_in  = strm.avail_in  = (uInt)CompressedSource->size();
-    strm.next_in   = CompressedSource->data();
+	strm.total_in  = strm.avail_in  = (uInt)CompressedSource->size();
+	strm.next_in   = CompressedSource->data();
 
-    err = inflateInit2(&strm, (15 + 32)); //15 window bits, and the +32 tells zlib to to detect if using gzip or zlib
+	err = inflateInit2(&strm, (15 + 32)); //15 window bits, and the +32 tells zlib to to detect if using gzip or zlib
 
 	while (err == Z_OK || err == Z_BUF_ERROR)
 	{
@@ -102,7 +102,7 @@ ByteArray Inflate(ByteArray CompressedSource, int& err, uint32_t ChunkSize = 0x1
 		curDest = (byte*)curDest + CopySize;
 		remaining -= CopySize;
 	}
-    
+
 	inflateEnd(&strm);
 
 	return byteArray;

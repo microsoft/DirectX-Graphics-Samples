@@ -8,31 +8,31 @@
 //
 // Developed by Minigraph
 //
-// Author:  James Stanard
+// Author:  James Stanard 
 //
 
-Texture2D<float>		LoResDB		: register(t0);
-Texture2D<float>		HiResDB		: register(t1);
-Texture2D<float>		LoResAO1	: register(t2);
+Texture2D<float> LoResDB : register(t0);
+Texture2D<float> HiResDB : register(t1);
+Texture2D<float> LoResAO1 : register(t2);
 #ifdef COMBINE_LOWER_RESOLUTIONS
-Texture2D<float>		LoResAO2	: register(t3);
+Texture2D<float> LoResAO2 : register(t3);
 #endif
 #ifdef BLEND_WITH_HIGHER_RESOLUTION
-Texture2D<float>		HiResAO		: register(t4);
+Texture2D<float> HiResAO : register(t4);
 #endif
 
-RWTexture2D<float>		AoResult	: register(u0);
+RWTexture2D<float> AoResult : register(u0);
 
-SamplerState		LinearSampler	: register(s0);
+SamplerState LinearSampler : register(s0);
 
-cbuffer				ConstantBuffer	: register(b1)
+cbuffer ConstantBuffer : register(b1)
 {
-	float2	InvLowResolution;
-	float2	InvHighResolution;
-	float	NoiseFilterStrength;
-	float	StepSize;
-	float	kBlurTolerance;
-	float	kUpsampleTolerance;
+	float2 InvLowResolution;
+	float2 InvHighResolution;
+	float NoiseFilterStrength;
+	float StepSize;
+	float kBlurTolerance;
+	float kUpsampleTolerance;
 }
 
 groupshared float DepthCache[256];
@@ -44,13 +44,7 @@ void PrefetchData( uint index, float2 uv )
 	float4 AO1 = LoResAO1.Gather( LinearSampler, uv );
 
 #ifdef COMBINE_LOWER_RESOLUTIONS
-	float4 AO2 = LoResAO2.Gather( LinearSampler, uv );
-
-	#ifdef COMBINE_WITH_MUL
-		AO1 *= AO2;
-	#else
-		AO1 = min(AO1, AO2);
-	#endif
+	AO1 = min(AO1, LoResAO2.Gather( LinearSampler, uv ));
 #endif
 
 	AOCache1[index   ] = AO1.w;
@@ -214,7 +208,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 #ifdef BLEND_WITH_HIGHER_RESOLUTION
 	float4 HiSSAOs  = HiResAO.Gather(LinearSampler, UV1);
 #else
-	float4 HiSSAOs	= 1.0;
+	float4 HiSSAOs = 1.0;
 #endif
 	float4 LoDepths = LoResDB.Gather(LinearSampler, UV0);
 	float4 HiDepths = HiResDB.Gather(LinearSampler, UV1);

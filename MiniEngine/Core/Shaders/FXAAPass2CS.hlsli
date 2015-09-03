@@ -8,22 +8,20 @@
 //
 // Developed by Minigraph
 //
-// Author:  James Stanard
+// Author:  James Stanard 
 //
 
-cbuffer cb0 : register( b0 )
+cbuffer CB : register( b0 )
 {
-	float2	RcpTextureSize;
+	float2 RcpTextureSize;
 };
 
-Texture2D<float> Luma				: register(t0);
-#ifdef VERTICAL_ORIENTATION
-StructuredBuffer<uint4> WorkQueue	: register(t2);
-#else
-StructuredBuffer<uint4> WorkQueue	: register(t1);
-#endif
-RWTexture2D<float3> Color			: register(u3);
-SamplerState LinearSampler			: register(s0);
+Texture2D<float> Luma : register(t0);
+Texture2D<float3> SrcColor : register(t1); // this must alias DstColor
+StructuredBuffer<uint> WorkQueue : register(t2);
+Buffer<float3> ColorQueue : register(t3);
+RWTexture2D<float3> DstColor : register(u0);
+SamplerState LinearSampler : register(s0);
 
 
 // Note that the number of samples in each direction is one less than the number of sample distances.  The last
@@ -46,10 +44,10 @@ SamplerState LinearSampler			: register(s0);
 [numthreads( 64, 1, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {
-	uint4 WorkItem = WorkQueue[DTid.x];
-	uint2 ST = uint2(WorkItem.x >> 8, WorkItem.x >> 20) & 0xFFF;
-	uint GradientDir = WorkItem.x & 1; // Determines which side of the pixel has the highest contrast
-	float Subpix = (WorkItem.x & 0xFE) / 254.0 * 0.5;	// 7-bits to encode [0, 0.5]
+	uint WorkHeader = WorkQueue[DTid.x];
+	uint2 ST = uint2(WorkHeader >> 8, WorkHeader >> 20) & 0xFFF;
+	uint GradientDir = WorkHeader & 1; // Determines which side of the pixel has the highest contrast
+	float Subpix = (WorkHeader & 0xFE) / 254.0 * 0.5;      // 7-bits to encode [0, 0.5]
 
 #ifdef VERTICAL_ORIENTATION
 	float NextLuma = Luma[ST + int2(GradientDir * 2 - 1, 0)];
@@ -59,9 +57,9 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	float2 StartUV = (ST + float2(0.5, GradientDir)) * RcpTextureSize;
 #endif
 	float ThisLuma = Luma[ST];
-	float CenterLuma = (NextLuma + ThisLuma) * 0.5;			// Halfway between this and next; center of the contrasting edge
-	float GradientSgn = sign(NextLuma - ThisLuma);			// Going down in brightness or up?
-	float GradientMag = abs(NextLuma - ThisLuma) * 0.25;	// How much contrast?  When can we stop looking?
+	float CenterLuma = (NextLuma + ThisLuma) * 0.5;         // Halfway between this and next; center of the contrasting edge
+	float GradientSgn = sign(NextLuma - ThisLuma);          // Going down in brightness or up?
+	float GradientMag = abs(NextLuma - ThisLuma) * 0.25;    // How much contrast?  When can we stop looking?
 
 	float NegDist = s_SampleDistances[NUM_SAMPLES];
 	float PosDist = s_SampleDistances[NUM_SAMPLES];
@@ -105,11 +103,9 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	if (PixelShift > 0.01)
 	{
 #ifdef DEBUG_OUTPUT
-		Color[ST] = float3(2.0 * PixelShift, 1.0 - 2.0 * PixelShift, 0);
+		DstColor[ST] = float3(2.0 * PixelShift, 1.0 - 2.0 * PixelShift, 0);
 #else
-		float3 middleColor = f16tof32(WorkItem.yzw);
-		float3 adjacentColor = f16tof32(WorkItem.yzw >> 16);
-		Color[ST] = lerp(middleColor, adjacentColor, PixelShift);
+		DstColor[ST] = lerp(SrcColor[ST], ColorQueue[DTid.x], PixelShift);
 #endif
 	}
 }

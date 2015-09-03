@@ -61,7 +61,7 @@ public:
 	void Start()
 	{
 		if (m_StartTick == 0ll)
-			m_StartTick	= SystemTime::GetCurrentTick();
+			m_StartTick = SystemTime::GetCurrentTick();
 	}
 
 	void Stop()

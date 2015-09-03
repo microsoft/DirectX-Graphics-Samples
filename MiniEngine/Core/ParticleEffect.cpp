@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author:  Julia Careaga 
-//			James Stanard 
+// Author(s):  Julia Careaga
+//             James Stanard
 //
 
 #include "pch.h"
@@ -26,11 +26,11 @@ using namespace ParticleEffects;
 
 namespace ParticleEffects
 {
-	extern ComputePSO				s_ParticleSpawnCS;
-	extern ComputePSO				s_ParticleUpdateCS;
-	extern ComputePSO				s_ParticleDispatchIndirectArgsCS;
-	extern GpuBuffer				SpriteVertexBuffer;
-	extern RandomNumberGenerator	s_RNG;
+	extern ComputePSO s_ParticleSpawnCS;
+	extern ComputePSO s_ParticleUpdateCS;
+	extern ComputePSO s_ParticleDispatchIndirectArgsCS;
+	extern StructuredBuffer SpriteVertexBuffer;
+	extern RandomNumberGenerator s_RNG;
 }
 
 ParticleEffect::ParticleEffect(ParticleEffectProperties* effectProperties)
@@ -88,16 +88,16 @@ void ParticleEffect::LoadDeviceResources(ID3D12Device* device)
 		SpawnData.Random = s_RNG.NextFloat();
 	}
 	
-	m_RandomStateBuffer.Create(L"ParticleSystem::SpawnDataBuffer", eBufferType::kStructures, m_EffectProperties.EmitProperties.MaxParticles, sizeof(ParticleSpawnData), pSpawnData);
+	m_RandomStateBuffer.Create(L"ParticleSystem::SpawnDataBuffer", m_EffectProperties.EmitProperties.MaxParticles, sizeof(ParticleSpawnData), pSpawnData);
 	_freea(pSpawnData);
 
-	m_StateBuffers[0].Create(L"ParticleSystem::Buffer0", eBufferType::kCountedStructures, m_EffectProperties.EmitProperties.MaxParticles, sizeof(ParticleMotion), nullptr);
-	m_StateBuffers[1].Create(L"ParticleSystem::Buffer1", eBufferType::kCountedStructures, m_EffectProperties.EmitProperties.MaxParticles, sizeof(ParticleMotion), nullptr);	
+	m_StateBuffers[0].Create(L"ParticleSystem::Buffer0", m_EffectProperties.EmitProperties.MaxParticles, sizeof(ParticleMotion));
+	m_StateBuffers[1].Create(L"ParticleSystem::Buffer1", m_EffectProperties.EmitProperties.MaxParticles, sizeof(ParticleMotion));
 	m_CurrentStateBuffer = 0;
 
 	//DispatchIndirect args buffer / number of thread groups
 	__declspec(align(16)) UINT DispatchIndirectData[3] = { 0, 1, 1 };
-	m_DispatchIndirectArgs.Create(L"ParticleSystem::DispatchIndirectArgs", eBufferType::kIndirectArgs, 1, sizeof(D3D12_DISPATCH_ARGUMENTS), DispatchIndirectData);
+	m_DispatchIndirectArgs.Create(L"ParticleSystem::DispatchIndirectArgs", 1, sizeof(D3D12_DISPATCH_ARGUMENTS), DispatchIndirectData);
 
 }
 
@@ -127,7 +127,7 @@ void ParticleEffect::Update(ComputeContext& CompContext,  float timeDelta)
 
 	m_CurrentStateBuffer ^= 1;
 
-	m_StateBuffers[m_CurrentStateBuffer].SetCounterValue(CompContext, 0);
+	CompContext.ResetCounter(m_StateBuffers[m_CurrentStateBuffer]);
 
 	CompContext.SetPipelineState(s_ParticleUpdateCS);
 	CompContext.TransitionResource(m_StateBuffers[m_CurrentStateBuffer], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -135,18 +135,21 @@ void ParticleEffect::Update(ComputeContext& CompContext,  float timeDelta)
 	CompContext.SetDynamicDescriptor(3, 2, m_StateBuffers[m_CurrentStateBuffer].GetUAV());
 	CompContext.DispatchIndirect(m_DispatchIndirectArgs, 0);
 
-	// WHY???
-	CompContext.InsertUAVBarrier(SpriteVertexBuffer);
+	// Why need a barrier here so long as we are artificially clamping particle count.  This allows living
+	// particles to take precedence over new particles.  The current system always spawns a multiple of 64
+	// particles (To Be Fixed) until the total particle count reaches maximum.
+	CompContext.InsertUAVBarrier(m_StateBuffers[m_CurrentStateBuffer]);
 	
-	//Spawn to replace dead ones 
+	// Spawn to replace dead ones 
 	CompContext.SetPipelineState(s_ParticleSpawnCS);
 	CompContext.SetDynamicDescriptor(4, 0, m_RandomStateBuffer.GetSRV());
 	UINT NumSpawnThreads = (UINT)(m_EffectProperties.EmitRate * timeDelta);
 	CompContext.Dispatch((NumSpawnThreads + 63) / 64, 1, 1);
 
-	//Output number of thread groups into m_DispatchIndirectArgs	
+	// Output number of thread groups into m_DispatchIndirectArgs	
 	CompContext.SetPipelineState(s_ParticleDispatchIndirectArgsCS);
 	CompContext.TransitionResource(m_DispatchIndirectArgs, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	CompContext.TransitionResource(m_StateBuffers[m_CurrentStateBuffer], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	CompContext.SetDynamicDescriptor(4, 0, m_StateBuffers[m_CurrentStateBuffer].GetCounterSRV(CompContext));
 	CompContext.SetDynamicDescriptor(3, 1, m_DispatchIndirectArgs.GetUAV());
 	CompContext.Dispatch(1, 1, 1);

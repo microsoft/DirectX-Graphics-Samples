@@ -19,19 +19,19 @@
 
 using namespace Graphics;
 
-void DepthBuffer::Create( const std::wstring& name, size_t width, size_t height, DXGI_FORMAT format, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr )
+void DepthBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Height, DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr )
 {
-	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(width, height, 1, format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, 1, 1, Format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
 	D3D12_CLEAR_VALUE ClearValue = {};
-	ClearValue.Format = format;
-	CreateTextureResource(Graphics::g_Device, name, ResourceDesc, ClearValue, VidMemPtr);
-	CreateDerivedViews(Graphics::g_Device, format);
+	ClearValue.Format = Format;
+	CreateTextureResource(Graphics::g_Device, Name, ResourceDesc, ClearValue, VidMemPtr);
+	CreateDerivedViews(Graphics::g_Device, Format);
 }
 
-void DepthBuffer::Create( const std::wstring& name, size_t width, size_t height, DXGI_FORMAT format, EsramAllocator& esramAllocator )
+void DepthBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Height, DXGI_FORMAT Format, EsramAllocator& )
 {
-	Create(name, width, height, format);
+	Create(Name, Width, Height, Format);
 }
 
 void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
@@ -39,9 +39,9 @@ void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
 	ID3D12Resource* Resource = m_pResource.Get();
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-    dsvDesc.Format = GetDSVFormat(Format);
-    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    dsvDesc.Texture2D.MipSlice = 0;
+	dsvDesc.Format = GetDSVFormat(Format);
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Texture2D.MipSlice = 0;
 
 	if (m_hDSV[0].ptr == ~0ull)
 	{
@@ -53,7 +53,7 @@ void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
 	Device->CreateDepthStencilView(Resource, &dsvDesc, m_hDSV[0]);
 
 	dsvDesc.Flags = D3D12_DSV_FLAG_READ_ONLY_DEPTH;
-    Device->CreateDepthStencilView(Resource, &dsvDesc, m_hDSV[1]);
+	Device->CreateDepthStencilView(Resource, &dsvDesc, m_hDSV[1]);
 
 	DXGI_FORMAT stencilReadFormat = GetStencilFormat(Format);
 	if (stencilReadFormat != DXGI_FORMAT_UNKNOWN)
@@ -79,13 +79,13 @@ void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
 	if (m_hDepthSRV.ptr == ~0ull)
 		m_hDepthSRV = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    // Create the shader resource view
+	// Create the shader resource view
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
-    SRVDesc.Format = GetDepthFormat(Format);
-    SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	SRVDesc.Format = GetDepthFormat(Format);
+	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    SRVDesc.Texture2D.MipLevels = 1;
-    Device->CreateShaderResourceView( Resource, &SRVDesc, m_hDepthSRV );
+	SRVDesc.Texture2D.MipLevels = 1;
+	Device->CreateShaderResourceView( Resource, &SRVDesc, m_hDepthSRV );
 
 	if (stencilReadFormat != DXGI_FORMAT_UNKNOWN)
 	{

@@ -25,12 +25,12 @@ namespace Math
 		BoundingPlane( Vector3 normalToPlane, float distanceFromOrigin ) : m_repr(normalToPlane, distanceFromOrigin) {}
 		BoundingPlane( Vector3 pointOnPlane, Vector3 normalToPlane );
 		BoundingPlane( float A, float B, float C, float D ) : m_repr(A, B, C, D) {}
-		BoundingPlane( const BoundingPlane& plane ) : m_repr(plane.m_repr)	{}
-		explicit BoundingPlane( Vector4 plane ) : m_repr(plane)				{}
+		BoundingPlane( const BoundingPlane& plane ) : m_repr(plane.m_repr) {}
+		explicit BoundingPlane( Vector4 plane ) : m_repr(plane) {}
 
-		INLINE operator Vector4() const								{ return m_repr; }
+		INLINE operator Vector4() const { return m_repr; }
 
-		Vector3 GetNormal( void ) const								{ return Vector3(m_repr); }
+		Vector3 GetNormal( void ) const { return Vector3(m_repr); }
 
 		Scalar DistanceFromPoint( Vector3 point ) const
 		{

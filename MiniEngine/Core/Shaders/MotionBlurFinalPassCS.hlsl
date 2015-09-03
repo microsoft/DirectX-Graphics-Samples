@@ -14,17 +14,17 @@
 #define MAX_SAMPLE_COUNT  10
 #define STEP_SIZE         4.0
 
-Texture2D<float3>	SrcColor		: register(t0);		// final output color (blurred and temporally blended)
-Texture2D<float2>	MotionBuffer	: register(t1);		// full resolution motion vectors
-Texture2D<float4>	PrepBuffer		: register(t2);		// 1/4 resolution pre-weighted blurred color samples
-RWTexture2D<float3>	DstColor		: register(u0);		// final output color (blurred and temporally blended)
+Texture2D<float3> SrcColor : register(t0);			// final output color (blurred and temporally blended)
+Texture2D<float2> MotionBuffer : register(t1);		// full resolution motion vectors
+Texture2D<float4> PrepBuffer : register(t2);		// 1/4 resolution pre-weighted blurred color samples
+RWTexture2D<float3> DstColor : register(u0);		// final output color (blurred and temporally blended)
 
 #ifdef TEMPORAL_UPSAMPLE
-Texture2D<float4>	TemporalIn		: register(t3);		// saved result from last frame
-RWTexture2D<float4>	TemporalOut		: register(u1);		// color to save for next frame including its validity in alpha
+Texture2D<float4> TemporalIn : register(t3);		// saved result from last frame
+RWTexture2D<float4> TemporalOut : register(u1);		// color to save for next frame including its validity in alpha
 #endif
 
-SamplerState		LinearSampler	: register(s0);
+SamplerState LinearSampler : register(s0);
 
 
 cbuffer c0 : register(b0)

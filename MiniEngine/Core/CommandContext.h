@@ -45,9 +45,9 @@ struct DWParam
 
 	union
 	{
-		FLOAT	Float;
-		UINT	Uint;
-		INT		Int;
+		FLOAT Float;
+		UINT Uint;
+		INT Int;
 	};
 };
 
@@ -93,6 +93,8 @@ public:
 	void CopyBuffer( GpuResource& Dest, GpuResource& Src );
 	void CopyBufferRegion( GpuResource& Dest, size_t DestOffset, GpuResource& Src, size_t SrcOffset, size_t NumBytes );
 	void CopyTextureRegion( GpuResource& Dest, UINT SubResourceIndex, UINT DestOffsetX, UINT DestOffsetY, UINT DestOffsetZ, GpuResource& Src, const D3D12_BOX *SrcBox);
+	void CopyCounter(GpuResource& Dest, size_t DestOffset, StructuredBuffer& Src);
+	void ResetCounter(StructuredBuffer& Buf, uint32_t Value = 0);
 
 	static void InitializeTexture( GpuResource& Dest, UINT NumSubresources, D3D12_SUBRESOURCE_DATA SubData[] );
 	static void InitializeBuffer( GpuResource& Dest, const void* Data, size_t NumBytes );
@@ -120,24 +122,24 @@ protected:
 	void FinishTimeStampQueryBatch();
 	void BindDescriptorHeaps( void );
 
-	CommandListManager*			m_OwningManager;
-	ID3D12GraphicsCommandList*	m_CommandList;
-	ID3D12CommandAllocator*		m_CurrentAllocator;
+	CommandListManager* m_OwningManager;
+	ID3D12GraphicsCommandList* m_CommandList;
+	ID3D12CommandAllocator* m_CurrentAllocator;
 
-	ID3D12RootSignature*		m_CurGraphicsRootSignature;
-	ID3D12PipelineState*		m_CurGraphicsPipelineState;
-	ID3D12RootSignature*		m_CurComputeRootSignature;
-	ID3D12PipelineState*		m_CurComputePipelineState;
+	ID3D12RootSignature* m_CurGraphicsRootSignature;
+	ID3D12PipelineState* m_CurGraphicsPipelineState;
+	ID3D12RootSignature* m_CurComputeRootSignature;
+	ID3D12PipelineState* m_CurComputePipelineState;
 
-	DynamicDescriptorHeap		m_DynamicDescriptorHeap;
+	DynamicDescriptorHeap m_DynamicDescriptorHeap;
 
-	D3D12_RESOURCE_BARRIER		m_ResourceBarrierBuffer[16];
+	D3D12_RESOURCE_BARRIER m_ResourceBarrierBuffer[16];
 	UINT m_NumBarriersToFlush;
 
-	ID3D12DescriptorHeap*		m_CurrentDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+	ID3D12DescriptorHeap* m_CurrentDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
-	LinearAllocator				m_CpuLinearAllocator;
-	LinearAllocator				m_GpuLinearAllocator;
+	LinearAllocator m_CpuLinearAllocator;
+	LinearAllocator m_GpuLinearAllocator;
 };
 
 class GraphicsContext : public CommandContext
@@ -616,7 +618,26 @@ inline void CommandContext::CopyBufferRegion( GpuResource& Dest, size_t DestOffs
 	TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST);
 	//TransitionResource(Src, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	FlushResourceBarriers();
-    m_CommandList->CopyBufferRegion( Dest.GetResource(), DestOffset, Src.GetResource(), SrcOffset, NumBytes);
+	m_CommandList->CopyBufferRegion( Dest.GetResource(), DestOffset, Src.GetResource(), SrcOffset, NumBytes);
+}
+
+inline void CommandContext::CopyCounter(GpuResource& Dest, size_t DestOffset, StructuredBuffer& Src)
+{
+	TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST);
+	TransitionResource(Src.GetCounterBuffer(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+	FlushResourceBarriers();
+	m_CommandList->CopyBufferRegion(Dest.GetResource(), DestOffset, Src.GetCounterBuffer().GetResource(), 0, 4);
+}
+
+inline void CommandContext::ResetCounter(StructuredBuffer& Buf, uint32_t Value )
+{
+	if (Value == 0)
+		GetComputeContext().ClearUAV(Buf.GetCounterBuffer());
+	else
+	{
+		FillBuffer(Buf.GetCounterBuffer(), 0, Value, sizeof(uint32_t));
+		TransitionResource(Buf.GetCounterBuffer(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	}
 }
 
 //###

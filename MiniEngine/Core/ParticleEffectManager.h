@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author:  Julia Careaga 
-//			James Stanard 
+// Author(s):  Julia Careaga
+//             James Stanard
 //
 
 #pragma once

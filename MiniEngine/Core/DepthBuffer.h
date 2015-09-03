@@ -34,21 +34,21 @@ public:
 	// Create a depth buffer.  If an address is supplied, memory will not be allocated.
 	// The vmem address allows you to alias buffers (which can be especially useful for
 	// reusing ESRAM across a frame.)
-	void Create( const std::wstring& name, size_t width, size_t height, DXGI_FORMAT format,
+	void Create( const std::wstring& Name, uint32_t Width, uint32_t Height, DXGI_FORMAT Format,
 		D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN );
 
 	// Create a depth buffer.  Memory will be allocated in ESRAM (on Xbox One).  On Windows,
 	// this functions the same as Create() without a video address.
-	void Create( const std::wstring& name, size_t width, size_t height, DXGI_FORMAT format,
-		EsramAllocator& esramAllocator );
+	void Create( const std::wstring& Name, uint32_t Width, uint32_t Height, DXGI_FORMAT Format,
+		EsramAllocator& Allocator );
 
 	// Get pre-created CPU-visible descriptor handles
-	const D3D12_CPU_DESCRIPTOR_HANDLE& 	GetDSV() const					{ return m_hDSV[0]; }
-	const D3D12_CPU_DESCRIPTOR_HANDLE& 	GetDSV_DepthReadOnly() const	{ return m_hDSV[1]; }
-	const D3D12_CPU_DESCRIPTOR_HANDLE& 	GetDSV_StencilReadOnly() const	{ return m_hDSV[2]; }
-	const D3D12_CPU_DESCRIPTOR_HANDLE& 	GetDSV_ReadOnly() const			{ return m_hDSV[3]; }
-	const D3D12_CPU_DESCRIPTOR_HANDLE&  GetDepthSRV() const				{ return m_hDepthSRV; }
-	const D3D12_CPU_DESCRIPTOR_HANDLE&  GetStencilSRV() const			{ return m_hStencilSRV; }
+	const D3D12_CPU_DESCRIPTOR_HANDLE& GetDSV() const { return m_hDSV[0]; }
+	const D3D12_CPU_DESCRIPTOR_HANDLE& GetDSV_DepthReadOnly() const { return m_hDSV[1]; }
+	const D3D12_CPU_DESCRIPTOR_HANDLE& GetDSV_StencilReadOnly() const { return m_hDSV[2]; }
+	const D3D12_CPU_DESCRIPTOR_HANDLE& GetDSV_ReadOnly() const { return m_hDSV[3]; }
+	const D3D12_CPU_DESCRIPTOR_HANDLE& GetDepthSRV() const { return m_hDepthSRV; }
+	const D3D12_CPU_DESCRIPTOR_HANDLE& GetStencilSRV() const { return m_hStencilSRV; }
 
 	float GetClearDepth() const { return m_ClearDepth; }
 	uint32_t GetClearStencil() const { return m_ClearStencil; }
@@ -57,9 +57,9 @@ private:
 
 	void CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format );
 
-	float												m_ClearDepth;
-	uint32_t											m_ClearStencil;
-	D3D12_CPU_DESCRIPTOR_HANDLE							m_hDSV[4];
-	D3D12_CPU_DESCRIPTOR_HANDLE							m_hDepthSRV;
-	D3D12_CPU_DESCRIPTOR_HANDLE							m_hStencilSRV;
+	float m_ClearDepth;
+	uint32_t m_ClearStencil;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_hDSV[4];
+	D3D12_CPU_DESCRIPTOR_HANDLE m_hDepthSRV;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_hStencilSRV;
 };

@@ -35,19 +35,19 @@ using namespace Math;
 
 namespace MotionBlur
 {
-	BoolVar		Enable("Graphics/Temporal AA/Motion Blur", false);
-	BoolVar		TemporalAA("Graphics/Temporal AA/Blend Previous Frame", false);
-	NumVar		TemporalMaxLerp("Graphics/Temporal AA/Maximum Blend Factor", 0.75f, 0.0f, 1.0f, 0.05f);
+	BoolVar Enable("Graphics/Temporal AA/Motion Blur", false);
+	BoolVar TemporalAA("Graphics/Temporal AA/Blend Previous Frame", false);
+	NumVar TemporalMaxLerp("Graphics/Temporal AA/Maximum Blend Factor", 0.75f, 0.0f, 1.0f, 0.05f);
 
-	RootSignature	s_RootSignature;
-	ComputePSO		s_CameraMotionBlurPrePassCS[2];
-	ComputePSO		s_MotionBlurPrePassCS;
-	ComputePSO		s_MotionBlurFinalPassCS[2];
+	RootSignature s_RootSignature;
+	ComputePSO s_CameraMotionBlurPrePassCS[2];
+	ComputePSO s_MotionBlurPrePassCS;
+	ComputePSO s_MotionBlurFinalPassCS[2];
 
-	ComputePSO		s_CameraVelocityCS;
+	ComputePSO s_CameraVelocityCS;
 
 	// Disabled blur but with temporal anti-aliasing that requires a velocity buffer
-	ComputePSO		s_TemporalBlendCS;
+	ComputePSO s_TemporalBlendCS;
 }
 
 void MotionBlur::Initialize( void )
@@ -118,9 +118,9 @@ void MotionBlur::RenderCameraBlur( CommandContext& BaseContext, const Matrix4& r
 	struct PrePassCB
 	{
 		Matrix4 CurToPrevXForm;
-		float	RcpBufferWidth;
-		float	RcpBufferHeight;
-		float	MaxTemporalBlend;
+		float RcpBufferWidth;
+		float RcpBufferHeight;
+		float MaxTemporalBlend;
 	} params;
 
 	params.CurToPrevXForm = postMult * reprojectionMatrix * preMult;

@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author:  Julia Careaga 
-//			James Stanard 
+// Author(s):  Julia Careaga
+//             James Stanard
 //
 
 #pragma once
@@ -37,18 +37,18 @@ struct ParticleEffectProperties
 	};
 
 	
-	Color				MinStartColor;
-	Color				MaxStartColor;
-	Color				MinEndColor;
-	Color				MaxEndColor;
+	Color MinStartColor;
+	Color MaxStartColor;
+	Color MinEndColor;
+	Color MaxEndColor;
 	EmissionProperties  EmitProperties; 
-	float				EmitRate;
-	XMFLOAT2			LifeMinMax;   
-	XMFLOAT2			MassMinMax;
-	Vector4				Size;
-	XMFLOAT3			Spread;
-	std::wstring		TexturePath;
-	float				TotalActiveLifetime;	 
-	Vector4				Velocity;
+	float EmitRate;
+	XMFLOAT2 LifeMinMax;   
+	XMFLOAT2 MassMinMax;
+	Vector4 Size;
+	XMFLOAT3 Spread;
+	std::wstring TexturePath;
+	float TotalActiveLifetime;	 
+	Vector4 Velocity;
 
 };

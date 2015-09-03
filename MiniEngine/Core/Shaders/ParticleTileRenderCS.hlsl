@@ -9,8 +9,8 @@
 // Developed by Minigraph
 //
 // Author:  James Stanard 
-//			Alex Nankervis 
-//			Julia Careaga 
+//          Alex Nankervis
+//          Julia Careaga
 //
 
 #include "ParticleUtility.hlsli"
@@ -21,7 +21,7 @@
 
 cbuffer CB : register(b0)
 {
-	float	gDynamicResLevel;
+	float gDynamicResLevel;
 };
 
 RWTexture2D<float3> g_OutputColorBuffer : register(u0);

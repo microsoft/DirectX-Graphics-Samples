@@ -8,16 +8,16 @@
 //
 // Developed by Minigraph
 //
-// Author:  James Stanard 
-//			Alex Nankervis 
+// Author(s):  James Stanard 
+//             Alex Nankervis
 //
 
 #include "ParticleUtility.hlsli"
 
-Texture2D<float>		g_Input		: register(t0);
-RWTexture2D<uint>		g_Output8	: register(u0);
-RWTexture2D<uint>		g_Output16	: register(u1);
-RWTexture2D<uint>		g_Output32	: register(u2);
+Texture2D<float> g_Input : register(t0);
+RWTexture2D<uint> g_Output8 : register(u0);
+RWTexture2D<uint> g_Output16 : register(u1);
+RWTexture2D<uint> g_Output32 : register(u2);
 
 groupshared float gs_Buffer[128];
 

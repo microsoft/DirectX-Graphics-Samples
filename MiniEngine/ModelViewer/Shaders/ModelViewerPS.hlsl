@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard	
-//				Alex Nankervis	
+// Author(s):  James Stanard
+//             Alex Nankervis
 //
 
 struct VSOutput
@@ -23,14 +23,14 @@ struct VSOutput
 	float3 bitangent : bitangent;
 };
 
-Texture2D<float3> texDiffuse		: register(t0);
-Texture2D<float3> texSpecular		: register(t1);
-//Texture2D<float4> texEmissive		: register(t2);
-Texture2D<float3> texNormal			: register(t3);
-//Texture2D<float4> texLightmap		: register(t4);
-//Texture2D<float4> texReflection	: register(t5);
-Texture2D<float> texSSAO			: register(t64);
-Texture2D<float> texShadow			: register(t65);
+Texture2D<float3> texDiffuse : register(t0);
+Texture2D<float3> texSpecular : register(t1);
+//Texture2D<float4> texEmissive : register(t2);
+Texture2D<float3> texNormal : register(t3);
+//Texture2D<float4> texLightmap : register(t4);
+//Texture2D<float4> texReflection : register(t5);
+Texture2D<float> texSSAO : register(t64);
+Texture2D<float> texShadow : register(t65);
 
 cbuffer PSConstants : register(b0)
 {
@@ -53,9 +53,9 @@ void FSchlick( inout float3 specular, inout float3 diffuse, float3 lightDir, flo
 }
 
 float3 ApplyAmbientLight(
-	float3	diffuse,	// Diffuse albedo
-	float	ao,			// Pre-computed ambient-occlusion
-	float3	lightColor	// Radiance of ambient light
+	float3 diffuse,		// Diffuse albedo
+	float ao,			// Pre-computed ambient-occlusion
+	float3 lightColor	// Radiance of ambient light
 	)
 {
 	return ao * diffuse * lightColor;
@@ -87,15 +87,15 @@ float GetShadow( float3 ShadowCoord )
 }
 
 float3 ApplyDirectionalLight(
-	float3	diffuseColor,	// Diffuse albedo
-	float3	specularColor,	// Specular albedo
-	float	specularMask,	// Where is it shiny or dingy?
-	float	gloss,			// Specular power
-	float3	normal,			// World-space normal
-	float3	viewDir,		// World-space vector from eye to point
-	float3	lightDir,		// World-space vector from point to light
-	float3	lightColor,		// Radiance of directional light
-	float3	shadowCoord		// Shadow coordinate (Shadow map UV & light-relative Z)
+	float3 diffuseColor,	// Diffuse albedo
+	float3 specularColor,	// Specular albedo
+	float specularMask,		// Where is it shiny or dingy?
+	float gloss,			// Specular power
+	float3 normal,			// World-space normal
+	float3 viewDir,			// World-space vector from eye to point
+	float3 lightDir,		// World-space vector from point to light
+	float3 lightColor,		// Radiance of directional light
+	float3 shadowCoord		// Shadow coordinate (Shadow map UV & light-relative Z)
 	)
 {
 	// normal and lightDir are assumed to be pre-normalized

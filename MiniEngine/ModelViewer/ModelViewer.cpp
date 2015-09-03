@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	Alex Nankervis	
-//				James Stanard	
+// Author(s):  Alex Nankervis
+//             James Stanard
 //
 
 #include "GameCore.h"
@@ -60,10 +60,10 @@ private:
 	void RenderObjects( GraphicsContext& Context, const Matrix4& ViewProjMat );
 	void CreateParticleEffects();
 	Camera m_Camera;
-	CameraController*	m_pCameraController;
-	Matrix4				m_ViewProjMatrix;
-	D3D12_VIEWPORT		m_MainViewport;
-	D3D12_RECT			m_MainScissor;
+	CameraController* m_pCameraController;
+	Matrix4 m_ViewProjMatrix;
+	D3D12_VIEWPORT m_MainViewport;
+	D3D12_RECT m_MainScissor;
 
 	RootSignature m_RootSig;
 	GraphicsPSO m_DepthPSO;
@@ -71,10 +71,10 @@ private:
 	GraphicsPSO m_ShadowPSO;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[2];
-	Model		m_Model;
+	Model m_Model;
 
-	Vector3			m_SunDirection;
-	ShadowCamera	m_SunShadow;
+	Vector3 m_SunDirection;
+	ShadowCamera m_SunShadow;
 };
 
 CREATE_APPLICATION( ModelViewer )

@@ -71,7 +71,7 @@ class NumVar : public EngineVar
 {
 public:
 	NumVar( const std::string& path, float val, float minValue = -FLT_MAX, float maxValue = FLT_MAX, float stepSize = 1.0f );
-	NumVar& operator=( float val )	{ m_Value = Clamp(val); return *this; }
+	NumVar& operator=( float val ) { m_Value = Clamp(val); return *this; }
 	operator float() const { return m_Value; }
 
 	virtual void Increment( void ) override { m_Value = Clamp(m_Value + m_StepSize); }

@@ -22,22 +22,22 @@ class PixelBuffer : public GpuResource
 public:
 	PixelBuffer() : m_Width(0), m_Height(0) {}
 
-	size_t GetWidth(void) const						{ return m_Width; }
-	size_t GetHeight(void) const					{ return m_Height; }
-	size_t GetDepth(void) const						{ return m_ArraySize; }
-	const DXGI_FORMAT& GetFormat(void) const		{ return m_Format; }
+	uint32_t GetWidth(void) const { return m_Width; }
+	uint32_t GetHeight(void) const { return m_Height; }
+	uint32_t GetDepth(void) const { return m_ArraySize; }
+	const DXGI_FORMAT& GetFormat(void) const { return m_Format; }
 
 protected:
 
-	D3D12_RESOURCE_DESC DescribeTex2D( size_t width, size_t height, size_t depthOrArraySize, DXGI_FORMAT format, UINT flags);
+	D3D12_RESOURCE_DESC DescribeTex2D(uint32_t Width, uint32_t Height, uint32_t DepthOrArraySize, uint32_t NumMips, DXGI_FORMAT Format, UINT Flags);
 
-	void AssociateWithResource( ID3D12Device* device, const std::wstring& name, ID3D12Resource* Resource, D3D12_RESOURCE_STATES CurrentState );
+	void AssociateWithResource( ID3D12Device* Device, const std::wstring& Name, ID3D12Resource* Resource, D3D12_RESOURCE_STATES CurrentState );
 
-	void CreateTextureResource( ID3D12Device* device, const std::wstring& name, const D3D12_RESOURCE_DESC& ResourceDesc,
+	void CreateTextureResource( ID3D12Device* Device, const std::wstring& Name, const D3D12_RESOURCE_DESC& ResourceDesc,
 		D3D12_CLEAR_VALUE ClearValue, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN );
 
-	void CreateTextureResource( ID3D12Device* device, const std::wstring& name, const D3D12_RESOURCE_DESC& ResourceDesc,
-		D3D12_CLEAR_VALUE ClearValue, EsramAllocator& esramAllocator );
+	void CreateTextureResource( ID3D12Device* Device, const std::wstring& Name, const D3D12_RESOURCE_DESC& ResourceDesc,
+		D3D12_CLEAR_VALUE ClearValue, EsramAllocator& Allocator );
 
 	static DXGI_FORMAT GetBaseFormat( DXGI_FORMAT Format );
 	static DXGI_FORMAT GetUAVFormat( DXGI_FORMAT Format );
@@ -45,8 +45,8 @@ protected:
 	static DXGI_FORMAT GetDepthFormat( DXGI_FORMAT Format );
 	static DXGI_FORMAT GetStencilFormat( DXGI_FORMAT Format );
 
-	size_t			m_Width;
-	size_t			m_Height;
-	size_t			m_ArraySize;
-	DXGI_FORMAT		m_Format;
+	uint32_t m_Width;
+	uint32_t m_Height;
+	uint32_t m_ArraySize;
+	DXGI_FORMAT m_Format;
 };

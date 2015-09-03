@@ -25,8 +25,8 @@ RWTexture2D<float3> Result : register( u0 );
 
 cbuffer cb0 : register(b0)
 {
-	float2	g_inverseDimensions;
-    float	g_upsampleBlendFactor;
+	float2 g_inverseDimensions;
+	float g_upsampleBlendFactor;
 }
 
 // The guassian blur weights (derived from Pascal's triangle)
@@ -65,11 +65,9 @@ void Store2Pixels( uint index, float3 pixel1, float3 pixel2 )
 
 void Load2Pixels( uint index, out float3 pixel1, out float3 pixel2 )
 {
-	uint rr = CacheR[index];
-	uint gg = CacheG[index];
-	uint bb = CacheB[index];
-	pixel1 = float3( f16tof32(rr      ), f16tof32(gg      ), f16tof32(bb      ) );
-	pixel2 = float3( f16tof32(rr >> 16), f16tof32(gg >> 16), f16tof32(bb >> 16) );
+	uint3 RGB = uint3(CacheR[index], CacheG[index], CacheB[index]);
+	pixel1 = f16tof32(RGB);
+	pixel2 = f16tof32(RGB >> 16);
 }
 
 void Store1Pixel( uint index, float3 pixel )

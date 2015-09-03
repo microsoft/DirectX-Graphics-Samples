@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author:  Julia Careaga 
-//			James Stanard 
+// Author(s):  Julia Careaga
+//             James Stanard 
 //
 
 #define MAX_PARTICLES_PER_BIN 1024
@@ -28,41 +28,41 @@ SamplerState gSampPointClamp : register(s1);
 
 cbuffer CBChangesPerView : register(b1)
 {
-	float4x4	gInvView;
-	float4x4	gViewProj;
+	float4x4 gInvView;
+	float4x4 gViewProj;
 
-	float		gVertCotangent;
-	float		gAspectRatio;
-	float		gRcpFarZ;
-	float		gInvertZ;
+	float gVertCotangent;
+	float gAspectRatio;
+	float gRcpFarZ;
+	float gInvertZ;
 
-	float2		gBufferDim;
-	float2		gRcpBufferDim;
+	float2 gBufferDim;
+	float2 gRcpBufferDim;
 
-	uint		gBinsPerRow;
-	uint		gTileRowPitch;
-	uint		gTilesPerRow;
-	uint		gTilesPerCol;
+	uint gBinsPerRow;
+	uint gTileRowPitch;
+	uint gTilesPerRow;
+	uint gTilesPerCol;
 };
 
 struct ParticleVertex
 {
-	float3	Position;
-	float4	Color;
-	float	Size;
-	uint	TextureID;
+	float3 Position;
+	float4 Color;
+	float Size;
+	uint TextureID;
 };
 
 // Intentionally left unpacked to allow scalar register loads and ops
 struct ParticleScreenData
 {
-	float2	Corner;		// Top-left location
-	float2	RcpSize;	// 1/width, 1/height
-	float4	Color;
-	float	Depth;
-	float	TextureIndex;
-	float	TextureLevel;
-	uint	Bounds;
+	float2 Corner;		// Top-left location
+	float2 RcpSize;		// 1/width, 1/height
+	float4 Color;
+	float Depth;
+	float TextureIndex;
+	float TextureLevel;
+	uint Bounds;
 };
 
 uint InsertZeroBit( uint Value, uint BitIdx )

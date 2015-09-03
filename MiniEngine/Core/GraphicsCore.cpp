@@ -42,6 +42,8 @@
 #include "CompiledShaders/DebugZoom4xPS.h"
 #include "CompiledShaders/BilinearUpsamplePS.h"
 #include "CompiledShaders/BicubicUpsamplePS.h"
+#include "CompiledShaders/GenerateMipsCS.h"
+#include "CompiledShaders/GenerateMipsGammaCS.h"
 
 #define SWAP_CHAIN_BUFFER_COUNT 3
 
@@ -70,22 +72,22 @@ namespace Graphics
 	const GUID WKPDID_D3DDebugObjectName = { 0x429b8c22,0x9188,0x4b0c, { 0x87,0x42,0xac,0xb0,0xbf,0x85,0xc2,0x00 }};
 #endif
 
-	uint32_t						g_windowWidth;
-	uint32_t						g_windowHeight;
+	uint32_t g_windowWidth;
+	uint32_t g_windowHeight;
 
-	ID3D12Device*					g_Device = nullptr;
-	ID3D12CommandQueue*				g_CommandQueue = nullptr;
+	ID3D12Device* g_Device = nullptr;
+	ID3D12CommandQueue* g_CommandQueue = nullptr;
 
-	CommandListManager				g_CommandManager;
+	CommandListManager g_CommandManager;
 
-	D3D_FEATURE_LEVEL				g_D3DFeatureLevel = D3D_FEATURE_LEVEL_11_0;
+	D3D_FEATURE_LEVEL g_D3DFeatureLevel = D3D_FEATURE_LEVEL_11_0;
 
-	ColorBuffer						g_DisplayPlane[SWAP_CHAIN_BUFFER_COUNT];
-	UINT							g_CurrentBuffer = 0;
+	ColorBuffer g_DisplayPlane[SWAP_CHAIN_BUFFER_COUNT];
+	UINT g_CurrentBuffer = 0;
 
-	IDXGISwapChain*					s_PrimarySwapChain = nullptr;
+	IDXGISwapChain* s_PrimarySwapChain = nullptr;
 
-	DescriptorAllocator				g_DescriptorAllocator[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] =
+	DescriptorAllocator g_DescriptorAllocator[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] =
 	{
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 		D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
@@ -93,64 +95,68 @@ namespace Graphics
 		D3D12_DESCRIPTOR_HEAP_TYPE_DSV
 	};
 
-	D3D12_SAMPLER_DESC				SamplerLinearWrapDesc;
-	D3D12_SAMPLER_DESC				SamplerAnisoWrapDesc;
-	D3D12_SAMPLER_DESC				SamplerShadowDesc;
-	D3D12_SAMPLER_DESC				SamplerLinearClampDesc;
-	D3D12_SAMPLER_DESC				SamplerVolumeWrapDesc;
-	D3D12_SAMPLER_DESC				SamplerPointClampDesc;
-	D3D12_SAMPLER_DESC				SamplerPointBorderDesc;
-	D3D12_SAMPLER_DESC				SamplerLinearBorderDesc;
+	D3D12_SAMPLER_DESC SamplerLinearWrapDesc;
+	D3D12_SAMPLER_DESC SamplerAnisoWrapDesc;
+	D3D12_SAMPLER_DESC SamplerShadowDesc;
+	D3D12_SAMPLER_DESC SamplerLinearClampDesc;
+	D3D12_SAMPLER_DESC SamplerVolumeWrapDesc;
+	D3D12_SAMPLER_DESC SamplerPointClampDesc;
+	D3D12_SAMPLER_DESC SamplerPointBorderDesc;
+	D3D12_SAMPLER_DESC SamplerLinearBorderDesc;
 
-	Sampler							SamplerLinearWrap;
-	Sampler							SamplerAnisoWrap;
-	Sampler							SamplerShadow;
-	Sampler							SamplerLinearClamp;
-	Sampler							SamplerVolumeWrap;
-	Sampler							SamplerPointClamp;
-	Sampler							SamplerPointBorder;
-	Sampler							SamplerLinearBorder;
+	Sampler SamplerLinearWrap;
+	Sampler SamplerAnisoWrap;
+	Sampler SamplerShadow;
+	Sampler SamplerLinearClamp;
+	Sampler SamplerVolumeWrap;
+	Sampler SamplerPointClamp;
+	Sampler SamplerPointBorder;
+	Sampler SamplerLinearBorder;
 
-	D3D12_RASTERIZER_DESC			RasterizerDefault;
-	D3D12_RASTERIZER_DESC			RasterizerDefaultCW;
-	D3D12_RASTERIZER_DESC			RasterizerTwoSided;
-	D3D12_RASTERIZER_DESC			RasterizerShadow;
-	D3D12_RASTERIZER_DESC			RasterizerShadowCW;
+	D3D12_RASTERIZER_DESC RasterizerDefault;
+	D3D12_RASTERIZER_DESC RasterizerDefaultCW;
+	D3D12_RASTERIZER_DESC RasterizerTwoSided;
+	D3D12_RASTERIZER_DESC RasterizerShadow;
+	D3D12_RASTERIZER_DESC RasterizerShadowCW;
 
-	D3D12_BLEND_DESC				BlendNoColorWrite;
-	D3D12_BLEND_DESC				BlendDisable;
-	D3D12_BLEND_DESC				BlendPreMultiplied;
-	D3D12_BLEND_DESC				BlendTraditional;
-	D3D12_BLEND_DESC				BlendAdditive;
-	D3D12_BLEND_DESC				BlendTraditionalAdditive;
+	D3D12_BLEND_DESC BlendNoColorWrite;
+	D3D12_BLEND_DESC BlendDisable;
+	D3D12_BLEND_DESC BlendPreMultiplied;
+	D3D12_BLEND_DESC BlendTraditional;
+	D3D12_BLEND_DESC BlendAdditive;
+	D3D12_BLEND_DESC BlendTraditionalAdditive;
 
-	D3D12_DEPTH_STENCIL_DESC		DepthStateDisabled;
-	D3D12_DEPTH_STENCIL_DESC		DepthStateReadWrite;
-	D3D12_DEPTH_STENCIL_DESC		DepthStateReadOnly;
-	D3D12_DEPTH_STENCIL_DESC		DepthStateReadOnlyReversed;
-	D3D12_DEPTH_STENCIL_DESC		DepthStateTestEqual;
+	D3D12_DEPTH_STENCIL_DESC DepthStateDisabled;
+	D3D12_DEPTH_STENCIL_DESC DepthStateReadWrite;
+	D3D12_DEPTH_STENCIL_DESC DepthStateReadOnly;
+	D3D12_DEPTH_STENCIL_DESC DepthStateReadOnlyReversed;
+	D3D12_DEPTH_STENCIL_DESC DepthStateTestEqual;
 
-	CommandSignature				DispatchIndirectCommandSignature(1);
-	CommandSignature				DrawIndirectCommandSignature(1);
+	CommandSignature DispatchIndirectCommandSignature(1);
+	CommandSignature DrawIndirectCommandSignature(1);
 
-	RootSignature					s_PresentRS;
-	GraphicsPSO						s_BlendUIPSO;
-	GraphicsPSO						ConvertLDRToDisplayPS;
-	GraphicsPSO						DebugZoom2xPS;
-	GraphicsPSO						DebugZoom4xPS;
-	GraphicsPSO						BicubicUpsamplePS;
-	GraphicsPSO						BilinearUpsamplePS;
-	GraphicsPSO						TemporalUpsamplePS;
+	RootSignature s_PresentRS;
+	GraphicsPSO s_BlendUIPSO;
+	GraphicsPSO ConvertLDRToDisplayPS;
+	GraphicsPSO DebugZoom2xPS;
+	GraphicsPSO DebugZoom4xPS;
+	GraphicsPSO BicubicUpsamplePS;
+	GraphicsPSO BilinearUpsamplePS;
+	GraphicsPSO TemporalUpsamplePS;
 
-	BoolVar							BicubicUpsample("Graphics/Scaling/Bicubic Upscale", true);
-	NumVar							BicubicUpsampleWeight("Graphics/Scaling/Cubic Weight", -0.75f, -1.0f, -0.25f, 0.25f);
-	enum DebugZoomLevel				{ kDebugZoomOff, kDebugZoom2x, kDebugZoom4x };
-	const char*						DebugZoomLabels[] = { "Off", "2x Zoom", "4x Zoom" };
-	EnumVar							DebugZoom("Graphics/Scaling/Magnify Pixels", kDebugZoomOff, 3, DebugZoomLabels);
+	RootSignature g_GenerateMipsRS;
+	ComputePSO g_GenerateMipsPSO;
+	ComputePSO g_GenerateMipsGammaPSO;
 
-	enum TargetResolution			{ k1080p, k900p, k720p };
-	const char*						ResolutionLabels[] = { "1920x1080", "1600x900", "1280x720" };
-	EnumVar							TargetResolution("Graphics/Target Resolution", k1080p, 3, ResolutionLabels);
+	BoolVar BicubicUpsample("Graphics/Scaling/Bicubic Upscale", true);
+	NumVar BicubicUpsampleWeight("Graphics/Scaling/Cubic Weight", -0.75f, -1.0f, -0.25f, 0.25f);
+	enum DebugZoomLevel { kDebugZoomOff, kDebugZoom2x, kDebugZoom4x };
+	const char* DebugZoomLabels[] = { "Off", "2x Zoom", "4x Zoom" };
+	EnumVar DebugZoom("Graphics/Scaling/Magnify Pixels", kDebugZoomOff, 3, DebugZoomLabels);
+
+	enum TargetResolution { k1080p, k900p, k720p };
+	const char* ResolutionLabels[] = { "1920x1080", "1600x900", "1280x720" };
+	EnumVar TargetResolution("Graphics/Target Resolution", k1080p, 3, ResolutionLabels);
 
 	void PreparePresent( GraphicsContext& Context );
 }
@@ -289,14 +295,14 @@ void Graphics::Initialize( uint32_t width, uint32_t height )
 	SamplerDesc.AddressU = SamplerDesc.AddressV = SamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	SamplerPointClamp.Create(SamplerPointClampDesc = SamplerDesc);
 
-    // Samplers
+	// Samplers
 	ZeroMemory(&SamplerDesc, sizeof(SamplerDesc));
-    SamplerDesc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+	SamplerDesc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
 	SamplerDesc.AddressU = SamplerDesc.AddressV = SamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 	SamplerDesc.BorderColor[0] = SamplerDesc.BorderColor[1] = SamplerDesc.BorderColor[2] = SamplerDesc.BorderColor[3] = 0.0f;
 	SamplerLinearBorder.Create(SamplerLinearBorderDesc = SamplerDesc);
 
-    SamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	SamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 	SamplerPointBorder.Create(SamplerPointBorderDesc = SamplerDesc);
 
 	// Default rasterizer states
@@ -416,6 +422,21 @@ void Graphics::Initialize( uint32_t width, uint32_t height )
 	CreatePSO(DebugZoom4xPS, g_pDebugZoom4xPS);
 	CreatePSO(BilinearUpsamplePS, g_pBilinearUpsamplePS);
 	CreatePSO(BicubicUpsamplePS, g_pBicubicUpsamplePS);
+
+	g_GenerateMipsRS.Reset(3, 1);
+	g_GenerateMipsRS[0].InitAsConstants(0, 4);
+	g_GenerateMipsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+	g_GenerateMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
+	g_GenerateMipsRS.InitStaticSampler(0, SamplerLinearClampDesc);
+	g_GenerateMipsRS.Finalize();
+
+	g_GenerateMipsPSO.SetRootSignature(g_GenerateMipsRS);
+	g_GenerateMipsPSO.SetComputeShader(g_pGenerateMipsCS, sizeof(g_pGenerateMipsCS));
+	g_GenerateMipsPSO.Finalize();
+
+	g_GenerateMipsGammaPSO.SetRootSignature(g_GenerateMipsRS);
+	g_GenerateMipsGammaPSO.SetComputeShader(g_pGenerateMipsGammaCS, sizeof(g_pGenerateMipsGammaCS));
+	g_GenerateMipsGammaPSO.Finalize();
 
 	GpuTimeManager::Initialize(4096);
 	InitializeRenderingBuffers( width, height );

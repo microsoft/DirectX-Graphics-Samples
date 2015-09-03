@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	Julia Careaga
+// Author:  Julia Careaga
 
 #pragma once
 #include "pch.h"

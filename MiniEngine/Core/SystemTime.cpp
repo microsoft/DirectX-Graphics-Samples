@@ -21,9 +21,9 @@ using namespace Graphics;
 
 namespace SystemTime
 {
-	BoolVar		EnableVSync("Timing/VSync", true);
-	BoolVar		LimitTo30Hz("Timing/Limit To 30Hz", false);
-	BoolVar		DropFrames("Timing/Drop Random Frames", false);
+	BoolVar EnableVSync("Timing/VSync", true);
+	BoolVar LimitTo30Hz("Timing/Limit To 30Hz", false);
+	BoolVar DropFrames("Timing/Drop Random Frames", false);
 
 	double CpuTickDelta = 0.0;
 	float FrameTime = 0.0f;

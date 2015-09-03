@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard	
+// Author:  James Stanard
 
 #include "pch.h"
 #include "GraphicsCore.h"

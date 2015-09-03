@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	Alex Nankervis	
+// Author:  Alex Nankervis
 //
 
 #include "pch.h"
@@ -70,8 +70,8 @@ bool Model::LoadH3D(const char *filename)
 	if (m_Header.indexDataByteSize > 0)
 		if (1 != fread(m_pIndexData, m_Header.indexDataByteSize, 1, file)) goto h3d_load_fail;
 
-	m_VertexBuffer.Create(L"VertexBuffer", kStructures, m_Header.vertexDataByteSize / m_VertexStride, m_VertexStride, m_pVertexData);
-	m_IndexBuffer.Create(L"IndexBuffer", kByteAddress, m_Header.indexDataByteSize / 2, 2, m_pIndexData);
+	m_VertexBuffer.Create(L"VertexBuffer", m_Header.vertexDataByteSize / m_VertexStride, m_VertexStride, m_pVertexData);
+	m_IndexBuffer.Create(L"IndexBuffer", m_Header.indexDataByteSize / 2, 2, m_pIndexData);
 	delete [] m_pVertexData;
 	m_pVertexData = nullptr;
 	delete [] m_pIndexData;

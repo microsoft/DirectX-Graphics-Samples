@@ -13,7 +13,7 @@
 
 #include "ShaderUtility.hlsli"
 
-Texture2D<float3>	ColorTex	: register(t0);
+Texture2D<float3> ColorTex : register(t0);
 
 float3 main( float4 position : SV_Position ) : SV_Target0
 {

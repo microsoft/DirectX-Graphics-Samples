@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard	
+// Author:  James Stanard 
 
 #pragma once
 

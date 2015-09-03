@@ -13,11 +13,11 @@
 
 cbuffer cbFontParams : register( b0 )
 {
-	float4	Color;
-	float2	ShadowOffset;
-	float	ShadowHardness;
-	float	ShadowOpacity;
-	float	HeightRange;	// The range of the signed distance field.
+	float4 Color;
+	float2 ShadowOffset;
+	float ShadowHardness;
+	float ShadowOpacity;
+	float HeightRange;	// The range of the signed distance field.
 }
 
 Texture2D<float> SignedDistanceFieldTex : register( t0 );

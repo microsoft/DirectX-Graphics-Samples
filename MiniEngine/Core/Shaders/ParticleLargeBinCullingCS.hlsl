@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author:  James Stanard 
-//			Julia Careaga 
+// Author(s):  James Stanard 
+//             Julia Careaga
 //
 
 #include "ParticleUtility.hlsli"

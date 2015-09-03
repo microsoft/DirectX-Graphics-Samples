@@ -1,9 +1,10 @@
-// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
-// PARTICULAR PURPOSE.
 //
-// Copyright (c) 2013-2014 Microsoft Corporation. All rights reserved
+// Copyright (c) Microsoft. All rights reserved.
+// This code is licensed under the MIT License (MIT).
+// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
+// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
+// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
+// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 // Developed by Minigraph
 //
@@ -32,6 +33,7 @@
 // dot( LinearRGB, float3(0.212671, 0.715160, 0.072169) ).  A threshold of 0.2 is
 // recommended with log-luminance computed this way.
 //
+
 // Original Boilerplate:
 //
 /*============================================================================
@@ -57,15 +59,17 @@ DAMAGES.
 
 cbuffer ConstantBuffer : register( b0 )
 {
-    float2	RcpTextureSize;
-	float	ContrastThreshold;		// default = 0.2, lower is more expensive
-	float	SubpixelRemoval;		// default = 0.75, lower blurs less
+	float2 RcpTextureSize;
+	float ContrastThreshold;	// default = 0.2, lower is more expensive
+	float SubpixelRemoval;		// default = 0.75, lower blurs less
 };
 
-RWStructuredBuffer<uint4> HWork	: register(u0);
-RWStructuredBuffer<uint4> VWork	: register(u1);
-Texture2D<float3> Color			: register(t0);
-SamplerState LinearSampler		: register(s0);
+RWStructuredBuffer<uint> HWork : register(u0);
+RWStructuredBuffer<uint> VWork : register(u2);
+RWBuffer<float3> HColor : register(u1);
+RWBuffer<float3> VColor : register(u3);
+Texture2D<float3> Color : register(t0);
+SamplerState LinearSampler : register(s0);
 
 #define BOUNDARY_SIZE 1
 #define ROW_WIDTH (8 + BOUNDARY_SIZE * 2)
@@ -73,9 +77,9 @@ groupshared float gs_LumaCache[ROW_WIDTH * ROW_WIDTH];
 
 // If pre-computed, source luminance as a texture, otherwise write it out for Pass2
 #ifdef USE_LUMA_INPUT_BUFFER
-	Texture2D<float> Luma		: register(t1);
+	Texture2D<float> Luma : register(t1);
 #else
-	RWTexture2D<float> Luma		: register(u2);
+	RWTexture2D<float> Luma : register(u4);
 #endif
 
 //
@@ -167,20 +171,18 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	uint PixelCoord = DTid.y << 20 | DTid.x << 8;
 
 	// Packet header: [ 12 bits Y | 12 bits X | 7 bit Subpix | 1 bit dir(Grad) ]
-	uint4 WorkItem;
-	WorkItem.x = PixelCoord | Subpix | GradientDir;
-	WorkItem.yzw = f32tof16(Color[DTid.xy]);
+	uint WorkHeader = PixelCoord | Subpix | GradientDir;
 
 	if (edgeHorz >= edgeVert)
 	{
-		float3 NextColor = Color[DTid.xy + uint2(0, 2 * GradientDir - 1)];
-		WorkItem.yzw |= f32tof16(NextColor) << 16;
-		HWork[HWork.IncrementCounter()] = WorkItem;
+		uint WorkIdx = HWork.IncrementCounter();
+		HWork[WorkIdx] = WorkHeader;
+		HColor[WorkIdx] = Color[DTid.xy + uint2(0, 2 * GradientDir - 1)];
 	}
 	else
 	{
-		float3 NextColor = Color[DTid.xy + uint2(2 * GradientDir - 1, 0)];
-		WorkItem.yzw |= f32tof16(NextColor) << 16;
-		VWork[VWork.IncrementCounter()] = WorkItem;
+		uint WorkIdx = VWork.IncrementCounter();
+		VWork[WorkIdx] = WorkHeader;
+		VColor[WorkIdx] = Color[DTid.xy + uint2(2 * GradientDir - 1, 0)];
 	}
 }

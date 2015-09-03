@@ -21,7 +21,7 @@ RWTexture2D<float3> Result : register( u0 );
 
 cbuffer cb0 : register(b0)
 {
-	float2	g_inverseDimensions;
+	float2 g_inverseDimensions;
 }
 
 // The guassian blur weights (derived from Pascal's triangle)

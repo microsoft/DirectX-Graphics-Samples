@@ -39,13 +39,13 @@ namespace
 	float s_AnalogsTC[GameInput::kNumAnalogInputs];
 
 #ifdef USE_KEYBOARD_MOUSE
-	IDirectInput8A*			s_DI;
-	IDirectInputDevice8A*	s_Keyboard;
-	IDirectInputDevice8A*	s_Mouse;
+	IDirectInput8A* s_DI;
+	IDirectInputDevice8A* s_Keyboard;
+	IDirectInputDevice8A* s_Mouse;
 
-	_DIMOUSESTATE2			s_MouseState;
-	unsigned char			s_Keybuffer[256];
-	unsigned char			s_DXKeyMapping[GameInput::kNumKeys]; // map DigitalInput enum to DX key codes 
+	_DIMOUSESTATE2 s_MouseState;
+	unsigned char s_Keybuffer[256];
+	unsigned char s_DXKeyMapping[GameInput::kNumKeys]; // map DigitalInput enum to DX key codes 
 #endif
 
 	float FilterAnalogInput( int val, int deadZone )
@@ -285,20 +285,20 @@ void GameInput::Update( float frameDelta )
 	XINPUT_STATE newInputState;
 	if (ERROR_SUCCESS == XInputGetState( 0, &newInputState ))
 	{
-		if (newInputState.Gamepad.wButtons & (1 << 0))	s_Buttons[0][kDPadUp] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 1))	s_Buttons[0][kDPadDown] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 2))	s_Buttons[0][kDPadLeft] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 3))	s_Buttons[0][kDPadRight] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 4))	s_Buttons[0][kStartButton] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 5))	s_Buttons[0][kBackButton] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 6))	s_Buttons[0][kLThumbClick] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 7))	s_Buttons[0][kRThumbClick] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 8))	s_Buttons[0][kLShoulder] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 9))	s_Buttons[0][kRShoulder] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 12))	s_Buttons[0][kAButton] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 13))	s_Buttons[0][kBButton] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 14))	s_Buttons[0][kXButton] = true;
-		if (newInputState.Gamepad.wButtons & (1 << 15))	s_Buttons[0][kYButton] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 0)) s_Buttons[0][kDPadUp] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 1)) s_Buttons[0][kDPadDown] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 2)) s_Buttons[0][kDPadLeft] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 3)) s_Buttons[0][kDPadRight] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 4)) s_Buttons[0][kStartButton] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 5)) s_Buttons[0][kBackButton] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 6)) s_Buttons[0][kLThumbClick] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 7)) s_Buttons[0][kRThumbClick] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 8)) s_Buttons[0][kLShoulder] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 9)) s_Buttons[0][kRShoulder] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 12)) s_Buttons[0][kAButton] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 13)) s_Buttons[0][kBButton] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 14)) s_Buttons[0][kXButton] = true;
+		if (newInputState.Gamepad.wButtons & (1 << 15)) s_Buttons[0][kYButton] = true;
 
 		s_Analogs[ kAnalogLeftTrigger ]		= newInputState.Gamepad.bLeftTrigger / 255.0f;
 		s_Analogs[ kAnalogRightTrigger ]	= newInputState.Gamepad.bRightTrigger / 255.0f;
@@ -318,7 +318,7 @@ void GameInput::Update( float frameDelta )
 
 	for (uint32_t i = 0; i < 8; ++i)
 	{
-		if (s_MouseState.rgbButtons[i] > 0)	s_Buttons[0][kMouse0 + i] = true;
+		if (s_MouseState.rgbButtons[i] > 0) s_Buttons[0][kMouse0 + i] = true;
 	}
 
 	s_Analogs[kAnalogMouseX] = (float)s_MouseState.lX * .0018f;

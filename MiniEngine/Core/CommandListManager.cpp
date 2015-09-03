@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author:  James Stanard 
+// Author:  James Stanard
 //
 
 #include "pch.h"
@@ -58,7 +58,7 @@ void CommandListManager::Create(ID3D12Device* pDevice)
 	m_Device->CreateCommandQueue(&QueueDesc, MY_IID_PPV_ARGS(&m_CommandQueue));
 	m_CommandQueue->SetName(L"CommandListManager::m_CommandQueue");
 
-    m_NextFenceValue = 1;
+	m_NextFenceValue = 1;
 	m_LastCompletedFenceValue = 0;
 	ASSERT_SUCCEEDED(m_Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, MY_IID_PPV_ARGS(&m_pFence)));
 	m_pFence->SetName(L"CommandListManager::m_pFence");

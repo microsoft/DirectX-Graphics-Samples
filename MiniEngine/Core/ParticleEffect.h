@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	Julia Careaga
-//				James Stanard	
+// Author(s):  Julia Careaga
+//             James Stanard
 
 #pragma once
 #include "pch.h"
@@ -29,16 +29,16 @@ public:
 
 private:
 
-	GpuBuffer								m_StateBuffers[2];
-	uint32_t								m_CurrentStateBuffer;
-	GpuBuffer								m_RandomStateBuffer; 
-	GpuBuffer								m_DispatchIndirectArgs;
-	GpuBuffer								m_DrawIndirectArgs;
+	StructuredBuffer m_StateBuffers[2];
+	uint32_t m_CurrentStateBuffer;
+	StructuredBuffer m_RandomStateBuffer; 
+	IndirectArgsBuffer m_DispatchIndirectArgs;
+	IndirectArgsBuffer m_DrawIndirectArgs;
 
-	ParticleEffectProperties				m_EffectProperties;
-	ParticleEffectProperties				m_OriginalEffectProperties;
-	float									m_ElapsedTime;
-	UINT									m_effectID;
+	ParticleEffectProperties m_EffectProperties;
+	ParticleEffectProperties m_OriginalEffectProperties;
+	float m_ElapsedTime;
+	UINT m_effectID;
 	
 
 };

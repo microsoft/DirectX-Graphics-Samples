@@ -15,7 +15,7 @@
 
 #include <DirectXMath.h>
 
-#define INLINE	__forceinline
+#define INLINE __forceinline
 
 namespace Math
 {
@@ -68,19 +68,19 @@ namespace Math
 	}
 
 #if defined(_XM_SSE4_INTRINSICS_)
-	INLINE XMVECTOR	CreateXUnitVector( XMVECTOR one = SplatOne() )
+	INLINE XMVECTOR CreateXUnitVector( XMVECTOR one = SplatOne() )
 	{
 		return _mm_insert_ps(one, one, 0x0E);
 	}
-	INLINE XMVECTOR	CreateYUnitVector( XMVECTOR one = SplatOne() )
+	INLINE XMVECTOR CreateYUnitVector( XMVECTOR one = SplatOne() )
 	{
 		return _mm_insert_ps(one, one, 0x0D);
 	}
-	INLINE XMVECTOR	CreateZUnitVector( XMVECTOR one = SplatOne() )
+	INLINE XMVECTOR CreateZUnitVector( XMVECTOR one = SplatOne() )
 	{
 		return _mm_insert_ps(one, one, 0x0B);
 	}
-	INLINE XMVECTOR	CreateWUnitVector( XMVECTOR one = SplatOne() )
+	INLINE XMVECTOR CreateWUnitVector( XMVECTOR one = SplatOne() )
 	{
 		return _mm_insert_ps(one, one, 0x07);
 	}
@@ -93,21 +93,21 @@ namespace Math
 		return _mm_blend_ps(vec, SplatOne(), 0x8);
 	}
 #else
-	INLINE XMVECTOR	CreateXUnitVector( XMVECTOR one = SplatOne() )
+	INLINE XMVECTOR CreateXUnitVector( XMVECTOR one = SplatOne() )
 	{
 		return _mm_castsi128_ps(_mm_srli_si128(_mm_castps_si128(one), 12));
 	}
-	INLINE XMVECTOR	CreateYUnitVector( XMVECTOR one = SplatOne() )
+	INLINE XMVECTOR CreateYUnitVector( XMVECTOR one = SplatOne() )
 	{
 		XMVECTOR unitx = CreateXUnitVector(one);
 		return _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(unitx), 4));
 	}
-	INLINE XMVECTOR	CreateZUnitVector( XMVECTOR one = SplatOne() )
+	INLINE XMVECTOR CreateZUnitVector( XMVECTOR one = SplatOne() )
 	{
 		XMVECTOR unitx = CreateXUnitVector(one);
 		return _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(unitx), 8));
 	}
-	INLINE XMVECTOR	CreateWUnitVector( XMVECTOR one = SplatOne() )
+	INLINE XMVECTOR CreateWUnitVector( XMVECTOR one = SplatOne() )
 	{
 		return _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(one), 12));
 	}
@@ -124,13 +124,13 @@ namespace Math
 
 #else // !_XM_SSE_INTRINSICS_
 
-	INLINE XMVECTOR SplatOne()					{ return XMVectorSplatOne();										}
-	INLINE XMVECTOR	CreateXUnitVector()			{ return g_XMIdentityR0;											}
-	INLINE XMVECTOR	CreateYUnitVector()			{ return g_XMIdentityR1;											}
-	INLINE XMVECTOR	CreateZUnitVector()			{ return g_XMIdentityR2;											}
-	INLINE XMVECTOR	CreateWUnitVector()			{ return g_XMIdentityR3;											}
-	INLINE XMVECTOR SetWToZero( FXMVECTOR vec )	{ return XMVectorAndInt( vec, g_XMMask3 );							}
-	INLINE XMVECTOR SetWToOne( FXMVECTOR vec )	{ return XMVectorSelect( g_XMIdentityR3, vec, g_XMMask3 );			}
+	INLINE XMVECTOR SplatOne() { return XMVectorSplatOne(); }
+	INLINE XMVECTOR CreateXUnitVector() { return g_XMIdentityR0; }
+	INLINE XMVECTOR CreateYUnitVector() { return g_XMIdentityR1; }
+	INLINE XMVECTOR CreateZUnitVector() { return g_XMIdentityR2; }
+	INLINE XMVECTOR CreateWUnitVector() { return g_XMIdentityR3; }
+	INLINE XMVECTOR SetWToZero( FXMVECTOR vec ) { return XMVectorAndInt( vec, g_XMMask3 ); }
+	INLINE XMVECTOR SetWToOne( FXMVECTOR vec ) { return XMVectorSelect( g_XMIdentityR3, vec, g_XMMask3 ); }
 
 #endif
 

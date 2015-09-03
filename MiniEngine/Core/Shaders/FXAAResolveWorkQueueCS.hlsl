@@ -14,35 +14,28 @@
 // The work queues are also padded out to a multiple of 64 with dummy work items.
 //
 
-RWStructuredBuffer<uint4> WorkQueueH : register(u0);
-RWStructuredBuffer<uint4> WorkQueueV : register(u1);
-RWByteAddressBuffer  IndirectParams : register(u2);
-
-groupshared uint PixelCountH;
-groupshared uint PixelCountV;
+ByteAddressBuffer WorkCounterH : register(t0);
+ByteAddressBuffer WorkCounterV : register(t1);
+RWByteAddressBuffer IndirectParams : register(u0);
+RWStructuredBuffer<uint> WorkQueueH : register(u1);
+RWStructuredBuffer<uint> WorkQueueV : register(u2);
 
 [numthreads( 64, 1, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {
-	if (GI == 0)
-	{
-		// Increment the counter so we can read the current value.
-		PixelCountH = WorkQueueH.IncrementCounter();
-		PixelCountV = WorkQueueV.IncrementCounter();
-	}
-
-	GroupMemoryBarrierWithGroupSync();
+	uint PixelCountH = WorkCounterH.Load(0);
+	uint PixelCountV = WorkCounterV.Load(0);
 
 	uint PaddedCountH = (PixelCountH + 63) & ~63;
 	uint PaddedCountV = (PixelCountV + 63) & ~63;
 
 	// Write out padding to the buffer
 	if (GI + PixelCountH < PaddedCountH)
-		WorkQueueH[PixelCountH + GI] = uint4(0xffffffff, 0xffffffff, 0, 0xffffffff);
+		WorkQueueH[PixelCountH + GI] = 0xffffffff;
 
 	// Write out padding to the buffer
 	if (GI + PixelCountV < PaddedCountV)
-		WorkQueueV[PixelCountV + GI] = uint4(0xffffffff, 0xffffffff, 0, 0xffffffff);
+		WorkQueueV[PixelCountV + GI] = 0xffffffff;
 
 	if (GI == 0)
 	{

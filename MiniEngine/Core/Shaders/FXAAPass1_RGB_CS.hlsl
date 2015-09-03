@@ -8,6 +8,6 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard	
+// Author:  James Stanard 
 
 #include "FXAAPass1CS.hlsli"

@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard	
-//				Alex Nankervis	
+// Author(s):  James Stanard
+//             Alex Nankervis
 //
 
 #include "pch.h"
@@ -74,15 +74,15 @@ LinearAllocationPage* LinearAllocatorPageManager::CreateNewPage( void )
 	HeapProps.VisibleNodeMask = 1;
 
 	D3D12_RESOURCE_DESC ResourceDesc;
-    ResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    ResourceDesc.Alignment = 0;
-    ResourceDesc.Height = 1;
-    ResourceDesc.DepthOrArraySize = 1;
-    ResourceDesc.MipLevels = 1;
-    ResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-    ResourceDesc.SampleDesc.Count = 1;
-    ResourceDesc.SampleDesc.Quality = 0;
-    ResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	ResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	ResourceDesc.Alignment = 0;
+	ResourceDesc.Height = 1;
+	ResourceDesc.DepthOrArraySize = 1;
+	ResourceDesc.MipLevels = 1;
+	ResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	ResourceDesc.SampleDesc.Count = 1;
+	ResourceDesc.SampleDesc.Quality = 0;
+	ResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 	D3D12_RESOURCE_STATES DefaultUsage;
 

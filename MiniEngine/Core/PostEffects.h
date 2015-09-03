@@ -18,27 +18,27 @@
 
 namespace PostEffects
 {
-	extern BoolVar	EnableHDR;			// Turn on tone mapping features
+	extern BoolVar EnableHDR;			// Turn on tone mapping features
 
 	// Tone mapping parameters
-	extern ExpVar	Exposure;			// Brightness scaler
-	extern ExpVar	WhitePoint;			// After exposure, the brightness that reaches full saturation
-	extern BoolVar	EnableAdaptation;	// Automatically adjust brightness based on perceived luminance
+	extern ExpVar Exposure;				// Brightness scaler
+	extern ExpVar WhitePoint;			// After exposure, the brightness that reaches full saturation
+	extern BoolVar EnableAdaptation;	// Automatically adjust brightness based on perceived luminance
 	extern BoolVar  bToneMapOnlyLuma;	// Keep color saturation from being lost.
 
 	// Adapation parameters
-	extern ExpVar	MinExposure;
-	extern ExpVar	MaxExposure;
-	extern NumVar	TargetLuminance;
-	extern NumVar	AdaptationRate;
+	extern ExpVar MinExposure;
+	extern ExpVar MaxExposure;
+	extern NumVar TargetLuminance;
+	extern NumVar AdaptationRate;
 
 	// Bloom parameters
-	extern NumVar	BloomThreshold;
-	extern NumVar	BloomStrength;
+	extern NumVar BloomThreshold;
+	extern NumVar BloomStrength;
 
-	extern BoolVar	EnableFXAA;
+	extern BoolVar EnableFXAA;
 
-    void Initialize( void );
+	void Initialize( void );
 	void Shutdown( void );
 	void Render( void );
 };
