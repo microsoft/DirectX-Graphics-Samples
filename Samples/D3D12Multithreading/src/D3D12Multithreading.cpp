@@ -82,8 +82,11 @@ void D3D12Multithreading::LoadPipeline()
 	}
 	else
 	{
+		ComPtr<IDXGIAdapter1> hardwareAdapter;
+		GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+
 		ThrowIfFailed(D3D12CreateDevice(
-			nullptr,
+			hardwareAdapter.Get(),
 			D3D_FEATURE_LEVEL_11_0,
 			IID_PPV_ARGS(&m_device)
 			));
@@ -547,7 +550,7 @@ void D3D12Multithreading::LoadAssets()
 		m_fenceValue++;
 
 		// Create an event handle to use for frame synchronization.
-		m_fenceEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+		m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 		if (m_fenceEvent == nullptr)
 		{
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
@@ -639,7 +642,7 @@ void D3D12Multithreading::OnUpdate()
 	// If it is, wait for it to complete.
 	if (m_pCurrentFrameResource->m_fenceValue > lastCompletedFence)
 	{
-		HANDLE eventHandle = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+		HANDLE eventHandle = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 		if (eventHandle == nullptr)
 		{
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
