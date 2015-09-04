@@ -1,0 +1,2 @@
+# Visual Studio 2015 Templates
+This folder contains an active working copy of the DirectX 12 Universal Windows App templates for Visual Studio 2015. These are not in the same format as the installed Visual Studio "templates", but rather they are the result of what you would get if you created a new DirectX 12 Universal Windows App project in Visual Studio 2015.
