@@ -101,6 +101,9 @@ void D3D12HelloTexture::LoadPipeline()
 
 	ThrowIfFailed(swapChain.As(&m_swapChain));
 
+	// This sample does not support fullscreen transitions.
+	ThrowIfFailed(factory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
+
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
 	// Create descriptor heaps.

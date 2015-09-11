@@ -111,6 +111,9 @@ void D3D1211on12::LoadPipeline()
 
 	ThrowIfFailed(swapChain.As(&m_swapChain));
 
+	// This sample does not support fullscreen transitions.
+	ThrowIfFailed(factory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
+
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
 	// Create an 11 device wrapped around the 12 device and share
