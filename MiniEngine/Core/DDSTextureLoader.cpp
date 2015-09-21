@@ -1146,10 +1146,10 @@ static HRESULT CreateTextureFromDDS( _In_ ID3D12Device* d3dDevice,
     }
 
     {
-        auto subResourceCount = static_cast<UINT>(mipCount) * arraySize;
+        auto subresourceCount = static_cast<UINT>(mipCount) * arraySize;
 
         // Create the texture
-        std::unique_ptr<D3D12_SUBRESOURCE_DATA[]> initData( new (std::nothrow) D3D12_SUBRESOURCE_DATA[ subResourceCount ] );
+        std::unique_ptr<D3D12_SUBRESOURCE_DATA[]> initData( new (std::nothrow) D3D12_SUBRESOURCE_DATA[ subresourceCount ] );
         if ( !initData )
         {
             return E_OUTOFMEMORY;
@@ -1189,7 +1189,7 @@ static HRESULT CreateTextureFromDDS( _In_ ID3D12Device* d3dDevice,
 		if (SUCCEEDED(hr))
 		{
 			GpuResource DestTexture(*texture, D3D12_RESOURCE_STATE_COMMON);
-			CommandContext::InitializeTexture(DestTexture, subResourceCount, initData.get());
+			CommandContext::InitializeTexture(DestTexture, subresourceCount, initData.get());
 		}
 	}
 
