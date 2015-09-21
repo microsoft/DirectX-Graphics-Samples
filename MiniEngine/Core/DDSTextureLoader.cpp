@@ -1146,7 +1146,7 @@ static HRESULT CreateTextureFromDDS( _In_ ID3D12Device* d3dDevice,
     }
 
     {
-		auto subResourceCount = static_cast<UINT>(mipCount) * arraySize;
+        auto subResourceCount = static_cast<UINT>(mipCount) * arraySize;
 
         // Create the texture
         std::unique_ptr<D3D12_SUBRESOURCE_DATA[]> initData( new (std::nothrow) D3D12_SUBRESOURCE_DATA[ subResourceCount ] );
