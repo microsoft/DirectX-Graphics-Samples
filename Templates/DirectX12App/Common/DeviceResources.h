@@ -26,6 +26,7 @@ namespace DX
 		ID3D12Device*               GetD3DDevice() const                { return m_d3dDevice.Get(); }
 		IDXGISwapChain3*            GetSwapChain() const                { return m_swapChain.Get(); }
 		ID3D12Resource*             GetRenderTarget() const             { return m_renderTargets[m_currentFrame].Get(); }
+		ID3D12Resource*             GetDepthStencil() const             { return m_depthStencil.Get(); }
 		ID3D12CommandQueue*         GetCommandQueue() const             { return m_commandQueue.Get(); }
 		ID3D12CommandAllocator*     GetCommandAllocator() const         { return m_commandAllocators[m_currentFrame].Get(); }
 		D3D12_VIEWPORT              GetScreenViewport() const           { return m_screenViewport; }
@@ -35,6 +36,10 @@ namespace DX
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GetRenderTargetView() const
 		{
 			return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_currentFrame, m_rtvDescriptorSize);
+		}
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const
+		{
+			return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 		}
 
 	private:
@@ -51,7 +56,9 @@ namespace DX
 		Microsoft::WRL::ComPtr<IDXGIFactory4> m_dxgiFactory;
 		Microsoft::WRL::ComPtr<IDXGISwapChain3> m_swapChain;
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_renderTargets[c_frameCount];
+		Microsoft::WRL::ComPtr<ID3D12Resource> m_depthStencil;
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 		UINT m_rtvDescriptorSize;
 		Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_commandQueue;
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_commandAllocators[c_frameCount];
