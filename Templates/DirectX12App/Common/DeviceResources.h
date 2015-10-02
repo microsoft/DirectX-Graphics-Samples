@@ -48,6 +48,7 @@ namespace DX
 		void CreateWindowSizeDependentResources();
 		void MoveToNextFrame();
 		DXGI_MODE_ROTATION ComputeDisplayRotation();
+		void GetHardwareAdapter(_In_ IDXGIFactory4* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter);
 
 		UINT m_currentFrame;
 
