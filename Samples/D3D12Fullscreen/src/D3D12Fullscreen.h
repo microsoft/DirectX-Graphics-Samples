@@ -33,6 +33,7 @@ protected:
 private:
 	static const UINT FrameCount = 2;
 	static const UINT TriangleWidth = 500;
+	static const DXGI_FORMAT BufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	struct Vertex
 	{
@@ -69,6 +70,9 @@ private:
 	// If it's minimized the app may decide not to render frames.
 	bool m_windowVisible;
 	bool m_resizeResources;
+	bool m_fullscreenState;
+	UINT m_windowWidth;
+	UINT m_windowHeight;
 
 	void LoadPipeline();
 	void LoadAssets();
@@ -76,4 +80,8 @@ private:
 	void PopulateCommandList();
 	void WaitForGpu();
 	void MoveToNextFrame();
+	void CheckFullscreenStateChanged();
+	void ChooseDisplayMode(bool fullscreenState);
+	void ResizeBuffers();
+
 };

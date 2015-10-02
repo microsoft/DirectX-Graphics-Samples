@@ -19,7 +19,10 @@ D3D12Fullscreen::D3D12Fullscreen(UINT width, UINT height, std::wstring name) :
 	m_scissorRect(),
 	m_rtvDescriptorSize(0),
 	m_windowVisible(true),
-	m_resizeResources(true)
+	m_resizeResources(true),
+	m_fullscreenState(false),
+	m_windowWidth(width),
+	m_windowHeight(height)
 {
 	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 }
@@ -82,12 +85,14 @@ void D3D12Fullscreen::LoadPipeline()
 	swapChainDesc.BufferCount = FrameCount;
 	swapChainDesc.BufferDesc.Width = m_width;
 	swapChainDesc.BufferDesc.Height = m_height;
-	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferDesc.Format = BufferFormat;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.OutputWindow = m_hwnd;
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.Windowed = TRUE;
+	// Switch to full-screen mode which bypasses DWM
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	ComPtr<IDXGISwapChain> swapChain;
 	ThrowIfFailed(factory->CreateSwapChain(
@@ -168,7 +173,7 @@ void D3D12Fullscreen::LoadAssets()
 		psoDesc.SampleMask = UINT_MAX;
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		psoDesc.NumRenderTargets = 1;
-		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.RTVFormats[0] = BufferFormat;
 		psoDesc.SampleDesc.Count = 1;
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
 	}
@@ -295,6 +300,9 @@ void D3D12Fullscreen::OnRender()
 {
 	if (m_windowVisible)
 	{
+		// call this to detect full-screen state changes
+		CheckFullscreenStateChanged();
+
 		// Record all the commands we need to render the scene into the command list.
 		PopulateCommandList();
 
@@ -314,30 +322,10 @@ void D3D12Fullscreen::OnSizeChanged(UINT width, UINT height, bool minimized)
 	// Determine if the swap buffers and other resources need to be resized or not.
  	if ((width != m_width || height != m_height) && !minimized)
 	{
-		// Flush all current GPU commands.
-		WaitForGpu();
-
-		// Release the resources holding references to the swap chain (requirement of
-		// IDXGISwapChain::ResizeBuffers) and reset the frame fence values to the
-		// current fence value.
-		for (UINT n = 0; n < FrameCount; n++)
-		{
-			m_renderTargets[n].Reset();
-			m_fenceValues[n] = m_fenceValues[m_frameIndex];
-		}
-
-		// Resize the swap chain to the desired dimensions.
-		DXGI_SWAP_CHAIN_DESC desc = {};
-		m_swapChain->GetDesc(&desc);
-		ThrowIfFailed(m_swapChain->ResizeBuffers(FrameCount, width, height, desc.BufferDesc.Format, desc.Flags));
-
-		// Reset the frame index to the current back buffer index.
-		m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
-
 		// Update the width, height, and aspect ratio member variables.
 		UpdateForSizeChange(width, height);
 
-		m_resizeResources = true;
+		ResizeBuffers();
 	}
 
 	m_windowVisible = !minimized;
@@ -370,6 +358,8 @@ bool D3D12Fullscreen::OnEvent(MSG msg)
 		{
 			BOOL fullscreenState;
 			ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
+			if(!fullscreenState) // reduce flicker by resizing before going fullscreen
+				ChooseDisplayMode(!fullscreenState);
 			if (FAILED(m_swapChain->SetFullscreenState(!fullscreenState, nullptr)))
 			{
 				// Transitions to fullscreen mode can fail when running apps over
@@ -462,4 +452,94 @@ void D3D12Fullscreen::MoveToNextFrame()
 
 	// Set the fence value for the next frame.
 	m_fenceValues[m_frameIndex] = currentFenceValue + 1;
+}
+
+void D3D12Fullscreen::CheckFullscreenStateChanged()
+{
+	BOOL fullscreenState;
+	ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
+
+	if (m_fullscreenState != !!fullscreenState)
+	{
+		ChooseDisplayMode(m_fullscreenState = !!fullscreenState);
+		ResizeBuffers();
+	}
+}
+
+void D3D12Fullscreen::ChooseDisplayMode(bool fullscreenState)
+{
+	DXGI_SWAP_CHAIN_DESC desc = {};
+	m_swapChain->GetDesc(&desc);
+	DXGI_MODE_DESC modeDesc = desc.BufferDesc;
+
+	ComPtr<IDXGIOutput> output;
+	ThrowIfFailed(m_swapChain->GetContainingOutput(&output));
+
+	if (fullscreenState)
+	{
+		// Remember window size (when switching to fullscreen with Alt-Enter, 
+		// this is already closest matching fullscreen resolution).
+		if (!m_resizeResources)
+		{
+			m_windowWidth = modeDesc.Width;
+			m_windowHeight = modeDesc.Height;
+		}
+
+		const UINT flags = DXGI_ENUM_MODES_INTERLACED | DXGI_ENUM_MODES_SCALING;
+
+		// Get number of display modes
+		UINT num = 0;
+		ThrowIfFailed(output->GetDisplayModeList(BufferFormat, flags, &num, 0));
+
+		// Get display mode list
+		DXGI_MODE_DESC* pDescs = new DXGI_MODE_DESC[num];
+		ThrowIfFailed(output->GetDisplayModeList(BufferFormat, flags, &num, pDescs));
+
+		// Find display mode with highest resolution
+		while (0 < num--)
+		{
+			if (modeDesc.Width * modeDesc.Height < pDescs[num].Width * pDescs[num].Height)
+				modeDesc = pDescs[num];
+		}
+
+		delete[] pDescs;
+	}
+	else
+	{
+		modeDesc.Width = m_windowWidth;
+		modeDesc.Height = m_windowHeight;
+
+		ThrowIfFailed(output->FindClosestMatchingMode(&modeDesc, &modeDesc, nullptr));
+	}
+
+	m_swapChain->ResizeTarget(&modeDesc);
+}
+
+void D3D12Fullscreen::ResizeBuffers()
+{
+	BOOL fullscreenState;
+	ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
+
+	// Flush all current GPU commands.
+	WaitForGpu();
+
+	// Release the resources holding references to the swap chain (requirement of
+	// IDXGISwapChain::ResizeBuffers) and reset the frame fence values to the
+	// current fence value.
+	for (UINT n = 0; n < FrameCount; n++)
+	{
+		m_renderTargets[n].Reset();
+		m_fenceValues[n] = m_fenceValues[m_frameIndex];
+	}
+
+	// Resize the swap chain to the desired dimensions.
+	DXGI_SWAP_CHAIN_DESC desc = {};
+	m_swapChain->GetDesc(&desc);
+
+	ThrowIfFailed(m_swapChain->ResizeBuffers(FrameCount, m_width, m_height, desc.BufferDesc.Format, desc.Flags));
+
+	// Reset the frame index to the current back buffer index.
+	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
+	m_resizeResources = true;
 }
