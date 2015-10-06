@@ -17,9 +17,13 @@ namespace DX
 		void Present();
 		void WaitForGpu();
 
-		// Device Accessors.
+		// The size of the render target, in pixels.
 		Windows::Foundation::Size   GetOutputSize() const               { return m_outputSize; }
+
+		// The size of the render target, in dips.
 		Windows::Foundation::Size   GetLogicalSize() const              { return m_logicalSize; }
+
+		float                       GetDpi() const                      { return m_effectiveDpi; }
 		bool                        IsDeviceRemoved() const             { return m_deviceRemoved; }
 
 		// D3D Accessors.
@@ -46,6 +50,7 @@ namespace DX
 		void CreateDeviceIndependentResources();
 		void CreateDeviceResources();
 		void CreateWindowSizeDependentResources();
+		void UpdateRenderTargetSize();
 		void MoveToNextFrame();
 		DXGI_MODE_ROTATION ComputeDisplayRotation();
 		void GetHardwareAdapter(IDXGIFactory4* pFactory, IDXGIAdapter1** ppAdapter);
@@ -81,6 +86,9 @@ namespace DX
 		Windows::Graphics::Display::DisplayOrientations m_nativeOrientation;
 		Windows::Graphics::Display::DisplayOrientations m_currentOrientation;
 		float m_dpi;
+
+		// This is the DPI that will be reported back to the app. It takes into account whether the app supports high resolution screens or not.
+		float m_effectiveDpi;
 
 		// Transforms used for display orientation.
 		DirectX::XMFLOAT4X4 m_orientationTransform3D;

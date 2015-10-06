@@ -181,6 +181,10 @@ void App::OnWindowClosed(CoreWindow^ sender, CoreWindowEventArgs^ args)
 
 void App::OnDpiChanged(DisplayInformation^ sender, Object^ args)
 {
+	// Note: The value for LogicalDpi retrieved here may not match the effective DPI of the app
+	// if it is being scaled for high resolution devices. Once the DPI is set on DeviceResources,
+	// you should always retrieve it using the GetDpi method.
+	// See DeviceResources.cpp for more details.
 	GetDeviceResources()->SetDpi(sender->LogicalDpi);
 	m_main->OnWindowSizeChanged();
 }
