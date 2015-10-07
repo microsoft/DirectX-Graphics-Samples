@@ -34,3 +34,4 @@
 #include <sstream>
 #include <io.h>
 #include <fcntl.h>
+#include <shellapi.h>

@@ -31,3 +31,4 @@
 #include <vector>
 #include <fstream>
 #include <wrl.h>
+#include <shellapi.h>

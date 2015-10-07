@@ -29,3 +29,4 @@
 
 #include <wrl.h>
 #include <string>
+#include <shellapi.h>

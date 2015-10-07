@@ -48,7 +48,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	D3D12PipelineStateCache sample(1280, 720, L"D3D12 Pipeline State Object Cache Sample");
 
 	FILE* pStreamOut = CreateConsoleAndPrintDemoInformation();
-	int result = sample.Run(hInstance, nCmdShow);
+	int result = Win32Application::Run(&sample, hInstance, nCmdShow);
 	DestroyConsole(pStreamOut);
 
 	return result;
