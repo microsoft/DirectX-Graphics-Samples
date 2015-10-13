@@ -53,7 +53,7 @@ void D3D12PipelineStateCache::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12PipelineStateCache::LoadPipeline()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG)
 	// Enable the D3D12 debug layer.
 	{
 		ComPtr<ID3D12Debug> debugController;
@@ -105,7 +105,7 @@ void D3D12PipelineStateCache::LoadPipeline()
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.OutputWindow = m_hwnd;
+	swapChainDesc.OutputWindow = Win32Application::GetHwnd();
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.Windowed = TRUE;
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
@@ -120,7 +120,7 @@ void D3D12PipelineStateCache::LoadPipeline()
 	ThrowIfFailed(swapChain.As(&m_swapChain));
 
 	// This sample does not support fullscreen transitions.
-	ThrowIfFailed(factory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
+	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 	m_swapChainEvent = m_swapChain->GetFrameLatencyWaitableObject();
@@ -294,7 +294,8 @@ void D3D12PipelineStateCache::LoadAssets()
 			IID_PPV_ARGS(&vertexIndexBufferUpload)));
 
 		UINT8* mappedUploadHeap = nullptr;
-		ThrowIfFailed(vertexIndexBufferUpload->Map(0, nullptr, reinterpret_cast<void**>(&mappedUploadHeap)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(vertexIndexBufferUpload->Map(0, &readRange, reinterpret_cast<void**>(&mappedUploadHeap)));
 
 		// Fill in part of the upload heap with our index and vertex data.
 		UINT8* heapLocation = static_cast<UINT8*>(mappedUploadHeap);
@@ -373,7 +374,7 @@ void D3D12PipelineStateCache::OnRender()
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
 	// Present the frame.
-	ThrowIfFailed(m_swapChain->Present(0, 0));
+	ThrowIfFailed(m_swapChain->Present(1, 0));
 
 	m_drawIndex = 0;
 	m_psoLibrary.EndFrame();
@@ -389,21 +390,71 @@ void D3D12PipelineStateCache::OnDestroy()
 	CloseHandle(m_fenceEvent);
 }
 
-bool D3D12PipelineStateCache::OnEvent(MSG msg)
+void D3D12PipelineStateCache::OnKeyDown(UINT8 key)
 {
-	switch (msg.message)
+	m_camera.OnKeyDown(key);
+}
+
+void D3D12PipelineStateCache::OnKeyUp(UINT8 key)
+{
+	m_camera.OnKeyUp(key);
+	
+	switch (key)
 	{
-	case WM_KEYDOWN:
-		m_camera.OnKeyDown(msg.wParam);
+	case 'C':
+		WaitForGpu();
+		m_psoLibrary.ClearPSOCache();
 		break;
 
-	case WM_KEYUP:
-		m_camera.OnKeyUp(msg.wParam);
-		OnKeyUp(msg.wParam);
+	case 'U':
+		m_psoLibrary.ToggleUberShader();
+		break;
+
+	case 'L':
+		m_psoLibrary.ToggleDiskLibrary();
+		break;
+
+	case '1':
+		ToggleEffect(PostBlit);
+		break;
+
+	case '2':
+		ToggleEffect(PostInvert);
+		break;
+
+	case '3':
+		ToggleEffect(PostGrayScale);
+		break;
+
+	case '4':
+		ToggleEffect(PostEdgeDetect);
+		break;
+
+	case '5':
+		ToggleEffect(PostBlur);
+		break;
+
+	case '6':
+		ToggleEffect(PostWarp);
+		break;
+
+	case '7':
+		ToggleEffect(PostPixelate);
+		break;
+
+	case '8':
+		ToggleEffect(PostDistort);
+		break;
+
+	case '9':
+		ToggleEffect(PostWave);
+		break;
+
+	default:
 		break;
 	}
 
-	return false;
+	UpdateWindowTextPso();
 }
 
 // Fill the command list with all the render commands and dependent state.
@@ -525,66 +576,6 @@ void D3D12PipelineStateCache::ToggleEffect(EffectPipelineType type)
 	}
 
 	m_enabledEffects[type] = !m_enabledEffects[type];
-}
-
-void D3D12PipelineStateCache::OnKeyUp(WPARAM key)
-{
-	switch (key)
-	{
-	case 'C':
-		WaitForGpu();
-		m_psoLibrary.ClearPSOCache();
-		break;
-
-	case 'U':
-		m_psoLibrary.ToggleUberShader();
-		break;
-
-	case 'L':
-		m_psoLibrary.ToggleDiskLibrary();
-		break;
-
-	case '1':
-		ToggleEffect(PostBlit);
-		break;
-
-	case '2':
-		ToggleEffect(PostInvert);
-		break;
-
-	case '3':
-		ToggleEffect(PostGrayScale);
-		break;
-
-	case '4':
-		ToggleEffect(PostEdgeDetect);
-		break;
-
-	case '5':
-		ToggleEffect(PostBlur);
-		break;
-
-	case '6':
-		ToggleEffect(PostWarp);
-		break;
-
-	case '7':
-		ToggleEffect(PostPixelate);
-		break;
-
-	case '8':
-		ToggleEffect(PostDistort);
-		break;
-
-	case '9':
-		ToggleEffect(PostWave);
-		break;
-
-	default:
-		break;
-	}
-
-	UpdateWindowTextPso();
 }
 
 void D3D12PipelineStateCache::UpdateWindowTextPso()

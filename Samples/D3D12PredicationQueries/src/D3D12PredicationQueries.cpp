@@ -39,7 +39,7 @@ void D3D12PredicationQueries::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12PredicationQueries::LoadPipeline()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG)
 	// Enable the D3D12 debug layer.
 	{
 		ComPtr<ID3D12Debug> debugController;
@@ -91,7 +91,7 @@ void D3D12PredicationQueries::LoadPipeline()
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.OutputWindow = m_hwnd;
+	swapChainDesc.OutputWindow = Win32Application::GetHwnd();
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.Windowed = TRUE;
 
@@ -105,7 +105,7 @@ void D3D12PredicationQueries::LoadPipeline()
 	ThrowIfFailed(swapChain.As(&m_swapChain));
 
 	// This sample does not support fullscreen transitions.
-	ThrowIfFailed(factory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
+	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
@@ -191,7 +191,7 @@ void D3D12PredicationQueries::LoadAssets()
 		ComPtr<ID3DBlob> vertexShader;
 		ComPtr<ID3DBlob> pixelShader;
 
-#ifdef _DEBUG
+#if defined(_DEBUG)
 		// Enable better shader debugging with the graphics debugging tools.
 		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
@@ -321,7 +321,8 @@ void D3D12PredicationQueries::LoadAssets()
 		// Initialize and map the constant buffers. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
 		ZeroMemory(&m_constantBufferData, sizeof(m_constantBufferData));
-		ThrowIfFailed(m_constantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_pCbvDataBegin)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 		ZeroMemory(m_pCbvDataBegin, FrameCount * sizeof(m_constantBufferData));
 
 		// Create constant buffer views to access the upload buffer.
@@ -374,10 +375,11 @@ void D3D12PredicationQueries::LoadAssets()
 
 	// Create the query result buffer.
 	{
+		D3D12_RESOURCE_DESC queryResultDesc = CD3DX12_RESOURCE_DESC::Buffer(8);
 		ThrowIfFailed(m_device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(8),
+			&queryResultDesc,
 			D3D12_RESOURCE_STATE_PREDICATION,
 			nullptr,
 			IID_PPV_ARGS(&m_queryResult)
@@ -438,7 +440,7 @@ void D3D12PredicationQueries::OnRender()
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
 	// Present the frame.
-	ThrowIfFailed(m_swapChain->Present(0, 0));
+	ThrowIfFailed(m_swapChain->Present(1, 0));
 
 	MoveToNextFrame();
 }
@@ -449,11 +451,6 @@ void D3D12PredicationQueries::OnDestroy()
 	WaitForGpu();
 
 	CloseHandle(m_fenceEvent);
-}
-
-bool D3D12PredicationQueries::OnEvent(MSG)
-{
-	return false;
 }
 
 // Fill the command list with all the render commands and dependent state.

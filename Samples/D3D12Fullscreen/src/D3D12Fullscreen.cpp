@@ -33,7 +33,7 @@ void D3D12Fullscreen::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12Fullscreen::LoadPipeline()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG)
 	// Enable the D3D12 debug layer.
 	{
 		ComPtr<ID3D12Debug> debugController;
@@ -85,7 +85,7 @@ void D3D12Fullscreen::LoadPipeline()
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.OutputWindow = m_hwnd;
+	swapChainDesc.OutputWindow = Win32Application::GetHwnd();
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.Windowed = TRUE;
 
@@ -137,16 +137,17 @@ void D3D12Fullscreen::LoadAssets()
 	{
 		ComPtr<ID3DBlob> vertexShader;
 		ComPtr<ID3DBlob> pixelShader;
+		ComPtr<ID3DBlob> error;
 
-#ifdef _DEBUG
+#if defined(_DEBUG)
 		// Enable better shader debugging with the graphics debugging tools.
 		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
 		UINT compileFlags = 0;
 #endif
 
-		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &error));
+		ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &error));
 
 		// Define the vertex input layout.
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
@@ -269,7 +270,8 @@ void D3D12Fullscreen::LoadSizeDependentResources()
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the vertex buffer.
 		UINT8* pVertexDataBegin;
-		ThrowIfFailed(m_vertexBufferUpload->Map(0, &CD3DX12_RANGE(0, vertexBufferSize), reinterpret_cast<void**>(&pVertexDataBegin)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_vertexBufferUpload->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
 		memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
 		m_vertexBufferUpload->Unmap(0, nullptr);
 
@@ -354,11 +356,11 @@ void D3D12Fullscreen::OnDestroy()
 	CloseHandle(m_fenceEvent);
 }
 
-bool D3D12Fullscreen::OnEvent(MSG msg)
+void D3D12Fullscreen::OnKeyDown(UINT8 key)
 {
-	switch (msg.message)
+	switch (key)
 	{
-	case WM_KEYDOWN:
+	case VK_SPACE:
 		// Instrument the Space Bar to toggle between fullscreen states.
 		// The window message loop callback will receive a WM_SIZE message once the
 		// window is in the fullscreen state. At that point, the IDXGISwapChain should
@@ -366,7 +368,6 @@ bool D3D12Fullscreen::OnEvent(MSG msg)
 		//
 		// NOTE: ALT+Enter will perform a similar operation; the code below is not
 		// required to enable that key combination.
-		if (msg.wParam == VK_SPACE)
 		{
 			BOOL fullscreenState;
 			ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
@@ -381,7 +382,6 @@ bool D3D12Fullscreen::OnEvent(MSG msg)
 		}
 		break;
 	}
-	return false;
 }
 
 // Fill the command list with all the render commands and dependent state.

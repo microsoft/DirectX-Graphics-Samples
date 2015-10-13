@@ -101,6 +101,7 @@
     <ClInclude Include="BlitPixelShader.hlsl.h" />
     <ClInclude Include="BlurPixelShader.hlsl.h" />
     <ClInclude Include="D3D12PipelineStateCache.h" />
+    <ClInclude Include="Win32Application.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXSampleHelper.h" />
     <ClInclude Include="DXSample.h" />
@@ -123,6 +124,7 @@
     <ClInclude Include="WavePixelShader.hlsl.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="D3D12PipelineStateCache.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="DynamicConstantBuffer.cpp" />

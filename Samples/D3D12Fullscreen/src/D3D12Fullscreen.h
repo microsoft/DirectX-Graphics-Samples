@@ -28,7 +28,7 @@ protected:
 	virtual void OnRender();
 	virtual void OnSizeChanged(UINT width, UINT height, bool minimized);
 	virtual void OnDestroy();
-	virtual bool OnEvent(MSG msg);
+	virtual void OnKeyDown(UINT8 key);
 
 private:
 	static const UINT FrameCount = 2;

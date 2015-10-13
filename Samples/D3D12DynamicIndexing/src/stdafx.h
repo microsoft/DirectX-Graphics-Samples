@@ -30,3 +30,4 @@
 #include <string>
 #include <vector>
 #include <wrl.h>
+#include <shellapi.h>

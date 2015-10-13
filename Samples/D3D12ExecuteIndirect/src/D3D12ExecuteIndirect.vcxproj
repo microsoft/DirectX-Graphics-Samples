@@ -98,6 +98,7 @@
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12ExecuteIndirect.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXSampleHelper.h" />
@@ -105,6 +106,7 @@
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="D3D12ExecuteIndirect.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="Main.cpp" />

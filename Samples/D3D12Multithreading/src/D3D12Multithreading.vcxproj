@@ -102,6 +102,7 @@
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Win32Application.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="D3D12Multithreading.h" />
     <ClInclude Include="d3dx12.h" />
@@ -113,6 +114,7 @@
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="D3D12Multithreading.cpp" />
     <ClCompile Include="DXSample.cpp" />

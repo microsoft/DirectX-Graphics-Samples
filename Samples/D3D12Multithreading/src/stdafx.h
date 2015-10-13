@@ -33,6 +33,7 @@
 #include <string>
 #include <wrl.h>
 #include <process.h>
+#include <shellapi.h>
 
 #define SINGLETHREADED FALSE
 
