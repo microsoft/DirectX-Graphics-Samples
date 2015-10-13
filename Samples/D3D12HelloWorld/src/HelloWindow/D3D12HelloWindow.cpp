@@ -28,7 +28,7 @@ void D3D12HelloWindow::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12HelloWindow::LoadPipeline()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG)
 	// Enable the D3D12 debug layer.
 	{
 		ComPtr<ID3D12Debug> debugController;
@@ -80,7 +80,7 @@ void D3D12HelloWindow::LoadPipeline()
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.OutputWindow = m_hwnd;
+	swapChainDesc.OutputWindow = Win32Application::GetHwnd();
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.Windowed = TRUE;
 
@@ -94,7 +94,7 @@ void D3D12HelloWindow::LoadPipeline()
 	ThrowIfFailed(swapChain.As(&m_swapChain));
 
 	// This sample does not support fullscreen transitions.
-	ThrowIfFailed(factory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
+	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
@@ -177,11 +177,6 @@ void D3D12HelloWindow::OnDestroy()
 	WaitForPreviousFrame();
 
 	CloseHandle(m_fenceEvent);
-}
-
-bool D3D12HelloWindow::OnEvent(MSG)
-{
-	return false;
 }
 
 void D3D12HelloWindow::PopulateCommandList()

@@ -23,12 +23,12 @@ class D3D12nBodyGravity : public DXSample
 public:
 	D3D12nBodyGravity(UINT width, UINT height, std::wstring name);
 
-protected:
 	virtual void OnInit();
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnDestroy();
-	virtual bool OnEvent(MSG msg);
+	virtual void OnKeyDown(UINT8 key);
+	virtual void OnKeyUp(UINT8 key);
 
 private:
 	static const UINT FrameCount = 2;

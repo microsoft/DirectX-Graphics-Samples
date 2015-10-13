@@ -40,7 +40,7 @@ void D3D1211on12::LoadPipeline()
 {
 	UINT d3d11DeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 	D2D1_FACTORY_OPTIONS d2dFactoryOptions = {};
-#ifdef _DEBUG
+#if defined(_DEBUG)
 	// Enable the D2D debug layer.
 	d2dFactoryOptions.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
 
@@ -98,7 +98,7 @@ void D3D1211on12::LoadPipeline()
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.OutputWindow = m_hwnd;
+	swapChainDesc.OutputWindow = Win32Application::GetHwnd();
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.Windowed = TRUE;
 
@@ -112,7 +112,7 @@ void D3D1211on12::LoadPipeline()
 	ThrowIfFailed(swapChain.As(&m_swapChain));
 
 	// This sample does not support fullscreen transitions.
-	ThrowIfFailed(factory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
+	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
@@ -230,7 +230,7 @@ void D3D1211on12::LoadAssets()
 		ComPtr<ID3DBlob> vertexShader;
 		ComPtr<ID3DBlob> pixelShader;
 
-#ifdef _DEBUG
+#if defined(_DEBUG)
 		// Enable better shader debugging with the graphics debugging tools.
 		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
@@ -374,7 +374,7 @@ void D3D1211on12::OnRender()
 	RenderUI();
 
 	// Present the frame.
-	ThrowIfFailed(m_swapChain->Present(0, 0));
+	ThrowIfFailed(m_swapChain->Present(1, 0));
 
 	MoveToNextFrame();
 }
@@ -417,11 +417,6 @@ void D3D1211on12::OnDestroy()
 	WaitForGpu();
 
 	CloseHandle(m_fenceEvent);
-}
-
-bool D3D1211on12::OnEvent(MSG)
-{
-	return false;
 }
 
 void D3D1211on12::PopulateCommandList()

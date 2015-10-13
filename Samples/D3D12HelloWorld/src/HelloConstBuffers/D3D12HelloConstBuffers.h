@@ -21,12 +21,10 @@ class D3D12HelloConstBuffers : public DXSample
 public:
 	D3D12HelloConstBuffers(UINT width, UINT height, std::wstring name);
 
-protected:
 	virtual void OnInit();
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnDestroy();
-	virtual bool OnEvent(MSG msg);
 
 private:
 	static const UINT FrameCount = 2;

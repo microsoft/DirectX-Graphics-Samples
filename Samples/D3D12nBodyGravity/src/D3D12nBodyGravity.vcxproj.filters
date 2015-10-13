@@ -45,6 +45,9 @@
     <ClInclude Include="StepTimer.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="Win32Application.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -60,6 +63,9 @@
       <Filter>Source Files\Util</Filter>
     </ClCompile>
     <ClCompile Include="SimpleCamera.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Win32Application.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
   </ItemGroup>

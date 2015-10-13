@@ -21,12 +21,10 @@ class D3D1211on12 : public DXSample
 public:
 	D3D1211on12(UINT width, UINT height, std::wstring name);
 
-protected:
 	virtual void OnInit();
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnDestroy();
-	virtual bool OnEvent(MSG msg);
 
 private:
 	static const UINT FrameCount = 3;
