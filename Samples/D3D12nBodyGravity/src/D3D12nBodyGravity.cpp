@@ -331,7 +331,8 @@ void D3D12nBodyGravity::LoadAssets()
 			IID_PPV_ARGS(&m_constantBufferGS)
 			));
 
-		ThrowIfFailed(m_constantBufferGS->Map(0, nullptr, reinterpret_cast<void**>(&m_pConstantBufferGSData)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_constantBufferGS->Map(0, &readRange, reinterpret_cast<void**>(&m_pConstantBufferGSData)));
 		ZeroMemory(m_pConstantBufferGSData, constantBufferGSSize);
 	}
 

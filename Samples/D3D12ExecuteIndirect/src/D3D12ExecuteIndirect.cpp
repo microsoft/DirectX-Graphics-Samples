@@ -349,9 +349,6 @@ void D3D12ExecuteIndirect::LoadAssets()
 			nullptr,
 			IID_PPV_ARGS(&m_constantBuffer)));
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle(m_cbvSrvUavHeap->GetCPUDescriptorHandleForHeapStart());
-		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = m_constantBuffer->GetGPUVirtualAddress();
-
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 		cbvDesc.SizeInBytes = sizeof(ConstantBufferData);
 
@@ -362,20 +359,12 @@ void D3D12ExecuteIndirect::LoadAssets()
 			m_constantBufferData[n].offset = XMFLOAT4(GetRandomFloat(-5.0f, -1.5f), GetRandomFloat(-1.0f, 1.0f), GetRandomFloat(0.0f, 2.0f), 0.0f);
 			m_constantBufferData[n].color = XMFLOAT4(GetRandomFloat(0.5f, 1.0f), GetRandomFloat(0.5f, 1.0f), GetRandomFloat(0.5f, 1.0f), 1.0f);
 			XMStoreFloat4x4(&m_constantBufferData[n].projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 0.01f, 20.0f)));
-
-			for (int frame = 0; frame < FrameCount; frame++)
-			{
-				cbvDesc.BufferLocation = gpuAddress + (cbvDesc.SizeInBytes * TriangleCount * frame);
-				m_device->CreateConstantBufferView(&cbvDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuHandle, CbvSrvUavDescriptorCountPerFrame * frame, m_cbvSrvUavDescriptorSize));
-			}
-
-			cpuHandle.Offset(m_cbvSrvUavDescriptorSize);
-			gpuAddress += cbvDesc.SizeInBytes;
 		}
 
 		// Map the constant buffers. We don't unmap this until the app closes.
 		// Keeping things mapped for the lifetime of the resource is okay.
-		ThrowIfFailed(m_constantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_pCbvDataBegin)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 		memcpy(m_pCbvDataBegin, &m_constantBufferData[0], TriangleCount * sizeof(ConstantBufferData));
 
 		// Create shader resource views (SRV) of the constant buffers for the
@@ -525,7 +514,8 @@ void D3D12ExecuteIndirect::LoadAssets()
 			IID_PPV_ARGS(&m_processedCommandBufferCounterReset)));
 
 		UINT8* pMappedCounterReset = nullptr;
-		ThrowIfFailed(m_processedCommandBufferCounterReset->Map(0, nullptr, reinterpret_cast<void**>(&pMappedCounterReset)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_processedCommandBufferCounterReset->Map(0, &readRange, reinterpret_cast<void**>(&pMappedCounterReset)));
 		ZeroMemory(pMappedCounterReset, sizeof(UINT));
 		m_processedCommandBufferCounterReset->Unmap(0, nullptr);
 	}

@@ -270,7 +270,8 @@ void D3D12Fullscreen::LoadSizeDependentResources()
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the vertex buffer.
 		UINT8* pVertexDataBegin;
-		ThrowIfFailed(m_vertexBufferUpload->Map(0, &CD3DX12_RANGE(0, vertexBufferSize), reinterpret_cast<void**>(&pVertexDataBegin)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_vertexBufferUpload->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
 		memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
 		m_vertexBufferUpload->Unmap(0, nullptr);
 

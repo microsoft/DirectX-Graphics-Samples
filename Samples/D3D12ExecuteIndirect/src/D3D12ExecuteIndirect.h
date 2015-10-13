@@ -90,8 +90,7 @@ private:
 	// CBV/SRV/UAV desciptor heap offsets.
 	enum HeapOffsets
 	{
-		CbvOffset = 0,
-		CbvSrvOffset = CbvOffset + TriangleCount,							// SRV that points to the constant buffers used by the rendering thread.
+		CbvSrvOffset = 0,													// SRV that points to the constant buffers used by the rendering thread.
 		CommandsOffset = CbvSrvOffset + 1,									// SRV that points to all of the indirect commands.
 		ProcessedCommandsOffset = CommandsOffset + 1,						// UAV that records the commands we actually want to execute.
 		CbvSrvUavDescriptorCountPerFrame = ProcessedCommandsOffset + 1		// 1 CBV per triangle + [2 SRVs + 1 UAV for the compute shader].

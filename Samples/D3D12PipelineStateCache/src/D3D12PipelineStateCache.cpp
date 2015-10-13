@@ -294,7 +294,8 @@ void D3D12PipelineStateCache::LoadAssets()
 			IID_PPV_ARGS(&vertexIndexBufferUpload)));
 
 		UINT8* mappedUploadHeap = nullptr;
-		ThrowIfFailed(vertexIndexBufferUpload->Map(0, nullptr, reinterpret_cast<void**>(&mappedUploadHeap)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(vertexIndexBufferUpload->Map(0, &readRange, reinterpret_cast<void**>(&mappedUploadHeap)));
 
 		// Fill in part of the upload heap with our index and vertex data.
 		UINT8* heapLocation = static_cast<UINT8*>(mappedUploadHeap);

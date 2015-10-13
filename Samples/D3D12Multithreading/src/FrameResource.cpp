@@ -130,8 +130,9 @@ FrameResource::FrameResource(ID3D12Device* pDevice, ID3D12PipelineState* pPso, I
 		IID_PPV_ARGS(&m_sceneConstantBuffer)));
 
 	// Map the constant buffers and cache their heap pointers.
-	ThrowIfFailed(m_shadowConstantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mp_shadowConstantBufferWO)));
-	ThrowIfFailed(m_sceneConstantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mp_sceneConstantBufferWO)));
+	CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+	ThrowIfFailed(m_shadowConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mp_shadowConstantBufferWO)));
+	ThrowIfFailed(m_sceneConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mp_sceneConstantBufferWO)));
 
 	// Create the constant buffer views: one for the shadow pass and
 	// another for the scene pass.

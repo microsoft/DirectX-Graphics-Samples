@@ -40,7 +40,8 @@ FrameResource::FrameResource(ID3D12Device* pDevice, UINT cityRowCount, UINT city
 	// does not need to be unmapped for use by the GPU. In this sample, 
 	// the resource stays 'permenantly' mapped to avoid overhead with 
 	// mapping/unmapping each frame.
-	ThrowIfFailed(m_cbvUploadHeap->Map(0, nullptr, reinterpret_cast<void**>(&m_pConstantBuffers)));
+	CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+	ThrowIfFailed(m_cbvUploadHeap->Map(0, &readRange, reinterpret_cast<void**>(&m_pConstantBuffers)));
 
 	// Update all of the model matrices once; our cities don't move so 
 	// we don't need to do this ever again.

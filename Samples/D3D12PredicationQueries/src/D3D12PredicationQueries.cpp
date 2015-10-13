@@ -321,7 +321,8 @@ void D3D12PredicationQueries::LoadAssets()
 		// Initialize and map the constant buffers. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
 		ZeroMemory(&m_constantBufferData, sizeof(m_constantBufferData));
-		ThrowIfFailed(m_constantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_pCbvDataBegin)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 		ZeroMemory(m_pCbvDataBegin, FrameCount * sizeof(m_constantBufferData));
 
 		// Create constant buffer views to access the upload buffer.
