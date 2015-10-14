@@ -24,12 +24,12 @@ class D3D12PipelineStateCache : public DXSample
 public:
 	D3D12PipelineStateCache(UINT width, UINT height, std::wstring name);
 
-protected:
 	virtual void OnInit();
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnDestroy();
-	virtual bool OnEvent(MSG msg);
+	virtual void OnKeyDown(UINT8 key);
+	virtual void OnKeyUp(UINT8 key);
 
 private:
 	static const UINT FrameCount = 2;
@@ -106,7 +106,6 @@ private:
 	void LoadAssets();
 	void PopulateCommandList();
 	void ToggleEffect(EffectPipelineType type);
-	void OnKeyUp(WPARAM key);
 	void UpdateWindowTextPso();
 	void WaitForGpu();
 	void MoveToNextFrame();

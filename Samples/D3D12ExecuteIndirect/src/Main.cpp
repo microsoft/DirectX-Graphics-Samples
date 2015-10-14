@@ -16,5 +16,5 @@ _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
 	D3D12ExecuteIndirect sample(1280, 720, L"D3D12 Execute Indirect sample - Press the SPACE bar to toggle GPU primitive culling");
-	return sample.Run(hInstance, nCmdShow);
+	return Win32Application::Run(&sample, hInstance, nCmdShow);
 }

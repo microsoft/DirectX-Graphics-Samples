@@ -36,7 +36,7 @@ void D3D12HelloBundles::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12HelloBundles::LoadPipeline()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG)
 	// Enable the D3D12 debug layer.
 	{
 		ComPtr<ID3D12Debug> debugController;
@@ -63,8 +63,11 @@ void D3D12HelloBundles::LoadPipeline()
 	}
 	else
 	{
+		ComPtr<IDXGIAdapter1> hardwareAdapter;
+		GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+
 		ThrowIfFailed(D3D12CreateDevice(
-			nullptr,
+			hardwareAdapter.Get(),
 			D3D_FEATURE_LEVEL_11_0,
 			IID_PPV_ARGS(&m_device)
 			));
@@ -85,7 +88,7 @@ void D3D12HelloBundles::LoadPipeline()
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.OutputWindow = m_hwnd;
+	swapChainDesc.OutputWindow = Win32Application::GetHwnd();
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.Windowed = TRUE;
 
@@ -97,6 +100,9 @@ void D3D12HelloBundles::LoadPipeline()
 		));
 
 	ThrowIfFailed(swapChain.As(&m_swapChain));
+
+	// This sample does not support fullscreen transitions.
+	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
@@ -148,7 +154,7 @@ void D3D12HelloBundles::LoadAssets()
 		ComPtr<ID3DBlob> vertexShader;
 		ComPtr<ID3DBlob> pixelShader;
 
-#ifdef _DEBUG
+#if defined(_DEBUG)
 		// Enable better shader debugging with the graphics debugging tools.
 		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
@@ -216,7 +222,8 @@ void D3D12HelloBundles::LoadAssets()
 
 		// Copy the triangle data to the vertex buffer.
 		UINT8* pVertexDataBegin;
-		ThrowIfFailed(m_vertexBuffer->Map(0, nullptr, reinterpret_cast<void**>(&pVertexDataBegin)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
 		memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
 		m_vertexBuffer->Unmap(0, nullptr);
 
@@ -242,7 +249,7 @@ void D3D12HelloBundles::LoadAssets()
 		m_fenceValue = 1;
 
 		// Create an event handle to use for frame synchronization.
-		m_fenceEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+		m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 		if (m_fenceEvent == nullptr)
 		{
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
@@ -282,11 +289,6 @@ void D3D12HelloBundles::OnDestroy()
 	WaitForPreviousFrame();
 
 	CloseHandle(m_fenceEvent);
-}
-
-bool D3D12HelloBundles::OnEvent(MSG)
-{
-	return false;
 }
 
 void D3D12HelloBundles::PopulateCommandList()

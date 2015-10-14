@@ -29,3 +29,4 @@
 
 #include <wrl.h>
 #include <vector>
+#include <shellapi.h>

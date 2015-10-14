@@ -21,12 +21,11 @@ class D3D12ExecuteIndirect : public DXSample
 public:
 	D3D12ExecuteIndirect(UINT width, UINT height, std::wstring name);
 
-protected:
 	virtual void OnInit();
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnDestroy();
-	virtual bool OnEvent(MSG msg);
+	virtual void OnKeyDown(UINT8 key);
 
 private:
 	static const UINT FrameCount = 3;
@@ -91,8 +90,7 @@ private:
 	// CBV/SRV/UAV desciptor heap offsets.
 	enum HeapOffsets
 	{
-		CbvOffset = 0,
-		CbvSrvOffset = CbvOffset + TriangleCount,							// SRV that points to the constant buffers used by the rendering thread.
+		CbvSrvOffset = 0,													// SRV that points to the constant buffers used by the rendering thread.
 		CommandsOffset = CbvSrvOffset + 1,									// SRV that points to all of the indirect commands.
 		ProcessedCommandsOffset = CommandsOffset + 1,						// UAV that records the commands we actually want to execute.
 		CbvSrvUavDescriptorCountPerFrame = ProcessedCommandsOffset + 1		// 1 CBV per triangle + [2 SRVs + 1 UAV for the compute shader].

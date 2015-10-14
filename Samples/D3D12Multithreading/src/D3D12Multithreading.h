@@ -51,12 +51,12 @@ public:
 
 	static D3D12Multithreading* Get() { return s_app; }
 
-protected:
 	virtual void OnInit();
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnDestroy();
-	virtual bool OnEvent(MSG msg);
+	virtual void OnKeyDown(UINT8 key);
+	virtual void OnKeyUp(UINT8 key);
 
 private:
 	struct InputState
@@ -134,8 +134,6 @@ private:
 	void LoadPipeline();
 	void LoadAssets();
 	void LoadContexts();
-	void OnKeyUp(WPARAM wParam);
-	void OnKeyDown(WPARAM wParam);
 	void BeginFrame();
 	void MidFrame();
 	void EndFrame();

@@ -58,7 +58,7 @@ void D3D12ExecuteIndirect::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12ExecuteIndirect::LoadPipeline()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG)
 	// Enable the D3D12 debug layer.
 	{
 		ComPtr<ID3D12Debug> debugController;
@@ -85,8 +85,11 @@ void D3D12ExecuteIndirect::LoadPipeline()
 	}
 	else
 	{
+		ComPtr<IDXGIAdapter1> hardwareAdapter;
+		GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+
 		ThrowIfFailed(D3D12CreateDevice(
-			nullptr,
+			hardwareAdapter.Get(),
 			D3D_FEATURE_LEVEL_11_0,
 			IID_PPV_ARGS(&m_device)
 			));
@@ -113,7 +116,7 @@ void D3D12ExecuteIndirect::LoadPipeline()
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.OutputWindow = m_hwnd;
+	swapChainDesc.OutputWindow = Win32Application::GetHwnd();
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.Windowed = TRUE;
 
@@ -125,6 +128,9 @@ void D3D12ExecuteIndirect::LoadPipeline()
 		));
 
 	ThrowIfFailed(swapChain.As(&m_swapChain));
+
+	// This sample does not support fullscreen transitions.
+	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
@@ -212,7 +218,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 		ComPtr<ID3DBlob> computeShader;
 		ComPtr<ID3DBlob> error;
 
-#ifdef _DEBUG
+#if defined(_DEBUG)
 		// Enable better shader debugging with the graphics debugging tools.
 		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
@@ -343,9 +349,6 @@ void D3D12ExecuteIndirect::LoadAssets()
 			nullptr,
 			IID_PPV_ARGS(&m_constantBuffer)));
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle(m_cbvSrvUavHeap->GetCPUDescriptorHandleForHeapStart());
-		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = m_constantBuffer->GetGPUVirtualAddress();
-
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 		cbvDesc.SizeInBytes = sizeof(ConstantBufferData);
 
@@ -356,20 +359,12 @@ void D3D12ExecuteIndirect::LoadAssets()
 			m_constantBufferData[n].offset = XMFLOAT4(GetRandomFloat(-5.0f, -1.5f), GetRandomFloat(-1.0f, 1.0f), GetRandomFloat(0.0f, 2.0f), 0.0f);
 			m_constantBufferData[n].color = XMFLOAT4(GetRandomFloat(0.5f, 1.0f), GetRandomFloat(0.5f, 1.0f), GetRandomFloat(0.5f, 1.0f), 1.0f);
 			XMStoreFloat4x4(&m_constantBufferData[n].projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 0.01f, 20.0f)));
-
-			for (int frame = 0; frame < FrameCount; frame++)
-			{
-				cbvDesc.BufferLocation = gpuAddress + (cbvDesc.SizeInBytes * TriangleCount * frame);
-				m_device->CreateConstantBufferView(&cbvDesc, CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuHandle, CbvSrvUavDescriptorCountPerFrame * frame, m_cbvSrvUavDescriptorSize));
-			}
-
-			cpuHandle.Offset(m_cbvSrvUavDescriptorSize);
-			gpuAddress += cbvDesc.SizeInBytes;
 		}
 
 		// Map the constant buffers. We don't unmap this until the app closes.
 		// Keeping things mapped for the lifetime of the resource is okay.
-		ThrowIfFailed(m_constantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_pCbvDataBegin)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 		memcpy(m_pCbvDataBegin, &m_constantBufferData[0], TriangleCount * sizeof(ConstantBufferData));
 
 		// Create shader resource views (SRV) of the constant buffers for the
@@ -413,10 +408,11 @@ void D3D12ExecuteIndirect::LoadAssets()
 		commands.resize(TriangleResourceCount);
 		const UINT commandBufferSize = CommandBufferSizePerFrame * FrameCount;
 
+		D3D12_RESOURCE_DESC commandBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(commandBufferSize);
 		ThrowIfFailed(m_device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(commandBufferSize),
+			&commandBufferDesc,
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
 			IID_PPV_ARGS(&m_commandBuffer)));
@@ -480,10 +476,11 @@ void D3D12ExecuteIndirect::LoadAssets()
 		{
 			// Allocate a buffer large enough to hold all of the indirect commands
 			// for a single frame as well as a UAV counter.
+			commandBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(CommandBufferSizePerFrame + sizeof(UINT), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 			ThrowIfFailed(m_device->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(CommandBufferSizePerFrame + sizeof(UINT), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+				&commandBufferDesc,
 				D3D12_RESOURCE_STATE_COPY_DEST,
 				nullptr,
 				IID_PPV_ARGS(&m_processedCommandBuffers[frame])));
@@ -517,7 +514,8 @@ void D3D12ExecuteIndirect::LoadAssets()
 			IID_PPV_ARGS(&m_processedCommandBufferCounterReset)));
 
 		UINT8* pMappedCounterReset = nullptr;
-		ThrowIfFailed(m_processedCommandBufferCounterReset->Map(0, nullptr, reinterpret_cast<void**>(&pMappedCounterReset)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_processedCommandBufferCounterReset->Map(0, &readRange, reinterpret_cast<void**>(&pMappedCounterReset)));
 		ZeroMemory(pMappedCounterReset, sizeof(UINT));
 		m_processedCommandBufferCounterReset->Unmap(0, nullptr);
 	}
@@ -535,7 +533,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 		m_fenceValues[m_frameIndex]++;
 
 		// Create an event handle to use for frame synchronization.
-		m_fenceEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+		m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 		if (m_fenceEvent == nullptr)
 		{
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
@@ -611,17 +609,12 @@ void D3D12ExecuteIndirect::OnDestroy()
 	CloseHandle(m_fenceEvent);
 }
 
-bool D3D12ExecuteIndirect::OnEvent(MSG msg)
+void D3D12ExecuteIndirect::OnKeyDown(UINT8 key)
 {
-	switch (msg.message)
+	if (key == VK_SPACE)
 	{
-	case WM_KEYDOWN:
-		if (msg.wParam == VK_SPACE)
-		{
-			m_enableCulling = !m_enableCulling;
-		}
+		m_enableCulling = !m_enableCulling;
 	}
-	return false;
 }
 
 // Fill the command list with all the render commands and dependent state.
