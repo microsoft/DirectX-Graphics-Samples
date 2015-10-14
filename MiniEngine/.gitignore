@@ -1,0 +1,6 @@
+.vs/
+Build_VS14/
+*.ipch
+*.opensdf
+*.sdf
+*.user
