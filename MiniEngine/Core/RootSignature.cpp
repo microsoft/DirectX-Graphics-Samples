@@ -45,7 +45,7 @@ void RootSignature::InitStaticSampler(
 	StaticSamplerDesc.MipLODBias = NonStaticSamplerDesc.MipLODBias;
 	StaticSamplerDesc.MaxAnisotropy = NonStaticSamplerDesc.MaxAnisotropy;
 	StaticSamplerDesc.ComparisonFunc = NonStaticSamplerDesc.ComparisonFunc;
-	StaticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+	StaticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
 	StaticSamplerDesc.MinLOD = NonStaticSamplerDesc.MinLOD;
 	StaticSamplerDesc.MaxLOD = NonStaticSamplerDesc.MaxLOD;
 	StaticSamplerDesc.ShaderRegister = Register;
@@ -81,6 +81,8 @@ void RootSignature::InitStaticSampler(
 			else
 				StaticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
 		}
+		else
+			StaticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
 	}
 }
 

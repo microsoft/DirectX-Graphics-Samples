@@ -22,6 +22,7 @@ namespace Graphics
 	DepthBuffer g_SceneDepthBuffer;
 	ColorBuffer g_SceneColorBuffer;
 	ColorBuffer g_OverlayBuffer;
+	ColorBuffer g_HorizontalBuffer;
 
 	ColorBuffer g_VelocityBuffer;
 	ShadowBuffer g_ShadowBuffer;
@@ -74,6 +75,9 @@ namespace Graphics
 	StructuredBuffer g_FXAAWorkQueueV;
 	TypedBuffer g_FXAAColorQueueH(DXGI_FORMAT_R11G11B10_FLOAT);
 	TypedBuffer g_FXAAColorQueueV(DXGI_FORMAT_R11G11B10_FLOAT);
+
+	// For testing GenerateMipMaps()
+	ColorBuffer g_GenMipsBuffer;
 }
 
 #define T2X_COLOR_FORMAT DXGI_FORMAT_R10G10B10A2_UNORM
@@ -205,7 +209,12 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 
 		esram.PopStack();	// End post processing
 
+		esram.PushStack(); // GenerateMipMaps() test
+			g_GenMipsBuffer.Create(L"GenMips", bufferWidth, bufferHeight, 0, DXGI_FORMAT_R11G11B10_FLOAT, esram);
+		esram.PopStack();
+
 		g_OverlayBuffer.Create( L"UI Overlay", 1920, 1080, 1, DXGI_FORMAT_R8G8B8A8_UNORM, esram );
+		g_HorizontalBuffer.Create( L"Bicubic Intermediate", 1920, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram);
 
 	esram.PopStack(); // End final image
 
@@ -217,6 +226,7 @@ void Graphics::DestroyRenderingBuffers()
 	g_SceneDepthBuffer.Destroy();
 	g_SceneColorBuffer.Destroy();
 	g_OverlayBuffer.Destroy();
+	g_HorizontalBuffer.Destroy();
 
 	g_VelocityBuffer.Destroy();
 	g_ShadowBuffer.Destroy();
@@ -278,4 +288,6 @@ void Graphics::DestroyRenderingBuffers()
 	g_FXAAWorkQueueV.Destroy();
 	g_FXAAColorQueueH.Destroy();
 	g_FXAAColorQueueV.Destroy();
+
+	g_GenMipsBuffer.Destroy();
 }

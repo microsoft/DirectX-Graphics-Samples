@@ -187,6 +187,9 @@
     <None Include="Models\sponza.h3d">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Shaders\ModelViewerRS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ModelViewer.cpp">

@@ -16,6 +16,8 @@
 // the lowest resolution bloom buffer before starting the series of upsample-and-blur
 // passes.
 
+#include "PostEffectsRS.hlsli"
+
 Texture2D<float3> InputBuf : register( t0 );
 RWTexture2D<float3> Result : register( u0 );
 
@@ -95,6 +97,7 @@ void BlurVertically( uint2 pixelCoord, uint topMostIndex )
 	Result[pixelCoord] = BlurPixels(s0, s1, s2, s3, s4, s5, s6, s7, s8);
 }
 
+[RootSignature(PostEffects_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

@@ -11,6 +11,8 @@
 // Author:  James Stanard 
 //
 
+#include "MotionBlurRS.hlsli"
+
 Texture2D<float3> ColorBuffer : register(t0);
 Texture2D<float2> MotionBuffer : register(t1);
 RWTexture2D<float4> PrepBuffer : register(u0);
@@ -20,6 +22,7 @@ float4 GetSampleData( uint2 st )
 	return float4(ColorBuffer[st], 1.0) * saturate(length(MotionBuffer[st]) * 32.0 / 4.0);
 }
 
+[RootSignature(MotionBlur_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

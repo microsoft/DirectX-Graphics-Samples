@@ -11,6 +11,8 @@
 // Author:  James Stanard 
 //
 
+#include "TextRS.hlsli"
+
 cbuffer cbFontParams : register( b0 )
 {
 	float2 Scale;			// Scale and offset for transforming coordinates
@@ -34,6 +36,7 @@ struct VS_OUTPUT
 	float2 Tex : TEXCOORD0;		// Upper-left and lower-right normalized UVs
 };
 
+[RootSignature(Text_RootSig)]
 VS_OUTPUT main( VS_INPUT input, uint VertID : SV_VertexID )
 {
 	const float2 xy0 = input.ScreenPos - DstBorder;

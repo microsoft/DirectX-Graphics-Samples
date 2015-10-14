@@ -18,6 +18,7 @@
 #include "Color.h"
 #include "GraphicsCore.h"
 #include "CommandContext.h"
+#include "GraphRenderer.h"
 
 using namespace std;
 using namespace Math;
@@ -394,7 +395,7 @@ void ExpVar::SetValue(FILE* file, const std::string& setting)
 	float valueRead;
 	
 	//If we haven't read correctly, just keep m_Value at default value
-	if( fscanf_s(file, scanString.c_str(), &valueRead) )
+	if (fscanf_s(file, scanString.c_str(), &valueRead))
 		*this = valueRead;
 }
 
@@ -454,7 +455,7 @@ void EnumVar::SetValue(FILE* file, const std::string& setting)
 	std::string scanString = "\n" + setting + ": %[^\n]";
 	char valueRead[14];
 		
-	if( fscanf_s(file, scanString.c_str(), valueRead, _countof(valueRead)) == 1 )
+	if (fscanf_s(file, scanString.c_str(), valueRead, _countof(valueRead)) == 1)
 	{
 		std::string valueReadStr = valueRead;
 		valueReadStr = valueReadStr.substr(0, valueReadStr.length() - 1);
@@ -462,7 +463,7 @@ void EnumVar::SetValue(FILE* file, const std::string& setting)
 		//if we don't find the string, then leave m_EnumLabes[m_Value] as default
 		for(int32_t i = 0; i < m_EnumLength; ++i)
 		{
-			if(m_EnumLabels[i] == valueReadStr)
+			if (m_EnumLabels[i] == valueReadStr)
 			{
 				m_Value = i;
 				break;
@@ -597,9 +598,11 @@ std::function<void(void*)> StartLoadFunc = StartLoad;
 static CallbackTrigger Load("Load Settings", StartLoadFunc, nullptr); 
 
 
-void EngineTuning::Display( GraphicsContext& CmdContext, float x, float y, float w, float h )
+void EngineTuning::Display( GraphicsContext& Context, float x, float y, float w, float h )
 {
-	TextContext Text(CmdContext);
+	GraphRenderer::RenderGraphs(Context, GraphRenderer::GraphType::Profile);
+
+	TextContext Text(Context);
 	Text.Begin();
 
 	EngineProfiling::DisplayFrameRate(Text);
@@ -615,7 +618,7 @@ void EngineTuning::Display( GraphicsContext& CmdContext, float x, float y, float
 	s_ScrollTopTrigger = y + h * 0.2f;
 	s_ScrollBottomTrigger = y + h * 0.8f;
 
-	CmdContext.SetScissor((uint32_t)Floor(x), (uint32_t)Floor(y), (uint32_t)Ceiling(x + w), (uint32_t)Ceiling(y + h));
+	Context.SetScissor((uint32_t)Floor(x), (uint32_t)Floor(y), (uint32_t)Ceiling(x + w), (uint32_t)Ceiling(y + h));
 
 	Text.ResetCursor(x, y - s_ScrollOffset );
 	Text.SetColor( Color(0.5f, 1.0f, 1.0f) );
@@ -623,10 +626,11 @@ void EngineTuning::Display( GraphicsContext& CmdContext, float x, float y, float
 	Text.SetTextSize(20.0f);
 
 	VariableGroup::sm_RootGroup.Display( Text, x, sm_SelectedVariable );
+	
+	EngineProfiling::DisplayPerfGraph(Context);
 
 	Text.End();
-
-	CmdContext.SetScissor(0, 0, 1920, 1080);
+	Context.SetScissor(0, 0, 1920, 1080);
 }
 
 void EngineTuning::AddToVariableGraph( const string& path, EngineVar& var )

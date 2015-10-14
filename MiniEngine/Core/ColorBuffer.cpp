@@ -93,10 +93,9 @@ void ColorBuffer::CreateFromSwapChain( const std::wstring& Name, ID3D12Resource*
 {
 	AssociateWithResource(Graphics::g_Device, Name, BaseResource, D3D12_RESOURCE_STATE_PRESENT);
 
-	// BUG:  Currently, we are prohibited from creating UAVs of the swap chain.
-	//CreateDerivedViews(Graphics::g_Device, BaseResource->GetDesc().Format, 1);
+	//m_UAVHandle[0] = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	//Graphics::g_Device->CreateUnorderedAccessView(m_pResource.Get(), nullptr, nullptr, m_UAVHandle[0]);
 
-	// WORKAROUND:  Just create a typical RTV
 	m_RTVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	Graphics::g_Device->CreateRenderTargetView(m_pResource.Get(), nullptr, m_RTVHandle);
 }
@@ -157,18 +156,23 @@ void ColorBuffer::GenerateMipMaps(CommandContext& BaseContext)
 
 	Context.SetRootSignature(Graphics::g_GenerateMipsRS);
 
-	if (m_Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
-		Context.SetPipelineState(Graphics::g_GenerateMipsGammaPSO);
-	else
-		Context.SetPipelineState(Graphics::g_GenerateMipsPSO);
-
 	Context.TransitionResource(*this, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.SetDynamicDescriptor(1, 0, m_SRVHandle);
 
 	for (uint32_t TopMip = 0; TopMip < m_NumMipMaps; )
 	{
-		uint32_t DstWidth = m_Width >> (TopMip + 1);
-		uint32_t DstHeight = m_Height >> (TopMip + 1);
+		uint32_t SrcWidth = m_Width >> TopMip;
+		uint32_t SrcHeight = m_Height >> TopMip;
+		uint32_t DstWidth = SrcWidth >> 1;
+		uint32_t DstHeight = SrcHeight >> 1;
+
+		// Determine if the first downsample is more than 2:1.  This happens whenever
+		// the source width or height is odd.
+		uint32_t NonPowerOfTwo = (SrcWidth & 1) | (SrcHeight & 1) << 1;
+		if (m_Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
+			Context.SetPipelineState(Graphics::g_GenerateMipsGammaPSO[NonPowerOfTwo]);
+		else
+			Context.SetPipelineState(Graphics::g_GenerateMipsLinearPSO[NonPowerOfTwo]);
 
 		// We can downsample up to four times, but if the ratio between levels is not
 		// exactly 2:1, we have to shift our blend weights, which gets complicated or

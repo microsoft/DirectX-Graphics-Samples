@@ -12,10 +12,13 @@
 //
 
 #include "ShaderUtility.hlsli"
+#include "PresentRS.hlsli"
 
 Texture2D<float3> ColorTex : register(t0);
 
+[RootSignature(Present_RootSig)]
 float3 main( float4 position : SV_Position ) : SV_Target0
 {
-	return LinearToFrameBufferFormat( FrameBufferFormatToLinear( ColorTex[(int2)position.xy], 0 ), 1 );
+	float3 LinearRGB = LinearizeColor(ColorTex[(int2)position.xy], LDR_COLOR_FORMAT);
+	return ApplyColorProfile(LinearRGB, DISPLAY_PLANE_FORMAT);
 }

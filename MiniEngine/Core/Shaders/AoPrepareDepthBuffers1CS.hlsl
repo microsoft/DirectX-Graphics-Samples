@@ -11,6 +11,8 @@
 // Author:  James Stanard 
 //
 
+#include "SSAORS.hlsli"
+
 RWTexture2D<float> LinearZ : register(u0);
 RWTexture2D<float2> DS2x : register(u1);
 RWTexture2DArray<float> DS2xAtlas : register(u2);
@@ -33,6 +35,7 @@ float Linearize( uint2 st )
 
 groupshared float g_CacheW[256];
 
+[RootSignature(SSAO_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

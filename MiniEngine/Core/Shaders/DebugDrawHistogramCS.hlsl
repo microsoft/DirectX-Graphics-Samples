@@ -11,12 +11,15 @@
 // Author:  James Stanard 
 //
 
+#include "PostEffectsRS.hlsli"
+
 ByteAddressBuffer Histogram : register( t0 );
 StructuredBuffer<float> Exposure : register( t1 );
 RWTexture2D<float3> ColorBuffer : register( u0 );
 
 groupshared uint gs_hist[256];
 
+[RootSignature(PostEffects_RootSig)]
 [numthreads( 256, 1, 1 )]
 void main( uint GI : SV_GroupIndex, uint3 DTid : SV_DispatchThreadID )
 {

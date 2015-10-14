@@ -18,6 +18,8 @@
 // bloom buffer is the destination.
 //
 
+#include "PostEffectsRS.hlsli"
+
 Texture2D<float3> HigherResBuf : register( t0 );
 Texture2D<float3> LowerResBuf : register( t1 );
 SamplerState LinearBorder : register( s1 );
@@ -112,6 +114,7 @@ void BlurVertically( uint2 pixelCoord, uint topMostIndex )
 	Result[pixelCoord] = BlurPixels(s0, s1, s2, s3, s4, s5, s6, s7, s8);
 }
 
+[RootSignature(PostEffects_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

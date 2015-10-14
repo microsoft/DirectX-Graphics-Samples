@@ -29,10 +29,10 @@ ByteArray DecompressZippedFile( wstring& fileName );
 
 ByteArray ReadFileHelper(const wstring& fileName)
 {
-	struct _stat64 fileStat;
-	int fileExists = _wstat64(fileName.c_str(), &fileStat);
-	if (fileExists == -1)
-		return NullFile;
+	//struct _stat64 fileStat;
+	//int fileExists = _wstat64(fileName.c_str(), &fileStat);
+	//if (fileExists == -1)
+	//	return NullFile;
 
 	ifstream& file = ifstream( fileName, ios::in | ios::binary );
 	if (!file)
@@ -42,7 +42,7 @@ ByteArray ReadFileHelper(const wstring& fileName)
 	file.seekg(0, ios::beg).read( (char*)byteArray->data(), byteArray->size() );
 	file.close();
 
-	ASSERT(byteArray->size() == fileStat.st_size);
+	//ASSERT(byteArray->size() == fileStat.st_size);
 
 	return byteArray;
 }

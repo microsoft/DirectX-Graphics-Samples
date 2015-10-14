@@ -20,61 +20,76 @@
 //--------------------------------------------------------------------------------------
 
 #include "ShaderUtility.hlsli"
+#include "PresentRS.hlsli"
 
 Texture2D<float3> ColorTex : register(t0);
+SamplerState BilinearClamp : register(s0);
 
 cbuffer Constants : register(b0)
 {
+	uint2 TextureSize;
 	float A;
 }
 
-float W1( float x )
+float W1(float x)
 {
 	return x * x * ((A + 2) * x - (A + 3)) + 1.0;
 }
 
-float W2( float x )
+float W2(float x)
 {
 	return A * (x * (x * (x - 5) + 8) - 4);
 }
 
-float3 Cubic( float d1, float3 c0, float3 c1, float3 c2, float3 c3 )
+float4 GetWeights(float d1)
 {
-	float d0 = 1.0 + d1;
-	float d2 = 1.0 - d1;
-	float d3 = 2.0 - d1;
-
-	return c0 * W2(d0) + c1 * W1(d1) + c2 * W1(d2) + c3 * W2(d3);
+	return float4(W2(1.0 + d1), W1(d1), W1(1.0 - d1), W2(2.0 - d1));
 }
 
-float3 GetColor( uint s, uint t )
+float3 Cubic(float4 w, float3 c0, float3 c1, float3 c2, float3 c3)
 {
+	return c0 * w.x + c1 * w.y + c2 * w.z + c3 * w.w;
+}
+
+float3 GetColor(uint s, uint t)
+{
+#ifdef GAMMA_SPACE
+	return ApplyColorProfile(ColorTex[uint2(s, t)], DISPLAY_PLANE_FORMAT);
+#else
 	return ColorTex[uint2(s, t)];
+#endif
 }
 
-float3 main( float4 position : SV_Position, float2 uv : TexCoord0 ) : SV_Target0
+[RootSignature(Present_RootSig)]
+float3 main(float4 position : SV_Position, float2 uv : TexCoord0) : SV_Target0
 {
-	uint2 TextureSize;
-	ColorTex.GetDimensions( TextureSize.x, TextureSize.y );
-
 	float2 t = uv * TextureSize + 0.5;
 	float2 f = frac(t);
 	int2 st = int2(t);
 
+	uint MaxWidth = TextureSize.x - 1;
+	uint MaxHeight = TextureSize.y - 1;
+
 	uint s0 = max(st.x - 2, 0);
 	uint s1 = max(st.x - 1, 0);
-	uint s2 = min(st.x + 0, TextureSize.x - 1);
-	uint s3 = min(st.x + 1, TextureSize.x - 1);
+	uint s2 = min(st.x + 0, MaxWidth);
+	uint s3 = min(st.x + 1, MaxWidth);
 
 	uint t0 = max(st.y - 2, 0);
 	uint t1 = max(st.y - 1, 0);
-	uint t2 = min(st.y + 0, TextureSize.y - 1);
-	uint t3 = min(st.y + 1, TextureSize.y - 1);
+	uint t2 = min(st.y + 0, MaxHeight);
+	uint t3 = min(st.y + 1, MaxHeight);
 
-	float3 c0 = Cubic(f.x, GetColor(s0, t0), GetColor(s1, t0), GetColor(s2, t0), GetColor(s3, t0));
-	float3 c1 = Cubic(f.x, GetColor(s0, t1), GetColor(s1, t1), GetColor(s2, t1), GetColor(s3, t1));
-	float3 c2 = Cubic(f.x, GetColor(s0, t2), GetColor(s1, t2), GetColor(s2, t2), GetColor(s3, t2));
-	float3 c3 = Cubic(f.x, GetColor(s0, t3), GetColor(s1, t3), GetColor(s2, t3), GetColor(s3, t3));
+	float4 Weights = GetWeights(f.x);
+	float3 c0 = Cubic(Weights, GetColor(s0, t0), GetColor(s1, t0), GetColor(s2, t0), GetColor(s3, t0));
+	float3 c1 = Cubic(Weights, GetColor(s0, t1), GetColor(s1, t1), GetColor(s2, t1), GetColor(s3, t1));
+	float3 c2 = Cubic(Weights, GetColor(s0, t2), GetColor(s1, t2), GetColor(s2, t2), GetColor(s3, t2));
+	float3 c3 = Cubic(Weights, GetColor(s0, t3), GetColor(s1, t3), GetColor(s2, t3), GetColor(s3, t3));
+	float3 Color = Cubic(GetWeights(f.y), c0, c1, c2, c3);
 
-	return LinearToFrameBufferFormat( Cubic(f.y, c0, c1, c2, c3), 1 );
+#ifdef GAMMA_SPACE
+	return Color;
+#else
+	return ApplyColorProfile(Color, DISPLAY_PLANE_FORMAT);
+#endif
 }

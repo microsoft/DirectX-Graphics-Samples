@@ -20,13 +20,19 @@
 #include "CommandContext.h"
 #include "PostEffects.h"
 
+namespace Graphics
+{
+	extern ColorBuffer g_GenMipsBuffer;
+}
+
 namespace GameCore
 {
 	using namespace Graphics;
+	const bool TestGenerateMips = false;
 
 	void InitializeApplication( IGameApp& game )
 	{
-		Graphics::Initialize(g_windowWidth, g_windowHeight);
+		Graphics::Initialize();
 		SystemTime::Initialize();
 		GameInput::Initialize();
 		EngineTuning::Initialize();
@@ -43,30 +49,44 @@ namespace GameCore
 
 	bool UpdateApplication( IGameApp& game )
 	{
-		SystemTime::Update();
-		GameInput::Update(SystemTime::FrameTime);
+		EngineProfiling::Update();
 
-		EngineTuning::Update(SystemTime::FrameTime);
-
-		game.Update(SystemTime::FrameTime);
+		float DeltaTime = Graphics::GetFrameTime();
+	
+		GameInput::Update(DeltaTime);
+		EngineTuning::Update(DeltaTime);
+		
+		game.Update(DeltaTime);
 		game.RenderScene();
 
 		PostEffects::Render();
 
-		GraphicsContext& UiContext = GraphicsContext::Begin();
+		if (TestGenerateMips)
 		{
-			ScopedTimer _prof(L"Render UI", UiContext);
+			GraphicsContext& MipsContext = GraphicsContext::Begin();
 
-			// Xbox One has an separate image plane that we use for UI.  It will composite with the
-			// main image plane, so we need to clear it each from (assuming it's being dynamically
-			// updated.)
-			UiContext.ClearColor(g_OverlayBuffer);
-			UiContext.SetRenderTarget(g_OverlayBuffer);
-			UiContext.SetViewportAndScissor(0, 0, 1920, 1080);
-			game.RenderUI(UiContext);
+			// Exclude from timings this copy necessary to setup the test
+			MipsContext.CopySubresource(g_GenMipsBuffer, 0, g_SceneColorBuffer, 0);
 
-			EngineTuning::Display( UiContext, 10.0f, 40.0f, 1900.0f, 1000.0f );
+			EngineProfiling::BeginBlock(L"GenerateMipMaps()", &MipsContext);
+			g_GenMipsBuffer.GenerateMipMaps(MipsContext);
+			EngineProfiling::EndBlock(&MipsContext);
+
+			MipsContext.CloseAndExecute();
 		}
+
+		// Xbox One has an separate image plane that we use for UI.  It will composite with the
+		// main image plane, so we need to clear it each from (assuming it's being dynamically
+		// updated.)
+
+		GraphicsContext& UiContext = GraphicsContext::Begin(L"Render UI");
+		UiContext.ClearColor(g_OverlayBuffer);
+		UiContext.SetRenderTarget(g_OverlayBuffer);
+		UiContext.SetViewportAndScissor(0, 0, g_OverlayBuffer.GetWidth(), g_OverlayBuffer.GetHeight());
+		game.RenderUI(UiContext);
+
+		EngineTuning::Display( UiContext, 10.0f, 40.0f, 1900.0f, 1040.0f );
+
 		UiContext.CloseAndExecute();
 
 		Graphics::Present();
@@ -104,46 +124,33 @@ namespace GameCore
 		ASSERT(0 != RegisterClassEx(&wcex), "Unable to register a window");
 
 		// Create window
-		RECT rc = { 0, 0, 1920, 1080 };
+		RECT rc = { 0, 0, (LONG)g_DisplayWidth, (LONG)g_DisplayHeight };
 		AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
+
 		g_hWnd = CreateWindow(className, className, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
 			rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInst, nullptr);
 
-		//GetClientRect( g_hWnd, &rc );
-		//g_windowWidth = rc.right - rc.left;
-		//g_windowHeight = rc.bottom - rc.top;
-		g_windowWidth = 1920;
-		g_windowHeight = 1080;
-
 		ASSERT(g_hWnd != 0);
-
-		ShowWindow( g_hWnd, SW_SHOWDEFAULT );
 
 		InitializeApplication(app);
 
-		bool quit = false;
-		MSG msg = {0};
-		while (WM_QUIT != msg.message
-			&& !quit)
+		ShowWindow( g_hWnd, SW_SHOWDEFAULT );
+
+		do
 		{
-			if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			MSG msg = {};
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 			{
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
-			else
-			{
-				if (!UpdateApplication(app))
-				{
-					quit = true;
-				}
-			}
+			if (msg.message == WM_QUIT)
+				break;
 		}
+		while (UpdateApplication(app));	// Returns false to quit loop
 
 		Graphics::Terminate();
-
 		TerminateApplication(app);
-
 		Graphics::Shutdown();
 	}
 
@@ -152,18 +159,22 @@ namespace GameCore
 	//--------------------------------------------------------------------------------------
 	LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
 	{
-		PAINTSTRUCT ps;
-		HDC hdc;
-
 		switch( message )
 		{
 			case WM_PAINT:
-				hdc = BeginPaint( hWnd, &ps );
-				EndPaint( hWnd, &ps );
+			{
+				PAINTSTRUCT ps;
+				HDC hdc = BeginPaint(hWnd, &ps);
+				EndPaint(hWnd, &ps);
+				break;
+			}
+
+			case WM_SIZE:
+				Graphics::Resize((UINT)(UINT64)lParam & 0xFFFF, (UINT)(UINT64)lParam >> 16);
 				break;
 
 			case WM_DESTROY:
-				PostQuitMessage( 0 );
+				PostQuitMessage(0);
 				break;
 
 			default:

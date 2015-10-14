@@ -11,6 +11,8 @@
 // Author:  James Stanard 
 //
 
+#include "MotionBlurRS.hlsli"
+
 // We can use the original depth buffer or a linearized one.  In this case, we use linear Z because
 // we have discarded the 32-bit depth buffer but still retain a 16-bit linear buffer (previously
 // used by SSAO.)  Note that hyperbolic Z is reversed by default (TBD) for increased precision, so
@@ -25,6 +27,7 @@ cbuffer ConstantBuffer : register(b1)
 	matrix CurToPrevXForm;
 }
 
+[RootSignature(MotionBlur_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 DTid : SV_DispatchThreadID )
 {

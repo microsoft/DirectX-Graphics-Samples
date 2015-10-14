@@ -26,13 +26,13 @@ namespace
 	map< size_t, D3D12_CPU_DESCRIPTOR_HANDLE > s_SamplerCache;
 }
 
-void Sampler::Create( const D3D12_SAMPLER_DESC& Desc )
+void SamplerDescriptor::Create( const D3D12_SAMPLER_DESC& Desc )
 {
 	size_t hashValue = Utility::HashState(&Desc);
 	auto iter = s_SamplerCache.find(hashValue);
 	if (iter != s_SamplerCache.end())
 	{
-		*this = Sampler(iter->second);
+		*this = SamplerDescriptor(iter->second);
 		return;
 	}
 

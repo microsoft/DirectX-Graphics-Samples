@@ -18,31 +18,44 @@
 
 class CommandContext;
 
+namespace EngineProfiling
+{
+	void Update();
+
+	void BeginBlock(const std::wstring& name, CommandContext* Context = nullptr);
+	void EndBlock(CommandContext* Context = nullptr);
+
+	void DisplayFrameRate(TextContext& Text);
+	void DisplayPerfGraph(GraphicsContext& Text);
+	void Display(TextContext& Text, float x, float y, float w, float h);
+	bool IsPaused();
+}
+
+#ifdef RELEASE
 class ScopedTimer
 {
 public:
-	ScopedTimer( const std::wstring& name );
-	ScopedTimer( const std::wstring& name, CommandContext& Context );
-	~ScopedTimer();
+	ScopedTimer(const std::wstring& name) {}
+	ScopedTimer(const std::wstring& name, CommandContext& Context) {}
+};
+#else
+class ScopedTimer
+{
+public:
+	ScopedTimer( const std::wstring& name ) : m_Context(nullptr)
+	{
+		EngineProfiling::BeginBlock(name);
+	}
+	ScopedTimer( const std::wstring& name, CommandContext& Context ) : m_Context(&Context)
+	{
+		EngineProfiling::BeginBlock(name, m_Context);
+	}
+	~ScopedTimer()
+	{
+		EngineProfiling::EndBlock(m_Context);
+	}
 
-#ifndef RELEASE
 private:
 	CommandContext* m_Context;
-#endif
 };
-
-#ifdef RELEASE
-inline ScopedTimer::ScopedTimer( const std::wstring& name ) {}
-inline ScopedTimer::ScopedTimer( const std::wstring&, CommandContext& ) {}
-inline ScopedTimer::~ScopedTimer(  ) {}
 #endif
-
-namespace EngineProfiling
-{
-	// Bookend the game update loop minus the call to Present() which can incur a long wait loop
-	void BeginFrame( CommandContext& Context );
-	void EndFrame( CommandContext& Context );
-
-	void DisplayFrameRate( TextContext& Text );
-	void Display( TextContext& Text, float x, float y, float w, float h );
-}

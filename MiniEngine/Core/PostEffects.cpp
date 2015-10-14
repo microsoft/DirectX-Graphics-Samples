@@ -22,7 +22,6 @@
 #include "BufferManager.h"
 #include "MotionBlur.h"
 #include "FXAA.h"
-#include <algorithm>
 
 #include "CompiledShaders/ToneMapCS.h"
 #include "CompiledShaders/ToneMap2CS.h"
@@ -73,8 +72,8 @@ namespace PostEffects
 
 	BoolVar BloomEnable("Graphics/Bloom/Enable", true);
 	NumVar BloomThreshold("Graphics/Bloom/Threshold", 1.0f, 0.0f, 8.0f, 0.1f);		// The threshold luminance above which a pixel will start to bloom
-	NumVar BloomStrength("Graphics/Bloom/Strength", 0.5f, 0.0f, 2.0f, 0.05f);		// A modulator controlling how much bloom is added back into the image
-	NumVar BloomUpsampleFactor("Graphics/Bloom/Scatter", 0.5f, 0.0f, 1.0f, 0.05f);	// Controls the "focus" of the blur.  High values spread out more causing a haze.
+	NumVar BloomStrength("Graphics/Bloom/Strength", 0.1f, 0.0f, 2.0f, 0.05f);		// A modulator controlling how much bloom is added back into the image
+	NumVar BloomUpsampleFactor("Graphics/Bloom/Scatter", 0.65f, 0.0f, 1.0f, 0.05f);	// Controls the "focus" of the blur.  High values spread out more causing a haze.
 	BoolVar HighQualityBloom("Graphics/Bloom/High Quality", true);					// High quality blurs 5 octaves of bloom; low quality only blurs 3.
 
 	NumVar LogLumaConstant("Graphics/FXAA/Log-Luma Constant", 4.0f, 1.0f, 8.0f, 0.5f);
@@ -316,7 +315,7 @@ void PostEffects::UpdateExposure( ComputeContext& Context )
 
 void PostEffects::ProcessHDR( ComputeContext& Context )
 {
-	ScopedTimer _prof(L"Process HDR", Context);
+	ScopedTimer _prof(L"HDR Tone Mapping", Context);
 
 	if (BloomEnable)
 	{
@@ -336,13 +335,13 @@ void PostEffects::ProcessHDR( ComputeContext& Context )
 	Context.SetConstants(0, 1.0f / g_SceneColorBuffer.GetWidth(), 1.0f / g_SceneColorBuffer.GetHeight(), (float)BloomStrength, (float)LogLumaConstant);
 
 	// Separate out LDR result from its perceived luminance
-	D3D12_CPU_DESCRIPTOR_HANDLE UAVs[] = { g_SceneColorBuffer.GetUAV(), g_LumaBuffer.GetUAV() };
-	Context.SetDynamicDescriptors(1, 0, _countof(UAVs), UAVs);
+	Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+	Context.SetDynamicDescriptor(1, 1, g_LumaBuffer.GetUAV());
 
 	// Read in original HDR value and blurred bloom buffer
-	D3D12_CPU_DESCRIPTOR_HANDLE SRVs[] = { g_SceneColorBuffer.GetSRV(), g_Exposure.GetSRV() };
-	Context.SetDynamicDescriptors(2, 0, _countof(SRVs), SRVs);
-	Context.SetDynamicDescriptor(2, _countof(SRVs), BloomEnable ? g_aBloomUAV1[1].GetSRV() : TextureManager::GetBlackTex2D().GetSRV());
+	Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
+	Context.SetDynamicDescriptor(2, 1, g_Exposure.GetSRV());
+	Context.SetDynamicDescriptor(2, 2, BloomEnable ? g_aBloomUAV1[1].GetSRV() : TextureManager::GetBlackTex2D().GetSRV());
 
 	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
 
@@ -352,17 +351,13 @@ void PostEffects::ProcessHDR( ComputeContext& Context )
 
 void PostEffects::ProcessLDR(CommandContext& BaseContext)
 {
-	ScopedTimer _prof(L"Process LDR", BaseContext);
+	ScopedTimer _prof(L"LDR Processing", BaseContext);
 
 	ComputeContext& Context = BaseContext.GetComputeContext();
 
 	bool bGenerateBloom = BloomEnable && !SSAO::DebugDraw;
 	if (bGenerateBloom)
 		GenerateBloom(Context);
-	else
-	{
-		BaseContext.GetGraphicsContext().ClearColor(g_aBloomUAV1[1]);
-	}
 
 	if (bGenerateBloom || FXAA::DebugDraw || SSAO::DebugDraw)
 	{
@@ -374,12 +369,12 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 		Context.SetConstants(0, 1.0f / g_SceneColorBuffer.GetWidth(), 1.0f / g_SceneColorBuffer.GetHeight(), (float)BloomStrength, (float)LogLumaConstant );
 
 		// Separate out LDR result from its perceived luminance
-		D3D12_CPU_DESCRIPTOR_HANDLE UAVs[2] = { g_SceneColorBuffer.GetUAV(), g_LumaBuffer.GetUAV() };
-		Context.SetDynamicDescriptors(1, 0, 2, UAVs);
+		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+		Context.SetDynamicDescriptor(1, 1, g_LumaBuffer.GetUAV());
 
 		// Read in original LDR value and blurred bloom buffer
-		D3D12_CPU_DESCRIPTOR_HANDLE SRVs[2] = { g_SceneColorBuffer.GetSRV(), g_aBloomUAV1[1].GetSRV() };
-		Context.SetDynamicDescriptors(2, 0, 2, SRVs);
+		Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
+		Context.SetDynamicDescriptor(2, 1, bGenerateBloom ? g_aBloomUAV1[1].GetSRV() : TextureManager::GetBlackTex2D().GetSRV());
 
 		Context.SetPipelineState(FXAA::DebugDraw ? DebugLuminanceLdrCS : ApplyBloomCS);
 		Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
@@ -391,29 +386,20 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 
 void PostEffects::Render( void )
 {
-	ComputeContext& Context = ComputeContext::Begin();
-	do { ScopedTimer _prof(L"Post Processing", Context);
+	ComputeContext& Context = ComputeContext::Begin(L"Post Effects");
 
 	Context.SetRootSignature(PostEffectsRS);
 
-	{
-		ScopedTimer _prof(L"Tone Mapping", Context);
+	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	if (EnableHDR && !SSAO::DebugDraw)
+		ProcessHDR(Context);
+	else
+		ProcessLDR(Context);
 
-		if (EnableHDR && !SSAO::DebugDraw)
-			ProcessHDR(Context);
-		else
-			ProcessLDR(Context);
-	}
-
-	{
-		ScopedTimer _prof(L"Anti-Aliasing", Context);
-
-		bool bGeneratedLumaBuffer = EnableHDR || FXAA::DebugDraw || BloomEnable;
-		if (FXAA::Enable)
-			FXAA::Render( Context, bGeneratedLumaBuffer );
-	}
+	bool bGeneratedLumaBuffer = EnableHDR || FXAA::DebugDraw || BloomEnable;
+	if (FXAA::Enable)
+		FXAA::Render( Context, bGeneratedLumaBuffer );
 
 	if (DrawHistogram)
 	{
@@ -430,6 +416,5 @@ void PostEffects::Render( void )
 		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	}
 
-	} while (0);
 	Context.CloseAndExecute();
 }

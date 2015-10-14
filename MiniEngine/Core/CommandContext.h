@@ -75,7 +75,7 @@ public:
 
 	static void DestroyAllContexts(void);
 
-	static CommandContext& Begin( void );
+	static CommandContext& Begin(const std::wstring ID = L"");
 
 	uint64_t CloseAndExecute( bool WaitForCompletion = false );
 
@@ -92,12 +92,13 @@ public:
 
 	void CopyBuffer( GpuResource& Dest, GpuResource& Src );
 	void CopyBufferRegion( GpuResource& Dest, size_t DestOffset, GpuResource& Src, size_t SrcOffset, size_t NumBytes );
-	void CopyTextureRegion( GpuResource& Dest, UINT SubResourceIndex, UINT DestOffsetX, UINT DestOffsetY, UINT DestOffsetZ, GpuResource& Src, const D3D12_BOX *SrcBox);
+	void CopySubresource(GpuResource& Dest, UINT DestSubIndex, GpuResource& Src, UINT SrcSubIndex);
 	void CopyCounter(GpuResource& Dest, size_t DestOffset, StructuredBuffer& Src);
 	void ResetCounter(StructuredBuffer& Buf, uint32_t Value = 0);
 
 	static void InitializeTexture( GpuResource& Dest, UINT NumSubresources, D3D12_SUBRESOURCE_DATA SubData[] );
 	static void InitializeBuffer( GpuResource& Dest, const void* Data, size_t NumBytes );
+	static void InitializeTextureArraySlice(GpuResource& Dest, UINT SliceIndex, GpuResource& Src);
 
 	void WriteBuffer( GpuResource& Dest, size_t DestOffset, const void* Data, size_t NumBytes );
 	void FillBuffer( GpuResource& Dest, size_t DestOffset, DWParam Value, size_t NumBytes );
@@ -140,15 +141,18 @@ protected:
 
 	LinearAllocator m_CpuLinearAllocator;
 	LinearAllocator m_GpuLinearAllocator;
+
+	std::wstring m_ID;
+	void SetID(const std::wstring& ID) { m_ID = ID; }
 };
 
 class GraphicsContext : public CommandContext
 {
 public:
 
-	static GraphicsContext& Begin()
+	static GraphicsContext& Begin(const std::wstring& ID = L"")
 	{
-		return CommandContext::Begin().GetGraphicsContext();
+		return CommandContext::Begin(ID).GetGraphicsContext();
 	}
 
 	void ClearUAV( GpuBuffer& Target );
@@ -198,6 +202,7 @@ public:
 	void SetVertexBuffers( UINT StartSlot, UINT Count, const D3D12_VERTEX_BUFFER_VIEW VBViews[] );
 	void SetDynamicVB( UINT Slot, size_t NumVertices, size_t VertexStride, const void* VBData );
 	void SetDynamicIB( size_t IndexCount, const uint16_t* IBData );
+	void SetDynamicSRV(UINT RootIndex, size_t BufferSize, const void* BufferData);
 
 	void Draw( UINT VertexCount, UINT VertexStartOffset = 0 );
 	void DrawIndexed(UINT IndexCount, UINT StartIndexLocation = 0, INT BaseVertexLocation = 0);
@@ -214,9 +219,9 @@ class ComputeContext : public CommandContext
 {
 public:
 
-	static ComputeContext& Begin()
+	static ComputeContext& Begin(const std::wstring& ID = L"")
 	{
-		return CommandContext::Begin().GetComputeContext();
+		return CommandContext::Begin(ID).GetComputeContext();
 	}
 
 	void ClearUAV( GpuBuffer& Target );
@@ -232,6 +237,7 @@ public:
 	void SetConstants( UINT RootIndex, DWParam X, DWParam Y, DWParam Z, DWParam W );
 	void SetConstantBuffer( UINT RootIndex, D3D12_GPU_VIRTUAL_ADDRESS CBV );
 	void SetDynamicConstantBufferView( UINT RootIndex, size_t BufferSize, const void* BufferData );
+	void SetDynamicSRV( UINT RootIndex, size_t BufferSize, const void* BufferData ); 
 	void SetBufferSRV( UINT RootIndex, const GpuBuffer& SRV );
 	void SetBufferUAV( UINT RootIndex, const GpuBuffer& UAV );
 	void SetDescriptorTable( UINT RootIndex, D3D12_GPU_DESCRIPTOR_HANDLE FirstHandle );
@@ -438,9 +444,25 @@ inline void GraphicsContext::SetDynamicIB( size_t IndexCount, const uint16_t* In
 	m_CommandList->IASetIndexBuffer(&IBView);
 }
 
+inline void GraphicsContext::SetDynamicSRV(UINT RootIndex, size_t BufferSize, const void* BufferData)
+{
+	ASSERT(BufferData != nullptr && Math::IsAligned(BufferData, 16));
+	DynAlloc cb = m_CpuLinearAllocator.Allocate(BufferSize);
+	SIMDMemCopy(cb.DataPtr, BufferData, Math::AlignUp(BufferSize, 16) >> 4);
+	m_CommandList->SetGraphicsRootShaderResourceView(RootIndex, cb.GpuAddress);
+}
+
+inline void ComputeContext::SetDynamicSRV(UINT RootIndex, size_t BufferSize, const void* BufferData)
+{
+	ASSERT(BufferData != nullptr && Math::IsAligned(BufferData, 16));
+	DynAlloc cb = m_CpuLinearAllocator.Allocate(BufferSize);
+	SIMDMemCopy(cb.DataPtr, BufferData, Math::AlignUp(BufferSize, 16) >> 4);
+	m_CommandList->SetComputeRootShaderResourceView(RootIndex, cb.GpuAddress);
+}
+
 inline void GraphicsContext::SetBufferSRV( UINT RootIndex, const GpuBuffer& SRV )
 {
-	ASSERT((SRV.m_UsageState & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) != 0);
+	ASSERT((SRV.m_UsageState & (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)) != 0);
 	m_CommandList->SetGraphicsRootShaderResourceView(RootIndex, SRV.GetGpuVirtualAddress());
 }
 
@@ -631,32 +653,8 @@ inline void CommandContext::CopyCounter(GpuResource& Dest, size_t DestOffset, St
 
 inline void CommandContext::ResetCounter(StructuredBuffer& Buf, uint32_t Value )
 {
-	if (Value == 0)
-		GetComputeContext().ClearUAV(Buf.GetCounterBuffer());
-	else
-	{
-		FillBuffer(Buf.GetCounterBuffer(), 0, Value, sizeof(uint32_t));
-		TransitionResource(Buf.GetCounterBuffer(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	}
-}
-
-//###
-inline void CommandContext::CopyTextureRegion( GpuResource& Dest, UINT SubResourceIndex, UINT DestOffsetX, UINT DestOffsetY, UINT DestOffsetZ, GpuResource& Src, const D3D12_BOX *SrcBox)
-{
-	// TODO:  Add a TransitionSubresource()?
-	TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST);
-	TransitionResource(Src, D3D12_RESOURCE_STATE_COPY_SOURCE);
-	FlushResourceBarriers();
-
-	D3D12_TEXTURE_COPY_LOCATION destCopyLocation = { Dest.GetResource(),
-													D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-													SubResourceIndex };
-
-	D3D12_TEXTURE_COPY_LOCATION srcCopyLocation = { Src.GetResource(),
-													D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-													0 };
-
-	m_CommandList->CopyTextureRegion(&destCopyLocation, DestOffsetX, DestOffsetY, DestOffsetZ, &srcCopyLocation, SrcBox);
+	FillBuffer(Buf.GetCounterBuffer(), 0, Value, sizeof(uint32_t));
+	TransitionResource(Buf.GetCounterBuffer(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 inline void CommandContext::InsertTimeStamp(ID3D12QueryHeap* pQueryHeap, uint32_t QueryIdx)

@@ -25,7 +25,8 @@ StructuredBuffer< ParticleMotion > g_InputBuffer : register( t1 );
 RWStructuredBuffer< ParticleVertex > g_VertexBuffer : register( u0 );
 RWStructuredBuffer< ParticleMotion > g_OutputBuffer : register( u2 );
 
-[ numthreads(64, 1, 1) ]
+[RootSignature(Particle_RootSig)]
+[numthreads(64, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
 	if (DTid.x >= MaxParticles)

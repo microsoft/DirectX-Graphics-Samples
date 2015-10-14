@@ -13,6 +13,7 @@
 // The CS for extracting bright pixels and downsampling them to an unblurred bloom buffer.
 
 #include "ShaderUtility.hlsli"
+#include "PostEffectsRS.hlsli"
 
 SamplerState BiLinearClamp : register( s0 );
 Texture2D<float3> SourceTex : register( t0 );
@@ -24,13 +25,14 @@ cbuffer cb0
 	float g_bloomThreshold;
 }
 
+[RootSignature(PostEffects_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
 	// We need the scale factor and the size of one pixel so that our four samples are right in the middle
 	// of the quadrant they are covering.
-	float2 uv = DTid.xy * g_inverseOutputSize;
-	float2 offset = g_inverseOutputSize * 0.25f;
+	float2 uv = (DTid.xy + 0.5) * g_inverseOutputSize;
+	float2 offset = g_inverseOutputSize * 0.25;
 
 	// Use 4 bilinear samples to guarantee we don't undersample when downsizing by more than 2x
 	float3 color1 = SourceTex.SampleLevel( BiLinearClamp, uv + float2(-offset.x, -offset.y), 0 );

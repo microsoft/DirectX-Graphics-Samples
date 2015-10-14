@@ -168,7 +168,6 @@ namespace
 
 	void MaintainTextureList(ParticleEffectProperties* effectProperties)
 	{
-		CommandContext& Context = CommandContext::Begin();
 		std::wstring name = effectProperties->TexturePath;
 
 		for (uint32_t i = 0; i < TextureNameArray.size(); i++)
@@ -187,9 +186,8 @@ namespace
 		const ManagedTexture* managedTex = TextureManager::LoadDDSFromFile(name.c_str(), true);
 		managedTex->WaitForLoad();
 
-		GpuResource& test = *const_cast<ManagedTexture*>(managedTex);
-		Context.CopyTextureRegion(TextureArray, TextureID, 0,0,0, test, nullptr);
-		Context.CloseAndExecute();
+		GpuResource& ParticleTexture = *const_cast<ManagedTexture*>(managedTex);
+		CommandContext::InitializeTextureArraySlice(TextureArray, TextureID, ParticleTexture);
 	}
 
 
@@ -425,12 +423,12 @@ namespace
 
 void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayHeight )
 {	
-	D3D12_SAMPLER_DESC ParticleSamplerDesc = SamplerLinearClampDesc;
-	ParticleSamplerDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	D3D12_SAMPLER_DESC SamplerBilinearBorderDesc = SamplerPointBorderDesc;
+	SamplerBilinearBorderDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 
 	RootSig.Reset(5, 2);
-	RootSig.InitStaticSampler(0, ParticleSamplerDesc);
-	RootSig.InitStaticSampler(1, SamplerPointClampDesc);
+	RootSig.InitStaticSampler(0, SamplerBilinearBorderDesc);
+	RootSig.InitStaticSampler(1, SamplerPointBorderDesc);
 	RootSig[0].InitAsConstants(0, 2);
 	RootSig[1].InitAsConstantBuffer(1);
 	RootSig[2].InitAsConstantBuffer(2);
@@ -514,7 +512,7 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 	TexDesc.Width = 64;
 	TexDesc.Height = 64;
 	TexDesc.DepthOrArraySize = 16;
-	TexDesc.MipLevels = 1;
+	TexDesc.MipLevels = 4;
 	TexDesc.SampleDesc.Count = 1;
 	TexDesc.Alignment = 0x10000;
 
@@ -536,7 +534,7 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	SRVDesc.Format = DXGI_FORMAT_BC3_UNORM_SRGB;
 	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-	SRVDesc.Texture2DArray.MipLevels = 1;
+	SRVDesc.Texture2DArray.MipLevels = 4;
 	SRVDesc.Texture2DArray.ArraySize = 16;
 	
 	TextureArraySRV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);

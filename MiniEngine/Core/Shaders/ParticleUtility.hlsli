@@ -12,6 +12,8 @@
 //             James Stanard 
 //
 
+#include "ParticleRS.hlsli"
+
 #define MAX_PARTICLES_PER_BIN 1024
 #define BIN_SIZE_X 128
 #define BIN_SIZE_Y 64

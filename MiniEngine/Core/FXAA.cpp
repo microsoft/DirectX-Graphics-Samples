@@ -55,9 +55,8 @@ namespace FXAA
 
 void FXAA::Initialize( void )
 {
-	RootSig.Reset(3, 2);
+	RootSig.Reset(3, 1);
 	RootSig.InitStaticSampler(0, SamplerLinearClampDesc);
-	RootSig.InitStaticSampler(1, SamplerPointBorderDesc);
 	RootSig[0].InitAsConstants(0, 4);
 	RootSig[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5);
 	RootSig[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6);

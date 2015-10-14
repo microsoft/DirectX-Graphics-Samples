@@ -11,21 +11,20 @@
 // Author:  James Stanard 
 //
 
+#include "SSAORS.hlsli"
+
 Texture2D<float> DS4x : register(t0);
 RWTexture2D<float> DS8x : register(u0);
 RWTexture2DArray<float> DS8xAtlas : register(u1);
 RWTexture2D<float> DS16x : register(u2);
 RWTexture2DArray<float> DS16xAtlas : register(u3);
 
-SamplerState		LinearSampler	: register(s0);
-
 cbuffer ConstantBuffer : register(b0)
 {
 	float2 InvSourceDimension;
 }
 
-groupshared float g_cache[64];
-
+[RootSignature(SSAO_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

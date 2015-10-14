@@ -29,6 +29,7 @@ cbuffer CB : register(b0)
 	uint2 LogTilesPerBin;
 };
 
+[RootSignature(Particle_RootSig)]
 [numthreads(4, THREAD_GROUP_SIZE / 4, 1)]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID )
 {

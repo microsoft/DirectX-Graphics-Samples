@@ -36,6 +36,9 @@
 #include "CompiledShaders/ModelViewerVS.h"
 #include "CompiledShaders/ModelViewerPS.h"
 
+#define USE_VERTEX_BUFFER	0
+#define USE_ROOT_BUFFER_SRV	0
+
 using namespace GameCore;
 using namespace Math;
 using namespace Graphics;
@@ -93,16 +96,25 @@ void ModelViewer::Startup( void )
 	m_RootSig.InitStaticSampler(1, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);
 	m_RootSig[1].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+#if USE_ROOT_BUFFER_SRV || USE_VERTEX_BUFFER
 	m_RootSig[2].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_VERTEX);
+#else
+	m_RootSig[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_VERTEX);
+#endif
 	m_RootSig[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 3, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig[5].InitAsConstants(1, 1, D3D12_SHADER_VISIBILITY_VERTEX);
+#if USE_VERTEX_BUFFER
 	m_RootSig.Finalize(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+#else
+	m_RootSig.Finalize();
+#endif
 
 	DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
 	DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
 	DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
 
+#if USE_VERTEX_BUFFER
 	D3D12_INPUT_ELEMENT_DESC vertElem[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -111,12 +123,15 @@ void ModelViewer::Startup( void )
 		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
+#endif
 
 	m_DepthPSO.SetRootSignature(m_RootSig);
 	m_DepthPSO.SetRasterizerState(RasterizerDefault);
 	m_DepthPSO.SetBlendState(BlendNoColorWrite);
 	m_DepthPSO.SetDepthStencilState(DepthStateReadWrite);
+#if USE_VERTEX_BUFFER
 	m_DepthPSO.SetInputLayout(_countof(vertElem), vertElem);
+#endif
 	m_DepthPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 	m_DepthPSO.SetRenderTargetFormats(0, nullptr, DepthFormat);
 	m_DepthPSO.SetVertexShader(g_pDepthViewerVS, sizeof(g_pDepthViewerVS));
@@ -161,7 +176,7 @@ void ModelViewer::Startup( void )
 	PostEffects::MinExposure = 1.0f;
 	PostEffects::MaxExposure = 8.0f;
 	PostEffects::BloomThreshold = 1.0f;
-	PostEffects::BloomStrength = 0.5f;
+	PostEffects::BloomStrength = 0.10f;
 }
 
 void ModelViewer::Cleanup( void )
@@ -193,7 +208,7 @@ void ModelViewer::Update( float deltaT )
 			{ -0.25f, -0.25f },
 			{  0.25f,  0.25f },
 		};
-		const float* Offset = SampleOffsets[SystemTime::FrameIndex & 1];
+		const float* Offset = SampleOffsets[Graphics::GetFrameCount() % 2];
 
 		m_MainViewport.TopLeftX = Offset[0];
 		m_MainViewport.TopLeftY = Offset[1];
@@ -247,15 +262,20 @@ void ModelViewer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& Vie
 			gfxContext.SetDynamicDescriptors(3, 0, 6, m_Model.GetSRVs(materialIdx) );
 		}
 
+#if USE_VERTEX_BUFFER
 		gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
+#else
+		gfxContext.SetConstants(5, baseVertex);
+		gfxContext.DrawIndexed(indexCount, startIndex);
+#endif
 	}
 }
 
 void ModelViewer::RenderScene( void )
 {
-	GraphicsContext& gfxContext = GraphicsContext::Begin();
+	GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Render");
 
-	ParticleEffects::Update(gfxContext.GetComputeContext(), SystemTime::FrameTime);
+	ParticleEffects::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
 
 	__declspec(align(16)) struct
 	{
@@ -278,7 +298,13 @@ void ModelViewer::RenderScene( void )
 		gfxContext.SetRootSignature(m_RootSig);
 		gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		gfxContext.SetIndexBuffer(m_Model.m_IndexBuffer.IndexBufferView());
+#if USE_VERTEX_BUFFER
 		gfxContext.SetVertexBuffer(0, m_Model.m_VertexBuffer.VertexBufferView());
+#elif USE_ROOT_BUFFER_SRV
+		gfxContext.SetBufferSRV(2, m_Model.m_VertexBuffer);
+#else
+		gfxContext.SetDynamicDescriptor(2, 0, m_Model.m_VertexBuffer.GetSRV());
+#endif
 		gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
 
 		gfxContext.SetPipelineState(m_DepthPSO);
@@ -298,7 +324,13 @@ void ModelViewer::RenderScene( void )
 		gfxContext.SetRootSignature(m_RootSig);
 		gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		gfxContext.SetIndexBuffer(m_Model.m_IndexBuffer.IndexBufferView());
+#if USE_VERTEX_BUFFER
 		gfxContext.SetVertexBuffer(0, m_Model.m_VertexBuffer.VertexBufferView());
+#elif USE_ROOT_BUFFER_SRV
+		gfxContext.SetBufferSRV(2, m_Model.m_VertexBuffer);
+#else
+		gfxContext.SetDynamicDescriptor(2, 0, m_Model.m_VertexBuffer.GetSRV());
+#endif
 		gfxContext.SetDynamicDescriptors(4, 0, 2, m_ExtraTextures);
 		gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
 

@@ -11,9 +11,12 @@
 // Author:  Julia Careaga 
 //
 
+#include "ParticleRS.hlsli"
+
 ByteAddressBuffer g_ParticleInstance : register( t0 );
 RWByteAddressBuffer g_NumThreadGroups : register( u1 );
 
+[RootSignature(Particle_RootSig)]
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {

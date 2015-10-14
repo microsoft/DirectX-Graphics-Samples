@@ -74,7 +74,7 @@ float RGBToLogLuminance( float3 x, float gamma = 4.0 )
 
 float3 RGBFullToLimited( float3 x )
 {
-	return max(x, 0) * 219.0 / 255.0 + 16.0 / 255.0;
+	return saturate(x) * 219.0 / 255.0 + 16.0 / 255.0;
 }
 
 float3 RGBLimitedToFull( float3 x )
@@ -82,38 +82,77 @@ float3 RGBLimitedToFull( float3 x )
 	return saturate((x - 16.0 / 255.0) * 255.0 / 219.0);
 }
 
-float3 LinearToFrameBufferFormat( float3 x, int bufferFormat = 0 )
+#define COLOR_FORMAT_LINEAR			0
+#define COLOR_FORMAT_sRGB_FULL		1
+#define COLOR_FORMAT_sRGB_LIMITED	2
+#define COLOR_FORMAT_Rec709_FULL	3
+#define COLOR_FORMAT_Rec709_LIMITED	4
+#define COLOR_FORMAT_7e3_FLOAT_FULL	5
+#define COLOR_FORMAT_6e4_FLOAT_FULL	6
+#define COLOR_FORMAT_TV_DEFAULT		COLOR_FORMAT_Rec709_LIMITED
+#define COLOR_FORMAT_PC_DEFAULT		COLOR_FORMAT_sRGB_FULL
+
+#define HDR_COLOR_FORMAT			COLOR_FORMAT_LINEAR
+#define LDR_COLOR_FORMAT			COLOR_FORMAT_LINEAR
+#if _XBOX_ONE
+	#define DISPLAY_PLANE_FORMAT	COLOR_FORMAT_TV_DEFAULT
+	#define OVERLAY_PLANE_FORMAT	COLOR_FORMAT_sRGB_FULL
+#else
+	#define DISPLAY_PLANE_FORMAT	COLOR_FORMAT_PC_DEFAULT
+#endif
+
+float3 ApplyColorProfile( float3 x, int Format )
 {
-	switch (bufferFormat)
+	switch (Format)
 	{
 	default:
-	case 0:		// Identity
+	case COLOR_FORMAT_LINEAR:
 		return x;
-	case 1:		// 10-bit UNORM
-		return LinearToSRGB_Exact(x);
-	case 2:		// 7e3 float biased exponent
+	case COLOR_FORMAT_sRGB_FULL:
+		return LinearToSRGB(x);
+	case COLOR_FORMAT_sRGB_LIMITED:
+		return RGBFullToLimited(LinearToSRGB(x));
+	case COLOR_FORMAT_Rec709_FULL:
+		return LinearToREC709_Exact(x);
+	case COLOR_FORMAT_Rec709_LIMITED:
+		return RGBFullToLimited(LinearToREC709_Exact(x));
+
+	// Xbox formats:  10-bit floats with biased exponents; range: [0, 2)
+	case COLOR_FORMAT_7e3_FLOAT_FULL:
 		return x * 16.0;
-	case 3:		// 6e4 float biased exponent
+	case COLOR_FORMAT_6e4_FLOAT_FULL:
 		return x * 256.0;
-	case 4:		// DCP disabled (already in REC709 RGB Limited)
-		return RGBFullToLimited( LinearToREC709_Exact(x) );
 	};
 }
 
-float3 FrameBufferFormatToLinear( float3 x, int bufferFormat = 0 )
+float3 LinearizeColor( float3 x, int Format )
 {
-	switch (bufferFormat)
+	switch (Format)
 	{
 	default:
-	case 0:		// Identity
+	case COLOR_FORMAT_LINEAR:
 		return x;
-	case 1:		// 10-bit UNORM
+	case COLOR_FORMAT_sRGB_FULL:
 		return SRGBToLinear_Exact(x);
-	case 2:		// 7e3 float biased exponent
+	case COLOR_FORMAT_sRGB_LIMITED:
+		return SRGBToLinear_Exact(RGBLimitedToFull(x));
+	case COLOR_FORMAT_Rec709_FULL:
+		return REC709ToLinear_Exact(x);
+	case COLOR_FORMAT_Rec709_LIMITED:
+		return REC709ToLinear_Exact(RGBLimitedToFull(x));
+
+	// Xbox formats:  10-bit floats with biased exponents; range: [0, 2)
+	case COLOR_FORMAT_7e3_FLOAT_FULL:
 		return x / 16.0;
-	case 3:		// 6e4 float biased exponent
+	case COLOR_FORMAT_6e4_FLOAT_FULL:
 		return x / 256.0;
-	case 4:		// DCP disabled (already in REC709 RGB Limited)
-		return REC709ToLinear_Exact( RGBLimitedToFull(x) );
 	};
+}
+
+float3 ConvertColor( float3 x, int FromFormat, int ToFormat )
+{
+	if (FromFormat == ToFormat)
+		return x;
+
+	return ApplyColorProfile(LinearizeColor(x, FromFormat), ToFormat);
 }

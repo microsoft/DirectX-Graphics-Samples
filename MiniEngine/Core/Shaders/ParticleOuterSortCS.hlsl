@@ -21,6 +21,7 @@ cbuffer CB : register(b0)
 	uint j;		// j >= 2048 && j < k
 };
 
+[RootSignature(Particle_RootSig)]
 [numthreads(1024, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex )
 {

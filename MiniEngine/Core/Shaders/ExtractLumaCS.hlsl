@@ -14,6 +14,7 @@
 // is then used to generate an 8-bit histogram.
 
 #include "ShaderUtility.hlsli"
+#include "PostEffectsRS.hlsli"
 
 SamplerState BiLinearClamp : register( s0 );
 Texture2D<float3> SourceTex : register( t0 );
@@ -24,6 +25,7 @@ cbuffer cb0
 	float2 g_inverseOutputSize;
 }
 
+[RootSignature(PostEffects_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 DTid : SV_DispatchThreadID )
 {

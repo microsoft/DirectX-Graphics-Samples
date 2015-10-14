@@ -11,11 +11,14 @@
 // Author:  James Stanard 
 //
 
+#include "PostEffectsRS.hlsli"
+
 Texture2D<float> InputBuf : register( t0 );
 RWStructuredBuffer<float> Result : register( u0 );
 
 groupshared float buffer[64];
 
+[RootSignature(PostEffects_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

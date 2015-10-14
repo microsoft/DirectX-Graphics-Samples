@@ -186,7 +186,7 @@ public:
 
 	unsigned char *m_pVertexData;
 	unsigned char *m_pIndexData;
-	ByteAddressBuffer m_VertexBuffer;
+	StructuredBuffer m_VertexBuffer;
 	ByteAddressBuffer m_IndexBuffer;
 	uint32_t m_VertexStride;
 

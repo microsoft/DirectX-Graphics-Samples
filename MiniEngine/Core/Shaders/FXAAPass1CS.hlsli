@@ -57,6 +57,8 @@ THIS SOFTWARE, EVEN IF NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGES.
 */
 
+#include "FXAARootSignature.hlsli"
+
 cbuffer ConstantBuffer : register( b0 )
 {
 	float2 RcpTextureSize;
@@ -91,6 +93,7 @@ float RGBToLogLuminance( float3 LinearRGB )
 	return log2(1 + Luma * 15) / 4;
 }
 
+[RootSignature(FXAA_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

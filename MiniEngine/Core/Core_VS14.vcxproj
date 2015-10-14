@@ -96,6 +96,7 @@
     <ClInclude Include="GpuTimeManager.h" />
     <ClInclude Include="GameCore.h" />
     <ClInclude Include="GraphicsCore.h" />
+    <ClInclude Include="GraphRenderer.h" />
     <ClInclude Include="Hash.h" />
     <ClInclude Include="LinearAllocator.h" />
     <ClInclude Include="Math\BoundingPlane.h" />
@@ -152,6 +153,7 @@
     <ClCompile Include="GpuBuffer.cpp" />
     <ClCompile Include="GpuTimeManager.cpp" />
     <ClCompile Include="GraphicsCore.cpp" />
+    <ClCompile Include="GraphRenderer.cpp" />
     <ClCompile Include="LinearAllocator.cpp" />
     <ClCompile Include="Math\Frustum.cpp" />
     <ClCompile Include="Math\Random.cpp" />
@@ -189,7 +191,16 @@
     <FxCompile Include="Shaders\AoRender2CS.hlsl" />
     <FxCompile Include="Shaders\ApplyBloomCS.hlsl" />
     <FxCompile Include="Shaders\AverageLumaCS.hlsl" />
+    <FxCompile Include="Shaders\BicubicHorizontalUpsamplePS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\BicubicUpsampleGammaPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\BicubicUpsamplePS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\BicubicVerticalUpsamplePS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\BilinearUpsamplePS.hlsl">
@@ -214,12 +225,6 @@
     <FxCompile Include="Shaders\DebugLuminanceHdrCS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceLdrCS.hlsl" />
     <FxCompile Include="Shaders\DebugSSAOCS.hlsl" />
-    <FxCompile Include="Shaders\DebugZoom2xPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Shaders\DebugZoom4xPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-    </FxCompile>
     <FxCompile Include="Shaders\DownsampleBloomAllCS.hlsl" />
     <FxCompile Include="Shaders\DownsampleBloomCS.hlsl" />
     <FxCompile Include="Shaders\ExtractLumaCS.hlsl" />
@@ -230,9 +235,18 @@
     <FxCompile Include="Shaders\GenerateHistogramCS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2HCS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2VCS.hlsl" />
-    <FxCompile Include="Shaders\GenerateMipsCS.hlsl" />
     <FxCompile Include="Shaders\GenerateMipsGammaCS.hlsl" />
+    <FxCompile Include="Shaders\GenerateMipsGammaOddCS.hlsl" />
+    <FxCompile Include="Shaders\GenerateMipsGammaOddXCS.hlsl" />
+    <FxCompile Include="Shaders\GenerateMipsGammaOddYCS.hlsl" />
+    <FxCompile Include="Shaders\GenerateMipsLinearCS.hlsl" />
+    <FxCompile Include="Shaders\GenerateMipsLinearOddCS.hlsl" />
+    <FxCompile Include="Shaders\GenerateMipsLinearOddXCS.hlsl" />
+    <FxCompile Include="Shaders\GenerateMipsLinearOddYCS.hlsl" />
     <FxCompile Include="Shaders\LinearizeDepthCS.hlsl" />
+    <FxCompile Include="Shaders\MagnifyPixelsPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\MotionBlurFinalPassCS.hlsl" />
     <FxCompile Include="Shaders\MotionBlurFinalPassTemporalCS.hlsl" />
     <FxCompile Include="Shaders\MotionBlurPrePassCS.hlsl" />
@@ -261,6 +275,21 @@
     <FxCompile Include="Shaders\ParticleVS.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\PerfGraphBackgroundVS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\PerfGraphPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\PerfGraphVS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SharpeningUpsampleGammaPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\SharpeningUpsamplePS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\TemporalBlendCS.hlsl" />
     <FxCompile Include="Shaders\TextAntialiasPS.hlsl">
       <ShaderType>Pixel</ShaderType>
@@ -279,13 +308,22 @@
     <None Include="Shaders\AoRenderCS.hlsli" />
     <None Include="Shaders\FXAAPass1CS.hlsli" />
     <None Include="Shaders\FXAAPass2CS.hlsli" />
+    <None Include="Shaders\FXAARootSignature.hlsli" />
+    <None Include="Shaders\GenerateMipsCS.hlsli" />
+    <None Include="Shaders\MotionBlurRS.hlsli" />
+    <None Include="Shaders\ParticleRS.hlsli" />
     <None Include="Shaders\ParticleUpdateCommon.hlsli" />
     <None Include="Shaders\ParticleUtility.hlsli" />
+    <None Include="Shaders\PerfGraphRS.hlsli" />
+    <None Include="Shaders\PostEffectsRS.hlsli" />
+    <None Include="Shaders\PresentRS.hlsli" />
     <None Include="Shaders\ShaderUtility.hlsli" />
     <FxCompile Include="Shaders\ToneMap2CS.hlsl" />
     <FxCompile Include="Shaders\ToneMapCS.hlsl" />
     <FxCompile Include="Shaders\UpsampleAndBlurCS.hlsl" />
     <None Include="Shaders\PixelPacking.hlsli" />
+    <None Include="Shaders\SSAORS.hlsli" />
+    <None Include="Shaders\TextRS.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

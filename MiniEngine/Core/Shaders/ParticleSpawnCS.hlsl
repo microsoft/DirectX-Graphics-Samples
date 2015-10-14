@@ -18,7 +18,8 @@
 StructuredBuffer< ParticleSpawnData > g_ResetData : register( t0 );
 RWStructuredBuffer< ParticleMotion > g_OutputBuffer : register( u2 );
 
-[ numthreads(64, 1, 1) ]
+[RootSignature(Particle_RootSig)]
+[numthreads(64, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
 	uint index = g_OutputBuffer.IncrementCounter();

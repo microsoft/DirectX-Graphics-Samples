@@ -75,6 +75,7 @@ uint ComputeMaskOffset( uint2 Gid, uint2 GTid )
 	return OutTileIdx * MAX_PARTICLES_PER_BIN / 8 + GTid.y / TILES_PER_BIN_Y * 4;
 }
 
+[RootSignature(Particle_RootSig)]
 [numthreads(GROUP_SIZE_X, GROUP_SIZE_Y, 1)]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID )
 {

@@ -11,6 +11,8 @@
 // Author:  James Stanard 
 //
 
+#include "SSAORS.hlsli"
+
 #ifndef INTERLEAVE_RESULT
 #define WIDE_SAMPLING 1
 #endif
@@ -97,7 +99,7 @@ float TestSamples( uint centerIdx, uint x, uint y, float invDepth, float invThic
 	}
 }
 
-
+[RootSignature(SSAO_RootSig)]
 #if WIDE_SAMPLING
 [numthreads( 16, 16, 1 )]
 #else

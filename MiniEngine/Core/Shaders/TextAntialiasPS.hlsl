@@ -11,6 +11,8 @@
 // Author:  James Stanard 
 //
 
+#include "TextRS.hlsli"
+
 cbuffer cbFontParams : register( b0 )
 {
 	float4 Color;
@@ -34,6 +36,7 @@ float GetAlpha( float2 uv )
 	return saturate(SignedDistanceFieldTex.Sample(LinearSampler, uv) * HeightRange + 0.5);
 }
 
+[RootSignature(Text_RootSig)]
 float4 main( PS_INPUT Input ) : SV_Target
 {
 	return float4(Color.rgb, 1) * GetAlpha(Input.uv) * Color.a;

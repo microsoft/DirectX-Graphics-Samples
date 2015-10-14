@@ -16,6 +16,7 @@
 ByteAddressBuffer g_ActiveParticlesCount : register(t1);
 RWByteAddressBuffer g_IndirectArgsBuffer : register(u0);
 
+[RootSignature(Particle_RootSig)]
 [numthreads(8, 1, 1)]
 void main( uint GI : SV_GroupIndex )
 {

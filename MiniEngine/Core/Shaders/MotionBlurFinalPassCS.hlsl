@@ -11,6 +11,8 @@
 // Author:  James Stanard 
 //
 
+#include "MotionBlurRS.hlsli"
+
 #define MAX_SAMPLE_COUNT  10
 #define STEP_SIZE         4.0
 
@@ -33,6 +35,7 @@ cbuffer c0 : register(b0)
 	float TemporalBlendFactor;
 }
 
+[RootSignature(MotionBlur_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

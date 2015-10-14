@@ -15,38 +15,39 @@
 
 #pragma once
 
-#include "GameCore.h"
-#include "EngineTuning.h"
-
-namespace SystemTime
+class SystemTime
 {
-	// Query the performance counter frequency
-	void Initialize( void );
+public:
 
-	void Update();
+	// Query the performance counter frequency
+	static void Initialize( void );
 
 	// Query the current value of the performance counter
-	int64_t GetCurrentTick( void );
+	static int64_t GetCurrentTick( void );
 
-	// The amount of time that elapses between ticks of the performance counter
-	extern double CpuTickDelta;
+	static void BusyLoopSleep( float SleepTime );
 
-	// The amount of CPU time elapsed during the last completed frame
-	extern float FrameTime;
-
-	// The sequential index of the frame that the CPU is currently working on
-	extern uint64_t FrameIndex;
-
-	extern int64_t StartTick;
-	extern float PresentLatency;
-
-	inline float GetFrameRate( void )
+	static inline double TicksToSeconds( int64_t TickCount )
 	{
-		return FrameTime == 0.0f ? 0.0f : 1.0f / FrameTime;
+		return TickCount * sm_CpuTickDelta;
 	}
 
-	extern BoolVar EnableVSync;
-}
+	static inline double TicksToMillisecs( int64_t TickCount )
+	{
+		return TickCount * sm_CpuTickDelta * 1000.0;
+	}
+
+	static inline double TimeBetweenTicks( int64_t tick1, int64_t tick2 )
+	{
+		return TicksToSeconds(tick2 - tick1);
+	}
+
+private:
+
+	// The amount of time that elapses between ticks of the performance counter
+	static double sm_CpuTickDelta;
+};
+
 
 class CpuTimer
 {
@@ -81,7 +82,7 @@ public:
 
 	double GetTime() const
 	{
-		return SystemTime::CpuTickDelta * m_ElapsedTicks;
+		return SystemTime::TicksToSeconds(m_ElapsedTicks);
 	}
 
 private:

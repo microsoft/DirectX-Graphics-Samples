@@ -18,6 +18,7 @@
 Texture2DArray<float4> ColorTex : register(t1);
 Texture2D<float> LinearDepthTex : register(t2);
 
+[RootSignature(Particle_RootSig)]
 float4 main(ParticleVertexOutput input ) : SV_Target0
 {
 	float3 uv = float3(input.TexCoord.xy, input.TexID);

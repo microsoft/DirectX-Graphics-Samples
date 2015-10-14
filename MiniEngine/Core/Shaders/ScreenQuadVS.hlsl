@@ -10,20 +10,24 @@
 //
 // Author:  James Stanard
 //
-// The VS for doing a full-screen effect without a vertex buffer.
+// A vertex shader for full-screen effects without a vertex buffer.  The
+// intent is to output an over-sized triangle that encompasses the entire
+// screen.  By doing so, we avoid rasterization inefficiency that could
+// result from drawing two triangles with a shared edge.
+//
+// Use null input layout
+// Draw(3)
 
-struct QuadVS_Output
+#include "PresentRS.hlsli"
+
+[RootSignature(Present_RootSig)]
+void main(
+	in uint VertID : SV_VertexID,
+	out float4 Pos : SV_Position,
+	out float2 Tex : TexCoord0
+)
 {
-	float4 Pos : SV_POSITION;
-	float2 Tex : TEXCOORD0;
-};
-
-QuadVS_Output main( uint vertID : SV_VertexID )
-{
-	float2 uv = float2( (vertID >> 1) & 1, vertID & 1 ) * 2.0f;
-
-	QuadVS_Output Output;
-	Output.Pos = float4( lerp( float2(-1.0f, 1.0f), float2(1.0f, -1.0f), uv ), 0.0f, 1.0f );
-	Output.Tex = uv;
-	return Output;
+	// Texture coordinates range [0, 2], but only [0, 1] appears on screen.
+	Tex = float2(uint2(VertID, VertID << 1) & 2);
+	Pos = float4(lerp(float2(-1, 1), float2(1, -1), Tex), 0, 1);
 }

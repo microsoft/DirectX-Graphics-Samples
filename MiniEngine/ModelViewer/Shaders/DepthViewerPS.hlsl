@@ -12,6 +12,8 @@
 //             Alex Nankervis
 //
 
+#include "ModelViewerRS.hlsli"
+
 struct VSOutput
 {
 	float4 pos : SV_Position;
@@ -21,6 +23,7 @@ struct VSOutput
 Texture2D<float4> texDiffuse : register(t0);
 SamplerState sampler0 : register(s0);
 
+[RootSignature(ModelViewer_RootSig)]
 void main(VSOutput vsOutput)
 {
 	if (texDiffuse.Sample(sampler0, vsOutput.uv).a < 0.5)

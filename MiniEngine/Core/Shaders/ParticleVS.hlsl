@@ -16,6 +16,7 @@
 StructuredBuffer<ParticleVertex> g_VertexBuffer : register( t0 );
 StructuredBuffer<uint> g_IndexBuffer : register( t3 );
 
+[RootSignature(Particle_RootSig)]
 ParticleVertexOutput main( uint BillboardVertex : SV_VertexID, uint InstanceId : SV_InstanceID )
 {
 	ParticleVertex In = g_VertexBuffer[ g_IndexBuffer[InstanceId] & 0x3FFFF ];

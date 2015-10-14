@@ -8,17 +8,23 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard	
+// Author:  James Stanard 
+//
 
 #include "ShaderUtility.hlsli"
+#include "PresentRS.hlsli"
 
 Texture2D<float3> ColorTex : register(t0);
+SamplerState PointSampler : register(s1);
 
+cbuffer Constants : register(b0)
+{
+	float ScaleFactor;
+}
+
+[RootSignature(Present_RootSig)]
 float3 main( float4 position : SV_Position, float2 uv : TexCoord0 ) : SV_Target0
 {
-	uint2 SourceDim;
-	ColorTex.GetDimensions(SourceDim.x, SourceDim.y);
-	uint2 StartOffset = (SourceDim - uint2(480, 270)) / 2;
-	uint2 FinalOffset = uint2(position.xy * 0.25) + StartOffset;
-	return LinearToFrameBufferFormat( FrameBufferFormatToLinear( ColorTex[FinalOffset], 0), 1);
+	float2 ScaledUV = ScaleFactor * (uv - 0.5) + 0.5;
+	return ColorTex.SampleLevel(PointSampler, ScaledUV, 0);
 }

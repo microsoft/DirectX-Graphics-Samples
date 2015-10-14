@@ -12,6 +12,8 @@
 //             Alex Nankervis
 //
 
+#include "ModelViewerRS.hlsli"
+
 struct VSOutput
 {
 	float4 position : SV_Position;
@@ -124,6 +126,7 @@ void AntiAliasSpecular( inout float3 texNormal, inout float gloss )
 }
 
 
+[RootSignature(ModelViewer_RootSig)]
 float3 main(VSOutput vsOutput) : SV_Target0
 {
 	float3 diffuseAlbedo = texDiffuse.Sample(sampler0, vsOutput.texcoord0);

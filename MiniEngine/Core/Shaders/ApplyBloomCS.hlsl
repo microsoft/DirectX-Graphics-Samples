@@ -12,6 +12,7 @@
 //
 
 #include "ShaderUtility.hlsli"
+#include "PostEffectsRS.hlsli"
 
 Texture2D<float3> SrcColor : register( t0 );
 Texture2D<float3> Bloom : register( t1 );
@@ -26,6 +27,7 @@ cbuffer ConstantBuffer : register( b0 )
 	float g_LumaGamma;
 };
 
+[RootSignature(PostEffects_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

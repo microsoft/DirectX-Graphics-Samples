@@ -14,12 +14,15 @@
 // The work queues are also padded out to a multiple of 64 with dummy work items.
 //
 
+#include "FXAARootSignature.hlsli"
+
 ByteAddressBuffer WorkCounterH : register(t0);
 ByteAddressBuffer WorkCounterV : register(t1);
 RWByteAddressBuffer IndirectParams : register(u0);
 RWStructuredBuffer<uint> WorkQueueH : register(u1);
 RWStructuredBuffer<uint> WorkQueueV : register(u2);
 
+[RootSignature(FXAA_RootSig)]
 [numthreads( 64, 1, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

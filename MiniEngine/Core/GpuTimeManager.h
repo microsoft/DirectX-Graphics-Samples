@@ -21,7 +21,6 @@ namespace GpuTimeManager
 {
 	void Initialize( uint32_t MaxNumTimers = 4096 );
 	void Shutdown();
-	void EndFrame( CommandContext& Context );
 
 	// Reserve a unique timer index
 	uint32_t NewTimer(void);
@@ -30,7 +29,8 @@ namespace GpuTimeManager
 	void StartTimer(CommandContext& Context, uint32_t TimerIdx);
 	void StopTimer(CommandContext& Context, uint32_t TimerIdx);
 
-	// Bookend all calls to GetTime() with Begin/End which correspond to Map/Unmap
+	// Bookend all calls to GetTime() with Begin/End which correspond to Map/Unmap.  This
+	// needs to happen either at the very start or very end of a frame.
 	void BeginReadBack(void);
 	void EndReadBack(void);
 

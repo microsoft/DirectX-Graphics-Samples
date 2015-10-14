@@ -175,6 +175,9 @@
     <ClInclude Include="GpuTimeManager.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="GraphRenderer.h">
+      <Filter>Source Files\Graphics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SystemTime.cpp">
@@ -303,6 +306,9 @@
     <ClCompile Include="GpuTimeManager.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="GraphRenderer.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -338,41 +344,23 @@
     <Filter Include="Shaders\MB+TAA">
       <UniqueIdentifier>{7f434daa-8c60-4590-ba57-173c6209d888}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Text">
+      <UniqueIdentifier>{26bdd93c-f50c-4dec-8ecc-eb6d783a7071}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\PerfGraph">
+      <UniqueIdentifier>{b5a8a76d-c035-42d6-a864-608af4f678e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Present">
+      <UniqueIdentifier>{a12c93f7-f6a6-4dd0-aac0-5cc5fa42b749}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Misc">
+      <UniqueIdentifier>{3de5d9a4-74c3-446a-8fb6-90873bf7321b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\GenerateMips">
+      <UniqueIdentifier>{6bfe1a9c-fe27-4aa4-b232-2f6b673b1f75}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders\ScreenQuadVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\TextAntialiasPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\TextShadowPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\TextVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\BufferCopyPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\ConvertLDRToDisplayPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\BicubicUpsamplePS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\BilinearUpsamplePS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\DebugZoom2xPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\DebugZoom4xPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\ConvertLDRToHDTVPS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\FXAAPass1_Luma_CS.hlsl">
       <Filter>Shaders\FXAA</Filter>
     </FxCompile>
@@ -520,9 +508,6 @@
     <FxCompile Include="Shaders\MotionBlurPrePassCS.hlsl">
       <Filter>Shaders\MB+TAA</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\LinearizeDepthCS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\DebugSSAOCS.hlsl">
       <Filter>Shaders\SSAO</Filter>
     </FxCompile>
@@ -553,20 +538,89 @@
     <FxCompile Include="Shaders\AoRender2CS.hlsl">
       <Filter>Shaders\SSAO</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\GenerateMipsCS.hlsl">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="Shaders\PerfGraphBackgroundVS.hlsl">
+      <Filter>Shaders\PerfGraph</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PerfGraphPS.hlsl">
+      <Filter>Shaders\PerfGraph</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PerfGraphVS.hlsl">
+      <Filter>Shaders\PerfGraph</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\TextAntialiasPS.hlsl">
+      <Filter>Shaders\Text</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\TextShadowPS.hlsl">
+      <Filter>Shaders\Text</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\TextVS.hlsl">
+      <Filter>Shaders\Text</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\LinearizeDepthCS.hlsl">
+      <Filter>Shaders\SSAO</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BicubicUpsamplePS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BilinearUpsamplePS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BufferCopyPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ConvertLDRToDisplayPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ConvertLDRToHDTVPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ScreenQuadVS.hlsl">
+      <Filter>Shaders\Misc</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\GenerateMipsGammaCS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateMipsGammaOddCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateMipsGammaOddXCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateMipsGammaOddYCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateMipsLinearCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateMipsLinearOddCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateMipsLinearOddXCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\GenerateMipsLinearOddYCS.hlsl">
+      <Filter>Shaders\GenerateMips</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BicubicUpsampleGammaPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SharpeningUpsamplePS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SharpeningUpsampleGammaPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BicubicHorizontalUpsamplePS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BicubicVerticalUpsamplePS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\MagnifyPixelsPS.hlsl">
+      <Filter>Shaders\Present</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\PixelPacking.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\ShaderUtility.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Math\Functions.inl">
       <Filter>Source Files\Math</Filter>
     </None>
@@ -587,6 +641,39 @@
     </None>
     <None Include="Shaders\FXAAPass2CS.hlsli">
       <Filter>Shaders\FXAA</Filter>
+    </None>
+    <None Include="Shaders\FXAARootSignature.hlsli">
+      <Filter>Shaders\FXAA</Filter>
+    </None>
+    <None Include="Shaders\PostEffectsRS.hlsli">
+      <Filter>Shaders\HDR</Filter>
+    </None>
+    <None Include="Shaders\TextRS.hlsli">
+      <Filter>Shaders\Text</Filter>
+    </None>
+    <None Include="Shaders\SSAORS.hlsli">
+      <Filter>Shaders\SSAO</Filter>
+    </None>
+    <None Include="Shaders\MotionBlurRS.hlsli">
+      <Filter>Shaders\MB+TAA</Filter>
+    </None>
+    <None Include="Shaders\ParticleRS.hlsli">
+      <Filter>Shaders\Particles</Filter>
+    </None>
+    <None Include="Shaders\PerfGraphRS.hlsli">
+      <Filter>Shaders\PerfGraph</Filter>
+    </None>
+    <None Include="Shaders\PresentRS.hlsli">
+      <Filter>Shaders\Present</Filter>
+    </None>
+    <None Include="Shaders\PixelPacking.hlsli">
+      <Filter>Shaders\Misc</Filter>
+    </None>
+    <None Include="Shaders\ShaderUtility.hlsli">
+      <Filter>Shaders\Misc</Filter>
+    </None>
+    <None Include="Shaders\GenerateMipsCS.hlsli">
+      <Filter>Shaders\GenerateMips</Filter>
     </None>
   </ItemGroup>
 </Project>

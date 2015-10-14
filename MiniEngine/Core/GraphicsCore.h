@@ -16,9 +16,9 @@
 #include "PipelineState.h"
 #include "DescriptorHeap.h"
 #include "RootSignature.h"
+#include "SamplerManager.h"
 
 class ColorBuffer;
-class Sampler;
 class GraphicsPSO;
 class CommandContext;
 class CommandListManager;
@@ -32,37 +32,48 @@ namespace Graphics
 
 	using namespace Microsoft::WRL;
 
-	void Initialize( uint32_t width, uint32_t height );
-	void Terminate( void );
-	void Shutdown( void );
+	void Initialize(void);
+	void Resize(uint32_t width, uint32_t height);
+	void Terminate(void);
+	void Shutdown(void);
+	void Present(void);
 
-	void Present( void );
+	extern uint32_t g_DisplayWidth;
+	extern uint32_t g_DisplayHeight;
 
-	extern uint32_t g_windowWidth;
-	extern uint32_t g_windowHeight;
+	// Returns the number of elapsed frames since application start
+	uint64_t GetFrameCount(void);
+
+	// The amount of time elapsed during the last completed frame.  The CPU and/or
+	// GPU may be idle during parts of the frame.  The frame time measures the time
+	// between calls to present each frame.
+	float GetFrameTime(void);
+
+	// The total number of frames per second
+	float GetFrameRate(void);
 
 	extern ID3D12Device* g_Device;
 	extern CommandListManager g_CommandManager;
 
 	extern D3D_FEATURE_LEVEL g_D3DFeatureLevel;
 
-	extern D3D12_SAMPLER_DESC SamplerLinearWrapDesc;
-	extern D3D12_SAMPLER_DESC SamplerAnisoWrapDesc;
-	extern D3D12_SAMPLER_DESC SamplerShadowDesc;
-	extern D3D12_SAMPLER_DESC SamplerLinearClampDesc;
-	extern D3D12_SAMPLER_DESC SamplerVolumeWrapDesc;
-	extern D3D12_SAMPLER_DESC SamplerPointClampDesc;
-	extern D3D12_SAMPLER_DESC SamplerPointBorderDesc;
-	extern D3D12_SAMPLER_DESC SamplerLinearBorderDesc;
+	extern SamplerDesc SamplerLinearWrapDesc;
+	extern SamplerDesc SamplerAnisoWrapDesc;
+	extern SamplerDesc SamplerShadowDesc;
+	extern SamplerDesc SamplerLinearClampDesc;
+	extern SamplerDesc SamplerVolumeWrapDesc;
+	extern SamplerDesc SamplerPointClampDesc;
+	extern SamplerDesc SamplerPointBorderDesc;
+	extern SamplerDesc SamplerLinearBorderDesc;
 
-	extern Sampler SamplerLinearWrap;
-	extern Sampler SamplerAnisoWrap;
-	extern Sampler SamplerShadow;
-	extern Sampler SamplerLinearClamp;
-	extern Sampler SamplerVolumeWrap;
-	extern Sampler SamplerPointClamp;
-	extern Sampler SamplerPointBorder;
-	extern Sampler SamplerLinearBorder;
+	extern SamplerDescriptor SamplerLinearWrap;
+	extern SamplerDescriptor SamplerAnisoWrap;
+	extern SamplerDescriptor SamplerShadow;
+	extern SamplerDescriptor SamplerLinearClamp;
+	extern SamplerDescriptor SamplerVolumeWrap;
+	extern SamplerDescriptor SamplerPointClamp;
+	extern SamplerDescriptor SamplerPointBorder;
+	extern SamplerDescriptor SamplerLinearBorder;
 
 	extern D3D12_RASTERIZER_DESC RasterizerDefault;
 	extern D3D12_RASTERIZER_DESC RasterizerDefaultCW;
@@ -93,6 +104,6 @@ namespace Graphics
 	}
 
 	extern RootSignature g_GenerateMipsRS;
-	extern ComputePSO g_GenerateMipsPSO;
-	extern ComputePSO g_GenerateMipsGammaPSO;
+	extern ComputePSO g_GenerateMipsLinearPSO[4];
+	extern ComputePSO g_GenerateMipsGammaPSO[4];
 }

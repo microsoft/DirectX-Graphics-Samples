@@ -12,6 +12,8 @@
 //
 // The CS for downsampling 16x16 blocks of pixels down to 4x4 and 1x1 blocks.
 
+#include "PostEffectsRS.hlsli"
+
 Texture2D<float3> BloomBuf : register( t0 );
 RWTexture2D<float3> Result1 : register( u0 );
 RWTexture2D<float3> Result2 : register( u1 );
@@ -24,6 +26,7 @@ cbuffer cb0 : register(b0)
 
 groupshared float3 g_Tile[64];	// 8x8 input pixels
 
+[RootSignature(PostEffects_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint GI : SV_GroupIndex, uint3 Did : SV_DispatchThreadID )
 {

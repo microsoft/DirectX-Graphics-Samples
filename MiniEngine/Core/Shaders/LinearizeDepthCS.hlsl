@@ -11,6 +11,8 @@
 // Author:  James Stanard 
 //
 
+#include "SSAORS.hlsli"
+
 RWTexture2D<float> LinearZ : register(u0);
 Texture2D<float> Depth : register(t0);
 
@@ -19,6 +21,7 @@ cbuffer ConstantBuffer : register(b0)
 	float ZMagic;				// (zFar - zNear) / zNear
 }
 
+[RootSignature(SSAO_RootSig)]
 [numthreads( 16, 16, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

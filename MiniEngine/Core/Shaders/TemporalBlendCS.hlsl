@@ -10,7 +10,9 @@
 //
 // Author:  James Stanard 
 //
+
 #include "ShaderUtility.hlsli"
+#include "MotionBlurRS.hlsli"
 
 #define USE_LINEAR_Z
 
@@ -36,6 +38,7 @@ struct MRT
 	float4 TemporalOut : SV_Target1;
 };
 
+[RootSignature(MotionBlur_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

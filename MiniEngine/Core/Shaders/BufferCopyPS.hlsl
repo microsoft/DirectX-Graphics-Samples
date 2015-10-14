@@ -11,8 +11,11 @@
 // Author:  James Stanard 
 //
 
+#include "PresentRS.hlsli"
+
 Texture2D ColorTex : register(t0);
 
+[RootSignature(Present_RootSig)]
 float4 main( float4 position : SV_Position ) : SV_Target0
 {
 	return ColorTex[(int2)position.xy];

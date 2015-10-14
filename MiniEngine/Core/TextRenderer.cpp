@@ -466,7 +466,7 @@ UINT TextContext::FillVertexBuffer( TextVert volatile* verts, const char* str, s
 		const TextRenderer::Font::Glyph* gi = m_CurrentFont->GetGlyph(wc);
 
 		// Ignore missing characters
-		if ( nullptr == gi )
+		if (nullptr == gi)
 			continue;
 
 		verts->X = curX + (float)gi->bearing * UVtoPixel;
@@ -496,8 +496,11 @@ void TextContext::DrawString( const std::wstring& str )
 	TextVert* vbPtr = Math::AlignUp((TextVert*)stackMem, 16);
 	UINT primCount = FillVertexBuffer(vbPtr, (char*)str.c_str(), 2, str.size());
 
-	m_Context.SetDynamicVB(0, primCount, sizeof(TextVert), vbPtr);
-	m_Context.DrawInstanced( 4, primCount );
+	if (primCount > 0)
+	{
+		m_Context.SetDynamicVB(0, primCount, sizeof(TextVert), vbPtr);
+		m_Context.DrawInstanced( 4, primCount );
+	}
 
 	_freea(stackMem);
 }
@@ -510,8 +513,11 @@ void TextContext::DrawString( const std::string& str )
 	TextVert* vbPtr = Math::AlignUp((TextVert*)stackMem, 16);
 	UINT primCount = FillVertexBuffer(vbPtr, (char*)str.c_str(), 1, str.size());
 
-	m_Context.SetDynamicVB(0, primCount, sizeof(TextVert), vbPtr);
-	m_Context.DrawInstanced( 4, primCount );
+	if (primCount > 0)
+	{
+		m_Context.SetDynamicVB(0, primCount, sizeof(TextVert), vbPtr);
+		m_Context.DrawInstanced( 4, primCount );
+	}
 
 	_freea(stackMem);
 }

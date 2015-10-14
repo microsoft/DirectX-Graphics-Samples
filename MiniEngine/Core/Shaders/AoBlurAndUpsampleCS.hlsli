@@ -11,6 +11,8 @@
 // Author:  James Stanard 
 //
 
+#include "SSAORS.hlsli"
+
 Texture2D<float> LoResDB : register(t0);
 Texture2D<float> HiResDB : register(t1);
 Texture2D<float> LoResAO1 : register(t2);
@@ -170,6 +172,7 @@ float BilateralUpsample( float HiDepth, float HiAO, float4 LowDepths, float4 Low
 	return HiAO * WeightedSum / TotalWeight;
 }
 
+[RootSignature(SSAO_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

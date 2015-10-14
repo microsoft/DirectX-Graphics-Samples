@@ -1,6 +1,5 @@
 //
 // Copyright (c) Microsoft. All rights reserved.
-
 // This code is licensed under the MIT License (MIT).
 // THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
 // ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
@@ -11,6 +10,21 @@
 //
 // Author:  James Stanard 
 //
+
+#define RootSig \
+	"RootFlags(0), " \
+	"RootConstants(b0, num32BitConstants = 4), " \
+	"DescriptorTable(SRV(t0, numDescriptors = 1))," \
+	"DescriptorTable(UAV(u0, numDescriptors = 4))," \
+	"StaticSampler(s0," \
+		"addressU = TEXTURE_ADDRESS_CLAMP," \
+		"addressV = TEXTURE_ADDRESS_CLAMP," \
+		"addressW = TEXTURE_ADDRESS_CLAMP," \
+		"filter = FILTER_MIN_MAG_MIP_LINEAR)"
+
+#ifndef NON_POWER_OF_TWO
+#define NON_POWER_OF_TWO 0
+#endif
 
 RWTexture2D<float4> OutMip1 : register(u0);
 RWTexture2D<float4> OutMip2 : register(u1);
@@ -51,7 +65,7 @@ float3 LinearToSRGB(float3 x)
 {
 	// This is exactly the sRGB curve
 	//return x < 0.0031308 ? 12.92 * x : 1.055 * pow(abs(x), 1.0 / 2.4) - 0.055;
-
+	 
 	// This is cheaper but nearly equivalent
 	return x < 0.0031308 ? 12.92 * x : 1.13005 * sqrt(abs(x - 0.00228)) - 0.13448 * x + 0.005719;
 }
@@ -65,19 +79,47 @@ float4 PackColor(float4 Linear)
 #endif
 }
 
+[RootSignature(RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint GI : SV_GroupIndex, uint3 DTid : SV_DispatchThreadID )
 {
-	// I'm going to start off by saying that this is not perfect.  One
-	// bilinear sample is insufficient when scaling down by more than
-	// 2x.  You will slightly undersample in the case where the source
-	// dimension is odd.  This is why it's a really good idea to only
-	// generate mips on power-of-two sized textures.  Trying to handle
-	// the undersampling case will force this shader to be slower and
-	// more complicated as it will have to take more source texture
-	// samples.
-	float2 UV = (DTid.xy + 0.5) * TexelSize;
+	// One bilinear sample is insufficient when scaling down by more than 2x.
+	// You will slightly undersample in the case where the source dimension
+	// is odd.  This is why it's a really good idea to only generate mips on
+	// power-of-two sized textures.  Trying to handle the undersampling case
+	// will force this shader to be slower and more complicated as it will
+	// have to take more source texture samples.
+#if NON_POWER_OF_TWO == 0
+	float2 UV = TexelSize * (DTid.xy + 0.5);
 	float4 Src1 = SrcMip.SampleLevel(BilinearClamp, UV, SrcMipLevel);
+#elif NON_POWER_OF_TWO == 1
+	// > 2:1 in X dimension
+	// Use 2 bilinear samples to guarantee we don't undersample when downsizing by more than 2x
+	// horizontally.
+	float2 UV1 = TexelSize * (DTid.xy + float2(0.25, 0.5));
+	float2 Off = TexelSize * float2(0.5, 0.0);
+	float4 Src1 = 0.5 * (SrcMip.SampleLevel(BilinearClamp, UV1, SrcMipLevel) +
+		SrcMip.SampleLevel(BilinearClamp, UV1 + Off, SrcMipLevel));
+#elif NON_POWER_OF_TWO == 2
+	// > 2:1 in Y dimension
+	// Use 2 bilinear samples to guarantee we don't undersample when downsizing by more than 2x
+	// vertically.
+	float2 UV1 = TexelSize * (DTid.xy + float2(0.5, 0.25));
+	float2 Off = TexelSize * float2(0.0, 0.5);
+	float4 Src1 = 0.5 * (SrcMip.SampleLevel(BilinearClamp, UV1, SrcMipLevel) +
+		SrcMip.SampleLevel(BilinearClamp, UV1 + Off, SrcMipLevel));
+#elif NON_POWER_OF_TWO == 3
+	// > 2:1 in in both dimensions
+	// Use 4 bilinear samples to guarantee we don't undersample when downsizing by more than 2x
+	// in both directions.
+	float2 UV1 = TexelSize * (DTid.xy + float2(0.25, 0.25));
+	float2 O = TexelSize * 0.5;
+	float4 Src1 = SrcMip.SampleLevel(BilinearClamp, UV1, SrcMipLevel);
+	Src1 += SrcMip.SampleLevel(BilinearClamp, UV1 + float2(O.x, 0.0), SrcMipLevel);
+	Src1 += SrcMip.SampleLevel(BilinearClamp, UV1 + float2(0.0, O.y), SrcMipLevel);
+	Src1 += SrcMip.SampleLevel(BilinearClamp, UV1 + float2(O.x, O.y), SrcMipLevel);
+	Src1 *= 0.25;
+#endif
 
 	OutMip1[DTid.xy] = PackColor(Src1);
 

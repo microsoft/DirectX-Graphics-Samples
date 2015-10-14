@@ -27,6 +27,7 @@ cbuffer CB : register(b0)
 	uint2 LogTilesPerLargeBin;
 };
 
+[RootSignature(Particle_RootSig)]
 [numthreads(64, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {

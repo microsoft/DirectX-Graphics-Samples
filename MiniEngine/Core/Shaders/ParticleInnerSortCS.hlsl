@@ -22,6 +22,7 @@ cbuffer CB : register(b0)
 
 groupshared uint gs_SortKeys[2048];
 
+[RootSignature(Particle_RootSig)]
 [numthreads(1024, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex )
 {

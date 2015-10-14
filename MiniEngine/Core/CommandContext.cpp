@@ -19,15 +19,7 @@
 #include "DescriptorHeap.h"
 #include "EngineProfiling.h"
 
-#define MAX_TIME_STAMPS_PER_BATCH 256
-
 using namespace Graphics;
-
-namespace SystemTime
-{
-	extern uint64_t FrameIndex;
-}
-using namespace SystemTime;
 
 std::vector<std::unique_ptr<CommandContext> > CommandContext::sm_ContextPool;
 std::queue<CommandContext*> CommandContext::sm_AvailableContexts;
@@ -69,9 +61,12 @@ void CommandContext::FreeContext(CommandContext* UsedContext)
 	sm_AvailableContexts.push(UsedContext);
 }
 
-CommandContext& CommandContext::Begin( void )
+CommandContext& CommandContext::Begin( const std::wstring ID )
 {
 	CommandContext* NewContext = CommandContext::AllocateContext();
+	NewContext->SetID(ID);
+	if (ID.length() > 0)
+		EngineProfiling::BeginBlock(ID, NewContext);
 	return *NewContext;
 }
 
@@ -131,6 +126,9 @@ void CommandContext::Reset( void )
 uint64_t CommandContext::Finish( bool Wait )
 {
 	FlushResourceBarriers();
+
+	if (m_ID.length() > 0)
+		EngineProfiling::EndBlock(this);
 
 	ASSERT(m_CurrentAllocator != nullptr);
 	ASSERT_SUCCEEDED( m_CommandList->Close() );
@@ -465,6 +463,72 @@ void CommandContext::InitializeTexture( GpuResource& Dest, UINT NumSubresources,
 	InitContext.CloseAndExecute(true);
 
 	UploadBuffer->Release();
+}
+
+void CommandContext::CopySubresource(GpuResource& Dest, UINT DestSubIndex, GpuResource& Src, UINT SrcSubIndex)
+{
+	// TODO:  Add a TransitionSubresource()?
+	TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST);
+	TransitionResource(Src, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	FlushResourceBarriers();
+
+	D3D12_TEXTURE_COPY_LOCATION DestLocation =
+	{
+		Dest.GetResource(),
+		D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		DestSubIndex
+	};
+
+	D3D12_TEXTURE_COPY_LOCATION SrcLocation =
+	{
+		Src.GetResource(),
+		D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		SrcSubIndex
+	};
+
+	m_CommandList->CopyTextureRegion(&DestLocation, 0, 0, 0, &SrcLocation, nullptr);
+}
+
+void CommandContext::InitializeTextureArraySlice(GpuResource& Dest, UINT SliceIndex, GpuResource& Src)
+{
+	CommandContext& Context = CommandContext::Begin();
+
+	Context.TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST);
+	Context.TransitionResource(Src, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	Context.FlushResourceBarriers();
+
+	const D3D12_RESOURCE_DESC& DestDesc = Dest.GetResource()->GetDesc();
+	const D3D12_RESOURCE_DESC& SrcDesc = Src.GetResource()->GetDesc();
+
+	ASSERT(SliceIndex < DestDesc.DepthOrArraySize &&
+		SrcDesc.DepthOrArraySize == 1 &&
+		DestDesc.Width == SrcDesc.Width &&
+		DestDesc.Height == SrcDesc.Height &&
+		DestDesc.MipLevels <= SrcDesc.MipLevels
+		);
+
+	UINT SubResourceIndex = SliceIndex * DestDesc.MipLevels;
+
+	for (UINT i = 0; i < DestDesc.MipLevels; ++i)
+	{
+		D3D12_TEXTURE_COPY_LOCATION destCopyLocation =
+		{
+			Dest.GetResource(),
+			D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+			SubResourceIndex + i
+		};
+
+		D3D12_TEXTURE_COPY_LOCATION srcCopyLocation =
+		{
+			Src.GetResource(),
+			D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+			i
+		};
+
+		Context.m_CommandList->CopyTextureRegion(&destCopyLocation, 0, 0, 0, &srcCopyLocation, nullptr);
+	}
+
+	Context.CloseAndExecute();
 }
 
 void CommandContext::InitializeBuffer( GpuResource& Dest, const void* BufferData, size_t NumBytes )

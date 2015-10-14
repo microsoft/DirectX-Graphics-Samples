@@ -185,6 +185,7 @@ float4x4 RenderParticles( uint2 TileCoord, uint2 ST, uint NumParticles, uint Hit
 	return Quad;
 }
 
+[RootSignature(Particle_RootSig)]
 [numthreads(TILE_SIZE / 2, TILE_SIZE / 2, 1)]
 void main( uint3 Gid : SV_GroupID, uint  GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID )
 {

@@ -11,6 +11,8 @@
 // Author:  James Stanard 
 //
 
+#include "FXAARootSignature.hlsli"
+
 cbuffer CB : register( b0 )
 {
 	float2 RcpTextureSize;
@@ -41,7 +43,8 @@ SamplerState LinearSampler : register(s0);
 	};
 #endif
 
-[numthreads( 64, 1, 1 )]
+[RootSignature(FXAA_RootSig)]
+[numthreads(64, 1, 1)]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {
 	uint WorkHeader = WorkQueue[DTid.x];

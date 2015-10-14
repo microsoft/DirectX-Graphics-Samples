@@ -17,5 +17,11 @@ Texture2D<float3> ColorTex : register(t0);
 
 float3 main( float4 position : SV_Position ) : SV_Target0
 {
-	return LinearToFrameBufferFormat( FrameBufferFormatToLinear( ColorTex[(int2)position.xy], 0 ), 1 );
+	float3 LinearRGB = LinearizeColor(ColorTex[(int2)position.xy], LDR_COLOR_FORMAT);
+
+#ifdef _XBOX_ONE
+	LinearRGB = SRGBToLinear_Exact(LinearToREC709_Exact(LinearRGB));
+#endif
+
+	return ApplyColorProfile(LinearRGB, DISPLAY_PLANE_FORMAT);
 }

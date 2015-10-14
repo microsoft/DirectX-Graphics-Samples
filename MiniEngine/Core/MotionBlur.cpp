@@ -30,7 +30,6 @@
 #include "CompiledShaders/TemporalBlendCS.h"
 
 using namespace Graphics;
-using namespace GameCore;
 using namespace Math;
 
 namespace MotionBlur
@@ -131,7 +130,7 @@ void MotionBlur::RenderCameraBlur( CommandContext& BaseContext, const Matrix4& r
 
 	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-	uint32_t thisFrame = SystemTime::FrameIndex & 1;
+	uint32_t thisFrame = Graphics::GetFrameCount() & 1;
 	uint32_t lastFrame = thisFrame ^ 1;
 
 	if (!TemporalAA)
@@ -215,7 +214,7 @@ void MotionBlur::RenderObjectBlur( CommandContext& BaseContext, ColorBuffer& vel
 
 	Context.SetRootSignature(s_RootSignature);
 
-	uint32_t thisFrame = SystemTime::FrameIndex & 1;
+	uint32_t thisFrame = Graphics::GetFrameCount() & 1;
 	uint32_t lastFrame = thisFrame ^ 1;
 
 	if (!TemporalAA)
