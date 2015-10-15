@@ -133,7 +133,7 @@ void D3D12Bundles::LoadPipeline()
 		// buffer view (CBV) descriptor heap.
 		D3D12_DESCRIPTOR_HEAP_DESC cbvSrvHeapDesc = {};
 		cbvSrvHeapDesc.NumDescriptors =
-			3 * CityRowCount * CityColumnCount		// 3 frames * CityRowCount * CityColumnCount.
+			FrameCount * CityRowCount * CityColumnCount		// FrameCount frames * CityRowCount * CityColumnCount.
 			+ 1;									// + 1 for the SRV.
 		cbvSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		cbvSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
