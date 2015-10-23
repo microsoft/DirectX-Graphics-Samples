@@ -263,7 +263,7 @@ void Graphics::Initialize(void)
 {
 	ASSERT(s_PrimarySwapChain == nullptr, "Graphics has already been initialized");
 
-	Microsoft::WRL::ComPtr<ID3D12Device> device;
+	Microsoft::WRL::ComPtr<ID3D12Device> pDevice;
 
 #if _DEBUG
 	Microsoft::WRL::ComPtr<ID3D12Debug> debugInterface;
@@ -273,27 +273,42 @@ void Graphics::Initialize(void)
 		Utility::Print("WARNING:  Unable to enable D3D12 debug validation layer\n");
 #endif
 
-	// And obtain the factory object that created it.
-	Microsoft::WRL::ComPtr<IDXGIFactory> dxgiFactory;
-	ASSERT_SUCCEEDED(CreateDXGIFactory(MY_IID_PPV_ARGS(&dxgiFactory)));
+	// Obtain the DXGI factory
+	Microsoft::WRL::ComPtr<IDXGIFactory4> dxgiFactory;
+	ASSERT_SUCCEEDED(CreateDXGIFactory2(0, MY_IID_PPV_ARGS(&dxgiFactory)));
+
+	// Create the D3D graphics device
+	Microsoft::WRL::ComPtr<IDXGIAdapter1> pAdapter;
 
 	static const bool bUseWarpDriver = false;
 
-	// Create the D3D graphics device
-	if (bUseWarpDriver)
+	if (!bUseWarpDriver)
 	{
-		Microsoft::WRL::ComPtr<IDXGIAdapter> pWarpAdapter;
-		Microsoft::WRL::ComPtr<IDXGIFactory4> pFactory;
-		ASSERT_SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&pFactory)));
-		ASSERT_SUCCEEDED(pFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));
-		ASSERT_SUCCEEDED(D3D12CreateDevice(pWarpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&device)));
-	}
-	else
-	{
-		ASSERT_SUCCEEDED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&device)));
+		for (uint32_t Idx = 0; DXGI_ERROR_NOT_FOUND != dxgiFactory->EnumAdapters1(Idx, &pAdapter); ++Idx)
+		{
+			DXGI_ADAPTER_DESC1 desc;
+			pAdapter->GetDesc1(&desc);
+			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+				continue;
+
+			if (SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice))))
+			{
+				pAdapter->GetDesc1(&desc);
+				Utility::Printf(L"D3D12-capable hardware found:  %s (%u MB)\n", desc.Description, desc.DedicatedVideoMemory >> 20);
+				g_Device = pDevice.Detach();
+				break;
+			}
+		}
 	}
 
-	g_Device = device.Detach();
+	if (g_Device == nullptr)
+	{
+		Utility::Print("Failed to find a hardware adapter.  Falling back to WARP.\n");
+		ASSERT_SUCCEEDED(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter)));
+		ASSERT_SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice)));
+		g_Device = pDevice.Detach();
+	}
+	
 
 #if _DEBUG
 	ID3D12InfoQueue* pInfoQueue = nullptr;
@@ -556,7 +571,6 @@ void Graphics::Shutdown(void)
 	DescriptorAllocator::DestroyAll();
 
 	DestroyRenderingBuffers();
-	g_PreDisplayBuffer.Destroy();
 	PostEffects::Shutdown();
 	SSAO::Shutdown();
 	TextRenderer::Shutdown();
@@ -566,6 +580,8 @@ void Graphics::Shutdown(void)
 
 	for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 		g_DisplayPlane[i].Destroy();
+
+	g_PreDisplayBuffer.Destroy();
 
 #ifdef _DEBUG
 	ID3D12DebugDevice* debugInterface;

@@ -426,9 +426,10 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 	D3D12_SAMPLER_DESC SamplerBilinearBorderDesc = SamplerPointBorderDesc;
 	SamplerBilinearBorderDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 
-	RootSig.Reset(5, 2);
+	RootSig.Reset(5, 3);
 	RootSig.InitStaticSampler(0, SamplerBilinearBorderDesc);
 	RootSig.InitStaticSampler(1, SamplerPointBorderDesc);
+	RootSig.InitStaticSampler(2, SamplerPointClampDesc);
 	RootSig[0].InitAsConstants(0, 2);
 	RootSig[1].InitAsConstantBuffer(1);
 	RootSig[2].InitAsConstantBuffer(2);

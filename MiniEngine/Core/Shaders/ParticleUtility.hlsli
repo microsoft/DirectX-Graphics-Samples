@@ -25,8 +25,9 @@
 
 #define MaxTextureSize 64
 
-SamplerState gSampLinearClamp : register(s0);
-SamplerState gSampPointClamp : register(s1);
+SamplerState gSampLinearBorder : register(s0);
+SamplerState gSampPointBorder : register(s1);
+SamplerState gSampPointClamp : register(s2);
 
 cbuffer CBChangesPerView : register(b1)
 {

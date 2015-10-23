@@ -29,4 +29,9 @@
 		"addressV = TEXTURE_ADDRESS_BORDER," \
 		"addressW = TEXTURE_ADDRESS_BORDER," \
 		"borderColor = STATIC_BORDER_COLOR_TRANSPARENT_BLACK," \
+		"filter = FILTER_MIN_MAG_MIP_POINT), " \
+	"StaticSampler(s2," \
+		"addressU = TEXTURE_ADDRESS_CLAMP," \
+		"addressV = TEXTURE_ADDRESS_CLAMP," \
+		"addressW = TEXTURE_ADDRESS_CLAMP," \
 		"filter = FILTER_MIN_MAG_MIP_POINT)"

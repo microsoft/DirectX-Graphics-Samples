@@ -134,7 +134,7 @@ void D3D12Bundles::LoadPipeline()
 		D3D12_DESCRIPTOR_HEAP_DESC cbvSrvHeapDesc = {};
 		cbvSrvHeapDesc.NumDescriptors =
 			FrameCount * CityRowCount * CityColumnCount		// FrameCount frames * CityRowCount * CityColumnCount.
-			+ 1;									// + 1 for the SRV.
+			+ 1;											// + 1 for the SRV.
 		cbvSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		cbvSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvSrvHeapDesc, IID_PPV_ARGS(&m_cbvSrvHeap)));

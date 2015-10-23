@@ -66,10 +66,10 @@ void BlendHighRes( inout float4x4 Quad, ParticleScreenData Particle, float2 Pixe
 #if defined(DYNAMIC_RESOLUTION)
 	// Use point sampling for high-res rendering because this implies we're not rendering
 	// with the most detailed mip level anyway.
-	SamplerState Sampler = gSampPointClamp;
+	SamplerState Sampler = gSampPointBorder;
 	float LevelBias = 0.5;
 #else
-	SamplerState Sampler = gSampLinearClamp;
+	SamplerState Sampler = gSampLinearBorder;
 	float LevelBias = 0.0;
 #endif
 
@@ -82,7 +82,7 @@ void BlendHighRes( inout float4x4 Quad, ParticleScreenData Particle, float2 Pixe
 void BlendLowRes( inout float4x4 Quad, ParticleScreenData Particle, float2 PixelCoord, float4 Mask = 1 )
 {
 	float2 UV = (PixelCoord - Particle.Corner) * Particle.RcpSize;
-	float4 Color = SampleParticleColor(Particle, gSampLinearClamp, UV, 1.0);
+	float4 Color = SampleParticleColor(Particle, gSampLinearBorder, UV, 1.0);
 #ifdef DEBUG_LOW_RES
 	Color.g *= 0.5;
 #endif
@@ -109,7 +109,7 @@ float4x4 RenderParticles( uint2 TileCoord, uint2 ST, uint NumParticles, uint Hit
 {
 #ifndef DISABLE_DEPTH_TESTS
 	const uint TileNearZ = g_TileDepthBounds[TileCoord] << 18;
-	float4 Depths = g_InputDepthBuffer.Gather(gSampLinearClamp, (ST + 1) * gRcpBufferDim);
+	float4 Depths = g_InputDepthBuffer.Gather(gSampPointClamp, (ST + 1) * gRcpBufferDim);
 #endif
 
 	// VGPR
