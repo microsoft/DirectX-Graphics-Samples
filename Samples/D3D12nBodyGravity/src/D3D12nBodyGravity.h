@@ -57,8 +57,8 @@ private:
 
 	struct ConstantBufferGS
 	{
-		XMMATRIX worldViewProjection;
-		XMMATRIX inverseView;
+		XMFLOAT4X4 worldViewProjection;
+		XMFLOAT4X4 inverseView;
 
 		// Constant buffers are 256-byte aligned in GPU memory. Padding is added
 		// for convenience when computing the struct's size.

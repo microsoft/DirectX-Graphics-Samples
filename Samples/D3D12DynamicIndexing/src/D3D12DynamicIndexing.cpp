@@ -137,8 +137,8 @@ void D3D12DynamicIndexing::LoadPipeline()
 		// buffer view (CBV) descriptor heap.
 		D3D12_DESCRIPTOR_HEAP_DESC cbvSrvHeapDesc = {};
 		cbvSrvHeapDesc.NumDescriptors =
-			3 * CityRowCount * CityColumnCount +	// 3 frames * CityRowCount * CityColumnCount.
-			CityMaterialCount + 1;					// CityMaterialCount + 1 for the SRVs.
+			FrameCount * CityRowCount * CityColumnCount +	// FrameCount frames * CityRowCount * CityColumnCount.
+			CityMaterialCount + 1;							// CityMaterialCount + 1 for the SRVs.
 		cbvSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		cbvSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvSrvHeapDesc, IID_PPV_ARGS(&m_cbvSrvHeap)));

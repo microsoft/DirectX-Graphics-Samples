@@ -565,8 +565,8 @@ void D3D12nBodyGravity::OnUpdate()
 	m_camera.Update(static_cast<float>(m_timer.GetElapsedSeconds()));
 
 	ConstantBufferGS constantBufferGS = {};
-	constantBufferGS.worldViewProjection = XMMatrixMultiply(m_camera.GetViewMatrix(), m_camera.GetProjectionMatrix(0.8f, m_aspectRatio, 1.0f, 5000.0f));
-	constantBufferGS.inverseView = XMMatrixInverse(nullptr, m_camera.GetViewMatrix());
+	XMStoreFloat4x4(&constantBufferGS.worldViewProjection, XMMatrixMultiply(m_camera.GetViewMatrix(), m_camera.GetProjectionMatrix(0.8f, m_aspectRatio, 1.0f, 5000.0f)));
+	XMStoreFloat4x4(&constantBufferGS.inverseView, XMMatrixInverse(nullptr, m_camera.GetViewMatrix()));
 
 	UINT8* destination = m_pConstantBufferGSData + sizeof(ConstantBufferGS) * m_frameIndex;
 	memcpy(destination, &constantBufferGS, sizeof(ConstantBufferGS));
