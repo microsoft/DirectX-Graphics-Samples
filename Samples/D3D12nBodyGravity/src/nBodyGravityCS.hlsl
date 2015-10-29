@@ -13,7 +13,7 @@ static float softeningSquared	= 0.0012500000f * 0.0012500000f;
 static float g_fG				= 6.67300e-11f * 10000.0f;
 static float g_fParticleMass	= g_fG * 10000.0f * 10000.0f;
 
-#define blocksize 128
+#define blocksize 256
 groupshared float4 sharedPos[blocksize];
 
 //

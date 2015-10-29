@@ -11,6 +11,12 @@
 
 #include "stdafx.h"
 #include "D3D12nBodyGravity.h"
+#include <string>
+#include <numeric>
+
+#ifdef min
+#undef min
+#endif
 
 // InterlockedCompareExchange returns the object's value if the 
 // comparison fails.  If it is already 0, then its value won't 
@@ -19,6 +25,16 @@
 
 const float D3D12nBodyGravity::ParticleSpread = 400.0f;
 
+namespace {
+void WaitForFence (ID3D12Fence* fence, UINT64 fenceValue, HANDLE fenceEvent)
+{
+	if (fence->GetCompletedValue () < fenceValue) {
+		ThrowIfFailed (fence->SetEventOnCompletion (fenceValue, fenceEvent));
+		WaitForSingleObject (fenceEvent, INFINITE);
+	}
+}
+}
+
 D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
@@ -26,18 +42,10 @@ D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name)
 	m_scissorRect(),
 	m_rtvDescriptorSize(0),
 	m_srvUavDescriptorSize(0),
-	m_pConstantBufferGSData(nullptr),
-	m_renderContextFenceValue(0),
-	m_terminating(0)
+	m_pConstantBufferGSData(nullptr)
 {
-	ZeroMemory(m_srvIndex, sizeof(m_srvIndex));
+	ZeroMemory(&m_srvIndex, sizeof(m_srvIndex));
 	ZeroMemory(m_frameFenceValues, sizeof(m_frameFenceValues));
-
-	for (int n = 0; n < ThreadCount; n++)
-	{
-		m_renderContextFenceValues[n] = 0;
-		m_threadFenceValues[n] = 0;
-	}
 
 	m_viewport.Width = static_cast<float>(width);
 	m_viewport.Height = static_cast<float>(height);
@@ -46,14 +54,18 @@ D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name)
 	m_scissorRect.right = static_cast<LONG>(width);
 	m_scissorRect.bottom = static_cast<LONG>(height);
 
-	float sqRootNumAsyncContexts = sqrt(static_cast<float>(ThreadCount));
-	m_heightInstances = static_cast<UINT>(ceil(sqRootNumAsyncContexts));
-	m_widthInstances = static_cast<UINT>(ceil(sqRootNumAsyncContexts));
+	ZeroMemory (m_computeFenceValues, sizeof (m_computeFenceValues));
+	ZeroMemory (m_graphicsFenceValues, sizeof (m_graphicsFenceValues));
+	ZeroMemory (m_graphicsCopyFenceValues, sizeof (m_graphicsCopyFenceValues));
 
-	if (m_widthInstances * (m_heightInstances - 1) >= ThreadCount)
-	{
-		m_heightInstances--;
-	}
+	m_computeFenceValue = 0;
+	m_graphicsFenceValue = 0;
+	m_graphicsCopyFenceValue = 0;
+
+	m_queryReadbackIndex = -(static_cast<int> (FrameCount));
+
+	m_frameTimeNextEntry = 0;
+	m_frameTimeEntryCount = 0;
 }
 
 void D3D12nBodyGravity::OnInit()
@@ -63,7 +75,6 @@ void D3D12nBodyGravity::OnInit()
 
 	LoadPipeline();
 	LoadAssets();
-	CreateAsyncContexts();
 }
 
 // Load the rendering pipeline dependencies.
@@ -111,8 +122,11 @@ void D3D12nBodyGravity::LoadPipeline()
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
-	NAME_D3D12_OBJECT(m_commandQueue);
+	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_graphicsCommandQueue)));
+	NAME_D3D12_OBJECT(m_graphicsCommandQueue);
+
+	m_device->SetStablePowerState (true);
+	m_graphicsCommandQueue->GetTimestampFrequency (&m_frequency);
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -125,11 +139,11 @@ void D3D12nBodyGravity::LoadPipeline()
 	swapChainDesc.OutputWindow = Win32Application::GetHwnd();
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.Windowed = TRUE;
-	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+	swapChainDesc.Flags = 0;
 
 	ComPtr<IDXGISwapChain> swapChain;
 	ThrowIfFailed(factory->CreateSwapChain(
-		m_commandQueue.Get(),		// Swap chain needs the queue so that it can force a flush on it.
+		m_graphicsCommandQueue.Get(),		// Swap chain needs the queue so that it can force a flush on it.
 		&swapChainDesc,
 		&swapChain
 		));
@@ -140,8 +154,7 @@ void D3D12nBodyGravity::LoadPipeline()
 	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
-
-	m_swapChainEvent = m_swapChain->GetFrameLatencyWaitableObject();
+	m_lastFrameIndex = m_frameIndex;
 
 	// Create descriptor heaps.
 	{
@@ -175,15 +188,89 @@ void D3D12nBodyGravity::LoadPipeline()
 			ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
 			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_rtvDescriptorSize);
-
-			WCHAR name[25];
-			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
-			{
-				SetName(m_renderTargets[n].Get(), name);
-			}
-
-			ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[n])));
 		}
+	}
+
+	// graphics resources
+	{
+		for (int i = 0; i < FrameCount; ++i) {
+			ThrowIfFailed (m_device->CreateCommandAllocator (D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS (&m_graphicsAllocators[i])));
+			ThrowIfFailed (m_device->CreateCommandList (0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_graphicsAllocators[i].Get (), nullptr, IID_PPV_ARGS (&m_graphicsCommandLists[i])));
+			ThrowIfFailed (m_device->CreateFence (0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS (&m_graphicsFences[i])));
+
+			wchar_t buffer[64] = {};
+			swprintf_s (buffer, L"m_graphicsCommandLists[%i]", i);
+			SetName (m_graphicsCommandLists[i].Get (), buffer);
+			m_graphicsCommandLists[i]->Close ();
+
+			ThrowIfFailed (m_device->CreateCommandAllocator (D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS (&m_graphicsCopyAllocators[i])));
+			ThrowIfFailed (m_device->CreateCommandList (0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_graphicsCopyAllocators[i].Get (), nullptr, IID_PPV_ARGS (&m_graphicsCopyCommandLists[i])));
+
+			swprintf_s (buffer, L"m_graphicsCopyCommandLists[%i]", i);
+			SetName (m_graphicsCopyCommandLists[i].Get (), buffer);
+			ThrowIfFailed (m_device->CreateFence (0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS (&m_graphicsCopyFences[i])));
+
+			m_graphicsCopyCommandLists[i]->Close ();
+		}
+	}
+
+	// compute resources
+	if (AsynchronousComputeEnabled)
+	{
+		D3D12_COMMAND_QUEUE_DESC queueDesc = { D3D12_COMMAND_LIST_TYPE_COMPUTE, 0, D3D12_COMMAND_QUEUE_FLAG_NONE };
+		ThrowIfFailed (m_device->CreateCommandQueue (&queueDesc, IID_PPV_ARGS (&m_computeCommandQueue)));
+		NAME_D3D12_OBJECT (m_computeCommandQueue);
+
+		for (int i = 0; i < FrameCount; ++i) {
+			ThrowIfFailed (m_device->CreateCommandAllocator (D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS (&m_computeAllocators[i])));
+			ThrowIfFailed (m_device->CreateCommandList (0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeAllocators[i].Get (), nullptr, IID_PPV_ARGS (&m_computeCommandLists[i])));
+			ThrowIfFailed (m_device->CreateFence (0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS (&m_computeFences[i])));
+
+			wchar_t buffer[64] = {};
+			swprintf_s (buffer, L"m_computeCommandLists[%i] (compute queue)", i);
+			SetName (m_computeCommandLists[i].Get (), buffer);
+
+			m_computeCommandLists[i]->Close ();
+		}
+	}
+	else
+	{
+		for (int i = 0; i < FrameCount; ++i) {
+			ThrowIfFailed (m_device->CreateCommandAllocator (D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS (&m_computeAllocators [i])));
+			ThrowIfFailed (m_device->CreateCommandList (0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_computeAllocators [i].Get (), nullptr, IID_PPV_ARGS (&m_computeCommandLists [i])));
+
+			wchar_t buffer[64] = {};
+			swprintf_s (buffer, L"m_computeCommandLists[%i] (graphics queue)", i);
+			SetName (m_computeCommandLists[i].Get (), buffer);
+
+			ThrowIfFailed (m_device->CreateFence (0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS (&m_computeFences [i])));
+
+			m_computeCommandLists [i]->Close ();
+		}
+	}
+
+	// timing resources
+	{
+		D3D12_RESOURCE_DESC cpuTimingBufferDesc = CD3DX12_RESOURCE_DESC::Buffer (
+			sizeof (UINT64));
+
+		for (int i = 0; i < FrameCount; ++i) {
+			m_device->CreateCommittedResource (
+				&CD3DX12_HEAP_PROPERTIES (D3D12_HEAP_TYPE_READBACK),
+				D3D12_HEAP_FLAG_NONE,
+				&cpuTimingBufferDesc,
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				IID_PPV_ARGS (&m_timeQueryReadbackBuffer [i]));
+		}
+
+		D3D12_QUERY_HEAP_DESC queryHeapDesc = {};
+		queryHeapDesc.Count = FrameCount; // Query at end of frame
+		queryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+
+		m_device->CreateQueryHeap (&queryHeapDesc,
+			IID_PPV_ARGS (&m_timeQueryHeap));
+		NAME_D3D12_OBJECT (m_timeQueryHeap);
 	}
 }
 
@@ -287,9 +374,10 @@ void D3D12nBodyGravity::LoadAssets()
 		NAME_D3D12_OBJECT(m_computeState);
 	}
 
-	// Create the command list.
-	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
-	NAME_D3D12_OBJECT(m_commandList);
+	// Create the upload command list.
+	ThrowIfFailed (m_device->CreateCommandAllocator (D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS (&m_uploadCommandAllocator)));
+	ThrowIfFailed (m_device->CreateCommandList (0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_uploadCommandAllocator.Get (), m_pipelineState.Get (), IID_PPV_ARGS (&m_uploadCommandList)));
+	NAME_D3D12_OBJECT (m_uploadCommandList);
 
 	CreateVertexBuffer();
 	CreateParticleBuffers();
@@ -324,7 +412,7 @@ void D3D12nBodyGravity::LoadAssets()
 
 		ConstantBufferCS constantBufferCS = {};
 		constantBufferCS.param[0] = ParticleCount;
-		constantBufferCS.param[1] = int(ceil(ParticleCount / 128.0f));
+		constantBufferCS.param[1] = int(ceil(ParticleCount / 256.0f));
 		constantBufferCS.paramf[0] = 0.1f;
 		constantBufferCS.paramf[1] = 1.0f;
 
@@ -333,8 +421,8 @@ void D3D12nBodyGravity::LoadAssets()
 		computeCBData.RowPitch = bufferSize;
 		computeCBData.SlicePitch = computeCBData.RowPitch;
 
-		UpdateSubresources<1>(m_commandList.Get(), m_constantBufferCS.Get(), constantBufferCSUpload.Get(), 0, 0, 1, &computeCBData);
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_constantBufferCS.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+		UpdateSubresources<1>(m_uploadCommandList.Get(), m_constantBufferCS.Get(), constantBufferCSUpload.Get(), 0, 0, 1, &computeCBData);
+		m_uploadCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_constantBufferCS.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 	}
 
 	// Create the geometry shader's constant buffer.
@@ -358,22 +446,37 @@ void D3D12nBodyGravity::LoadAssets()
 	}
 
 	// Close the command list and execute it to begin the initial GPU setup.
-	ThrowIfFailed(m_commandList->Close());
-	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	ThrowIfFailed(m_uploadCommandList->Close());
+	ID3D12CommandList* ppCommandLists[] = { m_uploadCommandList.Get() };
+	m_graphicsCommandQueue->ExecuteCommandLists(1, ppCommandLists);
 
-	// Create synchronization objects and wait until assets have been uploaded to the GPU.
+	m_frameFenceValue = 0;
+	for (int i = 0; i < FrameCount; ++i) {
+		m_frameFenceValues[i] = m_frameFenceValue;
+		m_device->CreateFence (m_frameFenceValues[i], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS (&m_frameFences[i]));
+		m_frameFenceEvents[i] = CreateEvent (nullptr, FALSE, FALSE, nullptr);
+
+		m_graphicsFenceValues[i] = 0;
+		ThrowIfFailed(m_device->CreateFence(m_graphicsFenceValues[i], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_graphicsFences[i])));
+		m_graphicsFenceEvents[i] = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+
+		m_graphicsCopyFenceValues[i] = 0;
+		ThrowIfFailed (m_device->CreateFence (m_graphicsCopyFenceValues[i], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS (&m_graphicsCopyFences[i])));
+		m_graphicsCopyFenceEvents[i] = CreateEvent (nullptr, FALSE, FALSE, nullptr);
+
+		m_computeFenceValues[i] = 0;
+		ThrowIfFailed (m_device->CreateFence (m_computeFenceValues[i], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS (&m_computeFences[i])));
+		m_computeFenceEvents[i] = CreateEvent (nullptr, FALSE, FALSE, nullptr);
+	}
+
 	{
-		ThrowIfFailed(m_device->CreateFence(m_renderContextFenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_renderContextFence)));
-		m_renderContextFenceValue++;
+		m_uploadFenceValue = 0;
+		ThrowIfFailed (m_device->CreateFence (m_uploadFenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS (&m_uploadFence)));
 
-		m_renderContextFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-		if (m_renderContextFenceEvent == nullptr)
-		{
-			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-		}
+		m_uploadEvent = CreateEvent (nullptr, FALSE, FALSE, nullptr);
 
-		WaitForRenderContext();
+		m_graphicsCommandQueue->Signal (m_uploadFence.Get (), 1);
+		WaitForFence (m_uploadFence.Get (), 1, m_uploadEvent);
 	}
 }
 
@@ -411,8 +514,8 @@ void D3D12nBodyGravity::CreateVertexBuffer()
 	vertexData.RowPitch = bufferSize;
 	vertexData.SlicePitch = vertexData.RowPitch;
 
-	UpdateSubresources<1>(m_commandList.Get(), m_vertexBuffer.Get(), m_vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+	UpdateSubresources<1>(m_uploadCommandList.Get(), m_vertexBuffer.Get(), m_vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
+	m_uploadCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 	m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 	m_vertexBufferView.SizeInBytes = static_cast<UINT>(bufferSize);
@@ -467,8 +570,6 @@ void D3D12nBodyGravity::CreateParticleBuffers()
 	D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(dataSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	D3D12_RESOURCE_DESC uploadBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(dataSize);
 
-	for (UINT index = 0; index < ThreadCount; index++)
-	{
 		// Create two buffers in the GPU, each with a copy of the particles data.
 		// The compute shader will update one of them while the rendering thread 
 		// renders the other. When rendering completes, the threads will swap 
@@ -480,7 +581,7 @@ void D3D12nBodyGravity::CreateParticleBuffers()
 			&bufferDesc,
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
-			IID_PPV_ARGS(&m_particleBuffer0[index])));
+	IID_PPV_ARGS(&m_particleBuffer0)));
 
 		ThrowIfFailed(m_device->CreateCommittedResource(
 			&defaultHeapProperties,
@@ -488,7 +589,7 @@ void D3D12nBodyGravity::CreateParticleBuffers()
 			&bufferDesc,
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
-			IID_PPV_ARGS(&m_particleBuffer1[index])));
+	IID_PPV_ARGS(&m_particleBuffer1)));
 
 		ThrowIfFailed(m_device->CreateCommittedResource(
 			&uploadHeapProperties,
@@ -496,7 +597,7 @@ void D3D12nBodyGravity::CreateParticleBuffers()
 			&uploadBufferDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
-			IID_PPV_ARGS(&m_particleBuffer0Upload[index])));
+	IID_PPV_ARGS(&m_particleBuffer0Upload)));
 
 		ThrowIfFailed(m_device->CreateCommittedResource(
 			&uploadHeapProperties,
@@ -504,95 +605,64 @@ void D3D12nBodyGravity::CreateParticleBuffers()
 			&uploadBufferDesc,
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
-			IID_PPV_ARGS(&m_particleBuffer1Upload[index])));
+	IID_PPV_ARGS(&m_particleBuffer1Upload)));
 
-		WCHAR name[25];
-		if (swprintf_s(name, L"m_particleBuffer0[%u]", index) > 0)
-		{
-			SetName(m_particleBuffer0[index].Get(), name);
-		}
-		if (swprintf_s(name, L"m_particleBuffer1[%u]", index) > 0)
-		{
-			SetName(m_particleBuffer1[index].Get(), name);
-		}
+	ThrowIfFailed (m_device->CreateCommittedResource (
+		&defaultHeapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDesc,
+		D3D12_RESOURCE_STATE_COMMON,
+		nullptr,
+		IID_PPV_ARGS (&m_particleBufferForDraw)));
 
-		D3D12_SUBRESOURCE_DATA particleData = {};
-		particleData.pData = reinterpret_cast<UINT8*>(&data[0]);
-		particleData.RowPitch = dataSize;
-		particleData.SlicePitch = particleData.RowPitch;
 
-		UpdateSubresources<1>(m_commandList.Get(), m_particleBuffer0[index].Get(), m_particleBuffer0Upload[index].Get(), 0, 0, 1, &particleData);
-		UpdateSubresources<1>(m_commandList.Get(), m_particleBuffer1[index].Get(), m_particleBuffer1Upload[index].Get(), 0, 0, 1, &particleData);
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_particleBuffer0[index].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_particleBuffer1[index].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+	SetName(m_particleBuffer0.Get(), L"m_particleBuffer0");
+	SetName(m_particleBuffer1.Get(), L"m_particleBuffer1");
 
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		srvDesc.Buffer.FirstElement = 0;
-		srvDesc.Buffer.NumElements = ParticleCount;
-		srvDesc.Buffer.StructureByteStride = sizeof(Particle);
-		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	D3D12_SUBRESOURCE_DATA particleData = {};
+	particleData.pData = reinterpret_cast<UINT8*>(&data[0]);
+	particleData.RowPitch = dataSize;
+	particleData.SlicePitch = particleData.RowPitch;
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(m_srvUavHeap->GetCPUDescriptorHandleForHeapStart(), SrvParticlePosVelo0 + index, m_srvUavDescriptorSize);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle1(m_srvUavHeap->GetCPUDescriptorHandleForHeapStart(), SrvParticlePosVelo1 + index, m_srvUavDescriptorSize);
-		m_device->CreateShaderResourceView(m_particleBuffer0[index].Get(), &srvDesc, srvHandle0);
-		m_device->CreateShaderResourceView(m_particleBuffer1[index].Get(), &srvDesc, srvHandle1);
+	UpdateSubresources<1>(m_uploadCommandList.Get(), m_particleBuffer0.Get(), m_particleBuffer0Upload.Get(), 0, 0, 1, &particleData);
+	UpdateSubresources<1>(m_uploadCommandList.Get(), m_particleBuffer1.Get(), m_particleBuffer1Upload.Get(), 0, 0, 1, &particleData);
+	m_uploadCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_particleBuffer0.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+	m_uploadCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_particleBuffer1.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 
-		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-		uavDesc.Format = DXGI_FORMAT_UNKNOWN;
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-		uavDesc.Buffer.FirstElement = 0;
-		uavDesc.Buffer.NumElements = ParticleCount;
-		uavDesc.Buffer.StructureByteStride = sizeof(Particle);
-		uavDesc.Buffer.CounterOffsetInBytes = 0;
-		uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = ParticleCount;
+	srvDesc.Buffer.StructureByteStride = sizeof(Particle);
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE uavHandle0(m_srvUavHeap->GetCPUDescriptorHandleForHeapStart(), UavParticlePosVelo0 + index, m_srvUavDescriptorSize);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE uavHandle1(m_srvUavHeap->GetCPUDescriptorHandleForHeapStart(), UavParticlePosVelo1 + index, m_srvUavDescriptorSize);
-		m_device->CreateUnorderedAccessView(m_particleBuffer0[index].Get(), nullptr, &uavDesc, uavHandle0);
-		m_device->CreateUnorderedAccessView(m_particleBuffer1[index].Get(), nullptr, &uavDesc, uavHandle1);
-	}
-}
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle0(m_srvUavHeap->GetCPUDescriptorHandleForHeapStart(), SrvParticlePosVelo0, m_srvUavDescriptorSize);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle1(m_srvUavHeap->GetCPUDescriptorHandleForHeapStart(), SrvParticlePosVelo1, m_srvUavDescriptorSize);
+	m_device->CreateShaderResourceView(m_particleBuffer0.Get(), &srvDesc, srvHandle0);
+	m_device->CreateShaderResourceView(m_particleBuffer1.Get(), &srvDesc, srvHandle1);
 
-void D3D12nBodyGravity::CreateAsyncContexts()
-{
-	for (UINT threadIndex = 0; threadIndex < ThreadCount; ++threadIndex)
-	{
-		// Create compute resources.
-		D3D12_COMMAND_QUEUE_DESC queueDesc = { D3D12_COMMAND_LIST_TYPE_COMPUTE, 0, D3D12_COMMAND_QUEUE_FLAG_NONE };
-		ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_computeCommandQueue[threadIndex])));
-		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&m_computeAllocator[threadIndex])));
-		ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeAllocator[threadIndex].Get(), nullptr, IID_PPV_ARGS(&m_computeCommandList[threadIndex])));
-		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(&m_threadFences[threadIndex])));
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Buffer.FirstElement = 0;
+	uavDesc.Buffer.NumElements = ParticleCount;
+	uavDesc.Buffer.StructureByteStride = sizeof(Particle);
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
-		m_threadFenceEvents[threadIndex] = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-		if (m_threadFenceEvents[threadIndex] == nullptr)
-		{
-			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-		}
-
-		m_threadData[threadIndex].pContext = this;
-		m_threadData[threadIndex].threadIndex = threadIndex;
-
-		m_threadHandles[threadIndex] = CreateThread(
-			nullptr,
-			0,
-			reinterpret_cast<LPTHREAD_START_ROUTINE>(ThreadProc),
-			reinterpret_cast<void*>(&m_threadData[threadIndex]),
-			CREATE_SUSPENDED,
-			nullptr);
-
-		ResumeThread(m_threadHandles[threadIndex]);
-	}
+	CD3DX12_CPU_DESCRIPTOR_HANDLE uavHandle0(m_srvUavHeap->GetCPUDescriptorHandleForHeapStart(), UavParticlePosVelo0, m_srvUavDescriptorSize);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE uavHandle1(m_srvUavHeap->GetCPUDescriptorHandleForHeapStart(), UavParticlePosVelo1, m_srvUavDescriptorSize);
+	m_device->CreateUnorderedAccessView(m_particleBuffer0.Get(), nullptr, &uavDesc, uavHandle0);
+	m_device->CreateUnorderedAccessView(m_particleBuffer1.Get(), nullptr, &uavDesc, uavHandle1);
 }
 
 // Update frame-based values.
 void D3D12nBodyGravity::OnUpdate()
 {
 	// Wait for the previous Present to complete.
-	WaitForSingleObjectEx(m_swapChainEvent, 100, FALSE);
+	// WaitForSingleObjectEx(m_swapChainEvent, 100, FALSE);
 
 	m_timer.Tick(NULL);
 	m_camera.Update(static_cast<float>(m_timer.GetElapsedSeconds()));
@@ -608,175 +678,212 @@ void D3D12nBodyGravity::OnUpdate()
 // Render the scene.
 void D3D12nBodyGravity::OnRender()
 {
-	// Let the compute thread know that a new frame is being rendered.
-	for (int n = 0; n < ThreadCount; n++)
-	{
-		InterlockedExchange(&m_renderContextFenceValues[n], m_renderContextFenceValue);
+	// Wait for graphics fence to finish
+	if (AsynchronousComputeEnabled) {
+		PIXBeginEvent (m_computeCommandQueue.Get (), 0, L"Simulate");
+		m_computeCommandQueue->Wait (m_graphicsCopyFences [m_lastFrameIndex].Get (), m_graphicsCopyFenceValues [m_lastFrameIndex]);
+	} else {
+		PIXBeginEvent (m_graphicsCommandQueue.Get (), 0, L"Simulate");
+	}
+	RecordComputeCommandList ();
+
+	// Close and execute the command list.
+	ID3D12CommandList* ppCommandLists[] = { m_computeCommandLists[m_frameIndex].Get () };
+
+	if (AsynchronousComputeEnabled) {
+		m_computeCommandQueue->ExecuteCommandLists (1, ppCommandLists);
+		m_computeFenceValues [m_frameIndex] = m_computeFenceValue;
+		m_computeCommandQueue->Signal (m_computeFences [m_frameIndex].Get (), m_computeFenceValue);
+		PIXEndEvent (m_computeCommandQueue.Get ());
+	} else {
+		m_graphicsCommandQueue->ExecuteCommandLists (1, ppCommandLists);
+		PIXEndEvent (m_graphicsCommandQueue.Get ());
 	}
 
-	// Compute work must be completed before the frame can render or else the SRV 
-	// will be in the wrong state.
-	for (UINT n = 0; n < ThreadCount; n++)
-	{
-		UINT64 threadFenceValue = InterlockedGetValue(&m_threadFenceValues[n]);
-		if (m_threadFences[n]->GetCompletedValue() < threadFenceValue)
-		{
-			// Instruct the rendering command queue to wait for the current 
-			// compute work to complete.
-			ThrowIfFailed(m_commandQueue->Wait(m_threadFences[n].Get(), threadFenceValue));
-		}
+	++m_computeFenceValue;
+
+	RecordCopyCommandList ();
+
+	ppCommandLists[0] = { m_graphicsCopyCommandLists[m_frameIndex].Get () };
+
+	// Wait for compute fence to finish
+	if (AsynchronousComputeEnabled) {
+		m_graphicsCommandQueue->Wait (m_computeFences [m_frameIndex].Get (), m_computeFenceValues [m_frameIndex]);
 	}
 
-	PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+	// Execute copy
+	m_graphicsCommandQueue->ExecuteCommandLists (1, ppCommandLists);
+	if (AsynchronousComputeEnabled) {
+		m_graphicsCommandQueue->Signal (m_graphicsCopyFences [m_frameIndex].Get (), m_graphicsCopyFenceValue);
+	}
+	
+	PIXBeginEvent (m_graphicsCommandQueue.Get (), 0, L"Render");
+	++m_graphicsCopyFenceValue;
+	RecordRenderCommandList ();
 
-	// Record all the commands we need to render the scene into the command list.
-	PopulateCommandList();
-
-	// Execute the command list.
-	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-	PIXEndEvent(m_commandQueue.Get());
+	// Execute the rendering
+	ppCommandLists[0] = { m_graphicsCommandLists[m_frameIndex].Get() };
+	m_graphicsCommandQueue->ExecuteCommandLists(1, ppCommandLists);
+	if (AsynchronousComputeEnabled) {
+		m_graphicsCommandQueue->Signal (m_graphicsFences [m_frameIndex].Get (), m_graphicsFenceValue);
+	}
+	PIXEndEvent (m_graphicsCommandQueue.Get ());
+	++m_graphicsFenceValue;
 
 	// Present the frame.
-	ThrowIfFailed(m_swapChain->Present(1, 0));
+	ThrowIfFailed(m_swapChain->Present(0, 0));
 
 	MoveToNextFrame();
 }
 
+void D3D12nBodyGravity::RecordCopyCommandList ()
+{
+	ThrowIfFailed (m_graphicsCopyAllocators[m_frameIndex]->Reset ());
+	ThrowIfFailed (m_graphicsCopyCommandLists[m_frameIndex]->Reset (m_graphicsCopyAllocators[m_frameIndex].Get (), m_pipelineState.Get ()));
+
+	ID3D12GraphicsCommandList* commandList = m_graphicsCopyCommandLists[m_frameIndex].Get ();
+
+	ID3D12Resource* particleBuffer = (m_srvIndex == 0) ? m_particleBuffer0.Get () : m_particleBuffer1.Get ();
+	D3D12_RESOURCE_BARRIER barriers[2];
+	barriers[0] = CD3DX12_RESOURCE_BARRIER::Transition (
+		particleBuffer,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+	commandList->ResourceBarrier (1, barriers);
+	commandList->CopyResource (m_particleBufferForDraw.Get (), particleBuffer);
+
+	barriers[0] = CD3DX12_RESOURCE_BARRIER::Transition (
+		particleBuffer,
+		D3D12_RESOURCE_STATE_COPY_SOURCE,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	barriers[1] = CD3DX12_RESOURCE_BARRIER::Transition (
+		m_particleBufferForDraw.Get (),
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_STATE_GENERIC_READ
+		);
+
+	commandList->ResourceBarrier (2, barriers);
+	ThrowIfFailed (commandList->Close ());
+}
+
 // Fill the command list with all the render commands and dependent state.
-void D3D12nBodyGravity::PopulateCommandList()
+void D3D12nBodyGravity::RecordRenderCommandList ()
 {
 	// Command list allocators can only be reset when the associated
 	// command lists have finished execution on the GPU; apps should use
 	// fences to determine GPU execution progress.
-	ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
+	ThrowIfFailed(m_graphicsAllocators[m_frameIndex]->Reset());
 
 	// However, when ExecuteCommandList() is called on a particular command
 	// list, that command list can then be reset at any time and must be before
 	// re-recording.
-	ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get()));
+	ThrowIfFailed(m_graphicsCommandLists[m_frameIndex]->Reset(m_graphicsAllocators[m_frameIndex].Get(), m_pipelineState.Get()));
+
+	ID3D12GraphicsCommandList* commandList = m_graphicsCommandLists[m_frameIndex].Get ();
 
 	// Set necessary state.
-	m_commandList->SetPipelineState(m_pipelineState.Get());
-	m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+	commandList->SetPipelineState(m_pipelineState.Get());
+	commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
-	m_commandList->SetGraphicsRootConstantBufferView(RootParameterCB, m_constantBufferGS->GetGPUVirtualAddress() + m_frameIndex * sizeof(ConstantBufferGS));
+	commandList->SetGraphicsRootConstantBufferView(RootParameterCB, m_constantBufferGS->GetGPUVirtualAddress() + m_frameIndex * sizeof(ConstantBufferGS));
 
 	ID3D12DescriptorHeap* ppHeaps[] = { m_srvUavHeap.Get() };
-	m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+	commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-	m_commandList->RSSetScissorRects(1, &m_scissorRect);
+	commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+	commandList->RSSetScissorRects(1, &m_scissorRect);
 
 	// Indicate that the back buffer will be used as a render target.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
 	// Record commands.
 	const float clearColor[] = { 0.0f, 0.0f, 0.1f, 0.0f };
-	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+	commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
 	// Render the particles.
-	float viewportHeight = static_cast<float>(static_cast<UINT>(m_viewport.Height) / m_heightInstances);
-	float viewportWidth = static_cast<float>(static_cast<UINT>(m_viewport.Width) / m_widthInstances);
-	for (UINT n = 0; n < ThreadCount; n++)
-	{
-		const UINT srvIndex = n + (m_srvIndex[n] == 0 ? SrvParticlePosVelo0 : SrvParticlePosVelo1);
+	const UINT srvIndex = (m_srvIndex == 0 ? SrvParticlePosVelo0 : SrvParticlePosVelo1);
 
 		D3D12_VIEWPORT viewport;
-		viewport.TopLeftX = (n % m_widthInstances) * viewportWidth;
-		viewport.TopLeftY = (n / m_widthInstances) * viewportHeight;
-		viewport.Width = viewportWidth;
-		viewport.Height = viewportHeight;
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	viewport.Width = m_viewport.Width;
+	viewport.Height = m_viewport.Height;
 		viewport.MinDepth = D3D12_MIN_DEPTH;
 		viewport.MaxDepth = D3D12_MAX_DEPTH;
-		m_commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetViewports(1, &viewport);
 
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), srvIndex, m_srvUavDescriptorSize);
-		m_commandList->SetGraphicsRootDescriptorTable(RootParameterSRV, srvHandle);
+	commandList->SetGraphicsRootDescriptorTable(RootParameterSRV, srvHandle);
+	PIXBeginEvent (commandList, 0, L"Draw particles");
+	commandList->DrawInstanced(ParticleCount, 1, 0, 0);
+	PIXEndEvent (commandList);
 
-		PIXBeginEvent(m_commandList.Get(), 0, L"Draw particles for thread %u", n);
-		m_commandList->DrawInstanced(ParticleCount, 1, 0, 0);
-		PIXEndEvent(m_commandList.Get());
-	}
-
-	m_commandList->RSSetViewports(1, &m_viewport);
+	commandList->RSSetViewports(1, &m_viewport);
 
 	// Indicate that the back buffer will now be used to present.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
-	ThrowIfFailed(m_commandList->Close());
+	D3D12_RESOURCE_BARRIER barriers[1];
+	barriers[0] = CD3DX12_RESOURCE_BARRIER::Transition (
+		m_particleBufferForDraw.Get (),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_COPY_DEST);
+
+	commandList->ResourceBarrier (1, barriers);
+
+	// Issue query
+	commandList->EndQuery (m_timeQueryHeap.Get (), D3D12_QUERY_TYPE_TIMESTAMP,
+		m_frameIndex);
+	commandList->ResolveQueryData (m_timeQueryHeap.Get (), D3D12_QUERY_TYPE_TIMESTAMP,
+		m_frameIndex, 1, m_timeQueryReadbackBuffer[m_frameIndex].Get (), 0);
+
+	ThrowIfFailed(commandList->Close());
 }
 
-DWORD D3D12nBodyGravity::AsyncComputeThreadProc(int threadIndex)
+void D3D12nBodyGravity::RecordComputeCommandList()
 {
-	ID3D12CommandQueue* pCommandQueue = m_computeCommandQueue[threadIndex].Get();
-	ID3D12CommandAllocator* pCommandAllocator = m_computeAllocator[threadIndex].Get();
-	ID3D12GraphicsCommandList* pCommandList = m_computeCommandList[threadIndex].Get();
-	ID3D12Fence* pFence = m_threadFences[threadIndex].Get();
+	ID3D12CommandAllocator* pCommandAllocator = m_computeAllocators[m_frameIndex].Get ();
+	ID3D12GraphicsCommandList* pCommandList = m_computeCommandLists[m_frameIndex].Get ();
 
-	while (0 == InterlockedGetValue(&m_terminating))
-	{
-		// Run the particle simulation.
-		Simulate(threadIndex);
+	// Prepare for the next frame.
+	ThrowIfFailed (pCommandAllocator->Reset ());
+	ThrowIfFailed (pCommandList->Reset (pCommandAllocator, m_computeState.Get ()));
 
-		// Close and execute the command list.
-		ThrowIfFailed(pCommandList->Close());
-		ID3D12CommandList* ppCommandLists[] = { pCommandList };
-
-		PIXBeginEvent(pCommandQueue, 0, L"Thread %d: Iterate on the particle simulation", threadIndex);
-		pCommandQueue->ExecuteCommandLists(1, ppCommandLists);
-		PIXEndEvent(pCommandQueue);
-
-		// Wait for the compute shader to complete the simulation.
-		UINT64 threadFenceValue = InterlockedIncrement(&m_threadFenceValues[threadIndex]);
-		ThrowIfFailed(pCommandQueue->Signal(pFence, threadFenceValue));
-		ThrowIfFailed(pFence->SetEventOnCompletion(threadFenceValue, m_threadFenceEvents[threadIndex]));
-		WaitForSingleObject(m_threadFenceEvents[threadIndex], INFINITE);
-
-		// Wait for the render thread to be done with the SRV so that
-		// the next frame in the simulation can run.
-		UINT64 renderContextFenceValue = InterlockedGetValue(&m_renderContextFenceValues[threadIndex]);
-		if (m_renderContextFence->GetCompletedValue() < renderContextFenceValue)
-		{
-			ThrowIfFailed(pCommandQueue->Wait(m_renderContextFence.Get(), renderContextFenceValue));
-			InterlockedExchange(&m_renderContextFenceValues[threadIndex], 0);
+	// Run the particle simulation multiple steps per frame
+	for (int i = 0; i < 4; ++i) {
+		Simulate ();
 		}
 
+	ThrowIfFailed (pCommandList->Close ());
+
 		// Swap the indices to the SRV and UAV.
-		m_srvIndex[threadIndex] = 1 - m_srvIndex[threadIndex];
-
-		// Prepare for the next frame.
-		ThrowIfFailed(pCommandAllocator->Reset());
-		ThrowIfFailed(pCommandList->Reset(pCommandAllocator, m_computeState.Get()));
-	}
-
-	return 0;
+	m_srvIndex = 1 - m_srvIndex;
 }
 
 // Run the particle simulation using the compute shader.
-void D3D12nBodyGravity::Simulate(UINT threadIndex)
+void D3D12nBodyGravity::Simulate()
 {
-	ID3D12GraphicsCommandList* pCommandList = m_computeCommandList[threadIndex].Get();
+	ID3D12GraphicsCommandList* pCommandList = m_computeCommandLists[m_frameIndex].Get();
 
 	UINT srvIndex;
 	UINT uavIndex;
 	ID3D12Resource *pUavResource;
-	if (m_srvIndex[threadIndex] == 0)
+	if (m_srvIndex == 0)
 	{
 		srvIndex = SrvParticlePosVelo0;
 		uavIndex = UavParticlePosVelo1;
-		pUavResource = m_particleBuffer1[threadIndex].Get();
+		pUavResource = m_particleBuffer1.Get();
 	}
 	else
 	{
 		srvIndex = SrvParticlePosVelo1;
 		uavIndex = UavParticlePosVelo0;
-		pUavResource = m_particleBuffer0[threadIndex].Get();
+		pUavResource = m_particleBuffer0.Get();
 	}
 
 	pCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pUavResource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
@@ -787,34 +894,44 @@ void D3D12nBodyGravity::Simulate(UINT threadIndex)
 	ID3D12DescriptorHeap* ppHeaps[] = { m_srvUavHeap.Get() };
 	pCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), srvIndex + threadIndex, m_srvUavDescriptorSize);
-	CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), uavIndex + threadIndex, m_srvUavDescriptorSize);
+	CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), srvIndex, m_srvUavDescriptorSize);
+	CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), uavIndex, m_srvUavDescriptorSize);
 
 	pCommandList->SetComputeRootConstantBufferView(RootParameterCB, m_constantBufferCS->GetGPUVirtualAddress());
 	pCommandList->SetComputeRootDescriptorTable(RootParameterSRV, srvHandle);
 	pCommandList->SetComputeRootDescriptorTable(RootParameterUAV, uavHandle);
 
-	pCommandList->Dispatch(static_cast<int>(ceil(ParticleCount / 128.0f)), 1, 1);
+	pCommandList->Dispatch(static_cast<int>(ceil(ParticleCount / 256.0f)), 1, 1);
 
 	pCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pUavResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 }
 
 void D3D12nBodyGravity::OnDestroy()
 {
-	// Notify the compute threads that the app is shutting down.
-	InterlockedExchange(&m_terminating, 1);
-	WaitForMultipleObjects(ThreadCount, m_threadHandles, TRUE, INFINITE);
+	m_device->SetStablePowerState (false);
 
-	// Ensure that the GPU is no longer referencing resources that are about to be
-	// cleaned up by the destructor.
-	WaitForRenderContext();
+	// Ensure the GPU is done rendering.
+	// Wait for all fences
+	for (int i = 0; i < FrameCount; ++i) {
+		if (AsynchronousComputeEnabled) {
+			WaitForFence (m_computeFences[i].Get (),
+				m_computeFenceValues[i], m_computeFenceEvents[i]);
+			WaitForFence (m_graphicsFences[i].Get (),
+				m_graphicsFenceValues[i], m_graphicsFenceEvents[i]);
+			WaitForFence (m_graphicsCopyFences[i].Get (),
+				m_graphicsCopyFenceValues[i], m_graphicsCopyFenceEvents[i]);
+		}
 
-	// Close handles to fence events and threads.
-	CloseHandle(m_renderContextFenceEvent);
-	for (int n = 0; n < ThreadCount; n++)
-	{
-		CloseHandle(m_threadHandles[n]);
-		CloseHandle(m_threadFenceEvents[n]);
+		WaitForFence (m_frameFences[i].Get (),
+			m_frameFenceValues[i], m_frameFenceEvents[i]);
+	}
+
+	// Close handles to fence events.
+	for (int i = 0; i < FrameCount; ++i) {
+		CloseHandle (m_computeFenceEvents[i]);
+		CloseHandle (m_graphicsFenceEvents[i]);
+		CloseHandle (m_graphicsCopyFenceEvents[i]);
+		CloseHandle (m_frameFenceEvents[i]);
 	}
 }
 
@@ -828,38 +945,77 @@ void D3D12nBodyGravity::OnKeyUp(UINT8 key)
 	m_camera.OnKeyUp(key);
 }
 
-void D3D12nBodyGravity::WaitForRenderContext()
-{
-	// Add a signal command to the queue.
-	ThrowIfFailed(m_commandQueue->Signal(m_renderContextFence.Get(), m_renderContextFenceValue));
-
-	// Instruct the fence to set the event object when the signal command completes.
-	ThrowIfFailed(m_renderContextFence->SetEventOnCompletion(m_renderContextFenceValue, m_renderContextFenceEvent));
-	m_renderContextFenceValue++;
-
-	// Wait until the signal command has been processed.
-	WaitForSingleObject(m_renderContextFenceEvent, INFINITE);
-}
-
 // Cycle through the frame resources. This method blocks execution if the 
 // next frame resource in the queue has not yet had its previous contents 
 // processed by the GPU.
-void D3D12nBodyGravity::MoveToNextFrame()
+void D3D12nBodyGravity::MoveToNextFrame ()
 {
 	// Assign the current fence value to the current frame.
-	m_frameFenceValues[m_frameIndex] = m_renderContextFenceValue;
+	m_frameFenceValues[m_frameIndex] = m_frameFenceValue;
 
 	// Signal and increment the fence value.
-	ThrowIfFailed(m_commandQueue->Signal(m_renderContextFence.Get(), m_renderContextFenceValue));
-	m_renderContextFenceValue++;
+	ThrowIfFailed (m_graphicsCommandQueue->Signal (m_frameFences[m_frameIndex].Get (), m_frameFenceValue));
+	++m_frameFenceValue;
 
 	// Update the frame index.
-	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+	m_lastFrameIndex = m_frameIndex;
+	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex ();
 
 	// If the next frame is not ready to be rendered yet, wait until it is ready.
-	if (m_renderContextFence->GetCompletedValue() < m_frameFenceValues[m_frameIndex])
-	{
-		ThrowIfFailed(m_renderContextFence->SetEventOnCompletion(m_frameFenceValues[m_frameIndex], m_renderContextFenceEvent));
-		WaitForSingleObject(m_renderContextFenceEvent, INFINITE);
+	WaitForFence (m_frameFences[m_frameIndex].Get (),
+		m_frameFenceValues[m_frameIndex], m_frameFenceEvents[m_frameIndex]);
+
+	// Update query
+	++m_queryReadbackIndex;
+
+	// This is trailing behind, assuming frame count = 4
+	// frameIndex:     0  1  2  3
+	// readbackIndex: -3 -2 -1  0
+	//                          \- Trigger readback of frame 0 now
+	//							We just waited for it to finish, so this is
+	//							safe, and we have not issued the query for
+	//							the next frame yet which will overwrite slot 0
+
+	if (m_queryReadbackIndex >= FrameCount) {
+		m_queryReadbackIndex = 0;
+	}
+
+	if (m_queryReadbackIndex >= 0) {
+		void* mapping = nullptr;
+		m_timeQueryReadbackBuffer[m_queryReadbackIndex]->Map (0, &CD3DX12_RANGE (0, sizeof (UINT64)), &mapping);
+		::memcpy (m_queryResults + m_queryReadbackIndex, mapping, sizeof (UINT64));
+		m_timeQueryReadbackBuffer[m_queryReadbackIndex]->Unmap (0, nullptr);
+
+		// Time is now previous to current
+		int previousQueryIndex = m_queryReadbackIndex - 1;
+		if (previousQueryIndex < 0) {
+			previousQueryIndex += FrameCount;
+		}
+
+		const double diffMs = static_cast<double>(m_queryResults[m_queryReadbackIndex] - m_queryResults[previousQueryIndex])
+			/ static_cast<double> (m_frequency) * 1000;
+
+		m_frameTimes[m_frameTimeNextEntry] = diffMs;
+		++m_frameTimeNextEntry;
+		if (m_frameTimeNextEntry >= m_frameTimes.size ()) {
+			m_frameTimeNextEntry = 0;
+		}
+		++m_frameTimeEntryCount;
+
+		const auto validEntryCount = std::min (static_cast<size_t> (m_frameTimeEntryCount), m_frameTimes.size ());
+		const auto sum = std::accumulate (m_frameTimes.begin (),
+			m_frameTimes.begin () + validEntryCount, 0.0);
+
+		const auto averageDiffMs = sum / validEntryCount;
+
+		auto titleString = std::to_string (averageDiffMs) + " ms (" + std::to_string (1000.0 / averageDiffMs) + " fps)";
+		if (AsynchronousComputeEnabled) {
+			titleString += " - Asynchronous Compute ENABLED";
+		}
+		else {
+			titleString += " - Asynchronous Compute DISABLED";
+		}
+
+		SetWindowTextA (Win32Application::GetHwnd (), titleString.c_str ());
 	}
 }

@@ -14,6 +14,7 @@
 #include "DXSample.h"
 #include "SimpleCamera.h"
 #include "StepTimer.h"
+#include <array>
 
 using namespace DirectX;
 
@@ -37,13 +38,14 @@ public:
 	virtual void OnKeyUp(UINT8 key);
 
 private:
-	static const UINT FrameCount = 2;
-	static const UINT ThreadCount = 1;
+	static const int FrameCount = 4;
 	static const float ParticleSpread;
-	static const UINT ParticleCount = 10000;		// The number of particles in the n-body simulation.
+	static const int ParticleCount = 16384;		// The number of particles in the n-body simulation.
 
-	// "Vertex" definition for particles. Triangle vertices are generated 
-	// by the geometry shader. Color data will be assigned to those 
+	static const bool AsynchronousComputeEnabled = true;
+
+	// "Vertex" definition for particles. Triangle vertices are generated
+	// by the geometry shader. Color data will be assigned to those
 	// vertices via this struct.
 	struct ParticleVertex
 	{
@@ -84,8 +86,19 @@ private:
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
 	UINT m_frameIndex;
-	ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
-	ComPtr<ID3D12CommandQueue> m_commandQueue;
+	UINT m_lastFrameIndex;
+	ComPtr<ID3D12CommandAllocator> m_graphicsAllocators[FrameCount];
+	ComPtr<ID3D12GraphicsCommandList> m_graphicsCommandLists[FrameCount];
+	ComPtr<ID3D12CommandAllocator> m_graphicsCopyAllocators[FrameCount];
+	ComPtr<ID3D12GraphicsCommandList> m_graphicsCopyCommandLists[FrameCount];
+
+	ComPtr<ID3D12GraphicsCommandList> m_uploadCommandList;
+	ComPtr<ID3D12CommandAllocator> m_uploadCommandAllocator;
+	ComPtr<ID3D12Fence> m_uploadFence;
+	HANDLE m_uploadEvent;
+	UINT64 m_uploadFenceValue;
+
+	ComPtr<ID3D12CommandQueue> m_graphicsCommandQueue;
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12RootSignature> m_computeRootSignature;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
@@ -93,54 +106,61 @@ private:
 	UINT m_rtvDescriptorSize;
 	UINT m_srvUavDescriptorSize;
 
+	// Timing queries
+	ComPtr<ID3D12QueryHeap> m_timeQueryHeap;
+	ComPtr<ID3D12Resource> m_timeQueryReadbackBuffer [FrameCount];
+	UINT64 m_queryResults [FrameCount];
+	int m_queryReadbackIndex;
+	UINT64 m_frequency;
+
 	// Asset objects.
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 	ComPtr<ID3D12PipelineState> m_computeState;
-	ComPtr<ID3D12GraphicsCommandList> m_commandList;
 	ComPtr<ID3D12Resource> m_vertexBuffer;
 	ComPtr<ID3D12Resource> m_vertexBufferUpload;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
-	ComPtr<ID3D12Resource> m_particleBuffer0[ThreadCount];
-	ComPtr<ID3D12Resource> m_particleBuffer1[ThreadCount];
-	ComPtr<ID3D12Resource> m_particleBuffer0Upload[ThreadCount];
-	ComPtr<ID3D12Resource> m_particleBuffer1Upload[ThreadCount];
+	ComPtr<ID3D12Resource> m_particleBuffer0;
+	ComPtr<ID3D12Resource> m_particleBuffer1;
+	ComPtr<ID3D12Resource> m_particleBufferForDraw;
+	ComPtr<ID3D12Resource> m_particleBuffer0Upload;
+	ComPtr<ID3D12Resource> m_particleBuffer1Upload;
 	ComPtr<ID3D12Resource> m_constantBufferGS;
 	UINT8* m_pConstantBufferGSData;
 	ComPtr<ID3D12Resource> m_constantBufferCS;
 
-	UINT m_srvIndex[ThreadCount];		// Denotes which of the particle buffer resource views is the SRV (0 or 1). The UAV is 1 - srvIndex.
-	UINT m_heightInstances;
-	UINT m_widthInstances;
+	UINT m_srvIndex;		// Denotes which of the particle buffer resource views is the SRV (0 or 1). The UAV is 1 - srvIndex.
 	SimpleCamera m_camera;
 	StepTimer m_timer;
 
 	// Compute objects.
-	ComPtr<ID3D12CommandAllocator> m_computeAllocator[ThreadCount];
-	ComPtr<ID3D12CommandQueue> m_computeCommandQueue[ThreadCount];
-	ComPtr<ID3D12GraphicsCommandList> m_computeCommandList[ThreadCount];
+	ComPtr<ID3D12CommandAllocator> m_computeAllocators[FrameCount];
+	ComPtr<ID3D12CommandQueue> m_computeCommandQueue;
+	ComPtr<ID3D12GraphicsCommandList> m_computeCommandLists[FrameCount];
 
 	// Synchronization objects.
-	HANDLE m_swapChainEvent;
-	ComPtr<ID3D12Fence> m_renderContextFence;
-	UINT64 m_renderContextFenceValue;
-	HANDLE m_renderContextFenceEvent;
+	ComPtr<ID3D12Fence>	m_computeFences[FrameCount];
+	ComPtr<ID3D12Fence> m_graphicsFences[FrameCount];
+	ComPtr<ID3D12Fence> m_graphicsCopyFences[FrameCount];
+
+	UINT64 m_computeFenceValue;
+	UINT64 m_graphicsFenceValue;
+	UINT64 m_graphicsCopyFenceValue;
+	UINT64 m_computeFenceValues[FrameCount];
+	UINT64 m_graphicsFenceValues[FrameCount];
+	UINT64 m_graphicsCopyFenceValues[FrameCount];
+
+	HANDLE m_computeFenceEvents[FrameCount];
+	HANDLE m_graphicsFenceEvents[FrameCount];
+	HANDLE m_graphicsCopyFenceEvents[FrameCount];
+
+	UINT64 m_frameFenceValue;
 	UINT64 m_frameFenceValues[FrameCount];
+	ComPtr<ID3D12Fence> m_frameFences[FrameCount];
+	HANDLE m_frameFenceEvents[FrameCount];
 
-	ComPtr<ID3D12Fence> m_threadFences[ThreadCount];
-	volatile HANDLE m_threadFenceEvents[ThreadCount];
-
-	// Thread state.
-	LONG volatile m_terminating;
-	UINT64 volatile m_renderContextFenceValues[ThreadCount];
-	UINT64 volatile m_threadFenceValues[ThreadCount];
-
-	struct ThreadData
-	{
-		D3D12nBodyGravity* pContext;
-		UINT threadIndex;
-	};
-	ThreadData m_threadData[ThreadCount];
-	HANDLE m_threadHandles[ThreadCount];
+	int m_frameTimeEntryCount;
+	int m_frameTimeNextEntry;
+	std::array<double, 64> m_frameTimes;
 
 	// Indices in the root parameter table.
 	enum RootParameters : UINT32
@@ -154,29 +174,26 @@ private:
 	// Indices of shader resources in the descriptor heap.
 	enum DescriptorHeapIndex : UINT32
 	{
-		UavParticlePosVelo0 = 0,
-		UavParticlePosVelo1 = UavParticlePosVelo0 + ThreadCount,
-		SrvParticlePosVelo0 = UavParticlePosVelo1 + ThreadCount,
-		SrvParticlePosVelo1 = SrvParticlePosVelo0 + ThreadCount,
-		DescriptorCount = SrvParticlePosVelo1 + ThreadCount
+		UavParticlePosVelo0,
+		UavParticlePosVelo1,
+		SrvParticlePosVelo0,
+		SrvParticlePosVelo1,
+		SrvParticleForDraw,
+		DescriptorCount
 	};
 
 	void LoadPipeline();
 	void LoadAssets();
-	void CreateAsyncContexts();
 	void CreateVertexBuffer();
 	float RandomPercent();
 	void LoadParticles(_Out_writes_(numParticles) Particle* pParticles, const XMFLOAT3 &center, const XMFLOAT4 &velocity, float spread, UINT numParticles);
 	void CreateParticleBuffers();
-	void PopulateCommandList();
+	void RecordRenderCommandList();
 
-	static DWORD WINAPI ThreadProc(ThreadData* pData)
-	{
-		return pData->pContext->AsyncComputeThreadProc(pData->threadIndex);
-	}
-	DWORD AsyncComputeThreadProc(int threadIndex);
-	void Simulate(UINT threadIndex);
+	void Simulate();
+	void RecordComputeCommandList ();
 
-	void WaitForRenderContext();
+	void RecordCopyCommandList ();
+
 	void MoveToNextFrame();
 };
