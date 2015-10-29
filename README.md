@@ -34,3 +34,4 @@ It came from a desire to quickly dive into graphics and performance experiments.
 We're always looking for your help to fix bugs and improve the samples.  File those pull requests and we'll be happy to take a look.
 
 Find more information on DirectX 12 on our blog: http://blogs.msdn.com/b/directx/
+Visit our YouTube channel: https://www.youtube.com/MicrosoftDirectX12andGraphicsEducation
