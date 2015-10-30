@@ -347,7 +347,9 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
 	const UINT cellPitch = rowPitch >> 3;		// The width of a cell in the checkboard texture.
 	const UINT cellHeight = TextureWidth >> 3;	// The height of a cell in the checkerboard texture.
 	const UINT textureSize = rowPitch * TextureHeight;
+
 	std::vector<UINT8> data(textureSize);
+	UINT8* pData = &data[0];
 
 	for (UINT n = 0; n < textureSize; n += TexturePixelSize)
 	{
@@ -358,17 +360,17 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
 
 		if (i % 2 == j % 2)
 		{
-			data[n] = 0x00;		// R
-			data[n + 1] = 0x00;	// G
-			data[n + 2] = 0x00;	// B
-			data[n + 3] = 0xff;	// A
+			pData[n] = 0x00;		// R
+			pData[n + 1] = 0x00;	// G
+			pData[n + 2] = 0x00;	// B
+			pData[n + 3] = 0xff;	// A
 		}
 		else
 		{
-			data[n] = 0xff;		// R
-			data[n + 1] = 0xff;	// G
-			data[n + 2] = 0xff;	// B
-			data[n + 3] = 0xff;	// A
+			pData[n] = 0xff;		// R
+			pData[n + 1] = 0xff;	// G
+			pData[n + 2] = 0xff;	// B
+			pData[n + 3] = 0xff;	// A
 		}
 	}
 
