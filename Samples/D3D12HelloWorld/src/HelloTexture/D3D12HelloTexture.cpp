@@ -256,9 +256,10 @@ void D3D12HelloTexture::LoadAssets()
 		m_vertexBufferView.SizeInBytes = vertexBufferSize;
 	}
 
-	// Create an upload heap to load the texture onto the GPU. ComPtr's are CPU objects
-	// but this heap needs to stay in scope until the GPU work is complete. We will
-	// synchronize with the GPU at the end of this method before the ComPtr is destroyed.
+	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
+	// the command list that references it has finished executing on the GPU.
+	// We will flush the GPU at the end of this method to ensure the resource is not
+	// prematurely destroyed.
 	ComPtr<ID3D12Resource> textureUploadHeap;
 
 	// Create the texture.
@@ -397,7 +398,8 @@ void D3D12HelloTexture::OnRender()
 
 void D3D12HelloTexture::OnDestroy()
 {
-	// Wait for the GPU to be done with all resources.
+	// Ensure that the GPU is no longer referencing resources that are about to be
+	// cleaned up by the destructor.
 	WaitForPreviousFrame();
 
 	CloseHandle(m_fenceEvent);
