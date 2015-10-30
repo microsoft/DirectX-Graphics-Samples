@@ -14,8 +14,7 @@
 #include "DXSampleHelper.h"
 
 using namespace DirectX;
-using namespace std;
-using namespace Microsoft::WRL;
+using Microsoft::WRL::ComPtr;
 
 class FrameResource
 {
@@ -36,7 +35,7 @@ public:
 	ConstantBuffer* m_pConstantBuffers;
 	UINT64 m_fenceValue;
 
-	vector<XMFLOAT4X4> m_modelMatrices;
+	std::vector<XMFLOAT4X4> m_modelMatrices;
 	UINT m_cityRowCount;
 	UINT m_cityColumnCount;
 	UINT m_cityMaterialCount;

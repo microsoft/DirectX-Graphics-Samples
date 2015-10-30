@@ -458,8 +458,14 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 
 	ThrowIfFailed(m_devices[Secondary]->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_directCommandAllocators[Secondary][m_frameIndex].Get(), m_blurPipelineStates[0].Get(), IID_PPV_ARGS(&m_directCommandLists[Secondary])));
 
-	// Create the vertex buffer for the primary adapter.
+	// Note: ComPtr's are CPU objects but these resources need to stay in scope until
+	// the command list that references them has finished executing on the GPU.
+	// We will flush the GPU at the end of this method to ensure the resources are not
+	// prematurely destroyed.
 	ComPtr<ID3D12Resource> vertexBufferUpload;
+	ComPtr<ID3D12Resource> fullscreenQuadVertexBufferUpload;
+
+	// Create the vertex buffer for the primary adapter.
 	{
 		// Define the geometry for a triangle.
 		Vertex triangleVertices[] =
@@ -504,7 +510,6 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 	}
 
 	// Create the vertex buffer for the secondary adapter.
-	ComPtr<ID3D12Resource> fullscreenQuadVertexBufferUpload;
 	{
 		// Define the geometry for a fullscreen triangle.
 		VertexPositionUV quadVertices[] =
@@ -921,7 +926,8 @@ void D3D12HeterogeneousMultiadapter::OnRender()
 
 void D3D12HeterogeneousMultiadapter::OnDestroy()
 {
-	// Wait for the GPUs to be done with all resources.
+	// Ensure that the GPUs are no longer referencing resources that are about to be
+	// cleaned up by the destructor.
 	for (UINT i = 0; i < GraphicsAdaptersCount; i++)
 	{
 		WaitForGpu(static_cast<GraphicsAdapter>(i));

@@ -753,7 +753,8 @@ void D3D12Multithreading::OnRender()
 
 void D3D12Multithreading::OnDestroy()
 {
-	// Wait for the GPU to be done with all resources.
+	// Ensure that the GPU is no longer referencing resources that are about to be
+	// cleaned up by the destructor.
 	{
 		const UINT64 fence = m_fenceValue;
 		const UINT64 lastCompletedFence = m_fence->GetCompletedValue();

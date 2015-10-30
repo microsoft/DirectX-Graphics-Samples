@@ -266,6 +266,10 @@ void D3D12ExecuteIndirect::LoadAssets()
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeCommandAllocators[m_frameIndex].Get(), m_computeState.Get(), IID_PPV_ARGS(&m_computeCommandList)));
 	ThrowIfFailed(m_computeCommandList->Close());
 
+	// Note: ComPtr's are CPU objects but these resources need to stay in scope until
+	// the command list that references them has finished executing on the GPU.
+	// We will flush the GPU at the end of this method to ensure the resources are not
+	// prematurely destroyed.
 	ComPtr<ID3D12Resource> vertexBufferUpload;
 	ComPtr<ID3D12Resource> commandBufferUpload;
 
@@ -603,7 +607,8 @@ void D3D12ExecuteIndirect::OnRender()
 
 void D3D12ExecuteIndirect::OnDestroy()
 {
-	// Wait for the GPU to be done with all resources.
+	// Ensure that the GPU is no longer referencing resources that are about to be
+	// cleaned up by the destructor.
 	WaitForGpu();
 
 	CloseHandle(m_fenceEvent);
