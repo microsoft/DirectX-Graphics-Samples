@@ -1,5 +1,5 @@
 # DirectX-Graphics-Samples
-This repo contains the DirectX Graphics samples that demonstrate how to build graphics intensive applications for Windows 10.
+This repo contains the DirectX Graphics samples that demonstrate how to build graphics intensive applications for Windows 10. We also have a YouTube channel! Visit us here: https://www.youtube.com/MicrosoftDirectX12andGraphicsEducation
 
 ## API Samples
 In the Samples directory, you will find samples that attempt to break off specific features and specific usage scenarios into bite sized chunks. For example, the ExecuteIndirect sample will show you just enough about execute indirect to get started with that feature without diving too deep into multiengine whereas the nBodyGravity sample will delve into multiengine without touching on the execute indirect feature etc. By doing this, we hope to make it easier to get started with DirectX 12.
@@ -34,3 +34,4 @@ It came from a desire to quickly dive into graphics and performance experiments.
 We're always looking for your help to fix bugs and improve the samples.  File those pull requests and we'll be happy to take a look.
 
 Find more information on DirectX 12 on our blog: http://blogs.msdn.com/b/directx/
+

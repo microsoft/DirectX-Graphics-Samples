@@ -285,6 +285,10 @@ void D3D1211on12::LoadAssets()
 		ThrowIfFailed(m_textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER));
 	}
 
+	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
+	// the command list that references it has finished executing on the GPU.
+	// We will flush the GPU at the end of this method to ensure the resource is not
+	// prematurely destroyed.
 	ComPtr<ID3D12Resource> vertexBufferUpload;
 
 	// Create the vertex buffer.
@@ -413,7 +417,8 @@ void D3D1211on12::RenderUI()
 
 void D3D1211on12::OnDestroy()
 {
-	// Wait for the GPU to be done with all resources.
+	// Ensure that the GPU is no longer referencing resources that are about to be
+	// cleaned up by the destructor.
 	WaitForGpu();
 
 	CloseHandle(m_fenceEvent);
