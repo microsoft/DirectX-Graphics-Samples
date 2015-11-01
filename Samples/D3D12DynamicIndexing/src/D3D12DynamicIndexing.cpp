@@ -160,7 +160,10 @@ void D3D12DynamicIndexing::LoadPipeline()
 // Load the sample assets.
 void D3D12DynamicIndexing::LoadAssets()
 {
-	// These upload heaps are only needed during loading.
+	// Note: ComPtr's are CPU objects but these resources need to stay in scope until
+	// the command list that references them has finished executing on the GPU.
+	// We will flush the GPU at the end of this method to ensure the resources are not
+	// prematurely destroyed.
 	ComPtr<ID3D12Resource> vertexBufferUploadHeap;
 	ComPtr<ID3D12Resource> indexBufferUploadHeap;
 	ComPtr<ID3D12Resource> textureUploadHeap;
@@ -330,7 +333,7 @@ void D3D12DynamicIndexing::LoadAssets()
 			float materialGradStep = (1.0f / static_cast<float>(CityMaterialCount));
 
 			// Generate texture data.
-			vector<vector<unsigned char>> cityTextureData;
+			std::vector<std::vector<unsigned char>> cityTextureData;
 			cityTextureData.resize(CityMaterialCount);
 			for (int i = 0; i < CityMaterialCount; ++i)
 			{
@@ -594,7 +597,8 @@ void D3D12DynamicIndexing::OnRender()
 
 void D3D12DynamicIndexing::OnDestroy()
 {
-	// Wait for the GPU to be done with all resources.
+	// Ensure that the GPU is no longer referencing resources that are about to be
+	// cleaned up by the destructor.
 	{
 		const UINT64 fence = m_fenceValue;
 		const UINT64 lastCompletedFence = m_fence->GetCompletedValue();

@@ -347,7 +347,8 @@ void D3D12Fullscreen::OnSizeChanged(UINT width, UINT height, bool minimized)
 
 void D3D12Fullscreen::OnDestroy()
 {
-	// Wait for the GPU to be done with all resources.
+	// Ensure that the GPU is no longer referencing resources that are about to be
+	// cleaned up by the destructor.
 	WaitForGpu();
 
 	// Fullscreen state should always be false before exiting the app.

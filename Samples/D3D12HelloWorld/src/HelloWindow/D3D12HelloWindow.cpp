@@ -173,7 +173,8 @@ void D3D12HelloWindow::OnRender()
 
 void D3D12HelloWindow::OnDestroy()
 {
-	// Wait for the GPU to be done with all resources.
+	// Ensure that the GPU is no longer referencing resources that are about to be
+	// cleaned up by the destructor.
 	WaitForPreviousFrame();
 
 	CloseHandle(m_fenceEvent);
