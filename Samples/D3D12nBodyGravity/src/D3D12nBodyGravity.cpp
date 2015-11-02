@@ -281,6 +281,10 @@ void D3D12nBodyGravity::LoadAssets()
 	CreateVertexBuffer();
 	CreateParticleBuffers();
 
+	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
+	// the command list that references it has finished executing on the GPU.
+	// We will flush the GPU at the end of this method to ensure the resource is not
+	// prematurely destroyed.
 	ComPtr<ID3D12Resource> constantBufferCSUpload;
 
 	// Create the compute shader's constant buffer.
@@ -760,11 +764,12 @@ void D3D12nBodyGravity::Simulate(UINT threadIndex)
 
 void D3D12nBodyGravity::OnDestroy()
 {
-	// Notify threads that the app is shutting down.
+	// Notify the compute threads that the app is shutting down.
 	InterlockedExchange(&m_terminating, 1);
 	WaitForMultipleObjects(ThreadCount, m_threadHandles, TRUE, INFINITE);
 
-	// Ensure the GPU is done rendering.
+	// Ensure that the GPU is no longer referencing resources that are about to be
+	// cleaned up by the destructor.
 	WaitForRenderContext();
 
 	// Close handles to fence events and threads.

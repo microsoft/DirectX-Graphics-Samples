@@ -17,8 +17,13 @@
 #include "SimpleCamera.h"
 
 using namespace DirectX;
-using namespace std;
-using namespace Microsoft::WRL;
+
+// Note that while ComPtr is used to manage the lifetime of resources on the CPU,
+// it has no understanding of the lifetime of resources on the GPU. Apps must account
+// for the GPU lifetime of resources to avoid destroying objects that may still be
+// referenced by the GPU.
+// An example of this can be found in the class method: OnDestroy().
+using Microsoft::WRL::ComPtr;
 
 class D3D12Bundles : public DXSample
 {
@@ -69,7 +74,7 @@ private:
 	SimpleCamera m_camera;
 
 	// Frame resources.
-	vector<FrameResource*> m_frameResources;
+	std::vector<FrameResource*> m_frameResources;
 	FrameResource* m_pCurrentFrameResource;
 	UINT m_currentFrameResourceIndex;
 

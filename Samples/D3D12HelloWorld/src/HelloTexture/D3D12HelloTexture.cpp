@@ -256,9 +256,10 @@ void D3D12HelloTexture::LoadAssets()
 		m_vertexBufferView.SizeInBytes = vertexBufferSize;
 	}
 
-	// Create an upload heap to load the texture onto the GPU. ComPtr's are CPU objects
-	// but this heap needs to stay in scope until the GPU work is complete. We will
-	// synchronize with the GPU at the end of this method before the ComPtr is destroyed.
+	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
+	// the command list that references it has finished executing on the GPU.
+	// We will flush the GPU at the end of this method to ensure the resource is not
+	// prematurely destroyed.
 	ComPtr<ID3D12Resource> textureUploadHeap;
 
 	// Create the texture.
@@ -346,7 +347,9 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
 	const UINT cellPitch = rowPitch >> 3;		// The width of a cell in the checkboard texture.
 	const UINT cellHeight = TextureWidth >> 3;	// The height of a cell in the checkerboard texture.
 	const UINT textureSize = rowPitch * TextureHeight;
+
 	std::vector<UINT8> data(textureSize);
+	UINT8* pData = &data[0];
 
 	for (UINT n = 0; n < textureSize; n += TexturePixelSize)
 	{
@@ -357,17 +360,17 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
 
 		if (i % 2 == j % 2)
 		{
-			data[n] = 0x00;		// R
-			data[n + 1] = 0x00;	// G
-			data[n + 2] = 0x00;	// B
-			data[n + 3] = 0xff;	// A
+			pData[n] = 0x00;		// R
+			pData[n + 1] = 0x00;	// G
+			pData[n + 2] = 0x00;	// B
+			pData[n + 3] = 0xff;	// A
 		}
 		else
 		{
-			data[n] = 0xff;		// R
-			data[n + 1] = 0xff;	// G
-			data[n + 2] = 0xff;	// B
-			data[n + 3] = 0xff;	// A
+			pData[n] = 0xff;		// R
+			pData[n + 1] = 0xff;	// G
+			pData[n + 2] = 0xff;	// B
+			pData[n + 3] = 0xff;	// A
 		}
 	}
 
@@ -397,7 +400,8 @@ void D3D12HelloTexture::OnRender()
 
 void D3D12HelloTexture::OnDestroy()
 {
-	// Wait for the GPU to be done with all resources.
+	// Ensure that the GPU is no longer referencing resources that are about to be
+	// cleaned up by the destructor.
 	WaitForPreviousFrame();
 
 	CloseHandle(m_fenceEvent);
