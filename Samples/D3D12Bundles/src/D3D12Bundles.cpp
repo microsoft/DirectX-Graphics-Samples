@@ -206,8 +206,8 @@ void D3D12Bundles::LoadAssets()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.InputLayout = { SampleAssets::StandardVertexDescription, SampleAssets::StandardVertexDescriptionNumElements };
 		psoDesc.pRootSignature = m_rootSignature.Get();
-		psoDesc.VS = { pVertexShaderData, vertexShaderDataLength };
-		psoDesc.PS = { pPixelShaderData1, pixelShaderDataLength1 };
+		psoDesc.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
+		psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData1, pixelShaderDataLength1);
 		psoDesc.RasterizerState = rasterizerStateDesc;
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -222,7 +222,7 @@ void D3D12Bundles::LoadAssets()
 
 		// Modify the description to use an alternate pixel shader and create
 		// a second PSO.
-		psoDesc.PS = { pPixelShaderData2, pixelShaderDataLength2 };
+		psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData2, pixelShaderDataLength2);
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState2)));
 
 		delete pVertexShaderData;

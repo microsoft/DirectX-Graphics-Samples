@@ -426,8 +426,8 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
 		psoDesc.pRootSignature = m_rootSignature.Get();
-		psoDesc.VS = { reinterpret_cast<UINT8*>(vertexShader->GetBufferPointer()), vertexShader->GetBufferSize() };
-		psoDesc.PS = { reinterpret_cast<UINT8*>(pixelShader->GetBufferPointer()), pixelShader->GetBufferSize() };
+		psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
+		psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -441,13 +441,13 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 
 		psoDesc.InputLayout = { blurInputElementDescs, _countof(blurInputElementDescs) };
 		psoDesc.pRootSignature = m_blurRootSignature.Get();
-		psoDesc.VS = { reinterpret_cast<UINT8*>(vertexShaderBlur->GetBufferPointer()), vertexShaderBlur->GetBufferSize() };
-		psoDesc.PS = { reinterpret_cast<UINT8*>(pixelShaderBlurU->GetBufferPointer()), pixelShaderBlurU->GetBufferSize() };
+		psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShaderBlur.Get());
+		psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShaderBlurU.Get());
 		psoDesc.DepthStencilState.DepthEnable = false;
 		psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
 		ThrowIfFailed(m_devices[Secondary]->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_blurPipelineStates[0])));
 
-		psoDesc.PS = { reinterpret_cast<UINT8*>(pixelShaderBlurV->GetBufferPointer()), pixelShaderBlurV->GetBufferSize() };
+		psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShaderBlurV.Get());
 		ThrowIfFailed(m_devices[Secondary]->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_blurPipelineStates[1])));
 	}
 
