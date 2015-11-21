@@ -695,7 +695,7 @@ void D3D12Multithreading::OnRender()
 #if SINGLETHREADED
 	for (int i = 0; i < NumContexts; i++)
 	{
-		WorkerThread(reinterpret_cast<LPVOID>(i));
+		WorkerThread(i);
 	}
 	MidFrame();
 	EndFrame();
