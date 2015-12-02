@@ -11,6 +11,7 @@ The colors table used for mipmaps are in "rainbow order" - that is, mip 0=Red, 1
 
 ### (S)tatistics overlays
 Press the 's' key to toggle statistics overlays. The statistics overlays show some useful information for visualizing the state of the application, including a memory graph, CPU timing numbers, framerate, and glitch count. 
+
 The memory graph shows both the application's current usage (yellow) as well as the current budget for that process (red line). A well-behaved application is defined as one whose current usage always remains under the budget (or tries its best to do so).
 
 Under memory pressure, some applications will simply be unable to stay under the budget due to a combination of a highly constrained budget and a minimum footprint required by the application. Consuming more memory than your process budget allows can subject your process to throttling by the graphics kernel. The exact behavior when going over budget depends on a number of factors, such as whether or not a non-local video memory budget exists, and the priority of your application (e.g. DWM and foreground applications are prioritized over background applications). 
@@ -26,6 +27,7 @@ The sample uses the user's camera as a means to determine what should be trimmed
 To solve this issue, the sample provided two cameras which can be controlled independently. These two cameras decouple the memory management algorithms from the rendering.
 
 Press the 'd' key to detach the cameras, and the 'c' key to toggle which camera is controlled by the mouse. The primary camera will always control rendering, but if detached, the secondary camera will control the residency management.
+
 The detached camera is shown as hollow red rectangle. The hollow center is the camera view - i.e. what the user would see, if looking through that camera. The red region outside of that is the camera's prefetching region. This region is used to determine which nearby images need to be loaded. The nearby mipmaps are prefetched in this fashion to prevent texture popping caused by casual camera movement. The sample also attempts to load one mipmap higher than the current visible mipmap in the center view.
 
 The exact decision on how to prefetch and trim is up to the application, but the sample uses the following priority scheme:
