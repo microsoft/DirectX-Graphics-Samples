@@ -139,6 +139,23 @@ void DX::DeviceResources::CreateDeviceResources()
 
 	DX::ThrowIfFailed(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
 
+	// Create descriptor heaps for render target views and depth stencil views.
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+	rtvHeapDesc.NumDescriptors = c_frameCount;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	DX::ThrowIfFailed(m_d3dDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
+	m_rtvHeap->SetName(L"Render Target View Descriptor Heap");
+
+	m_rtvDescriptorSize = m_d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	ThrowIfFailed(m_d3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+	m_dsvHeap->SetName(L"Depth Stencil View Descriptor Heap");
+
 	for (UINT n = 0; n < c_frameCount; n++)
 	{
 		DX::ThrowIfFailed(
@@ -159,12 +176,12 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 	// Wait until all previous GPU work is complete.
 	WaitForGpu();
 
-	// Clear the previous window size specific content.
+	// Clear the previous window size specific content and update the tracked fence values.
 	for (UINT n = 0; n < c_frameCount; n++)
 	{
 		m_renderTargets[n] = nullptr;
+		m_fenceValues[n] = m_fenceValues[m_currentFrame];
 	}
-	m_rtvHeap = nullptr;
 
 	UpdateRenderTargetSize();
 
@@ -266,16 +283,8 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 
 	// Create render target views of the swap chain back buffer.
 	{
-		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = c_frameCount;
-		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		DX::ThrowIfFailed(m_d3dDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
-		m_rtvHeap->SetName(L"Render Target View Descriptor Heap");
-
 		m_currentFrame = 0;
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptor(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-		m_rtvDescriptorSize = m_d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		for (UINT n = 0; n < c_frameCount; n++)
 		{
 			DX::ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
@@ -288,14 +297,8 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 		}
 	}
 
-	// Create a depth stencil view.
+	// Create a depth stencil and view.
 	{
-		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-		dsvHeapDesc.NumDescriptors = 1;
-		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		ThrowIfFailed(m_d3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
-
 		D3D12_HEAP_PROPERTIES depthHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 		D3D12_RESOURCE_DESC depthResourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(
 			DXGI_FORMAT_D32_FLOAT,
@@ -327,13 +330,6 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
 		m_d3dDevice->CreateDepthStencilView(m_depthStencil.Get(), &dsvDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-	}
-
-	// All pending GPU work was already finished. Update the tracked fence values
-	// to the last value signaled.
-	for (UINT n = 0; n < c_frameCount; n++)
-	{
-		m_fenceValues[n] = m_fenceValues[m_currentFrame];
 	}
 
 	// Set the 3D rendering viewport to target the entire window.
