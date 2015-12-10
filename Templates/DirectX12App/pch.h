@@ -12,3 +12,7 @@
 #include <vector>
 #include <agile.h>
 #include <concrt.h>
+
+#if defined(_DEBUG)
+#include <dxgidebug.h>
+#endif
