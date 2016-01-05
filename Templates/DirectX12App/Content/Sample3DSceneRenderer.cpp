@@ -96,8 +96,8 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		state.SampleMask = UINT_MAX;
 		state.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		state.NumRenderTargets = 1;
-		state.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
-		state.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+		state.RTVFormats[0] = m_deviceResources->GetBackBufferFormat();
+		state.DSVFormat = m_deviceResources->GetDepthBufferFormat();
 		state.SampleDesc.Count = 1;
 
 		DX::ThrowIfFailed(m_deviceResources->GetD3DDevice()->CreateGraphicsPipelineState(&state, IID_PPV_ARGS(&m_pipelineState)));
@@ -152,8 +152,8 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			nullptr,
 			IID_PPV_ARGS(&vertexBufferUpload)));
 
-		m_vertexBuffer->SetName(L"Vertex Buffer Resource");
-		vertexBufferUpload->SetName(L"Vertex Buffer Upload Resource");
+		DX::SetName(m_vertexBuffer.Get(), L"Vertex Buffer Resource");
+		DX::SetName(vertexBufferUpload.Get(), L"Vertex Buffer Upload Resource");
 
 		// Upload the vertex buffer to the GPU.
 		{
@@ -216,8 +216,8 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			nullptr,
 			IID_PPV_ARGS(&indexBufferUpload)));
 
-		m_indexBuffer->SetName(L"Index Buffer Resource");
-		indexBufferUpload->SetName(L"Index Buffer Upload Resource");
+		DX::SetName(m_indexBuffer.Get(), L"Index Buffer Resource");
+		DX::SetName(indexBufferUpload.Get(), L"Index Buffer Upload Resource");
 
 		// Upload the index buffer to the GPU.
 		{
@@ -242,7 +242,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			DX::ThrowIfFailed(d3dDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_cbvHeap)));
 
-			m_cbvHeap->SetName(L"Constant Buffer View Descriptor Heap");
+			DX::SetName(m_cbvHeap.Get(), L"Constant Buffer View Descriptor Heap");
 		}
 
 		CD3DX12_RESOURCE_DESC constantBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(DX::c_frameCount * c_alignedConstantBufferSize);
@@ -254,7 +254,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			nullptr,
 			IID_PPV_ARGS(&m_constantBuffer)));
 
-		m_constantBuffer->SetName(L"Constant Buffer");
+		DX::SetName(m_constantBuffer.Get(), L"Constant Buffer");
 
 		// Create constant buffer views to access the upload buffer.
 		D3D12_GPU_VIRTUAL_ADDRESS cbvGpuAddress = m_constantBuffer->GetGPUVirtualAddress();
