@@ -410,23 +410,34 @@ void DX::DeviceResources::ValidateDevice()
 	// The D3D Device is no longer valid if the default adapter changed since the device
 	// was created or if the device has been removed.
 
-	// First, get the LUID for the adapter from when the device was created.
+	// First, get the LUID for the default adapter from when the device was created.
 
-	LUID previousAdapterLuid = m_d3dDevice->GetAdapterLuid();
+	DXGI_ADAPTER_DESC previousDesc;
+	{
+		ComPtr<IDXGIAdapter1> previousDefaultAdapter;
+		DX::ThrowIfFailed(m_dxgiFactory->EnumAdapters1(0, &previousDefaultAdapter));
+
+		DX::ThrowIfFailed(previousDefaultAdapter->GetDesc(&previousDesc));
+	}
 
 	// Next, get the information for the current default adapter.
 
-	ComPtr<IDXGIAdapter1> currentDefaultAdapter;
-	GetHardwareAdapter(&currentDefaultAdapter);
-
 	DXGI_ADAPTER_DESC currentDesc;
-	DX::ThrowIfFailed(currentDefaultAdapter->GetDesc(&currentDesc));
+	{
+		ComPtr<IDXGIFactory4> currentDxgiFactory;
+		DX::ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&currentDxgiFactory)));
+
+		ComPtr<IDXGIAdapter1> currentDefaultAdapter;
+		DX::ThrowIfFailed(currentDxgiFactory->EnumAdapters1(0, &currentDefaultAdapter));
+
+		DX::ThrowIfFailed(currentDefaultAdapter->GetDesc(&currentDesc));
+	}
 
 	// If the adapter LUIDs don't match, or if the device reports that it has been removed,
 	// a new D3D device must be created.
 
-	if (previousAdapterLuid.LowPart != currentDesc.AdapterLuid.LowPart ||
-		previousAdapterLuid.HighPart != currentDesc.AdapterLuid.HighPart ||
+	if (previousDesc.AdapterLuid.LowPart != currentDesc.AdapterLuid.LowPart ||
+		previousDesc.AdapterLuid.HighPart != currentDesc.AdapterLuid.HighPart ||
 		FAILED(m_d3dDevice->GetDeviceRemovedReason()))
 	{
 		m_deviceRemoved = true;
