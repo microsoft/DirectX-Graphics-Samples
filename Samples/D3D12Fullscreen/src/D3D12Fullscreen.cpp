@@ -76,6 +76,7 @@ void D3D12Fullscreen::LoadPipeline()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	NAME_D3D12_OBJECT(m_commandQueue);
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -131,6 +132,7 @@ void D3D12Fullscreen::LoadAssets()
 		ComPtr<ID3DBlob> error;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+		NAME_D3D12_OBJECT(m_rootSignature);
 	}
 
 	// Create the pipeline state, which includes compiling and loading shaders.
@@ -171,11 +173,14 @@ void D3D12Fullscreen::LoadAssets()
 		psoDesc.NumRenderTargets = 1;
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		psoDesc.SampleDesc.Count = 1;
+
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+		NAME_D3D12_OBJECT(m_pipelineState);
 	}
 
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+	NAME_D3D12_OBJECT(m_commandList);
 
 	LoadSizeDependentResources();
 
@@ -223,6 +228,12 @@ void D3D12Fullscreen::LoadSizeDependentResources()
 			ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
 			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_rtvDescriptorSize);
+
+			WCHAR name[25];
+			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
+			{
+				SetName(m_renderTargets[n].Get(), name);
+			}
 		}
 	}
 
@@ -267,6 +278,8 @@ void D3D12Fullscreen::LoadSizeDependentResources()
 			nullptr,
 			IID_PPV_ARGS(&m_vertexBufferUpload)));
 
+		NAME_D3D12_OBJECT(m_vertexBuffer);
+
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the vertex buffer.
 		UINT8* pVertexDataBegin;
@@ -297,12 +310,16 @@ void D3D12Fullscreen::OnRender()
 {
 	if (m_windowVisible)
 	{
+		PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+
 		// Record all the commands we need to render the scene into the command list.
 		PopulateCommandList();
 
 		// Execute the command list.
 		ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
 		m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+		PIXEndEvent(m_commandQueue.Get());
 
 		// Present the frame.
 		ThrowIfFailed(m_swapChain->Present(0, 0));
@@ -422,7 +439,10 @@ void D3D12Fullscreen::PopulateCommandList()
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+
+	PIXBeginEvent(m_commandList.Get(), 0, L"Draw a triangle");
 	m_commandList->DrawInstanced(3, 1, 0, 0);
+	PIXEndEvent(m_commandList.Get());
 
 	// Indicate that the back buffer will now be used to present.
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));

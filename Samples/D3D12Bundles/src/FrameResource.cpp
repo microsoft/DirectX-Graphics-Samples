@@ -59,6 +59,7 @@ void FrameResource::InitBundle(ID3D12Device* pDevice, ID3D12PipelineState* pPso1
 	ID3D12DescriptorHeap* pCbvSrvDescriptorHeap, UINT cbvSrvDescriptorSize, ID3D12DescriptorHeap* pSamplerDescriptorHeap, ID3D12RootSignature* pRootSignature)
 {
 	ThrowIfFailed(pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, m_bundleAllocator.Get(), pPso1, IID_PPV_ARGS(&m_bundle)));
+	NAME_D3D12_OBJECT(m_bundle);
 
 	PopulateCommandList(m_bundle.Get(), pPso1, pPso2, frameResourceIndex, numIndices, pIndexBufferViewDesc,
 		pVertexBufferViewDesc, pCbvSrvDescriptorHeap, cbvSrvDescriptorSize, pSamplerDescriptorHeap, pRootSignature);
@@ -103,6 +104,7 @@ void FrameResource::PopulateCommandList(ID3D12GraphicsCommandList* pCommandList,
 	UINT frameResourceDescriptorOffset = 1 + (frameResourceIndex * m_cityRowCount * m_cityColumnCount);
 	CD3DX12_GPU_DESCRIPTOR_HANDLE cbvSrvHandle(pCbvSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart(), frameResourceDescriptorOffset, cbvSrvDescriptorSize);
 
+	PIXBeginEvent(pCommandList, 0, L"Draw cities");
 	BOOL usePso1 = TRUE;
 	for (UINT i = 0; i < m_cityRowCount; i++)
 	{
@@ -120,6 +122,7 @@ void FrameResource::PopulateCommandList(ID3D12GraphicsCommandList* pCommandList,
 			pCommandList->DrawIndexedInstanced(numIndices, 1, 0, 0, 0);
 		}
 	}
+	PIXEndEvent(pCommandList);
 }
 
 void XM_CALLCONV FrameResource::UpdateConstantBuffers(FXMMATRIX view, CXMMATRIX projection)

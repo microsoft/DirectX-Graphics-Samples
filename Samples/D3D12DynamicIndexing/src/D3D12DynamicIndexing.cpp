@@ -90,6 +90,7 @@ void D3D12DynamicIndexing::LoadPipeline()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	NAME_D3D12_OBJECT(m_commandQueue);
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -142,6 +143,7 @@ void D3D12DynamicIndexing::LoadPipeline()
 		cbvSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		cbvSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvSrvHeapDesc, IID_PPV_ARGS(&m_cbvSrvHeap)));
+		NAME_D3D12_OBJECT(m_cbvSrvHeap);
 
 		// Describe and create a sampler descriptor heap.
 		D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
@@ -189,6 +191,7 @@ void D3D12DynamicIndexing::LoadAssets()
 		ComPtr<ID3DBlob> error;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+		NAME_D3D12_OBJECT(m_rootSignature);
 	}
 
 	// Create the pipeline state, which includes loading shaders.
@@ -221,12 +224,14 @@ void D3D12DynamicIndexing::LoadAssets()
 		psoDesc.SampleDesc.Count = 1;
 
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+		NAME_D3D12_OBJECT(m_pipelineState);
 
 		delete pVertexShaderData;
 		delete pPixelShaderData;
 	}
 
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
+	NAME_D3D12_OBJECT(m_commandList);
 
 	// Create render target views (RTVs).
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -235,6 +240,12 @@ void D3D12DynamicIndexing::LoadAssets()
 		ThrowIfFailed(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
 		m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
 		rtvHandle.Offset(1, m_rtvDescriptorSize);
+
+		WCHAR name[25];
+		if (swprintf_s(name, L"m_renderTargets[%u]", i) > 0)
+		{
+			SetName(m_renderTargets[i].Get(), name);
+		}
 	}
 
 	// Read in mesh data for vertex/index buffers.
@@ -259,6 +270,8 @@ void D3D12DynamicIndexing::LoadAssets()
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&vertexBufferUploadHeap)));
+
+		NAME_D3D12_OBJECT(m_vertexBuffer);
 
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the vertex buffer.
@@ -293,6 +306,8 @@ void D3D12DynamicIndexing::LoadAssets()
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&indexBufferUploadHeap)));
+
+		NAME_D3D12_OBJECT(m_indexBuffer);
 
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the index buffer.
@@ -344,6 +359,12 @@ void D3D12DynamicIndexing::LoadAssets()
 					D3D12_RESOURCE_STATE_COPY_DEST,
 					nullptr,
 					IID_PPV_ARGS(&m_cityMaterialTextures[i])));
+
+				WCHAR name[35];
+				if (swprintf_s(name, L"m_cityMaterialTextures[%u]", i) > 0)
+				{
+					SetName(m_cityMaterialTextures[i].Get(), name);
+				}
 
 				// Fill the texture.
 				float t = i * materialGradStep;
@@ -431,6 +452,8 @@ void D3D12DynamicIndexing::LoadAssets()
 				nullptr,
 				IID_PPV_ARGS(&textureUploadHeap)));
 
+			NAME_D3D12_OBJECT(m_cityDiffuseTexture);
+
 			// Copy data to the intermediate upload heap and then schedule 
 			// a copy from the upload heap to the diffuse texture.
 			D3D12_SUBRESOURCE_DATA textureData = {};
@@ -501,6 +524,8 @@ void D3D12DynamicIndexing::LoadAssets()
 			&depthOptimizedClearValue,
 			IID_PPV_ARGS(&m_depthStencil)
 			));
+
+		NAME_D3D12_OBJECT(m_depthStencil);
 
 		m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
@@ -578,12 +603,16 @@ void D3D12DynamicIndexing::OnUpdate()
 // Render the scene.
 void D3D12DynamicIndexing::OnRender()
 {
+	PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList(m_pCurrentFrameResource);
 
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	PIXEndEvent(m_commandQueue.Get());
 
 	// Present and update the frame index for the next frame.
 	ThrowIfFailed(m_swapChain->Present(1, 0));

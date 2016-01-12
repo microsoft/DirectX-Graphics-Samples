@@ -112,6 +112,7 @@ void D3D12nBodyGravity::LoadPipeline()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	NAME_D3D12_OBJECT(m_commandQueue);
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -158,6 +159,7 @@ void D3D12nBodyGravity::LoadPipeline()
 		srvUavHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		srvUavHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&srvUavHeapDesc, IID_PPV_ARGS(&m_srvUavHeap)));
+		NAME_D3D12_OBJECT(m_srvUavHeap);
 
 		m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		m_srvUavDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -173,6 +175,12 @@ void D3D12nBodyGravity::LoadPipeline()
 			ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
 			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_rtvDescriptorSize);
+
+			WCHAR name[25];
+			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
+			{
+				SetName(m_renderTargets[n].Get(), name);
+			}
 
 			ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[n])));
 		}
@@ -201,6 +209,7 @@ void D3D12nBodyGravity::LoadAssets()
 		ComPtr<ID3DBlob> error;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+		NAME_D3D12_OBJECT(m_rootSignature);
 
 		// Create compute signature. Must change visibility for the SRV.
 		rootParameters[RootParameterSRV].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -209,6 +218,7 @@ void D3D12nBodyGravity::LoadAssets()
 		ThrowIfFailed(D3D12SerializeRootSignature(&computeRootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_computeRootSignature)));
+		NAME_D3D12_OBJECT(m_computeRootSignature);
 	}
 
 	// Create the pipeline states, which includes compiling and loading shaders.
@@ -266,6 +276,7 @@ void D3D12nBodyGravity::LoadAssets()
 		psoDesc.SampleDesc.Count = 1;
 
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+		NAME_D3D12_OBJECT(m_pipelineState);
 
 		// Describe and create the compute pipeline state object (PSO).
 		D3D12_COMPUTE_PIPELINE_STATE_DESC computePsoDesc = {};
@@ -273,10 +284,12 @@ void D3D12nBodyGravity::LoadAssets()
 		computePsoDesc.CS = CD3DX12_SHADER_BYTECODE(computeShader.Get());
 
 		ThrowIfFailed(m_device->CreateComputePipelineState(&computePsoDesc, IID_PPV_ARGS(&m_computeState)));
+		NAME_D3D12_OBJECT(m_computeState);
 	}
 
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+	NAME_D3D12_OBJECT(m_commandList);
 
 	CreateVertexBuffer();
 	CreateParticleBuffers();
@@ -307,6 +320,8 @@ void D3D12nBodyGravity::LoadAssets()
 			nullptr,
 			IID_PPV_ARGS(&constantBufferCSUpload)));
 
+		NAME_D3D12_OBJECT(m_constantBufferCS);
+
 		ConstantBufferCS constantBufferCS = {};
 		constantBufferCS.param[0] = ParticleCount;
 		constantBufferCS.param[1] = int(ceil(ParticleCount / 128.0f));
@@ -334,6 +349,8 @@ void D3D12nBodyGravity::LoadAssets()
 			nullptr,
 			IID_PPV_ARGS(&m_constantBufferGS)
 			));
+
+		NAME_D3D12_OBJECT(m_constantBufferGS);
 
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_constantBufferGS->Map(0, &readRange, reinterpret_cast<void**>(&m_pConstantBufferGSData)));
@@ -386,6 +403,8 @@ void D3D12nBodyGravity::CreateVertexBuffer()
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&m_vertexBufferUpload)));
+
+	NAME_D3D12_OBJECT(m_vertexBuffer);
 
 	D3D12_SUBRESOURCE_DATA vertexData = {};
 	vertexData.pData = reinterpret_cast<UINT8*>(&vertices[0]);
@@ -486,6 +505,16 @@ void D3D12nBodyGravity::CreateParticleBuffers()
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&m_particleBuffer1Upload[index])));
+
+		WCHAR name[25];
+		if (swprintf_s(name, L"m_particleBuffer0[%u]", index) > 0)
+		{
+			SetName(m_particleBuffer0[index].Get(), name);
+		}
+		if (swprintf_s(name, L"m_particleBuffer1[%u]", index) > 0)
+		{
+			SetName(m_particleBuffer1[index].Get(), name);
+		}
 
 		D3D12_SUBRESOURCE_DATA particleData = {};
 		particleData.pData = reinterpret_cast<UINT8*>(&data[0]);
@@ -598,12 +627,16 @@ void D3D12nBodyGravity::OnRender()
 		}
 	}
 
+	PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList();
 
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	PIXEndEvent(m_commandQueue.Get());
 
 	// Present the frame.
 	ThrowIfFailed(m_swapChain->Present(1, 0));
@@ -666,7 +699,9 @@ void D3D12nBodyGravity::PopulateCommandList()
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), srvIndex, m_srvUavDescriptorSize);
 		m_commandList->SetGraphicsRootDescriptorTable(RootParameterSRV, srvHandle);
 
+		PIXBeginEvent(m_commandList.Get(), 0, L"Draw particles for thread %u", n);
 		m_commandList->DrawInstanced(ParticleCount, 1, 0, 0);
+		PIXEndEvent(m_commandList.Get());
 	}
 
 	m_commandList->RSSetViewports(1, &m_viewport);
@@ -693,7 +728,9 @@ DWORD D3D12nBodyGravity::AsyncComputeThreadProc(int threadIndex)
 		ThrowIfFailed(pCommandList->Close());
 		ID3D12CommandList* ppCommandLists[] = { pCommandList };
 
+		PIXBeginEvent(pCommandQueue, 0, L"Thread %d: Iterate on the particle simulation", threadIndex);
 		pCommandQueue->ExecuteCommandLists(1, ppCommandLists);
+		PIXEndEvent(pCommandQueue);
 
 		// Wait for the compute shader to complete the simulation.
 		UINT64 threadFenceValue = InterlockedIncrement(&m_threadFenceValues[threadIndex]);

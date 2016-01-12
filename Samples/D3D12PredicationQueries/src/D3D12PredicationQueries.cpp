@@ -82,6 +82,7 @@ void D3D12PredicationQueries::LoadPipeline()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	NAME_D3D12_OBJECT(m_commandQueue);
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -131,6 +132,7 @@ void D3D12PredicationQueries::LoadPipeline()
 		cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+		NAME_D3D12_OBJECT(m_cbvHeap);
 
 		// Describe and create a heap for occlusion queries.
 		D3D12_QUERY_HEAP_DESC queryHeapDesc = {};
@@ -152,6 +154,12 @@ void D3D12PredicationQueries::LoadPipeline()
 			ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
 			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_rtvDescriptorSize);
+
+			WCHAR name[25];
+			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
+			{
+				SetName(m_renderTargets[n].Get(), name);
+			}
 
 			ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[n])));
 		}
@@ -184,6 +192,7 @@ void D3D12PredicationQueries::LoadAssets()
 		ComPtr<ID3DBlob> error;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+		NAME_D3D12_OBJECT(m_rootSignature);
 	}
 
 	// Create the pipeline state, which includes compiling and loading shaders.
@@ -236,16 +245,19 @@ void D3D12PredicationQueries::LoadAssets()
 		psoDesc.SampleDesc.Count = 1;
 
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+		NAME_D3D12_OBJECT(m_pipelineState);
 
 		// Disable color writes and depth writes for the occlusion query's state.
 		psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;
 		psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_queryState)));
+		NAME_D3D12_OBJECT(m_queryState);
 	}
 
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+	NAME_D3D12_OBJECT(m_commandList);
 
 	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 	// the command list that references it has finished executing on the GPU.
@@ -296,6 +308,8 @@ void D3D12PredicationQueries::LoadAssets()
 			nullptr,
 			IID_PPV_ARGS(&vertexBufferUpload)));
 
+		NAME_D3D12_OBJECT(m_vertexBuffer);
+
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the vertex buffer.
 		D3D12_SUBRESOURCE_DATA vertexData = {};
@@ -321,6 +335,8 @@ void D3D12PredicationQueries::LoadAssets()
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&m_constantBuffer)));
+
+		NAME_D3D12_OBJECT(m_constantBuffer);
 
 		// Initialize and map the constant buffers. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
@@ -374,6 +390,8 @@ void D3D12PredicationQueries::LoadAssets()
 			IID_PPV_ARGS(&m_depthStencil)
 			));
 
+		NAME_D3D12_OBJECT(m_depthStencil);
+
 		m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
@@ -388,6 +406,8 @@ void D3D12PredicationQueries::LoadAssets()
 			nullptr,
 			IID_PPV_ARGS(&m_queryResult)
 			));
+
+		NAME_D3D12_OBJECT(m_queryResult);
 	}
 
 	// Close the command list and execute it to begin the vertex buffer copy into
@@ -436,12 +456,16 @@ void D3D12PredicationQueries::OnUpdate()
 // Render the scene.
 void D3D12PredicationQueries::OnRender()
 {
+	PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList();
 
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	PIXEndEvent(m_commandQueue.Get());
 
 	// Present the frame.
 	ThrowIfFailed(m_swapChain->Present(1, 0));
@@ -502,21 +526,27 @@ void D3D12PredicationQueries::PopulateCommandList()
 
 		// Draw the far quad conditionally based on the result of the occlusion query
 		// from the previous frame.
+		PIXBeginEvent(m_commandList.Get(), 0, L"Draw potentially occluded geometry");
 		m_commandList->SetGraphicsRootDescriptorTable(0, cbvFarQuad);
 		m_commandList->SetPredication(m_queryResult.Get(), 0, D3D12_PREDICATION_OP_EQUAL_ZERO);
 		m_commandList->DrawInstanced(4, 1, 0, 0);
+		PIXEndEvent(m_commandList.Get());
 
 		// Disable predication and always draw the near quad.
+		PIXBeginEvent(m_commandList.Get(), 0, L"Draw animating geometry");
 		m_commandList->SetPredication(nullptr, 0, D3D12_PREDICATION_OP_EQUAL_ZERO);
 		m_commandList->SetGraphicsRootDescriptorTable(0, cbvNearQuad);
 		m_commandList->DrawInstanced(4, 1, 4, 0);
+		PIXEndEvent(m_commandList.Get());
 
 		// Run the occlusion query with the bounding box quad.
+		PIXBeginEvent(m_commandList.Get(), 0, L"Execute occlusion query");
 		m_commandList->SetGraphicsRootDescriptorTable(0, cbvFarQuad);
 		m_commandList->SetPipelineState(m_queryState.Get());
 		m_commandList->BeginQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0);
 		m_commandList->DrawInstanced(4, 1, 8, 0);
 		m_commandList->EndQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0);
+		PIXEndEvent(m_commandList.Get());
 
 		// Resolve the occlusion query and store the results in the query result buffer
 		// to be used on the subsequent frame.

@@ -182,6 +182,21 @@ static const LPWCH g_cCacheFileNames[EffectPipelineTypeCount] =
 	L"waveEffectPSO.cache",
 };
 
+static const LPWCH g_cEffectNames[EffectPipelineTypeCount] =
+{
+	L"Normal 3D",
+	L"Generic post effect",
+	L"Blit",
+	L"Invert",
+	L"Grayscale",
+	L"Edge detect",
+	L"Blur",
+	L"Warp",
+	L"Pixelate",
+	L"Distort",
+	L"Wave",
+};
+
 class PSOLibrary
 {
 public:

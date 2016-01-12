@@ -175,7 +175,7 @@ void PSOLibrary::CompilePSO(CompilePSOThreadData* pDataPackage)
 	{
 		auto lock = Mutex::Lock(pLibrary->m_flagsMutex);
 
-		// When using the disk cache compilation should be extreamly quick so don't sleep.
+		// When using the disk cache compilation should be extremely quick so don't sleep.
 		useCache = pLibrary->m_useDiskLibraries;
 	}
 
@@ -208,7 +208,7 @@ void PSOLibrary::CompilePSO(CompilePSOThreadData* pDataPackage)
 		// Read how long the cached shader blob is.
 		UINT size = pLibrary->m_diskCaches[type].GetCachedBlobSize();
 
-		// If the size if 0 then this diskcache needs to be refresed.
+		// If the size if 0 then this disk cache needs to be refreshed.
 		if (size == 0)
 		{
 			ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&baseDesc, IID_PPV_ARGS(&pLibrary->m_pipelineStates[type])));
@@ -259,6 +259,12 @@ void PSOLibrary::CompilePSO(CompilePSOThreadData* pDataPackage)
 		{
 			Sleep(500);
 		}
+	}
+
+	WCHAR name[50];
+	if (swprintf_s(name, L"m_pipelineStates[%s]", g_cEffectNames[type]) > 0)
+	{
+		SetName(pLibrary->m_pipelineStates[type].Get(), name);
 	}
 
 	{

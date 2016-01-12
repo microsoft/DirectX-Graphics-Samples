@@ -23,6 +23,10 @@ FrameResource::FrameResource(ID3D12Device* pDevice, ID3D12PipelineState* pPso, I
 		ThrowIfFailed(pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[i])));
 		ThrowIfFailed(pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[i].Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandLists[i])));
 
+		WCHAR name[30];
+		swprintf_s(name, L"m_commandLists[%d]", i);
+		m_commandLists[i]->SetName(name);
+
 		// Close these command lists; don't record into them for now.
 		ThrowIfFailed(m_commandLists[i]->Close());
 	}
@@ -36,6 +40,12 @@ FrameResource::FrameResource(ID3D12Device* pDevice, ID3D12PipelineState* pPso, I
 
 		ThrowIfFailed(pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_shadowCommandAllocators[i].Get(), m_pipelineStateShadowMap.Get(), IID_PPV_ARGS(&m_shadowCommandLists[i])));
 		ThrowIfFailed(pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_sceneCommandAllocators[i].Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_sceneCommandLists[i])));
+
+		WCHAR name[30];
+		swprintf_s(name, L"m_shadowCommandLists[%d]", i);
+		m_shadowCommandLists[i]->SetName(name);
+		swprintf_s(name, L"m_sceneCommandLists[%d]", i);
+		m_sceneCommandLists[i]->SetName(name);
 
 		// Close these command lists; don't record into them for now. We will 
 		// reset them to a recording state when we start the render loop.
@@ -69,6 +79,8 @@ FrameResource::FrameResource(ID3D12Device* pDevice, ID3D12PipelineState* pPso, I
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&clearValue,
 		IID_PPV_ARGS(&m_shadowTexture)));
+
+	NAME_D3D12_OBJECT(m_shadowTexture);
 
 	// Get a handle to the start of the descriptor heap then offset 
 	// it based on the frame resource index.
