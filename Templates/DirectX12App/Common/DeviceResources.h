@@ -8,7 +8,7 @@ namespace DX
 	class DeviceResources
 	{
 	public:
-		DeviceResources();
+		DeviceResources(DXGI_FORMAT backBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT);
 		void SetWindow(Windows::UI::Core::CoreWindow^ window);
 		void SetLogicalSize(Windows::Foundation::Size logicalSize);
 		void SetCurrentOrientation(Windows::Graphics::Display::DisplayOrientations currentOrientation);
@@ -33,6 +33,8 @@ namespace DX
 		ID3D12Resource*             GetDepthStencil() const             { return m_depthStencil.Get(); }
 		ID3D12CommandQueue*         GetCommandQueue() const             { return m_commandQueue.Get(); }
 		ID3D12CommandAllocator*     GetCommandAllocator() const         { return m_commandAllocators[m_currentFrame].Get(); }
+		DXGI_FORMAT                 GetBackBufferFormat() const         { return m_backBufferFormat; }
+		DXGI_FORMAT                 GetDepthBufferFormat() const        { return m_depthBufferFormat; }
 		D3D12_VIEWPORT              GetScreenViewport() const           { return m_screenViewport; }
 		DirectX::XMFLOAT4X4         GetOrientationTransform3D() const   { return m_orientationTransform3D; }
 		UINT                        GetCurrentFrameIndex() const        { return m_currentFrame; }
@@ -53,7 +55,7 @@ namespace DX
 		void UpdateRenderTargetSize();
 		void MoveToNextFrame();
 		DXGI_MODE_ROTATION ComputeDisplayRotation();
-		void GetHardwareAdapter(IDXGIFactory4* pFactory, IDXGIAdapter1** ppAdapter);
+		void GetHardwareAdapter(IDXGIAdapter1** ppAdapter);
 
 		UINT m_currentFrame;
 
@@ -65,10 +67,12 @@ namespace DX
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_depthStencil;
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-		UINT m_rtvDescriptorSize;
 		Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_commandQueue;
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_commandAllocators[c_frameCount];
+		DXGI_FORMAT m_backBufferFormat;
+		DXGI_FORMAT m_depthBufferFormat;
 		D3D12_VIEWPORT m_screenViewport;
+		UINT m_rtvDescriptorSize;
 		bool m_deviceRemoved;
 
 		// CPU/GPU Synchronization.
