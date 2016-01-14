@@ -208,8 +208,8 @@ void D3D12DynamicIndexing::LoadAssets()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.InputLayout = { SampleAssets::StandardVertexDescription, SampleAssets::StandardVertexDescriptionNumElements };
 		psoDesc.pRootSignature = m_rootSignature.Get();
-		psoDesc.VS = { pVertexShaderData, vertexShaderDataLength };
-		psoDesc.PS = { pPixelShaderData, pixelShaderDataLength };
+		psoDesc.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
+		psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength);
 		psoDesc.RasterizerState = rasterizerStateDesc;
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);

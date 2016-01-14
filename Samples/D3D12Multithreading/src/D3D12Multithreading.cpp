@@ -225,8 +225,8 @@ void D3D12Multithreading::LoadAssets()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.InputLayout = inputLayoutDesc;
 		psoDesc.pRootSignature = m_rootSignature.Get();
-		psoDesc.VS = { reinterpret_cast<UINT8*>(vertexShader->GetBufferPointer()), vertexShader->GetBufferSize() };
-		psoDesc.PS = { reinterpret_cast<UINT8*>(pixelShader->GetBufferPointer()), pixelShader->GetBufferSize() };
+		psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
+		psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = depthStencilDesc;
@@ -242,8 +242,7 @@ void D3D12Multithreading::LoadAssets()
 		// Alter the description and create the PSO for rendering
 		// the shadow map.  The shadow map does not use a pixel
 		// shader or render targets.
-		psoDesc.PS.pShaderBytecode = 0;
-		psoDesc.PS.BytecodeLength = 0;
+		psoDesc.PS = CD3DX12_SHADER_BYTECODE(0, 0);
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
 		psoDesc.NumRenderTargets = 0;
 
@@ -695,7 +694,7 @@ void D3D12Multithreading::OnRender()
 #if SINGLETHREADED
 	for (int i = 0; i < NumContexts; i++)
 	{
-		WorkerThread(reinterpret_cast<LPVOID>(i));
+		WorkerThread(i);
 	}
 	MidFrame();
 	EndFrame();

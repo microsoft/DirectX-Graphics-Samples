@@ -1,0 +1,7 @@
+# ignore non-code directories and files
+.vs/
+x64/
+*.ipch
+*.sdf
+*.opensdf
+*.user
