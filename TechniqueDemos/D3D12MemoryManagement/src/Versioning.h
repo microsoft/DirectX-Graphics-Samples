@@ -42,7 +42,7 @@ public:
 	// to multiples of the vertex stride.
 	//
 	void Align(UINT32 Alignment);
-	HRESULT Allocate(UINT32 ElementSize, UINT32 ElementCount, void** pData, UINT32* pOffset);
+	HRESULT Allocate(UINT32 ElementSize, UINT32 ElementCount, _Outptr_ void** pData, UINT32* pOffset);
 
 	inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const
 	{

@@ -151,12 +151,9 @@ static UINT g_GeneratedImageColors[] =
 	0xffff00ff,	// Magenta
 	0xff000000,	// Black
 };
+static const UINT imageColorCount = _countof(g_GeneratedImageColors);
 
 UINT GetGeneratedImageColor(UINT ImageIndex)
 {
-	if (ImageIndex >= _countof(g_GeneratedImageColors))
-	{
-		return g_GeneratedImageColors[0];
-	}
-	return g_GeneratedImageColors[ImageIndex];
+	return g_GeneratedImageColors[ImageIndex % imageColorCount];
 }
