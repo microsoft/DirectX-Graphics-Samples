@@ -210,8 +210,9 @@ void D3D12HelloWindow::PopulateCommandList()
 void D3D12HelloWindow::WaitForPreviousFrame()
 {
 	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-	// This is code implemented as such for simplicity. More advanced samples 
-	// illustrate how to use fences for efficient resource usage.
+	// This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
+	// sample illustrates how to use fences for efficient resource usage and to
+	// maximize GPU utilization.
 
 	// Signal and increment the fence value.
 	const UINT64 fence = m_fenceValue;
