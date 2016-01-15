@@ -101,12 +101,14 @@ void D3D12ExecuteIndirect::LoadPipeline()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	NAME_D3D12_OBJECT(m_commandQueue);
 
 	D3D12_COMMAND_QUEUE_DESC computeQueueDesc = {};
 	computeQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	computeQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 
 	ThrowIfFailed(m_device->CreateCommandQueue(&computeQueueDesc, IID_PPV_ARGS(&m_computeCommandQueue)));
+	NAME_D3D12_OBJECT(m_computeCommandQueue);
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -157,6 +159,7 @@ void D3D12ExecuteIndirect::LoadPipeline()
 		cbvSrvUavHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		cbvSrvUavHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvSrvUavHeapDesc, IID_PPV_ARGS(&m_cbvSrvUavHeap)));
+		NAME_D3D12_OBJECT(m_cbvSrvUavHeap);
 
 		m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		m_cbvSrvUavDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -172,6 +175,12 @@ void D3D12ExecuteIndirect::LoadPipeline()
 			ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
 			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_rtvDescriptorSize);
+
+			WCHAR name[25];
+			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
+			{
+				SetName(m_renderTargets[n].Get(), name);
+			}
 
 			ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[n])));
 			ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&m_computeCommandAllocators[n])));
@@ -194,6 +203,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 		ComPtr<ID3DBlob> error;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+		NAME_D3D12_OBJECT(m_rootSignature);
 
 		// Create compute signature.
 		CD3DX12_DESCRIPTOR_RANGE ranges[2];
@@ -209,6 +219,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 
 		ThrowIfFailed(D3D12SerializeRootSignature(&computeRootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_computeRootSignature)));
+		NAME_D3D12_OBJECT(m_computeRootSignature);
 	}
 
 	// Create the pipeline state, which includes compiling and loading shaders.
@@ -252,6 +263,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 		psoDesc.SampleDesc.Count = 1;
 
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+		NAME_D3D12_OBJECT(m_pipelineState);
 
 		// Describe and create the compute pipeline state object (PSO).
 		D3D12_COMPUTE_PIPELINE_STATE_DESC computePsoDesc = {};
@@ -259,12 +271,16 @@ void D3D12ExecuteIndirect::LoadAssets()
 		computePsoDesc.CS = CD3DX12_SHADER_BYTECODE(computeShader.Get());
 
 		ThrowIfFailed(m_device->CreateComputePipelineState(&computePsoDesc, IID_PPV_ARGS(&m_computeState)));
+		NAME_D3D12_OBJECT(m_computeState);
 	}
 
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeCommandAllocators[m_frameIndex].Get(), m_computeState.Get(), IID_PPV_ARGS(&m_computeCommandList)));
 	ThrowIfFailed(m_computeCommandList->Close());
+
+	NAME_D3D12_OBJECT(m_commandList);
+	NAME_D3D12_OBJECT(m_computeCommandList);
 
 	// Note: ComPtr's are CPU objects but these resources need to stay in scope until
 	// the command list that references them has finished executing on the GPU.
@@ -300,6 +316,8 @@ void D3D12ExecuteIndirect::LoadAssets()
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&vertexBufferUpload)));
+
+		NAME_D3D12_OBJECT(m_vertexBuffer);
 
 		// Copy data to the intermediate upload heap and then schedule a copy
 		// from the upload heap to the vertex buffer.
@@ -338,6 +356,8 @@ void D3D12ExecuteIndirect::LoadAssets()
 			IID_PPV_ARGS(&m_depthStencil)
 			));
 
+		NAME_D3D12_OBJECT(m_depthStencil);
+
 		m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
@@ -352,6 +372,8 @@ void D3D12ExecuteIndirect::LoadAssets()
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&m_constantBuffer)));
+
+		NAME_D3D12_OBJECT(m_constantBuffer);
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 		cbvDesc.SizeInBytes = sizeof(ConstantBufferData);
@@ -404,6 +426,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 		commandSignatureDesc.ByteStride = sizeof(IndirectCommand);
 
 		ThrowIfFailed(m_device->CreateCommandSignature(&commandSignatureDesc, m_rootSignature.Get(), IID_PPV_ARGS(&m_commandSignature)));
+		NAME_D3D12_OBJECT(m_commandSignature);
 	}
 
 	// Create the command buffers and UAVs to store the results of the compute work.
@@ -428,6 +451,8 @@ void D3D12ExecuteIndirect::LoadAssets()
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&commandBufferUpload)));
+
+		NAME_D3D12_OBJECT(m_commandBuffer);
 
 		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = m_constantBuffer->GetGPUVirtualAddress();
 		UINT commandIndex = 0;
@@ -488,6 +513,12 @@ void D3D12ExecuteIndirect::LoadAssets()
 				D3D12_RESOURCE_STATE_COPY_DEST,
 				nullptr,
 				IID_PPV_ARGS(&m_processedCommandBuffers[frame])));
+
+			WCHAR name[35];
+			if (swprintf_s(name, L"m_processedCommandBuffers[%u]", frame) > 0)
+			{
+				SetName(m_processedCommandBuffers[frame].Get(), name);
+			}
 
 			D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 			uavDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -587,17 +618,26 @@ void D3D12ExecuteIndirect::OnRender()
 	// Execute the compute work.
 	if (m_enableCulling)
 	{
+		PIXBeginEvent(m_commandQueue.Get(), 0, L"Cull invisible triangles");
+
 		ID3D12CommandList* ppCommandLists[] = { m_computeCommandList.Get() };
 		m_computeCommandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+		PIXEndEvent(m_commandQueue.Get());
+
 		m_computeCommandQueue->Signal(m_computeFence.Get(), m_fenceValues[m_frameIndex]);
 
 		// Execute the rendering work only when the compute work is complete.
 		m_commandQueue->Wait(m_computeFence.Get(), m_fenceValues[m_frameIndex]);
 	}
 
+	PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+
 	// Execute the rendering work.
 	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	PIXEndEvent(m_commandQueue.Get());
 
 	// Present the frame.
 	ThrowIfFailed(m_swapChain->Present(1, 0));
@@ -705,6 +745,8 @@ void D3D12ExecuteIndirect::PopulateCommandLists()
 
 		if (m_enableCulling)
 		{
+			PIXBeginEvent(m_commandList.Get(), 0, L"Draw visible triangles");
+
 			// Draw the triangles that have not been culled.
 			m_commandList->ExecuteIndirect(
 				m_commandSignature.Get(),
@@ -716,6 +758,8 @@ void D3D12ExecuteIndirect::PopulateCommandLists()
 		}
 		else
 		{
+			PIXBeginEvent(m_commandList.Get(), 0, L"Draw all triangles");
+
 			// Draw all of the triangles.
 			m_commandList->ExecuteIndirect(
 				m_commandSignature.Get(),
@@ -725,6 +769,7 @@ void D3D12ExecuteIndirect::PopulateCommandLists()
 				nullptr,
 				0);
 		}
+		PIXEndEvent(m_commandList.Get());
 
 		// Indicate that the command buffer may be used by the compute shader
 		// and that the back buffer will now be used to present.

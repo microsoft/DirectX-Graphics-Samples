@@ -52,3 +52,7 @@ namespace DX
 	}
 #endif
 }
+
+// Naming helper for ComPtr<T>.
+// Assigns the name of the variable as the name of the object.
+#define NAME_D3D12_OBJECT(x) DX::SetName(x.Get(), L#x)

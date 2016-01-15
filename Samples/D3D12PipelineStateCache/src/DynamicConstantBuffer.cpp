@@ -44,6 +44,8 @@ void DynamicConstantBuffer::Init(ID3D12Device* pDevice)
 		IID_PPV_ARGS(&m_constantBuffer)
 		));
 
+	NAME_D3D12_OBJECT(m_constantBuffer);
+
 	CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 	ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pMappedConstantBuffer)));
 }

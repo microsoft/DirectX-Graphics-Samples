@@ -89,6 +89,7 @@ void D3D1211on12::LoadPipeline()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	ThrowIfFailed(m_d3d12Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	NAME_D3D12_OBJECT(m_commandQueue);
 
 	// Describe the swap chain.
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -180,6 +181,12 @@ void D3D1211on12::LoadPipeline()
 			ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
 			m_d3d12Device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 
+			WCHAR name[25];
+			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
+			{
+				SetName(m_renderTargets[n].Get(), name);
+			}
+
 			// Create a wrapped 11On12 resource of this back buffer. Since we are 
 			// rendering all D3D12 content first and then all D2D content, we specify 
 			// the In resource state as RENDER_TARGET - because D3D12 will have last 
@@ -223,6 +230,7 @@ void D3D1211on12::LoadAssets()
 		ComPtr<ID3DBlob> error;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 		ThrowIfFailed(m_d3d12Device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+		NAME_D3D12_OBJECT(m_rootSignature);
 	}
 
 	// Create the pipeline state, which includes compiling and loading shaders.
@@ -264,9 +272,11 @@ void D3D1211on12::LoadAssets()
 		psoDesc.SampleDesc.Count = 1;
 
 		ThrowIfFailed(m_d3d12Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+		NAME_D3D12_OBJECT(m_pipelineState);
 	}
 
 	ThrowIfFailed(m_d3d12Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+	NAME_D3D12_OBJECT(m_commandList);
 
 	// Create D2D/DWrite objects for rendering text.
 	{
@@ -319,6 +329,8 @@ void D3D1211on12::LoadAssets()
 			nullptr,
 			IID_PPV_ARGS(&vertexBufferUpload)));
 
+		NAME_D3D12_OBJECT(m_vertexBuffer);
+
 		// Copy data to the intermediate upload heap and then schedule a copy 
 		// from the upload heap to the vertex buffer.
 		D3D12_SUBRESOURCE_DATA vertexData = {};
@@ -368,6 +380,8 @@ void D3D1211on12::OnUpdate()
 // Render the scene.
 void D3D1211on12::OnRender()
 {
+	PIXBeginEvent(m_commandQueue.Get(), 0, L"Render 3D");
+
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList();
 
@@ -375,44 +389,16 @@ void D3D1211on12::OnRender()
 	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
+	PIXEndEvent(m_commandQueue.Get());
+
+	PIXBeginEvent(m_commandQueue.Get(), 0, L"Render UI");
 	RenderUI();
+	PIXEndEvent(m_commandQueue.Get());
 
 	// Present the frame.
 	ThrowIfFailed(m_swapChain->Present(1, 0));
 
 	MoveToNextFrame();
-}
-
-// Render text over D3D12 using D2D via the 11On12 device.
-void D3D1211on12::RenderUI()
-{
-	D2D1_SIZE_F rtSize = m_d2dRenderTargets[m_frameIndex]->GetSize();
-	D2D1_RECT_F textRect = D2D1::RectF(0, 0, rtSize.width, rtSize.height);
-	static const WCHAR text[] = L"11On12";
-
-	// Acquire our wrapped render target resource for the current back buffer.
-	m_d3d11On12Device->AcquireWrappedResources(m_wrappedBackBuffers[m_frameIndex].GetAddressOf(), 1);
-
-	// Render text directly to the back buffer.
-	m_d2dDeviceContext->SetTarget(m_d2dRenderTargets[m_frameIndex].Get());
-	m_d2dDeviceContext->BeginDraw();
-	m_d2dDeviceContext->SetTransform(D2D1::Matrix3x2F::Identity());
-	m_d2dDeviceContext->DrawTextW(
-		text,
-		_countof(text) - 1,
-		m_textFormat.Get(),
-		&textRect,
-		m_textBrush.Get()
-		);
-	ThrowIfFailed(m_d2dDeviceContext->EndDraw());
-
-	// Release our wrapped render target resource. Releasing 
-	// transitions the back buffer resource to the state specified
-	// as the OutState when the wrapped resource was created.
-	m_d3d11On12Device->ReleaseWrappedResources(m_wrappedBackBuffers[m_frameIndex].GetAddressOf(), 1);
-
-	// Flush to submit the 11 command list to the shared command queue.
-	m_d3d11DeviceContext->Flush();
 }
 
 void D3D1211on12::OnDestroy()
@@ -459,6 +445,38 @@ void D3D1211on12::PopulateCommandList()
 	// target resource is released.
 
 	ThrowIfFailed(m_commandList->Close());
+}
+
+// Render text over D3D12 using D2D via the 11On12 device.
+void D3D1211on12::RenderUI()
+{
+	D2D1_SIZE_F rtSize = m_d2dRenderTargets[m_frameIndex]->GetSize();
+	D2D1_RECT_F textRect = D2D1::RectF(0, 0, rtSize.width, rtSize.height);
+	static const WCHAR text[] = L"11On12";
+
+	// Acquire our wrapped render target resource for the current back buffer.
+	m_d3d11On12Device->AcquireWrappedResources(m_wrappedBackBuffers[m_frameIndex].GetAddressOf(), 1);
+
+	// Render text directly to the back buffer.
+	m_d2dDeviceContext->SetTarget(m_d2dRenderTargets[m_frameIndex].Get());
+	m_d2dDeviceContext->BeginDraw();
+	m_d2dDeviceContext->SetTransform(D2D1::Matrix3x2F::Identity());
+	m_d2dDeviceContext->DrawTextW(
+		text,
+		_countof(text) - 1,
+		m_textFormat.Get(),
+		&textRect,
+		m_textBrush.Get()
+		);
+	ThrowIfFailed(m_d2dDeviceContext->EndDraw());
+
+	// Release our wrapped render target resource. Releasing 
+	// transitions the back buffer resource to the state specified
+	// as the OutState when the wrapped resource was created.
+	m_d3d11On12Device->ReleaseWrappedResources(m_wrappedBackBuffers[m_frameIndex].GetAddressOf(), 1);
+
+	// Flush to submit the 11 command list to the shared command queue.
+	m_d3d11DeviceContext->Flush();
 }
 
 // Wait for pending GPU work to complete.

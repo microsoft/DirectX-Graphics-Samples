@@ -17,14 +17,8 @@
 #pragma warning(disable:4328) // nonstandard extension used : class rvalue used as lvalue
 #pragma warning(disable:4324) // structure was padded due to __declspec(align())
 
-#include <winapifamily.h>		// for WINAPI_FAMILY
-#include <wrl.h>
-
 #ifndef WIN32_LEAN_AND_MEAN
 	#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-	#define NOMINMAX
 #endif
 #include <windows.h>
 
@@ -51,6 +45,7 @@
 #include <exception>
 
 #include <ppltasks.h>
+#include <wrl.h>
 
 #include "Utility.h"
 #include "VectorMath.h"

@@ -96,6 +96,7 @@ void D3D12PipelineStateCache::LoadPipeline()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	NAME_D3D12_OBJECT(m_commandQueue);
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -140,6 +141,7 @@ void D3D12PipelineStateCache::LoadPipeline()
 		srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap)));
+		NAME_D3D12_OBJECT(m_srvHeap);
 
 		m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		m_srvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -153,10 +155,14 @@ void D3D12PipelineStateCache::LoadPipeline()
 		for (UINT n = 0; n < FrameCount; n++)
 		{
 			ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
-
-			// Create a RTV of the swap chain's back buffer.
 			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_rtvDescriptorSize);
+
+			WCHAR name[25];
+			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
+			{
+				SetName(m_renderTargets[n].Get(), name);
+			}
 
 			ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[n])));
 		}
@@ -175,6 +181,8 @@ void D3D12PipelineStateCache::LoadPipeline()
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
 			&clearValue,
 			IID_PPV_ARGS(&m_intermediateRenderTarget)));
+
+		NAME_D3D12_OBJECT(m_intermediateRenderTarget);
 
 		m_device->CreateRenderTargetView(m_intermediateRenderTarget.Get(), nullptr, rtvHandle);
 		rtvHandle.Offset(1, m_rtvDescriptorSize);
@@ -225,10 +233,12 @@ void D3D12PipelineStateCache::LoadAssets()
 		ComPtr<ID3DBlob> error;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+		NAME_D3D12_OBJECT(m_rootSignature);
 	}
 
 	// Create the command list.
 	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
+	NAME_D3D12_OBJECT(m_commandList);
 
 	// Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 	// the command list that references it has finished executing on the GPU.
@@ -296,6 +306,8 @@ void D3D12PipelineStateCache::LoadAssets()
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
 			IID_PPV_ARGS(&vertexIndexBufferUpload)));
+
+		NAME_D3D12_OBJECT(m_vertexIndexBuffer);
 
 		UINT8* mappedUploadHeap = nullptr;
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
@@ -370,12 +382,16 @@ void D3D12PipelineStateCache::OnUpdate()
 // Render the scene.
 void D3D12PipelineStateCache::OnRender()
 {
+	PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList();
 
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	PIXEndEvent(m_commandQueue.Get());
 
 	// Present the frame.
 	ThrowIfFailed(m_swapChain->Present(1, 0));
@@ -494,7 +510,8 @@ void D3D12PipelineStateCache::PopulateCommandList()
 	// Record commands.
 	m_commandList->ClearRenderTargetView(intermediateRtvHandle, IntermediateClearColor, 0, nullptr);
 
-	// Draw the scene as normal into the back buffer.
+	// Draw the scene as normal into the intermediate buffer.
+	PIXBeginEvent(m_commandList.Get(), 0, L"Draw cube");
 	{
 		static float rot = 0.0f;
 		DrawConstantBuffer* drawCB = (DrawConstantBuffer*)m_dynamicCB.GetMappedMemory(m_drawIndex, m_frameIndex);
@@ -510,6 +527,7 @@ void D3D12PipelineStateCache::PopulateCommandList()
 		m_commandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
 		m_drawIndex++;
 	}
+	PIXEndEvent(m_commandList.Get());
 
 	// Set up the state for a fullscreen quad.
 	m_commandList->IASetVertexBuffers(0, 1, &m_quadVbv);
@@ -531,6 +549,7 @@ void D3D12PipelineStateCache::PopulateCommandList()
 	m_commandList->SetGraphicsRootDescriptorTable(RootParameterSRV, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// Draw some quads using the rendered scene with some effect shaders.
+	PIXBeginEvent(m_commandList.Get(), 0, L"Post-processing");
 	{
 		UINT quadCount = 0;
 		static const UINT quadsX = 3;
@@ -549,14 +568,17 @@ void D3D12PipelineStateCache::PopulateCommandList()
 				viewport.MinDepth = 0.0f;
 				viewport.MaxDepth = 0.0f;
 
+				PIXBeginEvent(m_commandList.Get(), 0, g_cEffectNames[i]);
 				m_commandList->RSSetViewports(1, &viewport);
 				m_psoLibrary.SetPipelineState(m_device.Get(), m_rootSignature.Get(), m_commandList.Get(), static_cast<EffectPipelineType>(i), m_frameIndex);
 				m_commandList->DrawInstanced(4, 1, 0, 0);
+				PIXEndEvent(m_commandList.Get());
 			}
 
 			quadCount++;
 		}
 	}
+	PIXEndEvent(m_commandList.Get());
 
 	// Revert resource states back to original values.
 	barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;

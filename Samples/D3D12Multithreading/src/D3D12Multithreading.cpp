@@ -98,6 +98,7 @@ void D3D12Multithreading::LoadPipeline()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	NAME_D3D12_OBJECT(m_commandQueue);
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -156,6 +157,7 @@ void D3D12Multithreading::LoadPipeline()
 		cbvSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		cbvSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvSrvHeapDesc, IID_PPV_ARGS(&m_cbvSrvHeap)));
+		NAME_D3D12_OBJECT(m_cbvSrvHeap);
 
 		// Describe and create a sampler descriptor heap.
 		D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
@@ -163,6 +165,7 @@ void D3D12Multithreading::LoadPipeline()
 		samplerHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 		samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(&m_samplerHeap)));
+		NAME_D3D12_OBJECT(m_samplerHeap);
 
 		m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	}
@@ -194,6 +197,7 @@ void D3D12Multithreading::LoadAssets()
 		ComPtr<ID3DBlob> error;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+		NAME_D3D12_OBJECT(m_rootSignature);
 	}
 
 	// Create the pipeline state, which includes loading shaders.
@@ -238,6 +242,7 @@ void D3D12Multithreading::LoadAssets()
 		psoDesc.SampleDesc.Count = 1;
 
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+		NAME_D3D12_OBJECT(m_pipelineState);
 
 		// Alter the description and create the PSO for rendering
 		// the shadow map.  The shadow map does not use a pixel
@@ -247,6 +252,7 @@ void D3D12Multithreading::LoadAssets()
 		psoDesc.NumRenderTargets = 0;
 
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineStateShadowMap)));
+		NAME_D3D12_OBJECT(m_pipelineStateShadowMap);
 	}
 
 	// Create temporary command list for initial GPU setup.
@@ -260,6 +266,12 @@ void D3D12Multithreading::LoadAssets()
 		ThrowIfFailed(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
 		m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
 		rtvHandle.Offset(1, m_rtvDescriptorSize);
+
+		WCHAR name[25];
+		if (swprintf_s(name, L"m_renderTargets[%u]", i) > 0)
+		{
+			SetName(m_renderTargets[i].Get(), name);
+		}
 	}
 
 	// Create the depth stencil.
@@ -290,6 +302,8 @@ void D3D12Multithreading::LoadAssets()
 			&clearValue,
 			IID_PPV_ARGS(&m_depthStencil)));
 
+		NAME_D3D12_OBJECT(m_depthStencil);
+
 		// Create the depth stencil view.
 		m_device->CreateDepthStencilView(m_depthStencil.Get(), nullptr, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
@@ -308,6 +322,8 @@ void D3D12Multithreading::LoadAssets()
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
 			IID_PPV_ARGS(&m_vertexBuffer)));
+
+		NAME_D3D12_OBJECT(m_vertexBuffer);
 
 		{
 			ThrowIfFailed(m_device->CreateCommittedResource(
@@ -348,6 +364,8 @@ void D3D12Multithreading::LoadAssets()
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
 			IID_PPV_ARGS(&m_indexBuffer)));
+
+		NAME_D3D12_OBJECT(m_indexBuffer);
 
 		{
 			ThrowIfFailed(m_device->CreateCommittedResource(
@@ -433,6 +451,10 @@ void D3D12Multithreading::LoadAssets()
 				nullptr,
 				IID_PPV_ARGS(&m_textures[i])));
 
+			WCHAR name[30];
+			swprintf_s(name, L"m_textures[%d]", i);
+			SetName(m_textures[i].Get(), name);
+
 			{
 				const UINT subresourceCount = texDesc.DepthOrArraySize * texDesc.MipLevels;
 				UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_textures[i].Get(), 0, subresourceCount);
@@ -444,7 +466,7 @@ void D3D12Multithreading::LoadAssets()
 					nullptr,
 					IID_PPV_ARGS(&m_textureUploads[i])));
 
-				// Copy data to the intermediate upload heap and then schedule a copy 
+				// Copy data to the intermediate upload heap and then schedule a copy
 				// from the upload heap to the Texture2D.
 				D3D12_SUBRESOURCE_DATA textureData = {};
 				textureData.pData = pAssetData + tex.Data->Offset;

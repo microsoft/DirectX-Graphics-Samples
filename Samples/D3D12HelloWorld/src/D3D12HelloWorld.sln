@@ -13,6 +13,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloConstBuffers", "H
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloTexture", "HelloTexture\D3D12HelloTexture.vcxproj", "{16B13BB4-D82D-4AC1-8B40-C6BCCC99954B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloFrameBuffering", "HelloFrameBuffering\D3D12HelloFrameBuffering.vcxproj", "{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -39,6 +41,10 @@ Global
 		{16B13BB4-D82D-4AC1-8B40-C6BCCC99954B}.Debug|x64.Build.0 = Debug|x64
 		{16B13BB4-D82D-4AC1-8B40-C6BCCC99954B}.Release|x64.ActiveCfg = Release|x64
 		{16B13BB4-D82D-4AC1-8B40-C6BCCC99954B}.Release|x64.Build.0 = Release|x64
+		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Debug|x64.ActiveCfg = Debug|x64
+		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Debug|x64.Build.0 = Debug|x64
+		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Release|x64.ActiveCfg = Release|x64
+		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

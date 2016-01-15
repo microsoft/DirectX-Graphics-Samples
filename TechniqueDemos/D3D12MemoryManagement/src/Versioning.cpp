@@ -11,6 +11,7 @@
 
 #include "stdafx.h"
 
+_Use_decl_annotations_
 HRESULT DynamicBuffer::Allocate(UINT32 ElementSize, UINT32 ElementCount, void** pData, UINT32* pOffset)
 {
 	UINT32 AllocationSize = ElementSize * ElementCount;

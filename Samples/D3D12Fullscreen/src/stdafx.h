@@ -26,6 +26,7 @@
 #include <D3Dcompiler.h>
 #include "d3dx12.h"
 #include <DirectXMath.h>
+#include <pix.h>
 
 #include <wrl.h>
 #include <string>
