@@ -416,3 +416,10 @@ void ModelViewer::CreateParticleEffects()
 	Fire.Spread.y = 60.0f;
 	ParticleEffects::InstantiateEffect( &Fire );
 }
+
+// Enable NVIDIA graphics rendering on Optimus systems
+// http://developer.download.nvidia.com/devzone/devcenter/gamegraphics/files/OptimusRenderingPolicies.pdf
+extern "C"
+{
+	_declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+}
