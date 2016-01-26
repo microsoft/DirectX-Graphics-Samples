@@ -14,7 +14,7 @@ The main differences are:
 ## System requirements
 
 * Windows 10, 64-bit
-* A D3D12 compatible GPU
+* A Direct3D 12 compatible GPU
 * Screen resolution must be 1920x1080 or higher. The sample will run in 1600×1050 pixel resolution.
 
 ## Notes
