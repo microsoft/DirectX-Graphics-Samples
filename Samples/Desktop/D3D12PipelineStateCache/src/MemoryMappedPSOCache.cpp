@@ -27,7 +27,7 @@ void MemoryMappedPSOCache::Init(std::wstring filename)
 {
 	m_filename = filename;
 	WIN32_FIND_DATA findFileData;
-	HANDLE handle = FindFirstFile(filename.c_str(), &findFileData);
+	HANDLE handle = FindFirstFileEx(filename.c_str(), FindExInfoBasic, &findFileData, FindExSearchNameMatch, nullptr, 0);
 	bool found = handle != INVALID_HANDLE_VALUE;
 
 	if (found)
@@ -35,13 +35,11 @@ void MemoryMappedPSOCache::Init(std::wstring filename)
 		FindClose(handle);
 	}
 
-	m_file = CreateFile(
+	m_file = CreateFile2(
 		filename.c_str(),
 		GENERIC_READ | GENERIC_WRITE,
 		0,
-		nullptr,
 		(found) ? OPEN_EXISTING : CREATE_NEW,
-		FILE_ATTRIBUTE_NORMAL,
 		nullptr);
 
 	if (m_file == INVALID_HANDLE_VALUE)
