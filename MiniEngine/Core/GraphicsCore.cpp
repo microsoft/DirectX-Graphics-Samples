@@ -97,7 +97,7 @@ namespace Graphics
 	const uint32_t kNumPredefinedResolutions = 5;
 
 	const char* ResolutionLabels[] = { "1280x720", "1600x900", "1920x1080", "2560x1440", "3840x2160" };
-	EnumVar TargetResolution("Graphics/Scaling/Native Resolution", k1080p, kNumPredefinedResolutions, ResolutionLabels);
+	EnumVar TargetResolution("Graphics/Display/Native Resolution", k1080p, kNumPredefinedResolutions, ResolutionLabels);
 
 	uint32_t g_NativeWidth = 1920;
 	uint32_t g_NativeHeight = 1080;
@@ -105,11 +105,11 @@ namespace Graphics
 	uint32_t g_DisplayHeight = 1080;
 	ColorBuffer g_PreDisplayBuffer;
 
-	void SetNativeResolution( eResolution Res )
+	void SetNativeResolution(void)
 	{
 		uint32_t NativeWidth, NativeHeight;
 
-		switch (Res)
+		switch (eResolution((int)TargetResolution))
 		{
 		case k720p:
 			NativeWidth = 1280;
@@ -149,6 +149,7 @@ namespace Graphics
 	ID3D12Device* g_Device = nullptr;
 
 	CommandListManager g_CommandManager;
+	ContextManager g_ContextManager;
 
 	D3D_FEATURE_LEVEL g_D3DFeatureLevel = D3D_FEATURE_LEVEL_11_0;
 
@@ -162,7 +163,7 @@ namespace Graphics
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 		D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
 		D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-		D3D12_DESCRIPTOR_HEAP_TYPE_DSV
+		D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
 	};
 
 	SamplerDesc SamplerLinearWrapDesc;
@@ -218,18 +219,17 @@ namespace Graphics
 	ComputePSO g_GenerateMipsLinearPSO[4];
 	ComputePSO g_GenerateMipsGammaPSO[4];
 
-	enum { kBilinear, kBicubic, kSharpening };
+	enum { kBilinear, kBicubic, kSharpening, kFilterCount };
 	const char* FilterLabels[] = { "Bilinear", "Bicubic", "Sharpening" };
-	EnumVar UpsampleFilter("Graphics/Scaling/Upsample Filter", kSharpening, 3, FilterLabels);
-	NumVar BicubicUpsampleWeight("Graphics/Scaling/Bicubic Filter Weight", -0.75f, -1.0f, -0.25f, 0.25f);
-	NumVar SharpeningSpread("Graphics/Scaling/Sharpness Sample Spread", 1.0f, 0.7f, 2.0f, 0.1f);
-	NumVar SharpeningRotation("Graphics/Scaling/Sharpness Sample Rotation", 45.0f, 0.0f, 90.0f, 15.0f);
-	NumVar SharpeningStrength("Graphics/Scaling/Sharpness Strength", 0.10f, 0.0f, 1.0f, 0.01f);
+	EnumVar UpsampleFilter("Graphics/Display/Upsample Filter", kFilterCount - 1, kFilterCount, FilterLabels);
+	NumVar BicubicUpsampleWeight("Graphics/Display/Bicubic Filter Weight", -0.75f, -1.0f, -0.25f, 0.25f);
+	NumVar SharpeningSpread("Graphics/Display/Sharpness Sample Spread", 1.0f, 0.7f, 2.0f, 0.1f);
+	NumVar SharpeningRotation("Graphics/Display/Sharpness Sample Rotation", 45.0f, 0.0f, 90.0f, 15.0f);
+	NumVar SharpeningStrength("Graphics/Display/Sharpness Strength", 0.10f, 0.0f, 1.0f, 0.01f);
 
 	enum DebugZoomLevel { kDebugZoomOff, kDebugZoom2x, kDebugZoom4x };
 	const char* DebugZoomLabels[] = { "Off", "2x Zoom", "4x Zoom" };
-	EnumVar DebugZoom("Graphics/Scaling/Magnify Pixels", kDebugZoomOff, 3, DebugZoomLabels);
-
+	EnumVar DebugZoom("Graphics/Display/Magnify Pixels", kDebugZoomOff, 3, DebugZoomLabels);
 }
 
 void Graphics::Resize(uint32_t width, uint32_t height)
@@ -612,14 +612,7 @@ void Graphics::Present(void)
 
 	ColorBuffer& UpsampleDest = (DebugZoom == kDebugZoomOff ? g_DisplayPlane[g_CurrentBuffer] : g_PreDisplayBuffer);
 
-	if (g_NativeWidth > g_DisplayWidth && g_NativeHeight > g_DisplayHeight)
-	{
-		Context.SetPipelineState(BilinearUpsamplePS);
-		Context.SetRenderTarget(UpsampleDest);
-		Context.SetViewportAndScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
-		Context.Draw(3);
-	}
-	else if (g_NativeWidth == g_DisplayWidth && g_NativeHeight == g_DisplayHeight)
+	if (g_NativeWidth == g_DisplayWidth && g_NativeHeight == g_DisplayHeight)
 	{
 		Context.SetPipelineState(ConvertLDRToDisplayPS);
 		Context.SetRenderTarget(UpsampleDest);
@@ -686,11 +679,11 @@ void Graphics::Present(void)
 	Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_PRESENT);
 
 	// Close the final context to be executed before frame present.
-	Context.CloseAndExecute();
+	Context.Finish();
 
 	g_CurrentBuffer = (g_CurrentBuffer + 1) % SWAP_CHAIN_BUFFER_COUNT;
 
-	UINT PresentInterval = s_EnableVSync ? min(4, (UINT)Round(s_FrameTime * 60.0f)) : 0;
+	UINT PresentInterval = s_EnableVSync ? std::min(4, (int)Round(s_FrameTime * 60.0f)) : 0;
 
 	s_PrimarySwapChain->Present(PresentInterval, 0);
 
@@ -729,7 +722,7 @@ void Graphics::Present(void)
 
 	++s_FrameIndex;
 
-	SetNativeResolution(eResolution((int)TargetResolution));
+	SetNativeResolution();
 }
 
 uint64_t Graphics::GetFrameCount(void)

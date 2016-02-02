@@ -30,7 +30,6 @@ public:
 	{
 		format_none = 0,
 		format_h3d, // native format
-		format_pbrt,
 		
 		formats,
 	};
@@ -136,6 +135,7 @@ public:
 		uint32_t materialCount;
 		uint32_t vertexDataByteSize;
 		uint32_t indexDataByteSize;
+		uint32_t vertexDataByteSizeDepth;
 
 		BoundingBox boundingBox;
 	};
@@ -148,14 +148,19 @@ public:
 		unsigned int materialIndex;
 
 		unsigned int attribsEnabled;
+		unsigned int attribsEnabledDepth;
 		unsigned int vertexStride;
+		unsigned int vertexStrideDepth;
 		Attrib attrib[maxAttribs];
+		Attrib attribDepth[maxAttribs];
 
 		unsigned int vertexDataByteOffset;
 		unsigned int vertexCount;
-
 		unsigned int indexDataByteOffset;
 		unsigned int indexCount;
+
+		unsigned int vertexDataByteOffsetDepth;
+		unsigned int vertexCountDepth;
 	};
 	Mesh *m_pMesh;
 
@@ -190,6 +195,13 @@ public:
 	ByteAddressBuffer m_IndexBuffer;
 	uint32_t m_VertexStride;
 
+	// optimized for depth-only rendering
+	unsigned char *m_pVertexDataDepth;
+	unsigned char *m_pIndexDataDepth;
+	StructuredBuffer m_VertexBufferDepth;
+	ByteAddressBuffer m_IndexBufferDepth;
+	uint32_t m_VertexStrideDepth;
+
 	D3D12_CPU_DESCRIPTOR_HANDLE* GetSRVs( uint32_t materialIdx ) const
 	{
 		return m_SRVs + materialIdx * 6;
@@ -200,9 +212,6 @@ private:
 	bool LoadH3D(const char *filename);
 #ifdef MODEL_ENABLE_ASSIMP
 	bool LoadAssimp(const char *filename);
-#endif
-#ifdef MODEL_ENABLE_PBRT
-	bool LoadPBRT(const char *filename);
 #endif
 
 	bool SaveH3D(const char *filename) const;
@@ -216,8 +225,9 @@ private:
 
 #ifdef MODEL_ENABLE_OPTIMIZER
 	void Optimize();
-	void OptimizePostTransform();
-	void OptimizePreTransform();
+	void OptimizeRemoveDuplicateVertices(bool depth);
+	void OptimizePostTransform(bool depth);
+	void OptimizePreTransform(bool depth);
 #endif
 
 	void ReleaseTextures();

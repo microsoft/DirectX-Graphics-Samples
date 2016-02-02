@@ -15,8 +15,6 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AssemblerOutput>All</AssemblerOutput>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <Link>
       <LargeAddressAware>true</LargeAddressAware>

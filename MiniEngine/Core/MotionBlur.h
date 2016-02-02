@@ -23,7 +23,6 @@ class CommandContext;
 namespace MotionBlur
 {
 	extern BoolVar Enable;
-	extern BoolVar TemporalAA;
 
 	void Initialize( void );
 	void Shutdown( void );
@@ -37,4 +36,11 @@ namespace MotionBlur
 	// Generate proper motion blur that takes into account the velocity of each pixel.  Requires a pre-generated
 	// velocity buffer (R16G16_FLOAT preferred.)
 	void RenderObjectBlur( CommandContext& Context, ColorBuffer& velocityBuffer );
+}
+
+namespace TemporalAA
+{
+	extern BoolVar Enable;
+
+	void ApplyTemporalAA(CommandContext& Context);
 }

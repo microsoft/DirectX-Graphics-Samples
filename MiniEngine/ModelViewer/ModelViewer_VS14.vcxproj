@@ -58,12 +58,21 @@
     <Link>
       <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
     <Link />
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link />
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ModelViewer.cpp" />
@@ -75,6 +84,9 @@
     </ProjectReference>
     <ProjectReference Include="..\3rdParty\zlib-win64\ZLib_VS14.vcxproj">
       <Project>{ae5221d1-87e2-4428-8ef9-f25909c43291}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Model\Model_VS14.vcxproj">
+      <Project>{5d3aeefb-8789-48e5-9bd9-09c667052d09}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup />

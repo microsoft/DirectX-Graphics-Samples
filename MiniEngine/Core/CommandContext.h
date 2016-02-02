@@ -51,22 +51,34 @@ struct DWParam
 	};
 };
 
+#define VALID_COMPUTE_QUEUE_RESOURCE_STATES \
+	( D3D12_RESOURCE_STATE_UNORDERED_ACCESS \
+	| D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE \
+	| D3D12_RESOURCE_STATE_COPY_DEST \
+	| D3D12_RESOURCE_STATE_COPY_SOURCE )
+
+class ContextManager
+{
+public:
+	ContextManager(void) {}
+
+	CommandContext* AllocateContext(D3D12_COMMAND_LIST_TYPE Type);
+	void FreeContext(CommandContext*);
+	void DestroyAllContexts();
+
+private:
+	std::vector<std::unique_ptr<CommandContext> > sm_ContextPool[4];
+	std::queue<CommandContext*> sm_AvailableContexts[4];
+	std::mutex sm_ContextAllocationMutex;
+};
+
 class CommandContext
 {
+	friend ContextManager;
 private:
 
-	static std::vector<std::unique_ptr<CommandContext> > sm_ContextPool;
-	static std::queue<CommandContext*> sm_AvailableContexts;
-	static std::mutex sm_ContextAllocationMutex;
-	static CommandContext* AllocateContext();
-	static void FreeContext(CommandContext*);
+	CommandContext(D3D12_COMMAND_LIST_TYPE Type);
 
-	CommandContext( void );
-
-	// Submit the command buffer and reset it.  This is encouraged to keep the GPU busy and reduce latency.
-	// Taking too long to build command lists and submit them can idle the GPU.
-	// Returns a fence value to verify completion.  (Use it with the CommandListManager.)
-	uint64_t Finish( bool Wait = false );
 	void Reset( void );
 
 public:
@@ -77,12 +89,17 @@ public:
 
 	static CommandContext& Begin(const std::wstring ID = L"");
 
-	uint64_t CloseAndExecute( bool WaitForCompletion = false );
+	// Flush existing commands to the GPU but keep the context alive
+	uint64_t Flush( bool WaitForCompletion = false );
+
+	// Flush existing commands and release the current context
+	uint64_t Finish( bool WaitForCompletion = false );
 
 	// Prepare to render by reserving a command list and command allocator
-	void Initialize( CommandListManager& Manager );
+	void Initialize(void);
 
 	GraphicsContext& GetGraphicsContext() {
+		ASSERT(m_Type != D3D12_COMMAND_LIST_TYPE_COMPUTE, "Cannot convert async compute context to graphics");
 		return reinterpret_cast<GraphicsContext&>(*this);
 	}
 
@@ -97,7 +114,7 @@ public:
 	void ResetCounter(StructuredBuffer& Buf, uint32_t Value = 0);
 
 	static void InitializeTexture( GpuResource& Dest, UINT NumSubresources, D3D12_SUBRESOURCE_DATA SubData[] );
-	static void InitializeBuffer( GpuResource& Dest, const void* Data, size_t NumBytes );
+	static void InitializeBuffer( GpuResource& Dest, const void* Data, size_t NumBytes , bool UseOffset = false, size_t Offset = 0);
 	static void InitializeTextureArraySlice(GpuResource& Dest, UINT SliceIndex, GpuResource& Src);
 
 	void WriteBuffer( GpuResource& Dest, size_t DestOffset, const void* Data, size_t NumBytes );
@@ -117,6 +134,8 @@ public:
 
 	void SetDescriptorHeap( D3D12_DESCRIPTOR_HEAP_TYPE Type, ID3D12DescriptorHeap* HeapPtr );
 	void SetDescriptorHeaps( UINT HeapCount, D3D12_DESCRIPTOR_HEAP_TYPE Type[], ID3D12DescriptorHeap* HeapPtrs[] );
+
+	void SetPredication(ID3D12Resource* Buffer, UINT64 BufferOffset, D3D12_PREDICATION_OP Op);
 
 protected:
 
@@ -144,6 +163,8 @@ protected:
 
 	std::wstring m_ID;
 	void SetID(const std::wstring& ID) { m_ID = ID; }
+
+	D3D12_COMMAND_LIST_TYPE m_Type;
 };
 
 class GraphicsContext : public CommandContext
@@ -161,6 +182,10 @@ public:
 	void ClearDepth( DepthBuffer& Target );
 	void ClearStencil( DepthBuffer& Target );
 	void ClearDepthAndStencil( DepthBuffer& Target );
+
+	void BeginQuery(ID3D12QueryHeap* QueryHeap, D3D12_QUERY_TYPE Type, UINT HeapIndex);
+	void EndQuery(ID3D12QueryHeap* QueryHeap, D3D12_QUERY_TYPE Type, UINT HeapIndex);
+	void ResolveQueryData(ID3D12QueryHeap* QueryHeap, D3D12_QUERY_TYPE Type, UINT StartIndex, UINT NumQueries, ID3D12Resource* DestinationBuffer, UINT64 DestinationBufferOffset);
 
 	void SetRootSignature( const RootSignature& RootSig );
 
@@ -219,10 +244,7 @@ class ComputeContext : public CommandContext
 {
 public:
 
-	static ComputeContext& Begin(const std::wstring& ID = L"")
-	{
-		return CommandContext::Begin(ID).GetComputeContext();
-	}
+	static ComputeContext& Begin(const std::wstring& ID = L"", bool Async = false);
 
 	void ClearUAV( GpuBuffer& Target );
 	void ClearUAV( ColorBuffer& Target );
@@ -535,6 +557,11 @@ inline void CommandContext::SetDescriptorHeaps( UINT HeapCount, D3D12_DESCRIPTOR
 
 	if (AnyChanged)
 		BindDescriptorHeaps();
+}
+
+inline void CommandContext::SetPredication(ID3D12Resource* Buffer, UINT64 BufferOffset, D3D12_PREDICATION_OP Op)
+{
+	m_CommandList->SetPredication(Buffer, BufferOffset, Op);
 }
 
 inline void GraphicsContext::SetDynamicDescriptor( UINT RootIndex, UINT Offset, D3D12_CPU_DESCRIPTOR_HANDLE Handle )

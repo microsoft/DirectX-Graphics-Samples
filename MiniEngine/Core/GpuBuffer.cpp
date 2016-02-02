@@ -55,6 +55,35 @@ void GpuBuffer::Create( const std::wstring& name, uint32_t NumElements, uint32_t
 	CreateDerivedViews();
 }
 
+// Sub-Allocate a buffer out of a pre-allocated heap.  If initial data is provided, it will be copied into the buffer using the default command context.
+void GpuBuffer::CreatePlaced(const std::wstring& name, ID3D12Heap* pBackingHeap, uint32_t HeapOffset, uint32_t NumElements, uint32_t ElementSize,
+	const void* initialData)
+{
+	m_ElementCount = NumElements;
+	m_ElementSize = ElementSize;
+	m_BufferSize = NumElements * ElementSize;
+
+	D3D12_RESOURCE_DESC ResourceDesc = DescribeBuffer();
+
+	m_UsageState = D3D12_RESOURCE_STATE_COMMON;
+
+	ASSERT_SUCCEEDED(g_Device->CreatePlacedResource(pBackingHeap, HeapOffset, &ResourceDesc, m_UsageState, nullptr, MY_IID_PPV_ARGS(&m_pResource)));
+
+	m_GpuVirtualAddress = m_pResource->GetGPUVirtualAddress();
+
+	if (initialData)
+		CommandContext::InitializeBuffer(*this, initialData, m_BufferSize);
+
+#ifdef RELEASE
+	(name);
+#else
+	m_pResource->SetName(name.c_str());
+#endif
+
+	CreateDerivedViews();
+
+}
+
 void GpuBuffer::Create(const std::wstring& name, uint32_t NumElements, uint32_t ElementSize,
 	EsramAllocator&, const void* initialData)
 {
@@ -157,7 +186,7 @@ void StructuredBuffer::CreateDerivedViews(void)
 	g_Device->CreateUnorderedAccessView(m_pResource.Get(), m_CounterBuffer.GetResource(), &UAVDesc, m_UAV);
 }
 
-void TypedBuffer::CreateDerivedViews()
+void TypedBuffer::CreateDerivedViews(void)
 {
 	auto Device = g_Device;
 

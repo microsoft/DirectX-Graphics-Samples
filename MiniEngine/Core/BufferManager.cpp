@@ -21,6 +21,7 @@ namespace Graphics
 {
 	DepthBuffer g_SceneDepthBuffer;
 	ColorBuffer g_SceneColorBuffer;
+	ColorBuffer g_ReprojectionBuffer;
 	ColorBuffer g_OverlayBuffer;
 	ColorBuffer g_HorizontalBuffer;
 
@@ -106,6 +107,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 	esram.PushStack();
 
 		g_SceneColorBuffer.Create( L"Main Color Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
+		g_ReprojectionBuffer.Create( L"Temporal Reprojection", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16_FLOAT );
 
 		esram.PushStack();	// Render HDR image
 
@@ -127,10 +129,10 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 						g_DepthDownsize2.Create( L"Depth Down-Sized 2", bufferWidth2, bufferHeight2, 1, DXGI_FORMAT_R32_FLOAT, esram );
 						g_DepthDownsize3.Create( L"Depth Down-Sized 3", bufferWidth3, bufferHeight3, 1, DXGI_FORMAT_R32_FLOAT, esram );
 						g_DepthDownsize4.Create( L"Depth Down-Sized 4", bufferWidth4, bufferHeight4, 1, DXGI_FORMAT_R32_FLOAT, esram );
-						g_DepthTiled1.CreateArray( L"Depth De-Interleaved 1", bufferWidth3, bufferHeight3, 16, DXGI_FORMAT_R32_FLOAT, esram );
-						g_DepthTiled2.CreateArray( L"Depth De-Interleaved 2", bufferWidth4, bufferHeight4, 16, DXGI_FORMAT_R32_FLOAT, esram );
-						g_DepthTiled3.CreateArray( L"Depth De-Interleaved 3", bufferWidth5, bufferHeight5, 16, DXGI_FORMAT_R32_FLOAT, esram );
-						g_DepthTiled4.CreateArray( L"Depth De-Interleaved 4", bufferWidth6, bufferHeight6, 16, DXGI_FORMAT_R32_FLOAT, esram );
+						g_DepthTiled1.CreateArray( L"Depth De-Interleaved 1", bufferWidth3, bufferHeight3, 16, DXGI_FORMAT_R16_FLOAT, esram );
+						g_DepthTiled2.CreateArray( L"Depth De-Interleaved 2", bufferWidth4, bufferHeight4, 16, DXGI_FORMAT_R16_FLOAT, esram );
+						g_DepthTiled3.CreateArray( L"Depth De-Interleaved 3", bufferWidth5, bufferHeight5, 16, DXGI_FORMAT_R16_FLOAT, esram );
+						g_DepthTiled4.CreateArray( L"Depth De-Interleaved 4", bufferWidth6, bufferHeight6, 16, DXGI_FORMAT_R16_FLOAT, esram );
 						g_AOMerged1.Create( L"AO Re-Interleaved 1", bufferWidth1, bufferHeight1, 1, DXGI_FORMAT_R8_UNORM, esram );
 						g_AOMerged2.Create( L"AO Re-Interleaved 2", bufferWidth2, bufferHeight2, 1, DXGI_FORMAT_R8_UNORM, esram );
 						g_AOMerged3.Create( L"AO Re-Interleaved 3", bufferWidth3, bufferHeight3, 1, DXGI_FORMAT_R8_UNORM, esram );
@@ -144,7 +146,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 						g_AOHighQuality4.Create( L"AO High Quality 4", bufferWidth4, bufferHeight4, 1, DXGI_FORMAT_R8_UNORM, esram );
 					esram.PopStack();	// End generating SSAO
 
-					g_ShadowBuffer.Create( L"Shadow Map", 2048, 2048, esram );
+					g_ShadowBuffer.Create( L"Shadow Map", 2048, 2048 );//, esram );
 
 				esram.PopStack();	// End Shading
 
@@ -214,17 +216,18 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 		esram.PopStack();
 
 		g_OverlayBuffer.Create( L"UI Overlay", 1920, 1080, 1, DXGI_FORMAT_R8G8B8A8_UNORM, esram );
-		g_HorizontalBuffer.Create( L"Bicubic Intermediate", 1920, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram);
+		g_HorizontalBuffer.Create(L"Bicubic Intermediate", 4096, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT);
 
 	esram.PopStack(); // End final image
 
-	InitContext.CloseAndExecute();
+	InitContext.Finish();
 }
 
 void Graphics::DestroyRenderingBuffers()
 {
 	g_SceneDepthBuffer.Destroy();
 	g_SceneColorBuffer.Destroy();
+	g_ReprojectionBuffer.Destroy();
 	g_OverlayBuffer.Destroy();
 	g_HorizontalBuffer.Destroy();
 

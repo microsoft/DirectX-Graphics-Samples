@@ -60,6 +60,9 @@ namespace PostEffects
 	// 1080p.  This is a common size for a bloom buffer on consoles.
 	static_assert( kBloomWidth % 16 == 0 && kBloomHeight % 16 == 0, "Bloom buffer dimensions must be multiples of 16" );
 
+	const float kInitialMinLog = -12.0f;
+	const float kInitialMaxLog = 4.0f;
+
 	BoolVar EnableHDR("Graphics/HDR/Enable", true);
 	BoolVar EnableAdaptation("Graphics/HDR/Adaptive Exposure", true);
 	ExpVar MinExposure("Graphics/HDR/Min Exposure", 0.125f, -5.0f, 5.0f, 0.25f);
@@ -76,8 +79,8 @@ namespace PostEffects
 	NumVar BloomUpsampleFactor("Graphics/Bloom/Scatter", 0.65f, 0.0f, 1.0f, 0.05f);	// Controls the "focus" of the blur.  High values spread out more causing a haze.
 	BoolVar HighQualityBloom("Graphics/Bloom/High Quality", true);					// High quality blurs 5 octaves of bloom; low quality only blurs 3.
 
-	NumVar LogLumaConstant("Graphics/FXAA/Log-Luma Constant", 4.0f, 1.0f, 8.0f, 0.5f);
-	BoolVar bToneMapOnlyLuma("Graphics/HDR/Preserve Chroma", false);
+	NumVar LogLumaConstant("Graphics/AA/FXAA/Log-Luma Constant", 4.0f, 1.0f, 8.0f, 0.5f);
+	BoolVar bToneMapOnlyLuma("Graphics/HDR/Preserve Chroma", true);
 
 	RootSignature PostEffectsRS;
 	ComputePSO ToneMapCS;
@@ -142,8 +145,12 @@ void PostEffects::Initialize( void )
 
 #undef CreatePSO
 
-	__declspec(align(16)) float initExposure[] = { Exposure, 1.0f / Exposure, Exposure / PeakIntensity };
-	g_Exposure.Create(L"Exposure", 4, 4, initExposure);
+	__declspec(align(16)) float initExposure[] =
+	{
+		Exposure, 1.0f / Exposure, Exposure / PeakIntensity, 0.0f,
+		kInitialMinLog, kInitialMaxLog, kInitialMaxLog - kInitialMinLog, 1.0f / (kInitialMaxLog - kInitialMinLog)
+	};
+	g_Exposure.Create(L"Exposure", 8, 4, initExposure);
 
 	FXAA::Initialize();
 	MotionBlur::Initialize();
@@ -282,7 +289,11 @@ void PostEffects::UpdateExposure( ComputeContext& Context )
 
 	if (!EnableAdaptation)
 	{
-		__declspec(align(16)) float initExposure[] = { Exposure, 1.0f / Exposure, Exposure / PeakIntensity };
+		__declspec(align(16)) float initExposure[] =
+		{
+			Exposure, 1.0f / Exposure, Exposure / PeakIntensity, 0.0f,
+			kInitialMinLog, kInitialMaxLog, kInitialMaxLog - kInitialMinLog, 1.0f / (kInitialMaxLog - kInitialMinLog)
+		};
 		Context.WriteBuffer(g_Exposure, 0, initExposure, sizeof(initExposure));
 		Context.TransitionResource(g_Exposure, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
@@ -399,7 +410,9 @@ void PostEffects::Render( void )
 
 	bool bGeneratedLumaBuffer = EnableHDR || FXAA::DebugDraw || BloomEnable;
 	if (FXAA::Enable)
-		FXAA::Render( Context, bGeneratedLumaBuffer );
+		FXAA::Render(Context, bGeneratedLumaBuffer);
+
+	TemporalAA::ApplyTemporalAA(Context);
 
 	if (DrawHistogram)
 	{
@@ -416,5 +429,5 @@ void PostEffects::Render( void )
 		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	}
 
-	Context.CloseAndExecute();
+	Context.Finish();
 }

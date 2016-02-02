@@ -167,7 +167,7 @@ void ModelViewer::Startup( void )
 	m_pCameraController = new CameraController(m_Camera, Vector3(kYUnitVector));
 
 	MotionBlur::Enable = true;
-	MotionBlur::TemporalAA = true;
+	TemporalAA::Enable = true;
 	FXAA::Enable = true;
 	PostEffects::EnableHDR = true;
 	PostEffects::EnableAdaptation = true;
@@ -187,9 +187,19 @@ void ModelViewer::Cleanup( void )
 	m_pCameraController = nullptr;
 }
 
+namespace Graphics
+{
+	extern EnumVar DebugZoom;
+}
+
 void ModelViewer::Update( float deltaT )
 {
 	ScopedTimer _prof(L"Update State");
+
+	if (GameInput::IsFirstPressed(GameInput::kLShoulder))
+		DebugZoom.Decrement();
+	else if (GameInput::IsFirstPressed(GameInput::kRShoulder))
+		DebugZoom.Increment();
 
 	m_pCameraController->Update(deltaT);
 	m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
@@ -200,23 +210,43 @@ void ModelViewer::Update( float deltaT )
 	float sinphi = sinf(m_SunInclination * 3.14159f * 0.5f);
 	m_SunDirection = Normalize(Vector3( costheta * cosphi, sinphi, sintheta * cosphi ));
 
-	if (MotionBlur::TemporalAA)
+	// We use viewport offsets to jitter our color samples from frame to frame (with TAA.)
+	// D3D has a design quirk with fractional offsets such that the implicit scissor
+	// region of a viewport is floor(TopLeftXY) and floor(TopLeftXY + WidthHeight), so
+	// having a negative fractional top left, e.g. (-0.25, -0.25) would also shift the
+	// BottomRight corner up by a whole integer.  One solution is to pad your viewport
+	// dimensions with an extra pixel.  My solution is to only use positive fractional offsets,
+	// but that means that the average sample position is +0.5, which I use when I disable
+	// temporal AA.
+	if (TemporalAA::Enable)
 	{
+		uint64_t FrameIndex = Graphics::GetFrameCount();
+#if 1
 		// 2x super sampling with no feedback
 		float SampleOffsets[2][2] =
 		{
-			{ -0.25f, -0.25f },
-			{  0.25f,  0.25f },
+			{ 0.25f, 0.25f },
+			{ 0.75f, 0.75f },
 		};
-		const float* Offset = SampleOffsets[Graphics::GetFrameCount() % 2];
-
+		const float* Offset = SampleOffsets[FrameIndex & 1];
+#else
+		// 4x super sampling via controlled feedback
+		float SampleOffsets[4][2] =
+		{
+			{ 0.125f, 0.625f },
+			{ 0.375f, 0.125f },
+			{ 0.875f, 0.375f },
+			{ 0.625f, 0.875f }
+		};
+		const float* Offset = SampleOffsets[FrameIndex & 3];
+#endif
 		m_MainViewport.TopLeftX = Offset[0];
 		m_MainViewport.TopLeftY = Offset[1];
 	}
 	else
 	{
-		m_MainViewport.TopLeftX = 0.0f;
-		m_MainViewport.TopLeftY = 0.0f;
+		m_MainViewport.TopLeftX = 0.5f;
+		m_MainViewport.TopLeftY = 0.5f;
 	}
 
 	m_MainViewport.Width = (float)g_SceneColorBuffer.GetWidth();
@@ -310,7 +340,7 @@ void ModelViewer::RenderScene( void )
 		gfxContext.SetPipelineState(m_DepthPSO);
 		gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer);
 		gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
-		RenderObjects( gfxContext, m_ViewProjMatrix );
+		RenderObjects(gfxContext, m_ViewProjMatrix );
 	}
 
 	SSAO::Render(gfxContext, m_Camera);
@@ -321,35 +351,50 @@ void ModelViewer::RenderScene( void )
 
 		gfxContext.ClearColor(g_SceneColorBuffer);
 
-		gfxContext.SetRootSignature(m_RootSig);
-		gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		gfxContext.SetIndexBuffer(m_Model.m_IndexBuffer.IndexBufferView());
+		// Set the default state for command lists
+		auto& pfnSetupGraphicsState = [&](void)
+		{
+			gfxContext.SetRootSignature(m_RootSig);
+			gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			gfxContext.SetIndexBuffer(m_Model.m_IndexBuffer.IndexBufferView());
 #if USE_VERTEX_BUFFER
-		gfxContext.SetVertexBuffer(0, m_Model.m_VertexBuffer.VertexBufferView());
+			gfxContext.SetVertexBuffer(0, m_Model.m_VertexBuffer.VertexBufferView());
 #elif USE_ROOT_BUFFER_SRV
-		gfxContext.SetBufferSRV(2, m_Model.m_VertexBuffer);
+			gfxContext.SetBufferSRV(2, m_Model.m_VertexBuffer);
 #else
-		gfxContext.SetDynamicDescriptor(2, 0, m_Model.m_VertexBuffer.GetSRV());
+			gfxContext.SetDynamicDescriptor(2, 0, m_Model.m_VertexBuffer.GetSRV());
 #endif
-		gfxContext.SetDynamicDescriptors(4, 0, 2, m_ExtraTextures);
-		gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
+			gfxContext.SetDynamicDescriptors(4, 0, 2, m_ExtraTextures);
+			gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
+		};
+
+		pfnSetupGraphicsState();
 
 		{
 			ScopedTimer _prof(L"Render Shadow Map", gfxContext);
 
-			m_SunShadow.UpdateMatrix( -m_SunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
-				(uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16 );
+			m_SunShadow.UpdateMatrix(-m_SunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
+				(uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
 			gfxContext.SetPipelineState(m_ShadowPSO);
 			g_ShadowBuffer.BeginRendering(gfxContext);
-			RenderObjects( gfxContext, m_SunShadow.GetViewProjMatrix() );
+			RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix());
 			g_ShadowBuffer.EndRendering(gfxContext);
+		}
+
+		if (SSAO::AsyncCompute)
+		{
+			gfxContext.Flush();
+			pfnSetupGraphicsState();
+
+			// Make the 3D queue wait for the Compute queue to finish SSAO
+			g_CommandManager.GetGraphicsQueue().StallForProducer(g_CommandManager.GetComputeQueue());
 		}
 
 		{
 			ScopedTimer _prof(L"Render Color", gfxContext);
-
 			gfxContext.SetPipelineState(m_ModelPSO);
+			gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 			gfxContext.SetRenderTarget(g_SceneColorBuffer, g_SceneDepthBuffer, true);
 			gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 			RenderObjects( gfxContext, m_ViewProjMatrix );
@@ -360,7 +405,7 @@ void ModelViewer::RenderScene( void )
 
 	MotionBlur::RenderCameraBlur(gfxContext, m_Camera);
 
-	gfxContext.CloseAndExecute();
+	gfxContext.Finish();
 }
 
 void ModelViewer::CreateParticleEffects()

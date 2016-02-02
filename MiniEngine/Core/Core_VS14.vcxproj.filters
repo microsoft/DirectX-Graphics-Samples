@@ -139,9 +139,6 @@
     <ClInclude Include="CommandSignature.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Model.h">
-      <Filter>Source Files\Model</Filter>
-    </ClInclude>
     <ClInclude Include="dds.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
@@ -169,13 +166,19 @@
     <ClInclude Include="TextureManager.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12_win.h">
+    <ClInclude Include="d3dx12.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="GpuTimeManager.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="GraphRenderer.h">
+      <Filter>Source Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="CommandAllocatorPool.h">
+      <Filter>Source Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="BuddyAllocator.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
   </ItemGroup>
@@ -282,12 +285,6 @@
     <ClCompile Include="CommandSignature.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Model.cpp">
-      <Filter>Source Files\Model</Filter>
-    </ClCompile>
-    <ClCompile Include="ModelH3D.cpp">
-      <Filter>Source Files\Model</Filter>
-    </ClCompile>
     <ClCompile Include="DynamicDescriptorHeap.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
@@ -309,6 +306,12 @@
     <ClCompile Include="GraphRenderer.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="CommandAllocatorPool.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="BuddyAllocator.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -322,9 +325,6 @@
     </Filter>
     <Filter Include="Source Files\Math">
       <UniqueIdentifier>{88832a4d-d1d7-417b-95dd-19e85e4e4925}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Model">
-      <UniqueIdentifier>{7fa2f1df-f45d-474b-af3f-4f3bb3d1f19b}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\ParticleEffects">
       <UniqueIdentifier>{b3fb4ae8-ce74-4476-92e5-e474dbd0f52d}</UniqueIdentifier>
@@ -569,9 +569,6 @@
       <Filter>Shaders\Present</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ConvertLDRToDisplayPS.hlsl">
-      <Filter>Shaders\Present</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\ConvertLDRToHDTVPS.hlsl">
       <Filter>Shaders\Present</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ScreenQuadVS.hlsl">

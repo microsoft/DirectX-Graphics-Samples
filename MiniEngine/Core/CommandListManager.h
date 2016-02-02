@@ -17,6 +17,57 @@
 #include <queue>
 #include <mutex>
 #include <stdint.h>
+#include "CommandAllocatorPool.h"
+
+class CommandQueue
+{
+	friend class CommandListManager;
+	friend class CommandContext;
+
+public:
+	CommandQueue(D3D12_COMMAND_LIST_TYPE Type);
+	~CommandQueue();
+
+	void Create(ID3D12Device* pDevice);
+	void Shutdown();
+
+	inline bool IsReady()
+	{
+		return m_CommandQueue != nullptr;
+	}
+
+	uint64_t IncrementFence(void);
+	bool IsFenceComplete(uint64_t FenceValue);
+	void StallForFence(uint64_t FenceValue);
+	void StallForProducer(CommandQueue& Producer);
+	void WaitForFence(uint64_t FenceValue);
+	void WaitForIdle(void) { WaitForFence(m_NextFenceValue - 1); }
+
+	ID3D12CommandQueue* GetCommandQueue() { return m_CommandQueue; }
+
+	uint64_t GetNextFenceValue() { return m_NextFenceValue; }
+
+private:
+
+	uint64_t ExecuteCommandList(ID3D12CommandList* List);
+	ID3D12CommandAllocator* RequestAllocator(void);
+	void DiscardAllocator(uint64_t FenceValueForReset, ID3D12CommandAllocator* Allocator);
+
+	ID3D12CommandQueue* m_CommandQueue;
+
+	const D3D12_COMMAND_LIST_TYPE m_Type;
+
+	CommandAllocatorPool m_AllocatorPool;
+	std::mutex m_FenceMutex;
+	std::mutex m_EventMutex;
+
+	// Lifetime of these objects is managed by the descriptor cache
+	ID3D12Fence* m_pFence;
+	uint64_t m_NextFenceValue;
+	uint64_t m_LastCompletedFenceValue;
+	HANDLE m_FenceEventHandle;
+
+};
 
 class CommandListManager
 {
@@ -29,40 +80,52 @@ public:
 	void Create(ID3D12Device* pDevice);
 	void Shutdown();
 
-	inline bool IsReady()
+	CommandQueue& GetGraphicsQueue(void) { return m_GraphicsQueue; }
+	CommandQueue& GetComputeQueue(void) { return m_ComputeQueue; }
+	CommandQueue& GetCopyQueue(void) { return m_CopyQueue; }
+
+	CommandQueue& GetQueue(D3D12_COMMAND_LIST_TYPE Type = D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
-		return m_CommandQueue != nullptr;
+		switch (Type)
+		{
+		case D3D12_COMMAND_LIST_TYPE_COMPUTE: return m_ComputeQueue;
+		case D3D12_COMMAND_LIST_TYPE_COPY: return m_CopyQueue;
+		default: return m_GraphicsQueue;
+		}
 	}
 
-	uint64_t IncrementFence(void);
-	bool IsFenceComplete(uint64_t FenceValue);
-	void WaitForFence(uint64_t FenceValue);
-	void IdleGPU(void) { WaitForFence(IncrementFence()); }
+	ID3D12CommandQueue* GetCommandQueue()
+	{
+		return m_GraphicsQueue.GetCommandQueue();
+	}
 
-	ID3D12CommandQueue* GetCommandQueue() { return m_CommandQueue; }
+	void CreateNewCommandList(
+		D3D12_COMMAND_LIST_TYPE Type,
+		ID3D12GraphicsCommandList** List,
+		ID3D12CommandAllocator** Allocator);
+
+	// Test to see if a fence has already been reached
+	bool IsFenceComplete(uint64_t FenceValue)
+	{
+		return GetQueue(D3D12_COMMAND_LIST_TYPE(FenceValue >> 56)).IsFenceComplete(FenceValue);
+	}
+
+	// The CPU will wait for a fence to reach a specified value
+	void WaitForFence(uint64_t FenceValue);
+
+	// The CPU will wait for all command queues to empty (so that the GPU is idle)
+	void IdleGPU(void)
+	{
+		m_GraphicsQueue.WaitForIdle();
+		m_ComputeQueue.WaitForIdle();
+		m_CopyQueue.WaitForIdle();
+	}
 
 private:
 
-	void CreateNewCommandList( ID3D12GraphicsCommandList** List, ID3D12CommandAllocator** Allocator );
-	uint64_t ExecuteCommandList( ID3D12CommandList* List );
-	ID3D12CommandAllocator* RequestAllocator(void);
-	void DiscardAllocator( uint64_t FenceValueForReset, ID3D12CommandAllocator* Allocator );
-
 	ID3D12Device* m_Device;
-	ID3D12CommandQueue* m_CommandQueue;
 
-	// Since there is only a "main pool" so far, everything below corresponds to that pool. It should be renamed and/or 
-	// restructured if we add other pools.
-	std::vector<ID3D12CommandAllocator*> m_AllocatorPool;
-	std::queue<std::pair<uint64_t, ID3D12CommandAllocator*>> m_ReadyAllocators;
-	std::mutex m_AllocatorMutex;
-	std::mutex m_FenceMutex;
-	std::mutex m_EventMutex;
-
-	// Lifetime of these objects is managed by the descriptor cache
-	ID3D12Fence* m_pFence;
-	uint64_t m_NextFenceValue;
-	uint64_t m_LastCompletedFenceValue;
-	HANDLE m_FenceEventHandle;
+	CommandQueue m_GraphicsQueue;
+	CommandQueue m_ComputeQueue;
+	CommandQueue m_CopyQueue;
 };
-

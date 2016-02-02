@@ -39,6 +39,8 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	// Load LDR value from HDR buffer
 	float luma = RGBToLuminance( ldrColor );
 
+	float logLuma = LinearToLogLuminance(luma, g_LumaGamma);
+
 	DstColor[DTid.xy] = luma.xxx;
-	OutLuma[DTid.xy] = LinearToLogLuminance(luma, g_LumaGamma);
+	OutLuma[DTid.xy] = logLuma;
 }

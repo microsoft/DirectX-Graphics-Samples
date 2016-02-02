@@ -71,6 +71,17 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	BloomResult[DTid.xy] = (color1 * weight1 + color2 * weight2 + color3 * weight3 + color4 * weight4) / weightSum;
 
 	float luma = (luma1 + luma2 + luma3 + luma4) * 0.25;
-	float logLuma = log2( max(1.0 / 4096.0, luma) ) + 12.0;
-	LumaResult[DTid.xy] = min(255, (uint)round(logLuma * 16.0));
+
+	// Prevent divide by 0 and put only pure black pixels in Histogram[0]
+	if (luma == 0.0)
+	{
+		LumaResult[DTid.xy] = 0;
+	}
+	else
+	{
+		const float MinLog = Exposure[4];
+		const float RcpLogRange = Exposure[7];
+		float logLuma = saturate((log2(luma) - MinLog) * RcpLogRange);	// Rescale to [0.0, 1.0]
+		LumaResult[DTid.xy] = logLuma * 254.0 + 1.0;					// Rescale to [1, 255]
+	}
 }

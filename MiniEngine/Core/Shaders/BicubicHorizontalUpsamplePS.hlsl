@@ -23,7 +23,6 @@
 #include "PresentRS.hlsli"
 
 Texture2D<float3> ColorTex : register(t0);
-SamplerState BilinearClamp : register(s0);
 
 cbuffer Constants : register(b0)
 {
@@ -60,7 +59,7 @@ float3 main(float4 position : SV_Position, float2 uv : TexCoord0) : SV_Target0
 {
 	float2 t = uv * TextureSize + 0.5;
 	float2 f = frac(t);
-	int2 st = int2(t);
+	int2 st = int2(t.x, position.y);
 
 	uint MaxWidth = TextureSize.x - 1;
 

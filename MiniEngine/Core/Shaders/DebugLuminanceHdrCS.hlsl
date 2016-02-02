@@ -40,6 +40,8 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	// Tone map to LDR and convert to greyscale
 	float luma = RGBToLuminance( ToneMap(hdrColor * Exposure[2]) );
 
+	float logLuma = LinearToLogLuminance(luma, g_LumaGamma);
+
 	DstColor[DTid.xy] = luma.xxx;
-	OutLuma[DTid.xy] = LinearToLogLuminance(luma, g_LumaGamma);
+	OutLuma[DTid.xy] = logLuma;
 }

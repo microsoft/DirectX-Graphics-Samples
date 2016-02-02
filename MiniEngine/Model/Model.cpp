@@ -25,7 +25,6 @@ const char* Model::s_FormatString[] =
 {
 	"none",
 	"h3d",
-	"pbrt",
 };
 static_assert(sizeof(Model::s_FormatString) / sizeof(const char*) == Model::formats, "s_FormatString doesn't match format enum");
 
@@ -50,6 +49,8 @@ Model::Model()
 	, m_pMaterial(nullptr)
 	, m_pVertexData(nullptr)
 	, m_pIndexData(nullptr)
+	, m_pVertexDataDepth(nullptr)
+	, m_pIndexDataDepth(nullptr)
 	, m_SRVs(nullptr)
 {
 	Clear();
@@ -75,11 +76,16 @@ void Model::Clear()
 
 	delete [] m_pVertexData;
 	delete [] m_pIndexData;
+	delete [] m_pVertexDataDepth;
+	delete [] m_pIndexDataDepth;
 
 	m_pVertexData = nullptr;
 	m_Header.vertexDataByteSize = 0;
 	m_pIndexData = nullptr;
 	m_Header.indexDataByteSize = 0;
+	m_pVertexDataDepth = nullptr;
+	m_Header.vertexDataByteSizeDepth = 0;
+	m_pIndexDataDepth = nullptr;
 
 	ReleaseTextures();
 
@@ -106,12 +112,6 @@ bool Model::Load(const char *filename)
 	case format_h3d:
 		rval = LoadH3D(filename);
 		needToOptimize = false;
-		break;
-
-	case format_pbrt:
-#ifdef MODEL_ENABLE_PBRT
-		rval = LoadPBRT(filename);
-#endif
 		break;
 	}
 
@@ -215,4 +215,4 @@ void Model::LoadPostProcess(bool needToOptimize)
 	}
 }
 
-}
+} // namespace Graphics

@@ -82,7 +82,7 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
 		for (uint j = k >> 1; j > 0; j >>= 1)
 		{
 			uint Index1 = InsertZeroBit(GI, j);
-			uint Index2 = Index1 ^ j;
+			uint Index2 = Index1 | j;
 
 			uint A = gs_SortKeys[Index1];
 			uint B = gs_SortKeys[Index2];
