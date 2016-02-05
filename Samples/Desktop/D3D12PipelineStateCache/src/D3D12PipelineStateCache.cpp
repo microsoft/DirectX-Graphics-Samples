@@ -533,10 +533,6 @@ void D3D12PipelineStateCache::PopulateCommandList()
 	m_commandList->IASetVertexBuffers(0, 1, &m_quadVbv);
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-	const float black[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-	m_commandList->ClearRenderTargetView(rtvHandle, black, 0, nullptr);
-	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-
 	// Indicate that the back buffer will be used as a render target and the
 	// intermediate render target will be used as a SRV.
 	D3D12_RESOURCE_BARRIER barriers[] = {
@@ -545,8 +541,11 @@ void D3D12PipelineStateCache::PopulateCommandList()
 	};
 
 	m_commandList->ResourceBarrier(_countof(barriers), barriers);
-
 	m_commandList->SetGraphicsRootDescriptorTable(RootParameterSRV, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+
+	const float black[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	m_commandList->ClearRenderTargetView(rtvHandle, black, 0, nullptr);
+	m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
 	// Draw some quads using the rendered scene with some effect shaders.
 	PIXBeginEvent(m_commandList.Get(), 0, L"Post-processing");
