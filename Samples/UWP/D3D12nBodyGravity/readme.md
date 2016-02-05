@@ -1,0 +1,2 @@
+# n-Body Gravity Sample
+This sample demonstrates the use of asynchronous compute shaders (multi-engine) to simulate an n-body gravity system. Graphics commands and compute commands can be recorded simultaneously and submitted to their respective command queues when the work is ready to begin execution on the GPU. This sample also demonstrates advanced usage of fences to synchronize tasks across command queues.
