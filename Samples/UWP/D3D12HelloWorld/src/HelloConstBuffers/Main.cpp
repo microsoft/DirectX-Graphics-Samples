@@ -16,7 +16,7 @@
 [Platform::MTAThread]
 int WINAPIV main(Platform::Array<Platform::String^>^ /*params*/)
 {
-	D3D12HelloConstBuffers sample(1280, 720, L"");
+	D3D12HelloConstBuffers sample(1200, 900, L"");
 	auto viewProvider = ref new ViewProvider(reinterpret_cast<UINT_PTR>(&sample));
 
 	Windows::ApplicationModel::Core::CoreApplication::Run(viewProvider);

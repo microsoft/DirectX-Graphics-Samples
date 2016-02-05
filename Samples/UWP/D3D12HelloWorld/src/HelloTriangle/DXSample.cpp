@@ -71,8 +71,9 @@ void DXSample::GetHardwareAdapter(IDXGIFactory2* pFactory, IDXGIAdapter1** ppAda
 // Helper function for setting the window's title text.
 void DXSample::SetCustomWindowText(LPCWSTR text)
 {
+	std::wstring windowText = m_title.empty() ? text : m_title + L": " + text;
 	auto applicationView = Windows::UI::ViewManagement::ApplicationView::GetForCurrentView();
-	applicationView->Title = ref new Platform::String(text);
+	applicationView->Title = ref new Platform::String(windowText.c_str());
 }
 
 // Helper function for parsing any supplied command line args.

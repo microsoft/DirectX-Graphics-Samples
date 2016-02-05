@@ -16,7 +16,7 @@
 [Platform::MTAThread]
 int WINAPIV main(Platform::Array<Platform::String^>^ /*params*/)
 {
-	D3D12Fullscreen sample(1280, 720, L"Press the SPACE bar to toggle fullscreen mode");
+	D3D12Fullscreen sample(1200, 900, L"Press the SPACE bar to toggle fullscreen mode");
 	auto viewProvider = ref new ViewProvider(reinterpret_cast<UINT_PTR>(&sample));
 
 	Windows::ApplicationModel::Core::CoreApplication::Run(viewProvider);
