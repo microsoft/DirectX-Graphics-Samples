@@ -111,4 +111,8 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 		DstColor[ST] = lerp(SrcColor[ST], ColorQueue[DTid.x], PixelShift);
 #endif
 	}
+#ifdef DEBUG_OUTPUT
+	else
+		DstColor[ST] = float3(0, 0, 0.25);
+#endif
 }

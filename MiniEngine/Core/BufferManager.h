@@ -25,6 +25,7 @@ namespace Graphics
 	extern ColorBuffer g_OverlayBuffer;		// R8G8B8A8_UNORM
 	extern ColorBuffer g_HorizontalBuffer;	// For separable (bicubic) upsampling
 
+	extern ColorBuffer g_ReprojectionBuffer;// R16G16_FLOAT
 	extern ColorBuffer g_VelocityBuffer;	// R8G8_SNORM
 	extern ShadowBuffer g_ShadowBuffer;
 

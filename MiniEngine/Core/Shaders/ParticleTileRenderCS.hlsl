@@ -22,6 +22,7 @@
 cbuffer CB : register(b0)
 {
 	float gDynamicResLevel;
+	float gMipBias;
 };
 
 RWTexture2D<float3> g_OutputColorBuffer : register(u0);
@@ -67,7 +68,7 @@ void BlendHighRes( inout float4x4 Quad, ParticleScreenData Particle, float2 Pixe
 	// Use point sampling for high-res rendering because this implies we're not rendering
 	// with the most detailed mip level anyway.
 	SamplerState Sampler = gSampPointBorder;
-	float LevelBias = 0.5;
+	float LevelBias = gMipBias;
 #else
 	SamplerState Sampler = gSampLinearBorder;
 	float LevelBias = 0.0;
@@ -124,7 +125,7 @@ float4x4 RenderParticles( uint2 TileCoord, uint2 ST, uint NumParticles, uint Hit
 		{
 			// Get the next bit and then clear it
 			uint SubIdx = firstbitlow(ParticleMask);
-			ParticleMask &= ~(1 << SubIdx);
+			ParticleMask ^= 1 << SubIdx;
 
 			// Get global particle index from sorted buffer and then load the particle
 			uint SortKey = g_SortedParticles[BinStart + SubIdx];

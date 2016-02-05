@@ -159,7 +159,7 @@ static HRESULT LoadTextureDataFromFile( _In_z_ const wchar_t* fileName,
 //--------------------------------------------------------------------------------------
 // Return the BPP for a particular format
 //--------------------------------------------------------------------------------------
-static size_t BitsPerPixel( _In_ DXGI_FORMAT fmt )
+size_t BitsPerPixel( _In_ DXGI_FORMAT fmt )
 {
     switch( fmt )
     {

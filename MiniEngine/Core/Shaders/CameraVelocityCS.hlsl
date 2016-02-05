@@ -20,7 +20,7 @@
 #define USE_LINEAR_Z
 
 Texture2D<float> DepthBuffer : register(t0);
-RWTexture2D<float2> MotionBuffer : register(u0);
+RWTexture2D<float2> ReprojectionBuffer : register(u0);
 
 cbuffer ConstantBuffer : register(b1)
 {
@@ -40,7 +40,6 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	float4 HPos = float4( CurPixel, Depth, 1.0 );
 #endif
 	float4 PrevHPos = mul( CurToPrevXForm, HPos );
-	float2 MotionVec = PrevHPos.xy / PrevHPos.w - CurPixel;
 
-	MotionBuffer[st] = MotionVec / max(32, length(MotionVec));
+	ReprojectionBuffer[st] = PrevHPos.xy / PrevHPos.w - CurPixel;
 }

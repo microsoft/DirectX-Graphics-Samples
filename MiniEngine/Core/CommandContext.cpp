@@ -21,63 +21,136 @@
 
 using namespace Graphics;
 
-std::vector<std::unique_ptr<CommandContext> > CommandContext::sm_ContextPool;
-std::queue<CommandContext*> CommandContext::sm_AvailableContexts;
-std::mutex CommandContext::sm_ContextAllocationMutex;
+
+void ContextManager::DestroyAllContexts(void)
+{
+	for (uint32_t i = 0; i < 4; ++i)
+		sm_ContextPool[i].clear();
+}
+
+CommandContext* ContextManager::AllocateContext(D3D12_COMMAND_LIST_TYPE Type)
+{
+	std::lock_guard<std::mutex> LockGuard(sm_ContextAllocationMutex);
+
+	auto& AvailableContexts = sm_AvailableContexts[Type];
+
+	CommandContext* ret = nullptr;
+	if (AvailableContexts.empty())
+	{
+		ret = new CommandContext(Type);
+		sm_ContextPool[Type].emplace_back(ret);
+		ret->Initialize();
+	}
+	else
+	{
+		ret = AvailableContexts.front();
+		AvailableContexts.pop();
+		ret->Reset();
+	}
+	ASSERT(ret != nullptr);
+
+	ASSERT(ret->m_Type == Type);
+
+	return ret;
+}
+
+void ContextManager::FreeContext(CommandContext* UsedContext)
+{
+	ASSERT(UsedContext != nullptr);
+	std::lock_guard<std::mutex> LockGuard(sm_ContextAllocationMutex);
+	sm_AvailableContexts[UsedContext->m_Type].push(UsedContext);
+}
 
 void CommandContext::DestroyAllContexts(void)
 {
 	LinearAllocator::DestroyAll();
 	DynamicDescriptorHeap::DestroyAll();
-	sm_ContextPool.clear();
-}
-
-CommandContext* CommandContext::AllocateContext()
-{
-	std::lock_guard<std::mutex> LockGuard(sm_ContextAllocationMutex);
-
-	CommandContext* ret = nullptr;
-	if (sm_AvailableContexts.empty())
-	{
-		ret = new CommandContext;
-		sm_ContextPool.emplace_back(ret);
-		ret->Initialize(g_CommandManager);
-	}
-	else
-	{
-		ret = sm_AvailableContexts.front();
-		sm_AvailableContexts.pop();
-		ret->Reset();
-	}
-	ASSERT(ret != nullptr);
-
-	return ret;
-}
-
-void CommandContext::FreeContext(CommandContext* UsedContext)
-{
-	std::lock_guard<std::mutex> LockGuard(sm_ContextAllocationMutex);
-
-	sm_AvailableContexts.push(UsedContext);
+	g_ContextManager.DestroyAllContexts();
 }
 
 CommandContext& CommandContext::Begin( const std::wstring ID )
 {
-	CommandContext* NewContext = CommandContext::AllocateContext();
+	CommandContext* NewContext = g_ContextManager.AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	NewContext->SetID(ID);
 	if (ID.length() > 0)
 		EngineProfiling::BeginBlock(ID, NewContext);
 	return *NewContext;
 }
 
-uint64_t CommandContext::CloseAndExecute( bool WaitForCompletion )
+ComputeContext& ComputeContext::Begin(const std::wstring& ID, bool Async)
 {
-	uint64_t fence = Finish(WaitForCompletion);
-	FreeContext(this);
-	return fence;
+	ComputeContext& NewContext = g_ContextManager.AllocateContext(
+		Async ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT)->GetComputeContext();
+	NewContext.SetID(ID);
+	if (ID.length() > 0)
+		EngineProfiling::BeginBlock(ID, &NewContext);
+	return NewContext;
 }
 
-CommandContext::CommandContext( void ) :
+uint64_t CommandContext::Flush(bool WaitForCompletion)
+{
+	FlushResourceBarriers();
+
+	ASSERT(m_CurrentAllocator != nullptr);
+
+	uint64_t FenceValue = g_CommandManager.GetQueue(m_Type).ExecuteCommandList(m_CommandList);
+
+	if (WaitForCompletion)
+		g_CommandManager.WaitForFence(FenceValue);
+
+	//
+	// Reset the command list and restore previous state
+	//
+
+	m_CommandList->Reset(m_CurrentAllocator, nullptr);
+
+	if (m_CurGraphicsRootSignature)
+	{
+		m_CommandList->SetGraphicsRootSignature(m_CurGraphicsRootSignature);
+		m_CommandList->SetPipelineState(m_CurGraphicsPipelineState);
+	}
+	if (m_CurComputeRootSignature)
+	{
+		m_CommandList->SetComputeRootSignature(m_CurComputeRootSignature);
+		m_CommandList->SetPipelineState(m_CurComputePipelineState);
+	}
+
+	BindDescriptorHeaps();
+
+	return FenceValue;
+}
+
+uint64_t CommandContext::Finish( bool WaitForCompletion )
+{
+	ASSERT(m_Type == D3D12_COMMAND_LIST_TYPE_DIRECT || m_Type == D3D12_COMMAND_LIST_TYPE_COMPUTE);
+
+	FlushResourceBarriers();
+
+	if (m_ID.length() > 0)
+		EngineProfiling::EndBlock(this);
+
+	ASSERT(m_CurrentAllocator != nullptr);
+
+	CommandQueue& Queue = g_CommandManager.GetQueue(m_Type);
+
+	uint64_t FenceValue = Queue.ExecuteCommandList(m_CommandList);
+	Queue.DiscardAllocator(FenceValue, m_CurrentAllocator);
+	m_CurrentAllocator = nullptr;
+
+	m_CpuLinearAllocator.CleanupUsedPages(FenceValue);
+	m_GpuLinearAllocator.CleanupUsedPages(FenceValue);
+	m_DynamicDescriptorHeap.CleanupUsedHeaps(FenceValue);
+
+	if (WaitForCompletion)
+		g_CommandManager.WaitForFence(FenceValue);
+
+	g_ContextManager.FreeContext(this);
+
+	return FenceValue;
+}
+
+CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE Type) :
+	m_Type(Type),
 	m_DynamicDescriptorHeap(*this),
 	m_CpuLinearAllocator(kCpuWritable), 
 	m_GpuLinearAllocator(kGpuExclusive)
@@ -100,10 +173,9 @@ CommandContext::~CommandContext( void )
 		m_CommandList->Release();
 }
 
-void CommandContext::Initialize( CommandListManager& Manager )
+void CommandContext::Initialize(void)
 {
-	m_OwningManager = &Manager;
-	m_OwningManager->CreateNewCommandList(&m_CommandList, &m_CurrentAllocator);
+	g_CommandManager.CreateNewCommandList(m_Type, &m_CommandList, &m_CurrentAllocator);
 }
 
 void CommandContext::Reset( void )
@@ -111,7 +183,7 @@ void CommandContext::Reset( void )
 	// We only call Reset() on previously freed contexts.  The command list persists, but we must
 	// request a new allocator.
 	ASSERT(m_CommandList != nullptr && m_CurrentAllocator == nullptr);
-	m_CurrentAllocator = m_OwningManager->RequestAllocator();
+	m_CurrentAllocator = g_CommandManager.GetQueue(m_Type).RequestAllocator();
 	m_CommandList->Reset(m_CurrentAllocator, nullptr);
 
 	m_CurGraphicsRootSignature = nullptr;
@@ -121,30 +193,6 @@ void CommandContext::Reset( void )
 	m_NumBarriersToFlush = 0;
 
 	BindDescriptorHeaps();
-}
-
-uint64_t CommandContext::Finish( bool Wait )
-{
-	FlushResourceBarriers();
-
-	if (m_ID.length() > 0)
-		EngineProfiling::EndBlock(this);
-
-	ASSERT(m_CurrentAllocator != nullptr);
-	ASSERT_SUCCEEDED( m_CommandList->Close() );
-
-	uint64_t FenceValue = m_OwningManager->ExecuteCommandList(m_CommandList);
-	m_OwningManager->DiscardAllocator(FenceValue, m_CurrentAllocator);
-	m_CurrentAllocator = nullptr;
-
-	m_CpuLinearAllocator.CleanupUsedPages(FenceValue);
-	m_GpuLinearAllocator.CleanupUsedPages(FenceValue);
-	m_DynamicDescriptorHeap.CleanupUsedHeaps(FenceValue);
-
-	if (Wait)
-		m_OwningManager->WaitForFence(FenceValue);
-
-	return FenceValue;
 }
 
 void CommandContext::BindDescriptorHeaps( void )
@@ -189,6 +237,20 @@ void GraphicsContext::SetRenderTargets( UINT NumRTVs, ColorBuffer* RTVs, DepthBu
 	{
 		m_CommandList->OMSetRenderTargets( NumRTVs, RTVHandles, FALSE, nullptr );
 	}
+}
+
+void GraphicsContext::BeginQuery(ID3D12QueryHeap* QueryHeap, D3D12_QUERY_TYPE Type, UINT HeapIndex)
+{
+	m_CommandList->BeginQuery(QueryHeap, Type, HeapIndex);
+}
+void GraphicsContext::EndQuery(ID3D12QueryHeap* QueryHeap, D3D12_QUERY_TYPE Type, UINT HeapIndex)
+{
+	m_CommandList->EndQuery(QueryHeap, Type, HeapIndex);
+}
+
+void GraphicsContext::ResolveQueryData(ID3D12QueryHeap* QueryHeap, D3D12_QUERY_TYPE Type, UINT StartIndex, UINT NumQueries, ID3D12Resource* DestinationBuffer, UINT64 DestinationBufferOffset)
+{
+	m_CommandList->ResolveQueryData(QueryHeap, Type, StartIndex, NumQueries, DestinationBuffer, DestinationBufferOffset);
 }
 
 void GraphicsContext::ClearUAV( GpuBuffer& Target )
@@ -299,6 +361,12 @@ void GraphicsContext::SetScissor( const D3D12_RECT& rect )
 void CommandContext::TransitionResource(GpuResource& Resource, D3D12_RESOURCE_STATES NewState, bool FlushImmediate)
 {
 	D3D12_RESOURCE_STATES OldState = Resource.m_UsageState;
+
+	if (m_Type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	{
+		ASSERT((OldState & VALID_COMPUTE_QUEUE_RESOURCE_STATES) == OldState);
+		ASSERT((NewState & VALID_COMPUTE_QUEUE_RESOURCE_STATES) == NewState);
+	}
 
 	if (OldState != NewState)
 	{
@@ -460,7 +528,7 @@ void CommandContext::InitializeTexture( GpuResource& Dest, UINT NumSubresources,
 	InitContext.TransitionResource(Dest, D3D12_RESOURCE_STATE_GENERIC_READ, true);
 
 	// Execute the command list and wait for it to finish so we can release the upload buffer
-	InitContext.CloseAndExecute(true);
+	InitContext.Finish(true);
 
 	UploadBuffer->Release();
 }
@@ -528,10 +596,10 @@ void CommandContext::InitializeTextureArraySlice(GpuResource& Dest, UINT SliceIn
 		Context.m_CommandList->CopyTextureRegion(&destCopyLocation, 0, 0, 0, &srcCopyLocation, nullptr);
 	}
 
-	Context.CloseAndExecute();
+	Context.Finish();
 }
 
-void CommandContext::InitializeBuffer( GpuResource& Dest, const void* BufferData, size_t NumBytes )
+void CommandContext::InitializeBuffer( GpuResource& Dest, const void* BufferData, size_t NumBytes, bool UseOffset, size_t Offset)
 {
 	ID3D12Resource* UploadBuffer;
 
@@ -567,11 +635,19 @@ void CommandContext::InitializeBuffer( GpuResource& Dest, const void* BufferData
 
 	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default texture
 	InitContext.TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST, true);
-	InitContext.m_CommandList->CopyResource(Dest.GetResource(), UploadBuffer);
+	if (UseOffset)
+	{
+		InitContext.m_CommandList->CopyBufferRegion(Dest.GetResource(), Offset, UploadBuffer, 0, NumBytes);
+	}
+	else
+	{
+		InitContext.m_CommandList->CopyResource(Dest.GetResource(), UploadBuffer);
+	}
+
 	InitContext.TransitionResource(Dest, D3D12_RESOURCE_STATE_GENERIC_READ, true);
 
 	// Execute the command list and wait for it to finish so we can release the upload buffer
-	InitContext.CloseAndExecute(true);
+	InitContext.Finish(true);
 
 	UploadBuffer->Release();
 }

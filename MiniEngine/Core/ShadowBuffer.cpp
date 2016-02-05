@@ -21,11 +21,11 @@ void ShadowBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t He
 	DepthBuffer::Create( Name, Width, Height, DXGI_FORMAT_D16_UNORM, VidMemPtr );
 
 	m_Viewport.TopLeftX = 0.0f;
-    m_Viewport.TopLeftY = 0.0f;
-    m_Viewport.Width = (float)Width;
-    m_Viewport.Height = (float)Height;
-    m_Viewport.MinDepth = 0.0f;
-    m_Viewport.MaxDepth = 1.0f;
+	m_Viewport.TopLeftY = 0.0f;
+	m_Viewport.Width = (float)Width;
+	m_Viewport.Height = (float)Height;
+	m_Viewport.MinDepth = 0.0f;
+	m_Viewport.MaxDepth = 1.0f;
 
 	// Prevent drawing to the boundary pixels so that we don't have to worry about shadows stretching
 	m_Scissor.left = 1;
@@ -39,11 +39,11 @@ void ShadowBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t He
 	DepthBuffer::Create( Name, Width, Height, DXGI_FORMAT_D16_UNORM, Allocator );
 
 	m_Viewport.TopLeftX = 0.0f;
-    m_Viewport.TopLeftY = 0.0f;
-    m_Viewport.Width = (float)Width;
-    m_Viewport.Height = (float)Height;
-    m_Viewport.MinDepth = 0.0f;
-    m_Viewport.MaxDepth = 1.0f;
+	m_Viewport.TopLeftY = 0.0f;
+	m_Viewport.Width = (float)Width;
+	m_Viewport.Height = (float)Height;
+	m_Viewport.MinDepth = 0.0f;
+	m_Viewport.MaxDepth = 1.0f;
 
 	// Prevent drawing to the boundary pixels so that we don't have to worry about shadows stretching
 	m_Scissor.left = 1;

@@ -32,7 +32,7 @@ public:
 	DynamicDescriptorHeap(CommandContext& OwningContext);
 	~DynamicDescriptorHeap();
 
-	static void DestroyAll(void);
+	static void DestroyAll(void) { sm_DescriptorHeapPool.clear(); }
 
 	void CleanupUsedHeaps( uint64_t fenceValue );
 

@@ -33,7 +33,7 @@ void Max4( uint This, uint Dx )
 
 uint PackMinMax( uint This )
 {
-	float Min = 1.0 - asfloat(gs_Buffer[This + 64]);
+	float Min = asfloat(~gs_Buffer[This + 64]);
 	float Max = asfloat(gs_Buffer[This]);
 	return f32tof16(Max) << 16 | f32tof16(saturate(Min - 0.001));
 }
@@ -70,7 +70,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 DTid : SV_Disp
 
 	// Max values to first 64, Min values to last 64
 	gs_Buffer[GI] = asuint(maxZ);
-	gs_Buffer[GI + 64] = asuint(1.0 - minZ);
+	gs_Buffer[GI + 64] = ~asuint(minZ);
 	GroupMemoryBarrierWithGroupSync();
 
 	// We don't need odd numbered threads, but we could utilize more threads

@@ -125,7 +125,7 @@ void GpuTimeManager::EndReadBack(void)
 	Context.InsertTimeStamp(sm_QueryHeap, 1);
 	Context.ResolveTimeStamps(sm_ReadBackBuffer, sm_QueryHeap, sm_NumTimers * 2);
 	Context.InsertTimeStamp(sm_QueryHeap, 0);
-	sm_Fence = Context.CloseAndExecute();
+	sm_Fence = Context.Finish();
 }
 
 float GpuTimeManager::GetTime(uint32_t TimerIdx)

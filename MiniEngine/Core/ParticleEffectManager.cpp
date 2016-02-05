@@ -75,7 +75,8 @@ namespace ParticleEffects
 	BoolVar PauseSim("Graphics/Particle Effects/Pause Simulation", false);
 	const char* ResolutionLabels[] = { "High-Res", "Low-Res", "Dynamic" };
 	EnumVar TiledRes("Graphics/Particle Effects/Tiled Sample Rate", 2, 3, ResolutionLabels);
-	NumVar DynamicResLevel("Graphics/Particle Effects/Dynamic Resolution Cutoff", 1.0f, -4.0f, 4.0f, 0.5f);
+	NumVar DynamicResLevel("Graphics/Particle Effects/Dynamic Resolution Cutoff", 0.0f, -4.0f, 4.0f, 0.5f);
+	NumVar MipBias("Graphics/Particle Effects/Mip Bias", 0.0f, -4.0f, 4.0f, 0.5f);
 	
 	ComputePSO s_ParticleSpawnCS;
 	ComputePSO s_ParticleUpdateCS;
@@ -319,7 +320,7 @@ namespace
 			};
 			CompContext.SetDynamicDescriptors(4, 0, _countof(SRVs), SRVs);
 
-			CompContext.SetConstants(0, (float)DynamicResLevel);
+			CompContext.SetConstants(0, (float)DynamicResLevel, (float)MipBias);
 
 			CompContext.SetPipelineState(s_ParticleTileRenderSlowCS[TiledRes]);
 			CompContext.DispatchIndirect(TileDrawDispatchIndirectArgs, 0);
@@ -332,6 +333,10 @@ namespace
 	void BitonicSort( ComputeContext& CompContext )
 	{
 		uint32_t IndirectArgsOffset = 12;
+
+		// We have already pre-sorted up through k = 2048 when first writing our list, so
+		// we continue sorting with k = 4096.  For unnecessarily large values of k, these
+		// indirect dispatches will be skipped over with thread counts of 0.
 
 		for (uint32_t k = 4096; k <= 256*1024; k *= 2)
 		{

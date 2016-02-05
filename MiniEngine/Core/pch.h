@@ -20,6 +20,9 @@
 #ifndef WIN32_LEAN_AND_MEAN
 	#define WIN32_LEAN_AND_MEAN
 #endif
+#ifndef NOMINMAX
+	#define NOMINMAX
+#endif
 #include <windows.h>
 
 #include <d3d12.h>
@@ -34,7 +37,7 @@
 	#include <pix.h>
 #endif
 
-#include "d3dx12_win.h"
+#include "d3dx12.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -44,8 +47,8 @@
 #include <string>
 #include <exception>
 
-#include <ppltasks.h>
 #include <wrl.h>
+#include <ppltasks.h>
 
 #include "Utility.h"
 #include "VectorMath.h"
