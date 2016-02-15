@@ -1,4 +1,4 @@
-﻿//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 //
 //  Copyright (C) Microsoft Corporation.  All Rights Reserved.
 //
@@ -386,6 +386,15 @@ struct CD3DX12_HEAP_DESC : public D3D12_HEAP_DESC
     bool IsCPUAccessible() const
     { return static_cast< const CD3DX12_HEAP_PROPERTIES* >( &Properties )->IsCPUAccessible(); }
 };
+inline bool operator==( const D3D12_HEAP_DESC& l, const D3D12_HEAP_DESC& r )
+{
+    return l.SizeInBytes == r.SizeInBytes &&
+        l.Properties == r.Properties && 
+        l.Alignment == r.Alignment &&
+        l.Flags == r.Flags;
+}
+inline bool operator!=( const D3D12_HEAP_DESC& l, const D3D12_HEAP_DESC& r )
+{ return !( l == r ); }
 
 //------------------------------------------------------------------------------------------------
 struct CD3DX12_CLEAR_VALUE : public D3D12_CLEAR_VALUE
@@ -431,6 +440,30 @@ struct CD3DX12_RANGE : public D3D12_RANGE
         End = end;
     }
     operator const D3D12_RANGE&() const { return *this; }
+};
+
+//------------------------------------------------------------------------------------------------
+struct CD3DX12_SHADER_BYTECODE : public D3D12_SHADER_BYTECODE
+{
+    CD3DX12_SHADER_BYTECODE()
+    {}
+    explicit CD3DX12_SHADER_BYTECODE(const D3D12_SHADER_BYTECODE &o) :
+        D3D12_SHADER_BYTECODE(o)
+    {}
+    CD3DX12_SHADER_BYTECODE(
+        ID3DBlob* pShaderBlob )
+    {
+        pShaderBytecode = pShaderBlob->GetBufferPointer();
+        BytecodeLength = pShaderBlob->GetBufferSize();
+    }
+    CD3DX12_SHADER_BYTECODE(
+        void* _pShaderBytecode,
+        SIZE_T bytecodeLength )
+    {
+        pShaderBytecode = _pShaderBytecode;
+        BytecodeLength = bytecodeLength;
+    }
+    operator const D3D12_SHADER_BYTECODE&() const { return *this; }
 };
 
 //------------------------------------------------------------------------------------------------
@@ -536,7 +569,8 @@ struct CD3DX12_RESOURCE_BARRIER : public D3D12_RESOURCE_BARRIER
         UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
         D3D12_RESOURCE_BARRIER_FLAGS flags = D3D12_RESOURCE_BARRIER_FLAG_NONE)
     {
-        CD3DX12_RESOURCE_BARRIER result = {};
+        CD3DX12_RESOURCE_BARRIER result;
+        ZeroMemory(&result, sizeof(result));
         D3D12_RESOURCE_BARRIER &barrier = result;
         result.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         result.Flags = flags;
@@ -550,7 +584,8 @@ struct CD3DX12_RESOURCE_BARRIER : public D3D12_RESOURCE_BARRIER
         _In_ ID3D12Resource* pResourceBefore,
         _In_ ID3D12Resource* pResourceAfter)
     {
-        CD3DX12_RESOURCE_BARRIER result = {};
+        CD3DX12_RESOURCE_BARRIER result;
+        ZeroMemory(&result, sizeof(result));
         D3D12_RESOURCE_BARRIER &barrier = result;
         result.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
         barrier.Aliasing.pResourceBefore = pResourceBefore;
@@ -560,7 +595,8 @@ struct CD3DX12_RESOURCE_BARRIER : public D3D12_RESOURCE_BARRIER
     static inline CD3DX12_RESOURCE_BARRIER UAV(
         _In_ ID3D12Resource* pResource)
     {
-        CD3DX12_RESOURCE_BARRIER result = {};
+        CD3DX12_RESOURCE_BARRIER result;
+        ZeroMemory(&result, sizeof(result));
         D3D12_RESOURCE_BARRIER &barrier = result;
         result.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
         barrier.UAV.pResource = pResource;
@@ -710,7 +746,7 @@ struct CD3DX12_ROOT_DESCRIPTOR_TABLE : public D3D12_ROOT_DESCRIPTOR_TABLE
     
     inline void Init(
         UINT numDescriptorRanges,
-        _In_reads_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE* _pDescriptorRanges)
+        _In_reads_opt_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE* _pDescriptorRanges)
     {
         Init(*this, numDescriptorRanges, _pDescriptorRanges);
     }
@@ -1012,6 +1048,10 @@ struct CD3DX12_ROOT_SIGNATURE_DESC : public D3D12_ROOT_SIGNATURE_DESC
     {
         Init(numParameters, _pParameters, numStaticSamplers, _pStaticSamplers, flags);
     }
+    CD3DX12_ROOT_SIGNATURE_DESC(CD3DX12_DEFAULT)
+    {
+        Init(0, NULL, 0, NULL, D3D12_ROOT_SIGNATURE_FLAG_NONE);
+    }
     
     inline void Init(
         UINT numParameters,
@@ -1037,8 +1077,6 @@ struct CD3DX12_ROOT_SIGNATURE_DESC : public D3D12_ROOT_SIGNATURE_DESC
         desc.pStaticSamplers = _pStaticSamplers;
         desc.Flags = flags;
     }
-    
-    CD3DX12_ROOT_SIGNATURE_DESC(CD3DX12_DEFAULT) : CD3DX12_ROOT_SIGNATURE_DESC(0,NULL,0,NULL,D3D12_ROOT_SIGNATURE_FLAG_NONE) {}
 };
 
 //------------------------------------------------------------------------------------------------
@@ -1292,6 +1330,22 @@ struct CD3DX12_RESOURCE_DESC : public D3D12_RESOURCE_DESC
     { return D3D12CalcSubresource(MipSlice, ArraySlice, PlaneSlice, MipLevels, ArraySize()); }
     operator const D3D12_RESOURCE_DESC&() const { return *this; }
 };
+inline bool operator==( const D3D12_RESOURCE_DESC& l, const D3D12_RESOURCE_DESC& r )
+{
+    return l.Dimension == r.Dimension &&
+        l.Alignment == r.Alignment &&
+        l.Width == r.Width &&
+        l.Height == r.Height &&
+        l.DepthOrArraySize == r.DepthOrArraySize &&
+        l.MipLevels == r.MipLevels &&
+        l.Format == r.Format &&
+        l.SampleDesc.Count == r.SampleDesc.Count &&
+        l.SampleDesc.Quality == r.SampleDesc.Quality &&
+        l.Layout == r.Layout &&
+        l.Flags == r.Flags;
+}
+inline bool operator!=( const D3D12_RESOURCE_DESC& l, const D3D12_RESOURCE_DESC& r )
+{ return !( l == r ); }
 
 //------------------------------------------------------------------------------------------------
 // Row-by-row memcpy

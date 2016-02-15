@@ -64,11 +64,14 @@ namespace ScreenRotation
 };
 
 // Constructor for DeviceResources.
-DX::DeviceResources::DeviceResources() :
+DX::DeviceResources::DeviceResources(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthBufferFormat) :
 	m_currentFrame(0),
 	m_screenViewport(),
 	m_rtvDescriptorSize(0),
 	m_fenceEvent(0),
+	m_backBufferFormat(backBufferFormat),
+	m_depthBufferFormat(depthBufferFormat),
+	m_fenceValues{},
 	m_d3dRenderTargetSize(),
 	m_outputSize(),
 	m_logicalSize(),
@@ -78,7 +81,6 @@ DX::DeviceResources::DeviceResources() :
 	m_effectiveDpi(-1.0f),
 	m_deviceRemoved(false)
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 	CreateDeviceIndependentResources();
 	CreateDeviceResources();
 }
@@ -105,7 +107,7 @@ void DX::DeviceResources::CreateDeviceResources()
 	DX::ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&m_dxgiFactory)));
 
 	ComPtr<IDXGIAdapter1> adapter;
-	GetHardwareAdapter(m_dxgiFactory.Get(), &adapter);
+	GetHardwareAdapter(&adapter);
 
 	// Create the Direct3D 12 API device object
 	HRESULT hr = D3D12CreateDevice(
@@ -114,6 +116,7 @@ void DX::DeviceResources::CreateDeviceResources()
 		IID_PPV_ARGS(&m_d3dDevice)		// Returns the Direct3D device created.
 		);
 
+#if defined(_DEBUG)
 	if (FAILED(hr))
 	{
 		// If the initialization fails, fall back to the WARP device.
@@ -121,16 +124,13 @@ void DX::DeviceResources::CreateDeviceResources()
 		// http://go.microsoft.com/fwlink/?LinkId=286690
 
 		ComPtr<IDXGIAdapter> warpAdapter;
-		m_dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)); 
+		DX::ThrowIfFailed(m_dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
 
-		DX::ThrowIfFailed(
-			D3D12CreateDevice(
-				warpAdapter.Get(),
-				D3D_FEATURE_LEVEL_11_0,
-				IID_PPV_ARGS(&m_d3dDevice)
-				)
-			);
+		hr = D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_d3dDevice));
 	}
+#endif
+
+	DX::ThrowIfFailed(hr);
 
 	// Create the command queue.
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -138,6 +138,23 @@ void DX::DeviceResources::CreateDeviceResources()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	DX::ThrowIfFailed(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+
+	// Create descriptor heaps for render target views and depth stencil views.
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+	rtvHeapDesc.NumDescriptors = c_frameCount;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	DX::ThrowIfFailed(m_d3dDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
+	DX::SetName(m_rtvHeap.Get(), L"Render Target View Descriptor Heap");
+
+	m_rtvDescriptorSize = m_d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	ThrowIfFailed(m_d3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+	DX::SetName(m_dsvHeap.Get(), L"Depth Stencil View Descriptor Heap");
 
 	for (UINT n = 0; n < c_frameCount; n++)
 	{
@@ -159,12 +176,12 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 	// Wait until all previous GPU work is complete.
 	WaitForGpu();
 
-	// Clear the previous window size specific content.
+	// Clear the previous window size specific content and update the tracked fence values.
 	for (UINT n = 0; n < c_frameCount; n++)
 	{
 		m_renderTargets[n] = nullptr;
+		m_fenceValues[n] = m_fenceValues[m_currentFrame];
 	}
-	m_rtvHeap = nullptr;
 
 	UpdateRenderTargetSize();
 
@@ -177,16 +194,13 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 	m_d3dRenderTargetSize.Width = swapDimensions ? m_outputSize.Height : m_outputSize.Width;
 	m_d3dRenderTargetSize.Height = swapDimensions ? m_outputSize.Width : m_outputSize.Height;
 
+	UINT backBufferWidth = lround(m_d3dRenderTargetSize.Width);
+	UINT backBufferHeight = lround(m_d3dRenderTargetSize.Height);
+
 	if (m_swapChain != nullptr)
 	{
 		// If the swap chain already exists, resize it.
-		HRESULT hr = m_swapChain->ResizeBuffers(
-			c_frameCount,
-			lround(m_d3dRenderTargetSize.Width),
-			lround(m_d3dRenderTargetSize.Height),
-			DXGI_FORMAT_B8G8R8A8_UNORM,
-			0
-			);
+		HRESULT hr = m_swapChain->ResizeBuffers(c_frameCount, backBufferWidth, backBufferHeight, m_backBufferFormat, 0);
 
 		if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
 		{
@@ -207,15 +221,15 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 		DXGI_SCALING scaling = DisplayMetrics::SupportHighResolutions ? DXGI_SCALING_NONE : DXGI_SCALING_STRETCH;
 		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
 
-		swapChainDesc.Width = lround(m_d3dRenderTargetSize.Width);	// Match the size of the window.
-		swapChainDesc.Height = lround(m_d3dRenderTargetSize.Height);
-		swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;			// This is the most common swap chain format.
+		swapChainDesc.Width = backBufferWidth;						// Match the size of the window.
+		swapChainDesc.Height = backBufferHeight;
+		swapChainDesc.Format = m_backBufferFormat;
 		swapChainDesc.Stereo = false;
 		swapChainDesc.SampleDesc.Count = 1;							// Don't use multi-sampling.
 		swapChainDesc.SampleDesc.Quality = 0;
 		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapChainDesc.BufferCount = c_frameCount;					// Use triple-buffering to minimize latency.
-		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;	// All Windows Universal apps must use _FLIP_ SwapEffects
+		swapChainDesc.BufferCount = c_frameCount;				// Use triple-buffering to minimize latency.
+		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;	// All Windows Universal apps must use _FLIP_ SwapEffects.
 		swapChainDesc.Flags = 0;
 		swapChainDesc.Scaling = scaling;
 		swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
@@ -266,16 +280,8 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 
 	// Create render target views of the swap chain back buffer.
 	{
-		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = c_frameCount;
-		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		DX::ThrowIfFailed(m_d3dDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
-		m_rtvHeap->SetName(L"Render Target View Descriptor Heap");
-
-		m_currentFrame = 0;
+		m_currentFrame = m_swapChain->GetCurrentBackBufferIndex();
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptor(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-		m_rtvDescriptorSize = m_d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		for (UINT n = 0; n < c_frameCount; n++)
 		{
 			DX::ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
@@ -283,34 +289,21 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 			rtvDescriptor.Offset(m_rtvDescriptorSize);
 
 			WCHAR name[25];
-			swprintf_s(name, L"Render Target %d", n);
-			m_renderTargets[n]->SetName(name);
+			if (swprintf_s(name, L"Render Target %u", n) > 0)
+			{
+				DX::SetName(m_renderTargets[n].Get(), name);
+			}
 		}
 	}
 
-	// Create a depth stencil view.
+	// Create a depth stencil and view.
 	{
-		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-		dsvHeapDesc.NumDescriptors = 1;
-		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		ThrowIfFailed(m_d3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
-
 		D3D12_HEAP_PROPERTIES depthHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-		D3D12_RESOURCE_DESC depthResourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-			DXGI_FORMAT_D32_FLOAT,
-			static_cast<UINT>(m_d3dRenderTargetSize.Width),
-			static_cast<UINT>(m_d3dRenderTargetSize.Height),
-			1,
-			0,
-			1,
-			0,
-			D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
-		D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
-		depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-		depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
-		depthOptimizedClearValue.DepthStencil.Stencil = 0;
+		D3D12_RESOURCE_DESC depthResourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(m_depthBufferFormat, backBufferWidth, backBufferHeight);
+		depthResourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+		CD3DX12_CLEAR_VALUE depthOptimizedClearValue(m_depthBufferFormat, 1.0f, 0);
 
 		ThrowIfFailed(m_d3dDevice->CreateCommittedResource(
 			&depthHeapProperties,
@@ -321,25 +314,21 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 			IID_PPV_ARGS(&m_depthStencil)
 			));
 
+		DX::SetName(m_depthStencil.Get(), L"Depth Buffer");
+
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-		dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+		dsvDesc.Format = m_depthBufferFormat;
 		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
 		m_d3dDevice->CreateDepthStencilView(m_depthStencil.Get(), &dsvDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
-	// All pending GPU work was already finished. Update the tracked fence values
-	// to the last value signaled.
-	for (UINT n = 0; n < c_frameCount; n++)
-	{
-		m_fenceValues[n] = m_fenceValues[m_currentFrame];
-	}
-
 	// Set the 3D rendering viewport to target the entire window.
 	m_screenViewport = { 0.0f, 0.0f, m_d3dRenderTargetSize.Width, m_d3dRenderTargetSize.Height, 0.0f, 1.0f };
 }
 
+// Determine the dimensions of the render target and whether it will be scaled down.
 void DX::DeviceResources::UpdateRenderTargetSize()
 {
 	m_effectiveDpi = m_dpi;
@@ -427,11 +416,8 @@ void DX::DeviceResources::ValidateDevice()
 
 	// Next, get the information for the current default adapter.
 
-	ComPtr<IDXGIFactory2> currentFactory;
-	DX::ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&currentFactory)));
-
 	ComPtr<IDXGIAdapter1> currentDefaultAdapter;
-	DX::ThrowIfFailed(currentFactory->EnumAdapters1(0, &currentDefaultAdapter));
+	GetHardwareAdapter(&currentDefaultAdapter);
 
 	DXGI_ADAPTER_DESC currentDesc;
 	DX::ThrowIfFailed(currentDefaultAdapter->GetDesc(&currentDesc));
@@ -491,7 +477,7 @@ void DX::DeviceResources::MoveToNextFrame()
 	DX::ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), currentFenceValue));
 
 	// Advance the frame index.
-	m_currentFrame = (m_currentFrame + 1) % c_frameCount;
+	m_currentFrame = m_swapChain->GetCurrentBackBufferIndex();
 
 	// Check to see if the next frame is ready to start.
 	if (m_fence->GetCompletedValue() < m_fenceValues[m_currentFrame])
@@ -561,12 +547,12 @@ DXGI_MODE_ROTATION DX::DeviceResources::ComputeDisplayRotation()
 
 // This method acquires the first available hardware adapter that supports Direct3D 12.
 // If no such adapter can be found, *ppAdapter will be set to nullptr.
-void DX::DeviceResources::GetHardwareAdapter(IDXGIFactory4* pFactory, IDXGIAdapter1** ppAdapter)
+void DX::DeviceResources::GetHardwareAdapter(IDXGIAdapter1** ppAdapter)
 {
 	ComPtr<IDXGIAdapter1> adapter;
 	*ppAdapter = nullptr;
 
-	for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != pFactory->EnumAdapters1(adapterIndex, &adapter); ++adapterIndex)
+	for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != m_dxgiFactory->EnumAdapters1(adapterIndex, &adapter); adapterIndex++)
 	{
 		DXGI_ADAPTER_DESC1 desc;
 		adapter->GetDesc1(&desc);
