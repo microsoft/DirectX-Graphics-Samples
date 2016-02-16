@@ -341,7 +341,10 @@ void DX::DeviceResources::UpdateRenderTargetSize()
 		float width = DX::ConvertDipsToPixels(m_logicalSize.Width, m_dpi);
 		float height = DX::ConvertDipsToPixels(m_logicalSize.Height, m_dpi);
 
-		if (width > DisplayMetrics::WidthThreshold && height > DisplayMetrics::HeightThreshold)
+		// When the device is in portrait orientation, height > width. Compare the
+		// larger dimension against the width threshold and the smaller dimension
+		// against the height threshold.
+		if (max(width, height) > DisplayMetrics::WidthThreshold && min(width, height) > DisplayMetrics::HeightThreshold)
 		{
 			// To scale the app we change the effective DPI. Logical size does not change.
 			m_effectiveDpi /= 2.0f;
