@@ -23,7 +23,7 @@ using namespace Windows::UI::ViewManagement;
 ref class View sealed : public IFrameworkView
 {
 public:
-	View(_In_ UINT_PTR pSample);
+	View(UINT_PTR pSample);
 
 	virtual void Initialize(CoreApplicationView^ applicationView);
 	virtual void SetWindow(CoreWindow^ window);

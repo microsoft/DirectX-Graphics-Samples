@@ -76,19 +76,19 @@
     <None Include="D3D12ReservedResources_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="$(D3DSdkCommonUwpAssets)SplashScreen.scale-200.png">
+    <Image Include="SplashScreen.scale-200.png">
       <Filter>Assets\AppxPackage</Filter>
     </Image>
-    <Image Include="$(D3DSdkCommonUwpAssets)Square44x44Logo.scale-200.png">
+    <Image Include="Square44x44Logo.scale-200.png">
       <Filter>Assets\AppxPackage</Filter>
     </Image>
-    <Image Include="$(D3DSdkCommonUwpAssets)Square150x150Logo.scale-200.png">
+    <Image Include="Square150x150Logo.scale-200.png">
       <Filter>Assets\AppxPackage</Filter>
     </Image>
-    <Image Include="$(D3DSdkCommonUwpAssets)StoreLogo.png">
+    <Image Include="StoreLogo.png">
       <Filter>Assets\AppxPackage</Filter>
     </Image>
-    <Image Include="$(D3DSdkCommonUwpAssets)Wide310x150Logo.scale-200.png">
+    <Image Include="Wide310x150Logo.scale-200.png">
       <Filter>Assets\AppxPackage</Filter>
     </Image>
   </ItemGroup>
