@@ -40,10 +40,13 @@ groupshared uint gs_TileParticleCounts[TILES_PER_BIN];
 groupshared uint gs_SlowTileParticleCounts[TILES_PER_BIN];
 groupshared uint gs_MinMaxDepth[TILES_PER_BIN];
 
-void BitonicSort(uint GI, uint NumElements, uint NumThreads)
+void BitonicSort(uint GI, uint NumElements, uint NextPow2, uint NumThreads)
 {
-	for (uint k = 2; k <= NumElements; k *= 2)
+	for (uint k = 2; k <= NextPow2; k *= 2)
 	{
+		// Align NumElements to the next multiple of k
+		NumElements = (NumElements + k - 1) & ~(k - 1);
+
 		for (uint j = k / 2; j > 0; j /= 2)
 		{
 			// Loop over all N/2 unique element pairs
@@ -114,7 +117,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	GroupMemoryBarrierWithGroupSync();
 
 	// Sort the particles from front to back.
-	BitonicSort(GI, NextPow2, GROUP_THREAD_COUNT);
+	BitonicSort(GI, ParticleCountInBin, NextPow2, GROUP_THREAD_COUNT);
 
 	// Upper-left tile coord and lower-right coord, clamped to the screen
 	const int2 StartTile = Gid.xy * uint2(TILES_PER_BIN_X, TILES_PER_BIN_Y);

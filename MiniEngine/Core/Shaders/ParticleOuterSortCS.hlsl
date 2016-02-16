@@ -23,11 +23,11 @@ cbuffer CB : register(b0)
 
 [RootSignature(Particle_RootSig)]
 [numthreads(1024, 1, 1)]
-void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex )
+void main( uint3 DTid : SV_DispatchThreadID  )
 {
-	// Form Index1 from the dispatch thread ID, but make sure the jth bit is zero (so Index2 > Index1)
+	// Form unique index pair from dispatch thread ID
 	uint Index1 = InsertZeroBit(DTid.x, j);
-	uint Index2 = Index1 ^ j;
+	uint Index2 = Index1 | j;
 
 	uint A = g_SortBuffer[Index1];
 	uint B = g_SortBuffer[Index2];

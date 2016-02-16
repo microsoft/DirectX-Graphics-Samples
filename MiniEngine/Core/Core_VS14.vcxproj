@@ -70,23 +70,19 @@
     <Manifest>
       <EnableDPIAwareness>true</EnableDPIAwareness>
     </Manifest>
-    <ClCompile>
-      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AssemblyAndMachineCode</AssemblerOutput>
-    </ClCompile>
-    <ClCompile>
-      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">AssemblyAndMachineCode</AssemblerOutput>
-    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="BuddyAllocator.h" />
     <ClInclude Include="BufferManager.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="Color.h" />
     <ClInclude Include="ColorBuffer.h" />
+    <ClInclude Include="CommandAllocatorPool.h" />
     <ClInclude Include="CommandContext.h" />
     <ClInclude Include="CommandListManager.h" />
     <ClInclude Include="CommandSignature.h" />
-    <ClInclude Include="d3dx12_win.h" />
+    <ClInclude Include="d3dx12.h" />
     <ClInclude Include="dds.h" />
     <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="DepthBuffer.h" />
@@ -116,7 +112,6 @@
     <ClInclude Include="Math\Scalar.h" />
     <ClInclude Include="Math\Transform.h" />
     <ClInclude Include="Math\Vector.h" />
-    <ClInclude Include="Model.h" />
     <ClInclude Include="MotionBlur.h" />
     <ClInclude Include="ParticleEffect.h" />
     <ClInclude Include="ParticleEffectManager.h" />
@@ -139,10 +134,12 @@
     <ClInclude Include="VectorMath.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BuddyAllocator.cpp" />
     <ClCompile Include="BufferManager.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="ColorBuffer.cpp" />
+    <ClCompile Include="CommandAllocatorPool.cpp" />
     <ClCompile Include="CommandContext.cpp" />
     <ClCompile Include="CommandListManager.cpp" />
     <ClCompile Include="CommandSignature.cpp" />
@@ -163,8 +160,6 @@
     <ClCompile Include="LinearAllocator.cpp" />
     <ClCompile Include="Math\Frustum.cpp" />
     <ClCompile Include="Math\Random.cpp" />
-    <ClCompile Include="Model.cpp" />
-    <ClCompile Include="ModelH3D.cpp" />
     <ClCompile Include="MotionBlur.cpp" />
     <ClCompile Include="ParticleEffect.cpp" />
     <ClCompile Include="ParticleEffectManager.cpp" />
@@ -222,9 +217,6 @@
     <FxCompile Include="Shaders\CameraMotionBlurPrePassLinearZCS.hlsl" />
     <FxCompile Include="Shaders\CameraVelocityCS.hlsl" />
     <FxCompile Include="Shaders\ConvertLDRToDisplayPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Shaders\ConvertLDRToHDTVPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\DebugDrawHistogramCS.hlsl" />

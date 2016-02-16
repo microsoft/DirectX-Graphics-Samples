@@ -72,7 +72,7 @@ namespace GameCore
 			g_GenMipsBuffer.GenerateMipMaps(MipsContext);
 			EngineProfiling::EndBlock(&MipsContext);
 
-			MipsContext.CloseAndExecute();
+			MipsContext.Finish();
 		}
 
 		// Xbox One has an separate image plane that we use for UI.  It will composite with the
@@ -87,7 +87,7 @@ namespace GameCore
 
 		EngineTuning::Display( UiContext, 10.0f, 40.0f, 1900.0f, 1040.0f );
 
-		UiContext.CloseAndExecute();
+		UiContext.Finish();
 
 		Graphics::Present();
 

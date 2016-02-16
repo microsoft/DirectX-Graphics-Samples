@@ -1,6 +1,8 @@
 # ignore non-code directories and files
 .vs/
 x64/
+bin/
+obj/
 *.ipch
 *.sdf
 *.opensdf

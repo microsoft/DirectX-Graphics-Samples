@@ -35,11 +35,6 @@ std::queue<std::pair<uint64_t, ID3D12DescriptorHeap*>> DynamicDescriptorHeap::sm
 std::queue<ID3D12DescriptorHeap*> DynamicDescriptorHeap::sm_AvailableDescriptorHeaps;
 uint32_t DynamicDescriptorHeap::sm_DescriptorSize = 0;
 
-void DynamicDescriptorHeap::DestroyAll(void)
-{
-	sm_DescriptorHeapPool.clear();
-}
-
 ID3D12DescriptorHeap* DynamicDescriptorHeap::RequestDescriptorHeap(void)
 {
 	std::lock_guard<std::mutex> LockGuard(sm_Mutex);

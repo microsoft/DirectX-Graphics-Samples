@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloTriangle", "HelloTriangle\D3D12HelloTriangle.vcxproj", "{5018F6A3-6533-4744-B1FD-727D199FD2E9}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloBundles", "HelloBundles\D3D12HelloBundles.vcxproj", "{CAE2B6C4-B644-4B92-8804-23E18310765B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloWindow", "HelloWindow\D3D12HelloWindow.vcxproj", "{23E282D0-E846-485C-B7A1-DA60F4BEA3D2}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloConstBuffers", "HelloConstBuffers\D3D12HelloConstBuffers.vcxproj", "{6F49D366-B5F1-432B-A3E8-5D1CA57865F9}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloTexture", "HelloTexture\D3D12HelloTexture.vcxproj", "{16B13BB4-D82D-4AC1-8B40-C6BCCC99954B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloFrameBuffering", "HelloFrameBuffering\D3D12HelloFrameBuffering.vcxproj", "{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5018F6A3-6533-4744-B1FD-727D199FD2E9}.Debug|x64.ActiveCfg = Debug|x64
+		{5018F6A3-6533-4744-B1FD-727D199FD2E9}.Debug|x64.Build.0 = Debug|x64
+		{5018F6A3-6533-4744-B1FD-727D199FD2E9}.Release|x64.ActiveCfg = Release|x64
+		{5018F6A3-6533-4744-B1FD-727D199FD2E9}.Release|x64.Build.0 = Release|x64
+		{CAE2B6C4-B644-4B92-8804-23E18310765B}.Debug|x64.ActiveCfg = Debug|x64
+		{CAE2B6C4-B644-4B92-8804-23E18310765B}.Debug|x64.Build.0 = Debug|x64
+		{CAE2B6C4-B644-4B92-8804-23E18310765B}.Release|x64.ActiveCfg = Release|x64
+		{CAE2B6C4-B644-4B92-8804-23E18310765B}.Release|x64.Build.0 = Release|x64
+		{23E282D0-E846-485C-B7A1-DA60F4BEA3D2}.Debug|x64.ActiveCfg = Debug|x64
+		{23E282D0-E846-485C-B7A1-DA60F4BEA3D2}.Debug|x64.Build.0 = Debug|x64
+		{23E282D0-E846-485C-B7A1-DA60F4BEA3D2}.Release|x64.ActiveCfg = Release|x64
+		{23E282D0-E846-485C-B7A1-DA60F4BEA3D2}.Release|x64.Build.0 = Release|x64
+		{6F49D366-B5F1-432B-A3E8-5D1CA57865F9}.Debug|x64.ActiveCfg = Debug|x64
+		{6F49D366-B5F1-432B-A3E8-5D1CA57865F9}.Debug|x64.Build.0 = Debug|x64
+		{6F49D366-B5F1-432B-A3E8-5D1CA57865F9}.Release|x64.ActiveCfg = Release|x64
+		{6F49D366-B5F1-432B-A3E8-5D1CA57865F9}.Release|x64.Build.0 = Release|x64
+		{16B13BB4-D82D-4AC1-8B40-C6BCCC99954B}.Debug|x64.ActiveCfg = Debug|x64
+		{16B13BB4-D82D-4AC1-8B40-C6BCCC99954B}.Debug|x64.Build.0 = Debug|x64
+		{16B13BB4-D82D-4AC1-8B40-C6BCCC99954B}.Release|x64.ActiveCfg = Release|x64
+		{16B13BB4-D82D-4AC1-8B40-C6BCCC99954B}.Release|x64.Build.0 = Release|x64
+		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Debug|x64.ActiveCfg = Debug|x64
+		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Debug|x64.Build.0 = Debug|x64
+		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Release|x64.ActiveCfg = Release|x64
+		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

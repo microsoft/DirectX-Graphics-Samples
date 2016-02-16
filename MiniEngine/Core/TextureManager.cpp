@@ -26,13 +26,7 @@ using namespace Graphics;
 
 static UINT BytesPerPixel( DXGI_FORMAT Format )
 {
-	switch (Format)
-	{
-	case DXGI_FORMAT_R32_UINT:
-		return 4;
-	default:
-		return 1;
-	};
+	return (UINT)BitsPerPixel(Format) / 8;
 };
 
 void Texture::Create( size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData )

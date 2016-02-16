@@ -138,6 +138,7 @@ void DX::DeviceResources::CreateDeviceResources()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	DX::ThrowIfFailed(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+	NAME_D3D12_OBJECT(m_commandQueue);
 
 	// Create descriptor heaps for render target views and depth stencil views.
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
@@ -145,7 +146,7 @@ void DX::DeviceResources::CreateDeviceResources()
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	DX::ThrowIfFailed(m_d3dDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
-	DX::SetName(m_rtvHeap.Get(), L"Render Target View Descriptor Heap");
+	NAME_D3D12_OBJECT(m_rtvHeap);
 
 	m_rtvDescriptorSize = m_d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
@@ -154,7 +155,7 @@ void DX::DeviceResources::CreateDeviceResources()
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	ThrowIfFailed(m_d3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
-	DX::SetName(m_dsvHeap.Get(), L"Depth Stencil View Descriptor Heap");
+	NAME_D3D12_OBJECT(m_dsvHeap);
 
 	for (UINT n = 0; n < c_frameCount; n++)
 	{
@@ -289,7 +290,7 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 			rtvDescriptor.Offset(m_rtvDescriptorSize);
 
 			WCHAR name[25];
-			if (swprintf_s(name, L"Render Target %u", n) > 0)
+			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
 			{
 				DX::SetName(m_renderTargets[n].Get(), name);
 			}
@@ -314,7 +315,7 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 			IID_PPV_ARGS(&m_depthStencil)
 			));
 
-		DX::SetName(m_depthStencil.Get(), L"Depth Buffer");
+		NAME_D3D12_OBJECT(m_depthStencil);
 
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 		dsvDesc.Format = m_depthBufferFormat;
@@ -410,23 +411,34 @@ void DX::DeviceResources::ValidateDevice()
 	// The D3D Device is no longer valid if the default adapter changed since the device
 	// was created or if the device has been removed.
 
-	// First, get the LUID for the adapter from when the device was created.
+	// First, get the LUID for the default adapter from when the device was created.
 
-	LUID previousAdapterLuid = m_d3dDevice->GetAdapterLuid();
+	DXGI_ADAPTER_DESC previousDesc;
+	{
+		ComPtr<IDXGIAdapter1> previousDefaultAdapter;
+		DX::ThrowIfFailed(m_dxgiFactory->EnumAdapters1(0, &previousDefaultAdapter));
+
+		DX::ThrowIfFailed(previousDefaultAdapter->GetDesc(&previousDesc));
+	}
 
 	// Next, get the information for the current default adapter.
 
-	ComPtr<IDXGIAdapter1> currentDefaultAdapter;
-	GetHardwareAdapter(&currentDefaultAdapter);
-
 	DXGI_ADAPTER_DESC currentDesc;
-	DX::ThrowIfFailed(currentDefaultAdapter->GetDesc(&currentDesc));
+	{
+		ComPtr<IDXGIFactory4> currentDxgiFactory;
+		DX::ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&currentDxgiFactory)));
+
+		ComPtr<IDXGIAdapter1> currentDefaultAdapter;
+		DX::ThrowIfFailed(currentDxgiFactory->EnumAdapters1(0, &currentDefaultAdapter));
+
+		DX::ThrowIfFailed(currentDefaultAdapter->GetDesc(&currentDesc));
+	}
 
 	// If the adapter LUIDs don't match, or if the device reports that it has been removed,
 	// a new D3D device must be created.
 
-	if (previousAdapterLuid.LowPart != currentDesc.AdapterLuid.LowPart ||
-		previousAdapterLuid.HighPart != currentDesc.AdapterLuid.HighPart ||
+	if (previousDesc.AdapterLuid.LowPart != currentDesc.AdapterLuid.LowPart ||
+		previousDesc.AdapterLuid.HighPart != currentDesc.AdapterLuid.HighPart ||
 		FAILED(m_d3dDevice->GetDeviceRemovedReason()))
 	{
 		m_deviceRemoved = true;

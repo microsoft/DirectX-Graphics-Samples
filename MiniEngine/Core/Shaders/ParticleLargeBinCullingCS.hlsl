@@ -47,9 +47,9 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	float Width = Height * gAspectRatio;
 	float3 Extent = abs(HPos.xyz) - float3(Width, Height, 0);
 
-	// Technically, we should check for HPos.z >= 0 because this is D3D.  But there is only a tiny
+	// Technically, we should check for HPos.z > 0 because this is D3D.  But there is only a tiny
 	// window of space between the eye and the near plane where this could be true.
-	if (max(max(0.0, Extent.x), max(Extent.y, Extent.z)) >= HPos.w)
+	if (max(max(0.0, Extent.x), max(Extent.y, Extent.z)) > HPos.w)
 		return;
 
 	//

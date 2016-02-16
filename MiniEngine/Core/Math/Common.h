@@ -49,6 +49,16 @@ namespace Math
 		return (T)((value + alignment - 1) / alignment);
 	}
 
+	template <typename T> __forceinline bool IsPowerOfTwo(T value)
+	{
+		return 0 == (value & (value - 1));
+	}
+
+	template <typename T> __forceinline bool IsDivisible(T value, T divisor)
+	{
+		return (value / divisor) * divisor == value;
+	}
+
 
 
 	using namespace DirectX;

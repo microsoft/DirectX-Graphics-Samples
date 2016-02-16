@@ -11,30 +11,66 @@
 // Author:  James Stanard 
 //
 
+#pragma warning( disable : 3571 )
+
+// This approximates sRGB sufficiently enough that for 8-bit encodings is indistinguishable
+// from the "slow" version.  This can be a lot faster due to avoiding three pow() calls.
+float3 LinearToSRGB_Fast( float3 x )
+{
+	return x < 0.0031308 ? 12.92 * x : 1.13005 * sqrt(x - 0.00228) - 0.13448 * x + 0.005719;
+}
+
 float3 LinearToSRGB( float3 x )
 {
-	// This can be 9 cycles faster than the "precise" version
-	return x < 0.0031308 ? 12.92 * x : 1.13005 * sqrt(abs(x - 0.00228)) - 0.13448 * x + 0.005719;
+	return x < 0.0031308 ? 12.92 * x : 1.055 * pow(x, 1.0 / 2.4) - 0.055;
 }
 
-float3 LinearToSRGB_Exact( float3 x )
+float3 SRGBToLinear( float3 x )
 {
-	return x < 0.0031308 ? 12.92 * x : 1.055 * pow(abs(x), 1.0 / 2.4) - 0.055;
+	return x < 0.04045 ? x / 12.92 : pow( (x + 0.055) / 1.055, 2.4 );
 }
 
-float3 SRGBToLinear_Exact( float3 x )
+float3 LinearToREC709( float3 x )
 {
-	return x < 0.04045 ? x / 12.92 : pow( (abs(x) + 0.055) / 1.055, 2.4 );
+	return x < 0.018 ? 4.5 * x : 1.099 * pow(x, 0.45) - 0.099;
 }
 
-float3 LinearToREC709_Exact( float3 x )
+float3 REC709ToLinear( float3 x )
 {
-	return x < 0.0018 ? 4.5 * x : 1.099 * pow(abs(x), 0.45) - 0.099;
+	return x < 0.081 ? x / 4.5 : pow((x + 0.099) / 1.099, 1.0 / 0.45);
 }
 
-float3 REC709ToLinear_Exact( float3 x )
+// Same as Rec.709 transfer but more precise (intended for 12-bit rather than 10-bit)
+float3 LinearToREC2020(float3 x)
 {
-	return x < 0.0081 ? x / 4.5 : pow(abs((x + 0.099) / 1.099), 1.0 / 0.45);
+	return x < 0.0181 ? 4.5 * x : 1.0993 * pow(x, 0.45) - 0.0993;
+}
+
+float3 REC2020ToLinear(float3 x)
+{
+	return x < 0.08145 ? x / 4.5 : pow((x + 0.0993) / 1.0993, 1.0 / 0.45);
+}
+
+float3 LinearToREC2084( float3 L )
+{
+	float m1 = 2610.0 / 4096.0 / 4;
+	float m2 = 2523.0 / 4096.0 * 128;
+	float c1 = 3424.0 / 4096.0;
+	float c2 = 2413.0 / 4096.0 * 32;
+	float c3 = 2392.0 / 4096.0 * 32;
+	float3 Lp = pow(L, m1);
+	return pow((c1 + c2 * Lp) / (1 + c3 * Lp), m2);
+}
+
+float3 REC2084ToLinear( float3 N )
+{
+	float m1 = 2610.0 / 4096.0 / 4;
+	float m2 = 2523.0 / 4096.0 * 128;
+	float c1 = 3424.0 / 4096.0;
+	float c2 = 2413.0 / 4096.0 * 32;
+	float c3 = 2392.0 / 4096.0 * 32;
+	float3 Np = pow(N, 1 / m2);
+	return pow(max(Np - c1, 0) / (c2 - c3 * Np), 1 / m1);
 }
 
 // Encodes a smooth logarithmic gradient for even distribution of precision natural to vision
@@ -48,7 +84,7 @@ float LinearToLogLuminance( float x, float gamma = 4.0 )
 float RGBToLuminance( float3 x )
 {
 	return dot( x, float3(0.212671, 0.715160, 0.072169) );		// Defined by sRGB gamut
-//	return dot( x, float3(0.299, 0.587, 0.114) );				// Old CRT phosphor luma measurements
+//	return dot( x, float3(0.2989164, 0.5865990, 0.1144845) );	// NTSC - don't use this
 }
 
 // Assumes the "white point" is 1.0.  Prescale your HDR values if otherwise.  'E' affects the rate
@@ -63,6 +99,11 @@ float3 ToneMap2( float3 hdr, float E = 4.0 )
 {
 	float luma = RGBToLuminance(hdr);
 	return hdr * (1 - exp2(-E * luma)) / (1 - exp2(-E)) / (luma + 0.0001);
+}
+
+float ToneMapLuma( float Luma, float E = 4.0 )
+{
+	return (1 - exp2(-E * Luma)) / (1 - exp2(-E));
 }
 
 // This is the same as above, but converts the linear luminance value to a more subjective "perceived luminance",
@@ -113,9 +154,9 @@ float3 ApplyColorProfile( float3 x, int Format )
 	case COLOR_FORMAT_sRGB_LIMITED:
 		return RGBFullToLimited(LinearToSRGB(x));
 	case COLOR_FORMAT_Rec709_FULL:
-		return LinearToREC709_Exact(x);
+		return LinearToREC709(x);
 	case COLOR_FORMAT_Rec709_LIMITED:
-		return RGBFullToLimited(LinearToREC709_Exact(x));
+		return RGBFullToLimited(LinearToREC709(x));
 
 	// Xbox formats:  10-bit floats with biased exponents; range: [0, 2)
 	case COLOR_FORMAT_7e3_FLOAT_FULL:
@@ -133,13 +174,13 @@ float3 LinearizeColor( float3 x, int Format )
 	case COLOR_FORMAT_LINEAR:
 		return x;
 	case COLOR_FORMAT_sRGB_FULL:
-		return SRGBToLinear_Exact(x);
+		return SRGBToLinear(x);
 	case COLOR_FORMAT_sRGB_LIMITED:
-		return SRGBToLinear_Exact(RGBLimitedToFull(x));
+		return SRGBToLinear(RGBLimitedToFull(x));
 	case COLOR_FORMAT_Rec709_FULL:
-		return REC709ToLinear_Exact(x);
+		return REC709ToLinear(x);
 	case COLOR_FORMAT_Rec709_LIMITED:
-		return REC709ToLinear_Exact(RGBLimitedToFull(x));
+		return REC709ToLinear(RGBLimitedToFull(x));
 
 	// Xbox formats:  10-bit floats with biased exponents; range: [0, 2)
 	case COLOR_FORMAT_7e3_FLOAT_FULL:

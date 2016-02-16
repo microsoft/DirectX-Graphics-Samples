@@ -54,3 +54,5 @@ HRESULT __cdecl CreateDDSTextureFromFile( _In_ ID3D12Device* d3dDevice,
                                             _In_ D3D12_CPU_DESCRIPTOR_HANDLE textureView,
                                             _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
                                             );
+
+size_t BitsPerPixel(_In_ DXGI_FORMAT fmt);
