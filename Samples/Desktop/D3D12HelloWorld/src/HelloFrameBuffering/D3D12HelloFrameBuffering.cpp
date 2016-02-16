@@ -17,6 +17,7 @@ D3D12HelloFrameBuffering::D3D12HelloFrameBuffering(UINT width, UINT height, std:
 	m_frameIndex(0),
 	m_viewport(),
 	m_scissorRect(),
+	m_fenceValues{},
 	m_rtvDescriptorSize(0)
 {
 	m_viewport.Width = static_cast<float>(width);
