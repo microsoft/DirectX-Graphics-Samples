@@ -31,7 +31,8 @@ D3D12HeterogeneousMultiadapter::D3D12HeterogeneousMultiadapter(int width, int he
 	m_currentRenderFenceValue(1),
 	m_currentCrossAdapterFenceValue(1),
 	m_workloadConstantBufferData(),
-	m_blurWorkloadConstantBufferData()
+	m_blurWorkloadConstantBufferData(),
+	m_crossAdapterTextureSupport(false)
 {
 	ZeroMemory(m_rtvDescriptorSizes, sizeof(m_rtvDescriptorSizes));
 	ZeroMemory(m_srvDescriptorSizes, sizeof(m_srvDescriptorSizes));
@@ -78,15 +79,6 @@ HRESULT D3D12HeterogeneousMultiadapter::GetHardwareAdapters(IDXGIFactory2* pFact
 	ThrowIfFailed(pFactory->EnumAdapters1(0, ppSecondaryAdapter));
 	ThrowIfFailed(pFactory->EnumAdapters1(1, ppPrimaryAdapter));
 
-	DXGI_ADAPTER_DESC1 desc;
-	(*ppPrimaryAdapter)->GetDesc1(&desc);
-	if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-	{
-		// There is actually only one physical GPU on the system.
-		// Reduce the starting triangle count to make the sample run better.
-		m_triangleCount = MaxTriangleCount / 50;
-	}
-
 	return S_OK;
 }
 
@@ -120,6 +112,15 @@ void D3D12HeterogeneousMultiadapter::LoadPipeline()
 	else
 	{
 		ThrowIfFailed(GetHardwareAdapters(factory.Get(), &primaryAdapter, &secondaryAdapter));
+	}
+
+	DXGI_ADAPTER_DESC1 desc;
+	primaryAdapter->GetDesc1(&desc);
+	if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+	{
+		// There is actually only one physical GPU on the system.
+		// Reduce the starting triangle count to make the sample run better.
+		m_triangleCount = MaxTriangleCount / 50;
 	}
 
 	IDXGIAdapter1* ppAdapters[] = { primaryAdapter.Get(), secondaryAdapter.Get() };
@@ -284,34 +285,96 @@ void D3D12HeterogeneousMultiadapter::LoadPipeline()
 
 		// Create cross-adapter shared resources on the primary adapter, and open the shared handles on the secondary adapter.
 		{
-			D3D12_RESOURCE_DESC crossAdapterDesc = m_renderTargets[Primary][0]->GetDesc();
-			crossAdapterDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER;
-			crossAdapterDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+			// Check whether shared row-major textures can be directly sampled by the
+			// secondary adapter. Support of this feature (or the lack thereof) will
+			// determine our sharing strategy for the resource in question.
+			D3D12_FEATURE_DATA_D3D12_OPTIONS options = {};
+			ThrowIfFailed(m_devices[Secondary]->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, reinterpret_cast<void*>(&options), sizeof(options)));
+			m_crossAdapterTextureSupport = options.CrossAdapterRowMajorTextureSupported;
 
+			UINT64 textureSize = 0;
+			D3D12_RESOURCE_DESC crossAdapterDesc;
+
+			if (m_crossAdapterTextureSupport)
+			{
+				// If cross-adapter row-major textures are supported by the adapter,
+				// then they can be sampled directly.
+				crossAdapterDesc = renderTargetDesc;
+				crossAdapterDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER;
+				crossAdapterDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+				D3D12_RESOURCE_ALLOCATION_INFO textureInfo = m_devices[Primary]->GetResourceAllocationInfo(0, 1, &crossAdapterDesc);
+				textureSize = textureInfo.SizeInBytes;
+			}
+			else
+			{
+				// If cross-adapter row-major textures are not supported by the adapter,
+				// then they will be shared as buffers and then copied to a destination
+				// texture on the secondary adapter.
+
+				D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+				m_devices[Primary]->GetCopyableFootprints(&renderTargetDesc, 0, 1, 0, &layout, nullptr, nullptr, nullptr);
+				textureSize = Align(layout.Footprint.RowPitch * layout.Footprint.Height);
+
+				// Create a buffer with the same layout as the render target texture.
+				crossAdapterDesc = CD3DX12_RESOURCE_DESC::Buffer(textureSize, D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER);
+			}
+
+			// Create a heap that will be shared by both adapters.
+			CD3DX12_HEAP_DESC heapDesc(
+				textureSize * FrameCount,
+				D3D12_HEAP_TYPE_DEFAULT,
+				0,
+				D3D12_HEAP_FLAG_SHARED | D3D12_HEAP_FLAG_SHARED_CROSS_ADAPTER);
+
+			ThrowIfFailed(m_devices[Primary]->CreateHeap(&heapDesc, IID_PPV_ARGS(&m_crossAdapterResourceHeaps[Primary])));
+
+			HANDLE heapHandle = nullptr;
+			ThrowIfFailed(m_devices[Primary]->CreateSharedHandle(
+				m_crossAdapterResourceHeaps[Primary].Get(),
+				nullptr,
+				GENERIC_ALL,
+				nullptr,
+				&heapHandle));
+
+			HRESULT openSharedHandleResult = m_devices[Secondary]->OpenSharedHandle(heapHandle, IID_PPV_ARGS(&m_crossAdapterResourceHeaps[Secondary]));
+
+			// We can close the handle after opening the cross-adapter shared resource.
+			CloseHandle(heapHandle);
+
+			ThrowIfFailed(openSharedHandleResult);
+
+			// Create placed resources for each frame per adapter in the shared heap.
 			for (UINT n = 0; n < FrameCount; n++)
 			{
-				ThrowIfFailed(m_devices[Primary]->CreateCommittedResource(
-					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-					D3D12_HEAP_FLAG_SHARED | D3D12_HEAP_FLAG_SHARED_CROSS_ADAPTER,
+				ThrowIfFailed(m_devices[Primary]->CreatePlacedResource(
+					m_crossAdapterResourceHeaps[Primary].Get(),
+					textureSize * n,
 					&crossAdapterDesc,
 					D3D12_RESOURCE_STATE_COPY_DEST,
 					nullptr,
 					IID_PPV_ARGS(&m_crossAdapterResources[Primary][n])));
 
-				HANDLE heapHandle = nullptr;
-				ThrowIfFailed(m_devices[Primary]->CreateSharedHandle(
-					m_crossAdapterResources[Primary][n].Get(),
+				ThrowIfFailed(m_devices[Secondary]->CreatePlacedResource(
+					m_crossAdapterResourceHeaps[Secondary].Get(),
+					textureSize * n,
+					&crossAdapterDesc,
+					m_crossAdapterTextureSupport ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COPY_SOURCE,
 					nullptr,
-					GENERIC_ALL,
-					nullptr,
-					&heapHandle));
+					IID_PPV_ARGS(&m_crossAdapterResources[Secondary][n])));
 
-				HRESULT openSharedHandleResult = m_devices[Secondary]->OpenSharedHandle(heapHandle, IID_PPV_ARGS(&m_crossAdapterResources[Secondary][n]));
-
-				// We can close the handle after opening the cross-adapter shared resource.
-				CloseHandle(heapHandle);
-
-				ThrowIfFailed(openSharedHandleResult);
+				if (!m_crossAdapterTextureSupport)
+				{
+					// If the primary adapter's render target must be shared as a buffer,
+					// create a texture resource to copy it into on the secondary adapter.
+					ThrowIfFailed(m_devices[Secondary]->CreateCommittedResource(
+						&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+						D3D12_HEAP_FLAG_NONE,
+						&renderTargetDesc,
+						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+						nullptr,
+						IID_PPV_ARGS(&m_secondaryAdapterTextures[n])));
+				}
 			}
 		}
 
@@ -331,12 +394,13 @@ void D3D12HeterogeneousMultiadapter::LoadPipeline()
 			m_devices[Secondary]->CreateRenderTargetView(m_intermediateBlurRenderTarget.Get(), nullptr, rtvHandle);
 		}
 		
-		// Create a SRV for the cross-adapter resources and intermediate render target on the secondary adapter.
+		// Create SRVs for the shared resources and intermediate render target on the secondary adapter.
 		{
 			CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_cbvSrvUavHeap->GetCPUDescriptorHandleForHeapStart());
 			for (UINT n = 0; n < FrameCount; n++)
 			{
-				m_devices[Secondary]->CreateShaderResourceView(m_crossAdapterResources[Secondary][n].Get(), nullptr, srvHandle);
+				ID3D12Resource* pSrvResource = m_crossAdapterTextureSupport ? m_crossAdapterResources[Secondary][n].Get() : m_secondaryAdapterTextures[n].Get();
+				m_devices[Secondary]->CreateShaderResourceView(pSrvResource, nullptr, srvHandle);
 				srvHandle.Offset(m_srvDescriptorSizes[Secondary]);
 			}
 
@@ -687,7 +751,7 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 
 		// Fence used by the primary adapter to signal its copy queue that it has completed rendering.
 		// When this is signaled, the primary adapter's copy queue can begin copying to the cross-adapter shared resource.
-		ThrowIfFailed(m_devices[Primary]->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_renderFence)));	
+		ThrowIfFailed(m_devices[Primary]->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_renderFence)));
 
 		// Cross-adapter shared fence used by both adapters.
 		// Used by the primary adapter to signal the secondary adapter that it has completed copying to the cross-adapter shared resource.
@@ -1002,8 +1066,35 @@ void D3D12HeterogeneousMultiadapter::PopulateCommandLists()
 		ThrowIfFailed(m_copyCommandAllocators[m_frameIndex]->Reset());
 		ThrowIfFailed(m_copyCommandList->Reset(m_copyCommandAllocators[m_frameIndex].Get(), nullptr));
 
-		// Copy the resource to the cross-adapter shared resource
-		m_copyCommandList->CopyResource(m_crossAdapterResources[adapter][m_frameIndex].Get(), m_renderTargets[adapter][m_frameIndex].Get());
+		// Copy the intermediate render target to the cross-adapter shared resource.
+		// Transition barriers are not required since there are fences guarding against
+		// concurrent read/write access to the shared heap.
+		if (m_crossAdapterTextureSupport)
+		{
+			// If cross-adapter row-major textures are supported by the adapter,
+			// simply copy the texture into the cross-adapter texture.
+			m_copyCommandList->CopyResource(m_crossAdapterResources[adapter][m_frameIndex].Get(), m_renderTargets[adapter][m_frameIndex].Get());
+		}
+		else
+		{
+			// If cross-adapter row-major textures are not supported by the adapter,
+			// the texture will be copied over as a buffer so that the texture row
+			// pitch can be explicitly managed.
+
+			// Copy the intermediate render target into the shared buffer using the
+			// memory layout prescribed by the render target.
+			D3D12_RESOURCE_DESC renderTargetDesc = m_renderTargets[adapter][m_frameIndex]->GetDesc();
+			D3D12_PLACED_SUBRESOURCE_FOOTPRINT renderTargetLayout;
+
+			m_devices[adapter]->GetCopyableFootprints(&renderTargetDesc, 0, 1, 0, &renderTargetLayout, nullptr, nullptr, nullptr);
+
+			CD3DX12_TEXTURE_COPY_LOCATION dest(m_crossAdapterResources[adapter][m_frameIndex].Get(), renderTargetLayout);
+			CD3DX12_TEXTURE_COPY_LOCATION src(m_renderTargets[adapter][m_frameIndex].Get(), 0);
+			CD3DX12_BOX box(0, 0, m_width, m_height);
+
+			m_copyCommandList->CopyTextureRegion(&dest, 0, 0, 0, &src, &box);
+		}
+
 		ThrowIfFailed(m_copyCommandList->Close());
 	}
 
@@ -1020,6 +1111,34 @@ void D3D12HeterogeneousMultiadapter::PopulateCommandLists()
 		// list, that command list can then be reset at any time and must be before 
 		// re-recording.
 		ThrowIfFailed(m_directCommandLists[adapter]->Reset(m_directCommandAllocators[adapter][m_frameIndex].Get(), m_blurPipelineStates[0].Get()));
+
+		if (!m_crossAdapterTextureSupport)
+		{
+			// Copy the buffer in the shared heap into a texture that the secondary
+			// adapter can sample from.
+			D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+				m_secondaryAdapterTextures[m_frameIndex].Get(),
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_COPY_DEST);
+			m_directCommandLists[adapter]->ResourceBarrier(1, &barrier);
+
+			// Copy the shared buffer contents into the texture using the memory
+			// layout prescribed by the texture.
+			D3D12_RESOURCE_DESC secondaryAdapterTexture = m_secondaryAdapterTextures[m_frameIndex]->GetDesc();
+			D3D12_PLACED_SUBRESOURCE_FOOTPRINT textureLayout;
+
+			m_devices[adapter]->GetCopyableFootprints(&secondaryAdapterTexture, 0, 1, 0, &textureLayout, nullptr, nullptr, nullptr);
+
+			CD3DX12_TEXTURE_COPY_LOCATION dest(m_secondaryAdapterTextures[m_frameIndex].Get(), 0);
+			CD3DX12_TEXTURE_COPY_LOCATION src(m_crossAdapterResources[adapter][m_frameIndex].Get(), textureLayout);
+			CD3DX12_BOX box(0, 0, m_width, m_height);
+
+			m_directCommandLists[adapter]->CopyTextureRegion(&dest, 0, 0, 0, &src, &box);
+
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			m_directCommandLists[adapter]->ResourceBarrier(1, &barrier);
+		}
 
 		// Get a timestamp at the start of the command list.
 		const UINT timestampHeapIndex = 2 * m_frameIndex;
@@ -1058,7 +1177,6 @@ void D3D12HeterogeneousMultiadapter::PopulateCommandLists()
 		{
 			m_directCommandLists[adapter]->SetPipelineState(m_blurPipelineStates[1].Get());
 
-			// Indicate that the intermediate render target will be used as a shader resource.
 			// Indicate that the back buffer will be used as a render target and the
 			// intermediate render target will be used as a SRV.
 			D3D12_RESOURCE_BARRIER barriers[] = {
