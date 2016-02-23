@@ -267,11 +267,7 @@ void D3D12Multithreading::LoadAssets()
 		m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
 		rtvHandle.Offset(1, m_rtvDescriptorSize);
 
-		WCHAR name[25];
-		if (swprintf_s(name, L"m_renderTargets[%u]", i) > 0)
-		{
-			SetName(m_renderTargets[i].Get(), name);
-		}
+		NAME_D3D12_OBJECT_INDEXED(m_renderTargets, i);
 	}
 
 	// Create the depth stencil.
@@ -426,7 +422,7 @@ void D3D12Multithreading::LoadAssets()
 		// Create each texture and SRV descriptor.
 		const UINT srvCount = _countof(SampleAssets::Textures);
 		PIXBeginEvent(commandList.Get(), 0, L"Copy diffuse and normal texture data to default resources...");
-		for (int i = 0; i < srvCount; i++)
+		for (UINT i = 0; i < srvCount; i++)
 		{
 			// Describe and create a Texture2D.
 			const SampleAssets::TextureResource &tex = SampleAssets::Textures[i];
@@ -451,9 +447,7 @@ void D3D12Multithreading::LoadAssets()
 				nullptr,
 				IID_PPV_ARGS(&m_textures[i])));
 
-			WCHAR name[30];
-			swprintf_s(name, L"m_textures[%d]", i);
-			SetName(m_textures[i].Get(), name);
+			NAME_D3D12_OBJECT_INDEXED(m_textures, i);
 
 			{
 				const UINT subresourceCount = texDesc.DepthOrArraySize * texDesc.MipLevels;

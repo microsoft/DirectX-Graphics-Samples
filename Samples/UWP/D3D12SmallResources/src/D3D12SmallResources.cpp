@@ -144,11 +144,7 @@ void D3D12SmallResources::LoadPipeline()
 			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_rtvDescriptorSize);
 
-			WCHAR name[25];
-			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
-			{
-				SetName(m_renderTargets[n].Get(), name);
-			}
+			NAME_D3D12_OBJECT_INDEXED(m_renderTargets, n);
 
 			ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[n])));
 		}
@@ -433,11 +429,7 @@ void D3D12SmallResources::CreateTextures()
 
 		UpdateSubresources<1>(m_copyCommandList.Get(), m_textures[n].Get(), uploadResources[n].Get(), 0, 0, 1, &textureData);
 
-		WCHAR name[25];
-		if (swprintf_s(name, L"m_textures[%u]", n) > 0)
-		{
-			SetName(m_textures[n].Get(), name);
-		}
+		NAME_D3D12_OBJECT_INDEXED(m_textures, n);
 
 		// Describe and create a SRV for the texture.
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};

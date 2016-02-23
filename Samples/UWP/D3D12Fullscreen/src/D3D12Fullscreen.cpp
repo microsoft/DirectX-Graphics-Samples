@@ -228,11 +228,7 @@ void D3D12Fullscreen::LoadSizeDependentResources()
 			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_rtvDescriptorSize);
 
-			WCHAR name[25];
-			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
-			{
-				SetName(m_renderTargets[n].Get(), name);
-			}
+			NAME_D3D12_OBJECT_INDEXED(m_renderTargets, n);
 		}
 	}
 

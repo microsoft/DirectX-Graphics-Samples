@@ -243,11 +243,7 @@ void D3D12Bundles::LoadAssets()
 		m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
 		rtvHandle.Offset(1, m_rtvDescriptorSize);
 
-		WCHAR name[25];
-		if (swprintf_s(name, L"m_renderTargets[%u]", i) > 0)
-		{
-			SetName(m_renderTargets[i].Get(), name);
-		}
+		NAME_D3D12_OBJECT_INDEXED(m_renderTargets, i);
 	}
 
 	// Read in mesh data for vertex/index buffers.
