@@ -12,7 +12,8 @@
 #include "stdafx.h"
 #include "D3D12ExecuteIndirect.h"
 
-const UINT D3D12ExecuteIndirect::CommandBufferSizePerFrame = TriangleCount * sizeof(IndirectCommand);
+const UINT D3D12ExecuteIndirect::CommandSizePerFrame = TriangleCount * sizeof(IndirectCommand);
+const UINT D3D12ExecuteIndirect::CommandBufferCounterOffset = AlignForUavCounter(D3D12ExecuteIndirect::CommandSizePerFrame);
 const float D3D12ExecuteIndirect::TriangleHalfWidth = 0.05f;
 const float D3D12ExecuteIndirect::TriangleDepth = 1.0f;
 const float D3D12ExecuteIndirect::CullingCutoff = 0.5f;
@@ -429,7 +430,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 	{
 		std::vector<IndirectCommand> commands;
 		commands.resize(TriangleResourceCount);
-		const UINT commandBufferSize = CommandBufferSizePerFrame * FrameCount;
+		const UINT commandBufferSize = CommandSizePerFrame * FrameCount;
 
 		D3D12_RESOURCE_DESC commandBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(commandBufferSize);
 		ThrowIfFailed(m_device->CreateCommittedResource(
@@ -501,7 +502,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 		{
 			// Allocate a buffer large enough to hold all of the indirect commands
 			// for a single frame as well as a UAV counter.
-			commandBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(CommandBufferSizePerFrame + sizeof(UINT), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+			commandBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(CommandBufferCounterOffset + sizeof(UINT), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 			ThrowIfFailed(m_device->CreateCommittedResource(
 				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 				D3D12_HEAP_FLAG_NONE,
@@ -518,7 +519,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 			uavDesc.Buffer.FirstElement = 0;
 			uavDesc.Buffer.NumElements = TriangleCount;
 			uavDesc.Buffer.StructureByteStride = sizeof(IndirectCommand);
-			uavDesc.Buffer.CounterOffsetInBytes = CommandBufferSizePerFrame;
+			uavDesc.Buffer.CounterOffsetInBytes = CommandBufferCounterOffset;
 			uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
 			m_device->CreateUnorderedAccessView(
@@ -687,7 +688,7 @@ void D3D12ExecuteIndirect::PopulateCommandLists()
 		m_computeCommandList->SetComputeRoot32BitConstants(RootConstants, 4, reinterpret_cast<void*>(&m_csRootConstants), 0);
 
 		// Reset the UAV counter for this frame.
-		m_computeCommandList->CopyBufferRegion(m_processedCommandBuffers[m_frameIndex].Get(), CommandBufferSizePerFrame, m_processedCommandBufferCounterReset.Get(), 0, sizeof(UINT));
+		m_computeCommandList->CopyBufferRegion(m_processedCommandBuffers[m_frameIndex].Get(), CommandBufferCounterOffset, m_processedCommandBufferCounterReset.Get(), 0, sizeof(UINT));
 
 		D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_processedCommandBuffers[m_frameIndex].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		m_computeCommandList->ResourceBarrier(1, &barrier);
@@ -746,7 +747,7 @@ void D3D12ExecuteIndirect::PopulateCommandLists()
 				m_processedCommandBuffers[m_frameIndex].Get(),
 				0,
 				m_processedCommandBuffers[m_frameIndex].Get(),
-				CommandBufferSizePerFrame);
+				CommandBufferCounterOffset);
 		}
 		else
 		{
@@ -757,7 +758,7 @@ void D3D12ExecuteIndirect::PopulateCommandLists()
 				m_commandSignature.Get(),
 				TriangleCount,
 				m_commandBuffer.Get(),
-				CommandBufferSizePerFrame * m_frameIndex,
+				CommandSizePerFrame * m_frameIndex,
 				nullptr,
 				0);
 		}
