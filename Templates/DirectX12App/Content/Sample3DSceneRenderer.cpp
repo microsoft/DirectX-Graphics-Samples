@@ -65,6 +65,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		ComPtr<ID3DBlob> pError;
 		DX::ThrowIfFailed(D3D12SerializeRootSignature(&descRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, pSignature.GetAddressOf(), pError.GetAddressOf()));
 		DX::ThrowIfFailed(d3dDevice->CreateRootSignature(0, pSignature->GetBufferPointer(), pSignature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+		NAME_D3D12_OBJECT(m_rootSignature);
 	}
 
 	// Load shaders asynchronously.
@@ -88,16 +89,16 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC state = {};
 		state.InputLayout = { inputLayout, _countof(inputLayout) };
 		state.pRootSignature = m_rootSignature.Get();
-		state.VS = { &m_vertexShader[0], m_vertexShader.size() };
-		state.PS = { &m_pixelShader[0], m_pixelShader.size() };
+		state.VS = CD3DX12_SHADER_BYTECODE(&m_vertexShader[0], m_vertexShader.size());
+		state.PS = CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size());
 		state.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		state.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-		state.DepthStencilState.DepthEnable = FALSE;
-		state.DepthStencilState.StencilEnable = FALSE;
+		state.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		state.SampleMask = UINT_MAX;
 		state.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		state.NumRenderTargets = 1;
-		state.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+		state.RTVFormats[0] = m_deviceResources->GetBackBufferFormat();
+		state.DSVFormat = m_deviceResources->GetDepthBufferFormat();
 		state.SampleDesc.Count = 1;
 
 		DX::ThrowIfFailed(m_deviceResources->GetD3DDevice()->CreateGraphicsPipelineState(&state, IID_PPV_ARGS(&m_pipelineState)));
@@ -113,6 +114,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 		// Create a command list.
 		DX::ThrowIfFailed(d3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_deviceResources->GetCommandAllocator(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+		NAME_D3D12_OBJECT(m_commandList);
 
 		// Cube vertices. Each vertex has a position and a color.
 		VertexPositionColor cubeVertices[] =
@@ -152,8 +154,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			nullptr,
 			IID_PPV_ARGS(&vertexBufferUpload)));
 
-		m_vertexBuffer->SetName(L"Vertex Buffer Resource");
-		vertexBufferUpload->SetName(L"Vertex Buffer Upload Resource");
+		NAME_D3D12_OBJECT(m_vertexBuffer);
 
 		// Upload the vertex buffer to the GPU.
 		{
@@ -216,8 +217,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			nullptr,
 			IID_PPV_ARGS(&indexBufferUpload)));
 
-		m_indexBuffer->SetName(L"Index Buffer Resource");
-		indexBufferUpload->SetName(L"Index Buffer Upload Resource");
+		NAME_D3D12_OBJECT(m_indexBuffer);
 
 		// Upload the index buffer to the GPU.
 		{
@@ -229,7 +229,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			UpdateSubresources(m_commandList.Get(), m_indexBuffer.Get(), indexBufferUpload.Get(), 0, 0, 1, &indexData);
 
 			CD3DX12_RESOURCE_BARRIER indexBufferResourceBarrier =
-				CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 			m_commandList->ResourceBarrier(1, &indexBufferResourceBarrier);
 		}
 
@@ -242,7 +242,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 			DX::ThrowIfFailed(d3dDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_cbvHeap)));
 
-			m_cbvHeap->SetName(L"Constant Buffer View Descriptor Heap");
+			NAME_D3D12_OBJECT(m_cbvHeap);
 		}
 
 		CD3DX12_RESOURCE_DESC constantBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(DX::c_frameCount * c_alignedConstantBufferSize);
@@ -254,7 +254,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			nullptr,
 			IID_PPV_ARGS(&m_constantBuffer)));
 
-		m_constantBuffer->SetName(L"Constant Buffer");
+		NAME_D3D12_OBJECT(m_constantBuffer);
 
 		// Create constant buffer views to access the upload buffer.
 		D3D12_GPU_VIRTUAL_ADDRESS cbvGpuAddress = m_constantBuffer->GetGPUVirtualAddress();
@@ -273,7 +273,8 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		}
 
 		// Map the constant buffers.
-		DX::ThrowIfFailed(m_constantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedConstantBuffer)));
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		DX::ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_mappedConstantBuffer)));
 		ZeroMemory(m_mappedConstantBuffer, DX::c_frameCount * c_alignedConstantBufferSize);
 		// We don't unmap this until the app closes. Keeping things mapped for the lifetime of the resource is okay.
 
@@ -308,7 +309,7 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 	float fovAngleY = 70.0f * XM_PI / 180.0f;
 
 	D3D12_VIEWPORT viewport = m_deviceResources->GetScreenViewport();
-	m_scissorRect = { 0, 0, static_cast<LONG>(viewport.Width), static_cast<LONG>(viewport.Height)};
+	m_scissorRect = { 0, 0, static_cast<LONG>(viewport.Width), static_cast<LONG>(viewport.Height) };
 
 	// This is a simple example of change that can be made when the app is in
 	// portrait or snapped view.
@@ -463,9 +464,12 @@ bool Sample3DSceneRenderer::Render()
 		m_commandList->ResourceBarrier(1, &renderTargetResourceBarrier);
 
 		// Record drawing commands.
-		m_commandList->ClearRenderTargetView(m_deviceResources->GetRenderTargetView(), DirectX::Colors::CornflowerBlue, 0, nullptr);
 		D3D12_CPU_DESCRIPTOR_HANDLE renderTargetView = m_deviceResources->GetRenderTargetView();
-		m_commandList->OMSetRenderTargets(1, &renderTargetView, false, nullptr);
+		D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = m_deviceResources->GetDepthStencilView();
+		m_commandList->ClearRenderTargetView(renderTargetView, DirectX::Colors::CornflowerBlue, 0, nullptr);
+		m_commandList->ClearDepthStencilView(depthStencilView, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+		m_commandList->OMSetRenderTargets(1, &renderTargetView, false, &depthStencilView);
 
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);

@@ -7,5 +7,6 @@ Release/
 x64/
 *.ipch
 *.sdf
+*.opendb
 *.opensdf
 *.user

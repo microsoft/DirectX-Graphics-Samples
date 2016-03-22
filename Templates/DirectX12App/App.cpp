@@ -15,6 +15,8 @@ using namespace Windows::System;
 using namespace Windows::Foundation;
 using namespace Windows::Graphics::Display;
 
+using Microsoft::WRL::ComPtr;
+
 // The DirectX 12 Application template is documented at http://go.microsoft.com/fwlink/?LinkID=613670&clcid=0x409
 
 // The main function is only used to initialize our IFrameworkView class.
@@ -142,9 +144,7 @@ void App::OnSuspending(Platform::Object^ sender, SuspendingEventArgs^ args)
 
 	create_task([this, deferral]()
 	{
-		// TODO: Insert your code here.
 		m_main->OnSuspending();
-
 		deferral->Complete();
 	});
 }
@@ -155,7 +155,6 @@ void App::OnResuming(Platform::Object^ sender, Platform::Object^ args)
 	// and state are persisted when resuming from suspend. Note that this event
 	// does not occur if the app was previously terminated.
 
-	// TODO: Insert your code here.
 	m_main->OnResuming();
 }
 
@@ -181,6 +180,10 @@ void App::OnWindowClosed(CoreWindow^ sender, CoreWindowEventArgs^ args)
 
 void App::OnDpiChanged(DisplayInformation^ sender, Object^ args)
 {
+	// Note: The value for LogicalDpi retrieved here may not match the effective DPI of the app
+	// if it is being scaled for high resolution devices. Once the DPI is set on DeviceResources,
+	// you should always retrieve it using the GetDpi method.
+	// See DeviceResources.cpp for more details.
 	GetDeviceResources()->SetDpi(sender->LogicalDpi);
 	m_main->OnWindowSizeChanged();
 }
@@ -205,6 +208,14 @@ std::shared_ptr<DX::DeviceResources> App::GetDeviceResources()
 
 		m_deviceResources = nullptr;
 		m_main->OnDeviceRemoved();
+
+#if defined(_DEBUG)
+		ComPtr<IDXGIDebug1> dxgiDebug;
+		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug))))
+		{
+			dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_SUMMARY | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
+		}
+#endif
 	}
 
 	if (m_deviceResources == nullptr)
