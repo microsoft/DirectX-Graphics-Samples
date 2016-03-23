@@ -401,7 +401,7 @@ void D3D12ReservedResources::LoadAssets()
 		{
 			const UINT heapWidth = TextureWidth >> n;
 			const UINT heapHeight = TextureHeight >> n;
-			const UINT heapSize = max(heapWidth * heapHeight * TexturePixelSizeInBytes, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+			const UINT heapSize = m_mips[n].regionSize.NumTiles * D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
 			CD3DX12_HEAP_DESC heapDesc(heapSize, D3D12_HEAP_TYPE_DEFAULT, 0, D3D12_HEAP_FLAG_DENY_BUFFERS | D3D12_HEAP_FLAG_DENY_RT_DS_TEXTURES);
 			ThrowIfFailed(m_device->CreateHeap(&heapDesc, IID_PPV_ARGS(&m_heaps[n])));
