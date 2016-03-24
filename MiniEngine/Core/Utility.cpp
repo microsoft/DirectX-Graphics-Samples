@@ -19,7 +19,10 @@
 void SIMDMemCopy( void* __restrict _Dest, const void* __restrict _Source, size_t NumQuadwords )
 {
 #ifdef _M_ARM
-	assert(false);
+	for (int i = 0; i < NumQuadwords; i++)
+	{
+		((XMVECTOR *)_Dest)[i] = ((XMVECTOR *)_Source)[i];
+	}
 #else
 	ASSERT(Math::IsAligned(_Dest, 16));
 	ASSERT(Math::IsAligned(_Source, 16));
@@ -103,9 +106,7 @@ void SIMDMemFill( void* __restrict _Dest, XMVECTOR  FillVector, size_t NumQuadwo
 {
 
 	ASSERT(Math::IsAligned(_Dest, 16));
-#if _M_ARM
-	assert(false);
-#else
+#if _M_X64
 	register const __m128i Source = _mm_castps_si128(FillVector);
 	__m128i* __restrict Dest = (__m128i* __restrict)_Dest;
 
@@ -140,6 +141,11 @@ void SIMDMemFill( void* __restrict _Dest, XMVECTOR  FillVector, size_t NumQuadwo
 	}
 
 	_mm_sfence();
+#else
+	for (int i = 0; i < NumQuadwords;i++)
+	{
+		((XMVECTOR *)_Dest)[i] = FillVector;
+	}
 #endif
 }
 
