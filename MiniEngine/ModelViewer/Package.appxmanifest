@@ -14,7 +14,7 @@
   <mp:PhoneIdentity PhoneProductId="202a44d8-54a7-4efd-83fe-ab27a027219c" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>ShaderPad</DisplayName>
+    <DisplayName>ModelViewer</DisplayName>
     <PublisherDisplayName>dima</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -30,12 +30,12 @@
   <Applications>
     <Application Id="App"
       Executable="$targetnametoken$.exe"
-      EntryPoint="ShaderPad.App">
+      EntryPoint="ModelViewer.App">
       <uap:VisualElements
-        DisplayName="ShaderPad"
+        DisplayName="ModelViewer"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png"
-        Description="ShaderPad"
+        Description="ModelViewer"
         BackgroundColor="transparent">
         <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png"/>
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
