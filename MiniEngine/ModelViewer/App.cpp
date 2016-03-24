@@ -56,8 +56,6 @@ void App::Initialize(CoreApplicationView^ applicationView)
 void App::SetWindow(CoreWindow^ window)
 {
 
-	gameEngineImpl.SetWindow(window);
-
 	window->SizeChanged += 
 		ref new TypedEventHandler<CoreWindow^, WindowSizeChangedEventArgs^>(this, &App::OnWindowSizeChanged);
 
@@ -163,7 +161,7 @@ void App::OnWindowSizeChanged(CoreWindow^ sender, WindowSizeChangedEventArgs^ ar
 
 	//Concurrency::critical_section::scoped_lock lck (m_render_cs);
 
-	Graphics::Resize(sender->Bounds.Width, sender->Bounds.Height);
+	Graphics::Resize((uint32_t)sender->Bounds.Width, (uint32_t)sender->Bounds.Height);
 	//m_main->OnWindowSizeChanged();
 }
 

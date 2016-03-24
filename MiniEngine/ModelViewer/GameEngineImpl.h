@@ -7,7 +7,7 @@ using namespace Graphics;
 
 //TODO:  inline uint32_t Color::R10G10B10A2( void ) const bug with no intrinsics?
 //TODO:  inline uint32_t Color::R8G8B8A8( void ) const
-//TODO: D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN ~0ull check
+//TODO: D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN SIZE_MAX check
 //TODO:  void CommandContext::FillBuffer( GpuResource& Dest, size_t DestOffset, DWParam Value, size_t NumBytes ) ARM not working
 //TODO: BitScanForward64 ???
 //TODO: /3rdParty/zlib-1.2.8-winrt/zlib.h git module
@@ -40,14 +40,10 @@ public:
 	}
 
 
-	void SetWindow(Windows::UI::Core::CoreWindow ^ window)
-	{
-		m_Window = window;
-	}
 
 	virtual ComPtr<IUnknown> GetMainWindow(void) override
 	{
-		return ComPtr<IUnknown>(reinterpret_cast<IUnknown *>(m_Window));
+		return ComPtr<IUnknown>(reinterpret_cast<IUnknown *>(Windows::UI::Core::CoreWindow::GetForCurrentThread()));
 	}
 
 	virtual void Startup(void) override
@@ -233,6 +229,5 @@ private:
 	Vector3 m_SunDirection;
 	ShadowCamera m_SunShadow;
 
-	Windows::UI::Core::CoreWindow ^ m_Window;
 
 };

@@ -21,9 +21,9 @@
 
 using namespace Graphics;
 
-#pragma intrinsic(_BitScanReverse)
-#pragma intrinsic(_BitScanForward)
-#pragma intrinsic(_BitScanForward64)
+//#pragma intrinsic(_BitScanReverse)
+//#pragma intrinsic(_BitScanForward)
+//#pragma intrinsic(_BitScanForward64)
 
 //
 // DynamicDescriptorHeap Implementation
@@ -200,7 +200,7 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(
 		DestHandleStart += TableSize[i] * kDescriptorSize;
 
 		unsigned long SkipCount;
-		while (_BitScanForward64(&SkipCount, SetHandles))
+		while (BitScanForward64(&SkipCount, SetHandles))
 		{
 			// Skip over unset descriptor handles
 			SetHandles >>= SkipCount;
@@ -208,7 +208,7 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(
 			CurDest.ptr += SkipCount * kDescriptorSize;
 
 			unsigned long DescriptorCount;
-			_BitScanForward64(&DescriptorCount, ~SetHandles);
+			BitScanForward64(&DescriptorCount, ~SetHandles);
 			SetHandles >>= DescriptorCount;
 
 			// If we run out of temp room, copy what we've got so far

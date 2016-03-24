@@ -34,6 +34,17 @@ __declspec(align(16)) struct EmissionProperties
 	XMFLOAT3 EmissiveColor;
 	float pad1;	
 	XMUINT4 RandIndex[64];
+
+	inline static void* operator new(size_t size)
+	{
+		return _aligned_malloc(size,16);
+	}
+
+		inline static void operator delete(void* memory)
+	{
+		_aligned_free(memory);
+	}
+
 };
 
 EmissionProperties* CreateEmissionProperties();

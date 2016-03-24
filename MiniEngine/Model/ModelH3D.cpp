@@ -30,6 +30,8 @@ bool Model::LoadH3D(const char *filename)
 
 	bool ok = false;
 
+	auto a = sizeof(Header);
+
 	if (1 != fread(&m_Header, sizeof(Header), 1, file)) goto h3d_load_fail;
 
 	m_pMesh = new Mesh [m_Header.meshCount];

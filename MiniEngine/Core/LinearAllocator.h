@@ -106,7 +106,7 @@ class LinearAllocator
 {
 public:
 
-	LinearAllocator(LinearAllocatorType Type) : m_AllocationType(Type), m_PageSize(0), m_CurOffset(~0ull), m_CurPage(nullptr)
+	LinearAllocator(LinearAllocatorType Type) : m_AllocationType(Type), m_PageSize(0), m_CurOffset(SIZE_MAX), m_CurPage(nullptr)
 	{
 		ASSERT(Type > kInvalidAllocator && Type < kNumAllocatorTypes);
 		m_PageSize = (Type == kGpuExclusive ? kGpuAllocatorPageSize : kCpuAllocatorPageSize);
