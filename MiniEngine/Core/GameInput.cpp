@@ -15,11 +15,11 @@
 #include "GameCore.h"
 #include "GameInput.h"
 
-#include <XInput.h>
-#pragma comment(lib, "xinput9_1_0.lib")
 
+#include <XInput.h>
 
 #if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+	#pragma comment(lib, "xinput9_1_0.lib"
 	#define USE_KEYBOARD_MOUSE
 #endif
 

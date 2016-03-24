@@ -66,11 +66,12 @@ void Model::Clear()
 	m_VertexBuffer.Destroy();
 	m_IndexBuffer.Destroy();
 
-	delete [] m_pMesh;
+	_aligned_free( m_pMesh);
 	m_pMesh = nullptr;
 	m_Header.meshCount = 0;
 
-	delete [] m_pMaterial;
+	_aligned_free(m_pMaterial);
+
 	m_pMaterial = nullptr;
 	m_Header.materialCount = 0;
 

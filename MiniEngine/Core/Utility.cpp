@@ -18,6 +18,9 @@
 // A faster version of memcopy that uses SSE instructions.  TODO:  Write an ARM variant if necessary.
 void SIMDMemCopy( void* __restrict _Dest, const void* __restrict _Source, size_t NumQuadwords )
 {
+#ifdef _M_ARM
+	assert(false);
+#else
 	ASSERT(Math::IsAligned(_Dest, 16));
 	ASSERT(Math::IsAligned(_Source, 16));
 
@@ -93,12 +96,16 @@ void SIMDMemCopy( void* __restrict _Dest, const void* __restrict _Source, size_t
 	}
 
 	_mm_sfence();
+#endif
 }
 
-void SIMDMemFill( void* __restrict _Dest, __m128 FillVector, size_t NumQuadwords )
+void SIMDMemFill( void* __restrict _Dest, XMVECTOR  FillVector, size_t NumQuadwords )
 {
-	ASSERT(Math::IsAligned(_Dest, 16));
 
+	ASSERT(Math::IsAligned(_Dest, 16));
+#if _M_ARM
+	assert(false);
+#else
 	register const __m128i Source = _mm_castps_si128(FillVector);
 	__m128i* __restrict Dest = (__m128i* __restrict)_Dest;
 
@@ -133,6 +140,7 @@ void SIMDMemFill( void* __restrict _Dest, __m128 FillVector, size_t NumQuadwords
 	}
 
 	_mm_sfence();
+#endif
 }
 
 std::wstring MakeWStr( const std::string& str )

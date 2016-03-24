@@ -17,7 +17,6 @@
 
 using namespace DirectX;
 
-#include <emmintrin.h>
 
 class Color
 {

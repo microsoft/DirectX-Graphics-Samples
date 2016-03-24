@@ -131,7 +131,7 @@ namespace Graphics
 			uint16_t format;
 		};
 
-		struct Header
+		__declspec(align(16)) struct Header
 		{
 			uint32_t meshCount;
 			uint32_t materialCount;
@@ -143,7 +143,7 @@ namespace Graphics
 		};
 		Header m_Header;
 
-		struct Mesh
+		__declspec(align(16)) struct Mesh
 		{
 			BoundingBox boundingBox;
 
@@ -163,10 +163,11 @@ namespace Graphics
 
 			unsigned int vertexDataByteOffsetDepth;
 			unsigned int vertexCountDepth;
+
 		};
 		Mesh *m_pMesh;
 
-		struct Material
+		__declspec(align(16)) struct Material
 		{
 			Vector3 diffuse;
 			Vector3 specular;
@@ -188,6 +189,7 @@ namespace Graphics
 
 			enum { maxMaterialName = 128 };
 			char name[maxMaterialName];
+
 		};
 		Material *m_pMaterial;
 

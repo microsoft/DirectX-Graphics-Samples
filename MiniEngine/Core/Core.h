@@ -50,6 +50,7 @@
 #include <wrl.h>
 #include <ppltasks.h>
 
+#include <DirectXMath.h>
 
 #include "Utility.h"
 #include "VectorMath.h"

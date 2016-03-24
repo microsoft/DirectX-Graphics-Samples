@@ -200,7 +200,13 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(
 		DestHandleStart += TableSize[i] * kDescriptorSize;
 
 		unsigned long SkipCount;
-		while (BitScanForward64(&SkipCount, SetHandles))
+		while (
+#ifdef _M_ARM
+			_BitScanForward
+#else
+			_BitScanForward64
+#endif
+			(&SkipCount, SetHandles))
 		{
 			// Skip over unset descriptor handles
 			SetHandles >>= SkipCount;
@@ -208,7 +214,12 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(
 			CurDest.ptr += SkipCount * kDescriptorSize;
 
 			unsigned long DescriptorCount;
-			BitScanForward64(&DescriptorCount, ~SetHandles);
+#ifdef _M_ARM
+			_BitScanForward
+#else
+			_BitScanForward64
+#endif
+				(&DescriptorCount, ~SetHandles);
 			SetHandles >>= DescriptorCount;
 
 			// If we run out of temp room, copy what we've got so far
