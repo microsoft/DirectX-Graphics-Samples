@@ -31,7 +31,7 @@
 #include "GraphRenderer.h"
 
 #if WINAPI_FAMILY != WINAPI_FAMILY_DESKTOP_APP
-	#include <agile.h>
+	//#include <agile.h>
 #endif
 
 #include <dxgi1_4.h>	// For WARP
@@ -69,7 +69,7 @@ namespace GameCore
 #if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
 	extern HWND g_hWnd;
 #else
-	extern Platform::Agile<Windows::UI::Core::CoreWindow>  g_window;
+	//extern Platform::Agile<Windows::UI::Core::CoreWindow>  g_window;
 #endif
 }
 
@@ -246,6 +246,10 @@ void Graphics::Resize(uint32_t width, uint32_t height)
 	for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 		g_DisplayPlane[i].Destroy();
 
+	g_CommandManager.GetGraphicsQueue().WaitForIdle();
+	g_CommandManager.GetComputeQueue().WaitForIdle();
+	g_CommandManager.GetCopyQueue().WaitForIdle();
+
 	ASSERT_SUCCEEDED(s_PrimarySwapChain->ResizeBuffers(SWAP_CHAIN_BUFFER_COUNT, width, height, SwapChainFormat, 0));
 
 	for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
@@ -259,7 +263,12 @@ void Graphics::Resize(uint32_t width, uint32_t height)
 }
 
 // Initialize the DirectX resources required to run.
+
+#if (WINAPI_FAMILY != WINAPI_FAMILY_APP)
 void Graphics::Initialize(void)
+#else
+void Graphics::Initialize(Microsoft::WRL::ComPtr<IUnknown> mainWindow)
+#endif
 {
 	ASSERT(s_PrimarySwapChain == nullptr, "Graphics has already been initialized");
 
@@ -341,6 +350,7 @@ void Graphics::Initialize(void)
 
 	g_CommandManager.Create(g_Device);
 
+#if (WINAPI_FAMILY != WINAPI_FAMILY_APP)
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
 	swapChainDesc.BufferDesc.Width = g_DisplayWidth;
 	swapChainDesc.BufferDesc.Height = g_DisplayHeight;
@@ -354,7 +364,41 @@ void Graphics::Initialize(void)
 	swapChainDesc.OutputWindow = GameCore::g_hWnd;
 	swapChainDesc.Windowed = TRUE;
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+#else
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+	swapChainDesc.Width = g_DisplayWidth;
+	swapChainDesc.Height = g_DisplayHeight;
+	swapChainDesc.Format = SwapChainFormat;
+	swapChainDesc.Scaling = DXGI_SCALING_NONE;
+	swapChainDesc.SampleDesc.Quality = 0;
+	swapChainDesc.SampleDesc.Count = 1;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;// | DXGI_USAGE_UNORDERED_ACCESS;
+	swapChainDesc.BufferCount = SWAP_CHAIN_BUFFER_COUNT;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+#endif
+
+
+#if (WINAPI_FAMILY != WINAPI_FAMILY_APP)
 	ASSERT_SUCCEEDED(dxgiFactory->CreateSwapChain( g_CommandManager.GetCommandQueue(), &swapChainDesc, &s_PrimarySwapChain ));
+#else
+	ComPtr<IDXGISwapChain1> swapChain1;
+	ComPtr<IDXGISwapChain> swapChain;
+
+	ASSERT_SUCCEEDED(dxgiFactory->CreateSwapChainForCoreWindow(
+		g_CommandManager.GetCommandQueue(),
+		mainWindow.Get(),
+		&swapChainDesc,
+		nullptr,
+		&swapChain1
+		));
+
+	ASSERT_SUCCEEDED(swapChain1.As<IDXGISwapChain>(&swapChain));
+
+	s_PrimarySwapChain = swapChain.Detach();
+
+#endif
 
 	for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{

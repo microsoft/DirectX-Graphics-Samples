@@ -82,7 +82,7 @@
       <Project>{86A58508-0D6A-4786-A32F-01A301FDC6F3}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
-    <ProjectReference Include="..\3rdParty\zlib-win64\ZLib_VS14.vcxproj">
+    <ProjectReference Include="..\3rdParty\zlib\ZLib_VS14.vcxproj">
       <Project>{ae5221d1-87e2-4428-8ef9-f25909c43291}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Model\Model_VS14.vcxproj">

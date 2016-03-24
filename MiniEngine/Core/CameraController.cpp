@@ -120,3 +120,6 @@ void CameraController::ApplyMomentum( float& oldValue, float& newValue, float de
 	oldValue = blendedValue;
 	newValue = blendedValue;
 }
+
+
+

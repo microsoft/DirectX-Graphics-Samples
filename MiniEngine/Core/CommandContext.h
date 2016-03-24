@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "pch.h"
+#include "Core.h"
 #include "CommandListManager.h"
 #include "Color.h"
 #include "PipelineState.h"

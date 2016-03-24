@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "pch.h"
+#include "Core.h"
 #include "Color.h"
 
 class SamplerDesc : public D3D12_SAMPLER_DESC

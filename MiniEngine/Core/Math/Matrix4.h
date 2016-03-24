@@ -17,6 +17,8 @@
 
 namespace Math
 {
+
+
 	__declspec(align(64)) class Matrix4
 	{
 	public:
@@ -74,3 +76,5 @@ namespace Math
 		XMMATRIX m_mat;
 	};
 }
+
+

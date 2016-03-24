@@ -11,7 +11,7 @@
 // Author:  Alex Nankervis
 //
 
-#include "pch.h"
+#include "Core.h"
 #include "Model.h"
 #include "Utility.h"
 #include "TextureManager.h"

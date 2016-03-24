@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "pch.h"
+#include "Core.h"
 #include "GpuResource.h"
 #include "Utility.h"
 

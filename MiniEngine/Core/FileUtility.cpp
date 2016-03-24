@@ -15,7 +15,7 @@
 #include "FileUtility.h"
 #include <fstream>
 #include <mutex>
-#include "../3rdParty/zlib-win64/zlib.h"
+#include "../3rdParty/zlib/zlib.h"
 
 using namespace std;
 using namespace Utility;

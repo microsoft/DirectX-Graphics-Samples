@@ -32,7 +32,11 @@ namespace GameCore
 
 	void InitializeApplication( IGameApp& game )
 	{
+#if (WINAPI_FAMILY == WINAPI_FAMILY_APP)
+		Graphics::Initialize(game.GetMainWindow());
+#else
 		Graphics::Initialize();
+#endif
 		SystemTime::Initialize();
 		GameInput::Initialize();
 		EngineTuning::Initialize();
@@ -98,13 +102,19 @@ namespace GameCore
 		return true;
 	}
 
+#if (WINAPI_FAMILY != WINAPI_FAMILY_APP)
 	HWND g_hWnd = nullptr;
+#endif
 
 	void InitWindow( const wchar_t* className );
 	LRESULT CALLBACK WndProc( HWND, UINT, WPARAM, LPARAM );
 
 	void RunApplication( IGameApp& app, const wchar_t* className )
 	{
+#if (WINAPI_FAMILY==WINAPI_FAMILY_APP)
+
+#else
+
 		HINSTANCE hInst = GetModuleHandle(0);
 
 		// Register class
@@ -148,11 +158,14 @@ namespace GameCore
 				break;
 		}
 		while (UpdateApplication(app));	// Returns false to quit loop
-
+#endif
 		Graphics::Terminate();
 		TerminateApplication(app);
 		Graphics::Shutdown();
 	}
+
+
+#if (WINAPI_FAMILY!=WINAPI_FAMILY_APP)
 
 	//--------------------------------------------------------------------------------------
 	// Called every time the application receives a message
@@ -183,4 +196,5 @@ namespace GameCore
 
 		return 0;
 	}
+#endif
 }

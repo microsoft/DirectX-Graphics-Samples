@@ -33,7 +33,11 @@ namespace Graphics
 
 	using namespace Microsoft::WRL;
 
+#if (WINAPI_FAMILY != WINAPI_FAMILY_APP)
 	void Initialize(void);
+#else
+	void Initialize(Microsoft::WRL::ComPtr<IUnknown> mainWindow);
+#endif
 	void Resize(uint32_t width, uint32_t height);
 	void Terminate(void);
 	void Shutdown(void);

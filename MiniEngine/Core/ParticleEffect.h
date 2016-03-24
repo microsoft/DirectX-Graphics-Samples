@@ -12,7 +12,7 @@
 //             James Stanard
 
 #pragma once
-#include "pch.h"
+#include "Core.h"
 #include "GpuBuffer.h"
 #include "ParticleEffectProperties.h"
 #include "ParticleShaderStructs.h"

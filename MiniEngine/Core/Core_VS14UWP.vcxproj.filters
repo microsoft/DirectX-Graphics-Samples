@@ -13,9 +13,6 @@
     <ClInclude Include="GameInput.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="pch.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="EngineTuning.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -185,7 +182,7 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="pch\pch.h">
-      <Filter>Shaders</Filter>
+      <Filter>pch</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -364,6 +361,9 @@
     </Filter>
     <Filter Include="Shaders\GenerateMips">
       <UniqueIdentifier>{6bfe1a9c-fe27-4aa4-b232-2f6b673b1f75}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="pch">
+      <UniqueIdentifier>{7e74caa1-2c07-432b-abb2-202de6f8ec49}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

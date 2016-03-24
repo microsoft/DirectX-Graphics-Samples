@@ -1,6 +1,7 @@
 .vs/
 assimp-3.0/
 Build_VS14/
+Build_VS14UWP/
 *.dll
 *.ipch
 *.opensdf
