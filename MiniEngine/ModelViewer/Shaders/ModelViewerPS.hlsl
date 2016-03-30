@@ -105,6 +105,9 @@ float3 ApplyDirectionalLight(
 	if (nDotL <= 0)
 		return 0;
 
+	//fxc bug workaround?
+	nDotL = max(nDotL, 0.0001);
+
 	// viewDir is also assumed normalized
 	float3 halfVec = normalize(lightDir - viewDir);
 	float nDotH = max(0, dot(halfVec, normal));
