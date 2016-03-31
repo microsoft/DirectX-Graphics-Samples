@@ -18,23 +18,28 @@
 
 #include <XInput.h>
 
+#define USE_KEYBOARD_MOUSE
+
 #if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
 	#pragma comment(lib, "xinput9_1_0.lib")
-	#define USE_KEYBOARD_MOUSE
+
+	#ifdef USE_KEYBOARD_MOUSE
+	#define DIRECTINPUT_VERSION 0x0800
+	#include <dinput.h>
+	#pragma comment(lib, "dinput8.lib")
+	#pragma comment(lib, "dxguid.lib")
 #endif
 
 
-#ifdef USE_KEYBOARD_MOUSE
-#define DIRECTINPUT_VERSION 0x0800
-#include <dinput.h>
-#pragma comment(lib, "dinput8.lib")
-#pragma comment(lib, "dxguid.lib")
+
 
 namespace GameCore
 {
 	extern HWND g_hWnd;
 }
 #endif
+
+unsigned char s_Keybuffer[256];
 
 namespace
 {
@@ -44,12 +49,14 @@ namespace
 	float s_AnalogsTC[GameInput::kNumAnalogInputs];
 
 #ifdef USE_KEYBOARD_MOUSE
+#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+
 	IDirectInput8A* s_DI;
 	IDirectInputDevice8A* s_Keyboard;
 	IDirectInputDevice8A* s_Mouse;
 
 	_DIMOUSESTATE2 s_MouseState;
-	unsigned char s_Keybuffer[256];
+#endif
 	unsigned char s_DXKeyMapping[GameInput::kNumKeys]; // map DigitalInput enum to DX key codes 
 #endif
 
@@ -74,6 +81,7 @@ namespace
 #ifdef USE_KEYBOARD_MOUSE
 	void KbmBuildKeyMapping()
 	{
+
 		s_DXKeyMapping[GameInput::kKey_escape] = 1;
 		s_DXKeyMapping[GameInput::kKey_1] = 2;
 		s_DXKeyMapping[GameInput::kKey_2] = 3;
@@ -182,13 +190,16 @@ namespace
 
 	void KbmZeroInputs()
 	{
+#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
 		memset(&s_MouseState, 0, sizeof(DIMOUSESTATE2));
+#endif
 		memset(s_Keybuffer, 0, sizeof(s_Keybuffer));
 	}
 
 	void KbmInitialize()
 	{
 		KbmBuildKeyMapping();
+#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
 
 		if (FAILED(DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&s_DI, nullptr)))
 			ASSERT(false, "DirectInput8 initialization failed.");
@@ -214,12 +225,14 @@ namespace
 			ASSERT(false, "Mouse SetDataFormat failed.");
 		if (FAILED(s_Mouse->SetCooperativeLevel(GameCore::g_hWnd, DISCL_FOREGROUND | DISCL_EXCLUSIVE)))
 			ASSERT(false, "Mouse SetCooperativeLevel failed.");
-
+#endif
 		KbmZeroInputs();
 	}
 
 	void KbmShutdown()
 	{
+#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+
 		if (s_Keyboard)
 		{
 			s_Keyboard->Unacquire();
@@ -237,10 +250,13 @@ namespace
 			s_DI->Release();
 			s_DI = nullptr;
 		}
+#endif
 	}
 
 	void KbmUpdate()
 	{
+#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+
 		HWND foreground = GetForegroundWindow();
 		bool visible = IsWindowVisible(foreground) != 0;
 
@@ -256,6 +272,7 @@ namespace
 			s_Keyboard->Acquire();
 			s_Keyboard->GetDeviceState(sizeof(s_Keybuffer), s_Keybuffer);
 		}
+#endif
 	}
 #endif
 
@@ -287,6 +304,9 @@ void GameInput::Update( float frameDelta )
 	memset(s_Buttons[0], 0, sizeof(s_Buttons[0]));
 	memset(s_Analogs, 0, sizeof(s_Analogs));
 
+#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+
+
 	XINPUT_STATE newInputState;
 	if (ERROR_SUCCESS == XInputGetState( 0, &newInputState ))
 	{
@@ -312,14 +332,20 @@ void GameInput::Update( float frameDelta )
 		s_Analogs[ kAnalogRightStickX ]		= FilterAnalogInput(newInputState.Gamepad.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
 		s_Analogs[ kAnalogRightStickY ]		= FilterAnalogInput(newInputState.Gamepad.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
 	}
+#endif
 
 #ifdef USE_KEYBOARD_MOUSE
 	KbmUpdate();
 
+
 	for (uint32_t i = 0; i < kNumKeys; ++i)
 	{
 		s_Buttons[0][i] = (s_Keybuffer[s_DXKeyMapping[i]] & 0x80) != 0;
+
 	}
+
+
+#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
 
 	for (uint32_t i = 0; i < 8; ++i)
 	{
@@ -334,6 +360,8 @@ void GameInput::Update( float frameDelta )
 	else if (s_MouseState.lZ < 0)
 		s_Analogs[kAnalogMouseScroll] = -1.0f;
 #endif
+#endif
+
 
 	// Update time duration for buttons pressed
 	for (uint32_t i = 0; i < kNumDigitalInputs; ++i)
@@ -347,15 +375,18 @@ void GameInput::Update( float frameDelta )
 		}
 	}
 
+#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+
 	for (uint32_t i = 0; i < kNumAnalogInputs; ++i)
 	{
 		s_AnalogsTC[i] = s_Analogs[i] * frameDelta;
 	}
-
+#endif
 }
 
 bool GameInput::IsAnyPressed( void )
 {
+
 	return s_Buttons[0] != 0;
 }
 

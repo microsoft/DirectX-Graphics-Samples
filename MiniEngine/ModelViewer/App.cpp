@@ -35,6 +35,14 @@ App::App() :
 	m_windowClosed(false),
 	m_windowVisible(true)
 {
+	memset(kb_map, 0, sizeof(kb_map));
+
+	kb_map[(int)Windows::System::VirtualKey::W] = 0x11; // DIK_W;
+	kb_map[(int)Windows::System::VirtualKey::A] = 0x1E; // DIK_A
+	kb_map[(int)Windows::System::VirtualKey::S] = 0x1F; // DIK_S;
+	kb_map[(int)Windows::System::VirtualKey::D] = 0x20; // DIK_D;
+	kb_map[(int)Windows::System::VirtualKey::Escape] = 0x01; // DIK_ESCAPE;
+
 }
 
 // The first method called when the IFrameworkView is being created.
@@ -65,6 +73,12 @@ void App::SetWindow(CoreWindow^ window)
 	window->Closed += 
 		ref new TypedEventHandler<CoreWindow^, CoreWindowEventArgs^>(this, &App::OnWindowClosed);
 
+	window->KeyDown +=
+		ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &App::OnKeyDown);
+
+	window->KeyUp +=
+		ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &App::OnKeyUp);
+
 	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
 
 	currentDisplayInformation->DpiChanged +=
@@ -76,6 +90,27 @@ void App::SetWindow(CoreWindow^ window)
 	DisplayInformation::DisplayContentsInvalidated +=
 		ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnDisplayContentsInvalidated);
 }
+
+
+extern unsigned char s_Keybuffer[256];
+
+
+void App::OnKeyDown(
+	_In_ CoreWindow^ /* sender */,
+	_In_ KeyEventArgs^ args
+	)
+{
+	s_Keybuffer[kb_map[(int)args->VirtualKey]] = 128;
+}
+
+void App::OnKeyUp(
+	_In_ CoreWindow^ /* sender */,
+	_In_ KeyEventArgs^ args
+	)
+{
+	s_Keybuffer[kb_map[(int)args->VirtualKey]] = 0;
+}
+
 
 // Initializes scene resources, or loads a previously saved app state.
 void App::Load(Platform::String^ entryPoint)
@@ -115,6 +150,7 @@ void App::Run()
 // class is torn down while the app is in the foreground.
 void App::Uninitialize()
 {
+
 }
 
 // Application lifecycle event handlers.

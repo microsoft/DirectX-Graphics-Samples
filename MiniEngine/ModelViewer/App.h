@@ -36,6 +36,18 @@ namespace ModelViewer
 		void OnOrientationChanged(Windows::Graphics::Display::DisplayInformation^ sender, Platform::Object^ args);
 		void OnDisplayContentsInvalidated(Windows::Graphics::Display::DisplayInformation^ sender, Platform::Object^ args);
 
+
+		void OnKeyDown(
+			_In_ Windows::UI::Core::CoreWindow^ sender,
+			_In_ Windows::UI::Core::KeyEventArgs^ args
+			);
+
+		void OnKeyUp(
+			_In_ Windows::UI::Core::CoreWindow^ sender,
+			_In_ Windows::UI::Core::KeyEventArgs^ args
+			);
+
+
 	private:
 
 		bool m_windowClosed;
@@ -43,6 +55,8 @@ namespace ModelViewer
 
 		GameEngineImpl gameEngineImpl;
 
+
+		char kb_map[256];
 
 
 

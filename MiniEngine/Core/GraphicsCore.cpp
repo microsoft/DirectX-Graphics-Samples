@@ -300,7 +300,8 @@ void Graphics::Initialize(Microsoft::WRL::ComPtr<IUnknown> mainWindow)
 			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
 				continue;
 
-			if (SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice))))
+			if (SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0
+				, MY_IID_PPV_ARGS(&pDevice))))
 			{
 				pAdapter->GetDesc1(&desc);
 				Utility::Printf(L"D3D12-capable hardware found:  %s (%u MB)\n", desc.Description, desc.DedicatedVideoMemory >> 20);
