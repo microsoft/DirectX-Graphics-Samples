@@ -16,9 +16,7 @@ using namespace Windows::System;
 using namespace Windows::Foundation;
 using namespace Windows::Graphics::Display;
 
-// The DirectX 12 Application template is documented at http://go.microsoft.com/fwlink/?LinkID=613670&clcid=0x409
 
-// The main function is only used to initialize our IFrameworkView class.
 [Platform::MTAThread]
 int main(Platform::Array<Platform::String^>^)
 {
@@ -69,6 +67,7 @@ void App::SetWindow(CoreWindow^ window)
 
 	window->SizeChanged += 
 		ref new TypedEventHandler<CoreWindow^, WindowSizeChangedEventArgs^>(this, &App::OnWindowSizeChanged);
+
 
 	window->VisibilityChanged +=
 		ref new TypedEventHandler<CoreWindow^, VisibilityChangedEventArgs^>(this, &App::OnVisibilityChanged);
@@ -225,7 +224,19 @@ void App::Uninitialize()
 
 void App::OnActivated(CoreApplicationView^ applicationView, IActivatedEventArgs^ args)
 {
-	// Run() won't start until the CoreWindow is activated.
+
+	if (args->Kind == ActivationKind::Launch)
+	{
+		auto launchArgs = static_cast<LaunchActivatedEventArgs^>(args);
+		if (launchArgs->PrelaunchActivated)
+		{
+			// Opt-out of Prelaunch 
+			CoreApplication::Exit();
+			return;	
+		}
+	}
+
+	//CoreApplication::GetCurrentView()->TitleBar->ExtendViewIntoTitleBar = true;
 	CoreWindow::GetForCurrentThread()->Activate();
 }
 
