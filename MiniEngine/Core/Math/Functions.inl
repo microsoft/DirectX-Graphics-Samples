@@ -86,7 +86,10 @@ namespace Math
 	INLINE float Min( float a, float b ) { return Min(Scalar(a), Scalar(b)); }
 	INLINE float Clamp( float v, float a, float b ) { return Clamp(Scalar(v), Scalar(a), Scalar(b)); }
 
-	INLINE Scalar Length( Vector3 v ) { return Scalar(XMVector3Length(v)); }
+	INLINE Scalar Length( Vector3 v ) 
+	{ 
+		return Scalar(XMVector3Length(v)); 
+	}
 	INLINE Scalar LengthSquare( Vector3 v ) { return Scalar(XMVector3LengthSq(v)); }
 	INLINE Scalar LengthRecip( Vector3 v ) { return Scalar(XMVector3ReciprocalLength(v)); }
 	INLINE Scalar Dot( Vector3 v1, Vector3 v2 ) { return Scalar(XMVector3Dot(v1, v2)); }
