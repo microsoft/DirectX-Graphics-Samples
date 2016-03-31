@@ -39,7 +39,19 @@ namespace GameCore
 }
 #endif
 
+
+#if WINAPI_FAMILY == WINAPI_FAMILY_APP
+typedef struct _DIMOUSESTATE2 {
+	LONG    lX;
+	LONG    lY;
+	LONG    lZ;
+	BYTE    rgbButtons[8];
+} DIMOUSESTATE2, *LPDIMOUSESTATE2;
+
+#endif
+
 unsigned char s_Keybuffer[256];
+_DIMOUSESTATE2 s_MouseState;
 
 namespace
 {
@@ -54,8 +66,6 @@ namespace
 	IDirectInput8A* s_DI;
 	IDirectInputDevice8A* s_Keyboard;
 	IDirectInputDevice8A* s_Mouse;
-
-	_DIMOUSESTATE2 s_MouseState;
 #endif
 	unsigned char s_DXKeyMapping[GameInput::kNumKeys]; // map DigitalInput enum to DX key codes 
 #endif
@@ -190,9 +200,7 @@ namespace
 
 	void KbmZeroInputs()
 	{
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
 		memset(&s_MouseState, 0, sizeof(DIMOUSESTATE2));
-#endif
 		memset(s_Keybuffer, 0, sizeof(s_Keybuffer));
 	}
 
@@ -269,6 +277,7 @@ namespace
 		{
 			s_Mouse->Acquire();
 			s_Mouse->GetDeviceState(sizeof(DIMOUSESTATE2), &s_MouseState);
+
 			s_Keyboard->Acquire();
 			s_Keyboard->GetDeviceState(sizeof(s_Keybuffer), s_Keybuffer);
 		}
@@ -345,21 +354,18 @@ void GameInput::Update( float frameDelta )
 	}
 
 
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
-
 	for (uint32_t i = 0; i < 8; ++i)
 	{
 		if (s_MouseState.rgbButtons[i] > 0) s_Buttons[0][kMouse0 + i] = true;
 	}
-
 	s_Analogs[kAnalogMouseX] = (float)s_MouseState.lX * .0018f;
 	s_Analogs[kAnalogMouseY] = (float)s_MouseState.lY * -.0018f;
-
 	if (s_MouseState.lZ > 0)
 		s_Analogs[kAnalogMouseScroll] = 1.0f;
 	else if (s_MouseState.lZ < 0)
 		s_Analogs[kAnalogMouseScroll] = -1.0f;
-#endif
+
+
 #endif
 
 
@@ -375,13 +381,11 @@ void GameInput::Update( float frameDelta )
 		}
 	}
 
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
 
 	for (uint32_t i = 0; i < kNumAnalogInputs; ++i)
 	{
 		s_AnalogsTC[i] = s_Analogs[i] * frameDelta;
 	}
-#endif
 }
 
 bool GameInput::IsAnyPressed( void )

@@ -11,6 +11,7 @@ using namespace Windows::ApplicationModel::Core;
 using namespace Windows::ApplicationModel::Activation;
 using namespace Windows::UI::Core;
 using namespace Windows::UI::Input;
+using namespace Windows::Devices::Input;
 using namespace Windows::System;
 using namespace Windows::Foundation;
 using namespace Windows::Graphics::Display;
@@ -63,6 +64,8 @@ void App::Initialize(CoreApplicationView^ applicationView)
 // Called when the CoreWindow object is created (or re-created).
 void App::SetWindow(CoreWindow^ window)
 {
+	window->PointerCursor = nullptr;
+
 
 	window->SizeChanged += 
 		ref new TypedEventHandler<CoreWindow^, WindowSizeChangedEventArgs^>(this, &App::OnWindowSizeChanged);
@@ -79,6 +82,9 @@ void App::SetWindow(CoreWindow^ window)
 	window->KeyUp +=
 		ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &App::OnKeyUp);
 
+	MouseDevice::GetForCurrentView()->MouseMoved +=
+		ref new TypedEventHandler<MouseDevice^, MouseEventArgs^>(this, &App::OnMouseMoved);
+
 	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
 
 	currentDisplayInformation->DpiChanged +=
@@ -89,7 +95,33 @@ void App::SetWindow(CoreWindow^ window)
 
 	DisplayInformation::DisplayContentsInvalidated +=
 		ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnDisplayContentsInvalidated);
+
+	window->PointerPressed +=
+		ref new TypedEventHandler<CoreWindow^, PointerEventArgs^>(this, &App::OnPointerPressed);
+
 }
+
+typedef struct _DIMOUSESTATE2 {
+	LONG    lX;
+	LONG    lY;
+	LONG    lZ;
+	BYTE    rgbButtons[8];
+} DIMOUSESTATE2, *LPDIMOUSESTATE2;
+
+
+extern _DIMOUSESTATE2 s_MouseState;
+
+
+void App::OnMouseMoved(
+	_In_ Windows::Devices::Input::MouseDevice^ mouseDevice,
+	_In_ Windows::Devices::Input::MouseEventArgs^ args
+	)
+{
+	s_MouseState.lX = args->MouseDelta.X*4;
+	s_MouseState.lY = args->MouseDelta.Y*4;
+}
+
+
 
 
 extern unsigned char s_Keybuffer[256];
@@ -101,7 +133,35 @@ void App::OnKeyDown(
 	)
 {
 	s_Keybuffer[kb_map[(int)args->VirtualKey]] = 128;
+
+	if (args->VirtualKey == Windows::System::VirtualKey::Escape)
+	{
+		CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
+			CoreDispatcherPriority::Normal,
+			ref new DispatchedHandler([this]()
+		{
+			CoreWindow::GetForCurrentThread()->PointerCursor = ref new CoreCursor(CoreCursorType::Arrow, 0);
+			m_tracking = false;
+		}));
+
+	}
 }
+
+void App::OnPointerPressed(
+	_In_ Windows::UI::Core::CoreWindow^ sender,
+	_In_ Windows::UI::Core::PointerEventArgs^ args
+	)
+{
+	CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
+		CoreDispatcherPriority::Normal,
+		ref new DispatchedHandler([this]()
+	{
+		CoreWindow::GetForCurrentThread()->PointerCursor = nullptr;
+		m_tracking = true;
+	}));
+
+}
+
 
 void App::OnKeyUp(
 	_In_ CoreWindow^ /* sender */,
@@ -132,6 +192,10 @@ void App::Run()
 			{
 				//Concurrency::critical_section::scoped_lock lck(m_render_cs);
 				GameCore::UpdateApplication(gameEngineImpl);
+
+				s_MouseState.lX = 0;
+				s_MouseState.lY = 0;
+				s_MouseState.lZ = 0;
 			}
 		}
 		else

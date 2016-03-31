@@ -47,6 +47,16 @@ namespace ModelViewer
 			_In_ Windows::UI::Core::KeyEventArgs^ args
 			);
 
+		void OnMouseMoved(
+			_In_ Windows::Devices::Input::MouseDevice^ mouseDevice,
+			_In_ Windows::Devices::Input::MouseEventArgs^ args
+			);
+
+		void OnPointerPressed(
+			_In_ Windows::UI::Core::CoreWindow^ sender,
+			_In_ Windows::UI::Core::PointerEventArgs^ args
+			);
+
 
 	private:
 
@@ -58,6 +68,7 @@ namespace ModelViewer
 
 		char kb_map[256];
 
+		bool m_tracking = true;
 
 
 	};
