@@ -210,7 +210,6 @@ void App::Run()
 	}
 
 	Graphics::Terminate();
-	//TerminateApplication(gameEngineImpl);
 	Graphics::Shutdown();
 }
 
@@ -254,7 +253,6 @@ void App::OnResuming(Platform::Object^ sender, Platform::Object^ args)
 	// does not occur if the app was previously terminated.
 
 	// TODO: Insert your code here.
-	//m_main->OnResuming();
 }
 
 // Window event handlers.
@@ -280,7 +278,6 @@ void App::OnWindowClosed(CoreWindow^ sender, CoreWindowEventArgs^ args)
 	m_windowClosed = true;
 }
 
-// DisplayInformation event handlers.
 
 void App::OnDpiChanged(DisplayInformation^ info, Object^ args)
 {
@@ -289,31 +286,10 @@ void App::OnDpiChanged(DisplayInformation^ info, Object^ args)
 
 void App::OnOrientationChanged(DisplayInformation^ sender, Object^ args)
 {
-	//GetDeviceResources()->SetCurrentOrientation(sender->CurrentOrientation);
-	//m_main->OnWindowSizeChanged();
+	OnWindowSizeChanged(CoreWindow::GetForCurrentThread(), nullptr);
 }
 
 void App::OnDisplayContentsInvalidated(DisplayInformation^ sender, Object^ args)
 {
-	//GetDeviceResources()->ValidateDevice();
+	//do something?
 }
-
-//std::shared_ptr<DX::DeviceResources> App::GetDeviceResources()
-//{
-	//if (m_deviceResources != nullptr && m_deviceResources->IsDeviceRemoved())
-	//{
-		// All references to the existing D3D device must be released before a new device
-		// can be created.
-
-		//m_deviceResources = nullptr;
-		//m_main->OnDeviceRemoved();
-	//}
-
-	//if (m_deviceResources == nullptr)
-	//{
-		//m_deviceResources = std::make_shared<DX::DeviceResources>();
-		//m_deviceResources->SetWindow(CoreWindow::GetForCurrentThread());
-		//m_main->CreateRenderers(m_deviceResources);
-	//}
-	//return m_deviceResources;
-//}
