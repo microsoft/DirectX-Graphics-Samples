@@ -98,7 +98,6 @@ void App::SetWindow(CoreWindow^ window)
 
 	window->PointerPressed +=
 		ref new TypedEventHandler<CoreWindow^, PointerEventArgs^>(this, &App::OnPointerPressed);
-
 }
 
 typedef struct _DIMOUSESTATE2 {
@@ -117,8 +116,11 @@ void App::OnMouseMoved(
 	_In_ Windows::Devices::Input::MouseEventArgs^ args
 	)
 {
-	s_MouseState.lX = args->MouseDelta.X*4;
-	s_MouseState.lY = args->MouseDelta.Y*4;
+	if (m_tracking)
+	{
+		s_MouseState.lX = args->MouseDelta.X * 4;
+		s_MouseState.lY = args->MouseDelta.Y * 4;
+	}
 }
 
 
@@ -183,6 +185,9 @@ void App::Load(Platform::String^ entryPoint)
 // This method is called after the window becomes active.
 void App::Run()
 {
+
+	OnWindowSizeChanged(CoreWindow::GetForCurrentThread(), nullptr);
+
 	while (!m_windowClosed)
 	{
 		if (m_windowVisible)
@@ -256,13 +261,13 @@ void App::OnResuming(Platform::Object^ sender, Platform::Object^ args)
 
 void App::OnWindowSizeChanged(CoreWindow^ sender, WindowSizeChangedEventArgs^ args)
 {
-	//GetDeviceResources()->SetLogicalSize(Size(sender->Bounds.Width, sender->Bounds.Height));
 
+	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
 
-	//Concurrency::critical_section::scoped_lock lck (m_render_cs);
-
-	Graphics::Resize((uint32_t)sender->Bounds.Width, (uint32_t)sender->Bounds.Height);
-	//m_main->OnWindowSizeChanged();
+	auto width=floorf(sender->Bounds.Width * currentDisplayInformation->LogicalDpi / 96.0f + 0.5f);
+	auto height= floorf(sender->Bounds.Height * currentDisplayInformation->LogicalDpi / 96.0f + 0.5f);
+	
+	Graphics::Resize((uint32_t)width, (uint32_t)height);
 }
 
 void App::OnVisibilityChanged(CoreWindow^ sender, VisibilityChangedEventArgs^ args)
@@ -277,10 +282,9 @@ void App::OnWindowClosed(CoreWindow^ sender, CoreWindowEventArgs^ args)
 
 // DisplayInformation event handlers.
 
-void App::OnDpiChanged(DisplayInformation^ sender, Object^ args)
+void App::OnDpiChanged(DisplayInformation^ info, Object^ args)
 {
-	//GetDeviceResources()->SetDpi(sender->LogicalDpi);
-	//m_main->OnWindowSizeChanged();
+	OnWindowSizeChanged(CoreWindow::GetForCurrentThread(), nullptr);
 }
 
 void App::OnOrientationChanged(DisplayInformation^ sender, Object^ args)
