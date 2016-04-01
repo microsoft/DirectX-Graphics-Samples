@@ -27,6 +27,8 @@ int main(Platform::Array<Platform::String^>^)
 
 IFrameworkView^ Direct3DApplicationSource::CreateView()
 {
+	//Windows::Gaming::Input::GamepadReading r;
+
 	return ref new App();
 }
 
@@ -41,6 +43,7 @@ App::App() :
 	kb_map[(int)Windows::System::VirtualKey::S] = 0x1F; // DIK_S;
 	kb_map[(int)Windows::System::VirtualKey::D] = 0x20; // DIK_D;
 	kb_map[(int)Windows::System::VirtualKey::Escape] = 0x01; // DIK_ESCAPE;
+
 
 }
 
@@ -192,8 +195,8 @@ void App::Run()
 		if (m_windowVisible)
 		{
 			CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
-
 			{
+
 				GameCore::UpdateApplication(gameEngineImpl);
 
 				memset(&s_MouseState, 0, sizeof(s_MouseState));

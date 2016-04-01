@@ -289,8 +289,9 @@ namespace
 
 void GameInput::Initialize()
 {
+
 	// For Windows 8
-	//	XInputEnable(TRUE);
+	//XInputEnable(TRUE);
 
 	ZeroMemory( s_Buttons, sizeof(s_Buttons) );
 	ZeroMemory( s_Analogs, sizeof(s_Analogs) );
@@ -313,7 +314,6 @@ void GameInput::Update( float frameDelta )
 	memset(s_Buttons[0], 0, sizeof(s_Buttons[0]));
 	memset(s_Analogs, 0, sizeof(s_Analogs));
 
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
 
 
 	XINPUT_STATE newInputState;
@@ -341,7 +341,6 @@ void GameInput::Update( float frameDelta )
 		s_Analogs[ kAnalogRightStickX ]		= FilterAnalogInput(newInputState.Gamepad.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
 		s_Analogs[ kAnalogRightStickY ]		= FilterAnalogInput(newInputState.Gamepad.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
 	}
-#endif
 
 #ifdef USE_KEYBOARD_MOUSE
 	KbmUpdate();

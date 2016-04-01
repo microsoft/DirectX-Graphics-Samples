@@ -70,7 +70,6 @@ namespace ModelViewer
 
 		bool m_tracking = true;
 
-
 	};
 }
 
