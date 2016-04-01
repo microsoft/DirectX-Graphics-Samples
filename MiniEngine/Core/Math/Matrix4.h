@@ -23,12 +23,12 @@ namespace Math
 	{
 	public:
 		INLINE Matrix4() {}
-		INLINE Matrix4( Vector3 x, Vector3 y, Vector3 z, Vector3 w )
+		INLINE Matrix4( const Vector3 &x, const Vector3 &y, const Vector3 &z, const Vector3 &w )
 		{
 			m_mat.r[0] = SetWToZero(x); m_mat.r[1] = SetWToZero(y);
 			m_mat.r[2] = SetWToZero(z); m_mat.r[3] = SetWToOne(w);
 		}
-		INLINE Matrix4( Vector4 x, Vector4 y, Vector4 z, Vector4 w ) { m_mat.r[0] = x; m_mat.r[1] = y; m_mat.r[2] = z; m_mat.r[3] = w; }
+		INLINE Matrix4( const Vector4 &x, const Vector4 &y, const Vector4 &z, const Vector4 &w ) { m_mat.r[0] = x; m_mat.r[1] = y; m_mat.r[2] = z; m_mat.r[3] = w; }
 		INLINE Matrix4( const Matrix4& mat ) { m_mat = mat.m_mat; }
 		INLINE Matrix4( const Matrix3& mat )
 		{
@@ -37,7 +37,7 @@ namespace Math
 			m_mat.r[2] = SetWToZero(mat.GetZ());
 			m_mat.r[3] = CreateWUnitVector();
 		}
-		INLINE Matrix4( const Matrix3& xyz, Vector3 w )
+		INLINE Matrix4( const Matrix3& xyz, const Vector3 &w )
 		{
 			m_mat.r[0] = SetWToZero(xyz.GetX());
 			m_mat.r[1] = SetWToZero(xyz.GetY());
@@ -57,19 +57,19 @@ namespace Math
 		INLINE Vector4 GetZ() const { return Vector4(m_mat.r[2]); }
 		INLINE Vector4 GetW() const { return Vector4(m_mat.r[3]); }
 
-		INLINE void SetX(Vector4 x) { m_mat.r[0] = x; }
-		INLINE void SetY(Vector4 y) { m_mat.r[1] = y; }
-		INLINE void SetZ(Vector4 z) { m_mat.r[2] = z; }
-		INLINE void SetW(Vector4 w) { m_mat.r[3] = w; }
+		INLINE void SetX(const Vector4 &x) { m_mat.r[0] = x; }
+		INLINE void SetY(const Vector4 &y) { m_mat.r[1] = y; }
+		INLINE void SetZ(const Vector4 &z) { m_mat.r[2] = z; }
+		INLINE void SetW(const Vector4 &w) { m_mat.r[3] = w; }
 
 		INLINE operator XMMATRIX() const { return m_mat; }
 
-		INLINE Vector4 operator* ( Vector3 vec ) const { return Vector4(XMVector3Transform(vec, m_mat)); }
-		INLINE Vector4 operator* ( Vector4 vec ) const { return Vector4(XMVector4Transform(vec, m_mat)); }
+		INLINE Vector4 operator* ( const Vector3 &vec ) const { return Vector4(XMVector3Transform(vec, m_mat)); }
+		INLINE Vector4 operator* ( const Vector4 &vec ) const { return Vector4(XMVector4Transform(vec, m_mat)); }
 		INLINE Matrix4 operator* ( const Matrix4& mat ) const { return Matrix4(XMMatrixMultiply(mat, m_mat)); }
 
 		static INLINE Matrix4 MakeScale( float scale ) { return Matrix4(XMMatrixScaling(scale, scale, scale)); }
-		static INLINE Matrix4 MakeScale( Vector3 scale ) { return Matrix4(XMMatrixScalingFromVector(scale)); }
+		static INLINE Matrix4 MakeScale( const Vector3 &scale ) { return Matrix4(XMMatrixScalingFromVector(scale)); }
 
 
 	private:

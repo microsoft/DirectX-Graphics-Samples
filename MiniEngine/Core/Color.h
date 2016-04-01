@@ -54,6 +54,12 @@ public:
 	uint32_t R10G10B10A2() const;
 	uint32_t R8G8B8A8() const;
 
+	inline static void* operator new(size_t size){ return _aligned_malloc(size,16); }
+	inline static void operator delete(void* memory) { _aligned_free(memory); }
+
+	inline static void* operator new[](size_t size) { return _aligned_malloc(size, 16); }
+	inline static void operator delete[](void *mem) { _aligned_free(mem); }
+
 private:
 	XMVECTOR m_value;
 };

@@ -77,7 +77,7 @@ public:
 	void SetShadowParams( float opacity, float width );
 
 	// Set the color and transparency of text.
-	void SetColor( Color color );
+	void SetColor( const Color &color );
 
 	// Get the amount to advance the Y position to begin a new line
 	float GetVerticalSpacing( void );

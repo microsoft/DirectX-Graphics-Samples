@@ -204,7 +204,7 @@ public:
 	void SetViewportAndScissor( const D3D12_VIEWPORT& vp, const D3D12_RECT& rect );
 	void SetViewportAndScissor( UINT x, UINT y, UINT w, UINT h );
 	void SetStencilRef( UINT StencilRef );
-	void SetBlendFactor( Color BlendFactor );
+	void SetBlendFactor( Color &BlendFactor );
 	void SetPrimitiveTopology( D3D12_PRIMITIVE_TOPOLOGY Topology );
 
 	void SetPipelineState( const GraphicsPSO& PSO );
@@ -332,7 +332,7 @@ inline void GraphicsContext::SetStencilRef( UINT ref )
 	m_CommandList->OMSetStencilRef( ref );
 }
 
-inline void GraphicsContext::SetBlendFactor( Color BlendFactor )
+inline void GraphicsContext::SetBlendFactor( Color &BlendFactor )
 {
 	m_CommandList->OMSetBlendFactor( BlendFactor.GetPtr() );
 }

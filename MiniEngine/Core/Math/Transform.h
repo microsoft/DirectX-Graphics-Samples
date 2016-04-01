@@ -22,16 +22,16 @@ namespace Math
 	{
 	public:
 		INLINE OrthogonalTransform() : m_rotation(kIdentity), m_translation(kZero) {}
-		INLINE OrthogonalTransform( Quaternion rotate ) : m_rotation(rotate), m_translation(kZero) {}
-		INLINE OrthogonalTransform( Vector3 translate ) : m_rotation(kIdentity), m_translation(translate) {}
-		INLINE OrthogonalTransform( Quaternion rotate, Vector3 translate ) : m_rotation(rotate), m_translation(translate) {}
+		INLINE OrthogonalTransform( const Quaternion &rotate ) : m_rotation(rotate), m_translation(kZero) {}
+		INLINE OrthogonalTransform( const Vector3 &translate ) : m_rotation(kIdentity), m_translation(translate) {}
+		INLINE OrthogonalTransform( const Quaternion &rotate, const Vector3 &translate ) : m_rotation(rotate), m_translation(translate) {}
 		INLINE OrthogonalTransform( const Matrix3& mat ) : m_rotation(mat), m_translation(kZero) {}
-		INLINE OrthogonalTransform( const Matrix3& mat, Vector3 translate ) : m_rotation(mat), m_translation(translate) {}
+		INLINE OrthogonalTransform( const Matrix3& mat, const Vector3 &translate ) : m_rotation(mat), m_translation(translate) {}
 		INLINE OrthogonalTransform( EIdentityTag ) : m_rotation(kIdentity), m_translation(kZero) {}
 		INLINE explicit OrthogonalTransform( const XMMATRIX& mat ) { *this = OrthogonalTransform( Matrix3(mat), Vector3(mat.r[3]) ); }
 
-		INLINE void SetRotation( Quaternion q ) { m_rotation = q; }
-		INLINE void SetTranslation( Vector3 v ) { m_translation = v; }
+		INLINE void SetRotation( const Quaternion &q ) { m_rotation = q; }
+		INLINE void SetTranslation( const Vector3 &v ) { m_translation = v; }
 
 		INLINE Quaternion GetRotation() const { return m_rotation; }
 		INLINE Vector3 GetTranslation() const { return m_translation; }
@@ -39,10 +39,10 @@ namespace Math
 		static INLINE OrthogonalTransform MakeXRotation( float angle ) { return OrthogonalTransform(Quaternion(Vector3(kXUnitVector), angle)); }
 		static INLINE OrthogonalTransform MakeYRotation( float angle ) { return OrthogonalTransform(Quaternion(Vector3(kYUnitVector), angle)); }
 		static INLINE OrthogonalTransform MakeZRotation( float angle ) { return OrthogonalTransform(Quaternion(Vector3(kZUnitVector), angle)); }
-		static INLINE OrthogonalTransform MakeTranslation( Vector3 translate ) { return OrthogonalTransform(translate); }
+		static INLINE OrthogonalTransform MakeTranslation( const Vector3 &translate ) { return OrthogonalTransform(translate); }
 
-		INLINE Vector3 operator* ( Vector3 vec ) const { return m_rotation * vec + m_translation; }
-		INLINE Vector4 operator* ( Vector4 vec ) const { return
+		INLINE Vector3 operator* ( const Vector3 &vec ) const { return m_rotation * vec + m_translation; }
+		INLINE Vector4 operator* ( const Vector4 &vec ) const { return
 			Vector4(SetWToZero(m_rotation * Vector3((XMVECTOR)vec))) +
 			Vector4(SetWToOne(m_translation)) * vec.GetW();
 		}
@@ -67,13 +67,13 @@ namespace Math
 	public:
 		INLINE AffineTransform()
 			{}
-		INLINE AffineTransform( Vector3 x, Vector3 y, Vector3 z, Vector3 w )
+		INLINE AffineTransform( const Vector3 &x, const Vector3 &y, const Vector3 &z, const Vector3 &w )
 			: m_basis(x, y, z), m_translation(w) {}
-		INLINE AffineTransform( Vector3 translate )
+		INLINE AffineTransform( const Vector3 &translate )
 			: m_basis(kIdentity), m_translation(translate) {}
-		INLINE AffineTransform( const Matrix3& mat, Vector3 translate = Vector3(kZero) )
+		INLINE AffineTransform( const Matrix3& mat, const Vector3 &translate = Vector3(kZero) )
 			: m_basis(mat), m_translation(translate) {}
-		INLINE AffineTransform( Quaternion rot, Vector3 translate = Vector3(kZero) )
+		INLINE AffineTransform( const Quaternion &rot, const Vector3 &translate = Vector3(kZero) )
 			: m_basis(rot), m_translation(translate) {}
 		INLINE AffineTransform( const OrthogonalTransform& xform )
 			: m_basis(xform.GetRotation()), m_translation(xform.GetTranslation()) {}
@@ -84,10 +84,10 @@ namespace Math
 
 		INLINE operator XMMATRIX() const { return (XMMATRIX&)*this; }
 
-		INLINE void SetX(Vector3 x) { m_basis.SetX(x); }
-		INLINE void SetY(Vector3 y) { m_basis.SetY(y); }
-		INLINE void SetZ(Vector3 z) { m_basis.SetZ(z); }
-		INLINE void SetTranslation(Vector3 w) { m_translation = w; }
+		INLINE void SetX(const Vector3 &x) { m_basis.SetX(x); }
+		INLINE void SetY(const Vector3 &y) { m_basis.SetY(y); }
+		INLINE void SetZ(const Vector3 &z) { m_basis.SetZ(z); }
+		INLINE void SetTranslation(const Vector3 &w) { m_translation = w; }
 
 		INLINE Vector3 GetX() const { return m_basis.GetX(); }
 		INLINE Vector3 GetY() const { return m_basis.GetY(); }
@@ -99,10 +99,10 @@ namespace Math
 		static INLINE AffineTransform MakeYRotation( float angle ) { return AffineTransform(Matrix3::MakeYRotation(angle)); }
 		static INLINE AffineTransform MakeZRotation( float angle ) { return AffineTransform(Matrix3::MakeZRotation(angle)); }
 		static INLINE AffineTransform MakeScale( float scale ) { return AffineTransform(Matrix3::MakeScale(scale)); }
-		static INLINE AffineTransform MakeScale( Vector3 scale ) { return AffineTransform(Matrix3::MakeScale(scale)); }
-		static INLINE AffineTransform MakeTranslation( Vector3 translate ) { return AffineTransform(translate); }
+		static INLINE AffineTransform MakeScale( const Vector3 &scale ) { return AffineTransform(Matrix3::MakeScale(scale)); }
+		static INLINE AffineTransform MakeTranslation( const Vector3 &translate ) { return AffineTransform(translate); }
 
-		INLINE Vector3 operator* ( Vector3 vec ) const { return m_basis * vec + m_translation; }
+		INLINE Vector3 operator* ( const Vector3 &vec ) const { return m_basis * vec + m_translation; }
 		INLINE AffineTransform operator* ( const AffineTransform& mat ) const {
 			return AffineTransform( m_basis * mat.m_basis, *this * mat.GetTranslation() );
 		}

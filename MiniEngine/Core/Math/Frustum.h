@@ -41,7 +41,7 @@ namespace Math
 
 		// Test whether the bounding sphere intersects the frustum.  Intersection is defined as either being
 		// fully contained in the frustum, or by intersecting one or more of the planes.
-		bool IntersectSphere( BoundingSphere sphere );
+		bool IntersectSphere( const BoundingSphere &sphere );
 
 		friend Frustum  operator* ( const OrthogonalTransform& xform, const Frustum& frustum );	// Fast
 		friend Frustum  operator* ( const AffineTransform& xform, const Frustum& frustum );		// Slow
@@ -63,7 +63,7 @@ namespace Math
 	// Inline implementations
 	//
 
-	inline bool Frustum::IntersectSphere( BoundingSphere sphere )
+	inline bool Frustum::IntersectSphere( const BoundingSphere &sphere )
 	{
 		float radius = sphere.GetRadius();
 		for (int i = 0; i < 6; ++i)

@@ -98,12 +98,12 @@ private:
 class StatPlot
 {
 public:
-	StatPlot(StatHistory& Data, Color Col = Color(1.0f, 1.0f, 1.0f))
+	StatPlot(StatHistory& Data, const Color &Col = Color(1.0f, 1.0f, 1.0f))
 		: m_StatData(Data), m_PlotColor(Col)
 	{
 	}
 
-	void SetColor( Color Col )
+	void SetColor( const Color &Col )
 	{
 		m_PlotColor = Col;
 	}

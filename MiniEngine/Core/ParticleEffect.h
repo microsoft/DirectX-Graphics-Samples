@@ -27,15 +27,9 @@ public:
 	float GetElapsedTime(){ return m_ElapsedTime; }
 	void Reset();
 
-	inline static void* operator new(size_t size)
-	{
-		return _aligned_malloc(size,16);
-	}
+	inline static void* operator new(size_t size){return _aligned_malloc(size,16);}
+	inline static void operator delete(void* memory){_aligned_free(memory);}
 
-	inline static void operator delete(void* memory)
-	{
-		_aligned_free(memory);
-	}
 private:
 
 	StructuredBuffer m_StateBuffers[2];

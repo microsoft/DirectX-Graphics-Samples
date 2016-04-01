@@ -39,7 +39,7 @@ ParticleEffect::ParticleEffect(ParticleEffectProperties* effectProperties)
 	m_EffectProperties = *effectProperties;
 }
 
-inline static Color RandColor( Color c0, Color c1 )
+inline static Color RandColor( const Color &c0, const Color &c1 )
 {
 	// We might want to find min and max of each channel rather than assuming c0 <= c1
 	return Color(

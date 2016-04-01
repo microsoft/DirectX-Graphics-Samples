@@ -142,7 +142,7 @@ void SIMDMemFill( void* __restrict _Dest, XMVECTOR  FillVector, size_t NumQuadwo
 
 	_mm_sfence();
 #else
-	for (int i = 0; i < NumQuadwords;i++)
+	for (size_t i = 0; i < NumQuadwords;i++)
 	{
 		((XMVECTOR *)_Dest)[i] = FillVector;
 	}

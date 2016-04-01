@@ -19,7 +19,7 @@
 using namespace Math;
 using namespace GameCore;
 
-CameraController::CameraController( Camera& camera, Vector3 worldUp ) : m_TargetCamera( camera )
+CameraController::CameraController( Camera& camera, const Vector3 &worldUp ) : m_TargetCamera( camera )
 {
 
 	m_WorldUp = Normalize(worldUp);

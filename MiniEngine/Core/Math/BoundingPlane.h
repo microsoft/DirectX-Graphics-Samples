@@ -22,19 +22,20 @@ namespace Math
 	public:
 
 		BoundingPlane() {}
-		BoundingPlane( Vector3 normalToPlane, float distanceFromOrigin ) : m_repr(normalToPlane, distanceFromOrigin) {}
-		BoundingPlane( Vector3 pointOnPlane, Vector3 normalToPlane );
+		BoundingPlane( Vector3 &normalToPlane, float distanceFromOrigin ) : m_repr(normalToPlane, distanceFromOrigin) {}
+		BoundingPlane( Vector3 &pointOnPlane, Vector3 &normalToPlane );
 		BoundingPlane( float A, float B, float C, float D ) : m_repr(A, B, C, D) {}
 		BoundingPlane( const BoundingPlane& plane ) : m_repr(plane.m_repr) {}
-		explicit BoundingPlane( Vector4 plane ) : m_repr(plane) {}
+		explicit BoundingPlane( Vector4 &plane ) : m_repr(plane) {}
 
 		INLINE operator Vector4() const { return m_repr; }
 
 		Vector3 GetNormal( void ) const { return Vector3(m_repr); }
 
-		Scalar DistanceFromPoint( Vector3 point ) const
+		Scalar DistanceFromPoint( Vector3 &point ) const
 		{
 			//return Dot(point, GetNormal()) + m_repr.GetW();
+
 			return Dot( Vector4(point, 1.0f), m_repr );
 		}
 
@@ -56,7 +57,7 @@ namespace Math
 	//=======================================================================================================
 	// Inline implementations
 	//
-	inline BoundingPlane::BoundingPlane( Vector3 pointOnPlane, Vector3 normalToPlane )
+	inline BoundingPlane::BoundingPlane( Vector3 &pointOnPlane, Vector3 &normalToPlane )
 	{
 		// Guarantee a normal.  This constructor isn't meant to be called frequently, but if it is, we can change this.
 		normalToPlane = Normalize(normalToPlane);	
@@ -66,7 +67,7 @@ namespace Math
 	//=======================================================================================================
 	// Functions operating on planes
 	//
-	inline BoundingPlane PlaneFromPointsCCW( Vector3 A, Vector3 B, Vector3 C )
+	inline BoundingPlane PlaneFromPointsCCW( Vector3 &A, Vector3 &B, Vector3 &C )
 	{
 		return BoundingPlane( A, Cross(B - A, C - A) );
 	}

@@ -313,7 +313,7 @@ void TextContext::SetShadowParams(float opacity, float width)
 	m_PSConstantBufferIsStale = true;
 }
 
-void TextContext::SetColor( Color c )
+void TextContext::SetColor( const Color &c )
 {
 	m_PSParams.TextColor = c;
 	m_PSConstantBufferIsStale = true;
