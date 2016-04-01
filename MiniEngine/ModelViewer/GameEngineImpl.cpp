@@ -96,7 +96,7 @@ void GameEngineImpl::Update(float deltaT)
 
 void GameEngineImpl::RenderObjects(GraphicsContext& gfxContext, const Matrix4& ViewProjMat)
 {
-	__declspec(align(16))  struct VSConstants
+	__declspec(align(64))  struct VSConstants
 	{
 		Matrix4 modelToProjection;
 		Matrix4 modelToShadow;

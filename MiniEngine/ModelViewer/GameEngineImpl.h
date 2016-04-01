@@ -108,12 +108,13 @@ public:
 		ASSERT(m_Model.m_Header.meshCount > 0, "Model contains no meshes");
 
 		CreateParticleEffects();
-		auto aa = m_Model.m_Header.boundingBox.max - m_Model.m_Header.boundingBox.min;
 
-		auto q = aa.GetX();
-		auto b = aa.GetY();
-		auto z = aa.GetZ();
-		float modelRadius = Length(aa) * .5f;
+
+		//movaps      xmmword ptr [rax-08h],xmm11
+		//ASSERT(Math::IsAligned(a, 16));
+
+
+		float modelRadius = Length(m_Model.m_Header.boundingBox.max - m_Model.m_Header.boundingBox.min) * .5f;
 		const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) 
 			* .4f + Vector3(modelRadius * .3f, 0.0f, 0.0f);
 

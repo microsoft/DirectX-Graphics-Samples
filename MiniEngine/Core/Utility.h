@@ -17,8 +17,21 @@
 
 namespace Utility
 {
-	inline void Print( const char* msg ) { printf(msg); }
-	inline void Print( const wchar_t* msg ) { wprintf(msg); }
+	inline void Print( const char* msg ) 
+	{ 
+#if _DEBUG
+		OutputDebugStringA(msg);
+#endif
+		printf(msg); 
+	}
+	inline void Print( const wchar_t* msg ) 
+	{
+
+#if _DEBUG
+		OutputDebugStringW(msg);
+#endif
+		wprintf(msg); 
+	}
 
 	inline void Printf( const char* format, ... )
 	{
