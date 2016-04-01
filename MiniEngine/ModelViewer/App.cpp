@@ -194,12 +194,9 @@ void App::Run()
 			CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
 
 			{
-				//Concurrency::critical_section::scoped_lock lck(m_render_cs);
 				GameCore::UpdateApplication(gameEngineImpl);
 
-				s_MouseState.lX = 0;
-				s_MouseState.lY = 0;
-				s_MouseState.lZ = 0;
+				memset(&s_MouseState, 0, sizeof(s_MouseState));
 			}
 		}
 		else

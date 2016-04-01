@@ -129,7 +129,7 @@ inline uint32_t Color::R10G10B10A2( void ) const
 {
 	XMVECTOR result = XMVectorRound(XMVectorMultiply(XMVectorSaturate(m_value), XMVectorSet(1023.0f, 1023.0f, 1023.0f, 3.0f)));
 
-#ifdef _XM_NO_INTRINSICS_
+#ifdef _M_ARM
 	result = XMConvertVectorIntToFloat(XMConvertVectorFloatToInt(result,0),0);
 #else
 	result = _mm_castsi128_ps(_mm_cvttps_epi32(result));
@@ -148,7 +148,7 @@ inline uint32_t Color::R8G8B8A8( void ) const
 {
 	XMVECTOR result = XMVectorRound(XMVectorMultiply(XMVectorSaturate(m_value), XMVectorReplicate(255.0f)));
 
-#ifdef _XM_NO_INTRINSICS_
+#ifdef _M_ARM
 	result = XMConvertVectorIntToFloat(XMConvertVectorFloatToInt(result, 0), 0);
 #else
 	result = _mm_castsi128_ps(_mm_cvttps_epi32(result));

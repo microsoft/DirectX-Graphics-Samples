@@ -195,17 +195,21 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(
 		DescriptorTableCache& RootDescTable = m_RootDescriptorTable[RootIndex];
 
 		D3D12_CPU_DESCRIPTOR_HANDLE* SrcHandles = RootDescTable.TableStart;
+#ifdef _M_X64
 		uint64_t SetHandles = (uint64_t)RootDescTable.AssignedHandlesBitMap;
+#else
+		uint32_t SetHandles = RootDescTable.AssignedHandlesBitMap;
+#endif
 		D3D12_CPU_DESCRIPTOR_HANDLE CurDest = DestHandleStart.GetCpuHandle();
 		DestHandleStart += TableSize[i] * kDescriptorSize;
 
 		unsigned long SkipCount;
+
 		while (
 #ifdef _M_X64
 			_BitScanForward64
 #else
 			_BitScanForward
-
 #endif
 			(&SkipCount, SetHandles))
 		{
@@ -215,12 +219,11 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(
 			CurDest.ptr += SkipCount * kDescriptorSize;
 
 			unsigned long DescriptorCount;
+
 #ifdef _M_X64
 			_BitScanForward64
-
 #else
 			_BitScanForward
-
 #endif
 				(&DescriptorCount, ~SetHandles);
 			SetHandles >>= DescriptorCount;

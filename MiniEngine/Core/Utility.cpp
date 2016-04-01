@@ -19,7 +19,7 @@
 void SIMDMemCopy( void* __restrict _Dest, const void* __restrict _Source, size_t NumQuadwords )
 {
 #ifdef _M_ARM
-	for (int i = 0; i < NumQuadwords; i++)
+	for (size_t i = 0; i < NumQuadwords; i++)
 	{
 		((XMVECTOR *)_Dest)[i] = ((XMVECTOR *)_Source)[i];
 	}
