@@ -164,6 +164,12 @@ namespace Graphics
 			unsigned int vertexDataByteOffsetDepth;
 			unsigned int vertexCountDepth;
 
+			inline static void* operator new(size_t size){ return _aligned_malloc(size,16); }
+			inline static void operator delete(void* memory) { _aligned_free(memory); }
+
+			inline static void* operator new[](size_t size) {return _aligned_malloc(size, 16); }
+			inline static void operator delete[](void *mem) { _aligned_free(mem); }
+
 		};
 		Mesh *m_pMesh;
 
