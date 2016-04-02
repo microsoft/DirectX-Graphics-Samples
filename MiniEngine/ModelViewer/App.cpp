@@ -136,7 +136,7 @@ void App::OnKeyDown(
 	_In_ KeyEventArgs^ args
 	)
 {
-	s_Keybuffer[kb_map[(int)args->VirtualKey]] = 128;
+	s_Keybuffer[kb_map[static_cast<char>(args->VirtualKey)]] = 128;
 
 	if (args->VirtualKey == Windows::System::VirtualKey::Escape)
 	{
