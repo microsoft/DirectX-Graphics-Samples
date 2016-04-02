@@ -32,7 +32,7 @@ namespace GameCore
 
 	void InitializeApplication( IGameApp& game )
 	{
-#if (WINAPI_FAMILY == WINAPI_FAMILY_APP)
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 		Graphics::Initialize(game.GetMainWindow());
 #else
 		Graphics::Initialize();
@@ -102,7 +102,7 @@ namespace GameCore
 		return true;
 	}
 
-#if (WINAPI_FAMILY != WINAPI_FAMILY_APP)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	HWND g_hWnd = nullptr;
 #endif
 
@@ -111,9 +111,7 @@ namespace GameCore
 
 	void RunApplication( IGameApp& app, const wchar_t* className )
 	{
-#if (WINAPI_FAMILY==WINAPI_FAMILY_APP)
-
-#else
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
 		HINSTANCE hInst = GetModuleHandle(0);
 
@@ -165,7 +163,7 @@ namespace GameCore
 	}
 
 
-#if (WINAPI_FAMILY!=WINAPI_FAMILY_APP)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
 	//--------------------------------------------------------------------------------------
 	// Called every time the application receives a message

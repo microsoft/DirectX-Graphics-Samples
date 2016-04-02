@@ -20,7 +20,7 @@
 
 #define USE_KEYBOARD_MOUSE
 
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	#pragma comment(lib, "xinput9_1_0.lib")
 
 	#ifdef USE_KEYBOARD_MOUSE
@@ -40,7 +40,7 @@ namespace GameCore
 #endif
 
 
-#if WINAPI_FAMILY == WINAPI_FAMILY_APP
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 typedef struct _DIMOUSESTATE2 {
 	LONG    lX;
 	LONG    lY;
@@ -61,8 +61,7 @@ namespace
 	float s_AnalogsTC[GameInput::kNumAnalogInputs];
 
 #ifdef USE_KEYBOARD_MOUSE
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
-
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	IDirectInput8A* s_DI;
 	IDirectInputDevice8A* s_Keyboard;
 	IDirectInputDevice8A* s_Mouse;
@@ -207,7 +206,8 @@ namespace
 	void KbmInitialize()
 	{
 		KbmBuildKeyMapping();
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
 
 		if (FAILED(DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&s_DI, nullptr)))
 			ASSERT(false, "DirectInput8 initialization failed.");
@@ -239,7 +239,8 @@ namespace
 
 	void KbmShutdown()
 	{
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
 
 		if (s_Keyboard)
 		{
@@ -263,7 +264,8 @@ namespace
 
 	void KbmUpdate()
 	{
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
 
 		HWND foreground = GetForegroundWindow();
 		bool visible = IsWindowVisible(foreground) != 0;

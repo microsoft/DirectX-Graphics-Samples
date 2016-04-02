@@ -30,7 +30,7 @@
 #include "ParticleEffectManager.h"
 #include "GraphRenderer.h"
 
-#if WINAPI_FAMILY != WINAPI_FAMILY_DESKTOP_APP
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	//#include <agile.h>
 #endif
 
@@ -66,7 +66,7 @@ using namespace Math;
 
 namespace GameCore
 {
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	extern HWND g_hWnd;
 #else
 	//extern Platform::Agile<Windows::UI::Core::CoreWindow>  g_window;
@@ -264,7 +264,7 @@ void Graphics::Resize(uint32_t width, uint32_t height)
 
 // Initialize the DirectX resources required to run.
 
-#if (WINAPI_FAMILY != WINAPI_FAMILY_APP)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 void Graphics::Initialize(void)
 #else
 void Graphics::Initialize(Microsoft::WRL::ComPtr<IUnknown> mainWindow)
@@ -351,7 +351,7 @@ void Graphics::Initialize(Microsoft::WRL::ComPtr<IUnknown> mainWindow)
 
 	g_CommandManager.Create(g_Device);
 
-#if (WINAPI_FAMILY != WINAPI_FAMILY_APP)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
 	swapChainDesc.BufferDesc.Width = g_DisplayWidth;
 	swapChainDesc.BufferDesc.Height = g_DisplayHeight;
@@ -381,7 +381,7 @@ void Graphics::Initialize(Microsoft::WRL::ComPtr<IUnknown> mainWindow)
 #endif
 
 
-#if (WINAPI_FAMILY != WINAPI_FAMILY_APP)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	ASSERT_SUCCEEDED(dxgiFactory->CreateSwapChain( g_CommandManager.GetCommandQueue(), &swapChainDesc, &s_PrimarySwapChain ));
 #else
 	ComPtr<IDXGISwapChain1> swapChain1;

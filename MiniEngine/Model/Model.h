@@ -196,6 +196,13 @@ namespace Graphics
 			enum { maxMaterialName = 128 };
 			char name[maxMaterialName];
 
+			inline static void* operator new(size_t size){ return _aligned_malloc(size,16); }
+			inline static void operator delete(void* memory) { _aligned_free(memory); }
+
+			inline static void* operator new[](size_t size) {return _aligned_malloc(size, 16); }
+			inline static void operator delete[](void *mem) { _aligned_free(mem); }
+
+
 		};
 		Material *m_pMaterial;
 
