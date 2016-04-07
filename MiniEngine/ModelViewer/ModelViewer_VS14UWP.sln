@@ -1,0 +1,42 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ModelViewer_VS14_UWP", "ModelViewer_VS14_UWP.vcxproj", "{31B69EC4-CC34-41DF-B012-A17B4441FDA9}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ZLib", "..\3rdParty\zlib-Win64\ZLib_VS14UWP.vcxproj", "{3277E23C-B7BE-433D-88ED-9BE3632E4D7B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Model", "..\Model\Model_VS14UWP.vcxproj", "{652BA0DC-E42C-4A60-975C-8D62A5553412}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\Core\Core_VS14UWP.vcxproj", "{652BA2DC-E42C-4A60-975C-8D62A0153400}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{31B69EC4-CC34-41DF-B012-A17B4441FDA9}.Debug|x64.ActiveCfg = Debug|x64
+		{31B69EC4-CC34-41DF-B012-A17B4441FDA9}.Debug|x64.Build.0 = Debug|x64
+		{31B69EC4-CC34-41DF-B012-A17B4441FDA9}.Debug|x64.Deploy.0 = Debug|x64
+		{31B69EC4-CC34-41DF-B012-A17B4441FDA9}.Release|x64.ActiveCfg = Release|x64
+		{31B69EC4-CC34-41DF-B012-A17B4441FDA9}.Release|x64.Build.0 = Release|x64
+		{31B69EC4-CC34-41DF-B012-A17B4441FDA9}.Release|x64.Deploy.0 = Release|x64
+		{3277E23C-B7BE-433D-88ED-9BE3632E4D7B}.Debug|x64.ActiveCfg = Debug|x64
+		{3277E23C-B7BE-433D-88ED-9BE3632E4D7B}.Debug|x64.Build.0 = Debug|x64
+		{3277E23C-B7BE-433D-88ED-9BE3632E4D7B}.Release|x64.ActiveCfg = Release|x64
+		{3277E23C-B7BE-433D-88ED-9BE3632E4D7B}.Release|x64.Build.0 = Release|x64
+		{652BA0DC-E42C-4A60-975C-8D62A5553412}.Debug|x64.ActiveCfg = Debug|x64
+		{652BA0DC-E42C-4A60-975C-8D62A5553412}.Debug|x64.Build.0 = Debug|x64
+		{652BA0DC-E42C-4A60-975C-8D62A5553412}.Release|x64.ActiveCfg = Release|x64
+		{652BA0DC-E42C-4A60-975C-8D62A5553412}.Release|x64.Build.0 = Release|x64
+		{652BA2DC-E42C-4A60-975C-8D62A0153400}.Debug|x64.ActiveCfg = Debug|x64
+		{652BA2DC-E42C-4A60-975C-8D62A0153400}.Debug|x64.Build.0 = Debug|x64
+		{652BA2DC-E42C-4A60-975C-8D62A0153400}.Release|x64.ActiveCfg = Release|x64
+		{652BA2DC-E42C-4A60-975C-8D62A0153400}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
