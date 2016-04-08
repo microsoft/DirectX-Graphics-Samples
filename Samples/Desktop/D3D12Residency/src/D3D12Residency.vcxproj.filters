@@ -44,9 +44,6 @@
     <ClInclude Include="DXSampleHelper.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="Set.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>

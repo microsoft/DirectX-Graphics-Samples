@@ -352,7 +352,7 @@ void D3D12Residency::LoadTexturesAsync()
 		ComPtr<ID3D12CommandQueue> copyQueue;
 		ComPtr<ID3D12CommandAllocator> commandAllocator;
 		ComPtr<ID3D12GraphicsCommandList> commandList;
-		D3DX12Residency::ResidencySet<Set> residencySet;
+		std::shared_ptr<D3DX12Residency::ResidencySet> residencySet(m_residencyManager.CreateResidencySet());
 		ComPtr<ID3D12Fence> fence;
 		UINT64 fenceValue = 1;
 		HANDLE fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -420,7 +420,7 @@ void D3D12Residency::LoadTexturesAsync()
 			// Reclaim upload resources for initializing the current texture.
 			ThrowIfFailed(commandAllocator->Reset());
 			ThrowIfFailed(commandList->Reset(commandAllocator.Get(), m_pipelineState.Get()));
-			residencySet.Reset();
+			residencySet->Open();
 
 			// Upload the texture data.
 			{
@@ -452,12 +452,13 @@ void D3D12Residency::LoadTexturesAsync()
 			}
 
 			ThrowIfFailed(commandList->Close());
+			ThrowIfFailed(residencySet->Close());
 
 			// Add this resource to the set of resources the command list needs resident.
-			residencySet.Insert(&pTexture->trackingHandle);
+			residencySet->Insert(&pTexture->trackingHandle);
 
 			ID3D12CommandList* ppCommandLists[] = { commandList.Get() };
-			D3DX12Residency::ResidencySet<Set>* ppResidencySets[] = { &residencySet };
+			D3DX12Residency::ResidencySet* ppResidencySets[] = { residencySet.get() };
 
 			// Schedule the upload and wait for it to complete.
 			m_residencyManager.ExecuteCommandLists(copyQueue.Get(), ppCommandLists, ppResidencySets, _countof(ppCommandLists));
@@ -498,6 +499,7 @@ void D3D12Residency::OnRender()
 		pManagedCommandList = std::make_shared<ManagedCommandList>();
 		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&pManagedCommandList->commandAllocator)));
 		ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, pManagedCommandList->commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&pManagedCommandList->commandList)));
+		pManagedCommandList->residencySet = std::shared_ptr<D3DX12Residency::ResidencySet>(m_residencyManager.CreateResidencySet());
 	}
 	else
 	{
@@ -515,10 +517,9 @@ void D3D12Residency::OnRender()
 
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { pManagedCommandList->commandList.Get() };
-	D3DX12Residency::ResidencySet<Set>* ppSets[] = { &pManagedCommandList->residencySet };
+	D3DX12Residency::ResidencySet* ppSets[] = { pManagedCommandList->residencySet.get() };
 
 	m_residencyManager.ExecuteCommandLists(m_commandQueue.Get(), ppCommandLists, ppSets, 1);
-	pManagedCommandList->residencySet.Reset();
 
 	const UINT64 fence = m_fenceValue;
 	ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), fence));
@@ -558,6 +559,7 @@ void D3D12Residency::PopulateCommandList(std::shared_ptr<ManagedCommandList> pMa
 	this->SetCustomWindowText(message);
 
 	auto commandList = pManagedCommandList->commandList;
+	ThrowIfFailed(pManagedCommandList->residencySet->Open());
 
 	// Set necessary state.
 	commandList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -607,7 +609,7 @@ void D3D12Residency::PopulateCommandList(std::shared_ptr<ManagedCommandList> pMa
 				commandList->SetGraphicsRootDescriptorTable(0, gpuHandle);
 
 				// Indicate that this texture was used in the current command list.
-				pManagedCommandList->residencySet.Insert(&pTexture->trackingHandle);
+				pManagedCommandList->residencySet->Insert(&pTexture->trackingHandle);
 				sizeUsed += pTexture->size;
 
 				// Position this quad on the render target.
@@ -635,6 +637,7 @@ void D3D12Residency::PopulateCommandList(std::shared_ptr<ManagedCommandList> pMa
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
 	ThrowIfFailed(commandList->Close());
+	ThrowIfFailed(pManagedCommandList->residencySet->Close());
 }
 
 void D3D12Residency::FlushGpu()

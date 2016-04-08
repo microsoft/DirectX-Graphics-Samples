@@ -106,7 +106,6 @@
     <ClInclude Include="d3dx12Residency.h" />
     <ClInclude Include="DXSample.h" />
     <ClInclude Include="DXSampleHelper.h" />
-    <ClInclude Include="Set.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>

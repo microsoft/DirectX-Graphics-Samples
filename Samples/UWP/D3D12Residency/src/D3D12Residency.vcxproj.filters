@@ -71,9 +71,6 @@
     <ClInclude Include="d3dx12Residency.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="Set.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest" />

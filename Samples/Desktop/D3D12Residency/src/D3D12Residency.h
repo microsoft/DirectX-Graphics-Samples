@@ -13,7 +13,6 @@
 
 #include "DXSample.h"
 #include "d3dx12Residency.h"
-#include "Set.h"
 
 using namespace DirectX;
 
@@ -83,7 +82,7 @@ private:
 	{
 		ComPtr<ID3D12CommandAllocator> commandAllocator;
 		ComPtr<ID3D12GraphicsCommandList> commandList;
-		D3DX12Residency::ResidencySet<Set> residencySet;	// The set of resources that must be resident on the GPU to render this command list.
+		std::shared_ptr<D3DX12Residency::ResidencySet> residencySet;	// The set of resources that must be resident on the GPU to render this command list.
 		UINT64 fenceValue = 0;
 	};
 
@@ -97,7 +96,7 @@ private:
 
 	UINT64 m_totalAllocations;
 	UINT m_textureIndex;
-	D3DX12Residency::ResidencyManager<std::mutex, std::lock_guard<std::mutex>, Set> m_residencyManager;
+	D3DX12Residency::ResidencyManager m_residencyManager;
 	std::queue<std::shared_ptr<ManagedCommandList>> m_commandListPool;
 
 	// Thread and texture loading management.
