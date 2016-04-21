@@ -1,3 +1,14 @@
+//*********************************************************
+//
+// Copyright (c) Microsoft. All rights reserved.
+// This code is licensed under the MIT License (MIT).
+// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
+// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
+// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
+// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
+//
+//*********************************************************
+
 #pragma once
 
 namespace D3DX12Residency
@@ -18,9 +29,8 @@ namespace D3DX12Residency
 #define RESIDENCY_MIN(x,y) ((x) < (y) ? (x) : (y))
 #define RESIDENCY_MAX(x,y) ((x) > (y) ? (x) : (y))
 
-	// Space for 512 concurrent command list records @ 32bits per item.
 	// This size can be tuned to your app in order to save space
-#define RESIDENCY_NUM_BITMASKS 16
+#define MAX_NUM_CONCURRENT_CMD_LISTS 32
 
 	namespace Internal
 	{
@@ -74,9 +84,9 @@ namespace D3DX12Residency
 		public:
 			SyncManager()
 			{
-				for (UINT32 i = 0; i < ARRAYSIZE(CommandListMask); i++)
+				for (UINT32 i = 0; i < ARRAYSIZE(AvailableCommandLists); i++)
 				{
-					CommandListMask[i] = sUnsetValue;
+					AvailableCommandLists[i] = false;
 				}
 			}
 
@@ -84,7 +94,7 @@ namespace D3DX12Residency
 
 			static const UINT32 sUnsetValue = UINT32(-1);
 			// Represents which command lists are currently open for recording
-			LONG CommandListMask[RESIDENCY_NUM_BITMASKS];
+			bool AvailableCommandLists[MAX_NUM_CONCURRENT_CMD_LISTS];
 		};
 
 		//Forward Declaration
@@ -109,10 +119,7 @@ namespace D3DX12Residency
 			LastGPUSyncPoint(0),
 			LastUsedTimestamp(0)
 		{
-			for (UINT32 i = 0; i < ARRAYSIZE(UsageMask); i++)
-			{
-				InterlockedExchange(&UsageMask[i], 0);
-			}
+			memset(CommandListsUsedOn, 0, sizeof(CommandListsUsedOn));
 		}
 
 		void Initialize(ID3D12Pageable* pUnderlyingIn, UINT64 ObjectSize)
@@ -135,8 +142,8 @@ namespace D3DX12Residency
 		UINT64 LastGPUSyncPoint;
 		UINT64 LastUsedTimestamp;
 
-		// This bit mask is used to track which open command lists this resource is currently used on.
-		volatile LONG UsageMask[RESIDENCY_NUM_BITMASKS];
+		// This is used to track which open command lists this resource is currently used on.
+		bool CommandListsUsedOn[MAX_NUM_CONCURRENT_CMD_LISTS];
 
 		// Linked list entry
 		LIST_ENTRY ListEntry;
@@ -151,11 +158,10 @@ namespace D3DX12Residency
 		friend class Internal::ResidencyManagerInternal;
 	public:
 
-		static const long InvalidMask = -1;
+		static const long InvalidIndex = -1;
 
 		ResidencySet() :
-			CommandListMinorMask(InvalidMask),
-			CommandListMajorIndex(InvalidMask),
+			CommandListIndex(InvalidIndex),
 			MaxResidencySetSize(0),
 			CurrentSetSize(0),
 			ppSet(nullptr),
@@ -174,12 +180,12 @@ namespace D3DX12Residency
 		inline bool Insert(ManagedObject* pObject)
 		{
 			RESIDENCY_CHECK(IsOpen);
-			RESIDENCY_CHECK(CommandListMinorMask != InvalidMask);
-			RESIDENCY_CHECK(CommandListMajorIndex != InvalidMask);
+			RESIDENCY_CHECK(CommandListIndex != InvalidIndex);
 
 			// If we haven't seen this object on this command list mark it
-			if ((InterlockedOr(&pObject->UsageMask[CommandListMajorIndex], CommandListMinorMask) & CommandListMinorMask) == 0)
+			if (pObject->CommandListsUsedOn[CommandListIndex] == false)
 			{
+				pObject->CommandListsUsedOn[CommandListIndex] = true;
 				if (ppSet == nullptr || CurrentSetSize > MaxResidencySetSize)
 				{
 					Realloc();
@@ -210,32 +216,24 @@ namespace D3DX12Residency
 				return E_INVALIDARG;
 			}
 
-			RESIDENCY_CHECK(CommandListMinorMask == InvalidMask);
-			RESIDENCY_CHECK(CommandListMajorIndex == InvalidMask);
+			RESIDENCY_CHECK(CommandListIndex == InvalidIndex);
 
-			UCHAR BitSet = 0;
+			bool CommandlistAvailable = false;
 			// Find the first available command list by bitscanning
-			for (UINT32 i = 0; i < ARRAYSIZE(pSyncManager->CommandListMask); i++)
+			for (UINT32 i = 0; i < ARRAYSIZE(pSyncManager->AvailableCommandLists); i++)
 			{
-				DWORD BitIndex = 0;
-				BitSet = BitScanReverse(&BitIndex, pSyncManager->CommandListMask[i]);
-
-				if (BitSet > 0)
+				if (pSyncManager->AvailableCommandLists[i] == false)
 				{
-					// Convert to a mask
-					CommandListMinorMask = (1UL << UINT32(BitIndex));
-					RESIDENCY_CHECK(CommandListMinorMask);
-
-					// Unset this bit because we are using it
-					pSyncManager->CommandListMask[i] &= ~CommandListMinorMask;
-					CommandListMajorIndex = i;
-
+					CommandListIndex = i;
+					pSyncManager->AvailableCommandLists[i] = true;
+					CommandlistAvailable = true;
 					break;
 				}
 			}
 
-			if (BitSet == 0)
+			if (CommandlistAvailable == false)
 			{
+				// There are too many open residency sets, consider using less or increasing the value of MAX_NUM_CONCURRENT_CMD_LISTS
 				RESIDENCY_CHECK(false);
 				return E_OUTOFMEMORY;
 			}
@@ -275,17 +273,17 @@ namespace D3DX12Residency
 
 		inline void Remove(ManagedObject* pObject)
 		{
-			InterlockedAnd(&pObject->UsageMask[CommandListMajorIndex], ~CommandListMinorMask);
+			pObject->CommandListsUsedOn[CommandListIndex] = false;
 		}
 
 		inline void ReturnCommandListReservation()
 		{
 			Internal::ScopedLock Lock(&pSyncManager->MaskCriticalSection);
 
-			pSyncManager->CommandListMask[CommandListMajorIndex] |= CommandListMinorMask;
+			pSyncManager->AvailableCommandLists[CommandListIndex] = false;
 
-			CommandListMajorIndex = ResidencySet::InvalidMask;
-			CommandListMinorMask = ResidencySet::InvalidMask;
+			CommandListIndex = ResidencySet::InvalidIndex;
+
 			IsOpen = false;
 		}
 
@@ -318,8 +316,7 @@ namespace D3DX12Residency
 			ppSet = ppNewAlloc;
 		}
 
-		LONG CommandListMinorMask;
-		LONG CommandListMajorIndex;
+		UINT32 CommandListIndex;
 
 		ManagedObject** ppSet;
 		INT32 MaxResidencySetSize;
@@ -662,8 +659,9 @@ namespace D3DX12Residency
 				NodeMask(0),
 				CurrentAsyncWorkloadHead(0),
 				CurrentAsyncWorkloadTail(0),
-				cMinEvictionGracePeriod(2.0f),
+				cMinEvictionGracePeriod(1.0f),
 				cMaxEvictionGracePeriod(60.0f),
+				cTrimPercentageMemoryUsageThreshold(0.7f),
 				AsyncWorkQueue(nullptr),
 				MaxSoftwareQueueLatency(6),
 				AsyncWorkQueueSize(7),
@@ -1350,11 +1348,23 @@ namespace D3DX12Residency
 			// being evicted.
 			UINT64 GetCurrentEvictionGracePeriod(DXGI_QUERY_VIDEO_MEMORY_INFO* LocalMemoryState)
 			{
+				// 1 == full pressure, 0 == no pressure
 				double Pressure = (double(LocalMemoryState->CurrentUsage) / double(LocalMemoryState->Budget));
 				Pressure = RESIDENCY_MIN(Pressure, 1.0);
-				UINT64 Period = UINT64(MaxEvictionGracePeriodTicks * (1.0 - Pressure));
 
-				return RESIDENCY_MAX(RESIDENCY_MIN(Period, MaxEvictionGracePeriodTicks), MinEvictionGracePeriodTicks);
+				if (Pressure > cTrimPercentageMemoryUsageThreshold)
+				{
+					// Normalize the pressure for the range 0 to cTrimPercentageMemoryUsageThreshold
+					Pressure = (Pressure - cTrimPercentageMemoryUsageThreshold) / (1.0 - cTrimPercentageMemoryUsageThreshold);
+
+					// Linearly interpolate between the min period and the max period based on the pressure
+					return UINT64((MaxEvictionGracePeriodTicks - MinEvictionGracePeriodTicks) * (1.0 - Pressure)) + MinEvictionGracePeriodTicks;
+				}
+				else
+				{
+					// Essentially don't trim at all
+					return MAXUINT64;
+				}
 			}
 
 			LIST_ENTRY QueueFencesListHead;
@@ -1382,6 +1392,9 @@ namespace D3DX12Residency
 			UINT64 MinEvictionGracePeriodTicks;
 			const float cMaxEvictionGracePeriod;
 			UINT64 MaxEvictionGracePeriodTicks;
+			// When the app is using more than this % of its budgeted local VidMem trimming will occur
+			// (valid between 0.0 - 1.0)
+			const float cTrimPercentageMemoryUsageThreshold;
 
 			UINT32 MaxSoftwareQueueLatency;
 

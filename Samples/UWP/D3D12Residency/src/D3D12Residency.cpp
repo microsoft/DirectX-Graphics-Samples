@@ -451,11 +451,11 @@ void D3D12Residency::LoadTexturesAsync()
 				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pTexture->texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON));
 			}
 
-			ThrowIfFailed(commandList->Close());
-			ThrowIfFailed(residencySet->Close());
-
 			// Add this resource to the set of resources the command list needs resident.
 			residencySet->Insert(&pTexture->trackingHandle);
+
+			ThrowIfFailed(commandList->Close());
+			ThrowIfFailed(residencySet->Close());
 
 			ID3D12CommandList* ppCommandLists[] = { commandList.Get() };
 			D3DX12Residency::ResidencySet* ppResidencySets[] = { residencySet.get() };
