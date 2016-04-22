@@ -34,7 +34,7 @@ D3D12ReservedResources::D3D12ReservedResources(UINT width, UINT height, std::wst
 	m_scissorRect.bottom = static_cast<LONG>(height);
 
 	UINT mipLevels = 0;
-	for (UINT width = TextureWidth, height = TextureHeight; width > 0 && height > 0; width = width >> 1, height = height >> 1)
+	for (UINT w = TextureWidth, h = TextureHeight; w > 0 && h > 0; w >>= 1, h >>= 1)
 	{
 		mipLevels++;
 	}
@@ -399,8 +399,6 @@ void D3D12ReservedResources::LoadAssets()
 		m_heaps.resize(heapCount);
 		for (UINT n = 0; n < heapCount; n++)
 		{
-			const UINT heapWidth = TextureWidth >> n;
-			const UINT heapHeight = TextureHeight >> n;
 			const UINT heapSize = m_mips[n].regionSize.NumTiles * D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
 			CD3DX12_HEAP_DESC heapDesc(heapSize, D3D12_HEAP_TYPE_DEFAULT, 0, D3D12_HEAP_FLAG_DENY_BUFFERS | D3D12_HEAP_FLAG_DENY_RT_DS_TEXTURES);
