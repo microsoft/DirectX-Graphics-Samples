@@ -157,7 +157,10 @@ private:
 	WorkloadConstantBufferData* m_pWorkloadCbvDataBegin;
 	WorkloadConstantBufferData m_blurWorkloadConstantBufferData;
 	WorkloadConstantBufferData* m_pBlurWorkloadCbvDataBegin;
+	ComPtr<ID3D12Heap> m_crossAdapterResourceHeaps[GraphicsAdaptersCount];
 	ComPtr<ID3D12Resource> m_crossAdapterResources[GraphicsAdaptersCount][FrameCount];
+	BOOL m_crossAdapterTextureSupport;
+	ComPtr<ID3D12Resource> m_secondaryAdapterTextures[FrameCount];			// Only used if cross adapter texture support is unavailable.
 	ComPtr<ID3D12Resource> m_renderTargets[GraphicsAdaptersCount][FrameCount];
 	ComPtr<ID3D12Resource> m_intermediateBlurRenderTarget;
 	ComPtr<ID3D12QueryHeap> m_timestampQueryHeaps[GraphicsAdaptersCount];
@@ -172,4 +175,9 @@ private:
 	void UpdateWindowTitle();
 	void WaitForGpu(GraphicsAdapter adapter);
 	void MoveToNextFrame();
+
+	static inline UINT Align(UINT size, UINT alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT)
+	{
+		return (size + alignment - 1) & ~(alignment - 1);
+	}
 };
