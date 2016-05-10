@@ -984,7 +984,7 @@ HRESULT D3D12MemoryManagement::GenerateMemoryGraphGeometry(const RectF& Bounds, 
 	hr = pGeometrySink->Close();
 	if (FAILED(hr))
 	{
-		LOG_ERROR("Failed to close path geometry sink, hr=0x%.8x");
+		LOG_ERROR("Failed to close path geometry sink, hr=0x%.8x", hr);
 		goto cleanup;
 	}
 

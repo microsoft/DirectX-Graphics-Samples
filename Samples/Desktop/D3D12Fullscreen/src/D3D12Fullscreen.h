@@ -38,12 +38,20 @@ protected:
 
 private:
 	static const UINT FrameCount = 2;
-	static const UINT TriangleWidth = 500;
+	static const float QuadWidth;
+	static const float QuadHeight;
 
 	struct Vertex
 	{
 		XMFLOAT3 position;
 		XMFLOAT4 color;
+	};
+
+	struct SceneConstantBuffer
+	{
+		XMFLOAT4X4 transform;
+		XMFLOAT4 offset;
+		UINT padding[44];
 	};
 
 	// Pipeline objects.
@@ -56,14 +64,19 @@ private:
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 	ComPtr<ID3D12GraphicsCommandList> m_commandList;
 	UINT m_rtvDescriptorSize;
+	UINT m_cbvDescriptorSize;
 
 	// App resources.
 	ComPtr<ID3D12Resource> m_vertexBuffer;
 	ComPtr<ID3D12Resource> m_vertexBufferUpload;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+	ComPtr<ID3D12Resource> m_constantBuffer;
+	SceneConstantBuffer m_constantBufferData;
+	UINT8* m_pCbvDataBegin;
 
 	// Synchronization objects.
 	UINT m_frameIndex;
@@ -75,6 +88,7 @@ private:
 	// If it's minimized the app may decide not to render frames.
 	bool m_windowVisible;
 	bool m_resizeResources;
+	bool m_windowedMode;
 
 	void LoadPipeline();
 	void LoadAssets();

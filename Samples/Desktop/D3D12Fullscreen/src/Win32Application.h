@@ -19,6 +19,7 @@ class Win32Application
 {
 public:
 	static int Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow);
+	static void ToggleFullscreenWindow();
 	static HWND GetHwnd() { return m_hwnd; }
 
 protected:
@@ -26,4 +27,7 @@ protected:
 
 private:
 	static HWND m_hwnd;
+	static bool m_fullscreenMode;
+	static const UINT m_windowStyle = WS_OVERLAPPEDWINDOW;
+	static RECT m_windowRect;
 };

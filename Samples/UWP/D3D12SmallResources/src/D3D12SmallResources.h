@@ -22,7 +22,8 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
-// Illustrate how queries are used in conjunction with predication.
+// Illustrate how small texture resources can be packed into 64K pages for more
+// efficient memory usage.
 class D3D12SmallResources : public DXSample
 {
 public:

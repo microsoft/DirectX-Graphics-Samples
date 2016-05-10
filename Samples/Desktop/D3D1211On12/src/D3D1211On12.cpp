@@ -181,11 +181,7 @@ void D3D1211on12::LoadPipeline()
 			ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
 			m_d3d12Device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 
-			WCHAR name[25];
-			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
-			{
-				SetName(m_renderTargets[n].Get(), name);
-			}
+			NAME_D3D12_OBJECT_INDEXED(m_renderTargets, n);
 
 			// Create a wrapped 11On12 resource of this back buffer. Since we are 
 			// rendering all D3D12 content first and then all D2D content, we specify 
