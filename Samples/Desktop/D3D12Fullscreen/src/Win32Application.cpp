@@ -13,6 +13,8 @@
 #include "Win32Application.h"
 
 HWND Win32Application::m_hwnd = nullptr;
+bool Win32Application::m_fullscreenMode = false;
+RECT Win32Application::m_windowRect;
 
 int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 {
@@ -39,7 +41,7 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 	m_hwnd = CreateWindow(
 		windowClass.lpszClassName,
 		pSample->GetTitle(),
-		WS_OVERLAPPEDWINDOW,
+		m_windowStyle,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
 		windowRect.right - windowRect.left,
@@ -72,6 +74,54 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 	return static_cast<char>(msg.wParam);
 }
 
+// Convert a styled window into a fullscreen borderless window and back again.
+void Win32Application::ToggleFullscreenWindow()
+{
+	if (m_fullscreenMode)
+	{
+		// Restore the window's attributes and size.
+		SetWindowLong(m_hwnd, GWL_STYLE, m_windowStyle);
+
+		SetWindowPos(
+			m_hwnd,
+			HWND_NOTOPMOST,
+			m_windowRect.left,
+			m_windowRect.top,
+			m_windowRect.right - m_windowRect.left,
+			m_windowRect.bottom - m_windowRect.top,
+			SWP_FRAMECHANGED | SWP_NOACTIVATE);
+
+		ShowWindow(m_hwnd, SW_NORMAL);
+	}
+	else
+	{
+		// Save the old window rect so we can restore it when exiting fullscreen mode.
+		GetWindowRect(m_hwnd, &m_windowRect);
+
+		// Make the window borderless so that the client area can fill the screen.
+		SetWindowLong(m_hwnd, GWL_STYLE, m_windowStyle & ~(WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME));
+
+		// Get the settings of the primary display. We want the app to go into
+		// fullscreen mode on the display that supports Independent Flip.
+		DEVMODE devMode = {};
+		devMode.dmSize = sizeof(DEVMODE);
+		EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &devMode);
+
+		SetWindowPos(
+			m_hwnd,
+			HWND_TOPMOST,
+			devMode.dmPosition.x,
+			devMode.dmPosition.y,
+			devMode.dmPosition.x + devMode.dmPelsWidth,
+			devMode.dmPosition.y + devMode.dmPelsHeight,
+			SWP_FRAMECHANGED | SWP_NOACTIVATE);
+
+		ShowWindow(m_hwnd, SW_MAXIMIZE);
+	}
+
+	m_fullscreenMode = !m_fullscreenMode;
+}
+
 // Main message handler for the sample.
 LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -100,6 +150,19 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 			pSample->OnKeyUp(static_cast<UINT8>(wParam));
 		}
 		return 0;
+
+	case WM_SYSKEYDOWN:
+		// Handle ALT+ENTER:
+		if ((wParam == VK_RETURN) && (lParam & (1 << 29)))
+		{
+			if (pSample && pSample->GetTearingSupport())
+			{
+				ToggleFullscreenWindow();
+				return 0;
+			}
+		}
+		// Send all other WM_SYSKEYDOWN messages to the default WndProc.
+		break;
 
 	case WM_PAINT:
 		if (pSample)
