@@ -29,9 +29,16 @@
 #include <pix.h>
 
 //
-// DXGI tearing feature available in KB3156421.
+// The DXGI tearing feature is available on Windows 10 systems with KB3156421 or the
+// Anniversary Update installed. Since the 10586 SDK will not be patched, we define
+// the relevant symbols if they are missing.
 //
-#ifndef __dxgi1_5_h__
+#ifdef DXGI_PRESENT_ALLOW_TEARING
+	#include <dxgi1_5.h>
+#else
+	#define DXGI_PRESENT_ALLOW_TEARING          0x00000200UL
+	#define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
+
 	typedef
 	enum DXGI_FEATURE
 	{
@@ -47,9 +54,6 @@
 			_Inout_updates_bytes_(FeatureSupportDataSize) void *pFeatureSupportData,
 			UINT FeatureSupportDataSize) = 0;
 	};
-
-	#define DXGI_PRESENT_ALLOW_TEARING          0x00000200UL
-	#define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
 #endif
 
 #include <wrl.h>
