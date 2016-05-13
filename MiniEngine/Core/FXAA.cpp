@@ -22,6 +22,8 @@
 #include "CompiledShaders/FXAAResolveWorkQueueCS.h"
 #include "CompiledShaders/FXAAPass2HCS.h"
 #include "CompiledShaders/FXAAPass2VCS.h"
+#include "CompiledShaders/FXAAPass2H2CS.h"
+#include "CompiledShaders/FXAAPass2V2CS.h"
 #include "CompiledShaders/FXAAPass2HDebugCS.h"
 #include "CompiledShaders/FXAAPass2VDebugCS.h"
 
@@ -70,8 +72,16 @@ void FXAA::Initialize( void )
 	CreatePSO(Pass1LdrCS, g_pFXAAPass1_RGB_CS);		// Use RGB and recompute log-luma; pre-computed luma is unavailable
 	CreatePSO(Pass1HdrCS, g_pFXAAPass1_Luma_CS);		// Use pre-computed luma
 	CreatePSO(ResolveWorkCS, g_pFXAAResolveWorkQueueCS);
-	CreatePSO(Pass2HCS, g_pFXAAPass2HCS);
-	CreatePSO(Pass2VCS, g_pFXAAPass2VCS);
+	if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+	{
+		CreatePSO(Pass2HCS, g_pFXAAPass2H2CS);
+		CreatePSO(Pass2VCS, g_pFXAAPass2V2CS);
+	}
+	else
+	{
+		CreatePSO(Pass2HCS, g_pFXAAPass2HCS);
+		CreatePSO(Pass2VCS, g_pFXAAPass2VCS);
+	}
 	CreatePSO(Pass2HDebugCS, g_pFXAAPass2HDebugCS);
 	CreatePSO(Pass2VDebugCS, g_pFXAAPass2VDebugCS);
 #undef CreatePSO
@@ -152,6 +162,8 @@ void FXAA::Render( ComputeContext& Context, bool bUsePreComputedLuma )
 		Context.SetPipelineState(ResolveWorkCS);
 		Context.TransitionResource(IndirectParameters, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
+		Context.SetConstants(0, 1.0f / g_SceneColorBuffer.GetWidth(), 1.0f / g_SceneColorBuffer.GetHeight());
+
 		Context.SetDynamicDescriptor(1, 0, IndirectParameters.GetUAV());
 		Context.SetDynamicDescriptor(1, 1, g_FXAAWorkQueueH.GetUAV());
 		Context.SetDynamicDescriptor(1, 2, g_FXAAWorkQueueV.GetUAV());
@@ -168,15 +180,10 @@ void FXAA::Render( ComputeContext& Context, bool bUsePreComputedLuma )
 		Context.TransitionResource(g_FXAAColorQueueV, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
-
-		D3D12_CPU_DESCRIPTOR_HANDLE Pass2SRVs[] =
-		{
-			g_LumaBuffer.GetSRV(),
-			g_SceneColorBuffer.GetSRV(),
-			g_FXAAWorkQueueH.GetSRV(),
-			g_FXAAColorQueueH.GetSRV(),
-		};
-		Context.SetDynamicDescriptors(2, 0, _countof(Pass2SRVs), Pass2SRVs);
+		Context.SetDynamicDescriptor(1, 1, g_SceneColorBuffer.GetTypelessUAV());
+		Context.SetDynamicDescriptor(2, 0, g_LumaBuffer.GetSRV());
+		Context.SetDynamicDescriptor(2, 1, g_FXAAWorkQueueH.GetSRV());
+		Context.SetDynamicDescriptor(2, 2, g_FXAAColorQueueH.GetSRV());
 
 		// The final phase involves processing pixels on the work queues and writing them
 		// back into the color buffer.  Because the two source pixels required for linearly
@@ -186,8 +193,8 @@ void FXAA::Render( ComputeContext& Context, bool bUsePreComputedLuma )
 		Context.SetPipelineState(DebugDraw ? Pass2HDebugCS : Pass2HCS);
 		Context.DispatchIndirect(IndirectParameters, 0);
 
-		Context.SetDynamicDescriptor(2, 2, g_FXAAWorkQueueV.GetSRV());
-		Context.SetDynamicDescriptor(2, 3, g_FXAAColorQueueV.GetSRV());
+		Context.SetDynamicDescriptor(2, 1, g_FXAAWorkQueueV.GetSRV());
+		Context.SetDynamicDescriptor(2, 2, g_FXAAColorQueueV.GetSRV());
 
 		Context.SetPipelineState(DebugDraw ? Pass2VDebugCS : Pass2VCS);
 		Context.DispatchIndirect(IndirectParameters, 12);

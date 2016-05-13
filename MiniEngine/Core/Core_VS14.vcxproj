@@ -23,7 +23,7 @@
     <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and $(VisualStudioVersion) == ''">$(VCTargetsPath11)</VCTargetsPath>
     <ApplicationEnvironment>title</ApplicationEnvironment>
-    <WindowsTargetPlatformVersion>10.0.10240.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -86,6 +86,7 @@
     <ClInclude Include="dds.h" />
     <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="DepthBuffer.h" />
+    <ClInclude Include="DepthOfField.h" />
     <ClInclude Include="DynamicDescriptorHeap.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="GpuBuffer.h" />
@@ -145,6 +146,7 @@
     <ClCompile Include="CommandSignature.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="DepthBuffer.cpp" />
+    <ClCompile Include="DepthOfField.cpp" />
     <ClCompile Include="DynamicDescriptorHeap.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="EngineProfiling.cpp" />
@@ -190,6 +192,7 @@
     <FxCompile Include="Shaders\AoPrepareDepthBuffers2CS.hlsl" />
     <FxCompile Include="Shaders\AoRender1CS.hlsl" />
     <FxCompile Include="Shaders\AoRender2CS.hlsl" />
+    <FxCompile Include="Shaders\ApplyBloom2CS.hlsl" />
     <FxCompile Include="Shaders\ApplyBloomCS.hlsl" />
     <FxCompile Include="Shaders\AverageLumaCS.hlsl" />
     <FxCompile Include="Shaders\BicubicHorizontalUpsamplePS.hlsl">
@@ -216,19 +219,46 @@
     <FxCompile Include="Shaders\CameraMotionBlurPrePassCS.hlsl" />
     <FxCompile Include="Shaders\CameraMotionBlurPrePassLinearZCS.hlsl" />
     <FxCompile Include="Shaders\CameraVelocityCS.hlsl" />
+    <FxCompile Include="Shaders\ConvertHDRToDisplayPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\ConvertLDRToDisplayPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\DebugDrawHistogramCS.hlsl" />
+    <FxCompile Include="Shaders\DebugLuminanceHdr2CS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceHdrCS.hlsl" />
+    <FxCompile Include="Shaders\DebugLuminanceLdr2CS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceLdrCS.hlsl" />
     <FxCompile Include="Shaders\DebugSSAOCS.hlsl" />
+    <FxCompile Include="Shaders\DoFCombine2CS.hlsl" />
+    <FxCompile Include="Shaders\DoFCombineCS.hlsl" />
+    <FxCompile Include="Shaders\DoFCombineFast2CS.hlsl" />
+    <FxCompile Include="Shaders\DoFCombineFastCS.hlsl" />
+    <FxCompile Include="Shaders\DoFDebugBlueCS.hlsl" />
+    <FxCompile Include="Shaders\DoFDebugGreenCS.hlsl" />
+    <FxCompile Include="Shaders\DoFDebugRedCS.hlsl" />
+    <FxCompile Include="Shaders\DoFMedianFilterCS.hlsl" />
+    <FxCompile Include="Shaders\DoFMedianFilterFixupCS.hlsl" />
+    <FxCompile Include="Shaders\DoFMedianFilterSepAlphaCS.hlsl" />
+    <FxCompile Include="Shaders\DoFPass1CS.hlsl" />
+    <FxCompile Include="Shaders\DoFPass2CS.hlsl" />
+    <FxCompile Include="Shaders\DoFPass2DebugCS.hlsl" />
+    <FxCompile Include="Shaders\DoFPass2FastCS.hlsl" />
+    <FxCompile Include="Shaders\DoFPass2FixupCS.hlsl" />
+    <FxCompile Include="Shaders\DoFPreFilterCS.hlsl" />
+    <FxCompile Include="Shaders\DoFPreFilterFastCS.hlsl" />
+    <FxCompile Include="Shaders\DoFPreFilterFixupCS.hlsl" />
+    <FxCompile Include="Shaders\DoFTilePassCS.hlsl" />
+    <FxCompile Include="Shaders\DoFTilePassFixupCS.hlsl" />
     <FxCompile Include="Shaders\DownsampleBloomAllCS.hlsl" />
     <FxCompile Include="Shaders\DownsampleBloomCS.hlsl" />
     <FxCompile Include="Shaders\ExtractLumaCS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass1_Luma_CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass1_RGB_CS.hlsl" />
+    <FxCompile Include="Shaders\FXAAPass2H2CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2HDebugCS.hlsl" />
+    <FxCompile Include="Shaders\FXAAPass2V2CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2VDebugCS.hlsl" />
     <FxCompile Include="Shaders\GenerateHistogramCS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2HCS.hlsl" />
@@ -245,6 +275,7 @@
     <FxCompile Include="Shaders\MagnifyPixelsPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\MotionBlurFinalPass2CS.hlsl" />
     <FxCompile Include="Shaders\MotionBlurFinalPassCS.hlsl" />
     <FxCompile Include="Shaders\MotionBlurFinalPassTemporalCS.hlsl" />
     <FxCompile Include="Shaders\MotionBlurPrePassCS.hlsl" />
@@ -263,11 +294,17 @@
     <FxCompile Include="Shaders\ParticleSortIndirectArgsCS.hlsl" />
     <FxCompile Include="Shaders\ParticleSpawnCS.hlsl" />
     <FxCompile Include="Shaders\ParticleTileCullingCS.hlsl" />
+    <FxCompile Include="Shaders\ParticleTileRender2CS.hlsl" />
     <FxCompile Include="Shaders\ParticleTileRenderCS.hlsl" />
+    <FxCompile Include="Shaders\ParticleTileRenderFast2CS.hlsl" />
     <FxCompile Include="Shaders\ParticleTileRenderFastCS.hlsl" />
+    <FxCompile Include="Shaders\ParticleTileRenderFastDynamic2CS.hlsl" />
     <FxCompile Include="Shaders\ParticleTileRenderFastDynamicCS.hlsl" />
+    <FxCompile Include="Shaders\ParticleTileRenderFastLowRes2CS.hlsl" />
     <FxCompile Include="Shaders\ParticleTileRenderFastLowResCS.hlsl" />
+    <FxCompile Include="Shaders\ParticleTileRenderSlowDynamic2CS.hlsl" />
     <FxCompile Include="Shaders\ParticleTileRenderSlowDynamicCS.hlsl" />
+    <FxCompile Include="Shaders\ParticleTileRenderSlowLowRes2CS.hlsl" />
     <FxCompile Include="Shaders\ParticleTileRenderSlowLowResCS.hlsl" />
     <FxCompile Include="Shaders\ParticleUpdateCS.hlsl" />
     <FxCompile Include="Shaders\ParticleVS.hlsl">
@@ -288,6 +325,7 @@
     <FxCompile Include="Shaders\SharpeningUpsamplePS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\TemporalBlend2CS.hlsl" />
     <FxCompile Include="Shaders\TemporalBlendCS.hlsl" />
     <FxCompile Include="Shaders\TextAntialiasPS.hlsl">
       <ShaderType>Pixel</ShaderType>
@@ -304,6 +342,9 @@
     <None Include="Math\Functions.inl" />
     <None Include="Shaders\AoBlurAndUpsampleCS.hlsli" />
     <None Include="Shaders\AoRenderCS.hlsli" />
+    <None Include="Shaders\ColorSpaceUtility.hlsli" />
+    <None Include="Shaders\DoFCommon.hlsli" />
+    <None Include="Shaders\DoFRS.hlsli" />
     <None Include="Shaders\FXAAPass1CS.hlsli" />
     <None Include="Shaders\FXAAPass2CS.hlsli" />
     <None Include="Shaders\FXAARootSignature.hlsli" />
@@ -318,6 +359,8 @@
     <None Include="Shaders\ShaderUtility.hlsli" />
     <FxCompile Include="Shaders\ToneMap2CS.hlsl" />
     <FxCompile Include="Shaders\ToneMapCS.hlsl" />
+    <FxCompile Include="Shaders\ToneMapHDR2CS.hlsl" />
+    <FxCompile Include="Shaders\ToneMapHDRCS.hlsl" />
     <FxCompile Include="Shaders\UpsampleAndBlurCS.hlsl" />
     <None Include="Shaders\PixelPacking.hlsli" />
     <None Include="Shaders\SSAORS.hlsli" />

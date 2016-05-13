@@ -72,7 +72,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
 	float luma = (luma1 + luma2 + luma3 + luma4) * 0.25;
 
-	// Prevent divide by 0 and put only pure black pixels in Histogram[0]
+	// Prevent log(0) and put only pure black pixels in Histogram[0]
 	if (luma == 0.0)
 	{
 		LumaResult[DTid.xy] = 0;

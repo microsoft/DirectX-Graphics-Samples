@@ -12,6 +12,7 @@
 //
 
 #include "FXAARootSignature.hlsli"
+#include "PixelPacking.hlsli"
 
 cbuffer CB : register( b0 )
 {
@@ -19,10 +20,10 @@ cbuffer CB : register( b0 )
 };
 
 Texture2D<float> Luma : register(t0);
-Texture2D<float3> SrcColor : register(t1); // this must alias DstColor
-StructuredBuffer<uint> WorkQueue : register(t2);
-Buffer<float3> ColorQueue : register(t3);
+StructuredBuffer<uint> WorkQueue : register(t1);
+Buffer<float3> ColorQueue : register(t2);
 RWTexture2D<float3> DstColor : register(u0);
+RWTexture2D<uint> DstUint : register(u1); // this must alias DstColor (to load the raw uint)
 SamplerState LinearSampler : register(s0);
 
 
@@ -108,7 +109,11 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 #ifdef DEBUG_OUTPUT
 		DstColor[ST] = float3(2.0 * PixelShift, 1.0 - 2.0 * PixelShift, 0);
 #else
-		DstColor[ST] = lerp(SrcColor[ST], ColorQueue[DTid.x], PixelShift);
+	#if SUPPORT_TYPED_UAV_LOADS
+		DstColor[ST] = lerp(DstColor[ST], ColorQueue[DTid.x], PixelShift);
+	#else
+		DstColor[ST] = lerp(Unpack_R11G11B10_FLOAT(DstUint[ST]), ColorQueue[DTid.x], PixelShift);
+	#endif
 #endif
 	}
 #ifdef DEBUG_OUTPUT

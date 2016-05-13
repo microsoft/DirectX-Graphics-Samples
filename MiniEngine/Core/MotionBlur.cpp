@@ -25,9 +25,11 @@
 #include "CompiledShaders/CameraMotionBlurPrePassLinearZCS.h"
 #include "CompiledShaders/MotionBlurPrePassCS.h"
 #include "CompiledShaders/MotionBlurFinalPassCS.h"
+#include "CompiledShaders/MotionBlurFinalPass2CS.h"
 #include "CompiledShaders/MotionBlurFinalPassTemporalCS.h"
 #include "CompiledShaders/CameraVelocityCS.h"
 #include "CompiledShaders/TemporalBlendCS.h"
+#include "CompiledShaders/TemporalBlend2CS.h"
 
 using namespace Graphics;
 using namespace Math;
@@ -45,8 +47,6 @@ namespace TemporalAA
 namespace MotionBlur
 {
 	BoolVar Enable("Graphics/Motion Blur/Enable", false);
-	IntVar MaxSampleCount("Graphics/Motion Blur/Max Sample Count", 10, 2, 32, 2);
-	NumVar StepSize("Graphics/Motion Blur/Sample Spacing", 4.0f, 1.0f, 8.0f, 1.0f);
 
 	RootSignature s_RootSignature;
 	ComputePSO s_CameraMotionBlurPrePassCS[2];
@@ -70,14 +70,22 @@ void MotionBlur::Initialize( void )
 	ObjName.SetComputeShader(ShaderByteCode, sizeof(ShaderByteCode) ); \
 	ObjName.Finalize();
 
+	if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+	{
+		CreatePSO(s_MotionBlurFinalPassCS[0], g_pMotionBlurFinalPass2CS);
+		CreatePSO(s_TemporalBlendCS, g_pTemporalBlend2CS);
+	}
+	else
+	{
+		CreatePSO(s_MotionBlurFinalPassCS[0], g_pMotionBlurFinalPassCS);
+		CreatePSO(s_TemporalBlendCS, g_pTemporalBlendCS);
+	}
 	CreatePSO( s_CameraMotionBlurPrePassCS[0], g_pCameraMotionBlurPrePassCS );
 	CreatePSO( s_CameraMotionBlurPrePassCS[1], g_pCameraMotionBlurPrePassLinearZCS );
 	CreatePSO( s_MotionBlurPrePassCS, g_pMotionBlurPrePassCS );
-	CreatePSO( s_MotionBlurFinalPassCS[0], g_pMotionBlurFinalPassCS );
 	CreatePSO( s_MotionBlurFinalPassCS[1], g_pMotionBlurFinalPassTemporalCS );
 	CreatePSO( s_CameraVelocityCS[0], g_pCameraVelocityCS );
 	CreatePSO( s_CameraVelocityCS[1], g_pCameraVelocityCS );
-	CreatePSO( s_TemporalBlendCS, g_pTemporalBlendCS);
 
 #undef CreatePSO
 }
@@ -161,15 +169,15 @@ void MotionBlur::RenderCameraBlur( CommandContext& BaseContext, const Matrix4& r
 		Context.SetDynamicDescriptor(2, 2, g_ReprojectionBuffer.GetUAV());
 		Context.Dispatch2D(g_MotionPrepBuffer.GetWidth(), g_MotionPrepBuffer.GetHeight());
 
-		Context.SetConstants(0, 1.0f / Width, 1.0f / Height, (int32_t)MaxSampleCount, (float)StepSize );
+		Context.SetConstants(0, 1.0f / Width, 1.0f / Height);
 
 		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		Context.TransitionResource(g_VelocityBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		Context.TransitionResource(g_MotionPrepBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetUAV());
-		Context.SetDynamicDescriptor(3, 0, g_SceneColorBuffer.GetSRV());
-		Context.SetDynamicDescriptor(3, 1, g_VelocityBuffer.GetSRV());
-		Context.SetDynamicDescriptor(3, 2, g_MotionPrepBuffer.GetSRV());
+		Context.SetDynamicDescriptor(2, 1, g_SceneColorBuffer.GetTypelessUAV());
+		Context.SetDynamicDescriptor(3, 0, g_VelocityBuffer.GetSRV());
+		Context.SetDynamicDescriptor(3, 1, g_MotionPrepBuffer.GetSRV());
 
 		Context.SetPipelineState(s_MotionBlurFinalPassCS[0]);
 	}
@@ -197,24 +205,24 @@ void MotionBlur::RenderObjectBlur( CommandContext& BaseContext, ColorBuffer& vel
 	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	Context.TransitionResource(velocityBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE Pass1SRVs[] = { g_SceneColorBuffer.GetSRV(), velocityBuffer.GetSRV() };
-	Context.SetDynamicDescriptors(2, 0, 1, &g_MotionPrepBuffer.GetUAV());
-	Context.SetDynamicDescriptors(3, 0, 2, Pass1SRVs);
+	Context.SetDynamicDescriptor(2, 0, g_MotionPrepBuffer.GetUAV());
+	Context.SetDynamicDescriptor(3, 0, g_SceneColorBuffer.GetSRV());
+	Context.SetDynamicDescriptor(3, 1, velocityBuffer.GetSRV());
 
 	Context.SetPipelineState(s_MotionBlurPrePassCS);
 	Context.Dispatch2D(g_MotionPrepBuffer.GetWidth(), g_MotionPrepBuffer.GetHeight());
 
-	Context.SetConstants(0, 1.0f / g_SceneColorBuffer.GetWidth(), 1.0f / g_SceneColorBuffer.GetHeight(), (float)TemporalMaxLerp );
+	Context.SetConstants(0, 1.0f / g_SceneColorBuffer.GetWidth(), 1.0f / g_SceneColorBuffer.GetHeight());
 
 	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.TransitionResource(velocityBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	Context.TransitionResource(g_MotionPrepBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE Pass2UAVs[] = { g_SceneColorBuffer.GetUAV() };
-	D3D12_CPU_DESCRIPTOR_HANDLE Pass2SRVs[] = { g_SceneColorBuffer.GetSRV(), velocityBuffer.GetSRV(), g_MotionPrepBuffer.GetSRV() };
+	Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetUAV());
+	Context.SetDynamicDescriptor(2, 1, g_SceneColorBuffer.GetTypelessUAV());
+	Context.SetDynamicDescriptor(3, 0, velocityBuffer.GetSRV());
+	Context.SetDynamicDescriptor(3, 1, g_MotionPrepBuffer.GetSRV());
 
-	Context.SetDynamicDescriptors(2, 0, 1, Pass2UAVs);
-	Context.SetDynamicDescriptors(3, 0, 3, Pass2SRVs);
 	Context.SetPipelineState(s_MotionBlurFinalPassCS[0]);
 	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
 }
@@ -229,7 +237,8 @@ void TemporalAA::ApplyTemporalAA(CommandContext& BaseContext)
 	uint32_t Height = g_SceneColorBuffer.GetHeight();
 
 	Context.SetRootSignature(MotionBlur::s_RootSignature);
-	Context.SetConstants(0, 1.0f / Width, 1.0f / Height, (float)TemporalMaxLerp);
+	Context.SetConstants(0, 1.0f / Width, 1.0f / Height, (float)TemporalMaxLerp,
+		Graphics::g_bTypedUAVLoadSupport_R11G11B10_FLOAT ? 1 : 0);
 	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 	uint32_t thisFrame = Graphics::GetFrameCount() & 1;
@@ -237,6 +246,8 @@ void TemporalAA::ApplyTemporalAA(CommandContext& BaseContext)
 
 	if (!Enable)
 	{
+		BaseContext.TransitionResource(g_TemporalBuffer[thisFrame], D3D12_RESOURCE_STATE_RENDER_TARGET);
+		BaseContext.TransitionResource(g_TemporalBuffer[lastFrame], D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 		BaseContext.GetGraphicsContext().ClearColor(g_TemporalBuffer[thisFrame]);
 		BaseContext.GetGraphicsContext().ClearColor(g_TemporalBuffer[lastFrame]);
 	}
@@ -247,11 +258,11 @@ void TemporalAA::ApplyTemporalAA(CommandContext& BaseContext)
 		Context.TransitionResource(g_TemporalBuffer[lastFrame], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		Context.TransitionResource(g_TemporalBuffer[thisFrame], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE SRVs[] = { g_SceneColorBuffer.GetSRV(), g_ReprojectionBuffer.GetSRV(), g_TemporalBuffer[lastFrame].GetSRV() };
-		D3D12_CPU_DESCRIPTOR_HANDLE Pass2UAVs[] = { g_SceneColorBuffer.GetUAV(), g_TemporalBuffer[thisFrame].GetUAV() };
+		D3D12_CPU_DESCRIPTOR_HANDLE SRVs[] = { g_ReprojectionBuffer.GetSRV(), g_TemporalBuffer[lastFrame].GetSRV() };
+		D3D12_CPU_DESCRIPTOR_HANDLE UAVs[] = { g_SceneColorBuffer.GetUAV(), g_SceneColorBuffer.GetTypelessUAV(), g_TemporalBuffer[thisFrame].GetUAV() };
 
-		Context.SetDynamicDescriptors(2, 0, 2, Pass2UAVs);
-		Context.SetDynamicDescriptors(3, 0, 3, SRVs);
+		Context.SetDynamicDescriptors(2, 0, _countof(UAVs), UAVs);
+		Context.SetDynamicDescriptors(3, 0, _countof(SRVs), SRVs);
 		Context.SetPipelineState(s_TemporalBlendCS);
 		Context.Dispatch2D(Width, Height);
 	}

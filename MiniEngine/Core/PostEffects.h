@@ -35,6 +35,7 @@ namespace PostEffects
 	// Bloom parameters
 	extern NumVar BloomThreshold;
 	extern NumVar BloomStrength;
+	extern NumVar g_ToeStrength;
 
 	extern BoolVar EnableFXAA;
 

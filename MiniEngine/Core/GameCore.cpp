@@ -20,6 +20,18 @@
 #include "CommandContext.h"
 #include "PostEffects.h"
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+	#pragma comment(lib, "runtimeobject.lib")
+#else
+	#include <agile.h>
+	using Windows::ApplicationModel::Core::CoreApplication;
+	using Windows::ApplicationModel::Core::CoreApplicationView;
+	using Windows::UI::Core::CoreWindow;
+	using Windows::UI::Core::CoreProcessEventsOption;
+	using Windows::Foundation::TypedEventHandler;
+	using Windows::ApplicationModel::Activation::IActivatedEventArgs;
+#endif
+
 namespace Graphics
 {
 	extern ColorBuffer g_GenMipsBuffer;
@@ -75,13 +87,10 @@ namespace GameCore
 			MipsContext.Finish();
 		}
 
-		// Xbox One has an separate image plane that we use for UI.  It will composite with the
-		// main image plane, so we need to clear it each from (assuming it's being dynamically
-		// updated.)
-
 		GraphicsContext& UiContext = GraphicsContext::Begin(L"Render UI");
+		UiContext.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 		UiContext.ClearColor(g_OverlayBuffer);
-		UiContext.SetRenderTarget(g_OverlayBuffer);
+		UiContext.SetRenderTarget(g_OverlayBuffer.GetRTV());
 		UiContext.SetViewportAndScissor(0, 0, g_OverlayBuffer.GetWidth(), g_OverlayBuffer.GetHeight());
 		game.RenderUI(UiContext);
 
@@ -98,6 +107,99 @@ namespace GameCore
 		return true;
 	}
 
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+	IGameApp* m_game;
+	Platform::Agile<Windows::UI::Core::CoreWindow> g_window;
+
+	ref class ApplicationView sealed : public Windows::ApplicationModel::Core::IFrameworkView
+	{
+	public:
+		ApplicationView() {}
+
+		// IFrameworkView Methods.
+		virtual void Initialize(Windows::ApplicationModel::Core::CoreApplicationView^ applicationView);
+		virtual void SetWindow(Windows::UI::Core::CoreWindow^ window);
+		virtual void Load(Platform::String^ entryPoint);
+		virtual void Run();
+		virtual void Uninitialize();
+
+	protected:
+		// Event Handlers.
+		void OnActivated(Windows::ApplicationModel::Core::CoreApplicationView^ applicationView, Windows::ApplicationModel::Activation::IActivatedEventArgs^ args);
+		void OnWindowSizeChanged(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::WindowSizeChangedEventArgs^ args);
+		void OnLogicalDpiChanged(Platform::Object^ sender);
+		void OnSuspending(Platform::Object^ sender, Windows::ApplicationModel::SuspendingEventArgs^ args);
+		void OnResuming(Platform::Object^ sender, Platform::Object^ args);
+		void OnWindowClosed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::CoreWindowEventArgs^ args);
+		void OnVisibilityChanged(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::VisibilityChangedEventArgs^ args);
+		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
+		void OnPointerMoved(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
+
+	private:
+		bool m_windowClosed;
+		bool m_windowVisible;
+	};
+
+	ref class ApplicationViewSource sealed : Windows::ApplicationModel::Core::IFrameworkViewSource
+	{
+	public:
+		virtual Windows::ApplicationModel::Core::IFrameworkView^ CreateView()
+		{
+			return ref new ApplicationView();
+		}
+	};
+	// Called by the system.  Perform application initialization here, hooking application wide events, etc.
+	void ApplicationView::Initialize(CoreApplicationView^ applicationView)
+	{
+		applicationView->Activated += ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(this, &ApplicationView::OnActivated);
+	}
+
+	// Called when we are provided a window.
+	void ApplicationView::SetWindow(CoreWindow^ window)
+	{
+	}
+
+	void ApplicationView::Load(Platform::String^ entryPoint)
+	{
+		g_window = CoreWindow::GetForCurrentThread();
+
+		InitializeApplication(*m_game);
+	}
+
+	// Called by the system after initialization is complete.  This implements the traditional game loop.
+	void ApplicationView::Run()
+	{
+		for (;;)
+		{
+			// ProcessEvents will throw if the process is exiting, allowing us to break out of the loop.  This will be
+			// cleaned up when we get proper process lifetime management in a future release.
+			CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
+
+			UpdateApplication(*m_game);
+		}
+	}
+
+	void ApplicationView::Uninitialize()
+	{
+		TerminateApplication(*m_game);
+	}
+
+	// Called when the application is activated.  For now, there is just one activation kind - Launch.
+	void ApplicationView::OnActivated(CoreApplicationView^ applicationView, IActivatedEventArgs^ args)
+	{
+		CoreWindow::GetForCurrentThread()->Activate();
+	}
+
+	void RunApplication( IGameApp& app, const wchar_t* className )
+	{
+		m_game = &app;
+		(void)className;
+		auto applicationViewSource = ref new ApplicationViewSource();
+		CoreApplication::Run(applicationViewSource);
+	}
+
+#else // Win32
+
 	HWND g_hWnd = nullptr;
 
 	void InitWindow( const wchar_t* className );
@@ -105,6 +207,10 @@ namespace GameCore
 
 	void RunApplication( IGameApp& app, const wchar_t* className )
 	{
+		//ASSERT_SUCCEEDED(CoInitializeEx(nullptr, COINITBASE_MULTITHREADED));
+		Microsoft::WRL::Wrappers::RoInitializeWrapper InitializeWinRT(RO_INIT_MULTITHREADED);
+		ASSERT_SUCCEEDED(InitializeWinRT);
+
 		HINSTANCE hInst = GetModuleHandle(0);
 
 		// Register class
@@ -184,3 +290,5 @@ namespace GameCore
 		return 0;
 	}
 }
+
+#endif // Win32

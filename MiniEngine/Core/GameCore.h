@@ -40,7 +40,7 @@ namespace GameCore
 	void RunApplication( IGameApp& app, const wchar_t* className );
 }
 
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	#define MAIN_FUNCTION()  int wmain(int argc, wchar_t** argv)
 #else
 	#define MAIN_FUNCTION()  [Platform::MTAThread] int main(Platform::Array<Platform::String^>^)

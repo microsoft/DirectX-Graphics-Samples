@@ -13,19 +13,20 @@
 
 #include "ShaderUtility.hlsli"
 #include "PostEffectsRS.hlsli"
+#include "PixelPacking.hlsli"
 
-Texture2D<float3> SrcColor : register( t0 );
-StructuredBuffer<float> Exposure : register( t1 );
-Texture2D<float3> Bloom : register( t2 );
+StructuredBuffer<float> Exposure : register( t0 );
+Texture2D<float3> Bloom : register( t1 );
 RWTexture2D<float3> DstColor : register( u0 );
 RWTexture2D<float> OutLuma : register( u1 );
+RWTexture2D<uint> DstUint : register(u2);	// Must alias DstColor (to load the raw uint)
 SamplerState LinearSampler : register( s0 );
 
 cbuffer ConstantBuffer : register( b0 )
 {
 	float2 g_RcpBufferDim;
 	float g_BloomStrength;
-	float g_LumaGamma;
+	float g_ToeStrength;
 };
 
 [RootSignature(PostEffects_RootSig)]
@@ -35,16 +36,22 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	float2 TexCoord = (DTid.xy + 0.5) * g_RcpBufferDim;
 
 	// Load HDR and bloom
-	float3 hdrColor = SrcColor[DTid.xy] + g_BloomStrength * Bloom.SampleLevel( LinearSampler, TexCoord, 0 );
-
-	// Tone map to LDR.  ToneMap() reads and writes the [0, 1] space.  Exposure[2] = Exposure / PeakIntensity,
-	// which normalizes [0, Peak] to [0, 1].
-#if PRESERVE_HUE
-	float3 ldrColor = ToneMap2( hdrColor * Exposure[2] );
+#if SUPPORT_TYPED_UAV_LOADS
+	float3 hdrColor = DstColor[DTid.xy];
 #else
-	float3 ldrColor = ToneMap( hdrColor * Exposure[2] );
+	float3 hdrColor = Unpack_R11G11B10_FLOAT(DstUint[DTid.xy]);
 #endif
 
+	hdrColor += g_BloomStrength * Bloom.SampleLevel(LinearSampler, TexCoord, 0);
+	hdrColor *= Exposure[0];
+
+	// Tone map to LDR.
+#if ENABLE_HDR_OUTPUT
+	DstColor[DTid.xy] = hdrColor;
+	OutLuma[DTid.xy] = LinearToLogLuminance(ToneMapLuma(RGBToLuminance(hdrColor)));
+#else
+	float3 ldrColor = ApplyToe(ToneMap(hdrColor), g_ToeStrength);
 	DstColor[DTid.xy] = ldrColor;
-	OutLuma[DTid.xy] = RGBToLogLuminance( ldrColor, g_LumaGamma );
+	OutLuma[DTid.xy] = RGBToLogLuminance(ldrColor);
+#endif
 }
