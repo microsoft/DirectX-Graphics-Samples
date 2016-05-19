@@ -667,6 +667,7 @@ void D3D12Multithreading::OnUpdate()
 		}
 		ThrowIfFailed(m_fence->SetEventOnCompletion(m_pCurrentFrameResource->m_fenceValue, eventHandle));
 		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
 	}
 
 	m_cpuTimer.Tick(NULL);
