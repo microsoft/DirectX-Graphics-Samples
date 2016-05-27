@@ -1,0 +1,8 @@
+﻿<Application
+    x:Class="DirectX12XamlApp.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:DirectX12XamlApp"
+    RequestedTheme="Light">
+
+</Application>
