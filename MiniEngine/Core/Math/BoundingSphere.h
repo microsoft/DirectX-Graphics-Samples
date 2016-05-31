@@ -21,8 +21,8 @@ namespace Math
 	{
 	public:
 		BoundingSphere() {}
-		BoundingSphere( Vector3 center, Scalar radius );
-		explicit BoundingSphere( Vector4 sphere );
+		BoundingSphere( const Vector3 &center, const Scalar &radius );
+		explicit BoundingSphere( const Vector4 &sphere );
 
 		Vector3 GetCenter( void ) const;
 		Scalar GetRadius( void ) const;
@@ -36,13 +36,13 @@ namespace Math
 	// Inline implementations
 	//
 
-	inline BoundingSphere::BoundingSphere( Vector3 center, Scalar radius )
+	inline BoundingSphere::BoundingSphere( const Vector3 &center, const Scalar &radius )
 	{
 		m_repr = Vector4(center);
 		m_repr.SetW(radius);
 	}
 
-	inline BoundingSphere::BoundingSphere( Vector4 sphere )
+	inline BoundingSphere::BoundingSphere( const Vector4 &sphere )
 		: m_repr(sphere)
 	{
 	}

@@ -15,7 +15,7 @@
 #include "FileUtility.h"
 #include <fstream>
 #include <mutex>
-#include "../3rdParty/zlib-win64/zlib.h"
+#include "../3rdParty/zlib/zlib.h"
 
 using namespace std;
 using namespace Utility;
@@ -38,7 +38,7 @@ ByteArray ReadFileHelper(const wstring& fileName)
 	if (!file)
 		return NullFile;
 
-	Utility::ByteArray byteArray = make_shared<vector<byte> >( file.seekg(0, ios::end).tellg() );
+	Utility::ByteArray byteArray = make_shared<vector<byte> >( static_cast<size_t>(file.seekg(0, ios::end).tellg()) );
 	file.seekg(0, ios::beg).read( (char*)byteArray->data(), byteArray->size() );
 	file.close();
 

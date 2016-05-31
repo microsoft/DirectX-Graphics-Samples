@@ -17,7 +17,7 @@
 using namespace Math;
 
 void GameCore::ShadowCamera::UpdateMatrix(
-	Vector3 LightDirection, Vector3 ShadowCenter, Vector3 ShadowBounds,
+	const Vector3 &LightDirection, const Vector3 &ShadowCenter, const Vector3 &ShadowBounds,
 	uint32_t BufferWidth, uint32_t BufferHeight, uint32_t BufferPrecision )
 {
 	SetLookDirection( LightDirection, Vector3(kZUnitVector) );
@@ -31,13 +31,13 @@ void GameCore::ShadowCamera::UpdateMatrix(
 	//
 
 	// Transform to view space
-	ShadowCenter = ~GetRotation() * ShadowCenter;
+	auto shCenter = ~GetRotation() * ShadowCenter;
 	// Scale to texel units, truncate fractional part, and scale back to world units
-	ShadowCenter = Floor( ShadowCenter * QuantizeScale ) / QuantizeScale;
+	shCenter = Floor(shCenter * QuantizeScale ) / QuantizeScale;
 	// Transform back into world space
-	ShadowCenter = GetRotation() * ShadowCenter;
+	shCenter = GetRotation() * shCenter;
 
-	SetPosition( ShadowCenter );
+	SetPosition(shCenter);
 
 	SetProjMatrix( Matrix4::MakeScale(Vector3(2.0f, 2.0f, 1.0f) * RcpDimensions) );
 

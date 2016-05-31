@@ -23,12 +23,12 @@ public:
 	DepthBuffer( float ClearDepth = 0.0f, uint32_t ClearStencil = 0 )
 		: m_ClearDepth(ClearDepth), m_ClearStencil(ClearStencil) 
 	{
-		m_hDSV[0].ptr = ~0ull;
-		m_hDSV[1].ptr = ~0ull;
-		m_hDSV[2].ptr = ~0ull;
-		m_hDSV[3].ptr = ~0ull;
-		m_hDepthSRV.ptr = ~0ull;
-		m_hStencilSRV.ptr = ~0ull;
+		m_hDSV[0].ptr = SIZE_MAX;
+		m_hDSV[1].ptr = SIZE_MAX;
+		m_hDSV[2].ptr = SIZE_MAX;
+		m_hDSV[3].ptr = SIZE_MAX;
+		m_hDepthSRV.ptr = SIZE_MAX;
+		m_hStencilSRV.ptr = SIZE_MAX;
 	}
 
 	// Create a depth buffer.  If an address is supplied, memory will not be allocated.

@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "pch.h"
+#include "Core.h"
 
 class EsramAllocator
 {
@@ -26,7 +26,7 @@ public:
 	D3D12_GPU_VIRTUAL_ADDRESS Alloc( size_t size, size_t align, const std::wstring& bufferName )
 	{
 		(size); (align); (bufferName);
-		return ~0ull;
+		return SIZE_MAX;
 	}
 
 	intptr_t SizeOfFreeSpace( void ) const

@@ -17,6 +17,7 @@
 
 using namespace DirectX;
 
+
 class Color
 {
 public:
@@ -52,6 +53,12 @@ public:
 
 	uint32_t R10G10B10A2() const;
 	uint32_t R8G8B8A8() const;
+
+	inline static void* operator new(size_t size){ return _aligned_malloc(size,16); }
+	inline static void operator delete(void* memory) { _aligned_free(memory); }
+
+	inline static void* operator new[](size_t size) { return _aligned_malloc(size, 16); }
+	inline static void operator delete[](void *mem) { _aligned_free(mem); }
 
 private:
 	XMVECTOR m_value;
@@ -121,7 +128,13 @@ inline Color Color::FromREC709( void ) const
 inline uint32_t Color::R10G10B10A2( void ) const
 {
 	XMVECTOR result = XMVectorRound(XMVectorMultiply(XMVectorSaturate(m_value), XMVectorSet(1023.0f, 1023.0f, 1023.0f, 3.0f)));
+
+#ifdef _M_ARM
+	result = XMConvertVectorIntToFloat(XMConvertVectorFloatToInt(result,0),0);
+#else
 	result = _mm_castsi128_ps(_mm_cvttps_epi32(result));
+#endif
+
 	uint32_t r = XMVectorGetIntX(result);
 	uint32_t g = XMVectorGetIntY(result);
 	uint32_t b = XMVectorGetIntZ(result);
@@ -129,10 +142,18 @@ inline uint32_t Color::R10G10B10A2( void ) const
 	return a << 30 | b << 20 | g << 10 | r;
 }
 
+
+
 inline uint32_t Color::R8G8B8A8( void ) const
 {
 	XMVECTOR result = XMVectorRound(XMVectorMultiply(XMVectorSaturate(m_value), XMVectorReplicate(255.0f)));
+
+#ifdef _M_ARM
+	result = XMConvertVectorIntToFloat(XMConvertVectorFloatToInt(result, 0), 0);
+#else
 	result = _mm_castsi128_ps(_mm_cvttps_epi32(result));
+#endif
+
 	uint32_t r = XMVectorGetIntX(result);
 	uint32_t g = XMVectorGetIntY(result);
 	uint32_t b = XMVectorGetIntZ(result);

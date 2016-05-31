@@ -29,7 +29,7 @@ namespace GameCore
 	{
 	public:
 		// Assumes worldUp is not the X basis vector
-		CameraController( Camera& camera, Vector3 worldUp );
+		CameraController( Camera& camera, const Vector3 &worldUp );
 
 		void Update( float dt );
 
@@ -37,6 +37,9 @@ namespace GameCore
 		void SlowRotation( bool enable ) { m_FineRotation = enable; }
 
 		void EnableMomentum( bool enable ) { m_Momentum = enable; }
+
+		inline static void* operator new(size_t size){ return _aligned_malloc(size,16); }
+		inline static void operator delete(void* memory) { _aligned_free(memory); }
 
 	private:
 		CameraController& operator=( const CameraController& ) {return *this;}

@@ -17,22 +17,22 @@
 
 using namespace Math;
 
-void BaseCamera::SetLookDirection( Vector3 forward, Vector3 up )
+void BaseCamera::SetLookDirection( const Vector3 &forward, const Vector3 &up )
 {
 	// Given, but ensure normalization
 	Scalar forwardLenSq = LengthSquare(forward);
-	forward = Select(forward * RecipSqrt(forwardLenSq), -Vector3(kZUnitVector), forwardLenSq < Scalar(0.000001f));
+	auto fwd = Select(forward * RecipSqrt(forwardLenSq), -Vector3(kZUnitVector), forwardLenSq < Scalar(0.000001f));
 
 	// Deduce a valid, orthogonal right vector
-	Vector3 right = Cross(forward, up);
+	Vector3 right = Cross(fwd, up);
 	Scalar rightLenSq = LengthSquare(right);
 	right = Select(right * RecipSqrt(rightLenSq), Quaternion(Vector3(kYUnitVector), -XM_PIDIV2) * forward, rightLenSq < Scalar(0.000001f));
 
 	// Compute actual up vector
-	up = Cross(right, forward);
+	auto up1 = Cross(right, forward);
 
 	// Finish constructing basis
-	m_Basis = Matrix3(right, up, -forward);
+	m_Basis = Matrix3(right, up1, -forward);
 	m_CameraToWorld.SetRotation(Quaternion(m_Basis));
 }
 

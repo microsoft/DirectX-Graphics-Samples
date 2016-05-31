@@ -485,7 +485,11 @@ void CommandContext::WriteBuffer( GpuResource& Dest, size_t DestOffset, const vo
 void CommandContext::FillBuffer( GpuResource& Dest, size_t DestOffset, DWParam Value, size_t NumBytes )
 {
 	DynAlloc TempSpace = m_CpuLinearAllocator.Allocate( NumBytes, 512 );
+#if _M_X64
 	__m128 VectorValue = _mm_set1_ps(Value.Float);
+#else
+	XMVECTOR VectorValue = DirectX::XMVectorSet(Value.Float, Value.Float, Value.Float, Value.Float);
+#endif
 	SIMDMemFill(TempSpace.DataPtr, VectorValue, Math::DivideByMultiple(NumBytes, 16));
 	CopyBufferRegion(Dest, DestOffset, TempSpace.Buffer, TempSpace.Offset, NumBytes );
 }

@@ -11,7 +11,7 @@
 // Author:  Alex Nankervis
 //
 
-#include "pch.h"
+#include "Core.h"
 #include "Model.h"
 #include <string.h>
 #include <float.h>
@@ -66,11 +66,12 @@ void Model::Clear()
 	m_VertexBuffer.Destroy();
 	m_IndexBuffer.Destroy();
 
-	delete [] m_pMesh;
+	delete[] m_pMesh;
 	m_pMesh = nullptr;
 	m_Header.meshCount = 0;
 
-	delete [] m_pMaterial;
+	delete[] m_pMaterial;
+
 	m_pMaterial = nullptr;
 	m_Header.materialCount = 0;
 

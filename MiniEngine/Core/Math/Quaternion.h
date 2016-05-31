@@ -32,11 +32,11 @@ namespace Math
 		INLINE Quaternion operator~ ( void ) const { return Quaternion(XMQuaternionConjugate(m_vec)); }
 		INLINE Quaternion operator- ( void ) const { return Quaternion(XMVectorNegate(m_vec)); }
 
-		INLINE Quaternion operator* ( Quaternion rhs ) const { return Quaternion(XMQuaternionMultiply(rhs, m_vec)); }
-		INLINE Vector3 operator* ( Vector3 rhs ) const { return Vector3(XMVector3Rotate(rhs, m_vec)); }
+		INLINE Quaternion operator* ( const Quaternion &rhs ) const { return Quaternion(XMQuaternionMultiply(rhs, m_vec)); }
+		INLINE Vector3 operator* ( const Vector3 &rhs ) const { return Vector3(XMVector3Rotate(rhs, m_vec)); }
 
-		INLINE Quaternion& operator= ( Quaternion rhs ) { m_vec = rhs; return *this; }
-		INLINE Quaternion& operator*= ( Quaternion rhs ) { *this = *this * rhs; return *this; }
+		INLINE Quaternion& operator= ( const Quaternion &rhs ) { m_vec = rhs; return *this; }
+		INLINE Quaternion& operator*= ( const Quaternion &rhs ) { *this = *this * rhs; return *this; }
 
 	protected:
 		XMVECTOR m_vec;

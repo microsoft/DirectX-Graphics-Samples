@@ -51,14 +51,14 @@ class DescriptorHandle
 public:
 	DescriptorHandle()
 	{
-		m_CpuHandle.ptr = ~0ull;
-		m_GpuHandle.ptr = ~0ull;
+		m_CpuHandle.ptr = SIZE_MAX;
+		m_GpuHandle.ptr = SIZE_MAX;
 	}
 
 	DescriptorHandle( D3D12_CPU_DESCRIPTOR_HANDLE CpuHandle )
 		: m_CpuHandle(CpuHandle)
 	{
-		m_GpuHandle.ptr = ~0ull;
+		m_GpuHandle.ptr = SIZE_MAX;
 	}
 
 	DescriptorHandle( D3D12_CPU_DESCRIPTOR_HANDLE CpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE GpuHandle )
@@ -75,9 +75,9 @@ public:
 
 	void operator += ( INT OffsetScaledByDescriptorSize )
 	{
-		 if (m_CpuHandle.ptr != ~0ull)
+		 if (m_CpuHandle.ptr != SIZE_MAX)
 			m_CpuHandle.ptr += OffsetScaledByDescriptorSize;
-		 if (m_GpuHandle.ptr != ~0ull)
+		 if (m_GpuHandle.ptr != SIZE_MAX)
 			m_GpuHandle.ptr += OffsetScaledByDescriptorSize;
 	}
 
@@ -85,8 +85,8 @@ public:
 
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle() const { return m_GpuHandle; }
 
-	bool IsNull() const { return m_CpuHandle.ptr == ~0ull; }
-	bool IsShaderVisible() const { return m_GpuHandle.ptr != ~0ull; }
+	bool IsNull() const { return m_CpuHandle.ptr == SIZE_MAX; }
+	bool IsShaderVisible() const { return m_GpuHandle.ptr != SIZE_MAX; }
 
 private:
 	D3D12_CPU_DESCRIPTOR_HANDLE m_CpuHandle;

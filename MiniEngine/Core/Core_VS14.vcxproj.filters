@@ -181,6 +181,12 @@
     <ClInclude Include="BuddyAllocator.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="Core.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pch\pch.h">
+      <Filter>Shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SystemTime.cpp">

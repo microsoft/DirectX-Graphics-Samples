@@ -12,7 +12,7 @@
 //             James Stanard
 
 #pragma once
-#include "pch.h"
+#include "Core.h"
 #include "GpuBuffer.h"
 #include "ParticleEffectProperties.h"
 #include "ParticleShaderStructs.h"
@@ -26,6 +26,9 @@ public:
 	float GetLifetime(){ return m_EffectProperties.TotalActiveLifetime; }
 	float GetElapsedTime(){ return m_ElapsedTime; }
 	void Reset();
+
+	inline static void* operator new(size_t size){return _aligned_malloc(size,16);}
+	inline static void operator delete(void* memory){_aligned_free(memory);}
 
 private:
 

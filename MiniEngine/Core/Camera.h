@@ -28,10 +28,10 @@ namespace Math
 		void Update();
 
 		// Public functions for controlling where the camera is and its orientation
-		void SetEyeAtUp( Vector3 eye, Vector3 at, Vector3 up );
-		void SetLookDirection( Vector3 forward, Vector3 up );
-		void SetRotation( Quaternion basisRotation );
-		void SetPosition( Vector3 worldPos );
+		void SetEyeAtUp( const Vector3 &eye, const Vector3 &at, const Vector3 &up );
+		void SetLookDirection( const Vector3 &forward, const Vector3 &up );
+		void SetRotation( const Quaternion &basisRotation );
+		void SetPosition( const Vector3 &worldPos );
 		void SetTransform( const AffineTransform& xform );
 		void SetTransform( const OrthogonalTransform& xform );
 
@@ -113,13 +113,13 @@ namespace Math
 		bool m_ReverseZ;				// Invert near and far clip distances so that Z=0 is the far plane
 	};
 
-	inline void BaseCamera::SetEyeAtUp( Vector3 eye, Vector3 at, Vector3 up )
+	inline void BaseCamera::SetEyeAtUp( const Vector3 &eye, const Vector3 &at, const Vector3 &up )
 	{
 		SetLookDirection(at - eye, up);
 		SetPosition(eye);
 	}
 
-	inline void BaseCamera::SetPosition( Vector3 worldPos )
+	inline void BaseCamera::SetPosition( const Vector3 &worldPos )
 	{
 		m_CameraToWorld.SetTranslation( worldPos );
 	}
@@ -131,7 +131,7 @@ namespace Math
 		SetPosition(xform.GetTranslation());
 	}
 
-	inline void BaseCamera::SetRotation( Quaternion basisRotation )
+	inline void BaseCamera::SetRotation( const Quaternion &basisRotation )
 	{
 		m_CameraToWorld.SetRotation(Normalize(basisRotation));
 		m_Basis = Matrix3(m_CameraToWorld.GetRotation());

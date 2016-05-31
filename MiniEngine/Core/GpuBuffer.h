@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "pch.h"
+#include "Core.h"
 #include "GpuResource.h"
 
 class CommandContext;
@@ -64,8 +64,8 @@ protected:
 	GpuBuffer(void) : m_BufferSize(0), m_ElementCount(0), m_ElementSize(0)
 	{
 		m_ResourceFlags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-		m_UAV.ptr = ~0ull;
-		m_SRV.ptr = ~0ull;
+		m_UAV.ptr = SIZE_MAX;
+		m_SRV.ptr = SIZE_MAX;
 	}
 
 	D3D12_RESOURCE_DESC DescribeBuffer(void);

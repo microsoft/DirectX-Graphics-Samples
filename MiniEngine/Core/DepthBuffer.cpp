@@ -43,7 +43,7 @@ void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Texture2D.MipSlice = 0;
 
-	if (m_hDSV[0].ptr == ~0ull)
+	if (m_hDSV[0].ptr == SIZE_MAX)
 	{
 		m_hDSV[0] = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 		m_hDSV[1] = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
@@ -58,7 +58,7 @@ void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
 	DXGI_FORMAT stencilReadFormat = GetStencilFormat(Format);
 	if (stencilReadFormat != DXGI_FORMAT_UNKNOWN)
 	{
-		if (m_hDSV[2].ptr == ~0ull)
+		if (m_hDSV[2].ptr == SIZE_MAX)
 		{
 			m_hDSV[2] = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 			m_hDSV[3] = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
@@ -76,7 +76,7 @@ void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
 		m_hDSV[3] = m_hDSV[1];
 	}
 
-	if (m_hDepthSRV.ptr == ~0ull)
+	if (m_hDepthSRV.ptr == SIZE_MAX)
 		m_hDepthSRV = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	// Create the shader resource view
@@ -89,7 +89,7 @@ void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
 
 	if (stencilReadFormat != DXGI_FORMAT_UNKNOWN)
 	{
-		if (m_hStencilSRV.ptr == ~0ull)
+		if (m_hStencilSRV.ptr == SIZE_MAX)
 			m_hStencilSRV = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		SRVDesc.Format = stencilReadFormat;

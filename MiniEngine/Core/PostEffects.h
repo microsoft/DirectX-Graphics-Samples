@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "pch.h"
+#include "Core.h"
 #include "EngineTuning.h"
 
 namespace PostEffects

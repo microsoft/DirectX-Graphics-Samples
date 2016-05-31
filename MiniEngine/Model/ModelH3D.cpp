@@ -11,7 +11,7 @@
 // Author:  Alex Nankervis
 //
 
-#include "pch.h"
+#include "Core.h"
 #include "Model.h"
 #include "Utility.h"
 #include "TextureManager.h"
@@ -30,10 +30,14 @@ bool Model::LoadH3D(const char *filename)
 
 	bool ok = false;
 
+	auto a = sizeof(Header);
+
 	if (1 != fread(&m_Header, sizeof(Header), 1, file)) goto h3d_load_fail;
 
-	m_pMesh = new Mesh [m_Header.meshCount];
-	m_pMaterial = new Material [m_Header.materialCount];
+	m_pMesh = (Mesh *)_aligned_malloc(m_Header.meshCount*sizeof(Mesh), 16);;
+
+	
+	m_pMaterial = (Material *)_aligned_malloc(m_Header.materialCount*sizeof(Material),16);
 
 	if (m_Header.meshCount > 0)
 		if (1 != fread(m_pMesh, sizeof(Mesh) * m_Header.meshCount, 1, file)) goto h3d_load_fail;

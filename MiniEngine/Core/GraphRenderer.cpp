@@ -52,12 +52,15 @@ class PerfGraph
 {
 friend GraphVector;
 public:
-	PerfGraph( uint32_t NodeCount, uint32_t debugVarCount, Color color = Color(1.0f, 0.0f, 0.5f), bool IsGraphed = false ) : m_IsGraphed(IsGraphed), 
+	PerfGraph( uint32_t NodeCount, uint32_t debugVarCount, const Color &color = Color(1.0f, 0.0f, 0.5f), bool IsGraphed = false ) : m_IsGraphed(IsGraphed), 
 		m_NodeCount(NodeCount), m_Color(color), m_DebugVarCount(debugVarCount)
 	{
 		for (uint32_t i = 0; i < debugVarCount; ++i)		
 			m_PerfTimesCPUBuffer.emplace_back(new float[NodeCount]);
 	}
+
+	inline static void* operator new(size_t size){ return _aligned_malloc(size,16); }
+	inline static void operator delete(void* memory) { _aligned_free(memory); }
 
 	~PerfGraph()
 	{
@@ -67,7 +70,7 @@ public:
 	void Clear(){ m_PerfTimesCPUBuffer.clear();} 
 	bool IsGraphed(){ return m_IsGraphed; }
 	Color GetColor(){ return m_Color; }
-	void SetColor(Color color){m_Color = color;}
+	void SetColor(const Color &color){m_Color = color;}
 	void UpdateGraph( float* timeStamps, uint32_t frameID )
 	{
 		for(uint32_t i = 0; i < m_DebugVarCount; i++)

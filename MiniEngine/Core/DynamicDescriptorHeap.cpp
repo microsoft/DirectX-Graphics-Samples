@@ -21,9 +21,9 @@
 
 using namespace Graphics;
 
-#pragma intrinsic(_BitScanReverse)
-#pragma intrinsic(_BitScanForward)
-#pragma intrinsic(_BitScanForward64)
+//#pragma intrinsic(_BitScanReverse)
+//#pragma intrinsic(_BitScanForward)
+//#pragma intrinsic(_BitScanForward64)
 
 //
 // DynamicDescriptorHeap Implementation
@@ -195,12 +195,23 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(
 		DescriptorTableCache& RootDescTable = m_RootDescriptorTable[RootIndex];
 
 		D3D12_CPU_DESCRIPTOR_HANDLE* SrcHandles = RootDescTable.TableStart;
+#ifdef _M_X64
 		uint64_t SetHandles = (uint64_t)RootDescTable.AssignedHandlesBitMap;
+#else
+		uint32_t SetHandles = RootDescTable.AssignedHandlesBitMap;
+#endif
 		D3D12_CPU_DESCRIPTOR_HANDLE CurDest = DestHandleStart.GetCpuHandle();
 		DestHandleStart += TableSize[i] * kDescriptorSize;
 
 		unsigned long SkipCount;
-		while (_BitScanForward64(&SkipCount, SetHandles))
+
+		while (
+#ifdef _M_X64
+			_BitScanForward64
+#else
+			_BitScanForward
+#endif
+			(&SkipCount, SetHandles))
 		{
 			// Skip over unset descriptor handles
 			SetHandles >>= SkipCount;
@@ -208,7 +219,13 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(
 			CurDest.ptr += SkipCount * kDescriptorSize;
 
 			unsigned long DescriptorCount;
-			_BitScanForward64(&DescriptorCount, ~SetHandles);
+
+#ifdef _M_X64
+			_BitScanForward64
+#else
+			_BitScanForward
+#endif
+				(&DescriptorCount, ~SetHandles);
 			SetHandles >>= DescriptorCount;
 
 			// If we run out of temp room, copy what we've got so far

@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "pch.h"
+#include "Core.h"
 #include "GpuResource.h"
 #include "Utility.h"
 
@@ -24,7 +24,7 @@ class Texture : public GpuResource
 
 public:
 
-	Texture() { m_hCpuDescriptorHandle.ptr = ~0ull; }
+	Texture() { m_hCpuDescriptorHandle.ptr = SIZE_MAX; }
 	Texture(D3D12_CPU_DESCRIPTOR_HANDLE Handle) : m_hCpuDescriptorHandle(Handle) {}
 
 	// Create a 1-level 2D texture

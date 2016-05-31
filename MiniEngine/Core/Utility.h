@@ -13,12 +13,25 @@
 
 #pragma once
 
-#include "pch.h"
+#include "Core.h"
 
 namespace Utility
 {
-	inline void Print( const char* msg ) { printf(msg); }
-	inline void Print( const wchar_t* msg ) { wprintf(msg); }
+	inline void Print( const char* msg ) 
+	{ 
+#if _DEBUG
+		OutputDebugStringA(msg);
+#endif
+		printf(msg); 
+	}
+	inline void Print( const wchar_t* msg ) 
+	{
+
+#if _DEBUG
+		OutputDebugStringW(msg);
+#endif
+		wprintf(msg); 
+	}
 
 	inline void Printf( const char* format, ... )
 	{
@@ -137,6 +150,6 @@ namespace Utility
 #define BreakIfFailed( hr ) if (FAILED(hr)) __debugbreak()
 
 void SIMDMemCopy( void* __restrict Dest, const void* __restrict Source, size_t NumQuadwords );
-void SIMDMemFill( void* __restrict Dest, __m128 FillVector, size_t NumQuadwords );
+void SIMDMemFill( void* __restrict Dest, DirectX::XMVECTOR FillVector, size_t NumQuadwords );
 
 std::wstring MakeWStr( const std::string& str );

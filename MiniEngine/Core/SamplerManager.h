@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "pch.h"
+#include "Core.h"
 #include "Color.h"
 
 class SamplerDesc : public D3D12_SAMPLER_DESC
@@ -46,7 +46,7 @@ public:
 		AddressW = AddressMode;
 	}
 
-	void SetBorderColor( Color Border )
+	void SetBorderColor( Color &Border )
 	{
 		BorderColor[0] = Border.R();
 		BorderColor[1] = Border.G();

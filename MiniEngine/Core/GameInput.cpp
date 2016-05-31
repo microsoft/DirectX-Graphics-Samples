@@ -15,21 +15,43 @@
 #include "GameCore.h"
 #include "GameInput.h"
 
+
 #include <XInput.h>
-#pragma comment(lib, "xinput9_1_0.lib")
 
 #define USE_KEYBOARD_MOUSE
-#define DIRECTINPUT_VERSION 0x0800
-#include <dinput.h>
-#pragma comment(lib, "dinput8.lib")
-#pragma comment(lib, "dxguid.lib")
 
-#ifdef USE_KEYBOARD_MOUSE
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+	#pragma comment(lib, "xinput9_1_0.lib")
+
+	#ifdef USE_KEYBOARD_MOUSE
+	#define DIRECTINPUT_VERSION 0x0800
+	#include <dinput.h>
+	#pragma comment(lib, "dinput8.lib")
+	#pragma comment(lib, "dxguid.lib")
+#endif
+
+
+
+
 namespace GameCore
 {
 	extern HWND g_hWnd;
 }
 #endif
+
+
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+typedef struct _DIMOUSESTATE2 {
+	LONG    lX;
+	LONG    lY;
+	LONG    lZ;
+	BYTE    rgbButtons[8];
+} DIMOUSESTATE2, *LPDIMOUSESTATE2;
+
+#endif
+
+unsigned char s_Keybuffer[256];
+_DIMOUSESTATE2 s_MouseState;
 
 namespace
 {
@@ -39,12 +61,11 @@ namespace
 	float s_AnalogsTC[GameInput::kNumAnalogInputs];
 
 #ifdef USE_KEYBOARD_MOUSE
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	IDirectInput8A* s_DI;
 	IDirectInputDevice8A* s_Keyboard;
 	IDirectInputDevice8A* s_Mouse;
-
-	_DIMOUSESTATE2 s_MouseState;
-	unsigned char s_Keybuffer[256];
+#endif
 	unsigned char s_DXKeyMapping[GameInput::kNumKeys]; // map DigitalInput enum to DX key codes 
 #endif
 
@@ -69,6 +90,7 @@ namespace
 #ifdef USE_KEYBOARD_MOUSE
 	void KbmBuildKeyMapping()
 	{
+
 		s_DXKeyMapping[GameInput::kKey_escape] = 1;
 		s_DXKeyMapping[GameInput::kKey_1] = 2;
 		s_DXKeyMapping[GameInput::kKey_2] = 3;
@@ -184,6 +206,8 @@ namespace
 	void KbmInitialize()
 	{
 		KbmBuildKeyMapping();
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
 
 		if (FAILED(DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&s_DI, nullptr)))
 			ASSERT(false, "DirectInput8 initialization failed.");
@@ -209,12 +233,15 @@ namespace
 			ASSERT(false, "Mouse SetDataFormat failed.");
 		if (FAILED(s_Mouse->SetCooperativeLevel(GameCore::g_hWnd, DISCL_FOREGROUND | DISCL_EXCLUSIVE)))
 			ASSERT(false, "Mouse SetCooperativeLevel failed.");
-
+#endif
 		KbmZeroInputs();
 	}
 
 	void KbmShutdown()
 	{
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
+
 		if (s_Keyboard)
 		{
 			s_Keyboard->Unacquire();
@@ -232,10 +259,14 @@ namespace
 			s_DI->Release();
 			s_DI = nullptr;
 		}
+#endif
 	}
 
 	void KbmUpdate()
 	{
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
+
 		HWND foreground = GetForegroundWindow();
 		bool visible = IsWindowVisible(foreground) != 0;
 
@@ -248,9 +279,11 @@ namespace
 		{
 			s_Mouse->Acquire();
 			s_Mouse->GetDeviceState(sizeof(DIMOUSESTATE2), &s_MouseState);
+
 			s_Keyboard->Acquire();
 			s_Keyboard->GetDeviceState(sizeof(s_Keybuffer), s_Keybuffer);
 		}
+#endif
 	}
 #endif
 
@@ -258,8 +291,9 @@ namespace
 
 void GameInput::Initialize()
 {
+
 	// For Windows 8
-	//	XInputEnable(TRUE);
+	//XInputEnable(TRUE);
 
 	ZeroMemory( s_Buttons, sizeof(s_Buttons) );
 	ZeroMemory( s_Analogs, sizeof(s_Analogs) );
@@ -281,6 +315,8 @@ void GameInput::Update( float frameDelta )
 	memcpy(s_Buttons[1], s_Buttons[0], sizeof(s_Buttons[0]));
 	memset(s_Buttons[0], 0, sizeof(s_Buttons[0]));
 	memset(s_Analogs, 0, sizeof(s_Analogs));
+
+
 
 	XINPUT_STATE newInputState;
 	if (ERROR_SUCCESS == XInputGetState( 0, &newInputState ))
@@ -311,24 +347,28 @@ void GameInput::Update( float frameDelta )
 #ifdef USE_KEYBOARD_MOUSE
 	KbmUpdate();
 
+
 	for (uint32_t i = 0; i < kNumKeys; ++i)
 	{
 		s_Buttons[0][i] = (s_Keybuffer[s_DXKeyMapping[i]] & 0x80) != 0;
+
 	}
+
 
 	for (uint32_t i = 0; i < 8; ++i)
 	{
 		if (s_MouseState.rgbButtons[i] > 0) s_Buttons[0][kMouse0 + i] = true;
 	}
-
 	s_Analogs[kAnalogMouseX] = (float)s_MouseState.lX * .0018f;
 	s_Analogs[kAnalogMouseY] = (float)s_MouseState.lY * -.0018f;
-
 	if (s_MouseState.lZ > 0)
 		s_Analogs[kAnalogMouseScroll] = 1.0f;
 	else if (s_MouseState.lZ < 0)
 		s_Analogs[kAnalogMouseScroll] = -1.0f;
+
+
 #endif
+
 
 	// Update time duration for buttons pressed
 	for (uint32_t i = 0; i < kNumDigitalInputs; ++i)
@@ -342,15 +382,16 @@ void GameInput::Update( float frameDelta )
 		}
 	}
 
+
 	for (uint32_t i = 0; i < kNumAnalogInputs; ++i)
 	{
 		s_AnalogsTC[i] = s_Analogs[i] * frameDelta;
 	}
-
 }
 
 bool GameInput::IsAnyPressed( void )
 {
+
 	return s_Buttons[0] != 0;
 }
 

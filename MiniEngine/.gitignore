@@ -1,7 +1,11 @@
 .vs/
 assimp-3.0/
 Build_VS14/
+Build_VS14UWP/
+AppPackages/
+BundleArtifacts/
 *.dll
+*.vc.db
 *.ipch
 *.opensdf
 *.opendb

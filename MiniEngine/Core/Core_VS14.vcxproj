@@ -70,6 +70,15 @@
     <Manifest>
       <EnableDPIAwareness>true</EnableDPIAwareness>
     </Manifest>
+    <ClCompile>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">..\Core;pch</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\Core;pch</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\Core;pch</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="BuddyAllocator.h" />
@@ -82,6 +91,7 @@
     <ClInclude Include="CommandContext.h" />
     <ClInclude Include="CommandListManager.h" />
     <ClInclude Include="CommandSignature.h" />
+    <ClInclude Include="Core.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="dds.h" />
     <ClInclude Include="DDSTextureLoader.h" />
@@ -118,6 +128,7 @@
     <ClInclude Include="ParticleEffectProperties.h" />
     <ClInclude Include="ParticleShaderStructs.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="pch\pch.h" />
     <ClInclude Include="PipelineState.h" />
     <ClInclude Include="PixelBuffer.h" />
     <ClInclude Include="PostEffects.h" />

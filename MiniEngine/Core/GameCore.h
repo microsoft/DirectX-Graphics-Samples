@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "pch.h"
+#include "Core.h"
 
 namespace GameCore
 {
@@ -35,15 +35,32 @@ namespace GameCore
 
 		// Optional UI (overlay) rendering pass.  This is LDR.  The buffer is already cleared.
 		virtual void RenderUI( class GraphicsContext& Context ) {};
+
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+		virtual Microsoft::WRL::ComPtr<IUnknown> GetMainWindow(void) = 0;
+#endif
 	};
 
-	void RunApplication( IGameApp& app, const wchar_t* className );
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+	void RunApplication(IGameApp& app, const wchar_t* className);
+#else
+	void InitializeApplication(IGameApp& app);
+	bool UpdateApplication(IGameApp& game);
+	void TerminateApplication(IGameApp& game);
+#endif
+
 }
 
 #if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
 	#define MAIN_FUNCTION()  int wmain(int argc, wchar_t** argv)
+#endif
+
+
+#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+#define MAIN_FUNCTION()  int wmain(int argc, wchar_t** argv)
 #else
-	#define MAIN_FUNCTION()  [Platform::MTAThread] int main(Platform::Array<Platform::String^>^)
+	//#define MAIN_FUNCTION()  [Platform::MTAThread] int main(Platform::Array<Platform::String^>^)
 #endif
 
 #define CREATE_APPLICATION( app_class ) \

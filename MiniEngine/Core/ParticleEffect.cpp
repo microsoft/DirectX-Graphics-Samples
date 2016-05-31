@@ -39,7 +39,7 @@ ParticleEffect::ParticleEffect(ParticleEffectProperties* effectProperties)
 	m_EffectProperties = *effectProperties;
 }
 
-inline static Color RandColor( Color c0, Color c1 )
+inline static Color RandColor( const Color &c0, const Color &c1 )
 {
 	// We might want to find min and max of each channel rather than assuming c0 <= c1
 	return Color(
@@ -65,7 +65,8 @@ void ParticleEffect::LoadDeviceResources(ID3D12Device* device)
 	m_OriginalEffectProperties = m_EffectProperties; //In case we want to reset
 	
 	//Fill particle spawn data buffer
-	ParticleSpawnData* pSpawnData = (ParticleSpawnData*)_malloca(m_EffectProperties.EmitProperties.MaxParticles * sizeof(ParticleSpawnData));
+	ParticleSpawnData* pSpawnData = (ParticleSpawnData*)_aligned_malloc(
+		m_EffectProperties.EmitProperties.MaxParticles * sizeof(ParticleSpawnData), 16);
 	
 	for (UINT i = 0; i < m_EffectProperties.EmitProperties.MaxParticles; i++)
 	{
@@ -89,7 +90,7 @@ void ParticleEffect::LoadDeviceResources(ID3D12Device* device)
 	}
 	
 	m_RandomStateBuffer.Create(L"ParticleSystem::SpawnDataBuffer", m_EffectProperties.EmitProperties.MaxParticles, sizeof(ParticleSpawnData), pSpawnData);
-	_freea(pSpawnData);
+	_aligned_free(pSpawnData);
 
 	m_StateBuffers[0].Create(L"ParticleSystem::Buffer0", m_EffectProperties.EmitProperties.MaxParticles, sizeof(ParticleMotion));
 	m_StateBuffers[1].Create(L"ParticleSystem::Buffer1", m_EffectProperties.EmitProperties.MaxParticles, sizeof(ParticleMotion));
