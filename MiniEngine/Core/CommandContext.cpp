@@ -210,39 +210,21 @@ void CommandContext::BindDescriptorHeaps( void )
 		m_CommandList->SetDescriptorHeaps(NonNullHeaps, HeapsToBind);
 }
 
-void GraphicsContext::SetRenderTargets( UINT NumRTVs, ColorBuffer* RTVs, DepthBuffer* DSV, bool ReadOnlyDepth )
+void GraphicsContext::SetRenderTargets( UINT NumRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE RTVs[], D3D12_CPU_DESCRIPTOR_HANDLE DSV )
 {
-	D3D12_CPU_DESCRIPTOR_HANDLE RTVHandles[8];
+	m_CommandList->OMSetRenderTargets( NumRTVs, RTVs, FALSE, &DSV );
+}
 
-	for (UINT i = 0; i < NumRTVs; ++i)
-	{
-		TransitionResource(RTVs[i], D3D12_RESOURCE_STATE_RENDER_TARGET);
-		RTVHandles[i] = RTVs[i].GetRTV();
-	}
-
-	if (DSV)
-	{
-		if (ReadOnlyDepth)
-		{
-			TransitionResource(*DSV, D3D12_RESOURCE_STATE_DEPTH_READ);
-			m_CommandList->OMSetRenderTargets( NumRTVs, RTVHandles, FALSE, &DSV->GetDSV_DepthReadOnly() );
-		}
-		else
-		{
-			TransitionResource(*DSV, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-			m_CommandList->OMSetRenderTargets( NumRTVs, RTVHandles, FALSE, &DSV->GetDSV() );
-		}
-	}
-	else
-	{
-		m_CommandList->OMSetRenderTargets( NumRTVs, RTVHandles, FALSE, nullptr );
-	}
+void GraphicsContext::SetRenderTargets(UINT NumRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE RTVs[])
+{
+	m_CommandList->OMSetRenderTargets(NumRTVs, RTVs, FALSE, nullptr);
 }
 
 void GraphicsContext::BeginQuery(ID3D12QueryHeap* QueryHeap, D3D12_QUERY_TYPE Type, UINT HeapIndex)
 {
 	m_CommandList->BeginQuery(QueryHeap, Type, HeapIndex);
 }
+
 void GraphicsContext::EndQuery(ID3D12QueryHeap* QueryHeap, D3D12_QUERY_TYPE Type, UINT HeapIndex)
 {
 	m_CommandList->EndQuery(QueryHeap, Type, HeapIndex);
@@ -255,8 +237,6 @@ void GraphicsContext::ResolveQueryData(ID3D12QueryHeap* QueryHeap, D3D12_QUERY_T
 
 void GraphicsContext::ClearUAV( GpuBuffer& Target )
 {
-	TransitionResource(Target, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
 	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicDescriptorHeap.UploadDirect(Target.GetUAV());
@@ -266,8 +246,6 @@ void GraphicsContext::ClearUAV( GpuBuffer& Target )
 
 void ComputeContext::ClearUAV( GpuBuffer& Target )
 {
-	TransitionResource(Target, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
 	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicDescriptorHeap.UploadDirect(Target.GetUAV());
@@ -277,8 +255,6 @@ void ComputeContext::ClearUAV( GpuBuffer& Target )
 
 void GraphicsContext::ClearUAV( ColorBuffer& Target )
 {
-	TransitionResource(Target, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
 	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicDescriptorHeap.UploadDirect(Target.GetUAV());
@@ -291,8 +267,6 @@ void GraphicsContext::ClearUAV( ColorBuffer& Target )
 
 void ComputeContext::ClearUAV( ColorBuffer& Target )
 {
-	TransitionResource(Target, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
 	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicDescriptorHeap.UploadDirect(Target.GetUAV());
@@ -305,28 +279,23 @@ void ComputeContext::ClearUAV( ColorBuffer& Target )
 
 void GraphicsContext::ClearColor( ColorBuffer& Target )
 {
-	TransitionResource(Target, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 	m_CommandList->ClearRenderTargetView(Target.GetRTV(), Target.GetClearColor().GetPtr(), 0, nullptr);
 }
 
 void GraphicsContext::ClearDepth( DepthBuffer& Target )
 {
-	TransitionResource(Target, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 	m_CommandList->ClearDepthStencilView(Target.GetDSV(), D3D12_CLEAR_FLAG_DEPTH, Target.GetClearDepth(), Target.GetClearStencil(), 0, nullptr );
 }
 
 void GraphicsContext::ClearStencil( DepthBuffer& Target )
 {
-	TransitionResource(Target, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 	m_CommandList->ClearDepthStencilView(Target.GetDSV(), D3D12_CLEAR_FLAG_STENCIL, Target.GetClearDepth(), Target.GetClearStencil(), 0, nullptr);
 }
 
 void GraphicsContext::ClearDepthAndStencil( DepthBuffer& Target )
 {
-	TransitionResource(Target, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 	m_CommandList->ClearDepthStencilView(Target.GetDSV(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, Target.GetClearDepth(), Target.GetClearStencil(), 0, nullptr);
 }
-
 
 void GraphicsContext::SetViewportAndScissor( const D3D12_VIEWPORT& vp, const D3D12_RECT& rect )
 {

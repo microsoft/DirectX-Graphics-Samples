@@ -72,7 +72,14 @@ private:
 	std::mutex sm_ContextAllocationMutex;
 };
 
-class CommandContext
+struct NonCopyable
+{
+	NonCopyable() = default;
+	NonCopyable(const NonCopyable&) = delete;
+	NonCopyable & operator=(const NonCopyable&) = delete;
+};
+
+class CommandContext : NonCopyable
 {
 	friend ContextManager;
 private:
@@ -189,13 +196,11 @@ public:
 
 	void SetRootSignature( const RootSignature& RootSig );
 
-	void SetRenderTargets( UINT NumRTVs, ColorBuffer* RTVs, DepthBuffer* DSV = nullptr, bool ReadOnlyDepth = false );
-	void SetRenderTarget( ColorBuffer& RTV ) { SetRenderTargets(1, &RTV); }
-	void SetRenderTarget( ColorBuffer& RTV, DepthBuffer& DSV, bool ReadOnlyDepth = false )
-	{
-		SetRenderTargets(1, &RTV, &DSV, ReadOnlyDepth);
-	}
-	void SetDepthStencilTarget( DepthBuffer& DSV ) { SetRenderTargets(0, nullptr, &DSV); }
+	void SetRenderTargets(UINT NumRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE RTVs[]);
+	void SetRenderTargets(UINT NumRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE RTVs[], D3D12_CPU_DESCRIPTOR_HANDLE DSV);
+	void SetRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE RTV ) { SetRenderTargets(1, &RTV); }
+	void SetRenderTarget(D3D12_CPU_DESCRIPTOR_HANDLE RTV, D3D12_CPU_DESCRIPTOR_HANDLE DSV ) { SetRenderTargets(1, &RTV, DSV); }
+	void SetDepthStencilTarget(D3D12_CPU_DESCRIPTOR_HANDLE DSV ) { SetRenderTargets(0, nullptr, DSV); }
 
 	void SetViewport( const D3D12_VIEWPORT& vp );
 	void SetViewport( FLOAT x, FLOAT y, FLOAT w, FLOAT h, FLOAT minDepth = 0.0f, FLOAT maxDepth = 1.0f );
@@ -215,8 +220,8 @@ public:
 	void SetConstants( UINT RootIndex, DWParam X, DWParam Y, DWParam Z, DWParam W );
 	void SetConstantBuffer( UINT RootIndex, D3D12_GPU_VIRTUAL_ADDRESS CBV );
 	void SetDynamicConstantBufferView( UINT RootIndex, size_t BufferSize, const void* BufferData );
-	void SetBufferSRV( UINT RootIndex, const GpuBuffer& SRV );
-	void SetBufferUAV( UINT RootIndex, const GpuBuffer& UAV );
+	void SetBufferSRV( UINT RootIndex, const GpuBuffer& SRV, UINT64 Offset = 0);
+	void SetBufferUAV( UINT RootIndex, const GpuBuffer& UAV, UINT64 Offset = 0);
 	void SetDescriptorTable( UINT RootIndex, D3D12_GPU_DESCRIPTOR_HANDLE FirstHandle );
 
 	void SetDynamicDescriptor( UINT RootIndex, UINT Offset, D3D12_CPU_DESCRIPTOR_HANDLE Handle );
@@ -260,8 +265,8 @@ public:
 	void SetConstantBuffer( UINT RootIndex, D3D12_GPU_VIRTUAL_ADDRESS CBV );
 	void SetDynamicConstantBufferView( UINT RootIndex, size_t BufferSize, const void* BufferData );
 	void SetDynamicSRV( UINT RootIndex, size_t BufferSize, const void* BufferData ); 
-	void SetBufferSRV( UINT RootIndex, const GpuBuffer& SRV );
-	void SetBufferUAV( UINT RootIndex, const GpuBuffer& UAV );
+	void SetBufferSRV( UINT RootIndex, const GpuBuffer& SRV, UINT64 Offset = 0);
+	void SetBufferUAV( UINT RootIndex, const GpuBuffer& UAV, UINT64 Offset = 0);
 	void SetDescriptorTable( UINT RootIndex, D3D12_GPU_DESCRIPTOR_HANDLE FirstHandle );
 
 	void SetDynamicDescriptor( UINT RootIndex, UINT Offset, D3D12_CPU_DESCRIPTOR_HANDLE Handle );
@@ -482,25 +487,25 @@ inline void ComputeContext::SetDynamicSRV(UINT RootIndex, size_t BufferSize, con
 	m_CommandList->SetComputeRootShaderResourceView(RootIndex, cb.GpuAddress);
 }
 
-inline void GraphicsContext::SetBufferSRV( UINT RootIndex, const GpuBuffer& SRV )
+inline void GraphicsContext::SetBufferSRV( UINT RootIndex, const GpuBuffer& SRV, UINT64 Offset)
 {
 	ASSERT((SRV.m_UsageState & (D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)) != 0);
-	m_CommandList->SetGraphicsRootShaderResourceView(RootIndex, SRV.GetGpuVirtualAddress());
+	m_CommandList->SetGraphicsRootShaderResourceView(RootIndex, SRV.GetGpuVirtualAddress() + Offset);
 }
 
-inline void ComputeContext::SetBufferSRV( UINT RootIndex, const GpuBuffer& SRV )
+inline void ComputeContext::SetBufferSRV( UINT RootIndex, const GpuBuffer& SRV, UINT64 Offset)
 {
 	ASSERT((SRV.m_UsageState & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) != 0);
-	m_CommandList->SetComputeRootShaderResourceView(RootIndex, SRV.GetGpuVirtualAddress());
+	m_CommandList->SetComputeRootShaderResourceView(RootIndex, SRV.GetGpuVirtualAddress() + Offset);
 }
 
-inline void GraphicsContext::SetBufferUAV( UINT RootIndex, const GpuBuffer& UAV )
+inline void GraphicsContext::SetBufferUAV( UINT RootIndex, const GpuBuffer& UAV, UINT64 Offset)
 {
 	ASSERT((UAV.m_UsageState & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0);
 	m_CommandList->SetGraphicsRootUnorderedAccessView(RootIndex, UAV.GetGpuVirtualAddress());
 }
 
-inline void ComputeContext::SetBufferUAV( UINT RootIndex, const GpuBuffer& UAV )
+inline void ComputeContext::SetBufferUAV( UINT RootIndex, const GpuBuffer& UAV, UINT64 Offset)
 {
 	ASSERT((UAV.m_UsageState & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0);
 	m_CommandList->SetComputeRootUnorderedAccessView(RootIndex, UAV.GetGpuVirtualAddress());

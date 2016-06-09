@@ -65,6 +65,8 @@ void Model::Clear()
 {
 	m_VertexBuffer.Destroy();
 	m_IndexBuffer.Destroy();
+	m_VertexBufferDepth.Destroy();
+	m_IndexBufferDepth.Destroy();
 
 	delete [] m_pMesh;
 	m_pMesh = nullptr;

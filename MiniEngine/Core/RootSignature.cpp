@@ -103,7 +103,7 @@ void RootSignature::Finalize(D3D12_ROOT_SIGNATURE_FLAGS Flags)
 	m_DescriptorTableBitMap = 0;
 	m_MaxDescriptorCacheHandleCount = 0;
 
-	size_t HashCode = Utility::HashStateArray( RootDesc.pStaticSamplers, m_NumSamplers );
+	size_t HashCode = Utility::HashState( RootDesc.pStaticSamplers, m_NumSamplers );
 	for (UINT Param = 0; Param < m_NumParameters; ++Param)
 	{
 		const D3D12_ROOT_PARAMETER& RootParam = RootDesc.pParameters[Param];
@@ -113,7 +113,7 @@ void RootSignature::Finalize(D3D12_ROOT_SIGNATURE_FLAGS Flags)
 		{
 			ASSERT(RootParam.DescriptorTable.pDescriptorRanges != nullptr);
 
-			HashCode = Utility::HashStateArray( RootParam.DescriptorTable.pDescriptorRanges,
+			HashCode = Utility::HashState( RootParam.DescriptorTable.pDescriptorRanges,
 				RootParam.DescriptorTable.NumDescriptorRanges, HashCode );
 
 			// We don't care about sampler descriptor tables.  We don't manage them in DescriptorCache
@@ -127,7 +127,7 @@ void RootSignature::Finalize(D3D12_ROOT_SIGNATURE_FLAGS Flags)
 			m_MaxDescriptorCacheHandleCount += m_DescriptorTableSize[Param];
 		}
 		else
-			HashCode = Utility::HashState( &RootParam, HashCode );
+			HashCode = Utility::HashState( &RootParam, 1, HashCode );
 	}
 
 	ID3D12RootSignature** RSRef = nullptr;

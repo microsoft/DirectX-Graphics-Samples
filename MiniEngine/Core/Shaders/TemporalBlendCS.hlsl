@@ -13,22 +13,23 @@
 
 #include "ShaderUtility.hlsli"
 #include "MotionBlurRS.hlsli"
+#include "PixelPacking.hlsli"
 
 #define USE_LINEAR_Z
 
-Texture2D<float3> SrcColor : register(t0);
-Texture2D<float2> ReprojectionBuffer : register(t1);
-Texture2D<float4> TemporalIn : register(t2);
+Texture2D<float2> ReprojectionBuffer : register(t0);
+Texture2D<float4> TemporalIn : register(t1);
 
 RWTexture2D<float3> DstColor : register(u0);		// final output color (blurred and temporally blended)
-RWTexture2D<float4> TemporalOut : register(u1);		// color to save for next frame including its validity in alpha
+RWTexture2D<uint> DstUint : register(u1);			// alias of output buffer for raw loads
+RWTexture2D<float4> TemporalOut : register(u2);		// color to save for next frame including its validity in alpha
 
 SamplerState LinearSampler : register(s0);
 
 cbuffer ConstantBuffer : register(b0)
 {
 	float2 RcpBufferDim;	// 1 / width, 1 / height
-	float  TemporalBlendFactor;
+	float TemporalBlendFactor;
 }
 
 struct MRT
@@ -55,8 +56,13 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 		TemporalIn.SampleLevel(LinearSampler, preUV + float2(-0.5, +0.5) * RcpBufferDim, 0) +
 		TemporalIn.SampleLevel(LinearSampler, preUV + float2(-0.5, -0.5) * RcpBufferDim, 0));
 #endif
-	float3 thisColor = SrcColor[st];
-	float thisValidity = 1.0;
+
+#if SUPPORT_TYPED_UAV_LOADS
+	float3 thisColor = DstColor[st];
+#else
+	float3 thisColor = Unpack_R11G11B10_FLOAT(DstUint[st]);
+#endif
+	float thisValidity = 1.0;// - saturate(length(velocity) / 4.0);
 
 #if 1
 	// 2x super sampling with no feedback

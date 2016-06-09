@@ -63,7 +63,7 @@ void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, u
 		SRVDesc.Texture2D.MostDetailedMip = 0;
 	}
 
-	if (m_SRVHandle.ptr == ~0ull)
+	if (m_SRVHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 	{
 		m_RTVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		m_SRVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -80,12 +80,33 @@ void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, u
 	// Create the UAVs for each mip level (RWTexture2D)
 	for (uint32_t i = 0; i < NumMips; ++i)
 	{
-		if (m_UAVHandle[i].ptr == ~0ull)
+		if (m_UAVHandle[i].ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 			m_UAVHandle[i] = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		Device->CreateUnorderedAccessView(Resource, nullptr, &UAVDesc, m_UAVHandle[i]);
 
 		UAVDesc.Texture2D.MipSlice++;
+	}
+
+	// This is a special hack because we can't easily create a UINT view of a 11:11:10
+	// color buffer.  The goal is to be able to do un-typed UAV loads and manually decode
+	// the bits on hardware that does not support typed UAV loads.
+	if (Format == DXGI_FORMAT_R11G11B10_FLOAT)
+	{
+		if (m_TypelessUAVHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+			m_TypelessUAVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		D3D12_RESOURCE_DESC ResourceDesc = m_pResource->GetDesc();
+		ResourceDesc.Format = DXGI_FORMAT_R32_UINT;
+		UAVDesc.Format = DXGI_FORMAT_R32_UINT;
+		UAVDesc.Texture2D.MipSlice = 0;
+		ASSERT_SUCCEEDED(Device->CreatePlacedResource(m_pHeap.Get(), 0, &ResourceDesc,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, MY_IID_PPV_ARGS(&m_pTypelessResource)));
+
+		// Ultimately, all we care about is the descriptor since we're not creating a whole new resource.
+		// It would be nice to have a CreatePlacedUnorderedAccessView() method and skip the call to
+		// CreatePlacedResource().
+		Device->CreateUnorderedAccessView(m_pTypelessResource.Get(), nullptr, &UAVDesc, m_TypelessUAVHandle);
 	}
 }
 

@@ -22,6 +22,7 @@
 #include "CommandContext.h"
 #include "SamplerManager.h"
 #include "MotionBlur.h"
+#include "DepthOfField.h"
 #include "PostEffects.h"
 #include "SSAO.h"
 #include "FXAA.h"
@@ -82,7 +83,8 @@ private:
 
 CREATE_APPLICATION( ModelViewer )
 
-ExpVar m_SunLightIntensity("Application/Sun Intensity", 4.0f, 0.0f, 16.0f, 0.25f);
+ExpVar m_SunLightIntensity("Application/Sun Light Intensity", 4.0f, 0.0f, 16.0f, 0.1f);
+ExpVar m_AmbientIntensity("Application/Ambient Intensity", 0.1f, -16.0f, 16.0f, 0.1f);
 NumVar m_SunOrientation("Application/Sun Orientation", -0.5f, -100.0f, 100.0f, 0.1f );
 NumVar m_SunInclination("Application/Sun Inclination", 0.75f, 0.0f, 1.0f, 0.01f );
 NumVar ShadowDimX("Application/Shadow Dim X", 5000, 1000, 10000, 100 );
@@ -171,12 +173,6 @@ void ModelViewer::Startup( void )
 	FXAA::Enable = true;
 	PostEffects::EnableHDR = true;
 	PostEffects::EnableAdaptation = true;
-	PostEffects::AdaptationRate = 0.05f;
-	PostEffects::TargetLuminance = 0.4f;
-	PostEffects::MinExposure = 1.0f;
-	PostEffects::MaxExposure = 8.0f;
-	PostEffects::BloomThreshold = 1.0f;
-	PostEffects::BloomStrength = 0.10f;
 }
 
 void ModelViewer::Cleanup( void )
@@ -317,12 +313,13 @@ void ModelViewer::RenderScene( void )
 
 	psConstants.sunDirection = m_SunDirection;
 	psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
-	psConstants.ambientLight = Vector3(0.2f, 0.2f, 0.2f);
+	psConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
 	psConstants.ShadowTexelSize = 1.0f / g_ShadowBuffer.GetWidth();
 
 	{
 		ScopedTimer _prof(L"Z PrePass", gfxContext);
 
+		gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 		gfxContext.ClearDepth(g_SceneDepthBuffer);
 
 		gfxContext.SetRootSignature(m_RootSig);
@@ -338,7 +335,7 @@ void ModelViewer::RenderScene( void )
 		gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
 
 		gfxContext.SetPipelineState(m_DepthPSO);
-		gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer);
+		gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
 		gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 		RenderObjects(gfxContext, m_ViewProjMatrix );
 	}
@@ -349,6 +346,7 @@ void ModelViewer::RenderScene( void )
 	{
 		ScopedTimer _prof(L"Main Render", gfxContext);
 
+		gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 		gfxContext.ClearColor(g_SceneColorBuffer);
 
 		// Set the default state for command lists
@@ -395,7 +393,9 @@ void ModelViewer::RenderScene( void )
 			ScopedTimer _prof(L"Render Color", gfxContext);
 			gfxContext.SetPipelineState(m_ModelPSO);
 			gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-			gfxContext.SetRenderTarget(g_SceneColorBuffer, g_SceneDepthBuffer, true);
+			gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+			gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV(), g_SceneDepthBuffer.GetDSV_DepthReadOnly());
 			gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 			RenderObjects( gfxContext, m_ViewProjMatrix );
 		}
@@ -403,7 +403,11 @@ void ModelViewer::RenderScene( void )
 
 	ParticleEffects::Render(gfxContext, m_Camera, g_SceneColorBuffer, g_SceneDepthBuffer, g_LinearDepth);
 
-	MotionBlur::RenderCameraBlur(gfxContext, m_Camera);
+	// Until I work out how to couple these two, it's "either-or".
+	if (DepthOfField::Enable)
+		DepthOfField::Render(gfxContext, m_Camera.GetNearClip(), m_Camera.GetFarClip());
+	else
+		MotionBlur::RenderCameraBlur(gfxContext, m_Camera);
 
 	gfxContext.Finish();
 }

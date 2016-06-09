@@ -54,8 +54,9 @@ void ShadowBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t He
 
 void ShadowBuffer::BeginRendering( GraphicsContext& Context )
 {
+	Context.TransitionResource(*this, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 	Context.ClearDepth(*this);
-	Context.SetDepthStencilTarget(*this);
+	Context.SetDepthStencilTarget(GetDSV());
 	Context.SetViewportAndScissor(m_Viewport, m_Scissor);
 }
 

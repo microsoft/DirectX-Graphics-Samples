@@ -13,19 +13,19 @@
 
 #include "ShaderUtility.hlsli"
 #include "PostEffectsRS.hlsli"
+#include "PixelPacking.hlsli"
 
-Texture2D<float3> SrcColor : register( t0 );
-StructuredBuffer<float> Exposure : register( t1 );
-Texture2D<float3> bloom : register( t2 );
-RWTexture2D<float3> DstColor : register( u0 );
-RWTexture2D<float> OutLuma : register( u1 );
+StructuredBuffer<float> Exposure : register(t0);
+Texture2D<float3> Bloom : register(t1);
+RWTexture2D<float3> DstColor : register(u0);
+RWTexture2D<float> OutLuma : register(u1);
+RWTexture2D<uint> DstUint : register(u2);	// Must alias DstColor (to load the raw uint)
 SamplerState LinearSampler : register( s0 );
 
 cbuffer ConstantBuffer : register( b0 )
 {
 	float2 g_RcpBufferDim;
 	float g_BloomStrength;
-	float g_LumaGamma;
 };
 
 [RootSignature(PostEffects_RootSig)]
@@ -35,12 +35,17 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	float2 TexCoord = (DTid.xy + 0.5) * g_RcpBufferDim;
 
 	// Load HDR and bloom
-	float3 hdrColor = SrcColor[DTid.xy] + g_BloomStrength * bloom.SampleLevel( LinearSampler, TexCoord, 0 );
+#if SUPPORT_TYPED_UAV_LOADS
+	float3 hdrColor = DstColor[DTid.xy];
+#else
+	float3 hdrColor = Unpack_R11G11B10_FLOAT(DstUint[DTid.xy]);
+#endif
+	hdrColor += g_BloomStrength * Bloom.SampleLevel(LinearSampler, TexCoord, 0);
 
 	// Tone map to LDR and convert to greyscale
-	float luma = RGBToLuminance( ToneMap(hdrColor * Exposure[2]) );
+	float luma = RGBToLuminance( ToneMap(hdrColor * Exposure[0]) );
 
-	float logLuma = LinearToLogLuminance(luma, g_LumaGamma);
+	float logLuma = LinearToLogLuminance(luma);
 
 	DstColor[DTid.xy] = luma.xxx;
 	OutLuma[DTid.xy] = logLuma;

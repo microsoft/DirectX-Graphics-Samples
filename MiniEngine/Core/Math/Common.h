@@ -59,8 +59,6 @@ namespace Math
 		return (value / divisor) * divisor == value;
 	}
 
-
-
 	using namespace DirectX;
 
 	INLINE XMVECTOR SplatZero()

@@ -14,6 +14,7 @@
 //
 
 #include "ParticleUtility.hlsli"
+#include "PixelPacking.hlsli"
 
 //#define DEBUG_LOW_RES
 
@@ -26,18 +27,18 @@ cbuffer CB : register(b0)
 };
 
 RWTexture2D<float3> g_OutputColorBuffer : register(u0);
+RWTexture2D<uint> g_OutputColorBufferUint : register(u1);
 
 StructuredBuffer<ParticleScreenData> g_VisibleParticles : register(t0);
 ByteAddressBuffer g_HitMask : register(t1);
 Texture2DArray<float4> g_TexArray : register(t2);
-Texture2D<float3> g_InputColorBuffer : register(t3);
-StructuredBuffer<uint> g_SortedParticles : register(t5);
+StructuredBuffer<uint> g_SortedParticles : register(t4);
 #ifndef DISABLE_DEPTH_TESTS
-Texture2D<float> g_InputDepthBuffer : register(t4);
-StructuredBuffer<uint> g_DrawPackets : register(t6);
-Texture2D<uint> g_TileDepthBounds : register(t8);
+Texture2D<float> g_InputDepthBuffer : register(t3);
+StructuredBuffer<uint> g_DrawPackets : register(t5);
+Texture2D<uint> g_TileDepthBounds : register(t7);
 #else
-StructuredBuffer<uint> g_DrawPackets : register(t7);
+StructuredBuffer<uint> g_DrawPackets : register(t6);
 #endif
 
 float4 SampleParticleColor( ParticleScreenData Particle, SamplerState Sampler, float2 UV, float LevelBias )
@@ -95,7 +96,12 @@ void BlendLowRes( inout float4x4 Quad, ParticleScreenData Particle, float2 Pixel
 
 void WriteBlendedColor( uint2 ST, float4 Color )
 {
-	g_OutputColorBuffer[ST] = Color.rgb + g_InputColorBuffer[ST] * (1.0 - Color.a);
+#if SUPPORT_TYPED_UAV_LOADS
+	float3 DestColor = g_OutputColorBuffer[ST];
+#else
+	float3 DestColor = Unpack_R11G11B10_FLOAT(g_OutputColorBufferUint[ST]);
+#endif
+	g_OutputColorBuffer[ST] = Color.rgb + DestColor * (1.0 - Color.a);
 }
 
 void WriteBlendedQuad( uint2 ST, float4x4 Quad )

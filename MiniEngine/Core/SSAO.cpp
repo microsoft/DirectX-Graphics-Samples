@@ -301,6 +301,7 @@ void SSAO::Render( GraphicsContext& GfxContext, const float* ProjMat, float Near
 	{
 		ScopedTimer _prof(L"Generate SSAO", GfxContext);
 
+		GfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 		GfxContext.ClearColor(g_SSAOFullScreen);
 		GfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -338,8 +339,7 @@ void SSAO::Render( GraphicsContext& GfxContext, const float* ProjMat, float Near
 	if (AsyncCompute)
 	{
 		// Flush the ZPrePass and wait for it on the compute queue
-		GfxContext.Flush();
-		g_CommandManager.GetComputeQueue().StallForProducer(g_CommandManager.GetGraphicsQueue());
+		g_CommandManager.GetComputeQueue().StallForFence(GfxContext.Flush());
 	}
 	else
 	{
