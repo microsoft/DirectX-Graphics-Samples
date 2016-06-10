@@ -362,7 +362,7 @@ void CommandContext::TransitionResource(GpuResource& Resource, D3D12_RESOURCE_ST
 	else if (NewState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
 		InsertUAVBarrier(Resource, FlushImmediate);
 
-	if (FlushImmediate || m_NumBarriersToFlush == 16)
+	if (m_NumBarriersToFlush != 0 && (FlushImmediate || m_NumBarriersToFlush == 16))
 	{
 		m_CommandList->ResourceBarrier(m_NumBarriersToFlush, m_ResourceBarrierBuffer);
 		m_NumBarriersToFlush = 0;
@@ -393,7 +393,7 @@ void CommandContext::BeginResourceTransition(GpuResource& Resource, D3D12_RESOUR
 		Resource.m_TransitioningState = NewState;
 	}
 
-	if (FlushImmediate || m_NumBarriersToFlush == 16)
+	if (m_NumBarriersToFlush != 0 && (FlushImmediate || m_NumBarriersToFlush == 16))
 	{
 		m_CommandList->ResourceBarrier(m_NumBarriersToFlush, m_ResourceBarrierBuffer);
 		m_NumBarriersToFlush = 0;
