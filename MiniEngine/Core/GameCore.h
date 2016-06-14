@@ -28,7 +28,8 @@ namespace GameCore
 
 		// The update method will be invoked once per frame.  Both state updating and scene
 		// rendering should be handled by this method.
-		virtual void Update( float deltaT ) = 0;
+		// return false to exit
+		virtual bool Update( float deltaT ) = 0;
 
 		// Official rendering pass
 		virtual void RenderScene( void ) = 0;

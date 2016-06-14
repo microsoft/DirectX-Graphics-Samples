@@ -56,7 +56,7 @@ public:
 	virtual void Startup( void ) override;
 	virtual void Cleanup( void ) override;
 
-	virtual void Update( float deltaT ) override;
+	virtual bool Update( float deltaT ) override;
 	virtual void RenderScene( void ) override;
 
 private:
@@ -188,9 +188,12 @@ namespace Graphics
 	extern EnumVar DebugZoom;
 }
 
-void ModelViewer::Update( float deltaT )
+bool ModelViewer::Update( float deltaT )
 {
 	ScopedTimer _prof(L"Update State");
+
+	if (GameInput::IsFirstPressed(GameInput::kKey_escape))
+		return false; // shutdown
 
 	if (GameInput::IsFirstPressed(GameInput::kLShoulder))
 		DebugZoom.Decrement();
@@ -254,6 +257,8 @@ void ModelViewer::Update( float deltaT )
 	m_MainScissor.top = 0;
 	m_MainScissor.right = (LONG)g_SceneColorBuffer.GetWidth();
 	m_MainScissor.bottom = (LONG)g_SceneColorBuffer.GetHeight();
+
+	return true;
 }
 
 void ModelViewer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProjMat )
