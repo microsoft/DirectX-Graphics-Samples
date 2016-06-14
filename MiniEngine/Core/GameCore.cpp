@@ -68,7 +68,9 @@ namespace GameCore
 		GameInput::Update(DeltaTime);
 		EngineTuning::Update(DeltaTime);
 		
-		game.Update(DeltaTime);
+		if (!game.Update(DeltaTime))
+			return false;
+
 		game.RenderScene();
 
 		PostEffects::Render();
@@ -99,11 +101,6 @@ namespace GameCore
 		UiContext.Finish();
 
 		Graphics::Present();
-
-		if (GameInput::IsFirstPressed(GameInput::kKey_escape))
-		{
-			return false; // shutdown
-		}
 		return true;
 	}
 
