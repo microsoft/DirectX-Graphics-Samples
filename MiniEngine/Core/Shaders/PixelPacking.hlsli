@@ -48,7 +48,7 @@ uint PackRGBE(float3 rgb)
 	float NextPow2 = asfloat((asuint(MaxChannel) + 0x800000) & 0x7F800000);
 
 	// By adding NextPow2, all channels have the same exponent, shifting their mantissa bits
-	// to the right to accomodate it.  This also shifts in the implicit '1' bit of all channels.
+	// to the right to accommodate it.  This also shifts in the implicit '1' bit of all channels.
 	// The largest channel will always have the high bit set.
 	rgb += NextPow2;
 

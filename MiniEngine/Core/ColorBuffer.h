@@ -27,7 +27,6 @@ public:
 		m_SRVHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 		m_RTVHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 		std::memset(m_UAVHandle, 0xFF, sizeof(m_UAVHandle));
-		m_TypelessUAVHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 	}
 
 	// Create a color buffer from a swap chain buffer.  Unordered access is restricted.
@@ -55,11 +54,15 @@ public:
 	void CreateArray(const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t ArrayCount,
 		DXGI_FORMAT Format, EsramAllocator& Allocator);
 
+	// Create an alias of a color buffer (overlaying the same memory) and optionally view
+	// the data with a different format.
+	void CreateAlias(const std::wstring& Name, const ColorBuffer& Source,
+		DXGI_FORMAT AltFormat = DXGI_FORMAT_UNKNOWN);
+
 	// Get pre-created CPU-visible descriptor handles
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV(void) const { return m_SRVHandle; }
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetRTV(void) const { return m_RTVHandle; }
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetUAV(void) const { return m_UAVHandle[0]; }
-	const D3D12_CPU_DESCRIPTOR_HANDLE& GetTypelessUAV(void) const { return m_TypelessUAVHandle; }
 
 	Color GetClearColor(void) const { return m_ClearColor; }
 
@@ -87,6 +90,5 @@ protected:
 	D3D12_CPU_DESCRIPTOR_HANDLE m_SRVHandle;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_RTVHandle;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_UAVHandle[12];
-	D3D12_CPU_DESCRIPTOR_HANDLE m_TypelessUAVHandle;
 	uint32_t m_NumMipMaps; // number of texture sublevels
 };

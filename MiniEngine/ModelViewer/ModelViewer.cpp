@@ -401,7 +401,9 @@ void ModelViewer::RenderScene( void )
 		}
 	}
 
-	ParticleEffects::Render(gfxContext, m_Camera, g_SceneColorBuffer, g_SceneDepthBuffer, g_LinearDepth);
+	ParticleEffects::Render(gfxContext, m_Camera, g_SceneColorBuffer,
+		g_bTypedUAVLoadSupport_R11G11B10_FLOAT ? g_SceneColorBuffer : g_SceneColorAlias,
+		g_SceneDepthBuffer, g_LinearDepth);
 
 	// Until I work out how to couple these two, it's "either-or".
 	if (DepthOfField::Enable)

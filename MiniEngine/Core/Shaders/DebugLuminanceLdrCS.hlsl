@@ -16,9 +16,12 @@
 #include "PixelPacking.hlsli"
 
 Texture2D<float3> Bloom : register( t0 );
+#if SUPPORT_TYPED_UAV_LOADS
 RWTexture2D<float3> DstColor : register(u0);
+#else
+RWTexture2D<uint> DstColor : register(u0);
+#endif
 RWTexture2D<float> OutLuma : register(u1);
-RWTexture2D<uint> DstUint : register(u2);	// Must alias DstColor (to load the raw uint)
 SamplerState LinearSampler : register( s0 );
 
 cbuffer ConstantBuffer : register( b0 )
@@ -37,7 +40,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 #if SUPPORT_TYPED_UAV_LOADS
 	float3 ldrColor = DstColor[DTid.xy];
 #else
-	float3 ldrColor = Unpack_R11G11B10_FLOAT(DstUint[DTid.xy]);
+	float3 ldrColor = Unpack_R11G11B10_FLOAT(DstColor[DTid.xy]);
 #endif
 
 	ldrColor += g_BloomStrength * Bloom.SampleLevel(LinearSampler, TexCoord, 0);
@@ -47,6 +50,10 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
 	float logLuma = LinearToLogLuminance(luma);
 
+#if SUPPORT_TYPED_UAV_LOADS
 	DstColor[DTid.xy] = luma.xxx;
+#else
+	DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(luma.xxx);
+#endif
 	OutLuma[DTid.xy] = logLuma;
 }

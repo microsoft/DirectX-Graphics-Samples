@@ -37,7 +37,6 @@ public:
 	void Destroy()
 	{
 		m_pResource = nullptr;
-		m_pTypelessResource = nullptr;
 		m_pHeap = nullptr;
 	}
 
@@ -47,12 +46,14 @@ public:
 	ID3D12Resource* GetResource() { return m_pResource.Get(); } 
 	const ID3D12Resource* GetResource() const { return m_pResource.Get(); }
 
+	ID3D12Heap* GetHeap() { return m_pHeap.Get(); } 
+	const ID3D12Heap* GetHeap() const { return m_pHeap.Get(); }
+
 	D3D12_GPU_VIRTUAL_ADDRESS GetGpuVirtualAddress() const { return m_GpuVirtualAddress; }
 
 protected:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_pResource;
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_pTypelessResource;
 	Microsoft::WRL::ComPtr<ID3D12Heap> m_pHeap;
 	D3D12_RESOURCE_STATES m_UsageState;
 	D3D12_RESOURCE_STATES m_TransitioningState;

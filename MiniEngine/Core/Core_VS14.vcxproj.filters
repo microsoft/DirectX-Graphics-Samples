@@ -511,9 +511,6 @@
     <FxCompile Include="Shaders\MotionBlurFinalPassCS.hlsl">
       <Filter>Shaders\MB+TAA</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\MotionBlurFinalPassTemporalCS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\MotionBlurPrePassCS.hlsl">
       <Filter>Shaders\MB+TAA</Filter>
     </FxCompile>

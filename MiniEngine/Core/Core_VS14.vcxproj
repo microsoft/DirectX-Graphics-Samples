@@ -277,7 +277,6 @@
     </FxCompile>
     <FxCompile Include="Shaders\MotionBlurFinalPass2CS.hlsl" />
     <FxCompile Include="Shaders\MotionBlurFinalPassCS.hlsl" />
-    <FxCompile Include="Shaders\MotionBlurFinalPassTemporalCS.hlsl" />
     <FxCompile Include="Shaders\MotionBlurPrePassCS.hlsl" />
     <FxCompile Include="Shaders\FXAAResolveWorkQueueCS.hlsl" />
     <FxCompile Include="Shaders\ParticleBinCullingCS.hlsl" />

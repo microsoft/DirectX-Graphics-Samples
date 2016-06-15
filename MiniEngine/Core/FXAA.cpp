@@ -172,15 +172,13 @@ void FXAA::Render( ComputeContext& Context, bool bUsePreComputedLuma )
 
 		Context.Dispatch(1, 1, 1);
 
-		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		Context.TransitionResource(IndirectParameters, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		Context.TransitionResource(g_FXAAWorkQueueH, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		Context.TransitionResource(g_FXAAColorQueueH, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		Context.TransitionResource(g_FXAAWorkQueueV, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		Context.TransitionResource(g_FXAAColorQueueV, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
-		Context.SetDynamicDescriptor(1, 1, g_SceneColorBuffer.GetTypelessUAV());
+		Context.SetDynamicDescriptor(1, 0, (g_bTypedUAVLoadSupport_R11G11B10_FLOAT ? g_SceneColorBuffer : g_SceneColorAlias).GetUAV());
 		Context.SetDynamicDescriptor(2, 0, g_LumaBuffer.GetSRV());
 		Context.SetDynamicDescriptor(2, 1, g_FXAAWorkQueueH.GetSRV());
 		Context.SetDynamicDescriptor(2, 2, g_FXAAColorQueueH.GetSRV());

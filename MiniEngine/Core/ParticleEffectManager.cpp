@@ -204,6 +204,9 @@ namespace
 		size_t ScreenWidth = ColorTarget.GetWidth();
 		size_t ScreenHeight = ColorTarget.GetHeight();
 
+		ASSERT(ColorTarget.GetFormat() == DXGI_FORMAT_R32_UINT || g_bTypedUAVLoadSupport_R11G11B10_FLOAT,
+			"Without typed UAV loads, tiled particles must render to a R32_UINT buffer");
+
 		{
 			ScopedTimer _p(L"Compute Depth Bounds", CompContext);
 
@@ -312,7 +315,6 @@ namespace
 			CompContext.TransitionResource(TextureArray, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 			CompContext.SetDynamicDescriptor(3, 0, ColorTarget.GetUAV());
-			CompContext.SetDynamicDescriptor(3, 1, ColorTarget.GetTypelessUAV());
 
 			D3D12_CPU_DESCRIPTOR_HANDLE SRVs[] =
 			{
@@ -711,15 +713,26 @@ void ParticleEffects::Update(ComputeContext& Context, float timeDelta )
 //
 //---------------------------------------------------------------------
 
-void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, ColorBuffer& ColorTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth)
+void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, ColorBuffer& RenderTarget, ColorBuffer& ComputeTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth)
 {
 	if (!Enable || !s_InitComplete || ParticleEffectsActive.size() == 0)
 		return;
 
+	uint32_t Width = (uint32_t)RenderTarget.GetWidth();
+	uint32_t Height = (uint32_t)RenderTarget.GetHeight();
+
+	ASSERT(
+		Width == ComputeTarget.GetWidth() &&
+		Height == ComputeTarget.GetHeight() &&
+		Width == DepthTarget.GetWidth() &&
+		Height == DepthTarget.GetHeight() &&
+		Width == LinearDepth.GetWidth() &&
+		Height == LinearDepth.GetHeight(),
+		"There is a mismatch in buffer dimensions for rendering particles"
+	);
+
 	ScopedTimer _prof(L"Particle Render", Context);
 
-	uint32_t Width = (uint32_t)ColorTarget.GetWidth();
-	uint32_t Height = (uint32_t)ColorTarget.GetHeight();
 	uint32_t BinsPerRow = 4 * DivideByMultiple(Width, 4 * BIN_SIZE_X);
 
 	s_ChangesPerView.gViewProj = Camera.GetViewProjMatrix();  
@@ -730,10 +743,10 @@ void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, Col
 	s_ChangesPerView.gAspectRatio = HCot / VCot;
 	s_ChangesPerView.gRcpFarZ = 1.0f / Camera.GetFarClip();
 	s_ChangesPerView.gInvertZ = Camera.GetNearClip() / (Camera.GetFarClip() - Camera.GetNearClip());
-	s_ChangesPerView.gBufferWidth = (float)ColorTarget.GetWidth();
-	s_ChangesPerView.gBufferHeight = (float)ColorTarget.GetHeight();
-	s_ChangesPerView.gRcpBufferWidth = 1.0f / ColorTarget.GetWidth();
-	s_ChangesPerView.gRcpBufferHeight = 1.0f / ColorTarget.GetHeight();
+	s_ChangesPerView.gBufferWidth = (float)Width;
+	s_ChangesPerView.gBufferHeight = (float)Height;
+	s_ChangesPerView.gRcpBufferWidth = 1.0f / Width;
+	s_ChangesPerView.gRcpBufferHeight = 1.0f / Height;
 	s_ChangesPerView.gBinsPerRow = BinsPerRow;
 	s_ChangesPerView.gTileRowPitch = BinsPerRow * TILES_PER_BIN_X;
 	s_ChangesPerView.gTilesPerRow = DivideByMultiple(Width, TILE_SIZE);
@@ -743,20 +756,27 @@ void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, Col
 	if (EnableTiledRendering)
 	{
 		ComputeContext& CompContext = Context.GetComputeContext();
+		CompContext.TransitionResource(RenderTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		CompContext.TransitionResource(ComputeTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		CompContext.InsertAliasBarrier(RenderTarget, ComputeTarget);
 		CompContext.TransitionResource(BinCounters[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		CompContext.TransitionResource(BinCounters[1], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
+
 		CompContext.ClearUAV(BinCounters[0]);
 		CompContext.ClearUAV(BinCounters[1]);
 		CompContext.SetRootSignature(RootSig);
-		CompContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);	
-		RenderTiles(CompContext, ColorTarget, LinearDepth);
+		CompContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);
+
+		RenderTiles(CompContext, ComputeTarget, LinearDepth);
+
+		CompContext.InsertAliasBarrier(ComputeTarget, RenderTarget);
 	}
 	else
 	{
 		GraphicsContext& GrContext = Context.GetGraphicsContext();
 		GrContext.SetRootSignature(RootSig);
 		GrContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);	
-		RenderSprites(GrContext, ColorTarget, DepthTarget, LinearDepth);
+		RenderSprites(GrContext, RenderTarget, DepthTarget, LinearDepth);
 	}
 
 }

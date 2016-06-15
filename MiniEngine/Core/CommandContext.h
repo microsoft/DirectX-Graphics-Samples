@@ -131,7 +131,7 @@ public:
 	void BeginResourceTransition(GpuResource& Resource, D3D12_RESOURCE_STATES NewState, bool FlushImmediate = false);
 	void InsertUAVBarrier(GpuResource& Resource, bool FlushImmediate = false);
 	void InsertAliasBarrier(GpuResource& Before, GpuResource& After, bool FlushImmediate = false);
-	void FlushResourceBarriers(void);
+	inline void FlushResourceBarriers(void);
 
 	void InsertTimeStamp( ID3D12QueryHeap* pQueryHeap, uint32_t QueryIdx );
 	void ResolveTimeStamps( ID3D12Resource* pReadbackHeap, ID3D12QueryHeap* pQueryHeap, uint32_t NumQueries );
@@ -280,6 +280,15 @@ public:
 
 private:
 };
+
+inline void CommandContext::FlushResourceBarriers( void )
+{
+	if (m_NumBarriersToFlush > 0)
+	{
+		m_CommandList->ResourceBarrier(m_NumBarriersToFlush, m_ResourceBarrierBuffer);
+		m_NumBarriersToFlush = 0;
+	}
+}
 
 inline void GraphicsContext::SetRootSignature( const RootSignature& RootSig )
 {

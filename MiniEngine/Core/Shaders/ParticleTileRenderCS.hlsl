@@ -26,8 +26,11 @@ cbuffer CB : register(b0)
 	float gMipBias;
 };
 
+#if SUPPORT_TYPED_UAV_LOADS
 RWTexture2D<float3> g_OutputColorBuffer : register(u0);
-RWTexture2D<uint> g_OutputColorBufferUint : register(u1);
+#else
+RWTexture2D<uint> g_OutputColorBuffer : register(u0);
+#endif
 
 StructuredBuffer<ParticleScreenData> g_VisibleParticles : register(t0);
 ByteAddressBuffer g_HitMask : register(t1);
@@ -98,10 +101,11 @@ void WriteBlendedColor( uint2 ST, float4 Color )
 {
 #if SUPPORT_TYPED_UAV_LOADS
 	float3 DestColor = g_OutputColorBuffer[ST];
-#else
-	float3 DestColor = Unpack_R11G11B10_FLOAT(g_OutputColorBufferUint[ST]);
-#endif
 	g_OutputColorBuffer[ST] = Color.rgb + DestColor * (1.0 - Color.a);
+#else
+	float3 DestColor = Unpack_R11G11B10_FLOAT(g_OutputColorBuffer[ST]);
+	g_OutputColorBuffer[ST] = Pack_R11G11B10_FLOAT(Color.rgb + DestColor * (1.0 - Color.a));
+#endif
 }
 
 void WriteBlendedQuad( uint2 ST, float4x4 Quad )

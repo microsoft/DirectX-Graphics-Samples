@@ -22,6 +22,7 @@ namespace Graphics
 {
 	extern DepthBuffer g_SceneDepthBuffer;	// D32_FLOAT_S8_UINT
 	extern ColorBuffer g_SceneColorBuffer;	// R11G11B10_FLOAT
+	extern ColorBuffer g_SceneColorAlias;	// R32_UINT (aliases g_SceneColorBuffer)
 	extern ColorBuffer g_OverlayBuffer;		// R8G8B8A8_UNORM
 	extern ColorBuffer g_HorizontalBuffer;	// For separable (bicubic) upsampling
 
