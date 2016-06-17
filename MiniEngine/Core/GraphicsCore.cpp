@@ -638,9 +638,6 @@ void Graphics::PreparePresentHDR(void)
 	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	Context.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_RENDER_TARGET);
-#if _XBOX_ONE
-	Context.TransitionResource(g_SecondaryPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_RENDER_TARGET);
-#endif
 
 	Context.SetRootSignature(s_PresentRS);
 	Context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -650,9 +647,6 @@ void Graphics::PreparePresentHDR(void)
 
 	D3D12_CPU_DESCRIPTOR_HANDLE RTVs[] =
 	{
-#if _XBOX_ONE
-		g_SecondaryPlane[g_CurrentBuffer].GetRTV(),
-#endif
 		g_DisplayPlane[g_CurrentBuffer].GetRTV()
 	};
 
@@ -666,9 +660,6 @@ void Graphics::PreparePresentHDR(void)
 	Context.Draw(3);
 
 	Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_PRESENT);
-#if _XBOX_ONE
-	Context.TransitionResource(g_SecondaryPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_PRESENT);
-#endif
 
 	// Close the final context to be executed before frame present.
 	Context.Finish();

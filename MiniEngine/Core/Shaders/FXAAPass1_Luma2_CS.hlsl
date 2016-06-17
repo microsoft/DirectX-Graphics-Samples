@@ -11,5 +11,6 @@
 // Author:  James Stanard 
 //
 
-#define TEMPORAL_UPSAMPLE
-#include "MotionBlurFinalPassCS.hlsl"
+#define USE_LUMA_INPUT_BUFFER
+#define SUPPORT_TYPED_UAV_LOADS 1
+#include "FXAAPass1CS.hlsli"

@@ -45,6 +45,7 @@
 #include "CompiledShaders/BloomExtractAndDownsampleLdrCS.h"
 #include "CompiledShaders/ExtractLumaCS.h"
 #include "CompiledShaders/AverageLumaCS.h"
+#include "CompiledShaders/CopyBackPostBufferCS.h"
 
 using namespace Graphics;
 
@@ -108,6 +109,7 @@ namespace PostEffects
 	ComputePSO BloomExtractAndDownsampleLdrCS;
 	ComputePSO ExtractLumaCS;
 	ComputePSO AverageLumaCS;
+	ComputePSO CopyBackPostBufferCS;
 
 	StructuredBuffer g_Exposure;
 
@@ -162,6 +164,8 @@ void PostEffects::Initialize( void )
 	CreatePSO( BloomExtractAndDownsampleLdrCS, g_pBloomExtractAndDownsampleLdrCS );
 	CreatePSO( ExtractLumaCS, g_pExtractLumaCS );
 	CreatePSO( AverageLumaCS, g_pAverageLumaCS );
+	CreatePSO( CopyBackPostBufferCS, g_pCopyBackPostBufferCS );
+
 
 #undef CreatePSO
 
@@ -358,7 +362,11 @@ void PostEffects::ProcessHDR( ComputeContext& Context )
 	else if (EnableAdaptation)
 		ExtractLuma(Context);
 
-	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	else
+		Context.TransitionResource(g_PostEffectsBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 	Context.TransitionResource(g_LumaBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.TransitionResource(g_Exposure, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
@@ -371,14 +379,19 @@ void PostEffects::ProcessHDR( ComputeContext& Context )
 		(float)BloomStrength, ToeStrength);
 
 	// Separate out LDR result from its perceived luminance
-	Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+	if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+	else
+	{
+		Context.SetDynamicDescriptor(1, 0, g_PostEffectsBuffer.GetUAV());
+		Context.SetDynamicDescriptor(2, 2, g_SceneColorBuffer.GetSRV());
+	}
 	Context.SetDynamicDescriptor(1, 1, g_LumaBuffer.GetUAV());
-	Context.SetDynamicDescriptor(1, 2, g_SceneColorBuffer.GetTypelessUAV());
 
 	// Read in original HDR value and blurred bloom buffer
 	Context.SetDynamicDescriptor(2, 0, g_Exposure.GetSRV());
 	Context.SetDynamicDescriptor(2, 1, BloomEnable ? g_aBloomUAV1[1].GetSRV() : TextureManager::GetBlackTex2D().GetSRV());
-
+	
 	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
 
 	// Do this last so that the bright pass uses the same exposure as tone mapping
@@ -395,10 +408,15 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 	if (bGenerateBloom)
 		GenerateBloom(Context);
 
-	if (bGenerateBloom || FXAA::DebugDraw || SSAO::DebugDraw)
+	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	if (bGenerateBloom || FXAA::DebugDraw || SSAO::DebugDraw || !g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
 	{
+		if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+			Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		else
+			Context.TransitionResource(g_PostEffectsBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 		Context.TransitionResource(g_aBloomUAV1[1], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		Context.TransitionResource(g_LumaBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		// Set constants
@@ -406,9 +424,14 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 			(float)BloomStrength);
 
 		// Separate out LDR result from its perceived luminance
-		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+		if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+			Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+		else
+		{
+			Context.SetDynamicDescriptor(1, 0, g_PostEffectsBuffer.GetUAV());
+			Context.SetDynamicDescriptor(2, 2, g_SceneColorBuffer.GetSRV());
+		}
 		Context.SetDynamicDescriptor(1, 1, g_LumaBuffer.GetUAV());
-		Context.SetDynamicDescriptor(1, 2, g_SceneColorBuffer.GetTypelessUAV());
 
 		// Read in original LDR value and blurred bloom buffer
 		Context.SetDynamicDescriptor(2, 0, bGenerateBloom ? g_aBloomUAV1[1].GetSRV() : TextureManager::GetBlackTex2D().GetSRV());
@@ -416,7 +439,6 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 		Context.SetPipelineState(FXAA::DebugDraw ? DebugLuminanceLdrCS : ApplyBloomCS);
 		Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
 
-		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		Context.TransitionResource(g_LumaBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	}
 }
@@ -439,6 +461,24 @@ void PostEffects::Render( void )
 		FXAA::Render(Context, bGeneratedLumaBuffer);
 
 	TemporalAA::ApplyTemporalAA(Context);
+
+	// In the case where we've been doing post processing in a separate buffer, we need to copy it
+	// back to the original buffer.  It is possible to skip this step if the next shader knows to
+	// do the manual format decode from UINT, but there are several code paths that need to be
+	// changed, and some of them rely on texture filtering, which won't work with UINT.  Since this
+	// is only to support legacy hardware and a single buffer copy isn't that big of a deal, this
+	// is the most economical solution.
+	if (!g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+	{
+		ScopedTimer _prof(L"Copy Post back to Scene", Context);
+		Context.SetRootSignature(PostEffectsRS);
+		Context.SetPipelineState(CopyBackPostBufferCS);
+		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		Context.TransitionResource(g_PostEffectsBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+		Context.SetDynamicDescriptor(2, 0, g_PostEffectsBuffer.GetSRV());
+		Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
+	}
 
 	if (DrawHistogram)
 	{

@@ -29,9 +29,25 @@ void DepthBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Hei
 	CreateDerivedViews(Graphics::g_Device, Format);
 }
 
+void DepthBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t Samples, DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr )
+{
+	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, 1, 1, Format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	ResourceDesc.SampleDesc.Count = Samples;
+
+	D3D12_CLEAR_VALUE ClearValue = {};
+	ClearValue.Format = Format;
+	CreateTextureResource(Graphics::g_Device, Name, ResourceDesc, ClearValue, VidMemPtr);
+	CreateDerivedViews(Graphics::g_Device, Format);
+}
+
 void DepthBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Height, DXGI_FORMAT Format, EsramAllocator& )
 {
 	Create(Name, Width, Height, Format);
+}
+
+void DepthBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t Samples, DXGI_FORMAT Format, EsramAllocator& Allocator )
+{
+	Create(Name, Width, Height, Samples, Format);
 }
 
 void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
@@ -40,8 +56,15 @@ void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 	dsvDesc.Format = GetDSVFormat(Format);
-	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-	dsvDesc.Texture2D.MipSlice = 0;
+	if (Resource->GetDesc().SampleDesc.Count == 1)
+	{
+		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		dsvDesc.Texture2D.MipSlice = 0;
+	}
+	else
+	{
+		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
+	}
 
 	if (m_hDSV[0].ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 	{
@@ -82,9 +105,16 @@ void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
 	// Create the shader resource view
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
 	SRVDesc.Format = GetDepthFormat(Format);
-	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	if (dsvDesc.ViewDimension == D3D12_DSV_DIMENSION_TEXTURE2D)
+	{
+		SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		SRVDesc.Texture2D.MipLevels = 1;
+	}
+	else
+	{
+		SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
+	}
 	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	SRVDesc.Texture2D.MipLevels = 1;
 	Device->CreateShaderResourceView( Resource, &SRVDesc, m_hDepthSRV );
 
 	if (stencilReadFormat != DXGI_FORMAT_UNKNOWN)

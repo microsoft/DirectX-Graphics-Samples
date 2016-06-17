@@ -363,10 +363,7 @@ void CommandContext::TransitionResource(GpuResource& Resource, D3D12_RESOURCE_ST
 		InsertUAVBarrier(Resource, FlushImmediate);
 
 	if (FlushImmediate || m_NumBarriersToFlush == 16)
-	{
-		m_CommandList->ResourceBarrier(m_NumBarriersToFlush, m_ResourceBarrierBuffer);
-		m_NumBarriersToFlush = 0;
-	}
+		FlushResourceBarriers();
 }
 
 void CommandContext::BeginResourceTransition(GpuResource& Resource, D3D12_RESOURCE_STATES NewState, bool FlushImmediate)
@@ -394,20 +391,7 @@ void CommandContext::BeginResourceTransition(GpuResource& Resource, D3D12_RESOUR
 	}
 
 	if (FlushImmediate || m_NumBarriersToFlush == 16)
-	{
-		m_CommandList->ResourceBarrier(m_NumBarriersToFlush, m_ResourceBarrierBuffer);
-		m_NumBarriersToFlush = 0;
-	}
-}
-
-
-void CommandContext::FlushResourceBarriers(void)
-{
-	if (m_NumBarriersToFlush == 0)
-		return;
-
-	m_CommandList->ResourceBarrier(m_NumBarriersToFlush, m_ResourceBarrierBuffer);
-	m_NumBarriersToFlush = 0;
+		FlushResourceBarriers();
 }
 
 void CommandContext::InsertUAVBarrier(GpuResource& Resource, bool FlushImmediate)
@@ -420,10 +404,7 @@ void CommandContext::InsertUAVBarrier(GpuResource& Resource, bool FlushImmediate
 	BarrierDesc.UAV.pResource = Resource.GetResource();
 
 	if (FlushImmediate)
-	{
-		m_CommandList->ResourceBarrier(m_NumBarriersToFlush, m_ResourceBarrierBuffer);
-		m_NumBarriersToFlush = 0;
-	}
+		FlushResourceBarriers();
 }
 
 void CommandContext::InsertAliasBarrier(GpuResource& Before, GpuResource& After, bool FlushImmediate)
@@ -437,10 +418,7 @@ void CommandContext::InsertAliasBarrier(GpuResource& Before, GpuResource& After,
 	BarrierDesc.Aliasing.pResourceAfter = After.GetResource();
 
 	if (FlushImmediate)
-	{
-		m_CommandList->ResourceBarrier(m_NumBarriersToFlush, m_ResourceBarrierBuffer);
-		m_NumBarriersToFlush = 0;
-	}
+		FlushResourceBarriers();
 }
 
 void CommandContext::WriteBuffer( GpuResource& Dest, size_t DestOffset, const void* BufferData, size_t NumBytes )

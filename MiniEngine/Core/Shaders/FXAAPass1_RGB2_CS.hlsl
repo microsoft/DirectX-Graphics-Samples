@@ -9,7 +9,6 @@
 // Developed by Minigraph
 //
 // Author:  James Stanard 
-//
 
 #define SUPPORT_TYPED_UAV_LOADS 1
-#include "MotionBlurFinalPassCS.hlsl"
+#include "FXAAPass1CS.hlsli"

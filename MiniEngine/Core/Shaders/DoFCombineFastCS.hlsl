@@ -19,8 +19,11 @@ Texture2D<float> DoFAlphaBuffer : register(t1);
 Texture2D<float3> TileClass : register(t2);
 Texture2D<float> LNFullDepth : register(t3);
 StructuredBuffer<uint> WorkQueue : register(t4);
-RWTexture2D<float3> DstColor : register(u0);
-RWTexture2D<uint> DstUint : register(u1);
+#if SUPPORT_TYPED_UAV_LOADS
+	RWTexture2D<float3> DstColor : register(u0);
+#else
+	RWTexture2D<uint> DstColor : register(u0);
+#endif
 
 [RootSignature(DoF_RootSig)]
 [numthreads( 16, 16, 1 )]
@@ -43,6 +46,6 @@ void main( uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID )
 #if SUPPORT_TYPED_UAV_LOADS
 	DstColor[st] = lerp(DstColor[st], DoFColor, CombinedFactor);
 #else
-	DstColor[st] = lerp(Unpack_R11G11B10_FLOAT(DstUint[st]), DoFColor, CombinedFactor);
+	DstColor[st] = Pack_R11G11B10_FLOAT(lerp(Unpack_R11G11B10_FLOAT(DstColor[st]), DoFColor, CombinedFactor));
 #endif
 }

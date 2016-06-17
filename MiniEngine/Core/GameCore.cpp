@@ -100,11 +100,13 @@ namespace GameCore
 
 		Graphics::Present();
 
-		if (GameInput::IsFirstPressed(GameInput::kKey_escape))
-		{
-			return false; // shutdown
-		}
-		return true;
+		return !game.IsDone();
+	}
+
+	// Default implementation to be overridden by the application
+	bool IGameApp::IsDone( void )
+	{
+		return GameInput::IsFirstPressed(GameInput::kKey_escape);
 	}
 
 #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)

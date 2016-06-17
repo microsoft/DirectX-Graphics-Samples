@@ -20,13 +20,6 @@
 Texture2D<float2> MotionBuffer : register(t0);		// full resolution motion vectors
 Texture2D<float4> PrepBuffer : register(t1);		// 1/4 resolution pre-weighted blurred color samples
 RWTexture2D<float3> DstColor : register(u0);		// final output color (blurred and temporally blended)
-RWTexture2D<uint> DstUint : register(u1);			// alias of output buffer for un-typed UAV loads
-
-#ifdef TEMPORAL_UPSAMPLE
-Texture2D<float4> TemporalIn : register(t2);		// saved result from last frame
-RWTexture2D<float4> TemporalOut : register(u2);		// color to save for next frame including its validity in alpha
-#endif
-
 SamplerState LinearSampler : register(s0);
 
 cbuffer c0 : register(b0)
@@ -43,11 +36,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	float2 uv = position * RcpBufferDim;
 
 	float2 motionVec = MotionBuffer[st] * 32;
-#if SUPPORT_TYPED_UAV_LOADS
 	float3 thisColor = DstColor[st];
-#else
-	float3 thisColor = Unpack_R11G11B10_FLOAT(DstUint[st]);
-#endif
 
 	// Computing speed in this way will set the step size to two-pixel increments in the dominant
 	// direction.
@@ -87,25 +76,6 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 		accum += PrepBuffer.SampleLevel(LinearSampler, uv2 - deltaUV, 0) * remainder;
 
 		thisColor = accum.rgb / accum.a;
-
-#ifdef TEMPORAL_UPSAMPLE
-		TemporalOut[st] = 0;
-	}
-	else
-	{
-		float thisValidity = 1.0 - speed * 0.25;
-		float4 prevColor = TemporalIn.SampleLevel( LinearSampler, (position + motionVec) * RcpBufferDim, 0 );
-
-	#if 1
-		// 2x super sampling with no feedback
-		TemporalOut[st] = float4( thisColor, thisValidity );
-		thisColor = lerp( thisColor, prevColor.rgb, 0.5 * min(thisValidity, prevColor.a) );
-	#else
-		// 4x super sampling via controlled feedback
-		thisColor = lerp( thisColor, prevColor.rgb, TemporalBlendFactor * min(thisValidity, prevColor.a));
-		TemporalOut[st] = float4( thisColor, thisValidity );
-	#endif
-#endif
 	}
 
 	DstColor[st] = thisColor;
