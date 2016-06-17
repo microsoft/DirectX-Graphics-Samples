@@ -34,7 +34,7 @@ namespace ParticleEffects
 	EffectHandle InstantiateEffect( EffectHandle effectHandle );
 	EffectHandle InstantiateEffect( ParticleEffectProperties* effectProperties = &ParticleEffectProperties() );
 	void Update(ComputeContext& Context, float timeDelta );
-	void Render(CommandContext& Context, const Camera& Camera, ColorBuffer& RenderTarget, ColorBuffer& ComputeTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth);
+	void Render(CommandContext& Context, const Camera& Camera, ColorBuffer& ColorTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth);
 	void ResetEffect(EffectHandle EffectID);
 	float GetCurrentLife(EffectHandle EffectID);
 

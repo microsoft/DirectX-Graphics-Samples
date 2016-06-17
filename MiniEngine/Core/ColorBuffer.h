@@ -54,11 +54,6 @@ public:
 	void CreateArray(const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t ArrayCount,
 		DXGI_FORMAT Format, EsramAllocator& Allocator);
 
-	// Create an alias of a color buffer (overlaying the same memory) and optionally view
-	// the data with a different format.
-	void CreateAlias(const std::wstring& Name, const ColorBuffer& Source,
-		DXGI_FORMAT AltFormat = DXGI_FORMAT_UNKNOWN);
-
 	// Get pre-created CPU-visible descriptor handles
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV(void) const { return m_SRVHandle; }
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetRTV(void) const { return m_RTVHandle; }

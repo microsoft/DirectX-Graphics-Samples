@@ -147,38 +147,6 @@ void ColorBuffer::CreateArray( const std::wstring& Name, uint32_t Width, uint32_
 	CreateArray(Name, Width, Height, ArrayCount, Format);
 }
 
-void ColorBuffer::CreateAlias(const std::wstring& Name, const ColorBuffer& Source, DXGI_FORMAT AltFormat)
-{
-	D3D12_RESOURCE_DESC ResourceDesc = const_cast<ID3D12Resource*>(Source.GetResource())->GetDesc();
-	if (AltFormat != DXGI_FORMAT_UNKNOWN)
-		ResourceDesc.Format = AltFormat;
-
-	D3D12_CLEAR_VALUE ClearValue = {};
-	ClearValue.Format = ResourceDesc.Format;
-	ClearValue.Color[0] = 0;
-	ClearValue.Color[1] = 0;
-	ClearValue.Color[2] = 0;
-	ClearValue.Color[3] = 0;
-
-	ASSERT_SUCCEEDED(Graphics::g_Device->CreatePlacedResource(const_cast<ID3D12Heap*>(Source.GetHeap()), 0,
-		&ResourceDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, MY_IID_PPV_ARGS(&m_pResource)));
-
-	m_GpuVirtualAddress = Source.GetGpuVirtualAddress();
-	m_UsageState = D3D12_RESOURCE_STATE_COMMON;
-	m_Width = (uint32_t)ResourceDesc.Width;		// We don't care about large virtual textures yet
-	m_Height = ResourceDesc.Height;
-	m_ArraySize = ResourceDesc.DepthOrArraySize;
-	m_Format = ResourceDesc.Format;
-
-#ifndef RELEASE
-	m_pResource->SetName(Name.c_str());
-#else
-	(Name);
-#endif
-
-	CreateDerivedViews(Graphics::g_Device, ResourceDesc.Format, 1, Source.m_NumMipMaps + 1);
-}
-
 void ColorBuffer::GenerateMipMaps(CommandContext& BaseContext)
 {
 	if (m_NumMipMaps == 0)

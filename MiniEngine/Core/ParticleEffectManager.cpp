@@ -329,8 +329,7 @@ namespace
 			};
 			CompContext.SetDynamicDescriptors(4, 0, _countof(SRVs), SRVs);
 
-			CompContext.SetConstants(0, (float)DynamicResLevel, (float)MipBias,
-				Graphics::g_bTypedUAVLoadSupport_R11G11B10_FLOAT ? 1 : 0);
+			CompContext.SetConstants(0, (float)DynamicResLevel, (float)MipBias);
 
 			CompContext.SetPipelineState(s_ParticleTileRenderSlowCS[TiledRes]);
 			CompContext.DispatchIndirect(TileDrawDispatchIndirectArgs, 0);
@@ -713,17 +712,15 @@ void ParticleEffects::Update(ComputeContext& Context, float timeDelta )
 //
 //---------------------------------------------------------------------
 
-void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, ColorBuffer& RenderTarget, ColorBuffer& ComputeTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth)
+void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, ColorBuffer& ColorTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth)
 {
 	if (!Enable || !s_InitComplete || ParticleEffectsActive.size() == 0)
 		return;
 
-	uint32_t Width = (uint32_t)RenderTarget.GetWidth();
-	uint32_t Height = (uint32_t)RenderTarget.GetHeight();
+	uint32_t Width = (uint32_t)ColorTarget.GetWidth();
+	uint32_t Height = (uint32_t)ColorTarget.GetHeight();
 
 	ASSERT(
-		Width == ComputeTarget.GetWidth() &&
-		Height == ComputeTarget.GetHeight() &&
 		Width == DepthTarget.GetWidth() &&
 		Height == DepthTarget.GetHeight() &&
 		Width == LinearDepth.GetWidth() &&
@@ -752,13 +749,16 @@ void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, Col
 	s_ChangesPerView.gTilesPerRow = DivideByMultiple(Width, TILE_SIZE);
 	s_ChangesPerView.gTilesPerCol = DivideByMultiple(Height, TILE_SIZE);
 
+	// For now, UAV load support for R11G11B10 is required to read-modify-write the color buffer, but
+	// the compositing could be deferred.
+	WARN_ONCE_IF(EnableTiledRendering && !g_bTypedUAVLoadSupport_R11G11B10_FLOAT,
+		"Unable to composite tiled particles without support for R11G11B10F UAV loads");
+	EnableTiledRendering = EnableTiledRendering && g_bTypedUAVLoadSupport_R11G11B10_FLOAT;
 
 	if (EnableTiledRendering)
 	{
 		ComputeContext& CompContext = Context.GetComputeContext();
-		CompContext.TransitionResource(RenderTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		CompContext.TransitionResource(ComputeTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		CompContext.InsertAliasBarrier(RenderTarget, ComputeTarget);
+		CompContext.TransitionResource(ColorTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		CompContext.TransitionResource(BinCounters[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		CompContext.TransitionResource(BinCounters[1], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
 
@@ -767,16 +767,16 @@ void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, Col
 		CompContext.SetRootSignature(RootSig);
 		CompContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);
 
-		RenderTiles(CompContext, ComputeTarget, LinearDepth);
+		RenderTiles(CompContext, ColorTarget, LinearDepth);
 
-		CompContext.InsertAliasBarrier(ComputeTarget, RenderTarget);
+		CompContext.InsertUAVBarrier(ColorTarget);
 	}
 	else
 	{
 		GraphicsContext& GrContext = Context.GetGraphicsContext();
 		GrContext.SetRootSignature(RootSig);
 		GrContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);	
-		RenderSprites(GrContext, RenderTarget, DepthTarget, LinearDepth);
+		RenderSprites(GrContext, ColorTarget, DepthTarget, LinearDepth);
 	}
 
 }

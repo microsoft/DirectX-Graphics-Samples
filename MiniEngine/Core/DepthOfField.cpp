@@ -144,6 +144,12 @@ void DepthOfField::Render( CommandContext& BaseContext, float NearClipDist, floa
 {
 	ScopedTimer _prof(L"Depth of Field", BaseContext);
 
+	if (!g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+	{
+		WARN_ONCE_IF(!g_bTypedUAVLoadSupport_R11G11B10_FLOAT, "Unable to perform final pass of DoF without support for R11G11B10F UAV loads");
+		Enable = false;
+	}
+
 	ComputeContext& Context = BaseContext.GetComputeContext();
 	Context.SetRootSignature(s_RootSignature);
 
@@ -312,11 +318,6 @@ void DepthOfField::Render( CommandContext& BaseContext, float NearClipDist, floa
 	{
 		ScopedTimer _prof(L"DoF Final Combine", Context);
 		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		if (!g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
-		{
-			Context.TransitionResource(g_SceneColorAlias, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			Context.InsertAliasBarrier(g_SceneColorBuffer, g_SceneColorAlias);
-		}
 
 		if (DebugTiles)
 		{
@@ -341,7 +342,7 @@ void DepthOfField::Render( CommandContext& BaseContext, float NearClipDist, floa
 			Context.SetDynamicDescriptor(1, 2, g_DoFTileClass[1].GetSRV());
 			Context.SetDynamicDescriptor(1, 3, g_LinearDepth.GetSRV());
 			Context.SetDynamicDescriptor(1, 4, g_DoFWorkQueue.GetSRV());
-			Context.SetDynamicDescriptor(2, 0, (g_bTypedUAVLoadSupport_R11G11B10_FLOAT ? g_SceneColorBuffer : g_SceneColorAlias).GetUAV());
+			Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetUAV());
 			Context.DispatchIndirect(s_IndirectParameters, 0);
 
 			Context.SetPipelineState(s_DoFCombineFastCS);
@@ -349,9 +350,6 @@ void DepthOfField::Render( CommandContext& BaseContext, float NearClipDist, floa
 			Context.DispatchIndirect(s_IndirectParameters, 12);
 		}
 
-		if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
-			Context.InsertUAVBarrier(g_SceneColorBuffer);
-		else
-			Context.InsertAliasBarrier(g_SceneColorAlias, g_SceneColorBuffer);
+		Context.InsertUAVBarrier(g_SceneColorBuffer);
 	}
 }

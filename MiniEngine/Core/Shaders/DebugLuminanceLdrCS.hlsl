@@ -17,9 +17,10 @@
 
 Texture2D<float3> Bloom : register( t0 );
 #if SUPPORT_TYPED_UAV_LOADS
-RWTexture2D<float3> DstColor : register(u0);
+RWTexture2D<float3> SrcColor : register(u0);
 #else
 RWTexture2D<uint> DstColor : register(u0);
+Texture2D<float3> SrcColor : register(t2);
 #endif
 RWTexture2D<float> OutLuma : register(u1);
 SamplerState LinearSampler : register( s0 );
@@ -37,11 +38,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	float2 TexCoord = (DTid.xy + 0.5) * g_RcpBufferDim;
 
 	// Load LDR and bloom
-#if SUPPORT_TYPED_UAV_LOADS
-	float3 ldrColor = DstColor[DTid.xy];
-#else
-	float3 ldrColor = Unpack_R11G11B10_FLOAT(DstColor[DTid.xy]);
-#endif
+	float3 ldrColor = SrcColor[DTid.xy];
 
 	ldrColor += g_BloomStrength * Bloom.SampleLevel(LinearSampler, TexCoord, 0);
 
@@ -51,7 +48,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	float logLuma = LinearToLogLuminance(luma);
 
 #if SUPPORT_TYPED_UAV_LOADS
-	DstColor[DTid.xy] = luma.xxx;
+	SrcColor[DTid.xy] = luma.xxx;
 #else
 	DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(luma.xxx);
 #endif

@@ -691,9 +691,6 @@
     <FxCompile Include="Shaders\FXAAPass2V2CS.hlsl">
       <Filter>Shaders\FXAA</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\MotionBlurFinalPass2CS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\TemporalBlend2CS.hlsl">
       <Filter>Shaders\MB+TAA</Filter>
     </FxCompile>
@@ -714,6 +711,18 @@
     </FxCompile>
     <FxCompile Include="Shaders\ParticleTileRenderSlowLowRes2CS.hlsl">
       <Filter>Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\CopyBackPostBufferCS.hlsl">
+      <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\MotionBlurFinalPassPS.hlsl">
+      <Filter>Shaders\MB+TAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FXAAPass1_Luma2_CS.hlsl">
+      <Filter>Shaders\FXAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FXAAPass1_RGB2_CS.hlsl">
+      <Filter>Shaders\FXAA</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ConvertHDRToDisplayPS.hlsl">
       <Filter>Shaders\Present</Filter>

@@ -225,6 +225,7 @@
     <FxCompile Include="Shaders\ConvertLDRToDisplayPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\CopyBackPostBufferCS.hlsl" />
     <FxCompile Include="Shaders\DebugDrawHistogramCS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceHdr2CS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceHdrCS.hlsl" />
@@ -254,7 +255,9 @@
     <FxCompile Include="Shaders\DownsampleBloomAllCS.hlsl" />
     <FxCompile Include="Shaders\DownsampleBloomCS.hlsl" />
     <FxCompile Include="Shaders\ExtractLumaCS.hlsl" />
+    <FxCompile Include="Shaders\FXAAPass1_Luma2_CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass1_Luma_CS.hlsl" />
+    <FxCompile Include="Shaders\FXAAPass1_RGB2_CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass1_RGB_CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2H2CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2HDebugCS.hlsl" />
@@ -275,8 +278,10 @@
     <FxCompile Include="Shaders\MagnifyPixelsPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
-    <FxCompile Include="Shaders\MotionBlurFinalPass2CS.hlsl" />
     <FxCompile Include="Shaders\MotionBlurFinalPassCS.hlsl" />
+    <FxCompile Include="Shaders\MotionBlurFinalPassPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\MotionBlurPrePassCS.hlsl" />
     <FxCompile Include="Shaders\FXAAResolveWorkQueueCS.hlsl" />
     <FxCompile Include="Shaders\ParticleBinCullingCS.hlsl" />

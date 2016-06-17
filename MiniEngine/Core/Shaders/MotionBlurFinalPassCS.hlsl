@@ -19,12 +19,7 @@
 
 Texture2D<float2> MotionBuffer : register(t0);		// full resolution motion vectors
 Texture2D<float4> PrepBuffer : register(t1);		// 1/4 resolution pre-weighted blurred color samples
-#if SUPPORT_TYPED_UAV_LOADS
 RWTexture2D<float3> DstColor : register(u0);		// final output color (blurred and temporally blended)
-#else
-RWTexture2D<uint> DstColor : register(u0);
-#endif
-
 SamplerState LinearSampler : register(s0);
 
 cbuffer c0 : register(b0)
@@ -41,11 +36,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	float2 uv = position * RcpBufferDim;
 
 	float2 motionVec = MotionBuffer[st] * 32;
-#if SUPPORT_TYPED_UAV_LOADS
 	float3 thisColor = DstColor[st];
-#else
-	float3 thisColor = Unpack_R11G11B10_FLOAT(DstColor[st]);
-#endif
 
 	// Computing speed in this way will set the step size to two-pixel increments in the dominant
 	// direction.
@@ -87,9 +78,5 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 		thisColor = accum.rgb / accum.a;
 	}
 
-#if SUPPORT_TYPED_UAV_LOADS
 	DstColor[st] = thisColor;
-#else
-	DstColor[st] = Pack_R11G11B10_FLOAT(thisColor);
-#endif
 }
