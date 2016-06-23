@@ -429,10 +429,6 @@ void D3D12Fullscreen::OnSizeChanged(UINT width, UINT height, bool minimized)
 		m_swapChain->GetDesc(&desc);
 		ThrowIfFailed(m_swapChain->ResizeBuffers(FrameCount, width, height, desc.BufferDesc.Format, desc.Flags));
 
-		BOOL fullscreenState;
-		ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
-		m_windowedMode = !fullscreenState;
-
 		// Reset the frame index to the current back buffer index.
 		m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
@@ -450,12 +446,6 @@ void D3D12Fullscreen::OnDestroy()
 	// Ensure that the GPU is no longer referencing resources that are about to be
 	// cleaned up by the destructor.
 	WaitForGpu();
-
-	if (!m_tearingSupport)
-	{
-		// Fullscreen state should always be false before exiting the app.
-		ThrowIfFailed(m_swapChain->SetFullscreenState(FALSE, nullptr));
-	}
 
 	CloseHandle(m_fenceEvent);
 }
