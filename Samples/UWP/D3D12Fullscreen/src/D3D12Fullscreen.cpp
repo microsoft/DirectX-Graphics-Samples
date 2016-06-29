@@ -395,7 +395,7 @@ void D3D12Fullscreen::OnRender()
 		PIXEndEvent(m_commandQueue.Get());
 
 		// When using sync interval 0, it is recommended to always pass the tearing
-		// flag when it is available, even when presenting in windowed mode.
+		// flag when it is supported, even when presenting in windowed mode.
 		// However, this flag cannot be used if the app is in fullscreen mode as a
 		// result of calling SetFullscreenState.
 		UINT presentFlags = (m_tearingSupport && m_windowedMode) ? DXGI_PRESENT_ALLOW_TEARING : 0;
@@ -410,7 +410,7 @@ void D3D12Fullscreen::OnRender()
 void D3D12Fullscreen::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
 	// Determine if the swap buffers and other resources need to be resized or not.
- 	if ((width != m_width || height != m_height) && !minimized)
+	if ((width != m_width || height != m_height) && !minimized)
 	{
 		// Flush all current GPU commands.
 		WaitForGpu();
