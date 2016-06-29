@@ -39,6 +39,8 @@ void View::SetWindow(CoreWindow^ window)
 	// For simplicity, this sample ignores a number of events on CoreWindow that a
 	// typical app should subscribe to.
 
+	DisplayInformation^ displayInformation = DisplayInformation::GetForCurrentView();
+	displayInformation->DpiChanged += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &View::OnDpiChanged);
 }
 
 void View::Load(String^ /*entryPoint*/)
@@ -93,6 +95,7 @@ void View::OnSizeChanged(CoreWindow^ /*window*/, WindowSizeChangedEventArgs^ arg
 	UpdateWindowSize(args->Size.Width, args->Size.Height);
 }
 
+void View::OnDpiChanged(DisplayInformation^ /*sender*/, Object^ /*args*/)
 {
 	CoreWindow^ window = CoreWindow::GetForCurrentThread();
 	UpdateWindowSize(window->Bounds.Width, window->Bounds.Height);
@@ -115,5 +118,7 @@ inline UINT ConvertToPixels(float dimension, float dpi)
 
 void View::UpdateWindowSize(float width, float height, bool visible)
 {
+	DisplayInformation^ displayInformation = DisplayInformation::GetForCurrentView();
+	float dpi = displayInformation->LogicalDpi;
 	m_pSample->OnSizeChanged(ConvertToPixels(width, dpi), ConvertToPixels(height, dpi), !visible);
 }
