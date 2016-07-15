@@ -180,10 +180,6 @@ void D3D12LinkedGpus::OnSizeChanged(UINT width, UINT height, bool minimized)
 		// Resize the swap chain to the desired dimensions.
 		m_crossNodeResources->ResizeSwapChain();
 
-		BOOL fullscreenState;
-		ThrowIfFailed(m_crossNodeResources->GetSwapChain()->GetFullscreenState(&fullscreenState, nullptr));
-		m_windowedMode = !fullscreenState;
-
 		// Re-create and re-link render targets.
 		for (UINT n = 0; n < Settings::NodeCount; n++)
 		{

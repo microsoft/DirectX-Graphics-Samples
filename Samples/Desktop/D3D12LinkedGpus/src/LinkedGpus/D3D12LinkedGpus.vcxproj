@@ -65,6 +65,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>dxgi.lib;d3d12.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -84,6 +87,9 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>dxgi.lib;d3d12.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CrossNodeResources.h" />
@@ -122,7 +128,8 @@
       <HeaderFileOutput>%(Fullpath).h</HeaderFileOutput>
       <EntryPointName>PSMain</EntryPointName>
       <ShaderType>Pixel</ShaderType>
-      <ObjectFileOutput></ObjectFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="PostVS.hlsl">
       <VariableName>g_%(Filename)</VariableName>
@@ -130,7 +137,8 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>VSMain</EntryPointName>
       <ShaderType>Vertex</ShaderType>
-      <ObjectFileOutput></ObjectFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="ScenePS.hlsl">
       <VariableName>g_%(Filename)</VariableName>
@@ -138,7 +146,8 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>PSMain</EntryPointName>
       <ShaderType>Pixel</ShaderType>
-      <ObjectFileOutput></ObjectFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="SceneVS.hlsl">
       <VariableName>g_%(Filename)</VariableName>
@@ -146,7 +155,8 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>VSMain</EntryPointName>
       <ShaderType>Vertex</ShaderType>
-      <ObjectFileOutput></ObjectFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

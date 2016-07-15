@@ -682,6 +682,11 @@ void D3D12LinkedGpusAffinity::OnRender()
 		RenderScene();
 		RenderPost();
 
+		// When using sync interval 0, it is recommended to always pass the tearing
+		// flag when it is supported, even if not presenting to a fullscreen window.
+		// This flag cannot be used if the app is in "exclusive" fullscreen mode as
+		// a result of calling SetFullscreenState.
+
 		UINT presentFlags = (m_syncInterval == 0 && m_tearingSupport && m_windowedMode) ? DXGI_PRESENT_ALLOW_TEARING : 0;
 		ThrowIfFailed(m_swapChain->Present(m_syncInterval, presentFlags));
 
@@ -872,10 +877,6 @@ void D3D12LinkedGpusAffinity::OnSizeChanged(UINT width, UINT height, bool minimi
 		DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
 		ThrowIfFailed(m_swapChain->GetDesc1(&swapChainDesc));
 		ThrowIfFailed(m_swapChain->ResizeBuffers(Settings::BackBufferCount, width, height, swapChainDesc.Format, swapChainDesc.Flags));
-
-		BOOL fullscreenState;
-		ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
-		m_windowedMode = !fullscreenState;
 
 		// Re-create render targets.
 		LoadSizeDependentResources();

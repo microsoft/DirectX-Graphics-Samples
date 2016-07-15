@@ -17,6 +17,7 @@ using namespace Platform;
 using namespace Windows::ApplicationModel;
 using namespace Windows::ApplicationModel::Activation;
 using namespace Windows::ApplicationModel::Core;
+using namespace Windows::Graphics::Display;
 using namespace Windows::UI::Core;
 using namespace Windows::UI::ViewManagement;
 
@@ -36,8 +37,11 @@ private:
 	void OnKeyDown(CoreWindow^ window, KeyEventArgs^ args);
 	void OnKeyUp(CoreWindow^ window, KeyEventArgs^ args);
 	void OnSizeChanged(CoreWindow^ window, WindowSizeChangedEventArgs^ args);
+	void OnDpiChanged(DisplayInformation^ sender, Object^ args);
 	void OnVisibilityChanged(CoreWindow^ window, VisibilityChangedEventArgs^ args);
 	void OnClosed(CoreWindow^ window, CoreWindowEventArgs^ args);
+
+	void UpdateWindowSize(float width, float height, bool windowVisible = true);
 
 	DXSample* m_pSample;
 	bool m_windowClosed;
