@@ -51,7 +51,7 @@ private:
 	};
 
 	// Constant buffer definition.
-	struct ConstantBufferData
+	struct SceneConstantBuffer
 	{
 		XMFLOAT4 velocity;
 		XMFLOAT4 offset;
@@ -100,11 +100,11 @@ private:
 		CbvSrvOffset = 0,													// SRV that points to the constant buffers used by the rendering thread.
 		CommandsOffset = CbvSrvOffset + 1,									// SRV that points to all of the indirect commands.
 		ProcessedCommandsOffset = CommandsOffset + 1,						// UAV that records the commands we actually want to execute.
-		CbvSrvUavDescriptorCountPerFrame = ProcessedCommandsOffset + 1		// 1 CBV per triangle + [2 SRVs + 1 UAV for the compute shader].
+		CbvSrvUavDescriptorCountPerFrame = ProcessedCommandsOffset + 1		// 2 SRVs + 1 UAV for the compute shader.
 	};
 
 	// Each triangle gets its own constant buffer per frame.
-	std::vector<ConstantBufferData> m_constantBufferData;
+	std::vector<SceneConstantBuffer> m_constantBufferData;
 	UINT8* m_pCbvDataBegin;
 
 	CSRootConstants m_csRootConstants;	// Constants for the compute shader.

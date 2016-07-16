@@ -11,7 +11,7 @@
 
 #define threadBlockSize 128
 
-struct ConstantBufferData
+struct SceneConstantBuffer
 {
 	float4 velocity;
 	float4 offset;
@@ -34,7 +34,7 @@ cbuffer RootConstants : register(b0)
 	float commandCount;	// The number of commands to be processed.
 };
 
-StructuredBuffer<ConstantBufferData> cbv				: register(t0);	// SRV: Wrapped constant buffers
+StructuredBuffer<SceneConstantBuffer> cbv				: register(t0);	// SRV: Wrapped constant buffers
 StructuredBuffer<IndirectCommand> inputCommands			: register(t1);	// SRV: Indirect commands
 AppendStructuredBuffer<IndirectCommand> outputCommands	: register(u0);	// UAV: Processed indirect commands
 

@@ -356,7 +356,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 
 	// Create the constant buffers.
 	{
-		const UINT constantBufferDataSize = TriangleResourceCount * sizeof(ConstantBufferData);
+		const UINT constantBufferDataSize = TriangleResourceCount * sizeof(SceneConstantBuffer);
 
 		ThrowIfFailed(m_device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -368,10 +368,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 
 		NAME_D3D12_OBJECT(m_constantBuffer);
 
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-		cbvDesc.SizeInBytes = sizeof(ConstantBufferData);
-
-		// Create constant buffer views to access the upload buffer.
+		// Initialize the constant buffers for each of the triangles.
 		for (UINT n = 0; n < TriangleCount; n++)
 		{
 			m_constantBufferData[n].velocity = XMFLOAT4(GetRandomFloat(0.01f, 0.02f), 0.0f, 0.0f, 0.0f);
@@ -384,7 +381,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 		// Keeping things mapped for the lifetime of the resource is okay.
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
-		memcpy(m_pCbvDataBegin, &m_constantBufferData[0], TriangleCount * sizeof(ConstantBufferData));
+		memcpy(m_pCbvDataBegin, &m_constantBufferData[0], TriangleCount * sizeof(SceneConstantBuffer));
 
 		// Create shader resource views (SRV) of the constant buffers for the
 		// compute shader to read from.
@@ -393,7 +390,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srvDesc.Buffer.NumElements = TriangleCount;
-		srvDesc.Buffer.StructureByteStride = sizeof(ConstantBufferData);
+		srvDesc.Buffer.StructureByteStride = sizeof(SceneConstantBuffer);
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE cbvSrvHandle(m_cbvSrvUavHeap->GetCPUDescriptorHandleForHeapStart(), CbvSrvOffset, m_cbvSrvUavDescriptorSize);
@@ -461,7 +458,7 @@ void D3D12ExecuteIndirect::LoadAssets()
 				commands[commandIndex].drawArguments.StartInstanceLocation = 0;
 
 				commandIndex++;
-				gpuAddress += sizeof(ConstantBufferData);
+				gpuAddress += sizeof(SceneConstantBuffer);
 			}
 		}
 
@@ -594,8 +591,8 @@ void D3D12ExecuteIndirect::OnUpdate()
 		}
 	}
 
-	UINT8* destination = m_pCbvDataBegin + (TriangleCount * m_frameIndex * sizeof(ConstantBufferData));
-	memcpy(destination, &m_constantBufferData[0], TriangleCount * sizeof(ConstantBufferData));
+	UINT8* destination = m_pCbvDataBegin + (TriangleCount * m_frameIndex * sizeof(SceneConstantBuffer));
+	memcpy(destination, &m_constantBufferData[0], TriangleCount * sizeof(SceneConstantBuffer));
 }
 
 // Render the scene.

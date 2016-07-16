@@ -42,8 +42,8 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE m_shadowDepthView;
 	ComPtr<ID3D12Resource> m_shadowConstantBuffer;
 	ComPtr<ID3D12Resource> m_sceneConstantBuffer;
-	ConstantBuffer* mp_shadowConstantBufferWO;		// WRITE-ONLY pointer to the shadow pass constant buffer.
-	ConstantBuffer* mp_sceneConstantBufferWO;		// WRITE-ONLY pointer to the scene pass constant buffer.
+	SceneConstantBuffer* mp_shadowConstantBufferWO;		// WRITE-ONLY pointer to the shadow pass constant buffer.
+	SceneConstantBuffer* mp_sceneConstantBufferWO;		// WRITE-ONLY pointer to the scene pass constant buffer.
 	D3D12_GPU_DESCRIPTOR_HANDLE m_nullSrvHandle;	// Null SRV for out of bounds behavior.
 	D3D12_GPU_DESCRIPTOR_HANDLE m_shadowDepthHandle;
 	D3D12_GPU_DESCRIPTOR_HANDLE m_shadowCbvHandle;

@@ -45,7 +45,7 @@ private:
 	};
 
 	// Constant buffer definition.
-	struct ConstantBufferData
+	struct SceneConstantBuffer
 	{
 		XMFLOAT4 offset;
 
@@ -55,7 +55,7 @@ private:
 	};
 
 	// Each geometry gets its own constant buffer.
-	ConstantBufferData m_constantBufferData[CbvCountPerFrame];
+	SceneConstantBuffer m_constantBufferData[CbvCountPerFrame];
 	UINT8* m_pCbvDataBegin;
 
 	// Pipeline objects.
