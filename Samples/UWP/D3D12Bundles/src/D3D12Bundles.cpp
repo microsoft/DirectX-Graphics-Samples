@@ -569,7 +569,7 @@ void D3D12Bundles::CreateFrameResources()
 				// Describe and create a constant buffer view (CBV).
 				D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 				cbvDesc.BufferLocation = pFrameResource->m_cbvUploadHeap->GetGPUVirtualAddress() + cbOffset;
-				cbvDesc.SizeInBytes = sizeof(FrameResource::ConstantBuffer);
+				cbvDesc.SizeInBytes = sizeof(FrameResource::SceneConstantBuffer);
 				cbOffset += cbvDesc.SizeInBytes;
 				m_device->CreateConstantBufferView(&cbvDesc, cbvSrvHandle);
 				cbvSrvHandle.Offset(m_cbvSrvDescriptorSize);

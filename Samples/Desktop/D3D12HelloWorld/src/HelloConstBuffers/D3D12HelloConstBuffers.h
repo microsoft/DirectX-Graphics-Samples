@@ -41,7 +41,7 @@ private:
 		XMFLOAT4 color;
 	};
 
-	struct ConstantBuffer
+	struct SceneConstantBuffer
 	{
 		XMFLOAT4 offset;
 	};
@@ -65,7 +65,7 @@ private:
 	ComPtr<ID3D12Resource> m_vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 	ComPtr<ID3D12Resource> m_constantBuffer;
-	ConstantBuffer m_constantBufferData;
+	SceneConstantBuffer m_constantBufferData;
 	UINT8* m_pCbvDataBegin;
 
 	// Synchronization objects.

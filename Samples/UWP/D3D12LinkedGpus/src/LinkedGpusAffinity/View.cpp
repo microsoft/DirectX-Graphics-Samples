@@ -38,6 +38,9 @@ void View::SetWindow(CoreWindow^ window)
 
 	// For simplicity, this sample ignores a number of events on CoreWindow that a
 	// typical app should subscribe to.
+
+	DisplayInformation^ displayInformation = DisplayInformation::GetForCurrentView();
+	displayInformation->DpiChanged += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &View::OnDpiChanged);
 }
 
 void View::Load(String^ /*entryPoint*/)
@@ -89,15 +92,33 @@ void View::OnKeyUp(CoreWindow^ /*window*/, KeyEventArgs^ args)
 
 void View::OnSizeChanged(CoreWindow^ /*window*/, WindowSizeChangedEventArgs^ args)
 {
-	m_pSample->OnSizeChanged(static_cast<UINT>(args->Size.Width), static_cast<UINT>(args->Size.Height), false);
+	UpdateWindowSize(args->Size.Width, args->Size.Height);
+}
+
+void View::OnDpiChanged(DisplayInformation^ /*sender*/, Object^ /*args*/)
+{
+	CoreWindow^ window = CoreWindow::GetForCurrentThread();
+	UpdateWindowSize(window->Bounds.Width, window->Bounds.Height);
 }
 
 void View::OnVisibilityChanged(CoreWindow^ window, VisibilityChangedEventArgs^ args)
 {
-	m_pSample->OnSizeChanged(static_cast<UINT>(window->Bounds.Width), static_cast<UINT>(window->Bounds.Height), !args->Visible);
+	UpdateWindowSize(window->Bounds.Width, window->Bounds.Height, args->Visible);
 }
 
 void View::OnClosed(CoreWindow^ /*window*/, CoreWindowEventArgs^ /*args*/)
 {
 	m_windowClosed = true;
+}
+
+inline UINT ConvertToPixels(float dimension, float dpi)
+{
+	return static_cast<UINT>(dimension * dpi / 96.0f);
+}
+
+void View::UpdateWindowSize(float width, float height, bool visible)
+{
+	DisplayInformation^ displayInformation = DisplayInformation::GetForCurrentView();
+	float dpi = displayInformation->LogicalDpi;
+	m_pSample->OnSizeChanged(ConvertToPixels(width, dpi), ConvertToPixels(height, dpi), !visible);
 }

@@ -15,7 +15,7 @@ inline void ThrowIfFailed(HRESULT hr)
 {
 	if (FAILED(hr))
 	{
-		throw;
+		throw std::exception();
 	}
 }
 
@@ -23,14 +23,14 @@ inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
 {
 	if (path == nullptr)
 	{
-		throw;
+		throw std::exception();
 	}
 
 	DWORD size = GetModuleFileName(nullptr, path, pathSize);
 	if (size == 0 || size == pathSize)
 	{
 		// Method failed or path was truncated.
-		throw;
+		throw std::exception();
 	}
 
 	WCHAR* lastSlash = wcsrchr(path, L'\\');
@@ -55,18 +55,18 @@ inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)
 	Wrappers::FileHandle file(CreateFile2(filename, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, &extendedParams));
 	if (file.Get() == INVALID_HANDLE_VALUE)
 	{
-		throw new std::exception();
+		throw std::exception();
 	}
 
 	FILE_STANDARD_INFO fileInfo = {};
 	if (!GetFileInformationByHandleEx(file.Get(), FileStandardInfo, &fileInfo, sizeof(fileInfo)))
 	{
-		throw new std::exception();
+		throw std::exception();
 	}
 
 	if (fileInfo.EndOfFile.HighPart != 0)
 	{
-		throw new std::exception();
+		throw std::exception();
 	}
 
 	*data = reinterpret_cast<byte*>(malloc(fileInfo.EndOfFile.LowPart));
@@ -74,7 +74,7 @@ inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)
 
 	if (!ReadFile(file.Get(), *data, fileInfo.EndOfFile.LowPart, nullptr, nullptr))
 	{
-		throw new std::exception();
+		throw std::exception();
 	}
 
 	return S_OK;

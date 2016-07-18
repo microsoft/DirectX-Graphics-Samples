@@ -346,7 +346,7 @@ void D3D12PredicationQueries::LoadAssets()
 		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = m_constantBuffer->GetGPUVirtualAddress();
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-		cbvDesc.SizeInBytes = sizeof(ConstantBufferData);
+		cbvDesc.SizeInBytes = sizeof(SceneConstantBuffer);
 
 		for (UINT n = 0; n < FrameCount; n++)
 		{
@@ -445,8 +445,8 @@ void D3D12PredicationQueries::OnUpdate()
 	}
 
 	UINT cbvIndex = m_frameIndex * CbvCountPerFrame + 1;
-	UINT8* destination = m_pCbvDataBegin + (cbvIndex * sizeof(ConstantBufferData));
-	memcpy(destination, &m_constantBufferData[1], sizeof(ConstantBufferData));
+	UINT8* destination = m_pCbvDataBegin + (cbvIndex * sizeof(SceneConstantBuffer));
+	memcpy(destination, &m_constantBufferData[1], sizeof(SceneConstantBuffer));
 }
 
 // Render the scene.

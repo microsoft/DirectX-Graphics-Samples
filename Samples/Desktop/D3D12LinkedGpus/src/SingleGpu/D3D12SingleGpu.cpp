@@ -628,6 +628,11 @@ void D3D12SingleGpu::OnRender()
 		RenderScene();
 		RenderPost();
 
+		// When using sync interval 0, it is recommended to always pass the tearing
+		// flag when it is supported, even if not presenting to a fullscreen window.
+		// This flag cannot be used if the app is in "exclusive" fullscreen mode as
+		// a result of calling SetFullscreenState.
+
 		UINT presentFlags = (m_syncInterval == 0 && m_tearingSupport && m_windowedMode) ? DXGI_PRESENT_ALLOW_TEARING : 0;
 		ThrowIfFailed(m_swapChain->Present(m_syncInterval, presentFlags));
 

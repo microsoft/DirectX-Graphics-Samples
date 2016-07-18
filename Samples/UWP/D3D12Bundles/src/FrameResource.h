@@ -22,7 +22,7 @@ private:
 	void SetCityPositions(FLOAT intervalX, FLOAT intervalZ);
 
 public:
-	struct ConstantBuffer
+	struct SceneConstantBuffer
 	{
 		XMFLOAT4X4 mvp;		// Model-view-projection (MVP) matrix.
 		FLOAT padding[48];
@@ -32,7 +32,7 @@ public:
 	ComPtr<ID3D12CommandAllocator> m_bundleAllocator;
 	ComPtr<ID3D12GraphicsCommandList> m_bundle;
 	ComPtr<ID3D12Resource> m_cbvUploadHeap;
-	ConstantBuffer* m_pConstantBuffers;
+	SceneConstantBuffer* m_pConstantBuffers;
 	UINT64 m_fenceValue;
 
 	std::vector<XMFLOAT4X4> m_modelMatrices;

@@ -91,9 +91,6 @@
     <AppxManifest Include="Package.appxmanifest" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="D3D12DynamicIndexing_TemporaryKey.pfx" />
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="SplashScreen.scale-200.png">
       <Filter>Assets\AppxPackage</Filter>
     </Image>

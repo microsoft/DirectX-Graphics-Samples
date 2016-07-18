@@ -25,12 +25,6 @@
     <Filter Include="Assets\AppxPackage">
       <UniqueIdentifier>{7eb4c281-7d9d-46b3-b34d-e2b524ad4a13}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\AffinityLayer">
-      <UniqueIdentifier>{ec20e3ab-7a62-4451-bf03-96f2735995c4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\AffinityLayer">
-      <UniqueIdentifier>{3ff07fc8-ff53-4823-9ded-5b886479b3ee}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="D3D12LinkedGpusAffinity.h">
@@ -88,7 +82,6 @@
     <AppxManifest Include="Package.appxmanifest" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="D3D12LinkedGpusAffinity_TemporaryKey.pfx" />
     <None Include="Post.hlsli">
       <Filter>Assets\Shaders</Filter>
     </None>

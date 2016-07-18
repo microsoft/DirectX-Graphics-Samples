@@ -120,7 +120,7 @@ FrameResource::FrameResource(ID3D12Device* pDevice, ID3D12PipelineState* pPso, I
 	cbvSrvGpuHandle.Offset(cbvSrvDescriptorSize);
 
 	// Create the constant buffers.
-	const UINT constantBufferSize = (sizeof(ConstantBuffer) + (D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1)) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1); // must be a multiple 256 bytes
+	const UINT constantBufferSize = (sizeof(SceneConstantBuffer) + (D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1)) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1); // must be a multiple 256 bytes
 	ThrowIfFailed(pDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
@@ -198,8 +198,8 @@ FrameResource::~FrameResource()
 // this frame resource.
 void FrameResource::WriteConstantBuffers(D3D12_VIEWPORT* pViewport, Camera* pSceneCamera, Camera lightCams[NumLights], LightState lights[NumLights])
 {
-	ConstantBuffer sceneConsts = {}; 
-	ConstantBuffer shadowConsts = {};
+	SceneConstantBuffer sceneConsts = {}; 
+	SceneConstantBuffer shadowConsts = {};
 	
 	// Scale down the world a bit.
 	::XMStoreFloat4x4(&sceneConsts.model, XMMatrixScaling(0.1f, 0.1f, 0.1f));
@@ -225,8 +225,8 @@ void FrameResource::WriteConstantBuffers(D3D12_VIEWPORT* pViewport, Camera* pSce
 
 	shadowConsts.ambientColor = sceneConsts.ambientColor = { 0.1f, 0.2f, 0.3f, 1.0f };
 
-	memcpy(mp_sceneConstantBufferWO, &sceneConsts, sizeof(ConstantBuffer));
-	memcpy(mp_shadowConstantBufferWO, &shadowConsts, sizeof(ConstantBuffer));
+	memcpy(mp_sceneConstantBufferWO, &sceneConsts, sizeof(SceneConstantBuffer));
+	memcpy(mp_shadowConstantBufferWO, &shadowConsts, sizeof(SceneConstantBuffer));
 }
 
 void FrameResource::Init()

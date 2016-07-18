@@ -38,7 +38,7 @@ struct LightState
 	XMFLOAT4X4 projection;
 };
 
-struct ConstantBuffer
+struct SceneConstantBuffer
 {
 	XMFLOAT4X4 model;
 	XMFLOAT4X4 view;

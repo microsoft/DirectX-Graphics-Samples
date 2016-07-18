@@ -9,7 +9,7 @@
 //
 //*********************************************************
 
-cbuffer ConstantBuffer : register(b0)
+cbuffer SceneConstantBuffer : register(b0)
 {
 	float4 offset;
 };
