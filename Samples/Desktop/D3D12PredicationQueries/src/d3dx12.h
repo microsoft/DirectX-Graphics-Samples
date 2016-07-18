@@ -1107,11 +1107,11 @@ struct CD3DX12_CPU_DESCRIPTOR_HANDLE : public D3D12_CPU_DESCRIPTOR_HANDLE
         ptr += offsetScaledByIncrementSize;
         return *this;
     }
-    bool operator==(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& other)
+    bool operator==(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& other) const
     {
         return (ptr == other.ptr);
     }
-    bool operator!=(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& other)
+    bool operator!=(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& other) const
     {
         return (ptr != other.ptr);
     }
@@ -1168,11 +1168,11 @@ struct CD3DX12_GPU_DESCRIPTOR_HANDLE : public D3D12_GPU_DESCRIPTOR_HANDLE
         ptr += offsetScaledByIncrementSize;
         return *this;
     }
-    inline bool operator==(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& other)
+    inline bool operator==(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& other) const
     {
         return (ptr == other.ptr);
     }
-    inline bool operator!=(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& other)
+    inline bool operator!=(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& other) const
     {
         return (ptr != other.ptr);
     }
