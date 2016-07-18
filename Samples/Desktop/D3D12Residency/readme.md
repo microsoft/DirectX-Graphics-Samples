@@ -67,3 +67,10 @@ In return for using ```MakeResident``` and ```Evict```, VidMM promises to return
 
 #### What is the ```MaxLatency``` parameter in the ResidencyManager's ```Initialize``` method?
 When rendering very quickly, it is possible for the renderer to get too far ahead of the library's worker thread.  The ```MaxLatency``` parameter helps to limit how far ahead it can get.  The value should essentially be the average ```NumberOfBufferedFrames * NumberOfCommandListSubmissionsPerFrame``` throughout the execution of your app.
+
+#### The Visual Studio Graphics Debugging (VSGD) tools crash when capturing an app that uses this library
+You can work around this bug by using the library's single threaded mode using the line:
+```
+#define RESIDENCY_SINGLE_THREADED 0
+```
+0 is the default; change it to 1 to force single threaded behavior to work around the issue.
