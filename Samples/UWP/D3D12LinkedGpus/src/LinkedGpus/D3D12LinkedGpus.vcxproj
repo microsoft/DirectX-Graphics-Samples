@@ -102,12 +102,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup>
-    <PackageCertificateKeyFile>D3D12LinkedGpus_TemporaryKey.pfx</PackageCertificateKeyFile>
-    <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
-    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
-    <AppxBundle>Always</AppxBundle>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
@@ -246,7 +240,6 @@
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
-    <None Include="D3D12LinkedGpus_TemporaryKey.pfx" />
     <None Include="Post.hlsli" />
     <None Include="Scene.hlsli" />
   </ItemGroup>
@@ -258,7 +251,8 @@
       <HeaderFileOutput>%(Fullpath).h</HeaderFileOutput>
       <EntryPointName>PSMain</EntryPointName>
       <ShaderType>Pixel</ShaderType>
-      <ObjectFileOutput></ObjectFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="PostVS.hlsl">
       <VariableName>g_%(Filename)</VariableName>
@@ -266,7 +260,8 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>VSMain</EntryPointName>
       <ShaderType>Vertex</ShaderType>
-      <ObjectFileOutput></ObjectFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="ScenePS.hlsl">
       <VariableName>g_%(Filename)</VariableName>
@@ -274,7 +269,8 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>PSMain</EntryPointName>
       <ShaderType>Pixel</ShaderType>
-      <ObjectFileOutput></ObjectFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="SceneVS.hlsl">
       <VariableName>g_%(Filename)</VariableName>
@@ -282,7 +278,8 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>VSMain</EntryPointName>
       <ShaderType>Vertex</ShaderType>
-      <ObjectFileOutput></ObjectFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

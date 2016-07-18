@@ -94,7 +94,6 @@
     <AppxManifest Include="Package.appxmanifest" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="D3D12LinkedGpus_TemporaryKey.pfx" />
     <None Include="Post.hlsli">
       <Filter>Assets\Shaders</Filter>
     </None>
