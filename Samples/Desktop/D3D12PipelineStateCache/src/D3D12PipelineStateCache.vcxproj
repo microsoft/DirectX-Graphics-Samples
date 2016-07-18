@@ -58,7 +58,8 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -83,7 +84,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -102,30 +104,17 @@
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="BlitPixelShader.hlsl.h" />
-    <ClInclude Include="BlurPixelShader.hlsl.h" />
     <ClInclude Include="D3D12PipelineStateCache.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXSampleHelper.h" />
     <ClInclude Include="DXSample.h" />
-    <ClInclude Include="DistortPixelShader.hlsl.h" />
     <ClInclude Include="DynamicConstantBuffer.h" />
-    <ClInclude Include="EdgeDetectPixelShader.hlsl.h" />
-    <ClInclude Include="GrayScalePixelShader.hlsl.h" />
-    <ClInclude Include="InvertPixelShader.hlsl.h" />
     <ClInclude Include="MemoryMappedPSOCache.h" />
-    <ClInclude Include="PixelatePixelShader.hlsl.h" />
     <ClInclude Include="PSOLibrary.h" />
     <ClInclude Include="SimpleCamera.h" />
-    <ClInclude Include="QuadVertexShader.hlsl.h" />
-    <ClInclude Include="SimplePixelShader.hlsl.h" />
-    <ClInclude Include="SimpleVertexShader.hlsl.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="StepTimer.h" />
-    <ClInclude Include="UberPixelShader.hlsl.h" />
-    <ClInclude Include="WarpPixelShader.hlsl.h" />
-    <ClInclude Include="WavePixelShader.hlsl.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Win32Application.cpp" />
