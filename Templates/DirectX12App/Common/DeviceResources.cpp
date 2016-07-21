@@ -168,7 +168,11 @@ void DX::DeviceResources::CreateDeviceResources()
 	DX::ThrowIfFailed(m_d3dDevice->CreateFence(m_fenceValues[m_currentFrame], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
 	m_fenceValues[m_currentFrame]++;
 
-	m_fenceEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+	m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (m_fenceEvent == nullptr)
+	{
+		DX::ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+	}
 }
 
 // These resources need to be recreated every time the window size is changed.
