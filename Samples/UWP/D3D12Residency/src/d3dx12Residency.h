@@ -186,7 +186,7 @@ namespace D3DX12Residency
 			if (pObject->CommandListsUsedOn[CommandListIndex] == false)
 			{
 				pObject->CommandListsUsedOn[CommandListIndex] = true;
-				if (ppSet == nullptr || CurrentSetSize > MaxResidencySetSize)
+				if (ppSet == nullptr || CurrentSetSize >= MaxResidencySetSize)
 				{
 					Realloc();
 				}
@@ -727,7 +727,7 @@ namespace D3DX12Residency
 #if !RESIDENCY_SINGLE_THREADED
 				if (SUCCEEDED(hr))
 				{
-					AsyncWorkThread = CreateThread(NULL, 0, AsyncThreadStart, (void*) this, 0, nullptr);
+					AsyncWorkThread = CreateThread(nullptr, 0, AsyncThreadStart, (void*) this, 0, nullptr);
 
 					if (AsyncWorkThread == INVALID_HANDLE_VALUE)
 					{
