@@ -420,12 +420,12 @@ void D3D12Bundles::LoadAssets()
 		m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
+	CreateFrameResources();
+
 	// Close the command list and execute it to begin the initial GPU setup.
 	ThrowIfFailed(m_commandList->Close());
 	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-	CreateFrameResources();
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
@@ -553,8 +553,6 @@ void D3D12Bundles::OnKeyUp(UINT8 key)
 // Create the resources that will be used every frame.
 void D3D12Bundles::CreateFrameResources()
 {
-	ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState1.Get()));
-
 	// Initialize each frame resource.
 	CD3DX12_CPU_DESCRIPTOR_HANDLE cbvSrvHandle(m_cbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), 1, m_cbvSrvDescriptorSize);	// Move past the SRV in slot 1.
 	for (UINT i = 0; i < FrameCount; i++)
@@ -581,12 +579,6 @@ void D3D12Bundles::CreateFrameResources()
 
 		m_frameResources.push_back(pFrameResource);
 	}
-
-	// Close the command list and use it to execute the initial setup.
-	// This places the CBVs in the heap.
-	ThrowIfFailed(m_commandList->Close());
-	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 }
 
 void D3D12Bundles::PopulateCommandList(FrameResource* pFrameResource)
