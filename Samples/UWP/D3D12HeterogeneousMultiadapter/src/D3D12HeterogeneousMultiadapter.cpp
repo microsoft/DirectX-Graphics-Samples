@@ -768,7 +768,7 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 		for (UINT i = 0; i < GraphicsAdaptersCount; i++)
 		{
 			// Create an event handle to use for frame synchronization.
-			m_fenceEvents[i] = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+			m_fenceEvents[i] = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 			if (m_fenceEvents == nullptr)
 			{
 				ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));

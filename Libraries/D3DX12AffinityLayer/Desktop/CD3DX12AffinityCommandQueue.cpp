@@ -111,7 +111,7 @@ void STDMETHODCALLTYPE CD3DX12AffinityCommandQueue::ExecuteCommandLists(
                 ID3D12Fence* pFence;
                 GetParentDevice()->mDevices[0]->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence));
                 Queue->Signal(pFence, 1);
-                HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+                HANDLE hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
                 pFence->SetEventOnCompletion(1, hEvent);
                 WaitForSingleObject(hEvent, INFINITE);
                 CloseHandle(hEvent);
@@ -278,7 +278,7 @@ void CD3DX12AffinityCommandQueue::WaitForCompletion(UINT AffinityMask)
                 GetParentDevice()->GetChildObject(0) : GetParentDevice()->GetChildObject(i);
             pDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence));
             mCommandQueues[i]->Signal(pFence, 1);
-            HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+            HANDLE hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
             pFence->SetEventOnCompletion(1, hEvent);
             WaitForSingleObject(hEvent, INFINITE);
             CloseHandle(hEvent);

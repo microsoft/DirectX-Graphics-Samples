@@ -1560,7 +1560,7 @@ void CD3DX12AffinityDevice::SwitchToNextNode()
         ID3D12Fence* pFence;
         GetParentDevice()->mDevices[0]->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence));
         mSyncCommandQueues[mActiveNodeIndex]->Signal(pFence, 1);
-        HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+        HANDLE hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
         pFence->SetEventOnCompletion(1, hEvent);
         WaitForSingleObject(hEvent, INFINITE);
         CloseHandle(hEvent);
