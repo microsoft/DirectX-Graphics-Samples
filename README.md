@@ -35,4 +35,6 @@ We're always looking for your help to fix bugs and improve the samples.  File th
 
 Find more information on DirectX 12 on our blog: http://blogs.msdn.com/b/directx/
 
+Troubleshooting information for this repository can be found in the site [Wiki](https://github.com/Microsoft/DirectX-Graphics-Samples/wiki).
+
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
