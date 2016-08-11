@@ -90,7 +90,7 @@ HRESULT STDMETHODCALLTYPE CD3DX12AffinityFence::WaitOnFenceCompletion(
             ++EventCount;
         }
     }
-    WaitForMultipleObjects((DWORD)EventCount, &(Events[0]), TRUE, INFINITE);
+    WaitForMultipleObjects((DWORD)EventCount, Events.data(), TRUE, INFINITE);
     return S_OK;
 }
 

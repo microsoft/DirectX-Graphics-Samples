@@ -34,18 +34,18 @@ public:
         _In_  REFGUID guid,
         _Inout_  UINT* pDataSize,
         _Out_writes_bytes_opt_(*pDataSize)  void* pData,
-        UINT AffinityIndex);
+        UINT AffinityIndex = 0);
 
     HRESULT STDMETHODCALLTYPE SetPrivateData(
         _In_  REFGUID guid,
         _In_  UINT DataSize,
         _In_reads_bytes_opt_(DataSize)  const void* pData,
-        UINT AffinityIndex);
+        UINT AffinityIndex = 0);
 
     HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
         _In_  REFGUID guid,
         _In_opt_  const IUnknown* pData,
-        UINT AffinityIndex);
+        UINT AffinityIndex = 0);
 
     HRESULT STDMETHODCALLTYPE SetName(
         _In_z_  LPCWSTR Name,

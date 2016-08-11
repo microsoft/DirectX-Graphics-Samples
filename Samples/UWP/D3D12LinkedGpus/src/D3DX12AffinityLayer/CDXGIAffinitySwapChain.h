@@ -55,7 +55,7 @@ public:
     HRESULT STDMETHODCALLTYPE GetParent(
         _In_  REFIID riid,
         _COM_Outptr_  void** ppParent,
-        UINT AffinityIndex);
+        UINT AffinityIndex = 0);
 
     HRESULT STDMETHODCALLTYPE Present(
         UINT SyncInterval,
@@ -96,7 +96,7 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetContainingOutput(
         _COM_Outptr_  IDXGIOutput** ppOutput,
-        UINT AffinityIndex = EAffinityMask::AllNodes);
+        UINT AffinityIndex = 0);
 
     HRESULT STDMETHODCALLTYPE GetFrameStatistics(
         _Out_  DXGI_FRAME_STATISTICS* pStats,
@@ -131,7 +131,7 @@ public:
         _In_  const DXGI_PRESENT_PARAMETERS* pPresentParameters,
         UINT AffinityMask = EAffinityMask::AllNodes);
 
-    BOOL STDMETHODCALLTYPE IsTemporaryMonoSupported(UINT AffinityIndex);
+    BOOL STDMETHODCALLTYPE IsTemporaryMonoSupported(UINT AffinityIndex = 0);
 
     HRESULT STDMETHODCALLTYPE GetRestrictToOutput(
         _Out_  IDXGIOutput** ppRestrictToOutput,

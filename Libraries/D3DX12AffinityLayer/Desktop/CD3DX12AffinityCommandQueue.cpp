@@ -105,7 +105,7 @@ void STDMETHODCALLTYPE CD3DX12AffinityCommandQueue::ExecuteCommandLists(
                     }
                 }
 
-                Queue->ExecuteCommandLists(index, &mCachedCommandLists[0]);
+                Queue->ExecuteCommandLists(index, mCachedCommandLists.data());
 
 #ifdef SERIALIZE_COMMNANDLIST_EXECUTION
                 ID3D12Fence* pFence;
@@ -236,9 +236,9 @@ D3D12_COMMAND_QUEUE_DESC STDMETHODCALLTYPE CD3DX12AffinityCommandQueue::GetDesc(
     return mCommandQueues[AffinityIndex]->GetDesc();
 }
 
-ID3D12CommandQueue* CD3DX12AffinityCommandQueue::GetQueueForSwapChainCreation(UINT const Index)
+ID3D12CommandQueue* CD3DX12AffinityCommandQueue::GetQueueForSwapChainCreation(UINT AffinityIndex)
 {
-    return mCommandQueues[Index];
+    return mCommandQueues[AffinityIndex];
 }
 
 CD3DX12AffinityCommandQueue::CD3DX12AffinityCommandQueue(CD3DX12AffinityDevice* device, ID3D12CommandQueue** commandQueues, UINT Count)

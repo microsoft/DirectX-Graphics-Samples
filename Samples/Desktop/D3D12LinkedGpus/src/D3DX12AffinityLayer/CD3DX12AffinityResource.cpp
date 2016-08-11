@@ -73,8 +73,7 @@ void STDMETHODCALLTYPE CD3DX12AffinityResource::Unmap(
     UINT Subresource,
     const D3D12_RANGE* pWrittenRange)
 {
-    if (GetParentDevice()->GetAffinityMode() == EAffinityMode::LDA
-        )
+    if (GetParentDevice()->GetAffinityMode() == EAffinityMode::LDA)
     {
         mResources[0]->Unmap(Subresource, pWrittenRange);
         return;

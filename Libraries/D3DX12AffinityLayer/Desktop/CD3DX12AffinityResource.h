@@ -43,12 +43,12 @@ public:
         UINT DstDepthPitch,
         UINT SrcSubresource,
         _In_opt_  const D3D12_BOX* pSrcBox,
-        UINT AffinityIndex);
+        UINT AffinityIndex = 0);
 
     HRESULT STDMETHODCALLTYPE GetHeapProperties(
         _Out_opt_  D3D12_HEAP_PROPERTIES* pHeapProperties,
         _Out_opt_  D3D12_HEAP_FLAGS* pHeapFlags,
-        UINT AffinityIndex);
+        UINT AffinityIndex = 0);
 
     CD3DX12AffinityResource(CD3DX12AffinityDevice* device, ID3D12Resource** resources, UINT Count, ID3D12Heap** heaps = nullptr);
     ~CD3DX12AffinityResource();

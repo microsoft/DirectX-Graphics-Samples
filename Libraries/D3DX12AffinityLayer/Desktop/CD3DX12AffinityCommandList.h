@@ -19,7 +19,7 @@ class __declspec(uuid("BE1D71C8-88FD-4623-ABFA-D0E546D12FAF")) CD3DX12AffinityCo
 public:
     CD3DX12AffinityCommandList(CD3DX12AffinityDevice* device, ID3D12CommandList** commandLists, UINT Count);
 
-    D3D12_COMMAND_LIST_TYPE STDMETHODCALLTYPE GetType(UINT AffinityIndex);
+    D3D12_COMMAND_LIST_TYPE STDMETHODCALLTYPE GetType(UINT AffinityIndex = 0);
 
     BOOL STDMETHODCALLTYPE AssertResourceState(
         _In_  CD3DX12AffinityResource* pResource,
