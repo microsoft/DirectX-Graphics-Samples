@@ -357,7 +357,7 @@ void CD3DX12AffinityGraphicsCommandList::ResourceBarrier(
                 mCachedResourceBarriers[b] = Use;
             }
 
-            List->ResourceBarrier(NumBarriers, &mCachedResourceBarriers[0]);
+            List->ResourceBarrier(NumBarriers, mCachedResourceBarriers.data());
         }
     }
 }
@@ -392,7 +392,7 @@ void CD3DX12AffinityGraphicsCommandList::SetDescriptorHeaps(
                 mCachedDescriptorHeaps[h] = static_cast<CD3DX12AffinityDescriptorHeap*>(ppDescriptorHeaps[h])->GetChildObject(i);
             }
 
-            List->SetDescriptorHeaps(NumDescriptorHeaps, &mCachedDescriptorHeaps[0]);
+            List->SetDescriptorHeaps(NumDescriptorHeaps, mCachedDescriptorHeaps.data());
         }
     }
 }
@@ -602,7 +602,7 @@ void CD3DX12AffinityGraphicsCommandList::IASetVertexBuffers(
                 mCachedBufferViews[v].BufferLocation = GetParentDevice()->GetGPUVirtualAddress(pViews[v].BufferLocation, i);
             }
 
-            List->IASetVertexBuffers(StartSlot, NumViews, &mCachedBufferViews[0]);
+            List->IASetVertexBuffers(StartSlot, NumViews, mCachedBufferViews.data());
         }
     }
 }
@@ -627,7 +627,7 @@ void CD3DX12AffinityGraphicsCommandList::SOSetTargets(
                 mCachedStreamOutBufferViews[v].BufferFilledSizeLocation = GetParentDevice()->GetGPUVirtualAddress(pViews[v].BufferFilledSizeLocation, i);
             }
 
-            List->SOSetTargets(StartSlot, NumViews, &mCachedStreamOutBufferViews[0]);
+            List->SOSetTargets(StartSlot, NumViews, mCachedStreamOutBufferViews.data());
         }
     }
 }
@@ -653,11 +653,11 @@ void CD3DX12AffinityGraphicsCommandList::OMSetRenderTargets(
             if (pDepthStencilDescriptor)
             {
                 D3D12_CPU_DESCRIPTOR_HANDLE ActualDepthStencilDescriptor = GetParentDevice()->GetCPUHeapPointer(*pDepthStencilDescriptor, i);
-                List->OMSetRenderTargets(NumRenderTargetDescriptors, &mCachedRenderTargetViews[0], RTsSingleHandleToDescriptorRange, &ActualDepthStencilDescriptor);
+                List->OMSetRenderTargets(NumRenderTargetDescriptors, mCachedRenderTargetViews.data(), RTsSingleHandleToDescriptorRange, &ActualDepthStencilDescriptor);
             }
             else
             {
-                List->OMSetRenderTargets(NumRenderTargetDescriptors, &mCachedRenderTargetViews[0], RTsSingleHandleToDescriptorRange, nullptr);
+                List->OMSetRenderTargets(NumRenderTargetDescriptors, mCachedRenderTargetViews.data(), RTsSingleHandleToDescriptorRange, nullptr);
             }
         }
     }

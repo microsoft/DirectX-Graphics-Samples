@@ -27,9 +27,8 @@ PSOLibrary::PSOLibrary(UINT frameCount, UINT cbvRootSignatureIndex) :
 	ZeroMemory(m_inflightPSOFlags, sizeof(m_inflightPSOFlags));
 	ZeroMemory(m_workerThreads, sizeof(m_workerThreads));
 
-	WCHAR path[512];
-	GetAssetsPath(path, _countof(path));
-	m_assetsPath = path;
+	m_assetsPath = Windows::Storage::ApplicationData::Current->LocalCacheFolder->Path->Data();
+	m_assetsPath += L"\\";
 
 	m_flagsMutex = CreateMutex(nullptr, FALSE, nullptr);
 }

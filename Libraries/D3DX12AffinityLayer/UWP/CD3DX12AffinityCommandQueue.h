@@ -71,18 +71,18 @@ public:
 
     HRESULT STDMETHODCALLTYPE GetTimestampFrequency(
         _Out_  UINT64* pFrequency,
-        _In_ UINT AffinityIndex = 0);
+        UINT AffinityIndex = 0);
 
     HRESULT STDMETHODCALLTYPE GetClockCalibration(
         _Out_  UINT64* pGpuTimestamp,
         _Out_  UINT64* pCpuTimestamp,
-        UINT AffinityIndex);
+        UINT AffinityIndex = 0);
 
-    D3D12_COMMAND_QUEUE_DESC STDMETHODCALLTYPE GetDesc(UINT AffinityIndex);
+    D3D12_COMMAND_QUEUE_DESC STDMETHODCALLTYPE GetDesc(UINT AffinityIndex = 0);
 
-    ID3D12CommandQueue* GetQueueForSwapChainCreation(UINT const Index = 0);
+    ID3D12CommandQueue* GetQueueForSwapChainCreation(UINT AffinityIndex);
     ID3D12CommandQueue* GetChildObject(UINT AffinityIndex);
-    void WaitForCompletion(UINT AffinityMask = 0);
+    void WaitForCompletion(UINT AffinityMask = EAffinityMask::AllNodes);
 
     CD3DX12AffinityCommandQueue(CD3DX12AffinityDevice* device, ID3D12CommandQueue** commandQueues, UINT Count);
 

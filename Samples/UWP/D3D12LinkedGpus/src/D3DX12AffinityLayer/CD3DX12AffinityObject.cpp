@@ -67,7 +67,7 @@ HRESULT STDMETHODCALLTYPE CD3DX12AffinityObject::SetName(
     {
         for (UINT i = 0; i < D3DX12_MAX_ACTIVE_NODES; ++i)
         {
-            if(mObjects[i])
+            if (mObjects[i])
             {
                 ((ID3D12Object*)mObjects[i])->SetName(Name);
             }
@@ -87,7 +87,6 @@ void STDMETHODCALLTYPE CD3DX12AffinityObject::SetAffinity(
     UINT AffinityMask)
 {
     mAffinityMask = AffinityMask & GetNodeMask();
-
 }
 
 UINT CD3DX12AffinityObject::AffinityIndexToMask(UINT const Index)
@@ -126,7 +125,6 @@ CD3DX12AffinityObject::~CD3DX12AffinityObject()
             DebugLog(L"Releasing handle 0x%p, ref count is now %lu\n", mObjects[i], RefCount);
         }
     }
-
 }
 
 ULONG CD3DX12AffinityObject::AddRef()

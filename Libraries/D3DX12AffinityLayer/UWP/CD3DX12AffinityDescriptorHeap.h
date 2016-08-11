@@ -19,7 +19,7 @@ class __declspec(uuid("BE1D71C8-88FD-4623-ABFA-D0E546D12FAF")) CD3DX12AffinityDe
     friend class CD3DX12AffinityDevice;
 
 public:
-    D3D12_DESCRIPTOR_HEAP_DESC STDMETHODCALLTYPE GetDesc(UINT AffinityIndex);
+    D3D12_DESCRIPTOR_HEAP_DESC STDMETHODCALLTYPE GetDesc(UINT AffinityIndex = 0);
 
     D3D12_CPU_DESCRIPTOR_HANDLE STDMETHODCALLTYPE GetCPUDescriptorHandleForHeapStart(void);
 

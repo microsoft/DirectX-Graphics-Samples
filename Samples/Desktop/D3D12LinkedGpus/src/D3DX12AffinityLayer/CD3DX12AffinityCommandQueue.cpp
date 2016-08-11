@@ -105,13 +105,13 @@ void STDMETHODCALLTYPE CD3DX12AffinityCommandQueue::ExecuteCommandLists(
                     }
                 }
 
-                Queue->ExecuteCommandLists(index, &mCachedCommandLists[0]);
+                Queue->ExecuteCommandLists(index, mCachedCommandLists.data());
 
 #ifdef SERIALIZE_COMMNANDLIST_EXECUTION
                 ID3D12Fence* pFence;
                 GetParentDevice()->mDevices[0]->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence));
                 Queue->Signal(pFence, 1);
-                HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+                HANDLE hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
                 pFence->SetEventOnCompletion(1, hEvent);
                 WaitForSingleObject(hEvent, INFINITE);
                 CloseHandle(hEvent);
@@ -236,9 +236,9 @@ D3D12_COMMAND_QUEUE_DESC STDMETHODCALLTYPE CD3DX12AffinityCommandQueue::GetDesc(
     return mCommandQueues[AffinityIndex]->GetDesc();
 }
 
-ID3D12CommandQueue* CD3DX12AffinityCommandQueue::GetQueueForSwapChainCreation(UINT const Index)
+ID3D12CommandQueue* CD3DX12AffinityCommandQueue::GetQueueForSwapChainCreation(UINT AffinityIndex)
 {
-    return mCommandQueues[Index];
+    return mCommandQueues[AffinityIndex];
 }
 
 CD3DX12AffinityCommandQueue::CD3DX12AffinityCommandQueue(CD3DX12AffinityDevice* device, ID3D12CommandQueue** commandQueues, UINT Count)
@@ -278,7 +278,7 @@ void CD3DX12AffinityCommandQueue::WaitForCompletion(UINT AffinityMask)
                 GetParentDevice()->GetChildObject(0) : GetParentDevice()->GetChildObject(i);
             pDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence));
             mCommandQueues[i]->Signal(pFence, 1);
-            HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+            HANDLE hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
             pFence->SetEventOnCompletion(1, hEvent);
             WaitForSingleObject(hEvent, INFINITE);
             CloseHandle(hEvent);

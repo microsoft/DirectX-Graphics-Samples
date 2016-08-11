@@ -79,7 +79,7 @@ HRESULT STDMETHODCALLTYPE CD3DX12AffinityFence::WaitOnFenceCompletion(
         {
             ID3D12Fence* Fence = mFences[i];
             Events.push_back(0);
-            Events[EventCount] = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
+            Events[EventCount] = CreateEvent(nullptr, FALSE, FALSE, nullptr);
             HRESULT const hr = Fence->SetEventOnCompletion(Value, Events[EventCount]);
 
             if (hr != S_OK)
@@ -90,7 +90,7 @@ HRESULT STDMETHODCALLTYPE CD3DX12AffinityFence::WaitOnFenceCompletion(
             ++EventCount;
         }
     }
-    WaitForMultipleObjects((DWORD)EventCount, &(Events[0]), TRUE, INFINITE);
+    WaitForMultipleObjects((DWORD)EventCount, Events.data(), TRUE, INFINITE);
     return S_OK;
 }
 

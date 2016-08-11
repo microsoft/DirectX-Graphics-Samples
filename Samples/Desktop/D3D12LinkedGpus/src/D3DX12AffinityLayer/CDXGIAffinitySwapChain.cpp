@@ -349,8 +349,8 @@ HRESULT STDMETHODCALLTYPE CDXGIAffinitySwapChain::ResizeBuffers(
                     Height,
                     NewFormat,
                     SwapChainFlags,
-                    &creationNodeMasks[0],
-                    &pQueues[0]));
+                    creationNodeMasks.data(),
+                    pQueues.data()));
 
             GetParentDevice()->g_ActiveNodeIndex = 0;
         }
