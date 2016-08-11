@@ -184,41 +184,51 @@ void D3D12SingleGpu::LoadAssets()
 {
 	// Create the root signatures.
 	{
+		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+
+		// This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+		if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+		{
+			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+		}
+
 		// Create a root signature for rendering the triangle scene.
 		{
-			CD3DX12_DESCRIPTOR_RANGE sceneRanges[1];
-			sceneRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+			CD3DX12_DESCRIPTOR_RANGE1 sceneRanges[1];
+			sceneRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-			CD3DX12_ROOT_PARAMETER sceneRootParameters[2];
+			CD3DX12_ROOT_PARAMETER1 sceneRootParameters[2];
 			sceneRootParameters[0].InitAsDescriptorTable(1, &sceneRanges[0], D3D12_SHADER_VISIBILITY_VERTEX);
 			sceneRootParameters[1].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 
-			CD3DX12_ROOT_SIGNATURE_DESC sceneRootSignatureDesc;
-			sceneRootSignatureDesc.Init(_countof(sceneRootParameters), sceneRootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+			CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC sceneRootSignatureDesc;
+			sceneRootSignatureDesc.Init_1_1(_countof(sceneRootParameters), sceneRootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 			ComPtr<ID3DBlob> signature;
 			ComPtr<ID3DBlob> error;
-			ThrowIfFailed(D3D12SerializeRootSignature(&sceneRootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+			ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&sceneRootSignatureDesc, featureData.HighestVersion, &signature, &error));
 			ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_sceneRootSignature)));
 		}
 
 		// Create a root signature for the post-process pass.
 		{
-			CD3DX12_DESCRIPTOR_RANGE postRanges[2];
-			postRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Settings::SceneHistoryCount, 0);
+			CD3DX12_DESCRIPTOR_RANGE1 postRanges[2];
+			postRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Settings::SceneHistoryCount, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 			postRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
 
-			CD3DX12_ROOT_PARAMETER postRootParameters[3];
+			CD3DX12_ROOT_PARAMETER1 postRootParameters[3];
 			postRootParameters[0].InitAsDescriptorTable(1, &postRanges[0], D3D12_SHADER_VISIBILITY_PIXEL);
 			postRootParameters[1].InitAsDescriptorTable(1, &postRanges[1], D3D12_SHADER_VISIBILITY_PIXEL);
 			postRootParameters[2].InitAsConstants(2, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
-			CD3DX12_ROOT_SIGNATURE_DESC postRootSignatureDesc;
-			postRootSignatureDesc.Init(_countof(postRootParameters), postRootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+			CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC postRootSignatureDesc;
+			postRootSignatureDesc.Init_1_1(_countof(postRootParameters), postRootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 			ComPtr<ID3DBlob> signature;
 			ComPtr<ID3DBlob> error;
-			ThrowIfFailed(D3D12SerializeRootSignature(&postRootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+			ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&postRootSignatureDesc, featureData.HighestVersion, &signature, &error));
 			ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_postRootSignature)));
 		}
 	}

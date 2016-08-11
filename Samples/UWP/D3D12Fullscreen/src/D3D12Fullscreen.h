@@ -40,11 +40,19 @@ private:
 	static const UINT FrameCount = 2;
 	static const float QuadWidth;
 	static const float QuadHeight;
+	static const float LetterboxColor[4];
+	static const float ClearColor[4];
 
-	struct Vertex
+	struct SceneVertex
 	{
 		XMFLOAT3 position;
 		XMFLOAT4 color;
+	};
+
+	struct PostVertex
+	{
+		XMFLOAT4 position;
+		XMFLOAT2 uv;
 	};
 
 	struct SceneConstantBuffer
@@ -52,30 +60,48 @@ private:
 		XMFLOAT4X4 transform;
 		XMFLOAT4 offset;
 		UINT padding[44];
+	}; 
+	
+	struct Resolution
+	{
+		UINT Width;
+		UINT Height;
 	};
 
+	static const Resolution m_resolutionOptions[];
+	static const UINT m_resolutionOptionsCount;
+	static UINT m_resolutionIndex; // Index of the current scene rendering resolution from m_resolutionOptions.
+
 	// Pipeline objects.
-	D3D12_VIEWPORT m_viewport;
-	D3D12_RECT m_scissorRect;
+	D3D12_VIEWPORT m_sceneViewport;
+	D3D12_VIEWPORT m_postViewport;
+	D3D12_RECT m_sceneScissorRect;
+	D3D12_RECT m_postScissorRect;
 	ComPtr<IDXGISwapChain3> m_swapChain;
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
-	ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
+	ComPtr<ID3D12Resource> m_intermediateRenderTarget;
+	ComPtr<ID3D12CommandAllocator> m_sceneCommandAllocators[FrameCount];
+	ComPtr<ID3D12CommandAllocator> m_postCommandAllocators[FrameCount];
 	ComPtr<ID3D12CommandQueue> m_commandQueue;
-	ComPtr<ID3D12RootSignature> m_rootSignature;
+	ComPtr<ID3D12RootSignature> m_sceneRootSignature;
+	ComPtr<ID3D12RootSignature> m_postRootSignature;
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-	ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
-	ComPtr<ID3D12PipelineState> m_pipelineState;
-	ComPtr<ID3D12GraphicsCommandList> m_commandList;
+	ComPtr<ID3D12DescriptorHeap> m_cbvSrvHeap;
+	ComPtr<ID3D12PipelineState> m_scenePipelineState;
+	ComPtr<ID3D12PipelineState> m_postPipelineState;
+	ComPtr<ID3D12GraphicsCommandList> m_sceneCommandList;
+	ComPtr<ID3D12GraphicsCommandList> m_postCommandList;
 	UINT m_rtvDescriptorSize;
-	UINT m_cbvDescriptorSize;
+	UINT m_cbvSrvDescriptorSize;
 
 	// App resources.
-	ComPtr<ID3D12Resource> m_vertexBuffer;
-	ComPtr<ID3D12Resource> m_vertexBufferUpload;
-	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
-	ComPtr<ID3D12Resource> m_constantBuffer;
-	SceneConstantBuffer m_constantBufferData;
+	ComPtr<ID3D12Resource> m_sceneVertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_sceneVertexBufferView;
+	ComPtr<ID3D12Resource> m_postVertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_postVertexBufferView;
+	ComPtr<ID3D12Resource> m_sceneConstantBuffer;
+	SceneConstantBuffer m_sceneConstantBufferData;
 	UINT8* m_pCbvDataBegin;
 
 	// Synchronization objects.
@@ -87,13 +113,15 @@ private:
 	// Track the state of the window.
 	// If it's minimized the app may decide not to render frames.
 	bool m_windowVisible;
-	bool m_resizeResources;
 	bool m_windowedMode;
 
 	void LoadPipeline();
 	void LoadAssets();
 	void LoadSizeDependentResources();
-	void PopulateCommandList();
+	void LoadSceneResolutionDependentResources();
+	void PopulateCommandLists();
 	void WaitForGpu();
 	void MoveToNextFrame();
+	void UpdatePostViewAndScissor();
+	void UpdateTitle();
 };

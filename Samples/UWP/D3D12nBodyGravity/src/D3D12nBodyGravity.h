@@ -142,13 +142,20 @@ private:
 	ThreadData m_threadData[ThreadCount];
 	HANDLE m_threadHandles[ThreadCount];
 
-	// Indices in the root parameter table.
-	enum RootParameters : UINT32
+	// Indices of the root signature parameters.
+	enum GraphicsRootParameters : UINT32
 	{
-		RootParameterCB = 0,
-		RootParameterSRV,
-		RootParameterUAV,
-		RootParametersCount
+		GraphicsRootCBV = 0,
+		GraphicsRootSRVTable,
+		GraphicsRootParametersCount
+	};
+
+	enum ComputeRootParameters : UINT32
+	{
+		ComputeRootCBV = 0,
+		ComputeRootSRVTable,
+		ComputeRootUAVTable,
+		ComputeRootParametersCount
 	};
 
 	// Indices of shader resources in the descriptor heap.
