@@ -12,94 +12,25 @@
 #include "stdafx.h"
 #include "MemoryMappedPSOCache.h"
 
-MemoryMappedPSOCache::MemoryMappedPSOCache() :
-	m_mapFile(INVALID_HANDLE_VALUE),
-	m_file(INVALID_HANDLE_VALUE),
-	m_mapAddress(nullptr)
-{
-}
-
-MemoryMappedPSOCache::~MemoryMappedPSOCache()
-{
-}
-
-void MemoryMappedPSOCache::Init(std::wstring filename)
-{
-	m_filename = filename;
-	WIN32_FIND_DATA findFileData;
-	HANDLE handle = FindFirstFileEx(filename.c_str(), FindExInfoBasic, &findFileData, FindExSearchNameMatch, nullptr, 0);
-	bool found = handle != INVALID_HANDLE_VALUE;
-
-	if (found)
-	{
-		FindClose(handle);
-	}
-
-	m_file = CreateFile2(
-		filename.c_str(),
-		GENERIC_READ | GENERIC_WRITE,
-		0,
-		(found) ? OPEN_EXISTING : CREATE_NEW,
-		nullptr);
-
-	if (m_file == INVALID_HANDLE_VALUE)
-	{
-		std::cerr << (L"m_file is invalid\n");
-		std::cerr << (L"Target file is %s\n", filename.c_str());
-		return;
-	}
-
-	m_mapFile = CreateFileMapping(m_file, nullptr, PAGE_READWRITE, 0, m_fileSize, nullptr);
-
-	if (m_mapFile == nullptr)
-	{
-		std::cerr << (L"m_mapFile is NULL: last error: %d\n", GetLastError());
-		assert(false);
-		return;
-	}
-
-	m_mapAddress = MapViewOfFile(m_mapFile, FILE_MAP_ALL_ACCESS, 0, 0, m_fileSize);
-
-	if (m_mapAddress == nullptr)
-	{
-		std::cerr << (L"m_mapAddress is NULL: last error: %d\n", GetLastError());
-		assert(false);
-		return;
-	}
-}
-
 void MemoryMappedPSOCache::Update(ID3DBlob* pBlob)
 {
-	static_cast<UINT*>(m_mapAddress)[0] = static_cast<UINT>(pBlob->GetBufferSize());
-	memcpy(GetCachedBlob(), pBlob->GetBufferPointer(), pBlob->GetBufferSize());
-}
-
-void MemoryMappedPSOCache::Destroy(bool deleteFile)
-{
-	if (m_mapAddress)
+	if (pBlob)
 	{
-		BOOL flag = UnmapViewOfFile(m_mapAddress);
-
-		m_mapAddress = nullptr;
-		flag = CloseHandle(m_mapFile);	// Close the file mapping object.
-
-		if (!flag)
+		assert(pBlob->GetBufferSize() <= UINT_MAX);	// Code below casts to UINT.
+		const UINT blobSize = static_cast<UINT>(pBlob->GetBufferSize());
+		if (blobSize > 0)
 		{
-			std::cerr << (L"\nError %ld occurred closing the mapping object!", GetLastError());
-			assert(false);
+			// Grow the file if needed.
+			const size_t neededSize = sizeof(UINT) + blobSize;
+			if (neededSize > m_currentFileSize)
+			{
+				MemoryMappedFile::GrowMapping(blobSize);
+			}
+
+			// Save the size of the blob, and then the blob itself.
+			assert(neededSize <= m_currentFileSize);
+			MemoryMappedFile::SetSize(blobSize);
+			memcpy(GetCachedBlob(), pBlob->GetBufferPointer(), pBlob->GetBufferSize());
 		}
-
-		flag = CloseHandle(m_file);		// Close the file itself.
-
-		if (!flag)
-		{
-			std::cerr << (L"\nError %ld occurred closing the file!", GetLastError());
-			assert(false);
-		}
-	}
-
-	if (deleteFile)
-	{
-		DeleteFile(m_filename.c_str());
 	}
 }

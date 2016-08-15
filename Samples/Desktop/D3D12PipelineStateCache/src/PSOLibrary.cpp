@@ -21,6 +21,7 @@ PSOLibrary::PSOLibrary(UINT frameCount, UINT cbvRootSignatureIndex) :
 	m_flagsMutex(),
 	m_useUberShaders(true),
 	m_useDiskLibraries(true),
+	m_psoCachingMechanism(PSOCachingMechanism::PipelineLibraries),
 	m_drawIndex(0)
 {
 	ZeroMemory(m_compiledPSOFlags, sizeof(m_compiledPSOFlags));
@@ -29,7 +30,7 @@ PSOLibrary::PSOLibrary(UINT frameCount, UINT cbvRootSignatureIndex) :
 
 	WCHAR path[512];
 	GetAssetsPath(path, _countof(path));
-	m_assetsPath = path;
+	m_cachePath = path;
 
 	m_flagsMutex = CreateMutex(nullptr, FALSE, nullptr);
 }
@@ -42,6 +43,9 @@ PSOLibrary::~PSOLibrary()
 	{
 		m_diskCaches[i].Destroy(false);
 	}
+
+	// The Pipeline Library is saved to disk on exit.
+	m_pipelineLibrary.Destroy(false);
 }
 
 void PSOLibrary::WaitForThreads()
@@ -59,9 +63,18 @@ void PSOLibrary::WaitForThreads()
 
 void PSOLibrary::Build(ID3D12Device* pDevice, ID3D12RootSignature* pRootSignature)
 {
+	// Initialize all cache file mappings (file may be empty).
+	m_pipelineLibrariesSupported = m_pipelineLibrary.Init(pDevice, m_cachePath + g_cPipelineLibraryFileName);
 	for (UINT i = 0; i < EffectPipelineTypeCount; i++)
 	{
-		m_diskCaches[i].Init(m_assetsPath + g_cCacheFileNames[i]);
+		m_diskCaches[i].Init(m_cachePath + g_cCacheFileNames[i]);
+	}
+
+	// Use Pipeline Libraries for PSO Caching, if available.
+	if (!m_pipelineLibrariesSupported)
+	{
+		// Fallback to Cached Blobs.
+		m_psoCachingMechanism = PSOCachingMechanism::CachedBlobs;
 	}
 
 	// Always compile the 3D shader and the Ubershader.
@@ -171,17 +184,13 @@ void PSOLibrary::CompilePSO(CompilePSOThreadData* pDataPackage)
 	ID3D12RootSignature* pRootSignature = pDataPackage->pRootSignature;
 	EffectPipelineType type = pDataPackage->type;
 	bool useCache = false;
+	bool sleepToEmulateComplexCreatePSO = false;
 
 	{
 		auto lock = Mutex::Lock(pLibrary->m_flagsMutex);
 
 		// When using the disk cache compilation should be extremely quick so don't sleep.
 		useCache = pLibrary->m_useDiskLibraries;
-	}
-
-	if (useCache && pLibrary->m_diskCaches[type].GetPointerToStartOfFile() == nullptr)
-	{
-		pLibrary->m_diskCaches[type].Init(pLibrary->m_assetsPath + g_cCacheFileNames[type]);
 	}
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC baseDesc = {};
@@ -203,25 +212,56 @@ void PSOLibrary::CompilePSO(CompilePSOThreadData* pDataPackage)
 	baseDesc.HS = g_cEffectShaderData[type].HS;
 	baseDesc.GS = g_cEffectShaderData[type].GS;
 
-	if (useCache && pLibrary->m_diskCaches[type].GetPointerToStartOfFile() != nullptr)
+	if (useCache && 
+		(pLibrary->m_psoCachingMechanism == PSOCachingMechanism::PipelineLibraries))
+	{
+		assert(pLibrary->m_pipelineLibrary.IsMapped());
+		ID3D12PipelineLibrary* pPipelineLibrary = pLibrary->m_pipelineLibrary.GetPipelineLibrary();
+
+		// Note: Load*Pipeline() will auto-name PSOs for you based on the provided name. However, this sample overrides those names.
+		HRESULT hr = pPipelineLibrary->LoadGraphicsPipeline(g_cEffectNames[type], &baseDesc, IID_PPV_ARGS(&pLibrary->m_pipelineStates[type]));
+		if (E_INVALIDARG == hr)
+		{
+			// A PSO with the specified name doesn’t exist, or the input desc doesn’t match the data in the library.
+			// Create the PSO and then store it in the library for next time.
+			ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&baseDesc, IID_PPV_ARGS(&pLibrary->m_pipelineStates[type])));
+
+			// Note: You don't need to pass StorePipeline() a name if the object is already named. If the name parameter is null, it will use the object's name.
+			hr = pPipelineLibrary->StorePipeline(g_cEffectNames[type], pLibrary->m_pipelineStates[type].Get());
+			if (E_INVALIDARG == hr)
+			{
+				// A PSO with the specified name already exists in the library.
+				// This shouldn't happen in this sample, but depending on how you name the PSOs collisions are possible.
+			}
+			else
+			{
+				ThrowIfFailed(hr);
+			}
+
+			sleepToEmulateComplexCreatePSO = true;
+		}
+		else
+		{
+			ThrowIfFailed(hr);
+		}
+	}
+	else if (useCache && 
+		(pLibrary->m_psoCachingMechanism == PSOCachingMechanism::CachedBlobs))
 	{
 		// Read how long the cached shader blob is.
-		UINT size = pLibrary->m_diskCaches[type].GetCachedBlobSize();
+		assert(pLibrary->m_diskCaches[type].IsMapped());
+		size_t size = pLibrary->m_diskCaches[type].GetCachedBlobSize();
 
 		// If the size if 0 then this disk cache needs to be refreshed.
 		if (size == 0)
 		{
 			ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&baseDesc, IID_PPV_ARGS(&pLibrary->m_pipelineStates[type])));
+
 			ComPtr<ID3DBlob> blob;
 			pLibrary->m_pipelineStates[type]->GetCachedBlob(&blob);
-
 			pLibrary->m_diskCaches[type].Update(blob.Get());
 
-			// The effects are very simple and should compile quickly so we'll sleep to emulate something more complex.
-			if (type > BaseUberShader)
-			{
-				Sleep(500);
-			}
+			sleepToEmulateComplexCreatePSO = true;
 		}
 		else
 		{
@@ -235,18 +275,13 @@ void PSOLibrary::CompilePSO(CompilePSOThreadData* pDataPackage)
 			if (FAILED(hr))
 			{
 				baseDesc.CachedPSO = {};
-
 				ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&baseDesc, IID_PPV_ARGS(&pLibrary->m_pipelineStates[type])));
+
 				ComPtr<ID3DBlob> blob;
 				pLibrary->m_pipelineStates[type]->GetCachedBlob(&blob);
-
 				pLibrary->m_diskCaches[type].Update(blob.Get());
 
-				// The effects are few and very simple and should compile quickly so we'll sleep to emulate something more complex.
-				if (type > BaseUberShader)
-				{
-					Sleep(500);
-				}
+				sleepToEmulateComplexCreatePSO = true;
 			}
 		}
 	}
@@ -254,11 +289,13 @@ void PSOLibrary::CompilePSO(CompilePSOThreadData* pDataPackage)
 	{
 		ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&baseDesc, IID_PPV_ARGS(&pLibrary->m_pipelineStates[type])));
 
-		// The effects are few and very simple and should compile quickly so we'll sleep to emulate something more complex.
-		if (type > BaseUberShader)
-		{
-			Sleep(500);
-		}
+		sleepToEmulateComplexCreatePSO = true;
+	}
+
+	// The effects are very simple and should compile quickly so we'll sleep to emulate something more complex.
+	if (sleepToEmulateComplexCreatePSO && type > BaseUberShader)
+	{
+		Sleep(500);
 	}
 
 	WCHAR name[50];
@@ -299,6 +336,8 @@ void PSOLibrary::ClearPSOCache()
 	{
 		m_diskCaches[i].Destroy(true);
 	}
+
+	m_pipelineLibrary.Destroy(true);
 }
 
 void PSOLibrary::ToggleUberShader()
@@ -312,6 +351,27 @@ void PSOLibrary::ToggleDiskLibrary()
 		auto lock = Mutex::Lock(m_flagsMutex);
 
 		m_useDiskLibraries = !m_useDiskLibraries;
+	}
+
+	WaitForThreads();
+}
+
+void PSOLibrary::SwitchPSOCachingMechanism()
+{
+	{
+		auto lock = Mutex::Lock(m_flagsMutex);
+
+		UINT newMechanism = static_cast<UINT>(m_psoCachingMechanism) + 1;
+		newMechanism = newMechanism % PSOCachingMechanism::PSOCachingMechanismCount;
+
+		// Don't allow Pipeline Libraries if they're not available.
+		if (!m_pipelineLibrariesSupported && (newMechanism == PSOCachingMechanism::PipelineLibraries))
+		{
+			newMechanism++;
+			newMechanism = newMechanism % PSOCachingMechanism::PSOCachingMechanismCount;
+		}
+		
+		m_psoCachingMechanism = static_cast<PSOCachingMechanism>(newMechanism);
 	}
 
 	WaitForThreads();

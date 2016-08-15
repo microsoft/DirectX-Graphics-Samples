@@ -45,10 +45,20 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 	// Create a root signature with a single constant buffer slot.
 	{
-		CD3DX12_DESCRIPTOR_RANGE range;
-		CD3DX12_ROOT_PARAMETER parameter;
+		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
 
-		range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+		// This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+		if (FAILED(d3dDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+		{
+			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+		}
+
+		CD3DX12_DESCRIPTOR_RANGE1 range;
+		CD3DX12_ROOT_PARAMETER1 parameter;
+
+		range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 		parameter.InitAsDescriptorTable(1, &range, D3D12_SHADER_VISIBILITY_VERTEX);
 
 		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -58,12 +68,12 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
 			D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 
-		CD3DX12_ROOT_SIGNATURE_DESC descRootSignature;
-		descRootSignature.Init(1, &parameter, 0, nullptr, rootSignatureFlags);
+		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC descRootSignature;
+		descRootSignature.Init_1_1(1, &parameter, 0, nullptr, rootSignatureFlags);
 
 		ComPtr<ID3DBlob> pSignature;
 		ComPtr<ID3DBlob> pError;
-		DX::ThrowIfFailed(D3D12SerializeRootSignature(&descRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, pSignature.GetAddressOf(), pError.GetAddressOf()));
+		DX::ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&descRootSignature, featureData.HighestVersion, pSignature.GetAddressOf(), pError.GetAddressOf()));
 		DX::ThrowIfFailed(d3dDevice->CreateRootSignature(0, pSignature->GetBufferPointer(), pSignature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
 		NAME_D3D12_OBJECT(m_rootSignature);
 	}

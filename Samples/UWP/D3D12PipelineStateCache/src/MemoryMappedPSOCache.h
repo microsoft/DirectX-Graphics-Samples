@@ -11,42 +11,16 @@
 
 #pragma once
 
-class MemoryMappedPSOCache
+#include "MemoryMappedFile.h"
+
+// Native, hardware-specific, PSO cache using a Cached Blob.
+class MemoryMappedPSOCache : public MemoryMappedFile
 {
 public:
-	MemoryMappedPSOCache();
-	~MemoryMappedPSOCache();
-
-	void Init(std::wstring filename);
+	void Init(std::wstring filename) { MemoryMappedFile::Init(filename); }
+	void Destroy(bool deleteFile) { MemoryMappedFile::Destroy(deleteFile); }
 	void Update(ID3DBlob *pBlob);
-	void Destroy(bool deleteFile);
 
-	void* GetPointerToStartOfFile() { return m_mapAddress; }
-
-	UINT GetCachedBlobSize()
-	{
-		if (m_mapAddress)
-		{
-			return static_cast<UINT*>(m_mapAddress)[0];
-		}
-		return 0;
-	}
-
-	void* GetCachedBlob()
-	{
-		if (m_mapAddress)
-		{
-			// The actual data comes after the length.
-			return &static_cast<UINT*>(m_mapAddress)[1];
-		}
-		return nullptr;
-	}
-
-private:
-	static const UINT m_fileSize = 2 * (1024 * 1024);
-
-	HANDLE m_mapFile;
-	HANDLE m_file;
-	LPVOID m_mapAddress;
-	std::wstring m_filename;
+	size_t GetCachedBlobSize() const { return GetSize(); }
+	void* GetCachedBlob() { return GetData(); }
 };

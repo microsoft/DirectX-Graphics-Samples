@@ -13,6 +13,7 @@
 #include "DXSample.h"
 #include "DynamicConstantBuffer.h"
 #include "MemoryMappedPSOCache.h"
+#include "MemoryMappedPipelineLibrary.h"
 #include "SimpleVertexShader.hlsl.h"
 #include "SimplePixelShader.hlsl.h"
 #include "QuadVertexShader.hlsl.h"
@@ -31,7 +32,17 @@ using namespace Microsoft::WRL;
 using namespace DirectX;
 using namespace std;
 
-enum EffectPipelineType
+enum PSOCachingMechanism
+{
+	CachedBlobs,
+
+	// Enables applications to explicitly group PSOs which are expected to share data. Recommended over Cached Blobs.
+	PipelineLibraries,
+
+	PSOCachingMechanismCount
+};
+
+enum EffectPipelineType : UINT
 {
 	// These always get compiled at startup.
 	BaseNormal3DRender,
@@ -167,6 +178,8 @@ static const GraphicsShaderSet g_cEffectShaderData[EffectPipelineTypeCount] =
 	},
 };
 
+static const LPWCH g_cPipelineLibraryFileName = L"pipelineLibrary.cache";
+
 static const LPWCH g_cCacheFileNames[EffectPipelineTypeCount] =
 {
 	L"normal3dPSO.cache",
@@ -216,10 +229,12 @@ public:
 	void ClearPSOCache();
 	void ToggleUberShader();
 	void ToggleDiskLibrary();
+	void SwitchPSOCachingMechanism();
 	void DestroyShader(EffectPipelineType type);
 
 	bool UberShadersEnabled() { return m_useUberShaders; }
 	bool DiskCacheEnabled() { return m_useDiskLibraries; }
+	PSOCachingMechanism GetPSOCachingMechanism() { return m_psoCachingMechanism; }
 
 private:
 	static const UINT BaseEffectCount = 2;
@@ -246,13 +261,16 @@ private:
 	ComPtr<ID3D12PipelineState> m_pipelineStates[EffectPipelineTypeCount];
 	bool m_compiledPSOFlags[EffectPipelineTypeCount];
 	bool m_inflightPSOFlags[EffectPipelineTypeCount];
-	MemoryMappedPSOCache m_diskCaches[EffectPipelineTypeCount];
+	MemoryMappedPSOCache m_diskCaches[EffectPipelineTypeCount];	// Cached blobs.
+	MemoryMappedPipelineLibrary m_pipelineLibrary; // Pipeline Library.
 	HANDLE m_flagsMutex;
 	CompilePSOThreadData m_workerThreads[EffectPipelineTypeCount];
 
 	bool m_useUberShaders;
 	bool m_useDiskLibraries;
-	std::wstring m_assetsPath;
+	bool m_pipelineLibrariesSupported;
+	PSOCachingMechanism m_psoCachingMechanism;
+	std::wstring m_cachePath;
 
 	UINT m_cbvRootSignatureIndex;
 	UINT m_maxDrawsPerFrame;

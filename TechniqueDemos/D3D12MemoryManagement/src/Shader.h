@@ -24,7 +24,7 @@ protected:
 	HRESULT CreateDeviceDependentState(
 		ID3D12Device* pDevice,
 		const wchar_t* pShaderFile,
-		D3D12_ROOT_SIGNATURE_DESC* pRootSignatureDesc,
+		D3D12_VERSIONED_ROOT_SIGNATURE_DESC* pRootSignatureDesc,
 		D3D12_INPUT_ELEMENT_DESC* pInputElements,
 		UINT InputElementCount,
 		bool bEnableAlpha);
