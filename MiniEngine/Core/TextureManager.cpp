@@ -118,7 +118,7 @@ void Texture::CreateTGAFromMemory( const void* _filePtr, size_t, bool sRGB )
 
 	Create( imageWidth, imageHeight, sRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM, formattedData );
 
-	delete formattedData;
+	delete [] formattedData;
 }
 
 bool Texture::CreateDDSFromMemory( const void* filePtr, size_t fileSize, bool sRGB )
