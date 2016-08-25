@@ -13,6 +13,9 @@
 
 #pragma warning( disable : 3571 )
 
+#ifndef __COLOR_SPACE_UTILITY_HLSLI__
+#define __COLOR_SPACE_UTILITY_HLSLI__
+
 //
 // Gamma ramps and encoding transfer functions
 //
@@ -23,45 +26,47 @@
 // to contrast with dark values.  A logarithmic curve is often used.
 //
 
-// This approximates sRGB sufficiently enough that for 8-bit encodings is indistinguishable
-// from the "slow" version.  This can be a lot faster due to avoiding three pow() calls.
-float3 LinearToSRGB_Fast( float3 x )
-{
-	return x < 0.0031308 ? 12.92 * x : 1.13005 * sqrt(x - 0.00228) - 0.13448 * x + 0.005719;
-}
-
+// sRGB is both a color space and a transfer function or "gamma ramp".  (It's not a true gamma
+// curve, which have been deprecated along with CRT displays.)  sRGB is what almost all 8 bpc
+// textures use, and when passed to an LCD monitor they look right.  sRGB textures must be
+// linearized for physically correct rendering, and the linear results need to be re-encoded
+// with the sRGB ramp for display.
 float3 LinearToSRGB( float3 x )
 {
+	// Approximately pow(x, 1.0 / 2.2)
 	return x < 0.0031308 ? 12.92 * x : 1.055 * pow(x, 1.0 / 2.4) - 0.055;
 }
 
 float3 SRGBToLinear( float3 x )
 {
+	// Approximately pow(x, 2.2)
 	return x < 0.04045 ? x / 12.92 : pow( (x + 0.055) / 1.055, 2.4 );
 }
 
+// These functions avoid pow() to efficiently approximate sRGB with an error < 0.4%.
+float3 LinearToSRGB_Fast( float3 x )
+{
+	return x < 0.0031308 ? 12.92 * x : 1.13005 * sqrt(x - 0.00228) - 0.13448 * x + 0.005719;
+}
+
+float3 SRGBToLinear_Fast( float3 x )
+{
+	return x < 0.04045 ? x / 12.92 : -7.43605 * x - 31.24297 * sqrt(-0.53792 * x + 1.279924) + 35.34864;
+}
+
+// The OETF recommended for content shown on HDTVs.  This "gamma ramp" may increase contrast as
+// appropriate for viewing in a dark environment.
 float3 LinearToREC709( float3 x )
-{
-	return x < 0.018 ? 4.5 * x : 1.099 * pow(x, 0.45) - 0.099;
-}
-
-float3 REC709ToLinear( float3 x )
-{
-	return x < 0.081 ? x / 4.5 : pow((x + 0.099) / 1.099, 1.0 / 0.45);
-}
-
-// Same as Rec.709 transfer but more precise (intended for 12-bit rather than 10-bit)
-float3 LinearToREC2020(float3 x)
 {
 	return x < 0.0181 ? 4.5 * x : 1.0993 * pow(x, 0.45) - 0.0993;
 }
 
-float3 REC2020ToLinear(float3 x)
+float3 REC709ToLinear( float3 x )
 {
 	return x < 0.08145 ? x / 4.5 : pow((x + 0.0993) / 1.0993, 1.0 / 0.45);
 }
 
-// This is the new HDR OETF (transfer function)
+// This is the new HDR transfer function, also called "PQ" for perceptual quantizer.
 float3 LinearToREC2084(float3 L)
 {
 	float m1 = 2610.0 / 4096.0 / 4;
@@ -104,67 +109,51 @@ float3 REC2084ToLinear(float3 N)
 // This color space is called YUV for lack of a better name.
 //
 
-float3 ConvertCS_2020toXYZ( float3 RGB2020 )
+// Note:  Rec.709 and sRGB share the same color primaries and white point.  Their only difference
+// is the transfer curve used.
+
+float3 REC709toREC2020( float3 RGB709 )
 {
-	static const float3x3 ConvMat = 
+	static const float3x3 ConvMat =
 	{
-		6.36953507e-01, 1.44619185e-01, 1.68855854e-01,
-		2.62698339e-01, 6.78008766e-01, 5.92928953e-02,
-		4.99407097e-17, 2.80731358e-02, 1.06082723e+00
+		0.627402, 0.329292, 0.043306,
+		0.069095, 0.919544, 0.011360,
+		0.016394, 0.088028, 0.895578
+	};
+	return mul(ConvMat, RGB709);
+}
+
+float3 REC2020toREC709(float3 RGB2020)
+{
+	static const float3x3 ConvMat =
+	{
+		1.660496, -0.587656, -0.072840,
+		-0.124547, 1.132895, -0.008348,
+		-0.018154, -0.100597, 1.118751
 	};
 	return mul(ConvMat, RGB2020);
 }
 
-
-float3 ConvertCS_XYZto2020( float3 XYZ )
+float3 REC709toDCIP3( float3 RGB709 )
 {
 	static const float3x3 ConvMat =
 	{
-		1.71666343, -0.35567332, -0.25336809,
-		-0.66667384, 1.61645574, 0.0157683,
-		0.01764248, -0.04277698, 0.94224328
-	};
-	return mul(ConvMat, XYZ);
-}
-
-float3 ConvertCS_709toXYZ(float3 RGB709)
-{
-	static const float3x3 ConvMat =
-	{
-		0.41238656, 0.35759149, 0.18045049,
-		0.21263682, 0.71518298, 0.0721802,
-		0.01933062, 0.11919716, 0.95037259
+		0.822458, 0.177542, 0.000000,
+		0.033193, 0.966807, 0.000000,
+		0.017085, 0.072410, 0.910505
 	};
 	return mul(ConvMat, RGB709);
 }
 
-
-float3 ConvertCS_XYZto709(float3 XYZ)
+float3 DCIP3toREC709( float3 RGB709 )
 {
 	static const float3x3 ConvMat =
 	{
-		3.24100323, -1.53739897, -0.49861588,
-		-0.96922425, 1.87592998, 0.04155423,
-		0.05563942, -0.20401121, 1.05714898
-	};
-	return mul(ConvMat, XYZ);
-}
-
-// One assumes the shader compiler will fold the matrices together since they are
-// constant literals.
-float3 ConvertCS_709to2020( float3 RGB709 )
-{
-	//return ConvertCS_XYZto2020(ConvertCS_709toXYZ(RGB709));
-	static const float3x3 ConvMat =
-	{
-		0.62740192, 0.32929197, 0.0433061,
-		0.06909549, 0.91954428, 0.01136023,
-		0.01639371, 0.08802816, 0.89557813
+		1.224947, -0.224947, 0.000000,
+		-0.042056, 1.042056, 0.000000,
+		-0.019641, -0.078651, 1.098291
 	};
 	return mul(ConvMat, RGB709);
 }
 
-float3 ConvertCS_2020to709(float3 RGB2020)
-{
-	return ConvertCS_XYZto709(ConvertCS_2020toXYZ(RGB2020));
-}
+#endif // __COLOR_SPACE_UTILITY_HLSLI__

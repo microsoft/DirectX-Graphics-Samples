@@ -15,6 +15,9 @@
 #include "GameCore.h"
 #include "GameInput.h"
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+
+#define USE_XINPUT
 #include <XInput.h>
 #pragma comment(lib, "xinput9_1_0.lib")
 
@@ -24,11 +27,24 @@
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
 
-#ifdef USE_KEYBOARD_MOUSE
 namespace GameCore
 {
 	extern HWND g_hWnd;
 }
+
+#else
+
+using namespace Windows::Gaming::Input;
+using namespace Windows::Foundation::Collections;
+
+#define USE_KEYBOARD_MOUSE
+
+struct DIMOUSESTATE2
+{
+	LONG lX, lY, lZ;
+	BYTE rgbButtons[8];
+};
+
 #endif
 
 namespace
@@ -39,15 +55,20 @@ namespace
 	float s_AnalogsTC[GameInput::kNumAnalogInputs];
 
 #ifdef USE_KEYBOARD_MOUSE
+
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	IDirectInput8A* s_DI;
 	IDirectInputDevice8A* s_Keyboard;
 	IDirectInputDevice8A* s_Mouse;
-
-	_DIMOUSESTATE2 s_MouseState;
-	unsigned char s_Keybuffer[256];
-	unsigned char s_DXKeyMapping[GameInput::kNumKeys]; // map DigitalInput enum to DX key codes 
 #endif
 
+	DIMOUSESTATE2 s_MouseState;
+	unsigned char s_Keybuffer[256];
+	unsigned char s_DXKeyMapping[GameInput::kNumKeys]; // map DigitalInput enum to DX key codes 
+
+#endif
+
+#ifdef USE_XINPUT
 	float FilterAnalogInput( int val, int deadZone )
 	{
 		if (val < 0)
@@ -65,10 +86,22 @@ namespace
 				return (val - deadZone) / (32767.0f - deadZone);
 		}
 	}
+#else
+	float FilterAnalogInput( float val, float deadZone )
+	{
+		if (val < -deadZone)
+			return (val + deadZone) / (1.0f - deadZone);
+		else if (val > deadZone)
+			return (val - deadZone) / (1.0f - deadZone);
+		else
+			return 0.0f;
+	}
+#endif
 
 #ifdef USE_KEYBOARD_MOUSE
 	void KbmBuildKeyMapping()
 	{
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 		s_DXKeyMapping[GameInput::kKey_escape] = 1;
 		s_DXKeyMapping[GameInput::kKey_1] = 2;
 		s_DXKeyMapping[GameInput::kKey_2] = 3;
@@ -173,6 +206,113 @@ namespace
 		s_DXKeyMapping[GameInput::kKey_lwin] = 219;
 		s_DXKeyMapping[GameInput::kKey_rwin] = 220;
 		s_DXKeyMapping[GameInput::kKey_apps] = 221;
+#else
+#define WinRTKey(name) (unsigned char)Windows::System::VirtualKey::name
+		s_DXKeyMapping[GameInput::kKey_escape] = WinRTKey(Escape);
+		s_DXKeyMapping[GameInput::kKey_1] = WinRTKey(Number1);
+		s_DXKeyMapping[GameInput::kKey_2] = WinRTKey(Number2);
+		s_DXKeyMapping[GameInput::kKey_3] = WinRTKey(Number3);
+		s_DXKeyMapping[GameInput::kKey_4] = WinRTKey(Number4);
+		s_DXKeyMapping[GameInput::kKey_5] = WinRTKey(Number5);
+		s_DXKeyMapping[GameInput::kKey_6] = WinRTKey(Number6);
+		s_DXKeyMapping[GameInput::kKey_7] = WinRTKey(Number7);
+		s_DXKeyMapping[GameInput::kKey_8] = WinRTKey(Number8);
+		s_DXKeyMapping[GameInput::kKey_9] = WinRTKey(Number9);
+		s_DXKeyMapping[GameInput::kKey_0] = WinRTKey(Number0);
+		s_DXKeyMapping[GameInput::kKey_minus] = WinRTKey(Subtract);
+		s_DXKeyMapping[GameInput::kKey_equals] = WinRTKey(Add);
+		s_DXKeyMapping[GameInput::kKey_back] = WinRTKey(Back);
+		s_DXKeyMapping[GameInput::kKey_tab] = WinRTKey(Tab);
+		s_DXKeyMapping[GameInput::kKey_q] = WinRTKey(Q);
+		s_DXKeyMapping[GameInput::kKey_w] = WinRTKey(W);
+		s_DXKeyMapping[GameInput::kKey_e] = WinRTKey(E);
+		s_DXKeyMapping[GameInput::kKey_r] = WinRTKey(R);
+		s_DXKeyMapping[GameInput::kKey_t] = WinRTKey(T);
+		s_DXKeyMapping[GameInput::kKey_y] = WinRTKey(Y);
+		s_DXKeyMapping[GameInput::kKey_u] = WinRTKey(U);
+		s_DXKeyMapping[GameInput::kKey_i] = WinRTKey(I);
+		s_DXKeyMapping[GameInput::kKey_o] = WinRTKey(O);
+		s_DXKeyMapping[GameInput::kKey_p] = WinRTKey(P);
+		s_DXKeyMapping[GameInput::kKey_lbracket] = 219;
+		s_DXKeyMapping[GameInput::kKey_rbracket] = 221;
+		s_DXKeyMapping[GameInput::kKey_return] = WinRTKey(Enter);
+		s_DXKeyMapping[GameInput::kKey_lcontrol] = WinRTKey(Control);  // No L/R
+		s_DXKeyMapping[GameInput::kKey_a] = WinRTKey(A);
+		s_DXKeyMapping[GameInput::kKey_s] = WinRTKey(S);
+		s_DXKeyMapping[GameInput::kKey_d] = WinRTKey(D);
+		s_DXKeyMapping[GameInput::kKey_f] = WinRTKey(F);
+		s_DXKeyMapping[GameInput::kKey_g] = WinRTKey(G);
+		s_DXKeyMapping[GameInput::kKey_h] = WinRTKey(H);
+		s_DXKeyMapping[GameInput::kKey_j] = WinRTKey(J);
+		s_DXKeyMapping[GameInput::kKey_k] = WinRTKey(K);
+		s_DXKeyMapping[GameInput::kKey_l] = WinRTKey(L);
+		s_DXKeyMapping[GameInput::kKey_semicolon] = 186;
+		s_DXKeyMapping[GameInput::kKey_apostrophe] = 222;
+		s_DXKeyMapping[GameInput::kKey_grave] = 192; // ` or ~
+		s_DXKeyMapping[GameInput::kKey_lshift] = WinRTKey(LeftShift);
+		s_DXKeyMapping[GameInput::kKey_backslash] = 220;
+		s_DXKeyMapping[GameInput::kKey_z] = WinRTKey(Z);
+		s_DXKeyMapping[GameInput::kKey_x] = WinRTKey(X);
+		s_DXKeyMapping[GameInput::kKey_c] = WinRTKey(C);
+		s_DXKeyMapping[GameInput::kKey_v] = WinRTKey(V);
+		s_DXKeyMapping[GameInput::kKey_b] = WinRTKey(B);
+		s_DXKeyMapping[GameInput::kKey_n] = WinRTKey(N);
+		s_DXKeyMapping[GameInput::kKey_m] = WinRTKey(M);
+		s_DXKeyMapping[GameInput::kKey_comma] = 188;
+		s_DXKeyMapping[GameInput::kKey_period] = 190;
+		s_DXKeyMapping[GameInput::kKey_slash] = 191;
+		s_DXKeyMapping[GameInput::kKey_rshift] = WinRTKey(RightShift);
+		s_DXKeyMapping[GameInput::kKey_multiply] = WinRTKey(Multiply);
+		s_DXKeyMapping[GameInput::kKey_lalt] = 255; // Only a modifier
+		s_DXKeyMapping[GameInput::kKey_space] = WinRTKey(Space);
+		s_DXKeyMapping[GameInput::kKey_capital] = WinRTKey(CapitalLock);
+		s_DXKeyMapping[GameInput::kKey_f1] = WinRTKey(F1);
+		s_DXKeyMapping[GameInput::kKey_f2] = WinRTKey(F2);
+		s_DXKeyMapping[GameInput::kKey_f3] = WinRTKey(F3);
+		s_DXKeyMapping[GameInput::kKey_f4] = WinRTKey(F4);
+		s_DXKeyMapping[GameInput::kKey_f5] = WinRTKey(F5);
+		s_DXKeyMapping[GameInput::kKey_f6] = WinRTKey(F6);
+		s_DXKeyMapping[GameInput::kKey_f7] = WinRTKey(F7);
+		s_DXKeyMapping[GameInput::kKey_f8] = WinRTKey(F8);
+		s_DXKeyMapping[GameInput::kKey_f9] = WinRTKey(F9);
+		s_DXKeyMapping[GameInput::kKey_f10] = WinRTKey(F10);
+		s_DXKeyMapping[GameInput::kKey_numlock] = WinRTKey(NumberKeyLock);
+		s_DXKeyMapping[GameInput::kKey_scroll] = WinRTKey(Scroll);
+		s_DXKeyMapping[GameInput::kKey_numpad7] = WinRTKey(NumberPad7);
+		s_DXKeyMapping[GameInput::kKey_numpad8] = WinRTKey(NumberPad8);
+		s_DXKeyMapping[GameInput::kKey_numpad9] = WinRTKey(NumberPad9);
+		s_DXKeyMapping[GameInput::kKey_subtract] = WinRTKey(Subtract);
+		s_DXKeyMapping[GameInput::kKey_numpad4] = WinRTKey(NumberPad4);
+		s_DXKeyMapping[GameInput::kKey_numpad5] = WinRTKey(NumberPad5);
+		s_DXKeyMapping[GameInput::kKey_numpad6] = WinRTKey(NumberPad6);
+		s_DXKeyMapping[GameInput::kKey_add] = WinRTKey(Add);
+		s_DXKeyMapping[GameInput::kKey_numpad1] = WinRTKey(NumberPad1);
+		s_DXKeyMapping[GameInput::kKey_numpad2] = WinRTKey(NumberPad2);
+		s_DXKeyMapping[GameInput::kKey_numpad3] = WinRTKey(NumberPad3);
+		s_DXKeyMapping[GameInput::kKey_numpad0] = WinRTKey(NumberPad0);
+		s_DXKeyMapping[GameInput::kKey_decimal] = WinRTKey(Decimal);
+		s_DXKeyMapping[GameInput::kKey_f11] = WinRTKey(F11);
+		s_DXKeyMapping[GameInput::kKey_f12] = WinRTKey(F12);
+		s_DXKeyMapping[GameInput::kKey_numpadenter] = WinRTKey(Enter); // No distinction
+		s_DXKeyMapping[GameInput::kKey_rcontrol] = WinRTKey(Control);  // No L/R
+		s_DXKeyMapping[GameInput::kKey_divide] = WinRTKey(Divide);
+		s_DXKeyMapping[GameInput::kKey_sysrq] = 255; // Ignored
+		s_DXKeyMapping[GameInput::kKey_ralt] = 255; // Only a modifier
+		s_DXKeyMapping[GameInput::kKey_pause] = WinRTKey(Pause);
+		s_DXKeyMapping[GameInput::kKey_home] = WinRTKey(Home);
+		s_DXKeyMapping[GameInput::kKey_up] = WinRTKey(Up);
+		s_DXKeyMapping[GameInput::kKey_pgup] = WinRTKey(PageUp);
+		s_DXKeyMapping[GameInput::kKey_left] = WinRTKey(Left);
+		s_DXKeyMapping[GameInput::kKey_right] = WinRTKey(Right);
+		s_DXKeyMapping[GameInput::kKey_end] = WinRTKey(End);
+		s_DXKeyMapping[GameInput::kKey_down] = WinRTKey(Down);
+		s_DXKeyMapping[GameInput::kKey_pgdn] = WinRTKey(PageDown);
+		s_DXKeyMapping[GameInput::kKey_insert] = WinRTKey(Insert);
+		s_DXKeyMapping[GameInput::kKey_delete] = WinRTKey(Delete);
+		s_DXKeyMapping[GameInput::kKey_lwin] = WinRTKey(LeftWindows);
+		s_DXKeyMapping[GameInput::kKey_rwin] = WinRTKey(RightWindows);
+		s_DXKeyMapping[GameInput::kKey_apps] = WinRTKey(Application);
+#endif
 	}
 
 	void KbmZeroInputs()
@@ -185,6 +325,7 @@ namespace
 	{
 		KbmBuildKeyMapping();
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 		if (FAILED(DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&s_DI, nullptr)))
 			ASSERT(false, "DirectInput8 initialization failed.");
 
@@ -194,6 +335,7 @@ namespace
 			ASSERT(false, "Keyboard SetDataFormat failed.");
 		if (FAILED(s_Keyboard->SetCooperativeLevel(GameCore::g_hWnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE)))
 			ASSERT(false, "Keyboard SetCooperativeLevel failed.");
+
 		DIPROPDWORD dipdw;
 		dipdw.diph.dwSize = sizeof(DIPROPDWORD);
 		dipdw.diph.dwHeaderSize = sizeof(DIPROPHEADER);
@@ -209,12 +351,14 @@ namespace
 			ASSERT(false, "Mouse SetDataFormat failed.");
 		if (FAILED(s_Mouse->SetCooperativeLevel(GameCore::g_hWnd, DISCL_FOREGROUND | DISCL_EXCLUSIVE)))
 			ASSERT(false, "Mouse SetCooperativeLevel failed.");
+#endif
 
 		KbmZeroInputs();
 	}
 
 	void KbmShutdown()
 	{
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 		if (s_Keyboard)
 		{
 			s_Keyboard->Unacquire();
@@ -232,10 +376,12 @@ namespace
 			s_DI->Release();
 			s_DI = nullptr;
 		}
+#endif
 	}
 
 	void KbmUpdate()
 	{
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 		HWND foreground = GetForegroundWindow();
 		bool visible = IsWindowVisible(foreground) != 0;
 
@@ -251,10 +397,20 @@ namespace
 			s_Keyboard->Acquire();
 			s_Keyboard->GetDeviceState(sizeof(s_Keybuffer), s_Keybuffer);
 		}
+#endif
 	}
+
 #endif
 
 }
+
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_TV_TITLE)
+void GameInput::SetKeyState(Windows::System::VirtualKey key, bool IsDown)
+{
+	s_Keybuffer[(unsigned char)key] = IsDown ? 0x80 : 0x00;
+	//DEBUGPRINT("%d key is %s", (unsigned int)key, IsDown ? "down" : "up");
+}
+#endif
 
 void GameInput::Initialize()
 {
@@ -282,6 +438,7 @@ void GameInput::Update( float frameDelta )
 	memset(s_Buttons[0], 0, sizeof(s_Buttons[0]));
 	memset(s_Analogs, 0, sizeof(s_Analogs));
 
+#ifdef USE_XINPUT
 	XINPUT_STATE newInputState;
 	if (ERROR_SUCCESS == XInputGetState( 0, &newInputState ))
 	{
@@ -307,6 +464,40 @@ void GameInput::Update( float frameDelta )
 		s_Analogs[ kAnalogRightStickX ]		= FilterAnalogInput(newInputState.Gamepad.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
 		s_Analogs[ kAnalogRightStickY ]		= FilterAnalogInput(newInputState.Gamepad.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
 	}
+#else
+
+	IVectorView<Gamepad^>^ gamepads = Gamepad::Gamepads;
+	if (gamepads->Size != 0)
+	{
+		IGamepad^ gamepad = gamepads->GetAt(0);
+		GamepadReading reading = gamepad->GetCurrentReading();
+		uint32_t Buttons = (uint32_t)reading.Buttons;
+		if (Buttons & (uint32_t)GamepadButtons::DPadUp) s_Buttons[0][kDPadUp] = true;
+		if (Buttons & (uint32_t)GamepadButtons::DPadDown) s_Buttons[0][kDPadDown] = true;
+		if (Buttons & (uint32_t)GamepadButtons::DPadLeft) s_Buttons[0][kDPadLeft] = true;
+		if (Buttons & (uint32_t)GamepadButtons::DPadRight) s_Buttons[0][kDPadRight] = true;
+		if (Buttons & (uint32_t)GamepadButtons::Menu) s_Buttons[0][kStartButton] = true;
+		if (Buttons & (uint32_t)GamepadButtons::View) s_Buttons[0][kBackButton] = true;
+		if (Buttons & (uint32_t)GamepadButtons::LeftThumbstick) s_Buttons[0][kLThumbClick] = true;
+		if (Buttons & (uint32_t)GamepadButtons::RightThumbstick) s_Buttons[0][kRThumbClick] = true;
+		if (Buttons & (uint32_t)GamepadButtons::LeftShoulder) s_Buttons[0][kLShoulder] = true;
+		if (Buttons & (uint32_t)GamepadButtons::RightShoulder) s_Buttons[0][kRShoulder] = true;
+		if (Buttons & (uint32_t)GamepadButtons::A) s_Buttons[0][kAButton] = true;
+		if (Buttons & (uint32_t)GamepadButtons::B) s_Buttons[0][kBButton] = true;
+		if (Buttons & (uint32_t)GamepadButtons::X) s_Buttons[0][kXButton] = true;
+		if (Buttons & (uint32_t)GamepadButtons::Y) s_Buttons[0][kYButton] = true;
+
+		static const float kAnalogStickDeadZone = 0.18f;
+
+		s_Analogs[ kAnalogLeftTrigger ]		= (float)reading.LeftTrigger;
+		s_Analogs[ kAnalogRightTrigger ]	= (float)reading.RightTrigger;
+		s_Analogs[ kAnalogLeftStickX ]		= FilterAnalogInput((float)reading.LeftThumbstickX, kAnalogStickDeadZone );
+		s_Analogs[ kAnalogLeftStickY ]		= FilterAnalogInput((float)reading.LeftThumbstickY, kAnalogStickDeadZone );
+		s_Analogs[ kAnalogRightStickX ]		= FilterAnalogInput((float)reading.RightThumbstickX, kAnalogStickDeadZone );
+		s_Analogs[ kAnalogRightStickY ]		= FilterAnalogInput((float)reading.RightThumbstickY, kAnalogStickDeadZone );
+	}
+
+#endif
 
 #ifdef USE_KEYBOARD_MOUSE
 	KbmUpdate();

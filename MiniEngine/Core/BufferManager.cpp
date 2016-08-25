@@ -235,6 +235,7 @@ void Graphics::DestroyRenderingBuffers()
 	g_ReprojectionBuffer.Destroy();
 	g_OverlayBuffer.Destroy();
 	g_HorizontalBuffer.Destroy();
+	g_PostEffectsBuffer.Destroy();
 
 	g_VelocityBuffer.Destroy();
 	g_ShadowBuffer.Destroy();
