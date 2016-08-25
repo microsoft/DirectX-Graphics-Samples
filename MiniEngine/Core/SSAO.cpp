@@ -91,7 +91,7 @@ void SSAO::Initialize( void )
 	s_RootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5);
 	s_RootSignature[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 5);
 	s_RootSignature[4].InitAsBufferSRV(5);
-	s_RootSignature.Finalize();
+	s_RootSignature.Finalize(L"SSAO");
 
 #define CreatePSO( ObjName, ShaderByteCode ) \
 	ObjName.SetRootSignature(s_RootSignature); \

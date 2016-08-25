@@ -130,7 +130,7 @@ void PostEffects::Initialize( void )
 	PostEffectsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
 	PostEffectsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
 	PostEffectsRS[3].InitAsConstantBuffer(1);
-	PostEffectsRS.Finalize();
+	PostEffectsRS.Finalize(L"Post Effects");
 
 #define CreatePSO( ObjName, ShaderByteCode ) \
 	ObjName.SetRootSignature(PostEffectsRS); \
@@ -408,7 +408,6 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 	if (bGenerateBloom)
 		GenerateBloom(Context);
 
-	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	if (bGenerateBloom || FXAA::DebugDraw || SSAO::DebugDraw || !g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
 	{
 		if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)

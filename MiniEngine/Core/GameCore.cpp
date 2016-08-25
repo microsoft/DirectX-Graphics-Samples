@@ -24,12 +24,13 @@
 	#pragma comment(lib, "runtimeobject.lib")
 #else
 	#include <agile.h>
+	using namespace Windows::ApplicationModel;
+	using namespace Windows::UI::Core;
+	using namespace Windows::UI::ViewManagement;
 	using Windows::ApplicationModel::Core::CoreApplication;
 	using Windows::ApplicationModel::Core::CoreApplicationView;
-	using Windows::UI::Core::CoreWindow;
-	using Windows::UI::Core::CoreProcessEventsOption;
-	using Windows::Foundation::TypedEventHandler;
 	using Windows::ApplicationModel::Activation::IActivatedEventArgs;
+	using Windows::Foundation::TypedEventHandler;
 #endif
 
 namespace Graphics
@@ -78,6 +79,8 @@ namespace GameCore
 			GraphicsContext& MipsContext = GraphicsContext::Begin();
 
 			// Exclude from timings this copy necessary to setup the test
+			MipsContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
+			MipsContext.TransitionResource(g_GenMipsBuffer, D3D12_RESOURCE_STATE_COPY_DEST);
 			MipsContext.CopySubresource(g_GenMipsBuffer, 0, g_SceneColorBuffer, 0);
 
 			EngineProfiling::BeginBlock(L"GenerateMipMaps()", &MipsContext);
@@ -111,86 +114,181 @@ namespace GameCore
 
 #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	IGameApp* m_game;
-	Platform::Agile<Windows::UI::Core::CoreWindow> g_window;
+	Platform::Agile<CoreWindow> g_window;
 
-	ref class ApplicationView sealed : public Windows::ApplicationModel::Core::IFrameworkView
+	ref class MyApplicationView sealed : public Core::IFrameworkView
 	{
 	public:
-		ApplicationView() {}
+		MyApplicationView() {}
 
 		// IFrameworkView Methods.
-		virtual void Initialize(Windows::ApplicationModel::Core::CoreApplicationView^ applicationView);
-		virtual void SetWindow(Windows::UI::Core::CoreWindow^ window);
+		virtual void Initialize(CoreApplicationView^ applicationView);
 		virtual void Load(Platform::String^ entryPoint);
-		virtual void Run();
-		virtual void Uninitialize();
+		virtual void Run(void);
+		virtual void SetWindow(CoreWindow^ window);
+		virtual void Uninitialize(void);
 
 	protected:
 		// Event Handlers.
-		void OnActivated(Windows::ApplicationModel::Core::CoreApplicationView^ applicationView, Windows::ApplicationModel::Activation::IActivatedEventArgs^ args);
-		void OnWindowSizeChanged(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::WindowSizeChangedEventArgs^ args);
-		void OnLogicalDpiChanged(Platform::Object^ sender);
-		void OnSuspending(Platform::Object^ sender, Windows::ApplicationModel::SuspendingEventArgs^ args);
+		void OnActivated(Core::CoreApplicationView^ applicationView, Activation::IActivatedEventArgs^ args);
+		void OnSuspending(Platform::Object^ sender, SuspendingEventArgs^ args);
 		void OnResuming(Platform::Object^ sender, Platform::Object^ args);
-		void OnWindowClosed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::CoreWindowEventArgs^ args);
-		void OnVisibilityChanged(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::VisibilityChangedEventArgs^ args);
-		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
-		void OnPointerMoved(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_TV_TITLE)
+		void OnWindowSizeChanged(CoreWindow^ sender, WindowSizeChangedEventArgs^ args);
+		void OnWindowClosed(CoreWindow^ sender, CoreWindowEventArgs^ args);
+		void OnVisibilityChanged(CoreWindow^ sender, VisibilityChangedEventArgs^ args);
+		void OnPointerPressed(CoreWindow^ sender, PointerEventArgs^ args);
+		void OnPointerMoved(CoreWindow^ sender, PointerEventArgs^ args);
+		void OnKeyDown(CoreWindow^ sender, KeyEventArgs^ args);
+		void OnKeyUp(CoreWindow^ sender, KeyEventArgs^ args);
+#endif
 
 	private:
 		bool m_windowClosed;
 		bool m_windowVisible;
+		volatile bool m_IsRunning;
+		volatile bool m_IsCapturingPointer;
+		float m_PointerX, m_PointerY;
 	};
 
-	ref class ApplicationViewSource sealed : Windows::ApplicationModel::Core::IFrameworkViewSource
+	ref class ApplicationViewSource sealed : Core::IFrameworkViewSource
 	{
 	public:
-		virtual Windows::ApplicationModel::Core::IFrameworkView^ CreateView()
+		virtual Core::IFrameworkView^ CreateView()
 		{
-			return ref new ApplicationView();
+			return ref new MyApplicationView();
 		}
 	};
+
+
 	// Called by the system.  Perform application initialization here, hooking application wide events, etc.
-	void ApplicationView::Initialize(CoreApplicationView^ applicationView)
+	void MyApplicationView::Initialize(CoreApplicationView^ applicationView)
 	{
-		applicationView->Activated += ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(this, &ApplicationView::OnActivated);
+		applicationView->Activated += ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(this, &MyApplicationView::OnActivated);
 	}
 
 	// Called when we are provided a window.
-	void ApplicationView::SetWindow(CoreWindow^ window)
+	void MyApplicationView::SetWindow(CoreWindow^ window)
 	{
+		// We record the window pointer now, but you can also call this function to retrieve it:
+		//     CoreWindow::GetForCurrentThread()
+		g_window = window;
+
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_TV_TITLE)
+		window->SizeChanged += ref new TypedEventHandler<CoreWindow^, WindowSizeChangedEventArgs^>(this, &MyApplicationView::OnWindowSizeChanged);
+		window->VisibilityChanged += ref new TypedEventHandler<CoreWindow^, VisibilityChangedEventArgs^>(this, &MyApplicationView::OnVisibilityChanged);
+		window->Closed += ref new TypedEventHandler<CoreWindow^, CoreWindowEventArgs^>(this, &MyApplicationView::OnWindowClosed);
+		window->KeyDown += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &MyApplicationView::OnKeyDown);
+		window->KeyUp += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &MyApplicationView::OnKeyUp);
+		window->PointerPressed += ref new TypedEventHandler<CoreWindow^, PointerEventArgs^>(this, &MyApplicationView::OnPointerPressed);
+		window->PointerMoved += ref new TypedEventHandler<CoreWindow^, PointerEventArgs^>(this, &MyApplicationView::OnPointerMoved);
+#endif
 	}
 
-	void ApplicationView::Load(Platform::String^ entryPoint)
+	void MyApplicationView::Load(Platform::String^ entryPoint)
 	{
-		g_window = CoreWindow::GetForCurrentThread();
-
 		InitializeApplication(*m_game);
 	}
 
 	// Called by the system after initialization is complete.  This implements the traditional game loop.
-	void ApplicationView::Run()
+	void MyApplicationView::Run()
 	{
-		for (;;)
+		while (m_IsRunning)
 		{
 			// ProcessEvents will throw if the process is exiting, allowing us to break out of the loop.  This will be
 			// cleaned up when we get proper process lifetime management in a future release.
-			CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
+			g_window->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
 
-			UpdateApplication(*m_game);
+			m_IsRunning = UpdateApplication(*m_game);
 		}
 	}
 
-	void ApplicationView::Uninitialize()
+	void MyApplicationView::Uninitialize()
 	{
+		Graphics::Terminate();
 		TerminateApplication(*m_game);
+		Graphics::Shutdown();
 	}
 
 	// Called when the application is activated.  For now, there is just one activation kind - Launch.
-	void ApplicationView::OnActivated(CoreApplicationView^ applicationView, IActivatedEventArgs^ args)
+	void MyApplicationView::OnActivated(CoreApplicationView^ applicationView, IActivatedEventArgs^ args)
 	{
-		CoreWindow::GetForCurrentThread()->Activate();
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_TV_TITLE)
+		float DpiScale = 96.0f / Windows::Graphics::Display::DisplayInformation::GetForCurrentView()->LogicalDpi;
+		ApplicationView::PreferredLaunchWindowingMode = ApplicationViewWindowingMode::PreferredLaunchViewSize;
+		Windows::Foundation::Size DesiredSize(Graphics::g_DisplayWidth * DpiScale, Graphics::g_DisplayHeight * DpiScale);
+		ApplicationView::PreferredLaunchViewSize = DesiredSize;
+		ApplicationView::GetForCurrentView()->TryResizeView(DesiredSize);
+#endif
+
+		m_IsRunning = true;
+		m_IsCapturingPointer = false;
+		g_window->Activate();
 	}
+
+	void MyApplicationView::OnSuspending(Platform::Object^ sender, SuspendingEventArgs^ args) {}
+	void MyApplicationView::OnResuming(Platform::Object^ sender, Platform::Object^ args) {}
+
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_TV_TITLE)
+	void MyApplicationView::OnWindowSizeChanged(CoreWindow^ sender, WindowSizeChangedEventArgs^ args)
+	{
+		Graphics::Resize((uint32_t)sender->Bounds.Width, (uint32_t)sender->Bounds.Height);
+	}
+
+	void MyApplicationView::OnWindowClosed(CoreWindow^ sender, CoreWindowEventArgs^ args) 
+	{
+		m_IsRunning = false;
+	}
+
+	void MyApplicationView::OnVisibilityChanged(CoreWindow^ sender, VisibilityChangedEventArgs^ args) {}
+
+	void MyApplicationView::OnPointerPressed(CoreWindow^ sender, PointerEventArgs^ args)
+	{
+		//DEBUGPRINT("Pointer pressed (%f, %f)", args->CurrentPoint->RawPosition.X, args->CurrentPoint->RawPosition.Y);
+		if (m_IsCapturingPointer)
+		{
+			g_window->ReleasePointerCapture();
+			m_IsCapturingPointer = false;
+			g_window->PointerCursor = ref new Windows::UI::Core::CoreCursor(Windows::UI::Core::CoreCursorType::Arrow, 0);
+			//DEBUGPRINT("Pointer released");
+		}
+		else
+		{
+			g_window->SetPointerCapture();
+			m_IsCapturingPointer = true;
+			g_window->PointerCursor = ref new Windows::UI::Core::CoreCursor(Windows::UI::Core::CoreCursorType::Hand, 0);
+			m_PointerX = args->CurrentPoint->RawPosition.X;
+			m_PointerY = args->CurrentPoint->RawPosition.Y;
+			//DEBUGPRINT("Pointer captured");
+		}
+	}
+	
+	void MyApplicationView::OnPointerMoved(CoreWindow^ sender, PointerEventArgs^ args)
+	{
+		if (!m_IsCapturingPointer)
+			return;
+
+		float OldX = m_PointerX;
+		float OldY = m_PointerY;
+
+		m_PointerX = args->CurrentPoint->RawPosition.X;
+		m_PointerY = args->CurrentPoint->RawPosition.Y;
+
+		//DEBUGPRINT("Pointer moved (%f, %f)", m_PointerX, m_PointerY);
+		//DEBUGPRINT("Pointer was (%f, %f)", OldX, OldY);
+		//GameInput::SetMouseMovement(m_PointerX)
+	}
+
+	void MyApplicationView::OnKeyDown(CoreWindow^ sender, KeyEventArgs^ args)
+	{
+		GameInput::SetKeyState(args->VirtualKey, true);
+	}
+
+	void MyApplicationView::OnKeyUp(CoreWindow^ sender, KeyEventArgs^ args)
+	{
+		GameInput::SetKeyState(args->VirtualKey, false);
+	}
+#endif
 
 	void RunApplication( IGameApp& app, const wchar_t* className )
 	{
@@ -291,6 +389,5 @@ namespace GameCore
 
 		return 0;
 	}
+#endif
 }
-
-#endif // Win32

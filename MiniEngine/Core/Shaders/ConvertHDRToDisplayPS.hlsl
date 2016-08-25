@@ -11,7 +11,7 @@
 // Author:  James Stanard 
 //
 
-#include "ShaderUtility.hlsli"
+#include "ToneMappingUtility.hlsli"
 #include "PresentRS.hlsli"
 
 Texture2D<float3> ColorTex : register(t0);
@@ -20,9 +20,6 @@ Texture2D<float4> Overlay : register(t1);
 struct PS_OUT
 {
 	float3 HdrOutput : SV_Target0;
-#if _XBOX_ONE
-	float3 LdrOutput : SV_Target1;
-#endif
 };
 
 cbuffer CB0 : register(b0)
@@ -48,14 +45,9 @@ PS_OUT main( float4 position : SV_Position )
 	// SDR was not explicitly clamped to [0, 1] on input, but it will be on output
 	SDR = saturate(SDR) * (1 - UI.a) + UI.rgb;
 
-#if _XBOX_ONE
-	// This will output Rec.709 Limited Range
-	Out.LdrOutput = ApplyColorProfile(SDR, DISPLAY_PLANE_FORMAT);
-#endif
-
-	HDR = ConvertCS_709to2020(HDR);
-	UI.rgb = ConvertCS_709to2020(UI.rgb) * PaperWhite;
-	SDR = ConvertCS_709to2020(SDR) * PaperWhite;
+	HDR = REC709toREC2020(HDR);
+	UI.rgb = REC709toREC2020(UI.rgb) * PaperWhite;
+	SDR = REC709toREC2020(SDR) * PaperWhite;
 
 	HDR = ApplyToeRGB(ToneMapRGB(HDR * ComputeHDRRescale(PaperWhite, MaxBrightness)), ToeStrength) * MaxBrightness;
 

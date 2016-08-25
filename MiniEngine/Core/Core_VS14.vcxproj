@@ -23,7 +23,7 @@
     <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
     <VCTargetsPath Condition="'$(VCTargetsPath11)' != '' and '$(VSVersion)' == '' and $(VisualStudioVersion) == ''">$(VCTargetsPath11)</VCTargetsPath>
     <ApplicationEnvironment>title</ApplicationEnvironment>
-    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -343,6 +343,8 @@
     <FxCompile Include="Shaders\ScreenQuadVS.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\ToneMapHDR2CS.hlsl" />
+    <FxCompile Include="Shaders\ToneMapHDRCS.hlsl" />
     <None Include="Math\Functions.inl" />
     <None Include="Shaders\AoBlurAndUpsampleCS.hlsli" />
     <None Include="Shaders\AoRenderCS.hlsli" />
@@ -358,17 +360,19 @@
     <None Include="Shaders\ParticleUpdateCommon.hlsli" />
     <None Include="Shaders\ParticleUtility.hlsli" />
     <None Include="Shaders\PerfGraphRS.hlsli" />
+    <None Include="Shaders\PixelPacking_R11G11B10.hlsli" />
+    <None Include="Shaders\PixelPacking_RGBE.hlsli" />
+    <None Include="Shaders\PixelPacking_RGBM.hlsli" />
     <None Include="Shaders\PostEffectsRS.hlsli" />
     <None Include="Shaders\PresentRS.hlsli" />
     <None Include="Shaders\ShaderUtility.hlsli" />
     <FxCompile Include="Shaders\ToneMap2CS.hlsl" />
     <FxCompile Include="Shaders\ToneMapCS.hlsl" />
-    <FxCompile Include="Shaders\ToneMapHDR2CS.hlsl" />
-    <FxCompile Include="Shaders\ToneMapHDRCS.hlsl" />
     <FxCompile Include="Shaders\UpsampleAndBlurCS.hlsl" />
     <None Include="Shaders\PixelPacking.hlsli" />
     <None Include="Shaders\SSAORS.hlsli" />
     <None Include="Shaders\TextRS.hlsli" />
+    <None Include="Shaders\ToneMappingUtility.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

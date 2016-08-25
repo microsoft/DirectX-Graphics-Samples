@@ -64,7 +64,7 @@ void FXAA::Initialize( void )
 	RootSig[0].InitAsConstants(0, 4);
 	RootSig[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 5);
 	RootSig[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6);
-	RootSig.Finalize();
+	RootSig.Finalize(L"FXAA");
 
 #define CreatePSO( ObjName, ShaderByteCode ) \
 	ObjName.SetRootSignature(RootSig); \

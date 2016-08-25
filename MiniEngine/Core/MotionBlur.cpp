@@ -64,7 +64,7 @@ void MotionBlur::Initialize( void )
 	s_RootSignature[1].InitAsConstantBuffer(1);
 	s_RootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
 	s_RootSignature[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
-	s_RootSignature.Finalize();
+	s_RootSignature.Finalize(L"Motion Blur");
 
 #define CreatePSO( ObjName, ShaderByteCode ) \
 	ObjName.SetRootSignature(s_RootSignature); \

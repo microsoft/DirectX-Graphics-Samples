@@ -466,13 +466,11 @@ void CommandContext::InitializeTexture( GpuResource& Dest, UINT NumSubresources,
 	BufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 	ASSERT_SUCCEEDED( Graphics::g_Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
-		&BufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,  MY_IID_PPV_ARGS(&UploadBuffer)) );
+		&BufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, MY_IID_PPV_ARGS(&UploadBuffer)) );
 
 	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default texture
-	InitContext.TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST, true);
 	UpdateSubresources(InitContext.m_CommandList, Dest.GetResource(), UploadBuffer, 0, 0, NumSubresources, SubData);
-	InitContext.TransitionResource(Dest, D3D12_RESOURCE_STATE_GENERIC_READ, true);
+	InitContext.TransitionResource(Dest, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	// Execute the command list and wait for it to finish so we can release the upload buffer
 	InitContext.Finish(true);
@@ -482,9 +480,6 @@ void CommandContext::InitializeTexture( GpuResource& Dest, UINT NumSubresources,
 
 void CommandContext::CopySubresource(GpuResource& Dest, UINT DestSubIndex, GpuResource& Src, UINT SrcSubIndex)
 {
-	// TODO:  Add a TransitionSubresource()?
-	TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST);
-	TransitionResource(Src, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	FlushResourceBarriers();
 
 	D3D12_TEXTURE_COPY_LOCATION DestLocation =
@@ -509,7 +504,6 @@ void CommandContext::InitializeTextureArraySlice(GpuResource& Dest, UINT SliceIn
 	CommandContext& Context = CommandContext::Begin();
 
 	Context.TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST);
-	Context.TransitionResource(Src, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	Context.FlushResourceBarriers();
 
 	const D3D12_RESOURCE_DESC& DestDesc = Dest.GetResource()->GetDesc();
@@ -543,7 +537,8 @@ void CommandContext::InitializeTextureArraySlice(GpuResource& Dest, UINT SliceIn
 		Context.m_CommandList->CopyTextureRegion(&destCopyLocation, 0, 0, 0, &srcCopyLocation, nullptr);
 	}
 
-	Context.Finish();
+	Context.TransitionResource(Dest, D3D12_RESOURCE_STATE_GENERIC_READ);
+	Context.Finish(true);
 }
 
 void CommandContext::InitializeBuffer( GpuResource& Dest, const void* BufferData, size_t NumBytes, bool UseOffset, size_t Offset)

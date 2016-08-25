@@ -95,7 +95,7 @@ void DepthOfField::Initialize( void )
 	s_RootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6);
 	s_RootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 3);
 	s_RootSignature[3].InitAsConstants(1, 1);
-	s_RootSignature.Finalize();
+	s_RootSignature.Finalize(L"Depth of Field");
 
 #define CreatePSO( ObjName, ShaderByteCode ) \
 	ObjName.SetRootSignature(s_RootSignature); \
