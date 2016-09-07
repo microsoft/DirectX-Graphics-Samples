@@ -528,8 +528,6 @@ void D3D12DynamicIndexing::LoadAssets()
 		m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
-	CreateFrameResources();
-
 	// Close the command list and execute it to begin the initial GPU setup.
 	ThrowIfFailed(m_commandList->Close());
 	ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
@@ -560,6 +558,8 @@ void D3D12DynamicIndexing::LoadAssets()
 		ThrowIfFailed(m_fence->SetEventOnCompletion(fenceToWaitFor, m_fenceEvent));
 		WaitForSingleObject(m_fenceEvent, INFINITE);
 	}
+
+	CreateFrameResources();
 }
 
 // Update frame-based values.

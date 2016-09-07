@@ -214,7 +214,7 @@ void D3D12LinkedGpusAffinity::LoadAssets()
 		// Create a root signature for the post-process pass.
 		{
 			CD3DX12_DESCRIPTOR_RANGE1 postRanges[2];
-			postRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Settings::SceneHistoryCount, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+			postRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Settings::SceneHistoryCount, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
 			postRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
 
 			CD3DX12_ROOT_PARAMETER1 postRootParameters[3];
