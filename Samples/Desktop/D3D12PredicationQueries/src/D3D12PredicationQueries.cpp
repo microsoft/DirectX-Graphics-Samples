@@ -549,11 +549,9 @@ void D3D12PredicationQueries::PopulateCommandList()
 		PIXBeginEvent(m_commandList.Get(), 0, L"Execute occlusion query");
 		m_commandList->SetGraphicsRootDescriptorTable(0, cbvFarQuad);
 		m_commandList->SetPipelineState(m_queryState.Get());
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_DEPTH_READ));
 		m_commandList->BeginQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0);
 		m_commandList->DrawInstanced(4, 1, 8, 0);
 		m_commandList->EndQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0);
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 		PIXEndEvent(m_commandList.Get());
 
 		// Resolve the occlusion query and store the results in the query result buffer
