@@ -140,7 +140,7 @@ void ByteAddressBuffer::CreateDerivedViews(void)
 	SRVDesc.Buffer.NumElements = (UINT)m_BufferSize / 4;
 	SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
 
-	if (m_SRV.ptr == ~0ull)
+	if (m_SRV.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 		m_SRV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	g_Device->CreateShaderResourceView(m_pResource.Get(), &SRVDesc, m_SRV);
 
@@ -150,7 +150,7 @@ void ByteAddressBuffer::CreateDerivedViews(void)
 	UAVDesc.Buffer.NumElements = (UINT)m_BufferSize / 4;
 	UAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 
-	if (m_UAV.ptr == ~0ull)
+	if (m_UAV.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 		m_UAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	g_Device->CreateUnorderedAccessView( m_pResource.Get(), nullptr, &UAVDesc, m_UAV );
 }
@@ -167,7 +167,7 @@ void StructuredBuffer::CreateDerivedViews(void)
 	SRVDesc.Buffer.StructureByteStride = m_ElementSize;
 	SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-	if (m_SRV.ptr == ~0ull)
+	if (m_SRV.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 		m_SRV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	g_Device->CreateShaderResourceView(m_pResource.Get(), &SRVDesc, m_SRV);
 
@@ -181,7 +181,7 @@ void StructuredBuffer::CreateDerivedViews(void)
 
 	m_CounterBuffer.Create(L"StructuredBuffer::Counter", 1, 4);
 
-	if (m_UAV.ptr == ~0ull)
+	if (m_UAV.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 		m_UAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	g_Device->CreateUnorderedAccessView(m_pResource.Get(), m_CounterBuffer.GetResource(), &UAVDesc, m_UAV);
 }
@@ -197,7 +197,7 @@ void TypedBuffer::CreateDerivedViews(void)
 	SRVDesc.Buffer.NumElements = m_ElementCount;
 	SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-	if (m_SRV.ptr == ~0ull)
+	if (m_SRV.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 		m_SRV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	g_Device->CreateShaderResourceView(m_pResource.Get(), &SRVDesc, m_SRV);
 
@@ -207,7 +207,7 @@ void TypedBuffer::CreateDerivedViews(void)
 	UAVDesc.Buffer.NumElements = m_ElementCount;
 	UAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
-	if (m_UAV.ptr == ~0ull)
+	if (m_UAV.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 		m_UAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	g_Device->CreateUnorderedAccessView(m_pResource.Get(), nullptr, &UAVDesc, m_UAV);
 }

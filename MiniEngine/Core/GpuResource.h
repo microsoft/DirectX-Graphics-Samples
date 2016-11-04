@@ -13,9 +13,6 @@
 
 #pragma once
 
-#define D3D12_GPU_VIRTUAL_ADDRESS_NULL 0ull
-#define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN ~0ull
-
 class GpuResource
 {
 	friend class CommandContext;

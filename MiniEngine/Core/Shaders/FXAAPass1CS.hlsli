@@ -58,6 +58,7 @@ DAMAGES.
 */
 
 #include "FXAARootSignature.hlsli"
+#include "PixelPacking.hlsli"
 
 cbuffer ConstantBuffer : register( b0 )
 {
@@ -70,7 +71,13 @@ RWStructuredBuffer<uint> HWork : register(u0);
 RWStructuredBuffer<uint> VWork : register(u2);
 RWBuffer<float3> HColor : register(u1);
 RWBuffer<float3> VColor : register(u3);
+#if SUPPORT_TYPED_UAV_LOADS
 Texture2D<float3> Color : register(t0);
+float3 FetchColor( int2 st ) { return Color[st]; }
+#else
+Texture2D<uint> Color : register(t0);
+float3 FetchColor( int2 st ) { return Unpack_R11G11B10_FLOAT(Color[st]); }
+#endif
 SamplerState LinearSampler : register(s0);
 
 #define BOUNDARY_SIZE 1
@@ -115,13 +122,13 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	{
 		uint LdsCoord = GI;
 		int2 UavCoord = uint2(GI % ROW_WIDTH, GI / ROW_WIDTH) + Gid.xy * 8 - BOUNDARY_SIZE;
-		float Luma1 = RGBToLogLuminance( Color[UavCoord] );
+		float Luma1 = RGBToLogLuminance(FetchColor(UavCoord));
 		Luma[UavCoord] = Luma1;
 		gs_LumaCache[LdsCoord] = Luma1;
 
 		LdsCoord += ROW_WIDTH * ROW_WIDTH / 2;
 		UavCoord += int2(0, ROW_WIDTH / 2);
-		float Luma2 = RGBToLogLuminance( Color[UavCoord] );
+		float Luma2 = RGBToLogLuminance(FetchColor(UavCoord));
 		Luma[UavCoord] = Luma2;
 		gs_LumaCache[LdsCoord] = Luma2;
 	}
@@ -180,12 +187,12 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	{
 		uint WorkIdx = HWork.IncrementCounter();
 		HWork[WorkIdx] = WorkHeader;
-		HColor[WorkIdx] = Color[DTid.xy + uint2(0, 2 * GradientDir - 1)];
+		HColor[WorkIdx] = FetchColor(DTid.xy + uint2(0, 2 * GradientDir - 1));
 	}
 	else
 	{
 		uint WorkIdx = VWork.IncrementCounter();
 		VWork[WorkIdx] = WorkHeader;
-		VColor[WorkIdx] = Color[DTid.xy + uint2(2 * GradientDir - 1, 0)];
+		VColor[WorkIdx] = FetchColor(DTid.xy + uint2(2 * GradientDir - 1, 0));
 	}
 }

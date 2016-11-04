@@ -12,13 +12,19 @@
 #include "stdafx.h"
 #include "D3D12Fullscreen.h"
 
+const float D3D12Fullscreen::QuadWidth = 20.0f;
+const float D3D12Fullscreen::QuadHeight = 720.0f;
+
 D3D12Fullscreen::D3D12Fullscreen(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
+	m_pCbvDataBegin(nullptr),
 	m_viewport(),
 	m_scissorRect(),
 	m_rtvDescriptorSize(0),
+	m_cbvDescriptorSize(0),
 	m_windowVisible(true),
+	m_windowedMode(true),
 	m_resizeResources(true)
 {
 	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
@@ -88,6 +94,9 @@ void D3D12Fullscreen::LoadPipeline()
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.SampleDesc.Count = 1;
 
+	// It is recommended to always use the tearing flag when it is available.
+	swapChainDesc.Flags = m_tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+
 	ComPtr<IDXGISwapChain1> swapChain;
 	ThrowIfFailed(factory->CreateSwapChainForHwnd(
 		m_commandQueue.Get(),		// Swap chain needs the queue so that it can force a flush on it.
@@ -98,8 +107,12 @@ void D3D12Fullscreen::LoadPipeline()
 		&swapChain
 		));
 
-	// This sample does not support fullscreen transitions.
-	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
+	if (m_tearingSupport)
+	{
+		// When tearing support is enabled we will handle ALT+Enter key presses in the
+		// window message loop rather than let DXGI handle it by calling SetFullscreenState.
+		factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER);
+	}
 
 	ThrowIfFailed(swapChain.As(&m_swapChain));
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
@@ -113,7 +126,16 @@ void D3D12Fullscreen::LoadPipeline()
 		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
+
+		// Describe and create a constant buffer view (CBV) descriptor heap.
+		D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+		cbvHeapDesc.NumDescriptors = FrameCount;
+		cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+
 		m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		m_cbvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
 
 	// Create a command allocator for each frame.
@@ -126,11 +148,25 @@ void D3D12Fullscreen::LoadPipeline()
 // Load the sample assets.
 void D3D12Fullscreen::LoadAssets()
 {
-	// Create an empty root signature.
+	// Create a root signature consisting of a descriptor table with a single CBV.
 	{
-		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-		rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		CD3DX12_DESCRIPTOR_RANGE ranges[1];
+		CD3DX12_ROOT_PARAMETER rootParameters[1];
 
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+		rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+
+		// Allow input layout and deny uneccessary access to certain pipeline stages.
+		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+			D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+		rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
+	
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3DBlob> error;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
@@ -187,6 +223,92 @@ void D3D12Fullscreen::LoadAssets()
 
 	LoadSizeDependentResources();
 
+	// Create/update the vertex buffer.
+	{
+		// Define the geometry for a thin quad that will animate across the screen.
+		const float x = QuadWidth / 2.0f;
+		const float y = QuadHeight / 2.0f;
+		Vertex quadVertices[] =
+		{
+			{ { -x, -y, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+			{ { -x, y, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+			{ { x, -y, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+			{ { x, y, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } }
+		};
+
+		const UINT vertexBufferSize = sizeof(quadVertices);
+
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(&m_vertexBuffer)));
+
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&m_vertexBufferUpload)));
+
+		NAME_D3D12_OBJECT(m_vertexBuffer);
+
+		// Copy data to the intermediate upload heap and then schedule a copy 
+		// from the upload heap to the vertex buffer.
+		UINT8* pVertexDataBegin;
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_vertexBufferUpload->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+		memcpy(pVertexDataBegin, quadVertices, sizeof(quadVertices));
+		m_vertexBufferUpload->Unmap(0, nullptr);
+
+		m_commandList->CopyBufferRegion(m_vertexBuffer.Get(), 0, m_vertexBufferUpload.Get(), 0, vertexBufferSize);
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+
+		// Initialize the vertex buffer views.
+		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
+		m_vertexBufferView.SizeInBytes = vertexBufferSize;
+	}
+
+	// Create the constant buffer.
+	{
+		ThrowIfFailed(m_device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(sizeof(SceneConstantBuffer) * FrameCount),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&m_constantBuffer)));
+
+		NAME_D3D12_OBJECT(m_constantBuffer);
+
+		// Describe and create constant buffer views.
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+		cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
+		cbvDesc.SizeInBytes = sizeof(SceneConstantBuffer);
+
+		CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle(m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+		for (UINT n = 0; n < FrameCount; n++)
+		{
+			m_device->CreateConstantBufferView(&cbvDesc, cpuHandle);
+
+			cbvDesc.BufferLocation += sizeof(SceneConstantBuffer);
+			cpuHandle.Offset(m_cbvDescriptorSize);
+		}
+
+		// Initialize and map the constant buffers. We don't unmap this until the
+		// app closes. Keeping things mapped for the lifetime of the resource is okay.
+		ZeroMemory(&m_constantBufferData, sizeof(m_constantBufferData));
+
+		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
+		memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
+	}
+
 	// Close the command list and execute it to begin the vertex buffer copy into
 	// the default heap.
 	ThrowIfFailed(m_commandList->Close());
@@ -232,73 +354,12 @@ void D3D12Fullscreen::LoadSizeDependentResources()
 			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_rtvDescriptorSize);
 
-			WCHAR name[25];
-			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
-			{
-				SetName(m_renderTargets[n].Get(), name);
-			}
+			NAME_D3D12_OBJECT_INDEXED(m_renderTargets, n);
 		}
 	}
 
-	// Create/update the vertex buffer. When updating the vertex buffer it is important
-	// to ensure that the GPU is finished using the resource before it is released.
-	// The OnSizeChanged method waits for the GPU to be idle before this method is
-	// called.
-	{
-		// Define the geometry for a triangle that stays the same size regardless
-		// of the window size. This is not the recommended way to transform vertices.
-		// The same effect could be achieved by using constant buffers and
-		// transforming a static set of vertices in the vertex shader, but this
-		// sample merely demonstrates modifying a resource that is tied to the render
-		// target size.
-		// Other apps might also resize intermediate render targets or depth stencils
-		// at this time.
-		float x = TriangleWidth / m_viewport.Width;
-		float y = TriangleWidth / m_viewport.Height;
-
-		Vertex triangleVertices[] =
-		{
-			{ { 0.0f, y, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-			{ { x, -y, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-			{ { -x, -y, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
-		};
-
-		const UINT vertexBufferSize = sizeof(triangleVertices);
-
-		ThrowIfFailed(m_device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&m_vertexBuffer)));
-
-		ThrowIfFailed(m_device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_vertexBufferUpload)));
-
-		NAME_D3D12_OBJECT(m_vertexBuffer);
-
-		// Copy data to the intermediate upload heap and then schedule a copy 
-		// from the upload heap to the vertex buffer.
-		UINT8* pVertexDataBegin;
-		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
-		ThrowIfFailed(m_vertexBufferUpload->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-		memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
-		m_vertexBufferUpload->Unmap(0, nullptr);
-
-		m_commandList->CopyBufferRegion(m_vertexBuffer.Get(), 0, m_vertexBufferUpload.Get(), 0, vertexBufferSize);
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
-
-		// Initialize the vertex buffer views.
-		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-		m_vertexBufferView.StrideInBytes = sizeof(Vertex);
-		m_vertexBufferView.SizeInBytes = vertexBufferSize;
-	}
+	// Create/resize intermediate render targets, depth stencils, or other resources
+	// dependent on the window size at this time.
 
 	m_resizeResources = false;
 }
@@ -306,6 +367,23 @@ void D3D12Fullscreen::LoadSizeDependentResources()
 // Update frame-based values.
 void D3D12Fullscreen::OnUpdate()
 {
+	const float translationSpeed = 0.0001f;
+	const float offsetBounds = 1.0f;
+
+	m_constantBufferData.offset.x += translationSpeed;
+	if (m_constantBufferData.offset.x > offsetBounds)
+	{
+		m_constantBufferData.offset.x = -offsetBounds;
+	}
+
+	XMMATRIX transform = XMMatrixMultiply(
+		XMMatrixOrthographicLH(m_viewport.Width, m_viewport.Height, 0.0f, 100.0f),
+		XMMatrixTranslation(m_constantBufferData.offset.x, 0.0f, 0.0f));
+
+	XMStoreFloat4x4(&m_constantBufferData.transform, XMMatrixTranspose(transform));
+
+	UINT offset = m_frameIndex * sizeof(SceneConstantBuffer);
+	memcpy(m_pCbvDataBegin + offset, &m_constantBufferData, sizeof(m_constantBufferData));
 }
 
 // Render the scene.
@@ -324,8 +402,14 @@ void D3D12Fullscreen::OnRender()
 
 		PIXEndEvent(m_commandQueue.Get());
 
+		// When using sync interval 0, it is recommended to always pass the tearing
+		// flag when it is supported, even when presenting in windowed mode.
+		// However, this flag cannot be used if the app is in fullscreen mode as a
+		// result of calling SetFullscreenState.
+		UINT presentFlags = (m_tearingSupport && m_windowedMode) ? DXGI_PRESENT_ALLOW_TEARING : 0;
+
 		// Present the frame.
-		ThrowIfFailed(m_swapChain->Present(0, 0));
+		ThrowIfFailed(m_swapChain->Present(0, presentFlags));
 
 		MoveToNextFrame();
 	}
@@ -334,7 +418,7 @@ void D3D12Fullscreen::OnRender()
 void D3D12Fullscreen::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
 	// Determine if the swap buffers and other resources need to be resized or not.
- 	if ((width != m_width || height != m_height) && !minimized)
+	if ((width != m_width || height != m_height) && !minimized)
 	{
 		// Flush all current GPU commands.
 		WaitForGpu();
@@ -352,6 +436,10 @@ void D3D12Fullscreen::OnSizeChanged(UINT width, UINT height, bool minimized)
 		DXGI_SWAP_CHAIN_DESC desc = {};
 		m_swapChain->GetDesc(&desc);
 		ThrowIfFailed(m_swapChain->ResizeBuffers(FrameCount, width, height, desc.BufferDesc.Format, desc.Flags));
+
+		BOOL fullscreenState;
+		ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
+		m_windowedMode = !fullscreenState;
 
 		// Reset the frame index to the current back buffer index.
 		m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
@@ -371,8 +459,11 @@ void D3D12Fullscreen::OnDestroy()
 	// cleaned up by the destructor.
 	WaitForGpu();
 
-	// Fullscreen state should always be false before exiting the app.
-	ThrowIfFailed(m_swapChain->SetFullscreenState(FALSE, nullptr));
+	if (!m_tearingSupport)
+	{
+		// Fullscreen state should always be false before exiting the app.
+		ThrowIfFailed(m_swapChain->SetFullscreenState(FALSE, nullptr));
+	}
 
 	CloseHandle(m_fenceEvent);
 }
@@ -390,15 +481,22 @@ void D3D12Fullscreen::OnKeyDown(UINT8 key)
 		// NOTE: ALT+Enter will perform a similar operation; the code below is not
 		// required to enable that key combination.
 		{
-			BOOL fullscreenState;
-			ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
-			if (FAILED(m_swapChain->SetFullscreenState(!fullscreenState, nullptr)))
+			if (m_tearingSupport)
 			{
-				// Transitions to fullscreen mode can fail when running apps over
-				// terminal services or for some other unexpected reason.  Consider
-				// notifying the user in some way when this happens.
-				OutputDebugString(L"Fullscreen transition failed");
-				assert(false);
+				Win32Application::ToggleFullscreenWindow();
+			}
+			else
+			{
+				BOOL fullscreenState;
+				ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
+				if (FAILED(m_swapChain->SetFullscreenState(!fullscreenState, nullptr)))
+				{
+					// Transitions to fullscreen mode can fail when running apps over
+					// terminal services or for some other unexpected reason.  Consider
+					// notifying the user in some way when this happens.
+					OutputDebugString(L"Fullscreen transition failed");
+					assert(false);
+				}
 			}
 		}
 		break;
@@ -427,6 +525,11 @@ void D3D12Fullscreen::PopulateCommandList()
 	// Set necessary state.
 	m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
+	ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get() };
+	m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex, m_cbvDescriptorSize);
+	m_commandList->SetGraphicsRootDescriptorTable(0, cbvHandle);
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_commandList->RSSetViewports(1, &m_viewport);
 	m_commandList->RSSetScissorRects(1, &m_scissorRect);
@@ -440,11 +543,11 @@ void D3D12Fullscreen::PopulateCommandList()
 	// Record commands.
 	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 	m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 
-	PIXBeginEvent(m_commandList.Get(), 0, L"Draw a triangle");
-	m_commandList->DrawInstanced(3, 1, 0, 0);
+	PIXBeginEvent(m_commandList.Get(), 0, L"Draw a thin rectangle");
+	m_commandList->DrawInstanced(4, 1, 0, 0);
 	PIXEndEvent(m_commandList.Get());
 
 	// Indicate that the back buffer will now be used to present.

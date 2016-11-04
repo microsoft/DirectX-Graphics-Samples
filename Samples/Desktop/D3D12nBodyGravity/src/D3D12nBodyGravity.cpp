@@ -175,11 +175,7 @@ void D3D12nBodyGravity::LoadPipeline()
 			m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_rtvDescriptorSize);
 
-			WCHAR name[25];
-			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
-			{
-				SetName(m_renderTargets[n].Get(), name);
-			}
+			NAME_D3D12_OBJECT_INDEXED(m_renderTargets, n);
 
 			ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[n])));
 		}
@@ -505,15 +501,8 @@ void D3D12nBodyGravity::CreateParticleBuffers()
 			nullptr,
 			IID_PPV_ARGS(&m_particleBuffer1Upload[index])));
 
-		WCHAR name[25];
-		if (swprintf_s(name, L"m_particleBuffer0[%u]", index) > 0)
-		{
-			SetName(m_particleBuffer0[index].Get(), name);
-		}
-		if (swprintf_s(name, L"m_particleBuffer1[%u]", index) > 0)
-		{
-			SetName(m_particleBuffer1[index].Get(), name);
-		}
+		NAME_D3D12_OBJECT_INDEXED(m_particleBuffer0, index);
+		NAME_D3D12_OBJECT_INDEXED(m_particleBuffer1, index);
 
 		D3D12_SUBRESOURCE_DATA particleData = {};
 		particleData.pData = reinterpret_cast<UINT8*>(&data[0]);

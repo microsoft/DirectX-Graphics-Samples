@@ -108,9 +108,9 @@ float TestSamples( uint centerIdx, uint x, uint y, float invDepth, float invThic
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {
 #if WIDE_SAMPLING
-	float2 QuadCenterUV = (DTid.xy + GTid.xy - 7) * gInvSliceDimension;
+	float2 QuadCenterUV = int2(DTid.xy + GTid.xy - 7) * gInvSliceDimension;
 #else
-	float2 QuadCenterUV = (DTid.xy + GTid.xy - 3) * gInvSliceDimension;
+	float2 QuadCenterUV = int2(DTid.xy + GTid.xy - 3) * gInvSliceDimension;
 #endif
 
 	// Fetch four depths and store them in LDS

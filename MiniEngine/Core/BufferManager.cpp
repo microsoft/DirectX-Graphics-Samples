@@ -21,6 +21,7 @@ namespace Graphics
 {
 	DepthBuffer g_SceneDepthBuffer;
 	ColorBuffer g_SceneColorBuffer;
+	ColorBuffer g_PostEffectsBuffer;
 	ColorBuffer g_ReprojectionBuffer;
 	ColorBuffer g_OverlayBuffer;
 	ColorBuffer g_HorizontalBuffer;
@@ -108,6 +109,8 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 
 		g_SceneColorBuffer.Create( L"Main Color Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
 		g_ReprojectionBuffer.Create( L"Temporal Reprojection", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16_FLOAT );
+		if (!g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+			g_PostEffectsBuffer.Create( L"Post Effects Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT );
 
 		esram.PushStack();	// Render HDR image
 
@@ -167,6 +170,8 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 
 				g_TemporalBuffer[0].Create( L"Temporal Color 0", bufferWidth, bufferHeight, 1, HDR_MOTION_FORMAT );
 				g_TemporalBuffer[1].Create( L"Temporal Color 1", bufferWidth, bufferHeight, 1, HDR_MOTION_FORMAT );
+				InitContext.TransitionResource(g_TemporalBuffer[0], D3D12_RESOURCE_STATE_RENDER_TARGET);
+				InitContext.TransitionResource(g_TemporalBuffer[1], D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 				InitContext.ClearColor(g_TemporalBuffer[0]);
 				InitContext.ClearColor(g_TemporalBuffer[1]);
 

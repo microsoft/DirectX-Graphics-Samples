@@ -11,6 +11,9 @@
 // Author:  James Stanard 
 //
 
+#ifndef __PIXEL_PACKING_HLSLI__
+#define __PIXEL_PACKING_HLSLI__
+
 // RGBM is a good way to pack HDR values into R8G8B8A8_UNORM
 uint PackRGBM( float3 rgb, float PeakValue = 16.0 )
 {
@@ -18,34 +21,19 @@ uint PackRGBM( float3 rgb, float PeakValue = 16.0 )
 	float maxVal = max(max(1e-6, rgb.x), max(rgb.y, rgb.z));
 	maxVal = ceil(maxVal * 255.0);
 	float divisor = (255 * 255.0) / maxVal;
-#if _XBOX_ONE
-	uint RGBM = (uint)maxVal;
-	RGBM = __XB_PackF32ToU8(rgb.r * divisor + 0.5, 3, RGBM);
-	RGBM = __XB_PackF32ToU8(rgb.g * divisor + 0.5, 2, RGBM);
-	RGBM = __XB_PackF32ToU8(rgb.b * divisor + 0.5, 1, RGBM);
-	return RGBM;
-#else
 	uint M = (uint)maxVal;
 	uint R = (uint)(rgb.r * divisor + 0.5);
 	uint G = (uint)(rgb.g * divisor + 0.5);
 	uint B = (uint)(rgb.b * divisor + 0.5);
 	return R << 24 | G << 16 | B << 8 | M;
-#endif
 }
 
 float3 UnpackRGBM( uint p, float PeakValue = 16.0 )
 {
-#if _XBOX_ONE
-	float R = __XB_UnpackByte3(p);
-	float G = __XB_UnpackByte2(p);
-	float B = __XB_UnpackByte1(p);
-	float M = __XB_UnpackByte0(p);
-#else
 	uint R = p >> 24;
 	uint G = (p >> 16) & 0xFF;
 	uint B = (p >> 8) & 0xFF;
 	uint M = p & 0xFF;
-#endif
 	return float3(R, G, B) * M * PeakValue / (255.0 * 255.0);
 }
 
@@ -60,36 +48,23 @@ uint PackRGBE(float3 rgb)
 	float NextPow2 = asfloat((asuint(MaxChannel) + 0x800000) & 0x7F800000);
 
 	// By adding NextPow2, all channels have the same exponent, shifting their mantissa bits
-	// to the right to accomodate it.  This also shifts in the implicit '1' bit of all channels.
+	// to the right to accommodate it.  This also shifts in the implicit '1' bit of all channels.
 	// The largest channel will always have the high bit set.
 	rgb += NextPow2;
 
-#if _XBOX_ONE
-	uint R = __XB_UBFE(9, 14, asuint(rgb.r));
-	uint G = __XB_UBFE(9, 14, asuint(rgb.g));
-	uint B = __XB_UBFE(9, 14, asuint(rgb.b));
-#else
 	uint R = (asuint(rgb.r) << 9) >> 23;
 	uint G = (asuint(rgb.g) << 9) >> 23;
 	uint B = (asuint(rgb.b) << 9) >> 23;
-#endif
 	uint E = f32tof16(NextPow2) << 17;
 	return R | G << 9 | B << 18 | E;
 }
 
 float3 UnpackRGBE(uint p)
 {
-#if _XBOX_ONE
-	float Pow2 = f16tof32(__XB_UBFE(5, 27, p) << 10);
-	float R = asfloat(asuint(Pow2) | __XB_UBFE(9, 0, p) << 14);
-	float G = asfloat(asuint(Pow2) | __XB_UBFE(9, 9, p) << 14);
-	float B = asfloat(asuint(Pow2) | __XB_UBFE(9, 18, p) << 14);
-#else
 	float Pow2 = f16tof32((p >> 27) << 10);
 	float R = asfloat(asuint(Pow2) | (p << 14) & 0x7FC000);
 	float G = asfloat(asuint(Pow2) | (p <<  5) & 0x7FC000);
 	float B = asfloat(asuint(Pow2) | (p >>  4) & 0x7FC000);
-#endif
 	return float3(R, G, B) - Pow2;
 }
 
@@ -172,26 +147,16 @@ float3 DecodeYUV(float3 YUV)
 uint PackYUV(float3 YUV)
 {
 	uint Y = f32tof16(YUV.x);
-#if _XBOX_ONE
-	uint p = __XB_PackF32ToU8(YUV.y * 255.0 + 0.5, 3, Y);
-	return __XB_PackF32ToU8(YUV.z * 255.0 + 0.5, 2, p);
-#else
 	uint U = (uint)(YUV.y * 255.0 + 0.5);
 	uint V = (uint)(YUV.z * 255.0 + 0.5);
 	return Y | U << 24 | V << 16;
-#endif
 }
 
 float3 UnpackYUV(uint YUV)
 {
 	float Y = f16tof32(YUV);
-#if _XBOX_ONE
-	float U = __XB_UnpackByte3(YUV) / 255.0;
-	float V = __XB_UnpackByte2(YUV) / 255.0;
-#else
 	float U = (YUV >> 24) / 255.0;
 	float V = ((YUV >> 16) & 0xFF) / 255.0; 
-#endif
 	return float3(Y, U, V);
 }
 
@@ -287,3 +252,5 @@ float3 Unpack_R11G11B10_E3_FLOAT( uint rgb )
 	float b = f16tof32((rgb >> 19) & 0x1FF8);
 	return float3(r, g, b) * 256.0;
 }
+
+#endif // __PIXEL_PACKING_HLSLI__

@@ -13,10 +13,15 @@
 
 #include "ShaderUtility.hlsli"
 #include "PostEffectsRS.hlsli"
+#include "PixelPacking.hlsli"
 
-Texture2D<float3> SrcColor : register( t0 );
-Texture2D<float3> Bloom : register( t1 );
-RWTexture2D<float3> DstColor : register( u0 );
+Texture2D<float3> Bloom : register( t0 );
+#if SUPPORT_TYPED_UAV_LOADS
+RWTexture2D<float3> SrcColor : register( u0 );
+#else
+RWTexture2D<uint> DstColor : register(u0);
+Texture2D<float3> SrcColor : register(t2);
+#endif
 RWTexture2D<float> OutLuma : register( u1 );
 SamplerState LinearSampler : register( s0 );
 
@@ -24,7 +29,6 @@ cbuffer ConstantBuffer : register( b0 )
 {
 	float2 g_RcpBufferDim;
 	float g_BloomStrength;
-	float g_LumaGamma;
 };
 
 [RootSignature(PostEffects_RootSig)]
@@ -34,8 +38,12 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	float2 TexCoord = (DTid.xy + 0.5) * g_RcpBufferDim;
 
 	// Load LDR and bloom
-	float3 ldrColor = SrcColor[DTid.xy] + g_BloomStrength * Bloom.SampleLevel( LinearSampler, TexCoord, 0 );
+	float3 ldrColor = SrcColor[DTid.xy] + g_BloomStrength * Bloom.SampleLevel(LinearSampler, TexCoord, 0);
 
-	DstColor[DTid.xy] = ldrColor;
-	OutLuma[DTid.xy] = RGBToLogLuminance( ldrColor, g_LumaGamma );
+#if SUPPORT_TYPED_UAV_LOADS
+	SrcColor[DTid.xy] = ldrColor;
+#else
+	DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(ldrColor);
+#endif
+	OutLuma[DTid.xy] = RGBToLogLuminance(ldrColor);
 }

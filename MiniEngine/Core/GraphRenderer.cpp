@@ -455,7 +455,8 @@ void GraphRenderer::RenderGraphs(GraphicsContext& Context, GraphType Type)
 		
 		GraphicsContext& Context = Text.GetCommandContext();
 		Context.SetRootSignature(s_RootSignature);
-		Context.SetRenderTarget(g_OverlayBuffer);
+		Context.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		Context.SetRenderTarget(g_OverlayBuffer.GetRTV());
 		Context.SetPipelineState(s_GraphBackgroundPSO);
 		Context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
@@ -490,7 +491,8 @@ void GraphRenderer::RenderGraphs(GraphicsContext& Context, GraphType Type)
 
 		GraphicsContext& Context = Text.GetCommandContext();
 		Context.SetRootSignature(s_RootSignature);
-		Context.SetRenderTarget(g_OverlayBuffer);
+		Context.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		Context.SetRenderTarget(g_OverlayBuffer.GetRTV());
 		Context.SetPipelineState(s_GraphBackgroundPSO);
 		Context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		

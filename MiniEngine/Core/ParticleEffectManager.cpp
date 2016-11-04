@@ -40,6 +40,13 @@
 #include "CompiledShaders/ParticleTileRenderSlowLowResCS.h"
 #include "CompiledShaders/ParticleTileRenderFastLowResCS.h"
 
+#include "CompiledShaders/ParticleTileRender2CS.h"
+#include "CompiledShaders/ParticleTileRenderFast2CS.h"
+#include "CompiledShaders/ParticleTileRenderSlowDynamic2CS.h"
+#include "CompiledShaders/ParticleTileRenderFastDynamic2CS.h"
+#include "CompiledShaders/ParticleTileRenderSlowLowRes2CS.h"
+#include "CompiledShaders/ParticleTileRenderFastLowRes2CS.h"
+
 #include "CompiledShaders/ParticleTileCullingCS.h"
 #include "CompiledShaders/ParticleDepthBoundsCS.h"
 
@@ -197,6 +204,9 @@ namespace
 		size_t ScreenWidth = ColorTarget.GetWidth();
 		size_t ScreenHeight = ColorTarget.GetHeight();
 
+		ASSERT(ColorTarget.GetFormat() == DXGI_FORMAT_R32_UINT || g_bTypedUAVLoadSupport_R11G11B10_FLOAT,
+			"Without typed UAV loads, tiled particles must render to a R32_UINT buffer");
+
 		{
 			ScopedTimer _p(L"Compute Depth Bounds", CompContext);
 
@@ -311,7 +321,6 @@ namespace
 				VisibleParticleBuffer.GetSRV(),
 				TileHitMasks.GetSRV(),
 				TextureArraySRV,
-				ColorTarget.GetSRV(),
 				LinearDepth.GetSRV(),
 				BinParticles[0].GetSRV(),
 				TileDrawPackets.GetSRV(),
@@ -413,7 +422,9 @@ namespace
 		GrContext.SetDynamicDescriptor(4, 2, LinearDepth.GetSRV());
 		GrContext.SetDynamicDescriptor(4, 3, SpriteIndexBuffer.GetSRV());
 		GrContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		GrContext.SetRenderTarget(ColorTarget, DepthTarget, true);
+		GrContext.TransitionResource(ColorTarget, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		GrContext.TransitionResource(DepthTarget, D3D12_RESOURCE_STATE_DEPTH_READ);
+		GrContext.SetRenderTarget(ColorTarget.GetRTV(), DepthTarget.GetDSV_DepthReadOnly());
 		GrContext.SetViewportAndScissor(viewport, scissor);
 		GrContext.DrawIndirect(DrawIndirectArgs);
 	}
@@ -435,7 +446,7 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 	RootSig.InitStaticSampler(0, SamplerBilinearBorderDesc);
 	RootSig.InitStaticSampler(1, SamplerPointBorderDesc);
 	RootSig.InitStaticSampler(2, SamplerPointClampDesc);
-	RootSig[0].InitAsConstants(0, 2);
+	RootSig[0].InitAsConstants(0, 3);
 	RootSig[1].InitAsConstantBuffer(1);
 	RootSig[2].InitAsConstantBuffer(2);
 	RootSig[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 8);
@@ -454,12 +465,24 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 	CreatePSO(s_ParticleLargeBinCullingCS, g_pParticleLargeBinCullingCS);
 	CreatePSO(s_ParticleBinCullingCS, g_pParticleBinCullingCS);
 	CreatePSO(s_ParticleTileCullingCS, g_pParticleTileCullingCS);
-	CreatePSO(s_ParticleTileRenderSlowCS[0], g_pParticleTileRenderCS);
-	CreatePSO(s_ParticleTileRenderFastCS[0], g_pParticleTileRenderFastCS);
-	CreatePSO(s_ParticleTileRenderSlowCS[1], g_pParticleTileRenderSlowLowResCS);
-	CreatePSO(s_ParticleTileRenderFastCS[1], g_pParticleTileRenderFastLowResCS);
-	CreatePSO(s_ParticleTileRenderSlowCS[2], g_pParticleTileRenderSlowDynamicCS);
-	CreatePSO(s_ParticleTileRenderFastCS[2], g_pParticleTileRenderFastDynamicCS);
+	if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
+	{
+		CreatePSO(s_ParticleTileRenderSlowCS[0], g_pParticleTileRender2CS);
+		CreatePSO(s_ParticleTileRenderFastCS[0], g_pParticleTileRenderFast2CS);
+		CreatePSO(s_ParticleTileRenderSlowCS[1], g_pParticleTileRenderSlowLowRes2CS);
+		CreatePSO(s_ParticleTileRenderFastCS[1], g_pParticleTileRenderFastLowRes2CS);
+		CreatePSO(s_ParticleTileRenderSlowCS[2], g_pParticleTileRenderSlowDynamic2CS);
+		CreatePSO(s_ParticleTileRenderFastCS[2], g_pParticleTileRenderFastDynamic2CS);
+	}
+	else
+	{
+		CreatePSO(s_ParticleTileRenderSlowCS[0], g_pParticleTileRenderCS);
+		CreatePSO(s_ParticleTileRenderFastCS[0], g_pParticleTileRenderFastCS);
+		CreatePSO(s_ParticleTileRenderSlowCS[1], g_pParticleTileRenderSlowLowResCS);
+		CreatePSO(s_ParticleTileRenderFastCS[1], g_pParticleTileRenderFastLowResCS);
+		CreatePSO(s_ParticleTileRenderSlowCS[2], g_pParticleTileRenderSlowDynamicCS);
+		CreatePSO(s_ParticleTileRenderFastCS[2], g_pParticleTileRenderFastDynamicCS);
+	}
 	CreatePSO(s_ParticleDepthBoundsCS, g_pParticleDepthBoundsCS);
 	CreatePSO(s_ParticleSortIndirectArgsCS, g_pParticleSortIndirectArgsCS);
 	CreatePSO(s_ParticlePreSortCS, g_pParticlePreSortCS);
@@ -694,10 +717,19 @@ void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, Col
 	if (!Enable || !s_InitComplete || ParticleEffectsActive.size() == 0)
 		return;
 
-	ScopedTimer _prof(L"Particle Render", Context);
-
 	uint32_t Width = (uint32_t)ColorTarget.GetWidth();
 	uint32_t Height = (uint32_t)ColorTarget.GetHeight();
+
+	ASSERT(
+		Width == DepthTarget.GetWidth() &&
+		Height == DepthTarget.GetHeight() &&
+		Width == LinearDepth.GetWidth() &&
+		Height == LinearDepth.GetHeight(),
+		"There is a mismatch in buffer dimensions for rendering particles"
+	);
+
+	ScopedTimer _prof(L"Particle Render", Context);
+
 	uint32_t BinsPerRow = 4 * DivideByMultiple(Width, 4 * BIN_SIZE_X);
 
 	s_ChangesPerView.gViewProj = Camera.GetViewProjMatrix();  
@@ -708,24 +740,36 @@ void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, Col
 	s_ChangesPerView.gAspectRatio = HCot / VCot;
 	s_ChangesPerView.gRcpFarZ = 1.0f / Camera.GetFarClip();
 	s_ChangesPerView.gInvertZ = Camera.GetNearClip() / (Camera.GetFarClip() - Camera.GetNearClip());
-	s_ChangesPerView.gBufferWidth = (float)ColorTarget.GetWidth();
-	s_ChangesPerView.gBufferHeight = (float)ColorTarget.GetHeight();
-	s_ChangesPerView.gRcpBufferWidth = 1.0f / ColorTarget.GetWidth();
-	s_ChangesPerView.gRcpBufferHeight = 1.0f / ColorTarget.GetHeight();
+	s_ChangesPerView.gBufferWidth = (float)Width;
+	s_ChangesPerView.gBufferHeight = (float)Height;
+	s_ChangesPerView.gRcpBufferWidth = 1.0f / Width;
+	s_ChangesPerView.gRcpBufferHeight = 1.0f / Height;
 	s_ChangesPerView.gBinsPerRow = BinsPerRow;
 	s_ChangesPerView.gTileRowPitch = BinsPerRow * TILES_PER_BIN_X;
 	s_ChangesPerView.gTilesPerRow = DivideByMultiple(Width, TILE_SIZE);
 	s_ChangesPerView.gTilesPerCol = DivideByMultiple(Height, TILE_SIZE);
 
+	// For now, UAV load support for R11G11B10 is required to read-modify-write the color buffer, but
+	// the compositing could be deferred.
+	WARN_ONCE_IF(EnableTiledRendering && !g_bTypedUAVLoadSupport_R11G11B10_FLOAT,
+		"Unable to composite tiled particles without support for R11G11B10F UAV loads");
+	EnableTiledRendering = EnableTiledRendering && g_bTypedUAVLoadSupport_R11G11B10_FLOAT;
 
 	if (EnableTiledRendering)
 	{
 		ComputeContext& CompContext = Context.GetComputeContext();
+		CompContext.TransitionResource(ColorTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		CompContext.TransitionResource(BinCounters[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		CompContext.TransitionResource(BinCounters[1], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
+
 		CompContext.ClearUAV(BinCounters[0]);
 		CompContext.ClearUAV(BinCounters[1]);
 		CompContext.SetRootSignature(RootSig);
-		CompContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);	
+		CompContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);
+
 		RenderTiles(CompContext, ColorTarget, LinearDepth);
+
+		CompContext.InsertUAVBarrier(ColorTarget);
 	}
 	else
 	{

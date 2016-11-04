@@ -237,11 +237,7 @@ void D3D12DynamicIndexing::LoadAssets()
 		m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
 		rtvHandle.Offset(1, m_rtvDescriptorSize);
 
-		WCHAR name[25];
-		if (swprintf_s(name, L"m_renderTargets[%u]", i) > 0)
-		{
-			SetName(m_renderTargets[i].Get(), name);
-		}
+		NAME_D3D12_OBJECT_INDEXED(m_renderTargets, i);
 	}
 
 	// Read in mesh data for vertex/index buffers.
@@ -346,7 +342,7 @@ void D3D12DynamicIndexing::LoadAssets()
 			// Generate texture data.
 			std::vector<std::vector<unsigned char>> cityTextureData;
 			cityTextureData.resize(CityMaterialCount);
-			for (int i = 0; i < CityMaterialCount; ++i)
+			for (UINT i = 0; i < CityMaterialCount; ++i)
 			{
 				ThrowIfFailed(m_device->CreateCommittedResource(
 					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -356,11 +352,7 @@ void D3D12DynamicIndexing::LoadAssets()
 					nullptr,
 					IID_PPV_ARGS(&m_cityMaterialTextures[i])));
 
-				WCHAR name[35];
-				if (swprintf_s(name, L"m_cityMaterialTextures[%u]", i) > 0)
-				{
-					SetName(m_cityMaterialTextures[i].Get(), name);
-				}
+				NAME_D3D12_OBJECT_INDEXED(m_cityMaterialTextures, i);
 
 				// Fill the texture.
 				float t = i * materialGradStep;

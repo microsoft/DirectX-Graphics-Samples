@@ -24,8 +24,8 @@ public:
 	ColorBuffer( Color ClearColor = Color(0.0f, 0.0f, 0.0f, 0.0f)  )
 		: m_ClearColor(ClearColor), m_NumMipMaps(0)
 	{
-		m_SRVHandle.ptr = ~0ull;
-		m_RTVHandle.ptr = ~0ull;
+		m_SRVHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+		m_RTVHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 		std::memset(m_UAVHandle, 0xFF, sizeof(m_UAVHandle));
 	}
 

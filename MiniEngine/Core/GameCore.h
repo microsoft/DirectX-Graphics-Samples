@@ -26,6 +26,9 @@ namespace GameCore
 		virtual void Startup( void ) = 0;
 		virtual void Cleanup( void ) = 0;
 
+		// Decide if you want the app to exit.  By default, app continues until the 'ESC' key is pressed.
+		virtual bool IsDone( void );
+
 		// The update method will be invoked once per frame.  Both state updating and scene
 		// rendering should be handled by this method.
 		virtual void Update( float deltaT ) = 0;
@@ -40,7 +43,7 @@ namespace GameCore
 	void RunApplication( IGameApp& app, const wchar_t* className );
 }
 
-#if WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	#define MAIN_FUNCTION()  int wmain(int argc, wchar_t** argv)
 #else
 	#define MAIN_FUNCTION()  [Platform::MTAThread] int main(Platform::Array<Platform::String^>^)

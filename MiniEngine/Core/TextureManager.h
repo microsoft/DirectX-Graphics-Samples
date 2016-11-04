@@ -24,7 +24,7 @@ class Texture : public GpuResource
 
 public:
 
-	Texture() { m_hCpuDescriptorHandle.ptr = ~0ull; }
+	Texture() { m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
 	Texture(D3D12_CPU_DESCRIPTOR_HANDLE Handle) : m_hCpuDescriptorHandle(Handle) {}
 
 	// Create a 1-level 2D texture

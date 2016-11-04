@@ -64,8 +64,8 @@ protected:
 	GpuBuffer(void) : m_BufferSize(0), m_ElementCount(0), m_ElementSize(0)
 	{
 		m_ResourceFlags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-		m_UAV.ptr = ~0ull;
-		m_SRV.ptr = ~0ull;
+		m_UAV.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+		m_SRV.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 	}
 
 	D3D12_RESOURCE_DESC DescribeBuffer(void);

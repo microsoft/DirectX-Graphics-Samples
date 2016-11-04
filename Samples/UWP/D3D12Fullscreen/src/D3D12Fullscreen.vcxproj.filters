@@ -36,10 +36,10 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="$(D3DSdkDXSampleResizeableUwp)View.cpp">
+    <ClCompile Include="View.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
-    <ClCompile Include="$(D3DSdkDXSampleResizeableUwp)ViewProvider.cpp">
+    <ClCompile Include="ViewProvider.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
     <ClCompile Include="DXSample.cpp">
@@ -59,10 +59,10 @@
     <ClInclude Include="DXSampleHelper.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="$(D3DSdkDXSampleResizeableUwp)View.h">
+    <ClInclude Include="View.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="$(D3DSdkDXSampleResizeableUwp)ViewProvider.h">
+    <ClInclude Include="ViewProvider.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
     <ClInclude Include="DXSample.h">

@@ -39,6 +39,7 @@ void CommandQueue::Shutdown()
 	CloseHandle(m_FenceEventHandle);
 
 	m_pFence->Release();
+	m_pFence = nullptr;
 
 	m_CommandQueue->Release();
 	m_CommandQueue = nullptr;
@@ -59,7 +60,9 @@ CommandListManager::~CommandListManager()
 
 void CommandListManager::Shutdown()
 {
-
+	m_GraphicsQueue.Shutdown();
+	m_ComputeQueue.Shutdown();
+	m_CopyQueue.Shutdown();
 }
 
 void CommandQueue::Create(ID3D12Device* pDevice)

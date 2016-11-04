@@ -23,12 +23,12 @@ public:
 	DepthBuffer( float ClearDepth = 0.0f, uint32_t ClearStencil = 0 )
 		: m_ClearDepth(ClearDepth), m_ClearStencil(ClearStencil) 
 	{
-		m_hDSV[0].ptr = ~0ull;
-		m_hDSV[1].ptr = ~0ull;
-		m_hDSV[2].ptr = ~0ull;
-		m_hDSV[3].ptr = ~0ull;
-		m_hDepthSRV.ptr = ~0ull;
-		m_hStencilSRV.ptr = ~0ull;
+		m_hDSV[0].ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+		m_hDSV[1].ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+		m_hDSV[2].ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+		m_hDSV[3].ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+		m_hDepthSRV.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+		m_hStencilSRV.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 	}
 
 	// Create a depth buffer.  If an address is supplied, memory will not be allocated.
@@ -40,6 +40,11 @@ public:
 	// Create a depth buffer.  Memory will be allocated in ESRAM (on Xbox One).  On Windows,
 	// this functions the same as Create() without a video address.
 	void Create( const std::wstring& Name, uint32_t Width, uint32_t Height, DXGI_FORMAT Format,
+		EsramAllocator& Allocator );
+
+	void Create(const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t NumSamples, DXGI_FORMAT Format,
+		D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN );
+	void Create( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t NumSamples, DXGI_FORMAT Format,
 		EsramAllocator& Allocator );
 
 	// Get pre-created CPU-visible descriptor handles

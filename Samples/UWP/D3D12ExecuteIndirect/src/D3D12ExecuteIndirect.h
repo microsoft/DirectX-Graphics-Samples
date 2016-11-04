@@ -37,7 +37,8 @@ private:
 	static const UINT FrameCount = 3;
 	static const UINT TriangleCount = 1024;
 	static const UINT TriangleResourceCount = TriangleCount * FrameCount;
-	static const UINT CommandBufferSizePerFrame;
+	static const UINT CommandSizePerFrame;				// The size of the indirect commands to draw all of the triangles in a single frame.
+	static const UINT CommandBufferCounterOffset;		// The offset of the UAV counter in the processed command buffer.
 	static const UINT ComputeThreadBlockSize = 128;		// Should match the value in compute.hlsl.
 	static const float TriangleHalfWidth;				// The x and y offsets used by the triangle vertices.
 	static const float TriangleDepth;					// The z offset used by the triangle vertices.
@@ -155,4 +156,14 @@ private:
 	void PopulateCommandLists();
 	void WaitForGpu();
 	void MoveToNextFrame();
+
+	// We pack the UAV counter into the same buffer as the commands rather than create
+	// a separate 64K resource/heap for it. The counter must be aligned on 4K boundaries,
+	// so we pad the command buffer (if necessary) such that the counter will be placed
+	// at a valid location in the buffer.
+	static inline UINT AlignForUavCounter(UINT bufferSize)
+	{
+		const UINT alignment = D3D12_UAV_COUNTER_PLACEMENT_ALIGNMENT;
+		return (bufferSize + (alignment - 1)) & ~(alignment - 1);
+	}
 };

@@ -34,6 +34,9 @@
     <ClInclude Include="DepthBuffer.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="DepthOfField.h">
+      <Filter>Source Files\Graphics</Filter>
+    </ClInclude>
     <ClInclude Include="GraphicsCore.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
@@ -252,6 +255,9 @@
     <ClCompile Include="DepthBuffer.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="DepthOfField.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
     <ClCompile Include="ShadowBuffer.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
@@ -358,6 +364,9 @@
     </Filter>
     <Filter Include="Shaders\GenerateMips">
       <UniqueIdentifier>{6bfe1a9c-fe27-4aa4-b232-2f6b673b1f75}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\DoF">
+      <UniqueIdentifier>{9e0c6a5c-d681-4190-b89c-273b27b0fe9d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -502,9 +511,6 @@
     <FxCompile Include="Shaders\MotionBlurFinalPassCS.hlsl">
       <Filter>Shaders\MB+TAA</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\MotionBlurFinalPassTemporalCS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\MotionBlurPrePassCS.hlsl">
       <Filter>Shaders\MB+TAA</Filter>
     </FxCompile>
@@ -616,6 +622,123 @@
     <FxCompile Include="Shaders\MagnifyPixelsPS.hlsl">
       <Filter>Shaders\Present</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\DoFCombineCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFCombineFastCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFDebugBlueCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFDebugGreenCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFDebugRedCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFMedianFilterCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFMedianFilterFixupCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFMedianFilterSepAlphaCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFPass1CS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFPass2CS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFPass2DebugCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFPass2FastCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFPass2FixupCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFPreFilterCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFPreFilterFastCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFPreFilterFixupCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ApplyBloom2CS.hlsl">
+      <Filter>Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DebugLuminanceLdr2CS.hlsl">
+      <Filter>Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DebugLuminanceHdr2CS.hlsl">
+      <Filter>Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFCombine2CS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFCombineFast2CS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FXAAPass2H2CS.hlsl">
+      <Filter>Shaders\FXAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FXAAPass2V2CS.hlsl">
+      <Filter>Shaders\FXAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\TemporalBlend2CS.hlsl">
+      <Filter>Shaders\MB+TAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticleTileRender2CS.hlsl">
+      <Filter>Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticleTileRenderFast2CS.hlsl">
+      <Filter>Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticleTileRenderFastDynamic2CS.hlsl">
+      <Filter>Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticleTileRenderFastLowRes2CS.hlsl">
+      <Filter>Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticleTileRenderSlowDynamic2CS.hlsl">
+      <Filter>Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticleTileRenderSlowLowRes2CS.hlsl">
+      <Filter>Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\CopyBackPostBufferCS.hlsl">
+      <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\MotionBlurFinalPassPS.hlsl">
+      <Filter>Shaders\MB+TAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FXAAPass1_Luma2_CS.hlsl">
+      <Filter>Shaders\FXAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FXAAPass1_RGB2_CS.hlsl">
+      <Filter>Shaders\FXAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ConvertHDRToDisplayPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFTilePassCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DoFTilePassFixupCS.hlsl">
+      <Filter>Shaders\DoF</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ToneMapHDR2CS.hlsl">
+      <Filter>Shaders\HDR</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ToneMapHDRCS.hlsl">
+      <Filter>Shaders\HDR</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Math\Functions.inl">
@@ -671,6 +794,15 @@
     </None>
     <None Include="Shaders\GenerateMipsCS.hlsli">
       <Filter>Shaders\GenerateMips</Filter>
+    </None>
+    <None Include="Shaders\DoFCommon.hlsli">
+      <Filter>Shaders\DoF</Filter>
+    </None>
+    <None Include="Shaders\DoFRS.hlsli">
+      <Filter>Shaders\DoF</Filter>
+    </None>
+    <None Include="Shaders\ColorSpaceUtility.hlsli">
+      <Filter>Shaders\Misc</Filter>
     </None>
   </ItemGroup>
 </Project>

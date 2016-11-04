@@ -64,7 +64,7 @@ void Texture::Create( size_t Width, size_t Height, DXGI_FORMAT Format, const voi
 
 	CommandContext::InitializeTexture(*this, 1, &texResource);
 
-	if (m_hCpuDescriptorHandle.ptr == ~0ull)
+	if (m_hCpuDescriptorHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 		m_hCpuDescriptorHandle = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	g_Device->CreateShaderResourceView(m_pResource.Get(), nullptr, m_hCpuDescriptorHandle);
 }
@@ -123,7 +123,7 @@ void Texture::CreateTGAFromMemory( const void* _filePtr, size_t, bool sRGB )
 
 bool Texture::CreateDDSFromMemory( const void* filePtr, size_t fileSize, bool sRGB )
 {
-	if (m_hCpuDescriptorHandle.ptr == ~0ull)
+	if (m_hCpuDescriptorHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
 		m_hCpuDescriptorHandle = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	HRESULT hr = CreateDDSTextureFromMemory( Graphics::g_Device,
@@ -225,7 +225,7 @@ void ManagedTexture::WaitForLoad( void ) const
 {
 	volatile D3D12_CPU_DESCRIPTOR_HANDLE& VolHandle = (volatile D3D12_CPU_DESCRIPTOR_HANDLE&)m_hCpuDescriptorHandle;
 	volatile bool& VolValid = (volatile bool&)m_IsValid;
-	while (VolHandle.ptr == ~0ull && VolValid)
+	while (VolHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN && VolValid)
 		this_thread::yield();
 }
 

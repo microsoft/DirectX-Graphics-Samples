@@ -248,17 +248,9 @@ D3D12_RESOURCE_DESC PixelBuffer::DescribeTex2D( uint32_t Width, uint32_t Height,
 void PixelBuffer::CreateTextureResource( ID3D12Device* Device, const std::wstring& Name,
 	const D3D12_RESOURCE_DESC& ResourceDesc, D3D12_CLEAR_VALUE ClearValue, D3D12_GPU_VIRTUAL_ADDRESS /*VidMemPtr*/ )
 {
-	{
-		D3D12_HEAP_PROPERTIES HeapProps;
-		HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-		HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		HeapProps.CreationNodeMask = 1;
-		HeapProps.VisibleNodeMask = 1;
-
-		ASSERT_SUCCEEDED( Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
-			&ResourceDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, MY_IID_PPV_ARGS(&m_pResource) ));
-	}
+	CD3DX12_HEAP_PROPERTIES HeapProps(D3D12_HEAP_TYPE_DEFAULT);
+	ASSERT_SUCCEEDED( Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
+		&ResourceDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, MY_IID_PPV_ARGS(&m_pResource) ));
 
 	m_UsageState = D3D12_RESOURCE_STATE_COMMON;
 	m_GpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_NULL;
