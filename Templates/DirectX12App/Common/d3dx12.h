@@ -31,6 +31,33 @@ inline bool operator!=( const D3D12_VIEWPORT& l, const D3D12_VIEWPORT& r )
 { return !( l == r ); }
 
 //------------------------------------------------------------------------------------------------
+struct CD3DX12_VIEWPORT : public D3D12_VIEWPORT
+{
+    CD3DX12_VIEWPORT()
+    {}
+    explicit CD3DX12_VIEWPORT( const D3D12_VIEWPORT& o ) :
+        D3D12_VIEWPORT( o )
+    {}
+    explicit CD3DX12_VIEWPORT(
+        FLOAT topLeftX,
+        FLOAT topLeftY,
+        FLOAT width,
+        FLOAT height,
+        FLOAT minDepth,
+        FLOAT maxDepth )
+    {
+        TopLeftX = topLeftX;
+        TopLeftY = topLeftY;
+        Width = width;
+        Height = height;
+        MinDepth = minDepth;
+        MaxDepth = maxDepth;
+    }
+    ~CD3DX12_VIEWPORT() {}
+    operator const D3D12_VIEWPORT&() const { return *this; }
+};
+
+//------------------------------------------------------------------------------------------------
 struct CD3DX12_RECT : public D3D12_RECT
 {
     CD3DX12_RECT()
