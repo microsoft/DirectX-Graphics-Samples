@@ -330,7 +330,7 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 	}
 
 	// Set the 3D rendering viewport to target the entire window.
-	m_screenViewport = { 0.0f, 0.0f, m_d3dRenderTargetSize.Width, m_d3dRenderTargetSize.Height, 0.0f, 1.0f };
+	m_screenViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, m_d3dRenderTargetSize.Width, m_d3dRenderTargetSize.Height);
 }
 
 // Determine the dimensions of the render target and whether it will be scaled down.

@@ -35,10 +35,10 @@ D3D12Fullscreen::D3D12Fullscreen(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
 	m_pCbvDataBegin(nullptr),
-	m_postViewport(),
-	m_postScissorRect(),
-	m_sceneViewport(),
-	m_sceneScissorRect(),
+	m_sceneViewport(0.0f, 0.0f, 0.0f, 0.0f),
+	m_sceneScissorRect(0, 0, 0, 0),
+	m_postViewport(0.0f, 0.0f, 0.0f, 0.0f),
+	m_postScissorRect(0, 0, 0, 0),
 	m_rtvDescriptorSize(0),
 	m_cbvSrvDescriptorSize(0),
 	m_windowVisible(true),
@@ -627,14 +627,14 @@ void D3D12Fullscreen::OnKeyDown(UINT8 key)
 {
 	switch (key)
 	{
+	// Instrument the Space Bar to toggle between fullscreen states.
+	// The window message loop callback will receive a WM_SIZE message once the
+	// window is in the fullscreen state. At that point, the IDXGISwapChain should
+	// be resized to match the new window size.
+	//
+	// NOTE: ALT+Enter will perform a similar operation; the code below is not
+	// required to enable that key combination.
 	case VK_SPACE:
-		// Instrument the Space Bar to toggle between fullscreen states.
-		// The window message loop callback will receive a WM_SIZE message once the
-		// window is in the fullscreen state. At that point, the IDXGISwapChain should
-		// be resized to match the new window size.
-		//
-		// NOTE: ALT+Enter will perform a similar operation; the code below is not
-		// required to enable that key combination.
 	{
 		if (m_tearingSupport)
 		{
@@ -653,8 +653,8 @@ void D3D12Fullscreen::OnKeyDown(UINT8 key)
 				assert(false);
 			}
 		}
+		break;
 	}
-	break;
 
 	// Instrument the Right Arrow key to change the scene rendering resolution 
 	// to the next resolution option. 
@@ -844,7 +844,6 @@ void D3D12Fullscreen::UpdatePostViewAndScissor()
 	m_postViewport.TopLeftY = m_height * (1.0f - y) / 2.0f;
 	m_postViewport.Width = x * m_width;
 	m_postViewport.Height = y * m_height;
-	m_postViewport.MaxDepth = 1.0f;
 
 	m_postScissorRect.left = static_cast<LONG>(m_postViewport.TopLeftX);
 	m_postScissorRect.right = static_cast<LONG>(m_postViewport.TopLeftX + m_postViewport.Width);
@@ -862,7 +861,6 @@ void D3D12Fullscreen::LoadSceneResolutionDependentResources()
 	{
 		m_sceneViewport.Width = static_cast<float>(m_resolutionOptions[m_resolutionIndex].Width);
 		m_sceneViewport.Height = static_cast<float>(m_resolutionOptions[m_resolutionIndex].Height);
-		m_sceneViewport.MaxDepth = 1.0f;
 
 		m_sceneScissorRect.right = static_cast<LONG>(m_resolutionOptions[m_resolutionIndex].Width);
 		m_sceneScissorRect.bottom = static_cast<LONG>(m_resolutionOptions[m_resolutionIndex].Height);

@@ -211,23 +211,23 @@ void D3D12LinkedGpus::OnKeyDown(UINT8 key)
 {
 	switch (key)
 	{
+	// Instrument the Space Bar to toggle between fullscreen states.
+	// The CoreWindow will fire a SizeChanged event once the window is in the
+	// fullscreen state. At that point, the IDXGISwapChain should be resized
+	// to match the new window size.
 	case VK_SPACE:
-		// Instrument the Space Bar to toggle between fullscreen states.
-		// The CoreWindow will fire a SizeChanged event once the window is in the
-		// fullscreen state. At that point, the IDXGISwapChain should be resized
-		// to match the new window size.
+	{
+		auto applicationView = Windows::UI::ViewManagement::ApplicationView::GetForCurrentView();
+		if (applicationView->IsFullScreenMode)
 		{
-			auto applicationView = Windows::UI::ViewManagement::ApplicationView::GetForCurrentView();
-			if (applicationView->IsFullScreenMode)
-			{
-				applicationView->ExitFullScreenMode();
-			}
-			else
-			{
-				applicationView->TryEnterFullScreenMode();
-			}
+			applicationView->ExitFullScreenMode();
+		}
+		else
+		{
+			applicationView->TryEnterFullScreenMode();
 		}
 		break;
+	}
 
 	case VK_LEFT:
 	case VK_RIGHT:

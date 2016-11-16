@@ -15,8 +15,8 @@
 D3D12ReservedResources::D3D12ReservedResources(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
-	m_viewport(),
-	m_scissorRect(),
+	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0),
 	m_tilingSupport(false),
 	m_packedMipInfo(),
@@ -24,13 +24,6 @@ D3D12ReservedResources::D3D12ReservedResources(UINT width, UINT height, std::wst
 	m_activeMipChanged(true)
 {
 	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
-
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
 
 	UINT mipLevels = 0;
 	for (UINT w = TextureWidth, h = TextureHeight; w > 0 && h > 0; w >>= 1, h >>= 1)

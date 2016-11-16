@@ -44,7 +44,8 @@ private:
 	static const bool UseBundles = true;
 
 	// Pipeline objects.
-	D3D12_VIEWPORT m_viewport;
+	CD3DX12_VIEWPORT m_viewport;
+	CD3DX12_RECT m_scissorRect;
 	ComPtr<IDXGISwapChain3> m_swapChain;
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
@@ -59,7 +60,6 @@ private:
 	ComPtr<ID3D12PipelineState> m_pipelineState1;
 	ComPtr<ID3D12PipelineState> m_pipelineState2;
 	ComPtr<ID3D12GraphicsCommandList> m_commandList;
-	D3D12_RECT m_scissorRect;
 
 	// App resources.
 	UINT m_numIndices;
