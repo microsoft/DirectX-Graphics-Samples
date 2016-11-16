@@ -168,8 +168,8 @@ void CrossNodeResources::LoadAssets()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
 		psoDesc.pRootSignature = m_sceneRootSignature.Get();
-		psoDesc.VS = { g_SceneVS, sizeof(g_SceneVS) };
-		psoDesc.PS = { g_ScenePS, sizeof(g_ScenePS) };
+		psoDesc.VS = CD3DX12_SHADER_BYTECODE(g_SceneVS, sizeof(g_SceneVS));
+		psoDesc.PS = CD3DX12_SHADER_BYTECODE(g_ScenePS, sizeof(g_ScenePS));
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -194,8 +194,8 @@ void CrossNodeResources::LoadAssets()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC postPsoDesc = {};
 		postPsoDesc.InputLayout = { postInputElementDescs, _countof(postInputElementDescs) };
 		postPsoDesc.pRootSignature = m_postRootSignature.Get();
-		postPsoDesc.VS = { g_PostVS, sizeof(g_PostVS) };
-		postPsoDesc.PS = { g_PostPS, sizeof(g_PostPS) };
+		postPsoDesc.VS = CD3DX12_SHADER_BYTECODE(g_PostVS, sizeof(g_PostVS));
+		postPsoDesc.PS = CD3DX12_SHADER_BYTECODE(g_PostPS, sizeof(g_PostPS));
 		postPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		postPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		postPsoDesc.DepthStencilState.DepthEnable = FALSE;

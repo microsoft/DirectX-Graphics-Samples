@@ -73,10 +73,10 @@ private:
 	static UINT m_resolutionIndex; // Index of the current scene rendering resolution from m_resolutionOptions.
 
 	// Pipeline objects.
-	D3D12_VIEWPORT m_sceneViewport;
-	D3D12_VIEWPORT m_postViewport;
-	D3D12_RECT m_sceneScissorRect;
-	D3D12_RECT m_postScissorRect;
+	CD3DX12_VIEWPORT m_sceneViewport;
+	CD3DX12_VIEWPORT m_postViewport;
+	CD3DX12_RECT m_sceneScissorRect;
+	CD3DX12_RECT m_postScissorRect;
 	ComPtr<IDXGISwapChain3> m_swapChain;
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];

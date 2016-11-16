@@ -215,36 +215,36 @@ void D3D12LinkedGpus::OnKeyDown(UINT8 key)
 {
 	switch (key)
 	{
+	// Instrument the Space Bar to toggle between fullscreen states.
+	// The window message loop callback will receive a WM_SIZE message once the
+	// window is in the fullscreen state. At that point, the IDXGISwapChain should
+	// be resized to match the new window size.
+	//
+	// NOTE: ALT+Enter will perform a similar operation; the code below is not
+	// required to enable that key combination.
 	case VK_SPACE:
-		// Instrument the Space Bar to toggle between fullscreen states.
-		// The window message loop callback will receive a WM_SIZE message once the
-		// window is in the fullscreen state. At that point, the IDXGISwapChain should
-		// be resized to match the new window size.
-		//
-		// NOTE: ALT+Enter will perform a similar operation; the code below is not
-		// required to enable that key combination.
+	{
+		if (Settings::TearingSupport)
 		{
-			if (Settings::TearingSupport)
-			{
-				Win32Application::ToggleFullscreenWindow();
-			}
-			else
-			{
-				auto pSwapChain = m_crossNodeResources->GetSwapChain();
-				BOOL fullscreenState;
+			Win32Application::ToggleFullscreenWindow();
+		}
+		else
+		{
+			auto pSwapChain = m_crossNodeResources->GetSwapChain();
+			BOOL fullscreenState;
 
-				ThrowIfFailed(pSwapChain->GetFullscreenState(&fullscreenState, nullptr));
-				if (FAILED(pSwapChain->SetFullscreenState(!fullscreenState, nullptr)))
-				{
-					// Transitions to fullscreen mode can fail when running apps over
-					// terminal services or for some other unexpected reason.  Consider
-					// notifying the user in some way when this happens.
-					OutputDebugString(L"Fullscreen transition failed");
-					_ASSERT(false);
-				}
+			ThrowIfFailed(pSwapChain->GetFullscreenState(&fullscreenState, nullptr));
+			if (FAILED(pSwapChain->SetFullscreenState(!fullscreenState, nullptr)))
+			{
+				// Transitions to fullscreen mode can fail when running apps over
+				// terminal services or for some other unexpected reason.  Consider
+				// notifying the user in some way when this happens.
+				OutputDebugString(L"Fullscreen transition failed");
+				_ASSERT(false);
 			}
 		}
 		break;
+	}
 
 	case VK_LEFT:
 	case VK_RIGHT:

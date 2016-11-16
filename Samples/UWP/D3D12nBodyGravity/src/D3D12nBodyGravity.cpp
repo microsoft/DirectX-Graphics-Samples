@@ -22,8 +22,8 @@ const float D3D12nBodyGravity::ParticleSpread = 400.0f;
 D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
-	m_viewport(),
-	m_scissorRect(),
+	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0),
 	m_srvUavDescriptorSize(0),
 	m_pConstantBufferGSData(nullptr),
@@ -38,13 +38,6 @@ D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name)
 		m_renderContextFenceValues[n] = 0;
 		m_threadFenceValues[n] = 0;
 	}
-
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
 
 	float sqRootNumAsyncContexts = sqrt(static_cast<float>(ThreadCount));
 	m_heightInstances = static_cast<UINT>(ceil(sqRootNumAsyncContexts));
@@ -693,13 +686,12 @@ void D3D12nBodyGravity::PopulateCommandList()
 	{
 		const UINT srvIndex = n + (m_srvIndex[n] == 0 ? SrvParticlePosVelo0 : SrvParticlePosVelo1);
 
-		D3D12_VIEWPORT viewport;
-		viewport.TopLeftX = (n % m_widthInstances) * viewportWidth;
-		viewport.TopLeftY = (n / m_widthInstances) * viewportHeight;
-		viewport.Width = viewportWidth;
-		viewport.Height = viewportHeight;
-		viewport.MinDepth = D3D12_MIN_DEPTH;
-		viewport.MaxDepth = D3D12_MAX_DEPTH;
+		CD3DX12_VIEWPORT viewport(
+			(n % m_widthInstances) * viewportWidth,
+			(n / m_widthInstances) * viewportHeight,
+			viewportWidth,
+			viewportHeight);
+
 		m_commandList->RSSetViewports(1, &viewport);
 
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), srvIndex, m_srvUavDescriptorSize);

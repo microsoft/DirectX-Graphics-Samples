@@ -71,7 +71,7 @@ namespace DX
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_commandAllocators[c_frameCount];
 		DXGI_FORMAT m_backBufferFormat;
 		DXGI_FORMAT m_depthBufferFormat;
-		D3D12_VIEWPORT m_screenViewport;
+		CD3DX12_VIEWPORT m_screenViewport;
 		UINT m_rtvDescriptorSize;
 		bool m_deviceRemoved;
 

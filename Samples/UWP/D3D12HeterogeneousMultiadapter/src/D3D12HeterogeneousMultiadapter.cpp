@@ -25,8 +25,8 @@ D3D12HeterogeneousMultiadapter::D3D12HeterogeneousMultiadapter(int width, int he
 	m_currentTimesIndex(0),
 	m_drawTimeMovingAverage(0),
 	m_blurTimeMovingAverage(0),
-	m_viewport(),
-	m_scissorRect(),
+	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_currentPresentFenceValue(1),
 	m_currentRenderFenceValue(1),
 	m_currentCrossAdapterFenceValue(1),
@@ -43,13 +43,6 @@ D3D12HeterogeneousMultiadapter::D3D12HeterogeneousMultiadapter(int width, int he
 
 	ZeroMemory(m_drawTimes, sizeof(m_drawTimes));
 	ZeroMemory(m_blurTimes, sizeof(m_blurTimes));
-	
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
 }
 
 void D3D12HeterogeneousMultiadapter::OnInit()

@@ -22,20 +22,13 @@ D3D12PipelineStateCache::D3D12PipelineStateCache(UINT width, UINT height, std::w
 	m_drawIndex(0),
 	m_maxDrawsPerFrame(256),
 	m_dynamicCB(sizeof(DrawConstantBuffer), m_maxDrawsPerFrame, FrameCount),
-	m_viewport(),
-	m_scissorRect(),
+	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0),
 	m_srvDescriptorSize(0)
 {
 	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 	memset(m_enabledEffects, true, sizeof(m_enabledEffects));
-
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
 }
 
 void D3D12PipelineStateCache::OnInit()
@@ -574,13 +567,11 @@ void D3D12PipelineStateCache::PopulateCommandList()
 		{
 			if (m_enabledEffects[i])
 			{
-				D3D12_VIEWPORT viewport = {};
-				viewport.TopLeftX = (quadCount % quadsX) * (m_viewport.Width / quadsX);
-				viewport.TopLeftY = (quadCount / quadsY) * (m_viewport.Height / quadsY);
-				viewport.Width = m_viewport.Width / quadsX;
-				viewport.Height = m_viewport.Height / quadsY;
-				viewport.MinDepth = 0.0f;
-				viewport.MaxDepth = 0.0f;
+				CD3DX12_VIEWPORT viewport(
+					(quadCount % quadsX) * (m_viewport.Width / quadsX),
+					(quadCount / quadsY) * (m_viewport.Height / quadsY),
+					m_viewport.Width / quadsX,
+					m_viewport.Height / quadsY);
 
 				PIXBeginEvent(m_commandList.Get(), 0, g_cEffectNames[i]);
 				m_commandList->RSSetViewports(1, &viewport);

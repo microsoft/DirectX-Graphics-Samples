@@ -15,20 +15,14 @@
 D3D12Residency::D3D12Residency(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
-	m_viewport(),
-	m_scissorRect(),
+	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0),
 	m_totalAllocations(0),
 	m_textureIndex(0),
 	m_cancel(false),
 	m_loadedTextureCount(0)
 {
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
 }
 
 void D3D12Residency::OnInit()
@@ -81,40 +75,6 @@ void D3D12Residency::LoadPipeline()
 
 		ThrowIfFailed(hardwareAdapter.As(&m_adapter));
 	}
-
-#if defined(_DEBUG)
-	{
-		ComPtr<ID3D12InfoQueue> infoQueue;
-		if (SUCCEEDED(m_device.As(&infoQueue)))
-		{
-			// Allow only specific types of messages to be displayed.
-			D3D12_MESSAGE_SEVERITY allowMessageSeverityList[] =
-			{
-				D3D12_MESSAGE_SEVERITY_CORRUPTION,
-				D3D12_MESSAGE_SEVERITY_ERROR,
-				D3D12_MESSAGE_SEVERITY_WARNING
-			};
-
-			// Suppress individual messages by their ID.
-			D3D12_MESSAGE_ID denyMessageIdList[] =
-			{
-				// False positive debug message about non-resident resource usage
-				// that doesn't take into account that we do ensure resources are
-				// resident by using fences. This validation will be fixed in a
-				// future release of the SDK Layers.
-				D3D12_MESSAGE_ID_INVALID_USE_OF_NON_RESIDENT_RESOURCE
-			};
-
-			D3D12_INFO_QUEUE_FILTER filter = {};
-			filter.AllowList.NumSeverities = _countof(allowMessageSeverityList);
-			filter.AllowList.pSeverityList = allowMessageSeverityList;
-			filter.DenyList.NumIDs = _countof(denyMessageIdList);
-			filter.DenyList.pIDList = denyMessageIdList;
-
-			infoQueue->PushStorageFilter(&filter);
-		}
-	}
-#endif
 
 	// Describe and create the command queue.
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
