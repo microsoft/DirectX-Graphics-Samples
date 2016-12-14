@@ -115,11 +115,13 @@ HRESULT DX12Framework::Init()
 HRESULT DX12Framework::CreateDeviceIndependentStateInternal()
 {
 	HRESULT hr;
+	UINT dxgiFactoryFlags = 0;
 
 #if(_DEBUG)
 	{
 		//
-		// Try to enable the debug layer if it's present on the system.
+		// Try to enable the debug layer if it's present on the system. It should
+		// be enabled before creating the device.
 		// Install the 'Graphics Tools' optional feature in Settings to enable
 		// the SDK layers.
 		//
@@ -132,13 +134,14 @@ HRESULT DX12Framework::CreateDeviceIndependentStateInternal()
 			pDebugController->Release();
 
 			bDebugLayerEnabled = true;
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 
 		wprintf(L"\nDebug layer is %senabled\n\n", bDebugLayerEnabled ? L"" : L"NOT ");
 	}
 #endif
 
-	hr = CreateDXGIFactory(IID_PPV_ARGS(&m_pDXGIFactory));
+	hr = CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_pDXGIFactory));
 	if (FAILED(hr))
 	{
 		LOG_ERROR("Failed to create DXGI Factory, hr=0x%.8x", hr);
