@@ -42,9 +42,10 @@ D3D12Fullscreen::D3D12Fullscreen(UINT width, UINT height, std::wstring name) :
 	m_rtvDescriptorSize(0),
 	m_cbvSrvDescriptorSize(0),
 	m_windowVisible(true),
-	m_windowedMode(true)
+	m_windowedMode(true),
+	m_sceneConstantBufferData{},
+	m_fenceValues{}
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 }
 
 void D3D12Fullscreen::OnInit()
@@ -467,10 +468,8 @@ void D3D12Fullscreen::LoadAssets()
 			cpuHandle.Offset(m_cbvSrvDescriptorSize);
 		}
 
-		// Initialize and map the constant buffers. We don't unmap this until the
+		// Map and initialize the constant buffer. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
-		ZeroMemory(&m_sceneConstantBufferData, sizeof(m_sceneConstantBufferData));
-
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_sceneConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 		memcpy(m_pCbvDataBegin, &m_sceneConstantBufferData, sizeof(m_sceneConstantBufferData));

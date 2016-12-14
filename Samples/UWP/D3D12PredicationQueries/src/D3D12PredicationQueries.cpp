@@ -18,9 +18,10 @@ D3D12PredicationQueries::D3D12PredicationQueries(UINT width, UINT height, std::w
 	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
 	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0),
-	m_cbvSrvDescriptorSize(0)
+	m_cbvSrvDescriptorSize(0),
+	m_constantBufferData{},
+	m_fenceValues{}
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 }
 
 void D3D12PredicationQueries::OnInit()
@@ -339,9 +340,8 @@ void D3D12PredicationQueries::LoadAssets()
 
 		NAME_D3D12_OBJECT(m_constantBuffer);
 
-		// Initialize and map the constant buffers. We don't unmap this until the
+		// Map and initialize the constant buffer. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
-		ZeroMemory(&m_constantBufferData, sizeof(m_constantBufferData));
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 		ZeroMemory(m_pCbvDataBegin, FrameCount * sizeof(m_constantBufferData));

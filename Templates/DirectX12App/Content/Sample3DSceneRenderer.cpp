@@ -23,11 +23,11 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 	m_radiansPerSecond(XM_PIDIV4),	// rotate 45 degrees per second
 	m_angle(0),
 	m_tracking(false),
+	m_constantBufferData{},
 	m_mappedConstantBuffer(nullptr),
 	m_deviceResources(deviceResources)
 {
 	LoadState();
-	ZeroMemory(&m_constantBufferData, sizeof(m_constantBufferData));
 
 	CreateDeviceDependentResources();
 	CreateWindowSizeDependentResources();

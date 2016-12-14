@@ -28,11 +28,10 @@ D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name)
 	m_srvUavDescriptorSize(0),
 	m_pConstantBufferGSData(nullptr),
 	m_renderContextFenceValue(0),
-	m_terminating(0)
+	m_terminating(0),
+	m_srvIndex{},
+	m_frameFenceValues{}
 {
-	ZeroMemory(m_srvIndex, sizeof(m_srvIndex));
-	ZeroMemory(m_frameFenceValues, sizeof(m_frameFenceValues));
-
 	for (int n = 0; n < ThreadCount; n++)
 	{
 		m_renderContextFenceValues[n] = 0;

@@ -27,9 +27,9 @@ D3D12ExecuteIndirect::D3D12ExecuteIndirect(UINT width, UINT height, std::wstring
 	m_rtvDescriptorSize(0),
 	m_cbvSrvUavDescriptorSize(0),
 	m_csRootConstants(),
-	m_enableCulling(true)
+	m_enableCulling(true),
+	m_fenceValues{}
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 	m_constantBufferData.resize(TriangleCount);
 
 	m_csRootConstants.xOffset = TriangleHalfWidth;
@@ -390,8 +390,8 @@ void D3D12ExecuteIndirect::LoadAssets()
 			XMStoreFloat4x4(&m_constantBufferData[n].projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 0.01f, 20.0f)));
 		}
 
-		// Map the constant buffers. We don't unmap this until the app closes.
-		// Keeping things mapped for the lifetime of the resource is okay.
+		// Map and initialize the constant buffer. We don't unmap this until the
+		// app closes. Keeping things mapped for the lifetime of the resource is okay.
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 		memcpy(m_pCbvDataBegin, &m_constantBufferData[0], TriangleCount * sizeof(SceneConstantBuffer));

@@ -22,10 +22,9 @@ D3D12ReservedResources::D3D12ReservedResources(UINT width, UINT height, std::wst
 	m_tilingSupport(false),
 	m_packedMipInfo(),
 	m_activeMip(0),
-	m_activeMipChanged(true)
+	m_activeMipChanged(true),
+	m_fenceValues{}
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
-
 	UINT mipLevels = 0;
 	for (UINT w = TextureWidth, h = TextureHeight; w > 0 && h > 0; w >>= 1, h >>= 1)
 	{

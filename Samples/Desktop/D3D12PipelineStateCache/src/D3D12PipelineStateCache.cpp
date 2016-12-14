@@ -25,9 +25,9 @@ D3D12PipelineStateCache::D3D12PipelineStateCache(UINT width, UINT height, std::w
 	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
 	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0),
-	m_srvDescriptorSize(0)
+	m_srvDescriptorSize(0),
+	m_fenceValues{}
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 	memset(m_enabledEffects, true, sizeof(m_enabledEffects));
 }
 
