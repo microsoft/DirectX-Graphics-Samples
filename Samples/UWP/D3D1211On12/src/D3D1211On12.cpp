@@ -17,9 +17,9 @@ D3D1211on12::D3D1211on12(UINT width, UINT height, std::wstring name) :
 	m_frameIndex(0),
 	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
 	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
-	m_rtvDescriptorSize(0)
+	m_rtvDescriptorSize(0),
+	m_fenceValues{}
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 }
 
 void D3D1211on12::OnInit()
@@ -31,27 +31,29 @@ void D3D1211on12::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D1211on12::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
 	UINT d3d11DeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 	D2D1_FACTORY_OPTIONS d2dFactoryOptions = {};
+
 #if defined(_DEBUG)
-	// Enable the D2D debug layer.
-	d2dFactoryOptions.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
-
-	// Enable the D3D11 debug layer.
-	d3d11DeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+			d3d11DeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+			d2dFactoryOptions.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{

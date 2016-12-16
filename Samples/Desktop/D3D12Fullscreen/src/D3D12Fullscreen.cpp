@@ -42,9 +42,10 @@ D3D12Fullscreen::D3D12Fullscreen(UINT width, UINT height, std::wstring name) :
 	m_rtvDescriptorSize(0),
 	m_cbvSrvDescriptorSize(0),
 	m_windowVisible(true),
-	m_windowedMode(true)
+	m_windowedMode(true),
+	m_sceneConstantBufferData{},
+	m_fenceValues{}
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 }
 
 void D3D12Fullscreen::OnInit()
@@ -56,19 +57,25 @@ void D3D12Fullscreen::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12Fullscreen::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{
@@ -461,10 +468,8 @@ void D3D12Fullscreen::LoadAssets()
 			cpuHandle.Offset(m_cbvSrvDescriptorSize);
 		}
 
-		// Initialize and map the constant buffers. We don't unmap this until the
+		// Map and initialize the constant buffer. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
-		ZeroMemory(&m_sceneConstantBufferData, sizeof(m_sceneConstantBufferData));
-
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_sceneConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 		memcpy(m_pCbvDataBegin, &m_sceneConstantBufferData, sizeof(m_sceneConstantBufferData));

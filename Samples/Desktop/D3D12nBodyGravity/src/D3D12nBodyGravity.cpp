@@ -28,11 +28,10 @@ D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name)
 	m_srvUavDescriptorSize(0),
 	m_pConstantBufferGSData(nullptr),
 	m_renderContextFenceValue(0),
-	m_terminating(0)
+	m_terminating(0),
+	m_srvIndex{},
+	m_frameFenceValues{}
 {
-	ZeroMemory(m_srvIndex, sizeof(m_srvIndex));
-	ZeroMemory(m_frameFenceValues, sizeof(m_frameFenceValues));
-
 	for (int n = 0; n < ThreadCount; n++)
 	{
 		m_renderContextFenceValues[n] = 0;
@@ -62,19 +61,25 @@ void D3D12nBodyGravity::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12nBodyGravity::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{
@@ -212,7 +217,7 @@ void D3D12nBodyGravity::LoadAssets()
 		// Compute root signature.
 		{
 			CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
-			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
 			ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
 			CD3DX12_ROOT_PARAMETER1 rootParameters[ComputeRootParametersCount];

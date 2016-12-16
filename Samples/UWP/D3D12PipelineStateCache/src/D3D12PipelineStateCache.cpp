@@ -25,9 +25,9 @@ D3D12PipelineStateCache::D3D12PipelineStateCache(UINT width, UINT height, std::w
 	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
 	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0),
-	m_srvDescriptorSize(0)
+	m_srvDescriptorSize(0),
+	m_fenceValues{}
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 	memset(m_enabledEffects, true, sizeof(m_enabledEffects));
 }
 
@@ -46,19 +46,25 @@ void D3D12PipelineStateCache::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12PipelineStateCache::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{

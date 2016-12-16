@@ -32,17 +32,14 @@ D3D12HeterogeneousMultiadapter::D3D12HeterogeneousMultiadapter(int width, int he
 	m_currentCrossAdapterFenceValue(1),
 	m_workloadConstantBufferData(),
 	m_blurWorkloadConstantBufferData(),
-	m_crossAdapterTextureSupport(false)
+	m_crossAdapterTextureSupport(false),
+	m_rtvDescriptorSizes{},
+	m_srvDescriptorSizes{},
+	m_drawTimes{},
+	m_blurTimes{},
+	m_frameFenceValues{}
 {
-	ZeroMemory(m_rtvDescriptorSizes, sizeof(m_rtvDescriptorSizes));
-	ZeroMemory(m_srvDescriptorSizes, sizeof(m_srvDescriptorSizes));
-
-	ZeroMemory(m_frameFenceValues, sizeof(m_frameFenceValues));
-
 	m_constantBufferData.resize(MaxTriangleCount);
-
-	ZeroMemory(m_drawTimes, sizeof(m_drawTimes));
-	ZeroMemory(m_blurTimes, sizeof(m_blurTimes));
 }
 
 void D3D12HeterogeneousMultiadapter::OnInit()
@@ -78,19 +75,25 @@ HRESULT D3D12HeterogeneousMultiadapter::GetHardwareAdapters(IDXGIFactory2* pFact
 // Load the rendering pipeline dependencies.
 void D3D12HeterogeneousMultiadapter::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	ComPtr<IDXGIAdapter1> primaryAdapter;
 	ComPtr<IDXGIAdapter1> secondaryAdapter;
@@ -663,8 +666,8 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 				XMStoreFloat4x4(&m_constantBufferData[n].projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 0.01f, 20.0f)));
 			}
 
-			// Map the constant buffer. We don't unmap this until the app closes.
-			// Keeping things mapped for the lifetime of the resource is okay.
+			// Map and initialize the constant buffer. We don't unmap this until the
+			// app closes. Keeping things mapped for the lifetime of the resource is okay.
 			CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 			ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 			memcpy(m_pCbvDataBegin, &m_constantBufferData[0], constantBufferSize / FrameCount);
@@ -684,8 +687,8 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 			// Setup constant buffer data.
 			m_workloadConstantBufferData.loopCount = m_psLoopCount;
 
-			// Map the constant buffer. We don't unmap this until the app closes.
-			// Keeping things mapped for the lifetime of the resource is okay.
+			// Map and initialize the constant buffer. We don't unmap this until the
+			// app closes. Keeping things mapped for the lifetime of the resource is okay.
 			CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 			ThrowIfFailed(m_workloadConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pWorkloadCbvDataBegin)));
 			memcpy(m_pWorkloadCbvDataBegin, &m_workloadConstantBufferData, workloadConstantBufferSize / FrameCount);
@@ -705,8 +708,8 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 			// Setup constant buffer data.
 			m_blurWorkloadConstantBufferData.loopCount = m_blurPSLoopCount;
 
-			// Map the constant buffer. We don't unmap this until the app closes.
-			// Keeping things mapped for the lifetime of the resource is okay.
+			// Map and initialize the constant buffer. We don't unmap this until the
+			// app closes. Keeping things mapped for the lifetime of the resource is okay.
 			CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 			ThrowIfFailed(m_blurWorkloadConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pBlurWorkloadCbvDataBegin)));
 			memcpy(m_pBlurWorkloadCbvDataBegin, &m_blurWorkloadConstantBufferData, blurWorkloadConstantBufferSize / FrameCount);

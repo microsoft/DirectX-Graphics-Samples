@@ -217,8 +217,8 @@ void CrossNodeResources::LoadAssets()
 			nullptr,
 			IID_PPV_ARGS(&m_sceneConstantBuffer)));
 
-		// Map the constant buffers. We don't unmap this until the app closes.
-		// Keeping things mapped for the lifetime of the resource is okay.
+		// Map and initialize the constant buffer. We don't unmap this until the
+		// app closes. Keeping things mapped for the lifetime of the resource is okay.
 		ThrowIfFailed(m_sceneConstantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedConstantBuffer)));
 		ZeroMemory(m_mappedConstantBuffer, constantBufferDataSize);
 	}
