@@ -22,9 +22,6 @@
     <Filter Include="Source Files\Util">
       <UniqueIdentifier>{10f3c935-7b57-4931-a129-46f6b9c57fa9}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Assets\PrecompiledShaders">
-      <UniqueIdentifier>{fa30b982-ede9-4a3a-b066-ab4253ab9f24}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -57,47 +54,14 @@
     <ClInclude Include="StepTimer.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="BlitPixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="BlurPixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="DistortPixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="EdgeDetectPixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="GrayScalePixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="InvertPixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="PixelatePixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="QuadVertexShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="SimplePixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="SimpleVertexShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="UberPixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="WavePixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="WarpPixelShader.hlsl.h">
-      <Filter>Assets\PrecompiledShaders</Filter>
-    </ClInclude>
     <ClInclude Include="Win32Application.h">
       <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryMappedPipelineLibrary.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryMappedFile.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -127,6 +91,12 @@
     </ClCompile>
     <ClCompile Include="Win32Application.cpp">
       <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryMappedPipelineLibrary.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryMappedFile.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

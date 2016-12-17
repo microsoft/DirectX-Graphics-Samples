@@ -451,7 +451,7 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 	RootSig[2].InitAsConstantBuffer(2);
 	RootSig[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 8);
 	RootSig[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10);
-	RootSig.Finalize();
+	RootSig.Finalize(L"Particle Effects");
 
 #define CreatePSO( ObjName, ShaderByteCode ) \
 	ObjName.SetRootSignature(RootSig); \
@@ -554,9 +554,9 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
 
 	ID3D12Resource* tex = nullptr;
 	ASSERT_SUCCEEDED( g_Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
-		&TexDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, MY_IID_PPV_ARGS(&tex)) );
-
-	TextureArray = GpuResource(tex, D3D12_RESOURCE_STATE_COMMON);
+		&TexDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, MY_IID_PPV_ARGS(&tex)) );
+	tex->SetName(L"Particle TexArray");
+	TextureArray = GpuResource(tex, D3D12_RESOURCE_STATE_COPY_DEST);
 	tex->Release();
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};

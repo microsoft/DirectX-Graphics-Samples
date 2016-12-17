@@ -45,7 +45,7 @@ private:
 	};
 
 	// Constant buffer definition.
-	struct ConstantBufferData
+	struct SceneConstantBuffer
 	{
 		XMFLOAT4 offset;
 
@@ -55,12 +55,12 @@ private:
 	};
 
 	// Each geometry gets its own constant buffer.
-	ConstantBufferData m_constantBufferData[CbvCountPerFrame];
+	SceneConstantBuffer m_constantBufferData[CbvCountPerFrame];
 	UINT8* m_pCbvDataBegin;
 
 	// Pipeline objects.
-	D3D12_VIEWPORT m_viewport;
-	D3D12_RECT m_scissorRect;
+	CD3DX12_VIEWPORT m_viewport;
+	CD3DX12_RECT m_scissorRect;
 	ComPtr<IDXGISwapChain3> m_swapChain;
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];

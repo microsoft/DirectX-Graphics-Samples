@@ -24,7 +24,7 @@ Shader::~Shader()
 HRESULT Shader::CreateDeviceDependentState(
 	ID3D12Device* pDevice,
 	const wchar_t* pShaderFile,
-	D3D12_ROOT_SIGNATURE_DESC* pRootSignatureDesc,
+	D3D12_VERSIONED_ROOT_SIGNATURE_DESC* pRootSignatureDesc,
 	D3D12_INPUT_ELEMENT_DESC* pInputElements,
 	UINT InputElementCount,
 	bool bEnableAlpha)
@@ -35,9 +35,19 @@ HRESULT Shader::CreateDeviceDependentState(
 	// Create the root signature.
 	//
 	{
+		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+
+		// This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+		if (FAILED(pDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+		{
+			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+		}
+
 		ComPtr<ID3DBlob> pSignature;
 		ComPtr<ID3DBlob> pErrors;
-		hr = D3D12SerializeRootSignature(pRootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pSignature, &pErrors);
+		hr = D3DX12SerializeVersionedRootSignature(pRootSignatureDesc, featureData.HighestVersion, &pSignature, &pErrors);
 		if (FAILED(hr))
 		{
 			LOG_ERROR("Failed to serialize root signature, hr=0x%.8x", hr);
@@ -165,10 +175,10 @@ TextureShader::TextureShader() :
 
 HRESULT TextureShader::CreateDeviceDependentState(ID3D12Device* pDevice, const wchar_t* pShaderFile)
 {
-	CD3DX12_DESCRIPTOR_RANGE DescriptorRanges[1];
-	DescriptorRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	CD3DX12_DESCRIPTOR_RANGE1 DescriptorRanges[1];
+	DescriptorRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-	CD3DX12_ROOT_PARAMETER RootParameters[2];
+	CD3DX12_ROOT_PARAMETER1 RootParameters[2];
 	RootParameters[0].InitAsConstantBufferView(0);
 	RootParameters[1].InitAsDescriptorTable(1, &DescriptorRanges[0], D3D12_SHADER_VISIBILITY_PIXEL);
 
@@ -176,8 +186,8 @@ HRESULT TextureShader::CreateDeviceDependentState(ID3D12Device* pDevice, const w
 	StaticSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	StaticSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 
-	CD3DX12_ROOT_SIGNATURE_DESC RootSignatureDesc;
-	RootSignatureDesc.Init(_countof(RootParameters), RootParameters, 1, &StaticSamplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC RootSignatureDesc;
+	RootSignatureDesc.Init_1_1(_countof(RootParameters), RootParameters, 1, &StaticSamplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	D3D12_INPUT_ELEMENT_DESC InputElementDescs[] =
 	{
@@ -200,11 +210,11 @@ ColorShader::ColorShader() :
 
 HRESULT ColorShader::CreateDeviceDependentState(ID3D12Device* pDevice, const wchar_t* pShaderFile)
 {
-	CD3DX12_ROOT_PARAMETER RootParameters[1];
-	RootParameters[0].InitAsConstantBufferView(0);
+	CD3DX12_ROOT_PARAMETER1 RootParameters[1];
+	RootParameters[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC);
 
-	CD3DX12_ROOT_SIGNATURE_DESC RootSignatureDesc;
-	RootSignatureDesc.Init(_countof(RootParameters), RootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC RootSignatureDesc;
+	RootSignatureDesc.Init_1_1(_countof(RootParameters), RootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	D3D12_INPUT_ELEMENT_DESC InputElementDescs[] =
 	{

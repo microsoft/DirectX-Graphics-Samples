@@ -240,7 +240,7 @@ public:
 
 	}
 
-	std::vector<std::unique_ptr<PerfGraph>> m_Graphs;
+	std::vector<std::unique_ptr<PerfGraph>> m_Graphs; // this should be private
 
 private:
 	
@@ -293,7 +293,7 @@ void GraphRenderer::Initialize( void )
 	s_RootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
 	s_RootSignature[2].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_VERTEX);
 	s_RootSignature[3].InitAsConstants(1, 3);
-	s_RootSignature.Finalize();
+	s_RootSignature.Finalize(L"Graph Renderer");
 
 	s_RenderPerfGraphPSO.SetRootSignature(s_RootSignature);
 	s_RenderPerfGraphPSO.SetRasterizerState(RasterizerDefault);
@@ -391,7 +391,7 @@ void DrawGraphHeaders(TextContext& Text, float leftMargin, float topMargin, floa
 	float* MaxArray, float* PresetMaxArray, bool GlobalScale, uint32_t numDebugVar, std::string* graphTitles)
 {		
 	XMFLOAT2 textSpaceY = XMFLOAT2(0.02f * graphHeight, 0.067f * graphHeight); //top and bottom text space
-	textSpaceY.y = graphHeight - topMargin - textSpaceY.x * 3.0f;
+	textSpaceY.y = graphHeight - topMargin - textSpaceY.x * 3.0f; // make this better
 	float textSpaceX = 45.f;
 	Text.SetColor(Color(1.0f, 1.0f, 1.0f));
 	Text.SetTextSize(12.0f);

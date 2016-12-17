@@ -76,7 +76,4 @@
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="DirectX12App_TemporaryKey.pfx" />
-  </ItemGroup>
 </Project>

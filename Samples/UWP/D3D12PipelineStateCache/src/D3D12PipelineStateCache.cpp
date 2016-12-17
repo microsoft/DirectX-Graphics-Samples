@@ -22,20 +22,13 @@ D3D12PipelineStateCache::D3D12PipelineStateCache(UINT width, UINT height, std::w
 	m_drawIndex(0),
 	m_maxDrawsPerFrame(256),
 	m_dynamicCB(sizeof(DrawConstantBuffer), m_maxDrawsPerFrame, FrameCount),
-	m_viewport(),
-	m_scissorRect(),
+	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0),
-	m_srvDescriptorSize(0)
+	m_srvDescriptorSize(0),
+	m_fenceValues{}
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
 	memset(m_enabledEffects, true, sizeof(m_enabledEffects));
-
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
 }
 
 void D3D12PipelineStateCache::OnInit()
@@ -53,19 +46,25 @@ void D3D12PipelineStateCache::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12PipelineStateCache::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{
@@ -195,13 +194,26 @@ void D3D12PipelineStateCache::LoadAssets()
 {
 	// Create the root signature.
 	{
-		CD3DX12_DESCRIPTOR_RANGE ranges[RootParametersCount];
+		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+
+		// This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+		if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+		{
+			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+		}
+
+		// We don't modify the SRV in the command list after SetGraphicsRootDescriptorTable
+		// is executed on the GPU so we can use the default range behavior:
+		// D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE
+		CD3DX12_DESCRIPTOR_RANGE1 ranges[RootParametersCount];
 		ranges[RootParameterSRV].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
-		CD3DX12_ROOT_PARAMETER rootParameters[RootParametersCount];
-		rootParameters[RootParameterUberShaderCB].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
-		rootParameters[RootParameterCB].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
-		rootParameters[RootParameterSRV].InitAsDescriptorTable(1, &ranges[RootParameterSRV]);
+		CD3DX12_ROOT_PARAMETER1 rootParameters[RootParametersCount];
+		rootParameters[RootParameterUberShaderCB].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
+		rootParameters[RootParameterCB].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
+		rootParameters[RootParameterSRV].InitAsDescriptorTable(1, &ranges[RootParameterSRV], D3D12_SHADER_VISIBILITY_PIXEL);
 
 		D3D12_STATIC_SAMPLER_DESC sampler = {};
 		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -218,12 +230,12 @@ void D3D12PipelineStateCache::LoadAssets()
 		sampler.RegisterSpace = 0;
 		sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-		rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+		rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3DBlob> error;
-		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+		ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
 		NAME_D3D12_OBJECT(m_rootSignature);
 	}
@@ -359,6 +371,7 @@ void D3D12PipelineStateCache::LoadAssets()
 	}
 
 	m_psoLibrary.Build(m_device.Get(), m_rootSignature.Get());
+	UpdateWindowTextPso();
 }
 
 // Update frame-based values.
@@ -417,6 +430,7 @@ void D3D12PipelineStateCache::OnKeyUp(UINT8 key)
 	case 'C':
 		WaitForGpu();
 		m_psoLibrary.ClearPSOCache();
+		m_psoLibrary.Build(m_device.Get(), m_rootSignature.Get());
 		break;
 
 	case 'U':
@@ -425,6 +439,10 @@ void D3D12PipelineStateCache::OnKeyUp(UINT8 key)
 
 	case 'L':
 		m_psoLibrary.ToggleDiskLibrary();
+		break;
+
+	case 'M':
+		m_psoLibrary.SwitchPSOCachingMechanism();
 		break;
 
 	case '1':
@@ -551,13 +569,11 @@ void D3D12PipelineStateCache::PopulateCommandList()
 		{
 			if (m_enabledEffects[i])
 			{
-				D3D12_VIEWPORT viewport = {};
-				viewport.TopLeftX = (quadCount % quadsX) * (m_viewport.Width / quadsX);
-				viewport.TopLeftY = (quadCount / quadsY) * (m_viewport.Height / quadsY);
-				viewport.Width = m_viewport.Width / quadsX;
-				viewport.Height = m_viewport.Height / quadsY;
-				viewport.MinDepth = 0.0f;
-				viewport.MaxDepth = 0.0f;
+				CD3DX12_VIEWPORT viewport(
+					(quadCount % quadsX) * (m_viewport.Width / quadsX),
+					(quadCount / quadsY) * (m_viewport.Height / quadsY),
+					m_viewport.Width / quadsX,
+					m_viewport.Height / quadsY);
 
 				PIXBeginEvent(m_commandList.Get(), 0, g_cEffectNames[i]);
 				m_commandList->RSSetViewports(1, &viewport);
@@ -602,7 +618,24 @@ void D3D12PipelineStateCache::UpdateWindowTextPso()
 	stringStream << L"  [Use Uber Shader: ";
 	stringStream << (m_psoLibrary.UberShadersEnabled() ? L"true]" : L"false]");
 	stringStream << L"   [Use DiskCache: ";
-	stringStream << (m_psoLibrary.DiskCacheEnabled() ? L"true]" : L"false]");
+
+	if (m_psoLibrary.DiskCacheEnabled())
+	{
+		stringStream << L"true, ";
+		switch (m_psoLibrary.GetPSOCachingMechanism())
+		{
+		case PSOCachingMechanism::CachedBlobs:
+				stringStream << L"CachedBlobs]";
+				break;
+		case PSOCachingMechanism::PipelineLibraries:
+			stringStream << L"PipelineLibraries]";
+			break;
+		}
+	}
+	else
+	{
+		stringStream <<  L"false]";
+	}
 
 	SetCustomWindowText(stringStream.str().c_str());
 }

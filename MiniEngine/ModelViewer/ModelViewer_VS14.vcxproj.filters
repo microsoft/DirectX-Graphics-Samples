@@ -14,6 +14,18 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <Image Include="Logo.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SmallLogo.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SplashScreen.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="StoreLogo.png">
+      <Filter>Resource Files</Filter>
+    </Image>
     <Image Include="Textures\default.DDS">
       <Filter>Resource Files</Filter>
     </Image>
@@ -173,6 +185,9 @@
     <Image Include="Textures\Models\white.DDS">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="WideLogo.png">
+      <Filter>Resource Files</Filter>
+    </Image>
     <Image Include="Textures\fire.dds">
       <Filter>Resource Files</Filter>
     </Image>
@@ -180,6 +195,9 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="Textures\sparkTex.dds">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Logo44.png">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
@@ -209,5 +227,8 @@
     <FxCompile Include="Shaders\DepthViewerPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="UWP.appxmanifest" />
   </ItemGroup>
 </Project>

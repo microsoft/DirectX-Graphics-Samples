@@ -42,7 +42,8 @@ private:
 	};
 
 	// Pipeline objects.
-	D3D12_VIEWPORT m_viewport;
+	CD3DX12_VIEWPORT m_viewport;
+	CD3DX12_RECT m_scissorRect;
 	ComPtr<IDXGISwapChain3> m_swapChain;
 	ComPtr<ID3D11DeviceContext> m_d3d11DeviceContext;
 	ComPtr<ID3D11On12Device> m_d3d11On12Device;
@@ -60,7 +61,6 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 	ComPtr<ID3D12GraphicsCommandList> m_commandList;
-	D3D12_RECT m_scissorRect;
 
 	// App resources.
 	UINT m_rtvDescriptorSize;

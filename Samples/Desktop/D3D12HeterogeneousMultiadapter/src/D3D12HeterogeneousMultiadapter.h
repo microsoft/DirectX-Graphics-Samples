@@ -67,7 +67,7 @@ private:
 	};
 
 	// Constant buffer definitions.
-	struct ConstantBufferData
+	struct SceneConstantBuffer
 	{
 		XMFLOAT4 velocity;
 		XMFLOAT4 offset;
@@ -109,8 +109,8 @@ private:
 	};
 
 	// Pipeline objects.
-	D3D12_VIEWPORT m_viewport;
-	D3D12_RECT m_scissorRect;
+	CD3DX12_VIEWPORT m_viewport;
+	CD3DX12_RECT m_scissorRect;
 	UINT m_rtvDescriptorSizes[GraphicsAdaptersCount];
 	UINT m_srvDescriptorSizes[GraphicsAdaptersCount];
 	DXGI_ADAPTER_DESC1 m_adapterDescs[GraphicsAdaptersCount];
@@ -150,8 +150,8 @@ private:
 	ComPtr<ID3D12Resource> m_depthStencil;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 	D3D12_VERTEX_BUFFER_VIEW m_fullscreenQuadVertexBufferView;
-	std::vector<ConstantBufferData> m_constantBufferData;
-	ConstantBufferData* m_pCbvDataBegin;
+	std::vector<SceneConstantBuffer> m_constantBufferData;
+	SceneConstantBuffer* m_pCbvDataBegin;
 	BlurConstantBufferData* m_pBlurCbvDataBegin;
 	WorkloadConstantBufferData m_workloadConstantBufferData;
 	WorkloadConstantBufferData* m_pWorkloadCbvDataBegin;

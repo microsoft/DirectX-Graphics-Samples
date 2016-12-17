@@ -1,0 +1,139 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B2283BA1-603B-4360-AE99-7A3F5912BC42}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>D3DX12AffinityLayer</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
+      <PrecompiledHeaderFile>d3dx12affinity.h</PrecompiledHeaderFile>
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
+      <PrecompiledHeaderFile>d3dx12affinity.h</PrecompiledHeaderFile>
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="CD3DX12AffinityCommandAllocator.h" />
+    <ClInclude Include="CD3DX12AffinityCommandList.h" />
+    <ClInclude Include="CD3DX12AffinityCommandQueue.h" />
+    <ClInclude Include="CD3DX12AffinityCommandSignature.h" />
+    <ClInclude Include="CD3DX12AffinityDescriptorHeap.h" />
+    <ClInclude Include="CD3DX12AffinityDevice.h" />
+    <ClInclude Include="CD3DX12AffinityDeviceChild.h" />
+    <ClInclude Include="CD3DX12AffinityFence.h" />
+    <ClInclude Include="CD3DX12AffinityGraphicsCommandList.h" />
+    <ClInclude Include="CD3DX12AffinityHeap.h" />
+    <ClInclude Include="CD3DX12AffinityObject.h" />
+    <ClInclude Include="CD3DX12AffinityPageable.h" />
+    <ClInclude Include="CD3DX12AffinityPipelineState.h" />
+    <ClInclude Include="CD3DX12AffinityQueryHeap.h" />
+    <ClInclude Include="CD3DX12AffinityResource.h" />
+    <ClInclude Include="CD3DX12AffinityRootSignature.h" />
+    <ClInclude Include="CDXGIAffinitySwapChain.h" />
+    <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="d3dx12affinity.h" />
+    <ClInclude Include="d3dx12affinity_d3dx12.h" />
+    <ClInclude Include="d3dx12affinity_structs.h" />
+    <ClInclude Include="Utils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="CD3DX12AffinityCommandAllocator.cpp" />
+    <ClCompile Include="CD3DX12AffinityCommandList.cpp" />
+    <ClCompile Include="CD3DX12AffinityCommandQueue.cpp" />
+    <ClCompile Include="CD3DX12AffinityCommandSignature.cpp" />
+    <ClCompile Include="CD3DX12AffinityDescriptorHeap.cpp" />
+    <ClCompile Include="CD3DX12AffinityDevice.cpp" />
+    <ClCompile Include="CD3DX12AffinityDeviceChild.cpp" />
+    <ClCompile Include="CD3DX12AffinityFence.cpp" />
+    <ClCompile Include="CD3DX12AffinityGraphicsCommandList.cpp" />
+    <ClCompile Include="CD3DX12AffinityHeap.cpp" />
+    <ClCompile Include="CD3DX12AffinityObject.cpp" />
+    <ClCompile Include="CD3DX12AffinityPageable.cpp" />
+    <ClCompile Include="CD3DX12AffinityPipelineState.cpp" />
+    <ClCompile Include="CD3DX12AffinityQueryHeap.cpp" />
+    <ClCompile Include="CD3DX12AffinityResource.cpp" />
+    <ClCompile Include="CD3DX12AffinityRootSignature.cpp" />
+    <ClCompile Include="CDXGIAffinitySwapChain.cpp" />
+    <ClCompile Include="d3dx12affinity.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="D3DX12AffinityCreateMultiDevice.cpp" />
+    <ClCompile Include="DXGIXAffinityCreateLDASwapChain.cpp" />
+    <ClCompile Include="DXGIXAffinityCreateSingleWindowSwapChain.cpp" />
+    <ClCompile Include="Utils.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

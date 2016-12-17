@@ -24,7 +24,7 @@
     <PlatformToolset>v140</PlatformToolset>
     <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
     <TargetRuntime>Native</TargetRuntime>
-    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -57,6 +57,7 @@
     <Link />
     <Link>
       <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
@@ -67,12 +68,18 @@
     <ClCompile>
       <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
     </ClCompile>
+    <Link>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link />
     <ClCompile>
       <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
     </ClCompile>
+    <Link>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ModelViewer.cpp" />
@@ -89,8 +96,12 @@
       <Project>{5d3aeefb-8789-48e5-9bd9-09c667052d09}</Project>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
+    <Image Include="Logo.png" />
+    <Image Include="Logo44.png" />
+    <Image Include="SmallLogo.png" />
+    <Image Include="SplashScreen.png" />
+    <Image Include="StoreLogo.png" />
     <Image Include="Textures\default.DDS" />
     <Image Include="Textures\default_normal.DDS" />
     <Image Include="Textures\default_specular.DDS" />
@@ -147,6 +158,7 @@
     <Image Include="Textures\Models\white.DDS" />
     <Image Include="Textures\smoke.dds" />
     <Image Include="Textures\sparkTex.dds" />
+    <Image Include="WideLogo.png" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Models\sponza.h3d">
@@ -168,7 +180,9 @@
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="UWP.appxmanifest" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

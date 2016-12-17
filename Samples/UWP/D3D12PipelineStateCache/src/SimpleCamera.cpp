@@ -20,9 +20,9 @@ SimpleCamera::SimpleCamera():
 	m_lookDirection(0, 0, -1),
 	m_upDirection(0, 1, 0),
 	m_moveSpeed(20.0f),
-	m_turnSpeed(XM_PIDIV2)
+	m_turnSpeed(XM_PIDIV2),
+	m_keysPressed{}
 {
-	ZeroMemory(&m_keysPressed, sizeof(m_keysPressed));
 }
 
 void SimpleCamera::Init(XMFLOAT3 position)

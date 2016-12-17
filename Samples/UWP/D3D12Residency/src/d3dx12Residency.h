@@ -10,9 +10,10 @@
 //*********************************************************
 
 #pragma once
-
 namespace D3DX12Residency
 {
+	__declspec(selectany) INT64 g_ResidencyManagerUniqueID = 0;
+
 #if 0
 #define RESIDENCY_CHECK(x) \
 	if((x) == false) { DebugBreak(); }
@@ -122,11 +123,12 @@ namespace D3DX12Residency
 			memset(CommandListsUsedOn, 0, sizeof(CommandListsUsedOn));
 		}
 
-		void Initialize(ID3D12Pageable* pUnderlyingIn, UINT64 ObjectSize)
+		void Initialize(ID3D12Pageable* pUnderlyingIn, UINT64 ObjectSize, UINT64 InitialGPUSyncPoint = 0)
 		{
 			RESIDENCY_CHECK(pUnderlying == nullptr);
 			pUnderlying = pUnderlyingIn;
 			Size = ObjectSize;
+			LastGPUSyncPoint = InitialGPUSyncPoint;
 		}
 
 		inline bool IsInitialized() { return pUnderlying != nullptr; }
@@ -158,7 +160,7 @@ namespace D3DX12Residency
 		friend class Internal::ResidencyManagerInternal;
 	public:
 
-		static const long InvalidIndex = -1;
+		static const UINT32 InvalidIndex = (UINT32)-1;
 
 		ResidencySet() :
 			CommandListIndex(InvalidIndex),
@@ -186,7 +188,7 @@ namespace D3DX12Residency
 			if (pObject->CommandListsUsedOn[CommandListIndex] == false)
 			{
 				pObject->CommandListsUsedOn[CommandListIndex] = true;
-				if (ppSet == nullptr || CurrentSetSize > MaxResidencySetSize)
+				if (ppSet == nullptr || CurrentSetSize >= MaxResidencySetSize)
 				{
 					Realloc();
 				}
@@ -363,14 +365,14 @@ namespace D3DX12Residency
 		inline LIST_ENTRY* RemoveHeadList(LIST_ENTRY* pHead)
 		{
 			LIST_ENTRY* pEntry = pHead->Flink;
-			RemoveEntryList(pEntry);
+			Internal::RemoveEntryList(pEntry);
 			return pEntry;
 		}
 
 		inline LIST_ENTRY* RemoveTailList(LIST_ENTRY* pHead)
 		{
 			LIST_ENTRY* pEntry = pHead->Blink;
-			RemoveEntryList(pEntry);
+			Internal::RemoveEntryList(pEntry);
 			return pEntry;
 		}
 
@@ -383,7 +385,7 @@ namespace D3DX12Residency
 		{
 			Fence(UINT64 StartingValue) : pFence(nullptr), FenceValue(StartingValue)
 			{
-				InitializeListHead(&ListEntry);
+				Internal::InitializeListHead(&ListEntry);
 			};
 
 			HRESULT Initialize(ID3D12Device* pDevice)
@@ -505,28 +507,28 @@ namespace D3DX12Residency
 				NumEvictedObjects(0),
 				ResidentSize(0)
 			{
-				InitializeListHead(&ResidentObjectListHead);
-				InitializeListHead(&EvictedObjectListHead);
+				Internal::InitializeListHead(&ResidentObjectListHead);
+				Internal::InitializeListHead(&EvictedObjectListHead);
 			};
 
 			void Insert(ManagedObject* pObject)
 			{
 				if (pObject->ResidencyStatus == ManagedObject::RESIDENCY_STATUS::RESIDENT)
 				{
-					InsertHeadList(&ResidentObjectListHead, &pObject->ListEntry);
+					Internal::InsertHeadList(&ResidentObjectListHead, &pObject->ListEntry);
 					NumResidentObjects++;
 					ResidentSize += pObject->Size;
 				}
 				else
 				{
-					InsertHeadList(&EvictedObjectListHead, &pObject->ListEntry);
+					Internal::InsertHeadList(&EvictedObjectListHead, &pObject->ListEntry);
 					NumEvictedObjects++;
 				}
 			}
 
 			void Remove(ManagedObject* pObject)
 			{
-				RemoveEntryList(&pObject->ListEntry);
+				Internal::RemoveEntryList(&pObject->ListEntry);
 				if (pObject->ResidencyStatus == ManagedObject::RESIDENCY_STATUS::RESIDENT)
 				{
 					NumResidentObjects--;
@@ -545,8 +547,8 @@ namespace D3DX12Residency
 			{
 				RESIDENCY_CHECK(pObject->ResidencyStatus == ManagedObject::RESIDENCY_STATUS::RESIDENT);
 
-				RemoveEntryList(&pObject->ListEntry);
-				InsertTailList(&ResidentObjectListHead, &pObject->ListEntry);
+				Internal::RemoveEntryList(&pObject->ListEntry);
+				Internal::InsertTailList(&ResidentObjectListHead, &pObject->ListEntry);
 			}
 
 			void MakeResident(ManagedObject* pObject)
@@ -554,8 +556,8 @@ namespace D3DX12Residency
 				RESIDENCY_CHECK(pObject->ResidencyStatus == ManagedObject::RESIDENCY_STATUS::EVICTED);
 
 				pObject->ResidencyStatus = ManagedObject::RESIDENCY_STATUS::RESIDENT;
-				RemoveEntryList(&pObject->ListEntry);
-				InsertTailList(&ResidentObjectListHead, &pObject->ListEntry);
+				Internal::RemoveEntryList(&pObject->ListEntry);
+				Internal::InsertTailList(&ResidentObjectListHead, &pObject->ListEntry);
 
 				NumEvictedObjects--;
 				NumResidentObjects++;
@@ -567,8 +569,8 @@ namespace D3DX12Residency
 				RESIDENCY_CHECK(pObject->ResidencyStatus == ManagedObject::RESIDENCY_STATUS::RESIDENT);
 
 				pObject->ResidencyStatus = ManagedObject::RESIDENCY_STATUS::EVICTED;
-				RemoveEntryList(&pObject->ListEntry);
-				InsertTailList(&EvictedObjectListHead, &pObject->ListEntry);
+				Internal::RemoveEntryList(&pObject->ListEntry);
+				Internal::InsertTailList(&EvictedObjectListHead, &pObject->ListEntry);
 
 				NumResidentObjects--;
 				ResidentSize -= pObject->Size;
@@ -656,7 +658,7 @@ namespace D3DX12Residency
 				cStartEvicted(false),
 				CurrentSyncPointGeneration(0),
 				NumQueuesSeen(0),
-				NodeMask(0),
+				NodeIndex(0),
 				CurrentAsyncWorkloadHead(0),
 				CurrentAsyncWorkloadTail(0),
 				cMinEvictionGracePeriod(1.0f),
@@ -669,12 +671,15 @@ namespace D3DX12Residency
 			{
 				Internal::InitializeListHead(&QueueFencesListHead);
 				Internal::InitializeListHead(&InFlightSyncPointsHead);
+
+				ResidencyManagerUniqueID = InterlockedIncrement64(&g_ResidencyManagerUniqueID);
 			};
 
-			HRESULT Initialize(ID3D12Device* ParentDevice, UINT DeviceNodeMask, IDXGIAdapter3* ParentAdapter, UINT32 MaxLatency)
+			// NOTE: DeviceNodeIndex is an index not a mask. The majority of D3D12 uses bit masks to identify a GPU node whereas DXGI uses 0 based indices.
+			HRESULT Initialize(ID3D12Device* ParentDevice, UINT DeviceNodeIndex, IDXGIAdapter3* ParentAdapter, UINT32 MaxLatency)
 			{
 				Device = ParentDevice;
-				NodeMask = DeviceNodeMask;
+				NodeIndex = DeviceNodeIndex;
 				Adapter = ParentAdapter;
 				MaxSoftwareQueueLatency = MaxLatency;
 
@@ -726,7 +731,7 @@ namespace D3DX12Residency
 #if !RESIDENCY_SINGLE_THREADED
 				if (SUCCEEDED(hr))
 				{
-					AsyncWorkThread = CreateThread(NULL, 0, AsyncThreadStart, (void*) this, 0, nullptr);
+					AsyncWorkThread = CreateThread(nullptr, 0, AsyncThreadStart, (void*) this, 0, nullptr);
 
 					if (AsyncWorkThread == INVALID_HANDLE_VALUE)
 					{
@@ -762,6 +767,9 @@ namespace D3DX12Residency
 					RESIDENCY_CHECK_RESULT(HRESULT_FROM_WIN32(GetLastError()));
 				}
 
+				// Make sure the async worker thread is finished to prevent dereferencing
+				// dangling pointers to ResidencyManagerInternal
+				WaitForSingleObject(AsyncWorkThread, INFINITE);
 				if (AsyncWorkThread != INVALID_HANDLE_VALUE)
 				{
 					CloseHandle(AsyncWorkThread);
@@ -822,7 +830,81 @@ namespace D3DX12Residency
 				return ExecuteSubset(Queue, CommandLists, ResidencySets, Count);
 			}
 
+			HRESULT GetCurrentGPUSyncPoint(ID3D12CommandQueue* Queue, UINT64 *pGPUSyncPoint)
+			{
+				Internal::Fence* QueueFence = nullptr;
+				HRESULT hr = GetFence(Queue, QueueFence);
+
+				// The signal and increment need to be atomic
+				if(SUCCEEDED(hr))
+				{
+					Internal::ScopedLock Lock(&ExecutionCS);
+					*pGPUSyncPoint = QueueFence->FenceValue;
+					hr = SignalFence(Queue, QueueFence);
+				}
+				return hr;
+			}
+
 		private:
+			HRESULT GetFence(ID3D12CommandQueue *Queue, Internal::Fence *&QueueFence)
+			{
+				// We have to track each object on each queue so we know when it is safe to evict them. Therefore, for every queue that we
+				// see, associate a fence with it
+				GUID FenceGuid = { 0xf0, 0, 0xd, { 0, 0, 0, 0, 0, 0, 0, 0 } };
+
+				// Generate a GUID based on this queue
+				memcpy((void*)FenceGuid.Data4, Queue, sizeof(ID3D12CommandQueue*));
+
+				QueueFence = nullptr;
+				HRESULT hr = S_OK;
+
+				struct
+				{
+					Internal::Fence* pFence;
+					INT64 ResidencyManagerUniqueID;
+				} CommandQueuePrivateData;
+
+				// Find or create the fence for this queue
+				{
+					UINT32 Size = sizeof(CommandQueuePrivateData);
+					hr = Queue->GetPrivateData(FenceGuid, &Size, &CommandQueuePrivateData);
+					if (FAILED(hr) || ResidencyManagerUniqueID != CommandQueuePrivateData.ResidencyManagerUniqueID)
+					{
+						QueueFence = new Internal::Fence(1);
+						hr = QueueFence->Initialize(Device);
+						Internal::InsertTailList(&QueueFencesListHead, &QueueFence->ListEntry);
+
+						InterlockedIncrement(&NumQueuesSeen);
+
+						if (SUCCEEDED(hr))
+						{
+							CommandQueuePrivateData = { QueueFence, ResidencyManagerUniqueID };
+							hr = Queue->SetPrivateData(FenceGuid, UINT32(sizeof(CommandQueuePrivateData)), &CommandQueuePrivateData);
+							RESIDENCY_CHECK_RESULT(hr);
+						}
+					}
+					QueueFence = CommandQueuePrivateData.pFence;
+					RESIDENCY_CHECK(QueueFence != nullptr);
+				}
+
+				return hr;
+			}
+
+			HRESULT SignalFence(ID3D12CommandQueue *Queue, Internal::Fence *QueueFence)
+			{
+				// When this fence is passed it is safe to evict the resources used in the list just submitted
+				HRESULT hr = QueueFence->GPUSignal(Queue);
+				QueueFence->Increment();
+
+				if (SUCCEEDED(hr))
+				{
+					hr = EnqueueSyncPoint();
+					RESIDENCY_CHECK_RESULT(hr);
+				}
+
+				CurrentSyncPointGeneration++;
+				return hr;
+			}
 
 			HRESULT ExecuteSubset(ID3D12CommandQueue* Queue, ID3D12CommandList** CommandLists, ResidencySet** ResidencySets, UINT32 Count)
 			{
@@ -901,37 +983,14 @@ namespace D3DX12Residency
 					return (LowerHR == S_OK && UpperHR == S_OK) ? S_OK : E_FAIL;
 				}
 
-				// We have to track each object on each queue so we know when it is safe to evict them. Therefore, for every queue that we
-				// see, associate a fence with it
-				const GUID FenceGuid = { 0xf0, 0, 0xd,{ 0, 0, 0, 0, 0, 0, 0, 0 } };
-
-				// Generate a GUID based on this queue
-				memcpy((void*)FenceGuid.Data4, Queue, sizeof(ID3D12CommandQueue*));
 
 				Internal::Fence* QueueFence = nullptr;
-				// Find or create the fence for this queue
+				hr = GetFence(Queue, QueueFence);
+
+				if (SUCCEEDED(hr))
 				{
-					UINT32 Size = sizeof(Internal::Fence*);
-					hr = Queue->GetPrivateData(FenceGuid, &Size, &QueueFence);
-					if (FAILED(hr))
-					{
-						QueueFence = new Internal::Fence(1);
-						hr = QueueFence->Initialize(Device);
-						Internal::InsertTailList(&QueueFencesListHead, &QueueFence->ListEntry);
+					// The following code must be atomic so that things get ordered correctly
 
-						InterlockedIncrement(&NumQueuesSeen);
-
-						if (SUCCEEDED(hr))
-						{
-							hr = Queue->SetPrivateData(FenceGuid, UINT32(sizeof(Internal::Fence*)), &QueueFence);
-							RESIDENCY_CHECK_RESULT(hr);
-						}
-					}
-					RESIDENCY_CHECK(QueueFence != nullptr);
-				}
-
-				// The following code must be atomic so that things get ordered correctly
-				{
 					Internal::ScopedLock Lock(&ExecutionCS);
 					// Evict or make resident all of the objects we identified above.
 					// This will run on an async thread, allowing the current to continue while still blocking the GPU if required
@@ -951,21 +1010,10 @@ namespace D3DX12Residency
 
 					Queue->ExecuteCommandLists(Count, CommandLists);
 
-
 					if (SUCCEEDED(hr))
 					{
-						// When this fence is passed it is safe to evict the resources used in the list just submitted
-						hr = QueueFence->GPUSignal(Queue);
-						QueueFence->Increment();
+						hr = SignalFence(Queue, QueueFence);
 					}
-
-					if (SUCCEEDED(hr))
-					{
-						hr = EnqueueSyncPoint();
-						RESIDENCY_CHECK_RESULT(hr);
-					}
-
-					CurrentSyncPointGeneration++;
 				}
 				return hr;
 			}
@@ -1256,7 +1304,7 @@ namespace D3DX12Residency
 
 			void GetCurrentBudget(DXGI_QUERY_VIDEO_MEMORY_INFO* InfoOut, DXGI_MEMORY_SEGMENT_GROUP Segment)
 			{
-				RESIDENCY_CHECK_RESULT(Adapter->QueryVideoMemoryInfo(NodeMask, Segment, InfoOut));
+				RESIDENCY_CHECK_RESULT(Adapter->QueryVideoMemoryInfo(NodeIndex, Segment, InfoOut));
 			}
 
 			HRESULT EnqueueSyncPoint()
@@ -1378,7 +1426,8 @@ namespace D3DX12Residency
 			HANDLE AsyncThreadWorkCompletionEvent;
 
 			ID3D12Device* Device;
-			UINT NodeMask;
+			// NOTE: This is an index not a mask. The majority of D3D12 uses bit masks to identify a GPU node whereas DXGI uses 0 based indices.
+			UINT NodeIndex;
 			IDXGIAdapter3* Adapter;
 			Internal::LRUCache LRU;
 
@@ -1397,6 +1446,7 @@ namespace D3DX12Residency
 			const float cTrimPercentageMemoryUsageThreshold;
 
 			UINT32 MaxSoftwareQueueLatency;
+			INT64 ResidencyManagerUniqueID;
 
 			SyncManager* pSyncManager;
 		};
@@ -1410,9 +1460,10 @@ namespace D3DX12Residency
 		{
 		}
 
-		FORCEINLINE HRESULT Initialize(ID3D12Device* ParentDevice, UINT DeviceNodeMask, IDXGIAdapter3* ParentAdapter, UINT32 MaxLatency)
+		// NOTE: DeviceNodeIndex is an index not a mask. The majority of D3D12 uses bit masks to identify a GPU node whereas DXGI uses 0 based indices.
+		FORCEINLINE HRESULT Initialize(ID3D12Device* ParentDevice, UINT DeviceNodeIndex, IDXGIAdapter3* ParentAdapter, UINT32 MaxLatency)
 		{
-			return Manager.Initialize(ParentDevice, DeviceNodeMask, ParentAdapter, MaxLatency);
+			return Manager.Initialize(ParentDevice, DeviceNodeIndex, ParentAdapter, MaxLatency);
 		}
 
 		FORCEINLINE void Destroy()
@@ -1428,6 +1479,11 @@ namespace D3DX12Residency
 		FORCEINLINE void EndTrackingObject(ManagedObject* pObject)
 		{
 			Manager.EndTrackingObject(pObject);
+		}
+
+		HRESULT GetCurrentGPUSyncPoint(ID3D12CommandQueue* Queue, UINT64 *pCurrentGPUSyncPoint)
+		{
+			return Manager.GetCurrentGPUSyncPoint(Queue, pCurrentGPUSyncPoint);
 		}
 
 		// One residency set per command-list

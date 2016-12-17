@@ -7,3 +7,4 @@ Build_VS14/
 *.opendb
 *.sdf
 *.user
+*.VC.db

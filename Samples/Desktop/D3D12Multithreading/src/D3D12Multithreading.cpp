@@ -18,8 +18,8 @@ D3D12Multithreading* D3D12Multithreading::s_app = nullptr;
 D3D12Multithreading::D3D12Multithreading(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
-	m_viewport(),
-	m_scissorRect(),
+	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_keyboardInput(),
 	m_titleCount(0),
 	m_cpuTime(0),
@@ -29,13 +29,6 @@ D3D12Multithreading::D3D12Multithreading(UINT width, UINT height, std::wstring n
 	m_pCurrentFrameResource(nullptr)
 {
 	s_app = this;
-
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
 
 	m_keyboardInput.animate = true;
 }
@@ -55,19 +48,25 @@ void D3D12Multithreading::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12Multithreading::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{
@@ -178,24 +177,34 @@ void D3D12Multithreading::LoadAssets()
 {
 	// Create the root signature.
 	{
-		CD3DX12_DESCRIPTOR_RANGE ranges[4]; // Perfomance TIP: Order from most frequent to least frequent.
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);		// 2 frequently changed diffuse + normal textures - using registers t1 and t2.
-		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);		// 1 frequently changed constant buffer.
-		ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);		// 1 infrequently changed shadow texture - starting in register t0.
-		ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 2, 0);	// 2 static samplers.
+		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
 
-		CD3DX12_ROOT_PARAMETER rootParameters[4];
+		// This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+		if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+		{
+			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+		}
+
+		CD3DX12_DESCRIPTOR_RANGE1 ranges[4]; // Perfomance TIP: Order from most frequent to least frequent.
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);	// 2 frequently changed diffuse + normal textures - using registers t1 and t2.
+		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);	// 1 frequently changed constant buffer.
+		ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);												// 1 infrequently changed shadow texture - starting in register t0.
+		ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 2, 0);											// 2 static samplers.
+
+		CD3DX12_ROOT_PARAMETER1 rootParameters[4];
 		rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
 		rootParameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_ALL);
 		rootParameters[2].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
 		rootParameters[3].InitAsDescriptorTable(1, &ranges[3], D3D12_SHADER_VISIBILITY_PIXEL);
 
-		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-		rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+		rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3DBlob> error;
-		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+		ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
 		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
 		NAME_D3D12_OBJECT(m_rootSignature);
 	}

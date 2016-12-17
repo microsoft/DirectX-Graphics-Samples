@@ -34,7 +34,7 @@
     <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
     <AppContainerApplication>true</AppContainerApplication>
     <ApplicationType>Windows Store</ApplicationType>
-    <WindowsTargetPlatformVersion>10.0.10240.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformMinVersion>10.0.10240.0</WindowsTargetPlatformMinVersion>
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
     <EnableDotNetNativeCompatibleProfile>true</EnableDotNetNativeCompatibleProfile>
@@ -102,12 +102,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup>
-    <PackageCertificateKeyFile>D3D12PipelineStateCache_TemporaryKey.pfx</PackageCertificateKeyFile>
-    <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
-    <AppxBundlePlatforms>x64</AppxBundlePlatforms>
-    <AppxBundle>Always</AppxBundle>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
@@ -136,6 +130,7 @@
     <Link>
       <AdditionalDependencies>mincore.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store; $(VCInstallDir)\lib</AdditionalLibraryDirectories>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
@@ -148,6 +143,7 @@
     <Link>
       <AdditionalDependencies>mincore.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store; $(VCInstallDir)\lib</AdditionalLibraryDirectories>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
@@ -160,6 +156,7 @@
     <Link>
       <AdditionalDependencies>mincore.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store\amd64; $(VCInstallDir)\lib\amd64</AdditionalLibraryDirectories>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
@@ -172,6 +169,7 @@
     <Link>
       <AdditionalDependencies>mincore.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store\amd64; $(VCInstallDir)\lib\amd64</AdditionalLibraryDirectories>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
@@ -184,6 +182,7 @@
     <Link>
       <AdditionalDependencies>mincore.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store\arm; $(VCInstallDir)\lib\arm</AdditionalLibraryDirectories>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
@@ -196,6 +195,7 @@
     <Link>
       <AdditionalDependencies>mincore.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store\arm; $(VCInstallDir)\lib\arm</AdditionalLibraryDirectories>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
@@ -212,37 +212,28 @@
     <Image Include="Wide310x150Logo.scale-200.png" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BlitPixelShader.hlsl.h" />
-    <ClInclude Include="BlurPixelShader.hlsl.h" />
     <ClInclude Include="D3D12PipelineStateCache.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXSampleHelper.h" />
     <ClInclude Include="DXSample.h" />
-    <ClInclude Include="DistortPixelShader.hlsl.h" />
     <ClInclude Include="DynamicConstantBuffer.h" />
-    <ClInclude Include="EdgeDetectPixelShader.hlsl.h" />
-    <ClInclude Include="GrayScalePixelShader.hlsl.h" />
-    <ClInclude Include="InvertPixelShader.hlsl.h" />
+    <ClInclude Include="MemoryMappedFile.h" />
+    <ClInclude Include="MemoryMappedPipelineLibrary.h" />
     <ClInclude Include="MemoryMappedPSOCache.h" />
-    <ClInclude Include="PixelatePixelShader.hlsl.h" />
     <ClInclude Include="PSOLibrary.h" />
     <ClInclude Include="SimpleCamera.h" />
-    <ClInclude Include="QuadVertexShader.hlsl.h" />
-    <ClInclude Include="SimplePixelShader.hlsl.h" />
-    <ClInclude Include="SimpleVertexShader.hlsl.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="StepTimer.h" />
-    <ClInclude Include="UberPixelShader.hlsl.h" />
     <ClInclude Include="View.h" />
     <ClInclude Include="ViewProvider.h" />
-    <ClInclude Include="WarpPixelShader.hlsl.h" />
-    <ClInclude Include="WavePixelShader.hlsl.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="D3D12PipelineStateCache.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="DynamicConstantBuffer.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="MemoryMappedFile.cpp" />
+    <ClCompile Include="MemoryMappedPipelineLibrary.cpp" />
     <ClCompile Include="MemoryMappedPSOCache.cpp" />
     <ClCompile Include="PSOLibrary.cpp" />
     <ClCompile Include="SimpleCamera.cpp" />
@@ -261,7 +252,6 @@
     <AppxManifest Include="Package.appxmanifest">
       <SubType>Designer</SubType>
     </AppxManifest>
-    <None Include="D3D12PipelineStateCache_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="BlitPixelShader.hlsl">

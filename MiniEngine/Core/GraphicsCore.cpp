@@ -86,8 +86,8 @@ namespace
 
 namespace Graphics
 {
-	void PreparePresentHDR();
 	void PreparePresentLDR();
+	void PreparePresentHDR();
 
 #ifndef RELEASE
 	const GUID WKPDID_D3DDebugObjectName = { 0x429b8c22,0x9188,0x4b0c, { 0x87,0x42,0xac,0xb0,0xbf,0x85,0xc2,0x00 }};
@@ -247,6 +247,8 @@ void Graphics::Resize(uint32_t width, uint32_t height)
 {
 	ASSERT(s_SwapChain1 != nullptr);
 
+	g_CommandManager.IdleGPU();
+
 	g_DisplayWidth = width;
 	g_DisplayHeight = height;
 
@@ -337,15 +339,30 @@ void Graphics::Initialize(void)
 		};
 
 		// Suppress individual messages by their ID
-		//D3D12_MESSAGE_ID DenyIds[] = {};
+		D3D12_MESSAGE_ID DenyIds[] =
+		{
+			// This occurs when there are uninitialized descriptors in a descriptor table, even when a
+			// shader does not access the missing descriptors.  I find this is common when switching
+			// shader permutations and not wanting to change much code to reorder resources.
+			D3D12_MESSAGE_ID_INVALID_DESCRIPTOR_HANDLE,
+
+			// Triggered when a shader does not export all color components of a render target, such as
+			// when only writing RGB to an R10G10B10A2 buffer, ignoring alpha.
+			D3D12_MESSAGE_ID_CREATEGRAPHICSPIPELINESTATE_PS_OUTPUT_RT_OUTPUT_MISMATCH,
+
+			// This occurs when a descriptor table is unbound even when a shader does not access the missing
+			// descriptors.  This is common with a root signature shared between disparate shaders that
+			// don't all need the same types of resources.
+			D3D12_MESSAGE_ID_COMMAND_LIST_DESCRIPTOR_TABLE_NOT_SET
+		};
 
 		D3D12_INFO_QUEUE_FILTER NewFilter = {};
 		//NewFilter.DenyList.NumCategories = _countof(Categories);
 		//NewFilter.DenyList.pCategoryList = Categories;
 		NewFilter.DenyList.NumSeverities = _countof(Severities);
 		NewFilter.DenyList.pSeverityList = Severities;
-		//NewFilter.DenyList.NumIDs = _countof(DenyIds);
-		//NewFilter.DenyList.pIDList = DenyIds;
+		NewFilter.DenyList.NumIDs = _countof(DenyIds);
+		NewFilter.DenyList.pIDList = DenyIds;
 
 		pInfoQueue->PushStorageFilter(&NewFilter);
 		pInfoQueue->Release();
@@ -388,7 +405,11 @@ void Graphics::Initialize(void)
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	ASSERT_SUCCEEDED(dxgiFactory->CreateSwapChainForHwnd(g_CommandManager.GetCommandQueue(), GameCore::g_hWnd, &swapChainDesc, nullptr, nullptr, &s_SwapChain1));
+#else
+	ASSERT_SUCCEEDED(dxgiFactory->CreateSwapChainForCoreWindow(g_CommandManager.GetCommandQueue(), (IUnknown*)GameCore::g_window.Get(), &swapChainDesc, nullptr, &s_SwapChain1));
+#endif
 
 	for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
 	{
@@ -523,7 +544,7 @@ void Graphics::Initialize(void)
 	s_PresentRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
 	s_PresentRS.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	s_PresentRS.InitStaticSampler(1, SamplerPointClampDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-	s_PresentRS.Finalize();
+	s_PresentRS.Finalize(L"Present");
 
 	// Initialize PSOs
 	s_BlendUIPSO.SetRootSignature(s_PresentRS);
@@ -559,7 +580,7 @@ void Graphics::Initialize(void)
 	g_GenerateMipsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
 	g_GenerateMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
 	g_GenerateMipsRS.InitStaticSampler(0, SamplerLinearClampDesc);
-	g_GenerateMipsRS.Finalize();
+	g_GenerateMipsRS.Finalize(L"Generate Mips");
 
 #define CreatePSO(ObjName, ShaderByteCode ) \
 	ObjName.SetRootSignature(g_GenerateMipsRS); \
@@ -575,7 +596,7 @@ void Graphics::Initialize(void)
 	CreatePSO(g_GenerateMipsGammaPSO[2], g_pGenerateMipsGammaOddYCS);
 	CreatePSO(g_GenerateMipsGammaPSO[3], g_pGenerateMipsGammaOddCS);
 
-	g_PreDisplayBuffer.Create(L"PreDisplay Buffer", g_DisplayWidth, g_DisplayHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT);
+	g_PreDisplayBuffer.Create(L"PreDisplay Buffer", g_DisplayWidth, g_DisplayHeight, 1, SwapChainFormat);
 
 	GpuTimeManager::Initialize(4096);
 	InitializeRenderingBuffers(g_NativeWidth, g_NativeHeight);
@@ -586,13 +607,15 @@ void Graphics::Initialize(void)
 	ParticleEffects::Initialize(kMaxNativeWidth, kMaxNativeHeight);
 }
 
-void Graphics::Terminate(void)
+void Graphics::Terminate( void )
 {
 	g_CommandManager.IdleGPU();
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	s_SwapChain1->SetFullscreenState(FALSE, nullptr);
+#endif
 }
 
-void Graphics::Shutdown(void)
+void Graphics::Shutdown( void )
 {
 	CommandContext::DestroyAllContexts();
 	g_CommandManager.Shutdown();
@@ -618,7 +641,7 @@ void Graphics::Shutdown(void)
 
 	g_PreDisplayBuffer.Destroy();
 
-#ifdef _DEBUG
+#if defined(_DEBUG)
 	ID3D12DebugDevice* debugInterface;
 	if (SUCCEEDED(g_Device->QueryInterface(&debugInterface)))
 	{
@@ -745,8 +768,8 @@ void Graphics::PreparePresentLDR(void)
 	}
 
 	// Now blend (or write) the UI overlay
+	Context.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	Context.SetDynamicDescriptor(0, 0, g_OverlayBuffer.GetSRV());
-
 	Context.SetPipelineState(s_BlendUIPSO);
 	Context.Draw(3);
 
@@ -768,7 +791,6 @@ void Graphics::Present(void)
 	UINT PresentInterval = s_EnableVSync ? std::min(4, (int)Round(s_FrameTime * 60.0f)) : 0;
 
 	s_SwapChain1->Present(PresentInterval, 0);
-
 
 	// Test robustness to handle spikes in CPU time
 	//if (s_DropRandomFrames)
@@ -820,4 +842,3 @@ float Graphics::GetFrameRate(void)
 {
 	return s_FrameTime == 0.0f ? 0.0f : 1.0f / s_FrameTime;
 }
-

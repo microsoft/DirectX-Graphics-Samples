@@ -22,29 +22,21 @@ const float D3D12nBodyGravity::ParticleSpread = 400.0f;
 D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
-	m_viewport(),
-	m_scissorRect(),
+	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0),
 	m_srvUavDescriptorSize(0),
 	m_pConstantBufferGSData(nullptr),
 	m_renderContextFenceValue(0),
-	m_terminating(0)
+	m_terminating(0),
+	m_srvIndex{},
+	m_frameFenceValues{}
 {
-	ZeroMemory(m_srvIndex, sizeof(m_srvIndex));
-	ZeroMemory(m_frameFenceValues, sizeof(m_frameFenceValues));
-
 	for (int n = 0; n < ThreadCount; n++)
 	{
 		m_renderContextFenceValues[n] = 0;
 		m_threadFenceValues[n] = 0;
 	}
-
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
 
 	float sqRootNumAsyncContexts = sqrt(static_cast<float>(ThreadCount));
 	m_heightInstances = static_cast<UINT>(ceil(sqRootNumAsyncContexts));
@@ -69,19 +61,25 @@ void D3D12nBodyGravity::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12nBodyGravity::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{
@@ -183,33 +181,55 @@ void D3D12nBodyGravity::LoadAssets()
 {
 	// Create the root signatures.
 	{
-		CD3DX12_DESCRIPTOR_RANGE ranges[2];
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+		D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
 
-		CD3DX12_ROOT_PARAMETER rootParameters[RootParametersCount];
-		rootParameters[RootParameterCB].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
-		rootParameters[RootParameterSRV].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
-		rootParameters[RootParameterUAV].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_ALL);
+		// This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
 
-		// The rendering pipeline does not need the UAV parameter.
-		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-		rootSignatureDesc.Init(_countof(rootParameters) - 1, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+		{
+			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+		}
 
-		ComPtr<ID3DBlob> signature;
-		ComPtr<ID3DBlob> error;
-		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
-		NAME_D3D12_OBJECT(m_rootSignature);
+		// Graphics root signature.
+		{
+			CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-		// Create compute signature. Must change visibility for the SRV.
-		rootParameters[RootParameterSRV].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			CD3DX12_ROOT_PARAMETER1 rootParameters[GraphicsRootParametersCount];
+			rootParameters[GraphicsRootCBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
+			rootParameters[GraphicsRootSRVTable].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
 
-		CD3DX12_ROOT_SIGNATURE_DESC computeRootSignatureDesc(_countof(rootParameters), rootParameters, 0, nullptr);
-		ThrowIfFailed(D3D12SerializeRootSignature(&computeRootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+			CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+			rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-		ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_computeRootSignature)));
-		NAME_D3D12_OBJECT(m_computeRootSignature);
+			ComPtr<ID3DBlob> signature;
+			ComPtr<ID3DBlob> error;
+			ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
+			ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+			NAME_D3D12_OBJECT(m_rootSignature);
+		}
+
+		// Compute root signature.
+		{
+			CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
+			ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+			ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
+
+			CD3DX12_ROOT_PARAMETER1 rootParameters[ComputeRootParametersCount];
+			rootParameters[ComputeRootCBV].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL);
+			rootParameters[ComputeRootSRVTable].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_ALL);
+			rootParameters[ComputeRootUAVTable].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_ALL);
+
+			CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC computeRootSignatureDesc;
+			computeRootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr);
+
+			ComPtr<ID3DBlob> signature;
+			ComPtr<ID3DBlob> error;
+			ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&computeRootSignatureDesc, featureData.HighestVersion, &signature, &error));
+			ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_computeRootSignature)));
+			NAME_D3D12_OBJECT(m_computeRootSignature);
+		}
 	}
 
 	// Create the pipeline states, which includes compiling and loading shaders.
@@ -645,7 +665,7 @@ void D3D12nBodyGravity::PopulateCommandList()
 	m_commandList->SetPipelineState(m_pipelineState.Get());
 	m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
-	m_commandList->SetGraphicsRootConstantBufferView(RootParameterCB, m_constantBufferGS->GetGPUVirtualAddress() + m_frameIndex * sizeof(ConstantBufferGS));
+	m_commandList->SetGraphicsRootConstantBufferView(GraphicsRootCBV, m_constantBufferGS->GetGPUVirtualAddress() + m_frameIndex * sizeof(ConstantBufferGS));
 
 	ID3D12DescriptorHeap* ppHeaps[] = { m_srvUavHeap.Get() };
 	m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
@@ -671,17 +691,16 @@ void D3D12nBodyGravity::PopulateCommandList()
 	{
 		const UINT srvIndex = n + (m_srvIndex[n] == 0 ? SrvParticlePosVelo0 : SrvParticlePosVelo1);
 
-		D3D12_VIEWPORT viewport;
-		viewport.TopLeftX = (n % m_widthInstances) * viewportWidth;
-		viewport.TopLeftY = (n / m_widthInstances) * viewportHeight;
-		viewport.Width = viewportWidth;
-		viewport.Height = viewportHeight;
-		viewport.MinDepth = D3D12_MIN_DEPTH;
-		viewport.MaxDepth = D3D12_MAX_DEPTH;
+		CD3DX12_VIEWPORT viewport(
+			(n % m_widthInstances) * viewportWidth,
+			(n / m_widthInstances) * viewportHeight,
+			viewportWidth,
+			viewportHeight);
+
 		m_commandList->RSSetViewports(1, &viewport);
 
 		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), srvIndex, m_srvUavDescriptorSize);
-		m_commandList->SetGraphicsRootDescriptorTable(RootParameterSRV, srvHandle);
+		m_commandList->SetGraphicsRootDescriptorTable(GraphicsRootSRVTable, srvHandle);
 
 		PIXBeginEvent(m_commandList.Get(), 0, L"Draw particles for thread %u", n);
 		m_commandList->DrawInstanced(ParticleCount, 1, 0, 0);
@@ -774,9 +793,9 @@ void D3D12nBodyGravity::Simulate(UINT threadIndex)
 	CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), srvIndex + threadIndex, m_srvUavDescriptorSize);
 	CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle(m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), uavIndex + threadIndex, m_srvUavDescriptorSize);
 
-	pCommandList->SetComputeRootConstantBufferView(RootParameterCB, m_constantBufferCS->GetGPUVirtualAddress());
-	pCommandList->SetComputeRootDescriptorTable(RootParameterSRV, srvHandle);
-	pCommandList->SetComputeRootDescriptorTable(RootParameterUAV, uavHandle);
+	pCommandList->SetComputeRootConstantBufferView(ComputeRootCBV, m_constantBufferCS->GetGPUVirtualAddress());
+	pCommandList->SetComputeRootDescriptorTable(ComputeRootSRVTable, srvHandle);
+	pCommandList->SetComputeRootDescriptorTable(ComputeRootUAVTable, uavHandle);
 
 	pCommandList->Dispatch(static_cast<int>(ceil(ParticleCount / 128.0f)), 1, 1);
 

@@ -47,6 +47,9 @@ Here are the high level steps for using the library:
 5. Use ```ResidencyManager::ExecuteCommandLists``` to execute the workload which takes a command queue, array of command lists, an array of residency sets, and a count
   1. This will execute the command lists and ensure all of the heaps/committed resources that you need to execute are resident at the right times
 
+### Optional Features
+This sample has been updated to build against the Windows 10 Anniversary Update SDK. In this SDK a new revision of Root Signatures is available for Direct3D 12 apps to use. Root Signature 1.1 allows for apps to declare when descriptors in a descriptor heap won't change or the data descriptors point to won't change.  This allows the option for drivers to make optimizations that might be possible knowing that something (like a descriptor or the memory it points to) is static for some period of time.
+
 ### FAQs
 
 #### What exactly is Residency?
@@ -67,3 +70,10 @@ In return for using ```MakeResident``` and ```Evict```, VidMM promises to return
 
 #### What is the ```MaxLatency``` parameter in the ResidencyManager's ```Initialize``` method?
 When rendering very quickly, it is possible for the renderer to get too far ahead of the library's worker thread.  The ```MaxLatency``` parameter helps to limit how far ahead it can get.  The value should essentially be the average ```NumberOfBufferedFrames * NumberOfCommandListSubmissionsPerFrame``` throughout the execution of your app.
+
+#### The Visual Studio Graphics Debugging (VSGD) tools crash when capturing an app that uses this library
+You can work around this bug by using the library's single threaded mode using the line:
+```
+#define RESIDENCY_SINGLE_THREADED 0
+```
+0 is the default; change it to 1 to force single threaded behavior to work around the issue.

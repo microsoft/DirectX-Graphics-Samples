@@ -25,9 +25,6 @@
     <Filter Include="Assets\AppxPackage">
       <UniqueIdentifier>{7eb4c281-7d9d-46b3-b34d-e2b524ad4a13}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Assets\Shaders\PrecompiledShaders">
-      <UniqueIdentifier>{619f8b98-a97a-478e-a67d-5bbe8e33969d}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="D3D12PipelineStateCache.cpp">
@@ -59,6 +56,12 @@
     </ClCompile>
     <ClCompile Include="SimpleCamera.cpp">
       <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryMappedFile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryMappedPipelineLibrary.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -92,57 +95,21 @@
     <ClInclude Include="PSOLibrary.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BlitPixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="BlurPixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="DistortPixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="EdgeDetectPixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="GrayScalePixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="InvertPixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="PixelatePixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="QuadVertexShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="SimplePixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="SimpleVertexShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="UberPixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="WarpPixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
-    <ClInclude Include="WavePixelShader.hlsl.h">
-      <Filter>Assets\Shaders\PrecompiledShaders</Filter>
-    </ClInclude>
     <ClInclude Include="StepTimer.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
     <ClInclude Include="SimpleCamera.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="MemoryMappedFile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryMappedPipelineLibrary.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="D3D12PipelineStateCache_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="SplashScreen.scale-200.png">

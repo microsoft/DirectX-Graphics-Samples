@@ -1,0 +1,167 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{2C4064CC-ACA4-4CEA-8DC7-BD9C6F8CCE59}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>D3D12LinkedGpus</RootNamespace>
+    <ProjectName>D3D12LinkedGpus</ProjectName>
+    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>dxgi.lib;d3d12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+    </Link>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories></AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>dxgi.lib;d3d12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+    </Link>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="CrossNodeResources.h" />
+    <ClInclude Include="D3D12LinkedGpus.h" />
+    <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="DXSampleHelper.h" />
+    <ClInclude Include="DXSample.h" />
+    <ClInclude Include="Fence.h" />
+    <ClInclude Include="GpuNode.h" />
+    <ClInclude Include="Settings.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Win32Application.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="CrossNodeResources.cpp" />
+    <ClCompile Include="D3D12LinkedGpus.cpp" />
+    <ClCompile Include="DXSample.cpp" />
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="GpuNode.cpp" />
+    <ClCompile Include="Settings.cpp" />
+    <ClCompile Include="stdafx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="Win32Application.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Post.hlsli" />
+    <None Include="Scene.hlsli" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="PostPS.hlsl">
+      <ShaderModel>5.1</ShaderModel>
+      <EnableUnboundedDescriptorTables>true</EnableUnboundedDescriptorTables>
+      <VariableName>g_%(Filename)</VariableName>
+      <HeaderFileOutput>%(Fullpath).h</HeaderFileOutput>
+      <EntryPointName>PSMain</EntryPointName>
+      <ShaderType>Pixel</ShaderType>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="PostVS.hlsl">
+      <VariableName>g_%(Filename)</VariableName>
+      <HeaderFileOutput>%(Fullpath).h</HeaderFileOutput>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>VSMain</EntryPointName>
+      <ShaderType>Vertex</ShaderType>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="ScenePS.hlsl">
+      <VariableName>g_%(Filename)</VariableName>
+      <HeaderFileOutput>%(Fullpath).h</HeaderFileOutput>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>PSMain</EntryPointName>
+      <ShaderType>Pixel</ShaderType>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="SceneVS.hlsl">
+      <VariableName>g_%(Filename)</VariableName>
+      <HeaderFileOutput>%(Fullpath).h</HeaderFileOutput>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>VSMain</EntryPointName>
+      <ShaderType>Vertex</ShaderType>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

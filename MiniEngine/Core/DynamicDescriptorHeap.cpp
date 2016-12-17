@@ -251,6 +251,7 @@ void DynamicDescriptorHeap::CopyAndBindStagedTables( DescriptorHandleCache& Hand
 	{
 		RetireCurrentHeap();
 		UnbindAllValid();
+		NeededSize = HandleCache.ComputeStagedSize();
 	}
 
 	// This can trigger the creation of a new heap

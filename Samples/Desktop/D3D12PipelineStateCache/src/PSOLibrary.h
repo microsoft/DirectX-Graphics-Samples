@@ -13,6 +13,7 @@
 #include "DXSample.h"
 #include "DynamicConstantBuffer.h"
 #include "MemoryMappedPSOCache.h"
+#include "MemoryMappedPipelineLibrary.h"
 #include "SimpleVertexShader.hlsl.h"
 #include "SimplePixelShader.hlsl.h"
 #include "QuadVertexShader.hlsl.h"
@@ -31,7 +32,17 @@ using namespace Microsoft::WRL;
 using namespace DirectX;
 using namespace std;
 
-enum EffectPipelineType
+enum PSOCachingMechanism
+{
+	CachedBlobs,
+
+	// Enables applications to explicitly group PSOs which are expected to share data. Recommended over Cached Blobs.
+	PipelineLibraries,
+
+	PSOCachingMechanismCount
+};
+
+enum EffectPipelineType : UINT
 {
 	// These always get compiled at startup.
 	BaseNormal3DRender,
@@ -79,93 +90,95 @@ static const GraphicsShaderSet g_cEffectShaderData[EffectPipelineTypeCount] =
 {
 	{
 		g_cForwardRenderInputLayout,
-		{ g_SimpleVertexShader, sizeof(g_SimpleVertexShader) },
-		{ g_SimplePixelShader, sizeof(g_SimplePixelShader) },
+		CD3DX12_SHADER_BYTECODE(g_SimpleVertexShader, sizeof(g_SimpleVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_SimplePixelShader, sizeof(g_SimplePixelShader)),
 		{},
 		{},
 		{},
 	},
 	{
 		g_cQuadInputLayout,
-		{ g_QuadVertexShader, sizeof(g_QuadVertexShader) },
-		{ g_UberPixelShader, sizeof(g_UberPixelShader) },
+		CD3DX12_SHADER_BYTECODE(g_QuadVertexShader, sizeof(g_QuadVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_UberPixelShader, sizeof(g_UberPixelShader)),
 		{},
 		{},
 		{},
 	},
 	{
 		g_cQuadInputLayout,
-		{ g_QuadVertexShader, sizeof(g_QuadVertexShader) },
-		{ g_BlitPixelShader, sizeof(g_BlitPixelShader) },
+		CD3DX12_SHADER_BYTECODE(g_QuadVertexShader, sizeof(g_QuadVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_BlitPixelShader, sizeof(g_BlitPixelShader)),
 		{},
 		{},
 		{},
 	},
 	{
 		g_cQuadInputLayout,
-		{g_QuadVertexShader, sizeof(g_QuadVertexShader)},
-		{g_InvertPixelShader, sizeof(g_InvertPixelShader)},
+		CD3DX12_SHADER_BYTECODE(g_QuadVertexShader, sizeof(g_QuadVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_InvertPixelShader, sizeof(g_InvertPixelShader)),
 		{},
 		{},
 		{},
 	},
 	{
 		g_cQuadInputLayout,
-		{ g_QuadVertexShader, sizeof(g_QuadVertexShader) },
-		{ g_GrayScalePixelShader, sizeof(g_GrayScalePixelShader) },
+		CD3DX12_SHADER_BYTECODE(g_QuadVertexShader, sizeof(g_QuadVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_GrayScalePixelShader, sizeof(g_GrayScalePixelShader)),
 		{},
 		{},
 		{},
 	},
 	{
 		g_cQuadInputLayout,
-		{ g_QuadVertexShader, sizeof(g_QuadVertexShader) },
-		{ g_EdgeDetectPixelShader, sizeof(g_EdgeDetectPixelShader) },
+		CD3DX12_SHADER_BYTECODE(g_QuadVertexShader, sizeof(g_QuadVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_EdgeDetectPixelShader, sizeof(g_EdgeDetectPixelShader)),
 		{},
 		{},
 		{},
 	},
 	{
 		g_cQuadInputLayout,
-		{ g_QuadVertexShader, sizeof(g_QuadVertexShader) },
-		{ g_BlurPixelShader, sizeof(g_BlurPixelShader) },
+		CD3DX12_SHADER_BYTECODE(g_QuadVertexShader, sizeof(g_QuadVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_BlurPixelShader, sizeof(g_BlurPixelShader)),
 		{},
 		{},
 		{},
 	},
 	{
 		g_cQuadInputLayout,
-		{ g_QuadVertexShader, sizeof(g_QuadVertexShader) },
-		{ g_WarpPixelShader, sizeof(g_WarpPixelShader) },
+		CD3DX12_SHADER_BYTECODE(g_QuadVertexShader, sizeof(g_QuadVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_WarpPixelShader, sizeof(g_WarpPixelShader)),
 		{},
 		{},
 		{},
 	},
 	{
 		g_cQuadInputLayout,
-		{ g_QuadVertexShader, sizeof(g_QuadVertexShader) },
-		{ g_PixelatePixelShader, sizeof(g_PixelatePixelShader) },
+		CD3DX12_SHADER_BYTECODE(g_QuadVertexShader, sizeof(g_QuadVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_PixelatePixelShader, sizeof(g_PixelatePixelShader)),
 		{},
 		{},
 		{},
 	},
 	{
 		g_cQuadInputLayout,
-		{ g_QuadVertexShader, sizeof(g_QuadVertexShader) },
-		{ g_DistortPixelShader, sizeof(g_DistortPixelShader) },
+		CD3DX12_SHADER_BYTECODE(g_QuadVertexShader, sizeof(g_QuadVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_DistortPixelShader, sizeof(g_DistortPixelShader)),
 		{},
 		{},
 		{},
 	},
 	{
 		g_cQuadInputLayout,
-		{ g_QuadVertexShader, sizeof(g_QuadVertexShader) },
-		{ g_WavePixelShader, sizeof(g_WavePixelShader) },
+		CD3DX12_SHADER_BYTECODE(g_QuadVertexShader, sizeof(g_QuadVertexShader)),
+		CD3DX12_SHADER_BYTECODE(g_WavePixelShader, sizeof(g_WavePixelShader)),
 		{},
 		{},
 		{},
 	},
 };
+
+static const LPWCH g_cPipelineLibraryFileName = L"pipelineLibrary.cache";
 
 static const LPWCH g_cCacheFileNames[EffectPipelineTypeCount] =
 {
@@ -216,10 +229,12 @@ public:
 	void ClearPSOCache();
 	void ToggleUberShader();
 	void ToggleDiskLibrary();
+	void SwitchPSOCachingMechanism();
 	void DestroyShader(EffectPipelineType type);
 
 	bool UberShadersEnabled() { return m_useUberShaders; }
 	bool DiskCacheEnabled() { return m_useDiskLibraries; }
+	PSOCachingMechanism GetPSOCachingMechanism() { return m_psoCachingMechanism; }
 
 private:
 	static const UINT BaseEffectCount = 2;
@@ -246,13 +261,16 @@ private:
 	ComPtr<ID3D12PipelineState> m_pipelineStates[EffectPipelineTypeCount];
 	bool m_compiledPSOFlags[EffectPipelineTypeCount];
 	bool m_inflightPSOFlags[EffectPipelineTypeCount];
-	MemoryMappedPSOCache m_diskCaches[EffectPipelineTypeCount];
+	MemoryMappedPSOCache m_diskCaches[EffectPipelineTypeCount];	// Cached blobs.
+	MemoryMappedPipelineLibrary m_pipelineLibrary; // Pipeline Library.
 	HANDLE m_flagsMutex;
 	CompilePSOThreadData m_workerThreads[EffectPipelineTypeCount];
 
 	bool m_useUberShaders;
 	bool m_useDiskLibraries;
-	std::wstring m_assetsPath;
+	bool m_pipelineLibrariesSupported;
+	PSOCachingMechanism m_psoCachingMechanism;
+	std::wstring m_cachePath;
 
 	UINT m_cbvRootSignatureIndex;
 	UINT m_maxDrawsPerFrame;
