@@ -33,12 +33,13 @@ struct VSInput
 struct VSOutput
 {
 	float4 position : SV_Position;
-	float2 texcoord0 : texcoord0;
-	float3 viewDir : texcoord1;
-	float3 shadowCoord : texcoord2;
-	float3 normal : normal;
-	float3 tangent : tangent;
-	float3 bitangent : bitangent;
+	float3 worldPos : WorldPos;
+	float2 texCoord : TexCoord0;
+	float3 viewDir : TexCoord1;
+	float3 shadowCoord : TexCoord2;
+	float3 normal : Normal;
+	float3 tangent : Tangent;
+	float3 bitangent : Bitangent;
 };
 
 [RootSignature(ModelViewer_RootSig)]
@@ -47,7 +48,8 @@ VSOutput main(VSInput vsInput)
 	VSOutput vsOutput;
 
 	vsOutput.position = mul(modelToProjection, float4(vsInput.position, 1.0));
-	vsOutput.texcoord0 = vsInput.texcoord0;
+	vsOutput.worldPos = vsInput.position;
+	vsOutput.texCoord = vsInput.texcoord0;
 	vsOutput.viewDir = vsInput.position - ViewerPos;
 	vsOutput.shadowCoord = mul(modelToShadow, float4(vsInput.position, 1.0)).xyz;
 

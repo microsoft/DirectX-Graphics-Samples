@@ -184,6 +184,9 @@
     <ClInclude Include="BuddyAllocator.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="DynamicUploadBuffer.h">
+      <Filter>Source Files\Graphics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SystemTime.cpp">
@@ -316,6 +319,12 @@
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
     <ClCompile Include="BuddyAllocator.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Color.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="DynamicUploadBuffer.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
   </ItemGroup>
@@ -706,9 +715,6 @@
     <FxCompile Include="Shaders\FXAAPass2V2CS.hlsl">
       <Filter>Shaders\FXAA</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\TemporalBlend2CS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\ParticleTileRender2CS.hlsl">
       <Filter>Shaders\Particles</Filter>
     </FxCompile>
@@ -738,6 +744,12 @@
     </FxCompile>
     <FxCompile Include="Shaders\FXAAPass1_RGB2_CS.hlsl">
       <Filter>Shaders\FXAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ColorPackingTestPS.hlsl">
+      <Filter>Shaders\Misc</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BoundNeighborhoodCS.hlsl">
+      <Filter>Shaders\MB+TAA</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -801,19 +813,19 @@
     <None Include="Shaders\GenerateMipsCS.hlsli">
       <Filter>Shaders\GenerateMips</Filter>
     </None>
+    <None Include="Shaders\PixelPacking_LUV.hlsli">
+      <Filter>Shaders\Misc</Filter>
+    </None>
     <None Include="Shaders\PixelPacking_RGBE.hlsli">
       <Filter>Shaders\Misc</Filter>
     </None>
     <None Include="Shaders\PixelPacking_RGBM.hlsli">
       <Filter>Shaders\Misc</Filter>
     </None>
-    <None Include="Shaders\ToneMappingUtility.hlsli">
-      <Filter>Shaders\HDR</Filter>
-    </None>
-    <None Include="Shaders\ColorSpaceUtility.hlsli">
+    <None Include="Shaders\PixelPacking_R11G11B10.hlsli">
       <Filter>Shaders\Misc</Filter>
     </None>
-    <None Include="Shaders\PixelPacking_R11G11B10.hlsli">
+    <None Include="Shaders\ColorSpaceUtility.hlsli">
       <Filter>Shaders\Misc</Filter>
     </None>
   </ItemGroup>

@@ -54,7 +54,7 @@ float3 Cubic(float4 w, float3 c0, float3 c1, float3 c2, float3 c3)
 float3 GetColor(uint s, uint t)
 {
 #ifdef GAMMA_SPACE
-	return ApplyColorProfile(ColorTex[uint2(s, t)], DISPLAY_PLANE_FORMAT);
+	return ApplyDisplayProfile(ColorTex[uint2(s, t)], DISPLAY_PLANE_FORMAT);
 #else
 	return ColorTex[uint2(s, t)];
 #endif
@@ -90,6 +90,6 @@ float3 main(float4 position : SV_Position, float2 uv : TexCoord0) : SV_Target0
 #ifdef GAMMA_SPACE
 	return Color;
 #else
-	return ApplyColorProfile(Color, DISPLAY_PLANE_FORMAT);
+	return ApplyDisplayProfile(Color, DISPLAY_PLANE_FORMAT);
 #endif
 }

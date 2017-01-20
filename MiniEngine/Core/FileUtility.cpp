@@ -16,6 +16,7 @@
 #include <fstream>
 #include <mutex>
 #include "../3rdParty/zlib-win64/zlib.h"
+//#include "miniz.c"
 
 using namespace std;
 using namespace Utility;
@@ -34,7 +35,7 @@ ByteArray ReadFileHelper(const wstring& fileName)
 	if (fileExists == -1)
 		return NullFile;
 
-	ifstream& file = ifstream( fileName, ios::in | ios::binary );
+	ifstream file( fileName, ios::in | ios::binary );
 	if (!file)
 		return NullFile;
 
@@ -42,14 +43,15 @@ ByteArray ReadFileHelper(const wstring& fileName)
 	file.seekg(0, ios::beg).read( (char*)byteArray->data(), byteArray->size() );
 	file.close();
 
-	ASSERT(byteArray->size() == fileStat.st_size);
+	ASSERT(byteArray->size() == (size_t)fileStat.st_size);
 
 	return byteArray;
 }
 
 ByteArray ReadFileHelperEx( shared_ptr<wstring> fileName)
 {
-	ByteArray firstTry = DecompressZippedFile(*fileName + L".gz");
+	std::wstring zippedFileName = *fileName + L".gz";
+	ByteArray firstTry = DecompressZippedFile(zippedFileName);
 	if (firstTry != NullFile)
 		return firstTry;
 

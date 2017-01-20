@@ -367,14 +367,6 @@ namespace GameCore
 	{
 		switch( message )
 		{
-			case WM_PAINT:
-			{
-				PAINTSTRUCT ps;
-				HDC hdc = BeginPaint(hWnd, &ps);
-				EndPaint(hWnd, &ps);
-				break;
-			}
-
 			case WM_SIZE:
 				Graphics::Resize((UINT)(UINT64)lParam & 0xFFFF, (UINT)(UINT64)lParam >> 16);
 				break;

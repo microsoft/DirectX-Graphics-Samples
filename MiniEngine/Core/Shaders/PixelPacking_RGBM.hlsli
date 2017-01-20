@@ -33,7 +33,7 @@ float3 FromRGBM(float4 rgbm, float PeakValue = 255.0 / 16.0 )
 uint PackRGBM( float4 rgbm, bool sRGB = true )
 {
 	if (sRGB)
-		rgbm.rgb = LinearToSRGB(rgbm.rgb);
+		rgbm.rgb = ApplySRGBCurve(rgbm.rgb);
 	rgbm = rgbm * 255.0 + 0.5;
 	return (uint)rgbm.a << 24 | (uint)rgbm.b << 16 | (uint)rgbm.g << 8 | (uint)rgbm.r;
 }
@@ -43,7 +43,7 @@ float4 UnpackRGBM( uint p, bool sRGB = true )
 	float4 rgbm = float4(uint4(p, p >> 8, p >> 16, p >> 24) & 0xFF);
 	rgbm /= 255.0;
 	if (sRGB)
-		rgbm.rgb = SRGBToLinear(rgbm.rgb);
+		rgbm.rgb = RemoveSRGBCurve(rgbm.rgb);
 	return rgbm;
 }
 

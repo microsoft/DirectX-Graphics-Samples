@@ -65,7 +65,24 @@ void LinearAllocatorPageManager::DiscardPages( uint64_t FenceValue, const vector
 		m_RetiredPages.push(make_pair(FenceValue, *iter));
 }
 
-LinearAllocationPage* LinearAllocatorPageManager::CreateNewPage( void )
+void LinearAllocatorPageManager::FreeLargePages( uint64_t FenceValue, const vector<LinearAllocationPage*>& LargePages )
+{
+	lock_guard<mutex> LockGuard(m_Mutex);
+
+	while (!m_DeletionQueue.empty() && g_CommandManager.IsFenceComplete(m_DeletionQueue.front().first))
+	{
+		delete m_DeletionQueue.front().second;
+		m_DeletionQueue.pop();
+	}
+
+	for (auto iter = LargePages.begin(); iter != LargePages.end(); ++iter)
+	{
+		(*iter)->Unmap();
+		m_DeletionQueue.push(make_pair(FenceValue, *iter));
+	}
+}
+
+LinearAllocationPage* LinearAllocatorPageManager::CreateNewPage( size_t PageSize  )
 {
 	D3D12_HEAP_PROPERTIES HeapProps;
 	HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -89,21 +106,21 @@ LinearAllocationPage* LinearAllocatorPageManager::CreateNewPage( void )
 	if (m_AllocationType == kGpuExclusive)
 	{
 		HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-		ResourceDesc.Width = kGpuAllocatorPageSize;
+		ResourceDesc.Width = PageSize == 0 ? kGpuAllocatorPageSize : PageSize;
 		ResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		DefaultUsage = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 	}
 	else
 	{
 		HeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-		ResourceDesc.Width = kCpuAllocatorPageSize;
+		ResourceDesc.Width = PageSize == 0 ? kCpuAllocatorPageSize : PageSize;
 		ResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 		DefaultUsage = D3D12_RESOURCE_STATE_GENERIC_READ;
 	}
 
 	ID3D12Resource* pBuffer;
-	ASSERT_SUCCEEDED( g_Device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &ResourceDesc,
-		DefaultUsage, nullptr, MY_IID_PPV_ARGS(&pBuffer)) );
+	ASSERT_SUCCEEDED( g_Device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE,
+		&ResourceDesc, DefaultUsage, nullptr, MY_IID_PPV_ARGS(&pBuffer)) );
 
 	pBuffer->SetName(L"LinearAllocator Page");
 
@@ -121,12 +138,25 @@ void LinearAllocator::CleanupUsedPages( uint64_t FenceID )
 
 	sm_PageManager[m_AllocationType].DiscardPages(FenceID, m_RetiredPages);
 	m_RetiredPages.clear();
+
+	sm_PageManager[m_AllocationType].FreeLargePages(FenceID, m_LargePageList);
+	m_LargePageList.clear();
+}
+
+DynAlloc LinearAllocator::AllocateLargePage(size_t SizeInBytes)
+{
+	LinearAllocationPage* OneOff = sm_PageManager[m_AllocationType].CreateNewPage(SizeInBytes);
+	m_LargePageList.push_back(OneOff);
+
+	DynAlloc ret(*OneOff, 0, SizeInBytes);
+	ret.DataPtr = OneOff->m_CpuVirtualAddress;
+	ret.GpuAddress = OneOff->m_GpuVirtualAddress;
+
+	return ret;
 }
 
 DynAlloc LinearAllocator::Allocate(size_t SizeInBytes, size_t Alignment)
 {
-	ASSERT(SizeInBytes <= m_PageSize, "Exceeded max linear allocator page size with single allocation");
-
 	const size_t AlignmentMask = Alignment - 1;
 
 	// Assert that it's a power of two.
@@ -134,6 +164,9 @@ DynAlloc LinearAllocator::Allocate(size_t SizeInBytes, size_t Alignment)
 
 	// Align the allocation
 	const size_t AlignedSize = Math::AlignUpWithMask(SizeInBytes, AlignmentMask);
+
+	if (AlignedSize > m_PageSize)
+		return AllocateLargePage(AlignedSize);
 
 	m_CurOffset = Math::AlignUp(m_CurOffset, Alignment);
 

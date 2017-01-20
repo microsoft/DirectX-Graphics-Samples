@@ -150,6 +150,8 @@ namespace Math
 		m_FarClip = farZClip;
 
 		UpdateProjMatrix();
+
+		m_PreviousViewProjMatrix = m_ViewProjMatrix;
 	}
 
 } // namespace Math

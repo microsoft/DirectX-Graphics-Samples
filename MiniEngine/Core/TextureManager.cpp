@@ -196,7 +196,7 @@ namespace TextureManager
 			return *ManTex;
 		}
 
-		uint32_t WhitePixel = ~0;
+		uint32_t WhitePixel = 0xFFFFFFFFul;
 		ManTex->Create(1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &WhitePixel);
 		return *ManTex;
 	}

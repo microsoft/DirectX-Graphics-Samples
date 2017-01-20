@@ -44,7 +44,7 @@ void BuddyBlock::InitFromResource(ByteAddressBuffer* pBuffer, uint32_t numElemen
 
 	if (initialData)
 	{
-		CommandContext::InitializeBuffer(*pBuffer, initialData, numElements * elementSize, true, m_offset);
+		CommandContext::InitializeBuffer(*pBuffer, initialData, numElements * elementSize, m_offset);
 	}
 }
 

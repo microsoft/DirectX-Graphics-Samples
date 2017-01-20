@@ -80,7 +80,7 @@ public:
 		m_IndirectParam.UnorderedAccessView.RootParameterIndex = RootParameterIndex;
 	}
 
-	D3D12_INDIRECT_ARGUMENT_TYPE GetType( void ) const { return m_IndirectParam.Type; }
+	const D3D12_INDIRECT_ARGUMENT_DESC& GetDesc( void ) const { return m_IndirectParam; }
 
 protected:
 

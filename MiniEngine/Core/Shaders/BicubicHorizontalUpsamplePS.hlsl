@@ -48,7 +48,7 @@ float4 GetWeights(float d1)
 float3 GetColor(uint s, uint t)
 {
 #ifdef GAMMA_SPACE
-	return ApplyColorProfile(ColorTex[uint2(s, t)], DISPLAY_PLANE_FORMAT);
+	return ApplyDisplayProfile(ColorTex[uint2(s, t)], DISPLAY_PLANE_FORMAT);
 #else
 	return ColorTex[uint2(s, t)];
 #endif

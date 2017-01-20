@@ -204,6 +204,8 @@ DXGI_FORMAT PixelBuffer::GetStencilFormat( DXGI_FORMAT defaultFormat )
 
 void PixelBuffer::AssociateWithResource( ID3D12Device* Device, const std::wstring& Name, ID3D12Resource* Resource, D3D12_RESOURCE_STATES CurrentState )
 {
+	(Device); // Unused until we support multiple adapters
+
 	ASSERT(Resource != nullptr);
 	D3D12_RESOURCE_DESC ResourceDesc = Resource->GetDesc();
 
@@ -238,7 +240,7 @@ D3D12_RESOURCE_DESC PixelBuffer::DescribeTex2D( uint32_t Width, uint32_t Height,
 	Desc.Format = GetBaseFormat(Format);
 	Desc.Height = (UINT)Height;
 	Desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	Desc.MipLevels = NumMips;
+	Desc.MipLevels = (UINT16)NumMips;
 	Desc.SampleDesc.Count = 1;
 	Desc.SampleDesc.Quality = 0;
 	Desc.Width = (UINT64)Width;

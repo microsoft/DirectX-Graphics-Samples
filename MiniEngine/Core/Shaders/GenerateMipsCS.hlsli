@@ -61,7 +61,7 @@ float4 LoadColor( uint Index )
 	return float4( gs_R[Index], gs_G[Index], gs_B[Index], gs_A[Index]);
 }
 
-float3 LinearToSRGB(float3 x)
+float3 ApplySRGBCurve(float3 x)
 {
 	// This is exactly the sRGB curve
 	//return x < 0.0031308 ? 12.92 * x : 1.055 * pow(abs(x), 1.0 / 2.4) - 0.055;
@@ -73,7 +73,7 @@ float3 LinearToSRGB(float3 x)
 float4 PackColor(float4 Linear)
 {
 #ifdef CONVERT_TO_SRGB
-	return float4(LinearToSRGB(Linear.rgb), Linear.a);
+	return float4(ApplySRGBCurve(Linear.rgb), Linear.a);
 #else
 	return Linear;
 #endif

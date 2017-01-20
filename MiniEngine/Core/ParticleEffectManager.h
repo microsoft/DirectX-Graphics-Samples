@@ -30,9 +30,9 @@ namespace ParticleEffects
 	void Shutdown();
 	void ClearAll();
 	typedef uint32_t EffectHandle;
-	EffectHandle PreLoadEffectResources( ParticleEffectProperties* effectProperties = &ParticleEffectProperties() );
+	EffectHandle PreLoadEffectResources( ParticleEffectProperties& effectProperties );
 	EffectHandle InstantiateEffect( EffectHandle effectHandle );
-	EffectHandle InstantiateEffect( ParticleEffectProperties* effectProperties = &ParticleEffectProperties() );
+	EffectHandle InstantiateEffect( ParticleEffectProperties& effectProperties );
 	void Update(ComputeContext& Context, float timeDelta );
 	void Render(CommandContext& Context, const Camera& Camera, ColorBuffer& ColorTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth);
 	void ResetEffect(EffectHandle EffectID);

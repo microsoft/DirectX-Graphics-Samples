@@ -20,7 +20,7 @@
 class ParticleEffect 
 {
 public:
-	ParticleEffect(ParticleEffectProperties* effectProperties = &ParticleEffectProperties());
+	ParticleEffect(ParticleEffectProperties& effectProperties);
 	void LoadDeviceResources(ID3D12Device* device);
 	void Update(ComputeContext& CompContext, float timeDelta);
 	float GetLifetime(){ return m_EffectProperties.TotalActiveLifetime; }

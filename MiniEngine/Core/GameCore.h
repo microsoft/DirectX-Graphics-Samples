@@ -37,7 +37,7 @@ namespace GameCore
 		virtual void RenderScene( void ) = 0;
 
 		// Optional UI (overlay) rendering pass.  This is LDR.  The buffer is already cleared.
-		virtual void RenderUI( class GraphicsContext& Context ) {};
+		virtual void RenderUI( class GraphicsContext& ) {};
 	};
 
 	void RunApplication( IGameApp& app, const wchar_t* className );

@@ -30,6 +30,9 @@
 #include "ParticleEffectManager.h"
 #include "GraphRenderer.h"
 
+// Uncomment this to enable experimental support for the new shader compiler, DXC.exe
+//#define DXIL
+
 #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 	#include <agile.h>
 #endif
@@ -104,13 +107,13 @@ namespace Graphics
 
 	bool g_bTypedUAVLoadSupport_R11G11B10_FLOAT = false;
 	bool g_bEnableHDROutput = false;
-	NumVar g_HDRPaperWhite("Graphics/Display/Paper White (nits)", 200.0f, 80.0f, 520.0f, 40.0f);
-	NumVar g_MaxDisplayLuminance("Graphics/Display/Peak Brightness (nits)", 600.0f, 400.0f, 2000.0f, 50.0f);
+	NumVar g_HDRPaperWhite("Graphics/Display/Paper White (nits)", 400.0f, 80.0f, 520.0f, 40.0f);
+	NumVar g_MaxDisplayLuminance("Graphics/Display/Peak Brightness (nits)", 1000.0f, 400.0f, 2000.0f, 50.0f);
 	const char* HDRModeLabels[] = { "HDR", "LDR", "Side-by-Side" };
 	EnumVar HDRDebugMode("Graphics/Display/HDR Debug Mode", 0, 3, HDRModeLabels);
 
-	uint32_t g_NativeWidth = 1920;
-	uint32_t g_NativeHeight = 1080;
+	uint32_t g_NativeWidth = 0;
+	uint32_t g_NativeHeight = 0;
 	uint32_t g_DisplayWidth = 1920;
 	uint32_t g_DisplayHeight = 1080;
 	ColorBuffer g_PreDisplayBuffer;
@@ -121,6 +124,7 @@ namespace Graphics
 
 		switch (eResolution((int)TargetResolution))
 		{
+		default:
 		case k720p:
 			NativeWidth = 1280;
 			NativeHeight = 720;
@@ -185,20 +189,21 @@ namespace Graphics
 	SamplerDesc SamplerPointBorderDesc;
 	SamplerDesc SamplerLinearBorderDesc;
 
-	SamplerDescriptor SamplerLinearWrap;
-	SamplerDescriptor SamplerAnisoWrap;
-	SamplerDescriptor SamplerShadow;
-	SamplerDescriptor SamplerLinearClamp;
-	SamplerDescriptor SamplerVolumeWrap;
-	SamplerDescriptor SamplerPointClamp;
-	SamplerDescriptor SamplerPointBorder;
-	SamplerDescriptor SamplerLinearBorder;
+	D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearWrap;
+	D3D12_CPU_DESCRIPTOR_HANDLE SamplerAnisoWrap;
+	D3D12_CPU_DESCRIPTOR_HANDLE SamplerShadow;
+	D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearClamp;
+	D3D12_CPU_DESCRIPTOR_HANDLE SamplerVolumeWrap;
+	D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointClamp;
+	D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointBorder;
+	D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearBorder;
 
 	D3D12_RASTERIZER_DESC RasterizerDefault;
 	D3D12_RASTERIZER_DESC RasterizerDefaultCW;
 	D3D12_RASTERIZER_DESC RasterizerTwoSided;
 	D3D12_RASTERIZER_DESC RasterizerShadow;
 	D3D12_RASTERIZER_DESC RasterizerShadowCW;
+	D3D12_RASTERIZER_DESC RasterizerShadowTwoSided;
 
 	D3D12_BLEND_DESC BlendNoColorWrite;
 	D3D12_BLEND_DESC BlendDisable;
@@ -271,6 +276,42 @@ void Graphics::Resize(uint32_t width, uint32_t height)
 	g_CurrentBuffer = 0;
 }
 
+#ifdef DXIL
+// A more recent Windows SDK than currently required is needed for these.
+typedef HRESULT(WINAPI *D3D12EnableExperimentalFeaturesFn)(
+	UINT                                    NumFeatures,
+	__in_ecount(NumFeatures) const IID*     pIIDs,
+	__in_ecount_opt(NumFeatures) void*      pConfigurationStructs,
+	__in_ecount_opt(NumFeatures) UINT*      pConfigurationStructSizes);
+
+static const GUID D3D12ExperimentalShaderModelsID = { /* 76f5573e-f13a-40f5-b297-81ce9e18933f */
+	0x76f5573e,
+	0xf13a,
+	0x40f5,
+	{ 0xb2, 0x97, 0x81, 0xce, 0x9e, 0x18, 0x93, 0x3f }
+};
+
+using namespace DirectX;
+
+static HRESULT EnableExperimentalShaderModels() {
+	HMODULE hRuntime = LoadLibraryW(L"d3d12.dll");
+	if (hRuntime == NULL) {
+		return HRESULT_FROM_WIN32(GetLastError());
+	}
+
+	D3D12EnableExperimentalFeaturesFn pD3D12EnableExperimentalFeatures =
+		(D3D12EnableExperimentalFeaturesFn)GetProcAddress(hRuntime, "D3D12EnableExperimentalFeatures");
+	if (pD3D12EnableExperimentalFeatures == nullptr) {
+		FreeLibrary(hRuntime);
+		return HRESULT_FROM_WIN32(GetLastError());
+	}
+
+	HRESULT hr = pD3D12EnableExperimentalFeatures(1, &D3D12ExperimentalShaderModelsID, nullptr, nullptr);
+	FreeLibrary(hRuntime);
+	return hr;
+}
+#endif
+
 // Initialize the DirectX resources required to run.
 void Graphics::Initialize(void)
 {
@@ -286,6 +327,10 @@ void Graphics::Initialize(void)
 		Utility::Print("WARNING:  Unable to enable D3D12 debug validation layer\n");
 #endif
 
+#ifdef DXIL
+	EnableExperimentalShaderModels();
+#endif
+
 	// Obtain the DXGI factory
 	Microsoft::WRL::ComPtr<IDXGIFactory4> dxgiFactory;
 	ASSERT_SUCCEEDED(CreateDXGIFactory2(0, MY_IID_PPV_ARGS(&dxgiFactory)));
@@ -297,6 +342,8 @@ void Graphics::Initialize(void)
 
 	if (!bUseWarpDriver)
 	{
+		SIZE_T MaxSize = 0;
+
 		for (uint32_t Idx = 0; DXGI_ERROR_NOT_FOUND != dxgiFactory->EnumAdapters1(Idx, &pAdapter); ++Idx)
 		{
 			DXGI_ADAPTER_DESC1 desc;
@@ -304,14 +351,16 @@ void Graphics::Initialize(void)
 			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
 				continue;
 
-			if (SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice))))
+			if (desc.DedicatedVideoMemory > MaxSize && SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice))))
 			{
 				pAdapter->GetDesc1(&desc);
 				Utility::Printf(L"D3D12-capable hardware found:  %s (%u MB)\n", desc.Description, desc.DedicatedVideoMemory >> 20);
-				g_Device = pDevice.Detach();
-				break;
+				MaxSize = desc.DedicatedVideoMemory;
 			}
 		}
+
+		if (MaxSize > 0)
+			g_Device = pDevice.Detach();
 	}
 
 	if (g_Device == nullptr)
@@ -353,7 +402,10 @@ void Graphics::Initialize(void)
 			// This occurs when a descriptor table is unbound even when a shader does not access the missing
 			// descriptors.  This is common with a root signature shared between disparate shaders that
 			// don't all need the same types of resources.
-			D3D12_MESSAGE_ID_COMMAND_LIST_DESCRIPTOR_TABLE_NOT_SET
+			D3D12_MESSAGE_ID_COMMAND_LIST_DESCRIPTOR_TABLE_NOT_SET,
+
+			// RESOURCE_BARRIER_DUPLICATE_SUBRESOURCE_TRANSITIONS
+			(D3D12_MESSAGE_ID)1008,
 		};
 
 		D3D12_INFO_QUEUE_FILTER NewFilter = {};
@@ -419,36 +471,36 @@ void Graphics::Initialize(void)
 	}
 
 	SamplerLinearWrapDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-	SamplerLinearWrap.Create(SamplerLinearWrapDesc);
+	SamplerLinearWrap = SamplerLinearWrapDesc.CreateDescriptor();
 
-	SamplerAnisoWrapDesc.MaxAnisotropy = 8;
-	SamplerAnisoWrap.Create(SamplerAnisoWrapDesc);
+	SamplerAnisoWrapDesc.MaxAnisotropy = 4;
+	SamplerAnisoWrap = SamplerAnisoWrapDesc.CreateDescriptor();
 
 	SamplerShadowDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 	SamplerShadowDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 	SamplerShadowDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
-	SamplerShadow.Create(SamplerShadowDesc);
+	SamplerShadow = SamplerShadowDesc.CreateDescriptor();
 
 	SamplerLinearClampDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	SamplerLinearClampDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
-	SamplerLinearClamp.Create(SamplerLinearClampDesc);
+	SamplerLinearClamp = SamplerLinearClampDesc.CreateDescriptor();
 
 	SamplerVolumeWrapDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-	SamplerVolumeWrap.Create(SamplerVolumeWrapDesc);
+	SamplerVolumeWrap = SamplerVolumeWrapDesc.CreateDescriptor();
 
 	SamplerPointClampDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 	SamplerPointClampDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
-	SamplerPointClamp.Create(SamplerPointClampDesc);
+	SamplerPointClamp = SamplerPointClampDesc.CreateDescriptor();
 
 	SamplerLinearBorderDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	SamplerLinearBorderDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
 	SamplerLinearBorderDesc.SetBorderColor(Color(0.0f, 0.0f, 0.0f, 0.0f));
-	SamplerLinearBorder.Create(SamplerLinearBorderDesc);
+	SamplerLinearBorder = SamplerLinearBorderDesc.CreateDescriptor();
 
 	SamplerPointBorderDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 	SamplerPointBorderDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
 	SamplerPointBorderDesc.SetBorderColor(Color(0.0f, 0.0f, 0.0f, 0.0f));
-	SamplerPointBorder.Create(SamplerPointBorderDesc);
+	SamplerPointBorder = SamplerPointBorderDesc.CreateDescriptor();
 
 	// Default rasterizer states
 	RasterizerDefault.FillMode = D3D12_FILL_MODE_SOLID;
@@ -474,6 +526,9 @@ void Graphics::Initialize(void)
 	//RasterizerShadow.CullMode = D3D12_CULL_FRONT;  // Hacked here rather than fixing the content
 	RasterizerShadow.SlopeScaledDepthBias = -1.5f;
 	RasterizerShadow.DepthBias = -100;
+
+	RasterizerShadowTwoSided = RasterizerShadow;
+	RasterizerShadowTwoSided.CullMode = D3D12_CULL_MODE_NONE;
 
 	RasterizerShadowCW = RasterizerShadow;
 	RasterizerShadowCW.FrontCounterClockwise = FALSE;
@@ -566,7 +621,6 @@ void Graphics::Initialize(void)
 	ObjName.Finalize();
 
 	CreatePSO(ConvertLDRToDisplayPS, g_pConvertLDRToDisplayPS);
-	CreatePSO(ConvertHDRToDisplayPS, g_pConvertHDRToDisplayPS);
 	CreatePSO(MagnifyPixelsPS, g_pMagnifyPixelsPS);
 	CreatePSO(BilinearUpsamplePS, g_pBilinearUpsamplePS);
 	CreatePSO(BicubicHorizontalUpsamplePS, g_pBicubicHorizontalUpsamplePS);
@@ -599,7 +653,7 @@ void Graphics::Initialize(void)
 	g_PreDisplayBuffer.Create(L"PreDisplay Buffer", g_DisplayWidth, g_DisplayHeight, 1, SwapChainFormat);
 
 	GpuTimeManager::Initialize(4096);
-	InitializeRenderingBuffers(g_NativeWidth, g_NativeHeight);
+	SetNativeResolution();
 	PostEffects::Initialize();
 	SSAO::Initialize();
 	TextRenderer::Initialize();

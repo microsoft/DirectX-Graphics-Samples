@@ -112,7 +112,7 @@ void FXAA::Render( ComputeContext& Context, bool bUsePreComputedLuma )
 	Context.SetConstants(0, 1.0f / Target.GetWidth(), 1.0f / Target.GetHeight(), (float)ContrastThreshold, (float)SubpixelRemoval);
 
 	{
-		ScopedTimer _prof(L"Pass 1", Context);
+		ScopedTimer _prof2(L"Pass 1", Context);
 
 		// Begin by analysing the luminance buffer and setting aside high-contrast pixels in
 		// work queues to be processed later.  There are horizontal edge and vertical edge work
@@ -161,7 +161,7 @@ void FXAA::Render( ComputeContext& Context, bool bUsePreComputedLuma )
 	}
 
 	{
-		ScopedTimer _prof(L"Pass 2", Context);
+		ScopedTimer _prof2(L"Pass 2", Context);
 
 		// The next phase involves converting the work queues to DispatchIndirect parameters.
 		// The queues are also padded out to 64 elements to simplify the final consume logic.

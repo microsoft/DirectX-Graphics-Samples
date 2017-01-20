@@ -35,8 +35,8 @@ namespace EngineProfiling
 class ScopedTimer
 {
 public:
-	ScopedTimer(const std::wstring& name) {}
-	ScopedTimer(const std::wstring& name, CommandContext& Context) {}
+	ScopedTimer(const std::wstring&) {}
+	ScopedTimer(const std::wstring&, CommandContext&) {}
 };
 #else
 class ScopedTimer

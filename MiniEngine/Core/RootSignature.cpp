@@ -101,7 +101,7 @@ void RootSignature::Finalize(const std::wstring& name, D3D12_ROOT_SIGNATURE_FLAG
 	RootDesc.Flags = Flags;
 
 	m_DescriptorTableBitMap = 0;
-	m_MaxDescriptorCacheHandleCount = 0;
+	m_SamplerTableBitMap = 0;
 
 	size_t HashCode = Utility::HashState(&RootDesc.Flags);
 	HashCode = Utility::HashState( RootDesc.pStaticSamplers, m_NumSamplers, HashCode );
@@ -118,15 +118,14 @@ void RootSignature::Finalize(const std::wstring& name, D3D12_ROOT_SIGNATURE_FLAG
 			HashCode = Utility::HashState( RootParam.DescriptorTable.pDescriptorRanges,
 				RootParam.DescriptorTable.NumDescriptorRanges, HashCode );
 
-			// We don't care about sampler descriptor tables.  We don't manage them in DescriptorCache
+			// We keep track of sampler descriptor tables separately from CBV_SRV_UAV descriptor tables
 			if (RootParam.DescriptorTable.pDescriptorRanges->RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER)
-				continue;
+				m_SamplerTableBitMap |= (1 << Param);
+			else
+				m_DescriptorTableBitMap |= (1 << Param);
 
-			m_DescriptorTableBitMap |= (1 << Param);
 			for (UINT TableRange = 0; TableRange < RootParam.DescriptorTable.NumDescriptorRanges; ++TableRange)
 				m_DescriptorTableSize[Param] += RootParam.DescriptorTable.pDescriptorRanges[TableRange].NumDescriptors;
-
-			m_MaxDescriptorCacheHandleCount += m_DescriptorTableSize[Param];
 		}
 		else
 			HashCode = Utility::HashState( &RootParam, 1, HashCode );

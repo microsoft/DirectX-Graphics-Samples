@@ -22,11 +22,10 @@ namespace Graphics
 	DepthBuffer g_SceneDepthBuffer;
 	ColorBuffer g_SceneColorBuffer;
 	ColorBuffer g_PostEffectsBuffer;
-	ColorBuffer g_ReprojectionBuffer;
+	ColorBuffer g_VelocityBuffer;
 	ColorBuffer g_OverlayBuffer;
 	ColorBuffer g_HorizontalBuffer;
 
-	ColorBuffer g_VelocityBuffer;
 	ShadowBuffer g_ShadowBuffer;
 
 	ColorBuffer g_SSAOFullScreen(Color(1.0f, 1.0f, 1.0f));
@@ -65,7 +64,7 @@ namespace Graphics
 
 	ColorBuffer g_MotionPrepBuffer;
 	ColorBuffer g_LumaBuffer;
-	ColorBuffer g_TemporalBuffer[2];
+	ColorBuffer g_TemporalColor[2];
 	ColorBuffer g_aBloomUAV1[2];	// 640x384 (1/3)
 	ColorBuffer g_aBloomUAV2[2];	// 320x192 (1/6)  
 	ColorBuffer g_aBloomUAV3[2];	// 160x96  (1/12)
@@ -108,9 +107,8 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 	esram.PushStack();
 
 		g_SceneColorBuffer.Create( L"Main Color Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
-		g_ReprojectionBuffer.Create( L"Temporal Reprojection", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16_FLOAT );
-		if (!g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
-			g_PostEffectsBuffer.Create( L"Post Effects Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT );
+		g_VelocityBuffer.Create( L"Motion Vectors", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16_FLOAT );
+		g_PostEffectsBuffer.Create( L"Post Effects Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT );
 
 		esram.PushStack();	// Render HDR image
 
@@ -149,7 +147,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 						g_AOHighQuality4.Create( L"AO High Quality 4", bufferWidth4, bufferHeight4, 1, DXGI_FORMAT_R8_UNORM, esram );
 					esram.PopStack();	// End generating SSAO
 
-					g_ShadowBuffer.Create( L"Shadow Map", 2048, 2048 );//, esram );
+					g_ShadowBuffer.Create( L"Shadow Map", 2048, 2048, esram );
 
 				esram.PopStack();	// End Shading
 
@@ -168,15 +166,14 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 					g_DoFFixupQueue.Create(L"DoF Fixup Queue", bufferWidth4 * bufferHeight4, 4, esram);
 				esram.PopStack();	// End depth of field
 
-				g_TemporalBuffer[0].Create( L"Temporal Color 0", bufferWidth, bufferHeight, 1, HDR_MOTION_FORMAT );
-				g_TemporalBuffer[1].Create( L"Temporal Color 1", bufferWidth, bufferHeight, 1, HDR_MOTION_FORMAT );
-				InitContext.TransitionResource(g_TemporalBuffer[0], D3D12_RESOURCE_STATE_RENDER_TARGET);
-				InitContext.TransitionResource(g_TemporalBuffer[1], D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-				InitContext.ClearColor(g_TemporalBuffer[0]);
-				InitContext.ClearColor(g_TemporalBuffer[1]);
+				g_TemporalColor[0].Create( L"Temporal Color 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
+				g_TemporalColor[1].Create( L"Temporal Color 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
+				InitContext.TransitionResource(g_TemporalColor[0], D3D12_RESOURCE_STATE_RENDER_TARGET);
+				InitContext.TransitionResource(g_TemporalColor[1], D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+				InitContext.ClearColor(g_TemporalColor[0]);
+				InitContext.ClearColor(g_TemporalColor[1]);
 
 				esram.PushStack();	// Begin motion blur
-					g_VelocityBuffer.Create( L"Motion Vectors", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R8G8_SNORM, esram );
 					g_MotionPrepBuffer.Create( L"Motion Blur Prep", bufferWidth1, bufferHeight1, 1, HDR_MOTION_FORMAT, esram );
 				esram.PopStack();	// End motion blur
 
@@ -232,12 +229,11 @@ void Graphics::DestroyRenderingBuffers()
 {
 	g_SceneDepthBuffer.Destroy();
 	g_SceneColorBuffer.Destroy();
-	g_ReprojectionBuffer.Destroy();
+	g_VelocityBuffer.Destroy();
 	g_OverlayBuffer.Destroy();
 	g_HorizontalBuffer.Destroy();
 	g_PostEffectsBuffer.Destroy();
 
-	g_VelocityBuffer.Destroy();
 	g_ShadowBuffer.Destroy();
 
 	g_SSAOFullScreen.Destroy();
@@ -279,8 +275,8 @@ void Graphics::DestroyRenderingBuffers()
 
 	g_MotionPrepBuffer.Destroy();
 	g_LumaBuffer.Destroy();
-	g_TemporalBuffer[0].Destroy();
-	g_TemporalBuffer[1].Destroy();
+	g_TemporalColor[0].Destroy();
+	g_TemporalColor[1].Destroy();
 	g_aBloomUAV1[0].Destroy();
 	g_aBloomUAV1[1].Destroy();
 	g_aBloomUAV2[0].Destroy();

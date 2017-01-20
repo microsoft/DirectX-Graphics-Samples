@@ -33,10 +33,10 @@ namespace ParticleEffects
 	extern RandomNumberGenerator s_RNG;
 }
 
-ParticleEffect::ParticleEffect(ParticleEffectProperties* effectProperties)
+ParticleEffect::ParticleEffect(ParticleEffectProperties& effectProperties)
 {
 	m_ElapsedTime = 0.0;
-	m_EffectProperties = *effectProperties;
+	m_EffectProperties = effectProperties;
 }
 
 inline static Color RandColor( Color c0, Color c1 )
@@ -62,6 +62,8 @@ inline static XMFLOAT3 RandSpread( const XMFLOAT3& s )
 
 void ParticleEffect::LoadDeviceResources(ID3D12Device* device)
 {
+	(device); // Currently unused.  May be useful with multi-adapter support.
+
 	m_OriginalEffectProperties = m_EffectProperties; //In case we want to reset
 	
 	//Fill particle spawn data buffer

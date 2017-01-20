@@ -84,7 +84,7 @@ namespace PostEffects
 	NumVar AdaptationRate("Graphics/HDR/Adaptation Rate", 0.05f, 0.01f, 1.0f, 0.01f);
 	ExpVar Exposure("Graphics/HDR/Exposure", 2.0f, -8.0f, 8.0f, 0.25f);
 	BoolVar DrawHistogram("Graphics/HDR/Draw Histogram", false);
-	NumVar g_ToeStrength("Graphics/HDR/Toe Strength", 0.01f, 0.0f, 0.1f, 0.005f);
+	NumVar g_ToeStrength("Graphics/HDR/Toe Strength", 0.02f, 0.0f, 0.1f, 0.005f);
 
 	BoolVar BloomEnable("Graphics/Bloom/Enable", true);
 	NumVar BloomThreshold("Graphics/Bloom/Threshold", 1.0f, 0.0f, 8.0f, 0.1f);		// The threshold luminance above which a pixel will start to bloom
@@ -446,7 +446,21 @@ void PostEffects::Render( void )
 {
 	ComputeContext& Context = ComputeContext::Begin(L"Post Effects");
 
+	TemporalAA::ApplyTemporalAA(Context);
+
 	Context.SetRootSignature(PostEffectsRS);
+
+	if (TemporalAA::Enable)
+	{
+		ScopedTimer _prof(L"Copy Post back to Scene", Context);
+		Context.SetRootSignature(PostEffectsRS);
+		Context.SetPipelineState(CopyBackPostBufferCS);
+		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		Context.TransitionResource(g_PostEffectsBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+		Context.SetDynamicDescriptor(2, 0, g_PostEffectsBuffer.GetSRV());
+		Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
+	}
 
 	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -458,8 +472,6 @@ void PostEffects::Render( void )
 	bool bGeneratedLumaBuffer = EnableHDR || FXAA::DebugDraw || BloomEnable;
 	if (FXAA::Enable)
 		FXAA::Render(Context, bGeneratedLumaBuffer);
-
-	TemporalAA::ApplyTemporalAA(Context);
 
 	// In the case where we've been doing post processing in a separate buffer, we need to copy it
 	// back to the original buffer.  It is possible to skip this step if the next shader knows to

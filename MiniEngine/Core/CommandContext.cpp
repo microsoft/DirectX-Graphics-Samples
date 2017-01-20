@@ -139,7 +139,8 @@ uint64_t CommandContext::Finish( bool WaitForCompletion )
 
 	m_CpuLinearAllocator.CleanupUsedPages(FenceValue);
 	m_GpuLinearAllocator.CleanupUsedPages(FenceValue);
-	m_DynamicDescriptorHeap.CleanupUsedHeaps(FenceValue);
+	m_DynamicViewDescriptorHeap.CleanupUsedHeaps(FenceValue);
+	m_DynamicSamplerDescriptorHeap.CleanupUsedHeaps(FenceValue);
 
 	if (WaitForCompletion)
 		g_CommandManager.WaitForFence(FenceValue);
@@ -151,7 +152,8 @@ uint64_t CommandContext::Finish( bool WaitForCompletion )
 
 CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE Type) :
 	m_Type(Type),
-	m_DynamicDescriptorHeap(*this),
+	m_DynamicViewDescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV),
+	m_DynamicSamplerDescriptorHeap(*this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER),
 	m_CpuLinearAllocator(kCpuWritable), 
 	m_GpuLinearAllocator(kGpuExclusive)
 {
@@ -239,7 +241,7 @@ void GraphicsContext::ClearUAV( GpuBuffer& Target )
 {
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
-	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicDescriptorHeap.UploadDirect(Target.GetUAV());
+	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(Target.GetUAV());
 	const UINT ClearColor[4] = {};
 	m_CommandList->ClearUnorderedAccessViewUint(GpuVisibleHandle, Target.GetUAV(), Target.GetResource(), ClearColor, 0, nullptr);
 }
@@ -248,7 +250,7 @@ void ComputeContext::ClearUAV( GpuBuffer& Target )
 {
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
-	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicDescriptorHeap.UploadDirect(Target.GetUAV());
+	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(Target.GetUAV());
 	const UINT ClearColor[4] = {};
 	m_CommandList->ClearUnorderedAccessViewUint(GpuVisibleHandle, Target.GetUAV(), Target.GetResource(), ClearColor, 0, nullptr);
 }
@@ -257,7 +259,7 @@ void GraphicsContext::ClearUAV( ColorBuffer& Target )
 {
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
-	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicDescriptorHeap.UploadDirect(Target.GetUAV());
+	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(Target.GetUAV());
 	CD3DX12_RECT ClearRect(0, 0, (LONG)Target.GetWidth(), (LONG)Target.GetHeight());
 
 	//TODO: My Nvidia card is not clearing UAVs with either Float or Uint variants.
@@ -269,7 +271,7 @@ void ComputeContext::ClearUAV( ColorBuffer& Target )
 {
 	// After binding a UAV, we can get a GPU handle that is required to clear it as a UAV (because it essentially runs
 	// a shader to set all of the values).
-	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicDescriptorHeap.UploadDirect(Target.GetUAV());
+	D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(Target.GetUAV());
 	CD3DX12_RECT ClearRect(0, 0, (LONG)Target.GetWidth(), (LONG)Target.GetHeight());
 
 	//TODO: My Nvidia card is not clearing UAVs with either Float or Uint variants.
@@ -439,43 +441,17 @@ void CommandContext::FillBuffer( GpuResource& Dest, size_t DestOffset, DWParam V
 
 void CommandContext::InitializeTexture( GpuResource& Dest, UINT NumSubresources, D3D12_SUBRESOURCE_DATA SubData[] )
 {
-	ID3D12Resource* UploadBuffer;
-
 	UINT64 uploadBufferSize = GetRequiredIntermediateSize(Dest.GetResource(), 0, NumSubresources);
 
 	CommandContext& InitContext = CommandContext::Begin();
 
-	D3D12_HEAP_PROPERTIES HeapProps;
-	HeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-	HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	HeapProps.CreationNodeMask = 1;
-	HeapProps.VisibleNodeMask = 1;
-
-	D3D12_RESOURCE_DESC BufferDesc;
-	BufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	BufferDesc.Alignment = 0;
-	BufferDesc.Width = uploadBufferSize;
-	BufferDesc.Height = 1;
-	BufferDesc.DepthOrArraySize = 1;
-	BufferDesc.MipLevels = 1;
-	BufferDesc.Format = DXGI_FORMAT_UNKNOWN;
-	BufferDesc.SampleDesc.Count = 1;
-	BufferDesc.SampleDesc.Quality = 0;
-	BufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	BufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-	ASSERT_SUCCEEDED( Graphics::g_Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
-		&BufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, MY_IID_PPV_ARGS(&UploadBuffer)) );
-
 	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default texture
-	UpdateSubresources(InitContext.m_CommandList, Dest.GetResource(), UploadBuffer, 0, 0, NumSubresources, SubData);
+	DynAlloc mem = InitContext.ReserveUploadMemory(uploadBufferSize);
+	UpdateSubresources(InitContext.m_CommandList, Dest.GetResource(), mem.Buffer.GetResource(), 0, 0, NumSubresources, SubData);
 	InitContext.TransitionResource(Dest, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	// Execute the command list and wait for it to finish so we can release the upload buffer
 	InitContext.Finish(true);
-
-	UploadBuffer->Release();
 }
 
 void CommandContext::CopySubresource(GpuResource& Dest, UINT DestSubIndex, GpuResource& Src, UINT SrcSubIndex)
@@ -541,55 +517,18 @@ void CommandContext::InitializeTextureArraySlice(GpuResource& Dest, UINT SliceIn
 	Context.Finish(true);
 }
 
-void CommandContext::InitializeBuffer( GpuResource& Dest, const void* BufferData, size_t NumBytes, bool UseOffset, size_t Offset)
+void CommandContext::InitializeBuffer( GpuResource& Dest, const void* BufferData, size_t NumBytes, size_t Offset)
 {
-	ID3D12Resource* UploadBuffer;
-
 	CommandContext& InitContext = CommandContext::Begin();
 
-	D3D12_HEAP_PROPERTIES HeapProps;
-	HeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-	HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	HeapProps.CreationNodeMask = 1;
-	HeapProps.VisibleNodeMask = 1;
-
-	D3D12_RESOURCE_DESC BufferDesc;
-	BufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	BufferDesc.Alignment = 0;
-	BufferDesc.Width = NumBytes;
-	BufferDesc.Height = 1;
-	BufferDesc.DepthOrArraySize = 1;
-	BufferDesc.MipLevels = 1;
-	BufferDesc.Format = DXGI_FORMAT_UNKNOWN;
-	BufferDesc.SampleDesc.Count = 1;
-	BufferDesc.SampleDesc.Quality = 0;
-	BufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	BufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-	ASSERT_SUCCEEDED( Graphics::g_Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
-		&BufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,  MY_IID_PPV_ARGS(&UploadBuffer)) );
-
-	void* DestAddress;
-	UploadBuffer->Map(0, nullptr, &DestAddress);
-	SIMDMemCopy(DestAddress, BufferData, Math::DivideByMultiple(NumBytes, 16));
-	UploadBuffer->Unmap(0, nullptr);
+	DynAlloc mem = InitContext.ReserveUploadMemory(NumBytes);
+	SIMDMemCopy(mem.DataPtr, BufferData, Math::DivideByMultiple(NumBytes, 16));
 
 	// copy data to the intermediate upload heap and then schedule a copy from the upload heap to the default texture
 	InitContext.TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST, true);
-	if (UseOffset)
-	{
-		InitContext.m_CommandList->CopyBufferRegion(Dest.GetResource(), Offset, UploadBuffer, 0, NumBytes);
-	}
-	else
-	{
-		InitContext.m_CommandList->CopyResource(Dest.GetResource(), UploadBuffer);
-	}
-
+	InitContext.m_CommandList->CopyBufferRegion(Dest.GetResource(), Offset, mem.Buffer.GetResource(), 0, NumBytes);
 	InitContext.TransitionResource(Dest, D3D12_RESOURCE_STATE_GENERIC_READ, true);
 
 	// Execute the command list and wait for it to finish so we can release the upload buffer
 	InitContext.Finish(true);
-
-	UploadBuffer->Release();
 }

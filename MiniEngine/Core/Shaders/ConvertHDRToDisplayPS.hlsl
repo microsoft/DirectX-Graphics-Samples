@@ -40,7 +40,7 @@ PS_OUT main( float4 position : SV_Position )
 	float3 SDR = ApplyToeRGB(ToneMapRGB(HDR), ToeStrength);
 
 	// Better to blend in linear space (unlike the hardware compositor)
-	UI.rgb = SRGBToLinear(UI.rgb);
+	UI.rgb = RemoveSRGBCurve(UI.rgb);
 
 	// SDR was not explicitly clamped to [0, 1] on input, but it will be on output
 	SDR = saturate(SDR) * (1 - UI.a) + UI.rgb;
@@ -63,7 +63,7 @@ PS_OUT main( float4 position : SV_Position )
 	}
 
 	// Current values are specified in nits.  Normalize to max specified brightness.
-	Out.HdrOutput = LinearToREC2084(FinalOutput / 10000.0);
+	Out.HdrOutput = ApplyREC2084Curve(FinalOutput / 10000.0);
 	
 	return Out;
 }

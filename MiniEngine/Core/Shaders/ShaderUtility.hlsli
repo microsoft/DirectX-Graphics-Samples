@@ -79,43 +79,43 @@ float3 RGBLimitedToFull10bit( float3 x )
 #define LDR_COLOR_FORMAT			COLOR_FORMAT_LINEAR
 #define DISPLAY_PLANE_FORMAT		COLOR_FORMAT_PC_DEFAULT
 
-float3 ApplyColorProfile( float3 x, int Format )
+float3 ApplyDisplayProfile( float3 x, int DisplayFormat )
 {
-	switch (Format)
+	switch (DisplayFormat)
 	{
 	default:
 	case COLOR_FORMAT_LINEAR:
 		return x;
 	case COLOR_FORMAT_sRGB_FULL:
-		return LinearToSRGB(x);
+		return ApplySRGBCurve(x);
 	case COLOR_FORMAT_sRGB_LIMITED:
-		return RGBFullToLimited10bit(LinearToSRGB(x));
+		return RGBFullToLimited10bit(ApplySRGBCurve(x));
 	case COLOR_FORMAT_Rec709_FULL:
-		return LinearToREC709(x);
+		return ApplyREC709Curve(x);
 	case COLOR_FORMAT_Rec709_LIMITED:
-		return RGBFullToLimited10bit(LinearToREC709(x));
+		return RGBFullToLimited10bit(ApplyREC709Curve(x));
 	case COLOR_FORMAT_HDR10:
-		return LinearToREC2084(REC709toREC2020(x));
+		return ApplyREC2084Curve(REC709toREC2020(x));
 	};
 }
 
-float3 LinearizeColor( float3 x, int Format )
+float3 RemoveDisplayProfile( float3 x, int DisplayFormat )
 {
-	switch (Format)
+	switch (DisplayFormat)
 	{
 	default:
 	case COLOR_FORMAT_LINEAR:
 		return x;
 	case COLOR_FORMAT_sRGB_FULL:
-		return SRGBToLinear(x);
+		return RemoveSRGBCurve(x);
 	case COLOR_FORMAT_sRGB_LIMITED:
-		return SRGBToLinear(RGBLimitedToFull10bit(x));
+		return RemoveSRGBCurve(RGBLimitedToFull10bit(x));
 	case COLOR_FORMAT_Rec709_FULL:
-		return REC709ToLinear(x);
+		return RemoveREC709Curve(x);
 	case COLOR_FORMAT_Rec709_LIMITED:
-		return REC709ToLinear(RGBLimitedToFull10bit(x));
+		return RemoveREC709Curve(RGBLimitedToFull10bit(x));
 	case COLOR_FORMAT_HDR10:
-		return REC2020toREC709(REC2084ToLinear(x));
+		return REC2020toREC709(RemoveREC2084Curve(x));
 	};
 }
 
@@ -124,7 +124,7 @@ float3 ConvertColor( float3 x, int FromFormat, int ToFormat )
 	if (FromFormat == ToFormat)
 		return x;
 
-	return ApplyColorProfile(LinearizeColor(x, FromFormat), ToFormat);
+	return ApplyDisplayProfile(RemoveDisplayProfile(x, FromFormat), ToFormat);
 }
 
 #endif // __SHADER_UTILITY_HLSLI__

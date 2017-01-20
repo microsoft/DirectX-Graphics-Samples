@@ -50,7 +50,12 @@ void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, u
 		SRVDesc.Texture2DArray.FirstArraySlice = 0;
 		SRVDesc.Texture2DArray.ArraySize = (UINT)ArraySize;
 	}
-	else
+	else if (m_FragmentCount > 1)
+	{
+		RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
+		SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
+	}
+	else 
 	{
 		RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 		RTVDesc.Texture2D.MipSlice = 0;
@@ -76,6 +81,9 @@ void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, u
 
 	// Create the shader resource view
 	Device->CreateShaderResourceView(Resource, &SRVDesc, m_SRVHandle);
+
+	if (m_FragmentCount > 1)
+		return;
 
 	// Create the UAVs for each mip level (RWTexture2D)
 	for (uint32_t i = 0; i < NumMips; ++i)
@@ -104,8 +112,13 @@ void ColorBuffer::Create(const std::wstring& Name, uint32_t Width, uint32_t Heig
 	DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMem)
 {
 	NumMips = (NumMips == 0 ? ComputeNumMips(Width, Height) : NumMips);
-	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, 1, NumMips, Format,
-		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	if (m_FragmentCount == 1)
+		Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, 1, NumMips, Format, Flags);
+
+	ResourceDesc.SampleDesc.Count = m_FragmentCount;
+	ResourceDesc.SampleDesc.Quality = 0;
 
 	D3D12_CLEAR_VALUE ClearValue = {};
 	ClearValue.Format = Format;
@@ -127,8 +140,10 @@ void ColorBuffer::Create(const std::wstring& Name, uint32_t Width, uint32_t Heig
 void ColorBuffer::CreateArray( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t ArrayCount,
 	DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMem )
 {
-	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, ArrayCount, 1, Format,
-		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	if (m_FragmentCount == 1)
+		Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, ArrayCount, 1, Format, Flags);
 
 	D3D12_CLEAR_VALUE ClearValue = {};
 	ClearValue.Format = Format;

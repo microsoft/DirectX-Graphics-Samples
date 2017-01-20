@@ -28,7 +28,7 @@ void CommandSignature::Finalize( const RootSignature* RootSignature )
 
 	for (UINT i = 0; i < m_NumParameters; ++i)
 	{
-		switch (m_ParamArray[i].GetType())
+		switch (m_ParamArray[i].GetDesc().Type)
 		{
 			case D3D12_INDIRECT_ARGUMENT_TYPE_DRAW:
 				ByteStride += sizeof(D3D12_DRAW_ARGUMENTS);
@@ -40,8 +40,8 @@ void CommandSignature::Finalize( const RootSignature* RootSignature )
 				ByteStride += sizeof(D3D12_DISPATCH_ARGUMENTS);
 				break;
 			case D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT:
+				ByteStride += m_ParamArray[i].GetDesc().Constant.Num32BitValuesToSet * 4;
 				RequiresRootSignature = true;
-				ByteStride += 4;
 				break;
 			case D3D12_INDIRECT_ARGUMENT_TYPE_VERTEX_BUFFER_VIEW:
 				ByteStride += sizeof(D3D12_VERTEX_BUFFER_VIEW);
