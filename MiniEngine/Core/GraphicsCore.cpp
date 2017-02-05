@@ -621,6 +621,7 @@ void Graphics::Initialize(void)
 	ObjName.Finalize();
 
 	CreatePSO(ConvertLDRToDisplayPS, g_pConvertLDRToDisplayPS);
+	CreatePSO(ConvertHDRToDisplayPS, g_pConvertHDRToDisplayPS);
 	CreatePSO(MagnifyPixelsPS, g_pMagnifyPixelsPS);
 	CreatePSO(BilinearUpsamplePS, g_pBilinearUpsamplePS);
 	CreatePSO(BicubicHorizontalUpsamplePS, g_pBicubicHorizontalUpsamplePS);
