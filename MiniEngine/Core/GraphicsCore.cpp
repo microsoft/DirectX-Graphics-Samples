@@ -306,9 +306,7 @@ static HRESULT EnableExperimentalShaderModels() {
 		return HRESULT_FROM_WIN32(GetLastError());
 	}
 
-	HRESULT hr = pD3D12EnableExperimentalFeatures(1, &D3D12ExperimentalShaderModelsID, nullptr, nullptr);
-	FreeLibrary(hRuntime);
-	return hr;
+	return pD3D12EnableExperimentalFeatures(1, &D3D12ExperimentalShaderModelsID, nullptr, nullptr);
 }
 #endif
 

@@ -73,7 +73,7 @@ void AntiAliasSpecular( inout float3 texNormal, inout float gloss )
 // Apply fresnel to modulate the specular albedo
 void FSchlick( inout float3 specular, inout float3 diffuse, float3 lightDir, float3 halfVec )
 {
-	float fresnel = pow(1.0 - dot(lightDir, halfVec), 5.0);
+	float fresnel = pow(1.0 - saturate(dot(lightDir, halfVec)), 5.0);
 	specular = lerp(specular, 1, fresnel);
 	diffuse = lerp(diffuse, 0, fresnel);
 }

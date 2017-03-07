@@ -33,6 +33,8 @@
 #include "GameInput.h"
 #include "./ForwardPlusLighting.h"
 
+// To enable wave intrinsics, uncomment this macro and #define DXIL in Core/GraphcisCore.cpp.
+// Run CompileSM6Test.bat to compile the relevant shaders with DXC.
 //#define _WAVE_OP
 
 #include "CompiledShaders/DepthViewerVS.h"
@@ -40,6 +42,7 @@
 #include "CompiledShaders/ModelViewerVS.h"
 #include "CompiledShaders/ModelViewerPS.h"
 #ifdef _WAVE_OP
+#include "CompiledShaders/DepthViewerVS_SM6.h"
 #include "CompiledShaders/ModelViewerVS_SM6.h"
 #include "CompiledShaders/ModelViewerPS_SM6.h"
 #endif
@@ -83,6 +86,7 @@ private:
 	GraphicsPSO m_CutoutDepthPSO;
 	GraphicsPSO m_ModelPSO;
 #ifdef _WAVE_OP
+	GraphicsPSO m_DepthWaveOpsPSO;
 	GraphicsPSO m_ModelWaveOpsPSO;
 #endif
 	GraphicsPSO m_CutoutModelPSO;
@@ -180,6 +184,10 @@ void ModelViewer::Startup( void )
 	m_ModelPSO.Finalize();
 
 #ifdef _WAVE_OP
+	m_DepthWaveOpsPSO = m_DepthPSO;
+	m_DepthWaveOpsPSO.SetVertexShader( g_pDepthViewerVS_SM6, sizeof(g_pDepthViewerVS_SM6) );
+	m_DepthWaveOpsPSO.Finalize();
+
 	m_ModelWaveOpsPSO = m_ModelPSO;
 	m_ModelWaveOpsPSO.SetVertexShader( g_pModelViewerVS_SM6, sizeof(g_pModelViewerVS_SM6) );
 	m_ModelWaveOpsPSO.SetPixelShader( g_pModelViewerPS_SM6, sizeof(g_pModelViewerPS_SM6) );
@@ -464,7 +472,12 @@ void ModelViewer::RenderScene( void )
 			ScopedTimer _prof(L"Opaque", gfxContext);
 			gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 			gfxContext.ClearDepth(g_SceneDepthBuffer);
+			
+#ifdef _WAVE_OP
+			gfxContext.SetPipelineState(EnableWaveOps ? m_DepthWaveOpsPSO : m_DepthPSO );
+#else
 			gfxContext.SetPipelineState(m_DepthPSO);
+#endif
 			gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
 			gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
 			RenderObjects(gfxContext, m_ViewProjMatrix, kOpaque );
