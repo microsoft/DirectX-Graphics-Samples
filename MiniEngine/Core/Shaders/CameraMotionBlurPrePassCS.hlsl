@@ -25,7 +25,7 @@ Texture2D<float> DepthBuffer : register(t1);
 RWTexture2D<float4> PrepBuffer : register(u0);
 RWTexture2D<float2> ReprojBuffer : register(u1);
 
-cbuffer ConstantBuffer : register(b1)
+cbuffer MainConstantBuffer : register(b1)
 {
 	matrix CurToPrevXForm;
 }

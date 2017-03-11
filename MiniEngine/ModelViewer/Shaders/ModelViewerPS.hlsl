@@ -433,7 +433,8 @@ float3 main(VSOutput vsOutput) : SV_Target0
 		groupBitsMasks[i] = WaveActiveBitOr(GetGroupBits(i, tileIndex, lightBitMaskGroups));
     }
 
-	for (uint groupIndex = 0; groupIndex < pointLightGroupTail; groupIndex++)
+	uint groupIndex = 0;
+	for (groupIndex = 0; groupIndex < pointLightGroupTail; groupIndex++)
 	{
 		uint groupBits = groupBitsMasks[groupIndex];
 
@@ -448,7 +449,7 @@ float3 main(VSOutput vsOutput) : SV_Target0
 		}
 	}
 
-	for (uint groupIndex = pointLightGroupTail; groupIndex < spotLightGroupTail; groupIndex++)
+	for (groupIndex = pointLightGroupTail; groupIndex < spotLightGroupTail; groupIndex++)
 	{
 		uint groupBits = groupBitsMasks[groupIndex];
 
@@ -463,7 +464,7 @@ float3 main(VSOutput vsOutput) : SV_Target0
 		}
 	}
 
-	for (uint groupIndex = spotLightGroupTail; groupIndex < spotShadowLightGroupTail; groupIndex++)
+	for (groupIndex = spotLightGroupTail; groupIndex < spotShadowLightGroupTail; groupIndex++)
 	{
 		uint groupBits = groupBitsMasks[groupIndex];
 
@@ -499,7 +500,8 @@ float3 main(VSOutput vsOutput) : SV_Target0
 			uint tileLightLoadOffset = uniformTileOffset + 4;
 
 			// sphere
-			for (uint n = 0; n < tileLightCountSphere; n++, tileLightLoadOffset += 4)
+			uint n = 0;
+			for (n = 0; n < tileLightCountSphere; n++, tileLightLoadOffset += 4)
 			{
 				uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 				LightData lightData = lightBuffer[lightIndex];
@@ -507,7 +509,7 @@ float3 main(VSOutput vsOutput) : SV_Target0
 			}
 
 			// cone
-			for (uint n = 0; n < tileLightCountCone; n++, tileLightLoadOffset += 4)
+			for (n = 0; n < tileLightCountCone; n++, tileLightLoadOffset += 4)
 			{
 				uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 				LightData lightData = lightBuffer[lightIndex];
@@ -515,7 +517,7 @@ float3 main(VSOutput vsOutput) : SV_Target0
 			}
 
 			// cone w/ shadow map
-			for (uint n = 0; n < tileLightCountConeShadowed; n++, tileLightLoadOffset += 4)
+			for (n = 0; n < tileLightCountConeShadowed; n++, tileLightLoadOffset += 4)
 			{
 				uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 				LightData lightData = lightBuffer[lightIndex];
@@ -542,7 +544,8 @@ float3 main(VSOutput vsOutput) : SV_Target0
 		uint tileLightLoadOffset = tileOffset + 4;
 
 		// sphere
-		for (uint n = 0; n < tileLightCountSphere; n++, tileLightLoadOffset += 4)
+		uint n = 0;
+		for (n = 0; n < tileLightCountSphere; n++, tileLightLoadOffset += 4)
 		{
 			uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 			LightData lightData = lightBuffer[lightIndex];
@@ -550,7 +553,7 @@ float3 main(VSOutput vsOutput) : SV_Target0
 		}
 
 		// cone
-		for (uint n = 0; n < tileLightCountCone; n++, tileLightLoadOffset += 4)
+		for (n = 0; n < tileLightCountCone; n++, tileLightLoadOffset += 4)
 		{
 			uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 			LightData lightData = lightBuffer[lightIndex];
@@ -558,7 +561,7 @@ float3 main(VSOutput vsOutput) : SV_Target0
 		}
 
 		// cone w/ shadow map
-		for (uint n = 0; n < tileLightCountConeShadowed; n++, tileLightLoadOffset += 4)
+		for (n = 0; n < tileLightCountConeShadowed; n++, tileLightLoadOffset += 4)
 		{
 			uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 			LightData lightData = lightBuffer[lightIndex];
@@ -576,7 +579,8 @@ float3 main(VSOutput vsOutput) : SV_Target0
 		uint tileLightLoadOffset = tileOffset + 4;
 
 		// sphere
-		for (uint n = 0; n < tileLightCountSphere; n++, tileLightLoadOffset += 4)
+		uint n = 0;
+		for (n = 0; n < tileLightCountSphere; n++, tileLightLoadOffset += 4)
 		{
 			uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 			LightData lightData = lightBuffer[lightIndex];
@@ -584,7 +588,7 @@ float3 main(VSOutput vsOutput) : SV_Target0
 		}
 
 		// cone
-		for (uint n = 0; n < tileLightCountCone; n++, tileLightLoadOffset += 4)
+		for (n = 0; n < tileLightCountCone; n++, tileLightLoadOffset += 4)
 		{
 			uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 			LightData lightData = lightBuffer[lightIndex];
@@ -592,7 +596,7 @@ float3 main(VSOutput vsOutput) : SV_Target0
 		}
 
 		// cone w/ shadow map
-		for (uint n = 0; n < tileLightCountConeShadowed; n++, tileLightLoadOffset += 4)
+		for (n = 0; n < tileLightCountConeShadowed; n++, tileLightLoadOffset += 4)
 		{
 			uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 			LightData lightData = lightBuffer[lightIndex];
@@ -610,7 +614,8 @@ float3 main(VSOutput vsOutput) : SV_Target0
 	uint tileLightLoadOffset = tileOffset + 4;
 
 	// sphere
-	for (uint n = 0; n < tileLightCountSphere; n++, tileLightLoadOffset += 4)
+	uint n = 0;
+	for (n = 0; n < tileLightCountSphere; n++, tileLightLoadOffset += 4)
 	{
 		uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 		LightData lightData = lightBuffer[lightIndex];
@@ -618,7 +623,7 @@ float3 main(VSOutput vsOutput) : SV_Target0
 	}
 
 	// cone
-	for (uint n = 0; n < tileLightCountCone; n++, tileLightLoadOffset += 4)
+	for (n = 0; n < tileLightCountCone; n++, tileLightLoadOffset += 4)
 	{
 		uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 		LightData lightData = lightBuffer[lightIndex];
@@ -626,7 +631,7 @@ float3 main(VSOutput vsOutput) : SV_Target0
 	}
 
 	// cone w/ shadow map
-	for (uint n = 0; n < tileLightCountConeShadowed; n++, tileLightLoadOffset += 4)
+	for (n = 0; n < tileLightCountConeShadowed; n++, tileLightLoadOffset += 4)
 	{
 		uint lightIndex = lightGrid.Load(tileLightLoadOffset);
 		LightData lightData = lightBuffer[lightIndex];

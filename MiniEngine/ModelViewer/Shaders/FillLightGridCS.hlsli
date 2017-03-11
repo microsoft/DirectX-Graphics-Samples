@@ -214,17 +214,18 @@ void main(
 		lightGrid.Store(tileOffset + 0, lightCount);
 
 		uint storeOffset = tileOffset + 4;
-		for (uint n = 0; n < tileLightCountSphere; n++)
+		uint n = 0;
+		for (n = 0; n < tileLightCountSphere; n++)
 		{
 			lightGrid.Store(storeOffset, tileLightIndicesSphere[n]);
 			storeOffset += 4;
 		}
-		for (uint n = 0; n < tileLightCountCone; n++)
+		for (n = 0; n < tileLightCountCone; n++)
 		{
 			lightGrid.Store(storeOffset, tileLightIndicesCone[n]);
 			storeOffset += 4;
 		}
-		for (uint n = 0; n < tileLightCountConeShadowed; n++)
+		for (n = 0; n < tileLightCountConeShadowed; n++)
 		{
 			lightGrid.Store(storeOffset, tileLightIndicesConeShadowed[n]);
 			storeOffset += 4;

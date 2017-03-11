@@ -60,7 +60,7 @@ DAMAGES.
 #include "FXAARootSignature.hlsli"
 #include "PixelPacking.hlsli"
 
-cbuffer ConstantBuffer : register( b0 )
+cbuffer MainConstantBuffer : register( b0 )
 {
 	float2 RcpTextureSize;
 	float ContrastThreshold;	// default = 0.2, lower is more expensive
