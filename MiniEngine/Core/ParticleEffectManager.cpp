@@ -174,22 +174,22 @@ namespace
 		CompContext.Dispatch( 1, 1, 1 );
 	}
 
-	void MaintainTextureList(ParticleEffectProperties* effectProperties)
+	void MaintainTextureList(ParticleEffectProperties& effectProperties)
 	{
-		std::wstring name = effectProperties->TexturePath;
+		std::wstring name = effectProperties.TexturePath;
 
 		for (uint32_t i = 0; i < TextureNameArray.size(); i++)
 		{
 			if (name.compare(TextureNameArray[i]) == 0)
 			{
-				effectProperties->EmitProperties.TextureID = i;
+				effectProperties.EmitProperties.TextureID = i;
 				return;
 			}
 		}
 	
 		TextureNameArray.push_back(name);
 		UINT TextureID = (UINT)(TextureNameArray.size() - 1);
-		effectProperties->EmitProperties.TextureID = TextureID;
+		effectProperties.EmitProperties.TextureID = TextureID;
 
 		const ManagedTexture* managedTex = TextureManager::LoadDDSFromFile(name.c_str(), true);
 		managedTex->WaitForLoad();
@@ -601,7 +601,7 @@ void ParticleEffects::Shutdown( void )
 }
 
 //Returns index into Pool
-EffectHandle ParticleEffects::PreLoadEffectResources( ParticleEffectProperties* effectProperties )
+EffectHandle ParticleEffects::PreLoadEffectResources( ParticleEffectProperties& effectProperties )
 {
 	if (!s_InitComplete)
 		return EFFECTS_ERROR;
@@ -640,7 +640,7 @@ EffectHandle ParticleEffects::InstantiateEffect( EffectHandle effectHandle )
 }
 
 //Returns index into Active
-EffectHandle ParticleEffects::InstantiateEffect( ParticleEffectProperties* effectProperties )
+EffectHandle ParticleEffects::InstantiateEffect( ParticleEffectProperties& effectProperties )
 {
 	if (!s_InitComplete)
 		return EFFECTS_ERROR;

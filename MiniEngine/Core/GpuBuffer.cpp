@@ -131,8 +131,6 @@ D3D12_RESOURCE_DESC GpuBuffer::DescribeBuffer(void)
 
 void ByteAddressBuffer::CreateDerivedViews(void)
 {
-	auto Device = g_Device;
-
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
 	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
@@ -157,8 +155,6 @@ void ByteAddressBuffer::CreateDerivedViews(void)
 
 void StructuredBuffer::CreateDerivedViews(void)
 {
-	auto Device = g_Device;
-
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
 	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -188,8 +184,6 @@ void StructuredBuffer::CreateDerivedViews(void)
 
 void TypedBuffer::CreateDerivedViews(void)
 {
-	auto Device = g_Device;
-
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
 	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	SRVDesc.Format = m_DataFormat;

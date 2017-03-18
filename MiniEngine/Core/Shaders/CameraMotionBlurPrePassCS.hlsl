@@ -23,8 +23,7 @@
 Texture2D<float3> ColorBuffer : register(t0);
 Texture2D<float> DepthBuffer : register(t1);
 RWTexture2D<float4> PrepBuffer : register(u0);
-RWTexture2D<float2> MotionBuffer : register(u1);
-RWTexture2D<float2> ReprojBuffer : register(u2);
+RWTexture2D<float2> ReprojBuffer : register(u1);
 
 cbuffer ConstantBuffer : register(b1)
 {
@@ -45,7 +44,6 @@ float4 GetSampleData( uint2 st )
 	float speed = length(MotionVec);
 
 	ReprojBuffer[st] = MotionVec;
-	MotionBuffer[st] = MotionVec / max(32, speed);
 
 	// Clamp speed at 4 pixels and normalize it.
 	return float4(ColorBuffer[st], 1.0) * saturate(speed / 4);

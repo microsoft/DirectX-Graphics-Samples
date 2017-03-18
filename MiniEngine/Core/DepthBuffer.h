@@ -20,7 +20,7 @@ class EsramAllocator;
 class DepthBuffer : public PixelBuffer
 {
 public:
-	DepthBuffer( float ClearDepth = 0.0f, uint32_t ClearStencil = 0 )
+	DepthBuffer( float ClearDepth = 0.0f, uint8_t ClearStencil = 0 )
 		: m_ClearDepth(ClearDepth), m_ClearStencil(ClearStencil) 
 	{
 		m_hDSV[0].ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
@@ -56,14 +56,14 @@ public:
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetStencilSRV() const { return m_hStencilSRV; }
 
 	float GetClearDepth() const { return m_ClearDepth; }
-	uint32_t GetClearStencil() const { return m_ClearStencil; }
+	uint8_t GetClearStencil() const { return m_ClearStencil; }
 
 private:
 
 	void CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format );
 
 	float m_ClearDepth;
-	uint32_t m_ClearStencil;
+	uint8_t m_ClearStencil;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_hDSV[4];
 	D3D12_CPU_DESCRIPTOR_HANDLE m_hDepthSRV;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_hStencilSRV;

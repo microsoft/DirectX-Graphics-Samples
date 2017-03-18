@@ -15,8 +15,8 @@
 	"RootFlags(0), " \
 	"RootConstants(b0, num32BitConstants = 4), " \
 	"CBV(b1)," \
-	"DescriptorTable(UAV(u0, numDescriptors = 3))," \
-	"DescriptorTable(SRV(t0, numDescriptors = 4))," \
+	"DescriptorTable(UAV(u0, numDescriptors = 8))," \
+	"DescriptorTable(SRV(t0, numDescriptors = 8))," \
 	"StaticSampler(s0," \
 		"addressU = TEXTURE_ADDRESS_BORDER," \
 		"addressV = TEXTURE_ADDRESS_BORDER," \

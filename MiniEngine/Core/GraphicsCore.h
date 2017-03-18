@@ -70,20 +70,21 @@ namespace Graphics
 	extern SamplerDesc SamplerPointBorderDesc;
 	extern SamplerDesc SamplerLinearBorderDesc;
 
-	extern SamplerDescriptor SamplerLinearWrap;
-	extern SamplerDescriptor SamplerAnisoWrap;
-	extern SamplerDescriptor SamplerShadow;
-	extern SamplerDescriptor SamplerLinearClamp;
-	extern SamplerDescriptor SamplerVolumeWrap;
-	extern SamplerDescriptor SamplerPointClamp;
-	extern SamplerDescriptor SamplerPointBorder;
-	extern SamplerDescriptor SamplerLinearBorder;
+	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearWrap;
+	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerAnisoWrap;
+	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerShadow;
+	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearClamp;
+	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerVolumeWrap;
+	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointClamp;
+	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointBorder;
+	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearBorder;
 
 	extern D3D12_RASTERIZER_DESC RasterizerDefault;
 	extern D3D12_RASTERIZER_DESC RasterizerDefaultCW;
 	extern D3D12_RASTERIZER_DESC RasterizerTwoSided;
 	extern D3D12_RASTERIZER_DESC RasterizerShadow;
 	extern D3D12_RASTERIZER_DESC RasterizerShadowCW;
+	extern D3D12_RASTERIZER_DESC RasterizerShadowTwoSided;
 
 	extern D3D12_BLEND_DESC BlendNoColorWrite;		// XXX
 	extern D3D12_BLEND_DESC BlendDisable;			// 1, 0

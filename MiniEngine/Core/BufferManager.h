@@ -26,8 +26,7 @@ namespace Graphics
 	extern ColorBuffer g_OverlayBuffer;		// R8G8B8A8_UNORM
 	extern ColorBuffer g_HorizontalBuffer;	// For separable (bicubic) upsampling
 
-	extern ColorBuffer g_ReprojectionBuffer;// R16G16_FLOAT
-	extern ColorBuffer g_VelocityBuffer;	// R8G8_SNORM
+	extern ColorBuffer g_VelocityBuffer;// R16G16_FLOAT
 	extern ShadowBuffer g_ShadowBuffer;
 
 	extern ColorBuffer g_SSAOFullScreen;	// R8_UNORM
@@ -66,7 +65,7 @@ namespace Graphics
 
 	extern ColorBuffer g_MotionPrepBuffer;		// R10G10B10A2
 	extern ColorBuffer g_LumaBuffer;
-	extern ColorBuffer g_TemporalBuffer[2];
+	extern ColorBuffer g_TemporalColor[2];
 
 	enum { kBloomWidth = 640, kBloomHeight = 384 };
 
@@ -82,7 +81,7 @@ namespace Graphics
 	extern TypedBuffer g_FXAAColorQueueH;
 	extern TypedBuffer g_FXAAColorQueueV;
 
-	void InitializeRenderingBuffers( uint32_t BufferWidth, uint32_t BufferHeight );
+	void InitializeRenderingBuffers( uint32_t BufferWidth, uint32_t BufferHeight);
 	void DestroyRenderingBuffers();
 
 } // namespace Graphics

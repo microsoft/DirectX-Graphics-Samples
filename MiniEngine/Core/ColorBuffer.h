@@ -22,7 +22,7 @@ class ColorBuffer : public PixelBuffer
 {
 public:
 	ColorBuffer( Color ClearColor = Color(0.0f, 0.0f, 0.0f, 0.0f)  )
-		: m_ClearColor(ClearColor), m_NumMipMaps(0)
+		: m_ClearColor(ClearColor), m_NumMipMaps(0), m_FragmentCount(1), m_SampleCount(1)
 	{
 		m_SRVHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
 		m_RTVHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
@@ -59,6 +59,15 @@ public:
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetRTV(void) const { return m_RTVHandle; }
 	const D3D12_CPU_DESCRIPTOR_HANDLE& GetUAV(void) const { return m_UAVHandle[0]; }
 
+	void SetClearColor( Color ClearColor ) { m_ClearColor = ClearColor; }
+
+	void SetMsaaMode( uint32_t NumColorSamples, uint32_t NumCoverageSamples )
+	{
+		ASSERT(NumCoverageSamples >= NumColorSamples);
+		m_FragmentCount = NumColorSamples;
+		m_SampleCount = NumCoverageSamples;
+	}
+
 	Color GetClearColor(void) const { return m_ClearColor; }
 
 	// This will work for all texture sizes, but it's recommended for speed and quality
@@ -86,4 +95,6 @@ protected:
 	D3D12_CPU_DESCRIPTOR_HANDLE m_RTVHandle;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_UAVHandle[12];
 	uint32_t m_NumMipMaps; // number of texture sublevels
+	uint32_t m_FragmentCount;
+	uint32_t m_SampleCount;
 };

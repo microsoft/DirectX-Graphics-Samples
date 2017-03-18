@@ -82,6 +82,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ForwardPlusLighting.cpp" />
     <ClCompile Include="ModelViewer.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -98,7 +99,6 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="Logo.png" />
-    <Image Include="Logo44.png" />
     <Image Include="SmallLogo.png" />
     <Image Include="SplashScreen.png" />
     <Image Include="StoreLogo.png" />
@@ -164,6 +164,8 @@
     <None Include="Models\sponza.h3d">
       <DeploymentContent>true</DeploymentContent>
     </None>
+    <None Include="Shaders\FillLightGridCS.hlsli" />
+    <None Include="Shaders\LightGrid.hlsli" />
     <None Include="Shaders\ModelViewerRS.hlsli" />
   </ItemGroup>
   <ItemGroup>
@@ -173,15 +175,22 @@
     <FxCompile Include="Shaders\DepthViewerVS.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_16.hlsl" />
+    <FxCompile Include="Shaders\FillLightGridCS_24.hlsl" />
+    <FxCompile Include="Shaders\FillLightGridCS_32.hlsl" />
+    <FxCompile Include="Shaders\FillLightGridCS_8.hlsl" />
     <FxCompile Include="Shaders\ModelViewerPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\ModelViewerVS.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\WaveTileCountPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <AppxManifest Include="UWP.appxmanifest" />
+    <ClInclude Include="ForwardPlusLighting.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

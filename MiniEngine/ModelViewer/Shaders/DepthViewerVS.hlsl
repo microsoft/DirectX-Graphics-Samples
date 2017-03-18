@@ -30,8 +30,8 @@ struct VSInput
 
 struct VSOutput
 {
-	float4 position : SV_Position;
-	float2 texcoord0 : texcoord0;
+	float4 pos : SV_Position;
+	float2 uv : TexCoord0;
 };
 
 [RootSignature(ModelViewer_RootSig)]
@@ -39,8 +39,8 @@ VSOutput main(VSInput vsInput)
 {
 	VSOutput vsOutput;
 
-	vsOutput.position = mul(modelToProjection, float4(vsInput.position, 1.0));
-	vsOutput.texcoord0 = vsInput.texcoord0;
+	vsOutput.pos = mul(modelToProjection, float4(vsInput.position, 1.0));
+	vsOutput.uv = vsInput.texcoord0;
 
 	return vsOutput;
 }

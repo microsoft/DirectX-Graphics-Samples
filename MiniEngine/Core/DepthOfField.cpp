@@ -140,7 +140,7 @@ void DepthOfField::Shutdown( void )
 	s_IndirectParameters.Destroy();
 }
 
-void DepthOfField::Render( CommandContext& BaseContext, float NearClipDist, float FarClipDist )
+void DepthOfField::Render( CommandContext& BaseContext, float /*NearClipDist*/, float FarClipDist )
 {
 	ScopedTimer _prof(L"Depth of Field", BaseContext);
 
@@ -185,7 +185,7 @@ void DepthOfField::Render( CommandContext& BaseContext, float NearClipDist, floa
 	Context.SetDynamicConstantBufferView(0, sizeof(cbuffer), &cbuffer);
 
 	{
-		ScopedTimer _prof(L"DoF Tiling", Context);
+		ScopedTimer _prof2(L"DoF Tiling", Context);
 
 		// Initial pass to discover max CoC and closest depth in 16x16 tiles
 		Context.TransitionResource(g_LinearDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -231,7 +231,7 @@ void DepthOfField::Render( CommandContext& BaseContext, float NearClipDist, floa
 	}
 
 	{
-		ScopedTimer _prof(L"DoF PreFilter", Context);
+		ScopedTimer _prof2(L"DoF PreFilter", Context);
 
 		if (ForceFast && !DebugMode)
 			Context.SetPipelineState(s_DoFPreFilterFastCS);
@@ -259,7 +259,7 @@ void DepthOfField::Render( CommandContext& BaseContext, float NearClipDist, floa
 	}
 
 	{
-		ScopedTimer _prof(L"DoF Main Pass", Context);
+		ScopedTimer _prof2(L"DoF Main Pass", Context);
 
 		Context.TransitionResource(g_DoFPrefilter, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		Context.TransitionResource(g_DoFBlurColor[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -287,7 +287,7 @@ void DepthOfField::Render( CommandContext& BaseContext, float NearClipDist, floa
 	}
 
 	{
-		ScopedTimer _prof(L"DoF Median Pass", Context);
+		ScopedTimer _prof2(L"DoF Median Pass", Context);
 		Context.TransitionResource(g_DoFBlurColor[0], D3D12_RESOURCE_STATE_GENERIC_READ);
 		Context.TransitionResource(g_DoFBlurAlpha[0], D3D12_RESOURCE_STATE_GENERIC_READ);
 
@@ -316,7 +316,7 @@ void DepthOfField::Render( CommandContext& BaseContext, float NearClipDist, floa
 	}
 
 	{
-		ScopedTimer _prof(L"DoF Final Combine", Context);
+		ScopedTimer _prof2(L"DoF Final Combine", Context);
 		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		if (DebugTiles)

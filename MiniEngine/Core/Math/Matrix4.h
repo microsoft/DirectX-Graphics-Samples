@@ -17,7 +17,7 @@
 
 namespace Math
 {
-	__declspec(align(64)) class Matrix4
+	__declspec(align(16)) class Matrix4
 	{
 	public:
 		INLINE Matrix4() {}

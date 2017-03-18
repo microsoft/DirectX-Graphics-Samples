@@ -50,12 +50,23 @@ public:
 	Color ToREC709() const;
 	Color FromREC709() const;
 
+	// Probably want to convert to sRGB or Rec709 first
 	uint32_t R10G10B10A2() const;
 	uint32_t R8G8B8A8() const;
+
+	// Pack an HDR color into 32-bits
+	uint32_t R11G11B10F(bool RoundToEven=false) const;
+
+	operator XMVECTOR() const { return m_value; }
 
 private:
 	XMVECTOR m_value;
 };
+
+INLINE Color Max( Color a, Color b ) { return Color(XMVectorMax(a, b)); }
+INLINE Color Min( Color a, Color b ) { return Color(XMVectorMin(a, b)); }
+INLINE Color Clamp( Color x, Color a, Color b ) { return Color(XMVectorClamp(x, a, b)); }
+
 
 inline Color::Color( FXMVECTOR vec )
 {

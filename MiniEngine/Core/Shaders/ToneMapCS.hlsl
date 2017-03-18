@@ -49,25 +49,27 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	hdrColor += g_BloomStrength * Bloom.SampleLevel(LinearSampler, TexCoord, 0);
 	hdrColor *= Exposure[0];
 
-	// Tone map to LDR.
-#if ENABLE_HDR_OUTPUT
-	{
-	#if SUPPORT_TYPED_UAV_LOADS
-		ColorRW[DTid.xy] = hdrColor;
-	#else
-		DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(hdrColor);
-	#endif
-		OutLuma[DTid.xy] = LinearToLogLuminance(ToneMapLuma(RGBToLuminance(hdrColor)));
-	}
+#if ENABLE_HDR_DISPLAY_MAPPING
+
+	// Write the HDR color as-is and defer display mapping until we composite with UI
+#if SUPPORT_TYPED_UAV_LOADS
+	ColorRW[DTid.xy] = hdrColor;
 #else
-	{
-		float3 ldrColor = ApplyToe(ToneMap(hdrColor), g_ToeStrength);
-	#if SUPPORT_TYPED_UAV_LOADS
-		ColorRW[DTid.xy] = ldrColor;
-	#else
-		DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(ldrColor);
-	#endif
-		OutLuma[DTid.xy] = RGBToLogLuminance(ldrColor);
-	}
+	DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(hdrColor);
+#endif
+	OutLuma[DTid.xy] = LinearToLogLuminance(ToneMapLuma(RGBToLuminance(hdrColor)));
+
+#else
+
+// Tone map to LDR.
+	//float3 ldrColor = ApplyToeRGB(ToneMapRGB(hdrColor), g_ToeStrength);
+	float3 ldrColor = ToneMapACES(hdrColor);
+#if SUPPORT_TYPED_UAV_LOADS
+	ColorRW[DTid.xy] = ldrColor;
+#else
+	DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(ldrColor);
+#endif
+	OutLuma[DTid.xy] = RGBToLogLuminance(ldrColor);
+
 #endif
 }

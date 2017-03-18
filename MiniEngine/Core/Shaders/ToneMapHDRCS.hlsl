@@ -11,5 +11,5 @@
 // Author:  James Stanard 
 //
 
-#define ENABLE_HDR_OUTPUT 1
+#define ENABLE_HDR_DISPLAY_MAPPING 1
 #include "ToneMapCS.hlsl"

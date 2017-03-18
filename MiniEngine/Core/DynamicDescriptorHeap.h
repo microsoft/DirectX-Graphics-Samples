@@ -29,10 +29,14 @@ namespace Graphics
 class DynamicDescriptorHeap
 {
 public:
-	DynamicDescriptorHeap(CommandContext& OwningContext);
+	DynamicDescriptorHeap(CommandContext& OwningContext, D3D12_DESCRIPTOR_HEAP_TYPE HeapType);
 	~DynamicDescriptorHeap();
 
-	static void DestroyAll(void) { sm_DescriptorHeapPool.clear(); }
+	static void DestroyAll(void)
+	{
+		sm_DescriptorHeapPool[0].clear();
+		sm_DescriptorHeapPool[1].clear();
+	}
 
 	void CleanupUsedHeaps( uint64_t fenceValue );
 
@@ -53,12 +57,12 @@ public:
 	// Deduce cache layout needed to support the descriptor tables needed by the root signature.
 	void ParseGraphicsRootSignature( const RootSignature& RootSig )
 	{
-		m_GraphicsHandleCache.ParseRootSignature(RootSig);
+		m_GraphicsHandleCache.ParseRootSignature(m_DescriptorType, RootSig);
 	}
 
 	void ParseComputeRootSignature( const RootSignature& RootSig )
 	{
-		m_ComputeHandleCache.ParseRootSignature(RootSig);
+		m_ComputeHandleCache.ParseRootSignature(m_DescriptorType, RootSig);
 	}
 
 	// Upload any new descriptors in the cache to the shader-visible heap.
@@ -74,30 +78,24 @@ public:
 			CopyAndBindStagedTables(m_ComputeHandleCache, CmdList, &ID3D12GraphicsCommandList::SetComputeRootDescriptorTable);
 	}
 
-	static uint32_t GetDescriptorSize()
-	{
-		if (sm_DescriptorSize == 0)
-			sm_DescriptorSize = Graphics::g_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		return sm_DescriptorSize;
-	}
-
 private:
 
 	// Static members
 	static const uint32_t kNumDescriptorsPerHeap = 1024;
 	static std::mutex sm_Mutex;
-	static std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> sm_DescriptorHeapPool;
-	static std::queue<std::pair<uint64_t, ID3D12DescriptorHeap*>> sm_RetiredDescriptorHeaps;
-	static std::queue<ID3D12DescriptorHeap*> sm_AvailableDescriptorHeaps;
-	static uint32_t sm_DescriptorSize;
+	static std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> sm_DescriptorHeapPool[2];
+	static std::queue<std::pair<uint64_t, ID3D12DescriptorHeap*>> sm_RetiredDescriptorHeaps[2];
+	static std::queue<ID3D12DescriptorHeap*> sm_AvailableDescriptorHeaps[2];
 
 	// Static methods
-	static ID3D12DescriptorHeap* RequestDescriptorHeap(void);
-	static void DiscardDescriptorHeaps( uint64_t FenceValueForReset, const std::vector<ID3D12DescriptorHeap*>& UsedHeaps );
+	static ID3D12DescriptorHeap* RequestDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE HeapType);
+	static void DiscardDescriptorHeaps( D3D12_DESCRIPTOR_HEAP_TYPE HeapType, uint64_t FenceValueForReset, const std::vector<ID3D12DescriptorHeap*>& UsedHeaps );
 
 	// Non-static members
 	CommandContext& m_OwningContext;
 	ID3D12DescriptorHeap* m_CurrentHeapPtr;
+	const D3D12_DESCRIPTOR_HEAP_TYPE m_DescriptorType;
+	uint32_t m_DescriptorSize;
 	uint32_t m_CurrentOffset;
 	DescriptorHandle m_FirstDescriptor;
 	std::vector<ID3D12DescriptorHeap*> m_RetiredHeaps;
@@ -132,7 +130,7 @@ private:
 		static const uint32_t kMaxNumDescriptorTables = 16;
 
 		uint32_t ComputeStagedSize();
-		void CopyAndBindStaleTables( DescriptorHandle DestHandleStart, ID3D12GraphicsCommandList* CmdList,
+		void CopyAndBindStaleTables( D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t DescriptorSize, DescriptorHandle DestHandleStart, ID3D12GraphicsCommandList* CmdList,
 			void (STDMETHODCALLTYPE ID3D12GraphicsCommandList::*SetFunc)(UINT, D3D12_GPU_DESCRIPTOR_HANDLE));
 
 		DescriptorTableCache m_RootDescriptorTable[kMaxNumDescriptorTables];
@@ -140,7 +138,7 @@ private:
 
 		void UnbindAllValid();
 		void StageDescriptorHandles( UINT RootIndex, UINT Offset, UINT NumHandles, const D3D12_CPU_DESCRIPTOR_HANDLE Handles[] );
-		void ParseRootSignature( const RootSignature& RootSig );
+		void ParseRootSignature( D3D12_DESCRIPTOR_HEAP_TYPE Type, const RootSignature& RootSig );
 	};
 
 	DescriptorHandleCache m_GraphicsHandleCache;
@@ -157,7 +155,7 @@ private:
 
 	DescriptorHandle Allocate( UINT Count )
 	{
-		DescriptorHandle ret = m_FirstDescriptor + m_CurrentOffset * GetDescriptorSize();
+		DescriptorHandle ret = m_FirstDescriptor + m_CurrentOffset * m_DescriptorSize;
 		m_CurrentOffset += Count;
 		return ret;
 	}

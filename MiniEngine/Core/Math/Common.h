@@ -59,6 +59,15 @@ namespace Math
 		return (value / divisor) * divisor == value;
 	}
 
+	__forceinline uint32_t Log2(uint32_t value)
+	{
+		unsigned long lsb;
+		if (_BitScanForward(&lsb, value) > 0)
+			return lsb;
+		else
+			return 0;
+	}
+
 	using namespace DirectX;
 
 	INLINE XMVECTOR SplatZero()

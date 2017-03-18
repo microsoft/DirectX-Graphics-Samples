@@ -353,7 +353,7 @@ public:
 		s_TotalCpuTime.RecordStat(FrameIndex, TotalCpuTime);
 		s_TotalGpuTime.RecordStat(FrameIndex, TotalGpuTime);
 
-		GraphRenderer::Update(XMFLOAT2(TotalCpuTime, TotalGpuTime), 0, true, GraphType::Global);
+		GraphRenderer::Update(XMFLOAT2(TotalCpuTime, TotalGpuTime), 0, GraphType::Global);
 	}
 
 	static float GetTotalCpuTime(void) { return s_TotalCpuTime.GetAvg(); }
@@ -364,9 +364,7 @@ public:
 	{
 		float curX = Text.GetCursorX();
 		Text.DrawString("  ");
-		float originalCursorX = Text.GetCursorX();
-		float originalCursorY = Text.GetCursorY();
-		float indent = originalCursorX - curX;
+		float indent = Text.GetCursorX() - curX;
 		Text.SetCursorX(curX);
 		sm_RootScope.DisplayNode( Text, x - indent, indent );
 		sm_RootScope.StoreToGraph();
@@ -472,7 +470,7 @@ namespace EngineProfiling
 			GraphRenderer::RenderGraphs(Context, GraphType::Global );
 	}
 
-	void Display( TextContext& Text, float x, float y, float w, float h )
+	void Display( TextContext& Text, float x, float y, float /*w*/, float /*h*/ )
 	{
 		Text.ResetCursor(x, y);
 
@@ -608,7 +606,7 @@ void NestedTimingTree::DisplayNode( TextContext& Text, float leftMargin, float i
 void NestedTimingTree::StoreToGraph(void)
 {
 	if (m_GraphHandle != PERF_GRAPH_ERROR)
-		GraphRenderer::Update( XMFLOAT2(m_CpuTime.GetLast(), m_GpuTime.GetLast()), m_GraphHandle, m_IsGraphed, GraphType::Profile);
+		GraphRenderer::Update( XMFLOAT2(m_CpuTime.GetLast(), m_GpuTime.GetLast()), m_GraphHandle, GraphType::Profile);
 
 	for (auto node : m_Children)
 		node->StoreToGraph();

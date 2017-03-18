@@ -53,22 +53,10 @@ public:
 		BorderColor[2] = Border.B();
 		BorderColor[3] = Border.A();
 	}
-};
 
-class SamplerDescriptor
-{
-	friend class CommandContext;
+	// Allocate new descriptor as needed; return handle to existing descriptor when possible
+	D3D12_CPU_DESCRIPTOR_HANDLE CreateDescriptor( void );
 
-public:
-	SamplerDescriptor() {}
-	SamplerDescriptor( D3D12_CPU_DESCRIPTOR_HANDLE hCpuDescriptor )
-		: m_hCpuDescriptorHandle(hCpuDescriptor) {}
-
-	void Create( const D3D12_SAMPLER_DESC& Desc );
-
-	D3D12_CPU_DESCRIPTOR_HANDLE GetCpuDescriptorHandle() const { return m_hCpuDescriptorHandle; }
-
-protected:
-
-	D3D12_CPU_DESCRIPTOR_HANDLE m_hCpuDescriptorHandle;
+	// Create descriptor in place (no deduplication)
+	void CreateDescriptor( D3D12_CPU_DESCRIPTOR_HANDLE& Handle );
 };

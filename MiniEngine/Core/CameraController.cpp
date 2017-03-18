@@ -48,19 +48,25 @@ CameraController::CameraController( Camera& camera, Vector3 worldUp ) : m_Target
 	m_LastAscent = 0.0f;
 }
 
+namespace Graphics
+{
+	extern EnumVar DebugZoom;
+}
+
 void CameraController::Update( float deltaTime )
 {
 	(deltaTime);
 
-	if (GameInput::IsFirstPressed(GameInput::kLThumbClick)
-		|| GameInput::IsFirstPressed(GameInput::kKey_lshift))
+	float timeScale = Graphics::DebugZoom == 0 ? 1.0f : Graphics::DebugZoom == 1 ? 0.5f : 0.25f;
+
+	if (GameInput::IsFirstPressed(GameInput::kLThumbClick) || GameInput::IsFirstPressed(GameInput::kKey_lshift))
 		m_FineMovement = !m_FineMovement;
 
 	if (GameInput::IsFirstPressed(GameInput::kRThumbClick))
 		m_FineRotation = !m_FineRotation;
 
-	float speedScale = m_FineMovement ? 0.1f : 1.0f;
-	float panScale = m_FineRotation ? 0.5f : 1.0f;
+	float speedScale = (m_FineMovement ? 0.1f : 1.0f) * timeScale;
+	float panScale = (m_FineRotation ? 0.5f : 1.0f) * timeScale;
 
 	float yaw = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickX ) * m_HorizontalLookSensitivity * panScale;
 	float pitch = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickY ) * m_VerticalLookSensitivity * panScale;

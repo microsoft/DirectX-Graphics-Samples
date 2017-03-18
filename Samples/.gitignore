@@ -3,6 +3,7 @@
 x64/
 bin/
 obj/
+packages/
 *.ipch
 *.sdf
 *.opensdf

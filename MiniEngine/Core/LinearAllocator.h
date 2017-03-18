@@ -56,7 +56,24 @@ public:
 
 	~LinearAllocationPage()
 	{
-		m_pResource->Unmap(0, nullptr);
+		Unmap();
+	}
+
+	void Map(void)
+	{
+		if (m_CpuVirtualAddress == nullptr)
+		{
+			m_pResource->Map(0, nullptr, &m_CpuVirtualAddress);
+		}
+	}
+
+	void Unmap(void)
+	{
+		if (m_CpuVirtualAddress != nullptr)
+		{
+			m_pResource->Unmap(0, nullptr);
+			m_CpuVirtualAddress = nullptr;
+		}
 	}
 
 	void* m_CpuVirtualAddress;
@@ -85,19 +102,25 @@ public:
 
 	LinearAllocatorPageManager();
 	LinearAllocationPage* RequestPage( void );
+	LinearAllocationPage* CreateNewPage( size_t PageSize = 0 );
+
+	// Discarded pages will get recycled.  This is for fixed size pages.
 	void DiscardPages( uint64_t FenceID, const std::vector<LinearAllocationPage*>& Pages );
+
+	// Freed pages will be destroyed once their fence has passed.  This is for single-use,
+	// "large" pages.
+	void FreeLargePages( uint64_t FenceID, const std::vector<LinearAllocationPage*>& Pages );
 
 	void Destroy( void ) { m_PagePool.clear(); }
 
 private:
-
-	LinearAllocationPage* CreateNewPage( void );
 
 	static LinearAllocatorType sm_AutoType;
 
 	LinearAllocatorType m_AllocationType;
 	std::vector<std::unique_ptr<LinearAllocationPage> > m_PagePool;
 	std::queue<std::pair<uint64_t, LinearAllocationPage*> > m_RetiredPages;
+	std::queue<std::pair<uint64_t, LinearAllocationPage*> > m_DeletionQueue;
 	std::queue<LinearAllocationPage*> m_AvailablePages;
 	std::mutex m_Mutex;
 };
@@ -124,6 +147,8 @@ public:
 
 private:
 
+	DynAlloc AllocateLargePage( size_t SizeInBytes );
+
 	static LinearAllocatorPageManager sm_PageManager[2];
 
 	LinearAllocatorType m_AllocationType;
@@ -131,5 +156,5 @@ private:
 	size_t m_CurOffset;
 	LinearAllocationPage* m_CurPage;
 	std::vector<LinearAllocationPage*> m_RetiredPages;
+	std::vector<LinearAllocationPage*> m_LargePageList;
 };
-
