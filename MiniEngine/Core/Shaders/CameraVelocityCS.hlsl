@@ -22,7 +22,7 @@
 Texture2D<float> DepthBuffer : register(t0);
 RWTexture2D<float2> ReprojectionBuffer : register(u0);
 
-cbuffer ConstantBuffer : register(b1)
+cbuffer MainConstantBuffer : register(b1)
 {
 	matrix CurToPrevXForm;
 }

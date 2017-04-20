@@ -19,7 +19,7 @@ SamplerState PointSampler : register(s0);
 SamplerState ClampSampler : register(s1);
 SamplerState BilinearSampler: register(s2);
 
-cbuffer ConstantBuffer : register(b0)
+cbuffer MainConstantBuffer : register(b0)
 {
 	float FocusCenter;
 	float FocalSpread;

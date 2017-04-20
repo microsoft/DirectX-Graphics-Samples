@@ -19,7 +19,7 @@ RWTexture2DArray<float> DS8xAtlas : register(u1);
 RWTexture2D<float> DS16x : register(u2);
 RWTexture2DArray<float> DS16xAtlas : register(u3);
 
-cbuffer ConstantBuffer : register(b0)
+cbuffer MainConstantBuffer : register(b0)
 {
 	float2 InvSourceDimension;
 }

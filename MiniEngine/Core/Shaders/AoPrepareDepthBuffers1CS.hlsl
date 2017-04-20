@@ -18,7 +18,7 @@ RWTexture2D<float2> DS2x : register(u1);
 RWTexture2DArray<float> DS2xAtlas : register(u2);
 RWTexture2D<float2> DS4x : register(u3);
 RWTexture2DArray<float> DS4xAtlas : register(u4);
-cbuffer ConstantBuffer : register(b0)
+cbuffer MainConstantBuffer : register(b0)
 {
 	float ZMagic;
 }
