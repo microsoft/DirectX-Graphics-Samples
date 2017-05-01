@@ -33,7 +33,7 @@ RWTexture2D<float4> OutMip4 : register(u3);
 Texture2D<float4> SrcMip : register(t0);
 SamplerState BilinearClamp : register(s0);
 
-cbuffer CB : register(b0)
+cbuffer CB0 : register(b0)
 {
 	uint SrcMipLevel;	// Texture level of source mip
 	uint NumMipLevels;	// Number of OutMips to write: [1, 4]

@@ -99,6 +99,7 @@
     <ClInclude Include="GpuResource.h" />
     <ClInclude Include="GpuTimeManager.h" />
     <ClInclude Include="GameCore.h" />
+    <ClInclude Include="GraphicsCommon.h" />
     <ClInclude Include="GraphicsCore.h" />
     <ClInclude Include="GraphRenderer.h" />
     <ClInclude Include="Hash.h" />
@@ -130,6 +131,7 @@
     <ClInclude Include="ShadowCamera.h" />
     <ClInclude Include="SSAO.h" />
     <ClInclude Include="SystemTime.h" />
+    <ClInclude Include="TemporalEffects.h" />
     <ClInclude Include="TextRenderer.h" />
     <ClInclude Include="TextureManager.h" />
     <ClInclude Include="Utility.h" />
@@ -160,6 +162,7 @@
     <ClCompile Include="GameCore.cpp" />
     <ClCompile Include="GpuBuffer.cpp" />
     <ClCompile Include="GpuTimeManager.cpp" />
+    <ClCompile Include="GraphicsCommon.cpp" />
     <ClCompile Include="GraphicsCore.cpp" />
     <ClCompile Include="GraphRenderer.cpp" />
     <ClCompile Include="LinearAllocator.cpp" />
@@ -181,6 +184,7 @@
     <ClCompile Include="ShadowCamera.cpp" />
     <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="SystemTime.cpp" />
+    <ClCompile Include="TemporalEffects.cpp" />
     <ClCompile Include="TextRenderer.cpp" />
     <ClCompile Include="TextureManager.cpp" />
     <ClCompile Include="Utility.cpp" />
@@ -223,12 +227,6 @@
     <FxCompile Include="Shaders\CameraMotionBlurPrePassCS.hlsl" />
     <FxCompile Include="Shaders\CameraMotionBlurPrePassLinearZCS.hlsl" />
     <FxCompile Include="Shaders\CameraVelocityCS.hlsl" />
-    <FxCompile Include="Shaders\ConvertHDRToDisplayPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Shaders\ConvertLDRToDisplayPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-    </FxCompile>
     <FxCompile Include="Shaders\CopyBackPostBufferCS.hlsl" />
     <FxCompile Include="Shaders\DebugDrawHistogramCS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceHdr2CS.hlsl" />
@@ -327,12 +325,20 @@
     <FxCompile Include="Shaders\PerfGraphVS.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\PresentHDRPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\PresentSDRPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\ResolveTAACS.hlsl" />
     <FxCompile Include="Shaders\SharpeningUpsampleGammaPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\SharpeningUpsamplePS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\SharpenTAACS.hlsl" />
     <FxCompile Include="Shaders\TemporalBlendCS.hlsl" />
     <FxCompile Include="Shaders\TextAntialiasPS.hlsl">
       <ShaderType>Pixel</ShaderType>

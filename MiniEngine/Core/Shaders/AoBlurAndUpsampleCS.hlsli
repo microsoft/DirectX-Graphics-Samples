@@ -27,7 +27,7 @@ RWTexture2D<float> AoResult : register(u0);
 
 SamplerState LinearSampler : register(s0);
 
-cbuffer ConstantBuffer : register(b1)
+cbuffer CB1 : register(b1)
 {
 	float2 InvLowResolution;
 	float2 InvHighResolution;

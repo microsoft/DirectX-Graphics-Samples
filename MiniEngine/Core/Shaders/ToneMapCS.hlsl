@@ -26,11 +26,10 @@ Texture2D<float3> SrcColor : register( t2 );
 RWTexture2D<float> OutLuma : register( u1 );
 SamplerState LinearSampler : register( s0 );
 
-cbuffer ConstantBuffer : register( b0 )
+cbuffer CB0 : register(b0)
 {
 	float2 g_RcpBufferDim;
 	float g_BloomStrength;
-	float g_ToeStrength;
 };
 
 [RootSignature(PostEffects_RootSig)]
@@ -61,15 +60,15 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
 #else
 
-// Tone map to LDR.
-	//float3 ldrColor = ApplyToeRGB(ToneMapRGB(hdrColor), g_ToeStrength);
-	float3 ldrColor = ToneMapACES(hdrColor);
+	// Tone map to SDR
+	float3 sdrColor = TM_Stanard(hdrColor);
+
 #if SUPPORT_TYPED_UAV_LOADS
-	ColorRW[DTid.xy] = ldrColor;
+	ColorRW[DTid.xy] = sdrColor;
 #else
-	DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(ldrColor);
+	DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(sdrColor);
 #endif
-	OutLuma[DTid.xy] = RGBToLogLuminance(ldrColor);
+	OutLuma[DTid.xy] = RGBToLogLuminance(sdrColor);
 
 #endif
 }

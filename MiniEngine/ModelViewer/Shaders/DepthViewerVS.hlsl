@@ -38,9 +38,7 @@ struct VSOutput
 VSOutput main(VSInput vsInput)
 {
 	VSOutput vsOutput;
-
 	vsOutput.pos = mul(modelToProjection, float4(vsInput.position, 1.0));
 	vsOutput.uv = vsInput.texcoord0;
-
 	return vsOutput;
 }

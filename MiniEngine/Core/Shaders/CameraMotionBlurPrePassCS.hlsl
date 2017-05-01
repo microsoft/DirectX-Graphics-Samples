@@ -12,6 +12,7 @@
 //
 
 #include "MotionBlurRS.hlsli"
+#include "PixelPacking_Velocity.hlsli"
 
 // We can use the original depth buffer or a linearized one.  In this case, we use linear Z because
 // we have discarded the 32-bit depth buffer but still retain a 16-bit linear buffer (previously
@@ -23,9 +24,9 @@
 Texture2D<float3> ColorBuffer : register(t0);
 Texture2D<float> DepthBuffer : register(t1);
 RWTexture2D<float4> PrepBuffer : register(u0);
-RWTexture2D<float2> ReprojBuffer : register(u1);
+RWTexture2D<packed_velocity_t> VelocityBuffer : register(u1);
 
-cbuffer ConstantBuffer : register(b1)
+cbuffer CB1 : register(b1)
 {
 	matrix CurToPrevXForm;
 }
@@ -40,13 +41,19 @@ float4 GetSampleData( uint2 st )
 	float4 HPos = float4( CurPixel, Depth, 1.0 );
 #endif
 	float4 PrevHPos = mul( CurToPrevXForm, HPos );
-	float2 MotionVec = PrevHPos.xy / PrevHPos.w - CurPixel;
-	float speed = length(MotionVec);
 
-	ReprojBuffer[st] = MotionVec;
+	PrevHPos.xyz /= PrevHPos.w;
+
+#ifdef USE_LINEAR_Z
+	PrevHPos.z = PrevHPos.w;
+#endif
+
+	float3 Velocity = PrevHPos.xyz - float3(CurPixel, Depth);
+
+	VelocityBuffer[st] = PackVelocity(Velocity);
 
 	// Clamp speed at 4 pixels and normalize it.
-	return float4(ColorBuffer[st], 1.0) * saturate(speed / 4);
+	return float4(ColorBuffer[st], 1.0) * saturate(length(Velocity.xy) / 4);
 }
 
 [RootSignature(MotionBlur_RootSig)]

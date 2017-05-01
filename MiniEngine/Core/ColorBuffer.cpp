@@ -17,6 +17,9 @@
 #include "CommandContext.h"
 #include "EsramAllocator.h"
 
+using namespace Graphics;
+
+
 void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, uint32_t ArraySize, uint32_t NumMips)
 {
 	ASSERT(ArraySize == 1 || NumMips == 1, "We don't support auto-mips on texture arrays");
@@ -112,9 +115,7 @@ void ColorBuffer::Create(const std::wstring& Name, uint32_t Width, uint32_t Heig
 	DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMem)
 {
 	NumMips = (NumMips == 0 ? ComputeNumMips(Width, Height) : NumMips);
-	D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	if (m_FragmentCount == 1)
-		Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	D3D12_RESOURCE_FLAGS Flags = CombineResourceFlags();
 	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, 1, NumMips, Format, Flags);
 
 	ResourceDesc.SampleDesc.Count = m_FragmentCount;
@@ -140,9 +141,7 @@ void ColorBuffer::Create(const std::wstring& Name, uint32_t Width, uint32_t Heig
 void ColorBuffer::CreateArray( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t ArrayCount,
 	DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMem )
 {
-	D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	if (m_FragmentCount == 1)
-		Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	D3D12_RESOURCE_FLAGS Flags = CombineResourceFlags();
 	D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, ArrayCount, 1, Format, Flags);
 
 	D3D12_CLEAR_VALUE ClearValue = {};

@@ -21,6 +21,7 @@
 #include "GpuBuffer.h"
 #include "CommandContext.h"
 #include "SamplerManager.h"
+#include "TemporalEffects.h"
 #include "MotionBlur.h"
 #include "DepthOfField.h"
 #include "PostEffects.h"
@@ -56,10 +57,7 @@ class ModelViewer : public GameCore::IGameApp
 {
 public:
 
-	ModelViewer()
-		: m_pCameraController(nullptr)
-	{
-	}
+	ModelViewer( void ) {}
 
 	virtual void Startup( void ) override;
 	virtual void Cleanup( void ) override;
@@ -75,10 +73,9 @@ private:
 	void RenderObjects( GraphicsContext& Context, const Matrix4& ViewProjMat, eObjectFilter Filter = kAll );
 	void CreateParticleEffects();
 	Camera m_Camera;
-	CameraController* m_pCameraController;
+	std::auto_ptr<CameraController> m_CameraController;
 	Matrix4 m_ViewProjMatrix;
 	D3D12_VIEWPORT m_MainViewport;
-	float m_JitterDelta[2];
 	D3D12_RECT m_MainScissor;
 
 	RootSignature m_RootSig;
@@ -100,7 +97,7 @@ private:
 
 	D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6];
 	Model m_Model;
-	bool* m_pMaterialIsCutout;
+	std::vector<bool> m_pMaterialIsCutout;
 
 	Vector3 m_SunDirection;
 	ShadowCamera m_SunShadow;
@@ -123,13 +120,17 @@ BoolVar EnableWaveOps("Application/Forward+/Enable Wave Ops", true);
 
 void ModelViewer::Startup( void )
 {
-	m_RootSig.Reset(4, 2);
+	SamplerDesc DefaultSamplerDesc;
+	DefaultSamplerDesc.MaxAnisotropy = 8;
+
+	m_RootSig.Reset(5, 2);
+	m_RootSig.InitStaticSampler(0, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig.InitStaticSampler(1, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);
 	m_RootSig[1].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
 	m_RootSig[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 6, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_RootSig.InitStaticSampler(0, SamplerAnisoWrapDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-	m_RootSig.InitStaticSampler(1, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+	m_RootSig[4].InitAsConstants(1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
 	m_RootSig.Finalize(L"ModelViewer", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
@@ -213,7 +214,7 @@ void ModelViewer::Startup( void )
 	ASSERT(m_Model.m_Header.meshCount > 0, "Model contains no meshes");
 
 	// The caller of this function can override which materials are considered cutouts
-	m_pMaterialIsCutout = new bool[m_Model.m_Header.materialCount];
+	m_pMaterialIsCutout.resize(m_Model.m_Header.materialCount);
 	for (uint32_t i = 0; i < m_Model.m_Header.materialCount; ++i)
 	{
 		const Model::Material& mat = m_Model.m_pMaterial[i];
@@ -224,7 +225,9 @@ void ModelViewer::Startup( void )
 			m_pMaterialIsCutout[i] = true;
 		}
 		else
+		{
 			m_pMaterialIsCutout[i] = false;
+		}
 	}
 
 	CreateParticleEffects();
@@ -233,10 +236,10 @@ void ModelViewer::Startup( void )
 	const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
 	m_Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
 	m_Camera.SetZRange( 1.0f, 10000.0f );
-	m_pCameraController = new CameraController(m_Camera, Vector3(kYUnitVector));
+	m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
 
 	MotionBlur::Enable = true;
-	TemporalAA::Enable = true;
+	TemporalEffects::EnableTAA = true;
 	FXAA::Enable = false;
 	PostEffects::EnableHDR = true;
 	PostEffects::EnableAdaptation = true;
@@ -253,9 +256,6 @@ void ModelViewer::Startup( void )
 void ModelViewer::Cleanup( void )
 {
 	m_Model.Clear();
-
-	delete m_pCameraController;
-	m_pCameraController = nullptr;
 }
 
 namespace Graphics
@@ -272,7 +272,7 @@ void ModelViewer::Update( float deltaT )
 	else if (GameInput::IsFirstPressed(GameInput::kRShoulder))
 		DebugZoom.Increment();
 
-	m_pCameraController->Update(deltaT);
+	m_CameraController->Update(deltaT);
 	m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
 
 	float costheta = cosf(m_SunOrientation);
@@ -281,7 +281,7 @@ void ModelViewer::Update( float deltaT )
 	float sinphi = sinf(m_SunInclination * 3.14159f * 0.5f);
 	m_SunDirection = Normalize(Vector3( costheta * cosphi, sinphi, sintheta * cosphi ));
 
-	// We use viewport offsets to jitter our color samples from frame to frame (with TAA.)
+	// We use viewport offsets to jitter sample positions from frame to frame (for TAA.)
 	// D3D has a design quirk with fractional offsets such that the implicit scissor
 	// region of a viewport is floor(TopLeftXY) and floor(TopLeftXY + WidthHeight), so
 	// having a negative fractional top left, e.g. (-0.25, -0.25) would also shift the
@@ -289,36 +289,7 @@ void ModelViewer::Update( float deltaT )
 	// dimensions with an extra pixel.  My solution is to only use positive fractional offsets,
 	// but that means that the average sample position is +0.5, which I use when I disable
 	// temporal AA.
-	m_JitterDelta[0] = m_MainViewport.TopLeftX;
-	m_JitterDelta[1] = m_MainViewport.TopLeftY;
-
-	uint64_t FrameIndex = Graphics::GetFrameCount();
-
-	if (TemporalAA::Enable && !DepthOfField::Enable)
-	{
-		static const float Halton23[8][2] =
-		{
-			{ 0.0f / 8.0f, 0.0f / 9.0f }, { 4.0f / 8.0f, 3.0f / 9.0f },
-			{ 2.0f / 8.0f, 6.0f / 9.0f }, { 6.0f / 8.0f, 1.0f / 9.0f },
-			{ 1.0f / 8.0f, 4.0f / 9.0f }, { 5.0f / 8.0f, 7.0f / 9.0f },
-			{ 3.0f / 8.0f, 2.0f / 9.0f }, { 7.0f / 8.0f, 5.0f / 9.0f }
-		};
-
-		const float* Offset = nullptr;
-
-		Offset = Halton23[FrameIndex % 8];
-
-		m_MainViewport.TopLeftX = Offset[0];
-		m_MainViewport.TopLeftY = Offset[1];
-	}
-	else
-	{
-		m_MainViewport.TopLeftX = 0.5f;
-		m_MainViewport.TopLeftY = 0.5f;
-	}
-
-	m_JitterDelta[0] -= m_MainViewport.TopLeftX;
-	m_JitterDelta[1] -= m_MainViewport.TopLeftY;
+	TemporalEffects::GetJitterOffset(m_MainViewport.TopLeftX, m_MainViewport.TopLeftY);
 
 	m_MainViewport.Width = (float)g_SceneColorBuffer.GetWidth();
 	m_MainViewport.Height = (float)g_SceneColorBuffer.GetHeight();
@@ -366,6 +337,8 @@ void ModelViewer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& Vie
 			materialIdx = mesh.materialIndex;
 			gfxContext.SetDynamicDescriptors(2, 0, 6, m_Model.GetSRVs(materialIdx) );
 		}
+
+		gfxContext.SetConstants(4, baseVertex, materialIdx);
 
 		gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
 	}
@@ -422,7 +395,7 @@ void ModelViewer::RenderScene( void )
 
 	ParticleEffects::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
 
-	uint32_t FrameIndex = (uint32_t)Graphics::GetFrameCount() & 1;
+	uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
 
 	__declspec(align(16)) struct
 	{
@@ -434,9 +407,7 @@ void ModelViewer::RenderScene( void )
 		float InvTileDim[4];
 		uint32_t TileCount[4];
 		uint32_t FirstLightIndex[4];
-		float GradFixup[4];
-		float PixelAspect[2];
-		int32_t PixelShift[2];
+		uint32_t FrameIndexMod2;
 	} psConstants;
 
 	psConstants.sunDirection = m_SunDirection;
@@ -449,6 +420,7 @@ void ModelViewer::RenderScene( void )
 	psConstants.TileCount[1] = Math::DivideByMultiple(g_SceneColorBuffer.GetHeight(), Lighting::LightGridDim);
 	psConstants.FirstLightIndex[0] = Lighting::m_FirstConeLight;
 	psConstants.FirstLightIndex[1] = Lighting::m_FirstConeShadowedLight;
+	psConstants.FrameIndexMod2 = FrameIndex;
 
 	// Set the default state for command lists
 	auto& pfnSetupGraphicsState = [&](void)
@@ -472,7 +444,7 @@ void ModelViewer::RenderScene( void )
 			ScopedTimer _prof(L"Opaque", gfxContext);
 			gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
 			gfxContext.ClearDepth(g_SceneDepthBuffer);
-			
+
 #ifdef _WAVE_OP
 			gfxContext.SetPipelineState(EnableWaveOps ? m_DepthWaveOpsPSO : m_DepthPSO );
 #else
@@ -551,15 +523,22 @@ void ModelViewer::RenderScene( void )
 			}
 		}
 
-	} // !SSAO::DebugDraw
+	}
 
-	ParticleEffects::Render(gfxContext, m_Camera, g_SceneColorBuffer, g_SceneDepthBuffer, g_LinearDepth);
+	// Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything
+	// is static in our scene, so we generate velocity from camera motion and the depth buffer.  A velocity buffer
+	// is necessary for all temporal effects (and motion blur).
+	MotionBlur::GenerateCameraVelocityBuffer(gfxContext, m_Camera, true);
+
+	TemporalEffects::ResolveImage(gfxContext);
+
+	ParticleEffects::Render(gfxContext, m_Camera, g_SceneColorBuffer, g_SceneDepthBuffer,  g_LinearDepth[FrameIndex]);
 
 	// Until I work out how to couple these two, it's "either-or".
 	if (DepthOfField::Enable)
 		DepthOfField::Render(gfxContext, m_Camera.GetNearClip(), m_Camera.GetFarClip());
 	else
-		MotionBlur::RenderCameraBlur(gfxContext, m_Camera);
+		MotionBlur::RenderObjectBlur(gfxContext, g_VelocityBuffer);
 
 	gfxContext.Finish();
 }
@@ -587,7 +566,7 @@ void ModelViewer::CreateParticleEffects()
 	ParticleEffectProperties Smoke = ParticleEffectProperties();
 	Smoke.TexturePath = L"smoke.dds";
 
-	Smoke.TotalActiveLifetime = FLT_MAX;;
+	Smoke.TotalActiveLifetime = FLT_MAX;
 	Smoke.EmitProperties.MaxParticles = 25;
 	Smoke.EmitProperties.EmitPosW = Smoke.EmitProperties.LastEmitPosW = XMFLOAT3(1120.0f, 185.0f, -445.0f);
 	Smoke.EmitRate = 64.0f;
@@ -601,7 +580,7 @@ void ModelViewer::CreateParticleEffects()
 	ParticleEffects::InstantiateEffect( Smoke );
 
 	ParticleEffectProperties Fire = ParticleEffectProperties();
-	Fire.MinStartColor = Fire.MaxStartColor = Fire.MinEndColor = Fire.MaxEndColor = Color(1.0f, 1.0f, 1.0f, 0.0f);
+	Fire.MinStartColor = Fire.MaxStartColor = Fire.MinEndColor = Fire.MaxEndColor = Color(8.0f, 8.0f, 8.0f, 0.0f);
 	Fire.TexturePath = L"fire.dds";
 
 	Fire.TotalActiveLifetime = FLT_MAX;

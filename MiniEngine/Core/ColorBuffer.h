@@ -77,6 +77,16 @@ public:
 
 protected:
 
+	D3D12_RESOURCE_FLAGS CombineResourceFlags( void ) const
+	{
+		D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		if (Flags == D3D12_RESOURCE_FLAG_NONE && m_FragmentCount == 1)
+			Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+		return D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | Flags;
+	}
+
 	// Compute the number of texture levels needed to reduce to 1x1.  This uses
 	// _BitScanReverse to find the highest set bit.  Each dimension reduces by
 	// half and truncates bits.  The dimension 256 (0x100) has 9 mip levels, same

@@ -16,7 +16,7 @@
 RWTexture2D<float> LinearZ : register(u0);
 Texture2D<float> Depth : register(t0);
 
-cbuffer ConstantBuffer : register(b0)
+cbuffer CB0 : register(b0)
 {
 	float ZMagic;				// (zFar - zNear) / zNear
 }

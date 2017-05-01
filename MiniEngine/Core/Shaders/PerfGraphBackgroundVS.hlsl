@@ -19,7 +19,7 @@ struct VSOutput
 	float3 col : COLOR;
 };
 
-cbuffer CB : register(b1)
+cbuffer CB1 : register(b1)
 {
 	float RecSize;
 }

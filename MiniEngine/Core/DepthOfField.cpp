@@ -153,8 +153,10 @@ void DepthOfField::Render( CommandContext& BaseContext, float /*NearClipDist*/, 
 	ComputeContext& Context = BaseContext.GetComputeContext();
 	Context.SetRootSignature(s_RootSignature);
 
-	uint32_t BufferWidth = (uint32_t)g_LinearDepth.GetWidth();
-	uint32_t BufferHeight = (uint32_t)g_LinearDepth.GetHeight();
+	ColorBuffer& LinearDepth = g_LinearDepth[ Graphics::GetFrameCount() % 2 ];
+
+	uint32_t BufferWidth = (uint32_t)LinearDepth.GetWidth();
+	uint32_t BufferHeight = (uint32_t)LinearDepth.GetHeight();
 	uint32_t TiledWidth = (uint32_t)g_DoFTileClass[0].GetWidth();
 	uint32_t TiledHeight = (uint32_t)g_DoFTileClass[0].GetHeight();
 
@@ -188,10 +190,10 @@ void DepthOfField::Render( CommandContext& BaseContext, float /*NearClipDist*/, 
 		ScopedTimer _prof2(L"DoF Tiling", Context);
 
 		// Initial pass to discover max CoC and closest depth in 16x16 tiles
-		Context.TransitionResource(g_LinearDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		Context.TransitionResource(LinearDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		Context.TransitionResource(g_DoFTileClass[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		Context.SetPipelineState(s_DoFPass1CS);
-		Context.SetDynamicDescriptor(1, 0, g_LinearDepth.GetSRV());
+		Context.SetDynamicDescriptor(1, 0, LinearDepth.GetSRV());
 		Context.SetDynamicDescriptor(2, 0, g_DoFTileClass[0].GetUAV());
 		Context.Dispatch2D(BufferWidth, BufferHeight, 16, 16);
 
@@ -240,7 +242,7 @@ void DepthOfField::Render( CommandContext& BaseContext, float /*NearClipDist*/, 
 		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		Context.TransitionResource(g_DoFPresortBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		Context.TransitionResource(g_DoFPrefilter, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		Context.SetDynamicDescriptor(1, 0, g_LinearDepth.GetSRV());
+		Context.SetDynamicDescriptor(1, 0, LinearDepth.GetSRV());
 		Context.SetDynamicDescriptor(1, 1, g_DoFTileClass[1].GetSRV());
 		Context.SetDynamicDescriptor(1, 2, g_SceneColorBuffer.GetSRV());
 		Context.SetDynamicDescriptor(1, 3, g_DoFWorkQueue.GetSRV());
@@ -340,7 +342,7 @@ void DepthOfField::Render( CommandContext& BaseContext, float /*NearClipDist*/, 
 			Context.SetDynamicDescriptor(1, 0, g_DoFBlurColor[MedianFilter ? 1 : 0].GetSRV());
 			Context.SetDynamicDescriptor(1, 1, g_DoFBlurAlpha[MedianFilter ? 1 : 0].GetSRV());
 			Context.SetDynamicDescriptor(1, 2, g_DoFTileClass[1].GetSRV());
-			Context.SetDynamicDescriptor(1, 3, g_LinearDepth.GetSRV());
+			Context.SetDynamicDescriptor(1, 3, LinearDepth.GetSRV());
 			Context.SetDynamicDescriptor(1, 4, g_DoFWorkQueue.GetSRV());
 			Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetUAV());
 			Context.DispatchIndirect(s_IndirectParameters, 0);

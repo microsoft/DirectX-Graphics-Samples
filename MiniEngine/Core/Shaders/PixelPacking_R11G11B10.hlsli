@@ -19,8 +19,11 @@
 // The standard 32-bit HDR color format.  Each float has a 5-bit exponent and no sign bit.
 uint Pack_R11G11B10_FLOAT( float3 rgb )
 {
-	uint r = ((f32tof16(rgb.x) + 8) >>  4) & 0x000007FF;
-	uint g = ((f32tof16(rgb.y) + 8) <<  7) & 0x003FF800;
+	// Clamp upper bound so that it doesn't accidentally round up to INF 
+	// Exponent=15, Mantissa=1.11111
+	rgb = min(rgb, asfloat(0x477C0000));  
+	uint r = ((f32tof16(rgb.x) + 8) >> 4) & 0x000007FF;
+	uint g = ((f32tof16(rgb.y) + 8) << 7) & 0x003FF800;
 	uint b = ((f32tof16(rgb.z) + 16) << 17) & 0xFFC00000;
 	return r | g | b;
 }

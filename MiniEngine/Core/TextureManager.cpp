@@ -29,7 +29,7 @@ static UINT BytesPerPixel( DXGI_FORMAT Format )
 	return (UINT)BitsPerPixel(Format) / 8;
 };
 
-void Texture::Create( size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData )
+void Texture::Create( size_t Pitch, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData )
 {
 	m_UsageState = D3D12_RESOURCE_STATE_COPY_DEST;
 
@@ -59,7 +59,7 @@ void Texture::Create( size_t Width, size_t Height, DXGI_FORMAT Format, const voi
 
 	D3D12_SUBRESOURCE_DATA texResource;
 	texResource.pData = InitialData;
-	texResource.RowPitch = Width * BytesPerPixel(Format);
+	texResource.RowPitch = Pitch * BytesPerPixel(Format);
 	texResource.SlicePitch = texResource.RowPitch * Height;
 
 	CommandContext::InitializeTexture(*this, 1, &texResource);
@@ -130,6 +130,23 @@ bool Texture::CreateDDSFromMemory( const void* filePtr, size_t fileSize, bool sR
 		(const uint8_t*)filePtr, fileSize, 0, sRGB, &m_pResource, m_hCpuDescriptorHandle );
 
 	return SUCCEEDED(hr);
+}
+
+void Texture::CreatePIXImageFromMemory( const void* memBuffer, size_t fileSize )
+{
+	struct Header
+	{
+		DXGI_FORMAT Format;
+		uint32_t Pitch;
+		uint32_t Width;
+		uint32_t Height;
+	};
+	const Header& header = *(Header*)memBuffer;
+
+	ASSERT(fileSize >= header.Pitch * BytesPerPixel(header.Format) * header.Height + sizeof(Header),
+		"Raw PIX image dump has an invalid file size");
+
+	Create(header.Pitch, header.Width, header.Height, header.Format, (uint8_t*)memBuffer + sizeof(Header));
 }
 
 namespace TextureManager
@@ -285,6 +302,32 @@ const ManagedTexture* TextureManager::LoadTGAFromFile( const std::wstring& fileN
 	if (ba->size() > 0)
 	{
 		ManTex->CreateTGAFromMemory( ba->data(), ba->size(), sRGB );
+		ManTex->GetResource()->SetName(fileName.c_str());
+	}
+	else
+		ManTex->SetToInvalidTexture();
+
+	return ManTex;
+}
+
+
+const ManagedTexture* TextureManager::LoadPIXImageFromFile( const std::wstring& fileName )
+{
+	auto ManagedTex = FindOrLoadTexture(fileName);
+
+	ManagedTexture* ManTex = ManagedTex.first;
+	const bool RequestsLoad = ManagedTex.second;
+
+	if (!RequestsLoad)
+	{
+		ManTex->WaitForLoad();
+		return ManTex;
+	}
+
+	Utility::ByteArray ba = Utility::ReadFileSync( s_RootPath + fileName );
+	if (ba->size() > 0)
+	{
+		ManTex->CreatePIXImageFromMemory(ba->data(), ba->size());
 		ManTex->GetResource()->SetName(fileName.c_str());
 	}
 	else

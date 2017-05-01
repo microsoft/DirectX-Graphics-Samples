@@ -16,6 +16,8 @@
 #include "pch.h"
 #include "EngineTuning.h"
 
+class ComputeContext;
+
 namespace PostEffects
 {
 	extern BoolVar EnableHDR;			// Turn on tone mapping features
@@ -23,8 +25,6 @@ namespace PostEffects
 	// Tone mapping parameters
 	extern ExpVar Exposure;				// Brightness scaler when adapative exposure is disabled
 	extern BoolVar EnableAdaptation;	// Automatically adjust brightness based on perceived luminance
-	extern BoolVar bToneMapOnlyLuma;	// Keep color saturation from being lost.
-	extern NumVar g_ToeStrength;
 
 	// Adapation parameters
 	extern ExpVar MinExposure;
@@ -42,4 +42,7 @@ namespace PostEffects
 	void Initialize( void );
 	void Shutdown( void );
 	void Render( void );
-};
+
+	// Copy the contents of the post effects buffer onto the main scene buffer
+	void CopyBackPostBuffer( ComputeContext& Context );
+}

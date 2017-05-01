@@ -29,6 +29,11 @@
 #include "CommandSignature.h"
 #include "ParticleEffectManager.h"
 #include "GraphRenderer.h"
+#include "TemporalEffects.h"
+
+// This macro determines whether to detect if there is an HDR display and enable HDR10 output.
+// Currently, with HDR display enabled, the pixel magnfication functionality is broken.
+#define CONDITIONALLY_ENABLE_HDR_OUTPUT 1
 
 // Uncomment this to enable experimental support for the new shader compiler, DXC.exe
 //#define DXIL
@@ -37,12 +42,17 @@
 	#include <agile.h>
 #endif
 
-#include <dxgi1_4.h>	// For WARP
+#if defined(NTDDI_WIN10_RS2) && (NTDDI_VERSION >= NTDDI_WIN10_RS2)
+	#include <dxgi1_6.h>
+#else
+	#include <dxgi1_4.h>	// For WARP
+#endif
+#include <winreg.h>		// To read the registry
 
 #include "CompiledShaders/ScreenQuadVS.h"
 #include "CompiledShaders/BufferCopyPS.h"
-#include "CompiledShaders/ConvertLDRToDisplayPS.h"
-#include "CompiledShaders/ConvertHDRToDisplayPS.h"
+#include "CompiledShaders/PresentSDRPS.h"
+#include "CompiledShaders/PresentHDRPS.h"
 #include "CompiledShaders/MagnifyPixelsPS.h"
 #include "CompiledShaders/BilinearUpsamplePS.h"
 #include "CompiledShaders/BicubicHorizontalUpsamplePS.h"
@@ -91,25 +101,27 @@ namespace Graphics
 {
 	void PreparePresentLDR();
 	void PreparePresentHDR();
+	void CompositeOverlays( GraphicsContext& Context );
 
 #ifndef RELEASE
 	const GUID WKPDID_D3DDebugObjectName = { 0x429b8c22,0x9188,0x4b0c, { 0x87,0x42,0xac,0xb0,0xbf,0x85,0xc2,0x00 }};
 #endif
 
-	enum eResolution { k720p, k900p, k1080p, k1440p, k2160p };
+	enum eResolution { k720p, k900p, k1080p, k1440p, k1800p, k2160p };
 
 	const uint32_t kMaxNativeWidth = 3840;
 	const uint32_t kMaxNativeHeight = 2160;
-	const uint32_t kNumPredefinedResolutions = 5;
+	const uint32_t kNumPredefinedResolutions = 6;
 
-	const char* ResolutionLabels[] = { "1280x720", "1600x900", "1920x1080", "2560x1440", "3840x2160" };
+	const char* ResolutionLabels[] = { "1280x720", "1600x900", "1920x1080", "2560x1440", "3200x1800", "3840x2160" };
 	EnumVar TargetResolution("Graphics/Display/Native Resolution", k1080p, kNumPredefinedResolutions, ResolutionLabels);
 
 	bool g_bTypedUAVLoadSupport_R11G11B10_FLOAT = false;
+	bool g_bTypedUAVLoadSupport_R16G16B16A16_FLOAT = false;
 	bool g_bEnableHDROutput = false;
-	NumVar g_HDRPaperWhite("Graphics/Display/Paper White (nits)", 400.0f, 80.0f, 520.0f, 40.0f);
-	NumVar g_MaxDisplayLuminance("Graphics/Display/Peak Brightness (nits)", 1000.0f, 400.0f, 2000.0f, 50.0f);
-	const char* HDRModeLabels[] = { "HDR", "LDR", "Side-by-Side" };
+	NumVar g_HDRPaperWhite("Graphics/Display/Paper White (nits)", 200.0f, 100.0f, 500.0f, 50.0f);
+	NumVar g_MaxDisplayLuminance("Graphics/Display/Peak Brightness (nits)", 1000.0f, 500.0f, 10000.0f, 100.0f);
+	const char* HDRModeLabels[] = { "HDR", "SDR", "Side-by-Side" };
 	EnumVar HDRDebugMode("Graphics/Display/HDR Debug Mode", 0, 3, HDRModeLabels);
 
 	uint32_t g_NativeWidth = 0;
@@ -140,6 +152,10 @@ namespace Graphics
 		case k1440p:
 			NativeWidth = 2560;
 			NativeHeight = 1440;
+			break;
+		case k1800p:
+			NativeWidth = 3200;
+			NativeHeight = 1800;
 			break;
 		case k2160p:
 			NativeWidth = 3840;
@@ -180,51 +196,10 @@ namespace Graphics
 		D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
 	};
 
-	SamplerDesc SamplerLinearWrapDesc;
-	SamplerDesc SamplerAnisoWrapDesc;
-	SamplerDesc SamplerShadowDesc;
-	SamplerDesc SamplerLinearClampDesc;
-	SamplerDesc SamplerVolumeWrapDesc;
-	SamplerDesc SamplerPointClampDesc;
-	SamplerDesc SamplerPointBorderDesc;
-	SamplerDesc SamplerLinearBorderDesc;
-
-	D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearWrap;
-	D3D12_CPU_DESCRIPTOR_HANDLE SamplerAnisoWrap;
-	D3D12_CPU_DESCRIPTOR_HANDLE SamplerShadow;
-	D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearClamp;
-	D3D12_CPU_DESCRIPTOR_HANDLE SamplerVolumeWrap;
-	D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointClamp;
-	D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointBorder;
-	D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearBorder;
-
-	D3D12_RASTERIZER_DESC RasterizerDefault;
-	D3D12_RASTERIZER_DESC RasterizerDefaultCW;
-	D3D12_RASTERIZER_DESC RasterizerTwoSided;
-	D3D12_RASTERIZER_DESC RasterizerShadow;
-	D3D12_RASTERIZER_DESC RasterizerShadowCW;
-	D3D12_RASTERIZER_DESC RasterizerShadowTwoSided;
-
-	D3D12_BLEND_DESC BlendNoColorWrite;
-	D3D12_BLEND_DESC BlendDisable;
-	D3D12_BLEND_DESC BlendPreMultiplied;
-	D3D12_BLEND_DESC BlendTraditional;
-	D3D12_BLEND_DESC BlendAdditive;
-	D3D12_BLEND_DESC BlendTraditionalAdditive;
-
-	D3D12_DEPTH_STENCIL_DESC DepthStateDisabled;
-	D3D12_DEPTH_STENCIL_DESC DepthStateReadWrite;
-	D3D12_DEPTH_STENCIL_DESC DepthStateReadOnly;
-	D3D12_DEPTH_STENCIL_DESC DepthStateReadOnlyReversed;
-	D3D12_DEPTH_STENCIL_DESC DepthStateTestEqual;
-
-	CommandSignature DispatchIndirectCommandSignature(1);
-	CommandSignature DrawIndirectCommandSignature(1);
-
 	RootSignature s_PresentRS;
 	GraphicsPSO s_BlendUIPSO;
-	GraphicsPSO ConvertLDRToDisplayPS;
-	GraphicsPSO ConvertHDRToDisplayPS;
+	GraphicsPSO PresentSDRPS;
+	GraphicsPSO PresentHDRPS;
 	GraphicsPSO MagnifyPixelsPS;
 	GraphicsPSO SharpeningUpsamplePS;
 	GraphicsPSO BicubicHorizontalUpsamplePS;
@@ -243,9 +218,9 @@ namespace Graphics
 	NumVar SharpeningRotation("Graphics/Display/Sharpness Sample Rotation", 45.0f, 0.0f, 90.0f, 15.0f);
 	NumVar SharpeningStrength("Graphics/Display/Sharpness Strength", 0.10f, 0.0f, 1.0f, 0.01f);
 
-	enum DebugZoomLevel { kDebugZoomOff, kDebugZoom2x, kDebugZoom4x };
-	const char* DebugZoomLabels[] = { "Off", "2x Zoom", "4x Zoom" };
-	EnumVar DebugZoom("Graphics/Display/Magnify Pixels", kDebugZoomOff, 3, DebugZoomLabels);
+	enum DebugZoomLevel { kDebugZoomOff, kDebugZoom2x, kDebugZoom4x, kDebugZoom8x, kDebugZoom16x, kDebugZoomCount };
+	const char* DebugZoomLabels[] = { "Off", "2x Zoom", "4x Zoom", "8x Zoom", "16x Zoom" };
+	EnumVar DebugZoom("Graphics/Display/Magnify Pixels", kDebugZoomOff, kDebugZoomCount, DebugZoomLabels);
 }
 
 void Graphics::Resize(uint32_t width, uint32_t height)
@@ -274,6 +249,10 @@ void Graphics::Resize(uint32_t width, uint32_t height)
 	}
 
 	g_CurrentBuffer = 0;
+
+	g_CommandManager.IdleGPU();
+
+	ResizeDisplayDependentBuffers(g_NativeWidth, g_NativeHeight);
 }
 
 #ifdef DXIL
@@ -371,7 +350,31 @@ void Graphics::Initialize(void)
 		ASSERT_SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice)));
 		g_Device = pDevice.Detach();
 	}
-	
+#ifndef RELEASE
+	else
+	{
+		bool DeveloperModeEnabled = false;
+
+		// Look in the Windows Registry to determine if Developer Mode is enabled
+		HKEY hKey;
+		LSTATUS result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", 0, KEY_READ, &hKey);
+		if (result == ERROR_SUCCESS)
+		{
+			DWORD keyValue, keySize = sizeof(DWORD);
+			result = RegQueryValueEx(hKey, L"AllowDevelopmentWithoutDevLicense", 0, NULL, (byte*)&keyValue, &keySize);
+			if (result == ERROR_SUCCESS && keyValue == 1)
+				DeveloperModeEnabled = true;
+			RegCloseKey(hKey);
+		}
+
+		WARN_ONCE_IF_NOT(DeveloperModeEnabled, "Enable Developer Mode on Windows 10 to get consistent profiling results");
+
+		// Prevent the GPU from overclocking or underclocking to get consistent timings
+		if (DeveloperModeEnabled)
+			g_Device->SetStablePowerState(TRUE);
+	}
+#endif	
+
 #if _DEBUG
 	ID3D12InfoQueue* pInfoQueue = nullptr;
 	if (SUCCEEDED(g_Device->QueryInterface(MY_IID_PPV_ARGS(&pInfoQueue))))
@@ -438,6 +441,14 @@ void Graphics::Initialize(void)
 			{
 				g_bTypedUAVLoadSupport_R11G11B10_FLOAT = true;
 			}
+
+			Support.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+			if (SUCCEEDED(g_Device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &Support, sizeof(Support))) &&
+				(Support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD) != 0)
+			{
+				g_bTypedUAVLoadSupport_R16G16B16A16_FLOAT = true;
+			}
 		}
 	}
 
@@ -455,10 +466,32 @@ void Graphics::Initialize(void)
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) // Win32
 	ASSERT_SUCCEEDED(dxgiFactory->CreateSwapChainForHwnd(g_CommandManager.GetCommandQueue(), GameCore::g_hWnd, &swapChainDesc, nullptr, nullptr, &s_SwapChain1));
-#else
+#else // UWP
 	ASSERT_SUCCEEDED(dxgiFactory->CreateSwapChainForCoreWindow(g_CommandManager.GetCommandQueue(), (IUnknown*)GameCore::g_window.Get(), &swapChainDesc, nullptr, &s_SwapChain1));
+#endif
+
+#if CONDITIONALLY_ENABLE_HDR_OUTPUT && defined(NTDDI_WIN10_RS2) && (NTDDI_VERSION >= NTDDI_WIN10_RS2)
+	{
+		IDXGISwapChain4* swapChain = (IDXGISwapChain4*)s_SwapChain1;
+		ComPtr<IDXGIOutput> output;
+		ComPtr<IDXGIOutput6> output6;
+		DXGI_OUTPUT_DESC1 outputDesc;
+		UINT colorSpaceSupport;
+
+		// Query support for ST.2084 on the display and set the color space accordingly
+		if (SUCCEEDED(swapChain->GetContainingOutput(&output)) &&
+			SUCCEEDED(output.As(&output6)) &&
+			SUCCEEDED(output6->GetDesc1(&outputDesc)) &&
+			outputDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 &&
+			SUCCEEDED(swapChain->CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020, &colorSpaceSupport)) &&
+			(colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) &&
+			SUCCEEDED(swapChain->SetColorSpace1(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)))
+		{
+			g_bEnableHDROutput = true;
+		}
+	}
 #endif
 
 	for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
@@ -468,135 +501,16 @@ void Graphics::Initialize(void)
 		g_DisplayPlane[i].CreateFromSwapChain(L"Primary SwapChain Buffer", DisplayPlane.Detach());
 	}
 
-	SamplerLinearWrapDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-	SamplerLinearWrap = SamplerLinearWrapDesc.CreateDescriptor();
-
-	SamplerAnisoWrapDesc.MaxAnisotropy = 4;
-	SamplerAnisoWrap = SamplerAnisoWrapDesc.CreateDescriptor();
-
-	SamplerShadowDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
-	SamplerShadowDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
-	SamplerShadowDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
-	SamplerShadow = SamplerShadowDesc.CreateDescriptor();
-
-	SamplerLinearClampDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-	SamplerLinearClampDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
-	SamplerLinearClamp = SamplerLinearClampDesc.CreateDescriptor();
-
-	SamplerVolumeWrapDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-	SamplerVolumeWrap = SamplerVolumeWrapDesc.CreateDescriptor();
-
-	SamplerPointClampDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-	SamplerPointClampDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
-	SamplerPointClamp = SamplerPointClampDesc.CreateDescriptor();
-
-	SamplerLinearBorderDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-	SamplerLinearBorderDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
-	SamplerLinearBorderDesc.SetBorderColor(Color(0.0f, 0.0f, 0.0f, 0.0f));
-	SamplerLinearBorder = SamplerLinearBorderDesc.CreateDescriptor();
-
-	SamplerPointBorderDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-	SamplerPointBorderDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
-	SamplerPointBorderDesc.SetBorderColor(Color(0.0f, 0.0f, 0.0f, 0.0f));
-	SamplerPointBorder = SamplerPointBorderDesc.CreateDescriptor();
-
-	// Default rasterizer states
-	RasterizerDefault.FillMode = D3D12_FILL_MODE_SOLID;
-	RasterizerDefault.CullMode = D3D12_CULL_MODE_BACK;
-	RasterizerDefault.FrontCounterClockwise = TRUE;
-	RasterizerDefault.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-	RasterizerDefault.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-	RasterizerDefault.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-	RasterizerDefault.DepthClipEnable = TRUE;
-	RasterizerDefault.MultisampleEnable = FALSE;
-	RasterizerDefault.AntialiasedLineEnable = FALSE;
-	RasterizerDefault.ForcedSampleCount = 0;
-	RasterizerDefault.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-
-	RasterizerDefaultCW = RasterizerDefault;
-	RasterizerDefaultCW.FrontCounterClockwise = FALSE;
-
-	RasterizerTwoSided = RasterizerDefault;
-	RasterizerTwoSided.CullMode = D3D12_CULL_MODE_NONE;
-
-	// Shadows need their own rasterizer state so we can reverse the winding of faces
-	RasterizerShadow = RasterizerDefault;
-	//RasterizerShadow.CullMode = D3D12_CULL_FRONT;  // Hacked here rather than fixing the content
-	RasterizerShadow.SlopeScaledDepthBias = -1.5f;
-	RasterizerShadow.DepthBias = -100;
-
-	RasterizerShadowTwoSided = RasterizerShadow;
-	RasterizerShadowTwoSided.CullMode = D3D12_CULL_MODE_NONE;
-
-	RasterizerShadowCW = RasterizerShadow;
-	RasterizerShadowCW.FrontCounterClockwise = FALSE;
-
-	DepthStateDisabled.DepthEnable = FALSE;
-	DepthStateDisabled.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-	DepthStateDisabled.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	DepthStateDisabled.StencilEnable = FALSE;
-	DepthStateDisabled.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
-	DepthStateDisabled.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
-	DepthStateDisabled.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	DepthStateDisabled.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
-	DepthStateDisabled.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-	DepthStateDisabled.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	DepthStateDisabled.BackFace = DepthStateDisabled.FrontFace;
-
-	DepthStateReadWrite = DepthStateDisabled;
-	DepthStateReadWrite.DepthEnable = TRUE;
-	DepthStateReadWrite.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	DepthStateReadWrite.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
-
-	DepthStateReadOnly = DepthStateReadWrite;
-	DepthStateReadOnly.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-
-	DepthStateReadOnlyReversed = DepthStateReadOnly;
-	DepthStateReadOnlyReversed.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-
-	DepthStateTestEqual = DepthStateReadOnly;
-	DepthStateTestEqual.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
-
-	D3D12_BLEND_DESC alphaBlend = {};
-	alphaBlend.IndependentBlendEnable = FALSE;
-	alphaBlend.RenderTarget[0].BlendEnable = FALSE;
-	alphaBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	alphaBlend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	alphaBlend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	alphaBlend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-	alphaBlend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-	alphaBlend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	alphaBlend.RenderTarget[0].RenderTargetWriteMask = 0;
-	BlendNoColorWrite = alphaBlend;
-
-	alphaBlend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	BlendDisable = alphaBlend;
-
-	alphaBlend.RenderTarget[0].BlendEnable = TRUE;
-	BlendTraditional = alphaBlend;
-
-	alphaBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
-	BlendPreMultiplied = alphaBlend;
-
-	alphaBlend.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
-	BlendAdditive = alphaBlend;
-
-	alphaBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	BlendTraditionalAdditive = alphaBlend;
-
-	DispatchIndirectCommandSignature[0].Dispatch();
-	DispatchIndirectCommandSignature.Finalize();
-
-	DrawIndirectCommandSignature[0].Draw();
-	DrawIndirectCommandSignature.Finalize();
+	// Common state was moved to GraphicsCommon.*
+	InitializeCommonState();
 
 	s_PresentRS.Reset(4, 2);
 	s_PresentRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
-	s_PresentRS[1].InitAsConstants(0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
+	s_PresentRS[1].InitAsConstants(0, 6, D3D12_SHADER_VISIBILITY_ALL);
 	s_PresentRS[2].InitAsBufferSRV(2, D3D12_SHADER_VISIBILITY_PIXEL);
 	s_PresentRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
-	s_PresentRS.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-	s_PresentRS.InitStaticSampler(1, SamplerPointClampDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+	s_PresentRS.InitStaticSampler(0, SamplerLinearClampDesc);
+	s_PresentRS.InitStaticSampler(1, SamplerPointClampDesc);
 	s_PresentRS.Finalize(L"Present");
 
 	// Initialize PSOs
@@ -618,7 +532,7 @@ void Graphics::Initialize(void)
 	ObjName.SetPixelShader(ShaderByteCode, sizeof(ShaderByteCode) ); \
 	ObjName.Finalize();
 
-	CreatePSO(ConvertLDRToDisplayPS, g_pConvertLDRToDisplayPS);
+	CreatePSO(PresentSDRPS, g_pPresentSDRPS);
 	CreatePSO(MagnifyPixelsPS, g_pMagnifyPixelsPS);
 	CreatePSO(BilinearUpsamplePS, g_pBilinearUpsamplePS);
 	CreatePSO(BicubicHorizontalUpsamplePS, g_pBicubicHorizontalUpsamplePS);
@@ -627,13 +541,25 @@ void Graphics::Initialize(void)
 
 #undef CreatePSO
 
+	BicubicHorizontalUpsamplePS = s_BlendUIPSO;
+	BicubicHorizontalUpsamplePS.SetBlendState( BlendDisable );
+	BicubicHorizontalUpsamplePS.SetPixelShader(g_pBicubicHorizontalUpsamplePS, sizeof(g_pBicubicHorizontalUpsamplePS) );
+	BicubicHorizontalUpsamplePS.SetRenderTargetFormat(DXGI_FORMAT_R11G11B10_FLOAT, DXGI_FORMAT_UNKNOWN);
+	BicubicHorizontalUpsamplePS.Finalize();
+
+	PresentHDRPS = PresentSDRPS;
+	PresentHDRPS.SetPixelShader(g_pPresentHDRPS, sizeof(g_pPresentHDRPS));
+	DXGI_FORMAT SwapChainFormats[2] = { DXGI_FORMAT_R10G10B10A2_UNORM, DXGI_FORMAT_R10G10B10A2_UNORM };
+	PresentHDRPS.SetRenderTargetFormats(2, SwapChainFormats, DXGI_FORMAT_UNKNOWN );
+	PresentHDRPS.Finalize();
+
 	g_GenerateMipsRS.Reset(3, 1);
 	g_GenerateMipsRS[0].InitAsConstants(0, 4);
 	g_GenerateMipsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
 	g_GenerateMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
 	g_GenerateMipsRS.InitStaticSampler(0, SamplerLinearClampDesc);
 	g_GenerateMipsRS.Finalize(L"Generate Mips");
-
+	
 #define CreatePSO(ObjName, ShaderByteCode ) \
 	ObjName.SetRootSignature(g_GenerateMipsRS); \
 	ObjName.SetComputeShader(ShaderByteCode, sizeof(ShaderByteCode) ); \
@@ -652,6 +578,7 @@ void Graphics::Initialize(void)
 
 	GpuTimeManager::Initialize(4096);
 	SetNativeResolution();
+	TemporalEffects::Initialize();
 	PostEffects::Initialize();
 	SSAO::Initialize();
 	TextRenderer::Initialize();
@@ -681,6 +608,7 @@ void Graphics::Shutdown( void )
 	DescriptorAllocator::DestroyAll();
 
 	DestroyRenderingBuffers();
+	TemporalEffects::Shutdown();
 	PostEffects::Shutdown();
 	SSAO::Shutdown();
 	TextRenderer::Shutdown();
@@ -725,19 +653,36 @@ void Graphics::PreparePresentHDR(void)
 		g_DisplayPlane[g_CurrentBuffer].GetRTV()
 	};
 
-	float ToeStrength = PostEffects::g_ToeStrength;
-	ToeStrength = ToeStrength < 1e-6f ? 1e32f : 1.0f / ToeStrength;
-
-	Context.SetPipelineState(ConvertHDRToDisplayPS);
+	Context.SetPipelineState(PresentHDRPS);
 	Context.SetRenderTargets(_countof(RTVs), RTVs);
 	Context.SetViewportAndScissor(0, 0, g_NativeWidth, g_NativeHeight);
-	Context.SetConstants(1, (float)g_HDRPaperWhite, (float)g_MaxDisplayLuminance, ToeStrength, (int)HDRDebugMode);
+	struct Constants
+	{
+		float RcpDstWidth;
+		float RcpDstHeight;
+		float PaperWhite;
+		float MaxBrightness;
+		int32_t DebugMode;
+	};
+	Constants consts = { 1.0f / g_NativeWidth, 1.0f / g_NativeHeight,
+		(float)g_HDRPaperWhite, (float)g_MaxDisplayLuminance, (int32_t)HDRDebugMode };
+	Context.SetConstants(1, sizeof(Constants) / 4, (float*)&consts);
 	Context.Draw(3);
 
 	Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_PRESENT);
 
 	// Close the final context to be executed before frame present.
 	Context.Finish();
+}
+
+void Graphics::CompositeOverlays( GraphicsContext& Context )
+{
+	// Blend (or write) the UI overlay
+	Context.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	Context.SetDynamicDescriptor(0, 0, g_OverlayBuffer.GetSRV());
+	Context.SetPipelineState(s_BlendUIPSO);
+	Context.SetConstants(1, 1.0f / g_NativeWidth, 1.0f / g_NativeHeight);
+	Context.Draw(3);
 }
 
 void Graphics::PreparePresentLDR(void)
@@ -758,7 +703,7 @@ void Graphics::PreparePresentLDR(void)
 
 	if (g_NativeWidth == g_DisplayWidth && g_NativeHeight == g_DisplayHeight)
 	{
-		Context.SetPipelineState(ConvertLDRToDisplayPS);
+		Context.SetPipelineState(PresentSDRPS);
 		Context.TransitionResource(UpsampleDest, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		Context.SetRenderTarget(UpsampleDest.GetRTV());
 		Context.SetViewportAndScissor(0, 0, g_NativeWidth, g_NativeHeight);
@@ -814,16 +759,12 @@ void Graphics::PreparePresentLDR(void)
 		Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_RENDER_TARGET);
 		Context.SetRenderTarget(g_DisplayPlane[g_CurrentBuffer].GetRTV());
 		Context.SetViewportAndScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
-		Context.SetConstants(1, DebugZoom == kDebugZoom4x ? 0.25f : 0.5f);
+		Context.SetConstants(1, 1.0f / ((int)DebugZoom + 1.0f));
 		Context.SetDynamicDescriptor(0, 0, g_PreDisplayBuffer.GetSRV());
 		Context.Draw(3);
 	}
 
-	// Now blend (or write) the UI overlay
-	Context.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	Context.SetDynamicDescriptor(0, 0, g_OverlayBuffer.GetSRV());
-	Context.SetPipelineState(s_BlendUIPSO);
-	Context.Draw(3);
+	CompositeOverlays(Context);
 
 	Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_PRESENT);
 
@@ -876,6 +817,7 @@ void Graphics::Present(void)
 	s_FrameStartTick = CurrentTick;
 
 	++s_FrameIndex;
+	TemporalEffects::Update((uint32_t)s_FrameIndex);
 
 	SetNativeResolution();
 }

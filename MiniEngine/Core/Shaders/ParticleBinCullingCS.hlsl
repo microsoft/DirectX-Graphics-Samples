@@ -24,7 +24,7 @@ RWStructuredBuffer<uint> g_BinCounters : register( u1 );
 
 groupshared uint gs_BinCounters[16];
 
-cbuffer CB : register(b0)
+cbuffer CB0 : register(b0)
 {
 	uint2 LogTilesPerBin;
 };

@@ -15,7 +15,7 @@
 #include "ParticleUpdateCommon.hlsli"
 #include "ParticleUtility.hlsli"
 
-cbuffer CB : register(b0)
+cbuffer CB0 : register(b0)
 {
 	float gElapsedTime;
 };

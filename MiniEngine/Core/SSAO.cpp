@@ -17,6 +17,7 @@
 #include "GraphicsCore.h"
 #include "CommandContext.h"
 #include "Camera.h"
+#include "TemporalEffects.h"
 
 #include "CompiledShaders/AoPrepareDepthBuffers1CS.h"
 #include "CompiledShaders/AoPrepareDepthBuffers2CS.h"
@@ -295,6 +296,10 @@ void SSAO::Render( GraphicsContext& GfxContext, const Camera& camera )
 
 void SSAO::Render( GraphicsContext& GfxContext, const float* ProjMat, float NearClipDist, float FarClipDist )
 {
+	uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
+
+	ColorBuffer& LinearDepth = g_LinearDepth[FrameIndex];
+
 	const float zMagic = (FarClipDist - NearClipDist) / NearClipDist;
 
 	if (!Enable)
@@ -315,17 +320,17 @@ void SSAO::Render( GraphicsContext& GfxContext, const float* ProjMat, float Near
 		Context.SetConstants(0, zMagic);
 		Context.SetDynamicDescriptor(3, 0, g_SceneDepthBuffer.GetDepthSRV());
 
-		Context.TransitionResource(g_LinearDepth, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		Context.SetDynamicDescriptors(2, 0, 1, &g_LinearDepth.GetUAV());
+		Context.TransitionResource(LinearDepth, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		Context.SetDynamicDescriptors(2, 0, 1, &LinearDepth.GetUAV());
 		Context.SetPipelineState(s_LinearizeDepthCS);
-		Context.Dispatch2D(g_LinearDepth.GetWidth(), g_LinearDepth.GetHeight(), 16, 16);
+		Context.Dispatch2D(LinearDepth.GetWidth(), LinearDepth.GetHeight(), 16, 16);
 
 		if (DebugDraw)
 		{
 			Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			Context.TransitionResource(g_LinearDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			Context.TransitionResource(LinearDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			Context.SetDynamicDescriptors(2, 0, 1, &g_SceneColorBuffer.GetUAV());
-			Context.SetDynamicDescriptors(3, 0, 1, &g_LinearDepth.GetSRV() );
+			Context.SetDynamicDescriptors(3, 0, 1, &LinearDepth.GetSRV() );
 			Context.SetPipelineState(s_DebugSSAOCS);
 			Context.Dispatch2D(g_SSAOFullScreen.GetWidth(), g_SSAOFullScreen.GetHeight());
 		}
@@ -355,13 +360,13 @@ void SSAO::Render( GraphicsContext& GfxContext, const float* ProjMat, float Near
 	Context.SetConstants(0, zMagic);
 	Context.SetDynamicDescriptor(3, 0, g_SceneDepthBuffer.GetDepthSRV() );
 
-	Context.TransitionResource(g_LinearDepth, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Context.TransitionResource(LinearDepth, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.TransitionResource(g_DepthDownsize1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.TransitionResource(g_DepthTiled1, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.TransitionResource(g_DepthDownsize2, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.TransitionResource(g_DepthTiled2, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE DownsizeUAVs[5] = { g_LinearDepth.GetUAV(), g_DepthDownsize1.GetUAV(), g_DepthTiled1.GetUAV(),
+	D3D12_CPU_DESCRIPTOR_HANDLE DownsizeUAVs[5] = { LinearDepth.GetUAV(), g_DepthDownsize1.GetUAV(), g_DepthTiled1.GetUAV(),
 		g_DepthDownsize2.GetUAV(), g_DepthTiled2.GetUAV() };
 	Context.SetDynamicDescriptors(2, 0, 5, DownsizeUAVs);
 
@@ -490,7 +495,7 @@ void SSAO::Render( GraphicsContext& GfxContext, const float* ProjMat, float Near
 		NextSRV = &g_AOMerged1;
 
 	// 960 x 540 -> 1920 x 1080
-	BlurAndUpsample( Context, g_SSAOFullScreen, g_LinearDepth, g_DepthDownsize1, NextSRV,
+	BlurAndUpsample( Context, g_SSAOFullScreen, LinearDepth, g_DepthDownsize1, NextSRV,
 		g_QualityLevel >= kSsaoQualityVeryHigh ? &g_AOHighQuality1 : nullptr, nullptr );
 
 	} // End blur and upsample

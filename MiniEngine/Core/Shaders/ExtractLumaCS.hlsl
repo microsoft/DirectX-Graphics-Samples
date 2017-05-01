@@ -18,6 +18,7 @@
 
 SamplerState BiLinearClamp : register( s0 );
 Texture2D<float3> SourceTex : register( t0 );
+StructuredBuffer<float> Exposure : register( t1 );
 RWTexture2D<uint> LumaResult : register( u0 );
 
 cbuffer cb0
@@ -43,10 +44,16 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	// Compute average luminance
 	float luma = RGBToLuminance(color1 + color2 + color3 + color4) * 0.25;
 
-	// Logarithmically compress the range [2^-12, 2^4) to [0, 255]
-	float logLuma = log2( max(1.0 / 4096.0, luma) ) + 12.0;
-	uint quantizedLog = min(255, (uint)round(logLuma * 16.0));
-
-	// Store result
-	LumaResult[DTid.xy] = quantizedLog;
+	// Prevent log(0) and put only pure black pixels in Histogram[0]
+	if (luma == 0.0)
+	{
+		LumaResult[DTid.xy] = 0;
+	}
+	else
+	{
+		const float MinLog = Exposure[4];
+		const float RcpLogRange = Exposure[7];
+		float logLuma = saturate((log2(luma) - MinLog) * RcpLogRange);	// Rescale to [0.0, 1.0]
+		LumaResult[DTid.xy] = logLuma * 254.0 + 1.0;					// Rescale to [1, 255]
+	}
 }

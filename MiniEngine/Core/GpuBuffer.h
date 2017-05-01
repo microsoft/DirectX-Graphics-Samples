@@ -24,8 +24,6 @@ class GpuBuffer : public GpuResource
 public:
 	virtual ~GpuBuffer() { Destroy(); }
 
-	virtual void Destroy(void);
-
 	// Create a buffer.  If initial data is provided, it will be copied into the buffer using the default command context.
 	void Create( const std::wstring& name, uint32_t NumElements, uint32_t ElementSize,
 		const void* initialData = nullptr );
@@ -58,6 +56,10 @@ public:
 		size_t Offset = StartIndex * m_ElementSize;
 		return IndexBufferView(Offset, (uint32_t)(m_BufferSize - Offset), m_ElementSize == 4);
 	}
+
+	size_t GetBufferCount() const { return m_BufferSize; }
+	uint32_t GetElementCount() const { return m_ElementCount; }
+	uint32_t GetElementSize() const { return m_ElementSize; }
 
 protected:
 

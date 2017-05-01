@@ -30,6 +30,10 @@ public:
 	// Has no effect on Windows
 	void SetBankRotation( uint32_t RotationAmount ) { m_BankRotation = RotationAmount; }
 
+	// Write the raw pixel buffer contents to a file
+	// Note that data is preceded by a 16-byte header:  { DXGI_FORMAT, Pitch (in pixels), Width (in pixels), Height }
+	void ExportToFile( const std::wstring& FilePath );
+
 protected:
 
 	D3D12_RESOURCE_DESC DescribeTex2D(uint32_t Width, uint32_t Height, uint32_t DepthOrArraySize, uint32_t NumMips, DXGI_FORMAT Format, UINT Flags);
@@ -47,6 +51,7 @@ protected:
 	static DXGI_FORMAT GetDSVFormat( DXGI_FORMAT Format );
 	static DXGI_FORMAT GetDepthFormat( DXGI_FORMAT Format );
 	static DXGI_FORMAT GetStencilFormat( DXGI_FORMAT Format );
+	static size_t BytesPerPixel( DXGI_FORMAT Format );
 
 	uint32_t m_Width;
 	uint32_t m_Height;

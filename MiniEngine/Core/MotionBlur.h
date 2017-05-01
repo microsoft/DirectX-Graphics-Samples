@@ -39,10 +39,3 @@ namespace MotionBlur
 	// velocity buffer (R16G16_FLOAT preferred.)
 	void RenderObjectBlur( CommandContext& Context, ColorBuffer& velocityBuffer );
 }
-
-namespace TemporalAA
-{
-	extern BoolVar Enable;
-
-	void ApplyTemporalAA(CommandContext& Context);
-}

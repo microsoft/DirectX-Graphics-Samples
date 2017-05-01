@@ -12,14 +12,16 @@
 //
 
 #include "MotionBlurRS.hlsli"
+#include "PixelPacking_Velocity.hlsli"
 
 Texture2D<float3> ColorBuffer : register(t0);
-Texture2D<float2> MotionBuffer : register(t1);
+Texture2D<packed_velocity_t> VelocityBuffer : register(t1);
 RWTexture2D<float4> PrepBuffer : register(u0);
 
 float4 GetSampleData( uint2 st )
 {
-	return float4(ColorBuffer[st], 1.0) * saturate(length(MotionBuffer[st]) * 32.0 / 4.0);
+	float Speed = length(UnpackVelocity(VelocityBuffer[st]).xy);
+	return float4(ColorBuffer[st], 1.0) * saturate(Speed * 32.0 / 4.0);
 }
 
 [RootSignature(MotionBlur_RootSig)]

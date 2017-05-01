@@ -22,6 +22,8 @@ using namespace Graphics;
 
 void GpuBuffer::Create( const std::wstring& name, uint32_t NumElements, uint32_t ElementSize, const void* initialData )
 {
+	GpuResource::Destroy();
+
 	m_ElementCount = NumElements;
 	m_ElementSize = ElementSize;
 	m_BufferSize = NumElements * ElementSize;
@@ -88,11 +90,6 @@ void GpuBuffer::Create(const std::wstring& name, uint32_t NumElements, uint32_t 
 	EsramAllocator&, const void* initialData)
 {
 	Create(name, NumElements, ElementSize, initialData);
-}
-
-void GpuBuffer::Destroy(void)
-{
-	GpuResource::Destroy();
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE GpuBuffer::CreateConstantBufferView(uint32_t Offset, uint32_t Size) const

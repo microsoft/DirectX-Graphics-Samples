@@ -15,7 +15,7 @@
 
 RWStructuredBuffer<uint> g_SortBuffer : register(u0);
 
-cbuffer CB : register(b0)
+cbuffer CB0 : register(b0)
 {
 	uint k;		// k >= 4096
 	uint j;		// j >= 2048 && j < k

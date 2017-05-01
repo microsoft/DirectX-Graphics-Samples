@@ -22,7 +22,7 @@ RWStructuredBuffer<uint> g_LargeBinParticles : register(u0);
 RWStructuredBuffer<uint> g_LargeBinCounters : register(u1);
 RWStructuredBuffer<ParticleScreenData> g_VisibleParticles : register( u2 );
 
-cbuffer CB : register(b0)
+cbuffer CB0 : register(b0)
 {
 	uint2 LogTilesPerLargeBin;
 };

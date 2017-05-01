@@ -271,14 +271,16 @@ void Lighting::FillLightGrid(GraphicsContext& gfxContext, const Camera& camera)
 	default: ASSERT(false); break;
 	}
 
+	ColorBuffer& LinearDepth = g_LinearDepth[ Graphics::GetFrameCount() % 2 ];
+
 	Context.TransitionResource(m_LightBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	Context.TransitionResource(g_LinearDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	Context.TransitionResource(LinearDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	Context.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	Context.TransitionResource(m_LightGrid, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.TransitionResource(m_LightGridBitMask, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	Context.SetDynamicDescriptor(1, 0, m_LightBuffer.GetSRV());
-	Context.SetDynamicDescriptor(1, 1, g_LinearDepth.GetSRV());
+	Context.SetDynamicDescriptor(1, 1, LinearDepth.GetSRV());
 	//Context.SetDynamicDescriptor(1, 1, g_SceneDepthBuffer.GetDepthSRV());
 	Context.SetDynamicDescriptor(2, 0, m_LightGrid.GetUAV());
 	Context.SetDynamicDescriptor(2, 1, m_LightGridBitMask.GetUAV());

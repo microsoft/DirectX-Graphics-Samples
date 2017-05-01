@@ -17,8 +17,10 @@
 #include "DescriptorHeap.h"
 #include "RootSignature.h"
 #include "SamplerManager.h"
+#include "GraphicsCommon.h"
 
 class ColorBuffer;
+class DepthBuffer;
 class GraphicsPSO;
 class CommandContext;
 class CommandListManager;
@@ -60,47 +62,6 @@ namespace Graphics
 	extern D3D_FEATURE_LEVEL g_D3DFeatureLevel;
 	extern bool g_bTypedUAVLoadSupport_R11G11B10_FLOAT;
 	extern bool g_bEnableHDROutput;
-
-	extern SamplerDesc SamplerLinearWrapDesc;
-	extern SamplerDesc SamplerAnisoWrapDesc;
-	extern SamplerDesc SamplerShadowDesc;
-	extern SamplerDesc SamplerLinearClampDesc;
-	extern SamplerDesc SamplerVolumeWrapDesc;
-	extern SamplerDesc SamplerPointClampDesc;
-	extern SamplerDesc SamplerPointBorderDesc;
-	extern SamplerDesc SamplerLinearBorderDesc;
-
-	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearWrap;
-	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerAnisoWrap;
-	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerShadow;
-	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearClamp;
-	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerVolumeWrap;
-	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointClamp;
-	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointBorder;
-	extern D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearBorder;
-
-	extern D3D12_RASTERIZER_DESC RasterizerDefault;
-	extern D3D12_RASTERIZER_DESC RasterizerDefaultCW;
-	extern D3D12_RASTERIZER_DESC RasterizerTwoSided;
-	extern D3D12_RASTERIZER_DESC RasterizerShadow;
-	extern D3D12_RASTERIZER_DESC RasterizerShadowCW;
-	extern D3D12_RASTERIZER_DESC RasterizerShadowTwoSided;
-
-	extern D3D12_BLEND_DESC BlendNoColorWrite;		// XXX
-	extern D3D12_BLEND_DESC BlendDisable;			// 1, 0
-	extern D3D12_BLEND_DESC BlendPreMultiplied;		// 1, 1-SrcA
-	extern D3D12_BLEND_DESC BlendTraditional;		// SrcA, 1-SrcA
-	extern D3D12_BLEND_DESC BlendAdditive;			// 1, 1
-	extern D3D12_BLEND_DESC BlendTraditionalAdditive;// SrcA, 1
-
-	extern D3D12_DEPTH_STENCIL_DESC DepthStateDisabled;
-	extern D3D12_DEPTH_STENCIL_DESC DepthStateReadWrite;
-	extern D3D12_DEPTH_STENCIL_DESC DepthStateReadOnly;
-	extern D3D12_DEPTH_STENCIL_DESC DepthStateReadOnlyReversed;
-	extern D3D12_DEPTH_STENCIL_DESC DepthStateTestEqual;
-
-	extern CommandSignature DispatchIndirectCommandSignature;
-	extern CommandSignature DrawIndirectCommandSignature;
 
 	extern DescriptorAllocator g_DescriptorAllocator[];
 	inline D3D12_CPU_DESCRIPTOR_HANDLE AllocateDescriptor( D3D12_DESCRIPTOR_HEAP_TYPE Type, UINT Count = 1 )

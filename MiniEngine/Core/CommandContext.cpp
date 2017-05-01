@@ -517,6 +517,25 @@ void CommandContext::InitializeTextureArraySlice(GpuResource& Dest, UINT SliceIn
 	Context.Finish(true);
 }
 
+void CommandContext::ReadbackTexture2D(GpuResource& ReadbackBuffer, PixelBuffer& SrcBuffer)
+{
+	// The footprint may depend on the device of the resource, but we assume there is only one device.
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT PlacedFootprint;
+	g_Device->GetCopyableFootprints(&SrcBuffer.GetResource()->GetDesc(), 0, 1, 0, &PlacedFootprint, nullptr, nullptr, nullptr);
+
+	// This very short command list only issues one API call and will be synchronized so we can immediately read
+	// the buffer contents.
+	CommandContext& Context = CommandContext::Begin(L"Copy texture to memory");
+
+	Context.TransitionResource(SrcBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+
+	Context.m_CommandList->CopyTextureRegion(
+		&CD3DX12_TEXTURE_COPY_LOCATION(ReadbackBuffer.GetResource(), PlacedFootprint), 0, 0, 0,
+		&CD3DX12_TEXTURE_COPY_LOCATION(SrcBuffer.GetResource(), 0), nullptr);
+
+	Context.Finish(true);
+}
+
 void CommandContext::InitializeBuffer( GpuResource& Dest, const void* BufferData, size_t NumBytes, size_t Offset)
 {
 	CommandContext& InitContext = CommandContext::Begin();

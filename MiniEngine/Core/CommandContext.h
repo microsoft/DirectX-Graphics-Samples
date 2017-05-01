@@ -114,6 +114,10 @@ public:
 		return reinterpret_cast<ComputeContext&>(*this);
 	}
 
+	ID3D12GraphicsCommandList* GetCommandList() {
+		return m_CommandList;
+	}
+
 	void CopyBuffer( GpuResource& Dest, GpuResource& Src );
 	void CopyBufferRegion( GpuResource& Dest, size_t DestOffset, GpuResource& Src, size_t SrcOffset, size_t NumBytes );
 	void CopySubresource(GpuResource& Dest, UINT DestSubIndex, GpuResource& Src, UINT SrcSubIndex);
@@ -128,6 +132,7 @@ public:
 	static void InitializeTexture( GpuResource& Dest, UINT NumSubresources, D3D12_SUBRESOURCE_DATA SubData[] );
 	static void InitializeBuffer( GpuResource& Dest, const void* Data, size_t NumBytes, size_t Offset = 0);
 	static void InitializeTextureArraySlice(GpuResource& Dest, UINT SliceIndex, GpuResource& Src);
+	static void ReadbackTexture2D(GpuResource& ReadbackBuffer, PixelBuffer& SrcBuffer);
 
 	void WriteBuffer( GpuResource& Dest, size_t DestOffset, const void* Data, size_t NumBytes );
 	void FillBuffer( GpuResource& Dest, size_t DestOffset, DWParam Value, size_t NumBytes );

@@ -27,7 +27,7 @@ cbuffer cb0 : register(b1)
 	float AdaptationRate;
 	float MinExposure;
 	float MaxExposure;
-	float PixelCount; 
+	uint PixelCount; 
 }
 
 groupshared float gs_Accum[256];

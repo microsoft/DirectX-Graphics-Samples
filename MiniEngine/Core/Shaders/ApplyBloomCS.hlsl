@@ -25,7 +25,7 @@ Texture2D<float3> SrcColor : register(t2);
 RWTexture2D<float> OutLuma : register( u1 );
 SamplerState LinearSampler : register( s0 );
 
-cbuffer ConstantBuffer : register( b0 )
+cbuffer CB0 : register(b0)
 {
 	float2 g_RcpBufferDim;
 	float g_BloomStrength;

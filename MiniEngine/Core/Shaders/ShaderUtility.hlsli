@@ -44,6 +44,18 @@ float RGBToLogLuminance( float3 x, float gamma = 4.0 )
 	return LinearToLogLuminance( RGBToLuminance(x), gamma );
 }
 
+// A fast invertible tone map that preserves color (Reinhard)
+float3 TM( float3 rgb )
+{
+	return rgb / (1 + RGBToLuminance(rgb));
+}
+
+// Inverse of preceding function
+float3 ITM( float3 rgb )
+{
+	return rgb / (1 - RGBToLuminance(rgb));
+}
+
 // 8-bit should range from 16 to 235
 float3 RGBFullToLimited8bit( float3 x )
 {

@@ -13,7 +13,7 @@
 
 #include "TextRS.hlsli"
 
-cbuffer cbFontParams : register( b0 )
+cbuffer cbFontParams : register(b0)
 {
 	float2 Scale;			// Scale and offset for transforming coordinates
 	float2 Offset;

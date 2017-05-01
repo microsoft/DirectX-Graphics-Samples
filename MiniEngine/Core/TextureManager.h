@@ -28,12 +28,17 @@ public:
 	Texture(D3D12_CPU_DESCRIPTOR_HANDLE Handle) : m_hCpuDescriptorHandle(Handle) {}
 
 	// Create a 1-level 2D texture
-	void Create(size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData );
+	void Create(size_t Pitch, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData );
+	void Create(size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData )
+	{
+		Create(Width, Width, Height, Format, InitData);
+	}
 
 	void CreateTGAFromMemory( const void* memBuffer, size_t fileSize, bool sRGB );
 	bool CreateDDSFromMemory( const void* memBuffer, size_t fileSize, bool sRGB );
+	void CreatePIXImageFromMemory( const void* memBuffer, size_t fileSize );
 
-	void Destroy()
+	virtual void Destroy() override
 	{
 		GpuResource::Destroy();
 		m_hCpuDescriptorHandle.ptr = 0;
@@ -74,6 +79,7 @@ namespace TextureManager
 	const ManagedTexture* LoadFromFile( const std::wstring& fileName, bool sRGB = false );
 	const ManagedTexture* LoadDDSFromFile( const std::wstring& fileName, bool sRGB = false );
 	const ManagedTexture* LoadTGAFromFile( const std::wstring& fileName, bool sRGB = false );
+	const ManagedTexture* LoadPIXImageFromFile( const std::wstring& fileName );
 
 	inline const ManagedTexture* LoadFromFile( const std::string& fileName, bool sRGB = false )
 	{
@@ -88,6 +94,11 @@ namespace TextureManager
 	inline const ManagedTexture* LoadTGAFromFile( const std::string& fileName, bool sRGB = false )
 	{
 		return LoadTGAFromFile(MakeWStr(fileName), sRGB);
+	}
+
+	inline const ManagedTexture* LoadPIXImageFromFile( const std::string& fileName )
+	{
+		return LoadPIXImageFromFile(MakeWStr(fileName));
 	}
 
 	const Texture& GetBlackTex2D(void);

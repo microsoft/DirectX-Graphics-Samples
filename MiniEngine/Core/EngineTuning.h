@@ -140,6 +140,7 @@ public:
 	virtual std::string ToString( void ) const override;
 	virtual void SetValue( FILE* file, const std::string& setting ) override;
 
+	void SetListLength(int32_t listLength) { m_EnumLength = listLength; m_Value = Clamp(m_Value); }
 
 private:
 	int32_t Clamp( int32_t val ) { return val < 0 ? 0 : val >= m_EnumLength ? m_EnumLength - 1 : val; }

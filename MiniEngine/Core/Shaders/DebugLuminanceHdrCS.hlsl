@@ -26,7 +26,7 @@ Texture2D<float3> SrcColor : register(t2);
 RWTexture2D<float> OutLuma : register(u1);
 SamplerState LinearSampler : register( s0 );
 
-cbuffer ConstantBuffer : register( b0 )
+cbuffer CB0 : register(b0)
 {
 	float2 g_RcpBufferDim;
 	float g_BloomStrength;
@@ -42,7 +42,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	float3 hdrColor = SrcColor[DTid.xy] + g_BloomStrength * Bloom.SampleLevel(LinearSampler, TexCoord, 0);
 
 	// Tone map to LDR and convert to greyscale
-	float luma = RGBToLuminance( ToneMap(hdrColor * Exposure[0]) );
+	float luma = ToneMapLuma(RGBToLuminance(hdrColor) * Exposure[0]);
 
 	float logLuma = LinearToLogLuminance(luma);
 

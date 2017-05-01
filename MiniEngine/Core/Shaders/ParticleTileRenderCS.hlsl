@@ -20,7 +20,7 @@
 
 #define ALPHA_THRESHOLD (252.0 / 255.0)
 
-cbuffer CB : register(b0)
+cbuffer CB0 : register(b0)
 {
 	float gDynamicResLevel;
 	float gMipBias;

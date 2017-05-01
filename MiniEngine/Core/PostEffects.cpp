@@ -67,12 +67,6 @@ namespace DepthOfField
 
 namespace PostEffects
 {
-	// These bloom buffer dimensions were chosen for their impressive divisibility by 128 and because they are roughly 16:9.
-	// The blurring algorithm is exactly 9 pixels by 9 pixels, so if the aspect ratio of each pixel is not square, the blur
-	// will be oval in appearance rather than circular.  Coincidentally, they are close to 1/2 of a 720p buffer and 1/3 of
-	// 1080p.  This is a common size for a bloom buffer on consoles.
-	static_assert( kBloomWidth % 16 == 0 && kBloomHeight % 16 == 0, "Bloom buffer dimensions must be multiples of 16" );
-
 	const float kInitialMinLog = -12.0f;
 	const float kInitialMaxLog = 4.0f;
 
@@ -84,10 +78,9 @@ namespace PostEffects
 	NumVar AdaptationRate("Graphics/HDR/Adaptation Rate", 0.05f, 0.01f, 1.0f, 0.01f);
 	ExpVar Exposure("Graphics/HDR/Exposure", 2.0f, -8.0f, 8.0f, 0.25f);
 	BoolVar DrawHistogram("Graphics/HDR/Draw Histogram", false);
-	NumVar g_ToeStrength("Graphics/HDR/Toe Strength", 0.02f, 0.0f, 0.1f, 0.005f);
 
 	BoolVar BloomEnable("Graphics/Bloom/Enable", true);
-	NumVar BloomThreshold("Graphics/Bloom/Threshold", 1.0f, 0.0f, 8.0f, 0.1f);		// The threshold luminance above which a pixel will start to bloom
+	NumVar BloomThreshold("Graphics/Bloom/Threshold", 4.0f, 0.0f, 8.0f, 0.1f);		// The threshold luminance above which a pixel will start to bloom
 	NumVar BloomStrength("Graphics/Bloom/Strength", 0.1f, 0.0f, 2.0f, 0.05f);		// A modulator controlling how much bloom is added back into the image
 	NumVar BloomUpsampleFactor("Graphics/Bloom/Scatter", 0.65f, 0.0f, 1.0f, 0.05f);	// Controls the "focus" of the blur.  High values spread out more causing a haze.
 	BoolVar HighQualityBloom("Graphics/Bloom/High Quality", true);					// High quality blurs 5 octaves of bloom; low quality only blurs 3.
@@ -114,7 +107,7 @@ namespace PostEffects
 	StructuredBuffer g_Exposure;
 
 	void UpdateExposure(ComputeContext&);
-	void BlurBuffer(ComputeContext&, ColorBuffer buffer[2], const ColorBuffer& lowerResBuf, uint32_t bufferWidth, uint32_t bufferHeight, float upsampleBlendFactor );
+	void BlurBuffer(ComputeContext&, ColorBuffer buffer[2], const ColorBuffer& lowerResBuf, float upsampleBlendFactor );
 	void GenerateBloom(ComputeContext&);
 	void ExtractLuma(ComputeContext&);
 	void ProcessHDR(ComputeContext&);
@@ -190,9 +183,11 @@ void PostEffects::Shutdown( void )
 	DepthOfField::Shutdown();
 }
 
-void PostEffects::BlurBuffer( ComputeContext& Context, ColorBuffer buffer[2], const ColorBuffer& lowerResBuf, uint32_t bufferWidth, uint32_t bufferHeight, float upsampleBlendFactor )
+void PostEffects::BlurBuffer( ComputeContext& Context, ColorBuffer buffer[2], const ColorBuffer& lowerResBuf, float upsampleBlendFactor )
 {
 	// Set the shader constants
+	uint32_t bufferWidth = buffer[0].GetWidth();
+	uint32_t bufferHeight = buffer[0].GetHeight();
 	Context.SetConstants(0, 1.0f / bufferWidth, 1.0f / bufferHeight, upsampleBlendFactor);
 
 	// Set the input textures and output UAV
@@ -220,6 +215,16 @@ void PostEffects::GenerateBloom( ComputeContext& Context )
 	// We can generate a bloom buffer up to 1/4 smaller in each dimension without undersampling.  If only downsizing by 1/2 or less, a faster
 	// shader can be used which only does one bilinear sample.
 
+	uint32_t kBloomWidth = g_LumaLR.GetWidth();
+	uint32_t kBloomHeight = g_LumaLR.GetHeight();
+
+	// These bloom buffer dimensions were chosen for their impressive divisibility by 128 and because they are roughly 16:9.
+	// The blurring algorithm is exactly 9 pixels by 9 pixels, so if the aspect ratio of each pixel is not square, the blur
+	// will be oval in appearance rather than circular.  Coincidentally, they are close to 1/2 of a 720p buffer and 1/3 of
+	// 1080p.  This is a common size for a bloom buffer on consoles.
+	ASSERT(kBloomWidth % 16 == 0 && kBloomHeight % 16 == 0, "Bloom buffer dimensions must be multiples of 16");
+
+
 	Context.SetConstants(0, 1.0f / kBloomWidth, 1.0f / kBloomHeight, (float)BloomThreshold );
 	Context.TransitionResource(g_aBloomUAV1[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.TransitionResource(g_LumaLR, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -228,10 +233,10 @@ void PostEffects::GenerateBloom( ComputeContext& Context )
 
 	{
 
-		D3D12_CPU_DESCRIPTOR_HANDLE UAVs[2] = { g_aBloomUAV1[0].GetUAV(), g_LumaLR.GetUAV() };
-		Context.SetDynamicDescriptors(1, 0, 2, UAVs);
-		D3D12_CPU_DESCRIPTOR_HANDLE SRVs[2] = { g_SceneColorBuffer.GetSRV(), g_Exposure.GetSRV() };
-		Context.SetDynamicDescriptors(2, 0, 2, SRVs);
+		Context.SetDynamicDescriptor(1, 0, g_aBloomUAV1[0].GetUAV());
+		Context.SetDynamicDescriptor(1, 1, g_LumaLR.GetUAV());
+		Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
+		Context.SetDynamicDescriptor(2, 1, g_Exposure.GetSRV());
 
 		Context.SetPipelineState(EnableHDR ? BloomExtractAndDownsampleHdrCS : BloomExtractAndDownsampleLdrCS);
 		Context.Dispatch2D(kBloomWidth, kBloomHeight);
@@ -266,11 +271,11 @@ void PostEffects::GenerateBloom( ComputeContext& Context )
 		float upsampleBlendFactor = BloomUpsampleFactor;
 
 		// Blur then upsample and blur four times
-		BlurBuffer( Context, g_aBloomUAV5, g_aBloomUAV5[0], kBloomWidth/16, kBloomHeight/16, 1.0f );
-		BlurBuffer( Context, g_aBloomUAV4, g_aBloomUAV5[1], kBloomWidth/8,  kBloomHeight/8,  upsampleBlendFactor  );
-		BlurBuffer( Context, g_aBloomUAV3, g_aBloomUAV4[1], kBloomWidth/4,  kBloomHeight/4,  upsampleBlendFactor  );
-		BlurBuffer( Context, g_aBloomUAV2, g_aBloomUAV3[1], kBloomWidth/2,  kBloomHeight/2,  upsampleBlendFactor  );
-		BlurBuffer( Context, g_aBloomUAV1, g_aBloomUAV2[1], kBloomWidth,    kBloomHeight  ,  upsampleBlendFactor  );
+		BlurBuffer( Context, g_aBloomUAV5, g_aBloomUAV5[0], 1.0f );
+		BlurBuffer( Context, g_aBloomUAV4, g_aBloomUAV5[1], upsampleBlendFactor  );
+		BlurBuffer( Context, g_aBloomUAV3, g_aBloomUAV4[1], upsampleBlendFactor  );
+		BlurBuffer( Context, g_aBloomUAV2, g_aBloomUAV3[1], upsampleBlendFactor  );
+		BlurBuffer( Context, g_aBloomUAV1, g_aBloomUAV2[1], upsampleBlendFactor  );
 	}
 	else
 	{
@@ -291,9 +296,9 @@ void PostEffects::GenerateBloom( ComputeContext& Context )
 		float upsampleBlendFactor = BloomUpsampleFactor * 2.0f / 3.0f;
 
 		// Blur then upsample and blur two times
-		BlurBuffer( Context, g_aBloomUAV5, g_aBloomUAV5[0], kBloomWidth/16, kBloomHeight/16, 1.0f );
-		BlurBuffer( Context, g_aBloomUAV3, g_aBloomUAV5[1], kBloomWidth/4,  kBloomHeight/4,  upsampleBlendFactor );
-		BlurBuffer( Context, g_aBloomUAV1, g_aBloomUAV3[1], kBloomWidth,    kBloomHeight  ,  upsampleBlendFactor );
+		BlurBuffer( Context, g_aBloomUAV5, g_aBloomUAV5[0], 1.0f );
+		BlurBuffer( Context, g_aBloomUAV3, g_aBloomUAV5[1], upsampleBlendFactor );
+		BlurBuffer( Context, g_aBloomUAV1, g_aBloomUAV3[1], upsampleBlendFactor );
 	}
 }
 
@@ -302,11 +307,13 @@ void PostEffects::ExtractLuma( ComputeContext& Context )
 	ScopedTimer _prof(L"Extract Luma", Context);
 
 	Context.TransitionResource(g_LumaLR, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	Context.SetConstants(0, 1.0f / kBloomWidth, 1.0f / kBloomHeight );
+	Context.TransitionResource(g_Exposure, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	Context.SetConstants(0, 1.0f / g_LumaLR.GetWidth(), 1.0f / g_LumaLR.GetHeight());
 	Context.SetDynamicDescriptor(1, 0, g_LumaLR.GetUAV());
 	Context.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetSRV());
+	Context.SetDynamicDescriptor(2, 1, g_Exposure.GetSRV());
 	Context.SetPipelineState(ExtractLumaCS);
-	Context.Dispatch2D(kBloomWidth, kBloomHeight);
+	Context.Dispatch2D(g_LumaLR.GetWidth(), g_LumaLR.GetHeight());
 }
 
 void PostEffects::UpdateExposure( ComputeContext& Context )
@@ -325,7 +332,7 @@ void PostEffects::UpdateExposure( ComputeContext& Context )
 
 		return;
 	}
-
+	
 	// Generate an HDR histogram
 	Context.TransitionResource(g_Histogram, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
 	Context.ClearUAV(g_Histogram);
@@ -333,18 +340,25 @@ void PostEffects::UpdateExposure( ComputeContext& Context )
 	Context.SetDynamicDescriptor(1, 0, g_Histogram.GetUAV() );
 	Context.SetDynamicDescriptor(2, 0, g_LumaLR.GetSRV() );
 	Context.SetPipelineState(GenerateHistogramCS);
-	Context.Dispatch2D(kBloomWidth, kBloomHeight, 16, 384);
+	Context.Dispatch2D(g_LumaLR.GetWidth(), g_LumaLR.GetHeight(), 16, 384);
 
-	__declspec(align(16)) float constants[6] =
+	__declspec(align(16)) struct
+	{
+		float TargetLuminance;
+		float AdaptationRate;
+		float MinExposure;
+		float MaxExposure;
+		uint32_t PixelCount; 
+	} constants =
 	{
 		TargetLuminance, AdaptationRate, MinExposure, MaxExposure,
-		kBloomWidth * kBloomHeight
+		g_LumaLR.GetWidth() * g_LumaLR.GetHeight()
 	};
 	Context.TransitionResource(g_Histogram, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	Context.TransitionResource(g_Exposure, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	Context.SetDynamicDescriptor(1, 0, g_Exposure.GetUAV());
 	Context.SetDynamicDescriptor(2, 0, g_Histogram.GetSRV());
-	Context.SetDynamicConstantBufferView(3, sizeof(constants), constants);
+	Context.SetDynamicConstantBufferView(3, sizeof(constants), &constants);
 	Context.SetPipelineState(AdaptExposureCS);
 	Context.Dispatch();
 	Context.TransitionResource(g_Exposure, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -372,13 +386,11 @@ void PostEffects::ProcessHDR( ComputeContext& Context )
 
 	Context.SetPipelineState(FXAA::DebugDraw ? DebugLuminanceHdrCS : (g_bEnableHDROutput ? ToneMapHDRCS : ToneMapCS));
 
-	float ToeStrength = g_ToeStrength < 1e-6f ? 1e32f : 1.0f / g_ToeStrength;
-
 	// Set constants
 	Context.SetConstants(0, 1.0f / g_SceneColorBuffer.GetWidth(), 1.0f / g_SceneColorBuffer.GetHeight(),
-		(float)BloomStrength, ToeStrength);
+		(float)BloomStrength);
 
-	// Separate out LDR result from its perceived luminance
+	// Separate out SDR result from its perceived luminance
 	if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
 		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
 	else
@@ -400,7 +412,7 @@ void PostEffects::ProcessHDR( ComputeContext& Context )
 
 void PostEffects::ProcessLDR(CommandContext& BaseContext)
 {
-	ScopedTimer _prof(L"LDR Processing", BaseContext);
+	ScopedTimer _prof(L"SDR Processing", BaseContext);
 
 	ComputeContext& Context = BaseContext.GetComputeContext();
 
@@ -422,7 +434,7 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 		Context.SetConstants(0, 1.0f / g_SceneColorBuffer.GetWidth(), 1.0f / g_SceneColorBuffer.GetHeight(),
 			(float)BloomStrength);
 
-		// Separate out LDR result from its perceived luminance
+		// Separate out SDR result from its perceived luminance
 		if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
 			Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
 		else
@@ -432,7 +444,7 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 		}
 		Context.SetDynamicDescriptor(1, 1, g_LumaBuffer.GetUAV());
 
-		// Read in original LDR value and blurred bloom buffer
+		// Read in original SDR value and blurred bloom buffer
 		Context.SetDynamicDescriptor(2, 0, bGenerateBloom ? g_aBloomUAV1[1].GetSRV() : TextureManager::GetBlackTex2D().GetSRV());
 
 		Context.SetPipelineState(FXAA::DebugDraw ? DebugLuminanceLdrCS : ApplyBloomCS);
@@ -442,25 +454,23 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
 	}
 }
 
+void PostEffects::CopyBackPostBuffer( ComputeContext& Context )
+{
+	ScopedTimer _prof(L"Copy Post back to Scene", Context);
+	Context.SetRootSignature(PostEffectsRS);
+	Context.SetPipelineState(CopyBackPostBufferCS);
+	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	Context.TransitionResource(g_PostEffectsBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
+	Context.SetDynamicDescriptor(2, 0, g_PostEffectsBuffer.GetSRV());
+	Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
+}
+
 void PostEffects::Render( void )
 {
 	ComputeContext& Context = ComputeContext::Begin(L"Post Effects");
 
-	TemporalAA::ApplyTemporalAA(Context);
-
 	Context.SetRootSignature(PostEffectsRS);
-
-	if (TemporalAA::Enable)
-	{
-		ScopedTimer _prof(L"Copy Post back to Scene", Context);
-		Context.SetRootSignature(PostEffectsRS);
-		Context.SetPipelineState(CopyBackPostBufferCS);
-		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		Context.TransitionResource(g_PostEffectsBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
-		Context.SetDynamicDescriptor(2, 0, g_PostEffectsBuffer.GetSRV());
-		Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
-	}
 
 	Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -480,16 +490,7 @@ void PostEffects::Render( void )
 	// is only to support legacy hardware and a single buffer copy isn't that big of a deal, this
 	// is the most economical solution.
 	if (!g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
-	{
-		ScopedTimer _prof(L"Copy Post back to Scene", Context);
-		Context.SetRootSignature(PostEffectsRS);
-		Context.SetPipelineState(CopyBackPostBufferCS);
-		Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		Context.TransitionResource(g_PostEffectsBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		Context.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetUAV());
-		Context.SetDynamicDescriptor(2, 0, g_PostEffectsBuffer.GetSRV());
-		Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
-	}
+		CopyBackPostBuffer(Context);
 
 	if (DrawHistogram)
 	{

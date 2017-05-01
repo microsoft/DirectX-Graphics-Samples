@@ -13,7 +13,7 @@
 
 #include "TextRS.hlsli"
 
-cbuffer cbFontParams : register( b0 )
+cbuffer cbFontParams : register(b0)
 {
 	float4 Color;
 	float2 ShadowOffset;

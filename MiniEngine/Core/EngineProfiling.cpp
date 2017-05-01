@@ -493,7 +493,7 @@ namespace EngineProfiling
 			NestedTimingTree::Display( Text, x );
 		}
 
-		Text.GetCommandContext().SetScissor(0, 0, 1920, 1080);
+		Text.GetCommandContext().SetScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
 	}
 
 } // EngineProfiling

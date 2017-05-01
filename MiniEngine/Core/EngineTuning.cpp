@@ -618,7 +618,11 @@ void EngineTuning::Display( GraphicsContext& Context, float x, float y, float w,
 	s_ScrollTopTrigger = y + h * 0.2f;
 	s_ScrollBottomTrigger = y + h * 0.8f;
 
-	Context.SetScissor((uint32_t)Floor(x), (uint32_t)Floor(y), (uint32_t)Ceiling(x + w), (uint32_t)Ceiling(y + h));
+	float hScale = g_DisplayWidth / 1920.0f;
+	float vScale = g_DisplayHeight / 1080.0f;
+
+	Context.SetScissor((uint32_t)Floor(x * hScale), (uint32_t)Floor(y * vScale), 
+		(uint32_t)Ceiling((x + w) * hScale), (uint32_t)Ceiling((y + h) * vScale));
 
 	Text.ResetCursor(x, y - s_ScrollOffset );
 	Text.SetColor( Color(0.5f, 1.0f, 1.0f) );
@@ -630,7 +634,7 @@ void EngineTuning::Display( GraphicsContext& Context, float x, float y, float w,
 	EngineProfiling::DisplayPerfGraph(Context);
 
 	Text.End();
-	Context.SetScissor(0, 0, 1920, 1080);
+	Context.SetScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
 }
 
 void EngineTuning::AddToVariableGraph( const string& path, EngineVar& var )

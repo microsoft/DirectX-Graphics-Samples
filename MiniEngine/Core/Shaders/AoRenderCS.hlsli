@@ -24,7 +24,7 @@ Texture2D<float> DepthTex : register(t0);
 #endif
 RWTexture2D<float> Occlusion : register(u0);
 SamplerState LinearBorderSampler : register(s1);
-cbuffer ConstantBuffer : register(b1)
+cbuffer CB1 : register(b1)
 {
 	float4 gInvThicknessTable[3];
 	float4 gSampleWeightTable[3];

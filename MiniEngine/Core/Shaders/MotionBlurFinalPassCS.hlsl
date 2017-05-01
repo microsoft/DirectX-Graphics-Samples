@@ -12,12 +12,12 @@
 //
 
 #include "MotionBlurRS.hlsli"
-#include "PixelPacking.hlsli"
+#include "PixelPacking_Velocity.hlsli"
 
 #define MAX_SAMPLE_COUNT  10
 #define STEP_SIZE         3.0
 
-Texture2D<float2> VelocityBuffer : register(t0);		// full resolution motion vectors
+Texture2D<packed_velocity_t> VelocityBuffer : register(t0);		// full resolution motion vectors
 Texture2D<float4> PrepBuffer : register(t1);		// 1/4 resolution pre-weighted blurred color samples
 RWTexture2D<float3> DstColor : register(u0);		// final output color (blurred and temporally blended)
 SamplerState LinearSampler : register(s0);
@@ -35,7 +35,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
 	float2 position = st + 0.5;
 	float2 uv = position * RcpBufferDim;
 
-	float2 Velocity = VelocityBuffer[st];
+	float2 Velocity = UnpackVelocity(VelocityBuffer[st]).xy;
 	float3 thisColor = DstColor[st];
 
 	// Computing speed in this way will set the step size to two-pixel increments in the dominant
