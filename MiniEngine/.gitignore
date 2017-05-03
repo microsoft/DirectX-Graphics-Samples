@@ -1,5 +1,6 @@
 *.user
 *.suo
+*.VC.db*
 *.shader_inc
 *.vspscc
 /Build
