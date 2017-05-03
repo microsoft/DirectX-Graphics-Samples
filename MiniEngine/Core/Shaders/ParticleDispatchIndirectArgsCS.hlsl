@@ -20,6 +20,6 @@ RWByteAddressBuffer g_NumThreadGroups : register( u1 );
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-	g_NumThreadGroups.Store(0, ( g_ParticleInstance.Load(0) + 63) / 64);
+    g_NumThreadGroups.Store(0, ( g_ParticleInstance.Load(0) + 63) / 64);
 
 }

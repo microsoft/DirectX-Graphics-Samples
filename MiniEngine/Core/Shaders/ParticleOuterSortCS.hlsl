@@ -17,24 +17,24 @@ RWStructuredBuffer<uint> g_SortBuffer : register(u0);
 
 cbuffer CB0 : register(b0)
 {
-	uint k;		// k >= 4096
-	uint j;		// j >= 2048 && j < k
+    uint k;		// k >= 4096
+    uint j;		// j >= 2048 && j < k
 };
 
 [RootSignature(Particle_RootSig)]
 [numthreads(1024, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID  )
 {
-	// Form unique index pair from dispatch thread ID
-	uint Index1 = InsertZeroBit(DTid.x, j);
-	uint Index2 = Index1 | j;
+    // Form unique index pair from dispatch thread ID
+    uint Index1 = InsertZeroBit(DTid.x, j);
+    uint Index2 = Index1 | j;
 
-	uint A = g_SortBuffer[Index1];
-	uint B = g_SortBuffer[Index2];
+    uint A = g_SortBuffer[Index1];
+    uint B = g_SortBuffer[Index2];
 
-	if ((A > B) != ((Index1 & k) == 0))
-	{
-		g_SortBuffer[Index1] = B;
-		g_SortBuffer[Index2] = A;
-	}
+    if ((A > B) != ((Index1 & k) == 0))
+    {
+        g_SortBuffer[Index1] = B;
+        g_SortBuffer[Index2] = A;
+    }
 }

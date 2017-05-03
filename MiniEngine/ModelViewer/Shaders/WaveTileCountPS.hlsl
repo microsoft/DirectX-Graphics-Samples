@@ -16,14 +16,14 @@
 
 struct VSOutput
 {
-	sample float4 position : SV_Position;
-	sample float3 worldPos : worldPos;
-	sample float2 texcoord0 : texcoord0;
-	sample float3 viewDir : texcoord1;
-	sample float3 shadowCoord : texcoord2;
-	sample float3 normal : normal;
-	sample float3 tangent : tangent;
-	sample float3 bitangent : bitangent;
+    sample float4 position : SV_Position;
+    sample float3 worldPos : worldPos;
+    sample float2 texcoord0 : texcoord0;
+    sample float3 viewDir : texcoord1;
+    sample float3 shadowCoord : texcoord2;
+    sample float3 normal : normal;
+    sample float3 tangent : tangent;
+    sample float3 bitangent : bitangent;
 };
 
 Texture2D<float3> texDiffuse		: register(t0);
@@ -41,14 +41,14 @@ ByteAddressBuffer lightGrid : register(t68);
 
 cbuffer PSConstants : register(b0)
 {
-	float3 SunDirection;
-	float3 SunColor;
-	float3 AmbientColor;
-	float4 ShadowTexelSize;
+    float3 SunDirection;
+    float3 SunColor;
+    float3 AmbientColor;
+    float4 ShadowTexelSize;
 
-	float4 InvTileDim;
-	uint4 TileCount;
-	uint4 FirstLightIndex;
+    float4 InvTileDim;
+    uint4 TileCount;
+    uint4 FirstLightIndex;
 }
 
 SamplerState sampler0 : register(s0);
@@ -57,13 +57,13 @@ SamplerComparisonState shadowSampler : register(s1);
 [RootSignature(ModelViewer_RootSig)]
 float3 main(VSOutput vsOutput) : SV_Target0
 {
-	uint2 tilePos = GetTilePos(vsOutput.position.xy, InvTileDim.xy);
-	uint tileIndex = GetTileIndex(tilePos, TileCount.x);
-	uint tileOffset = GetTileOffset(tileIndex);
+    uint2 tilePos = GetTilePos(vsOutput.position.xy, InvTileDim.xy);
+    uint tileIndex = GetTileIndex(tilePos, TileCount.x);
+    uint tileOffset = GetTileOffset(tileIndex);
 
-	// There are three counts in one UINT
-	uint tileLightCount = lightGrid.Load(tileOffset + 0);
-	tileLightCount = (tileLightCount & 0xFF) + ((tileLightCount >> 8) & 0xFF) + ((tileLightCount >> 16) & 0xFF);
+    // There are three counts in one UINT
+    uint tileLightCount = lightGrid.Load(tileOffset + 0);
+    tileLightCount = (tileLightCount & 0xFF) + ((tileLightCount >> 8) & 0xFF) + ((tileLightCount >> 16) & 0xFF);
 
-	return lerp(float3(0, 1, 0), float3(1, 0, 0), tileLightCount / 32.0);
+    return lerp(float3(0, 1, 0), float3(1, 0, 0), tileLightCount / 32.0);
 }

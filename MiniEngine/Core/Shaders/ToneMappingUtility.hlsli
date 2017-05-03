@@ -24,13 +24,13 @@
 // I.e. TM_Reinhard(x, 0.5) == TM_Reinhard(x * 2.0, 1.0)
 float3 TM_Reinhard(float3 hdr, float k = 1.0)
 {
-	return hdr / (hdr + k);
+    return hdr / (hdr + k);
 }
 
 // The inverse of Reinhard
 float3 ITM_Reinhard(float3 sdr, float k = 1.0)
 {
-	return k * sdr / (k - sdr);
+    return k * sdr / (k - sdr);
 }
 
 //
@@ -51,13 +51,13 @@ float3 ITM_Reinhard(float3 sdr, float k = 1.0)
 
 float3 TM_ReinhardSq(float3 hdr, float k = 0.25)
 {
-	float3 reinhard = hdr / (hdr + k);
-	return reinhard * reinhard;
+    float3 reinhard = hdr / (hdr + k);
+    return reinhard * reinhard;
 }
 
 float3 ITM_ReinhardSq(float3 sdr, float k = 0.25)
 {
-	return k * (sdr + sqrt(sdr)) / (1.0 - sdr);
+    return k * (sdr + sqrt(sdr)) / (1.0 - sdr);
 }
 
 //
@@ -70,14 +70,14 @@ float3 ITM_ReinhardSq(float3 sdr, float k = 0.25)
 
 float3 TM_Stanard(float3 hdr)
 {
-	hdr *= sqrt(hdr); // pow(hdr, 1.5)
-	return TM_Reinhard(hdr, sqrt(4.0 / 27.0));
+    hdr *= sqrt(hdr); // pow(hdr, 1.5)
+    return TM_Reinhard(hdr, sqrt(4.0 / 27.0));
 }
 
 float3 ITM_Stanard(float3 sdr)
 {
-	float3 hdr = ITM_Reinhard(sdr, sqrt(4.0 / 27.0));
-	return pow(hdr, 2.0 / 3.0);
+    float3 hdr = ITM_Reinhard(sdr, sqrt(4.0 / 27.0));
+    return pow(hdr, 2.0 / 3.0);
 }
 
 //
@@ -93,22 +93,22 @@ float3 ITM_Stanard(float3 sdr)
 
 float3 ToneMap( float3 hdr )
 {
-	return 1 - exp2(-hdr);
+    return 1 - exp2(-hdr);
 }
 
 float3 InverseToneMap(float3 sdr)
 {
-	return -log2(max(1e-6, 1 - sdr));
+    return -log2(max(1e-6, 1 - sdr));
 }
 
 float ToneMapLuma( float luma )
 {
-	return 1 - exp2(-luma);
+    return 1 - exp2(-luma);
 }
 
 float InverseToneMapLuma(float luma)
 {
-	return -log2(max(1e-6, 1 - luma));
+    return -log2(max(1e-6, 1 - luma));
 }
 
 //
@@ -119,14 +119,14 @@ float InverseToneMapLuma(float luma)
 
 float3 ToneMapACES( float3 hdr )
 {
-	const float A = 2.51, B = 0.03, C = 2.43, D = 0.59, E = 0.14;
-	return saturate((hdr * (A * hdr + B)) / (hdr * (C * hdr + D) + E));
+    const float A = 2.51, B = 0.03, C = 2.43, D = 0.59, E = 0.14;
+    return saturate((hdr * (A * hdr + B)) / (hdr * (C * hdr + D) + E));
 }
 
 float3 InverseToneMapACES( float3 sdr )
 {
-	const float A = 2.51, B = 0.03, C = 2.43, D = 0.59, E = 0.14;
-	return 0.5 * (D * sdr - sqrt(((D*D - 4*C*E) * sdr + 4*A*E-2*B*D) * sdr + B*B) - B) / (A - C * sdr);
+    const float A = 2.51, B = 0.03, C = 2.43, D = 0.59, E = 0.14;
+    return 0.5 * (D * sdr - sqrt(((D*D - 4*C*E) * sdr + 4*A*E-2*B*D) * sdr + B*B) - B) / (A - C * sdr);
 }
 
 #endif // __TONE_MAPPING_UTILITY_HLSLI__

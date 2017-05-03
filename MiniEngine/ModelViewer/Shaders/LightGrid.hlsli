@@ -17,27 +17,27 @@
 
 struct LightData
 {
-	float3 pos;
-	float radiusSq;
+    float3 pos;
+    float radiusSq;
 
-	float3 color;
-	uint type;
+    float3 color;
+    uint type;
 
-	float3 coneDir;
-	float2 coneAngles; // x = 1.0f / (cos(coneInner) - cos(coneOuter)), y = cos(coneOuter)
+    float3 coneDir;
+    float2 coneAngles; // x = 1.0f / (cos(coneInner) - cos(coneOuter)), y = cos(coneOuter)
 
-	float4x4 shadowTextureMatrix;
+    float4x4 shadowTextureMatrix;
 };
 
 uint2 GetTilePos(float2 pos, float2 invTileDim)
 {
-	return pos * invTileDim;
+    return pos * invTileDim;
 }
 uint GetTileIndex(uint2 tilePos, uint tileCountX)
 {
-	return tilePos.y * tileCountX + tilePos.x;
+    return tilePos.y * tileCountX + tilePos.x;
 }
 uint GetTileOffset(uint tileIndex)
 {
-	return tileIndex * TILE_SIZE;
+    return tileIndex * TILE_SIZE;
 }

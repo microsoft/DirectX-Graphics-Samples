@@ -20,15 +20,15 @@ RWByteAddressBuffer g_IndirectArgsBuffer : register(u0);
 [numthreads(8, 1, 1)]
 void main( uint GI : SV_GroupIndex )
 {
-	uint k = 1 << (GI + 11);
+    uint k = 1 << (GI + 11);
 
-	uint VisibleParticles = g_ActiveParticlesCount.Load(4);
-	uint NextPow2 = (1 << firstbithigh(VisibleParticles)) - 1;
-	NextPow2 = (VisibleParticles + NextPow2) & ~NextPow2;
-	NextPow2 = (NextPow2 + 2047) & ~2047;
+    uint VisibleParticles = g_ActiveParticlesCount.Load(4);
+    uint NextPow2 = (1 << firstbithigh(VisibleParticles)) - 1;
+    NextPow2 = (VisibleParticles + NextPow2) & ~NextPow2;
+    NextPow2 = (NextPow2 + 2047) & ~2047;
 
-	uint NumElements = k > NextPow2 ? 0 : (VisibleParticles + k - 1) & ~(k - 1);
-	uint NumGroups = (GI == 0 ? NextPow2 : NumElements) / 2048;
+    uint NumElements = k > NextPow2 ? 0 : (VisibleParticles + k - 1) & ~(k - 1);
+    uint NumGroups = (GI == 0 ? NextPow2 : NumElements) / 2048;
 
-	g_IndirectArgsBuffer.Store3(GI * 12, uint3(NumGroups, 1, 1));
+    g_IndirectArgsBuffer.Store3(GI * 12, uint3(NumGroups, 1, 1));
 }

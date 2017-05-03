@@ -23,10 +23,10 @@ RWTexture2D<float> OutputAlpha : register(u1);
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID )
 {
-	uint TileCoord = WorkQueue[Gid.x];
-	uint2 Tile = uint2(TileCoord & 0xFFFF, TileCoord >> 16);
-	uint2 st = Tile * 8 + GTid.xy;
+    uint TileCoord = WorkQueue[Gid.x];
+    uint2 Tile = uint2(TileCoord & 0xFFFF, TileCoord >> 16);
+    uint2 st = Tile * 8 + GTid.xy;
 
-	OutputColor[st] = InputColor[st];
-	OutputAlpha[st] = InputAlpha[st];
+    OutputColor[st] = InputColor[st];
+    OutputAlpha[st] = InputAlpha[st];
 }

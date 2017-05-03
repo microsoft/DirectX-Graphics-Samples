@@ -22,8 +22,8 @@
 
 cbuffer CB0 : register(b0)
 {
-	float gDynamicResLevel;
-	float gMipBias;
+    float gDynamicResLevel;
+    float gMipBias;
 };
 
 #if SUPPORT_TYPED_UAV_LOADS
@@ -46,174 +46,174 @@ StructuredBuffer<uint> g_DrawPackets : register(t6);
 
 float4 SampleParticleColor( ParticleScreenData Particle, SamplerState Sampler, float2 UV, float LevelBias )
 {
-	float LOD = Particle.TextureLevel + LevelBias;
+    float LOD = Particle.TextureLevel + LevelBias;
 
-	float4 Color = g_TexArray.SampleLevel( Sampler, float3(UV, Particle.TextureIndex), LOD);
+    float4 Color = g_TexArray.SampleLevel( Sampler, float3(UV, Particle.TextureIndex), LOD);
 
-	// Multiply texture RGB with alpha.  Pre-multiplied alpha blending also permits additive blending.
-	Color.rgb *= Color.a;
+    // Multiply texture RGB with alpha.  Pre-multiplied alpha blending also permits additive blending.
+    Color.rgb *= Color.a;
 
-	return Color * Particle.Color;
+    return Color * Particle.Color;
 }
 
 void BlendPixel( inout float4 Dst, float4 Src, float Mask )
 {
-	Dst += Src * (1.0 - Dst.a) * Mask;
+    Dst += Src * (1.0 - Dst.a) * Mask;
 }
 
 void BlendHighRes( inout float4x4 Quad, ParticleScreenData Particle, float2 PixelCoord, float4 Mask = 1 )
 {
-	float2 UV = (PixelCoord - Particle.Corner) * Particle.RcpSize;
-	float2 dUV = 0.5 * gRcpBufferDim * Particle.RcpSize;
-	float2 UV1 = UV - dUV;
-	float2 UV2 = UV + dUV;
+    float2 UV = (PixelCoord - Particle.Corner) * Particle.RcpSize;
+    float2 dUV = 0.5 * gRcpBufferDim * Particle.RcpSize;
+    float2 UV1 = UV - dUV;
+    float2 UV2 = UV + dUV;
 
 #if defined(DYNAMIC_RESOLUTION)
-	// Use point sampling for high-res rendering because this implies we're not rendering
-	// with the most detailed mip level anyway.
-	SamplerState Sampler = gSampPointBorder;
-	float LevelBias = gMipBias;
+    // Use point sampling for high-res rendering because this implies we're not rendering
+    // with the most detailed mip level anyway.
+    SamplerState Sampler = gSampPointBorder;
+    float LevelBias = gMipBias;
 #else
-	SamplerState Sampler = gSampLinearBorder;
-	float LevelBias = 0.0;
+    SamplerState Sampler = gSampLinearBorder;
+    float LevelBias = 0.0;
 #endif
 
-	BlendPixel(Quad[0], SampleParticleColor(Particle, Sampler, float2(UV1.x, UV2.y), LevelBias), Mask.x);
-	BlendPixel(Quad[1], SampleParticleColor(Particle, Sampler, float2(UV2.x, UV2.y), LevelBias), Mask.y);
-	BlendPixel(Quad[2], SampleParticleColor(Particle, Sampler, float2(UV2.x, UV1.y), LevelBias), Mask.z);
-	BlendPixel(Quad[3], SampleParticleColor(Particle, Sampler, float2(UV1.x, UV1.y), LevelBias), Mask.w);
+    BlendPixel(Quad[0], SampleParticleColor(Particle, Sampler, float2(UV1.x, UV2.y), LevelBias), Mask.x);
+    BlendPixel(Quad[1], SampleParticleColor(Particle, Sampler, float2(UV2.x, UV2.y), LevelBias), Mask.y);
+    BlendPixel(Quad[2], SampleParticleColor(Particle, Sampler, float2(UV2.x, UV1.y), LevelBias), Mask.z);
+    BlendPixel(Quad[3], SampleParticleColor(Particle, Sampler, float2(UV1.x, UV1.y), LevelBias), Mask.w);
 }
 
 void BlendLowRes( inout float4x4 Quad, ParticleScreenData Particle, float2 PixelCoord, float4 Mask = 1 )
 {
-	float2 UV = (PixelCoord - Particle.Corner) * Particle.RcpSize;
-	float4 Color = SampleParticleColor(Particle, gSampLinearBorder, UV, 1.0);
+    float2 UV = (PixelCoord - Particle.Corner) * Particle.RcpSize;
+    float4 Color = SampleParticleColor(Particle, gSampLinearBorder, UV, 1.0);
 #ifdef DEBUG_LOW_RES
-	Color.g *= 0.5;
+    Color.g *= 0.5;
 #endif
-	BlendPixel(Quad[0], Color, Mask.x);
-	BlendPixel(Quad[1], Color, Mask.y);
-	BlendPixel(Quad[2], Color, Mask.z);
-	BlendPixel(Quad[3], Color, Mask.w);
+    BlendPixel(Quad[0], Color, Mask.x);
+    BlendPixel(Quad[1], Color, Mask.y);
+    BlendPixel(Quad[2], Color, Mask.z);
+    BlendPixel(Quad[3], Color, Mask.w);
 }
 
 void WriteBlendedColor( uint2 ST, float4 Color )
 {
 #if SUPPORT_TYPED_UAV_LOADS
-	float3 DestColor = g_OutputColorBuffer[ST];
-	g_OutputColorBuffer[ST] = Color.rgb + DestColor * (1.0 - Color.a);
+    float3 DestColor = g_OutputColorBuffer[ST];
+    g_OutputColorBuffer[ST] = Color.rgb + DestColor * (1.0 - Color.a);
 #else
-	float3 DestColor = Unpack_R11G11B10_FLOAT(g_OutputColorBuffer[ST]);
-	g_OutputColorBuffer[ST] = Pack_R11G11B10_FLOAT(Color.rgb + DestColor * (1.0 - Color.a));
+    float3 DestColor = Unpack_R11G11B10_FLOAT(g_OutputColorBuffer[ST]);
+    g_OutputColorBuffer[ST] = Pack_R11G11B10_FLOAT(Color.rgb + DestColor * (1.0 - Color.a));
 #endif
 }
 
 void WriteBlendedQuad( uint2 ST, float4x4 Quad )
 {
-	WriteBlendedColor(ST + uint2(0, 0), Quad[3]);
-	WriteBlendedColor(ST + uint2(1, 0), Quad[2]);
-	WriteBlendedColor(ST + uint2(1, 1), Quad[1]);
-	WriteBlendedColor(ST + uint2(0, 1), Quad[0]);
+    WriteBlendedColor(ST + uint2(0, 0), Quad[3]);
+    WriteBlendedColor(ST + uint2(1, 0), Quad[2]);
+    WriteBlendedColor(ST + uint2(1, 1), Quad[1]);
+    WriteBlendedColor(ST + uint2(0, 1), Quad[0]);
 }
 
 float4x4 RenderParticles( uint2 TileCoord, uint2 ST, uint NumParticles, uint HitMaskStart, uint BinStart )
 {
 #ifndef DISABLE_DEPTH_TESTS
-	const uint TileNearZ = g_TileDepthBounds[TileCoord] << 18;
-	float4 Depths = g_InputDepthBuffer.Gather(gSampPointClamp, (ST + 1) * gRcpBufferDim);
+    const uint TileNearZ = g_TileDepthBounds[TileCoord] << 18;
+    float4 Depths = g_InputDepthBuffer.Gather(gSampPointClamp, (ST + 1) * gRcpBufferDim);
 #endif
 
-	// VGPR
-	float4x4 Quad = 0.0;
-	const float2 PixelCoord = (ST + 1) * gRcpBufferDim;
+    // VGPR
+    float4x4 Quad = 0.0;
+    const float2 PixelCoord = (ST + 1) * gRcpBufferDim;
 
-	uint BlendedParticles = 0;
+    uint BlendedParticles = 0;
 
-	while (BlendedParticles < NumParticles)
-	{
-		for (uint ParticleMask = g_HitMask.Load(HitMaskStart); ParticleMask != 0; ++BlendedParticles)
-		{
-			// Get the next bit and then clear it
-			uint SubIdx = firstbitlow(ParticleMask);
-			ParticleMask ^= 1 << SubIdx;
+    while (BlendedParticles < NumParticles)
+    {
+        for (uint ParticleMask = g_HitMask.Load(HitMaskStart); ParticleMask != 0; ++BlendedParticles)
+        {
+            // Get the next bit and then clear it
+            uint SubIdx = firstbitlow(ParticleMask);
+            ParticleMask ^= 1 << SubIdx;
 
-			// Get global particle index from sorted buffer and then load the particle
-			uint SortKey = g_SortedParticles[BinStart + SubIdx];
-			uint ParticleIdx = SortKey & 0x3FFFF;
-			ParticleScreenData Particle = g_VisibleParticles[ParticleIdx];
+            // Get global particle index from sorted buffer and then load the particle
+            uint SortKey = g_SortedParticles[BinStart + SubIdx];
+            uint ParticleIdx = SortKey & 0x3FFFF;
+            ParticleScreenData Particle = g_VisibleParticles[ParticleIdx];
 
 #if defined(DYNAMIC_RESOLUTION)
-			bool DoFullRes = (Particle.TextureLevel > gDynamicResLevel);
+            bool DoFullRes = (Particle.TextureLevel > gDynamicResLevel);
 #elif defined(LOW_RESOLUTION)
-			static const bool DoFullRes = false;
+            static const bool DoFullRes = false;
 #else
-			static const bool DoFullRes = true;
+            static const bool DoFullRes = true;
 #endif
 
-			if (DoFullRes)
-			{
+            if (DoFullRes)
+            {
 #ifndef DISABLE_DEPTH_TESTS
-				if (SortKey > TileNearZ)
-				{
-					float4 DepthMask = saturate(1000.0 * (Depths - Particle.Depth));
-					BlendHighRes(Quad, Particle, PixelCoord, DepthMask);
-				}
-				else
+                if (SortKey > TileNearZ)
+                {
+                    float4 DepthMask = saturate(1000.0 * (Depths - Particle.Depth));
+                    BlendHighRes(Quad, Particle, PixelCoord, DepthMask);
+                }
+                else
 #endif
-				{
-					BlendHighRes(Quad, Particle, PixelCoord);
-				}
-			}
-			else
-			{
+                {
+                    BlendHighRes(Quad, Particle, PixelCoord);
+                }
+            }
+            else
+            {
 #ifndef DISABLE_DEPTH_TESTS
-				if (SortKey > TileNearZ)
-				{
-					float4 DepthMask = saturate(1000.0 * (Depths - Particle.Depth));
-					BlendLowRes(Quad, Particle, PixelCoord, DepthMask);
-				}
-				else
+                if (SortKey > TileNearZ)
+                {
+                    float4 DepthMask = saturate(1000.0 * (Depths - Particle.Depth));
+                    BlendLowRes(Quad, Particle, PixelCoord, DepthMask);
+                }
+                else
 #endif
-				{
-					BlendLowRes(Quad, Particle, PixelCoord);
-				}
-			}
+                {
+                    BlendLowRes(Quad, Particle, PixelCoord);
+                }
+            }
 
-			//if (all(float4(Quad[0].a, Quad[1].a, Quad[2].a, Quad[3].a) > ALPHA_THRESHOLD))
-			//{
-			//	Quad[0].a = Quad[1].a = Quad[2].a = Quad[3].a = 1.0;
-			//	return Quad;
-			//}
+            //if (all(float4(Quad[0].a, Quad[1].a, Quad[2].a, Quad[3].a) > ALPHA_THRESHOLD))
+            //{
+            //	Quad[0].a = Quad[1].a = Quad[2].a = Quad[3].a = 1.0;
+            //	return Quad;
+            //}
 
-		} // for
+        } // for
 
-		// Every outer loop iteration traverses 32 entries in the sorted particle list
-		HitMaskStart += 4;
-		BinStart += 32;
+        // Every outer loop iteration traverses 32 entries in the sorted particle list
+        HitMaskStart += 4;
+        BinStart += 32;
 
-	} // while
+    } // while
 
-	return Quad;
+    return Quad;
 }
 
 [RootSignature(Particle_RootSig)]
 [numthreads(TILE_SIZE / 2, TILE_SIZE / 2, 1)]
 void main( uint3 Gid : SV_GroupID, uint  GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID )
 {
-	const uint DrawPacket = g_DrawPackets[Gid.x];
-	uint2 TileCoord = uint2(DrawPacket >> 16, DrawPacket >> 24) & 0xFF;
-	const uint ParticleCount = DrawPacket & 0xFFFF;
+    const uint DrawPacket = g_DrawPackets[Gid.x];
+    uint2 TileCoord = uint2(DrawPacket >> 16, DrawPacket >> 24) & 0xFF;
+    const uint ParticleCount = DrawPacket & 0xFFFF;
 
-	const uint HitMaskSizeInBytes = MAX_PARTICLES_PER_BIN / 8;
-	const uint TileIndex = TileCoord.x + TileCoord.y * gTileRowPitch;
-	const uint HitMaskStart = TileIndex * HitMaskSizeInBytes;
-	const uint2 BinCoord = TileCoord / uint2(TILES_PER_BIN_X, TILES_PER_BIN_Y);
-	const uint BinIndex = BinCoord.x + BinCoord.y * gBinsPerRow;
-	const uint BinStart = BinIndex * MAX_PARTICLES_PER_BIN;
+    const uint HitMaskSizeInBytes = MAX_PARTICLES_PER_BIN / 8;
+    const uint TileIndex = TileCoord.x + TileCoord.y * gTileRowPitch;
+    const uint HitMaskStart = TileIndex * HitMaskSizeInBytes;
+    const uint2 BinCoord = TileCoord / uint2(TILES_PER_BIN_X, TILES_PER_BIN_Y);
+    const uint BinIndex = BinCoord.x + BinCoord.y * gBinsPerRow;
+    const uint BinStart = BinIndex * MAX_PARTICLES_PER_BIN;
 
-	const uint2 ST = TileCoord * TILE_SIZE + 2 * GTid.xy;
+    const uint2 ST = TileCoord * TILE_SIZE + 2 * GTid.xy;
 
-	float4x4 Quad = RenderParticles( TileCoord, ST, ParticleCount, HitMaskStart, BinStart );
+    float4x4 Quad = RenderParticles( TileCoord, ST, ParticleCount, HitMaskStart, BinStart );
 
-	WriteBlendedQuad(ST, Quad);
+    WriteBlendedQuad(ST, Quad);
 }

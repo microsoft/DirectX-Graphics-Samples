@@ -20,21 +20,21 @@ RWTexture2D<float4> PrepBuffer : register(u0);
 
 float4 GetSampleData( uint2 st )
 {
-	float Speed = length(UnpackVelocity(VelocityBuffer[st]).xy);
-	return float4(ColorBuffer[st], 1.0) * saturate(Speed * 32.0 / 4.0);
+    float Speed = length(UnpackVelocity(VelocityBuffer[st]).xy);
+    return float4(ColorBuffer[st], 1.0) * saturate(Speed * 32.0 / 4.0);
 }
 
 [RootSignature(MotionBlur_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {
-	uint2 corner = DTid.xy << 1;
-	float4 sample0 = GetSampleData( corner + uint2(0, 0) );
-	float4 sample1 = GetSampleData( corner + uint2(1, 0) );
-	float4 sample2 = GetSampleData( corner + uint2(0, 1) );
-	float4 sample3 = GetSampleData( corner + uint2(1, 1) );
+    uint2 corner = DTid.xy << 1;
+    float4 sample0 = GetSampleData( corner + uint2(0, 0) );
+    float4 sample1 = GetSampleData( corner + uint2(1, 0) );
+    float4 sample2 = GetSampleData( corner + uint2(0, 1) );
+    float4 sample3 = GetSampleData( corner + uint2(1, 1) );
 
-	float combinedMotionWeight = sample0.a + sample1.a + sample2.a + sample3.a + 0.0001;
-	PrepBuffer[DTid.xy] = floor(0.25 * combinedMotionWeight * 3.0) / 3.0 * float4(
-		(sample0.rgb + sample1.rgb + sample2.rgb + sample3.rgb) / combinedMotionWeight, 1.0 );
+    float combinedMotionWeight = sample0.a + sample1.a + sample2.a + sample3.a + 0.0001;
+    PrepBuffer[DTid.xy] = floor(0.25 * combinedMotionWeight * 3.0) / 3.0 * float4(
+        (sample0.rgb + sample1.rgb + sample2.rgb + sample3.rgb) / combinedMotionWeight, 1.0 );
 }

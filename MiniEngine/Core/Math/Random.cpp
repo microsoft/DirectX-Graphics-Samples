@@ -16,5 +16,5 @@
 
 namespace Math
 {
-	RandomNumberGenerator g_RNG;
+    RandomNumberGenerator g_RNG;
 }

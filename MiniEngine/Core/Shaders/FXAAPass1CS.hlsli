@@ -62,9 +62,9 @@ DAMAGES.
 
 cbuffer CB0 : register(b0)
 {
-	float2 RcpTextureSize;
-	float ContrastThreshold;	// default = 0.2, lower is more expensive
-	float SubpixelRemoval;		// default = 0.75, lower blurs less
+    float2 RcpTextureSize;
+    float ContrastThreshold;	// default = 0.2, lower is more expensive
+    float SubpixelRemoval;		// default = 0.75, lower blurs less
 };
 
 RWStructuredBuffer<uint> HWork : register(u0);
@@ -86,9 +86,9 @@ groupshared float gs_LumaCache[ROW_WIDTH * ROW_WIDTH];
 
 // If pre-computed, source luminance as a texture, otherwise write it out for Pass2
 #ifdef USE_LUMA_INPUT_BUFFER
-	Texture2D<float> Luma : register(t1);
+    Texture2D<float> Luma : register(t1);
 #else
-	RWTexture2D<float> Luma : register(u4);
+    RWTexture2D<float> Luma : register(u4);
 #endif
 
 //
@@ -96,8 +96,8 @@ groupshared float gs_LumaCache[ROW_WIDTH * ROW_WIDTH];
 //
 float RGBToLogLuminance( float3 LinearRGB )
 {
-	float Luma = dot( LinearRGB, float3(0.212671, 0.715160, 0.072169) );
-	return log2(1 + Luma * 15) / 4;
+    float Luma = dot( LinearRGB, float3(0.212671, 0.715160, 0.072169) );
+    return log2(1 + Luma * 15) / 4;
 }
 
 [RootSignature(FXAA_RootSig)]
@@ -105,94 +105,94 @@ float RGBToLogLuminance( float3 LinearRGB )
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {
 #ifdef USE_LUMA_INPUT_BUFFER
-	// Load 4 lumas per thread into LDS (but only those needed to fill our pixel cache)
-	if (max(GTid.x, GTid.y) < ROW_WIDTH / 2)
-	{
-		int2 ThreadUL = DTid.xy + GTid.xy - (BOUNDARY_SIZE - 1);
-		float4 Luma4 = Luma.Gather(LinearSampler, ThreadUL * RcpTextureSize);
-		uint LoadIndex = (GTid.x + GTid.y * ROW_WIDTH) * 2;
-		gs_LumaCache[LoadIndex                ] = Luma4.w;
-		gs_LumaCache[LoadIndex + 1            ] = Luma4.z;
-		gs_LumaCache[LoadIndex + ROW_WIDTH    ] = Luma4.x;
-		gs_LumaCache[LoadIndex + ROW_WIDTH + 1] = Luma4.y;
-	}
+    // Load 4 lumas per thread into LDS (but only those needed to fill our pixel cache)
+    if (max(GTid.x, GTid.y) < ROW_WIDTH / 2)
+    {
+        int2 ThreadUL = DTid.xy + GTid.xy - (BOUNDARY_SIZE - 1);
+        float4 Luma4 = Luma.Gather(LinearSampler, ThreadUL * RcpTextureSize);
+        uint LoadIndex = (GTid.x + GTid.y * ROW_WIDTH) * 2;
+        gs_LumaCache[LoadIndex                ] = Luma4.w;
+        gs_LumaCache[LoadIndex + 1            ] = Luma4.z;
+        gs_LumaCache[LoadIndex + ROW_WIDTH    ] = Luma4.x;
+        gs_LumaCache[LoadIndex + ROW_WIDTH + 1] = Luma4.y;
+    }
 #else
-	// Because we can't use Gather() on RGB, we make each thread read two pixels (but only those needed).
-	if (GI < ROW_WIDTH * ROW_WIDTH / 2)
-	{
-		uint LdsCoord = GI;
-		int2 UavCoord = uint2(GI % ROW_WIDTH, GI / ROW_WIDTH) + Gid.xy * 8 - BOUNDARY_SIZE;
-		float Luma1 = RGBToLogLuminance(FetchColor(UavCoord));
-		Luma[UavCoord] = Luma1;
-		gs_LumaCache[LdsCoord] = Luma1;
+    // Because we can't use Gather() on RGB, we make each thread read two pixels (but only those needed).
+    if (GI < ROW_WIDTH * ROW_WIDTH / 2)
+    {
+        uint LdsCoord = GI;
+        int2 UavCoord = uint2(GI % ROW_WIDTH, GI / ROW_WIDTH) + Gid.xy * 8 - BOUNDARY_SIZE;
+        float Luma1 = RGBToLogLuminance(FetchColor(UavCoord));
+        Luma[UavCoord] = Luma1;
+        gs_LumaCache[LdsCoord] = Luma1;
 
-		LdsCoord += ROW_WIDTH * ROW_WIDTH / 2;
-		UavCoord += int2(0, ROW_WIDTH / 2);
-		float Luma2 = RGBToLogLuminance(FetchColor(UavCoord));
-		Luma[UavCoord] = Luma2;
-		gs_LumaCache[LdsCoord] = Luma2;
-	}
+        LdsCoord += ROW_WIDTH * ROW_WIDTH / 2;
+        UavCoord += int2(0, ROW_WIDTH / 2);
+        float Luma2 = RGBToLogLuminance(FetchColor(UavCoord));
+        Luma[UavCoord] = Luma2;
+        gs_LumaCache[LdsCoord] = Luma2;
+    }
 #endif
 
-	GroupMemoryBarrierWithGroupSync();
+    GroupMemoryBarrierWithGroupSync();
 
-	uint CenterIdx = (GTid.x + BOUNDARY_SIZE) + (GTid.y + BOUNDARY_SIZE) * ROW_WIDTH;
+    uint CenterIdx = (GTid.x + BOUNDARY_SIZE) + (GTid.y + BOUNDARY_SIZE) * ROW_WIDTH;
 
-	// Load the ordinal and center luminances
-	float lumaN  = gs_LumaCache[CenterIdx - ROW_WIDTH];
-	float lumaW  = gs_LumaCache[CenterIdx - 1];
-	float lumaM  = gs_LumaCache[CenterIdx];
-	float lumaE  = gs_LumaCache[CenterIdx + 1];
-	float lumaS  = gs_LumaCache[CenterIdx + ROW_WIDTH];
+    // Load the ordinal and center luminances
+    float lumaN  = gs_LumaCache[CenterIdx - ROW_WIDTH];
+    float lumaW  = gs_LumaCache[CenterIdx - 1];
+    float lumaM  = gs_LumaCache[CenterIdx];
+    float lumaE  = gs_LumaCache[CenterIdx + 1];
+    float lumaS  = gs_LumaCache[CenterIdx + ROW_WIDTH];
 
-	// Contrast threshold test
-	float rangeMax = max(max(lumaN, lumaW), max(lumaE, max(lumaS, lumaM)));
-	float rangeMin = min(min(lumaN, lumaW), min(lumaE, min(lumaS, lumaM)));
-	float range = rangeMax - rangeMin;
-	if (range < ContrastThreshold)
-		return;
+    // Contrast threshold test
+    float rangeMax = max(max(lumaN, lumaW), max(lumaE, max(lumaS, lumaM)));
+    float rangeMin = min(min(lumaN, lumaW), min(lumaE, min(lumaS, lumaM)));
+    float range = rangeMax - rangeMin;
+    if (range < ContrastThreshold)
+        return;
 
-	// Load the corner luminances
-	float lumaNW = gs_LumaCache[CenterIdx - ROW_WIDTH - 1];
-	float lumaNE = gs_LumaCache[CenterIdx - ROW_WIDTH + 1];
-	float lumaSW = gs_LumaCache[CenterIdx + ROW_WIDTH - 1];
-	float lumaSE = gs_LumaCache[CenterIdx + ROW_WIDTH + 1];
+    // Load the corner luminances
+    float lumaNW = gs_LumaCache[CenterIdx - ROW_WIDTH - 1];
+    float lumaNE = gs_LumaCache[CenterIdx - ROW_WIDTH + 1];
+    float lumaSW = gs_LumaCache[CenterIdx + ROW_WIDTH - 1];
+    float lumaSE = gs_LumaCache[CenterIdx + ROW_WIDTH + 1];
 
-	// Pre-sum a few terms so the results can be reused
-	float lumaNS = lumaN + lumaS;
-	float lumaWE = lumaW + lumaE;
-	float lumaNWSW = lumaNW + lumaSW;
-	float lumaNESE = lumaNE + lumaSE;
-	float lumaSWSE = lumaSW + lumaSE;
-	float lumaNWNE = lumaNW + lumaNE;
+    // Pre-sum a few terms so the results can be reused
+    float lumaNS = lumaN + lumaS;
+    float lumaWE = lumaW + lumaE;
+    float lumaNWSW = lumaNW + lumaSW;
+    float lumaNESE = lumaNE + lumaSE;
+    float lumaSWSE = lumaSW + lumaSE;
+    float lumaNWNE = lumaNW + lumaNE;
 
-	// Compute horizontal and vertical contrast; see which is bigger
-	float edgeHorz = abs(lumaNWSW - 2.0 * lumaW) + abs(lumaNS - 2.0 * lumaM) * 2.0 + abs(lumaNESE - 2.0 * lumaE);
-	float edgeVert = abs(lumaSWSE - 2.0 * lumaS) + abs(lumaWE - 2.0 * lumaM) * 2.0 + abs(lumaNWNE - 2.0 * lumaN);
+    // Compute horizontal and vertical contrast; see which is bigger
+    float edgeHorz = abs(lumaNWSW - 2.0 * lumaW) + abs(lumaNS - 2.0 * lumaM) * 2.0 + abs(lumaNESE - 2.0 * lumaE);
+    float edgeVert = abs(lumaSWSE - 2.0 * lumaS) + abs(lumaWE - 2.0 * lumaM) * 2.0 + abs(lumaNWNE - 2.0 * lumaN);
 
-	// Also compute local contrast in the 3x3 region.  This can identify standalone pixels that alias.
-	float avgNeighborLuma = ((lumaNS + lumaWE) * 2.0 + lumaNWSW + lumaNESE) / 12.0;
-	float subpixelShift = saturate(pow(smoothstep(0, 1, abs(avgNeighborLuma - lumaM) / range), 2) * SubpixelRemoval * 2);
+    // Also compute local contrast in the 3x3 region.  This can identify standalone pixels that alias.
+    float avgNeighborLuma = ((lumaNS + lumaWE) * 2.0 + lumaNWSW + lumaNESE) / 12.0;
+    float subpixelShift = saturate(pow(smoothstep(0, 1, abs(avgNeighborLuma - lumaM) / range), 2) * SubpixelRemoval * 2);
 
-	float NegGrad = (edgeHorz >= edgeVert ? lumaN : lumaW) - lumaM;
-	float PosGrad = (edgeHorz >= edgeVert ? lumaS : lumaE) - lumaM;
-	uint GradientDir = abs(PosGrad) >= abs(NegGrad) ? 1 : 0;
-	uint Subpix = uint(subpixelShift * 254.0) & 0xFE;
-	uint PixelCoord = DTid.y << 20 | DTid.x << 8;
+    float NegGrad = (edgeHorz >= edgeVert ? lumaN : lumaW) - lumaM;
+    float PosGrad = (edgeHorz >= edgeVert ? lumaS : lumaE) - lumaM;
+    uint GradientDir = abs(PosGrad) >= abs(NegGrad) ? 1 : 0;
+    uint Subpix = uint(subpixelShift * 254.0) & 0xFE;
+    uint PixelCoord = DTid.y << 20 | DTid.x << 8;
 
-	// Packet header: [ 12 bits Y | 12 bits X | 7 bit Subpix | 1 bit dir(Grad) ]
-	uint WorkHeader = PixelCoord | Subpix | GradientDir;
+    // Packet header: [ 12 bits Y | 12 bits X | 7 bit Subpix | 1 bit dir(Grad) ]
+    uint WorkHeader = PixelCoord | Subpix | GradientDir;
 
-	if (edgeHorz >= edgeVert)
-	{
-		uint WorkIdx = HWork.IncrementCounter();
-		HWork[WorkIdx] = WorkHeader;
-		HColor[WorkIdx] = FetchColor(DTid.xy + uint2(0, 2 * GradientDir - 1));
-	}
-	else
-	{
-		uint WorkIdx = VWork.IncrementCounter();
-		VWork[WorkIdx] = WorkHeader;
-		VColor[WorkIdx] = FetchColor(DTid.xy + uint2(2 * GradientDir - 1, 0));
-	}
+    if (edgeHorz >= edgeVert)
+    {
+        uint WorkIdx = HWork.IncrementCounter();
+        HWork[WorkIdx] = WorkHeader;
+        HColor[WorkIdx] = FetchColor(DTid.xy + uint2(0, 2 * GradientDir - 1));
+    }
+    else
+    {
+        uint WorkIdx = VWork.IncrementCounter();
+        VWork[WorkIdx] = WorkHeader;
+        VColor[WorkIdx] = FetchColor(DTid.xy + uint2(2 * GradientDir - 1, 0));
+    }
 }

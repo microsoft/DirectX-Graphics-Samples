@@ -22,24 +22,24 @@ RWStructuredBuffer< ParticleMotion > g_OutputBuffer : register( u2 );
 [numthreads(64, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-	uint index = g_OutputBuffer.IncrementCounter();
-	if (index >= MaxParticles)
-		return;
-	
-	uint ResetDataIndex = RandIndex[DTid.x].x; 
-	ParticleSpawnData rd  = g_ResetData[ResetDataIndex];
-		
-	float3 emitterVelocity = EmitPosW - LastEmitPosW; 
-	float3 randDir = rd.Velocity.x * EmitRightW + rd.Velocity.y * EmitUpW + rd.Velocity.z * EmitDirW;
-	float3 newVelocity = emitterVelocity * EmitterVelocitySensitivity + randDir;
-	float3 adjustedPosition = EmitPosW - emitterVelocity * rd.Random + rd.SpreadOffset;
+    uint index = g_OutputBuffer.IncrementCounter();
+    if (index >= MaxParticles)
+        return;
+    
+    uint ResetDataIndex = RandIndex[DTid.x].x; 
+    ParticleSpawnData rd  = g_ResetData[ResetDataIndex];
+        
+    float3 emitterVelocity = EmitPosW - LastEmitPosW; 
+    float3 randDir = rd.Velocity.x * EmitRightW + rd.Velocity.y * EmitUpW + rd.Velocity.z * EmitDirW;
+    float3 newVelocity = emitterVelocity * EmitterVelocitySensitivity + randDir;
+    float3 adjustedPosition = EmitPosW - emitterVelocity * rd.Random + rd.SpreadOffset;
 
-	ParticleMotion newParticle;
-	newParticle.Position = adjustedPosition;
-	newParticle.Rotation = 0.0;
-	newParticle.Velocity = newVelocity + EmitDirW * EmitSpeed; 
-	newParticle.Mass = rd.Mass; 
-	newParticle.Age = 0.0;
-	newParticle.ResetDataIndex = ResetDataIndex; 
-	g_OutputBuffer[index] = newParticle;
+    ParticleMotion newParticle;
+    newParticle.Position = adjustedPosition;
+    newParticle.Rotation = 0.0;
+    newParticle.Velocity = newVelocity + EmitDirW * EmitSpeed; 
+    newParticle.Mass = rd.Mass; 
+    newParticle.Age = 0.0;
+    newParticle.ResetDataIndex = ResetDataIndex; 
+    g_OutputBuffer[index] = newParticle;
 }

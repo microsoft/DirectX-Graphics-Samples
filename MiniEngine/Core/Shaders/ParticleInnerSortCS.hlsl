@@ -17,7 +17,7 @@ RWStructuredBuffer<uint> g_SortBuffer : register(u0);
 
 cbuffer CB0 : register(b0)
 {
-	uint k; // k >= 4096
+    uint k; // k >= 4096
 };
 
 groupshared uint gs_SortKeys[2048];
@@ -26,29 +26,29 @@ groupshared uint gs_SortKeys[2048];
 [numthreads(1024, 1, 1)]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex )
 {
-	const uint RangeStart = Gid.x * 2048;
-	gs_SortKeys[GI] = g_SortBuffer[RangeStart + GI];
-	gs_SortKeys[GI + 1024] = g_SortBuffer[RangeStart + GI + 1024];
+    const uint RangeStart = Gid.x * 2048;
+    gs_SortKeys[GI] = g_SortBuffer[RangeStart + GI];
+    gs_SortKeys[GI + 1024] = g_SortBuffer[RangeStart + GI + 1024];
 
-	GroupMemoryBarrierWithGroupSync();
+    GroupMemoryBarrierWithGroupSync();
 
-	for (uint j = 1024; j > 0; j >>= 1)
-	{
-		uint Index1 = InsertZeroBit(GI, j);
-		uint Index2 = Index1 | j;
+    for (uint j = 1024; j > 0; j >>= 1)
+    {
+        uint Index1 = InsertZeroBit(GI, j);
+        uint Index2 = Index1 | j;
 
-		uint A = gs_SortKeys[Index1];
-		uint B = gs_SortKeys[Index2];
+        uint A = gs_SortKeys[Index1];
+        uint B = gs_SortKeys[Index2];
 
-		if ((A > B) != ((RangeStart & k) == 0))
-		{
-			gs_SortKeys[Index1] = B;
-			gs_SortKeys[Index2] = A;
-		}
+        if ((A > B) != ((RangeStart & k) == 0))
+        {
+            gs_SortKeys[Index1] = B;
+            gs_SortKeys[Index2] = A;
+        }
 
-		GroupMemoryBarrierWithGroupSync();
-	}
+        GroupMemoryBarrierWithGroupSync();
+    }
 
-	g_SortBuffer[RangeStart + GI] = gs_SortKeys[GI];
-	g_SortBuffer[RangeStart + GI + 1024] = gs_SortKeys[GI + 1024];
+    g_SortBuffer[RangeStart + GI] = gs_SortKeys[GI];
+    g_SortBuffer[RangeStart + GI + 1024] = gs_SortKeys[GI + 1024];
 }
