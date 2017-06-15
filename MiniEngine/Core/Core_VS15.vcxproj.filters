@@ -846,5 +846,6 @@
     <None Include="Shaders\ColorSpaceUtility.hlsli">
       <Filter>Shaders\Misc</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

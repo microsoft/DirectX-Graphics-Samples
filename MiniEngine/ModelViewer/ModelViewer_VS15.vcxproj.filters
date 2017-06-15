@@ -211,6 +211,7 @@
     <None Include="Shaders\LightGrid.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ModelViewer.cpp">

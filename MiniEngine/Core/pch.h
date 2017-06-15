@@ -36,7 +36,7 @@
 
 #if _MSC_VER >= 1800
     #include <d3d11_2.h>
-    #include <pix.h>
+    #include <pix3.h>
 #endif
 
 #include "d3dx12.h"

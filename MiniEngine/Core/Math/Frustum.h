@@ -41,7 +41,11 @@ namespace Math
 
         // Test whether the bounding sphere intersects the frustum.  Intersection is defined as either being
         // fully contained in the frustum, or by intersecting one or more of the planes.
-        bool IntersectSphere( BoundingSphere sphere );
+        bool IntersectSphere( BoundingSphere sphere ) const;
+
+        // We don't officially have a BoundingBox class yet, but let's assume it's forthcoming.  (There is a
+        // simple struct in the Model project.)
+        bool IntersectBoundingBox(const Vector3 minBound, const Vector3 maxBound) const;
 
         friend Frustum  operator* ( const OrthogonalTransform& xform, const Frustum& frustum );	// Fast
         friend Frustum  operator* ( const AffineTransform& xform, const Frustum& frustum );		// Slow
@@ -63,7 +67,7 @@ namespace Math
     // Inline implementations
     //
 
-    inline bool Frustum::IntersectSphere( BoundingSphere sphere )
+    inline bool Frustum::IntersectSphere( BoundingSphere sphere ) const
     {
         float radius = sphere.GetRadius();
         for (int i = 0; i < 6; ++i)
@@ -74,6 +78,19 @@ namespace Math
         return true;
     }
 
+    inline bool Frustum::IntersectBoundingBox(const Vector3 minBound, const Vector3 maxBound) const
+    {
+        for (int i = 0; i < 6; ++i)
+        {
+            BoundingPlane p = m_FrustumPlanes[i];
+            Vector3 farCorner = Select(minBound, maxBound, p.GetNormal() > Vector3(kZero));
+            if (p.DistanceFromPoint(farCorner) < 0.0f)
+                return false;
+        }
+
+        return true;
+    }
+
     inline Frustum operator* ( const OrthogonalTransform& xform, const Frustum& frustum )
     {
         Frustum result;
@@ -81,11 +98,8 @@ namespace Math
         for (int i = 0; i < 8; ++i)
             result.m_FrustumCorners[i] = xform * frustum.m_FrustumCorners[i];
 
-        // Why isn't there an Invert( OrthogonalTransform ) function?
-        Matrix4 XForm = Transpose(Matrix4(xform.GetRotation(), -(xform.GetRotation() * xform.GetTranslation())));
-
         for (int i = 0; i < 6; ++i)
-            result.m_FrustumPlanes[i] = BoundingPlane(XForm * Vector4(frustum.m_FrustumPlanes[i]));
+            result.m_FrustumPlanes[i] = xform * frustum.m_FrustumPlanes[i];
 
         return result;
     }

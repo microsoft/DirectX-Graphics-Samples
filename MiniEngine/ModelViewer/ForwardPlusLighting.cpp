@@ -69,6 +69,7 @@ namespace Lighting
     void InitializeResources(void);
     void CreateRandomLights(const Vector3 minBound, const Vector3 maxBound);
     void FillLightGrid(GraphicsContext& gfxContext, const Camera& camera);
+    void Shutdown(void);
 }
 
 void Lighting::InitializeResources( void )
@@ -253,6 +254,14 @@ void Lighting::CreateRandomLights( const Vector3 minBound, const Vector3 maxBoun
     m_LightShadowTempBuffer.Create(L"m_LightShadowTempBuffer", shadowDim, shadowDim);
 }
 
+void Lighting::Shutdown(void)
+{
+    m_LightBuffer.Destroy();
+    m_LightGrid.Destroy();
+    m_LightGridBitMask.Destroy();
+    m_LightShadowArray.Destroy();
+    m_LightShadowTempBuffer.Destroy();
+}
 
 void Lighting::FillLightGrid(GraphicsContext& gfxContext, const Camera& camera)
 {

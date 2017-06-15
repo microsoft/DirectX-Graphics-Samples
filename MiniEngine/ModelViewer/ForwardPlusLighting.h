@@ -52,4 +52,5 @@ namespace Lighting
     void InitializeResources(void);
     void CreateRandomLights(const Math::Vector3 minBound, const Math::Vector3 maxBound);
     void FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera);
+    void Shutdown(void);
 }

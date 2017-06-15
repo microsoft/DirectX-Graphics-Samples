@@ -70,14 +70,12 @@ float3 ITM_ReinhardSq(float3 sdr, float k = 0.25)
 
 float3 TM_Stanard(float3 hdr)
 {
-    hdr *= sqrt(hdr); // pow(hdr, 1.5)
-    return TM_Reinhard(hdr, sqrt(4.0 / 27.0));
+    return TM_Reinhard(hdr * sqrt(hdr), sqrt(4.0 / 27.0));
 }
 
 float3 ITM_Stanard(float3 sdr)
 {
-    float3 hdr = ITM_Reinhard(sdr, sqrt(4.0 / 27.0));
-    return pow(hdr, 2.0 / 3.0);
+    return pow(ITM_Reinhard(sdr, sqrt(4.0 / 27.0)), 2.0 / 3.0);
 }
 
 //

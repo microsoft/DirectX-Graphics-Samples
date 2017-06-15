@@ -53,32 +53,20 @@
     <Import Project="..\PropertySheets\Win32.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Link />
-    <Link>
-      <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>
-      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
-    </Link>
+  <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-    <Link />
-    <ClCompile>
-      <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
-    </ClCompile>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <Link>
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Link />
-    <ClCompile>
-      <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
-    </ClCompile>
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
     <Link>
-      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)
+	  </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -164,6 +152,7 @@
     <None Include="Models\sponza.h3d">
       <DeploymentContent>true</DeploymentContent>
     </None>
+    <None Include="packages.config" />
     <None Include="Shaders\FillLightGridCS.hlsli" />
     <None Include="Shaders\LightGrid.hlsli" />
     <None Include="Shaders\ModelViewerRS.hlsli" />
@@ -193,5 +182,13 @@
     <ClInclude Include="ForwardPlusLighting.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="packages\WinPixEventRuntime.1.0.170126001\build\WinPixEventRuntime.targets" Condition="Exists('packages\WinPixEventRuntime.1.0.170126001\build\WinPixEventRuntime.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\WinPixEventRuntime.1.0.170126001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\WinPixEventRuntime.1.0.170126001\build\WinPixEventRuntime.targets'))" />
+  </Target>
 </Project>

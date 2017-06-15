@@ -15,8 +15,8 @@
 
 struct VSOutput
 {
-    sample float4 pos : SV_Position;
-    sample float2 uv : TexCoord0;
+    float4 pos : SV_Position;
+    float2 uv : TexCoord0;
 };
 
 Texture2D<float4>	texDiffuse		: register(t0);

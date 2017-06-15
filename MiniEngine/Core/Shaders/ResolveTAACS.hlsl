@@ -21,5 +21,5 @@ RWTexture2D<float3> OutColor : register(u0);
 void main( uint3 DTid : SV_DispatchThreadID )
 {
     float4 Color = TemporalColor[DTid.xy];
-    OutColor[DTid.xy] = ITM(Color.rgb / max(Color.w, 1e-6));
+    OutColor[DTid.xy] = Color.rgb / max(Color.w, 1e-6);
 }

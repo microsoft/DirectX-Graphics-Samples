@@ -45,7 +45,6 @@ cbuffer CB1 : register(b1)
 
 void StoreRGB(uint ldsIdx, float3 RGB)
 {
-    RGB = TM(RGB);
     ldsR[ldsIdx] = RGB.r;
     ldsG[ldsIdx] = RGB.g;
     ldsB[ldsIdx] = RGB.b;
@@ -135,7 +134,7 @@ void ApplyTemporalBlend(uint2 ST, uint ldsIdx, float3 BoxMin, float3 BoxMax)
     float TemporalWeight = Temp.w;
 
     // Pixel colors are pre-multiplied by their weight to enable bilinear filtering.  Divide by weight to recover color.
-    TemporalColor /= max(TemporalWeight, 1.0 / 255.0);
+    TemporalColor /= max(TemporalWeight, 1e-6);
 
     // Clip the temporal color to the current neighborhood's bounding box.  Increase the size of the bounding box for
     // stationary pixels to avoid rejecting noisy specular highlights.
@@ -147,13 +146,13 @@ void ApplyTemporalBlend(uint2 ST, uint ldsIdx, float3 BoxMin, float3 BoxMax)
     // Blend previous color with new color based on confidence.  Confidence steadily grows with each iteration
     // until it is broken by movement such as through disocclusion, color changes, or moving beyond the resolution
     // of the velocity buffer.
-    TemporalColor = lerp(CurrentColor, TemporalColor, TemporalWeight);
+    TemporalColor = ITM(lerp(TM(CurrentColor), TM(TemporalColor), TemporalWeight));
 
     // Update weight
-    TemporalWeight = rcp(2.0 - TemporalWeight);
+    TemporalWeight = saturate(rcp(2.0 - TemporalWeight));
 
     // Quantize weight to what is representable
-    TemporalWeight = f16tof32(f32tof16(saturate(TemporalWeight)));
+    TemporalWeight = f16tof32(f32tof16(TemporalWeight));
 
     // Breaking this up into two buffers means it can be 40 bits instead of 64.
     OutTemporal[ST] = float4(TemporalColor, 1) * TemporalWeight;

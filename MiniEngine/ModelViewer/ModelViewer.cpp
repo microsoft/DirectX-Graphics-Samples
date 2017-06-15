@@ -256,6 +256,7 @@ void ModelViewer::Startup( void )
 void ModelViewer::Cleanup( void )
 {
     m_Model.Clear();
+    Lighting::Shutdown();
 }
 
 namespace Graphics

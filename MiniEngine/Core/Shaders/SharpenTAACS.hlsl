@@ -51,7 +51,7 @@ void main( uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : S
     {
         int2 ST = GroupUL + int2(i % TILE_SIZE_X, i / TILE_SIZE_X);
         float4 Color = TemporalColor[ST];
-        Color.rgb = log2(1.0 + ITM(Color.rgb / max(Color.w, 1e-6)));
+        Color.rgb = log2(1.0 + Color.rgb / max(Color.w, 1e-6));
         gs_R[i] = Color.r;
         gs_G[i] = Color.g;
         gs_B[i] = Color.b;
