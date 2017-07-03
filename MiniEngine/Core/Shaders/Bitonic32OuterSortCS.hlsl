@@ -11,17 +11,17 @@
 // Author:  James Stanard 
 //
 
-#include "ParticleUtility.hlsli"
+#include "BitonicSortCommon.hlsli"
 
 RWStructuredBuffer<uint> g_SortBuffer : register(u0);
 
-cbuffer CB0 : register(b0)
+cbuffer Constants : register(b0)
 {
     uint k;		// k >= 4096
     uint j;		// j >= 2048 && j < k
 };
 
-[RootSignature(Particle_RootSig)]
+[RootSignature(BitonicSort_RootSig)]
 [numthreads(1024, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID  )
 {
@@ -32,7 +32,7 @@ void main( uint3 DTid : SV_DispatchThreadID  )
     uint A = g_SortBuffer[Index1];
     uint B = g_SortBuffer[Index2];
 
-    if ((A > B) != ((Index1 & k) == 0))
+    if (ShouldSwap(A, B, Index1, k))
     {
         g_SortBuffer[Index1] = B;
         g_SortBuffer[Index2] = A;

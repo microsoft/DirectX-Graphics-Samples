@@ -71,6 +71,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="BitonicSort.h" />
     <ClInclude Include="BuddyAllocator.h" />
     <ClInclude Include="BufferManager.h" />
     <ClInclude Include="Camera.h" />
@@ -137,6 +138,7 @@
     <ClInclude Include="VectorMath.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BitonicSort.cpp" />
     <ClCompile Include="BuddyAllocator.cpp" />
     <ClCompile Include="BufferManager.cpp" />
     <ClCompile Include="Camera.cpp" />
@@ -216,6 +218,13 @@
     <FxCompile Include="Shaders\BilinearUpsamplePS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\Bitonic32InnerSortCS.hlsl" />
+    <FxCompile Include="Shaders\Bitonic32OuterSortCS.hlsl" />
+    <FxCompile Include="Shaders\Bitonic32PreSortCS.hlsl" />
+    <FxCompile Include="Shaders\Bitonic64InnerSortCS.hlsl" />
+    <FxCompile Include="Shaders\Bitonic64OuterSortCS.hlsl" />
+    <FxCompile Include="Shaders\Bitonic64PreSortCS.hlsl" />
+    <FxCompile Include="Shaders\BitonicIndirectArgsCS.hlsl" />
     <FxCompile Include="Shaders\BloomExtractAndDownsampleHdrCS.hlsl" />
     <FxCompile Include="Shaders\BloomExtractAndDownsampleLdrCS.hlsl" />
     <FxCompile Include="Shaders\BlurCS.hlsl" />
@@ -289,9 +298,10 @@
     <FxCompile Include="Shaders\ParticleDepthBoundsCS.hlsl" />
     <FxCompile Include="Shaders\ParticleDispatchIndirectArgsCS.hlsl" />
     <FxCompile Include="Shaders\ParticleFinalDispatchIndirectArgsCS.hlsl" />
-    <FxCompile Include="Shaders\ParticleInnerSortCS.hlsl" />
     <FxCompile Include="Shaders\ParticleLargeBinCullingCS.hlsl" />
-    <FxCompile Include="Shaders\ParticleOuterSortCS.hlsl" />
+    <FxCompile Include="Shaders\ParticleNoSortVS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\ParticlePreSortCS.hlsl" />
     <FxCompile Include="Shaders\ParticlePS.hlsl">
       <ShaderType>Pixel</ShaderType>
@@ -357,6 +367,7 @@
     <None Include="packages.config" />
     <None Include="Shaders\AoBlurAndUpsampleCS.hlsli" />
     <None Include="Shaders\AoRenderCS.hlsli" />
+    <None Include="Shaders\BitonicSortCommon.hlsli" />
     <None Include="Shaders\ColorSpaceUtility.hlsli" />
     <None Include="Shaders\DoFCommon.hlsli" />
     <None Include="Shaders\DoFRS.hlsli" />

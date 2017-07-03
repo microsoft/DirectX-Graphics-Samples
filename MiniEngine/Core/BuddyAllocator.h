@@ -128,7 +128,7 @@ private:
 
     inline UINT UnitSizeToOrder(size_t size) const
     {
-        return UINT(ceil(log2f(float(size))));
+        return Math::Log2(size); // Log2 rounds up fractions to next whole value
     }
 
     inline size_t GetBuddyOffset(const size_t &offset, const size_t &size)

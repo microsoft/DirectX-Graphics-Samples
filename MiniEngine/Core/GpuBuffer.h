@@ -57,7 +57,7 @@ public:
         return IndexBufferView(Offset, (uint32_t)(m_BufferSize - Offset), m_ElementSize == 4);
     }
 
-    size_t GetBufferCount() const { return m_BufferSize; }
+    size_t GetBufferSize() const { return m_BufferSize; }
     uint32_t GetElementCount() const { return m_ElementCount; }
     uint32_t GetElementSize() const { return m_ElementSize; }
 

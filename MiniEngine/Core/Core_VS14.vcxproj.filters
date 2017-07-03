@@ -193,6 +193,9 @@
     <ClInclude Include="GraphicsCommon.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="BitonicSort.h">
+      <Filter>Source Files\Graphics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SystemTime.cpp">
@@ -339,6 +342,9 @@
     <ClCompile Include="GraphicsCommon.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="BitonicSort.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -388,6 +394,9 @@
     </Filter>
     <Filter Include="Shaders\Temporal">
       <UniqueIdentifier>{7f434daa-8c60-4590-ba57-173c6209d888}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\BitonicSort">
+      <UniqueIdentifier>{2e78a77a-e75d-469b-9391-f9ee3a9dffe4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -502,13 +511,7 @@
     <FxCompile Include="Shaders\ParticleFinalDispatchIndirectArgsCS.hlsl">
       <Filter>Shaders\Particles</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\ParticleInnerSortCS.hlsl">
-      <Filter>Shaders\Particles</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\ParticleLargeBinCullingCS.hlsl">
-      <Filter>Shaders\Particles</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\ParticleOuterSortCS.hlsl">
       <Filter>Shaders\Particles</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ParticlePreSortCS.hlsl">
@@ -751,9 +754,6 @@
     <FxCompile Include="Shaders\FXAAPass1_RGB2_CS.hlsl">
       <Filter>Shaders\FXAA</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\ColorPackingTestPS.hlsl">
-      <Filter>Shaders\Misc</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\BoundNeighborhoodCS.hlsl">
       <Filter>Shaders\Temporal</Filter>
     </FxCompile>
@@ -768,6 +768,30 @@
     </FxCompile>
     <FxCompile Include="Shaders\PresentSDRPS.hlsl">
       <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic32InnerSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic32OuterSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic32PreSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic64InnerSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic64OuterSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic64PreSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BitonicIndirectArgsCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticleNoSortVS.hlsl">
+      <Filter>Shaders\Particles</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -847,5 +871,8 @@
       <Filter>Shaders\Misc</Filter>
     </None>
     <None Include="packages.config" />
+    <None Include="Shaders\BitonicSortCommon.hlsli">
+      <Filter>Shaders\BitonicSort</Filter>
+    </None>
   </ItemGroup>
 </Project>

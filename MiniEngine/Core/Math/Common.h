@@ -59,13 +59,22 @@ namespace Math
         return (value / divisor) * divisor == value;
     }
 
-    __forceinline uint32_t Log2(uint32_t value)
+    __forceinline uint8_t Log2(uint64_t value)
     {
-        unsigned long lsb;
-        if (_BitScanForward(&lsb, value) > 0)
-            return lsb;
+        unsigned long mssb; // most significant set bit
+        unsigned long lssb; // least significant set bit
+
+        // If perfect power of two (only one set bit), return index of bit.  Otherwise round up
+        // fractional log by adding 1 to most signicant set bit's index.
+        if (_BitScanReverse64(&mssb, value) > 0 && _BitScanForward64(&lssb, value) > 0)
+            return uint8_t(mssb + (mssb == lssb ? 0 : 1));
         else
             return 0;
+    }
+
+    template <typename T> __forceinline T AlignPowerOfTwo(T value)
+    {
+        return value == 0 ? 0 : 1 << Log2(value);
     }
 
     using namespace DirectX;

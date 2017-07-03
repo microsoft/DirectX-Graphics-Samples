@@ -19,7 +19,11 @@ StructuredBuffer<uint> g_IndexBuffer : register( t3 );
 [RootSignature(Particle_RootSig)]
 ParticleVertexOutput main( uint BillboardVertex : SV_VertexID, uint InstanceId : SV_InstanceID )
 {
+#ifdef DISABLE_PARTICLE_SORT
+    ParticleVertex In = g_VertexBuffer[ InstanceId ];
+#else
     ParticleVertex In = g_VertexBuffer[ g_IndexBuffer[InstanceId] & 0x3FFFF ];
+#endif
     ParticleVertexOutput Out;
 
     Out.TexCoord = float2((BillboardVertex >> 1) & 1, BillboardVertex & 1);

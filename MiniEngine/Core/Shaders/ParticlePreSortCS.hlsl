@@ -16,7 +16,7 @@
 StructuredBuffer<ParticleVertex> g_VertexBuffer : register( t0 );
 ByteAddressBuffer g_VertexCount : register(t1);
 RWStructuredBuffer<uint> g_SortBuffer : register(u0);
-//RWByteAddressBuffer g_VisibleCount : register(u1);
+RWByteAddressBuffer g_DrawIndirectArgs : register(u1);
 
 groupshared uint gs_SortKeys[2048];
 
@@ -45,15 +45,13 @@ void FillSortKey( uint GroupStart, uint Offset, uint VertexCount )
         float Depth = saturate(HPos.w * gRcpFarZ);
         gs_SortKeys[Offset] = f32tof16(Depth) << 18 | VertexIdx;
 
-        // We should keep track of how many visible particles there are, but it probably would require a separate
-        // shader pass so that we don't end up sorting non-visible particles.
-        //g_VisibleCount.InterlockedAdd(0, 1);
+        // Increment the visible instance counter
+        g_DrawIndirectArgs.InterlockedAdd(4, 1);
     }
     else
     {
-        // Until we can remove non-visible particles, we need to provide the actual index of the off-screen
-        // particle.  It will get culled again by the rasterizer.
-        gs_SortKeys[Offset] = VertexIdx;
+        // Cull particle index by sorting it to the end and not incrementing the visible instance counter
+        gs_SortKeys[Offset] = 0;
     }
 }
 
@@ -61,7 +59,7 @@ void FillSortKey( uint GroupStart, uint Offset, uint VertexCount )
 [numthreads(1024, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex )
 {
-    uint VisibleParticles = g_VertexCount.Load(4);
+    uint VisibleParticles = g_VertexCount.Load(0);
 
     uint GroupStart = Gid.x * 2048;
 
@@ -77,8 +75,12 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
 
     GroupMemoryBarrierWithGroupSync();
 
-    for (uint k = 2; k <= 2048; k <<= 1)
+    uint k;
+
+    [unroll]
+    for (k = 2; k <= 1024; k <<= 1)
     {
+        [unroll]
         for (uint j = k >> 1; j > 0; j >>= 1)
         {
             uint Index1 = InsertZeroBit(GI, j);
@@ -87,7 +89,7 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
             uint A = gs_SortKeys[Index1];
             uint B = gs_SortKeys[Index2];
 
-            if ((A > B) != (((GroupStart + Index1) & k) == 0))
+            if ((A < B) == ((Index1 & k) == 0))
             {
                 gs_SortKeys[Index1] = B;
                 gs_SortKeys[Index2] = A;
@@ -97,6 +99,26 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
         }
     }
 
+    k = 2048;
+    {
+        [unroll]
+        for (uint j = k >> 1; j > 0; j >>= 1)
+        {
+            uint Index1 = InsertZeroBit(GI, j);
+            uint Index2 = Index1 | j;
+
+            uint A = gs_SortKeys[Index1];
+            uint B = gs_SortKeys[Index2];
+
+            if ((A < B) == ((GroupStart & k) == 0))
+            {
+                gs_SortKeys[Index1] = B;
+                gs_SortKeys[Index2] = A;
+            }
+
+            GroupMemoryBarrierWithGroupSync();
+        }
+    }
 
     g_SortBuffer[GroupStart + GI] = gs_SortKeys[GI];
     g_SortBuffer[GroupStart + GI + 1024] = gs_SortKeys[GI + 1024];

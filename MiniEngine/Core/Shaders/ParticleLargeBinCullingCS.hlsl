@@ -33,7 +33,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 {
     uint VertexIdx = DTid.x;
 
-    if (VertexIdx >= g_VertexCount.Load(4))
+    if (VertexIdx >= g_VertexCount.Load(0))
         return;
 
     //

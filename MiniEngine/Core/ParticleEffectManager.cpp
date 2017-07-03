@@ -14,6 +14,7 @@
 
 #include "pch.h"
 #include "BufferManager.h"
+#include "BitonicSort.h"
 #include "Camera.h"
 #include "ColorBuffer.h"
 #include "CommandContext.h"
@@ -52,10 +53,9 @@
 
 #include "CompiledShaders/ParticleSortIndirectArgsCS.h"
 #include "CompiledShaders/ParticlePreSortCS.h"
-#include "CompiledShaders/ParticleInnerSortCS.h"
-#include "CompiledShaders/ParticleOuterSortCS.h"
 #include "CompiledShaders/ParticlePS.h"
 #include "CompiledShaders/ParticleVS.h"
+#include "CompiledShaders/ParticleNoSortVS.h"
 
 #define EFFECTS_ERROR uint32_t(0xFFFFFFFF)
 
@@ -125,11 +125,9 @@ namespace
     ComputePSO s_ParticleTileRenderSlowCS[3];	// High-Res, Low-Res, Dynamic-Res
     ComputePSO s_ParticleTileRenderFastCS[3]; 	// High-Res, Low-Res, Dynamic-Res (disable depth tests)
     ComputePSO s_ParticleDepthBoundsCS;
-    GraphicsPSO s_NoTileRasterizationPSO;
+    GraphicsPSO s_NoTileRasterizationPSO[2];
     ComputePSO s_ParticleSortIndirectArgsCS;
     ComputePSO s_ParticlePreSortCS;
-    ComputePSO s_ParticleInnerSortCS;
-    ComputePSO s_ParticleOuterSortCS;
 
     RootSignature RootSig;
 
@@ -167,8 +165,8 @@ namespace
         CompContext.TransitionResource(SpriteVertexBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
         CompContext.TransitionResource(FinalDispatchIndirectArgs, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         CompContext.TransitionResource(DrawIndirectArgs, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        D3D12_CPU_DESCRIPTOR_HANDLE pDispatchIndirectUAV[2] = {FinalDispatchIndirectArgs.GetUAV(), DrawIndirectArgs.GetUAV()};
-        CompContext.SetDynamicDescriptors(3, 0, _countof(pDispatchIndirectUAV), pDispatchIndirectUAV);
+        CompContext.SetDynamicDescriptor(3, 0, FinalDispatchIndirectArgs.GetUAV());
+        CompContext.SetDynamicDescriptor(3, 1, DrawIndirectArgs.GetUAV());
         CompContext.SetDynamicDescriptor(4, 0, SpriteVertexBuffer.GetCounterSRV(CompContext));
 
         CompContext.Dispatch( 1, 1, 1 );
@@ -235,7 +233,6 @@ namespace
             CompContext.SetConstants(0, 5, 4);
 
             CompContext.TransitionResource(SpriteVertexBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-            CompContext.TransitionResource(DrawIndirectArgs, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             CompContext.TransitionResource(FinalDispatchIndirectArgs, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
             CompContext.TransitionResource(BinParticles[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
             CompContext.TransitionResource(BinCounters[0], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -245,7 +242,7 @@ namespace
             CompContext.SetDynamicDescriptor(3, 1, BinCounters[0].GetUAV());
             CompContext.SetDynamicDescriptor(3, 2, VisibleParticleBuffer.GetUAV());
             CompContext.SetDynamicDescriptor(4, 0, SpriteVertexBuffer.GetSRV());
-            CompContext.SetDynamicDescriptor(4, 1, DrawIndirectArgs.GetSRV());
+            CompContext.SetDynamicDescriptor(4, 1, SpriteVertexBuffer.GetCounterSRV(CompContext));
 
             CompContext.DispatchIndirect(FinalDispatchIndirectArgs);
 
@@ -338,35 +335,7 @@ namespace
             CompContext.DispatchIndirect(TileDrawDispatchIndirectArgs, 12);
         }
     }
-
-    void BitonicSort( ComputeContext& CompContext )
-    {
-        uint32_t IndirectArgsOffset = 12;
-
-        // We have already pre-sorted up through k = 2048 when first writing our list, so
-        // we continue sorting with k = 4096.  For unnecessarily large values of k, these
-        // indirect dispatches will be skipped over with thread counts of 0.
-
-        for (uint32_t k = 4096; k <= 256*1024; k *= 2)
-        {
-            CompContext.SetPipelineState(s_ParticleOuterSortCS);
-
-            for (uint32_t j = k / 2; j >= 2048; j /= 2)
-            {
-                CompContext.SetConstants(0, k, j);
-                CompContext.DispatchIndirect(SortIndirectArgs, IndirectArgsOffset);
-                CompContext.InsertUAVBarrier(SpriteIndexBuffer);
-            }
-
-            CompContext.SetPipelineState(s_ParticleInnerSortCS);
-            CompContext.SetConstants(0, k);
-            CompContext.DispatchIndirect(SortIndirectArgs, IndirectArgsOffset);
-            CompContext.InsertUAVBarrier(SpriteIndexBuffer);
-
-            IndirectArgsOffset += 12;
-        }
-    }
-
+    
     void RenderSprites(GraphicsContext& GrContext, ColorBuffer& ColorTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth)
     {
         if (EnableSpriteSort)
@@ -380,21 +349,25 @@ namespace
             CompContext.SetPipelineState(s_ParticleSortIndirectArgsCS);
             CompContext.TransitionResource(SpriteVertexBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             CompContext.TransitionResource(SortIndirectArgs, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-            CompContext.TransitionResource(DrawIndirectArgs, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            CompContext.TransitionResource(DrawIndirectArgs, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            CompContext.InsertUAVBarrier(DrawIndirectArgs);
             CompContext.SetDynamicDescriptor(3, 0, SortIndirectArgs.GetUAV());
-            CompContext.SetDynamicDescriptor(4, 1, DrawIndirectArgs.GetSRV());
+            CompContext.SetDynamicDescriptor(3, 1, DrawIndirectArgs.GetUAV());
             CompContext.Dispatch(1, 1, 1);
 
             CompContext.SetPipelineState(s_ParticlePreSortCS);
             CompContext.TransitionResource(SortIndirectArgs, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
             CompContext.TransitionResource(SpriteIndexBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            CompContext.InsertUAVBarrier(DrawIndirectArgs);
             CompContext.SetDynamicDescriptor(3, 0, SpriteIndexBuffer.GetUAV());
+            CompContext.SetDynamicDescriptor(3, 1, DrawIndirectArgs.GetUAV());
             CompContext.SetDynamicDescriptor(4, 0, SpriteVertexBuffer.GetSRV());
+            CompContext.SetDynamicDescriptor(4, 1, SpriteVertexBuffer.GetCounterSRV(CompContext));
             CompContext.DispatchIndirect(SortIndirectArgs, 0);
 
             CompContext.InsertUAVBarrier(SpriteIndexBuffer);
 
-            BitonicSort(CompContext);
+            BitonicSort::Sort(CompContext, SpriteIndexBuffer, SpriteVertexBuffer.GetCounterBuffer(), 0, SortIndirectArgs, true, false);
         }
 
         D3D12_RECT scissor;
@@ -411,7 +384,8 @@ namespace
         viewport.MinDepth = 0.0;
         viewport.MaxDepth = 1.0;
 
-        GrContext.SetPipelineState(s_NoTileRasterizationPSO);
+		GrContext.SetRootSignature(RootSig);
+        GrContext.SetPipelineState(s_NoTileRasterizationPSO[EnableSpriteSort ? 0 : 1]);
         GrContext.TransitionResource(SpriteVertexBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         GrContext.TransitionResource(DrawIndirectArgs, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
         GrContext.TransitionResource(TextureArray, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -486,22 +460,24 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
     CreatePSO(s_ParticleDepthBoundsCS, g_pParticleDepthBoundsCS);
     CreatePSO(s_ParticleSortIndirectArgsCS, g_pParticleSortIndirectArgsCS);
     CreatePSO(s_ParticlePreSortCS, g_pParticlePreSortCS);
-    CreatePSO(s_ParticleInnerSortCS, g_pParticleInnerSortCS);
-    CreatePSO(s_ParticleOuterSortCS, g_pParticleOuterSortCS);
 
 #undef CreatePSO
 
     //VSPS Render, no tiles.
-    s_NoTileRasterizationPSO.SetRootSignature(RootSig);
-    s_NoTileRasterizationPSO.SetRasterizerState(RasterizerTwoSided);
-    s_NoTileRasterizationPSO.SetDepthStencilState(DepthStateReadOnly);
-    s_NoTileRasterizationPSO.SetBlendState(BlendPreMultiplied);
-    s_NoTileRasterizationPSO.SetInputLayout(0, nullptr);
-    s_NoTileRasterizationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE); 
-    s_NoTileRasterizationPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
-    s_NoTileRasterizationPSO.SetVertexShader(g_pParticleVS, sizeof(g_pParticleVS));
-    s_NoTileRasterizationPSO.SetPixelShader(g_pParticlePS, sizeof(g_pParticlePS));
-    s_NoTileRasterizationPSO.Finalize();
+    s_NoTileRasterizationPSO[0].SetRootSignature(RootSig);
+    s_NoTileRasterizationPSO[0].SetRasterizerState(RasterizerTwoSided);
+    s_NoTileRasterizationPSO[0].SetDepthStencilState(DepthStateReadOnly);
+    s_NoTileRasterizationPSO[0].SetBlendState(BlendPreMultiplied);
+    s_NoTileRasterizationPSO[0].SetInputLayout(0, nullptr);
+    s_NoTileRasterizationPSO[0].SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE); 
+    s_NoTileRasterizationPSO[0].SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
+    s_NoTileRasterizationPSO[0].SetVertexShader(g_pParticleVS, sizeof(g_pParticleVS));
+    s_NoTileRasterizationPSO[0].SetPixelShader(g_pParticlePS, sizeof(g_pParticlePS));
+    s_NoTileRasterizationPSO[0].Finalize();
+
+    s_NoTileRasterizationPSO[1] = s_NoTileRasterizationPSO[0];
+    s_NoTileRasterizationPSO[1].SetVertexShader(g_pParticleNoSortVS, sizeof(g_pParticleNoSortVS));
+    s_NoTileRasterizationPSO[1].Finalize();
 
     __declspec(align(16)) UINT InitialDrawIndirectArgs[4] = { 4, 0, 0, 0 };
     DrawIndirectArgs.Create(L"ParticleEffects::DrawIndirectArgs", 1, sizeof(D3D12_DRAW_ARGUMENTS), InitialDrawIndirectArgs);
