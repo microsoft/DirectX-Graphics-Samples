@@ -367,7 +367,7 @@ namespace
 
             CompContext.InsertUAVBarrier(SpriteIndexBuffer);
 
-            BitonicSort::Sort(CompContext, SpriteIndexBuffer, SpriteVertexBuffer.GetCounterBuffer(), 0, SortIndirectArgs, true, false);
+            BitonicSort::Sort(CompContext, SpriteIndexBuffer, SpriteVertexBuffer.GetCounterBuffer(), 0, true, false);
         }
 
         D3D12_RECT scissor;
@@ -384,7 +384,7 @@ namespace
         viewport.MinDepth = 0.0;
         viewport.MaxDepth = 1.0;
 
-		GrContext.SetRootSignature(RootSig);
+        GrContext.SetRootSignature(RootSig);
         GrContext.SetPipelineState(s_NoTileRasterizationPSO[EnableSpriteSort ? 0 : 1]);
         GrContext.TransitionResource(SpriteVertexBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         GrContext.TransitionResource(DrawIndirectArgs, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
@@ -486,7 +486,7 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
     SpriteVertexBuffer.Create(L"ParticleEffects::SpriteVertexBuffer", MAX_TOTAL_PARTICLES, sizeof(ParticleVertex));
     VisibleParticleBuffer.Create(L"ParticleEffects::VisibleParticleBuffer", MAX_TOTAL_PARTICLES, sizeof(ParticleScreenData));
     SpriteIndexBuffer.Create(L"ParticleEffects::SpriteIndexBuffer", MAX_TOTAL_PARTICLES, sizeof(UINT));	
-    SortIndirectArgs.Create(L"ParticleEffects::SortIndirectArgs", 8, sizeof(D3D12_DISPATCH_ARGUMENTS));
+    SortIndirectArgs.Create(L"ParticleEffects::SortIndirectArgs", 1, sizeof(D3D12_DISPATCH_ARGUMENTS));
     TileDrawDispatchIndirectArgs.Create(L"ParticleEffects::DrawPackets_IArgs", 2, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
 
     const uint32_t LargeBinsPerRow = DivideByMultiple(MaxDisplayWidth, 4 * BIN_SIZE_X);

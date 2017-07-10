@@ -25,19 +25,39 @@
 
 #include "BitonicSortCommon.hlsli"
 
-ByteAddressBuffer g_CounterBuffer : register(t0);
+#ifdef BITONICSORT_64BIT
+
+RWStructuredBuffer<uint2> g_SortBuffer : register(u0);
+
+groupshared uint gs_SortIndices[2048];
+groupshared uint gs_SortKeys[2048];
+
+void FillSortKey( uint Element, uint ListCount )
+{
+    // Unused elements must sort to the end
+    if (Element < ListCount)
+    {
+        uint2 KeyIndexPair = g_SortBuffer[Element];
+        gs_SortKeys[Element & 2047] = KeyIndexPair.y;
+        gs_SortIndices[Element & 2047] = KeyIndexPair.x;
+    }
+    else
+    {
+        gs_SortKeys[Element & 2047] = NullItem;
+    }
+}
+
+void StoreKeyIndexPair( uint Element, uint ListCount)
+{
+    if (Element < ListCount)
+        g_SortBuffer[Element] = uint2(gs_SortIndices[Element & 2047], gs_SortKeys[Element & 2047]);
+}
+
+#else // 32-bit packed key/index pairs
+
 RWStructuredBuffer<uint> g_SortBuffer : register(u0);
 
 groupshared uint gs_SortKeys[2048];
-
-cbuffer Constants : register(b0)
-{
-    // Size of actual sort buffer (unused here)
-    uint MaxBufferCountPow2;
-
-    // Offset into counter buffer where this list's item count is stored
-    uint CounterOffset;
-}
 
 void FillSortKey( uint Element, uint ListCount )
 {
@@ -45,26 +65,23 @@ void FillSortKey( uint Element, uint ListCount )
     gs_SortKeys[Element & 2047] = (Element < ListCount ? g_SortBuffer[Element] : NullItem);
 }
 
+void StoreKeyIndexPair( uint Element, uint ListCount )
+{
+    if (Element < ListCount)
+        g_SortBuffer[Element] = gs_SortKeys[Element & 2047];
+}
+
+#endif
+
 [RootSignature(BitonicSort_RootSig)]
 [numthreads(1024, 1, 1)]
-void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex )
+void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex )
 {
     // Item index of the start of this group
     const uint GroupStart = Gid.x * 2048;
 
     // Actual number of items that need sorting
     const uint ListCount = g_CounterBuffer.Load(CounterOffset);
-    
-    // We ultimately have to sort PowerOfTwoCeil(ListCount) items, so
-    // write null sort keys to the end of the list (where they will stay).
-    // This checks for the entire group being off the end of the list.  In
-    // that case, there is no need to pre-sort it.
-    if (GroupStart > ListCount)
-    {
-        g_SortBuffer[GroupStart + GI] = NullItem;
-        g_SortBuffer[GroupStart + GI + 1024] = NullItem;
-        return;
-    }
 
     FillSortKey(GroupStart + GI, ListCount);
     FillSortKey(GroupStart + GI + 1024, ListCount);
@@ -77,42 +94,30 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
     // architectures can load/store two LDS items in a single instruction
     // as long as their separation is a compile-time constant.
     [unroll]
-    for (k = 2; k <= 1024; k <<= 1)
+    for (k = 2; k <= 2048; k <<= 1)
     {
         [unroll]
-        for (uint j = k >> 1; j > 0; j >>= 1)
+        for (uint j = k / 2; j > 0; j /= 2)
         {
-            uint Index1 = InsertZeroBit(GI, j);
-            uint Index2 = Index1 | j;
+            uint Index2 = InsertOneBit(GI, j);
+            uint Index1 = Index2 ^ (k == 2 * j ? k - 1 : j);
 
             uint A = gs_SortKeys[Index1];
             uint B = gs_SortKeys[Index2];
 
-            if (ShouldSwap(A, B, Index1, k))
+            if (ShouldSwap(A, B))
             {
+                // Swap the keys
                 gs_SortKeys[Index1] = B;
                 gs_SortKeys[Index2] = A;
-            }
 
-            GroupMemoryBarrierWithGroupSync();
-        }
-    }
-
-    k = 2048;
-    {
-        [unroll]
-        for (uint j = k >> 1; j > 0; j >>= 1)
-        {
-            uint Index1 = InsertZeroBit(GI, j);
-            uint Index2 = Index1 | j;
-
-            uint A = gs_SortKeys[Index1];
-            uint B = gs_SortKeys[Index2];
-
-            if (ShouldSwap(A, B, GroupStart, k))
-            {
-                gs_SortKeys[Index1] = B;
-                gs_SortKeys[Index2] = A;
+#ifdef BITONICSORT_64BIT
+                // Then swap the indices (for 64-bit sorts)
+                A = gs_SortIndices[Index1];
+                B = gs_SortIndices[Index2];
+                gs_SortIndices[Index1] = B;
+                gs_SortIndices[Index2] = A;
+#endif
             }
 
             GroupMemoryBarrierWithGroupSync();
@@ -120,6 +125,6 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
     }
 
     // Write sorted results to memory
-    g_SortBuffer[GroupStart + GI] = gs_SortKeys[GI];
-    g_SortBuffer[GroupStart + GI + 1024] = gs_SortKeys[GI + 1024];
+    StoreKeyIndexPair(GroupStart + GI, ListCount);
+    StoreKeyIndexPair(GroupStart + GI + 1024, ListCount);
 }

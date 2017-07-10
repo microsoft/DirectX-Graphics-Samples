@@ -252,7 +252,9 @@ public:
         UINT StartVertexLocation = 0, UINT StartInstanceLocation = 0);
     void DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation,
         INT BaseVertexLocation, UINT StartInstanceLocation);
-    void DrawIndirect( GpuBuffer& ArgumentBuffer, size_t ArgumentBufferOffset = 0 );
+    void DrawIndirect( GpuBuffer& ArgumentBuffer, uint64_t ArgumentBufferOffset = 0 );
+    void ExecuteIndirect(CommandSignature& CommandSig, GpuBuffer& ArgumentBuffer, uint64_t ArgumentStartOffset = 0,
+        uint32_t MaxCommands = 1, GpuBuffer* CommandCounterBuffer = nullptr, uint64_t CounterOffset = 0);
 
 private:
 };
@@ -290,7 +292,9 @@ public:
     void Dispatch1D( size_t ThreadCountX, size_t GroupSizeX = 64);
     void Dispatch2D( size_t ThreadCountX, size_t ThreadCountY, size_t GroupSizeX = 8, size_t GroupSizeY = 8);
     void Dispatch3D( size_t ThreadCountX, size_t ThreadCountY, size_t ThreadCountZ, size_t GroupSizeX, size_t GroupSizeY, size_t GroupSizeZ );
-    void DispatchIndirect( GpuBuffer& ArgumentBuffer, size_t ArgumentBufferOffset = 0 );
+    void DispatchIndirect( GpuBuffer& ArgumentBuffer, uint64_t ArgumentBufferOffset = 0 );
+    void ExecuteIndirect(CommandSignature& CommandSig, GpuBuffer& ArgumentBuffer, uint64_t ArgumentStartOffset = 0,
+        uint32_t MaxCommands = 1, GpuBuffer* CommandCounterBuffer = nullptr, uint64_t CounterOffset = 0);
 
 private:
 };
@@ -688,22 +692,38 @@ inline void GraphicsContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UI
     m_CommandList->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
 
-inline void GraphicsContext::DrawIndirect( GpuBuffer& ArgumentBuffer, size_t ArgumentBufferOffset )
+inline void GraphicsContext::ExecuteIndirect(CommandSignature& CommandSig,
+    GpuBuffer& ArgumentBuffer, uint64_t ArgumentStartOffset,
+    uint32_t MaxCommands, GpuBuffer* CommandCounterBuffer, uint64_t CounterOffset)
 {
     FlushResourceBarriers();
-     m_DynamicViewDescriptorHeap.CommitGraphicsRootDescriptorTables(m_CommandList);
-     m_DynamicSamplerDescriptorHeap.CommitGraphicsRootDescriptorTables(m_CommandList);
-     m_CommandList->ExecuteIndirect(Graphics::DrawIndirectCommandSignature.GetSignature(), 1, ArgumentBuffer.GetResource(),
-        (UINT64)ArgumentBufferOffset, nullptr, 0);
+    m_DynamicViewDescriptorHeap.CommitGraphicsRootDescriptorTables(m_CommandList);
+    m_DynamicSamplerDescriptorHeap.CommitGraphicsRootDescriptorTables(m_CommandList);
+    m_CommandList->ExecuteIndirect(CommandSig.GetSignature(), MaxCommands,
+        ArgumentBuffer.GetResource(), ArgumentStartOffset,
+        CommandCounterBuffer == nullptr ? nullptr : CommandCounterBuffer->GetResource(), CounterOffset);
 }
 
-inline void ComputeContext::DispatchIndirect( GpuBuffer& ArgumentBuffer, size_t ArgumentBufferOffset )
+inline void GraphicsContext::DrawIndirect(GpuBuffer& ArgumentBuffer, uint64_t ArgumentBufferOffset)
+{
+    ExecuteIndirect(Graphics::DrawIndirectCommandSignature, ArgumentBuffer, ArgumentBufferOffset);
+}
+
+inline void ComputeContext::ExecuteIndirect(CommandSignature& CommandSig,
+    GpuBuffer& ArgumentBuffer, uint64_t ArgumentStartOffset,
+    uint32_t MaxCommands, GpuBuffer* CommandCounterBuffer, uint64_t CounterOffset)
 {
     FlushResourceBarriers();
     m_DynamicViewDescriptorHeap.CommitComputeRootDescriptorTables(m_CommandList);
     m_DynamicSamplerDescriptorHeap.CommitComputeRootDescriptorTables(m_CommandList);
-    m_CommandList->ExecuteIndirect(Graphics::DispatchIndirectCommandSignature.GetSignature(), 1, ArgumentBuffer.GetResource(),
-        (UINT64)ArgumentBufferOffset, nullptr, 0);
+    m_CommandList->ExecuteIndirect(CommandSig.GetSignature(), MaxCommands,
+        ArgumentBuffer.GetResource(), ArgumentStartOffset,
+        CommandCounterBuffer == nullptr ? nullptr : CommandCounterBuffer->GetResource(), CounterOffset);
+}
+
+inline void ComputeContext::DispatchIndirect( GpuBuffer& ArgumentBuffer, uint64_t ArgumentBufferOffset )
+{
+    ExecuteIndirect(Graphics::DispatchIndirectCommandSignature, ArgumentBuffer, ArgumentBufferOffset);
 }
 
 inline void CommandContext::CopyBuffer( GpuResource& Dest, GpuResource& Src )

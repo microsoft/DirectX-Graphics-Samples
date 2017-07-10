@@ -78,39 +78,18 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
     uint k;
 
     [unroll]
-    for (k = 2; k <= 1024; k <<= 1)
+    for (k = 2; k <= 2048; k *= 2)
     {
         [unroll]
-        for (uint j = k >> 1; j > 0; j >>= 1)
+        for (uint j = k / 2; j > 0; j /= 2)
         {
             uint Index1 = InsertZeroBit(GI, j);
-            uint Index2 = Index1 | j;
+            uint Index2 = Index1 ^ (k == j * 2 ? k - 1 : j);
 
             uint A = gs_SortKeys[Index1];
             uint B = gs_SortKeys[Index2];
 
-            if ((A < B) == ((Index1 & k) == 0))
-            {
-                gs_SortKeys[Index1] = B;
-                gs_SortKeys[Index2] = A;
-            }
-
-            GroupMemoryBarrierWithGroupSync();
-        }
-    }
-
-    k = 2048;
-    {
-        [unroll]
-        for (uint j = k >> 1; j > 0; j >>= 1)
-        {
-            uint Index1 = InsertZeroBit(GI, j);
-            uint Index2 = Index1 | j;
-
-            uint A = gs_SortKeys[Index1];
-            uint B = gs_SortKeys[Index2];
-
-            if ((A < B) == ((GroupStart & k) == 0))
+            if (A < B)
             {
                 gs_SortKeys[Index1] = B;
                 gs_SortKeys[Index2] = A;

@@ -22,25 +22,62 @@
 
 #include "BitonicSortCommon.hlsli"
 
-RWStructuredBuffer<uint> g_SortBuffer : register(u0);
-
 cbuffer Constants : register(b0)
 {
     uint k; // k >= 4096
 };
 
+#ifdef BITONICSORT_64BIT
+
+RWStructuredBuffer<uint2> g_SortBuffer : register(u0);
+
 groupshared uint gs_SortKeys[2048];
+groupshared uint gs_SortIndices[2048];
+
+void LoadKeyIndexPair( uint Element, uint ListCount )
+{
+    uint2 KeyIndex = Element < ListCount ? g_SortBuffer[Element] : NullItem;
+    gs_SortIndices[Element & 2047] = KeyIndex.x;
+    gs_SortKeys[Element & 2047] = KeyIndex.y;
+}
+
+void StoreKeyIndexPair( uint Element, uint ListCount )
+{
+    if (Element < ListCount)
+        g_SortBuffer[Element] = uint2(gs_SortIndices[Element & 2047], gs_SortKeys[Element & 2047]);
+}
+
+#else // 32-bit packed key/index pairs
+
+RWStructuredBuffer<uint> g_SortBuffer : register(u0);
+
+groupshared uint gs_SortKeys[2048];
+
+void LoadKeyIndexPair( uint Element, uint ListCount )
+{
+    gs_SortKeys[Element & 2047] = Element < ListCount ? g_SortBuffer[Element] : NullItem;
+}
+
+void StoreKeyIndexPair( uint Element, uint ListCount )
+{
+    if (Element < ListCount)
+        g_SortBuffer[Element] = gs_SortKeys[Element & 2047];
+}
+
+#endif
 
 [RootSignature(BitonicSort_RootSig)]
 [numthreads(1024, 1, 1)]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex )
 {
+    const uint ListCount = g_CounterBuffer.Load(CounterOffset);
+
     // Item index of the start of this group
     const uint GroupStart = Gid.x * 2048;
 
     // Load from memory into LDS to prepare sort
-    gs_SortKeys[GI] = g_SortBuffer[GroupStart + GI];
-    gs_SortKeys[GI + 1024] = g_SortBuffer[GroupStart + GI + 1024];
+    LoadKeyIndexPair(GroupStart + GI, ListCount);
+    LoadKeyIndexPair(GroupStart + GI + 1024, ListCount);
 
     GroupMemoryBarrierWithGroupSync();
 
@@ -48,23 +85,32 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex )
     // architectures can load/store two LDS items in a single instruction
     // as long as their separation is a compile-time constant.
     [unroll]
-    for (uint j = 1024; j > 0; j >>= 1)
+    for (uint j = 1024; j > 0; j /= 2)
     {
-        uint Index1 = InsertZeroBit(GI, j);
-        uint Index2 = Index1 | j;
+        uint Index2 = InsertOneBit(GI, j);
+        uint Index1 = Index2 ^ j;
 
         uint A = gs_SortKeys[Index1];
         uint B = gs_SortKeys[Index2];
 
-        if (ShouldSwap(A, B, GroupStart, k))
+        if (ShouldSwap(A, B))
         {
+            // Swap the keys
             gs_SortKeys[Index1] = B;
             gs_SortKeys[Index2] = A;
+
+#ifdef BITONICSORT_64BIT
+            // Then swap the indices (for 64-bit sorts)
+            A = gs_SortIndices[Index1];
+            B = gs_SortIndices[Index2];
+            gs_SortIndices[Index1] = B;
+            gs_SortIndices[Index2] = A;
+#endif
         }
 
         GroupMemoryBarrierWithGroupSync();
     }
 
-    g_SortBuffer[GroupStart + GI] = gs_SortKeys[GI];
-    g_SortBuffer[GroupStart + GI + 1024] = gs_SortKeys[GI + 1024];
+    StoreKeyIndexPair(GroupStart + GI, ListCount);
+    StoreKeyIndexPair(GroupStart + GI + 1024, ListCount);
 }

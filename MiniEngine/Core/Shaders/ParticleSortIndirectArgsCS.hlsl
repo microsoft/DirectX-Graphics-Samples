@@ -20,15 +20,11 @@ RWByteAddressBuffer g_DrawIndirectArgs : register(u1);
 [numthreads(1, 1, 1)]
 void main( uint GI : SV_GroupIndex )
 {
-	uint InstanceCount = g_DrawIndirectArgs.Load(4);
+    uint InstanceCount = g_DrawIndirectArgs.Load(4);
+    uint ThreadGroupCount = (InstanceCount + 2047) / 2048;
 
-	uint NextPow2 = (1 << firstbithigh(InstanceCount)) - 1;
-	NextPow2 = (InstanceCount + NextPow2) & ~NextPow2;
+    g_DispatchIndirectArgs.Store3(0, uint3(ThreadGroupCount, 1, 1));
 
-	uint NumGroups = (NextPow2 + 2047) / 2048;
-
-	g_DispatchIndirectArgs.Store3(0, uint3(NumGroups, 1, 1));
-
-	// Reset instance count so we can cull and determine how many we need to actually draw
-	g_DrawIndirectArgs.Store(4, 0);
+    // Reset instance count so we can cull and determine how many we need to actually draw
+    g_DrawIndirectArgs.Store(4, 0);
 }

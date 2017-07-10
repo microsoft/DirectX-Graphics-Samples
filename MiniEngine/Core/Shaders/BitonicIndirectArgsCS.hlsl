@@ -13,30 +13,50 @@
 
 #include "BitonicSortCommon.hlsli"
 
-ByteAddressBuffer g_CounterBuffer : register(t0);
 RWByteAddressBuffer g_IndirectArgsBuffer : register(u0);
 
 cbuffer Constants : register(b0)
 {
-    uint MaxBufferCountPow2;
-    uint CounterOffset;
+    uint MaxIterations;
+}
+
+uint NextPow2( uint Val )
+{
+    uint Mask = (1 << firstbithigh(Val)) - 1;
+    return (Val + Mask) & ~Mask;
 }
 
 [RootSignature(BitonicSort_RootSig)]
-[numthreads(64, 1, 1)]
+[numthreads(22, 1, 1)]
 void main( uint GI : SV_GroupIndex )
 {
+    if (GI >= MaxIterations)
+        return;
+
     uint ListCount = g_CounterBuffer.Load(CounterOffset);
+    uint k = 2048 << GI;
 
-    uint k = 1 << (GI + 11);
+    // We need one more iteration every time the number of thread groups doubles
+    if (k > NextPow2((ListCount + 2047) & ~2047))
+        ListCount = 0;
 
-    uint NextPow2 = (1 << firstbithigh(ListCount)) - 1;
-    NextPow2 = (ListCount + NextPow2) & ~NextPow2;
-    NextPow2 = (NextPow2 + 2047) & ~2047;
+    uint PrevDispatches = GI * (GI + 1) / 2;
+    uint Offset = 12 * PrevDispatches;
 
-    uint NumElements = k > NextPow2 ? 0 : (ListCount + k - 1) & ~(k - 1);
-    uint NumGroups = (GI == 0 ? NextPow2 : NumElements) / 2048;
+    // Generate outer sort dispatch arguments
+    for (uint j = k / 2; j > 1024; j /= 2)
+    {
+        // All of the groups of size 2j that are full
+        uint CompleteGroups = (ListCount & ~(2 * j - 1)) / 2048;
 
-    if (k <= MaxBufferCountPow2)
-        g_IndirectArgsBuffer.Store3(GI * 12, uint3(NumGroups, 1, 1));
+        // Remaining items must only be sorted if there are more than j of them
+        uint PartialGroups = ((uint)max(int(ListCount - CompleteGroups * 2048 - j), 0) + 1023) / 1024;
+
+        g_IndirectArgsBuffer.Store3(Offset, uint3(CompleteGroups + PartialGroups, 1, 1));
+
+        Offset += 12;
+    }
+
+    // The inner sort always sorts all groups (rounded up to multiples of 2048)
+    g_IndirectArgsBuffer.Store3(Offset, uint3((ListCount + 2047) / 2048, 1, 1));
 }

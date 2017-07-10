@@ -602,11 +602,9 @@ void Graphics::Shutdown( void )
     s_SwapChain1->Release();
     PSO::DestroyAll();
     RootSignature::DestroyAll();
-
-    DispatchIndirectCommandSignature.Destroy();
-    DrawIndirectCommandSignature.Destroy();
     DescriptorAllocator::DestroyAll();
 
+    DestroyCommonState();
     DestroyRenderingBuffers();
     TemporalEffects::Shutdown();
     PostEffects::Shutdown();

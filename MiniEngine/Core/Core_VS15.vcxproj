@@ -125,6 +125,7 @@
     <ClInclude Include="PixelBuffer.h" />
     <ClInclude Include="PostEffects.h" />
     <ClInclude Include="EngineTuning.h" />
+    <ClInclude Include="ReadbackBuffer.h" />
     <ClInclude Include="RootSignature.h" />
     <ClInclude Include="SamplerManager.h" />
     <ClInclude Include="ShadowBuffer.h" />
@@ -179,6 +180,7 @@
     <ClCompile Include="PipelineState.cpp" />
     <ClCompile Include="PixelBuffer.cpp" />
     <ClCompile Include="PostEffects.cpp" />
+    <ClCompile Include="ReadbackBuffer.cpp" />
     <ClCompile Include="RootSignature.cpp" />
     <ClCompile Include="SamplerManager.cpp" />
     <ClCompile Include="ShadowBuffer.cpp" />

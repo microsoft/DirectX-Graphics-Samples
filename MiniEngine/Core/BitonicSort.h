@@ -30,23 +30,28 @@
 //     for (j = k / 2; j > 0; j /= 2)     // j = compare distance
 //         for (i = 0; i < NumItems; ++i) // i = element index
 //             if (ShouldSwap(i, i ^ j))  // Are the two in proper order?
-//                 Swap(i, i^j)           // If not, swap them
+//                 Swap(i, i ^ j)         // If not, swap them
 //
-// To determine if two elements should swap, one more property of the bitonic
-// sort must be understood.  For groups of size k, even groups should sort in
-// ascending order, and odd groups should sort in descending order.  Two items
-// which are being compared always come from the same group because they have
-// a distance of j, which is always less than k.
+// In this modified form of bitonic sort, all groups of size k are sorted in
+// the same direction.  This facilitates sorting lists with non-power-of-two
+// lengths.  So the ShouldSwap() test is informed only by the intent to have
+// an ascending or descending list.  If sorting ascending, null items should
+// have a sort key of 0xffffffff to guarantee sorting to the end.  Likewise,
+// sorting descending has a null item of 0x00000000.
 //
-// Because of the parallel nature and powers of two dimensionality, we must
-// ultimately sort a list that has a length with a power of two.  This forces
-// us to pad out unused elements with sort keys that will eventually sort to
-// the end (or remain in place.)  To enforce this, we have the concept of "pre-
-// sorting".  During the pre-sort, we fill unused items with null sort keys
-// (e.g. 0xffffffff) that are guaranteed to sort to the end of the list.  As
-// an optimization, we can also pre-sort the list for k values up to 2048 by
-// sorting in LDS before writing to memory.  It is always better for the caller
-// of this system to pre-sort their list as they create it.
+// The value of the null item is also useful in the key comparison.  Notice
+// that with ascending lists, we want A < B, and with descending lists, we
+// want A > B.  So if they are reversed, we must swap them.  By using the
+// null item value, we can automatically reverse the test like so:
+//
+// Descending:  Swap if (A < B) == (A ^ 0x00000000 < B ^ 0x00000000)
+// Ascending:   Swap if (A > B) == (~A < ~B) == (A ^ 0xffffffff < B ^ 0xffffffff)
+// Generalized: Swap if (A ^ NullItem) < (B ^ NullItem)
+//
+// As an optimization, you can pre-sort the list for k values up to 2048 in
+// LDS before writing to memory.  (You do not have to write null items at the
+// end of your list to memory.)  It is always better for the caller of this
+// system to pre-sort their list as they create it.
 //
 // The expected usage of this API is that you will have an array of data of
 // unspecified stride.  You will generate a list of sort keys and array index
@@ -57,13 +62,7 @@
 // We also expect that consumers of this system have a GPU-visible count of
 // items.  This probably came from an AppendBuffer (structured buffer with an
 // atomic counter).  So you will need to provide the counter buffer as well as
-// the offset to the counter.  Lastly, due to the variable amount of work a
-// list of variable size requires, the implementation uses ExecuteIndirect().
-// The exact number of thread groups needed for each dispatch is determined by
-// the list count, but we need a buffer to hold the DispatchIndirect arguments.
-// Pre-allocate an IndirectArgsBuffer and provide it to the system.  Allocating
-// 256 bytes for args will allow for sorting up to 2 billion items, which should
-// be enough. :)
+// the offset to the counter.
 //
 // Also note that key/index pairs may be packed into 32-bit words with the key
 // in the most significant bits.  Sorting 32-bit elements is faster than sorting
@@ -90,16 +89,15 @@ namespace BitonicSort
         // Offset into counter buffer to find count for this list.  Must be a multiple of 4 bytes.
         uint32_t CounterOffset,
 
-        // Buffer to hold ExecuteIndirect arguments.  Allocate 256 bytes to be safe.
-        IndirectArgsBuffer& IndirectArgsBuffer,
-
         // Pass 'true' if the list has already been sorted for k values up to 2048.  That is, each
         // group of 2048 is already sorted.  This is common because you can combine generating a
-        // sort key list with sorting thread groups in groupshared memory.
+        // sort key list with sorting thread groups in groupshared (LDS) memory.
         bool IsPartiallyPreSorted,
 
         // True to sort in ascending order (smallest to largest).  False to sort in descending order.
         bool SortAscending
     );
+
+    void Test( void );
 
 } // namespace BitonicSort

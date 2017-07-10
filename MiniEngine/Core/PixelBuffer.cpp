@@ -17,6 +17,7 @@
 #include "GraphicsCore.h"
 #include "BufferManager.h"
 #include "CommandContext.h"
+#include "ReadbackBuffer.h"
 #include <fstream>
 
 using namespace Graphics;
@@ -379,39 +380,14 @@ void PixelBuffer::CreateTextureResource( ID3D12Device* Device, const std::wstrin
 
 void PixelBuffer::ExportToFile( const std::wstring& FilePath )
 {
-    // Create a readback buffer large enough to hold all texel data
-    D3D12_HEAP_PROPERTIES HeapProps;
-    HeapProps.Type = D3D12_HEAP_TYPE_READBACK;
-    HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    HeapProps.CreationNodeMask = 1;
-    HeapProps.VisibleNodeMask = 1;
-
-    // Readback buffers must be 1-dimensional, i.e. "buffer" not "texture2d"
-    D3D12_RESOURCE_DESC TempDesc = {};
-    TempDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    TempDesc.Width = m_Width * m_Height * BytesPerPixel(m_Format);
-    TempDesc.Height = 1;
-    TempDesc.DepthOrArraySize = 1;
-    TempDesc.MipLevels = 1;
-    TempDesc.Format = DXGI_FORMAT_UNKNOWN;
-    TempDesc.SampleDesc.Count = 1;
-    TempDesc.SampleDesc.Quality = 0;
-    TempDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    TempDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
     // Create the buffer.  We will release it after all is done.
-    ID3D12Resource* pTempResource;
-    ASSERT_SUCCEEDED( g_Device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &TempDesc,
-        D3D12_RESOURCE_STATE_COPY_DEST, nullptr, MY_IID_PPV_ARGS(&pTempResource)) );
-    pTempResource->SetName(L"Temporary Readback Buffer");
-    GpuResource TempResource(pTempResource, D3D12_RESOURCE_STATE_COPY_DEST);
+    ReadbackBuffer TempBuffer;
+    TempBuffer.Create(L"Temporary Readback Buffer", m_Width * m_Height, (uint32_t)BytesPerPixel(m_Format));
 
-    CommandContext::ReadbackTexture2D(TempResource, *this);
+    CommandContext::ReadbackTexture2D(TempBuffer, *this);
 
     // Retrieve a CPU-visible pointer to the buffer memory.  Map the whole range for reading.
-    void* Memory;
-    pTempResource->Map(0, &CD3DX12_RANGE(0, TempDesc.Width), &Memory);
+    void* Memory = TempBuffer.Map();
 
     // Open the file and write the header followed by the texel data.
     std::ofstream OutFile(FilePath, std::ios::out | std::ios::binary);
@@ -419,10 +395,9 @@ void PixelBuffer::ExportToFile( const std::wstring& FilePath )
     OutFile.write((const char*)&m_Width, 4); // Pitch
     OutFile.write((const char*)&m_Width, 4);
     OutFile.write((const char*)&m_Height, 4);
-    OutFile.write((const char*)Memory, TempDesc.Width);
+    OutFile.write((const char*)Memory, TempBuffer.GetBufferSize());
     OutFile.close();
 
     // No values were written to the buffer, so use a null range when unmapping.
-    pTempResource->Unmap(0, &CD3DX12_RANGE(0, 0));
-    pTempResource->Release();
+    TempBuffer.Unmap();
 }
