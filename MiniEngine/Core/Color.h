@@ -35,15 +35,15 @@ public:
     bool operator==( const Color& rhs ) const { return XMVector4Equal(m_value, rhs.m_value); }
     bool operator!=( const Color& rhs ) const { return !XMVector4Equal(m_value, rhs.m_value); }
 
-    void SetR( float r ) { m_value = XMVectorSetX(m_value, r); }
-    void SetG( float g ) { m_value = XMVectorSetY(m_value, g); }
-    void SetB( float b ) { m_value = XMVectorSetZ(m_value, b); }
-    void SetA( float a ) { m_value = XMVectorSetW(m_value, a); }
+    void SetR( float r ) { m_value.f[0] = r; }
+    void SetG( float g ) { m_value.f[1] = g; }
+    void SetB( float b ) { m_value.f[2] = b; }
+    void SetA( float a ) { m_value.f[3] = a; }
 
     float* GetPtr( void ) { return reinterpret_cast<float*>(this); }
     float& operator[]( int idx ) { return GetPtr()[idx]; }
 
-    void SetRGB( float r, float g, float b ) { m_value = XMVectorSelect( m_value, XMVectorSet(r, g, b, b), g_XMMask3 ); }
+    void SetRGB( float r, float g, float b ) { m_value.v = XMVectorSelect( m_value, XMVectorSet(r, g, b, b), g_XMMask3 ); }
 
     Color ToSRGB() const;
     Color FromSRGB() const;
@@ -56,11 +56,12 @@ public:
 
     // Pack an HDR color into 32-bits
     uint32_t R11G11B10F(bool RoundToEven=false) const;
+    uint32_t R9G9B9E5() const;
 
     operator XMVECTOR() const { return m_value; }
 
 private:
-    XMVECTOR m_value;
+    XMVECTORF32 m_value;
 };
 
 INLINE Color Max( Color a, Color b ) { return Color(XMVectorMax(a, b)); }
@@ -70,22 +71,22 @@ INLINE Color Clamp( Color x, Color a, Color b ) { return Color(XMVectorClamp(x, 
 
 inline Color::Color( FXMVECTOR vec )
 {
-    m_value = vec;
+    m_value.v = vec;
 }
 
 inline Color::Color( const XMVECTORF32& vec )
 {
-    m_value = (XMVECTOR)vec;
+    m_value = vec;
 }
 
 inline Color::Color( float r, float g, float b, float a )
 {
-    m_value = XMVectorSet(r, g, b, a);
+    m_value.v = XMVectorSet(r, g, b, a);
 }
 
 inline Color::Color( uint16_t r, uint16_t g, uint16_t b, uint16_t a, uint16_t bitDepth )
 {
-    m_value = XMVectorScale(XMVectorSet(r, g, b, a), 1.0f / ((1 << bitDepth) - 1));
+    m_value.v = XMVectorScale(XMVectorSet(r, g, b, a), 1.0f / ((1 << bitDepth) - 1));
 }
 
 inline Color::Color( uint32_t u32 )
@@ -94,7 +95,7 @@ inline Color::Color( uint32_t u32 )
     float g = (float)((u32 >>  8) & 0xFF);
     float b = (float)((u32 >> 16) & 0xFF);
     float a = (float)((u32 >> 24) & 0xFF);
-    m_value = XMVectorScale( XMVectorSet(r, g, b, a), 1.0f / 255.0f );
+    m_value.v = XMVectorScale( XMVectorSet(r, g, b, a), 1.0f / 255.0f );
 }
 
 inline Color Color::ToSRGB( void ) const

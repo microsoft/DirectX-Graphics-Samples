@@ -664,7 +664,7 @@ void Graphics::PreparePresentHDR(void)
     };
     Constants consts = { 1.0f / g_NativeWidth, 1.0f / g_NativeHeight,
         (float)g_HDRPaperWhite, (float)g_MaxDisplayLuminance, (int32_t)HDRDebugMode };
-    Context.SetConstants(1, sizeof(Constants) / 4, (float*)&consts);
+    Context.SetConstantArray(1, sizeof(Constants) / 4, (float*)&consts);
     Context.Draw(3);
 
     Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_PRESENT);
@@ -738,7 +738,7 @@ void Graphics::PreparePresentLDR(void)
         const float WA = (float)SharpeningStrength;
         const float WB = 1.0f + 4.0f * WA;
         float Constants[] = { X * TexelWidth, Y * TexelHeight, Y * TexelWidth, -X * TexelHeight, WA, WB };
-        Context.SetConstants(1, _countof(Constants), Constants);
+        Context.SetConstantArray(1, _countof(Constants), Constants);
         Context.Draw(3);
     }
     else if (UpsampleFilter == kBilinear)

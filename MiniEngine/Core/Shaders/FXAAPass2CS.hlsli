@@ -14,13 +14,8 @@
 #include "FXAARootSignature.hlsli"
 #include "PixelPacking.hlsli"
 
-cbuffer CB0 : register(b0)
-{
-    float2 RcpTextureSize;
-};
-
 Texture2D<float> Luma : register(t0);
-StructuredBuffer<uint> WorkQueue : register(t1);
+ByteAddressBuffer WorkQueue : register(t1);
 Buffer<float3> ColorQueue : register(t2);
 #if SUPPORT_TYPED_UAV_LOADS
 RWTexture2D<float3> DstColor : register(u0);
@@ -51,7 +46,12 @@ SamplerState LinearSampler : register(s0);
 [numthreads(64, 1, 1)]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {
-    uint WorkHeader = WorkQueue[DTid.x];
+#ifdef VERTICAL_ORIENTATION
+    uint ItemIdx = LastQueueIndex - DTid.x;
+#else
+    uint ItemIdx = DTid.x;
+#endif
+    uint WorkHeader = WorkQueue.Load(ItemIdx * 4);
     uint2 ST = uint2(WorkHeader >> 8, WorkHeader >> 20) & 0xFFF;
     uint GradientDir = WorkHeader & 1; // Determines which side of the pixel has the highest contrast
     float Subpix = (WorkHeader & 0xFE) / 254.0 * 0.5;      // 7-bits to encode [0, 0.5]
@@ -117,18 +117,20 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     #endif
 #else
     #if SUPPORT_TYPED_UAV_LOADS
-        DstColor[ST] = lerp(DstColor[ST], ColorQueue[DTid.x], PixelShift);
+        DstColor[ST] = lerp(DstColor[ST], ColorQueue[ItemIdx], PixelShift);
     #else
-        DstColor[ST] = Pack_R11G11B10_FLOAT(lerp(Unpack_R11G11B10_FLOAT(DstColor[ST]), ColorQueue[DTid.x], PixelShift));
+        DstColor[ST] = Pack_R11G11B10_FLOAT(lerp(Unpack_R11G11B10_FLOAT(DstColor[ST]), ColorQueue[ItemIdx], PixelShift));
     #endif
 #endif
     }
 #ifdef DEBUG_OUTPUT
     else
+    {
     #if SUPPORT_TYPED_UAV_LOADS
         DstColor[ST] = float3(0, 0, 0.25);
     #else
         DstColor[ST] = Pack_R11G11B10_FLOAT(float3(0, 0, 0.25));
     #endif
+    }
 #endif
 }

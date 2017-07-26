@@ -75,10 +75,9 @@ namespace Graphics
     extern ColorBuffer g_aBloomUAV5[2];		// 40x24   (1/48)
     extern ColorBuffer g_LumaLR;
     extern ByteAddressBuffer g_Histogram;
-    extern StructuredBuffer g_FXAAWorkQueueH;
-    extern StructuredBuffer g_FXAAWorkQueueV;
-    extern TypedBuffer g_FXAAColorQueueH;
-    extern TypedBuffer g_FXAAColorQueueV;
+    extern ByteAddressBuffer g_FXAAWorkCounters;
+    extern ByteAddressBuffer g_FXAAWorkQueue;
+    extern TypedBuffer g_FXAAColorQueue;
 
     void InitializeRenderingBuffers(uint32_t NativeWidth, uint32_t NativeHeight );
     void ResizeDisplayDependentBuffers(uint32_t NativeWidth, uint32_t NativeHeight);

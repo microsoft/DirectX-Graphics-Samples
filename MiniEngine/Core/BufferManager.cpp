@@ -73,13 +73,14 @@ namespace Graphics
     ColorBuffer g_aBloomUAV5[2];	// 40x24   (1/48)
     ColorBuffer g_LumaLR;
     ByteAddressBuffer g_Histogram;
-    StructuredBuffer g_FXAAWorkQueueH;
-    StructuredBuffer g_FXAAWorkQueueV;
-    TypedBuffer g_FXAAColorQueueH(DXGI_FORMAT_R11G11B10_FLOAT);
-    TypedBuffer g_FXAAColorQueueV(DXGI_FORMAT_R11G11B10_FLOAT);
+    ByteAddressBuffer g_FXAAWorkCounters;
+    ByteAddressBuffer g_FXAAWorkQueue;
+    TypedBuffer g_FXAAColorQueue(DXGI_FORMAT_R11G11B10_FLOAT);
 
     // For testing GenerateMipMaps()
     ColorBuffer g_GenMipsBuffer;
+
+    DXGI_FORMAT DefaultHdrColorFormat = DXGI_FORMAT_R11G11B10_FLOAT;
 }
 
 #define T2X_COLOR_FORMAT DXGI_FORMAT_R10G10B10A2_UNORM
@@ -107,7 +108,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 
     esram.PushStack();
 
-        g_SceneColorBuffer.Create( L"Main Color Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
+        g_SceneColorBuffer.Create( L"Main Color Buffer", bufferWidth, bufferHeight, 1, DefaultHdrColorFormat, esram );
         g_VelocityBuffer.Create( L"Motion Vectors", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT );
         g_PostEffectsBuffer.Create( L"Post Effects Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT );
 
@@ -195,23 +196,24 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 
             esram.PushStack();	// Begin bloom and tone mapping
                 g_LumaLR.Create( L"Luma Buffer", kBloomWidth, kBloomHeight, 1, DXGI_FORMAT_R8_UINT, esram );
-                g_aBloomUAV1[0].Create( L"Bloom Buffer 1a", kBloomWidth,    kBloomHeight,    1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
-                g_aBloomUAV1[1].Create( L"Bloom Buffer 1b", kBloomWidth,    kBloomHeight,    1, DXGI_FORMAT_R11G11B10_FLOAT, esram);
-                g_aBloomUAV2[0].Create( L"Bloom Buffer 2a", kBloomWidth/2,  kBloomHeight/2,  1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
-                g_aBloomUAV2[1].Create( L"Bloom Buffer 2b", kBloomWidth/2,  kBloomHeight/2,  1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
-                g_aBloomUAV3[0].Create( L"Bloom Buffer 3a", kBloomWidth/4,  kBloomHeight/4,  1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
-                g_aBloomUAV3[1].Create( L"Bloom Buffer 3b", kBloomWidth/4,  kBloomHeight/4,  1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
-                g_aBloomUAV4[0].Create( L"Bloom Buffer 4a", kBloomWidth/8,  kBloomHeight/8,  1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
-                g_aBloomUAV4[1].Create( L"Bloom Buffer 4b", kBloomWidth/8,  kBloomHeight/8,  1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
-                g_aBloomUAV5[0].Create( L"Bloom Buffer 5a", kBloomWidth/16, kBloomHeight/16, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
-                g_aBloomUAV5[1].Create( L"Bloom Buffer 5b", kBloomWidth/16, kBloomHeight/16, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
+                g_aBloomUAV1[0].Create( L"Bloom Buffer 1a", kBloomWidth,    kBloomHeight,    1, DefaultHdrColorFormat, esram );
+                g_aBloomUAV1[1].Create( L"Bloom Buffer 1b", kBloomWidth,    kBloomHeight,    1, DefaultHdrColorFormat, esram);
+                g_aBloomUAV2[0].Create( L"Bloom Buffer 2a", kBloomWidth/2,  kBloomHeight/2,  1, DefaultHdrColorFormat, esram );
+                g_aBloomUAV2[1].Create( L"Bloom Buffer 2b", kBloomWidth/2,  kBloomHeight/2,  1, DefaultHdrColorFormat, esram );
+                g_aBloomUAV3[0].Create( L"Bloom Buffer 3a", kBloomWidth/4,  kBloomHeight/4,  1, DefaultHdrColorFormat, esram );
+                g_aBloomUAV3[1].Create( L"Bloom Buffer 3b", kBloomWidth/4,  kBloomHeight/4,  1, DefaultHdrColorFormat, esram );
+                g_aBloomUAV4[0].Create( L"Bloom Buffer 4a", kBloomWidth/8,  kBloomHeight/8,  1, DefaultHdrColorFormat, esram );
+                g_aBloomUAV4[1].Create( L"Bloom Buffer 4b", kBloomWidth/8,  kBloomHeight/8,  1, DefaultHdrColorFormat, esram );
+                g_aBloomUAV5[0].Create( L"Bloom Buffer 5a", kBloomWidth/16, kBloomHeight/16, 1, DefaultHdrColorFormat, esram );
+                g_aBloomUAV5[1].Create( L"Bloom Buffer 5b", kBloomWidth/16, kBloomHeight/16, 1, DefaultHdrColorFormat, esram );
             esram.PopStack();	// End tone mapping
 
             esram.PushStack();	// Begin antialiasing
-                g_FXAAWorkQueueH.Create( L"FXAA Horizontal Work Queue", 512*1024, 4, esram );
-                g_FXAAWorkQueueV.Create( L"FXAA Vertical Work Queue", 512*1024, 4, esram );
-                g_FXAAColorQueueH.Create( L"FXAA Horizontal Color Queue", 512*1024, 4, esram );
-                g_FXAAColorQueueV.Create( L"FXAA Vertical Color Queue", 512*1024, 4, esram );
+                const uint32_t kFXAAWorkSize = bufferWidth * bufferHeight / 4 + 128;
+                g_FXAAWorkQueue.Create( L"FXAA Work Queue", kFXAAWorkSize, sizeof(uint32_t), esram );
+                g_FXAAColorQueue.Create( L"FXAA Color Queue", kFXAAWorkSize, sizeof(uint32_t), esram );
+                g_FXAAWorkCounters.Create(L"FXAA Work Counters", 2, sizeof(uint32_t));
+                InitContext.ClearUAV(g_FXAAWorkCounters);
             esram.PopStack();	// End antialiasing
 
         esram.PopStack();	// End post processing
@@ -221,7 +223,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
         esram.PopStack();
 
         g_OverlayBuffer.Create( L"UI Overlay", g_DisplayWidth, g_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM, esram );
-        g_HorizontalBuffer.Create( L"Bicubic Intermediate", g_DisplayWidth, bufferHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT, esram );
+        g_HorizontalBuffer.Create( L"Bicubic Intermediate", g_DisplayWidth, bufferHeight, 1, DefaultHdrColorFormat, esram );
 
     esram.PopStack(); // End final image
 
@@ -231,7 +233,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 void Graphics::ResizeDisplayDependentBuffers(uint32_t NativeWidth, uint32_t NativeHeight)
 {
     g_OverlayBuffer.Create( L"UI Overlay", g_DisplayWidth, g_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM );
-    g_HorizontalBuffer.Create( L"Bicubic Intermediate", g_DisplayWidth, NativeHeight, 1, DXGI_FORMAT_R11G11B10_FLOAT );
+    g_HorizontalBuffer.Create( L"Bicubic Intermediate", g_DisplayWidth, NativeHeight, 1, DefaultHdrColorFormat );
 }
 
 void Graphics::DestroyRenderingBuffers()
@@ -299,10 +301,9 @@ void Graphics::DestroyRenderingBuffers()
     g_aBloomUAV5[1].Destroy();
     g_LumaLR.Destroy();
     g_Histogram.Destroy();
-    g_FXAAWorkQueueH.Destroy();
-    g_FXAAWorkQueueV.Destroy();
-    g_FXAAColorQueueH.Destroy();
-    g_FXAAColorQueueV.Destroy();
+    g_FXAAWorkCounters.Destroy();
+    g_FXAAWorkQueue.Destroy();
+    g_FXAAColorQueue.Destroy();
 
     g_GenMipsBuffer.Destroy();
 }

@@ -223,7 +223,8 @@ public:
     void SetPrimitiveTopology( D3D12_PRIMITIVE_TOPOLOGY Topology );
 
     void SetPipelineState( const GraphicsPSO& PSO );
-    void SetConstants( UINT RootIndex, UINT NumConstants, const void* pConstants );
+    void SetConstantArray( UINT RootIndex, UINT NumConstants, const void* pConstants );
+    void SetConstant( UINT RootIndex, DWParam Val, UINT Offset = 0 );
     void SetConstants( UINT RootIndex, DWParam X );
     void SetConstants( UINT RootIndex, DWParam X, DWParam Y );
     void SetConstants( UINT RootIndex, DWParam X, DWParam Y, DWParam Z );
@@ -271,7 +272,8 @@ public:
     void SetRootSignature( const RootSignature& RootSig );
 
     void SetPipelineState( const ComputePSO& PSO );
-    void SetConstants( UINT RootIndex, UINT NumConstants, const void* pConstants );
+    void SetConstantArray( UINT RootIndex, UINT NumConstants, const void* pConstants );
+    void SetConstant( UINT RootIndex, DWParam Val, UINT Offset = 0 );
     void SetConstants( UINT RootIndex, DWParam X );
     void SetConstants( UINT RootIndex, DWParam X, DWParam Y );
     void SetConstants( UINT RootIndex, DWParam X, DWParam Y, DWParam Z );
@@ -376,9 +378,14 @@ inline void GraphicsContext::SetPrimitiveTopology( D3D12_PRIMITIVE_TOPOLOGY Topo
     m_CommandList->IASetPrimitiveTopology(Topology);
 }
 
-inline void ComputeContext::SetConstants( UINT RootEntry, UINT NumConstants, const void* pConstants )
+inline void ComputeContext::SetConstantArray( UINT RootEntry, UINT NumConstants, const void* pConstants )
 {
     m_CommandList->SetComputeRoot32BitConstants( RootEntry, NumConstants, pConstants, 0 );
+}
+
+inline void ComputeContext::SetConstant( UINT RootEntry, DWParam Val, UINT Offset )
+{
+    m_CommandList->SetComputeRoot32BitConstant( RootEntry, Val.Uint, Offset );
 }
 
 inline void ComputeContext::SetConstants( UINT RootEntry, DWParam X )
@@ -407,9 +414,14 @@ inline void ComputeContext::SetConstants( UINT RootEntry, DWParam X, DWParam Y, 
     m_CommandList->SetComputeRoot32BitConstant( RootEntry, W.Uint, 3 );
 }
 
-inline void GraphicsContext::SetConstants( UINT RootIndex, UINT NumConstants, const void* pConstants )
+inline void GraphicsContext::SetConstantArray( UINT RootIndex, UINT NumConstants, const void* pConstants )
 {
     m_CommandList->SetGraphicsRoot32BitConstants( RootIndex, NumConstants, pConstants, 0 );
+}
+
+inline void GraphicsContext::SetConstant( UINT RootEntry, DWParam Val, UINT Offset )
+{
+    m_CommandList->SetGraphicsRoot32BitConstant( RootEntry, Val.Uint, Offset );
 }
 
 inline void GraphicsContext::SetConstants( UINT RootIndex, DWParam X )

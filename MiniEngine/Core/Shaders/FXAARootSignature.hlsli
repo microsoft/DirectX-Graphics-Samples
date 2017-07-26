@@ -13,7 +13,7 @@
 
 #define FXAA_RootSig \
     "RootFlags(0), " \
-    "RootConstants(b0, num32BitConstants=4), " \
+    "RootConstants(b0, num32BitConstants=7), " \
     "DescriptorTable(UAV(u0, numDescriptors = 5))," \
     "DescriptorTable(SRV(t0, numDescriptors = 6))," \
     "StaticSampler(s0," \
@@ -21,3 +21,12 @@
         "addressV = TEXTURE_ADDRESS_CLAMP," \
         "addressW = TEXTURE_ADDRESS_CLAMP," \
         "filter = FILTER_MIN_MAG_MIP_LINEAR)"
+
+cbuffer CB0 : register(b0)
+{
+    float2 RcpTextureSize;
+    float ContrastThreshold;	// default = 0.2, lower is more expensive
+    float SubpixelRemoval;		// default = 0.75, lower blurs less
+    uint LastQueueIndex;
+    uint2 StartPixel;
+}

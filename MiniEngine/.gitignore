@@ -3,20 +3,19 @@
 *.VC.db*
 *.shader_inc
 *.vspscc
-/Build
 *.opensdf
 *.sdf
 *.ipch
 *.cache
 /3rdParty/Build
-Build_VS12
-Build_VS11
 *.tlog
 *.lastbuildstate
 *.ilk
 *.log
 * - Copy*.*
+Build_VS11
+Build_VS12
 Build_VS14
 Build_VS15
-XboxOne.x64
 /ModelConverter/assimp.dll
+Packages

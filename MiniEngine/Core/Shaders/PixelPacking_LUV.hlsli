@@ -116,8 +116,11 @@ float3 LUVtoRec2020(float3 AYB)
 
 uint PackLUV(float3 AYB)
 {
+    if (AYB.y < 0.00005)
+        return 0;
+
     uint L = (f32tof16(AYB.y) + 1) >> 1;
-    uint2 UV = saturate(AYB.xy / max(AYB.z, 1e-6)) * 511.0 + 0.5;
+    uint2 UV = saturate(AYB.xy / AYB.z) * 511.0 + 0.5;
     return L | UV.x << 14 | UV.y << 23;
 }
 
@@ -125,54 +128,6 @@ float3 UnpackLUV(uint LUV)
 {
     float L = f16tof32((LUV << 1) & 0x7FFE);
     float2 UV = (uint2(LUV >> 14, LUV >> 23) & 0x1FF) / 511.0;
-    float B = L / max(UV.y, 1e-6);
-    return float3(UV.x * B, L, B);
-}
-
-// The "Fast" version uses fewer instructions by sticking with 8-bit and 16-bit elements.
-// It also suffers a slight loss of chroma precision:  16 bits vs. 18 bits.
-uint PackLUV_Fast(float3 AYB)
-{
-    float3 LUV = float3(AYB.y, saturate(AYB.xy / max(AYB.z, 1e-6)));
-    uint L = f32tof16(LUV.x);
-    uint U = LUV.y * 255.0 + 0.5;
-    uint V = LUV.z * 255.0 + 0.5;
-    return L | U << 16 | V << 24;
-}
-
-float3 UnpackLUV_Fast(uint LUV)
-{
-    float L = f16tof32(LUV);
-    float U = ((LUV >> 16) & 0xFF) / 255.0;
-    float V = ((LUV >> 24) & 0xFF) / 255.0; 
-    float B = L / max(V, 1e-6);
-    return float3(U * B, L, B);
-}
-
-// This is an improvement on using float14 for luminance because the mantissa is
-// encoded logarithmically just as if we used a 5.9 fixed point log.  This allows
-// for smoothly sliding precision rather than the typical step function of floats.
-// I.e. precision doesn't halve with each power of 2.  This improvement is possible
-// because we are starting with a float32.
-uint PackLogLUV(float3 AYB)
-{
-    float Y = AYB.y;
-    float flat_mantissa = asfloat(asuint(Y) & 0x7FFFFF | 0x3F800000);
-    float curved_mantissa = log2(flat_mantissa) + 1.0;
-    Y = asfloat(asuint(Y) & 0xFF800000 | asuint(curved_mantissa) & 0x7FFFFF);
-
-    uint L = (f32tof16(Y) + 1) >> 1;
-    uint2 UV = saturate(AYB.xy / max(AYB.z, 1e-6)) * 511.0 + 0.5;
-    return L | UV.x << 14 | UV.y << 23;
-}
-
-float3 UnpackLogLUV(uint LUV)
-{
-    float L = f16tof32((LUV << 1) & 0x7FFE);
-    float2 UV = (uint2(LUV >> 14, LUV >> 23) & 0x1FF) / 511.0;
-    float curved_mantissa = asfloat(asuint(L) & 0x7FFFFF | 0x3F800000);
-    float flat_mantissa = exp2(curved_mantissa - 1.0);
-    L = asfloat(asuint(L) & 0xFF800000 | asuint(flat_mantissa) & 0x7FFFFF);
     float B = L / max(UV.y, 1e-6);
     return float3(UV.x * B, L, B);
 }

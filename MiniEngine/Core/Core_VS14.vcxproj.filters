@@ -799,6 +799,12 @@
     <FxCompile Include="Shaders\ParticleNoSortVS.hlsl">
       <Filter>Shaders\Particles</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\FXAAPass2HDebug2CS.hlsl">
+      <Filter>Shaders\FXAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FXAAPass2VDebug2CS.hlsl">
+      <Filter>Shaders\FXAA</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Math\Functions.inl">

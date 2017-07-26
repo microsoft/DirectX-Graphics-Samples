@@ -148,48 +148,97 @@ void BitonicSort::Sort(
     }
 }
 
+template <typename T>
+inline void VerifySort(T* List, uint32_t ListLength, bool bAscending)
+{
+    const T IndexMask = Math::AlignPowerOfTwo(ListLength) - 1;
+
+    for (uint32_t i = 0; i < ListLength - 1; ++i)
+    {
+        ASSERT((List[i] & IndexMask) < ListLength, "Corrupted list index detected");
+
+        if (bAscending)
+        {
+            ASSERT(List[i] <= List[i + 1], "Invalid sort order:  non-ascending");
+        }
+        else
+        {
+            ASSERT(List[i] >= List[i + 1], "Invalid sort order:  non-descending");
+        }
+    }
+
+    ASSERT((List[ListLength - 1] & IndexMask) < ListLength, "Corrupted list index detected");
+}
+
+void TestBitonicSort(uint32_t ListSize, bool b64Bit, bool bAscending)
+{
+    const uint32_t SizeOfElem = b64Bit ? sizeof(uint64_t) : sizeof(uint32_t);
+    const uint32_t IndexMask = Math::AlignPowerOfTwo(ListSize) - 1;
+
+    // Allocate memory for list on CPU
+    void* BufferPtr = std::malloc(ListSize * SizeOfElem);
+
+    // Initialize list with random keys and valid indices
+    if (b64Bit)
+    {
+        uint64_t* BufferPtr64 = (uint64_t*)BufferPtr;
+        for (uint32_t i = 0; i < ListSize; ++i)
+            BufferPtr64[i] = ((uint64_t)(uint32_t)Math::g_RNG.NextInt() << 32 | i);
+    }
+    else
+    {
+        uint32_t* BufferPtr32 = (uint32_t*)BufferPtr;
+        for (uint32_t i = 0; i < ListSize; ++i)
+            BufferPtr32[i] = (((uint32_t)Math::g_RNG.NextInt() & ~IndexMask) | i);
+    }
+
+    // Upload list to GPU
+    ByteAddressBuffer RandomListGpu;
+    RandomListGpu.Create(L"GPU Sort List", ListSize, SizeOfElem, BufferPtr);
+    std::free(BufferPtr);
+
+    // Put the list size in GPU memory
+    __declspec(align(16)) uint32_t ListCounter[1] = { ListSize };
+    ByteAddressBuffer RandomListCount;
+    RandomListCount.Create(L"GPU List Counter", 1, sizeof(uint32_t), ListCounter);
+
+    // Allocate readback buffers to view data with the CPU
+    ReadbackBuffer IndirectArgs;
+    IndirectArgs.Create(L"Readback Indirect Args", 22 * 23 / 2, 12);
+
+    ReadbackBuffer ReadbackList;
+    ReadbackList.Create(L"Random List For Sort", ListSize, SizeOfElem);
+
+    // Begin GPU work of sorting.  Then copy results back to CPU.
+    ComputeContext& Ctx = ComputeContext::Begin(L"Bitonic Sort Test");
+    BitonicSort::Sort(Ctx, RandomListGpu, RandomListCount, 0, false, bAscending);
+    Ctx.CopyBuffer(IndirectArgs, BitonicSort::s_DispatchArgs);
+    Ctx.CopyBuffer(ReadbackList, RandomListGpu);
+    Ctx.Finish(true);
+
+    typedef uint32_t Args[3];
+    Args* iArgs = (Args*)IndirectArgs.Map();
+    BufferPtr = ReadbackList.Map();
+
+    // Scan through all items to ensure they are sorted in the proper order and that
+    // their sort index is in the right range (uncorrupted).
+    if (b64Bit)
+        VerifySort((uint64_t*)BufferPtr, ListSize, bAscending);
+    else
+        VerifySort((uint32_t*)BufferPtr, ListSize, bAscending);
+
+    ReadbackList.Unmap();
+    IndirectArgs.Unmap();
+}
+
 void BitonicSort::Test( void )
 {
     for (uint32_t ThreadGroupCount = 1; ThreadGroupCount < 256; ++ThreadGroupCount)
     {
-        uint32_t RandListLength = 512 * ThreadGroupCount;
-        uint32_t SizeOfElem = sizeof(uint32_t);
-
-        uint32_t* BufferPtr = (uint32_t*)std::malloc(RandListLength * SizeOfElem);
-        for (uint32_t i = 0; i < RandListLength; ++i)
-            BufferPtr[i] = (uint32_t)Math::g_RNG.NextInt();
-
-        ByteAddressBuffer RandomListGpu;
-        RandomListGpu.Create(L"GPU Sort List", RandListLength, SizeOfElem, BufferPtr);
-        std::free(BufferPtr);
-
-        ComputeContext& Ctx = ComputeContext::Begin(L"Bitonic Sort Test");
-
-        __declspec(align(16)) uint32_t ListCounter[1] = { RandListLength };
-        ByteAddressBuffer RandomListCount;
-        RandomListCount.Create(L"GPU List Counter", 1, sizeof(uint32_t), ListCounter);
-
-        Sort(Ctx, RandomListGpu, RandomListCount, 0, false, true);
-
-        ReadbackBuffer IndirectArgs;
-        IndirectArgs.Create( L"Readback Indirect Args", 22*23/2, 12);
-        Ctx.CopyBuffer(IndirectArgs, s_DispatchArgs);
-
-        ReadbackBuffer ReadbackList;
-        ReadbackList.Create( L"Random List For Sort", RandListLength, SizeOfElem);
-
-        Ctx.CopyBuffer(ReadbackList, RandomListGpu);
-        Ctx.Finish(true);
-
-        typedef uint32_t Args[3];
-        Args* iArgs = (Args*)IndirectArgs.Map();
-
-        BufferPtr = (uint32_t*)ReadbackList.Map();
-        for (uint32_t i = 0; i < RandListLength - 1; ++i)
-        {
-            ASSERT(BufferPtr[i] <= BufferPtr[i+1]);
-        }
-        ReadbackList.Unmap();
-        IndirectArgs.Unmap();
+        uint32_t ListSize = 500 * ThreadGroupCount;
+        TestBitonicSort(ListSize, true, true);
+        TestBitonicSort(ListSize, true, false);
+        TestBitonicSort(ListSize, false, true);
+        TestBitonicSort(ListSize, false, false);
     }
 }
