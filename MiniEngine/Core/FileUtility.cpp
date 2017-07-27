@@ -15,8 +15,7 @@
 #include "FileUtility.h"
 #include <fstream>
 #include <mutex>
-#include "../3rdParty/zlib-win64/zlib.h"
-//#include "miniz.c"
+#include <zlib.h> // From NuGet package 
 
 using namespace std;
 using namespace Utility;

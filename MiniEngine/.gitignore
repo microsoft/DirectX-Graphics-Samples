@@ -7,7 +7,6 @@
 *.sdf
 *.ipch
 *.cache
-/3rdParty/Build
 *.tlog
 *.lastbuildstate
 *.ilk
@@ -17,5 +16,6 @@ Build_VS11
 Build_VS12
 Build_VS14
 Build_VS15
+Packages
 /ModelConverter/assimp.dll
 Packages
