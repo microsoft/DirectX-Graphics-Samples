@@ -55,11 +55,9 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
-    <Link>
+    <Link Condition="'$(Configuration)'=='Debug'">
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
@@ -74,7 +72,7 @@
     <ClCompile Include="ModelViewer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Core/Core_VS14.vcxproj">
+    <ProjectReference Include="..\Core\Core_VS14.vcxproj">
       <Project>{86A58508-0D6A-4786-A32F-01A301FDC6F3}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
