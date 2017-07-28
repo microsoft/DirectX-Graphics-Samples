@@ -777,28 +777,3 @@ inline void CommandContext::ResolveTimeStamps(ID3D12Resource* pReadbackHeap, ID3
 {
     m_CommandList->ResolveQueryData(pQueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0, NumQueries, pReadbackHeap, 0);
 }
-
-inline void CommandContext::PIXBeginEvent(const wchar_t* label)
-{
-#if defined(RELEASE) || _MSC_VER < 1800
-    (label);
-#else
-    ::PIXBeginEvent(m_CommandList, 0, label);
-#endif
-}
-
-inline void CommandContext::PIXEndEvent(void)
-{
-#if !defined(RELEASE) && _MSC_VER >= 1800
-    ::PIXEndEvent(m_CommandList);
-#endif
-}
-
-inline void CommandContext::PIXSetMarker(const wchar_t* label)
-{
-#if defined(RELEASE) || _MSC_VER < 1800
-    (label);
-#else
-    ::PIXSetMarker(m_CommandList, 0, label);
-#endif
-}

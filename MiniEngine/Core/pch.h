@@ -34,11 +34,6 @@
 #define D3D12_GPU_VIRTUAL_ADDRESS_NULL      ((D3D12_GPU_VIRTUAL_ADDRESS)0)
 #define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN   ((D3D12_GPU_VIRTUAL_ADDRESS)-1)
 
-#if _MSC_VER >= 1800
-    #include <d3d11_2.h>
-    #include <pix3.h>
-#endif
-
 #include "d3dx12.h"
 
 #include <cstdint>

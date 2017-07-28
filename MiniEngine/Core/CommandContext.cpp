@@ -19,6 +19,11 @@
 #include "DescriptorHeap.h"
 #include "EngineProfiling.h"
 
+#ifndef RELEASE
+	#include <d3d11_2.h>
+	#include <pix3.h>
+#endif
+
 using namespace Graphics;
 
 
@@ -550,4 +555,29 @@ void CommandContext::InitializeBuffer( GpuResource& Dest, const void* BufferData
 
     // Execute the command list and wait for it to finish so we can release the upload buffer
     InitContext.Finish(true);
+}
+
+void CommandContext::PIXBeginEvent(const wchar_t* label)
+{
+#ifdef RELEASE
+	(label);
+#else
+	::PIXBeginEvent(m_CommandList, 0, label);
+#endif
+}
+
+void CommandContext::PIXEndEvent(void)
+{
+#ifndef RELEASE
+	::PIXEndEvent(m_CommandList);
+#endif
+}
+
+void CommandContext::PIXSetMarker(const wchar_t* label)
+{
+#ifdef RELEASE
+	(label);
+#else
+	::PIXSetMarker(m_CommandList, 0, label);
+#endif
 }
