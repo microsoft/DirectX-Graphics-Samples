@@ -11,7 +11,6 @@
 // Author:  Alex Nankervis
 //
 
-#include "pch.h"
 #include "Model.h"
 #include "Utility.h"
 #include "TextureManager.h"
@@ -19,8 +18,6 @@
 #include "DescriptorHeap.h"
 #include "CommandContext.h"
 #include <stdio.h>
-
-using namespace Graphics;
 
 bool Model::LoadH3D(const char *filename)
 {

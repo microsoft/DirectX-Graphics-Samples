@@ -11,38 +11,9 @@
 // Author:  Alex Nankervis
 //
 
-#include "pch.h"
 #include "Model.h"
 #include <string.h>
 #include <float.h>
-
-
-namespace Graphics
-{
-
-// must match the format enum in model.h
-const char* Model::s_FormatString[] =
-{
-    "none",
-    "h3d",
-};
-static_assert(sizeof(Model::s_FormatString) / sizeof(const char*) == Model::formats, "s_FormatString doesn't match format enum");
-
-int Model::FormatFromFilename(const char *filename)
-{
-    const char *p = strrchr(filename, '.');
-    if (!p || *p == 0)
-        return format_none;
-
-    for (int n = 1; n < formats; n++)
-    {
-        if (_stricmp(p + 1, s_FormatString[n]) == 0)
-            return n;
-    }
-
-    return format_none;
-}
-
 
 Model::Model()
     : m_pMesh(nullptr)
@@ -93,54 +64,6 @@ void Model::Clear()
 
     m_Header.boundingBox.min = Vector3(0.0f);
     m_Header.boundingBox.max = Vector3(0.0f);
-}
-
-bool Model::Load(const char *filename)
-{
-    Clear();
-
-    int format = FormatFromFilename(filename);
-
-    bool rval = false;
-    bool needToOptimize = true;
-    switch (format)
-    {
-    case format_none:
-#ifdef MODEL_ENABLE_ASSIMP
-        rval = LoadAssimp(filename);
-#endif
-        break;
-
-    case format_h3d:
-        rval = LoadH3D(filename);
-        needToOptimize = false;
-        break;
-    }
-
-    if (!rval)
-        return false;
-
-    LoadPostProcess(needToOptimize);
-
-    return true;
-}
-
-bool Model::Save(const char *filename) const
-{
-    int format = FormatFromFilename(filename);
-
-    bool rval = false;
-    switch (format)
-    {
-    case format_none:
-        break;
-
-    case format_h3d:
-        rval = SaveH3D(filename);
-        break;
-    }
-
-    return rval;
 }
 
 // assuming at least 3 floats for position
@@ -204,17 +127,3 @@ void Model::ComputeAllBoundingBoxes()
     }
     ComputeGlobalBoundingBox(m_Header.boundingBox);
 }
-
-void Model::LoadPostProcess(bool needToOptimize)
-{
-    if (needToOptimize)
-    {
-#ifdef MODEL_ENABLE_OPTIMIZER
-        Optimize();
-#else
-        assert(0);
-#endif
-    }
-}
-
-} // namespace Graphics

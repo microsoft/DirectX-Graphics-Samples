@@ -11,16 +11,83 @@
 // Author(s):	Alex Nankervis
 //
 
-#include "Model.h"
+#include "ModelAssimp.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-namespace Graphics
+const char* AssimpModel::s_FormatString[] =
 {
+	"none",
+	"h3d",
+};
+static_assert(_countof(AssimpModel::s_FormatString) == AssimpModel::formats, "s_FormatString doesn't match format enum");
 
-bool Model::LoadAssimp(const char *filename)
+int AssimpModel::FormatFromFilename(const char *filename)
+{
+	const char *p = strrchr(filename, '.');
+	if (!p || *p == 0)
+		return format_none;
+
+	for (int n = 1; n < formats; n++)
+	{
+		if (_stricmp(p + 1, s_FormatString[n]) == 0)
+			return n;
+	}
+
+	return format_none;
+}
+
+bool AssimpModel::Load(const char *filename)
+{
+	Clear();
+
+	int format = FormatFromFilename(filename);
+
+	bool rval = false;
+	bool needToOptimize = true;
+	switch (format)
+	{
+	case format_none:
+		rval = LoadAssimp(filename);
+		break;
+
+	case format_h3d:
+		rval = LoadH3D(filename);
+		needToOptimize = false;
+		break;
+	}
+
+	if (!rval)
+		return false;
+
+	if (needToOptimize)
+		Optimize();
+
+	return true;
+}
+
+bool AssimpModel::Save(const char *filename) const
+{
+	int format = FormatFromFilename(filename);
+
+	bool rval = false;
+	switch (format)
+	{
+	case format_none:
+		break;
+
+	case format_h3d:
+		rval = SaveH3D(filename);
+		break;
+	}
+
+	return rval;
+}
+
+
+bool AssimpModel::LoadAssimp(const char *filename)
 {
     Assimp::Importer importer;
 
@@ -337,5 +404,3 @@ bool Model::LoadAssimp(const char *filename)
 
     return true;
 }
-
-} // namespace Graphics

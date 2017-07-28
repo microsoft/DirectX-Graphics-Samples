@@ -18,40 +18,16 @@
 #include "TextureManager.h"
 #include "GpuBuffer.h"
 
-namespace Graphics
-{
-    using namespace Math;
+using namespace Math;
 
 class Model
 {
 public:
 
-    enum
-    {
-        format_none = 0,
-        format_h3d, // native format
-        
-        formats,
-    };
-    static const char *s_FormatString[];
-    static int FormatFromFilename(const char *filename);
-
     Model();
     ~Model();
 
     void Clear();
-    bool Load(const char *filename);
-    bool Save(const char *filename) const;
-
-    struct BoundingBox
-    {
-        Vector3 min;
-        Vector3 max;
-    };
-    const BoundingBox& GetBoundingBox() const
-    {
-        return m_Header.boundingBox;
-    }
 
     enum
     {
@@ -121,12 +97,10 @@ public:
         attrib_formats
     };
 
-    struct Attrib
+    struct BoundingBox
     {
-        uint16_t offset; // byte offset from the start of the vertex
-        uint16_t normalized; // if true, integer formats are interpreted as [-1, 1] or [0, 1]
-        uint16_t components; // 1-4
-        uint16_t format;
+        Vector3 min;
+        Vector3 max;
     };
 
     struct Header
@@ -136,12 +110,18 @@ public:
         uint32_t vertexDataByteSize;
         uint32_t indexDataByteSize;
         uint32_t vertexDataByteSizeDepth;
-
         BoundingBox boundingBox;
     };
     Header m_Header;
 
-    struct Mesh
+	struct Attrib
+	{
+		uint16_t offset; // byte offset from the start of the vertex
+		uint16_t normalized; // if true, integer formats are interpreted as [-1, 1] or [0, 1]
+		uint16_t components; // 1-4
+		uint16_t format;
+	};
+	struct Mesh
     {
         BoundingBox boundingBox;
 
@@ -202,37 +182,31 @@ public:
     ByteAddressBuffer m_IndexBufferDepth;
     uint32_t m_VertexStrideDepth;
 
+	virtual bool Load(const char* filename)
+	{
+		return LoadH3D(filename);
+	}
+
+	const BoundingBox& GetBoundingBox() const
+	{
+		return m_Header.boundingBox;
+	}
+
     D3D12_CPU_DESCRIPTOR_HANDLE* GetSRVs( uint32_t materialIdx ) const
     {
         return m_SRVs + materialIdx * 6;
     }
 
-private:
+protected:
 
-    bool LoadH3D(const char *filename);
-#ifdef MODEL_ENABLE_ASSIMP
-    bool LoadAssimp(const char *filename);
-#endif
+	bool LoadH3D(const char *filename);
+	bool SaveH3D(const char *filename) const;
 
-    bool SaveH3D(const char *filename) const;
-
-    void LoadPostProcess(bool needToOptimize);
-
-    void ComputeMeshBoundingBox(unsigned int meshIndex, BoundingBox &bbox) const;
-    // requires all mesh bounding boxes to be computed
-    void ComputeGlobalBoundingBox(BoundingBox &bbox) const;
-    void ComputeAllBoundingBoxes();
-
-#ifdef MODEL_ENABLE_OPTIMIZER
-    void Optimize();
-    void OptimizeRemoveDuplicateVertices(bool depth);
-    void OptimizePostTransform(bool depth);
-    void OptimizePreTransform(bool depth);
-#endif
+	void ComputeMeshBoundingBox(unsigned int meshIndex, BoundingBox &bbox) const;
+	void ComputeGlobalBoundingBox(BoundingBox &bbox) const;
+	void ComputeAllBoundingBoxes();
 
     void ReleaseTextures();
     void LoadTextures();
     D3D12_CPU_DESCRIPTOR_HANDLE* m_SRVs;
 };
-
-}

@@ -11,11 +11,9 @@
 // Author(s):	Alex Nankervis
 //
 
-#include "Model.h"
+#include "ModelAssimp.h"
 
 #include <stdio.h>
-
-using namespace Graphics;
 
 void PrintHelp()
 {
@@ -126,7 +124,7 @@ int main(int argc, char **argv)
     printf("input file %s\n", input_file);
     printf("output file %s\n", output_file);
 
-    Model model;
+	AssimpModel model;
 
     printf("loading...\n");
     if (!model.Load(input_file))

@@ -11,16 +11,12 @@
 // Author(s):	Alex Nankervis
 //
 
-#include "Model.h"
+#include "ModelAssimp.h"
 #include "IndexOptimizePostTransform.h"
 
 #include <string.h>
 
-
-namespace Graphics
-{
-
-void Model::OptimizeRemoveDuplicateVertices(bool depth)
+void AssimpModel::OptimizeRemoveDuplicateVertices(bool depth)
 {
     unsigned char *deduplicatedVertexData = new unsigned char [depth ? m_Header.vertexDataByteSizeDepth : m_Header.vertexDataByteSize];
     uint32_t deduplicatedVertexDataSize = 0;
@@ -102,7 +98,7 @@ void Model::OptimizeRemoveDuplicateVertices(bool depth)
     }
 }
 
-void Model::OptimizePostTransform(bool depth)
+void AssimpModel::OptimizePostTransform(bool depth)
 {
     enum {lruCacheSize = 64};
 
@@ -120,7 +116,7 @@ void Model::OptimizePostTransform(bool depth)
     }
 }
 
-void Model::OptimizePreTransform(bool depth)
+void AssimpModel::OptimizePreTransform(bool depth)
 {
     unsigned char *reorderedVertexData = new unsigned char [depth ? m_Header.vertexDataByteSizeDepth : m_Header.vertexDataByteSize];
 
@@ -171,7 +167,7 @@ void Model::OptimizePreTransform(bool depth)
     }
 }
 
-void Model::Optimize()
+void AssimpModel::Optimize()
 {
     // TODO: quantize/compress vertex data
 
@@ -186,5 +182,3 @@ void Model::Optimize()
     OptimizePreTransform(false);
     OptimizePreTransform(true);
 }
-
-} // namespace Graphics
