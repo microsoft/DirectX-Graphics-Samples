@@ -58,15 +58,19 @@
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ItemDefinitionGroup>
+     <Link>
+	  <AdditionalLibraryDirectories>..\..\Packages\freetype.2.7.1.1\build\native\lib\x64\v140\static\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+	  <AdditionalDependencies>freetype271.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\..\Packages\freetype.redist.2.7.1.1\build\native\freetype.redist.targets" Condition="Exists('..\..\Packages\freetype.redist.2.7.1.1\build\native\freetype.redist.targets')" />
     <Import Project="..\..\Packages\freetype.2.7.1.1\build\native\freetype.targets" Condition="Exists('..\..\Packages\freetype.2.7.1.1\build\native\freetype.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\..\Packages\freetype.redist.2.7.1.1\build\native\freetype.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\Packages\freetype.redist.2.7.1.1\build\native\freetype.redist.targets'))" />
     <Error Condition="!Exists('..\..\Packages\freetype.2.7.1.1\build\native\freetype.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\Packages\freetype.2.7.1.1\build\native\freetype.targets'))" />
   </Target>
 </Project>
