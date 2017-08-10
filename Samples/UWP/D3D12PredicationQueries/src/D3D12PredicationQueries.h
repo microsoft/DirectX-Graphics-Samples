@@ -59,8 +59,8 @@ private:
 	UINT8* m_pCbvDataBegin;
 
 	// Pipeline objects.
-	D3D12_VIEWPORT m_viewport;
-	D3D12_RECT m_scissorRect;
+	CD3DX12_VIEWPORT m_viewport;
+	CD3DX12_RECT m_scissorRect;
 	ComPtr<IDXGISwapChain3> m_swapChain;
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];

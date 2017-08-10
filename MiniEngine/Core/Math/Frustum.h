@@ -18,106 +18,120 @@
 
 namespace Math
 {
-	class Frustum
-	{
-	public:
-		Frustum() {}
+    class Frustum
+    {
+    public:
+        Frustum() {}
 
-		Frustum( const Matrix4& ProjectionMatrix );
+        Frustum( const Matrix4& ProjectionMatrix );
 
-		enum CornerID
-		{
-			kNearLowerLeft, kNearUpperLeft, kNearLowerRight, kNearUpperRight,
-			kFarLowerLeft,  kFarUpperLeft,  kFarLowerRight,  kFarUpperRight
-		};
+        enum CornerID
+        {
+            kNearLowerLeft, kNearUpperLeft, kNearLowerRight, kNearUpperRight,
+            kFarLowerLeft,  kFarUpperLeft,  kFarLowerRight,  kFarUpperRight
+        };
 
-		enum PlaneID
-		{
-			kNearPlane, kFarPlane, kLeftPlane, kRightPlane, kTopPlane, kBottomPlane
-		};
+        enum PlaneID
+        {
+            kNearPlane, kFarPlane, kLeftPlane, kRightPlane, kTopPlane, kBottomPlane
+        };
 
-		Vector3         GetFrustumCorner( CornerID id ) const   { return m_FrustumCorners[id]; }
-		BoundingPlane   GetFrustumPlane( PlaneID id ) const     { return m_FrustumPlanes[id]; }
+        Vector3         GetFrustumCorner( CornerID id ) const   { return m_FrustumCorners[id]; }
+        BoundingPlane   GetFrustumPlane( PlaneID id ) const     { return m_FrustumPlanes[id]; }
 
-		// Test whether the bounding sphere intersects the frustum.  Intersection is defined as either being
-		// fully contained in the frustum, or by intersecting one or more of the planes.
-		bool IntersectSphere( BoundingSphere sphere );
+        // Test whether the bounding sphere intersects the frustum.  Intersection is defined as either being
+        // fully contained in the frustum, or by intersecting one or more of the planes.
+        bool IntersectSphere( BoundingSphere sphere ) const;
 
-		friend Frustum  operator* ( const OrthogonalTransform& xform, const Frustum& frustum );	// Fast
-		friend Frustum  operator* ( const AffineTransform& xform, const Frustum& frustum );		// Slow
-		friend Frustum  operator* ( const Matrix4& xform, const Frustum& frustum );				// Slowest (and most general)
+        // We don't officially have a BoundingBox class yet, but let's assume it's forthcoming.  (There is a
+        // simple struct in the Model project.)
+        bool IntersectBoundingBox(const Vector3 minBound, const Vector3 maxBound) const;
 
-	private:
+        friend Frustum  operator* ( const OrthogonalTransform& xform, const Frustum& frustum );	// Fast
+        friend Frustum  operator* ( const AffineTransform& xform, const Frustum& frustum );		// Slow
+        friend Frustum  operator* ( const Matrix4& xform, const Frustum& frustum );				// Slowest (and most general)
 
-		// Perspective frustum constructor (for pyramid-shaped frusta)
-		void ConstructPerspectiveFrustum( float HTan, float VTan, float NearClip, float FarClip );
+    private:
 
-		// Orthographic frustum constructor (for box-shaped frusta)
-		void ConstructOrthographicFrustum( float Left, float Right, float Top, float Bottom, float NearClip, float FarClip );
+        // Perspective frustum constructor (for pyramid-shaped frusta)
+        void ConstructPerspectiveFrustum( float HTan, float VTan, float NearClip, float FarClip );
 
-		Vector3 m_FrustumCorners[8];		// the corners of the frustum
-		BoundingPlane m_FrustumPlanes[6];			// the bounding planes
-	};
+        // Orthographic frustum constructor (for box-shaped frusta)
+        void ConstructOrthographicFrustum( float Left, float Right, float Top, float Bottom, float NearClip, float FarClip );
 
-	//=======================================================================================================
-	// Inline implementations
-	//
+        Vector3 m_FrustumCorners[8];		// the corners of the frustum
+        BoundingPlane m_FrustumPlanes[6];			// the bounding planes
+    };
 
-	inline bool Frustum::IntersectSphere( BoundingSphere sphere )
-	{
-		float radius = sphere.GetRadius();
-		for (int i = 0; i < 6; ++i)
-		{
-			if (m_FrustumPlanes[i].DistanceFromPoint(sphere.GetCenter()) + radius < 0.0f)
-				return false;
-		}
-		return true;
-	}
+    //=======================================================================================================
+    // Inline implementations
+    //
 
-	inline Frustum operator* ( const OrthogonalTransform& xform, const Frustum& frustum )
-	{
-		Frustum result;
+    inline bool Frustum::IntersectSphere( BoundingSphere sphere ) const
+    {
+        float radius = sphere.GetRadius();
+        for (int i = 0; i < 6; ++i)
+        {
+            if (m_FrustumPlanes[i].DistanceFromPoint(sphere.GetCenter()) + radius < 0.0f)
+                return false;
+        }
+        return true;
+    }
 
-		for (int i = 0; i < 8; ++i)
-			result.m_FrustumCorners[i] = xform * frustum.m_FrustumCorners[i];
+    inline bool Frustum::IntersectBoundingBox(const Vector3 minBound, const Vector3 maxBound) const
+    {
+        for (int i = 0; i < 6; ++i)
+        {
+            BoundingPlane p = m_FrustumPlanes[i];
+            Vector3 farCorner = Select(minBound, maxBound, p.GetNormal() > Vector3(kZero));
+            if (p.DistanceFromPoint(farCorner) < 0.0f)
+                return false;
+        }
 
-		// Why isn't there an Invert( OrthogonalTransform ) function?
-		Matrix4 XForm = Transpose(Matrix4(xform.GetRotation(), -(xform.GetRotation() * xform.GetTranslation())));
+        return true;
+    }
 
-		for (int i = 0; i < 6; ++i)
-			result.m_FrustumPlanes[i] = BoundingPlane(XForm * Vector4(frustum.m_FrustumPlanes[i]));
+    inline Frustum operator* ( const OrthogonalTransform& xform, const Frustum& frustum )
+    {
+        Frustum result;
 
-		return result;
-	}
+        for (int i = 0; i < 8; ++i)
+            result.m_FrustumCorners[i] = xform * frustum.m_FrustumCorners[i];
 
-	inline Frustum operator* ( const AffineTransform& xform, const Frustum& frustum )
-	{
-		Frustum result;
+        for (int i = 0; i < 6; ++i)
+            result.m_FrustumPlanes[i] = xform * frustum.m_FrustumPlanes[i];
 
-		for (int i = 0; i < 8; ++i)
-			result.m_FrustumCorners[i] = xform * frustum.m_FrustumCorners[i];
+        return result;
+    }
 
-		Matrix4 XForm = Transpose(Invert(Matrix4(xform)));
+    inline Frustum operator* ( const AffineTransform& xform, const Frustum& frustum )
+    {
+        Frustum result;
 
-		for (int i = 0; i < 6; ++i)
-			result.m_FrustumPlanes[i] = BoundingPlane(XForm * Vector4(frustum.m_FrustumPlanes[i]));
+        for (int i = 0; i < 8; ++i)
+            result.m_FrustumCorners[i] = xform * frustum.m_FrustumCorners[i];
 
-		return result;
-	}
+        Matrix4 XForm = Transpose(Invert(Matrix4(xform)));
 
-	inline Frustum operator* ( const Matrix4& mtx, const Frustum& frustum )
-	{
-		Frustum result;
+        for (int i = 0; i < 6; ++i)
+            result.m_FrustumPlanes[i] = BoundingPlane(XForm * Vector4(frustum.m_FrustumPlanes[i]));
 
-		for (int i = 0; i < 8; ++i)
-			result.m_FrustumCorners[i] = Vector3( mtx * frustum.m_FrustumCorners[i] );
+        return result;
+    }
 
-		Matrix4 XForm = Transpose(Invert(mtx));
+    inline Frustum operator* ( const Matrix4& mtx, const Frustum& frustum )
+    {
+        Frustum result;
 
-		for (int i = 0; i < 6; ++i)
-			result.m_FrustumPlanes[i] = BoundingPlane(XForm * Vector4(frustum.m_FrustumPlanes[i]));
+        for (int i = 0; i < 8; ++i)
+            result.m_FrustumCorners[i] = Vector3( mtx * frustum.m_FrustumCorners[i] );
 
-		return result;
-	}
+        Matrix4 XForm = Transpose(Invert(mtx));
+
+        for (int i = 0; i < 6; ++i)
+            result.m_FrustumPlanes[i] = BoundingPlane(XForm * Vector4(frustum.m_FrustumPlanes[i]));
+
+        return result;
+    }
 
 } // namespace Math

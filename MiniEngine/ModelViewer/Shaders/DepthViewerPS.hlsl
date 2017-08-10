@@ -8,24 +8,23 @@
 //
 // Developed by Minigraph
 //
-// Author(s):  James Stanard
-//             Alex Nankervis
+// Author(s):	James Stanard
 //
 
 #include "ModelViewerRS.hlsli"
 
 struct VSOutput
 {
-	float4 pos : SV_Position;
-	float2 uv : TexCoord0;
+    float4 pos : SV_Position;
+    float2 uv : TexCoord0;
 };
 
-Texture2D<float4> texDiffuse : register(t0);
-SamplerState sampler0 : register(s0);
+Texture2D<float4>	texDiffuse		: register(t0);
+SamplerState		sampler0		: register(s0);
 
 [RootSignature(ModelViewer_RootSig)]
 void main(VSOutput vsOutput)
 {
-	if (texDiffuse.Sample(sampler0, vsOutput.uv).a < 0.5)
-		discard;
+    if (texDiffuse.Sample(sampler0, vsOutput.uv).a < 0.5)
+        discard;
 }

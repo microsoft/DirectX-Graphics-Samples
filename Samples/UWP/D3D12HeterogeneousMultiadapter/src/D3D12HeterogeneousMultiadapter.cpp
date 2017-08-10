@@ -25,31 +25,21 @@ D3D12HeterogeneousMultiadapter::D3D12HeterogeneousMultiadapter(int width, int he
 	m_currentTimesIndex(0),
 	m_drawTimeMovingAverage(0),
 	m_blurTimeMovingAverage(0),
-	m_viewport(),
-	m_scissorRect(),
+	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_currentPresentFenceValue(1),
 	m_currentRenderFenceValue(1),
 	m_currentCrossAdapterFenceValue(1),
 	m_workloadConstantBufferData(),
 	m_blurWorkloadConstantBufferData(),
-	m_crossAdapterTextureSupport(false)
+	m_crossAdapterTextureSupport(false),
+	m_rtvDescriptorSizes{},
+	m_srvDescriptorSizes{},
+	m_drawTimes{},
+	m_blurTimes{},
+	m_frameFenceValues{}
 {
-	ZeroMemory(m_rtvDescriptorSizes, sizeof(m_rtvDescriptorSizes));
-	ZeroMemory(m_srvDescriptorSizes, sizeof(m_srvDescriptorSizes));
-
-	ZeroMemory(m_frameFenceValues, sizeof(m_frameFenceValues));
-
 	m_constantBufferData.resize(MaxTriangleCount);
-
-	ZeroMemory(m_drawTimes, sizeof(m_drawTimes));
-	ZeroMemory(m_blurTimes, sizeof(m_blurTimes));
-	
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
 }
 
 void D3D12HeterogeneousMultiadapter::OnInit()
@@ -85,19 +75,25 @@ HRESULT D3D12HeterogeneousMultiadapter::GetHardwareAdapters(IDXGIFactory2* pFact
 // Load the rendering pipeline dependencies.
 void D3D12HeterogeneousMultiadapter::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	ComPtr<IDXGIAdapter1> primaryAdapter;
 	ComPtr<IDXGIAdapter1> secondaryAdapter;
@@ -434,8 +430,11 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 			featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 		}
 
+		// We don't modify the SRV in the command list after SetGraphicsRootDescriptorTable
+		// is executed on the GPU so we can use the default range behavior:
+		// D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE
 		CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
 
 		CD3DX12_ROOT_PARAMETER1 blurRootParameters[3];
 		blurRootParameters[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -667,8 +666,8 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 				XMStoreFloat4x4(&m_constantBufferData[n].projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PIDIV4, m_aspectRatio, 0.01f, 20.0f)));
 			}
 
-			// Map the constant buffer. We don't unmap this until the app closes.
-			// Keeping things mapped for the lifetime of the resource is okay.
+			// Map and initialize the constant buffer. We don't unmap this until the
+			// app closes. Keeping things mapped for the lifetime of the resource is okay.
 			CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 			ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 			memcpy(m_pCbvDataBegin, &m_constantBufferData[0], constantBufferSize / FrameCount);
@@ -688,8 +687,8 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 			// Setup constant buffer data.
 			m_workloadConstantBufferData.loopCount = m_psLoopCount;
 
-			// Map the constant buffer. We don't unmap this until the app closes.
-			// Keeping things mapped for the lifetime of the resource is okay.
+			// Map and initialize the constant buffer. We don't unmap this until the
+			// app closes. Keeping things mapped for the lifetime of the resource is okay.
 			CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 			ThrowIfFailed(m_workloadConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pWorkloadCbvDataBegin)));
 			memcpy(m_pWorkloadCbvDataBegin, &m_workloadConstantBufferData, workloadConstantBufferSize / FrameCount);
@@ -709,8 +708,8 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 			// Setup constant buffer data.
 			m_blurWorkloadConstantBufferData.loopCount = m_blurPSLoopCount;
 
-			// Map the constant buffer. We don't unmap this until the app closes.
-			// Keeping things mapped for the lifetime of the resource is okay.
+			// Map and initialize the constant buffer. We don't unmap this until the
+			// app closes. Keeping things mapped for the lifetime of the resource is okay.
 			CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 			ThrowIfFailed(m_blurWorkloadConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pBlurWorkloadCbvDataBegin)));
 			memcpy(m_pBlurWorkloadCbvDataBegin, &m_blurWorkloadConstantBufferData, blurWorkloadConstantBufferSize / FrameCount);

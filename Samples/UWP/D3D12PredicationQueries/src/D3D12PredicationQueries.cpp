@@ -15,19 +15,13 @@
 D3D12PredicationQueries::D3D12PredicationQueries(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_frameIndex(0),
-	m_viewport(),
-	m_scissorRect(),
+	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+	m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
 	m_rtvDescriptorSize(0),
-	m_cbvSrvDescriptorSize(0)
+	m_cbvSrvDescriptorSize(0),
+	m_constantBufferData{},
+	m_fenceValues{}
 {
-	ZeroMemory(m_fenceValues, sizeof(m_fenceValues));
-
-	m_viewport.Width = static_cast<float>(width);
-	m_viewport.Height = static_cast<float>(height);
-	m_viewport.MaxDepth = 1.0f;
-
-	m_scissorRect.right = static_cast<LONG>(width);
-	m_scissorRect.bottom = static_cast<LONG>(height);
 }
 
 void D3D12PredicationQueries::OnInit()
@@ -39,19 +33,25 @@ void D3D12PredicationQueries::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12PredicationQueries::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{
@@ -340,9 +340,8 @@ void D3D12PredicationQueries::LoadAssets()
 
 		NAME_D3D12_OBJECT(m_constantBuffer);
 
-		// Initialize and map the constant buffers. We don't unmap this until the
+		// Map and initialize the constant buffer. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
-		ZeroMemory(&m_constantBufferData, sizeof(m_constantBufferData));
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 		ZeroMemory(m_pCbvDataBegin, FrameCount * sizeof(m_constantBufferData));
@@ -545,11 +544,9 @@ void D3D12PredicationQueries::PopulateCommandList()
 		PIXBeginEvent(m_commandList.Get(), 0, L"Execute occlusion query");
 		m_commandList->SetGraphicsRootDescriptorTable(0, cbvFarQuad);
 		m_commandList->SetPipelineState(m_queryState.Get());
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_DEPTH_READ));
 		m_commandList->BeginQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0);
 		m_commandList->DrawInstanced(4, 1, 8, 0);
 		m_commandList->EndQuery(m_queryHeap.Get(), D3D12_QUERY_TYPE_BINARY_OCCLUSION, 0);
-		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 		PIXEndEvent(m_commandList.Get());
 
 		// Resolve the occlusion query and store the results in the query result buffer

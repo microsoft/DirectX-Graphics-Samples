@@ -22,48 +22,60 @@
 // Encodes a smooth logarithmic gradient for even distribution of precision natural to vision
 float LinearToLogLuminance( float x, float gamma = 4.0 )
 {
-	return log2(lerp(1, exp2(gamma), x)) / gamma;
+    return log2(lerp(1, exp2(gamma), x)) / gamma;
 }
 
 // This assumes the default color gamut found in sRGB and REC709.  The color primaries determine these
 // coefficients.  Note that this operates on linear values, not gamma space.
 float RGBToLuminance( float3 x )
 {
-	return dot( x, float3(0.212671, 0.715160, 0.072169) );		// Defined by sRGB/Rec.709 gamut
+    return dot( x, float3(0.212671, 0.715160, 0.072169) );		// Defined by sRGB/Rec.709 gamut
 }
 
 float MaxChannel(float3 x)
 {
-	return max(x.x, max(x.y, x.z));
+    return max(x.x, max(x.y, x.z));
 }
 
 // This is the same as above, but converts the linear luminance value to a more subjective "perceived luminance",
 // which could be called the Log-Luminance.
 float RGBToLogLuminance( float3 x, float gamma = 4.0 )
 {
-	return LinearToLogLuminance( RGBToLuminance(x), gamma );
+    return LinearToLogLuminance( RGBToLuminance(x), gamma );
+}
+
+// A fast invertible tone map that preserves color (Reinhard)
+float3 TM( float3 rgb )
+{
+    return rgb / (1 + RGBToLuminance(rgb));
+}
+
+// Inverse of preceding function
+float3 ITM( float3 rgb )
+{
+    return rgb / (1 - RGBToLuminance(rgb));
 }
 
 // 8-bit should range from 16 to 235
 float3 RGBFullToLimited8bit( float3 x )
 {
-	return saturate(x) * 219.0 / 255.0 + 16.0 / 255.0;
+    return saturate(x) * 219.0 / 255.0 + 16.0 / 255.0;
 }
 
 float3 RGBLimitedToFull8bit( float3 x )
 {
-	return saturate((x - 16.0 / 255.0) * 255.0 / 219.0);
+    return saturate((x - 16.0 / 255.0) * 255.0 / 219.0);
 }
 
 // 10-bit should range from 64 to 940
 float3 RGBFullToLimited10bit( float3 x )
 {
-	return saturate(x) * 876.0 / 1023.0 + 64.0 / 1023.0;
+    return saturate(x) * 876.0 / 1023.0 + 64.0 / 1023.0;
 }
 
 float3 RGBLimitedToFull10bit( float3 x )
 {
-	return saturate((x - 64.0 / 1023.0) * 1023.0 / 876.0);
+    return saturate((x - 64.0 / 1023.0) * 1023.0 / 876.0);
 }
 
 #define COLOR_FORMAT_LINEAR			0
@@ -79,52 +91,52 @@ float3 RGBLimitedToFull10bit( float3 x )
 #define LDR_COLOR_FORMAT			COLOR_FORMAT_LINEAR
 #define DISPLAY_PLANE_FORMAT		COLOR_FORMAT_PC_DEFAULT
 
-float3 ApplyColorProfile( float3 x, int Format )
+float3 ApplyDisplayProfile( float3 x, int DisplayFormat )
 {
-	switch (Format)
-	{
-	default:
-	case COLOR_FORMAT_LINEAR:
-		return x;
-	case COLOR_FORMAT_sRGB_FULL:
-		return LinearToSRGB(x);
-	case COLOR_FORMAT_sRGB_LIMITED:
-		return RGBFullToLimited10bit(LinearToSRGB(x));
-	case COLOR_FORMAT_Rec709_FULL:
-		return LinearToREC709(x);
-	case COLOR_FORMAT_Rec709_LIMITED:
-		return RGBFullToLimited10bit(LinearToREC709(x));
-	case COLOR_FORMAT_HDR10:
-		return LinearToREC2084(REC709toREC2020(x));
-	};
+    switch (DisplayFormat)
+    {
+    default:
+    case COLOR_FORMAT_LINEAR:
+        return x;
+    case COLOR_FORMAT_sRGB_FULL:
+        return ApplySRGBCurve(x);
+    case COLOR_FORMAT_sRGB_LIMITED:
+        return RGBFullToLimited10bit(ApplySRGBCurve(x));
+    case COLOR_FORMAT_Rec709_FULL:
+        return ApplyREC709Curve(x);
+    case COLOR_FORMAT_Rec709_LIMITED:
+        return RGBFullToLimited10bit(ApplyREC709Curve(x));
+    case COLOR_FORMAT_HDR10:
+        return ApplyREC2084Curve(REC709toREC2020(x));
+    };
 }
 
-float3 LinearizeColor( float3 x, int Format )
+float3 RemoveDisplayProfile( float3 x, int DisplayFormat )
 {
-	switch (Format)
-	{
-	default:
-	case COLOR_FORMAT_LINEAR:
-		return x;
-	case COLOR_FORMAT_sRGB_FULL:
-		return SRGBToLinear(x);
-	case COLOR_FORMAT_sRGB_LIMITED:
-		return SRGBToLinear(RGBLimitedToFull10bit(x));
-	case COLOR_FORMAT_Rec709_FULL:
-		return REC709ToLinear(x);
-	case COLOR_FORMAT_Rec709_LIMITED:
-		return REC709ToLinear(RGBLimitedToFull10bit(x));
-	case COLOR_FORMAT_HDR10:
-		return REC2020toREC709(REC2084ToLinear(x));
-	};
+    switch (DisplayFormat)
+    {
+    default:
+    case COLOR_FORMAT_LINEAR:
+        return x;
+    case COLOR_FORMAT_sRGB_FULL:
+        return RemoveSRGBCurve(x);
+    case COLOR_FORMAT_sRGB_LIMITED:
+        return RemoveSRGBCurve(RGBLimitedToFull10bit(x));
+    case COLOR_FORMAT_Rec709_FULL:
+        return RemoveREC709Curve(x);
+    case COLOR_FORMAT_Rec709_LIMITED:
+        return RemoveREC709Curve(RGBLimitedToFull10bit(x));
+    case COLOR_FORMAT_HDR10:
+        return REC2020toREC709(RemoveREC2084Curve(x));
+    };
 }
 
 float3 ConvertColor( float3 x, int FromFormat, int ToFormat )
 {
-	if (FromFormat == ToFormat)
-		return x;
+    if (FromFormat == ToFormat)
+        return x;
 
-	return ApplyColorProfile(LinearizeColor(x, FromFormat), ToFormat);
+    return ApplyDisplayProfile(RemoveDisplayProfile(x, FromFormat), ToFormat);
 }
 
 #endif // __SHADER_UTILITY_HLSLI__

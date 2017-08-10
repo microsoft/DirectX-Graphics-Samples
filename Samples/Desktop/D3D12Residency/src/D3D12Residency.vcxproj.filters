@@ -68,4 +68,7 @@
       <Filter>Source Files\Util</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
 </Project>

@@ -28,20 +28,26 @@ D3D12LinkedGpus::D3D12LinkedGpus(UINT width, UINT height, std::wstring name) :
 
 void D3D12LinkedGpus::OnInit()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<ID3D12Device> device;
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{
@@ -215,36 +221,36 @@ void D3D12LinkedGpus::OnKeyDown(UINT8 key)
 {
 	switch (key)
 	{
+	// Instrument the Space Bar to toggle between fullscreen states.
+	// The window message loop callback will receive a WM_SIZE message once the
+	// window is in the fullscreen state. At that point, the IDXGISwapChain should
+	// be resized to match the new window size.
+	//
+	// NOTE: ALT+Enter will perform a similar operation; the code below is not
+	// required to enable that key combination.
 	case VK_SPACE:
-		// Instrument the Space Bar to toggle between fullscreen states.
-		// The window message loop callback will receive a WM_SIZE message once the
-		// window is in the fullscreen state. At that point, the IDXGISwapChain should
-		// be resized to match the new window size.
-		//
-		// NOTE: ALT+Enter will perform a similar operation; the code below is not
-		// required to enable that key combination.
+	{
+		if (Settings::TearingSupport)
 		{
-			if (Settings::TearingSupport)
-			{
-				Win32Application::ToggleFullscreenWindow();
-			}
-			else
-			{
-				auto pSwapChain = m_crossNodeResources->GetSwapChain();
-				BOOL fullscreenState;
+			Win32Application::ToggleFullscreenWindow();
+		}
+		else
+		{
+			auto pSwapChain = m_crossNodeResources->GetSwapChain();
+			BOOL fullscreenState;
 
-				ThrowIfFailed(pSwapChain->GetFullscreenState(&fullscreenState, nullptr));
-				if (FAILED(pSwapChain->SetFullscreenState(!fullscreenState, nullptr)))
-				{
-					// Transitions to fullscreen mode can fail when running apps over
-					// terminal services or for some other unexpected reason.  Consider
-					// notifying the user in some way when this happens.
-					OutputDebugString(L"Fullscreen transition failed");
-					_ASSERT(false);
-				}
+			ThrowIfFailed(pSwapChain->GetFullscreenState(&fullscreenState, nullptr));
+			if (FAILED(pSwapChain->SetFullscreenState(!fullscreenState, nullptr)))
+			{
+				// Transitions to fullscreen mode can fail when running apps over
+				// terminal services or for some other unexpected reason.  Consider
+				// notifying the user in some way when this happens.
+				OutputDebugString(L"Fullscreen transition failed");
+				_ASSERT(false);
 			}
 		}
 		break;
+	}
 
 	case VK_LEFT:
 	case VK_RIGHT:

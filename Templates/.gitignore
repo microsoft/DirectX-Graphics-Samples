@@ -10,3 +10,4 @@ x64/
 *.opendb
 *.opensdf
 *.user
+*.VC.db

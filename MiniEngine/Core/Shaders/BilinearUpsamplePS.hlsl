@@ -20,6 +20,6 @@ SamplerState BilinearFilter : register(s0);
 [RootSignature(Present_RootSig)]
 float3 main( float4 position : SV_Position, float2 uv : TexCoord0 ) : SV_Target0
 {
-	float3 LinearRGB = LinearizeColor(ColorTex.SampleLevel(BilinearFilter, uv, 0), LDR_COLOR_FORMAT);
-	return ApplyColorProfile(LinearRGB, DISPLAY_PLANE_FORMAT);
+    float3 LinearRGB = RemoveDisplayProfile(ColorTex.SampleLevel(BilinearFilter, uv, 0), LDR_COLOR_FORMAT);
+    return ApplyDisplayProfile(LinearRGB, DISPLAY_PLANE_FORMAT);
 }

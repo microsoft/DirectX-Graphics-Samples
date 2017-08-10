@@ -28,7 +28,7 @@ It came from a desire to quickly dive into graphics and performance experiments.
 
 ## Requirements
 * Windows 10
-* [Visual Studio 2015](https://www.visualstudio.com/) with the [Windows 10 Anniversary Update SDK](https://go.microsoft.com/fwlink/p/?LinkID=822845)
+* [Visual Studio 2017](https://www.visualstudio.com/) with the [Windows 10 Creator Update SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
 
 ## Contributing
 We're always looking for your help to fix bugs and improve the samples.  File those pull requests and we'll be happy to take a look.

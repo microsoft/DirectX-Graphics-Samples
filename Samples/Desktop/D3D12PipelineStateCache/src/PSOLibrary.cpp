@@ -22,12 +22,11 @@ PSOLibrary::PSOLibrary(UINT frameCount, UINT cbvRootSignatureIndex) :
 	m_useUberShaders(true),
 	m_useDiskLibraries(true),
 	m_psoCachingMechanism(PSOCachingMechanism::PipelineLibraries),
-	m_drawIndex(0)
+	m_drawIndex(0),
+	m_compiledPSOFlags{},
+	m_inflightPSOFlags{},
+	m_workerThreads{}
 {
-	ZeroMemory(m_compiledPSOFlags, sizeof(m_compiledPSOFlags));
-	ZeroMemory(m_inflightPSOFlags, sizeof(m_inflightPSOFlags));
-	ZeroMemory(m_workerThreads, sizeof(m_workerThreads));
-
 	WCHAR path[512];
 	GetAssetsPath(path, _countof(path));
 	m_cachePath = path;

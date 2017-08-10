@@ -42,19 +42,25 @@ void D3D12SingleGpu::OnInit()
 
 void D3D12SingleGpu::LoadPipeline()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// Enable the D3D12 debug layer.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
 	if (m_useWarpDevice)
 	{
@@ -208,8 +214,11 @@ void D3D12SingleGpu::LoadAssets()
 
 		// Create a root signature for the post-process pass.
 		{
+			// We don't modify the SRV in the post-processing command list after
+			// SetGraphicsRootDescriptorTable is executed on the GPU so we can use the default
+			// range behavior: D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE
 			CD3DX12_DESCRIPTOR_RANGE1 postRanges[2];
-			postRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Settings::SceneHistoryCount, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
+			postRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Settings::SceneHistoryCount, 0);
 			postRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
 
 			CD3DX12_ROOT_PARAMETER1 postRootParameters[3];
@@ -239,8 +248,8 @@ void D3D12SingleGpu::LoadAssets()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
 		psoDesc.pRootSignature = m_sceneRootSignature.Get();
-		psoDesc.VS = { g_SceneVS, sizeof(g_SceneVS) };
-		psoDesc.PS = { g_ScenePS, sizeof(g_ScenePS) };
+		psoDesc.VS = CD3DX12_SHADER_BYTECODE(g_SceneVS, sizeof(g_SceneVS));
+		psoDesc.PS = CD3DX12_SHADER_BYTECODE(g_ScenePS, sizeof(g_ScenePS));
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -264,8 +273,8 @@ void D3D12SingleGpu::LoadAssets()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC postPsoDesc = {};
 		postPsoDesc.InputLayout = { postInputElementDescs, _countof(postInputElementDescs) };
 		postPsoDesc.pRootSignature = m_postRootSignature.Get();
-		postPsoDesc.VS = { g_PostVS, sizeof(g_PostVS) };
-		postPsoDesc.PS = { g_PostPS, sizeof(g_PostPS) };
+		postPsoDesc.VS = CD3DX12_SHADER_BYTECODE(g_PostVS, sizeof(g_PostVS));
+		postPsoDesc.PS = CD3DX12_SHADER_BYTECODE(g_PostPS, sizeof(g_PostPS));
 		postPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		postPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		postPsoDesc.DepthStencilState.DepthEnable = FALSE;
@@ -419,8 +428,8 @@ void D3D12SingleGpu::LoadAssets()
 			nullptr,
 			IID_PPV_ARGS(&m_sceneConstantBuffer)));
 
-		// Map the constant buffers. We don't unmap this until the app closes.
-		// Keeping things mapped for the lifetime of the resource is okay.
+		// Map and initialize the constant buffer. We don't unmap this until the
+		// app closes. Keeping things mapped for the lifetime of the resource is okay.
 		CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
 		ThrowIfFailed(m_sceneConstantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_mappedConstantBuffer)));
 		ZeroMemory(m_mappedConstantBuffer, constantBufferDataSize);
@@ -795,23 +804,23 @@ void D3D12SingleGpu::OnKeyDown(UINT8 key)
 {
 	switch (key)
 	{
+	// Instrument the Space Bar to toggle between fullscreen states.
+	// The CoreWindow will fire a SizeChanged event once the window is in the
+	// fullscreen state. At that point, the IDXGISwapChain should be resized
+	// to match the new window size.
 	case VK_SPACE:
-		// Instrument the Space Bar to toggle between fullscreen states.
-		// The CoreWindow will fire a SizeChanged event once the window is in the
-		// fullscreen state. At that point, the IDXGISwapChain should be resized
-		// to match the new window size.
+	{
+		auto applicationView = Windows::UI::ViewManagement::ApplicationView::GetForCurrentView();
+		if (applicationView->IsFullScreenMode)
 		{
-			auto applicationView = Windows::UI::ViewManagement::ApplicationView::GetForCurrentView();
-			if (applicationView->IsFullScreenMode)
-			{
-				applicationView->ExitFullScreenMode();
-			}
-			else
-			{
-				applicationView->TryEnterFullScreenMode();
-			}
+			applicationView->ExitFullScreenMode();
+		}
+		else
+		{
+			applicationView->TryEnterFullScreenMode();
 		}
 		break;
+	}
 
 	case VK_LEFT:
 	case VK_RIGHT:

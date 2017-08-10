@@ -93,18 +93,24 @@ void DX::DeviceResources::CreateDeviceIndependentResources()
 // Configures the Direct3D device, and stores handles to it and the device context.
 void DX::DeviceResources::CreateDeviceResources()
 {
+	UINT dxgiFactoryFlags = 0;
+
 #if defined(_DEBUG)
-	// If the project is in a debug build, enable debugging via SDK Layers.
+	// Enable the debug layer (requires the Graphics Tools "optional feature").
+	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 		{
 			debugController->EnableDebugLayer();
+
+			// Enable additional debug layers.
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 	}
 #endif
 
-	DX::ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&m_dxgiFactory)));
+	DX::ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
 
 	ComPtr<IDXGIAdapter1> adapter;
 	GetHardwareAdapter(&adapter);
@@ -330,7 +336,7 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 	}
 
 	// Set the 3D rendering viewport to target the entire window.
-	m_screenViewport = { 0.0f, 0.0f, m_d3dRenderTargetSize.Width, m_d3dRenderTargetSize.Height, 0.0f, 1.0f };
+	m_screenViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, m_d3dRenderTargetSize.Width, m_d3dRenderTargetSize.Height);
 }
 
 // Determine the dimensions of the render target and whether it will be scaled down.

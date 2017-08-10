@@ -109,8 +109,8 @@ private:
 	};
 
 	// Pipeline objects.
-	D3D12_VIEWPORT m_viewport;
-	D3D12_RECT m_scissorRect;
+	CD3DX12_VIEWPORT m_viewport;
+	CD3DX12_RECT m_scissorRect;
 	UINT m_rtvDescriptorSizes[GraphicsAdaptersCount];
 	UINT m_srvDescriptorSizes[GraphicsAdaptersCount];
 	DXGI_ADAPTER_DESC1 m_adapterDescs[GraphicsAdaptersCount];

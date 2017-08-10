@@ -111,8 +111,8 @@ private:
 	bool m_enableCulling;				// Toggle whether the compute shader pre-processes the indirect commands.
 
 	// Pipeline objects.
-	D3D12_VIEWPORT m_viewport;
-	D3D12_RECT m_scissorRect;
+	CD3DX12_VIEWPORT m_viewport;
+	CD3DX12_RECT m_scissorRect;
 	D3D12_RECT m_cullingScissorRect;
 	ComPtr<IDXGISwapChain3> m_swapChain;
 	ComPtr<ID3D12Device> m_device;

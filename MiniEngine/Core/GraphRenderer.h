@@ -15,19 +15,19 @@
 
 namespace GraphRenderer
 {
-	void Initialize();
-	void Shutdown();
+    void Initialize();
+    void Shutdown();
 
-	enum class GraphType { Global, Profile };
-	typedef uint32_t GraphHandle;
+    enum class GraphType { Global, Profile };
+    typedef uint32_t GraphHandle;
 
-	bool ManageGraphs( GraphHandle graphID, GraphType Type );
-	GraphHandle InitGraph( GraphType Type );
-	Color GetGraphColor( GraphHandle GraphID, GraphType Type);
-	XMFLOAT4 GetMaxAvg( GraphType Type );
-	void Update( XMFLOAT2 InputNode, GraphHandle GraphID, bool IsGraphed, GraphType Type);
-	void RenderGraphs( GraphicsContext& Context, GraphType Type );
+    bool ManageGraphs( GraphHandle graphID, GraphType Type );
+    GraphHandle InitGraph( GraphType Type );
+    Color GetGraphColor( GraphHandle GraphID, GraphType Type);
+    XMFLOAT4 GetMaxAvg( GraphType Type );
+    void Update( XMFLOAT2 InputNode, GraphHandle GraphID, GraphType Type);
+    void RenderGraphs( GraphicsContext& Context, GraphType Type );
 
-	void SetSelectedIndex(uint32_t selectedIndex);
+    void SetSelectedIndex(uint32_t selectedIndex);
 
 } // namespace GraphRenderer

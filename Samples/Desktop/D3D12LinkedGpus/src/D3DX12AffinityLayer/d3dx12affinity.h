@@ -72,7 +72,7 @@ HRESULT STDMETHODCALLTYPE DXGIXAffinityCreateSingleWindowSwapChain(
     _Outptr_  CDXGIAffinitySwapChain** ppSwapChain);
 
 HRESULT STDMETHODCALLTYPE DXGIXAffinityCreateLDASwapChain(
-    IDXGISwapChain* pSwapChain,
+    _In_  IDXGISwapChain* pSwapChain,
     _In_  CD3DX12AffinityCommandQueue* pQueue,
     _In_  CD3DX12AffinityDevice* pDevice,
     _Outptr_  CDXGIAffinitySwapChain** ppSwapChain);

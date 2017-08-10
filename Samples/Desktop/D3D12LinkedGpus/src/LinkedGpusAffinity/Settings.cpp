@@ -62,6 +62,6 @@ void Settings::OnSizeChanged(UINT width, UINT height)
 {
 	Width = width;
 	Height = height;
-	Viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
-	ScissorRect = { 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
+	Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
+	ScissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(width), static_cast<LONG>(height));
 }

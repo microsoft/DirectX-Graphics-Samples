@@ -16,63 +16,69 @@
 
 #include "ColorSpaceUtility.hlsli"
 
-// RGBE packs 9 bits per color channel while encoding the multiplier as a perfect power of 2
-// (just the exponent).  What's nice about this is that it gives you a lot more range than RGBM.
-// "Precise rounding" will round rather than truncate bits.  It's more correct (like IEEE) but
-// unnecessary for real-time rendering.
+// RGBE, aka R9G9B9E5_SHAREDEXP, is an unsigned float HDR pixel format where red, green,
+// and blue all share the same exponent.  The color channels store a 9-bit value ranging
+// from [0/512, 511/512] which multiplies by 2^Exp and Exp ranges from [-16, 15].
+// Floating point specials are not encoded.
 uint PackRGBE(float3 rgb)
 {
-	// The stored exponent will be +1 of the maximum exponent, so [-15, +16].  (There are
-	// no floating point specials, so we get all 32 exponents.)
-	const float kMaxVal = asfloat(0x477F8000); // 1.FF x 2^+15
-	const float kMinVal = asfloat(0x37800000); // 1.00 x 2^-16
+    // To determine the shared exponent, we must clamp the channels to an expressible range
+    const float kMaxVal = asfloat(0x477F8000); // 1.FF x 2^+15
+    const float kMinVal = asfloat(0x37800000); // 1.00 x 2^-16
 
-	rgb = clamp(rgb, 0, kMaxVal);
+    // Non-negative and <= kMaxVal
+    rgb = clamp(rgb, 0, kMaxVal);
 
-	float MaxChannel = max(max(kMinVal, rgb.r), max(rgb.g, rgb.b));
+    // From the maximum channel we will determine the exponent.  We clamp to a min value
+    // so that the exponent is within the valid 5-bit range.
+    float MaxChannel = max(max(kMinVal, rgb.r), max(rgb.g, rgb.b));
 
-	// Always uses precise rounding
-	uint Exp = (asuint(MaxChannel) + 0x4000) & 0x7F800000;
-	float ScaleR = asfloat(0x83000000 - Exp);	// 2^(-exp + 8)   (negate exponent and add 8)
-	uint R = rgb.r * ScaleR + 0.5;
-	uint G = rgb.g * ScaleR + 0.5;
-	uint B = rgb.b * ScaleR + 0.5;
-	uint E = (Exp - 0x37800000) << 4;	// E = exp - 127 + 15 + 1  (exponent - bias8 + bias5 + 1)
-	return E | B << 18 | G << 9 | R;
+    // 'Bias' has to have the biggest exponent plus 15 (and nothing in the mantissa).  When
+    // added to the three channels, it shifts the explicit '1' and the 8 most significant
+    // mantissa bits into the low 9 bits.  IEEE rules of float addition will round rather
+    // than truncate the discarded bits.  Channels with smaller natural exponents will be
+    // shifted further to the right (discarding more bits).
+    float Bias = asfloat((asuint(MaxChannel) + 0x07804000) & 0x7F800000);
+
+    // Shift bits into the right places
+    uint3 RGB = asuint(rgb + Bias);
+    uint E = (asuint(Bias) << 4) + 0x10000000;
+    return E | RGB.b << 18 | RGB.g << 9 | RGB.r & 0x1FF;
 }
 
 float3 UnpackRGBE(uint p)
 {
-	float3 rgb = uint3(p, p >> 9, p >> 18) & 0x1FF;
-	return ldexp(rgb, (p >> 27) + 103);
+    float3 rgb = uint3(p, p >> 9, p >> 18) & 0x1FF;
+    return ldexp(rgb, (int)(p >> 27) - 24);
 }
 
+// This non-standard variant applies a non-linear ramp to the mantissa to get better precision
+// with bright and saturated colors.  These colors tend to have one or two channels that prop
+// up the shared exponent, leaving little to no information in the dark channels.
 uint PackRGBE_sqrt(float3 rgb)
 {
-	// The stored exponent will be +1 of the maximum exponent, so [-15, +16].  (There are
-	// no floating point specials, so we get all 32 exponents.)
-	const float kMaxVal = asfloat(0x477FFFFF); // 1.FFFFFE x 2^+15
-	const float kMinVal = asfloat(0x37800000); // 1.000000 x 2^-16
+    // To determine the shared exponent, we must clamp the channels to an expressible range
+    const float kMaxVal = asfloat(0x477FFFFF); // 1.FFFFFF x 2^+15
+    const float kMinVal = asfloat(0x37800000); // 1.000000 x 2^-16
 
-	rgb = clamp(rgb, 0, kMaxVal);
+    rgb = clamp(rgb, 0, kMaxVal);
 
-	float MaxChannel = max(max(kMinVal, rgb.r), max(rgb.g, rgb.b));
+    float MaxChannel = max(max(kMinVal, rgb.r), max(rgb.g, rgb.b));
 
-	// Always uses precise rounding
-	uint Exp = asuint(MaxChannel) & 0x7F800000;
-	float ScaleR = asfloat(0x7E800000 - Exp);	// 2^(-exp - 1)   (negate exponent and sub 1)
-	rgb = sqrt(rgb * ScaleR) * 511.0 + 0.5;
-	uint R = rgb.r;
-	uint G = rgb.g;
-	uint B = rgb.b;
-	uint E = (Exp - 0x37800000) << 4;	// E = exp - 127 + 15 + 1  (exponent - bias8 + bias5 + 1)
-	return E | B << 18 | G << 9 | R;
+    // Scaling the maximum channel puts it into the range [0, 1).  It does this by negating
+    // and subtracting one from the max exponent.
+    float Scale = asfloat((0x7EFFFFFF - asuint(MaxChannel)) & 0x7F800000);
+
+    // Shift bits into the right places
+    uint3 RGB = sqrt(rgb * Scale) * 511.0 + 0.5;
+    uint E = (0x47000000 - asuint(Scale)) << 4;
+    return E | RGB.b << 18 | RGB.g << 9 | RGB.r;
 }
 
 float3 UnpackRGBE_sqrt(uint p)
 {
-	float3 rgb = (uint3(p, p >> 9, p >> 18) & 0x1FF) / 511.0;
-	return rgb * rgb * asfloat(((p >> 27) + 112) << 23);
+    float3 rgb = (uint3(p, p >> 9, p >> 18) & 0x1FF) / 511.0;
+    return ldexp(rgb * rgb, (int)(p >> 27) - 15);
 }
 
 #endif // __PIXEL_PACKING_RGBE_HLSLI__

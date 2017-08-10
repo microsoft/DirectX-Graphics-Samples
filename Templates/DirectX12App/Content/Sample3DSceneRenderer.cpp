@@ -23,11 +23,11 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 	m_radiansPerSecond(XM_PIDIV4),	// rotate 45 degrees per second
 	m_angle(0),
 	m_tracking(false),
+	m_constantBufferData{},
 	m_mappedConstantBuffer(nullptr),
 	m_deviceResources(deviceResources)
 {
 	LoadState();
-	ZeroMemory(&m_constantBufferData, sizeof(m_constantBufferData));
 
 	CreateDeviceDependentResources();
 	CreateWindowSizeDependentResources();
@@ -319,7 +319,7 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 	float fovAngleY = 70.0f * XM_PI / 180.0f;
 
 	D3D12_VIEWPORT viewport = m_deviceResources->GetScreenViewport();
-	m_scissorRect = { 0, 0, static_cast<LONG>(viewport.Width), static_cast<LONG>(viewport.Height) };
+	m_scissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(viewport.Width), static_cast<LONG>(viewport.Height));
 
 	// This is a simple example of change that can be made when the app is in
 	// portrait or snapped view.
