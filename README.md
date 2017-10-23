@@ -4,9 +4,6 @@ This repo contains the DirectX Graphics samples that demonstrate how to build gr
 ## API Samples
 In the Samples directory, you will find samples that attempt to break off specific features and specific usage scenarios into bite sized chunks. For example, the ExecuteIndirect sample will show you just enough about execute indirect to get started with that feature without diving too deep into multiengine whereas the nBodyGravity sample will delve into multiengine without touching on the execute indirect feature etc. By doing this, we hope to make it easier to get started with DirectX 12.
 
-## Visual Studio Templates
-In the Templates directory you will find copies of the projects that are available for creation in Visual Studio's "New Project" wizard.
-
 ## MiniEngine: A DirectX 12 Engine Starter Kit
 In addition to the samples, we are announcing the first DirectX 12 preview release of the MiniEngine.
 
