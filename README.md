@@ -9,9 +9,6 @@ Recent API Sample Updates:
 1. D3D12 Depth Bounds Test: This sample demos how to use depth bounds test with DirectX 12. In addition, it introduces a more flexible way to create pipeline state, called Pipeline State Object Stream (PSO Stream). PSO Stream is required to use Depth Bounds Test feature.
 2. Shader Model 6 Wave Intrinsics: This sample visualizes several new wave intrinsics in Shader Model 6.
 
-## Visual Studio Templates
-In the Templates directory you will find copies of the projects that are available for creation in Visual Studio's "New Project" wizard.
-
 ## MiniEngine: A DirectX 12 Engine Starter Kit
 In addition to the samples, we are announcing the first DirectX 12 preview release of the MiniEngine.
 
