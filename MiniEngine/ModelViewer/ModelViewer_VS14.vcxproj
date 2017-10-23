@@ -53,44 +53,28 @@
     <Import Project="..\PropertySheets\Win32.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Link />
-    <Link>
-      <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>
-      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
-    </Link>
+  <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-    <Link />
-    <ClCompile>
-      <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
-    </ClCompile>
-    <Link>
+    <Link Condition="'$(Configuration)'=='Debug'">
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Link />
-    <ClCompile>
-      <AdditionalIncludeDirectories>..\Core;..\Model</AdditionalIncludeDirectories>
-    </ClCompile>
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
     <Link>
-      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)
+	  </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ForwardPlusLighting.cpp" />
     <ClCompile Include="ModelViewer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Core/Core_VS14.vcxproj">
+    <ProjectReference Include="..\Core\Core_VS14.vcxproj">
       <Project>{86A58508-0D6A-4786-A32F-01A301FDC6F3}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
-    <ProjectReference Include="..\3rdParty\zlib-win64\ZLib_VS14.vcxproj">
-      <Project>{ae5221d1-87e2-4428-8ef9-f25909c43291}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Model\Model_VS14.vcxproj">
       <Project>{5d3aeefb-8789-48e5-9bd9-09c667052d09}</Project>
@@ -98,7 +82,6 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="Logo.png" />
-    <Image Include="Logo44.png" />
     <Image Include="SmallLogo.png" />
     <Image Include="SplashScreen.png" />
     <Image Include="StoreLogo.png" />
@@ -164,6 +147,9 @@
     <None Include="Models\sponza.h3d">
       <DeploymentContent>true</DeploymentContent>
     </None>
+    <None Include="packages.config" />
+    <None Include="Shaders\FillLightGridCS.hlsli" />
+    <None Include="Shaders\LightGrid.hlsli" />
     <None Include="Shaders\ModelViewerRS.hlsli" />
   </ItemGroup>
   <ItemGroup>
@@ -173,16 +159,39 @@
     <FxCompile Include="Shaders\DepthViewerVS.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_16.hlsl" />
+    <FxCompile Include="Shaders\FillLightGridCS_24.hlsl" />
+    <FxCompile Include="Shaders\FillLightGridCS_32.hlsl" />
+    <FxCompile Include="Shaders\FillLightGridCS_8.hlsl" />
     <FxCompile Include="Shaders\ModelViewerPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\ModelViewerVS.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\WaveTileCountPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <AppxManifest Include="UWP.appxmanifest" />
+    <ClInclude Include="ForwardPlusLighting.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets" />
+  <ItemDefinitionGroup>
+     <Link>
+	  <AdditionalLibraryDirectories>..\Packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+	  <AdditionalDependencies>zlibstatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/nodefaultlib:LIBCMT %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets" Condition="Exists('..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
+  </Target>
 </Project>

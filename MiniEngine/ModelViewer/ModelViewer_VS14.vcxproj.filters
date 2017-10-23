@@ -197,9 +197,6 @@
     <Image Include="Textures\sparkTex.dds">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="Logo44.png">
-      <Filter>Resource Files</Filter>
-    </Image>
   </ItemGroup>
   <ItemGroup>
     <None Include="Models\sponza.h3d">
@@ -208,9 +205,19 @@
     <None Include="Shaders\ModelViewerRS.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\FillLightGridCS.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\LightGrid.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ModelViewer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ForwardPlusLighting.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -227,8 +234,25 @@
     <FxCompile Include="Shaders\DepthViewerPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_8.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_16.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_24.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FillLightGridCS_32.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\WaveTileCountPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <AppxManifest Include="UWP.appxmanifest" />
+    <ClInclude Include="ForwardPlusLighting.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

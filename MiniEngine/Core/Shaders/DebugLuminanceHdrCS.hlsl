@@ -26,30 +26,30 @@ Texture2D<float3> SrcColor : register(t2);
 RWTexture2D<float> OutLuma : register(u1);
 SamplerState LinearSampler : register( s0 );
 
-cbuffer ConstantBuffer : register( b0 )
+cbuffer CB0 : register(b0)
 {
-	float2 g_RcpBufferDim;
-	float g_BloomStrength;
+    float2 g_RcpBufferDim;
+    float g_BloomStrength;
 };
 
 [RootSignature(PostEffects_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-	float2 TexCoord = (DTid.xy + 0.5) * g_RcpBufferDim;
+    float2 TexCoord = (DTid.xy + 0.5) * g_RcpBufferDim;
 
-	// Load HDR and bloom
-	float3 hdrColor = SrcColor[DTid.xy] + g_BloomStrength * Bloom.SampleLevel(LinearSampler, TexCoord, 0);
+    // Load HDR and bloom
+    float3 hdrColor = SrcColor[DTid.xy] + g_BloomStrength * Bloom.SampleLevel(LinearSampler, TexCoord, 0);
 
-	// Tone map to LDR and convert to greyscale
-	float luma = RGBToLuminance( ToneMap(hdrColor * Exposure[0]) );
+    // Tone map to LDR and convert to greyscale
+    float luma = ToneMapLuma(RGBToLuminance(hdrColor) * Exposure[0]);
 
-	float logLuma = LinearToLogLuminance(luma);
+    float logLuma = LinearToLogLuminance(luma);
 
 #if SUPPORT_TYPED_UAV_LOADS
-	SrcColor[DTid.xy] = luma.xxx;
+    SrcColor[DTid.xy] = luma.xxx;
 #else
-	DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(luma.xxx);
+    DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(luma.xxx);
 #endif
-	OutLuma[DTid.xy] = logLuma;
+    OutLuma[DTid.xy] = logLuma;
 }

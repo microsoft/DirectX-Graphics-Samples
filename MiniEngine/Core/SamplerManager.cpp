@@ -19,23 +19,28 @@
 #include <map>
 
 using namespace std;
-using Graphics::g_Device;
+using namespace Graphics;
 
 namespace
 {
-	map< size_t, D3D12_CPU_DESCRIPTOR_HANDLE > s_SamplerCache;
+    map< size_t, D3D12_CPU_DESCRIPTOR_HANDLE > s_SamplerCache;
 }
 
-void SamplerDescriptor::Create( const D3D12_SAMPLER_DESC& Desc )
+D3D12_CPU_DESCRIPTOR_HANDLE SamplerDesc::CreateDescriptor()
 {
-	size_t hashValue = Utility::HashState(&Desc);
-	auto iter = s_SamplerCache.find(hashValue);
-	if (iter != s_SamplerCache.end())
-	{
-		*this = SamplerDescriptor(iter->second);
-		return;
-	}
+    size_t hashValue = Utility::HashState(this);
+    auto iter = s_SamplerCache.find(hashValue);
+    if (iter != s_SamplerCache.end())
+    {
+        return iter->second;
+    }
 
-	m_hCpuDescriptorHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-	g_Device->CreateSampler(&Desc, m_hCpuDescriptorHandle);
+    D3D12_CPU_DESCRIPTOR_HANDLE Handle = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+    g_Device->CreateSampler(this, Handle);
+    return Handle;
+}
+
+void SamplerDesc::CreateDescriptor( D3D12_CPU_DESCRIPTOR_HANDLE& Handle )
+{
+    g_Device->CreateSampler(this, Handle);
 }

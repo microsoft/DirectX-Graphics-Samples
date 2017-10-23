@@ -20,9 +20,9 @@ RWTexture2D<float3> DstColor : register(u0);
 [numthreads( 16, 16, 1 )]
 void main( uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID )
 {
-	uint TileCoord = WorkQueue[Gid.x];
-	uint2 Tile = uint2(TileCoord & 0xFFFF, TileCoord >> 16);
-	uint2 st = Tile * 16 + GTid.xy;
+    uint TileCoord = WorkQueue[Gid.x];
+    uint2 Tile = uint2(TileCoord & 0xFFFF, TileCoord >> 16);
+    uint2 st = Tile * 16 + GTid.xy;
 
-	DstColor[st] = float3(0, 1, 0);
+    DstColor[st] = float3(0, 1, 0);
 }

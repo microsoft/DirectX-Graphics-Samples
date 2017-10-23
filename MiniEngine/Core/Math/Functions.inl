@@ -70,7 +70,7 @@ namespace Math
 	INLINE float Floor( float s ) { return Floor(Scalar(s)); }
 	INLINE float Ceiling( float s ) { return Ceiling(Scalar(s)); }
 	INLINE float Round( float s ) { return Round(Scalar(s)); }
-	INLINE float Abs( float s ) { return Abs(Scalar(s)); }
+	INLINE float Abs( float s ) { return s < 0.0f ? -s : s; }
 	INLINE float Exp( float s ) { return Exp(Scalar(s)); }
 	INLINE float Pow( float b, float e ) { return Pow(Scalar(b), Scalar(e)); }
 	INLINE float Log( float s ) { return Log(Scalar(s)); }
@@ -81,10 +81,10 @@ namespace Math
 	INLINE float ACos( float s ) { return ACos(Scalar(s)); }
 	INLINE float ATan( float s ) { return ATan(Scalar(s)); }
 	INLINE float ATan2( float y, float x ) { return ATan2(Scalar(y), Scalar(x)); }
-	INLINE float Lerp( float a, float b, float t ) { return Lerp(Scalar(a), Scalar(b), Scalar(t)); }
-	INLINE float Max( float a, float b ) { return Max(Scalar(a), Scalar(b)); }
-	INLINE float Min( float a, float b ) { return Min(Scalar(a), Scalar(b)); }
-	INLINE float Clamp( float v, float a, float b ) { return Clamp(Scalar(v), Scalar(a), Scalar(b)); }
+	INLINE float Lerp( float a, float b, float t ) { return a + (b - a) * t; }
+	INLINE float Max( float a, float b ) { return a > b ? a : b; }
+	INLINE float Min( float a, float b ) { return a < b ? a : b; }
+	INLINE float Clamp( float v, float a, float b ) { return Min(Max(v, a), b); }
 
 	INLINE Scalar Length( Vector3 v ) { return Scalar(XMVector3Length(v)); }
 	INLINE Scalar LengthSquare( Vector3 v ) { return Scalar(XMVector3LengthSq(v)); }

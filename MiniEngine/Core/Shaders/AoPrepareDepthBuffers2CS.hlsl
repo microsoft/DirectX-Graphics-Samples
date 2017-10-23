@@ -19,29 +19,29 @@ RWTexture2DArray<float> DS8xAtlas : register(u1);
 RWTexture2D<float> DS16x : register(u2);
 RWTexture2DArray<float> DS16xAtlas : register(u3);
 
-cbuffer ConstantBuffer : register(b0)
+cbuffer CB0 : register(b0)
 {
-	float2 InvSourceDimension;
+    float2 InvSourceDimension;
 }
 
 [RootSignature(SSAO_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {
-	float m1 = DS4x[DTid.xy << 1];
+    float m1 = DS4x[DTid.xy << 1];
 
-	uint2 st = DTid.xy;
-	uint2 stAtlas = st >> 2;
-	uint stSlice = (st.x & 3) | ((st.y & 3) << 2);
-	DS8x[st] = m1;
-	DS8xAtlas[uint3(stAtlas, stSlice)] = m1;
+    uint2 st = DTid.xy;
+    uint2 stAtlas = st >> 2;
+    uint stSlice = (st.x & 3) | ((st.y & 3) << 2);
+    DS8x[st] = m1;
+    DS8xAtlas[uint3(stAtlas, stSlice)] = m1;
 
-	if ((GI & 011) == 0)
-	{
-		uint2 st = DTid.xy >> 1;
-		uint2 stAtlas = st >> 2;
-		uint stSlice = (st.x & 3) | ((st.y & 3) << 2);
-		DS16x[st] = m1;
-		DS16xAtlas[uint3(stAtlas, stSlice)] = m1;
-	}
+    if ((GI & 011) == 0)
+    {
+        uint2 st = DTid.xy >> 1;
+        uint2 stAtlas = st >> 2;
+        uint stSlice = (st.x & 3) | ((st.y & 3) << 2);
+        DS16x[st] = m1;
+        DS16xAtlas[uint3(stAtlas, stSlice)] = m1;
+    }
 }

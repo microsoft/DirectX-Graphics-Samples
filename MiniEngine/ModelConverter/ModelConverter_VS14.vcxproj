@@ -5,10 +5,6 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Profile|x64">
-      <Configuration>Profile</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|x64">
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
@@ -24,7 +20,7 @@
     <PlatformToolset>v140</PlatformToolset>
     <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
     <TargetRuntime>Native</TargetRuntime>
-    <WindowsTargetPlatformVersion>10.0.10240.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -46,61 +42,19 @@
     <Import Project="..\PropertySheets\Release.props" />
     <Import Project="..\PropertySheets\Win32.props" />
   </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\PropertySheets\VS14.props" />
-    <Import Project="..\PropertySheets\Profile.props" />
-    <Import Project="..\PropertySheets\Win32.props" />
-  </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Link />
-    <Link>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalLibraryDirectories>..\3rdparty\assimp-3.0\lib\Release;</AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <ClCompile>
-      <AdditionalIncludeDirectories>..\Core;..\Model;..\3rdparty\assimp-3.0\include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>MODEL_ENABLE_ASSIMP;MODEL_ENABLE_OPTIMIZER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <PostBuildEvent>
-      <Command>xcopy /E /C /I /R /Y $(SolutionDir)..\3rdparty\assimp-3.0\bin\Release\assimp.dll $(SolutionDir)</Command>
-    </PostBuildEvent>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-    <ClCompile>
-      <AdditionalIncludeDirectories>..\Core;..\Model;..\3rdparty\assimp-3.0\include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>MODEL_ENABLE_ASSIMP;MODEL_ENABLE_OPTIMIZER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <Link>
-      <AdditionalLibraryDirectories>..\3rdparty\assimp-3.0\lib\Release;</AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-    <PostBuildEvent>
-      <Command>xcopy /E /C /I /R /Y $(SolutionDir)..\3rdparty\assimp-3.0\bin\Release\assimp.dll $(SolutionDir)</Command>
-    </PostBuildEvent>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ClCompile>
-      <AdditionalIncludeDirectories>..\Core;..\Model;..\3rdparty\assimp-3.0\include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>MODEL_ENABLE_ASSIMP;MODEL_ENABLE_OPTIMIZER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <Link>
-      <AdditionalLibraryDirectories>..\3rdparty\assimp-3.0\lib\Release;</AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-    <PostBuildEvent>
-      <Command>xcopy /E /C /I /R /Y $(SolutionDir)..\3rdparty\assimp-3.0\bin\Release\assimp.dll $(SolutionDir)</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="../Core/Core_VS14.vcxproj">
+    <ProjectReference Include="..\Core\Core_VS14.vcxproj">
       <Project>{86A58508-0D6A-4786-A32F-01A301FDC6F3}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
-    <ProjectReference Include="..\3rdParty\zlib-win64\ZLib_VS14.vcxproj">
-      <Project>{ae5221d1-87e2-4428-8ef9-f25909c43291}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Model\Model_VS14.vcxproj">
       <Project>{5d3aeefb-8789-48e5-9bd9-09c667052d09}</Project>
@@ -113,9 +67,32 @@
     <ClCompile Include="ModelOptimize.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="IndexOptimizePostTransform.h" />
+    <ClInclude Include="ModelAssimp.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalLibraryDirectories>..\Packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>zlibstatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/nodefaultlib:LIBCMT %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets" Condition="Exists('..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets')" />
+    <Import Project="..\Packages\Assimp.redist.3.0.0\build\native\Assimp.redist.targets" Condition="Exists('..\Packages\Assimp.redist.3.0.0\build\native\Assimp.redist.targets')" />
+    <Import Project="..\Packages\Assimp.3.0.0\build\native\Assimp.targets" Condition="Exists('..\Packages\Assimp.3.0.0\build\native\Assimp.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
+    <Error Condition="!Exists('..\Packages\Assimp.redist.3.0.0\build\native\Assimp.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\Assimp.redist.3.0.0\build\native\Assimp.redist.targets'))" />
+    <Error Condition="!Exists('..\Packages\Assimp.3.0.0\build\native\Assimp.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\Assimp.3.0.0\build\native\Assimp.targets'))" />
+  </Target>
 </Project>

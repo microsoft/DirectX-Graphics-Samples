@@ -17,13 +17,13 @@ namespace Math { class Camera;  }
 
 namespace SSAO
 {
-	void Initialize( void );
-	void Shutdown( void );
-	void Render(GraphicsContext& Context, const float* ProjMat, float NearClipDist, float FarClipDist  );
-	void Render(GraphicsContext& Context, const Math::Camera& camera );
+    void Initialize( void );
+    void Shutdown( void );
+    void Render(GraphicsContext& Context, const float* ProjMat, float NearClipDist, float FarClipDist );
+    void Render(GraphicsContext& Context, const Math::Camera& camera );
 
-	extern BoolVar Enable;
-	extern BoolVar DebugDraw;
-	extern BoolVar AsyncCompute;
-	extern BoolVar ComputeLinearZ;
+    extern BoolVar Enable;
+    extern BoolVar DebugDraw;
+    extern BoolVar AsyncCompute;
+    extern BoolVar ComputeLinearZ;
 }

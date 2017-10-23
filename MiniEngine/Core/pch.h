@@ -18,10 +18,10 @@
 #pragma warning(disable:4324) // structure was padded due to __declspec(align())
 
 #ifndef WIN32_LEAN_AND_MEAN
-	#define WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
 #endif
 #ifndef NOMINMAX
-	#define NOMINMAX
+    #define NOMINMAX
 #endif
 #include <windows.h>
 
@@ -33,11 +33,6 @@
 #define MY_IID_PPV_ARGS IID_PPV_ARGS
 #define D3D12_GPU_VIRTUAL_ADDRESS_NULL      ((D3D12_GPU_VIRTUAL_ADDRESS)0)
 #define D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN   ((D3D12_GPU_VIRTUAL_ADDRESS)-1)
-
-#if _MSC_VER >= 1800
-	#include <d3d11_2.h>
-	#include <pix.h>
-#endif
 
 #include "d3dx12.h"
 

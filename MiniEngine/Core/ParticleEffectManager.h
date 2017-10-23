@@ -21,26 +21,26 @@
 
 namespace Math
 {
-	class Camera;
+    class Camera;
 }
 
 namespace ParticleEffects
 {
-	void Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayHeight );
-	void Shutdown();
-	void ClearAll();
-	typedef uint32_t EffectHandle;
-	EffectHandle PreLoadEffectResources( ParticleEffectProperties* effectProperties = &ParticleEffectProperties() );
-	EffectHandle InstantiateEffect( EffectHandle effectHandle );
-	EffectHandle InstantiateEffect( ParticleEffectProperties* effectProperties = &ParticleEffectProperties() );
-	void Update(ComputeContext& Context, float timeDelta );
-	void Render(CommandContext& Context, const Camera& Camera, ColorBuffer& ColorTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth);
-	void ResetEffect(EffectHandle EffectID);
-	float GetCurrentLife(EffectHandle EffectID);
+    void Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayHeight );
+    void Shutdown();
+    void ClearAll();
+    typedef uint32_t EffectHandle;
+    EffectHandle PreLoadEffectResources( ParticleEffectProperties& effectProperties );
+    EffectHandle InstantiateEffect( EffectHandle effectHandle );
+    EffectHandle InstantiateEffect( ParticleEffectProperties& effectProperties );
+    void Update(ComputeContext& Context, float timeDelta );
+    void Render(CommandContext& Context, const Camera& Camera, ColorBuffer& ColorTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth);
+    void ResetEffect(EffectHandle EffectID);
+    float GetCurrentLife(EffectHandle EffectID);
 
-	extern BoolVar Enable;
-	extern BoolVar PauseSim;
-	extern BoolVar EnableTiledRendering;
-	extern bool Reproducible; //If you want to repro set to true. When true, effect uses the same set of random numbers each run
-	extern UINT ReproFrame;
+    extern BoolVar Enable;
+    extern BoolVar PauseSim;
+    extern BoolVar EnableTiledRendering;
+    extern bool Reproducible; //If you want to repro set to true. When true, effect uses the same set of random numbers each run
+    extern UINT ReproFrame;
 } // namespace ParticleEffects
