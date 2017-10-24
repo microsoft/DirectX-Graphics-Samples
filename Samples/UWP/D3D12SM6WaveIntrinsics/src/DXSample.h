@@ -32,15 +32,18 @@ public:
 	virtual void OnMouseMove(UINT /*x*/, UINT /*y*/) {}
 	virtual void OnLeftButtonDown(UINT /*x*/, UINT /*y*/) {}
 	virtual void OnLeftButtonUp(UINT /*x*/, UINT /*y*/) {}
+	virtual void OnDisplayChanged() {}
 	
 	// Accessors.
 	UINT GetWidth() const           { return m_width; }
 	UINT GetHeight() const          { return m_height; }
 	const WCHAR* GetTitle() const   { return m_title.c_str(); }
-	bool GetTearingSupport()        { return m_tearingSupport; }
+	bool GetTearingSupport() const  { return m_tearingSupport; }
+	RECT GetWindowsBounds() const   { return m_windowBounds; }
 
 	void ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[], int argc);
 	void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
+	void SetWindowBounds(int left, int top, int right, int bottom);
 
 protected:
 	std::wstring GetAssetFullPath(LPCWSTR assetName);
@@ -53,6 +56,9 @@ protected:
 	UINT m_height;
 	float m_aspectRatio;
 
+	// Window Bounds
+	RECT m_windowBounds;
+	
 	// Whether or not tearing is available for fullscreen borderless windowed mode.
 	bool m_tearingSupport;
 

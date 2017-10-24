@@ -14,14 +14,18 @@
 
 using namespace Windows::Foundation;
 
-inline UINT ConvertToPixels(float dimension, float dpi)
+inline int ConvertToPixels(float dimension, float dpi)
 {
-	return static_cast<UINT>(dimension * dpi / 96.0f);
+	return static_cast<int>(dimension * dpi / 96.0f + 0.5f);
 }
 
 View::View(UINT_PTR pSample) :
 	m_pSample(reinterpret_cast<DXSample*>(pSample)),
-	m_windowClosed(false)
+	m_windowClosed(false),
+	m_windowResizing(false),
+	m_windowVisible(true),
+	m_logicalWidth(0),
+	m_logicalHeight(0)
 {
 }
 
@@ -35,6 +39,9 @@ void View::Initialize(CoreApplicationView^ applicationView)
 
 void View::SetWindow(CoreWindow^ window)
 {
+	m_logicalWidth = window->Bounds.Width;
+	m_logicalHeight = window->Bounds.Height;
+
 	window->KeyDown += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &View::OnKeyDown);
 	window->KeyUp += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &View::OnKeyUp);
 	window->SizeChanged += ref new TypedEventHandler<CoreWindow^, WindowSizeChangedEventArgs^>(this, &View::OnSizeChanged);
@@ -43,12 +50,23 @@ void View::SetWindow(CoreWindow^ window)
 	window->PointerMoved += ref new TypedEventHandler<CoreWindow ^, PointerEventArgs ^>(this, &View::OnPointerMoved);
 	window->PointerPressed += ref new TypedEventHandler<CoreWindow ^, PointerEventArgs ^>(this, &View::OnPointerPressed);
 	window->PointerReleased += ref new TypedEventHandler<CoreWindow ^, PointerEventArgs ^>(this, &View::OnPointerReleased);
-	
+
+	try
+	{
+		window->ResizeStarted += ref new TypedEventHandler<CoreWindow^, Object^>(this, &View::OnResizeStarted);
+		window->ResizeCompleted += ref new TypedEventHandler<CoreWindow^, Object^>(this, &View::OnResizeCompleted);
+	}
+	catch (Exception^ e)
+	{
+		// Requires Windows 10 Creators Update (10.0.15063) or later.
+	}
+
 	// For simplicity, this sample ignores a number of events on CoreWindow that a
 	// typical app should subscribe to.
 
 	DisplayInformation^ displayInformation = DisplayInformation::GetForCurrentView();
 	displayInformation->DpiChanged += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &View::OnDpiChanged);
+	displayInformation->DisplayContentsInvalidated += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &View::OnDisplayContentsInvalidated);
 }
 
 void View::Load(String^ /*entryPoint*/)
@@ -100,18 +118,35 @@ void View::OnKeyUp(CoreWindow^ /*window*/, KeyEventArgs^ args)
 
 void View::OnSizeChanged(CoreWindow^ /*window*/, WindowSizeChangedEventArgs^ args)
 {
-	UpdateWindowSize(args->Size.Width, args->Size.Height);
+	m_logicalWidth = args->Size.Width;
+	m_logicalHeight = args->Size.Height;
+
+	if (!m_windowResizing)
+	{
+		UpdateWindowSize();
+	}
+}
+
+void View::OnResizeStarted(CoreWindow^ /*window*/, Platform::Object^ /*args*/)
+{
+	m_windowResizing = true;
+}
+
+void View::OnResizeCompleted(CoreWindow^ /*window*/, Platform::Object^ /*args*/)
+{
+	m_windowResizing = false;
+	UpdateWindowSize();
 }
 
 void View::OnDpiChanged(DisplayInformation^ /*sender*/, Object^ /*args*/)
 {
-	CoreWindow^ window = CoreWindow::GetForCurrentThread();
-	UpdateWindowSize(window->Bounds.Width, window->Bounds.Height);
+	UpdateWindowSize();
 }
 
-void View::OnVisibilityChanged(CoreWindow^ window, VisibilityChangedEventArgs^ args)
+void View::OnVisibilityChanged(CoreWindow^ /*window*/, VisibilityChangedEventArgs^ args)
 {
-	UpdateWindowSize(window->Bounds.Width, window->Bounds.Height, args->Visible);
+	m_windowVisible = args->Visible;
+	UpdateWindowSize();
 }
 
 void View::OnClosed(CoreWindow^ /*window*/, CoreWindowEventArgs^ /*args*/)
@@ -148,9 +183,24 @@ void View::OnPointerReleased(CoreWindow^ /*window*/, PointerEventArgs^ args)
 	}
 }
 
-void View::UpdateWindowSize(float width, float height, bool visible)
+void View::UpdateWindowSize()
 {
+	CoreWindow^ window = CoreWindow::GetForCurrentThread();
+	Windows::Foundation::Rect windowBounds = window->Bounds;
+
 	DisplayInformation^ displayInformation = DisplayInformation::GetForCurrentView();
 	float dpi = displayInformation->LogicalDpi;
-	m_pSample->OnSizeChanged(ConvertToPixels(width, dpi), ConvertToPixels(height, dpi), !visible);
+	
+	m_pSample->SetWindowBounds(
+		ConvertToPixels(windowBounds.Left, dpi),
+		ConvertToPixels(windowBounds.Top, dpi),
+		ConvertToPixels(windowBounds.Right, dpi),
+		ConvertToPixels(windowBounds.Bottom, dpi));
+		
+	m_pSample->OnSizeChanged(ConvertToPixels(m_logicalWidth, dpi), ConvertToPixels(m_logicalHeight, dpi), !m_windowVisible);
+}
+
+void View::OnDisplayContentsInvalidated(DisplayInformation^ sender, Object^ args)
+{
+	m_pSample->OnDisplayChanged();
 }

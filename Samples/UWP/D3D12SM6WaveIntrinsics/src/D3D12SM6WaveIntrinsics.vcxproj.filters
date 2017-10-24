@@ -111,10 +111,6 @@
     <CustomBuild Include="magnify.hlsl">
       <Filter>Assets\Shaders</Filter>
     </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="wave.hlsl">
-      <Filter>Assets\Shaders</Filter>
-    </FxCompile>
+    <CustomBuild Include="wave.hlsl" />
   </ItemGroup>
 </Project>

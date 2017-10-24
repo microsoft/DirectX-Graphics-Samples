@@ -175,12 +175,61 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 	case WM_SIZE:
 		if (pSample)
 		{
+			RECT windowRect = {};
+			GetWindowRect(hWnd, &windowRect);
+			pSample->SetWindowBounds(windowRect.left, windowRect.top, windowRect.right, windowRect.bottom);			
+			
 			RECT clientRect = {};
 			GetClientRect(hWnd, &clientRect);
 			pSample->OnSizeChanged(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top, wParam == SIZE_MINIMIZED);
 		}
 		return 0;
 
+	case WM_MOVE:
+		if (pSample)
+		{
+			RECT windowRect = {};
+			GetWindowRect(hWnd, &windowRect);
+			pSample->SetWindowBounds(windowRect.left, windowRect.top, windowRect.right, windowRect.bottom);
+			
+			int xPos = (int)(short) LOWORD(lParam);
+			int yPos = (int)(short) HIWORD(lParam);
+			pSample->OnWindowMoved(xPos, yPos);
+		}
+		return 0;
+		
+    case WM_DISPLAYCHANGE:
+        if (pSample)
+        {
+            pSample->OnDisplayChanged();
+        }
+        return 0;		
+		
+    case WM_MOUSEMOVE:
+        if (pSample && static_cast<UINT8>(wParam)== MK_LBUTTON)
+        {
+            UINT x = LOWORD(lParam);
+            UINT y = HIWORD(lParam);
+            pSample->OnMouseMove(x, y);
+        }
+		return 0;
+		
+	case WM_LBUTTONDOWN:
+		{
+			UINT x = LOWORD(lParam);
+			UINT y = HIWORD(lParam);
+			pSample->OnLeftButtonDown(x, y);
+		}
+		return 0;
+	
+	case WM_LBUTTONUP:
+		{
+			UINT x = LOWORD(lParam);
+			UINT y = HIWORD(lParam);
+			pSample->OnLeftButtonUp(x, y);
+		}
+		return 0;
+		
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
