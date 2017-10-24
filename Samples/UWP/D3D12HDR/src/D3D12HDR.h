@@ -40,7 +40,9 @@ public:
 	}
 	inline bool GetHDRSupport() { return m_hdrSupport; }
 	inline float GetReferenceWhiteNits() { return m_referenceWhiteNits; }
+    inline UINT GetHDRMetaDataPoolIndex() { return m_hdrMetaDataPoolIdx; }
 
+    static const float HDRMetaDataPool[4][4];
 	static const UINT FrameCount = 2;
 
 protected:
@@ -48,8 +50,10 @@ protected:
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnSizeChanged(UINT width, UINT height, bool minimized);
+    virtual void OnWindowMoved(int xPos, int yPos);
 	virtual void OnDestroy();
 	virtual void OnKeyDown(UINT8 key);
+    virtual void OnDisplayChanged();
 
 private:
 	static const float ClearColor[4];
@@ -73,6 +77,18 @@ private:
 		XMFLOAT3 position;
 		XMFLOAT2 uv;
 	};
+
+    struct DisplayChromacities
+    {
+        float RedX;
+        float RedY;
+        float GreenX;
+        float GreenY;
+        float BlueX;
+        float BlueY;
+        float WhiteX;
+        float WhiteY;
+    };
 
 	enum PipelineStates
 	{
@@ -106,10 +122,11 @@ private:
 		None		// The display expects a linear signal.
 	};
 
+
 	// Pipeline objects.
 	CD3DX12_VIEWPORT m_viewport;
 	CD3DX12_RECT m_scissorRect;
-	ComPtr<IDXGIFactory4> m_factory;
+	ComPtr<IDXGIFactory4> m_dxgiFactory;
 	ComPtr<IDXGISwapChain4> m_swapChain;
 	ComPtr<ID3D12Device> m_device;
 	ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
@@ -142,11 +159,12 @@ private:
 	bool m_updateVertexBuffer;
 	std::shared_ptr<UILayer> m_uiLayer;
 	bool m_enableUI = true;
+    UINT m_hdrMetaDataPoolIdx = 0;
 
 	// Color.
 	bool m_hdrSupport = false;
 	bool m_enableST2084 = false;
-	float m_referenceWhiteNits = 100.0f;	// The reference brightness level of the display.
+	float m_referenceWhiteNits = 80.0f;	// The reference brightness level of the display.
 
 	// Synchronization objects.
 	UINT m_frameIndex;
@@ -158,6 +176,7 @@ private:
 	// If it's minimized the app may decide not to render frames.
 	bool m_windowVisible;
 	bool m_windowedMode;
+    bool m_in_sizechanging;
 
 	void LoadPipeline();
 	void LoadAssets();
@@ -167,6 +186,8 @@ private:
 	void RenderScene();
 	void WaitForGpu();
 	void MoveToNextFrame();
-	void UpdateSwapChainFormat();
-	void EnsureSwapChainColorSpace();
+    void EnsureSwapChainColorSpace(SwapChainBitDepth d, bool enableST2084);
+    void CheckDisplayHDRSupport();
+    void SetHDRMetaData(float MaxOutputNits = 1000.0f, float MinOutputNits = 0.001f, float MaxCLL = 2000.0f, float MaxFALL = 500.0f);
+    void UpdateSwapChainBuffer(UINT width, UINT height, DXGI_FORMAT format);
 };

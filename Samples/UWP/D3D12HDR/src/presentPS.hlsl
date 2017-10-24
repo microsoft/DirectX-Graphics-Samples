@@ -14,16 +14,13 @@
 
 float3 PSMain(PSInput input) : SV_TARGET
 {
-	// The scene is rendered in linear space.
-	// For ST.2084 and linear output, the upper half of the scene is understood to
-	// be coming from Rec 709 primaries and the lower half of the scene is understood
-	// to be coming from Rec 2020 primaries. (sRGB is Rec 709 by definition)
+	// The scene, including brightness bars and color palettes, is rendered with linear gamma and Rec.709 primaries. (DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709) 
 	float3 scene = g_scene.Sample(g_sampler, input.uv).rgb;
 
-	// Direct2D renders the UI layer in gamma-corrected sRGB space.
+	// Direct2D renders the UI layer with gamma 2.2 in Rec.709 primaries. (DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709, known as sRGB)
 	float4 uiLayer = g_ui.Sample(g_sampler, input.uv);
 
-	// Compose the scene and UI layers.
+	// Compose the scene and UI layers. Note that we convert UI layer from gamma 2.2 to to linear gamma before composing so both UI layers and the scene are with linear gamma and Rec.709 primaries. 
 	float3 result = lerp(scene, SRGBToLinear(uiLayer.rgb), uiLayer.a);
 
 	if (displayCurve == DISPLAY_CURVE_SRGB)
@@ -39,7 +36,7 @@ float3 PSMain(PSInput input) : SV_TARGET
 		result = Rec709ToRec2020(result);
 
 		// Apply the ST.2084 curve to the scene.
-		result = ApplyST2084(result * hdrScalar);
+		result = LinearToST2084(result * hdrScalar);
 	}
 	else // displayCurve == DISPLAY_CURVE_LINEAR
 	{

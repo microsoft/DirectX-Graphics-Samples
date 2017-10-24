@@ -11,11 +11,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{A6DB1D1C-E2EE-462D-AC61-0E3100C010DF}</ProjectGuid>
+    <ProjectGuid>{EDC25A65-E2D7-427E-8FEA-DB448AFD71AD}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>D3D12DepthBoundsTest</RootNamespace>
     <ProjectName>D3D12DepthBoundsTest</ProjectName>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">

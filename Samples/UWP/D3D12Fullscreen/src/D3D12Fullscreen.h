@@ -33,6 +33,7 @@ protected:
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnSizeChanged(UINT width, UINT height, bool minimized);
+    virtual void OnWindowMoved(int, int);
 	virtual void OnDestroy();
 	virtual void OnKeyDown(UINT8 key);
 

@@ -23,25 +23,35 @@
 #include "presentPS.hlsl.h"
 
 const float D3D12HDR::ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+const float D3D12HDR::HDRMetaDataPool[4][4] =
+{
+    // MaxOutputNits, MinOutputNits, MaxCLL, MaxFALL
+    // These values are made up for testing. You need to figure out those numbers for your app.
+    { 1000.0f, 0.001f, 2000.0f, 500.0f },
+    { 500.0f, 0.001f, 2000.0f, 500.0f },
+    { 500.0f, 0.100f, 500.0f, 100.0f },
+    { 2000.0f, 1.000f, 2000.0f, 1000.0f }
+};
 
 D3D12HDR::D3D12HDR(UINT width, UINT height, std::wstring name) :
-	DXSample(width, height, name),
-	m_frameIndex(0),
-	m_viewport(),
-	m_scissorRect(0,0,width,height),
-	m_swapChainFormats{ DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R10G10B10A2_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT },
-	m_currentSwapChainColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709),
-	m_currentSwapChainBitDepth(_8),
-	m_swapChainFormatChanged(false),
-	m_intermediateRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT),
-	m_rtvDescriptorSize(0),
-	m_srvDescriptorSize(0),
-	m_dxgiFactoryFlags(0),
-	m_rootConstants{},
-	m_updateVertexBuffer(true),
-	m_fenceValues{},
-	m_windowVisible(true),
-	m_windowedMode(true)
+    DXSample(width, height, name),
+    m_frameIndex(0),
+    m_viewport(),
+    m_scissorRect(0, 0, width, height),
+    m_swapChainFormats{ DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R10G10B10A2_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT },
+    m_currentSwapChainColorSpace(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709),
+    m_currentSwapChainBitDepth(_8),
+    m_swapChainFormatChanged(false),
+    m_intermediateRenderTargetFormat(DXGI_FORMAT_R16G16B16A16_FLOAT),
+    m_rtvDescriptorSize(0),
+    m_srvDescriptorSize(0),
+    m_dxgiFactoryFlags(0),
+    m_rootConstants{},
+    m_updateVertexBuffer(true),
+    m_fenceValues{},
+    m_windowVisible(true),
+    m_windowedMode(true),
+    m_in_sizechanging(false)
 {
 	// Alias the root constants so that we can easily set them as either floats or UINTs.
 	m_rootConstantsF = reinterpret_cast<float*>(m_rootConstants);
@@ -71,12 +81,12 @@ void D3D12HDR::LoadPipeline()
 	}
 #endif
 
-	ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
+	ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
 
 	if (m_useWarpDevice)
 	{
 		ComPtr<IDXGIAdapter> warpAdapter;
-		ThrowIfFailed(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
+		ThrowIfFailed(m_dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
 
 		ThrowIfFailed(D3D12CreateDevice(
 			warpAdapter.Get(),
@@ -87,7 +97,7 @@ void D3D12HDR::LoadPipeline()
 	else
 	{
 		ComPtr<IDXGIAdapter1> hardwareAdapter;
-		GetHardwareAdapter(m_factory.Get(), &hardwareAdapter);
+		GetHardwareAdapter(m_dxgiFactory.Get(), &hardwareAdapter);
 
 		ThrowIfFailed(D3D12CreateDevice(
 			hardwareAdapter.Get(),
@@ -118,7 +128,7 @@ void D3D12HDR::LoadPipeline()
 	swapChainDesc.Flags = m_tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
 	ComPtr<IDXGISwapChain1> swapChain;
-	ThrowIfFailed(m_factory->CreateSwapChainForHwnd(
+	ThrowIfFailed(m_dxgiFactory->CreateSwapChainForHwnd(
 		m_commandQueue.Get(),		// Swap chain needs the queue so that it can force a flush on it.
 		Win32Application::GetHwnd(),
 		&swapChainDesc,
@@ -131,14 +141,16 @@ void D3D12HDR::LoadPipeline()
 	{
 		// When tearing support is enabled we will handle ALT+Enter key presses in the
 		// window message loop rather than let DXGI handle it by calling SetFullscreenState.
-		m_factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER);
+		m_dxgiFactory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER);
 	}
 
 	ThrowIfFailed(swapChain.As(&m_swapChain));
-	UpdateSwapChainFormat();
-
-	// Initialize ST.2084 support to match the display's support.
-	m_enableST2084 = m_hdrSupport;
+    
+    // Check display HDR support and initialize ST.2084 support to match the display's support.
+    CheckDisplayHDRSupport();
+    m_enableST2084 = m_hdrSupport;
+    EnsureSwapChainColorSpace(m_currentSwapChainBitDepth, m_enableST2084);
+    SetHDRMetaData(HDRMetaDataPool[m_hdrMetaDataPoolIdx][0], HDRMetaDataPool[m_hdrMetaDataPoolIdx][1], HDRMetaDataPool[m_hdrMetaDataPoolIdx][2], HDRMetaDataPool[m_hdrMetaDataPoolIdx][3]);
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
@@ -564,6 +576,10 @@ void D3D12HDR::UpdateVertexBuffer()
 // Update frame-based values.
 void D3D12HDR::OnUpdate()
 {
+    if (m_enableUI)
+    {
+        m_uiLayer->UpdateLabels();
+    }
 }
 
 // Render the scene.
@@ -586,7 +602,6 @@ void D3D12HDR::OnRender()
 		ThrowIfFailed(m_swapChain->Present(1, 0));
 
 		MoveToNextFrame();
-		UpdateSwapChainFormat();	// Check for HDR support changes on the display.
 	}
 }
 
@@ -718,55 +733,34 @@ void D3D12HDR::RenderScene()
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 }
 
+
+void D3D12HDR::OnWindowMoved(int xPos, int yPos)
+{
+    UNREFERENCED_PARAMETER(xPos);
+    UNREFERENCED_PARAMETER(yPos);
+
+    if (!m_swapChain)
+    {
+        return;
+    }
+
+    // An app could be moved from a HDR monitor to a SDR monitor or vice versa. After the app got moved, we can verify the monitor HDR support again here.
+    CheckDisplayHDRSupport();
+}
+
+
 void D3D12HDR::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
-	if (!m_swapChain)
-	{
-		return;
-	}
+    // Update the width, height, and aspect ratio member variables.
+    UpdateForSizeChange(width, height);
 
-	// Determine if the swap buffers and other resources need to be resized or not.
-	if ((width != m_width || height != m_height || m_swapChainFormatChanged) && !minimized)
-	{
-		// Flush all current GPU commands.
-		WaitForGpu();
+    // Update the size of swapchain buffers.
+    UpdateSwapChainBuffer(width, height, GetBackBufferFormat());
 
-		// Release the resources holding references to the swap chain (requirement of
-		// IDXGISwapChain::ResizeBuffers) and reset the frame fence values to the
-		// current fence value.
-		for (UINT n = 0; n < FrameCount; n++)
-		{
-			m_renderTargets[n].Reset();
-			m_fenceValues[n] = m_fenceValues[m_frameIndex];
-		}
-		if (m_enableUI)
-		{
-			m_uiLayer->ReleaseResources();
-		}
-
-		// Resize the swap chain to the desired dimensions.
-		DXGI_SWAP_CHAIN_DESC1 desc = {};
-		m_swapChain->GetDesc1(&desc);
-		ThrowIfFailed(m_swapChain->ResizeBuffers(FrameCount, width, height, m_swapChainFormats[m_currentSwapChainBitDepth], desc.Flags));
-
-		EnsureSwapChainColorSpace();
-
-		BOOL fullscreenState;
-		ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
-		m_windowedMode = !fullscreenState;
-
-		// Reset the frame index to the current back buffer index.
-		m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
-
-		// Update the width, height, and aspect ratio member variables.
-		UpdateForSizeChange(width, height);
-		m_swapChainFormatChanged = false;
-
-		LoadSizeDependentResources();
-	}
-
-	m_windowVisible = !minimized;
+    m_windowVisible = !minimized;
 }
+
+
 
 void D3D12HDR::OnDestroy()
 {
@@ -780,7 +774,6 @@ void D3D12HDR::OnDestroy()
 		m_swapChain->SetFullscreenState(FALSE, nullptr);
 		ThrowIfFailed(m_swapChain->SetFullscreenState(FALSE, nullptr));
 	}
-
 	CloseHandle(m_fenceEvent);
 }
 
@@ -788,78 +781,87 @@ void D3D12HDR::OnKeyDown(UINT8 key)
 {
 	switch (key)
 	{
-	// Instrument the Space Bar to toggle between fullscreen states.
-	// The window message loop callback will receive a WM_SIZE message once the
-	// window is in the fullscreen state. At that point, the IDXGISwapChain should
-	// be resized to match the new window size.
-	//
-	// NOTE: ALT+Enter will perform a similar operation; the code below is not
-	// required to enable that key combination.
-	case VK_SPACE:
-	{
-		if (m_tearingSupport)
-		{
-			Win32Application::ToggleFullscreenWindow();
-		}
-		else
-		{
-			BOOL fullscreenState;
-			ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
-			if (FAILED(m_swapChain->SetFullscreenState(!fullscreenState, nullptr)))
-			{
-				// Transitions to fullscreen mode can fail when running apps over
-				// terminal services or for some other unexpected reason.  Consider
-				// notifying the user in some way when this happens.
-				OutputDebugString(L"Fullscreen transition failed");
-				assert(false);
-			}
-		}
-		break;
-	}
+	    // Instrument the Space Bar to toggle between fullscreen states.
+	    // The window message loop callback will receive a WM_SIZE message once the
+	    // window is in the fullscreen state. At that point, the IDXGISwapChain should
+	    // be resized to match the new window size.
+	    //
+	    // NOTE: ALT+Enter will perform a similar operation; the code below is not
+	    // required to enable that key combination.
+	    case VK_SPACE:
+	    {
+		    if (m_tearingSupport)
+		    {
+			    Win32Application::ToggleFullscreenWindow();
+		    }
+		    else
+		    {
+			    BOOL fullscreenState;
+			    ThrowIfFailed(m_swapChain->GetFullscreenState(&fullscreenState, nullptr));
+			    if (FAILED(m_swapChain->SetFullscreenState(!fullscreenState, nullptr)))
+			    {
+				    // Transitions to fullscreen mode can fail when running apps over
+				    // terminal services or for some other unexpected reason.  Consider
+				    // notifying the user in some way when this happens.
+				    OutputDebugString(L"Fullscreen transition failed");
+				    assert(false);
+			    }
+		    }
+		    break;
+	    }
 
-	case VK_PRIOR:	// Page Up
-		m_currentSwapChainBitDepth = static_cast<SwapChainBitDepth>((m_currentSwapChainBitDepth - 1 + SwapChainBitDepthCount) % SwapChainBitDepthCount);
-		m_swapChainFormatChanged = true;
-		OnSizeChanged(m_width, m_height, false);
-		if (m_enableUI)
-		{
-			m_uiLayer->UpdateLabels();
-		}
-		break;
-		
-	case VK_NEXT:	// Page Down
-		m_currentSwapChainBitDepth = static_cast<SwapChainBitDepth>((m_currentSwapChainBitDepth + 1) % SwapChainBitDepthCount);
-		m_swapChainFormatChanged = true;
-		OnSizeChanged(m_width, m_height, false);
-		if (m_enableUI)
-		{
-			m_uiLayer->UpdateLabels();
-		}
-		break;
+	    case VK_PRIOR:	// Page Up
+        {
+            m_currentSwapChainBitDepth = static_cast<SwapChainBitDepth>((m_currentSwapChainBitDepth - 1 + SwapChainBitDepthCount) % SwapChainBitDepthCount);
+            DXGI_FORMAT newFormat = m_swapChainFormats[m_currentSwapChainBitDepth];
+            UpdateSwapChainBuffer(m_width, m_height, newFormat);
+            SetHDRMetaData(HDRMetaDataPool[m_hdrMetaDataPoolIdx][0], HDRMetaDataPool[m_hdrMetaDataPoolIdx][1], HDRMetaDataPool[m_hdrMetaDataPoolIdx][2], HDRMetaDataPool[m_hdrMetaDataPoolIdx][3]);
+            break;
+        }
 
-	case 'H':
-		m_enableST2084 = !m_enableST2084;
-		if (m_currentSwapChainBitDepth == _10)
-		{
-			m_swapChainFormatChanged = true;
-			OnSizeChanged(m_width, m_height, false);
-		}
-		if (m_enableUI)
-		{
-			m_uiLayer->UpdateLabels();
-		}
-		break;
+	    case VK_NEXT:	// Page Down
+        {
+            m_currentSwapChainBitDepth = static_cast<SwapChainBitDepth>((m_currentSwapChainBitDepth + 1) % SwapChainBitDepthCount);
+            DXGI_FORMAT newFormat = m_swapChainFormats[m_currentSwapChainBitDepth];
+            UpdateSwapChainBuffer(m_width, m_height, newFormat);
+            SetHDRMetaData(HDRMetaDataPool[m_hdrMetaDataPoolIdx][0], HDRMetaDataPool[m_hdrMetaDataPoolIdx][1], HDRMetaDataPool[m_hdrMetaDataPoolIdx][2], HDRMetaDataPool[m_hdrMetaDataPoolIdx][3]);
+            break;
+        }
 
-	case 'U':
-		m_enableUI = !m_enableUI;
-		if (m_enableUI)
-		{
-			m_uiLayer = std::make_shared<UILayer>(this);
-		}
-		else
-		{
-			m_uiLayer.reset();
-		}
+	    case 'H':
+        {
+            m_enableST2084 = !m_enableST2084;
+            if (m_currentSwapChainBitDepth == _10)
+            {
+                EnsureSwapChainColorSpace(m_currentSwapChainBitDepth, m_enableST2084);
+                SetHDRMetaData(HDRMetaDataPool[m_hdrMetaDataPoolIdx][0], HDRMetaDataPool[m_hdrMetaDataPoolIdx][1], HDRMetaDataPool[m_hdrMetaDataPoolIdx][2], HDRMetaDataPool[m_hdrMetaDataPoolIdx][3]);
+            }
+
+            break;
+        }
+
+	    case 'U':
+        {
+            m_enableUI = !m_enableUI;
+            if (m_enableUI)
+            {
+                m_uiLayer = std::make_shared<UILayer>(this);
+            }
+            else
+            {
+                m_uiLayer.reset();
+            }
+
+            break;
+        }
+
+        case 'M':
+        {
+            // Switch meta data value for testing. TV should adjust the content based on the metadata we sent.
+            m_hdrMetaDataPoolIdx = (m_hdrMetaDataPoolIdx + 1) % 4;
+            SetHDRMetaData(HDRMetaDataPool[m_hdrMetaDataPoolIdx][0], HDRMetaDataPool[m_hdrMetaDataPoolIdx][1], HDRMetaDataPool[m_hdrMetaDataPoolIdx][2], HDRMetaDataPool[m_hdrMetaDataPoolIdx][3]);
+            break;
+        }
 	}
 }
 
@@ -901,68 +903,232 @@ void D3D12HDR::MoveToNextFrame()
 	m_fenceValues[m_frameIndex] = currentFenceValue + 1;
 }
 
-// Detect HDR support on the display and update the swap chain if necessary.
-void D3D12HDR::UpdateSwapChainFormat()
+
+// DirectX supports two combinations of swapchain pixel formats and colorspaces for HDR content.
+// Option 1: FP16 + DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709
+// Option 2: R10G10B10A2 + DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020
+// Calling this function to ensure the correct color space for the different pixel formats.
+void D3D12HDR::EnsureSwapChainColorSpace(SwapChainBitDepth swapChainBitDepth, bool enableST2084)
 {
-	static bool checkSupport = true;
+    DXGI_COLOR_SPACE_TYPE colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+    switch (swapChainBitDepth)
+    {
+    case _8:
+        m_rootConstants[DisplayCurve] = sRGB;
+        break;
 
-	// Output information is cached on the DXGI Factory. If it is stale we need to create
-	// a new factory and re-enumerate the displays.
-	if (!m_factory->IsCurrent())
-	{
-		ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
-		checkSupport = true;
-	}
+    case _10:
+        colorSpace = enableST2084 ? DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 : DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+        m_rootConstants[DisplayCurve] = enableST2084 ? ST2084 : sRGB;
+        break;
 
-	if (checkSupport)
-	{
-		// Get information about the display we are presenting to.
-		ComPtr<IDXGIOutput> output;
-		ComPtr<IDXGIOutput6> output6;
+    case _16:
+        colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
+        m_rootConstants[DisplayCurve] = None;
+        break;
+    }
 
-		ThrowIfFailed(m_swapChain->GetContainingOutput(&output));
-		if (SUCCEEDED(output.As(&output6)))
-		{
-			DXGI_OUTPUT_DESC1 outputDesc;
-			ThrowIfFailed(output6->GetDesc1(&outputDesc));
-
-			// If the display supports HDR, then we'll enable high color.
-			m_hdrSupport = (outputDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
-
-			EnsureSwapChainColorSpace();
-		}
-		checkSupport = false;
-	}
+    if (m_currentSwapChainColorSpace != colorSpace)
+    {
+        UINT colorSpaceSupport = 0;
+        if (SUCCEEDED(m_swapChain->CheckColorSpaceSupport(colorSpace, &colorSpaceSupport)) &&
+            ((colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) == DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
+        {
+            ThrowIfFailed(m_swapChain->SetColorSpace1(colorSpace));
+            m_currentSwapChainColorSpace = colorSpace;
+        }
+    }
 }
 
-void D3D12HDR::EnsureSwapChainColorSpace()
+// Set HDR meta data for output display to master the content and the luminance values of the content.
+// An app should estimate and set appropriate metadata based on its contents.
+// For demo purpose, we simply made up a few set of metadata for you to experience the effect of appling meta data.
+// Please see details in https://msdn.microsoft.com/en-us/library/windows/desktop/mt732700(v=vs.85).aspx.
+void D3D12HDR::SetHDRMetaData(float MaxOutputNits /*=1000.0f*/, float MinOutputNits /*=0.001f*/, float MaxCLL /*=2000.0f*/, float MaxFALL /*=500.0f*/)
 {
-	DXGI_COLOR_SPACE_TYPE colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
-	switch (m_currentSwapChainBitDepth)
-	{
-	case _8:
-		m_rootConstants[DisplayCurve] = sRGB;
-		break;
+    if (!m_swapChain)
+    {
+        return;
+    }
 
-	case _10:
-		colorSpace = m_enableST2084 ? DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 : DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
-		m_rootConstants[DisplayCurve] = m_enableST2084 ? ST2084 : sRGB;
-		break;
+    // Clean the hdr metadata if the display doesn't support HDR
+    if (!m_hdrSupport)
+    {
+        ThrowIfFailed(m_swapChain->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_NONE, 0, nullptr));
+		return;
+    }
 
-	case _16:
-		colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
-		m_rootConstants[DisplayCurve] = None;
-		break;
-	}
+    static const DisplayChromacities DisplayChromacityList[] =
+    {
+        { 0.64000f, 0.33000f, 0.30000f, 0.60000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // Display Gamut Rec709 
+        { 0.70800f, 0.29200f, 0.17000f, 0.79700f, 0.13100f, 0.04600f, 0.31270f, 0.32900f }, // Display Gamut Rec2020
+    };
 
-	if (m_currentSwapChainColorSpace != colorSpace)
-	{
-		UINT colorSpaceSupport = 0;
-		if (SUCCEEDED(m_swapChain->CheckColorSpaceSupport(colorSpace, &colorSpaceSupport)) &&
-			((colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) == DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
-		{
-			ThrowIfFailed(m_swapChain->SetColorSpace1(colorSpace));
-			m_currentSwapChainColorSpace = colorSpace;
-		}
-	}
+    // Select the chromaticity based on HDR format of the DWM.
+    int selectedChroma = 0;
+    if (m_currentSwapChainBitDepth == _16 && m_currentSwapChainColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709)
+    {
+        selectedChroma = 0;
+    }
+    else if (m_currentSwapChainBitDepth == _10 && m_currentSwapChainColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+    {
+        selectedChroma = 1;
+    }
+    else
+    {
+        // Reset the metadata since this is not a supported HDR format.
+        ThrowIfFailed(m_swapChain->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_NONE, 0, nullptr));
+        return;
+    }
+
+    // Set HDR meta data
+    const DisplayChromacities& Chroma = DisplayChromacityList[selectedChroma];
+    DXGI_HDR_METADATA_HDR10 HDR10MetaData = {};
+    HDR10MetaData.RedPrimary[0] = static_cast<UINT16>(Chroma.RedX * 50000.0f);
+    HDR10MetaData.RedPrimary[1] = static_cast<UINT16>(Chroma.RedY * 50000.0f);
+    HDR10MetaData.GreenPrimary[0] = static_cast<UINT16>(Chroma.GreenX * 50000.0f);
+    HDR10MetaData.GreenPrimary[1] = static_cast<UINT16>(Chroma.GreenY * 50000.0f);
+    HDR10MetaData.BluePrimary[0] = static_cast<UINT16>(Chroma.BlueX * 50000.0f);
+    HDR10MetaData.BluePrimary[1] = static_cast<UINT16>(Chroma.BlueY * 50000.0f);
+    HDR10MetaData.WhitePoint[0] = static_cast<UINT16>(Chroma.WhiteX * 50000.0f);
+    HDR10MetaData.WhitePoint[1] = static_cast<UINT16>(Chroma.WhiteY * 50000.0f);
+    HDR10MetaData.MaxMasteringLuminance = static_cast<UINT>(MaxOutputNits * 10000.0f);
+    HDR10MetaData.MinMasteringLuminance = static_cast<UINT>(MinOutputNits * 10000.0f);
+    HDR10MetaData.MaxContentLightLevel = static_cast<UINT16>(MaxCLL);
+    HDR10MetaData.MaxFrameAverageLightLevel = static_cast<UINT16>(MaxFALL);
+    ThrowIfFailed(m_swapChain->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(DXGI_HDR_METADATA_HDR10), &HDR10MetaData));
+}
+
+
+void D3D12HDR::UpdateSwapChainBuffer(UINT width, UINT height, DXGI_FORMAT format)
+{
+    if (!m_swapChain)
+    {
+        return;
+    }
+
+
+    // Flush all current GPU commands.
+    WaitForGpu();
+
+    // Release the resources holding references to the swap chain (requirement of
+    // IDXGISwapChain::ResizeBuffers) and reset the frame fence values to the
+    // current fence value.
+    for (UINT n = 0; n < FrameCount; n++)
+    {
+        m_renderTargets[n].Reset();
+        m_fenceValues[n] = m_fenceValues[m_frameIndex];
+    }
+    if (m_enableUI)
+    {
+        m_uiLayer->ReleaseResources();
+    }
+
+    // Resize the swap chain to the desired dimensions.
+    DXGI_SWAP_CHAIN_DESC1 desc = {};
+    m_swapChain->GetDesc1(&desc);
+    ThrowIfFailed(m_swapChain->ResizeBuffers(FrameCount, width, height, format, desc.Flags));
+
+    EnsureSwapChainColorSpace(m_currentSwapChainBitDepth, m_enableST2084);
+
+    // Reset the frame index to the current back buffer index.
+    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
+    // Update the width, height, and aspect ratio member variables.
+    UpdateForSizeChange(width, height);
+
+    LoadSizeDependentResources();
+}
+
+
+// To detect HDR support, we will need to check the color space in the primary DXGI output associated with the app at
+// this point in time (using window/display intersection). 
+
+// Compute the overlay area of two rectangles, A and B.
+// (ax1, ay1) = left-top coordinates of A; (ax2, ay2) = right-bottom coordinates of A
+// (bx1, by1) = left-top coordinates of B; (bx2, by2) = right-bottom coordinates of B
+inline int ComputeIntersectionArea(int ax1, int ay1, int ax2, int ay2, int bx1, int by1, int bx2, int by2)
+{
+    return max(0, min(ax2, bx2) - max(ax1, bx1)) * max(0, min(ay2, by2) - max(ay1, by1));
+}
+
+void D3D12HDR::CheckDisplayHDRSupport()
+{
+    // If the display's advanced color state has changed (e.g. HDR display plug/unplug, or OS HDR setting on/off), 
+    // then this app's DXGI factory is invalidated and must be created anew in order to retrieve up-to-date display information. 
+    if (m_dxgiFactory->IsCurrent() == false)
+    {
+        ThrowIfFailed(
+            CreateDXGIFactory2(0, IID_PPV_ARGS(&m_dxgiFactory))
+        );
+    }
+
+    // First, the method must determine the app's current display. 
+    // We don't recommend using IDXGISwapChain::GetContainingOutput method to do that because of two reasons:
+    //    1. Swap chains created with CreateSwapChainForComposition do not support this method.
+    //    2. Swap chains will return a stale dxgi output once DXGIFactory::IsCurrent() is false. In addition, 
+    //       we don't recommend re-creating swapchain to resolve the stale dxgi output because it will cause a short 
+    //       period of black screen.
+    // Instead, we suggest enumerating through the bounds of all dxgi outputs and determine which one has the greatest 
+    // intersection with the app window bounds. Then, use the DXGI output found in previous step to determine if the 
+    // app is on a HDR capable display. 
+
+    // Retrieve the current default adapter.
+    ComPtr<IDXGIAdapter1> dxgiAdapter;
+    ThrowIfFailed(m_dxgiFactory->EnumAdapters1(0, &dxgiAdapter));
+
+    // Iterate through the DXGI outputs associated with the DXGI adapter,
+    // and find the output whose bounds have the greatest overlap with the
+    // app window (i.e. the output for which the intersection area is the
+    // greatest).
+
+    UINT i = 0;
+    ComPtr<IDXGIOutput> currentOutput;
+    ComPtr<IDXGIOutput> bestOutput;
+    float bestIntersectArea = -1;
+
+    while (dxgiAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
+    {
+        // Get the retangle bounds of the app window
+        int ax1 = m_windowBounds.left;
+        int ay1 = m_windowBounds.top;
+        int ax2 = m_windowBounds.right;
+        int ay2 = m_windowBounds.bottom;
+
+        // Get the rectangle bounds of current output
+        DXGI_OUTPUT_DESC desc;
+        ThrowIfFailed(currentOutput->GetDesc(&desc));
+        RECT r = desc.DesktopCoordinates;
+        int bx1 = r.left;
+        int by1 = r.top;
+        int bx2 = r.right;
+        int by2 = r.bottom;
+
+        // Compute the intersection
+        int intersectArea = ComputeIntersectionArea(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
+        if (intersectArea > bestIntersectArea)
+        {
+            bestOutput = currentOutput;
+            bestIntersectArea = static_cast<float>(intersectArea);
+        }
+
+        i++;
+    }
+
+    // Having determined the output (display) upon which the app is primarily being 
+    // rendered, retrieve the HDR capabilities of that display by checking the color space.
+    ComPtr<IDXGIOutput6> output6;
+    ThrowIfFailed(bestOutput.As(&output6));
+
+    DXGI_OUTPUT_DESC1 desc1;
+    ThrowIfFailed(output6->GetDesc1(&desc1));
+
+    m_hdrSupport = (desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020);
+}
+
+void D3D12HDR::OnDisplayChanged()
+{
+    // Changing display setting or plugging/unplugging HDR displays could raise a WM_DISPLAYCHANGE message (win32) or OnDisplayContentsInvalidated event(uwp). 
+    // Re-check the HDR support while receiving them.
+    CheckDisplayHDRSupport();
 }

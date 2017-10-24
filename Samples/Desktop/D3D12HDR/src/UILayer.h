@@ -43,6 +43,7 @@ private:
 		ChangeFormat,
 		ChangeCurve,
 		HideUI,
+        MetaData,
 		StringsCount
 	};
 
