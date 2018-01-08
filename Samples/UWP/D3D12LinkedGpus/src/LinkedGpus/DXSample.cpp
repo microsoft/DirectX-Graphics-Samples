@@ -17,6 +17,7 @@ using namespace Microsoft::WRL;
 DXSample::DXSample(UINT width, UINT height, std::wstring name) :
 	m_width(width),
 	m_height(height),
+	m_windowBounds{0,0,0,0},
 	m_title(name),
 	m_aspectRatio(0.0f),
 	m_useWarpDevice(false)
@@ -121,4 +122,12 @@ void DXSample::CheckTearingSupport()
 	}
 
 	m_tearingSupport = SUCCEEDED(hr) && allowTearing;
+}
+
+void DXSample::SetWindowBounds(int left, int top, int right, int bottom)
+{
+    m_windowBounds.left = static_cast<LONG>(left);
+    m_windowBounds.top = static_cast<LONG>(top);
+    m_windowBounds.right = static_cast<LONG>(right);
+    m_windowBounds.bottom = static_cast<LONG>(bottom);
 }

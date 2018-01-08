@@ -37,12 +37,22 @@ private:
 	void OnKeyDown(CoreWindow^ window, KeyEventArgs^ args);
 	void OnKeyUp(CoreWindow^ window, KeyEventArgs^ args);
 	void OnSizeChanged(CoreWindow^ window, WindowSizeChangedEventArgs^ args);
+	void OnResizeStarted(CoreWindow^ window, Object^ args);
+	void OnResizeCompleted(CoreWindow^ window, Object^ args);
 	void OnDpiChanged(DisplayInformation^ sender, Object^ args);
 	void OnVisibilityChanged(CoreWindow^ window, VisibilityChangedEventArgs^ args);
 	void OnClosed(CoreWindow^ window, CoreWindowEventArgs^ args);
-
-	void UpdateWindowSize(float width, float height, bool windowVisible = true);
+	void OnPointerMoved(CoreWindow^ window, PointerEventArgs^ args);
+	void OnPointerPressed(CoreWindow^ window, PointerEventArgs^ args);
+	void OnPointerReleased(CoreWindow^ window, PointerEventArgs^ args);
+	void OnDisplayContentsInvalidated(DisplayInformation^ sender, Object^ args);
+	
+	void UpdateWindowSize();
 
 	DXSample* m_pSample;
 	bool m_windowClosed;
+	bool m_windowResizing;
+	bool m_windowVisible;
+	float m_logicalWidth;
+	float m_logicalHeight;
 };

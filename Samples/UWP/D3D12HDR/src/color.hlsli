@@ -12,7 +12,7 @@
 // These values must match the DisplayCurve enum in D3D12HDR.h.
 #define DISPLAY_CURVE_SRGB      0
 #define DISPLAY_CURVE_ST2084    1
-#define DISPLAY_CURVE_LINEAR      2
+#define DISPLAY_CURVE_LINEAR    2
 
 float3 xyYToRec709(float2 xy, float Y = 1.0)
 {
@@ -78,8 +78,7 @@ float3 Rec2020ToRec709(float3 color)
 	return mul(conversion, color);
 }
 
-
-float3 ApplyST2084(float3 color)
+float3 LinearToST2084(float3 color)
 {
 	float m1 = 2610.0 / 4096.0 / 4;
 	float m2 = 2523.0 / 4096.0 * 128;
