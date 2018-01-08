@@ -187,6 +187,18 @@
     <ClInclude Include="DynamicUploadBuffer.h">
       <Filter>Source Files\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="TemporalEffects.h">
+      <Filter>Source Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsCommon.h">
+      <Filter>Source Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="BitonicSort.h">
+      <Filter>Source Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="ReadbackBuffer.h">
+      <Filter>Source Files\Graphics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SystemTime.cpp">
@@ -327,6 +339,18 @@
     <ClCompile Include="DynamicUploadBuffer.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="TemporalEffects.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicsCommon.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="BitonicSort.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="ReadbackBuffer.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -359,9 +383,6 @@
     <Filter Include="Shaders\HDR">
       <UniqueIdentifier>{1b22d859-284b-450b-9ed2-a9c0aceb033e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\MB+TAA">
-      <UniqueIdentifier>{7f434daa-8c60-4590-ba57-173c6209d888}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Shaders\Text">
       <UniqueIdentifier>{26bdd93c-f50c-4dec-8ecc-eb6d783a7071}</UniqueIdentifier>
     </Filter>
@@ -376,6 +397,12 @@
     </Filter>
     <Filter Include="Shaders\GenerateMips">
       <UniqueIdentifier>{6bfe1a9c-fe27-4aa4-b232-2f6b673b1f75}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Temporal">
+      <UniqueIdentifier>{7f434daa-8c60-4590-ba57-173c6209d888}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\BitonicSort">
+      <UniqueIdentifier>{2e78a77a-e75d-469b-9391-f9ee3a9dffe4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -490,13 +517,7 @@
     <FxCompile Include="Shaders\ParticleFinalDispatchIndirectArgsCS.hlsl">
       <Filter>Shaders\Particles</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\ParticleInnerSortCS.hlsl">
-      <Filter>Shaders\Particles</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\ParticleLargeBinCullingCS.hlsl">
-      <Filter>Shaders\Particles</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\ParticleOuterSortCS.hlsl">
       <Filter>Shaders\Particles</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ParticlePreSortCS.hlsl">
@@ -584,25 +605,25 @@
       <Filter>Shaders\HDR</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\CameraMotionBlurPrePassCS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
+      <Filter>Shaders\Temporal</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\CameraMotionBlurPrePassLinearZCS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
+      <Filter>Shaders\Temporal</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\CameraVelocityCS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
+      <Filter>Shaders\Temporal</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\MotionBlurFinalPassCS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
+      <Filter>Shaders\Temporal</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\MotionBlurPrePassCS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
+      <Filter>Shaders\Temporal</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\DebugSSAOCS.hlsl">
       <Filter>Shaders\SSAO</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\TemporalBlendCS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
+      <Filter>Shaders\Temporal</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\UpsampleAndBlurCS.hlsl">
       <Filter>Shaders\HDR</Filter>
@@ -635,9 +656,6 @@
       <Filter>Shaders\Present</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\BufferCopyPS.hlsl">
-      <Filter>Shaders\Present</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\ConvertLDRToDisplayPS.hlsl">
       <Filter>Shaders\Present</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ScreenQuadVS.hlsl">
@@ -683,9 +701,6 @@
       <Filter>Shaders\Present</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\MagnifyPixelsPS.hlsl">
-      <Filter>Shaders\Present</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\ConvertHDRToDisplayPS.hlsl">
       <Filter>Shaders\Present</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ToneMapHDR2CS.hlsl">
@@ -737,7 +752,7 @@
       <Filter>Shaders\Misc</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\MotionBlurFinalPassPS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
+      <Filter>Shaders\Temporal</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\FXAAPass1_Luma2_CS.hlsl">
       <Filter>Shaders\FXAA</Filter>
@@ -745,11 +760,50 @@
     <FxCompile Include="Shaders\FXAAPass1_RGB2_CS.hlsl">
       <Filter>Shaders\FXAA</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\ColorPackingTestPS.hlsl">
-      <Filter>Shaders\Misc</Filter>
-    </FxCompile>
     <FxCompile Include="Shaders\BoundNeighborhoodCS.hlsl">
-      <Filter>Shaders\MB+TAA</Filter>
+      <Filter>Shaders\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ResolveTAACS.hlsl">
+      <Filter>Shaders\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SharpenTAACS.hlsl">
+      <Filter>Shaders\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PresentHDRPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PresentSDRPS.hlsl">
+      <Filter>Shaders\Present</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic32InnerSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic32OuterSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic32PreSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic64InnerSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic64OuterSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Bitonic64PreSortCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BitonicIndirectArgsCS.hlsl">
+      <Filter>Shaders\BitonicSort</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ParticleNoSortVS.hlsl">
+      <Filter>Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FXAAPass2HDebug2CS.hlsl">
+      <Filter>Shaders\FXAA</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\FXAAPass2VDebug2CS.hlsl">
+      <Filter>Shaders\FXAA</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -793,7 +847,7 @@
       <Filter>Shaders\DoF</Filter>
     </None>
     <None Include="Shaders\MotionBlurRS.hlsli">
-      <Filter>Shaders\MB+TAA</Filter>
+      <Filter>Shaders\Temporal</Filter>
     </None>
     <None Include="Shaders\ParticleRS.hlsli">
       <Filter>Shaders\Particles</Filter>
@@ -827,6 +881,10 @@
     </None>
     <None Include="Shaders\ColorSpaceUtility.hlsli">
       <Filter>Shaders\Misc</Filter>
+    </None>
+    <None Include="packages.config" />
+    <None Include="Shaders\BitonicSortCommon.hlsli">
+      <Filter>Shaders\BitonicSort</Filter>
     </None>
   </ItemGroup>
 </Project>

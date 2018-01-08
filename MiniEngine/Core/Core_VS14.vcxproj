@@ -72,6 +72,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="BitonicSort.h" />
     <ClInclude Include="BuddyAllocator.h" />
     <ClInclude Include="BufferManager.h" />
     <ClInclude Include="Camera.h" />
@@ -99,6 +100,7 @@
     <ClInclude Include="GpuResource.h" />
     <ClInclude Include="GpuTimeManager.h" />
     <ClInclude Include="GameCore.h" />
+    <ClInclude Include="GraphicsCommon.h" />
     <ClInclude Include="GraphicsCore.h" />
     <ClInclude Include="GraphRenderer.h" />
     <ClInclude Include="Hash.h" />
@@ -124,18 +126,21 @@
     <ClInclude Include="PixelBuffer.h" />
     <ClInclude Include="PostEffects.h" />
     <ClInclude Include="EngineTuning.h" />
+    <ClInclude Include="ReadbackBuffer.h" />
     <ClInclude Include="RootSignature.h" />
     <ClInclude Include="SamplerManager.h" />
     <ClInclude Include="ShadowBuffer.h" />
     <ClInclude Include="ShadowCamera.h" />
     <ClInclude Include="SSAO.h" />
     <ClInclude Include="SystemTime.h" />
+    <ClInclude Include="TemporalEffects.h" />
     <ClInclude Include="TextRenderer.h" />
     <ClInclude Include="TextureManager.h" />
     <ClInclude Include="Utility.h" />
     <ClInclude Include="VectorMath.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BitonicSort.cpp" />
     <ClCompile Include="BuddyAllocator.cpp" />
     <ClCompile Include="BufferManager.cpp" />
     <ClCompile Include="Camera.cpp" />
@@ -160,6 +165,7 @@
     <ClCompile Include="GameCore.cpp" />
     <ClCompile Include="GpuBuffer.cpp" />
     <ClCompile Include="GpuTimeManager.cpp" />
+    <ClCompile Include="GraphicsCommon.cpp" />
     <ClCompile Include="GraphicsCore.cpp" />
     <ClCompile Include="GraphRenderer.cpp" />
     <ClCompile Include="LinearAllocator.cpp" />
@@ -175,12 +181,14 @@
     <ClCompile Include="PipelineState.cpp" />
     <ClCompile Include="PixelBuffer.cpp" />
     <ClCompile Include="PostEffects.cpp" />
+    <ClCompile Include="ReadbackBuffer.cpp" />
     <ClCompile Include="RootSignature.cpp" />
     <ClCompile Include="SamplerManager.cpp" />
     <ClCompile Include="ShadowBuffer.cpp" />
     <ClCompile Include="ShadowCamera.cpp" />
     <ClCompile Include="SSAO.cpp" />
     <ClCompile Include="SystemTime.cpp" />
+    <ClCompile Include="TemporalEffects.cpp" />
     <ClCompile Include="TextRenderer.cpp" />
     <ClCompile Include="TextureManager.cpp" />
     <ClCompile Include="Utility.cpp" />
@@ -213,6 +221,13 @@
     <FxCompile Include="Shaders\BilinearUpsamplePS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\Bitonic32InnerSortCS.hlsl" />
+    <FxCompile Include="Shaders\Bitonic32OuterSortCS.hlsl" />
+    <FxCompile Include="Shaders\Bitonic32PreSortCS.hlsl" />
+    <FxCompile Include="Shaders\Bitonic64InnerSortCS.hlsl" />
+    <FxCompile Include="Shaders\Bitonic64OuterSortCS.hlsl" />
+    <FxCompile Include="Shaders\Bitonic64PreSortCS.hlsl" />
+    <FxCompile Include="Shaders\BitonicIndirectArgsCS.hlsl" />
     <FxCompile Include="Shaders\BloomExtractAndDownsampleHdrCS.hlsl" />
     <FxCompile Include="Shaders\BloomExtractAndDownsampleLdrCS.hlsl" />
     <FxCompile Include="Shaders\BlurCS.hlsl" />
@@ -223,12 +238,6 @@
     <FxCompile Include="Shaders\CameraMotionBlurPrePassCS.hlsl" />
     <FxCompile Include="Shaders\CameraMotionBlurPrePassLinearZCS.hlsl" />
     <FxCompile Include="Shaders\CameraVelocityCS.hlsl" />
-    <FxCompile Include="Shaders\ConvertHDRToDisplayPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Shaders\ConvertLDRToDisplayPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-    </FxCompile>
     <FxCompile Include="Shaders\CopyBackPostBufferCS.hlsl" />
     <FxCompile Include="Shaders\DebugDrawHistogramCS.hlsl" />
     <FxCompile Include="Shaders\DebugLuminanceHdr2CS.hlsl" />
@@ -264,8 +273,10 @@
     <FxCompile Include="Shaders\FXAAPass1_RGB2_CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass1_RGB_CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2H2CS.hlsl" />
+    <FxCompile Include="Shaders\FXAAPass2HDebug2CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2HDebugCS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2V2CS.hlsl" />
+    <FxCompile Include="Shaders\FXAAPass2VDebug2CS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2VDebugCS.hlsl" />
     <FxCompile Include="Shaders\GenerateHistogramCS.hlsl" />
     <FxCompile Include="Shaders\FXAAPass2HCS.hlsl" />
@@ -292,9 +303,10 @@
     <FxCompile Include="Shaders\ParticleDepthBoundsCS.hlsl" />
     <FxCompile Include="Shaders\ParticleDispatchIndirectArgsCS.hlsl" />
     <FxCompile Include="Shaders\ParticleFinalDispatchIndirectArgsCS.hlsl" />
-    <FxCompile Include="Shaders\ParticleInnerSortCS.hlsl" />
     <FxCompile Include="Shaders\ParticleLargeBinCullingCS.hlsl" />
-    <FxCompile Include="Shaders\ParticleOuterSortCS.hlsl" />
+    <FxCompile Include="Shaders\ParticleNoSortVS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\ParticlePreSortCS.hlsl" />
     <FxCompile Include="Shaders\ParticlePS.hlsl">
       <ShaderType>Pixel</ShaderType>
@@ -327,12 +339,20 @@
     <FxCompile Include="Shaders\PerfGraphVS.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\PresentHDRPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\PresentSDRPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\ResolveTAACS.hlsl" />
     <FxCompile Include="Shaders\SharpeningUpsampleGammaPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
     <FxCompile Include="Shaders\SharpeningUpsamplePS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\SharpenTAACS.hlsl" />
     <FxCompile Include="Shaders\TemporalBlendCS.hlsl" />
     <FxCompile Include="Shaders\TextAntialiasPS.hlsl">
       <ShaderType>Pixel</ShaderType>
@@ -349,8 +369,10 @@
     <FxCompile Include="Shaders\ToneMapHDR2CS.hlsl" />
     <FxCompile Include="Shaders\ToneMapHDRCS.hlsl" />
     <None Include="Math\Functions.inl" />
+    <None Include="packages.config" />
     <None Include="Shaders\AoBlurAndUpsampleCS.hlsli" />
     <None Include="Shaders\AoRenderCS.hlsli" />
+    <None Include="Shaders\BitonicSortCommon.hlsli" />
     <None Include="Shaders\ColorSpaceUtility.hlsli" />
     <None Include="Shaders\DoFCommon.hlsli" />
     <None Include="Shaders\DoFRS.hlsli" />
@@ -378,5 +400,19 @@
     <None Include="Shaders\TextRS.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\Packages\zlib-vc140-static-64.1.2.11\lib\native\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets" Condition="Exists('..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
+  </Target>
 </Project>

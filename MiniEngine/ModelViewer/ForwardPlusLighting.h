@@ -26,30 +26,31 @@ class GraphicsContext;
 class IntVar;
 namespace Math
 {
-	class Vector3;
-	class Matrix4;
-	class Camera;
+    class Vector3;
+    class Matrix4;
+    class Camera;
 }
 
 namespace Lighting
 {
-	extern IntVar LightGridDim;
+    extern IntVar LightGridDim;
 
-	enum { MaxLights = 128 };
+    enum { MaxLights = 128 };
 
-	//LightData m_LightData[MaxLights];
-	extern StructuredBuffer m_LightBuffer;
-	extern ByteAddressBuffer m_LightGrid;
+    //LightData m_LightData[MaxLights];
+    extern StructuredBuffer m_LightBuffer;
+    extern ByteAddressBuffer m_LightGrid;
 
-	extern ByteAddressBuffer m_LightGridBitMask;
-	extern std::uint32_t m_FirstConeLight;
-	extern std::uint32_t m_FirstConeShadowedLight;
+    extern ByteAddressBuffer m_LightGridBitMask;
+    extern std::uint32_t m_FirstConeLight;
+    extern std::uint32_t m_FirstConeShadowedLight;
 
-	extern ColorBuffer m_LightShadowArray;
-	extern ShadowBuffer m_LightShadowTempBuffer;
-	extern Math::Matrix4 m_LightShadowMatrix[MaxLights];
+    extern ColorBuffer m_LightShadowArray;
+    extern ShadowBuffer m_LightShadowTempBuffer;
+    extern Math::Matrix4 m_LightShadowMatrix[MaxLights];
 
-	void InitializeResources(void);
-	void CreateRandomLights(const Math::Vector3 minBound, const Math::Vector3 maxBound);
-	void FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera);
+    void InitializeResources(void);
+    void CreateRandomLights(const Math::Vector3 minBound, const Math::Vector3 maxBound);
+    void FillLightGrid(GraphicsContext& gfxContext, const Math::Camera& camera);
+    void Shutdown(void);
 }

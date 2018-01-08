@@ -3,9 +3,9 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>$(ProjectDir)..\Build_VS14\$(Platform)\$(Configuration)\Output\$(ProjectName)\</OutDir>
-    <IntDir>$(ProjectDir)..\Build_VS14\$(Platform)\$(Configuration)\Intermediate\$(ProjectName)\</IntDir>
-    <IncludePath>$(ProjectDir)..\Build_VS14\$(Platform)\$(Configuration)\Output\$(ProjectName);$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)..\Build_VS14\$(Platform)\$(Configuration)\Output\$(ProjectName)\</OutDir>
+    <IntDir>$(SolutionDir)..\Build_VS14\$(Platform)\$(Configuration)\Intermediate\$(ProjectName)\</IntDir>
+    <IncludePath>$(SolutionDir)..\Build_VS14\$(Platform)\$(Configuration)\Output\$(ProjectName);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -29,8 +29,8 @@
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_p%(Filename)</VariableName>
-      <HeaderFileOutput>$(ProjectDir)..\Build_VS14\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</HeaderFileOutput>
-      <ObjectFileOutput />
+      <HeaderFileOutput>$(SolutionDir)..\Build_VS14\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</HeaderFileOutput>
+	  <ObjectFileOutput>$(SolutionDir)..\Build_VS14\$(Platform)\$(Configuration)\Output\$(ProjectName)\Shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup />

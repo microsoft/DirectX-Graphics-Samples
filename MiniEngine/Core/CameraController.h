@@ -18,53 +18,53 @@
 
 namespace Math
 {
-	class Camera;
+    class Camera;
 }
 
 namespace GameCore
 {
-	using namespace Math;
+    using namespace Math;
 
-	class CameraController
-	{
-	public:
-		// Assumes worldUp is not the X basis vector
-		CameraController( Camera& camera, Vector3 worldUp );
+    class CameraController
+    {
+    public:
+        // Assumes worldUp is not the X basis vector
+        CameraController( Camera& camera, Vector3 worldUp );
 
-		void Update( float dt );
+        void Update( float dt );
 
-		void SlowMovement( bool enable ) { m_FineMovement = enable; }
-		void SlowRotation( bool enable ) { m_FineRotation = enable; }
+        void SlowMovement( bool enable ) { m_FineMovement = enable; }
+        void SlowRotation( bool enable ) { m_FineRotation = enable; }
 
-		void EnableMomentum( bool enable ) { m_Momentum = enable; }
+        void EnableMomentum( bool enable ) { m_Momentum = enable; }
 
-	private:
-		CameraController& operator=( const CameraController& ) {return *this;}
+    private:
+        CameraController& operator=( const CameraController& ) {return *this;}
 
-		void ApplyMomentum( float& oldValue, float& newValue, float deltaTime );
+        void ApplyMomentum( float& oldValue, float& newValue, float deltaTime );
 
-		Vector3 m_WorldUp;
-		Vector3 m_WorldNorth;
-		Vector3 m_WorldEast;
-		Camera& m_TargetCamera;
-		float m_HorizontalLookSensitivity;
-		float m_VerticalLookSensitivity;
-		float m_MoveSpeed;
-		float m_StrafeSpeed;
-		float m_MouseSensitivityX;
-		float m_MouseSensitivityY;
+        Vector3 m_WorldUp;
+        Vector3 m_WorldNorth;
+        Vector3 m_WorldEast;
+        Camera& m_TargetCamera;
+        float m_HorizontalLookSensitivity;
+        float m_VerticalLookSensitivity;
+        float m_MoveSpeed;
+        float m_StrafeSpeed;
+        float m_MouseSensitivityX;
+        float m_MouseSensitivityY;
 
-		float m_CurrentHeading;
-		float m_CurrentPitch;
+        float m_CurrentHeading;
+        float m_CurrentPitch;
 
-		bool m_FineMovement;
-		bool m_FineRotation;
-		bool m_Momentum;
+        bool m_FineMovement;
+        bool m_FineRotation;
+        bool m_Momentum;
 
-		float m_LastYaw;
-		float m_LastPitch;
-		float m_LastForward;
-		float m_LastStrafe;
-		float m_LastAscent;
-	};
+        float m_LastYaw;
+        float m_LastPitch;
+        float m_LastForward;
+        float m_LastStrafe;
+        float m_LastAscent;
+    };
 }

@@ -13,22 +13,18 @@
 
 #include "ParticleUtility.hlsli"
 
-ByteAddressBuffer g_ActiveParticlesCount : register(t1);
-RWByteAddressBuffer g_IndirectArgsBuffer : register(u0);
+RWByteAddressBuffer g_DispatchIndirectArgs : register(u0);
+RWByteAddressBuffer g_DrawIndirectArgs : register(u1);
 
 [RootSignature(Particle_RootSig)]
-[numthreads(8, 1, 1)]
+[numthreads(1, 1, 1)]
 void main( uint GI : SV_GroupIndex )
 {
-	uint k = 1 << (GI + 11);
+    uint InstanceCount = g_DrawIndirectArgs.Load(4);
+    uint ThreadGroupCount = (InstanceCount + 2047) / 2048;
 
-	uint VisibleParticles = g_ActiveParticlesCount.Load(4);
-	uint NextPow2 = (1 << firstbithigh(VisibleParticles)) - 1;
-	NextPow2 = (VisibleParticles + NextPow2) & ~NextPow2;
-	NextPow2 = (NextPow2 + 2047) & ~2047;
+    g_DispatchIndirectArgs.Store3(0, uint3(ThreadGroupCount, 1, 1));
 
-	uint NumElements = k > NextPow2 ? 0 : (VisibleParticles + k - 1) & ~(k - 1);
-	uint NumGroups = (GI == 0 ? NextPow2 : NumElements) / 2048;
-
-	g_IndirectArgsBuffer.Store3(GI * 12, uint3(NumGroups, 1, 1));
+    // Reset instance count so we can cull and determine how many we need to actually draw
+    g_DrawIndirectArgs.Store(4, 0);
 }

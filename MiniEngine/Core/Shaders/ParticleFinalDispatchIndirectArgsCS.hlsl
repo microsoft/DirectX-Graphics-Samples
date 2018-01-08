@@ -21,7 +21,7 @@ RWByteAddressBuffer g_DrawIndirectArgs : register ( u1 );
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-	uint particleCount = g_FinalInstanceCounter.Load(0);
-	g_NumThreadGroups.Store3(0, uint3((particleCount + 63) / 64, 1, 1));
-	g_DrawIndirectArgs.Store(4, particleCount);
+    uint particleCount = g_FinalInstanceCounter.Load(0);
+    g_NumThreadGroups.Store3(0, uint3((particleCount + 63) / 64, 1, 1));
+    g_DrawIndirectArgs.Store(4, particleCount);
 }
