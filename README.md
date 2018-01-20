@@ -6,8 +6,9 @@ This repo contains the DirectX Graphics samples that demonstrate how to build gr
 In the Samples directory, you will find samples that attempt to break off specific features and specific usage scenarios into bite sized chunks. For example, the ExecuteIndirect sample will show you just enough about execute indirect to get started with that feature without diving too deep into multiengine whereas the nBodyGravity sample will delve into multiengine without touching on the execute indirect feature etc. By doing this, we hope to make it easier to get started with DirectX 12.
 
 Recent API Sample Updates:
-1. D3D12 Depth Bounds Test: This sample demos how to use depth bounds test with DirectX 12. In addition, it introduces a more flexible way to create pipeline state, called Pipeline State Object Stream (PSO Stream). PSO Stream is required to use Depth Bounds Test feature.
-2. Shader Model 6 Wave Intrinsics: This sample visualizes several new wave intrinsics in Shader Model 6.
+1. D3D12 xGPU: This sample illustrates how to detect and handle a D3D device removed event. Particularly in a case of an external GPU (xGPU) being plugged/unplugged.
+2. D3D12 Depth Bounds Test: This sample demos how to use depth bounds test with DirectX 12. In addition, it introduces a more flexible way to create pipeline state, called Pipeline State Object Stream (PSO Stream). PSO Stream is required to use Depth Bounds Test feature.
+3. Shader Model 6 Wave Intrinsics: This sample visualizes several new wave intrinsics in Shader Model 6.
 
 ## MiniEngine: A DirectX 12 Engine Starter Kit
 In addition to the samples, we are announcing the first DirectX 12 preview release of the MiniEngine.
