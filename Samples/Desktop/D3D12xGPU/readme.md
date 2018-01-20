@@ -1,5 +1,6 @@
 # xGPU sample
 ![xGPU GUI](./Screenshot.png)
+
 This sample illustrates how to detect and handle a D3D device removed event. Particularly in a case of an external GPU (xGPU) being plugged/unplugged. When a device is removed, any further D3D commands will fail with DXGI_ERROR_DEVICE_REMOVED. The sample detects this, destroys D3D resources and recreates them on the next available adapter. Then it continues rendering the next frame while retaining application and scene state. The adapter is selected based on a GPU sorting mode applied by the application. Note, the application selected sorting mode will be superseded by a global preference for the application if there is one. The global preference for an application can be set by a user on the Advanced graphics settings page which can be found as a link from the Display section of Windows Settings.
 
 Another important event is when a new GPU is plugged into the system. The sample uses DXGIFactory1::IsCurrent() to detect when this happens. At that time, the sample re-enumerates adapters and if a better adapter is found according to the GPU sorting mode, the application recreates all D3D resources using the new adapter.
