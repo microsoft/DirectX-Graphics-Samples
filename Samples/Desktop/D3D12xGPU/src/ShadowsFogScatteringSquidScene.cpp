@@ -11,7 +11,6 @@
 
 #include "stdafx.h"
 #include "ShadowsFogScatteringSquidScene.h"
-#include "make_unique.h"
 #include <dxgidebug.h>
 #include "FrameResource.h"
 #include "DXSample.h"

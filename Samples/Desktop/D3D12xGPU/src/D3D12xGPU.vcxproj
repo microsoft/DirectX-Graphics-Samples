@@ -101,7 +101,6 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="make_unique.h" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="UILayer.h" />
     <ClInclude Include="Camera.h" />
