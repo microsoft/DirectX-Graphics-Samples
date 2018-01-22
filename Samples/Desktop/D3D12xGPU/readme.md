@@ -8,7 +8,11 @@ Another important event is when a new GPU is plugged into the system. The sample
 As the sample is able to survive an adapter removal event, it declares that it supports adapter removal via DXGIDeclareAdapterRemovalSupport API. This allows Windows to identify such apps and act accordingly, for example, to allow safe detachment of the xGPU even when this application is rendering on it.
 
 ### Controls
-ALT+ENTER - toggles between windowed and fullscreen modes.
-CTRL+1-9 - gpu preference sorting mode selection.
-A - override for manual adapter selection.
-1-9 - adapter selection, when manual override is enabled.
+* ALT+ENTER - toggles between windowed and fullscreen modes.
+* CTRL+[1-9] - gpu preference sorting mode selection.
+* A - override for manual adapter selection.
+* [1-9] - adapter selection, when manual override is enabled.
+
+## Requirements
+* Windows 10 17043 or higher (available via [Windows Insider Program](https://insider.windows.com/en-us/))
+* [Visual Studio 2017](https://www.visualstudio.com/) with the Windows 10 17043 SDK
