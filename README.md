@@ -1,5 +1,10 @@
 
 # DirectX-Graphics-Samples
+![D3D12Bundles](./Samples/Desktop/D3D12Bundles/src/D3D12Bundles_small.PNG)
+![D3D12HeterogeneousMultiadapte](./Samples/Desktop/D3D12Bundles/src/D3D12HeterogeneousMultiadapte_small.PNG)
+![D3D12Multithreading](./Samples/Desktop/D3D12Bundles/src/D3D12Multithreading_small.PNG)
+![D3D12nBodyGravity](./Samples/Desktop/D3D12Bundles/src/D3D12nBodyGravity_small.PNG)
+
 This repo contains the DirectX Graphics samples that demonstrate how to build graphics intensive applications for Windows 10. We also have a YouTube channel! Visit us here: https://www.youtube.com/MicrosoftDirectX12andGraphicsEducation
 
 ## API Samples

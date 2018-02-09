@@ -1,4 +1,6 @@
 # Hello World Samples
+![HelloWorlds GUI](src/D3DHelloWorlds.PNG)
+
 This collection of samples act as an introduction to Direct3D 12. Each sample introduces an elementary concept and lays a foundation for all of the Direct3D 12 samples.
 ## Hello Window Sample
 This sample shows you how to create a window, Direct3D device (with debug layers enabled), and present to the window. These are the basic elements that every sample uses.

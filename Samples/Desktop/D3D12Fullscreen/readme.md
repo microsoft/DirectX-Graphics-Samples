@@ -1,4 +1,6 @@
 # Fullscreen sample
+![2Fullscreen GUI](src/D3D12Fullscreen.PNG)
+
 This sample illustrates how to handle fullscreen <-> windowed transitions and window resizing in DirectX 12.
 
 ### Controls
