@@ -1,4 +1,6 @@
 # Linked GPU Sample
+![LinkedGPus GUI UWP](src/D3D12LinkedGpus.png)
+
 This sample demonstrates how to use two linked homogeneous (i.e. CrossFire/SLI) GPUs to achieve greater performance than possible with only one GPU.  In particular, this sample shows the usage of a technique called Alternate Frame Rendering (AFR) which essentially allows you to use each GPU to render every other frame allowing a theoretical maximum performance of 2 times that of only one GPU.  This is of course only theoretical and in practicality, there are things like inter-frame dependencies (things rendered on one GPU required by the other GPU for rendering the next frame) that add some overhead that doesn't otherwise exist in a single GPU case.  Things like this limit the maximum benefit two GPUs can provide you over one.
 
 Linked GPUs is what most people currently think of when someone mentions 'MultiGPU' and this sample shows how to utilize both GPUs using explicit MultiGPU.  Most importantly, it shows how the app has full explicit control over the GPU hardware through the API (eg. work submission, synchronization, memory management, etc. can be controlled explicitly for each GPU independently).
