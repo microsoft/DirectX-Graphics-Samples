@@ -1,5 +1,5 @@
 # Depth Bounds Test Sample
-![DepthBounds GUI](src/D3D12DepthBoundsTest.PNG)
+![DepthBounds GUI](src/D3D12DepthBoundsTest.png)
 
 This sample demonstrates the depth bound test in Direct3D 12.
 Depth-bounds testing allows pixels to be discarded if the currently-stored depth value is outside the range specified by Min and Max, inclusive.

@@ -1,5 +1,5 @@
 # Multithreading Sample
-![Multithreading GUI](src/D3D12Multithreading.PNG)
+![Multithreading GUI](src/D3D12Multithreading.png)
 
 This sample demonstrates the use of multiple threads with Direct3D 12. An app can use multithreading to improve efficiency by building command lists on multiple threads asynchronously. The majority of the CPU cost is associated with command list building, not command list execution. Apps must ensure they never concurrently call methods on the same command list or command allocator.
 

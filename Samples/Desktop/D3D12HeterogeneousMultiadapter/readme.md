@@ -1,5 +1,5 @@
 # Heterogeneous Multiadapter Sample
-![HeterogeneousMultiadapter GUI](src/D3D12HeterogeneousMultiadapter.PNG)
+![HeterogeneousMultiadapter GUI](src/D3D12HeterogeneousMultiadapter.png)
 
 This sample demostrates how to share workloads amongst multiple heterogeneous GPUs using shared heaps. In this sample, a large number of triangles are rendered to an intermediate render target on one GPU, then a second GPU performs a blur and presents it to the screen.
 

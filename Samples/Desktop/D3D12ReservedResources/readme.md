@@ -1,5 +1,5 @@
 # Reserved Resources Sample
-![ReservedResources GUI](src/D3D12ReservedResources.PNG)
+![ReservedResources GUI](src/D3D12ReservedResources.png)
 
 This sample demonstrates the use of reserved resources in DirectX 12. In this sample, a quad is textured with a reserved (aka: tiled) resource containing a full mip chain. The currently visible mip is mapped and unmapped to the reserved resource on demand. By pressing the arrow keys, you can change which mip is visible. The sample also demonstrates that all the tiles in a reserved resource are not required to reside in the same heap. This functionality allows apps to persist heaps containing tiles that are likely to be used again and discard heaps that are no longer needed.
 

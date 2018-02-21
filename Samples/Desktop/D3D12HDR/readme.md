@@ -1,5 +1,5 @@
 # HDR sample
-![HDR GUI](src/D3D12HDR.PNG)
+![HDR GUI](src/D3D12HDR.png)
 
 This sample illustrates how to render HDR content and detect whether the current display supports it.
 
