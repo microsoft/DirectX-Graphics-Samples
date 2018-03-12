@@ -1,5 +1,5 @@
 # Hello World Samples
-![HelloWorlds GUI UWP](src/D3DHelloWorlds.png)
+![HelloWorlds GUI UWP](src/D3D12HelloWorlds.png)
 
 This collection of samples act as an introduction to Direct3D 12. Each sample introduces an elementary concept and lays a foundation for all of the Direct3D 12 samples.
 ## Hello Window Sample
