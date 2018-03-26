@@ -3,3 +3,4 @@
 ################################################################################
 
 *.log
+/MiniEngine/ModelViewer/.vs/ModelViewer_VS15/v15/Browse.VC.opendb
