@@ -26,7 +26,7 @@
     <ApplicationEnvironment>title</ApplicationEnvironment>
     <DefaultLanguage>en-US</DefaultLanguage>
     <Keyword>Win32Proj</Keyword>
-    <ProjectName>RaytracingModelViewer</ProjectName>
+    <ProjectName>D3D12RaytracingMiniEngineSample</ProjectName>
     <RootNamespace>ModelViewer</RootNamespace>
     <PlatformToolset>v141</PlatformToolset>
     <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>

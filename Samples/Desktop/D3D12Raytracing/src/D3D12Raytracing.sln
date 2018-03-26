@@ -22,7 +22,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FallbackLayer", "..\..\..\.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FallbackLayerUnitTests", "..\..\..\..\Libraries\D3D12RaytracingFallback\FallbackLayerUnitTests\FallbackLayerUnitTests.vcxproj", "{13F1830C-EA8D-4488-89C8-70AAB15972AA}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ModelViewer", "RaytracingModelViewer\ModelViewer_VS15.vcxproj", "{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingMiniEngineSample", "D3D12RaytracingMiniEngineSample\ModelViewer_VS15.vcxproj", "{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
