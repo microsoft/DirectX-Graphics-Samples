@@ -234,6 +234,18 @@
     <ProjectReference>
       <UseLibraryDependencyInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</UseLibraryDependencyInputs>
     </ProjectReference>
+    <PreBuildEvent>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cd $(SolutionDir)..\tools\x64\
+PrebuildCheck.bat</Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">cd $(SolutionDir)..\tools\x64\
+PrebuildCheck.bat</Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cd $(SolutionDir)..\tools\x64\
+PrebuildCheck.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ImportGroup Label="ExtensionTargets">
     <Import Project=".\..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets" Condition="Exists('.\..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets')" />

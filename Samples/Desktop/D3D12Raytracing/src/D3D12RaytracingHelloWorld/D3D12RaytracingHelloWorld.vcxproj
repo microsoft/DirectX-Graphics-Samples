@@ -104,7 +104,8 @@
       </Message>
     </PreLinkEvent>
     <PreBuildEvent>
-      <Command>$(SolutionDir)..\tools\x64\test.bat</Command>
+      <Command>cd $(SolutionDir)..\tools\x64\
+PrebuildCheck.bat</Command>
     </PreBuildEvent>
     <PreBuildEvent>
       <Message>
@@ -147,7 +148,8 @@
       <Message>Sideload dxilcompiler.dll</Message>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>$(SolutionDir)..\tools\x64\test.bat</Command>
+      <Command>cd $(SolutionDir)..\tools\x64\
+PrebuildCheck.bat</Command>
       <Message>
       </Message>
     </PreBuildEvent>
