@@ -92,7 +92,8 @@
       <EntryPointName />
     </FxCompile>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)..\tools\x64\dxcompiler.dll $(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Configuration)\</Command>
+      <Command>cd $(SolutionDir)..\tools\x64\
+PostbuildCopy.bat $(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Configuration)\</Command>
       <Message>Sideload dxilcompiler.dll</Message>
     </PostBuildEvent>
     <PreLinkEvent>
@@ -144,7 +145,8 @@ PrebuildCheck.bat</Command>
       <EntryPointName />
     </FxCompile>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)..\tools\x64\dxcompiler.dll $(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Configuration)\</Command>
+      <Command>cd $(SolutionDir)..\tools\x64\
+PostbuildCopy.bat $(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Configuration)\</Command>
       <Message>Sideload dxilcompiler.dll</Message>
     </PostBuildEvent>
     <PreBuildEvent>
