@@ -23,6 +23,8 @@ if not exist dxc.exe (
    echo No dxc.exe found!
    set FILENOTFOUND=1
 )
+echo Renaming dxc->fxc so that Visual Studio can natively work with HLSL files and still compile them to SM 6.1
+copy dxc.exe fxc.exe
 
 if %FILENOTFOUND% NEQ 0 (
 	echo Please go to https://github.com/Microsoft/DirectX-Graphics-Samples/releases and download "DirectX Raytracing Binary Release v1.0". 
