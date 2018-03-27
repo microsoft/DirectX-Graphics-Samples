@@ -9,6 +9,16 @@ if not exist d3d12.dll (
    set FILENOTFOUND=1
 )
 
+if not exist d3d12sdklayers.dll (
+   echo No d3d12sdklayers.dll found!
+   set FILENOTFOUND=1
+)
+
+if not exist dxgidebug.dll (
+   echo No dxgidebug.dll found!
+   set FILENOTFOUND=1
+)
+
 if not exist dxc.exe (
    echo No dxc.exe found!
    set FILENOTFOUND=1
