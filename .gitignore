@@ -1,6 +1,0 @@
-﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
-
-*.log
-/MiniEngine/ModelViewer/.vs/ModelViewer_VS15/v15/Browse.VC.opendb
