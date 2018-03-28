@@ -199,7 +199,7 @@
     <ClInclude Include="RayTracingHlslCompat.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\Libraries\D3D12RaytracingFallback\FallbackLayer.vcxproj">
+    <ProjectReference Include="..\..\..\..\..\Libraries\D3D12RaytracingFallback\src\FallbackLayer.vcxproj">
       <Project>{4be280a6-1066-41ca-acdd-6bb7e532508b}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\..\..\..\MiniEngine\Core\Core_VS15.vcxproj">
@@ -217,13 +217,16 @@
       <AdditionalOptions>/nodefaultlib:LIBCMT %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">copy $(SolutionDir)..\tools\x64\dxcompiler.dll  $(SolutionDir)RaytracingModelViewer</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cd $(SolutionDir)..\tools\x64\
+PostbuildCopy.bat $(SolutionDir)D3D12RaytracingMiniEngineSample\</Command>
     </PostBuildEvent>
     <PostBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">copy $(SolutionDir)..\tools\x64\dxcompiler.dll  $(SolutionDir)RaytracingModelViewer</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">cd $(SolutionDir)..\tools\x64\
+PostbuildCopy.bat $(SolutionDir)D3D12RaytracingMiniEngineSample\</Command>
     </PostBuildEvent>
     <PostBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">copy $(SolutionDir)..\tools\x64\dxcompiler.dll  $(SolutionDir)RaytracingModelViewer</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cd $(SolutionDir)..\tools\x64\
+PostbuildCopy.bat $(SolutionDir)D3D12RaytracingMiniEngineSample\</Command>
     </PostBuildEvent>
     <ProjectReference>
       <UseLibraryDependencyInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</UseLibraryDependencyInputs>

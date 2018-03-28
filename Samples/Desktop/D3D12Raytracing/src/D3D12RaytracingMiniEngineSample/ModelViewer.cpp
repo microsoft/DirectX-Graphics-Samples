@@ -229,7 +229,7 @@ int wmain(int argc, wchar_t** argv)
     // Before starting the app, go through the D3D12 experimental features and turn on
     // Raytracing support to see if any devices that support it exist. If not, try 
     // experimental shader models to increase the chance that the driver is compatible 
-    // with the Raytacing Fallback Layer 
+    // with the Raytacing Fallback Layer
 #if _DEBUG
     CComPtr<ID3D12Debug> debugInterface;
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface))))

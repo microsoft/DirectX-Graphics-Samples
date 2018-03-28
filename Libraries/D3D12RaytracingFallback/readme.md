@@ -2,7 +2,7 @@
 The D3D12 Raytracing Fallback Layer is a library that emulates the DirectX Raytracing API on devices without native driver/hardware support.
 
 ## Overview
-![MiniEngine Screenshot GUI](Screenshot.png)
+![MiniEngine Screenshot GUI](src/Screenshot.png)
 The library is built as a wrapper around the DirectX 12 API and has distinct but similar interfaces from the DirectX Raytracing (DXR) API. The library also redirects to the DXR API when driver support exists, so developers do not need to branch code to support the DXR API simultaneously. 
 
 The goal of the Fallback Layer is to enable developers to hit the ground running with the new DXR API without the need for a GPU with hardware support and a DXR capable variant of Windows. As of the GDC release, the Fallback Layer is in an early prototype stage and is a limited substitute for a DXR driver, particularly in terms of performance. A future goal of this project is to tune the Fallback to be performant enough for real-world scenarios in lieu of a DXR driver for small-scale raytracing techniques.
@@ -14,15 +14,10 @@ In order to build and run the Fallback Layer you will need:
 * Windows 10 with the Fall Creators Update
 * A graphics card with retail DXIL capabilities
 * DXIL.dll should be pulled from the latest Windows SDK to accompany the compiler or enable Developer mode
+* Download DirectXRaytracingBinariesV1.0.zip from https://github.com/Microsoft/DirectX-Graphics-Samples/releases and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64
 
 ### API Samples
-After cloning the project, you can open up the Raytracing_VS17.sln that will contain several samples:
-
-* #### MiniEngine
-Demonstrates a sample integration of the D3D12 Raytracing Fallback layer in the MiniEngine. More details in the [MiniEngine readme](miniengine/readme.md)
-
-* #### D3D12Raytracing
-In the samples directory, there are some small-scale projects that demonstrate basic usage of the Fallback Layer/DXR API. More details in the [Samples readme](Samples\Desktop\D3D12Raytracing\readme.md)
+After cloning the project, you can open up D3D12Raytracing.sln in Samples/Desktop/D3D12Raytracing/src. There are several projects that demonstrate basic usage of the Fallback Layer/DXR API including a larger demo integrated with the MiniEngine. More details in the [readme](../../Samples/Desktop/D3D12Raytracing/readme.md)
 
 #### Fallback Layer Integration
 
