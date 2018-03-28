@@ -2,7 +2,7 @@
 The D3D12 Raytracing Fallback Layer is a library that emulates the DirectX Raytracing API on devices without native driver/hardware support.
 
 ## Overview
-![MiniEngine Screenshot](../../Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingMiniengineSample/screenshot.png)
+![MiniEngine Screenshot](../../Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingMiniEngineSample/screenshot.png)
 The library is built as a wrapper around the DirectX 12 API and has distinct but similar interfaces from the DirectX Raytracing (DXR) API. The library also redirects to the DXR API when driver support exists, so developers do not need to branch code to support the DXR API simultaneously. 
 
 The goal of the Fallback Layer is to enable developers to hit the ground running with the new DXR API without the need for a GPU with hardware support and a DXR capable variant of Windows. As of the GDC release, the Fallback Layer is in an early prototype stage and is a limited substitute for a DXR driver, particularly in terms of performance. A future goal of this project is to tune the Fallback to be performant enough for real-world scenarios in lieu of a DXR driver for small-scale raytracing techniques.
