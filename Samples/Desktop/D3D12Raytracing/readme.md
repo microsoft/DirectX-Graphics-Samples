@@ -6,3 +6,8 @@ The samples implement both D3D12 Raytracing and D3D12 Raytracing Fallback Layer 
 ## 1. Hello World Sample
 This sample demonstrates how to setup a raytracing pipeline and render a triangle in screenspace.
 ![D3D12 Raytracing Hello World GUI](src\D3D12RaytracingHelloWorld\Screenshot_small.png)
+
+## MiniEngine Sample
+This sample demonstrates integration of the Fallback Layer in the MiniEngine's Model Viewer and several sample uses of raytracing.
+![D3D12 Raytracing Mini Engine](src\D3D12RaytracingMiniEngineSample\screenshot_small.png)
+

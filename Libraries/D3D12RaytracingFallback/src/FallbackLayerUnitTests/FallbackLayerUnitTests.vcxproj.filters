@@ -110,6 +110,17 @@
     <FxCompile Include="ReadData*.hlsl" />
     <FxCompile Include="ReadData*.hlsl" />
     <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="SharedReadData.hlsli">
