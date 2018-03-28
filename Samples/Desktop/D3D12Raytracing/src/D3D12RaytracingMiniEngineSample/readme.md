@@ -1,5 +1,5 @@
 # Raytracing Model Viewer
-![MiniEngine Screenshot](screenshot.png)
+![MiniEngine Screenshot](Screenshot.png)
 ## Raytracing Modifications
 
 This is a modified version of MiniEngine that uses the D3D12 Raytracing Fallback Layer for a series of effects
