@@ -92,7 +92,6 @@ namespace
     uint64_t s_FrameIndex = 0;
     int64_t s_FrameStartTick = 0;
 
-    BoolVar s_EnableVSync("Timing/VSync", true);
     BoolVar s_LimitTo30Hz("Timing/Limit To 30Hz", false);
     BoolVar s_DropRandomFrames("Timing/Drop Random Frames", false);
 }
@@ -107,14 +106,14 @@ namespace Graphics
     const GUID WKPDID_D3DDebugObjectName = { 0x429b8c22,0x9188,0x4b0c, { 0x87,0x42,0xac,0xb0,0xbf,0x85,0xc2,0x00 }};
 #endif
 
-    enum eResolution { k720p, k900p, k1080p, k1440p, k1800p, k2160p };
-
     const uint32_t kMaxNativeWidth = 3840;
     const uint32_t kMaxNativeHeight = 2160;
     const uint32_t kNumPredefinedResolutions = 6;
 
     const char* ResolutionLabels[] = { "1280x720", "1600x900", "1920x1080", "2560x1440", "3200x1800", "3840x2160" };
     EnumVar TargetResolution("Graphics/Display/Native Resolution", k1080p, kNumPredefinedResolutions, ResolutionLabels);
+
+    BoolVar s_EnableVSync("Timing/VSync", true);
 
     bool g_bTypedUAVLoadSupport_R11G11B10_FLOAT = false;
     bool g_bTypedUAVLoadSupport_R16G16B16A16_FLOAT = false;
