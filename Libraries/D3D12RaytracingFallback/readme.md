@@ -20,7 +20,7 @@ In order to build and run the Fallback Layer you will need:
 After cloning the project, you can open up D3D12Raytracing.sln in Samples/Desktop/D3D12Raytracing/src. There are several projects that demonstrate basic usage of the Fallback Layer/DXR API including a larger demo integrated with the MiniEngine. More details in the [readme](../../Samples/Desktop/D3D12Raytracing/readme.md)
 
 ## Developing with the Fallback Layer
-For details on devoloping an app using the Fallback Layer, please consult the [developer guide](developerguide.md)
+For details on developing an app using the Fallback Layer, please consult the [developer guide](developerguide.md)
 
 ## Driver requirements
 * Retail support for DXIL
