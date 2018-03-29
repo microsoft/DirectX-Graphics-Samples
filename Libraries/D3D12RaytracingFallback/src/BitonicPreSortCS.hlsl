@@ -24,8 +24,8 @@
 
 #include "BitonicSortCommon.hlsli"
 
-RWStructuredBuffer<uint> g_SortBuffer : register(u0);
-RWStructuredBuffer<uint> g_IndexBuffer : register(u1);
+RWByteAddressBuffer g_SortBuffer : register(u0);
+RWByteAddressBuffer g_IndexBuffer : register(u1);
 
 groupshared uint gs_SortIndices[2048];
 groupshared uint gs_SortKeys[2048];
@@ -35,8 +35,8 @@ void FillSortKey( uint Element, uint ListCount )
     // Unused elements must sort to the end
     if (Element < ListCount)
     {
-        gs_SortKeys[Element & 2047] = g_SortBuffer[Element];
-        gs_SortIndices[Element & 2047] = g_IndexBuffer[Element];
+        gs_SortKeys[Element & 2047] = g_SortBuffer.Load(Element * 4);
+        gs_SortIndices[Element & 2047] = g_IndexBuffer.Load(Element * 4);
     }
     else
     {
@@ -48,8 +48,8 @@ void StoreKeyIndexPair( uint Element, uint ListCount)
 {
     if (Element < ListCount)
     {
-        g_SortBuffer[Element] = gs_SortKeys[Element & 2047];
-        g_IndexBuffer[Element] = gs_SortIndices[Element & 2047];
+        g_SortBuffer.Store(Element * 4, gs_SortKeys[Element & 2047]);
+        g_IndexBuffer.Store(Element * 4, gs_SortIndices[Element & 2047]);
     }
 }
 

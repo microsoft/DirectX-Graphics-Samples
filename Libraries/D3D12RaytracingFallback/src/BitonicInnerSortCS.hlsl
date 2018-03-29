@@ -26,16 +26,16 @@ cbuffer Constants : register(b0)
     uint k; // k >= 4096
 };
 
-RWStructuredBuffer<uint> g_SortBuffer : register(u0);
-RWStructuredBuffer<uint> g_IndexBuffer : register(u1);
+RWByteAddressBuffer g_SortBuffer : register(u0);
+RWByteAddressBuffer g_IndexBuffer : register(u1);
 
 groupshared uint gs_SortKeys[2048];
 groupshared uint gs_SortIndices[2048];
 
 void LoadKeyIndexPair( uint Element, uint ListCount )
 {
-    uint keyValue = Element < ListCount ? g_SortBuffer[Element] : NullItem;
-    uint index = Element < ListCount ? g_IndexBuffer[Element] : NullItem;
+    uint keyValue = Element < ListCount ? g_SortBuffer.Load(Element * 4) : NullItem;
+    uint index = Element < ListCount ? g_IndexBuffer.Load(Element * 4) : NullItem;
     gs_SortIndices[Element & 2047] = index;
     gs_SortKeys[Element & 2047] = keyValue;
 }
@@ -44,8 +44,8 @@ void StoreKeyIndexPair(uint Element, uint ListCount)
 {
     if (Element < ListCount)
     {
-        g_SortBuffer[Element] = gs_SortKeys[Element & 2047];
-        g_IndexBuffer[Element] = gs_SortIndices[Element & 2047];
+        g_SortBuffer.Store(Element * 4, gs_SortKeys[Element & 2047]);
+        g_IndexBuffer.Store(Element * 4, gs_SortIndices[Element & 2047]);
     }
 }
 

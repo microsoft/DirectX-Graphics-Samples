@@ -22,6 +22,8 @@
 
 #include "BitonicSortCommon.hlsli"
 
+RWByteAddressBuffer g_SortBuffer : register(u0);
+
 cbuffer Constants : register(b0)
 {
     uint k; // k >= 4096
@@ -29,14 +31,12 @@ cbuffer Constants : register(b0)
 
 #ifdef BITONICSORT_64BIT
 
-RWStructuredBuffer<uint2> g_SortBuffer : register(u0);
-
 groupshared uint gs_SortKeys[2048];
 groupshared uint gs_SortIndices[2048];
 
 void LoadKeyIndexPair( uint Element, uint ListCount )
 {
-    uint2 KeyIndex = Element < ListCount ? g_SortBuffer[Element] : NullItem;
+    uint2 KeyIndex = Element < ListCount ? g_SortBuffer.Load2(Element * 8) : NullItem;
     gs_SortIndices[Element & 2047] = KeyIndex.x;
     gs_SortKeys[Element & 2047] = KeyIndex.y;
 }
@@ -44,24 +44,22 @@ void LoadKeyIndexPair( uint Element, uint ListCount )
 void StoreKeyIndexPair( uint Element, uint ListCount )
 {
     if (Element < ListCount)
-        g_SortBuffer[Element] = uint2(gs_SortIndices[Element & 2047], gs_SortKeys[Element & 2047]);
+        g_SortBuffer.Store2(Element * 8, uint2(gs_SortIndices[Element & 2047], gs_SortKeys[Element & 2047]));
 }
 
 #else // 32-bit packed key/index pairs
-
-RWStructuredBuffer<uint> g_SortBuffer : register(u0);
 
 groupshared uint gs_SortKeys[2048];
 
 void LoadKeyIndexPair( uint Element, uint ListCount )
 {
-    gs_SortKeys[Element & 2047] = Element < ListCount ? g_SortBuffer[Element] : NullItem;
+    gs_SortKeys[Element & 2047] = Element < ListCount ? g_SortBuffer.Load(Element * 4) : NullItem;
 }
 
 void StoreKeyIndexPair( uint Element, uint ListCount )
 {
     if (Element < ListCount)
-        g_SortBuffer[Element] = gs_SortKeys[Element & 2047];
+        g_SortBuffer.Store(Element * 4, gs_SortKeys[Element & 2047]);
 }
 
 #endif

@@ -11,8 +11,8 @@
 
 #include "BitonicSortCommon.hlsli"
 
-RWStructuredBuffer<uint> g_SortBuffer : register(u0);
-RWStructuredBuffer<uint> g_IndexBuffer : register(u1);
+RWByteAddressBuffer g_SortBuffer : register(u0);
+RWByteAddressBuffer g_IndexBuffer : register(u1);
 
 cbuffer Constants : register(b0)
 {
@@ -30,18 +30,17 @@ void main( uint3 DTid : SV_DispatchThreadID  )
     if (Index2 >= ListCount)
         return;
 
-    uint A = g_SortBuffer[Index1];
-    uint B = g_SortBuffer[Index2];
-    uint indexA = g_IndexBuffer[Index1];
-    uint indexB = g_IndexBuffer[Index2];
+    uint A = g_SortBuffer.Load(Index1 * 4);
+    uint B = g_SortBuffer.Load(Index2 * 4);
+    uint indexA = g_IndexBuffer.Load(Index1 * 4);
+    uint indexB = g_IndexBuffer.Load(Index2 * 4);
     if (ShouldSwap(A, B, indexA, indexB))
     {
-        g_SortBuffer[Index1] = B;
-        g_SortBuffer[Index2] = A;
+        g_SortBuffer.Store(Index1 * 4, B);
+        g_SortBuffer.Store(Index2 * 4, A);
 
 
-        g_IndexBuffer[Index1] = indexB;
-        g_IndexBuffer[Index2] = indexA;
-
+        g_IndexBuffer.Store(Index1 * 4, indexB);
+        g_IndexBuffer.Store(Index2 * 4, indexA);
     }
 }
