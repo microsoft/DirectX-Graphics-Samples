@@ -1,4 +1,4 @@
-# Raytracing Model Viewer
+# D3D12 Raytracing MiniEngine Sample
 ![MiniEngine Screenshot](Screenshot.png)
 ## Raytracing Modifications
 
@@ -22,3 +22,8 @@ The keys '1'...'7' can also be used to cycle through different modes (or using B
 * navigate debug menu: dpad or arrow keys
 * toggle debug menu item: A button or return
 * adjust debug menu value: dpad left/right or left/right arrow keys
+
+## Limitations:
+ * Currently only tested on the Compute-based Fallback Layer
+ * Shadow pass is buggy due to incorrect ray generation
+ * Mipmap calculation is incorrect and uses too low of an LOD for distant objects

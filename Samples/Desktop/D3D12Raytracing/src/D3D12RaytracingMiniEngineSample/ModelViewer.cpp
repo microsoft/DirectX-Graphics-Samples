@@ -172,11 +172,11 @@ struct MaterialRootConstant
 RaytracingDispatchRayInputs g_RaytracingInputs[RaytracingTypes::NumTypes];
 D3D12_CPU_DESCRIPTOR_HANDLE g_bvh_attributeSrvs[34];
 
-class ModelViewer : public GameCore::IGameApp
+class D3D12RaytracingMiniEngineSample : public GameCore::IGameApp
 {
 public:
 
-    ModelViewer( void ) {}
+    D3D12RaytracingMiniEngineSample( void ) {}
 
     virtual void Startup( void ) override;
     virtual void Cleanup( void ) override;
@@ -273,7 +273,7 @@ int wmain(int argc, wchar_t** argv)
     TargetResolution = k720p;
     g_DisplayWidth = 1280;
     g_DisplayHeight = 720;
-    GameCore::RunApplication(ModelViewer(), L"ModelViewer"); 
+    GameCore::RunApplication(D3D12RaytracingMiniEngineSample(), L"D3D12RaytracingMiniEngineSample"); 
     return 0;
 }
 
@@ -737,7 +737,7 @@ void InitializeRaytracingStateObjects(UINT numMeshes)
    }
 }
 
-void ModelViewer::Startup( void )
+void D3D12RaytracingMiniEngineSample::Startup( void )
 {
     D3D12CreateRaytracingFallbackDevice(g_Device, CreateRaytracingFallbackDeviceFlags::None, 0, IID_PPV_ARGS(&g_pRaytracingDevice));
     g_SceneNormalBuffer.Create(L"Main Normal Buffer", g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight(), 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
@@ -760,7 +760,7 @@ void ModelViewer::Startup( void )
     m_RootSig[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 6, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig[4].InitAsConstants(1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
     m_RootSig[5].InitAsConstants(1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_RootSig.Finalize(L"ModelViewer", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    m_RootSig.Finalize(L"D3D12RaytracingMiniEngineSample", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
     DXGI_FORMAT NormalFormat = g_SceneNormalBuffer.GetFormat();
@@ -1048,7 +1048,7 @@ void ModelViewer::Startup( void )
     m_ExtraTextures[5] = Lighting::m_LightGridBitMask.GetSRV();
 }
 
-void ModelViewer::Cleanup( void )
+void D3D12RaytracingMiniEngineSample::Cleanup( void )
 {
     m_Model.Clear();
 }
@@ -1058,7 +1058,7 @@ namespace Graphics
     extern EnumVar DebugZoom;
 }
 
-void ModelViewer::Update( float deltaT )
+void D3D12RaytracingMiniEngineSample::Update( float deltaT )
 {
     ScopedTimer _prof(L"Update State");
 
@@ -1111,7 +1111,7 @@ void ModelViewer::Update( float deltaT )
     m_MainScissor.bottom = (LONG)g_SceneColorBuffer.GetHeight();
 }
 
-void ModelViewer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProjMat, eObjectFilter Filter )
+void D3D12RaytracingMiniEngineSample::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProjMat, eObjectFilter Filter )
 {
     struct VSConstants
     {
@@ -1154,7 +1154,7 @@ void ModelViewer::RenderObjects( GraphicsContext& gfxContext, const Matrix4& Vie
     }
 }
 
-void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
+void D3D12RaytracingMiniEngineSample::RenderLightShadows(GraphicsContext& gfxContext)
 {
     using namespace Lighting;
 
@@ -1183,7 +1183,7 @@ void ModelViewer::RenderLightShadows(GraphicsContext& gfxContext)
     ++LightIndex;
 }
 
-void ModelViewer::RenderScene(void)
+void D3D12RaytracingMiniEngineSample::RenderScene(void)
 {
     const bool skipDiffusePass = 
         rayTracingMode == RTM_DIFFUSE_WITH_SHADOWMAPS ||
@@ -1466,7 +1466,7 @@ void RaytracebarycentricsSSR(
     pRaytracingCommandList->DispatchRays(g_RaytracingInputs[Reflectionbarycentric].m_pPSO, &dispatchRaysDesc);
 }
 
-void ModelViewer::RaytraceShadows(
+void D3D12RaytracingMiniEngineSample::RaytraceShadows(
     GraphicsContext& context,
     const Math::Camera& camera,
     ColorBuffer& colorTarget,
@@ -1519,7 +1519,7 @@ void ModelViewer::RaytraceShadows(
     pRaytracingCommandList->DispatchRays(g_RaytracingInputs[Shadows].m_pPSO, &dispatchRaysDesc);
 }
 
-void ModelViewer::RaytraceDiffuse(
+void D3D12RaytracingMiniEngineSample::RaytraceDiffuse(
     GraphicsContext& context,
     const Math::Camera& camera,
     ColorBuffer& colorTarget)
@@ -1569,7 +1569,7 @@ void ModelViewer::RaytraceDiffuse(
     pRaytracingCommandList->DispatchRays(g_RaytracingInputs[DiffuseHitShader].m_pPSO, &dispatchRaysDesc);
 }
 
-void ModelViewer::RaytraceReflections(
+void D3D12RaytracingMiniEngineSample::RaytraceReflections(
     GraphicsContext& context,
     const Math::Camera& camera,
     ColorBuffer& colorTarget,
@@ -1623,7 +1623,7 @@ void ModelViewer::RaytraceReflections(
     pRaytracingCommandList->DispatchRays(g_RaytracingInputs[Reflection].m_pPSO, &dispatchRaysDesc);
 }
 
-void ModelViewer::RenderUI(class GraphicsContext& gfxContext)
+void D3D12RaytracingMiniEngineSample::RenderUI(class GraphicsContext& gfxContext)
 {
     const UINT framesToAverage = 20;
     static float frameRates[framesToAverage] = {};
@@ -1641,7 +1641,7 @@ void ModelViewer::RenderUI(class GraphicsContext& gfxContext)
     text.End();
 }
 
-void ModelViewer::Raytrace(class GraphicsContext& gfxContext)
+void D3D12RaytracingMiniEngineSample::Raytrace(class GraphicsContext& gfxContext)
 {
     uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
 
