@@ -106,7 +106,7 @@ PostbuildCopy.bat $(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Conf
     </PreLinkEvent>
     <PreBuildEvent>
       <Command>cd $(SolutionDir)..\tools\x64\
-PrebuildCheck.batcd $(SolutionDir)..\tools\x64\</Command>
+PrebuildCheck.bat</Command>
     </PreBuildEvent>
     <PreBuildEvent>
       <Message>
@@ -151,7 +151,7 @@ PostbuildCopy.bat $(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Conf
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>cd $(SolutionDir)..\tools\x64\
-PrebuildCheck.batcd $(SolutionDir)..\tools\x64\</Command>
+PrebuildCheck.bat</Command>
       <Message>
       </Message>
     </PreBuildEvent>
@@ -184,7 +184,7 @@ PrebuildCheck.batcd $(SolutionDir)..\tools\x64\</Command>
     <CustomBuild Include="Raytracing.hlsl">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\tools\x64\dxc.exe -nologo -Zpr -Fh "$(IntDir)\CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) -T lib_6_1 "%(Identity)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\tools\x64\dxc.exe -nologo -Fh "$(IntDir)\CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) -T lib_6_1 "%(Identity)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\tools\x64\dxc.exe -nologo -Zpr -Fh "$(IntDir)\CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) -T lib_6_1 "%(Identity)"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Identity)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Identity)</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)\CompiledShaders\%(Filename).hlsl.h</Outputs>

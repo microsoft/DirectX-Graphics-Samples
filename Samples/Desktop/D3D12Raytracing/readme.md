@@ -1,7 +1,7 @@
 # D3D12 Raytracing Samples
 This collection of samples act as an introduction to DirectX Raytracing (DXR). The samples are divided into tutorials and advanced samples. Each tutorial sample introduces a few new concepts. Advanced samples demonstrate more complex techniques and applications of raytracing. 
 
-The samples implement both DXR and D3D12 Raytracing Fallback Layer APIs. This is purely for demonstration purposes to show where the API differences are. Real-world applications will implement only one or the other. The Fallback Layer uses DXR if a driver and OS supports it. Otherwise, it falls back to compute pipeline to emulate raytracing. Developers aiming for a wider HW support should target the Fallback Layer.
+The samples implement both DXR and D3D12 Raytracing Fallback Layer APIs. This is purely for demonstration purposes to show API differences. Real-world applications will implement only one or the other. The Fallback Layer uses DXR if a driver and OS supports it. Otherwise, it falls back to the compute pipeline to emulate raytracing. Developers aiming for wider HW support should target the Fallback Layer.
 
 ### Getting Started
 * DXR spec/documentation is available in the SDK package at [Getting Started with Raytracing](http://forums.directxtech.com/index.php?topic=5860.0) post.
