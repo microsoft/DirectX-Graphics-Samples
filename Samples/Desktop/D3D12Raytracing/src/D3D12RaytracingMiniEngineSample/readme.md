@@ -2,7 +2,7 @@
 ![MiniEngine Screenshot](Screenshot.png)
 ## Raytracing Modifications
 
-This is a modified version of MiniEngine that uses the D3D12 Raytracing Fallback Layer for a series of effects
+This is a modified version of MiniEngine that uses the D3D12 Raytracing Fallback Layer for a series of effects.
 
 The keys '1'...'7' can also be used to cycle through different modes (or using Backspace to open up the MiniEngine and going to Application/Raytracing/RaytraceMode): 
 * *Off* - [1] Full rasterization.

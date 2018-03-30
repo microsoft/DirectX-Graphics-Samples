@@ -152,6 +152,7 @@
     <None Include="Models\sponza.h3d">
       <DeploymentContent>true</DeploymentContent>
     </None>
+    <None Include="readme.md" />
     <None Include="Shaders\FillLightGridCS.hlsli" />
     <None Include="Shaders\LightGrid.hlsli" />
     <None Include="Shaders\ModelViewerRS.hlsli" />
