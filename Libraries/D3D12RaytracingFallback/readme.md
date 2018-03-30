@@ -35,5 +35,4 @@ We would love to hear how you're using the Fallback Layer! We're also interested
 * Are there functional issues blocking adoption of the Fallback Layer? Are the ways the interface could be less obstructive?
 * Bugs/Issues using the Fallback Layer?
 
-Please feel free to reach out at:
-http://www.directxtech.com/
+Please feel free to reach out at [DirectX Raytracing forums](http://forums.directxtech.com/index.php?PHPSESSID=394klvdd3683tt1fjkh2jteav1&board=248.0).
