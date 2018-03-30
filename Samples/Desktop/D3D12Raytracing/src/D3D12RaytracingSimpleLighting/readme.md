@@ -1,13 +1,13 @@
-# D3D12 Raytracing Hello World sample
-![D3D12 Raytracing Hello World GUI](Screenshot.png)
+# D3D12 Raytracing Simple Lighting sample
+![D3D12 Raytracing Simple Lighting GUI](Screenshot.png)
 
-This sample demonstrates how to setup a raytracing pipeline and render a triangle in screenspace via raytracing. The sample implements three shaders: *ray generation*, *closest hit* and *miss* shader. The ray generation shader is executed for the whole render target via DispatchRays(). If a ray index corresponding to a pixel is inside a stencil window, it casts a ray into the scene. For ray indices outside the stencil window, the shader outputs color based on the ray's xy dispatch coordinates from top-left. Casted rays that hit the triangle render barycentric coordinates of the ray's hit position within the triangle. Missed rays render black.
+This sample demonstrates how to do ray generation for a dynamic perspective camera and calculate simple diffuse shading for a cube from a dynamic point light. 
 
 
 ### Usage
 The sample starts with Fallback Layer implementation being used by default. The Fallback Layer will use raytracing driver if available, otherwise it will default to the compute fallback. This default behavior can be overriden via UI controls or input arguments.
 
-D3D12RaytracingHelloWorld.exe [ -FL | -DXR ]
+D3D12RaytracingSimpleLighting.exe [ -FL | -DXR ]
 * [-FL] - select Fallback Layer API with forced compute fallback path.
 * [-DXR] - select DirectX Raytracing API.
 
@@ -28,4 +28,4 @@ The title bar of the sample provides runtime information:
 * 3 - select DirectX Raytracing API.
 
 ## Requirements
-* Consult the main [D3D12 Raytracing readme](../../readme.md) for the requirements.
+* Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.

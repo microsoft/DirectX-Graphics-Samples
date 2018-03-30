@@ -20,7 +20,7 @@
       <UniqueIdentifier>{93d5e482-943e-4182-8023-5676929aec55}</UniqueIdentifier>
     </Filter>
     <Filter Include="Assets\Shaders\Util">
-      <UniqueIdentifier>{c15c4672-ead7-4924-ba50-264ec192fdd8}</UniqueIdentifier>
+      <UniqueIdentifier>{87b45108-4083-4b05-a52d-914447b5fc90}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -45,7 +45,7 @@
     <ClInclude Include="DeviceResources.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="D3D12RaytracingHelloWorld.h">
+    <ClInclude Include="D3D12RaytracingSimpleLighting.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DirectXRaytracingHelper.h">
@@ -74,7 +74,7 @@
     <ClCompile Include="DeviceResources.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
-    <ClCompile Include="D3D12RaytracingHelloWorld.cpp">
+    <ClCompile Include="D3D12RaytracingSimpleLighting.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

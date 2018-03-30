@@ -10,21 +10,22 @@
 //*********************************************************
 
 #include "stdafx.h"
-#include "D3D12RaytracingHelloWorld.h"
+#include "D3D12RaytracingSimpleLighting.h"
 #include "DirectXRaytracingHelper.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 
 using namespace std;
 using namespace DX;
 
-const wchar_t* D3D12RaytracingHelloWorld::c_hitGroupName = L"MyHitGroup";
-const wchar_t* D3D12RaytracingHelloWorld::c_raygenShaderName = L"MyRaygenShader";
-const wchar_t* D3D12RaytracingHelloWorld::c_closestHitShaderName = L"MyClosestHitShader";
-const wchar_t* D3D12RaytracingHelloWorld::c_missShaderName = L"MyMissShader";
+const wchar_t* D3D12RaytracingSimpleLighting::c_hitGroupName = L"MyHitGroup";
+const wchar_t* D3D12RaytracingSimpleLighting::c_raygenShaderName = L"MyRaygenShader";
+const wchar_t* D3D12RaytracingSimpleLighting::c_closestHitShaderName = L"MyClosestHitShader";
+const wchar_t* D3D12RaytracingSimpleLighting::c_missShaderName = L"MyMissShader";
 
-D3D12RaytracingHelloWorld::D3D12RaytracingHelloWorld(UINT width, UINT height, std::wstring name) :
+D3D12RaytracingSimpleLighting::D3D12RaytracingSimpleLighting(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
-    m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX)
+    m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
+    m_curRotationAngleRad(0.0f)
 {
     m_isDxrSupported = EnableRaytracing();
     if (!m_isDxrSupported)
@@ -60,35 +61,131 @@ D3D12RaytracingHelloWorld::D3D12RaytracingHelloWorld(UINT width, UINT height, st
         exit(EXIT_FAILURE);
     }
 
-    m_rayGenCB.viewport = { -1.0f, -1.0f, 1.0f, 1.0f };
     UpdateForSizeChange(width, height);
 }
 
-void D3D12RaytracingHelloWorld::OnInit()
+void D3D12RaytracingSimpleLighting::OnInit()
 {
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
 
     m_deviceResources->CreateDeviceResources();
     m_deviceResources->CreateWindowSizeDependentResources();
 
+    InitializeScene();
+
     CreateDeviceDependentResources();
     CreateWindowSizeDependentResources();
 }
 
+// Update camera matrices passed into the shader.
+void D3D12RaytracingSimpleLighting::UpdateCameraMatrices()
+{
+    auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+
+    m_sceneCB[frameIndex].cameraPosition = m_eye;
+    float fovAngleY = 45.0f;
+    XMMATRIX view = XMMatrixLookAtLH(m_eye, m_at, m_up);
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 1.0f, 125.0f);
+    XMMATRIX viewProj = view * proj;
+
+    m_sceneCB[frameIndex].projectionToWorld = XMMatrixInverse(nullptr, viewProj);
+}
+
+// Initialize scene rendering parameters.
+void D3D12RaytracingSimpleLighting::InitializeScene()
+{
+    auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+
+    // Setup materials.
+    {
+        XMFLOAT4 cubeDiffuseColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+        m_cubeCB.diffuseColor = XMLoadFloat4(&cubeDiffuseColor);
+    }
+
+    // Setup camera.
+    {
+        // Initialize the view and projection inverse matrices.
+        m_eye = { 0.0f, 2.0f, -5.0f, 1.0f };
+        m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
+        XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
+
+        XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
+        m_up = XMVector3Normalize(XMVector3Cross(direction, right));
+
+        // Rotate camera around Y axis.
+        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
+        m_eye = XMVector3Transform(m_eye, rotate);
+        m_up = XMVector3Transform(m_up, rotate);
+        
+        UpdateCameraMatrices();
+    }
+
+    // Setup lights.
+    {
+        // Initialize the lighting parameters.
+        XMFLOAT4 lightPosition;
+        XMFLOAT4 lightAmbientColor;
+        XMFLOAT4 lightDiffuseColor;
+
+        lightPosition = XMFLOAT4(0.0f, 1.8f, -3.0, 0.0f);
+        m_sceneCB[frameIndex].lightPosition = XMLoadFloat4(&lightPosition);
+
+        lightAmbientColor = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+        m_sceneCB[frameIndex].lightAmbientColor = XMLoadFloat4(&lightAmbientColor);
+
+        lightDiffuseColor = XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f);
+        m_sceneCB[frameIndex].lightDiffuseColor = XMLoadFloat4(&lightDiffuseColor);
+    }
+
+    // Apply the initial values to all frames' buffer instances.
+    for (auto& sceneCB : m_sceneCB)
+    {
+        sceneCB = m_sceneCB[frameIndex];
+    }
+}
+
+// Create constant buffers.
+void D3D12RaytracingSimpleLighting::CreateConstantBuffers()
+{
+    auto device = m_deviceResources->GetD3DDevice();
+    auto frameCount = m_deviceResources->GetBackBufferCount();
+    
+    // Create the constant buffer memory and map the CPU and GPU addresses
+    const D3D12_HEAP_PROPERTIES uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+    // Allocate one constant buffer per frame, since it gets updated every frame.
+    size_t cbSize = frameCount * sizeof(AlignedSceneConstantBuffer);
+    const D3D12_RESOURCE_DESC constantBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(cbSize);
+
+    ThrowIfFailed(device->CreateCommittedResource(
+        &uploadHeapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &constantBufferDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&m_perFrameConstants)));
+
+    // Map the constant buffer and cache its heap pointers.
+    // We don't unmap this until the app closes. Keeping buffer mapped for the lifetime of the resource is okay.
+    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+    ThrowIfFailed(m_perFrameConstants->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedConstantData)));
+}
+
 // Create resources that depend on the device.
-void D3D12RaytracingHelloWorld::CreateDeviceDependentResources()
+void D3D12RaytracingSimpleLighting::CreateDeviceDependentResources()
 {
     CreateRaytracingDevice();
+    CreateDescriptorHeap();
+    BuildGeometry();
+    CreateConstantBuffers();
     CreateRootSignatures();
     CreateRaytracingPipelineStateObject();
-    CreateDescriptorHeap();
     CreateRaytracingOutputResource();
-    BuildGeometry();
     BuildAccelerationStructures();
     BuildShaderTables();
 }
 
-void D3D12RaytracingHelloWorld::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
+void D3D12RaytracingSimpleLighting::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
 {
     auto device = m_deviceResources->GetD3DDevice();
     ComPtr<ID3DBlob> blob;
@@ -106,16 +203,22 @@ void D3D12RaytracingHelloWorld::SerializeAndCreateRaytracingRootSignature(D3D12_
     }
 }
 
-void D3D12RaytracingHelloWorld::CreateRootSignatures()
+void D3D12RaytracingSimpleLighting::CreateRootSignatures()
 {
+    auto device = m_deviceResources->GetD3DDevice();
+
     // Global Root Signature
     // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
     {
-        CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
-        UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+        CD3DX12_DESCRIPTOR_RANGE ranges[2]; // Perfomance TIP: Order from most frequent to least frequent.
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output texture
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);  // 2 static index and vertex buffers.
+
         CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
-        rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &UAVDescriptor);
+        rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &ranges[0]);
         rootParameters[GlobalRootSignatureParams::AccelerationStructureSlot].InitAsShaderResourceView(0);
+        rootParameters[GlobalRootSignatureParams::SceneConstantSlot].InitAsConstantBufferView(0);
+        rootParameters[GlobalRootSignatureParams::VertexBuffersSlot].InitAsDescriptorTable(1, &ranges[1]);
         CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
     }
@@ -125,14 +228,14 @@ void D3D12RaytracingHelloWorld::CreateRootSignatures()
     {
         CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
         CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
-        rootParameters[LocalRootSignatureParams::ViewportConstantSlot].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
+        rootParameters[LocalRootSignatureParams::CubeConstantSlot].InitAsConstants(SizeOfInUint32(m_cubeCB), 1);
         CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
         localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
         SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature);
     }
 }
 
-void D3D12RaytracingHelloWorld::CreateRaytracingDevice()
+void D3D12RaytracingSimpleLighting::CreateRaytracingDevice()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -155,7 +258,7 @@ void D3D12RaytracingHelloWorld::CreateRaytracingDevice()
 // Create a raytracing pipeline state object (RTPSO).
 // An RTPSO represents a full set of shaders reachable by a DispatchRays() call,
 // with all configuration options resolved, such as local signatures and other state.
-void D3D12RaytracingHelloWorld::CreateRaytracingPipelineStateObject()
+void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
 {
     // Create 7 subobjects that combine into a RTPSO:
     // Subobjects need to be associated with DXIL exports (i.e. shaders) either by way of default or explicit associations.
@@ -179,7 +282,7 @@ void D3D12RaytracingHelloWorld::CreateRaytracingPipelineStateObject()
     lib->SetDXILLibrary(&libdxil);
     // Define which shader exports to surface from the library.
     // If no shader exports are defined for a DXIL library subobject, all shaders will be surfaced.
-    // In this sample, this could be omitted for convenience since the sample uses all shaders in the library. 
+    // In this sample, this could be ommited for convenience since the sample uses all shaders in the library. 
     {
         lib->DefineExport(c_raygenShaderName);
         lib->DefineExport(c_closestHitShaderName);
@@ -196,8 +299,8 @@ void D3D12RaytracingHelloWorld::CreateRaytracingPipelineStateObject()
     // Shader config
     // Defines the maximum sizes in bytes for the ray payload and attribute structure.
     auto shaderConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
-    UINT payloadSize = 4 * sizeof(float);   // float4 color
-    UINT attributeSize = 2 * sizeof(float); // float2 barycentrics
+    UINT payloadSize = sizeof(XMFLOAT4);    // float4 pixelColor
+    UINT attributeSize = sizeof(XMFLOAT2);  // float2 barycentrics
     shaderConfig->Config(payloadSize, attributeSize);
 
     // Local root signature and shader association
@@ -243,7 +346,7 @@ void D3D12RaytracingHelloWorld::CreateRaytracingPipelineStateObject()
 }
 
 // Create 2D output texture for raytracing.
-void D3D12RaytracingHelloWorld::CreateRaytracingOutputResource()
+void D3D12RaytracingSimpleLighting::CreateRaytracingOutputResource()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto backbufferFormat = m_deviceResources->GetBackBufferFormat();
@@ -264,15 +367,16 @@ void D3D12RaytracingHelloWorld::CreateRaytracingOutputResource()
     m_raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
 }
 
-void D3D12RaytracingHelloWorld::CreateDescriptorHeap()
+void D3D12RaytracingSimpleLighting::CreateDescriptorHeap()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
     D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-    // Allocate a heap for 3 descriptors:
-    // 2 - bottom and top level acceleration structure fallback wrapped pointers
+    // Allocate a heap for 5 descriptors:
+    // 2 - vertex and index buffer SRVs
     // 1 - raytracing output texture SRV
-    descriptorHeapDesc.NumDescriptors = 3; 
+    // 2 - bottom and top level acceleration structure fallback wrapped pointer UAVs
+    descriptorHeapDesc.NumDescriptors = 5; 
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
@@ -283,32 +387,75 @@ void D3D12RaytracingHelloWorld::CreateDescriptorHeap()
 }
 
 // Build geometry used in the sample.
-void D3D12RaytracingHelloWorld::BuildGeometry()
+void D3D12RaytracingSimpleLighting::BuildGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
+
+    // Cube indices.
     Index indices[] =
     {
-        0, 1, 2
+        3,1,0,
+        2,1,3,
+
+        6,4,5,
+        7,4,6,
+
+        11,9,8,
+        10,9,11,
+
+        14,12,13,
+        15,12,14,
+
+        19,17,16,
+        18,17,19,
+
+        22,20,21,
+        23,20,22
     };
 
-    float depthValue = 1.0;
-    float offset = 0.7f;
+    // Cube vertices positions and corresponding triangle normals.
     Vertex vertices[] =
     {
-        // The sample raytraces in screen space coordinates.
-        // Since DirectX screen space coordinates are right handed (i.e. Y axis points down).
-        // Define the vertices in counter clockwise order ~ clockwise in left handed.
-        { 0, -offset, depthValue },
-        { -offset, offset, depthValue },
-        { offset, offset, depthValue }
+        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+
+        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+
+        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+
+        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
     };
 
-    AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_vertexBuffer);
-    AllocateUploadBuffer(device, indices, sizeof(indices), &m_indexBuffer);
+    AllocateUploadBuffer(device, indices, sizeof(indices), &m_indexBuffer.resource);
+    AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_vertexBuffer.resource);
+
+    CreateBufferSRV(&m_indexBuffer, sizeof(indices)/4, sizeof(UINT));
+    CreateBufferSRV(&m_vertexBuffer, ARRAYSIZE(vertices), sizeof(vertices[0]));
 }
 
 // Build acceleration structures needed for raytracing.
-void D3D12RaytracingHelloWorld::BuildAccelerationStructures()
+void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -320,13 +467,13 @@ void D3D12RaytracingHelloWorld::BuildAccelerationStructures()
 
     D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
     geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-    geometryDesc.Triangles.IndexBuffer = m_indexBuffer->GetGPUVirtualAddress();
-    geometryDesc.Triangles.IndexCount = static_cast<UINT>(m_indexBuffer->GetDesc().Width) / sizeof(Index);
+    geometryDesc.Triangles.IndexBuffer = m_indexBuffer.resource->GetGPUVirtualAddress();
+    geometryDesc.Triangles.IndexCount = static_cast<UINT>(m_indexBuffer.resource->GetDesc().Width) / sizeof(Index);
     geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
     geometryDesc.Triangles.Transform = 0;
     geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-    geometryDesc.Triangles.VertexCount = static_cast<UINT>(m_vertexBuffer->GetDesc().Width) / sizeof(Vertex);
-    geometryDesc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer->GetGPUVirtualAddress();
+    geometryDesc.Triangles.VertexCount = static_cast<UINT>(m_vertexBuffer.resource->GetDesc().Width) / sizeof(Vertex);
+    geometryDesc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer.resource->GetGPUVirtualAddress();
     geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
 
     // Get required sizes for an acceleration structure.
@@ -460,7 +607,7 @@ void D3D12RaytracingHelloWorld::BuildAccelerationStructures()
 
 // Build shader tables.
 // This encapsulates all shader records - shaders and the arguments for their local root signatures.
-void D3D12RaytracingHelloWorld::BuildShaderTables()
+void D3D12RaytracingSimpleLighting::BuildShaderTables()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -491,11 +638,11 @@ void D3D12RaytracingHelloWorld::BuildShaderTables()
     }
 
     // Initialize shader records.
-    assert(LocalRootSignatureParams::ViewportConstantSlot == 0  && LocalRootSignatureParams::Count == 1);
+    assert(LocalRootSignatureParams::CubeConstantSlot == 0  && LocalRootSignatureParams::Count == 1);
     struct RootArguments {
-        RayGenConstantBuffer cb;
+        CubeConstantBuffer cb;
     } rootArguments;
-    rootArguments.cb = m_rayGenCB;
+    rootArguments.cb = m_cubeCB;
     UINT rootArgumentsSize = sizeof(rootArguments);
 
     // Shader record = {{ Shader ID }, { RootArguments }}
@@ -511,7 +658,7 @@ void D3D12RaytracingHelloWorld::BuildShaderTables()
     hitGroupShaderRecord.AllocateAsUploadBuffer(device, &m_hitGroupShaderTable, L"HitGroupShaderTable");
 }
 
-void D3D12RaytracingHelloWorld::SelectRaytracingAPI(RaytracingAPI type)
+void D3D12RaytracingSimpleLighting::SelectRaytracingAPI(RaytracingAPI type)
 {
     if (type == RaytracingAPI::FallbackLayer)
     {
@@ -530,7 +677,7 @@ void D3D12RaytracingHelloWorld::SelectRaytracingAPI(RaytracingAPI type)
     }
 }
 
-void D3D12RaytracingHelloWorld::OnKeyDown(UINT8 key)
+void D3D12RaytracingSimpleLighting::OnKeyDown(UINT8 key)
 {
     // Store previous values.
     RaytracingAPI previousRaytracingAPI = m_raytracingAPI;
@@ -562,15 +709,38 @@ void D3D12RaytracingHelloWorld::OnKeyDown(UINT8 key)
 }
 
 // Update frame-based values.
-void D3D12RaytracingHelloWorld::OnUpdate()
+void D3D12RaytracingSimpleLighting::OnUpdate()
 {
     m_timer.Tick();
     CalculateFrameStats();
+    float elapsedTime = static_cast<float>(m_timer.GetElapsedSeconds());
+    auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+    auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
+
+    // Rotate the camera around Y axis.
+    {
+        float secondsToRotateAround = 24.0f;
+        float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
+        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
+        m_eye = XMVector3Transform(m_eye, rotate);
+        m_up = XMVector3Transform(m_up, rotate);
+        m_at = XMVector3Transform(m_at, rotate);
+        UpdateCameraMatrices();
+    }
+
+    // Rotate the second light around the origin
+    {
+        float secondsToRotateAround = 8.0f;
+        float angleToRotateBy = -360.0f * (elapsedTime / secondsToRotateAround);
+        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
+        const XMVECTOR& prevLightPosition = m_sceneCB[prevFrameIndex].lightPosition;
+        m_sceneCB[frameIndex].lightPosition = XMVector3Transform(prevLightPosition, rotate);
+    }
 }
 
 
 // Parse supplied command line args.
-void D3D12RaytracingHelloWorld::ParseCommandLineArgs(WCHAR* argv[], int argc)
+void D3D12RaytracingSimpleLighting::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
     if (argc > 1)
     {
@@ -586,9 +756,10 @@ void D3D12RaytracingHelloWorld::ParseCommandLineArgs(WCHAR* argv[], int argc)
     }
 }
 
-void D3D12RaytracingHelloWorld::DoRaytracing()
+void D3D12RaytracingSimpleLighting::DoRaytracing()
 {
     auto commandList = m_deviceResources->GetCommandList();
+    auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
     
     auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
     {
@@ -605,53 +776,46 @@ void D3D12RaytracingHelloWorld::DoRaytracing()
         commandList->DispatchRays(stateObject, dispatchDesc);
     };
 
+    auto SetCommonPipelineState = [&](auto* descriptorSetCommandList)
+    {
+        descriptorSetCommandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
+        // Set index and successive vertex buffer decriptor tables
+        commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::VertexBuffersSlot, m_indexBuffer.gpuDescriptorHandle);
+        commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::OutputViewSlot, m_raytracingOutputResourceUAVGpuDescriptor);
+    };
+
     commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
 
+    // Copy the updated scene constant buffer to GPU.
+    memcpy(&m_mappedConstantData[frameIndex].constants, &m_sceneCB[frameIndex], sizeof(m_sceneCB[frameIndex]));
+    auto cbGpuAddress = m_perFrameConstants->GetGPUVirtualAddress() + frameIndex * sizeof(m_mappedConstantData[0]);
+    commandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstantSlot, cbGpuAddress);
+   
     // Bind the heaps, acceleration structure and dispatch rays.    
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
         D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchDesc = {};
-        m_fallbackCommandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
-        commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::OutputViewSlot, m_raytracingOutputResourceUAVGpuDescriptor);
+        SetCommonPipelineState(m_fallbackCommandList.Get());
         m_fallbackCommandList->SetTopLevelAccelerationStructure(GlobalRootSignatureParams::AccelerationStructureSlot, m_fallbackTopLevelAccelerationStructurePointer);
         DispatchRays(m_fallbackCommandList.Get(), m_fallbackStateObject.Get(), &dispatchDesc);
     }
     else // DirectX Raytracing
     {
         D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
-        commandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
-        commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::OutputViewSlot, m_raytracingOutputResourceUAVGpuDescriptor);
+        SetCommonPipelineState(commandList);
         commandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::AccelerationStructureSlot, m_topLevelAccelerationStructure->GetGPUVirtualAddress());
         DispatchRays(m_dxrCommandList.Get(), m_dxrStateObject.Get(), &dispatchDesc);
     }
 }
 
 // Update the application state with the new resolution.
-void D3D12RaytracingHelloWorld::UpdateForSizeChange(UINT width, UINT height)
+void D3D12RaytracingSimpleLighting::UpdateForSizeChange(UINT width, UINT height)
 {
     DXSample::UpdateForSizeChange(width, height);
-    float border = 0.1f;
-    if (m_width <= m_height)
-    {
-        m_rayGenCB.stencil =
-        {
-            -1 + border, -1 + border * m_aspectRatio,
-            1.0f - border, 1 - border * m_aspectRatio
-        };
-    }
-    else
-    {
-        m_rayGenCB.stencil =
-        {
-            -1 + border / m_aspectRatio, -1 + border,
-             1 - border / m_aspectRatio, 1.0f - border
-        };
-
-    }
 }
 
 // Copy the raytracing output to the backbuffer.
-void D3D12RaytracingHelloWorld::CopyRaytracingOutputToBackbuffer()
+void D3D12RaytracingSimpleLighting::CopyRaytracingOutputToBackbuffer()
 {
     auto commandList= m_deviceResources->GetCommandList();
     auto renderTarget = m_deviceResources->GetRenderTarget();
@@ -671,25 +835,20 @@ void D3D12RaytracingHelloWorld::CopyRaytracingOutputToBackbuffer()
 }
 
 // Create resources that are dependent on the size of the main window.
-void D3D12RaytracingHelloWorld::CreateWindowSizeDependentResources()
+void D3D12RaytracingSimpleLighting::CreateWindowSizeDependentResources()
 {
     CreateRaytracingOutputResource(); 
-
-    // For simplicity, we will rebuild the shader tables.
-    BuildShaderTables();
+    UpdateCameraMatrices();
 }
 
 // Release resources that are dependent on the size of the main window.
-void D3D12RaytracingHelloWorld::ReleaseWindowSizeDependentResources()
+void D3D12RaytracingSimpleLighting::ReleaseWindowSizeDependentResources()
 {
-    m_rayGenShaderTable.Reset();
-    m_missShaderTable.Reset();
-    m_hitGroupShaderTable.Reset();
     m_raytracingOutput.Reset();
 }
 
 // Release all resources that depend on the device.
-void D3D12RaytracingHelloWorld::ReleaseDeviceDependentResources()
+void D3D12RaytracingSimpleLighting::ReleaseDeviceDependentResources()
 {
     m_fallbackDevice.Reset();
     m_fallbackCommandList.Reset();
@@ -704,15 +863,19 @@ void D3D12RaytracingHelloWorld::ReleaseDeviceDependentResources()
     m_descriptorHeap.Reset();
     m_descriptorsAllocated = 0;
     m_raytracingOutputResourceUAVDescriptorHeapIndex = UINT_MAX;
-    m_indexBuffer.Reset();
-    m_vertexBuffer.Reset();
+    m_indexBuffer.resource.Reset();
+    m_vertexBuffer.resource.Reset();
+    m_perFrameConstants.Reset();
+    m_rayGenShaderTable.Reset();
+    m_missShaderTable.Reset();
+    m_hitGroupShaderTable.Reset();
 
-    m_accelerationStructure.Reset();
     m_bottomLevelAccelerationStructure.Reset();
     m_topLevelAccelerationStructure.Reset();
+
 }
 
-void D3D12RaytracingHelloWorld::RecreateD3D()
+void D3D12RaytracingSimpleLighting::RecreateD3D()
 {
     // Give GPU a chance to finish its execution in progress.
     try
@@ -727,7 +890,7 @@ void D3D12RaytracingHelloWorld::RecreateD3D()
 }
 
 // Render the scene.
-void D3D12RaytracingHelloWorld::OnRender()
+void D3D12RaytracingSimpleLighting::OnRender()
 {
     if (!m_deviceResources->IsWindowVisible())
     {
@@ -737,32 +900,33 @@ void D3D12RaytracingHelloWorld::OnRender()
     m_deviceResources->Prepare();
 
     DoRaytracing();
+
     CopyRaytracingOutputToBackbuffer();
 
     m_deviceResources->Present(D3D12_RESOURCE_STATE_PRESENT);
 }
 
-void D3D12RaytracingHelloWorld::OnDestroy()
+void D3D12RaytracingSimpleLighting::OnDestroy()
 {
     OnDeviceLost();
 }
 
 // Release all device dependent resouces when a device is lost.
-void D3D12RaytracingHelloWorld::OnDeviceLost()
+void D3D12RaytracingSimpleLighting::OnDeviceLost()
 {
     ReleaseWindowSizeDependentResources();
     ReleaseDeviceDependentResources();
 }
 
 // Create all device dependent resources when a device is restored.
-void D3D12RaytracingHelloWorld::OnDeviceRestored()
+void D3D12RaytracingSimpleLighting::OnDeviceRestored()
 {
     CreateDeviceDependentResources();
     CreateWindowSizeDependentResources();
 }
 
 // Compute the average frames per second and million rays per second.
-void D3D12RaytracingHelloWorld::CalculateFrameStats()
+void D3D12RaytracingSimpleLighting::CalculateFrameStats()
 {
     static int frameCnt = 0;
     static double elapsedTime = 0.0f;
@@ -804,7 +968,7 @@ void D3D12RaytracingHelloWorld::CalculateFrameStats()
 }
 
 // Handle OnSizeChanged message event.
-void D3D12RaytracingHelloWorld::OnSizeChanged(UINT width, UINT height, bool minimized)
+void D3D12RaytracingSimpleLighting::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
     if (!m_deviceResources->WindowSizeChanged(width, height, minimized))
     {
@@ -818,7 +982,7 @@ void D3D12RaytracingHelloWorld::OnSizeChanged(UINT width, UINT height, bool mini
 }
 
 // Create a wrapped pointer for the Fallback Layer path.
-WRAPPED_GPU_POINTER D3D12RaytracingHelloWorld::CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements)
+WRAPPED_GPU_POINTER D3D12RaytracingSimpleLighting::CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements)
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -842,7 +1006,7 @@ WRAPPED_GPU_POINTER D3D12RaytracingHelloWorld::CreateFallbackWrappedPointer(ID3D
 
 // Allocate a descriptor and return its index. 
 // If the passed descriptorIndexToUse is valid, it will be used instead of allocating a new one.
-UINT D3D12RaytracingHelloWorld::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse)
+UINT D3D12RaytracingSimpleLighting::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse)
 {
     auto descriptorHeapCpuBase = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
     if (descriptorIndexToUse >= m_descriptorHeap->GetDesc().NumDescriptors)
@@ -852,3 +1016,21 @@ UINT D3D12RaytracingHelloWorld::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* 
     *cpuDescriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(descriptorHeapCpuBase, descriptorIndexToUse, m_descriptorSize);
     return descriptorIndexToUse;
 }
+
+// Create SRV for a buffer.
+void D3D12RaytracingSimpleLighting::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
+{
+    auto device = m_deviceResources->GetD3DDevice();
+
+    // SRV
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+    srvDesc.Buffer.NumElements = numElements;
+    srvDesc.Buffer.StructureByteStride = elementSize;
+    UINT descriptorIndex = AllocateDescriptor(&buffer->cpuDescriptorHandle);
+    device->CreateShaderResourceView(buffer->resource.Get(), &srvDesc, buffer->cpuDescriptorHandle);
+    buffer->gpuDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), descriptorIndex, m_descriptorSize);
+};
