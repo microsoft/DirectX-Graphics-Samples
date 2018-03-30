@@ -28,9 +28,4 @@ The title bar of the sample provides runtime information:
 * 3 - select DirectX Raytracing API.
 
 ## Requirements
-* [Visual Studio 2017](https://www.visualstudio.com/) with the [Windows 10 Fall Creators Update SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
-* Compatible OS and SDK:
-  * Fallback Layer: Windows 10 with the Fall Creators Update.
-  * DirectX Raytracing: Windows 10 with spring 2018 Update and private D3D12 headers & dlls for DirectX Raytracing (available from directxtech site).
-* A graphics card with retail DXIL capabilities.
-* DXIL.dll should be pulled from the latest Windows SDK to accompany the compiler or enable Developer mode.
+* Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.

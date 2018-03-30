@@ -27,3 +27,6 @@ The keys '1'...'7' can also be used to cycle through different modes (or using B
  * Currently only tested on the Compute-based Fallback Layer
  * Shadow pass is buggy due to incorrect ray generation
  * Mipmap calculation is incorrect and uses too low of an LOD for distant objects
+
+## Requirements
+* Consult the main [D3D12 Raytracing readme](../../readme.md) for the requirements.
