@@ -9,7 +9,7 @@ set UseRS4Binaries=0
 
 rem If the user is running on any "recent" RS4 build, copy DXR-enabled D3D12 binaries
 rem RS3 and older can only use the Fallback layer and RS5 and newer already has DXR built-in
-if %BuildVersion% GEQ 17093 if %BuildVersion% LEQ 17600 set UseRS4Binaries=1
+if %BuildVersion% GEQ 17093 if %BuildVersion% LEQ 17623 set UseRS4Binaries=1
 
 rem Copy Dxcompiler, needed regardless of whether it's using native DXR or the Fallback layer
 set outputDirectory=%1
