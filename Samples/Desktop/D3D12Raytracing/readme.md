@@ -5,23 +5,23 @@ The samples implement both DXR and D3D12 Raytracing Fallback Layer APIs. This is
 
 ### Getting Started
 * DXR spec/documentation is available in the SDK package at [Getting Started with Raytracing](http://forums.directxtech.com/index.php?topic=5860.0) post.
-* [Raytracing Fallback Layer documentation](../../../Libraries\D3D12RaytracingFallback\readme.md).
+* [Raytracing Fallback Layer documentation](../../../LibrariesD3D12RaytracingFallback/readme.md).
 
 # Tutorial Samples
-## 1. [Hello World Sample](src\D3D12RaytracingHelloWorld\readme.md)
+## 1. [Hello World Sample](src/D3D12RaytracingHelloWorld/readme.md)
 This sample demonstrates how to setup a raytracing pipeline and render a triangle in screen space.
 
-![D3D12 Raytracing Hello World GUI](src\D3D12RaytracingHelloWorld\Screenshot_small.png)
+![D3D12 Raytracing Hello World GUI](src/D3D12RaytracingHelloWorld/Screenshot_small.png)
 
-## 2. [Simple Lighting Sample](src\D3D12RaytracingSimpleLighting\readme.md)
+## 2. [Simple Lighting Sample](src/D3D12RaytracingSimpleLighting/readme.md)
 This sample demonstrates how to do ray generation for a dynamic perspective camera and calculate simple diffuse shading for a cube from a dynamic point light. 
 
-![D3D12 Raytracing Hello World GUI](src\D3D12RaytracingSimpleLighting\Screenshot_small.png)
+![D3D12 Raytracing Hello World GUI](src/D3D12RaytracingSimpleLighting/Screenshot_small.png)
 
 
 # Advanced Samples
 
-## [MiniEngine Sample](src\D3D12RaytracingMiniEngineSample\readme.md)
+## [MiniEngine Sample](src/D3D12RaytracingMiniEngineSample/readme.md)
 This sample demonstrates integration of the Fallback Layer in the MiniEngine's Model Viewer and several sample uses of raytracing.
 
 ![D3D12 Raytracing Mini Engine](src/D3D12RaytracingMiniEngineSample/Screenshot_small.png)
