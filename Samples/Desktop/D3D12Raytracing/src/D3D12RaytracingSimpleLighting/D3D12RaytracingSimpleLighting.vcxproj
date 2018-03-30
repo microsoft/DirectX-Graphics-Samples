@@ -14,11 +14,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{5018F6A3-6533-4744-B1FD-727D199FD2E9}</ProjectGuid>
+    <ProjectGuid>{A0848C98-F5AA-431C-9E76-7F1E7EFA368C}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>D3D12Raytracing</RootNamespace>
-    <ProjectName>D3D12RaytracingHelloWorld</ProjectName>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <ProjectName>D3D12RaytracingSimpleLighting</ProjectName>
+    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -61,6 +61,8 @@
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)</IncludePath>
     <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
     <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
+    <PreLinkEventUseInBuild>
+    </PreLinkEventUseInBuild>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -92,8 +94,8 @@
       <EntryPointName />
     </FxCompile>
     <PostBuildEvent>
-      <Command>cd $(SolutionDir)..\tools\x64\
-PostbuildCopy.bat $(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Configuration)\</Command>
+      <Command>cd $(SolutionDir)..\tools\x64\ 
+PostbuildCopy.bat $(SolutionDir)D3D12RaytracingSimpleLighting\bin\$(Platform)\$(Configuration)\</Command>
       <Message>Sideload required DXR binaries.</Message>
     </PostBuildEvent>
     <PreLinkEvent>
@@ -106,7 +108,7 @@ PostbuildCopy.bat $(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Conf
     </PreLinkEvent>
     <PreBuildEvent>
       <Command>cd $(SolutionDir)..\tools\x64\
-PrebuildCheck.batcd $(SolutionDir)..\tools\x64\</Command>
+PrebuildCheck.bat</Command>
     </PreBuildEvent>
     <PreBuildEvent>
       <Message>
@@ -145,16 +147,24 @@ PrebuildCheck.batcd $(SolutionDir)..\tools\x64\</Command>
       <EntryPointName />
     </FxCompile>
     <PostBuildEvent>
-      <Command>cd $(SolutionDir)..\tools\x64\
-PostbuildCopy.bat $(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Configuration)\</Command>
+      <Command>cd $(SolutionDir)..\tools\x64\ 
+PostbuildCopy.bat $(SolutionDir)D3D12RaytracingSimpleLighting\bin\$(Platform)\$(Configuration)\</Command>
       <Message>Sideload required DXR binaries.</Message>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>cd $(SolutionDir)..\tools\x64\
-PrebuildCheck.batcd $(SolutionDir)..\tools\x64\</Command>
+PrebuildCheck.bat</Command>
       <Message>
       </Message>
     </PreBuildEvent>
+    <PreLinkEvent>
+      <Command>
+      </Command>
+    </PreLinkEvent>
+    <PreLinkEvent>
+      <Message>
+      </Message>
+    </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="DeviceResources.h" />
@@ -163,7 +173,7 @@ PrebuildCheck.batcd $(SolutionDir)..\tools\x64\</Command>
     <ClInclude Include="RaytracingHlslCompat.h" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="Win32Application.h" />
-    <ClInclude Include="D3D12RaytracingHelloWorld.h" />
+    <ClInclude Include="D3D12RaytracingSimpleLighting.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXSample.h" />
     <ClInclude Include="DXSampleHelper.h" />
@@ -172,7 +182,7 @@ PrebuildCheck.batcd $(SolutionDir)..\tools\x64\</Command>
   <ItemGroup>
     <ClCompile Include="DeviceResources.cpp" />
     <ClCompile Include="Win32Application.cpp" />
-    <ClCompile Include="D3D12RaytracingHelloWorld.cpp" />
+    <ClCompile Include="D3D12RaytracingSimpleLighting.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="stdafx.cpp">

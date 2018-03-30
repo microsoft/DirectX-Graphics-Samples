@@ -71,11 +71,11 @@ DeviceResources::~DeviceResources()
 // Configures the Direct3D device, and stores handles to it and the device context.
 void DeviceResources::CreateDeviceResources()
 {
+    bool debugDXGI = false;
+
 #if defined(_DEBUG)
     // Enable the debug layer (requires the Graphics Tools "optional feature").
-    //
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
-    bool debugDXGI = false;
     {
         ComPtr<ID3D12Debug> debugController;
         if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
@@ -98,11 +98,12 @@ void DeviceResources::CreateDeviceResources()
             dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
         }
     }
-
-    if (!debugDXGI)
 #endif
 
+    if (!debugDXGI)
+    {
         ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&m_dxgiFactory)));
+    }
 
     // Determines whether tearing support is available for fullscreen borderless windows.
     if (m_options & c_AllowTearing)
@@ -124,15 +125,10 @@ void DeviceResources::CreateDeviceResources()
     }
 
     ComPtr<IDXGIAdapter1> adapter;
-
-#if 0
     GetAdapter(&adapter);
 
     // Create the DX12 API device object.
     ThrowIfFailed(D3D12CreateDevice(adapter.Get(), m_d3dMinFeatureLevel, IID_PPV_ARGS(&m_d3dDevice)));
-#else
-    ThrowIfFailed(D3D12CreateDevice(nullptr, m_d3dMinFeatureLevel, IID_PPV_ARGS(&m_d3dDevice)));
-#endif
 
 #ifndef NDEBUG
     // Configure debug device (if active).

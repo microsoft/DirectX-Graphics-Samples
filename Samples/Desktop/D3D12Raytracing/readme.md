@@ -1,4 +1,3 @@
-
 # D3D12 Raytracing Samples
 This collection of samples act as an introduction to Direct3D 12 Raytracing. Each sample introduces a few new concepts. 
 
@@ -7,7 +6,12 @@ The samples implement both D3D12 Raytracing and D3D12 Raytracing Fallback Layer 
 ## 1. Hello World Sample
 This sample demonstrates how to setup a raytracing pipeline and render a triangle in screenspace.
 
-![D3D12 Raytracing Hello World GUI](src/D3D12RaytracingHelloWorld/Screenshot_small.png)
+![D3D12 Raytracing Hello World GUI](src\D3D12RaytracingHelloWorld\Screenshot_small.png)
+
+## 2. Simple Lighting Sample
+This sample demonstrates how to do ray generation for a dynamic perspective camera and calculate simple diffuse shading for a cube from a dynamic point light. 
+
+![D3D12 Raytracing Hello World GUI](src\D3D12RaytracingSimpleLighting\Screenshot_small.png)
 
 ## MiniEngine Sample
 This sample demonstrates integration of the Fallback Layer in the MiniEngine's Model Viewer and several sample uses of raytracing.

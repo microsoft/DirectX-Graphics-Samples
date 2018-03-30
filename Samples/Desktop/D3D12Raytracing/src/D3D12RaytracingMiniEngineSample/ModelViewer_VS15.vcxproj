@@ -6,6 +6,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>
     </LinkIncremental>
+    <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
+    <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -219,14 +226,17 @@
     <PostBuildEvent>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cd $(SolutionDir)..\tools\x64\
 PostbuildCopy.bat $(SolutionDir)D3D12RaytracingMiniEngineSample\</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Sideload required DXR binaries.</Message>
     </PostBuildEvent>
     <PostBuildEvent>
       <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">cd $(SolutionDir)..\tools\x64\
 PostbuildCopy.bat $(SolutionDir)D3D12RaytracingMiniEngineSample\</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Sideload required DXR binaries.</Message>
     </PostBuildEvent>
     <PostBuildEvent>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cd $(SolutionDir)..\tools\x64\
 PostbuildCopy.bat $(SolutionDir)D3D12RaytracingMiniEngineSample\</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Sideload required DXR binaries.</Message>
     </PostBuildEvent>
     <ProjectReference>
       <UseLibraryDependencyInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</UseLibraryDependencyInputs>
