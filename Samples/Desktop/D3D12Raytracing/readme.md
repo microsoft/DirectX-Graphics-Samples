@@ -5,7 +5,7 @@ The samples implement both DXR and D3D12 Raytracing Fallback Layer APIs. This is
 
 ### Getting Started
 * DXR spec/documentation is available in the SDK package at [Getting Started with Raytracing](http://forums.directxtech.com/index.php?topic=5860.0) post.
-* [Raytracing Fallback Layer documentation](../../../LibrariesD3D12RaytracingFallback/readme.md).
+* [Raytracing Fallback Layer documentation](../../../Libraries/D3D12RaytracingFallback/readme.md).
 
 # Tutorial Samples
 ## 1. [Hello World Sample](src/D3D12RaytracingHelloWorld/readme.md)
