@@ -6,12 +6,12 @@ This repo contains the DirectX 12 Graphics samples that demonstrate how to build
 In the Samples directory, you will find samples that attempt to break off specific features and specific usage scenarios into bite sized chunks. For example, the ExecuteIndirect sample will show you just enough about execute indirect to get started with that feature without diving too deep into multiengine whereas the nBodyGravity sample will delve into multiengine without touching on the execute indirect feature etc. By doing this, we hope to make it easier to get started with DirectX 12.
 
 Recent API Sample Updates:
-1. [D3D12 Raytracing](Samples\Desktop\D3D12Raytracing\readme.md): This is a set of tutorial and advanced samples that demonstrate the use of DirectX Raytracing.
+1. [D3D12 Raytracing](Samples/Desktop/D3D12Raytracing/readme.md): This is a set of tutorial and advanced samples that demonstrate the use of DirectX Raytracing.
 
-![D3D12 Raytracing Hello World GUI](Samples\Desktop\D3D12Raytracing\src\D3D12RaytracingSimpleLighting\Screenshot_small.png)
-![D3D12 Raytracing Mini Engine](Samples\Desktop\D3D12Raytracing\src/D3D12RaytracingMiniEngineSample/Screenshot_small.png)
+![D3D12 Raytracing Hello World GUI](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingSimpleLighting/Screenshot_small.png)
+![D3D12 Raytracing Mini Engine](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingMiniEngineSample/Screenshot_small.png)
 
-2. [Shader Model 6 Wave Intrinsics](Samples\Desktop\D3D12SM6WaveIntrinsics\readme.md): This sample visualizes several new wave intrinsics in Shader Model 6.
+2. [Shader Model 6 Wave Intrinsics](Samples/Desktop/D3D12SM6WaveIntrinsics/readme.md): This sample visualizes several new wave intrinsics in Shader Model 6.
 
 ## MiniEngine: A DirectX 12 Engine Starter Kit
 In addition to the samples, we are announcing the first DirectX 12 preview release of the MiniEngine.
