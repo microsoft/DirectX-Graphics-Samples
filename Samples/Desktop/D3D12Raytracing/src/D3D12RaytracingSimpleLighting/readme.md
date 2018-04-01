@@ -2,6 +2,11 @@
 ![D3D12 Raytracing Simple Lighting GUI](Screenshot.png)
 
 This sample demonstrates how to do ray generation for a dynamic perspective camera and calculate simple diffuse shading for a cube from a dynamic point light. 
+1. The sample uses two constant buffers: local CubeConstantBuffer and global SceneConstantBuffer.
+    * CubeConstantBuffer defines the cube's color and is passed via a shader record.
+    * SceneConstantBuffer contains camera and light information for the scene.
+2. Ray generation shader calculates ray direction in world space for every ray's xy dispatch coordinate using the camera's inverse view projection matrix.
+
 
 
 ### Usage

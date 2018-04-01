@@ -47,7 +47,10 @@ public:
         uint8_t *pMappedData;
         (*ppResource)->Map(0, nullptr, reinterpret_cast<void**>(&pMappedData));
         memcpy(pMappedData, shaderIdentifier.ptr, shaderIdentifier.size);
-        memcpy(pMappedData + shaderIdentifier.size, localRootArguments.ptr, localRootArguments.size);
+        if (localRootArguments.ptr)
+        {
+            memcpy(pMappedData + shaderIdentifier.size, localRootArguments.ptr, localRootArguments.size);
+        }
         (*ppResource)->Unmap(0, nullptr);
     }
 

@@ -27,7 +27,9 @@ D3D12RaytracingSimpleLighting::D3D12RaytracingSimpleLighting(UINT width, UINT he
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
     m_curRotationAngleRad(0.0f)
 {
+    // DXR is an experimental feature and needs to be enabled before creating a D3D12 device.
     m_isDxrSupported = EnableRaytracing();
+
     if (!m_isDxrSupported)
     {
         OutputDebugString(
@@ -476,6 +478,11 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     geometryDesc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer.resource->GetGPUVirtualAddress();
     geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
 
+    // Mark the geometry as opaque. 
+    // Note: when rays encounter this geometry an any hit shader will not be executed whether it is present or not. 
+    // It is recommended to use this flag liberally, as it can enable important ray processing optimizations.
+    geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+
     // Get required sizes for an acceleration structure.
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
     D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfoDesc = {};
@@ -512,7 +519,13 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     ComPtr<ID3D12Resource> scratchResource;
     AllocateUAVBuffer(device, max(topLevelPrebuildInfo.ScratchDataSizeInBytes, bottomLevelPrebuildInfo.ScratchDataSizeInBytes), &scratchResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
 
-    // Create resources for acceleration structures.
+    // Allocate resources for acceleration structures.
+    // Acceleration structures can only be placed in resources that are created in the default heap (or custom heap equivalent). 
+    // Default heap is OK since the application doesn’t need CPU read/write access to them. 
+    // The resources that will contain acceleration structures must be created in the state D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, 
+    // and must have resource flag D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS. The ALLOW_UNORDERED_ACCESS requirement simply acknowledges both: 
+    //  - the system will be doing this type of access in its implementation of acceleration structure builds behind the scenes.
+    //  - from the app point of view, synchronization of writes/reads to acceleration structures is accomplished using UAV barriers.
     {
         D3D12_RESOURCE_STATES initialResourceState;
         if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
@@ -527,6 +540,17 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
         AllocateUAVBuffer(device, bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructure, initialResourceState, L"BottomLevelAccelerationStructure");
         AllocateUAVBuffer(device, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_topLevelAccelerationStructure, initialResourceState, L"TopLevelAccelerationStructure");
     }
+    
+    // Note on Emulated GPU pointers (AKA Wrapped pointers) requirement in Fallback Layer:
+    // The primary point of divergence between the DXR API and the compute-based Fallback layer is the handling of GPU pointers. 
+    // DXR fundamentally requires that GPUs be able to dynamically read from arbitrary addresses in GPU memory. 
+    // The existing Direct Compute API today is more rigid than DXR and requires apps to explicitly inform the GPU what blocks of memory it will access with SRVs/UAVs.
+    // In order to handle the requirements of DXR, the Fallback Layer uses the concept of Emulated GPU pointers, 
+    // which requires apps to create views around all memory they will access for raytracing, 
+    // but retains the DXR-like flexibility of only needing to bind the top level acceleration structure at DispatchRays.
+    //
+    // The Fallback Layer interface uses WRAPPED_GPU_POINTER to encapsulate the underlying pointer
+    // which will either be an emulated GPU pointer for the compute - based path or a GPU_VIRTUAL_ADDRESS for the DXR path.
 
     // Create an instance desc for the bottom level acceleration structure.
     ComPtr<ID3D12Resource> instanceDescs;
@@ -638,23 +662,21 @@ void D3D12RaytracingSimpleLighting::BuildShaderTables()
     }
 
     // Initialize shader records.
-    assert(LocalRootSignatureParams::CubeConstantSlot == 0  && LocalRootSignatureParams::Count == 1);
-    struct RootArguments {
+    // Shader record = {{ Shader ID }, { RootArguments }}
+    static_assert(LocalRootSignatureParams::CubeConstantSlot == 0  && LocalRootSignatureParams::Count == 1, "Checking the local root signature parameters definition here.");
+    struct RootArguments { 
         CubeConstantBuffer cb;
     } rootArguments;
     rootArguments.cb = m_cubeCB;
-    UINT rootArgumentsSize = sizeof(rootArguments);
-
-    // Shader record = {{ Shader ID }, { RootArguments }}
-    UINT shaderRecordSize = shaderIdentifierSize + rootArgumentsSize;
-
-    ShaderRecord rayGenShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize, &rootArguments, rootArgumentsSize);
+    
+    ShaderRecord rayGenShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize, nullptr, 0);
     rayGenShaderRecord.AllocateAsUploadBuffer(device, &m_rayGenShaderTable, L"RayGenShaderTable");
 
-    ShaderRecord missShaderRecord(missShaderIdentifier, shaderIdentifierSize, &rootArguments, rootArgumentsSize);
+    ShaderRecord missShaderRecord(missShaderIdentifier, shaderIdentifierSize, nullptr, 0);
     missShaderRecord.AllocateAsUploadBuffer(device, &m_missShaderTable, L"MissShaderTable");
 
-    ShaderRecord hitGroupShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, rootArgumentsSize);
+    // Only hit group shader record requires root arguments initialization for the closest hit shader's cube CB access.
+    ShaderRecord hitGroupShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments));
     hitGroupShaderRecord.AllocateAsUploadBuffer(device, &m_hitGroupShaderTable, L"HitGroupShaderTable");
 }
 
@@ -763,6 +785,7 @@ void D3D12RaytracingSimpleLighting::DoRaytracing()
     
     auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
     {
+        // Since each shader table has only one shader record, the stride is same as the size.
         dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
         dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
         dispatchDesc->HitGroupTable.StrideInBytes = dispatchDesc->HitGroupTable.SizeInBytes;
