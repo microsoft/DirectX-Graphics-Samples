@@ -3,20 +3,18 @@
 
 This sample demonstrates how to do ray generation for a dynamic perspective camera and calculate simple diffuse shading for a cube from a dynamic point light. The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Hello World sample](..\D3D12RaytracingHelloWorld\readme.md).
 
-##### Setup
-
-There are two constant buffers: 
-* CubeConstantBuffer with cube's color to be used a the closest hit shader. It is made available via shader record for the shader.
-* SceneConstantBuffer stores scene wide camera and light parameters and is available via the global root signature.
-
-Vertex buffer
-
 ##### Rendering
-The sample implements three shaders: *ray generation*, *closest hit* and *miss* shader. 
-* The *ray generation* shader calculates a camera ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid. The world space ray is simply a ray's pixel screen position transformed by an inverse camera view projection matrix.
-* The *closest hit* shader from the cube's hit group calculates diffuse shading at the ray hit point with the object. The shader looks up a triangle normal from a vertex buffer passed into the shader. Each vertex contains its position and a triangle normal.
+Each frame render happens in the sample's OnRender() call and includes executing DispatchRays() with a 2D grid dimensions matching that of backbuffer resolution and copying of the raytraced result to the backbuffer before finally presenting the it to the screen. The sample implements three shaders: *ray generation*, *closest hit* and *miss* shader: 
+* The *ray generation* shader calculates a camera ray in world space for each dispatched ray corresponding to a pixel on the backbuffer. The world space ray is simply a ray's pixel screen position transformed by an inverse camera view projection matrix.
+* The *closest hit* shader from the cube's hit group calculates diffuse shading at the ray hit point. The shading is computed using dot product between the ray hit to light position and a hit triangle normal, multiplied by light's and cube's color. 
 * The *miss* shader simply stores a background color. 
 
+##### Shader accessed resources
+The shaders access all the input data from the constant buffers and buffer resources. There are two constant buffers: 
+* CubeConstantBuffer contains cube's color - passed in via a shader record for the shader.
+* SceneConstantBuffer stores scene wide camera and light parameters - made available via a global root signature.
+
+Triangle normals are accessed from index and vertex buffers that are explicitly passed in as buffer resources to the closest hit shader. First, three hit triangle's vertex indices are loaded from a 16bit index buffer. Then, the indices are used to index into the vertex buffer and load triangle normals that are stored for each vertex.
 
 ## Usage
 The sample starts with Fallback Layer implementation being used by default. The Fallback Layer will use raytracing driver if available, otherwise it will default to the compute fallback. This default behavior can be overriden via UI controls or input arguments.

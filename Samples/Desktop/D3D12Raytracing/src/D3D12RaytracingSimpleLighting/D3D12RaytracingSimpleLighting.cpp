@@ -770,7 +770,7 @@ void D3D12RaytracingSimpleLighting::OnUpdate()
         UpdateCameraMatrices();
     }
 
-    // Rotate the second light around the origin
+    // Rotate the second light around Y axis.
     {
         float secondsToRotateAround = 8.0f;
         float angleToRotateBy = -360.0f * (elapsedTime / secondsToRotateAround);
