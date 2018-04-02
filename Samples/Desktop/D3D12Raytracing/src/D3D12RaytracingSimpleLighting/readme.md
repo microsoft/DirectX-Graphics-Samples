@@ -6,7 +6,7 @@ This sample demonstrates how to do ray generation for a dynamic perspective came
 ##### Rendering
 Each frame render happens in the sample's OnRender() call and includes executing DispatchRays() with a 2D grid dimensions matching that of backbuffer resolution and copying of the raytraced result to the backbuffer before finally presenting the it to the screen. The sample implements three shaders: *ray generation*, *closest hit* and *miss* shader: 
 * The *ray generation* shader calculates a camera ray in world space for each dispatched ray corresponding to a pixel on the backbuffer. The world space ray is simply a ray's pixel screen position transformed by an inverse camera view projection matrix.
-* The *closest hit* shader from the cube's hit group calculates diffuse shading at the ray hit point. The shading is computed using dot product between the ray hit to light position and a hit triangle normal, multiplied by light's and cube's color. 
+* The *closest hit* shader from the cube's hit group calculates diffuse shading at the ray hit point. The shading is computed using a dot product between the ray hit to light position and a hit triangle normal, multiplied by light's and cube's color. 
 * The *miss* shader simply stores a background color. 
 
 ##### Shader accessed resources
