@@ -176,15 +176,34 @@ void D3D12RaytracingSimpleLighting::CreateConstantBuffers()
 // Create resources that depend on the device.
 void D3D12RaytracingSimpleLighting::CreateDeviceDependentResources()
 {
-    CreateRaytracingDevice();
-    CreateDescriptorHeap();
-    BuildGeometry();
-    CreateConstantBuffers();
+    // Initialize raytracing pipeline.
+
+    // Create raytracing interfaces: raytracing device and commandlist.
+    CreateRaytracingInterfaces();
+
+    // Create root signatures for the shaders.
     CreateRootSignatures();
+
+    // Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
     CreateRaytracingPipelineStateObject();
-    CreateRaytracingOutputResource();
+
+    // Create a heap for descriptors.
+    CreateDescriptorHeap();
+
+    // Build geometry to be used in the sample.
+    BuildGeometry();
+
+    // Build raytracing acceleration structures from the generated geometry.
     BuildAccelerationStructures();
+
+    // Create constant buffers for the geometry and the scene.
+    CreateConstantBuffers();
+
+    // Build shader tables, which define shaders and their local root arguments.
     BuildShaderTables();
+
+    // Create an output 2D texture to store the raytracing result to.
+    CreateRaytracingOutputResource();
 }
 
 void D3D12RaytracingSimpleLighting::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
@@ -237,7 +256,8 @@ void D3D12RaytracingSimpleLighting::CreateRootSignatures()
     }
 }
 
-void D3D12RaytracingSimpleLighting::CreateRaytracingDevice()
+// Create raytracing device and command list.
+void D3D12RaytracingSimpleLighting::CreateRaytracingInterfaces()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();

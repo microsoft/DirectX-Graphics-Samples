@@ -147,7 +147,7 @@ private:
     void CreateWindowSizeDependentResources();
     void ReleaseDeviceDependentResources();
     void ReleaseWindowSizeDependentResources();
-    void CreateRaytracingDevice();
+    void CreateRaytracingInterfaces();
     void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig);
     void CreateRootSignatures();
     void CreateRaytracingPipelineStateObject();

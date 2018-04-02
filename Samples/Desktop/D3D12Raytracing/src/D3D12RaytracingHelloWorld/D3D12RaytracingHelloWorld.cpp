@@ -80,14 +80,31 @@ void D3D12RaytracingHelloWorld::OnInit()
 // Create resources that depend on the device.
 void D3D12RaytracingHelloWorld::CreateDeviceDependentResources()
 {
-    CreateRaytracingDevice();
+    // Initialize raytracing pipeline.
+
+    // Create raytracing interfaces: raytracing device and commandlist.
+    CreateRaytracingInterfaces();
+
+    // Create root signatures for the shaders.
     CreateRootSignatures();
+
+    // Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
     CreateRaytracingPipelineStateObject();
+
+    // Create a heap for descriptors.
     CreateDescriptorHeap();
-    CreateRaytracingOutputResource();
+
+    // Build geometry to be used in the sample.
     BuildGeometry();
+
+    // Build raytracing acceleration structures from the generated geometry.
     BuildAccelerationStructures();
+
+    // Build shader tables, which define shaders and their local root arguments.
     BuildShaderTables();
+
+    // Create an output 2D texture to store the raytracing result to.
+    CreateRaytracingOutputResource();
 }
 
 void D3D12RaytracingHelloWorld::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
@@ -134,7 +151,8 @@ void D3D12RaytracingHelloWorld::CreateRootSignatures()
     }
 }
 
-void D3D12RaytracingHelloWorld::CreateRaytracingDevice()
+// Create raytracing device and command list.
+void D3D12RaytracingHelloWorld::CreateRaytracingInterfaces()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
