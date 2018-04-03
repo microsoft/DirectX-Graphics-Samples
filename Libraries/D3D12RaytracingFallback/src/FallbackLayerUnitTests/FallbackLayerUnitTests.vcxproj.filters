@@ -43,23 +43,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="SimpleCompute.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="DynamicIndexTest.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="ReadDataRWBuffer.hlsl" />
-    <FxCompile Include="ReadDataRWByteAddressBuffer.hlsl" />
-    <FxCompile Include="ReadDataRWTexture1D.hlsl" />
-    <FxCompile Include="ReadDataRWTexture1DArray.hlsl" />
-    <FxCompile Include="ReadDataRWTexture2D.hlsl" />
-    <FxCompile Include="ReadDataRWTexture2DArray.hlsl" />
-    <FxCompile Include="ReadDataRWTexture3D.hlsl" />
-    <FxCompile Include="ReadDataTexture1D.hlsl" />
-    <FxCompile Include="ReadDataTexture1DArray.hlsl" />
-    <FxCompile Include="ReadDataTexture2D.hlsl" />
-    <FxCompile Include="ReadDataTexture2DArray.hlsl" />
     <FxCompile Include="ReadData*.hlsl" />
     <FxCompile Include="ReadData*.hlsl" />
     <FxCompile Include="ReadData*.hlsl" />
@@ -119,17 +105,6 @@
     <FxCompile Include="ReadData*.hlsl" />
     <FxCompile Include="ReadData*.hlsl" />
     <FxCompile Include="ReadData*.hlsl" />
-    <FxCompile Include="ReadDataRWBuffer.hlsl" />
-    <FxCompile Include="ReadDataRWByteAddressBuffer.hlsl" />
-    <FxCompile Include="ReadDataRWTexture1D.hlsl" />
-    <FxCompile Include="ReadDataRWTexture1DArray.hlsl" />
-    <FxCompile Include="ReadDataRWTexture2D.hlsl" />
-    <FxCompile Include="ReadDataRWTexture2DArray.hlsl" />
-    <FxCompile Include="ReadDataRWTexture3D.hlsl" />
-    <FxCompile Include="ReadDataTexture1D.hlsl" />
-    <FxCompile Include="ReadDataTexture1DArray.hlsl" />
-    <FxCompile Include="ReadDataTexture2D.hlsl" />
-    <FxCompile Include="ReadDataTexture2DArray.hlsl" />
     <FxCompile Include="ReadDataRWBuffer.hlsl" />
     <FxCompile Include="ReadDataRWByteAddressBuffer.hlsl" />
     <FxCompile Include="ReadDataRWTexture1D.hlsl" />
@@ -279,9 +254,40 @@
     <FxCompile Include="SimpleRayTracing.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadRootConstants.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="SimpleRaygen.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
+    <FxCompile Include="ReadData*.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="SharedReadData.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Validate.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

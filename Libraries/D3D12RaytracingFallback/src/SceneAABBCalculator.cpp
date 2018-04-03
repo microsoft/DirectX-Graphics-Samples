@@ -35,6 +35,8 @@ namespace FallbackLayer
 
     void SceneAABBCalculator::CalculateSceneAABB(ID3D12GraphicsCommandList *pCommandList, SceneType sceneType, D3D12_GPU_VIRTUAL_ADDRESS inputBuffer, UINT numElements, D3D12_GPU_VIRTUAL_ADDRESS scratchBuffer, D3D12_GPU_VIRTUAL_ADDRESS outputAABB)
     {
+        if (numElements == 0) return;
+
         pCommandList->SetComputeRootSignature(m_pRootSignature);
         switch (sceneType)
         {

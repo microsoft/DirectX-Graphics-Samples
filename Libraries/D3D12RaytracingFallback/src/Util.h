@@ -152,3 +152,9 @@ static UINT GetTotalTriangleCount(const typename RAYTRACING_ACCELERATION_STRUCTU
     }
     return totalTriangles;
 }
+
+static UINT GetNumberOfInternalNodes(UINT numLeaves)
+{
+    // A binary tree with N leaves will always have N - 1 internal nodes
+    return std::max(0, (INT)(numLeaves - 1));
+}

@@ -39,6 +39,8 @@ namespace FallbackLayer
         D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap,
         UINT numElements)
     {
+        if (numElements == 0) return;
+
         Level level = (sceneType == SceneType::Triangles) ? Level::Bottom : Level::Top;
 
         InputConstants constants = { numElements };
