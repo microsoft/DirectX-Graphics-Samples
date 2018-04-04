@@ -32,9 +32,9 @@ uint3 Load3x16BitIndices(uint offsetBytes)
     // based on first index's offsetBytes being aligned at the 4 byte boundary or not:
     //  Aligned:     { 0 1 | 2 - }
     //  Not aligned: { - 0 | 1 2 }
-    const uint dwordAlignedOffset = offsetBytes & ~3;    
+    const uint dwordAlignedOffset = offsetBytes & ~3;
     const uint2 four16BitIndices = Indices.Load2(dwordAlignedOffset);
- 
+
     // Aligned: { 0 1 | 2 - } => retrieve first three 16bit indices
     if (dwordAlignedOffset == offsetBytes)
     {
@@ -105,7 +105,7 @@ void MyRaygenShader()
 {
     float3 rayDir;
     float3 origin;
-    
+
     // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
     GenerateCameraRay(DispatchRaysIndex(), origin, rayDir);
 
@@ -125,9 +125,109 @@ void MyRaygenShader()
     RenderTarget[DispatchRaysIndex()] = payload.color;
 }
 
+void swap(inout float a, inout float b)
+{
+    float temp = a;
+    a = b;
+    b = temp;
+}
+
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
+struct Ray
+{
+    float3 orig, dir;       // ray orig and dir 
+    float3 invdir;
+    int sign[3];
+    void Initialize(float3 _orig, float3 _dir)
+    {
+        orig = _orig;
+        dir = _dir;
+        invdir = 1 / dir;
+        sign[0] = (invdir.x < 0);
+        sign[1] = (invdir.y < 0);
+        sign[2] = (invdir.z < 0);
+    }
+};
+
+bool intersectBox(Ray r, out float thit)
+{
+    thit = -1;
+
+    float3 bounds[2] = {
+        float3(-1,-1,-1),
+        float3(1,1,1)
+    };
+
+    float tmin, tmax, tymin, tymax, tzmin, tzmax;
+
+    tmin = (bounds[r.sign[0]].x - r.orig.x) * r.invdir.x;
+    tmax = (bounds[1 - r.sign[0]].x - r.orig.x) * r.invdir.x;
+    tymin = (bounds[r.sign[1]].y - r.orig.y) * r.invdir.y;
+    tymax = (bounds[1 - r.sign[1]].y - r.orig.y) * r.invdir.y;
+
+    if ((tmin > tymax) || (tymin > tmax))
+        return false;
+    if (tymin > tmin)
+        tmin = tymin;
+    if (tymax < tmax)
+        tmax = tymax;
+
+    tzmin = (bounds[r.sign[2]].z - r.orig.z) * r.invdir.z;
+    tzmax = (bounds[1 - r.sign[2]].z - r.orig.z) * r.invdir.z;
+
+    if ((tmin > tzmax) || (tzmin > tmax))
+        return false;
+    if (tzmin > tmin)
+        tmin = tzmin;
+    if (tzmax < tmax)
+        tmax = tzmax;
+
+    if (tmin >= 0)
+        thit = tmin;
+    else
+        thit = tmax;
+
+    return true;
+}
+
+bool IntersectCustomPrimitiveFrontToBack(
+    float3 origin, float3 dir,
+    float rayTMin, inout float curT,
+    out MyAttributes attr)
+{
+    attr.barycentrics = float2(1.0, 0);
+
+    Ray ray;
+    ray.Initialize(origin, dir);
+    return intersectBox(ray, curT);
+}
+
+[shader("intersection")]
+void MyIntersectionShader()
+{
+#if 1
+    MyAttributes attr;
+    attr.barycentrics = float2(1.0, 1.0);
+    ReportHit(RayTMin(), /*hitKind*/ 0, attr);
+#else
+    float THit = RayTCurrent();
+    MyAttributes attr;
+    while (IntersectCustomPrimitiveFrontToBack(
+        ObjectRayOrigin(), ObjectRayDirection(),
+        RayTMin(), THit, attr))
+    {
+        if (ReportHit(THit, /*hitKind*/ 0, attr))
+            break;
+    }
+#endif
+}
+
 [shader("closesthit")]
 void MyClosestHitShader(inout HitData payload : SV_RayPayload, in MyAttributes attr : SV_IntersectionAttributes)
 {
+#if 1
+    payload.color = float4(attr.barycentrics, 0, 1);
+#else
     float3 hitPosition = HitWorldPosition();
 
     // Get the base index of the triangle's first 16 bit index.
@@ -140,10 +240,10 @@ void MyClosestHitShader(inout HitData payload : SV_RayPayload, in MyAttributes a
     const uint3 indices = Load3x16BitIndices(baseIndex);
 
     // Retrieve corresponding vertex normals for the triangle vertices.
-    float3 vertexNormals[3] = { 
-        Vertices[indices[0]].normal, 
-        Vertices[indices[1]].normal, 
-        Vertices[indices[2]].normal 
+    float3 vertexNormals[3] = {
+        Vertices[indices[0]].normal,
+        Vertices[indices[1]].normal,
+        Vertices[indices[2]].normal
     };
 
     // Compute the triangle's normal.
@@ -155,6 +255,7 @@ void MyClosestHitShader(inout HitData payload : SV_RayPayload, in MyAttributes a
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
     payload.color = color;
+#endif
 }
 
 [shader("miss")]

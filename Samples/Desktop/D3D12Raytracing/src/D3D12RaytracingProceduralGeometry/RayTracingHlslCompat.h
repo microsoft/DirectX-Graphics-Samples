@@ -11,6 +11,8 @@
 
 #pragma once
 
+#define USE_AABB_GEOMETRY 1
+
 #ifdef HLSL
 #include "HlslCompat.h"
 #else

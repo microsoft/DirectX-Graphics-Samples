@@ -10,19 +10,20 @@
 //*********************************************************
 
 #include "stdafx.h"
-#include "D3D12RaytracingSimpleLighting.h"
+#include "D3D12RaytracingProceduralGeometry.h"
 #include "DirectXRaytracingHelper.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 
 using namespace std;
 using namespace DX;
 
-const wchar_t* D3D12RaytracingSimpleLighting::c_hitGroupName = L"MyHitGroup";
-const wchar_t* D3D12RaytracingSimpleLighting::c_raygenShaderName = L"MyRaygenShader";
-const wchar_t* D3D12RaytracingSimpleLighting::c_closestHitShaderName = L"MyClosestHitShader";
-const wchar_t* D3D12RaytracingSimpleLighting::c_missShaderName = L"MyMissShader";
+const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupName = L"MyHitGroup";
+const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRaygenShader";
+const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderName = L"MyIntersectionShader";
+const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderName = L"MyClosestHitShader";
+const wchar_t* D3D12RaytracingProceduralGeometry::c_missShaderName = L"MyMissShader";
 
-D3D12RaytracingSimpleLighting::D3D12RaytracingSimpleLighting(UINT width, UINT height, std::wstring name) :
+D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
     m_curRotationAngleRad(0.0f)
@@ -38,14 +39,14 @@ D3D12RaytracingSimpleLighting::D3D12RaytracingSimpleLighting(UINT width, UINT he
             L"  1) your OS is not in developer mode.\n" \
             L"  2) your GPU driver doesn't match the D3D12 runtime loaded by the app (d3d12.dll and friends).\n" \
             L"  3) your D3D12 runtime doesn't match the D3D12 headers used by your app (in particular, the GUID passed to D3D12EnableExperimentalFeatures).\n\n");
-        
+
         OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
         ThrowIfFalse(EnableComputeRaytracingFallback(), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
     }
 
     m_forceComputeFallback = false;
     SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-    
+
     m_deviceResources = std::make_unique<DeviceResources>(
         DXGI_FORMAT_R8G8B8A8_UNORM,
         DXGI_FORMAT_UNKNOWN,
@@ -66,7 +67,7 @@ D3D12RaytracingSimpleLighting::D3D12RaytracingSimpleLighting(UINT width, UINT he
     UpdateForSizeChange(width, height);
 }
 
-void D3D12RaytracingSimpleLighting::OnInit()
+void D3D12RaytracingProceduralGeometry::OnInit()
 {
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
 
@@ -80,7 +81,7 @@ void D3D12RaytracingSimpleLighting::OnInit()
 }
 
 // Update camera matrices passed into the shader.
-void D3D12RaytracingSimpleLighting::UpdateCameraMatrices()
+void D3D12RaytracingProceduralGeometry::UpdateCameraMatrices()
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
@@ -94,7 +95,7 @@ void D3D12RaytracingSimpleLighting::UpdateCameraMatrices()
 }
 
 // Initialize scene rendering parameters.
-void D3D12RaytracingSimpleLighting::InitializeScene()
+void D3D12RaytracingProceduralGeometry::InitializeScene()
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
@@ -118,7 +119,7 @@ void D3D12RaytracingSimpleLighting::InitializeScene()
         XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
         m_eye = XMVector3Transform(m_eye, rotate);
         m_up = XMVector3Transform(m_up, rotate);
-        
+
         UpdateCameraMatrices();
     }
 
@@ -147,11 +148,11 @@ void D3D12RaytracingSimpleLighting::InitializeScene()
 }
 
 // Create constant buffers.
-void D3D12RaytracingSimpleLighting::CreateConstantBuffers()
+void D3D12RaytracingProceduralGeometry::CreateConstantBuffers()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto frameCount = m_deviceResources->GetBackBufferCount();
-    
+
     // Create the constant buffer memory and map the CPU and GPU addresses
     const D3D12_HEAP_PROPERTIES uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
@@ -174,7 +175,7 @@ void D3D12RaytracingSimpleLighting::CreateConstantBuffers()
 }
 
 // Create resources that depend on the device.
-void D3D12RaytracingSimpleLighting::CreateDeviceDependentResources()
+void D3D12RaytracingProceduralGeometry::CreateDeviceDependentResources()
 {
     // Initialize raytracing pipeline.
 
@@ -206,7 +207,7 @@ void D3D12RaytracingSimpleLighting::CreateDeviceDependentResources()
     CreateRaytracingOutputResource();
 }
 
-void D3D12RaytracingSimpleLighting::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
+void D3D12RaytracingProceduralGeometry::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
 {
     auto device = m_deviceResources->GetD3DDevice();
     ComPtr<ID3DBlob> blob;
@@ -224,7 +225,7 @@ void D3D12RaytracingSimpleLighting::SerializeAndCreateRaytracingRootSignature(D3
     }
 }
 
-void D3D12RaytracingSimpleLighting::CreateRootSignatures()
+void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -239,7 +240,9 @@ void D3D12RaytracingSimpleLighting::CreateRootSignatures()
         rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &ranges[0]);
         rootParameters[GlobalRootSignatureParams::AccelerationStructureSlot].InitAsShaderResourceView(0);
         rootParameters[GlobalRootSignatureParams::SceneConstantSlot].InitAsConstantBufferView(0);
+#if !USE_AABB_GEOMETRY
         rootParameters[GlobalRootSignatureParams::VertexBuffersSlot].InitAsDescriptorTable(1, &ranges[1]);
+#endif
         CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
     }
@@ -257,16 +260,16 @@ void D3D12RaytracingSimpleLighting::CreateRootSignatures()
 }
 
 // Create raytracing device and command list.
-void D3D12RaytracingSimpleLighting::CreateRaytracingInterfaces()
+void D3D12RaytracingProceduralGeometry::CreateRaytracingInterfaces()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
 
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
-        CreateRaytracingFallbackDeviceFlags createDeviceFlags = m_forceComputeFallback ? 
-                                                    CreateRaytracingFallbackDeviceFlags::ForceComputeFallback : 
-                                                    CreateRaytracingFallbackDeviceFlags::None;
+        CreateRaytracingFallbackDeviceFlags createDeviceFlags = m_forceComputeFallback ?
+            CreateRaytracingFallbackDeviceFlags::ForceComputeFallback :
+            CreateRaytracingFallbackDeviceFlags::None;
         ThrowIfFailed(D3D12CreateRaytracingFallbackDevice(device, createDeviceFlags, 0, IID_PPV_ARGS(&m_fallbackDevice)));
         m_fallbackDevice->QueryRaytracingCommandList(commandList, IID_PPV_ARGS(&m_fallbackCommandList));
     }
@@ -280,7 +283,7 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingInterfaces()
 // Create a raytracing pipeline state object (RTPSO).
 // An RTPSO represents a full set of shaders reachable by a DispatchRays() call,
 // with all configuration options resolved, such as local signatures and other state.
-void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
+void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
 {
     // Create 7 subobjects that combine into a RTPSO:
     // Subobjects need to be associated with DXIL exports (i.e. shaders) either by way of default or explicit associations.
@@ -307,17 +310,19 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
     // In this sample, this could be ommited for convenience since the sample uses all shaders in the library. 
     {
         lib->DefineExport(c_raygenShaderName);
+        lib->DefineExport(c_intersectionShaderName);
         lib->DefineExport(c_closestHitShaderName);
         lib->DefineExport(c_missShaderName);
     }
-    
+
     // Triangle hit group
     // A hit group specifies closest hit, any hit and intersection shaders to be executed when a ray intersects the geometry's triangle/AABB.
-    // In this sample, we only use triangle geometry with a closest hit shader, so others are not set.
+    // In this sample, we use an AABB intersection shader with a closest hit shader, so others are not set.
     auto hitGroup = raytracingPipeline.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
+    hitGroup->SetIntersectionShaderImport(c_intersectionShaderName);
     hitGroup->SetClosestHitShaderImport(c_closestHitShaderName);
     hitGroup->SetHitGroupExport(c_hitGroupName);
-    
+
     // Shader config
     // Defines the maximum sizes in bytes for the ray payload and attribute structure.
     auto shaderConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
@@ -350,7 +355,7 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
     // Setting max recursion depth at 1 ~ primary rays only. 
     // Drivers may apply optimization strategies for low recursion depths, 
     // so it is recommended to set max recursion depth as low as needed. 
-    pipelineConfig->Config(1);  
+    pipelineConfig->Config(1);
 
 #if _DEBUG
     PrintStateObjectDesc(raytracingPipeline);
@@ -368,7 +373,7 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
 }
 
 // Create 2D output texture for raytracing.
-void D3D12RaytracingSimpleLighting::CreateRaytracingOutputResource()
+void D3D12RaytracingProceduralGeometry::CreateRaytracingOutputResource()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto backbufferFormat = m_deviceResources->GetBackBufferFormat();
@@ -389,7 +394,7 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingOutputResource()
     m_raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
 }
 
-void D3D12RaytracingSimpleLighting::CreateDescriptorHeap()
+void D3D12RaytracingProceduralGeometry::CreateDescriptorHeap()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -398,7 +403,7 @@ void D3D12RaytracingSimpleLighting::CreateDescriptorHeap()
     // 2 - vertex and index buffer SRVs
     // 1 - raytracing output texture SRV
     // 2 - bottom and top level acceleration structure fallback wrapped pointer UAVs
-    descriptorHeapDesc.NumDescriptors = 5; 
+    descriptorHeapDesc.NumDescriptors = 5;
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
@@ -409,10 +414,14 @@ void D3D12RaytracingSimpleLighting::CreateDescriptorHeap()
 }
 
 // Build geometry used in the sample.
-void D3D12RaytracingSimpleLighting::BuildGeometry()
+void D3D12RaytracingProceduralGeometry::BuildGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
-
+#if USE_AABB_GEOMETRY
+    D3D12_RAYTRACING_AABB aabb = { -1,-1,-1,1,1,1 };
+    AllocateUploadBuffer(device, &aabb, sizeof(aabb), &m_aabbBuffer.resource);
+    CreateBufferSRV(&m_aabbBuffer, 1, sizeof(aabb));
+#else
     // Cube indices.
     Index indices[] =
     {
@@ -439,45 +448,46 @@ void D3D12RaytracingSimpleLighting::BuildGeometry()
     Vertex vertices[] =
     {
         { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+    { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+    { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+    { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
 
-        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+    { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+    { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+    { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+    { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
 
-        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
 
-        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
 
-        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+    { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+    { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+    { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+    { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
 
-        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+    { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+    { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+    { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+    { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
     };
 
     AllocateUploadBuffer(device, indices, sizeof(indices), &m_indexBuffer.resource);
     AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_vertexBuffer.resource);
 
-    CreateBufferSRV(&m_indexBuffer, sizeof(indices)/4, sizeof(UINT));
+    CreateBufferSRV(&m_indexBuffer, sizeof(indices) / 4, sizeof(UINT));
     CreateBufferSRV(&m_vertexBuffer, ARRAYSIZE(vertices), sizeof(vertices[0]));
+#endif
 }
 
 // Build acceleration structures needed for raytracing.
-void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
+void D3D12RaytracingProceduralGeometry::BuildAccelerationStructures()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -488,6 +498,12 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     commandList->Reset(commandAllocator, nullptr);
 
     D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
+#if USE_AABB_GEOMETRY
+    geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+    geometryDesc.AABBs.AABBCount = 1;
+    geometryDesc.AABBs.AABBs.StartAddress = m_aabbBuffer.resource->GetGPUVirtualAddress();
+    geometryDesc.AABBs.AABBs.StrideInBytes = sizeof(D3D12_RAYTRACING_AABB);
+#else
     geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
     geometryDesc.Triangles.IndexBuffer = m_indexBuffer.resource->GetGPUVirtualAddress();
     geometryDesc.Triangles.IndexCount = static_cast<UINT>(m_indexBuffer.resource->GetDesc().Width) / sizeof(Index);
@@ -497,7 +513,7 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     geometryDesc.Triangles.VertexCount = static_cast<UINT>(m_vertexBuffer.resource->GetDesc().Width) / sizeof(Vertex);
     geometryDesc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer.resource->GetGPUVirtualAddress();
     geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
-
+#endif
     // Mark the geometry as opaque. 
     // Note: when rays encounter this geometry an any hit shader will not be executed whether it is present or not. 
     // It is recommended to use this flag liberally, as it can enable important ray processing optimizations.
@@ -560,7 +576,7 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
         AllocateUAVBuffer(device, bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructure, initialResourceState, L"BottomLevelAccelerationStructure");
         AllocateUAVBuffer(device, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_topLevelAccelerationStructure, initialResourceState, L"TopLevelAccelerationStructure");
     }
-    
+
     // Note on Emulated GPU pointers (AKA Wrapped pointers) requirement in Fallback Layer:
     // The primary point of divergence between the DXR API and the compute-based Fallback layer is the handling of GPU pointers. 
     // DXR fundamentally requires that GPUs be able to dynamically read from arbitrary addresses in GPU memory. 
@@ -580,7 +596,7 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
         instanceDesc.Transform[0] = instanceDesc.Transform[5] = instanceDesc.Transform[10] = 1;
         instanceDesc.InstanceMask = 1;
         UINT numBufferElements = static_cast<UINT>(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
-        instanceDesc.AccelerationStructure = CreateFallbackWrappedPointer(m_bottomLevelAccelerationStructure.Get(), numBufferElements); 
+        instanceDesc.AccelerationStructure = CreateFallbackWrappedPointer(m_bottomLevelAccelerationStructure.Get(), numBufferElements);
         AllocateUploadBuffer(device, &instanceDesc, sizeof(instanceDesc), &instanceDescs, L"InstanceDescs");
     }
     else // DirectX Raytracing
@@ -596,7 +612,7 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
         UINT numBufferElements = static_cast<UINT>(topLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
-        m_fallbackTopLevelAccelerationStructurePointer = CreateFallbackWrappedPointer(m_topLevelAccelerationStructure.Get(), numBufferElements); 
+        m_fallbackTopLevelAccelerationStructurePointer = CreateFallbackWrappedPointer(m_topLevelAccelerationStructure.Get(), numBufferElements);
     }
 
     // Bottom Level Acceleration Structure desc
@@ -651,7 +667,7 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
 
 // Build shader tables.
 // This encapsulates all shader records - shaders and the arguments for their local root signatures.
-void D3D12RaytracingSimpleLighting::BuildShaderTables()
+void D3D12RaytracingProceduralGeometry::BuildShaderTables()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -683,12 +699,12 @@ void D3D12RaytracingSimpleLighting::BuildShaderTables()
 
     // Initialize shader records.
     // Shader record = {{ Shader ID }, { RootArguments }}
-    static_assert(LocalRootSignatureParams::CubeConstantSlot == 0  && LocalRootSignatureParams::Count == 1, "Checking the local root signature parameters definition here.");
-    struct RootArguments { 
+    static_assert(LocalRootSignatureParams::CubeConstantSlot == 0 && LocalRootSignatureParams::Count == 1, "Checking the local root signature parameters definition here.");
+    struct RootArguments {
         CubeConstantBuffer cb;
     } rootArguments;
     rootArguments.cb = m_cubeCB;
-    
+
     ShaderRecord rayGenShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize, nullptr, 0);
     rayGenShaderRecord.AllocateAsUploadBuffer(device, &m_rayGenShaderTable, L"RayGenShaderTable");
 
@@ -700,7 +716,7 @@ void D3D12RaytracingSimpleLighting::BuildShaderTables()
     hitGroupShaderRecord.AllocateAsUploadBuffer(device, &m_hitGroupShaderTable, L"HitGroupShaderTable");
 }
 
-void D3D12RaytracingSimpleLighting::SelectRaytracingAPI(RaytracingAPI type)
+void D3D12RaytracingProceduralGeometry::SelectRaytracingAPI(RaytracingAPI type)
 {
     if (type == RaytracingAPI::FallbackLayer)
     {
@@ -719,7 +735,7 @@ void D3D12RaytracingSimpleLighting::SelectRaytracingAPI(RaytracingAPI type)
     }
 }
 
-void D3D12RaytracingSimpleLighting::OnKeyDown(UINT8 key)
+void D3D12RaytracingProceduralGeometry::OnKeyDown(UINT8 key)
 {
     // Store previous values.
     RaytracingAPI previousRaytracingAPI = m_raytracingAPI;
@@ -741,7 +757,7 @@ void D3D12RaytracingSimpleLighting::OnKeyDown(UINT8 key)
     default:
         break;
     }
-    
+
     if (m_raytracingAPI != previousRaytracingAPI ||
         m_forceComputeFallback != previousForceComputeFallback)
     {
@@ -751,7 +767,7 @@ void D3D12RaytracingSimpleLighting::OnKeyDown(UINT8 key)
 }
 
 // Update frame-based values.
-void D3D12RaytracingSimpleLighting::OnUpdate()
+void D3D12RaytracingProceduralGeometry::OnUpdate()
 {
     m_timer.Tick();
     CalculateFrameStats();
@@ -782,11 +798,11 @@ void D3D12RaytracingSimpleLighting::OnUpdate()
 
 
 // Parse supplied command line args.
-void D3D12RaytracingSimpleLighting::ParseCommandLineArgs(WCHAR* argv[], int argc)
+void D3D12RaytracingProceduralGeometry::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
     if (argc > 1)
     {
-        if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0 )
+        if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0)
         {
             m_forceComputeFallback = true;
             SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
@@ -798,11 +814,11 @@ void D3D12RaytracingSimpleLighting::ParseCommandLineArgs(WCHAR* argv[], int argc
     }
 }
 
-void D3D12RaytracingSimpleLighting::DoRaytracing()
+void D3D12RaytracingProceduralGeometry::DoRaytracing()
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
-    
+
     auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
     {
         // Since each shader table has only one shader record, the stride is same as the size.
@@ -823,7 +839,9 @@ void D3D12RaytracingSimpleLighting::DoRaytracing()
     {
         descriptorSetCommandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
         // Set index and successive vertex buffer decriptor tables
+#if !USE_AABB_GEOMETRY
         commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::VertexBuffersSlot, m_indexBuffer.gpuDescriptorHandle);
+#endif
         commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::OutputViewSlot, m_raytracingOutputResourceUAVGpuDescriptor);
     };
 
@@ -833,7 +851,7 @@ void D3D12RaytracingSimpleLighting::DoRaytracing()
     memcpy(&m_mappedConstantData[frameIndex].constants, &m_sceneCB[frameIndex], sizeof(m_sceneCB[frameIndex]));
     auto cbGpuAddress = m_perFrameConstants->GetGPUVirtualAddress() + frameIndex * sizeof(m_mappedConstantData[0]);
     commandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstantSlot, cbGpuAddress);
-   
+
     // Bind the heaps, acceleration structure and dispatch rays.    
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
@@ -852,15 +870,15 @@ void D3D12RaytracingSimpleLighting::DoRaytracing()
 }
 
 // Update the application state with the new resolution.
-void D3D12RaytracingSimpleLighting::UpdateForSizeChange(UINT width, UINT height)
+void D3D12RaytracingProceduralGeometry::UpdateForSizeChange(UINT width, UINT height)
 {
     DXSample::UpdateForSizeChange(width, height);
 }
 
 // Copy the raytracing output to the backbuffer.
-void D3D12RaytracingSimpleLighting::CopyRaytracingOutputToBackbuffer()
+void D3D12RaytracingProceduralGeometry::CopyRaytracingOutputToBackbuffer()
 {
-    auto commandList= m_deviceResources->GetCommandList();
+    auto commandList = m_deviceResources->GetCommandList();
     auto renderTarget = m_deviceResources->GetRenderTarget();
 
     D3D12_RESOURCE_BARRIER preCopyBarriers[2];
@@ -878,27 +896,27 @@ void D3D12RaytracingSimpleLighting::CopyRaytracingOutputToBackbuffer()
 }
 
 // Create resources that are dependent on the size of the main window.
-void D3D12RaytracingSimpleLighting::CreateWindowSizeDependentResources()
+void D3D12RaytracingProceduralGeometry::CreateWindowSizeDependentResources()
 {
-    CreateRaytracingOutputResource(); 
+    CreateRaytracingOutputResource();
     UpdateCameraMatrices();
 }
 
 // Release resources that are dependent on the size of the main window.
-void D3D12RaytracingSimpleLighting::ReleaseWindowSizeDependentResources()
+void D3D12RaytracingProceduralGeometry::ReleaseWindowSizeDependentResources()
 {
     m_raytracingOutput.Reset();
 }
 
 // Release all resources that depend on the device.
-void D3D12RaytracingSimpleLighting::ReleaseDeviceDependentResources()
+void D3D12RaytracingProceduralGeometry::ReleaseDeviceDependentResources()
 {
     m_fallbackDevice.Reset();
     m_fallbackCommandList.Reset();
     m_fallbackStateObject.Reset();
     m_raytracingGlobalRootSignature.Reset();
     m_raytracingLocalRootSignature.Reset();
-    
+
     m_dxrDevice.Reset();
     m_dxrCommandList.Reset();
     m_dxrStateObject.Reset();
@@ -918,7 +936,7 @@ void D3D12RaytracingSimpleLighting::ReleaseDeviceDependentResources()
 
 }
 
-void D3D12RaytracingSimpleLighting::RecreateD3D()
+void D3D12RaytracingProceduralGeometry::RecreateD3D()
 {
     // Give GPU a chance to finish its execution in progress.
     try
@@ -933,7 +951,7 @@ void D3D12RaytracingSimpleLighting::RecreateD3D()
 }
 
 // Render the scene.
-void D3D12RaytracingSimpleLighting::OnRender()
+void D3D12RaytracingProceduralGeometry::OnRender()
 {
     if (!m_deviceResources->IsWindowVisible())
     {
@@ -949,27 +967,27 @@ void D3D12RaytracingSimpleLighting::OnRender()
     m_deviceResources->Present(D3D12_RESOURCE_STATE_PRESENT);
 }
 
-void D3D12RaytracingSimpleLighting::OnDestroy()
+void D3D12RaytracingProceduralGeometry::OnDestroy()
 {
     OnDeviceLost();
 }
 
 // Release all device dependent resouces when a device is lost.
-void D3D12RaytracingSimpleLighting::OnDeviceLost()
+void D3D12RaytracingProceduralGeometry::OnDeviceLost()
 {
     ReleaseWindowSizeDependentResources();
     ReleaseDeviceDependentResources();
 }
 
 // Create all device dependent resources when a device is restored.
-void D3D12RaytracingSimpleLighting::OnDeviceRestored()
+void D3D12RaytracingProceduralGeometry::OnDeviceRestored()
 {
     CreateDeviceDependentResources();
     CreateWindowSizeDependentResources();
 }
 
 // Compute the average frames per second and million rays per second.
-void D3D12RaytracingSimpleLighting::CalculateFrameStats()
+void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
 {
     static int frameCnt = 0;
     static double elapsedTime = 0.0f;
@@ -1011,7 +1029,7 @@ void D3D12RaytracingSimpleLighting::CalculateFrameStats()
 }
 
 // Handle OnSizeChanged message event.
-void D3D12RaytracingSimpleLighting::OnSizeChanged(UINT width, UINT height, bool minimized)
+void D3D12RaytracingProceduralGeometry::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
     if (!m_deviceResources->WindowSizeChanged(width, height, minimized))
     {
@@ -1025,7 +1043,7 @@ void D3D12RaytracingSimpleLighting::OnSizeChanged(UINT width, UINT height, bool 
 }
 
 // Create a wrapped pointer for the Fallback Layer path.
-WRAPPED_GPU_POINTER D3D12RaytracingSimpleLighting::CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements)
+WRAPPED_GPU_POINTER D3D12RaytracingProceduralGeometry::CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements)
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -1036,7 +1054,7 @@ WRAPPED_GPU_POINTER D3D12RaytracingSimpleLighting::CreateFallbackWrappedPointer(
     rawBufferUavDesc.Buffer.NumElements = bufferNumElements;
 
     D3D12_CPU_DESCRIPTOR_HANDLE bottomLevelDescriptor;
-   
+
     // Only compute fallback requires a valid descriptor index when creating a wrapped pointer.
     UINT descriptorHeapIndex = 0;
     if (!m_fallbackDevice->UsingRaytracingDriver())
@@ -1049,7 +1067,7 @@ WRAPPED_GPU_POINTER D3D12RaytracingSimpleLighting::CreateFallbackWrappedPointer(
 
 // Allocate a descriptor and return its index. 
 // If the passed descriptorIndexToUse is valid, it will be used instead of allocating a new one.
-UINT D3D12RaytracingSimpleLighting::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse)
+UINT D3D12RaytracingProceduralGeometry::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse)
 {
     auto descriptorHeapCpuBase = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
     if (descriptorIndexToUse >= m_descriptorHeap->GetDesc().NumDescriptors)
@@ -1061,7 +1079,7 @@ UINT D3D12RaytracingSimpleLighting::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HAND
 }
 
 // Create SRV for a buffer.
-void D3D12RaytracingSimpleLighting::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
+void D3D12RaytracingProceduralGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
 {
     auto device = m_deviceResources->GetD3DDevice();
 

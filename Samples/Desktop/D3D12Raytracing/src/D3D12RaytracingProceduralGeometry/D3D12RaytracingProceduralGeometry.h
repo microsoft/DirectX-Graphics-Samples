@@ -20,15 +20,17 @@ namespace GlobalRootSignatureParams {
         OutputViewSlot = 0,
         AccelerationStructureSlot,
         SceneConstantSlot,
+#if !USE_AABB_GEOMETRY
         VertexBuffersSlot,
-        Count 
+#endif
+        Count
     };
 }
 
 namespace LocalRootSignatureParams {
     enum Value {
         CubeConstantSlot = 0,
-        Count 
+        Count
     };
 }
 
@@ -38,7 +40,7 @@ namespace LocalRootSignatureParams {
 // Fallback Layer uses DirectX Raytracing if a driver and OS supports it. 
 // Otherwise, it falls back to compute pipeline to emulate raytracing.
 // Developers aiming for a wider HW support should target Fallback Layer.
-class D3D12RaytracingSimpleLighting : public DXSample
+class D3D12RaytracingProceduralGeometry : public DXSample
 {
     enum class RaytracingAPI {
         FallbackLayer,
@@ -46,7 +48,7 @@ class D3D12RaytracingSimpleLighting : public DXSample
     };
 
 public:
-    D3D12RaytracingSimpleLighting(UINT width, UINT height, std::wstring name);
+    D3D12RaytracingProceduralGeometry(UINT width, UINT height, std::wstring name);
 
     // IDeviceNotify
     virtual void OnDeviceLost() override;
@@ -74,7 +76,7 @@ private:
     };
     AlignedSceneConstantBuffer*  m_mappedConstantData;
     ComPtr<ID3D12Resource>       m_perFrameConstants;
-        
+
     // Raytracing Fallback Layer (FL) attributes
     ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
     ComPtr<ID3D12RaytracingFallbackCommandList> m_fallbackCommandList;
@@ -95,7 +97,7 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
     UINT m_descriptorsAllocated;
     UINT m_descriptorSize;
-    
+
     // Raytracing scene
     SceneConstantBuffer m_sceneCB[FrameCount];
     CubeConstantBuffer m_cubeCB;
@@ -109,6 +111,7 @@ private:
     };
     D3DBuffer m_indexBuffer;
     D3DBuffer m_vertexBuffer;
+    D3DBuffer m_aabbBuffer;
 
     // Acceleration structure
     ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
@@ -122,12 +125,13 @@ private:
     // Shader tables
     static const wchar_t* c_hitGroupName;
     static const wchar_t* c_raygenShaderName;
+    static const wchar_t* c_intersectionShaderName;
     static const wchar_t* c_closestHitShaderName;
     static const wchar_t* c_missShaderName;
     ComPtr<ID3D12Resource> m_missShaderTable;
     ComPtr<ID3D12Resource> m_hitGroupShaderTable;
     ComPtr<ID3D12Resource> m_rayGenShaderTable;
-    
+
     // Application state
     RaytracingAPI m_raytracingAPI;
     bool m_forceComputeFallback;
