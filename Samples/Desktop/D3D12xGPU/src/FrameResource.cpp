@@ -156,11 +156,11 @@ void FrameResource::LoadSizeDependentResources(ID3D12Device* pDevice, UINT width
     // Create depth stencil resources.
 
     // Shadow depth resource.
-    ThrowIfFailed(CreateDepthStencilTexture2D(pDevice, width, height, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT, &m_depthTextures[DepthGenPass::Shadow], m_depthDSVs[DepthGenPass::Shadow], m_depthSRVs[DepthGenPass::Shadow]));
+    ThrowIfFailed(CreateDepthStencilTexture2D(pDevice, width, height, DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT, &m_depthTextures[DepthGenPass::Shadow], m_depthDSVs[DepthGenPass::Shadow], m_depthSRVs[DepthGenPass::Shadow]));
     NAME_D3D12_OBJECT(m_depthTextures[DepthGenPass::Shadow]);
 
     // Scene depth resource.
-    ThrowIfFailed(CreateDepthStencilTexture2D(pDevice, width, height, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT, &m_depthTextures[DepthGenPass::Scene], m_depthDSVs[DepthGenPass::Scene], m_depthSRVs[DepthGenPass::Scene]));
+    ThrowIfFailed(CreateDepthStencilTexture2D(pDevice, width, height, DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT, &m_depthTextures[DepthGenPass::Scene], m_depthDSVs[DepthGenPass::Scene], m_depthSRVs[DepthGenPass::Scene]));
     NAME_D3D12_OBJECT(m_depthTextures[DepthGenPass::Scene]);
 }
 
