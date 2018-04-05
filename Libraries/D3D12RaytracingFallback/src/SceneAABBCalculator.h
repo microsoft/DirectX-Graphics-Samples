@@ -31,7 +31,7 @@ namespace FallbackLayer
         static UINT GetNumAABBsOutputFromPass(UINT numElements);
 
         CComPtr<ID3D12RootSignature> m_pRootSignature;
-        CComPtr<ID3D12PipelineState> m_pCalculateSceneAABBFromTriangles;
+        CComPtr<ID3D12PipelineState> m_pCalculateSceneAABBFromPrimitives;
         CComPtr<ID3D12PipelineState> m_pCalculateSceneAABBFromBVHs;
         CComPtr<ID3D12PipelineState> m_pCalculateSceneAABBFromAABBs;
     };

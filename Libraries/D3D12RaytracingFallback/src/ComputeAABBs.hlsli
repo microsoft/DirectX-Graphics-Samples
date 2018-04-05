@@ -43,7 +43,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     uint nodeIndex = scratchMemory.Load(threadScratchAddress);
     if (nodeIndex == InvalidNodeIndex) { return; }
 
-    int offsetToVertices = outputBVH.Load(OffsetToVerticesOffset);
+    int offsetToPrimitives = outputBVH.Load(OffsetToPrimitivesOffset);
 
     uint dummyFlag;
     uint nodeAddress = GetBoxAddress(offsetToBoxes, nodeIndex);
@@ -59,7 +59,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         if (isLeaf)
         {
             uint leafIndex = nodeIndex - NumberOfInternalNodes;
-            boxData = ComputeLeafAABB(leafIndex, offsetToVertices, outputFlag);
+            boxData = ComputeLeafAABB(leafIndex, offsetToPrimitives, outputFlag);
         }
         else
         {

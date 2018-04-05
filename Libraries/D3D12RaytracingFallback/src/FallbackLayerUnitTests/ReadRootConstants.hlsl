@@ -29,7 +29,7 @@ cbuffer Constants : register(b2)
 }
 
 [shader("miss")]
-void miss(inout EmptyPayload payload : SV_RayPayload)
+void miss(inout EmptyPayload payload)
 {
     outputBuffer.Store4(0, asuint(color0));
     outputBuffer.Store4(16, asuint(color1));

@@ -81,9 +81,8 @@ namespace FallbackLayer
 
             BVHOffsets offsets = *(BVHOffsets*)pOutputCpuData;
             AABBNode *pNodeArray = (AABBNode*)((BYTE *)pOutputCpuData + offsets.offsetToBoxes);
-            Triangle *pTriangleArray = (Triangle*)((BYTE *)pOutputCpuData + offsets.offsetToVertices);
+            Primitive *pPrimitiveArray = (Primitive*)((BYTE *)pOutputCpuData + offsets.offsetToVertices);
 
-            UINT currentQueue = 0;
             std::deque<AABBNode*> nodeQueue;
 
             nodeQueue.push_back(&pNodeArray[0]);
@@ -142,7 +141,7 @@ namespace FallbackLayer
 
                     for (UINT triangleId = firstTriangleId; triangleId < firstTriangleId + numTriangles; triangleId++)
                     {
-                        Triangle *pTriangle = &pTriangleArray[triangleId];
+                        Primitive *pTriangle = &pPrimitiveArray[triangleId];
                         for (int j = (int)pExpectedLeafNodes.size() - 1; j >= 0; j--)
                         {
                             if (pExpectedLeafNodes[j]->IsLeafEqual((void *)pTriangle, parentAABB))
@@ -187,6 +186,7 @@ namespace FallbackLayer
 
     bool BvhValidator::AABBLeafNode::IsLeafEqual(void *pLeafData, const AABB &leafAABB)
     {
+        UNREFERENCED_PARAMETER(pLeafData);
         return IsChildContainedByParent(leafAABB, box);
     }
 
@@ -255,7 +255,9 @@ namespace FallbackLayer
 
     bool BvhValidator::TriangleLeafNode::IsLeafEqual(void *pLeafData, const AABB &leafAABB)
     {
-        Triangle *pTriangle = (Triangle *)pLeafData;
+        UNREFERENCED_PARAMETER(leafAABB);
+        Primitive *pPrimitive = (Primitive *)pLeafData;
+        Triangle *pTriangle = &pPrimitive->triangle;
         return IsTriangleEqual(*this, pTriangle);
     }
 
@@ -282,7 +284,7 @@ namespace FallbackLayer
             return readIndex;
         default:
             ThrowFailure(E_INVALIDARG, L"Invalid format provided for the index buffer, must be: DXGI_FORMAT_R32_UINT/DXGI_FORMAT_R16_UINT/DXGI_FORMAT_UNKNOWN");
-            return -1;
+            return (UINT)-1;
         }
     }
 

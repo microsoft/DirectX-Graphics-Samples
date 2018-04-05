@@ -31,12 +31,6 @@
     <FxCompile Include="CalculateSceneAABBFromAABBs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="CalculateSceneAABBFromTriangles.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="CalculateMortonCodesForTriangles.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="CalculateMortonCodesForAABBs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -53,15 +47,6 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="LoadTrianglesNoIndexBuffer.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="OpaqueTraverseShaderLib.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="StateMachineLib.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="TraverseShaderLib.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="*Lib.hlsl">
@@ -129,15 +114,6 @@
     <FxCompile Include="ClearBuffer.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="OpaqueTraverseShaderLib.hlsl" />
-    <FxCompile Include="StateMachineLib.hlsl" />
-    <FxCompile Include="TraverseShaderLib.hlsl" />
-    <FxCompile Include="OpaqueTraverseShaderLib.hlsl" />
-    <FxCompile Include="StateMachineLib.hlsl" />
-    <FxCompile Include="TraverseShaderLib.hlsl" />
-    <FxCompile Include="OpaqueTraverseShaderLib.hlsl" />
-    <FxCompile Include="StateMachineLib.hlsl" />
-    <FxCompile Include="TraverseShaderLib.hlsl" />
     <FxCompile Include="*Lib.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -150,6 +126,36 @@
     <FxCompile Include="*Lib.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="LoadProceduralGeometry.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="CalculateMortonCodesForPrimitives.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="CalculateSceneAABBFromPrimitives.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AccelerationStructureBuilderFactory.cpp">
@@ -188,9 +194,6 @@
     <ClCompile Include="MortonCodesCalculator.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="LoadTrianglesPass.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="pch.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -222,6 +225,9 @@
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="ConstructAABBPass.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="LoadPrimitivesPass.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
@@ -281,9 +287,6 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="NativeRayTracing.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="LoadTrianglesPass.h">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="CalculateSceneAABBBindings.h">
@@ -346,9 +349,6 @@
     <ClInclude Include="LoadInstancesBindings.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="LoadTrianglesBindings.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="pch.h">
       <Filter>Headers</Filter>
     </ClInclude>
@@ -381,6 +381,12 @@
     </ClInclude>
     <ClInclude Include="ConstructAABBBindings.h">
       <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="LoadPrimitivesPass.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="LoadPrimitivesBindings.h">
+      <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

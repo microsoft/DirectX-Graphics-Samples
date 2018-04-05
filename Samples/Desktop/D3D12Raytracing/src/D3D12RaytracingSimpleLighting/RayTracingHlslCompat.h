@@ -9,7 +9,12 @@
 //
 //*********************************************************
 
-#pragma once
+#ifndef RAYTRACINGHLSLCOMPAT_H
+#define RAYTRACINGHLSLCOMPAT_H
+
+// Workaround for NV driver not supporting null local root signatures. 
+// Use an empty local root signature where a shader does not require it.
+#define USE_NON_NULL_LOCAL_ROOT_SIG 1
 
 #ifdef HLSL
 #include "HlslCompat.h"
@@ -31,7 +36,7 @@ struct SceneConstantBuffer
 
 struct CubeConstantBuffer
 {
-    XMVECTOR diffuseColor;
+    XMFLOAT4 albedo;
 };
 
 struct Vertex
@@ -39,3 +44,5 @@ struct Vertex
     XMFLOAT3 position;
     XMFLOAT3 normal;
 };
+
+#endif // RAYTRACINGHLSLCOMPAT_H

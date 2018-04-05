@@ -89,6 +89,7 @@ namespace FallbackLayer
         virtual void *STDMETHODCALLTYPE GetShaderIdentifier(LPCWSTR pExportName);
         virtual UINT64 STDMETHODCALLTYPE GetShaderStackSize(_In_  LPCWSTR pExportName)
         {
+            UNREFERENCED_PARAMETER(pExportName);
             return 0;
         }
 
@@ -175,7 +176,6 @@ namespace FallbackLayer
             _Always_(_Outptr_opt_result_maybenull_) ID3DBlob** ppErrorBlob);
 
     private:
-        void ThrowWarning(LPCWSTR errorMessage) {};
         void ProcessSubObject(const D3D12_STATE_SUBOBJECT &subObject, RaytracingStateObject &rayTracingStateObject);
         void ProcessShaderAssociation(const D3D12_STATE_SUBOBJECT &subObject, ShaderAssociations &shaderAssociations);
 

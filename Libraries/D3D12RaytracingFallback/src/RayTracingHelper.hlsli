@@ -20,11 +20,13 @@
 #define SizeOfFloat 4
 #define SizeOfUINT16 2
 #define SizeOfUINT32 4
-#define NumberOfVerticesPerVertex 3
-#define SizeOfVertex (NumberOfVerticesPerVertex * SizeOfFloat)
+#define NumberOfFloatsPerVertex 3
+#define SizeOfVertex (NumberOfFloatsPerVertex * SizeOfFloat)
 #define NumberOfVerticesPerTriangle 3
 #define InvalidNodeIndex 9999999
 static const int IsLeafFlag = 0x80000000;
+static const int IsProceduralGeometryFlag = 0x40000000;
+static const int LeafFlags = IsLeafFlag | IsProceduralGeometryFlag;
 
 // BVH description for the traversal shader
 //struct BVHOffsets
@@ -40,8 +42,8 @@ static const int IsLeafFlag = 0x80000000;
 static const int OffsetToBoxesOffset = 0;
 
 // Bottom Level
-static const int OffsetToVerticesOffset = 4;
-static const int OffsetToTriangleMetadataOffset = 8;
+static const int OffsetToPrimitivesOffset = 4;
+static const int OffsetToPrimitiveMetaDataOffset = 8;
 
 // Top Level
 static const int OffsetToLeafNodeMetaDataOffset = 4;
@@ -51,7 +53,7 @@ static const int OffsetToTotalSize = 12;
 
 int GetLeafIndexFromFlag(uint2 flag)
 {
-    return flag.x & ~IsLeafFlag;
+    return flag.x & ~LeafFlags;
 }
 
 // Reorganized AABB for faster intersection testing
@@ -77,17 +79,22 @@ int GetOffsetToBoxes(RWByteAddressBufferPointer pointer)
 
 int GetOffsetToVertices(RWByteAddressBufferPointer pointer)
 {
-    return GetOffsetToOffset(pointer, OffsetToVerticesOffset);
+    return GetOffsetToOffset(pointer, OffsetToPrimitivesOffset);
 }
 
-int GetOffsetToTriangleMetadata(RWByteAddressBufferPointer pointer)
+int GetOffsetToPrimitiveMetaData(RWByteAddressBufferPointer pointer)
 {
-    return GetOffsetToOffset(pointer, OffsetToTriangleMetadataOffset);
+    return GetOffsetToOffset(pointer, OffsetToPrimitiveMetaDataOffset);
 }
 
 bool IsLeaf(uint2 flag)
 {
     return (flag.x & IsLeafFlag);
+}
+
+bool IsProceduralGeometry(uint2 flag)
+{
+    return (flag.x & IsProceduralGeometryFlag);
 }
 
 uint2 CreateFlag(uint leftNodeIndex, uint rightNodeIndex)
@@ -167,16 +174,16 @@ void CompressBox(BoundingBox box, uint2 flags, out uint4 data1, out uint4 data2)
     data2.w = flags.y;
 }
 
-uint GetTriangleMetadataAddress(uint startAddress, uint triangleIndex)
+uint GetPrimitiveMetaDataAddress(uint startAddress, uint triangleIndex)
 {
-    return startAddress + triangleIndex * SizeOfTriangleMetaData;
+    return startAddress + triangleIndex * SizeOfPrimitiveMetaData;
 }
 
-TriangleMetaData BVHReadTriangleMetadata(RWByteAddressBufferPointer pointer, int triangleIndex)
+PrimitiveMetaData BVHReadPrimitiveMetaData(RWByteAddressBufferPointer pointer, int primitiveIndex)
 {
-    const uint readAddress = GetTriangleMetadataAddress(GetOffsetToTriangleMetadata(pointer), triangleIndex);
+    const uint readAddress = GetPrimitiveMetaDataAddress(GetOffsetToPrimitiveMetaData(pointer), primitiveIndex);
 
-    TriangleMetaData metadata;
+    PrimitiveMetaData metadata;
     const uint2 a = pointer.buffer.Load2(readAddress);
     metadata.GeometryContributionToHitGroupIndex = a.x;
     metadata.PrimitiveIndex = a.y;
@@ -209,8 +216,8 @@ void BVHReadTriangle(
     out float3 v2,
     uint triId)
 {
-    // Each triangle is 9 floats (36 bytes)
-    const uint baseOffset = GetOffsetToVertices(pointer) + triId * 36;
+    uint baseOffset = GetOffsetToVertices(pointer) + triId * SizeOfPrimitive
+        + OffsetToPrimitiveData;
 
     const float4 a = asfloat(pointer.buffer.Load4(baseOffset));
     const float4 b = asfloat(pointer.buffer.Load4(baseOffset + 16));
@@ -336,5 +343,19 @@ AABB TransformAABB(AABB box, AffineMatrix transform)
         transformedBox.max = max(transformedBox.max, tranformedVertex);
     }
     return transformedBox;
+}
+
+static const uint OffsetToAnyHitStateId = 4;
+static const uint OffsetToIntersectionStateId = 8;
+uint GetAnyHitStateId(ByteAddressBuffer shaderTable, uint recordOffset)
+{
+    return shaderTable.Load(recordOffset + OffsetToAnyHitStateId);
+}
+
+void GetAnyHitAndIntersectionStateId(ByteAddressBuffer shaderTable, uint recordOffset, out uint AnyHitStateId, out uint IntersectionStateId)
+{
+    uint2 stateIds = shaderTable.Load2(recordOffset + OffsetToAnyHitStateId);
+    AnyHitStateId = stateIds.x;
+    IntersectionStateId = stateIds.y;
 }
 #endif // RAYTACING_HELPER_H_INCLUDED

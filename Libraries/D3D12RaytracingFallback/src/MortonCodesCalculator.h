@@ -29,7 +29,7 @@ namespace FallbackLayer
         };
 
         CComPtr<ID3D12RootSignature> m_pRootSignature;
-        CComPtr<ID3D12PipelineState> m_pCalcuateMortonCodesForTrianglesPSO;
+        CComPtr<ID3D12PipelineState> m_pCalcuateMortonCodesForPrimitivesPSO;
         CComPtr<ID3D12PipelineState> m_pCalcuateMortonCodesForAABBsPSO;
     };
 }

@@ -12,11 +12,6 @@
 #include "ConstructAABBBindings.h"
 #include "RayTracingHelper.hlsli"
 
-uint GetVertexAddress(int startAddress, uint triangleIndex, uint vertexIndex)
-{
-    return startAddress + triangleIndex * SizeOfTriangle + SizeOfVertex * vertexIndex;
-}
-
 [numthreads(THREAD_GROUP_1D_WIDTH, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
@@ -44,15 +39,15 @@ void main(uint3 DTid : SV_DispatchThreadID)
     }
 
     uint offsetToBoxes = SizeOfBVHOffsets;
-    uint offsetToTriangles = GetOffsetToTriangles(Constants.NumberOfElements);
-    uint offsetToTriangleMetadata = offsetToTriangles + GetOffsetFromTrianglesToTriangleMetadata(Constants.NumberOfElements);
-    uint totalSize = offsetToTriangleMetadata + Constants.NumberOfElements * SizeOfTriangleMetaData;
+    uint offsetToPrimitives = GetOffsetToPrimitives(Constants.NumberOfElements);
+    uint offsetToPrimitiveMetaData = offsetToPrimitives + GetOffsetFromPrimitivesToPrimitiveMetaData(Constants.NumberOfElements);
+    uint totalSize = offsetToPrimitiveMetaData + Constants.NumberOfElements * SizeOfPrimitiveMetaData;
 
     if (DTid.x == 0)
     {
         outputBVH.Store(OffsetToBoxesOffset, offsetToBoxes);
-        outputBVH.Store(OffsetToVerticesOffset, offsetToTriangles);
-        outputBVH.Store(OffsetToTriangleMetadataOffset, offsetToTriangleMetadata);
+        outputBVH.Store(OffsetToPrimitivesOffset, offsetToPrimitives);
+        outputBVH.Store(OffsetToPrimitiveMetaDataOffset, offsetToPrimitiveMetaData);
         outputBVH.Store(OffsetToTotalSize, totalSize);
     }
 }

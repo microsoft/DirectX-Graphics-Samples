@@ -61,6 +61,8 @@ public:
         return  &(const D3D12_STATE_OBJECT_DESC&)(*this);
     }
 
+    UINT NumSubbojects() { return m_Desc.NumSubobjects; }
+
     // CreateSubobject creates a sububject helper (e.g. CD3D12_HIT_GROUP_SUBOBJECT) whose lifetime is owned by this class.
     // e.g. 
     // 
@@ -207,6 +209,21 @@ public:
         m_Desc.pExports = m_Exports.data();
         m_Desc.NumExports = (UINT)m_Exports.size();
     }
+    template<size_t N>
+    void DefineExports(LPCWSTR(&Exports)[N])
+    {
+        for (UINT i = 0; i < N; i++)
+        {
+            DefineExport(Exports[i]);
+        }
+    }
+    void DefineExports(LPCWSTR* Exports, UINT N)
+    {
+        for (UINT i = 0; i < N; i++)
+        {
+            DefineExport(Exports[i]);
+        }
+    }
     D3D12_STATE_SUBOBJECT_TYPE Type() { return D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY; }
     operator const D3D12_STATE_SUBOBJECT&() const { return *m_pSubobject; }
     operator const D3D12_DXIL_LIBRARY_DESC&() const { return m_Desc; }
@@ -284,6 +301,21 @@ public:
         m_Desc.NumExports++;
         m_Exports.push_back(m_Strings.LocalCopy(Export));
         m_Desc.pExports = m_Exports.data();
+    }
+    template<size_t N>
+    void AddExports(LPCWSTR (&Exports)[N])
+    {
+        for (UINT i = 0; i < N; i++)
+        {
+            AddExport(Exports[i]);
+        }
+    }
+    void AddExports(LPCWSTR* Exports, UINT N)
+    {
+        for (UINT i = 0; i < N; i++)
+        {
+            AddExport(Exports[i]);
+        }
     }
     D3D12_STATE_SUBOBJECT_TYPE Type() { return D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION; }
     operator const D3D12_STATE_SUBOBJECT&() const { return *m_pSubobject; }

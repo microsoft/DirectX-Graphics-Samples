@@ -11,7 +11,7 @@
 #include "pch.h"
 #include "CalculateSceneAABBBindings.h"
 #include "CompiledShaders/CalculateSceneAABBFromAABBs.h"
-#include "CompiledShaders/CalculateSceneAABBFromTriangles.h"
+#include "CompiledShaders/CalculateSceneAABBFromPrimitives.h"
 #include "CompiledShaders/CalculateSceneAABBFromBVHs.h"
 
 namespace FallbackLayer
@@ -28,7 +28,7 @@ namespace FallbackLayer
         CreateRootSignatureHelper(pDevice, rootSignatureDesc, &m_pRootSignature);
 
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateSceneAABBFromAABBs), &m_pCalculateSceneAABBFromAABBs);
-        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateSceneAABBFromTriangles), &m_pCalculateSceneAABBFromTriangles);
+        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateSceneAABBFromPrimitives), &m_pCalculateSceneAABBFromPrimitives);
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateSceneAABBFromBVHs), &m_pCalculateSceneAABBFromBVHs);
     }
 
@@ -41,7 +41,7 @@ namespace FallbackLayer
         switch (sceneType)
         {
         case SceneType::Triangles:
-            pCommandList->SetPipelineState(m_pCalculateSceneAABBFromTriangles);
+            pCommandList->SetPipelineState(m_pCalculateSceneAABBFromPrimitives);
             break;
         case SceneType::BottomLevelBVHs:
             pCommandList->SetPipelineState(m_pCalculateSceneAABBFromBVHs);

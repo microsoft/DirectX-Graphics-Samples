@@ -123,7 +123,7 @@ namespace FallbackLayer
         for (uint32_t i = 0; i < pContainerHeader->PartCount; ++i)
         {
             const DxilPartHeader* pDxilPartHeader = reinterpret_cast<const DxilPartHeader*>(pSourceBytes + pPartOffsets[i]);
-            if (pDxilPartHeader->PartFourCC == targetFourCC)
+            if (pDxilPartHeader->PartFourCC == (UINT)targetFourCC)
             {
                 // Create a dxc blob from the source data.
                 CComPtr<IDxcBlobEncoding> pSource;
@@ -168,8 +168,8 @@ namespace FallbackLayer
 
     void DxilShaderPatcher::LinkShaders(UINT stackSize, const std::vector<DxilLibraryInfo> &dxilLibraries, const std::vector<LPCWSTR>& exportNames, std::vector<FallbackLayer::StateIdentifier>& shaderIdentifiers, IDxcBlob** ppOutputBlob)
     {
-        CComPtr<IDxcDxrtFallbackCompiler> pFallbackCompiler;
-        ThrowFailure(dxcSupport.CreateInstance(CLSID_DxcDxrtFallbackCompiler, &pFallbackCompiler), 
+        CComPtr<IDxcDxrFallbackCompiler> pFallbackCompiler;
+        ThrowFailure(dxcSupport.CreateInstance(CLSID_DxcDxrFallbackCompiler, &pFallbackCompiler), 
             L"Failed to create an instance of the Fallback Compiler. This suggest a version of DxCompiler.dll "
             L"is being used that doesn't match up with the Fallback layer. Verify that the DxCompiler.dll is from "
             L"same package as the Fallback.");

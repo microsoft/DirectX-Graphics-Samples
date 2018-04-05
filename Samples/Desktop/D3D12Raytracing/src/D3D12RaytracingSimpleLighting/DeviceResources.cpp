@@ -33,7 +33,7 @@ namespace
 };
 
 // Constructor for DeviceResources.
-DeviceResources::DeviceResources(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthBufferFormat, UINT backBufferCount, D3D_FEATURE_LEVEL minFeatureLevel, unsigned int flags) :
+DeviceResources::DeviceResources(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthBufferFormat, UINT backBufferCount, D3D_FEATURE_LEVEL minFeatureLevel, UINT flags, UINT adapterIDoverride) :
     m_backBufferIndex(0),
     m_fenceValues{},
     m_rtvDescriptorSize(0),
@@ -48,7 +48,9 @@ DeviceResources::DeviceResources(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depth
     m_outputSize{ 0, 0, 1, 1 },
     m_options(flags),
     m_deviceNotify(nullptr),
-    m_isWindowVisible(true)
+    m_isWindowVisible(true),
+    m_adapterIDoverride(adapterIDoverride),
+    m_adapterID(UINT_MAX)
 {
     if (backBufferCount > MAX_BACK_BUFFER_COUNT)
     {
@@ -59,6 +61,10 @@ DeviceResources::DeviceResources(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depth
     {
         throw out_of_range("minFeatureLevel too low");
     }
+    if (m_options & c_RequireTearingSupport)
+    {
+        m_options |= c_AllowTearing;
+    }
 }
 
 // Destructor for DeviceResources.
@@ -68,8 +74,8 @@ DeviceResources::~DeviceResources()
     WaitForGpu();
 }
 
-// Configures the Direct3D device, and stores handles to it and the device context.
-void DeviceResources::CreateDeviceResources()
+// Configures DXGI Factory and retrieve an adapter.
+void DeviceResources::InitializeDXGIAdapter()
 {
     bool debugDXGI = false;
 
@@ -106,7 +112,7 @@ void DeviceResources::CreateDeviceResources()
     }
 
     // Determines whether tearing support is available for fullscreen borderless windows.
-    if (m_options & c_AllowTearing)
+    if (m_options & (c_AllowTearing | c_RequireTearingSupport))
     {
         BOOL allowTearing = FALSE;
 
@@ -119,16 +125,23 @@ void DeviceResources::CreateDeviceResources()
 
         if (FAILED(hr) || !allowTearing)
         {
-            m_options &= ~c_AllowTearing;
             OutputDebugStringA("WARNING: Variable refresh rate displays are not supported.\n");
+            if (m_options & c_RequireTearingSupport)
+            {
+                ThrowIfFailed(false, L"Error: Sample must be run on an OS with tearing support.\n");
+            }
+            m_options &= ~c_AllowTearing;
         }
     }
 
-    ComPtr<IDXGIAdapter1> adapter;
-    GetAdapter(&adapter);
+    InitializeAdapter(&m_adapter);
+}
 
+// Configures the Direct3D device, and stores handles to it and the device context.
+void DeviceResources::CreateDeviceResources()
+{
     // Create the DX12 API device object.
-    ThrowIfFailed(D3D12CreateDevice(adapter.Get(), m_d3dMinFeatureLevel, IID_PPV_ARGS(&m_d3dDevice)));
+    ThrowIfFailed(D3D12CreateDevice(m_adapter.Get(), m_d3dMinFeatureLevel, IID_PPV_ARGS(&m_d3dDevice)));
 
 #ifndef NDEBUG
     // Configure debug device (if active).
@@ -453,6 +466,7 @@ void DeviceResources::HandleDeviceLost()
     m_swapChain.Reset();
     m_d3dDevice.Reset();
     m_dxgiFactory.Reset();
+    m_adapter.Reset();
 
 #ifdef _DEBUG
     {
@@ -463,7 +477,7 @@ void DeviceResources::HandleDeviceLost()
         }
     }
 #endif
-
+    InitializeDXGIAdapter();
     CreateDeviceResources();
     CreateWindowSizeDependentResources();
 
@@ -585,13 +599,18 @@ void DeviceResources::MoveToNextFrame()
 
 // This method acquires the first available hardware adapter that supports Direct3D 12.
 // If no such adapter can be found, try WARP. Otherwise throw an exception.
-void DeviceResources::GetAdapter(IDXGIAdapter1** ppAdapter)
+void DeviceResources::InitializeAdapter(IDXGIAdapter1** ppAdapter)
 {
     *ppAdapter = nullptr;
 
     ComPtr<IDXGIAdapter1> adapter;
-    for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != m_dxgiFactory->EnumAdapters1(adapterIndex, &adapter); ++adapterIndex)
+    for (UINT adapterID = 0; DXGI_ERROR_NOT_FOUND != m_dxgiFactory->EnumAdapters1(adapterID, &adapter); ++adapterID)
     {
+        if (m_adapterIDoverride != UINT_MAX && adapterID != m_adapterIDoverride)
+        {
+            continue;
+        }
+
         DXGI_ADAPTER_DESC1 desc;
         ThrowIfFailed(adapter->GetDesc1(&desc));
 
@@ -604,9 +623,11 @@ void DeviceResources::GetAdapter(IDXGIAdapter1** ppAdapter)
         // Check to see if the adapter supports Direct3D 12, but don't create the actual device yet.
         if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), m_d3dMinFeatureLevel, _uuidof(ID3D12Device), nullptr)))
         {
+            m_adapterID = adapterID;
+            m_adapterDescription = desc.Description;
 #ifdef _DEBUG
             wchar_t buff[256] = {};
-            swprintf_s(buff, L"Direct3D Adapter (%u): VID:%04X, PID:%04X - %ls\n", adapterIndex, desc.VendorId, desc.DeviceId, desc.Description);
+            swprintf_s(buff, L"Direct3D Adapter (%u): VID:%04X, PID:%04X - %ls\n", adapterID, desc.VendorId, desc.DeviceId, desc.Description);
             OutputDebugStringW(buff);
 #endif
             break;
@@ -614,7 +635,7 @@ void DeviceResources::GetAdapter(IDXGIAdapter1** ppAdapter)
     }
 
 #if !defined(NDEBUG)
-    if (!adapter)
+    if (!adapter && m_adapterIDoverride == UINT_MAX)
     {
         // Try WARP12 instead
         if (FAILED(m_dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter))))
@@ -628,8 +649,15 @@ void DeviceResources::GetAdapter(IDXGIAdapter1** ppAdapter)
 
     if (!adapter)
     {
-        throw exception("No Direct3D 12 device found");
+        if (m_adapterIDoverride != UINT_MAX)
+        {
+            throw exception("Unavailable adapter requested.");
+        }
+        else
+        {
+            throw exception("Unavailable adapter.");
+        }
     }
-
+    
     *ppAdapter = adapter.Detach();
 }

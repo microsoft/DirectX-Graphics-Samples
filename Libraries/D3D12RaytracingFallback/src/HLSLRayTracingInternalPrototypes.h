@@ -21,9 +21,6 @@
 #define Declare_Fallback_SetPendingAttr(attr_t) \
     void Fallback_SetPendingAttr(attr_t);
 
-uint Fallback_GroupIndex();
-uint Fallback_GeometryIndex();
-
 void Fallback_SetWorldRayOrigin(float3 val);
 void Fallback_SetWorldRayDirection(float3 val);
 void Fallback_SetRayTMin(float val);
@@ -37,13 +34,18 @@ void Fallback_SetObjectRayDirection(float3 val);
 void Fallback_SetObjectToWorld(row_major float3x4 val);
 void Fallback_SetWorldToObject(row_major float3x4 val);
 void Fallback_SetHitKind(uint val);
+void Fallback_SetShaderRecordOffset(uint offset);
 void Fallback_SetPendingRayTCurrent(float t);
 void Fallback_SetPendingHitKind(uint hitKind);
-void Fallback_SetPendingTriVals(float t, uint primitiveIndex, uint geometryIndex, uint instanceIndex, uint instanceID, uint hitKind);
-void Fallback_SetPendingCustomVals(uint primitiveIndex, uint geometryIndex, uint instanceIndex, uint instanceID);
+void Fallback_SetPendingTriVals(uint shaderRecordOffset, uint primitiveIndex, uint instanceIndex, uint instanceID, float t, uint hitKind);
+void Fallback_SetPendingCustomVals(uint shaderRecordOffset, uint primitiveIndex, uint instanceIndex, uint instanceID);
 uint Fallback_SetPayloadOffset(uint payloadOffset);
 
-void Fallback_TraceRayBegin(float3 origin, float tmin, float3 dir, float tmax);
+// Returns the old payload offset to be restored by Fallback_TraceRayEnd().
+uint Fallback_TraceRayBegin(uint rayFlags, float3 origin, float tmin, float3 dir, float tmax, uint newPayloadOffset);
+void Fallback_TraceRayEnd(int oldPayloadOffset);
+uint Fallback_GroupIndex();
+uint Fallback_ShaderRecordOffset();
 int  Fallback_AnyHitResult();
 void Fallback_SetAnyHitResult(int result);
 int  Fallback_AnyHitStateId();
@@ -52,9 +54,11 @@ void Fallback_CommitHit();
 void Fallback_CallIndirect(int stateId);
 void Fallback_Scheduler(int initialStateId, uint dimx, uint dimy);
 
-#define SHADER_internal [experimental("shader", "internal")]
+// These are need in traversal. Don't call the intrinsics because they are
+// marked as "readnone".
+uint Fallback_InstanceIndex();
+float Fallback_RayTCurrent();
 
-SHADER_internal
-void Fallback_TraceRay(RayDesc rd);
+#define SHADER_internal [experimental("shader", "internal")]
 
 #endif // HLSL_RAYTRACING_INTERNAL_PROTOTYPES

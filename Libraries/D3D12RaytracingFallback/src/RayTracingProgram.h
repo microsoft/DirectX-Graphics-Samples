@@ -24,6 +24,7 @@ namespace FallbackLayer
     {
         StateIdentifier StateId;
         StateIdentifier AnyHitId;
+        StateIdentifier IntersectionShaderId;
     };
 
     class IRaytracingProgram
