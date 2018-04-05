@@ -108,7 +108,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 0.0f, 2.0f, -5.0f, 1.0f };
+        m_eye = { 0.0f, 3.0f, -7.5f, 1.0f };
         m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
@@ -130,7 +130,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
 
-        lightPosition = XMFLOAT4(0.0f, 1.8f, -3.0, 0.0f);
+        lightPosition = XMFLOAT4(0.0f, 18.0f, -30.0f, 0.0f);
         m_sceneCB[frameIndex].lightPosition = XMLoadFloat4(&lightPosition);
 
         lightAmbientColor = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
@@ -419,7 +419,10 @@ void D3D12RaytracingProceduralGeometry::BuildGeometry()
     auto device = m_deviceResources->GetD3DDevice();
 #if USE_AABB_GEOMETRY
 
-    D3D12_RAYTRACING_AABB aabb = { -2,-2,-2,2,2,2 };
+    D3D12_RAYTRACING_AABB aabb[1] = 
+    { 
+        {-2,-2,-2,2,2,2 }
+    };
     AllocateUploadBuffer(device, &aabb, sizeof(aabb), &m_aabbBuffer.resource);
     CreateBufferSRV(&m_aabbBuffer, 1, sizeof(aabb));
 #else
@@ -530,6 +533,7 @@ void D3D12RaytracingProceduralGeometry::BuildAccelerationStructures()
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo = {};
     prebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
     prebuildInfoDesc.pGeometryDescs = nullptr;
+    prebuildInfoDesc.NumDescs = 2;
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
         m_fallbackDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &topLevelPrebuildInfo);
@@ -543,6 +547,7 @@ void D3D12RaytracingProceduralGeometry::BuildAccelerationStructures()
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelPrebuildInfo = {};
     prebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
     prebuildInfoDesc.pGeometryDescs = &geometryDesc;
+    prebuildInfoDesc.NumDescs = 1;
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
         m_fallbackDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &bottomLevelPrebuildInfo);
@@ -593,22 +598,34 @@ void D3D12RaytracingProceduralGeometry::BuildAccelerationStructures()
     ComPtr<ID3D12Resource> instanceDescs;
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
-        D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC instanceDesc = {};
-        instanceDesc.Transform[0] = instanceDesc.Transform[5] = instanceDesc.Transform[10] = 1;
-        instanceDesc.InstanceMask = 1;
+        D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC instanceDesc[2] = {};
+        instanceDesc[0].Transform[0] = instanceDesc[0].Transform[5] = instanceDesc[0].Transform[10] = 1;
+        instanceDesc[0].Transform[3] = 2.0f;
+
+        instanceDesc[1].Transform[0] = instanceDesc[1].Transform[5] = instanceDesc[1].Transform[10] = 1;
+        instanceDesc[1].Transform[3] = -2.0f;
+        instanceDesc[0].InstanceMask = 1;
+        instanceDesc[0].InstanceMask = 1;
+        instanceDesc[1].InstanceMask = 1;
         UINT numBufferElements = static_cast<UINT>(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
-        instanceDesc.AccelerationStructure = CreateFallbackWrappedPointer(m_bottomLevelAccelerationStructure.Get(), numBufferElements);
-        AllocateUploadBuffer(device, &instanceDesc, sizeof(instanceDesc), &instanceDescs, L"InstanceDescs");
+        instanceDesc[0].AccelerationStructure = CreateFallbackWrappedPointer(m_bottomLevelAccelerationStructure.Get(), numBufferElements);
+        instanceDesc[1].AccelerationStructure = instanceDesc[0].AccelerationStructure;
+        AllocateUploadBuffer(device, instanceDesc, sizeof(instanceDesc), &instanceDescs, L"InstanceDescs");
     }
     else // DirectX Raytracing
     {
-        D3D12_RAYTRACING_INSTANCE_DESC instanceDesc = {};
-        instanceDesc.Transform[0] = instanceDesc.Transform[5] = instanceDesc.Transform[10] = 1;
-        instanceDesc.InstanceMask = 1;
-        instanceDesc.AccelerationStructure = m_bottomLevelAccelerationStructure->GetGPUVirtualAddress();
+        D3D12_RAYTRACING_INSTANCE_DESC instanceDesc[2] = {};
+        instanceDesc[0].Transform[0] = instanceDesc[0].Transform[5] = instanceDesc[0].Transform[10] = 1;
+        instanceDesc[0].Transform[3] = 2.0f;
+
+        instanceDesc[1].Transform[0] = instanceDesc[1].Transform[5] = instanceDesc[1].Transform[10] = 1;
+        instanceDesc[1].Transform[3] = -2.0f;
+        instanceDesc[0].InstanceMask = 1;
+        instanceDesc[1].InstanceMask = 1;
+        instanceDesc[0].AccelerationStructure = m_bottomLevelAccelerationStructure->GetGPUVirtualAddress();
+        instanceDesc[1].AccelerationStructure = instanceDesc[0].AccelerationStructure;
         AllocateUploadBuffer(device, &instanceDesc, sizeof(instanceDesc), &instanceDescs, L"InstanceDescs");
     }
-
     // Create a wrapped pointer to the acceleration structure.
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
@@ -633,7 +650,7 @@ void D3D12RaytracingProceduralGeometry::BuildAccelerationStructures()
     {
         topLevelBuildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
         topLevelBuildDesc.DestAccelerationStructureData = { m_topLevelAccelerationStructure->GetGPUVirtualAddress(), topLevelPrebuildInfo.ResultDataMaxSizeInBytes };
-        topLevelBuildDesc.NumDescs = 1;
+        topLevelBuildDesc.NumDescs = 2;
         topLevelBuildDesc.pGeometryDescs = nullptr;
         topLevelBuildDesc.InstanceDescs = instanceDescs->GetGPUVirtualAddress();
         topLevelBuildDesc.ScratchAccelerationStructureData = { scratchResource->GetGPUVirtualAddress(), scratchResource->GetDesc().Width };

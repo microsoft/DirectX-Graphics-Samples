@@ -52,7 +52,18 @@ uint3 Load3x16BitIndices(uint offsetBytes)
     return indices;
 }
 
-typedef BuiltInTriangleIntersectionAttributes MyAttributes;
+struct MyAttributes
+{
+    float2 barycentrics;
+    float4 normal;
+};
+
+
+struct ProceduralPrimitiveAttributes
+{
+    float3 normal;
+};
+
 struct HitData
 {
     float4 color;
@@ -65,7 +76,7 @@ float3 HitWorldPosition()
 }
 
 // Retrieve attribute at a hit position interpolated from vertex attributes using the hit's barycentrics.
-float3 HitAttribute(float3 vertexAttribute[3], BuiltInTriangleIntersectionAttributes attr)
+float3 HitAttribute(float3 vertexAttribute[3], MyAttributes attr)
 {
     return vertexAttribute[0] +
         attr.barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
@@ -132,141 +143,127 @@ void swap(inout float a, inout float b)
     b = temp;
 }
 
-struct Ray
+bool solveQuadratic(float a, float b, float c, out float x0, out float x1)
 {
-    float3 origin, direction;       // ray origin and direction 
-    float3 inv_direction;
-    int sign[3];
-};
+    float discr = b * b - 4 * a * c;
+    if (discr < 0) return false;
+    else if (discr == 0) x0 = x1 = -0.5 * b / a;
+    else {
+        float q = (b > 0) ?
+            -0.5 * (b + sqrt(discr)) :
+            -0.5 * (b - sqrt(discr));
+        x0 = q / a;
+        x1 = c / q;
+    }
+    if (x0 > x1) swap(x0, x1);
 
-Ray make_ray(float3 origin, float3 direction)
-{
-    Ray ray;
-    ray.origin = origin;
-    ray.direction = direction;
-    ray.inv_direction = 1 / direction;
-    ray.sign[0] = (ray.inv_direction.x < 0);
-    ray.sign[1] = (ray.inv_direction.y < 0);
-    ray.sign[2] = (ray.inv_direction.z < 0);
-    return ray;
+    return true;
 }
-#if 0
+
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
+bool intersectSphere(float3 origin, float3 direction, out float thit, inout ProceduralPrimitiveAttributes attr)
+{
+    float t0, t1; // solutions for t if the ray intersects 
+    float3 center = float3(0, 0, 0);
+    float radius = 1;
+    float radius2 = pow(radius, 2);
+    
+    // analytic solution
+    float3 L = origin - center;
+    float a = dot(direction, direction);
+    float b = 2 * dot(direction, L);
+    float c = dot(L, L) - radius2;
+    if (!solveQuadratic(a, b, c, t0, t1)) return false;
+
+    if (t0 > t1) swap(t0, t1);
+
+    if (t0 < 0) 
+    {
+        t0 = t1; // if t0 is negative, let's use t1 instead 
+        if (t0 < 0) return false; // both t0 and t1 are negative 
+    }
+
+    thit = t0;
+
+    float3 hitPosition = origin + thit * direction;
+    attr.normal = mul(ObjectToWorld(), normalize(hitPosition - center));
+
+    //attr.barycentrics = float2(0.5, 0.9);
+    return true;
+}
+
 // https://github.com/hpicgs/cgsee/wiki/Ray-Box-Intersection-on-the-GPU
-bool intersectBox(Ray ray, out float thit, float rayTMin, float rayTMax)
-{
-    float3 aabb[2] = {
-        float3(-1,-1,-1),
-        float3(1,1,1)
-    };
-    float tmin, tmax, tymin, tymax, tzmin, tzmax;
-
-    tmin = (aabb[ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
-    tmax = (aabb[1 - ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
-    tymin = (aabb[ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
-    tymax = (aabb[1 - ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
-    tzmin = (aabb[ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
-    tzmax = (aabb[1 - ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
-    tmin = max(max(tmin, tymin), tzmin);
-    tmax = min(min(tmax, tymax), tzmax);
-
-    thit = tmin;
-    return tmin < tmax;
-}
-#else
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
-bool intersectBox(Ray ray, out float thit, float rayTMin, float rayTMax)
+bool intersectBox(float3 origin, float3 direction, out float thit, inout ProceduralPrimitiveAttributes attr)
 {
     float3 bounds[2] = {
         float3(-1,-1,-1),
         float3(1,1,1)
     };
     float tmin, tmax, tymin, tymax, tzmin, tzmax;
-#if 0
-    tmin = (bounds[ray.sign[0]].x - ray.origin.x) / ray.direction.x;
-    tmax = (bounds[1 - ray.sign[0]].x - ray.origin.x) / ray.direction.x;
-    if (ray.direction.x < 0) swap(tmin, tmax);
-    tymin = (bounds[ray.sign[1]].y - ray.origin.y) / ray.direction.y;
-    tymax = (bounds[1 - ray.sign[1]].y - ray.origin.y) / ray.direction.y;
-    if (ray.direction.y < 0) swap(tymin, tymax);
-    tzmin = (bounds[ray.sign[1]].z - ray.origin.z) / ray.direction.z;
-    tzmax = (bounds[1 - ray.sign[1]].z - ray.origin.z) / ray.direction.z;
-    if (ray.direction.z < 0) swap(tzmin, tzmax);
-#elif 1
-#if 0
-    const int sign = ray.direction.x < 0 ? 1 : 0;
-    tmin = (bounds[1 - sign].x - ray.origin.x) / ray.direction.x;
-    tmax = (bounds[sign].x - ray.origin.x) / ray.direction.x;
-    if (ray.direction.x < 0) swap(tmin, tmax);
-#else
-    tmin = (bounds[0].x - ray.origin.x) / ray.direction.x;
-    tmax = (bounds[1].x - ray.origin.x) / ray.direction.x;
-    if (ray.direction.x < 0) swap(tmin, tmax);
-#endif
-    tymin = (bounds[0].y - ray.origin.y) / ray.direction.y;
-    tymax = (bounds[1].y - ray.origin.y) / ray.direction.y;
-    if (ray.direction.y < 0) swap(tymin, tymax);
-    tzmin = (bounds[0].z - ray.origin.z) / ray.direction.z;
-    tzmax = (bounds[1].z - ray.origin.z) / ray.direction.z;
-    if (ray.direction.z < 0) swap(tzmin, tzmax);
-#elif 1
-    if (ray.direction.x < 0)
-    {
-        tmin = (bounds[ray.sign[0]].x - ray.origin.x) / ray.direction.x;
-        tmax = (bounds[1 - ray.sign[0]].x - ray.origin.x) / ray.direction.x;
-    }
-    else
-    {
-        tmax = (bounds[ray.sign[0]].x - ray.origin.x) / ray.direction.x;
-        tmin = (bounds[1 - ray.sign[0]].x - ray.origin.x) / ray.direction.x;
-    }
-    if (ray.direction.y < 0)
-    {
-        tymin = (bounds[ray.sign[1]].y - ray.origin.y) / ray.direction.y;
-        tymax = (bounds[1 - ray.sign[1]].y - ray.origin.y) / ray.direction.y;
-    }
-    else
-    {
-        tymax = (bounds[ray.sign[1]].y - ray.origin.y) / ray.direction.y;
-        tymin = (bounds[1 - ray.sign[1]].y - ray.origin.y) / ray.direction.y;
-    }
-    if (ray.direction.z < 0)
-    {
-        tzmin = (bounds[ray.sign[2]].z - ray.origin.z) / ray.direction.z;
-        tzmax = (bounds[1 - ray.sign[2]].z - ray.origin.z) / ray.direction.z;
-    }
-    else
-    {
-        tzmax = (bounds[ray.sign[2]].z - ray.origin.z) / ray.direction.z;
-        tzmin = (bounds[1 - ray.sign[2]].z - ray.origin.z) / ray.direction.z;
-    }
-#endif
-
+    tmin = (bounds[0].x - origin.x) / direction.x;
+    tmax = (bounds[1].x - origin.x) / direction.x;
+    if (direction.x < 0) swap(tmin, tmax);
+    tymin = (bounds[0].y - origin.y) / direction.y;
+    tymax = (bounds[1].y - origin.y) / direction.y;
+    if (direction.y < 0) swap(tymin, tymax);
+    tzmin = (bounds[0].z - origin.z) / direction.z;
+    tzmax = (bounds[1].z - origin.z) / direction.z;
+    if (direction.z < 0) swap(tzmin, tzmax);
     tmin = max(max(tmin, tymin), tzmin);
     tmax = min(min(tmax, tymax), tzmax);
-
     thit = tmin;
+    
+    // Calculate cube face normal
+    float3 center = float3(0, 0, 0);
+    float3 hitPosition = origin + thit * direction;
+    float3 sphereNormal = normalize(hitPosition - center);
+    // take the largest dimension and normalize it
+    if (abs(sphereNormal.x) > abs(sphereNormal.y))
+    {
+        if (abs(sphereNormal.x) > abs(sphereNormal.z))
+        {
+            attr.normal = float3(sphereNormal.x, 0, 0);
+        }
+        else
+        {
+            attr.normal = float3(0, 0, sphereNormal.z);
+        }
+    }
+    else
+    {
+        if (abs(sphereNormal.y) > abs(sphereNormal.z))
+        {
+            attr.normal = float3(0, sphereNormal.y, 0);
+        }
+        else
+        {
+            attr.normal = float3(0, 0, sphereNormal.z);
+        }
+    }
+    attr.normal = mul(ObjectToWorld(),normalize(attr.normal));
+    
     return tmax > tmin;
 }
-#endif
 
 bool IntersectCustomPrimitiveFrontToBack(
     float3 origin, float3 direction,
     float rayTMin, float rayTMax, inout float curT,
-    out MyAttributes attr)
+    out ProceduralPrimitiveAttributes attr)
 {
-    attr.barycentrics = float2(1.0, 0);
-
-    Ray ray = make_ray(origin, direction);
-    return intersectBox(ray, curT, rayTMin, rayTMax);
+    if (InstanceIndex() == 0)
+        return intersectBox(origin, direction, curT, attr);
+    else
+        return intersectSphere(origin, direction, curT, attr);
 }
 
 [shader("intersection")]
 void MyIntersectionShader()
 {
     float THit = RayTCurrent();
-    MyAttributes attr;
+    ProceduralPrimitiveAttributes attr;
     if (IntersectCustomPrimitiveFrontToBack(
-        WorldRayOrigin(), WorldRayDirection(),
+        ObjectRayOrigin(), ObjectRayDirection(),
         RayTMin(), RayTCurrent(), THit, attr))
     {
         ReportHit(THit, /*hitKind*/ 0, attr);
@@ -274,35 +271,10 @@ void MyIntersectionShader()
 }
 
 [shader("closesthit")]
-void MyClosestHitShader(inout HitData payload : SV_RayPayload, in MyAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader(inout HitData payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
 {
-    float array[2] = { 1.0, 0.0 };
-    float tmin;
-    float3 direction = float3(1, 1, 1);// WorldRayDirection();
-#if 0
-    tmin = array[0];
-#else  // CreateStateObject fails
-    tmin = array[direction.x > 0 ? 1 : 0];
-#endif 
-    
-    payload.color = float4(tmin, 0, 0, 1);
-
-#if 1
-#elif 1
-
-#if 0   // CreateStateObject fails
-    int sign = direction.x < 0 ? 1 : 0;
-    tmin = (bounds[sign].x - origin.x) / direction.x;
-    tmax = (bounds[1 - sign].x - origin.x) / direction.x;
-#else
-    tmin = (bounds[0].x - origin.x) / direction.x;
-    tmax = (bounds[1].x - origin.x) / direction.x;
-    if (direction.x < 0) swap(tmin, tmax);
-#endif
-    payload.color = float4(tmin, tmax, 0, 1);
-#else
     float3 hitPosition = HitWorldPosition();
-
+#if 0
     // Get the base index of the triangle's first 16 bit index.
     uint indexSizeInBytes = 2;
     uint indicesPerTriangle = 3;
@@ -323,12 +295,15 @@ void MyClosestHitShader(inout HitData payload : SV_RayPayload, in MyAttributes a
     // This is redundant and done for illustration purposes 
     // as all the per-vertex normals are the same and match triangle's normal in this sample. 
     float3 triangleNormal = HitAttribute(vertexNormals, attr);
-
+#else
+    float3 triangleNormal = attr.normal;
+#endif
     float4 diffuseColor = CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
+    //payload.color = float4(0, attr.barycentrics, 1);
+    payload.color = float4(attr.normal, 1);
     payload.color = color;
-#endif
 }
 
 [shader("miss")]
