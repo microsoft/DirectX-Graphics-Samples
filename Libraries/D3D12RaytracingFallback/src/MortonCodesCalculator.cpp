@@ -34,6 +34,8 @@ namespace FallbackLayer
 
     void MortonCodesCalculator::CalculateMortonCodes(ID3D12GraphicsCommandList *pCommandList, SceneType sceneType, D3D12_GPU_VIRTUAL_ADDRESS elementsBuffer, UINT numElements, D3D12_GPU_VIRTUAL_ADDRESS sceneAABB, D3D12_GPU_VIRTUAL_ADDRESS outputIndices, D3D12_GPU_VIRTUAL_ADDRESS outputMortonCodes)
     {
+        if (numElements == 0) return;
+
         pCommandList->SetComputeRootSignature(m_pRootSignature);
         switch (sceneType)
         {

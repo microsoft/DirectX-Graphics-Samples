@@ -233,16 +233,6 @@ namespace FallbackLayer
 
         std::vector<LPCWSTR> arguments;
         arguments.push_back(dxilPatchShaderRecordString);
-        if (!pShaderInfo->IsLib)
-        {
-            // Because a fully resolved shader has meta-data already generated, a whole bunch of passes need
-            // to be run to keep all the meta-data up-to-date
-            arguments.push_back(L"-dxil-dfe"); // Dead function elimination to remove functions like buffer loads that may no longer be needed due to binding re-mapping
-            arguments.push_back(L"-dce"); // Dead code eliminition to remove old bindings that were remapped to the shader binding table
-            arguments.push_back(L"-hlsl-dxil-condense"); // Because old bindings get replaced with new bindings, it leaves gaps that need to be condensed
-            arguments.push_back(L"-hlsl-dxil-update-metadata");
-        }
-
         HRESULT hr = m_pOptimizer->RunOptimizer(pShaderBlob, arguments.data(), (UINT32)arguments.size(), &pPatchedBlob, &pErrorMessage);
 
 #if SPEW_SHADERS

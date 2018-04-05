@@ -240,7 +240,7 @@ namespace FallbackLayer
 
         ScratchMemoryPartitions scratchMemoryPartitions = {};
         UINT &totalSize = scratchMemoryPartitions.TotalSize;
-        UINT numInternalNodes = numTriangles - 1;
+        UINT numInternalNodes = GetNumberOfInternalNodes(numTriangles);
         UINT totalNumNodes = numTriangles + numInternalNodes;
 
         scratchMemoryPartitions.OffsetToSceneAABB = totalSize;
@@ -306,7 +306,7 @@ namespace FallbackLayer
             UINT totalNumberOfTriangles = GetTotalTriangleCount(*pDesc);
             const UINT numLeaves = totalNumberOfTriangles;
             // A full binary tree with N leaves will always have N - 1 internal nodes
-            const UINT numInternalNodes = numLeaves - 1;
+            const UINT numInternalNodes = GetNumberOfInternalNodes(numLeaves);
             const UINT totalNumNodes = numLeaves + numInternalNodes;
 
             pInfo->ResultDataMaxSizeInBytes = sizeof(BVHOffsets) + totalNumberOfTriangles * (sizeof(Triangle) + sizeof(TriangleMetaData)) +
@@ -320,8 +320,7 @@ namespace FallbackLayer
         {
             const UINT numLeaves = NumElements;
 
-            // A full binary tree with N leaves will always have N - 1 internal nodes
-            const UINT numInternalNodes = numLeaves - 1;
+            const UINT numInternalNodes = GetNumberOfInternalNodes(numLeaves);
             const UINT totalNumNodes = numLeaves + numInternalNodes;
 
             pInfo->ResultDataMaxSizeInBytes = sizeof(BVHOffsets) + sizeof(AABBNode) * totalNumNodes + sizeof(BVHMetadata) * numLeaves;

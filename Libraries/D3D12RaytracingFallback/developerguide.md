@@ -174,12 +174,8 @@ The use of an AnyHit requires that the traversal code must stop it's current tra
 
 ## Known Issues & Limitations
 
-* #### Local Root Signature Support limited to Root Constants
-Currently local root signature/shader records are limited to root constants.
-
-Descriptor Tables can be emulated for the time-being by binding descriptor tables that are dynamically indexed by a root constant (see ModelViewer's implementation)
-
-Root descriptors are similarly not supported. This is expected to be supported in the future, but it should be noted that these will require the use of `WRAPPED_GPU_POINTER`'s rather then being able to consume a `GPU_VIRTUAL_ADDRESS` directly
+* #### No Local Root Signature Support for Root Descriptors
+Root descriptors are not currently supported. This is expected to be supported in the future, but it should be noted that these will require the use of `WRAPPED_GPU_POINTER`'s rather then being able to consume a `GPU_VIRTUAL_ADDRESS` directly
 
 * #### No Callable or Intersection shaders
 Both Callable and Intersection shaders are not yet supported. 
@@ -203,6 +199,8 @@ Compacting Acceleration Structures is treated as a normal copy and will not redu
 The stack size passed by `SetPipelineStackSize` is ignored and uses a hard-coded stack size.
 
 * #### Only one AccelerationStructure can be bound per call to DispatchRays()
+
+* #### Use of the Shader Record is thrown off when using an empty ray payload
 
 * #### D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE  is ignored
 As a result, the `RAY_FLAG_CULL_OPAQUE`/`RAY_FLAG_CULL_NON_OPAQUE` flags will have no effect either         

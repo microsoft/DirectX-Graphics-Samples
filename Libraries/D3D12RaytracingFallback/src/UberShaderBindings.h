@@ -26,7 +26,7 @@ struct DebugVariables
     uint LevelToVisualize;
 };
 
-#define FallbackLayerUAVRawBufferDescriptorHeapRegisterSpace 214743648
+#define FallbackLayerDescriptorHeapRegisterSpace 214743648
 #ifdef HLSL
 cbuffer Constants : CONSTANT_REGISTER_SPACE(FallbackLayerDispatchConstantsRegister, FallbackLayerRegisterSpace)
 {
@@ -51,7 +51,7 @@ ByteAddressBuffer MissShaderTable : SRV_REGISTER_SPACE(FallbackLayerMissShaderRe
 ByteAddressBuffer RayGenShaderTable : SRV_REGISTER_SPACE(FallbackLayerRayGenShaderRecordByteAddressBufferRegister, FallbackLayerRegisterSpace);
 ByteAddressBuffer CallableShaderTable : SRV_REGISTER_SPACE(FallbackLayerCallableShaderRecordByteAddressBufferRegister, FallbackLayerRegisterSpace);
 
-RWByteAddressBuffer DescriptorHeapBufferTable[] : UAV_REGISTER_SPACE(FallbackLayerDescriptorHeapBufferTable, FallbackLayerUAVRawBufferDescriptorHeapRegisterSpace);
+RWByteAddressBuffer DescriptorHeapBufferTable[] : UAV_REGISTER_SPACE(FallbackLayerDescriptorHeapTable, FallbackLayerDescriptorHeapRegisterSpace);
 
 #if ENABLE_UAV_LOG
 RWStructuredBuffer<uint4> DebugLog : UAV_REGISTER_SPACE(UAVLogRegister, FallbackLayerRegisterSpace);
@@ -64,5 +64,5 @@ cbuffer DebugVariables : CONSTANT_REGISTER_SPACE(DebugConstantRegister, Fallback
 };
 #endif
 #else
-static_assert(FallbackLayerUAVRawBufferDescriptorHeapRegisterSpace == FallbackLayerRegisterSpace + UAVRawBufferOffset, L"#define for FallbackLayerUAVRawBufferDescriptorHeapRegisterSpace is incorrect");
+static_assert(FallbackLayerDescriptorHeapRegisterSpace == FallbackLayerRegisterSpace + FallbackLayerDescriptorHeapStartingSpaceOffset, L"#define for FallbackLayerDescriptorHeapRegisterSpace is incorrect");
 #endif

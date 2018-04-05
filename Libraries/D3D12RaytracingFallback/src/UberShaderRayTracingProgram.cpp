@@ -82,7 +82,6 @@ namespace FallbackLayer
                         shaderInfo.SrvCbvUavDescriptorSizeInBytes = cbvSrvUavHandleSize;
                         shaderInfo.ShaderRecordIdentifierSizeInBytes = sizeof(ShaderIdentifier);
                         shaderInfo.ExportName = exportName.c_str();
-                        shaderInfo.IsLib = true;
 
                         CComPtr<IDxcBlob> pPatchedBlob;
                         m_DxilShaderPatcher.PatchShaderBindingTables(

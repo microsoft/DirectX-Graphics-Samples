@@ -182,11 +182,12 @@ namespace FallbackLayer
         {
             for (UINT i = 0; i < pRootSignature->NumParameters; i++)
             {
-                if (pRootSignature->pParameters[i].ParameterType != D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS)
+                if (pRootSignature->pParameters[i].ParameterType != D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS &&
+                   pRootSignature->pParameters[i].ParameterType != D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
                 {
                     ThrowFailure(E_INVALIDARG,
-                        L"Only D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS is currently supported for local root signatures."
-                        L"For details, view the Fallback Layer readme.md");
+                        L"Only D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS/D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE are currently " 
+                        "supported for local root signatures. For details, view the Fallback Layer readme.md");
                 }
             }
         }
@@ -196,32 +197,24 @@ namespace FallbackLayer
         TD3DX12_ROOT_PARAMETER *pOriginalParameters = (TD3DX12_ROOT_PARAMETER*)pRootSignature->pParameters;
         std::copy(pOriginalParameters, pOriginalParameters + pRootSignature->NumParameters, patchedRootParameters.begin());
 
-        patchedRanges.reserve(RegisterSpaceOffsets::NumSpaces);
-        for (UINT i = 0; i < NumSRVSpaces; i++)
+        UINT CbvSrvUavParamterCount = 0;
+        D3D12_DESCRIPTOR_RANGE_TYPE descriptorTypes[] = { 
+            D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 
+            D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 
+            D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 
+
+            D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER };
+
+        for (auto descriptorType : descriptorTypes)
         {
-            patchedRanges.push_back(
-                TD3DX12_DESCRIPTOR_RANGE(
-                    D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, FallbackLayerDescriptorHeapBufferTable, FallbackLayerRegisterSpace + SRVStartOffset + i));
-        }
+            UINT numSpacesNeeded = 1;
+            if (descriptorType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV || descriptorType == D3D12_DESCRIPTOR_RANGE_TYPE_UAV)
+            {
+                numSpacesNeeded = FallbackLayerNumDescriptorHeapSpacesPerView;
+            }
 
-        for (UINT i = 0; i < NumUAVSpaces; i++)
-        {
-            patchedRanges.push_back(
-                TD3DX12_DESCRIPTOR_RANGE(
-                    D3D12_DESCRIPTOR_RANGE_TYPE_UAV, UINT_MAX, FallbackLayerDescriptorHeapBufferTable, FallbackLayerRegisterSpace + UAVStartOffset + i));
-        }
-
-        patchedRanges.push_back(
-            TD3DX12_DESCRIPTOR_RANGE(
-                D3D12_DESCRIPTOR_RANGE_TYPE_CBV, UINT_MAX, FallbackLayerDescriptorHeapBufferTable, FallbackLayerRegisterSpace + ConstantBufferOffset));
-        UINT CbvSrvUavParamterCount = static_cast<UINT>(patchedRanges.size());
-
-        patchedRanges.push_back(
-            TD3DX12_DESCRIPTOR_RANGE(
-                D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, UINT_MAX, FallbackLayerDescriptorHeapBufferTable, FallbackLayerRegisterSpace + SamplerOffset));
-
-        for (auto &range : patchedRanges)
-        {
+            auto range = TD3DX12_DESCRIPTOR_RANGE(
+                    descriptorType, UINT_MAX, FallbackLayerDescriptorHeapTable, FallbackLayerRegisterSpace + FallbackLayerDescriptorHeapStartingSpaceOffset);
             range.OffsetInDescriptorsFromTableStart = 0;
             __if_exists(TD3DX12_DESCRIPTOR_RANGE::Flags)
             {
@@ -230,8 +223,19 @@ namespace FallbackLayer
                     range.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE;
                 }
             }
-        }
 
+            for (UINT i = 0; i < numSpacesNeeded; i++)
+            {
+                patchedRanges.push_back(range);
+                range.RegisterSpace++;
+            }
+
+            if (descriptorType != D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER)
+            {
+                CbvSrvUavParamterCount += numSpacesNeeded;
+            }
+        }
+        
         UINT patchedParameterOffset = pRootSignature->NumParameters;
         patchedRootParameters[patchedParameterOffset + HitGroupRecord].InitAsShaderResourceView(FallbackLayerHitGroupRecordByteAddressBufferRegister, FallbackLayerRegisterSpace);
         patchedRootParameters[patchedParameterOffset + MissShaderRecord].InitAsShaderResourceView(FallbackLayerMissShaderRecordByteAddressBufferRegister, FallbackLayerRegisterSpace);
