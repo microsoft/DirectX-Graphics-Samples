@@ -44,6 +44,8 @@ namespace FallbackLayer
         D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap,
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlag)
     {
+        if (numElements == 0) return;
+
         InputConstants constants;
         constants.NumberOfElements = numElements;
         constants.MinTrianglesPerTreelet = 7;

@@ -36,6 +36,8 @@ namespace FallbackLayer
 
     void LoadInstancesPass::LoadInstances(ID3D12GraphicsCommandList *pCommandList, D3D12_GPU_VIRTUAL_ADDRESS outputBVH, D3D12_GPU_VIRTUAL_ADDRESS instancesDesc, D3D12_ELEMENTS_LAYOUT instanceDescLayout, UINT numElements, D3D12_GPU_DESCRIPTOR_HANDLE descriptorHeapBase)
     {
+        if (numElements == 0) return;
+
         pCommandList->SetComputeRootSignature(m_pRootSignature);
         ID3D12PipelineState *pLoadAABBPSO = nullptr;
         switch (instanceDescLayout)
