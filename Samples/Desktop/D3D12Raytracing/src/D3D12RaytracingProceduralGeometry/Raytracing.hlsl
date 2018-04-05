@@ -11,6 +11,7 @@
 
 #define HLSL
 #include "RaytracingHlslCompat.h"
+#include "ProceduralPrimitivesLibrary.h"
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
 RWTexture2D<float4> RenderTarget : register(u0);
@@ -58,11 +59,13 @@ struct MyAttributes
     float4 normal;
 };
 
-
-struct ProceduralPrimitiveAttributes
+enum ProceduralPrimitives
 {
-    float3 normal;
+    Box = 0,
+    Spheres,
+    Sphere
 };
+
 
 struct HitData
 {
@@ -136,125 +139,18 @@ void MyRaygenShader()
     RenderTarget[DispatchRaysIndex()] = payload.color;
 }
 
-void swap(inout float a, inout float b)
-{
-    float temp = a;
-    a = b;
-    b = temp;
-}
-
-bool solveQuadratic(float a, float b, float c, out float x0, out float x1)
-{
-    float discr = b * b - 4 * a * c;
-    if (discr < 0) return false;
-    else if (discr == 0) x0 = x1 = -0.5 * b / a;
-    else {
-        float q = (b > 0) ?
-            -0.5 * (b + sqrt(discr)) :
-            -0.5 * (b - sqrt(discr));
-        x0 = q / a;
-        x1 = c / q;
-    }
-    if (x0 > x1) swap(x0, x1);
-
-    return true;
-}
-
-// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-bool intersectSphere(float3 origin, float3 direction, out float thit, inout ProceduralPrimitiveAttributes attr)
-{
-    float t0, t1; // solutions for t if the ray intersects 
-    float3 center = float3(0, 0, 0);
-    float radius = 1;
-    float radius2 = pow(radius, 2);
-    
-    // analytic solution
-    float3 L = origin - center;
-    float a = dot(direction, direction);
-    float b = 2 * dot(direction, L);
-    float c = dot(L, L) - radius2;
-    if (!solveQuadratic(a, b, c, t0, t1)) return false;
-
-    if (t0 > t1) swap(t0, t1);
-
-    if (t0 < 0) 
-    {
-        t0 = t1; // if t0 is negative, let's use t1 instead 
-        if (t0 < 0) return false; // both t0 and t1 are negative 
-    }
-
-    thit = t0;
-
-    float3 hitPosition = origin + thit * direction;
-    attr.normal = mul(ObjectToWorld(), normalize(hitPosition - center));
-
-    //attr.barycentrics = float2(0.5, 0.9);
-    return true;
-}
-
-// https://github.com/hpicgs/cgsee/wiki/Ray-Box-Intersection-on-the-GPU
-// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
-bool intersectBox(float3 origin, float3 direction, out float thit, inout ProceduralPrimitiveAttributes attr)
-{
-    float3 bounds[2] = {
-        float3(-1,-1,-1),
-        float3(1,1,1)
-    };
-    float tmin, tmax, tymin, tymax, tzmin, tzmax;
-    tmin = (bounds[0].x - origin.x) / direction.x;
-    tmax = (bounds[1].x - origin.x) / direction.x;
-    if (direction.x < 0) swap(tmin, tmax);
-    tymin = (bounds[0].y - origin.y) / direction.y;
-    tymax = (bounds[1].y - origin.y) / direction.y;
-    if (direction.y < 0) swap(tymin, tymax);
-    tzmin = (bounds[0].z - origin.z) / direction.z;
-    tzmax = (bounds[1].z - origin.z) / direction.z;
-    if (direction.z < 0) swap(tzmin, tzmax);
-    tmin = max(max(tmin, tymin), tzmin);
-    tmax = min(min(tmax, tymax), tzmax);
-    thit = tmin;
-    
-    // Calculate cube face normal
-    float3 center = float3(0, 0, 0);
-    float3 hitPosition = origin + thit * direction;
-    float3 sphereNormal = normalize(hitPosition - center);
-    // take the largest dimension and normalize it
-    if (abs(sphereNormal.x) > abs(sphereNormal.y))
-    {
-        if (abs(sphereNormal.x) > abs(sphereNormal.z))
-        {
-            attr.normal = float3(sphereNormal.x, 0, 0);
-        }
-        else
-        {
-            attr.normal = float3(0, 0, sphereNormal.z);
-        }
-    }
-    else
-    {
-        if (abs(sphereNormal.y) > abs(sphereNormal.z))
-        {
-            attr.normal = float3(0, sphereNormal.y, 0);
-        }
-        else
-        {
-            attr.normal = float3(0, 0, sphereNormal.z);
-        }
-    }
-    attr.normal = mul(ObjectToWorld(),normalize(attr.normal));
-    
-    return tmax > tmin;
-}
-
 bool IntersectCustomPrimitiveFrontToBack(
     float3 origin, float3 direction,
     float rayTMin, float rayTMax, inout float curT,
     out ProceduralPrimitiveAttributes attr)
 {
-    if (InstanceIndex() == 0)
-        return intersectBox(origin, direction, curT, attr);
-    else
-        return intersectSphere(origin, direction, curT, attr);
+    switch (InstanceIndex())
+    {
+    case Box:       return intersectBox(origin, direction, curT, attr);
+    case Sphere:    return intersectSphere(origin, direction, curT, attr);
+    case Spheres:   return intersectSpheres(origin, direction, curT, attr);
+    }
+    return false;
 }
 
 [shader("intersection")]
