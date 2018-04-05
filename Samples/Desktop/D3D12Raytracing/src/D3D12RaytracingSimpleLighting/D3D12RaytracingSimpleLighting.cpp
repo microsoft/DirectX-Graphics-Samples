@@ -760,7 +760,6 @@ void D3D12RaytracingSimpleLighting::OnUpdate()
     auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
 
     // Rotate the camera around Y axis.
-    if (0)
     {
         float secondsToRotateAround = 24.0f;
         float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
