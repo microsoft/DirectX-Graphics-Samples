@@ -52,7 +52,18 @@ uint3 Load3x16BitIndices(uint offsetBytes)
     return indices;
 }
 
-typedef BuiltInTriangleIntersectionAttributes MyAttributes;
+struct MyAttributes
+{
+    float2 barycentrics;
+    float4 normal;
+};
+
+
+struct ProceduralPrimitiveAttributes
+{
+    float3 normal;
+};
+
 struct HitData
 {
     float4 color;
@@ -65,7 +76,7 @@ float3 HitWorldPosition()
 }
 
 // Retrieve attribute at a hit position interpolated from vertex attributes using the hit's barycentrics.
-float3 HitAttribute(float3 vertexAttribute[3], BuiltInTriangleIntersectionAttributes attr)
+float3 HitAttribute(float3 vertexAttribute[3], MyAttributes attr)
 {
     return vertexAttribute[0] +
         attr.barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
@@ -132,104 +143,138 @@ void swap(inout float a, inout float b)
     b = temp;
 }
 
-// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
-struct Ray
+bool solveQuadratic(float a, float b, float c, out float x0, out float x1)
 {
-    float3 orig, dir;       // ray orig and dir 
-    float3 invdir;
-    int sign[3];
-    void Initialize(float3 _orig, float3 _dir)
-    {
-        orig = _orig;
-        dir = _dir;
-        invdir = 1 / dir;
-        sign[0] = (invdir.x < 0);
-        sign[1] = (invdir.y < 0);
-        sign[2] = (invdir.z < 0);
+    float discr = b * b - 4 * a * c;
+    if (discr < 0) return false;
+    else if (discr == 0) x0 = x1 = -0.5 * b / a;
+    else {
+        float q = (b > 0) ?
+            -0.5 * (b + sqrt(discr)) :
+            -0.5 * (b - sqrt(discr));
+        x0 = q / a;
+        x1 = c / q;
     }
-};
-
-bool intersectBox(Ray r, out float thit)
-{
-    thit = -1;
-
-    float3 bounds[2] = {
-        float3(-1,-1,-1),
-        float3(1,1,1)
-    };
-
-    float tmin, tmax, tymin, tymax, tzmin, tzmax;
-
-    tmin = (bounds[r.sign[0]].x - r.orig.x) * r.invdir.x;
-    tmax = (bounds[1 - r.sign[0]].x - r.orig.x) * r.invdir.x;
-    tymin = (bounds[r.sign[1]].y - r.orig.y) * r.invdir.y;
-    tymax = (bounds[1 - r.sign[1]].y - r.orig.y) * r.invdir.y;
-
-    if ((tmin > tymax) || (tymin > tmax))
-        return false;
-    if (tymin > tmin)
-        tmin = tymin;
-    if (tymax < tmax)
-        tmax = tymax;
-
-    tzmin = (bounds[r.sign[2]].z - r.orig.z) * r.invdir.z;
-    tzmax = (bounds[1 - r.sign[2]].z - r.orig.z) * r.invdir.z;
-
-    if ((tmin > tzmax) || (tzmin > tmax))
-        return false;
-    if (tzmin > tmin)
-        tmin = tzmin;
-    if (tzmax < tmax)
-        tmax = tzmax;
-
-    if (tmin >= 0)
-        thit = tmin;
-    else
-        thit = tmax;
+    if (x0 > x1) swap(x0, x1);
 
     return true;
 }
 
-bool IntersectCustomPrimitiveFrontToBack(
-    float3 origin, float3 dir,
-    float rayTMin, inout float curT,
-    out MyAttributes attr)
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
+bool intersectSphere(float3 origin, float3 direction, out float thit, inout ProceduralPrimitiveAttributes attr)
 {
-    attr.barycentrics = float2(1.0, 0);
+    float t0, t1; // solutions for t if the ray intersects 
+    float3 center = float3(0, 0, 0);
+    float radius = 1;
+    float radius2 = pow(radius, 2);
+    
+    // analytic solution
+    float3 L = origin - center;
+    float a = dot(direction, direction);
+    float b = 2 * dot(direction, L);
+    float c = dot(L, L) - radius2;
+    if (!solveQuadratic(a, b, c, t0, t1)) return false;
 
-    Ray ray;
-    ray.Initialize(origin, dir);
-    return intersectBox(ray, curT);
+    if (t0 > t1) swap(t0, t1);
+
+    if (t0 < 0) 
+    {
+        t0 = t1; // if t0 is negative, let's use t1 instead 
+        if (t0 < 0) return false; // both t0 and t1 are negative 
+    }
+
+    thit = t0;
+
+    float3 hitPosition = origin + thit * direction;
+    attr.normal = mul(ObjectToWorld(), normalize(hitPosition - center));
+
+    //attr.barycentrics = float2(0.5, 0.9);
+    return true;
+}
+
+// https://github.com/hpicgs/cgsee/wiki/Ray-Box-Intersection-on-the-GPU
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
+bool intersectBox(float3 origin, float3 direction, out float thit, inout ProceduralPrimitiveAttributes attr)
+{
+    float3 bounds[2] = {
+        float3(-1,-1,-1),
+        float3(1,1,1)
+    };
+    float tmin, tmax, tymin, tymax, tzmin, tzmax;
+    tmin = (bounds[0].x - origin.x) / direction.x;
+    tmax = (bounds[1].x - origin.x) / direction.x;
+    if (direction.x < 0) swap(tmin, tmax);
+    tymin = (bounds[0].y - origin.y) / direction.y;
+    tymax = (bounds[1].y - origin.y) / direction.y;
+    if (direction.y < 0) swap(tymin, tymax);
+    tzmin = (bounds[0].z - origin.z) / direction.z;
+    tzmax = (bounds[1].z - origin.z) / direction.z;
+    if (direction.z < 0) swap(tzmin, tzmax);
+    tmin = max(max(tmin, tymin), tzmin);
+    tmax = min(min(tmax, tymax), tzmax);
+    thit = tmin;
+    
+    // Calculate cube face normal
+    float3 center = float3(0, 0, 0);
+    float3 hitPosition = origin + thit * direction;
+    float3 sphereNormal = normalize(hitPosition - center);
+    // take the largest dimension and normalize it
+    if (abs(sphereNormal.x) > abs(sphereNormal.y))
+    {
+        if (abs(sphereNormal.x) > abs(sphereNormal.z))
+        {
+            attr.normal = float3(sphereNormal.x, 0, 0);
+        }
+        else
+        {
+            attr.normal = float3(0, 0, sphereNormal.z);
+        }
+    }
+    else
+    {
+        if (abs(sphereNormal.y) > abs(sphereNormal.z))
+        {
+            attr.normal = float3(0, sphereNormal.y, 0);
+        }
+        else
+        {
+            attr.normal = float3(0, 0, sphereNormal.z);
+        }
+    }
+    attr.normal = mul(ObjectToWorld(),normalize(attr.normal));
+    
+    return tmax > tmin;
+}
+
+bool IntersectCustomPrimitiveFrontToBack(
+    float3 origin, float3 direction,
+    float rayTMin, float rayTMax, inout float curT,
+    out ProceduralPrimitiveAttributes attr)
+{
+    if (InstanceIndex() == 0)
+        return intersectBox(origin, direction, curT, attr);
+    else
+        return intersectSphere(origin, direction, curT, attr);
 }
 
 [shader("intersection")]
 void MyIntersectionShader()
 {
-#if 1
-    MyAttributes attr;
-    attr.barycentrics = float2(1.0, 1.0);
-    ReportHit(RayTMin(), /*hitKind*/ 0, attr);
-#else
     float THit = RayTCurrent();
-    MyAttributes attr;
-    while (IntersectCustomPrimitiveFrontToBack(
+    ProceduralPrimitiveAttributes attr;
+    if (IntersectCustomPrimitiveFrontToBack(
         ObjectRayOrigin(), ObjectRayDirection(),
-        RayTMin(), THit, attr))
+        RayTMin(), RayTCurrent(), THit, attr))
     {
-        if (ReportHit(THit, /*hitKind*/ 0, attr))
-            break;
+        ReportHit(THit, /*hitKind*/ 0, attr);
     }
-#endif
 }
 
 [shader("closesthit")]
-void MyClosestHitShader(inout HitData payload : SV_RayPayload, in MyAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader(inout HitData payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
 {
-#if 1
-    payload.color = float4(attr.barycentrics, 0, 1);
-#else
     float3 hitPosition = HitWorldPosition();
-
+#if 0
     // Get the base index of the triangle's first 16 bit index.
     uint indexSizeInBytes = 2;
     uint indicesPerTriangle = 3;
@@ -250,12 +295,15 @@ void MyClosestHitShader(inout HitData payload : SV_RayPayload, in MyAttributes a
     // This is redundant and done for illustration purposes 
     // as all the per-vertex normals are the same and match triangle's normal in this sample. 
     float3 triangleNormal = HitAttribute(vertexNormals, attr);
-
+#else
+    float3 triangleNormal = attr.normal;
+#endif
     float4 diffuseColor = CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
+    //payload.color = float4(0, attr.barycentrics, 1);
+    payload.color = float4(attr.normal, 1);
     payload.color = color;
-#endif
 }
 
 [shader("miss")]

@@ -129,7 +129,7 @@ void D3D12RaytracingSimpleLighting::InitializeScene()
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
 
-        lightPosition = XMFLOAT4(0.0f, 1.8f, -3.0, 0.0f);
+        lightPosition = XMFLOAT4(0.0f, 1.8f, -3.0f, 0.0f);
         m_sceneCB[frameIndex].lightPosition = XMLoadFloat4(&lightPosition);
 
         lightAmbientColor = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
