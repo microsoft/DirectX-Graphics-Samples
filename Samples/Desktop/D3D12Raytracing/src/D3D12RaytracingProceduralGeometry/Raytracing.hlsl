@@ -132,101 +132,174 @@ void swap(inout float a, inout float b)
     b = temp;
 }
 
-// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
 struct Ray
 {
-    float3 orig, dir;       // ray orig and dir 
-    float3 invdir;
+    float3 origin, direction;       // ray origin and direction 
+    float3 inv_direction;
     int sign[3];
-    void Initialize(float3 _orig, float3 _dir)
-    {
-        orig = _orig;
-        dir = _dir;
-        invdir = 1 / dir;
-        sign[0] = (invdir.x < 0);
-        sign[1] = (invdir.y < 0);
-        sign[2] = (invdir.z < 0);
-    }
 };
 
-bool intersectBox(Ray r, out float thit)
+Ray make_ray(float3 origin, float3 direction)
 {
-    thit = -1;
+    Ray ray;
+    ray.origin = origin;
+    ray.direction = direction;
+    ray.inv_direction = 1 / direction;
+    ray.sign[0] = (ray.inv_direction.x < 0);
+    ray.sign[1] = (ray.inv_direction.y < 0);
+    ray.sign[2] = (ray.inv_direction.z < 0);
+    return ray;
+}
+#if 0
+// https://github.com/hpicgs/cgsee/wiki/Ray-Box-Intersection-on-the-GPU
+bool intersectBox(Ray ray, out float thit, float rayTMin, float rayTMax)
+{
+    float3 aabb[2] = {
+        float3(-1,-1,-1),
+        float3(1,1,1)
+    };
+    float tmin, tmax, tymin, tymax, tzmin, tzmax;
 
+    tmin = (aabb[ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
+    tmax = (aabb[1 - ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
+    tymin = (aabb[ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
+    tymax = (aabb[1 - ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
+    tzmin = (aabb[ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
+    tzmax = (aabb[1 - ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
+    tmin = max(max(tmin, tymin), tzmin);
+    tmax = min(min(tmax, tymax), tzmax);
+
+    thit = tmin;
+    return tmin < tmax;
+}
+#else
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
+bool intersectBox(Ray ray, out float thit, float rayTMin, float rayTMax)
+{
     float3 bounds[2] = {
         float3(-1,-1,-1),
         float3(1,1,1)
     };
-
     float tmin, tmax, tymin, tymax, tzmin, tzmax;
-
-    tmin = (bounds[r.sign[0]].x - r.orig.x) * r.invdir.x;
-    tmax = (bounds[1 - r.sign[0]].x - r.orig.x) * r.invdir.x;
-    tymin = (bounds[r.sign[1]].y - r.orig.y) * r.invdir.y;
-    tymax = (bounds[1 - r.sign[1]].y - r.orig.y) * r.invdir.y;
-
-    if ((tmin > tymax) || (tymin > tmax))
-        return false;
-    if (tymin > tmin)
-        tmin = tymin;
-    if (tymax < tmax)
-        tmax = tymax;
-
-    tzmin = (bounds[r.sign[2]].z - r.orig.z) * r.invdir.z;
-    tzmax = (bounds[1 - r.sign[2]].z - r.orig.z) * r.invdir.z;
-
-    if ((tmin > tzmax) || (tzmin > tmax))
-        return false;
-    if (tzmin > tmin)
-        tmin = tzmin;
-    if (tzmax < tmax)
-        tmax = tzmax;
-
-    if (tmin >= 0)
-        thit = tmin;
+#if 0
+    tmin = (bounds[ray.sign[0]].x - ray.origin.x) / ray.direction.x;
+    tmax = (bounds[1 - ray.sign[0]].x - ray.origin.x) / ray.direction.x;
+    if (ray.direction.x < 0) swap(tmin, tmax);
+    tymin = (bounds[ray.sign[1]].y - ray.origin.y) / ray.direction.y;
+    tymax = (bounds[1 - ray.sign[1]].y - ray.origin.y) / ray.direction.y;
+    if (ray.direction.y < 0) swap(tymin, tymax);
+    tzmin = (bounds[ray.sign[1]].z - ray.origin.z) / ray.direction.z;
+    tzmax = (bounds[1 - ray.sign[1]].z - ray.origin.z) / ray.direction.z;
+    if (ray.direction.z < 0) swap(tzmin, tzmax);
+#elif 1
+#if 0
+    const int sign = ray.direction.x < 0 ? 1 : 0;
+    tmin = (bounds[1 - sign].x - ray.origin.x) / ray.direction.x;
+    tmax = (bounds[sign].x - ray.origin.x) / ray.direction.x;
+    if (ray.direction.x < 0) swap(tmin, tmax);
+#else
+    tmin = (bounds[0].x - ray.origin.x) / ray.direction.x;
+    tmax = (bounds[1].x - ray.origin.x) / ray.direction.x;
+    if (ray.direction.x < 0) swap(tmin, tmax);
+#endif
+    tymin = (bounds[0].y - ray.origin.y) / ray.direction.y;
+    tymax = (bounds[1].y - ray.origin.y) / ray.direction.y;
+    if (ray.direction.y < 0) swap(tymin, tymax);
+    tzmin = (bounds[0].z - ray.origin.z) / ray.direction.z;
+    tzmax = (bounds[1].z - ray.origin.z) / ray.direction.z;
+    if (ray.direction.z < 0) swap(tzmin, tzmax);
+#elif 1
+    if (ray.direction.x < 0)
+    {
+        tmin = (bounds[ray.sign[0]].x - ray.origin.x) / ray.direction.x;
+        tmax = (bounds[1 - ray.sign[0]].x - ray.origin.x) / ray.direction.x;
+    }
     else
-        thit = tmax;
+    {
+        tmax = (bounds[ray.sign[0]].x - ray.origin.x) / ray.direction.x;
+        tmin = (bounds[1 - ray.sign[0]].x - ray.origin.x) / ray.direction.x;
+    }
+    if (ray.direction.y < 0)
+    {
+        tymin = (bounds[ray.sign[1]].y - ray.origin.y) / ray.direction.y;
+        tymax = (bounds[1 - ray.sign[1]].y - ray.origin.y) / ray.direction.y;
+    }
+    else
+    {
+        tymax = (bounds[ray.sign[1]].y - ray.origin.y) / ray.direction.y;
+        tymin = (bounds[1 - ray.sign[1]].y - ray.origin.y) / ray.direction.y;
+    }
+    if (ray.direction.z < 0)
+    {
+        tzmin = (bounds[ray.sign[2]].z - ray.origin.z) / ray.direction.z;
+        tzmax = (bounds[1 - ray.sign[2]].z - ray.origin.z) / ray.direction.z;
+    }
+    else
+    {
+        tzmax = (bounds[ray.sign[2]].z - ray.origin.z) / ray.direction.z;
+        tzmin = (bounds[1 - ray.sign[2]].z - ray.origin.z) / ray.direction.z;
+    }
+#endif
 
-    return true;
+    tmin = max(max(tmin, tymin), tzmin);
+    tmax = min(min(tmax, tymax), tzmax);
+
+    thit = tmin;
+    return tmax > tmin;
 }
+#endif
 
 bool IntersectCustomPrimitiveFrontToBack(
-    float3 origin, float3 dir,
-    float rayTMin, inout float curT,
+    float3 origin, float3 direction,
+    float rayTMin, float rayTMax, inout float curT,
     out MyAttributes attr)
 {
     attr.barycentrics = float2(1.0, 0);
 
-    Ray ray;
-    ray.Initialize(origin, dir);
-    return intersectBox(ray, curT);
+    Ray ray = make_ray(origin, direction);
+    return intersectBox(ray, curT, rayTMin, rayTMax);
 }
 
 [shader("intersection")]
 void MyIntersectionShader()
 {
-#if 1
-    MyAttributes attr;
-    attr.barycentrics = float2(1.0, 1.0);
-    ReportHit(RayTMin(), /*hitKind*/ 0, attr);
-#else
     float THit = RayTCurrent();
     MyAttributes attr;
-    while (IntersectCustomPrimitiveFrontToBack(
-        ObjectRayOrigin(), ObjectRayDirection(),
-        RayTMin(), THit, attr))
+    if (IntersectCustomPrimitiveFrontToBack(
+        WorldRayOrigin(), WorldRayDirection(),
+        RayTMin(), RayTCurrent(), THit, attr))
     {
-        if (ReportHit(THit, /*hitKind*/ 0, attr))
-            break;
+        ReportHit(THit, /*hitKind*/ 0, attr);
     }
-#endif
 }
 
 [shader("closesthit")]
 void MyClosestHitShader(inout HitData payload : SV_RayPayload, in MyAttributes attr : SV_IntersectionAttributes)
 {
+    float array[2] = { 1.0, 0.0 };
+    float tmin;
+    float3 direction = float3(1, 1, 1);// WorldRayDirection();
+#if 0
+    tmin = array[0];
+#else  // CreateStateObject fails
+    tmin = array[direction.x > 0 ? 1 : 0];
+#endif 
+    
+    payload.color = float4(tmin, 0, 0, 1);
+
 #if 1
-    payload.color = float4(attr.barycentrics, 0, 1);
+#elif 1
+
+#if 0   // CreateStateObject fails
+    int sign = direction.x < 0 ? 1 : 0;
+    tmin = (bounds[sign].x - origin.x) / direction.x;
+    tmax = (bounds[1 - sign].x - origin.x) / direction.x;
+#else
+    tmin = (bounds[0].x - origin.x) / direction.x;
+    tmax = (bounds[1].x - origin.x) / direction.x;
+    if (direction.x < 0) swap(tmin, tmax);
+#endif
+    payload.color = float4(tmin, tmax, 0, 1);
 #else
     float3 hitPosition = HitWorldPosition();
 

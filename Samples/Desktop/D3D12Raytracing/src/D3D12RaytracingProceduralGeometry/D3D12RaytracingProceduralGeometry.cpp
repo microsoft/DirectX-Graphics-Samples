@@ -418,7 +418,8 @@ void D3D12RaytracingProceduralGeometry::BuildGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
 #if USE_AABB_GEOMETRY
-    D3D12_RAYTRACING_AABB aabb = { -1,-1,-1,1,1,1 };
+
+    D3D12_RAYTRACING_AABB aabb = { -2,-2,-2,2,2,2 };
     AllocateUploadBuffer(device, &aabb, sizeof(aabb), &m_aabbBuffer.resource);
     CreateBufferSRV(&m_aabbBuffer, 1, sizeof(aabb));
 #else
