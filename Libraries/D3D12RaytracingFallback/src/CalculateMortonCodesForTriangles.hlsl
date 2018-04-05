@@ -12,10 +12,19 @@
 #include "CalculateMortonCodesBindings.h"
 #include "RayTracingHelper.hlsli"
 
-RWStructuredBuffer<Triangle> InputBuffer : UAV_REGISTER(MortonCodeCalculatorInputBufferRegister);
+RWStructuredBuffer<Primitive> InputBuffer : UAV_REGISTER(MortonCodeCalculatorInputBufferRegister);
 
 float3 GetCentroid(uint elementIndex)
 {
-    Triangle tri = InputBuffer[elementIndex];
-    return (tri.v0 + tri.v1 + tri.v2) / 3.0;
+    Primitive primitive = InputBuffer[elementIndex];
+    if(primitive.PrimitiveType == TRIANGLE_TYPE)
+    {
+        Triangle tri = GetTriangle(primitive);
+        return (tri.v0 + tri.v1 + tri.v2) / 3.0;
+    }
+    else //if(primitive.PrimitiveType == PROCEDURAL_PRIMITIVE_TYPE)
+    {
+        AABB aabb = GetProceduralPrimitiveAABB(primitive);
+        return (aabb.min + aabb.max) / 2.0;
+    }
 }

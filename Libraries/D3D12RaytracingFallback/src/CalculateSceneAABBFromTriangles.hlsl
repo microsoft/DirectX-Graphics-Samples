@@ -12,19 +12,35 @@
 #include "CalculateSceneAABBBindings.h"
 #include "RayTracingHelper.hlsli"
 
-RWStructuredBuffer<Triangle> InputBuffer : UAV_REGISTER(SceneAABBCalculatorInputBufferRegister);
+RWStructuredBuffer<Primitive> InputBuffer : UAV_REGISTER(SceneAABBCalculatorInputBufferRegister);
 AABB CalculateSceneAABB(uint baseElementIndex)
 {
-    uint trianglesToRead = min(Constants.NumberOfElements - baseElementIndex, ElementsSummedPerThread);
+    uint primitivesToRead = min(Constants.NumberOfElements - baseElementIndex, ElementsSummedPerThread);
 
     AABB sceneAABB;
     sceneAABB.min = float3(FLT_MAX, FLT_MAX, FLT_MAX);
     sceneAABB.max = float3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-    for (uint i = 0; i < trianglesToRead; i++)
+    for (uint i = 0; i < primitivesToRead; i++)
     {
-        Triangle tri = InputBuffer[baseElementIndex + i];
-        sceneAABB.min = min(min(min(tri.v0, sceneAABB.min), tri.v1), tri.v2);
-        sceneAABB.max = max(max(max(tri.v0, sceneAABB.max), tri.v1), tri.v2);
+        Primitive primitive = InputBuffer[baseElementIndex + i];
+        switch (primitive.PrimitiveType)
+        {
+            case TRIANGLE_TYPE:
+            {
+                Triangle tri = GetTriangle(primitive);
+                sceneAABB.min = min(min(min(tri.v0, sceneAABB.min), tri.v1), tri.v2);
+                sceneAABB.max = max(max(max(tri.v0, sceneAABB.max), tri.v1), tri.v2);
+                break;
+            }
+            case PROCEDURAL_PRIMITIVE_TYPE:
+            {
+                AABB aabb = GetProceduralPrimitiveAABB(primitive);
+                sceneAABB.min = min(sceneAABB.min, aabb.min);
+                sceneAABB.max = max(sceneAABB.max, aabb.max);
+                break;
+            }
+        }
+
     }
     return sceneAABB;
 }

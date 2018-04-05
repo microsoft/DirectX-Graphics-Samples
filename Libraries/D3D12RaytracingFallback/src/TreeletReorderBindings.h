@@ -39,7 +39,7 @@ struct InputConstants
 RWStructuredBuffer<HierarchyNode> hierarchyBuffer : UAV_REGISTER(HierarchyBufferRegister);
 RWByteAddressBuffer NumTrianglesBuffer : UAV_REGISTER(NumTrianglesBufferRegister);
 globallycoherent RWStructuredBuffer<AABB> AABBBuffer : UAV_REGISTER(AABBBufferRegister);
-RWStructuredBuffer<Triangle> InputBuffer : UAV_REGISTER(ElementBufferRegister);
+RWStructuredBuffer<Primitive> InputBuffer : UAV_REGISTER(ElementBufferRegister);
 RWByteAddressBuffer DescriptorHeapBufferTable[] : UAV_REGISTER_SPACE(GlobalDescriptorHeapRegister, GlobalDescriptorHeapRegisterSpace);
 
 cbuffer TreeletConstants : CONSTANT_REGISTER(ConstantsRegister)

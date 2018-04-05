@@ -65,7 +65,7 @@
 #include "MortonCodesCalculator.h"
 #include "RearrangeElementsPass.h"
 #include "LoadInstancesPass.h"
-#include "LoadTrianglesPass.h"
+#include "LoadPrimitivesPass.h"
 #include "ConstructHierarchyPass.h"
 #include "ConstructAABBPass.h"
 #include "PostBuildInfoQuery.h"

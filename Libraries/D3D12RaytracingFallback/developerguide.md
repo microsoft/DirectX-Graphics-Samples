@@ -177,8 +177,8 @@ The use of an AnyHit requires that the traversal code must stop it's current tra
 * #### No Local Root Signature Support for Root Descriptors
 Root descriptors are not currently supported. This is expected to be supported in the future, but it should be noted that these will require the use of `WRAPPED_GPU_POINTER`'s rather then being able to consume a `GPU_VIRTUAL_ADDRESS` directly
 
-* #### No Callable or Intersection shaders
-Both Callable and Intersection shaders are not yet supported. 
+* #### No Callable shaders
+Callable shaders are not yet supported. 
 
 * #### No Cross libs dependencies
 All raytracing shaders are expected to be contained within a single DXIL library.

@@ -20,7 +20,7 @@ namespace FallbackLayer
         m_sorterPass(pDevice, nodeMask),
         m_rearrangePass(pDevice, nodeMask),
         m_loadInstancesPass(pDevice, nodeMask),
-        m_loadTrianglesPass(pDevice, nodeMask),
+        m_loadPrimitivesPass(pDevice, nodeMask),
         m_constructHierarchyPass(pDevice, nodeMask),
         m_constructAABBPass(pDevice, nodeMask),
         m_postBuildInfoQuery(pDevice, nodeMask),
@@ -155,7 +155,7 @@ namespace FallbackLayer
         ScratchMemoryPartitions scratchMemoryPartition = CalculateScratchMemoryUsage(Level::Bottom, totalTriangles);
         D3D12_GPU_VIRTUAL_ADDRESS scratchGpuVA = pDesc->ScratchAccelerationStructureData.StartAddress;
         D3D12_GPU_VIRTUAL_ADDRESS scratchTriangleBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToElements;
-        D3D12_GPU_VIRTUAL_ADDRESS scratchMetadataBuffer = scratchTriangleBuffer + GetOffsetFromTrianglesToTriangleMetadata(totalTriangles);
+        D3D12_GPU_VIRTUAL_ADDRESS scratchMetadataBuffer = scratchTriangleBuffer + GetOffsetFromPrimitivesToPrimitiveMetaData(totalTriangles);
         D3D12_GPU_VIRTUAL_ADDRESS mortonCodeBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToMortonCodes;
         D3D12_GPU_VIRTUAL_ADDRESS sceneAABB = scratchGpuVA + scratchMemoryPartition.OffsetToSceneAABB;
         D3D12_GPU_VIRTUAL_ADDRESS sceneAABBScratchMemory = scratchGpuVA + scratchMemoryPartition.OffsetToSceneAABBScratchMemory;
@@ -166,13 +166,13 @@ namespace FallbackLayer
         D3D12_GPU_VIRTUAL_ADDRESS nodeCountBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToPerNodeCounter;
         
         const SceneType sceneType = SceneType::Triangles;
-        m_loadTrianglesPass.LoadTriangles(pCommandList, *pDesc, totalTriangles, scratchTriangleBuffer, scratchMetadataBuffer);
+        m_loadPrimitivesPass.LoadPrimitives(pCommandList, *pDesc, totalTriangles, scratchTriangleBuffer, scratchMetadataBuffer);
         m_sceneAABBCalculator.CalculateSceneAABB(pCommandList, sceneType, scratchTriangleBuffer, totalTriangles, sceneAABBScratchMemory, sceneAABB);
         m_mortonCodeCalculator.CalculateMortonCodes(pCommandList, sceneType, scratchTriangleBuffer, totalTriangles, sceneAABB, indexBuffer, mortonCodeBuffer);
         m_sorterPass.Sort(pCommandList, mortonCodeBuffer, indexBuffer, totalTriangles, false, true);
 
-        D3D12_GPU_VIRTUAL_ADDRESS outputTriangleBuffer = pDesc->DestAccelerationStructureData.StartAddress + GetOffsetToTriangles(totalTriangles);
-        D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer = outputTriangleBuffer + GetOffsetFromTrianglesToTriangleMetadata(totalTriangles);
+        D3D12_GPU_VIRTUAL_ADDRESS outputTriangleBuffer = pDesc->DestAccelerationStructureData.StartAddress + GetOffsetToPrimitives(totalTriangles);
+        D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer = outputTriangleBuffer + GetOffsetFromPrimitivesToPrimitiveMetaData(totalTriangles);
 
         m_rearrangePass.Rearrange(
             pCommandList,
@@ -233,29 +233,29 @@ namespace FallbackLayer
         }
     }
 
-    GpuBvh2Builder::ScratchMemoryPartitions GpuBvh2Builder::CalculateScratchMemoryUsage(Level level, UINT numTriangles)
+    GpuBvh2Builder::ScratchMemoryPartitions GpuBvh2Builder::CalculateScratchMemoryUsage(Level level, UINT numPrimitives)
     {
 #define ALIGN(alignment, num) (((num + alignment - 1) / alignment) * alignment)
 #define ALIGN_GPU_VA_OFFSET(num) ALIGN(4, num)
 
         ScratchMemoryPartitions scratchMemoryPartitions = {};
         UINT &totalSize = scratchMemoryPartitions.TotalSize;
-        UINT numInternalNodes = GetNumberOfInternalNodes(numTriangles);
-        UINT totalNumNodes = numTriangles + numInternalNodes;
+        UINT numInternalNodes = GetNumberOfInternalNodes(numPrimitives);
+        UINT totalNumNodes = numPrimitives + numInternalNodes;
 
         scratchMemoryPartitions.OffsetToSceneAABB = totalSize;
         totalSize += ALIGN_GPU_VA_OFFSET(sizeof(AABB));
 
         const UINT sizePerElement = level == Level::Bottom ?
-            sizeof(Triangle) + sizeof(TriangleMetaData) :
+            sizeof(Primitive) + sizeof(PrimitiveMetaData) :
             (sizeof(AABBNode) + sizeof(BVHMetadata));
         scratchMemoryPartitions.OffsetToElements = totalSize;
-        totalSize += ALIGN_GPU_VA_OFFSET(sizePerElement * numTriangles);
+        totalSize += ALIGN_GPU_VA_OFFSET(sizePerElement * numPrimitives);
 
-        const UINT mortonCodeBufferSize = ALIGN_GPU_VA_OFFSET(sizeof(UINT) * numTriangles);
+        const UINT mortonCodeBufferSize = ALIGN_GPU_VA_OFFSET(sizeof(UINT) * numPrimitives);
         scratchMemoryPartitions.OffsetToMortonCodes = totalSize;
 
-        const UINT indexBufferSize = ALIGN_GPU_VA_OFFSET(sizeof(UINT) * numTriangles);
+        const UINT indexBufferSize = ALIGN_GPU_VA_OFFSET(sizeof(UINT) * numPrimitives);
         scratchMemoryPartitions.OffsetToIndexBuffer = scratchMemoryPartitions.OffsetToMortonCodes + indexBufferSize;
 
         {
@@ -263,8 +263,8 @@ namespace FallbackLayer
             // because it's calculated before the MortonCode/IndexBuffer are needed. Additionally,
             // the AABB buffer used for treelet reordering is done after both stages so it can also alias
             scratchMemoryPartitions.OffsetToSceneAABBScratchMemory = scratchMemoryPartitions.OffsetToMortonCodes;
-            INT sizeNeededToCalculateAABB = m_sceneAABBCalculator.ScratchBufferSizeNeeded(numTriangles);
-            INT sizeNeededForTreeletAABBs = TreeletReorder::RequiredSizeForAABBBuffer(numTriangles);
+            INT sizeNeededToCalculateAABB = m_sceneAABBCalculator.ScratchBufferSizeNeeded(numPrimitives);
+            INT sizeNeededForTreeletAABBs = TreeletReorder::RequiredSizeForAABBBuffer(numPrimitives);
             INT sizeNeededByMortonCodeAndIndexBuffer = mortonCodeBufferSize + indexBufferSize;
             UINT extraBufferSize = std::max(sizeNeededToCalculateAABB, std::max(sizeNeededForTreeletAABBs, sizeNeededByMortonCodeAndIndexBuffer));
             
@@ -275,7 +275,7 @@ namespace FallbackLayer
         {
             UINT sizeNeededForAABBCalculation = 0;
             scratchMemoryPartitions.OffsetToCalculateAABBDispatchArgs = sizeNeededForAABBCalculation;
-            sizeNeededForAABBCalculation += ALIGN_GPU_VA_OFFSET(sizeof(UINT) * numTriangles);
+            sizeNeededForAABBCalculation += ALIGN_GPU_VA_OFFSET(sizeof(UINT) * numPrimitives);
 
             scratchMemoryPartitions.OffsetToPerNodeCounter = sizeNeededForAABBCalculation;
             sizeNeededForAABBCalculation += ALIGN_GPU_VA_OFFSET(sizeof(UINT) * (numInternalNodes));
@@ -309,7 +309,7 @@ namespace FallbackLayer
             const UINT numInternalNodes = GetNumberOfInternalNodes(numLeaves);
             const UINT totalNumNodes = numLeaves + numInternalNodes;
 
-            pInfo->ResultDataMaxSizeInBytes = sizeof(BVHOffsets) + totalNumberOfTriangles * (sizeof(Triangle) + sizeof(TriangleMetaData)) +
+            pInfo->ResultDataMaxSizeInBytes = sizeof(BVHOffsets) + totalNumberOfTriangles * (sizeof(Primitive) + sizeof(PrimitiveMetaData)) +
                 totalNumNodes * sizeof(AABBNode);
 
             pInfo->ScratchDataSizeInBytes = CalculateScratchMemoryUsage(Level::Bottom, totalNumberOfTriangles).TotalSize;

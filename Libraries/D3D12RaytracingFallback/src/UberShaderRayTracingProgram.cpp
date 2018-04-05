@@ -127,6 +127,7 @@ namespace FallbackLayer
             ShaderIdentifier shaderId = {};
             auto closestHitName = hitGroupMapEntry.second.ClosestHitShaderImport;
             auto anyHitName = hitGroupMapEntry.second.AnyHitShaderImport;
+            auto intersectionName = hitGroupMapEntry.second.IntersectionShaderImport;
             if (closestHitName)
             {
                 auto closestHitIdentifier = m_ExportNameToShaderIdentifier.find(closestHitName);
@@ -149,6 +150,18 @@ namespace FallbackLayer
                 else
                 {
                     ThrowFailure(E_INVALIDARG, L"Hit group is referring to an anyhit shader name that wasn't found in the state object");
+                }
+            }
+            if (intersectionName)
+            {
+                auto intersectionIdentifier = m_ExportNameToShaderIdentifier.find(intersectionName);
+                if (intersectionIdentifier != m_ExportNameToShaderIdentifier.end())
+                {
+                    shaderId.IntersectionShaderId = intersectionIdentifier->second.StateId;
+                }
+                else
+                {
+                    ThrowFailure(E_INVALIDARG, L"Hit group is referring to an intersection shader name that wasn't found in the state object");
                 }
             }
 

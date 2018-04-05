@@ -36,8 +36,16 @@ float CalculateCost(AABB nodeAABB, float parentAABBSurfaceArea)
 AABB ComputeLeafAABB(uint triangleIndex)
 {
     uint2 unused;
-    Triangle tri = InputBuffer[triangleIndex];
-    return BoundingBoxToAABB(GetBoxDataFromTriangle(tri.v0, tri.v1, tri.v2, triangleIndex, unused));
+    Primitive primitive = InputBuffer[triangleIndex];
+    if (primitive.PrimitiveType == TRIANGLE_TYPE)
+    {
+        Triangle tri = GetTriangle(primitive);
+        return BoundingBoxToAABB(GetBoxDataFromTriangle(tri.v0, tri.v1, tri.v2, triangleIndex, unused));
+    }
+    else // if(primitiveType == PROCEDURAL_PRIMITIVE_TYPE)
+    {
+        return GetProceduralPrimitiveAABB(primitive);
+    }
 }
 
 AABB CombineAABB(AABB aabb0, AABB aabb1)

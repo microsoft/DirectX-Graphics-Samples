@@ -72,7 +72,7 @@ namespace FallbackLayer
         BitonicSort m_sorterPass;
         RearrangeElementsPass m_rearrangePass;
         LoadInstancesPass m_loadInstancesPass;
-        LoadTrianglesPass m_loadTrianglesPass;
+        LoadPrimitivesPass m_loadPrimitivesPass;
         ConstructAABBPass m_constructAABBPass;
         ConstructHierarchyPass m_constructHierarchyPass;
         TreeletReorder m_treeletReorder;

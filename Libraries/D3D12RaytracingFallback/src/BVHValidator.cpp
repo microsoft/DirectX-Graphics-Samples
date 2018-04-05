@@ -81,7 +81,7 @@ namespace FallbackLayer
 
             BVHOffsets offsets = *(BVHOffsets*)pOutputCpuData;
             AABBNode *pNodeArray = (AABBNode*)((BYTE *)pOutputCpuData + offsets.offsetToBoxes);
-            Triangle *pTriangleArray = (Triangle*)((BYTE *)pOutputCpuData + offsets.offsetToVertices);
+            Primitive *pPrimitiveArray = (Primitive*)((BYTE *)pOutputCpuData + offsets.offsetToVertices);
 
             UINT currentQueue = 0;
             std::deque<AABBNode*> nodeQueue;
@@ -142,7 +142,7 @@ namespace FallbackLayer
 
                     for (UINT triangleId = firstTriangleId; triangleId < firstTriangleId + numTriangles; triangleId++)
                     {
-                        Triangle *pTriangle = &pTriangleArray[triangleId];
+                        Primitive *pTriangle = &pPrimitiveArray[triangleId];
                         for (int j = (int)pExpectedLeafNodes.size() - 1; j >= 0; j--)
                         {
                             if (pExpectedLeafNodes[j]->IsLeafEqual((void *)pTriangle, parentAABB))
@@ -255,7 +255,8 @@ namespace FallbackLayer
 
     bool BvhValidator::TriangleLeafNode::IsLeafEqual(void *pLeafData, const AABB &leafAABB)
     {
-        Triangle *pTriangle = (Triangle *)pLeafData;
+        Primitive *pPrimitive = (Primitive *)pLeafData;
+        Triangle *pTriangle = &pPrimitive->triangle;
         return IsTriangleEqual(*this, pTriangle);
     }
 

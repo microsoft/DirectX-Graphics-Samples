@@ -16,7 +16,7 @@ namespace FallbackLayer
     {
         std::vector<AABBNode>   m_nodes;
         std::vector<float> m_triangles;
-        std::vector<TriangleMetaData> m_metadata;
+        std::vector<PrimitiveMetaData> m_metadata;
     };
 
     static
@@ -44,7 +44,7 @@ namespace FallbackLayer
         void ComputeBox(
             AABB& overallBox,
             const std::vector<AABB>& boxes,
-            const std::vector<TriangleMetaData>& metadata)
+            const std::vector<PrimitiveMetaData>& metadata)
     {
         if (metadata.empty())
         {
@@ -158,7 +158,7 @@ namespace FallbackLayer
         UINT32 BuildBVHAddLeaf(
             BVH& bvh,
             const AABB& box,
-            const std::vector<TriangleMetaData>& metadata)
+            const std::vector<PrimitiveMetaData>& metadata)
     {
         const UINT32 nodeIndex = BuildBVHAddNode(bvh, box, 0);
 
@@ -184,7 +184,7 @@ namespace FallbackLayer
 
     static
         void SortByCentroid(
-            std::vector<TriangleMetaData>& metadata,
+            std::vector<PrimitiveMetaData>& metadata,
             const std::vector<AABB>& boxes,
             UINT32 maxDimension)
     {
@@ -246,7 +246,7 @@ namespace FallbackLayer
 
     static
         void SahSplit(
-            std::vector<TriangleMetaData>& metadata,
+            std::vector<PrimitiveMetaData>& metadata,
             UINT32& maxDimension,
             UINT32& numTrisInLeftNode,
             const AABB& nodeBox,
@@ -383,7 +383,7 @@ namespace FallbackLayer
         void BuildBVH(
             BVH& bvh,
             const std::vector<AABB>& boxes,
-            const std::vector<TriangleMetaData>& triangleMetadata,
+            const std::vector<PrimitiveMetaData>& primitiveMetaData,
             UINT32 maxTrisInLeaf)
     {
         //
@@ -391,7 +391,7 @@ namespace FallbackLayer
         //
         struct StackItem
         {
-            std::vector<TriangleMetaData> triangleMetadata;
+            std::vector<PrimitiveMetaData> primitiveMetaData;
             UINT32              parentIndex;
             UINT                right : 1;
             UINT                axis : 2;
@@ -402,7 +402,7 @@ namespace FallbackLayer
 
         StackItem* temp = new StackItem;
         temp->parentIndex = -1;
-        temp->triangleMetadata = triangleMetadata;
+        temp->primitiveMetaData = primitiveMetaData;
         temp->right = false;
         temp->axis = 0;
         fifoRights.push_back(temp);
@@ -428,9 +428,9 @@ namespace FallbackLayer
             // Compute overall bounding box
             //
             AABB nodeBox;
-            ComputeBox(nodeBox, boxes, item->triangleMetadata);
+            ComputeBox(nodeBox, boxes, item->primitiveMetaData);
 
-            const UINT32 numTrianglesInNode = (UINT32)item->triangleMetadata.size();
+            const UINT32 numTrianglesInNode = (UINT32)item->primitiveMetaData.size();
             const UINT32 parentIndex = item->parentIndex;
 
             UINT32 thisNodeIndex;
@@ -438,7 +438,7 @@ namespace FallbackLayer
             // Leaf or internal node?
             if (numTrianglesInNode <= maxTrisInLeaf)
             {
-                thisNodeIndex = BuildBVHAddLeaf(bvh, nodeBox, item->triangleMetadata);
+                thisNodeIndex = BuildBVHAddLeaf(bvh, nodeBox, item->primitiveMetaData);
             }
             else
             {
@@ -450,23 +450,23 @@ namespace FallbackLayer
                 UINT splitDimension;
                 UINT leftChildNumNodes;
 
-                SahSplit(item->triangleMetadata,
+                SahSplit(item->primitiveMetaData,
                     splitDimension,
                     leftChildNumNodes,
                     nodeBox,
                     boxes);
 
-                assert(leftChildNumNodes <= item->triangleMetadata.size());
+                assert(leftChildNumNodes <= item->primitiveMetaData.size());
 
                 // Try to balance by using the median if SAH failed
                 if ((leftChildNumNodes == 0 ||
-                    leftChildNumNodes == item->triangleMetadata.size()) &&
-                    item->triangleMetadata.size() > MAX_TRIS_IN_LEAF)
+                    leftChildNumNodes == item->primitiveMetaData.size()) &&
+                    item->primitiveMetaData.size() > MAX_TRIS_IN_LEAF)
                 {
-                    leftChildNumNodes = (UINT)item->triangleMetadata.size() / 2;
+                    leftChildNumNodes = (UINT)item->primitiveMetaData.size() / 2;
                 }
 
-                const UINT32 rightChildNumNodes = (UINT32)item->triangleMetadata.size() - leftChildNumNodes;
+                const UINT32 rightChildNumNodes = (UINT32)item->primitiveMetaData.size() - leftChildNumNodes;
 
 
                 //
@@ -477,22 +477,22 @@ namespace FallbackLayer
 
                 StackItem* leftItem = new StackItem;
                 leftItem->parentIndex = thisNodeIndex;
-                leftItem->triangleMetadata.resize(leftChildNumNodes);
+                leftItem->primitiveMetaData.resize(leftChildNumNodes);
                 leftItem->right = false;
                 leftItem->axis = splitDimension;
                 for (UINT32 i = 0; i < leftChildNumNodes; ++i)
                 {
-                    leftItem->triangleMetadata[i] = item->triangleMetadata[i];
+                    leftItem->primitiveMetaData[i] = item->primitiveMetaData[i];
                 }
 
                 StackItem* rightItem = new StackItem;
                 rightItem->parentIndex = thisNodeIndex;
-                rightItem->triangleMetadata.resize(rightChildNumNodes);
+                rightItem->primitiveMetaData.resize(rightChildNumNodes);
                 rightItem->right = true;
                 rightItem->axis = splitDimension;
                 for (UINT32 i = 0; i < rightChildNumNodes; ++i)
                 {
-                    rightItem->triangleMetadata[i] = item->triangleMetadata[i + leftChildNumNodes];
+                    rightItem->primitiveMetaData[i] = item->primitiveMetaData[i + leftChildNumNodes];
                 }
 
                 fifoLefts.push_back(leftItem);
@@ -547,8 +547,8 @@ namespace FallbackLayer
         std::vector<AABB> boxes;
         boxes.resize(totalNumberOfTriangles);
 
-        std::vector<TriangleMetaData> triangleMetadata;
-        triangleMetadata.resize(totalNumberOfTriangles);
+        std::vector<PrimitiveMetaData> primitiveMetaData;
+        primitiveMetaData.resize(totalNumberOfTriangles);
 
         std::vector<float>  triangleVertices;
         triangleVertices.resize(totalNumberOfTriangles * 9);
@@ -619,10 +619,10 @@ namespace FallbackLayer
                 }
 
                 // Create out internal triangle indices.
-                TriangleMetaData metadata;
+                PrimitiveMetaData metadata;
                 metadata.GeometryContributionToHitGroupIndex = i;
                 metadata.PrimitiveIndex = triangleIndex;
-                triangleMetadata[triangleIndex] = metadata;
+                primitiveMetaData[triangleIndex] = metadata;
 
                 // Next triangle
                 triangleIndex++;
@@ -633,7 +633,7 @@ namespace FallbackLayer
         // Create a BVH
         //
 
-        BuildBVH(bvh, boxes, triangleMetadata, MAX_TRIS_IN_LEAF);
+        BuildBVH(bvh, boxes, primitiveMetaData, MAX_TRIS_IN_LEAF);
 
         //
         // Now copy and compress geometry
@@ -676,12 +676,12 @@ void BuildRaytracingAccelerationStructureOnCpu(
     const UINT sizeofBoxes = (UINT)(bvh.m_nodes.size() * sizeof(*bvh.m_nodes.data()));
     offsets.offsetToVertices = offsets.offsetToBoxes + sizeofBoxes;
     const UINT sizeofVertices = (UINT)(bvh.m_triangles.size() * sizeof(*bvh.m_triangles.data()));
-    offsets.offsetToTriangleMetadata = offsets.offsetToVertices + sizeofVertices;
+    offsets.offsetToPrimitiveMetaData = offsets.offsetToVertices + sizeofVertices;
     const UINT sizeofMetadata = (UINT)(bvh.m_metadata.size() * sizeof(*bvh.m_metadata.data()));
-    offsets.totalSize = offsets.offsetToTriangleMetadata + sizeofMetadata;
+    offsets.totalSize = offsets.offsetToPrimitiveMetaData + sizeofMetadata;
 
     memcpy(outputData,  &offsets, sizeof(offsets));
     memcpy(outputData + offsets.offsetToBoxes, bvh.m_nodes.data(), sizeofBoxes);
     memcpy(outputData + offsets.offsetToVertices, bvh.m_triangles.data(), sizeofVertices);
-    memcpy(outputData + offsets.offsetToTriangleMetadata, bvh.m_metadata.data(), sizeofMetadata);
+    memcpy(outputData + offsets.offsetToPrimitiveMetaData, bvh.m_metadata.data(), sizeofMetadata);
 }
