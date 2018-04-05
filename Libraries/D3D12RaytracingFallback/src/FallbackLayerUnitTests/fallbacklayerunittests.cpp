@@ -1901,15 +1901,13 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
         void InitializeFallbackRootSignature()
         {
-            CD3DX12_ROOT_PARAMETER asSlot;
-            asSlot.InitAsShaderResourceView(0);
+            CD3DX12_ROOT_PARAMETER parameters[GlobalRootSignatureSlots::NumParameters];
+            parameters[GlobalRootSignatureSlots::AccelerationStructureParam].InitAsShaderResourceView(0);
+            parameters[GlobalRootSignatureSlots::UAVParam].InitAsUnorderedAccessView(0);
 
-            CD3DX12_ROOT_PARAMETER uavSlot;
-            uavSlot.InitAsUnorderedAccessView(0);
-            D3D12_ROOT_PARAMETER rootParams[] = { uavSlot, asSlot };
             D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-            rootSignatureDesc.NumParameters = ARRAYSIZE(rootParams);
-            rootSignatureDesc.pParameters = rootParams;
+            rootSignatureDesc.NumParameters = ARRAYSIZE(parameters);
+            rootSignatureDesc.pParameters = parameters;
 
             CComPtr<ID3DBlob> pBlob;
             CComPtr<ID3DBlob> pErrorBlob;

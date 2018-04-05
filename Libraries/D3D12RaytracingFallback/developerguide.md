@@ -200,6 +200,8 @@ The stack size passed by `SetPipelineStackSize` is ignored and uses a hard-coded
 
 * #### Only one AccelerationStructure can be bound per call to DispatchRays()
 
+* #### Use of the Shader Record is thrown off when using an empty ray payload
+
 * #### D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE  is ignored
 As a result, the `RAY_FLAG_CULL_OPAQUE`/`RAY_FLAG_CULL_NON_OPAQUE` flags will have no effect either         
 ## Debugging & Tooling

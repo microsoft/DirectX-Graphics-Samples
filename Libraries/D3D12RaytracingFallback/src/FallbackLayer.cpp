@@ -197,14 +197,14 @@ namespace FallbackLayer
         TD3DX12_ROOT_PARAMETER *pOriginalParameters = (TD3DX12_ROOT_PARAMETER*)pRootSignature->pParameters;
         std::copy(pOriginalParameters, pOriginalParameters + pRootSignature->NumParameters, patchedRootParameters.begin());
 
-        UINT CbvSrvUavParamterCount = FallbackLayerNumDescriptorHeapSpacesPerView * 2 + 1;
+        UINT CbvSrvUavParamterCount = 0;
         D3D12_DESCRIPTOR_RANGE_TYPE descriptorTypes[] = { 
             D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 
             D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 
             D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 
+
             D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER };
 
-        patchedRanges.reserve(ARRAYSIZE(descriptorTypes) * FallbackLayerNumDescriptorHeapSpacesPerView);
         for (auto descriptorType : descriptorTypes)
         {
             UINT numSpacesNeeded = 1;
@@ -228,6 +228,11 @@ namespace FallbackLayer
             {
                 patchedRanges.push_back(range);
                 range.RegisterSpace++;
+            }
+
+            if (descriptorType != D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER)
+            {
+                CbvSrvUavParamterCount += numSpacesNeeded;
             }
         }
         
