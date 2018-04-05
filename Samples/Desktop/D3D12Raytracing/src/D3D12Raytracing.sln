@@ -36,6 +36,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tutorials", "Tutorials", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Advanced", "Advanced", "{024FAECC-CCE3-4B06-9F06-C83FB58877EF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingProceduralGeometry", "D3D12RaytracingProceduralGeometry\D3D12RaytracingProceduralGeometry.vcxproj", "{0C266269-AC0C-41B0-9D25-0117DC23CFC7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{4BE280A6-1066-41CA-ACDD-6BB7E532508B} = {4BE280A6-1066-41CA-ACDD-6BB7E532508B}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -117,6 +122,16 @@ Global
 		{13F1830C-EA8D-4488-89C8-70AAB15972AA}.Release|x86.ActiveCfg = Release|Win32
 		{13F1830C-EA8D-4488-89C8-70AAB15972AA}.Release|x86.Build.0 = Release|Win32
 		{13F1830C-EA8D-4488-89C8-70AAB15972AA}.Release|x86.Deploy.0 = Release|Win32
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Debug|x64.ActiveCfg = Debug|x64
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Debug|x64.Build.0 = Debug|x64
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Debug|x86.ActiveCfg = Debug|x64
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Profile|x64.ActiveCfg = Release|x64
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Profile|x64.Build.0 = Release|x64
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Profile|x86.ActiveCfg = Release|x64
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Profile|x86.Build.0 = Release|x64
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Release|x64.ActiveCfg = Release|x64
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Release|x64.Build.0 = Release|x64
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -131,6 +146,7 @@ Global
 		{13F1830C-EA8D-4488-89C8-70AAB15972AA} = {4F686017-C76B-497E-8405-7F023968E8AF}
 		{22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331} = {250B50F1-543D-4D9D-B4FC-A1EA4E61B9E4}
 		{024FAECC-CCE3-4B06-9F06-C83FB58877EF} = {250B50F1-543D-4D9D-B4FC-A1EA4E61B9E4}
+		{0C266269-AC0C-41B0-9D25-0117DC23CFC7} = {22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F763A25B-2115-4E87-87C4-2C6AA75C1542}
