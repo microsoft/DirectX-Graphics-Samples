@@ -23,24 +23,18 @@ AABB CalculateSceneAABB(uint baseElementIndex)
     for (uint i = 0; i < primitivesToRead; i++)
     {
         Primitive primitive = InputBuffer[baseElementIndex + i];
-        switch (primitive.PrimitiveType)
+        if (primitive.PrimitiveType == TRIANGLE_TYPE)
         {
-            case TRIANGLE_TYPE:
-            {
-                Triangle tri = GetTriangle(primitive);
-                sceneAABB.min = min(min(min(tri.v0, sceneAABB.min), tri.v1), tri.v2);
-                sceneAABB.max = max(max(max(tri.v0, sceneAABB.max), tri.v1), tri.v2);
-                break;
-            }
-            case PROCEDURAL_PRIMITIVE_TYPE:
-            {
-                AABB aabb = GetProceduralPrimitiveAABB(primitive);
-                sceneAABB.min = min(sceneAABB.min, aabb.min);
-                sceneAABB.max = max(sceneAABB.max, aabb.max);
-                break;
-            }
+            Triangle tri = GetTriangle(primitive);
+            sceneAABB.min = min(min(min(tri.v0, sceneAABB.min), tri.v1), tri.v2);
+            sceneAABB.max = max(max(max(tri.v0, sceneAABB.max), tri.v1), tri.v2);
         }
-
+        else // if(primitive.PrimitiveType == PROCEDURAL_PRIMITIVE_TYPE)
+        {
+            AABB aabb = GetProceduralPrimitiveAABB(primitive);
+            sceneAABB.min = min(sceneAABB.min, aabb.min);
+            sceneAABB.max = max(sceneAABB.max, aabb.max);
+        }
     }
     return sceneAABB;
 }

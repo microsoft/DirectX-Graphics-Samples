@@ -54,14 +54,19 @@ namespace FallbackLayer
 
     void LoadPrimitivesPass::LoadPrimitives(ID3D12GraphicsCommandList *pCommandList, 
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC &buildDesc, 
-        const UINT totalTriangleCount,
+        const UINT totalPrimitiveCount,
         D3D12_GPU_VIRTUAL_ADDRESS outputTriangleBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer)
     {
-        UINT numTrianglesLoaded = 0;
+        CComPtr<ID3D12Device> pDevice;
+        pCommandList->GetDevice(IID_PPV_ARGS(&pDevice));
+        pCommandList->SetComputeRootSignature(m_pRootSignature);
+
+        UINT numPrimitivesLoaded = 0;
         for (UINT elementIndex = 0; elementIndex < buildDesc.NumDescs; elementIndex++)
         {
             const D3D12_RAYTRACING_GEOMETRY_DESC &geometryDesc = GetGeometryDesc(buildDesc, elementIndex);
+            UINT numPrimitivesInGeometry= 0;
             if (geometryDesc.Type == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
             {
                 const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC &triangles = geometryDesc.Triangles;
@@ -75,10 +80,7 @@ namespace FallbackLayer
                 }
                 const bool bNullIndexBuffer = (triangles.IndexFormat == DXGI_FORMAT_UNKNOWN);
                 const UINT vertexCount = bNullIndexBuffer ? triangles.VertexCount : triangles.IndexCount;
-                UINT numberOfTriangles = vertexCount / 3;
-
-                CComPtr<ID3D12Device> pDevice;
-                pCommandList->GetDevice(IID_PPV_ARGS(&pDevice));
+                numPrimitivesInGeometry = vertexCount / 3;
 
                 // DX12's SetComputeRootShaderResourceView requires that GPUVAs be 4-byte aligned. To handle
                 // GPUVAs that are 2-byte aligned, we adjust the pointer to pass an offset for the 
@@ -93,18 +95,15 @@ namespace FallbackLayer
                 assert(triangles.VertexBuffer.StrideInBytes < UINT32_MAX);
                 LoadPrimitivesInputConstants constants = {};
                 constants.IndexBufferOffset = indexBufferOffset;
-                constants.NumPrimitivesBound = numberOfTriangles;
-                constants.TotalPrimitiveCount = totalTriangleCount;
-                constants.PrimitiveOffset = numTrianglesLoaded;
+                constants.NumPrimitivesBound = numPrimitivesInGeometry;
+                constants.TotalPrimitiveCount = totalPrimitiveCount;
+                constants.PrimitiveOffset = numPrimitivesLoaded;
                 constants.ElementBufferStride = (UINT32)triangles.VertexBuffer.StrideInBytes;
                 constants.GeometryContributionToHitGroupIndex = elementIndex;
                 constants.HasValidTransform = (triangles.Transform != 0);
 
-                pCommandList->SetComputeRootSignature(m_pRootSignature);
                 pCommandList->SetComputeRoot32BitConstants(InputRootConstants, SizeOfInUint32(LoadPrimitivesInputConstants), &constants, 0);
                 pCommandList->SetComputeRootShaderResourceView(ElementBufferSRV, triangles.VertexBuffer.StartAddress);
-                pCommandList->SetComputeRootUnorderedAccessView(OutputBuffer, outputTriangleBuffer);
-                pCommandList->SetComputeRootUnorderedAccessView(OutputMetadataBuffer, outputMetadataBuffer);
                 if (!bNullIndexBuffer)
                 {
                     pCommandList->SetComputeRootShaderResourceView(IndexBufferSRV, indexBufferGPUVA);
@@ -114,12 +113,7 @@ namespace FallbackLayer
                     pCommandList->SetComputeRootShaderResourceView(TransformsBuffer, triangles.Transform);
                 }
 
-                const UINT dispatchWidth = DivideAndRoundUp<UINT>(numberOfTriangles, THREAD_GROUP_1D_WIDTH);
-
                 pCommandList->SetPipelineState(m_pPSOs[GetIndexBufferType(triangles.IndexFormat)]);
-                pCommandList->Dispatch(dispatchWidth, 1, 1);
-
-                numTrianglesLoaded += numberOfTriangles;
             }
             else
             {
@@ -135,34 +129,26 @@ namespace FallbackLayer
                 }
 
                 assert(aabbs.AABBCount < UINT32_MAX);
-                UINT numberOfAABBs = static_cast<UINT>(aabbs.AABBCount);
-
-                CComPtr<ID3D12Device> pDevice;
-                pCommandList->GetDevice(IID_PPV_ARGS(&pDevice));
+                numPrimitivesInGeometry = static_cast<UINT>(aabbs.AABBCount);
 
                 assert(aabbs.AABBs.StrideInBytes < UINT32_MAX);
                 LoadPrimitivesInputConstants constants = {};
-                constants.IndexBufferOffset = 0;
-                constants.NumPrimitivesBound = numberOfAABBs;
-                constants.TotalPrimitiveCount = totalTriangleCount;
-                constants.PrimitiveOffset = numTrianglesLoaded;
+                constants.NumPrimitivesBound = numPrimitivesInGeometry;
+                constants.TotalPrimitiveCount = totalPrimitiveCount;
+                constants.PrimitiveOffset = numPrimitivesLoaded;
                 constants.ElementBufferStride = (UINT32)aabbs.AABBs.StrideInBytes;
                 constants.GeometryContributionToHitGroupIndex = elementIndex;
-                constants.HasValidTransform = false;
 
-                pCommandList->SetComputeRootSignature(m_pRootSignature);
                 pCommandList->SetComputeRoot32BitConstants(InputRootConstants, SizeOfInUint32(LoadPrimitivesInputConstants), &constants, 0);
                 pCommandList->SetComputeRootShaderResourceView(ElementBufferSRV, aabbs.AABBs.StartAddress);
-                pCommandList->SetComputeRootUnorderedAccessView(OutputBuffer, outputTriangleBuffer);
-                pCommandList->SetComputeRootUnorderedAccessView(OutputMetadataBuffer, outputMetadataBuffer);
-                const UINT dispatchWidth = DivideAndRoundUp<UINT>(numberOfAABBs, THREAD_GROUP_1D_WIDTH);
-
                 pCommandList->SetPipelineState(m_pLoadProceduralGeometryPSO);
-                pCommandList->Dispatch(dispatchWidth, 1, 1);
-
-                // TODO: logic Duplicated in triangle path
-                numTrianglesLoaded += numberOfAABBs;
             }
+            pCommandList->SetComputeRootUnorderedAccessView(OutputBuffer, outputTriangleBuffer);
+            pCommandList->SetComputeRootUnorderedAccessView(OutputMetadataBuffer, outputMetadataBuffer);
+
+            const UINT dispatchWidth = DivideAndRoundUp<UINT>(numPrimitivesInGeometry, THREAD_GROUP_1D_WIDTH);
+            pCommandList->Dispatch(dispatchWidth, 1, 1);
+            numPrimitivesLoaded += numPrimitivesInGeometry;
         }
         // We're only given the GPU VA not the resource itself so we need to resort to doing an overarching UAV barrier
         auto uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);

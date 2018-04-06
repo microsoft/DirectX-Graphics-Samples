@@ -2512,10 +2512,12 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             TreeletReorder treeletReorder(&d3d12Device, 0);
 
             const UINT numTriangles = 16;
-            std::vector<Triangle> triangleBuffer(numTriangles);
+            std::vector<Primitive> triangleBuffer(numTriangles);
             for (INT i = 0; i < numTriangles; i++)
             {
-                Triangle &tri = triangleBuffer[i];
+                Primitive &primitive = triangleBuffer[i];
+                primitive.PrimitiveType = TRIANGLE_TYPE;
+                Triangle &tri = primitive.triangle;
                 if (i < numTriangles / 2)
                 {
                     tri.v0 = tri.v1 = tri.v2 = { (float)-i, 0, 0 };

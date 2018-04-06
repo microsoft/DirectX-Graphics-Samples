@@ -31,12 +31,6 @@
     <FxCompile Include="CalculateSceneAABBFromAABBs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="CalculateSceneAABBFromTriangles.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="CalculateMortonCodesForTriangles.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="CalculateMortonCodesForAABBs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -120,9 +114,6 @@
     <FxCompile Include="ClearBuffer.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="OpaqueTraverseShaderLib.hlsl" />
-    <FxCompile Include="StateMachineLib.hlsl" />
-    <FxCompile Include="TraverseShaderLib.hlsl" />
     <FxCompile Include="*Lib.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -145,6 +136,18 @@
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="LoadProceduralGeometry.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="CalculateMortonCodesForPrimitives.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="CalculateSceneAABBFromPrimitives.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
