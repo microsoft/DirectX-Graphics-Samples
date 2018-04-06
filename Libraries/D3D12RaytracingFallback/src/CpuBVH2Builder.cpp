@@ -675,13 +675,23 @@ void BuildRaytracingAccelerationStructureOnCpu(
     offsets.offsetToBoxes = sizeof(BVHOffsets);
     const UINT sizeofBoxes = (UINT)(bvh.m_nodes.size() * sizeof(*bvh.m_nodes.data()));
     offsets.offsetToVertices = offsets.offsetToBoxes + sizeofBoxes;
-    const UINT sizeofVertices = (UINT)(bvh.m_triangles.size() * sizeof(*bvh.m_triangles.data()));
+    
+    UINT numTriangles = bvh.m_triangles.size() / 9;
+    const UINT sizeofVertices = numTriangles * sizeof(Primitive);
     offsets.offsetToPrimitiveMetaData = offsets.offsetToVertices + sizeofVertices;
+
     const UINT sizeofMetadata = (UINT)(bvh.m_metadata.size() * sizeof(*bvh.m_metadata.data()));
     offsets.totalSize = offsets.offsetToPrimitiveMetaData + sizeofMetadata;
 
     memcpy(outputData,  &offsets, sizeof(offsets));
     memcpy(outputData + offsets.offsetToBoxes, bvh.m_nodes.data(), sizeofBoxes);
-    memcpy(outputData + offsets.offsetToVertices, bvh.m_triangles.data(), sizeofVertices);
+
+    Primitive *pPrimitives = (Primitive *)(outputData + offsets.offsetToVertices);
+    for (UINT i = 0; i < numTriangles; i++)
+    {
+        Triangle *pTriangle = (Triangle *)((BYTE *)bvh.m_triangles.data() + sizeof(Triangle) * i);
+        pPrimitives[i].PrimitiveType = TRIANGLE_TYPE;
+        pPrimitives[i].triangle = *pTriangle;
+    }
     memcpy(outputData + offsets.offsetToPrimitiveMetaData, bvh.m_metadata.data(), sizeofMetadata);
 }
