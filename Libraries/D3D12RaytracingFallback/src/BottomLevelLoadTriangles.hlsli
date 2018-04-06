@@ -89,22 +89,22 @@ float3 TransformVertex(float3 v, float3x4 transform)
 void main( uint3 DTid : SV_DispatchThreadID )
 { 
     uint localTriangleIndex = DTid.x;
-    if (localTriangleIndex >= Constants.NumTrianglesBound)
+    if (localTriangleIndex >= Constants.NumPrimitivesBound)
     {
         return;
     }
 
-    uint NumberOfInternalNodes = Constants.TotalTriangleCount - 1;
-    uint NumberOfAABBs = NumberOfInternalNodes + Constants.TotalTriangleCount;
+    uint NumberOfInternalNodes = Constants.TotalPrimitiveCount - 1;
+    uint NumberOfAABBs = NumberOfInternalNodes + Constants.TotalPrimitiveCount;
 
     uint3 indicies = GetIndex(localTriangleIndex);
     
-    uint globalTriangleIndex = localTriangleIndex + Constants.TriangleOffset;
+    uint globalTriangleIndex = localTriangleIndex + Constants.PrimitiveOffset;
 
     Triangle tri;
-    tri.v0 = GetVertex(elementBuffer, indicies[0], Constants.VertexBufferStride);
-    tri.v1 = GetVertex(elementBuffer, indicies[1], Constants.VertexBufferStride);
-    tri.v2 = GetVertex(elementBuffer, indicies[2], Constants.VertexBufferStride);
+    tri.v0 = GetVertex(elementBuffer, indicies[0], Constants.ElementBufferStride);
+    tri.v1 = GetVertex(elementBuffer, indicies[1], Constants.ElementBufferStride);
+    tri.v2 = GetVertex(elementBuffer, indicies[2], Constants.ElementBufferStride);
     
     if (Constants.HasValidTransform)
     {

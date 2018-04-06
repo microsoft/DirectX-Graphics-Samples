@@ -18,12 +18,12 @@
 
 struct LoadPrimitivesInputConstants
 {
-    uint VertexBufferStride;
+    uint ElementBufferStride;
     uint IndexBufferOffset;
-    uint NumTrianglesBound;
+    uint NumPrimitivesBound;
 
-    uint TriangleOffset;
-    uint TotalTriangleCount;
+    uint PrimitiveOffset;
+    uint TotalPrimitiveCount;
 
     uint GeometryContributionToHitGroupIndex;
 

@@ -93,10 +93,10 @@ namespace FallbackLayer
                 assert(triangles.VertexBuffer.StrideInBytes < UINT32_MAX);
                 LoadPrimitivesInputConstants constants = {};
                 constants.IndexBufferOffset = indexBufferOffset;
-                constants.NumTrianglesBound = numberOfTriangles;
-                constants.TotalTriangleCount = totalTriangleCount;
-                constants.TriangleOffset = numTrianglesLoaded;
-                constants.VertexBufferStride = (UINT32)triangles.VertexBuffer.StrideInBytes;
+                constants.NumPrimitivesBound = numberOfTriangles;
+                constants.TotalPrimitiveCount = totalTriangleCount;
+                constants.PrimitiveOffset = numTrianglesLoaded;
+                constants.ElementBufferStride = (UINT32)triangles.VertexBuffer.StrideInBytes;
                 constants.GeometryContributionToHitGroupIndex = elementIndex;
                 constants.HasValidTransform = (triangles.Transform != 0);
 
@@ -143,10 +143,10 @@ namespace FallbackLayer
                 assert(aabbs.AABBs.StrideInBytes < UINT32_MAX);
                 LoadPrimitivesInputConstants constants = {};
                 constants.IndexBufferOffset = 0;
-                constants.NumTrianglesBound = numberOfAABBs;
-                constants.TotalTriangleCount = totalTriangleCount;
-                constants.TriangleOffset = numTrianglesLoaded;
-                constants.VertexBufferStride = (UINT32)aabbs.AABBs.StrideInBytes;
+                constants.NumPrimitivesBound = numberOfAABBs;
+                constants.TotalPrimitiveCount = totalTriangleCount;
+                constants.PrimitiveOffset = numTrianglesLoaded;
+                constants.ElementBufferStride = (UINT32)aabbs.AABBs.StrideInBytes;
                 constants.GeometryContributionToHitGroupIndex = elementIndex;
                 constants.HasValidTransform = false;
 

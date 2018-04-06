@@ -25,12 +25,12 @@ AABB GetAABB(ByteAddressBuffer aabbBuffer, uint aabbIndex, uint stride)
 void main(uint3 DTid : SV_DispatchThreadID)
 {
     uint localPrimitiveIndex = DTid.x;
-    if (localPrimitiveIndex >= Constants.NumTrianglesBound)
+    if (localPrimitiveIndex >= Constants.NumPrimitivesBound)
     {
         return;
     }
-    uint globalPrimitiveIndex = localPrimitiveIndex + Constants.TriangleOffset;
-    AABB aabb = GetAABB(elementBuffer, localPrimitiveIndex, Constants.VertexBufferStride);
+    uint globalPrimitiveIndex = localPrimitiveIndex + Constants.PrimitiveOffset;
+    AABB aabb = GetAABB(elementBuffer, localPrimitiveIndex, Constants.ElementBufferStride);
 
     PrimitiveBuffer[globalPrimitiveIndex] = CreateProceduralGeometryPrimitive(aabb);
 
