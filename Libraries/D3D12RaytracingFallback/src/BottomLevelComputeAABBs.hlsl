@@ -12,11 +12,11 @@
 #include "ConstructAABBBindings.h"
 #include "RayTracingHelper.hlsli"
 
-BoundingBox ComputeLeafAABB(uint primitiveIndex, uint offsetToVertices, out uint2 flags)
+BoundingBox ComputeLeafAABB(uint primitiveIndex, uint offsetToPrimitives, out uint2 flags)
 {
-    uint offsetToReadPrimitives = offsetToVertices + primitiveIndex * SizeOfPrimitive;
-    uint primitiveType = outputBVH.Load(offsetToReadPrimitives);
-    offsetToReadPrimitives += SizeOfUINT32;
+    uint offsetToReadPrimitive = offsetToPrimitives + primitiveIndex * SizeOfPrimitive;
+    uint primitiveType = outputBVH.Load(offsetToReadPrimitive);
+    offsetToReadPrimitive += SizeOfUINT32;
 
     if (primitiveType == TRIANGLE_TYPE)
     {
@@ -24,7 +24,7 @@ BoundingBox ComputeLeafAABB(uint primitiveIndex, uint offsetToVertices, out uint
         [unroll]
         for (uint i = 0; i < NumberOfVerticesPerTriangle; i++)
         {
-            v[i] = asfloat(outputBVH.Load3(offsetToReadPrimitives + i * SizeOfVertex));
+            v[i] = asfloat(outputBVH.Load3(offsetToReadPrimitive + i * SizeOfVertex));
         }
 
         return GetBoxDataFromTriangle(v[0], v[1], v[2], primitiveIndex, flags);
@@ -35,8 +35,8 @@ BoundingBox ComputeLeafAABB(uint primitiveIndex, uint offsetToVertices, out uint
         flags.y = 1;
     
         AABB aabb;
-        aabb.min = asfloat(outputBVH.Load3(offsetToReadPrimitives));
-        aabb.max = asfloat(outputBVH.Load3(offsetToReadPrimitives + 12));
+        aabb.min = asfloat(outputBVH.Load3(offsetToReadPrimitive));
+        aabb.max = asfloat(outputBVH.Load3(offsetToReadPrimitive + 12));
         return AABBtoBoundingBox(aabb);
     }
 }
