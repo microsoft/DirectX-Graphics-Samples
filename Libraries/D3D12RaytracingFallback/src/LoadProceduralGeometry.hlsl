@@ -33,9 +33,5 @@ void main(uint3 DTid : SV_DispatchThreadID)
     AABB aabb = GetAABB(elementBuffer, localPrimitiveIndex, Constants.ElementBufferStride);
 
     PrimitiveBuffer[globalPrimitiveIndex] = CreateProceduralGeometryPrimitive(aabb);
-
-    PrimitiveMetaData metaData;
-    metaData.GeometryContributionToHitGroupIndex = Constants.GeometryContributionToHitGroupIndex;
-    metaData.PrimitiveIndex = localPrimitiveIndex;
-    MetadataBuffer[globalPrimitiveIndex] = metaData;
+    StorePrimitiveMetadata(globalPrimitiveIndex, localPrimitiveIndex);
 }

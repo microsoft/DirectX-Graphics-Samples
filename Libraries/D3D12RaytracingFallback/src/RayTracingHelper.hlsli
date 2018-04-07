@@ -25,7 +25,7 @@
 #define NumberOfVerticesPerTriangle 3
 #define InvalidNodeIndex 9999999
 static const int IsLeafFlag = 0x80000000;
-static const int IsProceduralGeometryFlag = 0x40000000; // TODO: Use on NumTriangles flag, this is wasting index precision
+static const int IsProceduralGeometryFlag = 0x40000000;
 
 // BVH description for the traversal shader
 //struct BVHOffsets
@@ -178,9 +178,9 @@ uint GetPrimitiveMetaDataAddress(uint startAddress, uint triangleIndex)
     return startAddress + triangleIndex * SizeOfPrimitiveMetaData;
 }
 
-PrimitiveMetaData BVHReadPrimitiveMetaData(RWByteAddressBufferPointer pointer, int triangleIndex)
+PrimitiveMetaData BVHReadPrimitiveMetaData(RWByteAddressBufferPointer pointer, int primitiveIndex)
 {
-    const uint readAddress = GetPrimitiveMetaDataAddress(GetOffsetToPrimitiveMetaData(pointer), triangleIndex);
+    const uint readAddress = GetPrimitiveMetaDataAddress(GetOffsetToPrimitiveMetaData(pointer), primitiveIndex);
 
     PrimitiveMetaData metadata;
     const uint2 a = pointer.buffer.Load2(readAddress);
@@ -215,9 +215,8 @@ void BVHReadTriangle(
     out float3 v2,
     uint triId)
 {
-    // Each triangle is 9 floats (36 bytes)
-    uint baseOffset = GetOffsetToVertices(pointer) + triId * SizeOfPrimitive;
-    baseOffset += 4; // skip primitive flag for now
+    uint baseOffset = GetOffsetToVertices(pointer) + triId * SizeOfPrimitive
+        + SizeOfUINT32; // The first 4 bytes in a Primitive is the PrimitiveType flag
 
     const float4 a = asfloat(pointer.buffer.Load4(baseOffset));
     const float4 b = asfloat(pointer.buffer.Load4(baseOffset + 16));

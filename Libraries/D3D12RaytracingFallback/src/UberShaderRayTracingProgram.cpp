@@ -23,6 +23,25 @@ namespace FallbackLayer
         ThrowInternalFailure(pDevice->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(ppPipelineState)));
     }
 
+    StateIdentifier UberShaderRaytracingProgram::GetStateIdentfier(LPCWSTR pExportName)
+    {
+        StateIdentifier id = 0;
+        if (pExportName)
+        {
+            auto shaderIdentifier = m_ExportNameToShaderIdentifier.find(pExportName);
+            if (shaderIdentifier != m_ExportNameToShaderIdentifier.end())
+            {
+                id = shaderIdentifier->second.StateId;
+            }
+            else
+            {
+                ThrowFailure(E_INVALIDARG, L"Hit group is referring to a shader name that wasn't found in the state object");
+            }
+        }
+        return id;
+    }
+
+
     UberShaderRaytracingProgram::UberShaderRaytracingProgram(ID3D12Device *pDevice, DxilShaderPatcher &dxilShaderPatcher, const StateObjectCollection &stateObjectCollection) :
         m_DxilShaderPatcher(dxilShaderPatcher)
     {
@@ -124,46 +143,14 @@ namespace FallbackLayer
 
         for (auto &hitGroupMapEntry : stateObjectCollection.m_hitGroups)
         {
-            ShaderIdentifier shaderId = {};
             auto closestHitName = hitGroupMapEntry.second.ClosestHitShaderImport;
             auto anyHitName = hitGroupMapEntry.second.AnyHitShaderImport;
             auto intersectionName = hitGroupMapEntry.second.IntersectionShaderImport;
-            if (closestHitName)
-            {
-                auto closestHitIdentifier = m_ExportNameToShaderIdentifier.find(closestHitName);
-                if (closestHitIdentifier != m_ExportNameToShaderIdentifier.end())
-                {
-                    shaderId.StateId = closestHitIdentifier->second.StateId;
-                }
-                else
-                {
-                    ThrowFailure(E_INVALIDARG, L"Hit group is referring to a closesthit shader name that wasn't found in the state object");
-                }
-            }
-            if (anyHitName)
-            {
-                auto anyHitNameIdentifier = m_ExportNameToShaderIdentifier.find(anyHitName);
-                if (anyHitNameIdentifier != m_ExportNameToShaderIdentifier.end())
-                {
-                    shaderId.AnyHitId = anyHitNameIdentifier->second.StateId;
-                }
-                else
-                {
-                    ThrowFailure(E_INVALIDARG, L"Hit group is referring to an anyhit shader name that wasn't found in the state object");
-                }
-            }
-            if (intersectionName)
-            {
-                auto intersectionIdentifier = m_ExportNameToShaderIdentifier.find(intersectionName);
-                if (intersectionIdentifier != m_ExportNameToShaderIdentifier.end())
-                {
-                    shaderId.IntersectionShaderId = intersectionIdentifier->second.StateId;
-                }
-                else
-                {
-                    ThrowFailure(E_INVALIDARG, L"Hit group is referring to an intersection shader name that wasn't found in the state object");
-                }
-            }
+
+            ShaderIdentifier shaderId = {};
+            shaderId.StateId = GetStateIdentfier(closestHitName);
+            shaderId.AnyHitId = GetStateIdentfier(anyHitName);
+            shaderId.IntersectionShaderId = GetStateIdentfier(intersectionName);
 
             auto hitGroupName = hitGroupMapEntry.first;
             m_ExportNameToShaderIdentifier[hitGroupName] = shaderId;

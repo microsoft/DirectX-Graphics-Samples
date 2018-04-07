@@ -56,4 +56,11 @@ cbuffer LoadPrimitivesConstants : CONSTANT_REGISTER(LoadInstancesConstantsRegist
     LoadPrimitivesInputConstants Constants;
 }
 
+void StorePrimitiveMetadata(uint globalPrimitiveIndex, uint localPrimitiveIndex)
+{
+    PrimitiveMetaData metaData;
+    metaData.GeometryContributionToHitGroupIndex = Constants.GeometryContributionToHitGroupIndex;
+    metaData.PrimitiveIndex = localPrimitiveIndex;
+    MetadataBuffer[globalPrimitiveIndex] = metaData;
+}
 #endif

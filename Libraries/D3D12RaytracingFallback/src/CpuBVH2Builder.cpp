@@ -531,7 +531,7 @@ namespace FallbackLayer
             auto &geometry = pGeometries[i];
             if (geometry.Type == D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES)
             {
-                totalNumberOfTriangles += GetTriangleCountFromGeometryDesc(geometry);
+                totalNumberOfTriangles += GetPrimitiveCountFromGeometryDesc(geometry);
             }
             else
             {
@@ -563,7 +563,7 @@ namespace FallbackLayer
             }
 
             auto &triangles = geometry.Triangles;
-            if (GetTriangleCountFromGeometryDesc(geometry) == 0)
+            if (GetPrimitiveCountFromGeometryDesc(geometry) == 0)
 
             {
                 continue;
@@ -571,7 +571,7 @@ namespace FallbackLayer
 
             // 
             const UINT64 vertexStrideDwords = triangles.VertexBuffer.StrideInBytes / 4;
-            const UINT numTris = GetTriangleCountFromGeometryDesc(geometry);
+            const UINT numTris = GetPrimitiveCountFromGeometryDesc(geometry);
 
             float *pVertexData = (float *)geometry.Triangles.VertexBuffer.StartAddress;
             float *pIndexData = (float *)geometry.Triangles.IndexBuffer;
@@ -676,7 +676,7 @@ void BuildRaytracingAccelerationStructureOnCpu(
     const UINT sizeofBoxes = (UINT)(bvh.m_nodes.size() * sizeof(*bvh.m_nodes.data()));
     offsets.offsetToVertices = offsets.offsetToBoxes + sizeofBoxes;
     
-    UINT numTriangles = bvh.m_triangles.size() / 9;
+    UINT numTriangles = (UINT)bvh.m_triangles.size() / 9;
     const UINT sizeofVertices = numTriangles * sizeof(Primitive);
     offsets.offsetToPrimitiveMetaData = offsets.offsetToVertices + sizeofVertices;
 

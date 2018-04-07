@@ -151,7 +151,7 @@ namespace FallbackLayer
         // Load all the triangles into the bottom-level acceleration structure. This loading is done 
         // one VB/IB pair at a time since each VB will have unique characteristics (topology type/IB format)
         // and will generally have enough verticies to go completely wide
-        UINT totalTriangles = GetTotalTriangleCount(*pDesc);
+        UINT totalTriangles = GetTotalPrimitiveCount(*pDesc);
         ScratchMemoryPartitions scratchMemoryPartition = CalculateScratchMemoryUsage(Level::Bottom, totalTriangles);
         D3D12_GPU_VIRTUAL_ADDRESS scratchGpuVA = pDesc->ScratchAccelerationStructureData.StartAddress;
         D3D12_GPU_VIRTUAL_ADDRESS scratchTriangleBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToElements;
@@ -303,7 +303,7 @@ namespace FallbackLayer
         {
         case D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL:
         {
-            UINT totalNumberOfTriangles = GetTotalTriangleCount(*pDesc);
+            UINT totalNumberOfTriangles = GetTotalPrimitiveCount(*pDesc);
             const UINT numLeaves = totalNumberOfTriangles;
             // A full binary tree with N leaves will always have N - 1 internal nodes
             const UINT numInternalNodes = GetNumberOfInternalNodes(numLeaves);

@@ -115,7 +115,7 @@ static const D3D12_RAYTRACING_GEOMETRY_DESC &GetGeometryDesc(const typename RAYT
     }
 }
 
-static UINT GetTriangleCountFromGeometryDesc(const D3D12_RAYTRACING_GEOMETRY_DESC &geometryDesc)
+static UINT GetPrimitiveCountFromGeometryDesc(const D3D12_RAYTRACING_GEOMETRY_DESC &geometryDesc)
 {
     switch (geometryDesc.Type)
     {
@@ -150,13 +150,13 @@ static UINT GetTriangleCountFromGeometryDesc(const D3D12_RAYTRACING_GEOMETRY_DES
 }
 
 template<typename RAYTRACING_ACCELERATION_STRUCTURE_DESC>
-static UINT GetTotalTriangleCount(const typename RAYTRACING_ACCELERATION_STRUCTURE_DESC &desc)
+static UINT GetTotalPrimitiveCount(const typename RAYTRACING_ACCELERATION_STRUCTURE_DESC &desc)
 {
     UINT totalTriangles = 0;
     for (UINT elementIndex = 0; elementIndex < desc.NumDescs; elementIndex++)
     {
         const D3D12_RAYTRACING_GEOMETRY_DESC &geometryDesc = GetGeometryDesc(desc, elementIndex);
-        totalTriangles += GetTriangleCountFromGeometryDesc(geometryDesc);
+        totalTriangles += GetPrimitiveCountFromGeometryDesc(geometryDesc);
     }
     return totalTriangles;
 }

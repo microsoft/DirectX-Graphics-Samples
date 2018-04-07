@@ -43,7 +43,7 @@ namespace FallbackLayer
         static IndexBufferType GetIndexBufferType(DXGI_FORMAT format);
 
         CComPtr<ID3D12RootSignature> m_pRootSignature;
-        CComPtr<ID3D12PipelineState> m_pPSOs[NumIndexBufferTyes];
+        CComPtr<ID3D12PipelineState> m_pLoadTrianglesPSOs[NumIndexBufferTyes];
         CComPtr<ID3D12PipelineState> m_pLoadProceduralGeometryPSO;
     };
 }

@@ -121,9 +121,5 @@ void main( uint3 DTid : SV_DispatchThreadID )
     }
 
     PrimitiveBuffer[globalTriangleIndex] = CreateTrianglePrimitive(tri);
-
-    PrimitiveMetaData metaData;
-    metaData.GeometryContributionToHitGroupIndex = Constants.GeometryContributionToHitGroupIndex;
-    metaData.PrimitiveIndex = localTriangleIndex;
-    MetadataBuffer[globalTriangleIndex] = metaData;
+    StorePrimitiveMetadata(globalTriangleIndex, localTriangleIndex);
 }

@@ -30,9 +30,9 @@ namespace FallbackLayer
         auto rootSignatureDesc = CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(ARRAYSIZE(rootParameters), rootParameters);
         CreateRootSignatureHelper(pDevice, rootSignatureDesc, &m_pRootSignature);
 
-        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pLoadTrianglesFromR16IndexBuffer), &m_pPSOs[Index16Bit]);
-        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pLoadTrianglesFromR32IndexBuffer), &m_pPSOs[Index32Bit]);
-        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pLoadTrianglesNoIndexBuffer), &m_pPSOs[NoIndexBuffer]);
+        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pLoadTrianglesFromR16IndexBuffer), &m_pLoadTrianglesPSOs[Index16Bit]);
+        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pLoadTrianglesFromR32IndexBuffer), &m_pLoadTrianglesPSOs[Index32Bit]);
+        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pLoadTrianglesNoIndexBuffer), &m_pLoadTrianglesPSOs[NoIndexBuffer]);
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pLoadProceduralGeometry), &m_pLoadProceduralGeometryPSO);
     }
 
@@ -113,7 +113,7 @@ namespace FallbackLayer
                     pCommandList->SetComputeRootShaderResourceView(TransformsBuffer, triangles.Transform);
                 }
 
-                pCommandList->SetPipelineState(m_pPSOs[GetIndexBufferType(triangles.IndexFormat)]);
+                pCommandList->SetPipelineState(m_pLoadTrianglesPSOs[GetIndexBufferType(triangles.IndexFormat)]);
             }
             else
             {
