@@ -115,12 +115,13 @@ static_assert(sizeof(Triangle) == SizeOfTriangle, L"Incorrect sizeof for Triangl
 
 #define TRIANGLE_TYPE 0x1
 #define PROCEDURAL_PRIMITIVE_TYPE 0x2
-#define PrimitiveDataSize SizeOfTriangle / 4
 struct Primitive
 {
     uint PrimitiveType;
 #ifdef HLSL
-    uint data[PrimitiveDataSize];
+    uint4 data0;
+    uint4 data1;
+    uint data2;
 #else
     union
     {
@@ -134,10 +135,9 @@ Primitive NullPrimitive()
 {
     Primitive primitive;
     primitive.PrimitiveType = 0;
-    for (unsigned int i = 0; i < PrimitiveDataSize; i++)
-    {
-        primitive.data[i] = 0;
-    }
+    primitive.data0 = 0;
+    primitive.data1 = 0;
+    primitive.data2 = 0;
     return primitive;
 }
 
@@ -145,17 +145,7 @@ Primitive CreateProceduralGeometryPrimitive(AABB aabb)
 {
     Primitive primitive = NullPrimitive();
     primitive.PrimitiveType = PROCEDURAL_PRIMITIVE_TYPE;
-
-    uint4 a;
-    uint2 b;
-    AABBToRawData(aabb, a, b);
-    primitive.data[0] = a.x;
-    primitive.data[1] = a.y;
-    primitive.data[2] = a.z;
-    primitive.data[3] = a.w;
-    primitive.data[4] = b.x;
-    primitive.data[5] = b.y;
-
+    AABBToRawData(aabb, primitive.data0, primitive.data1.xy);
     return primitive;
 }
 
@@ -163,36 +153,18 @@ Primitive CreateTrianglePrimitive(Triangle tri)
 {
     Primitive primitive = NullPrimitive();
     primitive.PrimitiveType = TRIANGLE_TYPE;
-
-    uint4 a, b;
-    uint c;
-    TriangleToRawData(tri, a, b, c);
-    primitive.data[0] = a.x;
-    primitive.data[1] = a.y;
-    primitive.data[2] = a.z;
-    primitive.data[3] = a.w;
-    primitive.data[4] = b.x;
-    primitive.data[5] = b.y;
-    primitive.data[6] = b.z;
-    primitive.data[7] = b.w;
-    primitive.data[8] = c;
-
+    TriangleToRawData(tri, primitive.data0, primitive.data1, primitive.data2);
     return primitive;
 }
 
 Triangle GetTriangle(Primitive prim)
 {
-    uint4 a = uint4(prim.data[0], prim.data[1], prim.data[2], prim.data[3]);
-    uint4 b = uint4(prim.data[4], prim.data[5], prim.data[6], prim.data[7]);
-    uint c = prim.data[8];
-    return RawDataToTriangle(a, b, c);
+    return RawDataToTriangle(prim.data0, prim.data1, prim.data2);
 }
 
 AABB GetProceduralPrimitiveAABB(Primitive prim)
 {
-    uint4 a = uint4(prim.data[0], prim.data[1], prim.data[2], prim.data[3]);
-    uint2 b = uint2(prim.data[4], prim.data[5]);
-    return RawDataToAABB(a, b);
+    return RawDataToAABB(prim.data0, prim.data1.xy);
 }
 
 #endif
