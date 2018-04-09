@@ -593,7 +593,12 @@ bool Traverse(
                         float2 resultBary;
                         uint resultTriId;
                         bool intersectionFound = false;
-                        if (!culled && IsProceduralGeometry(flags))
+
+                        bool isProceduralGeometry = IsProceduralGeometry(flags);
+#ifdef DISABLE_PROCEDURAL_GEOMETRY
+                        isProceduralGeometry = false;
+#endif
+                        if (!culled && isProceduralGeometry)
                         {
                             const uint triID = flags.x & 0x00ffffff;
                             RWByteAddressBufferPointer bottomLevelAccelerationStructure = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);

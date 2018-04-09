@@ -9,4 +9,5 @@
 //
 //*********************************************************
 #define DISABLE_ANYHIT
+#define DISABLE_PROCEDURAL_GEOMETRY
 #include "TraverseShader.hlsli"
