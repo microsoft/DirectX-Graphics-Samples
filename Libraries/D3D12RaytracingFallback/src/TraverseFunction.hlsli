@@ -595,34 +595,27 @@ bool Traverse(
                         bool intersectionFound = false;
 
                         bool isProceduralGeometry = IsProceduralGeometry(flags);
+                        bool endSearch = false;
 #ifdef DISABLE_PROCEDURAL_GEOMETRY
                         isProceduralGeometry = false;
 #endif
+                        RWByteAddressBufferPointer bottomLevelAccelerationStructure = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
                         if (!culled && isProceduralGeometry)
                         {
-                            const uint triID = flags.x & 0x00ffffff;
-                            RWByteAddressBufferPointer bottomLevelAccelerationStructure = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
-                            PrimitiveMetaData triMetadata = BVHReadPrimitiveMetaData(bottomLevelAccelerationStructure, triID);
+                            const uint leafIndex = GetLeafIndexFromFlag(flags);
+                            PrimitiveMetaData primitiveMetadata = BVHReadPrimitiveMetaData(bottomLevelAccelerationStructure, leafIndex);
                             uint contributionToHitGroupIndex =
                                 RayContributionToHitGroupIndex +
                                 triMetadata.GeometryContributionToHitGroupIndex * MultiplierForGeometryContributionToHitGroupIndex +
                                 instOffset;
-                            uint primIdx = triMetadata.PrimitiveIndex;
 
-                            Fallback_SetPendingCustomVals(primIdx, contributionToHitGroupIndex, instIdx, instId);
-                            uint intersectionStateID = HitGroupShaderTable.Load(contributionToHitGroupIndex * HitGroupShaderRecordStride + 8); // can we just premultiply by the stride when setting the pending values?
-                            uint anyHitStateID = HitGroupShaderTable.Load(contributionToHitGroupIndex * HitGroupShaderRecordStride + 4); // can we just premultiply by the stride when setting the pending values?
+                            Fallback_SetPendingCustomVals(primitiveMetadata.PrimitiveIndex, contributionToHitGroupIndex, instIdx, instId);
+                            uint intersectionStateID = HitGroupShaderTable.Load(contributionToHitGroupIndex * HitGroupShaderRecordStride + 8); 
+                            uint anyHitStateID = HitGroupShaderTable.Load(contributionToHitGroupIndex * HitGroupShaderRecordStride + 4);
                             Fallback_SetAnyHitStateId(anyHitStateID);
                             Fallback_SetAnyHitResult(ACCEPT);
                             Fallback_CallIndirect(intersectionStateID);
-                            int ret = Fallback_AnyHitResult();
-                            bool endSearch = false;
-                            endSearch = (ret == END_SEARCH) || (RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH);
-                            if (endSearch)
-                            {
-                                nodesToProcess[BOTTOM_LEVEL_INDEX] = 0;
-                                nodesToProcess[TOP_LEVEL_INDEX] = 0;
-                            }
+                            endSearch = Fallback_AnyHitResult() == END_SEARCH;
                         }
                         else if (!culled && TestLeafNodeIntersections( // TODO: We need to break out this function so we can run anyhit on each triangle
                             currentBVH,
@@ -636,7 +629,6 @@ bool Traverse(
                             resultT,
                             resultTriId))
                         {
-                            RWByteAddressBufferPointer bottomLevelAccelerationStructure = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
                             PrimitiveMetaData triMetadata = BVHReadPrimitiveMetaData(bottomLevelAccelerationStructure, resultTriId);
                             uint contributionToHitGroupIndex =
                                 RayContributionToHitGroupIndex +
@@ -680,12 +672,11 @@ bool Traverse(
                                     Fallback_CommitHit();
                                 endSearch = (ret == END_SEARCH) || (RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH);
                             }
-
-                            if (endSearch)
-                            {
-                                nodesToProcess[BOTTOM_LEVEL_INDEX] = 0;
-                                nodesToProcess[TOP_LEVEL_INDEX] = 0;
-                            }
+                        }
+                        if (endSearch)
+                        {
+                            nodesToProcess[BOTTOM_LEVEL_INDEX] = 0;
+                            nodesToProcess[TOP_LEVEL_INDEX] = 0;
                         }
                     }
                 }

@@ -26,6 +26,7 @@
 #define InvalidNodeIndex 9999999
 static const int IsLeafFlag = 0x80000000;
 static const int IsProceduralGeometryFlag = 0x40000000;
+static const int LeafFlags = IsLeafFlag | IsProceduralGeometryFlag;
 
 // BVH description for the traversal shader
 //struct BVHOffsets
@@ -52,7 +53,7 @@ static const int OffsetToTotalSize = 12;
 
 int GetLeafIndexFromFlag(uint2 flag)
 {
-    return flag.x & ~IsLeafFlag;
+    return flag.x & ~LeafFlags;
 }
 
 // Reorganized AABB for faster intersection testing
