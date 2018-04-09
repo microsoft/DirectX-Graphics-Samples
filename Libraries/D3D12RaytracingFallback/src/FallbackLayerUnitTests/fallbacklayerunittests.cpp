@@ -1389,7 +1389,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
             uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
             uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-            uavDesc.Buffer.NumElements = texDesc.Width / sizeof(UINT32);
+            uavDesc.Buffer.NumElements = (UINT)texDesc.Width / sizeof(UINT32);
             uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 
             auto shaderByteCode = CD3DX12_SHADER_BYTECODE((void *)g_pReadDataRWByteAddressBuffer, sizeof(g_pReadDataRWByteAddressBuffer));
@@ -2190,8 +2190,8 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             containingAABB.max = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
             srand(42);
-            std::vector<Triangle> triangles;
-            std::vector<TriangleMetaData> trianglesMetadata;
+            std::vector<Primitive> triangles;
+            std::vector<PrimitiveMetaData> trianglesMetadata;
             std::vector<AABBNode> boxes;
             std::vector<BVHMetadata> boxMetadata;
 
@@ -2206,7 +2206,9 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             {
                 for (UINT i = 0; i < numElements; i++)
                 {
-                    Triangle tri;
+                    Primitive primitive;
+                    primitive.PrimitiveType = TRIANGLE_TYPE;
+                    Triangle &tri = primitive.triangle;
                     for (uint vIdx = 0; vIdx < 3; vIdx++)
                     {
                         tri.v[vIdx].x = (rand() / (float)RAND_MAX) * 1000.0f - 500.0f;
@@ -2215,11 +2217,11 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
                         containingAABB.min = min(containingAABB.min, tri.v[vIdx]);
                         containingAABB.max = max(containingAABB.max, tri.v[vIdx]);
                     }
-                    triangles.push_back(tri);
+                    triangles.push_back(primitive);
 
                     if (pOutputMetadata)
                     {
-                        TriangleMetaData metadata;
+                        PrimitiveMetaData metadata;
                         metadata.GeometryContributionToHitGroupIndex = 0;
                         metadata.PrimitiveIndex = i;
                         trianglesMetadata.push_back(metadata);
@@ -2230,17 +2232,18 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
                 {
                     for (UINT i = 0; i < numElements; i++)
                     {
-                        (*pOutputMortonCodes)[i].MortonCode = CalculateMortonCode(triangles[i], containingAABB);
+                        assert(triangles[i].PrimitiveType == TRIANGLE_TYPE);
+                        (*pOutputMortonCodes)[i].MortonCode = CalculateMortonCode(triangles[i].triangle, containingAABB);
                         (*pOutputMortonCodes)[i].Index = i;
                     }
                 }
                 if (pOutputMetadata)
                 {
-                    metadataSize = (UINT)(trianglesMetadata.size() * sizeof(TriangleMetaData));
+                    metadataSize = (UINT)(trianglesMetadata.size() * sizeof(PrimitiveMetaData));
                     pMetadata = trianglesMetadata.data();
                 }
 
-                dataSize = (UINT)(triangles.size() * sizeof(Triangle));
+                dataSize = (UINT)(triangles.size() * sizeof(Primitive));
                 pSourceData = triangles.data();
                 break;
             }
@@ -2509,10 +2512,12 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             TreeletReorder treeletReorder(&d3d12Device, 0);
 
             const UINT numTriangles = 16;
-            std::vector<Triangle> triangleBuffer(numTriangles);
+            std::vector<Primitive> triangleBuffer(numTriangles);
             for (INT i = 0; i < numTriangles; i++)
             {
-                Triangle &tri = triangleBuffer[i];
+                Primitive &primitive = triangleBuffer[i];
+                primitive.PrimitiveType = TRIANGLE_TYPE;
+                Triangle &tri = primitive.triangle;
                 if (i < numTriangles / 2)
                 {
                     tri.v0 = tri.v1 = tri.v2 = { (float)-i, 0, 0 };
@@ -2605,6 +2610,58 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             Assert::IsTrue(leafNodesFound == numLeafNodes, L"Incorrectly constructed hierarchy");
         }
 
+        TEST_METHOD(LoadAABBs)
+        {
+            ID3D12Device &d3d12Device = m_d3d12Context.GetDevice();
+            LoadPrimitivesPass loadPrimitivesPass(&d3d12Device, 1);
+
+            CComPtr<ID3D12GraphicsCommandList> pCommandList;
+            m_d3d12Context.GetGraphicsCommandList(&pCommandList);
+
+            std::vector<AABB> aabbs;
+            aabbs.push_back({ -1.0, -1.0, -1.0, 1.0, 1.0, 1.0 });
+            aabbs.push_back({ -1.0, -500.0, -1.0, 1.0, 2000.0, 1.0 });
+            aabbs.push_back({ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 });
+
+            CComPtr<ID3D12Resource> pInputAABBBuffer;
+            m_d3d12Context.CreateResourceWithInitialData(aabbs.data(), aabbs.size() * sizeof(AABB), &pInputAABBBuffer);
+
+            auto outputBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(aabbs.size() * sizeof(Primitive), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            D3D12_HEAP_PROPERTIES defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+            CComPtr<ID3D12Resource> pOutputBuffer, pOutputMetadataBuffer;
+            AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &outputBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pOutputBuffer)));
+            auto outputMetadataBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(aabbs.size() * sizeof(PrimitiveMetaData), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &outputMetadataBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pOutputMetadataBuffer)));
+
+            D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
+            geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+            geometryDesc.AABBs.AABBCount = aabbs.size();
+            geometryDesc.AABBs.AABBs.StartAddress = pInputAABBBuffer->GetGPUVirtualAddress();
+            geometryDesc.AABBs.AABBs.StrideInBytes = sizeof(AABB);
+
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+            buildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            buildDesc.pGeometryDescs = &geometryDesc;
+            buildDesc.NumDescs = 1;
+            buildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            loadPrimitivesPass.LoadPrimitives(
+                pCommandList,
+                buildDesc,
+                (UINT)aabbs.size(),
+                pOutputBuffer->GetGPUVirtualAddress(),
+                pOutputMetadataBuffer->GetGPUVirtualAddress());
+
+            pCommandList->Close();
+            m_d3d12Context.ExecuteCommandList(pCommandList);
+
+            std::vector<Primitive> outputPrimitives(aabbs.size());
+            m_d3d12Context.ReadbackResource(pOutputBuffer, outputPrimitives.data(), (UINT)outputPrimitives.size() * sizeof(*outputPrimitives.data()));
+            for (UINT i = 0; i < aabbs.size(); i++)
+            {
+                Assert::IsTrue(outputPrimitives[i].PrimitiveType == PROCEDURAL_PRIMITIVE_TYPE, L"Loaded AABB is not properly marked as Procedural Geometry");
+                Assert::IsTrue(memcmp(&outputPrimitives[i].aabb, &aabbs[i], sizeof(aabbs[i])) == 0, L"Loaded AABB does not match the input AABB");
+            }
+        }
 
         TEST_METHOD(RearrangingTriangles)
         {
@@ -2622,10 +2679,10 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             {
             case SceneType::Triangles:
             {
-                Triangle *pInputTriangles = (Triangle *)pInputData;
-                Triangle *pOutputTriangles = (Triangle *)pOutputData;
-                TriangleMetaData* pInputTriangleMetadata = (TriangleMetaData*)pInputMetadata;
-                TriangleMetaData* pOutputTriangleMetadata = (TriangleMetaData*)pOutputMetadata;
+                Primitive *pInputTriangles = (Primitive *)pInputData;
+                Primitive *pOutputTriangles = (Primitive *)pOutputData;
+                PrimitiveMetaData* pInputPrimitiveMetaData = (PrimitiveMetaData*)pInputMetadata;
+                PrimitiveMetaData* pOutputPrimitiveMetaData = (PrimitiveMetaData*)pOutputMetadata;
 
                 for (UINT i = 0; i < numElements; i++)
                 {
@@ -2637,7 +2694,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
                         L"Triangles in output buffers not correctly in reverse order");
 
                     Assert::IsTrue(
-                        memcmp(&pInputTriangleMetadata[inputIndex], &pOutputTriangleMetadata[outputIndex], sizeof(*pInputTriangleMetadata)) == 0,
+                        memcmp(&pInputPrimitiveMetaData[inputIndex], &pOutputPrimitiveMetaData[outputIndex], sizeof(*pInputPrimitiveMetaData)) == 0,
                         L"Metadata in output buffers not correctly in reverse order");
                 }
                 break;

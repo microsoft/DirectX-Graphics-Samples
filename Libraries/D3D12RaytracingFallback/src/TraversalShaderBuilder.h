@@ -21,6 +21,6 @@ namespace FallbackLayer
     class ITraversalShaderBuilder
     {
     public:
-        virtual void Compile(_In_ bool IsAnyHitUsed, _Out_ TraversalShader &traversalShader) = 0;
+        virtual void Compile(_In_ bool IsAnyHitOrIntersectionUsed, _Out_ TraversalShader &traversalShader) = 0;
     };
 }

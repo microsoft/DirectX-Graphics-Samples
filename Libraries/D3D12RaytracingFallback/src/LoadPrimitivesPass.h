@@ -11,11 +11,11 @@
 #pragma once
 namespace FallbackLayer
 {
-    class LoadTrianglesPass
+    class LoadPrimitivesPass
     {
     public:
-        LoadTrianglesPass(ID3D12Device *pDevice, UINT nodeMask);
-        void LoadTriangles(ID3D12GraphicsCommandList *pCommandList,
+        LoadPrimitivesPass(ID3D12Device *pDevice, UINT nodeMask);
+        void LoadPrimitives(ID3D12GraphicsCommandList *pCommandList,
             const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC &buildDesc,
             UINT totalTriangleCount,
             D3D12_GPU_VIRTUAL_ADDRESS outputTriangleBuffer,
@@ -26,7 +26,7 @@ namespace FallbackLayer
             OutputBuffer = 0,
             OutputMetadataBuffer,
             IndexBufferSRV,
-            VertexBufferSRV,
+            ElementBufferSRV,
             InputRootConstants,
             TransformsBuffer,
             NumRootParameters,
@@ -43,6 +43,7 @@ namespace FallbackLayer
         static IndexBufferType GetIndexBufferType(DXGI_FORMAT format);
 
         CComPtr<ID3D12RootSignature> m_pRootSignature;
-        CComPtr<ID3D12PipelineState> m_pPSOs[NumIndexBufferTyes];
+        CComPtr<ID3D12PipelineState> m_pLoadTrianglesPSOs[NumIndexBufferTyes];
+        CComPtr<ID3D12PipelineState> m_pLoadProceduralGeometryPSO;
     };
 }

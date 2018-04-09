@@ -115,40 +115,48 @@ static const D3D12_RAYTRACING_GEOMETRY_DESC &GetGeometryDesc(const typename RAYT
     }
 }
 
-static UINT GetTriangleCountFromGeometryDesc(const D3D12_RAYTRACING_GEOMETRY_DESC &geometryDesc)
+static UINT GetPrimitiveCountFromGeometryDesc(const D3D12_RAYTRACING_GEOMETRY_DESC &geometryDesc)
 {
-    if (geometryDesc.Type == D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS)
+    switch (geometryDesc.Type)
     {
-        ThrowFailure(E_NOTIMPL,
-            L"Intersection shaders are not currently supported. This error was thrown due to the use of D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS");
-    }
+        case D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES:
+        {
+            const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC &triangles = geometryDesc.Triangles;
+            if (!IsIndexBufferFormatSupported(triangles.IndexFormat))
+            {
+                ThrowFailure(E_NOTIMPL, L"Unsupported index buffer format provided");
+            }
 
-    const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC &triangles = geometryDesc.Triangles;
-    if (!IsIndexBufferFormatSupported(triangles.IndexFormat))
-    {
-        ThrowFailure(E_NOTIMPL, L"Unsupported index buffer format provided");
+            const bool bNullIndexBuffer = (triangles.IndexFormat == DXGI_FORMAT_UNKNOWN);
+            const UINT vertexCount = bNullIndexBuffer ? triangles.VertexCount : triangles.IndexCount;
+            if (vertexCount % 3 != 0)
+            {
+                ThrowFailure(E_INVALIDARG, bNullIndexBuffer ?
+                    L"Invalid vertex count provided, must be a multiple of 3 when there is no index buffer since geometry is always a triangle list" :
+                    L"Invalid index count provided, must be a multiple of 3 since geometry is always a triangle list"
+                );
+            }
+            return vertexCount / 3;
+        }
+        case D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS:
+        {
+            const D3D12_RAYTRACING_GEOMETRY_AABBS_DESC &aabbs = geometryDesc.AABBs;
+            return static_cast<UINT>(aabbs.AABBCount);
+        }
+        default:
+            ThrowFailure(E_INVALIDARG, L"Unrecognized D3D12_RAYTRACING_GEOMETRY_TYPE");
+            return 0;
     }
-
-    const bool bNullIndexBuffer = (triangles.IndexFormat == DXGI_FORMAT_UNKNOWN);
-    const UINT vertexCount = bNullIndexBuffer ? triangles.VertexCount : triangles.IndexCount;
-    if (vertexCount % 3 != 0)
-    {
-        ThrowFailure(E_INVALIDARG, bNullIndexBuffer ?
-            L"Invalid vertex count provided, must be a multiple of 3 when there is no index buffer since geometry is always a triangle list" :
-            L"Invalid index count provided, must be a multiple of 3 since geometry is always a triangle list"
-        );
-    }
-    return vertexCount / 3;
 }
 
 template<typename RAYTRACING_ACCELERATION_STRUCTURE_DESC>
-static UINT GetTotalTriangleCount(const typename RAYTRACING_ACCELERATION_STRUCTURE_DESC &desc)
+static UINT GetTotalPrimitiveCount(const typename RAYTRACING_ACCELERATION_STRUCTURE_DESC &desc)
 {
     UINT totalTriangles = 0;
     for (UINT elementIndex = 0; elementIndex < desc.NumDescs; elementIndex++)
     {
         const D3D12_RAYTRACING_GEOMETRY_DESC &geometryDesc = GetGeometryDesc(desc, elementIndex);
-        totalTriangles += GetTriangleCountFromGeometryDesc(geometryDesc);
+        totalTriangles += GetPrimitiveCountFromGeometryDesc(geometryDesc);
     }
     return totalTriangles;
 }

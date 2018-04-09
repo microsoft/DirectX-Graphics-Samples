@@ -9,7 +9,7 @@
 //
 //*********************************************************
 #define HLSL
-#include "LoadTrianglesBindings.h"
+#include "LoadPrimitivesBindings.h"
 #include "RayTracingHelper.hlsli"
 
 uint3 GetUint32Index3(ByteAddressBuffer IndexBuffer, uint IndexBufferOffset, uint index)
@@ -89,22 +89,22 @@ float3 TransformVertex(float3 v, float3x4 transform)
 void main( uint3 DTid : SV_DispatchThreadID )
 { 
     uint localTriangleIndex = DTid.x;
-    if (localTriangleIndex >= Constants.NumTrianglesBound)
+    if (localTriangleIndex >= Constants.NumPrimitivesBound)
     {
         return;
     }
 
-    uint NumberOfInternalNodes = Constants.TotalTriangleCount - 1;
-    uint NumberOfAABBs = NumberOfInternalNodes + Constants.TotalTriangleCount;
+    uint NumberOfInternalNodes = Constants.TotalPrimitiveCount - 1;
+    uint NumberOfAABBs = NumberOfInternalNodes + Constants.TotalPrimitiveCount;
 
     uint3 indicies = GetIndex(localTriangleIndex);
     
-    uint globalTriangleIndex = localTriangleIndex + Constants.TriangleOffset;
+    uint globalTriangleIndex = localTriangleIndex + Constants.PrimitiveOffset;
 
     Triangle tri;
-    tri.v0 = GetVertex(vertexBuffer, indicies[0], Constants.VertexBufferStride);
-    tri.v1 = GetVertex(vertexBuffer, indicies[1], Constants.VertexBufferStride);
-    tri.v2 = GetVertex(vertexBuffer, indicies[2], Constants.VertexBufferStride);
+    tri.v0 = GetVertex(elementBuffer, indicies[0], Constants.ElementBufferStride);
+    tri.v1 = GetVertex(elementBuffer, indicies[1], Constants.ElementBufferStride);
+    tri.v2 = GetVertex(elementBuffer, indicies[2], Constants.ElementBufferStride);
     
     if (Constants.HasValidTransform)
     {
@@ -120,10 +120,6 @@ void main( uint3 DTid : SV_DispatchThreadID )
         tri.v2 = TransformVertex(tri.v2, transform);
     }
 
-    triangeBuffer[globalTriangleIndex] = tri;
-
-    TriangleMetaData metaData;
-    metaData.GeometryContributionToHitGroupIndex = Constants.GeometryContributionToHitGroupIndex;
-    metaData.PrimitiveIndex = localTriangleIndex;
-    MetadataBuffer[globalTriangleIndex] = metaData;
+    PrimitiveBuffer[globalTriangleIndex] = CreateTrianglePrimitive(tri);
+    StorePrimitiveMetadata(globalTriangleIndex, localTriangleIndex);
 }

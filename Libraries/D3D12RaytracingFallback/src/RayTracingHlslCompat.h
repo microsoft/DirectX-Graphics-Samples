@@ -33,6 +33,44 @@ struct HierarchyNode
     uint RightChildIndex;
 };
 
+struct AABB
+{
+#ifdef HLSL
+    float3  min;
+    float3  max;
+#else
+    union
+    {
+        float3  min;
+        float   minArr[3];
+    };
+    union
+    {
+        float3  max;
+        float   maxArr[3];
+    };
+#endif
+};
+#define SizeOfAABB (6 * 4)
+#ifdef HLSL
+AABB RawDataToAABB(uint4 a, uint2 b)
+{
+    AABB aabb;
+    aabb.min = asfloat(a.xyz);
+    aabb.max = asfloat(uint3(a.w, b.xy));
+
+    return aabb;
+}
+
+void AABBToRawData(in AABB aabb, out uint4 a, out uint2 b)
+{
+    a = asuint(float4(aabb.min.xyz, aabb.max.x));
+    b = asuint(float2(aabb.max.yz));
+}
+#else
+static_assert(sizeof(AABB) == SizeOfAABB, L"Incorrect sizeof for AABB");
+#endif
+
 struct Triangle
 {
 #ifdef HLSL
@@ -54,39 +92,98 @@ struct Triangle
 };
 
 #define SizeOfTriangle (9 * 4)
-#ifndef HLSL
+#ifdef HLSL
+Triangle RawDataToTriangle(uint4 a, uint4 b, uint c)
+{
+    Triangle tri;
+    tri.v0 = asfloat(a.xyz);
+    tri.v1 = asfloat(uint3(a.w, b.xy));
+    tri.v2 = asfloat(uint3(b.zw, c));
+
+    return tri;
+}
+
+void TriangleToRawData(in Triangle tri, out uint4 a, out uint4 b, out uint c)
+{
+    a = asuint(float4(tri.v0.xyz, tri.v1.x));
+    b = asuint(float4(tri.v1.yz, tri.v2.xy));
+    c = asuint(tri.v2.z);
+}
+#else
 static_assert(sizeof(Triangle) == SizeOfTriangle, L"Incorrect sizeof for Triangle");
 #endif
 
+#define TRIANGLE_TYPE 0x1
+#define PROCEDURAL_PRIMITIVE_TYPE 0x2
+struct Primitive
+{
+    uint PrimitiveType;
+#ifdef HLSL
+    uint4 data0;
+    uint4 data1;
+    uint data2;
+#else
+    union
+    {
+        Triangle triangle;
+        AABB aabb;
+    };
+#endif
+};
+#ifdef HLSL
+Primitive NullPrimitive()
+{
+    Primitive primitive;
+    primitive.PrimitiveType = 0;
+    primitive.data0 = 0;
+    primitive.data1 = 0;
+    primitive.data2 = 0;
+    return primitive;
+}
 
-struct TriangleMetaData
+Primitive CreateProceduralGeometryPrimitive(AABB aabb)
+{
+    Primitive primitive = NullPrimitive();
+    primitive.PrimitiveType = PROCEDURAL_PRIMITIVE_TYPE;
+    AABBToRawData(aabb, primitive.data0, primitive.data1.xy);
+    return primitive;
+}
+
+Primitive CreateTrianglePrimitive(Triangle tri)
+{
+    Primitive primitive = NullPrimitive();
+    primitive.PrimitiveType = TRIANGLE_TYPE;
+    TriangleToRawData(tri, primitive.data0, primitive.data1, primitive.data2);
+    return primitive;
+}
+
+Triangle GetTriangle(Primitive prim)
+{
+    return RawDataToTriangle(prim.data0, prim.data1, prim.data2);
+}
+
+AABB GetProceduralPrimitiveAABB(Primitive prim)
+{
+    return RawDataToAABB(prim.data0, prim.data1.xy);
+}
+
+#endif
+#define SizeOfPrimitive 40
+#define OffsetToPrimitiveData 4
+#ifndef HLSL
+static_assert(sizeof(Primitive) == SizeOfPrimitive, L"Incorrect sizeof for Primitive");
+static_assert(offsetof(Primitive, triangle) == OffsetToPrimitiveData, L"Incorrect offset to Primitive data");
+#endif
+
+struct PrimitiveMetaData
 {
     uint GeometryContributionToHitGroupIndex;
     uint PrimitiveIndex;
 };
-#define SizeOfTriangleMetaData (4 * 2)
+#define SizeOfPrimitiveMetaData (4 * 2)
 #ifndef HLSL
-static_assert(sizeof(TriangleMetaData) == SizeOfTriangleMetaData, L"Incorrect sizeof for TriangleMetaData");
+static_assert(sizeof(PrimitiveMetaData) == SizeOfPrimitiveMetaData, L"Incorrect sizeof for PrimitiveMetaData");
 #endif
-
-struct AABB
-{
-#ifdef HLSL
-    float3  min;
-    float3  max;
-#else
-    union
-    {
-        float3  min;
-        float   minArr[3];
-    };
-    union
-    {
-        float3  max;
-        float   maxArr[3];
-    };
-#endif
-};
 
 #define SizeOfRaytracingInstanceDesc 64
 #define SizeOfBVHMetadata 112
@@ -278,7 +375,7 @@ struct BVHOffsets
 {
     uint    offsetToBoxes;
     uint    offsetToVertices;
-    uint    offsetToTriangleMetadata;
+    uint    offsetToPrimitiveMetaData;
     uint    totalSize;
 };
 #define SizeOfBVHOffsets (4 * 4)
@@ -293,9 +390,9 @@ uint GetNumInternalNodes(uint numLeaves)
 }
 
 inline
-uint GetOffsetFromTrianglesToTriangleMetadata(uint numTriangles)
+uint GetOffsetFromPrimitivesToPrimitiveMetaData(uint numPrimitives)
 {
-    return SizeOfTriangle * numTriangles;
+    return SizeOfPrimitive * numPrimitives;
 }
 
 inline
@@ -306,7 +403,7 @@ uint GetOffsetToLeafNodeAABBs(uint numElements)
 }
 
 inline
-uint GetOffsetToTriangles(uint numTriangles)
+uint GetOffsetToPrimitives(uint numTriangles)
 {
     uint numAABBs = numTriangles + GetNumInternalNodes(numTriangles);
     return SizeOfBVHOffsets + SizeOfAABBNode * numAABBs;

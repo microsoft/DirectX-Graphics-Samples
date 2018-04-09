@@ -83,6 +83,13 @@ uint StackPop(inout int stackTop, out uint depth, uint tidInWave)
     return stack[stackIndex];
 }
 
+int InvokeAnyHit(int stateId)
+{
+    Fallback_SetAnyHitResult(ACCEPT);
+    Fallback_CallIndirect(stateId);
+    return Fallback_AnyHitResult();
+}
+
 void Fallback_IgnoreHit()
 {
     Fallback_SetAnyHitResult(IGNORE);
@@ -92,6 +99,33 @@ void Fallback_AcceptHitAndEndSearch()
 {
     Fallback_SetAnyHitResult(END_SEARCH);
 }
+
+int Fallback_ReportHit(float tHit, uint hitKind)
+{
+    if (tHit < RayTMin())
+        return 0;
+
+    Fallback_SetPendingRayTCurrent(tHit);
+    Fallback_SetPendingHitKind(hitKind);
+    int stateId = Fallback_AnyHitStateId();
+    int ret = ACCEPT;
+    if (stateId > 0)
+        ret = InvokeAnyHit(stateId);
+
+    if (RayTCurrent() <= tHit)
+    {
+        ret = IGNORE;
+    }
+
+    if (ret != IGNORE)
+    {
+        Fallback_CommitHit();
+        if (RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH)
+            ret = END_SEARCH;
+    }
+    return ret;
+}
+
 
 //
 // Ray/AABB intersection, separating axes theorem
@@ -154,20 +188,20 @@ void RayTriangleIntersect(
     precise float U = C.x * B.y - C.y * B.x;
     precise float V = A.x * C.y - A.y * C.x;
     precise float W = B.x * A.y - B.y * A.x;
-        
+
     float det = U + V + W;
     if (useFrontfaceCulling)
     {
-        if (U>0.0f || V>0.0f || W>0.0f) return;
+        if (U > 0.0f || V > 0.0f || W > 0.0f) return;
     }
-    else if(useBackfaceCulling)
+    else if (useBackfaceCulling)
     {
-        if (U<0.0f || V<0.0f || W<0.0f) return;
+        if (U < 0.0f || V < 0.0f || W < 0.0f) return;
     }
     else
     {
-        if ((U<0.0f || V<0.0f || W<0.0f) &&
-            (U>0.0f || V>0.0f || W>0.0f)) return;
+        if ((U < 0.0f || V < 0.0f || W < 0.0f) &&
+            (U > 0.0f || V > 0.0f || W > 0.0f)) return;
     }
 
     if (det == 0.0f) return;
@@ -245,7 +279,7 @@ bool TestLeafNodeIntersections(
             swizzledIndicies,
             shear,
             v00, v01, v02);
-        
+
         float t1 = resultT;
         RayTriangleIntersect(
             t1,
@@ -288,11 +322,11 @@ bool TestLeafNodeIntersections(
         float2  bary0;
         float t0 = resultT;
         RayTriangleIntersect(
-            t0, 
+            t0,
             instanceFlags,
-            bary0, 
-            rayOrigin, 
-            rayDirection, 
+            bary0,
+            rayOrigin,
+            rayDirection,
             swizzledIndicies,
             shear,
             v0, v1, v2);
@@ -346,7 +380,7 @@ struct RayData
 {
     float3 Origin;
     float3 Direction;
-    
+
     // Precalculated Stuff for intersection tests
     float3 InverseDirection;
     float3 OriginTimesRayInverseDirection;
@@ -380,46 +414,39 @@ RayData GetRayData(float3 rayOrigin, float3 rayDirection)
     return data;
 }
 
-bool IsOpaque( bool geomOpaque, uint instanceFlags, uint rayFlags )
+bool IsOpaque(bool geomOpaque, uint instanceFlags, uint rayFlags)
 {
-  bool opaque = geomOpaque;
+    bool opaque = geomOpaque;
 
-  if( instanceFlags & INSTANCE_FLAG_FORCE_OPAQUE )
-    opaque = true;
-  else if( instanceFlags & INSTANCE_FLAG_FORCE_NON_OPAQUE ) 
-    opaque = false;
+    if (instanceFlags & INSTANCE_FLAG_FORCE_OPAQUE)
+        opaque = true;
+    else if (instanceFlags & INSTANCE_FLAG_FORCE_NON_OPAQUE)
+        opaque = false;
 
-  if( rayFlags & RAY_FLAG_FORCE_OPAQUE )
-    opaque = true;
-  else if( rayFlags & RAY_FLAG_FORCE_NON_OPAQUE )
-    opaque = false;
+    if (rayFlags & RAY_FLAG_FORCE_OPAQUE)
+        opaque = true;
+    else if (rayFlags & RAY_FLAG_FORCE_NON_OPAQUE)
+        opaque = false;
 
-  return opaque;
+    return opaque;
 }
 
 bool Cull(bool opaque, uint rayFlags)
 {
-  return (opaque && (rayFlags & RAY_FLAG_CULL_OPAQUE)) || (!opaque && (rayFlags & RAY_FLAG_CULL_NON_OPAQUE));
+    return (opaque && (rayFlags & RAY_FLAG_CULL_OPAQUE)) || (!opaque && (rayFlags & RAY_FLAG_CULL_NON_OPAQUE));
 }
 
 float ComputeCullFaceDir(uint instanceFlags, uint rayFlags)
 {
-  float cullFaceDir = 0;
-  if( rayFlags & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES )
-    cullFaceDir = 1;
-  else if( rayFlags & RAY_FLAG_CULL_BACK_FACING_TRIANGLES )
-    cullFaceDir = -1;
-  if( instanceFlags & INSTANCE_FLAG_TRIANGLE_CULL_DISABLE )
-    cullFaceDir = 0;
+    float cullFaceDir = 0;
+    if (rayFlags & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES)
+        cullFaceDir = 1;
+    else if (rayFlags & RAY_FLAG_CULL_BACK_FACING_TRIANGLES)
+        cullFaceDir = -1;
+    if (instanceFlags & INSTANCE_FLAG_TRIANGLE_CULL_DISABLE)
+        cullFaceDir = 0;
 
-  return cullFaceDir;
-}
-
-int InvokeAnyHit(int stateId)
-{
-  Fallback_SetAnyHitResult(ACCEPT);
-  Fallback_CallIndirect(stateId);
-  return Fallback_AnyHitResult();
+    return cullFaceDir;
 }
 
 //
@@ -431,15 +458,14 @@ int InvokeAnyHit(int stateId)
 
 void dump(BoundingBox box, uint2 flags)
 {
-  LogFloat3(box.center);
-  LogFloat3(box.halfDim);
-  LogInt2(flags);
+    LogFloat3(box.center);
+    LogFloat3(box.halfDim);
+    LogInt2(flags);
 }
 #else
 #define MARK(x,y) 
 void dump(BoundingBox box, uint2 flags) {}
 #endif
-
 
 Declare_Fallback_SetPendingAttr(BuiltInTriangleIntersectionAttributes);
 float RayTCurrent();
@@ -566,7 +592,33 @@ bool Traverse(
                         float resultT = RayTCurrent();
                         float2 resultBary;
                         uint resultTriId;
-                        if (!culled && TestLeafNodeIntersections( // TODO: We need to break out this function so we can run anyhit on each triangle
+                        bool intersectionFound = false;
+
+                        bool isProceduralGeometry = IsProceduralGeometry(flags);
+                        bool endSearch = false;
+#ifdef DISABLE_PROCEDURAL_GEOMETRY
+                        isProceduralGeometry = false;
+#endif
+                        RWByteAddressBufferPointer bottomLevelAccelerationStructure = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
+                        if (!culled && isProceduralGeometry)
+                        {
+                            const uint leafIndex = GetLeafIndexFromFlag(flags);
+                            PrimitiveMetaData primitiveMetadata = BVHReadPrimitiveMetaData(bottomLevelAccelerationStructure, leafIndex);
+                            uint contributionToHitGroupIndex =
+                                RayContributionToHitGroupIndex +
+                                primitiveMetadata.GeometryContributionToHitGroupIndex * MultiplierForGeometryContributionToHitGroupIndex +
+                                instOffset;
+
+                            Fallback_SetPendingCustomVals(primitiveMetadata.PrimitiveIndex, contributionToHitGroupIndex, instIdx, instId);
+                            uint intersectionStateID, anyHitStateID;
+                            GetAnyHitAndIntersectionStateIdentifier(HitGroupShaderTable, HitGroupShaderRecordStride, contributionToHitGroupIndex, anyHitStateID, intersectionStateID);
+                            
+                            Fallback_SetAnyHitStateId(anyHitStateID);
+                            Fallback_SetAnyHitResult(ACCEPT);
+                            Fallback_CallIndirect(intersectionStateID);
+                            endSearch = Fallback_AnyHitResult() == END_SEARCH;
+                        }
+                        else if (!culled && TestLeafNodeIntersections( // TODO: We need to break out this function so we can run anyhit on each triangle
                             currentBVH,
                             flags,
                             instFlags,
@@ -578,8 +630,7 @@ bool Traverse(
                             resultT,
                             resultTriId))
                         {
-                            RWByteAddressBufferPointer bottomLevelAccelerationStructure = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
-                            TriangleMetaData triMetadata = BVHReadTriangleMetadata(bottomLevelAccelerationStructure, resultTriId);
+                            PrimitiveMetaData triMetadata = BVHReadPrimitiveMetaData(bottomLevelAccelerationStructure, resultTriId);
                             uint contributionToHitGroupIndex =
                                 RayContributionToHitGroupIndex +
                                 triMetadata.GeometryContributionToHitGroupIndex * MultiplierForGeometryContributionToHitGroupIndex +
@@ -614,7 +665,8 @@ bool Traverse(
                             else
                             {
                                 MARK(8, 2);
-                                uint anyhitStateID = HitGroupShaderTable.Load(contributionToHitGroupIndex * HitGroupShaderRecordStride + 4); // can we just premultiply by the stride when setting the pending values?
+
+                                uint anyhitStateID = GetAnyHitStateIdentifier(HitGroupShaderTable, HitGroupShaderRecordStride, contributionToHitGroupIndex);
                                 int ret = ACCEPT;
                                 if (anyhitStateID)
                                     ret = InvokeAnyHit(anyhitStateID);
@@ -622,12 +674,11 @@ bool Traverse(
                                     Fallback_CommitHit();
                                 endSearch = (ret == END_SEARCH) || (RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH);
                             }
-
-                            if (endSearch)
-                            {
-                                nodesToProcess[BOTTOM_LEVEL_INDEX] = 0;
-                                nodesToProcess[TOP_LEVEL_INDEX] = 0;
-                            }
+                        }
+                        if (endSearch)
+                        {
+                            nodesToProcess[BOTTOM_LEVEL_INDEX] = 0;
+                            nodesToProcess[TOP_LEVEL_INDEX] = 0;
                         }
                     }
                 }
@@ -686,8 +737,8 @@ bool Traverse(
         currentRayData = worldRayData;
         currentGpuVA = TopLevelAccelerationStructureGpuVA;
         ResetMatrices = true;
-    } 
-    MARK(10,0);
+    }
+    MARK(10, 0);
     bool isHit = InstanceIndex() != NO_HIT_SENTINEL;
     if (isHit)
     {

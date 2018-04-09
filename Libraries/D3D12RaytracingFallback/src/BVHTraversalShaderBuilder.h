@@ -17,7 +17,7 @@ namespace FallbackLayer
     public:
         BVHTraversalShaderBuilder(DxilShaderPatcher &dxilShaderPatcher) : m_DxilShaderPatcher(dxilShaderPatcher) {}
 
-        void Compile(_In_ bool IsAnyHitUsed, _Out_ TraversalShader &traversalShader);
+        void Compile(_In_ bool IsAnyHitOrIntersectionUsed, _Out_ TraversalShader &traversalShader);
 
     private:
         DxilShaderPatcher &m_DxilShaderPatcher;

@@ -8,14 +8,6 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-#define HLSL
-#include "CalculateMortonCodesBindings.h"
-#include "RayTracingHelper.hlsli"
-
-RWStructuredBuffer<Triangle> InputBuffer : UAV_REGISTER(MortonCodeCalculatorInputBufferRegister);
-
-float3 GetCentroid(uint elementIndex)
-{
-    Triangle tri = InputBuffer[elementIndex];
-    return (tri.v0 + tri.v1 + tri.v2) / 3.0;
-}
+#define DISABLE_ANYHIT
+#define DISABLE_PROCEDURAL_GEOMETRY
+#include "TraverseShader.hlsli"

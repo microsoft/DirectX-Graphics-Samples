@@ -32,6 +32,8 @@ namespace FallbackLayer
         }
         std::function<void(ID3D12GraphicsCommandList *, UINT)> m_pPredispatchCallback;
     private:
+        StateIdentifier GetStateIdentfier(LPCWSTR pExportName);
+
         DxilShaderPatcher &m_DxilShaderPatcher;
 
         std::unordered_map<std::wstring, ShaderIdentifier> m_ExportNameToShaderIdentifier;
