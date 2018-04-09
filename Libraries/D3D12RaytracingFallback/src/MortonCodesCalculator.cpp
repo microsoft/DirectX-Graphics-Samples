@@ -10,7 +10,7 @@
 //*********************************************************
 #include "pch.h"
 #include "CalculateMortonCodesBindings.h"
-#include "CompiledShaders/CalculateMortonCodesForTriangles.h"
+#include "CompiledShaders/CalculateMortonCodesForPrimitives.h"
 #include "CompiledShaders/CalculateMortonCodesForAABBs.h"
 
 namespace FallbackLayer
@@ -27,7 +27,7 @@ namespace FallbackLayer
         auto rootSignatureDesc = CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(ARRAYSIZE(parameters), parameters);
         CreateRootSignatureHelper(pDevice, rootSignatureDesc, &m_pRootSignature);
 
-        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateMortonCodesForTriangles), &m_pCalcuateMortonCodesForTrianglesPSO);
+        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateMortonCodesForPrimitives), &m_pCalcuateMortonCodesForPrimitivesPSO);
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateMortonCodesForAABBs), &m_pCalcuateMortonCodesForAABBsPSO);
     }
 
@@ -40,7 +40,7 @@ namespace FallbackLayer
         switch (sceneType)
         {
         case SceneType::Triangles:
-            pCommandList->SetPipelineState(m_pCalcuateMortonCodesForTrianglesPSO);
+            pCommandList->SetPipelineState(m_pCalcuateMortonCodesForPrimitivesPSO);
             break;
         case SceneType::BottomLevelBVHs:
             pCommandList->SetPipelineState(m_pCalcuateMortonCodesForAABBsPSO);
