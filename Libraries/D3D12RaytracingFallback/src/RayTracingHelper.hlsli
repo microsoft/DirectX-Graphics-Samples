@@ -344,4 +344,20 @@ AABB TransformAABB(AABB box, AffineMatrix transform)
     }
     return transformedBox;
 }
+
+static const uint OffsetToAnyHitStateId = 4;
+static const uint OffsetToIntersectionStateId = 8;
+uint GetAnyHitStateIdentifier(ByteAddressBuffer shaderTable, uint shaderRecordStride, uint recordIndex)
+{
+    uint offsetToReadFrom = shaderRecordStride * recordIndex + OffsetToAnyHitStateId;
+    return shaderTable.Load(offsetToReadFrom);
+}
+
+void GetAnyHitAndIntersectionStateIdentifier(ByteAddressBuffer shaderTable, uint shaderRecordStride, uint recordIndex, out uint AnyHitStateId, out uint IntersectionStateId)
+{
+    uint offsetToReadFrom = shaderRecordStride * recordIndex + OffsetToAnyHitStateId;
+    uint2 stateIds = shaderTable.Load2(offsetToReadFrom);
+    AnyHitStateId = stateIds.x;
+    IntersectionStateId = stateIds.y;
+}
 #endif // RAYTACING_HELPER_H_INCLUDED

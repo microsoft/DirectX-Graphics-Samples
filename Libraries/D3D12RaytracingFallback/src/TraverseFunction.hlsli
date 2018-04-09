@@ -610,8 +610,9 @@ bool Traverse(
                                 instOffset;
 
                             Fallback_SetPendingCustomVals(primitiveMetadata.PrimitiveIndex, contributionToHitGroupIndex, instIdx, instId);
-                            uint intersectionStateID = HitGroupShaderTable.Load(contributionToHitGroupIndex * HitGroupShaderRecordStride + 8); 
-                            uint anyHitStateID = HitGroupShaderTable.Load(contributionToHitGroupIndex * HitGroupShaderRecordStride + 4);
+                            uint intersectionStateID, anyHitStateID;
+                            GetAnyHitAndIntersectionStateIdentifier(HitGroupShaderTable, HitGroupShaderRecordStride, contributionToHitGroupIndex, anyHitStateID, intersectionStateID);
+                            
                             Fallback_SetAnyHitStateId(anyHitStateID);
                             Fallback_SetAnyHitResult(ACCEPT);
                             Fallback_CallIndirect(intersectionStateID);
@@ -664,7 +665,8 @@ bool Traverse(
                             else
                             {
                                 MARK(8, 2);
-                                uint anyhitStateID = HitGroupShaderTable.Load(contributionToHitGroupIndex * HitGroupShaderRecordStride + 4); // can we just premultiply by the stride when setting the pending values?
+
+                                uint anyhitStateID = GetAnyHitStateIdentifier(HitGroupShaderTable, HitGroupShaderRecordStride, contributionToHitGroupIndex);
                                 int ret = ACCEPT;
                                 if (anyhitStateID)
                                     ret = InvokeAnyHit(anyhitStateID);
