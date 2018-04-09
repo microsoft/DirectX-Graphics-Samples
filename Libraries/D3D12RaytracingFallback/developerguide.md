@@ -167,10 +167,10 @@ void RayGen()
 }
 ```
 
-While the above is an overly simplified example, the example points out the introduction of live-values can be subtle and easily unintended. Developer should be vigilant of avoiding the addition of live-values whenever possible.
+While the above is an overly simplified example, the example points out the introduction of live-values can be subtle and easily unintended. Developer should be vigilant of avoiding the addition of live-values when possible.
 
-### Avoid including AnyHit in a State Object whenever possible
-The use of an AnyHit requires that the traversal code must stop it's current travesal, save its state off, and invoke a shader, and then based on the AnyHit's result, determine if it needs to resume traversal. Even if an AnyHit is never invoked, just overhead of needing to account for the possible invocation of an AnyHit shader can be expensive. The Fallback Layer uses a streamlined traversal shader when a State Object is provided that has no AnyHit shaders (roughly a 20% performance improvement).
+### Avoid unnecessary inclusions of AnyHit/Intersection shaders in a State Object whenever possible
+The use of an AnyHit/Intersection shader require that the traversal code must stop it's current travesal, save its state, and invoke a shader, and then based on the result, determine if it needs to resume traversal. Even if an AnyHit/Intersection shader is never invoked, just overhead of needing to account for the possible invocation of an AnyHit/Intersection shader can be expensive. The Fallback Layer uses a streamlined traversal shader when a State Object is provided that has no AnyHit shaders (roughly a 20% performance improvement).
 
 ## Known Issues & Limitations
 

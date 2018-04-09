@@ -33,6 +33,7 @@ namespace FallbackLayer
         D3D12_RAYTRACING_PIPELINE_CONFIG m_config = {};
         D3D12_DXIL_LIBRARY_DESC m_traversalShader = {};
         bool IsUsingAnyHit = false;
+        bool IsUsingIntersection = false;
     };
 
     class RaytracingProgramFactory

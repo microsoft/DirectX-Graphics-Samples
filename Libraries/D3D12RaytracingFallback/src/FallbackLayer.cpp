@@ -426,6 +426,10 @@ namespace FallbackLayer
                 {
                     rayTracingStateObject.m_collection.IsUsingAnyHit = true;
                 }
+                if (hitGroup.IntersectionShaderImport)
+                {
+                    rayTracingStateObject.m_collection.IsUsingIntersection = true;
+                }
                 break;
             }
             case D3D12_STATE_SUBOBJECT_TYPE_CACHED_STATE_OBJECT:
