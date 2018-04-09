@@ -100,11 +100,9 @@ void Fallback_AcceptHitAndEndSearch()
     Fallback_SetAnyHitResult(END_SEARCH);
 }
 
-Declare_Fallback_SetPendingAttr(BuiltInTriangleIntersectionAttributes);
-
 int Fallback_ReportHit(float tHit, uint hitKind)
 {
-    if (tHit < RayTMin() || RayTCurrent() <= tHit)
+    if (tHit < RayTMin())
         return 0;
 
     Fallback_SetPendingRayTCurrent(tHit);
@@ -113,6 +111,12 @@ int Fallback_ReportHit(float tHit, uint hitKind)
     int ret = ACCEPT;
     if (stateId > 0)
         ret = InvokeAnyHit(stateId);
+
+    if (RayTCurrent() <= tHit)
+    {
+        ret = IGNORE;
+    }
+
     if (ret != IGNORE)
     {
         Fallback_CommitHit();
@@ -463,7 +467,7 @@ void dump(BoundingBox box, uint2 flags)
 void dump(BoundingBox box, uint2 flags) {}
 #endif
 
-
+Declare_Fallback_SetPendingAttr(BuiltInTriangleIntersectionAttributes);
 float RayTCurrent();
 
 bool Traverse(
