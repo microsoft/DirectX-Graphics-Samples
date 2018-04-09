@@ -169,8 +169,10 @@ AABB GetProceduralPrimitiveAABB(Primitive prim)
 
 #endif
 #define SizeOfPrimitive 40
+#define OffsetToPrimitiveData 4
 #ifndef HLSL
 static_assert(sizeof(Primitive) == SizeOfPrimitive, L"Incorrect sizeof for Primitive");
+static_assert(offsetof(Primitive, triangle) == OffsetToPrimitiveData, L"Incorrect offset to Primitive data");
 #endif
 
 struct PrimitiveMetaData

@@ -217,7 +217,7 @@ void BVHReadTriangle(
     uint triId)
 {
     uint baseOffset = GetOffsetToVertices(pointer) + triId * SizeOfPrimitive
-        + SizeOfUINT32; // The first 4 bytes in a Primitive is the PrimitiveType flag
+        + OffsetToPrimitiveData;
 
     const float4 a = asfloat(pointer.buffer.Load4(baseOffset));
     const float4 b = asfloat(pointer.buffer.Load4(baseOffset + 16));

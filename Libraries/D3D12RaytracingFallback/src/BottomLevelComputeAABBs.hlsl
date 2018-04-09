@@ -16,7 +16,7 @@ BoundingBox ComputeLeafAABB(uint primitiveIndex, uint offsetToPrimitives, out ui
 {
     uint offsetToReadPrimitive = offsetToPrimitives + primitiveIndex * SizeOfPrimitive;
     uint primitiveType = outputBVH.Load(offsetToReadPrimitive);
-    offsetToReadPrimitive += SizeOfUINT32;
+    offsetToReadPrimitive += OffsetToPrimitiveData;
 
     if (primitiveType == TRIANGLE_TYPE)
     {
