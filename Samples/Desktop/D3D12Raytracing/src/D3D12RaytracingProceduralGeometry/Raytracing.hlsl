@@ -68,6 +68,11 @@ enum ProceduralPrimitives
     Count
 };
 
+struct ShadowPayload
+{
+    bool hit;
+};
+
 
 struct HitData
 {
@@ -135,7 +140,7 @@ void MyRaygenShader()
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
     HitData payload = { float4(0, 0, 0, 0) };
-    TraceRay(Scene, 0/*RAY_FLAG_CULL_BACK_FACING_TRIANGLES*/, ~0, 0, 1, 0, ray, payload);
+    TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
 
     // Write the raytraced color to the output texture.
     RenderTarget[DispatchRaysIndex()] = payload.color;
@@ -166,7 +171,7 @@ bool IntersectCustomPrimitiveFrontToBack(
 }
 
 [shader("intersection")]
-void MyIntersectionShader()
+void MyIntersectionShader_AABB()
 {
     float THit = RayTCurrent();
     ProceduralPrimitiveAttributes attr;
@@ -180,7 +185,7 @@ void MyIntersectionShader()
 }
 
 [shader("closesthit")]
-void MyClosestHitShader(inout HitData payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_Triangle(inout HitData payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     float3 hitPosition = HitWorldPosition();
 
@@ -205,21 +210,61 @@ void MyClosestHitShader(inout HitData payload : SV_RayPayload, in BuiltInTriangl
     // as all the per-vertex normals are the same and match triangle's normal in this sample. 
     float3 triangleNormal = HitAttribute(vertexNormals, attr.barycentrics);
 
-    float4 diffuseColor = g_cubeCB.diffuseColor * CalculateDiffuseLighting(hitPosition, triangleNormal);
+    // Trace a shadow ray. 
+    // Set the ray's extents.
+    RayDesc ray;
+    ray.Origin = hitPosition;
+    ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
+    // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+    // TMin should be kept small to prevent missing geometry at close contact areas.
+    // For shadow ray this will be extremely small to avoid aliasing at contact areas.
+    ray.TMin = 0.000001;
+    ray.TMax = 10000.0;
+    ShadowPayload shadowPayload;
+    // ToDo use hit/miss indices from a header
+    TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, ~0, 
+                2 /* RayContributionToHitGroupIndex*/, 
+                0, 
+                1 /* MissShaderIndex */, 
+                ray, shadowPayload);
+    float shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
+
+    float4 diffuseColor = shadowFactor * g_cubeCB.diffuseColor * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
     payload.color = color;
 }
 
 [shader("closesthit")]
-void MyClosestHitShaderAABB(inout HitData payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
 {
     float3 hitPosition = HitWorldPosition();
 
-    float3 triangleNormal = attr.normal;
+#if 0 // ToDo doesn't work properly
+    // Trace a shadow ray. 
+    // Set the ray's extents.
+    RayDesc ray;
+    ray.Origin = hitPosition;
+    ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
+    // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+    // TMin should be kept small to prevent missing geometry at close contact areas.
+    ray.TMin = 0.5;
+    ray.TMax = 10000.0;
+    ShadowPayload shadowPayload;
+    // ToDo use hit/miss indices from a header
+    TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, ~0,
+        2 /* RayContributionToHitGroupIndex*/,
+        0,
+        1 /* MissShaderIndex */,
+        ray, shadowPayload);
+    float shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
+#else
+    float shadowFactor = 1.0;
+#endif
 
+    float3 triangleNormal = attr.normal;
     float4 albedo = float4(g_AABBPrimitiveAttributes[PrimitiveIndex()].albedo, 1);
-    float4 diffuseColor = albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
+    float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
     payload.color = color;
@@ -230,4 +275,16 @@ void MyMissShader(inout HitData payload : SV_RayPayload)
 {
     float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f);
     payload.color = background;
+}
+
+[shader("closesthit")]
+void MyClosestHitShader_ShadowAABB(inout ShadowPayload payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+{
+    payload.hit = true;
+}
+
+[shader("miss")]
+void MyMissShader_Shadow(inout ShadowPayload payload : SV_RayPayload)
+{
+    payload.hit = false;
 }

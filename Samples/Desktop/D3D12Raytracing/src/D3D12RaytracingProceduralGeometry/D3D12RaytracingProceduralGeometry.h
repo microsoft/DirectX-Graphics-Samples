@@ -46,7 +46,31 @@ namespace BottomLevelAS {
 // ToDo - ugliness - this is for shader table layout to match BLAS layout
 namespace ShaderType = BottomLevelAS;
 
+namespace HitGroupType {
+    enum Value {
+        AABB = 0,
+        Triangle,
+        ShadowAABB,
+        Count
+    };
+}
 
+namespace RayType {
+    enum Value {
+        Regular = 0,
+        Shadow,
+        Count
+    };
+}
+
+namespace ClosestHitRayType {
+    enum Value {
+        AABB = 0,
+        Triangle,
+        ShadowAABB,
+        Count
+    };
+}
 struct AccelerationStructureBuffers
 {
     ComPtr<ID3D12Resource> scratch;
@@ -154,14 +178,15 @@ private:
     UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
     // Shader tables
-    static const wchar_t* c_hitGroupNames[ShaderType::Count];
+    static const wchar_t* c_hitGroupNames[HitGroupType::Count];
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_intersectionShaderName;
-    static const wchar_t* c_closestHitShaderNames[ShaderType::Count];
-    static const wchar_t* c_missShaderName;
+    static const wchar_t* c_closestHitShaderNames[ClosestHitRayType::Count];
+    static const wchar_t* c_missShaderNames[RayType::Count];
     ComPtr<ID3D12Resource> m_missShaderTable;
-    UINT m_hitGroupShaderTableStrideInBytes;
+    UINT m_missShaderTableStrideInBytes;
     ComPtr<ID3D12Resource> m_hitGroupShaderTable;
+    UINT m_hitGroupShaderTableStrideInBytes;
     ComPtr<ID3D12Resource> m_rayGenShaderTable;
 
     // Application state
