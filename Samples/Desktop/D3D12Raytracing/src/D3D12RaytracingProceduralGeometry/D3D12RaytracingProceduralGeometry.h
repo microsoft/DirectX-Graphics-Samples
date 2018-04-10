@@ -20,9 +20,8 @@ namespace GlobalRootSignatureParams {
         OutputViewSlot = 0,
         AccelerationStructureSlot,
         SceneConstantSlot,
-#if !USE_AABB_GEOMETRY
+        AABBattributeBufferSlot,
         VertexBuffersSlot,
-#endif
         Count
     };
 }
@@ -33,6 +32,49 @@ namespace LocalRootSignatureParams {
         Count
     };
 }
+
+// Bottom level acceleration structures (BottomLevelAS).
+// This sample uses two BottomLevelAS, one for AABB and one for Triangle geometry.
+namespace BottomLevelAS {
+    enum Value {
+        AABB = 0,
+        Triangle,
+        Count
+    };
+}
+
+namespace HitGroupType {
+    enum Value {
+        AABB = 0,
+        Triangle,
+        ShadowAABB,
+        Count
+    };
+}
+
+namespace RayType {
+    enum Value {
+        Regular = 0,
+        Shadow,
+        Count
+    };
+}
+
+namespace ClosestHitRayType {
+    enum Value {
+        AABB = 0,
+        Triangle,
+        ShadowAABB,
+        Count
+    };
+}
+struct AccelerationStructureBuffers
+{
+    ComPtr<ID3D12Resource> scratch;
+    ComPtr<ID3D12Resource> accelerationStructure;
+    ComPtr<ID3D12Resource> instanceDesc;    // Used only for top-level AS
+    UINT64                 ResultDataMaxSizeInBytes;
+};
 
 // The sample supports both Raytracing Fallback Layer and DirectX Raytracing APIs. 
 // This is purely for demonstration purposes to show where the API differences are. 
@@ -77,6 +119,16 @@ private:
     AlignedSceneConstantBuffer*  m_mappedConstantData;
     ComPtr<ID3D12Resource>       m_perFrameConstants;
 
+
+    static const UINT NUM_AABB_X = 5;
+    static const UINT NUM_AABB_Y = 1;
+    static const UINT NUM_AABB_Z = 5;
+    static const UINT NUM_AABB = NUM_AABB_X * NUM_AABB_Y * NUM_AABB_Z;
+    static const UINT AABB_BUFFER_SIZE = NUM_AABB * sizeof(AABBPrimitiveAttributes);
+    AABBPrimitiveAttributes*     m_mappedAABBPrimitiveAttributes;
+    ComPtr<ID3D12Resource>       m_perFrameAABBPrimitiveAttributes;
+    AABBPrimitiveAttributes      m_aabbPrimitiveAttributeBuffer[FrameCount][NUM_AABB_Z][NUM_AABB_Y][NUM_AABB_X];
+
     // Raytracing Fallback Layer (FL) attributes
     ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
     ComPtr<ID3D12RaytracingFallbackCommandList> m_fallbackCommandList;
@@ -114,8 +166,8 @@ private:
     D3DBuffer m_aabbBuffer;
 
     // Acceleration structure
-    ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
-    ComPtr<ID3D12Resource> m_topLevelAccelerationStructure;
+    ComPtr<ID3D12Resource> m_bottomLevelAS[BottomLevelAS::Count];
+    ComPtr<ID3D12Resource> m_topLevelAS;
 
     // Raytracing output
     ComPtr<ID3D12Resource> m_raytracingOutput;
@@ -123,13 +175,15 @@ private:
     UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
     // Shader tables
-    static const wchar_t* c_hitGroupName;
+    static const wchar_t* c_hitGroupNames[HitGroupType::Count];
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_intersectionShaderName;
-    static const wchar_t* c_closestHitShaderName;
-    static const wchar_t* c_missShaderName;
+    static const wchar_t* c_closestHitShaderNames[ClosestHitRayType::Count];
+    static const wchar_t* c_missShaderNames[RayType::Count];
     ComPtr<ID3D12Resource> m_missShaderTable;
+    UINT m_missShaderTableStrideInBytes;
     ComPtr<ID3D12Resource> m_hitGroupShaderTable;
+    UINT m_hitGroupShaderTableStrideInBytes;
     ComPtr<ID3D12Resource> m_rayGenShaderTable;
 
     // Application state
@@ -143,10 +197,12 @@ private:
 
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
+    void UpdateAABBPrimitiveAttributes();
     void InitializeScene();
     void RecreateD3D();
     void DoRaytracing();
     void CreateConstantBuffers();
+    void CreateAABBPrimitiveAttributesBuffers();
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
     void ReleaseDeviceDependentResources();
@@ -158,6 +214,9 @@ private:
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
     void BuildGeometry();
+    void BuildBottomLevelGeometryDescs(D3D12_RAYTRACING_GEOMETRY_DESC geometryDescs[BottomLevelAS::Count]);
+    AccelerationStructureBuffers BuildBottomLevelAS(const D3D12_RAYTRACING_GEOMETRY_DESC& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
+    AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelAS::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
     void BuildAccelerationStructures();
     void BuildShaderTables();
     void SelectRaytracingAPI(RaytracingAPI type);
@@ -165,6 +224,6 @@ private:
     void CopyRaytracingOutputToBackbuffer();
     void CalculateFrameStats();
     UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
-    void CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
+    UINT CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
     WRAPPED_GPU_POINTER CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements);
 };

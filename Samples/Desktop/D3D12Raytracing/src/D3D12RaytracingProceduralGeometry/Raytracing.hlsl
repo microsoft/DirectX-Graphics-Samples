@@ -17,6 +17,7 @@ RaytracingAccelerationStructure Scene : register(t0, space0);
 RWTexture2D<float4> RenderTarget : register(u0);
 ByteAddressBuffer Indices : register(t1, space0);
 StructuredBuffer<Vertex> Vertices : register(t2, space0);
+StructuredBuffer<AABBPrimitiveAttributes> g_AABBPrimitiveAttributes : register(t3, space0);
 
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 ConstantBuffer<CubeConstantBuffer> g_cubeCB : register(b1);
@@ -63,7 +64,13 @@ enum ProceduralPrimitives
 {
     Box = 0,
     Spheres,
-    Sphere
+    Sphere,
+    Count
+};
+
+struct ShadowPayload
+{
+    bool hit;
 };
 
 
@@ -79,11 +86,11 @@ float3 HitWorldPosition()
 }
 
 // Retrieve attribute at a hit position interpolated from vertex attributes using the hit's barycentrics.
-float3 HitAttribute(float3 vertexAttribute[3], MyAttributes attr)
+float3 HitAttribute(float3 vertexAttribute[3], float2 barycentrics)
 {
     return vertexAttribute[0] +
-        attr.barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
-        attr.barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
+        barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
+        barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
 }
 
 // Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
@@ -111,7 +118,7 @@ float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
     // Diffuse contribution.
     float fNDotL = max(0.0f, dot(pixelToLight, normal));
 
-    return g_cubeCB.diffuseColor * g_sceneCB.lightDiffuseColor * fNDotL;
+    return g_sceneCB.lightDiffuseColor * fNDotL;
 }
 
 [shader("raygeneration")]
@@ -140,26 +147,33 @@ void MyRaygenShader()
 }
 
 bool IntersectCustomPrimitiveFrontToBack(
-    float3 origin, float3 direction,
+    float3 rayOriginObject, float3 rayDirObject,
     float rayTMin, float rayTMax, inout float curT,
     out ProceduralPrimitiveAttributes attr)
 {
-    switch (InstanceIndex())
+    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
+
+    float3 rayOriginLocal = mul(float4(rayOriginObject, 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
+    //float3 rayDirLocal = mul(rayDirObject, (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
+    float3 rayDirLocal = mul(float4(rayDirObject,0), aabbAttribute.bottomLevelASToLocalSpace).xyz;
+
+    switch (PrimitiveIndex() % ProceduralPrimitives::Count)
     {
-    case Box:       return intersectBox(origin, direction, curT, attr);
-    case Sphere:    return intersectSphere(origin, direction, curT, attr);
-    case Spheres:   return intersectSpheres(origin, direction, curT, attr);
+    case Box:       return intersectBox(rayOriginLocal, rayDirLocal, curT, attr);
+    case Sphere:    return intersectSphere(rayOriginLocal, rayDirLocal, curT, attr);
+    case Spheres:   return intersectSpheres(rayOriginLocal, rayDirLocal, curT, attr);
     }
     return false;
 }
 
 [shader("intersection")]
-void MyIntersectionShader()
+void MyIntersectionShader_AABB()
 {
     float THit = RayTCurrent();
     ProceduralPrimitiveAttributes attr;
     if (IntersectCustomPrimitiveFrontToBack(
         ObjectRayOrigin(), ObjectRayDirection(),
+        //WorldRayOrigin(), WorldRayDirection(),
         RayTMin(), RayTCurrent(), THit, attr))
     {
         ReportHit(THit, /*hitKind*/ 0, attr);
@@ -167,10 +181,10 @@ void MyIntersectionShader()
 }
 
 [shader("closesthit")]
-void MyClosestHitShader(inout HitData payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_Triangle(inout HitData payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     float3 hitPosition = HitWorldPosition();
-#if 0
+
     // Get the base index of the triangle's first 16 bit index.
     uint indexSizeInBytes = 2;
     uint indicesPerTriangle = 3;
@@ -190,15 +204,65 @@ void MyClosestHitShader(inout HitData payload : SV_RayPayload, in ProceduralPrim
     // Compute the triangle's normal.
     // This is redundant and done for illustration purposes 
     // as all the per-vertex normals are the same and match triangle's normal in this sample. 
-    float3 triangleNormal = HitAttribute(vertexNormals, attr);
-#else
-    float3 triangleNormal = attr.normal;
-#endif
-    float4 diffuseColor = CalculateDiffuseLighting(hitPosition, triangleNormal);
+    float3 triangleNormal = HitAttribute(vertexNormals, attr.barycentrics);
+
+    // Trace a shadow ray. 
+    // Set the ray's extents.
+    RayDesc ray;
+    ray.Origin = hitPosition;
+    ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
+    // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+    // TMin should be kept small to prevent missing geometry at close contact areas.
+    // For shadow ray this will be extremely small to avoid aliasing at contact areas.
+    ray.TMin = 0.000001;
+    ray.TMax = 10000.0;
+    ShadowPayload shadowPayload;
+    // ToDo use hit/miss indices from a header
+    TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, ~0, 
+                2 /* RayContributionToHitGroupIndex*/, 
+                0, 
+                1 /* MissShaderIndex */, 
+                ray, shadowPayload);
+    float shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
+
+    float4 diffuseColor = shadowFactor * g_cubeCB.diffuseColor * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
-    //payload.color = float4(0, attr.barycentrics, 1);
-    payload.color = float4(attr.normal, 1);
+    payload.color = color;
+}
+
+[shader("closesthit")]
+void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+{
+    float3 hitPosition = HitWorldPosition();
+
+#if 0 // ToDo doesn't work properly
+    // Trace a shadow ray. 
+    // Set the ray's extents.
+    RayDesc ray;
+    ray.Origin = hitPosition;
+    ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
+    // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+    // TMin should be kept small to prevent missing geometry at close contact areas.
+    ray.TMin = 0.5;
+    ray.TMax = 10000.0;
+    ShadowPayload shadowPayload;
+    // ToDo use hit/miss indices from a header
+    TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, ~0,
+        2 /* RayContributionToHitGroupIndex*/,
+        0,
+        1 /* MissShaderIndex */,
+        ray, shadowPayload);
+    float shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
+#else
+    float shadowFactor = 1.0;
+#endif
+
+    float3 triangleNormal = attr.normal;
+    float4 albedo = float4(g_AABBPrimitiveAttributes[PrimitiveIndex()].albedo, 1);
+    float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
+    float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
+
     payload.color = color;
 }
 
@@ -207,4 +271,16 @@ void MyMissShader(inout HitData payload : SV_RayPayload)
 {
     float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f);
     payload.color = background;
+}
+
+[shader("closesthit")]
+void MyClosestHitShader_ShadowAABB(inout ShadowPayload payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+{
+    payload.hit = true;
+}
+
+[shader("miss")]
+void MyMissShader_Shadow(inout ShadowPayload payload : SV_RayPayload)
+{
+    payload.hit = false;
 }
