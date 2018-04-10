@@ -17,7 +17,7 @@ RaytracingAccelerationStructure Scene : register(t0, space0);
 RWTexture2D<float4> RenderTarget : register(u0);
 ByteAddressBuffer Indices : register(t1, space0);
 StructuredBuffer<Vertex> Vertices : register(t2, space0);
-StructuredBuffer<AABBPrimitiveAttributes> aabbPrimitiveAttributes : register(t3, space0);
+StructuredBuffer<AABBPrimitiveAttributes> g_AABBPrimitiveAttributes : register(t3, space0);
 
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 ConstantBuffer<CubeConstantBuffer> g_cubeCB : register(b1);
@@ -142,18 +142,20 @@ void MyRaygenShader()
 }
 
 bool IntersectCustomPrimitiveFrontToBack(
-    float3 origin, float3 direction,
+    float3 rayOriginObject, float3 rayDirObject,
     float rayTMin, float rayTMax, inout float curT,
     out ProceduralPrimitiveAttributes attr)
 {
-    curT = rayTMin;
-    return true;
+    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
 
+    float3 rayOriginLocal = mul(float4(rayDirObject, 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
+    float3 rayDirLocal = mul(rayOriginObject, (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
+   
     switch (PrimitiveIndex() % ProceduralPrimitives::Count)
     {
-    case Box:       return intersectBox(origin, direction, curT, attr);
-    case Sphere:    return intersectSphere(origin, direction, curT, attr);
-    case Spheres:   return intersectSpheres(origin, direction, curT, attr);
+    case Box:       return intersectBox(rayOriginLocal, rayDirLocal, curT, attr);
+    case Sphere:    return intersectSphere(rayOriginLocal, rayDirLocal, curT, attr);
+    case Spheres:   return intersectSpheres(rayOriginLocal, rayDirLocal, curT, attr);
     }
     return false;
 }
@@ -204,8 +206,6 @@ void MyClosestHitShader(inout HitData payload : SV_RayPayload, in ProceduralPrim
 
     payload.color = color;
 }
-
-void CalculateLighting()
 
 [shader("miss")]
 void MyMissShader(inout HitData payload : SV_RayPayload)

@@ -20,6 +20,7 @@ namespace GlobalRootSignatureParams {
         OutputViewSlot = 0,
         AccelerationStructureSlot,
         SceneConstantSlot,
+        AABBattributeBufferSlot,
 #if !USE_AABB_GEOMETRY
         VertexBuffersSlot,
 #endif
@@ -104,6 +105,16 @@ private:
     AlignedSceneConstantBuffer*  m_mappedConstantData;
     ComPtr<ID3D12Resource>       m_perFrameConstants;
 
+
+    static const UINT NUM_AABB_X = 4;
+    static const UINT NUM_AABB_Y = 1;
+    static const UINT NUM_AABB_Z = 4;
+    static const UINT NUM_AABB = NUM_AABB_X * NUM_AABB_Y * NUM_AABB_Z;
+    static const UINT AABB_BUFFER_SIZE = NUM_AABB * sizeof(AABBPrimitiveAttributes);
+    AABBPrimitiveAttributes*     m_mappedAABBPrimitiveAttributes;
+    ComPtr<ID3D12Resource>       m_perFrameAABBPrimitiveAttributes;
+    AABBPrimitiveAttributes      m_aabbPrimitiveAttributeBuffer[FrameCount][NUM_AABB_Z][NUM_AABB_Y][NUM_AABB_X];
+
     // Raytracing Fallback Layer (FL) attributes
     ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
     ComPtr<ID3D12RaytracingFallbackCommandList> m_fallbackCommandList;
@@ -170,10 +181,12 @@ private:
 
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
+    void UpdateAABBPrimitiveAttributes();
     void InitializeScene();
     void RecreateD3D();
     void DoRaytracing();
     void CreateConstantBuffers();
+    void CreateAABBPrimitiveAttributesBuffers();
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
     void ReleaseDeviceDependentResources();

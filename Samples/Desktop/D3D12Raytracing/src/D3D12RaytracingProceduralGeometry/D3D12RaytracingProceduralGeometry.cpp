@@ -94,6 +94,43 @@ void D3D12RaytracingProceduralGeometry::UpdateCameraMatrices()
     m_sceneCB[frameIndex].projectionToWorld = XMMatrixInverse(nullptr, viewProj);
 }
 
+// Update AABB primite attributes buffers passed into the shader.
+void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
+{
+    auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+
+    const float aabbDefaultWidth = 2;   // Default AABB is <-1,1>^3
+    const float aabbWidth = 2;          // Width of each AABB
+    const float aabbDistance = 2;       // Distance between AABBs
+    const float aabbDistanceStride = aabbWidth + aabbDistance;
+    const XMVECTOR vAABBstride = XMLoadFloat3(&XMFLOAT3(aabbDistanceStride, aabbDistanceStride, aabbDistanceStride));
+
+    float scaleRatio = aabbWidth / aabbDefaultWidth;
+    XMMATRIX mScale = XMMatrixScaling(scaleRatio, scaleRatio, scaleRatio);
+   
+    const XMVECTOR vBasePosition = XMLoadFloat3(&XMFLOAT3(
+        -(NUM_AABB_X * aabbWidth + (NUM_AABB_X - 1) * aabbDistance) / 2.0f,
+        -(NUM_AABB_Y * aabbWidth + (NUM_AABB_Y - 1) * aabbDistance) / 2.0f,
+        -(NUM_AABB_Z * aabbWidth + (NUM_AABB_Z - 1) * aabbDistance) / 2.0f));
+
+
+    for (UINT z = 0; z < NUM_AABB_Z; z++)
+    {
+        for (UINT y = 0; y < NUM_AABB_Y; y++)
+        {
+            for (UINT x = 0; x < NUM_AABB_X; x++)
+            {
+                auto& aabbAttribute = m_aabbPrimitiveAttributeBuffer[frameIndex][z][y][x];
+                XMVECTOR vIndex = XMLoadFloat3(&XMFLOAT3(x, y, z));
+                XMVECTOR vTranslation = vBasePosition + vIndex * vAABBstride;
+                XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
+                aabbAttribute.bottomLevelASToLocalSpace = XMMatrixInverse(nullptr, mTranslation);
+                aabbAttribute.albedo = XMFLOAT3(x / NUM_AABB_X, y / NUM_AABB_Y, z / NUM_AABB_Z);
+            }
+        }
+    }
+}
+
 // Initialize scene rendering parameters.
 void D3D12RaytracingProceduralGeometry::InitializeScene()
 {
@@ -174,6 +211,33 @@ void D3D12RaytracingProceduralGeometry::CreateConstantBuffers()
     ThrowIfFailed(m_perFrameConstants->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedConstantData)));
 }
 
+// Create AABB primitive attributes buffers.
+void D3D12RaytracingProceduralGeometry::CreateAABBPrimitiveAttributesBuffers()
+{
+    auto device = m_deviceResources->GetD3DDevice();
+    auto frameCount = m_deviceResources->GetBackBufferCount();
+
+    // Create the buffer memory and map the CPU and GPU addresses
+    const D3D12_HEAP_PROPERTIES uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+    // Allocate one buffer per frame, since it gets updated every frame.
+    size_t bufferSize = frameCount * AABB_BUFFER_SIZE;
+    const D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
+
+    ThrowIfFailed(device->CreateCommittedResource(
+        &uploadHeapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &bufferDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&m_perFrameAABBPrimitiveAttributes)));
+
+    // Map the constant buffer and cache its heap pointers.
+    // We don't unmap this until the app closes. Keeping buffer mapped for the lifetime of the resource is okay.
+    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+    ThrowIfFailed(m_perFrameAABBPrimitiveAttributes->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedAABBPrimitiveAttributes)));
+}
+
 // Create resources that depend on the device.
 void D3D12RaytracingProceduralGeometry::CreateDeviceDependentResources()
 {
@@ -199,6 +263,9 @@ void D3D12RaytracingProceduralGeometry::CreateDeviceDependentResources()
 
     // Create constant buffers for the geometry and the scene.
     CreateConstantBuffers();
+
+    // Create AABB primitive attribute buffers.
+    CreateAABBPrimitiveAttributesBuffers();
 
     // Build shader tables, which define shaders and their local root arguments.
     BuildShaderTables();
@@ -240,6 +307,7 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
         rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &ranges[0]);
         rootParameters[GlobalRootSignatureParams::AccelerationStructureSlot].InitAsShaderResourceView(0);
         rootParameters[GlobalRootSignatureParams::SceneConstantSlot].InitAsConstantBufferView(0);
+        rootParameters[GlobalRootSignatureParams::AABBattributeBufferSlot].InitAsShaderResourceView(3);
 #if !USE_AABB_GEOMETRY
         rootParameters[GlobalRootSignatureParams::VertexBuffersSlot].InitAsDescriptorTable(1, &ranges[1]);
 #endif
@@ -470,34 +538,6 @@ void D3D12RaytracingProceduralGeometry::BuildGeometry()
         CreateBufferSRV(&m_aabbPrimitiveArgsBuffer, NUM_AABB_X * NUM_AABB_Y * NUM_AABB_Z, sizeof(aabb[0][0][0]));
     }
 #else
-    // Create a grid of AABBs.
-    {
-        const UINT NUM_AABB_X = 4;
-        const UINT NUM_AABB_Y = 1;
-        const UINT NUM_AABB_Z = 4;
-        const float aabbWidth = 1;      // Width of each AABB
-        const float aabbDistance = 2;   // Distance between AABBs
-        const UINT numAABBs = 
-        D3D12_RAYTRACING_AABB aabb[NUM_AABB_Z][NUM_AABB_Y][NUM_AABB_X];
-        for (UINT z = 0; z < NUM_AABB_Z; z++)
-        {
-            FLOAT minZ = basePosition.z + z * (aabbWidth + aabbDistance);
-            for (UINT y = 0; y < NUM_AABB_Y; y++)
-            {
-                FLOAT minY = basePosition.y + y * (aabbWidth + aabbDistance);
-                for (UINT x = 0; x < NUM_AABB_X; x++)
-                {
-                    FLOAT minX = basePosition.x + x * (aabbWidth + aabbDistance);
-                    aabb[z][y][x] =
-                    {
-                        minX, minY, minZ, minX + aabbWidth, minY + aabbWidth, minZ + aabbWidth
-                    };
-                }
-            }
-        }
-        AllocateUploadBuffer(device, nullptr , sizeof(aabb), &m_aabbPrimitiveArgsBuffer.resource);
-        CreateBufferSRV(&m_aabbPrimitiveArgsBuffer, NUM_AABB_X * NUM_AABB_Y * NUM_AABB_Z, sizeof(aabb[0][0][0]));
-    }
 #endif
 
     // Plane indices.
@@ -983,6 +1023,8 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
         const XMVECTOR& prevLightPosition = m_sceneCB[prevFrameIndex].lightPosition;
         m_sceneCB[frameIndex].lightPosition = XMVector3Transform(prevLightPosition, rotate);
     }
+
+    UpdateAABBPrimitiveAttributes();
 }
 
 
@@ -1038,9 +1080,18 @@ void D3D12RaytracingProceduralGeometry::DoRaytracing()
     commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
 
     // Copy the updated scene constant buffer to GPU.
-    memcpy(&m_mappedConstantData[frameIndex].constants, &m_sceneCB[frameIndex], sizeof(m_sceneCB[frameIndex]));
-    auto cbGpuAddress = m_perFrameConstants->GetGPUVirtualAddress() + frameIndex * sizeof(m_mappedConstantData[0]);
-    commandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstantSlot, cbGpuAddress);
+    {
+        memcpy(&m_mappedConstantData[frameIndex].constants, &m_sceneCB[frameIndex], sizeof(m_sceneCB[frameIndex]));
+        auto cbGpuAddress = m_perFrameConstants->GetGPUVirtualAddress() + frameIndex * sizeof(m_mappedConstantData[0]);
+        commandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstantSlot, cbGpuAddress);
+    }
+
+    // Copy the updated AABB primitive attribute buffer to GPU.
+    {
+        memcpy(&m_mappedAABBPrimitiveAttributes[frameIndex], &m_aabbPrimitiveAttributeBuffer[frameIndex][0][0][0], AABB_BUFFER_SIZE);
+        auto bufferGpuAddress = m_perFrameAABBPrimitiveAttributes->GetGPUVirtualAddress() + frameIndex * AABB_BUFFER_SIZE;
+        commandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::AABBattributeBufferSlot, bufferGpuAddress);
+    }
 
     // Bind the heaps, acceleration structure and dispatch rays.    
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)

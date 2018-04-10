@@ -54,9 +54,13 @@ struct RectangularPrismAABB
     XMFLOAT3 maxPosition;
 };
 
+// ToDo: align all structs
+// Performance tip: Align structures on sizeof(float4) boundary.
+// Ref: https://developer.nvidia.com/content/understanding-structured-buffer-performance
 struct AABBPrimitiveAttributes
 {
-    XMMATRIX blasToLocalSpace;   // Matrix from bottom-level object space to local primitive space
+    XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space
     XMFLOAT3 albedo;
+    float    padding;
 };
 
