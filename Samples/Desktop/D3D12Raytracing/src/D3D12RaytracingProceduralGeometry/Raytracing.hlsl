@@ -151,10 +151,6 @@ bool IntersectCustomPrimitiveFrontToBack(
     float rayTMin, float rayTMax, inout float curT,
     out ProceduralPrimitiveAttributes attr)
 {
-#if 0
-    curT = rayTMin;
-    return true;
-#endif
     AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
 
     float3 rayOriginLocal = mul(float4(rayOriginObject, 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;

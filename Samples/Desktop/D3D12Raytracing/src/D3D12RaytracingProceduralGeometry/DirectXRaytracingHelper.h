@@ -81,10 +81,7 @@ class ShaderTable
     std::vector<ShaderRecord> m_shaderRecords;
 
 public:
-    ShaderTable(UINT numShaderRecords = 1000) : m_maxShaderRecordSize(0)
-    {
-        m_shaderRecords.reserve(numShaderRecords);
-    }
+    ShaderTable() : m_maxShaderRecordSize(0) {}
     UINT GetMaxShaderRecordSize() const { return m_maxShaderRecordSize; }
     UINT Size() const { return static_cast<UINT>(m_shaderRecords.size()) * GetMaxShaderRecordSize(); }
 

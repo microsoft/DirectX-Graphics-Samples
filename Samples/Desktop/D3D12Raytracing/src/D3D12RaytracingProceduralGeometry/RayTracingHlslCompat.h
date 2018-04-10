@@ -11,8 +11,6 @@
 
 #pragma once
 
-// ToDo remove
-
 #ifdef HLSL
 #include "HlslCompat.h"
 #else

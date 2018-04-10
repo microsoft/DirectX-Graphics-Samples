@@ -1114,6 +1114,7 @@ void D3D12RaytracingProceduralGeometry::DoRaytracing()
 
     // Copy the updated AABB primitive attribute buffer to GPU.
     {
+        // ToDo use per frame buffers
         UINT frameIndex = 0;
         memcpy(&m_mappedAABBPrimitiveAttributes[frameIndex], &m_aabbPrimitiveAttributeBuffer[frameIndex][0][0][0], AABB_BUFFER_SIZE);
         auto bufferGpuAddress = m_perFrameAABBPrimitiveAttributes->GetGPUVirtualAddress() + frameIndex * AABB_BUFFER_SIZE;

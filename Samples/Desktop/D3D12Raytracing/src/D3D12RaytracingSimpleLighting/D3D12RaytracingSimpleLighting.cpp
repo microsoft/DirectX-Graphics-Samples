@@ -472,10 +472,11 @@ void D3D12RaytracingSimpleLighting::BuildGeometry()
     AllocateUploadBuffer(device, indices, sizeof(indices), &m_indexBuffer.resource);
     AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_vertexBuffer.resource);
 
-    // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
+    // Vertex buffer is passed to the shader along with index buffer as a descriptor table.
+    // Vertex buffer must follow index buffer in the descriptor heap.
     UINT descriptorIndexIB = CreateBufferSRV(&m_indexBuffer, sizeof(indices)/4, sizeof(UINT));
     UINT descriptorIndexVB = CreateBufferSRV(&m_vertexBuffer, ARRAYSIZE(vertices), sizeof(vertices[0]));
-    ThrowIfFalse(descriptorIndexVB != descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
+    ThrowIfFalse(descriptorIndexVB == descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index!");
 }
 
 // Build acceleration structures needed for raytracing.

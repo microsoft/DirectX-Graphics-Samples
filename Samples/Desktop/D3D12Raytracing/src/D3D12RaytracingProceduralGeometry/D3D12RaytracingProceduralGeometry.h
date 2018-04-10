@@ -43,9 +43,6 @@ namespace BottomLevelAS {
     };
 }
 
-// ToDo - ugliness - this is for shader table layout to match BLAS layout
-namespace ShaderType = BottomLevelAS;
-
 namespace HitGroupType {
     enum Value {
         AABB = 0,
