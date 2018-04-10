@@ -26,7 +26,17 @@ public:
         localRootArguments(pLocalRootArguments, localRootArgumentsSize)
     {
     }
-    UINT Size() { return shaderIdentifier.size + localRootArguments.size; }
+    UINT Size() const { return Align(shaderIdentifier.size + localRootArguments.size, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT); }
+
+    void CopyTo(void* dest) 
+    {
+        uint8_t* byteDest = static_cast<uint8_t*>(dest);
+        memcpy(byteDest, shaderIdentifier.ptr, shaderIdentifier.size);
+        if (localRootArguments.ptr)
+        {
+            memcpy(byteDest + shaderIdentifier.size, localRootArguments.ptr, shaderIdentifier.size);
+        }
+    }
 
     void AllocateAsUploadBuffer(ID3D12Device* pDevice, ID3D12Resource **ppResource, const wchar_t* resourceName = nullptr)
     {
@@ -63,7 +73,54 @@ public:
     };
     PointerWithSize shaderIdentifier;
     PointerWithSize localRootArguments;
+};
 
+class ShaderTable
+{
+    UINT m_maxShaderRecordSize;
+    std::vector<ShaderRecord> m_shaderRecords;
+
+public:
+    ShaderTable(UINT numShaderRecords = 1000) : m_maxShaderRecordSize(0)
+    {
+        m_shaderRecords.reserve(numShaderRecords);
+    }
+    UINT GetMaxShaderRecordSize() const { return m_maxShaderRecordSize; }
+    UINT Size() const { return static_cast<UINT>(m_shaderRecords.size()) * GetMaxShaderRecordSize(); }
+
+    void push_back(const ShaderRecord& shaderRecord) 
+    { 
+        m_maxShaderRecordSize = max(shaderRecord.Size(), m_maxShaderRecordSize);
+        m_shaderRecords.push_back(shaderRecord); 
+    }
+
+    void AllocateAsUploadBuffer(ID3D12Device* pDevice, ID3D12Resource **ppResource, const wchar_t* resourceName = nullptr)
+    {
+        auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        UINT bufferSize = Size();
+        UINT shaderRecordStride = GetMaxShaderRecordSize();
+
+        auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
+        ThrowIfFailed(pDevice->CreateCommittedResource(
+            &uploadHeapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &bufferDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(ppResource)));
+        if (resourceName)
+        {
+            (*ppResource)->SetName(resourceName);
+        }
+        uint8_t *pMappedData;
+        (*ppResource)->Map(0, nullptr, reinterpret_cast<void**>(&pMappedData));
+        for (auto& shaderRecord : m_shaderRecords)
+        {
+            shaderRecord.CopyTo(pMappedData);
+            pMappedData += shaderRecordStride;
+        }
+        (*ppResource)->Unmap(0, nullptr);
+    }
 };
 
 inline void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Resource **ppResource, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr)

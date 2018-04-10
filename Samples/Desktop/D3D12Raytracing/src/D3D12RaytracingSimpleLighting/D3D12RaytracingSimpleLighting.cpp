@@ -472,8 +472,10 @@ void D3D12RaytracingSimpleLighting::BuildGeometry()
     AllocateUploadBuffer(device, indices, sizeof(indices), &m_indexBuffer.resource);
     AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_vertexBuffer.resource);
 
-    CreateBufferSRV(&m_indexBuffer, sizeof(indices)/4, sizeof(UINT));
-    CreateBufferSRV(&m_vertexBuffer, ARRAYSIZE(vertices), sizeof(vertices[0]));
+    // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
+    UINT descriptorIndexIB = CreateBufferSRV(&m_indexBuffer, sizeof(indices)/4, sizeof(UINT));
+    UINT descriptorIndexVB = CreateBufferSRV(&m_vertexBuffer, ARRAYSIZE(vertices), sizeof(vertices[0]));
+    ThrowIfFalse(descriptorIndexVB != descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 }
 
 // Build acceleration structures needed for raytracing.
@@ -572,7 +574,7 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     // The Fallback Layer interface uses WRAPPED_GPU_POINTER to encapsulate the underlying pointer
     // which will either be an emulated GPU pointer for the compute - based path or a GPU_VIRTUAL_ADDRESS for the DXR path.
 
-    // Create an instance desc for the bottom level acceleration structure.
+    // Create an instance desc for the bottom-level acceleration structure.
     ComPtr<ID3D12Resource> instanceDescs;
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
@@ -1061,7 +1063,7 @@ UINT D3D12RaytracingSimpleLighting::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HAND
 }
 
 // Create SRV for a buffer.
-void D3D12RaytracingSimpleLighting::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
+UINT D3D12RaytracingSimpleLighting::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -1076,4 +1078,5 @@ void D3D12RaytracingSimpleLighting::CreateBufferSRV(D3DBuffer* buffer, UINT numE
     UINT descriptorIndex = AllocateDescriptor(&buffer->cpuDescriptorHandle);
     device->CreateShaderResourceView(buffer->resource.Get(), &srvDesc, buffer->cpuDescriptorHandle);
     buffer->gpuDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), descriptorIndex, m_descriptorSize);
+    return descriptorIndex;
 };

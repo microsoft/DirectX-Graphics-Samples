@@ -11,7 +11,7 @@
 
 #pragma once
 
-#define USE_AABB_GEOMETRY 1
+// ToDo remove
 
 #ifdef HLSL
 #include "HlslCompat.h"
@@ -41,3 +41,22 @@ struct Vertex
     XMFLOAT3 position;
     XMFLOAT3 normal;
 };
+
+struct SphereAABB
+{
+    XMFLOAT3 center;
+    float  radius;
+};
+
+struct RectangularPrismAABB
+{
+    XMFLOAT3 minPosition;
+    XMFLOAT3 maxPosition;
+};
+
+struct AABBPrimitiveAttributes
+{
+    XMMATRIX blasToLocalSpace;   // Matrix from bottom-level object space to local primitive space
+    XMFLOAT3 albedo;
+};
+

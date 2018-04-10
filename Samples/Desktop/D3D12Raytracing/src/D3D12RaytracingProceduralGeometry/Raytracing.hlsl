@@ -17,6 +17,7 @@ RaytracingAccelerationStructure Scene : register(t0, space0);
 RWTexture2D<float4> RenderTarget : register(u0);
 ByteAddressBuffer Indices : register(t1, space0);
 StructuredBuffer<Vertex> Vertices : register(t2, space0);
+StructuredBuffer<AABBPrimitiveAttributes> aabbPrimitiveAttributes : register(t3, space0);
 
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 ConstantBuffer<CubeConstantBuffer> g_cubeCB : register(b1);
@@ -63,7 +64,8 @@ enum ProceduralPrimitives
 {
     Box = 0,
     Spheres,
-    Sphere
+    Sphere,
+    Count
 };
 
 
@@ -133,7 +135,7 @@ void MyRaygenShader()
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
     HitData payload = { float4(0, 0, 0, 0) };
-    TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
+    TraceRay(Scene, 0/*RAY_FLAG_CULL_BACK_FACING_TRIANGLES*/, ~0, 0, 1, 0, ray, payload);
 
     // Write the raytraced color to the output texture.
     RenderTarget[DispatchRaysIndex()] = payload.color;
@@ -144,7 +146,10 @@ bool IntersectCustomPrimitiveFrontToBack(
     float rayTMin, float rayTMax, inout float curT,
     out ProceduralPrimitiveAttributes attr)
 {
-    switch (InstanceIndex())
+    curT = rayTMin;
+    return true;
+
+    switch (PrimitiveIndex() % ProceduralPrimitives::Count)
     {
     case Box:       return intersectBox(origin, direction, curT, attr);
     case Sphere:    return intersectSphere(origin, direction, curT, attr);
@@ -197,10 +202,10 @@ void MyClosestHitShader(inout HitData payload : SV_RayPayload, in ProceduralPrim
     float4 diffuseColor = CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
-    //payload.color = float4(0, attr.barycentrics, 1);
-    payload.color = float4(attr.normal, 1);
     payload.color = color;
 }
+
+void CalculateLighting()
 
 [shader("miss")]
 void MyMissShader(inout HitData payload : SV_RayPayload)

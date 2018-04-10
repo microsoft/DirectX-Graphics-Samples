@@ -423,7 +423,7 @@ void D3D12RaytracingHelloWorld::BuildAccelerationStructures()
     // The Fallback Layer interface uses WRAPPED_GPU_POINTER to encapsulate the underlying pointer
     // which will either be an emulated GPU pointer for the compute - based path or a GPU_VIRTUAL_ADDRESS for the DXR path.
 
-    // Create an instance desc for the bottom level acceleration structure.
+    // Create an instance desc for the bottom-level acceleration structure.
     ComPtr<ID3D12Resource> instanceDescs;
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {

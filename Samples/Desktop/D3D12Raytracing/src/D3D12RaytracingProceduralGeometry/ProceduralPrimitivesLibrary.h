@@ -117,6 +117,7 @@ bool intersectSpheres(float3 origin, float3 direction, inout float thit, inout P
             hitFound = true;
         }
     }
+    
     return hitFound;
 #else
     // test against all spheres
