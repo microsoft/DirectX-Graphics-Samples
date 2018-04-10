@@ -81,11 +81,11 @@ float3 HitWorldPosition()
 }
 
 // Retrieve attribute at a hit position interpolated from vertex attributes using the hit's barycentrics.
-float3 HitAttribute(float3 vertexAttribute[3], MyAttributes attr)
+float3 HitAttribute(float3 vertexAttribute[3], float2 barycentrics)
 {
     return vertexAttribute[0] +
-        attr.barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
-        attr.barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
+        barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
+        barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
 }
 
 // Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
@@ -113,7 +113,7 @@ float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
     // Diffuse contribution.
     float fNDotL = max(0.0f, dot(pixelToLight, normal));
 
-    return g_cubeCB.diffuseColor * g_sceneCB.lightDiffuseColor * fNDotL;
+    return g_sceneCB.lightDiffuseColor * fNDotL;
 }
 
 [shader("raygeneration")]
@@ -146,11 +146,16 @@ bool IntersectCustomPrimitiveFrontToBack(
     float rayTMin, float rayTMax, inout float curT,
     out ProceduralPrimitiveAttributes attr)
 {
+#if 0
+    curT = rayTMin;
+    return true;
+#endif
     AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
 
-    float3 rayOriginLocal = mul(float4(rayDirObject, 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
-    float3 rayDirLocal = mul(rayOriginObject, (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
-   
+    float3 rayOriginLocal = mul(float4(rayOriginObject, 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
+    //float3 rayDirLocal = mul(rayDirObject, (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
+    float3 rayDirLocal = mul(float4(rayDirObject,0), aabbAttribute.bottomLevelASToLocalSpace).xyz;
+
     switch (PrimitiveIndex() % ProceduralPrimitives::Count)
     {
     case Box:       return intersectBox(rayOriginLocal, rayDirLocal, curT, attr);
@@ -167,6 +172,7 @@ void MyIntersectionShader()
     ProceduralPrimitiveAttributes attr;
     if (IntersectCustomPrimitiveFrontToBack(
         ObjectRayOrigin(), ObjectRayDirection(),
+        //WorldRayOrigin(), WorldRayDirection(),
         RayTMin(), RayTCurrent(), THit, attr))
     {
         ReportHit(THit, /*hitKind*/ 0, attr);
@@ -174,10 +180,10 @@ void MyIntersectionShader()
 }
 
 [shader("closesthit")]
-void MyClosestHitShader(inout HitData payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader(inout HitData payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     float3 hitPosition = HitWorldPosition();
-#if 0
+
     // Get the base index of the triangle's first 16 bit index.
     uint indexSizeInBytes = 2;
     uint indicesPerTriangle = 3;
@@ -197,11 +203,23 @@ void MyClosestHitShader(inout HitData payload : SV_RayPayload, in ProceduralPrim
     // Compute the triangle's normal.
     // This is redundant and done for illustration purposes 
     // as all the per-vertex normals are the same and match triangle's normal in this sample. 
-    float3 triangleNormal = HitAttribute(vertexNormals, attr);
-#else
+    float3 triangleNormal = HitAttribute(vertexNormals, attr.barycentrics);
+
+    float4 diffuseColor = g_cubeCB.diffuseColor * CalculateDiffuseLighting(hitPosition, triangleNormal);
+    float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
+
+    payload.color = color;
+}
+
+[shader("closesthit")]
+void MyClosestHitShaderAABB(inout HitData payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+{
+    float3 hitPosition = HitWorldPosition();
+
     float3 triangleNormal = attr.normal;
-#endif
-    float4 diffuseColor = CalculateDiffuseLighting(hitPosition, triangleNormal);
+
+    float4 albedo = float4(g_AABBPrimitiveAttributes[PrimitiveIndex()].albedo, 1);
+    float4 diffuseColor = albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
     payload.color = color;

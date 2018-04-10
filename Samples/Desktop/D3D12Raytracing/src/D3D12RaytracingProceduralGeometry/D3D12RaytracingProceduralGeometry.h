@@ -21,9 +21,7 @@ namespace GlobalRootSignatureParams {
         AccelerationStructureSlot,
         SceneConstantSlot,
         AABBattributeBufferSlot,
-#if !USE_AABB_GEOMETRY
         VertexBuffersSlot,
-#endif
         Count
     };
 }
@@ -45,13 +43,8 @@ namespace BottomLevelAS {
     };
 }
 
-namespace HitGroup {
-    enum Value {
-        AABB,
-        Triangle,
-        Count
-    };
-}
+// ToDo - ugliness - this is for shader table layout to match BLAS layout
+namespace ShaderType = BottomLevelAS;
 
 
 struct AccelerationStructureBuffers
@@ -106,9 +99,9 @@ private:
     ComPtr<ID3D12Resource>       m_perFrameConstants;
 
 
-    static const UINT NUM_AABB_X = 4;
+    static const UINT NUM_AABB_X = 5;
     static const UINT NUM_AABB_Y = 1;
-    static const UINT NUM_AABB_Z = 4;
+    static const UINT NUM_AABB_Z = 5;
     static const UINT NUM_AABB = NUM_AABB_X * NUM_AABB_Y * NUM_AABB_Z;
     static const UINT AABB_BUFFER_SIZE = NUM_AABB * sizeof(AABBPrimitiveAttributes);
     AABBPrimitiveAttributes*     m_mappedAABBPrimitiveAttributes;
@@ -149,7 +142,7 @@ private:
     };
     D3DBuffer m_indexBuffer;
     D3DBuffer m_vertexBuffer;
-    D3DBuffer m_aabbPrimitiveArgsBuffer;
+    D3DBuffer m_aabbBuffer;
 
     // Acceleration structure
     ComPtr<ID3D12Resource> m_bottomLevelAS[BottomLevelAS::Count];
@@ -161,12 +154,13 @@ private:
     UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
     // Shader tables
-    static const wchar_t* c_hitGroupNames[HitGroup::Count];
+    static const wchar_t* c_hitGroupNames[ShaderType::Count];
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_intersectionShaderName;
-    static const wchar_t* c_closestHitShaderName;
+    static const wchar_t* c_closestHitShaderNames[ShaderType::Count];
     static const wchar_t* c_missShaderName;
     ComPtr<ID3D12Resource> m_missShaderTable;
+    UINT m_hitGroupShaderTableStrideInBytes;
     ComPtr<ID3D12Resource> m_hitGroupShaderTable;
     ComPtr<ID3D12Resource> m_rayGenShaderTable;
 
