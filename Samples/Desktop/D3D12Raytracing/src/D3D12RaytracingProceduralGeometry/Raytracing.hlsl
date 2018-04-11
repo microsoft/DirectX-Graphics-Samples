@@ -229,12 +229,14 @@ void MyClosestHitShader_Triangle(inout HitData payload : SV_RayPayload, in Built
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     // TMin should be kept small to prevent missing geometry at close contact areas.
     // For shadow ray this will be extremely small to avoid aliasing at contact areas.
-    ray.TMin = 0.000001;
+    ray.TMin = 0.0001;
     ray.TMax = 10000.0;
     ShadowPayload shadowPayload;
     // ToDo use hit/miss indices from a header
+    // ToDo place ShadowHitGroup right after Closest hitgroup?
+    // ToDo review hit group indexing
     TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, ~0, 
-                2 /* RayContributionToHitGroupIndex*/, 
+                1 /* RayContributionToHitGroupIndex*/, 
                 0, 
                 1 /* MissShaderIndex */, 
                 ray, shadowPayload);
@@ -259,12 +261,12 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
     ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     // TMin should be kept small to prevent missing geometry at close contact areas.
-    ray.TMin = 0.5;
+    ray.TMin = 0.001;
     ray.TMax = 10000.0;
     ShadowPayload shadowPayload;
     // ToDo use hit/miss indices from a header
     TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, ~0,
-        2 /* RayContributionToHitGroupIndex*/,
+        0 /* RayContributionToHitGroupIndex*/,
         0,
         1 /* MissShaderIndex */,
         ray, shadowPayload);

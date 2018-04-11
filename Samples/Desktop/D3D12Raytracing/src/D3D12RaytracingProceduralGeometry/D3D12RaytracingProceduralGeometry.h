@@ -45,8 +45,8 @@ namespace BottomLevelASType {
 
 namespace HitGroupType {
     enum Value {
-        AABB = 0,
-        Triangle,
+        Triangle = 0,
+        AABB,
         ShadowAABB,
         Count
     };
@@ -62,8 +62,8 @@ namespace RayType {
 
 namespace ClosestHitRayType {
     enum Value {
-        AABB = 0,
-        Triangle,
+        Triangle = 0,
+        AABB,
         ShadowAABB,
         Count
     };
@@ -220,7 +220,7 @@ private:
     void BuildProceduralGeometryAABBs();
     void BuildGeometry();
     void BuildBottomLevelGeometryDescs(D3D12_RAYTRACING_GEOMETRY_DESC geometryDescs[BottomLevelASType::Count]);
-    template <class BLASPtrType, class InstanceDescType>
+    template <class InstanceDescType, class BLASPtrType>
     void BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
     AccelerationStructureBuffers BuildBottomLevelAS(const D3D12_RAYTRACING_GEOMETRY_DESC& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
     AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
