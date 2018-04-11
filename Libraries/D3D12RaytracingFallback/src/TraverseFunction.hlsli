@@ -102,7 +102,7 @@ void Fallback_AcceptHitAndEndSearch()
 
 int Fallback_ReportHit(float tHit, uint hitKind)
 {
-    if (tHit < RayTMin())
+    if (tHit < RayTMin() || Fallback_RayTCurrent() <= tHit)
         return 0;
 
     Fallback_SetPendingRayTCurrent(tHit);
@@ -111,11 +111,6 @@ int Fallback_ReportHit(float tHit, uint hitKind)
     int ret = ACCEPT;
     if (stateId > 0)
         ret = InvokeAnyHit(stateId);
-
-    if (RayTCurrent() <= tHit)
-    {
-        ret = IGNORE;
-    }
 
     if (ret != IGNORE)
     {
@@ -476,7 +471,6 @@ void dump(BoundingBox box, uint2 flags) {}
 #endif
 
 Declare_Fallback_SetPendingAttr(BuiltInTriangleIntersectionAttributes);
-float RayTCurrent();
 
 bool Traverse(
     uint InstanceInclusionMask,
@@ -498,9 +492,9 @@ bool Traverse(
     uint currentBVHIndex = TOP_LEVEL_INDEX;
     GpuVA currentGpuVA = TopLevelAccelerationStructureGpuVA;
     uint instanceIndex = 0;
-    uint instFlags = 0;
-    uint instOffset = 0;
-    uint instId = 0;
+    uint instanceFlags = 0;
+    uint instanceOffset = 0;
+    uint instanceId = 0;
 
     uint stackPointer = 0;
     nodesToProcess[TOP_LEVEL_INDEX] = 0;
@@ -517,7 +511,7 @@ bool Traverse(
         flags);
 
     if (RayBoxTest(unusedT,
-        RayTCurrent(),
+        Fallback_RayTCurrent(),
         currentRayData.OriginTimesRayInverseDirection,
         currentRayData.InverseDirection,
         topLevelBox.center,
@@ -567,8 +561,8 @@ bool Traverse(
                             leafIndex);
                         RaytracingInstanceDesc instanceDesc = metadata.instanceDesc;
                         instanceIndex = metadata.InstanceIndex;
-                        instOffset = GetInstanceContributionToHitGroupIndex(instanceDesc);
-                        instId = GetInstanceID(instanceDesc);
+                        instanceOffset = GetInstanceContributionToHitGroupIndex(instanceDesc);
+                        instanceId = GetInstanceID(instanceDesc);
 
                         bool validInstance = GetInstanceMask(instanceDesc) & InstanceInclusionMask;
                         if (validInstance)
@@ -577,7 +571,7 @@ bool Traverse(
                             currentBVHIndex = BOTTOM_LEVEL_INDEX;
                             StackPush(stackPointer, 0, currentLevel + 1, GI);
                             currentGpuVA = instanceDesc.AccelerationStructure;
-                            instFlags = GetInstanceFlags(instanceDesc);
+                            instanceFlags = GetInstanceFlags(instanceDesc);
 
                             CurrentWorldToObject = CreateMatrix(instanceDesc.Transform);
                             CurrentObjectToWorld = CreateMatrix(metadata.ObjectToWorld);
@@ -593,12 +587,12 @@ bool Traverse(
                     {
                         MARK(8, 0);
                         bool geomOpaque = true; // TODO: This should be looked up with the triangle data.
-                        bool opaque = IsOpaque(geomOpaque, instFlags, RayFlags());
+                        bool opaque = IsOpaque(geomOpaque, instanceFlags, RayFlags());
 #ifdef DISABLE_ANYHIT 
                         opaque = true;
 #endif
                         bool culled = Cull(opaque, RayFlags());
-                        float resultT = RayTCurrent();
+                        float resultT = Fallback_RayTCurrent();
                         float2 resultBary;
                         uint resultTriId;
                         bool intersectionFound = false;
@@ -613,14 +607,14 @@ bool Traverse(
                         {
                             const uint leafIndex = GetLeafIndexFromFlag(flags);
                             PrimitiveMetaData primitiveMetadata = BVHReadPrimitiveMetaData(bottomLevelAccelerationStructure, leafIndex);
-                            uint contributionToHitGroupIndex =
-                                RayContributionToHitGroupIndex +
+                            uint hitGroupRecordOffset =
+                                HitGroupShaderRecordStride * (RayContributionToHitGroupIndex +
                                 primitiveMetadata.GeometryContributionToHitGroupIndex * MultiplierForGeometryContributionToHitGroupIndex +
-                                instOffset;
+                                instanceOffset);
 
-                            Fallback_SetPendingCustomVals(primitiveMetadata.PrimitiveIndex, contributionToHitGroupIndex, instanceIndex, instId);
-                            uint intersectionStateID, anyHitStateID;
-                            GetAnyHitAndIntersectionStateIdentifier(HitGroupShaderTable, HitGroupShaderRecordStride, contributionToHitGroupIndex, anyHitStateID, intersectionStateID);
+                            Fallback_SetPendingCustomVals(hitGroupRecordOffset, primitiveMetadata.PrimitiveIndex, instanceIndex, instanceId);
+                            uint intersectionStateId, anyHitStateId;
+                            GetAnyHitAndIntersectionStateId(HitGroupShaderTable, hitGroupRecordOffset, anyHitStateId, intersectionStateId);
                             
                             if (ResetMatrices)
                             {
@@ -628,15 +622,15 @@ bool Traverse(
                                 ResetMatrices = false;
                             }
 
-                            Fallback_SetAnyHitStateId(anyHitStateID);
+                            Fallback_SetAnyHitStateId(anyHitStateId);
                             Fallback_SetAnyHitResult(ACCEPT);
-                            Fallback_CallIndirect(intersectionStateID);
+                            Fallback_CallIndirect(intersectionStateId);
                             endSearch = Fallback_AnyHitResult() == END_SEARCH;
                         }
                         else if (!culled && TestLeafNodeIntersections( // TODO: We need to break out this function so we can run anyhit on each triangle
                             currentBVH,
                             flags,
-                            instFlags,
+                            instanceFlags,
                             currentRayData.Origin,
                             currentRayData.Direction,
                             currentRayData.SwizzledIndices,
@@ -646,10 +640,10 @@ bool Traverse(
                             resultTriId))
                         {
                             PrimitiveMetaData triMetadata = BVHReadPrimitiveMetaData(bottomLevelAccelerationStructure, resultTriId);
-                            uint contributionToHitGroupIndex =
-                                RayContributionToHitGroupIndex +
+                            uint hitGroupRecordOffset =
+                                HitGroupShaderRecordStride * (RayContributionToHitGroupIndex +
                                 triMetadata.GeometryContributionToHitGroupIndex * MultiplierForGeometryContributionToHitGroupIndex +
-                                instOffset;
+                                instanceOffset);
                             uint primIdx = triMetadata.PrimitiveIndex;
                             uint hitKind = HIT_KIND_TRIANGLE_FRONT_FACE;
 
@@ -657,7 +651,7 @@ bool Traverse(
                             attr.barycentrics = resultBary;
                             Fallback_SetPendingAttr(attr);
 #if !ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-                            Fallback_SetPendingTriVals(resultT, primIdx, contributionToHitGroupIndex, instanceIndex, instId, hitKind);
+                            Fallback_SetPendingTriVals(hitGroupRecordOffset, primIdx, instanceIndex, instanceId, resultT, hitKind);
 #endif
                             closestBoxT = min(closestBoxT, resultT);
 
@@ -678,10 +672,10 @@ bool Traverse(
                             {
                                 MARK(8, 2);
 
-                                uint anyhitStateID = GetAnyHitStateIdentifier(HitGroupShaderTable, HitGroupShaderRecordStride, contributionToHitGroupIndex);
+                                uint anyhitStateId = GetAnyHitStateId(HitGroupShaderTable, hitGroupRecordOffset);
                                 int ret = ACCEPT;
-                                if (anyhitStateID)
-                                    ret = InvokeAnyHit(anyhitStateID);
+                                if (anyhitStateId)
+                                    ret = InvokeAnyHit(anyhitStateId);
                                 if (ret != IGNORE)
                                     Fallback_CommitHit();
                                 endSearch = (ret == END_SEARCH) || (RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH);
@@ -749,14 +743,14 @@ bool Traverse(
         currentRayData = worldRayData;
         currentGpuVA = TopLevelAccelerationStructureGpuVA;
         ResetMatrices = true;
-    }
-    MARK(10, 0);
-    bool isHit = InstanceIndex() != NO_HIT_SENTINEL;
+    } 
+    MARK(10,0);
+    bool isHit = Fallback_InstanceIndex() != NO_HIT_SENTINEL;
+#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
     if (isHit)
     {
-        closestBoxT = RayTCurrent();
+        closestBoxT = Fallback_RayTCurrent();
     }
-#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
     VisualizeAcceleratonStructure(closestBoxT);
 #endif
     return isHit;   

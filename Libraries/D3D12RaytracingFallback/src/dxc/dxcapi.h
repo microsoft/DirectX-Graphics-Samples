@@ -321,7 +321,7 @@ IDxcVersionInfo : public IUnknown {
 };
 
 struct __declspec(uuid("76bb3c85-006d-4b72-9e10-63cd97df57f0"))
-IDxcDxrtFallbackCompiler : public IUnknown {
+IDxcDxrFallbackCompiler : public IUnknown {
 
   // If set to true then shaders not listed in pShaderNames in Compile() but 
   // called by shaders in pShaderNames are added to the megakernel, otherwise
@@ -416,7 +416,7 @@ __declspec(selectany) extern const GUID CLSID_DxcContainerBuilder = {
 };
 
 // {76bb3c85-006d-4b72-9e10-63cd97df57f0}
-__declspec(selectany) extern const GUID CLSID_DxcDxrtFallbackCompiler = {
+__declspec(selectany) extern const GUID CLSID_DxcDxrFallbackCompiler = {
   0x76bb3c85,
   0x006d,
   0x4b72,  

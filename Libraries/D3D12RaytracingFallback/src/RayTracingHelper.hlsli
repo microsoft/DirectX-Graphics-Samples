@@ -347,16 +347,14 @@ AABB TransformAABB(AABB box, AffineMatrix transform)
 
 static const uint OffsetToAnyHitStateId = 4;
 static const uint OffsetToIntersectionStateId = 8;
-uint GetAnyHitStateIdentifier(ByteAddressBuffer shaderTable, uint shaderRecordStride, uint recordIndex)
+uint GetAnyHitStateId(ByteAddressBuffer shaderTable, uint recordOffset)
 {
-    uint offsetToReadFrom = shaderRecordStride * recordIndex + OffsetToAnyHitStateId;
-    return shaderTable.Load(offsetToReadFrom);
+    return shaderTable.Load(recordOffset + OffsetToAnyHitStateId);
 }
 
-void GetAnyHitAndIntersectionStateIdentifier(ByteAddressBuffer shaderTable, uint shaderRecordStride, uint recordIndex, out uint AnyHitStateId, out uint IntersectionStateId)
+void GetAnyHitAndIntersectionStateId(ByteAddressBuffer shaderTable, uint recordOffset, out uint AnyHitStateId, out uint IntersectionStateId)
 {
-    uint offsetToReadFrom = shaderRecordStride * recordIndex + OffsetToAnyHitStateId;
-    uint2 stateIds = shaderTable.Load2(offsetToReadFrom);
+    uint2 stateIds = shaderTable.Load2(recordOffset + OffsetToAnyHitStateId);
     AnyHitStateId = stateIds.x;
     IntersectionStateId = stateIds.y;
 }
