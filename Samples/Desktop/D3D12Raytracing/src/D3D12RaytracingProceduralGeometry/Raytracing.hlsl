@@ -167,6 +167,21 @@ bool IntersectCustomPrimitiveFrontToBack(
 }
 
 [shader("intersection")]
+void IntersectionShader_Box()
+{
+
+    float THit = RayTCurrent();
+    ProceduralPrimitiveAttributes attr;
+    if (IntersectCustomPrimitiveFrontToBack(
+        ObjectRayOrigin(), ObjectRayDirection(),
+        //WorldRayOrigin(), WorldRayDirection(),
+        RayTMin(), RayTCurrent(), THit, attr))
+    {
+        ReportHit(THit, /*hitKind*/ 0, attr);
+    }
+}
+
+[shader("intersection")]
 void MyIntersectionShader_AABB()
 {
     float THit = RayTCurrent();
