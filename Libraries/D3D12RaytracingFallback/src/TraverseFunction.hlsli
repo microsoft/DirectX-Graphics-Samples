@@ -126,6 +126,14 @@ int Fallback_ReportHit(float tHit, uint hitKind)
     return ret;
 }
 
+// Call this only when necessary as saving off 3x4 matrices is costly
+void UpdateObjectSpaceProperties(float3 objectRayOrigin, float3 objectRayDirection, float3x4 worldToObject, float3x4 objectToWorld )
+{
+    Fallback_SetObjectRayOrigin(objectRayOrigin);
+    Fallback_SetObjectRayDirection(objectRayDirection);
+    Fallback_SetWorldToObject(worldToObject);
+    Fallback_SetObjectToWorld(objectToWorld);
+}
 
 //
 // Ray/AABB intersection, separating axes theorem
@@ -489,7 +497,7 @@ bool Traverse(
     uint nodesToProcess[NUM_BVH_LEVELS];
     uint currentBVHIndex = TOP_LEVEL_INDEX;
     GpuVA currentGpuVA = TopLevelAccelerationStructureGpuVA;
-    uint instIdx = 0;
+    uint instanceIndex = 0;
     uint instFlags = 0;
     uint instOffset = 0;
     uint instId = 0;
@@ -552,12 +560,13 @@ bool Traverse(
                     if (currentBVHIndex == TOP_LEVEL_INDEX)
                     {
                         MARK(6, 0);
-                        instIdx = GetLeafIndexFromFlag(flags);
+                        uint leafIndex = GetLeafIndexFromFlag(flags);
                         BVHMetadata metadata = GetBVHMetadataFromLeafIndex(
                             topLevelAccelerationStructure,
                             offsetToInstanceDescs,
-                            instIdx);
+                            leafIndex);
                         RaytracingInstanceDesc instanceDesc = metadata.instanceDesc;
+                        instanceIndex = metadata.InstanceIndex;
                         instOffset = GetInstanceContributionToHitGroupIndex(instanceDesc);
                         instId = GetInstanceID(instanceDesc);
 
@@ -609,10 +618,16 @@ bool Traverse(
                                 primitiveMetadata.GeometryContributionToHitGroupIndex * MultiplierForGeometryContributionToHitGroupIndex +
                                 instOffset;
 
-                            Fallback_SetPendingCustomVals(primitiveMetadata.PrimitiveIndex, contributionToHitGroupIndex, instIdx, instId);
+                            Fallback_SetPendingCustomVals(primitiveMetadata.PrimitiveIndex, contributionToHitGroupIndex, instanceIndex, instId);
                             uint intersectionStateID, anyHitStateID;
                             GetAnyHitAndIntersectionStateIdentifier(HitGroupShaderTable, HitGroupShaderRecordStride, contributionToHitGroupIndex, anyHitStateID, intersectionStateID);
                             
+                            if (ResetMatrices)
+                            {
+                                UpdateObjectSpaceProperties(currentRayData.Origin, currentRayData.Direction, CurrentWorldToObject, CurrentObjectToWorld);
+                                ResetMatrices = false;
+                            }
+
                             Fallback_SetAnyHitStateId(anyHitStateID);
                             Fallback_SetAnyHitResult(ACCEPT);
                             Fallback_CallIndirect(intersectionStateID);
@@ -642,16 +657,13 @@ bool Traverse(
                             attr.barycentrics = resultBary;
                             Fallback_SetPendingAttr(attr);
 #if !ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-                            Fallback_SetPendingTriVals(resultT, primIdx, contributionToHitGroupIndex, instIdx, instId, hitKind);
+                            Fallback_SetPendingTriVals(resultT, primIdx, contributionToHitGroupIndex, instanceIndex, instId, hitKind);
 #endif
                             closestBoxT = min(closestBoxT, resultT);
 
                             if (ResetMatrices)
                             {
-                                Fallback_SetObjectRayOrigin(currentRayData.Origin);
-                                Fallback_SetObjectRayDirection(currentRayData.Direction);
-                                Fallback_SetWorldToObject(CurrentWorldToObject);
-                                Fallback_SetObjectToWorld(CurrentObjectToWorld);
+                                UpdateObjectSpaceProperties(currentRayData.Origin, currentRayData.Direction, CurrentWorldToObject, CurrentObjectToWorld);
                                 ResetMatrices = false;
                             }
 
@@ -747,5 +759,5 @@ bool Traverse(
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
     VisualizeAcceleratonStructure(closestBoxT);
 #endif
-    return isHit;
+    return isHit;   
 }
