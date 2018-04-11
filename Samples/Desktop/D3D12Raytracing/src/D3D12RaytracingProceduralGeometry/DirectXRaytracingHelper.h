@@ -288,3 +288,17 @@ inline bool EnableRaytracing()
     UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels, D3D12RaytracingPrototype };
     return EnableD3D12ExperimentalFeatures(experimentalFeatures);
 }
+
+inline void StoreXMMatrixAsTransform3x4
+(
+    float transform3x4[12],
+    const XMMATRIX& m
+)
+{
+    UINT i = 0;
+    for (UINT r = 0; r < 3; r++)
+        for (UINT c = 0; c < 4; c++, i++)
+        {
+            transform3x4[i] = XMVectorGetByIndex(m.r[r], c);
+        }
+}

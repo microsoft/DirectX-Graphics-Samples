@@ -110,6 +110,7 @@ inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 directi
     direction = normalize(world - origin);
 }
 
+// ToDo is pixelToLight correct?
 // Diffuse lighting calculation.
 float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
 {
@@ -266,7 +267,8 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
     ShadowPayload shadowPayload;
     // ToDo use hit/miss indices from a header
     TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, ~0,
-        0 /* RayContributionToHitGroupIndex*/,
+        // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
+        1 /* RayContributionToHitGroupIndex*/,
         0,
         1 /* MissShaderIndex */,
         ray, shadowPayload);

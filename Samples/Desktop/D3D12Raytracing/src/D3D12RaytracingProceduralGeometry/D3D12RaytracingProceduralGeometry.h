@@ -121,13 +121,23 @@ private:
     AlignedSceneConstantBuffer*  m_mappedConstantData;
     ComPtr<ID3D12Resource>       m_perFrameConstants;
 
-    static const UINT NUM_PROCEDURAL_SHADERS = 3;
-    static const UINT NUM_AABB_X = 5;
+    // Number of AABB BLAS instances
+    static const UINT NUM_INSTANCE_X = 2;
+    static const UINT NUM_INSTANCE_Y = 1;
+    static const UINT NUM_INSTANCE_Z = 2;
+    static const UINT NUM_INSTANCES = NUM_INSTANCE_X * NUM_INSTANCE_Y * NUM_INSTANCE_Z;
+
+    // Number of AABBs in a BLAS
+    static const UINT NUM_AABB_X = 2;
     static const UINT NUM_AABB_Y = 1;
-    static const UINT NUM_AABB_Z = 5;
-    const float c_aabbWidth = 2; 
-    const float c_aabbDistance = 2;   // Distance between AABBs
+    static const UINT NUM_AABB_Z = 2;
     static const UINT NUM_AABB = NUM_AABB_X * NUM_AABB_Y * NUM_AABB_Z;
+
+    static const UINT NUM_BLAS = 1 + NUM_INSTANCES; // Triangle BLAS + AABB BLAS instances
+
+    static const UINT NUM_PROCEDURAL_SHADERS = 3;
+    const float c_aabbWidth = 2;
+    const float c_aabbDistance = 2;   // Distance between AABBs
     static const UINT AABB_BUFFER_SIZE = NUM_AABB * sizeof(AABBPrimitiveAttributes);
     AABBPrimitiveAttributes*     m_mappedAABBPrimitiveAttributes;
     ComPtr<ID3D12Resource>       m_perFrameAABBPrimitiveAttributes;
