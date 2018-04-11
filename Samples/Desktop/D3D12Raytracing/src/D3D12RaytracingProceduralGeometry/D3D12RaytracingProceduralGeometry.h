@@ -33,20 +33,20 @@ namespace LocalRootSignatureParams {
     };
 }
 
-// Bottom level acceleration structures (BottomLevelAS).
-// This sample uses two BottomLevelAS, one for AABB and one for Triangle geometry.
-namespace BottomLevelAS {
+// Bottom level acceleration structures (BottomLevelASType).
+// This sample uses two BottomLevelASType, one for AABB and one for Triangle geometry.
+namespace BottomLevelASType {
     enum Value {
-        AABB = 0,
-        Triangle,
+        Triangle = 0,
+        AABB,
         Count
     };
 }
 
 namespace HitGroupType {
     enum Value {
-        AABB = 0,
-        Triangle,
+        Triangle = 0,
+        AABB,
         ShadowAABB,
         Count
     };
@@ -62,12 +62,14 @@ namespace RayType {
 
 namespace ClosestHitRayType {
     enum Value {
-        AABB = 0,
-        Triangle,
+        Triangle = 0,
+        AABB,
         ShadowAABB,
         Count
     };
 }
+
+
 struct AccelerationStructureBuffers
 {
     ComPtr<ID3D12Resource> scratch;
@@ -119,11 +121,23 @@ private:
     AlignedSceneConstantBuffer*  m_mappedConstantData;
     ComPtr<ID3D12Resource>       m_perFrameConstants;
 
+    // Number of AABB BLAS instances
+    static const UINT NUM_INSTANCE_X = 2;
+    static const UINT NUM_INSTANCE_Y = 1;
+    static const UINT NUM_INSTANCE_Z = 2;
+    static const UINT NUM_INSTANCES = NUM_INSTANCE_X * NUM_INSTANCE_Y * NUM_INSTANCE_Z;
 
-    static const UINT NUM_AABB_X = 5;
+    // Number of AABBs in a BLAS
+    static const UINT NUM_AABB_X = 2;
     static const UINT NUM_AABB_Y = 1;
-    static const UINT NUM_AABB_Z = 5;
+    static const UINT NUM_AABB_Z = 2;
     static const UINT NUM_AABB = NUM_AABB_X * NUM_AABB_Y * NUM_AABB_Z;
+
+    static const UINT NUM_BLAS = 1 + NUM_INSTANCES; // Triangle BLAS + AABB BLAS instances
+
+    static const UINT NUM_PROCEDURAL_SHADERS = 3;
+    const float c_aabbWidth = 2;
+    const float c_aabbDistance = 2;   // Distance between AABBs
     static const UINT AABB_BUFFER_SIZE = NUM_AABB * sizeof(AABBPrimitiveAttributes);
     AABBPrimitiveAttributes*     m_mappedAABBPrimitiveAttributes;
     ComPtr<ID3D12Resource>       m_perFrameAABBPrimitiveAttributes;
@@ -166,7 +180,7 @@ private:
     D3DBuffer m_aabbBuffer;
 
     // Acceleration structure
-    ComPtr<ID3D12Resource> m_bottomLevelAS[BottomLevelAS::Count];
+    ComPtr<ID3D12Resource> m_bottomLevelAS[BottomLevelASType::Count];
     ComPtr<ID3D12Resource> m_topLevelAS;
 
     // Raytracing output
@@ -213,10 +227,13 @@ private:
     void CreateRaytracingPipelineStateObject();
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
+    void BuildProceduralGeometryAABBs();
     void BuildGeometry();
-    void BuildBottomLevelGeometryDescs(D3D12_RAYTRACING_GEOMETRY_DESC geometryDescs[BottomLevelAS::Count]);
+    void BuildBottomLevelGeometryDescs(D3D12_RAYTRACING_GEOMETRY_DESC geometryDescs[BottomLevelASType::Count]);
+    template <class InstanceDescType, class BLASPtrType>
+    void BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
     AccelerationStructureBuffers BuildBottomLevelAS(const D3D12_RAYTRACING_GEOMETRY_DESC& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
-    AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelAS::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
+    AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
     void BuildAccelerationStructures();
     void BuildShaderTables();
     void SelectRaytracingAPI(RaytracingAPI type);
