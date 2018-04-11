@@ -89,6 +89,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     
     BVHMetadata metadata;
     metadata.instanceDesc = instanceDesc;
+    metadata.InstanceIndex = instanceIndex;
 
     metadata.ObjectToWorld[0] = ObjectToWorld[0];
     metadata.ObjectToWorld[1] = ObjectToWorld[1];

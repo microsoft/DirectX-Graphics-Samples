@@ -186,7 +186,7 @@ static_assert(sizeof(PrimitiveMetaData) == SizeOfPrimitiveMetaData, L"Incorrect 
 #endif
 
 #define SizeOfRaytracingInstanceDesc 64
-#define SizeOfBVHMetadata 112
+#define SizeOfBVHMetadata 116
 #define RaytracingInstanceDescOffsetToPointer 56
 #ifdef HLSL
 #define AffineMatrix float3x4
@@ -222,6 +222,7 @@ struct BVHMetadata
     D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC instanceDesc;
 #endif
     float4 ObjectToWorld[3];
+    uint InstanceIndex;
 };
 
 #ifdef HLSL
@@ -229,6 +230,7 @@ struct BVHMetadata
 void StoreBVHMetadataToRawData(RWByteAddressBuffer buffer, uint offset, BVHMetadata metadata)
 {
     uint4 data[7];
+    uint dataRemainder;
         
     data[0] = asuint(metadata.instanceDesc.Transform[0]);
     data[1] = asuint(metadata.instanceDesc.Transform[1]);
@@ -239,12 +241,15 @@ void StoreBVHMetadataToRawData(RWByteAddressBuffer buffer, uint offset, BVHMetad
     data[4] = asuint(metadata.ObjectToWorld[0]);
     data[5] = asuint(metadata.ObjectToWorld[1]);
     data[6] = asuint(metadata.ObjectToWorld[2]);
+    dataRemainder = metadata.InstanceIndex;
 
     [unroll]
     for (uint i = 0; i < 7; i++)
     {
-        buffer.Store4(offset + Store4StrideInBytes * i, data[i]);
+        buffer.Store4(offset, data[i]);
+        offset += Store4StrideInBytes;
     }
+    buffer.Store(offset, dataRemainder);
 }
 
 RaytracingInstanceDesc RawDataToRaytracingInstanceDesc(uint4 a, uint4 b, uint4 c, uint4 d)
@@ -267,13 +272,16 @@ BVHMetadata LoadBVHMetadata(RWByteAddressBuffer buffer, uint offset)
     [unroll]
     for (uint i = 0; i < 7; i++)
     {
-        data[i] = buffer.Load4(offset + Store4StrideInBytes * i);
+        data[i] = buffer.Load4(offset);
+        offset += Store4StrideInBytes;
     }
     BVHMetadata metadata;
     metadata.instanceDesc = RawDataToRaytracingInstanceDesc(data[0], data[1], data[2], data[3]);
     metadata.ObjectToWorld[0] = asfloat(data[4]);
     metadata.ObjectToWorld[1] = asfloat(data[5]);
     metadata.ObjectToWorld[2] = asfloat(data[6]);
+    metadata.InstanceIndex = buffer.Load(offset);
+
     return metadata;
 }
 
