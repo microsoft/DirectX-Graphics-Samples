@@ -32,20 +32,22 @@ void Fallback_TraceRay(
   float directionX,
   float directionY,
   float directionZ,
-  float tMax)
+  float tMax,
+  uint payloadOffset)
 {
-    Fallback_SetRayFlags(rayFlags);
-    Fallback_TraceRayBegin(float3(originX,originY,originZ), tMin, float3(directionX,directionY,directionZ), tMax);
+    uint oldPayloadOffset = Fallback_TraceRayBegin(rayFlags, float3(originX,originY,originZ), tMin, float3(directionX,directionY,directionZ), tMax, payloadOffset);
 
     BuiltInTriangleIntersectionAttributes attr;
     attr.barycentrics = float2(0.0, 0.0);
     Fallback_SetPendingAttr(attr);
-    Fallback_SetPendingTriVals(0.5, 0, 0, 0, 0, HIT_KIND_TRIANGLE_FRONT_FACE);
+    Fallback_SetPendingTriVals(0, 0, 0, 0, 0.5, HIT_KIND_TRIANGLE_FRONT_FACE);
     Fallback_CommitHit();
+
     uint stateID = HitGroupShaderTable.Load(0);
-    
     if (stateID != 0)
     {
         Fallback_CallIndirect(stateID);
     }
+
+    Fallback_TraceRayEnd(oldPayloadOffset);
 }
