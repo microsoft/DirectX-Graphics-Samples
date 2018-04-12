@@ -295,10 +295,8 @@ inline void StoreXMMatrixAsTransform3x4
     const XMMATRIX& m
 )
 {
-    UINT i = 0;
-    for (UINT r = 0; r < 3; r++)
-        for (UINT c = 0; c < 4; c++, i++)
-        {
-            transform3x4[i] = XMVectorGetByIndex(m.r[r], c);
-        }
+    XMMATRIX mT = XMMatrixTranspose(m); // convert row-major to column-major
+    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[0]), mT.r[0]);
+    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[4]), mT.r[1]);
+    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[8]), mT.r[2]);
 }

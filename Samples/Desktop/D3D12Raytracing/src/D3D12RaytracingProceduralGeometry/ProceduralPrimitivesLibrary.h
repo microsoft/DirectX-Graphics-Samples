@@ -25,7 +25,7 @@ void swap(inout float a, inout float b)
 }
 
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-bool solveQuadratic(float a, float b, float c, out float x0, out float x1)
+bool SolveQuadraticEqn(float a, float b, float c, out float x0, out float x1)
 {
     float discr = b * b - 4 * a * c;
     if (discr < 0) return false;
@@ -43,7 +43,7 @@ bool solveQuadratic(float a, float b, float c, out float x0, out float x1)
 }
 
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-bool intersectSphere(float3 origin, float3 direction, inout float thit, inout ProceduralPrimitiveAttributes attr, float3 center = float3(0, 0, 0), float radius = 1)
+bool RaySphereIntersectionTest(float3 origin, float3 direction, inout float thit, inout ProceduralPrimitiveAttributes attr, float3 center = float3(0, 0, 0), float radius = 1)
 {
     float t0, t1; // solutions for t if the ray intersects 
     float radius2 = pow(radius, 2);
@@ -53,7 +53,7 @@ bool intersectSphere(float3 origin, float3 direction, inout float thit, inout Pr
     float a = dot(direction, direction);
     float b = 2 * dot(direction, L);
     float c = dot(L, L) - radius2;
-    if (!solveQuadratic(a, b, c, t0, t1)) return false;
+    if (!SolveQuadraticEqn(a, b, c, t0, t1)) return false;
 
     if (t0 > t1) swap(t0, t1);
 
@@ -67,13 +67,14 @@ bool intersectSphere(float3 origin, float3 direction, inout float thit, inout Pr
 
     float3 hitPosition = origin + thit * direction;
     // Transform by a row-major object to world matrix
+    // ToDo do not use semantics directnly in the tests
     attr.normal = mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
 
     //attr.barycentrics = float2(0.5, 0.9);
     return true;
 }
 
-bool intersectSpheres(float3 origin, float3 direction, inout float thit, inout ProceduralPrimitiveAttributes attr)
+bool RaySpheresIntersectionTest(float3 origin, float3 direction, inout float thit, inout ProceduralPrimitiveAttributes attr)
 {
     const int N = 3;
     float3 centers[N] =
@@ -85,12 +86,12 @@ bool intersectSpheres(float3 origin, float3 direction, inout float thit, inout P
     float  radii[N] = { 0.6, 0.3, 0.15 };
     bool hitFound = false;
 #if 0
-    return intersectSphere(origin, direction, thit, attr, centers[2], radii[2]);
+    return RaySphereIntersectionTest(origin, direction, thit, attr, centers[2], radii[2]);
 #elif 1
     // Workaround for dynamic indexing issue in DXR shaders
     float _thit;
     ProceduralPrimitiveAttributes _attr;
-    if (intersectSphere(origin, direction, _thit, _attr, centers[0], radii[0]))
+    if (RaySphereIntersectionTest(origin, direction, _thit, _attr, centers[0], radii[0]))
     {
         if (_thit < thit)
         {
@@ -99,7 +100,7 @@ bool intersectSpheres(float3 origin, float3 direction, inout float thit, inout P
             hitFound = true;
         }
     }
-    if (intersectSphere(origin, direction, _thit, _attr, centers[1], radii[1]))
+    if (RaySphereIntersectionTest(origin, direction, _thit, _attr, centers[1], radii[1]))
     {
         if (_thit < thit)
         {
@@ -108,7 +109,7 @@ bool intersectSpheres(float3 origin, float3 direction, inout float thit, inout P
             hitFound = true;
         }
     }
-    if (intersectSphere(origin, direction, _thit, _attr, centers[2], radii[2]))
+    if (RaySphereIntersectionTest(origin, direction, _thit, _attr, centers[2], radii[2]))
     {
         if (_thit < thit)
         {
@@ -141,7 +142,7 @@ bool intersectSpheres(float3 origin, float3 direction, inout float thit, inout P
 }
 
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
-bool intersectBox(float3 origin, float3 direction, out float thit, inout ProceduralPrimitiveAttributes attr)
+bool RayAABBIntersectionTest(float3 origin, float3 direction, out float thit, inout ProceduralPrimitiveAttributes attr)
 {
     float3 bounds[2] = {
         float3(-1,-1,-1),

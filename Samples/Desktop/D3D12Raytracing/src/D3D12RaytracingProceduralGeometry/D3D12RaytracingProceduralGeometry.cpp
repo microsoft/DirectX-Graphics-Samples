@@ -19,7 +19,7 @@ using namespace DX;
 
 const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames[] = { L"MyHitGroup_Triangle", L"MyHitGroup_AABB", L"MyHitGroup_ShadowRayAABB" };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRaygenShader";
-const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderName = L"MyIntersectionShader_AABB";
+const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] = { L"MyIntersectionShader_AABB", L"MyIntersectionShader_Sphere", L"MyIntersectionShader_Spheres" };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[] = { L"MyClosestHitShader_Triangle", L"MyClosestHitShader_AABB", L"MyClosestHitShader_ShadowAABB" };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_missShaderNames[] = { L"MyMissShader", L"MyMissShader_Shadow" };
 
@@ -120,18 +120,14 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
         {
             for (UINT x = 0; x < NUM_AABB_X; x++)
             {
-                float _x = static_cast<float>(x);
-                float _y = static_cast<float>(y);
-                float _z = static_cast<float>(z);
-
                 auto& aabbAttribute = m_aabbPrimitiveAttributeBuffer[frameIndex][z][y][x];
-                XMVECTOR vIndex = XMLoadFloat3(&XMFLOAT3(_x, _y, _z));
+                XMVECTOR vIndex = XMLoadUInt3(&XMUINT3(x, y, z));;
                 XMVECTOR vTranslation = vBasePosition + vIndex * vAABBstride;
                 XMMATRIX mRotation = XMMatrixIdentity();// XMMatrixRotationY((x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
                 XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
                 aabbAttribute.bottomLevelASToLocalSpace = XMMatrixInverse(nullptr, mRotation * mTranslation);
                 
-                aabbAttribute.albedo = XMFLOAT3((_x + 1) / NUM_AABB_X, (_y + 1) / NUM_AABB_Y, (_z + 1) / NUM_AABB_Z);
+                aabbAttribute.albedo = XMFLOAT3((x + 1.0f) / NUM_AABB_X, (y + 1.0f) / NUM_AABB_Y, (z + 1.0f) / NUM_AABB_Z);
             }
         }
     }
@@ -357,19 +353,20 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingInterfaces()
 // with all configuration options resolved, such as local signatures and other state.
 void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
 {
-    // Create 8 subobjects that combine into a RTPSO:
+    // Create 13 subobjects that combine into a RTPSO:
     // Subobjects need to be associated with DXIL exports (i.e. shaders) either by way of default or explicit associations.
     // Default association applies to every exported shader entrypoint that doesn't have any of the same type of subobject associated with it.
     // This simple sample utilizes default shader association except for local root signature subobject
     // which has an explicit association specified purely for demonstration purposes.
     // 1 - DXIL library
-    // 2 - Hit groups - triangle and AABB
+    // 7 - Hit groups - 1 triangle, 6 hit groups( 3 intersection Shader x 2 ray types (AABB, shadowAABB))
     // 1 - Shader config
     // 2 - Local root signature and association
     // 1 - Global root signature
     // 1 - Pipeline config
     CD3D12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
 
+    // ToDo add check checking size of the subobjects to match with above desc.
 
     // DXIL library
     // This contains the shaders and their entrypoints for the state object.
@@ -382,7 +379,10 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     // In this sample, this could be ommited for convenience since the sample uses all shaders in the library. 
     {
         lib->DefineExport(c_raygenShaderName);
-        lib->DefineExport(c_intersectionShaderName);
+        for (auto& intersectionShaderName : c_intersectionShaderNames)
+        {
+            lib->DefineExport(intersectionShaderName);
+        }
         for (auto& closestHitShaderName : c_closestHitShaderNames)
         {
             lib->DefineExport(closestHitShaderName);
@@ -395,7 +395,7 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
 
     // Hit groups
     // A hit group specifies closest hit, any hit and intersection shaders to be executed when a ray intersects the geometry's triangle/AABB.
-    // In this sample, we use two hit groups: triangle and AABB primitive geometry. Both of which use a closest hit shader, so others are not set.
+    // In this sample, we use 7 hit groups for ( 1 triangle and 6 (3 intersection shaders for each AABB geometry ray type).
     {
         // Triangle hit group
         {
@@ -404,22 +404,26 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
             hitGroup->SetHitGroupExport(c_hitGroupNames[HitGroupType::Triangle]);
         }
 
-        // AABB hit group
+        // Create hit group for each intersection shader.
+        for (UINT i = 0; i < BottomLevelASType::Count; i++)
         {
-            auto hitGroup = raytracingPipeline.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-            hitGroup->SetIntersectionShaderImport(c_intersectionShaderName);
-            hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[ClosestHitRayType::AABB]);
-            hitGroup->SetHitGroupExport(c_hitGroupNames[HitGroupType::AABB]);
-        }
+            // AABB hit group
+            {
+                auto hitGroup = raytracingPipeline.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
+                hitGroup->SetIntersectionShaderImport(c_intersectionShaderNames[i]);
+                hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[ClosestHitRayType::AABB]);
+                hitGroup->SetHitGroupExport(c_hitGroupNames[HitGroupType::AABB]);
+            }
 
 
-        // ToDo add hit group for triangle geometry
-        // Shadow ray hit group
-        {
-            auto hitGroup = raytracingPipeline.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-            hitGroup->SetIntersectionShaderImport(c_intersectionShaderName);
-            hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[ClosestHitRayType::ShadowAABB]);
-            hitGroup->SetHitGroupExport(c_hitGroupNames[HitGroupType::ShadowAABB]);
+            // ToDo add hit group for triangle geometry
+            // Shadow ray hit group
+            {
+                auto hitGroup = raytracingPipeline.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
+                hitGroup->SetIntersectionShaderImport(intersectionShaderName);
+                hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[ClosestHitRayType::ShadowAABB]);
+                hitGroup->SetHitGroupExport(c_hitGroupNames[HitGroupType::ShadowAABB]);
+            }
         }
     }
 
@@ -507,10 +511,10 @@ void D3D12RaytracingProceduralGeometry::CreateDescriptorHeap()
     auto device = m_deviceResources->GetD3DDevice();
 
     D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-    // Allocate a heap for 5 descriptors:
-    // 2 - vertex and index buffer SRVs
+    // Allocate a heap for 6 descriptors:
+    // 2 - vertex and index  buffer SRVs
     // 1 - raytracing output texture SRV
-    // 2 - bottom and top level acceleration structure fallback wrapped pointer UAVs
+    // 3 - 2x bottom and a top level acceleration structure fallback wrapped pointer UAVs
     descriptorHeapDesc.NumDescriptors = 6;
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -710,7 +714,6 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildBottomLevel
     return bottomLevelASBuffers;
 }
 
-
 // ToDo should the comptr be passed by value?
 template <class InstanceDescType, class BLASPtrType>
 void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource)
@@ -739,15 +742,15 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
         instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::Triangle];
 
         // Calculate transformation matrix.
-        const XMVECTOR vInstancesScale = XMLoadFloat3(&XMFLOAT3(NUM_INSTANCE_X, NUM_INSTANCE_Y, NUM_INSTANCE_Z));
+        const XMVECTOR vInstancesScale = XMLoadUInt3(&XMUINT3(NUM_INSTANCE_X, NUM_INSTANCE_Y, NUM_INSTANCE_Z));
         const XMVECTOR vBasePosition = vStride * vInstancesScale * XMLoadFloat3(&XMFLOAT3(-0.5f, 0.0f, -0.5f));
         
         // Scale in XZ dimensions.
         XMMATRIX mScale = XMMatrixScaling(XMVectorGetByIndex(vStride*vInstancesScale, 0), 1.0f, XMVectorGetByIndex(vStride*vInstancesScale, 2));
         
         XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
-        XMMATRIX mTransform = mScale * mTranslation;                
-        StoreXMMatrixAsTransform3x4(instanceDesc.Transform, XMMatrixTranspose(mTransform));
+        XMMATRIX mTransform = mScale * mTranslation;         
+        StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTransform);
     }
 
     // Create instanced bottom-level AS with procedural geometry AABBs.
@@ -774,7 +777,7 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
                     XMVECTOR vIndex = XMLoadUInt3(&XMUINT3(x, y, z));
                     XMVECTOR vTranslation = vBasePosition + vIndex * vStride;
                     XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
-                    StoreXMMatrixAsTransform3x4(instanceDesc.Transform, XMMatrixTranspose(mTranslation));
+                    StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTranslation);
                 }
     }
     UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));

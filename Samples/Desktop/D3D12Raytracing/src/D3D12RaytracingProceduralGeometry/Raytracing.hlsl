@@ -147,52 +147,55 @@ void MyRaygenShader()
     RenderTarget[DispatchRaysIndex()] = payload.color;
 }
 
-bool IntersectCustomPrimitiveFrontToBack(
-    float3 rayOriginObject, float3 rayDirObject,
-    float rayTMin, float rayTMax, inout float curT,
-    out ProceduralPrimitiveAttributes attr)
+
+[shader("intersection")]
+void MyIntersectionShader_Spheres()
 {
     AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
+    float3 rayOriginLocal = mul(float4(ObjectRayOrigin(), 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
+    float3 rayDirLocal = mul(ObjectRayDirection(), (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
 
-    float3 rayOriginLocal = mul(float4(rayOriginObject, 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
-    //float3 rayDirLocal = mul(rayDirObject, (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
-    float3 rayDirLocal = mul(float4(rayDirObject,0), aabbAttribute.bottomLevelASToLocalSpace).xyz;
-
-    switch (PrimitiveIndex() % ProceduralPrimitives::Count)
+    // ToDo handle RayFlags
+    ProceduralPrimitiveAttributes attr;
+    float tHit;
+    if (RaySpheresIntersectionTest(rayOriginLocal, rayDirLocal, tHit, attr));
     {
-    case Box:       return intersectBox(rayOriginLocal, rayDirLocal, curT, attr);
-    case Sphere:    return intersectSphere(rayOriginLocal, rayDirLocal, curT, attr);
-    case Spheres:   return intersectSpheres(rayOriginLocal, rayDirLocal, curT, attr);
+        // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(tHit, /*hitKind*/ 0, attr);
     }
-    return false;
 }
 
 [shader("intersection")]
-void IntersectionShader_Box()
+void MyIntersectionShader_Sphere()
 {
+    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
+    float3 rayOriginLocal = mul(float4(ObjectRayOrigin(), 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
+    float3 rayDirLocal = mul(ObjectRayDirection(), (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
 
-    float THit = RayTCurrent();
+    // ToDo handle RayFlags
     ProceduralPrimitiveAttributes attr;
-    if (IntersectCustomPrimitiveFrontToBack(
-        ObjectRayOrigin(), ObjectRayDirection(),
-        //WorldRayOrigin(), WorldRayDirection(),
-        RayTMin(), RayTCurrent(), THit, attr))
+    float tHit;
+    if (RaySphereIntersectionTest(rayOriginLocal, rayDirLocal, tHit, attr));
     {
-        ReportHit(THit, /*hitKind*/ 0, attr);
+        // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(tHit, /*hitKind*/ 0, attr);
     }
 }
 
 [shader("intersection")]
 void MyIntersectionShader_AABB()
 {
-    float THit = RayTCurrent();
+    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
+    float3 rayOriginLocal = mul(float4(ObjectRayOrigin(), 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
+    float3 rayDirLocal = mul(ObjectRayDirection(), (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
+
+    // ToDo handle RayFlags
     ProceduralPrimitiveAttributes attr;
-    if (IntersectCustomPrimitiveFrontToBack(
-        ObjectRayOrigin(), ObjectRayDirection(),
-        //WorldRayOrigin(), WorldRayDirection(),
-        RayTMin(), RayTCurrent(), THit, attr))
+    float tHit;    
+    if (RayAABBIntersectionTest(rayOriginLocal, rayDirLocal, tHit, attr));
     {
-        ReportHit(THit, /*hitKind*/ 0, attr);
+        // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(tHit, /*hitKind*/ 0, attr);
     }
 }
 

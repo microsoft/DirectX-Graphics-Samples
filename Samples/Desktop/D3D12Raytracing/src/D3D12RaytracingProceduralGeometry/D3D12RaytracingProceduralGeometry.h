@@ -69,6 +69,16 @@ namespace ClosestHitRayType {
     };
 }
 
+// ToDo rename to IntersectionGeometryType ?
+namespace IntersectionShaderType {
+    enum Value {
+        AABB = 0,
+        Sphere,
+        Spheres,
+        Count
+    };
+}
+
 
 struct AccelerationStructureBuffers
 {
@@ -189,9 +199,9 @@ private:
     UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
     // Shader tables
-    static const wchar_t* c_hitGroupNames[HitGroupType::Count];
+    static const wchar_t* c_hitGroupNames[HitGroupType::Count][IntersectionShaderType::Count];
     static const wchar_t* c_raygenShaderName;
-    static const wchar_t* c_intersectionShaderName;
+    static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
     static const wchar_t* c_closestHitShaderNames[ClosestHitRayType::Count];
     static const wchar_t* c_missShaderNames[RayType::Count];
     ComPtr<ID3D12Resource> m_missShaderTable;
