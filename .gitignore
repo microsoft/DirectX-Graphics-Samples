@@ -1,5 +1,0 @@
-﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
-
-/Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingMiniEngineSample/dxcompiler.dll
