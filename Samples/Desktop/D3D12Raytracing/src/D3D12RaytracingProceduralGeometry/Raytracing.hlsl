@@ -274,7 +274,7 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
 #endif
 
     float3 triangleNormal = attr.normal;
-    float4 albedo = float4(g_AABBPrimitiveAttributes[PrimitiveIndex()].albedo, 1);
+    float4 albedo = float4(g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex].albedo, 1);
     float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 

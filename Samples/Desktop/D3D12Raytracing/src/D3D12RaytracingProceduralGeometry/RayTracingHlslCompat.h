@@ -12,7 +12,7 @@
 #pragma once
 
 #define USE_AABB_LOCAL_ROOT_SIG 1
-#define USE_LOCAL_ROOT_CONSTANTS 0  // Local root constatns are not supported in PIX yet
+#define USE_LOCAL_ROOT_CONSTANTS 1  // Local root constatns are not supported in PIX yet
 
 #ifdef HLSL
 #include "HlslCompat.h"
