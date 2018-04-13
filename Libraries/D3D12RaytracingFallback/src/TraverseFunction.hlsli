@@ -381,9 +381,6 @@ struct HitData
 
 struct RayData
 {
-    float3 Origin;
-    float3 Direction;
-
     // Precalculated Stuff for intersection tests
     float3 InverseDirection;
     float3 OriginTimesRayInverseDirection;
@@ -394,8 +391,6 @@ struct RayData
 RayData GetRayData(float3 rayOrigin, float3 rayDirection)
 {
     RayData data;
-    data.Origin = rayOrigin;
-    data.Direction = rayDirection;
 
     // Precompute stuff
     data.InverseDirection = rcp(rayDirection);
@@ -473,6 +468,7 @@ void dump(BoundingBox box, uint2 flags) {}
 Declare_Fallback_SetPendingAttr(BuiltInTriangleIntersectionAttributes);
 
 #define EndSearch 0x1
+#define ProcessingBottomLevel 0x2
 
 void SetBoolFlag(inout uint flagContainer, uint flag, bool enable)
 {
@@ -503,9 +499,9 @@ bool Traverse(
     RayData currentRayData = GetRayData(WorldRayOrigin(), WorldRayDirection());
 
     uint flagContainer = 0;
+    SetBoolFlag(flagContainer, ProcessingBottomLevel, false);
 
     uint nodesToProcess[NUM_BVH_LEVELS];
-    uint currentBVHIndex = TOP_LEVEL_INDEX;
     GpuVA currentGpuVA = TopLevelAccelerationStructureGpuVA;
     uint instanceIndex = 0;
     uint instanceFlags = 0;
@@ -551,7 +547,7 @@ bool Traverse(
             MARK(3, 0);
             uint currentLevel;
             uint thisNodeIndex = StackPop(stackPointer, currentLevel, GI);
-            nodesToProcess[currentBVHIndex]--;
+            nodesToProcess[GetBoolFlag(flagContainer, ProcessingBottomLevel)]--;
 
             RWByteAddressBufferPointer currentBVH = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
 
@@ -567,7 +563,7 @@ bool Traverse(
                 if (IsLeaf(flags))
                 {
                     MARK(5, 0);
-                    if (currentBVHIndex == TOP_LEVEL_INDEX)
+                    if (!GetBoolFlag(flagContainer, ProcessingBottomLevel))
                     {
                         MARK(6, 0);
                         uint leafIndex = GetLeafIndexFromFlag(flags);
@@ -584,7 +580,7 @@ bool Traverse(
                         if (validInstance)
                         {
                             MARK(7, 0);
-                            currentBVHIndex = BOTTOM_LEVEL_INDEX;
+                            SetBoolFlag(flagContainer, ProcessingBottomLevel, true);
                             StackPush(stackPointer, 0, currentLevel + 1, GI);
                             currentGpuVA = instanceDesc.AccelerationStructure;
                             instanceFlags = GetInstanceFlags(instanceDesc);
@@ -592,16 +588,19 @@ bool Traverse(
                             float3x4 CurrentWorldToObject = CreateMatrix(instanceDesc.Transform);
                             float3x4 CurrentObjectToWorld = CreateMatrix(metadata.ObjectToWorld);
 
-                            currentRayData = GetRayData(
-                                mul(CurrentWorldToObject, float4(WorldRayOrigin(), 1)),
-                                mul(CurrentWorldToObject, float4(WorldRayDirection(), 0)));
+                            float3 objectSpaceOrigin = mul(CurrentWorldToObject, float4(WorldRayOrigin(), 1));
+                            float3 objectSpaceDirection = mul(CurrentWorldToObject, float4(WorldRayDirection(), 0));
 
-                            UpdateObjectSpaceProperties(currentRayData.Origin, currentRayData.Direction, CurrentWorldToObject, CurrentObjectToWorld);
+                            currentRayData = GetRayData(
+                                objectSpaceOrigin,
+                                objectSpaceDirection);
+
+                            UpdateObjectSpaceProperties(objectSpaceOrigin, objectSpaceDirection, CurrentWorldToObject, CurrentObjectToWorld);
 
                             nodesToProcess[BOTTOM_LEVEL_INDEX] = 1;
                         }
                     }
-                    else // if (currentBVHIndex == BOTTOM_LEVEL_INDEX)
+                    else // if it's a bottom level
                     {
                         MARK(8, 0);
                         bool geomOpaque = true; // TODO: This should be looked up with the triangle data.
@@ -613,7 +612,6 @@ bool Traverse(
                         float resultT = Fallback_RayTCurrent();
                         float2 resultBary;
                         uint resultTriId;
-                        bool intersectionFound = false;
 
                         bool isProceduralGeometry = IsProceduralGeometry(flags);
                         bool endSearch = false;
@@ -643,8 +641,8 @@ bool Traverse(
                             currentBVH,
                             flags,
                             instanceFlags,
-                            currentRayData.Origin,
-                            currentRayData.Direction,
+                            ObjectRayOrigin(),
+                            ObjectRayDirection(),
                             currentRayData.SwizzledIndices,
                             currentRayData.Shear,
                             resultBary,
@@ -729,22 +727,23 @@ bool Traverse(
                         rightBox.halfDim);
 
                     RecordClosestBox(currentLevel, leftTest, leftT, rightTest, rightT, closestBoxT);
+                    bool isBottomLevel = GetBoolFlag(flagContainer, ProcessingBottomLevel);
                     if (leftTest && rightTest)
                     {
                         // If equal, traverse the left side first since it's encoded to have less triangles
                         bool traverseRightSideFirst = rightT < leftT;
                         StackPush2(stackPointer, traverseRightSideFirst, leftChildIndex, rightChildIndex, currentLevel + 1, GI);
-                        nodesToProcess[currentBVHIndex] += 2;
+                        nodesToProcess[isBottomLevel] += 2;
                     }
                     else if (leftTest || rightTest)
                     {
                         StackPush(stackPointer, rightTest ? rightChildIndex : leftChildIndex, currentLevel + 1, GI);
-                        nodesToProcess[currentBVHIndex] += 1;
+                        nodesToProcess[isBottomLevel] += 1;
                     }
                 }
             }
-        } while (nodesToProcess[currentBVHIndex] != 0);
-        currentBVHIndex--;
+        } while (nodesToProcess[GetBoolFlag(flagContainer, ProcessingBottomLevel)] != 0);
+        SetBoolFlag(flagContainer, ProcessingBottomLevel, false);
         currentRayData = GetRayData(WorldRayOrigin(), WorldRayDirection());
         currentGpuVA = TopLevelAccelerationStructureGpuVA;
     } 
