@@ -46,7 +46,7 @@ bool SolveQuadraticEqn(float a, float b, float c, out float x0, out float x1)
 }
 
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-bool RaySphereIntersectionTest(Ray ray, inout float thit, inout ProceduralPrimitiveAttributes attr, float3 center = float3(0, 0, 0), float radius = 1)
+bool RaySphereIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiveAttributes attr, float3 center = float3(0, 0, 0), float radius = 1)
 {
     float t0, t1; // solutions for t if the ray intersects 
     float radius2 = pow(radius, 2);
@@ -93,10 +93,11 @@ bool RaySpheresIntersectionTest(Ray ray, out float thit, in float tmin, in float
 #elif 1
     // Workaround for dynamic indexing issue in DXR shaders
     float _thit;
+    thit = tmax;
     ProceduralPrimitiveAttributes _attr;
     if (RaySphereIntersectionTest(ray, _thit, _attr, centers[0], radii[0]))
     {
-        if (IsInRange(_thit, tmin, tmax))
+        if (IsInRange(_thit, tmin, thit))
         {
             thit = _thit;
             attr = _attr;
@@ -105,7 +106,7 @@ bool RaySpheresIntersectionTest(Ray ray, out float thit, in float tmin, in float
     }
     if (RaySphereIntersectionTest(ray, _thit, _attr, centers[1], radii[1]))
     {
-        if (IsInRange(_thit, tmin, tmax))
+        if (IsInRange(_thit, tmin, thit))
         {
             thit = _thit;
             attr = _attr;
@@ -114,7 +115,7 @@ bool RaySpheresIntersectionTest(Ray ray, out float thit, in float tmin, in float
     }
     if (RaySphereIntersectionTest(ray, _thit, _attr, centers[2], radii[2]))
     {
-        if (IsInRange(_thit, tmin, tmax))
+        if (IsInRange(_thit, tmin, thit))
         {
             thit = _thit;
             attr = _attr;
