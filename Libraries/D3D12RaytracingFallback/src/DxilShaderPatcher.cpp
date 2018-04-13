@@ -11,7 +11,7 @@
 #include "pch.h"
 
 using namespace hlsl;
-#define SPEW_SHADERS 0
+#define SPEW_SHADERS 1
 namespace FallbackLayer
 {
     void DxilShaderPatcher::VerifyResult(IDxcOperationResult *pResult)
@@ -189,6 +189,7 @@ namespace FallbackLayer
 
         shaderIdentifiers.resize(exportNames.size());
         CComPtr<IDxcOperationResult> pResult;
+        pFallbackCompiler->SetDebugOutput(3);
         pFallbackCompiler->Compile(L"main", pLibBlobPtrs.data(), (UINT32)pLibBlobPtrs.size(), exportNames.data(), (int*)shaderIdentifiers.data(), (UINT32)exportNames.size(), stackSize, &pResult);
 
         VerifyResult(pResult);

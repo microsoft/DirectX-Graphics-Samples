@@ -472,6 +472,25 @@ void dump(BoundingBox box, uint2 flags) {}
 
 Declare_Fallback_SetPendingAttr(BuiltInTriangleIntersectionAttributes);
 
+#define EndSearch 0x1
+
+void SetBoolFlag(inout uint flagContainer, uint flag, bool enable)
+{
+    if (enable)
+    {
+        flagContainer |= flag;
+    }
+    else
+    {
+        flagContainer &= ~flag;
+    }
+}
+
+bool GetBoolFlag(uint flagContainer, uint flag)
+{
+    return flagContainer & flag;
+}
+
 bool Traverse(
     uint InstanceInclusionMask,
     uint RayContributionToHitGroupIndex,
@@ -481,12 +500,9 @@ bool Traverse(
     uint GI = Fallback_GroupIndex();
     const GpuVA nullptr = GpuVA(0, 0);
 
-    RayData worldRayData = GetRayData(WorldRayOrigin(), WorldRayDirection());
-    RayData currentRayData = worldRayData;
+    RayData currentRayData = GetRayData(WorldRayOrigin(), WorldRayDirection());
 
-    float3x4 CurrentObjectToWorld = 0;
-    float3x4 CurrentWorldToObject = 0;
-    bool ResetMatrices = true;
+    uint flagContainer = 0;
 
     uint nodesToProcess[NUM_BVH_LEVELS];
     uint currentBVHIndex = TOP_LEVEL_INDEX;
@@ -573,12 +589,14 @@ bool Traverse(
                             currentGpuVA = instanceDesc.AccelerationStructure;
                             instanceFlags = GetInstanceFlags(instanceDesc);
 
-                            CurrentWorldToObject = CreateMatrix(instanceDesc.Transform);
-                            CurrentObjectToWorld = CreateMatrix(metadata.ObjectToWorld);
+                            float3x4 CurrentWorldToObject = CreateMatrix(instanceDesc.Transform);
+                            float3x4 CurrentObjectToWorld = CreateMatrix(metadata.ObjectToWorld);
 
                             currentRayData = GetRayData(
                                 mul(CurrentWorldToObject, float4(WorldRayOrigin(), 1)),
                                 mul(CurrentWorldToObject, float4(WorldRayDirection(), 0)));
+
+                            UpdateObjectSpaceProperties(currentRayData.Origin, currentRayData.Direction, CurrentWorldToObject, CurrentObjectToWorld);
 
                             nodesToProcess[BOTTOM_LEVEL_INDEX] = 1;
                         }
@@ -616,16 +634,10 @@ bool Traverse(
                             uint intersectionStateId, anyHitStateId;
                             GetAnyHitAndIntersectionStateId(HitGroupShaderTable, hitGroupRecordOffset, anyHitStateId, intersectionStateId);
                             
-                            if (ResetMatrices)
-                            {
-                                UpdateObjectSpaceProperties(currentRayData.Origin, currentRayData.Direction, CurrentWorldToObject, CurrentObjectToWorld);
-                                ResetMatrices = false;
-                            }
-
                             Fallback_SetAnyHitStateId(anyHitStateId);
                             Fallback_SetAnyHitResult(ACCEPT);
                             Fallback_CallIndirect(intersectionStateId);
-                            endSearch = Fallback_AnyHitResult() == END_SEARCH;
+                            SetBoolFlag(flagContainer, EndSearch, Fallback_AnyHitResult() == END_SEARCH);
                         }
                         else if (!culled && TestLeafNodeIntersections( // TODO: We need to break out this function so we can run anyhit on each triangle
                             currentBVH,
@@ -655,33 +667,26 @@ bool Traverse(
 #endif
                             closestBoxT = min(closestBoxT, resultT);
 
-                            if (ResetMatrices)
-                            {
-                                UpdateObjectSpaceProperties(currentRayData.Origin, currentRayData.Direction, CurrentWorldToObject, CurrentObjectToWorld);
-                                ResetMatrices = false;
-                            }
-
-                            bool endSearch = false;
                             if (opaque)
                             {
                                 MARK(8, 1);
                                 Fallback_CommitHit();
-                                endSearch = RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+                                SetBoolFlag(flagContainer, EndSearch, RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH);
                             }
                             else
                             {
                                 MARK(8, 2);
-
                                 uint anyhitStateId = GetAnyHitStateId(HitGroupShaderTable, hitGroupRecordOffset);
                                 int ret = ACCEPT;
                                 if (anyhitStateId)
                                     ret = InvokeAnyHit(anyhitStateId);
                                 if (ret != IGNORE)
                                     Fallback_CommitHit();
-                                endSearch = (ret == END_SEARCH) || (RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH);
+
+                                SetBoolFlag(flagContainer, EndSearch, (ret == END_SEARCH) || (RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH));
                             }
                         }
-                        if (endSearch)
+                        if (GetBoolFlag(flagContainer, EndSearch))
                         {
                             nodesToProcess[BOTTOM_LEVEL_INDEX] = 0;
                             nodesToProcess[TOP_LEVEL_INDEX] = 0;
@@ -740,9 +745,8 @@ bool Traverse(
             }
         } while (nodesToProcess[currentBVHIndex] != 0);
         currentBVHIndex--;
-        currentRayData = worldRayData;
+        currentRayData = GetRayData(WorldRayOrigin(), WorldRayDirection());
         currentGpuVA = TopLevelAccelerationStructureGpuVA;
-        ResetMatrices = true;
     } 
     MARK(10,0);
     bool isHit = Fallback_InstanceIndex() != NO_HIT_SENTINEL;
