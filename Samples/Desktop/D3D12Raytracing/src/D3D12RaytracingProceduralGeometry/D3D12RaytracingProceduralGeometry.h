@@ -26,15 +26,34 @@ namespace GlobalRootSignatureParams {
     };
 }
 
-namespace LocalRootSignatureParams {
+// Gate use of Empty on NV as a current workaround
+
+namespace LocalRootSignatures {
+    enum Value {
+        Triangle = 0,
+        AABB,
+        Empty,
+        Count
+    };
+}
+
+namespace LocalRootSignatureParamsTriangle {
     enum Value {
         CubeConstantSlot = 0,
         Count
     };
 }
 
+namespace LocalRootSignatureParamsAABB {
+    enum Value {
+        GeometryIndex = 0,
+        Count
+    };
+}
+
 // Bottom level acceleration structures (BottomLevelASType).
 // This sample uses two BottomLevelASType, one for AABB and one for Triangle geometry.
+// ToDo desc why the sample uses two - can a BLAS mix geometry types?
 namespace BottomLevelASType {
     enum Value {
         Triangle = 0,
@@ -43,10 +62,16 @@ namespace BottomLevelASType {
     };
 }
 
-namespace HitGroupType {
+namespace TriangleHitGroupType {
     enum Value {
         Triangle = 0,
-        AABB,
+        Count
+    };
+}
+
+namespace AABBHitGroupType {
+    enum Value {
+        AABB = 0,
         ShadowAABB,
         Count
     };
@@ -65,6 +90,16 @@ namespace ClosestHitRayType {
         Triangle = 0,
         AABB,
         ShadowAABB,
+        Count
+    };
+}
+
+// ToDo rename to IntersectionGeometryType ?
+namespace IntersectionShaderType {
+    enum Value {
+        AABB = 0,
+        Sphere,
+        Spheres,
         Count
     };
 }
@@ -157,7 +192,7 @@ private:
 
     // Root signatures
     ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
-    ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature;
+    ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature[LocalRootSignatures::Count];
 
     // Descriptors
     ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
@@ -178,6 +213,9 @@ private:
     D3DBuffer m_indexBuffer;
     D3DBuffer m_vertexBuffer;
     D3DBuffer m_aabbBuffer;
+#if !USE_LOCAL_ROOT_CONSTANTS
+    D3DBuffer m_geometryIndexBuffer[IntersectionShaderType::Count];
+#endif
 
     // Acceleration structure
     ComPtr<ID3D12Resource> m_bottomLevelAS[BottomLevelASType::Count];
@@ -189,9 +227,10 @@ private:
     UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
     // Shader tables
-    static const wchar_t* c_hitGroupNames[HitGroupType::Count];
+    static const wchar_t* c_hitGroupNames_TriangleGeometry[TriangleHitGroupType::Count];
+    static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][AABBHitGroupType::Count];
     static const wchar_t* c_raygenShaderName;
-    static const wchar_t* c_intersectionShaderName;
+    static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
     static const wchar_t* c_closestHitShaderNames[ClosestHitRayType::Count];
     static const wchar_t* c_missShaderNames[RayType::Count];
     ComPtr<ID3D12Resource> m_missShaderTable;
@@ -229,10 +268,10 @@ private:
     void CreateRaytracingOutputResource();
     void BuildProceduralGeometryAABBs();
     void BuildGeometry();
-    void BuildBottomLevelGeometryDescs(D3D12_RAYTRACING_GEOMETRY_DESC geometryDescs[BottomLevelASType::Count]);
+    void BuildBottomLevelGeometryDescs(std::array<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count>& geometryDescs);
     template <class InstanceDescType, class BLASPtrType>
     void BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
-    AccelerationStructureBuffers BuildBottomLevelAS(const D3D12_RAYTRACING_GEOMETRY_DESC& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
+    AccelerationStructureBuffers BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
     AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
     void BuildAccelerationStructures();
     void BuildShaderTables();

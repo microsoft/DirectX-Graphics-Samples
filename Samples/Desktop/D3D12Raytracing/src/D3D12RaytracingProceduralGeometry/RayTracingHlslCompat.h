@@ -11,6 +11,9 @@
 
 #pragma once
 
+#define USE_AABB_LOCAL_ROOT_SIG 1
+#define USE_LOCAL_ROOT_CONSTANTS 1  // Local root constatns are not supported in PIX yet
+
 #ifdef HLSL
 #include "HlslCompat.h"
 #else
@@ -32,6 +35,11 @@ struct SceneConstantBuffer
 struct CubeConstantBuffer
 {
     XMVECTOR diffuseColor;
+};
+
+struct AABBConstantBuffer
+{
+    UINT geometryIndex;
 };
 
 struct Vertex

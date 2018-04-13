@@ -120,7 +120,7 @@ void MyRaygenShader()
         Scene, // Raytracing acceleration structure
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
         ~0, /* InstanceInclusionMask*/
-         0, /* RayContributionToHitGroupIndex */
+        0, /* RayContributionToHitGroupIndex */
          2, /* MultiplierForGeometryContributionToHitGroupIndex */
          0, /* MissShaderIndex */
         ray, payload);
@@ -153,7 +153,7 @@ void MyIntersectionShader_Spheres()
     ProceduralPrimitiveAttributes attr;
     float tHit;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
-    if (RaySpheresIntersectionTest(localRay, tHit, RayTMin(), RayTCurrent(), attr))
+    if (RaySpheresIntersectionTest(localRay, tHit, attr))
     {
         // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
         ReportHit(tHit, /*hitKind*/ 0, attr);
@@ -274,7 +274,7 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
 #endif
 
     float3 triangleNormal = attr.normal;
-    float4 albedo = float4(g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex].albedo, 1);
+    float4 albedo = float4(g_AABBPrimitiveAttributes[PrimitiveIndex()].albedo, 1);
     float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 

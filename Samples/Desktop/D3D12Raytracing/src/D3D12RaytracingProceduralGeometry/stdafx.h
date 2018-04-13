@@ -35,6 +35,8 @@
 #include <vector>
 #include <atlbase.h>
 #include <assert.h>
+#include <array>
+#include <unordered_map>
 
 #include <dxgi1_6.h>
 #include "d3d12_1.h"

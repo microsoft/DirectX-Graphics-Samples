@@ -172,6 +172,7 @@ PrebuildCheck.bat</Command>
     <ClInclude Include="HlslCompat.h" />
     <ClInclude Include="ProceduralPrimitivesLibrary.h" />
     <ClInclude Include="RaytracingHlslCompat.h" />
+    <ClInclude Include="RaytracingShaderHelper.h" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12RaytracingProceduralGeometry.h" />
