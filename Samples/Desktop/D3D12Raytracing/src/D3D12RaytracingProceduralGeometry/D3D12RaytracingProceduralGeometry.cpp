@@ -473,7 +473,6 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
         ThrowIfFailed(m_fallbackDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&m_fallbackStateObject)), L"Couldn't create DirectX Raytracing state object.\n");
-        m_fallbackStateObject->SetPipelineStackSize(10);
     }
     else // DirectX Raytracing
     {
@@ -760,7 +759,7 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
             -((NUM_INSTANCE_Z - 1) * (fWidth.z + c_aabbDistance) / 2.0f)));
 
         InstanceDescType instanceDescTemplate = {};
-        instanceDescTemplate.InstanceMask = 2;
+        instanceDescTemplate.InstanceMask = 1;
         instanceDescTemplate.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB;
         instanceDescTemplate.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
 
