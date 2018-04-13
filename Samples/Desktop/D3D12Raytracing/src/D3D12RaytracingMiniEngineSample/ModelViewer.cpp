@@ -306,7 +306,7 @@ enum RaytracingMode
     RTM_DIFFUSE_WITH_SHADOWRAYS,
     RTM_REFLECTIONS,
 };
-EnumVar rayTracingMode("Application/Raytracing/RayTraceMode", RTM_TRAVERSAL, _countof(rayTracingModes), rayTracingModes);
+EnumVar rayTracingMode("Application/Raytracing/RayTraceMode", RTM_DIFFUSE_WITH_SHADOWMAPS, _countof(rayTracingModes), rayTracingModes);
 
 class DescriptorHeapStack
 {
@@ -562,8 +562,8 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
 
     CD3DX12_ROOT_PARAMETER1 localRootSignatureParameters[2];
     UINT sizeOfRootConstantInDwords = (sizeof(MaterialRootConstant) - 1) / sizeof(DWORD) + 1;
-    localRootSignatureParameters[0].InitAsConstants(sizeOfRootConstantInDwords, 3);
-    localRootSignatureParameters[1].InitAsDescriptorTable(1, &localTextureDescriptorRange);
+    localRootSignatureParameters[0].InitAsDescriptorTable(1, &localTextureDescriptorRange);
+    localRootSignatureParameters[1].InitAsConstants(sizeOfRootConstantInDwords, 3);
     auto localRootSignatureDesc = CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(ARRAYSIZE(localRootSignatureParameters), localRootSignatureParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
 
     CComPtr<ID3DBlob> pLocalRootSignatureBlob;
@@ -685,14 +685,15 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
             memcpy(pShaderRecord, pHitGroupIdentifierData, shaderIdentifierSize);
             pShaderRecord += shaderIdentifierSize;
 
+            UINT materialIndex = model.m_pMesh[i].materialIndex;
+            memcpy(pShaderRecord, &g_GpuSceneMaterialSrvs[materialIndex].ptr, sizeof(g_GpuSceneMaterialSrvs[materialIndex].ptr));
+            pShaderRecord += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+
             MaterialRootConstant material;
             material.MaterialID = i;
             memcpy(pShaderRecord, &material, sizeof(material));
             pShaderRecord += sizeof(MaterialRootConstant);
-            pShaderRecord += 4;
 
-            UINT materialIndex = model.m_pMesh[i].materialIndex;
-            memcpy(pShaderRecord, &g_GpuSceneMaterialSrvs[materialIndex].ptr, sizeof(g_GpuSceneMaterialSrvs[materialIndex].ptr));
         }
     };
 
@@ -983,7 +984,7 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
             &defaultHeapDesc,
             D3D12_HEAP_FLAG_NONE, 
             &bottomLevelDesc, 
-            D3D12_RESOURCE_STATE_COMMON, 
+            g_pRaytracingDevice->GetAccelerationStructureResourceState(),
             nullptr, 
             IID_PPV_ARGS(&bottomLevelStructure));
 
