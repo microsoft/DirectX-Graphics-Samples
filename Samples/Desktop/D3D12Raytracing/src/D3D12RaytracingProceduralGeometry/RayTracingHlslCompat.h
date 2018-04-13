@@ -11,6 +11,8 @@
 
 #pragma once
 
+#define USE_AABB_LOCAL_ROOT_SIG 0
+
 #ifdef HLSL
 #include "HlslCompat.h"
 #else
@@ -32,6 +34,11 @@ struct SceneConstantBuffer
 struct CubeConstantBuffer
 {
     XMVECTOR diffuseColor;
+};
+
+struct AABBConstantBuffer
+{
+    UINT geometryIndex;
 };
 
 struct Vertex

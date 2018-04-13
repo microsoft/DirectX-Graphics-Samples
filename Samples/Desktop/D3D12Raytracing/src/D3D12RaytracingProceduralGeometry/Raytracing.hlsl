@@ -27,6 +27,7 @@ StructuredBuffer<AABBPrimitiveAttributes> g_AABBPrimitiveAttributes : register(t
 
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 ConstantBuffer<CubeConstantBuffer> g_cubeCB : register(b1);
+ConstantBuffer<AABBConstantBuffer> g_aabbCB : register(b2);
 
 struct MyAttributes
 {
@@ -135,7 +136,11 @@ Ray GetRayInAABBPrimitiveLocalSpace()
     // ToDo improve desc
     // Retrieve ray origin position and direction in bottom level AS space 
     // and transform them into the AABB primitive's local space.
-    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
+#if USE_AABB_LOCAL_ROOT_SIG
+    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+#else
+    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[0];
+#endif
     Ray ray;
     ray.origin = mul(float4(ObjectRayOrigin(), 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
     ray.direction = mul(ObjectRayDirection(), (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;

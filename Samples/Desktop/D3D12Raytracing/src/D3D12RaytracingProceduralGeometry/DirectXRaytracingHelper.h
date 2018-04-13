@@ -79,19 +79,20 @@ class ShaderTable
 {
     UINT m_maxShaderRecordSize;
     std::vector<ShaderRecord> m_shaderRecords;
+    std::wstring m_resourceName;
 
 public:
-    ShaderTable() : m_maxShaderRecordSize(0) {}
+    ShaderTable(LPCWSTR resourceName = nullptr) : m_maxShaderRecordSize(0), m_resourceName(resourceName) {}
     UINT GetMaxShaderRecordSize() const { return m_maxShaderRecordSize; }
     UINT Size() const { return static_cast<UINT>(m_shaderRecords.size()) * GetMaxShaderRecordSize(); }
 
-    void push_back(const ShaderRecord& shaderRecord) 
-    { 
+    void push_back(const ShaderRecord& shaderRecord)
+    {
         m_maxShaderRecordSize = max(shaderRecord.Size(), m_maxShaderRecordSize);
-        m_shaderRecords.push_back(shaderRecord); 
+        m_shaderRecords.push_back(shaderRecord);
     }
 
-    void AllocateAsUploadBuffer(ID3D12Device* pDevice, ID3D12Resource **ppResource, const wchar_t* resourceName = nullptr)
+    void AllocateAsUploadBuffer(ID3D12Device* pDevice, ID3D12Resource **ppResource)
     {
         auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         UINT bufferSize = Size();
@@ -105,10 +106,7 @@ public:
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(ppResource)));
-        if (resourceName)
-        {
-            (*ppResource)->SetName(resourceName);
-        }
+        (*ppResource)->SetName(m_resourceName.c_str());
         uint8_t *pMappedData;
         (*ppResource)->Map(0, nullptr, reinterpret_cast<void**>(&pMappedData));
         for (auto& shaderRecord : m_shaderRecords)
@@ -117,6 +115,21 @@ public:
             pMappedData += shaderRecordStride;
         }
         (*ppResource)->Unmap(0, nullptr);
+    }
+
+    // Pretty-print the shader records.
+    void DebugPrint(std::unordered_map<void*, std::wstring> shaderIdToStringMap)
+    {
+        std::wstringstream wstr;
+        wstr << L"Shader table - " << m_resourceName << L": " << L"\n";
+
+        for (UINT i = 0; i < m_shaderRecords.size(); i++)
+        {
+            wstr << L"[" << i << L"]: ";
+            wstr << shaderIdToStringMap[m_shaderRecords[i].shaderIdentifier.ptr] << L", ";
+            wstr << m_shaderRecords[i].localRootArguments.size << L" \n";
+        }
+        OutputDebugStringW(wstr.str().c_str());
     }
 };
 
@@ -260,6 +273,7 @@ inline void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
     }
     OutputDebugStringW(wstr.str().c_str());
 }
+
 
 // Enable experimental features and return if they are supported.
 // To test them being supported we need to check both their enablement as well as device creation afterwards.
