@@ -24,7 +24,7 @@ const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_AABBGeometry[]
   { L"MyHitGroup_AABB_Spheres", L"MyHitGroup_ShadowRayAABB_Spheres" },
 };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRaygenShader";
-const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] = { L"MyIntersectionShader_Spheres", L"MyIntersectionShader_AABB", L"MyIntersectionShader_Sphere" };
+const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] = {  L"MyIntersectionShader_AABB", L"MyIntersectionShader_Sphere", L"MyIntersectionShader_Spheres" };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[] = { L"MyClosestHitShader_Triangle", L"MyClosestHitShader_AABB", L"MyClosestHitShader_ShadowAABB" };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_missShaderNames[] = { L"MyMissShader", L"MyMissShader_Shadow" };
 
@@ -126,7 +126,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
             for (UINT x = 0; x < NUM_AABB_X; x++)
             {
                 auto& aabbAttribute = m_aabbPrimitiveAttributeBuffer[frameIndex][z][y][x];
-                XMVECTOR vIndex = XMLoadUInt3(&XMUINT3(x, y, z));;
+                XMVECTOR vIndex = XMLoadUInt3(&XMUINT3(x, y, z));
                 XMVECTOR vTranslation = vBasePosition + vIndex * vAABBstride;
                 XMMATRIX mRotation = XMMatrixIdentity();// XMMatrixRotationY((x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
                 XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
@@ -216,6 +216,17 @@ void D3D12RaytracingProceduralGeometry::CreateConstantBuffers()
     // We don't unmap this until the app closes. Keeping buffer mapped for the lifetime of the resource is okay.
     CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
     ThrowIfFailed(m_perFrameConstants->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedConstantData)));
+
+#if !USE_LOCAL_ROOT_CONSTANTS
+    // AABB geometry index
+    // Plane indices.    
+    for (UINT i = 0; i < IntersectionShaderType::Count; i++)
+    {
+        AABBConstantBuffer cb = { i };
+        AllocateUploadBuffer(device, &cb, sizeof(cb), &m_geometryIndexBuffer[i].resource);
+        UINT descriptorIndexIB = CreateBufferSRV(&m_geometryIndexBuffer[i], 1, sizeof(cb));
+    }
+#endif
 }
 
 // Create AABB primitive attributes buffers.
@@ -326,6 +337,13 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
     // This is a root signature that enables a shader to have unique arguments that come from shader tables.
     {
 #if USE_AABB_LOCAL_ROOT_SIG
+        // Empty root signature
+        {
+            CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(D3D12_DEFAULT);
+            localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+            SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignatures::Empty]);
+        }
+
         // Triangle geometry
         {
             CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParamsTriangle::Count];
@@ -339,7 +357,14 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
         {
             CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParamsAABB::Count];
             // ToDo reuse same register as cube CB?
+#if USE_LOCAL_ROOT_CONSTANTS
             rootParameters[LocalRootSignatureParamsAABB::GeometryIndex].InitAsConstants(SizeOfInUint32(AABBConstantBuffer), 2);
+#else
+            CD3DX12_DESCRIPTOR_RANGE ranges[1]; // Perfomance TIP: Order from most frequent to least frequent.
+            ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);  // 1 output texture
+
+            rootParameters[LocalRootSignatureParamsAABB::GeometryIndex].InitAsDescriptorTable(1, &ranges[0]);
+#endif
             CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
             localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
             SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignatures::AABB]);
@@ -477,6 +502,24 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     // Local root signature and shader association
     // This is a root signature that enables a shader to have unique arguments that come from shader tables.
 
+    // Empty
+    {
+        auto localRootSignature = raytracingPipeline.CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+        localRootSignature->SetRootSignature(m_raytracingLocalRootSignature[LocalRootSignatures::Empty].Get());
+        // Define explicit shader association for the local root signature. 
+        // In this sample, this could be ommited for convenience since it matches the default association.
+        {
+            auto rootSignatureAssociation = raytracingPipeline.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+            rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
+            // ToDo set local root sig association to empty root sig where it's not needed/
+            rootSignatureAssociation->AddExport(c_raygenShaderName);
+            for (auto& missShaderName : c_missShaderNames)
+            {
+                rootSignatureAssociation->AddExport(missShaderName);
+            }
+        }
+    }
+
     // ToDo strip raygen and miss exports from local root signatures
     // Triangle geometry
     {
@@ -609,7 +652,11 @@ void D3D12RaytracingProceduralGeometry::CreateDescriptorHeap()
     // 2 - vertex and index  buffer SRVs
     // 1 - raytracing output texture SRV
     // 3 - 2x bottom and a top level acceleration structure fallback wrapped pointer UAVs
+#if USE_LOCAL_ROOT_CONSTANTS
     descriptorHeapDesc.NumDescriptors = 6;
+#else
+    descriptorHeapDesc.NumDescriptors = 9;
+#endif
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
@@ -1141,46 +1188,54 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
         missShaderTable.DebugPrint(shaderIdToStringMap);
     }
 
+    // ToDo change push_Back to immediately copy onto shader table to allow local variable reuse
+
+    static_assert(LocalRootSignatureParamsTriangle::Count == 1, "Checking the local root signature parameters definition here.");
+    struct RootArguments {
+        CubeConstantBuffer cb;
+    } rootArgumentsTriangle;
+    rootArgumentsTriangle.cb = m_cubeCB;
+
     // Hit group shader table.
     {
         ShaderTable hitGroupShaderTable(L"HitGroupShaderTable");
 
         // Triangle geometry hit groups.
         {
-            static_assert(LocalRootSignatureParamsTriangle::Count == 1, "Checking the local root signature parameters definition here.");
-            struct RootArguments {
-                CubeConstantBuffer cb;
-            } rootArguments;
-            rootArguments.cb = m_cubeCB;
+
 
             // ToDo describe layout
             for (auto& hitGroupShaderIdentifier : hitGroupShaderIdentifiers_TriangleGeometry)
             {
-                hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments)));
+                hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArgumentsTriangle, sizeof(rootArgumentsTriangle)));
             }
         }
 
+        static_assert(LocalRootSignatureParamsAABB::Count == 1, "Checking the local root signature parameters definition here.");
+        struct RootArguments {
+#if USE_LOCAL_ROOT_CONSTANTS
+            AABBConstantBuffer cb;
+#else
+            D3D12_GPU_DESCRIPTOR_HANDLE gpuCbDesriptorHandle;
+#endif
+        } rootArgumentsAABB[IntersectionShaderType::Count];
+
+
         // AABB geometry hit groups.
         {
-            static_assert(LocalRootSignatureParamsAABB::Count == 1, "Checking the local root signature parameters definition here.");
-            struct RootArguments {
-                AABBConstantBuffer cb;
-            } rootArguments;
 
             for (UINT r = 0; r < IntersectionShaderType::Count; r++)
                 for (UINT c = 0; c < AABBHitGroupType::Count; c++)
                 {
                     auto& hitGroupShaderIdentifier = hitGroupShaderIdentifiers_AABBGeometry[r][c];
 
-                    switch (c)
-                    {
-                    case AABBHitGroupType::AABB:
-                        rootArguments.cb.geometryIndex = r;
-                        hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments)));
-                        break;
-                    case AABBHitGroupType::ShadowAABB:
-                        hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, nullptr, 0)); break;
-                    }
+#if USE_LOCAL_ROOT_CONSTANTS
+                    rootArgumentsAABB[r].cb.geometryIndex = r;
+                    hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArgumentsAABB[r], sizeof(rootArgumentsAABB[r])));
+#else
+                    rootArgumentsAABB[r].gpuCbDesriptorHandle = m_geometryIndexBuffer[r].gpuDescriptorHandle;
+                    hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArgumentsAABB[r], sizeof(rootArgumentsAABB[r])));
+#endif
                 }
         }
         hitGroupShaderTable.AllocateAsUploadBuffer(device, &m_hitGroupShaderTable);
@@ -1249,6 +1304,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
 
     // Rotate the camera around Y axis.
+    if (0)
     {
         float secondsToRotateAround = 24.0f;
         float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
@@ -1554,6 +1610,7 @@ UINT D3D12RaytracingProceduralGeometry::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_
     auto descriptorHeapCpuBase = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
     if (descriptorIndexToUse >= m_descriptorHeap->GetDesc().NumDescriptors)
     {
+        ThrowIfFalse(m_descriptorsAllocated < m_descriptorHeap->GetDesc().NumDescriptors, L"Ran out of descriptors on the heap!" );
         descriptorIndexToUse = m_descriptorsAllocated++;
     }
     *cpuDescriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(descriptorHeapCpuBase, descriptorIndexToUse, m_descriptorSize);

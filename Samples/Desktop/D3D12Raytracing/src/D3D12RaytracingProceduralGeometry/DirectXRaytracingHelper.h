@@ -127,7 +127,7 @@ public:
         {
             wstr << L"[" << i << L"]: ";
             wstr << shaderIdToStringMap[m_shaderRecords[i].shaderIdentifier.ptr] << L", ";
-            wstr << m_shaderRecords[i].localRootArguments.size << L" \n";
+            wstr << m_shaderRecords[i].localRootArguments.size << L" bytes \n";
         }
         OutputDebugStringW(wstr.str().c_str());
     }

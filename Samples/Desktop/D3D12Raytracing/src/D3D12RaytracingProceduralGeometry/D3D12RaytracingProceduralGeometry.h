@@ -26,10 +26,13 @@ namespace GlobalRootSignatureParams {
     };
 }
 
+// Gate use of Empty on NV as a current workaround
+
 namespace LocalRootSignatures {
     enum Value {
         Triangle = 0,
         AABB,
+        Empty,
         Count
     };
 }
@@ -94,9 +97,9 @@ namespace ClosestHitRayType {
 // ToDo rename to IntersectionGeometryType ?
 namespace IntersectionShaderType {
     enum Value {
-        Spheres = 0,
-        AABB,
+        AABB = 0,
         Sphere,
+        Spheres,
         Count
     };
 }
@@ -210,6 +213,9 @@ private:
     D3DBuffer m_indexBuffer;
     D3DBuffer m_vertexBuffer;
     D3DBuffer m_aabbBuffer;
+#if !USE_LOCAL_ROOT_CONSTANTS
+    D3DBuffer m_geometryIndexBuffer[IntersectionShaderType::Count];
+#endif
 
     // Acceleration structure
     ComPtr<ID3D12Resource> m_bottomLevelAS[BottomLevelASType::Count];

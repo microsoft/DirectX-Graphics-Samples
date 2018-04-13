@@ -120,7 +120,7 @@ void MyRaygenShader()
         Scene, // Raytracing acceleration structure
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
         ~0, /* InstanceInclusionMask*/
-         0, /* RayContributionToHitGroupIndex */
+        0, /* RayContributionToHitGroupIndex */
          2, /* MultiplierForGeometryContributionToHitGroupIndex */
          0, /* MissShaderIndex */
         ray, payload);
