@@ -12,6 +12,12 @@
 #define HLSL
 #include "RaytracingHlslCompat.h"
 #include "ProceduralPrimitivesLibrary.h"
+#include "RaytracingShaderHelper.h"
+
+// ToDo:
+// - handle RayFlags in intersection tests
+// - enable shadows on AABBs
+// - specify traceRay args in a shared header
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
 RWTexture2D<float4> RenderTarget : register(u0);
@@ -21,38 +27,6 @@ StructuredBuffer<AABBPrimitiveAttributes> g_AABBPrimitiveAttributes : register(t
 
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 ConstantBuffer<CubeConstantBuffer> g_cubeCB : register(b1);
-
-// Load three 16 bit indices from a byte addressed buffer.
-uint3 Load3x16BitIndices(uint offsetBytes)
-{
-    uint3 indices;
-
-    // ByteAdressBuffer loads must be aligned at a 4 byte boundary.
-    // Since we need to read three 16 bit indices: { 0, 1, 2 } 
-    // aligned at a 4 byte boundary as: { 0 1 } { 2 0 } { 1 2 } { 0 1 } ...
-    // we will load 8 bytes (~ 4 indices { a b | c d }) to handle two possible index triplet layouts,
-    // based on first index's offsetBytes being aligned at the 4 byte boundary or not:
-    //  Aligned:     { 0 1 | 2 - }
-    //  Not aligned: { - 0 | 1 2 }
-    const uint dwordAlignedOffset = offsetBytes & ~3;
-    const uint2 four16BitIndices = Indices.Load2(dwordAlignedOffset);
-
-    // Aligned: { 0 1 | 2 - } => retrieve first three 16bit indices
-    if (dwordAlignedOffset == offsetBytes)
-    {
-        indices.x = four16BitIndices.x & 0xffff;
-        indices.y = (four16BitIndices.x >> 16) & 0xffff;
-        indices.z = four16BitIndices.y & 0xffff;
-    }
-    else // Not aligned: { - 0 | 1 2 } => retrieve last three 16bit indices
-    {
-        indices.x = (four16BitIndices.x >> 16) & 0xffff;
-        indices.y = four16BitIndices.y & 0xffff;
-        indices.z = (four16BitIndices.y >> 16) & 0xffff;
-    }
-
-    return indices;
-}
 
 struct MyAttributes
 {
@@ -141,24 +115,40 @@ void MyRaygenShader()
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
     HitData payload = { float4(0, 0, 0, 0) };
-    TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
+    TraceRay(
+        Scene, // Raytracing acceleration structure
+        RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
+        ~0, /* InstanceInclusionMask*/
+         0, /* RayContributionToHitGroupIndex */
+         2, /* MultiplierForGeometryContributionToHitGroupIndex */
+         0, /* MissShaderIndex */
+        ray, payload);
 
     // Write the raytraced color to the output texture.
     RenderTarget[DispatchRaysIndex()] = payload.color;
 }
 
+// Get ray in AABB's local space
+Ray GetRayInAABBPrimitiveLocalSpace()
+{
+    // Should PrimitiveIndex be passed as arg?
+    // ToDo improve desc
+    // Retrieve ray origin position and direction in bottom level AS space 
+    // and transform them into the AABB primitive's local space.
+    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
+    Ray ray;
+    ray.origin = mul(float4(ObjectRayOrigin(), 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
+    ray.direction = mul(ObjectRayDirection(), (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
+    return ray;
+}
 
 [shader("intersection")]
 void MyIntersectionShader_Spheres()
 {
-    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
-    float3 rayOriginLocal = mul(float4(ObjectRayOrigin(), 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
-    float3 rayDirLocal = mul(ObjectRayDirection(), (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
-
-    // ToDo handle RayFlags
     ProceduralPrimitiveAttributes attr;
     float tHit;
-    if (RaySpheresIntersectionTest(rayOriginLocal, rayDirLocal, tHit, attr));
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace();
+    if (RaySpheresIntersectionTest(localRay, tHit, attr))
     {
         // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
         ReportHit(tHit, /*hitKind*/ 0, attr);
@@ -168,14 +158,10 @@ void MyIntersectionShader_Spheres()
 [shader("intersection")]
 void MyIntersectionShader_Sphere()
 {
-    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
-    float3 rayOriginLocal = mul(float4(ObjectRayOrigin(), 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
-    float3 rayDirLocal = mul(ObjectRayDirection(), (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
-
-    // ToDo handle RayFlags
     ProceduralPrimitiveAttributes attr;
     float tHit;
-    if (RaySphereIntersectionTest(rayOriginLocal, rayDirLocal, tHit, attr));
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace();
+    if (RaySphereIntersectionTest(localRay, tHit, attr))
     {
         // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
         ReportHit(tHit, /*hitKind*/ 0, attr);
@@ -185,14 +171,10 @@ void MyIntersectionShader_Sphere()
 [shader("intersection")]
 void MyIntersectionShader_AABB()
 {
-    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[PrimitiveIndex()];
-    float3 rayOriginLocal = mul(float4(ObjectRayOrigin(), 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
-    float3 rayDirLocal = mul(ObjectRayDirection(), (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;
-
-    // ToDo handle RayFlags
     ProceduralPrimitiveAttributes attr;
-    float tHit;    
-    if (RayAABBIntersectionTest(rayOriginLocal, rayDirLocal, tHit, attr));
+    float tHit;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(); 
+    if (RayAABBIntersectionTest(localRay, tHit, attr))
     {
         // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
         ReportHit(tHit, /*hitKind*/ 0, attr);
@@ -211,7 +193,7 @@ void MyClosestHitShader_Triangle(inout HitData payload : SV_RayPayload, in Built
     uint baseIndex = PrimitiveIndex() * triangleIndexStride;
 
     // Load up 3 16 bit indices for the triangle.
-    const uint3 indices = Load3x16BitIndices(baseIndex);
+    const uint3 indices = Load3x16BitIndices(baseIndex, Indices);
 
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 vertexNormals[3] = {
@@ -239,11 +221,15 @@ void MyClosestHitShader_Triangle(inout HitData payload : SV_RayPayload, in Built
     // ToDo use hit/miss indices from a header
     // ToDo place ShadowHitGroup right after Closest hitgroup?
     // ToDo review hit group indexing
-    TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, ~0, 
-                1 /* RayContributionToHitGroupIndex*/, 
-                0, 
-                1 /* MissShaderIndex */, 
-                ray, shadowPayload);
+    // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
+    TraceRay( Scene, 
+        RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
+        ~0,/* InstanceInclusionMask*/
+        1, /* RayContributionToHitGroupIndex */ 
+        2, /* MultiplierForGeometryContributionToHitGroupIndex */
+        1, /* MissShaderIndex */ 
+        ray, shadowPayload);
+
     float shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
 
     float4 diffuseColor = shadowFactor * g_cubeCB.diffuseColor * CalculateDiffuseLighting(hitPosition, triangleNormal);
@@ -269,12 +255,14 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
     ray.TMax = 10000.0;
     ShadowPayload shadowPayload;
     // ToDo use hit/miss indices from a header
-    TraceRay(Scene, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, ~0,
-        // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
-        1 /* RayContributionToHitGroupIndex*/,
-        0,
-        1 /* MissShaderIndex */,
+    TraceRay(Scene,
+        RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
+        ~0,/* InstanceInclusionMask*/
+        1, /* RayContributionToHitGroupIndex */
+        2, /* MultiplierForGeometryContributionToHitGroupIndex */
+        1, /* MissShaderIndex */
         ray, shadowPayload);
+
     float shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
 #else
     float shadowFactor = 1.0;

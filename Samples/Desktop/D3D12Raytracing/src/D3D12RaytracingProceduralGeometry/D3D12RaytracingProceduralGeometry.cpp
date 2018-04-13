@@ -17,7 +17,12 @@
 using namespace std;
 using namespace DX;
 
-const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames[] = { L"MyHitGroup_Triangle", L"MyHitGroup_AABB", L"MyHitGroup_ShadowRayAABB" };
+const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_TriangleGeometry[] = { L"MyHitGroup_Triangle" };
+const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_AABBGeometry[][AABBHitGroupType::Count] = {
+  { L"MyHitGroup_AABB_AABB", L"MyHitGroup_ShadowRayAABB_AABB" },
+  { L"MyHitGroup_AABB_Sphere", L"MyHitGroup_ShadowRayAABB_Sphere" },
+  { L"MyHitGroup_AABB_Spheres", L"MyHitGroup_ShadowRayAABB_Spheres" },
+};
 const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] = { L"MyIntersectionShader_AABB", L"MyIntersectionShader_Sphere", L"MyIntersectionShader_Spheres" };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[] = { L"MyClosestHitShader_Triangle", L"MyClosestHitShader_AABB", L"MyClosestHitShader_ShadowAABB" };
@@ -401,18 +406,18 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
         {
             auto hitGroup = raytracingPipeline.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
             hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[ClosestHitRayType::Triangle]);
-            hitGroup->SetHitGroupExport(c_hitGroupNames[HitGroupType::Triangle]);
+            hitGroup->SetHitGroupExport(c_hitGroupNames_TriangleGeometry[TriangleHitGroupType::Triangle]);
         }
 
         // Create hit group for each intersection shader.
-        for (UINT i = 0; i < BottomLevelASType::Count; i++)
+        for (UINT i = 0; i < IntersectionShaderType::Count; i++)
         {
             // AABB hit group
             {
                 auto hitGroup = raytracingPipeline.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
                 hitGroup->SetIntersectionShaderImport(c_intersectionShaderNames[i]);
                 hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[ClosestHitRayType::AABB]);
-                hitGroup->SetHitGroupExport(c_hitGroupNames[HitGroupType::AABB]);
+                hitGroup->SetHitGroupExport(c_hitGroupNames_AABBGeometry[i][AABBHitGroupType::AABB]);
             }
 
 
@@ -420,9 +425,9 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
             // Shadow ray hit group
             {
                 auto hitGroup = raytracingPipeline.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-                hitGroup->SetIntersectionShaderImport(intersectionShaderName);
+                hitGroup->SetIntersectionShaderImport(c_intersectionShaderNames[i]);
                 hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[ClosestHitRayType::ShadowAABB]);
-                hitGroup->SetHitGroupExport(c_hitGroupNames[HitGroupType::ShadowAABB]);
+                hitGroup->SetHitGroupExport(c_hitGroupNames_AABBGeometry[i][AABBHitGroupType::ShadowAABB]);
             }
         }
     }
@@ -446,9 +451,16 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         // ToDo set local root sig association to empty root sig where it's not needed/
         rootSignatureAssociation->AddExport(c_raygenShaderName);
-        for (auto& hitGroupShaderName : c_hitGroupNames)
+        for (auto& hitGroupShaderName : c_hitGroupNames_TriangleGeometry)
         {
             rootSignatureAssociation->AddExport(hitGroupShaderName);
+        }
+        for (auto& hitGroupsForIntersectionShaderType : c_hitGroupNames_AABBGeometry)
+        {
+            for (auto& hitGroupShaderName : hitGroupsForIntersectionShaderType)
+            {
+                rootSignatureAssociation->AddExport(hitGroupShaderName);
+            }
         }
         for (auto& missShaderName : c_missShaderNames)
         {
@@ -763,6 +775,7 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
 
         InstanceDescType instanceDescTemplate = {};
         instanceDescTemplate.InstanceMask = 1;
+        // ToDo explain the hitgroupindex offset
         instanceDescTemplate.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB;
         instanceDescTemplate.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
 
@@ -982,7 +995,8 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
 
     void* rayGenShaderIdentifier;
     void* missShaderIdentifiers[RayType::Count];
-    void* hitGroupShaderIdentifiers[HitGroupType::Count];
+    void* hitGroupShaderIdentifiers_TriangleGeometry[TriangleHitGroupType::Count];
+    void* hitGroupShaderIdentifiers_AABBGeometry[IntersectionShaderType::Count * AABBHitGroupType::Count];
 
     auto GetShaderIdentifiers = [&](auto* stateObjectProperties)
     {
@@ -991,10 +1005,16 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
         {
             missShaderIdentifiers[i] = stateObjectProperties->GetShaderIdentifier(c_missShaderNames[i]);
         }
-        for (UINT i = 0; i < HitGroupType::Count; i++)
+        for (UINT i = 0; i < TriangleHitGroupType::Count; i++)
         {
-            hitGroupShaderIdentifiers[i] = stateObjectProperties->GetShaderIdentifier(c_hitGroupNames[i]);
+            hitGroupShaderIdentifiers_TriangleGeometry[i] = stateObjectProperties->GetShaderIdentifier(c_hitGroupNames_TriangleGeometry[i]);
         }
+        for (UINT r = 0, i = 0; r < IntersectionShaderType::Count; r++)
+            for (UINT c = 0; c < AABBHitGroupType::Count; c++, i++)        
+            {
+                hitGroupShaderIdentifiers_AABBGeometry[i] = stateObjectProperties->GetShaderIdentifier(c_hitGroupNames_AABBGeometry[r][c]);
+            }
+
     };
 
     // Get shader identifiers.
@@ -1035,7 +1055,6 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
     }
 
     // Hit group shader table.
-    // Only hit group shader record requires root arguments initialization for the closest hit shader's cube CB access.
     {
         // ToDo Rename to plane
         static_assert(LocalRootSignatureParams::CubeConstantSlot == 0 && LocalRootSignatureParams::Count == 1, "Checking the local root signature parameters definition here.");
@@ -1046,9 +1065,13 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
 
         ShaderTable hitGroupShaderTable;
         // ToDo describe layout
-        for (UINT i = 0; i < HitGroupType::Count; i++)
+        for (auto& hitGroupShaderIdentifier : hitGroupShaderIdentifiers_TriangleGeometry)
         {
-            hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifiers[i], shaderIdentifierSize, &rootArguments, sizeof(rootArguments)));
+            hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments)));
+        }
+        for (auto& hitGroupShaderIdentifier : hitGroupShaderIdentifiers_AABBGeometry)
+        {
+            hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, nullptr, 0));
         }
         hitGroupShaderTable.AllocateAsUploadBuffer(device, &m_hitGroupShaderTable, L"HitGroupShaderTable");
         m_hitGroupShaderTableStrideInBytes = hitGroupShaderTable.GetMaxShaderRecordSize();

@@ -43,10 +43,16 @@ namespace BottomLevelASType {
     };
 }
 
-namespace HitGroupType {
+namespace TriangleHitGroupType {
     enum Value {
         Triangle = 0,
-        AABB,
+        Count
+    };
+}
+
+namespace AABBHitGroupType {
+    enum Value {
+        AABB = 0,
         ShadowAABB,
         Count
     };
@@ -199,7 +205,8 @@ private:
     UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
     // Shader tables
-    static const wchar_t* c_hitGroupNames[HitGroupType::Count][IntersectionShaderType::Count];
+    static const wchar_t* c_hitGroupNames_TriangleGeometry[TriangleHitGroupType::Count];
+    static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][AABBHitGroupType::Count];
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
     static const wchar_t* c_closestHitShaderNames[ClosestHitRayType::Count];
