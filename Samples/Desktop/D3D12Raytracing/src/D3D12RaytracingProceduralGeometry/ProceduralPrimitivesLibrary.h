@@ -77,7 +77,7 @@ bool RaySphereIntersectionTest(Ray ray, inout float thit, inout ProceduralPrimit
     return true;
 }
 
-bool RaySpheresIntersectionTest(Ray ray, inout float thit, inout ProceduralPrimitiveAttributes attr)
+bool RaySpheresIntersectionTest(Ray ray, out float thit, in float tmin, in float tmax, inout ProceduralPrimitiveAttributes attr)
 {
     const int N = 3;
     float3 centers[N] =
@@ -96,7 +96,7 @@ bool RaySpheresIntersectionTest(Ray ray, inout float thit, inout ProceduralPrimi
     ProceduralPrimitiveAttributes _attr;
     if (RaySphereIntersectionTest(ray, _thit, _attr, centers[0], radii[0]))
     {
-        if (_thit < thit)
+        if (IsInRange(_thit, tmin, tmax))
         {
             thit = _thit;
             attr = _attr;
@@ -105,7 +105,7 @@ bool RaySpheresIntersectionTest(Ray ray, inout float thit, inout ProceduralPrimi
     }
     if (RaySphereIntersectionTest(ray, _thit, _attr, centers[1], radii[1]))
     {
-        if (_thit < thit)
+        if (IsInRange(_thit, tmin, tmax))
         {
             thit = _thit;
             attr = _attr;
@@ -114,7 +114,7 @@ bool RaySpheresIntersectionTest(Ray ray, inout float thit, inout ProceduralPrimi
     }
     if (RaySphereIntersectionTest(ray, _thit, _attr, centers[2], radii[2]))
     {
-        if (_thit < thit)
+        if (IsInRange(_thit, tmin, tmax))
         {
             thit = _thit;
             attr = _attr;

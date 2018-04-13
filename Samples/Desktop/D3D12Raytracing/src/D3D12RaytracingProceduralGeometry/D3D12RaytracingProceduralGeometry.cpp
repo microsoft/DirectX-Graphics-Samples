@@ -19,12 +19,12 @@ using namespace DX;
 
 const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_TriangleGeometry[] = { L"MyHitGroup_Triangle" };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_AABBGeometry[][AABBHitGroupType::Count] = {
-  { L"MyHitGroup_AABB_AABB", L"MyHitGroup_ShadowRayAABB_AABB" },
-{ L"MyHitGroup_AABB_Spheres", L"MyHitGroup_ShadowRayAABB_Spheres" },
-  { L"MyHitGroup_AABB_Sphere", L"MyHitGroup_ShadowRayAABB_Sphere" },
+    { L"MyHitGroup_AABB_AABB", L"MyHitGroup_ShadowRayAABB_AABB" },
+    { L"MyHitGroup_AABB_Sphere", L"MyHitGroup_ShadowRayAABB_Sphere" },
+    { L"MyHitGroup_AABB_Spheres", L"MyHitGroup_ShadowRayAABB_Spheres" },
 };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRaygenShader";
-const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] = {  L"MyIntersectionShader_AABB", L"MyIntersectionShader_Spheres", L"MyIntersectionShader_Sphere" };
+const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] = {  L"MyIntersectionShader_AABB", L"MyIntersectionShader_Sphere", L"MyIntersectionShader_Spheres" };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[] = { L"MyClosestHitShader_Triangle", L"MyClosestHitShader_AABB", L"MyClosestHitShader_ShadowAABB" };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_missShaderNames[] = { L"MyMissShader", L"MyMissShader_Shadow" };
 
@@ -534,7 +534,6 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
                 rootSignatureAssociation->AddExport(hitGroupShaderName);
             }
         }
-
     }
 
     // AABB geometry

@@ -153,7 +153,7 @@ void MyIntersectionShader_Spheres()
     ProceduralPrimitiveAttributes attr;
     float tHit;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
-    if (RaySpheresIntersectionTest(localRay, tHit, attr))
+    if (RaySpheresIntersectionTest(localRay, tHit, RayTMin(), RayTCurrent(), attr))
     {
         // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
         ReportHit(tHit, /*hitKind*/ 0, attr);

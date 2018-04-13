@@ -17,6 +17,11 @@ struct Ray
     float3 direction;
 };
 
+bool IsInRange(float val, float min, float max)
+{
+    return (val >= min && val <= max);
+}
+
 // Load three 16 bit indices from a byte addressed buffer.
 uint3 Load3x16BitIndices(uint offsetBytes, ByteAddressBuffer Indices)
 {
