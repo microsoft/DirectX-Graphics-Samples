@@ -11,8 +11,15 @@
 
 #pragma once
 
-#define USE_AABB_LOCAL_ROOT_SIG 1
-#define USE_LOCAL_ROOT_CONSTANTS 1  // Local root constatns are not supported in PIX yet
+// Override for debugging, PIX does not support local root constants yet.
+#define USE_LOCAL_ROOT_CONSTANTS 1
+
+// Workaround for NV driver as it requires all shaders 
+// to have a local root signature bound, even if it's empty.
+#define USE_NON_NULL_LOCAL_ROOT_SIG 1  
+
+// Workaround for the Fallback Layer not supporting default exports for DXIL libraries
+#define DEFINE_EXPLICIT_SHADER_EXPORTS 1
 
 #ifdef HLSL
 #include "HlslCompat.h"

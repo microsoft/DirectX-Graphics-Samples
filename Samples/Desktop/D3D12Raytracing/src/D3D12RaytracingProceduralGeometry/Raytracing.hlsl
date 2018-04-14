@@ -136,11 +136,7 @@ Ray GetRayInAABBPrimitiveLocalSpace()
     // ToDo improve desc
     // Retrieve ray origin position and direction in bottom level AS space 
     // and transform them into the AABB primitive's local space.
-#if USE_AABB_LOCAL_ROOT_SIG
     AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
-#else
-    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[0];
-#endif
     Ray ray;
     ray.origin = mul(float4(ObjectRayOrigin(), 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
     ray.direction = mul(ObjectRayDirection(), (float3x3) aabbAttribute.bottomLevelASToLocalSpace).xyz;

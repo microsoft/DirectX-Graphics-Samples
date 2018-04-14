@@ -38,32 +38,6 @@ public:
         }
     }
 
-    void AllocateAsUploadBuffer(ID3D12Device* pDevice, ID3D12Resource **ppResource, const wchar_t* resourceName = nullptr)
-    {
-        auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        UINT size = Align(Size(), D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
-        auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
-        ThrowIfFailed(pDevice->CreateCommittedResource(
-            &uploadHeapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &bufferDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(ppResource)));
-        if (resourceName)
-        {
-            (*ppResource)->SetName(resourceName);
-        }
-        uint8_t *pMappedData;
-        (*ppResource)->Map(0, nullptr, reinterpret_cast<void**>(&pMappedData));
-        memcpy(pMappedData, shaderIdentifier.ptr, shaderIdentifier.size);
-        if (localRootArguments.ptr)
-        {
-            memcpy(pMappedData + shaderIdentifier.size, localRootArguments.ptr, localRootArguments.size);
-        }
-        (*ppResource)->Unmap(0, nullptr);
-    }
-
     struct PointerWithSize {
         void *ptr;
         UINT size;

@@ -347,10 +347,10 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
     // Pipeline config
     // Defines the maximum TraceRay() recursion depth.
     auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
-    // Setting max recursion depth at 1 ~ primary rays only. 
-    // Drivers may apply optimization strategies for low recursion depths, 
-    // so it is recommended to set max recursion depth as low as needed. 
-    pipelineConfig->Config(1);  
+    // PERFOMANCE TIP: Set max recursion depth as low as needed 
+    // as drivers may apply optimization strategies for low recursion depths.
+    UINT maxRecursionDepth = 1; // ~ primary rays only. 
+    pipelineConfig->Config(maxRecursionDepth);
 
 #if _DEBUG
     PrintStateObjectDesc(raytracingPipeline);
@@ -502,8 +502,8 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
 
     // Mark the geometry as opaque. 
-    // Note: when rays encounter this geometry an any hit shader will not be executed whether it is present or not. 
-    // It is recommended to use this flag liberally, as it can enable important ray processing optimizations.
+    // PERFORMANCE TIP: mark geometry as opaque whenever possible as it can enable important ray processing optimizations.
+    // Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
     geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
     // Get required sizes for an acceleration structure.
