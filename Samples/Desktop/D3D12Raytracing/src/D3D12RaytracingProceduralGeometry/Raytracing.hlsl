@@ -298,10 +298,17 @@ void MyMissShader(inout HitData payload : SV_RayPayload)
 }
 
 [shader("closesthit")]
-void MyClosestHitShader_ShadowAABB(inout ShadowPayload payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_ShadowRayTriangle(inout ShadowPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     payload.hit = true;
 }
+
+[shader("closesthit")]
+void MyClosestHitShader_ShadowRayAABB(inout ShadowPayload payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+{
+    payload.hit = true;
+}
+
 
 [shader("miss")]
 void MyMissShader_Shadow(inout ShadowPayload payload : SV_RayPayload)

@@ -178,7 +178,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
 
-        lightPosition = XMFLOAT4(0.0f, 18.0f, -30.0f, 0.0f);
+        lightPosition = XMFLOAT4(0.0f, -2.0f, -30.0f, 0.0f);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 

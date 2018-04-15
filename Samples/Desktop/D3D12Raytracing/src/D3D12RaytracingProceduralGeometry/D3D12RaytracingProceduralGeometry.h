@@ -85,6 +85,7 @@ namespace BottomLevelASType {
 namespace TriangleHitGroupType {
     enum Value {
         Triangle = 0,
+        ShadowRayTriangle,
         Count
     };
 }
@@ -92,7 +93,7 @@ namespace TriangleHitGroupType {
 namespace AABBHitGroupType {
     enum Value {
         AABB = 0,
-        ShadowAABB,
+        ShadowRayAABB,
         Count
     };
 }
@@ -108,8 +109,9 @@ namespace RayType {
 namespace ClosestHitRayType {
     enum Value {
         Triangle = 0,
+        ShadowRayTriangle,
         AABB,
-        ShadowAABB,
+        ShadowRayAABB,
         Count
     };
 }
