@@ -69,6 +69,7 @@ struct RectangularPrismAABB
 
 struct AABBPrimitiveAttributes
 {
+    XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space
     XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space
 };
 

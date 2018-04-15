@@ -106,10 +106,10 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
 
     const float aabbDefaultWidth = 2;    // Default AABB is <-1,1>^3
     //const float c_aabbWidth  = 2;// 1 / sqrt(2.0f);// Width of each AABB - scaled down to fit any AABB rotation within the default width
-    const float c_aabbDistance = 2;        // Distance between AABBs
     const float aabbDistanceStride = c_aabbWidth  + c_aabbDistance;
     const XMVECTOR vAABBstride = XMLoadFloat3(&XMFLOAT3(aabbDistanceStride, aabbDistanceStride, aabbDistanceStride));
 
+    // ToDo scale for transformation to fit within <-1,1>
     float scaleRatio = c_aabbWidth  / aabbDefaultWidth;
     XMMATRIX mScale = XMMatrixScaling(scaleRatio, scaleRatio, scaleRatio);
    
@@ -118,7 +118,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
         -((NUM_AABB_Y-1) * c_aabbWidth  + (NUM_AABB_Y - 1) * c_aabbDistance) / 2.0f,
         -((NUM_AABB_Z-1) * c_aabbWidth  + (NUM_AABB_Z - 1) * c_aabbDistance) / 2.0f));
 
-
+   
     for (UINT z = 0, i = 0; z < NUM_AABB_Z; z++)
     {
         for (UINT y = 0; y < NUM_AABB_Y; y++)
@@ -128,9 +128,13 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
                 auto& aabbAttributes = m_aabbPrimitiveAttributeBuffer[i];
                 XMVECTOR vIndex = XMLoadUInt3(&XMUINT3(x, y, z));
                 XMVECTOR vTranslation = vBasePosition + vIndex * vAABBstride;
-                XMMATRIX mRotation = XMMatrixIdentity();// XMMatrixRotationY((x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
+                // ToDo TotalSeconds may run out of precision after some time
+                XMMATRIX mRotation =  XMMatrixRotationZ(m_timer.GetTotalSeconds()/2.0f*(x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
                 XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
-                aabbAttributes.bottomLevelASToLocalSpace = XMMatrixInverse(nullptr, mRotation * mTranslation);
+                XMMATRIX mTransform = mScale * mRotation * mTranslation;
+
+                aabbAttributes.localSpaceToBottomLevelAS = mTransform;
+                aabbAttributes.bottomLevelASToLocalSpace = XMMatrixInverse(nullptr, mTransform);
            }
         }
     }
@@ -1076,6 +1080,7 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
             missShaderTable.push_back(ShaderRecord(missShaderIdentifiers[i], shaderIdentifierSize, nullptr, 0));
         }
         missShaderTable.DebugPrint(shaderIdToStringMap);
+        m_missShaderTableStrideInBytes = missShaderTable.GetShaderRecordSize();
         m_missShaderTable = missShaderTable.GetResource();
     }
 
@@ -1083,10 +1088,10 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
     {
         UINT numShaderRecords = TriangleHitGroupType::Count
                               + IntersectionShaderType::Count * AABBHitGroupType::Count;
-        m_hitGroupShaderTableStrideInBytes = shaderIdentifierSize 
+        UINT shaderRecordSize = shaderIdentifierSize
                                            + LocalRootSignature::MaxRootArgumentsSize();
 
-        ShaderTable hitGroupShaderTable(device, numShaderRecords, m_hitGroupShaderTableStrideInBytes, L"HitGroupShaderTable");
+        ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
         // Triangle geometry hit groups.
         {
@@ -1117,6 +1122,7 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
                 }
         }
         hitGroupShaderTable.DebugPrint(shaderIdToStringMap);
+        m_hitGroupShaderTableStrideInBytes = hitGroupShaderTable.GetShaderRecordSize();
         m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
     }
 }
@@ -1181,7 +1187,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
 
     // Rotate the camera around Y axis.
-    if (0)
+    if (1)
     {
         float secondsToRotateAround = 24.0f;
         float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);

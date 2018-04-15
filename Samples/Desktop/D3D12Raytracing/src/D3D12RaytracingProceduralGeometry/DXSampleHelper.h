@@ -281,8 +281,8 @@ public:
     void Create(ID3D12Device* device, UINT numInstances = 1, LPCWSTR resourceName = nullptr)
     {
         m_numInstances = numInstances;
-        UINT alignedSize = Align(sizeof(T), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-        UINT bufferSize = numInstances * alignedSize;
+        m_alignedInstanceSize = Align(sizeof(T), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+        UINT bufferSize = numInstances * m_alignedInstanceSize;
         Allocate(device, bufferSize, resourceName);
         m_mappedConstantData = MapCpuWriteOnly();
     }
@@ -333,7 +333,7 @@ public:
 
     void CopyStagingToGpu(UINT instanceIndex = 0)
     {
-        memcpy(m_mappedBuffers + instanceIndex, &m_staging[0], InstanceSize());
+        memcpy(m_mappedBuffers + instanceIndex * NumElementsPerInstance(), &m_staging[0], InstanceSize());
     }
 
     // Accessors

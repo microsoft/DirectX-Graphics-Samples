@@ -63,10 +63,11 @@ class ShaderTable : public GpuUploadBuffer
     ShaderTable() {}
 public:
     ShaderTable(ID3D12Device* device, UINT numShaderRecords, UINT shaderRecordSize, LPCWSTR resourceName = nullptr) 
-        : m_shaderRecordSize(shaderRecordSize), m_name(resourceName)
+        : m_name(resourceName)
     {
+        m_shaderRecordSize = Align(shaderRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
         m_shaderRecords.reserve(numShaderRecords);
-        UINT bufferSize = numShaderRecords * Align(m_shaderRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+        UINT bufferSize = numShaderRecords * m_shaderRecordSize;
         Allocate(device, bufferSize, resourceName);
         m_mappedShaderRecords = MapCpuWriteOnly();
     }
@@ -78,6 +79,8 @@ public:
         shaderRecord.CopyTo(m_mappedShaderRecords);
         m_mappedShaderRecords += m_shaderRecordSize;
     }
+
+    UINT GetShaderRecordSize() { return m_shaderRecordSize; }
 
     // Pretty-print the shader records.
     void DebugPrint(std::unordered_map<void*, std::wstring> shaderIdToStringMap)
