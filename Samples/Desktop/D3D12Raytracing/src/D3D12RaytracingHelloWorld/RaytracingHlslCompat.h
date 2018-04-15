@@ -9,7 +9,8 @@
 //
 //*********************************************************
 
-#pragma once
+#ifndef RAYTRACINGHLSLCOMPAT_H
+#define RAYTRACINGHLSLCOMPAT_H
 
 struct Viewport
 {
@@ -24,3 +25,5 @@ struct RayGenConstantBuffer
     Viewport viewport;
     Viewport stencil;
 };
+
+#endif // RAYTRACINGHLSLCOMPAT_H

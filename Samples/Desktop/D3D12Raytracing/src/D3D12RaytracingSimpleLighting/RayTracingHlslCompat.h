@@ -9,7 +9,8 @@
 //
 //*********************************************************
 
-#pragma once
+#ifndef RAYTRACINGHLSLCOMPAT_H
+#define RAYTRACINGHLSLCOMPAT_H
 
 #ifdef HLSL
 #include "HlslCompat.h"
@@ -39,3 +40,5 @@ struct Vertex
     XMFLOAT3 position;
     XMFLOAT3 normal;
 };
+
+#endif // RAYTRACINGHLSLCOMPAT_H

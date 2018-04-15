@@ -9,6 +9,9 @@
 //
 //*********************************************************
 
+#ifndef RAYTRACING_HLSL
+#define RAYTRACING_HLSL
+
 #define HLSL
 #include "RaytracingHlslCompat.h"
 
@@ -163,3 +166,5 @@ void MyMissShader(inout HitData payload : SV_RayPayload)
     float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f);
     payload.color = background;
 }
+
+#endif // RAYTRACING_HLSL

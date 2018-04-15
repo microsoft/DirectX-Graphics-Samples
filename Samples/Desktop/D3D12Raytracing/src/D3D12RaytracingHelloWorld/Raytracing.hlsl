@@ -9,6 +9,9 @@
 //
 //*********************************************************
 
+#ifndef RAYTRACING_HLSL
+#define RAYTRACING_HLSL
+
 #include "RaytracingHlslCompat.h"
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
@@ -75,3 +78,5 @@ void MyMissShader(inout HitData payload : SV_RayPayload)
 {
     payload.color = float4(0, 0, 0, 1);
 }
+
+#endif // RAYTRACING_HLSL
