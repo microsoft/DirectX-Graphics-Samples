@@ -26,8 +26,6 @@ namespace GlobalRootSignatureParams {
     };
 }
 
-// Gate use of Empty on NV as a current workaround
-
 namespace LocalRootSignatures {
     enum Value {
         Triangle = 0,
@@ -39,16 +37,9 @@ namespace LocalRootSignatures {
     };
 }
 
-namespace LocalRootSignatureParamsTriangle {
-    enum Value {
-        MaterialConstantSlot = 0,
-        Count
-    };
-}
-
 namespace LocalRootSignature {
     namespace Triangle {
-        enum Enum {
+        enum Slot {
             MaterialConstantSlot = 0,
             Count
         };
@@ -59,7 +50,7 @@ namespace LocalRootSignature {
     }
 
     namespace AABB {
-        enum Enum {
+        enum Slot {
             MaterialConstantSlot = 0,
             // ToDo rename GeometryIndexSlot
             GeometryIndexSlot,
@@ -78,14 +69,6 @@ namespace LocalRootSignature {
     {
         return max(sizeof(Triangle::RootArguments), sizeof(AABB::RootArguments));
     }
-}
-
-namespace LocalRootSignatureParamsAABB {
-    enum Value {
-        MaterialConstantSlot = 0,
-        GeometryIndexSlot,
-        Count
-    };
 }
 
 // Bottom level acceleration structures (BottomLevelASType).
@@ -150,7 +133,6 @@ struct AccelerationStructureBuffers
     UINT64                 ResultDataMaxSizeInBytes;
 };
 
-// The sample supports both Raytracing Fallback Layer and DirectX Raytracing APIs. 
 // This is purely for demonstration purposes to show where the API differences are. 
 // Real-world applications will implement only one or the other. 
 // Fallback Layer uses DirectX Raytracing if a driver and OS supports it. 

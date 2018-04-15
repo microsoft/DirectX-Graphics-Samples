@@ -96,7 +96,6 @@ void D3D12RaytracingProceduralGeometry::UpdateCameraMatrices()
     XMMATRIX view = XMMatrixLookAtLH(m_eye, m_at, m_up);
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 1.0f, 125.0f);
     XMMATRIX viewProj = view * proj;
-
     m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, viewProj);
 }
 
@@ -307,7 +306,7 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
         // Triangle geometry
         {
             // ToDo rename cube constant slot
-            CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParamsTriangle::Count];
+            CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignature::Triangle::Count];
             rootParameters[LocalRootSignature::Triangle::MaterialConstantSlot].InitAsConstants(SizeOfInUint32(MaterialConstantBuffer), 1);
             CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
             localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
@@ -316,7 +315,7 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
 
         // AABB geometry
         {
-            CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParamsAABB::Count];
+            CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignature::AABB::Count];
             rootParameters[LocalRootSignature::AABB::MaterialConstantSlot].InitAsConstants(SizeOfInUint32(MaterialConstantBuffer), 1);
 #if USE_LOCAL_ROOT_CONSTANTS
             rootParameters[LocalRootSignature::AABB::GeometryIndexSlot].InitAsConstants(SizeOfInUint32(AABBConstantBuffer), 2);
@@ -1259,6 +1258,7 @@ void D3D12RaytracingProceduralGeometry::DoRaytracing()
         commandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstantSlot, m_sceneCB.GpuVirtualAddress(frameIndex));
 
         m_aabbPrimitiveAttributeBuffer.CopyStagingToGpu(frameIndex);
+        // ToDo Set this in local root signature 
         commandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::AABBattributeBufferSlot, m_aabbPrimitiveAttributeBuffer.GpuVirtualAddress(frameIndex));
     }
 
