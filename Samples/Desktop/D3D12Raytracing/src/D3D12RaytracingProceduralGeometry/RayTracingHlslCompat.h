@@ -34,6 +34,29 @@ using namespace DirectX;
 typedef UINT16 Index;
 #endif
 
+// PERFOMANCE TIP: Set max recursion depth as low as needed
+// as drivers may apply optimization strategies for low recursion depths.
+#define MAX_RAY_RECURSION_DEPTH 3 // ToDo ~ primary rays + reflections + shadow rays.
+
+// ToDo cleanup
+struct MyAttributes
+{
+    XMFLOAT2 barycentrics;
+    XMFLOAT4 normal;
+};
+
+struct ShadowRayPayload
+{
+    bool hit;
+};
+
+
+struct RayPayload
+{
+    XMFLOAT4 color;
+    UINT   recursionDepth;
+};
+
 struct SceneConstantBuffer
 {
     XMMATRIX projectionToWorld;

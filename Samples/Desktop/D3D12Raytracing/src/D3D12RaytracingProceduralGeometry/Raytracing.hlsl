@@ -32,29 +32,12 @@ ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 ConstantBuffer<MaterialConstantBuffer> g_materialCB : register(b1);
 ConstantBuffer<AABBConstantBuffer> g_aabbCB : register(b2);
 
-struct MyAttributes
-{
-    float2 barycentrics;
-    float4 normal;
-};
-
 enum ProceduralPrimitives
 {
     Box = 0,
     Spheres,
     Sphere,
     Count
-};
-
-struct ShadowPayload
-{
-    bool hit;
-};
-
-
-struct HitData
-{
-    float4 color;
 };
 
 // Retrieve hit world position.
@@ -118,7 +101,7 @@ void MyRaygenShader()
     // TMin should be kept small to prevent missing geometry at close contact areas.
     ray.TMin = 0;
     ray.TMax = 10000.0;
-    HitData payload = { float4(0, 0, 0, 0) };
+    RayPayload payload = { float4(0, 0, 0, 0), 1 };
     TraceRay(
         Scene, // Raytracing acceleration structure
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
@@ -195,7 +178,7 @@ void MyIntersectionShader_AABB()
 }
 
 [shader("closesthit")]
-void MyClosestHitShader_Triangle(inout HitData payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     float3 hitPosition = HitWorldPosition();
 
@@ -214,45 +197,77 @@ void MyClosestHitShader_Triangle(inout HitData payload : SV_RayPayload, in Built
         Vertices[indices[1]].normal,
         Vertices[indices[2]].normal
     };
-
+    
     // Compute the triangle's normal.
     // This is redundant and done for illustration purposes 
     // as all the per-vertex normals are the same and match triangle's normal in this sample. 
     float3 triangleNormal = HitAttribute(vertexNormals, attr.barycentrics);
 
-    // Trace a shadow ray. 
-    // Set the ray's extents.
-    RayDesc ray;
-    ray.Origin = hitPosition;
-    ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
-    // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
-    // TMin should be kept small to prevent missing geometry at close contact areas.
-    // For shadow ray this will be extremely small to avoid aliasing at contact areas.
-    ray.TMin = 0;
-    ray.TMax = 10000.0;
-    ShadowPayload shadowPayload;
-    // ToDo use hit/miss indices from a header
-    // ToDo place ShadowHitGroup right after Closest hitgroup?
-    // ToDo review hit group indexing
-    // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
-    TraceRay(Scene,
-        RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
-        ~0,/* InstanceInclusionMask*/
-        1, /* RayContributionToHitGroupIndex */
-        2, /* MultiplierForGeometryContributionToHitGroupIndex */
-        1, /* MissShaderIndex */ 
-        ray, shadowPayload);
+    // Trace a reflection ray. 
+    float4 reflectionColor = float4(0,0,0,0);
+    if (payload.recursionDepth < MAX_RAY_RECURSION_DEPTH)
+    {
+        // Set the ray's extents.
+        RayDesc ray;
+        ray.Origin = hitPosition;
+        ray.Direction = reflect(normalize(WorldRayDirection()), float3(0, 1, 0));// normalize(triangleNormal));
+        // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+        // TMin should be kept small to prevent missing geometry at close contact areas.
+        // For shadow ray this will be extremely small to avoid aliasing at contact areas.
+        ray.TMin = 0;
+        ray.TMax = 10000.0;
+        RayPayload reflectioRayPayload = { float4(0, 0, 0, 0), payload.recursionDepth + 1 };
+        // ToDo use hit/miss indices from a header
+        // ToDo place ShadowHitGroup right after Closest hitgroup?
+        // ToDo review hit group indexing
+        // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
+        TraceRay(Scene,
+            RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
+            ~0,/* InstanceInclusionMask*/
+            0, /* RayContributionToHitGroupIndex */
+            2, /* MultiplierForGeometryContributionToHitGroupIndex */
+            0, /* MissShaderIndex */
+            ray, reflectioRayPayload);
+        reflectionColor = reflectioRayPayload.color;
+    }
 
-    float shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
+    // Trace a shadow ray. 
+    float shadowFactor = 1.0f;
+    if (payload.recursionDepth < MAX_RAY_RECURSION_DEPTH)
+    {
+        // Set the ray's extents.
+        RayDesc ray;
+        ray.Origin = hitPosition;
+        ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
+        // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+        // TMin should be kept small to prevent missing geometry at close contact areas.
+        // For shadow ray this will be extremely small to avoid aliasing at contact areas.
+        ray.TMin = 0;
+        ray.TMax = 10000.0;
+        ShadowRayPayload shadowPayload;
+        // ToDo use hit/miss indices from a header
+        // ToDo place ShadowHitGroup right after Closest hitgroup?
+        // ToDo review hit group indexing
+        // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
+        TraceRay(Scene,
+            RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
+            ~0,/* InstanceInclusionMask*/
+            1, /* RayContributionToHitGroupIndex */
+            2, /* MultiplierForGeometryContributionToHitGroupIndex */
+            1, /* MissShaderIndex */
+            ray, shadowPayload);
+        shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
+    }
+
 
     float4 diffuseColor = shadowFactor * g_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
-    float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
+    float4 color = lerp(g_sceneCB.lightAmbientColor + diffuseColor, reflectionColor, 0.5f);
 
     payload.color = color;
 }
 
 [shader("closesthit")]
-void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_AABB(inout RayPayload payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
 {
     float3 hitPosition = HitWorldPosition();
 
@@ -267,7 +282,7 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
     // ToDo explain use of 0, should it be everywhere? - its ok due to CULL back facing
     ray.TMin = 0;
     ray.TMax = 10000.0;
-    ShadowPayload shadowPayload;
+    ShadowRayPayload shadowPayload;
     // ToDo use hit/miss indices from a header
     TraceRay(Scene,
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
@@ -291,27 +306,27 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
 }
 
 [shader("miss")]
-void MyMissShader(inout HitData payload : SV_RayPayload)
+void MyMissShader(inout RayPayload payload : SV_RayPayload)
 {
     float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f);
     payload.color = background;
 }
 
 [shader("closesthit")]
-void MyClosestHitShader_ShadowRayTriangle(inout ShadowPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_ShadowRayTriangle(inout ShadowRayPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     payload.hit = true;
 }
 
 [shader("closesthit")]
-void MyClosestHitShader_ShadowRayAABB(inout ShadowPayload payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_ShadowRayAABB(inout ShadowRayPayload payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
 {
     payload.hit = true;
 }
 
 
 [shader("miss")]
-void MyMissShader_Shadow(inout ShadowPayload payload : SV_RayPayload)
+void MyMissShader_Shadow(inout ShadowRayPayload payload : SV_RayPayload)
 {
     payload.hit = false;
 }

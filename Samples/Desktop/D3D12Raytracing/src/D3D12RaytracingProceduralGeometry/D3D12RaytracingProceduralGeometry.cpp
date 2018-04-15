@@ -94,7 +94,7 @@ void D3D12RaytracingProceduralGeometry::UpdateCameraMatrices()
     m_sceneCB->cameraPosition = m_eye;
     float fovAngleY = 45.0f;
     XMMATRIX view = XMMatrixLookAtLH(m_eye, m_at, m_up);
-    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 1.0f, 125.0f);
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 0.01f, 125.0f);
     XMMATRIX viewProj = view * proj;
     m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, viewProj);
 }
@@ -436,9 +436,10 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     // Shader config
     // Defines the maximum sizes in bytes for the ray payload and attribute structure.
     auto shaderConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
-    UINT payloadSize = sizeof(XMFLOAT4);    // float4 pixelColor
+    UINT payloadSize = max(sizeof(RayPayload), sizeof(ShadowRayPayload));
     // ToDo fix attribute Size
-    UINT attributeSize = sizeof(XMFLOAT2) + sizeof(XMFLOAT4);  // float2 barycentrics, float4 normal
+    // ToDo fix attribute name
+    UINT attributeSize = sizeof(MyAttributes);  // float2 barycentrics, float4 normal
     shaderConfig->Config(payloadSize, attributeSize);
 
     // Local root signature and shader association
@@ -488,7 +489,7 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
     // PERFOMANCE TIP: Set max recursion depth as low as needed
     // as drivers may apply optimization strategies for low recursion depths.
-    UINT maxRecursionDepth = 2; // ~ primary rays + shadow rays.
+    UINT maxRecursionDepth = MAX_RAY_RECURSION_DEPTH;
     pipelineConfig->Config(maxRecursionDepth);
 
     // Debug
@@ -1187,7 +1188,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     // Rotate the camera around Y axis.
     if (1)
     {
-        float secondsToRotateAround = 24.0f;
+        float secondsToRotateAround = 48.0f;
         float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
         XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
         m_eye = XMVector3Transform(m_eye, rotate);
