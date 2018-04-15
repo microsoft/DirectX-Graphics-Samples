@@ -9,7 +9,10 @@
 //
 //*********************************************************
 
-#pragma once
+#ifndef RAYTRACINGSHADERHELPER_H
+#define RAYTRACINGSHADERHELPER_H
+
+#include "RayTracingHlslCompat.h"
 
 struct Ray
 {
@@ -53,3 +56,5 @@ uint3 Load3x16BitIndices(uint offsetBytes, ByteAddressBuffer Indices)
 
     return indices;
 }
+
+#endif // RAYTRACINGSHADERHELPER_H

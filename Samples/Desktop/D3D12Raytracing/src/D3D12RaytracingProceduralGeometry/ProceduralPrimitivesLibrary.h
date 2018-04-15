@@ -9,7 +9,8 @@
 //
 //*********************************************************
 
-#pragma once
+#ifndef RAYTRACINGPRIMITIVESLIBRARY_H
+#define RAYTRACINGPRIMITIVESLIBRARY_H
 
 #include "RaytracingShaderHelper.h"
 
@@ -124,10 +125,8 @@ bool RaySpheresIntersectionTest(Ray ray, in float tmin, in float tmax, out float
     };
     float  radii[N] = { 0.6, 0.3, 0.15 };
     bool hitFound = false;
-#if 0
-    return RaySphereIntersectionTest(ray.origin, ray.direction, thit, attr, centers[2], radii[2]);
-#elif 1
-    // Workaround for dynamic indexing issue in DXR shaders
+#if DO_NOT_USE_DYNAMIC_INDEXING
+    // Workaround for dynamic indexing issue in DXR shaders on Nvidia
     float _thit;
     thit = tmax;
     ProceduralPrimitiveAttributes _attr;
@@ -234,3 +233,5 @@ bool RayAABBIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiveA
 
     return tmax > tmin;
 }
+
+#endif // RAYTRACINGPRIMITIVESLIBRARY_H

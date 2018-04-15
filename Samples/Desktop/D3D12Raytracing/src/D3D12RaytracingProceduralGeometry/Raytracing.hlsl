@@ -9,6 +9,9 @@
 //
 //*********************************************************
 
+#ifndef RAYTRACING_HLSL
+#define RAYTRACING_HLSL
+
 #define HLSL
 #include "RaytracingHlslCompat.h"
 #include "ProceduralPrimitivesLibrary.h"
@@ -304,3 +307,5 @@ void MyMissShader_Shadow(inout ShadowPayload payload : SV_RayPayload)
 {
     payload.hit = false;
 }
+
+#endif // RAYTRACING_HLSL

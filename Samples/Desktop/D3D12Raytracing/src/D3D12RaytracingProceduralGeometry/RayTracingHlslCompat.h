@@ -9,7 +9,11 @@
 //
 //*********************************************************
 
-#pragma once
+#ifndef RAYTRACINGHLSLCOMPAT_H
+#define RAYTRACINGHLSLCOMPAT_H
+
+// Workaround for dynamic indexing issue in DXR shaders on Nvidia
+#define DO_NOT_USE_DYNAMIC_INDEXING 1 
 
 // Override for debugging, PIX does not support local root constants yet.
 #define USE_LOCAL_ROOT_CONSTANTS 1
@@ -73,3 +77,4 @@ struct AABBPrimitiveAttributes
     XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space
 };
 
+#endif // RAYTRACINGHLSLCOMPAT_H
