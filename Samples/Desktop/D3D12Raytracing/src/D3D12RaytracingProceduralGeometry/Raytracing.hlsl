@@ -204,6 +204,7 @@ void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in Bu
     float3 triangleNormal = HitAttribute(vertexNormals, attr.barycentrics);
 
     // Trace a reflection ray. 
+    // ToDo is this a live value?
     float4 reflectionColor = float4(0,0,0,0);
     if (payload.recursionDepth < MAX_RAY_RECURSION_DEPTH)
     {
@@ -259,9 +260,8 @@ void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in Bu
         shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
     }
 
-
     float4 diffuseColor = shadowFactor * g_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
-    float4 color = lerp(g_sceneCB.lightAmbientColor + diffuseColor, reflectionColor, 0.5f);
+    float4 color = g_sceneCB.lightAmbientColor + diffuseColor + (float4(1,1,1,1) - g_materialCB.albedo) * reflectionColor;
 
     payload.color = color;
 }

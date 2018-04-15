@@ -147,7 +147,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
 
     // Setup materials.
     {
-        m_planeMaterialCB.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+        m_planeMaterialCB.albedo = XMFLOAT4(0.75f, 0.75f, 0.75f, 1.0f);
         m_aabbMaterialCB[IntersectionShaderType::AABB].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
         m_aabbMaterialCB[IntersectionShaderType::Sphere].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
         m_aabbMaterialCB[IntersectionShaderType::Spheres].albedo = XMFLOAT4(0.5f, 1.0f, 0.5f, 1.0f);
