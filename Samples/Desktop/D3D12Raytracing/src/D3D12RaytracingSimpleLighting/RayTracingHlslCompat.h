@@ -31,7 +31,7 @@ struct SceneConstantBuffer
 
 struct CubeConstantBuffer
 {
-    XMVECTOR diffuseColor;
+    XMFLOAT4 albedo;
 };
 
 struct Vertex

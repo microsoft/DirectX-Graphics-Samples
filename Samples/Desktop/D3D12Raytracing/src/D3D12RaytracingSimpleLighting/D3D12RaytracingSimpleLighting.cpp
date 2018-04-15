@@ -100,8 +100,7 @@ void D3D12RaytracingSimpleLighting::InitializeScene()
 
     // Setup materials.
     {
-        XMFLOAT4 cubeDiffuseColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-        m_cubeCB.diffuseColor = XMLoadFloat4(&cubeDiffuseColor);
+        m_cubeCB.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     // Setup camera.
@@ -502,7 +501,7 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
 
     // Mark the geometry as opaque. 
-    // PERFORMANCE TIP: mark geometry as opaque whenever possible as it can enable important ray processing optimizations.
+    // PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
     // Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
     geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
@@ -684,23 +683,37 @@ void D3D12RaytracingSimpleLighting::BuildShaderTables()
         shaderIdentifierSize = m_dxrDevice->GetShaderIdentifierSize();
     }
 
-    // Initialize shader records.
-    // Shader record = {{ Shader ID }, { RootArguments }}
-    static_assert(LocalRootSignatureParams::CubeConstantSlot == 0  && LocalRootSignatureParams::Count == 1, "Checking the local root signature parameters definition here.");
-    struct RootArguments { 
-        CubeConstantBuffer cb;
-    } rootArguments;
-    rootArguments.cb = m_cubeCB;
-    
-    ShaderRecord rayGenShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize, nullptr, 0);
-    rayGenShaderRecord.AllocateAsUploadBuffer(device, &m_rayGenShaderTable, L"RayGenShaderTable");
+    // Ray gen shader table
+    {
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize;
+        ShaderTable rayGenShaderTable(device, numShaderRecords, shaderRecordSize, L"RayGenShaderTable");
+        rayGenShaderTable.push_back(ShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize));
+        m_rayGenShaderTable = rayGenShaderTable.GetResource();
+    }
 
-    ShaderRecord missShaderRecord(missShaderIdentifier, shaderIdentifierSize, nullptr, 0);
-    missShaderRecord.AllocateAsUploadBuffer(device, &m_missShaderTable, L"MissShaderTable");
+    // Miss shader table
+    {
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize;
+        ShaderTable missShaderTable(device, numShaderRecords, shaderRecordSize, L"MissShaderTable");
+        missShaderTable.push_back(ShaderRecord(missShaderIdentifier, shaderIdentifierSize));
+        m_missShaderTable = missShaderTable.GetResource();
+    }
 
-    // Only hit group shader record requires root arguments initialization for the closest hit shader's cube CB access.
-    ShaderRecord hitGroupShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments));
-    hitGroupShaderRecord.AllocateAsUploadBuffer(device, &m_hitGroupShaderTable, L"HitGroupShaderTable");
+    // Hit group shader table
+    {
+        struct RootArguments {
+            CubeConstantBuffer cb;
+        } rootArguments;
+        rootArguments.cb = m_cubeCB;
+
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize + sizeof(rootArguments);
+        ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
+        hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments)));
+        m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
+    }
 }
 
 void D3D12RaytracingSimpleLighting::SelectRaytracingAPI(RaytracingAPI type)

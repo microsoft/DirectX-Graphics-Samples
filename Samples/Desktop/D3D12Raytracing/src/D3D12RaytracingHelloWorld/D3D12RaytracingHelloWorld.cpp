@@ -350,7 +350,7 @@ void D3D12RaytracingHelloWorld::BuildAccelerationStructures()
     geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
 
     // Mark the geometry as opaque. 
-    // PERFORMANCE TIP: mark geometry as opaque whenever possible as it can enable important ray processing optimizations.
+    // PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
     // Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
     geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
@@ -532,23 +532,37 @@ void D3D12RaytracingHelloWorld::BuildShaderTables()
         shaderIdentifierSize = m_dxrDevice->GetShaderIdentifierSize();
     }
 
-    // Initialize shader records.
-    // Shader record = {{ Shader ID }, { RootArguments }}
-    static_assert(LocalRootSignatureParams::ViewportConstantSlot == 0  && LocalRootSignatureParams::Count == 1, "Checking the local root signature parameters definition here.");
-    struct RootArguments {
-        RayGenConstantBuffer cb;
-    } rootArguments;
-    rootArguments.cb = m_rayGenCB;
+    // Ray gen shader table
+    {
+        struct RootArguments {
+            RayGenConstantBuffer cb;
+        } rootArguments;
+        rootArguments.cb = m_rayGenCB;
 
-    // Only ray generation shader record requires root arguments intialization for the CB access.
-    ShaderRecord rayGenShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments));
-    rayGenShaderRecord.AllocateAsUploadBuffer(device, &m_rayGenShaderTable, L"RayGenShaderTable");
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize + sizeof(rootArguments);
+        ShaderTable rayGenShaderTable(device, numShaderRecords, shaderRecordSize, L"RayGenShaderTable");
+        rayGenShaderTable.push_back(ShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments)));
+        m_rayGenShaderTable = rayGenShaderTable.GetResource();
+    }
 
-    ShaderRecord missShaderRecord(missShaderIdentifier, shaderIdentifierSize, nullptr, 0);
-    missShaderRecord.AllocateAsUploadBuffer(device, &m_missShaderTable, L"MissShaderTable");
+    // Miss shader table
+    {
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize;
+        ShaderTable missShaderTable(device, numShaderRecords, shaderRecordSize, L"MissShaderTable");
+        missShaderTable.push_back(ShaderRecord(missShaderIdentifier, shaderIdentifierSize));
+        m_missShaderTable = missShaderTable.GetResource();
+    }
 
-    ShaderRecord hitGroupShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, nullptr, 0);
-    hitGroupShaderRecord.AllocateAsUploadBuffer(device, &m_hitGroupShaderTable, L"HitGroupShaderTable");
+    // Hit group shader table
+    {
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize;
+        ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
+        hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize));
+        m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
+    }
 }
 
 void D3D12RaytracingHelloWorld::SelectRaytracingAPI(RaytracingAPI type)

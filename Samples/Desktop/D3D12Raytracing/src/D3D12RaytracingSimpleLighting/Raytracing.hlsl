@@ -97,7 +97,7 @@ float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
     // Diffuse contribution.
     float fNDotL = max(0.0f, dot(pixelToLight, normal));
 
-    return g_cubeCB.diffuseColor * g_sceneCB.lightDiffuseColor * fNDotL;
+    return g_cubeCB.albedo * g_sceneCB.lightDiffuseColor * fNDotL;
 }
 
 [shader("raygeneration")]

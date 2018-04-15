@@ -26,7 +26,7 @@ StructuredBuffer<Vertex> Vertices : register(t2, space0);
 StructuredBuffer<AABBPrimitiveAttributes> g_AABBPrimitiveAttributes : register(t3, space0);
 
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
-ConstantBuffer<CubeConstantBuffer> g_cubeCB : register(b1);
+ConstantBuffer<MaterialConstantBuffer> g_materialCB : register(b1);
 ConstantBuffer<AABBConstantBuffer> g_aabbCB : register(b2);
 
 struct MyAttributes
@@ -233,7 +233,7 @@ void MyClosestHitShader_Triangle(inout HitData payload : SV_RayPayload, in Built
 
     float shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
 
-    float4 diffuseColor = shadowFactor * g_cubeCB.diffuseColor * CalculateDiffuseLighting(hitPosition, triangleNormal);
+    float4 diffuseColor = shadowFactor * g_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
     payload.color = color;
@@ -270,7 +270,7 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
 #endif
 
     float3 triangleNormal = attr.normal;
-    float4 albedo = float4(g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex].albedo, 1);
+    float4 albedo = g_materialCB.albedo;
     float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 

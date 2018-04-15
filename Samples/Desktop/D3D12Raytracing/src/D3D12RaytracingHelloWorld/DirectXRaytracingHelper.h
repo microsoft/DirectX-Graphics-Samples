@@ -13,6 +13,8 @@
 
 #define SizeOfInUint32(obj) ((sizeof(obj) - 1) / sizeof(UINT32) + 1)
 
+
+// Shader record = {{Shader ID}, {RootArguments}}
 class ShaderRecord
 {
 public:
@@ -26,32 +28,15 @@ public:
         localRootArguments(pLocalRootArguments, localRootArgumentsSize)
     {
     }
-    UINT Size() { return shaderIdentifier.size + localRootArguments.size; }
 
-    void AllocateAsUploadBuffer(ID3D12Device* pDevice, ID3D12Resource **ppResource, const wchar_t* resourceName = nullptr)
+    void CopyTo(void* dest) const
     {
-        auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        UINT size = Align(Size(), D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
-        auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
-        ThrowIfFailed(pDevice->CreateCommittedResource(
-            &uploadHeapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &bufferDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(ppResource)));
-        if (resourceName)
-        {
-            (*ppResource)->SetName(resourceName);
-        }
-        uint8_t *pMappedData;
-        (*ppResource)->Map(0, nullptr, reinterpret_cast<void**>(&pMappedData));
-        memcpy(pMappedData, shaderIdentifier.ptr, shaderIdentifier.size);
+        uint8_t* byteDest = static_cast<uint8_t*>(dest);
+        memcpy(byteDest, shaderIdentifier.ptr, shaderIdentifier.size);
         if (localRootArguments.ptr)
         {
-            memcpy(pMappedData + shaderIdentifier.size, localRootArguments.ptr, localRootArguments.size);
+            memcpy(byteDest + shaderIdentifier.size, localRootArguments.ptr, localRootArguments.size);
         }
-        (*ppResource)->Unmap(0, nullptr);
     }
 
     struct PointerWithSize {
@@ -63,7 +48,51 @@ public:
     };
     PointerWithSize shaderIdentifier;
     PointerWithSize localRootArguments;
+};
 
+// Shader table = {{ ShaderRecord 1}, {ShaderRecord 2}, ...}
+class ShaderTable : public GpuUploadBuffer
+{
+    uint8_t* m_mappedShaderRecords;
+    UINT m_shaderRecordSize;
+
+    // Debug support
+    std::wstring m_name;
+    std::vector<ShaderRecord> m_shaderRecords;
+
+    ShaderTable() {}
+public:
+    ShaderTable(ID3D12Device* device, UINT numShaderRecords, UINT shaderRecordSize, LPCWSTR resourceName = nullptr) 
+        : m_shaderRecordSize(shaderRecordSize), m_name(resourceName)
+    {
+        m_shaderRecords.reserve(numShaderRecords);
+        UINT bufferSize = numShaderRecords * Align(m_shaderRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+        Allocate(device, bufferSize, resourceName);
+        m_mappedShaderRecords = MapCpuWriteOnly();
+    }
+    
+    void push_back(const ShaderRecord& shaderRecord)
+    {
+        ThrowIfFalse(m_shaderRecords.size() < m_shaderRecords.capacity());
+        m_shaderRecords.push_back(shaderRecord);
+        shaderRecord.CopyTo(m_mappedShaderRecords);
+        m_mappedShaderRecords += m_shaderRecordSize;
+    }
+
+    // Pretty-print the shader records.
+    void DebugPrint(std::unordered_map<void*, std::wstring> shaderIdToStringMap)
+    {
+        std::wstringstream wstr;
+        wstr << L"Shader table - " << m_name.c_str() << L": " << L"\n";
+
+        for (UINT i = 0; i < m_shaderRecords.size(); i++)
+        {
+            wstr << L"[" << i << L"]: ";
+            wstr << shaderIdToStringMap[m_shaderRecords[i].shaderIdentifier.ptr] << L", ";
+            wstr << m_shaderRecords[i].localRootArguments.size << L" bytes \n";
+        }
+        OutputDebugStringW(wstr.str().c_str());
+    }
 };
 
 inline void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Resource **ppResource, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr)
