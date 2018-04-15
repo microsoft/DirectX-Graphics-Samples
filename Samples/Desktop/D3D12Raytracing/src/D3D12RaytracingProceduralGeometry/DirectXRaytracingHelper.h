@@ -13,6 +13,8 @@
 
 #define SizeOfInUint32(obj) ((sizeof(obj) - 1) / sizeof(UINT32) + 1)
 
+
+// Shader record = {{Shader ID}, {RootArguments}}
 class ShaderRecord
 {
 public:
@@ -26,42 +28,15 @@ public:
         localRootArguments(pLocalRootArguments, localRootArgumentsSize)
     {
     }
-    UINT Size() const { return Align(shaderIdentifier.size + localRootArguments.size, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT); }
 
-    void CopyTo(void* dest) 
+    void CopyTo(void* dest) const
     {
         uint8_t* byteDest = static_cast<uint8_t*>(dest);
         memcpy(byteDest, shaderIdentifier.ptr, shaderIdentifier.size);
         if (localRootArguments.ptr)
         {
-            memcpy(byteDest + shaderIdentifier.size, localRootArguments.ptr, shaderIdentifier.size);
+            memcpy(byteDest + shaderIdentifier.size, localRootArguments.ptr, localRootArguments.size);
         }
-    }
-
-    void AllocateAsUploadBuffer(ID3D12Device* pDevice, ID3D12Resource **ppResource, const wchar_t* resourceName = nullptr)
-    {
-        auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        UINT size = Align(Size(), D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
-        auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
-        ThrowIfFailed(pDevice->CreateCommittedResource(
-            &uploadHeapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &bufferDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(ppResource)));
-        if (resourceName)
-        {
-            (*ppResource)->SetName(resourceName);
-        }
-        uint8_t *pMappedData;
-        (*ppResource)->Map(0, nullptr, reinterpret_cast<void**>(&pMappedData));
-        memcpy(pMappedData, shaderIdentifier.ptr, shaderIdentifier.size);
-        if (localRootArguments.ptr)
-        {
-            memcpy(pMappedData + shaderIdentifier.size, localRootArguments.ptr, localRootArguments.size);
-        }
-        (*ppResource)->Unmap(0, nullptr);
     }
 
     struct PointerWithSize {
@@ -75,53 +50,43 @@ public:
     PointerWithSize localRootArguments;
 };
 
-class ShaderTable
+// Shader table = {{ ShaderRecord 1}, {ShaderRecord 2}, ...}
+class ShaderTable : public GpuUploadBuffer
 {
-    UINT m_maxShaderRecordSize;
+    uint8_t* m_mappedShaderRecords;
+    UINT m_shaderRecordSize;
+
+    // Debug support
+    std::wstring m_name;
     std::vector<ShaderRecord> m_shaderRecords;
-    std::wstring m_resourceName;
 
+    ShaderTable() {}
 public:
-    ShaderTable(LPCWSTR resourceName = nullptr) : m_maxShaderRecordSize(0), m_resourceName(resourceName) {}
-    UINT GetMaxShaderRecordSize() const { return m_maxShaderRecordSize; }
-    UINT Size() const { return static_cast<UINT>(m_shaderRecords.size()) * GetMaxShaderRecordSize(); }
-
+    ShaderTable(ID3D12Device* device, UINT numShaderRecords, UINT shaderRecordSize, LPCWSTR resourceName = nullptr) 
+        : m_name(resourceName)
+    {
+        m_shaderRecordSize = Align(shaderRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+        m_shaderRecords.reserve(numShaderRecords);
+        UINT bufferSize = numShaderRecords * m_shaderRecordSize;
+        Allocate(device, bufferSize, resourceName);
+        m_mappedShaderRecords = MapCpuWriteOnly();
+    }
+    
     void push_back(const ShaderRecord& shaderRecord)
     {
-        m_maxShaderRecordSize = max(shaderRecord.Size(), m_maxShaderRecordSize);
+        ThrowIfFalse(m_shaderRecords.size() < m_shaderRecords.capacity());
         m_shaderRecords.push_back(shaderRecord);
+        shaderRecord.CopyTo(m_mappedShaderRecords);
+        m_mappedShaderRecords += m_shaderRecordSize;
     }
 
-    void AllocateAsUploadBuffer(ID3D12Device* pDevice, ID3D12Resource **ppResource)
-    {
-        auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        UINT bufferSize = Size();
-        UINT shaderRecordStride = GetMaxShaderRecordSize();
-
-        auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
-        ThrowIfFailed(pDevice->CreateCommittedResource(
-            &uploadHeapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &bufferDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(ppResource)));
-        (*ppResource)->SetName(m_resourceName.c_str());
-        uint8_t *pMappedData;
-        (*ppResource)->Map(0, nullptr, reinterpret_cast<void**>(&pMappedData));
-        for (auto& shaderRecord : m_shaderRecords)
-        {
-            shaderRecord.CopyTo(pMappedData);
-            pMappedData += shaderRecordStride;
-        }
-        (*ppResource)->Unmap(0, nullptr);
-    }
+    UINT GetShaderRecordSize() { return m_shaderRecordSize; }
 
     // Pretty-print the shader records.
     void DebugPrint(std::unordered_map<void*, std::wstring> shaderIdToStringMap)
     {
         std::wstringstream wstr;
-        wstr << L"Shader table - " << m_resourceName << L": " << L"\n";
+        wstr << L"Shader table - " << m_name.c_str() << L": " << L"\n";
 
         for (UINT i = 0; i < m_shaderRecords.size(); i++)
         {

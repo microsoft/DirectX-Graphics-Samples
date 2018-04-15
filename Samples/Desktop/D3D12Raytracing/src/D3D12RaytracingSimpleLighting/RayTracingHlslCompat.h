@@ -9,7 +9,8 @@
 //
 //*********************************************************
 
-#pragma once
+#ifndef RAYTRACINGHLSLCOMPAT_H
+#define RAYTRACINGHLSLCOMPAT_H
 
 #ifdef HLSL
 #include "HlslCompat.h"
@@ -31,7 +32,7 @@ struct SceneConstantBuffer
 
 struct CubeConstantBuffer
 {
-    XMVECTOR diffuseColor;
+    XMFLOAT4 albedo;
 };
 
 struct Vertex
@@ -39,3 +40,5 @@ struct Vertex
     XMFLOAT3 position;
     XMFLOAT3 normal;
 };
+
+#endif // RAYTRACINGHLSLCOMPAT_H

@@ -9,7 +9,8 @@
 //
 //*********************************************************
 
-#pragma once
+#ifndef RAYTRACINGPRIMITIVESLIBRARY_H
+#define RAYTRACINGPRIMITIVESLIBRARY_H
 
 #include "RaytracingShaderHelper.h"
 
@@ -45,8 +46,30 @@ bool SolveQuadraticEqn(float a, float b, float c, out float x0, out float x1)
     return true;
 }
 
+// ToDo - take ray flags into consideration
+// if ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dot(localRay.direction, attr.normal) < 0))
+// 
+
+// Test if a hit is valid based on specified RayFlags
+bool IsAValidHit(RAY_FLAG rayFlags, in Ray ray, in float3 surfaceNormal)
+{
+    float dirNormalDot = dot(ray.direction, surfaceNormal);
+    return (
+        !(rayFlags & (RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_CULL_FRONT_FACING_TRIANGLES)) ||
+        ((rayFlags & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dirNormalDot < 0)) ||
+        ((rayFlags & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (dirNormalDot > 0)));
+}
+
+// Calculates a normal for a hit point on a sphere 
+float3 CalculateNormalForARaySphereHit(in Ray ray, in float thit, float3 center)
+{
+    float3 hitPosition = ray.origin + thit * ray.direction;
+    // Transform by a row-major object to world matrix
+    return mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
+}
+
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-bool RaySphereIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiveAttributes attr, float3 center = float3(0, 0, 0), float radius = 1)
+bool RaySphereIntersectionTest(Ray ray, in float tmin, out float thit, inout ProceduralPrimitiveAttributes attr, float3 center = float3(0, 0, 0), float radius = 1)
 {
     float t0, t1; // solutions for t if the ray intersects 
     float radius2 = pow(radius, 2);
@@ -60,24 +83,38 @@ bool RaySphereIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiv
 
     if (t0 > t1) swap(t0, t1);
 
-    if (t0 < 0)
+    if (t0 < tmin)
     {
-        t0 = t1; // if t0 is negative, let's use t1 instead 
-        if (t0 < 0) return false; // both t0 and t1 are negative 
+        // t0 is before tmin, let's use t1 instead 
+        if (t1 < tmin) return false; // both t0 and t1 are before tmin
+
+        attr.normal = CalculateNormalForARaySphereHit(ray, t1, center);
+        if (IsAValidHit(RayFlags(), ray, attr.normal))
+        {
+            thit = t1;
+            return true;
+        }
     }
+    else
+    {
+        attr.normal = CalculateNormalForARaySphereHit(ray, t0, center);
+        if (IsAValidHit(RayFlags(), ray, attr.normal))
+        {
+            thit = t0;
+            return true;
+        }
 
-    thit = t0;
-
-    float3 hitPosition = ray.origin + thit * ray.direction;
-    // Transform by a row-major object to world matrix
-    // ToDo do not use semantics directnly in the tests
-    attr.normal = mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
-
-    //attr.barycentrics = float2(0.5, 0.9);
-    return true;
+        attr.normal = CalculateNormalForARaySphereHit(ray, t1, center);
+        if (IsAValidHit(RayFlags(), ray, attr.normal))
+        {
+            thit = t1;
+            return true;
+        }
+    }
+    return false;
 }
 
-bool RaySpheresIntersectionTest(Ray ray, out float thit, in float tmin, in float tmax, inout ProceduralPrimitiveAttributes attr)
+bool RaySpheresIntersectionTest(Ray ray, in float tmin, in float tmax, out float thit, inout ProceduralPrimitiveAttributes attr)
 {
     const int N = 3;
     float3 centers[N] =
@@ -88,14 +125,12 @@ bool RaySpheresIntersectionTest(Ray ray, out float thit, in float tmin, in float
     };
     float  radii[N] = { 0.6, 0.3, 0.15 };
     bool hitFound = false;
-#if 0
-    return RaySphereIntersectionTest(ray.origin, ray.direction, thit, attr, centers[2], radii[2]);
-#elif 1
-    // Workaround for dynamic indexing issue in DXR shaders
+#if DO_NOT_USE_DYNAMIC_INDEXING
+    // Workaround for dynamic indexing issue in DXR shaders on Nvidia
     float _thit;
     thit = tmax;
     ProceduralPrimitiveAttributes _attr;
-    if (RaySphereIntersectionTest(ray, _thit, _attr, centers[0], radii[0]))
+    if (RaySphereIntersectionTest(ray, tmin, _thit, _attr, centers[0], radii[0]))
     {
         if (IsInRange(_thit, tmin, thit))
         {
@@ -104,7 +139,7 @@ bool RaySpheresIntersectionTest(Ray ray, out float thit, in float tmin, in float
             hitFound = true;
         }
     }
-    if (RaySphereIntersectionTest(ray, _thit, _attr, centers[1], radii[1]))
+    if (RaySphereIntersectionTest(ray, tmin, _thit, _attr, centers[1], radii[1]))
     {
         if (IsInRange(_thit, tmin, thit))
         {
@@ -113,7 +148,7 @@ bool RaySpheresIntersectionTest(Ray ray, out float thit, in float tmin, in float
             hitFound = true;
         }
     }
-    if (RaySphereIntersectionTest(ray, _thit, _attr, centers[2], radii[2]))
+    if (RaySphereIntersectionTest(ray, tmin, _thit, _attr, centers[2], radii[2]))
     {
         if (IsInRange(_thit, tmin, thit))
         {
@@ -198,3 +233,5 @@ bool RayAABBIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiveA
 
     return tmax > tmin;
 }
+
+#endif // RAYTRACINGPRIMITIVESLIBRARY_H

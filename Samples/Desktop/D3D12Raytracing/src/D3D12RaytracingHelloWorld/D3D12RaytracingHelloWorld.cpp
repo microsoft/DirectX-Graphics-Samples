@@ -242,10 +242,10 @@ void D3D12RaytracingHelloWorld::CreateRaytracingPipelineStateObject()
     // Pipeline config
     // Defines the maximum TraceRay() recursion depth.
     auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
-    // Setting max recursion depth at 1 ~ primary rays only. 
-    // Drivers may apply optimization strategies for low recursion depths, 
-    // so it is recommended to set max recursion depth as low as needed. 
-    pipelineConfig->Config(1);  
+    // PERFOMANCE TIP: Set max recursion depth as low as needed 
+    // as drivers may apply optimization strategies for low recursion depths. 
+    UINT maxRecursionDepth = 1; // ~ primary rays only. 
+    pipelineConfig->Config(maxRecursionDepth);
 
 #if _DEBUG
     PrintStateObjectDesc(raytracingPipeline);
@@ -350,8 +350,8 @@ void D3D12RaytracingHelloWorld::BuildAccelerationStructures()
     geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
 
     // Mark the geometry as opaque. 
-    // Note: when rays encounter this geometry an any hit shader will not be executed whether it is present or not. 
-    // It is recommended to use this flag liberally, as it can enable important ray processing optimizations.
+    // PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
+    // Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
     geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
     // Get required sizes for an acceleration structure.
@@ -532,23 +532,37 @@ void D3D12RaytracingHelloWorld::BuildShaderTables()
         shaderIdentifierSize = m_dxrDevice->GetShaderIdentifierSize();
     }
 
-    // Initialize shader records.
-    // Shader record = {{ Shader ID }, { RootArguments }}
-    static_assert(LocalRootSignatureParams::ViewportConstantSlot == 0  && LocalRootSignatureParams::Count == 1, "Checking the local root signature parameters definition here.");
-    struct RootArguments {
-        RayGenConstantBuffer cb;
-    } rootArguments;
-    rootArguments.cb = m_rayGenCB;
+    // Ray gen shader table
+    {
+        struct RootArguments {
+            RayGenConstantBuffer cb;
+        } rootArguments;
+        rootArguments.cb = m_rayGenCB;
 
-    // Only ray generation shader record requires root arguments intialization for the CB access.
-    ShaderRecord rayGenShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments));
-    rayGenShaderRecord.AllocateAsUploadBuffer(device, &m_rayGenShaderTable, L"RayGenShaderTable");
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize + sizeof(rootArguments);
+        ShaderTable rayGenShaderTable(device, numShaderRecords, shaderRecordSize, L"RayGenShaderTable");
+        rayGenShaderTable.push_back(ShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments)));
+        m_rayGenShaderTable = rayGenShaderTable.GetResource();
+    }
 
-    ShaderRecord missShaderRecord(missShaderIdentifier, shaderIdentifierSize, nullptr, 0);
-    missShaderRecord.AllocateAsUploadBuffer(device, &m_missShaderTable, L"MissShaderTable");
+    // Miss shader table
+    {
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize;
+        ShaderTable missShaderTable(device, numShaderRecords, shaderRecordSize, L"MissShaderTable");
+        missShaderTable.push_back(ShaderRecord(missShaderIdentifier, shaderIdentifierSize));
+        m_missShaderTable = missShaderTable.GetResource();
+    }
 
-    ShaderRecord hitGroupShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, nullptr, 0);
-    hitGroupShaderRecord.AllocateAsUploadBuffer(device, &m_hitGroupShaderTable, L"HitGroupShaderTable");
+    // Hit group shader table
+    {
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize;
+        ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
+        hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize));
+        m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
+    }
 }
 
 void D3D12RaytracingHelloWorld::SelectRaytracingAPI(RaytracingAPI type)

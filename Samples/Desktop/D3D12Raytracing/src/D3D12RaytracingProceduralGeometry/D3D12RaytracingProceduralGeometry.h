@@ -26,29 +26,49 @@ namespace GlobalRootSignatureParams {
     };
 }
 
-// Gate use of Empty on NV as a current workaround
-
 namespace LocalRootSignatures {
     enum Value {
         Triangle = 0,
         AABB,
+#if USE_NON_NULL_LOCAL_ROOT_SIG
         Empty,
+#endif
         Count
     };
 }
 
-namespace LocalRootSignatureParamsTriangle {
-    enum Value {
-        CubeConstantSlot = 0,
-        Count
-    };
-}
+namespace LocalRootSignature {
+    namespace Triangle {
+        enum Slot {
+            MaterialConstantSlot = 0,
+            Count
+        };
 
-namespace LocalRootSignatureParamsAABB {
-    enum Value {
-        GeometryIndex = 0,
-        Count
-    };
+        struct RootArguments {
+            MaterialConstantBuffer materialCb;
+        };
+    }
+
+    namespace AABB {
+        enum Slot {
+            MaterialConstantSlot = 0,
+            // ToDo rename GeometryIndexSlot
+            GeometryIndexSlot,
+            Count
+        };
+        struct RootArguments {
+            MaterialConstantBuffer materialCb;
+#if USE_LOCAL_ROOT_CONSTANTS
+            AABBConstantBuffer aabbCB;
+#else
+            D3D12_GPU_DESCRIPTOR_HANDLE aabbCBdescriptorHandle;
+#endif
+        };
+    }
+    inline UINT MaxRootArgumentsSize()
+    {
+        return max(sizeof(Triangle::RootArguments), sizeof(AABB::RootArguments));
+    }
 }
 
 // Bottom level acceleration structures (BottomLevelASType).
@@ -65,6 +85,7 @@ namespace BottomLevelASType {
 namespace TriangleHitGroupType {
     enum Value {
         Triangle = 0,
+        ShadowRayTriangle,
         Count
     };
 }
@@ -72,7 +93,7 @@ namespace TriangleHitGroupType {
 namespace AABBHitGroupType {
     enum Value {
         AABB = 0,
-        ShadowAABB,
+        ShadowRayAABB,
         Count
     };
 }
@@ -88,8 +109,9 @@ namespace RayType {
 namespace ClosestHitRayType {
     enum Value {
         Triangle = 0,
+        ShadowRayTriangle,
         AABB,
-        ShadowAABB,
+        ShadowRayAABB,
         Count
     };
 }
@@ -113,7 +135,6 @@ struct AccelerationStructureBuffers
     UINT64                 ResultDataMaxSizeInBytes;
 };
 
-// The sample supports both Raytracing Fallback Layer and DirectX Raytracing APIs. 
 // This is purely for demonstration purposes to show where the API differences are. 
 // Real-world applications will implement only one or the other. 
 // Fallback Layer uses DirectX Raytracing if a driver and OS supports it. 
@@ -145,17 +166,6 @@ public:
 private:
     static const UINT FrameCount = 3;
 
-    // We'll allocate space for several of these and they will need to be padded for alignment.
-    static_assert(sizeof(SceneConstantBuffer) < D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, "Checking the size here.");
-
-    union AlignedSceneConstantBuffer
-    {
-        SceneConstantBuffer constants;
-        uint8_t alignmentPadding[D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT];
-    };
-    AlignedSceneConstantBuffer*  m_mappedConstantData;
-    ComPtr<ID3D12Resource>       m_perFrameConstants;
-
     // Number of AABB BLAS instances
     static const UINT NUM_INSTANCE_X = 2;
     static const UINT NUM_INSTANCE_Y = 1;
@@ -170,13 +180,8 @@ private:
 
     static const UINT NUM_BLAS = 1 + NUM_INSTANCES; // Triangle BLAS + AABB BLAS instances
 
-    static const UINT NUM_PROCEDURAL_SHADERS = 3;
-    const float c_aabbWidth = 2;
+    const float c_aabbWidth = 2;      // AABB width
     const float c_aabbDistance = 2;   // Distance between AABBs
-    static const UINT AABB_BUFFER_SIZE = NUM_AABB * sizeof(AABBPrimitiveAttributes);
-    AABBPrimitiveAttributes*     m_mappedAABBPrimitiveAttributes;
-    ComPtr<ID3D12Resource>       m_perFrameAABBPrimitiveAttributes;
-    AABBPrimitiveAttributes      m_aabbPrimitiveAttributeBuffer[FrameCount][NUM_AABB_Z][NUM_AABB_Y][NUM_AABB_X];
 
     // Raytracing Fallback Layer (FL) attributes
     ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
@@ -199,17 +204,17 @@ private:
     UINT m_descriptorsAllocated;
     UINT m_descriptorSize;
 
+    // ToDo use root constants instead of CBVs
+
     // Raytracing scene
-    SceneConstantBuffer m_sceneCB[FrameCount];
-    CubeConstantBuffer m_cubeCB;
+    ConstantBuffer<SceneConstantBuffer> m_sceneCB;
+    StructuredBuffer<AABBPrimitiveAttributes> m_aabbPrimitiveAttributeBuffer;
+    
+    // Root constants
+    MaterialConstantBuffer m_planeMaterialCB;
+    MaterialConstantBuffer m_aabbMaterialCB[IntersectionShaderType::Count];
 
     // Geometry
-    struct D3DBuffer
-    {
-        ComPtr<ID3D12Resource> resource;
-        D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle;
-        D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
-    };
     D3DBuffer m_indexBuffer;
     D3DBuffer m_vertexBuffer;
     D3DBuffer m_aabbBuffer;
@@ -268,7 +273,8 @@ private:
     void CreateRaytracingOutputResource();
     void BuildProceduralGeometryAABBs();
     void BuildGeometry();
-    void BuildBottomLevelGeometryDescs(std::array<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count>& geometryDescs);
+    void BuildPlaneGeometry();
+    void BuildGeometryDescsForBottomLevelAS(std::array<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count>& geometryDescs);
     template <class InstanceDescType, class BLASPtrType>
     void BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
     AccelerationStructureBuffers BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);

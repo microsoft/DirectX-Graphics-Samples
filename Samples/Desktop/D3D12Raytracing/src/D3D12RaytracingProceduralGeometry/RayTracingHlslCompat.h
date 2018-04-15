@@ -9,10 +9,21 @@
 //
 //*********************************************************
 
-#pragma once
+#ifndef RAYTRACINGHLSLCOMPAT_H
+#define RAYTRACINGHLSLCOMPAT_H
 
-#define USE_AABB_LOCAL_ROOT_SIG 1
-#define USE_LOCAL_ROOT_CONSTANTS 1  // Local root constatns are not supported in PIX yet
+// Workaround for dynamic indexing issue in DXR shaders on Nvidia
+#define DO_NOT_USE_DYNAMIC_INDEXING 1 
+
+// Override for debugging, PIX does not support local root constants yet.
+#define USE_LOCAL_ROOT_CONSTANTS 1
+
+// Workaround for NV driver as it requires all shaders 
+// to have a local root signature bound, even if it's empty.
+#define USE_NON_NULL_LOCAL_ROOT_SIG 1  
+
+// Workaround for the Fallback Layer not supporting default exports for DXIL libraries
+#define DEFINE_EXPLICIT_SHADER_EXPORTS 1
 
 #ifdef HLSL
 #include "HlslCompat.h"
@@ -23,6 +34,29 @@ using namespace DirectX;
 typedef UINT16 Index;
 #endif
 
+// PERFOMANCE TIP: Set max recursion depth as low as needed
+// as drivers may apply optimization strategies for low recursion depths.
+#define MAX_RAY_RECURSION_DEPTH 3 // ToDo ~ primary rays + reflections + shadow rays.
+
+// ToDo cleanup
+struct MyAttributes
+{
+    XMFLOAT2 barycentrics;
+    XMFLOAT4 normal;
+};
+
+struct ShadowRayPayload
+{
+    bool hit;
+};
+
+
+struct RayPayload
+{
+    XMFLOAT4 color;
+    UINT   recursionDepth;
+};
+
 struct SceneConstantBuffer
 {
     XMMATRIX projectionToWorld;
@@ -32,9 +66,9 @@ struct SceneConstantBuffer
     XMVECTOR lightDiffuseColor;
 };
 
-struct CubeConstantBuffer
+struct MaterialConstantBuffer
 {
-    XMVECTOR diffuseColor;
+    XMFLOAT4 albedo;
 };
 
 struct AABBConstantBuffer
@@ -60,13 +94,10 @@ struct RectangularPrismAABB
     XMFLOAT3 maxPosition;
 };
 
-// ToDo: align all structs
-// Performance tip: Align structures on sizeof(float4) boundary.
-// Ref: https://developer.nvidia.com/content/understanding-structured-buffer-performance
 struct AABBPrimitiveAttributes
 {
+    XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space
     XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space
-    XMFLOAT3 albedo;
-    float    padding;
 };
 
+#endif // RAYTRACINGHLSLCOMPAT_H
