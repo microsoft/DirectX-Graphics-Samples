@@ -149,7 +149,7 @@ void MyIntersectionShader_Spheres()
     ProceduralPrimitiveAttributes attr;
     float tHit;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
-    if (RaySpheresIntersectionTest(localRay, tHit, RayTMin(), RayTCurrent(), attr))
+    if (RaySpheresIntersectionTest(localRay, RayTMin(), RayTCurrent(), tHit, attr))
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS).xyz;
@@ -165,7 +165,7 @@ void MyIntersectionShader_Sphere()
     ProceduralPrimitiveAttributes attr;
     float tHit;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
-    if (RaySphereIntersectionTest(localRay, tHit, attr))
+    if (RaySphereIntersectionTest(localRay, RayTMin(), tHit, attr))
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS).xyz;
