@@ -116,7 +116,7 @@ void MyRaygenShader()
     ray.Direction = rayDir;
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     // TMin should be kept small to prevent missing geometry at close contact areas.
-    ray.TMin = 0.001;
+    ray.TMin = 0;
     ray.TMax = 10000.0;
     HitData payload = { float4(0, 0, 0, 0) };
     TraceRay(
@@ -228,7 +228,7 @@ void MyClosestHitShader_Triangle(inout HitData payload : SV_RayPayload, in Built
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     // TMin should be kept small to prevent missing geometry at close contact areas.
     // For shadow ray this will be extremely small to avoid aliasing at contact areas.
-    ray.TMin = 0.0001;
+    ray.TMin = 0;
     ray.TMax = 10000.0;
     ShadowPayload shadowPayload;
     // ToDo use hit/miss indices from a header
@@ -264,7 +264,8 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
     ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     // TMin should be kept small to prevent missing geometry at close contact areas.
-    ray.TMin = 0.0001;
+    // ToDo explain use of 0, should it be everywhere? - its ok due to CULL back facing
+    ray.TMin = 0;
     ray.TMax = 10000.0;
     ShadowPayload shadowPayload;
     // ToDo use hit/miss indices from a header
