@@ -49,6 +49,16 @@ bool SolveQuadraticEqn(float a, float b, float c, out float x0, out float x1)
 // if ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dot(localRay.direction, attr.normal) < 0))
 // 
 
+// Test if a hit is valid based on specified RayFlags
+bool IsAValidHit(RAY_FLAG rayFlags, in Ray ray, in float3 surfaceNormal)
+{
+    float dirNormalDot = dot(ray.direction, surfaceNormal);
+    return (
+        !(rayFlags & (RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_CULL_FRONT_FACING_TRIANGLES)) ||
+        ((rayFlags & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dirNormalDot < 0)) ||
+        ((rayFlags & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (dirNormalDot > 0)));
+}
+
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
 bool RaySphereIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiveAttributes attr, float3 center = float3(0, 0, 0), float radius = 1)
 {
@@ -74,7 +84,7 @@ bool RaySphereIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiv
         // ToDo do not use semantics directnly in the tests
         attr.normal = mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
 
-        if ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dot(ray.direction, attr.normal) < 0))
+        if (IsAValidHit(RayFlags(), ray, attr.normal))
         {
             thit = t0;
             return true;
@@ -87,7 +97,7 @@ bool RaySphereIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiv
         // ToDo do not use semantics directnly in the tests
         attr.normal = mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
 
-        if ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dot(ray.direction, attr.normal) < 0))
+        if (IsAValidHit(RayFlags(), ray, attr.normal))
         {
             thit = t0;
             return true;
@@ -98,7 +108,7 @@ bool RaySphereIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiv
         // ToDo do not use semantics directnly in the tests
         attr.normal = mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
 
-        if ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dot(ray.direction, attr.normal) < 0))
+        if (IsAValidHit(RayFlags(), ray, attr.normal))
         {
             thit = t1;
             return true;
