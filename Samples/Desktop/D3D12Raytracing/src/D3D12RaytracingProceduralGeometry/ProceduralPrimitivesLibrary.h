@@ -45,6 +45,10 @@ bool SolveQuadraticEqn(float a, float b, float c, out float x0, out float x1)
     return true;
 }
 
+// ToDo - take ray flags into consideration
+// if ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dot(localRay.direction, attr.normal) < 0))
+// 
+
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
 bool RaySphereIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiveAttributes attr, float3 center = float3(0, 0, 0), float radius = 1)
 {
@@ -62,19 +66,45 @@ bool RaySphereIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiv
 
     if (t0 < 0)
     {
-        t0 = t1; // if t0 is negative, let's use t1 instead 
-        if (t0 < 0) return false; // both t0 and t1 are negative 
+        // if t0 is negative, let's use t1 instead 
+        if (t1 < 0) return false; // both t0 and t1 are negative 
+
+        float3 hitPosition = ray.origin + t1 * ray.direction;
+        // Transform by a row-major object to world matrix
+        // ToDo do not use semantics directnly in the tests
+        attr.normal = mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
+
+        if ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dot(ray.direction, attr.normal) < 0))
+        {
+            thit = t0;
+            return true;
+        }
     }
+    else
+    {
+        float3 hitPosition = ray.origin + t0 * ray.direction;
+        // Transform by a row-major object to world matrix
+        // ToDo do not use semantics directnly in the tests
+        attr.normal = mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
 
-    thit = t0;
+        if ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dot(ray.direction, attr.normal) < 0))
+        {
+            thit = t0;
+            return true;
+        }
 
-    float3 hitPosition = ray.origin + thit * ray.direction;
-    // Transform by a row-major object to world matrix
-    // ToDo do not use semantics directnly in the tests
-    attr.normal = mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
+        hitPosition = ray.origin + t1 * ray.direction;
+        // Transform by a row-major object to world matrix
+        // ToDo do not use semantics directnly in the tests
+        attr.normal = mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
 
-    //attr.barycentrics = float2(0.5, 0.9);
-    return true;
+        if ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (dot(ray.direction, attr.normal) < 0))
+        {
+            thit = t1;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool RaySpheresIntersectionTest(Ray ray, out float thit, in float tmin, in float tmax, inout ProceduralPrimitiveAttributes attr)

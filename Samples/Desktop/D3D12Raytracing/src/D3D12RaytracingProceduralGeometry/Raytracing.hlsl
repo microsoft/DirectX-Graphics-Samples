@@ -151,6 +151,7 @@ void MyIntersectionShader_Spheres()
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
     if (RaySpheresIntersectionTest(localRay, tHit, RayTMin(), RayTCurrent(), attr))
     {
+
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS).xyz;
 
@@ -171,7 +172,7 @@ void MyIntersectionShader_Sphere()
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS).xyz;
 
         // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
-        ReportHit(tHit, /*hitKind*/ 0, attr);
+        ReportHit(tHit, /*hitKind*/ 0, attr);       
     }
 }
 
@@ -233,7 +234,7 @@ void MyClosestHitShader_Triangle(inout HitData payload : SV_RayPayload, in Built
     // ToDo review hit group indexing
     // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
     TraceRay(Scene,
-        RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
+        RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
         ~0,/* InstanceInclusionMask*/
         1, /* RayContributionToHitGroupIndex */
         2, /* MultiplierForGeometryContributionToHitGroupIndex */
@@ -253,7 +254,7 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
 {
     float3 hitPosition = HitWorldPosition();
 
-#if 0 // ToDo doesn't work properly
+#if 1 // ToDo doesn't work properly
     // Trace a shadow ray. 
     // Set the ray's extents.
     RayDesc ray;
@@ -261,12 +262,12 @@ void MyClosestHitShader_AABB(inout HitData payload : SV_RayPayload, in Procedura
     ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     // TMin should be kept small to prevent missing geometry at close contact areas.
-    ray.TMin = 0.001;
+    ray.TMin = 0.0001;
     ray.TMax = 10000.0;
     ShadowPayload shadowPayload;
     // ToDo use hit/miss indices from a header
     TraceRay(Scene,
-        RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
+        RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
         ~0,/* InstanceInclusionMask*/
         1, /* RayContributionToHitGroupIndex */
         2, /* MultiplierForGeometryContributionToHitGroupIndex */
