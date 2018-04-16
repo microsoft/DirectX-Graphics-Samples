@@ -13,6 +13,13 @@
 
 #define SizeOfInUint32(obj) ((sizeof(obj) - 1) / sizeof(UINT32) + 1)
 
+struct AccelerationStructureBuffers
+{
+    ComPtr<ID3D12Resource> scratch;
+    ComPtr<ID3D12Resource> accelerationStructure;
+    ComPtr<ID3D12Resource> instanceDesc;    // Used only for top-level AS
+    UINT64                 ResultDataMaxSizeInBytes;
+};
 
 // Shader record = {{Shader ID}, {RootArguments}}
 class ShaderRecord
@@ -114,6 +121,26 @@ inline void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Re
         (*ppResource)->SetName(resourceName);
     }
 }
+
+template<class T, size_t N>
+void DefineExports(T* obj, LPCWSTR(&Exports)[N])
+{
+    for (UINT i = 0; i < N; i++)
+    {
+        obj->DefineExport(Exports[i]);
+    }
+}
+
+template<class T, size_t N, size_t M>
+void DefineExports(T* obj, LPCWSTR(&Exports)[N][M])
+{
+    for (UINT i = 0; i < N; i++)
+        for (UINT j = 0; j < M; j++)
+        {
+            obj->DefineExport(Exports[i][j]);
+        }
+}
+
 
 inline void AllocateUploadBuffer(ID3D12Device* pDevice, void *pData, UINT64 datasize, ID3D12Resource **ppResource, const wchar_t* resourceName = nullptr)
 {
@@ -271,11 +298,11 @@ inline bool EnableRaytracing()
 inline void StoreXMMatrixAsTransform3x4
 (
     float transform3x4[12],
-    const XMMATRIX& m
+    const DirectX::XMMATRIX& m
 )
 {
-    XMMATRIX mT = XMMatrixTranspose(m); // convert row-major to column-major
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[0]), mT.r[0]);
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[4]), mT.r[1]);
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[8]), mT.r[2]);
+    DirectX::XMMATRIX mT = XMMatrixTranspose(m); // convert row-major to column-major
+    XMStoreFloat4(reinterpret_cast<DirectX::XMFLOAT4*>(&transform3x4[0]), mT.r[0]);
+    XMStoreFloat4(reinterpret_cast<DirectX::XMFLOAT4*>(&transform3x4[4]), mT.r[1]);
+    XMStoreFloat4(reinterpret_cast<DirectX::XMFLOAT4*>(&transform3x4[8]), mT.r[2]);
 }

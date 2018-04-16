@@ -13,128 +13,10 @@
 
 #include "DXSample.h"
 #include "StepTimer.h"
-#include "RaytracingHlslCompat.h"
+#include "DirectXRaytracingHelper.h"
+#include "RaytracingSceneDefines.h"
 
-namespace GlobalRootSignatureParams {
-    enum Value {
-        OutputViewSlot = 0,
-        AccelerationStructureSlot,
-        SceneConstantSlot,
-        AABBattributeBufferSlot,
-        VertexBuffersSlot,
-        Count
-    };
-}
-
-namespace LocalRootSignatures {
-    enum Value {
-        Triangle = 0,
-        AABB,
-#if USE_NON_NULL_LOCAL_ROOT_SIG
-        Empty,
-#endif
-        Count
-    };
-}
-
-namespace LocalRootSignature {
-    namespace Triangle {
-        enum Slot {
-            MaterialConstantSlot = 0,
-            Count
-        };
-
-        struct RootArguments {
-            MaterialConstantBuffer materialCb;
-        };
-    }
-
-    namespace AABB {
-        enum Slot {
-            MaterialConstantSlot = 0,
-            // ToDo rename GeometryIndexSlot
-            GeometryIndexSlot,
-            Count
-        };
-        struct RootArguments {
-            MaterialConstantBuffer materialCb;
-#if USE_LOCAL_ROOT_CONSTANTS
-            AABBConstantBuffer aabbCB;
-#else
-            D3D12_GPU_DESCRIPTOR_HANDLE aabbCBdescriptorHandle;
-#endif
-        };
-    }
-    inline UINT MaxRootArgumentsSize()
-    {
-        return max(sizeof(Triangle::RootArguments), sizeof(AABB::RootArguments));
-    }
-}
-
-// Bottom level acceleration structures (BottomLevelASType).
-// This sample uses two BottomLevelASType, one for AABB and one for Triangle geometry.
-// ToDo desc why the sample uses two - can a BLAS mix geometry types?
-namespace BottomLevelASType {
-    enum Value {
-        Triangle = 0,
-        AABB,
-        Count
-    };
-}
-
-namespace TriangleHitGroupType {
-    enum Value {
-        Triangle = 0,
-        ShadowRayTriangle,
-        Count
-    };
-}
-
-namespace AABBHitGroupType {
-    enum Value {
-        AABB = 0,
-        ShadowRayAABB,
-        Count
-    };
-}
-
-namespace RayType {
-    enum Value {
-        Regular = 0,
-        Shadow,
-        Count
-    };
-}
-
-namespace ClosestHitRayType {
-    enum Value {
-        Triangle = 0,
-        ShadowRayTriangle,
-        AABB,
-        ShadowRayAABB,
-        Count
-    };
-}
-
-// ToDo rename to IntersectionGeometryType ?
-namespace IntersectionShaderType {
-    enum Value {
-        AABB = 0,
-        Sphere,
-        Spheres,
-        Count
-    };
-}
-
-
-struct AccelerationStructureBuffers
-{
-    ComPtr<ID3D12Resource> scratch;
-    ComPtr<ID3D12Resource> accelerationStructure;
-    ComPtr<ID3D12Resource> instanceDesc;    // Used only for top-level AS
-    UINT64                 ResultDataMaxSizeInBytes;
-};
-
+// The sample supports both Raytracing Fallback Layer and DirectX Raytracing APIs. 
 // This is purely for demonstration purposes to show where the API differences are. 
 // Real-world applications will implement only one or the other. 
 // Fallback Layer uses DirectX Raytracing if a driver and OS supports it. 
@@ -197,7 +79,7 @@ private:
 
     // Root signatures
     ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
-    ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature[LocalRootSignatures::Count];
+    ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature[LocalRootSignature::Type::Count];
 
     // Descriptors
     ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
@@ -218,9 +100,6 @@ private:
     D3DBuffer m_indexBuffer;
     D3DBuffer m_vertexBuffer;
     D3DBuffer m_aabbBuffer;
-#if !USE_LOCAL_ROOT_CONSTANTS
-    D3DBuffer m_geometryIndexBuffer[IntersectionShaderType::Count];
-#endif
 
     // Acceleration structure
     ComPtr<ID3D12Resource> m_bottomLevelAS[BottomLevelASType::Count];
@@ -232,11 +111,11 @@ private:
     UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
     // Shader tables
-    static const wchar_t* c_hitGroupNames_TriangleGeometry[TriangleHitGroupType::Count];
-    static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][AABBHitGroupType::Count];
+    static const wchar_t* c_hitGroupNames_TriangleGeometry[RayType::Count];
+    static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][RayType::Count];
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
-    static const wchar_t* c_closestHitShaderNames[ClosestHitRayType::Count];
+    static const wchar_t* c_closestHitShaderNames[GeometryType::Count][RayType::Count];
     static const wchar_t* c_missShaderNames[RayType::Count];
     ComPtr<ID3D12Resource> m_missShaderTable;
     UINT m_missShaderTableStrideInBytes;
@@ -253,6 +132,7 @@ private:
     XMVECTOR m_at;
     XMVECTOR m_up;
 
+    // ToDo categorize members
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
     void UpdateAABBPrimitiveAttributes();
@@ -268,6 +148,9 @@ private:
     void CreateRaytracingInterfaces();
     void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig);
     void CreateRootSignatures();
+    void CreateDxilLibrarySubobject(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
+    void CreateHitGroupSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
+    void CreateLocalRootSignatureSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateRaytracingPipelineStateObject();
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
