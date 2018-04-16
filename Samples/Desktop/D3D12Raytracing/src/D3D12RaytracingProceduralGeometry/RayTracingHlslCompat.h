@@ -12,6 +12,8 @@
 #ifndef RAYTRACINGHLSLCOMPAT_H
 #define RAYTRACINGHLSLCOMPAT_H
 
+// ToDo check for unreleased resources.
+
 // Workaround for dynamic indexing issue in DXR shaders on Nvidia
 #define DO_NOT_USE_DYNAMIC_INDEXING 1 
 

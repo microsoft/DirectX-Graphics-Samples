@@ -1108,17 +1108,19 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
         {
             LocalRootSignature::AABB::RootArguments rootArgs;
             for (UINT r = 0; r < IntersectionShaderType::Count; r++)
+            {
+                rootArgs.materialCb = m_aabbMaterialCB[r];
+#if USE_LOCAL_ROOT_CONSTANTS
+                rootArgs.aabbCB.geometryIndex = r;
+#else
+                rootArgs.gpuCbDesriptorHandle = m_geometryIndexBuffer[r].gpuDescriptorHandle;
+#endif
                 for (UINT c = 0; c < AABBHitGroupType::Count; c++)
                 {
                     auto& hitGroupShaderIdentifier = hitGroupShaderIdentifiers_AABBGeometry[r][c];
-                    rootArgs.materialCb = m_aabbMaterialCB[r];
-#if USE_LOCAL_ROOT_CONSTANTS
-                    rootArgs.aabbCB.geometryIndex = r;
-#else
-                    rootArgs.gpuCbDesriptorHandle = m_geometryIndexBuffer[r].gpuDescriptorHandle;
-#endif
                     hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArgs, sizeof(rootArgs)));
                 }
+            }
         }
         hitGroupShaderTable.DebugPrint(shaderIdToStringMap);
         m_hitGroupShaderTableStrideInBytes = hitGroupShaderTable.GetShaderRecordSize();

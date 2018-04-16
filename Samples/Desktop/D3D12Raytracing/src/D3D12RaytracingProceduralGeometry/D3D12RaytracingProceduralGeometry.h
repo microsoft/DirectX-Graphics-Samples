@@ -126,15 +126,6 @@ namespace IntersectionShaderType {
     };
 }
 
-
-struct AccelerationStructureBuffers
-{
-    ComPtr<ID3D12Resource> scratch;
-    ComPtr<ID3D12Resource> accelerationStructure;
-    ComPtr<ID3D12Resource> instanceDesc;    // Used only for top-level AS
-    UINT64                 ResultDataMaxSizeInBytes;
-};
-
 // This is purely for demonstration purposes to show where the API differences are. 
 // Real-world applications will implement only one or the other. 
 // Fallback Layer uses DirectX Raytracing if a driver and OS supports it. 
