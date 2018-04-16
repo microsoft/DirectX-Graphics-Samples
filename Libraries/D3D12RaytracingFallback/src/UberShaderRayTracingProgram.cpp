@@ -97,20 +97,24 @@ namespace FallbackLayer
                         CComPtr<ID3D12VersionedRootSignatureDeserializer> pDeserializer;
                         ShaderInfo shaderInfo;
                         shaderInfo.pRootSignatureDesc = GetDescFromRootSignature(pShaderAssociation->second.m_pRootSignature, pDeserializer);
-                        shaderInfo.SamplerDescriptorSizeInBytes = samplerHandleSize;
-                        shaderInfo.SrvCbvUavDescriptorSizeInBytes = cbvSrvUavHandleSize;
-                        shaderInfo.ShaderRecordIdentifierSizeInBytes = sizeof(ShaderIdentifier);
-                        shaderInfo.ExportName = exportName.c_str();
 
-                        CComPtr<IDxcBlob> pPatchedBlob;
-                        m_DxilShaderPatcher.PatchShaderBindingTables(
-                            (const BYTE *)outputLibInfo.pByteCode,
-                            (UINT)outputLibInfo.BytecodeLength,
-                            &shaderInfo, 
-                            &pPatchedBlob);
+                        if (GetNumParameters(*shaderInfo.pRootSignatureDesc) > 0)
+                        {
+                            shaderInfo.SamplerDescriptorSizeInBytes = samplerHandleSize;
+                            shaderInfo.SrvCbvUavDescriptorSizeInBytes = cbvSrvUavHandleSize;
+                            shaderInfo.ShaderRecordIdentifierSizeInBytes = sizeof(ShaderIdentifier);
+                            shaderInfo.ExportName = exportName.c_str();
 
-                        pOutputBlob = pPatchedBlob;
-                        outputLibInfo = DxilLibraryInfo(pOutputBlob->GetBufferPointer(), pOutputBlob->GetBufferSize());
+                            CComPtr<IDxcBlob> pPatchedBlob;
+                            m_DxilShaderPatcher.PatchShaderBindingTables(
+                                (const BYTE *)outputLibInfo.pByteCode,
+                                (UINT)outputLibInfo.BytecodeLength,
+                                &shaderInfo,
+                                &pPatchedBlob);
+
+                            pOutputBlob = pPatchedBlob;
+                            outputLibInfo = DxilLibraryInfo(pOutputBlob->GetBufferPointer(), pOutputBlob->GetBufferSize());
+                        }
                     }
                 }
                 patchedBlobList.push_back(pOutputBlob);

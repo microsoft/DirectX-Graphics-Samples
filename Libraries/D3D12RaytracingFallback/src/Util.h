@@ -166,3 +166,20 @@ static UINT GetNumberOfInternalNodes(UINT numLeaves)
     // A binary tree with N leaves will always have N - 1 internal nodes
     return std::max(0, (INT)(numLeaves - 1));
 }
+
+static UINT GetNumParameters(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc)
+{
+    UINT numParameters;
+    switch (desc.Version)
+    {
+    case D3D_ROOT_SIGNATURE_VERSION_1_0:
+        numParameters = desc.Desc_1_0.NumParameters;
+        break;
+    case D3D_ROOT_SIGNATURE_VERSION_1_1:
+        numParameters = desc.Desc_1_0.NumParameters;
+        break;
+    default:
+        ThrowFailure(E_NOTIMPL, L"Using an unrecognized D3D_ROOT_SIGNATURE_VERSION.");
+    }
+    return numParameters;
+}
