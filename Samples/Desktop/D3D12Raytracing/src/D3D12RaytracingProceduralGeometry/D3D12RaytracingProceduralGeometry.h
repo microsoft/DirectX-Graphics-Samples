@@ -13,6 +13,7 @@
 
 #include "DXSample.h"
 #include "StepTimer.h"
+#include "DirectXRaytracingHelper.h"
 #include "RaytracingSceneDefines.h"
 
 // The sample supports both Raytracing Fallback Layer and DirectX Raytracing APIs. 

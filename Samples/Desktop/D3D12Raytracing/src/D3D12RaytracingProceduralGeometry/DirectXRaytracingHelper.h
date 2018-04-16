@@ -298,11 +298,11 @@ inline bool EnableRaytracing()
 inline void StoreXMMatrixAsTransform3x4
 (
     float transform3x4[12],
-    const XMMATRIX& m
+    const DirectX::XMMATRIX& m
 )
 {
-    XMMATRIX mT = XMMatrixTranspose(m); // convert row-major to column-major
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[0]), mT.r[0]);
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[4]), mT.r[1]);
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[8]), mT.r[2]);
+    DirectX::XMMATRIX mT = XMMatrixTranspose(m); // convert row-major to column-major
+    XMStoreFloat4(reinterpret_cast<DirectX::XMFLOAT4*>(&transform3x4[0]), mT.r[0]);
+    XMStoreFloat4(reinterpret_cast<DirectX::XMFLOAT4*>(&transform3x4[4]), mT.r[1]);
+    XMStoreFloat4(reinterpret_cast<DirectX::XMFLOAT4*>(&transform3x4[8]), mT.r[2]);
 }

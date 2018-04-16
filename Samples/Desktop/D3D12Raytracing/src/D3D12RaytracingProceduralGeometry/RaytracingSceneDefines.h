@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "RayTracingHlslCompat.h"
+
 namespace GlobalRootSignature {
     namespace Slot {
         enum Enum {

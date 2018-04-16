@@ -10,8 +10,6 @@
 //*********************************************************
 
 #include "stdafx.h"
-#include "RaytracingHlslCompat.h"
-#include "DirectXRaytracingHelper.h"
 #include "D3D12RaytracingProceduralGeometry.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 
