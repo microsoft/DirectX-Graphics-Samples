@@ -137,6 +137,7 @@ void MyIntersectionShader_Spheres()
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
     if (RaySpheresIntersectionTest(localRay, RayTMin(), RayTCurrent(), tHit, attr))
     {
+        // ToDo move this to tests?
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS).xyz;
 

@@ -11,6 +11,9 @@
 
 #pragma once
 
+// ToDo Rename to Globals?
+// ToDo Move Shader, hit group names here?
+
 #include "RayTracingHlslCompat.h"
 
 namespace GlobalRootSignature {
