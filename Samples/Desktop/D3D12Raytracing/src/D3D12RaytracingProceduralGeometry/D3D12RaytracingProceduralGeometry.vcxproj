@@ -71,7 +71,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\..\..\..\Libraries\D3D12RaytracingFallback\Include;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>util;..\..\..\..\..\Libraries\D3D12RaytracingFallback\Include;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DisableSpecificWarnings>
       </DisableSpecificWarnings>
@@ -124,7 +124,7 @@ PrebuildCheck.bat</Command>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\..\..\..\Libraries\D3D12RaytracingFallback\Include;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>util;..\..\..\..\..\Libraries\D3D12RaytracingFallback\Include;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
     <Link>
@@ -167,30 +167,30 @@ PrebuildCheck.bat</Command>
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="DeviceResources.h" />
     <ClInclude Include="DirectXRaytracingHelper.h" />
-    <ClInclude Include="HlslCompat.h" />
     <ClInclude Include="ProceduralPrimitivesLibrary.h" />
+    <ClInclude Include="RaytracingSceneDefines.h" />
     <ClInclude Include="RaytracingHlslCompat.h" />
     <ClInclude Include="RaytracingShaderHelper.h" />
-    <ClInclude Include="StepTimer.h" />
-    <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12RaytracingProceduralGeometry.h" />
-    <ClInclude Include="d3dx12.h" />
-    <ClInclude Include="DXSample.h" />
-    <ClInclude Include="DXSampleHelper.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="util\DeviceResources.h" />
+    <ClInclude Include="util\DXSample.h" />
+    <ClInclude Include="util\DXSampleHelper.h" />
+    <ClInclude Include="util\HlslCompat.h" />
+    <ClInclude Include="util\StepTimer.h" />
+    <ClInclude Include="util\Win32Application.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="DeviceResources.cpp" />
-    <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="D3D12RaytracingProceduralGeometry.cpp" />
-    <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="util\DeviceResources.cpp" />
+    <ClCompile Include="util\DXSample.cpp" />
+    <ClCompile Include="util\Win32Application.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Raytracing.hlsl">

@@ -122,6 +122,26 @@ inline void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Re
     }
 }
 
+template<class T, size_t N>
+void DefineExports(T* obj, LPCWSTR(&Exports)[N])
+{
+    for (UINT i = 0; i < N; i++)
+    {
+        obj->DefineExport(Exports[i]);
+    }
+}
+
+template<class T, size_t N, size_t M>
+void DefineExports(T* obj, LPCWSTR(&Exports)[N][M])
+{
+    for (UINT i = 0; i < N; i++)
+        for (UINT j = 0; j < M; j++)
+        {
+            obj->DefineExport(Exports[i][j]);
+        }
+}
+
+
 inline void AllocateUploadBuffer(ID3D12Device* pDevice, void *pData, UINT64 datasize, ID3D12Resource **ppResource, const wchar_t* resourceName = nullptr)
 {
     auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);

@@ -17,9 +17,6 @@
 // Workaround for dynamic indexing issue in DXR shaders on Nvidia
 #define DO_NOT_USE_DYNAMIC_INDEXING 1 
 
-// Override for debugging, PIX does not support local root constants yet.
-#define USE_LOCAL_ROOT_CONSTANTS 1
-
 // Workaround for NV driver as it requires all shaders 
 // to have a local root signature bound, even if it's empty.
 #define USE_NON_NULL_LOCAL_ROOT_SIG 1  
