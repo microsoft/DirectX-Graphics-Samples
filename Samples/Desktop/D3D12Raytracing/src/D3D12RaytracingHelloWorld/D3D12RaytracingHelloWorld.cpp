@@ -149,6 +149,14 @@ void D3D12RaytracingHelloWorld::CreateRootSignatures()
         localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
         SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature);
     }
+#if USE_NON_NULL_LOCAL_ROOT_SIG 
+    // Empty local root signature
+    {
+        CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(D3D12_DEFAULT);
+        localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+        SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignatureEmpty);
+    }
+#endif
 }
 
 // Create raytracing device and command list.
@@ -170,6 +178,33 @@ void D3D12RaytracingHelloWorld::CreateRaytracingInterfaces()
         ThrowIfFailed(device->QueryInterface(__uuidof(ID3D12DeviceRaytracingPrototype), &m_dxrDevice), L"Couldn't get DirectX Raytracing interface for the device.\n");
         ThrowIfFailed(commandList->QueryInterface(__uuidof(ID3D12CommandListRaytracingPrototype), &m_dxrCommandList), L"Couldn't get DirectX Raytracing interface for the command list.\n");
     }
+}
+
+// Local root signature and shader association
+// This is a root signature that enables a shader to have unique arguments that come from shader tables.
+void D3D12RaytracingHelloWorld::CreateLocalRootSignatureSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline)
+{
+    // Local root signature to be used in a ray gen shader.
+    {
+        auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+        localRootSignature->SetRootSignature(m_raytracingLocalRootSignature.Get());
+        // Shader association
+        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+        rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
+        rootSignatureAssociation->AddExport(c_raygenShaderName);
+    }
+#if USE_NON_NULL_LOCAL_ROOT_SIG 
+    // Empty local root signature to be used in a miss shader and a hit group.
+    {
+        auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+        localRootSignature->SetRootSignature(m_raytracingLocalRootSignatureEmpty.Get());
+        // Shader association
+        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+        rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
+        rootSignatureAssociation->AddExport(c_missShaderName);
+        rootSignatureAssociation->AddExport(c_hitGroupName);
+    }
+#endif
 }
 
 // Create a raytracing pipeline state object (RTPSO).
@@ -221,18 +256,8 @@ void D3D12RaytracingHelloWorld::CreateRaytracingPipelineStateObject()
     shaderConfig->Config(payloadSize, attributeSize);
 
     // Local root signature and shader association
+    CreateLocalRootSignatureSubobjects(&raytracingPipeline);
     // This is a root signature that enables a shader to have unique arguments that come from shader tables.
-    auto localRootSignature = raytracingPipeline.CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
-    localRootSignature->SetRootSignature(m_raytracingLocalRootSignature.Get());
-    // Define explicit shader association for the local root signature. 
-    // In this sample, this could be ommited for convenience since it matches the default association.
-    {
-        auto rootSignatureAssociation = raytracingPipeline.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
-        rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
-        rootSignatureAssociation->AddExport(c_raygenShaderName);
-        rootSignatureAssociation->AddExport(c_missShaderName);
-        rootSignatureAssociation->AddExport(c_hitGroupName);
-    }
 
     // Global root signature
     // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
@@ -751,7 +776,10 @@ void D3D12RaytracingHelloWorld::ReleaseDeviceDependentResources()
     m_fallbackStateObject.Reset();
     m_raytracingGlobalRootSignature.Reset();
     m_raytracingLocalRootSignature.Reset();
-    
+#if USE_NON_NULL_LOCAL_ROOT_SIG 
+    m_raytracingLocalRootSignatureEmpty.Reset();
+#endif
+
     m_dxrDevice.Reset();
     m_dxrCommandList.Reset();
     m_dxrStateObject.Reset();
