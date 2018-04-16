@@ -1690,6 +1690,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
             rootSignatureDesc.NumParameters = ARRAYSIZE(rootParams);
             rootSignatureDesc.pParameters = rootParams;
+            rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
             CComPtr<ID3DBlob> pBlob;
             AssertSucceeded(m_pRaytracingDevice->D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pBlob, nullptr));
 
