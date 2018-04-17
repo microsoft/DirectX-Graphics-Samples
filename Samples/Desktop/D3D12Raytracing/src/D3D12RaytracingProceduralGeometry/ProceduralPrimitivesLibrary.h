@@ -64,8 +64,8 @@ bool IsAValidHit(RAY_FLAG rayFlags, in Ray ray, in float3 surfaceNormal)
 float3 CalculateNormalForARaySphereHit(in Ray ray, in float thit, float3 center)
 {
     float3 hitPosition = ray.origin + thit * ray.direction;
-    // Transform by a row-major object to world matrix
-    return mul(normalize(hitPosition - center), ObjectToWorld()).xyz;
+    // Get the normal in world space
+    return mul((float3x3)ObjectToWorld(), normalize(hitPosition - center));
 }
 
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
@@ -206,6 +206,7 @@ bool RayAABBIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiveA
     float3 hitPosition = ray.origin + thit * ray.direction;
     float3 sphereNormal = normalize(hitPosition - center);
     // take the largest dimension and normalize it
+    // ToDo why
     if (abs(sphereNormal.x) > abs(sphereNormal.y))
     {
         if (abs(sphereNormal.x) > abs(sphereNormal.z))
@@ -228,8 +229,9 @@ bool RayAABBIntersectionTest(Ray ray, out float thit, inout ProceduralPrimitiveA
             attr.normal = float3(0, 0, sphereNormal.z);
         }
     }
-    // Transform by a row-major object to world matrix
-    attr.normal = mul(normalize(attr.normal), ObjectToWorld()).xyz;
+
+    // Get the normal in world space
+    attr.normal = mul((float3x3)ObjectToWorld(), normalize(attr.normal));
 
     return tmax > tmin;
 }
