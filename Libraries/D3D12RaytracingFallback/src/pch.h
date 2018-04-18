@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <map>
 #include <deque>
+#include <string>
 #include <strsafe.h>
 #include "..\include\d3d12_1.h"
 #include "..\include\d3dx12.h"

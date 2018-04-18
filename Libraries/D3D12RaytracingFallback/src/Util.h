@@ -9,7 +9,6 @@
 //
 //*********************************************************
 #pragma once
-
 #define ThrowInternalFailure(expression) ThrowFailure(expression, L"Unexpected internal Failure: " #expression)
 
 inline void ThrowFailure(HRESULT hr, LPCWSTR errorString = nullptr)
@@ -39,7 +38,7 @@ __forceinline uint8_t Log2(uint64_t value)
 
                         // If perfect power of two (only one set bit), return index of bit.  Otherwise round up
                         // fractional log by adding 1 to most signicant set bit's index.
-    if (_BitScanReverse64(&mssb, value) > 0 && _BitScanForward64(&lssb, value) > 0)
+    if (BitScanReverse64(&mssb, value) > 0 && BitScanForward64(&lssb, value) > 0)
         return uint8_t(mssb + (mssb == lssb ? 0 : 1));
     else
         return 0;
