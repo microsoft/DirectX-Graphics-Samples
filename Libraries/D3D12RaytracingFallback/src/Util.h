@@ -168,7 +168,7 @@ static UINT GetNumberOfInternalNodes(UINT numLeaves)
 
 static UINT GetNumParameters(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc)
 {
-    UINT numParameters;
+    UINT numParameters = (UINT)-1;
     switch (desc.Version)
     {
     case D3D_ROOT_SIGNATURE_VERSION_1_0:
