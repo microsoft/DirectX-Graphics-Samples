@@ -291,7 +291,6 @@ namespace FallbackLayer
     }
 
     void GpuBvh2Builder::GetRaytracingAccelerationStructurePrebuildInfo(
-        _In_  ID3D12Device *pDevice,
         _In_  D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC *pDesc,
         _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
     {

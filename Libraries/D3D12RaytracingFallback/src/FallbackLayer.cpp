@@ -93,7 +93,7 @@ namespace FallbackLayer
         return CreateWrappedPointer(DescriptorHeapIndex, OffsetInBytes);
     }
 
-    WRAPPED_GPU_POINTER RaytracingDevice::GetWrappedPointerFromGpuVA(D3D12_GPU_VIRTUAL_ADDRESS gpuVA)
+    WRAPPED_GPU_POINTER RaytracingDevice::GetWrappedPointerFromGpuVA(D3D12_GPU_VIRTUAL_ADDRESS)
     {
         // Should never be called when using the Fallback Layer
         ThrowFailure(E_INVALIDARG, 
@@ -470,6 +470,8 @@ namespace FallbackLayer
 
             pRaytracingStateObject->m_spProgram->SetPredispatchCallback([=](ID3D12GraphicsCommandList *pCommandList, UINT patchRootSignatureParameterStart)
             {
+                UNREFERENCED_PARAMETER(pCommandList);
+                UNREFERENCED_PARAMETER(patchRootSignatureParameterStart);
 #if ENABLE_UAV_LOG
                 pCommandList->SetComputeRootUnorderedAccessView(
                     patchRootSignatureParameterStart + DebugUAVLog, m_pUAVLog->GetGPUVirtualAddress());
@@ -495,6 +497,7 @@ namespace FallbackLayer
         _In_  UINT NumSourceAccelerationStructures,
         _In_reads_(NumSourceAccelerationStructures)  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData)
     {
+        UNREFERENCED_PARAMETER(InfoType);
 #if USE_PIX_MARKERS
         PIXScopedEvent(m_pCommandList.p, FallbackPixColor, L"EmitRaytracingAccelerationStructurePostBuildInfo");
 #endif
@@ -535,7 +538,7 @@ namespace FallbackLayer
         {
             assert(ppDescriptorHeaps[heapIndex]);
 
-            auto &heapDesc = ppDescriptorHeaps[heapIndex]->GetDesc();
+            auto heapDesc = ppDescriptorHeaps[heapIndex]->GetDesc();
             assert((heapDesc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) != 0 && 
                 m_pBoundDescriptorHeaps[D3D12EnumToFallbackEnum(heapDesc.Type)] == nullptr);
                 
@@ -557,7 +560,7 @@ namespace FallbackLayer
         // A view-type descriptor heap is required to be bound since the Top-Level 
         // Acceleration Structure will have emulated-SRV-pointers to Bottom-Level 
         // structures
-        RaytracingStateObject *pRaytracingPipelineState = dynamic_cast<RaytracingStateObject *>(pStateObject);
+        RaytracingStateObject *pRaytracingPipelineState = static_cast<RaytracingStateObject *>(pStateObject);
         if (!pDesc || (!m_pBoundDescriptorHeaps[SrvUavCbvType]))
         {
             ThrowFailure(E_INVALIDARG, 
@@ -616,7 +619,6 @@ namespace FallbackLayer
         _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
     {
         m_AccelerationStructureBuilderFactory.GetAccelerationStructureBuilder().GetRaytracingAccelerationStructurePrebuildInfo(
-            m_pDevice,
             pDesc,
             pInfo);
     }
