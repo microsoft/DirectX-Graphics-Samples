@@ -47,7 +47,7 @@ namespace FallbackLayer
         CComPtr<ID3D12Device> pDevice;
         pCommandList->GetDevice(IID_PPV_ARGS(&pDevice));
 
-        GetRaytracingAccelerationStructurePrebuildInfo(pDevice, &prebuildInfoDesc, &prebuildOutput);
+        GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &prebuildOutput);
         if (pDesc->DestAccelerationStructureData.SizeInBytes < prebuildOutput.ResultDataMaxSizeInBytes)
         {
             ThrowFailure(E_INVALIDARG, L"DestAccelerationStructureData.SizeInBytes too small, "
@@ -291,12 +291,10 @@ namespace FallbackLayer
     }
 
     void GpuBvh2Builder::GetRaytracingAccelerationStructurePrebuildInfo(
-        _In_  ID3D12Device *pDevice,
         _In_  D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC *pDesc,
         _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
     {
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE Type = pDesc->Type;
-        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS Flags = pDesc->Flags;
         UINT NumElements = pDesc->NumDescs;
 
         switch (Type)

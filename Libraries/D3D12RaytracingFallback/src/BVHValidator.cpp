@@ -83,7 +83,6 @@ namespace FallbackLayer
             AABBNode *pNodeArray = (AABBNode*)((BYTE *)pOutputCpuData + offsets.offsetToBoxes);
             Primitive *pPrimitiveArray = (Primitive*)((BYTE *)pOutputCpuData + offsets.offsetToVertices);
 
-            UINT currentQueue = 0;
             std::deque<AABBNode*> nodeQueue;
 
             nodeQueue.push_back(&pNodeArray[0]);
@@ -187,6 +186,7 @@ namespace FallbackLayer
 
     bool BvhValidator::AABBLeafNode::IsLeafEqual(void *pLeafData, const AABB &leafAABB)
     {
+        UNREFERENCED_PARAMETER(pLeafData);
         return IsChildContainedByParent(leafAABB, box);
     }
 
@@ -255,6 +255,7 @@ namespace FallbackLayer
 
     bool BvhValidator::TriangleLeafNode::IsLeafEqual(void *pLeafData, const AABB &leafAABB)
     {
+        UNREFERENCED_PARAMETER(leafAABB);
         Primitive *pPrimitive = (Primitive *)pLeafData;
         Triangle *pTriangle = &pPrimitive->triangle;
         return IsTriangleEqual(*this, pTriangle);
@@ -283,7 +284,7 @@ namespace FallbackLayer
             return readIndex;
         default:
             ThrowFailure(E_INVALIDARG, L"Invalid format provided for the index buffer, must be: DXGI_FORMAT_R32_UINT/DXGI_FORMAT_R16_UINT/DXGI_FORMAT_UNKNOWN");
-            return -1;
+            return (UINT)-1;
         }
     }
 

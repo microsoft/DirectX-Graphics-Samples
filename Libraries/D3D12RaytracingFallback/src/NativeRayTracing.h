@@ -177,6 +177,11 @@ public:
         REFIID riid,
         _COM_Outptr_  void **ppStateObject)
     {
+        if (!ppStateObject || riid != __uuidof(ID3D12RaytracingFallbackStateObject))
+        {
+            ThrowFailure(E_INVALIDARG, L"Null ppStateObject passed in or invalid riid");
+        }
+
         CComPtr<ID3D12StateObjectPrototype> pStateObject;
         HRESULT hr = m_pRaytracingDevice->CreateStateObject(pDesc, IID_PPV_ARGS(&pStateObject));
 

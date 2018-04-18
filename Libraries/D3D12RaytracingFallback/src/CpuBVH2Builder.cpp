@@ -401,7 +401,7 @@ namespace FallbackLayer
         std::deque<StackItem*>   fifoRights;
 
         StackItem* temp = new StackItem;
-        temp->parentIndex = -1;
+        temp->parentIndex = (UINT)-1;
         temp->primitiveMetaData = primitiveMetaData;
         temp->right = false;
         temp->axis = 0;

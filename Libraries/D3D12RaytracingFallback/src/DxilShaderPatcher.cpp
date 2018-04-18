@@ -123,7 +123,7 @@ namespace FallbackLayer
         for (uint32_t i = 0; i < pContainerHeader->PartCount; ++i)
         {
             const DxilPartHeader* pDxilPartHeader = reinterpret_cast<const DxilPartHeader*>(pSourceBytes + pPartOffsets[i]);
-            if (pDxilPartHeader->PartFourCC == targetFourCC)
+            if (pDxilPartHeader->PartFourCC == (UINT)targetFourCC)
             {
                 // Create a dxc blob from the source data.
                 CComPtr<IDxcBlobEncoding> pSource;
