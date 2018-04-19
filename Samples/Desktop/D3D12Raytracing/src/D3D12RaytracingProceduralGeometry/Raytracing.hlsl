@@ -19,7 +19,6 @@
 
 // ToDo:
 // - handle RayFlags in intersection tests
-// - enable shadows on AABBs
 // - specify traceRay args in a shared header
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
@@ -130,12 +129,31 @@ Ray GetRayInAABBPrimitiveLocalSpace()
 }
 
 [shader("intersection")]
+void MyIntersectionShader_Metaballs()
+{
+    ProceduralPrimitiveAttributes attr;
+    float tHit;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace();
+    if (RayMetaballsIntersectionTest(localRay, tHit, attr))
+    {
+        // ToDo move this to tests?
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS).xyz;
+
+        // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(tHit, /*hitKind*/ 0, attr);
+    }
+}
+
+[shader("intersection")]
 void MyIntersectionShader_Spheres()
 {
     ProceduralPrimitiveAttributes attr;
     float tHit;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
-    if (RaySpheresIntersectionTest(localRay, RayTMin(), RayTCurrent(), tHit, attr))
+  if (RayMetaballsIntersectionTest(localRay, tHit, attr))
+    //if (RaySpheresIntersectionTest(localRay, tHit, attr))
+    //if (RaySpheresIntersectionTest2(localRay, RayTMin(), RayTCurrent(), tHit, attr))
     {
         // ToDo move this to tests?
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
@@ -152,7 +170,7 @@ void MyIntersectionShader_Sphere()
     ProceduralPrimitiveAttributes attr;
     float tHit;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
-    if (RaySphereIntersectionTest(localRay, RayTMin(), tHit, attr))
+    if (RaySphereIntersectionTest(localRay, tHit, attr))
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS).xyz;

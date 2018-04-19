@@ -20,7 +20,7 @@ struct Ray
     float3 direction;
 };
 
-bool IsInRange(float val, float min, float max)
+bool IsInRange(in float val, in float min, in float max)
 {
     return (val >= min && val <= max);
 }
