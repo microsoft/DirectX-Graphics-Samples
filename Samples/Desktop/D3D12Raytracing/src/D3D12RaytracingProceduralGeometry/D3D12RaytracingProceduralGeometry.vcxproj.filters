@@ -60,6 +60,9 @@
     <ClInclude Include="RaytracingSceneDefines.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SignedDistanceFieldLibrary.h">
+      <Filter>Assets\Shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

@@ -35,7 +35,7 @@ typedef UINT16 Index;
 
 // PERFOMANCE TIP: Set max recursion depth as low as needed
 // as drivers may apply optimization strategies for low recursion depths.
-#define MAX_RAY_RECURSION_DEPTH 3 // ToDo ~ primary rays + reflections + shadow rays.
+#define MAX_RAY_RECURSION_DEPTH 1 // ToDo ~ primary rays + reflections + shadow rays.
 
 // ToDo cleanup
 struct MyAttributes

@@ -49,9 +49,9 @@ private:
     static const UINT FrameCount = 3;
 
     // Number of AABB BLAS instances
-    static const UINT NUM_INSTANCE_X = 2;
+    static const UINT NUM_INSTANCE_X = 8;
     static const UINT NUM_INSTANCE_Y = 1;
-    static const UINT NUM_INSTANCE_Z = 2;
+    static const UINT NUM_INSTANCE_Z = 8;
     static const UINT NUM_INSTANCES = NUM_INSTANCE_X * NUM_INSTANCE_Y * NUM_INSTANCE_Z;
 
     // Number of AABBs in a BLAS
