@@ -321,20 +321,25 @@ bool RayAABBIntersectionTest(Ray ray, out float thit, out ProceduralPrimitiveAtt
     return false;
 }
 
-// mbRadius - largest possible area of contribution.
-float CalculateMetaballCharge(in float3 position, in float3 mbCenter, in float mbRadius)
+// Calculate a magnitude of an influence from a Metaball charge.
+// Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
+// invMbRadiusSquared ~ 1/mbRadius^2. 
+// mbRadius - largest possible area of metaball contribution - AKA its bounding sphere.
+float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in float invMbRadiusSquared)
 {
     float3 distanceVector = position - mbCenter;
-    float d = length(position - mbCenter);
+
+    // Squared distance.
+    float d2 = dot(distanceVector, distanceVector);
 
     // Enable this line if your blobs are of varying sizes.
-    d /= mbRadius;
+    d2 *= invMbRadiusSquared;
 
-    // since f(d) is valid when d is in the range [0-.707],
-    if (d < 0.707f)   
+    // f(d) is valid when d2 is in the range [0-.5], or [0-.707] for d
+    if (d2 < 0.5f)   
     {
-        float threshold = 0.25;
-        return threshold - d*d + d*d*d*d;
+        // Calculate field po
+        return 0.25 - d2 + d2*d2;
     }
     return 0;
 }
@@ -349,11 +354,12 @@ bool RayMetaballsIntersectionTest(Ray ray, out float thit, out ProceduralPrimiti
         float3(0.0, 0.0, 0.5),
         float3(0.3,0.5, 0.0)
     };
-    float  radii[N] = { 0.8, 0.8, 0.8 };
+    // Metaball field radii of max influence
+    float  radii[N] = { 0.5, 1.2, 0.7 };    
 
     attr.normal = float3(1, 0, 0);// (position + 1) / 2;
     thit = 0;
-    // Calculate step size
+    // Calculate step size based on the ray AABB intersection segment
     UINT MAX_STEPS = 1024;
     float tmin, tmax;
     RayAABBIntersectionTest(ray, tmin, tmax);
@@ -361,17 +367,19 @@ bool RayMetaballsIntersectionTest(Ray ray, out float thit, out ProceduralPrimiti
     tmax = min(tmax, RayTCurrent());
     float tstep = (tmax - tmin) / (MAX_STEPS - 1);
     
+    // Step along the ray calculating field potentials from all metaballs.
     for (UINT i = 0; i < MAX_STEPS; i++)
     {
         float t = tmin + i * tstep;
         float3 position = ray.origin + t * ray.direction;
         float fieldCharge = 0;
-        fieldCharge += CalculateMetaballCharge(position, centers[0], radii[0]);
-        fieldCharge += CalculateMetaballCharge(position, centers[1], radii[1]);
-        fieldCharge += CalculateMetaballCharge(position, centers[2], radii[2]);
+        fieldCharge += CalculateMetaballPotential(position, centers[0], radii[0]);
+        fieldCharge += CalculateMetaballPotential(position, centers[1], radii[1]);
+        fieldCharge += CalculateMetaballPotential(position, centers[2], radii[2]);
 
-        float threshold = 0.05f;
-        if (fieldCharge > threshold)
+        // Threshold - valid range is (0, 0.25>, the larger the threshold the smaller the blob.
+        float threshold = 0.15f;
+        if (fieldCharge >= threshold)
         {
             attr.normal = float3(1, 0, 0);// (position + 1) / 2;
             thit = t;
