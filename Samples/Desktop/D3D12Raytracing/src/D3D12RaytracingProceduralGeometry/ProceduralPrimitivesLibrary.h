@@ -13,6 +13,7 @@
 #define RAYTRACINGPRIMITIVESLIBRARY_H
 
 #include "RaytracingShaderHelper.h"
+#include "SignedDistancePrimitives.h"
 
 // ToDo revise inout specifiers
 // ToDo pass raytracing intrinsics as parameters?
@@ -139,7 +140,7 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
     thit = RayTCurrent();
     if (RaySphereIntersectionTest(ray, _thit, _attr, centers[0], radii[0]))
     {
-        if (_thit <= thit)
+        if (_thit < thit)
         {
             thit = _thit;
             attr = _attr;
@@ -259,20 +260,27 @@ bool RayAABBIntersectionTest(Ray ray, out float thit, out ProceduralPrimitiveAtt
 #define METABALL_POTENTIAL_SAP 1
 #if METABALL_POTENTIAL_SAP
 
+// Calculate a magnitude of an influence from a Metaball charge.
+// Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
+// mbRadius - largest possible area of metaball contribution - AKA its bounding sphere.
+// invMbRadiusSquared ~ 1/mbRadius^2. 
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies
 float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in float mbRadius, in float invMbRadiusSquared)
 {
     float d = length(position - mbCenter);
-    if (d <= mbRadius) {
-        // this can be factored for speed if you want
-        return = 2 * (r * r * r) / (mbRadius* mbRadius * mbRadius) - 3 * (r * r) / (mbRadius * mbRadius) + 1;
+    if (d <= mbRadius) 
+    {
+        // This can be factored for speed if you want.
+        return   2 * (d * d * d) / (mbRadius* mbRadius * mbRadius) 
+               - 3 * (d * d) / (mbRadius * mbRadius) 
+               + 1;
     }
-    return 0.0f;
+    return 0;
 }
 
 
 // Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
-bool RayMetaballsIntersectionTestSAP(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr)
+bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr)
 {
     const int N = 3;
     float3 centers[N] =
@@ -311,9 +319,9 @@ bool RayMetaballsIntersectionTestSAP(in Ray ray, out float thit, out ProceduralP
     {
         float t = tmin + i * tstep;
         float3 position = ray.origin + t * ray.direction;
-        fieldPotentials[0] = CalculateMetaballPotential(position, centers[0], invRadiiSq[0]);
-        fieldPotentials[1] = CalculateMetaballPotential(position, centers[1], invRadiiSq[1]);
-        fieldPotentials[2] = CalculateMetaballPotential(position, centers[2], invRadiiSq[2]);
+        fieldPotentials[0] = CalculateMetaballPotential(position, centers[0], radii[0], invRadiiSq[0]);
+        fieldPotentials[1] = CalculateMetaballPotential(position, centers[1], radii[0], invRadiiSq[1]);
+        fieldPotentials[2] = CalculateMetaballPotential(position, centers[2], radii[0], invRadiiSq[2]);
 
 
         float fieldPotential = fieldPotentials[0] + fieldPotentials[1] + fieldPotentials[2];
@@ -424,5 +432,51 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     return false;
 }
 #endif
+
+
+float GetDistanceFromSignedDistancePrimitive(in float3 position, in SD_PRIMITIVE sdPrimitive)
+{
+    switch (sdPrimitive)
+    {
+    case Cone: return sdCone(position, float3(0.8, 0.6, 0.3)).x;
+    case Torus: return sdTorus(position, float2(0.20, 0.05)).x;
+    case Pyramid: return sdPyramid4(position, float3(0.8, 0.6, 0.25)).x;
+    }
+    return 0;
+}
+
+// Test ray against a signed distance primitive.
+// Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer
+bool RaySignedDistancePrimitiveTest(in Ray ray, in SD_PRIMITIVE sdPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
+{
+    float tmin, tmax;
+    RayAABBIntersectionTest(ray, tmin, tmax);
+    tmin = max(tmin, RayTMin());
+    tmax = min(tmax, RayTCurrent());
+    
+    const float threshold = 10e-6;
+    float t = tmin;
+
+    // Do sphere tracing through the AABB.
+    while (t < tmax) 
+    {
+        float3 position = ray.origin + t * ray.direction;
+        float distance = GetDistanceFromSignedDistancePrimitive(position, sdPrimitive);
+  
+        // Did we intersect the shape?
+        if (distance <= threshold * t)
+        {
+            thit = t;
+            attr.normal = float3(0, 1, 0);
+            return true;
+        }
+
+        // Since distance is the minimum distance to the primitive, 
+        // we can safely jump by that without intersecting the primitive.
+        t += distance;
+    }
+    return false;
+}
+
 
 #endif // RAYTRACINGPRIMITIVESLIBRARY_H
