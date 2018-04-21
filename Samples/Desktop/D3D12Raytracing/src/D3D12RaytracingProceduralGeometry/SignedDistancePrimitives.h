@@ -47,9 +47,6 @@
 
 #include "RaytracingShaderHelper.h"
 
-// Forward declarations.
-float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive sdPrimitive);
-
 //------------------------------------------------------------------
 
 float sdPlane(float3 p)
@@ -214,11 +211,11 @@ float3 opRep(float3 p, float3 c)
 
 
 // ToDo repeating spheres
-float DE(vec3 z)
-{
-    z.xy = mod((z.xy), 1.0) - vec3(0.5); // instance on xy-plane
-    return length(z) - 0.3;             // sphere DE
-}
+//float DE(vec3 z)
+//{
+//    z.xy = mod((z.xy), 1.0) - vec3(0.5); // instance on xy-plane
+//    return length(z) - 0.3;             // sphere DE
+//}
 
 
 float3 opTwist(float3 p)
@@ -295,7 +292,10 @@ float2 castRay(in float3 ro, in float3 rd)
     return float2(t, m);
 }
 
-float3 sdCalculateNormal(in float3 pos, in SignedDistancePrimitive sdPrimitive)
+
+float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum sdPrimitive);
+
+float3 sdCalculateNormal(in float3 pos, in SignedDistancePrimitive::Enum sdPrimitive)
 {
     float2 e = float2(1.0, -1.0) * 0.5773 * 0.0005;
     return normalize(

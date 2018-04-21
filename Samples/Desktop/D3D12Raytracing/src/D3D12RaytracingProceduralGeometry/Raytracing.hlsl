@@ -14,7 +14,9 @@
 
 #define HLSL
 #include "RaytracingHlslCompat.h"
+#if !DISABLE_CODE
 #include "ProceduralPrimitivesLibrary.h"
+#endif
 #include "RaytracingShaderHelper.h"
 
 // ToDo:
@@ -31,7 +33,7 @@ StructuredBuffer<AABBPrimitiveAttributes> g_AABBPrimitiveAttributes : register(t
 
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 ConstantBuffer<MaterialConstantBuffer> g_materialCB : register(b1);
-ConstantBuffer<AABBConstantBuffer> g_aabbCB : register(b2);
+ConstantBuffer<AABBConstantBuffer> lrs_aabbCB: register(b2);          // from local root signature
 
 enum ProceduralPrimitives
 {
@@ -72,6 +74,54 @@ inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 directi
     direction = normalize(world - origin);
 }
 
+#if DISABLE_CODE
+
+[shader("raygeneration")]
+void MyRaygenShader()
+{
+    float3 rayDir;
+    float3 origin;
+
+    // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
+    GenerateCameraRay(DispatchRaysIndex(), origin, rayDir);
+
+    // Trace the ray.
+    // Set the ray's extents.
+    RayDesc ray;
+    ray.Origin = origin;
+    ray.Direction = rayDir;
+    // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+    // TMin should be kept small to prevent missing geometry at close contact areas.
+    ray.TMin = 0;
+    ray.TMax = 10000.0;
+    RayPayload rayPayload = { float4(0, 0, 0, 0), 1 };
+    TraceRay(
+        Scene, // Raytracing acceleration structure
+        RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
+        ~0, /* InstanceInclusionMask*/
+        0, /* RayContributionToHitGroupIndex */
+        2, /* MultiplierForGeometryContributionToHitGroupIndex */
+        0, /* MissShaderIndex */
+        ray, rayPayload);
+
+    // Write the raytraced color to the output texture.
+    RenderTarget[DispatchRaysIndex()] = rayPayload.color;
+}
+
+[shader("closesthit")]
+void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+{
+    rayPayload.color = float4(1.0f, 1.0f, 0.0f, 1.0f);
+}
+
+[shader("miss")]
+void MyMissShader(inout RayPayload rayPayload : SV_RayPayload)
+{
+    float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f);
+    rayPayload.color = background;
+}
+
+#else
 // ToDo is pixelToLight correct?
 // Diffuse lighting calculation.
 float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
@@ -102,7 +152,7 @@ void MyRaygenShader()
     // TMin should be kept small to prevent missing geometry at close contact areas.
     ray.TMin = 0;
     ray.TMax = 10000.0;
-    RayPayload payload = { float4(0, 0, 0, 0), 1 };
+    RayPayload rayPayload = { float4(0, 0, 0, 0), 1 };
     TraceRay(
         Scene, // Raytracing acceleration structure
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
@@ -110,12 +160,14 @@ void MyRaygenShader()
          0, /* RayContributionToHitGroupIndex */
          2, /* MultiplierForGeometryContributionToHitGroupIndex */
          0, /* MissShaderIndex */
-        ray, payload);
+        ray, rayPayload);
 
     // Write the raytraced color to the output texture.
-    RenderTarget[DispatchRaysIndex()] = payload.color;
+    RenderTarget[DispatchRaysIndex()] = rayPayload.color;
 }
 
+#if DISABLE_CODE
+#else
 // Get ray in AABB's local space
 Ray GetRayInAABBPrimitiveLocalSpace(out AABBPrimitiveAttributes attr)
 {
@@ -123,48 +175,11 @@ Ray GetRayInAABBPrimitiveLocalSpace(out AABBPrimitiveAttributes attr)
     // ToDo improve desc
     // Retrieve ray origin position and direction in bottom level AS space 
     // and transform them into the AABB primitive's local space.
-    attr = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+    attr = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
     Ray ray;
     ray.origin = mul(float4(ObjectRayOrigin(), 1), attr.bottomLevelASToLocalSpace).xyz;
     ray.direction = mul(ObjectRayDirection(), (float3x3) attr.bottomLevelASToLocalSpace);
     return ray;
-}
-
-[shader("intersection")]
-void MyIntersectionShader_Ra()
-{
-    ProceduralPrimitiveAttributes attr;
-    float thit;
-    AABBPrimitiveAttributes inAttr;
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RayMetaballsIntersectionTest(localRay, thit, attr))
-    {
-        // ToDo move this to tests?
-        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
-        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-
-        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
-        ReportHit(thit, /*hitKind*/ 0, attr);
-    }
-}
-
-[shader("intersection")]
-void MyIntersectionShader_Spheres()
-{
-    ProceduralPrimitiveAttributes attr;
-    float thit;
-    AABBPrimitiveAttributes inAttr;
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RaySpheresIntersectionTest(localRay, thit, attr))
-    {
-        // ToDo move this to tests?
-        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
-        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-        attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
-
-        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
-        ReportHit(thit, /*hitKind*/ 0, attr);
-    }
 }
 
 [shader("intersection")]
@@ -176,7 +191,7 @@ void MyIntersectionShader_Sphere()
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     if (RaySphereIntersectionTest(localRay, thit, attr))
     {
-        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
 
@@ -194,7 +209,7 @@ void MyIntersectionShader_AABB()
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     if (RayAABBIntersectionTest(localRay, thit, attr))
     {
-        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
 
@@ -204,15 +219,55 @@ void MyIntersectionShader_AABB()
 }
 
 [shader("intersection")]
+void MyIntersectionShader_Spheres()
+{
+    ProceduralPrimitiveAttributes attr;
+    float thit;
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
+    if (RaySpheresIntersectionTest(localRay, thit, attr))
+    {
+        // ToDo move this to tests?
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
+        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
+        attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
+
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);
+    }
+}
+#endif
+
+#if ENABLE_NEW_CODE
+[shader("intersection")]
+void MyIntersectionShader_Metaballs()
+{
+    ProceduralPrimitiveAttributes attr;
+    float thit;
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
+    if (RayMetaballsIntersectionTest(localRay, thit, attr))
+    {
+        // ToDo move this to tests?
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
+        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
+
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);
+    }
+}
+
+
+[shader("intersection")]
 void MyIntersectionShader_AnalyticPrimitive()
 {
     ProceduralPrimitiveAttributes attr;
     float thit;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RayAnalyticGeometryIntersectionTest(localRay, inAttr.primitiveType, thit, attr))
+    if (RayAnalyticGeometryIntersectionTest(localRay, (AnalyticPrimitive::Enum) lrs_aabbCB.primitiveType, thit, attr))
     {
-        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
 
@@ -228,9 +283,9 @@ void MyIntersectionShader_VolumetricPrimitive()
     float thit;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RayVolumetricGeometryIntersectionTest(localRay, inAttr.primitiveType, thit, attr))
+    if (RayVolumetricGeometryIntersectionTest(localRay, (VolumetricPrimitive::Enum) lrs_aabbCB.primitiveType, thit, attr))
     {
-        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
 
@@ -238,8 +293,6 @@ void MyIntersectionShader_VolumetricPrimitive()
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }
-
-
 
 [shader("intersection")]
 void MyIntersectionShader_SignedDistancePrimitive()
@@ -247,12 +300,12 @@ void MyIntersectionShader_SignedDistancePrimitive()
     float thit;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RaySignedDistancePrimitiveTest(localRay, inAttr.primitiveType, thit))
+    if (RaySignedDistancePrimitiveTest(localRay, (SignedDistancePrimitive::Enum) lrs_aabbCB.primitiveType, thit))
     {
         ProceduralPrimitiveAttributes attr;
         float3 position = localRay.origin + thit * localRay.direction;
-        attr.normal = sdCalculateNormal(position, inAttr.sdPrimitive);
-        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+        attr.normal = sdCalculateNormal(position, (SignedDistancePrimitive::Enum) lrs_aabbCB.primitiveType);
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
 
@@ -260,11 +313,12 @@ void MyIntersectionShader_SignedDistancePrimitive()
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }
-
+#endif
+#if !DISABLE_CODE
 // Trace a shadow ray and return true if it hits any geometry.
-bool TraceShadowRayAndReportIfHit(in RayPayload payload : SV_RayPayload)
+bool TraceShadowRayAndReportIfHit(in RayPayload rayPayload : SV_RayPayload)
 {
-    if (payload.recursionDepth >= MAX_RAY_RECURSION_DEPTH)
+    if (rayPayload.recursionDepth >= MAX_RAY_RECURSION_DEPTH)
     {
         return false;
     }
@@ -290,8 +344,8 @@ bool TraceShadowRayAndReportIfHit(in RayPayload payload : SV_RayPayload)
         /* RayFlags */
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES
         | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
-        | RAY_FLAG_FORCE_OPAQUE // ~ skip any hits
-        | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hits
+        | RAY_FLAG_FORCE_OPAQUE             // ~skip any hit shaders
+        | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders
 
         ~0,/* InstanceInclusionMask*/
         1, /* RayContributionToHitGroupIndex */
@@ -303,7 +357,7 @@ bool TraceShadowRayAndReportIfHit(in RayPayload payload : SV_RayPayload)
 }
 
 [shader("closesthit")]
-void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
     float3 hitPosition = HitWorldPosition();
 
@@ -332,7 +386,7 @@ void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in Bu
     // ToDo move into a function
     // ToDo is this a live value?
     float4 reflectionColor = float4(0,0,0,0);
-    if (payload.recursionDepth < MAX_RAY_RECURSION_DEPTH)
+    if (rayPayload.recursionDepth < MAX_RAY_RECURSION_DEPTH)
     {
         // Set the ray's extents.
         RayDesc ray;
@@ -343,7 +397,7 @@ void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in Bu
         // For shadow ray this will be extremely small to avoid aliasing at contact areas.
         ray.TMin = 0;
         ray.TMax = 10000.0;
-        RayPayload reflectionRayPayload = { float4(0, 0, 0, 0), payload.recursionDepth + 1 };
+        RayPayload reflectionRayPayload = { float4(0, 0, 0, 0), rayPayload.recursionDepth + 1 };
         // ToDo use hit/miss indices from a header
         // ToDo place ShadowHitGroup right after Closest hitgroup?
         // ToDo review hit group indexing
@@ -355,7 +409,7 @@ void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in Bu
             2, /* MultiplierForGeometryContributionToHitGroupIndex */
             0, /* MissShaderIndex */
             ray, reflectionRayPayload);
-        reflectionColor = reflectioRayPayload.color;
+        reflectionColor = reflectionRayPayload.color;
     }
 
     // Trace a shadow ray. 
@@ -365,11 +419,11 @@ void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in Bu
     float4 diffuseColor = shadowFactor * g_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor + (float4(1,1,1,1) - g_materialCB.albedo) * reflectionColor;
 
-    payload.color = color;
+    rayPayload.color = color;
 }
 
 [shader("closesthit")]
-void MyClosestHitShader_AABB(inout RayPayload payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
 {
     float3 hitPosition = HitWorldPosition();
 
@@ -382,33 +436,34 @@ void MyClosestHitShader_AABB(inout RayPayload payload : SV_RayPayload, in Proced
     float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
-    payload.color = color;
+    rayPayload.color = color;
 }
 
 [shader("miss")]
-void MyMissShader(inout RayPayload payload : SV_RayPayload)
+void MyMissShader(inout RayPayload rayPayload : SV_RayPayload)
 {
     float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f);
-    payload.color = background;
+    rayPayload.color = background;
 }
 
 [shader("closesthit")]
-void MyClosestHitShader_ShadowRayTriangle(inout ShadowRayPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_ShadowRayTriangle(inout ShadowRayPayload rayPayload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    payload.hit = true;
+    rayPayload.hit = true;
 }
 
 [shader("closesthit")]
-void MyClosestHitShader_ShadowRayAABB(inout ShadowRayPayload payload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_ShadowRayAABB(inout ShadowRayPayload rayPayload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
 {
-    payload.hit = true;
+    rayPayload.hit = true;
 }
 
 
 [shader("miss")]
-void MyMissShader_Shadow(inout ShadowRayPayload payload : SV_RayPayload)
+void MyMissShader_Shadow(inout ShadowRayPayload rayPayload : SV_RayPayload)
 {
-    payload.hit = false;
+    rayPayload.hit = false;
 }
-
+#endif
+#endif
 #endif // RAYTRACING_HLSL

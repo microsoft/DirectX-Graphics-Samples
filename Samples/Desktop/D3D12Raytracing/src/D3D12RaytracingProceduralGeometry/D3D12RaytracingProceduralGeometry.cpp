@@ -18,18 +18,28 @@ using namespace DX;
 
 // Shader entry points.
 const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRaygenShader";
+#if 1
+const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
+{
+    L"MyIntersectionShader_AABB",
+    L"MyIntersectionShader_Spheres",
+    L"MyIntersectionShader_Spheres",
+};
+#else
 const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
 {
     L"MyIntersectionShader_AnalyticPrimitive",
     L"MyIntersectionShader_VolumetricPrimitive",
     L"MyIntersectionShader_SignedDistancePrimitive",
 };
-
+#endif
 // To remove closest hits for shadows
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[][RayType::Count] =
 {
     { L"MyClosestHitShader_Triangle", L"MyClosestHitShader_ShadowRayTriangle" },
+#if !DISABLE_CODE
     { L"MyClosestHitShader_AABB", L"MyClosestHitShader_ShadowRayAABB" },
+#endif
 };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_missShaderNames[] =
 {
@@ -303,6 +313,7 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
         rootParameters[GlobalRootSignature::Slot::AccelerationStructure].InitAsShaderResourceView(0);
         rootParameters[GlobalRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
         rootParameters[GlobalRootSignature::Slot::AABBattributeBuffer].InitAsShaderResourceView(3);
+        // ToDo rename - IB is first not VB
         rootParameters[GlobalRootSignature::Slot::VertexBuffers].InitAsDescriptorTable(1, &ranges[1]);
         CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
@@ -381,7 +392,9 @@ void D3D12RaytracingProceduralGeometry::CreateDxilLibrarySubobject(CD3D12_STATE_
     // In this sample, this could be ommited for convenience since the sample uses all shaders in the library. 
     {
         lib->DefineExport(c_raygenShaderName);
+#if !DISABLE_CODE
         DefineExports(lib, c_intersectionShaderNames);
+#endif
         DefineExports(lib, c_closestHitShaderNames);
         DefineExports(lib, c_missShaderNames);
     }
@@ -404,7 +417,7 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
             hitGroup->SetHitGroupExport(c_hitGroupNames_TriangleGeometry[rayType]);
         }
     }
-
+#if !DISABLE_CODE
     // AABB geometry hit groups
     {
         // Create hit groups for each intersection shader.
@@ -417,6 +430,7 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
                 hitGroup->SetHitGroupExport(c_hitGroupNames_AABBGeometry[aabbType][rayType]);
             }
     }
+#endif
 }
 
 // Local root signature and shader association
@@ -489,10 +503,10 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     CreateHitGroupSubobjects(&raytracingPipeline);
 
     // Shader config
-    // Defines the maximum sizes in bytes for the ray payload and attribute structure.
+    // Defines the maximum sizes in bytes for the ray rayPayload and attribute structure.
     auto shaderConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
     UINT payloadSize = max(sizeof(RayPayload), sizeof(ShadowRayPayload));
-    UINT attributeSize = sizeof(MyAttributes);
+    UINT attributeSize = sizeof(struct ProceduralPrimitiveAttributes);
     shaderConfig->Config(payloadSize, attributeSize);
 
     // Local root signature and shader association
@@ -513,7 +527,10 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     pipelineConfig->Config(maxRecursionDepth);
 
     // Debug
+    // ToDo remove assert
+#if !DISABLE_CODE
     assert(raytracingPipeline.NumSubbojects() == NUM_SUBOBJECTS && L"Checking expeted num subobjects here. Num subobjects doesn't match. Update RTPSO description.");
+#endif
     PrintStateObjectDesc(raytracingPipeline);
 
     // Create the state object.
@@ -1123,7 +1140,8 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
             UINT geometryIndex = 0;
             for (UINT t = 0; t < IntersectionShaderType::Count; t++)
             {
-                UINT nSubPrimitiveTypes = IntersectionShaderType::PerPrimitiveTypeCount(static_cast<IntersectionShaderType::Enum>(t));
+                // ToDo
+                UINT nSubPrimitiveTypes = 1;// IntersectionShaderType::PerPrimitiveTypeCount(static_cast<IntersectionShaderType::Enum>(t));
                 for (UINT p = 0; p < nSubPrimitiveTypes; p++)
                 {
                     rootArgs.materialCb = m_aabbMaterialCB[geometryIndex];      // ToDo

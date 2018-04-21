@@ -13,17 +13,15 @@
 #define RAYTRACINGPRIMITIVESLIBRARY_H
 
 #include "RaytracingShaderHelper.h"
+
+#if ENABLE_NEW_CODE
 #include "SignedDistancePrimitives.h"
 #include "SignedDistanceFractals.h"
-
+#endif
 
 // ToDo revise inout specifiers
 // ToDo pass raytracing intrinsics as parameters?
 
-struct ProceduralPrimitiveAttributes
-{
-    float3 normal;
-};
 
 void swap(inout float a, inout float b)
 {
@@ -258,6 +256,7 @@ bool RayAABBIntersectionTest(Ray ray, out float thit, out ProceduralPrimitiveAtt
     return false;
 }
 
+#if ENABLE_NEW_CODE
 
 #define METABALL_POTENTIAL_SAP 1
 #if METABALL_POTENTIAL_SAP
@@ -435,41 +434,41 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
 }
 #endif
 
-bool RayAnalyticGeometryIntersectionTest(Ray ray, in AnalyticPrimitive analyticPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
+bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum analyticPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
 {
     switch (analyticPrimitive)
     {
-    case AABB: return RayAABBIntersectionTest(position, thit, attr);
-    case Sphere: return RaySphereIntersectionTest(position, thit, attr);
-    case Spheres: return RaySpheresIntersectionTest(position, thit, attr);
-    }
-    return false;
+    case AnalyticPrimitive::AABB: return RayAABBIntersectionTest(ray, thit, attr);
+    case AnalyticPrimitive::Sphere: return RaySphereIntersectionTest(ray, thit, attr);
+    case AnalyticPrimitive::Spheres: return RaySpheresIntersectionTest(ray, thit, attr);
+    default: return false;
+    }   
 }
 
-bool RayVolumetricGeometryIntersectionTest(Ray ray, in VolumetricPrimitive volumetricPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
+bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::Enum volumetricPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
 {
     switch (volumetricPrimitive)
     {
-    case Metaballs: return RayMetaballsIntersectionTest(position, thit, attr);
+    case VolumetricPrimitive::Metaballs: return RayMetaballsIntersectionTest(ray, thit, attr);
+    default: return false;
     }
-    return false;
+}
 
-
-float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive sdPrimitive)
+float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum sdPrimitive)
 {
     switch (sdPrimitive)
     {
-    case Cone: return sdCone(position, float3(0.8, 0.6, 0.3));
-    case Torus: return sdTorus(position, float2(0.20, 0.05));
-    case Pyramid: return sdPyramid4(position, float3(0.8, 0.6, 0.25));
-    case FractalTetrahedron: return sdFractalTetrahedron(position, 5);
+    case SignedDistancePrimitive::Cone: return sdCone(position, float3(0.8, 0.6, 0.3));
+    case SignedDistancePrimitive::Torus: return sdTorus(position, float2(0.20, 0.05));
+    case SignedDistancePrimitive::Pyramid: return sdPyramid4(position, float3(0.8, 0.6, 0.25));
+    case SignedDistancePrimitive::FractalTetrahedron: return sdFractalTetrahedron(position, 5);
+    default: return 0;
     }
-    return 0;
 }
 
 // Test ray against a signed distance primitive.
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer
-bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive sdPrimitive, out float thit)
+bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum sdPrimitive, out float thit)
 {    
     const float threshold = 0.0005;// ToDo 10e-6;
     float t = RayTMin();
@@ -495,5 +494,5 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive sdPri
     return false;
 }
 
-
+#endif
 #endif // RAYTRACINGPRIMITIVESLIBRARY_H

@@ -107,6 +107,7 @@ namespace RayType {
     };
 }
 
+// ToDo name all namespaces to * vs *Type.
 namespace IntersectionShaderType {
     enum Enum {
         AnalyticPrimitive = 0,
@@ -126,6 +127,6 @@ namespace IntersectionShaderType {
     }
     static const UINT MaxPerPrimitiveTypeCount =
         max(AnalyticPrimitive::Count, max(VolumetricPrimitive::Count, SignedDistancePrimitive::Count));
-    static const UINT TotalPrimitiveeCount =
+    static const UINT TotalPrimitiveCount =
         AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Count;
 }

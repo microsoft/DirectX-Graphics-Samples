@@ -13,6 +13,8 @@
 #define RAYTRACINGHLSLCOMPAT_H
 
 // ToDo check for unreleased resources.
+#define ENABLE_NEW_CODE 0
+#define DISABLE_CODE 1
 
 // Workaround for dynamic indexing issue in DXR shaders on Nvidia
 #define DO_NOT_USE_DYNAMIC_INDEXING 1 
@@ -35,15 +37,13 @@ typedef UINT16 Index;
 
 // PERFOMANCE TIP: Set max recursion depth as low as needed
 // as drivers may apply optimization strategies for low recursion depths.
-#define MAX_RAY_RECURSION_DEPTH 1 // ToDo ~ primary rays + reflections + shadow rays.
+#define MAX_RAY_RECURSION_DEPTH 3 // ToDo ~ primary rays + reflections + shadow rays.
 
 // ToDo cleanup
-struct MyAttributes
+struct ProceduralPrimitiveAttributes
 {
-    XMFLOAT2 barycentrics;
-    XMFLOAT4 normal;
+    XMFLOAT3 normal;
 };
-
 struct ShadowRayPayload
 {
     bool hit;
@@ -74,6 +74,7 @@ struct AABBConstantBuffer
 {
     UINT geometryIndex;
     UINT primitiveType;
+    UINT padding[2];
 };
 
 struct Vertex
@@ -94,6 +95,7 @@ struct RectangularPrismAABB
     XMFLOAT3 maxPosition;
 };
 
+
 namespace AnalyticPrimitive {
     enum Enum {
         AABB = 0,
@@ -112,7 +114,8 @@ namespace VolumetricPrimitive {
 
 namespace SignedDistancePrimitive {
     enum Enum {
-        Cone = VolumetricPrimitive::Count,
+        // ToDo improve the setup - move into dynamic multidimensional structure?
+        Cone = VolumetricPrimitive::Metaballs + 1,
         Torus,
         Pyramid,
         FractalTetrahedron,
