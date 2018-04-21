@@ -1,46 +1,50 @@
-/*********************************************************
-This file is based on or incorporates material from the projects listed below (Third Party OSS). 
-The original copyright notice and the license under which Microsoft received such Third Party OSS, 
-are set forth below. Such licenses and notices are provided for informational purposes only. 
-Microsoft licenses the Third Party OSS to you under the licensing terms for the Microsoft product 
-or service. Microsoft reserves all other rights not expressly granted under this agreement, 
-whether by implication, estoppel or otherwise. 
+//*********************************************************************************
+//
+// This file is based on or incorporates material from the projects listed below 
+// (Third Party OSS). The original copyright notice and the license under which 
+// Microsoft received such Third Party OSS, are set forth below. Such licenses 
+// and notices are provided for informational purposes only. Microsoft licenses 
+// the Third Party OSS to you under the licensing terms for the Microsoft product 
+// or service. Microsoft reserves all other rights not expressly granted under 
+// this agreement, whether by implication, estoppel or otherwise.
+//
+// MIT License
+// Copyright(c) 2013 Inigo Quilez
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy 
+// of this software and associated documentation files(the Software), to deal 
+// in the Software without restriction, including without limitation the rights 
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+// copies of the Software, and to permit persons to whom the Software is furnished 
+// to do so, subject to the following conditions :
+//
+// The above copyright notice and this permission notice shall be included in all 
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS 
+// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS 
+// OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR 
+// IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//*********************************************************************************
 
+#ifndef SIGNEDDISTANCEPRIMITIVES_H
+#define SIGNEDDISTANCEPRIMITIVES_H
 
-MIT License
-Copyright(c) 2013 Inigo Quilez
-
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
-and associated documentation files(the Software), to deal in the Software without restriction, 
-including without limitation the rights to use, copy, modify, merge, publish, distribute,
-sublicense, and/or sell copies of the Software, and to permit persons to whom the Software 
-is furnished to do so, subject to the following conditions :
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
-INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT.IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-*********************************************************/
-
-#ifndef RAYTRACINGHLSLCOMPAT_H
-#define RAYTRACINGHLSLCOMPAT_H
-
+//**********************************************************************************************
+//
+// SignedDistanceFieldLibrary.h
+// Ref: https://www.shadertoy.com/view/Xds3zN 
 // A list of useful distance function to simple primitives, and an example on how to 
 // do some interesting boolean operations, repetition and displacement.
 //
 // More info here: http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
+//
+//**********************************************************************************************
 
-
-#define AA 1   // make this 1 is your machine is too slow
+#include "RaytracingShaderHelper.h"
 
 //------------------------------------------------------------------
 
@@ -138,10 +142,10 @@ float sdConeSection(in float3 p, in float h, in float r1, in float r2)
     return length(max(float2(d1, d2), 0.0)) + min(max(d1, d2), 0.);
 }
 
-float sdPryamid4(float3 p, float3 h) // h = { cos a, sin a, height }
+float sdPyramid4(float3 p, float3 h) // h = { cos a, sin a, height }
 {
     // Tetrahedron = Octahedron - Cube
-    float box = sdBox(p - float3(0, -2.0 * h.z, 0), float3(2.0 * h.z));
+    float box = sdBox(p - float3(0, -2.0 * h.z, 0), (float3)(2.0 * h.z));
 
     float d = 0.0;
     d = max(d, abs(dot(p, float3(-h.x, h.y, 0))));
@@ -201,7 +205,7 @@ float2 opU(float2 d1, float2 d2)
 
 float3 opRep(float3 p, float3 c)
 {
-    return mod(p, c) - 0.5 * c;
+    return fmod(p, c) - 0.5 * c;
 }
 
 float3 opTwist(float3 p)
@@ -212,8 +216,20 @@ float3 opTwist(float3 p)
     return float3(m * p.xz, p.y);
 }
 
+enum SD_PRIMITIVE 
+{ 
+    Cone = 0, 
+    Torus,
+    Pyramid
+};
+
 //------------------------------------------------------------------
 
+float2 map(in float3 pos)
+{
+    return float2(0, 0);
+}
+/*
 float2 map(in float3 pos)
 {
     float2 res = opU(float2(sdPlane(pos), 1.0),
@@ -229,7 +245,7 @@ float2 map(in float3 pos)
     res = opU(res, float2(sdTorus88(pos - float3(-1.0, 0.25, 2.0), float2(0.20, 0.05)), 43.0));
     res = opU(res, float2(sdCylinder6(pos - float3(1.0, 0.30, 2.0), float2(0.1, 0.2)), 12.0));
     res = opU(res, float2(sdHexPrism(pos - float3(-1.0, 0.20, 1.0), float2(0.25, 0.05)), 17.0));
-    res = opU(res, float2(sdPryamid4(pos - float3(-1.0, 0.15, -2.0), float3(0.8, 0.6, 0.25)), 37.0));
+    res = opU(res, float2(sdPyramid4(pos - float3(-1.0, 0.15, -2.0), float3(0.8, 0.6, 0.25)), 37.0));
     res = opU(res, float2(opS(udRoundBox(pos - float3(-2.0, 0.2, 1.0), float3(0.15), 0.05),
         sdSphere(pos - float3(-2.0, 0.2, 1.0), 0.25)), 13.0));
     res = opU(res, float2(opS(sdTorus82(pos - float3(-2.0, 0.2, 0.0), float2(0.20, 0.1)),
@@ -241,6 +257,7 @@ float2 map(in float3 pos)
 
     return res;
 }
+*/
 
 float2 castRay(in float3 ro, in float3 rd)
 {
@@ -314,7 +331,7 @@ float calcAO(in float3 pos, in float3 nor)
         float3 aopos = nor * hr + pos;
         float dd = map(aopos).x;
         occ += -(dd - hr) * sca;
-        sca  * = 0.95;
+        sca  *= 0.95;
     }
     return clamp(1.0 - 3.0 * occ, 0.0, 1.0);
 }
@@ -348,7 +365,7 @@ float3 render(in float3 ro, in float3 rd)
         {
 
             float f = checkersGradBox(5.0 * pos.xz);
-            col = 0.3 + f * float3(0.1);
+            col = 0.3 + f * 0.1;
         }
 
         // lighitng        
@@ -368,7 +385,7 @@ float3 render(in float3 ro, in float3 rd)
             dif *
             (0.04 + 0.96 * pow(clamp(1.0 + dot(hal, rd), 0.0, 1.0), 5.0));
 
-        float3 lin = float3(0.0);
+        float3 lin = 0;
         lin += 1.30 * dif * float3(1.00, 0.80, 0.55);
         lin += 0.40 * amb * float3(0.40, 0.60, 1.00) * occ;
         lin += 0.50 * dom * float3(0.40, 0.60, 1.00) * occ;
@@ -377,44 +394,35 @@ float3 render(in float3 ro, in float3 rd)
         col = col * lin;
         col += 10.00 * spe * float3(1.00, 0.90, 0.70);
 
-        col = mix(col, float3(0.8, 0.9, 1.0), 1.0 - exp(-0.0002 * t * t * t));
+        col = lerp(col, float3(0.8, 0.9, 1.0), 1.0 - exp(-0.0002 * t * t * t));
     }
 
     return float3(clamp(col, 0.0, 1.0));
 }
 
-mat3 setCamera(in float3 ro, in float3 ta, float cr)
+/*
+float3x3 setCamera(in float3 ro, in float3 ta, float cr)
 {
     float3 cw = normalize(ta - ro);
     float3 cp = float3(sin(cr), cos(cr), 0.0);
     float3 cu = normalize(cross(cw, cp));
     float3 cv = normalize(cross(cu, cw));
-    return mat3(cu, cv, cw);
+    return float3x3(cu, cv, cw);
 }
 
-void mainImage(out vec4 fragColor, in float2 fragCoord)
+void mainImage(out float4 fragColor, in float2 fragCoord)
 {
     float2 mo = iMouse.xy / iResolution.xy;
     float time = 15.0 + iTime;
 
-
     float3 tot = float3(0.0);
-#if AA > 1
-    for (int m = 0; m < AA; m++)
-        for (int n = 0; n < AA; n++)
-        {
-            // pixel coordinates
-            float2 o = float2(float(m), float(n)) / float(AA) - 0.5;
-            float2 p = (-iResolution.xy + 2.0 * (fragCoord + o)) / iResolution.y;
-#else    
     float2 p = (-iResolution.xy + 2.0 * fragCoord) / iResolution.y;
-#endif
 
     // camera	
     float3 ro = float3(-0.5 + 3.5 * cos(0.1 * time + 6.0 * mo.x), 1.0 + 2.0 * mo.y, 0.5 + 4.0 * sin(0.1 * time + 6.0 * mo.x));
     float3 ta = float3(-0.5, -0.4, 0.5);
     // camera-to-world transformation
-    mat3 ca = setCamera(ro, ta, 0.0);
+    float3x3 ca = setCamera(ro, ta, 0.0);
     // ray direction
     float3 rd = ca * normalize(float3(p.xy, 2.0));
 
@@ -425,13 +433,7 @@ void mainImage(out vec4 fragColor, in float2 fragCoord)
     col = pow(col, float3(0.4545));
 
     tot += col;
-#if AA > 1
-        }
-tot /= float(AA * AA);
-#endif
-
-
-fragColor = vec4(tot, 1.0);
+    fragColor = float4(tot, 1.0);
 }
-
-#endif // RAYTRACINGHLSLCOMPAT_H
+*/
+#endif // SIGNEDDISTANCEPRIMITIVES_H

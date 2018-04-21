@@ -193,7 +193,8 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
 
-        lightPosition = XMFLOAT4(0.0f, 18.0f, -30.0f, 0.0f);
+        //lightPosition = XMFLOAT4(0.0f, 18.0f, -30.0f, 0.0f);
+        lightPosition = XMFLOAT4(0.0f, 9.0f, -10.0f, 0.0f);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 
@@ -1199,6 +1200,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     }
 
     // Rotate the second light around Y axis.
+    if (1)
     {
         float secondsToRotateAround = 8.0f;
         float angleToRotateBy = -360.0f * (elapsedTime / secondsToRotateAround);
