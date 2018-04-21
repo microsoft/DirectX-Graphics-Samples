@@ -47,6 +47,9 @@
 
 #include "RaytracingShaderHelper.h"
 
+// Forward declarations.
+float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive sdPrimitive);
+
 //------------------------------------------------------------------
 
 float sdPlane(float3 p)
@@ -209,6 +212,15 @@ float3 opRep(float3 p, float3 c)
     return fmod(p, c) - 0.5 * c;
 }
 
+
+// ToDo repeating spheres
+float DE(vec3 z)
+{
+    z.xy = mod((z.xy), 1.0) - vec3(0.5); // instance on xy-plane
+    return length(z) - 0.3;             // sphere DE
+}
+
+
 float3 opTwist(float3 p)
 {
     float c = cos(10.0 * p.y + 10.0);
@@ -283,7 +295,18 @@ float2 castRay(in float3 ro, in float3 rd)
     return float2(t, m);
 }
 
+float3 sdCalculateNormal(in float3 pos, in SignedDistancePrimitive sdPrimitive)
+{
+    float2 e = float2(1.0, -1.0) * 0.5773 * 0.0005;
+    return normalize(
+        e.xyy * GetDistanceFromSignedDistancePrimitive(pos + e.xyy, sdPrimitive) +
+        e.yyx * GetDistanceFromSignedDistancePrimitive(pos + e.yyx, sdPrimitive) +
+        e.yxy * GetDistanceFromSignedDistancePrimitive(pos + e.yxy, sdPrimitive) +
+        e.xxx * GetDistanceFromSignedDistancePrimitive(pos + e.xxx, sdPrimitive));
+}
 
+#if 0 
+Unused Code ToDo remove
 float calcSoftshadow(in float3 ro, in float3 rd, in float mint, in float tmax)
 {
     float res = 1.0;
@@ -296,24 +319,6 @@ float calcSoftshadow(in float3 ro, in float3 rd, in float mint, in float tmax)
         if (h < 0.001 || t > tmax) break;
     }
     return clamp(res, 0.0, 1.0);
-}
-
-float3 calcNormal(in float3 pos)
-{
-    float2 e = float2(1.0, -1.0) * 0.5773 * 0.0005;
-    return normalize(
-        e.xyy * map(pos + e.xyy).x +
-        e.yyx * map(pos + e.yyx).x +
-        e.yxy * map(pos + e.yxy).x +
-        e.xxx * map(pos + e.xxx).x);
-    /*
-    float3 eps = float3( 0.0005, 0.0, 0.0 );
-    float3 nor = float3(
-    map(pos + eps.xyy).x - map(pos - eps.xyy).x,
-    map(pos + eps.yxy).x - map(pos - eps.yxy).x,
-    map(pos + eps.yyx).x - map(pos - eps.yyx).x );
-    return normalize(nor);
-    */
 }
 
 float calcAO(in float3 pos, in float3 nor)
@@ -395,7 +400,7 @@ float3 render(in float3 ro, in float3 rd)
     return float3(clamp(col, 0.0, 1.0));
 }
 
-/*
+
 float3x3 setCamera(in float3 ro, in float3 ta, float cr)
 {
     float3 cw = normalize(ta - ro);
@@ -430,6 +435,6 @@ void mainImage(out float4 fragColor, in float2 fragCoord)
     tot += col;
     fragColor = float4(tot, 1.0);
 }
-*/
+#endif
 
 #endif // SIGNEDDISTANCEPRIMITIVES_H

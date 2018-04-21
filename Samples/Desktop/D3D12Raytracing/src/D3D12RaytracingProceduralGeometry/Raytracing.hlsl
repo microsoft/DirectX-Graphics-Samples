@@ -20,6 +20,8 @@
 // ToDo:
 // - handle RayFlags in intersection tests
 // - specify traceRay args in a shared header
+// - ReportHit will return to Intersection shader if RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH  is not specified. If that's the case handle it.
+// 
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
 RWTexture2D<float4> RenderTarget : register(u0);
@@ -129,20 +131,20 @@ Ray GetRayInAABBPrimitiveLocalSpace(out AABBPrimitiveAttributes attr)
 }
 
 [shader("intersection")]
-void MyIntersectionShader_Metaballs()
+void MyIntersectionShader_Ra()
 {
     ProceduralPrimitiveAttributes attr;
-    float tHit;
+    float thit;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RayMetaballsIntersectionTest(localRay, tHit, attr))
+    if (RayMetaballsIntersectionTest(localRay, thit, attr))
     {
         // ToDo move this to tests?
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
 
-        // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
-        ReportHit(tHit, /*hitKind*/ 0, attr);
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }
 
@@ -150,19 +152,18 @@ void MyIntersectionShader_Metaballs()
 void MyIntersectionShader_Spheres()
 {
     ProceduralPrimitiveAttributes attr;
-    float tHit;
+    float thit;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RayMetaballsIntersectionTest(localRay, tHit, attr))
-    //if (RaySpheresIntersectionTest(localRay, tHit, attr))
+    if (RaySpheresIntersectionTest(localRay, thit, attr))
     {
         // ToDo move this to tests?
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
 
-        // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
-        ReportHit(tHit, /*hitKind*/ 0, attr);
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }
 
@@ -170,17 +171,17 @@ void MyIntersectionShader_Spheres()
 void MyIntersectionShader_Sphere()
 {
     ProceduralPrimitiveAttributes attr;
-    float tHit;
+    float thit;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RaySphereIntersectionTest(localRay, tHit, attr))
+    if (RaySphereIntersectionTest(localRay, thit, attr))
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
 
-        // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
-        ReportHit(tHit, /*hitKind*/ 0, attr);       
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);       
     }
 }
 
@@ -188,36 +189,117 @@ void MyIntersectionShader_Sphere()
 void MyIntersectionShader_AABB()
 {
     ProceduralPrimitiveAttributes attr;
-    float tHit;
+    float thit;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RayAABBIntersectionTest(localRay, tHit, attr))
+    if (RayAABBIntersectionTest(localRay, thit, attr))
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
 
-        // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
-        ReportHit(tHit, /*hitKind*/ 0, attr);
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }
 
 [shader("intersection")]
-void MyIntersectionShader_SignedDistancePrimitive()
+void MyIntersectionShader_AnalyticPrimitive()
 {
     ProceduralPrimitiveAttributes attr;
-    float tHit;
+    float thit;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RaySignedDistancePrimitiveTest(localRay, inAttr.sdPrimitive, tHit, attr))
+    if (RayAnalyticGeometryIntersectionTest(localRay, inAttr.primitiveType, thit, attr))
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
 
-        // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
-        ReportHit(tHit, /*hitKind*/ 0, attr);
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);
     }
+}
+
+[shader("intersection")]
+void MyIntersectionShader_VolumetricPrimitive()
+{
+    ProceduralPrimitiveAttributes attr;
+    float thit;
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
+    if (RayVolumetricGeometryIntersectionTest(localRay, inAttr.primitiveType, thit, attr))
+    {
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
+        attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
+
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);
+    }
+}
+
+
+
+[shader("intersection")]
+void MyIntersectionShader_SignedDistancePrimitive()
+{
+    float thit;
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
+    if (RaySignedDistancePrimitiveTest(localRay, inAttr.primitiveType, thit))
+    {
+        ProceduralPrimitiveAttributes attr;
+        float3 position = localRay.origin + thit * localRay.direction;
+        attr.normal = sdCalculateNormal(position, inAttr.sdPrimitive);
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
+        attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
+
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);
+    }
+}
+
+// Trace a shadow ray and return true if it hits any geometry.
+bool TraceShadowRayAndReportIfHit(in RayPayload payload : SV_RayPayload)
+{
+    if (payload.recursionDepth >= MAX_RAY_RECURSION_DEPTH)
+    {
+        return false;
+    }
+
+    // Set the ray's extents.
+    RayDesc ray;
+    ray.Origin = HitWorldPosition();
+    ray.Direction = normalize(g_sceneCB.lightPosition - HitWorldPosition());
+    // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+    // TMin should be kept small to prevent missing geometry at close contact areas.
+    // For shadow ray this will be extremely small to avoid aliasing at contact areas.
+    ray.TMin = 0;
+    ray.TMax = 10000.0;
+    // Set to true, since closest hit shaders are skipped. 
+    // Shadow Miss shader, if called, will set it to false.
+    ShadowRayPayload shadowPayload = { true };
+    // ToDo use hit/miss indices from a header
+    // ToDo place ShadowHitGroup right after Closest hitgroup?
+    // ToDo review hit group indexing
+    // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
+    TraceRay(Scene,
+        // ToDo explain
+        /* RayFlags */
+        RAY_FLAG_CULL_BACK_FACING_TRIANGLES
+        | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
+        | RAY_FLAG_FORCE_OPAQUE // ~ skip any hits
+        | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hits
+
+        ~0,/* InstanceInclusionMask*/
+        1, /* RayContributionToHitGroupIndex */
+        2, /* MultiplierForGeometryContributionToHitGroupIndex */
+        1, /* MissShaderIndex */
+        ray, shadowPayload);
+
+    return shadowPayload.hit;
 }
 
 [shader("closesthit")]
@@ -247,6 +329,7 @@ void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in Bu
     float3 triangleNormal = HitAttribute(vertexNormals, attr.barycentrics);
 
     // Trace a reflection ray. 
+    // ToDo move into a function
     // ToDo is this a live value?
     float4 reflectionColor = float4(0,0,0,0);
     if (payload.recursionDepth < MAX_RAY_RECURSION_DEPTH)
@@ -260,7 +343,7 @@ void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in Bu
         // For shadow ray this will be extremely small to avoid aliasing at contact areas.
         ray.TMin = 0;
         ray.TMax = 10000.0;
-        RayPayload reflectioRayPayload = { float4(0, 0, 0, 0), payload.recursionDepth + 1 };
+        RayPayload reflectionRayPayload = { float4(0, 0, 0, 0), payload.recursionDepth + 1 };
         // ToDo use hit/miss indices from a header
         // ToDo place ShadowHitGroup right after Closest hitgroup?
         // ToDo review hit group indexing
@@ -271,37 +354,13 @@ void MyClosestHitShader_Triangle(inout RayPayload payload : SV_RayPayload, in Bu
             0, /* RayContributionToHitGroupIndex */
             2, /* MultiplierForGeometryContributionToHitGroupIndex */
             0, /* MissShaderIndex */
-            ray, reflectioRayPayload);
+            ray, reflectionRayPayload);
         reflectionColor = reflectioRayPayload.color;
     }
 
     // Trace a shadow ray. 
-    float shadowFactor = 1.0f;
-    if (payload.recursionDepth < MAX_RAY_RECURSION_DEPTH)
-    {
-        // Set the ray's extents.
-        RayDesc ray;
-        ray.Origin = hitPosition;
-        ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
-        // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
-        // TMin should be kept small to prevent missing geometry at close contact areas.
-        // For shadow ray this will be extremely small to avoid aliasing at contact areas.
-        ray.TMin = 0;
-        ray.TMax = 10000.0;
-        ShadowRayPayload shadowPayload;
-        // ToDo use hit/miss indices from a header
-        // ToDo place ShadowHitGroup right after Closest hitgroup?
-        // ToDo review hit group indexing
-        // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
-        TraceRay(Scene,
-            RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
-            ~0,/* InstanceInclusionMask*/
-            1, /* RayContributionToHitGroupIndex */
-            2, /* MultiplierForGeometryContributionToHitGroupIndex */
-            1, /* MissShaderIndex */
-            ray, shadowPayload);
-        shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
-    }
+    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload);
+    float shadowFactor = shadowRayHit ? 0.1 : 1.0;
 
     float4 diffuseColor = shadowFactor * g_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor + (float4(1,1,1,1) - g_materialCB.albedo) * reflectionColor;
@@ -314,31 +373,9 @@ void MyClosestHitShader_AABB(inout RayPayload payload : SV_RayPayload, in Proced
 {
     float3 hitPosition = HitWorldPosition();
 
-    float shadowFactor = 1.0;
-    if (payload.recursionDepth < MAX_RAY_RECURSION_DEPTH)
-    {
-        // Trace a shadow ray. 
-        // Set the ray's extents.
-        RayDesc ray;
-        ray.Origin = hitPosition;
-        ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
-        // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
-        // TMin should be kept small to prevent missing geometry at close contact areas.
-        // ToDo explain use of 0, should it be everywhere? - its ok due to CULL back facing
-        ray.TMin = 0;
-        ray.TMax = 10000.0;
-        ShadowRayPayload shadowPayload;
-        // ToDo use hit/miss indices from a header
-        TraceRay(Scene,
-            RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH, /* RayFlags */
-            ~0,/* InstanceInclusionMask*/
-            1, /* RayContributionToHitGroupIndex */
-            2, /* MultiplierForGeometryContributionToHitGroupIndex */
-            1, /* MissShaderIndex */
-            ray, shadowPayload);
-
-        shadowFactor = shadowPayload.hit ? 0.1 : 1.0;
-    }
+    // Trace a shadow ray. 
+    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload);
+    float shadowFactor = shadowRayHit ? 0.1 : 1.0;
 
     float3 triangleNormal = attr.normal;
     float4 albedo = g_materialCB.albedo;

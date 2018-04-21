@@ -94,7 +94,7 @@ private:
     
     // Root constants
     MaterialConstantBuffer m_planeMaterialCB;
-    MaterialConstantBuffer m_aabbMaterialCB[IntersectionShaderType::Count];
+    MaterialConstantBuffer m_aabbMaterialCB[ProceduralPrimitivesCount];
 
     // Geometry
     D3DBuffer m_indexBuffer;

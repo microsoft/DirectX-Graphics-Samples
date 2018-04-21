@@ -20,13 +20,12 @@ using namespace DX;
 const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
 {
-    L"MyIntersectionShader_AABB", 
-    L"MyIntersectionShader_Sphere", 
-    L"MyIntersectionShader_Spheres",
-    L"MyIntersectionShader_Metaballs",
-    // Todo N instances of SDP
+    L"MyIntersectionShader_AnalyticPrimitive",
+    L"MyIntersectionShader_VolumetricPrimitive",
     L"MyIntersectionShader_SignedDistancePrimitive",
 };
+
+// To remove closest hits for shadows
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[][RayType::Count] =
 {
     { L"MyClosestHitShader_Triangle", L"MyClosestHitShader_ShadowRayTriangle" },
@@ -168,9 +167,14 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
     // Setup materials.
     {
         m_planeMaterialCB.albedo = XMFLOAT4(0.75f, 0.75f, 0.75f, 1.0f);
-        m_aabbMaterialCB[IntersectionShaderType::AABB].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
-        m_aabbMaterialCB[IntersectionShaderType::Sphere].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
-        m_aabbMaterialCB[IntersectionShaderType::Spheres].albedo = XMFLOAT4(0.5f, 1.0f, 0.5f, 1.0f);
+        m_aabbMaterialCB[AnalyticPrimitive::AABB].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
+        m_aabbMaterialCB[AnalyticPrimitive::Sphere].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
+        m_aabbMaterialCB[AnalyticPrimitive::Spheres].albedo = XMFLOAT4(0.5f, 1.0f, 0.5f, 1.0f);
+        m_aabbMaterialCB[VolumetricPrimitive::Metaballs].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
+        m_aabbMaterialCB[SignedDistancePrimitive::Cone].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
+        m_aabbMaterialCB[SignedDistancePrimitive::Torus].albedo = XMFLOAT4(0.5f, 1.0f, 0.5f, 1.0f);
+        m_aabbMaterialCB[SignedDistancePrimitive::Pyramid].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
+        m_aabbMaterialCB[SignedDistancePrimitive::FractalTetrahedron].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
     }
 
     // Setup camera.
@@ -1116,14 +1120,20 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
         // AABB geometry hit groups.
         {
             LocalRootSignature::AABB::RootArguments rootArgs;
-            for (UINT r = 0; r < IntersectionShaderType::Count; r++)
+            UINT geometryIndex = 0;
+            for (UINT t = 0; t < IntersectionShaderType::Count; t++)
             {
-                rootArgs.materialCb = m_aabbMaterialCB[r];
-                rootArgs.aabbCB.geometryIndex = r;
-                for (UINT c = 0; c < RayType::Count; c++)
+                UINT nSubPrimitiveTypes = IntersectionShaderType::PerPrimitiveTypeCount(static_cast<IntersectionShaderType::Enum>(t));
+                for (UINT p = 0; p < nSubPrimitiveTypes; p++)
                 {
-                    auto& hitGroupShaderID = hitGroupShaderIDs_AABBGeometry[r][c];
-                    hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
+                    rootArgs.materialCb = m_aabbMaterialCB[geometryIndex];      // ToDo
+                    rootArgs.aabbCB.geometryIndex = geometryIndex;
+                    rootArgs.aabbCB.primitiveType = p;
+                    for (UINT c = 0; c < RayType::Count; c++)
+                    {
+                        auto& hitGroupShaderID = hitGroupShaderIDs_AABBGeometry[t][c];
+                        hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
+                    }
                 }
             }
         }

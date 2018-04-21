@@ -435,8 +435,27 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
 }
 #endif
 
+bool RayAnalyticGeometryIntersectionTest(Ray ray, in AnalyticPrimitive analyticPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
+{
+    switch (analyticPrimitive)
+    {
+    case AABB: return RayAABBIntersectionTest(position, thit, attr);
+    case Sphere: return RaySphereIntersectionTest(position, thit, attr);
+    case Spheres: return RaySpheresIntersectionTest(position, thit, attr);
+    }
+    return false;
+}
 
-float GetDistanceFromSignedDistancePrimitive(in float3 position, in SDPrimitive sdPrimitive)
+bool RayVolumetricGeometryIntersectionTest(Ray ray, in VolumetricPrimitive volumetricPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
+{
+    switch (volumetricPrimitive)
+    {
+    case Metaballs: return RayMetaballsIntersectionTest(position, thit, attr);
+    }
+    return false;
+
+
+float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive sdPrimitive)
 {
     switch (sdPrimitive)
     {
@@ -450,28 +469,23 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SDPrimitive 
 
 // Test ray against a signed distance primitive.
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer
-bool RaySignedDistancePrimitiveTest(in Ray ray, in SDPrimitive sdPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
-{
-    float tmin, tmax;
-    RayAABBIntersectionTest(ray, tmin, tmax);
-    tmin = max(tmin, RayTMin());
-    tmax = min(tmax, RayTCurrent());
-    
-    const float threshold = 10e-6;
-    float t = tmin;
+bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive sdPrimitive, out float thit)
+{    
+    const float threshold = 0.0005;// ToDo 10e-6;
+    float t = RayTMin();
+    const UINT MaxSteps = 64;
 
     // Do sphere tracing through the AABB.
-    while (t < tmax) 
+    for (UINT i = 0; i < MaxSteps; i++ )
     {
         float3 position = ray.origin + t * ray.direction;
         float distance = GetDistanceFromSignedDistancePrimitive(position, sdPrimitive);
   
-        // Did we intersect the shape?
-        if (distance <= threshold * t)
+        // Did we intersect the shape or reached the end?
+        if (distance <= threshold * t || t > RayTCurrent())
         {
             thit = t;
-            attr.normal = float3(0, 1, 0);
-            return true;
+            return t > RayTCurrent();
         }
 
         // Since distance is the minimum distance to the primitive, 

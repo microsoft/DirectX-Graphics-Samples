@@ -73,6 +73,7 @@ struct MaterialConstantBuffer
 struct AABBConstantBuffer
 {
     UINT geometryIndex;
+    UINT primitiveType;
 };
 
 struct Vertex
@@ -93,20 +94,36 @@ struct RectangularPrismAABB
     XMFLOAT3 maxPosition;
 };
 
+namespace AnalyticPrimitive {
+    enum Enum {
+        AABB = 0,
+        Sphere,
+        Spheres,
+        Count = Spheres + 1
+    };
+}
 
-enum SDPrimitive
-{
-    Cone = 0,
-    Torus,
-    Pyramid,
-    FractalTetrahedron,
-};
+namespace VolumetricPrimitive {
+    enum Enum {
+        Metaballs = AnalyticPrimitive::Count,
+        Count = Metaballs + 1 - AnalyticPrimitive::Count
+    };
+}
+
+namespace SignedDistancePrimitive {
+    enum Enum {
+        Cone = VolumetricPrimitive::Count,
+        Torus,
+        Pyramid,
+        FractalTetrahedron,
+        Count = FractalTetrahedron + 1 - VolumetricPrimitive::Count
+    };
+}
 
 struct AABBPrimitiveAttributes
 {
     XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space.
     XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space.
-    SDPrimitive sdPrimitive;              // Primitive type to use for signed distance primitive intersection shader.
 };
 
 #endif // RAYTRACINGHLSLCOMPAT_H
