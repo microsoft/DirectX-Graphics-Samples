@@ -20,7 +20,12 @@ using namespace DX;
 const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
 {
-    L"MyIntersectionShader_AABB", L"MyIntersectionShader_Sphere", L"MyIntersectionShader_Spheres"
+    L"MyIntersectionShader_AABB", 
+    L"MyIntersectionShader_Sphere", 
+    L"MyIntersectionShader_Spheres",
+    L"MyIntersectionShader_Metaballs",
+    // Todo N instances of SDP
+    L"MyIntersectionShader_SignedDistancePrimitive",
 };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[][RayType::Count] =
 {

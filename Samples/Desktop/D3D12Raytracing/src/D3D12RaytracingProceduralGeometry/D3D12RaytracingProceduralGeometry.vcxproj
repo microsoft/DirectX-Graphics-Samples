@@ -173,6 +173,7 @@ PrebuildCheck.bat</Command>
     <ClInclude Include="RaytracingHlslCompat.h" />
     <ClInclude Include="RaytracingShaderHelper.h" />
     <ClInclude Include="D3D12RaytracingProceduralGeometry.h" />
+    <ClInclude Include="SignedDistanceFractals.h" />
     <ClInclude Include="SignedDistancePrimitives.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="util\DeviceResources.h" />

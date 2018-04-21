@@ -14,6 +14,8 @@
 
 #include "RaytracingShaderHelper.h"
 #include "SignedDistancePrimitives.h"
+#include "SignedDistanceFractals.h"
+
 
 // ToDo revise inout specifiers
 // ToDo pass raytracing intrinsics as parameters?
@@ -434,20 +436,21 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
 #endif
 
 
-float GetDistanceFromSignedDistancePrimitive(in float3 position, in SD_PRIMITIVE sdPrimitive)
+float GetDistanceFromSignedDistancePrimitive(in float3 position, in SDPrimitive sdPrimitive)
 {
     switch (sdPrimitive)
     {
-    case Cone: return sdCone(position, float3(0.8, 0.6, 0.3)).x;
-    case Torus: return sdTorus(position, float2(0.20, 0.05)).x;
-    case Pyramid: return sdPyramid4(position, float3(0.8, 0.6, 0.25)).x;
+    case Cone: return sdCone(position, float3(0.8, 0.6, 0.3));
+    case Torus: return sdTorus(position, float2(0.20, 0.05));
+    case Pyramid: return sdPyramid4(position, float3(0.8, 0.6, 0.25));
+    case FractalTetrahedron: return sdFractalTetrahedron(position, 5);
     }
     return 0;
 }
 
 // Test ray against a signed distance primitive.
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer
-bool RaySignedDistancePrimitiveTest(in Ray ray, in SD_PRIMITIVE sdPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
+bool RaySignedDistancePrimitiveTest(in Ray ray, in SDPrimitive sdPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
 {
     float tmin, tmax;
     RayAABBIntersectionTest(ray, tmin, tmax);

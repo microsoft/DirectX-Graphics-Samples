@@ -44,6 +44,7 @@
 //
 //**********************************************************************************************
 
+
 #include "RaytracingShaderHelper.h"
 
 //------------------------------------------------------------------
@@ -198,7 +199,7 @@ float opS(float d1, float d2)
     return max(-d2, d1);
 }
 
-float2 opU(float2 d1, float2 d2)
+float opU(float d1, float d2)
 {
     return (d1.x < d2.x) ? d1 : d2;
 }
@@ -213,21 +214,15 @@ float3 opTwist(float3 p)
     float c = cos(10.0 * p.y + 10.0);
     float s = sin(10.0 * p.y + 10.0);
     float2x2 m = float2x2(c, -s, s, c);
-    return float3(m * p.xz, p.y);
+    return float3(mul(m, p.xz), p.y);
 }
 
-enum SD_PRIMITIVE 
-{ 
-    Cone = 0, 
-    Torus,
-    Pyramid
-};
 
 //------------------------------------------------------------------
 
-float2 map(in float3 pos)
+float map(in float3 pos)
 {
-    return float2(0, 0);
+    return float(0);
 }
 /*
 float2 map(in float3 pos)
@@ -436,4 +431,5 @@ void mainImage(out float4 fragColor, in float2 fragCoord)
     fragColor = float4(tot, 1.0);
 }
 */
+
 #endif // SIGNEDDISTANCEPRIMITIVES_H

@@ -115,16 +115,16 @@ void MyRaygenShader()
 }
 
 // Get ray in AABB's local space
-Ray GetRayInAABBPrimitiveLocalSpace()
+Ray GetRayInAABBPrimitiveLocalSpace(out AABBPrimitiveAttributes attr)
 {
     // Should PrimitiveIndex be passed as arg?
     // ToDo improve desc
     // Retrieve ray origin position and direction in bottom level AS space 
     // and transform them into the AABB primitive's local space.
-    AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+    attr = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
     Ray ray;
-    ray.origin = mul(float4(ObjectRayOrigin(), 1), aabbAttribute.bottomLevelASToLocalSpace).xyz;
-    ray.direction = mul(ObjectRayDirection(), (float3x3) aabbAttribute.bottomLevelASToLocalSpace);
+    ray.origin = mul(float4(ObjectRayOrigin(), 1), attr.bottomLevelASToLocalSpace).xyz;
+    ray.direction = mul(ObjectRayDirection(), (float3x3) attr.bottomLevelASToLocalSpace);
     return ray;
 }
 
@@ -133,7 +133,8 @@ void MyIntersectionShader_Metaballs()
 {
     ProceduralPrimitiveAttributes attr;
     float tHit;
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace();
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     if (RayMetaballsIntersectionTest(localRay, tHit, attr))
     {
         // ToDo move this to tests?
@@ -150,7 +151,8 @@ void MyIntersectionShader_Spheres()
 {
     ProceduralPrimitiveAttributes attr;
     float tHit;
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace();
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     if (RayMetaballsIntersectionTest(localRay, tHit, attr))
     //if (RaySpheresIntersectionTest(localRay, tHit, attr))
     {
@@ -169,7 +171,8 @@ void MyIntersectionShader_Sphere()
 {
     ProceduralPrimitiveAttributes attr;
     float tHit;
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace();
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     if (RaySphereIntersectionTest(localRay, tHit, attr))
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
@@ -186,8 +189,27 @@ void MyIntersectionShader_AABB()
 {
     ProceduralPrimitiveAttributes attr;
     float tHit;
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace(); 
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     if (RayAABBIntersectionTest(localRay, tHit, attr))
+    {
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
+        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
+        attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
+
+        // ReportHit will reject any tHits outside a valid tHit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(tHit, /*hitKind*/ 0, attr);
+    }
+}
+
+[shader("intersection")]
+void MyIntersectionShader_SignedDistancePrimitive()
+{
+    ProceduralPrimitiveAttributes attr;
+    float tHit;
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
+    if (RaySignedDistancePrimitiveTest(localRay, inAttr.sdPrimitive, tHit, attr))
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[g_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);

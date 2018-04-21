@@ -93,10 +93,20 @@ struct RectangularPrismAABB
     XMFLOAT3 maxPosition;
 };
 
+
+enum SDPrimitive
+{
+    Cone = 0,
+    Torus,
+    Pyramid,
+    FractalTetrahedron,
+};
+
 struct AABBPrimitiveAttributes
 {
-    XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space
-    XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space
+    XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space.
+    XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space.
+    SDPrimitive sdPrimitive;              // Primitive type to use for signed distance primitive intersection shader.
 };
 
 #endif // RAYTRACINGHLSLCOMPAT_H

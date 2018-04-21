@@ -63,6 +63,9 @@
     <ClInclude Include="SignedDistancePrimitives.h">
       <Filter>Assets\Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="SignedDistanceFractals.h">
+      <Filter>Assets\Shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
