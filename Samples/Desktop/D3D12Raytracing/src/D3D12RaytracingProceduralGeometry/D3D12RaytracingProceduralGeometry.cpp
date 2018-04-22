@@ -40,20 +40,11 @@ const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
     L"MyIntersectionShader_SignedDistancePrimitive",
 };
 #endif
-// To remove closest hits for shadows
-#if SET_CLOSEST_HIT_SHADERS_FOR_SHADOWS
-const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[][RayType::Count] =
-{
-    { L"MyClosestHitShader_Triangle", L"MyClosestHitShader_ShadowRayTriangle" },
-    { L"MyClosestHitShader_AABB", L"MyClosestHitShader_ShadowRayAABB" },
-};
-#else
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[] =
 {
     L"MyClosestHitShader_Triangle",
     L"MyClosestHitShader_AABB",
 };
-#endif
 const wchar_t* D3D12RaytracingProceduralGeometry::c_missShaderNames[] =
 {
     L"MyMissShader", L"MyMissShader_ShadowRay"
@@ -192,7 +183,8 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         m_aabbMaterialCB[AnalyticPrimitive::AABB].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
         m_aabbMaterialCB[AnalyticPrimitive::Sphere].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
         m_aabbMaterialCB[AnalyticPrimitive::Spheres].albedo = XMFLOAT4(0.5f, 1.0f, 0.5f, 1.0f);
-        m_aabbMaterialCB[VolumetricPrimitive::Metaballs].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
+        // ToDo improve indexing
+        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Metaballs].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
 #if 0 
         ToDo
         m_aabbMaterialCB[SignedDistancePrimitive::Cone].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
@@ -427,14 +419,10 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
         for (UINT rayType = 0; rayType < RayType::Count; rayType++)
         {
             auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-#if SET_CLOSEST_HIT_SHADERS_FOR_SHADOWS
-            hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::Triangle][rayType]);
-#else
             if (rayType == RayType::Regular)
             {
                 hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::Triangle]);
             }
-#endif
             hitGroup->SetHitGroupExport(c_hitGroupNames_TriangleGeometry[rayType]);
 
         }
@@ -448,14 +436,10 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
             {
                 auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
                 hitGroup->SetIntersectionShaderImport(c_intersectionShaderNames[t]);
-#if SET_CLOSEST_HIT_SHADERS_FOR_SHADOWS
-                hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::AABB][rayType]);
-#else 
                 if (rayType == RayType::Regular)
                 {
                     hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::AABB]);
                 }
-#endif
                 hitGroup->SetHitGroupExport(c_hitGroupNames_AABBGeometry[t][rayType]);
             }
     }

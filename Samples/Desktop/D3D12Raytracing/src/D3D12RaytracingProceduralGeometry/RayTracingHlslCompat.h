@@ -16,8 +16,6 @@
 #define ENABLE_NEW_CODE 0
 #define DISABLE_CODE 1
 
-#define SET_CLOSEST_HIT_SHADERS_FOR_SHADOWS 0
-
 // Workaround for dynamic indexing issue in DXR shaders on Nvidia
 #define DO_NOT_USE_DYNAMIC_INDEXING 1 
 

@@ -115,11 +115,7 @@ private:
     static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][RayType::Count];
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
-#if SET_CLOSEST_HIT_SHADERS_FOR_SHADOWS
-    static const wchar_t* c_closestHitShaderNames[GeometryType::Count][RayType::Count];
-#else
     static const wchar_t* c_closestHitShaderNames[GeometryType::Count];
-#endif
     static const wchar_t* c_missShaderNames[RayType::Count];
 
     ComPtr<ID3D12Resource> m_missShaderTable;

@@ -384,7 +384,7 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     float  invRadiiSq[N] = { 1/(radii[0]* radii[0]), 1/(radii[1]*radii[1]), 1/(radii[2]*radii[2])};
 
     // Calculate step size based on the ray AABB intersection segment
-    UINT MAX_STEPS = 1024;
+    UINT MAX_STEPS = 128;
     float tmin, tmax;
 
     if (!RayAABBIntersectionTest(ray, tmin, tmax))
@@ -415,6 +415,7 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
             normal += fieldPotentials[0] * CalculateNormalForARaySphereHit(ray, t, centers[0]);
             normal += fieldPotentials[1] * CalculateNormalForARaySphereHit(ray, t, centers[1]);
             normal += fieldPotentials[2] * CalculateNormalForARaySphereHit(ray, t, centers[2]);
+            attr.normal = normalize(normal / fieldPotential);
             thit = t;
             return true;
         }
