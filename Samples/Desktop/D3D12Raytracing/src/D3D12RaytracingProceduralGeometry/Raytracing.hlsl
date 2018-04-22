@@ -242,12 +242,6 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     rayPayload.color = color;
 }
 
-[shader("closesthit")]
-void MyClosestHitShader_ShadowRayAABB(inout ShadowRayPayload rayPayload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
-{
-    rayPayload.hit = true;
-}
-
 // Get ray in AABB's local space
 Ray GetRayInAABBPrimitiveLocalSpace(out AABBPrimitiveAttributes attr)
 {
@@ -324,18 +318,27 @@ void MyMissShader(inout RayPayload rayPayload : SV_RayPayload)
     rayPayload.color = background;
 }
 
-[shader("closesthit")]
-void MyClosestHitShader_ShadowRayTriangle(inout ShadowRayPayload rayPayload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
-{
-    rayPayload.hit = true;
-}
 
 [shader("miss")]
-void MyMissShader_Shadow(inout ShadowRayPayload rayPayload : SV_RayPayload)
+void MyMissShader_ShadowRay(inout ShadowRayPayload rayPayload : SV_RayPayload)
 {
     rayPayload.hit = false;
 }
 
+#if SET_CLOSEST_HIT_SHADERS_FOR_SHADOWS
+[shader("closesthit")]
+void MyClosestHitShader_Triangle_ShadowRay(inout ShadowRayPayload rayPayload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+{
+    rayPayload.hit = true;
+}
+
+
+[shader("closesthit")]
+void MyClosestHitShader_RayAABB_ShadowRay(inout ShadowRayPayload rayPayload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+{
+    rayPayload.hit = true;
+}
+#endif
 
 [shader("intersection")]
 void MyIntersectionShader_AnalyticPrimitive()

@@ -16,6 +16,8 @@
 #define ENABLE_NEW_CODE 0
 #define DISABLE_CODE 1
 
+#define SET_CLOSEST_HIT_SHADERS_FOR_SHADOWS 0
+
 // Workaround for dynamic indexing issue in DXR shaders on Nvidia
 #define DO_NOT_USE_DYNAMIC_INDEXING 1 
 
@@ -74,7 +76,6 @@ struct AABBConstantBuffer
 {
     UINT geometryIndex;
     UINT primitiveType;
-    UINT padding[2];
 };
 
 struct Vertex
@@ -101,25 +102,25 @@ namespace AnalyticPrimitive {
         AABB = 0,
         Sphere,
         Spheres,
-        Count = Spheres + 1 - AABB
+        Count
     };
 }
 
 namespace VolumetricPrimitive {
     enum Enum {
-        Metaballs = AnalyticPrimitive::Count,       // ToDo can this start from 0 instead?
-        Count = Metaballs + 1 - Metaballs
+        Metaballs = 0,       // ToDo can this start from 0 instead?
+        Count
     };
 }
 
 namespace SignedDistancePrimitive {
     enum Enum {
         // ToDo improve the setup - move into dynamic multidimensional structure?
-        Cone = VolumetricPrimitive::Metaballs + 1,
+        Cone = 0,
         Torus,
         Pyramid,
         FractalTetrahedron,
-        Count = FractalTetrahedron + 1 - Cone
+        Count
     };
 }
 

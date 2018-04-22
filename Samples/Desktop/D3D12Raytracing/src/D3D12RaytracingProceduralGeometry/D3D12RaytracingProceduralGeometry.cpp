@@ -41,25 +41,33 @@ const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
 };
 #endif
 // To remove closest hits for shadows
+#if SET_CLOSEST_HIT_SHADERS_FOR_SHADOWS
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[][RayType::Count] =
 {
     { L"MyClosestHitShader_Triangle", L"MyClosestHitShader_ShadowRayTriangle" },
     { L"MyClosestHitShader_AABB", L"MyClosestHitShader_ShadowRayAABB" },
 };
+#else
+const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[] =
+{
+    L"MyClosestHitShader_Triangle",
+    L"MyClosestHitShader_AABB",
+};
+#endif
 const wchar_t* D3D12RaytracingProceduralGeometry::c_missShaderNames[] =
 {
-    L"MyMissShader", L"MyMissShader_Shadow"
+    L"MyMissShader", L"MyMissShader_ShadowRay"
 };
 
 // Hit groups.
 const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_TriangleGeometry[] = 
 { 
-    L"MyHitGroup_Triangle", L"MyHitGroup_ShadowRayTriangle" 
+    L"MyHitGroup_Triangle", L"MyHitGroup_Triangle_ShadowRay" 
 };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_AABBGeometry[][RayType::Count] = 
 {
-    { L"MyHitGroup_AABB_AnalyticPrimitive", L"MyHitGroup_ShadowRayAABB_AnalyticPrimitive" },
-    { L"MyHitGroup_AABB_VolumetricPrimitive", L"MyHitGroup_ShadowRayAABB_VolumetricPrimitive" },
+    { L"MyHitGroup_AABB_AnalyticPrimitive", L"MyHitGroup_AABB_AnalyticPrimitive_ShadowRay" },
+    { L"MyHitGroup_AABB_VolumetricPrimitive", L"MyHitGroup_AABB_VolumetricPrimitive_ShadowRay" },
 };
 
 D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width, UINT height, std::wstring name) :
@@ -348,6 +356,7 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
             CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
             localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
             SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::Triangle]);
+        
         }
 
         // AABB geometry
@@ -418,8 +427,16 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
         for (UINT rayType = 0; rayType < RayType::Count; rayType++)
         {
             auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
+#if SET_CLOSEST_HIT_SHADERS_FOR_SHADOWS
             hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::Triangle][rayType]);
+#else
+            if (rayType == RayType::Regular)
+            {
+                hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::Triangle]);
+            }
+#endif
             hitGroup->SetHitGroupExport(c_hitGroupNames_TriangleGeometry[rayType]);
+
         }
     }
 
@@ -431,7 +448,14 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
             {
                 auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
                 hitGroup->SetIntersectionShaderImport(c_intersectionShaderNames[t]);
+#if SET_CLOSEST_HIT_SHADERS_FOR_SHADOWS
                 hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::AABB][rayType]);
+#else 
+                if (rayType == RayType::Regular)
+                {
+                    hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::AABB]);
+                }
+#endif
                 hitGroup->SetHitGroupExport(c_hitGroupNames_AABBGeometry[t][rayType]);
             }
     }
@@ -1142,17 +1166,24 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
         {
             LocalRootSignature::AABB::RootArguments rootArgs;
             UINT geometryIndex = 0;
-            for (UINT t = 0; t < IntersectionShaderType::Count; t++)
+
+            // Iterate over and create shader records:
+            // Intersection shaders.
+            for (UINT iShader = 0, geometryIndex = 0; iShader < IntersectionShaderType::Count; iShader++)
             {
-                UINT nSubPrimitiveTypes =  IntersectionShaderType::PerPrimitiveTypeCount(static_cast<IntersectionShaderType::Enum>(t));
-                for (UINT p = 0; p < nSubPrimitiveTypes; p++, geometryIndex++)
+                UINT numPrimitiveTypes = IntersectionShaderType::PerPrimitiveTypeCount(static_cast<IntersectionShaderType::Enum>(iShader));
+                
+                // Primitives for each intersection shader.
+                for (UINT primitiveIndex = 0; primitiveIndex < numPrimitiveTypes; primitiveIndex++, geometryIndex++)
                 {
-                    rootArgs.materialCb = m_aabbMaterialCB[geometryIndex];      // ToDo
+                    rootArgs.materialCb = m_aabbMaterialCB[geometryIndex];
                     rootArgs.aabbCB.geometryIndex = geometryIndex;
-                    rootArgs.aabbCB.primitiveType = geometryIndex;              // ToDo remove
-                    for (UINT c = 0; c < RayType::Count; c++)
+                    rootArgs.aabbCB.primitiveType = primitiveIndex;
+                    
+                    // Ray types.
+                    for (UINT r = 0; r < RayType::Count; r++)
                     {
-                        auto& hitGroupShaderID = hitGroupShaderIDs_AABBGeometry[t][c];
+                        auto& hitGroupShaderID = hitGroupShaderIDs_AABBGeometry[iShader][r];
                         hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
                     }
                 }
