@@ -224,34 +224,11 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in
     rayPayload.color = color;
 }
 
-
-[shader("miss")]
-void MyMissShader(inout RayPayload rayPayload : SV_RayPayload)
-{
-    float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f);
-    rayPayload.color = background;
-}
-
-[shader("closesthit")]
-void MyClosestHitShader_ShadowRayTriangle(inout ShadowRayPayload rayPayload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
-{
-    rayPayload.hit = true;
-}
-
-[shader("miss")]
-void MyMissShader_Shadow(inout ShadowRayPayload rayPayload : SV_RayPayload)
-{
-    rayPayload.hit = false;
-}
-
 [shader("closesthit")]
 void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
 {
     float3 hitPosition = HitWorldPosition();
-
-#if DISABLE_CODE
-    float shadowFactor = 1;
-    #else
+    
     // Trace a shadow ray. 
     bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload);
     float shadowFactor = shadowRayHit ? 0.1 : 1.0;
@@ -263,7 +240,6 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
     rayPayload.color = color;
-#endif
 }
 
 [shader("closesthit")]
@@ -289,7 +265,6 @@ Ray GetRayInAABBPrimitiveLocalSpace(out AABBPrimitiveAttributes attr)
 [shader("intersection")]
 void MyIntersectionShader_Sphere()
 {
-#if !DISABLE_CODE
     ProceduralPrimitiveAttributes attr;
     float thit;
     AABBPrimitiveAttributes inAttr;
@@ -303,13 +278,11 @@ void MyIntersectionShader_Sphere()
         // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
         ReportHit(thit, /*hitKind*/ 0, attr);       
     }
-#endif
 }
 
 [shader("intersection")]
 void MyIntersectionShader_AABB()
 {
-#if !DISABLE_CODE
     ProceduralPrimitiveAttributes attr;
     float thit;
     AABBPrimitiveAttributes inAttr;
@@ -323,13 +296,11 @@ void MyIntersectionShader_AABB()
         // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
-#endif
 }
 
 [shader("intersection")]
 void MyIntersectionShader_Spheres()
 {
-#if !DISABLE_CODE
     ProceduralPrimitiveAttributes attr;
     float thit;
     AABBPrimitiveAttributes inAttr;
@@ -344,8 +315,27 @@ void MyIntersectionShader_Spheres()
         // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
-#endif
 }
+
+[shader("miss")]
+void MyMissShader(inout RayPayload rayPayload : SV_RayPayload)
+{
+    float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f);
+    rayPayload.color = background;
+}
+
+[shader("closesthit")]
+void MyClosestHitShader_ShadowRayTriangle(inout ShadowRayPayload rayPayload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+{
+    rayPayload.hit = true;
+}
+
+[shader("miss")]
+void MyMissShader_Shadow(inout ShadowRayPayload rayPayload : SV_RayPayload)
+{
+    rayPayload.hit = false;
+}
+
 
 #if ENABLE_NEW_CODE
 [shader("intersection")]

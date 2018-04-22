@@ -22,7 +22,7 @@ const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRayge
 const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
 {
     L"MyIntersectionShader_AABB",
-    L"MyIntersectionShader_Spheres",
+    L"MyIntersectionShader_Sphere",
     L"MyIntersectionShader_Spheres",
 };
 #else
@@ -390,9 +390,7 @@ void D3D12RaytracingProceduralGeometry::CreateDxilLibrarySubobject(CD3D12_STATE_
     // In this sample, this could be ommited for convenience since the sample uses all shaders in the library. 
     {
         lib->DefineExport(c_raygenShaderName);
-#if !DISABLE_CODE
         DefineExports(lib, c_intersectionShaderNames);
-#endif
         DefineExports(lib, c_closestHitShaderNames);
         DefineExports(lib, c_missShaderNames);
     }
@@ -415,7 +413,7 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
             hitGroup->SetHitGroupExport(c_hitGroupNames_TriangleGeometry[rayType]);
         }
     }
-#if !DISABLE_CODE
+
     // AABB geometry hit groups
     {
         // Create hit groups for each intersection shader.
@@ -428,7 +426,6 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
                 hitGroup->SetHitGroupExport(c_hitGroupNames_AABBGeometry[aabbType][rayType]);
             }
     }
-#endif
 }
 
 // Local root signature and shader association
@@ -456,7 +453,7 @@ void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3D1
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         rootSignatureAssociation->AddExports(c_hitGroupNames_TriangleGeometry);
     }
-#if !DISABLE_CODE
+
     // AABB geometry
     {
         auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
@@ -469,7 +466,6 @@ void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3D1
             rootSignatureAssociation->AddExports(hitGroupsForIntersectionShaderType);
         }
     }
-#endif
 }
 
 // Create a raytracing pipeline state object (RTPSO).
@@ -1141,7 +1137,7 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
             {
                 // ToDo
                 UINT nSubPrimitiveTypes = 1;// IntersectionShaderType::PerPrimitiveTypeCount(static_cast<IntersectionShaderType::Enum>(t));
-                for (UINT p = 0; p < nSubPrimitiveTypes; p++)
+                for (UINT p = 0; p < nSubPrimitiveTypes; p++, geometryIndex++)
                 {
                     rootArgs.materialCb = m_aabbMaterialCB[geometryIndex];      // ToDo
                     rootArgs.aabbCB.geometryIndex = geometryIndex;

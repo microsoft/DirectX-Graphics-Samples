@@ -101,14 +101,14 @@ namespace AnalyticPrimitive {
         AABB = 0,
         Sphere,
         Spheres,
-        Count = Spheres + 1
+        Count = Spheres + 1 - AABB
     };
 }
 
 namespace VolumetricPrimitive {
     enum Enum {
         Metaballs = AnalyticPrimitive::Count,
-        Count = Metaballs + 1 - AnalyticPrimitive::Count
+        Count = Metaballs + 1 - Metaballs
     };
 }
 
@@ -119,7 +119,7 @@ namespace SignedDistancePrimitive {
         Torus,
         Pyramid,
         FractalTetrahedron,
-        Count = FractalTetrahedron + 1 - VolumetricPrimitive::Count
+        Count = FractalTetrahedron + 1 - Cone
     };
 }
 
