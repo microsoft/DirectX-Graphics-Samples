@@ -18,7 +18,7 @@ using namespace DX;
 
 // Shader entry points.
 const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRaygenShader";
-#if 1
+#if !ENABLE_NEW_CODE
 const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
 {
     L"MyIntersectionShader_AABB",
@@ -37,9 +37,7 @@ const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[][RayType::Count] =
 {
     { L"MyClosestHitShader_Triangle", L"MyClosestHitShader_ShadowRayTriangle" },
-#if !DISABLE_CODE
     { L"MyClosestHitShader_AABB", L"MyClosestHitShader_ShadowRayAABB" },
-#endif
 };
 const wchar_t* D3D12RaytracingProceduralGeometry::c_missShaderNames[] =
 {
@@ -458,7 +456,7 @@ void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3D1
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         rootSignatureAssociation->AddExports(c_hitGroupNames_TriangleGeometry);
     }
-
+#if !DISABLE_CODE
     // AABB geometry
     {
         auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
@@ -471,6 +469,7 @@ void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3D1
             rootSignatureAssociation->AddExports(hitGroupsForIntersectionShaderType);
         }
     }
+#endif
 }
 
 // Create a raytracing pipeline state object (RTPSO).
