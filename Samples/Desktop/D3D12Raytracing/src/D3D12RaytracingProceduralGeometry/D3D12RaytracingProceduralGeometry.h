@@ -111,21 +111,13 @@ private:
     UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
     // Shader tables
-#if 0 && DISABLE_CODE
-    static const wchar_t* c_hitGroupNames_TriangleGeometry[RayType::Count];
-    static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][RayType::Count];
-    static const wchar_t* c_raygenShaderName;
-    static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
-    static const wchar_t* c_closestHitShaderNames[1][RayType::Count];
-    static const wchar_t* c_missShaderNames[RayType::Count];
-#else
     static const wchar_t* c_hitGroupNames_TriangleGeometry[RayType::Count];
     static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][RayType::Count];
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
     static const wchar_t* c_closestHitShaderNames[GeometryType::Count][RayType::Count];
     static const wchar_t* c_missShaderNames[RayType::Count];
-#endif
+
     ComPtr<ID3D12Resource> m_missShaderTable;
     UINT m_missShaderTableStrideInBytes;
     ComPtr<ID3D12Resource> m_hitGroupShaderTable;

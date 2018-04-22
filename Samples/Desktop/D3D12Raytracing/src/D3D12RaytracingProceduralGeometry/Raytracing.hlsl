@@ -234,9 +234,9 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     float shadowFactor = shadowRayHit ? 0.1 : 1.0;
 
 
-    float3 triangleNormal = attr.normal;
+    float3 normal = attr.normal;
     float4 albedo = g_materialCB.albedo;
-    float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
+    float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, normal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
     rayPayload.color = color;
@@ -337,26 +337,6 @@ void MyMissShader_Shadow(inout ShadowRayPayload rayPayload : SV_RayPayload)
 }
 
 
-#if ENABLE_NEW_CODE
-[shader("intersection")]
-void MyIntersectionShader_Metaballs()
-{
-    ProceduralPrimitiveAttributes attr;
-    float thit;
-    AABBPrimitiveAttributes inAttr;
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
-    if (RayMetaballsIntersectionTest(localRay, thit, attr))
-    {
-        // ToDo move this to tests?
-        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
-        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-
-        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
-        ReportHit(thit, /*hitKind*/ 0, attr);
-    }
-}
-
-
 [shader("intersection")]
 void MyIntersectionShader_AnalyticPrimitive()
 {
@@ -374,7 +354,25 @@ void MyIntersectionShader_AnalyticPrimitive()
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }
+#if 1
+[shader("intersection")]
+void MyIntersectionShader_VolumetricPrimitive()
+{
+    ProceduralPrimitiveAttributes attr;
+    float thit;
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
+    if (RayAnalyticGeometryIntersectionTest(localRay, (AnalyticPrimitive::Enum) (lrs_aabbCB.primitiveType - 1), thit, attr))
+    {
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
+        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
+        attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
 
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);
+    }
+}
+#else
 [shader("intersection")]
 void MyIntersectionShader_VolumetricPrimitive()
 {
@@ -387,6 +385,26 @@ void MyIntersectionShader_VolumetricPrimitive()
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
+
+        // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
+        ReportHit(thit, /*hitKind*/ 0, attr);
+    }
+}
+#endif
+
+#if ENABLE_NEW_CODE
+[shader("intersection")]
+void MyIntersectionShader_Metaballs()
+{
+    ProceduralPrimitiveAttributes attr;
+    float thit;
+    AABBPrimitiveAttributes inAttr;
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
+    if (RayMetaballsIntersectionTest(localRay, thit, attr))
+    {
+        // ToDo move this to tests?
+        AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
+        attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
 
         // ReportHit will reject any tHits outside a valid thit range: <RayTMin(), RayTCurrent()>.
         ReportHit(thit, /*hitKind*/ 0, attr);

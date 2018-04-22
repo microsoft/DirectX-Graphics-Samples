@@ -14,8 +14,8 @@
 
 #include "RaytracingShaderHelper.h"
 
-#if ENABLE_NEW_CODE
 #include "SignedDistancePrimitives.h"
+#if ENABLE_NEW_CODE
 #include "SignedDistanceFractals.h"
 #endif
 
@@ -256,9 +256,8 @@ bool RayAABBIntersectionTest(Ray ray, out float thit, out ProceduralPrimitiveAtt
     return false;
 }
 
-#if ENABLE_NEW_CODE
 
-#define METABALL_POTENTIAL_SAP 1
+#define METABALL_POTENTIAL_SAP 0
 #if METABALL_POTENTIAL_SAP
 
 // Calculate a magnitude of an influence from a Metaball charge.
@@ -391,15 +390,7 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     if (!RayAABBIntersectionTest(ray, tmin, tmax))
     {
         return false;
-    }
-    //if (RaySphereIntersectionTest(ray, thit, attr, centers[0], 0.6))
-    //{
-    //    if (thit <= RayTCurrent())
-    //    {
-    //        return true;
-    //    }
-    //}
- 
+    } 
     tmin = max(tmin, RayTMin());
     tmax = min(tmax, RayTCurrent());
     float tstep = (tmax - tmin) / (MAX_STEPS - 1);
@@ -424,7 +415,6 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
             normal += fieldPotentials[0] * CalculateNormalForARaySphereHit(ray, t, centers[0]);
             normal += fieldPotentials[1] * CalculateNormalForARaySphereHit(ray, t, centers[1]);
             normal += fieldPotentials[2] * CalculateNormalForARaySphereHit(ray, t, centers[2]);
-            attr.normal = normalize(normal / fieldPotential);
             thit = t;
             return true;
         }
@@ -453,6 +443,8 @@ bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::E
     default: return false;
     }
 }
+
+#if ENABLE_NEW_CODE
 
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum sdPrimitive)
 {

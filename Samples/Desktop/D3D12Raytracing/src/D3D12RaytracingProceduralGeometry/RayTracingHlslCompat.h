@@ -107,7 +107,7 @@ namespace AnalyticPrimitive {
 
 namespace VolumetricPrimitive {
     enum Enum {
-        Metaballs = AnalyticPrimitive::Count,
+        Metaballs = AnalyticPrimitive::Count,       // ToDo can this start from 0 instead?
         Count = Metaballs + 1 - Metaballs
     };
 }
