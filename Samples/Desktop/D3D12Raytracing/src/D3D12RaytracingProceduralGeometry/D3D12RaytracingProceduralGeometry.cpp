@@ -135,9 +135,10 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
         -((NUM_AABB_Z-1) * c_aabbWidth  + (NUM_AABB_Z - 1) * c_aabbDistance) / 2.0f));
 
 #if ANIMATE_PRIMITIVES
-    const float elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
+    // ToDo per primitive animation
+    const float totalTime = static_cast<float>(m_timer.GetTotalSeconds());
 #else
-    const float elapsedTime = 0.0f;
+    const float totalTime = 0.0f;
 #endif
     for (UINT z = 0, i = 0; z < NUM_AABB_Z; z++)
     {
@@ -149,7 +150,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
                 XMVECTOR vIndex = XMLoadUInt3(&XMUINT3(x, y, z));
                 XMVECTOR vTranslation = vBasePosition + vIndex * vAABBstride;
                 // ToDo TotalSeconds may run out of precision after some time
-                XMMATRIX mRotation =  XMMatrixRotationZ(elapsedTime/2.0f*(x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
+                XMMATRIX mRotation =  XMMatrixRotationZ(totalTime/2.0f*(x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
                 XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
                 XMMATRIX mTransform = mScale * mRotation * mTranslation;
 
@@ -1265,7 +1266,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
         const XMVECTOR& prevLightPosition = m_sceneCB->lightPosition;
         m_sceneCB->lightPosition = XMVector3Transform(prevLightPosition, rotate);
     }
-    m_sceneCB->elapsedTime = elapsedTime;
+    m_sceneCB->totalTime = static_cast<float>(m_timer.GetTotalSeconds());
     UpdateAABBPrimitiveAttributes();
 }
 

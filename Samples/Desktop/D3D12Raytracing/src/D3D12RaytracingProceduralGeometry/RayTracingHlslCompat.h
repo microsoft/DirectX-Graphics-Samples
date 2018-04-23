@@ -65,7 +65,7 @@ struct SceneConstantBuffer
     XMVECTOR lightAmbientColor;
     XMVECTOR lightDiffuseColor;
     // ToDo move out?
-    float    elapsedTime;                 // Elapsed application time.
+    float    totalTime;                 // Elapsed application time.
 };
 
 // ToDo split or rename
