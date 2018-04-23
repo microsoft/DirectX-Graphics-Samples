@@ -20,6 +20,16 @@ struct Ray
     float3 direction;
 };
 
+float length_toPow2(float2 p)
+{
+    return dot(p, p);
+}
+
+float length_toPow2(float3 p)
+{
+    return dot(p, p);
+}
+
 // Returns a cycling <0 -> 1 -> 0> animation interpolant 
 float CalculateAnimationInterpolant(in float elapsedTime, in float cycleDuration)
 {

@@ -198,17 +198,6 @@ float sdPyramid4(float3 p, float3 h)
     return opS(octa, box); // Subtraction
 }
 
-float length_toPow2(float2 p)
-{
-    return dot(p,p);
-}
-
-float length_toPow2(float3 p)
-{
-    return dot(p, p);
-}
-
-
 float length_toPowNegative2(float2 p)
 {
     return sqrt(p.x * p.x + p.y * p.y);

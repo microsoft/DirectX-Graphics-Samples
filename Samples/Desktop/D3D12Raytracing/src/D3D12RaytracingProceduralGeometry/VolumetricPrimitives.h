@@ -14,15 +14,12 @@
 
 #include "RaytracingShaderHelper.h"
 
-#define METABALL_POTENTIAL_SAP 1
-#if METABALL_POTENTIAL_SAP
-
 // Calculate a magnitude of an influence from a Metaball charge.
 // Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
 // mbRadius - largest possible area of metaball contribution - AKA its bounding sphere.
 // invMbRadiusSquared ~ 1/mbRadius^2. 
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies
-float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in float mbRadius, in float invMbRadiusSquared)
+float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in float mbRadius)
 {
     float d = length(position - mbCenter);
 
@@ -35,32 +32,6 @@ float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in floa
     }
     return 0;
 }
-
-#else
-// Calculate a magnitude of an influence from a Metaball charge.
-// Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
-// invMbRadiusSquared ~ 1/mbRadius^2. 
-// mbRadius - largest possible area of metaball contribution - AKA its bounding sphere.
-
-float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in float mbRadius, in float invMbRadiusSquared)
-{
-    float3 d = position - mbCenter;
-
-    // Squared distance.
-    float d2 = dot(d, d);
-
-    // Enable this line if your blobs are of varying sizes.
-    d2 *= invMbRadiusSquared;
-
-    // f(d) is valid when d2 is in the range [0-.5], or [0-.707] for d
-    if (d2 < 0.5f)
-    {
-        // Calculate field po
-        return 0.25 - d2 + d2 * d2;
-    }
-    return 0;
-}
-#endif
 
 // Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
 bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr, in float elapsedTime)
@@ -83,10 +54,7 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
 
     // Metaball field radii of max influence
     float radii[N] = { 0.70, 0.65, 0.60 };
-    float  invRadiiSq[N] = { 1 / (radii[0] * radii[0]), 1 / (radii[1] * radii[1]), 1 / (radii[2] * radii[2]) };
-
-    float fieldPotentials[N];
-
+    
     // Calculate step size based on the ray AABB intersection segment
     UINT MAX_STEPS = 128;
     float tmin, tmax;
@@ -98,14 +66,17 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     tmax = min(tmax, RayTCurrent());
     float tstep = (tmax - tmin) / (MAX_STEPS - 1);
 
+    // ToDo lipchshitz ray marcher
+
     // Step along the ray calculating field potentials from all metaballs.
     for (UINT i = 0; i < MAX_STEPS; i++)
     {
         float t = tmin + i * tstep;
         float3 position = ray.origin + t * ray.direction;
-        fieldPotentials[0] = CalculateMetaballPotential(position, centers[0], radii[0], invRadiiSq[0]);
-        fieldPotentials[1] = CalculateMetaballPotential(position, centers[1], radii[1], invRadiiSq[1]);
-        fieldPotentials[2] = CalculateMetaballPotential(position, centers[2], radii[2], invRadiiSq[2]);
+        float fieldPotentials[N];
+        fieldPotentials[0] = CalculateMetaballPotential(position, centers[0], radii[0]);
+        fieldPotentials[1] = CalculateMetaballPotential(position, centers[1], radii[1]);
+        fieldPotentials[2] = CalculateMetaballPotential(position, centers[2], radii[2]);
 
 
         float fieldPotential = fieldPotentials[0] + fieldPotentials[1] + fieldPotentials[2];
