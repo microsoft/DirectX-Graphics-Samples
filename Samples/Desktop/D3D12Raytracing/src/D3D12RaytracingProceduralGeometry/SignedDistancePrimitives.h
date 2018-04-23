@@ -176,18 +176,29 @@ float sdConeSection(in float3 p, in float h, in float r1, in float r2)
 }
 
 
-// h = { cos a, sin a, height }
+float sdPyramid4(float3 p, float3 h)
+{
+
+}
+
+// h = { sin a, cos a, height }
+// h = p.x * sin a + p.y * cos a
+// where a, is the pyramid's inner angle between
+// its side and the ground plane.
 float sdOctahedron(float3 p, float3 h)
 {
     float d = 0.0;
+    // Intersection of distances to 4 planes
     d = max(d, abs(dot(p, float3(-h.x, h.y, 0))));
     d = max(d, abs(dot(p, float3(h.x, h.y, 0))));
     d = max(d, abs(dot(p, float3(0, h.y, h.x))));
     d = max(d, abs(dot(p, float3(0, h.y, -h.x))));
+    
+    // Move the ground plane down by height
     return d - h.z;
 }
 
-// h = { cos a, sin a, height }
+// h = { sin a, cos a, height }
 float sdPyramid4(float3 p, float3 h)
 {
     // Transform <-1,1> to <0,1>
