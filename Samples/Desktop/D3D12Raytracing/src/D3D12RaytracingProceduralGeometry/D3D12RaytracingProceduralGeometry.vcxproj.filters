@@ -19,6 +19,9 @@
     <Filter Include="Source Files\Util">
       <UniqueIdentifier>{93d5e482-943e-4182-8023-5676929aec55}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Shaders\ProceduralPrimitiveLibrary">
+      <UniqueIdentifier>{69efd3aa-04fd-4b1e-be35-61217582c550}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -31,9 +34,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="RaytracingHlslCompat.h">
-      <Filter>Assets\Shaders</Filter>
-    </ClInclude>
-    <ClInclude Include="ProceduralPrimitivesLibrary.h">
       <Filter>Assets\Shaders</Filter>
     </ClInclude>
     <ClInclude Include="RaytracingShaderHelper.h">
@@ -60,11 +60,20 @@
     <ClInclude Include="RaytracingSceneDefines.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SignedDistancePrimitives.h">
-      <Filter>Assets\Shaders</Filter>
+    <ClInclude Include="AnalyticPrimitives.h">
+      <Filter>Assets\Shaders\ProceduralPrimitiveLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="ProceduralPrimitivesLibrary.h">
+      <Filter>Assets\Shaders\ProceduralPrimitiveLibrary</Filter>
     </ClInclude>
     <ClInclude Include="SignedDistanceFractals.h">
-      <Filter>Assets\Shaders</Filter>
+      <Filter>Assets\Shaders\ProceduralPrimitiveLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="SignedDistancePrimitives.h">
+      <Filter>Assets\Shaders\ProceduralPrimitiveLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="VolumetricPrimitives.h">
+      <Filter>Assets\Shaders\ProceduralPrimitiveLibrary</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

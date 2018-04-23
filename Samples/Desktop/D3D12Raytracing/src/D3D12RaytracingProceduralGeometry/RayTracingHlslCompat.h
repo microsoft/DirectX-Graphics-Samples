@@ -64,11 +64,18 @@ struct SceneConstantBuffer
     XMVECTOR lightPosition;
     XMVECTOR lightAmbientColor;
     XMVECTOR lightDiffuseColor;
+    // ToDo move out?
+    float    elapsedTime;                 // Elapsed application time.
 };
 
+// ToDo split or rename
 struct MaterialConstantBuffer
 {
     XMFLOAT4 albedo;
+    float stepScale;                      // Step scale for ray marching of signed distance primitives. 
+                                          // - Some object transformations don't preserve the distances and 
+                                          //   thus require shorter steps.
+    
 };
 
 struct AABBConstantBuffer
@@ -107,20 +114,20 @@ namespace AnalyticPrimitive {
 
 namespace VolumetricPrimitive {
     enum Enum {
-        Metaballs = 0,       // ToDo can this start from 0 instead?
+        Metaballs = 0,
         Count
     };
 }
 
 namespace SignedDistancePrimitive {
     enum Enum {
-        // ToDo improve the setup - move into dynamic multidimensional structure?
-
         Cone = 0,
-        Spheres,
+        MiniSpheres,
         IntersectedRoundCube,
         Torus,
-        Pyramid,
+        TwistedTorus,
+        Pyramid, 
+        Cog,
         Cylinder,
         SquareTorus,
         Count

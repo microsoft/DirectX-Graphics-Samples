@@ -167,20 +167,39 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
 
     // Setup materials.
     {
-        m_planeMaterialCB.albedo = XMFLOAT4(0.75f, 0.75f, 0.75f, 1.0f);
+        m_planeMaterialCB = { XMFLOAT4(0.75f, 0.75f, 0.75f, 1.0f), 1.0f };
 
-        m_aabbMaterialCB[AnalyticPrimitive::AABB].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
-        m_aabbMaterialCB[AnalyticPrimitive::Sphere].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
-        m_aabbMaterialCB[AnalyticPrimitive::Spheres].albedo = XMFLOAT4(0.5f, 1.0f, 0.5f, 1.0f);
-        // ToDo improve indexing
-        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Metaballs].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
-        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Cone].albedo = XMFLOAT4(0.2f, 0.8f, 1.0f, 1.0f);
-        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Torus].albedo = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
-        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Pyramid].albedo = XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f);
-        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Spheres].albedo = XMFLOAT4(0.5f, 1.0f, 0.7f, 1.0f);
-        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::IntersectedRoundCube].albedo = XMFLOAT4(0.2f, 1.0f, 0.5f, 1.0f);
-        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Cylinder].albedo = XMFLOAT4(0.2f, 1.0f, 0.5f, 1.0f);
-        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::SquareTorus].albedo = XMFLOAT4(0.2f, 1.0f, 0.5f, 1.0f);
+        UINT offset = 0;
+        // Initialize primitives.
+        // Analytic primitives.
+        {
+            using namespace AnalyticPrimitive;
+            m_aabbMaterialCB[offset + AABB] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Sphere] = { XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Spheres] = { XMFLOAT4(0.5f, 1.0f, 0.5f, 1.0f), 1.0f };
+            offset += AnalyticPrimitive::Count;
+        }
+
+        // Volumetric primitives.
+        {
+            using namespace VolumetricPrimitive;
+            m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
+            offset += VolumetricPrimitive::Count;
+        }
+
+        // Signed distance primitives.
+        {
+            using namespace SignedDistancePrimitive;
+            m_aabbMaterialCB[offset + Cone] = { XMFLOAT4(0.2f, 0.8f, 1.0f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + MiniSpheres] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + IntersectedRoundCube] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Torus] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Pyramid] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + TwistedTorus] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Cog] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Cylinder] = { XMFLOAT4(0.2f, 1.0f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + SquareTorus] = { XMFLOAT4(0.2f, 1.0f, 0.5f, 1.0f), 0.8f };
+        }
     }
 
     // Setup camera.
@@ -1246,7 +1265,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
         const XMVECTOR& prevLightPosition = m_sceneCB->lightPosition;
         m_sceneCB->lightPosition = XMVector3Transform(prevLightPosition, rotate);
     }
-
+    m_sceneCB->elapsedTime = elapsedTime;
     UpdateAABBPrimitiveAttributes();
 }
 

@@ -20,6 +20,20 @@ struct Ray
     float3 direction;
 };
 
+// Returns a cycling <0 -> 1 -> 0> animation interpolant 
+float CalculateAnimationInterpolant(in float elapsedTime, in float cycleDuration)
+{
+    float curCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
+    return (curCycleTime <= 0.5f) ? 2 * curCycleTime : 1 - 2 * (curCycleTime - 0.5f);
+}
+
+void swap(inout float a, inout float b)
+{
+    float temp = a;
+    a = b;
+    b = temp;
+}
+
 bool IsInRange(in float val, in float min, in float max)
 {
     return (val >= min && val <= max);
