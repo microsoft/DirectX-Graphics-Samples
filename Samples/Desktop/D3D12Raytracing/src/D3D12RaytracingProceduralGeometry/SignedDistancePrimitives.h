@@ -47,6 +47,31 @@
 
 #include "RaytracingShaderHelper.h"
 
+
+//------------------------------------------------------------------
+
+// Subtract: Obj1 - Obj2
+float opS(float d1, float d2)
+{
+    return max(d1, -d2);
+}
+
+float opU(float d1, float d2)
+{
+    return (d1.x < d2.x) ? d1 : d2;
+}
+
+// Intersection
+float opI(float d1, float d2)
+{
+    return max(d1, d2);
+}
+
+float3 opRep(float3 p, float3 c)
+{
+    return fmod(p, c) - 0.5 * c;
+}
+
 //------------------------------------------------------------------
 
 float sdPlane(float3 p)
@@ -75,9 +100,11 @@ float udRoundBox(float3 p, float3 b, float r)
     return length(max(abs(p) - b, 0.0)) - r;
 }
 
+// t: {radius, tube radius}
 float sdTorus(float3 p, float2 t)
 {
-    return length(float2(length(p.xz) - t.x, p.y)) - t.y;
+    float2 q = float2(length(p.xz) - t.x, p.y);
+    return length(q) - t.y;
 }
 
 float sdHexPrism(float3 p, float2 h)
@@ -143,33 +170,63 @@ float sdConeSection(in float3 p, in float h, in float r1, in float r2)
     return length(max(float2(d1, d2), 0.0)) + min(max(d1, d2), 0.);
 }
 
-float sdPyramid4(float3 p, float3 h) // h = { cos a, sin a, height }
-{
-    // Tetrahedron = Octahedron - Cube
-    float box = sdBox(p - float3(0, -2.0 * h.z, 0), (float3)(2.0 * h.z));
 
+// h = { cos a, sin a, height }
+float sdOctahedron(float3 p, float3 h)
+{
     float d = 0.0;
     d = max(d, abs(dot(p, float3(-h.x, h.y, 0))));
     d = max(d, abs(dot(p, float3(h.x, h.y, 0))));
     d = max(d, abs(dot(p, float3(0, h.y, h.x))));
     d = max(d, abs(dot(p, float3(0, h.y, -h.x))));
-    float octa = d - h.z;
-    return max(-box, octa); // Subtraction
+    return d - h.z;
 }
 
-float length2(float2 p)
+// h = { cos a, sin a, height }
+float sdPyramid4(float3 p, float3 h)
+{
+    // Transform <-1,1> to <0,1>
+    p = (p + 1)* 0.5f;
+    // Tetrahedron = Octahedron - Cube
+    float box = sdBox(p - float3(0, -2.0 * h.z, 0), (float3)(2.0 * h.z));
+    float octa = sdOctahedron(p, h);
+    return opS(octa, box); // Subtraction
+}
+
+float sdPyramid(float3 p, float3 h)
+{
+    //p += float3(0, 1, 0);
+    // Tetrahedron = Octahedron - Cube
+    float box = sdBox(p, (float3)1.0);
+
+    float octa = sdOctahedron(p, h);
+    return octa;// opS(octa, box); // Subtraction
+}
+
+float length_toPow2(float2 p)
+{
+    return dot(p,p);
+}
+
+float length_toPow2(float3 p)
+{
+    return dot(p, p);
+}
+
+
+float length_toPowNegative2(float2 p)
 {
     return sqrt(p.x * p.x + p.y * p.y);
 }
 
-float length6(float2 p)
+float length_toPowNegative6(float2 p)
 {
     p = p * p * p; 
     p = p * p;
     return pow(p.x + p.y, 1.0 / 6.0);
 }
 
-float length8(float2 p)
+float length_toPowNegative8(float2 p)
 {
     p = p * p; p = p * p; p = p * p;
     return pow(p.x + p.y, 1.0 / 8.0);
@@ -177,36 +234,19 @@ float length8(float2 p)
 
 float sdTorus82(float3 p, float2 t)
 {
-    float2 q = float2(length2(p.xz) - t.x, p.y);
-    return length8(q) - t.y;
+    float2 q = float2(length_toPowNegative2(p.xz) - t.x, p.y);
+    return length_toPowNegative8(q) - t.y;
 }
 
 float sdTorus88(float3 p, float2 t)
 {
-    float2 q = float2(length8(p.xz) - t.x, p.y);
-    return length8(q) - t.y;
+    float2 q = float2(length_toPowNegative8(p.xz) - t.x, p.y);
+    return length_toPowNegative8(q) - t.y;
 }
 
 float sdCylinder6(float3 p, float2 h)
 {
-    return max(length6(p.xz) - h.x, abs(p.y) - h.y);
-}
-
-//------------------------------------------------------------------
-
-float opS(float d1, float d2)
-{
-    return max(-d2, d1);
-}
-
-float opU(float d1, float d2)
-{
-    return (d1.x < d2.x) ? d1 : d2;
-}
-
-float3 opRep(float3 p, float3 c)
-{
-    return fmod(p, c) - 0.5 * c;
+    return max(length_toPowNegative6(p.xz) - h.x, abs(p.y) - h.y);
 }
 
 
@@ -220,8 +260,8 @@ float3 opRep(float3 p, float3 c)
 
 float3 opTwist(float3 p)
 {
-    float c = cos(10.0 * p.y + 10.0);
-    float s = sin(10.0 * p.y + 10.0);
+    float c = cos(3.0 * p.y);
+    float s = sin(3.0 * p.y);
     float2x2 m = float2x2(c, -s, s, c);
     return float3(mul(m, p.xz), p.y);
 }
@@ -262,6 +302,19 @@ float2 map(in float3 pos)
     return res;
 }
 */
+//res = 
+//    opU(    res, 
+//            float2( opS( 
+//                         sdTorus82( 
+//                                    pos - float3(-2.0, 0.2, 0.0), float2(0.20, 0.1)),
+//                         sdCylinder(
+//                                    opRep(
+//                                            float3(
+//                                                    atan(pos.x + 2.0, pos.z) / 6.2831, pos.y, 0.02 + 0.5 * length(
+//                                                                                                                   pos - float3(-2.0, 0.2, 0.0))), 
+//                                            float3(0.05, 1.0, 0.05)), 
+//                                    float2(0.02, 0.6))), 
+//                    51.0));
 
 float2 castRay(in float3 ro, in float3 rd)
 {
@@ -297,7 +350,7 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
 
 float3 sdCalculateNormal(in float3 pos, in SignedDistancePrimitive::Enum sdPrimitive)
 {
-    float2 e = float2(1.0, -1.0) * 0.5773 * 0.0005;
+    float2 e = float2(1.0, -1.0) * 0.5773 * 0.0001;
     return normalize(
         e.xyy * GetDistanceFromSignedDistancePrimitive(pos + e.xyy, sdPrimitive) +
         e.yyx * GetDistanceFromSignedDistancePrimitive(pos + e.yyx, sdPrimitive) +

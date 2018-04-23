@@ -18,28 +18,12 @@ using namespace DX;
 
 // Shader entry points.
 const wchar_t* D3D12RaytracingProceduralGeometry::c_raygenShaderName = L"MyRaygenShader";
-#if !ENABLE_NEW_CODE
-const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
-{
-#if 1
-    L"MyIntersectionShader_AnalyticPrimitive",
-    L"MyIntersectionShader_VolumetricPrimitive",
-#else
-    L"MyIntersectionShader_AnalyticPrimitive2",
-    L"MyIntersectionShader_AnalyticPrimitive3",
-    L"MyIntersectionShader_AABB",
-    L"MyIntersectionShader_Sphere",
-    L"MyIntersectionShader_Spheres",
-#endif
-};
-#else
 const wchar_t* D3D12RaytracingProceduralGeometry::c_intersectionShaderNames[] =
 {
     L"MyIntersectionShader_AnalyticPrimitive",
     L"MyIntersectionShader_VolumetricPrimitive",
     L"MyIntersectionShader_SignedDistancePrimitive",
 };
-#endif
 const wchar_t* D3D12RaytracingProceduralGeometry::c_closestHitShaderNames[] =
 {
     L"MyClosestHitShader_Triangle",
@@ -49,7 +33,6 @@ const wchar_t* D3D12RaytracingProceduralGeometry::c_missShaderNames[] =
 {
     L"MyMissShader", L"MyMissShader_ShadowRay"
 };
-
 // Hit groups.
 const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_TriangleGeometry[] = 
 { 
@@ -59,6 +42,7 @@ const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_AABBGeometry[]
 {
     { L"MyHitGroup_AABB_AnalyticPrimitive", L"MyHitGroup_AABB_AnalyticPrimitive_ShadowRay" },
     { L"MyHitGroup_AABB_VolumetricPrimitive", L"MyHitGroup_AABB_VolumetricPrimitive_ShadowRay" },
+    { L"MyHitGroup_AABB_SignedDistancePrimitive", L"MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay" },
 };
 
 D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width, UINT height, std::wstring name) :
@@ -150,7 +134,11 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
         -((NUM_AABB_Y-1) * c_aabbWidth  + (NUM_AABB_Y - 1) * c_aabbDistance) / 2.0f,
         -((NUM_AABB_Z-1) * c_aabbWidth  + (NUM_AABB_Z - 1) * c_aabbDistance) / 2.0f));
 
+#if ANIMATE_PRIMITIVES
     const float elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
+#else
+    const float elapsedTime = 0.0f;
+#endif
     for (UINT z = 0, i = 0; z < NUM_AABB_Z; z++)
     {
         for (UINT y = 0; y < NUM_AABB_Y; y++)
@@ -180,18 +168,19 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
     // Setup materials.
     {
         m_planeMaterialCB.albedo = XMFLOAT4(0.75f, 0.75f, 0.75f, 1.0f);
+
         m_aabbMaterialCB[AnalyticPrimitive::AABB].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
         m_aabbMaterialCB[AnalyticPrimitive::Sphere].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
         m_aabbMaterialCB[AnalyticPrimitive::Spheres].albedo = XMFLOAT4(0.5f, 1.0f, 0.5f, 1.0f);
         // ToDo improve indexing
         m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Metaballs].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
-#if 0 
-        ToDo
-        m_aabbMaterialCB[SignedDistancePrimitive::Cone].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
-        m_aabbMaterialCB[SignedDistancePrimitive::Torus].albedo = XMFLOAT4(0.5f, 1.0f, 0.5f, 1.0f);
-        m_aabbMaterialCB[SignedDistancePrimitive::Pyramid].albedo = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
-        m_aabbMaterialCB[SignedDistancePrimitive::FractalTetrahedron].albedo = XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f);
-#endif
+        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Cone].albedo = XMFLOAT4(0.2f, 0.8f, 1.0f, 1.0f);
+        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Torus].albedo = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
+        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Pyramid].albedo = XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f);
+        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Spheres].albedo = XMFLOAT4(0.5f, 1.0f, 0.7f, 1.0f);
+        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::IntersectedRoundCube].albedo = XMFLOAT4(0.2f, 1.0f, 0.5f, 1.0f);
+        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Cylinder].albedo = XMFLOAT4(0.2f, 1.0f, 0.5f, 1.0f);
+        m_aabbMaterialCB[AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::SquareTorus].albedo = XMFLOAT4(0.2f, 1.0f, 0.5f, 1.0f);
     }
 
     // Setup camera.
@@ -540,9 +529,7 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
 
     // Debug
     // ToDo remove assert
-#if !DISABLE_CODE
     assert(raytracingPipeline.NumSubbojects() == NUM_SUBOBJECTS && L"Checking expeted num subobjects here. Num subobjects doesn't match. Update RTPSO description.");
-#endif
     PrintStateObjectDesc(raytracingPipeline);
 
     // Create the state object.

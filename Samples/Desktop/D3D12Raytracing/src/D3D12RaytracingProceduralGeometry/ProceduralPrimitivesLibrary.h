@@ -16,8 +16,8 @@
 
 #include "SignedDistancePrimitives.h"
 #if ENABLE_NEW_CODE
-#include "SignedDistanceFractals.h"
 #endif
+#include "SignedDistanceFractals.h"
 
 // ToDo revise inout specifiers
 // ToDo pass raytracing intrinsics as parameters?
@@ -353,9 +353,13 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
             normal += fieldPotentials[0] * CalculateNormalForARaySphereHit(ray, t, centers[0]);
             normal += fieldPotentials[1] * CalculateNormalForARaySphereHit(ray, t, centers[1]);
             normal += fieldPotentials[2] * CalculateNormalForARaySphereHit(ray, t, centers[2]);
-            attr.normal = normalize(normal / fieldPotential);
-            thit = t;
-            return true;
+            normal = normalize(normal / fieldPotential);
+            if (IsAValidHit(ray, t, normal))
+            {
+                thit = t;
+                attr.normal = normal;
+                return true;
+            }
         }
     }
 
@@ -382,27 +386,50 @@ bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::E
     }
 }
 
-#if ENABLE_NEW_CODE
 
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum sdPrimitive)
 {
     switch (sdPrimitive)
     {
-    case SignedDistancePrimitive::Cone: return sdCone(position, float3(0.8, 0.6, 0.3));
-    case SignedDistancePrimitive::Torus: return sdTorus(position, float2(0.20, 0.05));
-    case SignedDistancePrimitive::Pyramid: return sdPyramid4(position, float3(0.8, 0.6, 0.25));
-    case SignedDistancePrimitive::FractalTetrahedron: return sdFractalTetrahedron(position, 5);
+    case SignedDistancePrimitive::Cone: return sdCone(position + float3(0, -0.7, 0), float3(0.8, 0.6, 1.2));
+    case SignedDistancePrimitive::Spheres:
+        // Intersection of repeated spheres within AABB and AABB
+        return opI(sdSphere(opRep(position + 1, (float3)2 / 4), 0.65 / 4),
+                   sdBox(position, (float3)1));
+    case SignedDistancePrimitive::IntersectedRoundCube: 
+        return opS( udRoundBox(position, (float3)0.75, 0.2),
+                    sdSphere(position, 1.20));
+            
+//    case SignedDistancePrimitive::Cone: return sdCone(position + float3(0, -0.7, 0), float3(0.8, 0.6, 1.2));
+//    case SignedDistancePrimitive::Torus: return sdTorus(position, float2(0.7, 0.25));
+    //case SignedDistancePrimitive::Torus: return sdPyramid4(position, float3(0.8, 0.6, 0.90)); ;// return sdTorus(opTwist(position - float3(0.0, 0.0, 0.0)), float2(0.7, 0.2));
+    case SignedDistancePrimitive::Torus: 
+        return sdTorus(opTwist(position), float2(0.6, 0.2));
+         //return opS(sdOctahedron(position, float3(0.8, 0.6, 0.70))); ;//
+        // ToDo fix pyramid shadow clipping
+    // case SignedDistancePrimitive::Pyramid: return sdPyramid4(position+float3(0,0.5,0), float3(0.8, 0.6, 0.70));
+    case SignedDistancePrimitive::Pyramid: 
+        return opS( sdTorus82(position, float2(0.60, 0.3)),
+                    sdCylinder( opRep(float3( atan2(position.z, position.x) / 6.2831, 1, 0.015 + 0.25 * length(position)) + 1, 
+                                      float3(0.05, 1, 0.075)),
+                                float2(0.02, 0.8)));
+        //return sdPyramid4(position, float3(0.8, 0.6, 0.50));
+        return opS( sdPyramid4(position, float3(0.8, 0.6, 0.70)),
+            sdSphere(position, 0.80));
+    case SignedDistancePrimitive::Cylinder: return sdCylinder(position, float2(0.4, 1.0));
+    case SignedDistancePrimitive::SquareTorus: return sdTorus88(position, float2(0.75, 0.15));
+        //return sdFractalPyramid(position, 2);
     default: return 0;
     }
 }
 
 // Test ray against a signed distance primitive.
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer
-bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum sdPrimitive, out float thit)
+bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum sdPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
 {    
-    const float threshold = 0.0005;// ToDo 10e-6;
+    const float threshold = 0.0001;// ToDo 10e-6;
     float t = RayTMin();
-    const UINT MaxSteps = 64;
+    const UINT MaxSteps = 256;
 
     // Do sphere tracing through the AABB.
     for (UINT i = 0; i < MaxSteps; i++ )
@@ -411,18 +438,26 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
         float distance = GetDistanceFromSignedDistancePrimitive(position, sdPrimitive);
   
         // Did we intersect the shape or reached the end?
-        if (distance <= threshold * t || t > RayTCurrent())
+        if (t > RayTCurrent())
         {
-            thit = t;
-            return t > RayTCurrent();
+            return false;
+        }
+        if (distance <= threshold * t )
+        {
+            float3 hitSurfaceNormal = sdCalculateNormal(position, sdPrimitive);
+            if (IsAValidHit(ray, t, hitSurfaceNormal))
+            {
+                thit = t;
+                attr.normal = hitSurfaceNormal;
+                return true;
+            }
         }
 
         // Since distance is the minimum distance to the primitive, 
         // we can safely jump by that without intersecting the primitive.
-        t += distance;
+        t += 0.5*distance;
     }
     return false;
 }
 
-#endif
 #endif // RAYTRACINGPRIMITIVESLIBRARY_H

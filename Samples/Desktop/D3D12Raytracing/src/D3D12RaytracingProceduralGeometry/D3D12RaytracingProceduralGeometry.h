@@ -55,9 +55,9 @@ private:
     static const UINT NUM_INSTANCES = NUM_INSTANCE_X * NUM_INSTANCE_Y * NUM_INSTANCE_Z;
 
     // Number of AABBs in a BLAS
-    static const UINT NUM_AABB_X = 2;
+    static const UINT NUM_AABB_X = 3;
     static const UINT NUM_AABB_Y = 1;
-    static const UINT NUM_AABB_Z = 2;
+    static const UINT NUM_AABB_Z = 4;
     static const UINT NUM_AABB = NUM_AABB_X * NUM_AABB_Y * NUM_AABB_Z;
 
     static const UINT NUM_BLAS = 1 + NUM_INSTANCES; // Triangle BLAS + AABB BLAS instances

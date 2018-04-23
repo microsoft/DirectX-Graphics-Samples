@@ -113,7 +113,7 @@ namespace IntersectionShaderType {
         AnalyticPrimitive = 0,
         VolumetricPrimitive,
         SignedDistancePrimitive,
-        Count = 2
+        Count = 3
     };
     inline UINT PerPrimitiveTypeCount(Enum type)
     {
@@ -128,5 +128,5 @@ namespace IntersectionShaderType {
     static const UINT MaxPerPrimitiveTypeCount =
         max(AnalyticPrimitive::Count, max(VolumetricPrimitive::Count, SignedDistancePrimitive::Count));
     static const UINT TotalPrimitiveCount =
-        AnalyticPrimitive::Count + VolumetricPrimitive::Count;// +SignedDistancePrimitive::Count;
+        AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Count;
 }

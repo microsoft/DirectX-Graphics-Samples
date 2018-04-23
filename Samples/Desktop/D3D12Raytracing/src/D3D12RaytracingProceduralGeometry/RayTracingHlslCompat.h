@@ -12,9 +12,10 @@
 #ifndef RAYTRACINGHLSLCOMPAT_H
 #define RAYTRACINGHLSLCOMPAT_H
 
+#define ANIMATE_PRIMITIVES 0
+
 // ToDo check for unreleased resources.
 #define ENABLE_NEW_CODE 0
-#define DISABLE_CODE 1
 
 // Workaround for dynamic indexing issue in DXR shaders on Nvidia
 #define DO_NOT_USE_DYNAMIC_INDEXING 1 
@@ -114,10 +115,14 @@ namespace VolumetricPrimitive {
 namespace SignedDistancePrimitive {
     enum Enum {
         // ToDo improve the setup - move into dynamic multidimensional structure?
+
         Cone = 0,
+        Spheres,
+        IntersectedRoundCube,
         Torus,
         Pyramid,
-        FractalTetrahedron,
+        Cylinder,
+        SquareTorus,
         Count
     };
 }
