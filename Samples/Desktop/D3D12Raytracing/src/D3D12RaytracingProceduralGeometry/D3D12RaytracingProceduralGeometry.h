@@ -49,15 +49,15 @@ private:
     static const UINT FrameCount = 3;
 
     // Number of AABB BLAS instances
-    static const UINT NUM_INSTANCE_X = 2;
+    static const UINT NUM_INSTANCE_X = 1;
     static const UINT NUM_INSTANCE_Y = 1;
-    static const UINT NUM_INSTANCE_Z = 2;
+    static const UINT NUM_INSTANCE_Z = 1;
     static const UINT NUM_INSTANCES = NUM_INSTANCE_X * NUM_INSTANCE_Y * NUM_INSTANCE_Z;
 
     // Number of AABBs in a BLAS
-    static const UINT NUM_AABB_X = 2;
+    static const UINT NUM_AABB_X = 4;
     static const UINT NUM_AABB_Y = 1;
-    static const UINT NUM_AABB_Z = 2;
+    static const UINT NUM_AABB_Z = 4;
     static const UINT NUM_AABB = NUM_AABB_X * NUM_AABB_Y * NUM_AABB_Z;
 
     static const UINT NUM_BLAS = 1 + NUM_INSTANCES; // Triangle BLAS + AABB BLAS instances
@@ -94,7 +94,7 @@ private:
     
     // Root constants
     MaterialConstantBuffer m_planeMaterialCB;
-    MaterialConstantBuffer m_aabbMaterialCB[IntersectionShaderType::Count];
+    MaterialConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
 
     // Geometry
     D3DBuffer m_indexBuffer;
@@ -115,8 +115,9 @@ private:
     static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][RayType::Count];
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
-    static const wchar_t* c_closestHitShaderNames[GeometryType::Count][RayType::Count];
+    static const wchar_t* c_closestHitShaderNames[GeometryType::Count];
     static const wchar_t* c_missShaderNames[RayType::Count];
+
     ComPtr<ID3D12Resource> m_missShaderTable;
     UINT m_missShaderTableStrideInBytes;
     ComPtr<ID3D12Resource> m_hitGroupShaderTable;

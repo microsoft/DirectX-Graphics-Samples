@@ -167,12 +167,15 @@ PrebuildCheck.bat</Command>
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AnalyticPrimitives.h" />
     <ClInclude Include="DirectXRaytracingHelper.h" />
     <ClInclude Include="ProceduralPrimitivesLibrary.h" />
     <ClInclude Include="RaytracingSceneDefines.h" />
     <ClInclude Include="RaytracingHlslCompat.h" />
     <ClInclude Include="RaytracingShaderHelper.h" />
     <ClInclude Include="D3D12RaytracingProceduralGeometry.h" />
+    <ClInclude Include="SignedDistanceFractals.h" />
+    <ClInclude Include="SignedDistancePrimitives.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="util\DeviceResources.h" />
     <ClInclude Include="util\DXSample.h" />
@@ -180,6 +183,7 @@ PrebuildCheck.bat</Command>
     <ClInclude Include="util\HlslCompat.h" />
     <ClInclude Include="util\StepTimer.h" />
     <ClInclude Include="util\Win32Application.h" />
+    <ClInclude Include="VolumetricPrimitives.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="D3D12RaytracingProceduralGeometry.cpp" />

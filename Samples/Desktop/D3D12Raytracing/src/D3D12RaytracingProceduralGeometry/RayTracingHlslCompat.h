@@ -12,7 +12,10 @@
 #ifndef RAYTRACINGHLSLCOMPAT_H
 #define RAYTRACINGHLSLCOMPAT_H
 
+#define ANIMATE_PRIMITIVES 0
+
 // ToDo check for unreleased resources.
+#define ENABLE_NEW_CODE 0
 
 // Workaround for dynamic indexing issue in DXR shaders on Nvidia
 #define DO_NOT_USE_DYNAMIC_INDEXING 1 
@@ -38,12 +41,10 @@ typedef UINT16 Index;
 #define MAX_RAY_RECURSION_DEPTH 3 // ToDo ~ primary rays + reflections + shadow rays.
 
 // ToDo cleanup
-struct MyAttributes
+struct ProceduralPrimitiveAttributes
 {
-    XMFLOAT2 barycentrics;
-    XMFLOAT4 normal;
+    XMFLOAT3 normal;
 };
-
 struct ShadowRayPayload
 {
     bool hit;
@@ -63,16 +64,24 @@ struct SceneConstantBuffer
     XMVECTOR lightPosition;
     XMVECTOR lightAmbientColor;
     XMVECTOR lightDiffuseColor;
+    // ToDo move out?
+    float    elapsedTime;                 // Elapsed application time.
 };
 
+// ToDo split or rename
 struct MaterialConstantBuffer
 {
     XMFLOAT4 albedo;
+    float stepScale;                      // Step scale for ray marching of signed distance primitives. 
+                                          // - Some object transformations don't preserve the distances and 
+                                          //   thus require shorter steps.
+    XMFLOAT3 padding;
 };
 
 struct AABBConstantBuffer
 {
     UINT geometryIndex;
+    UINT primitiveType;
 };
 
 struct Vertex
@@ -93,10 +102,42 @@ struct RectangularPrismAABB
     XMFLOAT3 maxPosition;
 };
 
+
+namespace AnalyticPrimitive {
+    enum Enum {
+        AABB = 0,
+        Sphere,
+        Spheres,
+        Count
+    };
+}
+
+namespace VolumetricPrimitive {
+    enum Enum {
+        Metaballs = 0,
+        Count
+    };
+}
+
+namespace SignedDistancePrimitive {
+    enum Enum {
+        Cone = 0,
+        MiniSpheres,
+        IntersectedRoundCube,
+        Torus,
+        TwistedTorus,
+        Pyramid, 
+        Cog,
+        Cylinder,
+        SquareTorus,
+        Count
+    };
+}
+
 struct AABBPrimitiveAttributes
 {
-    XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space
-    XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space
+    XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space.
+    XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space.
 };
 
 #endif // RAYTRACINGHLSLCOMPAT_H

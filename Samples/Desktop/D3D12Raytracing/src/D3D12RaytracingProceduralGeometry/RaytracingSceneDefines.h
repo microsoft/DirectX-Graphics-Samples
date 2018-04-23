@@ -94,7 +94,7 @@ namespace BottomLevelASType {
 namespace GeometryType {
     enum Enum {
         Triangle = 0,
-        AABB,
+        AABB,       // ToDo rename to procedural
         Count
     };
 }
@@ -107,11 +107,26 @@ namespace RayType {
     };
 }
 
+// ToDo name all namespaces to * vs *Type.
 namespace IntersectionShaderType {
     enum Enum {
-        AABB = 0,
-        Sphere,
-        Spheres,
-        Count
+        AnalyticPrimitive = 0,
+        VolumetricPrimitive,
+        SignedDistancePrimitive,
+        Count = 3
     };
+    inline UINT PerPrimitiveTypeCount(Enum type)
+    {
+        switch (type)
+        {
+        case AnalyticPrimitive: return AnalyticPrimitive::Count;
+        case VolumetricPrimitive: return VolumetricPrimitive::Count;
+        case SignedDistancePrimitive: return SignedDistancePrimitive::Count;
+        }
+        return 0;
+    }
+    static const UINT MaxPerPrimitiveTypeCount =
+        max(AnalyticPrimitive::Count, max(VolumetricPrimitive::Count, SignedDistancePrimitive::Count));
+    static const UINT TotalPrimitiveCount =
+        AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Count;
 }
