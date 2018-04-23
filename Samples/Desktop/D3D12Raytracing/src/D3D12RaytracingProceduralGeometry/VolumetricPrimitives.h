@@ -77,9 +77,9 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         fieldPotentials[0] = CalculateMetaballPotential(position, centers[0], radii[0]);
         fieldPotentials[1] = CalculateMetaballPotential(position, centers[1], radii[1]);
         fieldPotentials[2] = CalculateMetaballPotential(position, centers[2], radii[2]);
-
-
         float fieldPotential = fieldPotentials[0] + fieldPotentials[1] + fieldPotentials[2];
+
+        // ToDo revise threshold range
         // Threshold - valid range is (0, 0.25>, the larger the threshold the smaller the blob.
         float threshold = 0.15f;
         if (fieldPotential >= threshold)
