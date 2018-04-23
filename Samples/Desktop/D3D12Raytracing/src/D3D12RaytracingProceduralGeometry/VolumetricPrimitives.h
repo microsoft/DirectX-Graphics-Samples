@@ -34,26 +34,26 @@ float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in floa
 }
 
 // Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
-bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr, in float elapsedTime)
+bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr, in float totalTime)
 {
     const int N = 3;
     // Metaball centers at t0 and t1 key frames.
     float3 keyFrameCenters[N][2] =
     {
-        { float3(-0.3, -0.3, -0.3),float3(0.3,-0.3,-0.3) },
-        { float3(0.0, -0.2, 0.5), float3(0.0, 0.4, 0.5) },
-        { float3(-0.4,0.5, 0.4), float3(0.4, 0.0, -0.4) }
+        { float3(-0.5, -0.3, -0.4),float3(0.5,-0.3,-0.0) },
+        { float3(0.0, -0.4, 0.5), float3(0.0, 0.4, 0.5) },
+        { float3(0.5,0.5, 0.4), float3(-0.5, 0.2, -0.4) }
     };
 
     // Calculate animated metaball center positions.
-    float  tAnimate = CalculateAnimationInterpolant(elapsedTime, 10.0f);
+    float  tAnimate = CalculateAnimationInterpolant(totalTime, 8.0f);
     float3 centers[N];
     centers[0] = lerp(keyFrameCenters[0][0], keyFrameCenters[0][1], tAnimate);
     centers[1] = lerp(keyFrameCenters[1][0], keyFrameCenters[1][1], tAnimate);
     centers[2] = lerp(keyFrameCenters[2][0], keyFrameCenters[2][1], tAnimate);
 
     // Metaball field radii of max influence
-    float radii[N] = { 0.70, 0.65, 0.60 };
+    float radii[N] = { 0.50, 0.65, 0.50 };
     
     // Calculate step size based on the ray AABB intersection segment
     UINT MAX_STEPS = 128;

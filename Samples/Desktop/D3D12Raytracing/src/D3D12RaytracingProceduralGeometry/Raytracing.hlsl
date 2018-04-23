@@ -301,14 +301,14 @@ void MyIntersectionShader_AnalyticPrimitive()
 [shader("intersection")]
 void MyIntersectionShader_VolumetricPrimitive()
 {
-    float elapsedTime = g_sceneCB.elapsedTime;
+    float totalTime = g_sceneCB.totalTime;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     VolumetricPrimitive::Enum primitiveType = (VolumetricPrimitive::Enum) lrs_aabbCB.primitiveType;
     
     float thit;
     ProceduralPrimitiveAttributes attr;
-    if (RayVolumetricGeometryIntersectionTest(localRay, primitiveType, thit, attr, elapsedTime))
+    if (RayVolumetricGeometryIntersectionTest(localRay, primitiveType, thit, attr, totalTime))
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
