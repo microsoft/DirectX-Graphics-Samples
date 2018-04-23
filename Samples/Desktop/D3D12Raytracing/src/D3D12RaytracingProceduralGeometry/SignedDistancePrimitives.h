@@ -176,11 +176,6 @@ float sdConeSection(in float3 p, in float h, in float r1, in float r2)
 }
 
 
-float sdPyramid4(float3 p, float3 h)
-{
-
-}
-
 // h = { sin a, cos a, height }
 // h = p.x * sin a + p.y * cos a
 // where a, is the pyramid's inner angle between
@@ -199,14 +194,17 @@ float sdOctahedron(float3 p, float3 h)
 }
 
 // h = { sin a, cos a, height }
-float sdPyramid4(float3 p, float3 h)
+float sdPyramid(float3 p, float3 h) // h = { sin a, cos a, height }
 {
-    // Transform <-1,1> to <0,1>
-    p = (p + 1)* 0.5f;
-    // Tetrahedron = Octahedron - Cube
+    float d = 0.0;
+    d = max(d, dot(abs(p), float3(h.x, h.y, 0)));
+    d = max(d, dot(abs(p), float3(0, h.y, h.x)));
+    float octa = d - h.z;
+
     float box = sdBox(p - float3(0, -2.0 * h.z, 0), (float3)(2.0 * h.z));
-    float octa = sdOctahedron(p, h);
-    return opS(octa, box); // Subtraction
+
+    return max(octa, -min(0.0,p.y)); // Subtraction
+    //return opS(octa, box); // Subtraction
 }
 
 float length_toPowNegative2(float2 p)
@@ -269,11 +267,17 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
     const float threshold = 0.0001;
     float t = RayTMin();
     const UINT MaxSteps = 256;
-    UINT i = 0;
+    //UINT i = 0;
 
     // Do sphere tracing through the AABB.
-    while (i < MaxSteps && t <= RayTCurrent())
+    for (UINT i = 0; i < MaxSteps; i++)
+    // ToDo using while hangs
+    //while (i < MaxSteps && t <= RayTCurrent())
     {
+        if (t > RayTCurrent())
+        {
+            return false;
+        }
         float3 position = ray.origin + t * ray.direction;
         float distance = GetDistanceFromSignedDistancePrimitive(position, sdPrimitive);
 
@@ -291,6 +295,8 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
 
         // Since distance is the minimum distance to the primitive, 
         // we can safely jump by that amount without intersecting the primitive.
+        // We allow for scaling of steps per primitive type due to their transformations 
+        // that don't preserve true distances.
         t += stepScale * distance;
     }
     return false;

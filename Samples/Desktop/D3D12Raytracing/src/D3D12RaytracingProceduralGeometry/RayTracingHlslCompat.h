@@ -75,7 +75,7 @@ struct MaterialConstantBuffer
     float stepScale;                      // Step scale for ray marching of signed distance primitives. 
                                           // - Some object transformations don't preserve the distances and 
                                           //   thus require shorter steps.
-    
+    XMFLOAT3 padding;
 };
 
 struct AABBConstantBuffer

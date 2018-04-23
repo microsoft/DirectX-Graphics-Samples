@@ -142,8 +142,7 @@ float sdFractalPyramid(in float3 position, in UINT Iterations, in float Scale = 
 
     }
 #if 1
-    position = position - 1;
-    float distance = sdPyramid4(position, float3(0.8, 0.6, 0.8));// ,
+    float distance = sdPyramid(position - v, float3(0.938, 0.346, 0.55));// ,
                                                                             //   sdSphere(position, 0.85));
     return distance * pow(Scale, float(-n));
 #else

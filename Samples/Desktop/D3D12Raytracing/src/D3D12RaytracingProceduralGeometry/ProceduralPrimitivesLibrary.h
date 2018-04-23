@@ -57,7 +57,10 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
                    sdSphere(position, 1.20));
     case SignedDistancePrimitive::Torus: return sdTorus(position, float2(0.7, 0.25));
     case SignedDistancePrimitive::TwistedTorus: return sdTorus(opTwist(position), float2(0.6, 0.2));
-    case SignedDistancePrimitive::Pyramid: return sdPyramid4(position, float3(0.8, 0.6, 0.70));
+        
+    case SignedDistancePrimitive::Pyramid: 
+        // Pyramid: 63.435 degree, 2 height
+        return sdPyramid(position, float3(0.894, 0.447, 1.0));
     case SignedDistancePrimitive::Cog:
         return opS( sdTorus82(position, float2(0.60, 0.3)),
                     sdCylinder(opRep(float3(atan2(position.z, position.x) / 6.2831, 
