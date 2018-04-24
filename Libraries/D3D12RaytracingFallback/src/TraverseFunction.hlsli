@@ -12,8 +12,8 @@
 #define IGNORE      0
 #define ACCEPT      1
 
-groupshared
-uint    stack[TRAVERSAL_MAX_STACK_DEPTH * WAVE_SIZE];
+static
+uint    stack[TRAVERSAL_MAX_STACK_DEPTH];
 
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
 RWTexture2D<float4> g_screenOutput : register(u2);
@@ -22,8 +22,8 @@ void VisualizeAcceleratonStructure(float closestBoxT)
     g_screenOutput[DispatchRaysIndex()] = float4(closestBoxT / 3000.0f, 0, 0, 1);
 }
 
-groupshared
-uint    depthStack[TRAVERSAL_MAX_STACK_DEPTH * WAVE_SIZE];
+static
+uint    depthStack[TRAVERSAL_MAX_STACK_DEPTH];
 #endif
 
 void RecordClosestBox(uint currentLevel, inout bool leftTest, float leftT, inout bool rightTest, float rightT, inout float closestBoxT)
@@ -48,7 +48,7 @@ void RecordClosestBox(uint currentLevel, inout bool leftTest, float leftT, inout
 
 void StackPush(inout int stackTop, uint value, uint level, uint tidInWave)
 {
-    uint stackIndex = tidInWave + (stackTop * WAVE_SIZE);
+    uint stackIndex = stackTop;
     stack[stackIndex] = value;
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
     depthStack[stackIndex] = level;
@@ -60,8 +60,8 @@ void StackPush2(inout int stackTop, bool selector, uint valueA, uint valueB, uin
 {
     const uint store0 = selector ? valueA : valueB;
     const uint store1 = selector ? valueB : valueA;
-    const uint stackIndex0 = tidInWave + (stackTop + 0) * WAVE_SIZE;
-    const uint stackIndex1 = tidInWave + (stackTop + 1) * WAVE_SIZE;
+    const uint stackIndex0 = (stackTop + 0);
+    const uint stackIndex1 = (stackTop + 1);
     stack[stackIndex0] = store0;
     stack[stackIndex1] = store1;
 
@@ -76,7 +76,7 @@ void StackPush2(inout int stackTop, bool selector, uint valueA, uint valueB, uin
 uint StackPop(inout int stackTop, out uint depth, uint tidInWave)
 {
     --stackTop;
-    uint stackIndex = tidInWave + (stackTop * WAVE_SIZE);
+    uint stackIndex = stackTop;
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
     depth = depthStack[stackIndex];
 #endif
