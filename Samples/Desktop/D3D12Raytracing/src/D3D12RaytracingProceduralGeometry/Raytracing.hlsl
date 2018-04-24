@@ -18,7 +18,6 @@
 #include "RaytracingShaderHelper.h"
 
 // ToDo:
-// - handle RayFlags in intersection tests
 // - specify traceRay args in a shared header
 // - ReportHit will return to Intersection shader if RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH  is not specified. If that's the case handle it.
 // 
@@ -33,90 +32,57 @@ ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 ConstantBuffer<MaterialConstantBuffer> g_materialCB : register(b1);
 ConstantBuffer<AABBConstantBuffer> lrs_aabbCB: register(b2);          // from local root signature
 
-// Retrieve hit world position.
-float3 HitWorldPosition()
-{
-    return WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-}
-
-// Retrieve attribute at a hit position interpolated from vertex attributes using the hit's barycentrics.
-float3 HitAttribute(float3 vertexAttribute[3], float2 barycentrics)
-{
-    return vertexAttribute[0] +
-        barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
-        barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
-}
-
-// Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
-inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction)
-{
-    float2 xy = index + 0.5f; // center in the middle of the pixel.
-    float2 screenPos = xy / DispatchRaysDimensions() * 2.0 - 1.0;
-
-    // Invert Y for DirectX-style coordinates.
-    screenPos.y = -screenPos.y;
-
-    // Unproject the pixel coordinate into a ray.
-    float4 world = mul(float4(screenPos, 0, 1), g_sceneCB.projectionToWorld);
-
-    world.xyz /= world.w;
-    origin = g_sceneCB.cameraPosition.xyz;
-    direction = normalize(world - origin);
-}
-
-// ToDo is pixelToLight correct?
 // Diffuse lighting calculation.
 float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
 {
     float3 pixelToLight = normalize(g_sceneCB.lightPosition - hitPosition);
-
-    // Diffuse contribution.
     float fNDotL = max(0.0f, dot(pixelToLight, normal));
-
     return g_sceneCB.lightDiffuseColor * fNDotL;
 }
 
-
 //
-// Ray gen shader.
-// 
+// TraceRay wrappers for regular and shadow rays.
+//
 
-[shader("raygeneration")]
-void MyRaygenShader()
+// Trace a regular ray and return shaded color.
+float4 TraceRegularRay(in Ray ray, in UINT currentRayRecursionDepth)
 {
-    float3 rayDir;
-    float3 origin;
+    if (currentRayRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
+    {
+        return float4(0, 0, 0, 0);
+    }
 
-    // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
-    GenerateCameraRay(DispatchRaysIndex(), origin, rayDir);
-
-    // Trace the ray.
     // Set the ray's extents.
-    RayDesc ray;
-    ray.Origin = origin;
-    ray.Direction = rayDir;
+    RayDesc rayDesc;
+    rayDesc.Origin = ray.origin;
+    rayDesc.Direction = ray.direction;
+    // ToDo revise
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     // TMin should be kept small to prevent missing geometry at close contact areas.
-    ray.TMin = 0;
-    ray.TMax = 10000.0;
-    RayPayload rayPayload = { float4(0, 0, 0, 0), 1 };
-    TraceRay(
-        Scene, // Raytracing acceleration structure
+    // For shadow ray this will be extremely small to avoid aliasing at contact areas.
+    rayDesc.TMin = 0;
+    rayDesc.TMax = 10000.0;
+
+    RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
+    // ToDo use hit/miss indices from a header
+    // ToDo place ShadowHitGroup right after Closest hitgroup?
+    // ToDo review hit group indexing
+    // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
+    TraceRay(Scene,
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
-        ~0, /* InstanceInclusionMask*/
+        ~0,/* InstanceInclusionMask*/
         0, /* RayContributionToHitGroupIndex */
         2, /* MultiplierForGeometryContributionToHitGroupIndex */
         0, /* MissShaderIndex */
-        ray, rayPayload);
+        rayDesc, rayPayload);
 
-    // Write the raytraced color to the output texture.
-    RenderTarget[DispatchRaysIndex()] = rayPayload.color;
+    return rayPayload.color;
 }
 
 // Trace a shadow ray and return true if it hits any geometry.
-bool TraceShadowRayAndReportIfHit(in RayPayload rayPayload : SV_RayPayload)
+bool TraceShadowRayAndReportIfHit(in UINT currentRayRecursionDepth)
 {
-    if (rayPayload.recursionDepth >= MAX_RAY_RECURSION_DEPTH)
+    if (currentRayRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
     {
         return false;
     }
@@ -156,14 +122,30 @@ bool TraceShadowRayAndReportIfHit(in RayPayload rayPayload : SV_RayPayload)
 
 
 //
+// Ray gen shader.
+// 
+
+[shader("raygeneration")]
+void MyRaygenShader()
+{
+    // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
+    Ray ray = GenerateCameraRay(DispatchRaysIndex(), g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld);
+
+    // Cast a ray into the scene and retrieve a shaded color.
+    UINT currentRecursionDepth = 0;
+    float4 color = TraceRegularRay(ray, currentRecursionDepth);
+
+    // Write the raytraced color to the output texture.
+    RenderTarget[DispatchRaysIndex()] = color;
+}
+
+//
 // Closest hit shaders.
 // 
 
 [shader("closesthit")]
 void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
 {
-    float3 hitPosition = HitWorldPosition();
-
     // Get the base index of the triangle's first 16 bit index.
     uint indexSizeInBytes = 2;
     uint indicesPerTriangle = 3;
@@ -174,51 +156,18 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in
     const uint3 indices = Load3x16BitIndices(baseIndex, Indices);
 
     // Retrieve corresponding vertex normals for the triangle vertices.
-    float3 vertexNormals[3] = {
-        Vertices[indices[0]].normal,
-        Vertices[indices[1]].normal,
-        Vertices[indices[2]].normal
-    };
+    float3 triangleNormal = Vertices[indices[0]].normal;
 
-    // Compute the triangle's normal.
-    // This is redundant and done for illustration purposes 
-    // as all the per-vertex normals are the same and match triangle's normal in this sample. 
-    float3 triangleNormal = HitAttribute(vertexNormals, attr.barycentrics);
-
-    // Trace a reflection ray. 
-    // ToDo move into a function
-    // ToDo is this a live value?
-    float4 reflectionColor = float4(0, 0, 0, 0);
-    if (rayPayload.recursionDepth < MAX_RAY_RECURSION_DEPTH)
-    {
-        // Set the ray's extents.
-        RayDesc ray;
-        ray.Origin = hitPosition;
-        ray.Direction = reflect(normalize(WorldRayDirection()), float3(0, 1, 0));// normalize(triangleNormal));
-                                                                                 // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
-                                                                                 // TMin should be kept small to prevent missing geometry at close contact areas.
-                                                                                 // For shadow ray this will be extremely small to avoid aliasing at contact areas.
-        ray.TMin = 0;
-        ray.TMax = 10000.0;
-        RayPayload reflectionRayPayload = { float4(0, 0, 0, 0), rayPayload.recursionDepth + 1 };
-        // ToDo use hit/miss indices from a header
-        // ToDo place ShadowHitGroup right after Closest hitgroup?
-        // ToDo review hit group indexing
-        // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
-        TraceRay(Scene,
-            RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
-            ~0,/* InstanceInclusionMask*/
-            0, /* RayContributionToHitGroupIndex */
-            2, /* MultiplierForGeometryContributionToHitGroupIndex */
-            0, /* MissShaderIndex */
-            ray, reflectionRayPayload);
-        reflectionColor = reflectionRayPayload.color;
-    }
+    // Trace a reflection ray.
+    float3 hitPosition = HitWorldPosition();
+    Ray reflectionRay = { hitPosition, reflect(normalize(WorldRayDirection()), triangleNormal) };
+    float4 reflectionColor = TraceRegularRay(reflectionRay, rayPayload.recursionDepth);
 
     // Trace a shadow ray. 
-    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload);
+    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth);
     float shadowFactor = shadowRayHit ? 0.1 : 1.0;
 
+    // Calculate lighting.
     float4 diffuseColor = shadowFactor * g_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor + (float4(1, 1, 1, 1) - g_materialCB.albedo) * reflectionColor;
 
@@ -232,7 +181,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     
     // Trace a shadow ray. 
     // ToDo fixup shadow ray for metaballs - threshold.
-    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload);
+    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth);
     float shadowFactor = shadowRayHit ? 0.1 : 1.0;
 
     float3 normal = attr.normal;
@@ -280,6 +229,7 @@ Ray GetRayInAABBPrimitiveLocalSpace(out AABBPrimitiveAttributes attr)
     ray.direction = mul(ObjectRayDirection(), (float3x3) attr.bottomLevelASToLocalSpace);
     return ray;
 }
+
 [shader("intersection")]
 void MyIntersectionShader_AnalyticPrimitive()
 {
@@ -316,7 +266,6 @@ void MyIntersectionShader_VolumetricPrimitive()
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }
-
 
 [shader("intersection")]
 void MyIntersectionShader_SignedDistancePrimitive()
