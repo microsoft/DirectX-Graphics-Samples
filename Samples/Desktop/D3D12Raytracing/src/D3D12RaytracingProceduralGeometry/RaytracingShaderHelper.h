@@ -81,4 +81,38 @@ uint3 Load3x16BitIndices(uint offsetBytes, ByteAddressBuffer Indices)
     return indices;
 }
 
+// Retrieve hit world position.
+float3 HitWorldPosition()
+{
+    return WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+}
+
+// Retrieve attribute at a hit position interpolated from vertex attributes using the hit's barycentrics.
+float3 HitAttribute(float3 vertexAttribute[3], float2 barycentrics)
+{
+    return vertexAttribute[0] +
+        barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
+        barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
+}
+
+// Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
+inline Ray GenerateCameraRay(uint2 index, in float3 cameraPosition, in float4x4 projectionToWorld)
+{
+    float2 xy = index + 0.5f; // center in the middle of the pixel.
+    float2 screenPos = xy / DispatchRaysDimensions() * 2.0 - 1.0;
+
+    // Invert Y for DirectX-style coordinates.
+    screenPos.y = -screenPos.y;
+
+    // Unproject the pixel coordinate into a world positon.
+    float4 world = mul(float4(screenPos, 0, 1), projectionToWorld);
+    world.xyz /= world.w;
+
+    Ray ray;
+    ray.origin = cameraPosition;
+    ray.direction = normalize(world - ray.origin);
+
+    return ray;
+}
+
 #endif // RAYTRACINGSHADERHELPER_H
