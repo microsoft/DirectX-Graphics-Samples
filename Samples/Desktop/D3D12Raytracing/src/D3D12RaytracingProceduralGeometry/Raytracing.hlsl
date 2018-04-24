@@ -44,7 +44,7 @@ float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
 // TraceRay wrappers for regular and shadow rays.
 //
 
-// Trace a regular ray and return shaded color.
+// Trace a regular ray into the scene and return a shaded color.
 float4 TraceRegularRay(in Ray ray, in UINT currentRayRecursionDepth)
 {
     if (currentRayRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
@@ -169,7 +169,8 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in
 
     // Calculate lighting.
     float4 diffuseColor = shadowFactor * g_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
-    float4 color = g_sceneCB.lightAmbientColor + diffuseColor + (float4(1, 1, 1, 1) - g_materialCB.albedo) * reflectionColor;
+    float4 reflectance = float4(1, 1, 1, 1) - g_materialCB.albedo;
+    float4 color = g_sceneCB.lightAmbientColor + diffuseColor + reflectance * reflectionColor;
 
     rayPayload.color = color;
 }
