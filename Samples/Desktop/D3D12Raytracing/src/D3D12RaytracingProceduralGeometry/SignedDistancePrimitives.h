@@ -89,6 +89,7 @@ float sdSphere(float3 p, float s)
     return length(p) - s;
 }
 
+// Box extents: <-b,b>
 float sdBox(float3 p, float3 b)
 {
     float3 d = abs(p) - b;
@@ -190,21 +191,17 @@ float sdOctahedron(float3 p, float3 h)
     d = max(d, abs(dot(p, float3(0, h.y, -h.x))));
     
     // Move the ground plane down by height
-    return d - h.z;
+    return d - h.x * h.z;
 }
 
 // h = { sin a, cos a, height }
+// Pyramid extents: <-1,0,-1> to <1,h,1>
 float sdPyramid(float3 p, float3 h) // h = { sin a, cos a, height }
 {
-    float d = 0.0;
-    d = max(d, dot(abs(p), float3(h.x, h.y, 0)));
-    d = max(d, dot(abs(p), float3(0, h.y, h.x)));
-    float octa = d - h.z;
+    float octa = sdOctahedron(p, h);
+    float box = sdBox(p - float3(0, -1, 0), (float3)1.0);
 
-    float box = sdBox(p - float3(0, -2.0 * h.z, 0), (float3)(2.0 * h.z));
-
-    return max(octa, -min(0.0,p.y)); // Subtraction
-    //return opS(octa, box); // Subtraction
+    return opS(octa, box); // Subtraction
 }
 
 float length_toPowNegative2(float2 p)
