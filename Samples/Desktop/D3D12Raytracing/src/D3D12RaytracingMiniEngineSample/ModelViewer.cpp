@@ -68,7 +68,7 @@ ColorBuffer g_SceneNormalBuffer;
 
 CComPtr<ID3D12RaytracingFallbackDevice> g_pRaytracingDevice;
 
-__declspec(align(16)) struct
+__declspec(align(16)) struct HitShaderConstants
 {
     Vector3 sunDirection;
     Vector3 sunLight;
@@ -77,7 +77,7 @@ __declspec(align(16)) struct
     Matrix4 modelToShadow;
     UINT32 IsReflection;
     UINT32 UseShadowRays;
-} hitShaderConstants;
+};
 
 ByteAddressBuffer          g_hitConstantBuffer;
 ByteAddressBuffer          g_dynamicConstantBuffer;
@@ -880,7 +880,7 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
         }
     }
 
-    g_hitConstantBuffer.Create(L"Hit Constant Buffer", 1, sizeof(hitShaderConstants));
+    g_hitConstantBuffer.Create(L"Hit Constant Buffer", 1, sizeof(HitShaderConstants));
     g_dynamicConstantBuffer.Create(L"Dynamic Constant Buffer", 1, sizeof(DynamicCB));
 
     InitializeSceneInfo(m_Model);
@@ -1500,6 +1500,7 @@ void D3D12RaytracingMiniEngineSample::RaytraceShadows(
     inputs.resolution.x = (float)colorTarget.GetWidth();
     inputs.resolution.y = (float)colorTarget.GetHeight();
 
+    HitShaderConstants hitShaderConstants = {};
     hitShaderConstants.sunDirection = m_SunDirection;
     hitShaderConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
     hitShaderConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
@@ -1555,6 +1556,7 @@ void D3D12RaytracingMiniEngineSample::RaytraceDiffuse(
     inputs.resolution.x = (float)colorTarget.GetWidth();
     inputs.resolution.y = (float)colorTarget.GetHeight();
 
+    HitShaderConstants hitShaderConstants = {};
     hitShaderConstants.sunDirection = m_SunDirection;
     hitShaderConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
     hitShaderConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
@@ -1609,12 +1611,14 @@ void D3D12RaytracingMiniEngineSample::RaytraceReflections(
     inputs.resolution.x = (float)colorTarget.GetWidth();
     inputs.resolution.y = (float)colorTarget.GetHeight();
 
+    HitShaderConstants hitShaderConstants = {};
     hitShaderConstants.sunDirection = m_SunDirection;
     hitShaderConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
     hitShaderConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
     hitShaderConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
     hitShaderConstants.modelToShadow = Transpose(m_SunShadow.GetShadowMatrix());
     hitShaderConstants.IsReflection = true;
+    hitShaderConstants.UseShadowRays = false;
     context.WriteBuffer(g_hitConstantBuffer, 0, &hitShaderConstants, sizeof(hitShaderConstants));
     context.WriteBuffer(g_dynamicConstantBuffer, 0, &inputs, sizeof(inputs));
 
