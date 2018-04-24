@@ -122,6 +122,7 @@ namespace FallbackLayer
             const AABB& box,
             UINT32 maxDimension)
     {
+        UNREFERENCED_PARAMETER(maxDimension);
         assert(maxDimension < 3);
         const UINT32 nodeIndex = (UINT32)bvh.m_nodes.size();
 
@@ -665,7 +666,7 @@ namespace FallbackLayer
 
 void BuildRaytracingAccelerationStructureOnCpu(
     _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
-    _Outptr_ void *pData)
+    _Out_ void *pData)
 {
     FallbackLayer::BVH bvh;
     FallbackLayer::BuildUniformBVH(pDesc->NumDescs, pDesc->pGeometryDescs, bvh);

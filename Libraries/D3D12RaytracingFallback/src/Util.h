@@ -31,14 +31,14 @@ inline void ThrowFailure(HRESULT hr, LPCWSTR errorString = nullptr)
 template <typename T>
 T DivideAndRoundUp(T dividend, T divisor) { return (dividend - 1) / divisor + 1; }
 
-__forceinline uint8_t Log2(uint64_t value)
+__forceinline uint8_t Log2(uint32_t value)
 {
     unsigned long mssb; // most significant set bit
     unsigned long lssb; // least significant set bit
 
                         // If perfect power of two (only one set bit), return index of bit.  Otherwise round up
                         // fractional log by adding 1 to most signicant set bit's index.
-    if (BitScanReverse64(&mssb, value) > 0 && BitScanForward64(&lssb, value) > 0)
+    if (BitScanReverse(&mssb, value) > 0 && BitScanForward(&lssb, value) > 0)
         return uint8_t(mssb + (mssb == lssb ? 0 : 1));
     else
         return 0;
