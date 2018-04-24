@@ -21,4 +21,4 @@ void VisualizeAccelerationStructureLevel(ID3D12RaytracingFallbackDevice *pDevice
 
 void BuildRaytracingAccelerationStructureOnCpu(
     _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
-    _Outptr_ void *pData);
+    _Out_ void *pData);
