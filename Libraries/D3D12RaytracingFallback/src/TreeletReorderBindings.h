@@ -36,7 +36,7 @@ struct InputConstants
 // These need to be UAVs despite being read-only because the fallback layer only gets a 
 // GPU VA and the API doesn't allow any way to transition that GPU VA from UAV->SRV
 
-RWStructuredBuffer<HierarchyNode> hierarchyBuffer : UAV_REGISTER(HierarchyBufferRegister);
+globallycoherent RWStructuredBuffer<HierarchyNode> hierarchyBuffer : UAV_REGISTER(HierarchyBufferRegister);
 RWByteAddressBuffer NumTrianglesBuffer : UAV_REGISTER(NumTrianglesBufferRegister);
 globallycoherent RWStructuredBuffer<AABB> AABBBuffer : UAV_REGISTER(AABBBufferRegister);
 RWStructuredBuffer<Primitive> InputBuffer : UAV_REGISTER(ElementBufferRegister);

@@ -261,10 +261,11 @@ int wmain(int argc, wchar_t** argv)
             {
                 DXGI_ADAPTER_DESC1 desc;
                 pAdapter->GetDesc1(&desc);
-                if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-                    continue;
-
-                validDeviceFound = SUCCEEDED(D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&pDevice)));
+                if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0)
+                {
+                    validDeviceFound = SUCCEEDED(D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&pDevice)));
+                }
+                pAdapter = nullptr;
             }
             if (validDeviceFound) break;
         }
