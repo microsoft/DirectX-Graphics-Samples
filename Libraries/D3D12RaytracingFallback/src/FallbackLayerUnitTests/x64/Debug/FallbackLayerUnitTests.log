@@ -1,0 +1,60 @@
+﻿FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+FXC : warning : DXIL.dll not found.  Resulting DXIL will not be signed for use in release environments.
+  
+  
+  
+  fallbacklayerunittests.cpp
+     Creating library C:\Users\chwallis\Source\Repos\DirectX-Graphics-Samples\Samples\Desktop\D3D12Raytracing\src\x64\Debug\FallbackLayerUnitTests.lib and object C:\Users\chwallis\Source\Repos\DirectX-Graphics-Samples\Samples\Desktop\D3D12Raytracing\src\x64\Debug\FallbackLayerUnitTests.exp
+  FallbackLayerUnitTests.vcxproj -> C:\Users\chwallis\Source\Repos\DirectX-Graphics-Samples\Samples\Desktop\D3D12Raytracing\src\x64\Debug\FallbackLayerUnitTests.dll
+          1 file(s) copied.
