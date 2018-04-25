@@ -80,7 +80,7 @@ float4 TraceRegularRay(in Ray ray, in UINT currentRayRecursionDepth)
 }
 
 // Trace a shadow ray and return true if it hits any geometry.
-bool TraceShadowRayAndReportIfHit(in UINT currentRayRecursionDepth)
+bool TraceShadowRayAndReportIfHit(in UINT currentRayRecursionDepth, float3 hitPosition)
 {
     if (currentRayRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
     {
@@ -89,8 +89,8 @@ bool TraceShadowRayAndReportIfHit(in UINT currentRayRecursionDepth)
 
     // Set the ray's extents.
     RayDesc ray;
-    ray.Origin = HitWorldPosition();
-    ray.Direction = normalize(g_sceneCB.lightPosition - HitWorldPosition());
+    ray.Origin = hitPosition;
+    ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     // TMin should be kept small to prevent missing geometry at close contact areas.
     // For shadow ray this will be extremely small to avoid aliasing at contact areas.
@@ -163,8 +163,8 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in
     Ray reflectionRay = { hitPosition, reflect(normalize(WorldRayDirection()), triangleNormal) };
     float4 reflectionColor = TraceRegularRay(reflectionRay, rayPayload.recursionDepth);
 
-    // Trace a shadow ray. 
-    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth);
+    // Trace a shadow ray.
+    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth, hitPosition);
     float shadowFactor = shadowRayHit ? 0.1 : 1.0;
 
     // Calculate lighting.
@@ -182,7 +182,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     
     // Trace a shadow ray. 
     // ToDo fixup shadow ray for metaballs - threshold.
-    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth);
+    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth, hitPosition);
     float shadowFactor = shadowRayHit ? 0.1 : 1.0;
 
     float3 normal = attr.normal;

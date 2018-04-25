@@ -46,6 +46,8 @@ bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::E
 // Ref: http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum signedDistancePrimitive)
 {
+    // ToDo standardize Signed Distance Primitive AABBs 
+    // Input position is in <-1,1> space
     switch (signedDistancePrimitive)
     {
     case SignedDistancePrimitive::Cone: return sdCone(position + float3(0, -0.7, 0), float3(0.8, 0.6, 1.2));
@@ -60,7 +62,7 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
         
     case SignedDistancePrimitive::Pyramid: 
         // Pyramid: 63.435 degree, 2 height
-        return sdPyramid(position, float3(0.894, 0.447, 1.0));
+        return sdPyramid(position + float3(0,1,0), float3(0.894, 0.447, 2.0));
     case SignedDistancePrimitive::Cog:
         return opS( sdTorus82(position, float2(0.60, 0.3)),
                     sdCylinder(opRep(float3(atan2(position.z, position.x) / 6.2831, 

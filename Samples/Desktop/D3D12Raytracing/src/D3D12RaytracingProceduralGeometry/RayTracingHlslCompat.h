@@ -12,6 +12,9 @@
 #ifndef RAYTRACINGHLSLCOMPAT_H
 #define RAYTRACINGHLSLCOMPAT_H
 
+
+// ToDo revert caching hitposition to avoid live values
+
 #define ANIMATE_PRIMITIVES 0
 
 // ToDo check for unreleased resources.
