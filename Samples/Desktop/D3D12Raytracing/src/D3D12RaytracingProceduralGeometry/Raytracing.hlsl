@@ -184,14 +184,14 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     // Trace a shadow ray. 
     // ToDo fixup shadow ray for metaballs - threshold.
     bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth, hitPosition);
-    float shadowFactor = shadowRayHit ? 0.25 : 1.0;
+    float shadowFactor = shadowRayHit ? 0.1 : 1.0;
 
     float3 normal = attr.normal;
     float4 albedo = g_materialCB.albedo;
     float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, normal);
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
-    color = lerp(color, float4(0.8, 0.9, 1.0, 1.0), 1 - exp(-0.000005*pow(t, 3.0)));
+    //color = lerp(color, float4(0.8, 0.9, 1.0, 1.0), 1 - exp(-0.000005*pow(t, 3.0)));
 
     rayPayload.color = color; ;// float4(normalize(float3(attr.normal.x, 0, attr.normal.z)), 1);// 
 }
@@ -205,7 +205,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
 [shader("miss")]
 void MyMissShader(inout RayPayload rayPayload : SV_RayPayload)
 {
-    float4 background = float4(0.8, 0.9, 1.0, 1.0f); //(0.0f, 0.2f, 0.4f, 1.0f);
+    float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
     rayPayload.color = background;
 }
 
