@@ -189,7 +189,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     float3 normal = attr.normal;
     float4 albedo = g_materialCB.albedo;
     float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, normal);
-    float4 color = shadowFactor * g_sceneCB.lightAmbientColor + diffuseColor;
+    float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
 
     color = lerp(color, float4(0.8, 0.9, 1.0, 1.0), 1 - exp(-0.00002*pow(t, 3.0)));
 

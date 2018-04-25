@@ -1268,7 +1268,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     }
 
     // Rotate the second light around Y axis.
-    if (1)
+    if (0)
     {
         float secondsToRotateAround = 8.0f;
         float angleToRotateBy = -360.0f * (elapsedTime / secondsToRotateAround);
