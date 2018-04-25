@@ -67,8 +67,6 @@ bool IsLeaf(uint nodeIndex)
 [numthreads(THREAD_GROUP_1D_WIDTH, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-    uint unused;
-
     if (DTid.x >= Constants.NumberOfElements) return;
 
     const uint NumberOfInternalNodes = GetNumInternalNodes(Constants.NumberOfElements);
