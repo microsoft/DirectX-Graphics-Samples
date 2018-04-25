@@ -46,6 +46,8 @@ bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::E
 // Ref: http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum signedDistancePrimitive)
 {
+    // ToDo standardize Signed Distance Primitive AABBs 
+    // Input position is in <-1,1> space
     switch (signedDistancePrimitive)
     {
     case SignedDistancePrimitive::Cone: return sdCone(position + float3(0, -0.7, 0), float3(0.8, 0.6, 1.2));
@@ -59,9 +61,11 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
     case SignedDistancePrimitive::TwistedTorus: return sdTorus(opTwist(position), float2(0.6, 0.2));
         
     case SignedDistancePrimitive::Pyramid: 
-        // Pyramid: 63.435 degree, 2 height
-        return sdPyramid(position, float3(0.894, 0.447, 1.0));
+        // Let pyramid have a base at y == -1 of AABB => position + float3(0,1,0) 
+        // Pyramid: 63.435 degrees at base, height 2
+        return sdPyramid(position + float3(0,1,0), float3(0.894, 0.447, 2.0));
     case SignedDistancePrimitive::Cog:
+        return sdBox(position, (float3)1);
         return opS( sdTorus82(position, float2(0.60, 0.3)),
                     sdCylinder(opRep(float3(atan2(position.z, position.x) / 6.2831, 
                                             1, 
@@ -69,8 +73,9 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
                                      float3(0.05, 1, 0.075)),
                                float2(0.02, 0.8)));
     case SignedDistancePrimitive::Cylinder: return sdCylinder(position, float2(0.4, 1.0));
-    case SignedDistancePrimitive::SquareTorus: return sdTorus88(position, float2(0.75, 0.15));
-        //return sdFractalPyramid(position, 2);
+    case SignedDistancePrimitive::SquareTorus: 
+         //return sdTorus88(position, float2(0.75, 0.15));
+         return sdFractalPyramid(position + float3(0, 1, 0), float3(0.894, 0.447, 2.0), 5, 2.0f);
     default: return 0;
     }
 }

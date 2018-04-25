@@ -89,6 +89,7 @@ float sdSphere(float3 p, float s)
     return length(p) - s;
 }
 
+// Box extents: <-b,b>
 float sdBox(float3 p, float3 b)
 {
     float3 d = abs(p) - b;
@@ -176,35 +177,32 @@ float sdConeSection(in float3 p, in float h, in float r1, in float r2)
 }
 
 
-// h = { sin a, cos a, height }
-// h = p.x * sin a + p.y * cos a
-// where a, is the pyramid's inner angle between
-// its side and the ground plane.
+// h = { sin a, cos a, height of a pyramid }
+// a = pyramid's inner angle between its side plane and a ground plane.
+// Octahedron position - ground plane intersecting in the middle.
 float sdOctahedron(float3 p, float3 h)
 {
     float d = 0.0;
-    // Intersection of distances to 4 planes
-    d = max(d, abs(dot(p, float3(-h.x, h.y, 0))));
-    d = max(d, abs(dot(p, float3(h.x, h.y, 0))));
-    d = max(d, abs(dot(p, float3(0, h.y, h.x))));
-    d = max(d, abs(dot(p, float3(0, h.y, -h.x))));
+
+    // Test: d = p.x * sin a + p.y * cos a
+    // d = max(d, dot(abs(p), float3(h.x, h.y, 0)));
+    // d = max(d, dot(abs(p), float3(0, h.y, h.x)));
+    d = dot(float2(max(abs(p.x), abs(p.z)), abs(p.y)), 
+            float2(h.x, h.y));
     
     // Move the ground plane down by height
-    return d - h.z;
+    return d - h.y * h.z;
 }
 
-// h = { sin a, cos a, height }
+// h = { sin a, cos a, height of a pyramid}
+// a = pyramid's inner angle between its side plane and a ground plane.
+// Pyramid position - sitting on a ground plane.
 float sdPyramid(float3 p, float3 h) // h = { sin a, cos a, height }
 {
-    float d = 0.0;
-    d = max(d, dot(abs(p), float3(h.x, h.y, 0)));
-    d = max(d, dot(abs(p), float3(0, h.y, h.x)));
-    float octa = d - h.z;
+    float octa = sdOctahedron(p, h);
 
-    float box = sdBox(p - float3(0, -2.0 * h.z, 0), (float3)(2.0 * h.z));
-
-    return max(octa, -min(0.0,p.y)); // Subtraction
-    //return opS(octa, box); // Subtraction
+    // Subtract bottom half
+    return opS(octa, p.y);
 }
 
 float length_toPowNegative2(float2 p)
@@ -266,7 +264,7 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
 {
     const float threshold = 0.0001;
     float t = RayTMin();
-    const UINT MaxSteps = 256;
+    const UINT MaxSteps = 512;
     //UINT i = 0;
 
     // Do sphere tracing through the AABB.

@@ -159,7 +159,7 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
         {
             float _thit;
             ProceduralPrimitiveAttributes _attr;
-            if (intersectSphere(ray.origin, ray.direction, _thit, _attr, centers[i], radii[i]))
+            if (RaySphereIntersectionTest(ray, _thit, _attr, centers[i], radii[i]))
             {
                 if (_thit < thit)
                 {

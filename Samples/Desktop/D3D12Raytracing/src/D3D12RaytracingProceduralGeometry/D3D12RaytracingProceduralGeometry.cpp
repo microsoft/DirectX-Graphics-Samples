@@ -624,18 +624,18 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
 
         // ToDo This is calculated twice - here and in update AABB
         D3D12_RAYTRACING_AABB aabb[NUM_AABB_Z][NUM_AABB_Y][NUM_AABB_X];
-        for (UINT z = 0; z < NUM_AABB_Z; z++)
+        for (UINT z = 0,i = 0; z < NUM_AABB_Z; z++)
         {
             FLOAT minZ = basePosition.z + z * (c_aabbWidth  + c_aabbDistance);
             for (UINT y = 0; y < NUM_AABB_Y; y++)
             {
                 FLOAT minY = basePosition.y + y * (c_aabbWidth  + c_aabbDistance);
-                for (UINT x = 0; x < NUM_AABB_X; x++)
+                for (UINT x = 0; x < NUM_AABB_X; x++, i++)
                 {
                     FLOAT minX = basePosition.x + x * (c_aabbWidth  + c_aabbDistance);
                     aabb[z][y][x] =
                     {
-                        minX, minY, minZ, minX + c_aabbWidth , minY + c_aabbWidth , minZ + c_aabbWidth 
+                        minX, minY, minZ, minX + c_aabbWidth , minY + c_aabbWidth , minZ + c_aabbWidth
                     };
                 }
             }
@@ -1258,7 +1258,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     }
 
     // Rotate the second light around Y axis.
-    if (1)
+    if (0)
     {
         float secondsToRotateAround = 8.0f;
         float angleToRotateBy = -360.0f * (elapsedTime / secondsToRotateAround);
