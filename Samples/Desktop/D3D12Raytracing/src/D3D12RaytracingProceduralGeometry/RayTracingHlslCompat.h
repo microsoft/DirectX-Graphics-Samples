@@ -13,6 +13,7 @@
 #define RAYTRACINGHLSLCOMPAT_H
 
 
+// ToDo move this to RaytracingSceneDefines.h
 // ToDo revert caching hitposition to avoid live values
 
 #define ANIMATE_PRIMITIVES 0

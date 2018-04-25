@@ -122,7 +122,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
 
     const float aabbDefaultWidth = 2;    // Default AABB is <-1,1>^3
     //const float c_aabbWidth  = 2;// 1 / sqrt(2.0f);// Width of each AABB - scaled down to fit any AABB rotation within the default width
-    const float aabbDistanceStride = c_aabbWidth  + c_aabbDistance;
+    const float aabbDistanceStride = 2*c_aabbWidth  + c_aabbDistance;
     const XMVECTOR vAABBstride = XMLoadFloat3(&XMFLOAT3(aabbDistanceStride, aabbDistanceStride, aabbDistanceStride));
 
     // ToDo scale for transformation to fit within <-1,1>
@@ -233,7 +233,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 
-        lightAmbientColor = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
+        lightAmbientColor = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
         m_sceneCB->lightAmbientColor = XMLoadFloat4(&lightAmbientColor);
 
         lightDiffuseColor = XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f);
@@ -624,19 +624,29 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
 
         // ToDo This is calculated twice - here and in update AABB
         D3D12_RAYTRACING_AABB aabb[NUM_AABB_Z][NUM_AABB_Y][NUM_AABB_X];
-        for (UINT z = 0; z < NUM_AABB_Z; z++)
+        for (UINT z = 0,i = 0; z < NUM_AABB_Z; z++)
         {
             FLOAT minZ = basePosition.z + z * (c_aabbWidth  + c_aabbDistance);
             for (UINT y = 0; y < NUM_AABB_Y; y++)
             {
                 FLOAT minY = basePosition.y + y * (c_aabbWidth  + c_aabbDistance);
-                for (UINT x = 0; x < NUM_AABB_X; x++)
+                for (UINT x = 0; x < NUM_AABB_X; x++, i++)
                 {
                     FLOAT minX = basePosition.x + x * (c_aabbWidth  + c_aabbDistance);
-                    aabb[z][y][x] =
+                    if (i == SignedDistancePrimitive::MiniSpheres + AnalyticPrimitive::Count + VolumetricPrimitive::Count)
                     {
-                        minX, minY, minZ, minX + c_aabbWidth , minY + c_aabbWidth , minZ + c_aabbWidth 
-                    };
+                        aabb[z][y][x] =
+                        {
+                            minX, minY, minZ, minX + 4*c_aabbWidth , minY + 4 * c_aabbWidth , minZ + 4 * c_aabbWidth
+                        };
+                    }
+                    else
+                    {
+                        aabb[z][y][x] =
+                        {
+                            minX, minY, minZ, minX + c_aabbWidth , minY + c_aabbWidth , minZ + c_aabbWidth
+                        };
+                    }
                 }
             }
         }
