@@ -122,7 +122,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
 
     const float aabbDefaultWidth = 2;    // Default AABB is <-1,1>^3
     //const float c_aabbWidth  = 2;// 1 / sqrt(2.0f);// Width of each AABB - scaled down to fit any AABB rotation within the default width
-    const float aabbDistanceStride = 2*c_aabbWidth  + c_aabbDistance;
+    const float aabbDistanceStride = c_aabbWidth  + c_aabbDistance;
     const XMVECTOR vAABBstride = XMLoadFloat3(&XMFLOAT3(aabbDistanceStride, aabbDistanceStride, aabbDistanceStride));
 
     // ToDo scale for transformation to fit within <-1,1>
@@ -633,20 +633,10 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
                 for (UINT x = 0; x < NUM_AABB_X; x++, i++)
                 {
                     FLOAT minX = basePosition.x + x * (c_aabbWidth  + c_aabbDistance);
-                    if (i == SignedDistancePrimitive::MiniSpheres + AnalyticPrimitive::Count + VolumetricPrimitive::Count)
+                    aabb[z][y][x] =
                     {
-                        aabb[z][y][x] =
-                        {
-                            minX, minY, minZ, minX + 4*c_aabbWidth , minY + 4 * c_aabbWidth , minZ + 4 * c_aabbWidth
-                        };
-                    }
-                    else
-                    {
-                        aabb[z][y][x] =
-                        {
-                            minX, minY, minZ, minX + c_aabbWidth , minY + c_aabbWidth , minZ + c_aabbWidth
-                        };
-                    }
+                        minX, minY, minZ, minX + c_aabbWidth , minY + c_aabbWidth , minZ + c_aabbWidth
+                    };
                 }
             }
         }
