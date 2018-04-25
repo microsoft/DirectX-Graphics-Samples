@@ -137,7 +137,16 @@ namespace FallbackLayer
 
         std::vector<FallbackLayer::StateIdentifier> stateIdentifiers;
         CComPtr<IDxcBlob> pLinkedBlob;
-        m_DxilShaderPatcher.LinkShaders((UINT)stateObjectCollection.m_pipelineStackSize, librariesInfo, exportNames, stateIdentifiers, &pLinkedBlob);
+        UINT stackSize = (UINT)stateObjectCollection.m_pipelineStackSize;
+        if (stackSize == 0 && (stateObjectCollection.IsUsingAnyHit || stateObjectCollection.IsUsingIntersection))
+        {
+            // TODO: The stack size used by the traversal shader is high when it's split by a continuation from the
+            // Intersection shader or the Anyhit. Currently setting a higher hard-coded value, this can go-away
+            // once API-specified stack-sizes are supported
+            stackSize = 2048;
+        }
+
+        m_DxilShaderPatcher.LinkShaders(stackSize, librariesInfo, exportNames, stateIdentifiers, &pLinkedBlob);
 
         for (size_t i = 0; i < exportNames.size(); ++i)
         {
