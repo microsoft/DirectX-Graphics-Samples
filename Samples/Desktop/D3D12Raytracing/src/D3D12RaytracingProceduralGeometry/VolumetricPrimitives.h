@@ -15,7 +15,6 @@
 #include "RaytracingShaderHelper.h"
 
 // Calculate a magnitude of an influence from a Metaball charge.
-// Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
 // mbRadius - largest possible area of metaball contribution - AKA its bounding sphere.
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies
 float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in float mbRadius)
@@ -24,18 +23,21 @@ float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in floa
 
     if (d <= mbRadius)
     {
-        // This can be factored for speed if you want.
-        return   2 * (d * d * d) / (mbRadius * mbRadius * mbRadius)
-            - 3 * (d * d) / (mbRadius * mbRadius)
-            + 1;
+        //return 2 * (d * d * d) / (mbRadius * mbRadius * mbRadius)
+        //    - 3 * (d * d) / (mbRadius * mbRadius)
+        //    + 1;
+        float dR = d * mbRadius;
+        return (2 * dR - 3) * (dR * dR) + 1;
     }
     return 0;
 }
 
+// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersect a metaball field.
 // Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
 bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr, in float totalTime)
 {
     const int N = 3;
+    // ToDo Pass in from the app?
     // Metaball centers at t0 and t1 key frames.
     float3 keyFrameCenters[N][2] =
     {
@@ -54,27 +56,11 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     // Metaball field radii of max influence
     float radii[N] = { 0.50, 0.65, 0.50 };
     
-    // Calculate step size based on the ray AABB intersection segment
-    UINT MAX_STEPS = 128;
+    // Set bounds for ray march to in and out intersection 
+    // against max influence of all metaballs. 
     float tmin, tmax;
-#if 0
-    float3 aabb[2] = {
-        float3(-1,-1,-1),
-        float3(1,1,1)
-    };
-
-    if (!RayAABBIntersectionTest(ray, aabb, tmin, tmax))
-    {
-        return false;
-    }
-    tmin = max(tmin, RayTMin());
-    tmax = min(tmax, RayTCurrent());
-
-#else
     tmin = RayTCurrent();
     tmax = RayTMin();
-    
-    // Find min max,
     for (UINT j = 0; j < N; j++)
     {
         float _thit, _tmax;
@@ -85,7 +71,8 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
             tmax = max(_tmax, tmax);
         }
     }
-#endif
+
+    UINT MAX_STEPS = 128;
     float tstep = (tmax - tmin) / (MAX_STEPS - 1);
 
     // ToDo lipchshitz ray marcher
@@ -102,6 +89,7 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         float fieldPotential = fieldPotentials[0] + fieldPotentials[1] + fieldPotentials[2];
 
         // ToDo revise threshold range
+        // ToDo pass threshold from app
         // Threshold - valid range is (0, 0.25>, the larger the threshold the smaller the blob.
         float threshold = 0.15f;
         if (fieldPotential >= threshold)
@@ -111,11 +99,10 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
             normal += fieldPotentials[0] * CalculateNormalForARaySphereHit(ray, t, centers[0]);
             normal += fieldPotentials[1] * CalculateNormalForARaySphereHit(ray, t, centers[1]);
             normal += fieldPotentials[2] * CalculateNormalForARaySphereHit(ray, t, centers[2]);
-            normal = normalize(normal / fieldPotential);
             if (IsAValidHit(ray, t, normal))
             {
                 thit = t;
-                attr.normal = normal;
+                attr.normal = normalize(normal / fieldPotential);
                 return true;
             }
         }
