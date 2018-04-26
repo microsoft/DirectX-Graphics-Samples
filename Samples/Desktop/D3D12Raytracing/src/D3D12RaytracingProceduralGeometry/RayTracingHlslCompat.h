@@ -22,7 +22,7 @@
 #define ENABLE_NEW_CODE 0
 
 // Workaround for dynamic indexing issue in DXR shaders on Nvidia
-#define DO_NOT_USE_DYNAMIC_INDEXING 1 
+#define DO_NOT_USE_DYNAMIC_INDEXING 0
 
 // Workaround for NV driver not supporting null local root signatures. 
 // Use an empty local root signature where a shader does not require it.
@@ -100,6 +100,8 @@ struct SphereAABB
     float  radius;
 };
 
+
+// ToDo remove
 struct RectangularPrismAABB
 {
     XMFLOAT3 minPosition;

@@ -17,7 +17,6 @@
 // Calculate a magnitude of an influence from a Metaball charge.
 // Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
 // mbRadius - largest possible area of metaball contribution - AKA its bounding sphere.
-// invMbRadiusSquared ~ 1/mbRadius^2. 
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies
 float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in float mbRadius)
 {
@@ -58,12 +57,35 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     // Calculate step size based on the ray AABB intersection segment
     UINT MAX_STEPS = 128;
     float tmin, tmax;
-    if (!RayAABBIntersectionTest(ray, tmin, tmax))
+#if 0
+    float3 aabb[2] = {
+        float3(-1,-1,-1),
+        float3(1,1,1)
+    };
+
+    if (!RayAABBIntersectionTest(ray, aabb, tmin, tmax))
     {
         return false;
     }
     tmin = max(tmin, RayTMin());
     tmax = min(tmax, RayTCurrent());
+
+#else
+    tmin = RayTCurrent();
+    tmax = RayTMin();
+    
+    // Find min max,
+    for (UINT j = 0; j < N; j++)
+    {
+        float _thit, _tmax;
+        ProceduralPrimitiveAttributes _attr;
+        if (RaySphereIntersectionTest(ray, _thit, _tmax, _attr, centers[j], radii[j]))
+        {
+            tmin = min(_thit, tmin);
+            tmax = max(_tmax, tmax);
+        }
+    }
+#endif
     float tstep = (tmax - tmin) / (MAX_STEPS - 1);
 
     // ToDo lipchshitz ray marcher

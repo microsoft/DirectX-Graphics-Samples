@@ -22,10 +22,16 @@
 // Analytic geometry intersection test.
 bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum analyticPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
 {
+    float3 aabb[2] = {
+        float3(-1,-1,-1),
+        float3(1,1,1)
+    };
+    float tmax;
+
     switch (analyticPrimitive)
     {
-    case AnalyticPrimitive::AABB: return RayAABBIntersectionTest(ray, thit, attr);
-    case AnalyticPrimitive::Sphere: return RaySphereIntersectionTest(ray, thit, attr);
+    case AnalyticPrimitive::AABB: return RayAABBIntersectionTest(ray, aabb, thit, attr);
+    case AnalyticPrimitive::Sphere: return RaySphereIntersectionTest(ray, thit, tmax, attr);
     case AnalyticPrimitive::Spheres: return RaySpheresIntersectionTest(ray, thit, attr);
     default: return false;
     }
