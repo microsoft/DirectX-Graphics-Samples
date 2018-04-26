@@ -58,10 +58,10 @@ D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width,
 }
 
 
-void D3D12RaytracingProceduralGeometry::EnableDXRExperimentalFeatures()
+void D3D12RaytracingProceduralGeometry::EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter)
 {
     // DXR is an experimental feature and needs to be enabled before creating a D3D12 device.
-    m_isDxrSupported = EnableRaytracing();
+    m_isDxrSupported = EnableRaytracing(adapter);
 
     if (!m_isDxrSupported)
     {
@@ -73,7 +73,7 @@ void D3D12RaytracingProceduralGeometry::EnableDXRExperimentalFeatures()
             L"  3) your D3D12 runtime doesn't match the D3D12 headers used by your app (in particular, the GUID passed to D3D12EnableExperimentalFeatures).\n\n");
 
         OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
-        ThrowIfFalse(EnableComputeRaytracingFallback(), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
+        ThrowIfFalse(EnableComputeRaytracingFallback(adapter), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
     }
 }
 
@@ -92,7 +92,7 @@ void D3D12RaytracingProceduralGeometry::OnInit()
     m_deviceResources->RegisterDeviceNotify(this);
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
     m_deviceResources->InitializeDXGIAdapter();
-    EnableDXRExperimentalFeatures();
+    EnableDXRExperimentalFeatures(m_deviceResources->GetAdapter());
     
     m_deviceResources->CreateDeviceResources();
     m_deviceResources->CreateWindowSizeDependentResources();
@@ -1459,7 +1459,6 @@ void D3D12RaytracingProceduralGeometry::OnDeviceLost()
 // Create all device dependent resources when a device is restored.
 void D3D12RaytracingProceduralGeometry::OnDeviceRestored()
 {
-    // ToDo recreate dxgi factory and adapter as well
     CreateDeviceDependentResources();
     CreateWindowSizeDependentResources();
 }

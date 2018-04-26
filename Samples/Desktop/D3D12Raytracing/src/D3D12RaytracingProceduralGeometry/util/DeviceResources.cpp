@@ -133,7 +133,7 @@ void DeviceResources::InitializeDXGIAdapter()
         }
     }
 
-    GetAdapter(&m_adapter);
+    InitializeAdapter(&m_adapter);
 }
 
 // Configures the Direct3D device, and stores handles to it and the device context.
@@ -599,7 +599,7 @@ void DeviceResources::MoveToNextFrame()
 
 // This method acquires the first available hardware adapter that supports Direct3D 12.
 // If no such adapter can be found, try WARP. Otherwise throw an exception.
-void DeviceResources::GetAdapter(IDXGIAdapter1** ppAdapter)
+void DeviceResources::InitializeAdapter(IDXGIAdapter1** ppAdapter)
 {
     *ppAdapter = nullptr;
 

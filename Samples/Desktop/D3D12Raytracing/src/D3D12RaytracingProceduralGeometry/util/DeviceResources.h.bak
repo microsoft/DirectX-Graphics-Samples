@@ -76,7 +76,7 @@ namespace DX
         bool IsTearingSupported() const { return m_options & c_AllowTearing; }
 
         // Direct3D Accessors.
-        IDXGIAdapter1*              GetAdapter() const { return m_adapter.Get(); }
+        IDXGIAdapter1*              GetAdapter()    const { return m_adapter.Get(); }
         ID3D12Device*               GetD3DDevice() const { return m_d3dDevice.Get(); }
         IDXGIFactory4*              GetDXGIFactory() const { return m_dxgiFactory.Get(); }
         IDXGISwapChain3*            GetSwapChain() const { return m_swapChain.Get(); }
