@@ -115,18 +115,13 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         float3 position = ray.origin + t * ray.direction;
         float fieldPotentials[N];
         float fieldPotential = 0;
-#if 0 // DO_NOT_USE_DYNAMIC_LOOPS
-        fieldPotentials[0] = CalculateMetaballPotential(position, centers[0], radii[0]);
-        fieldPotentials[1] = CalculateMetaballPotential(position, centers[1], radii[1]);
-        fieldPotentials[2] = CalculateMetaballPotential(position, centers[2], radii[2]);
-        fieldPotential = fieldPotentials[0] + fieldPotentials[1] + fieldPotentials[2];
-#else
+
         for (UINT j = 0; j < N; j++)
         {
             fieldPotentials[j] = CalculateMetaballPotential(position, centers[j], radii[j]);
             fieldPotential = fieldPotential + fieldPotentials[j];
         }
-#endif
+
         // ToDo revise threshold range
         // ToDo pass threshold from app
         // Threshold - valid range is (0, 0.1>, the larger the threshold the smaller the blob.
@@ -135,17 +130,12 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         {
             // Calculate normal as a weighted average of sphere normals from contributing metaballs.
             float3 normal = float3(0, 0, 0);
-#if 0//DO_NOT_USE_DYNAMIC_LOOPS
-            normal += fieldPotentials[0] * CalculateNormalForARaySphereHit(ray, t, centers[0]);
-            normal += fieldPotentials[1] * CalculateNormalForARaySphereHit(ray, t, centers[1]);
-            normal += fieldPotentials[2] * CalculateNormalForARaySphereHit(ray, t, centers[2]);
-#else
-            //[unroll]
+
             for (UINT j = 0; j < N; j++)
             {
                 normal += fieldPotentials[j] * CalculateNormalForARaySphereHit(ray, t, centers[j]);
             }
-#endif
+
             normal = normalize(normal/fieldPotential);
             if (IsAValidHit(ray, t, normal))
             {

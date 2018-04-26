@@ -143,46 +143,9 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
     //
     // Test for intersection against all spheres and take the closest hit.
     //
-#if DO_NOT_USE_DYNAMIC_INDEXING
-    float _thit;
-    float _tmax; // unused
-    ProceduralPrimitiveAttributes _attr;
-
-    thit = RayTCurrent();
-    if (RaySphereIntersectionTest(ray, _thit, _tmax, _attr, centers[0], radii[0]))
-    {
-        if (_thit < thit)
-        {
-            thit = _thit;
-            attr = _attr;
-            hitFound = true;
-        }
-    }
-    if (RaySphereIntersectionTest(ray, _thit, _tmax, _attr, centers[1], radii[1]))
-    {
-        if (_thit < thit)
-        {
-            thit = _thit;
-            attr = _attr;
-            hitFound = true;
-        }
-    }
-    if (RaySphereIntersectionTest(ray, _thit, _tmax, _attr, centers[2], radii[2]))
-    {
-        if (_thit < thit)
-        {
-            thit = _thit;
-            attr = _attr;
-            hitFound = true;
-        }
-    }
-
-    return hitFound;
-#else
     thit = RayTCurrent();
 
     // test against all spheres
-    [unroll]
     for (int i = 0; i < N; i++)
     {
         float _thit;
@@ -199,7 +162,6 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
         }
     }
     return hitFound;
-#endif
 }
 
 // Test if a ray segment <RayTMin(), RayTCurrent()> intersects a hollow AABB.
@@ -208,7 +170,7 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
 {
     float3 tmin3, tmax3;
     // ToDo compare perf
-#if DO_NOT_USE_DYNAMIC_INDEXING
+#if 0
     tmin3 = (aabb[0] - ray.origin) / ray.direction;
     tmax3 = (aabb[1] - ray.origin) / ray.direction;
     if (ray.direction.x < 0) swap(tmin3.x, tmax3.x);

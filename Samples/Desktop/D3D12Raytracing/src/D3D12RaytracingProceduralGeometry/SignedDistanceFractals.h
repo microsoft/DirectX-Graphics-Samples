@@ -42,7 +42,9 @@ float sdFractalPyramid(in float3 position, float3 h, in UINT Iterations, in floa
     float3 v;
     int n = 0;
     float dist, d;
+#if USE_EXPLICIT_UNROLL
     [unroll]
+#endif
     for (n = 0; n < 4; n++)
     //while (n < Iterations) 
     {

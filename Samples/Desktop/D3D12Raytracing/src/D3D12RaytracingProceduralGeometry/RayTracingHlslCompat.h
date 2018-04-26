@@ -16,20 +16,16 @@
 // ToDo move this to RaytracingSceneDefines.h
 // ToDo revert caching hitposition to avoid live values
 
-
 #define ANIMATE_PRIMITIVES 0
 
-// ToDo check for unreleased resources.
-#define ENABLE_NEW_CODE 0
-
-// Workaround for dynamic indexing issue in DXR shaders on Nvidia
-#define DO_NOT_USE_DYNAMIC_INDEXING 0
+// Workaround for NV driver TDRing 
+#define USE_EXPLICIT_UNROLL 1
 
 // Workaround for NV driver not supporting null local root signatures. 
 // Use an empty local root signature where a shader does not require it.
 #define USE_NON_NULL_LOCAL_ROOT_SIG 1  
 
-// Workaround for the Fallback Layer not supporting default exports for DXIL libraries
+// Workaround for the Fallback Layer not supporting default exports for DXIL libraries.
 #define DEFINE_EXPLICIT_SHADER_EXPORTS 1
 
 #ifdef HLSL
@@ -41,7 +37,7 @@ using namespace DirectX;
 typedef UINT16 Index;
 #endif
 
-// PERFOMANCE TIP: Set max recursion depth as low as needed
+// PERFORMANCE TIP: Set max recursion depth as low as needed
 // as drivers may apply optimization strategies for low recursion depths.
 #define MAX_RAY_RECURSION_DEPTH 3 // ToDo ~ primary rays + reflections + shadow rays.
 
