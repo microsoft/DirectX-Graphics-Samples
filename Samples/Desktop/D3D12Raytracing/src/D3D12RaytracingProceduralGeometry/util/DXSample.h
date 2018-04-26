@@ -66,6 +66,7 @@ protected:
     bool m_enableUI;
 
     // D3D device resources
+    UINT m_adapterIDoverride;
     std::unique_ptr<DX::DeviceResources> m_deviceResources;
 
 private:

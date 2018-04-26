@@ -27,16 +27,21 @@ namespace DX
     // Controls all the DirectX device resources.
     class DeviceResources
     {
+        DeviceResources() {}
     public:
         static const unsigned int c_AllowTearing = 0x1;
+        static const unsigned int c_RequireTearingSupport = 0x2;
 
         DeviceResources(DXGI_FORMAT backBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM,
             DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT,
             UINT backBufferCount = 2,
             D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0,
-            unsigned int flags = 0);
+            UINT flags = 0,
+            UINT adapterIDoverride = UINT_MAX);
         ~DeviceResources();
 
+        void InitializeDXGIAdapter();
+        void SetAdapterOverride(UINT adapterID) { m_adapterIDoverride = adapterID; }
         void CreateDeviceResources();
         void CreateWindowSizeDependentResources();
         void SetWindow(HWND window, int width, int height);
@@ -104,7 +109,9 @@ namespace DX
 
         const static size_t MAX_BACK_BUFFER_COUNT = 3;
 
+        UINT                                                m_adapterIDoverride;
         UINT                                                m_backBufferIndex;
+        ComPtr<IDXGIAdapter1>                               m_adapter;
 
         // Direct3D objects.
         Microsoft::WRL::ComPtr<ID3D12Device>                m_d3dDevice;

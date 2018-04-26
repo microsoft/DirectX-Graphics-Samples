@@ -134,6 +134,7 @@ private:
     XMVECTOR m_up;
 
     // ToDo categorize members
+    void EnableDXRExperimentalFeatures();
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
     void UpdateAABBPrimitiveAttributes();

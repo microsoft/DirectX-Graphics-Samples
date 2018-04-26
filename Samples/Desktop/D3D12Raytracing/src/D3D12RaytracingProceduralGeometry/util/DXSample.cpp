@@ -21,7 +21,8 @@ DXSample::DXSample(UINT width, UINT height, std::wstring name) :
     m_windowBounds{ 0,0,0,0 },
     m_title(name),
     m_aspectRatio(0.0f),
-    m_enableUI(true)
+    m_enableUI(true),
+    m_adapterIDoverride(UINT_MAX)
 {
     WCHAR assetsPath[512];
     GetAssetsPath(assetsPath, _countof(assetsPath));
@@ -61,12 +62,23 @@ void DXSample::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
     for (int i = 1; i < argc; ++i)
     {
+        // -disableUI
         if (_wcsnicmp(argv[i], L"-disableUI", wcslen(argv[i])) == 0 ||
             _wcsnicmp(argv[i], L"/disableUI", wcslen(argv[i])) == 0)
         {
             m_enableUI = false;
         }
+        // -forceAdapter [id]
+        else if (_wcsnicmp(argv[i], L"-forceAdapter", wcslen(argv[i])) == 0 ||
+            _wcsnicmp(argv[i], L"/forceAdapter", wcslen(argv[i])) == 0)
+        {
+            ThrowIfFalse(i + 1 < argc, L"Incorrect argument format passed in.");
+            
+            m_adapterIDoverride = _wtoi(argv[i + 1]);
+            i++;
+        }
     }
+
 }
 
 void DXSample::SetWindowBounds(int left, int top, int right, int bottom)
