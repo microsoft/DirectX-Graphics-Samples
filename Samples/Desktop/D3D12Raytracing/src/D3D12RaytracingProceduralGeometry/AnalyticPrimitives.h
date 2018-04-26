@@ -14,6 +14,7 @@
 
 #include "RaytracingShaderHelper.h"
 
+// Solve quadratic equation.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
 bool SolveQuadraticEqn(float a, float b, float c, out float x0, out float x1)
 {
@@ -57,21 +58,24 @@ float3 CalculateNormalForARaySphereHit(in Ray ray, in float thit, float3 center)
     return normalize(hitPosition - center);
 }
 
-// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a sphere.
+// Analytic solution of an unbounded ray sphere intersection points.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, in ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
+bool SolveRaySphereIntersectionEquation(in Ray ray, out float tmin, out float tmax, in float3 center, in float radius)
 {
-    float t0, t1; // solutions for t if the ray intersects 
-    float radius2 = pow(radius, 2);
-
-    // Analytic solution
+    float radius2 = radius * radius;
     float3 L = ray.origin - center;
     float a = dot(ray.direction, ray.direction);
     float b = 2 * dot(ray.direction, L);
     float c = dot(L, L) - radius2;
-    if (!SolveQuadraticEqn(a, b, c, t0, t1)) return false;
+    return SolveQuadraticEqn(a, b, c, tmin, tmax);
+}
 
-    if (t0 > t1) swap(t0, t1);
+// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a hollow sphere.
+bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, in ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
+{
+    float t0, t1; // solutions for t if the ray intersects 
+
+    if (!SolveRaySphereIntersectionEquation(ray, t0, t1, center, radius)) return false;
     tmax = t1;
 
     if (t0 < RayTMin())
@@ -105,8 +109,24 @@ bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, in Pr
     return false;
 }
 
+// Test if a ray segment <RayTMin(), RayTCurrent()> intersects a solid sphere.
+// Limitation: this test does not take RayFlags into consideration and does not calculate a surface normal.
+bool RaySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax, in float3 center = float3(0, 0, 0), in float radius = 1)
+{
+    float t0, t1; // solutions for t if the ray intersects 
 
-// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects multiple spheres.
+    if (!SolveRaySphereIntersectionEquation(ray, t0, t1, center, radius)) return false;
+
+
+    // Since it's a solid sphere, clip intersection points to ray extents.
+    thit = max(t0, RayTMin());
+    tmax = min(t1, RayTCurrent());
+
+    return true;
+}
+
+
+// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects multiple hollow spheres.
 bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr)
 {
     // ToDo pass in from an app.
@@ -182,7 +202,7 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
 #endif
 }
 
-// Test if a ray segment <RayTMin(), RayTCurrent()> intersects an AABB.
+// Test if a ray segment <RayTMin(), RayTCurrent()> intersects a hollow AABB.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
 bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float tmax)
 {

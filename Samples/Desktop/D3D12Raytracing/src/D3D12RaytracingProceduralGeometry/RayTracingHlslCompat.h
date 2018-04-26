@@ -16,6 +16,9 @@
 // ToDo move this to RaytracingSceneDefines.h
 // ToDo revert caching hitposition to avoid live values
 
+// Workaround for dynamic loops TDRing
+#define DO_NOT_USE_DYNAMIC_LOOPS 1
+
 #define ANIMATE_PRIMITIVES 0
 
 // ToDo check for unreleased resources.
