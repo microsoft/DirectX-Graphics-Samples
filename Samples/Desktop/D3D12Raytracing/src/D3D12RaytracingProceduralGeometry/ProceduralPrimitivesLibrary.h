@@ -27,8 +27,6 @@
 #include "SignedDistancePrimitives.h"
 #include "SignedDistanceFractals.h"
 
-// ToDo describe local space for each AABB type
-
 // Analytic geometry intersection test.
 bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum analyticPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
 {
