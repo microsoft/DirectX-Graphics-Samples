@@ -57,7 +57,6 @@ float3 CalculateNormalForARaySphereHit(in Ray ray, in float thit, float3 center)
     return normalize(hitPosition - center);
 }
 
-
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a sphere.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
 bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, in ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
