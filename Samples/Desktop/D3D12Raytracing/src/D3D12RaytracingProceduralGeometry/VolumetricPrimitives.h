@@ -63,7 +63,8 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     tmax = RayTMin();
 #if 1
     float _thit, _tmax;
-#if DO_NOT_USE_DYNAMIC_LOOPS
+#if 0 // DO_NOT_USE_DYNAMIC_LOOPS
+    // ToDo remove
     if (RaySolidSphereIntersectionTest(ray, _thit, _tmax, centers[0], radii[0]))
     {
         tmin = min(_thit, tmin);
@@ -82,10 +83,10 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
 #else
     for (UINT j = 0; j < N; j++)
     {
-        if (RaySphereIntersectionTest(ray, _thit, _tmax, _attr, centers[j], radii[j]))
+        if (RaySolidSphereIntersectionTest(ray, _thit, _tmax, centers[j], radii[j]))
         {
-            tmin = min(_thit - 1, tmin);
-            tmax = max(_tmax + 1, tmax);
+            tmin = min(_thit, tmin);
+            tmax = max(_tmax, tmax);
         }
     }
 #endif
@@ -114,7 +115,7 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         float3 position = ray.origin + t * ray.direction;
         float fieldPotentials[N];
         float fieldPotential = 0;
-#if DO_NOT_USE_DYNAMIC_LOOPS
+#if 0 // DO_NOT_USE_DYNAMIC_LOOPS
         fieldPotentials[0] = CalculateMetaballPotential(position, centers[0], radii[0]);
         fieldPotentials[1] = CalculateMetaballPotential(position, centers[1], radii[1]);
         fieldPotentials[2] = CalculateMetaballPotential(position, centers[2], radii[2]);
@@ -122,8 +123,8 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
 #else
         for (UINT j = 0; j < N; j++)
         {
-            fieldPotentials[i] = CalculateMetaballPotential(position, centers[i], radii[i]);
-            fieldPotential += fieldPotentials[i];
+            fieldPotentials[j] = CalculateMetaballPotential(position, centers[j], radii[j]);
+            fieldPotential = fieldPotential + fieldPotentials[j];
         }
 #endif
         // ToDo revise threshold range
@@ -134,7 +135,7 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         {
             // Calculate normal as a weighted average of sphere normals from contributing metaballs.
             float3 normal = float3(0, 0, 0);
-#if DO_NOT_USE_DYNAMIC_LOOPS
+#if 0//DO_NOT_USE_DYNAMIC_LOOPS
             normal += fieldPotentials[0] * CalculateNormalForARaySphereHit(ray, t, centers[0]);
             normal += fieldPotentials[1] * CalculateNormalForARaySphereHit(ray, t, centers[1]);
             normal += fieldPotentials[2] * CalculateNormalForARaySphereHit(ray, t, centers[2]);
