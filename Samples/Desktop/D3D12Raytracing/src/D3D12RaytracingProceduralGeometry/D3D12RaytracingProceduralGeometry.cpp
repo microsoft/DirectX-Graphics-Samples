@@ -500,6 +500,7 @@ void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3D1
 // with all configuration options resolved, such as local signatures and other state.
 void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
 {
+    // ToDo revise
     // Create 17 subobjects that combine into a RTPSO:
     // Subobjects need to be associated with DXIL exports (i.e. shaders) either by way of default or explicit associations.
     // Default association applies to every exported shader entrypoint that doesn't have any of the same type of subobject associated with it.
@@ -514,7 +515,7 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
 #if USE_NON_NULL_LOCAL_ROOT_SIG
     const UINT NUM_SUBOBJECTS = 18;
 #else
-    const UINT NUM_SUBOBJECTS = 15;
+    const UINT NUM_SUBOBJECTS = 16;
 #endif
     CD3D12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
 
