@@ -27,16 +27,21 @@ namespace DX
     // Controls all the DirectX device resources.
     class DeviceResources
     {
+        DeviceResources() {}
     public:
         static const unsigned int c_AllowTearing = 0x1;
+        static const unsigned int c_RequireTearingSupport = 0x2;
 
         DeviceResources(DXGI_FORMAT backBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM,
             DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D32_FLOAT,
             UINT backBufferCount = 2,
             D3D_FEATURE_LEVEL minFeatureLevel = D3D_FEATURE_LEVEL_11_0,
-            unsigned int flags = 0);
+            UINT flags = 0,
+            UINT adapterIDoverride = UINT_MAX);
         ~DeviceResources();
 
+        void InitializeDXGIAdapter();
+        void SetAdapterOverride(UINT adapterID) { m_adapterIDoverride = adapterID; }
         void CreateDeviceResources();
         void CreateWindowSizeDependentResources();
         void SetWindow(HWND window, int width, int height);
@@ -71,6 +76,7 @@ namespace DX
         bool IsTearingSupported() const { return m_options & c_AllowTearing; }
 
         // Direct3D Accessors.
+        IDXGIAdapter1*              GetAdapter() const { return m_adapter.Get(); }
         ID3D12Device*               GetD3DDevice() const { return m_d3dDevice.Get(); }
         IDXGIFactory4*              GetDXGIFactory() const { return m_dxgiFactory.Get(); }
         IDXGISwapChain3*            GetSwapChain() const { return m_swapChain.Get(); }
@@ -100,11 +106,13 @@ namespace DX
 
     private:
         void MoveToNextFrame();
-        void GetAdapter(IDXGIAdapter1** ppAdapter);
+        void InitializeAdapter(IDXGIAdapter1** ppAdapter);
 
         const static size_t MAX_BACK_BUFFER_COUNT = 3;
 
+        UINT                                                m_adapterIDoverride;
         UINT                                                m_backBufferIndex;
+        ComPtr<IDXGIAdapter1>                               m_adapter;
 
         // Direct3D objects.
         Microsoft::WRL::ComPtr<ID3D12Device>                m_d3dDevice;

@@ -23,6 +23,9 @@ D3D12RaytracingProceduralGeometry.exe [ -FL | -DXR ]
 * [-FL] - select Fallback Layer API with forced compute fallback path.
 * [-DXR] - select DirectX Raytracing API.
 
+Additional arguments:
+* [-forceAdapter <ID>] - create a D3D12 device on an adapter <ID> instead of adapter 0.
+
 ### UI
 The title bar of the sample provides runtime information:
 * Name of the sample

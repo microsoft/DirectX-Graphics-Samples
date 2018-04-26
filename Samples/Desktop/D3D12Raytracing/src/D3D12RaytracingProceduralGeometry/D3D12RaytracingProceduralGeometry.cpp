@@ -50,8 +50,18 @@ D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width,
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
     m_curRotationAngleRad(0.0f)
 {
+    m_forceComputeFallback = false;
+    SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
+
+
+    UpdateForSizeChange(width, height);
+}
+
+
+void D3D12RaytracingProceduralGeometry::EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter)
+{
     // DXR is an experimental feature and needs to be enabled before creating a D3D12 device.
-    m_isDxrSupported = EnableRaytracing();
+    m_isDxrSupported = EnableRaytracing(adapter);
 
     if (!m_isDxrSupported)
     {
@@ -63,36 +73,27 @@ D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width,
             L"  3) your D3D12 runtime doesn't match the D3D12 headers used by your app (in particular, the GUID passed to D3D12EnableExperimentalFeatures).\n\n");
 
         OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
-        ThrowIfFalse(EnableComputeRaytracingFallback(), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
+        ThrowIfFalse(EnableComputeRaytracingFallback(adapter), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
     }
+}
 
-    m_forceComputeFallback = false;
-    SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-
+void D3D12RaytracingProceduralGeometry::OnInit()
+{
     m_deviceResources = std::make_unique<DeviceResources>(
         DXGI_FORMAT_R8G8B8A8_UNORM,
         DXGI_FORMAT_UNKNOWN,
         FrameCount,
         D3D_FEATURE_LEVEL_11_0,
-        DeviceResources::c_AllowTearing
+        // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since TH2.
+        // Since the Fallback Layer requires Fall Creator's update (RS3), we don't need to handle non-tearing cases.
+        DeviceResources::c_RequireTearingSupport,
+        m_adapterIDoverride
         );
     m_deviceResources->RegisterDeviceNotify(this);
-
-    // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since Threshold II.
-    // Since the Fallback Layer requires Fall Creator's update (RS3), we don't need to handle non-tearing cases.
-    if (!m_deviceResources->IsTearingSupported())
-    {
-        OutputDebugString(L"Sample must be run on an OS with tearing support.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    UpdateForSizeChange(width, height);
-}
-
-void D3D12RaytracingProceduralGeometry::OnInit()
-{
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
-
+    m_deviceResources->InitializeDXGIAdapter();
+    EnableDXRExperimentalFeatures(m_deviceResources->GetAdapter());
+    
     m_deviceResources->CreateDeviceResources();
     m_deviceResources->CreateWindowSizeDependentResources();
 
@@ -1274,6 +1275,8 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
 // Parse supplied command line args.
 void D3D12RaytracingProceduralGeometry::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
+    DXSample::ParseCommandLineArgs(argv, argc);
+
     if (argc > 1)
     {
         if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0)
