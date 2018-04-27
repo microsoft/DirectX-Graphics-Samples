@@ -265,17 +265,20 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
     const float threshold = 0.0001;
     float t = RayTMin();
     const UINT MaxSteps = 512;
-    //UINT i = 0;
 
     // Do sphere tracing through the AABB.
+#if 0 
     for (UINT i = 0; i < MaxSteps; i++)
-    // ToDo using while hangs
-    //while (i < MaxSteps && t <= RayTCurrent())
     {
         if (t > RayTCurrent())
         {
             return false;
         }
+#else
+    UINT i = 0;
+    while (i++ < MaxSteps && t <= RayTCurrent())
+    {
+#endif  
         float3 position = ray.origin + t * ray.direction;
         float distance = GetDistanceFromSignedDistancePrimitive(position, sdPrimitive);
 

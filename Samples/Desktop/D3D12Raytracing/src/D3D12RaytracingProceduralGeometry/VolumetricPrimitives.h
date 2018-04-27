@@ -46,6 +46,7 @@ float CalculateMetaballPotential(in float3 position, in Metaball blob, out float
 }
 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersect a metaball field.
+// The test sphere traces through the metaball field until it hits a threshold isosurface. 
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies
 bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr, in float totalTime)
 {
@@ -87,11 +88,12 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     tmin = max(tmin, RayTMin());
     tmax = min(tmax, RayTCurrent());
 
-    UINT MAX_STEPS = 128;
-    float minTStep = (tmax - tmin) / (MAX_STEPS - 1);
+    UINT MAX_STEPS = 64;
+    const float minTStep = 0.0001;
     float t = tmin;
     UINT iStep = 0;
-    // Step along the ray calculating field potentials from all metaballs.
+    // Step along the ray calculating field potentials from all metaballs
+    // until we hit a isusurface equal to Threshold field potential.
     while (iStep++ < MAX_STEPS && t <= RayTCurrent())
     {
         float3 position = ray.origin + t * ray.direction;
