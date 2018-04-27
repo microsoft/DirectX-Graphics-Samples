@@ -14,26 +14,39 @@
 
 #include "RaytracingShaderHelper.h"
 
+
+struct Metaball
+{
+    float3 center;
+    float  radius;
+    //float  invRadius;
+};
+
 // Calculate a magnitude of an influence from a Metaball charge.
+// Return metaball potential range: <0,1>
 // mbRadius - largest possible area of metaball contribution - AKA its bounding sphere.
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies
-float CalculateMetaballPotential(in float3 position, in float3 mbCenter, in float mbRadius)
+float CalculateMetaballPotential(in float3 position, in Metaball blob, out float distance)
 {
-    float d = length(position - mbCenter);
+    distance = length(position - blob.center);
 
-    if (d <= mbRadius)
+    if (distance <= blob.radius)
     {
-        return 2 * (d * d * d) / (mbRadius * mbRadius * mbRadius)
-            - 3 * (d * d) / (mbRadius * mbRadius)
+        // ToDo compare perf
+#if 1
+        return 2 * (distance * distance * distance) / (blob.radius * blob.radius * blob.radius)
+            - 3 * (distance * distance) / (blob.radius * blob.radius)
             + 1;
-        float dR = d / mbRadius;
+#else
+        float dR = distance * blob.invRadius;
         return (2 * dR - 3) * (dR * dR) + 1;
+#endif
     }
     return 0;
 }
 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersect a metaball field.
-// Ref: http://www.geisswerks.com/ryan/BLOBS/blobs.html
+// Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies
 bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr, in float totalTime)
 {
     const UINT N = 3;
@@ -56,77 +69,54 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     // Metaball field radii of max influence
     float radii[N] = { 0.50, 0.65, 0.50 };    // ToDo Compare perf with precomputed invRadius
     
-    // Set bounds for ray march to in and out intersection 
-    // against max influence of all metaballs. 
+    // Set ray march bounds to the min and max of all metaball intersections.
     float tmin, tmax;
-    tmin = RayTCurrent();
-    tmax = RayTMin();
-#if 1
-    float _thit, _tmax;
-#if 0 // DO_NOT_USE_DYNAMIC_LOOPS
-    // ToDo remove
-    if (RaySolidSphereIntersectionTest(ray, _thit, _tmax, centers[0], radii[0]))
-    {
-        tmin = min(_thit, tmin);
-        tmax = max(_tmax, tmax);
-    }
-    if (RaySolidSphereIntersectionTest(ray, _thit, _tmax, centers[1], radii[1]))
-    {
-        tmin = min(_thit, tmin);
-        tmax = max(_tmax, tmax);
-    }
-    if (RaySolidSphereIntersectionTest(ray, _thit, _tmax, centers[2], radii[2]))
-    {
-        tmin = min(_thit, tmin);
-        tmax = max(_tmax, tmax);
-    }
-#else
+    tmin = INFINITY;
+    tmax = -INFINITY;
+
+    // Find the entry and exit points for all metaball bounding spheres combined.
     for (UINT j = 0; j < N; j++)
     {
+        float _thit, _tmax;
         if (RaySolidSphereIntersectionTest(ray, _thit, _tmax, centers[j], radii[j]))
         {
             tmin = min(_thit, tmin);
             tmax = max(_tmax, tmax);
         }
     }
-#endif
-#else
-    float3 aabb[2] = {
-        float3(-1,-1,-1),
-        float3(1,1,1)
-    };
-    if (!RayAABBIntersectionTest(ray, aabb, tmin, tmax))
-    {
-        return false;
-    }
-#endif
     tmin = max(tmin, RayTMin());
     tmax = min(tmax, RayTCurrent());
 
     UINT MAX_STEPS = 128;
-    float tstep = (tmax - tmin) / (MAX_STEPS - 1);
-
-    // ToDo lipchshitz ray marcher
-
+    float minTStep = (tmax - tmin) / (MAX_STEPS - 1);
+    float t = tmin;
+    UINT iStep = 0;
     // Step along the ray calculating field potentials from all metaballs.
-    for (UINT i = 0; i < MAX_STEPS; i++)
+    while (iStep++ < MAX_STEPS && t <= RayTCurrent())
     {
-        float t = tmin + i * tstep;
         float3 position = ray.origin + t * ray.direction;
-        float fieldPotentials[N];
-        float fieldPotential = 0;
-
+        float fieldPotentials[N];              // Field potentials for each metaball.
+        float sumFieldPotential = 0;           // Sum of all metaball field potentials.
+        float signedMinDistanceToABlob = 1000;//INFINITY   // Signed minimum distance to blobs' bounding spheres.
+        float sumRi = 0;                       // Sum of all contributing metaball radii.
+      
+        // Calculate field potentials from all metaballs.
         for (UINT j = 0; j < N; j++)
         {
-            fieldPotentials[j] = CalculateMetaballPotential(position, centers[j], radii[j]);
-            fieldPotential = fieldPotential + fieldPotentials[j];
+            float distance;
+            Metaball blob = { centers[j], radii[j] };
+            fieldPotentials[j] = CalculateMetaballPotential(position, blob, distance);
+            sumFieldPotential += fieldPotentials[j];
+
+            signedMinDistanceToABlob = min(signedMinDistanceToABlob, distance - radii[j]);
+            sumRi += (fieldPotentials[j] > 0) ? radii[j] : 0;
         }
 
-        // ToDo revise threshold range
+        // Have we crossed the implicit surface.
         // ToDo pass threshold from app
         // Threshold - valid range is (0, 0.1>, the larger the threshold the smaller the blob.
-        float threshold = 0.25f;
-        if (fieldPotential >= threshold)
+        const float Threshold = 0.25f;
+        if (sumFieldPotential >= Threshold)
         {
             // Calculate normal as a weighted average of sphere normals from contributing metaballs.
             float3 normal = float3(0, 0, 0);
@@ -136,7 +126,7 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
                 normal += fieldPotentials[j] * CalculateNormalForARaySphereHit(ray, t, centers[j]);
             }
 
-            normal = normalize(normal/fieldPotential);
+            normal = normalize(normal / sumFieldPotential);
             if (IsAValidHit(ray, t, normal))
             {
                 thit = t;
@@ -144,6 +134,20 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
                 return true;
             }
         }
+
+        // Inverse lipschitz coefficient for the used field potential equation.
+        // The Lipschitz constant of a sum is bounded by the sum of the Lipschitz constants.
+        const float inverseLipschitzCoef = (2.0 / 3.0) * sumRi;     
+
+        // Calculate a distance underestimate which gives us an upper 
+        // bound distance we can safely step by without intersecting
+        // the implicit function.
+        float distanceUnderestimate = inverseLipschitzCoef * (Threshold - sumFieldPotential);
+        
+        // ToDo test how much perf it gives
+        // Step by a minimum distance to a blob bounding sphere 
+        // or distance underestimate, whichever is greater.
+        t += max(minTStep, max(signedMinDistanceToABlob, distanceUnderestimate));
     }
 
     return false;
