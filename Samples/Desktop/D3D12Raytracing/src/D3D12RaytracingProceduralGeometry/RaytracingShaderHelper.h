@@ -14,6 +14,8 @@
 
 #include "RayTracingHlslCompat.h"
 
+#define INFINITY (1.0/0.0)
+
 struct Ray
 {
     float3 origin;
