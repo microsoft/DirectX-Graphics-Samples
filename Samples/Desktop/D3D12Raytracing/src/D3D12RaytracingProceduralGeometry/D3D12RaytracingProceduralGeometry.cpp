@@ -151,7 +151,8 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
                 XMVECTOR vIndex = XMLoadUInt3(&XMUINT3(x, y, z));
                 XMVECTOR vTranslation = vBasePosition + vIndex * vAABBstride;
                 // ToDo TotalSeconds may run out of precision after some time
-                XMMATRIX mRotation =  XMMatrixRotationZ(totalTime/2.0f*(x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
+                //XMMATRIX mRotation =  XMMatrixRotationZ(totalTime/2.0f*(x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
+                XMMATRIX mRotation = XMMatrixRotationY(totalTime / 3.0f * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
                 XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
                 XMMATRIX mTransform = mScale * mRotation * mTranslation;
 
@@ -207,7 +208,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 0.0f, 7.0f, -18.0f, 1.0f };
+        m_eye = { 0.0f, 1.1f, -11.0f, 1.0f }; //{ 0.0f, 7.0f, -18.0f, 1.0f };
         m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
@@ -215,7 +216,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         m_up = XMVector3Normalize(XMVector3Cross(direction, right));
 
         // Rotate camera around Y axis.
-        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
+        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(-45.0f)); //XMMatrixRotationY(XMConvertToRadians(45.0f));
         m_eye = XMVector3Transform(m_eye, rotate);
         m_up = XMVector3Transform(m_up, rotate);
 
@@ -230,7 +231,8 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         XMFLOAT4 lightDiffuseColor;
 
         //lightPosition = XMFLOAT4(0.0f, 18.0f, -30.0f, 0.0f);
-        lightPosition = XMFLOAT4(0.0f, 9.0f, -10.0f, 0.0f);
+        //lightPosition = XMFLOAT4(0.0f, 9.0f, -10.0f, 0.0f);
+        lightPosition = XMFLOAT4(10.0f, 9.0f, -10.0f, 0.0f);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 

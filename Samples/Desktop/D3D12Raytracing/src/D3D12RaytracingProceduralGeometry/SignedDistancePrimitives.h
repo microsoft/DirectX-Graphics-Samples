@@ -205,10 +205,6 @@ float sdPyramid(float3 p, float3 h) // h = { sin a, cos a, height }
     return opS(octa, p.y);
 }
 
-float length_toPowNegative2(float2 p)
-{
-    return sqrt(p.x * p.x + p.y * p.y);
-}
 
 float length_toPowNegative6(float2 p)
 {
@@ -225,7 +221,7 @@ float length_toPowNegative8(float2 p)
 
 float sdTorus82(float3 p, float2 t)
 {
-    float2 q = float2(length_toPowNegative2(p.xz) - t.x, p.y);
+    float2 q = float2(length(p.xz) - t.x, p.y);
     return length_toPowNegative8(q) - t.y;
 }
 

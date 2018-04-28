@@ -45,6 +45,34 @@ float CalculateMetaballPotential(in float3 position, in Metaball blob, out float
     return 0;
 }
 
+float3 CalculateMetaballNormal(in float3 position, in Metaball blob)
+{
+    float3 distanceVector = position - blob.center;
+    float distance = length(distanceVector);
+
+    if (distance <= blob.radius)
+    {
+        float derivativeCoef = 6 * sqrt(distance) / (blob.radius * blob.radius * blob.radius) + 6 / (blob.radius * blob.radius);
+        return derivativeCoef * distanceVector;
+    }
+    else
+        return float3(0, 0, 0);
+}
+
+float3 CalculateMetaballsNormal(in float3 position, in Metaball blobs[3], in float fieldPotentials[3], in float fieldPotential)
+{
+    float dummy;
+    float2 e = float2(1.0, -1.0) * 0.5773 * 0.0001;
+    float3 normal = float3(0, 0, 0);
+
+    for (UINT i = 0; i < 3; i++)
+    {
+        normal += fieldPotentials[i]*CalculateMetaballNormal(position, blobs[i]);
+    }
+    return normalize(normal/fieldPotential);
+}
+
+
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersect a metaball field.
 // The test sphere traces through the metaball field until it hits a threshold isosurface. 
 // Ref: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies
@@ -59,36 +87,49 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         { float3(0.0, -0.4, 0.5), float3(0.0, 0.4, 0.5) },
         { float3(0.5,0.5, 0.4), float3(-0.5, 0.2, -0.4) }
     };
-
-    // Calculate animated metaball center positions.
-    float  tAnimate = CalculateAnimationInterpolant(totalTime, 8.0f);
-    float3 centers[N];
-    centers[0] = lerp(keyFrameCenters[0][0], keyFrameCenters[0][1], tAnimate);
-    centers[1] = lerp(keyFrameCenters[1][0], keyFrameCenters[1][1], tAnimate);
-    centers[2] = lerp(keyFrameCenters[2][0], keyFrameCenters[2][1], tAnimate);
-
     // Metaball field radii of max influence
     float radii[N] = { 0.50, 0.65, 0.50 };    // ToDo Compare perf with precomputed invRadius
-    
+
+    // Calculate animated metaball center positions.
+    float  tAnimate = CalculateAnimationInterpolant(totalTime, 20.0f);
+    Metaball blobs[N];
+    for (UINT j = 0; j < N; j++)
+    {
+        blobs[j].center = lerp(keyFrameCenters[j][0], keyFrameCenters[j][1], tAnimate);
+        blobs[j].radius = radii[j];
+    }
+
     // Set ray march bounds to the min and max of all metaball intersections.
     float tmin, tmax;
     tmin = INFINITY;
     tmax = -INFINITY;
 
+#if 1
+    float3 aabb[2] = {
+        float3(-1,-1,-1),
+        float3(1,1,1)
+    };
+
+    if (!RayAABBIntersectionTest(ray, aabb, tmin, tmax))
+    {
+        return false;
+    }
+#else
     // Find the entry and exit points for all metaball bounding spheres combined.
     for (UINT j = 0; j < N; j++)
     {
         float _thit, _tmax;
-        if (RaySolidSphereIntersectionTest(ray, _thit, _tmax, centers[j], radii[j]))
+        if (RaySolidSphereIntersectionTest(ray, _thit, _tmax, blob[j].center, blob[j].radius))
         {
             tmin = min(_thit, tmin);
             tmax = max(_tmax, tmax);
         }
     }
+#endif
     tmin = max(tmin, RayTMin());
     tmax = min(tmax, RayTCurrent());
 
-    UINT MAX_STEPS = 64;
+    UINT MAX_STEPS = 1024;
     const float minTStep = 0.0001;
     float t = tmin;
     UINT iStep = 0;
@@ -106,8 +147,7 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         for (UINT j = 0; j < N; j++)
         {
             float distance;
-            Metaball blob = { centers[j], radii[j] };
-            fieldPotentials[j] = CalculateMetaballPotential(position, blob, distance);
+            fieldPotentials[j] = CalculateMetaballPotential(position, blobs[j], distance);
             sumFieldPotential += fieldPotentials[j];
 
             signedMinDistanceToABlob = min(signedMinDistanceToABlob, distance - radii[j]);
@@ -117,22 +157,24 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         // Have we crossed the implicit surface.
         // ToDo pass threshold from app
         // Threshold - valid range is (0, 0.1>, the larger the threshold the smaller the blob.
-        const float Threshold = 0.25f;
-        if (sumFieldPotential >= Threshold)
+        const float Threshold = 0.35f;
+        if (sumFieldPotential >= Threshold)// && sumFieldPotential <= 0.37f)
         {
             // Calculate normal as a weighted average of sphere normals from contributing metaballs.
             float3 normal = float3(0, 0, 0);
 
             for (UINT j = 0; j < N; j++)
             {
-                normal += fieldPotentials[j] * CalculateNormalForARaySphereHit(ray, t, centers[j]);
+                normal += fieldPotentials[j] * CalculateNormalForARaySphereHit(ray, t, blobs[j].center);
             }
+           // normal = CalculateMetaballsNormal(position, blobs, fieldPotentials, sumFieldPotential);
 
             normal = normalize(normal / sumFieldPotential);
             if (IsAValidHit(ray, t, normal))
             {
                 thit = t;
                 attr.normal = normal;
+                //attr.normal = CalculateMetaballsNormal(position, blobs, fieldPotentials, sumFieldPotential);
                 return true;
             }
         }

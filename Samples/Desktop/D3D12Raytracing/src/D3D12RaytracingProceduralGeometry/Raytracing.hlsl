@@ -237,6 +237,7 @@ Ray GetRayInAABBPrimitiveLocalSpace(out AABBPrimitiveAttributes attr)
 [shader("intersection")]
 void MyIntersectionShader_AnalyticPrimitive()
 {
+    return;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     AnalyticPrimitive::Enum primitiveType = (AnalyticPrimitive::Enum) lrs_aabbCB.primitiveType;
@@ -274,6 +275,7 @@ void MyIntersectionShader_VolumetricPrimitive()
 [shader("intersection")]
 void MyIntersectionShader_SignedDistancePrimitive()
 {
+    return;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     SignedDistancePrimitive::Enum primitiveType = (SignedDistancePrimitive::Enum) lrs_aabbCB.primitiveType;
