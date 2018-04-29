@@ -16,7 +16,7 @@
 // ToDo move this to RaytracingSceneDefines.h
 // ToDo revert caching hitposition to avoid live values
 
-#define ANIMATE_PRIMITIVES 0
+#define ANIMATE_PRIMITIVES 1
 
 // Workaround for NV driver TDRing 
 #define USE_EXPLICIT_UNROLL 1

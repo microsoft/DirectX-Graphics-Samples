@@ -604,11 +604,7 @@ void DeviceResources::InitializeAdapter(IDXGIAdapter1** ppAdapter)
     *ppAdapter = nullptr;
 
     ComPtr<IDXGIAdapter1> adapter;
-#ifdef USE_DXGI_1_6
-    for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != m_dxgiFactory->EnumAdapterByGpuPreference(adapterIndex, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter); ++adapterIndex)
-#else
     for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != m_dxgiFactory->EnumAdapters1(adapterIndex, &adapter); ++adapterIndex)
-#endif
     {
         if (m_adapterIDoverride != UINT_MAX && adapterIndex != m_adapterIDoverride)
         {

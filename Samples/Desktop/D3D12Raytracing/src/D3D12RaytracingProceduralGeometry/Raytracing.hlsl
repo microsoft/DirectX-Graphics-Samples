@@ -40,6 +40,14 @@ float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
     return g_sceneCB.lightDiffuseColor * fNDotL;
 }
 
+// Phong lighting specular component
+float4 CalculatePhongSpecularComponent(in float3 hitPosition, in float3 normal, in float specularPower)
+{
+    float3 lightToPixel = normalize(hitPosition - g_sceneCB.lightPosition);
+    float3 R = reflect(lightToPixel, normal);
+    return g_sceneCB.lightDiffuseColor * pow(saturate(dot(R, -WorldRayDirection())), specularPower);
+}
+
 //
 // TraceRay wrappers for regular and shadow rays.
 //
@@ -94,7 +102,7 @@ bool TraceShadowRayAndReportIfHit(in UINT currentRayRecursionDepth, float3 hitPo
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     // TMin should be kept small to prevent missing geometry at close contact areas.
     // For shadow ray this will be extremely small to avoid aliasing at contact areas.
-    ray.TMin = 0;
+    ray.TMin = 0.1;
     ray.TMax = 10000.0;
     // Set to true, since closest hit shaders are skipped. 
     // Shadow Miss shader, if called, will set it to false.
@@ -160,6 +168,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in
 
     // Trace a reflection ray.
     float3 hitPosition = HitWorldPosition();
+    // Remove normalize from ray direction?
     Ray reflectionRay = { hitPosition, reflect(normalize(WorldRayDirection()), triangleNormal) };
     float4 reflectionColor = TraceRegularRay(reflectionRay, rayPayload.recursionDepth);
 
@@ -189,11 +198,20 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     float3 normal = attr.normal;
     float4 albedo = g_materialCB.albedo;
     float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, normal);
-    float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
+    
+    // Specular shading
+    float4 specularColor = float4(0, 0, 0, 0);
+    if (!shadowRayHit)
+    {
+        specularColor = CalculatePhongSpecularComponent(hitPosition, normal, 50);
+    }
+
+
+    float4 color = g_sceneCB.lightAmbientColor + diffuseColor + specularColor;
 
     //color = lerp(color, float4(0.8, 0.9, 1.0, 1.0), 1 - exp(-0.000005*pow(t, 3.0)));
-
-    rayPayload.color = color; ;// float4(normalize(float3(attr.normal.x, 0, attr.normal.z)), 1);// 
+    //rayPayload.color = float4(normal, 1);
+    rayPayload.color = color;
 }
 
 
@@ -237,6 +255,7 @@ Ray GetRayInAABBPrimitiveLocalSpace(out AABBPrimitiveAttributes attr)
 [shader("intersection")]
 void MyIntersectionShader_AnalyticPrimitive()
 {
+    return;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     AnalyticPrimitive::Enum primitiveType = (AnalyticPrimitive::Enum) lrs_aabbCB.primitiveType;
@@ -274,6 +293,7 @@ void MyIntersectionShader_VolumetricPrimitive()
 [shader("intersection")]
 void MyIntersectionShader_SignedDistancePrimitive()
 {
+    return;
     AABBPrimitiveAttributes inAttr;
     Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
     SignedDistancePrimitive::Enum primitiveType = (SignedDistancePrimitive::Enum) lrs_aabbCB.primitiveType;

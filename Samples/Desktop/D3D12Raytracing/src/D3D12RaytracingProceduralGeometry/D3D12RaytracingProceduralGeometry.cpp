@@ -137,9 +137,9 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
 
 #if ANIMATE_PRIMITIVES
     // ToDo per primitive animation
-    const float totalTime = static_cast<float>(m_timer.GetTotalSeconds());
+    const float totalTime = -6*static_cast<float>(m_timer.GetTotalSeconds());
 #else
-    const float totalTime = 0.0f;
+    const float totalTime = 6.53f;
 #endif
     for (UINT z = 0, i = 0; z < NUM_AABB_Z; z++)
     {
@@ -151,7 +151,8 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
                 XMVECTOR vIndex = XMLoadUInt3(&XMUINT3(x, y, z));
                 XMVECTOR vTranslation = vBasePosition + vIndex * vAABBstride;
                 // ToDo TotalSeconds may run out of precision after some time
-                XMMATRIX mRotation =  XMMatrixRotationZ(totalTime/2.0f*(x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
+                //XMMATRIX mRotation =  XMMatrixRotationZ(totalTime/2.0f*(x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
+                XMMATRIX mRotation = XMMatrixRotationY(totalTime / 3.0f * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
                 XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
                 XMMATRIX mTransform = mScale * mRotation * mTranslation;
 
@@ -185,7 +186,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         // Volumetric primitives.
         {
             using namespace VolumetricPrimitive;
-            m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(1.0f, 0.2f, 0.2f, 1.0f), 1.0f };
             offset += VolumetricPrimitive::Count;
         }
 
@@ -207,7 +208,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 0.0f, 7.0f, -18.0f, 1.0f };
+        m_eye = { 0.0f, 1.1f, -11.0f, 1.0f }; //{ 0.0f, 7.0f, -18.0f, 1.0f };
         m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
@@ -215,7 +216,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         m_up = XMVector3Normalize(XMVector3Cross(direction, right));
 
         // Rotate camera around Y axis.
-        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
+        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(-45.0f)); //XMMatrixRotationY(XMConvertToRadians(45.0f));
         m_eye = XMVector3Transform(m_eye, rotate);
         m_up = XMVector3Transform(m_up, rotate);
 
@@ -230,7 +231,9 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         XMFLOAT4 lightDiffuseColor;
 
         //lightPosition = XMFLOAT4(0.0f, 18.0f, -30.0f, 0.0f);
-        lightPosition = XMFLOAT4(0.0f, 9.0f, -10.0f, 0.0f);
+        //lightPosition = XMFLOAT4(0.0f, 9.0f, -10.0f, 0.0f);
+        //lightPosition = XMFLOAT4(10.0f, 9.0f, -10.0f, 0.0f);
+        lightPosition = XMFLOAT4(10.0f, 3.0f, -10.0f, 0.0f);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 
@@ -671,7 +674,7 @@ void D3D12RaytracingProceduralGeometry::BuildPlaneGeometry()
     AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_vertexBuffer.resource);
 
     // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
-    UINT descriptorIndexIB = CreateBufferSRV(&m_indexBuffer, sizeof(indices) / 4, sizeof(UINT));
+    UINT descriptorIndexIB = CreateBufferSRV(&m_indexBuffer, sizeof(indices) / 4, 0);
     UINT descriptorIndexVB = CreateBufferSRV(&m_vertexBuffer, ARRAYSIZE(vertices), sizeof(vertices[0]));
     ThrowIfFalse(descriptorIndexVB == descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 }
@@ -1565,11 +1568,20 @@ UINT D3D12RaytracingProceduralGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT 
     // SRV
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
     srvDesc.Buffer.NumElements = numElements;
-    srvDesc.Buffer.StructureByteStride = elementSize;
+    if (elementSize == 0)
+    {
+        srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+        srvDesc.Buffer.StructureByteStride = 0;
+    }
+    else
+    {
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+        srvDesc.Buffer.StructureByteStride = elementSize;
+    }
     UINT descriptorIndex = AllocateDescriptor(&buffer->cpuDescriptorHandle);
     device->CreateShaderResourceView(buffer->resource.Get(), &srvDesc, buffer->cpuDescriptorHandle);
     buffer->gpuDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), descriptorIndex, m_descriptorSize);
