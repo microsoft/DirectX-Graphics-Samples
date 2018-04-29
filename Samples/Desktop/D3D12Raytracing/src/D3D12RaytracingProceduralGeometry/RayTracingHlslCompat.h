@@ -17,6 +17,7 @@
 // ToDo revert caching hitposition to avoid live values
 
 #define ANIMATE_PRIMITIVES 1
+#define LIMIT_TO_ACTIVE_METABALLS 1
 
 // Workaround for NV driver TDRing 
 #define USE_EXPLICIT_UNROLL 1

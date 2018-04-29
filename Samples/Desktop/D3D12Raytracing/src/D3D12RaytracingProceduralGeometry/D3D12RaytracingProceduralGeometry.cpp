@@ -186,7 +186,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         // Volumetric primitives.
         {
             using namespace VolumetricPrimitive;
-            m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(1.0f, 0.2f, 0.2f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(193/255.0f, 6/255.0f, 11/255.0f, 1.0f), 1.0f };
             offset += VolumetricPrimitive::Count;
         }
 
@@ -240,7 +240,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         lightAmbientColor = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
         m_sceneCB->lightAmbientColor = XMLoadFloat4(&lightAmbientColor);
 
-        lightDiffuseColor = XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f);
+        lightDiffuseColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
         m_sceneCB->lightDiffuseColor = XMLoadFloat4(&lightDiffuseColor);
     }
 }
@@ -1473,8 +1473,13 @@ void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
     static int frameCnt = 0;
     static double elapsedTime = 0.0f;
     double totalTime = m_timer.GetTotalSeconds();
+
+    wstringstream wstream;
+    wstream << L"Total app time: " << totalTime << endl;
+
     frameCnt++;
 
+    OutputDebugString(wstream.str().c_str());
     // Compute averages over one second period.
     if ((totalTime - elapsedTime) >= 1.0f)
     {

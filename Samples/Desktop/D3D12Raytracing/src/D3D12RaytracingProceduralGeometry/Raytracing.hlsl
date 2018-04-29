@@ -45,7 +45,7 @@ float4 CalculatePhongSpecularComponent(in float3 hitPosition, in float3 normal, 
 {
     float3 lightToPixel = normalize(hitPosition - g_sceneCB.lightPosition);
     float3 R = reflect(lightToPixel, normal);
-    return g_sceneCB.lightDiffuseColor * pow(saturate(dot(R, -WorldRayDirection())), specularPower);
+    return float4(1,1,1,1) * pow(saturate(dot(R, -WorldRayDirection())), specularPower);
 }
 
 //
@@ -203,7 +203,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     float4 specularColor = float4(0, 0, 0, 0);
     if (!shadowRayHit)
     {
-        specularColor = CalculatePhongSpecularComponent(hitPosition, normal, 50);
+       // specularColor = CalculatePhongSpecularComponent(hitPosition, normal, 50);
     }
 
 
