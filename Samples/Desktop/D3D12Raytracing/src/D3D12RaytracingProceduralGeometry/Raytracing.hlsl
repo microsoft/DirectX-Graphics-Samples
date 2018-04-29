@@ -203,7 +203,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     float4 specularColor = float4(0, 0, 0, 0);
     if (!shadowRayHit)
     {
-       // specularColor = CalculatePhongSpecularComponent(hitPosition, normal, 50);
+       //specularColor = CalculatePhongSpecularComponent(hitPosition, normal, 50);
     }
 
 

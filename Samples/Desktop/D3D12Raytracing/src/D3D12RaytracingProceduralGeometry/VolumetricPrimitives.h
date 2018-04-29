@@ -14,7 +14,6 @@
 
 #include "RaytracingShaderHelper.h"
 
-#define N_METABALLS 5
 
 // ToDo cleanup - test quintic vs smooth + lipschitz
 struct Metaball
@@ -119,7 +118,11 @@ float CalculateMetaballsPotential(in float3 position, in Metaball blobs[N_METABA
     for (UINT j = 0; j < nActiveMetaballs; j++)
     {
         float dummy;
+#if METABALL_QUINTIC_EQN
         sumFieldPotential += CalculateMetaballPotentialQuintic(position, blobs[j], dummy);
+#else
+        sumFieldPotential += CalculateMetaballPotential(position, blobs[j], dummy);
+#endif
     }
     return sumFieldPotential;
 }
@@ -139,10 +142,10 @@ float3 CalculateMetaballGradient(in float3 position, in Metaball blobs[N_METABAL
 
 void InitializeMetaballs(out Metaball blobs[N_METABALLS], in float elapsedTime, in float cycleDuration)
 {
-    // ToDo optimize, sort to first K intersected metaballs and return K
+    // ToDo Compare perf with precomputed invRadius
     // ToDo Pass in from the app?
     // Metaball centers at t0 and t1 key frames.
-#if 1
+#if N_METABALLS == 5
     float3 keyFrameCenters[N_METABALLS][2] =
     {
         { float3(-0.7, 0, 0),float3(0.7,0, 0) },
@@ -151,6 +154,8 @@ void InitializeMetaballs(out Metaball blobs[N_METABALLS], in float elapsedTime, 
         { float3(0, 0.7, 0), float3(0, -0.7, 0) },
         { float3(0, 0, 0),   float3(0, 0, 0) }
     };
+    // Metaball field radii of max influence
+    float radii[N_METABALLS] = { 0.35, 0.35, 0.35, 0.35, 0.25 };
 #else
     float3 keyFrameCenters[N_METABALLS][2] =
     {
@@ -158,10 +163,9 @@ void InitializeMetaballs(out Metaball blobs[N_METABALLS], in float elapsedTime, 
         { float3(0.0, -0.4, 0.5), float3(0.0, 0.4, 0.5) },
         { float3(0.5,0.5, 0.4), float3(-0.5, 0.2, -0.4) }
     };
-#endif
     // Metaball field radii of max influence
-    // ToDo Compare perf with precomputed invRadius
-    float radii[N_METABALLS] = { 0.35, 0.35, 0.35, 0.35, 0.25 };    
+    float radii[N_METABALLS] = { 0.45, 0.55, 0.45 };
+#endif
 
     // Calculate animated metaball center positions.
     float  tAnimate = CalculateAnimationInterpolant(elapsedTime, cycleDuration);
@@ -179,7 +183,6 @@ void FindIntersectingMetaballs(in Ray ray, out float tmin, out float tmax, inout
     // Find the entry and exit points for all metaball bounding spheres combined.
     tmin = INFINITY;
     tmax = -INFINITY;
-
 #if 0
     float3 aabb[2] = {
         float3(-1,-1,-1),
@@ -225,28 +228,6 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     FindIntersectingMetaballs(ray, tmin, tmax, blobs, nActiveMetaballs);
 
     UINT MAX_STEPS = 128;
-#if 0
-        thit = RayTCurrent();
-        bool hitFound = false;
-
-        // test against all spheres
-        for (int i = 0; i < N_METABALLS; i++)
-        {
-            float _thit;
-            float _tmax;
-            ProceduralPrimitiveAttributes _attr;
-            if (RaySphereIntersectionTest(ray, _thit, _tmax, _attr, blobs[i].center, blobs[i].radius))
-            {
-                if (_thit < thit)
-                {
-                    thit = _thit;
-                    attr = _attr;
-                    hitFound = true;
-                }
-            }
-        }
-        return hitFound;
-#endif
     float t = tmin;
     float minTStep = (tmax - tmin) / (MAX_STEPS / 1);
     UINT iStep = 0;
@@ -268,7 +249,11 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         for (UINT j = 0; j < nActiveMetaballs; j++)
         {
             float distance;
+#if METABALL_QUINTIC_EQN
             fieldPotentials[j] = CalculateMetaballPotentialQuintic(position, blobs[j], distance);
+#else
+            fieldPotentials[j] = CalculateMetaballPotential(position, blobs[j], distance);
+#endif
             sumFieldPotential += fieldPotentials[j];
             signedMinDistanceToABlob = min(signedMinDistanceToABlob, distance - blobs[j].radius);
             inverseLipschitzCoef *= 2 / 3 * blobs[j].radius;
