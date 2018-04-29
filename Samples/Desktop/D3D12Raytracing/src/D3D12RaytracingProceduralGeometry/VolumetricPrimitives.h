@@ -159,6 +159,15 @@ void InitializeMetaballs(out Metaball blobs[N_METABALLS], in float elapsedTime, 
     };
     // Metaball field radii of max influence
     float radii[N_METABALLS] = { 0.35, 0.35, 0.35, 0.35, 0.25 };
+#elif 1
+    float3 keyFrameCenters[N_METABALLS][2] =
+    {
+        { float3(0, -0.7, 0),float3(0, 0.7, 0) },
+        { float3(0, 0.7, 0), float3(0, -0.7, 0) },
+        { float3(0, 0, 0),   float3(0, 0, 0) }
+    };
+    // Metaball field radii of max influence
+    float radii[N_METABALLS] = { 0.45, 0.45, 0.3 };
 #else
     float3 keyFrameCenters[N_METABALLS][2] =
     {

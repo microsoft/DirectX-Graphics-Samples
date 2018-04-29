@@ -16,14 +16,32 @@
 // ToDo move this to RaytracingSceneDefines.h
 // ToDo revert caching hitposition to avoid live values
 
+// NV issues: 
+// - N:5
+// - N:3 + Dyn loops
+// - N:3 + calculated gradient
+//
 #define ANIMATE_PRIMITIVES 1
-#define LIMIT_TO_ACTIVE_METABALLS 0
-#define METABALL_QUINTIC_EQN 1
-#define N_METABALLS 5       // 3, 5
-#define METABALL_PERF_TEST 0
-// Workaround for NV failing to create a state object with dynamicly bound loops
+
+// Enables dynamic for-loop range.
+// Support: fails in DXR on NV. 
 #define USE_DYNAMIC_LOOPS 0
-#define NORMAL_AS_SAMPLED_GRADIENT 1    // Calculated gradient produces incorrect normals at metaball contact areas.
+
+// Limitting calculations only to metaballs a ray intersects can speed up dramatically for high number of metaballs.
+// Requires: USE_DYNAMIC_LOOPS 1
+#define LIMIT_TO_ACTIVE_METABALLS 0
+
+// Quintic equation has smooth second derivatives.
+#define METABALL_QUINTIC_EQN 1
+
+#define N_METABALLS 3     // 3, 5
+#define METABALL_PERF_TEST 0
+
+// Calculated gradient is more accurate but produces incorrect normals at metaball contact areas,
+// which with IsAValidHit check in IntersectionShaders it then creates tears in the geometry.
+#define NORMAL_AS_SAMPLED_GRADIENT 0    
+
+#define METABALL_TEST_SCENE 0
 
 // Workaround for NV driver TDRing 
 #define USE_EXPLICIT_UNROLL 1

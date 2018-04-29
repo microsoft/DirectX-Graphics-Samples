@@ -137,7 +137,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
 
 #if ANIMATE_PRIMITIVES
     // ToDo per primitive animation
-    const float totalTime = -6 * 32.2828827;// static_cast<float>(m_timer.GetTotalSeconds());
+    const float totalTime = -6 * static_cast<float>(m_timer.GetTotalSeconds());
 #elif N_METABALLS == 5
     const float totalTime = -5.56642008;
 #else 
@@ -210,7 +210,11 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 0.0f, 1.1f, -11.0f, 1.0f }; //{ 0.0f, 7.0f, -18.0f, 1.0f };
+#if METABALL_TEST_SCENE
+        m_eye = { 0.0f, 1.1f, -11.0f, 1.0f }; 
+#else
+        m_eye = { 0.0f, 7.0f, -18.0f, 1.0f };
+#endif
         m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
@@ -218,7 +222,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         m_up = XMVector3Normalize(XMVector3Cross(direction, right));
 
         // Rotate camera around Y axis.
-        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(-45.0f)); //XMMatrixRotationY(XMConvertToRadians(45.0f));
+        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f)); //XMMatrixRotationY(XMConvertToRadians(45.0f));
         m_eye = XMVector3Transform(m_eye, rotate);
         m_up = XMVector3Transform(m_up, rotate);
 
@@ -234,8 +238,11 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
 
         //lightPosition = XMFLOAT4(0.0f, 18.0f, -30.0f, 0.0f);
         //lightPosition = XMFLOAT4(0.0f, 9.0f, -10.0f, 0.0f);
-        //lightPosition = XMFLOAT4(10.0f, 9.0f, -10.0f, 0.0f);
+#if METABALL_TEST_SCENE
         lightPosition = XMFLOAT4(10.0f, 3.0f, -10.0f, 0.0f);
+#else
+        lightPosition = XMFLOAT4(10.0f, 9.0f, -10.0f, 0.0f);
+#endif
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 
@@ -1276,7 +1283,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
 #if METABALL_PERF_TEST
     m_sceneCB->totalTime = 63.9;
 #else
-    m_sceneCB->totalTime = 31.8828827;// static_cast<float>(m_timer.GetTotalSeconds());
+    m_sceneCB->totalTime = static_cast<float>(m_timer.GetTotalSeconds());
 #endif
      UpdateAABBPrimitiveAttributes();
 }
