@@ -137,9 +137,11 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
 
 #if ANIMATE_PRIMITIVES
     // ToDo per primitive animation
-    const float totalTime = -6*static_cast<float>(m_timer.GetTotalSeconds());
-#else
-    const float totalTime = 6.53f;
+    const float totalTime = -6 * 32.2828827;// static_cast<float>(m_timer.GetTotalSeconds());
+#elif N_METABALLS == 5
+    const float totalTime = -5.56642008;
+#else 
+    const float totalTime = -188;
 #endif
     for (UINT z = 0, i = 0; z < NUM_AABB_Z; z++)
     {
@@ -1271,8 +1273,12 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
         const XMVECTOR& prevLightPosition = m_sceneCB->lightPosition;
         m_sceneCB->lightPosition = XMVector3Transform(prevLightPosition, rotate);
     }
-    m_sceneCB->totalTime = static_cast<float>(m_timer.GetTotalSeconds());
-    UpdateAABBPrimitiveAttributes();
+#if METABALL_PERF_TEST
+    m_sceneCB->totalTime = 63.9;
+#else
+    m_sceneCB->totalTime = 31.8828827;// static_cast<float>(m_timer.GetTotalSeconds());
+#endif
+     UpdateAABBPrimitiveAttributes();
 }
 
 

@@ -62,7 +62,7 @@ DeviceResources::DeviceResources(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depth
     }
     if (m_options & c_RequireTearingSupport)
     {
-        m_options &= c_AllowTearing;
+        m_options |= c_AllowTearing;
     }
 }
 

@@ -20,7 +20,7 @@ struct Metaball
 {
     float3 center;
     float  radius;
-    //float  invRadius;
+    float  invRadius;
 };
 
 // Calculate a magnitude of an influence from a Metaball charge.
@@ -33,27 +33,23 @@ float CalculateMetaballPotential(in float3 position, in Metaball blob, out float
 
     if (distance <= blob.radius)
     {
-        // ToDo compare perf
-#if 1
-        return 2 * (distance * distance * distance) / (blob.radius * blob.radius * blob.radius)
-            - 3 * (distance * distance) / (blob.radius * blob.radius)
-            + 1;
-#else
-        float dR = distance * blob.invRadius;
-        return (2 * dR - 3) * (dR * dR) + 1;
-#endif
+        // f(0) = 1, f(radius) = 0
+        float d = distance;
+        float r = blob.radius;
+        return 2*(d*d*d)/(r*r*r) - 3*(d*d)/(r*r) + 1;
     }
     return 0;
 }
 
-float3 CalculateMetaballNormal(in float3 position, in Metaball blob)
+float3 CalculateMetaballGradient(in float3 position, in Metaball blob)
 {
     float3 distanceVector = position - blob.center;
     float distance = length(distanceVector);
 
     if (distance <= blob.radius)
     {
-        float derivativeCoef = 6 * sqrt(distance) / (blob.radius * blob.radius * blob.radius) - 6 / (blob.radius * blob.radius);
+        float r = blob.radius;
+        float derivativeCoef = 6 * sqrt(distance) / (r*r*r) - 6 / (r*r);
         return derivativeCoef * distanceVector;
     }
     else
@@ -67,21 +63,18 @@ float CalculateMetaballPotentialQuintic(in float3 position, in Metaball blob, ou
     if (distance <= blob.radius)
     {
         float d = distance;
-        // ToDo compare perf
-#if 1
+        // f(0) = 0, f(radius) = 1 => invert it.
         d = blob.radius - d;
-        return 6 * (d*d*d*d*d) / pow(blob.radius,5)
-            - 15 * (d*d*d*d) / pow(blob.radius,4)
-            + 10 * (d*d*d) / pow(blob.radius,3);
-#else
-        float dR = distance * blob.invRadius;
-        return (2 * dR - 3) * (dR * dR) + 1;
-#endif
+        float r = blob.radius;
+        return 6 * (d*d*d*d*d) / (r*r*r*r*r)
+            - 15 * (d*d*d*d) / (r*r*r*r)
+            + 10 * (d*d*d) / (r*r*r);
     }
     return 0;
 }
 
-float3 CalculateMetaballNormalQuintic(in float3 position, in Metaball blob)
+// Calculate a gradient of a quintic equation.
+float3 CalculateMetaballGradientQuintic(in float3 position, in Metaball blob)
 {
     float3 distanceVector = position - blob.center;
     float d = length(distanceVector);
@@ -89,33 +82,43 @@ float3 CalculateMetaballNormalQuintic(in float3 position, in Metaball blob)
     if (d <= blob.radius)
     {
         d = blob.radius - d;
-        float derivativeCoef = 30 * (d*d*d*d) / pow(blob.radius,5) 
-                             - 60 * (d*d*d) / (blob.radius, 4)
-                             + 30 * (d*d) / pow (blob.radius,3);
+        float r = blob.radius;
+        float derivativeCoef = 30 * (d*d*d*d) / (r*r*r*r*r) 
+                             - 60 * (d*d*d) / (r*r*r*r)
+                             + 30 * (d*d) / (r*r*r);
         return derivativeCoef * distanceVector;
     }
     else
         return float3(0, 0, 0);
 }
 
-
-float3 CalculateMetaballsNormal(in float3 position, in Metaball blobs[N_METABALLS], in UINT nActiveMetaballs, in float fieldPotentials[N_METABALLS], in float fieldPotential)
+float3 CalculateMetaballsNormal(in float3 position, in Metaball blobs[N_METABALLS], in UINT nActiveMetaballs, in float fieldPotentials[N_METABALLS])
 {
     float dummy;
-    float2 e = float2(1.0, -1.0) * 0.5773 * 0.0001;
     float3 normal = float3(0, 0, 0);
-
+#if USE_DYNAMIC_LOOPS
     for (UINT i = 0; i < nActiveMetaballs; i++)
+#else
+    for (UINT i = 0; i < N_METABALLS; i++)
+#endif
     {
-        normal += fieldPotentials[i]* CalculateMetaballNormal(position, blobs[i]);
+#if METABALL_QUINTIC_EQN
+        normal += fieldPotentials[i] * CalculateMetaballGradientQuintic(position, blobs[i]);
+#else
+        normal += fieldPotentials[i]* CalculateMetaballGradient(position, blobs[i]);
+#endif
     }
-    return normalize(normal/fieldPotential);
+    return normalize(normal);
 }
 
 float CalculateMetaballsPotential(in float3 position, in Metaball blobs[N_METABALLS], in UINT nActiveMetaballs)
 {
     float sumFieldPotential = 0;
+#if USE_DYNAMIC_LOOPS 
     for (UINT j = 0; j < nActiveMetaballs; j++)
+#else
+    for (UINT j = 0; j < N_METABALLS; j++)
+#endif
     {
         float dummy;
 #if METABALL_QUINTIC_EQN
@@ -127,16 +130,16 @@ float CalculateMetaballsPotential(in float3 position, in Metaball blobs[N_METABA
     return sumFieldPotential;
 }
 
-float3 CalculateMetaballGradient(in float3 position, in Metaball blobs[N_METABALLS], in UINT nActiveMetaballs)
+float3 CalculateMetaballsNormalSampled(in float3 position, in Metaball blobs[N_METABALLS], in UINT nActiveMetaballs)
 {
-    float e = 0.5773 * 0.0001;
-    return float3(
+    float e = 0.5773 * 0.00001;
+    return normalize(float3(
         CalculateMetaballsPotential(position + float3(-e, 0, 0), blobs, nActiveMetaballs) -
         CalculateMetaballsPotential(position + float3(e, 0, 0), blobs, nActiveMetaballs),
         CalculateMetaballsPotential(position + float3(0, -e, 0), blobs, nActiveMetaballs) -
         CalculateMetaballsPotential(position + float3(0, e, 0), blobs, nActiveMetaballs),
         CalculateMetaballsPotential(position + float3(0, 0, -e), blobs, nActiveMetaballs) -
-        CalculateMetaballsPotential(position + float3(0, 0, e), blobs, nActiveMetaballs));
+        CalculateMetaballsPotential(position + float3(0, 0, e), blobs, nActiveMetaballs)));
 }
 
 
@@ -173,6 +176,7 @@ void InitializeMetaballs(out Metaball blobs[N_METABALLS], in float elapsedTime, 
     {
         blobs[j].center = lerp(keyFrameCenters[j][0], keyFrameCenters[j][1], tAnimate);
         blobs[j].radius = radii[j];
+        blobs[j].invRadius = 1 / radii[j];
     }
 }
 
@@ -227,11 +231,13 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
     UINT nActiveMetaballs = 0;  // Number of metaballs's that the ray intersects.
     FindIntersectingMetaballs(ray, tmin, tmax, blobs, nActiveMetaballs);
 
+
     UINT MAX_STEPS = 128;
     float t = tmin;
     float minTStep = (tmax - tmin) / (MAX_STEPS / 1);
     UINT iStep = 0;
-    while (t <= RayTCurrent() && iStep < MAX_STEPS)
+    //for (UINT iStep = 0; iStep < MAX_STEPS; iStep++)
+    while (iStep++ < MAX_STEPS && t < RayTCurrent())
     {
         float3 position = ray.origin + t * ray.direction;
         float fieldPotentials[N_METABALLS];              // Field potentials for each metaball.
@@ -246,7 +252,11 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         float inverseLipschitzCoef = 1;
       
         // Calculate field potentials from all metaballs.
+#if USE_DYNAMIC_LOOPS
         for (UINT j = 0; j < nActiveMetaballs; j++)
+#else
+        for (UINT j = 0; j < N_METABALLS; j++)
+#endif
         {
             float distance;
 #if METABALL_QUINTIC_EQN
@@ -265,8 +275,11 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         const float Threshold = 0.25f;
         if (sumFieldPotential >= Threshold)// && sumFieldPotential <= 0.37f)
         {
-            float3 normal = normalize(CalculateMetaballGradient(position, blobs, nActiveMetaballs));
-
+#if NORMAL_AS_SAMPLED_GRADIENT
+            float3 normal = CalculateMetaballsNormalSampled(position, blobs, nActiveMetaballs);
+#else
+            float3 normal = CalculateMetaballsNormal(position, blobs, nActiveMetaballs, fieldPotentials);
+#endif
             if (IsAValidHit(ray, t, normal))
             {
                 thit = t;
@@ -284,8 +297,8 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
         // Step by a minimum distance to a blob bounding sphere 
         // or distance underestimate, whichever is greater.
         //t += (tmax - tmin) / (MAX_STEPS - 1); //
-        //t += minTStep;
-        t += max(minTStep, max(signedMinDistanceToABlob, distanceUnderestimate));
+        t += minTStep;
+        //t += max(minTStep, max(signedMinDistanceToABlob, distanceUnderestimate));
     }
 
     return false;

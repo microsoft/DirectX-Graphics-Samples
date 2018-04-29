@@ -18,8 +18,12 @@
 
 #define ANIMATE_PRIMITIVES 1
 #define LIMIT_TO_ACTIVE_METABALLS 0
-#define METABALL_QUINTIC_EQN 0
-#define N_METABALLS 3       // 3, 5
+#define METABALL_QUINTIC_EQN 1
+#define N_METABALLS 5       // 3, 5
+#define METABALL_PERF_TEST 0
+// Workaround for NV failing to create a state object with dynamicly bound loops
+#define USE_DYNAMIC_LOOPS 0
+#define NORMAL_AS_SAMPLED_GRADIENT 1    // Calculated gradient produces incorrect normals at metaball contact areas.
 
 // Workaround for NV driver TDRing 
 #define USE_EXPLICIT_UNROLL 1
