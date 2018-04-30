@@ -174,7 +174,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in
 
     // Trace a shadow ray.
     bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth, hitPosition);
-    float shadowFactor = shadowRayHit ? 0.1 : 1.0;
+    float shadowFactor = shadowRayHit ? 0.2 : 1.0;
 
     // Calculate lighting.
     float4 diffuseColor = shadowFactor * g_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
@@ -194,7 +194,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     // Trace a shadow ray. 
     // ToDo fixup shadow ray for metaballs - threshold.
     bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth, hitPosition);
-    float shadowFactor = shadowRayHit ? 0.1 : 1.0;
+    float shadowFactor = shadowRayHit ? 0.2 : 1.0;
 
     float3 normal = attr.normal;
     float4 albedo = g_materialCB.albedo;
@@ -204,7 +204,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     float4 specularColor = float4(0, 0, 0, 0);
     if (!shadowRayHit)
     {
-       specularColor = 0.1*CalculatePhongSpecularComponent(hitPosition, normal, 50);
+       specularColor = CalculatePhongSpecularComponent(hitPosition, normal, 50);
     }
 
 

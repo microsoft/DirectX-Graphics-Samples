@@ -68,8 +68,8 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
     case SignedDistancePrimitive::TwistedTorus: return sdTorus(opTwist(position), float2(0.6, 0.2));
         
     case SignedDistancePrimitive::Pyramid:
-        return opI(sdBox(opRep(position + 1, float3(1, 1, 1)),float3(0.4, 2, 0.4)/2),
-                   sdBox(position, (float3)1));
+        return opI(sdCylinder(opRep(position + float3(1,1,1), float3(1, 2, 1)),float2(0.3, 2)),
+                   sdBox(position+float3(1, 1, 1), float3(2,2,2)));
         // Let pyramid have a base at y == -1 of AABB => position + float3(0,1,0) 
         // Pyramid: 63.435 degrees at base, height 2
         return sdPyramid(position + float3(0,1,0), float3(0.894, 0.447, 2.0));

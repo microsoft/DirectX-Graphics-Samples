@@ -131,6 +131,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
     XMMATRIX mScale = XMMatrixScaling(scaleRatio, scaleRatio, scaleRatio);
     XMMATRIX mScale2 = XMMatrixScaling(3, 3, 3);
     XMMATRIX mScale3 = XMMatrixScaling(1, 1.5, 1);
+    XMMATRIX mScale4 = XMMatrixScaling(1.5, 1.5, 1.5);
    
 
 #if ANIMATE_PRIMITIVES
@@ -155,9 +156,9 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
             mTransform = mScale2 * mTranslation;
 
         if (i == AnalyticPrimitive::Count + VolumetricPrimitive::Metaballs)
-            mTransform = mScale * mRotation * mTranslation;
+            mTransform = mScale4 * mRotation * mTranslation;
 
-        if (i < AnalyticPrimitive::Count)
+        if (i < AnalyticPrimitive::Count || i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Pyramid)
             mTransform = mScale3 * mTranslation;
 
         aabbAttributes.localSpaceToBottomLevelAS = mTransform;
@@ -686,7 +687,7 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
         // Volumetric primitives.
         {
             using namespace VolumetricPrimitive;
-            m_aabbs[offset + Metaballs] = InitializeAABB(XMINT3(0, 0, 0), XMFLOAT3(2, 2, 2));
+            m_aabbs[offset + Metaballs] = InitializeAABB(XMINT3(0, 0, 0), XMFLOAT3(3, 3, 3));
             offset += VolumetricPrimitive::Count;
         }
 
