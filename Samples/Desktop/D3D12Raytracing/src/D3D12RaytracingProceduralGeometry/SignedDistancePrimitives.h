@@ -75,7 +75,7 @@ float opI(float d1, float d2)
 float3 opRep(float3 p, float3 c)
 {
     return fmod(p, c) - 0.5 * c;
-}
+} 
 
 //------------------------------------------------------------------
 

@@ -45,7 +45,7 @@ float4 CalculatePhongSpecularComponent(in float3 hitPosition, in float3 normal, 
 {
     float3 lightToPixel = normalize(hitPosition - g_sceneCB.lightPosition);
     float3 R = reflect(lightToPixel, normal);
-    return float4(1,1,1,1) * pow(saturate(dot(R, -WorldRayDirection())), specularPower);
+    return float4(1, 1, 1, 1) *pow(saturate(dot(normalize(R), normalize(-WorldRayDirection()))), specularPower);
 }
 
 //
@@ -181,6 +181,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in
     float4 reflectance = float4(1, 1, 1, 1) - g_materialCB.albedo;
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor + reflectance * reflectionColor;
 
+   // color = lerp(color, float4(0, 0, 0, 1.0), 1 - exp(-0.000005*pow(RayTCurrent()/250, 3.0)));
     rayPayload.color = color;
 }
 
@@ -197,19 +198,19 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
 
     float3 normal = attr.normal;
     float4 albedo = g_materialCB.albedo;
-    float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, normal);
+    float4 diffuseColor = 0.8*shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, normal);
     
     // Specular shading
     float4 specularColor = float4(0, 0, 0, 0);
     if (!shadowRayHit)
     {
-       specularColor = CalculatePhongSpecularComponent(hitPosition, normal, 50);
+       specularColor = 0.1*CalculatePhongSpecularComponent(hitPosition, normal, 50);
     }
 
 
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor + specularColor;
 
-    //color = lerp(color, float4(0.8, 0.9, 1.0, 1.0), 1 - exp(-0.000005*pow(t, 3.0)));
+    //color = lerp(color, float4(0, 0, 0, 1.0), 1 - exp(-0.000005*pow(RayTCurrent()/250, 3.0)));
     //rayPayload.color = float4(normal, 1);
     rayPayload.color = color;
 }
@@ -223,7 +224,8 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
 [shader("miss")]
 void MyMissShader(inout RayPayload rayPayload : SV_RayPayload)
 {
-    float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
+    //float4 background = float4(0, 0, 0, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
+    float4 background = float4(0.05f, 0.3f, 0.5f, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
     rayPayload.color = background;
 }
 

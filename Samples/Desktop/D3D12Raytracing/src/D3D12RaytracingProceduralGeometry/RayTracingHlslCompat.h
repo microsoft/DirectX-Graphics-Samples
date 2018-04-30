@@ -27,7 +27,8 @@
 // Support: fails in DXR on NV. 
 #define USE_DYNAMIC_LOOPS 0
 
-// Limitting calculations only to metaballs a ray intersects can speed up dramatically for high number of metaballs.
+// Limitting calculations only to metaballs a ray intersects can speed up 
+// dramatically the more the number of metaballs used.
 // Requires: USE_DYNAMIC_LOOPS 1
 #define LIMIT_TO_ACTIVE_METABALLS 0
 

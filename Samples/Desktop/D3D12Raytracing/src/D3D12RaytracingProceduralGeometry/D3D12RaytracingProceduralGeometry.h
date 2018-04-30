@@ -53,13 +53,6 @@ private:
     static const UINT NUM_INSTANCE_Y = 1;
     static const UINT NUM_INSTANCE_Z = 1;
     static const UINT NUM_INSTANCES = NUM_INSTANCE_X * NUM_INSTANCE_Y * NUM_INSTANCE_Z;
-
-    // Number of AABBs in a BLAS
-    static const UINT NUM_AABB_X = 4;
-    static const UINT NUM_AABB_Y = 1;
-    static const UINT NUM_AABB_Z = 4;
-    static const UINT NUM_AABB = NUM_AABB_X * NUM_AABB_Y * NUM_AABB_Z;
-
     static const UINT NUM_BLAS = 1 + NUM_INSTANCES; // Triangle BLAS + AABB BLAS instances
 
     const float c_aabbWidth = 2;      // AABB width
@@ -91,7 +84,8 @@ private:
     // Raytracing scene
     ConstantBuffer<SceneConstantBuffer> m_sceneCB;
     StructuredBuffer<AABBPrimitiveAttributes> m_aabbPrimitiveAttributeBuffer;
-    
+    std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
+
     // Root constants
     MaterialConstantBuffer m_planeMaterialCB;
     MaterialConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
