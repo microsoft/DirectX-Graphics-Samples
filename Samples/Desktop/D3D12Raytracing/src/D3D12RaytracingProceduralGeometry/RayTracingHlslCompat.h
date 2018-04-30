@@ -40,7 +40,7 @@
 
 // Calculated gradient is more accurate but produces incorrect normals at metaball contact areas,
 // which with IsAValidHit check in IntersectionShaders it then creates tears in the geometry.
-#define NORMAL_AS_SAMPLED_GRADIENT 0    
+#define NORMAL_AS_SAMPLED_GRADIENT 1    
 
 #define METABALL_TEST_SCENE 0
 

@@ -132,6 +132,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
     XMMATRIX mScale2 = XMMatrixScaling(3, 3, 3);
     XMMATRIX mScale3 = XMMatrixScaling(1, 1.5, 1);
     XMMATRIX mScale4 = XMMatrixScaling(1.5, 1.5, 1.5);
+    XMMATRIX mScale5 = XMMatrixScaling(2, 2, 2);
    
 
 #if ANIMATE_PRIMITIVES
@@ -158,7 +159,15 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
         if (i == AnalyticPrimitive::Count + VolumetricPrimitive::Metaballs)
             mTransform = mScale4 * mRotation * mTranslation;
 
-        if (i < AnalyticPrimitive::Count || i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Pyramid)
+
+        if (i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::TwistedTorus ||
+            i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Cog)
+            mTransform = mScale * mRotation * mTranslation;
+
+        if (i == AnalyticPrimitive::Spheres || i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Torus)
+            mTransform = mScale4 * mRotation * mTranslation;
+
+        if (i < AnalyticPrimitive::AABB)
             mTransform = mScale3 * mTranslation;
 
         aabbAttributes.localSpaceToBottomLevelAS = mTransform;
@@ -182,7 +191,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
             using namespace AnalyticPrimitive;
             m_aabbMaterialCB[offset + AABB] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
             m_aabbMaterialCB[offset + Sphere] = { XMFLOAT4(0.8f, 0.8f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + Spheres] = { XMFLOAT4(0.5f, 1.0f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Spheres] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
             offset += AnalyticPrimitive::Count;
         }
 
@@ -660,8 +669,8 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
             }
         }
 #else
-        XMFLOAT3 stride = XMFLOAT3(c_aabbWidth + c_aabbDistance,0, c_aabbWidth + c_aabbDistance);
-        auto InitializeAABB = [&](XMINT3& offsetIndex, XMFLOAT3& size)
+        XMFLOAT3 stride = XMFLOAT3(c_aabbWidth + c_aabbDistance, c_aabbWidth + c_aabbDistance, c_aabbWidth + c_aabbDistance);
+        auto InitializeAABB = [&](auto& offsetIndex, auto& size)
         {
             return D3D12_RAYTRACING_AABB { 
                 basePosition.x + offsetIndex.x * stride.x, 
@@ -678,9 +687,9 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
         // Analytic primitives.
         {
             using namespace AnalyticPrimitive;
-            m_aabbs[offset + Sphere] = InitializeAABB(XMINT3(0, 0, -300), XMFLOAT3(2, 2, 2));
+            m_aabbs[offset + Sphere] = InitializeAABB(XMINT3(-100, 0, -1), XMFLOAT3(3, 3, 3));
             m_aabbs[offset + AABB] = InitializeAABB(XMINT3(3, 0, 0), XMFLOAT3(2, 3, 2));
-            m_aabbs[offset + Spheres] = InitializeAABB(XMINT3(-100, 0, -1), XMFLOAT3(2, 2, 2));
+            m_aabbs[offset + Spheres] = InitializeAABB(XMFLOAT3(2.25, 0, 0.75), XMFLOAT3(3, 3, 3));
             offset += AnalyticPrimitive::Count;
         }
 
@@ -699,11 +708,11 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
             m_aabbs[offset + MiniSpheres] = InitializeAABB(XMINT3(2, 0, 0), XMFLOAT3(2, 2, 2));
             m_aabbs[offset + TwistedTorus] = InitializeAABB(XMINT3(0, 0, 1), XMFLOAT3(2, 2, 2));
             m_aabbs[offset + IntersectedRoundCube] = InitializeAABB(XMINT3(0, 0, 2), XMFLOAT3(2, 2, 2));
-            m_aabbs[offset + Torus] = InitializeAABB(XMINT3(-100, 0, 2), XMFLOAT3(2, 2, 2));
+            m_aabbs[offset + Torus] = InitializeAABB(XMFLOAT3(0.75, -0.1, 2.25), XMFLOAT3(3, 3, 3));
             m_aabbs[offset + Pyramid] = InitializeAABB(XMINT3(0, 0, 3), XMFLOAT3(2, 3, 2));
             m_aabbs[offset + Cog] = InitializeAABB(XMINT3(1, 0, 0), XMFLOAT3(2, 2, 2));
             m_aabbs[offset + Cylinder] = InitializeAABB(XMINT3(3, 0, 3), XMFLOAT3(2, 2, 2));
-            m_aabbs[offset + SquareTorus] = InitializeAABB(XMINT3(1, 0, 1), XMFLOAT3(6, 6, 6));
+            m_aabbs[offset + SquareTorus] = InitializeAABB(XMINT3(2, 0, 2), XMFLOAT3(6, 6, 6));
         }
 #endif
         AllocateUploadBuffer(device, m_aabbs.data(), m_aabbs.size()*sizeof(m_aabbs[0]), &m_aabbBuffer.resource);
