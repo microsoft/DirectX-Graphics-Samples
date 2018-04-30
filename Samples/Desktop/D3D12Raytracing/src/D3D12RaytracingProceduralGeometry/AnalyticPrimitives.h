@@ -14,6 +14,7 @@
 
 #include "RaytracingShaderHelper.h"
 
+// Solve quadratic equation.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
 bool SolveQuadraticEqn(float a, float b, float c, out float x0, out float x1)
 {
@@ -49,7 +50,7 @@ bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
             || ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot > 0)));
 }
 
-// Calculates a normal for a hit point on a sphere 
+// Calculates a normal for a hit point on a sphere.
 float3 CalculateNormalForARaySphereHit(in Ray ray, in float thit, float3 center)
 {
     float3 hitPosition = ray.origin + thit * ray.direction;
@@ -57,25 +58,29 @@ float3 CalculateNormalForARaySphereHit(in Ray ray, in float thit, float3 center)
     return normalize(hitPosition - center);
 }
 
+// Analytic solution of an unbounded ray sphere intersection points.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-bool RaySphereIntersectionTest(in Ray ray, out float thit, in ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
+bool SolveRaySphereIntersectionEquation(in Ray ray, out float tmin, out float tmax, in float3 center, in float radius)
 {
-    float t0, t1; // solutions for t if the ray intersects 
-    float radius2 = pow(radius, 2);
-
-    // Analytic solution
     float3 L = ray.origin - center;
     float a = dot(ray.direction, ray.direction);
     float b = 2 * dot(ray.direction, L);
-    float c = dot(L, L) - radius2;
-    if (!SolveQuadraticEqn(a, b, c, t0, t1)) return false;
+    float c = dot(L, L) - radius * radius;
+    return SolveQuadraticEqn(a, b, c, tmin, tmax);
+}
 
-    if (t0 > t1) swap(t0, t1);
+// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a hollow sphere.
+bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, in ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
+{
+    float t0, t1; // solutions for t if the ray intersects 
+
+    if (!SolveRaySphereIntersectionEquation(ray, t0, t1, center, radius)) return false;
+    tmax = t1;
 
     if (t0 < RayTMin())
     {
-        // t0 is before tmin, let's use t1 instead 
-        if (t1 < RayTMin()) return false; // both t0 and t1 are before tmin
+        // t0 is before RayTMin, let's use t1 instead .
+        if (t1 < RayTMin()) return false; // both t0 and t1 are before RayTMin
 
         attr.normal = CalculateNormalForARaySphereHit(ray, t1, center);
         if (IsAValidHit(ray, t1, attr.normal))
@@ -103,8 +108,27 @@ bool RaySphereIntersectionTest(in Ray ray, out float thit, in ProceduralPrimitiv
     return false;
 }
 
+// Test if a ray segment <RayTMin(), RayTCurrent()> intersects a solid sphere.
+// Limitation: this test does not take RayFlags into consideration and does not calculate a surface normal.
+bool RaySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax, in float3 center = float3(0, 0, 0), in float radius = 1)
+{
+    float t0, t1; // solutions for t if the ray intersects 
+
+    if (!SolveRaySphereIntersectionEquation(ray, t0, t1, center, radius)) return false;
+
+
+    // Since it's a solid sphere, clip intersection points to ray extents.
+    thit = max(t0, RayTMin());
+    tmax = min(t1, RayTCurrent());
+
+    return true;
+}
+
+
+// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects multiple hollow spheres.
 bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr)
 {
+    // ToDo pass in from an app.
     const int N = 3;
     float3 centers[N] =
     {
@@ -114,128 +138,89 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
     };
     float  radii[N] = { 0.6, 0.3, 0.15 };
     bool hitFound = false;
-#if DO_NOT_USE_DYNAMIC_INDEXING
-    float _thit;
-    ProceduralPrimitiveAttributes _attr;
 
     //
     // Test for intersection against all spheres and take the closest hit.
     //
     thit = RayTCurrent();
-    if (RaySphereIntersectionTest(ray, _thit, _attr, centers[0], radii[0]))
-    {
-        if (_thit < thit)
-        {
-            thit = _thit;
-            attr = _attr;
-            hitFound = true;
-        }
-    }
-    if (RaySphereIntersectionTest(ray, _thit, _attr, centers[1], radii[1]))
-    {
-        if (_thit < thit)
-        {
-            thit = _thit;
-            attr = _attr;
-            hitFound = true;
-        }
-    }
-    if (RaySphereIntersectionTest(ray, _thit, _attr, centers[2], radii[2]))
-    {
-        if (_thit < thit)
-        {
-            thit = _thit;
-            attr = _attr;
-            hitFound = true;
-        }
-    }
 
-    return hitFound;
-#else
-    ToDo
-        // test against all spheres
-        //[unroll]
-        for (int i = 0; i < N; i++)
+    // test against all spheres
+    for (int i = 0; i < N; i++)
+    {
+        float _thit;
+        float _tmax;
+        ProceduralPrimitiveAttributes _attr;
+        if (RaySphereIntersectionTest(ray, _thit, _tmax, _attr, centers[i], radii[i]))
         {
-            float _thit;
-            ProceduralPrimitiveAttributes _attr;
-            if (RaySphereIntersectionTest(ray, _thit, _attr, centers[i], radii[i]))
+            if (_thit < thit)
             {
-                if (_thit < thit)
-                {
-                    thit = _thit;
-                    attr = _attr;
-                    hitFound = true;
-                }
+                thit = _thit;
+                attr = _attr;
+                hitFound = true;
             }
         }
+    }
     return hitFound;
-#endif
 }
 
+// Test if a ray segment <RayTMin(), RayTCurrent()> intersects a hollow AABB.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
-bool RayAABBIntersectionTest(Ray ray, out float tmin, out float tmax)
+bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float tmax)
 {
-    float3 bounds[2] = {
-        float3(-1,-1,-1),
-        float3(1,1,1)
-    };
-    float tymin, tymax, tzmin, tzmax;
-    tmin = (bounds[0].x - ray.origin.x) / ray.direction.x;
-    tmax = (bounds[1].x - ray.origin.x) / ray.direction.x;
-    if (ray.direction.x < 0) swap(tmin, tmax);
-    tymin = (bounds[0].y - ray.origin.y) / ray.direction.y;
-    tymax = (bounds[1].y - ray.origin.y) / ray.direction.y;
-    if (ray.direction.y < 0) swap(tymin, tymax);
-    tzmin = (bounds[0].z - ray.origin.z) / ray.direction.z;
-    tzmax = (bounds[1].z - ray.origin.z) / ray.direction.z;
-    if (ray.direction.z < 0) swap(tzmin, tzmax);
-    tmin = max(max(tmin, tymin), tzmin);
-    tmax = min(min(tmax, tymax), tzmax);
+    float3 tmin3, tmax3;
+    // ToDo compare perf
+#if 0
+    tmin3 = (aabb[0] - ray.origin) / ray.direction;
+    tmax3 = (aabb[1] - ray.origin) / ray.direction;
+    if (ray.direction.x < 0) swap(tmin3.x, tmax3.x);
+    if (ray.direction.y < 0) swap(tmin3.y, tmax3.y);
+    if (ray.direction.z < 0) swap(tmin3.z, tmax3.z);
+#else
+    int3 sign3 = ray.direction > 0;
+    tmin3.x = (aabb[1 - sign3.x].x - ray.origin.x) / ray.direction.x;
+    tmax3.x = (aabb[sign3.x].x - ray.origin.x) / ray.direction.x;
 
-    return tmax > tmin;
+    tmin3.y = (aabb[1 - sign3.y].y - ray.origin.y) / ray.direction.y;
+    tmax3.y = (aabb[sign3.y].y - ray.origin.y) / ray.direction.y;
+    
+    tmin3.z = (aabb[1 - sign3.z].z - ray.origin.z) / ray.direction.z;
+    tmax3.z = (aabb[sign3.z].z - ray.origin.z) / ray.direction.z;
+#endif
+    
+    tmin = max(max(tmin3.x, tmin3.y), tmin3.z);
+    tmax = min(min(tmax3.x, tmax3.z), tmax3.z);
+    
+    return tmax > tmin && tmax >= RayTMin() && tmin <= RayTCurrent();
 }
 
-// ToDo add IsAValidHit to all intersection shaders
-bool RayAABBIntersectionTest(Ray ray, out float thit, out ProceduralPrimitiveAttributes attr)
+// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects an AABB.
+bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float thit, out ProceduralPrimitiveAttributes attr)
 {
     float tmin, tmax;
-    if (RayAABBIntersectionTest(ray, tmin, tmax))
+    if (RayAABBIntersectionTest(ray, aabb, tmin, tmax))
     {
-        thit = tmin;
-        // Calculate cube face normal
-        float3 center = float3(0, 0, 0);
+        thit = tmin >= RayTMin() ? tmin : tmax;
+
+        // Set a normal to the normal of a face the hit point lays on.
         float3 hitPosition = ray.origin + thit * ray.direction;
-        float3 sphereNormal = normalize(hitPosition - center);
-        // take the largest dimension and normalize it
-        // ToDo why
-        if (abs(sphereNormal.x) > abs(sphereNormal.y))
-        {
-            if (abs(sphereNormal.x) > abs(sphereNormal.z))
-            {
-                attr.normal = float3(sphereNormal.x, 0, 0);
-            }
-            else
-            {
-                attr.normal = float3(0, 0, sphereNormal.z);
-            }
-        }
-        else
-        {
-            if (abs(sphereNormal.y) > abs(sphereNormal.z))
-            {
-                attr.normal = float3(0, sphereNormal.y, 0);
-            }
-            else
-            {
-                attr.normal = float3(0, 0, sphereNormal.z);
-            }
-        }
+        float3 distanceToBounds[2] = {
+            abs(aabb[0] - hitPosition),
+            abs(aabb[1] - hitPosition)
+        };
+        const float eps = 0.0001;
+        if (distanceToBounds[0].x < eps) attr.normal = float3(-1, 0, 0);
+        else if (distanceToBounds[0].y < eps) attr.normal = float3(0, -1, 0);
+        else if (distanceToBounds[0].z < eps) attr.normal = float3(0, 0, -1);
+        else if (distanceToBounds[1].x < eps) attr.normal = float3(1, 0, 0);
+        else if (distanceToBounds[1].y < eps) attr.normal = float3(0, 1, 0);
+        else if (distanceToBounds[1].z < eps) attr.normal = float3(0, 0, 1);
 
-        // Get the normal in world space
-        attr.normal = mul((float3x3)ObjectToWorld(), normalize(attr.normal));
-
-        return true;
+        if (IsAValidHit(ray, thit, attr.normal))
+        {
+            // Get the normal in world space.
+            attr.normal = mul((float3x3)ObjectToWorld(), attr.normal);
+            return true;
+        }
     }
     return false;
 }

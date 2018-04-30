@@ -14,6 +14,8 @@
 
 #include "RayTracingHlslCompat.h"
 
+#define INFINITY (1.0/0.0)
+
 struct Ray
 {
     float3 origin;
@@ -33,8 +35,18 @@ float length_toPow2(float3 p)
 // Returns a cycling <0 -> 1 -> 0> animation interpolant 
 float CalculateAnimationInterpolant(in float elapsedTime, in float cycleDuration)
 {
-    float curCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
-    return (curCycleTime <= 0.5f) ? 2 * curCycleTime : 1 - 2 * (curCycleTime - 0.5f);
+    // ToDo
+#if 0
+    float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
+    return (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
+#elif 0
+    float curSineCycleTime = sin(elapsedTime / cycleDuration * 3.14 * 2);
+    return (curSineCycleTime + 1 ) * 0.5;
+#else
+    float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
+    curLinearCycleTime = (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
+    return smoothstep(0, 1, curLinearCycleTime);
+#endif
 }
 
 void swap(inout float a, inout float b)
