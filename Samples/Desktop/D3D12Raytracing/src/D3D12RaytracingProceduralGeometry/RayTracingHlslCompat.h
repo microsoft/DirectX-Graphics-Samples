@@ -21,6 +21,7 @@
 // - N:3 + Dyn loops
 // - N:3 + calculated gradient
 //
+// FL issues:
 #define ANIMATE_PRIMITIVES 1
 
 // Enables dynamic for-loop range.
@@ -35,7 +36,7 @@
 // Quintic equation has smooth second derivatives.
 #define METABALL_QUINTIC_EQN 1
 
-#define N_METABALLS 3     // 3, 5
+#define N_METABALLS 5     // 3, 5
 #define METABALL_PERF_TEST 0
 
 // Calculated gradient is more accurate but produces incorrect normals at metaball contact areas,

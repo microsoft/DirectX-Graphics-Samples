@@ -45,6 +45,7 @@ float4 CalculatePhongSpecularComponent(in float3 hitPosition, in float3 normal, 
 {
     float3 lightToPixel = normalize(hitPosition - g_sceneCB.lightPosition);
     float3 R = reflect(lightToPixel, normal);
+    // ToDo revise normalize
     return float4(1, 1, 1, 1) *pow(saturate(dot(normalize(R), normalize(-WorldRayDirection()))), specularPower);
 }
 

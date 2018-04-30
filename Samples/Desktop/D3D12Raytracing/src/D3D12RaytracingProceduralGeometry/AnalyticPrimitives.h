@@ -62,11 +62,10 @@ float3 CalculateNormalForARaySphereHit(in Ray ray, in float thit, float3 center)
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
 bool SolveRaySphereIntersectionEquation(in Ray ray, out float tmin, out float tmax, in float3 center, in float radius)
 {
-    float radius2 = radius * radius;
     float3 L = ray.origin - center;
     float a = dot(ray.direction, ray.direction);
     float b = 2 * dot(ray.direction, L);
-    float c = dot(L, L) - radius2;
+    float c = dot(L, L) - radius * radius;
     return SolveQuadraticEqn(a, b, c, tmin, tmax);
 }
 

@@ -35,6 +35,7 @@ float length_toPow2(float3 p)
 // Returns a cycling <0 -> 1 -> 0> animation interpolant 
 float CalculateAnimationInterpolant(in float elapsedTime, in float cycleDuration)
 {
+    // ToDo
 #if 0
     float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
     return (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
