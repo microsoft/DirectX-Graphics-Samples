@@ -167,7 +167,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
         if (i == AnalyticPrimitive::Spheres || i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Torus)
             mTransform = mScale4 * mRotation * mTranslation;
 
-        if (i < AnalyticPrimitive::AABB)
+        if (i == AnalyticPrimitive::AABB || i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Pyramid)
             mTransform = mScale3 * mTranslation;
 
         aabbAttributes.localSpaceToBottomLevelAS = mTransform;

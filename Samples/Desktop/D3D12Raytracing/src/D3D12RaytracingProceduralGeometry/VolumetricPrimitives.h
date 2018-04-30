@@ -196,18 +196,7 @@ void FindIntersectingMetaballs(in Ray ray, out float tmin, out float tmax, inout
     // Find the entry and exit points for all metaball bounding spheres combined.
     tmin = INFINITY;
     tmax = -INFINITY;
-#if 0
-    float3 aabb[2] = {
-        float3(-1,-1,-1),
-        float3(1,1,1)
-    };
 
-    if (!RayAABBIntersectionTest(ray, aabb, tmin, tmax))
-    {
-        return false;
-    }
-    nActiveMetaballs = N_METABALLS;
-#else
     nActiveMetaballs = 0;
     for (UINT i = 0; i < N_METABALLS; i++)
     {
@@ -223,7 +212,6 @@ void FindIntersectingMetaballs(in Ray ray, out float tmin, out float tmax, inout
 #endif
         }
     }
-#endif
     tmin = max(tmin, RayTMin());
     tmax = min(tmax, RayTCurrent());
 }
