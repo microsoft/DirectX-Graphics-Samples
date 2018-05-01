@@ -858,6 +858,7 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildBottomLevel
 // ToDo should the comptr be passed by value?
 template <class InstanceDescType, class BLASPtrType>
 void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource)
+#if 0
 {
     auto device = m_deviceResources->GetD3DDevice();
     
@@ -892,7 +893,7 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
         
         // Scale in XZ dimensions.
         XMMATRIX mScale = XMMatrixScaling(fWidth.x, fWidth.y, fWidth.z);
-        XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
+        XMMATRIX mTranslation = XMMatrixIdentity();// XMMatrixTranslationFromVector(vBasePosition);
         XMMATRIX mTransform = mScale * mTranslation;         
         StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTransform);
     }
@@ -907,13 +908,85 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
         instanceDesc.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB * RayType::Count;
         instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
 
-        XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
+        XMMATRIX mTranslation = XMMatrixIdentity();// XMMatrixTranslationFromVector(vBasePosition);
         StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTranslation);
     }
     UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));
     AllocateUploadBuffer(device, instanceDescs.data(), bufferSize, &(*instanceDescsResource), L"InstanceDescs");
 };
+#else
+{
+    auto device = m_deviceResources->GetD3DDevice();
 
+    vector<InstanceDescType> instanceDescs;
+    instanceDescs.resize(NUM_BLAS);
+
+    // ToDo
+#define NUM_AABB_X 7
+#define NUM_AABB_Y 1
+#define NUM_AABB_Z 7
+
+    // Width of a bottom-level AS geometry
+    const XMFLOAT3 fWidth = XMFLOAT3(
+        NUM_AABB_X * c_aabbWidth + (NUM_AABB_X - 1) * c_aabbDistance,
+        NUM_AABB_Y * c_aabbWidth + (NUM_AABB_Y - 1) * c_aabbDistance,
+        NUM_AABB_Z * c_aabbWidth + (NUM_AABB_Z - 1) * c_aabbDistance);
+    const XMVECTOR vWidth = XMLoadFloat3(&fWidth);
+    const XMVECTOR vStride = vWidth + XMLoadFloat3(&XMFLOAT3(c_aabbDistance, c_aabbDistance, c_aabbDistance));
+
+
+    // Bottom-level AS with a single plane.
+    {
+        auto& instanceDesc = instanceDescs[0];
+        instanceDesc = {};
+        instanceDesc.InstanceMask = 1;
+        instanceDesc.InstanceContributionToHitGroupIndex = 0;
+        instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::Triangle];
+
+        // Calculate transformation matrix.
+        const XMVECTOR vInstancesScale = XMLoadUInt3(&XMUINT3(1, 1, 1));
+        const XMVECTOR vBasePosition = vStride * vInstancesScale * XMLoadFloat3(&XMFLOAT3(-0.35f, 0.0f, -0.35f));
+
+        // Scale in XZ dimensions.
+        XMMATRIX mScale = XMMatrixScaling(XMVectorGetByIndex(vStride*vInstancesScale, 0), 1.0f, XMVectorGetByIndex(vStride*vInstancesScale, 2));
+
+        XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
+        XMMATRIX mTransform = mScale * mTranslation;
+        StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTransform);
+    }
+
+    // Create instanced bottom-level AS with procedural geometry AABBs.
+    // Instances share all the data, except for a transform.
+    {
+        const XMVECTOR vBasePosition = XMLoadFloat3(&XMFLOAT3(
+            -((1 - 1) * (fWidth.x + c_aabbDistance) / 2.0f),
+            1.0f,
+            -((1 - 1) * (fWidth.z + c_aabbDistance) / 2.0f)));
+
+        InstanceDescType instanceDescTemplate = {};
+        instanceDescTemplate.InstanceMask = 1;
+        // ToDo explain the hitgroupindex offset 
+        instanceDescTemplate.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB * RayType::Count;
+        instanceDescTemplate.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
+
+        UINT blasIndex = 1;
+        for (UINT x = 0; x < 1; x++)
+            for (UINT y = 0; y < 1; y++)
+                for (UINT z = 0; z < 1; z++, blasIndex++)
+                {
+                    auto& instanceDesc = instanceDescs[blasIndex];
+                    instanceDesc = instanceDescTemplate;
+
+                    XMVECTOR vIndex = XMLoadUInt3(&XMUINT3(x, y, z));
+                    XMVECTOR vTranslation = vBasePosition + vIndex * vStride;
+                    XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
+                    StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTranslation);
+                }
+    }
+    UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));
+    AllocateUploadBuffer(device, instanceDescs.data(), bufferSize, &(*instanceDescsResource), L"InstanceDescs");
+};
+#endif
 
 AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
 {
