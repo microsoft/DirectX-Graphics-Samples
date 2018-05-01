@@ -23,7 +23,7 @@ namespace GlobalRootSignature {
             AccelerationStructure,
             SceneConstant,
             AABBattributeBuffer,
-            VertexBuffers,      // ToDo Rename as it has both IB and VB
+            VertexBuffers,
             Count
         };
     }
@@ -51,7 +51,7 @@ namespace LocalRootSignature {
             };
         }
         struct RootArguments {
-            MaterialConstantBuffer materialCb;
+            PrimitiveConstantBuffer materialCb;
         };
     }
 }
@@ -66,8 +66,8 @@ namespace LocalRootSignature {
             };
         }
         struct RootArguments {
-            MaterialConstantBuffer materialCb;
-            AABBConstantBuffer aabbCB;
+            PrimitiveConstantBuffer materialCb;
+            PrimitiveInstanceConstantBuffer aabbCB;
         };
     }
 }
@@ -79,9 +79,9 @@ namespace LocalRootSignature {
     }
 }
 
-// Bottom level acceleration structures (BottomLevelASType).
+// Bottom-level acceleration structures (BottomLevelASType).
 // This sample uses two BottomLevelASType, one for AABB and one for Triangle geometry.
-// ToDo desc why the sample uses two - can a BLAS mix geometry types?
+// ToDo desc why the sample uses two - can a bottom-level AS mix geometry types?
 namespace BottomLevelASType {
     enum Enum {
         Triangle = 0,

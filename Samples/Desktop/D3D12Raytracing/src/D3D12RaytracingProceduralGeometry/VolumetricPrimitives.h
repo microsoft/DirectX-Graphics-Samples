@@ -39,8 +39,12 @@ float CalculateMetaballPotential(in float3 position, in Metaball blob, out float
     if (distance <= blob.radius)
     {
         float d = distance;
-        // f(0) = 0, f(radius) = 1 => invert it.
+
+        // Quintic polynomial field function.
+        // The field function should return 1 at distance 0 from a center, and 1 at radius distance,
+        // but this one gives f(0) = 0, f(radius) = 1, so we use the distance to radius instead.
         d = blob.radius - d;
+
         float r = blob.radius;
         return 6 * (d*d*d*d*d) / (r*r*r*r*r)
             - 15 * (d*d*d*d) / (r*r*r*r)
@@ -138,7 +142,7 @@ void FindIntersectingMetaballs(in Ray ray, out float tmin, out float tmax, inout
     tmax = min(tmax, RayTCurrent());
 }
 
-// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersect a metaball field.
+// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a metaball field.
 // The test sphere traces through the metaball field until it hits a threshold isosurface. 
 bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr, in float elapsedTime)
 {
@@ -172,11 +176,12 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
             sumFieldPotential += fieldPotentials[j];
          }
 
-        // Have we crossed the implicit surface.
-        // ToDo pass threshold from app
-        // Threshold - valid range is (0, 0.1>, the larger the threshold the smaller the blob.
+        // Field potential threshold defining our isosurface.
+        // Threshold - valid range is (0, 1>, the larger the threshold the smaller the blob.
         const float Threshold = 0.25f;
-        if (sumFieldPotential >= Threshold)// && sumFieldPotential <= 0.37f)
+
+        // Have we crossed the isosurface.
+        if (sumFieldPotential >= Threshold)
         {
             float3 normal = CalculateMetaballsNormal(position, blobs, nActiveMetaballs);
             if (IsAValidHit(ray, t, normal))

@@ -29,8 +29,8 @@ StructuredBuffer<Vertex> Vertices : register(t2, space0);
 StructuredBuffer<AABBPrimitiveAttributes> g_AABBPrimitiveAttributes : register(t3, space0);
 
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
-ConstantBuffer<MaterialConstantBuffer> g_materialCB : register(b1);
-ConstantBuffer<AABBConstantBuffer> lrs_aabbCB: register(b2);          // from local root signature
+ConstantBuffer<PrimitiveConstantBuffer> lrs_materialCB : register(b1);      // from local root signature
+ConstantBuffer<PrimitiveInstanceConstantBuffer> lrs_aabbCB: register(b2);   // from local root signature
 
 // Diffuse lighting calculation.
 float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
@@ -45,8 +45,7 @@ float4 CalculatePhongSpecularComponent(in float3 hitPosition, in float3 normal, 
 {
     float3 lightToPixel = normalize(hitPosition - g_sceneCB.lightPosition);
     float3 R = reflect(lightToPixel, normal);
-    // ToDo revise normalize
-    return float4(1, 1, 1, 1) *pow(saturate(dot(normalize(R), normalize(-WorldRayDirection()))), specularPower);
+    return float4(1, 1, 1, 1) * pow(saturate(dot(R, -WorldRayDirection())), specularPower);
 }
 
 //
@@ -76,7 +75,7 @@ float4 TraceRegularRay(in Ray ray, in UINT currentRayRecursionDepth)
     // ToDo use hit/miss indices from a header
     // ToDo place ShadowHitGroup right after Closest hitgroup?
     // ToDo review hit group indexing
-    // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
+    // ToDo - improve wording, reformat: Offset by 1 as AABB bottom-level AS offsets by 1 => 2
     TraceRay(Scene,
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
         ~0,/* InstanceInclusionMask*/
@@ -111,7 +110,7 @@ bool TraceShadowRayAndReportIfHit(in UINT currentRayRecursionDepth, float3 hitPo
     // ToDo use hit/miss indices from a header
     // ToDo place ShadowHitGroup right after Closest hitgroup?
     // ToDo review hit group indexing
-    // ToDo - improve wording, reformat: Offset by 1 as AABB  BLAS offsets by 1 => 2
+    // ToDo - improve wording, reformat: Offset by 1 as AABB  bottom-level AS offsets by 1 => 2
     TraceRay(Scene,
         // ToDo explain
         /* RayFlags */
@@ -178,11 +177,10 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     float shadowFactor = shadowRayHit ? 0.2 : 1.0;
 
     // Calculate lighting.
-    float4 diffuseColor = shadowFactor * g_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
-    float4 reflectance = float4(1, 1, 1, 1) - g_materialCB.albedo;
+    float4 diffuseColor = shadowFactor * lrs_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
+    float4 reflectance = float4(1, 1, 1, 1) - lrs_materialCB.albedo;
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor + reflectance * reflectionColor;
 
-   // color = lerp(color, float4(0, 0, 0, 1.0), 1 - exp(-0.000005*pow(RayTCurrent()/250, 3.0)));
     rayPayload.color = color;
 }
 
@@ -198,7 +196,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitive
     float shadowFactor = shadowRayHit ? 0.2 : 1.0;
 
     float3 normal = attr.normal;
-    float4 albedo = g_materialCB.albedo;
+    float4 albedo = lrs_materialCB.albedo;
     float4 diffuseColor = 0.8*shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, normal);
     
     // Specular shading
@@ -207,12 +205,8 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitive
     {
        specularColor = CalculatePhongSpecularComponent(hitPosition, normal, 50);
     }
-
-
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor + specularColor;
 
-    //color = lerp(color, float4(0, 0, 0, 1.0), 1 - exp(-0.000005*pow(RayTCurrent()/250, 3.0)));
-    //rayPayload.color = float4(normal, 1);
     rayPayload.color = color;
 }
 
@@ -221,12 +215,10 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitive
 // Miss shaders.
 //
 
-
 [shader("miss")]
 void MyMissShader(inout RayPayload rayPayload)
 {
-    //float4 background = float4(0, 0, 0, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
-    float4 background = float4(0.05f, 0.3f, 0.5f, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
+    float4 background = float4(0.05f, 0.3f, 0.5f, 1.0f);
     rayPayload.color = background;
 }
 
@@ -268,7 +260,7 @@ void MyIntersectionShader_AnalyticPrimitive()
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-        attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
+        attr.normal = normalize(mul((float3x3) ObjectToWorld(), attr.normal));
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }
@@ -287,7 +279,8 @@ void MyIntersectionShader_VolumetricPrimitive()
     {
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-        attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
+        attr.normal = normalize(mul((float3x3) ObjectToWorld(), attr.normal));
+
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }
@@ -301,12 +294,12 @@ void MyIntersectionShader_SignedDistancePrimitive()
 
     float thit;
     ProceduralPrimitiveAttributes attr;
-    if (RaySignedDistancePrimitiveTest(localRay, primitiveType, thit, attr, g_materialCB.stepScale))
+    if (RaySignedDistancePrimitiveTest(localRay, primitiveType, thit, attr, lrs_materialCB.stepScale))
     {
         float3 position = localRay.origin + thit * localRay.direction;
         AABBPrimitiveAttributes aabbAttribute = g_AABBPrimitiveAttributes[lrs_aabbCB.geometryIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-        attr.normal = mul((float3x3) ObjectToWorld(), attr.normal);
+        attr.normal = normalize(mul((float3x3) ObjectToWorld(), attr.normal));
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }

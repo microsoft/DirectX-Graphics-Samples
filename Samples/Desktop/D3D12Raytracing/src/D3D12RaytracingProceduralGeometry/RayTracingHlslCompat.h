@@ -13,40 +13,47 @@
 #define RAYTRACINGHLSLCOMPAT_H
 
 
+//*************************************************************************
+// NV driver workarounds: 
+// Setting following causes a NV driver to fail to create a state object:
+// - N_METABALLS 5
+// - USE_DYNAMIC_LOOPS 0
+// - USE_EXPLICIT_UNROLL 0
+// - USE_NON_NULL_LOCAL_ROOT_SIG 0  
+//
+// Enables dynamic for-loop range.
+#define USE_DYNAMIC_LOOPS 0
+//
+#define N_METABALLS 3     // = {3, 5}
+#define USE_EXPLICIT_UNROLL 1
+//
+// NV driver does not support null local root signatures. 
+// Use an empty local root signature where a shader does not require it.
+#define USE_NON_NULL_LOCAL_ROOT_SIG 1  
+//
+//
+//*************************************************************************
+
+//*************************************************************************
+// Fallback Layer workarounds
+//
+// Fallback Layer does not support default exports for DXIL libraries yet.
+#define DEFINE_EXPLICIT_SHADER_EXPORTS 1
+//
+//*************************************************************************
+
 // ToDo move this to RaytracingSceneDefines.h
 // ToDo revert caching hitposition to avoid live values
 
-// NV issues: 
-// - N:5
-// - N:3 + Dyn loops
-// - N:3 + calculated gradient
-//
-// FL issues:
 #define ANIMATE_PRIMITIVES 1
-
-// Enables dynamic for-loop range.
-// Support: fails in DXR on NV. 
-#define USE_DYNAMIC_LOOPS 0
 
 // Limitting calculations only to metaballs a ray intersects can speed up 
 // dramatically the more the number of metaballs used.
-// Requires: USE_DYNAMIC_LOOPS 1
+// Requires: USE_DYNAMIC_LOOPS set to 1 to take effect.
 #define LIMIT_TO_ACTIVE_METABALLS 0
 
-#define N_METABALLS 3     // 3, 5
-#define METABALL_PERF_TEST 0
+#define N_FRACTAL_ITERATIONS 4  // = 1+
 
-#define METABALL_TEST_SCENE 0
-
-// Workaround for NV driver TDRing 
-#define USE_EXPLICIT_UNROLL 1
-
-// Workaround for NV driver not supporting null local root signatures. 
-// Use an empty local root signature where a shader does not require it.
-#define USE_NON_NULL_LOCAL_ROOT_SIG 1  
-
-// Workaround for the Fallback Layer not supporting default exports for DXIL libraries.
-#define DEFINE_EXPLICIT_SHADER_EXPORTS 1
 
 #ifdef HLSL
 #include "HlslCompat.h"
@@ -85,12 +92,12 @@ struct SceneConstantBuffer
     XMVECTOR lightPosition;
     XMVECTOR lightAmbientColor;
     XMVECTOR lightDiffuseColor;
-    // ToDo move out?
     float    totalTime;                 // Elapsed application time.
 };
 
-// ToDo split or rename
-struct MaterialConstantBuffer
+
+// Attributes per primitive type.
+struct PrimitiveConstantBuffer
 {
     XMFLOAT4 albedo;
     float stepScale;                      // Step scale for ray marching of signed distance primitives. 
@@ -99,7 +106,8 @@ struct MaterialConstantBuffer
     XMFLOAT3 padding;
 };
 
-struct AABBConstantBuffer
+// Attributes per primitive instance.
+struct PrimitiveInstanceConstantBuffer
 {
     UINT geometryIndex;
     UINT primitiveType;
@@ -110,21 +118,6 @@ struct Vertex
     XMFLOAT3 position;
     XMFLOAT3 normal;
 };
-
-struct SphereAABB
-{
-    XMFLOAT3 center;
-    float  radius;
-};
-
-
-// ToDo remove
-struct RectangularPrismAABB
-{
-    XMFLOAT3 minPosition;
-    XMFLOAT3 maxPosition;
-};
-
 
 namespace AnalyticPrimitive {
     enum Enum {

@@ -48,8 +48,8 @@ public:
 private:
     static const UINT FrameCount = 3;
 
-    // Number of AABB BLAS instances
-    const UINT NUM_BLAS = 2; // Triangle + AABB BLAS instances.
+    // Number of AABB bottom-level AS instances
+    const UINT NUM_BLAS = 2; // Triangle + AABB bottom-level AS instances.
     const float c_aabbWidth = 2;      // AABB width
     const float c_aabbDistance = 2;   // Distance between AABBs
 
@@ -82,8 +82,8 @@ private:
     std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
 
     // Root constants
-    MaterialConstantBuffer m_planeMaterialCB;
-    MaterialConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
+    PrimitiveConstantBuffer m_planeMaterialCB;
+    PrimitiveConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
 
     // Geometry
     D3DBuffer m_indexBuffer;
@@ -118,6 +118,8 @@ private:
     bool m_forceComputeFallback;
     StepTimer m_timer;
     float m_curRotationAngleRad;
+    bool m_animateCamera;
+    bool m_animateLight;
     XMVECTOR m_eye;
     XMVECTOR m_at;
     XMVECTOR m_up;

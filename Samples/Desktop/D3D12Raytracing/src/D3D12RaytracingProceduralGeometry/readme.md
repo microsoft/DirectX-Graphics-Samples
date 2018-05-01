@@ -19,7 +19,7 @@ Triangle normals are accessed from index and vertex buffers that are explicitly 
 ## Usage
 The sample starts with Fallback Layer implementation being used by default. The Fallback Layer will use raytracing driver if available, otherwise it will default to the compute fallback. This default behavior can be overriden via UI controls or input arguments.
 
-D3D12RaytracingProceduralGeometry.exe [ -FL | -DXR ]
+D3D12RaytracingProceduralGeometry.exe [ -FL | -DXR | ...]
 * [-FL] - select Fallback Layer API with forced compute fallback path.
 * [-DXR] - select DirectX Raytracing API.
 
@@ -41,6 +41,8 @@ The title bar of the sample provides runtime information:
 * 1 - select Fallback Layer API.
 * 2 - select Fallback Layer API with forced compute fallback path.
 * 3 - select DirectX Raytracing API.
+* L - enable/disable light animation.
+* C - enable/disable camera animation.
 
 ## Requirements
 * Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.

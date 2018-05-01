@@ -48,7 +48,10 @@ const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_AABBGeometry[]
 D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
-    m_curRotationAngleRad(0.0f)
+    m_curRotationAngleRad(0.0f),
+    m_animateCamera(false),
+    m_animateLight(false)
+// ToDo initialize
 {
     m_forceComputeFallback = false;
     SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
@@ -210,18 +213,14 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
             m_aabbMaterialCB[offset + TwistedTorus] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 0.5f };
             m_aabbMaterialCB[offset + Cog] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 1.0f };
             m_aabbMaterialCB[offset + Cylinder] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + FractalPyramid] = { XMFLOAT4(0.1f, 0.4f, 0.15f, 1.0f), 0.8f };
+            m_aabbMaterialCB[offset + FractalPyramid] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 0.8f };
         }
     }
 
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-#if METABALL_TEST_SCENE
-        m_eye = { 0.0f, 1.1f, -11.0f, 1.0f }; 
-#else
-        m_eye = { 0.0f, 7.0f, -18.0f, 1.0f };
-#endif
+        m_eye = { 0.0f, 5.3f, -17.0f, 1.0f }; 
         m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
@@ -243,11 +242,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
 
-#if METABALL_TEST_SCENE
-        lightPosition = XMFLOAT4(10.0f, 3.0f, -10.0f, 0.0f);
-#else
-        lightPosition = XMFLOAT4(0.0f, 9.0f, -10.0f, 0.0f);
-#endif
+        lightPosition = XMFLOAT4(0.0f, 18.0f, -20.0f, 0.0f);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 
         lightAmbientColor = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
@@ -346,7 +341,6 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
         rootParameters[GlobalRootSignature::Slot::AccelerationStructure].InitAsShaderResourceView(0);
         rootParameters[GlobalRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
         rootParameters[GlobalRootSignature::Slot::AABBattributeBuffer].InitAsShaderResourceView(3);
-        // ToDo rename - IB is first not VB
         rootParameters[GlobalRootSignature::Slot::VertexBuffers].InitAsDescriptorTable(1, &ranges[1]);
         CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
@@ -369,7 +363,7 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
         {
             namespace RootSignatureSlots = LocalRootSignature::Triangle::Slot;
             CD3DX12_ROOT_PARAMETER rootParameters[RootSignatureSlots::Count];
-            rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(MaterialConstantBuffer), 1);
+            rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(PrimitiveConstantBuffer), 1);
 
             CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
             localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
@@ -381,8 +375,8 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
         {
             namespace RootSignatureSlots = LocalRootSignature::AABB::Slot;
             CD3DX12_ROOT_PARAMETER rootParameters[RootSignatureSlots::Count];
-            rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(MaterialConstantBuffer), 1);
-            rootParameters[RootSignatureSlots::GeometryIndex].InitAsConstants(SizeOfInUint32(AABBConstantBuffer), 2);
+            rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(PrimitiveConstantBuffer), 1);
+            rootParameters[RootSignatureSlots::GeometryIndex].InitAsConstants(SizeOfInUint32(PrimitiveInstanceConstantBuffer), 2);
 
             CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
             localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
@@ -823,7 +817,7 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildBottomLevel
         AllocateUAVBuffer(device, bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, &bottomLevelAS, initialResourceState, L"BottomLevelAccelerationStructure");
     }
 
-    // Bottom-level AS desc.
+    // bottom-level AS desc.
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelBuildDesc = {};
     {
         bottomLevelBuildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
@@ -858,26 +852,19 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildBottomLevel
 // ToDo should the comptr be passed by value?
 template <class InstanceDescType, class BLASPtrType>
 void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource)
-#if 0
 {
     auto device = m_deviceResources->GetD3DDevice();
     
     vector<InstanceDescType> instanceDescs;
     instanceDescs.resize(NUM_BLAS);
 
-    // Width of a BLAS geometry..
+    // Width of a bottom-level AS geometry..
     const XMUINT3 NUM_AABB = XMUINT3(7, 1, 7);
     const XMFLOAT3 fWidth = XMFLOAT3(
         NUM_AABB.x * c_aabbWidth + (NUM_AABB.x - 1) * c_aabbDistance,
         NUM_AABB.y * c_aabbWidth + (NUM_AABB.y - 1) * c_aabbDistance,
         NUM_AABB.z * c_aabbWidth + (NUM_AABB.z - 1) * c_aabbDistance);
     const XMVECTOR vWidth = XMLoadFloat3(&fWidth);
-
-
-    const XMVECTOR vBasePosition = XMLoadFloat3(&XMFLOAT3(
-        -((NUM_INSTANCE_X - 1) * (fWidth.x + c_aabbDistance) / 2.0f),
-        1.0f,
-        -((NUM_INSTANCE_Z - 1) * (fWidth.z + c_aabbDistance) / 2.0f)));
 
 
     // Bottom-level AS with a single plane.
@@ -893,7 +880,7 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
         
         // Scale in XZ dimensions.
         XMMATRIX mScale = XMMatrixScaling(fWidth.x, fWidth.y, fWidth.z);
-        XMMATRIX mTranslation = XMMatrixIdentity();// XMMatrixTranslationFromVector(vBasePosition);
+        XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
         XMMATRIX mTransform = mScale * mTranslation;         
         StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTransform);
     }
@@ -908,85 +895,12 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
         instanceDesc.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB * RayType::Count;
         instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
 
-        XMMATRIX mTranslation = XMMatrixIdentity();// XMMatrixTranslationFromVector(vBasePosition);
+        XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(0, 1, 0)));
         StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTranslation);
     }
     UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));
     AllocateUploadBuffer(device, instanceDescs.data(), bufferSize, &(*instanceDescsResource), L"InstanceDescs");
 };
-#else
-{
-    auto device = m_deviceResources->GetD3DDevice();
-
-    vector<InstanceDescType> instanceDescs;
-    instanceDescs.resize(NUM_BLAS);
-
-    // ToDo
-#define NUM_AABB_X 7
-#define NUM_AABB_Y 1
-#define NUM_AABB_Z 7
-
-    // Width of a bottom-level AS geometry
-    const XMFLOAT3 fWidth = XMFLOAT3(
-        NUM_AABB_X * c_aabbWidth + (NUM_AABB_X - 1) * c_aabbDistance,
-        NUM_AABB_Y * c_aabbWidth + (NUM_AABB_Y - 1) * c_aabbDistance,
-        NUM_AABB_Z * c_aabbWidth + (NUM_AABB_Z - 1) * c_aabbDistance);
-    const XMVECTOR vWidth = XMLoadFloat3(&fWidth);
-    const XMVECTOR vStride = vWidth + XMLoadFloat3(&XMFLOAT3(c_aabbDistance, c_aabbDistance, c_aabbDistance));
-
-
-    // Bottom-level AS with a single plane.
-    {
-        auto& instanceDesc = instanceDescs[0];
-        instanceDesc = {};
-        instanceDesc.InstanceMask = 1;
-        instanceDesc.InstanceContributionToHitGroupIndex = 0;
-        instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::Triangle];
-
-        // Calculate transformation matrix.
-        const XMVECTOR vInstancesScale = XMLoadUInt3(&XMUINT3(1, 1, 1));
-        const XMVECTOR vBasePosition = vStride * vInstancesScale * XMLoadFloat3(&XMFLOAT3(-0.35f, 0.0f, -0.35f));
-
-        // Scale in XZ dimensions.
-        XMMATRIX mScale = XMMatrixScaling(XMVectorGetByIndex(vStride*vInstancesScale, 0), 1.0f, XMVectorGetByIndex(vStride*vInstancesScale, 2));
-
-        XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
-        XMMATRIX mTransform = mScale * mTranslation;
-        StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTransform);
-    }
-
-    // Create instanced bottom-level AS with procedural geometry AABBs.
-    // Instances share all the data, except for a transform.
-    {
-        const XMVECTOR vBasePosition = XMLoadFloat3(&XMFLOAT3(
-            -((1 - 1) * (fWidth.x + c_aabbDistance) / 2.0f),
-            1.0f,
-            -((1 - 1) * (fWidth.z + c_aabbDistance) / 2.0f)));
-
-        InstanceDescType instanceDescTemplate = {};
-        instanceDescTemplate.InstanceMask = 1;
-        // ToDo explain the hitgroupindex offset 
-        instanceDescTemplate.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB * RayType::Count;
-        instanceDescTemplate.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
-
-        UINT blasIndex = 1;
-        for (UINT x = 0; x < 1; x++)
-            for (UINT y = 0; y < 1; y++)
-                for (UINT z = 0; z < 1; z++, blasIndex++)
-                {
-                    auto& instanceDesc = instanceDescs[blasIndex];
-                    instanceDesc = instanceDescTemplate;
-
-                    XMVECTOR vIndex = XMLoadUInt3(&XMUINT3(x, y, z));
-                    XMVECTOR vTranslation = vBasePosition + vIndex * vStride;
-                    XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
-                    StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTranslation);
-                }
-    }
-    UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));
-    AllocateUploadBuffer(device, instanceDescs.data(), bufferSize, &(*instanceDescsResource), L"InstanceDescs");
-};
-#endif
 
 AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
 {
@@ -1330,6 +1244,12 @@ void D3D12RaytracingProceduralGeometry::OnKeyDown(UINT8 key)
     case '3': // DirectX Raytracing
         SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
         break;
+    case 'L': 
+        m_animateLight = !m_animateLight;
+        break;
+    case 'C':
+        m_animateCamera = !m_animateCamera;
+        break;
     default:
         break;
     }
@@ -1352,7 +1272,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
 
     // Rotate the camera around Y axis.
-    if (0)
+    if (m_animateCamera)
     {
         float secondsToRotateAround = 48.0f;
         float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
@@ -1364,7 +1284,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     }
 
     // Rotate the second light around Y axis.
-    if (0)
+    if (m_animateLight)
     {
         float secondsToRotateAround = 8.0f;
         float angleToRotateBy = -360.0f * (elapsedTime / secondsToRotateAround);
@@ -1372,11 +1292,8 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
         const XMVECTOR& prevLightPosition = m_sceneCB->lightPosition;
         m_sceneCB->lightPosition = XMVector3Transform(prevLightPosition, rotate);
     }
-#if METABALL_PERF_TEST
-    m_sceneCB->totalTime = 63.9;
-#else
     m_sceneCB->totalTime = static_cast<float>(m_timer.GetTotalSeconds());
-#endif
+
      UpdateAABBPrimitiveAttributes();
 }
 
