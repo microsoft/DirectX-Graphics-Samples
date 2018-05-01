@@ -40,6 +40,15 @@ float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
     return g_sceneCB.lightDiffuseColor * fNDotL;
 }
 
+// Phong lighting specular component
+float4 CalculatePhongSpecularComponent(in float3 hitPosition, in float3 normal, in float specularPower)
+{
+    float3 lightToPixel = normalize(hitPosition - g_sceneCB.lightPosition);
+    float3 R = reflect(lightToPixel, normal);
+    // ToDo revise normalize
+    return float4(1, 1, 1, 1) *pow(saturate(dot(normalize(R), normalize(-WorldRayDirection()))), specularPower);
+}
+
 //
 // TraceRay wrappers for regular and shadow rays.
 //
@@ -160,18 +169,20 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in
 
     // Trace a reflection ray.
     float3 hitPosition = HitWorldPosition();
+    // Remove normalize from ray direction?
     Ray reflectionRay = { hitPosition, reflect(normalize(WorldRayDirection()), triangleNormal) };
     float4 reflectionColor = TraceRegularRay(reflectionRay, rayPayload.recursionDepth);
 
     // Trace a shadow ray.
     bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth, hitPosition);
-    float shadowFactor = shadowRayHit ? 0.1 : 1.0;
+    float shadowFactor = shadowRayHit ? 0.2 : 1.0;
 
     // Calculate lighting.
     float4 diffuseColor = shadowFactor * g_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
     float4 reflectance = float4(1, 1, 1, 1) - g_materialCB.albedo;
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor + reflectance * reflectionColor;
 
+   // color = lerp(color, float4(0, 0, 0, 1.0), 1 - exp(-0.000005*pow(RayTCurrent()/250, 3.0)));
     rayPayload.color = color;
 }
 
@@ -184,16 +195,25 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
     // Trace a shadow ray. 
     // ToDo fixup shadow ray for metaballs - threshold.
     bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth, hitPosition);
-    float shadowFactor = shadowRayHit ? 0.1 : 1.0;
+    float shadowFactor = shadowRayHit ? 0.2 : 1.0;
 
     float3 normal = attr.normal;
     float4 albedo = g_materialCB.albedo;
-    float4 diffuseColor = shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, normal);
-    float4 color = g_sceneCB.lightAmbientColor + diffuseColor;
+    float4 diffuseColor = 0.8*shadowFactor * albedo * CalculateDiffuseLighting(hitPosition, normal);
+    
+    // Specular shading
+    float4 specularColor = float4(0, 0, 0, 0);
+    if (!shadowRayHit)
+    {
+       specularColor = CalculatePhongSpecularComponent(hitPosition, normal, 50);
+    }
 
-    //color = lerp(color, float4(0.8, 0.9, 1.0, 1.0), 1 - exp(-0.000005*pow(t, 3.0)));
 
-    rayPayload.color = color; ;// float4(normalize(float3(attr.normal.x, 0, attr.normal.z)), 1);// 
+    float4 color = g_sceneCB.lightAmbientColor + diffuseColor + specularColor;
+
+    //color = lerp(color, float4(0, 0, 0, 1.0), 1 - exp(-0.000005*pow(RayTCurrent()/250, 3.0)));
+    //rayPayload.color = float4(normal, 1);
+    rayPayload.color = color;
 }
 
 
@@ -205,7 +225,8 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
 [shader("miss")]
 void MyMissShader(inout RayPayload rayPayload : SV_RayPayload)
 {
-    float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
+    //float4 background = float4(0, 0, 0, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
+    float4 background = float4(0.05f, 0.3f, 0.5f, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
     rayPayload.color = background;
 }
 
