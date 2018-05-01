@@ -854,6 +854,12 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
     const XMVECTOR vWidth = XMLoadFloat3(&fWidth);
 
 
+    const XMVECTOR vBasePosition = XMLoadFloat3(&XMFLOAT3(
+        -((NUM_INSTANCE_X - 1) * (fWidth.x + c_aabbDistance) / 2.0f),
+        1.0f,
+        -((NUM_INSTANCE_Z - 1) * (fWidth.z + c_aabbDistance) / 2.0f)));
+
+
     // Bottom-level AS with a single plane.
     {
         auto& instanceDesc = instanceDescs[BottomLevelASType::Triangle];
