@@ -31,7 +31,6 @@ bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum 
     switch (analyticPrimitive)
     {
     case AnalyticPrimitive::AABB: return RayAABBIntersectionTest(ray, aabb, thit, attr);
-    case AnalyticPrimitive::Sphere: return RaySphereIntersectionTest(ray, thit, tmax, attr);
     case AnalyticPrimitive::Spheres: return RaySpheresIntersectionTest(ray, thit, attr);
     default: return false;
     }
@@ -56,7 +55,6 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
     // Input position is in <-1,1> space
     switch (signedDistancePrimitive)
     {
-    case SignedDistancePrimitive::Cone: return sdCone(position + float3(0, -0.7, 0), float3(0.8, 0.6, 1.2));
     case SignedDistancePrimitive::MiniSpheres:
         return opI(sdSphere(opRep(position + 1, (float3)2 / 4), 0.65 / 4),
                    sdBox(position, (float3)1));
@@ -67,12 +65,6 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
     case SignedDistancePrimitive::Torus: return sdTorus88(position, float2(0.75, 0.15)); return sdTorus(position, float2(0.7, 0.25));
     case SignedDistancePrimitive::TwistedTorus: return sdTorus(opTwist(position), float2(0.6, 0.2));
         
-    case SignedDistancePrimitive::Pyramid:
-        return opI(sdCylinder(opRep(position + float3(1,1,1), float3(1, 2, 1)),float2(0.3, 2)),
-                   sdBox(position+float3(1, 1, 1), float3(2,2,2)));
-        // Let pyramid have a base at y == -1 of AABB => position + float3(0,1,0) 
-        // Pyramid: 63.435 degrees at base, height 2
-        return sdPyramid(position + float3(0,1,0), float3(0.894, 0.447, 2.0));
     case SignedDistancePrimitive::Cog:
         return opS( sdTorus82(position, float2(0.60, 0.3)),
                     sdCylinder(opRep(float3(atan2(position.z, position.x) / 6.2831, 
@@ -83,6 +75,9 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
     case SignedDistancePrimitive::Cylinder: return sdCylinder(position, float2(0.4, 1.0));
     case SignedDistancePrimitive::SquareTorus: 
          //return sdTorus88(position, float2(0.75, 0.15));
+
+         // Let pyramid have a base at y == -1 of AABB => position + float3(0,1,0) 
+         // Pyramid: 63.435 degrees at base, height 2
          return sdFractalPyramid(position + float3(0, 1, 0), float3(0.894, 0.447, 2.0), 5, 2.0f);
     default: return 0;
     }

@@ -136,7 +136,6 @@ struct RectangularPrismAABB
 namespace AnalyticPrimitive {
     enum Enum {
         AABB = 0,
-        Sphere,
         Spheres,
         Count
     };
@@ -151,15 +150,13 @@ namespace VolumetricPrimitive {
 
 namespace SignedDistancePrimitive {
     enum Enum {
-        Cone = 0,
-        MiniSpheres,
+        MiniSpheres = 0,
         IntersectedRoundCube,
-        Torus,
+        SquareTorus,
         TwistedTorus,
-        Pyramid, 
         Cog,
         Cylinder,
-        SquareTorus,
+        FractalPyramid,
         Count
     };
 }
