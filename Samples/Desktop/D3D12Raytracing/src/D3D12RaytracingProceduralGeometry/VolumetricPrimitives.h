@@ -280,7 +280,7 @@ bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
             if (IsAValidHit(ray, t, normal))
             {
                 thit = t;
-                attr.normal = normalize(normal / fieldPotential);
+                attr.normal = normal;
                 return true;
             }
         }

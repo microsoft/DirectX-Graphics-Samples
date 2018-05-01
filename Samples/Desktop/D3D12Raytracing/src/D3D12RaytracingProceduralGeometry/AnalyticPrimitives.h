@@ -142,7 +142,6 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
     //
     // Test for intersection against all spheres and take the closest hit.
     //
-#if DO_NOT_USE_DYNAMIC_INDEXING
     float _thit;
     float _tmax; // unused
     ProceduralPrimitiveAttributes _attr;
