@@ -58,7 +58,6 @@ float sdFractalPyramid(in float3 position, float3 h, in UINT Iterations, in floa
 
         // Find a relative position in the next fractal interation.
         position = Scale * position - v * (Scale - 1.0);
-
     }
     float distance = sdPyramid(position, h);
     return distance * pow(Scale, float(-n));

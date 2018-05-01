@@ -49,12 +49,7 @@ private:
     static const UINT FrameCount = 3;
 
     // Number of AABB BLAS instances
-    static const UINT NUM_INSTANCE_X = 1;
-    static const UINT NUM_INSTANCE_Y = 1;
-    static const UINT NUM_INSTANCE_Z = 1;
-    static const UINT NUM_INSTANCES = NUM_INSTANCE_X * NUM_INSTANCE_Y * NUM_INSTANCE_Z;
-    static const UINT NUM_BLAS = 1 + NUM_INSTANCES; // Triangle BLAS + AABB BLAS instances
-
+    const UINT NUM_BLAS = 2; // Triangle + AABB BLAS instances.
     const float c_aabbWidth = 2;      // AABB width
     const float c_aabbDistance = 2;   // Distance between AABBs
 

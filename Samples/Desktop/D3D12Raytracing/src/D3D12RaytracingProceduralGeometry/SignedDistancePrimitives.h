@@ -16,7 +16,7 @@
 // in the Software without restriction, including without limitation the rights 
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
 // copies of the Software, and to permit persons to whom the Software is furnished 
-// to do so, subject to the following conditions :
+// to do so, subject to the following conditions:
 //
 // The above copyright notice and this permission notice shall be included in all 
 // copies or substantial portions of the Software.
@@ -36,10 +36,9 @@
 //**********************************************************************************************
 //
 // SignedDistanceFieldLibrary.h
-// Ref: https://www.shadertoy.com/view/Xds3zN 
+//
 // A list of useful distance function to simple primitives, and an example on how to 
 // do some interesting boolean operations, repetition and displacement.
-//
 // More info here: http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 //
 //**********************************************************************************************
@@ -184,13 +183,12 @@ float sdOctahedron(float3 p, float3 h)
 {
     float d = 0.0;
 
+    // Get distance against pyramid's sides going through origin.
     // Test: d = p.x * sin a + p.y * cos a
-    // d = max(d, dot(abs(p), float3(h.x, h.y, 0)));
-    // d = max(d, dot(abs(p), float3(0, h.y, h.x)));
     d = dot(float2(max(abs(p.x), abs(p.z)), abs(p.y)), 
             float2(h.x, h.y));
-    
-    // Move the ground plane down by height
+
+    // Subtract distance to a side when at height h.z from the origin.
     return d - h.y * h.z;
 }
 
@@ -263,18 +261,9 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
     const UINT MaxSteps = 512;
 
     // Do sphere tracing through the AABB.
-#if 0 
-    for (UINT i = 0; i < MaxSteps; i++)
-    {
-        if (t > RayTCurrent())
-        {
-            return false;
-        }
-#else
     UINT i = 0;
     while (i++ < MaxSteps && t <= RayTCurrent())
     {
-#endif  
         float3 position = ray.origin + t * ray.direction;
         float distance = GetDistanceFromSignedDistancePrimitive(position, sdPrimitive);
 

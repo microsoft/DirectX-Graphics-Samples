@@ -33,15 +33,8 @@
 // Requires: USE_DYNAMIC_LOOPS 1
 #define LIMIT_TO_ACTIVE_METABALLS 0
 
-// Quintic equation has smooth second derivatives.
-#define METABALL_QUINTIC_EQN 1
-
 #define N_METABALLS 3     // 3, 5
 #define METABALL_PERF_TEST 0
-
-// Calculated gradient is more accurate but produces incorrect normals at metaball contact areas,
-// which with IsAValidHit check in IntersectionShaders it then creates tears in the geometry.
-#define NORMAL_AS_SAMPLED_GRADIENT 1    
 
 #define METABALL_TEST_SCENE 0
 
