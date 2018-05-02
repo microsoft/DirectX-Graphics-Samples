@@ -100,6 +100,23 @@ void Fallback_AcceptHitAndEndSearch()
     Fallback_SetAnyHitResult(END_SEARCH);
 }
 
+bool IsOpaque(bool geomOpaque, uint instanceFlags, uint rayFlags)
+{
+    bool opaque = geomOpaque;
+
+    if (instanceFlags & INSTANCE_FLAG_FORCE_OPAQUE)
+        opaque = true;
+    else if (instanceFlags & INSTANCE_FLAG_FORCE_NON_OPAQUE)
+        opaque = false;
+
+    if (rayFlags & RAY_FLAG_FORCE_OPAQUE)
+        opaque = true;
+    else if (rayFlags & RAY_FLAG_FORCE_NON_OPAQUE)
+        opaque = false;
+
+    return opaque;
+}
+
 int Fallback_ReportHit(float tHit, uint hitKind)
 {
     if (tHit < RayTMin() || Fallback_RayTCurrent() <= tHit)
@@ -109,7 +126,10 @@ int Fallback_ReportHit(float tHit, uint hitKind)
     Fallback_SetPendingHitKind(hitKind);
     int stateId = Fallback_AnyHitStateId();
     int ret = ACCEPT;
-    if (stateId > 0)
+
+    bool geomOpaque = true; // TODO: This should be looked up with the triangle data.
+    // TODO: Need to get instance flags
+    if (stateId > 0 && !IsOpaque(geomOpaque, 0, RayFlags()))
         ret = InvokeAnyHit(stateId);
 
     if (ret != IGNORE)
@@ -410,23 +430,6 @@ RayData GetRayData(float3 rayOrigin, float3 rayDirection)
         1.0 / rayDirection[data.SwizzledIndices.z]);
 
     return data;
-}
-
-bool IsOpaque(bool geomOpaque, uint instanceFlags, uint rayFlags)
-{
-    bool opaque = geomOpaque;
-
-    if (instanceFlags & INSTANCE_FLAG_FORCE_OPAQUE)
-        opaque = true;
-    else if (instanceFlags & INSTANCE_FLAG_FORCE_NON_OPAQUE)
-        opaque = false;
-
-    if (rayFlags & RAY_FLAG_FORCE_OPAQUE)
-        opaque = true;
-    else if (rayFlags & RAY_FLAG_FORCE_NON_OPAQUE)
-        opaque = false;
-
-    return opaque;
 }
 
 bool Cull(bool opaque, uint rayFlags)
