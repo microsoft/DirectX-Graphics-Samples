@@ -10,64 +10,80 @@
 //*********************************************************
 
 // ****------------- Shader table indexing and layouts -----------******************
+// 
+// When a ray hits geometry or needs to call a miss shader it indexes into the application 
+// provided shader tables. As per DXR spec, the shader table indexing works as follows:
 //
-// Shader table indexing:
-//  o Miss shader table index =  MissShaderIndex            ~ from shader: TraceRay()
+//  o Miss shader table index = MissShaderIndex             ~ from shader: TraceRay()
 //
 //  o Hit group shader table index = 
 //      RayContributionToHitGroupIndex                      ~ from shader: TraceRay()  
 //      + MultiplierForGeometryContributionToHitGroupIndex  ~ from shader: TraceRay()
-//          * GeometryContributionToHitGroupIndex +         ~ system generated index of geometry in BLAS 
+//          * GeometryContributionToHitGroupIndex +         ~ system generated index 
+//                                                            of geometry in BLAS
 //      + InstanceContributionToHitGroupIndex               ~ from BLAS instance desc
 //
-//  --------------------------------------------------------------------
-// Shader table layout & indexing in this sample: 
+// 
+//  ------ Shader table layout & indexing values used in this sample ---------------
 //
-// Miss shader table layout:
+// The sample traces color and shadow rays. Since the ray types apply different 
+// actions in the shaders, they require separate shader records for each geometry,
+// so that GPU executes the right shader when a geometry is hit or or miss shader needs
+// to be executed.
+//
+// In addition, this sample uses multiple different geometries. First, there is 
+// triangle geometry (the ground plane) and then there is AABB/procedural geometry. 
+// AABB geometry requires intersection shaders to be specifiend in the hit 
+// groups. This sample demonstrates a use of three different intersection shaders,
+// and thus further enumeration of different shader records:
+//  - MyIntersectionShader_AnalyticPrimitive
+//  - MyIntersectionShader_VolumetricPrimitive
+//  - MyIntersectionShader_SignedDistancePrimitive
+// 
+// Last, the sample defines multiple geometries per each intersection shader, all parametrized
+// via attributes provided by local root signature. Each local root signature instance
+// requires a separate shader.
+//
+// With that said, the sample has following shader table layouts.
+//
+// Miss shader table layout
+// o There are two miss shader records:
 //   [0] : Miss shader record for a color ray
 //   [1] : Miss shader record for a shadow ray
 //
-// o Therefore MissShaderIndex is 0 for regular rays, and 1 for shadow rays
-//
-//
 // Hit group shader table layout:
-//   The sample uses two BLAS, first one for a triangle and second one for 
-//   AABB geometry, therefore the hit group shader table is stored as follows:
-//      [0 - ...]: Triangle hit groups shader records
-//      [# triangle hit groups * 2 hit groups per geometry - ...]: AABB hit group shader records.
-//   Each geometry category (Triangle/AABB) stores two hit group shader records 
-//   for each geometry ID. 
-//      [0] : Hit group shader record for geometry ID 0 for a color ray
-//      [1] : Hit group shader record for geometry ID 0 for a shadow ray
-//   This sample has 1 triangle geometry and  
-//   IntersectionShaderType::TotalPrimitiveCount() AABB geometries. Each geometry
-//   
+//  o Triangle geometry shader records - single triangular geometry (ground plane)
+//  o AABB geometry shader records- multiple AABB geometries ~ IntersectionShaderType::TotalPrimitiveCount()
+// Each geometry requires two shader records:
+//   [0] : Hit group shader record for geometry ID 0 for a color ray
+//   [1] : Hit group shader record for geometry ID 0 for a shadow ray
+//
+//
+// Given the shader table layout, the shader table indexing is set as follows:
+// o MissShaderIndex is set to 0 for color rays, and 1 for shadow rays in TraceRay().
 // o Geometry IDs are system generated for each geometry within a BLAS. 
 //   This maps to GeometryDesc order passed in by the app.
 // o Given two hit groups (color, shadow ray) per geometry ID, 
-//   MultiplierForGeometryContributionToHitGroupIndex is 2. This is same 
+//   *MultiplierForGeometryContributionToHitGroupIndex* is 2. This is same 
 //   for both color and shadow rays.
-// o RayContributionToHitGroupIndex is set to 0 and 1, for color and shadow 
-//   rays respectively, since both both hit group shader record for a shadow 
-//   ray is stored right after the color ray for each geometry in the shader table.
-// * InstanceContributionToHitGroupIndex is set to 0 and 1 
+// o *RayContributionToHitGroupIndex* is set to 0 and 1, for color and shadow 
+//   rays respectively, since they're stores subsequently in a shader table.
+// * InstanceContributionToHitGroupIndex is set to 0 and 1 in the BLAS
+//   instance desc passed into the acceleration structure build.
 //
 // ************************************************************************/ 
 
 #ifndef RAYTRACING_HLSL
 #define RAYTRACING_HLSL
 
-
-
 #define HLSL
 #include "RaytracingHlslCompat.h"
 #include "ProceduralPrimitivesLibrary.h"
 #include "RaytracingShaderHelper.h"
 
-
-
-//
-// Shader resources bound via root signatures.
+//***************************************************************************
+//*****------ Shader resources bound via root signatures -------*************
+//***************************************************************************
 //  g_* - bound via a global root signature
 //  l_* - bound via a local root signature
 RaytracingAccelerationStructure g_scene : register(t0, space0);
@@ -84,10 +100,10 @@ ConstantBuffer<PrimitiveConstantBuffer> l_materialCB : register(b1);
 ConstantBuffer<PrimitiveInstanceConstantBuffer> l_aabbCB: register(b2);
 
 
-//
-// Utility functions
-//
 
+//***************************************************************************
+//****************------ Utility functions -------***************************
+//***************************************************************************
 // Diffuse lighting calculation.
 float CalculateDiffuseCoefficient(in float3 hitPosition, in float3 incidentLightRay, in float3 normal)
 {
@@ -133,11 +149,9 @@ float4 CalculatePhongLighting(float3 normal, bool isInShadow)
     return ambientColor + diffuseColor + specularColor;
 }
 
-//
-// TraceRay wrappers for regular and shadow rays.
-//
-
-
+//***************************************************************************
+//*****------ TraceRay wrappers for regular and shadow rays. -------*********
+//***************************************************************************
 // Trace a regular ray into the scene and return a shaded color.
 float4 TraceRegularRay(in Ray ray, in UINT currentRayRecursionDepth)
 {
@@ -153,12 +167,8 @@ float4 TraceRegularRay(in Ray ray, in UINT currentRayRecursionDepth)
     // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
     // Note: make sure to enable face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0;
-    rayDesc.TMax = 10000.0;
-
+    rayDesc.TMax = 10000;
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
-
-
-
     TraceRay(g_scene,
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
         ~0,/* InstanceInclusionMask*/
@@ -185,7 +195,7 @@ bool TraceShadowRayAndReportIfHit(in float3 hitPosition, in UINT currentRayRecur
     // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
     ray.TMin = 0;
-    ray.TMax = 10000.0;
+    ray.TMax = 10000;
 
     // Initialize shadow ray payload.
     // Set the initial value to true since closest hit shaders are skipped. 
@@ -207,11 +217,9 @@ bool TraceShadowRayAndReportIfHit(in float3 hitPosition, in UINT currentRayRecur
     return shadowPayload.hit;
 }
 
-
-//
-// Ray gen shader.
-// 
-
+//***************************************************************************
+//********************------ Ray gen shader.. -------************************
+//***************************************************************************
 [shader("raygeneration")]
 void MyRaygenShader()
 {
@@ -226,10 +234,10 @@ void MyRaygenShader()
     g_renderTarget[DispatchRaysIndex()] = color;
 }
 
-//
-// Closest hit shaders.
-// 
 
+//***************************************************************************
+//******************------ Closest hit shaders -------***********************
+//***************************************************************************
 [shader("closesthit")]
 void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
 {
@@ -273,11 +281,9 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitive
     rayPayload.color = CalculatePhongLighting(attr.normal, shadowRayHit);
 }
 
-
-//
-// Miss shaders.
-//
-
+//***************************************************************************
+//**********************------ Miss shaders -------**************************
+//***************************************************************************
 [shader("miss")]
 void MyMissShader(inout RayPayload rayPayload)
 {
@@ -292,9 +298,10 @@ void MyMissShader_ShadowRay(inout ShadowRayPayload rayPayload)
 }
 
 //
-// Intersection shaders.
-//
-
+// 
+//***************************************************************************
+//*****************------ Intersection shaders-------************************
+//***************************************************************************
 // Get ray in AABB's local space.
 Ray GetRayInAABBPrimitiveLocalSpace()
 {
