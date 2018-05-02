@@ -30,9 +30,6 @@
 //
 //*********************************************************************************
 
-#ifndef SIGNEDDISTANCEPRIMITIVES_H
-#define SIGNEDDISTANCEPRIMITIVES_H
-
 //**********************************************************************************************
 //
 // SignedDistanceFieldLibrary.h
@@ -42,6 +39,10 @@
 // More info here: http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 //
 //**********************************************************************************************
+
+#ifndef SIGNEDDISTANCEPRIMITIVES_H
+#define SIGNEDDISTANCEPRIMITIVES_H
+
 
 #include "RaytracingShaderHelper.h"
 

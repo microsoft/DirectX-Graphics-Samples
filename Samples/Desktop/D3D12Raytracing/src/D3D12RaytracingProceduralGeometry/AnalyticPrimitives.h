@@ -9,9 +9,6 @@
 //
 //*********************************************************
 
-#ifndef ANALYTICPRIMITIVES_H
-#define ANALYTICPRIMITIVES_H
-
 //**********************************************************************************************
 //
 // AnalyticPrimitives.h
@@ -19,6 +16,10 @@
 // Set of ray vs analytic primitive intersection tests.
 //
 //**********************************************************************************************
+
+#ifndef ANALYTICPRIMITIVES_H
+#define ANALYTICPRIMITIVES_H
+
 
 #include "RaytracingShaderHelper.h"
 

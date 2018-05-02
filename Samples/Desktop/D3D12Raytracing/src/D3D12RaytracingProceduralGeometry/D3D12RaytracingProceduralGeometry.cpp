@@ -439,7 +439,7 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
         for (UINT rayType = 0; rayType < RayType::Count; rayType++)
         {
             auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-            if (rayType == RayType::Regular)
+            if (rayType == RayType::Color)
             {
                 hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::Triangle]);
             }
@@ -456,7 +456,7 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
             {
                 auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
                 hitGroup->SetIntersectionShaderImport(c_intersectionShaderNames[t]);
-                if (rayType == RayType::Regular)
+                if (rayType == RayType::Color)
                 {
                     hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::AABB]);
                 }
@@ -1126,8 +1126,30 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
         shaderIDSize = m_dxrDevice->GetShaderIdentifierSize();
     }
 
+
+
+    //
+    //  Shader table layout
+    //
+    /************************************************************************
+    | --------------------------------------------------------------------
+    | Shader table - HitGroupShaderTable: 64 | 1408 bytes
+    | [0] : MyHitGroup_Triangle, 12 + 32 bytes
+    | [1] : MyHitGroup_Triangle_ShadowRay, 12 + 32 bytes
+    | [2] : MyHitGroup_AABB_AnalyticPrimitive, 12 + 40 bytes
+    | [3] : MyHitGroup_AABB_AnalyticPrimitive_ShadowRay, 12 + 40 bytes
+    | ...
+    | [6] : MyHitGroup_AABB_VolumetricPrimitive, 12 + 40 bytes
+    | [7] : MyHitGroup_AABB_VolumetricPrimitive_ShadowRay, 12 + 40 bytes
+    | [8] : MyHitGroup_AABB_SignedDistancePrimitive, 12 + 40 bytes
+    | [9] : MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay, 12 + 40 bytes
+    | ...
+    | [20] : MyHitGroup_AABB_SignedDistancePrimitive, 12 + 40 bytes
+    | [21] : MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay, 12 + 40 bytes
+    | --------------------------------------------------------------------
+    ************************************************************************/
+
     // Initialize shader tables.
-    // ToDo apply the same to other samples.
 
     // RayGen shader table.
     {
@@ -1490,28 +1512,22 @@ void D3D12RaytracingProceduralGeometry::OnDeviceRestored()
 void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
 {
     static int frameCnt = 0;
-    static double elapsedTime = 0.0f;
+    static double prevTime = 0.0f;
     double totalTime = m_timer.GetTotalSeconds();
-
-    wstringstream wstream;
-    wstream << L"Total app time: " << totalTime << endl;
 
     frameCnt++;
 
-    OutputDebugString(wstream.str().c_str());
     // Compute averages over one second period.
-    if ((totalTime - elapsedTime) >= 1.0f)
+    if ((totalTime - prevTime) >= 1.0f)
     {
-        float diff = static_cast<float>(totalTime - elapsedTime);
+        float diff = static_cast<float>(totalTime - prevTime);
         float fps = static_cast<float>(frameCnt) / diff; // Normalize to an exact second.
 
         frameCnt = 0;
-        elapsedTime = totalTime;
-
+        prevTime = totalTime;
         float MRaysPerSecond = (m_width * m_height * fps) / static_cast<float>(1e6);
 
         wstringstream windowText;
-
         if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
         {
             if (m_fallbackDevice->UsingRaytracingDriver())

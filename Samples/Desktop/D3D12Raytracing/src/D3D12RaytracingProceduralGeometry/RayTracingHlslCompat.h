@@ -60,6 +60,7 @@ typedef UINT16 Index;
 //*************************************************************************
 
 
+
 // ToDo move this to RaytracingSceneDefines.h
 
 #define ANIMATE_PRIMITIVES 1
@@ -74,6 +75,7 @@ typedef UINT16 Index;
 // PERFORMANCE TIP: Set max recursion depth as low as needed
 // as drivers may apply optimization strategies for low recursion depths.
 #define MAX_RAY_RECURSION_DEPTH 3 // ToDo ~ primary rays + reflections + shadow rays from reflected geometry.
+
 
 struct ProceduralPrimitiveAttributes
 {

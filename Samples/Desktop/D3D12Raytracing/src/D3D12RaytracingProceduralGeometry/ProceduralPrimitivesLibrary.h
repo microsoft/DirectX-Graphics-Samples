@@ -9,6 +9,14 @@
 //
 //*********************************************************
 
+//**********************************************************************************************
+//
+// ProceduralPrimitivesLibrary.h
+//
+// An interface to call per geometry intersection tests based on as primitive type.
+//
+//**********************************************************************************************
+
 #ifndef PROCEDURALPRIMITIVESLIBRARY_H
 #define PROCEDURALPRIMITIVESLIBRARY_H
 

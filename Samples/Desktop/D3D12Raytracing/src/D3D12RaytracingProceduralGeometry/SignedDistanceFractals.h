@@ -9,6 +9,14 @@
 //
 //*********************************************************
 
+//**********************************************************************************************
+//
+// SignedDistanceFractals.h
+//
+// Set of signed distance fractal tests.
+//
+//**********************************************************************************************
+
 #ifndef SIGNEDDISTANCEFRACTALS_H
 #define SIGNEDDISTANCEFRACTALS_H
 
@@ -22,7 +30,7 @@
 // a = pyramid's inner angle between its side plane and a ground plane.
 // Pyramid position - sitting on a ground plane.
 // Pyramid span: {<-a,0,-a>, <a,h.z,a>}, where a = width of base = h.z * h.y / h.x.
-// Ref: http://blog.hvidtfeldts.net/index.php/2011/08/distance-estimated-3d-fractals-iii-folding-space/
+// More info here http://blog.hvidtfeldts.net/index.php/2011/08/distance-estimated-3d-fractals-iii-folding-space/
 float sdFractalPyramid(in float3 position, float3 h, in float Scale = 2.0f)
 {
     // Set pyramid vertices to AABB's extremities.

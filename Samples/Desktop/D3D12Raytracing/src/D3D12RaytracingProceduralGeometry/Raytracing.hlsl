@@ -9,13 +9,62 @@
 //
 //*********************************************************
 
+// ****------------- Shader table indexing and layouts -----------******************
+//
+// Shader table indexing:
+//  o Miss shader table index =  MissShaderIndex            ~ from shader: TraceRay()
+//
+//  o Hit group shader table index = 
+//      RayContributionToHitGroupIndex                      ~ from shader: TraceRay()  
+//      + MultiplierForGeometryContributionToHitGroupIndex  ~ from shader: TraceRay()
+//          * GeometryContributionToHitGroupIndex +         ~ system generated index of geometry in BLAS 
+//      + InstanceContributionToHitGroupIndex               ~ from BLAS instance desc
+//
+//  --------------------------------------------------------------------
+// Shader table layout & indexing in this sample: 
+//
+// Miss shader table layout:
+//   [0] : Miss shader record for a color ray
+//   [1] : Miss shader record for a shadow ray
+//
+// o Therefore MissShaderIndex is 0 for regular rays, and 1 for shadow rays
+//
+//
+// Hit group shader table layout:
+//   The sample uses two BLAS, first one for a triangle and second one for 
+//   AABB geometry, therefore the hit group shader table is stored as follows:
+//      [0 - ...]: Triangle hit groups shader records
+//      [# triangle hit groups * 2 hit groups per geometry - ...]: AABB hit group shader records.
+//   Each geometry category (Triangle/AABB) stores two hit group shader records 
+//   for each geometry ID. 
+//      [0] : Hit group shader record for geometry ID 0 for a color ray
+//      [1] : Hit group shader record for geometry ID 0 for a shadow ray
+//   This sample has 1 triangle geometry and  
+//   IntersectionShaderType::TotalPrimitiveCount() AABB geometries. Each geometry
+//   
+// o Geometry IDs are system generated for each geometry within a BLAS. 
+//   This maps to GeometryDesc order passed in by the app.
+// o Given two hit groups (color, shadow ray) per geometry ID, 
+//   MultiplierForGeometryContributionToHitGroupIndex is 2. This is same 
+//   for both color and shadow rays.
+// o RayContributionToHitGroupIndex is set to 0 and 1, for color and shadow 
+//   rays respectively, since both both hit group shader record for a shadow 
+//   ray is stored right after the color ray for each geometry in the shader table.
+// * InstanceContributionToHitGroupIndex is set to 0 and 1 
+//
+// ************************************************************************/ 
+
 #ifndef RAYTRACING_HLSL
 #define RAYTRACING_HLSL
+
+
 
 #define HLSL
 #include "RaytracingHlslCompat.h"
 #include "ProceduralPrimitivesLibrary.h"
 #include "RaytracingShaderHelper.h"
+
+
 
 //
 // Shader resources bound via root signatures.
@@ -88,6 +137,7 @@ float4 CalculatePhongLighting(float3 normal, bool isInShadow)
 // TraceRay wrappers for regular and shadow rays.
 //
 
+
 // Trace a regular ray into the scene and return a shaded color.
 float4 TraceRegularRay(in Ray ray, in UINT currentRayRecursionDepth)
 {
@@ -100,12 +150,14 @@ float4 TraceRegularRay(in Ray ray, in UINT currentRayRecursionDepth)
     RayDesc rayDesc;
     rayDesc.Origin = ray.origin;
     rayDesc.Direction = ray.direction;
-    // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
-    // Note: make sure to enable back-face culling so as to avoid surface face fighting.
+    // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
+    // Note: make sure to enable face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0;
     rayDesc.TMax = 10000.0;
 
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
+
+
 
     TraceRay(g_scene,
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */

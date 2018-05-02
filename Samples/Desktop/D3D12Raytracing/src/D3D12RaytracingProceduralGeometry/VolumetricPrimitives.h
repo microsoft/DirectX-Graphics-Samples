@@ -9,9 +9,6 @@
 //
 //*********************************************************
 
-#ifndef VOLUMETRICPRIMITIVESLIBRARY_H
-#define VOLUMETRICPRIMITIVESLIBRARY_H
-
 //**********************************************************************************************
 //
 // VolumetricPrimitives.h
@@ -20,6 +17,10 @@
 // More info here: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies
 //
 //**********************************************************************************************
+
+#ifndef VOLUMETRICPRIMITIVESLIBRARY_H
+#define VOLUMETRICPRIMITIVESLIBRARY_H
+
 
 #include "RaytracingShaderHelper.h"
 

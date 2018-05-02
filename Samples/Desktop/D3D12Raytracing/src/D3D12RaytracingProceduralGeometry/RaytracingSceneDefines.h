@@ -101,8 +101,8 @@ namespace GeometryType {
 
 namespace RayType {
     enum Enum {
-        Regular = 0,
-        Shadow,
+        Color = 0,   // ~ Primary, reflected camera/view rays calculating lighting for each hit
+        Shadow,  // ~ Shadow/visibility rays, only testing for occlusion
         Count
     };
 }
@@ -130,3 +130,4 @@ namespace IntersectionShaderType {
     static const UINT TotalPrimitiveCount =
         AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Count;
 }
+
