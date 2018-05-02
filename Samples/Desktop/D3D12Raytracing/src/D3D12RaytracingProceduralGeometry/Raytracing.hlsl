@@ -8,7 +8,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-// ToDo cleanup
+
 #ifndef RAYTRACING_HLSL
 #define RAYTRACING_HLSL
 
@@ -16,11 +16,6 @@
 #include "RaytracingHlslCompat.h"
 #include "ProceduralPrimitivesLibrary.h"
 #include "RaytracingShaderHelper.h"
-
-// ToDo:
-// - specify traceRay args in a shared header
-// - ReportHit will return to Intersection shader if RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH  is not specified. If that's the case handle it.
-// - remove pre-mul normal normalizations in intersection shaders.
 
 //
 // Shader resources bound via root signatures.
@@ -111,10 +106,7 @@ float4 TraceRegularRay(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.TMax = 10000.0;
 
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
-    // ToDo use hit/miss indices from a header
-    // ToDo place ShadowHitGroup right after Closest hitgroup?
-    // ToDo review hit group indexing
-    // ToDo - improve wording, reformat: Offset by 1 as AABB bottom-level AS offsets by 1 => 2
+
     TraceRay(g_scene,
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
         ~0,/* InstanceInclusionMask*/
@@ -148,10 +140,6 @@ bool TraceShadowRayAndReportIfHit(in float3 hitPosition, in UINT currentRayRecur
     // Shadow miss shader, if called, will set it to false.
     ShadowRayPayload shadowPayload = { true };
 
-    // ToDo use hit/miss indices from a header
-    // ToDo place ShadowHitGroup right after Closest hitgroup?
-    // ToDo review hit group indexing
-    // ToDo - improve wording, reformat: Offset by 1 as AABB  bottom-level AS offsets by 1 => 2
     TraceRay(g_scene,
         /* RayFlags */
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES
@@ -224,7 +212,6 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     rayPayload.color = phongColor + reflectedColor;
 }
 
-
 [shader("closesthit")]
 void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
@@ -242,10 +229,9 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitive
 [shader("miss")]
 void MyMissShader(inout RayPayload rayPayload)
 {
-    float4 background = float4(0.05f, 0.3f, 0.5f, 1.0f);
-    rayPayload.color = background;
+    float4 backgroundColor = float4(0.05f, 0.3f, 0.5f, 1.0f);
+    rayPayload.color = backgroundColor;
 }
-
 
 [shader("miss")]
 void MyMissShader_ShadowRay(inout ShadowRayPayload rayPayload)
@@ -258,13 +244,12 @@ void MyMissShader_ShadowRay(inout ShadowRayPayload rayPayload)
 //
 
 // Get ray in AABB's local space.
-Ray GetRayInAABBPrimitiveLocalSpace(out PrimitiveInstancePerFrameBuffer attr)
+Ray GetRayInAABBPrimitiveLocalSpace()
 {
-    // Should PrimitiveIndex be passed as arg?
-    // ToDo improve desc
-    // Retrieve ray origin position and direction in bottom level AS space 
+    PrimitiveInstancePerFrameBuffer attr = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
+    
+    // Retrieve a ray origin position and direction in bottom level AS space 
     // and transform them into the AABB primitive's local space.
-    attr = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
     Ray ray;
     ray.origin = mul(float4(ObjectRayOrigin(), 1), attr.bottomLevelASToLocalSpace).xyz;
     ray.direction = mul(ObjectRayDirection(), (float3x3) attr.bottomLevelASToLocalSpace);
@@ -285,6 +270,7 @@ void MyIntersectionShader_AnalyticPrimitive()
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = normalize(mul((float3x3) ObjectToWorld(), attr.normal));
+
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }
@@ -319,10 +305,10 @@ void MyIntersectionShader_SignedDistancePrimitive()
     ProceduralPrimitiveAttributes attr;
     if (RaySignedDistancePrimitiveTest(localRay, primitiveType, thit, attr, l_materialCB.stepScale))
     {
-        float3 position = localRay.origin + thit * localRay.direction;
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = normalize(mul((float3x3) ObjectToWorld(), attr.normal));
+        
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
 }

@@ -8,7 +8,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-// ToDo cleanup
+
 #ifndef RAYTRACINGSHADERHELPER_H
 #define RAYTRACINGSHADERHELPER_H
 
