@@ -153,7 +153,7 @@ void MyRaygenShader()
 // 
 
 [shader("closesthit")]
-void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
 {
     // Get the base index of the triangle's first 16 bit index.
     uint indexSizeInBytes = 2;
@@ -187,7 +187,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload : SV_RayPayload, in
 }
 
 [shader("closesthit")]
-void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in ProceduralPrimitiveAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
     float t = RayTCurrent();
     float3 hitPosition = HitWorldPosition();
@@ -223,7 +223,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload : SV_RayPayload, in Pro
 
 
 [shader("miss")]
-void MyMissShader(inout RayPayload rayPayload : SV_RayPayload)
+void MyMissShader(inout RayPayload rayPayload)
 {
     //float4 background = float4(0, 0, 0, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
     float4 background = float4(0.05f, 0.3f, 0.5f, 1.0f); //float4(0.8, 0.9, 1.0, 1.0f); //
@@ -232,7 +232,7 @@ void MyMissShader(inout RayPayload rayPayload : SV_RayPayload)
 
 
 [shader("miss")]
-void MyMissShader_ShadowRay(inout ShadowRayPayload rayPayload : SV_RayPayload)
+void MyMissShader_ShadowRay(inout ShadowRayPayload rayPayload)
 {
     rayPayload.hit = false;
 }
