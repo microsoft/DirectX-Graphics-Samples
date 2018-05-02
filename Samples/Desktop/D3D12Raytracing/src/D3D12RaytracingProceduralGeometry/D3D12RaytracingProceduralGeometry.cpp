@@ -1176,19 +1176,18 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
         // AABB geometry hit groups.
         {
             LocalRootSignature::AABB::RootArguments rootArgs;
-            UINT geometryIndex = 0;
+            UINT instanceIndex = 0;
 
-            // Iterate over and create shader records:
-            // Intersection shaders.
-            for (UINT iShader = 0, geometryIndex = 0; iShader < IntersectionShaderType::Count; iShader++)
+            // Create a shader record for each primitive.
+            for (UINT iShader = 0, instanceIndex = 0; iShader < IntersectionShaderType::Count; iShader++)
             {
                 UINT numPrimitiveTypes = IntersectionShaderType::PerPrimitiveTypeCount(static_cast<IntersectionShaderType::Enum>(iShader));
                 
                 // Primitives for each intersection shader.
-                for (UINT primitiveIndex = 0; primitiveIndex < numPrimitiveTypes; primitiveIndex++, geometryIndex++)
+                for (UINT primitiveIndex = 0; primitiveIndex < numPrimitiveTypes; primitiveIndex++, instanceIndex++)
                 {
-                    rootArgs.materialCb = m_aabbMaterialCB[geometryIndex];
-                    rootArgs.aabbCB.geometryIndex = geometryIndex;
+                    rootArgs.materialCb = m_aabbMaterialCB[instanceIndex];
+                    rootArgs.aabbCB.instanceIndex = instanceIndex;
                     rootArgs.aabbCB.primitiveType = primitiveIndex;
                     
                     // Ray types.

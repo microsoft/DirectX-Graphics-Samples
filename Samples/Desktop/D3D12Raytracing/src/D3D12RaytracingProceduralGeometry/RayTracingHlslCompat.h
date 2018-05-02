@@ -98,6 +98,7 @@ struct SceneConstantBuffer
     XMVECTOR lightPosition;
     XMVECTOR lightAmbientColor;
     XMVECTOR lightDiffuseColor;
+    float    reflectance;
     float    elapsedTime;                 // Elapsed application time.
 };
 
@@ -111,20 +112,19 @@ struct PrimitiveConstantBuffer
     XMFLOAT3 padding;
 };
 
-// ToDo rename
-struct AABBPrimitiveAttributes
+// Attributes per primitive instance.
+struct PrimitiveInstanceConstantBuffer
+{
+    UINT instanceIndex;  
+    UINT primitiveType; // Procedural primitive type
+};
+
+// Dynamic attributes per primitive instance.
+struct PrimitiveInstancePerFrameBuffer
 {
     XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space.
     XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space.
 };
-
-// Attributes per primitive instance.
-struct PrimitiveInstanceConstantBuffer
-{
-    UINT geometryIndex;
-    UINT primitiveType;
-};
-
 
 struct Vertex
 {

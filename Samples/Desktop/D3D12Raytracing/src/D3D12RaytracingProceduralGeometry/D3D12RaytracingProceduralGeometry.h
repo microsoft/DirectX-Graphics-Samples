@@ -78,7 +78,7 @@ private:
 
     // Raytracing scene
     ConstantBuffer<SceneConstantBuffer> m_sceneCB;
-    StructuredBuffer<AABBPrimitiveAttributes> m_aabbPrimitiveAttributeBuffer;
+    StructuredBuffer<PrimitiveInstancePerFrameBuffer> m_aabbPrimitiveAttributeBuffer;
     std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
 
     // Root constants
