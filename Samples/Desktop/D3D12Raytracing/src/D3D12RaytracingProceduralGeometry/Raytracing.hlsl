@@ -11,10 +11,11 @@
 
 // ****------------- Shader table indexing and layouts -----------******************
 // 
-// When a ray hits geometry or needs to call a miss shader it indexes into the application 
-// provided shader tables. As per DXR spec, the shader table indexing works as follows:
+// When a ray hits geometry or needs to call a miss shader, GPU indexes into the application 
+// provided shader tables. As per DXR spec, the shader table indexing is defined as follows:
 //
-//  o Miss shader table index = MissShaderIndex             ~ from shader: TraceRay()
+//  o Miss shader table index = 
+//      MissShaderIndex                                     ~ from shader: TraceRay()
 //
 //  o Hit group shader table index = 
 //      RayContributionToHitGroupIndex                      ~ from shader: TraceRay()  
@@ -35,16 +36,16 @@
 // triangle geometry (the ground plane) and then there is AABB/procedural geometry. 
 // AABB geometry requires intersection shaders to be specifiend in the hit 
 // groups. This sample demonstrates a use of three different intersection shaders,
-// and thus further enumeration of different shader records:
+// and thus further enumeration of different shader records per each:
 //  - MyIntersectionShader_AnalyticPrimitive
 //  - MyIntersectionShader_VolumetricPrimitive
 //  - MyIntersectionShader_SignedDistancePrimitive
 // 
-// Last, the sample defines multiple geometries per each intersection shader, all parametrized
-// via attributes provided by local root signature. Each local root signature instance
-// requires a separate shader.
+// Last, the sample defines multiple geometries per each intersection shader, 
+// all parametrized via attributes provided via local root signatures,
+// which in turn each require a different shader record. 
 //
-// With that said, the sample has following shader table layouts.
+// With that said, the sample has following shader table layouts. 
 //
 // Miss shader table layout
 // o There are two miss shader records:
@@ -54,22 +55,45 @@
 // Hit group shader table layout:
 //  o Triangle geometry shader records - single triangular geometry (ground plane)
 //  o AABB geometry shader records- multiple AABB geometries ~ IntersectionShaderType::TotalPrimitiveCount()
-// Each geometry requires two shader records:
+// Both triangle and ABB geometry require two shader records, per ray type:
 //   [0] : Hit group shader record for geometry ID 0 for a color ray
 //   [1] : Hit group shader record for geometry ID 0 for a shadow ray
 //
+// The actual shader tables are printed out in the debug output by this sample 
+// and its useful as a reference to indexing parameters. Here are first few
+// shader records of a hit group for reference in the examples below:
+// | Shader table - HitGroupShaderTable: 
+// | [0] : MyHitGroup_Triangle                           // Triangle geometry in 1st BLAS
+// | [1] : MyHitGroup_Triangle_ShadowRay
+// | [2] : MyHitGroup_AABB_AnalyticPrimitive             // ~ 1st AABB geometry in 2nd BLAS
+// | [3] : MyHitGroup_AABB_AnalyticPrimitive_ShadowRay
+// | [4] : MyHitGroup_AABB_AnalyticPrimitive             // ~ 2nd AABB geometry in 2nd BLAS
+// | [5] : MyHitGroup_AABB_AnalyticPrimitive_ShadowRay
+// ...
 //
 // Given the shader table layout, the shader table indexing is set as follows:
 // o MissShaderIndex is set to 0 for color rays, and 1 for shadow rays in TraceRay().
-// o Geometry IDs are system generated for each geometry within a BLAS. 
-//   This maps to GeometryDesc order passed in by the app.
+// o *GeometryContributionToHitGroupIndex* is a Geometry ID that is system 
+//   generated for each geometry within a BLAS. This directly maps to GeometryDesc 
+//   order passed in by the app, i.e. {0, 1, 2,...}
 // o Given two hit groups (color, shadow ray) per geometry ID, 
-//   *MultiplierForGeometryContributionToHitGroupIndex* is 2. This is same 
-//   for both color and shadow rays.
+//   *MultiplierForGeometryContributionToHitGroupIndex* is 2. 
 // o *RayContributionToHitGroupIndex* is set to 0 and 1, for color and shadow 
-//   rays respectively, since they're stores subsequently in a shader table.
-// * InstanceContributionToHitGroupIndex is set to 0 and 1 in the BLAS
-//   instance desc passed into the acceleration structure build.
+//   rays respectively, since they're stored subsequently in a shader table.
+// * InstanceContributionToHitGroupIndex is an offset in-between instances.
+//   Since triangle BLAS is first, it's set to 0 for triangle BLAS. AABB BLAS 
+//   sets it 2 since the BLAS has to skip over the triangle BLAS's shader
+//   records, which is 2 since the triangle plane has two shader records 
+//   (one for color, and one for shadow ray).
+//
+// Example:
+//  A shader calls a TraceRay() for a shadow ray and the ray hits a second 
+//  AABB geometry in the 2nd BLAS that contains AABB geometries. This refers 
+//  to the 5th shader record in the table above and calculated as:
+//        1     // ~ RayContributionToHitGroupIndex from AABB BLAS instance desc                     
+//      + 2     // ~ MultiplierForGeometryContributionToHitGroupIndex  
+//      * 1     // ~ GeometryContributionToHitGroupIndex
+//      + 2     // ~ InstanceContributionToHitGroupIndex
 //
 // ************************************************************************/ 
 
