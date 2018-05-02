@@ -13,7 +13,7 @@
 #include "ModelViewerRaytracing.h"
 
 [shader("closesthit")]
-void Hit(inout RayPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     payload.RayHitT = RayTCurrent();
     if (!payload.SkipShading)
