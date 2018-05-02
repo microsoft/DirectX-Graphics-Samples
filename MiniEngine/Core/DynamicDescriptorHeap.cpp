@@ -30,46 +30,46 @@ namespace {
     {
       using namespace Graphics;
 
-      D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-      uavDesc.Format = DXGI_FORMAT_R8_UINT;
-      uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;
+      D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+      UAVDesc.Format = DXGI_FORMAT_R8_UINT;
+      UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;
 
-      mUavNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-      g_Device->CreateUnorderedAccessView(nullptr, nullptr, &uavDesc, mUavNullDescriptor);
+      m_UavNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+      g_Device->CreateUnorderedAccessView(nullptr, nullptr, &UAVDesc, m_UavNullDescriptor);
 
-      D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-      srvDesc.Format = DXGI_FORMAT_R8_UINT;
-      srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
-      srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+      D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+      SRVDesc.Format = DXGI_FORMAT_R8_UINT;
+      SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
+      SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-      mSrvNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-      g_Device->CreateShaderResourceView(nullptr, &srvDesc, mSrvNullDescriptor);
+      m_SrvNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+      g_Device->CreateShaderResourceView(nullptr, &SRVDesc, m_SrvNullDescriptor);
 
-      mCbvNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-      g_Device->CreateConstantBufferView(nullptr, mCbvNullDescriptor);
+      m_CbvNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+      g_Device->CreateConstantBufferView(nullptr, m_CbvNullDescriptor);
 
-      D3D12_SAMPLER_DESC samplerDesc = {};
-      samplerDesc.AddressU = samplerDesc.AddressV = samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-      mSamplerNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-      g_Device->CreateSampler(&samplerDesc, mSamplerNullDescriptor);
+      D3D12_SAMPLER_DESC SamplerDesc = {};
+      SamplerDesc.AddressU = SamplerDesc.AddressV = SamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+      m_SamplerNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+      g_Device->CreateSampler(&SamplerDesc, m_SamplerNullDescriptor);
     }
 
     const D3D12_CPU_DESCRIPTOR_HANDLE& GetType(const D3D12_DESCRIPTOR_RANGE_TYPE& type) {
       if (type == D3D12_DESCRIPTOR_RANGE_TYPE_SRV)
-        return mSrvNullDescriptor;
+        return m_SrvNullDescriptor;
       else if (type == D3D12_DESCRIPTOR_RANGE_TYPE_UAV)
-        return mUavNullDescriptor;
+        return m_UavNullDescriptor;
       else if (type == D3D12_DESCRIPTOR_RANGE_TYPE_CBV)
-        return mCbvNullDescriptor;
+        return m_CbvNullDescriptor;
       else
-        return mSamplerNullDescriptor;
+        return m_SamplerNullDescriptor;
     }
 
   private:
-    D3D12_CPU_DESCRIPTOR_HANDLE mSrvNullDescriptor;
-    D3D12_CPU_DESCRIPTOR_HANDLE mUavNullDescriptor;
-    D3D12_CPU_DESCRIPTOR_HANDLE mCbvNullDescriptor;
-    D3D12_CPU_DESCRIPTOR_HANDLE mSamplerNullDescriptor;
+    D3D12_CPU_DESCRIPTOR_HANDLE m_SrvNullDescriptor;
+    D3D12_CPU_DESCRIPTOR_HANDLE m_UavNullDescriptor;
+    D3D12_CPU_DESCRIPTOR_HANDLE m_CbvNullDescriptor;
+    D3D12_CPU_DESCRIPTOR_HANDLE m_SamplerNullDescriptor;
   };
 
   DefaultResources sm_DefaultResources;
