@@ -24,6 +24,58 @@ using namespace Graphics;
 // DynamicDescriptorHeap Implementation
 //
 
+namespace {
+  struct DefaultResources {
+    void CreateDefaultResources()
+    {
+      using namespace Graphics;
+
+      D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+      uavDesc.Format = DXGI_FORMAT_R8_UINT;
+      uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;
+
+      mUavNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+      g_Device->CreateUnorderedAccessView(nullptr, nullptr, &uavDesc, mUavNullDescriptor);
+
+      D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+      srvDesc.Format = DXGI_FORMAT_R8_UINT;
+      srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
+      srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+      mSrvNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+      g_Device->CreateShaderResourceView(nullptr, &srvDesc, mSrvNullDescriptor);
+
+      mCbvNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+      g_Device->CreateConstantBufferView(nullptr, mCbvNullDescriptor);
+
+      D3D12_SAMPLER_DESC samplerDesc = {};
+      samplerDesc.AddressU = samplerDesc.AddressV = samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+      mSamplerNullDescriptor = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+      g_Device->CreateSampler(&samplerDesc, mSamplerNullDescriptor);
+    }
+
+    const D3D12_CPU_DESCRIPTOR_HANDLE& GetType(const D3D12_DESCRIPTOR_RANGE_TYPE& type) {
+      if (type == D3D12_DESCRIPTOR_RANGE_TYPE_SRV)
+        return mSrvNullDescriptor;
+      else if (type == D3D12_DESCRIPTOR_RANGE_TYPE_UAV)
+        return mUavNullDescriptor;
+      else if (type == D3D12_DESCRIPTOR_RANGE_TYPE_CBV)
+        return mCbvNullDescriptor;
+      else
+        return mSamplerNullDescriptor;
+    }
+
+  private:
+    D3D12_CPU_DESCRIPTOR_HANDLE mSrvNullDescriptor;
+    D3D12_CPU_DESCRIPTOR_HANDLE mUavNullDescriptor;
+    D3D12_CPU_DESCRIPTOR_HANDLE mCbvNullDescriptor;
+    D3D12_CPU_DESCRIPTOR_HANDLE mSamplerNullDescriptor;
+  };
+
+  DefaultResources sm_DefaultResources;
+
+}
+
 std::mutex DynamicDescriptorHeap::sm_Mutex;
 std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> DynamicDescriptorHeap::sm_DescriptorHeapPool[2];
 std::queue<std::pair<uint64_t, ID3D12DescriptorHeap*>> DynamicDescriptorHeap::sm_RetiredDescriptorHeaps[2];
@@ -96,6 +148,9 @@ DynamicDescriptorHeap::DynamicDescriptorHeap(CommandContext& OwningContext, D3D1
     m_CurrentHeapPtr = nullptr;
     m_CurrentOffset = 0;
     m_DescriptorSize = Graphics::g_Device->GetDescriptorHandleIncrementSize(HeapType);
+
+    static std::once_flag init;
+    std::call_once(init, [&]() { sm_DefaultResources.CreateDefaultResources(); });
 }
 
 DynamicDescriptorHeap::~DynamicDescriptorHeap()
@@ -262,6 +317,57 @@ void DynamicDescriptorHeap::CopyAndBindStagedTables( DescriptorHandleCache& Hand
     HandleCache.CopyAndBindStaleTables(m_DescriptorType, m_DescriptorSize, Allocate(NeededSize), CmdList, SetFunc);
 }
 
+void DynamicDescriptorHeap::DescriptorHandleCache::SetDefaults() {
+  unsigned long TableParams = m_RootDescriptorTablesBitMap;
+  unsigned long RootIndex;
+  while (_BitScanForward(&RootIndex, TableParams)) {
+    TableParams ^= (1 << RootIndex);
+    DescriptorTableCache &RootDescTable = m_RootDescriptorTable[RootIndex];
+
+    if (RootDescTable.TableSize == 0u)
+      continue;
+
+    uint32_t TableMask = ((1 << RootDescTable.TableSize) - 1);
+    if (RootDescTable.AssignedHandlesBitMap == TableMask)
+      continue;
+
+    if (RootDescTable.Type != D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
+      continue;
+
+    uint64_t SetHandles = (uint64_t)m_RootDescriptorTable[RootIndex].AssignedHandlesBitMap;
+    auto SrcHandles = RootDescTable.TableStart;
+
+    if (RootDescTable.RangeType >= D3D12_DESCRIPTOR_RANGE_TYPE_SRV && RootDescTable.RangeType <= D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER)
+    {
+      auto& NullResource = sm_DefaultResources.GetType(RootDescTable.RangeType);
+      uint32_t InverseTableMask = ~TableMask;
+
+      unsigned long UnsetCount;
+      uint32_t Offset = 0;
+      while (_BitScanForward64(&UnsetCount, SetHandles ^ InverseTableMask) && Offset < RootDescTable.TableSize) {
+        SetHandles >>= UnsetCount;
+        InverseTableMask >>= UnsetCount;
+
+        if (UnsetCount > 0) {
+          std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> null_resources(UnsetCount, NullResource);
+          StageDescriptorHandles(RootIndex, Offset, UnsetCount, null_resources.data());
+          Offset += UnsetCount;
+        }
+
+        // Skip already set ones
+        unsigned long DescriptorCount;
+        _BitScanForward64(&DescriptorCount, ~SetHandles);
+        if (DescriptorCount > 0) {
+          SetHandles >>= DescriptorCount;
+          InverseTableMask >>= DescriptorCount;
+          Offset += DescriptorCount;
+        }
+      }
+
+    }
+  }
+}
+
 void DynamicDescriptorHeap::UnbindAllValid( void )
 {
     m_GraphicsHandleCache.UnbindAllValid();
@@ -336,7 +442,8 @@ void DynamicDescriptorHeap::DescriptorHandleCache::ParseRootSignature( D3D12_DES
         RootDescriptorTable.AssignedHandlesBitMap = 0;
         RootDescriptorTable.TableStart = m_HandleCache + CurrentOffset;
         RootDescriptorTable.TableSize = TableSize;
-
+        RootDescriptorTable.Type = RootSig[RootIndex].GetType();
+        RootDescriptorTable.RangeType = RootSig[RootIndex].GetRangeType();
         CurrentOffset += TableSize;
     }
 
