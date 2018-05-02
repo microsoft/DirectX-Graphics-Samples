@@ -259,8 +259,7 @@ Ray GetRayInAABBPrimitiveLocalSpace()
 [shader("intersection")]
 void MyIntersectionShader_AnalyticPrimitive()
 {
-    PrimitiveInstancePerFrameBuffer inAttr;
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace();
     AnalyticPrimitive::Enum primitiveType = (AnalyticPrimitive::Enum) l_aabbCB.primitiveType;
 
     float thit;
@@ -278,8 +277,7 @@ void MyIntersectionShader_AnalyticPrimitive()
 [shader("intersection")]
 void MyIntersectionShader_VolumetricPrimitive()
 {
-    PrimitiveInstancePerFrameBuffer inAttr;
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace();
     VolumetricPrimitive::Enum primitiveType = (VolumetricPrimitive::Enum) l_aabbCB.primitiveType;
     
     float thit;
@@ -297,8 +295,7 @@ void MyIntersectionShader_VolumetricPrimitive()
 [shader("intersection")]
 void MyIntersectionShader_SignedDistancePrimitive()
 {
-    PrimitiveInstancePerFrameBuffer inAttr;
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace(inAttr);
+    Ray localRay = GetRayInAABBPrimitiveLocalSpace();
     SignedDistancePrimitive::Enum primitiveType = (SignedDistancePrimitive::Enum) l_aabbCB.primitiveType;
 
     float thit;
