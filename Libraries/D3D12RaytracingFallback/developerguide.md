@@ -203,7 +203,11 @@ The stack size passed by `SetPipelineStackSize` is ignored and uses a hard-coded
 * #### Use of the Shader Record is thrown off when using an empty ray payload
 
 * #### D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE  is ignored
-As a result, the `RAY_FLAG_CULL_OPAQUE`/`RAY_FLAG_CULL_NON_OPAQUE` flags will have no effect either         
+As a result, the `RAY_FLAG_CULL_OPAQUE`/`RAY_FLAG_CULL_NON_OPAQUE` flags will have no effect either        
+
+* #### Intersection Shader doesn't respect D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE/D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE
+The invocation of an AnyHit shader after a ReportHit() call from an Intersection shader will not correctly respond based on the use of the instance flags
+ 
 ## Debugging & Tooling
 The Fallback Layer natively works with PIX. However, PIX does not have support for using ray tracing debugging capabilities with the Fallback and will instead show all operations as the underlying compute shader dispatches. 
 
