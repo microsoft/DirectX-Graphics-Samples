@@ -8,7 +8,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-
+// ToDo cleanup
 #ifndef SIGNEDDISTANCEFRACTALS_H
 #define SIGNEDDISTANCEFRACTALS_H
 

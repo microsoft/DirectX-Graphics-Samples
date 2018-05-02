@@ -8,7 +8,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-
+// ToDo cleanup
 #ifndef RAYTRACING_HLSL
 #define RAYTRACING_HLSL
 
@@ -20,7 +20,7 @@
 // ToDo:
 // - specify traceRay args in a shared header
 // - ReportHit will return to Intersection shader if RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH  is not specified. If that's the case handle it.
-// 
+// - remove pre-mul normal normalizations in intersection shaders.
 
 RaytracingAccelerationStructure Scene : register(t0, space0);
 RWTexture2D<float4> RenderTarget : register(u0);
@@ -35,7 +35,7 @@ ConstantBuffer<PrimitiveInstanceConstantBuffer> lrs_aabbCB: register(b2);   // f
 // Diffuse lighting calculation.
 float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
 {
-    float3 pixelToLight = normalize(g_sceneCB.lightPosition - hitPosition);
+    float3 pixelToLight = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
     float fNDotL = max(0.0f, dot(pixelToLight, normal));
     return g_sceneCB.lightDiffuseColor * fNDotL;
 }
@@ -43,7 +43,7 @@ float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
 // Phong lighting specular component
 float4 CalculatePhongSpecularComponent(in float3 hitPosition, in float3 normal, in float specularPower)
 {
-    float3 lightToPixel = normalize(hitPosition - g_sceneCB.lightPosition);
+    float3 lightToPixel = normalize(hitPosition - g_sceneCB.lightPosition.xyz);
     float3 R = reflect(lightToPixel, normal);
     return float4(1, 1, 1, 1) * pow(saturate(dot(R, -WorldRayDirection())), specularPower);
 }
@@ -88,7 +88,7 @@ float4 TraceRegularRay(in Ray ray, in UINT currentRayRecursionDepth)
 }
 
 // Trace a shadow ray and return true if it hits any geometry.
-bool TraceShadowRayAndReportIfHit(in UINT currentRayRecursionDepth, float3 hitPosition)
+bool TraceShadowRayAndReportIfHit(in float3 hitPosition, in UINT currentRayRecursionDepth)
 {
     if (currentRayRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
     {
@@ -98,7 +98,7 @@ bool TraceShadowRayAndReportIfHit(in UINT currentRayRecursionDepth, float3 hitPo
     // Set the ray's extents.
     RayDesc ray;
     ray.Origin = hitPosition;
-    ray.Direction = normalize(g_sceneCB.lightPosition - hitPosition);
+    ray.Direction = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     // TMin should be kept small to prevent missing geometry at close contact areas.
     // For shadow ray this will be extremely small to avoid aliasing at contact areas.
@@ -167,17 +167,17 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     float3 triangleNormal = Vertices[indices[0]].normal;
 
     // Trace a reflection ray.
-    float3 hitPosition = HitWorldPosition();
-    // Remove normalize from ray direction?
-    Ray reflectionRay = { hitPosition, reflect(normalize(WorldRayDirection()), triangleNormal) };
+    // Note it is recommended to limit live values across TraceRay calls. 
+    // Therefore HitWorldPosition() is recalculated every time instead.
+    Ray reflectionRay = { HitWorldPosition(), reflect(WorldRayDirection(), triangleNormal) };
     float4 reflectionColor = TraceRegularRay(reflectionRay, rayPayload.recursionDepth);
 
     // Trace a shadow ray.
-    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth, hitPosition);
+    bool shadowRayHit = TraceShadowRayAndReportIfHit(HitWorldPosition(), rayPayload.recursionDepth);
     float shadowFactor = shadowRayHit ? 0.2 : 1.0;
 
     // Calculate lighting.
-    float4 diffuseColor = shadowFactor * lrs_materialCB.albedo * CalculateDiffuseLighting(hitPosition, triangleNormal);
+    float4 diffuseColor = shadowFactor * lrs_materialCB.albedo * CalculateDiffuseLighting(HitWorldPosition(), triangleNormal);
     float4 reflectance = float4(1, 1, 1, 1) - lrs_materialCB.albedo;
     float4 color = g_sceneCB.lightAmbientColor + diffuseColor + reflectance * reflectionColor;
 
@@ -190,9 +190,8 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitive
     float t = RayTCurrent();
     float3 hitPosition = HitWorldPosition();
     
-    // Trace a shadow ray. 
-    // ToDo fixup shadow ray for metaballs - threshold.
-    bool shadowRayHit = TraceShadowRayAndReportIfHit(rayPayload.recursionDepth, hitPosition);
+    // Trace a shadow ray.
+    bool shadowRayHit = TraceShadowRayAndReportIfHit(hitPosition, rayPayload.recursionDepth);
     float shadowFactor = shadowRayHit ? 0.2 : 1.0;
 
     float3 normal = attr.normal;

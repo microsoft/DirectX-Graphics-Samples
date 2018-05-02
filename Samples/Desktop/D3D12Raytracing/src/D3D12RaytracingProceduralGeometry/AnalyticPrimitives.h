@@ -20,10 +20,9 @@
 //
 //**********************************************************************************************
 
-
 #include "RaytracingShaderHelper.h"
 
-// Solve quadratic equation.
+// Solve a quadratic equation.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
 bool SolveQuadraticEqn(float a, float b, float c, out float x0, out float x1)
 {
@@ -59,11 +58,10 @@ bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
             || ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot > 0)));
 }
 
-// Calculates a normal for a hit point on a sphere.
+// Calculate a normal for a hit point on a sphere.
 float3 CalculateNormalForARaySphereHit(in Ray ray, in float thit, float3 center)
 {
     float3 hitPosition = ray.origin + thit * ray.direction;
-    // Get the normal in world space
     return normalize(hitPosition - center);
 }
 
@@ -123,8 +121,8 @@ bool RaySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax, 
 {
     float t0, t1; // solutions for t if the ray intersects 
 
-    if (!SolveRaySphereIntersectionEquation(ray, t0, t1, center, radius)) return false;
-
+    if (!SolveRaySphereIntersectionEquation(ray, t0, t1, center, radius)) 
+        return false;
 
     // Since it's a solid sphere, clip intersection points to ray extents.
     thit = max(t0, RayTMin());
@@ -173,18 +171,11 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
 }
 
 // Test if a ray segment <RayTMin(), RayTCurrent()> intersects a hollow AABB.
+// Limitation: this test does not take RayFlags into consideration and does not calculate a surface normal.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
 bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float tmax)
 {
     float3 tmin3, tmax3;
-    // ToDo compare perf
-#if 0
-    tmin3 = (aabb[0] - ray.origin) / ray.direction;
-    tmax3 = (aabb[1] - ray.origin) / ray.direction;
-    if (ray.direction.x < 0) swap(tmin3.x, tmax3.x);
-    if (ray.direction.y < 0) swap(tmin3.y, tmax3.y);
-    if (ray.direction.z < 0) swap(tmin3.z, tmax3.z);
-#else
     int3 sign3 = ray.direction > 0;
     tmin3.x = (aabb[1 - sign3.x].x - ray.origin.x) / ray.direction.x;
     tmax3.x = (aabb[sign3.x].x - ray.origin.x) / ray.direction.x;
@@ -194,7 +185,6 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
     
     tmin3.z = (aabb[1 - sign3.z].z - ray.origin.z) / ray.direction.z;
     tmax3.z = (aabb[sign3.z].z - ray.origin.z) / ray.direction.z;
-#endif
     
     tmin = max(max(tmin3.x, tmin3.y), tmin3.z);
     tmax = min(min(tmax3.x, tmax3.z), tmax3.z);
@@ -202,7 +192,7 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
     return tmax > tmin && tmax >= RayTMin() && tmin <= RayTCurrent();
 }
 
-// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects an AABB.
+// Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a hollow AABB.
 bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float thit, out ProceduralPrimitiveAttributes attr)
 {
     float tmin, tmax;

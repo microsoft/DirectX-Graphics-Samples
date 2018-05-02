@@ -8,7 +8,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-
+// ToDo cleanup
 #ifndef RAYTRACINGHLSLCOMPAT_H
 #define RAYTRACINGHLSLCOMPAT_H
 
@@ -34,6 +34,7 @@
 //
 //*************************************************************************
 
+
 //*************************************************************************
 // Fallback Layer workarounds
 //
@@ -42,21 +43,21 @@
 //
 //*************************************************************************
 
+
 // ToDo move this to RaytracingSceneDefines.h
-// ToDo revert caching hitposition to avoid live values
 
 #define ANIMATE_PRIMITIVES 1
 
-// Limitting calculations only to metaballs a ray intersects can speed up 
-// dramatically the more the number of metaballs used.
+// Limitting calculations only to metaballs a ray intersects can speed up raytracing
+// dramatically the more the number of metaballs are used.
 // Requires: USE_DYNAMIC_LOOPS set to 1 to take effect.
 #define LIMIT_TO_ACTIVE_METABALLS 0
 
-#define N_FRACTAL_ITERATIONS 4  // = 1+
+#define N_FRACTAL_ITERATIONS 4  // 1+
 
 
 #ifdef HLSL
-#include "HlslCompat.h"
+#include "util\HlslCompat.h"
 #else
 using namespace DirectX;
 
@@ -66,23 +67,22 @@ typedef UINT16 Index;
 
 // PERFORMANCE TIP: Set max recursion depth as low as needed
 // as drivers may apply optimization strategies for low recursion depths.
-#define MAX_RAY_RECURSION_DEPTH 3 // ToDo ~ primary rays + reflections + shadow rays.
+#define MAX_RAY_RECURSION_DEPTH 3 // ToDo ~ primary rays + reflections + shadow rays from reflected geometry.
 
-// ToDo cleanup
 struct ProceduralPrimitiveAttributes
 {
     XMFLOAT3 normal;
 };
-struct ShadowRayPayload
-{
-    bool hit;
-};
-
 
 struct RayPayload
 {
     XMFLOAT4 color;
     UINT   recursionDepth;
+};
+
+struct ShadowRayPayload
+{
+    bool hit;
 };
 
 struct SceneConstantBuffer
@@ -95,7 +95,6 @@ struct SceneConstantBuffer
     float    totalTime;                 // Elapsed application time.
 };
 
-
 // Attributes per primitive type.
 struct PrimitiveConstantBuffer
 {
@@ -104,6 +103,13 @@ struct PrimitiveConstantBuffer
                                           // - Some object transformations don't preserve the distances and 
                                           //   thus require shorter steps.
     XMFLOAT3 padding;
+};
+
+// ToDo rename
+struct AABBPrimitiveAttributes
+{
+    XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space.
+    XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space.
 };
 
 // Attributes per primitive instance.
@@ -146,11 +152,5 @@ namespace SignedDistancePrimitive {
         Count
     };
 }
-
-struct AABBPrimitiveAttributes
-{
-    XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space.
-    XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space.
-};
 
 #endif // RAYTRACINGHLSLCOMPAT_H

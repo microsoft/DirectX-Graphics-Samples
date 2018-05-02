@@ -8,7 +8,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-
+// ToDo cleanup
 #ifndef RAYTRACINGSHADERHELPER_H
 #define RAYTRACINGSHADERHELPER_H
 
@@ -35,18 +35,10 @@ float length_toPow2(float3 p)
 // Returns a cycling <0 -> 1 -> 0> animation interpolant 
 float CalculateAnimationInterpolant(in float elapsedTime, in float cycleDuration)
 {
-    // ToDo
-#if 0
-    float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
-    return (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
-#elif 0
-    float curSineCycleTime = sin(elapsedTime / cycleDuration * 3.14 * 2);
-    return (curSineCycleTime + 1 ) * 0.5;
-#else
+    // ToDo move to CPU?
     float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
     curLinearCycleTime = (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
     return smoothstep(0, 1, curLinearCycleTime);
-#endif
 }
 
 void swap(inout float a, inout float b)
@@ -122,7 +114,7 @@ inline Ray GenerateCameraRay(uint2 index, in float3 cameraPosition, in float4x4 
 
     Ray ray;
     ray.origin = cameraPosition;
-    ray.direction = normalize(world - ray.origin);
+    ray.direction = normalize(world.xyz - ray.origin);
 
     return ray;
 }
