@@ -140,11 +140,11 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
 
 #if ANIMATE_PRIMITIVES
     // ToDo per primitive animation
-    const float totalTime = -6 * static_cast<float>(m_timer.GetTotalSeconds());
+    const float elapsedTime = -6 * static_cast<float>(m_timer.GetTotalSeconds());
 #elif N_METABALLS == 5
-    const float totalTime = -5.56642008;
+    const float elapsedTime = -5.56642008;
 #else 
-    const float totalTime = -188;
+    const float elapsedTime = -188;
 #endif
     for (UINT i = 0; i < IntersectionShaderType::TotalPrimitiveCount; i++)
     {
@@ -152,8 +152,8 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
         XMVECTOR vTranslation = 0.5f*(XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(&m_aabbs[i].MinX)) 
                                     + XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(&m_aabbs[i].MaxX)));
         // ToDo TotalSeconds may run out of precision after some time
-        //XMMATRIX mRotation =  XMMatrixRotationZ(totalTime/2.0f*(x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
-        XMMATRIX mRotation = XMMatrixRotationY(totalTime / 3.0f);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
+        //XMMATRIX mRotation =  XMMatrixRotationZ(elapsedTime/2.0f*(x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
+        XMMATRIX mRotation = XMMatrixRotationY(elapsedTime / 3.0f);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
         XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
         XMMATRIX mTransform = mScale * mTranslation;
         if (i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::FractalPyramid)
@@ -1292,7 +1292,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
         const XMVECTOR& prevLightPosition = m_sceneCB->lightPosition;
         m_sceneCB->lightPosition = XMVector3Transform(prevLightPosition, rotate);
     }
-    m_sceneCB->totalTime = static_cast<float>(m_timer.GetTotalSeconds());
+    m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
      UpdateAABBPrimitiveAttributes();
 }

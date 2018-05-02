@@ -29,7 +29,7 @@
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 //*********************************************************************************
-// ToDo cleanup
+
 #ifndef SIGNEDDISTANCEPRIMITIVES_H
 #define SIGNEDDISTANCEPRIMITIVES_H
 
@@ -43,9 +43,7 @@
 //
 //**********************************************************************************************
 
-
 #include "RaytracingShaderHelper.h"
-
 
 //------------------------------------------------------------------
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum sdPrimitive);
@@ -281,8 +279,8 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
 
         // Since distance is the minimum distance to the primitive, 
         // we can safely jump by that amount without intersecting the primitive.
-        // We allow for scaling of steps per primitive type due to their transformations 
-        // that don't preserve true distances.
+        // We allow for scaling of steps per primitive type due to any pre-applied 
+        // transformations that don't preserve true distances.
         t += stepScale * distance;
     }
     return false;

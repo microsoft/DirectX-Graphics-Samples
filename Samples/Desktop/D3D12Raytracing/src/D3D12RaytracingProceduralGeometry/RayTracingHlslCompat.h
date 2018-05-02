@@ -8,13 +8,29 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-// ToDo cleanup
+
 #ifndef RAYTRACINGHLSLCOMPAT_H
 #define RAYTRACINGHLSLCOMPAT_H
 
+//**********************************************************************************************
+//
+// RaytracingHLSLCompat.h
+//
+// A header with shared definitions for C++ and HLSL source files. 
+//
+//**********************************************************************************************
+
+#ifdef HLSL
+#include "util\HlslCompat.h"
+#else
+using namespace DirectX;
+
+// Shader will use byte encoding to access indices.
+typedef UINT16 Index;
+#endif
 
 //*************************************************************************
-// NV driver workarounds: 
+// NV driver limitation workarounds: 
 // Setting following causes a NV driver to fail to create a state object:
 // - N_METABALLS 5
 // - USE_DYNAMIC_LOOPS 0
@@ -36,7 +52,7 @@
 
 
 //*************************************************************************
-// Fallback Layer workarounds
+// Fallback Layer limitation workarounds
 //
 // Fallback Layer does not support default exports for DXIL libraries yet.
 #define DEFINE_EXPLICIT_SHADER_EXPORTS 1
@@ -49,21 +65,11 @@
 #define ANIMATE_PRIMITIVES 1
 
 // Limitting calculations only to metaballs a ray intersects can speed up raytracing
-// dramatically the more the number of metaballs are used.
+// dramatically.  the more the number of metaballs are used.
 // Requires: USE_DYNAMIC_LOOPS set to 1 to take effect.
 #define LIMIT_TO_ACTIVE_METABALLS 0
 
 #define N_FRACTAL_ITERATIONS 4  // 1+
-
-
-#ifdef HLSL
-#include "util\HlslCompat.h"
-#else
-using namespace DirectX;
-
-// Shader will use byte encoding to access indices.
-typedef UINT16 Index;
-#endif
 
 // PERFORMANCE TIP: Set max recursion depth as low as needed
 // as drivers may apply optimization strategies for low recursion depths.
@@ -92,7 +98,7 @@ struct SceneConstantBuffer
     XMVECTOR lightPosition;
     XMVECTOR lightAmbientColor;
     XMVECTOR lightDiffuseColor;
-    float    totalTime;                 // Elapsed application time.
+    float    elapsedTime;                 // Elapsed application time.
 };
 
 // Attributes per primitive type.
@@ -118,6 +124,7 @@ struct PrimitiveInstanceConstantBuffer
     UINT geometryIndex;
     UINT primitiveType;
 };
+
 
 struct Vertex
 {

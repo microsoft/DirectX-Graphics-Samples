@@ -8,7 +8,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-// ToDo cleanup
+
 #ifndef SIGNEDDISTANCEFRACTALS_H
 #define SIGNEDDISTANCEFRACTALS_H
 
@@ -48,10 +48,12 @@ float sdFractalPyramid(in float3 position, float3 h, in float Scale = 2.0f)
         d = length_toPow2(position - v4); if (d < dist) { v = v4; dist = d; }
         d = length_toPow2(position - v5); if (d < dist) { v = v5; dist = d; }
 
-        // Find a relative position in the next fractal interation.
+        // Update to a relative position in the current fractal iteration.
         position = Scale * position - v * (Scale - 1.0);
     }
     float distance = sdPyramid(position, h);
+
+    // Convert the distance from within a fractal iteration to the object space.
     return distance * pow(Scale, float(-n));
 }
 #endif // SIGNEDDISTANCEFRACTALS_H

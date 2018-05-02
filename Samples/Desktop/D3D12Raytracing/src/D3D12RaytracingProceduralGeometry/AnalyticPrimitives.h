@@ -41,23 +41,6 @@ bool SolveQuadraticEqn(float a, float b, float c, out float x0, out float x1)
     return true;
 }
 
-
-// Test if a hit is valid based on specified RayFlags.
-// ToDo explain why check for thit being in range here instead of depend on ReportHit
-// ToDo separate tests that are final using IsAValid hit and intermediate ones
-bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
-{
-    float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
-    return
-        // Is thit within <tmin, tmax> range.
-        IsInRange(thit, RayTMin(), RayTCurrent())
-        &&
-        // Is the hit not culled.
-        (!(RayFlags() & (RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_CULL_FRONT_FACING_TRIANGLES))
-            || ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (rayDirectionNormalDot < 0))
-            || ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot > 0)));
-}
-
 // Calculate a normal for a hit point on a sphere.
 float3 CalculateNormalForARaySphereHit(in Ray ray, in float thit, float3 center)
 {
@@ -130,7 +113,6 @@ bool RaySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax, 
 
     return true;
 }
-
 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects multiple hollow spheres.
 bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr)
@@ -214,12 +196,7 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float thit, out Proced
         else if (distanceToBounds[1].y < eps) attr.normal = float3(0, 1, 0);
         else if (distanceToBounds[1].z < eps) attr.normal = float3(0, 0, 1);
 
-        if (IsAValidHit(ray, thit, attr.normal))
-        {
-            // Get the normal in world space.
-            attr.normal = mul((float3x3)ObjectToWorld(), attr.normal);
-            return true;
-        }
+        return IsAValidHit(ray, thit, attr.normal);
     }
     return false;
 }

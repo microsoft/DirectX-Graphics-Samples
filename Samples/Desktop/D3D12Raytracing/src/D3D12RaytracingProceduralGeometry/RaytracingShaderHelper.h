@@ -119,4 +119,20 @@ inline Ray GenerateCameraRay(uint2 index, in float3 cameraPosition, in float4x4 
     return ray;
 }
 
+// Test if a hit is valid based on specified RayFlags.
+// ToDo explain why check for thit being in range here instead of depend on ReportHit
+// ToDo separate tests that are final using IsAValid hit and intermediate ones
+bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
+{
+    float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
+    return
+        // Is thit within <tmin, tmax> range.
+        IsInRange(thit, RayTMin(), RayTCurrent())
+        &&
+        // Is the hit not culled.
+        (!(RayFlags() & (RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_CULL_FRONT_FACING_TRIANGLES))
+            || ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (rayDirectionNormalDot < 0))
+            || ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot > 0)));
+}
+
 #endif // RAYTRACINGSHADERHELPER_H
