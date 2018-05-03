@@ -43,7 +43,6 @@
 #ifndef SIGNEDDISTANCEPRIMITIVES_H
 #define SIGNEDDISTANCEPRIMITIVES_H
 
-
 #include "RaytracingShaderHelper.h"
 
 //------------------------------------------------------------------
@@ -77,13 +76,14 @@ float3 opRep(float3 p, float3 c)
 
 // Polynomial smooth min/union (k = 0.1)
 // Ref: http://www.iquilezles.org/www/articles/smin/smin.htm
-float smax(float a, float b, float k)
+float smin(float a, float b, float k)
 {
     float h = clamp(0.5 + 0.5*(b - a) / k, 0.0, 1.0);
-    return lerp(a, b, h) + k * h*(1.0 - h);
+    return lerp(b, a, h) - k * h*(1.0 - h);
 }
 
-// Polynomial smooth max/intersection (k = 0.1)
+
+// Polynomial smooth min/union (k = 0.1)
 float smax(float a, float b, float k)
 {
     float h = clamp(0.5 + 0.5*(b - a) / k, 0.0, 1.0);
@@ -96,12 +96,11 @@ float opBlendU(float d1, float d2)
     return smin(d1, d2, 0.1);
 }
 
-// Smooth blend as intersection
+// Smooth blend as intersect 
 float opBlendI(float d1, float d2)
 {
     return smax(d1, d2, 0.1);
 }
-
 
 //------------------------------------------------------------------
 
