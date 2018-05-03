@@ -49,7 +49,7 @@ private:
     static const UINT FrameCount = 3;
 
     // Number of AABB bottom-level AS instances
-    const UINT NUM_BLAS = 2; // Triangle + AABB bottom-level AS instances.
+    const UINT NUM_BLAS = 2;            // Triangle + AABB bottom-level AS instances.
     const float c_aabbWidth = 2;      // AABB width
     const float c_aabbDistance = 2;   // Distance between AABBs
 

@@ -124,57 +124,58 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-    const float aabbDefaultWidth = 2;    // Default AABB is <-1,1>^3
-    //const float c_aabbWidth  = 2;// 1 / sqrt(2.0f);// Width of each AABB - scaled down to fit any AABB rotation within the default width
-    const float aabbDistanceStride = c_aabbWidth  + c_aabbDistance;
-    const XMVECTOR vAABBstride = XMLoadFloat3(&XMFLOAT3(aabbDistanceStride, aabbDistanceStride, aabbDistanceStride));
+    XMMATRIX mIdentity = XMMatrixIdentity();
+    
+    XMMATRIX mScale15y = XMMatrixScaling(1, 1.5, 1);
+    XMMATRIX mScale15 = XMMatrixScaling(1.5, 1.5, 1.5);
+    XMMATRIX mScale2 = XMMatrixScaling(2, 2, 2);
+    XMMATRIX mScale3 = XMMatrixScaling(3, 3, 3);
 
-    // ToDo scale for transformation to fit within <-1,1>
-    float scaleRatio = c_aabbWidth  / aabbDefaultWidth;
-    XMMATRIX mScale = XMMatrixScaling(scaleRatio, scaleRatio, scaleRatio);
-    XMMATRIX mScale2 = XMMatrixScaling(3, 3, 3);
-    XMMATRIX mScale3 = XMMatrixScaling(1, 1.5, 1);
-    XMMATRIX mScale4 = XMMatrixScaling(1.5, 1.5, 1.5);
-    XMMATRIX mScale5 = XMMatrixScaling(2, 2, 2);
-   
+    const float animationTime = -2 * static_cast<float>(m_timer.GetTotalSeconds());
+    XMMATRIX mRotation = XMMatrixRotationY(animationTime);
 
-#if ANIMATE_PRIMITIVES
-    // ToDo per primitive animation
-    const float elapsedTime = -6 * static_cast<float>(m_timer.GetTotalSeconds());
-#elif N_METABALLS == 5
-    const float elapsedTime = -5.56642008;
-#else 
-    const float elapsedTime = -188;
-#endif
-    for (UINT i = 0; i < IntersectionShaderType::TotalPrimitiveCount; i++)
+    // Apply scale, rotation and translation transforms.
+    // The intersection shader tests in this sample work with local space, so here
+    // we apply the BLAS object space translation that was passed to geometry descs.
+    auto SetTransformForAABB = [&](UINT primitiveIndex, XMMATRIX& mScale, XMMATRIX& mRotation)
     {
-        auto& aabbAttributes = m_aabbPrimitiveAttributeBuffer[i];
-        XMVECTOR vTranslation = 0.5f*(XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(&m_aabbs[i].MinX)) 
-                                    + XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(&m_aabbs[i].MaxX)));
-        // ToDo TotalSeconds may run out of precision after some time
-        //XMMATRIX mRotation =  XMMatrixRotationZ(elapsedTime/2.0f*(x + y + z) * XM_2PI / NUM_AABB);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
-        XMMATRIX mRotation = XMMatrixRotationY(elapsedTime / 3.0f);// XMConvertToRadians(XMVectorGetX(XMVector3Length(vTranslation))));
+        XMVECTOR vTranslation = 
+            0.5f * ( XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(&m_aabbs[primitiveIndex].MinX))
+                   + XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(&m_aabbs[primitiveIndex].MaxX)));
         XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
-        XMMATRIX mTransform = mScale * mTranslation;
-        if (i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::FractalPyramid)
-            mTransform = mScale2 * mTranslation;
 
-        if (i == AnalyticPrimitive::Count + VolumetricPrimitive::Metaballs)
-            mTransform = mScale4 * mRotation * mTranslation;
+        XMMATRIX mTransform = mScale * mRotation * mTranslation;
+        m_aabbPrimitiveAttributeBuffer[primitiveIndex].localSpaceToBottomLevelAS = mTransform;
+        m_aabbPrimitiveAttributeBuffer[primitiveIndex].bottomLevelASToLocalSpace = XMMatrixInverse(nullptr, mTransform);
+    };
+    
+    UINT offset = 0;
+    // Analytic primitives.
+    {
+        using namespace AnalyticPrimitive;
+        SetTransformForAABB(offset + AABB, mScale15y, mIdentity);
+        SetTransformForAABB(offset + Spheres, mScale15, mRotation);
+        offset += AnalyticPrimitive::Count;
+    }
 
+    // Volumetric primitives.
+    {
+        using namespace VolumetricPrimitive;
+        SetTransformForAABB(offset + Metaballs, mScale15, mRotation);
+        offset += VolumetricPrimitive::Count;
+    }
 
-        if (i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::TwistedTorus ||
-            i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Cog)
-            mTransform = mScale * mRotation * mTranslation;
+    // Signed distance primitives.
+    {
+        using namespace SignedDistancePrimitive;
 
-        if (i == AnalyticPrimitive::Spheres || i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::SquareTorus)
-            mTransform = mScale4 * mRotation * mTranslation;
-
-        if (i == AnalyticPrimitive::AABB || i == AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Cylinder)
-            mTransform = mScale3 * mTranslation;
-
-        aabbAttributes.localSpaceToBottomLevelAS = mTransform;
-        aabbAttributes.bottomLevelASToLocalSpace = XMMatrixInverse(nullptr, mTransform);
+        SetTransformForAABB(offset + MiniSpheres, mIdentity, mIdentity);
+        SetTransformForAABB(offset + IntersectedRoundCube, mIdentity, mIdentity);
+        SetTransformForAABB(offset + SquareTorus, mScale15, mRotation);
+        SetTransformForAABB(offset + TwistedTorus, mIdentity, mRotation);
+        SetTransformForAABB(offset + Cog, mIdentity, mRotation);
+        SetTransformForAABB(offset + Cylinder, mScale15y, mIdentity);
+        SetTransformForAABB(offset + FractalPyramid, mScale3, mIdentity);
     }
 }
 
@@ -188,7 +189,6 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         m_planeMaterialCB = { XMFLOAT4(0.35f, 0.35f, 0.35f, 1.0f), 1.0f };
 
         UINT offset = 0;
-        // Initialize primitives.
         // Analytic primitives.
         {
             using namespace AnalyticPrimitive;
@@ -228,7 +228,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         m_up = XMVector3Normalize(XMVector3Cross(direction, right));
 
         // Rotate camera around Y axis.
-        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f)); //XMMatrixRotationY(XMConvertToRadians(45.0f));
+        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
         m_eye = XMVector3Transform(m_eye, rotate);
         m_up = XMVector3Transform(m_up, rotate);
 
@@ -265,7 +265,6 @@ void D3D12RaytracingProceduralGeometry::CreateConstantBuffers()
 // Create AABB primitive attributes buffers.
 void D3D12RaytracingProceduralGeometry::CreateAABBPrimitiveAttributesBuffers()
 {
-    // ToDo move this out
     auto device = m_deviceResources->GetD3DDevice();
     auto frameCount = m_deviceResources->GetBackBufferCount();
     m_aabbPrimitiveAttributeBuffer.Create(device, IntersectionShaderType::TotalPrimitiveCount, frameCount, L"AABB primitive attributes");
@@ -346,7 +345,6 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
     }
 
-    // ToDo check if FL can run without Local Root Sig for raygen and miss
 
     // Local Root Signature
     // This is a root signature that enables a shader to have unique arguments that come from shader tables.
@@ -368,7 +366,6 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
             CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
             localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
             SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::Triangle]);
-        
         }
 
         // AABB geometry
@@ -444,7 +441,6 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
                 hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::Triangle]);
             }
             hitGroup->SetHitGroupExport(c_hitGroupNames_TriangleGeometry[rayType]);
-
         }
     }
 
@@ -510,14 +506,13 @@ void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3D1
 // with all configuration options resolved, such as local signatures and other state.
 void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
 {
-    // ToDo revise
-    // Create 17 subobjects that combine into a RTPSO:
+    // Create 18 subobjects that combine into a RTPSO:
     // Subobjects need to be associated with DXIL exports (i.e. shaders) either by way of default or explicit associations.
     // Default association applies to every exported shader entrypoint that doesn't have any of the same type of subobject associated with it.
     // This simple sample utilizes default shader association except for local root signature subobject
     // which has an explicit association specified purely for demonstration purposes.
     // 1 - DXIL library
-    // 8 - Hit groups - 4 geometries (1 triangle 3 aabb) x 2 ray types (ray, shadowRay)
+    // 8 - Hit group types - 4 geometries (1 triangle, 3 aabb) x 2 ray types (ray, shadowRay)
     // 1 - Shader config
     // 6 - 3 x Local root signature and association
     // 1 - Global root signature
@@ -623,11 +618,6 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
 
     // Create a grid of AABBs.
     {
-        const float aabbBaseWidth = 2;       // Width of each AABB
-        // ToDo
-        const float aabbRotationBloat = 1.0f;// 1.414f; // sqrt(2) - A bloating multiplier to contain rotations inside the base AABB.
-        const float c_aabbWidth  = aabbBaseWidth * aabbRotationBloat;
-
         XMINT3 aabbGrid = XMINT3(4, 1, 4);
         const XMFLOAT3 basePosition =
         {
@@ -677,7 +667,6 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
             m_aabbs[offset + Cylinder] = InitializeAABB(XMINT3(0, 0, 3), XMFLOAT3(2, 3, 2));
             m_aabbs[offset + FractalPyramid] = InitializeAABB(XMINT3(2, 0, 2), XMFLOAT3(6, 6, 6));
         }
-
         AllocateUploadBuffer(device, m_aabbs.data(), m_aabbs.size()*sizeof(m_aabbs[0]), &m_aabbBuffer.resource);
     }
 }
@@ -858,7 +847,8 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
     vector<InstanceDescType> instanceDescs;
     instanceDescs.resize(NUM_BLAS);
 
-    // Width of a bottom-level AS geometry..
+    // Width of a bottom-level AS geometry.
+    // Make the plane a little larger than the actual number of primitives in each dimension.
     const XMUINT3 NUM_AABB = XMUINT3(7, 1, 7);
     const XMFLOAT3 fWidth = XMFLOAT3(
         NUM_AABB.x * c_aabbWidth + (NUM_AABB.x - 1) * c_aabbDistance,
@@ -891,11 +881,14 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
         auto& instanceDesc = instanceDescs[BottomLevelASType::AABB];
         instanceDesc = {};
         instanceDesc.InstanceMask = 1;
-        // ToDo explain the hitgroupindex offset 
+        
+        // Set hit group offset to beyond the shader records for the triangle AABB.
         instanceDesc.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB * RayType::Count;
         instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
 
-        XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(0, 1, 0)));
+        // ToDo explain all transformations
+        // Move all AABBS above the ground plane.
+        XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(0, c_aabbWidth/2, 0)));
         StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTranslation);
     }
     UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));
@@ -1127,31 +1120,25 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
     }
 
 
-
-    //
-    //  Shader table layout
-    //
-    /************************************************************************
+    /*************--------- Shader table layout -----*********************
     | --------------------------------------------------------------------
-    | Shader table - HitGroupShaderTable: 64 | 1408 bytes
-    | [0] : MyHitGroup_Triangle, 12 + 32 bytes
-    | [1] : MyHitGroup_Triangle_ShadowRay, 12 + 32 bytes
-    | [2] : MyHitGroup_AABB_AnalyticPrimitive, 12 + 40 bytes
-    | [3] : MyHitGroup_AABB_AnalyticPrimitive_ShadowRay, 12 + 40 bytes
+    | Shader table - HitGroupShaderTable: 
+    | [0] : MyHitGroup_Triangle
+    | [1] : MyHitGroup_Triangle_ShadowRay
+    | [2] : MyHitGroup_AABB_AnalyticPrimitive
+    | [3] : MyHitGroup_AABB_AnalyticPrimitive_ShadowRay 
     | ...
-    | [6] : MyHitGroup_AABB_VolumetricPrimitive, 12 + 40 bytes
-    | [7] : MyHitGroup_AABB_VolumetricPrimitive_ShadowRay, 12 + 40 bytes
-    | [8] : MyHitGroup_AABB_SignedDistancePrimitive, 12 + 40 bytes
-    | [9] : MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay, 12 + 40 bytes
+    | [6] : MyHitGroup_AABB_VolumetricPrimitive
+    | [7] : MyHitGroup_AABB_VolumetricPrimitive_ShadowRay
+    | [8] : MyHitGroup_AABB_SignedDistancePrimitive 
+    | [9] : MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay,
     | ...
-    | [20] : MyHitGroup_AABB_SignedDistancePrimitive, 12 + 40 bytes
-    | [21] : MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay, 12 + 40 bytes
+    | [20] : MyHitGroup_AABB_SignedDistancePrimitive
+    | [21] : MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay
     | --------------------------------------------------------------------
-    ************************************************************************/
+    **********************************************************************/
 
-    // Initialize shader tables.
-
-    // RayGen shader table.
+     // RayGen shader table.
     {
         UINT numShaderRecords = 1;
         UINT shaderRecordSize = shaderIDSize; // No root arguments

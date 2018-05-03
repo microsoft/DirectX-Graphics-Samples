@@ -89,8 +89,8 @@
 // Example:
 //  A shader calls a TraceRay() for a shadow ray and the ray hits a second 
 //  AABB geometry in the 2nd BLAS that contains AABB geometries. This refers 
-//  to the 5th shader record in the table above and calculated as:
-//        1     // ~ RayContributionToHitGroupIndex from AABB BLAS instance desc                     
+//  to the 5th shader record in the table above and is calculated as:
+//        1     // ~ RayContributionToHitGroupIndex                     
 //      + 2     // ~ MultiplierForGeometryContributionToHitGroupIndex  
 //      * 1     // ~ GeometryContributionToHitGroupIndex
 //      + 2     // ~ InstanceContributionToHitGroupIndex
