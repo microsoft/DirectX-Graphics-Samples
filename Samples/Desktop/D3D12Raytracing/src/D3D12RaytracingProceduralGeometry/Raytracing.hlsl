@@ -222,10 +222,9 @@ bool TraceShadowRayAndReportIfHit(in float3 hitPosition, in UINT currentRayRecur
     ray.TMax = 10000;
 
     // Initialize shadow ray payload.
-    // Set the initial value to true since closest hit shaders are skipped. 
+    // Set the initial value to true since closest and any hit shaders are skipped. 
     // Shadow miss shader, if called, will set it to false.
     ShadowRayPayload shadowPayload = { true };
-
     TraceRay(g_scene,
         /* RayFlags */
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES

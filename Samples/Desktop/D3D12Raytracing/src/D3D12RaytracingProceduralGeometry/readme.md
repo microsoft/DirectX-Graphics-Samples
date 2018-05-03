@@ -2,7 +2,7 @@
 ![D3D12 Raytracing Procedural Geometry GUI](Screenshot.png)
 
 This sample demonstrates how to implement procedural geometry using intersection shaders. Particularly, it showcases multiple intersection shaders creating analytic and volumetric, signed distance and fractal geometry. In addition, the sample introduces:
-* Complex shader table layouts and indexing covering multiple geometries and bottom-level acceleration structures (AS).
+* Extended shader table layouts and indexing covering multiple geometries and bottom-level acceleration structures (AS).
 * Use of trace ray recursion and two different ray types: color and shadow rays.
 
 The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingProceduralGeometry/readme.md).
@@ -15,7 +15,29 @@ The scene consists of triangle and procedural/AABB geometry each stored in a sep
   * Volumetric - isosurface of metaballs (aka "blobs").
   * Signed distance - 6 different primitives and a pyramid fractal.
 
+##### Ray types
+The sample employs two ray types in the visulization: a color and a shadow ray. Color ray is used for primary/view and secondary/reflected ray TraceRay(). Shadow ray is used for visibility/occlusion testing and is more simpler since it all it does is to return value if it hits any or misses all objects. Given that, shadow rays is initialized with payload marking a hit and and RayFlags to skipp all but a miss shader, which will set payload value to a false (i.e. a light source is not blocked by any object):
+```C++
+    // Initialize shadow ray payload.
+    // Set the initial value to true since closest and any hit shaders are skipped. 
+    // Shadow miss shader, if called, will set it to false.
+    ShadowRayPayload shadowPayload = { true };
+    TraceRay(g_scene,
+        /* RayFlags */
+        RAY_FLAG_CULL_BACK_FACING_TRIANGLES
+        | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
+        | RAY_FLAG_FORCE_OPAQUE             // ~skip any hit shaders
+        | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders
+..
+```
+
 ToDo...
+
+##### AABBs
+
+##### Raytracing setup
+
+T
 
 ## Usage
 The sample starts with Fallback Layer implementation being used by default. The Fallback Layer will use raytracing driver if available, otherwise it will default to the compute fallback. This default behavior can be overriden via UI controls or input arguments.
