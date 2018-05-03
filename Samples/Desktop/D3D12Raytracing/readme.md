@@ -18,6 +18,10 @@ This sample demonstrates how to do ray generation for a dynamic perspective came
 
 ![D3D12 Raytracing Hello World GUI](src/D3D12RaytracingSimpleLighting/Screenshot_small.png)
 
+## 3. [Procedural Geometry Sample](src/D3D12RaytracingSimpleLighting/readme.md)
+This sample demonstrates how to implement procedural geometry using intersection shaders and shows usage of more complex shader table layouts and multiple ray types. 
+
+![D3D12 Raytracing Procedural Geometry GUI](src/D3D12RaytracingProceduralGeometry/Screenshot_small.png)
 
 # Advanced Samples
 

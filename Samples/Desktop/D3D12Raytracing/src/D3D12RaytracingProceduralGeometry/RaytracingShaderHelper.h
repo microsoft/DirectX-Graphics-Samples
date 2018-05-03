@@ -35,18 +35,9 @@ float length_toPow2(float3 p)
 // Returns a cycling <0 -> 1 -> 0> animation interpolant 
 float CalculateAnimationInterpolant(in float elapsedTime, in float cycleDuration)
 {
-    // ToDo
-#if 0
-    float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
-    return (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
-#elif 0
-    float curSineCycleTime = sin(elapsedTime / cycleDuration * 3.14 * 2);
-    return (curSineCycleTime + 1 ) * 0.5;
-#else
     float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
     curLinearCycleTime = (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
     return smoothstep(0, 1, curLinearCycleTime);
-#endif
 }
 
 void swap(inout float a, inout float b)
@@ -122,9 +113,23 @@ inline Ray GenerateCameraRay(uint2 index, in float3 cameraPosition, in float4x4 
 
     Ray ray;
     ray.origin = cameraPosition;
-    ray.direction = normalize(world - ray.origin);
+    ray.direction = normalize(world.xyz - ray.origin);
 
     return ray;
+}
+
+// Test if a hit is valid based on specified RayFlags and <RayTMin, RayTCurrent> range.
+bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
+{
+    float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
+    return
+        // Is thit within <tmin, tmax> range.
+        IsInRange(thit, RayTMin(), RayTCurrent())
+        &&
+        // Is the hit not culled.
+        (!(RayFlags() & (RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_CULL_FRONT_FACING_TRIANGLES))
+            || ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (rayDirectionNormalDot < 0))
+            || ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot > 0)));
 }
 
 #endif // RAYTRACINGSHADERHELPER_H

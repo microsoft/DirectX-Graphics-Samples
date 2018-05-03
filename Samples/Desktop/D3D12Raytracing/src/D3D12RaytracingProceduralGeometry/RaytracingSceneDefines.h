@@ -11,9 +11,6 @@
 
 #pragma once
 
-// ToDo Rename to Globals?
-// ToDo Move Shader, hit group names here?
-
 #include "RayTracingHlslCompat.h"
 
 namespace GlobalRootSignature {
@@ -23,7 +20,7 @@ namespace GlobalRootSignature {
             AccelerationStructure,
             SceneConstant,
             AABBattributeBuffer,
-            VertexBuffers,      // ToDo Rename as it has both IB and VB
+            VertexBuffers,
             Count
         };
     }
@@ -51,7 +48,7 @@ namespace LocalRootSignature {
             };
         }
         struct RootArguments {
-            MaterialConstantBuffer materialCb;
+            PrimitiveConstantBuffer materialCb;
         };
     }
 }
@@ -61,13 +58,13 @@ namespace LocalRootSignature {
         namespace Slot {
             enum Enum {
                 MaterialConstant = 0,
-                GeometryIndex,          // ToDo rename GeometryIndexSlot
+                GeometryIndex,
                 Count
             };
         }
         struct RootArguments {
-            MaterialConstantBuffer materialCb;
-            AABBConstantBuffer aabbCB;
+            PrimitiveConstantBuffer materialCb;
+            PrimitiveInstanceConstantBuffer aabbCB;
         };
     }
 }
@@ -79,35 +76,28 @@ namespace LocalRootSignature {
     }
 }
 
-// Bottom level acceleration structures (BottomLevelASType).
-// This sample uses two BottomLevelASType, one for AABB and one for Triangle geometry.
-// ToDo desc why the sample uses two - can a BLAS mix geometry types?
-namespace BottomLevelASType {
-    enum Enum {
-        Triangle = 0,
-        AABB,
-        Count
-    };
-}
-
-// ToDo reuse geometrytype for BottomLevelASType?
 namespace GeometryType {
     enum Enum {
         Triangle = 0,
-        AABB,       // ToDo rename to procedural
+        AABB,       // Procedural geometry with an application provided AABB.
         Count
     };
 }
 
+// Bottom-level acceleration structures (BottomLevelASType).
+// This sample uses two BottomLevelASType, one for AABB and one for Triangle geometry.
+// Mixing of geometry types within a BLAS is not supported.
+namespace BottomLevelASType = GeometryType;
+
+// Ray types traced in this sample.
 namespace RayType {
     enum Enum {
-        Regular = 0,
-        Shadow,
+        Color = 0,   // ~ Primary, reflected camera/view rays calculating color for each hit.
+        Shadow,      // ~ Shadow/visibility rays, only testing for occlusion
         Count
     };
 }
 
-// ToDo name all namespaces to * vs *Type.
 namespace IntersectionShaderType {
     enum Enum {
         AnalyticPrimitive = 0,
@@ -130,3 +120,4 @@ namespace IntersectionShaderType {
     static const UINT TotalPrimitiveCount =
         AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Count;
 }
+

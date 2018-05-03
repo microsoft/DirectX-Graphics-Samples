@@ -48,13 +48,8 @@ public:
 private:
     static const UINT FrameCount = 3;
 
-    // Number of AABB BLAS instances
-    static const UINT NUM_INSTANCE_X = 1;
-    static const UINT NUM_INSTANCE_Y = 1;
-    static const UINT NUM_INSTANCE_Z = 1;
-    static const UINT NUM_INSTANCES = NUM_INSTANCE_X * NUM_INSTANCE_Y * NUM_INSTANCE_Z;
-    static const UINT NUM_BLAS = 1 + NUM_INSTANCES; // Triangle BLAS + AABB BLAS instances
-
+    // Constants.
+    const UINT NUM_BLAS = 2;            // Triangle + AABB bottom-level AS instances.
     const float c_aabbWidth = 2;      // AABB width
     const float c_aabbDistance = 2;   // Distance between AABBs
 
@@ -79,16 +74,14 @@ private:
     UINT m_descriptorsAllocated;
     UINT m_descriptorSize;
 
-    // ToDo use root constants instead of CBVs
-
     // Raytracing scene
     ConstantBuffer<SceneConstantBuffer> m_sceneCB;
-    StructuredBuffer<AABBPrimitiveAttributes> m_aabbPrimitiveAttributeBuffer;
+    StructuredBuffer<PrimitiveInstancePerFrameBuffer> m_aabbPrimitiveAttributeBuffer;
     std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
 
     // Root constants
-    MaterialConstantBuffer m_planeMaterialCB;
-    MaterialConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
+    PrimitiveConstantBuffer m_planeMaterialCB;
+    PrimitiveConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
 
     // Geometry
     D3DBuffer m_indexBuffer;
@@ -122,12 +115,12 @@ private:
     RaytracingAPI m_raytracingAPI;
     bool m_forceComputeFallback;
     StepTimer m_timer;
-    float m_curRotationAngleRad;
+    bool m_animateCamera;
+    bool m_animateLight;
     XMVECTOR m_eye;
     XMVECTOR m_at;
     XMVECTOR m_up;
 
-    // ToDo categorize members
     void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();

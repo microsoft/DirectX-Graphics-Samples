@@ -1,30 +1,53 @@
 # D3D12 Raytracing Procedural Geometry sample
 ![D3D12 Raytracing Procedural Geometry GUI](Screenshot.png)
 
-This sample demonstrates how to implement procedural geometry using intersection shaders. Particularly, the sample performs ray-marching of a distance field inside each AABB geometry. The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingProceduralGeometry/readme.md).
+This sample demonstrates how to implement procedural geometry using intersection shaders. Particularly, it showcases multiple intersection shaders creating analytic and volumetric, signed distance and fractal geometry. In addition, the sample introduces:
+* Extended shader table layouts and indexing covering multiple geometries and bottom-level acceleration structures (AS).
+* Use of trace ray recursion and two different ray types: color and shadow rays.
 
-##### Rendering
-Each frame render happens in the sample's OnRender() call and includes executing DispatchRays() with a 2D grid dimensions matching that of backbuffer resolution and copying of the raytraced result to the backbuffer before finally presenting the it to the screen. The sample implements three shaders: *ray generation*, *closest hit* and *miss* shader: 
-* The *ray generation* shader calculates a camera ray in world space for each dispatched ray corresponding to a pixel on the backbuffer. The world space ray is simply a ray's pixel screen position transformed by an inverse camera view projection matrix.
-* The *closest hit* shader from the cube's hit group calculates diffuse shading at the ray hit point. The shading is computed using a dot product between the ray hit to light position and a hit triangle normal, multiplied by light's and cube's color. 
-* The *miss* shader simply stores a background color. 
+The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingProceduralGeometry/readme.md).
 
-##### Shader accessed resources
-The shaders access all the input data from constant buffers and buffer resources. There are two constant buffers: 
-* CubeConstantBuffer contains cube's color - passed in via a shader record for the shader.
-* SceneConstantBuffer stores scene wide camera and light parameters - made available via a global root signature.
+##### Scene
+The scene consists of triangle and procedural/AABB geometry each stored in a separate bottom-level AS:
+* Triangle geometry - ground plane
+* AABB geometry:
+  * Analytic - multiple sphere and axis aligned box.
+  * Volumetric - isosurface of metaballs (aka "blobs").
+  * Signed distance - 6 different primitives and a pyramid fractal.
 
-Triangle normals are accessed from index and vertex buffers that are explicitly passed in as buffer resources to the closest hit shader. First, three hit triangle's vertex indices are loaded from a 16bit index buffer. Then, the indices are used to index into the vertex buffer and load a triangle normal that is duplicatively stored for each triangle's vertex.
+##### Ray types
+The sample employs two ray types in the visulization: a color and a shadow ray. Color ray is used for primary/view and secondary/reflected ray TraceRay(). Shadow ray is used for visibility/occlusion testing and is more simpler since it all it does is to return value if it hits any or misses all objects. Given that, shadow rays is initialized with payload marking a hit and and RayFlags to skipp all but a miss shader, which will set payload value to a false (i.e. a light source is not blocked by any object):
+```C++
+    // Initialize shadow ray payload.
+    // Set the initial value to true since closest and any hit shaders are skipped. 
+    // Shadow miss shader, if called, will set it to false.
+    ShadowRayPayload shadowPayload = { true };
+    TraceRay(g_scene,
+        /* RayFlags */
+        RAY_FLAG_CULL_BACK_FACING_TRIANGLES
+        | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
+        | RAY_FLAG_FORCE_OPAQUE             // ~skip any hit shaders
+        | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders
+..
+```
+
+ToDo...
+
+##### AABBs
+
+##### Raytracing setup
+
+T
 
 ## Usage
 The sample starts with Fallback Layer implementation being used by default. The Fallback Layer will use raytracing driver if available, otherwise it will default to the compute fallback. This default behavior can be overriden via UI controls or input arguments.
 
-D3D12RaytracingProceduralGeometry.exe [ -FL | -DXR ]
+D3D12RaytracingProceduralGeometry.exe [ -FL | -DXR | ...]
 * [-FL] - select Fallback Layer API with forced compute fallback path.
 * [-DXR] - select DirectX Raytracing API.
 
 Additional arguments:
-* [-forceAdapter <ID>] - create a D3D12 device on an adapter <ID> instead of adapter 0.
+  * [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0.
 
 ### UI
 The title bar of the sample provides runtime information:
@@ -41,6 +64,8 @@ The title bar of the sample provides runtime information:
 * 1 - select Fallback Layer API.
 * 2 - select Fallback Layer API with forced compute fallback path.
 * 3 - select DirectX Raytracing API.
+* L - enable/disable light animation.
+* C - enable/disable camera animation.
 
 ## Requirements
 * Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.

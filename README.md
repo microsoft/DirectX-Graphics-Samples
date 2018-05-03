@@ -8,7 +8,7 @@ In the Samples directory, you will find samples that attempt to break off specif
 Recent API Sample Updates:
 1. [D3D12 Raytracing](Samples/Desktop/D3D12Raytracing/readme.md): This is a set of tutorial and advanced samples that demonstrate the use of DirectX Raytracing.
 
-![D3D12 Raytracing Hello World GUI](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingSimpleLighting/Screenshot_small.png)
+![D3D12 Raytracing Procedural Geometry GUI](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingProceduralGeometry/Screenshot_small.png)
 ![D3D12 Raytracing Mini Engine](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingMiniEngineSample/Screenshot_small.png)
 
 2. [Shader Model 6 Wave Intrinsics](Samples/Desktop/D3D12SM6WaveIntrinsics/readme.md): This sample visualizes several new wave intrinsics in Shader Model 6.

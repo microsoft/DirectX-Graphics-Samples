@@ -477,7 +477,6 @@ void DeviceResources::HandleDeviceLost()
     }
 #endif
     InitializeDXGIAdapter();
-    // ToDo DXR needs to be enabled here before device creation
     CreateDeviceResources();
     CreateWindowSizeDependentResources();
 

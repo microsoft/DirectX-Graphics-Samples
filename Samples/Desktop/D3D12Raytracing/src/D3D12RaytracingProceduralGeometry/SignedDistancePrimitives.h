@@ -16,7 +16,7 @@
 // in the Software without restriction, including without limitation the rights 
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
 // copies of the Software, and to permit persons to whom the Software is furnished 
-// to do so, subject to the following conditions :
+// to do so, subject to the following conditions:
 //
 // The above copyright notice and this permission notice shall be included in all 
 // copies or substantial portions of the Software.
@@ -30,23 +30,20 @@
 //
 //*********************************************************************************
 
-#ifndef SIGNEDDISTANCEPRIMITIVES_H
-#define SIGNEDDISTANCEPRIMITIVES_H
-
 //**********************************************************************************************
 //
 // SignedDistanceFieldLibrary.h
-// Ref: https://www.shadertoy.com/view/Xds3zN 
+//
 // A list of useful distance function to simple primitives, and an example on how to 
 // do some interesting boolean operations, repetition and displacement.
-//
 // More info here: http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 //
 //**********************************************************************************************
 
+#ifndef SIGNEDDISTANCEPRIMITIVES_H
+#define SIGNEDDISTANCEPRIMITIVES_H
 
 #include "RaytracingShaderHelper.h"
-
 
 //------------------------------------------------------------------
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum sdPrimitive);
@@ -76,6 +73,34 @@ float3 opRep(float3 p, float3 c)
 {
     return fmod(p, c) - 0.5 * c;
 } 
+
+// Polynomial smooth min/union (k = 0.1)
+// Ref: http://www.iquilezles.org/www/articles/smin/smin.htm
+float smin(float a, float b, float k)
+{
+    float h = clamp(0.5 + 0.5*(b - a) / k, 0.0, 1.0);
+    return lerp(b, a, h) - k * h*(1.0 - h);
+}
+
+
+// Polynomial smooth min/union (k = 0.1)
+float smax(float a, float b, float k)
+{
+    float h = clamp(0.5 + 0.5*(b - a) / k, 0.0, 1.0);
+    return lerp(a, b, h) + k * h*(1.0 - h);
+}
+
+// Smooth blend as union 
+float opBlendU(float d1, float d2)
+{
+    return smin(d1, d2, 0.1);
+}
+
+// Smooth blend as intersect 
+float opBlendI(float d1, float d2)
+{
+    return smax(d1, d2, 0.1);
+}
 
 //------------------------------------------------------------------
 
@@ -184,13 +209,12 @@ float sdOctahedron(float3 p, float3 h)
 {
     float d = 0.0;
 
+    // Get distance against pyramid's sides going through origin.
     // Test: d = p.x * sin a + p.y * cos a
-    // d = max(d, dot(abs(p), float3(h.x, h.y, 0)));
-    // d = max(d, dot(abs(p), float3(0, h.y, h.x)));
     d = dot(float2(max(abs(p.x), abs(p.z)), abs(p.y)), 
             float2(h.x, h.y));
-    
-    // Move the ground plane down by height
+
+    // Subtract distance to a side when at height h.z from the origin.
     return d - h.y * h.z;
 }
 
@@ -263,18 +287,9 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
     const UINT MaxSteps = 512;
 
     // Do sphere tracing through the AABB.
-#if 0 
-    for (UINT i = 0; i < MaxSteps; i++)
-    {
-        if (t > RayTCurrent())
-        {
-            return false;
-        }
-#else
     UINT i = 0;
     while (i++ < MaxSteps && t <= RayTCurrent())
     {
-#endif  
         float3 position = ray.origin + t * ray.direction;
         float distance = GetDistanceFromSignedDistancePrimitive(position, sdPrimitive);
 
@@ -292,8 +307,8 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
 
         // Since distance is the minimum distance to the primitive, 
         // we can safely jump by that amount without intersecting the primitive.
-        // We allow for scaling of steps per primitive type due to their transformations 
-        // that don't preserve true distances.
+        // We allow for scaling of steps per primitive type due to any pre-applied 
+        // transformations that don't preserve true distances.
         t += stepScale * distance;
     }
     return false;
