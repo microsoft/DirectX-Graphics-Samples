@@ -87,13 +87,15 @@
 //   (one for color, and one for shadow ray).
 //
 // Example:
-//  A shader calls a TraceRay() for a shadow ray and the ray hits a second 
-//  AABB geometry in the 2nd BLAS that contains AABB geometries. This refers 
-//  to the 5th shader record in the table above and is calculated as:
-//        1     // ~ RayContributionToHitGroupIndex                     
-//      + 2     // ~ MultiplierForGeometryContributionToHitGroupIndex  
-//      * 1     // ~ GeometryContributionToHitGroupIndex
-//      + 2     // ~ InstanceContributionToHitGroupIndex
+//  A shader calls a TraceRay() for a shadow ray and sets *RayContributionToHitGroupIndex*
+//  to 1 as an offset to shadow shader records and *MultiplierForGeometryContributionToHitGroupIndex*
+//  to 2 since there are two shader records per geometry. The shadow ray hits a second 
+//  AABB geometry in the 2nd BLAS that contains AABB geometries. The shader index will be
+//  5 in the table above and is calculated as:
+//     1  // ~ RayContributionToHitGroupIndex                   - from TraceRay()                 
+//   + 2  // ~ MultiplierForGeometryContributionToHitGroupIndex - from TraceRay() 
+//   * 1  // ~ GeometryContributionToHitGroupIndex              - from runtime, 2nd geometry => ID:1
+//   + 2  // ~ InstanceContributionToHitGroupIndex              - from BLAS instance desc
 //
 // ************************************************************************/ 
 
