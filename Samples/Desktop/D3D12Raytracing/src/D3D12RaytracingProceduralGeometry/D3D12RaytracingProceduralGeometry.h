@@ -48,7 +48,7 @@ public:
 private:
     static const UINT FrameCount = 3;
 
-    // Number of AABB bottom-level AS instances
+    // Constants.
     const UINT NUM_BLAS = 2;            // Triangle + AABB bottom-level AS instances.
     const float c_aabbWidth = 2;      // AABB width
     const float c_aabbDistance = 2;   // Distance between AABBs
@@ -73,8 +73,6 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
     UINT m_descriptorsAllocated;
     UINT m_descriptorSize;
-
-    // ToDo use root constants instead of CBVs
 
     // Raytracing scene
     ConstantBuffer<SceneConstantBuffer> m_sceneCB;
@@ -117,14 +115,12 @@ private:
     RaytracingAPI m_raytracingAPI;
     bool m_forceComputeFallback;
     StepTimer m_timer;
-    float m_curRotationAngleRad;
     bool m_animateCamera;
     bool m_animateLight;
     XMVECTOR m_eye;
     XMVECTOR m_at;
     XMVECTOR m_up;
 
-    // ToDo categorize members
     void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();

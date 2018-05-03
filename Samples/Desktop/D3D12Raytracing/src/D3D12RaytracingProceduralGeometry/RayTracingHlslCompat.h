@@ -29,8 +29,8 @@ using namespace DirectX;
 typedef UINT16 Index;
 #endif
 
-//*************************************************************************
-// NV driver limitation workarounds: 
+//*********----- NV driver limitation workarounds ------******************
+//  
 // Setting following causes a NV driver to fail to create a state object:
 // - N_METABALLS 5
 // - USE_DYNAMIC_LOOPS 0
@@ -47,11 +47,10 @@ typedef UINT16 Index;
 // Use an empty local root signature where a shader does not require it.
 #define USE_NON_NULL_LOCAL_ROOT_SIG 1  
 //
-//
 //*************************************************************************
 
 
-//*************************************************************************
+//******-------Fallback Layer limitation workarounds -----*****************
 // Fallback Layer limitation workarounds
 //
 // Fallback Layer does not support default exports for DXIL libraries yet.
@@ -60,9 +59,6 @@ typedef UINT16 Index;
 //*************************************************************************
 
 
-
-// ToDo move this to RaytracingSceneDefines.h
-
 #define ANIMATE_PRIMITIVES 1
 
 // Limitting calculations only to metaballs a ray intersects can speed up raytracing
@@ -70,11 +66,11 @@ typedef UINT16 Index;
 // Requires: USE_DYNAMIC_LOOPS set to 1 to take effect.
 #define LIMIT_TO_ACTIVE_METABALLS 0
 
-#define N_FRACTAL_ITERATIONS 4  // 1+
+#define N_FRACTAL_ITERATIONS 4      // <1,...>
 
 // PERFORMANCE TIP: Set max recursion depth as low as needed
 // as drivers may apply optimization strategies for low recursion depths.
-#define MAX_RAY_RECURSION_DEPTH 3 // ToDo ~ primary rays + reflections + shadow rays from reflected geometry.
+#define MAX_RAY_RECURSION_DEPTH 3    // ~ primary rays + reflections + shadow rays from reflected geometry.
 
 
 struct ProceduralPrimitiveAttributes

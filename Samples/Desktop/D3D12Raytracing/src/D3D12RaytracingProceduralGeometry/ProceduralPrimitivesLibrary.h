@@ -58,11 +58,10 @@ bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::E
 
 // Signed distance functions use a shared ray signed distance test.
 // The test, instead, calls into this function to retrieve a distance for a primitive.
+// ToDo Input position is in <-1,1> local space.
 // Ref: http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum signedDistancePrimitive)
 {
-    // ToDo standardize Signed Distance Primitive AABBs 
-    // Input position is in <-1,1> space
     switch (signedDistancePrimitive)
     {
     case SignedDistancePrimitive::MiniSpheres:

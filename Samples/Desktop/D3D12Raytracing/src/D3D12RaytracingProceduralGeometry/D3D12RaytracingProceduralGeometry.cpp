@@ -48,15 +48,17 @@ const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_AABBGeometry[]
 D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
-    m_curRotationAngleRad(0.0f),
     m_animateCamera(false),
-    m_animateLight(false)
-// ToDo initialize
+    m_animateLight(false),
+    m_isDxrSupported(false),
+    m_descriptorsAllocated(0),
+    m_descriptorSize(0),
+    m_missShaderTableStrideInBytes(UINT_MAX),
+    m_hitGroupShaderTableStrideInBytes(UINT_MAX),
+    m_forceComputeFallback(false)
 {
     m_forceComputeFallback = false;
     SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-
-
     UpdateForSizeChange(width, height);
 }
 
@@ -554,9 +556,6 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     UINT maxRecursionDepth = MAX_RAY_RECURSION_DEPTH;
     pipelineConfig->Config(maxRecursionDepth);
 
-    // Debug
-    // ToDo remove assert
-    assert(raytracingPipeline.NumSubbojects() == NUM_SUBOBJECTS && L"Checking expeted num subobjects here. Num subobjects doesn't match. Update RTPSO description.");
     PrintStateObjectDesc(raytracingPipeline);
 
     // Create the state object.
@@ -683,7 +682,6 @@ void D3D12RaytracingProceduralGeometry::BuildPlaneGeometry()
     };
 
     // Cube vertices positions and corresponding triangle normals.
-    // ToDo use scale transformation
     Vertex vertices[] =
     {
         { XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
@@ -838,7 +836,6 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildBottomLevel
     return bottomLevelASBuffers;
 }
 
-// ToDo should the comptr be passed by value?
 template <class InstanceDescType, class BLASPtrType>
 void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource)
 {
@@ -1120,7 +1117,7 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
     }
 
 
-    /*************--------- Shader table layout -----*********************
+    /*************--------- Shader table layout -------*******************
     | --------------------------------------------------------------------
     | Shader table - HitGroupShaderTable: 
     | [0] : MyHitGroup_Triangle
@@ -1175,7 +1172,6 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
             LocalRootSignature::Triangle::RootArguments rootArgs;
             rootArgs.materialCb = m_planeMaterialCB;
 
-            // ToDo describe layout
             for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
             {
                 hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
@@ -1348,7 +1344,7 @@ void D3D12RaytracingProceduralGeometry::DoRaytracing()
     auto SetCommonPipelineState = [&](auto* descriptorSetCommandList)
     {
         descriptorSetCommandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
-        // Set index and successive vertex buffer decriptor tables
+        // Set index and successive vertex buffer decriptor tables.
         commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::VertexBuffers, m_indexBuffer.gpuDescriptorHandle);
         commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::OutputView, m_raytracingOutputResourceUAVGpuDescriptor);
     };
@@ -1361,7 +1357,6 @@ void D3D12RaytracingProceduralGeometry::DoRaytracing()
         commandList->SetComputeRootConstantBufferView(GlobalRootSignature::Slot::SceneConstant, m_sceneCB.GpuVirtualAddress(frameIndex));
 
         m_aabbPrimitiveAttributeBuffer.CopyStagingToGpu(frameIndex);
-        // ToDo Set this in local root signature 
         commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AABBattributeBuffer, m_aabbPrimitiveAttributeBuffer.GpuVirtualAddress(frameIndex));
     }
 

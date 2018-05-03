@@ -35,7 +35,6 @@ float length_toPow2(float3 p)
 // Returns a cycling <0 -> 1 -> 0> animation interpolant 
 float CalculateAnimationInterpolant(in float elapsedTime, in float cycleDuration)
 {
-    // ToDo move to CPU?
     float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
     curLinearCycleTime = (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
     return smoothstep(0, 1, curLinearCycleTime);
@@ -119,9 +118,7 @@ inline Ray GenerateCameraRay(uint2 index, in float3 cameraPosition, in float4x4 
     return ray;
 }
 
-// Test if a hit is valid based on specified RayFlags.
-// ToDo explain why check for thit being in range here instead of depend on ReportHit
-// ToDo separate tests that are final using IsAValid hit and intermediate ones
+// Test if a hit is valid based on specified RayFlags and <RayTMin, RayTCurrent> range.
 bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
 {
     float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);

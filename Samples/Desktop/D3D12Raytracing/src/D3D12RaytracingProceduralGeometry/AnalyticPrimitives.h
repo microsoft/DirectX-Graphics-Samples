@@ -118,7 +118,6 @@ bool RaySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax, 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects multiple hollow spheres.
 bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr)
 {
-    // ToDo pass in from an app.
     const int N = 3;
     float3 centers[N] =
     {

@@ -263,11 +263,12 @@ struct D3DBuffer
 };
 
 // Helper class to create and update a constant buffer with proper constant buffer alignments.
-// Usage: ToDo
+// Usage: 
 //    ConstantBuffer<...> cb;
 //    cb.Create(...);
-//    cb.staging.var = ...; | cb->var = ... ; 
+//    cb.staging.var = ... ; | cb->var = ... ; 
 //    cb.CopyStagingToGPU(...);
+//    Set...View(..., cb.GputVirtualAddress());
 template <class T>
 class ConstantBuffer : public GpuUploadBuffer
 {
@@ -304,11 +305,12 @@ public:
 
 
 // Helper class to create and update a structured buffer.
-// Usage: ToDo
-//    ConstantBuffer<...> cb;
-//    cb.Create(...);
-//    cb.staging.var = ...; | cb->var = ... ; 
-//    cb.CopyStagingToGPU(...);
+// Usage: 
+//    StructuredBuffer<...> sb;
+//    sb.Create(...);
+//    sb[index].var = ... ; 
+//    sb.CopyStagingToGPU(...);
+//    Set...View(..., sb.GputVirtualAddress());
 template <class T>
 class StructuredBuffer : public GpuUploadBuffer
 {
