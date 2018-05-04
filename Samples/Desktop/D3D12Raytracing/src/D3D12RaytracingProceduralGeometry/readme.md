@@ -46,7 +46,7 @@ void MyIntersectionShader_AnalyticPrimitive()
 ```
 
 
-If the ray intersects the geometry, the test calculates the time of the hit as well as a surface normal. This is then passed to ReportHit(), which either accepts or rejects the hit. Before that happens however, the intersection shader needs to convert the normal from primitive local space to world space:
+If the ray intersects the geometry, the test calculates the time of the hit as well as a surface normal in local space. The shader then converts the normal to world space and passes it to ReportHit(), which either accepts or rejects the hit.
 ```c
     ...
     if (RayAnalyticGeometryIntersectionTest(localRay, primitiveType, thit, attr))
@@ -75,11 +75,14 @@ bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
             || ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot > 0)));
 }
 ```
+##### Procedural geometry types
+This sample demonstrates intersection tests for ray vs following geometry:
 
-You as a developer have a freedom to implement the ray intersection tests to fit your needs. This sample demonstrates intersection tests for ray vs following geometry:
-  * Analytic - sphere and AABB.
-  * Volumetric - metaballs isosurface (aka "blobs"). Metaballs are a form of point force fields that have an area of influence. The closer you get the larger the field potential value. The field values are summed from all participating metaballs. This sample visualizes them as an isosurface by testing for a particular threshold field value. Specifically, the intersection test ray marches within the AABB, calculating the total field potential at each iteration, until it hits the threshold or it exits the AABB.
-  * Signed distance - signed distance geometry returns a distance to the geometry considering all directions. Since the distance is not given along the ray necessarily, the intersection test iteratively ray marches using the new signed distance until it crosses some application defined threshold. This algorithm is called sphere tracing and described in more detail at [https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer](https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer). The signed distance primitives are formed by signed distance functions or they can be combined along with allowed transforms applied to them to create more complex geometry. This is explained in more detail at [http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm](http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm).
+**Analytic geometry** includes sphere and AABB.
+
+**Volumetric geometry** demonstrates metaballs (aka "blobs"). Metaballs are an isosurface within a potential field formed from point sources. Each source has an area of influence  and the potential value decreases relative to distance to the center. If there are multiple field sources, their contributing potential values are summed. The isosurface corresponds to a pre-defined threshold value. The intersection test ray marches through the field within the AABB, calculating the total field potential at each iteration, until it hits the threshold or it exits the AABB. See more at [https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies](https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies)
+
+**Signed distance geometry** is geometry based of signed distance functions or primitives. Each function returns a distance to the geometry considering all directions. Since the distance is not necessarily along the ray direction, the intersection test needs to iteratively ray march and calculate signed distances at each step until it gets close enough to the surface. This algorithm is called sphere tracing and described in more detail at [https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer](https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer). A nice property of signed distance functions is that they support different logical operators and transformations allowing to combine simpler primitives into more complex geometry. This is explained in more detail at [http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm](http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm).
 
 ##### Updates
  Procedural geometry can be animated or modified without requiring acceleration structure updates as long as the AABBs don't change. The sample animates some primitives this way and simply updates the transforms passed to shaders with update rotation transforms every frame. In the metaballs case it also passes application time to drive sphere position updates within the metaballs' AABB.
@@ -100,14 +103,12 @@ TraceRay(g_scene,
     ...
 ```
 
-#### Shader tables
+#### Shader tables & indexing
 
-
-##### Shader table indexing 
 
 When a ray hits geometry or needs to call a miss shader, GPU indexes into the application 
-provided shader tables according to the shader table addressing:
-```c
+provided shader tables according to the following shader table addressing calculation:
+```
 Miss shader table index = 
      MissShaderIndex                                     ~ from shader: TraceRay()
 
@@ -120,44 +121,23 @@ Hit group shader table index =
 ```
 
  
-The sample traces radiance and shadow rays. Since the ray types apply different 
-actions in the shaders, they require separate shader records for each geometry,
-so that GPU executes the right shader when a geometry is hit or or miss shader needs
-to be executed.
+Since each ray type applies different 
+actions in the shaders, they require separate shader records. The same applies for separate geometries as well. This sample uses triangle geometry type and three procedural geometry types with differing intersection shaders, each requiring a seprate shader record. Furthermore, there are multiple geometry variations per procedural type, each paramterized via attributes that are provided through local root signatures, which in turn each require a different shader record. 
 
-In addition, this sample uses multiple different geometries. First, there is 
-triangle geometry (the ground plane) and then there is AABB/procedural geometry. 
-AABB geometry requires intersection shaders to be specifiend in the hit 
-groups. This sample demonstrates a use of three different intersection shaders,
-and thus further enumeration of different shader records per each:
- - MyIntersectionShader_AnalyticPrimitive
- - MyIntersectionShader_VolumetricPrimitive
- - MyIntersectionShader_SignedDistancePrimitive
-
-Last, the sample defines multiple geometries per each intersection shader, 
-all parametrized via attributes provided via local root signatures,
-which in turn each require a different shader record. 
-//
 With that said, the sample has following shader table layouts. 
-//
-Miss shader table layout
-o There are two miss shader records:
-  [0] : Miss shader record for a radiance ray
-  [1] : Miss shader record for a shadow ray
-//
-Hit group shader table layout:
- o Triangle geometry shader records - single triangular geometry (ground plane)
- o AABB geometry shader records- multiple AABB geometries ~ IntersectionShaderType::TotalPrimitiveCount()
-Both triangle and ABB geometry require two shader records, per ray type:
-  [0] : Hit group shader record for geometry ID 0 for a radiance ray
-  [1] : Hit group shader record for geometry ID 0 for a shadow ray
-//
-The actual shader tables are printed out in the debug output by this sample 
-and its useful as a reference to indexing parameters. Here are first few
-shader records of a hit group for reference in the examples below:
+
+**Miss shader table layout** - with two shader records, for each ray type.
+```
+|Shader table - MissShaderTable
+| [0]: MyMissShader                                   ~ Radiance ray
+| [1]: MyMissShader_ShadowRay                         ~ Shadow ray
+```
+**Hit group shader table layout** - with multiple geometries and two shader records for each. The full shader table is printed out in the debug output by this sample 
+and is useful as a reference to indexing parameters. Here are first few
+shader records of a hit group for reference in an indexing example below:
 ```
 | Shader table - HitGroupShaderTable: 
-| [0] : MyHitGroup_Triangle                           Triangle geometry in 1st BLAS
+| [0] : MyHitGroup_Triangle                           ~ Triangle geometry in 1st BLAS
 | [1] : MyHitGroup_Triangle_ShadowRay
 | [2] : MyHitGroup_AABB_AnalyticPrimitive             ~ 1st AABB geometry in 2nd BLAS
 | [3] : MyHitGroup_AABB_AnalyticPrimitive_ShadowRay
@@ -165,34 +145,33 @@ shader records of a hit group for reference in the examples below:
 | [5] : MyHitGroup_AABB_AnalyticPrimitive_ShadowRay
   ...
 ```
+
 Given the shader table layout, the shader table indexing is set as follows:
-o MissShaderIndex is set to 0 for radiance rays, and 1 for shadow rays in TraceRay().
-o *GeometryContributionToHitGroupIndex* is a Geometry ID that is system 
+* **MissShaderIndex** is set to 0 for radiance rays, and 1 for shadow rays in TraceRay().
+* **GeometryContributionToHitGroupIndex** is a Geometry ID that is system 
   generated for each geometry within a BLAS. This directly maps to GeometryDesc 
-  order passed in by the app, i.e. {0, 1, 2,...}
-o Given two hit groups (radiance, shadow ray) per geometry ID, 
-  *MultiplierForGeometryContributionToHitGroupIndex* is 2. 
-o *RayContributionToHitGroupIndex* is set to 0 and 1, for radiance and shadow 
+  order passed in by the app, i.e. {0, 1, 2,...}.
+* **MultiplierForGeometryContributionToHitGroupIndex** is 2, since there are two hit groups (radiance, shadow ray) per geometry ID.
+* **RayContributionToHitGroupIndex** is set to 0 and 1, for radiance and shadow 
   rays respectively, since they're stored subsequently in a shader table.
-* InstanceContributionToHitGroupIndex is an offset in-between instances.
+* **InstanceContributionToHitGroupIndex** is an offset in-between instances.
   Since triangle BLAS is first, it's set to 0 for triangle BLAS. AABB BLAS 
   sets it 2 since the BLAS has to skip over the triangle BLAS's shader
   records, which is 2 since the triangle plane has two shader records 
   (one for radiance, and one for shadow ray).
-//
-Example:
+
+**Shader table indexing example** -
  A shader calls a TraceRay() for a shadow ray and sets *RayContributionToHitGroupIndex*
  to 1 as an offset to shadow shader records and *MultiplierForGeometryContributionToHitGroupIndex*
  to 2 since there are two shader records per geometry. The shadow ray hits a second 
- AABB geometry in the 2nd BLAS that contains AABB geometries. The shader index will be
+ AABB geometry, hence *GeometryContributionToHitGroupIndex* ~ 1, in the second BLAS that contains AABB geometries and second BLAS providing *InstanceContributionToHitGroupIndex* 2. The shader index the n will be
  5 in the table above and is calculated as:
-    1  // ~ RayContributionToHitGroupIndex                   - from TraceRay()                 
-  + 2  // ~ MultiplierForGeometryContributionToHitGroupIndex - from TraceRay() 
-  * 1  // ~ GeometryContributionToHitGroupIndex              - from runtime, 2nd geometry => ID:1
+```
+  1  // ~ RayContributionToHitGroupIndex                   - from TraceRay()
++ 2  // ~ MultiplierForGeometryContributionToHitGroupIndex - from TraceRay() 
+* 1  // ~ GeometryContributionToHitGroupIndex              - from runtime, 2nd geometry => ID:1
 + 2  // ~ InstanceContributionToHitGroupIndex              - from BLAS instance desc
-
-##### Raytracing setup
-
+```
 
 ## Usage
 The sample starts with Raytracing Fallback Layer API implementation being used by default. The Fallback Layer will use raytracing driver if available, otherwise it will default to the compute fallback. This default behavior can be overriden via UI controls or input arguments.
