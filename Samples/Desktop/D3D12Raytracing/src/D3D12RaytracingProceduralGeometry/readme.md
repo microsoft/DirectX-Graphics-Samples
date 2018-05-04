@@ -8,19 +8,19 @@ This sample demonstrates how to implement procedural geometry using intersection
 The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingProceduralGeometry/readme.md).
 
 ### Scene
-The scene consists of triangle and procedural geometry. Since the mixed geometry types are not currently supported within a single bottom-level AS, both triangle and procedural geometry are stored in seprate bottom-level AS. Specificaly, the geometry in the scene is:
-* Triangle geometry - consisting of a quad for ground plane.
-* Procedural geometry - remaining objects above the ground plane.
+The scene consists of triangle and procedural geometry. Since the mixed geometry types are not currently supported within a single bottom-level AS, both triangle and procedural geometry are stored in separate bottom-level AS. Specificaly, the geometry in the scene is:
+* *Triangle* - a ground plane quad.
+* *Procedural* - all the objects above the ground plane.
 
 #### Procedural geometry
-Procedural geometry is defined by an axis-aligned bounding box (AABB) and an intersection shader. The AABB defines geometric confines within a bottom-level AS object space. Once ray hits the AABB, intersection shader for the AABB is called to evaluate if the ray intersects any geometry within it and calls ReportHit() if it does. 
+Procedural geometry is defined by an axis-aligned bounding box (AABB) and an intersection shader. The AABB defines geometric confines within a bottom-level AS object space. When a ray hits the AABB, an associated intersection shader for the AABB from the hit group is called to evaluate if the ray intersects any geometry within it. If the shader finds an intersection, it calls *ReportHit()*. 
 
-This sample implements three intersection shaders, as well as multiple different primitives per each intersection shader:
-  * Analytic - a geometry with multiple spheres and an axis aligned box.
-  * Volumetric - a metaballs isosurface (aka "blobs").
-  * Signed distance - six different primitives and a fractal pyramid.
+This sample implements three intersection shaders with multiple different primitives per each intersection shader:
+  * *Analytic* - a geometry with multiple spheres and an axis aligned box.
+  * *Volumetric* - a metaballs isosurface (aka "blobs").
+  * *Signed distance* - six different primitives and a fractal pyramid.
 
-The ray/procedural primitive tests used in the intersection shaders assume primitive local space with AABB implicitly being <-1,1>. The sample applies per primitive scale transform to scale up the AABBs. A ray can only be retrieved either in world space (via *WorldRay\*()* intrinsic) or bottom-level AS object space (via *ObjectRay\*()* intrinsic). Therefore the application passes transforms for converting between bottom-level AS object and primitive local space and vice versa to the intersection shader. The shader then transforms an object space ray into local space and calls one of the ray/primitive intersection tests such as *RayAnalyticGeometryIntersectionTest* in *MyIntersectionShader_AnalyticPrimitive* intersection shader: 
+The ray/procedural primitive tests used in the intersection shaders assume primitive local space with AABB implicitly being <-1,1>. The sample applies per primitive scale transform to scale up the AABBs. A ray can only be retrieved either in world space (via *WorldRay\*()* intrinsic) or bottom-level AS object space (via *ObjectRay\*()* intrinsic). Therefore, the application passes transforms for converting between bottom-level AS object and primitive local space and vice versa to the intersection shader. When an intersection shader is called, it first transforms an object space ray into local space and, then, calls one of the ray/primitive intersection tests such as *RayAnalyticGeometryIntersectionTest* in the following *MyIntersectionShader_AnalyticPrimitive* intersection shader: 
 ```c
 // Get ray in AABB's local space.
 Ray GetRayInAABBPrimitiveLocalSpace()
@@ -61,7 +61,7 @@ If the ray intersects the geometry, the test returns true with the time of the h
     }
 }
 ```
-To increase efficiency, ray intersection tests in the sample validate each ray hit against the valid global time range as well as the *RayFlags()*, instead of waiting on *ReportHit()* to confirm a hit and redo all the setup math. This also let the sample not require any hit shaders to evaluate the hits after *ReportHit()* is called
+To increase efficiency, ray intersection tests in the sample validate each ray hit against the valid global time range as well as the *RayFlags()*, instead of immediately returning and depending on *ReportHit()* to confirm a hit and redo all the setup math. This also lets the sample not require any hit shaders to evaluate the hits after *ReportHit()* is called.
 ```c
 // Test if a hit is valid based on specified RayFlags and <RayTMin, RayTCurrent> range.
 bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
@@ -80,21 +80,21 @@ bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
 ##### Procedural geometry types
 This sample demonstrates intersection tests for ray vs following procedural geometry:
 
-**Analytic geometry** including multiple spheres and an AABB.
+***Analytic geometry*** including multiple spheres and an AABB.
 
-**Volumetric geometry** that implements metaballs (aka "blobs"). Metaballs are an isosurface within a potential field that is formed from point sources. Each source has an area of influence and the field potential function is a quintic polynomial that smoothly decreases with distance from the source's center. If there are multiple field sources, their contributing potential values are summed. The isosurface corresponds to a pre-defined threshold value. The intersection test ray marches through the field within the AABB, calculating the total field potential at each iteration, until it hits the threshold or it exits the AABB. See more detailed explanation of the algorithm at [https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies](https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies)
+***Volumetric geometry*** that implements metaballs. Metaballs are an isosurface within a potential field that is formed from point sources. Each source has an area of influence and the field is defined with a potential polynomial function that smoothly decreases with distance from the source's center. If there are multiple field sources, their contributing potential values are summed. The isosurface is defined via an application specified threshold value. To find the hit point on the isosurface, the intersection test ray marches through the field within the AABB, calculating the total field potential at each iteration, until it hits the threshold or it exits the AABB. See more detailed explanation of the algorithm at [https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies](https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies)
 
-**Signed distance geometry** is geometry based of signed distance functions. Each function returns a closest distance to the geometry considering all directions from a specific position. Since the distance is not necessarily along the ray direction, the intersection test needs to iteratively ray march and calculate signed distances at each step until it gets close enough to the surface. This algorithm is called sphere tracing and described in more detail at [https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer](https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer). A nice property of signed distance functions is that they support different logical operators and transformations allowing to combine simpler primitives into more complex geometry. This is explained in more detail at [http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm](http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm).
+***Signed distance geometry*** is geometry defined with signed distance functions. Each function returns a closest distance to the geometry considering all directions from a specific position. Since the distance is not necessarily the one that of along the ray direction, the intersection test needs to iteratively ray march and calculate signed distances at each step until it gets close enough to the surface. This algorithm is called sphere tracing and it converges to a solution faster than a constant ray stepping algorithm. See more at [https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer](https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer). A nice property of signed distance functions is that they support different logical operators and transformations allowing to combine simpler primitives into more complex geometry. This is explained in more detail at [http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm](http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm).
 
 ##### Updates
- Procedural geometry can be animated or modified without requiring acceleration structure updates as long as the AABBs don't change. The sample animates some of the geometry in the scene this way. It simply updates the transforms passed into shaders with updated rotation transforms every frame. In the metaballs case it also passes application time to animate sphere position updates within the metaballs' AABB.
+ Procedural geometry can be animated or modified without requiring acceleration structure updates as long as the AABBs don't change. The sample animates some of the geometry in the scene this way. It simply updates the transforms passed into shaders with updated rotation transforms every frame. In the metaballs case. it also passes application time to animate field source positions within the metaballs' AABB.
 
 #### Ray types
-The sample utilizes two ray types for raytracing: a radiance and a shadow ray. 
+The sample utilizes two ray types for raytracing: a *radiance* and a *shadow ray*. The difference between the two is *RayFlags()* definition and what hit group and miss shaders to execute.
 
-Radiance ray is used for primary/view and secondary/reflected ray calls of *TraceRay()*, where a ray calculates shading for each geometry hit and aggregates color contribution over multiple bounces from the scene. 
+***Radiance ray*** is used for primary/view and secondary/reflected ray calls of *TraceRay()*, where a ray calculates shading for each geometry hit and aggregates color contribution over multiple bounces from the scene. 
 
-Shadow ray is used for visibility/occlusion testing towards a light source and is simpler since all it does is to return a boolean value if it hit any or missed all objects. In practice, shadow ray only requires a miss shader and doesn't require any hit and closest hit shaders defined. It can simply be initialized with ray payload marking a hit and and *RayFlags()* to skip all but a miss shader. Then if the ray doesn't hit any geometry, the miss shader updates the hit boolean value to false:
+***Shadow ray*** is used for visibility/occlusion testing towards a light source and is simpler since all it does is to return a boolean value if it hit any or missed all objects. In practice, shadow ray only requires a miss shader and doesn't require any hit and closest hit shaders defined. It can simply be initialized with a ray payload marking a hit and and *RayFlags()* to skip all but a miss shader.
 ```c
 // Initialize shadow ray payload.
 // Set the initial value to true since closest and any hit shaders are skipped. 
@@ -107,6 +107,14 @@ TraceRay(g_scene,
     | RAY_FLAG_FORCE_OPAQUE             // ~skip any hit shaders
     | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders
     ...
+```
+Then if the ray doesn't hit any geometry, the miss shader updates the hit boolean value to false.
+```c
+[shader("miss")]
+void MyMissShader_ShadowRay(inout ShadowRayPayload rayPayload)
+{
+    rayPayload.hit = false;
+}
 ```
 
 #### Shader tables & indexing
@@ -124,36 +132,41 @@ Hit group shader table index =
 ```
 
  
-Since each ray type applies different actions in the shaders, each requires a separate shader record in the shader table. The same applies for separate geometries as well. This sample uses triangle geometry type and three procedural geometry types with differing intersection shaders, each requiring a seprate shader record. Furthermore, there are multiple geometry variations per procedural type, each parametrized via attributes that are provided through local root signatures, which in turn again require a separate shader record for each. 
+Since each ray type applies different actions in the shaders, each requires a separate shader record in the shader table. The same applies for separate geometries as well. This sample uses triangle geometry type and three procedural geometry types with differing intersection shaders, each requiring a separate shader record. Furthermore, there are multiple geometry variants per procedural type, each parametrized via attributes that are provided through local root signatures, which in turn again require a separate shader record for each. 
 
 With that said, the sample has following shader table layouts: 
 
-* **Miss shader table layout** - with two shader records.
+* **Miss shader table** - with two shader records.
 ```
 Shader table - MissShaderTable
 | [0]: MyMissShader                                   ~ Radiance ray
 | [1]: MyMissShader_ShadowRay                         ~ Shadow ray
 ```
-* **Hit group shader table layout** - with multiple geometries and two shader records for each. The full shader table is printed out in the debug output by this sample 
-and is useful as a reference when setting up the indexing parameters. Here are first few shader records of a hit group shader table as a reference for an indexing example below:
+* **Hit group shader table
+  ** - with multiple geometries and two shader records for each. The full shader table is printed out in the debug output by this sample 
+and is useful as a reference when setting up the indexing parameters. Here are first few shader records of a hit group shader table as a reference for an indexing example below. First, there are two shader records for the triangular quad plane. After that the table contains shader records for the procedural geometry.
+
 ```
 Shader table - HitGroupShaderTable: 
-| [0] : MyHitGroup_Triangle                           ~ Triangle geometry in 1st BLAS
-| [1] : MyHitGroup_Triangle_ShadowRay
-| [2] : MyHitGroup_AABB_AnalyticPrimitive             ~ 1st AABB geometry in 2nd BLAS
-| [3] : MyHitGroup_AABB_AnalyticPrimitive_ShadowRay
-| [4] : MyHitGroup_AABB_AnalyticPrimitive             ~ 2nd AABB geometry in 2nd BLAS
-| [5] : MyHitGroup_AABB_AnalyticPrimitive_ShadowRay
-  ...
+| [0]: MyHitGroup_Triangle                             ~ Triangle geometry in 1st BLAS
+| [1]: MyHitGroup_Triangle_ShadowRay
+| [2]: MyHitGroup_AABB_AnalyticPrimitive               ~ 1st Analytic AABB geometry in 2nd BLAS
+| [3]: MyHitGroup_AABB_AnalyticPrimitive_ShadowRay
+| [4]: MyHitGroup_AABB_AnalyticPrimitive               ~ 2nd Analytic AABB geometry in 2nd BLAS
+| [5]: MyHitGroup_AABB_AnalyticPrimitive_ShadowRay
+| [6]: MyHitGroup_AABB_VolumetricPrimitive             ~ 1st Volumetric AABB geometry in 2nd BLAS  
+| [7]: MyHitGroup_AABB_VolumetricPrimitive_ShadowRay
+| [8]: MyHitGroup_AABB_SignedDistancePrimitive         ~ 1st Signed distance AABB geometry in 2nd BLAS
+| [9]: MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay
+..
 ```
-
-Given the shader table layouts, the shader table indexing is set as follows:
-* **MissShaderIndex** is set to 0 for radiance rays, and 1 for shadow rays in TraceRay(). Each geometry requires both so they are stored right after each other.
-* **MultiplierForGeometryContributionToHitGroupIndex** is 2, since there are two hit groups (radiance, shadow ray) per geometry ID.
+Given the shader table layouts, the shader table indexing paramters are set as follows:
+* **MissShaderIndex** is set to 0 for *radiance rays*, and 1 for *shadow rays* in TraceRay(). Each geometry requires both so they are stored right after each other.
+* **MultiplierForGeometryContributionToHitGroupIndex** is 2, since there are two hit groups (one per ray type) per geometry ID.
 * **GeometryContributionToHitGroupIndex** is a geometry ID that is system 
-  generated for each geometry within a BLAS. This directly maps to GeometryDesc array order passed in by the app, i.e. {0, 1, 2,...}.
-* **RayContributionToHitGroupIndex** is set to 0 and 1, for radiance and shadow 
-  rays respectively, since they're stored subsequently in the shader table.
+  generated for each geometry within a BLAS. This directly maps to GeometryDesc array order passed in by the application, i.e. {0, 1, 2,...}.
+* **RayContributionToHitGroupIndex** is set to 0 and 1, for *radiance* and *shadow 
+  rays* respectively, since they're stored subsequently in the shader table.
 * **InstanceContributionToHitGroupIndex** is an offset in-between BLAS instances.
   Because triangle geometry BLAS is first, it's set to 0 for triangle BLAS. AABB BLAS
   sets the offset to 2 since the triangle BLAS has two shader records for the plane geometry with radiance and shadow ray hit groups.
