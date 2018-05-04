@@ -8,7 +8,7 @@ This sample demonstrates how to implement procedural geometry using intersection
 The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingProceduralGeometry/readme.md).
 
 ### Scene
-The scene consists of triangle and procedural/AABB geometry. Since the mixed geometry types are not currently supported within a single bottom-level AS, both triangle and procedural geometry are stored in seprate bottom-level AS. Specificaly, the geometry in the scene is:
+The scene consists of triangle and procedural geometry. Since the mixed geometry types are not currently supported within a single bottom-level AS, both triangle and procedural geometry are stored in seprate bottom-level AS. Specificaly, the geometry in the scene is:
 * Triangle geometry - consisting of a quad for ground plane.
 * Procedural geometry - remaining objects above the ground plane.
 
