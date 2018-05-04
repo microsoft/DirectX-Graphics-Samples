@@ -8,9 +8,11 @@ This sample demonstrates how to implement procedural geometry using intersection
 The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingProceduralGeometry/readme.md).
 
 ### Scene
-The scene consists of triangle and procedural geometry. Since the mixed geometry types are not currently supported within a single bottom-level AS, both triangle and procedural geometry are stored in separate bottom-level AS. Specificaly, the geometry in the scene is:
+The scene consists of triangle and procedural geometry. Specificaly, the geometry in the scene is:
 * *Triangle* - a ground plane quad.
 * *Procedural* - all the objects above the ground plane.
+
+Since mixing triangle and procedural geometry types is not supported within a single bottom-level AS, both triangle and procedural geometry are stored in separate bottom-level AS. 
 
 #### Procedural geometry
 Procedural geometry is defined by an axis-aligned bounding box (AABB) and an intersection shader. The AABB defines geometric confines within a bottom-level AS object space. When a ray hits the AABB, an associated intersection shader for the AABB from the hit group is called to evaluate if the ray intersects any geometry within it. If the shader finds an intersection, it calls *ReportHit()*. 
