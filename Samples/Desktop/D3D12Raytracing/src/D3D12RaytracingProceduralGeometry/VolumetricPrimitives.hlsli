@@ -11,7 +11,7 @@
 
 //**********************************************************************************************
 //
-// VolumetricPrimitives.h
+// VolumetricPrimitives.hlsli
 //
 // Ray marching of Metaballs (aka "Blobs").
 // More info here: https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/blobbies
@@ -22,7 +22,7 @@
 #define VOLUMETRICPRIMITIVESLIBRARY_H
 
 
-#include "RaytracingShaderHelper.h"
+#include "RaytracingShaderHelper.hlsli"
 
 struct Metaball
 {

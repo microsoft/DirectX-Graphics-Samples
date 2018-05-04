@@ -167,15 +167,15 @@ PrebuildCheck.bat</Command>
     </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="AnalyticPrimitives.h" />
+    <ClInclude Include="AnalyticPrimitives.hlsli" />
     <ClInclude Include="DirectXRaytracingHelper.h" />
-    <ClInclude Include="ProceduralPrimitivesLibrary.h" />
+    <ClInclude Include="ProceduralPrimitivesLibrary.hlsli" />
     <ClInclude Include="RaytracingSceneDefines.h" />
     <ClInclude Include="RaytracingHlslCompat.h" />
-    <ClInclude Include="RaytracingShaderHelper.h" />
+    <ClInclude Include="RaytracingShaderHelper.hlsli" />
     <ClInclude Include="D3D12RaytracingProceduralGeometry.h" />
-    <ClInclude Include="SignedDistanceFractals.h" />
-    <ClInclude Include="SignedDistancePrimitives.h" />
+    <ClInclude Include="SignedDistanceFractals.hlsli" />
+    <ClInclude Include="SignedDistancePrimitives.hlsli" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="util\DeviceResources.h" />
     <ClInclude Include="util\DXSample.h" />
@@ -183,7 +183,7 @@ PrebuildCheck.bat</Command>
     <ClInclude Include="util\HlslCompat.h" />
     <ClInclude Include="util\StepTimer.h" />
     <ClInclude Include="util\Win32Application.h" />
-    <ClInclude Include="VolumetricPrimitives.h" />
+    <ClInclude Include="VolumetricPrimitives.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="D3D12RaytracingProceduralGeometry.cpp" />

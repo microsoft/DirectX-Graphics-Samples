@@ -65,20 +65,27 @@ If the ray intersects the geometry, the test returns true with the time of the h
 ```
 To increase efficiency, ray intersection tests in the sample validate each ray hit against the valid global time range as well as the *RayFlags()*, instead of immediately returning and depending on *ReportHit()* to confirm a hit and redo all the setup math. This also lets the sample not require any hit shaders to evaluate the hits after *ReportHit()* is called.
 ```c
+// Test if a hit is culled based on specified RayFlags.
+bool IsCulled(in Ray ray, in float3 hitSurfaceNormal)
+{
+    float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
+
+    bool isCullingEnabled = RayFlags() & (RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_CULL_FRONT_FACING_TRIANGLES);
+    bool isCulled = 
+        ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (rayDirectionNormalDot > 0))
+        ||
+        ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot < 0));
+
+    return isCullingEnabled && isCulled; 
+}
+
 // Test if a hit is valid based on specified RayFlags and <RayTMin, RayTCurrent> range.
 bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
 {
-    float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
-    return
-        // Is thit within <tmin, tmax> range.
-        IsInRange(thit, RayTMin(), RayTCurrent())
-        &&
-        // Is the hit not culled.
-        (!(RayFlags() & (RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_CULL_FRONT_FACING_TRIANGLES))
-            || ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (rayDirectionNormalDot < 0))
-            || ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot > 0)));
+    return IsInRange(thit, RayTMin(), RayTCurrent()) && !IsCulled(ray, hitSurfaceNormal);
 }
 ```
+
 ##### Procedural geometry types
 This sample demonstrates intersection tests for ray vs following procedural geometry:
 
@@ -146,7 +153,7 @@ Shader table - MissShaderTable
 ```
 * **Hit group shader table
   ** - with multiple geometries and two shader records for each. The full shader table is printed out in the debug output by this sample 
-and is useful as a reference when setting up the indexing parameters. Here are first few shader records of a hit group shader table as a reference for an indexing example below. First, there are two shader records for the triangular quad plane. After that the table contains shader records for the procedural geometry.
+and is useful as a reference when setting up the indexing parameters. Here are first few shader records of a hit group shader table as a reference for an indexing example below. First, there are two shader records for the triangular quad plane. After that, the table contains shader records for the procedural geometry.
 
 ```
 Shader table - HitGroupShaderTable: 

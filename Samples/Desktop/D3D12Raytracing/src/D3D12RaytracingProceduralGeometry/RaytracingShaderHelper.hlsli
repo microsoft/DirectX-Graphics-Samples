@@ -118,18 +118,24 @@ inline Ray GenerateCameraRay(uint2 index, in float3 cameraPosition, in float4x4 
     return ray;
 }
 
+// Test if a hit is culled based on specified RayFlags.
+bool IsCulled(in Ray ray, in float3 hitSurfaceNormal)
+{
+    float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
+
+    bool isCullingEnabled = RayFlags() & (RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_CULL_FRONT_FACING_TRIANGLES);
+    bool isCulled = 
+        ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (rayDirectionNormalDot > 0))
+        ||
+        ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot < 0));
+
+    return isCullingEnabled && isCulled; 
+}
+
 // Test if a hit is valid based on specified RayFlags and <RayTMin, RayTCurrent> range.
 bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
 {
-    float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
-    return
-        // Is thit within <tmin, tmax> range.
-        IsInRange(thit, RayTMin(), RayTCurrent())
-        &&
-        // Is the hit not culled.
-        (!(RayFlags() & (RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_CULL_FRONT_FACING_TRIANGLES))
-            || ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (rayDirectionNormalDot < 0))
-            || ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot > 0)));
+    return IsInRange(thit, RayTMin(), RayTCurrent()) && !IsCulled(ray, hitSurfaceNormal);
 }
 
 #endif // RAYTRACINGSHADERHELPER_H

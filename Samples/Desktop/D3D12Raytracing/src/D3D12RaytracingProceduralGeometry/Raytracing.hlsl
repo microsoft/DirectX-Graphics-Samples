@@ -14,13 +14,14 @@
 
 #define HLSL
 #include "RaytracingHlslCompat.h"
-#include "ProceduralPrimitivesLibrary.h"
-#include "RaytracingShaderHelper.h"
+#include "ProceduralPrimitivesLibrary.hlsli"
+#include "RaytracingShaderHelper.hlsli"
 
 //***************************************************************************
 //*****------ Shader resources bound via root signatures -------*************
 //***************************************************************************
 
+// Scene wide resources
 //  g_* - bound via a global root signature
 //  l_* - bound via a local root signature
 RaytracingAccelerationStructure g_scene : register(t0, space0);

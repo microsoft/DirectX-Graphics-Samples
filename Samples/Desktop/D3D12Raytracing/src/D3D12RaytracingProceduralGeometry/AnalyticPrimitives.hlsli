@@ -11,7 +11,7 @@
 
 //**********************************************************************************************
 //
-// AnalyticPrimitives.h
+// AnalyticPrimitives.hlsli
 //
 // Set of ray vs analytic primitive intersection tests.
 //
@@ -21,7 +21,7 @@
 #define ANALYTICPRIMITIVES_H
 
 
-#include "RaytracingShaderHelper.h"
+#include "RaytracingShaderHelper.hlsli"
 
 // Solve a quadratic equation.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection

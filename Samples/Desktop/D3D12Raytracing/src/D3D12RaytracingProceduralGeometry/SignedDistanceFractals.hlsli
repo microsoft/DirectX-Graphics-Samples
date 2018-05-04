@@ -11,7 +11,7 @@
 
 //**********************************************************************************************
 //
-// SignedDistanceFractals.h
+// SignedDistanceFractals.hlsli
 //
 // Set of signed distance fractal tests.
 //
@@ -20,8 +20,8 @@
 #ifndef SIGNEDDISTANCEFRACTALS_H
 #define SIGNEDDISTANCEFRACTALS_H
 
-#include "RaytracingShaderHelper.h"
-#include "SignedDistancePrimitives.h"
+#include "RaytracingShaderHelper.hlsli"
+#include "SignedDistancePrimitives.hlsli"
 
 //------------------------------------------------------------------
 

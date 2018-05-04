@@ -11,7 +11,7 @@
 
 //**********************************************************************************************
 //
-// ProceduralPrimitivesLibrary.h
+// ProceduralPrimitivesLibrary.hlsli
 //
 // An interface to call per geometry intersection tests based on as primitive type.
 //
@@ -20,12 +20,12 @@
 #ifndef PROCEDURALPRIMITIVESLIBRARY_H
 #define PROCEDURALPRIMITIVESLIBRARY_H
 
-#include "RaytracingShaderHelper.h"
+#include "RaytracingShaderHelper.hlsli"
 
-#include "AnalyticPrimitives.h"
-#include "VolumetricPrimitives.h"
-#include "SignedDistancePrimitives.h"
-#include "SignedDistanceFractals.h"
+#include "AnalyticPrimitives.hlsli"
+#include "VolumetricPrimitives.hlsli"
+#include "SignedDistancePrimitives.hlsli"
+#include "SignedDistanceFractals.hlsli"
 
 // Analytic geometry intersection test.
 bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum analyticPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
