@@ -43,5 +43,8 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
 * Enable Developer Mode or sideload DXIL.dll from the latest Windows SDK to accompany the compiler.
 * Download DirectXRaytracingBinariesV1.0.zip from https://github.com/Microsoft/DirectX-Graphics-Samples/releases and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64.
 
+## Known limitations
+  - NV 397.31+ drivers does not properly support compute Fallback Layer. Samples have artifacts or scenes miss altogether. Use DXR modes of samples if you have or use a previous driver version.
+
 ## Feedback and Questions
 We welcome all feedback, questions and discussions about DXR and the Fallback Layer at [DirectX Raytracing forums](http://forums.directxtech.com/index.php?PHPSESSID=394klvdd3683tt1fjkh2jteav1&board=248.0).

@@ -102,6 +102,17 @@ float opBlendI(float d1, float d2)
     return smax(d1, d2, 0.1);
 }
 
+
+// Twist
+float3 opTwist(float3 p)
+{
+    float c = cos(3.0 * p.y);
+    float s = sin(3.0 * p.y);
+    float2x2 m = float2x2(c, -s, s, c);
+    return float3(mul(m, p.xz), p.y);
+}
+
+
 //------------------------------------------------------------------
 
 float sdPlane(float3 p)
@@ -258,14 +269,6 @@ float sdTorus88(float3 p, float2 t)
 float sdCylinder6(float3 p, float2 h)
 {
     return max(length_toPowNegative6(p.xz) - h.x, abs(p.y) - h.y);
-}
-
-float3 opTwist(float3 p)
-{
-    float c = cos(3.0 * p.y);
-    float s = sin(3.0 * p.y);
-    float2x2 m = float2x2(c, -s, s, c);
-    return float3(mul(m, p.xz), p.y);
 }
 
 float3 sdCalculateNormal(in float3 pos, in SignedDistancePrimitive::Enum sdPrimitive)

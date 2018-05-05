@@ -845,7 +845,7 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
 
     // Width of a bottom-level AS geometry.
     // Make the plane a little larger than the actual number of primitives in each dimension.
-    const XMUINT3 NUM_AABB = XMUINT3(7, 1, 7);
+    const XMUINT3 NUM_AABB = XMUINT3(700, 1, 700);
     const XMFLOAT3 fWidth = XMFLOAT3(
         NUM_AABB.x * c_aabbWidth + (NUM_AABB.x - 1) * c_aabbDistance,
         NUM_AABB.y * c_aabbWidth + (NUM_AABB.y - 1) * c_aabbDistance,
