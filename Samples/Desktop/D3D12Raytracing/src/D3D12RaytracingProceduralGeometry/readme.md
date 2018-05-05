@@ -103,18 +103,17 @@ The sample utilizes two ray types for raytracing: a *radiance* and a *shadow ray
 
 ***Radiance ray*** is used for primary/view and secondary/reflected ray calls of *TraceRay()*, where a ray calculates shading for each geometry hit and aggregates color contribution over multiple bounces from the scene. 
 
-***Shadow ray*** is used for visibility/occlusion testing towards a light source and is simpler since all it does is to return a boolean value if it hit any or missed all objects. In practice, shadow ray only requires a miss shader and doesn't require any hit and closest hit shaders defined. It can simply be initialized with a ray payload marking a hit and and *RayFlags()* to skip all but a miss shader.
+***Shadow ray*** is used for visibility/occlusion testing towards a light source and is simpler since all it does is to return a boolean value if it hit any or missed all objects. In practice, shadow ray only requires a miss shader and doesn't require any hit and closest hit shaders defined. It can simply be initialized with a ray payload marking a hit and *RayFlags()* to skip all but a miss shader.
 ```c
 // Initialize shadow ray payload.
 // Set the initial value to true since closest and any hit shaders are skipped. 
 // Shadow miss shader, if called, will set it to false.
 ShadowRayPayload shadowPayload = { true };
 TraceRay(g_scene,
-    /* RayFlags */
     RAY_FLAG_CULL_BACK_FACING_TRIANGLES
     | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
     | RAY_FLAG_FORCE_OPAQUE             // ~skip any hit shaders
-    | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders
+    | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders,
     ...
 ```
 Then if the ray doesn't hit any geometry, the miss shader updates the hit boolean value to false.

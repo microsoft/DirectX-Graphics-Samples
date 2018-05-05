@@ -59,8 +59,6 @@ typedef UINT16 Index;
 //*************************************************************************
 
 
-#define ANIMATE_PRIMITIVES 1
-
 // Limitting calculations only to metaballs a ray intersects can speed up raytracing
 // dramatically.  the more the number of metaballs are used.
 // Requires: USE_DYNAMIC_LOOPS set to 1 to take effect.
@@ -129,6 +127,36 @@ struct Vertex
     XMFLOAT3 position;
     XMFLOAT3 normal;
 };
+
+
+// Ray types traced in this sample.
+namespace RayType {
+    enum Enum {
+        Radiance = 0,   // ~ Primary, reflected camera/view rays calculating color for each hit.
+        Shadow,         // ~ Shadow/visibility rays, only testing for occlusion
+        Count
+    };
+}
+
+namespace TraceRayParameters
+{
+    static const UINT InstanceMask = ~0;   // Everything is visible.
+    namespace HitGroup {
+        static const UINT Offset[RayType::Count] =
+        {
+            0, // Radiance ray
+            1  // Shadow ray
+        };
+        static const UINT GeometryStride = RayType::Count;
+    }
+    namespace MissShader {
+        static const UINT Offset[RayType::Count] =
+        {
+            0, // Radiance ray
+            1  // Shadow ray
+        };
+    }
+}
 
 namespace AnalyticPrimitive {
     enum Enum {

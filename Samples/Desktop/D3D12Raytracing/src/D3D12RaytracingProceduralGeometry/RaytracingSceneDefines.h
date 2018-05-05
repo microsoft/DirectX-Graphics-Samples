@@ -89,14 +89,6 @@ namespace GeometryType {
 // Mixing of geometry types within a BLAS is not supported.
 namespace BottomLevelASType = GeometryType;
 
-// Ray types traced in this sample.
-namespace RayType {
-    enum Enum {
-        Color = 0,   // ~ Primary, reflected camera/view rays calculating color for each hit.
-        Shadow,      // ~ Shadow/visibility rays, only testing for occlusion
-        Count
-    };
-}
 
 namespace IntersectionShaderType {
     enum Enum {
