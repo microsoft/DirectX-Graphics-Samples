@@ -119,6 +119,7 @@ private:
     bool m_forceComputeFallback;
     StepTimer m_timer;
 
+    void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void RecreateD3D();
     void DoRaytracing();   

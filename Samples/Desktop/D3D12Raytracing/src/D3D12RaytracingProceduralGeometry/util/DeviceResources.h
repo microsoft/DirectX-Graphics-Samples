@@ -94,6 +94,8 @@ namespace DX
         UINT                        GetPreviousFrameIndex() const { return m_backBufferIndex == 0 ? m_backBufferCount - 1 : m_backBufferIndex - 1; }
         UINT                        GetBackBufferCount() const { return m_backBufferCount; }
         unsigned int                GetDeviceOptions() const { return m_options; }
+        LPCWSTR                     GetAdapterDescription() const { return m_adapterDescription.c_str(); }
+        UINT                        GetAdapterID() const { return m_adapterID; }
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE GetRenderTargetView() const
         {
@@ -113,6 +115,8 @@ namespace DX
         UINT                                                m_adapterIDoverride;
         UINT                                                m_backBufferIndex;
         ComPtr<IDXGIAdapter1>                               m_adapter;
+        UINT                                                m_adapterID;
+        std::wstring                                        m_adapterDescription;
 
         // Direct3D objects.
         Microsoft::WRL::ComPtr<ID3D12Device>                m_d3dDevice;

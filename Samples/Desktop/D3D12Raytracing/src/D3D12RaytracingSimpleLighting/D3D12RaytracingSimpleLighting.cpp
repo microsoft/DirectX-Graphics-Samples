@@ -25,10 +25,18 @@ const wchar_t* D3D12RaytracingSimpleLighting::c_missShaderName = L"MyMissShader"
 D3D12RaytracingSimpleLighting::D3D12RaytracingSimpleLighting(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
-    m_curRotationAngleRad(0.0f)
+    m_curRotationAngleRad(0.0f),
+    m_isDxrSupported(false)
+{
+    m_forceComputeFallback = false;
+    SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
+    UpdateForSizeChange(width, height);
+}
+
+void D3D12RaytracingSimpleLighting::EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter)
 {
     // DXR is an experimental feature and needs to be enabled before creating a D3D12 device.
-    m_isDxrSupported = EnableRaytracing();
+    m_isDxrSupported = EnableRaytracing(adapter);
 
     if (!m_isDxrSupported)
     {
@@ -38,37 +46,28 @@ D3D12RaytracingSimpleLighting::D3D12RaytracingSimpleLighting(UINT width, UINT he
             L"  1) your OS is not in developer mode.\n" \
             L"  2) your GPU driver doesn't match the D3D12 runtime loaded by the app (d3d12.dll and friends).\n" \
             L"  3) your D3D12 runtime doesn't match the D3D12 headers used by your app (in particular, the GUID passed to D3D12EnableExperimentalFeatures).\n\n");
-        
-        OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
-        ThrowIfFalse(EnableComputeRaytracingFallback(), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
-    }
 
-    m_forceComputeFallback = false;
-    SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-    
+        OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
+        ThrowIfFalse(EnableComputeRaytracingFallback(adapter), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
+    }
+}
+
+void D3D12RaytracingSimpleLighting::OnInit()
+{
     m_deviceResources = std::make_unique<DeviceResources>(
         DXGI_FORMAT_R8G8B8A8_UNORM,
         DXGI_FORMAT_UNKNOWN,
         FrameCount,
         D3D_FEATURE_LEVEL_11_0,
-        DeviceResources::c_AllowTearing
+        // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since TH2.
+        // Since the Fallback Layer requires Fall Creator's update (RS3), we don't need to handle non-tearing cases.
+        DeviceResources::c_RequireTearingSupport,
+        m_adapterIDoverride
         );
     m_deviceResources->RegisterDeviceNotify(this);
-
-    // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since Threshold II.
-    // Since the Fallback Layer requires Fall Creator's update (RS3), we don't need to handle non-tearing cases.
-    if (!m_deviceResources->IsTearingSupported())
-    {
-        OutputDebugString(L"Sample must be run on an OS with tearing support.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    UpdateForSizeChange(width, height);
-}
-
-void D3D12RaytracingSimpleLighting::OnInit()
-{
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
+    m_deviceResources->InitializeDXGIAdapter();
+    EnableDXRExperimentalFeatures(m_deviceResources->GetAdapter());
 
     m_deviceResources->CreateDeviceResources();
     m_deviceResources->CreateWindowSizeDependentResources();
@@ -770,14 +769,17 @@ void D3D12RaytracingSimpleLighting::OnKeyDown(UINT8 key)
 
     switch (key)
     {
+    case VK_NUMPAD1:
     case '1': // Fallback Layer
         m_forceComputeFallback = false;
         SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
         break;
+    case VK_NUMPAD2:
     case '2': // Fallback Layer + force compute path
         m_forceComputeFallback = true;
         SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
         break;
+    case VK_NUMPAD3:
     case '3': // DirectX Raytracing
         SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
         break;
@@ -827,6 +829,8 @@ void D3D12RaytracingSimpleLighting::OnUpdate()
 // Parse supplied command line args.
 void D3D12RaytracingSimpleLighting::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
+    DXSample::ParseCommandLineArgs(argv, argc);
+
     if (argc > 1)
     {
         if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0 )
@@ -987,9 +991,7 @@ void D3D12RaytracingSimpleLighting::OnRender()
     }
 
     m_deviceResources->Prepare();
-
     DoRaytracing();
-
     CopyRaytracingOutputToBackbuffer();
 
     m_deviceResources->Present(D3D12_RESOURCE_STATE_PRESENT);
@@ -1051,7 +1053,8 @@ void D3D12RaytracingSimpleLighting::CalculateFrameStats()
             windowText << L"(DXR)";
         }
         windowText << setprecision(2) << fixed
-            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond;
+            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
+            << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
         SetCustomWindowText(windowText.str().c_str());
     }
 }

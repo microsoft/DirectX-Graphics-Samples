@@ -62,7 +62,6 @@ D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width,
     UpdateForSizeChange(width, height);
 }
 
-
 void D3D12RaytracingProceduralGeometry::EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter)
 {
     // DXR is an experimental feature and needs to be enabled before creating a D3D12 device.
@@ -346,7 +345,6 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
         CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
     }
-
 
     // Local Root Signature
     // This is a root signature that enables a shader to have unique arguments that come from shader tables.
@@ -1153,7 +1151,6 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
         shaderIDSize = m_dxrDevice->GetShaderIdentifierSize();
     }
 
-
     /*************--------- Shader table layout -------*******************
     | --------------------------------------------------------------------
     | Shader table - HitGroupShaderTable: 
@@ -1274,14 +1271,17 @@ void D3D12RaytracingProceduralGeometry::OnKeyDown(UINT8 key)
 
     switch (key)
     {
+    case VK_NUMPAD1:
     case '1': // Fallback Layer
         m_forceComputeFallback = false;
         SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
         break;
+    case VK_NUMPAD2:
     case '2': // Fallback Layer + force compute path
         m_forceComputeFallback = true;
         SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
         break;
+    case VK_NUMPAD3:
     case '3': // DirectX Raytracing
         SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
         break;
@@ -1466,17 +1466,25 @@ void D3D12RaytracingProceduralGeometry::ReleaseDeviceDependentResources()
     m_dxrCommandList.Reset();
     m_dxrStateObject.Reset();
 
+    m_raytracingGlobalRootSignature.Reset();
+    ResetComPtrArray(&m_raytracingLocalRootSignature);
+
     m_descriptorHeap.Reset();
     m_descriptorsAllocated = 0;
-    m_raytracingOutputResourceUAVDescriptorHeapIndex = UINT_MAX;
+    m_sceneCB.Release();
+    m_aabbPrimitiveAttributeBuffer.Release();
     m_indexBuffer.resource.Reset();
     m_vertexBuffer.resource.Reset();
-    m_rayGenShaderTable.Reset();
-    m_missShaderTable.Reset();
-    m_hitGroupShaderTable.Reset();
+    m_aabbBuffer.resource.Reset();
 
     ResetComPtrArray(&m_bottomLevelAS);
     m_topLevelAS.Reset();
+
+    m_raytracingOutput.Reset();
+    m_raytracingOutputResourceUAVDescriptorHeapIndex = UINT_MAX;
+    m_rayGenShaderTable.Reset();
+    m_missShaderTable.Reset();
+    m_hitGroupShaderTable.Reset();
 }
 
 void D3D12RaytracingProceduralGeometry::RecreateD3D()
@@ -1563,7 +1571,8 @@ void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
             windowText << L"(DXR)";
         }
         windowText << setprecision(2) << fixed
-            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond;
+            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
+            << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
         SetCustomWindowText(windowText.str().c_str());
     }
 }

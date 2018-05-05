@@ -213,6 +213,7 @@ The title bar of the sample provides runtime information:
   * DXR - DirectX Raytracing being used
 * Frames per second
 * Million Primary Rays/s: a number of dispatched rays per second calculated based of FPS.
+* GPU[ID]: name
 
 ### Controls
 * ALT+ENTER - toggles between windowed and fullscreen modes.
