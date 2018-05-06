@@ -317,7 +317,20 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
     return false;
 }
 
+// Analytically integrated checkerboard grid (box filter).
+// Ref: http://iquilezles.org/www/articles/filterableprocedurals/filterableprocedurals.htm
+// ratio - Center fill to border ratio.
+float CheckersTextureBoxFilter(in float2 uv, in float2 dpdx, in float2 dpdy, in UINT ratio)
+{
+    float2 w = max(abs(dpdx), abs(dpdy));   // Filter kernel
+    float2 a = uv + 0.5*w;
+    float2 b = uv - 0.5*w;
 
+    // Analytical integral (box filter).
+    float2 i = (floor(a) + min(frac(a)*ratio, 1.0) -
+        floor(b) - min(frac(b)*ratio, 1.0)) / (ratio*w);
+    return (1.0 - i.x)*(1.0 - i.y);
+}
 
 
 #endif // SIGNEDDISTANCEPRIMITIVES_H

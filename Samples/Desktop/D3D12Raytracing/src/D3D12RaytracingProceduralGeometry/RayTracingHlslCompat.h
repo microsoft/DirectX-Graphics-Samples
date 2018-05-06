@@ -158,6 +158,8 @@ namespace TraceRayParameters
     }
 }
 
+static const XMFLOAT3 BackgroundColor = XMFLOAT3(0.8f, 0.9f, 1.0f);
+
 namespace AnalyticPrimitive {
     enum Enum {
         AABB = 0,

@@ -138,4 +138,40 @@ bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
     return IsInRange(thit, RayTMin(), RayTCurrent()) && !IsCulled(ray, hitSurfaceNormal);
 }
 
+// Texture coordinates on a horizontal plane.
+float2 TexCoords(in float3 position)
+{
+    return position.xz;
+}
+
+// Calculate ray differentials.
+void CalculateRayDifferentials(out float2 ddx_uv, out float2 ddy_uv, in float2 uv, in float3 hitPosition, in float3 surfaceNormal, in float3 cameraPosition, in float4x4 projectionToWorld)
+{
+    // Compute ray differentials by intersecting the tangent plane to the  surface.
+    Ray ddx = GenerateCameraRay(DispatchRaysIndex() + uint2(1, 0), cameraPosition, projectionToWorld);
+    Ray ddy = GenerateCameraRay(DispatchRaysIndex() + uint2(0, 1), cameraPosition, projectionToWorld);
+
+    // Compute ray differentials.
+    float3 ddx_pos = ddx.origin - ddx.direction * dot(ddx.origin - hitPosition, surfaceNormal) / dot(ddx.direction, surfaceNormal);
+    float3 ddy_pos = ddy.origin - ddy.direction * dot(ddy.origin - hitPosition, surfaceNormal) / dot(ddy.direction, surfaceNormal);
+
+    // Calculate texture sampling footprint.
+    ddx_uv = TexCoords(ddx_pos) - uv;
+    ddy_uv = TexCoords(ddy_pos) - uv;
+}
+
+// Forward declaration.
+float CheckersTextureBoxFilter(in float2 uv, in float2 dpdx, in float2 dpdy, in UINT ratio);
+
+// Return analytically integrated checkerboard texture (box filter).
+float AnalyticalCheckersTexture(in float3 hitPosition, in float3 surfaceNormal, in float3 cameraPosition, in float4x4 projectionToWorld)
+{
+    float2 ddx_uv;
+    float2 ddy_uv;
+    float2 uv = TexCoords(hitPosition);
+
+    CalculateRayDifferentials(ddx_uv, ddy_uv, uv, hitPosition, surfaceNormal, cameraPosition, projectionToWorld);
+    return CheckersTextureBoxFilter(uv, ddx_uv, ddy_uv, 50);
+}
+
 #endif // RAYTRACINGSHADERHELPER_H
