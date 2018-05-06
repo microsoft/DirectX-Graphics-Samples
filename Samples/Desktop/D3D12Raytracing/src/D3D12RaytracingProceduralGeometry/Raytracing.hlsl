@@ -82,12 +82,13 @@ float4 CalculatePhongLighting(float3 normal, bool isInShadow)
     }
 
     // Ambient component.
-    // Darken faces with normal facing downwards/away from the sky a little bit.
+    // Fake AO: Darken faces with normal facing downwards/away from the sky a little bit.
     float4 ambientColor = g_sceneCB.lightAmbientColor;
     float4 ambientColorMin = g_sceneCB.lightAmbientColor - 0.1;
     float4 ambientColorMax = g_sceneCB.lightAmbientColor;
     float a = 1 - saturate(dot(normal, float3(0, -1, 0)));
-    ambientColor = lerp(ambientColorMin, ambientColorMax, a);
+    ambientColor = albedo * lerp(ambientColorMin, ambientColorMax, a);
+    
     return ambientColor + diffuseColor + specularColor;
 }
 
