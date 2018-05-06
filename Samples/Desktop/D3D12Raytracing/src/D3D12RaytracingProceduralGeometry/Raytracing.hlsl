@@ -63,7 +63,7 @@ float4 CalculatePhongLighting(float3 normal, bool isInShadow)
     float3 hitPosition = HitWorldPosition();
     float4 albedo = l_materialCB.albedo;
     float3 lightPosition = g_sceneCB.lightPosition.xyz;
-    float shadowFactor = isInShadow ? 0.25 : 1.0;
+    float shadowFactor = isInShadow ? 0.35 : 1.0;
     float3 incidentLightRay = normalize(hitPosition - lightPosition);
 
     // Diffuse component.
@@ -82,8 +82,12 @@ float4 CalculatePhongLighting(float3 normal, bool isInShadow)
     }
 
     // Ambient component.
+    // Darken faces with normal facing downwards/away from the sky a little bit.
     float4 ambientColor = g_sceneCB.lightAmbientColor;
-
+    float4 ambientColorMin = g_sceneCB.lightAmbientColor - 0.1;
+    float4 ambientColorMax = g_sceneCB.lightAmbientColor;
+    float a = 1 - saturate(dot(normal, float3(0, -1, 0)));
+    ambientColor = lerp(ambientColorMin, ambientColorMax, a);
     return ambientColor + diffuseColor + specularColor;
 }
 
