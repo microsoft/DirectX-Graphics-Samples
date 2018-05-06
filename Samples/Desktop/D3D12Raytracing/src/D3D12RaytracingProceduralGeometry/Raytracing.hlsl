@@ -213,15 +213,65 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     rayPayload.color = phongColor + reflectedColor;
 }
 
+void fresnel(in float3 I, in float3 N, in float ior, out float kr)
+{
+    float cosi = clamp(-1, 1, dot(I, N));
+    float etai = 1, etat = ior;
+    if (cosi > 0) { swap(etai, etat); }
+    // Compute sini using Snell's law
+    float sint = etai / etat * sqrt(max(0.f, 1 - cosi * cosi));
+    // Total internal reflection
+    if (sint >= 1) {
+        kr = 1;
+    }
+    else {
+        float cost = sqrt(max(0.f, 1 - sint * sint));
+        cosi = abs(cosi);
+        float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+        float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+        kr = (Rs * Rs + Rp * Rp) / 2;
+    }
+    // As a consequence of the conservation of energy, transmittance is given by:
+    // kt = 1 - kr;
+}
+
+// Fresnel reflectance - schlick approximation.
+float3 fresnelSchlick(in float3 I, in float3 N, in float3 f0)
+{
+    float cosi = saturate(dot(-I, N));
+    return f0 + (1 - f0)*pow(1 - cosi, 5);
+}
+
 [shader("closesthit")]
 void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
+    // Trace a reflection ray.
+    // PERFORMANCE TIP: it is recommended to avoid live values carry over TraceRay() calls. 
+    // Therefore, HitWorldPosition() is recalculated every time instead.
+    Ray reflectionRay = { HitWorldPosition(), reflect(WorldRayDirection(), attr.normal) };
+    float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.recursionDepth);
+
     // Trace a shadow ray.
     float3 hitPosition = HitWorldPosition();
     Ray shadowRay = { hitPosition, normalize(g_sceneCB.lightPosition.xyz - hitPosition) };
     bool shadowRayHit = TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
 
-    rayPayload.color = CalculatePhongLighting(attr.normal, shadowRayHit);
+    // Reflected component.
+    float4 albedo = l_materialCB.albedo;
+    float indexOfRefractionChromium = 3;
+    float kr;
+    fresnel(WorldRayDirection(), attr.normal, indexOfRefractionChromium, kr);
+    float3 s = fresnelSchlick(WorldRayDirection(), attr.normal, albedo.xyz);
+    float4 reflectance = albedo.w < 0.001 ? float4(s,1) : (float4)0;
+    //float4 reflectance = 1 - l_materialCB.albedo.w;// l_materialCB.albedo;
+    float4 reflectedColor = reflectance * reflectionColor;
+
+    float4 phongColor = CalculatePhongLighting(l_materialCB.albedo, attr.normal, shadowRayHit, albedo.w);
+    float4 color = phongColor + reflectedColor;
+    
+    // Apply visibility falloff.
+    float t = RayTCurrent(); 
+    rayPayload.color = float4(lerp(color.xyz, BackgroundColor, (float3)(1.0 - exp(-0.000002*t*t*t))), 1.0);
 }
 
 //***************************************************************************

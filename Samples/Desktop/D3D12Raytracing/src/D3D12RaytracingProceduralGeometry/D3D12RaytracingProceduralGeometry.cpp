@@ -189,19 +189,23 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
     {
         m_planeMaterialCB = { XMFLOAT4(0.35f, 0.35f, 0.35f, 1.0f), 1.0f };
 
+        XMFLOAT4 chromium = XMFLOAT4(0.549f, 0.556f, 0.554f, 0.0f);
+        XMFLOAT4 gold = XMFLOAT4(1.022f, 0.782f, 0.344f, 0.0f);
         UINT offset = 0;
         // Analytic primitives.
         {
             using namespace AnalyticPrimitive;
             m_aabbMaterialCB[offset + AABB] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
             m_aabbMaterialCB[offset + Spheres] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Spheres] = { chromium, 1.0f };
             offset += AnalyticPrimitive::Count;
         }
 
         // Volumetric primitives.
         {
             using namespace VolumetricPrimitive;
-            m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(0.76f, 0.03f, 0.04f, 0.0f), 1.0f };
+            m_aabbMaterialCB[offset + Metaballs] = { chromium, 1.0f };
+            //m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(0.76f, 0.03f, 0.04f, 1.0f), 1.0f };
             offset += VolumetricPrimitive::Count;
         }
 
@@ -210,7 +214,8 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
             using namespace SignedDistancePrimitive;
             m_aabbMaterialCB[offset + MiniSpheres] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
             m_aabbMaterialCB[offset + IntersectedRoundCube] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + SquareTorus] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
+            //m_aabbMaterialCB[offset + SquareTorus] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + SquareTorus] = { chromium, 1.0f };
             m_aabbMaterialCB[offset + TwistedTorus] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 0.5f };
             m_aabbMaterialCB[offset + Cog] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 1.0f };
             m_aabbMaterialCB[offset + Cylinder] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
