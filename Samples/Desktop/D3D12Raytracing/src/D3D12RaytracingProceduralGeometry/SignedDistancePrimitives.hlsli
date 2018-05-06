@@ -318,4 +318,6 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
 }
 
 
+
+
 #endif // SIGNEDDISTANCEPRIMITIVES_H

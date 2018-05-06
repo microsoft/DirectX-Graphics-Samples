@@ -172,7 +172,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
 
         SetTransformForAABB(offset + MiniSpheres, mIdentity, mIdentity);
         SetTransformForAABB(offset + IntersectedRoundCube, mIdentity, mIdentity);
-        SetTransformForAABB(offset + SquareTorus, mScale15, mRotation);
+        SetTransformForAABB(offset + SquareTorus, mScale15, mIdentity);
         SetTransformForAABB(offset + TwistedTorus, mIdentity, mRotation);
         SetTransformForAABB(offset + Cog, mIdentity, mRotation);
         SetTransformForAABB(offset + Cylinder, mScale15y, mIdentity);
@@ -201,7 +201,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         // Volumetric primitives.
         {
             using namespace VolumetricPrimitive;
-            m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(0.76f, 0.03f, 0.04f, 1.0f), 1.0f };
+            m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(0.76f, 0.03f, 0.04f, 0.0f), 1.0f };
             offset += VolumetricPrimitive::Count;
         }
 
