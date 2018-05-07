@@ -169,12 +169,12 @@ Shader table - HitGroupShaderTable:
 ..
 ```
 Given the shader table layouts, the shader table indexing paramters are set as follows:
-* **MissShaderIndex** is set to 0 for *radiance rays*, and 1 for *shadow rays* in TraceRay(). Each geometry requires both so they are stored right after each other.
-* **MultiplierForGeometryContributionToHitGroupIndex** is 2, since there are two hit groups (one per ray type) per geometry ID.
+* **MissShaderIndex** is set to 0 for *radiance rays*, and 1 for *shadow rays* in TraceRay().
+* **RayContributionToHitGroupIndex** is set to 0 and 1, for *radiance* and *shadow 
+  rays* respectively, since they're stored subsequently in the shader table for each geometry ID.
+* **MultiplierForGeometryContributionToHitGroupIndex** is 2, since there are two hit group shader records (one for each ray type) stored one after another per geometry ID.
 * **GeometryContributionToHitGroupIndex** is a geometry ID that is system 
   generated for each geometry within a BLAS. This directly maps to GeometryDesc array order passed in by the application, i.e. {0, 1, 2,...}.
-* **RayContributionToHitGroupIndex** is set to 0 and 1, for *radiance* and *shadow 
-  rays* respectively, since they're stored subsequently in the shader table.
 * **InstanceContributionToHitGroupIndex** is an offset in-between BLAS instances.
   Because triangle geometry BLAS is first, it's set to 0 for triangle BLAS. AABB BLAS
   sets the offset to 2 since the triangle BLAS has two shader records for the plane geometry with radiance and shadow ray hit groups.
