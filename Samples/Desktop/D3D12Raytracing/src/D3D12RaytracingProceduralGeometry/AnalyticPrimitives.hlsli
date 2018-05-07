@@ -122,8 +122,8 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
     float3 centers[N] =
     {
         float3(-0.3, -0.3, -0.3),
-        float3(0.0, 0.0, 0.4),
-        float3(0.3,0.3, 0.0)
+        float3(0.1, 0.1, 0.4),
+        float3(0.35,0.35, 0.0)
     };
     float  radii[N] = { 0.6, 0.3, 0.15 };
     bool hitFound = false;

@@ -93,7 +93,7 @@ float4 CalculatePhongLighting(float3 normal, bool isInShadow)
 }
 
 //***************************************************************************
-//*****------ TraceRay wrappers for radiance and shadow rays. -------*********
+//*****------ TraceRay wrappers for radiance and shadow rays. -------********
 //***************************************************************************
 
 // Trace a radiance ray into the scene and returns a shaded color.
@@ -114,11 +114,11 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.TMax = 10000;
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
     TraceRay(g_scene,
-        RAY_FLAG_CULL_BACK_FACING_TRIANGLES, /* RayFlags */
-        ~0,/* InstanceInclusionMask*/
-        0, /* RayContributionToHitGroupIndex */
-        2, /* MultiplierForGeometryContributionToHitGroupIndex */
-        0, /* MissShaderIndex */
+        RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+        TraceRayParameters::InstanceMask,
+        TraceRayParameters::HitGroup::Offset[RayType::Radiance],
+        TraceRayParameters::HitGroup::GeometryStride,
+        TraceRayParameters::MissShader::Offset[RayType::Radiance],
         rayDesc, rayPayload);
 
     return rayPayload.color;
@@ -146,19 +146,55 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     // Shadow miss shader, if called, will set it to false.
     ShadowRayPayload shadowPayload = { true };
     TraceRay(g_scene,
-        /* RayFlags */
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES
         | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
         | RAY_FLAG_FORCE_OPAQUE             // ~skip any hit shaders
-        | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders
-        ~0,/* InstanceInclusionMask*/
-        1, /* RayContributionToHitGroupIndex */
-        2, /* MultiplierForGeometryContributionToHitGroupIndex */
-        1, /* MissShaderIndex */
+        | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders,
+        TraceRayParameters::InstanceMask,
+        TraceRayParameters::HitGroup::Offset[RayType::Shadow],
+        TraceRayParameters::HitGroup::GeometryStride,
+        TraceRayParameters::MissShader::Offset[RayType::Shadow],
         rayDesc, shadowPayload);
 
     return shadowPayload.hit;
 }
+
+#if DO_LIGHTING_CALCULATION_VIA_UTILITY_FUNCTION
+// Calculate surface color.
+// Traces shadow and reflection ray contributions.
+float4 CalculateSurfaceColor(float3 normal, float currentRayRecursionDepth)
+{
+    // PERFORMANCE TIP: it is recommended to avoid minimize values carry over across TraceRay() calls. 
+    
+    // Shadow component.
+    // Trace a shadow ray.
+    float3 hitPosition = HitWorldPosition();
+    Ray shadowRay = { hitPosition, normalize(g_sceneCB.lightPosition.xyz - hitPosition) };
+    bool shadowRayHit = TraceShadowRayAndReportIfHit(shadowRay, currentRayRecursionDepth);
+
+    // Reflected component.
+    float4 reflectedColor = float4(0, 0, 0, 0);
+    if (l_materialCB.reflectanceCoef > 0.001)
+    {
+        // Trace a reflection ray.
+        Ray reflectionRay = { HitWorldPosition(), reflect(WorldRayDirection(), normal) };
+        float4 reflectionColor = TraceRadianceRay(reflectionRay, currentRayRecursionDepth);
+
+        float3 fresnelR = FresnelReflectanceSchlick(WorldRayDirection(), normal, l_materialCB.albedo.xyz);
+        reflectedColor = l_materialCB.reflectanceCoef * float4(fresnelR, 1) * reflectionColor;
+    }
+
+    // Calculate final color.
+    float4 phongColor = CalculatePhongLighting(l_materialCB.albedo, normal, shadowRayHit, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower);
+    float4 color = phongColor + reflectedColor;
+
+    // Apply visibility falloff.
+    float t = RayTCurrent();
+    color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
+
+    return color;
+}
+#endif
 
 //***************************************************************************
 //********************------ Ray gen shader.. -------************************
@@ -181,6 +217,32 @@ void MyRaygenShader()
 //***************************************************************************
 //******************------ Closest hit shaders -------***********************
 //***************************************************************************
+#if DO_LIGHTING_CALCULATION_VIA_UTILITY_FUNCTION
+[shader("closesthit")]
+void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    // Get the base index of the triangle's first 16 bit index.
+    uint indexSizeInBytes = 2;
+    uint indicesPerTriangle = 3;
+    uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
+    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
+
+    // Load up three 16 bit indices for the triangle.
+    const uint3 indices = Load3x16BitIndices(baseIndex, g_indices);
+
+    // Retrieve corresponding vertex normals for the triangle vertices.
+    float3 triangleNormal = g_vertices[indices[0]].normal;
+
+    float4 albedo = (float4) AnalyticalCheckersTexture(HitWorldPosition(), triangleNormal, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld);
+
+    rayPayload.color = albedo * CalculateSurfaceColor(triangleNormal, rayPayload.recursionDepth);
+}
+
+[shader("closesthit")]
+void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
+{
+    rayPayload.color = CalculateSurfaceColor(attr.normal, rayPayload.recursionDepth);
+}
 
 [shader("closesthit")]
 void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
@@ -218,27 +280,13 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     rayPayload.color = phongColor + reflectedColor;
 }
 
-void fresnel(in float3 I, in float3 N, in float ior, out float kr)
-{
-    float cosi = clamp(-1, 1, dot(I, N));
-    float etai = 1, etat = ior;
-    if (cosi > 0) { swap(etai, etat); }
-    // Compute sini using Snell's law
-    float sint = etai / etat * sqrt(max(0.f, 1 - cosi * cosi));
-    // Total internal reflection
-    if (sint >= 1) {
-        kr = 1;
-    }
-    else {
-        float cost = sqrt(max(0.f, 1 - sint * sint));
-        cosi = abs(cosi);
-        float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
-        float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
-        kr = (Rs * Rs + Rp * Rp) / 2;
-    }
-    // As a consequence of the conservation of energy, transmittance is given by:
-    // kt = 1 - kr;
-}
+    // Calculate final color.
+    float4 phongColor = CalculatePhongLighting(l_materialCB.albedo, triangleNormal, shadowRayHit, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower);
+    float4 color = checkers * (phongColor + reflectedColor);
+
+    // Apply visibility falloff.
+    float t = RayTCurrent();
+    color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
 
 // Fresnel reflectance - schlick approximation.
 float3 fresnelSchlick(in float3 I, in float3 N, in float3 f0)
@@ -250,11 +298,7 @@ float3 fresnelSchlick(in float3 I, in float3 N, in float3 f0)
 [shader("closesthit")]
 void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
-    // Trace a reflection ray.
-    // PERFORMANCE TIP: it is recommended to avoid live values carry over TraceRay() calls. 
-    // Therefore, HitWorldPosition() is recalculated every time instead.
-    Ray reflectionRay = { HitWorldPosition(), reflect(WorldRayDirection(), attr.normal) };
-    float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.recursionDepth);
+    // PERFORMANCE TIP: it is recommended to avoid minimize values carry over across TraceRay() calls. 
 
     // Trace a shadow ray.
     float3 hitPosition = HitWorldPosition();

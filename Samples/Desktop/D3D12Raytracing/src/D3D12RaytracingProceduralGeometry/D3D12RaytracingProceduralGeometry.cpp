@@ -229,8 +229,6 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
             offset += VolumetricPrimitive::Count;
         }
 
-        // ToDO remove diffuse coef
-
         // Signed distance primitives.
         {
             using namespace SignedDistancePrimitive;
@@ -915,7 +913,6 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
         instanceDesc.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB * RayType::Count;
         instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
 
-        // ToDo explain all transformations
         // Move all AABBS above the ground plane.
         XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(0, c_aabbWidth/2, 0)));
         XMMATRIX mTransform = mScale * mTranslation;

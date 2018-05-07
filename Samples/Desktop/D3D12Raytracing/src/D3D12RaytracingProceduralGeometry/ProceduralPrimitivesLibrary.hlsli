@@ -28,6 +28,7 @@
 #include "SignedDistanceFractals.hlsli"
 
 // Analytic geometry intersection test.
+// AABB local space dimensions: <-1,1>.
 bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum analyticPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
 {
     float3 aabb[2] = {
@@ -45,6 +46,7 @@ bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum 
 }
 
 // Analytic geometry intersection test.
+// AABB local space dimensions: <-1,1>.
 bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::Enum volumetricPrimitive, out float thit, out ProceduralPrimitiveAttributes attr, in float elapsedTime)
 {
     switch (volumetricPrimitive)
@@ -56,7 +58,7 @@ bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::E
 
 // Signed distance functions use a shared ray signed distance test.
 // The test, instead, calls into this function to retrieve a distance for a primitive.
-// ToDo Input position is in <-1,1> local space.
+// AABB local space dimensions: <-1,1>.
 // Ref: http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum signedDistancePrimitive)
 {

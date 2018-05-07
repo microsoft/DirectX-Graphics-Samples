@@ -80,7 +80,6 @@ private:
     std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
 
     // Root constants
-    // ToDo
     PrimitiveConstantBuffer m_planeMaterialCB;
     PrimitiveConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
 
