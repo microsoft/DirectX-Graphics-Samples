@@ -187,39 +187,60 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
 
     // Setup materials.
     {
-        m_planeMaterialCB = { XMFLOAT4(0.35f, 0.35f, 0.35f, 1.0f), 1.0f };
+        auto SetAttributes = [&](
+            UINT primitiveIndex, 
+            const XMFLOAT4& albedo, 
+            float reflectanceCoef = 0.0f,
+            float diffuseCoef = 0.9f,
+            float specularCoef = 0.7f,
+            float specularPower = 50.0f,
+            float stepScale = 1.0f )
+        {
+            auto& attributes = m_aabbMaterialCB[primitiveIndex];
+            attributes.albedo = albedo;
+            attributes.reflectanceCoef = reflectanceCoef;
+            attributes.diffuseCoef = diffuseCoef;
+            attributes.specularCoef = specularCoef;
+            attributes.specularPower = specularPower;
+            attributes.stepScale = stepScale;
+        };
 
-        XMFLOAT4 chromium = XMFLOAT4(0.549f, 0.556f, 0.554f, 0.0f);
-        XMFLOAT4 gold = XMFLOAT4(1.022f, 0.782f, 0.344f, 0.0f);
+
+        m_planeMaterialCB = { XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.4f, 50, 1};
+
+        // Albedos
+        XMFLOAT4 green = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
+        XMFLOAT4 red = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
+        XMFLOAT4 yellow = XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f);
+        
         UINT offset = 0;
         // Analytic primitives.
         {
             using namespace AnalyticPrimitive;
-            m_aabbMaterialCB[offset + AABB] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + Spheres] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + Spheres] = { chromium, 1.0f };
+            SetAttributes(offset + AABB, red);
+            SetAttributes(offset + Spheres, ChromiumReflectance, 1);
             offset += AnalyticPrimitive::Count;
         }
 
         // Volumetric primitives.
         {
             using namespace VolumetricPrimitive;
-            m_aabbMaterialCB[offset + Metaballs] = { chromium, 1.0f };
-            //m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(0.76f, 0.03f, 0.04f, 1.0f), 1.0f };
+            SetAttributes(offset + Metaballs, ChromiumReflectance, 1);
             offset += VolumetricPrimitive::Count;
         }
+
+        // ToDO remove diffuse coef
 
         // Signed distance primitives.
         {
             using namespace SignedDistancePrimitive;
-            m_aabbMaterialCB[offset + MiniSpheres] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + IntersectedRoundCube] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
-            //m_aabbMaterialCB[offset + SquareTorus] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + SquareTorus] = { chromium, 1.0f };
-            m_aabbMaterialCB[offset + TwistedTorus] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 0.5f };
-            m_aabbMaterialCB[offset + Cog] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + Cylinder] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + FractalPyramid] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 0.8f };
+            SetAttributes(offset + MiniSpheres, green);
+            SetAttributes(offset + IntersectedRoundCube, green);
+            SetAttributes(offset + SquareTorus, ChromiumReflectance, 1);
+            SetAttributes(offset + TwistedTorus, yellow, 0, 1.0f, 0.7f, 50, 0.5f );
+            SetAttributes(offset + Cog, yellow, 0, 1.0f, 0.1f, 2);
+            SetAttributes(offset + Cylinder, red);
+            SetAttributes(offset + FractalPyramid, green, 0, 1, 0.1f, 4, 0.8f);
         }
     }
 
@@ -254,7 +275,7 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         lightAmbientColor = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
         m_sceneCB->lightAmbientColor = XMLoadFloat4(&lightAmbientColor);
 
-        float d = 0.6;
+        float d = 0.6f;
         lightDiffuseColor = XMFLOAT4(d, d, d, 1.0f);
         m_sceneCB->lightDiffuseColor = XMLoadFloat4(&lightDiffuseColor);
     }

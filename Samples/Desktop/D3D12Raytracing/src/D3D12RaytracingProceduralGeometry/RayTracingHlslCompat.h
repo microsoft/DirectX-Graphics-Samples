@@ -102,6 +102,10 @@ struct SceneConstantBuffer
 struct PrimitiveConstantBuffer
 {
     XMFLOAT4 albedo;
+    float reflectanceCoef;
+    float diffuseCoef;
+    float specularCoef;
+    float specularPower;
     float stepScale;                      // Step scale for ray marching of signed distance primitives. 
                                           // - Some object transformations don't preserve the distances and 
                                           //   thus require shorter steps.
@@ -158,7 +162,11 @@ namespace TraceRayParameters
     }
 }
 
-static const XMFLOAT3 BackgroundColor = XMFLOAT3(0.8f, 0.9f, 1.0f);
+// From: http://blog.selfshadow.com/publications/s2015-shading-course/hoffman/s2015_pbs_physics_math_slides.pdf
+static const XMFLOAT4 ChromiumReflectance = XMFLOAT4(0.549f, 0.556f, 0.554f, 1.0f);
+
+static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.8f, 0.9f, 1.0f, 1.0f);
+static const float InShadowRadiance = 0.35f;
 
 namespace AnalyticPrimitive {
     enum Enum {

@@ -174,4 +174,12 @@ float AnalyticalCheckersTexture(in float3 hitPosition, in float3 surfaceNormal, 
     return CheckersTextureBoxFilter(uv, ddx_uv, ddy_uv, 50);
 }
 
+// Fresnel reflectance - schlick approximation.
+float3 FresnelReflectanceSchlick(in float3 I, in float3 N, in float3 f0)
+{
+    float cosi = saturate(dot(-I, N));
+    return f0 + (1 - f0)*pow(1 - cosi, 5);
+}
+
+
 #endif // RAYTRACINGSHADERHELPER_H
