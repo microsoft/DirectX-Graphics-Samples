@@ -33,7 +33,7 @@ struct InputConstants
 #define InputConstantsRegister 0
 
 #ifdef HLSL
-RWByteAddressBuffer outputBVH : UAV_REGISTER(OutputBVHRegister);
+globallycoherent RWByteAddressBuffer outputBVH : UAV_REGISTER(OutputBVHRegister);
 RWByteAddressBuffer scratchMemory : UAV_REGISTER(ScratchBufferRegister);
 RWByteAddressBuffer childNodesProcessedCounter : UAV_REGISTER(ChildNodesProcessedBufferRegister);
 RWStructuredBuffer<uint> mortonCodes : UAV_REGISTER(MortonCodesBufferRegister);

@@ -45,13 +45,13 @@ void RayGen()
 }
 
 [shader("miss")]
-void Miss(inout MyPayload payload : SV_RayPayload)
+void Miss(inout MyPayload payload)
 {
     RenderTarget[DispatchRaysIndex()] = float4(1, 0, 0, 1);
 }
 
 [shader("closesthit")]
-void Hit(inout MyPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void Hit(inout MyPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     RenderTarget[DispatchRaysIndex()] = float4(1, 0, 1, 1);
 }

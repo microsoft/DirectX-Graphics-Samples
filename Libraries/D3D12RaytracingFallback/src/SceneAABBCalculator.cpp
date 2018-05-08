@@ -11,7 +11,7 @@
 #include "pch.h"
 #include "CalculateSceneAABBBindings.h"
 #include "CompiledShaders/CalculateSceneAABBFromAABBs.h"
-#include "CompiledShaders/CalculateSceneAABBFromTriangles.h"
+#include "CompiledShaders/CalculateSceneAABBFromPrimitives.h"
 #include "CompiledShaders/CalculateSceneAABBFromBVHs.h"
 
 namespace FallbackLayer
@@ -28,18 +28,20 @@ namespace FallbackLayer
         CreateRootSignatureHelper(pDevice, rootSignatureDesc, &m_pRootSignature);
 
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateSceneAABBFromAABBs), &m_pCalculateSceneAABBFromAABBs);
-        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateSceneAABBFromTriangles), &m_pCalculateSceneAABBFromTriangles);
+        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateSceneAABBFromPrimitives), &m_pCalculateSceneAABBFromPrimitives);
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pCalculateSceneAABBFromBVHs), &m_pCalculateSceneAABBFromBVHs);
     }
 
 
     void SceneAABBCalculator::CalculateSceneAABB(ID3D12GraphicsCommandList *pCommandList, SceneType sceneType, D3D12_GPU_VIRTUAL_ADDRESS inputBuffer, UINT numElements, D3D12_GPU_VIRTUAL_ADDRESS scratchBuffer, D3D12_GPU_VIRTUAL_ADDRESS outputAABB)
     {
+        if (numElements == 0) return;
+
         pCommandList->SetComputeRootSignature(m_pRootSignature);
         switch (sceneType)
         {
         case SceneType::Triangles:
-            pCommandList->SetPipelineState(m_pCalculateSceneAABBFromTriangles);
+            pCommandList->SetPipelineState(m_pCalculateSceneAABBFromPrimitives);
             break;
         case SceneType::BottomLevelBVHs:
             pCommandList->SetPipelineState(m_pCalculateSceneAABBFromBVHs);

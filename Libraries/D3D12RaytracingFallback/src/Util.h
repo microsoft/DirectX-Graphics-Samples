@@ -9,7 +9,6 @@
 //
 //*********************************************************
 #pragma once
-
 #define ThrowInternalFailure(expression) ThrowFailure(expression, L"Unexpected internal Failure: " #expression)
 
 inline void ThrowFailure(HRESULT hr, LPCWSTR errorString = nullptr)
@@ -32,14 +31,14 @@ inline void ThrowFailure(HRESULT hr, LPCWSTR errorString = nullptr)
 template <typename T>
 T DivideAndRoundUp(T dividend, T divisor) { return (dividend - 1) / divisor + 1; }
 
-__forceinline uint8_t Log2(uint64_t value)
+__forceinline uint8_t Log2(uint32_t value)
 {
     unsigned long mssb; // most significant set bit
     unsigned long lssb; // least significant set bit
 
                         // If perfect power of two (only one set bit), return index of bit.  Otherwise round up
                         // fractional log by adding 1 to most signicant set bit's index.
-    if (_BitScanReverse64(&mssb, value) > 0 && _BitScanForward64(&lssb, value) > 0)
+    if (BitScanReverse(&mssb, value) > 0 && BitScanForward(&lssb, value) > 0)
         return uint8_t(mssb + (mssb == lssb ? 0 : 1));
     else
         return 0;
@@ -115,40 +114,71 @@ static const D3D12_RAYTRACING_GEOMETRY_DESC &GetGeometryDesc(const typename RAYT
     }
 }
 
-static UINT GetTriangleCountFromGeometryDesc(const D3D12_RAYTRACING_GEOMETRY_DESC &geometryDesc)
+static UINT GetPrimitiveCountFromGeometryDesc(const D3D12_RAYTRACING_GEOMETRY_DESC &geometryDesc)
 {
-    if (geometryDesc.Type == D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS)
+    switch (geometryDesc.Type)
     {
-        ThrowFailure(E_NOTIMPL,
-            L"Intersection shaders are not currently supported. This error was thrown due to the use of D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS");
-    }
+        case D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES:
+        {
+            const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC &triangles = geometryDesc.Triangles;
+            if (!IsIndexBufferFormatSupported(triangles.IndexFormat))
+            {
+                ThrowFailure(E_NOTIMPL, L"Unsupported index buffer format provided");
+            }
 
-    const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC &triangles = geometryDesc.Triangles;
-    if (!IsIndexBufferFormatSupported(triangles.IndexFormat))
-    {
-        ThrowFailure(E_NOTIMPL, L"Unsupported index buffer format provided");
+            const bool bNullIndexBuffer = (triangles.IndexFormat == DXGI_FORMAT_UNKNOWN);
+            const UINT vertexCount = bNullIndexBuffer ? triangles.VertexCount : triangles.IndexCount;
+            if (vertexCount % 3 != 0)
+            {
+                ThrowFailure(E_INVALIDARG, bNullIndexBuffer ?
+                    L"Invalid vertex count provided, must be a multiple of 3 when there is no index buffer since geometry is always a triangle list" :
+                    L"Invalid index count provided, must be a multiple of 3 since geometry is always a triangle list"
+                );
+            }
+            return vertexCount / 3;
+        }
+        case D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS:
+        {
+            const D3D12_RAYTRACING_GEOMETRY_AABBS_DESC &aabbs = geometryDesc.AABBs;
+            return static_cast<UINT>(aabbs.AABBCount);
+        }
+        default:
+            ThrowFailure(E_INVALIDARG, L"Unrecognized D3D12_RAYTRACING_GEOMETRY_TYPE");
+            return 0;
     }
-
-    const bool bNullIndexBuffer = (triangles.IndexFormat == DXGI_FORMAT_UNKNOWN);
-    const UINT vertexCount = bNullIndexBuffer ? triangles.VertexCount : triangles.IndexCount;
-    if (vertexCount % 3 != 0)
-    {
-        ThrowFailure(E_INVALIDARG, bNullIndexBuffer ?
-            L"Invalid vertex count provided, must be a multiple of 3 when there is no index buffer since geometry is always a triangle list" :
-            L"Invalid index count provided, must be a multiple of 3 since geometry is always a triangle list"
-        );
-    }
-    return vertexCount / 3;
 }
 
 template<typename RAYTRACING_ACCELERATION_STRUCTURE_DESC>
-static UINT GetTotalTriangleCount(const typename RAYTRACING_ACCELERATION_STRUCTURE_DESC &desc)
+static UINT GetTotalPrimitiveCount(const typename RAYTRACING_ACCELERATION_STRUCTURE_DESC &desc)
 {
     UINT totalTriangles = 0;
     for (UINT elementIndex = 0; elementIndex < desc.NumDescs; elementIndex++)
     {
         const D3D12_RAYTRACING_GEOMETRY_DESC &geometryDesc = GetGeometryDesc(desc, elementIndex);
-        totalTriangles += GetTriangleCountFromGeometryDesc(geometryDesc);
+        totalTriangles += GetPrimitiveCountFromGeometryDesc(geometryDesc);
     }
     return totalTriangles;
+}
+
+static UINT GetNumberOfInternalNodes(UINT numLeaves)
+{
+    // A binary tree with N leaves will always have N - 1 internal nodes
+    return std::max(0, (INT)(numLeaves - 1));
+}
+
+static UINT GetNumParameters(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC &desc)
+{
+    UINT numParameters = (UINT)-1;
+    switch (desc.Version)
+    {
+    case D3D_ROOT_SIGNATURE_VERSION_1_0:
+        numParameters = desc.Desc_1_0.NumParameters;
+        break;
+    case D3D_ROOT_SIGNATURE_VERSION_1_1:
+        numParameters = desc.Desc_1_0.NumParameters;
+        break;
+    default:
+        ThrowFailure(E_NOTIMPL, L"Using an unrecognized D3D_ROOT_SIGNATURE_VERSION.");
+    }
+    return numParameters;
 }

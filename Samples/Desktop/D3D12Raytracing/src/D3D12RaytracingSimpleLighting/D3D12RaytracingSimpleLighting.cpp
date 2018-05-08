@@ -25,10 +25,18 @@ const wchar_t* D3D12RaytracingSimpleLighting::c_missShaderName = L"MyMissShader"
 D3D12RaytracingSimpleLighting::D3D12RaytracingSimpleLighting(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
-    m_curRotationAngleRad(0.0f)
+    m_curRotationAngleRad(0.0f),
+    m_isDxrSupported(false)
+{
+    m_forceComputeFallback = false;
+    SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
+    UpdateForSizeChange(width, height);
+}
+
+void D3D12RaytracingSimpleLighting::EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter)
 {
     // DXR is an experimental feature and needs to be enabled before creating a D3D12 device.
-    m_isDxrSupported = EnableRaytracing();
+    m_isDxrSupported = EnableRaytracing(adapter);
 
     if (!m_isDxrSupported)
     {
@@ -38,37 +46,28 @@ D3D12RaytracingSimpleLighting::D3D12RaytracingSimpleLighting(UINT width, UINT he
             L"  1) your OS is not in developer mode.\n" \
             L"  2) your GPU driver doesn't match the D3D12 runtime loaded by the app (d3d12.dll and friends).\n" \
             L"  3) your D3D12 runtime doesn't match the D3D12 headers used by your app (in particular, the GUID passed to D3D12EnableExperimentalFeatures).\n\n");
-        
-        OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
-        ThrowIfFalse(EnableComputeRaytracingFallback(), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
-    }
 
-    m_forceComputeFallback = false;
-    SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-    
+        OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
+        ThrowIfFalse(EnableComputeRaytracingFallback(adapter), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
+    }
+}
+
+void D3D12RaytracingSimpleLighting::OnInit()
+{
     m_deviceResources = std::make_unique<DeviceResources>(
         DXGI_FORMAT_R8G8B8A8_UNORM,
         DXGI_FORMAT_UNKNOWN,
         FrameCount,
         D3D_FEATURE_LEVEL_11_0,
-        DeviceResources::c_AllowTearing
+        // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since TH2.
+        // Since the Fallback Layer requires Fall Creator's update (RS3), we don't need to handle non-tearing cases.
+        DeviceResources::c_RequireTearingSupport,
+        m_adapterIDoverride
         );
     m_deviceResources->RegisterDeviceNotify(this);
-
-    // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since Threshold II.
-    // Since the Fallback Layer requires Fall Creator's update (RS3), we don't need to handle non-tearing cases.
-    if (!m_deviceResources->IsTearingSupported())
-    {
-        OutputDebugString(L"Sample must be run on an OS with tearing support.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    UpdateForSizeChange(width, height);
-}
-
-void D3D12RaytracingSimpleLighting::OnInit()
-{
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
+    m_deviceResources->InitializeDXGIAdapter();
+    EnableDXRExperimentalFeatures(m_deviceResources->GetAdapter());
 
     m_deviceResources->CreateDeviceResources();
     m_deviceResources->CreateWindowSizeDependentResources();
@@ -100,8 +99,7 @@ void D3D12RaytracingSimpleLighting::InitializeScene()
 
     // Setup materials.
     {
-        XMFLOAT4 cubeDiffuseColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-        m_cubeCB.diffuseColor = XMLoadFloat4(&cubeDiffuseColor);
+        m_cubeCB.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     // Setup camera.
@@ -129,7 +127,7 @@ void D3D12RaytracingSimpleLighting::InitializeScene()
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
 
-        lightPosition = XMFLOAT4(0.0f, 1.8f, -3.0, 0.0f);
+        lightPosition = XMFLOAT4(0.0f, 1.8f, -3.0f, 0.0f);
         m_sceneCB[frameIndex].lightPosition = XMLoadFloat4(&lightPosition);
 
         lightAmbientColor = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
@@ -254,6 +252,14 @@ void D3D12RaytracingSimpleLighting::CreateRootSignatures()
         localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
         SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature);
     }
+#if USE_NON_NULL_LOCAL_ROOT_SIG 
+    // Empty local root signature
+    {
+        CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(D3D12_DEFAULT);
+        localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+        SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignatureEmpty);
+    }
+#endif
 }
 
 // Create raytracing device and command list.
@@ -275,6 +281,35 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingInterfaces()
         ThrowIfFailed(device->QueryInterface(__uuidof(ID3D12DeviceRaytracingPrototype), &m_dxrDevice), L"Couldn't get DirectX Raytracing interface for the device.\n");
         ThrowIfFailed(commandList->QueryInterface(__uuidof(ID3D12CommandListRaytracingPrototype), &m_dxrCommandList), L"Couldn't get DirectX Raytracing interface for the command list.\n");
     }
+}
+
+// Local root signature and shader association
+// This is a root signature that enables a shader to have unique arguments that come from shader tables.
+void D3D12RaytracingSimpleLighting::CreateLocalRootSignatureSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline)
+{
+    // Local root signature to be used in a hit group.
+    auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+    localRootSignature->SetRootSignature(m_raytracingLocalRootSignature.Get());
+    // Define explicit shader association for the local root signature. 
+    // In this sample, this could be ommited for convenience since it matches the default association.
+    {
+        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+        rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
+        rootSignatureAssociation->AddExport(c_hitGroupName);
+    }
+
+#if USE_NON_NULL_LOCAL_ROOT_SIG 
+    // Empty local root signature to be used in a ray gen and a miss shader.
+    {
+        auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+        localRootSignature->SetRootSignature(m_raytracingLocalRootSignatureEmpty.Get());
+        // Shader association
+        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+        rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
+        rootSignatureAssociation->AddExport(c_raygenShaderName);
+        rootSignatureAssociation->AddExport(c_missShaderName);
+    }
+#endif
 }
 
 // Create a raytracing pipeline state object (RTPSO).
@@ -327,17 +362,7 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
 
     // Local root signature and shader association
     // This is a root signature that enables a shader to have unique arguments that come from shader tables.
-    auto localRootSignature = raytracingPipeline.CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
-    localRootSignature->SetRootSignature(m_raytracingLocalRootSignature.Get());
-    // Define explicit shader association for the local root signature. 
-    // In this sample, this could be ommited for convenience since it matches the default association.
-    {
-        auto rootSignatureAssociation = raytracingPipeline.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
-        rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
-        rootSignatureAssociation->AddExport(c_raygenShaderName);
-        rootSignatureAssociation->AddExport(c_missShaderName);
-        rootSignatureAssociation->AddExport(c_hitGroupName);
-    }
+    CreateLocalRootSignatureSubobjects(&raytracingPipeline);
 
     // Global root signature
     // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
@@ -347,10 +372,10 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
     // Pipeline config
     // Defines the maximum TraceRay() recursion depth.
     auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
-    // Setting max recursion depth at 1 ~ primary rays only. 
-    // Drivers may apply optimization strategies for low recursion depths, 
-    // so it is recommended to set max recursion depth as low as needed. 
-    pipelineConfig->Config(1);  
+    // PERFOMANCE TIP: Set max recursion depth as low as needed 
+    // as drivers may apply optimization strategies for low recursion depths.
+    UINT maxRecursionDepth = 1; // ~ primary rays only. 
+    pipelineConfig->Config(maxRecursionDepth);
 
 #if _DEBUG
     PrintStateObjectDesc(raytracingPipeline);
@@ -472,8 +497,11 @@ void D3D12RaytracingSimpleLighting::BuildGeometry()
     AllocateUploadBuffer(device, indices, sizeof(indices), &m_indexBuffer.resource);
     AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_vertexBuffer.resource);
 
-    CreateBufferSRV(&m_indexBuffer, sizeof(indices)/4, sizeof(UINT));
-    CreateBufferSRV(&m_vertexBuffer, ARRAYSIZE(vertices), sizeof(vertices[0]));
+    // Vertex buffer is passed to the shader along with index buffer as a descriptor table.
+    // Vertex buffer descriptor must follow index buffer descriptor in the descriptor heap.
+    UINT descriptorIndexIB = CreateBufferSRV(&m_indexBuffer, sizeof(indices)/4, 0);
+    UINT descriptorIndexVB = CreateBufferSRV(&m_vertexBuffer, ARRAYSIZE(vertices), sizeof(vertices[0]));
+    ThrowIfFalse(descriptorIndexVB == descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index!");
 }
 
 // Build acceleration structures needed for raytracing.
@@ -499,8 +527,8 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
 
     // Mark the geometry as opaque. 
-    // Note: when rays encounter this geometry an any hit shader will not be executed whether it is present or not. 
-    // It is recommended to use this flag liberally, as it can enable important ray processing optimizations.
+    // PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
+    // Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
     geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
     // Get required sizes for an acceleration structure.
@@ -572,7 +600,7 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     // The Fallback Layer interface uses WRAPPED_GPU_POINTER to encapsulate the underlying pointer
     // which will either be an emulated GPU pointer for the compute - based path or a GPU_VIRTUAL_ADDRESS for the DXR path.
 
-    // Create an instance desc for the bottom level acceleration structure.
+    // Create an instance desc for the bottom-level acceleration structure.
     ComPtr<ID3D12Resource> instanceDescs;
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
@@ -681,23 +709,37 @@ void D3D12RaytracingSimpleLighting::BuildShaderTables()
         shaderIdentifierSize = m_dxrDevice->GetShaderIdentifierSize();
     }
 
-    // Initialize shader records.
-    // Shader record = {{ Shader ID }, { RootArguments }}
-    static_assert(LocalRootSignatureParams::CubeConstantSlot == 0  && LocalRootSignatureParams::Count == 1, "Checking the local root signature parameters definition here.");
-    struct RootArguments { 
-        CubeConstantBuffer cb;
-    } rootArguments;
-    rootArguments.cb = m_cubeCB;
-    
-    ShaderRecord rayGenShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize, nullptr, 0);
-    rayGenShaderRecord.AllocateAsUploadBuffer(device, &m_rayGenShaderTable, L"RayGenShaderTable");
+    // Ray gen shader table
+    {
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize;
+        ShaderTable rayGenShaderTable(device, numShaderRecords, shaderRecordSize, L"RayGenShaderTable");
+        rayGenShaderTable.push_back(ShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize));
+        m_rayGenShaderTable = rayGenShaderTable.GetResource();
+    }
 
-    ShaderRecord missShaderRecord(missShaderIdentifier, shaderIdentifierSize, nullptr, 0);
-    missShaderRecord.AllocateAsUploadBuffer(device, &m_missShaderTable, L"MissShaderTable");
+    // Miss shader table
+    {
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize;
+        ShaderTable missShaderTable(device, numShaderRecords, shaderRecordSize, L"MissShaderTable");
+        missShaderTable.push_back(ShaderRecord(missShaderIdentifier, shaderIdentifierSize));
+        m_missShaderTable = missShaderTable.GetResource();
+    }
 
-    // Only hit group shader record requires root arguments initialization for the closest hit shader's cube CB access.
-    ShaderRecord hitGroupShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments));
-    hitGroupShaderRecord.AllocateAsUploadBuffer(device, &m_hitGroupShaderTable, L"HitGroupShaderTable");
+    // Hit group shader table
+    {
+        struct RootArguments {
+            CubeConstantBuffer cb;
+        } rootArguments;
+        rootArguments.cb = m_cubeCB;
+
+        UINT numShaderRecords = 1;
+        UINT shaderRecordSize = shaderIdentifierSize + sizeof(rootArguments);
+        ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
+        hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments)));
+        m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
+    }
 }
 
 void D3D12RaytracingSimpleLighting::SelectRaytracingAPI(RaytracingAPI type)
@@ -727,14 +769,17 @@ void D3D12RaytracingSimpleLighting::OnKeyDown(UINT8 key)
 
     switch (key)
     {
+    case VK_NUMPAD1:
     case '1': // Fallback Layer
         m_forceComputeFallback = false;
         SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
         break;
+    case VK_NUMPAD2:
     case '2': // Fallback Layer + force compute path
         m_forceComputeFallback = true;
         SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
         break;
+    case VK_NUMPAD3:
     case '3': // DirectX Raytracing
         SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
         break;
@@ -784,6 +829,8 @@ void D3D12RaytracingSimpleLighting::OnUpdate()
 // Parse supplied command line args.
 void D3D12RaytracingSimpleLighting::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
+    DXSample::ParseCommandLineArgs(argv, argc);
+
     if (argc > 1)
     {
         if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0 )
@@ -898,6 +945,9 @@ void D3D12RaytracingSimpleLighting::ReleaseDeviceDependentResources()
     m_fallbackStateObject.Reset();
     m_raytracingGlobalRootSignature.Reset();
     m_raytracingLocalRootSignature.Reset();
+#if USE_NON_NULL_LOCAL_ROOT_SIG 
+    m_raytracingLocalRootSignatureEmpty.Reset();
+#endif
     
     m_dxrDevice.Reset();
     m_dxrCommandList.Reset();
@@ -941,9 +991,7 @@ void D3D12RaytracingSimpleLighting::OnRender()
     }
 
     m_deviceResources->Prepare();
-
     DoRaytracing();
-
     CopyRaytracingOutputToBackbuffer();
 
     m_deviceResources->Present(D3D12_RESOURCE_STATE_PRESENT);
@@ -1005,7 +1053,8 @@ void D3D12RaytracingSimpleLighting::CalculateFrameStats()
             windowText << L"(DXR)";
         }
         windowText << setprecision(2) << fixed
-            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond;
+            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
+            << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
         SetCustomWindowText(windowText.str().c_str());
     }
 }
@@ -1061,19 +1110,29 @@ UINT D3D12RaytracingSimpleLighting::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HAND
 }
 
 // Create SRV for a buffer.
-void D3D12RaytracingSimpleLighting::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
+UINT D3D12RaytracingSimpleLighting::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
 {
     auto device = m_deviceResources->GetD3DDevice();
 
     // SRV
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
     srvDesc.Buffer.NumElements = numElements;
-    srvDesc.Buffer.StructureByteStride = elementSize;
+    if (elementSize == 0)
+    {
+        srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+        srvDesc.Buffer.StructureByteStride = 0;
+    }
+    else
+    {
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+        srvDesc.Buffer.StructureByteStride = elementSize;
+    }
     UINT descriptorIndex = AllocateDescriptor(&buffer->cpuDescriptorHandle);
     device->CreateShaderResourceView(buffer->resource.Get(), &srvDesc, buffer->cpuDescriptorHandle);
     buffer->gpuDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), descriptorIndex, m_descriptorSize);
+    return descriptorIndex;
 };

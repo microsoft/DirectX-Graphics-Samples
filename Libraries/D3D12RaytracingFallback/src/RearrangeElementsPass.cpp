@@ -42,6 +42,8 @@ namespace FallbackLayer
         D3D12_GPU_VIRTUAL_ADDRESS inputMetadataBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer)
     {
+        if (numTriangles == 0) return;
+
         pCommandList->SetComputeRootSignature(m_pRootSignature);
         switch (sceneType)
         {

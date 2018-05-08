@@ -17,7 +17,7 @@ namespace FallbackLayer
 {
     ConstructHierarchyPass::ConstructHierarchyPass(ID3D12Device *pDevice, UINT nodeMask)
     {
-        D3D12_DESCRIPTOR_RANGE1 globalDescriptorHeapRange = CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, -1, GlobalDescriptorHeapRegister, GlobalDescriptorHeapRegisterSpace, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, 0);
+        D3D12_DESCRIPTOR_RANGE1 globalDescriptorHeapRange = CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, (UINT)-1, GlobalDescriptorHeapRegister, GlobalDescriptorHeapRegisterSpace, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, 0);
         CD3DX12_ROOT_PARAMETER1 rootParameters[NumRootParameters];
         rootParameters[HierarchyUAVParam].InitAsUnorderedAccessView(HierarchyBufferRegister);
         rootParameters[MortonCodesBufferParam].InitAsUnorderedAccessView(MortonCodesBufferRegister);
@@ -39,6 +39,8 @@ namespace FallbackLayer
         D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap,
         UINT numElements)
     {
+        if (numElements == 0) return;
+
         Level level = (sceneType == SceneType::Triangles) ? Level::Bottom : Level::Top;
 
         InputConstants constants = { numElements };

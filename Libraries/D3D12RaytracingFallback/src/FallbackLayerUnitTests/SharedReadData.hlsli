@@ -8,12 +8,13 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
+#include "Validate.hlsli"
 float4 ReadData();
 
 RWByteAddressBuffer outputBuffer : register(u0);
 
-[numthreads(1, 1, 1)]
-void main(uint3 DTid : SV_DispatchThreadID)
+[shader("miss")]
+void miss(inout EmptyPayload payload)
 {
     float4 color0 = ReadData();
     outputBuffer.Store4(0, asuint(color0));

@@ -10,13 +10,13 @@
 //*********************************************************
 #define HLSL
 #include "RearrangeTrianglesBindings.h"
-RWStructuredBuffer<Triangle> InputTriangleBuffer : UAV_REGISTER(InputElementBufferRegister);
-RWStructuredBuffer<Triangle> OutputTriangleBuffer : UAV_REGISTER(OutputElementBufferRegister);
+RWStructuredBuffer<Primitive> InputTriangleBuffer : UAV_REGISTER(InputElementBufferRegister);
+RWStructuredBuffer<Primitive> OutputTriangleBuffer : UAV_REGISTER(OutputElementBufferRegister);
 
-RWStructuredBuffer<TriangleMetaData> InputMetadataBuffer : UAV_REGISTER(InputMetadataBufferRegister);
-RWStructuredBuffer<TriangleMetaData> OutputMetadataBuffer : UAV_REGISTER(OutputMetadataBufferRegister);
+RWStructuredBuffer<PrimitiveMetaData> InputMetadataBuffer : UAV_REGISTER(InputMetadataBufferRegister);
+RWStructuredBuffer<PrimitiveMetaData> OutputMetadataBuffer : UAV_REGISTER(OutputMetadataBufferRegister);
 
-void CopyTriangle(uint srcIndex, uint dstIndex)
+void CopyPrimitive(uint srcIndex, uint dstIndex)
 {
     OutputTriangleBuffer[dstIndex] = InputTriangleBuffer[srcIndex];
     OutputMetadataBuffer[dstIndex] = InputMetadataBuffer[srcIndex];
@@ -29,5 +29,5 @@ void main(uint3 DTid : SV_DispatchThreadID)
     if (dstIndex >= NumberOfTriangles) return;
     
     uint srcIndex = IndexBuffer[dstIndex];
-    CopyTriangle(srcIndex, dstIndex);
+    CopyPrimitive(srcIndex, dstIndex);
 }

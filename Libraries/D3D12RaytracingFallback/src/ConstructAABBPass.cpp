@@ -19,7 +19,7 @@ namespace FallbackLayer
 {
     ConstructAABBPass::ConstructAABBPass(ID3D12Device *pDevice, UINT nodeMask)
     {
-        D3D12_DESCRIPTOR_RANGE1 globalDescriptorHeapRange = CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, -1, GlobalDescriptorHeapRegister, GlobalDescriptorHeapRegisterSpace, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, 0);
+        D3D12_DESCRIPTOR_RANGE1 globalDescriptorHeapRange = CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, (UINT)-1, GlobalDescriptorHeapRegister, GlobalDescriptorHeapRegisterSpace, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, 0);
         CD3DX12_ROOT_PARAMETER1 rootParameters[NumRootParameters];
         rootParameters[OutputBVHRootUAVParam].InitAsUnorderedAccessView(OutputBVHRegister);
         rootParameters[ScratchUAVParam].InitAsUnorderedAccessView(ScratchBufferRegister);
@@ -49,6 +49,7 @@ namespace FallbackLayer
         D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap,
         UINT numElements)
     {
+        bool isEmptyAccelerationStructure = numElements == 0;
         Level level = (sceneType == SceneType::Triangles) ? Level::Bottom : Level::Top;
 
         InputConstants constants = { numElements };
@@ -56,22 +57,28 @@ namespace FallbackLayer
         pCommandList->SetComputeRootSignature(m_pRootSignature);
         pCommandList->SetComputeRoot32BitConstants(InputRootConstants, SizeOfInUint32(InputConstants), &constants, 0);
         pCommandList->SetComputeRootUnorderedAccessView(OutputBVHRootUAVParam, outputVH);
-        pCommandList->SetComputeRootUnorderedAccessView(ScratchUAVParam, scratchBuffer);
-        pCommandList->SetComputeRootUnorderedAccessView(ChildNodesProcessedCountBufferParam, childNodesProcessedCountBuffer);
-        pCommandList->SetComputeRootUnorderedAccessView(MortonCodesBufferParam, mortonCodeBuffer);
-        pCommandList->SetComputeRootUnorderedAccessView(HierarchyUAVParam, hierarchyBuffer);
+        if (!isEmptyAccelerationStructure)
+        {
+            pCommandList->SetComputeRootUnorderedAccessView(ScratchUAVParam, scratchBuffer);
+            pCommandList->SetComputeRootUnorderedAccessView(ChildNodesProcessedCountBufferParam, childNodesProcessedCountBuffer);
+            pCommandList->SetComputeRootUnorderedAccessView(MortonCodesBufferParam, mortonCodeBuffer);
+            pCommandList->SetComputeRootUnorderedAccessView(HierarchyUAVParam, hierarchyBuffer);
+        }
+
         if (level == Top)
         {
             pCommandList->SetComputeRootDescriptorTable(GlobalDescriptorHeap, globalDescriptorHeap);
         }
 
         // Only given the GPU VA not the resource itself so need to resort to doing an overarching UAV barrier
-        const UINT dispatchWidth = DivideAndRoundUp<UINT>(numElements, THREAD_GROUP_1D_WIDTH);
+        const UINT dispatchWidth = isEmptyAccelerationStructure ? 1 : DivideAndRoundUp<UINT>(numElements, THREAD_GROUP_1D_WIDTH);
         auto uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
 
         pCommandList->SetPipelineState(m_pPrepareForComputeAABBs[level]);
         pCommandList->Dispatch(dispatchWidth, 1, 1);
         pCommandList->ResourceBarrier(1, &uavBarrier);
+
+        if (isEmptyAccelerationStructure) return;
 
         // Build the AABBs from the bottom-up
         pCommandList->SetPipelineState(m_pComputeAABBs[level]);

@@ -49,7 +49,6 @@ AABB GetSceneAABB()
     sceneAAB.max = asfloat(uint3(data1.w, data2.xy));
     return sceneAAB;
 }
-
 float3 GetCentroid(uint elementIndex);
 #ifdef SCALED_MORTON_CODES
 uint GetMortonCodesFromUnitCoord(float3 unitCoord, uint3 numPerIteration)

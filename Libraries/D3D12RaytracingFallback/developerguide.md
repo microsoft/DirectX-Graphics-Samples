@@ -167,22 +167,18 @@ void RayGen()
 }
 ```
 
-While the above is an overly simplified example, the example points out the introduction of live-values can be subtle and easily unintended. Developer should be vigilant of avoiding the addition of live-values whenever possible.
+While the above is an overly simplified example, the example points out the introduction of live-values can be subtle and easily unintended. Developer should be vigilant of avoiding the addition of live-values when possible.
 
-### Avoid including AnyHit in a State Object whenever possible
-The use of an AnyHit requires that the traversal code must stop it's current travesal, save its state off, and invoke a shader, and then based on the AnyHit's result, determine if it needs to resume traversal. Even if an AnyHit is never invoked, just overhead of needing to account for the possible invocation of an AnyHit shader can be expensive. The Fallback Layer uses a streamlined traversal shader when a State Object is provided that has no AnyHit shaders (roughly a 20% performance improvement).
+### Avoid unnecessary inclusions of AnyHit/Intersection shaders in a State Object whenever possible
+The use of an AnyHit/Intersection shader require that the traversal code must stop it's current travesal, save its state, and invoke a shader, and then based on the result, determine if it needs to resume traversal. Even if an AnyHit/Intersection shader is never invoked, just overhead of needing to account for the possible invocation of an AnyHit/Intersection shader can be expensive. The Fallback Layer uses a streamlined traversal shader when a State Object is provided that has no AnyHit shaders (roughly a 20% performance improvement).
 
 ## Known Issues & Limitations
 
-* #### Local Root Signature Support limited to Root Constants
-Currently local root signature/shader records are limited to root constants.
+* #### No Local Root Signature Support for Root Descriptors
+Root descriptors are not currently supported. This is expected to be supported in the future, but it should be noted that these will require the use of `WRAPPED_GPU_POINTER`'s rather then being able to consume a `GPU_VIRTUAL_ADDRESS` directly
 
-Descriptor Tables can be emulated for the time-being by binding descriptor tables that are dynamically indexed by a root constant (see ModelViewer's implementation)
-
-Root descriptors are similarly not supported. This is expected to be supported in the future, but it should be noted that these will require the use of `WRAPPED_GPU_POINTER`'s rather then being able to consume a `GPU_VIRTUAL_ADDRESS` directly
-
-* #### No Callable or Intersection shaders
-Both Callable and Intersection shaders are not yet supported. 
+* #### No Callable shaders
+Callable shaders are not yet supported. 
 
 * #### No Cross libs dependencies
 All raytracing shaders are expected to be contained within a single DXIL library.
@@ -204,8 +200,14 @@ The stack size passed by `SetPipelineStackSize` is ignored and uses a hard-coded
 
 * #### Only one AccelerationStructure can be bound per call to DispatchRays()
 
+* #### Use of the Shader Record is thrown off when using an empty ray payload
+
 * #### D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE  is ignored
-As a result, the `RAY_FLAG_CULL_OPAQUE`/`RAY_FLAG_CULL_NON_OPAQUE` flags will have no effect either         
+As a result, the `RAY_FLAG_CULL_OPAQUE`/`RAY_FLAG_CULL_NON_OPAQUE` flags will have no effect either        
+
+* #### Intersection Shader doesn't respect D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE/D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE
+The invocation of an AnyHit shader after a ReportHit() call from an Intersection shader will not correctly respond based on the use of the instance flags
+ 
 ## Debugging & Tooling
 The Fallback Layer natively works with PIX. However, PIX does not have support for using ray tracing debugging capabilities with the Fallback and will instead show all operations as the underlying compute shader dispatches. 
 

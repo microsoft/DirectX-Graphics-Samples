@@ -17,7 +17,9 @@
 void main(uint3 DTid : SV_DispatchThreadID)
 {
     uint instanceIndex = DTid.x;
-    if (instanceIndex >= Constants.NumberOfElements)
+    bool IsEmptyAccelerationStructure = Constants.NumberOfElements == 0;
+    if (instanceIndex >= Constants.NumberOfElements ||
+        (IsEmptyAccelerationStructure && DTid.x != 0)) // Special case for constructing empty AS
     {
         return;
     }
@@ -34,6 +36,16 @@ void main(uint3 DTid : SV_DispatchThreadID)
         outputBVH.Store(OffsetToBoxesOffset, offsetToBoxes);
         outputBVH.Store(OffsetToLeafNodeMetaDataOffset, offsetToLeafNodeMetadata);
         outputBVH.Store(OffsetToTotalSize, totalSize);
+
+        if (IsEmptyAccelerationStructure)
+        {
+            BoundingBox boxData;
+            boxData.center = 0;
+            boxData.halfDim = 0;
+            uint2 flags = 0;
+            WriteBoxToBuffer(outputBVH, offsetToBoxes, 0, boxData, flags);
+            return;
+        }
     }
 
     // Initialize argument for the AABB building phase, easier than uploading them

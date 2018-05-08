@@ -72,6 +72,8 @@ void BitonicSort::Sort(
     bool IsPartiallyPreSorted,
     bool SortAscending)
 {
+    if (ElementCount == 0) return;
+
     const uint32_t AlignedNumElements = AlignPowerOfTwo(ElementCount);
     const uint32_t MaxIterations = Log2(std::max(2048u, AlignedNumElements)) - 10;
 

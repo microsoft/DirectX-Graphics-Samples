@@ -18,8 +18,8 @@ namespace FallbackLayer
     LoadInstancesPass::LoadInstancesPass(ID3D12Device *pDevice, UINT nodeMask)
     {
         D3D12_DESCRIPTOR_RANGE1 globalDescriptorHeapRange[2];
-        globalDescriptorHeapRange[0] = CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, -1, DescriptorHeapBufferRegister, DescriptorHeapBufferRegisterSpace, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, 0);
-        globalDescriptorHeapRange[1] = CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, -1, DescriptorHeapSRVBufferRegister, DescriptorHeapSRVBufferRegisterSpace, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, 0);
+        globalDescriptorHeapRange[0] = CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, (UINT)-1, DescriptorHeapBufferRegister, DescriptorHeapBufferRegisterSpace, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, 0);
+        globalDescriptorHeapRange[1] = CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, (UINT)-1, DescriptorHeapSRVBufferRegister, DescriptorHeapSRVBufferRegisterSpace, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE, 0);
 
         CD3DX12_ROOT_PARAMETER1 parameters[RootParameterSlot::NumRootParameters];
         parameters[OutputBVHRootUAV].InitAsUnorderedAccessView(OutputBVHRegister);
@@ -36,6 +36,8 @@ namespace FallbackLayer
 
     void LoadInstancesPass::LoadInstances(ID3D12GraphicsCommandList *pCommandList, D3D12_GPU_VIRTUAL_ADDRESS outputBVH, D3D12_GPU_VIRTUAL_ADDRESS instancesDesc, D3D12_ELEMENTS_LAYOUT instanceDescLayout, UINT numElements, D3D12_GPU_DESCRIPTOR_HANDLE descriptorHeapBase)
     {
+        if (numElements == 0) return;
+
         pCommandList->SetComputeRootSignature(m_pRootSignature);
         ID3D12PipelineState *pLoadAABBPSO = nullptr;
         switch (instanceDescLayout)

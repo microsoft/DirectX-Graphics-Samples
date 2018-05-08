@@ -23,6 +23,9 @@ D3D12RaytracingSimpleLighting.exe [ -FL | -DXR ]
 * [-FL] - select Fallback Layer API with forced compute fallback path.
 * [-DXR] - select DirectX Raytracing API.
 
+Additional arguments:
+  * [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0.
+
 ### UI
 The title bar of the sample provides runtime information:
 * Name of the sample
@@ -32,6 +35,7 @@ The title bar of the sample provides runtime information:
   * DXR - DirectX Raytracing being used
 * Frames per second
 * Million Primary Rays/s: a number of dispatched rays per second calculated based of FPS.
+* GPU[ID]: name
 
 ### Controls
 * ALT+ENTER - toggles between windowed and fullscreen modes.

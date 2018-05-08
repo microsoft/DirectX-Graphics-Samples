@@ -31,7 +31,6 @@ namespace FallbackLayer
             _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Flags);
 
         virtual void GetRaytracingAccelerationStructurePrebuildInfo(
-            _In_ ID3D12Device *pDevice,
             _In_  D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC *pDesc,
             _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo);
 
@@ -72,7 +71,7 @@ namespace FallbackLayer
         BitonicSort m_sorterPass;
         RearrangeElementsPass m_rearrangePass;
         LoadInstancesPass m_loadInstancesPass;
-        LoadTrianglesPass m_loadTrianglesPass;
+        LoadPrimitivesPass m_loadPrimitivesPass;
         ConstructAABBPass m_constructAABBPass;
         ConstructHierarchyPass m_constructHierarchyPass;
         TreeletReorder m_treeletReorder;

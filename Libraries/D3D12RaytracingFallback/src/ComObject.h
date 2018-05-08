@@ -13,9 +13,10 @@
 #define COM_IMPLEMENTATION()                                                   \
 public:                                                                        \
     virtual HRESULT STDMETHODCALLTYPE QueryInterface(                          \
-        const IID &riid,                                                       \
+        REFIID riid,                                                           \
         void **ppvObject)                                                      \
     {                                                                          \
+        UNREFERENCED_PARAMETER(riid);                                          \
         *ppvObject = nullptr;                                                  \
         return E_NOINTERFACE;                                                  \
     }                                                                          \

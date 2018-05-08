@@ -38,7 +38,6 @@ namespace FallbackLayer
             _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Flags) = 0;
 
         virtual void GetRaytracingAccelerationStructurePrebuildInfo(
-            _In_  ID3D12Device *pDevice,
             _In_  D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC *pDesc,
             _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo) = 0;
 
