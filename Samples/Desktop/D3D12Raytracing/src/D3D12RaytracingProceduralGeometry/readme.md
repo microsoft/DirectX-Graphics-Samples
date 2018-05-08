@@ -5,15 +5,16 @@ This sample demonstrates how to implement procedural geometry using intersection
 * Extended shader table layouts and indexing covering multiple geometries and bottom-level acceleration structures (bottom-level AS, or BLAS for short).
 * Use of trace ray recursion and two different ray types: radiance and shadow rays.
 
-The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingProceduralGeometry/readme.md).
+The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingSimpleLighting/readme.md).
 
 ##### Known limitations
-* Sample does not currently work on AMD due to ubershader compilation issue in the Fallback Layer compute path.
+* The sample does not currently work on AMD due to ubershader compilation issue in the Fallback Layer compute path.
+* See any project wide limitations in the [D3D12 Raytracing readme](../../readme.md).
 
 ### Scene
 The scene consists of triangle and procedural geometry. Specifically, the geometry in the scene is:
-* **Triangle** - a ground plane quad.
-* **Procedural** - all the objects above the ground plane.
+* **Triangle geometry** - a ground plane quad.
+* **Procedural geometry** - all the objects above the ground plane.
 
 Since mixing triangle and procedural geometry types is not supported within a single bottom-level AS, both triangle and procedural geometry are stored in separate bottom-level AS. 
 
@@ -21,9 +22,9 @@ Since mixing triangle and procedural geometry types is not supported within a si
 Procedural geometry is defined by an axis-aligned bounding box (AABB) and an intersection shader. The AABB defines geometric confines within a bottom-level AS object space. When a ray hits the AABB, an associated intersection shader for the AABB from the hit group is called to evaluate if the ray intersects any geometry within it. If the shader finds an intersection, it calls *ReportHit()*. 
 
 This sample implements three intersection shaders with multiple different primitives per each intersection shader:
-  * **Analytic** - a geometry with multiple spheres and an axis aligned box.
-  * **Volumetric** - a metaballs isosurface (aka "blobs").
-  * **Signed distance** - six different primitives and a fractal pyramid.
+  * **Analytic geometry** - a geometry with multiple spheres and an axis aligned box.
+  * **Volumetric geometry** - a metaballs isosurface (aka "blobs").
+  * **Signed distance geometry** - six different primitives and a fractal pyramid.
 
 The ray/procedural primitive tests used in the intersection shaders assume primitive local space with AABB implicitly being <-1,1>. The sample applies per primitive scale transform to scale up the AABBs. A ray can only be retrieved either in world space (via *WorldRay\*()* intrinsic) or bottom-level AS object space (via *ObjectRay\*()* intrinsic). Therefore, the application passes transforms for converting between bottom-level AS object and primitive local space and vice versa to the intersection shader. When an intersection shader is called, it first transforms an object space ray into local space and, then, calls one of the ray/primitive intersection tests such as *RayAnalyticGeometryIntersectionTest* in the following *MyIntersectionShader_AnalyticPrimitive* intersection shader: 
 ```c
@@ -89,7 +90,7 @@ bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
 ```
 
 ##### Procedural geometry types
-This sample demonstrates intersection tests for ray vs following procedural geometry:
+This sample demonstrates intersection tests for a ray vs following procedural geometry:
 
 ***Analytic geometry*** including multiple spheres and an AABB.
 
@@ -97,7 +98,7 @@ This sample demonstrates intersection tests for ray vs following procedural geom
 
 ***Signed distance geometry*** is geometry defined with signed distance functions. Each function returns a closest distance to the geometry considering all directions from a specific position. Since the distance is not necessarily the one that of along the ray direction, the intersection test needs to iteratively ray march and calculate signed distances at each step until it gets close enough to the surface. This algorithm is called sphere tracing and it converges to a solution faster than a constant ray stepping algorithm. See more at [https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer](https://www.scratchapixel.com/lessons/advanced-rendering/rendering-distance-fields/basic-sphere-tracer). A nice property of signed distance functions is that they support different logical operators and transformations allowing to combine simpler primitives into more complex geometry. This is explained in more detail at [http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm](http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm).
 
-##### Updates
+##### Geometry updates
  Procedural geometry can be animated or modified without requiring acceleration structure updates as long as the AABBs don't change. The sample animates some of the geometry in the scene this way. It simply updates the transforms passed into shaders with updated rotation transforms every frame. In the metaballs case. it also passes application time to animate field source positions within the metaballs' AABB.
 
 #### Ray types
