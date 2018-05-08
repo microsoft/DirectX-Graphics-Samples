@@ -43,7 +43,8 @@
 #ifndef SIGNEDDISTANCEPRIMITIVES_H
 #define SIGNEDDISTANCEPRIMITIVES_H
 
-#include "RaytracingShaderHelper.h"
+
+#include "RaytracingShaderHelper.hlsli"
 
 //------------------------------------------------------------------
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum sdPrimitive);
@@ -101,6 +102,17 @@ float opBlendI(float d1, float d2)
 {
     return smax(d1, d2, 0.1);
 }
+
+
+// Twist
+float3 opTwist(float3 p)
+{
+    float c = cos(3.0 * p.y);
+    float s = sin(3.0 * p.y);
+    float2x2 m = float2x2(c, -s, s, c);
+    return float3(mul(m, p.xz), p.y);
+}
+
 
 //------------------------------------------------------------------
 
@@ -260,14 +272,6 @@ float sdCylinder6(float3 p, float2 h)
     return max(length_toPowNegative6(p.xz) - h.x, abs(p.y) - h.y);
 }
 
-float3 opTwist(float3 p)
-{
-    float c = cos(3.0 * p.y);
-    float s = sin(3.0 * p.y);
-    float2x2 m = float2x2(c, -s, s, c);
-    return float3(mul(m, p.xz), p.y);
-}
-
 float3 sdCalculateNormal(in float3 pos, in SignedDistancePrimitive::Enum sdPrimitive)
 {
     float2 e = float2(1.0, -1.0) * 0.5773 * 0.0001;
@@ -312,6 +316,21 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
         t += stepScale * distance;
     }
     return false;
+}
+
+// Analytically integrated checkerboard grid (box filter).
+// Ref: http://iquilezles.org/www/articles/filterableprocedurals/filterableprocedurals.htm
+// ratio - Center fill to border ratio.
+float CheckersTextureBoxFilter(in float2 uv, in float2 dpdx, in float2 dpdy, in UINT ratio)
+{
+    float2 w = max(abs(dpdx), abs(dpdy));   // Filter kernel
+    float2 a = uv + 0.5*w;
+    float2 b = uv - 0.5*w;
+
+    // Analytical integral (box filter).
+    float2 i = (floor(a) + min(frac(a)*ratio, 1.0) -
+        floor(b) - min(frac(b)*ratio, 1.0)) / (ratio*w);
+    return (1.0 - i.x)*(1.0 - i.y);
 }
 
 

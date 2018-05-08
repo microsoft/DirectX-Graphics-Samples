@@ -25,7 +25,7 @@
 #else
 using namespace DirectX;
 
-// Shader will use byte encoding to access indices.
+// Shader will use byte encoding to access vertex indices.
 typedef UINT16 Index;
 #endif
 
@@ -45,21 +45,18 @@ typedef UINT16 Index;
 //
 // NV driver does not support null local root signatures. 
 // Use an empty local root signature where a shader does not require it.
-#define USE_NON_NULL_LOCAL_ROOT_SIG 1  
+#define USE_NON_NULL_LOCAL_ROOT_SIG 1 
 //
 //*************************************************************************
 
 
 //******-------Fallback Layer limitation workarounds -----*****************
-// Fallback Layer limitation workarounds
 //
 // Fallback Layer does not support default exports for DXIL libraries yet.
 #define DEFINE_EXPLICIT_SHADER_EXPORTS 1
 //
 //*************************************************************************
 
-
-#define ANIMATE_PRIMITIVES 1
 
 // Limitting calculations only to metaballs a ray intersects can speed up raytracing
 // dramatically.  the more the number of metaballs are used.
@@ -104,6 +101,10 @@ struct SceneConstantBuffer
 struct PrimitiveConstantBuffer
 {
     XMFLOAT4 albedo;
+    float reflectanceCoef;
+    float diffuseCoef;
+    float specularCoef;
+    float specularPower;
     float stepScale;                      // Step scale for ray marching of signed distance primitives. 
                                           // - Some object transformations don't preserve the distances and 
                                           //   thus require shorter steps.
@@ -129,6 +130,42 @@ struct Vertex
     XMFLOAT3 position;
     XMFLOAT3 normal;
 };
+
+
+// Ray types traced in this sample.
+namespace RayType {
+    enum Enum {
+        Radiance = 0,   // ~ Primary, reflected camera/view rays calculating color for each hit.
+        Shadow,         // ~ Shadow/visibility rays, only testing for occlusion
+        Count
+    };
+}
+
+namespace TraceRayParameters
+{
+    static const UINT InstanceMask = ~0;   // Everything is visible.
+    namespace HitGroup {
+        static const UINT Offset[RayType::Count] =
+        {
+            0, // Radiance ray
+            1  // Shadow ray
+        };
+        static const UINT GeometryStride = RayType::Count;
+    }
+    namespace MissShader {
+        static const UINT Offset[RayType::Count] =
+        {
+            0, // Radiance ray
+            1  // Shadow ray
+        };
+    }
+}
+
+// From: http://blog.selfshadow.com/publications/s2015-shading-course/hoffman/s2015_pbs_physics_math_slides.pdf
+static const XMFLOAT4 ChromiumReflectance = XMFLOAT4(0.549f, 0.556f, 0.554f, 1.0f);
+
+static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.8f, 0.9f, 1.0f, 1.0f);
+static const float InShadowRadiance = 0.35f;
 
 namespace AnalyticPrimitive {
     enum Enum {

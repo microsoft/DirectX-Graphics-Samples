@@ -62,7 +62,6 @@ D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width,
     UpdateForSizeChange(width, height);
 }
 
-
 void D3D12RaytracingProceduralGeometry::EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter)
 {
     // DXR is an experimental feature and needs to be enabled before creating a D3D12 device.
@@ -173,7 +172,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
 
         SetTransformForAABB(offset + MiniSpheres, mIdentity, mIdentity);
         SetTransformForAABB(offset + IntersectedRoundCube, mIdentity, mIdentity);
-        SetTransformForAABB(offset + SquareTorus, mScale15, mRotation);
+        SetTransformForAABB(offset + SquareTorus, mScale15, mIdentity);
         SetTransformForAABB(offset + TwistedTorus, mIdentity, mRotation);
         SetTransformForAABB(offset + Cog, mIdentity, mRotation);
         SetTransformForAABB(offset + Cylinder, mScale15y, mIdentity);
@@ -188,34 +187,58 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
 
     // Setup materials.
     {
-        m_planeMaterialCB = { XMFLOAT4(0.35f, 0.35f, 0.35f, 1.0f), 1.0f };
+        auto SetAttributes = [&](
+            UINT primitiveIndex, 
+            const XMFLOAT4& albedo, 
+            float reflectanceCoef = 0.0f,
+            float diffuseCoef = 0.9f,
+            float specularCoef = 0.7f,
+            float specularPower = 50.0f,
+            float stepScale = 1.0f )
+        {
+            auto& attributes = m_aabbMaterialCB[primitiveIndex];
+            attributes.albedo = albedo;
+            attributes.reflectanceCoef = reflectanceCoef;
+            attributes.diffuseCoef = diffuseCoef;
+            attributes.specularCoef = specularCoef;
+            attributes.specularPower = specularPower;
+            attributes.stepScale = stepScale;
+        };
 
+
+        m_planeMaterialCB = { XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.4f, 50, 1};
+
+        // Albedos
+        XMFLOAT4 green = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
+        XMFLOAT4 red = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
+        XMFLOAT4 yellow = XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f);
+        
         UINT offset = 0;
         // Analytic primitives.
         {
             using namespace AnalyticPrimitive;
-            m_aabbMaterialCB[offset + AABB] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + Spheres] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
+            SetAttributes(offset + AABB, red);
+            SetAttributes(offset + Spheres, ChromiumReflectance, 1);
             offset += AnalyticPrimitive::Count;
         }
 
         // Volumetric primitives.
         {
             using namespace VolumetricPrimitive;
-            m_aabbMaterialCB[offset + Metaballs] = { XMFLOAT4(0.76f, 0.03f, 0.04f, 1.0f), 1.0f };
+            SetAttributes(offset + Metaballs, ChromiumReflectance, 1);
             offset += VolumetricPrimitive::Count;
         }
 
         // Signed distance primitives.
         {
             using namespace SignedDistancePrimitive;
-            m_aabbMaterialCB[offset + MiniSpheres] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + IntersectedRoundCube] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + SquareTorus] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + TwistedTorus] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 0.5f };
-            m_aabbMaterialCB[offset + Cog] = { XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + Cylinder] = { XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f), 1.0f };
-            m_aabbMaterialCB[offset + FractalPyramid] = { XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f), 0.8f };
+            SetAttributes(offset + MiniSpheres, green);
+            SetAttributes(offset + IntersectedRoundCube, green);
+            SetAttributes(offset + SquareTorus, ChromiumReflectance, 1);
+            SetAttributes(offset + TwistedTorus, yellow, 0, 1.0f, 0.7f, 50, 0.5f );
+            SetAttributes(offset + Cog, yellow, 0, 1.0f, 0.1f, 2);
+            SetAttributes(offset + Cylinder, red);
+            SetAttributes(offset + FractalPyramid, green, 0, 1, 0.1f, 4, 0.8f);
         }
     }
 
@@ -250,7 +273,8 @@ void D3D12RaytracingProceduralGeometry::InitializeScene()
         lightAmbientColor = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
         m_sceneCB->lightAmbientColor = XMLoadFloat4(&lightAmbientColor);
 
-        lightDiffuseColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+        float d = 0.6f;
+        lightDiffuseColor = XMFLOAT4(d, d, d, 1.0f);
         m_sceneCB->lightDiffuseColor = XMLoadFloat4(&lightDiffuseColor);
     }
 }
@@ -347,7 +371,6 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
     }
 
-
     // Local Root Signature
     // This is a root signature that enables a shader to have unique arguments that come from shader tables.
     {
@@ -438,7 +461,7 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
         for (UINT rayType = 0; rayType < RayType::Count; rayType++)
         {
             auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-            if (rayType == RayType::Color)
+            if (rayType == RayType::Radiance)
             {
                 hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::Triangle]);
             }
@@ -454,7 +477,7 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
             {
                 auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
                 hitGroup->SetIntersectionShaderImport(c_intersectionShaderNames[t]);
-                if (rayType == RayType::Color)
+                if (rayType == RayType::Radiance)
                 {
                     hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::AABB]);
                 }
@@ -615,7 +638,7 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
-    // Create a grid of AABBs.
+    // Set up AABBs on a grid.
     {
         XMINT3 aabbGrid = XMINT3(4, 1, 4);
         const XMFLOAT3 basePosition =
@@ -846,7 +869,7 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
 
     // Width of a bottom-level AS geometry.
     // Make the plane a little larger than the actual number of primitives in each dimension.
-    const XMUINT3 NUM_AABB = XMUINT3(7, 1, 7);
+    const XMUINT3 NUM_AABB = XMUINT3(700, 1, 700);
     const XMFLOAT3 fWidth = XMFLOAT3(
         NUM_AABB.x * c_aabbWidth + (NUM_AABB.x - 1) * c_aabbDistance,
         NUM_AABB.y * c_aabbWidth + (NUM_AABB.y - 1) * c_aabbDistance,
@@ -883,7 +906,6 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
         instanceDesc.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB * RayType::Count;
         instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
 
-        // ToDo explain all transformations
         // Move all AABBS above the ground plane.
         XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(0, c_aabbWidth/2, 0)));
         StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTranslation);
@@ -1116,7 +1138,6 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
         shaderIDSize = m_dxrDevice->GetShaderIdentifierSize();
     }
 
-
     /*************--------- Shader table layout -------*******************
     | --------------------------------------------------------------------
     | Shader table - HitGroupShaderTable: 
@@ -1237,14 +1258,17 @@ void D3D12RaytracingProceduralGeometry::OnKeyDown(UINT8 key)
 
     switch (key)
     {
+    case VK_NUMPAD1:
     case '1': // Fallback Layer
         m_forceComputeFallback = false;
         SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
         break;
+    case VK_NUMPAD2:
     case '2': // Fallback Layer + force compute path
         m_forceComputeFallback = true;
         SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
         break;
+    case VK_NUMPAD3:
     case '3': // DirectX Raytracing
         SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
         break;
@@ -1298,7 +1322,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     }
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
-     UpdateAABBPrimitiveAttributes();
+    UpdateAABBPrimitiveAttributes();
 }
 
 
@@ -1429,17 +1453,25 @@ void D3D12RaytracingProceduralGeometry::ReleaseDeviceDependentResources()
     m_dxrCommandList.Reset();
     m_dxrStateObject.Reset();
 
+    m_raytracingGlobalRootSignature.Reset();
+    ResetComPtrArray(&m_raytracingLocalRootSignature);
+
     m_descriptorHeap.Reset();
     m_descriptorsAllocated = 0;
-    m_raytracingOutputResourceUAVDescriptorHeapIndex = UINT_MAX;
+    m_sceneCB.Release();
+    m_aabbPrimitiveAttributeBuffer.Release();
     m_indexBuffer.resource.Reset();
     m_vertexBuffer.resource.Reset();
-    m_rayGenShaderTable.Reset();
-    m_missShaderTable.Reset();
-    m_hitGroupShaderTable.Reset();
+    m_aabbBuffer.resource.Reset();
 
     ResetComPtrArray(&m_bottomLevelAS);
     m_topLevelAS.Reset();
+
+    m_raytracingOutput.Reset();
+    m_raytracingOutputResourceUAVDescriptorHeapIndex = UINT_MAX;
+    m_rayGenShaderTable.Reset();
+    m_missShaderTable.Reset();
+    m_hitGroupShaderTable.Reset();
 }
 
 void D3D12RaytracingProceduralGeometry::RecreateD3D()
@@ -1526,7 +1558,8 @@ void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
             windowText << L"(DXR)";
         }
         windowText << setprecision(2) << fixed
-            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond;
+            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
+            << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
         SetCustomWindowText(windowText.str().c_str());
     }
 }
@@ -1582,7 +1615,7 @@ UINT D3D12RaytracingProceduralGeometry::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_
     return descriptorIndexToUse;
 }
 
-// Create SRV for a buffer.
+// Create a SRV for a buffer.
 UINT D3D12RaytracingProceduralGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
 {
     auto device = m_deviceResources->GetD3DDevice();

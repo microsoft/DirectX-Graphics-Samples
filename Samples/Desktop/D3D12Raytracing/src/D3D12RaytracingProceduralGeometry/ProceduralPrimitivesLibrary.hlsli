@@ -11,7 +11,7 @@
 
 //**********************************************************************************************
 //
-// ProceduralPrimitivesLibrary.h
+// ProceduralPrimitivesLibrary.hlsli
 //
 // An interface to call per geometry intersection tests based on as primitive type.
 //
@@ -20,16 +20,15 @@
 #ifndef PROCEDURALPRIMITIVESLIBRARY_H
 #define PROCEDURALPRIMITIVESLIBRARY_H
 
-#include "RaytracingShaderHelper.h"
+#include "RaytracingShaderHelper.hlsli"
 
-#include "AnalyticPrimitives.h"
-#include "VolumetricPrimitives.h"
-#include "SignedDistancePrimitives.h"
-#include "SignedDistanceFractals.h"
-
-// ToDo describe local space for each AABB type
+#include "AnalyticPrimitives.hlsli"
+#include "VolumetricPrimitives.hlsli"
+#include "SignedDistancePrimitives.hlsli"
+#include "SignedDistanceFractals.hlsli"
 
 // Analytic geometry intersection test.
+// AABB local space dimensions: <-1,1>.
 bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum analyticPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
 {
     float3 aabb[2] = {
@@ -47,6 +46,7 @@ bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum 
 }
 
 // Analytic geometry intersection test.
+// AABB local space dimensions: <-1,1>.
 bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::Enum volumetricPrimitive, out float thit, out ProceduralPrimitiveAttributes attr, in float elapsedTime)
 {
     switch (volumetricPrimitive)
@@ -58,7 +58,7 @@ bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::E
 
 // Signed distance functions use a shared ray signed distance test.
 // The test, instead, calls into this function to retrieve a distance for a primitive.
-// ToDo Input position is in <-1,1> local space.
+// AABB local space dimensions: <-1,1>.
 // Ref: http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum signedDistancePrimitive)
 {
@@ -71,7 +71,7 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
         return opS(opS(udRoundBox(position, (float3) 0.75, 0.2), sdSphere(position, 1.20)), -sdSphere(position, 1.32));
 
     case SignedDistancePrimitive::SquareTorus: 
-        return sdTorus88(position, float2(0.75, 0.15));
+        return sdTorus82(position, float2(0.75, 0.15));
     
     case SignedDistancePrimitive::TwistedTorus: 
         return sdTorus(opTwist(position), float2(0.6, 0.2));
