@@ -166,7 +166,7 @@ namespace FallbackLayerUnitTests
             desc.NumDescs = NumElements;
             desc.pGeometryDescs = pGeometries;
             desc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            m_pBuilder->GetRaytracingAccelerationStructurePrebuildInfo(pDevice, &desc, pInfo);
+            m_pBuilder->GetRaytracingAccelerationStructurePrebuildInfo(&desc, pInfo);
         }
     private:
         FallbackLayer::IAccelerationStructureBuilder* m_pBuilder;
@@ -949,7 +949,7 @@ namespace FallbackLayerUnitTests
                 D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
 
                 pBuilder->GetRaytracingAccelerationStructurePrebuildInfo(
-                    &device, &getPrebuildDesc, &prebuildInfo);
+                    &getPrebuildDesc, &prebuildInfo);
                 scratchBufferSize = std::max(scratchBufferSize, prebuildInfo.ScratchDataSizeInBytes);
 
                 pBottomLevelMaxResourceSizes[i] = (UINT)(prebuildInfo.ResultDataMaxSizeInBytes);
