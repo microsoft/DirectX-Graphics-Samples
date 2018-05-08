@@ -638,7 +638,7 @@ void D3D12RaytracingProceduralGeometry::BuildProceduralGeometryAABBs()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
-    // Create a grid of AABBs.
+    // Set up AABBs on a grid.
     {
         XMINT3 aabbGrid = XMINT3(4, 1, 4);
         const XMFLOAT3 basePosition =
@@ -1359,7 +1359,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     }
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
-     UpdateAABBPrimitiveAttributes();
+    UpdateAABBPrimitiveAttributes();
 }
 
 
@@ -1652,7 +1652,7 @@ UINT D3D12RaytracingProceduralGeometry::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_
     return descriptorIndexToUse;
 }
 
-// Create SRV for a buffer.
+// Create a SRV for a buffer.
 UINT D3D12RaytracingProceduralGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
 {
     auto device = m_deviceResources->GetD3DDevice();

@@ -25,7 +25,7 @@
 #else
 using namespace DirectX;
 
-// Shader will use byte encoding to access indices.
+// Shader will use byte encoding to access vertex indices.
 typedef UINT16 Index;
 #endif
 
@@ -45,19 +45,15 @@ typedef UINT16 Index;
 //
 // NV driver does not support null local root signatures. 
 // Use an empty local root signature where a shader does not require it.
-#define USE_NON_NULL_LOCAL_ROOT_SIG 1  
+#define USE_NON_NULL_LOCAL_ROOT_SIG 1 
 //
 //*************************************************************************
 
 
 //******-------Fallback Layer limitation workarounds -----*****************
-// Fallback Layer limitation workarounds
 //
 // Fallback Layer does not support default exports for DXIL libraries yet.
 #define DEFINE_EXPLICIT_SHADER_EXPORTS 1
-//
-// 
-#define DO_LIGHTING_CALCULATION_VIA_UTILITY_FUNCTION 0
 //
 //*************************************************************************
 
