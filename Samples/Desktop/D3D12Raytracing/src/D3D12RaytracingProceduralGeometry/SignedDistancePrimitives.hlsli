@@ -43,7 +43,8 @@
 #ifndef SIGNEDDISTANCEPRIMITIVES_H
 #define SIGNEDDISTANCEPRIMITIVES_H
 
-#include "RaytracingShaderHelper.h"
+
+#include "RaytracingShaderHelper.hlsli"
 
 //------------------------------------------------------------------
 float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistancePrimitive::Enum sdPrimitive);
