@@ -18,7 +18,7 @@ This sample demonstrates how to do ray generation for a dynamic perspective came
 
 ![D3D12 Raytracing Hello World GUI](src/D3D12RaytracingSimpleLighting/Screenshot_small.png)
 
-## 3. [Procedural Geometry Sample](src/D3D12RaytracingSimpleLighting/readme.md)
+## 3. [Procedural Geometry Sample](src/D3D12RaytracingProceduralGeometry/readme.md)
 This sample demonstrates how to implement procedural geometry using intersection shaders and shows usage of more complex shader table layouts and multiple ray types. 
 
 ![D3D12 Raytracing Procedural Geometry GUI](src/D3D12RaytracingProceduralGeometry/Screenshot_small.png)
@@ -33,7 +33,7 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
 ## Requirements
 * [Visual Studio 2017](https://www.visualstudio.com/) with the [Windows 10 Fall Creators Update SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
 * *Fallback Layer* requires:
-  * Windows 10 with the Fall Creators Update or higher
+  * Windows 10 with the Fall Creators Update or higher.
   * Dx12 GPU with a driver that has retail DXIL support.
 * *DirectX Raytracing* requires:
   * Windows 10 with the April update with SDK overlay raytracing binaries or Windows 10 insider build 17661+. 
@@ -44,7 +44,7 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
 * Download DirectXRaytracingBinariesV1.0.zip from https://github.com/Microsoft/DirectX-Graphics-Samples/releases and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64.
 
 ## Known limitations
-  - NV 397.31+ drivers does not properly support compute Fallback Layer. Samples have artifacts or scenes miss altogether. Use DXR modes of samples if you have or use a previous driver version.
+  - NV 397.31+ drivers do not properly support compute Fallback Layer on Nvidia Volta. Samples have artifacts and/or scenes miss altogether. Use DXR modes of samples on this configuration instead.
 
 ## Feedback and Questions
 We welcome all feedback, questions and discussions about DXR and the Fallback Layer at [DirectX Raytracing forums](http://forums.directxtech.com/index.php?PHPSESSID=394klvdd3683tt1fjkh2jteav1&board=248.0).

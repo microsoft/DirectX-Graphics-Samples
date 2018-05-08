@@ -7,6 +7,9 @@ This sample demonstrates how to implement procedural geometry using intersection
 
 The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingProceduralGeometry/readme.md).
 
+##### Known limitations
+* Sample does not currently work on AMD due to ubershader compilation issue in the Fallback Layer compute path.
+
 ### Scene
 The scene consists of triangle and procedural geometry. Specificaly, the geometry in the scene is:
 * *Triangle* - a ground plane quad.
