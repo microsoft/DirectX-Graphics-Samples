@@ -73,13 +73,12 @@ bool IsCulled(in Ray ray, in float3 hitSurfaceNormal)
 {
     float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
 
-    bool isCullingEnabled = RayFlags() & (RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_CULL_FRONT_FACING_TRIANGLES);
     bool isCulled = 
         ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (rayDirectionNormalDot > 0))
         ||
         ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot < 0));
 
-    return isCullingEnabled && isCulled; 
+    return isCulled; 
 }
 
 // Test if a hit is valid based on specified RayFlags and <RayTMin, RayTCurrent> range.
