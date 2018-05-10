@@ -67,14 +67,14 @@ void MyRaygenShader()
 }
 
 [shader("closesthit")]
-void MyClosestHitShader(inout RayPayload payload : SV_RayPayload, in MyAttributes attr : SV_IntersectionAttributes)
+void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
     payload.color = float4(barycentrics, 1);
 }
 
 [shader("miss")]
-void MyMissShader(inout RayPayload payload : SV_RayPayload)
+void MyMissShader(inout RayPayload payload)
 {
     payload.color = float4(0, 0, 0, 1);
 }

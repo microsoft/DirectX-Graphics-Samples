@@ -35,18 +35,9 @@ float length_toPow2(float3 p)
 // Returns a cycling <0 -> 1 -> 0> animation interpolant 
 float CalculateAnimationInterpolant(in float elapsedTime, in float cycleDuration)
 {
-    // ToDo
-#if 0
-    float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
-    return (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
-#elif 0
-    float curSineCycleTime = sin(elapsedTime / cycleDuration * 3.14 * 2);
-    return (curSineCycleTime + 1 ) * 0.5;
-#else
     float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
     curLinearCycleTime = (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
     return smoothstep(0, 1, curLinearCycleTime);
-#endif
 }
 
 void swap(inout float a, inout float b)
@@ -122,9 +113,72 @@ inline Ray GenerateCameraRay(uint2 index, in float3 cameraPosition, in float4x4 
 
     Ray ray;
     ray.origin = cameraPosition;
-    ray.direction = normalize(world - ray.origin);
+    ray.direction = normalize(world.xyz - ray.origin);
 
     return ray;
 }
+
+// Test if a hit is culled based on specified RayFlags.
+bool IsCulled(in Ray ray, in float3 hitSurfaceNormal)
+{
+    float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
+
+    bool isCulled = 
+        ((RayFlags() & RAY_FLAG_CULL_BACK_FACING_TRIANGLES) && (rayDirectionNormalDot > 0))
+        ||
+        ((RayFlags() & RAY_FLAG_CULL_FRONT_FACING_TRIANGLES) && (rayDirectionNormalDot < 0));
+
+    return isCulled; 
+}
+
+// Test if a hit is valid based on specified RayFlags and <RayTMin, RayTCurrent> range.
+bool IsAValidHit(in Ray ray, in float thit, in float3 hitSurfaceNormal)
+{
+    return IsInRange(thit, RayTMin(), RayTCurrent()) && !IsCulled(ray, hitSurfaceNormal);
+}
+
+// Texture coordinates on a horizontal plane.
+float2 TexCoords(in float3 position)
+{
+    return position.xz;
+}
+
+// Calculate ray differentials.
+void CalculateRayDifferentials(out float2 ddx_uv, out float2 ddy_uv, in float2 uv, in float3 hitPosition, in float3 surfaceNormal, in float3 cameraPosition, in float4x4 projectionToWorld)
+{
+    // Compute ray differentials by intersecting the tangent plane to the  surface.
+    Ray ddx = GenerateCameraRay(DispatchRaysIndex() + uint2(1, 0), cameraPosition, projectionToWorld);
+    Ray ddy = GenerateCameraRay(DispatchRaysIndex() + uint2(0, 1), cameraPosition, projectionToWorld);
+
+    // Compute ray differentials.
+    float3 ddx_pos = ddx.origin - ddx.direction * dot(ddx.origin - hitPosition, surfaceNormal) / dot(ddx.direction, surfaceNormal);
+    float3 ddy_pos = ddy.origin - ddy.direction * dot(ddy.origin - hitPosition, surfaceNormal) / dot(ddy.direction, surfaceNormal);
+
+    // Calculate texture sampling footprint.
+    ddx_uv = TexCoords(ddx_pos) - uv;
+    ddy_uv = TexCoords(ddy_pos) - uv;
+}
+
+// Forward declaration.
+float CheckersTextureBoxFilter(in float2 uv, in float2 dpdx, in float2 dpdy, in UINT ratio);
+
+// Return analytically integrated checkerboard texture (box filter).
+float AnalyticalCheckersTexture(in float3 hitPosition, in float3 surfaceNormal, in float3 cameraPosition, in float4x4 projectionToWorld)
+{
+    float2 ddx_uv;
+    float2 ddy_uv;
+    float2 uv = TexCoords(hitPosition);
+
+    CalculateRayDifferentials(ddx_uv, ddy_uv, uv, hitPosition, surfaceNormal, cameraPosition, projectionToWorld);
+    return CheckersTextureBoxFilter(uv, ddx_uv, ddy_uv, 50);
+}
+
+// Fresnel reflectance - schlick approximation.
+float3 FresnelReflectanceSchlick(in float3 I, in float3 N, in float3 f0)
+{
+    float cosi = saturate(dot(-I, N));
+    return f0 + (1 - f0)*pow(1 - cosi, 5);
+}
+
 
 #endif // RAYTRACINGSHADERHELPER_H

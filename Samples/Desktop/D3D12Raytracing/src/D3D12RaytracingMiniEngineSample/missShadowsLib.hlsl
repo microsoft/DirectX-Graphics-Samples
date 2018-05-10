@@ -13,7 +13,7 @@
 #include "ModelViewerRaytracing.h"
 
 [shader("miss")]
-void Miss(inout RayPayload payload : SV_RayPayload)
+void Miss(inout RayPayload payload)
 {
     // Do nothing
 }

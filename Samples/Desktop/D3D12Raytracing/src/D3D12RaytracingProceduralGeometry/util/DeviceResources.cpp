@@ -49,7 +49,8 @@ DeviceResources::DeviceResources(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depth
     m_options(flags),
     m_deviceNotify(nullptr),
     m_isWindowVisible(true),
-    m_adapterIDoverride(adapterIDoverride)
+    m_adapterIDoverride(adapterIDoverride),
+    m_adapterID(UINT_MAX)
 {
     if (backBufferCount > MAX_BACK_BUFFER_COUNT)
     {
@@ -477,7 +478,6 @@ void DeviceResources::HandleDeviceLost()
     }
 #endif
     InitializeDXGIAdapter();
-    // ToDo DXR needs to be enabled here before device creation
     CreateDeviceResources();
     CreateWindowSizeDependentResources();
 
@@ -604,9 +604,9 @@ void DeviceResources::InitializeAdapter(IDXGIAdapter1** ppAdapter)
     *ppAdapter = nullptr;
 
     ComPtr<IDXGIAdapter1> adapter;
-    for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != m_dxgiFactory->EnumAdapters1(adapterIndex, &adapter); ++adapterIndex)
+    for (UINT adapterID = 0; DXGI_ERROR_NOT_FOUND != m_dxgiFactory->EnumAdapters1(adapterID, &adapter); ++adapterID)
     {
-        if (m_adapterIDoverride != UINT_MAX && adapterIndex != m_adapterIDoverride)
+        if (m_adapterIDoverride != UINT_MAX && adapterID != m_adapterIDoverride)
         {
             continue;
         }
@@ -623,9 +623,11 @@ void DeviceResources::InitializeAdapter(IDXGIAdapter1** ppAdapter)
         // Check to see if the adapter supports Direct3D 12, but don't create the actual device yet.
         if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), m_d3dMinFeatureLevel, _uuidof(ID3D12Device), nullptr)))
         {
+            m_adapterID = adapterID;
+            m_adapterDescription = desc.Description;
 #ifdef _DEBUG
             wchar_t buff[256] = {};
-            swprintf_s(buff, L"Direct3D Adapter (%u): VID:%04X, PID:%04X - %ls\n", adapterIndex, desc.VendorId, desc.DeviceId, desc.Description);
+            swprintf_s(buff, L"Direct3D Adapter (%u): VID:%04X, PID:%04X - %ls\n", adapterID, desc.VendorId, desc.DeviceId, desc.Description);
             OutputDebugStringW(buff);
 #endif
             break;

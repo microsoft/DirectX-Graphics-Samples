@@ -219,7 +219,7 @@ void CalculateUVDerivatives(float3 normal, float3 dpdu, float3 dpdv, float3 p, f
 }
 
 [shader("closesthit")]
-void Hit(inout RayPayload payload : SV_RayPayload, in BuiltInTriangleIntersectionAttributes attr : SV_IntersectionAttributes)
+void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     payload.RayHitT = RayTCurrent();
     if (payload.SkipShading)
