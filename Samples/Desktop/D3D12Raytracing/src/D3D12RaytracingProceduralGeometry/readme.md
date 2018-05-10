@@ -1,5 +1,8 @@
 # D3D12 Raytracing Procedural Geometry sample
-![D3D12 Raytracing Procedural Geometry GUI](Screenshot.png)
+[![D3D12 Raytracing Procedural Geometry GUI](Screenshot.png)](https://www.youtube.com/watch?v=GwAagGuwJRI "D3D12 Raytracing Procedural Geometry")
+[YouTube video preview of the sample](https://www.youtube.com/watch?v=GwAagGuwJRI)
+
+
 
 This sample demonstrates how to implement procedural geometry using intersection shaders. It utilizes multiple intersections shaders to create analytic and volumetric, signed distance and fractal geometry. In addition, it introduces:
 * Extended shader table layouts and indexing covering multiple geometries and bottom-level acceleration structures (bottom-level AS, or BLAS for short).
