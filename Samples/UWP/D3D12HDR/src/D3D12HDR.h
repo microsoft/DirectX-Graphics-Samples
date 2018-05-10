@@ -31,7 +31,7 @@ public:
 	D3D12HDR(UINT width, UINT height, std::wstring name);
 
 	inline ID3D12Device* GetDevice() { return m_device.Get(); }
-	inline ID3D12CommandQueue* GetCommandQueue() { return m_commandQueue.Get(); }
+    inline ID3D12CommandQueue* GetCommandQueue() { return m_commandQueue.Get(); }
 	inline ID3D12Resource* GetUIRenderTarget() { return m_UIRenderTarget.Get(); }
 	inline DXGI_FORMAT GetBackBufferFormat() { return m_swapChainFormats[m_currentSwapChainBitDepth]; }
 	inline std::wstring GetDisplayCurve()
@@ -54,6 +54,7 @@ protected:
 	virtual void OnDestroy();
 	virtual void OnKeyDown(UINT8 key);
     virtual void OnDisplayChanged();
+    virtual IDXGISwapChain* GetSwapchain() { return m_swapChain.Get(); }
 
 private:
 	static const float ClearColor[4];
@@ -176,7 +177,6 @@ private:
 	// If it's minimized the app may decide not to render frames.
 	bool m_windowVisible;
 	bool m_windowedMode;
-    bool m_in_sizechanging;
 
 	void LoadPipeline();
 	void LoadAssets();
