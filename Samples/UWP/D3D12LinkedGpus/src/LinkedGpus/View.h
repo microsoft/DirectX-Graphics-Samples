@@ -34,6 +34,7 @@ public:
 
 private:
 	void OnActivated(CoreApplicationView^ applicationView, IActivatedEventArgs^ args);
+    void OnAcceleratorKeyActivated(CoreDispatcher^, AcceleratorKeyEventArgs^ args);
 	void OnKeyDown(CoreWindow^ window, KeyEventArgs^ args);
 	void OnKeyUp(CoreWindow^ window, KeyEventArgs^ args);
 	void OnSizeChanged(CoreWindow^ window, WindowSizeChangedEventArgs^ args);

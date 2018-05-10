@@ -21,7 +21,7 @@
 
 #include <windows.h>
 
-#include <dxgi1_5.h>
+#include <dxgi1_6.h>
 #include "d3dx12affinity_d3dx12.h"
 #include <DirectXMath.h>
 
