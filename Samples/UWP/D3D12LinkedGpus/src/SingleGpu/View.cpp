@@ -13,6 +13,7 @@
 #include "View.h"
 
 using namespace Windows::Foundation;
+using namespace Windows::System;
 
 inline int ConvertToPixels(float dimension, float dpi)
 {
@@ -41,6 +42,10 @@ void View::SetWindow(CoreWindow^ window)
 {
 	m_logicalWidth = window->Bounds.Width;
 	m_logicalHeight = window->Bounds.Height;
+
+    auto dispatcher = CoreWindow::GetForCurrentThread()->Dispatcher;
+    dispatcher->AcceleratorKeyActivated +=
+        ref new TypedEventHandler<CoreDispatcher^, AcceleratorKeyEventArgs^>(this, &View::OnAcceleratorKeyActivated);
 
 	window->KeyDown += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &View::OnKeyDown);
 	window->KeyUp += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &View::OnKeyUp);
@@ -102,10 +107,33 @@ void View::OnActivated(CoreApplicationView^ /*applicationView*/, IActivatedEvent
 
 void View::OnKeyDown(CoreWindow^ /*window*/, KeyEventArgs^ args)
 {
-	if (static_cast<UINT>(args->VirtualKey) < 256)
+    if (static_cast<UINT>(args->VirtualKey) < 256)
 	{
 		m_pSample->OnKeyDown(static_cast<UINT8>(args->VirtualKey));
 	}
+}
+
+void View::OnAcceleratorKeyActivated(CoreDispatcher^, AcceleratorKeyEventArgs^ args)
+{
+    if (args->EventType == CoreAcceleratorKeyEventType::SystemKeyDown
+        && args->VirtualKey == VirtualKey::Enter
+        && args->KeyStatus.IsMenuKeyDown
+        && !args->KeyStatus.WasKeyDown)
+    {
+        // Implements the classic ALT+ENTER fullscreen toggle
+        auto applicationView = ApplicationView::GetForCurrentView();
+
+        if (applicationView->IsFullScreenMode)
+        {
+            applicationView->ExitFullScreenMode();
+        }
+        else
+        {
+            applicationView->TryEnterFullScreenMode();
+        }
+
+        args->Handled = true;
+    }
 }
 
 void View::OnKeyUp(CoreWindow^ /*window*/, KeyEventArgs^ args)
