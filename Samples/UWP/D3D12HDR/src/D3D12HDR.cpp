@@ -50,8 +50,7 @@ D3D12HDR::D3D12HDR(UINT width, UINT height, std::wstring name) :
     m_updateVertexBuffer(true),
     m_fenceValues{},
     m_windowVisible(true),
-    m_windowedMode(true),
-    m_in_sizechanging(false)
+    m_windowedMode(true)
 {
 	// Alias the root constants so that we can easily set them as either floats or UINTs.
 	m_rootConstantsF = reinterpret_cast<float*>(m_rootConstants);
@@ -837,18 +836,15 @@ void D3D12HDR::OnKeyDown(UINT8 key)
 // Wait for pending GPU work to complete.
 void D3D12HDR::WaitForGpu()
 {
-	if (m_fence)
-	{
-		// Schedule a Signal command in the queue.
-		ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValues[m_frameIndex]));
+	// Schedule a Signal command in the queue.
+	ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValues[m_frameIndex]));
 
-		// Wait until the fence has been processed.
-		ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent));
-		WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
+	// Wait until the fence has been processed.
+	ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent));
+	WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
 
-		// Increment the fence value for the current frame.
-		m_fenceValues[m_frameIndex]++;
-	}
+	// Increment the fence value for the current frame.
+	m_fenceValues[m_frameIndex]++;
 }
 
 // Prepare to render the next frame.
@@ -975,7 +971,6 @@ void D3D12HDR::UpdateSwapChainBuffer(UINT width, UINT height, DXGI_FORMAT format
     {
         return;
     }
-
 
     // Flush all current GPU commands.
     WaitForGpu();

@@ -47,6 +47,9 @@ Here are the high level steps for using the library:
 5. Use ```ResidencyManager::ExecuteCommandLists``` to execute the workload which takes a command queue, array of command lists, an array of residency sets, and a count
   1. This will execute the command lists and ensure all of the heaps/committed resources that you need to execute are resident at the right times
 
+### Optional Features
+This sample has been updated to build against the Windows 10 Anniversary Update SDK. In this SDK a new revision of Root Signatures is available for Direct3D 12 apps to use. Root Signature 1.1 allows for apps to declare when descriptors in a descriptor heap won't change or the data descriptors point to won't change.  This allows the option for drivers to make optimizations that might be possible knowing that something (like a descriptor or the memory it points to) is static for some period of time.
+
 ### FAQs
 
 #### What exactly is Residency?

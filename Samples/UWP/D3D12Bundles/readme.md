@@ -1,5 +1,5 @@
 # Bundles Sample
-![Bundles GUI UWP](src/D3D12Bundles.png)
+![Bundles GUI](src/D3D12Bundles.png)
 
 This sample demonstrates the use of Direct3D 12 Bundles. An app can use Bundles to group a small number of API commands together for execution later. When a Bundle is created, the driver will perform as much pre-processing as possible to make it inexpensive to execute the Bundle later. Part of this pre-processing means that there are certain restrictions on what operations can be performed within a Bundle.
 

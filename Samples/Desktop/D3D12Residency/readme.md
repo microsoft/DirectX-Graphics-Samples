@@ -1,5 +1,4 @@
 # The D3D12 Residency Starter Library
-![Residency GUI](src/D3D12Residency.png)
 
 ## What is this library?
 This library is intended to be a low-integration-cost turnkey solution to managing your D3D12 heaps/committed resources to reduce the chance that you will get into an overcommitted video memory situation as well as ensure your performance remains as good as it can be when you do end up in that situation.

@@ -1,5 +1,5 @@
 # Dynamic Indexing Sample
-![DynamicIndexing GUI UWP](src/D3D12DynamicIndexing.png)
+![DynamicIndexing GUI](src/D3D12DynamicIndexing.png)
 
 This sample demonstrates the use of new features available in HLSL's Shader Model 5.1 - specifically dynamic indexing and unbounded descriptor tables. With dynamic indexing, shaders can now index into an array without knowing the value of the index at compile time. When combined with unbounded arrays, this adds another level of indirection and flexibility for shader authors and art pipelines.
 

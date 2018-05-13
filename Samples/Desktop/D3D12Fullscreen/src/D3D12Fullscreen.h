@@ -36,6 +36,7 @@ protected:
     virtual void OnWindowMoved(int, int);
 	virtual void OnDestroy();
 	virtual void OnKeyDown(UINT8 key);
+    virtual IDXGISwapChain* GetSwapchain() { return m_swapChain.Get(); }
 
 private:
 	static const UINT FrameCount = 2;

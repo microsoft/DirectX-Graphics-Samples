@@ -1,5 +1,5 @@
 # Predication and Queries Sample
-![PredicationQueries GUI UWP](src/D3D12PredicationQueries.png)
+![PredicationQueries GUI](src/D3D12PredicationQueries.png)
 
 This sample demonstrates the use of binary occlusion queries and predication in Direct3D 12. The sample renders two quads; one of them animates and periodically occludes the other. For each rendered frame, a binary occlusion query is executed and the SetPredication API is used to conditionally draw the potentially occluded quad. A transparency effect is used to illustrate when the query determines that the quad is fully occluded.
 
