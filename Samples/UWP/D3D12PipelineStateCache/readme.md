@@ -1,6 +1,4 @@
 # Pipeline State Cache Sample
-![PipelineStateCache GUI UWP](src/D3D12PipelineStateCache.png)
-
 This sample demonstrates the use of Direct3D 12 Pipeline State Object (PSO) libraries. An app can use PSO libraries to cache compiled PSOs to disk and avoid costly shader compilation during subsequent runs. Using PSO libaries can accelerate app load times and reduce rendering glitches caused by driver shader compilation. 
 This sample also demonstrates the use of an "uber shader" which is a shader that can perform a variety of effects by taking advantage of dynamic branching on the GPU. The motivation behind an uber shader is to alleviate frame rate glitches caused by an app compiling a PSO it hasn't encountered before. When this happens the app can simply configure the uber shader PSO (which it can compile up front at load time) with the desired effect and use that until the faster and more specialized PSO is done compiling. This results in slightly lower GPU performance for a while but produces more consistent and smoother results.
 

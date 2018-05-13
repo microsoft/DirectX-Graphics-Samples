@@ -40,6 +40,7 @@ public:
 	virtual void OnMouseMove(UINT x, UINT y);
 	virtual void OnLeftButtonDown(UINT x, UINT y);
     virtual void OnLeftButtonUp(UINT x, UINT y);
+    virtual IDXGISwapChain* GetSwapchain() { return m_swapChain.Get(); }
 
 private:
     // In this sample we overload the meaning of FrameCount to mean both the maximum
