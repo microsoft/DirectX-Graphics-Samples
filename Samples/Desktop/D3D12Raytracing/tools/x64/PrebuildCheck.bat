@@ -28,7 +28,7 @@ echo Renaming dxc->fxc so that Visual Studio can natively work with HLSL files a
 copy dxc.exe fxc.exe
 
 if %FILENOTFOUND% NEQ 0 (
-	echo Please go to https://github.com/Microsoft/DirectX-Graphics-Samples/releases and download "DirectX Raytracing Binary Release v1.0". 
+	echo Please go to https://github.com/Microsoft/DirectX-Graphics-Samples/releases and download latest "DirectX Raytracing Binary Release v1.1". 
 	echo Copy all the binaries to Samples\Desktop\D3D12Raytracing\tools\x64"
 	exit /b 1
 )
