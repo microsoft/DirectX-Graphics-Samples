@@ -36,12 +36,12 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
   * Windows 10 with the Fall Creators Update or higher.
   * Dx12 GPU with a driver that has retail DXIL support.
 * *DirectX Raytracing* requires:
-  * Windows 10 with the April update with SDK overlay raytracing binaries or Windows 10 insider build 17661+. 
+  * Windows 10 with the April 2018 update with DXR SDK overlay binaries. 
   * Dx12 gpu with a compatible DirectX Raytracing driver.
     * Nvidia: Volta or higher with 397.31+ driver.
     * Other vendors - please consult the vendor you’re working with for HW and driver availability.
 * Enable Developer Mode or sideload DXIL.dll from the latest Windows SDK to accompany the compiler.
-* Download DirectXRaytracingBinariesV1.1.zip from https://github.com/Microsoft/DirectX-Graphics-Samples/releases and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64.
+* DXR SDK overlay binaries - download DirectXRaytracingBinariesV1.1.zip from https://github.com/Microsoft/DirectX-Graphics-Samples/releases and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64.
 
 ## Known limitations
   - NV 397.31+ drivers do not properly support compute Fallback Layer on Nvidia Volta. Samples have artifacts and/or scenes miss altogether. Use the recommended DXR / driver based raytracing mode of samples on this configuration instead.
