@@ -15,7 +15,7 @@
 // There's a driver issue on some hardware that has issues
 // starting a bindless table on any register but 0, so
 // make sure each bindless table has it's own register space
-#define FallbackLayerDescriptorHeapStartingSpaceOffset 1
+#define FallbackLayerDescriptorHeapSpaceOffset 1
 #define FallbackLayerNumDescriptorHeapSpacesPerView 10
 
 // CBVs
@@ -23,6 +23,11 @@
 #define FallbackLayerAccelerationStructureList 1
 
 #ifndef HLSL
+struct ViewKey {
+    unsigned int ViewType;
+    unsigned int StructuredStride;
+};
+
 struct ShaderInfo
 {
     const wchar_t *ExportName;
@@ -30,6 +35,12 @@ struct ShaderInfo
     unsigned int SrvCbvUavDescriptorSizeInBytes;
     unsigned int ShaderRecordIdentifierSizeInBytes;
     const D3D12_VERSIONED_ROOT_SIGNATURE_DESC *pRootSignatureDesc;
+
+    ViewKey *pSRVRegisterSpaceArray;
+    UINT *pNumSRVSpaces;
+
+    ViewKey *pUAVRegisterSpaceArray;
+    UINT *pNumUAVSpaces;
 };
 
 struct DispatchRaysConstants

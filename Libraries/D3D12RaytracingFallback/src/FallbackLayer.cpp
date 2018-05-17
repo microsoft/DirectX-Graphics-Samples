@@ -216,7 +216,7 @@ namespace FallbackLayer
                 }
 
                 auto range = TD3DX12_DESCRIPTOR_RANGE(
-                    descriptorType, UINT_MAX, FallbackLayerDescriptorHeapTable, FallbackLayerRegisterSpace + FallbackLayerDescriptorHeapStartingSpaceOffset);
+                    descriptorType, UINT_MAX, FallbackLayerDescriptorHeapTable, FallbackLayerRegisterSpace + FallbackLayerDescriptorHeapSpaceOffset);
                 range.OffsetInDescriptorsFromTableStart = 0;
                 __if_exists(TD3DX12_DESCRIPTOR_RANGE::Flags)
                 {
