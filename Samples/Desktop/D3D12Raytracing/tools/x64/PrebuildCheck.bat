@@ -38,14 +38,14 @@ if not exist version.txt (
 ) 
 
 set /p version=< version.txt
-if not "%version%"=="1.1-dxr" (
+if not "%version%"=="1.2-dxr" (
 	goto :mismatch
 )
 
 exit
 
 :mismatch
-	echo Stale binaries detected, please grab the v1.1-dxr binaries from https://github.com/Microsoft/DirectX-Graphics-Samples/releases 
+	echo Stale binaries detected, please grab the v1.2-dxr binaries from https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.2-dxr 
 	echo Copy all the binaries to Samples\Desktop\D3D12Raytracing\tools\x64"
 	exit /b 1
 )
