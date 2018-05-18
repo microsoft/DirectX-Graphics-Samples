@@ -168,6 +168,7 @@ enum class CreateRaytracingFallbackDeviceFlags
 {
     None = 0x0,
     ForceComputeFallback = 0x1,
+    EnableRootDescriptorsInShaderRecords = 0x2
 };
 
 HRESULT D3D12CreateRaytracingFallbackDevice(

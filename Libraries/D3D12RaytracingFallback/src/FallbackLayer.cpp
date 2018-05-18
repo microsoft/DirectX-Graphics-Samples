@@ -15,7 +15,9 @@ namespace FallbackLayer
     GUID FallbackLayerBlobPrivateDataGUID = { 0xf0545791, 0x860b, 0x472e, 0x9c, 0xc5, 0x84, 0x2c, 0xf1, 0x4e, 0x37, 0x60 };
     GUID FallbackLayerPatchedParameterStartGUID = { 0xea063348, 0x974e, 0x4227, 0x82, 0x55, 0x34, 0x5e, 0x29, 0x14, 0xeb, 0x7f };
 
-    RaytracingDevice::RaytracingDevice(ID3D12Device *pDevice, UINT NodeMask) : m_pDevice(pDevice), m_RaytracingProgramFactory(pDevice), m_AccelerationStructureBuilderFactory(pDevice, NodeMask)
+    RaytracingDevice::RaytracingDevice(ID3D12Device *pDevice, UINT NodeMask, CreateRaytracingFallbackDeviceFlags flags) :
+        m_pDevice(pDevice), m_RaytracingProgramFactory(pDevice), m_AccelerationStructureBuilderFactory(pDevice, NodeMask),
+        m_flags(flags)
     {
         // Earlier builds of windows may not support checking shader model yet so this cannot 
         // catch non-Dxil drivers on older builds.
@@ -170,6 +172,7 @@ namespace FallbackLayer
     template <typename TD3D12_ROOT_SIGNATURE_DESC, typename TD3DX12_ROOT_PARAMETER, typename TD3DX12_DESCRIPTOR_RANGE>
     TD3D12_ROOT_SIGNATURE_DESC PatchRootSignature(
         _In_ const typename TD3D12_ROOT_SIGNATURE_DESC*pRootSignature,
+        _In_ bool localRootDescriptorsEnabled,
         _Out_ std::vector<TD3DX12_ROOT_PARAMETER> &patchedRootParameters,
         _Out_ std::vector<TD3DX12_DESCRIPTOR_RANGE> &patchedRanges,
         _Out_ TD3D12_ROOT_SIGNATURE_DESC &patchedRootSignatureDesc)
@@ -180,12 +183,18 @@ namespace FallbackLayer
         {
             for (UINT i = 0; i < pRootSignature->NumParameters; i++)
             {
-                if (pRootSignature->pParameters[i].ParameterType != D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS &&
-                   pRootSignature->pParameters[i].ParameterType != D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
+                if (!localRootDescriptorsEnabled &&
+                      (pRootSignature->pParameters[i].ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV ||
+                       pRootSignature->pParameters[i].ParameterType == D3D12_ROOT_PARAMETER_TYPE_UAV ||
+                       pRootSignature->pParameters[i].ParameterType == D3D12_ROOT_PARAMETER_TYPE_SRV))
                 {
                     ThrowFailure(E_INVALIDARG,
-                        L"Only D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS/D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE are currently " 
-                        "supported for local root signatures. For details, view the Fallback Layer readme.md");
+                        L"Root Views, i.e. D3D12_ROOT_PARAMETER_TYPE_(CBV|UAV|SRV), are not supported by the Fallback Layer by default. "
+                        "Support can be forced on by using CreateRaytracingFallbackDeviceFlags::EnableRootDescriptorsInShaderRecords, "
+                        "however there are 2 existing limitations to root descriptors: The first is that root descriptors must be bound "
+                        "using WRAPPED_GPU_POINTER rather than a GPU_VIRTUAL_ADDRESS. The second is that offsets added onto a WRAPPED_GPU_POINTER "
+                        "are ignored, so reads from the buffer will always start at the start of the buffer. "
+                        "Please see the developer guide for more details");
                 }
             }
         }
@@ -271,10 +280,10 @@ namespace FallbackLayer
         switch (pRootSignature->Version)
         {
         case D3D_ROOT_SIGNATURE_VERSION_1_0:
-            PatchRootSignature(&pRootSignature->Desc_1_0, patchedRootParameters, patchedRanges, patchedDesc.Desc_1_0);
+            PatchRootSignature(&pRootSignature->Desc_1_0, AreShaderRecordRootDescriptorsEnabled(), patchedRootParameters, patchedRanges, patchedDesc.Desc_1_0);
             break;
         case D3D_ROOT_SIGNATURE_VERSION_1_1:
-            PatchRootSignature(&pRootSignature->Desc_1_1, patchedRootParameters, patchedRanges, patchedDesc.Desc_1_1);
+            PatchRootSignature(&pRootSignature->Desc_1_1, AreShaderRecordRootDescriptorsEnabled(), patchedRootParameters, patchedRanges, patchedDesc.Desc_1_1);
             break;
         }
 
@@ -289,7 +298,7 @@ namespace FallbackLayer
         D3D12_ROOT_SIGNATURE_DESC patchedDesc;
         std::vector<CD3DX12_ROOT_PARAMETER> patchedRootParameters;
         std::vector<CD3DX12_DESCRIPTOR_RANGE> patchedRanges;
-        PatchRootSignature(pRootSignature, patchedRootParameters, patchedRanges, patchedDesc);
+        PatchRootSignature(pRootSignature, AreShaderRecordRootDescriptorsEnabled(), patchedRootParameters, patchedRanges, patchedDesc);
 
         if (patchedDesc.Flags & D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE)
         {
