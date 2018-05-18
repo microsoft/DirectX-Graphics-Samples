@@ -272,9 +272,9 @@ int wmain(int argc, wchar_t** argv)
     }
 
     s_EnableVSync.Decrement();
-    TargetResolution = k1080p;
-    g_DisplayWidth = 1920;
-    g_DisplayHeight = 1080;
+    TargetResolution = k720p;
+    g_DisplayWidth = 1280;
+    g_DisplayHeight = 720;
     GameCore::RunApplication(D3D12RaytracingMiniEngineSample(), L"D3D12RaytracingMiniEngineSample"); 
     return 0;
 }
