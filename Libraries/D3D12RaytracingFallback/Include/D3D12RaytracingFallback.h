@@ -164,7 +164,7 @@ public:
         _Always_(_Outptr_opt_result_maybenull_) ID3DBlob** ppErrorBlob) = 0;
 };
 
-enum class CreateRaytracingFallbackDeviceFlags
+enum CreateRaytracingFallbackDeviceFlags
 {
     None = 0x0,
     ForceComputeFallback = 0x1,
@@ -173,7 +173,7 @@ enum class CreateRaytracingFallbackDeviceFlags
 
 HRESULT D3D12CreateRaytracingFallbackDevice(
     _In_ ID3D12Device *pDevice, 
-    _In_ CreateRaytracingFallbackDeviceFlags Flags,
+    _In_ DWORD createRaytracingFallbackDeviceFlags,
     _In_ UINT NodeMask,
     _In_ REFIID riid,
     _COM_Outptr_opt_ void** ppDevice);

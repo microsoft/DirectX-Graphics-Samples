@@ -15,9 +15,9 @@ namespace FallbackLayer
     GUID FallbackLayerBlobPrivateDataGUID = { 0xf0545791, 0x860b, 0x472e, 0x9c, 0xc5, 0x84, 0x2c, 0xf1, 0x4e, 0x37, 0x60 };
     GUID FallbackLayerPatchedParameterStartGUID = { 0xea063348, 0x974e, 0x4227, 0x82, 0x55, 0x34, 0x5e, 0x29, 0x14, 0xeb, 0x7f };
 
-    RaytracingDevice::RaytracingDevice(ID3D12Device *pDevice, UINT NodeMask, CreateRaytracingFallbackDeviceFlags flags) :
+    RaytracingDevice::RaytracingDevice(ID3D12Device *pDevice, UINT NodeMask, DWORD createRaytracingFallbackDeviceFlags) :
         m_pDevice(pDevice), m_RaytracingProgramFactory(pDevice), m_AccelerationStructureBuilderFactory(pDevice, NodeMask),
-        m_flags(flags)
+        m_flags(createRaytracingFallbackDeviceFlags)
     {
         // Earlier builds of windows may not support checking shader model yet so this cannot 
         // catch non-Dxil drivers on older builds.
@@ -274,8 +274,12 @@ namespace FallbackLayer
         _Out_ ID3DBlob** ppBlob,
         _Always_(_Outptr_opt_result_maybenull_) ID3DBlob** ppErrorBlob)
     {
-        std::vector<CD3DX12_ROOT_PARAMETER1> patchedRootParameters;
-        std::vector<CD3DX12_DESCRIPTOR_RANGE1> patchedRanges;
+        std::vector<CD3DX12_ROOT_PARAMETER> patchedRootParameters;
+        std::vector<CD3DX12_DESCRIPTOR_RANGE> patchedRanges;
+
+        std::vector<CD3DX12_ROOT_PARAMETER1> patchedRootParameters1;
+        std::vector<CD3DX12_DESCRIPTOR_RANGE1> patchedRanges1;
+
         D3D12_VERSIONED_ROOT_SIGNATURE_DESC patchedDesc = *pRootSignature;
         switch (pRootSignature->Version)
         {
@@ -283,7 +287,7 @@ namespace FallbackLayer
             PatchRootSignature(&pRootSignature->Desc_1_0, AreShaderRecordRootDescriptorsEnabled(), patchedRootParameters, patchedRanges, patchedDesc.Desc_1_0);
             break;
         case D3D_ROOT_SIGNATURE_VERSION_1_1:
-            PatchRootSignature(&pRootSignature->Desc_1_1, AreShaderRecordRootDescriptorsEnabled(), patchedRootParameters, patchedRanges, patchedDesc.Desc_1_1);
+            PatchRootSignature(&pRootSignature->Desc_1_1, AreShaderRecordRootDescriptorsEnabled(), patchedRootParameters1, patchedRanges1, patchedDesc.Desc_1_1);
             break;
         }
 
