@@ -1238,7 +1238,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
         TEST_METHOD_INITIALIZE(MethodSetup)
         {
-            m_pRaytracingDevice = CComPtr<FallbackLayer::RaytracingDevice>(new RaytracingDevice(&m_d3d12Context.GetDevice(), 1));           
+            m_pRaytracingDevice = CComPtr<FallbackLayer::RaytracingDevice>(new RaytracingDevice(&m_d3d12Context.GetDevice(), 1, CreateRaytracingFallbackDeviceFlags::None));           
             InitializeFallbackRootSignature();
             InitializeDxcComponents();
             InitializeDescriptorHeaps();
@@ -1626,7 +1626,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
             BYTE outputData[sizeof(constantData)];
 
-            ValidateDxilShaderRecordPatching(shaderByteCode, pRootSignature, shaderTable, sizeof(shaderTable), outputData, sizeof(outputData));
+            ValidateDxilShaderRecordPatching(shaderByteCode, pRootSignature, shaderTable, sizeof(shaderTable), sizeof(D3D12_GPU_DESCRIPTOR_HANDLE), outputData, sizeof(outputData));
             BYTE *inputData = (BYTE *)constantData;
             Assert::IsTrue(memcmp(inputData, outputData, sizeofFloat4) == 0, L"Shader did not correctly output the expected color");
             Assert::IsTrue(memcmp(inputData + sizeofFloat4, outputData + sizeofFloat4, sizeofFloat4) == 0, L"Shader did not correctly output the expected color");
@@ -1730,7 +1730,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             };
 
             BYTE outputData[sizeof(clearColor)];
-            ValidateDxilShaderRecordPatching(computeShader, pRootSignature, shaderTable, sizeof(shaderTable), outputData, sizeof(outputData));
+            ValidateDxilShaderRecordPatching(computeShader, pRootSignature, shaderTable, sizeof(shaderTable), sizeof(D3D12_GPU_DESCRIPTOR_HANDLE), outputData, sizeof(outputData));
 
             if (bClearUsingUINT)
             {
@@ -1822,7 +1822,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             AssertSucceeded(m_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(ppStateObject)));
         }
 
-        void ValidateDxilShaderRecordPatching(D3D12_SHADER_BYTECODE &computeShader, ID3D12RootSignature *pRootSignature, void *pShaderTableData, UINT shaderTableSize, void *pOutputData, UINT outputDataSize)
+        void ValidateDxilShaderRecordPatching(D3D12_SHADER_BYTECODE &computeShader, ID3D12RootSignature *pRootSignature, void *pShaderTableData, UINT shaderTableSize, UINT shaderTableAlignment, void *pOutputData, UINT outputDataSize)
         {
             CComPtr<ID3D12VersionedRootSignatureDeserializer> pDeserializer;
             const D3D12_VERSIONED_ROOT_SIGNATURE_DESC* pRootSignatureDesc = GetDescFromRootSignature(pRootSignature, pDeserializer);
@@ -1833,9 +1833,10 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             const UINT shaderIndentifierSize = m_pRaytracingDevice->GetShaderIdentifierSize();
 
             // Insert the shader identifier into the input data
-            std::vector<BYTE> patchedShaderTable(shaderIndentifierSize + shaderTableSize);
+            UINT alignedShaderIdentifierSize = ALIGN(shaderTableAlignment, shaderIndentifierSize);
+            std::vector<BYTE> patchedShaderTable(alignedShaderIdentifierSize + shaderTableSize);
             memcpy(patchedShaderTable.data(), pStateObject->GetShaderIdentifier(missExportName), shaderIndentifierSize);
-            memcpy(patchedShaderTable.data() + shaderIndentifierSize, pShaderTableData, shaderTableSize);
+            memcpy(patchedShaderTable.data() + alignedShaderIdentifierSize, pShaderTableData, shaderTableSize);
             CComPtr<ID3D12Resource> pShaderRecord;
             m_d3d12Context.CreateResourceWithInitialData(patchedShaderTable.data(), patchedShaderTable.size(), &pShaderRecord);
 
@@ -1967,8 +1968,112 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
 #include "CompiledShaders/SimpleRaytracing.h"
 
+    enum ParameterSlots
+    {
+        RootConstant = 0,
+        RootCBV,
+        RootSRV,
+        RootUAV,
+        DescriptorTable,
+        NumParameters,
+    };
+    enum DescriptorTable
+    {
+        UAVRange = 0,
+        SRVRange,
+        CBVRange,
+        NumRanges,
+    };
+
+    template<typename TD3DX12_DESCRIPTOR_RANGE, typename TD3DX12_ROOT_PARAMETER>
+    void InitializeRootSignatureParameters(TD3DX12_DESCRIPTOR_RANGE *ranges, TD3DX12_ROOT_PARAMETER* parameters)
+    {
+        UINT cbvsUsed = 0, srvsUsed = 0, uavsUsed = 0, samplersUsed = 0;
+
+        ranges[UAVRange].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, uavsUsed++);
+        ranges[SRVRange].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, srvsUsed++);
+        ranges[CBVRange].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, cbvsUsed++);
+
+        parameters[RootConstant].InitAsConstants(1, cbvsUsed++);
+        parameters[RootCBV].InitAsConstantBufferView(cbvsUsed++);
+        parameters[RootSRV].InitAsShaderResourceView(srvsUsed++);
+        parameters[RootUAV].InitAsUnorderedAccessView(uavsUsed++);
+        parameters[DescriptorTable].InitAsDescriptorTable(NumRanges, ranges);
+    }
+
     TEST_CLASS(APIUnitTest)
     {
+
+        TEST_METHOD(GlobalRootSignatureCreation)
+        {
+            RootSignatureCreation(D3D12_ROOT_SIGNATURE_FLAG_NONE);
+        }
+
+        TEST_METHOD(LocalRootSignatureCreation)
+        {
+            RootSignatureCreation(D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
+        }
+
+        void RootSignatureCreation(D3D12_ROOT_SIGNATURE_FLAGS flags)
+        {
+            auto &d3d12device = m_d3d12Context.GetDevice();
+
+            CComPtr<ID3D12RaytracingFallbackDevice> rayTracingDevice;
+            D3D12CreateRaytracingFallbackDevice(
+                &m_d3d12Context.GetDevice(),
+                CreateRaytracingFallbackDeviceFlags::ForceComputeFallback | CreateRaytracingFallbackDeviceFlags::EnableRootDescriptorsInShaderRecords,
+                0,
+                IID_PPV_ARGS(&rayTracingDevice));
+
+            {
+                CD3DX12_DESCRIPTOR_RANGE descriptorRanges[NumRanges];
+                CD3DX12_ROOT_PARAMETER parameters[NumParameters];
+                InitializeRootSignatureParameters(descriptorRanges, parameters);
+
+                auto rootSignatureDesc = CD3DX12_ROOT_SIGNATURE_DESC(ARRAYSIZE(parameters), parameters, 0, nullptr, flags);
+
+                {
+                    CComPtr<ID3DBlob> pRootSignatureBlob;
+                    CComPtr<ID3D12RootSignature> pRootSignature;
+
+                    //AssertSucceeded(rayTracingDevice->D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pRootSignatureBlob, nullptr));
+                    CComPtr<ID3DBlob> pErrorBlob;
+                    if (FAILED(rayTracingDevice->D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pRootSignatureBlob, &pErrorBlob)))
+                    {
+                        OutputDebugStringA((LPCSTR)pErrorBlob->GetBufferPointer());
+                        Assert::Fail();
+                    }
+                    
+                    AssertSucceeded(rayTracingDevice->CreateRootSignature(0, pRootSignatureBlob->GetBufferPointer(), pRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSignature)));
+                }
+
+                // Do the same thing but with the versioned variant
+                {
+                    auto versionedRootSignatureDesc = CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(rootSignatureDesc);
+
+                    CComPtr<ID3DBlob> pRootSignatureBlob;
+                    CComPtr<ID3D12RootSignature> pRootSignature;
+                    AssertSucceeded(rayTracingDevice->D3D12SerializeVersionedRootSignature(&versionedRootSignatureDesc, &pRootSignatureBlob, nullptr));
+                    AssertSucceeded(rayTracingDevice->CreateRootSignature(0, pRootSignatureBlob->GetBufferPointer(), pRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSignature)));
+                }
+            }
+
+            {
+                CD3DX12_DESCRIPTOR_RANGE1 descriptorRanges[NumRanges];
+                CD3DX12_ROOT_PARAMETER1 parameters[NumParameters];
+                InitializeRootSignatureParameters(descriptorRanges, parameters);
+
+                auto versionedRootSignatureDesc = CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(ARRAYSIZE(parameters), parameters, 0, nullptr, flags);
+                {
+                    CComPtr<ID3DBlob> pRootSignatureBlob;
+                    CComPtr<ID3D12RootSignature> pRootSignature;
+                    AssertSucceeded(rayTracingDevice->D3D12SerializeVersionedRootSignature(&versionedRootSignatureDesc, &pRootSignatureBlob, nullptr));
+                    AssertSucceeded(rayTracingDevice->CreateRootSignature(0, pRootSignatureBlob->GetBufferPointer(), pRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSignature)));
+                }
+            }
+        }
+
+
         TEST_METHOD(StateObjectCollectionTesting)
         {
             auto &d3d12device = m_d3d12Context.GetDevice();

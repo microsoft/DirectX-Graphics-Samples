@@ -120,7 +120,7 @@ namespace FallbackLayer
     class RaytracingDevice : public ID3D12RaytracingFallbackDevice
     {
     public:
-        RaytracingDevice(ID3D12Device *pDevice, UINT NodeMask);
+        RaytracingDevice(ID3D12Device *pDevice, UINT NodeMask, DWORD createRaytracingFallbackDeviceFlags);
         virtual ~RaytracingDevice() {}
 
         virtual bool UsingRaytracingDriver();
@@ -175,6 +175,11 @@ namespace FallbackLayer
             _Out_ ID3DBlob** ppBlob,
             _Always_(_Outptr_opt_result_maybenull_) ID3DBlob** ppErrorBlob);
 
+        bool AreShaderRecordRootDescriptorsEnabled()
+        {
+            return m_flags & CreateRaytracingFallbackDeviceFlags::EnableRootDescriptorsInShaderRecords;
+        }
+
     private:
         void ProcessSubObject(const D3D12_STATE_SUBOBJECT &subObject, RaytracingStateObject &rayTracingStateObject);
         void ProcessShaderAssociation(const D3D12_STATE_SUBOBJECT &subObject, ShaderAssociations &shaderAssociations);
@@ -183,6 +188,8 @@ namespace FallbackLayer
         CComPtr<ID3D12Device> m_pDevice;
         AccelerationStructureBuilderFactory m_AccelerationStructureBuilderFactory;
         RaytracingProgramFactory m_RaytracingProgramFactory;
+        DWORD m_flags;
+
         COM_IMPLEMENTATION();
 
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION

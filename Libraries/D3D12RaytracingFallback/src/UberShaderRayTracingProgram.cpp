@@ -60,6 +60,12 @@ namespace FallbackLayer
 
         UINT cbvSrvUavHandleSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         UINT samplerHandleSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+        
+        ViewKey SRVViewsList[FallbackLayerNumDescriptorHeapSpacesPerView];
+        UINT SRVsUsed = 0;
+        ViewKey UAVViewsList[FallbackLayerNumDescriptorHeapSpacesPerView];
+        UINT UAVsUsed = 0;
+        
         for (UINT i = 0; i < numLibraries; i++)
         {
             auto &library = stateObjectCollection.m_dxilLibraries[i];
@@ -96,6 +102,10 @@ namespace FallbackLayer
                         CComPtr<ID3D12VersionedRootSignatureDeserializer> pDeserializer;
                         ShaderInfo shaderInfo;
                         shaderInfo.pRootSignatureDesc = GetDescFromRootSignature(pShaderAssociation->second.m_pRootSignature, pDeserializer);
+                        shaderInfo.pSRVRegisterSpaceArray = SRVViewsList;
+                        shaderInfo.pNumSRVSpaces = &SRVsUsed;
+                        shaderInfo.pUAVRegisterSpaceArray = UAVViewsList;
+                        shaderInfo.pNumUAVSpaces = &UAVsUsed;
 
                         if (GetNumParameters(*shaderInfo.pRootSignatureDesc) > 0)
                         {
