@@ -1602,7 +1602,7 @@ struct CD3DX12_CPU_DESCRIPTOR_HANDLE : public D3D12_CPU_DESCRIPTOR_HANDLE
         ptr = other.ptr;
         return *this;
     }
-    
+
     inline void InitOffsetted(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE &base, INT offsetScaledByIncrementSize)
     {
         InitOffsetted(*this, base, offsetScaledByIncrementSize);
@@ -1663,7 +1663,7 @@ struct CD3DX12_GPU_DESCRIPTOR_HANDLE : public D3D12_GPU_DESCRIPTOR_HANDLE
         ptr = other.ptr;
         return *this;
     }
-    
+
     inline void InitOffsetted(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE &base, INT offsetScaledByIncrementSize)
     {
         InitOffsetted(*this, base, offsetScaledByIncrementSize);

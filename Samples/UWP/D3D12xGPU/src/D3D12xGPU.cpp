@@ -27,8 +27,6 @@ D3D12xGPU::D3D12xGPU(UINT width, UINT height, wstring name) :
     m_activeGpuPreference(DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE),
     m_fps(0.0f),
     m_manualAdapterSelection(false),
-    m_adapterChangeEvent(NULL),
-    m_adapterChangeRegistrationCookie(0),
     m_fenceValues{},
     m_windowVisible(true),
     m_dxgiFactoryFlags(0),
@@ -92,19 +90,6 @@ void D3D12xGPU::LoadPipeline()
     }
 #endif
     ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
-
-#ifdef USE_DXGI_1_6
-    ComPtr<IDXGIFactory7> spDxgiFactory7;
-    if (SUCCEEDED(m_dxgiFactory->QueryInterface(IID_PPV_ARGS(&spDxgiFactory7))))
-    {
-        m_adapterChangeEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if (m_adapterChangeEvent == nullptr)
-        {
-            ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-        }
-        ThrowIfFailed(spDxgiFactory7->RegisterAdapterEnumerationEvent(m_adapterChangeEvent, &m_adapterChangeRegistrationCookie));
-    }
-#endif
 
     EnumerateGPUadapters();
 
@@ -273,17 +258,6 @@ void D3D12xGPU::ReleaseD3DObjects()
     m_commandQueue.Reset();
     m_swapChain.Reset();
     m_device.Reset();
-
-#ifdef USE_DXGI_1_6
-    ComPtr<IDXGIFactory7> spDxgiFactory7;
-    if (m_adapterChangeRegistrationCookie != 0 && SUCCEEDED(m_dxgiFactory->QueryInterface(IID_PPV_ARGS(&spDxgiFactory7))))
-    {
-        ThrowIfFailed(spDxgiFactory7->UnregisterAdapterEnumerationEvent(m_adapterChangeRegistrationCookie));
-        m_adapterChangeRegistrationCookie = 0;
-        CloseHandle(m_adapterChangeEvent);
-        m_adapterChangeEvent = NULL;
-    }
-#endif
     m_dxgiFactory.Reset();
 
 #if defined(_DEBUG)
@@ -429,23 +403,10 @@ void D3D12xGPU::OnRender()
         try
         {
             // Check for any adapter changes, such as a new adapter being available.
-            if (QueryForAdapterEnumerationChanges())
+            if (!m_dxgiFactory->IsCurrent())
             {
                 // Dxgi factory needs to be recreated on a change.
                 ThrowIfFailed(CreateDXGIFactory2(m_dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
-
-#ifdef USE_DXGI_1_6
-                ComPtr<IDXGIFactory7> spDxgiFactory7;
-                if (SUCCEEDED(m_dxgiFactory->QueryInterface(IID_PPV_ARGS(&spDxgiFactory7))))
-                {
-                    m_adapterChangeEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-                    if (m_adapterChangeEvent == nullptr)
-                    {
-                        ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-                    }
-                    ThrowIfFailed(spDxgiFactory7->RegisterAdapterEnumerationEvent(m_adapterChangeEvent, &m_adapterChangeRegistrationCookie));
-                }
-#endif
 
                 // Check if the application should switch to a different adapter.
                 ThrowIfFailed(ValidateActiveAdapter());
@@ -511,10 +472,6 @@ void D3D12xGPU::OnDestroy()
         // Do nothing, currently attached adapter is unresponsive.
     }
     CloseHandle(m_fenceEvent);
-    if (m_adapterChangeEvent)
-    {
-        CloseHandle(m_adapterChangeEvent);
-    }
 }
 
 void D3D12xGPU::SelectAdapter(UINT index)
@@ -581,39 +538,7 @@ HRESULT D3D12xGPU::ValidateActiveAdapter()
     return S_OK;
 }
 
-// Returns whether there have been adapter enumeration changes in the system
-bool D3D12xGPU::QueryForAdapterEnumerationChanges()
-{
-    bool bChangeInAdapterEnumeration = false;
-    if (m_adapterChangeEvent)
-    {
-#ifdef USE_DXGI_1_6
-        // If QueryInterface for IDXGIFactory7 succeeded, then use RegisterAdapterEnumerationEvent notifications.
-        DWORD waitResult = WaitForSingleObject(m_adapterChangeEvent, 0);
-        bChangeInAdapterEnumeration = (waitResult == WAIT_OBJECT_0);
 
-        if (bChangeInAdapterEnumeration)
-        {
-            // Before recreating the factory, unregister the adapter event
-            ComPtr<IDXGIFactory7> spDxgiFactory7;
-            if (SUCCEEDED(m_dxgiFactory->QueryInterface(IID_PPV_ARGS(&spDxgiFactory7))))
-            {
-                ThrowIfFailed(spDxgiFactory7->UnregisterAdapterEnumerationEvent(m_adapterChangeRegistrationCookie));
-                m_adapterChangeRegistrationCookie = 0;
-                CloseHandle(m_adapterChangeEvent);
-                m_adapterChangeEvent = NULL;
-            }
-        }
-#endif
-    }
-    else
-    {
-        // Otherwise, IDXGIFactory7 doesn't exist, so continue using the polling solution of IsCurrent.
-        bChangeInAdapterEnumeration = !m_dxgiFactory->IsCurrent();
-    }
-
-    return bChangeInAdapterEnumeration;
-}
 
 // Retrieves information about available GPU adapters.
 void D3D12xGPU::EnumerateGPUadapters()

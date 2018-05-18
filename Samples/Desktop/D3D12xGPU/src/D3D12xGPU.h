@@ -57,8 +57,6 @@ private:
     LUID m_activeAdapterLuid;
     std::vector<DxgiAdapterInfo> m_gpuAdapterDescs;
     bool m_manualAdapterSelection;
-    HANDLE m_adapterChangeEvent;
-    DWORD m_adapterChangeRegistrationCookie;
 
     // D3D objects.
     ComPtr<ID3D12Device> m_device;
@@ -105,7 +103,6 @@ private:
     void ReleaseD3DObjects(); 
     void EnumerateGPUadapters();
     void GetGPUAdapter(UINT adapterIndex, IDXGIAdapter1** ppAdapter);
-    bool QueryForAdapterEnumerationChanges();
     HRESULT ValidateActiveAdapter();
     bool RetrieveAdapterIndex(UINT* adapterIndex, LUID prevActiveAdapterLuid);
     void SelectAdapter(UINT index);
