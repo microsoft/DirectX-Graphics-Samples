@@ -64,5 +64,5 @@ cbuffer DebugVariables : CONSTANT_REGISTER_SPACE(DebugConstantRegister, Fallback
 };
 #endif
 #else
-static_assert(FallbackLayerDescriptorHeapRegisterSpace == FallbackLayerRegisterSpace + FallbackLayerDescriptorHeapStartingSpaceOffset, L"#define for FallbackLayerDescriptorHeapRegisterSpace is incorrect");
+static_assert(FallbackLayerDescriptorHeapRegisterSpace == FallbackLayerRegisterSpace + FallbackLayerDescriptorHeapSpaceOffset, L"#define for FallbackLayerDescriptorHeapRegisterSpace is incorrect");
 #endif

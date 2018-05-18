@@ -174,8 +174,10 @@ The use of an AnyHit/Intersection shader require that the traversal code must st
 
 ## Known Issues & Limitations
 
-* #### No Local Root Signature Support for Root Descriptors
-Root descriptors are not currently supported. This is expected to be supported in the future, but it should be noted that these will require the use of `WRAPPED_GPU_POINTER`'s rather then being able to consume a `GPU_VIRTUAL_ADDRESS` directly
+* #### Limited Local Root Signature Support for Root Descriptors
+Root Descriptors are partially supported, however currently the offset in bytes portion of the pointer will always be ignored and it will only read from the start of the buffer. 
+
+In addition, to enable root descriptors in the first place, developers must pass in CreateRaytracingFallbackDeviceFlags::EnableRootDescriptorsInShaderRecords to D3D12CreateRaytracingFallbackDevice to enable this functionality.
 
 * #### No Callable shaders
 Callable shaders are not yet supported. 

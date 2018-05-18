@@ -674,7 +674,9 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
 
     const UINT shaderIdentifierSize = g_pRaytracingDevice->GetShaderIdentifierSize();
 #define ALIGN(alignment, num) ((((num) + alignment - 1) / alignment) * alignment)
-    const UINT shaderRecordSizeInBytes = ALIGN(D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, shaderIdentifierSize + sizeof(MaterialRootConstant) + sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
+    const UINT offsetToDescriptorHandle = ALIGN(sizeof(D3D12_GPU_DESCRIPTOR_HANDLE), shaderIdentifierSize);
+    const UINT offsetToMaterialConstants = ALIGN(sizeof(UINT32), offsetToDescriptorHandle + sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
+    const UINT shaderRecordSizeInBytes = ALIGN(D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, offsetToMaterialConstants + sizeof(MaterialRootConstant));
     
     std::vector<byte> pHitShaderTable(shaderRecordSizeInBytes * numMeshes);
     auto GetShaderTable = [=](const Model &model, ID3D12RaytracingFallbackStateObject *pPSO, byte *pShaderTable)
@@ -684,17 +686,13 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
         {
             byte *pShaderRecord = i * shaderRecordSizeInBytes + pShaderTable;
             memcpy(pShaderRecord, pHitGroupIdentifierData, shaderIdentifierSize);
-            pShaderRecord += shaderIdentifierSize;
 
             UINT materialIndex = model.m_pMesh[i].materialIndex;
-            memcpy(pShaderRecord, &g_GpuSceneMaterialSrvs[materialIndex].ptr, sizeof(g_GpuSceneMaterialSrvs[materialIndex].ptr));
-            pShaderRecord += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+            memcpy(pShaderRecord + offsetToDescriptorHandle, &g_GpuSceneMaterialSrvs[materialIndex].ptr, sizeof(g_GpuSceneMaterialSrvs[materialIndex].ptr));
 
             MaterialRootConstant material;
             material.MaterialID = i;
-            memcpy(pShaderRecord, &material, sizeof(material));
-            pShaderRecord += sizeof(MaterialRootConstant);
-
+            memcpy(pShaderRecord + offsetToMaterialConstants, &material, sizeof(material));
         }
     };
 

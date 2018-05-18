@@ -12,7 +12,7 @@
 
 HRESULT D3D12CreateRaytracingFallbackDevice(
     _In_ ID3D12Device *pDevice, 
-    _In_ CreateRaytracingFallbackDeviceFlags flags, 
+    _In_ DWORD createRaytracingFallbackDeviceFlags, 
     _In_ UINT NodeMask,
     _In_ REFIID riid,
     _COM_Outptr_opt_ void** ppDevice)
@@ -26,9 +26,9 @@ HRESULT D3D12CreateRaytracingFallbackDevice(
     HRESULT hr = pDevice->QueryInterface(&pRaytracingDevice);
 
     const bool bSupportsNativeRaytracing = SUCCEEDED(hr) && pRaytracingDevice;
-    if (!bSupportsNativeRaytracing || ((UINT)flags & (UINT)CreateRaytracingFallbackDeviceFlags::ForceComputeFallback) != 0)
+    if (!bSupportsNativeRaytracing || ((UINT)createRaytracingFallbackDeviceFlags & (UINT)CreateRaytracingFallbackDeviceFlags::ForceComputeFallback) != 0)
     {
-        *ppDevice = new FallbackLayer::RaytracingDevice(pDevice, NodeMask);
+        *ppDevice = new FallbackLayer::RaytracingDevice(pDevice, NodeMask, createRaytracingFallbackDeviceFlags);
     }
     else
     {
