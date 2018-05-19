@@ -245,7 +245,6 @@ void D3D12RaytracingSimpleLighting::CreateRootSignatures()
     // Local Root Signature
     // This is a root signature that enables a shader to have unique arguments that come from shader tables.
     {
-        CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
         CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
         rootParameters[LocalRootSignatureParams::CubeConstantSlot].InitAsConstants(SizeOfInUint32(m_cubeCB), 1);
         CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
@@ -999,6 +998,8 @@ void D3D12RaytracingSimpleLighting::OnRender()
 
 void D3D12RaytracingSimpleLighting::OnDestroy()
 {
+    // Let GPU finish before releasing D3D resources.
+    m_deviceResources->WaitForGpu();
     OnDeviceLost();
 }
 
