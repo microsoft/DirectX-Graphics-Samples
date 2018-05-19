@@ -89,13 +89,13 @@ inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 directi
 
     world.xyz /= world.w;
     origin = g_sceneCB.cameraPosition.xyz;
-    direction = normalize(world - origin);
+    direction = normalize(world.xyz - origin);
 }
 
 // Diffuse lighting calculation.
 float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
 {
-    float3 pixelToLight = normalize(g_sceneCB.lightPosition - hitPosition);
+    float3 pixelToLight = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
 
     // Diffuse contribution.
     float fNDotL = max(0.0f, dot(pixelToLight, normal));

@@ -1505,6 +1505,8 @@ void D3D12RaytracingProceduralGeometry::OnRender()
 
 void D3D12RaytracingProceduralGeometry::OnDestroy()
 {
+    // Let GPU finish before releasing D3D resources.
+    m_deviceResources->WaitForGpu();
     OnDeviceLost();
 }
 
