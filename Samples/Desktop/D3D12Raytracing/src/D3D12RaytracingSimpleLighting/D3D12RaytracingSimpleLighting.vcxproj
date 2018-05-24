@@ -94,8 +94,8 @@
       <EntryPointName />
     </FxCompile>
     <PostBuildEvent>
-      <Command>cd $(SolutionDir)..\tools\x64\ 
-PostbuildCopy.bat $(SolutionDir)D3D12RaytracingSimpleLighting\bin\$(Platform)\$(Configuration)\</Command>
+      <Command>cd "$(SolutionDir)..\tools\x64\"
+PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingSimpleLighting\bin\$(Platform)\$(Configuration)\"</Command>
       <Message>Sideload required DXR binaries.</Message>
     </PostBuildEvent>
     <PreLinkEvent>
@@ -107,7 +107,7 @@ PostbuildCopy.bat $(SolutionDir)D3D12RaytracingSimpleLighting\bin\$(Platform)\$(
       </Message>
     </PreLinkEvent>
     <PreBuildEvent>
-      <Command>cd $(SolutionDir)..\tools\x64\
+      <Command>cd "$(SolutionDir)..\tools\x64\"
 PrebuildCheck.bat</Command>
     </PreBuildEvent>
     <PreBuildEvent>
@@ -147,12 +147,12 @@ PrebuildCheck.bat</Command>
       <EntryPointName />
     </FxCompile>
     <PostBuildEvent>
-      <Command>cd $(SolutionDir)..\tools\x64\ 
-PostbuildCopy.bat $(SolutionDir)D3D12RaytracingSimpleLighting\bin\$(Platform)\$(Configuration)\</Command>
+      <Command>cd "$(SolutionDir)..\tools\x64\"
+PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingSimpleLighting\bin\$(Platform)\$(Configuration)\"</Command>
       <Message>Sideload required DXR binaries.</Message>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>cd $(SolutionDir)..\tools\x64\
+      <Command>cd "$(SolutionDir)..\tools\x64\"
 PrebuildCheck.bat</Command>
       <Message>
       </Message>
