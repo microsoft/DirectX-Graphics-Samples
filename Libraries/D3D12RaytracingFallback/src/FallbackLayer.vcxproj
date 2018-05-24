@@ -90,15 +90,15 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">-Zpr %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
     <PreBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cd $(SolutionDir)..\tools\x64\
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cd "$(SolutionDir)..\tools\x64\"
 PrebuildCheck.bat</Command>
     </PreBuildEvent>
     <PreBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">cd $(SolutionDir)..\tools\x64\
+      <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">cd "$(SolutionDir)..\tools\x64\"
 PrebuildCheck.bat</Command>
     </PreBuildEvent>
     <PreBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cd $(SolutionDir)..\tools\x64\
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cd "$(SolutionDir)..\tools\x64\"
 PrebuildCheck.bat</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
