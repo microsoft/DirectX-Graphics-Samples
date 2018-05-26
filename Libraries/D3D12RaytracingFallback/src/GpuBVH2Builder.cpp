@@ -164,7 +164,7 @@ namespace FallbackLayer
 
         D3D12_GPU_VIRTUAL_ADDRESS calculateAABBScratchBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToCalculateAABBDispatchArgs;
         D3D12_GPU_VIRTUAL_ADDRESS nodeCountBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToPerNodeCounter;
-        
+
         const SceneType sceneType = SceneType::Triangles;
         m_loadPrimitivesPass.LoadPrimitives(pCommandList, *pDesc, totalTriangles, scratchTriangleBuffer, scratchMetadataBuffer);
         m_sceneAABBCalculator.CalculateSceneAABB(pCommandList, sceneType, scratchTriangleBuffer, totalTriangles, sceneAABBScratchMemory, sceneAABB);
@@ -227,7 +227,7 @@ namespace FallbackLayer
         }
         else
         {
-            ThrowFailure(E_INVALIDARG, 
+            ThrowFailure(E_INVALIDARG,
                 L"The only flags supported for CopyRaytracingAccelerationStructure are: "
                 L"D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE/D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_COMPACT");
         }
@@ -239,7 +239,7 @@ namespace FallbackLayer
 #define ALIGN_GPU_VA_OFFSET(num) ALIGN(4, num)
 
         ScratchMemoryPartitions scratchMemoryPartitions = {};
-        UINT &totalSize = scratchMemoryPartitions.TotalSize;
+        UINT64 &totalSize = scratchMemoryPartitions.TotalSize;
         UINT numInternalNodes = GetNumberOfInternalNodes(numPrimitives);
         UINT totalNumNodes = numPrimitives + numInternalNodes;
 
@@ -263,17 +263,17 @@ namespace FallbackLayer
             // because it's calculated before the MortonCode/IndexBuffer are needed. Additionally,
             // the AABB buffer used for treelet reordering is done after both stages so it can also alias
             scratchMemoryPartitions.OffsetToSceneAABBScratchMemory = scratchMemoryPartitions.OffsetToMortonCodes;
-            INT sizeNeededToCalculateAABB = m_sceneAABBCalculator.ScratchBufferSizeNeeded(numPrimitives);
-            INT sizeNeededForTreeletAABBs = TreeletReorder::RequiredSizeForAABBBuffer(numPrimitives);
-            INT sizeNeededByMortonCodeAndIndexBuffer = mortonCodeBufferSize + indexBufferSize;
-            UINT extraBufferSize = std::max(sizeNeededToCalculateAABB, std::max(sizeNeededForTreeletAABBs, sizeNeededByMortonCodeAndIndexBuffer));
-            
+            INT64 sizeNeededToCalculateAABB = m_sceneAABBCalculator.ScratchBufferSizeNeeded(numPrimitives);
+            INT64 sizeNeededForTreeletAABBs = TreeletReorder::RequiredSizeForAABBBuffer(numPrimitives);
+            INT64 sizeNeededByMortonCodeAndIndexBuffer = mortonCodeBufferSize + indexBufferSize;
+            UINT64 extraBufferSize = std::max(sizeNeededToCalculateAABB, std::max(sizeNeededForTreeletAABBs, sizeNeededByMortonCodeAndIndexBuffer));
+
             totalSize += extraBufferSize;
         }
 
 
         {
-            UINT sizeNeededForAABBCalculation = 0;
+            UINT64 sizeNeededForAABBCalculation = 0;
             scratchMemoryPartitions.OffsetToCalculateAABBDispatchArgs = sizeNeededForAABBCalculation;
             sizeNeededForAABBCalculation += ALIGN_GPU_VA_OFFSET(sizeof(UINT) * numPrimitives);
 
@@ -283,7 +283,7 @@ namespace FallbackLayer
             totalSize = std::max(sizeNeededForAABBCalculation, totalSize);
         }
 
-        const UINT hierarchySize = ALIGN_GPU_VA_OFFSET(sizeof(HierarchyNode) * totalNumNodes);
+        const UINT64 hierarchySize = ALIGN_GPU_VA_OFFSET(sizeof(HierarchyNode) * totalNumNodes);
         scratchMemoryPartitions.OffsetToHierarchy = totalSize;
         totalSize += hierarchySize;
 
@@ -338,9 +338,9 @@ namespace FallbackLayer
         _In_reads_(NumSourceAccelerationStructures)  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData)
     {
         m_postBuildInfoQuery.GetCompactedBVHSizes(
-            pCommandList, 
-            DestBuffer, 
-            NumSourceAccelerationStructures, 
+            pCommandList,
+            DestBuffer,
+            NumSourceAccelerationStructures,
             pSourceAccelerationStructureData);
     }
 }
