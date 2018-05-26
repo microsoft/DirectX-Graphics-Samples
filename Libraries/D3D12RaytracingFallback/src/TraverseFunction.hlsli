@@ -205,9 +205,9 @@ void RayTriangleIntersect(
     float3 B = Swizzle(v1 - rayOrigin, swizzledIndicies);
     float3 C = Swizzle(v2 - rayOrigin, swizzledIndicies);
 
-    A.xy = A.xy - shear * A.z;
-    B.xy = B.xy - shear * B.z;
-    C.xy = C.xy - shear * C.z;
+    A.xy = A.xy - shear.xy * A.z;
+    B.xy = B.xy - shear.xy * B.z;
+    C.xy = C.xy - shear.xy * C.z;
     precise float U = C.x * B.y - C.y * B.x;
     precise float V = A.x * C.y - A.y * C.x;
     precise float W = B.x * A.y - B.y * A.x;

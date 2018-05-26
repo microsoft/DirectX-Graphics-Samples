@@ -51,17 +51,17 @@ namespace FallbackLayer
 
         struct ScratchMemoryPartitions
         {
-            UINT OffsetToSceneAABB;
-            UINT OffsetToElements;
-            UINT OffsetToMortonCodes;
-            UINT OffsetToIndexBuffer;
-            UINT OffsetToHierarchy;
+            UINT64 OffsetToSceneAABB;
+            UINT64 OffsetToElements;
+            UINT64 OffsetToMortonCodes;
+            UINT64 OffsetToIndexBuffer;
+            UINT64 OffsetToHierarchy;
 
-            UINT OffsetToSceneAABBScratchMemory;
+            UINT64 OffsetToSceneAABBScratchMemory;
 
-            UINT OffsetToCalculateAABBDispatchArgs;
-            UINT OffsetToPerNodeCounter;
-            UINT TotalSize;
+            UINT64 OffsetToCalculateAABBDispatchArgs;
+            UINT64 OffsetToPerNodeCounter;
+            UINT64 TotalSize;
         };
 
         ScratchMemoryPartitions CalculateScratchMemoryUsage(Level level, UINT numTriangles);
