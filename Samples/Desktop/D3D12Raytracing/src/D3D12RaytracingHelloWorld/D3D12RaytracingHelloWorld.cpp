@@ -49,6 +49,7 @@ void D3D12RaytracingHelloWorld::EnableDXRExperimentalFeatures(IDXGIAdapter1* ada
 
         OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
         ThrowIfFalse(EnableComputeRaytracingFallback(adapter), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
+		m_raytracingAPI = RaytracingAPI::FallbackLayer;
     }
 }
 
@@ -173,8 +174,8 @@ void D3D12RaytracingHelloWorld::CreateRaytracingInterfaces()
     }
     else // DirectX Raytracing
     {
-        ThrowIfFailed(device->QueryInterface(__uuidof(ID3D12DeviceRaytracingPrototype), &m_dxrDevice), L"Couldn't get DirectX Raytracing interface for the device.\n");
-        ThrowIfFailed(commandList->QueryInterface(__uuidof(ID3D12CommandListRaytracingPrototype), &m_dxrCommandList), L"Couldn't get DirectX Raytracing interface for the command list.\n");
+        ThrowIfFailed(device->QueryInterface(IID_PPV_ARGS(&m_dxrDevice)), L"Couldn't get DirectX Raytracing interface for the device.\n");
+        ThrowIfFailed(commandList->QueryInterface(IID_PPV_ARGS(&m_dxrCommandList)), L"Couldn't get DirectX Raytracing interface for the command list.\n");
     }
 }
 
