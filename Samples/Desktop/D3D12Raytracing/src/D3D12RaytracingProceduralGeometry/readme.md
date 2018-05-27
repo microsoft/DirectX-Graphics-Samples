@@ -8,7 +8,7 @@ This sample demonstrates how to implement procedural geometry using intersection
 * Extended shader table layouts and indexing covering multiple geometries and bottom-level acceleration structures (bottom-level AS, or BLAS for short).
 * Use of trace ray recursion and two different ray types: radiance and shadow rays.
 
-The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingSimpleLighting/readme.md).
+The sample assumes familiarity with Dx12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingSimpleLighting/readme.md).
 
 ##### Known limitations
 * The sample does not currently work on AMD due to ubershader compilation issue in the Fallback Layer compute path.
