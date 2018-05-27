@@ -659,11 +659,11 @@ void D3D12RaytracingHelloWorld::ParseCommandLineArgs(WCHAR* argv[], int argc)
         if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0 )
         {
             m_forceComputeFallback = true;
-            SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
+			m_raytracingAPI = RaytracingAPI::FallbackLayer;
         }
         else if (_wcsnicmp(argv[1], L"-DXR", wcslen(argv[1])) == 0)
         {
-            SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
+			m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
         }
     }
 }
