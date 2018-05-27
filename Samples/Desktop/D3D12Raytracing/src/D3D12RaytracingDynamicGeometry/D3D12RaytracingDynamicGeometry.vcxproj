@@ -212,9 +212,17 @@ PrebuildCheck.bat</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="readme.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.5.14.1\build\native\directxtk12_desktop_2015.targets" Condition="Exists('..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.5.14.1\build\native\directxtk12_desktop_2015.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.5.14.1\build\native\directxtk12_desktop_2015.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.5.14.1\build\native\directxtk12_desktop_2015.targets'))" />
+  </Target>
 </Project>

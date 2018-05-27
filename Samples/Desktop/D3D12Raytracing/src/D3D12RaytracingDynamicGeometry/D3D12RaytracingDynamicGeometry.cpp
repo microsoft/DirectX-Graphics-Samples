@@ -15,7 +15,7 @@
 
 using namespace std;
 using namespace DX;
-
+using namespace DirectX;
 // Shader entry points.
 const wchar_t* D3D12RaytracingDynamicGeometry::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingDynamicGeometry::c_intersectionShaderNames[] =
@@ -722,11 +722,36 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
     ThrowIfFalse(descriptorIndexVB == descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 }
 
+void D3D12RaytracingDynamicGeometry::BuildSphereGeometry()
+{
+    auto device = m_deviceResources->GetD3DDevice();
+
+    vector<GeometricPrimitive::VertexType> vertices;
+    vector<Index> indices;
+
+    const UINT NumObjectsPerBLAS = 2;
+    const float GeometryRange = 10.f;
+    const bool RhCoords = false;
+    const size_t TesselationFactor = 16;
+   
+    m_geometries.reserve(NumObjectsPerBLAS);
+
+    for (UINT i = 0; i < NumObjectsPerBLAS; i++)
+    {
+        auto& geometry = m_geometries[i];
+        const float Diameter = 3.0f;
+        GeometricPrimitive::CreateSphere(vertices, indices, Diameter, TesselationFactor, RhCoords);
+        AllocateUploadBuffer(device, indices.data(), sizeof(indices), &geometry.ib.resource);
+        AllocateUploadBuffer(device, vertices.data(), sizeof(vertices), &geometry.vb.resource);
+    }
+}
+
 // Build geometry used in the sample.
 void D3D12RaytracingDynamicGeometry::BuildGeometry()
 {
     BuildDynamicGeometryAABBs();
     BuildPlaneGeometry();
+    BuildSphereGeometry();
 }
 
 // Build geometry descs for bottom-level AS.
@@ -754,6 +779,29 @@ void D3D12RaytracingDynamicGeometry::BuildGeometryDescsForBottomLevelAS(array<ve
         geometryDesc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer.resource->GetGPUVirtualAddress();
         geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
         geometryDesc.Flags = geometryFlags;
+    }
+
+
+    // Sphere geometry desc
+    {
+        D3D12_RAYTRACING_GEOMETRY_DESC geometryDescTemplate = {};
+        geometryDescTemplate.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+        geometryDescTemplate.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
+        geometryDescTemplate.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+        geometryDescTemplate.Triangles.VertexBuffer.StrideInBytes = sizeof(GeometricPrimitive::VertexType);
+        geometryDescTemplate.Flags = geometryFlags;
+
+        geometryDescs[BottomLevelASType::Sphere].resize(m_geometries.size(), geometryDescTemplate);
+
+        for (UINT i = 0; i < m_geometries.size(); i++ )
+        {
+            auto& geometry = m_geometries[i];
+            auto& geometryDesc = geometryDescs[BottomLevelASType::Sphere][i];
+            geometryDesc.Triangles.IndexBuffer = geometry.ib.resource->GetGPUVirtualAddress();
+            geometryDesc.Triangles.IndexCount = static_cast<UINT>(geometry.ib.resource->GetDesc().Width) / sizeof(Index);
+            geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress();
+            geometryDesc.Triangles.VertexCount = static_cast<UINT>(geometry.vb.resource->GetDesc().Width) / sizeof(GeometricPrimitive::VertexType);
+        }
     }
 
     // AABB geometry desc

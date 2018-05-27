@@ -45,6 +45,7 @@
 #include "D3D12RaytracingPrototypeHelpers.hpp"
 #include "d3dx12.h"
 
+#include <GeometricPrimitive.h>
 #include <DirectXMath.h>
 
 #ifdef _DEBUG
