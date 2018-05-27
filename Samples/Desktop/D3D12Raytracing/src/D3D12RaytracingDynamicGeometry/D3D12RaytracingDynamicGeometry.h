@@ -88,6 +88,14 @@ private:
     D3DBuffer m_vertexBuffer;
     D3DBuffer m_aabbBuffer;
 
+    struct TriangleGeometryBuffer
+    {
+        D3DBuffer ib;
+        D3DBuffer vb;
+    };
+
+    std::vector<TriangleGeometryBuffer> m_geometries;
+
     // Acceleration structure
     ComPtr<ID3D12Resource> m_bottomLevelAS[BottomLevelASType::Count];
     ComPtr<ID3D12Resource> m_topLevelAS;
@@ -146,6 +154,7 @@ private:
     void BuildDynamicGeometryAABBs();
     void BuildGeometry();
     void BuildPlaneGeometry();
+    void BuildSphereGeometry();
     void BuildGeometryDescsForBottomLevelAS(std::array<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count>& geometryDescs);
     template <class InstanceDescType, class BLASPtrType>
     void BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
