@@ -63,7 +63,7 @@ def create_project():
 
     project_name = sys.argv[2]
     folder_contents = set(os.listdir())
-    expected_folders = set(['3rdParty', 'Core', 'Tools'])
+    expected_folders = set(['Core', 'Tools'])
     if not expected_folders.issubset(folder_contents):
         print('Run this script from the root of MiniEngine')
     elif project_name in folder_contents:
