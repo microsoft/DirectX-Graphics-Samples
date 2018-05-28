@@ -79,7 +79,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\fallbacklayer\fallbacklayer.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d11.lib;d2d1.lib;dwrite.lib;d3d12.lib;dxgi.lib;dxguid.lib;$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\fallbacklayer\fallbacklayer.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
     <CustomBuildStep>
@@ -132,7 +132,7 @@ PrebuildCheck.bat</Command>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\fallbacklayer\fallbacklayer.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d11.lib;d2d1.lib;dwrite.lib;d3d12.lib;dxgi.lib;$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\fallbacklayer\fallbacklayer.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
     <CustomBuildStep>
@@ -182,6 +182,7 @@ PrebuildCheck.bat</Command>
     <ClInclude Include="util\DXSampleHelper.h" />
     <ClInclude Include="util\HlslCompat.h" />
     <ClInclude Include="util\StepTimer.h" />
+    <ClInclude Include="util\UILayer.h" />
     <ClInclude Include="util\Win32Application.h" />
     <ClInclude Include="VolumetricPrimitives.hlsli" />
   </ItemGroup>
@@ -194,6 +195,7 @@ PrebuildCheck.bat</Command>
     </ClCompile>
     <ClCompile Include="util\DeviceResources.cpp" />
     <ClCompile Include="util\DXSample.cpp" />
+    <ClCompile Include="util\UILayer.cpp" />
     <ClCompile Include="util\Win32Application.cpp" />
   </ItemGroup>
   <ItemGroup>

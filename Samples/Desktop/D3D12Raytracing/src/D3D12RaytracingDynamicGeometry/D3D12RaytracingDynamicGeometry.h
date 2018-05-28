@@ -16,6 +16,8 @@
 #include "RaytracingSceneDefines.h"
 #include "DirectXRaytracingHelper.h"
 
+#include "UILayer.h"
+
 // The sample supports both Raytracing Fallback Layer and DirectX Raytracing APIs. 
 // This is purely for demonstration purposes to show where the API differences are. 
 // Real-world applications will implement only one or the other. 
@@ -35,6 +37,8 @@ public:
     // IDeviceNotify
     virtual void OnDeviceLost() override;
     virtual void OnDeviceRestored() override;
+	virtual void OnReleaseWindowSizeDependentResources() override { ReleaseWindowSizeDependentResources(); };
+	virtual void OnCreateWindowSizeDependentResources() override { CreateWindowSizeDependentResources(); };
 
     // Messages
     virtual void OnInit();
@@ -129,6 +133,11 @@ private:
     XMVECTOR m_at;
     XMVECTOR m_up;
 
+	// UI
+	std::unique_ptr<UILayer> m_uiLayer;
+	bool m_bCtrlKeyIsPressed;
+	float m_fps;
+
     void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
@@ -138,6 +147,7 @@ private:
     void DoRaytracing();
     void CreateConstantBuffers();
     void CreateAABBPrimitiveAttributesBuffers();
+	void UpdateUI();
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
     void ReleaseDeviceDependentResources();
@@ -164,7 +174,7 @@ private:
     void BuildShaderTables();
     void SelectRaytracingAPI(RaytracingAPI type);
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
-    void CopyRaytracingOutputToBackbuffer();
+    void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();
     UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
     UINT CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
