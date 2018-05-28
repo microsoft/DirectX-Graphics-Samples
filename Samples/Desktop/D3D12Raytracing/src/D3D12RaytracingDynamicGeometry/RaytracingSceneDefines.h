@@ -80,7 +80,6 @@ namespace GeometryType {
     enum Enum {
         Triangle = 0,
         AABB,       // Procedural geometry with an application provided AABB.
-        Sphere,
         Count
     };
 }
