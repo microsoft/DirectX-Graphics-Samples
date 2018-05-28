@@ -57,6 +57,7 @@ typedef UINT16 Index;
 //
 //*************************************************************************
 
+#define RENDER_SPHERES 1
 
 // Limitting calculations only to metaballs a ray intersects can speed up raytracing
 // dramatically.  the more the number of metaballs are used.
@@ -129,6 +130,13 @@ struct Vertex
 {
     XMFLOAT3 position;
     XMFLOAT3 normal;
+};
+
+struct VertexPositionNormalTexture
+{
+	XMFLOAT3 position;
+	XMFLOAT3 normal;
+	XMFLOAT2 uv;
 };
 
 

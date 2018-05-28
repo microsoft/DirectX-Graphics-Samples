@@ -733,26 +733,39 @@ void D3D12RaytracingDynamicGeometry::BuildSphereGeometry()
     const UINT NumObjectsPerBLAS = 1;
     const float GeometryRange = 10.f;
     const bool RhCoords = false;
-    const size_t TesselationFactor = 5;
+	// Tesselation Factor - Indices:
+	// o 5  - 330
+	// o 10 - 1260
+	// o 16 - 3681
+	// o 20 - 4920
+    const size_t TesselationFactor = 20;
    
     m_geometries.resize(NumObjectsPerBLAS);
 
     for (UINT i = 0; i < NumObjectsPerBLAS; i++)
     {
         auto& geometry = m_geometries[i];
-        const float Diameter = 3.0f;
+        const float Diameter = 12.0f;
         GeometricPrimitive::CreateSphere(vertices, indices, Diameter, TesselationFactor, RhCoords);
         AllocateUploadBuffer(device, indices.data(), indices.size() * sizeof(indices[0]), &geometry.ib.resource);
         AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
-    }
+    
+		// Vertex buffer is passed to the shader along with index buffer as a descriptor range.
+		UINT descriptorIndexIB = CreateBufferSRV(&geometry.ib, sizeof(indices) / 4, 0);
+		UINT descriptorIndexVB = CreateBufferSRV(&geometry.vb, static_cast<UINT>(vertices.size()), sizeof(vertices[0]));
+		ThrowIfFalse(descriptorIndexVB == descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
+	}
 }
 
 // Build geometry used in the sample.
 void D3D12RaytracingDynamicGeometry::BuildGeometry()
 {
     BuildDynamicGeometryAABBs();
-    BuildPlaneGeometry();
-    BuildSphereGeometry();
+#if RENDER_SPHERES
+	BuildSphereGeometry();
+#else
+	BuildPlaneGeometry();
+#endif
 }
 
 // Build geometry descs for bottom-level AS.
@@ -763,7 +776,28 @@ void D3D12RaytracingDynamicGeometry::BuildGeometryDescsForBottomLevelAS(array<ve
     // Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
     D3D12_RAYTRACING_GEOMETRY_FLAGS geometryFlags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
-#if 0
+#if RENDER_SPHERES
+	// Sphere geometry desc
+	{
+		D3D12_RAYTRACING_GEOMETRY_DESC geometryDescTemplate = {};
+		geometryDescTemplate.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+		geometryDescTemplate.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
+		geometryDescTemplate.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+		geometryDescTemplate.Triangles.VertexBuffer.StrideInBytes = sizeof(GeometricPrimitive::VertexType);
+		geometryDescTemplate.Flags = geometryFlags;
+		geometryDescs[BottomLevelASType::Triangle].resize(m_geometries.size(), geometryDescTemplate);
+
+		for (UINT i = 0; i < m_geometries.size(); i++)
+		{
+			auto& geometry = m_geometries[i];
+			auto& geometryDesc = geometryDescs[BottomLevelASType::Triangle][i];
+			geometryDesc.Triangles.IndexBuffer = geometry.ib.resource->GetGPUVirtualAddress();
+			geometryDesc.Triangles.IndexCount = static_cast<UINT>(geometry.ib.resource->GetDesc().Width) / sizeof(Index);
+			geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress();
+			geometryDesc.Triangles.VertexCount = static_cast<UINT>(geometry.vb.resource->GetDesc().Width) / sizeof(GeometricPrimitive::VertexType);
+		}
+	}
+#else
     // Triangle geometry desc
     {
         // Triangle bottom-level AS contains a single plane geometry.
@@ -781,28 +815,6 @@ void D3D12RaytracingDynamicGeometry::BuildGeometryDescsForBottomLevelAS(array<ve
         geometryDesc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer.resource->GetGPUVirtualAddress();
         geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
         geometryDesc.Flags = geometryFlags;
-    }
-#else
-
-    // Sphere geometry desc
-    {
-        D3D12_RAYTRACING_GEOMETRY_DESC geometryDescTemplate = {};
-        geometryDescTemplate.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-        geometryDescTemplate.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
-        geometryDescTemplate.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-        geometryDescTemplate.Triangles.VertexBuffer.StrideInBytes = sizeof(GeometricPrimitive::VertexType);
-        geometryDescTemplate.Flags = geometryFlags;
-        geometryDescs[BottomLevelASType::Triangle].resize(m_geometries.size(), geometryDescTemplate);
-
-        for (UINT i = 0; i < m_geometries.size(); i++ )
-        {
-            auto& geometry = m_geometries[i];
-            auto& geometryDesc = geometryDescs[BottomLevelASType::Triangle][i];
-            geometryDesc.Triangles.IndexBuffer = geometry.ib.resource->GetGPUVirtualAddress();
-            geometryDesc.Triangles.IndexCount = static_cast<UINT>(geometry.ib.resource->GetDesc().Width) / sizeof(Index);
-            geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress();
-            geometryDesc.Triangles.VertexCount = static_cast<UINT>(geometry.vb.resource->GetDesc().Width) / sizeof(GeometricPrimitive::VertexType);
-        }
     }
 #endif
     // AABB geometry desc
@@ -926,28 +938,7 @@ void D3D12RaytracingDynamicGeometry::BuildBotomLevelASInstanceDescs(BLASPtrType 
     const XMVECTOR vWidth = XMLoadFloat3(&fWidth);
 	UINT instanceContributionToHitGroupOffset = 0;
 
-#if 0
-    // Bottom-level AS with a single plane.
-    {
-        auto& instanceDesc = instanceDescs[BottomLevelASType::Triangle];
-        instanceDesc = {};
-        instanceDesc.InstanceMask = 1;
-        instanceDesc.InstanceContributionToHitGroupIndex = instanceContributionToHitGroupOffset;
-        instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::Triangle];
-
-        // Calculate transformation matrix.
-        const XMVECTOR vBasePosition = vWidth * XMLoadFloat3(&XMFLOAT3(-0.35f, 0.0f, -0.35f));
-        
-        // Scale in XZ dimensions.
-        XMMATRIX mScale = XMMatrixScaling(fWidth.x, fWidth.y, fWidth.z);
-        XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
-        XMMATRIX mTransform = mScale * mTranslation;         
-        StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTransform);
-
-		instanceContributionToHitGroupOffset += RayType::Count;
-	}
-#else
-
+#if RENDER_SPHERES
 	// Create instanced bottom-level AS with triangle geometry.
 	// Instances share all the data, except for a transform.
 	{
@@ -966,6 +957,26 @@ void D3D12RaytracingDynamicGeometry::BuildBotomLevelASInstanceDescs(BLASPtrType 
 		XMMATRIX mScale = XMMatrixIdentity(); // XMMatrixScaling(fWidth.x, fWidth.y, fWidth.z);
 		XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
 		XMMATRIX mTransform = XMMatrixIdentity();// mScale * mTranslation;
+		StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTransform);
+
+		instanceContributionToHitGroupOffset += RayType::Count;
+	}
+#else
+	// Bottom-level AS with a single plane.
+	{
+		auto& instanceDesc = instanceDescs[BottomLevelASType::Triangle];
+		instanceDesc = {};
+		instanceDesc.InstanceMask = 1;
+		instanceDesc.InstanceContributionToHitGroupIndex = instanceContributionToHitGroupOffset;
+		instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::Triangle];
+
+		// Calculate transformation matrix.
+		const XMVECTOR vBasePosition = vWidth * XMLoadFloat3(&XMFLOAT3(-0.35f, 0.0f, -0.35f));
+
+		// Scale in XZ dimensions.
+		XMMATRIX mScale = XMMatrixScaling(fWidth.x, fWidth.y, fWidth.z);
+		XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
+		XMMATRIX mTransform = mScale * mTranslation;
 		StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTransform);
 
 		instanceContributionToHitGroupOffset += RayType::Count;
@@ -1451,8 +1462,12 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     {
         descriptorSetCommandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
         // Set index and successive vertex buffer decriptor tables.
-        commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::VertexBuffers, m_indexBuffer.gpuDescriptorHandle);
-        commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::OutputView, m_raytracingOutputResourceUAVGpuDescriptor);
+#if RENDER_SPHERES
+        commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::VertexBuffers, m_geometries[0].ib.gpuDescriptorHandle);
+#else
+		commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::VertexBuffers, m_indexBuffer.gpuDescriptorHandle);
+#endif
+		commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::OutputView, m_raytracingOutputResourceUAVGpuDescriptor);
     };
 
     commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
