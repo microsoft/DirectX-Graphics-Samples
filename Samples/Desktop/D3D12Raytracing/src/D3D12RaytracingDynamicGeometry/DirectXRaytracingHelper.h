@@ -190,7 +190,7 @@ inline void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
             }
             woss << L" [" << i << L"]: ";
             if (exports[i].ExportToRename) woss << exports[i].ExportToRename << L" --> ";
-            woss << exports[i].Name << L"\n";
+			woss << exports[i].Name << L"\n";
         }
         return woss.str();
     };
