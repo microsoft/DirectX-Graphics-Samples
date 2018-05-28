@@ -329,6 +329,11 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
 
     // Build shader tables, which define shaders and their local root arguments.
     BuildShaderTables();
+
+    // Create an output 2D texture to store the raytracing result to.
+    CreateRaytracingOutputResource();
+
+	CreateAuxilaryDeviceResources();
 }
 
 void D3D12RaytracingDynamicGeometry::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
@@ -611,6 +616,17 @@ void D3D12RaytracingDynamicGeometry::CreateRaytracingOutputResource()
     UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
     device->CreateUnorderedAccessView(m_raytracingOutput.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
     m_raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
+}
+
+void D3D12RaytracingDynamicGeometry::CreateAuxilaryDeviceResources()
+{
+	auto device = m_deviceResources->GetD3DDevice();
+	auto commandQueue = m_deviceResources->GetCommandQueue();
+
+	for (auto& gpuTimer : m_gpuTimers)
+	{
+		gpuTimer.RestoreDevice(device, commandQueue);
+	}
 }
 
 void D3D12RaytracingDynamicGeometry::CreateDescriptorHeap()
@@ -1634,6 +1650,11 @@ void D3D12RaytracingDynamicGeometry::ReleaseWindowSizeDependentResources()
 // Release all resources that depend on the device.
 void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
 {
+	for (auto& gpuTimer : m_gpuTimers)
+	{
+		gpuTimer.ReleaseDevice();
+	}
+
     m_fallbackDevice.Reset();
     m_fallbackCommandList.Reset();
     m_fallbackStateObject.Reset();
@@ -1688,6 +1709,7 @@ void D3D12RaytracingDynamicGeometry::OnRender()
     }
 
     m_deviceResources->Prepare();
+
     DoRaytracing();
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
 	m_deviceResources->ExecuteCommandList();

@@ -15,6 +15,7 @@
 #include "StepTimer.h"
 #include "RaytracingSceneDefines.h"
 #include "DirectXRaytracingHelper.h"
+#include "PerformanceTimers.h"
 
 #include "UILayer.h"
 
@@ -98,6 +99,8 @@ private:
         D3DBuffer vb;
     };
 
+	GPUTimer m_gpuTimers[GpuTimers::Count];
+
     std::vector<TriangleGeometryBuffer> m_geometries;
 
     // Acceleration structure
@@ -161,6 +164,7 @@ private:
     void CreateRaytracingPipelineStateObject();
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
+	void CreateAuxilaryDeviceResources();
     void BuildDynamicGeometryAABBs();
     void BuildGeometry();
     void BuildPlaneGeometry();

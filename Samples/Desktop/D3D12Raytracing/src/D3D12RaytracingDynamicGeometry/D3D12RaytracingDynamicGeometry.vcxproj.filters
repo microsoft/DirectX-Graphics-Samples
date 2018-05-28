@@ -78,6 +78,9 @@
     <ClInclude Include="RaytracingShaderHelper.hlsli">
       <Filter>Assets\Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="util\PerformanceTimers.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
     <ClInclude Include="util\UILayer.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
@@ -99,6 +102,9 @@
       <Filter>Source Files\Util</Filter>
     </ClCompile>
     <ClCompile Include="util\Win32Application.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="util\PerformanceTimers.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
     <ClCompile Include="util\UILayer.cpp">
