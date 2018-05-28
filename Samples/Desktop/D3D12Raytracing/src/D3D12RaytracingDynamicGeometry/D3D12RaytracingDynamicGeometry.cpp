@@ -356,59 +356,59 @@ void D3D12RaytracingDynamicGeometry::SerializeAndCreateRaytracingRootSignature(D
 
 void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
 {
-    auto device = m_deviceResources->GetD3DDevice();
+	auto device = m_deviceResources->GetD3DDevice();
 
-    // Global Root Signature
-    // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
-    {
-        CD3DX12_DESCRIPTOR_RANGE ranges[2]; // Perfomance TIP: Order from most frequent to least frequent.
-        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output texture
-        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);  // 2 static index and vertex buffers.
+	// Global Root Signature
+	// This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
+	{
+		CD3DX12_DESCRIPTOR_RANGE ranges[2]; // Perfomance TIP: Order from most frequent to least frequent.
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output texture
+		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);  // 2 static index and vertex buffers.
 
-        CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignature::Slot::Count];
-        rootParameters[GlobalRootSignature::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
-        rootParameters[GlobalRootSignature::Slot::AccelerationStructure].InitAsShaderResourceView(0);
-        rootParameters[GlobalRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
-        rootParameters[GlobalRootSignature::Slot::AABBattributeBuffer].InitAsShaderResourceView(3);
-        rootParameters[GlobalRootSignature::Slot::VertexBuffers].InitAsDescriptorTable(1, &ranges[1]);
-        CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-        SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
-    }
+		CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignature::Slot::Count];
+		rootParameters[GlobalRootSignature::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
+		rootParameters[GlobalRootSignature::Slot::AccelerationStructure].InitAsShaderResourceView(0);
+		rootParameters[GlobalRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
+		rootParameters[GlobalRootSignature::Slot::AABBattributeBuffer].InitAsShaderResourceView(3);
+		rootParameters[GlobalRootSignature::Slot::VertexBuffers].InitAsDescriptorTable(1, &ranges[1]);
+		CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+		SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
+	}
 
-    // Local Root Signature
-    // This is a root signature that enables a shader to have unique arguments that come from shader tables.
-    {
+	// Local Root Signature
+	// This is a root signature that enables a shader to have unique arguments that come from shader tables.
+	{
 #if USE_NON_NULL_LOCAL_ROOT_SIG 
-        // Empty root signature
-        {
-            CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(D3D12_DEFAULT);
-            localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-            SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::Empty]);
-        }
+		// Empty root signature
+		{
+			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(D3D12_DEFAULT);
+			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::Empty]);
+		}
 #endif
-        // Triangle geometry
-        {
-            namespace RootSignatureSlots = LocalRootSignature::Triangle::Slot;
-            CD3DX12_ROOT_PARAMETER rootParameters[RootSignatureSlots::Count];
-            rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(PrimitiveConstantBuffer), 1);
+		// Triangle geometry
+		{
+			namespace RootSignatureSlots = LocalRootSignature::Triangle::Slot;
+			CD3DX12_ROOT_PARAMETER rootParameters[RootSignatureSlots::Count];
+			rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(PrimitiveConstantBuffer), 1);
 
-            CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-            localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-            SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::Triangle]);
-        }
+			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::Triangle]);
+		}
 
-        // AABB geometry
-        {
-            namespace RootSignatureSlots = LocalRootSignature::AABB::Slot;
-            CD3DX12_ROOT_PARAMETER rootParameters[RootSignatureSlots::Count];
-            rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(PrimitiveConstantBuffer), 1);
-            rootParameters[RootSignatureSlots::GeometryIndex].InitAsConstants(SizeOfInUint32(PrimitiveInstanceConstantBuffer), 2);
+		// AABB geometry
+		{
+			namespace RootSignatureSlots = LocalRootSignature::AABB::Slot;
+			CD3DX12_ROOT_PARAMETER rootParameters[RootSignatureSlots::Count];
+			rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(PrimitiveConstantBuffer), 1);
+			rootParameters[RootSignatureSlots::GeometryIndex].InitAsConstants(SizeOfInUint32(PrimitiveInstanceConstantBuffer), 2);
 
-            CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-            localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-            SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::AABB]);
-        }
-    }
+			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::AABB]);
+		}
+	}
 }
 
 // Create raytracing device and command list.
@@ -752,7 +752,7 @@ void D3D12RaytracingDynamicGeometry::BuildSphereGeometry()
 	// o 10 - 1260
 	// o 16 - 3681
 	// o 20 - 4920
-    const size_t TesselationFactor = 20;
+    const size_t TesselationFactor = 5;
    
     m_geometries.resize(NumObjectsPerBLAS);
 
@@ -1462,7 +1462,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-    auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
+    auto DispatchRays = [&](auto* raytracingCommandList, auto* stateObject, auto* dispatchDesc)
     {
         dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
         dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
@@ -1474,7 +1474,10 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
         dispatchDesc->RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable->GetDesc().Width;
         dispatchDesc->Width = m_width;
         dispatchDesc->Height = m_height;
-        commandList->DispatchRays(stateObject, dispatchDesc);
+
+		m_gpuTimers[GpuTimers::Raytracing].Start(commandList);
+		raytracingCommandList->DispatchRays(stateObject, dispatchDesc);
+		m_gpuTimers[GpuTimers::Raytracing].Stop(commandList);
     };
 
     auto SetCommonPipelineState = [&](auto* descriptorSetCommandList)
@@ -1575,6 +1578,14 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
 			<< L"\n";
 		labels.push_back(wLabel.str());
 	}
+	{
+		wstringstream wLabel;
+		wLabel.precision(1);
+		wLabel << fixed << L"Raytracing: " << m_gpuTimers[GpuTimers::Raytracing].GetElapsedMS()
+			<< L"ms\n";
+		labels.push_back(wLabel.str());
+	}
+
 	/*
 	labels.push_back(L"GPU preference sorting mode (press a CTRL + key to select):\n");
 	for (auto &gpuPreferenceName : m_gpuPreferenceToName)
@@ -1693,10 +1704,10 @@ void D3D12RaytracingDynamicGeometry::RecreateD3D()
     {
         m_deviceResources->WaitForGpu();
     }
-    catch (HrException&)
-    {
-        // Do nothing, currently attached adapter is unresponsive.
-    }
+	catch (HrException&)
+	{
+		// Do nothing, currently attached adapter is unresponsive.
+	}
     m_deviceResources->HandleDeviceLost();
 }
 
@@ -1708,17 +1719,32 @@ void D3D12RaytracingDynamicGeometry::OnRender()
         return;
     }
 
-    m_deviceResources->Prepare();
+	auto commandList = m_deviceResources->GetCommandList();
 
+	// Begin frame.
+    m_deviceResources->Prepare();
+	for (auto& gpuTimer : m_gpuTimers)
+	{
+		gpuTimer.BeginFrame(commandList);
+	}
+
+	// Render.
     DoRaytracing();
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
+	
+	// End frame.
+	for (auto& gpuTimer : m_gpuTimers)
+	{
+		gpuTimer.EndFrame(commandList);
+	}
 	m_deviceResources->ExecuteCommandList();
 
+	// UI overlay.
 	if (m_enableUI)
 	{
 		m_uiLayer->Render(m_deviceResources->GetCurrentFrameIndex());
 	}
-
+	
     m_deviceResources->Present(D3D12_RESOURCE_STATE_PRESENT);
 }
 

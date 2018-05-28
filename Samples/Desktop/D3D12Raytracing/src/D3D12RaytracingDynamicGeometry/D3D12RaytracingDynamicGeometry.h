@@ -99,7 +99,7 @@ private:
         D3DBuffer vb;
     };
 
-	GPUTimer m_gpuTimers[GpuTimers::Count];
+	DX::GPUTimer m_gpuTimers[GpuTimers::Count];
 
     std::vector<TriangleGeometryBuffer> m_geometries;
 
