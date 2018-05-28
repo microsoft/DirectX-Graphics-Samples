@@ -30,8 +30,11 @@ ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 
 // Triangle resources
 ByteAddressBuffer g_indices : register(t1, space0);
+#if RENDER_SPHERES
+StructuredBuffer<VertexPositionNormalTexture> g_vertices : register(t2, space0);
+#else
 StructuredBuffer<Vertex> g_vertices : register(t2, space0);
-
+#endif
 // Procedural geometry resources
 StructuredBuffer<PrimitiveInstancePerFrameBuffer> g_AABBPrimitiveAttributes : register(t3, space0);
 ConstantBuffer<PrimitiveConstantBuffer> l_materialCB : register(b1);
@@ -136,7 +139,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
-    rayDesc.TMin = 0;
+    rayDesc.TMin = 0.001;
     rayDesc.TMax = 10000;
 
     // Initialize shadow ray payload.
@@ -191,9 +194,16 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     // Load up three 16 bit indices for the triangle.
     const uint3 indices = Load3x16BitIndices(baseIndex, g_indices);
 
+#if RENDER_SPHERES
+	// Retrieve corresponding vertex normals for the triangle vertices.
+	float3 vertexNormals[3] = { g_vertices[indices[0]].normal, g_vertices[indices[1]].normal, g_vertices[indices[2]].normal};
+	float3 triangleNormal = (vertexNormals[0] + vertexNormals[1] + vertexNormals[2]) / 3;
+	// ToDo
+	triangleNormal = normalize(HitWorldPosition());
+#else
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 triangleNormal = g_vertices[indices[0]].normal;
-
+#endif
     // PERFORMANCE TIP: it is recommended to avoid values carry over across TraceRay() calls. 
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
 
@@ -228,6 +238,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     rayPayload.color = color;
 	// ToDo
 	//rayPayload.color = float4(1, 0, 0, 1);
+	//rayPayload.color = float4(triangleNormal, 1);
 }
 
 [shader("closesthit")]
