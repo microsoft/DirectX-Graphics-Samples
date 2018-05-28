@@ -48,6 +48,11 @@
 #include <GeometricPrimitive.h>
 #include <DirectXMath.h>
 
+// UI 
+#include <d2d1_3.h>
+#include <dwrite.h>
+#include <d3d11on12.h>
+
 #ifdef _DEBUG
 #include <dxgidebug.h>
 #endif

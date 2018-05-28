@@ -99,13 +99,14 @@ void D3D12RaytracingDynamicGeometry::OnInit()
     m_deviceResources->InitializeDXGIAdapter();
     EnableDXRExperimentalFeatures(m_deviceResources->GetAdapter());
     
+	// ToDo cleanup
     m_deviceResources->CreateDeviceResources();
+	InitializeScene();
+	CreateDeviceDependentResources();
     m_deviceResources->CreateWindowSizeDependentResources();
 
-    InitializeScene();
+	//CreateWindowSizeDependentResources();
 
-    CreateDeviceDependentResources();
-    CreateWindowSizeDependentResources();
 }
 
 // Update camera matrices passed into the shader.
@@ -328,9 +329,6 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
 
     // Build shader tables, which define shaders and their local root arguments.
     BuildShaderTables();
-
-    // Create an output 2D texture to store the raytracing result to.
-    CreateRaytracingOutputResource();
 }
 
 void D3D12RaytracingDynamicGeometry::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
@@ -1166,7 +1164,7 @@ void D3D12RaytracingDynamicGeometry::BuildAccelerationStructures()
     AccelerationStructureBuffers topLevelAS = BuildTopLevelAS(bottomLevelAS);
     
     // Kick off acceleration structure construction.
-    m_deviceResources->ExecuteCommandList();
+    m_deviceResources->ExecuteCommandList(true);
 
     // Wait for GPU to finish as the locally created temporary GPU resources will get released once we go out of scope.
     m_deviceResources->WaitForGpu();
@@ -1416,6 +1414,11 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
     UpdateAABBPrimitiveAttributes();
+	
+	if (m_enableUI)
+	{
+		UpdateUI();
+	}
 }
 
 
@@ -1505,7 +1508,7 @@ void D3D12RaytracingDynamicGeometry::UpdateForSizeChange(UINT width, UINT height
 }
 
 // Copy the raytracing output to the backbuffer.
-void D3D12RaytracingDynamicGeometry::CopyRaytracingOutputToBackbuffer()
+void D3D12RaytracingDynamicGeometry::CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState)
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto renderTarget = m_deviceResources->GetRenderTarget();
@@ -1518,22 +1521,113 @@ void D3D12RaytracingDynamicGeometry::CopyRaytracingOutputToBackbuffer()
     commandList->CopyResource(renderTarget, m_raytracingOutput.Get());
 
     D3D12_RESOURCE_BARRIER postCopyBarriers[2];
-    postCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(renderTarget, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+    postCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(renderTarget, D3D12_RESOURCE_STATE_COPY_DEST, outRenderTargetState);
     postCopyBarriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(m_raytracingOutput.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     commandList->ResourceBarrier(ARRAYSIZE(postCopyBarriers), postCopyBarriers);
 }
 
+void D3D12RaytracingDynamicGeometry::UpdateUI()
+{
+	/*
+	wstringstream windowText;
+	if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
+	{
+		if (m_fallbackDevice->UsingRaytracingDriver())
+		{
+			windowText << L"(FL-DXR)";
+		}
+		else
+		{
+			windowText << L"(FL)";
+		}
+	}
+	else
+	{
+		windowText << L"(DXR)";
+	}
+	windowText << setprecision(2) << fixed
+		<< L"    fps: " << m_fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
+		<< L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
+	SetCustomWindowText(windowText.str().c_str());
+	*/
+	vector<wstring> labels;
+	{
+		wstringstream wLabel;
+		wLabel.precision(1);
+		wLabel << fixed << L"FPS: " << m_fps
+			<< L"\n";
+		labels.push_back(wLabel.str());
+	}
+	/*
+	labels.push_back(L"GPU preference sorting mode (press a CTRL + key to select):\n");
+	for (auto &gpuPreferenceName : m_gpuPreferenceToName)
+	{
+		wstringstream wLabel;
+		wLabel << L" " << to_wstring(gpuPreferenceName.first) << L": " << gpuPreferenceName.second
+			<< (gpuPreferenceName.first == m_activeGpuPreference ? L" [x]" : L"")
+			<< L"\n";
+		labels.push_back(wLabel.str());
+	}
+	labels.push_back(L"\n");
+
+	{
+		wstringstream wLabel;
+		wLabel << L"Adapter selection (press 'A' key to toggle): " << (m_manualAdapterSelection ? L"manual" : L"always use adapter 0") << L"\n\n";
+		labels.push_back(wLabel.str());
+	}
+
+	{
+		wstringstream wLabel;
+		wLabel << L"Available GPU adapters sorted by preference mode" << (m_manualAdapterSelection ? L" (press a key to select):" : L":") << L"\n";
+		for (UINT i = 0; i < m_gpuAdapterDescs.size(); i++)
+		{
+			bool supportsDx12FL11 = m_gpuAdapterDescs[i].supportsDx12FL11;
+			const DXGI_ADAPTER_DESC1 &desc = m_gpuAdapterDescs[i].desc;
+			wLabel << L" " << (supportsDx12FL11 ? to_wstring(i) : L"(non-compliant)") << L": " << desc.Description
+				<< (i == m_activeAdapter ? L" [x]" : L"")
+				<< L"\n";
+		}
+		labels.push_back(wLabel.str());
+	}
+	*/
+	wstring uiText = L"";
+	for (auto s : labels)
+	{
+		uiText += s;
+	}
+	m_uiLayer->UpdateLabels(uiText);
+}
+
 // Create resources that are dependent on the size of the main window.
 void D3D12RaytracingDynamicGeometry::CreateWindowSizeDependentResources()
 {
-    CreateRaytracingOutputResource();
-    UpdateCameraMatrices();
+	auto device = m_deviceResources->GetD3DDevice();
+	auto commandQueue = m_deviceResources->GetCommandQueue();
+	auto renderTargets = m_deviceResources->GetRenderTargets();
+
+	// Create an output 2D texture to store the raytracing result to.
+	CreateRaytracingOutputResource();
+	
+	UpdateCameraMatrices();
+	
+	if (m_enableUI)
+	{
+		if (!m_uiLayer)
+		{
+			m_uiLayer = make_unique<UILayer>(FrameCount, device, commandQueue);
+		}
+		m_uiLayer->Resize(renderTargets, m_width, m_height);
+	}
 }
 
 // Release resources that are dependent on the size of the main window.
 void D3D12RaytracingDynamicGeometry::ReleaseWindowSizeDependentResources()
 {
+	if (m_enableUI)
+	{
+		m_uiLayer.reset();
+	}
     m_raytracingOutput.Reset();
 }
 
@@ -1595,7 +1689,13 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 
     m_deviceResources->Prepare();
     DoRaytracing();
-    CopyRaytracingOutputToBackbuffer();
+    CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
+	m_deviceResources->ExecuteCommandList();
+
+	if (m_enableUI)
+	{
+		m_uiLayer->Render(m_deviceResources->GetCurrentFrameIndex());
+	}
 
     m_deviceResources->Present(D3D12_RESOURCE_STATE_PRESENT);
 }
@@ -1634,47 +1734,48 @@ void D3D12RaytracingDynamicGeometry::CalculateFrameStats()
     if ((totalTime - prevTime) >= 1.0f)
     {
         float diff = static_cast<float>(totalTime - prevTime);
-        float fps = static_cast<float>(frameCnt) / diff; // Normalize to an exact second.
+        m_fps = static_cast<float>(frameCnt) / diff; // Normalize to an exact second.
 
         frameCnt = 0;
         prevTime = totalTime;
-        float MRaysPerSecond = (m_width * m_height * fps) / static_cast<float>(1e6);
+        float MRaysPerSecond = (m_width * m_height * m_fps) / static_cast<float>(1e6);
 
-        wstringstream windowText;
-        if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-        {
-            if (m_fallbackDevice->UsingRaytracingDriver())
-            {
-                windowText << L"(FL-DXR)";
-            }
-            else
-            {
-                windowText << L"(FL)";
-            }
-        }
-        else
-        {
-            windowText << L"(DXR)";
-        }
-        windowText << setprecision(2) << fixed
-            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
-            << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
-        SetCustomWindowText(windowText.str().c_str());
+		// Display partial UI on the window title bar if UI is disabled.
+		if (!m_enableUI)
+		{
+			wstringstream windowText;
+			if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
+			{
+				if (m_fallbackDevice->UsingRaytracingDriver())
+				{
+					windowText << L"(FL-DXR)";
+				}
+				else
+				{
+					windowText << L"(FL)";
+				}
+			}
+			else
+			{
+				windowText << L"(DXR)";
+			}
+			windowText << setprecision(2) << fixed
+				<< L"    fps: " << m_fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
+				<< L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
+			SetCustomWindowText(windowText.str().c_str());
+		}
     }
 }
 
 // Handle OnSizeChanged message event.
 void D3D12RaytracingDynamicGeometry::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
+	UpdateForSizeChange(width, height);
+
     if (!m_deviceResources->WindowSizeChanged(width, height, minimized))
     {
         return;
     }
-
-    UpdateForSizeChange(width, height);
-
-    ReleaseWindowSizeDependentResources();
-    CreateWindowSizeDependentResources();
 }
 
 // Create a wrapped pointer for the Fallback Layer path.
