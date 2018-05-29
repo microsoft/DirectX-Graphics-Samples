@@ -103,6 +103,7 @@ private:
 
     std::vector<TriangleGeometryBuffer> m_geometries;
 
+
     // Acceleration structure
     ComPtr<ID3D12Resource> m_bottomLevelAS[BottomLevelASType::Count];
     ComPtr<ID3D12Resource> m_topLevelAS;
@@ -142,7 +143,7 @@ private:
 	float m_fps;
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS m_ASBuildQuality;
 	UINT m_activeUIparameter;
-	vector<UIParameter> m_uiParameters[UIParameters::Count];
+//	vector<NumVar> m_uiParameters[UIParameters::Count];
 	
     void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);

@@ -48,7 +48,7 @@ private:
     Microsoft::WRL::ComPtr<IDWriteTextFormat> m_textFormat;
     std::vector<TextBlock> m_textBlocks;
 };
-
+/*
 template <class T>
 class UIParameter
 {
@@ -140,3 +140,5 @@ public:
 		m_currentIndex.Update(bIncrease);
 	}
 };
+
+*/

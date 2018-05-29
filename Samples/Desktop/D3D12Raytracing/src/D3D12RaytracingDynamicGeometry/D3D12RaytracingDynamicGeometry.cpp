@@ -11,6 +11,8 @@
 
 #include "stdafx.h"
 #include "D3D12RaytracingDynamicGeometry.h"
+
+//#include "EngineTuning.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 
 using namespace std;
@@ -45,6 +47,32 @@ const wchar_t* D3D12RaytracingDynamicGeometry::c_hitGroupNames_AABBGeometry[][Ra
     { L"MyHitGroup_AABB_SignedDistancePrimitive", L"MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay" },
 };
 
+/*
+ExpVar m_SunLightIntensity("Application/Lighting/Sun Light Intensity", 4.0f, 0.0f, 16.0f, 0.1f);
+ExpVar m_AmbientIntensity("Application/Lighting/Ambient Intensity", 0.1f, -16.0f, 16.0f, 0.1f);
+NumVar m_SunOrientation("Application/Lighting/Sun Orientation", -0.5f, -100.0f, 100.0f, 0.1f);
+NumVar m_SunInclination("Application/Lighting/Sun Inclination", 0.75f, 0.0f, 1.0f, 0.01f);
+NumVar ShadowDimX("Application/Lighting/Shadow Dim X", 5000, 1000, 10000, 100);
+NumVar ShadowDimY("Application/Lighting/Shadow Dim Y", 3000, 1000, 10000, 100);
+NumVar ShadowDimZ("Application/Lighting/Shadow Dim Z", 3000, 1000, 10000, 100);
+
+BoolVar ShowWaveTileCounts("Application/Forward+/Show Wave Tile Counts", false);
+
+enum RaytracingAPI
+{
+	FLDXR = 0,
+	FL,
+	DXR,
+	Count
+};
+const char* RaytracingAPIs[RaytracingAPI::Count] = {
+	"FL-DXR",
+	"FL",
+	"DXR",
+};
+EnumVar m_RaytracingAPI("Application/Raytracing/RaytracingAPI", FLDXR, _countof(RaytracingAPIs), RaytracingAPIs);
+*/
+
 D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
@@ -62,7 +90,7 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
     UpdateForSizeChange(width, height);
 
-	m_uiParameters[UIParameters::BuildQuality].Initialize(0
+//	m_uiParameters[UIParameters::BuildQuality].Initialize(0
 }
 
 void D3D12RaytracingDynamicGeometry::EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter)
@@ -1372,6 +1400,7 @@ void D3D12RaytracingDynamicGeometry::SelectRaytracingAPI(RaytracingAPI type)
 // ToDo move to UILayer
 void D3D12RaytracingDynamicGeometry::ModifyActiveUIParameter(bool bIncreaseValue)
 {
+/*
 	switch (m_activeUIparameter)
 	{
 	case UIParameters::RaytracingAPI:
@@ -1420,7 +1449,7 @@ void D3D12RaytracingDynamicGeometry::ModifyActiveUIParameter(bool bIncreaseValue
 		break;
 	default:
 		break;
-}
+		
 
 if (m_raytracingAPI != previousRaytracingAPI ||
 	m_forceComputeFallback != previousForceComputeFallback)
@@ -1428,11 +1457,38 @@ if (m_raytracingAPI != previousRaytracingAPI ||
 	// Raytracing API selection changed, recreate everything.
 	RecreateD3D();
 }
-
+*/
 }
 
 void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
 {
+#if 1
+	switch (key)
+	{
+	case VK_NUMPAD1:
+	case '1': // Fallback Layer
+		m_forceComputeFallback = false;
+		SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
+		break;
+	case VK_NUMPAD2:
+	case '2': // Fallback Layer + force compute path
+		m_forceComputeFallback = true;
+		SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
+		break;
+	case VK_NUMPAD3:
+	case '3': // DirectX Raytracing
+		SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
+		break;
+	case 'L':
+		m_animateLight = !m_animateLight;
+		break;
+	case 'C':
+		m_animateCamera = !m_animateCamera;
+		break;
+	default:
+		break;
+	}
+#else
     // Store previous values.
     RaytracingAPI previousRaytracingAPI = m_raytracingAPI;
     bool previousForceComputeFallback = m_forceComputeFallback;
@@ -1468,6 +1524,7 @@ void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
 	default:
 		break;
 	}
+#endif
 }
 
 // Update frame-based values.
@@ -1870,7 +1927,7 @@ void D3D12RaytracingDynamicGeometry::CalculateFrameStats()
         float MRaysPerSecond = (m_width * m_height * m_fps) / static_cast<float>(1e6);
 
 		// Display partial UI on the window title bar if UI is disabled.
-		if (!m_enableUI)
+		if (1)//!m_enableUI)
 		{
 			wstringstream windowText;
 			if (m_raytracingAPI == RaytracingAPI::FallbackLayer)

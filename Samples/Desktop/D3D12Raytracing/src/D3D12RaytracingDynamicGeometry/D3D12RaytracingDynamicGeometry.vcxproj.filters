@@ -84,6 +84,7 @@
     <ClInclude Include="util\UILayer.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="util\EngineTuning.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -110,6 +111,7 @@
     <ClCompile Include="util\UILayer.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
+    <ClCompile Include="util\EngineTuning.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Raytracing.hlsl">
