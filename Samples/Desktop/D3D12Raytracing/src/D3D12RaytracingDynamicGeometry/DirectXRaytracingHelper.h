@@ -12,6 +12,11 @@
 #pragma once
 
 #define SizeOfInUint32(obj) ((sizeof(obj) - 1) / sizeof(UINT32) + 1)
+template <class T>
+inline T Clamp(T value, T minValue, T maxValue)
+{
+	return max(minValue, min(maxValue, value));
+}
 
 struct AccelerationStructureBuffers
 {

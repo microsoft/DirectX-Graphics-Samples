@@ -140,7 +140,10 @@ private:
 	std::unique_ptr<UILayer> m_uiLayer;
 	bool m_bCtrlKeyIsPressed;
 	float m_fps;
-
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS m_ASBuildQuality;
+	UINT m_activeUIparameter;
+	vector<UIParameter> m_uiParameters[UIParameters::Count];
+	
     void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
@@ -150,6 +153,7 @@ private:
     void DoRaytracing();
     void CreateConstantBuffers();
     void CreateAABBPrimitiveAttributesBuffers();
+	void ModifyActiveUIParameter(bool bIncreaseValue);
 	void UpdateUI();
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();

@@ -126,6 +126,7 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
 }
 
 // Trace a shadow ray and return true if it hits any geometry.
+// ToDo add surface normal and skip tracing a ray for surfaces facing away.
 bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 {
     if (currentRayRecursionDepth >= MAX_RAY_RECURSION_DEPTH)

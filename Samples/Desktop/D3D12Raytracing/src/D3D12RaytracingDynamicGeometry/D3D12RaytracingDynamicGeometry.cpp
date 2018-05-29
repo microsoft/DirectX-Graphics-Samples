@@ -55,11 +55,14 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_descriptorSize(0),
     m_missShaderTableStrideInBytes(UINT_MAX),
     m_hitGroupShaderTableStrideInBytes(UINT_MAX),
-    m_forceComputeFallback(false)
+    m_forceComputeFallback(false),	
+	m_ASBuildQuality(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE)
 {
     m_forceComputeFallback = false;
     SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
     UpdateForSizeChange(width, height);
+
+	m_uiParameters[UIParameters::BuildQuality].Initialize(0
 }
 
 void D3D12RaytracingDynamicGeometry::EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter)
@@ -1155,7 +1158,16 @@ void D3D12RaytracingDynamicGeometry::BuildAccelerationStructures()
     // Reset the command list for the acceleration structure construction.
     commandList->Reset(commandAllocator, nullptr);
 
-    // Build bottom-level AS.
+	// ToDo UI support.
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildQuality =
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+		// D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags =
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
+		| buildQuality;
+
+	// Build bottom-level AS.
     AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count];
     array<vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count> geometryDescs;
     {
@@ -1164,7 +1176,7 @@ void D3D12RaytracingDynamicGeometry::BuildAccelerationStructures()
         // Build all bottom-level AS.
         for (UINT i = 0; i < BottomLevelASType::Count; i++)
         {
-            bottomLevelAS[i] = BuildBottomLevelAS(geometryDescs[i]);
+            bottomLevelAS[i] = BuildBottomLevelAS(geometryDescs[i], buildFlags);
         }
     }
 
@@ -1177,7 +1189,7 @@ void D3D12RaytracingDynamicGeometry::BuildAccelerationStructures()
     commandList->ResourceBarrier(BottomLevelASType::Count, resourceBarriers);
 
     // Build top-level AS.
-    AccelerationStructureBuffers topLevelAS = BuildTopLevelAS(bottomLevelAS);
+    AccelerationStructureBuffers topLevelAS = BuildTopLevelAS(bottomLevelAS, buildFlags);
     
     // Kick off acceleration structure construction.
     m_deviceResources->ExecuteCommandList(true);
@@ -1357,44 +1369,105 @@ void D3D12RaytracingDynamicGeometry::SelectRaytracingAPI(RaytracingAPI type)
     }
 }
 
+// ToDo move to UILayer
+void D3D12RaytracingDynamicGeometry::ModifyActiveUIParameter(bool bIncreaseValue)
+{
+	switch (m_activeUIparameter)
+	{
+	case UIParameters::RaytracingAPI:
+	{
+		m_raytracingAPIparameter += bIncreaseValue ? 1 : -1;
+		m_raytracingAPIparameter = Clamp(m_raytracingAPIparameter, 0, 2);
+	}
+	break;
+
+	case UIParameters::BuildQuality:
+	{
+		m_raytracingAPIparameter += bIncreaseValue ? 1 : -1;
+		m_raytracingAPIparameter = Clamp(m_raytracingAPIparameter, 0, 1);
+	}
+	break;
+
+	case UIParameters::UpdateAlgorithm:
+	{
+	}
+	break;
+
+	case UIParameters::TesselationQuality:
+	{
+	}
+	break;
+
+	case UIParameters::NumberOfObjects:
+	{
+	}
+	break;
+	default:
+	}
+
+    case '1': // Fallback Layer
+		m_forceComputeFallback = false;
+		SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
+		break;
+	case VK_NUMPAD2:
+	case '2': // Fallback Layer + force compute path
+		m_forceComputeFallback = true;
+		SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
+		break;
+	case VK_NUMPAD3:
+	case '3': // DirectX Raytracing
+		SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
+		break;
+	default:
+		break;
+}
+
+if (m_raytracingAPI != previousRaytracingAPI ||
+	m_forceComputeFallback != previousForceComputeFallback)
+{
+	// Raytracing API selection changed, recreate everything.
+	RecreateD3D();
+}
+
+}
+
 void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
 {
     // Store previous values.
     RaytracingAPI previousRaytracingAPI = m_raytracingAPI;
     bool previousForceComputeFallback = m_forceComputeFallback;
-
-    switch (key)
-    {
-    case VK_NUMPAD1:
-    case '1': // Fallback Layer
-        m_forceComputeFallback = false;
-        SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-        break;
-    case VK_NUMPAD2:
-    case '2': // Fallback Layer + force compute path
-        m_forceComputeFallback = true;
-        SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-        break;
-    case VK_NUMPAD3:
-    case '3': // DirectX Raytracing
-        SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
-        break;
-    case 'L': 
-        m_animateLight = !m_animateLight;
-        break;
-    case 'C':
-        m_animateCamera = !m_animateCamera;
-        break;
-    default:
-        break;
-    }
-
-    if (m_raytracingAPI != previousRaytracingAPI ||
-        m_forceComputeFallback != previousForceComputeFallback)
-    {
-        // Raytracing API selection changed, recreate everything.
-        RecreateD3D();
-    }
+	
+	switch (key)
+	{
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+		m_activeUIparameter = key - '1';
+		break;
+	case VK_NUMPAD1:
+	case VK_NUMPAD2:
+	case VK_NUMPAD3:
+	case VK_NUMPAD4:
+	case VK_NUMPAD5:
+		m_activeUIparameter = key - VK_NUMPAD1;
+		break;
+	case VK_UP:
+		ModifyActiveUIParameter(true);
+		break;
+	case VK_DOWN:
+		ModifyActiveUIParameter(false);
+		break;
+	case 'L':
+		m_animateLight = !m_animateLight;
+		break;
+	case 'C':
+		m_animateCamera = !m_animateCamera;
+		break;
+	default:
+		break;
+	}
 }
 
 // Update frame-based values.
@@ -1585,7 +1658,15 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
 			<< L"ms\n";
 		labels.push_back(wLabel.str());
 	}
-
+	labels.push_back(L"\n");
+	{
+		wstringstream wLabel;
+		wLabel << L" " << L" AS build flag: " 
+			<< (m_ASBuildQuality == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD 
+			    ? L"FAST_BUILD" : L"FAST_TRACE")
+			<< L"\n";
+		labels.push_back(wLabel.str());
+	}
 	/*
 	labels.push_back(L"GPU preference sorting mode (press a CTRL + key to select):\n");
 	for (auto &gpuPreferenceName : m_gpuPreferenceToName)

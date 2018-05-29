@@ -172,7 +172,7 @@ namespace TraceRayParameters
 // From: http://blog.selfshadow.com/publications/s2015-shading-course/hoffman/s2015_pbs_physics_math_slides.pdf
 static const XMFLOAT4 ChromiumReflectance = XMFLOAT4(0.549f, 0.556f, 0.554f, 1.0f);
 
-static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.8f, 0.9f, 1.0f, 1.0f);
+static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.1f, 0.0f, 0.1f, 1.0f);
 static const float InShadowRadiance = 0.35f;
 
 namespace AnalyticPrimitive {
