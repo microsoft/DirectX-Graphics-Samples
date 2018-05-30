@@ -623,6 +623,7 @@ namespace FallbackLayer
                 PrimitiveMetaData metadata;
                 metadata.GeometryContributionToHitGroupIndex = i;
                 metadata.PrimitiveIndex = triangleIndex;
+                metadata.GeometryFlags = geometry.Flags;
                 primitiveMetaData[triangleIndex] = metadata;
 
                 // Next triangle

@@ -101,6 +101,7 @@ namespace FallbackLayer
                 constants.ElementBufferStride = (UINT32)triangles.VertexBuffer.StrideInBytes;
                 constants.GeometryContributionToHitGroupIndex = elementIndex;
                 constants.HasValidTransform = (triangles.Transform != 0);
+                constants.GeometryFlags = geometryDesc.Flags;
 
                 pCommandList->SetComputeRoot32BitConstants(InputRootConstants, SizeOfInUint32(LoadPrimitivesInputConstants), &constants, 0);
                 pCommandList->SetComputeRootShaderResourceView(ElementBufferSRV, triangles.VertexBuffer.StartAddress);
@@ -138,6 +139,7 @@ namespace FallbackLayer
                 constants.PrimitiveOffset = numPrimitivesLoaded;
                 constants.ElementBufferStride = (UINT32)aabbs.AABBs.StrideInBytes;
                 constants.GeometryContributionToHitGroupIndex = elementIndex;
+                constants.GeometryFlags = geometryDesc.Flags;
 
                 pCommandList->SetComputeRoot32BitConstants(InputRootConstants, SizeOfInUint32(LoadPrimitivesInputConstants), &constants, 0);
                 pCommandList->SetComputeRootShaderResourceView(ElementBufferSRV, aabbs.AABBs.StartAddress);
