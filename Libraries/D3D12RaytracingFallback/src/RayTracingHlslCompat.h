@@ -179,9 +179,8 @@ struct PrimitiveMetaData
 {
     uint GeometryContributionToHitGroupIndex;
     uint PrimitiveIndex;
-    uint GeometryFlags;
 };
-#define SizeOfPrimitiveMetaData (4 * 3)
+#define SizeOfPrimitiveMetaData (4 * 2)
 #ifndef HLSL
 static_assert(sizeof(PrimitiveMetaData) == SizeOfPrimitiveMetaData, L"Incorrect sizeof for PrimitiveMetaData");
 #endif
