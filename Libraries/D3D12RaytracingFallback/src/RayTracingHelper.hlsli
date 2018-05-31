@@ -184,9 +184,10 @@ PrimitiveMetaData BVHReadPrimitiveMetaData(RWByteAddressBufferPointer pointer, i
     const uint readAddress = GetPrimitiveMetaDataAddress(GetOffsetToPrimitiveMetaData(pointer), primitiveIndex);
 
     PrimitiveMetaData metadata;
-    const uint2 a = pointer.buffer.Load2(readAddress);
+    const uint3 a = pointer.buffer.Load3(readAddress);
     metadata.GeometryContributionToHitGroupIndex = a.x;
     metadata.PrimitiveIndex = a.y;
+    metadata.GeometryFlags = a.z;
     return metadata;
 }
 
