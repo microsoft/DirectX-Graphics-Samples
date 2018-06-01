@@ -606,12 +606,15 @@ bool Traverse(
                     else // if it's a bottom level
                     {
                         MARK(8, 0);
-                        bool geomOpaque = true; // TODO: This should be looked up with the triangle data.
+                        
+                        RWByteAddressBufferPointer bottomLevelAccelerationStructure = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
+                        const uint leafIndex = GetLeafIndexFromFlag(flags);
+                        PrimitiveMetaData primitiveMetadata = BVHReadPrimitiveMetaData(bottomLevelAccelerationStructure, leafIndex);
+
+                        bool geomOpaque = primitiveMetadata.GeometryFlags & D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
                         bool opaque = IsOpaque(geomOpaque, instanceFlags, RayFlags());
-#ifdef DISABLE_ANYHIT 
-                        opaque = true;
-#endif
                         bool culled = Cull(opaque, RayFlags());
+                        
                         float resultT = Fallback_RayTCurrent();
                         float2 resultBary;
                         uint resultTriId;
@@ -621,11 +624,8 @@ bool Traverse(
 #ifdef DISABLE_PROCEDURAL_GEOMETRY
                         isProceduralGeometry = false;
 #endif
-                        RWByteAddressBufferPointer bottomLevelAccelerationStructure = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
                         if (!culled && isProceduralGeometry)
                         {
-                            const uint leafIndex = GetLeafIndexFromFlag(flags);
-                            PrimitiveMetaData primitiveMetadata = BVHReadPrimitiveMetaData(bottomLevelAccelerationStructure, leafIndex);
                             uint hitGroupRecordOffset =
                                 HitGroupShaderRecordStride * (RayContributionToHitGroupIndex +
                                 primitiveMetadata.GeometryContributionToHitGroupIndex * MultiplierForGeometryContributionToHitGroupIndex +
@@ -652,12 +652,11 @@ bool Traverse(
                             resultT,
                             resultTriId))
                         {
-                            PrimitiveMetaData triMetadata = BVHReadPrimitiveMetaData(bottomLevelAccelerationStructure, resultTriId);
                             uint hitGroupRecordOffset =
                                 HitGroupShaderRecordStride * (RayContributionToHitGroupIndex +
-                                triMetadata.GeometryContributionToHitGroupIndex * MultiplierForGeometryContributionToHitGroupIndex +
+                                primitiveMetadata.GeometryContributionToHitGroupIndex * MultiplierForGeometryContributionToHitGroupIndex +
                                 instanceOffset);
-                            uint primIdx = triMetadata.PrimitiveIndex;
+                            uint primIdx = primitiveMetadata.PrimitiveIndex;
                             uint hitKind = HIT_KIND_TRIANGLE_FRONT_FACE;
 
                             BuiltInTriangleIntersectionAttributes attr;
@@ -668,7 +667,13 @@ bool Traverse(
 #endif
                             closestBoxT = min(closestBoxT, resultT);
 
-                            if (opaque)
+#ifdef DISABLE_ANYHIT 
+                            bool skipAnyHit = true;
+#else
+                            bool skipAnyHit = opaque;
+#endif
+
+                            if (skipAnyHit)
                             {
                                 MARK(8, 1);
                                 Fallback_CommitHit();
