@@ -1181,14 +1181,9 @@ void D3D12RaytracingDynamicGeometry::BuildAccelerationStructures()
     // Reset the command list for the acceleration structure construction.
     commandList->Reset(commandAllocator, nullptr);
 
-	// ToDo UI support.
-	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildQuality =
-		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-		// D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags =
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
-		| buildQuality;
+		| m_ASBuildQuality;
 
 	// Build bottom-level AS.
     AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count];
