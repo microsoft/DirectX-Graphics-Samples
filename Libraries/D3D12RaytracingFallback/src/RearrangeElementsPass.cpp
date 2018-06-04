@@ -19,11 +19,12 @@ namespace FallbackLayer
     {
         CD3DX12_ROOT_PARAMETER1 parameters[NumParameters];
         parameters[InputElements].InitAsUnorderedAccessView(InputElementBufferRegister);
-        parameters[IndexBuffer].InitAsUnorderedAccessView(IndexBufferRegister);
-        parameters[NumTrianglesConstant].InitAsConstants(1, NumberOfTrianglesConstantsRegister);
-        parameters[OutputElements].InitAsUnorderedAccessView(OutputElementBufferRegister);
         parameters[InputMetadata].InitAsUnorderedAccessView(InputMetadataBufferRegister);
+        parameters[IndexBuffer].InitAsUnorderedAccessView(IndexBufferRegister);
+        parameters[OutputElements].InitAsUnorderedAccessView(OutputElementBufferRegister);
         parameters[OutputMetadata].InitAsUnorderedAccessView(OutputMetadataBufferRegister);
+        parameters[OutputIndexBuffer].InitAsUnorderedAccessView(OutputIndexBufferRegister);
+        parameters[InputRootConstants].InitAsConstants(SizeOfInUint32(InputConstants), InputConstantsRegister);
 
         auto rootSignatureDesc = CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(ARRAYSIZE(parameters), parameters);
         CreateRootSignatureHelper(pDevice, rootSignatureDesc, &m_pRootSignature);
@@ -35,14 +36,20 @@ namespace FallbackLayer
     void RearrangeElementsPass::Rearrange(
         ID3D12GraphicsCommandList *pCommandList,
         SceneType sceneType,
-        D3D12_GPU_VIRTUAL_ADDRESS inputElements,
         UINT numTriangles,
+        D3D12_GPU_VIRTUAL_ADDRESS inputElements,
+        D3D12_GPU_VIRTUAL_ADDRESS inputMetadataBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS indexBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS outputTriangles,
-        D3D12_GPU_VIRTUAL_ADDRESS inputMetadataBuffer,
-        D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer)
+        D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer,
+        D3D12_GPU_VIRTUAL_ADDRESS outputIndexBuffer)
     {
         if (numTriangles == 0) return;
+
+        bool updatesAllowed = outputIndexBuffer != 0;
+        InputConstants constants = {};
+        constants.NumberOfTriangles = numTriangles;
+        constants.UpdatesAllowed = (UINT) (updatesAllowed);
 
         pCommandList->SetComputeRootSignature(m_pRootSignature);
         switch (sceneType)
@@ -57,6 +64,8 @@ namespace FallbackLayer
             assert(false);
         }
 
+        pCommandList->SetComputeRoot32BitConstants(InputRootConstants, SizeOfInUint32(InputConstants), &constants, 0);
+
         pCommandList->SetComputeRootUnorderedAccessView(InputElements, inputElements);
         pCommandList->SetComputeRootUnorderedAccessView(IndexBuffer, indexBuffer);
         pCommandList->SetComputeRootUnorderedAccessView(OutputElements, outputTriangles);
@@ -65,7 +74,10 @@ namespace FallbackLayer
             pCommandList->SetComputeRootUnorderedAccessView(InputMetadata, inputMetadataBuffer);
             pCommandList->SetComputeRootUnorderedAccessView(OutputMetadata, outputMetadataBuffer);
         }
-        pCommandList->SetComputeRoot32BitConstant(NumTrianglesConstant, numTriangles, 0);
+        if (updatesAllowed)
+        {
+            pCommandList->SetComputeRootUnorderedAccessView(OutputIndexBuffer, outputIndexBuffer);
+        }
 
         const UINT dispatchWidth = DivideAndRoundUp<UINT>(numTriangles, THREAD_GROUP_1D_WIDTH);
         pCommandList->Dispatch(dispatchWidth, 1, 1);

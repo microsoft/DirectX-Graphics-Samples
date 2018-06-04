@@ -15,7 +15,13 @@ namespace FallbackLayer
     {
     public:
         LoadInstancesPass(ID3D12Device *pDevice, UINT nodeMask);
-        void LoadInstances(ID3D12GraphicsCommandList *pCommandList, D3D12_GPU_VIRTUAL_ADDRESS outputBVH, D3D12_GPU_VIRTUAL_ADDRESS instancesDesc, D3D12_ELEMENTS_LAYOUT instanceDescLayout, UINT numElements, D3D12_GPU_DESCRIPTOR_HANDLE descriptorHeapBase);
+        void LoadInstances(ID3D12GraphicsCommandList *pCommandList, 
+            D3D12_GPU_VIRTUAL_ADDRESS outputBVH, 
+            D3D12_GPU_VIRTUAL_ADDRESS instancesDesc, 
+            D3D12_ELEMENTS_LAYOUT instanceDescLayout, 
+            UINT numElements, 
+            D3D12_GPU_DESCRIPTOR_HANDLE descriptorHeapBase,
+            D3D12_GPU_VIRTUAL_ADDRESS cachedSortBuffer);
     private:
         enum RootParameterSlot
         {
@@ -23,6 +29,7 @@ namespace FallbackLayer
             InstanceDescsSRV,
             GlobalDescriptorHeap,
             Constants,
+            CachedSortBuffer,
             NumRootParameters,
         };
 

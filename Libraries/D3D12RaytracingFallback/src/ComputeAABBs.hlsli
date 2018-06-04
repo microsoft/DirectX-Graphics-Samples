@@ -23,9 +23,47 @@ uint GetLeafCount(uint boxIndex)
 uint4 GetNodeData(uint boxIndex, out uint2 flags)
 {
     uint nodeAddress = GetBoxAddress(offsetToBoxes, boxIndex);
-    uint4 data = outputBVH.Load4(nodeAddress);
-    flags = data.wz;
-    return data;
+    uint4 data1 = outputBVH.Load4(nodeAddress);
+    uint4 data2 = outputBVH.Load4(nodeAddress + 16);
+    flags = float2(data1.w, data2.w);
+    return data1;
+}
+
+uint2 GetNodeFlags(uint boxIndex) 
+{
+    uint2 flags;
+    GetNodeData(boxIndex, flags);
+    return flags;
+}
+
+uint GetLeftChildIndex(uint boxIndex) 
+{
+    if (ShouldPerformUpdate)
+    {
+        return GetLeftNodeIndex(GetNodeFlags(boxIndex));
+    }
+
+    return hierarchyBuffer[boxIndex].LeftChildIndex;
+}
+
+uint GetRightChildIndex(uint boxIndex) 
+{
+    if (ShouldPerformUpdate)
+    {
+        return GetRightNodeIndex(GetNodeFlags(boxIndex));
+    }
+
+    return hierarchyBuffer[boxIndex].RightChildIndex;
+}
+
+uint GetParentIndex(uint boxIndex) 
+{
+    if (ShouldPerformUpdate)
+    {
+        return aabbParentBuffer[boxIndex];
+    }
+
+    return hierarchyBuffer[boxIndex].ParentIndex;
 }
 
 [numthreads(THREAD_GROUP_1D_WIDTH, 1, 1)]
@@ -63,8 +101,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
         }
         else
         {
-            uint leftNodeIndex = hierarchyBuffer[nodeIndex].LeftChildIndex;
-            uint rightNodeIndex = hierarchyBuffer[nodeIndex].RightChildIndex;
+            uint leftNodeIndex = GetLeftChildIndex(nodeIndex);
+            uint rightNodeIndex = GetRightChildIndex(nodeIndex);
             if (swapChildIndices)
             {
                 uint temp = leftNodeIndex;
@@ -104,21 +142,26 @@ void main(uint3 DTid : SV_DispatchThreadID)
             break;
         }
 
-        uint parentNodeIndex = hierarchyBuffer[nodeIndex].ParentIndex;
+        uint parentNodeIndex = GetParentIndex(nodeIndex);
         uint trianglesFromOtherChild;
         // If this counter was already incremented, that means both children for the parent 
         // node have computed their AABB, and the parent is ready to be processed
         childNodesProcessedCounter.InterlockedAdd(parentNodeIndex * SizeOfUINT32, numTriangles, trianglesFromOtherChild);
         if (trianglesFromOtherChild != 0)
         {
-
             // Prioritize having the smaller nodes on the left
             // TODO: Investigate better heuristics for node ordering
-            bool IsLeft = hierarchyBuffer[parentNodeIndex].LeftChildIndex == nodeIndex;
+            bool IsLeft = GetLeftChildIndex(parentNodeIndex) == nodeIndex;
             bool IsOtherSideSmaller = numTriangles > trianglesFromOtherChild;
             swapChildIndices = IsLeft ? IsOtherSideSmaller : !IsOtherSideSmaller;
             nodeIndex = parentNodeIndex;
             numTriangles += trianglesFromOtherChild;
+
+            if (ShouldPrepareUpdate)
+            {
+                aabbParentBuffer[GetLeftChildIndex(nodeIndex)] = nodeIndex;
+                aabbParentBuffer[GetRightChildIndex(nodeIndex)] = nodeIndex;
+            }
         }
         else
         {

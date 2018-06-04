@@ -24,6 +24,11 @@ void CopyBVHAABB(uint srcIndex, uint dstIndex)
     uint srcAddress = srcIndex * sizeInUint4s;
     uint dstAddress = dstIndex * sizeInUint4s;
 
+    if (Constants.UpdatesAllowed)
+    {
+        OutputIndexBuffer[srcIndex] = dstIndex;
+    }
+
     [unroll]
     for (uint i = 0; i < sizeInUint4s; i++)
     {
@@ -46,7 +51,7 @@ void CopyBVH(uint srcIndex, uint dstIndex)
 void main(uint3 DTid : SV_DispatchThreadID)
 {
     uint dstIndex = DTid.x;
-    if (dstIndex >= NumberOfTriangles) return;
+    if (dstIndex >= Constants.NumberOfTriangles) return;
 
     uint srcIndex = IndexBuffer[dstIndex];
     CopyBVH(srcIndex, dstIndex);

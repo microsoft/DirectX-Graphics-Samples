@@ -30,11 +30,13 @@ struct LoadPrimitivesInputConstants
     // TODO: Consider inlining into separate shaders
     uint HasValidTransform; 
     uint GeometryFlags;
+    uint PerformUpdate;
 };
 
 // UAVs
 #define OutputPrimitiveBufferRegister 0
 #define OutputMetadataBufferRegister 1
+#define CachedSortBufferRegister 2
 
 //SRVs 
 #define ElementBufferRegister 0
@@ -48,6 +50,7 @@ struct LoadPrimitivesInputConstants
 
 RWStructuredBuffer<Primitive> PrimitiveBuffer : UAV_REGISTER(OutputPrimitiveBufferRegister);
 RWStructuredBuffer<PrimitiveMetaData> MetadataBuffer : UAV_REGISTER(OutputMetadataBufferRegister);
+RWStructuredBuffer<uint> CachedSortBuffer : UAV_REGISTER(CachedSortBufferRegister);
 
 ByteAddressBuffer elementBuffer : SRV_REGISTER(ElementBufferRegister);
 ByteAddressBuffer indexBuffer : SRV_REGISTER(IndexBufferRegister);
@@ -55,6 +58,15 @@ StructuredBuffer<float4> TransformBuffer : SRV_REGISTER(TransformRegister);
 cbuffer LoadPrimitivesConstants : CONSTANT_REGISTER(LoadInstancesConstantsRegister)
 {
     LoadPrimitivesInputConstants Constants;
+}
+
+uint GetOutputIndex(uint inputIndex) 
+{
+    if (Constants.PerformUpdate)
+    {
+        return CachedSortBuffer[inputIndex];
+    }
+    return inputIndex;
 }
 
 void StorePrimitiveMetadata(uint globalPrimitiveIndex, uint localPrimitiveIndex)

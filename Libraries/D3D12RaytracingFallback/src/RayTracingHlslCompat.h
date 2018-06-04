@@ -26,6 +26,10 @@
 #pragma pack(push, 1)
 #endif
 
+#define SizeOfFloat 4
+#define SizeOfUINT16 2
+#define SizeOfUINT32 4
+
 struct HierarchyNode
 {
     uint ParentIndex;
@@ -400,6 +404,23 @@ inline
 uint GetNumInternalNodes(uint numLeaves)
 {
     return numLeaves - 1;
+}
+
+inline
+uint GetOffsetFromSortedIndicesToAABBParents(uint numPrimitives) {
+    return SizeOfUINT32 * numPrimitives;
+}
+
+inline
+uint GetOffsetToBVHSortedIndices(uint numElements) {
+    uint totalNodes = numElements + GetNumInternalNodes(numElements);
+    return SizeOfBVHOffsets + SizeOfAABBNode * totalNodes + SizeOfBVHMetadata * numElements;
+}
+
+inline
+uint GetOffsetFromPrimitiveMetaDataToSortedIndices(uint numPrimitives)
+{
+    return SizeOfPrimitiveMetaData * numPrimitives;
 }
 
 inline

@@ -18,12 +18,14 @@
 struct LoadInstancesConstants
 {
     uint NumberOfElements;
+    uint PerformUpdate;
 };
 
 // UAVs
 #define OutputBVHRegister 0
 #define DescriptorHeapBufferRegister 0
 #define DescriptorHeapBufferRegisterSpace 1
+#define CachedSortBufferRegister 3
 
 //SRVs 
 #define InstanceDescsRegister 0
@@ -35,6 +37,8 @@ struct LoadInstancesConstants
 
 #ifdef HLSL
 
+RWStructuredBuffer<uint> CachedSortBuffer : UAV_REGISTER(CachedSortBufferRegister);
+
 RWByteAddressBuffer outputBVH : UAV_REGISTER(OutputBVHRegister);
 RWByteAddressBuffer DescriptorHeapBufferTable[] : UAV_REGISTER_SPACE(DescriptorHeapBufferRegister, DescriptorHeapBufferRegisterSpace);
 
@@ -44,5 +48,14 @@ ByteAddressBuffer DescriptorHeapSRVBufferTable[] : SRV_REGISTER_SPACE(Descriptor
 cbuffer TopLevelConstants : CONSTANT_REGISTER(LoadInstancesConstantsRegister)
 {
     LoadInstancesConstants Constants;
-};
+}
+
+uint GetOutputIndex(uint inputIndex) 
+{
+    if (Constants.PerformUpdate)
+    {
+        return CachedSortBuffer[inputIndex];
+    }
+    return inputIndex;
+}
 #endif
