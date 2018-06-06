@@ -1170,6 +1170,39 @@ AccelerationStructureBuffers D3D12RaytracingDynamicGeometry::BuildTopLevelAS(Acc
     return topLevelASBuffers;
 }
 
+
+// Build acceleration structure needed for raytracing.
+void D3D12RaytracingDynamicGeometry::BuildAccelerationStructures2()
+{
+	auto device = m_deviceResources->GetD3DDevice();
+	auto commandList = m_deviceResources->GetCommandList();
+	auto commandQueue = m_deviceResources->GetCommandQueue();
+	auto commandAllocator = m_deviceResources->GetCommandAllocator();
+
+	// Reset the command list for the acceleration structure construction.
+	commandList->Reset(commandAllocator, nullptr);
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags =
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
+		| m_ASBuildQuality;
+
+	// Build bottom-level AS.
+	BottomLevelAccelerationStructure bottomLevelAS[BottomLevelASType::Count];
+	array<vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count> geometryDescs;
+	{
+		BuildGeometryDescsForBottomLevelAS(geometryDescs);
+
+		// Build all bottom-level AS.
+		for (UINT i = 0; i < BottomLevelASType::Count; i++)
+		{
+			for (auto& geometry : m_geometries)
+			{
+				bottomLevelAS[i].AddGeometry(geometry);
+			}
+		}
+	}
+}
+
 // Build acceleration structure needed for raytracing.
 void D3D12RaytracingDynamicGeometry::BuildAccelerationStructures()
 {

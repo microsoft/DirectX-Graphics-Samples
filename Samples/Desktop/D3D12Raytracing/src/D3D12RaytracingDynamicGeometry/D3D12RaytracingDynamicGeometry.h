@@ -93,12 +93,6 @@ private:
     D3DBuffer m_vertexBuffer;
     D3DBuffer m_aabbBuffer;
 
-    struct TriangleGeometryBuffer
-    {
-        D3DBuffer ib;
-        D3DBuffer vb;
-    };
-
 	DX::GPUTimer m_gpuTimers[GpuTimers::Count];
 
     std::vector<TriangleGeometryBuffer> m_geometries;
@@ -180,6 +174,7 @@ private:
     AccelerationStructureBuffers BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
     AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
     void BuildAccelerationStructures();
+	void BuildAccelerationStructures2();
     void BuildShaderTables();
     void SelectRaytracingAPI(RaytracingAPI type);
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);

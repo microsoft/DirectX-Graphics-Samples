@@ -26,6 +26,59 @@ struct AccelerationStructureBuffers
     UINT64                 ResultDataMaxSizeInBytes;
 };
 
+
+class AccelerationStructure
+{
+	bool m_isDirty;		// requires an update/rebuild
+	static ComPtr<ID3D12Resource> s_scratch;
+	ComPtr<ID3D12Resource> m_accelerationStructure;
+	UINT64 m_resultDataMaxSizeInBytes;
+
+public:
+	void ComputePrebuildInfo();
+	void Update(bool bForceBuild);
+	void SetTransform(const XMMATRIX& transform);
+	bool IsDirty();
+};
+
+struct TriangleGeometryBuffer
+{
+	D3DBuffer ib;
+	D3DBuffer vb;
+};
+
+class BottomLevelAccelerationStructure : public AccelerationStructure
+{
+	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> m_geometryDescs;
+public:
+	
+	void AddGeometry(const TriangleGeometryBuffer& geometry)
+	{
+		m_geometryDescs.emplace_back(D3D12_RAYTRACING_GEOMETRY_DESC{});
+		auto& geometryDesc = m_geometryDescs.back();
+		geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+		geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
+		geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+		geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(GeometricPrimitive::VertexType);
+		// Mark the geometry as opaque. 
+		// PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
+		// Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
+		geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+		geometryDesc.Triangles.IndexBuffer = geometry.ib.resource->GetGPUVirtualAddress();
+		geometryDesc.Triangles.IndexCount = static_cast<UINT>(geometry.ib.resource->GetDesc().Width) / sizeof(Index);
+		geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress();
+		geometryDesc.Triangles.VertexCount = static_cast<UINT>(geometry.vb.resource->GetDesc().Width) / sizeof(GeometricPrimitive::VertexType);
+	}
+};
+
+class TopLevelAccelerationStructure : public AccelerationStructure
+{
+	//StructuredBuffer<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> m_instanceDescs;
+	StructuredBuffer<D3D12_RAYTRACING_INSTANCE_DESC> m_instanceDescs;
+
+public:
+};
+
 // Shader record = {{Shader ID}, {RootArguments}}
 class ShaderRecord
 {
