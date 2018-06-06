@@ -71,6 +71,8 @@ typedef UINT16 Index;
 #define MAX_RAY_RECURSION_DEPTH 3    // ~ primary rays + reflections + shadow rays from reflected geometry.
 
 
+#define AS_BUILD_OLD 0
+
 struct ProceduralPrimitiveAttributes
 {
     XMFLOAT3 normal;

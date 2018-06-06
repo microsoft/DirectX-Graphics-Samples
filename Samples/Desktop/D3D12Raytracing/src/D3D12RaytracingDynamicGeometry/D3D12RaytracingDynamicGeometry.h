@@ -27,11 +27,6 @@
 // Developers aiming for a wider HW support should target Fallback Layer.
 class D3D12RaytracingDynamicGeometry : public DXSample
 {
-    enum class RaytracingAPI {
-        FallbackLayer,
-        DirectXRaytracing,
-    };
-
 public:
     D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name);
 
@@ -57,6 +52,11 @@ private:
     const UINT NUM_BLAS = 2;          // Triangle + AABB bottom-level AS.
     const float c_aabbWidth = 2;      // AABB width.
     const float c_aabbDistance = 2;   // Distance between AABBs.
+
+	// DynamicGeometry
+	UINT m_numBLAS;
+	vector<BottomLevelAccelerationStructure> m_vBottomLevelAS;
+	TopLevelAccelerationStructure m_topLevelAS;
 
     // Raytracing Fallback Layer (FL) attributes
     ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
