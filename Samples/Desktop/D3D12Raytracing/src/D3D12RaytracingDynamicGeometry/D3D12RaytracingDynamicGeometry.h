@@ -61,6 +61,7 @@ private:
 	UINT m_numBLAS;
 	std::vector<BottomLevelAccelerationStructure> m_vBottomLevelAS;
 	TopLevelAccelerationStructure m_topLevelAS;
+	ComPtr<ID3D12Resource> m_accelerationStructureScratch;
 
     // Raytracing Fallback Layer (FL) attributes
     ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;

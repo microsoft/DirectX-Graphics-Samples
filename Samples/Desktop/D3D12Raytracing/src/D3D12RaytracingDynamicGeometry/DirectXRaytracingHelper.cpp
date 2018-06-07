@@ -18,10 +18,11 @@ using namespace DX;
 using namespace DirectX;
 
 
-void BottomLevelAccelerationStructure::CopyInstanceDescTo(ID3D12Device* device, void* destInstanceDesc)
+void BottomLevelAccelerationStructure::CopyInstanceDescTo(void* destInstanceDesc)
 {
-	auto BuildInstanceDesc = [&](auto* instanceDesc, auto& bottomLevelAddress)
+	auto BuildInstanceDesc = [&](auto* instanceDesc, auto bottomLevelAddress)
 	{
+		*instanceDesc = {};
 		instanceDesc->InstanceMask = 1;
 		instanceDesc->InstanceContributionToHitGroupIndex = 0;
 		instanceDesc->AccelerationStructure = bottomLevelAddress;
@@ -30,16 +31,12 @@ void BottomLevelAccelerationStructure::CopyInstanceDescTo(ID3D12Device* device, 
 
 	if (g_raytracingRuntime.API == RaytracingAPI::FallbackLayer)
 	{
-		D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC instanceDesc = {};
 		WRAPPED_GPU_POINTER bottomLevelASaddress =
 			pSample->CreateFallbackWrappedPointer(m_accelerationStructure.Get(), static_cast<UINT>(m_prebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32));
-		BuildInstanceDesc(&instanceDesc, bottomLevelASaddress);
-		memcpy(destInstanceDesc, &instanceDesc, sizeof(instanceDesc));
+		BuildInstanceDesc(static_cast<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC*>(destInstanceDesc), bottomLevelASaddress);
 	}
 	else // DirectX Raytracing
 	{
-		D3D12_RAYTRACING_INSTANCE_DESC instanceDesc = {};
-		BuildInstanceDesc(&instanceDesc, m_accelerationStructure->GetGPUVirtualAddress());
-		memcpy(destInstanceDesc, &instanceDesc, sizeof(instanceDesc));
+		BuildInstanceDesc(static_cast<D3D12_RAYTRACING_INSTANCE_DESC*>(destInstanceDesc), m_accelerationStructure->GetGPUVirtualAddress());
 	}
 };

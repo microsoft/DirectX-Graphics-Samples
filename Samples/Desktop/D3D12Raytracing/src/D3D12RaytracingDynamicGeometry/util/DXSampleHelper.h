@@ -218,6 +218,7 @@ class GpuUploadBuffer
 public:
     ComPtr<ID3D12Resource> GetResource() { return m_resource; }
     virtual void Release() { m_resource.Reset(); }
+	UINT64 Size() { return m_resource->GetDesc().Width; }
 protected:
     ComPtr<ID3D12Resource> m_resource;
 

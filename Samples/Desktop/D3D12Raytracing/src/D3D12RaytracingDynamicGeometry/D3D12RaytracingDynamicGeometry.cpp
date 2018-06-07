@@ -1123,68 +1123,29 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 		| m_ASBuildQuality;
 
 	// Initialize bottom-level AS.
+	UINT64 maxScratchResourceSize = 0;
+	UINT64 scratchResourceSize;
 	AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count];
 	array<vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count> geometryDescs;
 	{
 		m_vBottomLevelAS.resize(1);
 		m_vBottomLevelAS[0].Initialize(device, m_geometries, buildFlags);
+		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
 	}
 
 	// Initialize top-level AS.
-	m_topLevelAS.Initialize(device, m_geometries, buildFlags);
+	m_topLevelAS.Initialize(device, m_vBottomLevelAS, buildFlags);
+	maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
 
-}
+	// Create a scratch buffer.
+	AllocateUAVBuffer(device, maxScratchResourceSize, &m_accelerationStructureScratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
 
-void D3D12RaytracingDynamicGeometry::BuildAccelerationStructures()
-{
-    auto device = m_deviceResources->GetD3DDevice();
-    auto commandList = m_deviceResources->GetCommandList();
-    auto commandQueue = m_deviceResources->GetCommandQueue();
-    auto commandAllocator = m_deviceResources->GetCommandAllocator();
-
-    // Reset the command list for the acceleration structure construction.
-    commandList->Reset(commandAllocator, nullptr);
-
-	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags =
-		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
-		| m_ASBuildQuality;
-
-	// Build bottom-level AS.
-    AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count];
-    array<vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count> geometryDescs;
-    {
-#if AS_BUILD_OLD
-		BuildGeometryDescsForBottomLevelAS(geometryDescs);
-
-        // Build all bottom-level AS.
-        for (UINT i = 0; i < BottomLevelASType::Count; i++)
-        {
-            bottomLevelAS[i] = BuildBottomLevelAS(geometryDescs[i], buildFlags);
-        }
-#else
-		m_vBottomLevelAS.resize(1);
-		m_vBottomLevelAS[0].Initialize(device, m_geometries, buildFlags);
-#endif
+	// Build acceleration structures
+	for (auto& bottomLevelAS : m_vBottomLevelAS)
+	{
+		bottomLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get());
 	}
-
-
-	m_vBottomLevelAS[0].Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get())
-
-    // Build top-level AS.
-    AccelerationStructureBuffers topLevelAS = BuildTopLevelAS(bottomLevelAS, buildFlags);
-    
-    // Kick off acceleration structure construction.
-    m_deviceResources->ExecuteCommandList(true);
-
-    // Wait for GPU to finish as the locally created temporary GPU resources will get released once we go out of scope.
-    m_deviceResources->WaitForGpu();
-
-    // Store the AS buffers. The rest of the buffers will be released once we exit the function.
-    for (UINT i = 0; i < BottomLevelASType::Count; i++)
-    {
-        m_bottomLevelAS[i] = bottomLevelAS[i].accelerationStructure;
-    }
-    m_topLevelAS = topLevelAS.accelerationStructure;
+	m_topLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get());
 }
 
 // Build shader tables.
