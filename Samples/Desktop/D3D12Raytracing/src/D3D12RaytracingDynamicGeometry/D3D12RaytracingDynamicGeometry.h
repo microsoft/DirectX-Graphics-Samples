@@ -102,9 +102,6 @@ private:
 
     std::vector<TriangleGeometryBuffer> m_geometries;
 
-
-    // Acceleration structure
-	ComPtr<ID3D12Resource> m_accelerationStructureScratch;
     // Raytracing output
     ComPtr<ID3D12Resource> m_raytracingOutput;
     D3D12_GPU_DESCRIPTOR_HANDLE m_raytracingOutputResourceUAVGpuDescriptor;
@@ -148,6 +145,7 @@ private:
     void UpdateAABBPrimitiveAttributes();
     void InitializeScene();
     void RecreateD3D();
+	void UpdateAccelerationStructures(bool forceBuild = false);
     void DoRaytracing();
     void CreateConstantBuffers();
     void CreateAABBPrimitiveAttributesBuffers();

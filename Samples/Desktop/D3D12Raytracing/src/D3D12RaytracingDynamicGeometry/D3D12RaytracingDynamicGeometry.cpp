@@ -1118,34 +1118,26 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 	// Reset the command list for the acceleration structure construction.
 	commandList->Reset(commandAllocator, nullptr);
 
+	// Set per AS?
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags =
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
 		| m_ASBuildQuality;
 
 	// Initialize bottom-level AS.
 	UINT64 maxScratchResourceSize = 0;
-	UINT64 scratchResourceSize;
-	AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count];
-	array<vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count> geometryDescs;
-	{
-		m_vBottomLevelAS.resize(1);
-		m_vBottomLevelAS[0].Initialize(device, m_geometries, buildFlags);
-		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
-	}
-
+	m_vBottomLevelAS.resize(1);
+	m_vBottomLevelAS[0].Initialize(device, m_geometries, buildFlags);
+	maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
+	
 	// Initialize top-level AS.
 	m_topLevelAS.Initialize(device, m_vBottomLevelAS, buildFlags);
 	maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
 
 	// Create a scratch buffer.
+	// ToDo: Compare build perf vs using per AS scratch
 	AllocateUAVBuffer(device, maxScratchResourceSize, &m_accelerationStructureScratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
 
-	// Build acceleration structures
-	for (auto& bottomLevelAS : m_vBottomLevelAS)
-	{
-		bottomLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get());
-	}
-	m_topLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get());
+	UpdateAccelerationStructures(true);
 }
 
 // Build shader tables.
@@ -1502,6 +1494,25 @@ void D3D12RaytracingDynamicGeometry::ParseCommandLineArgs(WCHAR* argv[], int arg
     }
 }
 
+void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuild)
+{
+	auto commandList = m_deviceResources->GetCommandList();
+	bool isTopLevelASUpdateNeeded = forceBuild ? true : false;
+
+	for (auto& bottomLevelAS : m_vBottomLevelAS)
+	{
+		if (bottomLevelAS.IsDirty() || forceBuild)
+		{
+			bottomLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get());
+			isTopLevelASUpdateNeeded = true;
+		}
+	}
+	if (isTopLevelASUpdateNeeded)
+	{
+		m_topLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get());
+	}
+}
+
 void D3D12RaytracingDynamicGeometry::DoRaytracing()
 {
     auto commandList = m_deviceResources->GetCommandList();
@@ -1781,6 +1792,9 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 	{
 		gpuTimer.BeginFrame(commandList);
 	}
+
+	// Update acceleration structures.
+	UpdateAccelerationStructures();
 
 	// Render.
     DoRaytracing();
