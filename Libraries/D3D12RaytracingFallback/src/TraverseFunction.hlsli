@@ -562,7 +562,6 @@ bool Traverse(
 
             {
                 MARK(4, 0);
-                // Leaf flag tells us whether to read the right index
                 if (IsLeaf(flags))
                 {
                     MARK(5, 0);

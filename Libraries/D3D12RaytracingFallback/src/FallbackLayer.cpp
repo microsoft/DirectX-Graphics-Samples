@@ -231,7 +231,7 @@ namespace FallbackLayer
                 {
                     if (range.RangeType != D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER)
                     {
-                        range.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE;
+                        range.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
                     }
                 }
 
