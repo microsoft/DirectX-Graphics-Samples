@@ -45,6 +45,10 @@ public:
     virtual void OnDestroy();
     virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
 
+	UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
+	UINT CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
+	WRAPPED_GPU_POINTER CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements);
+
 private:
     static const UINT FrameCount = 3;
 
@@ -55,7 +59,7 @@ private:
 
 	// DynamicGeometry
 	UINT m_numBLAS;
-	vector<BottomLevelAccelerationStructure> m_vBottomLevelAS;
+	std::vector<BottomLevelAccelerationStructure> m_vBottomLevelAS;
 	TopLevelAccelerationStructure m_topLevelAS;
 
     // Raytracing Fallback Layer (FL) attributes
@@ -99,9 +103,7 @@ private:
 
 
     // Acceleration structure
-    ComPtr<ID3D12Resource> m_bottomLevelAS[BottomLevelASType::Count];
-    ComPtr<ID3D12Resource> m_topLevelAS;
-
+	ComPtr<ID3D12Resource> m_accelerationStructureScratch;
     // Raytracing output
     ComPtr<ID3D12Resource> m_raytracingOutput;
     D3D12_GPU_DESCRIPTOR_HANDLE m_raytracingOutputResourceUAVGpuDescriptor;
@@ -173,14 +175,11 @@ private:
     void BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
     AccelerationStructureBuffers BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
     AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
-    void BuildAccelerationStructures();
-	void BuildAccelerationStructures2();
+	void InitializeAccelerationStructures();
+	void BuildAccelerationStructures();
     void BuildShaderTables();
     void SelectRaytracingAPI(RaytracingAPI type);
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
     void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();
-    UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
-    UINT CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
-    WRAPPED_GPU_POINTER CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements);
 };

@@ -112,6 +112,9 @@
       <Filter>Source Files\Util</Filter>
     </ClCompile>
     <ClCompile Include="util\EngineTuning.cpp" />
+    <ClCompile Include="DirectXRaytracingHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Raytracing.hlsl">
