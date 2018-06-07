@@ -78,7 +78,7 @@ namespace FallbackLayer
         ID3D12DescriptorHeap *m_pBoundDescriptorHeaps[DescriptorHeapType::NumTypes] = {};
         ATL::CComPtr<ID3D12GraphicsCommandList> m_pCommandList;
         RaytracingDevice &m_device;
-        COM_IMPLEMENTATION();
+        COM_IMPLEMENTATION_WITH_QUERYINTERFACE(m_pCommandList.p);
     };
 
     class RaytracingStateObject : public ID3D12RaytracingFallbackStateObject
@@ -190,7 +190,7 @@ namespace FallbackLayer
         RaytracingProgramFactory m_RaytracingProgramFactory;
         DWORD m_flags;
 
-        COM_IMPLEMENTATION();
+        COM_IMPLEMENTATION_WITH_QUERYINTERFACE(m_pDevice.p)
 
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
     public:
