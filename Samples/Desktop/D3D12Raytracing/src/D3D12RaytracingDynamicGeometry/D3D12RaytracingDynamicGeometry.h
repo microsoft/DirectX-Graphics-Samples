@@ -28,34 +28,40 @@
 class D3D12RaytracingDynamicGeometry : public DXSample
 {
 public:
-    D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name);
+	D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name);
 
-    // IDeviceNotify
-    virtual void OnDeviceLost() override;
-    virtual void OnDeviceRestored() override;
+	// IDeviceNotify
+	virtual void OnDeviceLost() override;
+	virtual void OnDeviceRestored() override;
 	virtual void OnReleaseWindowSizeDependentResources() override { ReleaseWindowSizeDependentResources(); };
 	virtual void OnCreateWindowSizeDependentResources() override { CreateWindowSizeDependentResources(); };
 
-    // Messages
-    virtual void OnInit();
-    virtual void OnKeyDown(UINT8 key);
-    virtual void OnUpdate();
-    virtual void OnRender();
-    virtual void OnSizeChanged(UINT width, UINT height, bool minimized);
-    virtual void OnDestroy();
-    virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
+	// Messages
+	virtual void OnInit();
+	virtual void OnKeyDown(UINT8 key);
+	virtual void OnUpdate();
+	virtual void OnRender();
+	virtual void OnSizeChanged(UINT width, UINT height, bool minimized);
+	virtual void OnDestroy();
+	virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
 
 	UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
 	UINT CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
 	WRAPPED_GPU_POINTER CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements);
 
-private:
-    static const UINT FrameCount = 3;
+	RaytracingAPI GetRaytracingAPI() { return m_raytracingAPI; }
+	ID3D12RaytracingFallbackDevice* GetFallbackDevice() { return m_fallbackDevice.Get(); }
+	ID3D12RaytracingFallbackCommandList* GetFallbackCommandList() { return m_fallbackCommandList.Get(); }
+	ID3D12DeviceRaytracingPrototype* GetDxrDevice() { return m_dxrDevice.Get(); }
+	ID3D12CommandListRaytracingPrototype* GetDxrCommandList() { return m_dxrCommandList.Get(); }
 
-    // Constants.
-    const UINT NUM_BLAS = 2;          // Triangle + AABB bottom-level AS.
-    const float c_aabbWidth = 2;      // AABB width.
-    const float c_aabbDistance = 2;   // Distance between AABBs.
+private:
+	static const UINT FrameCount = 3;
+
+	// Constants.
+	const UINT NUM_BLAS = 2;          // Triangle + AABB bottom-level AS.
+	const float c_aabbWidth = 2;      // AABB width.
+	const float c_aabbDistance = 2;   // Distance between AABBs.
 
 	// DynamicGeometry
 	UINT m_numBLAS;
@@ -63,73 +69,73 @@ private:
 	TopLevelAccelerationStructure m_topLevelAS;
 	ComPtr<ID3D12Resource> m_accelerationStructureScratch;
 
-    // Raytracing Fallback Layer (FL) attributes
-    ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
-    ComPtr<ID3D12RaytracingFallbackCommandList> m_fallbackCommandList;
-    ComPtr<ID3D12RaytracingFallbackStateObject> m_fallbackStateObject;
-    WRAPPED_GPU_POINTER m_fallbackTopLevelAccelerationStructurePointer;
+	// Raytracing Fallback Layer (FL) attributes
+	ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
+	ComPtr<ID3D12RaytracingFallbackCommandList> m_fallbackCommandList;
+	ComPtr<ID3D12RaytracingFallbackStateObject> m_fallbackStateObject;
+	WRAPPED_GPU_POINTER m_fallbackTopLevelAccelerationStructurePointer;
 
-    // DirectX Raytracing (DXR) attributes
-    ComPtr<ID3D12DeviceRaytracingPrototype> m_dxrDevice;
-    ComPtr<ID3D12CommandListRaytracingPrototype> m_dxrCommandList;
-    ComPtr<ID3D12StateObjectPrototype> m_dxrStateObject;
-    bool m_isDxrSupported;
+	// DirectX Raytracing (DXR) attributes
+	ComPtr<ID3D12DeviceRaytracingPrototype> m_dxrDevice;
+	ComPtr<ID3D12CommandListRaytracingPrototype> m_dxrCommandList;
+	ComPtr<ID3D12StateObjectPrototype> m_dxrStateObject;
+	bool m_isDxrSupported;
 
-    // Root signatures
-    ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
-    ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature[LocalRootSignature::Type::Count];
+	// Root signatures
+	ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
+	ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature[LocalRootSignature::Type::Count];
 
-    // Descriptors
-    ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
-    UINT m_descriptorsAllocated;
-    UINT m_descriptorSize;
+	// Descriptors
+	ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
+	UINT m_descriptorsAllocated;
+	UINT m_descriptorSize;
 
-    // Raytracing scene
-    ConstantBuffer<SceneConstantBuffer> m_sceneCB;
-    StructuredBuffer<PrimitiveInstancePerFrameBuffer> m_aabbPrimitiveAttributeBuffer;
-    std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
+	// Raytracing scene
+	ConstantBuffer<SceneConstantBuffer> m_sceneCB;
+	StructuredBuffer<PrimitiveInstancePerFrameBuffer> m_aabbPrimitiveAttributeBuffer;
+	std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
 
-    // Root constants
-    PrimitiveConstantBuffer m_planeMaterialCB;
-    PrimitiveConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
+	// Root constants
+	PrimitiveConstantBuffer m_planeMaterialCB;
+	PrimitiveConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
 
-    // Geometry
-    D3DBuffer m_indexBuffer;
-    D3DBuffer m_vertexBuffer;
-    D3DBuffer m_aabbBuffer;
+	// Geometry
+	D3DBuffer m_indexBuffer;
+	D3DBuffer m_vertexBuffer;
+	D3DBuffer m_aabbBuffer;
 
 	DX::GPUTimer m_gpuTimers[GpuTimers::Count];
 
-    std::vector<TriangleGeometryBuffer> m_geometries;
+	std::vector<TriangleGeometryBuffer> m_geometries;
 
-    // Raytracing output
-    ComPtr<ID3D12Resource> m_raytracingOutput;
-    D3D12_GPU_DESCRIPTOR_HANDLE m_raytracingOutputResourceUAVGpuDescriptor;
-    UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
+	// Raytracing output
+	ComPtr<ID3D12Resource> m_raytracingOutput;
+	D3D12_GPU_DESCRIPTOR_HANDLE m_raytracingOutputResourceUAVGpuDescriptor;
+	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
-    // Shader tables
-    static const wchar_t* c_hitGroupNames_TriangleGeometry[RayType::Count];
-    static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][RayType::Count];
-    static const wchar_t* c_raygenShaderName;
-    static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
-    static const wchar_t* c_closestHitShaderNames[GeometryType::Count];
-    static const wchar_t* c_missShaderNames[RayType::Count];
+	// Shader tables
+	static const wchar_t* c_hitGroupNames_TriangleGeometry[RayType::Count];
+	static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][RayType::Count];
+	static const wchar_t* c_raygenShaderName;
+	static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
+	static const wchar_t* c_closestHitShaderNames[GeometryType::Count];
+	static const wchar_t* c_missShaderNames[RayType::Count];
 
-    ComPtr<ID3D12Resource> m_missShaderTable;
-    UINT m_missShaderTableStrideInBytes;
-    ComPtr<ID3D12Resource> m_hitGroupShaderTable;
-    UINT m_hitGroupShaderTableStrideInBytes;
-    ComPtr<ID3D12Resource> m_rayGenShaderTable;
+	ComPtr<ID3D12Resource> m_missShaderTable;
+	UINT m_missShaderTableStrideInBytes;
+	ComPtr<ID3D12Resource> m_hitGroupShaderTable;
+	UINT m_hitGroupShaderTableStrideInBytes;
+	ComPtr<ID3D12Resource> m_rayGenShaderTable;
 
-    // Application state
-    RaytracingAPI m_raytracingAPI;
-    bool m_forceComputeFallback;
-    StepTimer m_timer;
-    bool m_animateCamera;
-    bool m_animateLight;
-    XMVECTOR m_eye;
-    XMVECTOR m_at;
-    XMVECTOR m_up;
+	// Application state
+	RaytracingAPI m_raytracingAPI;
+	bool m_forceComputeFallback;
+	StepTimer m_timer;
+	bool m_animateCamera;
+	bool m_animateLight;
+	XMVECTOR m_eye;
+	XMVECTOR m_at;
+	XMVECTOR m_up;
 
 	// UI
 	std::unique_ptr<UILayer> m_uiLayer;
@@ -137,12 +143,14 @@ private:
 	float m_fps;
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS m_ASBuildQuality;
 	UINT m_activeUIparameter;
-//	vector<NumVar> m_uiParameters[UIParameters::Count];
-	
+	//	vector<NumVar> m_uiParameters[UIParameters::Count];
+
+
+
     void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
-    void UpdateAABBPrimitiveAttributes();
+    void UpdateGeometries();
     void InitializeScene();
     void RecreateD3D();
 	void UpdateAccelerationStructures(bool forceBuild = false);
@@ -175,7 +183,6 @@ private:
     AccelerationStructureBuffers BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
     AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
 	void InitializeAccelerationStructures();
-	void BuildAccelerationStructures();
     void BuildShaderTables();
     void SelectRaytracingAPI(RaytracingAPI type);
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);

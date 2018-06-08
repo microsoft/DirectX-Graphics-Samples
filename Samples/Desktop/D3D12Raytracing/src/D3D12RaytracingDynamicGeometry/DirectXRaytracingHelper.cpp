@@ -19,15 +19,43 @@ using namespace DirectX;
 
 AccelerationStructure::AccelerationStructure() :
 	m_buildFlags(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE),
-	m_prebuildInfo{},
-	m_isDirty(true),
-	m_transform(XMMatrixIdentity())
+	m_prebuildInfo{}
 {
 }
 
 void AccelerationStructure::ReleaseD3DResources()
 {
 	m_accelerationStructure.Reset();
+}
+
+void AccelerationStructure::AllocateResource(ID3D12Device* device)
+{
+	// Allocate resource for acceleration structures.
+	// Acceleration structures can only be placed in resources that are created in the default heap (or custom heap equivalent). 
+	// Default heap is OK since the application doesn’t need CPU read/write access to them. 
+	// The resources that will contain acceleration structures must be created in the state D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, 
+	// and must have resource flag D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS. The ALLOW_UNORDERED_ACCESS requirement simply acknowledges both: 
+	//  - the system will be doing this type of access in its implementation of acceleration structure builds behind the scenes.
+	//  - from the app point of view, synchronization of writes/reads to acceleration structures is accomplished using UAV barriers.
+	{
+		D3D12_RESOURCE_STATES initialResourceState;
+		if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
+		{
+			initialResourceState = g_pSample->GetFallbackDevice()->GetAccelerationStructureResourceState();
+		}
+		else // DirectX Raytracing
+		{
+			initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+		}
+		AllocateUAVBuffer(device, m_prebuildInfo.ResultDataMaxSizeInBytes, &m_accelerationStructure, initialResourceState, L"BottomLevelAccelerationStructure");
+	}
+}
+
+
+BottomLevelAccelerationStructure::BottomLevelAccelerationStructure() :
+	m_isDirty(true),
+	m_transform(XMMatrixIdentity())
+{
 }
 
 void BottomLevelAccelerationStructure::CopyInstanceDescTo(void* destInstanceDesc)
@@ -41,10 +69,10 @@ void BottomLevelAccelerationStructure::CopyInstanceDescTo(void* destInstanceDesc
 		StoreXMMatrixAsTransform3x4(instanceDesc->Transform, m_transform);
 	};
 
-	if (g_raytracingRuntime.API == RaytracingAPI::FallbackLayer)
+	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
 	{
 		WRAPPED_GPU_POINTER bottomLevelASaddress =
-			pSample->CreateFallbackWrappedPointer(m_accelerationStructure.Get(), static_cast<UINT>(m_prebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32));
+			g_pSample->CreateFallbackWrappedPointer(m_accelerationStructure.Get(), static_cast<UINT>(m_prebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32));
 		BuildInstanceDesc(static_cast<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC*>(destInstanceDesc), bottomLevelASaddress);
 	}
 	else // DirectX Raytracing
@@ -56,6 +84,7 @@ void BottomLevelAccelerationStructure::CopyInstanceDescTo(void* destInstanceDesc
 // Build geometry descs for bottom-level AS.
 void BottomLevelAccelerationStructure::BuildGeometryDescs(const std::vector<TriangleGeometryBuffer>& geometries)
 {
+	// ToDo pass geometry flag from the sample cpp
 	// Mark the geometry as opaque. 
 	// PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
 	// Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
@@ -67,8 +96,8 @@ void BottomLevelAccelerationStructure::BuildGeometryDescs(const std::vector<Tria
 	geometryDescTemplate.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 	geometryDescTemplate.Triangles.VertexBuffer.StrideInBytes = sizeof(DirectX::GeometricPrimitive::VertexType);
 	geometryDescTemplate.Flags = geometryFlags;
-	m_geometryDescs.resize(geometries.size(), geometryDescTemplate);
 
+	m_geometryDescs.resize(geometries.size(), geometryDescTemplate);
 	for (UINT i = 0; i < geometries.size(); i++)
 	{
 		auto& geometry = geometries[i];
@@ -87,18 +116,16 @@ void BottomLevelAccelerationStructure::ComputePrebuildInfo()
 	prebuildInfoDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	prebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
 	prebuildInfoDesc.Flags = m_buildFlags;
-
 	prebuildInfoDesc.NumDescs = static_cast<UINT>(m_geometryDescs.size());
 	prebuildInfoDesc.pGeometryDescs = m_geometryDescs.data();
-
-
-	if (g_raytracingRuntime.API == RaytracingAPI::FallbackLayer)
+	
+	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
 	{
-		g_raytracingRuntime.fallbackDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &m_prebuildInfo);
+		g_pSample->GetFallbackDevice()->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &m_prebuildInfo);
 	}
 	else // DirectX Raytracing
 	{
-		g_raytracingRuntime.dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &m_prebuildInfo);
+		g_pSample->GetDxrDevice()->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &m_prebuildInfo);
 	}
 	ThrowIfFalse(m_prebuildInfo.ResultDataMaxSizeInBytes > 0);
 }
@@ -112,7 +139,7 @@ void BottomLevelAccelerationStructure::Initialize(ID3D12Device* device, const st
 	m_isDirty = true;
 }
 
-void BottomLevelAccelerationStructure::Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false)
+void BottomLevelAccelerationStructure::Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate)
 {
 	ThrowIfFalse(m_prebuildInfo.ScratchDataSizeInBytes <= scratch->GetDesc().Width, L"Insufficient scratch buffer size provided!");
 
@@ -131,16 +158,16 @@ void BottomLevelAccelerationStructure::Build(ID3D12GraphicsCommandList* commandL
 		bottomLevelBuildDesc.pGeometryDescs = m_geometryDescs.data();
 	}
 
-	if (g_raytracingRuntime.API == RaytracingAPI::FallbackLayer)
+	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
 	{
 		// Set the descriptor heaps to be used during acceleration structure build for the Fallback Layer.
 		ID3D12DescriptorHeap *pDescriptorHeaps[] = { descriptorHeap };
-		g_raytracingRuntime.fallbackCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
-		g_raytracingRuntime.fallbackCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc);
+		g_pSample->GetFallbackCommandList()->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
+		g_pSample->GetFallbackCommandList()->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc);
 	}
 	else // DirectX Raytracing
 	{
-		g_raytracingRuntime.dxrCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc);
+		g_pSample->GetDxrCommandList()->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc);
 	}
 	//ToDo compare perf against BLAS without shared scratch
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(m_accelerationStructure.Get()));
@@ -148,10 +175,9 @@ void BottomLevelAccelerationStructure::Build(ID3D12GraphicsCommandList* commandL
 	m_isDirty = false;
 }
 
-
 TopLevelAccelerationStructure::~TopLevelAccelerationStructure()
 {
-	if (g_raytracingRuntime.API == RaytracingAPI::FallbackLayer)
+	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
 	{
 		m_fallbackLayerInstanceDescs.Release();
 	}
@@ -170,13 +196,13 @@ void TopLevelAccelerationStructure::ComputePrebuildInfo()
 	prebuildInfoDesc.Flags = m_buildFlags;
 	prebuildInfoDesc.NumDescs = static_cast<UINT>(m_instanceDescs.size());
 
-	if (g_raytracingRuntime.API == RaytracingAPI::FallbackLayer)
+	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
 	{
-		g_raytracingRuntime.fallbackDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &m_prebuildInfo);
+		g_pSample->GetFallbackDevice()->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &m_prebuildInfo);
 	}
 	else // DirectX Raytracing
 	{
-		g_raytracingRuntime.dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &m_prebuildInfo);
+		g_pSample->GetDxrDevice()->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &m_prebuildInfo);
 	}
 	ThrowIfFalse(m_prebuildInfo.ResultDataMaxSizeInBytes > 0);
 }
@@ -193,7 +219,7 @@ void TopLevelAccelerationStructure::BuildInstanceDescs(ID3D12Device* device, std
 		}
 	};
 
-	if (g_raytracingRuntime.API == RaytracingAPI::FallbackLayer)
+	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
 	{
 		CreateInstanceDescs(&m_fallbackLayerInstanceDescs);
 	}
@@ -216,7 +242,7 @@ void TopLevelAccelerationStructure::UpdateInstanceDescTransforms(std::vector<Bot
 		}
 	};
 
-	if (g_raytracingRuntime.API == RaytracingAPI::FallbackLayer)
+	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
 	{
 		UpdateTransform(&m_fallbackLayerInstanceDescs);
 	}
@@ -232,10 +258,9 @@ void TopLevelAccelerationStructure::Initialize(ID3D12Device* device, std::vector
 	ComputePrebuildInfo();
 	BuildInstanceDescs(device, vBottomLevelAS);
 	AllocateResource(device);
-	m_isDirty = true;
 }
 
-void TopLevelAccelerationStructure::Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false)
+void TopLevelAccelerationStructure::Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate)
 {
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelBuildDesc = {};
 	{
@@ -251,20 +276,18 @@ void TopLevelAccelerationStructure::Build(ID3D12GraphicsCommandList* commandList
 		topLevelBuildDesc.NumDescs = static_cast<UINT>(m_instanceDescs.size());
 	}
 
-	if (g_raytracingRuntime.API == RaytracingAPI::FallbackLayer)
+	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
 	{
 		topLevelBuildDesc.InstanceDescs = m_fallbackLayerInstanceDescs.GpuVirtualAddress();
 		// Set the descriptor heaps to be used during acceleration structure build for the Fallback Layer.
 		ID3D12DescriptorHeap *pDescriptorHeaps[] = { descriptorHeap };
-		g_raytracingRuntime.fallbackCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
-		g_raytracingRuntime.fallbackCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc);
+		g_pSample->GetFallbackCommandList()->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
+		g_pSample->GetFallbackCommandList()->BuildRaytracingAccelerationStructure(&topLevelBuildDesc);
 	}
 	else // DirectX Raytracing
 	{
 		topLevelBuildDesc.InstanceDescs = m_dxrInstanceDescs.GpuVirtualAddress();
-		g_raytracingRuntime.dxrCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc);
+		g_pSample->GetDxrCommandList()->BuildRaytracingAccelerationStructure(&topLevelBuildDesc);
 	}
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(m_accelerationStructure.Get()));
-
-	m_isDirty = false;
 }

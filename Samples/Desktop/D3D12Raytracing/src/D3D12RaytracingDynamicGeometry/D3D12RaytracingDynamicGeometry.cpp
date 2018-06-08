@@ -87,7 +87,7 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
 	m_ASBuildQuality(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE)
 {
 	// ToDo 
-	pSample = this;
+	g_pSample = this;
 
     m_forceComputeFallback = false;
     SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
@@ -138,9 +138,6 @@ void D3D12RaytracingDynamicGeometry::OnInit()
 	InitializeScene();
 	CreateDeviceDependentResources();
     m_deviceResources->CreateWindowSizeDependentResources();
-
-	//CreateWindowSizeDependentResources();
-
 }
 
 // Update camera matrices passed into the shader.
@@ -156,64 +153,17 @@ void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
     m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, viewProj);
 }
 
-// Update AABB primite attributes buffers passed into the shader.
-void D3D12RaytracingDynamicGeometry::UpdateAABBPrimitiveAttributes()
+void D3D12RaytracingDynamicGeometry::UpdateGeometries()
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-    XMMATRIX mIdentity = XMMatrixIdentity();
-    
-    XMMATRIX mScale15y = XMMatrixScaling(1, 1.5, 1);
-    XMMATRIX mScale15 = XMMatrixScaling(1.5, 1.5, 1.5);
-    XMMATRIX mScale2 = XMMatrixScaling(2, 2, 2);
-    XMMATRIX mScale3 = XMMatrixScaling(3, 3, 3);
+	float animationDuration = 24.0f;
+    const float t = CalculateAnimationInterpolant(static_cast<float>(m_timer.GetTotalSeconds()), animationDuration);
 
-    const float animationTime = -2 * static_cast<float>(m_timer.GetTotalSeconds());
-    XMMATRIX mRotation = XMMatrixRotationY(animationTime);
-
-    // Apply scale, rotation and translation transforms.
-    // The intersection shader tests in this sample work with local space, so here
-    // we apply the BLAS object space translation that was passed to geometry descs.
-    auto SetTransformForAABB = [&](UINT primitiveIndex, XMMATRIX& mScale, XMMATRIX& mRotation)
-    {
-        XMVECTOR vTranslation = 
-            0.5f * ( XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(&m_aabbs[primitiveIndex].MinX))
-                   + XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(&m_aabbs[primitiveIndex].MaxX)));
-        XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
-
-        XMMATRIX mTransform = mScale * mRotation * mTranslation;
-        m_aabbPrimitiveAttributeBuffer[primitiveIndex].localSpaceToBottomLevelAS = mTransform;
-        m_aabbPrimitiveAttributeBuffer[primitiveIndex].bottomLevelASToLocalSpace = XMMatrixInverse(nullptr, mTransform);
-    };
-    
-    UINT offset = 0;
-    // Analytic primitives.
-    {
-        using namespace AnalyticPrimitive;
-        SetTransformForAABB(offset + AABB, mScale15y, mIdentity);
-        SetTransformForAABB(offset + Spheres, mScale15, mRotation);
-        offset += AnalyticPrimitive::Count;
-    }
-
-    // Volumetric primitives.
-    {
-        using namespace VolumetricPrimitive;
-        SetTransformForAABB(offset + Metaballs, mScale15, mRotation);
-        offset += VolumetricPrimitive::Count;
-    }
-
-    // Signed distance primitives.
-    {
-        using namespace SignedDistancePrimitive;
-
-        SetTransformForAABB(offset + MiniSpheres, mIdentity, mIdentity);
-        SetTransformForAABB(offset + IntersectedRoundCube, mIdentity, mIdentity);
-        SetTransformForAABB(offset + SquareTorus, mScale15, mIdentity);
-        SetTransformForAABB(offset + TwistedTorus, mIdentity, mRotation);
-        SetTransformForAABB(offset + Cog, mIdentity, mRotation);
-        SetTransformForAABB(offset + Cylinder, mScale15y, mIdentity);
-        SetTransformForAABB(offset + FractalPyramid, mScale3, mIdentity);
-    }
+	float amplitude = 12.0f;
+	XMFLOAT4 translationVector = XMFLOAT4(0, 1, 0, 0);
+	XMMATRIX transform = XMMatrixTranslationFromVector(t * amplitude * XMLoadFloat4(&translationVector));
+	m_vBottomLevelAS[0].SetTransform(transform);
 }
 
 // Initialize scene rendering parameters.
@@ -353,7 +303,7 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
     BuildGeometry();
 
     // Build raytracing acceleration structures from the generated geometry.
-    BuildAccelerationStructures();
+	InitializeAccelerationStructures();
 
     // Create constant buffers for the geometry and the scene.
     CreateConstantBuffers();
@@ -782,22 +732,19 @@ void D3D12RaytracingDynamicGeometry::BuildSphereGeometry()
 	// o 16 - 3681
 	// o 20 - 4920
     const size_t TesselationFactor = 5;
-   
+	ThrowIfFalse(NumObjectsPerBLAS == 1, L"ToDo");
     m_geometries.resize(NumObjectsPerBLAS);
 
-    for (UINT i = 0; i < NumObjectsPerBLAS; i++)
-    {
-        auto& geometry = m_geometries[i];
-        const float Diameter = 12.0f;
-        GeometricPrimitive::CreateSphere(vertices, indices, Diameter, TesselationFactor, RhCoords);
-        AllocateUploadBuffer(device, indices.data(), indices.size() * sizeof(indices[0]), &geometry.ib.resource);
-        AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
+    auto& geometry = m_geometries[0];
+    const float Diameter = 12.0f;
+    GeometricPrimitive::CreateSphere(vertices, indices, Diameter, TesselationFactor, RhCoords);
+    AllocateUploadBuffer(device, indices.data(), indices.size() * sizeof(indices[0]), &geometry.ib.resource);
+    AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
     
-		// Vertex buffer is passed to the shader along with index buffer as a descriptor range.
-		UINT descriptorIndexIB = CreateBufferSRV(&geometry.ib, sizeof(indices) / 4, 0);
-		UINT descriptorIndexVB = CreateBufferSRV(&geometry.vb, static_cast<UINT>(vertices.size()), sizeof(vertices[0]));
-		ThrowIfFalse(descriptorIndexVB == descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
-	}
+	// Vertex buffer is passed to the shader along with index buffer as a descriptor range.
+	UINT descriptorIndexIB = CreateBufferSRV(&geometry.ib, sizeof(indices) / 4, 0);
+	UINT descriptorIndexVB = CreateBufferSRV(&geometry.vb, static_cast<UINT>(vertices.size()), sizeof(vertices[0]));
+	ThrowIfFalse(descriptorIndexVB == descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 }
 
 // Build geometry used in the sample.
@@ -1125,17 +1072,21 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 
 	// Initialize bottom-level AS.
 	UINT64 maxScratchResourceSize = 0;
-	m_vBottomLevelAS.resize(1);
-	m_vBottomLevelAS[0].Initialize(device, m_geometries, buildFlags);
-	maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
-	
+	{
+		m_vBottomLevelAS.resize(1);
+		m_vBottomLevelAS[0].Initialize(device, m_geometries, buildFlags);
+		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
+	}
+
 	// Initialize top-level AS.
-	m_topLevelAS.Initialize(device, m_vBottomLevelAS, buildFlags);
-	maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
+	{
+		m_topLevelAS.Initialize(device, m_vBottomLevelAS, buildFlags);
+		maxScratchResourceSize = max(m_topLevelAS.RequiredScratchSize(), maxScratchResourceSize);
+	}
 
 	// Create a scratch buffer.
 	// ToDo: Compare build perf vs using per AS scratch
-	AllocateUAVBuffer(device, maxScratchResourceSize, &m_accelerationStructureScratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
+	AllocateUAVBuffer(device, maxScratchResourceSize, &m_accelerationStructureScratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"Acceleration structure scratch resource");
 
 	UpdateAccelerationStructures(true);
 }
@@ -1466,7 +1417,8 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     }
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
-    UpdateAABBPrimitiveAttributes();
+	UpdateGeometries();
+	
 	
 	if (m_enableUI)
 	{
@@ -1497,12 +1449,13 @@ void D3D12RaytracingDynamicGeometry::ParseCommandLineArgs(WCHAR* argv[], int arg
 void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuild)
 {
 	auto commandList = m_deviceResources->GetCommandList();
-	bool isTopLevelASUpdateNeeded = forceBuild ? true : false;
+	bool isTopLevelASUpdateNeeded = false;
 
 	for (auto& bottomLevelAS : m_vBottomLevelAS)
 	{
 		if (bottomLevelAS.IsDirty() || forceBuild)
 		{
+			// ToDo Heuristic to do an update instead
 			bottomLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get());
 			isTopLevelASUpdateNeeded = true;
 		}
@@ -1752,8 +1705,11 @@ void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
     m_aabbBuffer.resource.Reset();
 
 	// ToDo
-    //ResetComPtrArray(&m_bottomLevelAS);
-    m_topLevelAS.Reset();
+	for (auto& bottomLevelAS : m_vBottomLevelAS)
+	{
+		bottomLevelAS.ReleaseD3DResources();
+	}
+    m_topLevelAS.ReleaseD3DResources();
 
     m_raytracingOutput.Reset();
     m_raytracingOutputResourceUAVDescriptorHeapIndex = UINT_MAX;

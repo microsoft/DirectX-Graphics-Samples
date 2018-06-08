@@ -349,3 +349,16 @@ public:
         return m_resource->GetGPUVirtualAddress() + instanceIndex * InstanceSize();
     }
 };
+
+inline float lerp(float a, float b, float t)
+{
+	return a + t * (b - a);
+}
+
+// Returns a cycling <0 -> 1 -> 0> animation interpolant 
+inline float CalculateAnimationInterpolant(float elapsedTime, float cycleDuration)
+{
+	float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
+	curLinearCycleTime = (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
+	return lerp(0.0f, 1.0f, curLinearCycleTime);
+}

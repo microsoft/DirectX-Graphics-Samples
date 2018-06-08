@@ -56,24 +56,8 @@ enum class RaytracingAPI {
 	DirectXRaytracing,
 };
 
-// ToDo
-struct RaytracingRuntime
-{
-	RaytracingAPI API;
-
-	// Raytracing Fallback Layer (FL) attributes
-	ComPtr<ID3D12RaytracingFallbackDevice> fallbackDevice;
-	ComPtr<ID3D12RaytracingFallbackCommandList> fallbackCommandList;
-
-	// DirectX Raytracing (DXR) attributes
-	ComPtr<ID3D12DeviceRaytracingPrototype> dxrDevice;
-	ComPtr<ID3D12CommandListRaytracingPrototype> dxrCommandList;
-
-};
-
 class D3D12RaytracingDynamicGeometry;
-D3D12RaytracingDynamicGeometry* pSample;
-static RaytracingRuntime g_raytracingRuntime;
+static D3D12RaytracingDynamicGeometry* g_pSample = nullptr;
 
 
 // AccelerationStructure
@@ -85,10 +69,6 @@ protected:
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS m_buildFlags;
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO m_prebuildInfo;
 	
-	// Runtime state
-	bool m_isDirty;		// if true, AS requires an update/build.
-	DirectX::XMMATRIX m_transform;
-
 public:
 	AccelerationStructure();
 	virtual ~AccelerationStructure() {}
@@ -98,45 +78,20 @@ public:
 
 	virtual void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false) = 0;
 
-	const XMMATRIX& GetTransform() { return m_transform; }
-	void SetTransform(const DirectX::XMMATRIX& transform)
-	{
-		m_transform = transform;
-		m_isDirty = true;
-	}
-	void SetDirty(bool isDirty) { m_isDirty = isDirty; }
-	bool IsDirty() { return m_isDirty; }
-
 protected:
-	void AllocateResource(ID3D12Device* device)
-	{
-		// Allocate resource for acceleration structures.
-		// Acceleration structures can only be placed in resources that are created in the default heap (or custom heap equivalent). 
-		// Default heap is OK since the application doesn’t need CPU read/write access to them. 
-		// The resources that will contain acceleration structures must be created in the state D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, 
-		// and must have resource flag D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS. The ALLOW_UNORDERED_ACCESS requirement simply acknowledges both: 
-		//  - the system will be doing this type of access in its implementation of acceleration structure builds behind the scenes.
-		//  - from the app point of view, synchronization of writes/reads to acceleration structures is accomplished using UAV barriers.
-		{
-			D3D12_RESOURCE_STATES initialResourceState;
-			if (g_raytracingRuntime.API == RaytracingAPI::FallbackLayer)
-			{
-				initialResourceState = g_raytracingRuntime.fallbackDevice->GetAccelerationStructureResourceState();
-			}
-			else // DirectX Raytracing
-			{
-				initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
-			}
-			AllocateUAVBuffer(device, m_prebuildInfo.ResultDataMaxSizeInBytes, &m_accelerationStructure, initialResourceState, L"BottomLevelAccelerationStructure");
-		}
-	}
+	void AllocateResource(ID3D12Device* device);
 };
 
 class BottomLevelAccelerationStructure : public AccelerationStructure
 {
 	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> m_geometryDescs;
+	DirectX::XMMATRIX m_transform;
+
+	// Runtime state
+	bool m_isDirty;		// if true, AS requires an update/build.
+
 public:
-	BottomLevelAccelerationStructure() {}
+	BottomLevelAccelerationStructure();
 	~BottomLevelAccelerationStructure() {}
 	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>* GetGeometryDescs() { return &m_geometryDescs; }
 	
@@ -146,6 +101,15 @@ public:
 	void Initialize(ID3D12Device* device, const std::vector<TriangleGeometryBuffer>& geometries, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
 	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
 	void CopyInstanceDescTo(void* destInstanceDesc);
+	void SetTransform(const DirectX::XMMATRIX& transform)
+	{
+		m_transform = transform;
+		SetDirty(true);
+	}
+	void SetDirty(bool isDirty) { m_isDirty = isDirty; }
+	bool IsDirty() { return m_isDirty; }
+
+	const XMMATRIX& GetTransform() { return m_transform; }
 
 private:
 	void BuildGeometryDescs(const std::vector<TriangleGeometryBuffer>& geometries);
@@ -156,7 +120,8 @@ class TopLevelAccelerationStructure : public AccelerationStructure
 {
 	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> m_instanceDescs;
 	union {
-		// ToDo not safe if API changes before release
+		// ToDo handle release when API is being changed
+		// Descruction is  not safe if API changes before release
 		StructuredBuffer<D3D12_RAYTRACING_INSTANCE_DESC> m_fallbackLayerInstanceDescs;
 		StructuredBuffer<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> m_dxrInstanceDescs;
 	};
@@ -167,7 +132,7 @@ public:
 
 	void Initialize(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
 	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
-
+	
 private:
 	void ComputePrebuildInfo();
 	void BuildInstanceDescs(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS);
