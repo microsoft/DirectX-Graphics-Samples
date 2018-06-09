@@ -328,6 +328,7 @@ public:
 
     void Create(ID3D12Device* device, UINT numElements, UINT numInstances = 1, LPCWSTR resourceName = nullptr)
     {
+		m_numInstances = numInstances;
         m_staging.resize(numElements);
         UINT bufferSize = numInstances * numElements * sizeof(T);
         Allocate(device, bufferSize, resourceName);

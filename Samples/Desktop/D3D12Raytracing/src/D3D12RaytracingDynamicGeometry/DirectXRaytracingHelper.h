@@ -57,7 +57,7 @@ enum class RaytracingAPI {
 };
 
 class D3D12RaytracingDynamicGeometry;
-static D3D12RaytracingDynamicGeometry* g_pSample = nullptr;
+extern D3D12RaytracingDynamicGeometry* g_pSample;
 
 
 // AccelerationStructure
@@ -75,7 +75,7 @@ public:
 	void ReleaseD3DResources();
 	UINT64 RequiredScratchSize() { return m_prebuildInfo.ScratchDataSizeInBytes; }
 	ID3D12Resource* GetResource() { return m_accelerationStructure.Get(); }
-
+	const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& PrebuildInfo() { return m_prebuildInfo; }
 	virtual void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false) = 0;
 
 protected:
@@ -118,17 +118,18 @@ private:
 
 class TopLevelAccelerationStructure : public AccelerationStructure
 {
-	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> m_instanceDescs;
 	union {
 		// ToDo handle release when API is being changed
 		// Descruction is  not safe if API changes before release
-		StructuredBuffer<D3D12_RAYTRACING_INSTANCE_DESC> m_fallbackLayerInstanceDescs;
-		StructuredBuffer<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> m_dxrInstanceDescs;
+		StructuredBuffer<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> m_fallbackLayerInstanceDescs;
+		StructuredBuffer<D3D12_RAYTRACING_INSTANCE_DESC> m_dxrInstanceDescs;
 	};
 
 public:
 	TopLevelAccelerationStructure() {}
 	~TopLevelAccelerationStructure();
+
+	UINT NumberOfBLAS();
 
 	void Initialize(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
 	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
@@ -247,7 +248,6 @@ void DefineExports(T* obj, LPCWSTR(&Exports)[N][M])
             obj->DefineExport(Exports[i][j]);
         }
 }
-
 
 inline void AllocateUploadBuffer(ID3D12Device* pDevice, void *pData, UINT64 datasize, ID3D12Resource **ppResource, const wchar_t* resourceName = nullptr)
 {

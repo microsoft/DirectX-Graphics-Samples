@@ -237,7 +237,6 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
 
     rayPayload.color = color;
-	// ToDo
 	//rayPayload.color = float4(1, 0, 0, 1);
 	//rayPayload.color = float4(triangleNormal, 1);
 }

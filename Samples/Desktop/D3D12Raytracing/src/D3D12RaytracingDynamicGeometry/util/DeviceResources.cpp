@@ -563,6 +563,7 @@ void DeviceResources::Present(D3D12_RESOURCE_STATES beforeState)
 // ToDo remove force paramter
 void DeviceResources::ExecuteCommandList(bool force)
 {
+	// ToDo is openCommandList var necessary
 	if (m_openCommandList || force)
 	{
 		ThrowIfFailed(m_commandList->Close());

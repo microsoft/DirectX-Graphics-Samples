@@ -18,6 +18,9 @@
 using namespace std;
 using namespace DX;
 using namespace DirectX;
+
+D3D12RaytracingDynamicGeometry* g_pSample = nullptr;
+
 // Shader entry points.
 const wchar_t* D3D12RaytracingDynamicGeometry::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingDynamicGeometry::c_intersectionShaderNames[] =
@@ -1065,11 +1068,15 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 	// Reset the command list for the acceleration structure construction.
 	commandList->Reset(commandAllocator, nullptr);
 
-	// Set per AS?
+	// Todo Set per AS?
+#if AS_BUILD_DEBUG
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags =
+		m_ASBuildQuality;
+#else
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags =
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
 		| m_ASBuildQuality;
-
+#endif
 	// Initialize bottom-level AS.
 	UINT64 maxScratchResourceSize = 0;
 	{
@@ -1089,6 +1096,19 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 	AllocateUAVBuffer(device, maxScratchResourceSize, &m_accelerationStructureScratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"Acceleration structure scratch resource");
 
 	UpdateAccelerationStructures(true);
+
+	// Create a wrapped pointer to the acceleration structure.
+	if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
+	{
+		UINT numBufferElements = static_cast<UINT>(m_topLevelAS.PrebuildInfo().ResultDataMaxSizeInBytes) / sizeof(UINT32);
+		m_fallbackTopLevelAccelerationStructurePointer = CreateFallbackWrappedPointer(m_topLevelAS.GetResource(), numBufferElements);
+	}
+
+	// Kick off acceleration structure construction.
+	m_deviceResources->ExecuteCommandList(true);
+
+	// Wait for GPU to finish as the locally created temporary GPU resources will get released once we go out of scope.
+	m_deviceResources->WaitForGpu();
 }
 
 // Build shader tables.
@@ -1417,8 +1437,9 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     }
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
+#if !AS_BUILD_DEBUG
 	UpdateGeometries();
-	
+#endif
 	
 	if (m_enableUI)
 	{
@@ -1750,7 +1771,9 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 	}
 
 	// Update acceleration structures.
+#if !AS_BUILD_DEBUG
 	UpdateAccelerationStructures();
+#endif
 
 	// Render.
     DoRaytracing();
