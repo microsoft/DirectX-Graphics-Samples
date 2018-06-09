@@ -58,9 +58,9 @@ BottomLevelAccelerationStructure::BottomLevelAccelerationStructure() :
 {
 }
 
-void BottomLevelAccelerationStructure::CopyInstanceDescTo(void* destInstanceDesc)
+void BottomLevelAccelerationStructure::BuildInstanceDesc(void* destInstanceDesc)
 {
-	auto BuildInstanceDesc = [&](auto* instanceDesc, auto bottomLevelAddress)
+	auto InitializeInstanceDesc = [&](auto* instanceDesc, auto bottomLevelAddress)
 	{
 		*instanceDesc = {};
 		instanceDesc->InstanceMask = 1;
@@ -73,11 +73,11 @@ void BottomLevelAccelerationStructure::CopyInstanceDescTo(void* destInstanceDesc
 	{
 		WRAPPED_GPU_POINTER bottomLevelASaddress =
 			g_pSample->CreateFallbackWrappedPointer(m_accelerationStructure.Get(), static_cast<UINT>(m_prebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32));
-		BuildInstanceDesc(static_cast<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC*>(destInstanceDesc), bottomLevelASaddress);
+		InitializeInstanceDesc(static_cast<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC*>(destInstanceDesc), bottomLevelASaddress);
 	}
 	else // DirectX Raytracing
 	{
-		BuildInstanceDesc(static_cast<D3D12_RAYTRACING_INSTANCE_DESC*>(destInstanceDesc), m_accelerationStructure->GetGPUVirtualAddress());
+		InitializeInstanceDesc(static_cast<D3D12_RAYTRACING_INSTANCE_DESC*>(destInstanceDesc), m_accelerationStructure->GetGPUVirtualAddress());
 	}
 };
 
@@ -211,10 +211,13 @@ void TopLevelAccelerationStructure::BuildInstanceDescs(ID3D12Device* device, std
 {
 	auto CreateInstanceDescs = [&](auto* structuredBufferInstanceDescs)
 	{
-		structuredBufferInstanceDescs->Create(device, static_cast<UINT>(vBottomLevelAS.size()), 1, L"Instance descs.");
+		if (structuredBufferInstanceDescs->Size() == 0)
+		{
+			structuredBufferInstanceDescs->Create(device, static_cast<UINT>(vBottomLevelAS.size()), 1, L"Instance descs.");
+		}
 		for (UINT i = 0; i < vBottomLevelAS.size(); i++)
 		{
-			vBottomLevelAS[i].CopyInstanceDescTo(&((*structuredBufferInstanceDescs)[i]));
+			vBottomLevelAS[i].BuildInstanceDesc(&((*structuredBufferInstanceDescs)[i]));
 		}
 		structuredBufferInstanceDescs->CopyStagingToGpu();
 	};
@@ -237,9 +240,12 @@ void TopLevelAccelerationStructure::UpdateInstanceDescTransforms(std::vector<Bot
 		{
 			if (vBottomLevelAS[i].IsDirty())
 			{
-				vBottomLevelAS[i].CopyInstanceDescTo(&structuredBufferInstanceDescs[i]);
+				StoreXMMatrixAsTransform3x4(
+					(*structuredBufferInstanceDescs)[i].Transform,
+					vBottomLevelAS[i].GetTransform());
 			}
 		}
+		structuredBufferInstanceDescs->CopyStagingToGpu();
 	};
 
 	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)

@@ -70,7 +70,7 @@ typedef UINT16 Index;
 // as drivers may apply optimization strategies for low recursion depths.
 #define MAX_RAY_RECURSION_DEPTH 3    // ~ primary rays + reflections + shadow rays from reflected geometry.
 
-#define AS_BUILD_DEBUG 1
+#define AS_BUILD_DEBUG 0
 #define AS_BUILD_OLD 0
 
 struct ProceduralPrimitiveAttributes

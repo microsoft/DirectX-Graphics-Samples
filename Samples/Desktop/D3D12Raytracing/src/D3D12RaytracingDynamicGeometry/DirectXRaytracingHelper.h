@@ -100,7 +100,7 @@ public:
 
 	void Initialize(ID3D12Device* device, const std::vector<TriangleGeometryBuffer>& geometries, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
 	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
-	void CopyInstanceDescTo(void* destInstanceDesc);
+	void BuildInstanceDesc(void* destInstanceDesc);
 	void SetTransform(const DirectX::XMMATRIX& transform)
 	{
 		m_transform = transform;
@@ -133,11 +133,11 @@ public:
 
 	void Initialize(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
 	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
-	
+	void UpdateInstanceDescTransforms(std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS);
+
 private:
 	void ComputePrebuildInfo();
 	void BuildInstanceDescs(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS);
-	void UpdateInstanceDescTransforms(std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS);
 };
 
 // Shader record = {{Shader ID}, {RootArguments}}

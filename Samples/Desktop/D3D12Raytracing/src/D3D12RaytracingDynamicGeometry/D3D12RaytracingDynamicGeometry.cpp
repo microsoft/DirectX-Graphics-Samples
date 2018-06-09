@@ -161,7 +161,8 @@ void D3D12RaytracingDynamicGeometry::UpdateGeometries()
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
 	float animationDuration = 24.0f;
-    const float t = CalculateAnimationInterpolant(static_cast<float>(m_timer.GetTotalSeconds()), animationDuration);
+    float t = CalculateAnimationInterpolant(static_cast<float>(m_timer.GetTotalSeconds()), animationDuration);
+	t += -0.5f;
 
 	float amplitude = 12.0f;
 	XMFLOAT4 translationVector = XMFLOAT4(0, 1, 0, 0);
@@ -729,12 +730,15 @@ void D3D12RaytracingDynamicGeometry::BuildSphereGeometry()
     const UINT NumObjectsPerBLAS = 1;
     const float GeometryRange = 10.f;
     const bool RhCoords = false;
-	// Tesselation Factor - Indices:
+	// Tesselation Factor - # Indices:
+	// o 3  - 126
+	// o 4  - 216
 	// o 5  - 330
 	// o 10 - 1260
 	// o 16 - 3681
 	// o 20 - 4920
-    const size_t TesselationFactor = 5;
+	// ToDo 3 - causes buffer overrun 
+    const size_t TesselationFactor = 4;	// 3+
 	ThrowIfFalse(NumObjectsPerBLAS == 1, L"ToDo");
     m_geometries.resize(NumObjectsPerBLAS);
 
@@ -1471,6 +1475,9 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 {
 	auto commandList = m_deviceResources->GetCommandList();
 	bool isTopLevelASUpdateNeeded = false;
+
+	// ToDo move this next to TLAS build? But BLAS update resets dirty flag
+	m_topLevelAS.UpdateInstanceDescTransforms(m_vBottomLevelAS);
 
 	for (auto& bottomLevelAS : m_vBottomLevelAS)
 	{
