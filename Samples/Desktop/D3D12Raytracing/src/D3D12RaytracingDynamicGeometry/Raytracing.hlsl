@@ -186,6 +186,10 @@ void MyRaygenShader()
 [shader("closesthit")]
 void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
 {
+#if SINGLE_COLOR_SHADING
+	rayPayload.color = float4(1, 0, 0, 1);
+	return;
+#endif
     // Get the base index of the triangle's first 16 bit index.
     uint indexSizeInBytes = 2;
     uint indicesPerTriangle = 3;

@@ -39,6 +39,11 @@
 #include <unordered_map>
 #include <functional>
 
+#include <stdint.h>
+#include <float.h>
+#include <map>
+#include <set>
+
 #include <dxgi1_6.h>
 #include "d3d12_1.h"
 #include <atlbase.h>

@@ -29,7 +29,7 @@ class D3D12RaytracingDynamicGeometry : public DXSample
 {
 public:
 	D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name);
-
+	~D3D12RaytracingDynamicGeometry();
 	// IDeviceNotify
 	virtual void OnDeviceLost() override;
 	virtual void OnDeviceRestored() override;
@@ -64,7 +64,6 @@ private:
 	const float c_aabbDistance = 2;   // Distance between AABBs.
 
 	// DynamicGeometry
-	UINT m_numBLAS;
 	std::vector<BottomLevelAccelerationStructure> m_vBottomLevelAS;
 	TopLevelAccelerationStructure m_topLevelAS;
 	ComPtr<ID3D12Resource> m_accelerationStructureScratch;
@@ -133,6 +132,7 @@ private:
 	StepTimer m_timer;
 	bool m_animateCamera;
 	bool m_animateLight;
+	bool m_animateScene;
 	XMVECTOR m_eye;
 	XMVECTOR m_at;
 	XMVECTOR m_up;
@@ -143,8 +143,7 @@ private:
 	float m_fps;
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS m_ASBuildQuality;
 	UINT m_activeUIparameter;
-	//	vector<NumVar> m_uiParameters[UIParameters::Count];
-
+	UINT m_numTrianglesPerGeometry;
 
 
     void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
@@ -176,7 +175,7 @@ private:
     void BuildDynamicGeometryAABBs();
     void BuildGeometry();
     void BuildPlaneGeometry();
-    void BuildSphereGeometry();
+    void BuildTesselatedGeometry();
     void BuildGeometryDescsForBottomLevelAS(std::array<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count>& geometryDescs);
     template <class InstanceDescType, class BLASPtrType>
     void BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
@@ -188,4 +187,5 @@ private:
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
     void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();
+	float NumMRaysPerSecond();
 };

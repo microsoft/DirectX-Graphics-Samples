@@ -51,6 +51,18 @@ inline void ThrowIfFailed(HRESULT hr, const wchar_t* msg)
     }
 }
 
+template<typename... Args>
+inline void ThrowIfFailed(HRESULT hr, const wchar_t* format, Args... args)
+{
+	if (FAILED(hr))
+	{
+		WCHAR msg[128];
+		swprintf_s(msg, format, args...);
+		OutputDebugString(msg);
+		throw HrException(hr);
+	}
+}
+
 inline void ThrowIfFalse(bool value)
 {
     ThrowIfFailed(value ? S_OK : E_FAIL);

@@ -87,6 +87,8 @@ namespace GeometryType {
 namespace GpuTimers {
 	enum Enum {
 		Raytracing = 0,
+		UpdateBLAS,
+		UpdateTLAS,
 		Count
 	};
 }
