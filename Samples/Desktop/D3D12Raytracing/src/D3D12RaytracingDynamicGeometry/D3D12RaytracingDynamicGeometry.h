@@ -46,14 +46,18 @@ public:
 	virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
 
 	UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
-	UINT CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
-	WRAPPED_GPU_POINTER CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements);
+	void CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex);
+	WRAPPED_GPU_POINTER CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements, UINT* descriptorHeapIndex);
 
 	RaytracingAPI GetRaytracingAPI() { return m_raytracingAPI; }
 	ID3D12RaytracingFallbackDevice* GetFallbackDevice() { return m_fallbackDevice.Get(); }
 	ID3D12RaytracingFallbackCommandList* GetFallbackCommandList() { return m_fallbackCommandList.Get(); }
 	ID3D12DeviceRaytracingPrototype* GetDxrDevice() { return m_dxrDevice.Get(); }
 	ID3D12CommandListRaytracingPrototype* GetDxrCommandList() { return m_dxrCommandList.Get(); }
+
+
+	static const UINT MaxBLAS = 1000;
+	static const UINT MaxGeometries = 1;
 
 private:
 	static const UINT FrameCount = 3;
@@ -73,6 +77,9 @@ private:
 	ComPtr<ID3D12RaytracingFallbackCommandList> m_fallbackCommandList;
 	ComPtr<ID3D12RaytracingFallbackStateObject> m_fallbackStateObject;
 	WRAPPED_GPU_POINTER m_fallbackTopLevelAccelerationStructurePointer;
+	std::vector<UINT> m_bottomLevelASdescritorHeapIndices;
+	std::vector<UINT> m_bottomLevelASinstanceDescsDescritorHeapIndices;
+	UINT m_topLevelASdescritorHeapIndex;
 
 	// DirectX Raytracing (DXR) attributes
 	ComPtr<ID3D12DeviceRaytracingPrototype> m_dxrDevice;
@@ -102,6 +109,8 @@ private:
 	D3DBuffer m_indexBuffer;
 	D3DBuffer m_vertexBuffer;
 	D3DBuffer m_aabbBuffer;
+	std::vector<UINT> m_geometryIBHeapIndices;
+	std::vector<UINT> m_geometryVBHeapIndices;
 
 	DX::GPUTimer m_gpuTimers[GpuTimers::Count];
 
@@ -144,7 +153,9 @@ private:
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS m_ASBuildQuality;
 	UINT m_activeUIparameter;
 	UINT m_numTrianglesPerGeometry;
-
+	bool m_isGeometryInitializationRequested;
+	bool m_isASinitializationRequested;
+	bool m_isASrebuildRequested;
 
     void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
@@ -173,7 +184,7 @@ private:
     void CreateRaytracingOutputResource();
 	void CreateAuxilaryDeviceResources();
     void BuildDynamicGeometryAABBs();
-    void BuildGeometry();
+    void InitializeGeometry();
     void BuildPlaneGeometry();
     void BuildTesselatedGeometry();
     void BuildGeometryDescsForBottomLevelAS(std::array<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count>& geometryDescs);

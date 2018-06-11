@@ -58,7 +58,7 @@ BottomLevelAccelerationStructure::BottomLevelAccelerationStructure() :
 {
 }
 
-void BottomLevelAccelerationStructure::BuildInstanceDesc(void* destInstanceDesc)
+void BottomLevelAccelerationStructure::BuildInstanceDesc(void* destInstanceDesc, UINT* descriptorHeapIndex)
 {
 	auto InitializeInstanceDesc = [&](auto* instanceDesc, auto bottomLevelAddress)
 	{
@@ -72,7 +72,7 @@ void BottomLevelAccelerationStructure::BuildInstanceDesc(void* destInstanceDesc)
 	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
 	{
 		WRAPPED_GPU_POINTER bottomLevelASaddress =
-			g_pSample->CreateFallbackWrappedPointer(m_accelerationStructure.Get(), static_cast<UINT>(m_prebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32));
+			g_pSample->CreateFallbackWrappedPointer(m_accelerationStructure.Get(), static_cast<UINT>(m_prebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32), descriptorHeapIndex);
 		InitializeInstanceDesc(static_cast<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC*>(destInstanceDesc), bottomLevelASaddress);
 	}
 	else // DirectX Raytracing
@@ -207,7 +207,7 @@ void TopLevelAccelerationStructure::ComputePrebuildInfo()
 	ThrowIfFalse(m_prebuildInfo.ResultDataMaxSizeInBytes > 0);
 }
 
-void TopLevelAccelerationStructure::BuildInstanceDescs(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS)
+void TopLevelAccelerationStructure::BuildInstanceDescs(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices)
 {
 	auto CreateInstanceDescs = [&](auto* structuredBufferInstanceDescs)
 	{
@@ -217,7 +217,7 @@ void TopLevelAccelerationStructure::BuildInstanceDescs(ID3D12Device* device, std
 		}
 		for (UINT i = 0; i < vBottomLevelAS.size(); i++)
 		{
-			vBottomLevelAS[i].BuildInstanceDesc(&((*structuredBufferInstanceDescs)[i]));
+			vBottomLevelAS[i].BuildInstanceDesc(&((*structuredBufferInstanceDescs)[i]), &(*bottomLevelASinstanceDescsDescritorHeapIndices)[i]);
 		}
 		structuredBufferInstanceDescs->CopyStagingToGpu();
 	};
@@ -269,10 +269,10 @@ UINT TopLevelAccelerationStructure::NumberOfBLAS()
 		return static_cast<UINT>(m_dxrInstanceDescs.NumElementsPerInstance());
 	}
 }
-void TopLevelAccelerationStructure::Initialize(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
+void TopLevelAccelerationStructure::Initialize(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags, vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices)
 {
 	m_buildFlags = buildFlags;
-	BuildInstanceDescs(device, vBottomLevelAS);
+	BuildInstanceDescs(device, vBottomLevelAS, bottomLevelASinstanceDescsDescritorHeapIndices);
 	ComputePrebuildInfo();
 	AllocateResource(device);
 }

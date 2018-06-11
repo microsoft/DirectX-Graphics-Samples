@@ -243,11 +243,17 @@ EngineVar* VariableGroup::PrevVariable( EngineVar* curVar )
 //=====================================================================================================================
 // EngineVar implementations
 
-EngineVar::EngineVar( void ) : m_GroupPtr(nullptr)
+EngineVar::EngineVar(function<void(void*)> callback, void* args) :
+	m_GroupPtr(nullptr),
+	m_Callback(callback),
+	m_Arguments(args)
 {
 }
 
-EngineVar::EngineVar( const wstring& path ) : m_GroupPtr(nullptr)
+EngineVar::EngineVar( const wstring& path, function<void(void*)> callback, void* args) : 
+	m_GroupPtr(nullptr),
+	m_Callback(callback),
+	m_Arguments(args)
 {
     EngineTuning::RegisterVariable(path, *this);
 }
@@ -277,8 +283,17 @@ EngineVar* EngineVar::PrevVar( void )
     return prev != nullptr ? prev : this;
 }
 
-BoolVar::BoolVar( const wstring& path, bool val )
-    : EngineVar(path)
+void EngineVar::OnChanged() 
+{
+	if (m_Callback)
+	{
+		m_Callback(m_Arguments);
+	}
+}
+
+
+BoolVar::BoolVar( const wstring& path, bool val, function<void(void*)> callback, void* args)
+    : EngineVar(path, callback, args)
 {
     m_Flag = val;
 }
@@ -309,8 +324,8 @@ void BoolVar::SetValue(FILE* file, const wstring& setting)
         0 == _wcsicmp(valstr, L"true") );
 }
 
-NumVar::NumVar( const wstring& path, float val, float minVal, float maxVal, float stepSize )
-    : EngineVar(path)
+NumVar::NumVar( const wstring& path, float val, float minVal, float maxVal, float stepSize, function<void(void*)> callback, void* args)
+    : EngineVar(path, callback, args)
 {
     ThrowIfFailed(minVal <= maxVal);
     m_MinValue = minVal;
@@ -346,7 +361,7 @@ __forceinline float log2( float x ) { return log(x) / log(2.0f); }
 __forceinline float exp2( float x ) { return pow(2.0f, x); }
 #endif
 
-ExpVar::ExpVar( const wstring& path, float val, float minExp, float maxExp, float expStepSize )
+ExpVar::ExpVar( const wstring& path, float val, float minExp, float maxExp, float expStepSize, function<void(void*)> callback, void* args)
     : NumVar(path, log2(val), minExp, maxExp, expStepSize)
 {
 }
@@ -384,8 +399,8 @@ void ExpVar::SetValue(FILE* file, const wstring& setting)
         *this = valueRead;
 }
 
-IntVar::IntVar( const wstring& path, int32_t val, int32_t minVal, int32_t maxVal, int32_t stepSize )
-    : EngineVar(path)
+IntVar::IntVar( const wstring& path, int32_t val, int32_t minVal, int32_t maxVal, int32_t stepSize, function<void(void*)> callback, void* args)
+    : EngineVar(path, callback, args)
 {
     ThrowIfFailed(minVal <= maxVal);
     m_MinValue = minVal;
@@ -416,8 +431,8 @@ void IntVar::SetValue(FILE* file, const wstring& setting)
 }
 
 
-EnumVar::EnumVar( const wstring& path, int32_t initialVal, int32_t listLength, const WCHAR** listLabels )
-    : EngineVar(path)
+EnumVar::EnumVar( const wstring& path, int32_t initialVal, int32_t listLength, const WCHAR** listLabels, function<void(void*)> callback, void* args)
+    : EngineVar(path, callback, args)
 {
     ThrowIfFailed(listLength > 0);
     m_EnumLength = listLength;
@@ -459,10 +474,8 @@ void EnumVar::SetValue(FILE* file, const wstring& setting)
 }
 
 CallbackTrigger::CallbackTrigger( const wstring& path, function<void (void*)> callback, void* args )
-    : EngineVar(path)
+    : EngineVar(path, callback, args)
 {
-    m_Callback = callback;
-    m_Arguments = args;
     m_BangDisplay = 0;
 }
 
@@ -565,7 +578,7 @@ void StartSave(void*)
     }
 }
 function<void(void*)> StartSaveFunc = StartSave;
-static CallbackTrigger Save(L"Save Settings", StartSaveFunc, nullptr); 
+//ToDo static CallbackTrigger Save(L"Save Settings", StartSaveFunc, nullptr); 
 
 void StartLoad(void*)
 {
@@ -578,7 +591,7 @@ void StartLoad(void*)
     }
 }
 function<void(void*)> StartLoadFunc = StartLoad;
-static CallbackTrigger Load(L"Load Settings", StartLoadFunc, nullptr); 
+//ToDo static CallbackTrigger Load(L"Load Settings", StartLoadFunc, nullptr); 
 
 
 void EngineTuning::Display( wstringstream* renderText)

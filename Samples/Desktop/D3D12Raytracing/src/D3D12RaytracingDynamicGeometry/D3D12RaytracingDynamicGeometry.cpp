@@ -53,9 +53,13 @@ const wchar_t* D3D12RaytracingDynamicGeometry::c_hitGroupNames_AABBGeometry[][Ra
 
 namespace SceneArgs
 {
+	//function<void(void*)> OnASChangeFunc = OnASparameterChange;
+
 	enum RaytracingMode { FLDXR = 0, FL, DXR };
 	const WCHAR* RaytracingModes[] = { L"FL-DXR", L"FL",L"DXR" };
 	EnumVar RaytracingMode(L"RaytracingMode", FLDXR, _countof(RaytracingModes), RaytracingModes);
+
+	BoolVar EnableGeometryAndASRebuilds(L"Enable geometry & AS rebuilds", true);
 
 	enum UpdateMode { Build = 0, Update, Mix };
 	const WCHAR* UpdateModes[] = { L"Build only", L"Update only", L"Update + rebuild every X frames" };
@@ -69,8 +73,8 @@ namespace SceneArgs
 	
 
 	IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 2, 0, 40, 1);
-	IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 10);
-	IntVar NumBLAS(L"Geometry/# BLAS", 1, 1, 1000, 10);
+	IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1);
+	IntVar NumBLAS(L"Geometry/# BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1);
 };
 
 D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name) :
@@ -85,16 +89,20 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_missShaderTableStrideInBytes(UINT_MAX),
     m_hitGroupShaderTableStrideInBytes(UINT_MAX),
     m_forceComputeFallback(false),	
-	m_numTrianglesPerGeometry(0)
+	m_numTrianglesPerGeometry(0),
+	m_isGeometryInitializationRequested(true),
+	m_isASinitializationRequested(true),
+	m_isASrebuildRequested(true)
 {
-	// ToDo 
 	g_pSample = this;
-
     m_forceComputeFallback = false;
     SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
     UpdateForSizeChange(width, height);
-
-//	m_uiParameters[UIParameters::BuildQuality].Initialize(0
+	m_bottomLevelASdescritorHeapIndices.resize(MaxBLAS, UINT_MAX);
+	m_bottomLevelASinstanceDescsDescritorHeapIndices.resize(MaxBLAS, UINT_MAX);
+	m_topLevelASdescritorHeapIndex = UINT_MAX;
+	m_geometryIBHeapIndices.resize(MaxGeometries, UINT_MAX);
+	m_geometryVBHeapIndices.resize(MaxGeometries, UINT_MAX);
 }
 
 void D3D12RaytracingDynamicGeometry::EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter)
@@ -314,11 +322,11 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
     CreateDescriptorHeap();
 
     // Build geometry to be used in the sample.
-    BuildGeometry();
-
+	m_isGeometryInitializationRequested = true;
+	
     // Build raytracing acceleration structures from the generated geometry.
-	InitializeAccelerationStructures();
-
+	m_isASinitializationRequested = true;
+	
     // Create constant buffers for the geometry and the scene.
     CreateConstantBuffers();
 
@@ -625,11 +633,12 @@ void D3D12RaytracingDynamicGeometry::CreateDescriptorHeap()
     auto device = m_deviceResources->GetD3DDevice();
 
     D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-    // Allocate a heap for 6 descriptors:
-    // 2 - vertex and index  buffer SRVs
+    // Allocate a heap for descriptors:
+    // 2 per geometry - vertex and index  buffer SRVs
     // 1 - raytracing output texture SRV
-    // 3 - 2x bottom and a top level acceleration structure fallback wrapped pointer UAVs
-    descriptorHeapDesc.NumDescriptors = 6;
+    // 2 per BLAS - one for the acceleration structure and one for its instance desc 
+	// 1 - top level acceleration structure
+	descriptorHeapDesc.NumDescriptors = 2 * MaxGeometries + 1 + 2 * MaxBLAS + 1;
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
@@ -701,7 +710,8 @@ void D3D12RaytracingDynamicGeometry::BuildDynamicGeometryAABBs()
 
 void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
 {
-    auto device = m_deviceResources->GetD3DDevice();
+#if 0
+	auto device = m_deviceResources->GetD3DDevice();
     // Plane indices.
     Index indices[] =
     {
@@ -726,6 +736,7 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
     UINT descriptorIndexIB = CreateBufferSRV(&m_indexBuffer, sizeof(indices) / 4, 0);
     UINT descriptorIndexVB = CreateBufferSRV(&m_vertexBuffer, ARRAYSIZE(vertices), sizeof(vertices[0]));
     ThrowIfFalse(descriptorIndexVB == descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
+#endif
 }
 
 void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
@@ -770,22 +781,17 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
     AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
     
 	// Vertex buffer is passed to the shader along with index buffer as a descriptor range.
-	UINT descriptorIndexIB = CreateBufferSRV(&geometry.ib, static_cast<UINT>(indices.size()) / sizeof(UINT) * sizeof(Index), 0);
-	UINT descriptorIndexVB = CreateBufferSRV(&geometry.vb, static_cast<UINT>(vertices.size()), sizeof(vertices[0]));
-	ThrowIfFalse(descriptorIndexVB == descriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
+	CreateBufferSRV(&geometry.ib, static_cast<UINT>(indices.size()) / sizeof(UINT) * sizeof(Index), 0, &m_geometryIBHeapIndices[0]);
+	CreateBufferSRV(&geometry.vb, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), &m_geometryVBHeapIndices[0]);
+	ThrowIfFalse(m_geometryVBHeapIndices[0] == m_geometryIBHeapIndices[0] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
 	m_numTrianglesPerGeometry = static_cast<UINT>(indices.size()) / 3;
 }
 
 // Build geometry used in the sample.
-void D3D12RaytracingDynamicGeometry::BuildGeometry()
+void D3D12RaytracingDynamicGeometry::InitializeGeometry()
 {
-    BuildDynamicGeometryAABBs();
-#if RENDER_SPHERES
 	BuildTesselatedGeometry();
-#else
-	BuildPlaneGeometry();
-#endif
 }
 
 AccelerationStructureBuffers D3D12RaytracingDynamicGeometry::BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
@@ -1026,8 +1032,8 @@ AccelerationStructureBuffers D3D12RaytracingDynamicGeometry::BuildTopLevelAS(Acc
 		D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC instanceDescs[BottomLevelASType::Count] = {};
 		WRAPPED_GPU_POINTER bottomLevelASaddresses[BottomLevelASType::Count] =
 		{
-			CreateFallbackWrappedPointer(bottomLevelAS[0].accelerationStructure.Get(), static_cast<UINT>(bottomLevelAS[0].ResultDataMaxSizeInBytes) / sizeof(UINT32)),
-			CreateFallbackWrappedPointer(bottomLevelAS[1].accelerationStructure.Get(), static_cast<UINT>(bottomLevelAS[1].ResultDataMaxSizeInBytes) / sizeof(UINT32))
+			CreateFallbackWrappedPointer(bottomLevelAS[0].accelerationStructure.Get(), static_cast<UINT>(bottomLevelAS[0].ResultDataMaxSizeInBytes) / sizeof(UINT32), &m_bottomLevelASdescritorHeapIndices[0]),
+			CreateFallbackWrappedPointer(bottomLevelAS[1].accelerationStructure.Get(), static_cast<UINT>(bottomLevelAS[1].ResultDataMaxSizeInBytes) / sizeof(UINT32), &m_bottomLevelASdescritorHeapIndices[1])
 		};
 		BuildBotomLevelASInstanceDescs<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC>(bottomLevelASaddresses, &instanceDescsResource);
 	}
@@ -1046,7 +1052,7 @@ AccelerationStructureBuffers D3D12RaytracingDynamicGeometry::BuildTopLevelAS(Acc
 	if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
 	{
 		UINT numBufferElements = static_cast<UINT>(topLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
-		m_fallbackTopLevelAccelerationStructurePointer = CreateFallbackWrappedPointer(topLevelAS.Get(), numBufferElements);
+		m_fallbackTopLevelAccelerationStructurePointer = CreateFallbackWrappedPointer(topLevelAS.Get(), numBufferElements, &m_topLevelASdescritorHeapIndex);
 	}
 
 	// Top-level AS desc
@@ -1088,13 +1094,7 @@ AccelerationStructureBuffers D3D12RaytracingDynamicGeometry::BuildTopLevelAS(Acc
 void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 {
 	auto device = m_deviceResources->GetD3DDevice();
-	auto commandList = m_deviceResources->GetCommandList();
-	auto commandQueue = m_deviceResources->GetCommandQueue();
-	auto commandAllocator = m_deviceResources->GetCommandAllocator();
-
-	// Reset the command list for the acceleration structure construction.
-	commandList->Reset(commandAllocator, nullptr);
-
+	
 	// Build flags.
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
 	{
@@ -1109,7 +1109,7 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 		default: break;
 		};
 
-		if (SceneArgs::ASAllowUpdate) buildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;		
+		if (SceneArgs::ASAllowUpdate) buildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
 		if (SceneArgs::ASMinimizeMemory) buildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_MINIMIZE_MEMORY;
 	}
 
@@ -1123,7 +1123,7 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 
 	// Initialize top-level AS.
 	{
-		m_topLevelAS.Initialize(device, m_vBottomLevelAS, buildFlags);
+		m_topLevelAS.Initialize(device, m_vBottomLevelAS, buildFlags, &m_bottomLevelASinstanceDescsDescritorHeapIndices);
 		maxScratchResourceSize = max(m_topLevelAS.RequiredScratchSize(), maxScratchResourceSize);
 	}
 
@@ -1131,21 +1131,7 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 	// ToDo: Compare build perf vs using per AS scratch
 	AllocateUAVBuffer(device, maxScratchResourceSize, &m_accelerationStructureScratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"Acceleration structure scratch resource");
 
-
-	UpdateAccelerationStructures(true);
-
-	// Create a wrapped pointer to the acceleration structure.
-	if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-	{
-		UINT numBufferElements = static_cast<UINT>(m_topLevelAS.PrebuildInfo().ResultDataMaxSizeInBytes) / sizeof(UINT32);
-		m_fallbackTopLevelAccelerationStructurePointer = CreateFallbackWrappedPointer(m_topLevelAS.GetResource(), numBufferElements);
-	}
-
-	// Kick off acceleration structure construction.
-	m_deviceResources->ExecuteCommandList(true);
-
-	// Wait for GPU to finish as the locally created temporary GPU resources will get released once we go out of scope.
-	m_deviceResources->WaitForGpu();
+	m_isASrebuildRequested = true;
 }
 
 // Build shader tables.
@@ -1482,11 +1468,6 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     }
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
-	if (m_animateScene)
-	{
-		UpdateGeometries();
-	}
-	
 	if (m_enableUI)
 	{
 		UpdateUI();
@@ -1539,7 +1520,6 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 		m_gpuTimers[GpuTimers::UpdateTLAS].Start(commandList);
 		m_topLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get());
 		m_gpuTimers[GpuTimers::UpdateTLAS].Stop(commandList);
-
 	}
 }
 
@@ -1790,10 +1770,27 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 		gpuTimer.BeginFrame(commandList);
 	}
 
-	// Update acceleration structures.
-#if !AS_BUILD_DEBUG
-	UpdateAccelerationStructures();
-#endif
+	// Lazy initialize and update geometries and acceleration structures.
+	{
+		if (m_isGeometryInitializationRequested && SceneArgs::EnableGeometryAndASRebuilds)
+		{
+			InitializeGeometry();
+			m_isGeometryInitializationRequested = false;
+		}
+		if (m_isASinitializationRequested && SceneArgs::EnableGeometryAndASRebuilds)
+		{
+			InitializeAccelerationStructures();
+			m_isASinitializationRequested = false;
+		}
+		// ToDo - move this to OnUpdate. It depends on part of AS being initialized
+		if (m_animateScene)
+		{
+			UpdateGeometries();
+		}
+
+		UpdateAccelerationStructures(m_isASrebuildRequested);
+		m_isASrebuildRequested = false;
+	}
 
 	// Render.
     DoRaytracing();
@@ -1900,7 +1897,7 @@ void D3D12RaytracingDynamicGeometry::OnSizeChanged(UINT width, UINT height, bool
 }
 
 // Create a wrapped pointer for the Fallback Layer path.
-WRAPPED_GPU_POINTER D3D12RaytracingDynamicGeometry::CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements)
+WRAPPED_GPU_POINTER D3D12RaytracingDynamicGeometry::CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements, UINT* descriptorHeapIndex)
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -1913,13 +1910,12 @@ WRAPPED_GPU_POINTER D3D12RaytracingDynamicGeometry::CreateFallbackWrappedPointer
     D3D12_CPU_DESCRIPTOR_HANDLE bottomLevelDescriptor;
 
     // Only compute fallback requires a valid descriptor index when creating a wrapped pointer.
-    UINT descriptorHeapIndex = 0;
     if (!m_fallbackDevice->UsingRaytracingDriver())
     {
-        descriptorHeapIndex = AllocateDescriptor(&bottomLevelDescriptor);
+        *descriptorHeapIndex = AllocateDescriptor(&bottomLevelDescriptor, *descriptorHeapIndex);
         device->CreateUnorderedAccessView(resource, nullptr, &rawBufferUavDesc, bottomLevelDescriptor);
     }
-    return m_fallbackDevice->GetWrappedPointerSimple(descriptorHeapIndex, resource->GetGPUVirtualAddress());
+    return m_fallbackDevice->GetWrappedPointerSimple(*descriptorHeapIndex, resource->GetGPUVirtualAddress());
 }
 
 // Allocate a descriptor and return its index. 
@@ -1937,7 +1933,7 @@ UINT D3D12RaytracingDynamicGeometry::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HAN
 }
 
 // Create a SRV for a buffer.
-UINT D3D12RaytracingDynamicGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
+void D3D12RaytracingDynamicGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex)
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -1958,8 +1954,7 @@ UINT D3D12RaytracingDynamicGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT num
         srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
         srvDesc.Buffer.StructureByteStride = elementSize;
     }
-    UINT descriptorIndex = AllocateDescriptor(&buffer->cpuDescriptorHandle);
+    *descriptorHeapIndex = AllocateDescriptor(&buffer->cpuDescriptorHandle, *descriptorHeapIndex);
     device->CreateShaderResourceView(buffer->resource.Get(), &srvDesc, buffer->cpuDescriptorHandle);
-    buffer->gpuDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), descriptorIndex, m_descriptorSize);
-    return descriptorIndex;
+    buffer->gpuDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), *descriptorHeapIndex, m_descriptorSize);
 };
