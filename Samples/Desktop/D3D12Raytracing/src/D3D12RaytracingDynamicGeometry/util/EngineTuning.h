@@ -71,9 +71,8 @@ public:
     NumVar& operator=( float val ) { m_Value = Clamp(val); return *this; }
     operator float() const { return m_Value; }
 
-    virtual void Increment() override { m_Value = Clamp(m_Value + m_StepSize); OnChanged();
-	}
-    virtual void Decrement() override { m_Value = Clamp(m_Value - m_StepSize); }
+    virtual void Increment() override { m_Value = Clamp(m_Value + m_StepSize); OnChanged(); }
+    virtual void Decrement() override { m_Value = Clamp(m_Value - m_StepSize); OnChanged(); }
 
     virtual std::wstring ToFormattedString() const override;
     virtual std::wstring ToString() const override;
@@ -109,7 +108,7 @@ public:
     operator int32_t() const { return m_Value; }
 
     virtual void Increment() override { m_Value = Clamp(m_Value + m_StepSize); OnChanged(); }
-    virtual void Decrement() override { m_Value = Clamp(m_Value - m_StepSize); }
+	virtual void Decrement() override { m_Value = Clamp(m_Value - m_StepSize); OnChanged(); }
 
     virtual std::wstring ToFormattedString() const override;
     virtual std::wstring ToString() const override;
@@ -132,7 +131,7 @@ public:
     operator int32_t() const { return m_Value; }
 
     virtual void Increment() override { m_Value = (m_Value + 1) % m_EnumLength; OnChanged(); }
-    virtual void Decrement() override { m_Value = (m_Value + m_EnumLength - 1) % m_EnumLength; }
+    virtual void Decrement() override { m_Value = (m_Value + m_EnumLength - 1) % m_EnumLength; OnChanged();	}
 
     virtual std::wstring ToFormattedString() const override;
     virtual std::wstring ToString() const override;

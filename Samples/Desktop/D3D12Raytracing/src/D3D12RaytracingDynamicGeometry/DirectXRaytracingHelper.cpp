@@ -82,7 +82,7 @@ void BottomLevelAccelerationStructure::BuildInstanceDesc(void* destInstanceDesc,
 };
 
 // Build geometry descs for bottom-level AS.
-void BottomLevelAccelerationStructure::BuildGeometryDescs(const std::vector<TriangleGeometryBuffer>& geometries)
+void BottomLevelAccelerationStructure::BuildGeometryDescs(const vector<TriangleGeometryBuffer>& geometries)
 {
 	// ToDo pass geometry flag from the sample cpp
 	// Mark the geometry as opaque. 
@@ -106,6 +106,7 @@ void BottomLevelAccelerationStructure::BuildGeometryDescs(const std::vector<Tria
 		geometryDesc.Triangles.IndexCount = static_cast<UINT>(geometry.ib.resource->GetDesc().Width) / sizeof(Index);
 		geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress();
 		geometryDesc.Triangles.VertexCount = static_cast<UINT>(geometry.vb.resource->GetDesc().Width) / sizeof(DirectX::GeometricPrimitive::VertexType);
+		geometryDesc.Triangles.Transform = geometry.transform;
 	}
 }
 
@@ -130,7 +131,7 @@ void BottomLevelAccelerationStructure::ComputePrebuildInfo()
 	ThrowIfFalse(m_prebuildInfo.ResultDataMaxSizeInBytes > 0);
 }
 
-void BottomLevelAccelerationStructure::Initialize(ID3D12Device* device, const std::vector<TriangleGeometryBuffer>& geometries, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
+void BottomLevelAccelerationStructure::Initialize(ID3D12Device* device, const vector<TriangleGeometryBuffer>& geometries, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
 {
 	m_buildFlags = buildFlags;
 	BuildGeometryDescs(geometries);
@@ -207,7 +208,7 @@ void TopLevelAccelerationStructure::ComputePrebuildInfo()
 	ThrowIfFalse(m_prebuildInfo.ResultDataMaxSizeInBytes > 0);
 }
 
-void TopLevelAccelerationStructure::BuildInstanceDescs(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices)
+void TopLevelAccelerationStructure::BuildInstanceDescs(ID3D12Device* device, vector<BottomLevelAccelerationStructure>& vBottomLevelAS, vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices)
 {
 	auto CreateInstanceDescs = [&](auto* structuredBufferInstanceDescs)
 	{
@@ -232,7 +233,7 @@ void TopLevelAccelerationStructure::BuildInstanceDescs(ID3D12Device* device, std
 	}
 }
 
-void TopLevelAccelerationStructure::UpdateInstanceDescTransforms(std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS)
+void TopLevelAccelerationStructure::UpdateInstanceDescTransforms(vector<BottomLevelAccelerationStructure>& vBottomLevelAS)
 {
 	auto UpdateTransform = [&](auto* structuredBufferInstanceDescs)
 	{
@@ -269,12 +270,19 @@ UINT TopLevelAccelerationStructure::NumberOfBLAS()
 		return static_cast<UINT>(m_dxrInstanceDescs.NumElementsPerInstance());
 	}
 }
-void TopLevelAccelerationStructure::Initialize(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags, vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices)
+void TopLevelAccelerationStructure::Initialize(ID3D12Device* device, vector<BottomLevelAccelerationStructure>& vBottomLevelAS, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags, vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices)
 {
 	m_buildFlags = buildFlags;
 	BuildInstanceDescs(device, vBottomLevelAS, bottomLevelASinstanceDescsDescritorHeapIndices);
 	ComputePrebuildInfo();
 	AllocateResource(device);
+
+	// Create a wrapped pointer to the acceleration structure.
+	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
+	{
+		UINT numBufferElements = static_cast<UINT>(m_prebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
+		m_fallbackAccelerationStructurePointer = g_pSample->CreateFallbackWrappedPointer(m_accelerationStructure.Get(), numBufferElements, &m_fallbackAccelerationStructureDescritorHeapIndex);
+	}
 }
 
 void TopLevelAccelerationStructure::Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate)

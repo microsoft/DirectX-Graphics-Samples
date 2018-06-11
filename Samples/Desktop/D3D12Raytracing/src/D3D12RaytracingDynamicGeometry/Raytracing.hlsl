@@ -83,12 +83,7 @@ float4 CalculatePhongLighting(in float4 albedo, in float3 normal, in bool isInSh
     }
 
     // Ambient component.
-    // Fake AO: Darken faces with normal facing downwards/away from the sky a little bit.
-    float4 ambientColor = g_sceneCB.lightAmbientColor;
-    float4 ambientColorMin = g_sceneCB.lightAmbientColor - 0.1;
-    float4 ambientColorMax = g_sceneCB.lightAmbientColor;
-    float a = 1 - saturate(dot(normal, float3(0, -1, 0)));
-    ambientColor = albedo * lerp(ambientColorMin, ambientColorMax, a);
+    float4 ambientColor = g_sceneCB.lightAmbientColor * albedo;
     
     return ambientColor + diffuseColor + specularColor;
 }
@@ -111,7 +106,8 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
     // Note: make sure to enable face culling so as to avoid surface face fighting.
-    rayDesc.TMin = 0;
+	// ToDo Tmin
+    rayDesc.TMin = 0.001;
     rayDesc.TMax = 10000;
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
     TraceRay(g_scene,
@@ -141,7 +137,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0.001;
-    rayDesc.TMax = 10000;
+    rayDesc.TMax = 10000;	// ToDo set this to dist to light
 
     // Initialize shadow ray payload.
     // Set the initial value to true since closest and any hit shaders are skipped. 
@@ -218,7 +214,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     Ray shadowRay = { hitPosition, normalize(g_sceneCB.lightPosition.xyz - hitPosition) };
     bool shadowRayHit = TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
 
-    float checkers = AnalyticalCheckersTexture(HitWorldPosition(), triangleNormal, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld);
+	float checkers = AnalyticalCheckersTexture(HitWorldPosition(), triangleNormal, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld);
 
     // Reflected component.
     float4 reflectedColor = float4(0, 0, 0, 0);

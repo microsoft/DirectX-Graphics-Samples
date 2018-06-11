@@ -77,7 +77,8 @@ typedef UINT16 Index;
 // - deformed geometry
 // - Dynamic options
 // - Update/Build
-#define SINGLE_COLOR_SHADING 1
+#define SINGLE_COLOR_SHADING 0
+#define SIMPLE_SHADING 1
 #define AS_BUILD_DEBUG 0
 #define AS_BUILD_OLD 0
 

@@ -55,6 +55,8 @@ public:
 	ID3D12DeviceRaytracingPrototype* GetDxrDevice() { return m_dxrDevice.Get(); }
 	ID3D12CommandListRaytracingPrototype* GetDxrCommandList() { return m_dxrCommandList.Get(); }
 
+	void RequestGeometryInitialization(bool bRequest) { m_isGeometryInitializationRequested = bRequest; }
+	void RequestASInitialization(bool bRequest) { m_isASinitializationRequested = bRequest; }
 
 	static const UINT MaxBLAS = 1000;
 	static const UINT MaxGeometries = 1;
@@ -76,7 +78,6 @@ private:
 	ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
 	ComPtr<ID3D12RaytracingFallbackCommandList> m_fallbackCommandList;
 	ComPtr<ID3D12RaytracingFallbackStateObject> m_fallbackStateObject;
-	WRAPPED_GPU_POINTER m_fallbackTopLevelAccelerationStructurePointer;
 	std::vector<UINT> m_bottomLevelASdescritorHeapIndices;
 	std::vector<UINT> m_bottomLevelASinstanceDescsDescritorHeapIndices;
 	UINT m_topLevelASdescritorHeapIndex;
@@ -114,7 +115,13 @@ private:
 
 	DX::GPUTimer m_gpuTimers[GpuTimers::Count];
 
+	struct alignas(16) AlignedGeometryTransform3x4
+	{
+		float transform3x4[12];
+	};
+
 	std::vector<TriangleGeometryBuffer> m_geometries;
+	StructuredBuffer<AlignedGeometryTransform3x4> m_geometryTransforms;
 
 	// Raytracing output
 	ComPtr<ID3D12Resource> m_raytracingOutput;
@@ -187,12 +194,7 @@ private:
     void InitializeGeometry();
     void BuildPlaneGeometry();
     void BuildTesselatedGeometry();
-    void BuildGeometryDescsForBottomLevelAS(std::array<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count>& geometryDescs);
-    template <class InstanceDescType, class BLASPtrType>
-    void BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
-    AccelerationStructureBuffers BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
-    AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
-	void InitializeAccelerationStructures();
+    void InitializeAccelerationStructures();
     void BuildShaderTables();
     void SelectRaytracingAPI(RaytracingAPI type);
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);

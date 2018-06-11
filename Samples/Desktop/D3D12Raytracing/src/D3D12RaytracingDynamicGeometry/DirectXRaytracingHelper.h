@@ -49,6 +49,7 @@ struct TriangleGeometryBuffer
 {
 	D3DBuffer ib;
 	D3DBuffer vb;
+	D3D12_GPU_VIRTUAL_ADDRESS transform;
 };
 
 enum class RaytracingAPI {
@@ -126,7 +127,7 @@ class TopLevelAccelerationStructure : public AccelerationStructure
 	};
 
 public:
-	TopLevelAccelerationStructure() {}
+	TopLevelAccelerationStructure() : m_fallbackAccelerationStructureDescritorHeapIndex(UINT_MAX) {}
 	~TopLevelAccelerationStructure();
 
 	UINT NumberOfBLAS();
@@ -135,9 +136,14 @@ public:
 	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
 	void UpdateInstanceDescTransforms(std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS);
 
+	const WRAPPED_GPU_POINTER& GetFallbackAccelerationStructurePointer() { return m_fallbackAccelerationStructurePointer; }
+
 private:
 	void ComputePrebuildInfo();
 	void BuildInstanceDescs(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, std::vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices);
+
+	UINT m_fallbackAccelerationStructureDescritorHeapIndex;
+	WRAPPED_GPU_POINTER m_fallbackAccelerationStructurePointer;
 };
 
 // Shader record = {{Shader ID}, {RootArguments}}

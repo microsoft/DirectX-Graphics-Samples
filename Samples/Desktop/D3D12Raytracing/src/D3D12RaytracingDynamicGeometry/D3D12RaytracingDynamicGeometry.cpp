@@ -53,7 +53,18 @@ const wchar_t* D3D12RaytracingDynamicGeometry::c_hitGroupNames_AABBGeometry[][Ra
 
 namespace SceneArgs
 {
-	//function<void(void*)> OnASChangeFunc = OnASparameterChange;
+	void OnGeometryReinitializationNeeded(void* args)
+	{
+		g_pSample->RequestGeometryInitialization(true);
+		g_pSample->RequestASInitialization(true);
+	}
+
+	void OnASReinitializationNeeded(void* args)
+	{
+		g_pSample->RequestASInitialization(true);
+	}
+	function<void(void*)> OnGeometryChange = OnGeometryReinitializationNeeded;
+	function<void(void*)> OnASChange = OnASReinitializationNeeded;
 
 	enum RaytracingMode { FLDXR = 0, FL, DXR };
 	const WCHAR* RaytracingModes[] = { L"FL-DXR", L"FL",L"DXR" };
@@ -65,17 +76,17 @@ namespace SceneArgs
 	const WCHAR* UpdateModes[] = { L"Build only", L"Update only", L"Update + rebuild every X frames" };
 	EnumVar ASUpdateMode(L"Acceleration structure/Update mode", Build, _countof(UpdateModes), UpdateModes);
 	IntVar ASUpdateFrequency(L"Acceleration structure/Rebuild frame frequency", 1, 1, 1200, 1);
-	BoolVar ASMinimizeMemory(L"Acceleration structure/Minimize memory", false);
+	BoolVar ASMinimizeMemory(L"Acceleration structure/Minimize memory", false, OnASChange, nullptr);
 	BoolVar ASAllowUpdate(L"Acceleration structure/Allow update", true);
 	enum BuildFlag { Default = 0,FastTrace, FastBuild };
 	const WCHAR* BuildFlags[] = { L"Default", L"Fast trace", L"Fast build" };
-	EnumVar ASBuildFlag(L"Acceleration structure/Build quality", FastTrace, _countof(BuildFlags), BuildFlags);
-	
+	EnumVar ASBuildFlag(L"Acceleration structure/Build quality", FastTrace, _countof(BuildFlags), BuildFlags, OnASChange, nullptr);
 
-	IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 2, 0, 40, 1);
-	IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1);
-	IntVar NumBLAS(L"Geometry/# BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1);
+	IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 2, 0, 80, 1, OnGeometryChange, nullptr);
+	IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1, OnGeometryChange, nullptr);
+	IntVar NumBLAS(L"Geometry/# BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnGeometryChange, nullptr);
 };
+
 
 D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
@@ -748,9 +759,8 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 
     const float GeometryRange = 10.f;
     const bool RhCoords = false;
-    m_geometries.resize(SceneArgs::NumGeometriesPerBLAS);
 
-	auto& geometry = m_geometries[0];
+	TriangleGeometryBuffer geometry;
 	const float radius = 3.0f;
 	switch (SceneArgs::GeometryTesselationFactor)
 	{
@@ -779,315 +789,46 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 	}
 	AllocateUploadBuffer(device, indices.data(), indices.size() * sizeof(indices[0]), &geometry.ib.resource);
     AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
-    
+
+	// ToDo option to reuse geometry
+	m_geometries.resize(SceneArgs::NumGeometriesPerBLAS, geometry);
+
 	// Vertex buffer is passed to the shader along with index buffer as a descriptor range.
 	CreateBufferSRV(&geometry.ib, static_cast<UINT>(indices.size()) / sizeof(UINT) * sizeof(Index), 0, &m_geometryIBHeapIndices[0]);
 	CreateBufferSRV(&geometry.vb, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), &m_geometryVBHeapIndices[0]);
 	ThrowIfFalse(m_geometryVBHeapIndices[0] == m_geometryIBHeapIndices[0] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
 	m_numTrianglesPerGeometry = static_cast<UINT>(indices.size()) / 3;
+
+	// Generate geometry desc transforms;
+	UINT nX, nY, nZ;
+	nY = nZ = static_cast<UINT>(floor(cbrt(static_cast<double>(SceneArgs::NumGeometriesPerBLAS))));
+	nX = static_cast<UINT>(ceil(static_cast<float>(SceneArgs::NumGeometriesPerBLAS) / (nY * nZ)));
+	float distanceBetweenGeometry = radius;
+	float stepDistance = 2 * radius + distanceBetweenGeometry;
+	m_geometryTransforms.Create(device, SceneArgs::NumGeometriesPerBLAS, 1, L"Geometry build desc transforms");
+
+	for (UINT iX = 0, i = 0; iX < nX; iX++)
+		for (UINT iY = 0; iY < nY; iY++)
+			for (UINT iZ = 0; iZ < nZ; iZ++, i++)
+			{
+				if (i >= static_cast<UINT>(SceneArgs::NumGeometriesPerBLAS))
+				{
+					break;
+				}
+
+				XMFLOAT4 translationVector = XMFLOAT4(static_cast<float>(iX), static_cast<float>(iY), static_cast<float>(iZ), 0.0f);
+				XMMATRIX transform = XMMatrixTranslationFromVector(stepDistance * XMLoadFloat4(&translationVector));
+
+				StoreXMMatrixAsTransform3x4(m_geometryTransforms[i].transform3x4, transform);
+			}
+	m_geometryTransforms.CopyStagingToGpu();
 }
 
 // Build geometry used in the sample.
 void D3D12RaytracingDynamicGeometry::InitializeGeometry()
 {
 	BuildTesselatedGeometry();
-}
-
-AccelerationStructureBuffers D3D12RaytracingDynamicGeometry::BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
-{
-#if AS_BUILD_OLD
-    auto device = m_deviceResources->GetD3DDevice();
-    auto commandList = m_deviceResources->GetCommandList();
-    ComPtr<ID3D12Resource> scratch;
-    ComPtr<ID3D12Resource> bottomLevelAS;
-
-    // Get the size requirements for the scratch and AS buffers.
-    D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfoDesc = {};
-    prebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-    prebuildInfoDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    prebuildInfoDesc.Flags = buildFlags;
-    prebuildInfoDesc.NumDescs = static_cast<UINT>(geometryDescs.size());
-    prebuildInfoDesc.pGeometryDescs = geometryDescs.data();
-
-    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelPrebuildInfo = {};
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        m_fallbackDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &bottomLevelPrebuildInfo);
-    }
-    else // DirectX Raytracing
-    {
-        m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &bottomLevelPrebuildInfo);
-    }
-    ThrowIfFalse(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
-
-    // Create a scratch buffer.
-    AllocateUAVBuffer(device, bottomLevelPrebuildInfo.ScratchDataSizeInBytes, &scratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
-
-    // Allocate resources for acceleration structures.
-    // Acceleration structures can only be placed in resources that are created in the default heap (or custom heap equivalent). 
-    // Default heap is OK since the application doesn’t need CPU read/write access to them. 
-    // The resources that will contain acceleration structures must be created in the state D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, 
-    // and must have resource flag D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS. The ALLOW_UNORDERED_ACCESS requirement simply acknowledges both: 
-    //  - the system will be doing this type of access in its implementation of acceleration structure builds behind the scenes.
-    //  - from the app point of view, synchronization of writes/reads to acceleration structures is accomplished using UAV barriers.
-    {
-        D3D12_RESOURCE_STATES initialResourceState;
-        if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-        {
-            initialResourceState = m_fallbackDevice->GetAccelerationStructureResourceState();
-        }
-        else // DirectX Raytracing
-        {
-            initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
-        }
-        AllocateUAVBuffer(device, bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, &bottomLevelAS, initialResourceState, L"BottomLevelAccelerationStructure");
-    }
-
-    // bottom-level AS desc.
-    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelBuildDesc = {};
-    {
-        bottomLevelBuildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-        bottomLevelBuildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-        bottomLevelBuildDesc.Flags = buildFlags;
-        bottomLevelBuildDesc.ScratchAccelerationStructureData = { scratch->GetGPUVirtualAddress(), scratch->GetDesc().Width };
-        bottomLevelBuildDesc.DestAccelerationStructureData = { bottomLevelAS->GetGPUVirtualAddress(), bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes };
-        bottomLevelBuildDesc.NumDescs = static_cast<UINT>(geometryDescs.size());
-        bottomLevelBuildDesc.pGeometryDescs = geometryDescs.data();
-    }
-    
-    // Build the acceleration structure.
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        // Set the descriptor heaps to be used during acceleration structure build for the Fallback Layer.
-        ID3D12DescriptorHeap *pDescriptorHeaps[] = { m_descriptorHeap.Get() };
-        m_fallbackCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
-        m_fallbackCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc);
-    }
-    else // DirectX Raytracing
-    {
-        m_dxrCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc);
-    }
-
-    AccelerationStructureBuffers bottomLevelASBuffers;
-    bottomLevelASBuffers.accelerationStructure = bottomLevelAS;
-    bottomLevelASBuffers.scratch = scratch;
-    bottomLevelASBuffers.ResultDataMaxSizeInBytes = bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes;
-    return bottomLevelASBuffers;
-#else
-	AccelerationStructureBuffers bottomLevelASBuffers;
-	return bottomLevelASBuffers;
-#endif
-}
-
-template <class InstanceDescType, class BLASPtrType>
-void D3D12RaytracingDynamicGeometry::BuildBotomLevelASInstanceDescs(BLASPtrType *bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource)
-{
-    auto device = m_deviceResources->GetD3DDevice();
-    
-    vector<InstanceDescType> instanceDescs;
-    instanceDescs.resize(NUM_BLAS);
-
-    // Width of a bottom-level AS geometry.
-    // Make the plane a little larger than the actual number of primitives in each dimension.
-    const XMUINT3 NUM_AABB = XMUINT3(700, 1, 700);
-    const XMFLOAT3 fWidth = XMFLOAT3(
-        NUM_AABB.x * c_aabbWidth + (NUM_AABB.x - 1) * c_aabbDistance,
-        NUM_AABB.y * c_aabbWidth + (NUM_AABB.y - 1) * c_aabbDistance,
-        NUM_AABB.z * c_aabbWidth + (NUM_AABB.z - 1) * c_aabbDistance);
-    const XMVECTOR vWidth = XMLoadFloat3(&fWidth);
-	UINT instanceContributionToHitGroupOffset = 0;
-
-#if RENDER_SPHERES
-	// Create instanced bottom-level AS with triangle geometry.
-	// Instances share all the data, except for a transform.
-	{
-		auto& instanceDesc = instanceDescs[BottomLevelASType::Triangle];
-		instanceDesc = {};
-		instanceDesc.InstanceMask = 1;
-
-		// Set hit group offset to beyond the shader records for the triangle AABB.
-		instanceDesc.InstanceContributionToHitGroupIndex = instanceContributionToHitGroupOffset;
-		instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::Triangle];
-
-		// Calculate transformation matrix.
-		const XMVECTOR vBasePosition = vWidth * XMLoadFloat3(&XMFLOAT3(-0.35f, 0.0f, -0.35f));
-
-		// Scale in XZ dimensions.
-		XMMATRIX mScale = XMMatrixIdentity(); // XMMatrixScaling(fWidth.x, fWidth.y, fWidth.z);
-		XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
-		XMMATRIX mTransform = XMMatrixIdentity();// mScale * mTranslation;
-		StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTransform);
-
-		instanceContributionToHitGroupOffset += RayType::Count;
-	}
-#else
-	// Bottom-level AS with a single plane.
-	{
-		auto& instanceDesc = instanceDescs[BottomLevelASType::Triangle];
-		instanceDesc = {};
-		instanceDesc.InstanceMask = 1;
-		instanceDesc.InstanceContributionToHitGroupIndex = instanceContributionToHitGroupOffset;
-		instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::Triangle];
-
-		// Calculate transformation matrix.
-		const XMVECTOR vBasePosition = vWidth * XMLoadFloat3(&XMFLOAT3(-0.35f, 0.0f, -0.35f));
-
-		// Scale in XZ dimensions.
-		XMMATRIX mScale = XMMatrixScaling(fWidth.x, fWidth.y, fWidth.z);
-		XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
-		XMMATRIX mTransform = mScale * mTranslation;
-		StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTransform);
-
-		instanceContributionToHitGroupOffset += RayType::Count;
-	}
-#endif
-
-    // Create instanced bottom-level AS with procedural geometry AABBs.
-    // Instances share all the data, except for a transform.
-    {
-        auto& instanceDesc = instanceDescs[BottomLevelASType::AABB];
-        instanceDesc = {};
-        instanceDesc.InstanceMask = 1;
-        
-        // Set hit group offset to beyond the shader records for the triangle AABB.
-        instanceDesc.InstanceContributionToHitGroupIndex = instanceContributionToHitGroupOffset;
-        instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
-
-        // Move all AABBS above the ground plane.
-        XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(0, c_aabbWidth/2, 0)));
-        StoreXMMatrixAsTransform3x4(instanceDesc.Transform, mTranslation);
-
-		instanceContributionToHitGroupOffset += IntersectionShaderType::TotalPrimitiveCount * RayType::Count;
-    }
-	
-    UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));
-    AllocateUploadBuffer(device, instanceDescs.data(), bufferSize, &(*instanceDescsResource), L"InstanceDescs");
-};
-
-AccelerationStructureBuffers D3D12RaytracingDynamicGeometry::BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
-{
-	auto device = m_deviceResources->GetD3DDevice();
-	auto commandList = m_deviceResources->GetCommandList();
-	ComPtr<ID3D12Resource> scratch;
-	ComPtr<ID3D12Resource> topLevelAS;
-
-	// Get required sizes for an acceleration structure.
-	D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfoDesc = {};
-	prebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-	prebuildInfoDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	prebuildInfoDesc.Flags = buildFlags;
-	// ToDo
-	prebuildInfoDesc.NumDescs = 1;// NUM_BLAS;
-
-	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo = {};
-	if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-	{
-		m_fallbackDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &topLevelPrebuildInfo);
-	}
-	else // DirectX Raytracing
-	{
-		m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &topLevelPrebuildInfo);
-	}
-	ThrowIfFalse(topLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
-
-	AllocateUAVBuffer(device, topLevelPrebuildInfo.ScratchDataSizeInBytes, &scratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
-
-	// Allocate resources for acceleration structures.
-	// Acceleration structures can only be placed in resources that are created in the default heap (or custom heap equivalent). 
-	// Default heap is OK since the application doesn’t need CPU read/write access to them. 
-	// The resources that will contain acceleration structures must be created in the state D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, 
-	// and must have resource flag D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS. The ALLOW_UNORDERED_ACCESS requirement simply acknowledges both: 
-	//  - the system will be doing this type of access in its implementation of acceleration structure builds behind the scenes.
-	//  - from the app point of view, synchronization of writes/reads to acceleration structures is accomplished using UAV barriers.
-	{
-		D3D12_RESOURCE_STATES initialResourceState;
-		if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-		{
-			initialResourceState = m_fallbackDevice->GetAccelerationStructureResourceState();
-		}
-		else // DirectX Raytracing
-		{
-			initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
-		}
-
-		AllocateUAVBuffer(device, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &topLevelAS, initialResourceState, L"TopLevelAccelerationStructure");
-	}
-
-	// Note on Emulated GPU pointers (AKA Wrapped pointers) requirement in Fallback Layer:
-	// The primary point of divergence between the DXR API and the compute-based Fallback layer is the handling of GPU pointers. 
-	// DXR fundamentally requires that GPUs be able to dynamically read from arbitrary addresses in GPU memory. 
-	// The existing Direct Compute API today is more rigid than DXR and requires apps to explicitly inform the GPU what blocks of memory it will access with SRVs/UAVs.
-	// In order to handle the requirements of DXR, the Fallback Layer uses the concept of Emulated GPU pointers, 
-	// which requires apps to create views around all memory they will access for raytracing, 
-	// but retains the DXR-like flexibility of only needing to bind the top level acceleration structure at DispatchRays.
-	//
-	// The Fallback Layer interface uses WRAPPED_GPU_POINTER to encapsulate the underlying pointer
-	// which will either be an emulated GPU pointer for the compute - based path or a GPU_VIRTUAL_ADDRESS for the DXR path.
-
-	// Create instance descs for the bottom-level acceleration structures.
-	ComPtr<ID3D12Resource> instanceDescsResource;
-	if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-	{
-		D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC instanceDescs[BottomLevelASType::Count] = {};
-		WRAPPED_GPU_POINTER bottomLevelASaddresses[BottomLevelASType::Count] =
-		{
-			CreateFallbackWrappedPointer(bottomLevelAS[0].accelerationStructure.Get(), static_cast<UINT>(bottomLevelAS[0].ResultDataMaxSizeInBytes) / sizeof(UINT32), &m_bottomLevelASdescritorHeapIndices[0]),
-			CreateFallbackWrappedPointer(bottomLevelAS[1].accelerationStructure.Get(), static_cast<UINT>(bottomLevelAS[1].ResultDataMaxSizeInBytes) / sizeof(UINT32), &m_bottomLevelASdescritorHeapIndices[1])
-		};
-		BuildBotomLevelASInstanceDescs<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC>(bottomLevelASaddresses, &instanceDescsResource);
-	}
-	else // DirectX Raytracing
-	{
-		D3D12_RAYTRACING_INSTANCE_DESC instanceDescs[BottomLevelASType::Count] = {};
-		D3D12_GPU_VIRTUAL_ADDRESS bottomLevelASaddresses[BottomLevelASType::Count] =
-		{
-			bottomLevelAS[0].accelerationStructure->GetGPUVirtualAddress(),
-			bottomLevelAS[1].accelerationStructure->GetGPUVirtualAddress()
-		};
-		BuildBotomLevelASInstanceDescs<D3D12_RAYTRACING_INSTANCE_DESC>(bottomLevelASaddresses, &instanceDescsResource);
-	}
-
-	// Create a wrapped pointer to the acceleration structure.
-	if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-	{
-		UINT numBufferElements = static_cast<UINT>(topLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
-		m_fallbackTopLevelAccelerationStructurePointer = CreateFallbackWrappedPointer(topLevelAS.Get(), numBufferElements, &m_topLevelASdescritorHeapIndex);
-	}
-
-	// Top-level AS desc
-	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelBuildDesc = {};
-	{
-		topLevelBuildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-		topLevelBuildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-		topLevelBuildDesc.Flags = buildFlags;
-		topLevelBuildDesc.DestAccelerationStructureData = { topLevelAS->GetGPUVirtualAddress(), topLevelPrebuildInfo.ResultDataMaxSizeInBytes };
-		// ToDo
-		topLevelBuildDesc.NumDescs = 1;//  NUM_BLAS;
-		topLevelBuildDesc.pGeometryDescs = nullptr;
-		topLevelBuildDesc.InstanceDescs = instanceDescsResource->GetGPUVirtualAddress();
-		topLevelBuildDesc.ScratchAccelerationStructureData = { scratch->GetGPUVirtualAddress(), scratch->GetDesc().Width };
-	}
-
-	// Build acceleration structure.
-	if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-	{
-		// Set the descriptor heaps to be used during acceleration structure build for the Fallback Layer.
-		ID3D12DescriptorHeap *pDescriptorHeaps[] = { m_descriptorHeap.Get() };
-		m_fallbackCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
-		m_fallbackCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc);
-	}
-	else // DirectX Raytracing
-	{
-		m_dxrCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc);
-	}
-
-	AccelerationStructureBuffers topLevelASBuffers;
-	topLevelASBuffers.accelerationStructure = topLevelAS;
-	topLevelASBuffers.instanceDesc = instanceDescsResource;
-	topLevelASBuffers.scratch = scratch;
-	topLevelASBuffers.ResultDataMaxSizeInBytes = topLevelPrebuildInfo.ResultDataMaxSizeInBytes;
-	return topLevelASBuffers;
 }
 
 // Build acceleration structure needed for raytracing.
@@ -1468,6 +1209,34 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     }
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
+	// Lazy initialize and update geometries and acceleration structures.
+	if (SceneArgs::EnableGeometryAndASRebuilds &&
+		(m_isGeometryInitializationRequested || m_isASinitializationRequested))
+	{
+		// Since we'll be recreating D3D resources, GPU needs to be done with the current ones.
+		m_deviceResources->WaitForGpu();
+
+		m_deviceResources->ResetCommandAllocatorAndCommandlist();
+		if (m_isGeometryInitializationRequested)
+		{
+			InitializeGeometry();
+			m_isGeometryInitializationRequested = false;
+		}
+		if (m_isASinitializationRequested)
+		{
+			InitializeAccelerationStructures();
+			m_isASinitializationRequested = false;
+		}
+		m_deviceResources->ExecuteCommandList();
+		m_deviceResources->WaitForGpu();
+	}
+
+	if (m_animateScene)
+	{
+		UpdateGeometries();
+	}
+
+
 	if (m_enableUI)
 	{
 		UpdateUI();
@@ -1574,7 +1343,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     {
         D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchDesc = {};
         SetCommonPipelineState(m_fallbackCommandList.Get());
-        m_fallbackCommandList->SetTopLevelAccelerationStructure(GlobalRootSignature::Slot::AccelerationStructure, m_fallbackTopLevelAccelerationStructurePointer);
+        m_fallbackCommandList->SetTopLevelAccelerationStructure(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetFallbackAccelerationStructurePointer());
         DispatchRays(m_fallbackCommandList.Get(), m_fallbackStateObject.Get(), &dispatchDesc);
     }
     else // DirectX Raytracing
@@ -1770,28 +1539,10 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 		gpuTimer.BeginFrame(commandList);
 	}
 
-	// Lazy initialize and update geometries and acceleration structures.
-	{
-		if (m_isGeometryInitializationRequested && SceneArgs::EnableGeometryAndASRebuilds)
-		{
-			InitializeGeometry();
-			m_isGeometryInitializationRequested = false;
-		}
-		if (m_isASinitializationRequested && SceneArgs::EnableGeometryAndASRebuilds)
-		{
-			InitializeAccelerationStructures();
-			m_isASinitializationRequested = false;
-		}
-		// ToDo - move this to OnUpdate. It depends on part of AS being initialized
-		if (m_animateScene)
-		{
-			UpdateGeometries();
-		}
-
-		UpdateAccelerationStructures(m_isASrebuildRequested);
-		m_isASrebuildRequested = false;
-	}
-
+	// Update acceleration structures.
+	UpdateAccelerationStructures(m_isASrebuildRequested);
+	m_isASrebuildRequested = false;
+	
 	// Render.
     DoRaytracing();
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
