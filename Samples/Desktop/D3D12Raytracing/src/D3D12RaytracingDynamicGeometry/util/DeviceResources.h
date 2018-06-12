@@ -67,6 +67,7 @@ namespace DX
             }
         }
 
+		void ResetCommandAllocatorAndCommandlist();
         void Prepare(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_PRESENT);
         void Present(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_RENDER_TARGET);
         void ExecuteCommandList(bool force = false);

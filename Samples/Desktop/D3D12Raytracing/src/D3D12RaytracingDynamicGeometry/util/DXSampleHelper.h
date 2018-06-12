@@ -51,6 +51,18 @@ inline void ThrowIfFailed(HRESULT hr, const wchar_t* msg)
     }
 }
 
+template<typename... Args>
+inline void ThrowIfFailed(HRESULT hr, const wchar_t* format, Args... args)
+{
+	if (FAILED(hr))
+	{
+		WCHAR msg[128];
+		swprintf_s(msg, format, args...);
+		OutputDebugString(msg);
+		throw HrException(hr);
+	}
+}
+
 inline void ThrowIfFalse(bool value)
 {
     ThrowIfFailed(value ? S_OK : E_FAIL);
@@ -216,8 +228,10 @@ void ResetUniquePtrArray(T* uniquePtrArray)
 class GpuUploadBuffer
 {
 public:
+	// ToDo return resource instead of ComPtr?
     ComPtr<ID3D12Resource> GetResource() { return m_resource; }
     virtual void Release() { m_resource.Reset(); }
+	UINT64 Size() { return m_resource.Get() ? m_resource->GetDesc().Width : 0; }
 protected:
     ComPtr<ID3D12Resource> m_resource;
 
@@ -327,6 +341,7 @@ public:
 
     void Create(ID3D12Device* device, UINT numElements, UINT numInstances = 1, LPCWSTR resourceName = nullptr)
     {
+		m_numInstances = numInstances;
         m_staging.resize(numElements);
         UINT bufferSize = numInstances * numElements * sizeof(T);
         Allocate(device, bufferSize, resourceName);
@@ -348,3 +363,16 @@ public:
         return m_resource->GetGPUVirtualAddress() + instanceIndex * InstanceSize();
     }
 };
+
+inline float lerp(float a, float b, float t)
+{
+	return a + t * (b - a);
+}
+
+// Returns a cycling <0 -> 1 -> 0> animation interpolant 
+inline float CalculateAnimationInterpolant(float elapsedTime, float cycleDuration)
+{
+	float curLinearCycleTime = fmod(elapsedTime, cycleDuration) / cycleDuration;
+	curLinearCycleTime = (curLinearCycleTime <= 0.5f) ? 2 * curLinearCycleTime : 1 - 2 * (curLinearCycleTime - 0.5f);
+	return lerp(0.0f, 1.0f, curLinearCycleTime);
+}

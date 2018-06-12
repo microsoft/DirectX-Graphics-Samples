@@ -70,6 +70,17 @@ typedef UINT16 Index;
 // as drivers may apply optimization strategies for low recursion depths.
 #define MAX_RAY_RECURSION_DEPTH 3    // ~ primary rays + reflections + shadow rays from reflected geometry.
 
+// ToDo:
+// Options:
+// - shading - simple/complex
+// - instanced/unique goemetry
+// - deformed geometry
+// - Dynamic options
+// - Update/Build
+#define SINGLE_COLOR_SHADING 0
+#define SIMPLE_SHADING 1
+#define AS_BUILD_DEBUG 0
+#define AS_BUILD_OLD 0
 
 struct ProceduralPrimitiveAttributes
 {
@@ -158,7 +169,8 @@ namespace TraceRayParameters
             0, // Radiance ray
             1  // Shadow ray
         };
-        static const UINT GeometryStride = RayType::Count;
+		// ToDo For now all geometries reusing shader records
+		static const UINT GeometryStride = 0;// RayType::Count;
     }
     namespace MissShader {
         static const UINT Offset[RayType::Count] =
@@ -172,7 +184,7 @@ namespace TraceRayParameters
 // From: http://blog.selfshadow.com/publications/s2015-shading-course/hoffman/s2015_pbs_physics_math_slides.pdf
 static const XMFLOAT4 ChromiumReflectance = XMFLOAT4(0.549f, 0.556f, 0.554f, 1.0f);
 
-static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.8f, 0.9f, 1.0f, 1.0f);
+static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.1f, 0.0f, 0.1f, 1.0f);
 static const float InShadowRadiance = 0.35f;
 
 namespace AnalyticPrimitive {

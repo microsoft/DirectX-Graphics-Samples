@@ -83,12 +83,7 @@ float4 CalculatePhongLighting(in float4 albedo, in float3 normal, in bool isInSh
     }
 
     // Ambient component.
-    // Fake AO: Darken faces with normal facing downwards/away from the sky a little bit.
-    float4 ambientColor = g_sceneCB.lightAmbientColor;
-    float4 ambientColorMin = g_sceneCB.lightAmbientColor - 0.1;
-    float4 ambientColorMax = g_sceneCB.lightAmbientColor;
-    float a = 1 - saturate(dot(normal, float3(0, -1, 0)));
-    ambientColor = albedo * lerp(ambientColorMin, ambientColorMax, a);
+    float4 ambientColor = g_sceneCB.lightAmbientColor * albedo;
     
     return ambientColor + diffuseColor + specularColor;
 }
@@ -111,7 +106,8 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
     // Note: make sure to enable face culling so as to avoid surface face fighting.
-    rayDesc.TMin = 0;
+	// ToDo Tmin
+    rayDesc.TMin = 0.001;
     rayDesc.TMax = 10000;
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
     TraceRay(g_scene,
@@ -126,6 +122,7 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
 }
 
 // Trace a shadow ray and return true if it hits any geometry.
+// ToDo add surface normal and skip tracing a ray for surfaces facing away.
 bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 {
     if (currentRayRecursionDepth >= MAX_RAY_RECURSION_DEPTH)
@@ -140,7 +137,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0.001;
-    rayDesc.TMax = 10000;
+    rayDesc.TMax = 10000;	// ToDo set this to dist to light
 
     // Initialize shadow ray payload.
     // Set the initial value to true since closest and any hit shaders are skipped. 
@@ -185,11 +182,17 @@ void MyRaygenShader()
 [shader("closesthit")]
 void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
 {
+#if SINGLE_COLOR_SHADING
+	rayPayload.color = float4(1, 0, 0, 1);
+	return;
+#endif
     // Get the base index of the triangle's first 16 bit index.
     uint indexSizeInBytes = 2;
     uint indicesPerTriangle = 3;
     uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
-    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
+
+    //Todo uint baseIndex = PrimitiveIndex() * triangleIndexStride;
+	uint baseIndex = triangleIndexStride;
 
     // Load up three 16 bit indices for the triangle.
     const uint3 indices = Load3x16BitIndices(baseIndex, g_indices);
@@ -213,7 +216,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     Ray shadowRay = { hitPosition, normalize(g_sceneCB.lightPosition.xyz - hitPosition) };
     bool shadowRayHit = TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
 
-    float checkers = AnalyticalCheckersTexture(HitWorldPosition(), triangleNormal, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld);
+	float checkers = AnalyticalCheckersTexture(HitWorldPosition(), triangleNormal, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld);
 
     // Reflected component.
     float4 reflectedColor = float4(0, 0, 0, 0);
@@ -236,7 +239,6 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
 
     rayPayload.color = color;
-	// ToDo
 	//rayPayload.color = float4(1, 0, 0, 1);
 	//rayPayload.color = float4(triangleNormal, 1);
 }
@@ -271,7 +273,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitive
 
     // Apply visibility falloff.
     float t = RayTCurrent();
-    color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
+	color = color;// lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
 
     rayPayload.color = color;
 }
@@ -283,7 +285,8 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitive
 [shader("miss")]
 void MyMissShader(inout RayPayload rayPayload)
 {
-    float4 backgroundColor = float4(BackgroundColor);
+	float4 skydome = float4(1, 1, 1, 1)* max(0, (WorldRayDirection().y + 0.75)/1.75f);
+    float4 backgroundColor = float4(BackgroundColor) +skydome;
     rayPayload.color = backgroundColor;
 }
 

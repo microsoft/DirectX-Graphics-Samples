@@ -10,8 +10,16 @@
 //*********************************************************
 
 #pragma once
+// ToDo move code definitions to cpp
+// ToDo Remove
+#include "RayTracingHlslCompat.h"
 
 #define SizeOfInUint32(obj) ((sizeof(obj) - 1) / sizeof(UINT32) + 1)
+template <class T>
+inline T Clamp(T value, T minValue, T maxValue)
+{
+	return max(minValue, min(maxValue, value));
+}
 
 struct AccelerationStructureBuffers
 {
@@ -19,6 +27,127 @@ struct AccelerationStructureBuffers
     ComPtr<ID3D12Resource> accelerationStructure;
     ComPtr<ID3D12Resource> instanceDesc;    // Used only for top-level AS
     UINT64                 ResultDataMaxSizeInBytes;
+};
+
+inline void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Resource **ppResource, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr)
+{
+	auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	ThrowIfFailed(pDevice->CreateCommittedResource(
+		&uploadHeapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDesc,
+		initialResourceState,
+		nullptr,
+		IID_PPV_ARGS(ppResource)));
+	if (resourceName)
+	{
+		(*ppResource)->SetName(resourceName);
+	}
+}
+struct TriangleGeometryBuffer
+{
+	D3DBuffer ib;
+	D3DBuffer vb;
+	D3D12_GPU_VIRTUAL_ADDRESS transform;
+};
+
+enum class RaytracingAPI {
+	FallbackLayer,
+	DirectXRaytracing,
+};
+
+class D3D12RaytracingDynamicGeometry;
+extern D3D12RaytracingDynamicGeometry* g_pSample;
+
+struct alignas(16) AlignedGeometryTransform3x4
+{
+	float transform3x4[12];
+};
+
+// AccelerationStructure
+// A base class for bottom-level and top-level AS.
+class AccelerationStructure
+{
+protected:
+	ComPtr<ID3D12Resource> m_accelerationStructure;
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS m_buildFlags;
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO m_prebuildInfo;
+	
+public:
+	AccelerationStructure();
+	virtual ~AccelerationStructure() {}
+	void ReleaseD3DResources();
+	UINT64 RequiredScratchSize() { return m_prebuildInfo.ScratchDataSizeInBytes; }
+	ID3D12Resource* GetResource() { return m_accelerationStructure.Get(); }
+	const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& PrebuildInfo() { return m_prebuildInfo; }
+	virtual void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false) = 0;
+
+protected:
+	void AllocateResource(ID3D12Device* device);
+};
+
+class BottomLevelAccelerationStructure : public AccelerationStructure
+{
+	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> m_geometryDescs;
+	DirectX::XMMATRIX m_transform;
+
+	// Runtime state
+	bool m_isDirty;		// if true, AS requires an update/build.
+
+public:
+	BottomLevelAccelerationStructure();
+	~BottomLevelAccelerationStructure() {}
+	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>* GetGeometryDescs() { return &m_geometryDescs; }
+	
+	// ToDo:
+	// UpdateGeometry()
+
+	void Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
+	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
+	void BuildInstanceDesc(void* destInstanceDesc, UINT* descriptorHeapIndex);
+	void SetTransform(const DirectX::XMMATRIX& transform)
+	{
+		m_transform = transform;
+		SetDirty(true);
+	}
+	void SetDirty(bool isDirty) { m_isDirty = isDirty; }
+	bool IsDirty() { return m_isDirty; }
+
+	const XMMATRIX& GetTransform() { return m_transform; }
+
+private:
+	void BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress);
+	void ComputePrebuildInfo();
+};
+
+class TopLevelAccelerationStructure : public AccelerationStructure
+{
+	union {
+		// ToDo handle release when API is being changed
+		// Descruction is  not safe if API changes before release
+		StructuredBuffer<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> m_fallbackLayerInstanceDescs;
+		StructuredBuffer<D3D12_RAYTRACING_INSTANCE_DESC> m_dxrInstanceDescs;
+	};
+
+public:
+	TopLevelAccelerationStructure() : m_fallbackAccelerationStructureDescritorHeapIndex(UINT_MAX) {}
+	~TopLevelAccelerationStructure();
+
+	UINT NumberOfBLAS();
+
+	void Initialize(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags, std::vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices);
+	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
+	void UpdateInstanceDescTransforms(std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS);
+
+	const WRAPPED_GPU_POINTER& GetFallbackAccelerationStructurePointer() { return m_fallbackAccelerationStructurePointer; }
+
+private:
+	void ComputePrebuildInfo();
+	void BuildInstanceDescs(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, std::vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices);
+
+	UINT m_fallbackAccelerationStructureDescritorHeapIndex;
+	WRAPPED_GPU_POINTER m_fallbackAccelerationStructurePointer;
 };
 
 // Shader record = {{Shader ID}, {RootArguments}}
@@ -110,22 +239,6 @@ public:
     }
 };
 
-inline void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Resource **ppResource, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr)
-{
-    auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-    ThrowIfFailed(pDevice->CreateCommittedResource(
-        &uploadHeapProperties,
-        D3D12_HEAP_FLAG_NONE,
-        &bufferDesc,
-        initialResourceState,
-        nullptr,
-        IID_PPV_ARGS(ppResource)));
-    if (resourceName)
-    {
-        (*ppResource)->SetName(resourceName);
-    }
-}
 
 template<class T, size_t N>
 void DefineExports(T* obj, LPCWSTR(&Exports)[N])
@@ -145,7 +258,6 @@ void DefineExports(T* obj, LPCWSTR(&Exports)[N][M])
             obj->DefineExport(Exports[i][j]);
         }
 }
-
 
 inline void AllocateUploadBuffer(ID3D12Device* pDevice, void *pData, UINT64 datasize, ID3D12Resource **ppResource, const wchar_t* resourceName = nullptr)
 {
