@@ -27,17 +27,17 @@ namespace FallbackLayer
     public:
         DxilShaderPatcher()
         {
-            ThrowFailure(dxcSupport.Initialize(), 
-                L"Failed to load DxCompiler.dll, verify this executable is in the executable directory."
-                L" The Fallback Layer is sensitive to the DxCompiler.dll version, make sure the" 
-                L" DxCompiler.dll is the correct version packaged with the Fallback");
+            ThrowFailure(dxcDxrFallbackSupport.Initialize(),
+              L"Failed to load DxCompiler.dll, verify this executable is in the executable directory."
+              L" The Fallback Layer is sensitive to the DxCompiler.dll version, make sure the"
+              L" DxCompiler.dll is the correct version packaged with the Fallback");
 
-            ThrowFailure(dxcSupport.CreateInstance(CLSID_DxcLibrary, &m_pLibrary), L"Failed to load a DXC library instance");
-            ThrowFailure(dxcSupport.CreateInstance(CLSID_DxcOptimizer, &m_pOptimizer), L"Failed to load a DXC Optimizer instance");
-            ThrowFailure(dxcSupport.CreateInstance(CLSID_DxcAssembler, &m_pAssembler), L"Failed to load a DXC Assembler instance");
-            ThrowFailure(dxcSupport.CreateInstance(CLSID_DxcContainerBuilder, &m_pContainerBuilder), L"Failed to load a DXC ContainerBuilder instance");
-            ThrowFailure(dxcSupport.CreateInstance(CLSID_DxcContainerReflection, &m_pContainerReflection), L"Failed to load a DXC ContainterReflection instance");
-            ThrowFailure(dxcSupport.CreateInstance(CLSID_DxcValidator, &m_pValidator), L"Failed to load a DXC Validator instance");
+            ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcLibrary, &m_pLibrary), L"Failed to load a DXC library instance");
+            ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcOptimizer, &m_pOptimizer), L"Failed to load a DXC Optimizer instance");
+            ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcAssembler, &m_pAssembler), L"Failed to load a DXC Assembler instance");
+            ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcContainerBuilder, &m_pContainerBuilder), L"Failed to load a DXC ContainerBuilder instance");
+            ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcContainerReflection, &m_pContainerReflection), L"Failed to load a DXC ContainterReflection instance");
+            ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcValidator, &m_pValidator), L"Failed to load a DXC Validator instance");
 
 #ifdef DEBUG
             ThrowFailure(dxcSupport.CreateInstance(CLSID_DxcCompiler, &m_pCompiler));
@@ -71,7 +71,7 @@ namespace FallbackLayer
             _In_ SIZE_T SrcDataSize,
             _Out_ IDxcBlob **ppTargetBlob);
 
-        dxc::DxcDllSupport dxcSupport;
+        dxc::DxcDxrFallbackDllSupport dxcDxrFallbackSupport;
 
         CComPtr<IDxcOptimizer> m_pOptimizer;
         CComPtr<IDxcLibrary> m_pLibrary;

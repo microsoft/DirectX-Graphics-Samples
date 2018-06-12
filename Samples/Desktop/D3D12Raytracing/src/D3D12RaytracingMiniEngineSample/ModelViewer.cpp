@@ -751,7 +751,7 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
 
 void D3D12RaytracingMiniEngineSample::Startup( void )
 {
-    D3D12CreateRaytracingFallbackDevice(g_Device, CreateRaytracingFallbackDeviceFlags::None, 0, IID_PPV_ARGS(&g_pRaytracingDevice));
+    D3D12CreateRaytracingFallbackDevice(g_Device, CreateRaytracingFallbackDeviceFlags::ForceComputeFallback, 0, IID_PPV_ARGS(&g_pRaytracingDevice));
     g_SceneNormalBuffer.Create(L"Main Normal Buffer", g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight(), 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
     g_pRaytracingDescriptorHeap = std::unique_ptr<DescriptorHeapStack>(

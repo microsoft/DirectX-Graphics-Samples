@@ -169,7 +169,7 @@ namespace FallbackLayer
     void DxilShaderPatcher::LinkShaders(UINT stackSize, const std::vector<DxilLibraryInfo> &dxilLibraries, const std::vector<LPCWSTR>& exportNames, std::vector<FallbackLayer::StateIdentifier>& shaderIdentifiers, IDxcBlob** ppOutputBlob)
     {
         CComPtr<IDxcDxrFallbackCompiler> pFallbackCompiler;
-        ThrowFailure(dxcSupport.CreateInstance(CLSID_DxcDxrFallbackCompiler, &pFallbackCompiler), 
+        ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcDxrFallbackCompiler, &pFallbackCompiler),
             L"Failed to create an instance of the Fallback Compiler. This suggest a version of DxCompiler.dll "
             L"is being used that doesn't match up with the Fallback layer. Verify that the DxCompiler.dll is from "
             L"same package as the Fallback.");
@@ -213,12 +213,6 @@ namespace FallbackLayer
 
     void DxilShaderPatcher::PatchShaderBindingTables(const BYTE *pShaderBytecode, UINT bytecodeLength, ShaderInfo *pShaderInfo, IDxcBlob** ppOutputBlob)
     {
-        dxc::DxcDllSupport dxcSupport;
-        ThrowFailure(dxcSupport.Initialize(), 
-            L"Failed to load DxCompiler.dll, verify this executable is in the executable directory."
-            L" The Fallback Layer is sensitive to the DxCompiler.dll version, make sure the"
-            L" DxCompiler.dll is the correct version packaged with the Fallback");
-
         CComPtr<IDxcBlob> pShaderBlob;
         GetDxilBlobPart(pShaderBytecode, bytecodeLength, &pShaderBlob);
 
