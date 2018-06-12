@@ -25,6 +25,7 @@ namespace FallbackLayer
         rootParameters[TransformsBuffer].InitAsShaderResourceView(TransformRegister);
         rootParameters[OutputBuffer].InitAsUnorderedAccessView(OutputPrimitiveBufferRegister);
         rootParameters[OutputMetadataBuffer].InitAsUnorderedAccessView(OutputMetadataBufferRegister);
+        rootParameters[CachedSortBuffer].InitAsUnorderedAccessView(CachedSortBufferRegister);
         rootParameters[InputRootConstants].InitAsConstants(SizeOfInUint32(LoadPrimitivesInputConstants), LoadInstancesConstantsRegister);
 
         auto rootSignatureDesc = CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(ARRAYSIZE(rootParameters), rootParameters);
@@ -56,8 +57,11 @@ namespace FallbackLayer
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC &buildDesc, 
         const UINT totalPrimitiveCount,
         D3D12_GPU_VIRTUAL_ADDRESS outputTriangleBuffer,
-        D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer)
+        D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer,
+        D3D12_GPU_VIRTUAL_ADDRESS cachedSortBuffer)
     {
+        const bool performUpdate = cachedSortBuffer != 0;
+
         CComPtr<ID3D12Device> pDevice;
         pCommandList->GetDevice(IID_PPV_ARGS(&pDevice));
         pCommandList->SetComputeRootSignature(m_pRootSignature);
@@ -102,6 +106,7 @@ namespace FallbackLayer
                 constants.GeometryContributionToHitGroupIndex = elementIndex;
                 constants.HasValidTransform = (triangles.Transform != 0);
                 constants.GeometryFlags = geometryDesc.Flags;
+                constants.PerformUpdate = performUpdate;
 
                 pCommandList->SetComputeRoot32BitConstants(InputRootConstants, SizeOfInUint32(LoadPrimitivesInputConstants), &constants, 0);
                 pCommandList->SetComputeRootShaderResourceView(ElementBufferSRV, triangles.VertexBuffer.StartAddress);
@@ -140,11 +145,18 @@ namespace FallbackLayer
                 constants.ElementBufferStride = (UINT32)aabbs.AABBs.StrideInBytes;
                 constants.GeometryContributionToHitGroupIndex = elementIndex;
                 constants.GeometryFlags = geometryDesc.Flags;
+                constants.PerformUpdate = performUpdate;
 
                 pCommandList->SetComputeRoot32BitConstants(InputRootConstants, SizeOfInUint32(LoadPrimitivesInputConstants), &constants, 0);
                 pCommandList->SetComputeRootShaderResourceView(ElementBufferSRV, aabbs.AABBs.StartAddress);
                 pCommandList->SetPipelineState(m_pLoadProceduralGeometryPSO);
             }
+
+            if(performUpdate) 
+            {
+                pCommandList->SetComputeRootUnorderedAccessView(CachedSortBuffer, cachedSortBuffer);
+            }
+            
             pCommandList->SetComputeRootUnorderedAccessView(OutputBuffer, outputTriangleBuffer);
             pCommandList->SetComputeRootUnorderedAccessView(OutputMetadataBuffer, outputMetadataBuffer);
 

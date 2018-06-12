@@ -17,9 +17,6 @@
 
 // Hidden
 #define AABB_Min_Padding 0.001
-#define SizeOfFloat 4
-#define SizeOfUINT16 2
-#define SizeOfUINT32 4
 #define NumberOfFloatsPerVertex 3
 #define SizeOfVertex (NumberOfFloatsPerVertex * SizeOfFloat)
 #define NumberOfVerticesPerTriangle 3

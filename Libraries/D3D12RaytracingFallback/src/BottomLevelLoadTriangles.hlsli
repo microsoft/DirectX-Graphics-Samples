@@ -98,8 +98,6 @@ void main( uint3 DTid : SV_DispatchThreadID )
     uint NumberOfAABBs = NumberOfInternalNodes + Constants.TotalPrimitiveCount;
 
     uint3 indicies = GetIndex(localTriangleIndex);
-    
-    uint globalTriangleIndex = localTriangleIndex + Constants.PrimitiveOffset;
 
     Triangle tri;
     tri.v0 = GetVertex(elementBuffer, indicies[0], Constants.ElementBufferStride);
@@ -120,6 +118,9 @@ void main( uint3 DTid : SV_DispatchThreadID )
         tri.v2 = TransformVertex(tri.v2, transform);
     }
 
-    PrimitiveBuffer[globalTriangleIndex] = CreateTrianglePrimitive(tri);
-    StorePrimitiveMetadata(globalTriangleIndex, localTriangleIndex);
+    uint globalTriangleIndex = localTriangleIndex + Constants.PrimitiveOffset;
+    uint outputIndex = GetOutputIndex(globalTriangleIndex);
+    
+    PrimitiveBuffer[outputIndex] = CreateTrianglePrimitive(tri);
+    StorePrimitiveMetadata(outputIndex, localTriangleIndex);
 }

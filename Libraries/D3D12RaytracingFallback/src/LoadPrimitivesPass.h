@@ -19,7 +19,8 @@ namespace FallbackLayer
             const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC &buildDesc,
             UINT totalTriangleCount,
             D3D12_GPU_VIRTUAL_ADDRESS outputTriangleBuffer,
-            D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer);
+            D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer,
+            D3D12_GPU_VIRTUAL_ADDRESS cachedSortBuffer);
     private:
         enum RootParameterSlot
         {
@@ -29,6 +30,7 @@ namespace FallbackLayer
             ElementBufferSRV,
             InputRootConstants,
             TransformsBuffer,
+            CachedSortBuffer,
             NumRootParameters,
         };
 
