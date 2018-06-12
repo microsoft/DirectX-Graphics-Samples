@@ -82,7 +82,7 @@ void BottomLevelAccelerationStructure::BuildInstanceDesc(void* destInstanceDesc,
 };
 
 // Build geometry descs for bottom-level AS.
-void BottomLevelAccelerationStructure::BuildGeometryDescs(const vector<TriangleGeometryBuffer>& geometries)
+void BottomLevelAccelerationStructure::BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress)
 {
 	// ToDo pass geometry flag from the sample cpp
 	// Mark the geometry as opaque. 
@@ -97,16 +97,17 @@ void BottomLevelAccelerationStructure::BuildGeometryDescs(const vector<TriangleG
 	geometryDescTemplate.Triangles.VertexBuffer.StrideInBytes = sizeof(DirectX::GeometricPrimitive::VertexType);
 	geometryDescTemplate.Flags = geometryFlags;
 
-	m_geometryDescs.resize(geometries.size(), geometryDescTemplate);
-	for (UINT i = 0; i < geometries.size(); i++)
+	m_geometryDescs.resize(numInstances, geometryDescTemplate);
+
+	// ToDo support multiple different geometries
+	for (UINT i = 0; i < numInstances; i++)
 	{
-		auto& geometry = geometries[i];
 		auto& geometryDesc = m_geometryDescs[i];
 		geometryDesc.Triangles.IndexBuffer = geometry.ib.resource->GetGPUVirtualAddress();
 		geometryDesc.Triangles.IndexCount = static_cast<UINT>(geometry.ib.resource->GetDesc().Width) / sizeof(Index);
 		geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress();
 		geometryDesc.Triangles.VertexCount = static_cast<UINT>(geometry.vb.resource->GetDesc().Width) / sizeof(DirectX::GeometricPrimitive::VertexType);
-		geometryDesc.Triangles.Transform = geometry.transform;
+		geometryDesc.Triangles.Transform = baseGeometryTransformGPUAddress + i * sizeof(AlignedGeometryTransform3x4);
 	}
 }
 
@@ -131,10 +132,10 @@ void BottomLevelAccelerationStructure::ComputePrebuildInfo()
 	ThrowIfFalse(m_prebuildInfo.ResultDataMaxSizeInBytes > 0);
 }
 
-void BottomLevelAccelerationStructure::Initialize(ID3D12Device* device, const vector<TriangleGeometryBuffer>& geometries, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
+void BottomLevelAccelerationStructure::Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
 {
 	m_buildFlags = buildFlags;
-	BuildGeometryDescs(geometries);
+	BuildGeometryDescs(geometry, numInstances, baseGeometryTransformGPUAddress);
 	ComputePrebuildInfo();
 	AllocateResource(device);
 	m_isDirty = true;

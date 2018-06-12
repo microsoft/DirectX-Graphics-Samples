@@ -60,6 +60,10 @@ enum class RaytracingAPI {
 class D3D12RaytracingDynamicGeometry;
 extern D3D12RaytracingDynamicGeometry* g_pSample;
 
+struct alignas(16) AlignedGeometryTransform3x4
+{
+	float transform3x4[12];
+};
 
 // AccelerationStructure
 // A base class for bottom-level and top-level AS.
@@ -99,7 +103,7 @@ public:
 	// ToDo:
 	// UpdateGeometry()
 
-	void Initialize(ID3D12Device* device, const std::vector<TriangleGeometryBuffer>& geometries, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
+	void Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
 	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
 	void BuildInstanceDesc(void* destInstanceDesc, UINT* descriptorHeapIndex);
 	void SetTransform(const DirectX::XMMATRIX& transform)
@@ -113,7 +117,7 @@ public:
 	const XMMATRIX& GetTransform() { return m_transform; }
 
 private:
-	void BuildGeometryDescs(const std::vector<TriangleGeometryBuffer>& geometries);
+	void BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress);
 	void ComputePrebuildInfo();
 };
 

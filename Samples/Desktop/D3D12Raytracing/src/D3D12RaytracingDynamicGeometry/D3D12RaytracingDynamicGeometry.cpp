@@ -262,7 +262,7 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 0.0f, 5.3f, -17.0f, 1.0f }; 
+        m_eye = { 0.0f, 20.3f, -65.0f, 1.0f }; 
         m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
@@ -284,10 +284,10 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
 
-        lightPosition = XMFLOAT4(0.0f, 18.0f, -20.0f, 0.0f);
+        lightPosition = XMFLOAT4(0.0f, 50.0f, -60.0f, 0.0f);
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 
-        lightAmbientColor = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
+        lightAmbientColor = XMFLOAT4(0.45f, 0.45f, 0.45f, 1.0f);
         m_sceneCB->lightAmbientColor = XMLoadFloat4(&lightAmbientColor);
 
         float d = 0.6f;
@@ -760,7 +760,9 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
     const float GeometryRange = 10.f;
     const bool RhCoords = false;
 
-	TriangleGeometryBuffer geometry;
+	// ToDo option to reuse geometry
+	m_geometries.resize(1);
+	auto& geometry = m_geometries[0];
 	const float radius = 3.0f;
 	switch (SceneArgs::GeometryTesselationFactor)
 	{
@@ -790,9 +792,6 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 	AllocateUploadBuffer(device, indices.data(), indices.size() * sizeof(indices[0]), &geometry.ib.resource);
     AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
 
-	// ToDo option to reuse geometry
-	m_geometries.resize(SceneArgs::NumGeometriesPerBLAS, geometry);
-
 	// Vertex buffer is passed to the shader along with index buffer as a descriptor range.
 	CreateBufferSRV(&geometry.ib, static_cast<UINT>(indices.size()) / sizeof(UINT) * sizeof(Index), 0, &m_geometryIBHeapIndices[0]);
 	CreateBufferSRV(&geometry.vb, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), &m_geometryVBHeapIndices[0]);
@@ -801,25 +800,27 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 	m_numTrianglesPerGeometry = static_cast<UINT>(indices.size()) / 3;
 
 	// Generate geometry desc transforms;
-	UINT nX, nY, nZ;
-	nY = nZ = static_cast<UINT>(floor(cbrt(static_cast<double>(SceneArgs::NumGeometriesPerBLAS))));
-	nX = static_cast<UINT>(ceil(static_cast<float>(SceneArgs::NumGeometriesPerBLAS) / (nY * nZ)));
+	int dim = static_cast<int>(ceil(cbrt(static_cast<double>(SceneArgs::NumGeometriesPerBLAS))));
 	float distanceBetweenGeometry = radius;
 	float stepDistance = 2 * radius + distanceBetweenGeometry;
 	m_geometryTransforms.Create(device, SceneArgs::NumGeometriesPerBLAS, 1, L"Geometry build desc transforms");
 
-	for (UINT iX = 0, i = 0; iX < nX; iX++)
-		for (UINT iY = 0; iY < nY; iY++)
-			for (UINT iZ = 0; iZ < nZ; iZ++, i++)
+
+	for (int iY = 0, i = 0; iY < dim; iY++)
+		for (int iX = 0; iX < dim; iX++)
+			for (int iZ = 0; iZ < dim; iZ++, i++)
 			{
 				if (i >= static_cast<UINT>(SceneArgs::NumGeometriesPerBLAS))
 				{
 					break;
 				}
 
-				XMFLOAT4 translationVector = XMFLOAT4(static_cast<float>(iX), static_cast<float>(iY), static_cast<float>(iZ), 0.0f);
+				XMFLOAT4 translationVector = XMFLOAT4(
+					static_cast<float>(iX - dim/2), 
+					static_cast<float>(iY - dim/2), 
+					static_cast<float>(iZ - dim/2), 
+					0.0f);
 				XMMATRIX transform = XMMatrixTranslationFromVector(stepDistance * XMLoadFloat4(&translationVector));
-
 				StoreXMMatrixAsTransform3x4(m_geometryTransforms[i].transform3x4, transform);
 			}
 	m_geometryTransforms.CopyStagingToGpu();
@@ -858,7 +859,7 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 	UINT64 maxScratchResourceSize = 0;
 	{
 		m_vBottomLevelAS.resize(SceneArgs::NumBLAS);
-		m_vBottomLevelAS[0].Initialize(device, m_geometries, buildFlags);
+		m_vBottomLevelAS[0].Initialize(device, m_geometries[0], SceneArgs::NumGeometriesPerBLAS, m_geometryTransforms.GpuVirtualAddress(), buildFlags);
 		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
 	}
 
@@ -1414,6 +1415,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
 		wLabel << L" " << L" # geometries per BLAS: " << SceneArgs::NumGeometriesPerBLAS << L"\n";
 		wLabel << L" " << L" # BLAS: " << SceneArgs::NumBLAS << L"\n";
 		wLabel << L" " << L" # total triangles: " << SceneArgs::NumBLAS * SceneArgs::NumGeometriesPerBLAS* m_numTrianglesPerGeometry << L"\n";
+		// ToDo AS memory
 		labels.push_back(wLabel.str());
 	}
 

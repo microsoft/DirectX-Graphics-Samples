@@ -169,7 +169,8 @@ namespace TraceRayParameters
             0, // Radiance ray
             1  // Shadow ray
         };
-        static const UINT GeometryStride = RayType::Count;
+		// ToDo For now all geometries reusing shader records
+		static const UINT GeometryStride = 0;// RayType::Count;
     }
     namespace MissShader {
         static const UINT Offset[RayType::Count] =

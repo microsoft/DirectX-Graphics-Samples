@@ -190,7 +190,9 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     uint indexSizeInBytes = 2;
     uint indicesPerTriangle = 3;
     uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
-    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
+
+    //Todo uint baseIndex = PrimitiveIndex() * triangleIndexStride;
+	uint baseIndex = triangleIndexStride;
 
     // Load up three 16 bit indices for the triangle.
     const uint3 indices = Load3x16BitIndices(baseIndex, g_indices);
@@ -271,7 +273,7 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitive
 
     // Apply visibility falloff.
     float t = RayTCurrent();
-    color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
+	color = color;// lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
 
     rayPayload.color = color;
 }
@@ -283,7 +285,8 @@ void MyClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitive
 [shader("miss")]
 void MyMissShader(inout RayPayload rayPayload)
 {
-    float4 backgroundColor = float4(BackgroundColor);
+	float4 skydome = float4(1, 1, 1, 1)* max(0, (WorldRayDirection().y + 0.75)/1.75f);
+    float4 backgroundColor = float4(BackgroundColor) +skydome;
     rayPayload.color = backgroundColor;
 }
 
