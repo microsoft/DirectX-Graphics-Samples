@@ -233,7 +233,7 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
         };
 
 
-        m_planeMaterialCB = { XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.4f, 50, 1};
+        m_planeMaterialCB = { XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.0f, 1, 0.4f, 50, 1};
 
         // Albedos
         XMFLOAT4 green = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);

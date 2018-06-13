@@ -49,6 +49,7 @@ public:
 	void CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex);
 	WRAPPED_GPU_POINTER CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements, UINT* descriptorHeapIndex);
 
+	const DX::DeviceResources& GetDeviceResources() { return *m_deviceResources; }
 	RaytracingAPI GetRaytracingAPI() { return m_raytracingAPI; }
 	ID3D12RaytracingFallbackDevice* GetFallbackDevice() { return m_fallbackDevice.Get(); }
 	ID3D12RaytracingFallbackCommandList* GetFallbackCommandList() { return m_fallbackCommandList.Get(); }

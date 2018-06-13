@@ -215,15 +215,18 @@ void TopLevelAccelerationStructure::BuildInstanceDescs(ID3D12Device* device, vec
 	{
 		if (structuredBufferInstanceDescs->Size() != vBottomLevelAS.size())
 		{
-			structuredBufferInstanceDescs->Create(device, static_cast<UINT>(vBottomLevelAS.size()), 1, L"Instance descs.");
+			structuredBufferInstanceDescs->Create(device, static_cast<UINT>(vBottomLevelAS.size()), g_pSample->GetDeviceResources().GetBackBufferCount(), L"Instance descs.");
 		}
 		for (UINT i = 0; i < vBottomLevelAS.size(); i++)
 		{
 			vBottomLevelAS[i].BuildInstanceDesc(&((*structuredBufferInstanceDescs)[i]), &(*bottomLevelASinstanceDescsDescritorHeapIndices)[i]);
 		}
-		structuredBufferInstanceDescs->CopyStagingToGpu();
-	};
-
+		// Initialize all gpu instances, in case we do only partial runtime updates.
+		for (UINT i = 0; i < g_pSample->GetDeviceResources().GetBackBufferCount(); i++)
+		{
+			structuredBufferInstanceDescs->CopyStagingToGpu(i);
+		}
+	}; 
 	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)
 	{
 		CreateInstanceDescs(&m_fallbackLayerInstanceDescs);
@@ -248,7 +251,7 @@ void TopLevelAccelerationStructure::UpdateInstanceDescTransforms(vector<BottomLe
 			}
 		}
 		// ToDo do per instance copies instead?
-		structuredBufferInstanceDescs->CopyStagingToGpu();
+		structuredBufferInstanceDescs->CopyStagingToGpu(g_pSample->GetDeviceResources().GetCurrentFrameIndex());
 	};
 
 	if (g_pSample->GetRaytracingAPI() == RaytracingAPI::FallbackLayer)

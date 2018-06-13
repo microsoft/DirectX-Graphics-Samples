@@ -78,7 +78,7 @@ public:
 	AccelerationStructure();
 	virtual ~AccelerationStructure() {}
 	void ReleaseD3DResources();
-	UINT64 RequiredScratchSize() { return m_prebuildInfo.ScratchDataSizeInBytes; }
+	UINT64 RequiredScratchSize() { return max(m_prebuildInfo.ScratchDataSizeInBytes, m_prebuildInfo.UpdateScratchDataSizeInBytes); }
 	UINT64 RequiredResultDataSizeInBytes() { return m_prebuildInfo.ResultDataMaxSizeInBytes; }
 	ID3D12Resource* GetResource() { return m_accelerationStructure.Get(); }
 	const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& PrebuildInfo() { return m_prebuildInfo; }
