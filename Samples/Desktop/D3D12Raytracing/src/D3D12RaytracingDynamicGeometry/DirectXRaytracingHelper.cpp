@@ -213,7 +213,7 @@ void TopLevelAccelerationStructure::BuildInstanceDescs(ID3D12Device* device, vec
 {
 	auto CreateInstanceDescs = [&](auto* structuredBufferInstanceDescs)
 	{
-		if (structuredBufferInstanceDescs->Size() == 0)
+		if (structuredBufferInstanceDescs->Size() != vBottomLevelAS.size())
 		{
 			structuredBufferInstanceDescs->Create(device, static_cast<UINT>(vBottomLevelAS.size()), 1, L"Instance descs.");
 		}
@@ -247,6 +247,7 @@ void TopLevelAccelerationStructure::UpdateInstanceDescTransforms(vector<BottomLe
 					vBottomLevelAS[i].GetTransform());
 			}
 		}
+		// ToDo do per instance copies instead?
 		structuredBufferInstanceDescs->CopyStagingToGpu();
 	};
 

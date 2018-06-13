@@ -74,7 +74,8 @@ private:
 	TopLevelAccelerationStructure m_topLevelAS;
 	ComPtr<ID3D12Resource> m_accelerationStructureScratch;
 	UINT64 m_ASmemoryFootprint;
-	UINT m_numFramesSinceASBuild;
+	int m_numFramesSinceASBuild;
+	const float m_geometryRadius = 3.0f;
 
 	// Raytracing Fallback Layer (FL) attributes
 	ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
@@ -196,6 +197,7 @@ private:
     void InitializeGeometry();
     void BuildPlaneGeometry();
     void BuildTesselatedGeometry();
+	void GenerateBottomLevelASInstanceTransforms();
     void InitializeAccelerationStructures();
     void BuildShaderTables();
     void SelectRaytracingAPI(RaytracingAPI type);
