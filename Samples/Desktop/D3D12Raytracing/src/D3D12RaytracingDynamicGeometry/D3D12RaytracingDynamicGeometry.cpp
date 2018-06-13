@@ -185,10 +185,8 @@ void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
     m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, viewProj);
 }
 
-void D3D12RaytracingDynamicGeometry::UpdateGeometries()
+void D3D12RaytracingDynamicGeometry::UpdateBottomLevelASTransforms()
 {
-    auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
-
 	float animationDuration = 24.0f;
 	float curTime = static_cast<float>(m_timer.GetTotalSeconds());
     float t = CalculateAnimationInterpolant(curTime, animationDuration);
@@ -205,6 +203,54 @@ void D3D12RaytracingDynamicGeometry::UpdateGeometries()
 		transform.r[3] = XMVectorSetByIndex(transform.r[3], posY, 1);
 		bottomLevelAS.SetTransform(transform);
 	}
+}
+
+void D3D12RaytracingDynamicGeometry::UpdateGeometryTransforms()
+{
+	auto device = m_deviceResources->GetD3DDevice();
+	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+
+	// Generate geometry desc transforms;
+	int dim = static_cast<int>(ceil(cbrt(static_cast<double>(SceneArgs::NumGeometriesPerBLAS))));
+	float distanceBetweenGeometry = m_geometryRadius;
+	float geometryWidth = 2 * m_geometryRadius;
+	float stepDistance = geometryWidth + distanceBetweenGeometry;
+
+	float animationDuration = 12.0f;
+	float curTime = static_cast<float>(m_timer.GetTotalSeconds());
+	float t = CalculateAnimationInterpolant(curTime, animationDuration);
+	float rotAngle = XMConvertToRadians(t * 360.0f);
+
+	// Rotate around offset center.
+	XMMATRIX localTranslation = XMMatrixTranslation(0.0f, 0.0f, 0.5f * m_geometryRadius);
+	XMMATRIX localRotation = XMMatrixRotationY(XMConvertToRadians(rotAngle));
+	XMMATRIX localTransform = localTranslation * localRotation;
+
+	for (int iY = 0, i = 0; iY < dim; iY++)
+		for (int iX = 0; iX < dim; iX++)
+			for (int iZ = 0; iZ < dim; iZ++, i++)
+			{
+				if (i >= SceneArgs::NumGeometriesPerBLAS)
+				{
+					break;
+				}
+
+				// Translate within BLAS.
+				XMFLOAT4 translationVector = XMFLOAT4(
+					static_cast<float>(iX - dim / 2),
+					static_cast<float>(iY - dim / 2),
+					static_cast<float>(iZ - dim / 2),
+					0.0f);
+				XMMATRIX transformWithinBLAS= XMMatrixTranslationFromVector(stepDistance * XMLoadFloat4(&translationVector));
+				XMMATRIX transform = localTransform * transformWithinBLAS;
+
+				for (UINT j = 0; j < m_vBottomLevelAS.size(); j++)
+				{
+					UINT transformIndex = j * SceneArgs::NumGeometriesPerBLAS + i;
+					StoreXMMatrixAsTransform3x4(m_geometryTransforms[transformIndex].transform3x4, transform);
+				}
+			}
+	m_geometryTransforms.CopyStagingToGpu(frameIndex);
 }
 
 // Initialize scene rendering parameters.
@@ -807,33 +853,6 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 	ThrowIfFalse(m_geometryVBHeapIndices[0] == m_geometryIBHeapIndices[0] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
 	m_numTrianglesPerGeometry = static_cast<UINT>(indices.size()) / 3;
-
-	// Generate geometry desc transforms;
-	int dim = static_cast<int>(ceil(cbrt(static_cast<double>(SceneArgs::NumGeometriesPerBLAS))));
-	float distanceBetweenGeometry = m_geometryRadius;
-	float geometryWidth = 2 * m_geometryRadius;
-	float stepDistance = geometryWidth + distanceBetweenGeometry;
-	m_geometryTransforms.Create(device, SceneArgs::NumGeometriesPerBLAS, 1, L"Geometry build desc transforms");
-
-	// ToDo move out to a seprate function
-	for (int iY = 0, i = 0; iY < dim; iY++)
-		for (int iX = 0; iX < dim; iX++)
-			for (int iZ = 0; iZ < dim; iZ++, i++)
-			{
-				if (i >= SceneArgs::NumGeometriesPerBLAS)
-				{
-					break;
-				}
-
-				XMFLOAT4 translationVector = XMFLOAT4(
-					static_cast<float>(iX - dim/2), 
-					static_cast<float>(iY - dim/2), 
-					static_cast<float>(iZ - dim/2), 
-					0.0f);
-				XMMATRIX transform = XMMatrixTranslationFromVector(stepDistance * XMLoadFloat4(&translationVector));
-				StoreXMMatrixAsTransform3x4(m_geometryTransforms[i].transform3x4, transform);
-			}
-	m_geometryTransforms.CopyStagingToGpu();
 }
 
 // Build geometry used in the sample.
@@ -841,7 +860,6 @@ void D3D12RaytracingDynamicGeometry::InitializeGeometry()
 {
 	BuildTesselatedGeometry();
 }
-
 
 void D3D12RaytracingDynamicGeometry::GenerateBottomLevelASInstanceTransforms()
 {
@@ -902,9 +920,15 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 		m_vBottomLevelAS.resize(SceneArgs::NumBLAS);
 		for (auto& bottomLevelAS : m_vBottomLevelAS)
 		{
-			bottomLevelAS.Initialize(device, m_geometries[0], SceneArgs::NumGeometriesPerBLAS, m_geometryTransforms.GpuVirtualAddress(), buildFlags);
+			bottomLevelAS.Initialize(device, m_geometries[0], SceneArgs::NumGeometriesPerBLAS, buildFlags);
 			maxScratchResourceSize = max(bottomLevelAS.RequiredScratchSize(), maxScratchResourceSize);
 			m_ASmemoryFootprint += bottomLevelAS.RequiredResultDataSizeInBytes();
+		}
+		
+		UINT numGeometryTransforms = SceneArgs::NumBLAS * SceneArgs::NumGeometriesPerBLAS;
+		if (m_geometryTransforms.Size() != numGeometryTransforms)
+		{
+			m_geometryTransforms.Create(device, numGeometryTransforms, FrameCount, L"Geometry descs transforms");
 		}
 	}
 
@@ -1283,9 +1307,9 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
 
 	if (m_animateScene)
 	{
-		UpdateGeometries();
+		UpdateGeometryTransforms();
+		UpdateBottomLevelASTransforms();
 	}
-
 
 	if (m_enableUI)
 	{
@@ -1339,20 +1363,30 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 			break;
 		};
 	}
-	
+
 	{
 		m_gpuTimers[GpuTimers::UpdateBLAS].Start(commandList);
-		for (auto& bottomLevelAS : m_vBottomLevelAS)
+		for (UINT i = 0; i < m_vBottomLevelAS.size(); i++)
 		{
-			if (bottomLevelAS.IsDirty() || forceBuild)
+			auto& bottomLevelAS = m_vBottomLevelAS[i];
+
+			// ToDo - there should be two dirty flags 
+			// - one for geometry transform/VB changes 
+			// - and one for BLAS transform change
+			// For now, update everything every frame
+			//if (bottomLevelAS.IsDirty() || forceBuild)
 			{
-				// ToDo Heuristic to do an update instead
-				bottomLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get(), bUpdate);
+				// ToDo Heuristic to do an update based on transform amplitude
+				D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress =
+					m_geometryTransforms.GpuVirtualAddress() + i * SceneArgs::NumGeometriesPerBLAS;
+				bottomLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), 
+					m_descriptorHeap.Get(), baseGeometryTransformGpuAddress, bUpdate);
 				isTopLevelASUpdateNeeded = true;
 			}
 		}
 		m_gpuTimers[GpuTimers::UpdateBLAS].Stop(commandList);
 	}
+
 	if (isTopLevelASUpdateNeeded)
 	{
 		m_gpuTimers[GpuTimers::UpdateTLAS].Start(commandList);

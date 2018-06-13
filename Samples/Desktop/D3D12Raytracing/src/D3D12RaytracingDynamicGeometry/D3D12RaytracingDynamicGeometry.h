@@ -171,7 +171,8 @@ private:
     void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
-    void UpdateGeometries();
+	void UpdateBottomLevelASTransforms();
+    void UpdateGeometryTransforms();
     void InitializeScene();
     void RecreateD3D();
 	void UpdateAccelerationStructures(bool forceBuild = false);

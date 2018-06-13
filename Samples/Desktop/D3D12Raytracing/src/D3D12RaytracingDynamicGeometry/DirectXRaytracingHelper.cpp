@@ -81,8 +81,17 @@ void BottomLevelAccelerationStructure::BuildInstanceDesc(void* destInstanceDesc,
 	}
 };
 
+void BottomLevelAccelerationStructure::UpdateGeometryDescsTransform(D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress)
+{
+	for (UINT i = 0; i < m_geometryDescs.size(); i++)
+	{
+		auto& geometryDesc = m_geometryDescs[i];
+		geometryDesc.Triangles.Transform = baseGeometryTransformGPUAddress + i * sizeof(AlignedGeometryTransform3x4);
+	}
+}
+
 // Build geometry descs for bottom-level AS.
-void BottomLevelAccelerationStructure::BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress)
+void BottomLevelAccelerationStructure::BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances)
 {
 	// ToDo pass geometry flag from the sample cpp
 	// Mark the geometry as opaque. 
@@ -107,7 +116,6 @@ void BottomLevelAccelerationStructure::BuildGeometryDescs(const TriangleGeometry
 		geometryDesc.Triangles.IndexCount = static_cast<UINT>(geometry.ib.resource->GetDesc().Width) / sizeof(Index);
 		geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress();
 		geometryDesc.Triangles.VertexCount = static_cast<UINT>(geometry.vb.resource->GetDesc().Width) / sizeof(DirectX::GeometricPrimitive::VertexType);
-		geometryDesc.Triangles.Transform = baseGeometryTransformGPUAddress + i * sizeof(AlignedGeometryTransform3x4);
 	}
 }
 
@@ -132,18 +140,20 @@ void BottomLevelAccelerationStructure::ComputePrebuildInfo()
 	ThrowIfFalse(m_prebuildInfo.ResultDataMaxSizeInBytes > 0);
 }
 
-void BottomLevelAccelerationStructure::Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
+void BottomLevelAccelerationStructure::Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
 {
 	m_buildFlags = buildFlags;
-	BuildGeometryDescs(geometry, numInstances, baseGeometryTransformGPUAddress);
+	BuildGeometryDescs(geometry, numInstances);
 	ComputePrebuildInfo();
 	AllocateResource(device);
 	m_isDirty = true;
 }
 
-void BottomLevelAccelerationStructure::Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate)
+void BottomLevelAccelerationStructure::Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, bool bUpdate)
 {
 	ThrowIfFalse(m_prebuildInfo.ScratchDataSizeInBytes <= scratch->GetDesc().Width, L"Insufficient scratch buffer size provided!");
+	
+	UpdateGeometryDescsTransform(baseGeometryTransformGPUAddress);
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelBuildDesc = {};
 	{
@@ -243,6 +253,7 @@ void TopLevelAccelerationStructure::UpdateInstanceDescTransforms(vector<BottomLe
 	{
 		for (UINT i = 0; i < vBottomLevelAS.size(); i++)
 		{
+			// ToDo should the transform be stored inside TLAS?
 			if (vBottomLevelAS[i].IsDirty())
 			{
 				StoreXMMatrixAsTransform3x4(

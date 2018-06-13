@@ -82,7 +82,6 @@ public:
 	UINT64 RequiredResultDataSizeInBytes() { return m_prebuildInfo.ResultDataMaxSizeInBytes; }
 	ID3D12Resource* GetResource() { return m_accelerationStructure.Get(); }
 	const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& PrebuildInfo() { return m_prebuildInfo; }
-	virtual void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false) = 0;
 
 protected:
 	void AllocateResource(ID3D12Device* device);
@@ -104,9 +103,10 @@ public:
 	// ToDo:
 	// UpdateGeometry()
 
-	void Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
-	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
+	void Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
+	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, bool bUpdate = false);
 	void BuildInstanceDesc(void* destInstanceDesc, UINT* descriptorHeapIndex);
+	void UpdateGeometryDescsTransform(D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress);
 	void SetTransform(const DirectX::XMMATRIX& transform)
 	{
 		m_transform = transform;
@@ -118,7 +118,7 @@ public:
 	const XMMATRIX& GetTransform() { return m_transform; }
 
 private:
-	void BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress);
+	void BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances);
 	void ComputePrebuildInfo();
 };
 
