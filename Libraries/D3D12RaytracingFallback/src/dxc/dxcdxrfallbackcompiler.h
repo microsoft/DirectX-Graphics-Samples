@@ -14,6 +14,24 @@
 #define __DXC_DXR_FALLBACK_COMPILER_API__
 #include "dxcapi.h"
 
+enum class ShaderType : unsigned int
+{
+    Raygen,
+    AnyHit,
+    ClosestHit,
+    Intersection,
+    Miss,
+    Callable,
+    Lib,
+};
+
+struct DxcShaderInfo
+{
+    UINT32 Identifier;
+    UINT32 StackSize;
+    ShaderType Type;
+};
+
 struct __declspec(uuid("76bb3c85-006d-4b72-9e10-63cd97df57f0"))
   IDxcDxrFallbackCompiler : public IUnknown {
 
@@ -33,7 +51,7 @@ struct __declspec(uuid("76bb3c85-006d-4b72-9e10-63cd97df57f0"))
     _In_count_(libCount) IDxcBlob **pLibs,                  // Array of libraries containing shaders
     UINT32 libCount,                                        // Number of libraries containing shaders
     _In_count_(shaderCount) const LPCWSTR *pShaderNames,    // Array of shader names to compile
-    _Out_ int* pShaderIdentifiers,                          // Array of generated shader identifiers, one for each shader
+    _Out_writes_(shaderCount) DxcShaderInfo *pShaderInfo,      // Array of shaderInfo corresponding to pShaderNames
     UINT32 shaderCount,                                     // Number of shaders to compile
     UINT32 stackSizeInBytes,                                // Continuation stack size. Use 0 for default.
     _COM_Outptr_ IDxcOperationResult **ppResult             // Compiler output status, buffer, and errors

@@ -622,6 +622,12 @@ namespace FallbackLayer
         return m_spProgram->GetShaderIdentifier(pExportName);
     }
 
+    UINT64 STDMETHODCALLTYPE RaytracingStateObject::GetShaderStackSize(LPCWSTR pExportName)
+    {
+        return m_spProgram->GetShaderStackSize(pExportName);
+    }
+
+
     UINT STDMETHODCALLTYPE RaytracingDevice::GetShaderIdentifierSize(void)
     {
         return sizeof(ShaderIdentifier);
