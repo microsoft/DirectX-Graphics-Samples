@@ -179,6 +179,8 @@ float3 Swizzle(float3 v, int3 swizzleOrder)
     return float3(v[swizzleOrder.x], v[swizzleOrder.y], v[swizzleOrder.z]);
 }
 
+bool IsPositive(float f) { return f > 0.0f; }
+
 // Using Woop/Benthin/Wald 2013: "Watertight Ray/Triangle Intersection"
 inline
 void RayTriangleIntersect(
@@ -232,6 +234,7 @@ void RayTriangleIntersect(
     B.z = shear.z * B.z;
     C.z = shear.z * C.z;
     const float T = U * A.z + V * B.z + W * C.z;
+
     if (useFrontfaceCulling)
     {
         if (T > 0.0f || T < hitT * det)
@@ -244,11 +247,18 @@ void RayTriangleIntersect(
     }
     else
     {
-        int det_sign = det > 0.0 ? 1 : -1;
-        if (((asuint(T) ^ det_sign) < 0.0f) ||
-            (asuint(T) ^ det_sign) > hitT * (asuint(det) ^ det_sign))
+        float signCorrectedT = abs(T);
+        if (IsPositive(T) != IsPositive(det))
+        {
+            signCorrectedT = -signCorrectedT;
+        }
+
+        if (signCorrectedT < 0.0f || signCorrectedT > hitT * abs(det))
+        {
             return;
+        }
     }
+
     const float rcpDet = rcp(det);
     bary.x = V * rcpDet;
     bary.y = W * rcpDet;
