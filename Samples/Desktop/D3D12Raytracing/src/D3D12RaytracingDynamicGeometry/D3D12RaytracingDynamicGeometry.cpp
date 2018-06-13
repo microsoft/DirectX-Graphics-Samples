@@ -70,15 +70,15 @@ namespace SceneArgs
 	const WCHAR* RaytracingModes[] = { L"FL-DXR", L"FL",L"DXR" };
 	EnumVar RaytracingMode(L"RaytracingMode", FLDXR, _countof(RaytracingModes), RaytracingModes);
 
-	BoolVar EnableGeometryAndASRebuilds(L"Enable geometry & AS rebuilds", true);
+	BoolVar EnableGeometryAndASBuildsAndUpdates(L"Enable geometry & AS builds and updates", true);
 
-	enum UpdateMode { Build = 0, Update, Mix };
-	const WCHAR* UpdateModes[] = { L"Build only", L"Update only", L"Update + rebuild every X frames" };
+	enum UpdateMode { Build = 0, Update, Update_BuildEveryXFrames };
+	const WCHAR* UpdateModes[] = { L"Build only", L"Update only", L"Update + build every X frames" };
 	EnumVar ASUpdateMode(L"Acceleration structure/Update mode", Build, _countof(UpdateModes), UpdateModes);
-	IntVar ASUpdateFrequency(L"Acceleration structure/Rebuild frame frequency", 1, 1, 1200, 1);
+	IntVar ASBuildFrequency(L"Acceleration structure/Rebuild frame frequency", 1, 1, 1200, 1);
 	BoolVar ASMinimizeMemory(L"Acceleration structure/Minimize memory", false, OnASChange, nullptr);
-	BoolVar ASAllowUpdate(L"Acceleration structure/Allow update", true);
-	enum BuildFlag { Default = 0,FastTrace, FastBuild };
+	BoolVar ASAllowUpdate(L"Acceleration structure/Allow update", true, OnASChange, nullptr);
+	enum BuildFlag { Default = 0, FastTrace, FastBuild };
 	const WCHAR* BuildFlags[] = { L"Default", L"Fast trace", L"Fast build" };
 	EnumVar ASBuildFlag(L"Acceleration structure/Build quality", FastTrace, _countof(BuildFlags), BuildFlags, OnASChange, nullptr);
 
@@ -89,21 +89,23 @@ namespace SceneArgs
 
 
 D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name) :
-    DXSample(width, height, name),
-    m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
-    m_animateCamera(false),
-    m_animateLight(false),
+	DXSample(width, height, name),
+	m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
+	m_animateCamera(false),
+	m_animateLight(false),
 	m_animateScene(true),
-    m_isDxrSupported(false),
-    m_descriptorsAllocated(0),
-    m_descriptorSize(0),
-    m_missShaderTableStrideInBytes(UINT_MAX),
-    m_hitGroupShaderTableStrideInBytes(UINT_MAX),
-    m_forceComputeFallback(false),	
+	m_isDxrSupported(false),
+	m_descriptorsAllocated(0),
+	m_descriptorSize(0),
+	m_missShaderTableStrideInBytes(UINT_MAX),
+	m_hitGroupShaderTableStrideInBytes(UINT_MAX),
+	m_forceComputeFallback(false),
 	m_numTrianglesPerGeometry(0),
 	m_isGeometryInitializationRequested(true),
 	m_isASinitializationRequested(true),
-	m_isASrebuildRequested(true)
+	m_isASrebuildRequested(true),
+	m_ASmemoryFootprint(0),
+	m_numFramesSinceASBuild(0)
 {
 	g_pSample = this;
     m_forceComputeFallback = false;
@@ -810,7 +812,7 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 		for (int iX = 0; iX < dim; iX++)
 			for (int iZ = 0; iZ < dim; iZ++, i++)
 			{
-				if (i >= static_cast<UINT>(SceneArgs::NumGeometriesPerBLAS))
+				if (i >= SceneArgs::NumGeometriesPerBLAS)
 				{
 					break;
 				}
@@ -857,16 +859,19 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 
 	// Initialize bottom-level AS.
 	UINT64 maxScratchResourceSize = 0;
+	m_ASmemoryFootprint = 0;
 	{
 		m_vBottomLevelAS.resize(SceneArgs::NumBLAS);
 		m_vBottomLevelAS[0].Initialize(device, m_geometries[0], SceneArgs::NumGeometriesPerBLAS, m_geometryTransforms.GpuVirtualAddress(), buildFlags);
 		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
+		m_ASmemoryFootprint += m_vBottomLevelAS[0].RequiredResultDataSizeInBytes();
 	}
 
 	// Initialize top-level AS.
 	{
 		m_topLevelAS.Initialize(device, m_vBottomLevelAS, buildFlags, &m_bottomLevelASinstanceDescsDescritorHeapIndices);
 		maxScratchResourceSize = max(m_topLevelAS.RequiredScratchSize(), maxScratchResourceSize);
+		m_ASmemoryFootprint += m_vBottomLevelAS[0].RequiredResultDataSizeInBytes();
 	}
 
 	// Create a scratch buffer.
@@ -1211,7 +1216,7 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
 	// Lazy initialize and update geometries and acceleration structures.
-	if (SceneArgs::EnableGeometryAndASRebuilds &&
+	if (SceneArgs::EnableGeometryAndASBuildsAndUpdates &&
 		(m_isGeometryInitializationRequested || m_isASinitializationRequested))
 	{
 		// Since we'll be recreating D3D resources, GPU needs to be done with the current ones.
@@ -1221,13 +1226,14 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
 		if (m_isGeometryInitializationRequested)
 		{
 			InitializeGeometry();
-			m_isGeometryInitializationRequested = false;
 		}
 		if (m_isASinitializationRequested)
 		{
 			InitializeAccelerationStructures();
-			m_isASinitializationRequested = false;
 		}
+		m_isGeometryInitializationRequested = false;
+		m_isASinitializationRequested = false;
+
 		m_deviceResources->ExecuteCommandList();
 		m_deviceResources->WaitForGpu();
 	}
@@ -1268,10 +1274,29 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 {
 	auto commandList = m_deviceResources->GetCommandList();
 	bool isTopLevelASUpdateNeeded = false;
+	m_numFramesSinceASBuild++;
 
 	// ToDo move this next to TLAS build? But BLAS update resets dirty flag
 	m_topLevelAS.UpdateInstanceDescTransforms(m_vBottomLevelAS);
-
+	
+	BOOL bUpdate = false;	// ~ build or update
+	if (!forceBuild)
+	{
+		switch (SceneArgs::ASUpdateMode)
+		{
+		case SceneArgs::Update:
+			bUpdate = true;
+			break;
+		case SceneArgs::Build:
+			bUpdate = false;
+			break;
+		case SceneArgs::Update_BuildEveryXFrames:
+			bUpdate = m_numFramesSinceASBuild < SceneArgs::ASBuildFrequency;
+		default: 
+			break;
+		};
+	}
+	
 	{
 		m_gpuTimers[GpuTimers::UpdateBLAS].Start(commandList);
 		for (auto& bottomLevelAS : m_vBottomLevelAS)
@@ -1279,7 +1304,7 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 			if (bottomLevelAS.IsDirty() || forceBuild)
 			{
 				// ToDo Heuristic to do an update instead
-				bottomLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get());
+				bottomLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get(), bUpdate);
 				isTopLevelASUpdateNeeded = true;
 			}
 		}
@@ -1288,8 +1313,12 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 	if (isTopLevelASUpdateNeeded)
 	{
 		m_gpuTimers[GpuTimers::UpdateTLAS].Start(commandList);
-		m_topLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get());
+		m_topLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get(), bUpdate);
 		m_gpuTimers[GpuTimers::UpdateTLAS].Stop(commandList);
+	}
+	if (!bUpdate)
+	{
+		m_numFramesSinceASBuild = 0;
 	}
 }
 
@@ -1411,6 +1440,8 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
 		wstringstream wLabel;
 		wLabel << L"Scene:" << L"\n";
 		wLabel << L" " << L"AS update mode: " << SceneArgs::ASUpdateMode << L"\n";
+		wLabel.precision(2);
+		wLabel << L" " << L"AS memory footprint: " << static_cast<double>(m_ASmemoryFootprint)/(1024*1024) << L"MB\n";
 		wLabel << L" " << L" # triangles per geometry: " << m_numTrianglesPerGeometry << L"\n";
 		wLabel << L" " << L" # geometries per BLAS: " << SceneArgs::NumGeometriesPerBLAS << L"\n";
 		wLabel << L" " << L" # BLAS: " << SceneArgs::NumBLAS << L"\n";
@@ -1542,9 +1573,11 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 	}
 
 	// Update acceleration structures.
-	UpdateAccelerationStructures(m_isASrebuildRequested);
-	m_isASrebuildRequested = false;
-	
+	if (SceneArgs::EnableGeometryAndASBuildsAndUpdates)
+	{
+		UpdateAccelerationStructures(m_isASrebuildRequested);
+		m_isASrebuildRequested = false;
+	}
 	// Render.
     DoRaytracing();
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
