@@ -332,7 +332,6 @@ namespace FallbackLayer
         switch (type)
         {
         case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
-        case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG:
             return true;
         default:
             return false;
@@ -341,8 +340,6 @@ namespace FallbackLayer
 
     void RaytracingDevice::ProcessShaderAssociation(const D3D12_STATE_SUBOBJECT &subObject, ShaderAssociations &shaderAssociation)
     {
-        assert(IsShaderAssociationField(subObject.Type));
-
         switch (subObject.Type)
         {
         case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
@@ -374,6 +371,14 @@ namespace FallbackLayer
         {
             switch (subObject.Type)
             {
+            case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG:
+            {
+                D3D12_RAYTRACING_SHADER_CONFIG & shaderConfig = *(D3D12_RAYTRACING_SHADER_CONFIG*)subObject.pDesc;
+                rayTracingStateObject.m_collection.m_maxAttributeSizeInBytes = (UINT)max(
+                    rayTracingStateObject.m_collection.m_maxAttributeSizeInBytes,
+                    shaderConfig.MaxAttributeSizeInBytes);
+                break;
+            }
             case D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE:
             {
                 ID3D12RootSignature** ppRootSignatureDesc = (ID3D12RootSignature**)subObject.pDesc;

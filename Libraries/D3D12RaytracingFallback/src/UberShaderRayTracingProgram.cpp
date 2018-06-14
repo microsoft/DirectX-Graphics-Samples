@@ -155,7 +155,7 @@ namespace FallbackLayer
         // Link shaders just to get the stack sizes (very bad)
         CComPtr<IDxcBlob> pUnusedBlob;
         std::vector<DxcShaderInfo> shaderInfo;
-        m_DxilShaderPatcher.LinkShaders(0, librariesInfo, exportNames, shaderInfo, &pUnusedBlob);
+        m_DxilShaderPatcher.LinkShaders(stateObjectCollection.m_maxAttributeSizeInBytes, 0, librariesInfo, exportNames, shaderInfo, &pUnusedBlob);
 
         UINT traceRayStackSize = shaderInfo[exportNames.size() - 1].StackSize;
         for (size_t i = 0; i < exportNames.size(); ++i)
@@ -166,7 +166,7 @@ namespace FallbackLayer
             if (isRaygen)
             {
                 shaderStackSize += traceRayStackSize;
-                m_largestRayGenStackSize = std::max(shaderStackSize, m_largestNonRayGenStackSize);
+                m_largestRayGenStackSize = std::max(shaderStackSize, m_largestRayGenStackSize);
             }
             else if (shader.Type == ShaderType::Miss)
             {
@@ -196,7 +196,7 @@ namespace FallbackLayer
 
         UINT stackSize = stateObjectCollection.m_config.MaxTraceRecursionDepth * m_largestNonRayGenStackSize + m_largestRayGenStackSize;
         CComPtr<IDxcBlob> pLinkedBlob;
-        m_DxilShaderPatcher.LinkShaders(stackSize, librariesInfo, exportNames, shaderInfo, &pLinkedBlob);
+        m_DxilShaderPatcher.LinkShaders(stateObjectCollection.m_maxAttributeSizeInBytes, stackSize, librariesInfo, exportNames, shaderInfo, &pLinkedBlob);
 
         CompilePSO(
             pDevice, 
