@@ -46,7 +46,8 @@ namespace FallbackLayer
 
         void PatchShaderBindingTables(const BYTE *pShaderBytecode, UINT bytecodeLength, ShaderInfo *pShaderInfo, IDxcBlob** ppOutputBlob);
         
-        void LinkShaders(UINT maxAttributeSize, UINT stackSize, const std::vector<DxilLibraryInfo> &dxilLibraries, const std::vector<LPCWSTR>& exportNames, std::vector<DxcShaderInfo>& shaderInfo, IDxcBlob** ppOutputBlob);
+        void LinkCollection(UINT maxAttributeSize, const std::vector<DxilLibraryInfo> &dxilLibraries, const std::vector<LPCWSTR>& exportNames, std::vector<DxcShaderInfo>& shaderInfo, IDxcBlob** ppOutputBlob);
+        void LinkStateObject(UINT maxAttributeSize, UINT stackSize, IDxcBlob* pLinkedBlob, const std::vector<LPCWSTR>& exportNames, std::vector<DxcShaderInfo>& shaderInfo, IDxcBlob** ppOutputBlob);
 
         IDxcValidator &GetValidator() { return *m_pValidator; }
     private:

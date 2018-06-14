@@ -166,7 +166,7 @@ namespace FallbackLayer
             ppTargetBlob));
     }
 
-    void DxilShaderPatcher::LinkShaders(UINT maxAttributeSize, UINT stackSize, const std::vector<DxilLibraryInfo> &dxilLibraries, const std::vector<LPCWSTR>& exportNames, std::vector<DxcShaderInfo>& shaderInfo, IDxcBlob** ppOutputBlob)
+    void DxilShaderPatcher::LinkCollection(UINT maxAttributeSize, const std::vector<DxilLibraryInfo> &dxilLibraries, const std::vector<LPCWSTR>& exportNames, std::vector<DxcShaderInfo>& shaderInfo, IDxcBlob** ppOutputBlob)
     {
         CComPtr<IDxcDxrFallbackCompiler> pFallbackCompiler;
         ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcDxrFallbackCompiler, &pFallbackCompiler),
@@ -176,20 +176,36 @@ namespace FallbackLayer
 
         std::vector<CComPtr<IDxcBlobEncoding>> pLibBlobs(dxilLibraries.size());
         std::vector<IDxcBlob*> pLibBlobPtrs(dxilLibraries.size());
-        for (size_t i=0; i < dxilLibraries.size(); ++i)
+        for (size_t i = 0; i < dxilLibraries.size(); ++i)
         {
 
-          ThrowInternalFailure(m_pLibrary->CreateBlobWithEncodingFromPinned(
+            ThrowInternalFailure(m_pLibrary->CreateBlobWithEncodingFromPinned(
                 static_cast<LPBYTE>(dxilLibraries[i].pByteCode),
                 static_cast<UINT32>(dxilLibraries[i].BytecodeLength),
                 CP_ACP,
                 &pLibBlobs[i]));
-          pLibBlobPtrs[i] = pLibBlobs[i];
+            pLibBlobPtrs[i] = pLibBlobs[i];
         }
 
         shaderInfo.resize(exportNames.size());
         CComPtr<IDxcOperationResult> pResult;
-        pFallbackCompiler->Compile(L"main", pLibBlobPtrs.data(), (UINT32)pLibBlobPtrs.size(), exportNames.data(), shaderInfo.data(), (UINT32)exportNames.size(), maxAttributeSize, stackSize, &pResult);
+        pFallbackCompiler->Compile(pLibBlobPtrs.data(), (UINT32)pLibBlobPtrs.size(), exportNames.data(), shaderInfo.data(), (UINT32)exportNames.size(), maxAttributeSize, &pResult);
+
+        VerifyResult(pResult);
+        ThrowInternalFailure(pResult->GetResult(ppOutputBlob));
+    }
+
+    void DxilShaderPatcher::LinkStateObject(UINT maxAttributeSize, UINT stackSize, IDxcBlob* pLinkedBlob, const std::vector<LPCWSTR>& exportNames, std::vector<DxcShaderInfo>& shaderInfo, IDxcBlob** ppOutputBlob)
+    {
+        CComPtr<IDxcDxrFallbackCompiler> pFallbackCompiler;
+        ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcDxrFallbackCompiler, &pFallbackCompiler),
+            L"Failed to create an instance of the Fallback Compiler. This suggest a version of DxCompiler.dll "
+            L"is being used that doesn't match up with the Fallback layer. Verify that the DxCompiler.dll is from "
+            L"same package as the Fallback.");
+
+        shaderInfo.resize(exportNames.size());
+        CComPtr<IDxcOperationResult> pResult;
+        pFallbackCompiler->Link(L"main", &pLinkedBlob, 1, exportNames.data(), shaderInfo.data(), (UINT32)exportNames.size(), maxAttributeSize, stackSize, &pResult);
 
         VerifyResult(pResult);
         ThrowInternalFailure(pResult->GetResult(ppOutputBlob));
