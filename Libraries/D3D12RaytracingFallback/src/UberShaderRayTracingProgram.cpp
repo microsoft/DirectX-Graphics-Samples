@@ -165,11 +165,11 @@ namespace FallbackLayer
             UINT shaderStackSize = shader.StackSize;
             if (isRaygen)
             {
-                shaderStackSize += traceRayStackSize;
                 m_largestRayGenStackSize = std::max(shaderStackSize, m_largestRayGenStackSize);
             }
             else if (shader.Type == ShaderType::Miss)
             {
+                shaderStackSize += traceRayStackSize;
                 m_largestNonRayGenStackSize = std::max(shaderStackSize, m_largestNonRayGenStackSize);
             }
 
@@ -189,7 +189,7 @@ namespace FallbackLayer
             UINT shaderStackSize = (UINT)std::max(std::max(
                 GetShaderStackSize(closestHitName), GetShaderStackSize(anyHitName)), GetShaderStackSize(intersectionName));
 
-            m_largestNonRayGenStackSize = std::max(shaderStackSize, m_largestNonRayGenStackSize);
+            m_largestNonRayGenStackSize = std::max(shaderStackSize + traceRayStackSize, m_largestNonRayGenStackSize);
             auto hitGroupName = hitGroupMapEntry.first;
             m_ExportNameToShaderData[hitGroupName] = { shaderId, shaderStackSize };
         }
