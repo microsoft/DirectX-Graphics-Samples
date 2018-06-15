@@ -2677,7 +2677,6 @@ namespace FallbackLayerUnitTests
                         PrimitiveMetaData metadata;
                         metadata.GeometryContributionToHitGroupIndex = 0;
                         metadata.PrimitiveIndex = i;
-                        metadata.GeometryFlags = 0;
                         trianglesMetadata.push_back(metadata);
                     }
                 }
@@ -3119,9 +3118,11 @@ namespace FallbackLayerUnitTests
             CComPtr<ID3D12GraphicsCommandList> pCommandList;
             m_d3d12Context.GetGraphicsCommandList(&pCommandList);
 
-            CComPtr<ID3D12Resource> pInputPrimitiveBuffer;
-            m_d3d12Context.CreateResourceWithInitialData(inputPrimitives.data(), inputPrimitives.size() * primitiveSizeBytes, &pInputPrimitiveBuffer);
-
+            std::vector<AABB> aabbs;
+            aabbs.push_back({ -1.0, -1.0, -1.0, 1.0, 1.0, 1.0 });
+            aabbs.push_back({ -1.0, -500.0, -1.0, 1.0, 2000.0, 1.0 });
+            aabbs.push_back({ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 });
+          
             UINT cachedSortIndices[totalPrimCount];
             D3D12_GPU_VIRTUAL_ADDRESS cachedSortBuffer = 0;
             CComPtr<ID3D12Resource> pCachedSortBuffer;
@@ -3137,12 +3138,11 @@ namespace FallbackLayerUnitTests
 
             CComPtr<ID3D12Resource> pOutputBuffer, pOutputMetadataBuffer;
 
+            auto outputBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(aabbs.size() * sizeof(Primitive), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             D3D12_HEAP_PROPERTIES defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-
-            auto outputBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(inputPrimitives.size() * sizeof(Primitive), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            CComPtr<ID3D12Resource> pOutputBuffer, pOutputMetadataBuffer;
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &outputBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pOutputBuffer)));
-
-            auto outputMetadataBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(inputPrimitives.size() * sizeof(PrimitiveMetaData), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            auto outputMetadataBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(aabbs.size() * sizeof(PrimitiveMetaData), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &outputMetadataBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pOutputMetadataBuffer)));
 
             D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC trianglesDesc = {};
@@ -3186,14 +3186,13 @@ namespace FallbackLayerUnitTests
 
             D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
             buildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            buildDesc.pGeometryDescs = geometryDescs;
-            buildDesc.NumDescs = numGeometryDescs;
+            buildDesc.pGeometryDescs = &geometryDesc;
+            buildDesc.NumDescs = 1;
             buildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-
             loadPrimitivesPass.LoadPrimitives(
                 pCommandList,
                 buildDesc,
-                totalPrimCount,
+                (UINT)aabbs.size(),
                 pOutputBuffer->GetGPUVirtualAddress(),
                 pOutputMetadataBuffer->GetGPUVirtualAddress(),
                 cachedSortBuffer);
@@ -3201,13 +3200,9 @@ namespace FallbackLayerUnitTests
             pCommandList->Close();
             m_d3d12Context.ExecuteCommandList(pCommandList);
 
-            std::vector<Primitive> outputPrimitives(totalPrimCount);
+            std::vector<Primitive> outputPrimitives(aabbs.size());
             m_d3d12Context.ReadbackResource(pOutputBuffer, outputPrimitives.data(), (UINT)outputPrimitives.size() * sizeof(*outputPrimitives.data()));
-
-            std::vector<PrimitiveMetaData> outputMetadata(totalPrimCount);
-            m_d3d12Context.ReadbackResource(pOutputMetadataBuffer, outputMetadata.data(), (UINT)outputMetadata.size() * sizeof(*outputMetadata.data()));
-
-            for (UINT i = 0; i < totalPrimCount; i++)
+            for (UINT i = 0; i < aabbs.size(); i++)
             {
                 const UINT sortedIndex = cachedSortBuffer ? cachedSortIndices[i] : i;
                 const UINT geometryDescIndex = i / primitivesPerGeometry;
@@ -3229,7 +3224,7 @@ namespace FallbackLayerUnitTests
                 if (targetGeomFlag)
                     Assert::IsTrue(outputMetadata[sortedIndex].GeometryFlags == targetGeomFlag, L"Loaded primitive does not have correct geometry flag set");
                 else
-                    Assert::IsTrue(outputMetadata[sortedIndex].GeometryFlags == 0, L"Loaded primitive does not have geometry flags cleared");
+                    Assert::IsTrue(outputMetadata[sortedIndex].GeometryFlags == 0, L"Loaded primitive does not have geometry flags cleared")
             }
         }
 
