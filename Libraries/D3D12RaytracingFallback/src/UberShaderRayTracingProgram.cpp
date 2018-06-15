@@ -158,7 +158,7 @@ namespace FallbackLayer
         m_DxilShaderPatcher.LinkCollection(stateObjectCollection.m_maxAttributeSizeInBytes, librariesInfo, exportNames, shaderInfo, &pCollectionBlob);
 
         UINT traceRayStackSize = shaderInfo[exportNames.size() - 1].StackSize;
-        for (size_t i = 0; i < exportNames.size(); ++i)
+        for (size_t i = 0; i < exportNames.size() - 1; ++i)
         {
             auto &shader = shaderInfo[i];
             bool isRaygen = shader.Type == ShaderType::Raygen;
