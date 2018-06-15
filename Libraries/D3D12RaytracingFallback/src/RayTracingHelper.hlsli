@@ -17,9 +17,6 @@
 
 // Hidden
 #define AABB_Min_Padding 0.001
-#define SizeOfFloat 4
-#define SizeOfUINT16 2
-#define SizeOfUINT32 4
 #define NumberOfFloatsPerVertex 3
 #define SizeOfVertex (NumberOfFloatsPerVertex * SizeOfFloat)
 #define NumberOfVerticesPerTriangle 3
@@ -184,9 +181,10 @@ PrimitiveMetaData BVHReadPrimitiveMetaData(RWByteAddressBufferPointer pointer, i
     const uint readAddress = GetPrimitiveMetaDataAddress(GetOffsetToPrimitiveMetaData(pointer), primitiveIndex);
 
     PrimitiveMetaData metadata;
-    const uint2 a = pointer.buffer.Load2(readAddress);
+    const uint3 a = pointer.buffer.Load3(readAddress);
     metadata.GeometryContributionToHitGroupIndex = a.x;
     metadata.PrimitiveIndex = a.y;
+    metadata.GeometryFlags = a.z;
     return metadata;
 }
 

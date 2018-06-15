@@ -100,6 +100,62 @@ namespace FallbackLayerUnitTests
         D3D12_CPU_DESCRIPTOR_HANDLE m_descriptorHeapCpuBase;
     };
 
+    D3D12_RAYTRACING_GEOMETRY_DESC GetGeometryDesc(
+        const CpuGeometryDescriptor &geomDesc,
+        ID3D12Resource *pVertexBuffer = nullptr,
+        ID3D12Resource *pIndexBuffer = nullptr,
+        D3D12_GPU_VIRTUAL_ADDRESS transform = 0)
+    {
+        D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
+        geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+        geometryDesc.Triangles.IndexBuffer = pIndexBuffer ? pIndexBuffer->GetGPUVirtualAddress() : 0;
+        geometryDesc.Triangles.IndexCount = geomDesc.m_numIndicies;
+        geometryDesc.Triangles.IndexFormat = geomDesc.m_indexBufferFormat;
+        geometryDesc.Triangles.Transform = transform;
+        geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+        geometryDesc.Triangles.VertexCount = geomDesc.m_numVerticies;
+        geometryDesc.Triangles.VertexBuffer.StartAddress = pVertexBuffer ? pVertexBuffer->GetGPUVirtualAddress() : 0;
+        geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(float) * 3;
+
+        return geometryDesc;
+    }
+
+    void GenerateRandomTranformation(float *pMatrix)
+    {
+        // Identity matrix
+        ZeroMemory(pMatrix, sizeof(float) * FloatsPerMatrix);
+        pMatrix[0] = 1;
+        pMatrix[5] = 1;
+        pMatrix[10] = 1;
+
+        enum { Translation = 0, Rotation, Scale, NumTransformations };
+        uint tranformType = rand() % NumTransformations;
+
+        float rand0 = (rand() / (float)RAND_MAX) * 100.0f - 50.0f;
+        float rand1 = (rand() / (float)RAND_MAX) * 100.0f - 50.0f;
+        float rand2 = (rand() / (float)RAND_MAX) * 100.0f - 50.0f;
+
+        switch (tranformType)
+        {
+        case Translation:
+            pMatrix[3] = rand0;
+            pMatrix[7] = rand1;
+            pMatrix[11] = rand2;
+            break;
+        case Rotation:
+            pMatrix[0] = cos(rand0);
+            pMatrix[1] = sin(rand0);
+            pMatrix[4] = -sin(rand0);
+            pMatrix[5] = cos(rand0);
+            break;
+        case Scale:
+            pMatrix[0] = rand0;
+            pMatrix[5] = rand1;
+            pMatrix[10] = rand2;
+            break;
+        }
+    }
+
 #define ALIGN(alignment, num) (((num + alignment - 1) / alignment) * alignment)
 
     class BuilderWrapper
@@ -131,7 +187,7 @@ namespace FallbackLayerUnitTests
     {
     public:
         InternalFallbackBuilder(FallbackLayer::IAccelerationStructureBuilder *pBuilder) : m_pBuilder(pBuilder) {}
-        
+
         virtual void CopyRaytracingAccelerationStructure(
             _In_  ID3D12GraphicsCommandList *pCommandList,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructureData,
@@ -175,17 +231,18 @@ namespace FallbackLayerUnitTests
     class AccelerationStructureBuilderHelper
     {
     public:
-        AccelerationStructureBuilderHelper(D3D12Context &context, DescriptorHeapStack &descriptorHeapStack) : 
+        AccelerationStructureBuilderHelper(D3D12Context &context, DescriptorHeapStack &descriptorHeapStack) :
             m_d3d12Context(context), m_descriptorHeapStack(descriptorHeapStack) {}
 
         void BuildTopLevelAccelerationStructure(
             BuilderWrapper &builder,
-            CpuGeometryDescriptor *pGeomDescs, 
+            CpuGeometryDescriptor *pGeomDescs,
             float **ppTransformations,
             UINT numGeoms,
             CComPtr<ID3D12Heap> &pHeap,
             CComPtr<ID3D12Resource> &pTopLevelResource,
-            D3D12_ELEMENTS_LAYOUT layoutToTest
+            D3D12_ELEMENTS_LAYOUT layoutToTest,
+            bool performUpdate = false
         )
         {
             ID3D12Device &device = m_d3d12Context.GetDevice();
@@ -202,10 +259,23 @@ namespace FallbackLayerUnitTests
                 totalSizeNeeded += ALIGN(D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, prebuildInfo.ScratchDataSizeInBytes);
             }
 
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+            if (performUpdate)
+            {
+                buildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+            }
+
             // Top level
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo;
             {
-                builder.GetRaytracingAccelerationStructurePrebuildInfo(&device, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD, numGeoms, nullptr, &topLevelPrebuildInfo);
+                builder.GetRaytracingAccelerationStructurePrebuildInfo(
+                    &device,
+                    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL,
+                    buildFlags,
+                    numGeoms,
+                    nullptr,
+                    &topLevelPrebuildInfo
+                );
                 totalSizeNeeded += ALIGN(D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, topLevelPrebuildInfo.ResultDataMaxSizeInBytes);
                 totalSizeNeeded += ALIGN(D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, topLevelPrebuildInfo.ScratchDataSizeInBytes);
             }
@@ -237,7 +307,7 @@ namespace FallbackLayerUnitTests
 
             // Offset all bottom level pointers to make the the BVH building code is robust
             UINT pointerOffset = 256;
-            
+
             for (UINT i = 0; i < numGeoms; i++)
             {
                 BuildBottomLevelAccelerationStructure(builder, pGeomDescs[i], &pBottomLevelAccelerationStructures[i], pointerOffset);
@@ -250,7 +320,7 @@ namespace FallbackLayerUnitTests
                     memcpy(&desc.Transform, ppTransformations[i], sizeof(D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC::Transform));
                 }
                 else
-                {                
+                {
                     // Identity matrix
                     desc.Transform[0] = 1.0f;
                     desc.Transform[5] = 1.0f;
@@ -295,7 +365,7 @@ namespace FallbackLayerUnitTests
             topLevelDesc.DestAccelerationStructureData.SizeInBytes = pTopLevelResource->GetDesc().Width;
             topLevelDesc.ScratchAccelerationStructureData.StartAddress = pScratchResource->GetGPUVirtualAddress();
             topLevelDesc.ScratchAccelerationStructureData.SizeInBytes = pScratchResource->GetDesc().Width;
-            topLevelDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+            topLevelDesc.Flags = buildFlags;
             topLevelDesc.NumDescs = numGeoms;
             topLevelDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
             topLevelDesc.InstanceDescs = layoutToTest == D3D12_ELEMENTS_LAYOUT_ARRAY ?
@@ -303,6 +373,12 @@ namespace FallbackLayerUnitTests
                 pInstanceLocationList->GetGPUVirtualAddress();
             topLevelDesc.DescsLayout = layoutToTest;
             builder.BuildRaytracingAccelerationStructure(pCommandList, &topLevelDesc, &m_descriptorHeapStack.GetDescriptorHeap());
+
+            if (performUpdate)
+            {
+                topLevelDesc.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+                builder.BuildRaytracingAccelerationStructure(pCommandList, &topLevelDesc, &m_descriptorHeapStack.GetDescriptorHeap());
+            }
 
             AssertSucceeded(pCommandList->Close());
             m_d3d12Context.ExecuteCommandList(pCommandList);
@@ -340,7 +416,8 @@ namespace FallbackLayerUnitTests
             CpuGeometryDescriptor *pCpuGeometryDescriptors, UINT numGeometry,
             ID3D12Resource **ppBottomLevelAccelerationStructure,
             D3D12_ELEMENTS_LAYOUT layoutToTest = D3D12_ELEMENTS_LAYOUT_ARRAY,
-            UINT offsetPointer = 0
+            UINT offsetPointer = 0,
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD
         )
         {
             ID3D12Device &device = m_d3d12Context.GetDevice();
@@ -362,7 +439,7 @@ namespace FallbackLayerUnitTests
                 geometryDescs[i] = GetGeometryDesc(desc, pVertexBuffer[i], pIndexBuffer[i], transformBuffers[i]->GetGPUVirtualAddress());
             }
 
-            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = GetSizeNeededForBottomLevelHeap(device, builder, pCpuGeometryDescriptors, numGeometry);
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = GetSizeNeededForBottomLevelHeap(device, builder, pCpuGeometryDescriptors, numGeometry, buildFlags);
 
             auto bottomLevelResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(offsetPointer + prebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -396,7 +473,7 @@ namespace FallbackLayerUnitTests
             bottomLevelDesc.DestAccelerationStructureData.SizeInBytes = (*ppBottomLevelAccelerationStructure)->GetDesc().Width;
             bottomLevelDesc.ScratchAccelerationStructureData.StartAddress = prebuildInfo.ScratchDataSizeInBytes > 0 ? pScratchMemory->GetGPUVirtualAddress() : 0;
             bottomLevelDesc.ScratchAccelerationStructureData.SizeInBytes = pScratchMemory->GetDesc().Width;
-            bottomLevelDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+            bottomLevelDesc.Flags = buildFlags;
             bottomLevelDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
             bottomLevelDesc.NumDescs = (UINT)geometryDescs.size();
             if (layoutToTest == D3D12_ELEMENTS_LAYOUT_ARRAY)
@@ -429,16 +506,18 @@ namespace FallbackLayerUnitTests
             BuilderWrapper &builder,
             CpuGeometryDescriptor &geometryDescriptor,
             ID3D12Resource **ppBottomLevelAccelerationStructure,
-            UINT offsetToPointer = 0)
+            UINT offsetToPointer = 0,
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD)
         {
-            BuildBottomLevelAccelerationStructure(builder, &geometryDescriptor, 1, ppBottomLevelAccelerationStructure, D3D12_ELEMENTS_LAYOUT_ARRAY, offsetToPointer);
+            BuildBottomLevelAccelerationStructure(builder, &geometryDescriptor, 1, ppBottomLevelAccelerationStructure, D3D12_ELEMENTS_LAYOUT_ARRAY, offsetToPointer, buildFlags);
         }
 
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO GetSizeNeededForBottomLevelHeap(
             ID3D12Device &device,
             BuilderWrapper &builder,
             const CpuGeometryDescriptor *pGeomDescs,
-            UINT geomCount)
+            UINT geomCount,
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD)
         {
             std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> descs(geomCount);
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
@@ -451,35 +530,14 @@ namespace FallbackLayerUnitTests
             builder.GetRaytracingAccelerationStructurePrebuildInfo(
                 &device,
                 D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL,
-                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD,
+                buildFlags,
                 geomCount,
                 descs.data(),
                 &prebuildInfo);
             return prebuildInfo;
         }
     private:
-
-        D3D12_RAYTRACING_GEOMETRY_DESC GetGeometryDesc(
-            const CpuGeometryDescriptor &geomDesc,
-            ID3D12Resource *pVertexBuffer = nullptr,
-            ID3D12Resource *pIndexBuffer = nullptr,
-            D3D12_GPU_VIRTUAL_ADDRESS transform = 0)
-        {
-            D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
-            geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-            geometryDesc.Triangles.IndexBuffer = pIndexBuffer ? pIndexBuffer->GetGPUVirtualAddress() : 0;
-            geometryDesc.Triangles.IndexCount = geomDesc.m_numIndicies;
-            geometryDesc.Triangles.IndexFormat = geomDesc.m_indexBufferFormat;
-            geometryDesc.Triangles.Transform = transform;
-            geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-            geometryDesc.Triangles.VertexCount = geomDesc.m_numVerticies;
-            geometryDesc.Triangles.VertexBuffer.StartAddress = pVertexBuffer ? pVertexBuffer->GetGPUVirtualAddress() : 0;
-            geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(float) * 3;
-
-            return geometryDesc;
-        }
-
-        D3D12Context &m_d3d12Context;
+        D3D12Context & m_d3d12Context;
         DescriptorHeapStack &m_descriptorHeapStack;
     };
 
@@ -547,9 +605,9 @@ namespace FallbackLayerUnitTests
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
     };
 
-	TEST_CLASS(AccelerationStructureUnitTests)
-	{
-	public:
+    TEST_CLASS(AccelerationStructureUnitTests)
+    {
+    public:
         TEST_METHOD_INITIALIZE(MethodSetup)
         {
             m_pDescriptorHeapStack = std::unique_ptr<DescriptorHeapStack>(
@@ -719,149 +777,115 @@ namespace FallbackLayerUnitTests
                 testCase);
         }
 
-        void GenerateRandomTranformation(float *pMatrix)
-        {
-            // Identity matrix
-            ZeroMemory(pMatrix, sizeof(float) * FloatsPerMatrix);
-            pMatrix[0] = 1;
-            pMatrix[5] = 1;
-            pMatrix[10] = 1;
-
-            enum { Translation = 0, Rotation, Scale, NumTransformations };
-            uint tranformType = rand() % NumTransformations;
-
-            float rand0 = (rand() / (float)RAND_MAX) * 100.0f - 50.0f;
-            float rand1 = (rand() / (float)RAND_MAX) * 100.0f - 50.0f;
-            float rand2 = (rand() / (float)RAND_MAX) * 100.0f - 50.0f;
-
-            switch (tranformType)
-            {
-            case Translation:
-                pMatrix[3] = rand0;
-                pMatrix[7] = rand1;
-                pMatrix[11] = rand2;
-                break;
-            case Rotation:
-                pMatrix[0] = cos(rand0);
-                pMatrix[1] = sin(rand0);
-                pMatrix[4] = -sin(rand0);
-                pMatrix[5] = cos(rand0);
-                break;
-            case Scale:
-                pMatrix[0] = rand0;
-                pMatrix[5] = rand1;
-                pMatrix[10] = rand2;
-                break;
-            }
-        }
-
         template <UINT numBottomLevels>
         void SimpleTopLevelGpuBVHBuilder(
-            D3D12_ELEMENTS_LAYOUT layoutToTest, 
+            D3D12_ELEMENTS_LAYOUT layoutToTest,
             bool applyRandomInstanceTransforms,
-            bool testCopyAccelerationStructure = false) {
-          const UINT referenceVertexArraySize = ARRAYSIZE(ReferenceVerticies0);
-          const UINT referenceIndexArraySize = ARRAYSIZE(ReferenceIndices0);
+            bool testCopyAccelerationStructure = false,
+            bool testWithUpdate = false) {
+            const UINT referenceVertexArraySize = ARRAYSIZE(ReferenceVerticies0);
+            const UINT referenceIndexArraySize = ARRAYSIZE(ReferenceIndices0);
 
-          float *AutoGeneratedReferenceVertices[numBottomLevels];
-          UINT16 *AutoGeneratedReferenceIndicies[numBottomLevels];
+            float *AutoGeneratedReferenceVertices[numBottomLevels];
+            UINT16 *AutoGeneratedReferenceIndicies[numBottomLevels];
 
-          std::unique_ptr<float[]> pVertices[numBottomLevels];
-          std::unique_ptr<UINT16[]> pIndicies[numBottomLevels];
+            std::unique_ptr<float[]> pVertices[numBottomLevels];
+            std::unique_ptr<UINT16[]> pIndicies[numBottomLevels];
 
-          std::vector<std::unique_ptr<float[]>> matrixStorage;
-          float* pTransformations[numBottomLevels];
-          srand(10);
-          if (applyRandomInstanceTransforms)
-          {
-              for (UINT i = 0; i < numBottomLevels; i++)
-              {
-                  matrixStorage.push_back(std::unique_ptr<float[]>(new float[FloatsPerMatrix]));
-                  float *pMatrix = matrixStorage.back().get();
-                  pTransformations[i] = pMatrix;
+            std::vector<std::unique_ptr<float[]>> matrixStorage;
+            float* pTransformations[numBottomLevels];
+            srand(10);
+            if (applyRandomInstanceTransforms)
+            {
+                for (UINT i = 0; i < numBottomLevels; i++)
+                {
+                    matrixStorage.push_back(std::unique_ptr<float[]>(new float[FloatsPerMatrix]));
+                    float *pMatrix = matrixStorage.back().get();
+                    pTransformations[i] = pMatrix;
 
-                  GenerateRandomTranformation(pMatrix);
-              }
+                    GenerateRandomTranformation(pMatrix);
+                }
 
-          }
-
-          AABB containingBoxes[numBottomLevels] = {};
-          for (UINT i = 0; i < numBottomLevels; i++) {
-            for (UINT axis = 0; axis < 3; axis++) {
-              containingBoxes[i].minArr[axis] = FLT_MAX;
-              containingBoxes[i].maxArr[axis] = -FLT_MAX;
-            }
-          }
-
-          CpuGeometryDescriptor geomDescs[numBottomLevels] = {};
-          for (UINT level = 0; level < numBottomLevels; level++) {
-            pVertices[level] = std::unique_ptr<float[]>(new float[referenceVertexArraySize]);
-            AutoGeneratedReferenceVertices[level] = pVertices[level].get();
-            for (UINT i = 0; i < referenceVertexArraySize; i++) {
-              float newInput = ReferenceVerticies0[i] + level;
-              UINT axis = i % 3;
-              containingBoxes[level].minArr[axis] = std::min(newInput, containingBoxes[level].minArr[axis]);
-              containingBoxes[level].maxArr[axis] = std::max(newInput, containingBoxes[level].maxArr[axis]);
-
-              AutoGeneratedReferenceVertices[level][i] = newInput;
             }
 
-            pIndicies[level] = std::unique_ptr<UINT16[]>(new UINT16[referenceIndexArraySize]);
-            AutoGeneratedReferenceIndicies[level] = pIndicies[level].get();
-            for (UINT i = 0; i < referenceIndexArraySize; i++) {
-              AutoGeneratedReferenceIndicies[level][i] = ReferenceIndices0[i];
+            AABB containingBoxes[numBottomLevels] = {};
+            for (UINT i = 0; i < numBottomLevels; i++) {
+                for (UINT axis = 0; axis < 3; axis++) {
+                    containingBoxes[i].minArr[axis] = FLT_MAX;
+                    containingBoxes[i].maxArr[axis] = -FLT_MAX;
+                }
             }
 
-            geomDescs[level] = CpuGeometryDescriptor(pVertices[level].get(), referenceVertexArraySize / 3, pIndicies[level].get(), referenceIndexArraySize);
-          }
+            CpuGeometryDescriptor geomDescs[numBottomLevels] = {};
+            for (UINT level = 0; level < numBottomLevels; level++) {
+                pVertices[level] = std::unique_ptr<float[]>(new float[referenceVertexArraySize]);
+                AutoGeneratedReferenceVertices[level] = pVertices[level].get();
+                for (UINT i = 0; i < referenceVertexArraySize; i++) {
+                    float newInput = ReferenceVerticies0[i] + level;
+                    UINT axis = i % 3;
+                    containingBoxes[level].minArr[axis] = std::min(newInput, containingBoxes[level].minArr[axis]);
+                    containingBoxes[level].maxArr[axis] = std::max(newInput, containingBoxes[level].maxArr[axis]);
 
-          ID3D12Device &device = m_d3d12Context.GetDevice();
-          std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder> pBuilder =
-            std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder>(
-              new FallbackLayer::GpuBvh2Builder(&device, m_d3d12Context.GetTotalLaneCount(), 0));
-          InternalFallbackBuilder builderWrapper(pBuilder.get());
+                    AutoGeneratedReferenceVertices[level][i] = newInput;
+                }
 
-          CComPtr<ID3D12Heap> pHeap;
-          CComPtr<ID3D12Resource> pTopLevelResource;
-          m_pBuilderHelper->BuildTopLevelAccelerationStructure(
-              builderWrapper,
-              geomDescs,
-              applyRandomInstanceTransforms ? pTransformations : nullptr,
-              ARRAYSIZE(geomDescs), 
-              pHeap, 
-              pTopLevelResource, 
-              layoutToTest);
+                pIndicies[level] = std::unique_ptr<UINT16[]>(new UINT16[referenceIndexArraySize]);
+                AutoGeneratedReferenceIndicies[level] = pIndicies[level].get();
+                for (UINT i = 0; i < referenceIndexArraySize; i++) {
+                    AutoGeneratedReferenceIndicies[level][i] = ReferenceIndices0[i];
+                }
 
-          const UINT dataSize = (UINT)pTopLevelResource->GetDesc().Width;
+                geomDescs[level] = CpuGeometryDescriptor(pVertices[level].get(), referenceVertexArraySize / 3, pIndicies[level].get(), referenceIndexArraySize);
+            }
 
-          ID3D12Resource *pResourceToReadback = pTopLevelResource;
-          CComPtr<ID3D12Resource> pTopLevelCopy;
-          if (testCopyAccelerationStructure)
-          {
-              auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-              auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(dataSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-              device.CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&pTopLevelCopy));
-              
-              m_pBuilderHelper->CopyAccelerationStructure(builderWrapper, pTopLevelCopy, pTopLevelResource);
+            ID3D12Device &device = m_d3d12Context.GetDevice();
+            std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder> pBuilder =
+                std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder>(
+                    new FallbackLayer::GpuBvh2Builder(&device, m_d3d12Context.GetTotalLaneCount(), 0));
+            InternalFallbackBuilder builderWrapper(pBuilder.get());
 
-              pResourceToReadback = pTopLevelCopy;
-          }
+            CComPtr<ID3D12Heap> pHeap;
+            CComPtr<ID3D12Resource> pTopLevelResource;
+            m_pBuilderHelper->BuildTopLevelAccelerationStructure(
+                builderWrapper,
+                geomDescs,
+                applyRandomInstanceTransforms ? pTransformations : nullptr,
+                ARRAYSIZE(geomDescs),
+                pHeap,
+                pTopLevelResource,
+                layoutToTest,
+                testWithUpdate);
+
+            const UINT dataSize = (UINT)pTopLevelResource->GetDesc().Width;
+
+            ID3D12Resource *pResourceToReadback = pTopLevelResource;
+            CComPtr<ID3D12Resource> pTopLevelCopy;
+            if (testCopyAccelerationStructure)
+            {
+                auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+                auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(dataSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+                device.CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &bufferDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&pTopLevelCopy));
+
+                m_pBuilderHelper->CopyAccelerationStructure(builderWrapper, pTopLevelCopy, pTopLevelResource);
+
+                pResourceToReadback = pTopLevelCopy;
+            }
 
 
-          std::unique_ptr<BYTE[]> pData = std::unique_ptr<BYTE[]>(new BYTE[dataSize]);
-          Assert::AreNotEqual(pData.get(), (BYTE *)nullptr, L"Failed to allocate output data");
-          m_d3d12Context.ReadbackResource(pResourceToReadback, pData.get(), dataSize);
+            std::unique_ptr<BYTE[]> pData = std::unique_ptr<BYTE[]>(new BYTE[dataSize]);
+            Assert::AreNotEqual(pData.get(), (BYTE *)nullptr, L"Failed to allocate output data");
+            m_d3d12Context.ReadbackResource(pResourceToReadback, pData.get(), dataSize);
 
-          std::wstring errorMessage;
-          auto &validator = FallbackLayer::GetAccelerationStructureValidator(pBuilder->GetAccelerationStructureType());
-          if (!validator.VerifyTopLevelOutput(containingBoxes, applyRandomInstanceTransforms ? pTransformations : nullptr, numBottomLevels, pData.get(), errorMessage)) {
-            Assert::Fail(errorMessage.c_str());
-          }
+            std::wstring errorMessage;
+            auto &validator = FallbackLayer::GetAccelerationStructureValidator(pBuilder->GetAccelerationStructureType());
+            if (!validator.VerifyTopLevelOutput(containingBoxes, applyRandomInstanceTransforms ? pTransformations : nullptr, numBottomLevels, pData.get(), errorMessage)) {
+                Assert::Fail(errorMessage.c_str());
+            }
         }
 
         TEST_METHOD(SimpleTopLevelGpuBVHBuilderSingleBottomLevel)
         {
-          SimpleTopLevelGpuBVHBuilder<1>(D3D12_ELEMENTS_LAYOUT_ARRAY, false);
+            SimpleTopLevelGpuBVHBuilder<1>(D3D12_ELEMENTS_LAYOUT_ARRAY, false);
         }
 
         TEST_METHOD(SimpleTopLevelGpuBVHBuilderWithCopy)
@@ -870,7 +894,7 @@ namespace FallbackLayerUnitTests
         }
 
         TEST_METHOD(SimpleTopLevelGpuBVHBuilder_ArrayLayout) {
-          SimpleTopLevelGpuBVHBuilder<50>(D3D12_ELEMENTS_LAYOUT_ARRAY, false);
+            SimpleTopLevelGpuBVHBuilder<50>(D3D12_ELEMENTS_LAYOUT_ARRAY, false);
         }
 
         TEST_METHOD(SimpleTopLevelGpuBVHBuilder_ArrayOfPointersLayout)
@@ -886,6 +910,30 @@ namespace FallbackLayerUnitTests
         TEST_METHOD(TopLevelGpuBVHBuilderWithInstanceTransforms_ArrayOfPointersLayout)
         {
             SimpleTopLevelGpuBVHBuilder<50>(D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS, true);
+        }
+
+        TEST_METHOD(SimpleTopLevelGpuBVHBuilderSingleBottomLevel_WithUpdate)
+        {
+            SimpleTopLevelGpuBVHBuilder<1>(D3D12_ELEMENTS_LAYOUT_ARRAY, false, true);
+        }
+
+        TEST_METHOD(SimpleTopLevelGpuBVHBuilder_ArrayLayout_WithUpdate) {
+            SimpleTopLevelGpuBVHBuilder<50>(D3D12_ELEMENTS_LAYOUT_ARRAY, false, true);
+        }
+
+        TEST_METHOD(SimpleTopLevelGpuBVHBuilder_ArrayOfPointersLayout_WithUpdate)
+        {
+            SimpleTopLevelGpuBVHBuilder<50>(D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS, false, true);
+        }
+
+        TEST_METHOD(TopLevelGpuBVHBuilderWithInstanceTransforms_ArrayLayout_WithUpdate)
+        {
+            SimpleTopLevelGpuBVHBuilder<50>(D3D12_ELEMENTS_LAYOUT_ARRAY, true, true);
+        }
+
+        TEST_METHOD(TopLevelGpuBVHBuilderWithInstanceTransforms_ArrayOfPointersLayout_WithUpdate)
+        {
+            SimpleTopLevelGpuBVHBuilder<50>(D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS, true, true);
         }
 
         TEST_METHOD(EmitRaytracingAccelerationStructurePostBuildInfoTest)
@@ -996,13 +1044,260 @@ namespace FallbackLayerUnitTests
             m_d3d12Context.ReadbackResource(pOutputCountBuffer, accelerationStructureSizes.data(), (UINT)(accelerationStructureSizes.size() * sizeof(UINT32)));
             for (UINT i = 1; i < numBottomLevels; i++)
             {
-                Assert::IsTrue(accelerationStructureSizes[i] != 0 && 
+                Assert::IsTrue(accelerationStructureSizes[i] != 0 &&
                     accelerationStructureSizes[i] > accelerationStructureSizes[i - 1] &&
                     accelerationStructureSizes[i] <= pBottomLevelMaxResourceSizes[i]
                     , L"Incorrect size returned from EmitRaytracingAccelerationStructurePostBuildInfo");
             }
         }
 
+        TEST_METHOD(UpdatesAllowedAllocateMemoryGpuBVHBuilder) {
+            ID3D12Device &device = m_d3d12Context.GetDevice();
+            std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder> pBuilder =
+                std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder>(
+                    new FallbackLayer::GpuBvh2Builder(&device, m_d3d12Context.GetTotalLaneCount(), 0));
+            InternalFallbackBuilder builderWrapper(pBuilder.get());
+
+            UINT numVertices = VERTEX_COUNT(ReferenceVerticies0);
+            UINT numTriangles = numVertices / 3;
+            UINT totalNumNodes = numTriangles + numTriangles - 1; // A binary tree with N leaves will always have N - 1 internal nodes
+            UINT updateExtraDataSize = (numTriangles * sizeof(UINT)) + (totalNumNodes * sizeof(UINT));
+
+            CpuGeometryDescriptor cpuGeomDesc = CpuGeometryDescriptor(ReferenceVerticies0, numVertices);
+            D3D12_RAYTRACING_GEOMETRY_DESC gpuGeomDesc = GetGeometryDesc(cpuGeomDesc);
+
+            D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC bottomLevelDesc = {};
+            bottomLevelDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            bottomLevelDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+            bottomLevelDesc.NumDescs = 1;
+            bottomLevelDesc.pGeometryDescs = &gpuGeomDesc;
+            bottomLevelDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO infoNoUpdate = {};
+            pBuilder->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelDesc, &infoNoUpdate);
+
+            // Turn on updates, make sure the memory gets allocated.
+            bottomLevelDesc.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO infoWithUpdate = {};
+            pBuilder->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelDesc, &infoWithUpdate);
+
+            Assert::AreEqual(infoNoUpdate.ScratchDataSizeInBytes, infoWithUpdate.ScratchDataSizeInBytes, L"Allowing update allocated scratch data.");
+            Assert::IsTrue(infoWithUpdate.ResultDataMaxSizeInBytes == infoNoUpdate.ResultDataMaxSizeInBytes + updateExtraDataSize, L"Data allocated for update doesn't match expected.");
+        }
+
+        TEST_METHOD(StoreSortResultForUpdate) {
+            ID3D12Device &device = m_d3d12Context.GetDevice();
+            std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder> pBuilder =
+                std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder>(
+                    new FallbackLayer::GpuBvh2Builder(&device, m_d3d12Context.GetTotalLaneCount(), 0));
+            InternalFallbackBuilder builderWrapper(pBuilder.get());
+
+            UINT numVertices = VERTEX_COUNT(ReferenceVerticies1);
+            UINT numTriangles = numVertices / 3;
+
+            CpuGeometryDescriptor geomDesc = CpuGeometryDescriptor(ReferenceVerticies1, VERTEX_COUNT(ReferenceVerticies1));
+
+            std::unique_ptr<BYTE[]> pData;
+            BuildBottomLevelAccelerationStructureAndGetCpuData(
+                builderWrapper,
+                &geomDesc,
+                1,
+                pData,
+                D3D12_ELEMENTS_LAYOUT_ARRAY,
+                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE);
+
+            const BYTE *pOutputBVH = pData.get();
+            BVHOffsets offsets = *(BVHOffsets*)pOutputBVH;
+            AABBNode *pNodeArray = (AABBNode*)((BYTE *)pOutputBVH + offsets.offsetToBoxes);
+            Primitive *pPrimitiveArray = (Primitive*)((BYTE *)pOutputBVH + offsets.offsetToVertices);
+            UINT *pSortResults = (UINT *)((BYTE *)pOutputBVH + offsets.totalSize);
+
+            for (UINT i = 0; i < numTriangles; i++) {
+                UINT sortedIndex = pSortResults[i];
+                Triangle sortedTriangle = pPrimitiveArray[sortedIndex].triangle;
+                for (UINT vi = 0; vi < 3; vi++) {
+                    Assert::AreEqual(sortedTriangle.v[vi].x, ReferenceVerticies1[i * 9 + vi * 3 + 0], L"x not equal");
+                    Assert::AreEqual(sortedTriangle.v[vi].y, ReferenceVerticies1[i * 9 + vi * 3 + 1], L"y not equal");
+                    Assert::AreEqual(sortedTriangle.v[vi].z, ReferenceVerticies1[i * 9 + vi * 3 + 2], L"z not equal");
+                }
+            }
+        }
+
+        TEST_METHOD(StoreParentIndicesForUpdate) {
+            ID3D12Device &device = m_d3d12Context.GetDevice();
+            std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder> pBuilder =
+                std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder>(
+                    new FallbackLayer::GpuBvh2Builder(&device, m_d3d12Context.GetTotalLaneCount(), 0));
+            InternalFallbackBuilder builderWrapper(pBuilder.get());
+
+            UINT numVertices = VERTEX_COUNT(ReferenceVerticies1);
+            UINT numTriangles = numVertices / 3;
+            UINT totalNumNodes = numTriangles + numTriangles - 1; // A binary tree with N leaves will always have N - 1 internal nodes
+
+            CpuGeometryDescriptor geomDesc = CpuGeometryDescriptor(ReferenceVerticies1, VERTEX_COUNT(ReferenceVerticies1));
+
+            std::unique_ptr<BYTE[]> pData;
+            BuildBottomLevelAccelerationStructureAndGetCpuData(
+                builderWrapper,
+                &geomDesc,
+                1,
+                pData,
+                D3D12_ELEMENTS_LAYOUT_ARRAY,
+                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE);
+
+            const BYTE *pOutputBVH = pData.get();
+            BVHOffsets offsets = *(BVHOffsets*)pOutputBVH;
+            AABBNode *pNodeArray = (AABBNode*)((BYTE *)pOutputBVH + offsets.offsetToBoxes);
+            Primitive *pPrimitiveArray = (Primitive*)((BYTE *)pOutputBVH + offsets.offsetToVertices);
+            UINT *pUpdateInfoCache = (UINT *)((BYTE *)pOutputBVH + offsets.totalSize); // sort results + parent indices
+            UINT *pParentIndexCache = pUpdateInfoCache + numTriangles;
+
+            for (UINT parentIndex = 0; parentIndex < totalNumNodes; parentIndex++) {
+                AABBNode parent = pNodeArray[parentIndex];
+                if (!parent.leaf)
+                {
+                    UINT leftChildIndex = parent.internalNode.leftNodeIndex;
+                    UINT rightChildIndex = parent.rightNodeIndex;
+                    Assert::IsTrue(pParentIndexCache[leftChildIndex] == parentIndex, L"Left child parent index incorrectly assigned.");
+                    Assert::IsTrue(pParentIndexCache[rightChildIndex] == parentIndex, L"Right child parent index incorrectly assigned.");
+                }
+            }
+        }
+
+        void BuildAndUpdateBottomLevelAccelerationStructure(
+            const float *startVertices,
+            const float *updatedVertices,
+            int numVertices)
+        {
+            ID3D12Device &device = m_d3d12Context.GetDevice();
+            std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder> pBuilder =
+                std::unique_ptr<FallbackLayer::IAccelerationStructureBuilder>(
+                    new FallbackLayer::GpuBvh2Builder(&device, m_d3d12Context.GetTotalLaneCount(), 0));
+            InternalFallbackBuilder builderWrapper(pBuilder.get());
+
+            const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+
+            const UINT floatsPerVertex = 3;
+            const UINT verticesPerTriangle = 3;
+            const UINT floatsPerTriangle = verticesPerTriangle * floatsPerVertex;
+            UINT numFloats = numVertices * floatsPerVertex;
+            UINT numTriangles = numVertices / 3;
+            UINT totalNumNodes = numTriangles + numTriangles - 1; // A binary tree with N leaves will always have N - 1 internal nodes
+
+            CComPtr<ID3D12Resource> pVertexBuffer;
+            m_d3d12Context.CreateResourceWithInitialData(
+                startVertices,
+                sizeof(float) * numFloats,
+                &pVertexBuffer);
+
+            CComPtr<ID3D12Resource> pUpdatedVertexBuffer;
+            m_d3d12Context.CreateResourceWithInitialData(
+                updatedVertices,
+                sizeof(float) * numFloats,
+                &pUpdatedVertexBuffer);
+
+            D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
+            geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+            geometryDesc.Triangles.IndexBuffer = 0;
+            geometryDesc.Triangles.IndexCount = 0;
+            geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
+            geometryDesc.Triangles.Transform = 0;
+            geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+            geometryDesc.Triangles.VertexCount = numVertices;
+            geometryDesc.Triangles.VertexBuffer.StartAddress = pVertexBuffer->GetGPUVirtualAddress();
+            geometryDesc.Triangles.VertexBuffer.StrideInBytes = floatsPerVertex * sizeof(float);
+
+            auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+            D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC getPrebuildDesc = {};
+            getPrebuildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            getPrebuildDesc.NumDescs = 1;
+            getPrebuildDesc.pGeometryDescs = &geometryDesc;
+            getPrebuildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            getPrebuildDesc.Flags = buildFlags;
+
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
+            pBuilder->GetRaytracingAccelerationStructurePrebuildInfo(&getPrebuildDesc, &prebuildInfo);
+
+            CComPtr<ID3D12Resource> pBottomLevelResource;
+            D3D12_GPU_VIRTUAL_ADDRESS bottomLevelGpuVA;
+            auto accelerationStructureDesc = CD3DX12_RESOURCE_DESC::Buffer(prebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            device.CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &accelerationStructureDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&pBottomLevelResource));
+            bottomLevelGpuVA = pBottomLevelResource->GetGPUVirtualAddress();
+
+            CComPtr<ID3D12Resource> pScratchBufferResources[2];
+            auto scratchBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(prebuildInfo.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            device.CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &scratchBufferDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&pScratchBufferResources[0]));
+            device.CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &scratchBufferDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&pScratchBufferResources[1]));
+
+            CComPtr<ID3D12GraphicsCommandList> pCommandList;
+            m_d3d12Context.GetGraphicsCommandList(&pCommandList);
+
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelDesc = {};
+            bottomLevelDesc.DestAccelerationStructureData.StartAddress = bottomLevelGpuVA;
+            bottomLevelDesc.DestAccelerationStructureData.SizeInBytes = prebuildInfo.ResultDataMaxSizeInBytes;
+            bottomLevelDesc.ScratchAccelerationStructureData.StartAddress = pScratchBufferResources[0]->GetGPUVirtualAddress();
+            bottomLevelDesc.ScratchAccelerationStructureData.SizeInBytes = prebuildInfo.ScratchDataSizeInBytes;
+            bottomLevelDesc.Flags = buildFlags;
+            bottomLevelDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            bottomLevelDesc.NumDescs = 1;
+            bottomLevelDesc.pGeometryDescs = &geometryDesc;
+            bottomLevelDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+
+            pBuilder->BuildRaytracingAccelerationStructure(
+                pCommandList,
+                &bottomLevelDesc,
+                nullptr);
+
+            // Clear scratch buffer and signal perform update.
+            bottomLevelDesc.ScratchAccelerationStructureData.StartAddress = pScratchBufferResources[1]->GetGPUVirtualAddress();
+            bottomLevelDesc.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+            geometryDesc.Triangles.VertexBuffer.StartAddress = pUpdatedVertexBuffer->GetGPUVirtualAddress();
+
+            
+            pBuilder->BuildRaytracingAccelerationStructure(
+                pCommandList,
+                &bottomLevelDesc,
+                nullptr);
+            
+            pCommandList->Close();
+            m_d3d12Context.ExecuteCommandList(pCommandList);
+            m_d3d12Context.WaitForGpuWork();
+
+            // Check AABBNode before & after, a little too similar
+            std::unique_ptr<BYTE[]> outputData = std::unique_ptr<BYTE[]>(new BYTE[(UINT)prebuildInfo.ResultDataMaxSizeInBytes]);
+            Assert::AreNotEqual(outputData.get(), (BYTE *)nullptr, L"Failed to allocate output data");
+
+            m_d3d12Context.ReadbackResource(pBottomLevelResource, outputData.get(), (UINT)prebuildInfo.ResultDataMaxSizeInBytes);
+
+            CpuGeometryDescriptor cpuGeomDescAfter = CpuGeometryDescriptor(updatedVertices, numVertices);
+
+            std::wstring errorMessage;
+            auto &validator = FallbackLayer::GetAccelerationStructureValidator(pBuilder->GetAccelerationStructureType());
+            if (!validator.VerifyBottomLevelOutput(&cpuGeomDescAfter, 1, outputData.get(), errorMessage))
+            {
+                Assert::Fail(errorMessage.c_str());
+            }
+        }
+
+        TEST_METHOD(RefitAABBsOnUpdate) {
+            const UINT numVertices = VERTEX_COUNT(ReferenceVerticies1);
+            // Scramble up the triangles
+            std::vector<float> UpdatedVertices(numVertices * 3);
+            for (UINT i = 0; i < UpdatedVertices.size(); i++)
+            {
+                UINT vertexIndex = i / 3;
+                UINT triangleIndex = vertexIndex / 3;
+                UpdatedVertices[i] = (((ReferenceVerticies1[i] + vertexIndex) * (vertexIndex % 2 == 0 ? -8 : 8))) * ((triangleIndex % 2 == 0) ? -12 : 12);
+            }
+
+            BuildAndUpdateBottomLevelAccelerationStructure(
+                ReferenceVerticies1,
+                UpdatedVertices.data(),
+                numVertices
+            );
+        }
 
     private:
 #define TEST_EPSILON 0.001
@@ -1139,11 +1434,12 @@ namespace FallbackLayerUnitTests
             CpuGeometryDescriptor *pGeomDescs,
             UINT numDescs,
             std::unique_ptr<BYTE[]> &outputData,
-            D3D12_ELEMENTS_LAYOUT layoutToTest = D3D12_ELEMENTS_LAYOUT_ARRAY)
+            D3D12_ELEMENTS_LAYOUT layoutToTest = D3D12_ELEMENTS_LAYOUT_ARRAY,
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD)
         {
             ID3D12Device &device = m_d3d12Context.GetDevice();
             CComPtr<ID3D12Resource> pResource;
-            m_pBuilderHelper->BuildBottomLevelAccelerationStructure(builder, pGeomDescs, numDescs, &pResource, layoutToTest);
+            m_pBuilderHelper->BuildBottomLevelAccelerationStructure(builder, pGeomDescs, numDescs, &pResource, layoutToTest, 0, buildFlags);
 
             outputData = std::unique_ptr<BYTE[]>(new BYTE[(UINT)pResource->GetDesc().Width]);
             Assert::AreNotEqual(outputData.get(), (BYTE *)nullptr, L"Failed to allocate output data");
@@ -1154,20 +1450,20 @@ namespace FallbackLayerUnitTests
         D3D12Context m_d3d12Context;
         std::unique_ptr<DescriptorHeapStack> m_pDescriptorHeapStack;
         std::unique_ptr<AccelerationStructureBuilderHelper> m_pBuilderHelper;
-	};
+    };
 
-void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resource **ppResource)
-{
-    const auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-    d3d12device.CreateCommittedResource(
-        &uploadHeapProperties,
-        D3D12_HEAP_FLAG_NONE,
-        &bufferDesc,
-        D3D12_RESOURCE_STATE_COMMON,
-        nullptr,
-        IID_PPV_ARGS(ppResource));
-}
+    void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resource **ppResource)
+    {
+        const auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        d3d12device.CreateCommittedResource(
+            &uploadHeapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &bufferDesc,
+            D3D12_RESOURCE_STATE_COMMON,
+            nullptr,
+            IID_PPV_ARGS(ppResource));
+    }
 
 #include "CompiledShaders/SimpleRaygen.h"
 #include "CompiledShaders/ReadRootConstants.h"
@@ -1238,14 +1534,14 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
         TEST_METHOD_INITIALIZE(MethodSetup)
         {
-            m_pRaytracingDevice = CComPtr<FallbackLayer::RaytracingDevice>(new RaytracingDevice(&m_d3d12Context.GetDevice(), 1, CreateRaytracingFallbackDeviceFlags::None));           
+            m_pRaytracingDevice = CComPtr<FallbackLayer::RaytracingDevice>(new RaytracingDevice(&m_d3d12Context.GetDevice(), 1, CreateRaytracingFallbackDeviceFlags::None));
             InitializeFallbackRootSignature();
             InitializeDxcComponents();
             InitializeDescriptorHeaps();
             BuildEmptyTopLevelAccelerationStructure();
         }
 
-// Tests disabled due to existing DxCompiler issues that still need to be resolved
+        // Tests disabled due to existing DxCompiler issues that still need to be resolved
 #if 0
         TEST_METHOD(ValidateDxilShaderRecordPatchingRootConstants)
         {
@@ -1264,12 +1560,12 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
             CComPtr<ID3D12RootSignature> pRootSignature;
             m_pRaytracingDevice->CreateRootSignature(
-                1, 
-                pBlob->GetBufferPointer(), 
-                pBlob->GetBufferSize(), 
+                1,
+                pBlob->GetBufferPointer(),
+                pBlob->GetBufferSize(),
                 IID_PPV_ARGS(&pRootSignature));
 
-            float shaderTable[] = { 
+            float shaderTable[] = {
                 1.0, 1.0, 0.0, 1.0, // Color 0
 
                 0.0, 0.0, 1.0, 1.0, // Color 1
@@ -1287,7 +1583,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             const unsigned int sizeofFloat4 = sizeof(float) * 4;
             Assert::IsTrue(memcmp(inputData, outputData, sizeofFloat4) == 0, L"Shader did not correctly output the expected color");
             Assert::IsTrue(memcmp(inputData + sizeofFloat4, outputData + sizeofFloat4, sizeofFloat4) == 0, L"Shader did not correctly output the expected color");
-            
+
             // Trick case, make sure it didn't read from the padding
             Assert::IsTrue(memcmp(inputData + sizeofFloat4 * 3, outputData + sizeofFloat4 * 2, sizeofFloat4) == 0, L"Shader did not correctly output the expected color");
         }
@@ -1311,15 +1607,15 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
             CComPtr<ID3D12RootSignature> pRootSignature;
             AssertSucceeded(m_pRaytracingDevice->CreateRootSignature(
-                1, 
-                pBlob->GetBufferPointer(), 
-                pBlob->GetBufferSize(), 
+                1,
+                pBlob->GetBufferPointer(),
+                pBlob->GetBufferSize(),
                 IID_PPV_ARGS(&pRootSignature)));
 
             float constantData[][4] = {
                 { 1.0, 3.0, 0.0, 1.0, }, // Color 0
-                { 0.0, 0.0, 1.0, 1.0, }, // Color 1
-                { 0.0, 0.0, 1.0, 1.0, }  // Color 2
+            { 0.0, 0.0, 1.0, 1.0, }, // Color 1
+            { 0.0, 0.0, 1.0, 1.0, }  // Color 2
             };
 
             CComPtr<ID3D12Resource> pBuffers[numSRVDescriptors];
@@ -1350,7 +1646,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             }
 
             auto shaderByteCode = CD3DX12_SHADER_BYTECODE((void *)g_pDynamicIndexTest, sizeof(g_pDynamicIndexTest));
-            
+
             BYTE outputData[sizeof(constantData)];
 
             ValidateDxilShaderRecordPatching(shaderByteCode, pRootSignature, shaderTable, sizeof(shaderTable), outputData, sizeof(outputData));
@@ -1528,7 +1824,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             auto shaderByteCode = CD3DX12_SHADER_BYTECODE((void *)g_pReadDataTexture1D, sizeof(g_pReadDataTexture1D));
             ValidateSRVDescriptor(shaderByteCode, texDesc, srvDesc);
         }
-        
+
         TEST_METHOD(ValidateDxilShaderRecordPatchingDescriptorTableSRVBuffer)
         {
             auto &device = m_d3d12Context.GetDevice();
@@ -1585,16 +1881,16 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
             CComPtr<ID3D12RootSignature> pRootSignature;
             AssertSucceeded(m_pRaytracingDevice->CreateRootSignature(
-                1, 
-                pBlob->GetBufferPointer(), 
-                pBlob->GetBufferSize(), 
+                1,
+                pBlob->GetBufferPointer(),
+                pBlob->GetBufferSize(),
                 IID_PPV_ARGS(&pRootSignature)));
 
             float constantData[][4] = {
                 { 1.0, 3.0, 0.0, 1.0, }, // Color 0
-                { 0.0, 0.0, 1.0, 1.0, }, // Color 1
-                {}, // Padding
-                { 0.0, 0.0, 1.0, 1.0, }  // Color 2
+            { 0.0, 0.0, 1.0, 1.0, }, // Color 1
+            {}, // Padding
+            { 0.0, 0.0, 1.0, 1.0, }  // Color 2
             };
 
             CComPtr<ID3D12Resource> pConstantResources[numCBVDescriptors];
@@ -1696,9 +1992,9 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
             CComPtr<ID3D12RootSignature> pRootSignature;
             AssertSucceeded(m_pRaytracingDevice->CreateRootSignature(
-                1, 
-                pBlob->GetBufferPointer(), 
-                pBlob->GetBufferSize(), 
+                1,
+                pBlob->GetBufferPointer(),
+                pBlob->GetBufferSize(),
                 IID_PPV_ARGS(&pRootSignature)));
 
             CComPtr<ID3D12GraphicsCommandList> pCommandList;
@@ -1853,7 +2149,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             m_d3d12Context.GetGraphicsCommandList(&pCommandList);
             CComPtr<ID3D12RaytracingFallbackCommandList> pRaytracingCommandList;
             m_pRaytracingDevice->QueryRaytracingCommandList(pCommandList, IID_PPV_ARGS(&pRaytracingCommandList));
-            
+
             pCommandList->SetComputeRootSignature(m_pFallbackRootSignature);
             ID3D12DescriptorHeap *pHeaps[] = { &m_pDescriptorHeapStack->GetDescriptorHeap(), m_pSamplerDescriptorHeap };
             pRaytracingCommandList->SetDescriptorHeaps(ARRAYSIZE(pHeaps), pHeaps);
@@ -1865,7 +2161,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             dispatchRaysArg.RayGenerationShaderRecord.SizeInBytes = shaderIndentifierSize;
             dispatchRaysArg.MissShaderTable.StartAddress = pShaderRecord->GetGPUVirtualAddress();
             dispatchRaysArg.MissShaderTable.StrideInBytes = dispatchRaysArg.MissShaderTable.SizeInBytes = patchedShaderTable.size();
-            
+
             pRaytracingCommandList->SetTopLevelAccelerationStructure(GlobalRootSignatureSlots::AccelerationStructureParam, m_TopLevelAccelerationStructurePointer);
             pRaytracingCommandList->DispatchRays(pStateObject, &dispatchRaysArg);
             AssertSucceeded(pCommandList->Close());
@@ -1891,7 +2187,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             heapDesc.NumDescriptors = 100;
             heapDesc.NodeMask = 0;
             AssertSucceeded(m_d3d12Context.GetDevice().CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_pCpuCbvSrvUavDescriptorHeap)));
-            
+
             heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
             heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
             AssertSucceeded(m_d3d12Context.GetDevice().CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_pSamplerDescriptorHeap)));
@@ -1913,15 +2209,15 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
             CComPtr<ID3DBlob> pBlob;
             CComPtr<ID3DBlob> pErrorBlob;
-            if(FAILED(m_pRaytracingDevice->D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pBlob, &pErrorBlob)))
+            if (FAILED(m_pRaytracingDevice->D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pBlob, &pErrorBlob)))
             {
                 OutputDebugStringA((LPCSTR)pErrorBlob->GetBufferPointer());
                 Assert::Fail();
             }
             AssertSucceeded(m_pRaytracingDevice->CreateRootSignature(
-                0, 
-                pBlob->GetBufferPointer(), 
-                pBlob->GetBufferSize(), 
+                0,
+                pBlob->GetBufferPointer(),
+                pBlob->GetBufferSize(),
                 IID_PPV_ARGS(&m_pFallbackRootSignature)));
         }
 
@@ -2003,6 +2299,57 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
     TEST_CLASS(APIUnitTest)
     {
+        TEST_METHOD(PrebuildUint32Overflow)
+        {
+            auto &d3d12device = m_d3d12Context.GetDevice();
+
+            CComPtr<ID3D12RaytracingFallbackDevice> rayTracingDevice;
+            D3D12CreateRaytracingFallbackDevice(
+                &m_d3d12Context.GetDevice(),
+                CreateRaytracingFallbackDeviceFlags::ForceComputeFallback | CreateRaytracingFallbackDeviceFlags::EnableRootDescriptorsInShaderRecords,
+                0,
+                IID_PPV_ARGS(&rayTracingDevice));
+
+            // Test Top level
+            {
+                D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfo = {};
+                prebuildInfo.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+                prebuildInfo.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+                prebuildInfo.NumDescs = UINT32_MAX;
+                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildOutput;
+                rayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfo, &prebuildOutput);
+
+                // If there's UINT32_MAX input elements, it's guaranteed these will be larger since
+                // the memory footprint scales based on the number of elements
+                Assert::IsTrue(prebuildOutput.ResultDataMaxSizeInBytes > UINT32_MAX);
+                Assert::IsTrue(prebuildOutput.ScratchDataSizeInBytes > UINT32_MAX);
+            }
+
+            // Test Bottom level
+            {
+                D3D12_RAYTRACING_GEOMETRY_DESC bottomLevelDescs[2] = {};
+                for (auto &geometryDesc : bottomLevelDescs)
+                {
+                    geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+                    geometryDesc.Triangles.VertexCount = UINT32_MAX;
+                    geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
+                }
+
+                D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfo = {};
+                prebuildInfo.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+                prebuildInfo.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+                prebuildInfo.NumDescs = ARRAYSIZE(bottomLevelDescs);
+                prebuildInfo.pGeometryDescs = bottomLevelDescs;
+                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildOutput;
+                rayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfo, &prebuildOutput);
+
+                // If there's UINT32_MAX input elements, it's guaranteed these will be larger since
+                // the memory footprint scales based on the number of elements
+                Assert::IsTrue(prebuildOutput.ResultDataMaxSizeInBytes > UINT32_MAX);
+                Assert::IsTrue(prebuildOutput.ScratchDataSizeInBytes > UINT32_MAX);
+            }
+
+        }
 
         TEST_METHOD(GlobalRootSignatureCreation)
         {
@@ -2043,7 +2390,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
                         OutputDebugStringA((LPCSTR)pErrorBlob->GetBufferPointer());
                         Assert::Fail();
                     }
-                    
+
                     AssertSucceeded(rayTracingDevice->CreateRootSignature(0, pRootSignatureBlob->GetBufferPointer(), pRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&pRootSignature)));
                 }
 
@@ -2150,8 +2497,8 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
             D3D12_EXPORT_DESC exports[] = {
                 { ClosestHitExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-                { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-                { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+            { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+            { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
             };
 
             D3D12_STATE_SUBOBJECT baseSubObject = {};
@@ -2330,6 +2677,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
                         PrimitiveMetaData metadata;
                         metadata.GeometryContributionToHitGroupIndex = 0;
                         metadata.PrimitiveIndex = i;
+                        metadata.GeometryFlags = 0;
                         trianglesMetadata.push_back(metadata);
                     }
                 }
@@ -2461,11 +2809,11 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             CComPtr<ID3D12Resource> pScratchBuffer;
             D3D12_HEAP_PROPERTIES defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &scratchBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pScratchBuffer)));
-            
+
             CComPtr<ID3D12Resource> pOutputAABBBuffer;
             auto outputAABBBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(AABB), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &outputAABBBufferDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&pOutputAABBBuffer)));
-        
+
             CComPtr<ID3D12Resource> pInputBuffer;
             m_d3d12Context.CreateResourceWithInitialData(outputData.data(), (UINT)outputData.size(), &pInputBuffer);
 
@@ -2552,7 +2900,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             D3D12_HEAP_PROPERTIES defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
             MortonCodesCalculator mortonCodeCalculator(&m_d3d12Context.GetDevice(), 0);
-            
+
             CComPtr<ID3D12Resource> pOutputIndexBuffer;
             auto outputIndexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(numElements * sizeof(UINT32), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &outputIndexBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pOutputIndexBuffer)));
@@ -2613,7 +2961,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             // WARP TDRs when running treelet re-ordering, other vendors appear to have no issues.
             // Currently assuming a WARP-specific issue, but warrants more investigation
             m_d3d12Context = D3D12Context(D3D12Context::CreationFlags::ForceHardware);
-            
+
             auto &d3d12Device = m_d3d12Context.GetDevice();
             TreeletReorder treeletReorder(&d3d12Device, 0);
 
@@ -2684,7 +3032,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
             std::vector<HierarchyNode> outputHierarchy(numNodes);
             m_d3d12Context.ReadbackResource(pHierarchyBuffer, outputHierarchy.data(), (UINT)(outputHierarchy.size() * sizeof(*outputHierarchy.data())));
-        
+
             // Not needed but helpful for debugging
             std::vector<AABB> outputAABBs(numNodes);
             m_d3d12Context.ReadbackResource(pAABBBuffer, outputAABBs.data(), (UINT)(outputAABBs.size() * sizeof(*outputAABBs.data())));
@@ -2708,7 +3056,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
                     UINT rightNodeIndex = outputHierarchy[nodeIndex].RightChildIndex;
                     Assert::IsTrue(outputHierarchy[leftNodeIndex].ParentIndex == nodeIndex, L"Incorrectly Parent Index");
                     Assert::IsTrue(outputHierarchy[rightNodeIndex].ParentIndex == nodeIndex, L"Incorrectly Parent Index");
-                    
+
                     nodeStack.push_back(leftNodeIndex);
                     nodeStack.push_back(rightNodeIndex);
                 }
@@ -2718,54 +3066,170 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
         TEST_METHOD(LoadAABBs)
         {
+            TestLoadPrimitives<AABB>(PROCEDURAL_PRIMITIVE_TYPE);
+        }
+
+        TEST_METHOD(LoadTriangles)
+        {
+            TestLoadPrimitives<Triangle>(TRIANGLE_TYPE);
+        }
+
+        TEST_METHOD(LoadSortedAABBs)
+        {
+            TestLoadPrimitives<AABB>(PROCEDURAL_PRIMITIVE_TYPE, true);
+        }
+
+        TEST_METHOD(LoadSortedTriangles)
+        {
+            TestLoadPrimitives<Triangle>(TRIANGLE_TYPE, true);
+        }
+
+        template <typename PrimitiveObjectType>
+        void TestLoadPrimitives(UINT primitiveType, bool testCachedSort = false)
+        {
+            const UINT primitivesPerGeometry = 4;
+
+            D3D12_RAYTRACING_GEOMETRY_FLAGS geometryFlags[] =
+            {
+                D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE,
+                D3D12_RAYTRACING_GEOMETRY_FLAG_NONE,
+                D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION
+            };
+            const UINT numGeometryDescs = ARRAYSIZE(geometryFlags);
+
+            const UINT totalPrimCount = numGeometryDescs * primitivesPerGeometry;
+            const UINT primitiveSizeBytes = sizeof(PrimitiveObjectType);
+            const UINT geomDescStartAddrStride = primitivesPerGeometry * primitiveSizeBytes;
+            const UINT floatsPerPrimitive = primitiveSizeBytes / sizeof(float);
+
+            std::vector<PrimitiveObjectType> inputPrimitives(totalPrimCount);
+            for (UINT i = 0; i < totalPrimCount; i++)
+            {
+                float fi = (float)(i * floatsPerPrimitive);
+                float f[floatsPerPrimitive];
+                for (UINT j = 0; j < floatsPerPrimitive; j++)
+                    f[j] = fi + j;
+
+                memcpy(&inputPrimitives[i], f, floatsPerPrimitive);
+            }
+
             ID3D12Device &d3d12Device = m_d3d12Context.GetDevice();
             LoadPrimitivesPass loadPrimitivesPass(&d3d12Device, 1);
 
             CComPtr<ID3D12GraphicsCommandList> pCommandList;
             m_d3d12Context.GetGraphicsCommandList(&pCommandList);
 
-            std::vector<AABB> aabbs;
-            aabbs.push_back({ -1.0, -1.0, -1.0, 1.0, 1.0, 1.0 });
-            aabbs.push_back({ -1.0, -500.0, -1.0, 1.0, 2000.0, 1.0 });
-            aabbs.push_back({ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 });
+            CComPtr<ID3D12Resource> pInputPrimitiveBuffer;
+            m_d3d12Context.CreateResourceWithInitialData(inputPrimitives.data(), inputPrimitives.size() * primitiveSizeBytes, &pInputPrimitiveBuffer);
 
-            CComPtr<ID3D12Resource> pInputAABBBuffer;
-            m_d3d12Context.CreateResourceWithInitialData(aabbs.data(), aabbs.size() * sizeof(AABB), &pInputAABBBuffer);
+            UINT cachedSortIndices[totalPrimCount];
+            D3D12_GPU_VIRTUAL_ADDRESS cachedSortBuffer = 0;
+            CComPtr<ID3D12Resource> pCachedSortBuffer;
+            if (testCachedSort)
+            {
+                for (UINT i = 0; i < totalPrimCount; i++)
+                {
+                    cachedSortIndices[i] = (i + 1) % totalPrimCount;
+                }
+                m_d3d12Context.CreateResourceWithInitialData(cachedSortIndices, totalPrimCount * sizeof(UINT), &pCachedSortBuffer);
+                cachedSortBuffer = pCachedSortBuffer->GetGPUVirtualAddress();
+            }
 
-            auto outputBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(aabbs.size() * sizeof(Primitive), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-            D3D12_HEAP_PROPERTIES defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
             CComPtr<ID3D12Resource> pOutputBuffer, pOutputMetadataBuffer;
+
+            D3D12_HEAP_PROPERTIES defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+            auto outputBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(inputPrimitives.size() * sizeof(Primitive), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &outputBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pOutputBuffer)));
-            auto outputMetadataBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(aabbs.size() * sizeof(PrimitiveMetaData), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+            auto outputMetadataBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(inputPrimitives.size() * sizeof(PrimitiveMetaData), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &outputMetadataBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pOutputMetadataBuffer)));
 
-            D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
-            geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
-            geometryDesc.AABBs.AABBCount = aabbs.size();
-            geometryDesc.AABBs.AABBs.StartAddress = pInputAABBBuffer->GetGPUVirtualAddress();
-            geometryDesc.AABBs.AABBs.StrideInBytes = sizeof(AABB);
+            D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC trianglesDesc = {};
+            D3D12_RAYTRACING_GEOMETRY_AABBS_DESC aabbsDesc = {};
+            switch (primitiveType) {
+            case TRIANGLE_TYPE:
+                trianglesDesc.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+                trianglesDesc.VertexCount = primitivesPerGeometry * 3;
+                trianglesDesc.VertexBuffer.StartAddress = pInputPrimitiveBuffer->GetGPUVirtualAddress();
+                trianglesDesc.VertexBuffer.StrideInBytes = sizeof(float3);
+                trianglesDesc.IndexFormat = DXGI_FORMAT_UNKNOWN;
+                trianglesDesc.IndexBuffer = 0;
+                break;
+            case PROCEDURAL_PRIMITIVE_TYPE:
+                aabbsDesc.AABBCount = primitivesPerGeometry;
+                aabbsDesc.AABBs.StartAddress = pInputPrimitiveBuffer->GetGPUVirtualAddress();
+                aabbsDesc.AABBs.StrideInBytes = sizeof(AABB);
+                break;
+            }
+
+            D3D12_RAYTRACING_GEOMETRY_DESC geometryDescs[numGeometryDescs];
+            for (UINT i = 0; i < numGeometryDescs; i++)
+            {
+                D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
+                geometryDesc.Flags = geometryFlags[i];
+                switch (primitiveType) {
+                case TRIANGLE_TYPE:
+                    geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+                    geometryDesc.Triangles = trianglesDesc;
+                    geometryDesc.Triangles.VertexBuffer.StartAddress += i * geomDescStartAddrStride;
+                    break;
+                case PROCEDURAL_PRIMITIVE_TYPE:
+                    geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+                    geometryDesc.AABBs = aabbsDesc;
+                    geometryDesc.AABBs.AABBs.StartAddress += i * geomDescStartAddrStride;
+                    break;
+                }
+
+                geometryDescs[i] = geometryDesc;
+            }
 
             D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
             buildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            buildDesc.pGeometryDescs = &geometryDesc;
-            buildDesc.NumDescs = 1;
+            buildDesc.pGeometryDescs = geometryDescs;
+            buildDesc.NumDescs = numGeometryDescs;
             buildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+
             loadPrimitivesPass.LoadPrimitives(
                 pCommandList,
                 buildDesc,
-                (UINT)aabbs.size(),
+                totalPrimCount,
                 pOutputBuffer->GetGPUVirtualAddress(),
-                pOutputMetadataBuffer->GetGPUVirtualAddress());
+                pOutputMetadataBuffer->GetGPUVirtualAddress(),
+                cachedSortBuffer);
 
             pCommandList->Close();
             m_d3d12Context.ExecuteCommandList(pCommandList);
 
-            std::vector<Primitive> outputPrimitives(aabbs.size());
+            std::vector<Primitive> outputPrimitives(totalPrimCount);
             m_d3d12Context.ReadbackResource(pOutputBuffer, outputPrimitives.data(), (UINT)outputPrimitives.size() * sizeof(*outputPrimitives.data()));
-            for (UINT i = 0; i < aabbs.size(); i++)
+
+            std::vector<PrimitiveMetaData> outputMetadata(totalPrimCount);
+            m_d3d12Context.ReadbackResource(pOutputMetadataBuffer, outputMetadata.data(), (UINT)outputMetadata.size() * sizeof(*outputMetadata.data()));
+
+            for (UINT i = 0; i < totalPrimCount; i++)
             {
-                Assert::IsTrue(outputPrimitives[i].PrimitiveType == PROCEDURAL_PRIMITIVE_TYPE, L"Loaded AABB is not properly marked as Procedural Geometry");
-                Assert::IsTrue(memcmp(&outputPrimitives[i].aabb, &aabbs[i], sizeof(aabbs[i])) == 0, L"Loaded AABB does not match the input AABB");
+                const UINT sortedIndex = cachedSortBuffer ? cachedSortIndices[i] : i;
+                const UINT geometryDescIndex = i / primitivesPerGeometry;
+                const UINT targetGeomFlag = geometryFlags[geometryDescIndex];
+                void *pUnwrappedPrimitive;
+
+                switch (primitiveType) {
+                case TRIANGLE_TYPE:
+                    pUnwrappedPrimitive = &outputPrimitives[sortedIndex].triangle;
+                    break;
+
+                case PROCEDURAL_PRIMITIVE_TYPE:
+                    pUnwrappedPrimitive = &outputPrimitives[sortedIndex].aabb;
+                    break;
+                }
+
+                Assert::IsTrue(outputPrimitives[i].PrimitiveType == primitiveType, L"Loaded primitive is not properly marked with specified Primitive Type");
+                Assert::IsTrue(memcmp(pUnwrappedPrimitive, &inputPrimitives[i], sizeof(inputPrimitives[i])) == 0, L"Loaded primitive does not match the input primitive");
+                if (targetGeomFlag)
+                    Assert::IsTrue(outputMetadata[sortedIndex].GeometryFlags == targetGeomFlag, L"Loaded primitive does not have correct geometry flag set");
+                else
+                    Assert::IsTrue(outputMetadata[sortedIndex].GeometryFlags == 0, L"Loaded primitive does not have geometry flags cleared");
             }
         }
 
@@ -2854,7 +3318,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             CComPtr<ID3D12Resource> pIndexBuffer;
             m_d3d12Context.CreateResourceWithInitialData(indexBuffer.data(), indexBuffer.size() * sizeof(UINT), &pIndexBuffer);
 
-            auto outputBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(outputData.size() , D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            auto outputBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(outputData.size(), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             D3D12_HEAP_PROPERTIES defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
             CComPtr<ID3D12Resource> pOutputBuffer;
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &outputBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pOutputBuffer)));
@@ -2866,13 +3330,14 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             CComPtr<ID3D12GraphicsCommandList> pCommandList;
             m_d3d12Context.GetGraphicsCommandList(&pCommandList);
             rearrangeTrianglePass.Rearrange(
-                pCommandList, 
-                sceneType, 
-                pInputBuffer->GetGPUVirtualAddress(), 
-                numElements, pIndexBuffer->GetGPUVirtualAddress(), 
-                pOutputBuffer->GetGPUVirtualAddress(),
+                pCommandList,
+                sceneType,
+                numElements,
+                pInputBuffer->GetGPUVirtualAddress(),
                 pMetadataBuffer->GetGPUVirtualAddress(),
-                pOutputMetadata->GetGPUVirtualAddress());
+                pIndexBuffer->GetGPUVirtualAddress(),
+                pOutputBuffer->GetGPUVirtualAddress(),
+                pOutputMetadata->GetGPUVirtualAddress(), 0);
 
             D3D12_RESOURCE_BARRIER uavToCopySourceBarrier[] =
             {
@@ -2916,8 +3381,8 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
         };
         RayGenViewport viewport = { -1.0, -1.0, 1.0, 1.0, cOutputBufferWidth, cOutputBufferHeight, 0 };
         const float IdentityMatrix[12] = { 1, 0, 0, 0,
-                                           0, 1, 0, 0,
-                                           0, 0, 1, 0 };
+            0, 1, 0, 0,
+            0, 0, 1, 0 };
 
         enum RootSignatureParams
         {
@@ -2977,8 +3442,8 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
             D3D12_EXPORT_DESC exports[] = {
                 { ClosestHitExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-                { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-                { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+            { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+            { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
             };
 
             D3D12_DXIL_LIBRARY_DESC libraryDesc = {};
@@ -3088,7 +3553,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
                 {
                     UINT64 partitionIndex = x / pixelsPerPartition;
                     BYTE *expectedColor = isHitExpected[partitionIndex] ? hitColor : missColor;
-                    
+
                     BYTE *pixel = &pRowData[x * 4];
                     Assert::IsTrue(memcmp(expectedColor, pixel, sizeof(BYTE) * 4) == 0,
                         L"Color not matching expected color");
@@ -3137,7 +3602,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
                     // Hit shader should spew purple on the left and miss show spew red on the right
                     BYTE *pixel = &pRowData[x * 4];
-                    Assert::IsTrue(memcmp(expectedColor, pixel, sizeof(BYTE) * 4) == 0, 
+                    Assert::IsTrue(memcmp(expectedColor, pixel, sizeof(BYTE) * 4) == 0,
                         L"Color not matching expected color");
                 }
             }
@@ -3284,7 +3749,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
                 {
                     desc.Flags = instanceFlags[i];
                 }
-                
+
                 desc.InstanceMask = instanceMask.size() ? instanceMask[i] : 0xff;
                 memcpy(desc.Transform, pTransforms[i], sizeof(desc.Transform));
             }
@@ -3310,7 +3775,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
             buildDesc.ScratchAccelerationStructureData.StartAddress = pScratchResource->GetGPUVirtualAddress();
             buildDesc.ScratchAccelerationStructureData.SizeInBytes = pScratchResource->GetDesc().Width;
             buildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-            
+
             pRaytracingCommandList->BuildRaytracingAccelerationStructure(&buildDesc);
 
             pCommandList->Close();
@@ -3431,8 +3896,8 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
         {
             float flipAcrossYAxisTransform[12] = {
                 -1, 0, 0, 0,
-                 0, 1, 0, 0,
-                 0, 0, 1, 0
+                0, 1, 0, 0,
+                0, 0, 1, 0
             };
             TestLeftScreenFillingSingleBottomLevel(flipAcrossYAxisTransform, HITS_ON_RIGHT_HALF_OF_SCREEN);
         }
@@ -3526,7 +3991,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
 
                 bool isHitExpected = false;
                 bool isFrontFacing = (windingType == Clockwise && (instanceFlag & D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE) == 0) ||
-                                     (windingType == CounterClockwise && (instanceFlag & D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE));
+                    (windingType == CounterClockwise && (instanceFlag & D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE));
                 if (instanceFlag == D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE || cullFlag == RAY_FLAG_NONE)
                 {
                     isHitExpected = true;
@@ -3601,7 +4066,7 @@ void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resou
                 TransformFromFullScreenToScreenPartition(i, numTests, pTransform);
                 transformationsList.push_back(pTransform);
                 UINT instanceMask = 1 << i;
-                
+
                 instanceFlags[i] = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
                 instanceMasks[i] = instanceMask;
                 hitExpected[i] = instanceMask & traceMask;

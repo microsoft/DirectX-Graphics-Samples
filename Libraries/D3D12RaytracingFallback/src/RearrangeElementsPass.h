@@ -20,23 +20,25 @@ namespace FallbackLayer
         void Rearrange(
             ID3D12GraphicsCommandList *pCommandList,
             SceneType sceneType,
-            D3D12_GPU_VIRTUAL_ADDRESS inputBuffer,
-            UINT numElements,
+            UINT numTriangles,
+            D3D12_GPU_VIRTUAL_ADDRESS inputElements,
+            D3D12_GPU_VIRTUAL_ADDRESS inputMetadataBuffer,
             D3D12_GPU_VIRTUAL_ADDRESS indexBuffer,
-            D3D12_GPU_VIRTUAL_ADDRESS outputBuffer,
-            D3D12_GPU_VIRTUAL_ADDRESS inputMetadataBuffer = 0,
-            D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer = 0
+            D3D12_GPU_VIRTUAL_ADDRESS outputTriangles,
+            D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer,
+            D3D12_GPU_VIRTUAL_ADDRESS outputIndexBuffer
         );
 
     private:
         enum RootParameterSlot
         {
             InputElements= 0,
+            InputMetadata,
             IndexBuffer,
-            NumTrianglesConstant,
             OutputElements,
             OutputMetadata,
-            InputMetadata,
+            OutputIndexBuffer,
+            InputRootConstants,
             NumParameters
         };
 

@@ -49,6 +49,7 @@ void D3D12RaytracingSimpleLighting::EnableDXRExperimentalFeatures(IDXGIAdapter1*
 
         OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
         ThrowIfFalse(EnableComputeRaytracingFallback(adapter), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
+		m_raytracingAPI = RaytracingAPI::FallbackLayer;
     }
 }
 
@@ -275,11 +276,11 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingInterfaces()
         ThrowIfFailed(D3D12CreateRaytracingFallbackDevice(device, createDeviceFlags, 0, IID_PPV_ARGS(&m_fallbackDevice)));
         m_fallbackDevice->QueryRaytracingCommandList(commandList, IID_PPV_ARGS(&m_fallbackCommandList));
     }
-    else // DirectX Raytracing
-    {
-        ThrowIfFailed(device->QueryInterface(__uuidof(ID3D12DeviceRaytracingPrototype), &m_dxrDevice), L"Couldn't get DirectX Raytracing interface for the device.\n");
-        ThrowIfFailed(commandList->QueryInterface(__uuidof(ID3D12CommandListRaytracingPrototype), &m_dxrCommandList), L"Couldn't get DirectX Raytracing interface for the command list.\n");
-    }
+	else // DirectX Raytracing
+	{
+		ThrowIfFailed(device->QueryInterface(IID_PPV_ARGS(&m_dxrDevice)), L"Couldn't get DirectX Raytracing interface for the device.\n");
+		ThrowIfFailed(commandList->QueryInterface(IID_PPV_ARGS(&m_dxrCommandList)), L"Couldn't get DirectX Raytracing interface for the command list.\n");
+	}
 }
 
 // Local root signature and shader association
@@ -835,11 +836,11 @@ void D3D12RaytracingSimpleLighting::ParseCommandLineArgs(WCHAR* argv[], int argc
         if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0 )
         {
             m_forceComputeFallback = true;
-            SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
+			m_raytracingAPI = RaytracingAPI::FallbackLayer;
         }
         else if (_wcsnicmp(argv[1], L"-DXR", wcslen(argv[1])) == 0)
         {
-            SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
+			m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
         }
     }
 }

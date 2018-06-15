@@ -26,6 +26,10 @@
 #pragma pack(push, 1)
 #endif
 
+#define SizeOfFloat 4
+#define SizeOfUINT16 2
+#define SizeOfUINT32 4
+
 struct HierarchyNode
 {
     uint ParentIndex;
@@ -179,8 +183,9 @@ struct PrimitiveMetaData
 {
     uint GeometryContributionToHitGroupIndex;
     uint PrimitiveIndex;
+    uint GeometryFlags;
 };
-#define SizeOfPrimitiveMetaData (4 * 2)
+#define SizeOfPrimitiveMetaData (4 * 3)
 #ifndef HLSL
 static_assert(sizeof(PrimitiveMetaData) == SizeOfPrimitiveMetaData, L"Incorrect sizeof for PrimitiveMetaData");
 #endif
@@ -204,6 +209,10 @@ static const uint D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE = 0x1;
 static const uint D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE = 0x2;
 static const uint D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE = 0x4;
 static const uint D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE = 0x8;
+
+static const uint D3D12_RAYTRACING_GEOMETRY_FLAG_NONE = 0;
+static const uint D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE = 0x1;
+static const uint D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION = 0x2;
 
 struct RaytracingInstanceDesc
 {
@@ -395,6 +404,23 @@ inline
 uint GetNumInternalNodes(uint numLeaves)
 {
     return numLeaves - 1;
+}
+
+inline
+uint GetOffsetFromSortedIndicesToAABBParents(uint numPrimitives) {
+    return SizeOfUINT32 * numPrimitives;
+}
+
+inline
+uint GetOffsetToBVHSortedIndices(uint numElements) {
+    uint totalNodes = numElements + GetNumInternalNodes(numElements);
+    return SizeOfBVHOffsets + SizeOfAABBNode * totalNodes + SizeOfBVHMetadata * numElements;
+}
+
+inline
+uint GetOffsetFromPrimitiveMetaDataToSortedIndices(uint numPrimitives)
+{
+    return SizeOfPrimitiveMetaData * numPrimitives;
 }
 
 inline

@@ -24,8 +24,8 @@ namespace FallbackLayer
         rootParameters[OutputBVHRootUAVParam].InitAsUnorderedAccessView(OutputBVHRegister);
         rootParameters[ScratchUAVParam].InitAsUnorderedAccessView(ScratchBufferRegister);
         rootParameters[HierarchyUAVParam].InitAsUnorderedAccessView(HierarchyBufferRegister);
+        rootParameters[AABBParentBufferParam].InitAsUnorderedAccessView(AABBParentBufferRegister);
         rootParameters[ChildNodesProcessedCountBufferParam].InitAsUnorderedAccessView(ChildNodesProcessedBufferRegister);
-        rootParameters[MortonCodesBufferParam].InitAsUnorderedAccessView(MortonCodesBufferRegister);
         rootParameters[InputRootConstants].InitAsConstants(SizeOfInUint32(InputConstants), InputConstantsRegister);
         rootParameters[GlobalDescriptorHeap].InitAsDescriptorTable(1, &globalDescriptorHeapRange);
 
@@ -44,15 +44,19 @@ namespace FallbackLayer
         D3D12_GPU_VIRTUAL_ADDRESS outputVH,
         D3D12_GPU_VIRTUAL_ADDRESS scratchBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS childNodesProcessedCountBuffer,
-        D3D12_GPU_VIRTUAL_ADDRESS mortonCodeBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS hierarchyBuffer,
+        D3D12_GPU_VIRTUAL_ADDRESS outputAABBParentBuffer,
         D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap,
+        const bool prepareUpdate,
+        const bool performUpdate,
         UINT numElements)
     {
         bool isEmptyAccelerationStructure = numElements == 0;
         Level level = (sceneType == SceneType::Triangles) ? Level::Bottom : Level::Top;
 
-        InputConstants constants = { numElements };
+        InputConstants constants = {};
+        constants.NumberOfElements = numElements;
+        constants.UpdateFlags = ((UINT) prepareUpdate) | (performUpdate << 1);
 
         pCommandList->SetComputeRootSignature(m_pRootSignature);
         pCommandList->SetComputeRoot32BitConstants(InputRootConstants, SizeOfInUint32(InputConstants), &constants, 0);
@@ -61,8 +65,12 @@ namespace FallbackLayer
         {
             pCommandList->SetComputeRootUnorderedAccessView(ScratchUAVParam, scratchBuffer);
             pCommandList->SetComputeRootUnorderedAccessView(ChildNodesProcessedCountBufferParam, childNodesProcessedCountBuffer);
-            pCommandList->SetComputeRootUnorderedAccessView(MortonCodesBufferParam, mortonCodeBuffer);
             pCommandList->SetComputeRootUnorderedAccessView(HierarchyUAVParam, hierarchyBuffer);
+        }
+
+        if (prepareUpdate || performUpdate)
+        {
+            pCommandList->SetComputeRootUnorderedAccessView(AABBParentBufferParam, outputAABBParentBuffer);
         }
 
         if (level == Top)
