@@ -42,6 +42,12 @@ struct __declspec(uuid("76bb3c85-006d-4b72-9e10-63cd97df57f0"))
 
   virtual HRESULT STDMETHODCALLTYPE SetDebugOutput(int val) = 0;
 
+  virtual HRESULT STDMETHODCALLTYPE PatchShaderBindingTables(
+      IDxcBlob *pShaderBlob,
+      void *pShaderInfo,
+      _COM_Outptr_ IDxcOperationResult **ppResult
+  ) = 0;
+
   // Compiles libs together to create a raytracing compute shader. One of the libs 
   // should be the fallback implementation lib that defines functions like 
   // Fallback_TraceRay(), Fallback_ReportHit(), etc. Fallback_TraceRay() should 
