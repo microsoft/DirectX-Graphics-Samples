@@ -74,6 +74,7 @@ void StorePrimitiveMetadata(uint globalPrimitiveIndex, uint localPrimitiveIndex)
     PrimitiveMetaData metaData;
     metaData.GeometryContributionToHitGroupIndex = Constants.GeometryContributionToHitGroupIndex;
     metaData.PrimitiveIndex = localPrimitiveIndex;
+    metaData.GeometryFlags = Constants.GeometryFlags;
     MetadataBuffer[globalPrimitiveIndex] = metaData;
 }
 #endif
