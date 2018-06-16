@@ -32,6 +32,12 @@ struct DxcShaderInfo
     ShaderType Type;
 };
 
+struct DxcShaderBytecode
+{
+    LPBYTE pShaderBytecode;
+    UINT32 shaderBytecodeSize;
+};
+
 struct __declspec(uuid("76bb3c85-006d-4b72-9e10-63cd97df57f0"))
   IDxcDxrFallbackCompiler : public IUnknown {
 
@@ -43,8 +49,9 @@ struct __declspec(uuid("76bb3c85-006d-4b72-9e10-63cd97df57f0"))
   virtual HRESULT STDMETHODCALLTYPE SetDebugOutput(int val) = 0;
 
   virtual HRESULT STDMETHODCALLTYPE PatchShaderBindingTables(
-      IDxcBlob *pShaderBlob,
-      void *pShaderInfo,
+      _In_ const LPCWSTR pEntryName,
+      _In_ DxcShaderBytecode *pShaderBytecode,
+      _In_ void *pShaderInfo,
       _COM_Outptr_ IDxcOperationResult **ppResult
   ) = 0;
 
@@ -53,7 +60,7 @@ struct __declspec(uuid("76bb3c85-006d-4b72-9e10-63cd97df57f0"))
   // Fallback_TraceRay(), Fallback_ReportHit(), etc. Fallback_TraceRay() should 
   // be one of the shader names so that it gets included in the compile. 
   virtual HRESULT STDMETHODCALLTYPE Compile(
-    _In_count_(libCount) IDxcBlob **pLibs,                  // Array of libraries containing shaders
+    _In_count_(libCount) DxcShaderBytecode *pLibs,                  // Array of libraries containing shaders
     UINT32 libCount,                                        // Number of libraries containing shaders
     _In_count_(shaderCount) const LPCWSTR *pShaderNames,    // Array of shader names to compile
     _Out_writes_(shaderCount) DxcShaderInfo *pShaderInfo,   // Array of shaderInfo corresponding to pShaderNames

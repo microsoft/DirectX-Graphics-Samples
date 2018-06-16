@@ -14,7 +14,7 @@ if %BuildVersion% GEQ 17093 if %BuildVersion% LEQ 17623 set UseRS4Binaries=1
 rem Copy Dxcompiler, needed regardless of whether it's using native DXR or the Fallback layer
 set outputDirectory=%1
 echo %1
-copy dxcompiler.dll %outputDirectory%
+copy dxrfallbackcompiler.dll %outputDirectory%
 
 if %UseRS4Binaries% NEQ 0 ( 
 	echo RS4-DXR compatible build detected, copying DXR D3D12 binaries

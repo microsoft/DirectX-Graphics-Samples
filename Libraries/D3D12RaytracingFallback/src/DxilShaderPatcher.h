@@ -31,10 +31,6 @@ namespace FallbackLayer
               L"Failed to load DxCompiler.dll, verify this executable is in the executable directory."
               L" The Fallback Layer is sensitive to the DxCompiler.dll version, make sure the"
               L" DxCompiler.dll is the correct version packaged with the Fallback");
-
-            ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcLibrary, &m_pLibrary), L"Failed to load a DXC library instance");
-            ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcValidator, &m_pValidator), L"Failed to load a DXC Validator instance");
-
         }
 
         void PatchShaderBindingTables(const BYTE *pShaderBytecode, UINT bytecodeLength, ShaderInfo *pShaderInfo, IDxcBlob** ppOutputBlob);
@@ -42,15 +38,10 @@ namespace FallbackLayer
         void LinkCollection(UINT maxAttributeSize, const std::vector<DxilLibraryInfo> &dxilLibraries, const std::vector<LPCWSTR>& exportNames, std::vector<DxcShaderInfo>& shaderInfo, IDxcBlob** ppOutputBlob);
         void LinkStateObject(UINT maxAttributeSize, UINT stackSize, IDxcBlob* pLinkedBlob, const std::vector<LPCWSTR>& exportNames, std::vector<DxcShaderInfo>& shaderInfo, IDxcBlob** ppOutputBlob);
 
-        IDxcValidator &GetValidator() { return *m_pValidator; }
     private:
         void VerifyResult(IDxcOperationResult *pResult);
 
         dxc::DxcDxrFallbackDllSupport dxcDxrFallbackSupport;
-
-        CComPtr<IDxcOptimizer> m_pOptimizer;
-        CComPtr<IDxcLibrary> m_pLibrary;
-        CComPtr<IDxcValidator> m_pValidator;
 
 #ifdef DEBUG
         CComPtr<IDxcCompiler> m_pCompiler;
