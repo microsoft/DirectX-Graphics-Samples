@@ -374,9 +374,9 @@ namespace FallbackLayer
             case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG:
             {
                 D3D12_RAYTRACING_SHADER_CONFIG & shaderConfig = *(D3D12_RAYTRACING_SHADER_CONFIG*)subObject.pDesc;
-                rayTracingStateObject.m_collection.m_maxAttributeSizeInBytes = (UINT)max(
-                    rayTracingStateObject.m_collection.m_maxAttributeSizeInBytes,
-                    shaderConfig.MaxAttributeSizeInBytes);
+                rayTracingStateObject.m_collection.m_maxAttributeSizeInBytes = (UINT)std::max(
+                    (UINT)rayTracingStateObject.m_collection.m_maxAttributeSizeInBytes,
+                    (UINT)shaderConfig.MaxAttributeSizeInBytes);
                 break;
             }
             case D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE:

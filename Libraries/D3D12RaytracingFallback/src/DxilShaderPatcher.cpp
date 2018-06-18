@@ -31,8 +31,8 @@ namespace FallbackLayer
     {
         CComPtr<IDxcDxrFallbackCompiler> pFallbackCompiler;
         ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcDxrFallbackCompiler, &pFallbackCompiler),
-            L"Failed to create an instance of the Fallback Compiler. This suggest a version of DxCompiler.dll "
-            L"is being used that doesn't match up with the Fallback layer. Verify that the DxCompiler.dll is from "
+            L"Failed to create an instance of the Fallback Compiler. This suggest a version of DxrFallbackCompiler.dll "
+            L"is being used that doesn't match up with the Fallback layer. Verify that the DxrFallbackCompiler.dll is from "
             L"same package as the Fallback.");
 
         std::vector<DxcShaderBytecode> pLibBlobPtrs(dxilLibraries.size());
@@ -53,8 +53,8 @@ namespace FallbackLayer
     {
         CComPtr<IDxcDxrFallbackCompiler> pFallbackCompiler;
         ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcDxrFallbackCompiler, &pFallbackCompiler),
-            L"Failed to create an instance of the Fallback Compiler. This suggest a version of DxCompiler.dll "
-            L"is being used that doesn't match up with the Fallback layer. Verify that the DxCompiler.dll is from "
+            L"Failed to create an instance of the Fallback Compiler. This suggest a version of DxrFallbackCompiler.dll "
+            L"is being used that doesn't match up with the Fallback layer. Verify that the DxrFallbackCompiler.dll is from "
             L"same package as the Fallback.");
 
         shaderInfo.resize(exportNames.size());
@@ -85,8 +85,8 @@ namespace FallbackLayer
     {
         CComPtr<IDxcDxrFallbackCompiler> pFallbackCompiler;
         ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcDxrFallbackCompiler, &pFallbackCompiler),
-            L"Failed to create an instance of the Fallback Compiler. This suggest a version of DxCompiler.dll "
-            L"is being used that doesn't match up with the Fallback layer. Verify that the DxCompiler.dll is from "
+            L"Failed to create an instance of the Fallback Compiler. This suggest a version of DxrFallbackCompiler.dll "
+            L"is being used that doesn't match up with the Fallback layer. Verify that the DxrFallbackCompiler.dll is from "
             L"same package as the Fallback.");
 
         CComPtr<IDxcOperationResult> pResult;

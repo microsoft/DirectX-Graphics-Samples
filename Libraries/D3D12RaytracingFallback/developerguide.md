@@ -12,7 +12,7 @@ This path is used when the Fallback Layer detects that the OS + GPU have support
 This path is used when the Fallback Layer detects the OS + GPU do *not* support the DirectX Raytracing API. Instead, it will use the DirectCompute API to emulate Raytracing capabilities. It is expected that this path with be slower than the DXR API path due to lack of fixed-function/driver-optimizations.
 
 ## Fallback Layer Integration
-For use in a project outside of the samples, the Fallback Layer is a stand-alone static lib in FallbackLayer/(debug|release)/FallbackLayer.lib that can be compiled into other DX projects. In addition, some Fallback Layer logic exists in the Dxil Compiler, and so projects should also always use the DxCompiler.dll bundles with the Fallback Layer.
+For use in a project outside of the samples, the Fallback Layer is a stand-alone static lib in FallbackLayer/(debug|release)/FallbackLayer.lib that can be compiled into other DX projects. In addition, some Fallback Layer logic exists in the Dxil Compiler Repo, and so projects should also always use the DxrFallbackCompiler.dll bundled with the Fallback Layer.
 
 ## Fallback Layer Interface differences
 This is an outline of the major concepts that differ from DXR.

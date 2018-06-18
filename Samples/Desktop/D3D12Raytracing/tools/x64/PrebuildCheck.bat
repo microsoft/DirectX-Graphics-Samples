@@ -35,9 +35,7 @@ echo Renaming dxc->fxc so that Visual Studio can natively work with HLSL files a
 copy dxc.exe fxc.exe
 
 if %FILENOTFOUND% NEQ 0 (
-	echo Please go to https://github.com/Microsoft/DirectX-Graphics-Samples/releases and download latest "DirectX Raytracing Binary Release v1.2". 
-	echo Copy all the binaries to Samples\Desktop\D3D12Raytracing\tools\x64"
-	exit /b 1
+	goto :mismatch
 )
 
 if not exist version.txt (
@@ -45,14 +43,14 @@ if not exist version.txt (
 ) 
 
 set /p version=< version.txt
-if not "%version%"=="1.2-dxr" (
+if not "%version%"=="1.3-dxr" (
 	goto :mismatch
 )
 
 exit
 
 :mismatch
-	echo Stale binaries detected, please grab the v1.2-dxr binaries from https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.2-dxr 
+	echo Stale binaries detected, please grab the v1.3-dxr binaries from https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.3-dxr 
 	echo Copy all the binaries to Samples\Desktop\D3D12Raytracing\tools\x64"
 	exit /b 1
 )

@@ -28,9 +28,9 @@ namespace FallbackLayer
         DxilShaderPatcher()
         {
             ThrowFailure(dxcDxrFallbackSupport.Initialize(),
-              L"Failed to load DxCompiler.dll, verify this executable is in the executable directory."
-              L" The Fallback Layer is sensitive to the DxCompiler.dll version, make sure the"
-              L" DxCompiler.dll is the correct version packaged with the Fallback");
+              L"Failed to load DxrFallbackCompiler.dll, verify this executable is in the executable directory."
+              L" The Fallback Layer is sensitive to the DxrFallbackCompiler.dll version, make sure the"
+              L" DxrFallbackCompiler.dll is the correct version packaged with the Fallback");
         }
 
         void PatchShaderBindingTables(const BYTE *pShaderBytecode, UINT bytecodeLength, ShaderInfo *pShaderInfo, IDxcBlob** ppOutputBlob);
