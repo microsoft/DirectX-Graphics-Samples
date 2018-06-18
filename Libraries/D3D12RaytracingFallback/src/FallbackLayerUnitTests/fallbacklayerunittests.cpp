@@ -2175,9 +2175,6 @@ namespace FallbackLayerUnitTests
         void InitializeDxcComponents()
         {
             ThrowFailure(m_dxcSupport.Initialize());
-
-            ThrowFailure(m_dxcSupport.CreateInstance(CLSID_DxcLibrary, &m_pLibrary));
-            ThrowFailure(m_dxcSupport.CreateInstance(CLSID_DxcCompiler, &m_pCompiler));
         }
 
         void InitializeDescriptorHeaps()
@@ -2225,8 +2222,10 @@ namespace FallbackLayerUnitTests
         {
             m_shaderPatcher.PatchShaderBindingTables(pShaderBytecode, bytecodeLength, pShaderInfo, ppOutputBlob);
 
+            CComPtr<IDxcValidator> pValidator;
             CComPtr<IDxcOperationResult> pResult;
-            m_shaderPatcher.GetValidator().Validate(*ppOutputBlob, DxcValidatorFlags_Default, &pResult);
+            m_dxcSupport.CreateInstance(CLSID_DxcValidator, &pValidator);
+            pValidator->Validate(*ppOutputBlob, DxcValidatorFlags_Default, &pResult);
 
             HRESULT hr;
             AssertSucceeded(pResult->GetStatus(&hr));
@@ -2258,8 +2257,6 @@ namespace FallbackLayerUnitTests
         FallbackLayer::DxilShaderPatcher m_shaderPatcher;
 
         dxc::DxcDllSupport m_dxcSupport;
-        CComPtr<IDxcCompiler> m_pCompiler;
-        CComPtr<IDxcLibrary> m_pLibrary;
     };
 
 #include "CompiledShaders/SimpleRaytracing.h"

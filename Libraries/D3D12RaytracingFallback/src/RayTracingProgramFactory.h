@@ -25,6 +25,7 @@ namespace FallbackLayer
         void CombineCollection(const StateObjectCollection &collection);
 
         UINT64 m_pipelineStackSize = 0;
+        UINT m_maxAttributeSizeInBytes = 0;
         UINT m_nodeMask = 0;
         std::vector<D3D12_DXIL_LIBRARY_DESC> m_dxilLibraries;
         std::unordered_map<std::wstring, D3D12_HIT_GROUP_DESC> m_hitGroups;
