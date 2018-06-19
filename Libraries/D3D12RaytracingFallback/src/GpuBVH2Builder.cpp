@@ -427,9 +427,9 @@ namespace FallbackLayer
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE Type = pDesc->Type;
         UINT NumElements = pDesc->NumDescs;
 
-        UINT numLeaves;
-        UINT totalNumNodes;
-        Level level;
+        UINT numLeaves = 0;
+        UINT totalNumNodes = 0;
+        Level level = Level::Bottom;
 
         switch (Type)
         {

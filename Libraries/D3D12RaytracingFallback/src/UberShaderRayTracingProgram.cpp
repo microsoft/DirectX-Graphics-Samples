@@ -33,7 +33,7 @@ namespace FallbackLayer
     {
       if (pExportName)
       {
-        auto &shaderData = m_ExportNameToShaderData.find(pExportName);
+        const auto &shaderData = m_ExportNameToShaderData.find(pExportName);
         if (shaderData != m_ExportNameToShaderData.end())
         {
           return &shaderData->second;
