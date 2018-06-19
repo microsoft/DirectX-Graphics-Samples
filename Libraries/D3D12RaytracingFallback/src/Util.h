@@ -99,8 +99,7 @@ static bool IsIndexBufferFormatSupported(DXGI_FORMAT format)
     }
 }
 
-template<typename RAYTRACING_ACCELERATION_STRUCTURE_DESC>
-static const D3D12_RAYTRACING_GEOMETRY_DESC &GetGeometryDesc(const typename RAYTRACING_ACCELERATION_STRUCTURE_DESC &desc, UINT geometryIndex)
+static const D3D12_RAYTRACING_GEOMETRY_DESC &GetGeometryDesc(const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &desc, UINT geometryIndex)
 {
     switch (desc.DescsLayout)
     {
@@ -148,8 +147,7 @@ static UINT GetPrimitiveCountFromGeometryDesc(const D3D12_RAYTRACING_GEOMETRY_DE
     }
 }
 
-template<typename RAYTRACING_ACCELERATION_STRUCTURE_DESC>
-static UINT GetTotalPrimitiveCount(const typename RAYTRACING_ACCELERATION_STRUCTURE_DESC &desc)
+static UINT GetTotalPrimitiveCount(const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &desc)
 {
     UINT totalTriangles = 0;
     for (UINT elementIndex = 0; elementIndex < desc.NumDescs; elementIndex++)

@@ -159,6 +159,9 @@
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AccelerationStructureBuilderFactory.cpp">
@@ -389,6 +392,9 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="LoadPrimitivesBindings.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ExperimentalRaytracing.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

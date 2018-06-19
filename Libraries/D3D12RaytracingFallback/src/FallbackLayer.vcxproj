@@ -115,6 +115,7 @@ PrebuildCheck.bat</Command>
     <ClInclude Include="ConstructAABBPass.h" />
     <ClInclude Include="ConstructHierarchyPass.h" />
     <ClInclude Include="DebugLog.h" />
+    <ClInclude Include="ExperimentalRaytracing.h" />
     <ClInclude Include="FallbackDebug.h" />
     <ClInclude Include="EmulatedPointer.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">true</ExcludedFromBuild>

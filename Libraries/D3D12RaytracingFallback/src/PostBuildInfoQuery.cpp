@@ -29,23 +29,15 @@ PostBuildInfoQuery::PostBuildInfoQuery(ID3D12Device *pDevice, UINT nodeMask)
 
 void PostBuildInfoQuery::GetCompactedBVHSizes(
     _In_  ID3D12GraphicsCommandList *pCommandList,
-    _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestBuffer,
+    _In_  D3D12_GPU_VIRTUAL_ADDRESS DestBuffer,
     _In_  UINT NumSourceAccelerationStructures,
     _In_reads_(NumSourceAccelerationStructures) const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData)
 {
-    if (DestBuffer.SizeInBytes < sizeof(UINT32) * NumSourceAccelerationStructures)
-    {
-        ThrowFailure(E_INVALIDARG, 
-            L"SizeInBytes for the destination buffer is too small for the number"
-            L"of Source Accelaration structures being queried"
-        );
-    }
-
     pCommandList->SetComputeRootSignature(m_pRootSignature);
     pCommandList->SetPipelineState(m_pPSO);
 
     UINT NumAccelerationStructuresProcessed = 0;
-    D3D12_GPU_VIRTUAL_ADDRESS outputCountAddress = DestBuffer.StartAddress;
+    D3D12_GPU_VIRTUAL_ADDRESS outputCountAddress = DestBuffer;
     GetBVHCompactedSizeConstants constant;
     while (NumAccelerationStructuresProcessed != NumSourceAccelerationStructures)
     {

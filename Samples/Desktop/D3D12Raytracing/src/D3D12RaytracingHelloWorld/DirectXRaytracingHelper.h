@@ -200,20 +200,14 @@ inline void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
         wstr << L"| [" << i << L"]: ";
         switch (desc->pSubobjects[i].Type)
         {
-        case D3D12_STATE_SUBOBJECT_TYPE_FLAGS:
-            wstr << L"Flags (not yet defined)\n";
-            break;
-        case D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE:
-            wstr << L"Root Signature 0x" << desc->pSubobjects[i].pDesc << L"\n";
+        case D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE:
+            wstr << L"Global Root Signature 0x" << desc->pSubobjects[i].pDesc << L"\n";
             break;
         case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
             wstr << L"Local Root Signature 0x" << desc->pSubobjects[i].pDesc << L"\n";
             break;
         case D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK:
             wstr << L"Node Mask: 0x" << std::hex << std::setfill(L'0') << std::setw(8) << *static_cast<const UINT*>(desc->pSubobjects[i].pDesc) << std::setw(0) << std::dec << L"\n";
-            break;
-        case D3D12_STATE_SUBOBJECT_TYPE_CACHED_STATE_OBJECT:
-            wstr << L"Cached State Object (not yet defined)\n";
             break;
         case D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY:
         {

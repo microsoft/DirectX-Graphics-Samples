@@ -179,6 +179,8 @@ Root Descriptors are partially supported, however currently the offset in bytes 
 
 In addition, to enable root descriptors in the first place, developers must pass in CreateRaytracingFallbackDeviceFlags::EnableRootDescriptorsInShaderRecords to D3D12CreateRaytracingFallbackDevice to enable this functionality.
 
+* #### Depth value of DispatchRays is ignored
+
 * #### No Callable shaders
 Callable shaders are not yet supported. 
 

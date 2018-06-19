@@ -70,8 +70,8 @@ private:
     WRAPPED_GPU_POINTER m_fallbackTopLevelAccelerationStructurePointer;
 
     // DirectX Raytracing (DXR) attributes
-    ComPtr<ID3D12DeviceRaytracingPrototype> m_dxrDevice;
-    ComPtr<ID3D12CommandListRaytracingPrototype> m_dxrCommandList;
+    ComPtr<ID3D12Device5> m_dxrDevice;
+    ComPtr<ID3D12GraphicsCommandList4> m_dxrCommandList;
     ComPtr<ID3D12StateObjectPrototype> m_dxrStateObject;
     bool m_isDxrSupported;
 

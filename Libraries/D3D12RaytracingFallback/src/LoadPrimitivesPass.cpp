@@ -54,7 +54,7 @@ namespace FallbackLayer
     }
 
     void LoadPrimitivesPass::LoadPrimitives(ID3D12GraphicsCommandList *pCommandList, 
-        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC &buildDesc, 
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &buildDesc,
         const UINT totalPrimitiveCount,
         D3D12_GPU_VIRTUAL_ADDRESS outputTriangleBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer,
@@ -104,7 +104,7 @@ namespace FallbackLayer
                 constants.PrimitiveOffset = numPrimitivesLoaded;
                 constants.ElementBufferStride = (UINT32)triangles.VertexBuffer.StrideInBytes;
                 constants.GeometryContributionToHitGroupIndex = elementIndex;
-                constants.HasValidTransform = (triangles.Transform != 0);
+                constants.HasValidTransform = (triangles.Transform3x4 != 0);
                 constants.GeometryFlags = geometryDesc.Flags;
                 constants.PerformUpdate = performUpdate;
 
@@ -116,7 +116,7 @@ namespace FallbackLayer
                 }
                 if (constants.HasValidTransform)
                 {
-                    pCommandList->SetComputeRootShaderResourceView(TransformsBuffer, triangles.Transform);
+                    pCommandList->SetComputeRootShaderResourceView(TransformsBuffer, triangles.Transform3x4);
                 }
 
                 pCommandList->SetPipelineState(m_pLoadTrianglesPSOs[GetIndexBufferType(triangles.IndexFormat)]);

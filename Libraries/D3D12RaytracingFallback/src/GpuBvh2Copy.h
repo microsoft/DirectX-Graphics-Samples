@@ -17,8 +17,8 @@ public:
 
     void CopyRaytracingAccelerationStructure(
         _In_  ID3D12GraphicsCommandList *pCommandList,
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructure,
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructure);
+        _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
+        _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData);
 
 private:
     enum RootParameterSlot

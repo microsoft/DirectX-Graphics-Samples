@@ -32,13 +32,13 @@ GpuBvh2Copy::GpuBvh2Copy(ID3D12Device *pDevice, UINT totalLaneCount, UINT nodeMa
 
 void GpuBvh2Copy::CopyRaytracingAccelerationStructure(
     _In_  ID3D12GraphicsCommandList *pCommandList,
-    _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructure,
-    _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructure)
+    _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
+    _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData)
 {
     pCommandList->SetComputeRootSignature(m_pRootSignature);
     pCommandList->SetPipelineState(m_pPSO);
-    pCommandList->SetComputeRootUnorderedAccessView(DestBvh, DestAccelerationStructure.StartAddress);
-    pCommandList->SetComputeRootUnorderedAccessView(SourceBvh, SourceAccelerationStructure);
+    pCommandList->SetComputeRootUnorderedAccessView(DestBvh, DestAccelerationStructureData);
+    pCommandList->SetComputeRootUnorderedAccessView(SourceBvh, SourceAccelerationStructureData);
     pCommandList->SetComputeRoot32BitConstant(Constants, m_OptimalDispatchWidth, 0);
     pCommandList->Dispatch(m_OptimalDispatchWidth, 1, 1);
 }

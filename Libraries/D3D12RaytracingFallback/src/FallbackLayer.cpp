@@ -315,16 +315,27 @@ namespace FallbackLayer
     }
 
     void STDMETHODCALLTYPE D3D12RaytracingCommandList::BuildRaytracingAccelerationStructure(
-        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc)
+        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
+        _In_  UINT NumPostbuildInfoDescs,
+        _In_reads_opt_(NumPostbuildInfoDescs)  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pPostbuildInfoDescs)
     {
 #if USE_PIX_MARKERS
         PIXScopedEvent(m_pCommandList.p, FallbackPixColor, L"BuildRaytracingAccelerationStructure");
 #endif
-
-        m_device.m_AccelerationStructureBuilderFactory.GetAccelerationStructureBuilder().BuildRaytracingAccelerationStructure(
+        auto &accelerationStructureBuilder = m_device.m_AccelerationStructureBuilderFactory.GetAccelerationStructureBuilder();
+        accelerationStructureBuilder.BuildRaytracingAccelerationStructure(
             m_pCommandList,
             pDesc,
             m_pBoundDescriptorHeaps[SrvUavCbvType]);
+
+        if (NumPostbuildInfoDescs)
+        {
+            accelerationStructureBuilder.EmitRaytracingAccelerationStructurePostbuildInfo(
+                m_pCommandList,
+                pPostbuildInfoDescs,
+                NumPostbuildInfoDescs,
+                &pDesc->DestAccelerationStructureData);
+        }
     }
 
     bool IsShaderAssociationField(D3D12_STATE_SUBOBJECT_TYPE type)
@@ -379,7 +390,7 @@ namespace FallbackLayer
                     (UINT)shaderConfig.MaxAttributeSizeInBytes);
                 break;
             }
-            case D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE:
+            case D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE:
             {
                 ID3D12RootSignature** ppRootSignatureDesc = (ID3D12RootSignature**)subObject.pDesc;
                 if (!ppRootSignatureDesc || !(*ppRootSignatureDesc))
@@ -451,7 +462,6 @@ namespace FallbackLayer
                 }
                 break;
             }
-            case D3D12_STATE_SUBOBJECT_TYPE_CACHED_STATE_OBJECT:
             default:
                 ThrowFailure(E_INVALIDARG, L"D3D12_STATE_SUBOBJECT_TYPE_CACHED_STATE_OBJECT is not supported");
             }
@@ -509,28 +519,34 @@ namespace FallbackLayer
         return S_OK;
     }
 
-    void STDMETHODCALLTYPE D3D12RaytracingCommandList::EmitRaytracingAccelerationStructurePostBuildInfo(
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestBuffer,
-        _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_TYPE InfoType,
+    void STDMETHODCALLTYPE D3D12RaytracingCommandList::EmitRaytracingAccelerationStructurePostbuildInfo(
+        _In_  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pDesc,
         _In_  UINT NumSourceAccelerationStructures,
         _In_reads_(NumSourceAccelerationStructures)  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData)
     {
-        UNREFERENCED_PARAMETER(InfoType);
+        if (pDesc->InfoType != D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE ||
+            pDesc->InfoType != D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE)
+        {
+            ThrowFailure(E_INVALIDARG,
+                L"Unsupported InfoType passed in, only supported POSTBUILD_INFO flags are "
+                L"D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE and D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE, "
+            );
+        }
 #if USE_PIX_MARKERS
         PIXScopedEvent(m_pCommandList.p, FallbackPixColor, L"EmitRaytracingAccelerationStructurePostBuildInfo");
 #endif
 
-        m_device.GetAccelerationStructureBuilderFactory().GetAccelerationStructureBuilder().EmitRaytracingAccelerationStructurePostBuildInfo(
+        m_device.GetAccelerationStructureBuilderFactory().GetAccelerationStructureBuilder().EmitRaytracingAccelerationStructurePostbuildInfo(
             m_pCommandList,
-            DestBuffer,
+            pDesc,
             NumSourceAccelerationStructures,
             pSourceAccelerationStructureData);
     }
 
     void STDMETHODCALLTYPE D3D12RaytracingCommandList::CopyRaytracingAccelerationStructure(
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructureData,
+        _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
         _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
-        _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Flags)
+        _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode)
     {
 #if USE_PIX_MARKERS
         PIXScopedEvent(m_pCommandList.p, FallbackPixColor, L"CopyRaytracingAccelerationStructure");
@@ -539,7 +555,7 @@ namespace FallbackLayer
             m_pCommandList,
             DestAccelerationStructureData,
             SourceAccelerationStructureData,
-            Flags
+            Mode
         );
     }
 
@@ -572,13 +588,12 @@ namespace FallbackLayer
     }
 
     void STDMETHODCALLTYPE D3D12RaytracingCommandList::DispatchRays(
-        _In_  ID3D12RaytracingFallbackStateObject *pStateObject,
-        _In_  const D3D12_FALLBACK_DISPATCH_RAYS_DESC *pDesc)
+        _In_  const D3D12_DISPATCH_RAYS_DESC *pDesc)
     {
         // A view-type descriptor heap is required to be bound since the Top-Level 
         // Acceleration Structure will have emulated-SRV-pointers to Bottom-Level 
         // structures
-        RaytracingStateObject *pRaytracingPipelineState = static_cast<RaytracingStateObject *>(pStateObject);
+        RaytracingStateObject *pRaytracingPipelineState = static_cast<RaytracingStateObject *>(m_pStateObject.p);
         if (!pDesc || (!m_pBoundDescriptorHeaps[SrvUavCbvType]))
         {
             ThrowFailure(E_INVALIDARG, 
@@ -639,7 +654,7 @@ namespace FallbackLayer
     }
 
     void STDMETHODCALLTYPE RaytracingDevice::GetRaytracingAccelerationStructurePrebuildInfo(
-        _In_  D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC *pDesc,
+        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
         _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
     {
         m_AccelerationStructureBuilderFactory.GetAccelerationStructureBuilder().GetRaytracingAccelerationStructurePrebuildInfo(

@@ -42,6 +42,7 @@
 #include "ComObject.h"
 
 #include "NativeRaytracing.h"
+#include "ExperimentalRaytracing.h"
 
 #include "FallbackDxil.h"
 #include "RaytracingHlslCompat.h"
