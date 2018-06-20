@@ -75,7 +75,7 @@ static void ConvertGeometryDescs(
             convertedTriangleDesc.IndexBuffer = triangleDesc.IndexBuffer;
             convertedTriangleDesc.IndexCount = triangleDesc.IndexCount;
             convertedTriangleDesc.IndexFormat = triangleDesc.IndexFormat;
-            convertedTriangleDesc.Transform, triangleDesc.Transform3x4;
+            convertedTriangleDesc.Transform = triangleDesc.Transform3x4;
             convertedTriangleDesc.VertexBuffer = triangleDesc.VertexBuffer;
             convertedTriangleDesc.VertexCount = triangleDesc.VertexCount;
             convertedTriangleDesc.VertexFormat = triangleDesc.VertexFormat;
@@ -275,12 +275,14 @@ public:
                     experimentalHitGroupDesc.IntersectionShaderImport = hitGroupDesc.IntersectionShaderImport;
                     cachedHitGroupDescs.push_back(experimentalHitGroupDesc);
                     subobject.pDesc = &cachedHitGroupDescs.back();
+                    break;
                 }
             case D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION:
                 {
                     auto &association = *(D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION*)subobject.pDesc;
                     UINT shaderAssociationIndex = (UINT)(association.pSubobjectToAssociate - pDesc->pSubobjects);
                     association.pSubobjectToAssociate = &patchedSubobjects[shaderAssociationIndex];
+                    break;
                 }
             }
         }
