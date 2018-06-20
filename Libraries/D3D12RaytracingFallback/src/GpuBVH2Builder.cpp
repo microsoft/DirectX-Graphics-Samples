@@ -33,37 +33,7 @@ namespace FallbackLayer
         _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
         _In_ ID3D12DescriptorHeap *pCbvSrvUavDescriptorHeap)
     {
-#ifdef DEBUG
-        D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfoDesc = {};
-        prebuildInfoDesc.DescsLayout = pDesc->DescsLayout;
-        prebuildInfoDesc.Flags = pDesc->Flags;
-        prebuildInfoDesc.NumDescs = pDesc->NumDescs;
-        prebuildInfoDesc.pGeometryDescs = pDesc->pGeometryDescs;
-        prebuildInfoDesc.ppGeometryDescs = pDesc->ppGeometryDescs;
-        prebuildInfoDesc.Type = pDesc->Type;
-
-        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildOutput;
-
-        CComPtr<ID3D12Device> pDevice;
-        pCommandList->GetDevice(IID_PPV_ARGS(&pDevice));
-
-        GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &prebuildOutput);
-        if (pDesc->DestAccelerationStructureData.SizeInBytes < prebuildOutput.ResultDataMaxSizeInBytes)
-        {
-            ThrowFailure(E_INVALIDARG, L"DestAccelerationStructureData.SizeInBytes too small, "
-                L"ensure the size matches up with a size returned from "
-                L"EmitRaytracingAccelerationStructurePostBuildInfo/GetRaytracingAccelerationStructurePrebuildInfo");
-        }
-
-        if (pDesc->ScratchAccelerationStructureData.SizeInBytes < prebuildOutput.ScratchDataSizeInBytes)
-        {
-            ThrowFailure(E_INVALIDARG, L"pDesc->ScratchAccelerationStructureData.SizeInBytes too small, "
-                L"ensure the size matches up with a size returned from "
-                L"EmitRaytracingAccelerationStructurePostBuildInfo/GetRaytracingAccelerationStructurePrebuildInfo");
-        }
-#endif
-
-        switch (pDesc->Type)
+        switch (pDesc->Inputs.Type)
         {
             case D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL:
                 BuildBottomLevelBVH(pCommandList, pDesc);
@@ -82,9 +52,9 @@ namespace FallbackLayer
         UINT numElements,
         GpuBVHBuffers &buffers)
     {
-        D3D12_GPU_VIRTUAL_ADDRESS bvhGpuVA = pDesc->DestAccelerationStructureData.StartAddress;
+        D3D12_GPU_VIRTUAL_ADDRESS bvhGpuVA = pDesc->DestAccelerationStructureData;
         ScratchMemoryPartitions scratchMemoryPartition = CalculateScratchMemoryUsage(bvhLevel, numElements);
-        D3D12_GPU_VIRTUAL_ADDRESS scratchGpuVA = pDesc->ScratchAccelerationStructureData.StartAddress;
+        D3D12_GPU_VIRTUAL_ADDRESS scratchGpuVA = pDesc->ScratchAccelerationStructureData;
         
         buffers.scratchElementBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToElements;
         buffers.mortonCodeBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToMortonCodes;
@@ -125,7 +95,7 @@ namespace FallbackLayer
         _In_ ID3D12DescriptorHeap *pCbvSrvUavDescriptorHeap)
     {
         const SceneType sceneType = SceneType::BottomLevelBVHs;
-        UINT numElements = pDesc->NumDescs;
+        UINT numElements = pDesc->Inputs.NumDescs;
         D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap = pCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
         BuildBVH(
@@ -143,7 +113,7 @@ namespace FallbackLayer
         _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc)
     {
         const SceneType sceneType = SceneType::Triangles;
-        UINT numElements = GetTotalPrimitiveCount(*pDesc);
+        UINT numElements = GetTotalPrimitiveCount(pDesc->Inputs);
         D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap = D3D12_GPU_DESCRIPTOR_HANDLE();
 
         BuildBVH(
@@ -166,15 +136,15 @@ namespace FallbackLayer
         UINT numElements,
         D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap)
     {
-        if (pDesc->DestAccelerationStructureData.StartAddress == 0)
+        if (pDesc->DestAccelerationStructureData == 0)
         {
             ThrowFailure(E_INVALIDARG, L"DestAccelerationStructureData.StartAddress must be non-zero");
         }
 
         GpuBVHBuffers buffers = {}; LoadGpuBVHBuffers(pDesc, bvhLevel, numElements, buffers);
 
-        const bool updatesAllowed = updatesAllowed(pDesc->Flags);
-        const bool performUpdate = shouldPerformUpdate(pDesc->Flags);
+        const bool updatesAllowed = updatesAllowed(pDesc->Inputs.Flags);
+        const bool performUpdate = shouldPerformUpdate(pDesc->Inputs.Flags);
 
         // Load in the leaf-node elements of the BVH and calculate the entire scene's AABB.
         LoadBVHElements(
@@ -215,7 +185,7 @@ namespace FallbackLayer
         m_constructAABBPass.ConstructAABB(
             pCommandList,
             sceneType,
-            pDesc->DestAccelerationStructureData.StartAddress,
+            pDesc->DestAccelerationStructureData,
             buffers.calculateAABBScratchBuffer,
             buffers.nodeCountBuffer,
             buffers.hierarchyBuffer,
@@ -247,8 +217,8 @@ namespace FallbackLayer
             m_loadInstancesPass.LoadInstances(
                 pCommandList, 
                 elementBuffer, 
-                pDesc->InstanceDescs, 
-                pDesc->DescsLayout, 
+                pDesc->Inputs.InstanceDescs, 
+                pDesc->Inputs.DescsLayout,
                 numElements, 
                 globalDescriptorHeap,
                 indexBuffer);
@@ -259,7 +229,7 @@ namespace FallbackLayer
             // and will generally have enough verticies to go completely wide
             m_loadPrimitivesPass.LoadPrimitives(
                 pCommandList, 
-                *pDesc, 
+                pDesc->Inputs, 
                 numElements, 
                 elementBuffer,
                 metadataBuffer,
@@ -340,18 +310,18 @@ namespace FallbackLayer
                 sceneAABBScratchMemory,
                 outputElementBuffer,
                 globalDescriptorHeap,
-                pDesc->Flags);
+                pDesc->Inputs.Flags);
         }
     }
 
     void GpuBvh2Builder::CopyRaytracingAccelerationStructure(
         _In_  ID3D12GraphicsCommandList *pCommandList,
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructureData,
+        _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
         _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
-        _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Flags)
+        _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode)
     {
-        if (Flags == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE ||
-            Flags == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_COMPACT)
+        if (Mode == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE ||
+            Mode == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_COMPACT)
         {
             m_copyPass.CopyRaytracingAccelerationStructure(pCommandList, DestAccelerationStructureData, SourceAccelerationStructureData);
         }
@@ -421,7 +391,7 @@ namespace FallbackLayer
     }
 
     void GpuBvh2Builder::GetRaytracingAccelerationStructurePrebuildInfo(
-        _In_  D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC *pDesc,
+        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
         _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
     {
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE Type = pDesc->Type;
@@ -465,15 +435,15 @@ namespace FallbackLayer
         pInfo->UpdateScratchDataSizeInBytes = 0;
     }
 
-    void GpuBvh2Builder::EmitRaytracingAccelerationStructurePostBuildInfo(
+    void GpuBvh2Builder::EmitRaytracingAccelerationStructurePostbuildInfo(
         _In_  ID3D12GraphicsCommandList *pCommandList,
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestBuffer,
+        _In_  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pDesc,
         _In_  UINT NumSourceAccelerationStructures,
         _In_reads_(NumSourceAccelerationStructures)  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData)
     {
         m_postBuildInfoQuery.GetCompactedBVHSizes(
             pCommandList,
-            DestBuffer,
+            pDesc->DestBuffer,
             NumSourceAccelerationStructures,
             pSourceAccelerationStructureData);
     }

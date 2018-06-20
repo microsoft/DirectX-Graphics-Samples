@@ -670,7 +670,7 @@ void BuildRaytracingAccelerationStructureOnCpu(
     _Out_ void *pData)
 {
     FallbackLayer::BVH bvh;
-    FallbackLayer::BuildUniformBVH(pDesc->NumDescs, pDesc->pGeometryDescs, bvh);
+    FallbackLayer::BuildUniformBVH(pDesc->Inputs.NumDescs, pDesc->Inputs.pGeometryDescs, bvh);
 
     BYTE* outputData = (BYTE*)pData;
     BVHOffsets offsets;

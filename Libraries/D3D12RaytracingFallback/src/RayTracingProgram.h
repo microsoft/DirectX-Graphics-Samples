@@ -25,7 +25,10 @@ namespace FallbackLayer
         StateIdentifier StateId;
         StateIdentifier AnyHitId;
         StateIdentifier IntersectionShaderId;
+
+        UINT32 padding[5];
     };
+    static_assert(sizeof(ShaderIdentifier) == D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, L"Shader Identifier size must match up with size in D3D12 header");
 
     class IRaytracingProgram
     {
@@ -37,7 +40,7 @@ namespace FallbackLayer
             ID3D12DescriptorHeap *pSrvCbvUavDescriptorHeap,
             ID3D12DescriptorHeap *pSamplerDescriptorHeap,
             const std::unordered_map<UINT, WRAPPED_GPU_POINTER> &boundAccelerationStructures,
-            const D3D12_FALLBACK_DISPATCH_RAYS_DESC &desc) = 0;
+            const D3D12_DISPATCH_RAYS_DESC &desc) = 0;
 
         virtual ShaderIdentifier *GetShaderIdentifier(LPCWSTR pExportName) = 0;
         virtual UINT64 GetShaderStackSize(LPCWSTR pExportName) = 0;

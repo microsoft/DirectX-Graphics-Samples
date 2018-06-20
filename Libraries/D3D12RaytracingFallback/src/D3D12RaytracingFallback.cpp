@@ -22,17 +22,42 @@ HRESULT D3D12CreateRaytracingFallbackDevice(
         return E_INVALIDARG;
     }
 
-    CComPtr<ID3D12DeviceRaytracingPrototype> pRaytracingDevice;
-    HRESULT hr = pDevice->QueryInterface(&pRaytracingDevice);
+    enum DXRSupportType
+    {
+        OfficialAPI,
+        ExperimentalAPI,
+        None
+    } supportType = None;
+    
+    bool bForceComputeFallback = ((UINT)createRaytracingFallbackDeviceFlags & (UINT)CreateRaytracingFallbackDeviceFlags::ForceComputeFallback) != 0;
+    if (!bForceComputeFallback)
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS5 options;
+        if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options, sizeof(options)))
+            && options.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+        {
+            supportType = OfficialAPI;
+        }
 
-    const bool bSupportsNativeRaytracing = SUCCEEDED(hr) && pRaytracingDevice;
-    if (!bSupportsNativeRaytracing || ((UINT)createRaytracingFallbackDeviceFlags & (UINT)CreateRaytracingFallbackDeviceFlags::ForceComputeFallback) != 0)
-    {
-        *ppDevice = new FallbackLayer::RaytracingDevice(pDevice, NodeMask, createRaytracingFallbackDeviceFlags);
+        CComPtr<ID3D12DeviceRaytracingPrototype> pRaytracingDevice;
+        if (supportType == None && SUCCEEDED(pDevice->QueryInterface(&pRaytracingDevice)) && pRaytracingDevice)
+        {
+            supportType = ExperimentalAPI;
+        }
     }
-    else
+    
+    switch (supportType)
     {
+    case OfficialAPI:
         *ppDevice = new NativeRaytracingDevice(pDevice);
+        break;
+    case ExperimentalAPI:
+        *ppDevice = new ExperimentalRaytracingDevice(pDevice);
+        break;
+    case None:
+    default:
+        *ppDevice = new FallbackLayer::RaytracingDevice(pDevice, NodeMask, createRaytracingFallbackDeviceFlags);
+        break;
     }
 
     if (!(*ppDevice))
