@@ -94,8 +94,10 @@
       <EntryPointName />
     </FxCompile>
     <PostBuildEvent>
-      <Command>cd "$(SolutionDir)..\tools\x64\"
-PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingDynamicGeometry\bin\$(Platform)\$(Configuration)\"</Command>
+      <Command>
+        cd "$(SolutionDir)..\tools\x64\"
+        PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingDynamicGeometry\bin\$(Platform)\$(Configuration)\"
+      </Command>
       <Message>Sideload required DXR binaries.</Message>
     </PostBuildEvent>
     <PreLinkEvent>
@@ -107,8 +109,10 @@ PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingDynamicGeometry\bin\$(Platform)\
       </Message>
     </PreLinkEvent>
     <PreBuildEvent>
-      <Command>cd "$(SolutionDir)..\tools\x64\"
-PrebuildCheck.bat</Command>
+      <Command>
+        cd "$(SolutionDir)..\tools\x64\"
+        PrebuildCheck.bat
+      </Command>
     </PreBuildEvent>
     <PreBuildEvent>
       <Message>
@@ -147,13 +151,17 @@ PrebuildCheck.bat</Command>
       <EntryPointName />
     </FxCompile>
     <PostBuildEvent>
-      <Command>cd "$(SolutionDir)..\tools\x64\"
-PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingDynamicGeometry\bin\$(Platform)\$(Configuration)\"</Command>
+      <Command>
+        cd "$(SolutionDir)..\tools\x64\"
+        PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingDynamicGeometry\bin\$(Platform)\$(Configuration)\"
+      </Command>
       <Message>Sideload required DXR binaries.</Message>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>cd "$(SolutionDir)..\tools\x64\"
-PrebuildCheck.bat</Command>
+      <Command>
+        cd "$(SolutionDir)..\tools\x64\"
+        PrebuildCheck.bat
+      </Command>
       <Message>
       </Message>
     </PreBuildEvent>
@@ -230,11 +238,13 @@ PrebuildCheck.bat</Command>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets" Condition="Exists('..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets')" />
+    <Import Project="..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170918004\build\WinPixEventRuntime.targets" Condition="Exists('..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170918004\build\WinPixEventRuntime.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170918004\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170918004\build\WinPixEventRuntime.targets'))" />
   </Target>
 </Project>

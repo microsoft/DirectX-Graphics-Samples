@@ -50,7 +50,8 @@ public:
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
     void SetWindowBounds(int left, int top, int right, int bottom);
     std::wstring GetAssetFullPath(LPCWSTR assetName);
-
+    // Override to be able to start without Dx11on12 UI for PIX. PIX doesn't support 11 on 12. 
+    bool m_enableUI;
 protected:
     void SetCustomWindowText(LPCWSTR text);
 
@@ -61,9 +62,8 @@ protected:
 
     // Window bounds
     RECT m_windowBounds;
-    
-    // Override to be able to start without Dx11on12 UI for PIX. PIX doesn't support 11 on 12. 
-    bool m_enableUI;
+
+
 
     // D3D device resources
     UINT m_adapterIDoverride;
