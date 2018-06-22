@@ -678,10 +678,19 @@ namespace FallbackLayerUnitTests
 
         TEST_METHOD(NoIndexBufferBottomLevelGpuBVHBuilder)
         {
+            
+            float ReferenceVertices2[123 * 9];
+            for (UINT i = 0; i < 123 * 9; i++)
+            {
+                ReferenceVertices2[i] = (ReferenceVerticies1[i % ARRAYSIZE(ReferenceVerticies1)] + (i / ARRAYSIZE(ReferenceVerticies1)) * 4) * ((((i / 3) % 2) == 0) ? 1 : -1);
+            }
+            
+
             CpuGeometryDescriptor testCases[] =
             {
                 CpuGeometryDescriptor(ReferenceVerticies0, VERTEX_COUNT(ReferenceVerticies0)),
-                CpuGeometryDescriptor(ReferenceVerticies1, VERTEX_COUNT(ReferenceVerticies1))
+                CpuGeometryDescriptor(ReferenceVerticies1, VERTEX_COUNT(ReferenceVerticies1)),
+                CpuGeometryDescriptor(ReferenceVertices2, VERTEX_COUNT(ReferenceVertices2))
             };
 
             for (UINT testIndex = 0; testIndex < ARRAYSIZE(testCases); testIndex++)
@@ -2965,21 +2974,25 @@ namespace FallbackLayerUnitTests
             auto &d3d12Device = m_d3d12Context.GetDevice();
             TreeletReorder treeletReorder(&d3d12Device, 0);
 
-            const UINT numTriangles = 16;
+            const UINT numTriangles = 100000; // 278874;
+            
+            float ReferenceVertices2[numTriangles * 9];
+            for (UINT i = 0; i < numTriangles * 9; i++)
+            {
+                ReferenceVertices2[i] = (ReferenceVerticies1[i % ARRAYSIZE(ReferenceVerticies1)] + (i / ARRAYSIZE(ReferenceVerticies1)) * 4.0) * ((((i / 3) % 2) == 0) ? 1 : -1);
+            }
+
             std::vector<Primitive> triangleBuffer(numTriangles);
             for (INT i = 0; i < numTriangles; i++)
             {
                 Primitive &primitive = triangleBuffer[i];
                 primitive.PrimitiveType = TRIANGLE_TYPE;
                 Triangle &tri = primitive.triangle;
-                if (i < numTriangles / 2)
-                {
-                    tri.v0 = tri.v1 = tri.v2 = { (float)-i, 0, 0 };
-                }
-                else
-                {
-                    tri.v0 = tri.v1 = tri.v2 = { (float)i, 0, 0 };
-                }
+
+                UINT vi = i * 9;
+                tri.v0 = { ReferenceVertices2[vi + 0], ReferenceVertices2[vi + 1], ReferenceVertices2[vi + 2] };
+                tri.v1 = { ReferenceVertices2[vi + 3], ReferenceVertices2[vi + 4], ReferenceVertices2[vi + 5] };
+                tri.v2 = { ReferenceVertices2[vi + 6], ReferenceVertices2[vi + 7], ReferenceVertices2[vi + 8] };
             }
 
             CComPtr<ID3D12Resource> pTriangleBuffer;
@@ -2992,12 +3005,15 @@ namespace FallbackLayerUnitTests
             UINT numInternalNodes = numLeafNodes - 1;
             UINT numNodes = numLeafNodes + numInternalNodes;
             std::vector<HierarchyNode> hierarchy(numNodes);
+
             for (UINT i = 0; i < numNodes; i++)
             {
                 hierarchy[i].ParentIndex = (i - 1) / 2;
                 hierarchy[i].LeftChildIndex = i * 2 + 1;
                 hierarchy[i].RightChildIndex = i * 2 + 2;
             }
+
+            HierarchyNode *pHierarchy = hierarchy.data();
 
             CComPtr<ID3D12Resource> pHierarchyBuffer;
             m_d3d12Context.CreateResourceWithInitialData(
@@ -3017,6 +3033,10 @@ namespace FallbackLayerUnitTests
             CComPtr<ID3D12Resource> pNodeCountBuffer;
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &nodeCountBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pNodeCountBuffer)));
 
+            auto bubbleBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT) * TreeletReorder::RequiredSizeForBubbleBuffer(numLeafNodes), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            CComPtr<ID3D12Resource> pBubbleBuffer;
+            AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &bubbleBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pBubbleBuffer)));
+
             treeletReorder.Optimize(
                 pCommandList,
                 numLeafNodes,
@@ -3024,7 +3044,7 @@ namespace FallbackLayerUnitTests
                 pNodeCountBuffer->GetGPUVirtualAddress(),
                 pAABBBuffer->GetGPUVirtualAddress(),
                 pTriangleBuffer->GetGPUVirtualAddress(),
-                {},
+                pBubbleBuffer->GetGPUVirtualAddress(),
                 flag);
 
             pCommandList->Close();
@@ -3033,9 +3053,21 @@ namespace FallbackLayerUnitTests
             std::vector<HierarchyNode> outputHierarchy(numNodes);
             m_d3d12Context.ReadbackResource(pHierarchyBuffer, outputHierarchy.data(), (UINT)(outputHierarchy.size() * sizeof(*outputHierarchy.data())));
 
+            HierarchyNode *pOutputHierarchy = outputHierarchy.data();
+
             // Not needed but helpful for debugging
             std::vector<AABB> outputAABBs(numNodes);
             m_d3d12Context.ReadbackResource(pAABBBuffer, outputAABBs.data(), (UINT)(outputAABBs.size() * sizeof(*outputAABBs.data())));
+
+            std::vector<UINT> outputBubbleBuffer(TreeletReorder::RequiredSizeForBubbleBuffer(numLeafNodes));
+            m_d3d12Context.ReadbackResource(pBubbleBuffer, outputBubbleBuffer.data(), (UINT)(outputBubbleBuffer.size() * sizeof(*outputBubbleBuffer.data())));
+
+            UINT *pOutputBubbleBuffer = outputBubbleBuffer.data();
+
+            std::vector<UINT> outputNodeCountBuffer(numNodes);
+            m_d3d12Context.ReadbackResource(pNodeCountBuffer, outputNodeCountBuffer.data(), (UINT)(outputNodeCountBuffer.size() * sizeof(*outputNodeCountBuffer.data())));
+
+            UINT *pOutputNodeCountBuffer = outputNodeCountBuffer.data();
 
             std::vector<UINT> nodeStack;
             nodeStack.push_back(0);
@@ -3054,8 +3086,8 @@ namespace FallbackLayerUnitTests
                 {
                     UINT leftNodeIndex = outputHierarchy[nodeIndex].LeftChildIndex;
                     UINT rightNodeIndex = outputHierarchy[nodeIndex].RightChildIndex;
-                    Assert::IsTrue(outputHierarchy[leftNodeIndex].ParentIndex == nodeIndex, L"Incorrectly Parent Index");
-                    Assert::IsTrue(outputHierarchy[rightNodeIndex].ParentIndex == nodeIndex, L"Incorrectly Parent Index");
+                    Assert::AreEqual(outputHierarchy[leftNodeIndex].ParentIndex, nodeIndex, L"Incorrect Parent Index (left)");
+                    Assert::AreEqual(outputHierarchy[rightNodeIndex].ParentIndex, nodeIndex, L"Incorrect Parent Index (right)");
 
                     nodeStack.push_back(leftNodeIndex);
                     nodeStack.push_back(rightNodeIndex);
