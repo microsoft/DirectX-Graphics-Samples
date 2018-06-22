@@ -121,6 +121,9 @@ namespace FallbackLayer
                 
                 pCommandList->SetPipelineState(m_pPSO_OPT_PL);
                 UINT numTreelets = (UINT) std::max(numElements / constants.MinTrianglesPerTreelet, 1u);
+                // uint threadsX = numTreelets % 65535;
+                // uint threadsY = ((numTreelets / 65535u) + 1) % 65535u;
+                // uint threadsZ = (((numTreelets / 65535u) + 1) / 65535u) + 1;
                 pCommandList->Dispatch(numTreelets, 1, 1);
                 pCommandList->ResourceBarrier(1, &uavBarrier);
             }
