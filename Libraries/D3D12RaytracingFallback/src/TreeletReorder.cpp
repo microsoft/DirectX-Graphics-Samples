@@ -12,7 +12,7 @@
 #include "CompiledShaders/ClearBuffer.h"
 #include "CompiledShaders/TreeletReorder.h"
 #include "CompiledShaders/TreeletReorderV2.h"
-#include "CompiledShaders/TreeletComputeAABBs.h"
+#include "CompiledShaders/FindTreelets.h"
 #include "CompiledShaders/TreeletReorderWave.h"
 #include "CompiledShaders/TreeletReorderThread.h"
 #include "TreeletReorderBindings.h"
@@ -38,7 +38,7 @@ namespace FallbackLayer
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pTreeletReorderV2), &m_pPSO_OPT);
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pTreeletReorderWave), &m_pPSO_OPT_PL);
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pTreeletReorderThread), &m_pPSO_OPT_T);
-        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pTreeletComputeAABBs), &m_pComputeAABBsPSO);
+        CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pFindTreelets), &m_pFindTreeletsPSO);
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pClearBuffer), &m_pClearBufferPSO);
     }
 
@@ -96,7 +96,7 @@ namespace FallbackLayer
             if (bDefault)
             {
 #if FORCE_PL
-                pCommandList->SetPipelineState(m_pComputeAABBsPSO);
+                pCommandList->SetPipelineState(m_pFindTreeletsPSO);
                 pCommandList->Dispatch(numGroupsForElements, 1, 1);
                 pCommandList->ResourceBarrier(1, &uavBarrier);
                 
@@ -115,7 +115,7 @@ namespace FallbackLayer
             } 
             else if (bPrioritizeTrace)
             {
-                pCommandList->SetPipelineState(m_pComputeAABBsPSO);
+                pCommandList->SetPipelineState(m_pFindTreeletsPSO);
                 pCommandList->Dispatch(numGroupsForElements, 1, 1);
                 pCommandList->ResourceBarrier(1, &uavBarrier);
                 

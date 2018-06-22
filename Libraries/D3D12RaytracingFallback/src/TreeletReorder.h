@@ -35,7 +35,7 @@ namespace FallbackLayer
         CComPtr<ID3D12PipelineState> m_pPSO_OPT_PL;
         CComPtr<ID3D12PipelineState> m_pPSO_OPT_T;
         CComPtr<ID3D12PipelineState> m_pClearBufferPSO;
-        CComPtr<ID3D12PipelineState> m_pComputeAABBsPSO;
+        CComPtr<ID3D12PipelineState> m_pFindTreeletsPSO;
 
         enum RootParameterSlot
         {
