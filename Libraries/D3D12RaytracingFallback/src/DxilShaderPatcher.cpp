@@ -81,6 +81,28 @@ namespace FallbackLayer
 #endif
     }
 
+    void DxilShaderPatcher::RenameAndLink(const std::vector<DxilLibraryInfo> &dxilLibraries, std::vector<DxcExportDesc> exports, IDxcBlob** ppOutputBlob)
+    {
+        CComPtr<IDxcDxrFallbackCompiler> pFallbackCompiler;
+        ThrowFailure(dxcDxrFallbackSupport.CreateInstance(CLSID_DxcDxrFallbackCompiler, &pFallbackCompiler),
+            L"Failed to create an instance of the Fallback Compiler. This suggest a version of DxrFallbackCompiler.dll "
+            L"is being used that doesn't match up with the Fallback layer. Verify that the DxrFallbackCompiler.dll is from "
+            L"same package as the Fallback.");
+
+        CComPtr<IDxcOperationResult> pResult;
+        std::vector<DxcShaderBytecode> pLibBlobPtrs(dxilLibraries.size());
+        for (size_t i = 0; i < dxilLibraries.size(); ++i)
+        {
+            pLibBlobPtrs[i] = { (LPBYTE)dxilLibraries[i].pByteCode, (UINT32)dxilLibraries[i].BytecodeLength };
+        }
+
+        pFallbackCompiler->RenameAndLink(pLibBlobPtrs.data(), pLibBlobPtrs.size(), exports.data(), exports.size(), &pResult);
+
+        VerifyResult(pResult);
+        ThrowInternalFailure(pResult->GetResult(ppOutputBlob));
+    }
+
+
     void DxilShaderPatcher::PatchShaderBindingTables(const BYTE *pShaderBytecode, UINT bytecodeLength, ShaderInfo *pShaderInfo, IDxcBlob** ppOutputBlob)
     {
         CComPtr<IDxcDxrFallbackCompiler> pFallbackCompiler;

@@ -33,6 +33,7 @@ namespace FallbackLayer
               L" DxrFallbackCompiler.dll is the correct version packaged with the Fallback");
         }
 
+        void RenameAndLink(const std::vector<DxilLibraryInfo> &dxilLibraries, std::vector<DxcExportDesc> exports, IDxcBlob** ppOutputBlob);
         void PatchShaderBindingTables(const BYTE *pShaderBytecode, UINT bytecodeLength, ShaderInfo *pShaderInfo, IDxcBlob** ppOutputBlob);
         
         void LinkCollection(UINT maxAttributeSize, const std::vector<DxilLibraryInfo> &dxilLibraries, const std::vector<LPCWSTR>& exportNames, std::vector<DxcShaderInfo>& shaderInfo, IDxcBlob** ppOutputBlob);

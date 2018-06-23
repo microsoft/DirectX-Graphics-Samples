@@ -17,6 +17,9 @@ namespace FallbackLayer
     public:
         ID3D12RootSignature *m_pRootSignature;
         D3D12_RAYTRACING_SHADER_CONFIG m_shaderConfig;
+        std::wstring m_exportToRename;
+        std::wstring m_mangledExport;
+        std::wstring m_mangledExportToRename;
     };
 
     class StateObjectCollection
@@ -33,6 +36,10 @@ namespace FallbackLayer
         std::unordered_map<std::wstring, ShaderAssociations> m_shaderAssociations;
         D3D12_RAYTRACING_PIPELINE_CONFIG m_config = {};
         D3D12_DXIL_LIBRARY_DESC m_traversalShader = {};
+
+        CDXILLibraryCache m_libraryCache;
+        CStateObjectInfo m_stateObjectInfo;
+
         bool IsUsingAnyHit = false;
         bool IsUsingIntersection = false;
     };
