@@ -13,30 +13,11 @@
 // "Fast Parallel Construction of High-Quality Bounding Volume
 // Hierarchies"
 
-    // const uint ParentBitmapBase = (MaxNumTreelets / 2) + 1;
-    // // Clean up stack
-    // {
-    //     ReorderBubbleBuffer.Store((Gid.x + 1) * SizeOfUINT32, NumberOfAABBs);
-    //     uint prevStackTop;
-    //     ReorderBubbleBuffer.InterlockedAdd(0, -1, prevStackTop);
-
-    //     if (prevStackTop == 2) // Now it's reset to 1
-    //     {
-    //         for (uint i = ParentBitmapBase; i <= MaxNumTreelets; i++)
-    //         {
-    //             ReorderBubbleBuffer.Store(i * SizeOfUINT32, 0);
-    //         }
-    //     }
-    // }
-
-
-
 #define HLSL
 #include "TreeletReorderBindings.h"
 #include "RayTracingHelper.hlsli"
 
 #define BREAK_POINT hierarchyBuffer[4294967291] = hierarchyBuffer[4294967294];
-
 
 static const uint FullPartitionMask = numTreeletSplitPermutations - 1;
 
@@ -99,11 +80,6 @@ uint getByte(uint src, uint byteIndex)
     return ((src & (0xff << bitIndex)) >> bitIndex);
 }
 
-groupshared uint nodeIndex = 0;
-groupshared bool finished = false;
-groupshared float optimalCost[numTreeletSplitPermutations];
-groupshared byte optimalPartition[numTreeletSplitPermutations >> 2]; // Treated as an array of bytes
-
 // http://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
 uint NextBitPermutation(uint bits)
 {
@@ -111,67 +87,68 @@ uint NextBitPermutation(uint bits)
     return (t + 1) | (((~t & -~t) - 1) >> (firstbitlow(bits) + 1));
 }
 
+groupshared uint nodeIndex;
+groupshared float optimalCost[numTreeletSplitPermutations];
+groupshared byte optimalPartition[numTreeletSplitPermutations >> 2];
+groupshared bool finished;
+
 // THREAD_GROUP_1D_WIDTH
-#define NumThreadsInGroup 1
+#define NumThreadsInGroup 4
 [numthreads(NumThreadsInGroup, 1, 1)]
 void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
 {   
     const uint NumberOfAABBs = GetNumInternalNodes(Constants.NumberOfElements) + Constants.NumberOfElements;
-    const uint MaxNumTreelets = Constants.NumberOfElements / MaxTreeletSize;
 
     nodeIndex = ReorderBubbleBuffer.Load((Gid.x + 1) * SizeOfUINT32);
-
     finished = false;
-    
+
     while (nodeIndex >= rootNodeIndex && nodeIndex < NumberOfAABBs)
     {
         uint treeletToReorder[MaxTreeletSize];
         uint internalNodes[numInternalTreeletNodes];
 
-        if (GTid.x == 0) 
-        {   
-            // Form Treelet
+        // Form Treelet
+        if (GTid.x == 0)
+        {
+            internalNodes[0] = nodeIndex;
+
+            treeletToReorder[0] = hierarchyBuffer[nodeIndex].LeftChildIndex;
+            treeletToReorder[1] = hierarchyBuffer[nodeIndex].RightChildIndex;
+
+            [unroll]
+            for (uint treeletSize = 2; treeletSize < MaxTreeletSize; treeletSize++)
             {
-                internalNodes[0] = nodeIndex;
-
-                treeletToReorder[0] = hierarchyBuffer[nodeIndex].LeftChildIndex;
-                treeletToReorder[1] = hierarchyBuffer[nodeIndex].RightChildIndex;
-
+                float largestSurfaceArea = 0.0;
+                uint nodeIndexToTraverse = 0;
+                uint indexOfNodeIndexToTraverse = 0;
                 [unroll]
-                for (uint treeletSize = 2; treeletSize < MaxTreeletSize; treeletSize++)
+                for (uint i = 0; i < treeletSize; i++)
                 {
-                    float largestSurfaceArea = 0.0;
-                    uint nodeIndexToTraverse = 0;
-                    uint indexOfNodeIndexToTraverse = 0;
-                    [unroll]
-                    for (uint i = 0; i < treeletSize; i++)
+                    uint treeletNodeIndex = treeletToReorder[i];
+                    // Leaf nodes can't be split so skip these
+                    if (!IsLeaf(treeletNodeIndex))
                     {
-                        uint treeletNodeIndex = treeletToReorder[i];
-                        // Leaf nodes can't be split so skip these
-                        if (!IsLeaf(treeletNodeIndex))
+                        float surfaceArea = ComputeBoxSurfaceArea(AABBBuffer[treeletNodeIndex]);
+                        if (surfaceArea > largestSurfaceArea)
                         {
-                            float surfaceArea = ComputeBoxSurfaceArea(AABBBuffer[treeletNodeIndex]);
-                            if (surfaceArea > largestSurfaceArea)
-                            {
-                                largestSurfaceArea = surfaceArea;
-                                nodeIndexToTraverse = treeletNodeIndex;
-                                indexOfNodeIndexToTraverse = i;
-                            }
+                            largestSurfaceArea = surfaceArea;
+                            nodeIndexToTraverse = treeletNodeIndex;
+                            indexOfNodeIndexToTraverse = i;
                         }
                     }
-                    // Replace the original node with its left child and add the right child to the end
-                    HierarchyNode nodeToTraverse = hierarchyBuffer[nodeIndexToTraverse];
-                    internalNodes[treeletSize - 1] = nodeIndexToTraverse;
-                    treeletToReorder[indexOfNodeIndexToTraverse] = nodeToTraverse.LeftChildIndex;
-                    treeletToReorder[treeletSize] = nodeToTraverse.RightChildIndex;
                 }
+                // Replace the original node with its left child and add the right child to the end
+                HierarchyNode nodeToTraverse = hierarchyBuffer[nodeIndexToTraverse];
+                internalNodes[treeletSize - 1] = nodeIndexToTraverse;
+                treeletToReorder[indexOfNodeIndexToTraverse] = nodeToTraverse.LeftChildIndex;
+                treeletToReorder[treeletSize] = nodeToTraverse.RightChildIndex;
             }
         }
 
         // Reorder treelet
-        {
-            if (GTid.x == 0) 
-            {  
+        {  
+            if (GTid.x == 0)
+            {
                 AABB nodeAABB = AABBBuffer[nodeIndex];
                 // Now that a treelet has been formed, try to reorder
                 [unroll]
@@ -201,26 +178,31 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                     optimalCost[BIT(i)] = CalculateCost(AABBBuffer[treeletToReorder[i]], rootAABBSurfaceArea);
                 }
             }
-     
-            if (GTid.x == 0) 
+
+            // if(GTid.x == 0)
             {
                 [unroll]
                 for (uint subsetSize = 2; subsetSize <= MaxTreeletSize; subsetSize++)
                 {
-                    uint treeletBitmask = BIT(subsetSize) - 1;
                     uint numTreeletBitmasks = MaxTreeletSizeChoose[subsetSize];
+                    uint numBitmasksPerThread = numTreeletBitmasks / NumThreadsInGroup;
+                    uint extraBitmasks = numTreeletBitmasks % NumThreadsInGroup;
+
+                    uint bitmasksStart = numBitmasksPerThread * GTid.x + (GTid.x != 0 ? extraBitmasks : 0);
+                    uint bitmasksEnd = bitmasksStart + numBitmasksPerThread + (GTid.x == 0 ? extraBitmasks : 0);
+
                     // For each subset with [subsetSize] bits set
-                    for (uint i = 0; i < numTreeletBitmasks; i++, treeletBitmask = NextBitPermutation(treeletBitmask))
+                    [unroll]
+                    for (uint i = bitmasksStart; i < bitmasksEnd; i++)
                     {
+                        uint treeletBitmask = BitPermutations[subsetSize][i];
+
                         float lowestCost = FLT_MAX;
                         uint bestPartition = 0;
 
-                        uint delta;
-                        uint partitionBitmask;
-
-                        delta = (treeletBitmask - 1) & treeletBitmask;
-                        partitionBitmask = (-delta) & treeletBitmask;
-                        do // [Invariant] countbits(treeletBitmask) == subsetSize
+                        uint delta = (treeletBitmask - 1) & treeletBitmask;
+                        uint partitionBitmask = (-delta) & treeletBitmask;
+                        do
                         {
                             const float cost = optimalCost[partitionBitmask] + optimalCost[treeletBitmask ^ partitionBitmask];
                             if (cost < lowestCost)
@@ -234,71 +216,72 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                         optimalCost[treeletBitmask] = CostOfRayBoxIntersection * optimalCost[treeletBitmask] + lowestCost; // TODO: Consider cost of flattening to triangle list
                         optimalPartition[treeletBitmask >> 2] = setByte(optimalPartition[treeletBitmask >> 2], bestPartition & 0xff, treeletBitmask & 3);
                     }
+
+                    GroupMemoryBarrierWithGroupSync();
                 }
             }
         }
+
+        // Reform tree
         if (GTid.x == 0)
         {
-            // Reform tree
+            // Now that a reordering has been calculated, reform the tree
+            struct PartitionEntry
             {
-                // Now that a reordering has been calculated, reform the tree
-                struct PartitionEntry
+                uint Mask;
+                uint NodeIndex;
+            };
+            uint nodesAllocated = 1;
+            uint partitionStackSize = 1;
+            PartitionEntry partitionStack[MaxTreeletSize];
+            partitionStack[0].Mask = FullPartitionMask;
+            partitionStack[0].NodeIndex = internalNodes[0];
+
+            while (partitionStackSize > 0)
+            {
+                PartitionEntry partition = partitionStack[partitionStackSize - 1];
+                partitionStackSize--;
+
+                PartitionEntry leftEntry;
+                leftEntry.Mask = getByte(optimalPartition[partition.Mask >> 2], partition.Mask & 3);
+
+                if (countbits(leftEntry.Mask) > 1)
                 {
-                    uint Mask;
-                    uint NodeIndex;
-                };
-                uint nodesAllocated = 1;
-                uint partitionStackSize = 1;
-                PartitionEntry partitionStack[MaxTreeletSize];
-                partitionStack[0].Mask = FullPartitionMask;
-                partitionStack[0].NodeIndex = internalNodes[0];
-
-                while (partitionStackSize > 0)
+                    leftEntry.NodeIndex = internalNodes[nodesAllocated++];
+                    partitionStack[partitionStackSize++] = leftEntry;
+                }
+                else
                 {
-                    PartitionEntry partition = partitionStack[partitionStackSize - 1];
-                    partitionStackSize--;
-
-                    PartitionEntry leftEntry;
-                    leftEntry.Mask = getByte(optimalPartition[partition.Mask >> 2], partition.Mask & 3);
-
-                    if (countbits(leftEntry.Mask) > 1)
-                    {
-                        leftEntry.NodeIndex = internalNodes[nodesAllocated++];
-                        partitionStack[partitionStackSize++] = leftEntry;
-                    }
-                    else
-                    {
-                        leftEntry.NodeIndex = treeletToReorder[firstbitlow(leftEntry.Mask)];
-                    }
-
-                    PartitionEntry rightEntry;
-                    rightEntry.Mask = partition.Mask ^ leftEntry.Mask;
-                    if (countbits(rightEntry.Mask) > 1)
-                    {
-                        rightEntry.NodeIndex = internalNodes[nodesAllocated++];
-                        partitionStack[partitionStackSize++] = rightEntry;
-                    }
-                    else
-                    {
-                        rightEntry.NodeIndex = treeletToReorder[firstbitlow(rightEntry.Mask)];
-                    }
-
-                    hierarchyBuffer[partition.NodeIndex].LeftChildIndex = leftEntry.NodeIndex;
-                    hierarchyBuffer[partition.NodeIndex].RightChildIndex = rightEntry.NodeIndex;
-                    hierarchyBuffer[leftEntry.NodeIndex].ParentIndex = partition.NodeIndex;
-                    hierarchyBuffer[rightEntry.NodeIndex].ParentIndex = partition.NodeIndex;
+                    leftEntry.NodeIndex = treeletToReorder[firstbitlow(leftEntry.Mask)];
                 }
 
-                // Start from the back. This is optimizing since the previous traversal went from
-                // top-down, the reverse order is guaranteed to be bottom-up
-                [unroll]
-                for (int j = numInternalTreeletNodes - 1; j >= 0; j--)
+                PartitionEntry rightEntry;
+                rightEntry.Mask = partition.Mask ^ leftEntry.Mask;
+                if (countbits(rightEntry.Mask) > 1)
                 {
-                    uint internalNodeIndex = internalNodes[j];
-                    AABB leftAABB = AABBBuffer[hierarchyBuffer[internalNodeIndex].LeftChildIndex];
-                    AABB rightAABB = AABBBuffer[hierarchyBuffer[internalNodeIndex].RightChildIndex];
-                    AABBBuffer[internalNodeIndex] = CombineAABB(leftAABB, rightAABB);
+                    rightEntry.NodeIndex = internalNodes[nodesAllocated++];
+                    partitionStack[partitionStackSize++] = rightEntry;
                 }
+                else
+                {
+                    rightEntry.NodeIndex = treeletToReorder[firstbitlow(rightEntry.Mask)];
+                }
+
+                hierarchyBuffer[partition.NodeIndex].LeftChildIndex = leftEntry.NodeIndex;
+                hierarchyBuffer[partition.NodeIndex].RightChildIndex = rightEntry.NodeIndex;
+                hierarchyBuffer[leftEntry.NodeIndex].ParentIndex = partition.NodeIndex;
+                hierarchyBuffer[rightEntry.NodeIndex].ParentIndex = partition.NodeIndex;
+            }
+
+            // Start from the back. This is optimizing since the previous traversal went from
+            // top-down, the reverse order is guaranteed to be bottom-up
+            [unroll]
+            for (int j = numInternalTreeletNodes - 1; j >= 0; j--)
+            {
+                uint internalNodeIndex = internalNodes[j];
+                AABB leftAABB = AABBBuffer[hierarchyBuffer[internalNodeIndex].LeftChildIndex];
+                AABB rightAABB = AABBBuffer[hierarchyBuffer[internalNodeIndex].RightChildIndex];
+                AABBBuffer[internalNodeIndex] = CombineAABB(leftAABB, rightAABB);
             }
         }
 
@@ -309,29 +292,29 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                 return;
             }
 
-            uint parentNodeIndex = hierarchyBuffer[nodeIndex].ParentIndex;
-
             if (GTid.x == 0)
-            {            
+            {
+                uint parentNodeIndex = hierarchyBuffer[nodeIndex].ParentIndex;
+
                 uint ourNumTriangles = NumTrianglesBuffer.Load(nodeIndex * SizeOfUINT32);
                 uint numTrianglesFromOtherNode = 0;
                 NumTrianglesBuffer.InterlockedAdd(parentNodeIndex * SizeOfUINT32, ourNumTriangles, numTrianglesFromOtherNode);
- 
+
                 // Wait for sibling in tree
                 if (numTrianglesFromOtherNode == 0)
                 {
                     finished = true;
                 }
+                else
+                {
+                    // Build parents bounding box
+                    AABB leftAABB = AABBBuffer[hierarchyBuffer[parentNodeIndex].LeftChildIndex];
+                    AABB rightAABB = AABBBuffer[hierarchyBuffer[parentNodeIndex].RightChildIndex];
+                    AABBBuffer[parentNodeIndex] = CombineAABB(leftAABB, rightAABB);
 
-                // Build parents bounding box
-                AABB leftAABB = AABBBuffer[hierarchyBuffer[parentNodeIndex].LeftChildIndex];
-                AABB rightAABB = AABBBuffer[hierarchyBuffer[parentNodeIndex].RightChildIndex];
-                AABBBuffer[parentNodeIndex] = CombineAABB(leftAABB, rightAABB);
+                    nodeIndex = parentNodeIndex;   
+                }
             }
-
-            nodeIndex = parentNodeIndex;
-            
-            GroupMemoryBarrierWithGroupSync();
 
             if (finished)
             {

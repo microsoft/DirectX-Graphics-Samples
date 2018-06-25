@@ -9,6 +9,12 @@
 //
 //*********************************************************
 
+// Using the Karras/Aila paper on treelet reoordering:
+// "Fast Parallel Construction of High-Quality Bounding Volume
+// Hierarchies"
+
+
+
 #define HLSL
 #include "TreeletReorderBindings.h"
 #include "RayTracingHelper.hlsli"
@@ -77,8 +83,6 @@ uint getByte(uint src, uint byteIndex)
     return ((src & (0xff << bitIndex)) >> bitIndex);
 }
 
-
-
 // http://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
 uint NextBitPermutation(uint bits)
 {
@@ -88,19 +92,22 @@ uint NextBitPermutation(uint bits)
 
 [numthreads(1, 1, 1)]
 void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
-{
+{   
+    if (GTid.x != 0) return;
+
+    float optimalCost[numTreeletSplitPermutations];
+    byte optimalPartition[numTreeletSplitPermutations >> 2]; // Treated as an array of bytes
+
     const uint NumberOfAABBs = GetNumInternalNodes(Constants.NumberOfElements) + Constants.NumberOfElements;
     const uint MaxNumTreelets = Constants.NumberOfElements / MaxTreeletSize;
 
     uint nodeIndex = ReorderBubbleBuffer.Load((Gid.x + 1) * SizeOfUINT32);
-
-    float optimalCost[numTreeletSplitPermutations];
-    byte optimalPartition[numTreeletSplitPermutations >> 2]; // Treated as an array of bytes
-    uint treeletToReorder[MaxTreeletSize];
-    uint internalNodes[numInternalTreeletNodes];
-
+    
     while (nodeIndex >= rootNodeIndex && nodeIndex < NumberOfAABBs)
     {
+        uint treeletToReorder[MaxTreeletSize];
+        uint internalNodes[numInternalTreeletNodes];
+
         // Form Treelet
         {
             internalNodes[0] = nodeIndex;
@@ -148,7 +155,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                 AABB aabb;
                 aabb.min = float3(FLT_MAX, FLT_MAX, FLT_MAX);
                 aabb.max = float3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-
+                
                 [unroll]
                 for (uint i = 0; i < MaxTreeletSize; i++)
                 {
@@ -201,6 +208,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                 }
             }
         }
+
         // Reform tree
         {
             // Now that a reordering has been calculated, reform the tree
@@ -271,25 +279,25 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
             }
 
             uint parentNodeIndex = hierarchyBuffer[nodeIndex].ParentIndex;
+          
+                uint ourNumTriangles = NumTrianglesBuffer.Load(nodeIndex * SizeOfUINT32);
+                uint numTrianglesFromOtherNode = 0;
+                NumTrianglesBuffer.InterlockedAdd(parentNodeIndex * SizeOfUINT32, ourNumTriangles, numTrianglesFromOtherNode);
+ 
+                // Wait for sibling in tree
+                if (numTrianglesFromOtherNode == 0)
+                {
+                    return;
+                }
 
-            uint ourNumTriangles = NumTrianglesBuffer.Load(nodeIndex * SizeOfUINT32);
-            uint numTrianglesFromOtherNode = 0;
-            NumTrianglesBuffer.InterlockedAdd(parentNodeIndex * SizeOfUINT32, ourNumTriangles, numTrianglesFromOtherNode);
-
-            // NumTrianglesBuffer.Store((nodeIndex + GetNumInternalNodes(Constants.NumberOfElements) + 1) * SizeOfUINT32, ourNumTriangles);
-
-            // Wait for sibling in tree
-            if (numTrianglesFromOtherNode == 0)
-            {
-                return;
-            }
-
-            // Build parents bounding box
-            AABB leftAABB = AABBBuffer[hierarchyBuffer[parentNodeIndex].LeftChildIndex];
-            AABB rightAABB = AABBBuffer[hierarchyBuffer[parentNodeIndex].RightChildIndex];
-            AABBBuffer[parentNodeIndex] = CombineAABB(leftAABB, rightAABB);
+                // Build parents bounding box
+                AABB leftAABB = AABBBuffer[hierarchyBuffer[parentNodeIndex].LeftChildIndex];
+                AABB rightAABB = AABBBuffer[hierarchyBuffer[parentNodeIndex].RightChildIndex];
+                AABBBuffer[parentNodeIndex] = CombineAABB(leftAABB, rightAABB);
 
             nodeIndex = parentNodeIndex;
         }
+
+        DeviceMemoryBarrierWithGroupSync();
     }
 }
