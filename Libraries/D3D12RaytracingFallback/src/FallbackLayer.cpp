@@ -338,22 +338,11 @@ namespace FallbackLayer
         }
     }
 
-    bool IsShaderAssociationField(D3D12_STATE_SUBOBJECT_TYPE type)
+    void RaytracingDevice::ProcessDxilLibraries(const D3D12_STATE_OBJECT_DESC &desc, RaytracingStateObject &rayTracingStateObject)
     {
-        switch (type)
+        for (UINT i = 0; i < desc.NumSubobjects; i++)
         {
-        case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
-            return true;
-        default:
-            return false;
-        }
-    }
-
-    void RaytracingDevice::ProcessSubObject(const D3D12_STATE_SUBOBJECT &subObject, RaytracingStateObject &rayTracingStateObject)
-    {
-        // Shader Association fields are added when referenced in a D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_SHADERS_ASSOCIATION
-        if (!IsShaderAssociationField(subObject.Type))
-        {
+            auto &subObject = desc.pSubobjects[i];
             switch (subObject.Type)
             {
             case D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY:
@@ -367,14 +356,6 @@ namespace FallbackLayer
                 D3D12_EXISTING_COLLECTION_DESC &collectionDesc = *(D3D12_EXISTING_COLLECTION_DESC*)subObject.pDesc;
                 RaytracingStateObject *pRaytracingPipelineState = reinterpret_cast<RaytracingStateObject *>(collectionDesc.pExistingCollection);
                 rayTracingStateObject.m_collection.CombineCollection(pRaytracingPipelineState->m_collection);
-                for (UINT i = 0; i < collectionDesc.NumExports; i++)
-                {
-                    if (collectionDesc.pExports[i].ExportToRename)
-                    {
-                        ThrowFailure(E_NOTIMPL, L"Export renaming is not currently supported");
-                    }
-                }
-                // TODO: Need to handle export renaming
                 break;
             }
             }
@@ -450,11 +431,17 @@ namespace FallbackLayer
             auto shaderAssociation = ProcessAssociations(exportedFunction.MangledName, rayTracingStateObject);
             shaderAssociation.m_exportToRename = exportedFunction.pDXILFunction->UnmangledName;
             shaderAssociation.m_mangledExport = exportedFunction.MangledName;
+            DxcExportDesc desc = {};
+            desc.ExportName = exportedFunction.MangledName;
             bool bRename = std::wstring(exportedFunction.UnmangledName).compare(exportedFunction.pDXILFunction->UnmangledName) != 0;
             if (bRename)
             {
+                desc.ExportToRename = exportedFunction.pDXILFunction->Name;
                 shaderAssociation.m_mangledExportToRename = exportedFunction.pDXILFunction->Name;
             }
+
+            stateObjectCollection.m_exportDescs.push_back(desc);
+            stateObjectCollection.m_exportNames.push_back(exportedFunction.UnmangledName);
             stateObjectCollection.m_shaderAssociations[exportedFunction.UnmangledName] = shaderAssociation;
         }
 
@@ -463,17 +450,6 @@ namespace FallbackLayer
             if (pStateSubobject && pStateSubobject->pDesc)
             {
                 stateObjectCollection.m_nodeMask = ((D3D12_NODE_MASK*)pStateSubobject->pDesc)->NodeMask;
-            }
-        }
-
-        {
-            auto pStateSubobject = stateObjectInfo.GetGloballyAssociatedSubobject(D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG);
-            if (pStateSubobject && pStateSubobject->pDesc)
-            {
-                if (((D3D12_STATE_OBJECT_CONFIG*)pStateSubobject->pDesc)->Flags != D3D12_STATE_OBJECT_FLAG_NONE)
-                {
-                    ThrowFailure(E_INVALIDARG, L"The Fallback Layer does not currently support cross-lib dependancies");
-                }
             }
         }
 
@@ -497,17 +473,10 @@ namespace FallbackLayer
                 {
                     stateObjectCollection.IsUsingIntersection = true;
                 }
-
-                auto shaderAssociation = ProcessAssociations(hitGroup.HitGroupExport, rayTracingStateObject);
-                stateObjectCollection.m_shaderAssociations[hitGroup.HitGroupExport] = shaderAssociation;
             }
         }
 
-        for (UINT i = 0; i < stateObject.NumSubobjects; i++)
-        {
-            auto &subObject = stateObject.pSubobjects[i];
-            ProcessSubObject(subObject, rayTracingStateObject);
-        }
+        ProcessDxilLibraries(stateObject, rayTracingStateObject);
     }
 
 

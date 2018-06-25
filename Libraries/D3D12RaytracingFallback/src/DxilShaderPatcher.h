@@ -43,6 +43,8 @@ namespace FallbackLayer
         void VerifyResult(IDxcOperationResult *pResult);
 
         dxc::DxcDxrFallbackDllSupport dxcDxrFallbackSupport;
+        void CreateFallbackCompiler(IDxcDxrFallbackCompiler **ppCompiler);
+
 
 #ifdef DEBUG
         CComPtr<IDxcCompiler> m_pCompiler;

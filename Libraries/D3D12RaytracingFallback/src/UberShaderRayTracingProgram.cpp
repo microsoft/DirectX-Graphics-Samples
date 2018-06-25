@@ -60,7 +60,6 @@ namespace FallbackLayer
             numShaders += lib.NumExports;
         }
 
-        std::vector<LPCWSTR> exportNames;
         std::vector<CComPtr<IDxcBlob>> patchedBlobList;
 
         UINT cbvSrvUavHandleSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -74,28 +73,12 @@ namespace FallbackLayer
         CComPtr<IDxcBlob> pAppLibrariesBlob;
         {
             std::vector<DxilLibraryInfo> libraryInfo;
-            std::vector<DxcExportDesc> mangledExports;
             for (UINT i = 0; i < numLibraries; i++)
             {
                 auto &inputLib = stateObjectCollection.m_dxilLibraries[i];
                 libraryInfo.emplace_back((void *)inputLib.DXILLibrary.pShaderBytecode, inputLib.DXILLibrary.BytecodeLength);
-                for (UINT exportIndex = 0; exportIndex < inputLib.NumExports; exportIndex++)
-                {
-                    auto &exportName = inputLib.pExports[exportIndex].Name;
-                    auto pShaderAssociation = stateObjectCollection.m_shaderAssociations.find(exportName);
-
-
-                    DxcExportDesc exportDesc = {};
-                    exportDesc.ExportName = pShaderAssociation->second.m_mangledExport.c_str();
-                    if (pShaderAssociation->second.m_mangledExportToRename.size())
-                    {
-                        exportDesc.ExportToRename = pShaderAssociation->second.m_mangledExportToRename.c_str();
-                    }
-                    mangledExports.push_back(exportDesc);
-                    exportNames.push_back(exportName);
-                }
             }
-            m_DxilShaderPatcher.RenameAndLink(libraryInfo, mangledExports, &pAppLibrariesBlob);
+            m_DxilShaderPatcher.RenameAndLink(libraryInfo, stateObjectCollection.m_exportDescs, &pAppLibrariesBlob);
         }
 
         
@@ -103,33 +86,18 @@ namespace FallbackLayer
         std::vector<DxilLibraryInfo> librariesInfo;
         DxilLibraryInfo outputLibInfo((void *)pAppLibrariesBlob->GetBufferPointer(), (UINT)pAppLibrariesBlob->GetBufferSize());
         CComPtr<IDxcBlob> pOutputBlob;
-        for (auto &exportName : exportNames)
+        std::vector<LPCWSTR> exportNames;
+        for (auto &associationPair : stateObjectCollection.m_shaderAssociations)
         {
-            auto pShaderAssociation = stateObjectCollection.m_shaderAssociations.find(exportName);
-            if (pShaderAssociation == stateObjectCollection.m_shaderAssociations.end())
-            {
-                for (auto &hitgroup : stateObjectCollection.m_hitGroups)
-                {
-                    LPCWSTR imports[] = {
-                        hitgroup.second.ClosestHitShaderImport,
-                        hitgroup.second.AnyHitShaderImport,
-                        hitgroup.second.IntersectionShaderImport
-                    };
-                    for (auto hitgroupImport : imports)
-                    {
-                        if (hitgroupImport && exportName == std::wstring(hitgroupImport))
-                        {
-                            pShaderAssociation = stateObjectCollection.m_shaderAssociations.find(hitgroup.first);
-                        }
-                    }
-                }
-            }
+            auto &exportName = associationPair.first;
+            exportNames.push_back(exportName.c_str());
+            auto &shaderAssociation = associationPair.second;
 
-            if (pShaderAssociation != stateObjectCollection.m_shaderAssociations.end() && pShaderAssociation->second.m_pRootSignature)
+            if (shaderAssociation.m_pRootSignature)
             {
                 CComPtr<ID3D12VersionedRootSignatureDeserializer> pDeserializer;
                 ShaderInfo shaderInfo;
-                shaderInfo.pRootSignatureDesc = GetDescFromRootSignature(pShaderAssociation->second.m_pRootSignature, pDeserializer);
+                shaderInfo.pRootSignatureDesc = GetDescFromRootSignature(shaderAssociation.m_pRootSignature, pDeserializer);
                 shaderInfo.pSRVRegisterSpaceArray = SRVViewsList;
                 shaderInfo.pNumSRVSpaces = &SRVsUsed;
                 shaderInfo.pUAVRegisterSpaceArray = UAVViewsList;
@@ -140,7 +108,7 @@ namespace FallbackLayer
                     shaderInfo.SamplerDescriptorSizeInBytes = samplerHandleSize;
                     shaderInfo.SrvCbvUavDescriptorSizeInBytes = cbvSrvUavHandleSize;
                     shaderInfo.ShaderRecordIdentifierSizeInBytes = sizeof(ShaderIdentifier);
-                    shaderInfo.ExportName = exportName;
+                    shaderInfo.ExportName = exportName.c_str();
 
                     CComPtr<IDxcBlob> pPatchedBlob;
                     m_DxilShaderPatcher.PatchShaderBindingTables(

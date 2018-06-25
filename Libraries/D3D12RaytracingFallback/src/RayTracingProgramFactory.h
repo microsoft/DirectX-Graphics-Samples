@@ -22,6 +22,7 @@ namespace FallbackLayer
         std::wstring m_mangledExportToRename;
     };
 
+
     class StateObjectCollection
     {
     public:
@@ -31,6 +32,8 @@ namespace FallbackLayer
         UINT m_maxAttributeSizeInBytes = 0;
         UINT m_nodeMask = 0;
         std::vector<D3D12_DXIL_LIBRARY_DESC> m_dxilLibraries;
+        std::vector<std::wstring> m_exportNames;
+        std::vector<DxcExportDesc> m_exportDescs;
         std::unordered_map<std::wstring, D3D12_HIT_GROUP_DESC> m_hitGroups;
         ID3D12RootSignature *m_pGlobalRootSignature = nullptr;
         std::unordered_map<std::wstring, ShaderAssociations> m_shaderAssociations;
