@@ -93,7 +93,7 @@ groupshared byte optimalPartition[numTreeletSplitPermutations >> 2];
 groupshared bool finished;
 
 // THREAD_GROUP_1D_WIDTH
-#define NumThreadsInGroup 4
+#define NumThreadsInGroup 2
 [numthreads(NumThreadsInGroup, 1, 1)]
 void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
 {   
@@ -185,38 +185,41 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                 for (uint subsetSize = 2; subsetSize <= MaxTreeletSize; subsetSize++)
                 {
                     uint numTreeletBitmasks = MaxTreeletSizeChoose[subsetSize];
-                    uint numBitmasksPerThread = numTreeletBitmasks / NumThreadsInGroup;
-                    uint extraBitmasks = numTreeletBitmasks % NumThreadsInGroup;
-
-                    uint bitmasksStart = numBitmasksPerThread * GTid.x + (GTid.x != 0 ? extraBitmasks : 0);
-                    uint bitmasksEnd = bitmasksStart + numBitmasksPerThread + (GTid.x == 0 ? extraBitmasks : 0);
-
-                    // For each subset with [subsetSize] bits set
-                    [unroll]
-                    for (uint i = bitmasksStart; i < bitmasksEnd; i++)
+                    uint numBitmasksPerThread = max(numTreeletBitmasks / NumThreadsInGroup, 1);
+                    if (GTid.x < numTreeletBitmasks)
                     {
-                        uint treeletBitmask = BitPermutations[subsetSize][i];
+                        uint extraBitmasks = numTreeletBitmasks > NumThreadsInGroup ? numTreeletBitmasks % NumThreadsInGroup : 0;
 
-                        float lowestCost = FLT_MAX;
-                        uint bestPartition = 0;
+                        uint bitmasksStart = numBitmasksPerThread * GTid.x + (GTid.x != 0 ? extraBitmasks : 0);
+                        uint bitmasksEnd = bitmasksStart + numBitmasksPerThread + (GTid.x == 0 ? extraBitmasks : 0);
 
-                        uint delta = (treeletBitmask - 1) & treeletBitmask;
-                        uint partitionBitmask = (-delta) & treeletBitmask;
-                        do
+                        // For each subset with [subsetSize] bits set
+                        [unroll]
+                        for (uint i = bitmasksStart; i < bitmasksEnd; i++)
                         {
-                            const float cost = optimalCost[partitionBitmask] + optimalCost[treeletBitmask ^ partitionBitmask];
-                            if (cost < lowestCost)
+                            uint treeletBitmask = BitPermutations[subsetSize][i];
+
+                            float lowestCost = FLT_MAX;
+                            uint bestPartition = 0;
+
+                            uint delta = (treeletBitmask - 1) & treeletBitmask;
+                            uint partitionBitmask = (-delta) & treeletBitmask;
+                            do
                             {
-                                lowestCost = cost;
-                                bestPartition = partitionBitmask;
-                            }
-                            partitionBitmask = (partitionBitmask - delta) & treeletBitmask;
-                        } while (partitionBitmask != 0);
+                                const float cost = optimalCost[partitionBitmask] + optimalCost[treeletBitmask ^ partitionBitmask];
+                                if (cost < lowestCost)
+                                {
+                                    lowestCost = cost;
+                                    bestPartition = partitionBitmask;
+                                }
+                                partitionBitmask = (partitionBitmask - delta) & treeletBitmask;
+                            } while (partitionBitmask != 0);
 
-                        optimalCost[treeletBitmask] = CostOfRayBoxIntersection * optimalCost[treeletBitmask] + lowestCost; // TODO: Consider cost of flattening to triangle list
-                        optimalPartition[treeletBitmask >> 2] = setByte(optimalPartition[treeletBitmask >> 2], bestPartition & 0xff, treeletBitmask & 3);
+                            optimalCost[treeletBitmask] = CostOfRayBoxIntersection * optimalCost[treeletBitmask] + lowestCost; // TODO: Consider cost of flattening to triangle list
+                            optimalPartition[treeletBitmask >> 2] = setByte(optimalPartition[treeletBitmask >> 2], bestPartition & 0xff, treeletBitmask & 3);
+                        }
                     }
-
+                        
                     GroupMemoryBarrierWithGroupSync();
                 }
             }

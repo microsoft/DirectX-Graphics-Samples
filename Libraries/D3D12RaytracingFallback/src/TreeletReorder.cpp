@@ -42,7 +42,7 @@ namespace FallbackLayer
         CreatePSOHelper(pDevice, nodeMask, m_pRootSignature, COMPILED_SHADER(g_pClearBuffer), &m_pClearBufferPSO);
     }
 
-#define FORCE_PL 1
+#define FORCE_PL 0
 
     void TreeletReorder::Optimize(
         ID3D12GraphicsCommandList *pCommandList,
