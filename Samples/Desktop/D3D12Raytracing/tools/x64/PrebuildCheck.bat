@@ -38,7 +38,7 @@ if not exist version.txt (
 ) 
 
 set /p version=< version.txt
-if not "%version%"=="1.2-dxr" (
+if not "%version%"=="1.3-dxr" (
 	goto :mismatch
 )
 
