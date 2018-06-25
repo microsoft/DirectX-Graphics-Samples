@@ -26,8 +26,6 @@ namespace FallbackLayer
     class StateObjectCollection
     {
     public:
-        void CombineCollection(const StateObjectCollection &collection);
-
         UINT64 m_pipelineStackSize = 0;
         UINT m_maxAttributeSizeInBytes = 0;
         UINT m_nodeMask = 0;

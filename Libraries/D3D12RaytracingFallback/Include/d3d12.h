@@ -347,7 +347,7 @@ extern "C"{
 
 #include <winapifamily.h>
 #pragma region App Family
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_GAMES)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
 #ifndef _D3D12_CONSTANTS
 #define _D3D12_CONSTANTS
 #define	D3D12_16BIT_INDEX_STRIP_CUT_VALUE	( 0xffff )
@@ -11920,7 +11920,7 @@ typedef
 enum D3D12_STATE_OBJECT_FLAGS
     {
         D3D12_STATE_OBJECT_FLAG_NONE	= 0,
-        D3D12_STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITONS	= 0x1,
+        D3D12_STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITIONS	= 0x1,
         D3D12_STATE_OBJECT_FLAG_ALLOW_EXTERNAL_DEPENDENCIES_ON_LOCAL_DEFINITIONS	= 0x2
     } 	D3D12_STATE_OBJECT_FLAGS;
 
@@ -15284,7 +15284,7 @@ static const UUID D3D12RaytracingPrototype = { /* 5d15d3b2-015a-4f39-8d47-299ac3
     0x5d15d3b2,
     0x015a,
     0x4f39,
-    {0x8d, 0x47, 0x29, 0x9a, 0xc3, 0x71, 0x90, 0xd3}
+{ 0x8d, 0x47, 0x29, 0x9a, 0xc3, 0x71, 0x90, 0xd3 }
 };
 // --------------------------------------------------------------------------------------------------------------------------------
 // Experimental Feature: D3D12MetaCommand
@@ -15300,7 +15300,7 @@ static const UUID D3D12MetaCommand = { /* C734C97E-8077-48C8-9FDC-D9D1DD31DD77 *
     0x48c8,
     { 0x9f, 0xdc, 0xd9, 0xd1, 0xdd, 0x31, 0xdd, 0x77 }
 };
-#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_GAMES) */
+#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) */
 #pragma endregion
 DEFINE_GUID(IID_ID3D12Object,0xc4fec28f,0x7966,0x4e95,0x9f,0x94,0xf4,0x31,0xcb,0x56,0xc3,0xb8);
 DEFINE_GUID(IID_ID3D12DeviceChild,0x905db94b,0xa00c,0x4140,0x9d,0xf5,0x2b,0x64,0xca,0x9e,0xa3,0x57);

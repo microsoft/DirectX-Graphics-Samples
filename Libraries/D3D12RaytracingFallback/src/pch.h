@@ -37,6 +37,11 @@
 #include "dxc\hlsl\DxilRuntimeReflection.h"
 #include "Util.h"
 
+#include <iostream>
+#include <sstream> 
+#define SKIP_BINDING_VALIDATION
+#define SKIP_STATE_OBJECT_MASK_VALIDATION
+#define INCLUDE_MESSAGE_LOG
 #include "StateObjectProcessing.hpp"
 #include "DxbcParser.h"
 

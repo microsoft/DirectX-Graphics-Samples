@@ -109,6 +109,11 @@ namespace FallbackLayer
         {
             return (ID3D12StateObject *)this;
         }
+
+        CStateObjectInfo &GetCachedStateInfo()
+        {
+            return m_collection.m_stateObjectInfo;
+        }
     private:
 
         StateObjectCollection m_collection;

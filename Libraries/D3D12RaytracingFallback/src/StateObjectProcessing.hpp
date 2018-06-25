@@ -11,11 +11,6 @@ using namespace hlsl::DXIL;
 class CStateObjectInfo; // forward declaration
 class CDXILLibraryCache; // forward declaration
 
-#define IGNORE_ROOT_SIGNATURE_VALIDATOR 1
-#define IGNORE_DXIL_CHECKS 1
-#define IGNORE_STATE_OBJECT_FLAG_CHECK 1
-#define SKIP_BINDING_VALIDATION
-
 //----------------------------------------------------------------------------------------------------------------------------------
 // PFN_CALLBACK_GET_DXIL_RUNTIME_DATA:
 //      Callback used by CStateObjectInfo::ParseStateObject asking the caller to provdide the CStateObjectInfo instance
@@ -23,8 +18,7 @@ class CDXILLibraryCache; // forward declaration
 //----------------------------------------------------------------------------------------------------------------------------------
 typedef HRESULT
 (*PFN_CALLBACK_GET_DXIL_RUNTIME_DATA)(
-    BYTE *pShaderByteCode, BYTE **ppRuntimeData, UINT *pRuntimeDataSizeInBytes);
-
+    const void *pShaderByteCode, const UINT **ppRuntimeData, UINT *pRuntimeDataSizeInBytes);
 
 //----------------------------------------------------------------------------------------------------------------------------------
 // PFN_CALLBACK_GET_STATE_OBJECT_INFO_FOR_EXISTING_COLLECTION:
@@ -289,7 +283,7 @@ private:
     void SetStateObjectType(D3D12_STATE_OBJECT_TYPE SOType);
     void AddLibrary(const D3D12_DXIL_LIBRARY_DESC* pLibrary);
     void AddCollection(const D3D12_EXISTING_COLLECTION_DESC* pCollection);
-    void AddHitGroup(const D3D12_HIT_GROUP_DESC* pHitGroup);
+    void AddHitGroup(const D3D12_HIT_GROUP_DESC* pHitGroup, CStateObjectInfo* pOwningStateObject);
     void AddRaytracingShaderConfig(const D3D12_RAYTRACING_SHADER_CONFIG* pShaderConfig, const void* pEnclosingSubobject);
     void AddRaytracingPipelineConfig(const D3D12_RAYTRACING_PIPELINE_CONFIG* pPipelineConfig, const void* pEnclosingSubobject);
     void AddGlobalRootSignature(const D3D12_GLOBAL_ROOT_SIGNATURE* pGlobalRS, const void* pEnclosingSubobject);
@@ -313,9 +307,14 @@ private:
     void ValidateShaderFeatures();
 
     //------------------------------------------------------------------------------------------------------------------------------
-    // Whether to allow unresolved references - result depends on type of state object and state object configuration flags
+    // Whether to allow local dependencies on external definitions - result depends on type of state object and state object configuration flags
     //------------------------------------------------------------------------------------------------------------------------------   
-    bool AllowUnresolvedRefs() const;
+    bool AllowLocalDependenciesOnExternalDefinitions() const;
+
+    //------------------------------------------------------------------------------------------------------------------------------
+    // Whether to allow external dependencies on local defininitions - result depends on type of state object and state object configuration flags
+    //------------------------------------------------------------------------------------------------------------------------------   
+    bool AllowExternalDependenciesOnLocalDefinitions() const;
 
     //------------------------------------------------------------------------------------------------------------------------------
     // Utilities
@@ -350,8 +349,8 @@ private:
     bool m_bStateObjectTypeSelected = false;
     bool m_bPreparedForReflection = false;
     bool m_bUsePrototypeInterface = false; // delete when not needed any longer
-    PFN_CALLBACK_GET_DXIL_RUNTIME_DATA m_pfnGetDxilRuntimeData;
     PFN_CALLBACK_GET_STATE_OBJECT_INFO_FOR_EXISTING_COLLECTION m_pfnGetStateObjectInfoForExistingCollection = nullptr;
+    PFN_CALLBACK_GET_DXIL_RUNTIME_DATA m_pfnGetDxilRuntimeData = nullptr;
     D3D12_STATE_OBJECT_TYPE m_SOType;
     D3D_SHADER_MODEL m_ShaderModel = D3D_SHADER_MODEL_6_3;
     UINT64 m_ShaderFeaturesSupported = (UINT64)-1;
@@ -368,7 +367,7 @@ private:
     #define LOG_ERROR_IN_CALLBACK(x) {LOG_IN_CALLBACK(x); pThis->m_bFoundError = true;}
     void Log(std::wostringstream& message);
     std::list<std::wstring> m_Log;
-    LPCWSTR PrettyPrintPossiblyMangledName(LPCWSTR mangledName);
+    LPCWSTR PrettyPrintPossiblyMangledName(LPCWSTR name);
 #else
     #define LOG(x) 
     #define LOG_IN_CALLBACK(x) 
@@ -506,6 +505,7 @@ private:
     {
         MatchScope_NoRequirements,
         MatchScope_FullStateObject,
+        MatchScope_LocalStateObject,
         MatchScope_CallGraph,
     } MATCH_SCOPE;
 
@@ -583,7 +583,7 @@ private:
     {
     public:
         bool m_bRootSigsValidTogether = false;
-#if !IGNORE_ROOT_SIGNATURE_VALIDATOR
+#ifndef SKIP_BINDING_VALIDATION
         RootSignatureVerifier m_RSV;
 #endif
     };
@@ -615,12 +615,14 @@ private:
         LPCWSTR m_UnmangledName = nullptr;
         const DxilFunctionDesc* m_pFunctionInfo = nullptr;
         std::list<CWrappedAssociation*> m_Associations[NUM_ASSOCIATEABLE_SUBOBJECT_TYPES];
+        CStateObjectInfo* m_pOwningStateObject = nullptr;
 
         // The following are used during various graph traversals
         UINT64 m_VisitedOnGraphTraversalIndex = (UINT64)-1;
         CAssociateableSubobjectInfo* m_pFirstSubobjectInLibraryFunctionSubtree = nullptr;
         LPCWSTR m_pNameOfFirstExportWithSubobjectInSubtree = nullptr;
         UINT m_SubtreeValidShaderStageFlag = 0;
+        bool m_bExternalDependenciesOnThisExportAllowed = false;
 #ifndef SKIP_BINDING_VALIDATION
         bool m_bUnresolvedResourceBindings = false;
 #endif
@@ -641,7 +643,11 @@ private:
     //------------------------------------------------------------------------------------------------------------------------------
     // Export related functions, including dependency graph traversal functions
     //------------------------------------------------------------------------------------------------------------------------------
-    void AddExport(LPCWSTR pExternalNameMangled, LPCWSTR pExternalNameUnmangled, const DxilFunctionDesc* pInfo);
+    void AddExport(LPCWSTR pExternalNameMangled, 
+                   LPCWSTR pExternalNameUnmangled, 
+                   const DxilFunctionDesc* pInfo, 
+                   CStateObjectInfo* pOwningStateObject,
+                   bool bExternalDependenciesOnThisExportAllowed);
     void TraverseFunctionsInitialValidation(LPCWSTR function);
     class CAssociateableSubobjectInfo;
     CAssociateableSubobjectInfo* TraverseFunctionsFindFirstSubobjectInLibraryFunctionSubtrees(LPCWSTR function);
@@ -694,6 +700,7 @@ private:
     {
     public:
         bool m_bUnresolvedFunctions = false;
+        CStateObjectInfo* m_pOwningStateObject = nullptr;
         D3D12_STATE_SUBOBJECT m_LocalSubobjectDefinition = {};
         std::list<CWrappedAssociation*> m_Associations[NUM_ASSOCIATEABLE_SUBOBJECT_TYPES];
     };

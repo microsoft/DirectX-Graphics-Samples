@@ -167,7 +167,7 @@ namespace FallbackLayer
         const UINT32*        m_pIndex;
     };
 
-    HRESULT GetRuntimeData(BYTE * pShaderByteCode, BYTE **ppRuntimeData, UINT *pRuntimeDataSizeInBytes)
+    HRESULT GetRuntimeData(const void* pShaderByteCode, const UINT **ppRuntimeData, UINT *pRuntimeDataSizeInBytes)
     {
         HRESULT hr = S_OK;
         CDXBCParser dxbcParser;
@@ -182,7 +182,7 @@ namespace FallbackLayer
             *ppRuntimeData = NULL;
             return E_FAIL;
         }
-        *ppRuntimeData = (BYTE *)dxbcParser.GetBlob(BlobIndex);
+        *ppRuntimeData = (UINT *)dxbcParser.GetBlob(BlobIndex);
         if (!*ppRuntimeData)
         {
             return E_FAIL;

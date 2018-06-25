@@ -1,7 +1,5 @@
 #include "pch.h"
 #include "dxc/HLSL/DxilRuntimeReflection.inl"
-#include "wchar.h"
-
 //==================================================================================================================================
 // CStateObjectInfo
 //==================================================================================================================================
@@ -20,7 +18,7 @@ const CStateObjectInfo::ASSOCIATEABLE_SUBOBJECT_STATIC_DATA CStateObjectInfo::m_
     {DECLNAME(D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE),          MatchRule_IfExistsMustMatchOthersThatExistPlusShaderEntry,    MatchScope_CallGraph,           true},
     {DECLNAME(D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE),           MatchRule_IfExistsMustMatchOthersThatExistPlusShaderEntry,    MatchScope_CallGraph,           true},
     {DECLNAME(D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK),                      MatchRule_IfExistsMustExistAndMatchForAllExports,             MatchScope_FullStateObject,     true},
-    {DECLNAME(D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG),            MatchRule_IfExistsMustExistAndMatchForAllExports,             MatchScope_FullStateObject,     true}
+    {DECLNAME(D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG),            MatchRule_IfExistsMustExistAndMatchForAllExports,             MatchScope_LocalStateObject,    true}
 #pragma pop_macro("DECLNAME")
 };
 
@@ -29,8 +27,7 @@ const CStateObjectInfo::ASSOCIATEABLE_SUBOBJECT_STATIC_DATA CStateObjectInfo::m_
 //----------------------------------------------------------------------------------------------------------------------------------
 bool CStateObjectInfo::CWrappedDXILLibrary::Init(const D3D12_DXIL_LIBRARY_DESC* pLibrary, CDXILLibraryCache* pDXILLibraryCache, PFN_CALLBACK_GET_DXIL_RUNTIME_DATA pfnGetRuntimeData)
 {
-    
-    BYTE* pRD = nullptr;
+    UINT* pRD = nullptr;
     UINT RdatSize = 0;
     if(!pLibrary->DXILLibrary.pShaderBytecode || (pLibrary->DXILLibrary.BytecodeLength == 0))
     {
@@ -39,12 +36,10 @@ bool CStateObjectInfo::CWrappedDXILLibrary::Init(const D3D12_DXIL_LIBRARY_DESC* 
     m_pDXILLibraryCache = pDXILLibraryCache;
     m_LocalLibraryDesc.DXILLibrary = pDXILLibraryCache ? m_pDXILLibraryCache->LocalUniqueCopy(&pLibrary->DXILLibrary) 
                                                        : pLibrary->DXILLibrary;
-    
-    if (FAILED(pfnGetRuntimeData((BYTE *)m_LocalLibraryDesc.DXILLibrary.pShaderBytecode, &pRD, &RdatSize)))
+    if (FAILED(pfnGetRuntimeData((void *)m_LocalLibraryDesc.DXILLibrary.pShaderBytecode, (const UINT **)&pRD, &RdatSize)))
     {
         return false;
     }
-
     m_pReflection.reset(CreateDxilRuntimeReflection());
     bool bSuccess = m_pReflection->InitFromRDAT(pRD, RdatSize);
     if(!bSuccess)
@@ -196,10 +191,10 @@ HRESULT CStateObjectInfo::ParseStateObject(
                         TranslatedHitGroup.Type = pExperimental->IntersectionShaderImport ? D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE : D3D12_HIT_GROUP_TYPE_TRIANGLES;
                         pHitGroupDescToUse = &TranslatedHitGroup;
                     }                    
-                    AddHitGroup((const D3D12_HIT_GROUP_DESC*)pHitGroupDescToUse);
+                    AddHitGroup((const D3D12_HIT_GROUP_DESC*)pHitGroupDescToUse,this);
                     break;
                 }
-                AddHitGroup((const D3D12_HIT_GROUP_DESC*)pDesc);
+                AddHitGroup((const D3D12_HIT_GROUP_DESC*)pDesc,this);
                 break;
             default:
                 LOG_ERROR(L"pSubobjects[" << i << L"] is of unrecognized type: " << pStateObject->pSubobjects[i].Type);
@@ -280,14 +275,21 @@ LPCWSTR CStateObjectInfo::RenameMangledName(LPCWSTR OriginalMangledName, LPCWSTR
     }
     size_t newUnmangledLength = wcslen(NewUnmangledName);
     size_t newMangledLength = originalMangledLength - originalUnmangledLength + newUnmangledLength;
-    std::auto_ptr<wchar_t> newString(new wchar_t[newMangledLength + 1]);
+    size_t newStringAllocatedSize = newMangledLength + 1;
+    std::auto_ptr<wchar_t> newString(new wchar_t[newStringAllocatedSize]);
 
     wchar_t* pNewString = newString.get();
-    wcsncpy(pNewString, OriginalMangledName, mangledPrefixSize);
-    wcsncpy(&pNewString[mangledPrefixSize], NewUnmangledName, newUnmangledLength);
-    wcsncpy(&pNewString[mangledPrefixSize + newUnmangledLength], 
+    wcsncpy_s(pNewString, newStringAllocatedSize, OriginalMangledName, mangledPrefixSize);
+    newStringAllocatedSize -= mangledPrefixSize;
+
+    wcsncpy_s(&pNewString[mangledPrefixSize], newStringAllocatedSize,  NewUnmangledName, newUnmangledLength);
+    newStringAllocatedSize -= newUnmangledLength;
+
+    wcsncpy_s(&pNewString[mangledPrefixSize + newUnmangledLength], 
+            newStringAllocatedSize,
             &OriginalMangledName[mangledPrefixSize + originalUnmangledLength],
             originalMangledLength - mangledPrefixSize - originalUnmangledLength);
+
     pNewString[newMangledLength] = L'\0';
     return LocalUniqueCopy(pNewString);
 }
@@ -296,32 +298,65 @@ LPCWSTR CStateObjectInfo::RenameMangledName(LPCWSTR OriginalMangledName, LPCWSTR
 // CStateObjectInfo::PrettyPrintPossiblyMangledName
 //----------------------------------------------------------------------------------------------------------------------------------
 #ifdef INCLUDE_MESSAGE_LOG
-LPCWSTR CStateObjectInfo::PrettyPrintPossiblyMangledName(LPCWSTR mangledName)
+LPCWSTR CStateObjectInfo::PrettyPrintPossiblyMangledName(LPCWSTR name)
 {
-    size_t mangledLength = wcslen(mangledName);
-    if((mangledLength >= 2) &&
-        (L'\01' == mangledName[0]) &&
-        (L'?' == mangledName[1]))
+    std::wostringstream snippet;
+    auto match = m_ExportNameMangledToUnmangled.find(name);
+    size_t count = (match == m_ExportNameMangledToUnmangled.end()) ? 0 : m_ExportNameUnmangledToMangled.count(match->second);
+    size_t length = wcslen(name);
+    if(1 == count) // no need to disambiguate with mangled name
     {
-        size_t newLength = mangledLength+2;
+        snippet << L"\"" << match->second << L"\"";
+    }
+    else if((length >= 2) &&
+        (L'\01' == name[0]) &&
+        (L'?' == name[1]))
+    {   
+        // Cleanup mangled name     
+        size_t newLength = length+3; // incl terminating null
         std::auto_ptr<wchar_t> newString(new wchar_t[newLength]);
         wchar_t* pNewString = newString.get();
         pNewString[0] = L'\\';
         pNewString[1] = L'0';
         pNewString[2] = L'1';
         pNewString[3] = L'?';
-        wcsncpy(&pNewString[4],mangledName+2,mangledLength-2);
+        wcsncpy(&pNewString[4],name+2,length-2);
         pNewString[newLength-1] = L'\0';
-        return LocalUniqueCopy(pNewString);
+
+        // Find end of mangled portion
+        auto end = wcschr(&pNewString[4],L'@');
+        if(!end)
+        {
+            end = &pNewString[newLength-1];
+        }
+        
+        // Make unmangled name
+        size_t unmangledLength = end - &pNewString[4] + 1;
+        std::auto_ptr<wchar_t> newUnmangledString(new wchar_t[unmangledLength]);
+        wchar_t* pNewUnmangledString = newUnmangledString.get();
+        wcsncpy(pNewUnmangledString,&pNewString[4],unmangledLength-1);
+        pNewUnmangledString[unmangledLength-1] = L'\0';
+
+        // Print string with both unmangled and mangled for clarity
+        snippet << L"\"" << pNewUnmangledString << L"\" (mangled name: \"" << pNewString << L"\")";
     }
-    return mangledName;
+    else
+    {
+        snippet << L"\"" << name << L"\"";
+    }
+    return LocalUniqueCopy(snippet.str().c_str());
 }
 #endif
 
 //----------------------------------------------------------------------------------------------------------------------------------
 // CStateObjectInfo::AddExport
 //----------------------------------------------------------------------------------------------------------------------------------
-void CStateObjectInfo::AddExport(LPCWSTR pExternalNameMangled, LPCWSTR pExternalNameUnmangled, const DxilFunctionDesc* pInfo)
+void CStateObjectInfo::AddExport(
+    LPCWSTR pExternalNameMangled, 
+    LPCWSTR pExternalNameUnmangled, 
+    const DxilFunctionDesc* pInfo, 
+    CStateObjectInfo* pOwningStateObject,
+    bool bExternalDependenciesOnThisExportAllowed)
 {
     auto ret = m_ExportInfoMap.find(LocalUniqueCopy(pExternalNameMangled));
     if (ret != m_ExportInfoMap.end())
@@ -333,6 +368,8 @@ void CStateObjectInfo::AddExport(LPCWSTR pExternalNameMangled, LPCWSTR pExternal
     m_ExportInfoList.emplace_back();
     pExportInfo = &m_ExportInfoList.back();
     pExportInfo->m_pFunctionInfo = pInfo;
+    pExportInfo->m_pOwningStateObject = pOwningStateObject;
+    pExportInfo->m_bExternalDependenciesOnThisExportAllowed = bExternalDependenciesOnThisExportAllowed;
 
     LPCWSTR pUniqueExternalNameMangled = LocalUniqueCopy(pExternalNameMangled);
     LPCWSTR pUniqueExternalNameUnmangled = LocalUniqueCopy(pExternalNameUnmangled);
@@ -409,7 +446,7 @@ void CStateObjectInfo::AddLibrary(const D3D12_DXIL_LIBRARY_DESC* pLibrary)
                             // (1) or (2) - do a rename
                             if (wcscmp(match->second->ExportToRename, nameToMatch) == 0)
                             {
-                                AddExport(RenameMangledName(pFunc->Name, pFunc->UnmangledName, match->second->Name), match->second->Name, pFunc);
+                                AddExport(RenameMangledName(pFunc->Name, pFunc->UnmangledName, match->second->Name), match->second->Name, pFunc,this,true);
                                 ExportMissing.erase(match->second);
                             }
                         }
@@ -418,7 +455,7 @@ void CStateObjectInfo::AddLibrary(const D3D12_DXIL_LIBRARY_DESC* pLibrary)
                             // (3) or (4) - no rename
                             if (wcscmp(match->second->Name, nameToMatch) == 0)
                             {
-                                AddExport(pFunc->Name, pFunc->UnmangledName, pFunc);
+                                AddExport(pFunc->Name, pFunc->UnmangledName, pFunc,this,true);
                                 ExportMissing.erase(match->second);
                             }
                         }
@@ -446,7 +483,7 @@ void CStateObjectInfo::AddLibrary(const D3D12_DXIL_LIBRARY_DESC* pLibrary)
         for (UINT i = 0; i < libDesc.NumFunctions; i++)
         {
             const DxilFunctionDesc* pFunc = &libDesc.pFunction[i];
-            AddExport(pFunc->Name, pFunc->UnmangledName, pFunc);
+            AddExport(pFunc->Name, pFunc->UnmangledName, pFunc,this,true);
         }
     }
 }
@@ -467,8 +504,8 @@ void CStateObjectInfo::TraverseFunctionsInitialValidation(LPCWSTR function)
     {
 #ifdef INCLUDE_MESSAGE_LOG            
         auto unmangledName = m_ExportNameMangledToUnmangled.find(LocalUniqueCopy(function));
-        LOG_ERROR(L"Cycle in function call graph involving export \"" 
-            << unmangledName->second << L"\", mangled name: \"" << PrettyPrintPossiblyMangledName(function) << L"\".");
+        LOG_ERROR(L"Cycle in function call graph involving export " <<
+            PrettyPrintPossiblyMangledName(function) << L".");
 #else
         LOG_ERROR_NOMESSAGE;
 #endif   
@@ -498,14 +535,25 @@ void CStateObjectInfo::ResolveFunctionDependencies()
         auto match = m_ExportInfoMap.find(dep.first); // entries in dep are already unique strings, so map lookup is safe
         if (match == m_ExportInfoMap.end())
         {
-            if (!AllowUnresolvedRefs())
+            if (!AllowLocalDependenciesOnExternalDefinitions())
             {          
-                LOG_ERROR(L"Unresolved reference to function \"" << dep.first <<
-                    L"\" by export \"" << dep.second->m_pFunctionInfo->UnmangledName <<
-                    L"\", mangled name: \"" << PrettyPrintPossiblyMangledName(dep.second->m_pFunctionInfo->Name) << L"\"");
+                LOG_ERROR(L"Unresolved reference to function " << PrettyPrintPossiblyMangledName(dep.first) <<
+                    L" by export " << PrettyPrintPossiblyMangledName(dep.second->m_MangledName) << L"." <<
+                    ((D3D12_STATE_OBJECT_TYPE_COLLECTION == m_SOType) ? 
+                    L" If the intent is this will be resolved later, when this state object is combined with other state object(s), "
+                    L"use a D3D12_STATE_OBJECT_CONFIG subobject with D3D12_STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITIONS set in Flags." : L""));
             }
             dep.second->m_bUnresolvedFunctions = true;
             m_bUnresolvedFunctions = true;
+        }
+        else if(!match->second->m_bExternalDependenciesOnThisExportAllowed && (dep.second->m_pOwningStateObject != match->second->m_pOwningStateObject))
+        {
+            LOG_ERROR(L"Function " << PrettyPrintPossiblyMangledName(match->second->m_MangledName) <<
+                L" comes from a state object that did not opt in to allowing external dependencies on local definitions. Thus, export " << 
+                PrettyPrintPossiblyMangledName(dep.second->m_MangledName) << L", which resides in a different state object, can't depend on \"" 
+                << match->second->m_UnmangledName <<
+                L"\". To allow this linkage across state objects, the state object exporting \"" << match->second->m_UnmangledName << L"\" must specify a D3D12_STATE_OBJECT_CONFIG subobject with the flag " <<
+                L"D3D12_STATE_OBJECT_FLAG_ALLOW_EXTERNAL_DEPENDENCIES_ON_LOCAL_DEFINITIONS." );
         }
     }
     // Check for cycles or library functions calling entrypoints
@@ -565,11 +613,14 @@ void CStateObjectInfo::ResolveFunctionDependencies()
                 }
                 else
                 {
-                    if (!AllowUnresolvedRefs())
+                    if (!AllowLocalDependenciesOnExternalDefinitions())
                     {                             
                         LOG_ERROR(L"HitGroupExport \"" << hgDesc.HitGroupExport <<
-                            L"\" imports " << GetHitGroupDependencyTypeName(s) << L" named \"" << PrettyPrintPossiblyMangledName(pDependency) <<
-                            L"\" but there are no exports matching that name.");
+                            L"\" imports " << GetHitGroupDependencyTypeName(s) << L" named " << PrettyPrintPossiblyMangledName(pDependency) <<
+                            L" but there are no exports matching that name." <<
+                            ((D3D12_STATE_OBJECT_TYPE_COLLECTION == m_SOType) ? 
+                            L" If the intent is this will be resolved later, when this state object is combined with other state object(s), "
+                            L"use a D3D12_STATE_OBJECT_CONFIG subobject with D3D12_STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITIONS set in Flags." : L""));                            
                     }
                     m_bUnresolvedHitGroups = true;
                     hgDesc.m_bUnresolvedFunctions = true;
@@ -585,8 +636,8 @@ void CStateObjectInfo::ResolveFunctionDependencies()
             }
             default:
                 LOG_ERROR(L"HitGroupExport \"" << hgDesc.HitGroupExport <<
-                    L"\" imports " << GetHitGroupDependencyTypeName(s) << L" \"" << PrettyPrintPossiblyMangledName(pDependency) <<
-                    L"\" but there are " << count << L"overloads matching that name. " <<
+                    L"\" imports " << GetHitGroupDependencyTypeName(s) << L" named " << PrettyPrintPossiblyMangledName(pDependency) <<
+                    L" but there are " << count << L"overloads matching that name. " <<
                     L"Either make the names unique or use mangled naming (which includes signature information in the name).");
                 break;
             }
@@ -595,8 +646,17 @@ void CStateObjectInfo::ResolveFunctionDependencies()
                 if ((ShaderKind)pMatch->m_pFunctionInfo->ShaderKind != expectedShader)
                 {
                     LOG_ERROR(L"HitGroupExport \"" << hgDesc.HitGroupExport <<
-                        L"\" imports " << GetHitGroupDependencyTypeName(s) << L" \"" << PrettyPrintPossiblyMangledName(pDependency) <<
-                        L"\" but the shader with that name is the wrong shader type.");
+                        L"\" imports " << GetHitGroupDependencyTypeName(s) << L" named " << PrettyPrintPossiblyMangledName(pDependency) <<
+                        L" but the shader with that name is the wrong shader type.");
+                }
+                else if(!pMatch->m_bExternalDependenciesOnThisExportAllowed && (hgDesc.m_pOwningStateObject != pMatch->m_pOwningStateObject))
+                {
+                    LOG_ERROR(L"Function " << PrettyPrintPossiblyMangledName(pMatch->m_MangledName) <<
+                        L" comes from a state object that did not opt-in to external dependencies on local definitions. Thus, HitGroupExport \"" << hgDesc.HitGroupExport <<
+                        L"\" which resides in a different state object, can't depend on \"" 
+                        << pMatch->m_UnmangledName <<
+                        L"\". To allow this linkage across state objects, the state object exporting \"" << pMatch->m_UnmangledName << L"\" must specify a D3D12_STATE_OBJECT_CONFIG subobject with the flag " <<
+                        L"D3D12_STATE_OBJECT_FLAG_ALLOW_EXTERNAL_DEPENDENCIES_ON_LOCAL_DEFINITIONS." );
                 }
             }
         }
@@ -705,10 +765,8 @@ void CStateObjectInfo::TraverseFunctionsSubobjectConsistency(LPCWSTR function)
                     L", for any function in a call graph that has this type of subobject associated, it must either match the subobject associated with other functions in the graph, or if there are different subobjects their respective definitions must match. "
                     : m_TraversalGlobals.bRootIsEntryFunction ? L" it is optional to associate them to any given function, but for any function in a call graph that has this type of subobject associated, it must either match the subobject (if any) associated at the shader entrypoint in the graph, or if there are different subobjects their respective definitions must match the association at the entrypoint. "
                     : L" it is optional to associate them to any given function, but for any function in a library function call graph that has this type of subobject associated, it must either match the subobject (if any) associated with other functions in the graph, or if there are different subobjects their respective definitions must match. ")
-                << L"In this case function \"" << m_ExportNameMangledToUnmangled.find(LocalUniqueCopy(function))->second << L"\" (mangled name: \"" <<
-                PrettyPrintPossiblyMangledName(function) << L"\") has a different definition for this subobject type than another function in the same call graph: \"" <<
-                m_ExportNameMangledToUnmangled.find(m_TraversalGlobals.pNameOfExportWithReferenceSubobject)->second << L"\" (mangled name: \"" <<
-                PrettyPrintPossiblyMangledName(m_TraversalGlobals.pNameOfExportWithReferenceSubobject) << L"\").");                   
+                << L"In this case function " << PrettyPrintPossiblyMangledName(function) << L" has a different definition for this subobject type than another function in the same call graph: " <<
+                PrettyPrintPossiblyMangledName(m_TraversalGlobals.pNameOfExportWithReferenceSubobject) << L".");                   
             }
             break;
         case MatchRule_IfExistsMustExistAndMatchForAllExports:
@@ -717,10 +775,8 @@ void CStateObjectInfo::TraverseFunctionsSubobjectConsistency(LPCWSTR function)
                 LOG_ERROR(L"For subobjects of type " << 
                 m_sAssociateableSubobjectData[m_TraversalGlobals.AssociateableSubobjectIndex].StringAPIName << 
                     L", if any function in a call graph has this type of subobject associated, every function in the call graph must either match the subobject associated with other functions in the graph, or if there are different subobjects their respective definitions must match. "
-                << L"In this case function \"" << m_ExportNameMangledToUnmangled.find(LocalUniqueCopy(function))->second << L"\" (mangled name: \"" <<
-                PrettyPrintPossiblyMangledName(function) << L"\") has a different definition for (or presence of) this subobject type than another function in the same call graph: \"" <<
-                m_ExportNameMangledToUnmangled.find(m_TraversalGlobals.pNameOfExportWithReferenceSubobject)->second << L"\" (mangled name: \"" <<
-                PrettyPrintPossiblyMangledName(m_TraversalGlobals.pNameOfExportWithReferenceSubobject) << L"\").");                                   
+                << L"In this case function " << PrettyPrintPossiblyMangledName(function) << L" has a different definition for (or presence of) this subobject type than another function in the same call graph: " <<
+                PrettyPrintPossiblyMangledName(m_TraversalGlobals.pNameOfExportWithReferenceSubobject) << L".");                                   
             }
             break;
         }
@@ -811,10 +867,13 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
 
                 if(!bFoundGoodMatch)
                 {
-                    if(!AllowUnresolvedRefs())
+                    if(!AllowExternalDependenciesOnLocalDefinitions())
                     {
                         LOG_ERROR(L"Subobject association of type " <<  m_sAssociateableSubobjectData[AssociateableSubobjectName(association.m_SubobjectType)].StringAPIName 
-                                    << L" made to export named \"" << PrettyPrintPossiblyMangledName(ex) << L"\" which doesn't exist.");
+                                    << L" made to export named " << PrettyPrintPossiblyMangledName(ex) << L" which doesn't exist." <<
+                                    ((D3D12_STATE_OBJECT_TYPE_COLLECTION == m_SOType) ? 
+                                    L" To allow this subobject to be associated with external functions (to be resolved later, when this state object is combined with other state object(s)), "
+                                    L"use a D3D12_STATE_OBJECT_CONFIG subobject with D3D12_STATE_OBJECT_FLAG_ALLOW_EXTERNAL_DEPENDENCIES_ON_LOCAL_DEFINITIONS set in Flags." : L""));
                     }
                     m_bAssociationsToUnresolvedFunctions = true;
                 }
@@ -972,7 +1031,7 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
                         ApplyHitGroupAssociations();
                         if(MatchRule_RequiredAndMatchingForAllExports == m_sAssociateableSubobjectData[i].MatchRule)
                         {
-                            if(!AllowUnresolvedRefs())
+                            if(!AllowLocalDependenciesOnExternalDefinitions())
                             {
                                 auto unMangled = m_ExportNameMangledToUnmangled.find(ex.first);
                                 assert(unMangled != m_ExportNameMangledToUnmangled.end());
@@ -984,14 +1043,22 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
                                     {
                                         LOG_ERROR(L"Subobject association of type " << m_sAssociateableSubobjectData[i].StringAPIName 
                                                     << L" must be defined for all relevant exports, yet no such subobject exists at all.  And example of an export needing this association is " <<
-                                                    unMangled->second << L" (mangled name: " << PrettyPrintPossiblyMangledName(ex.first) << L").");
+                                                    PrettyPrintPossiblyMangledName(ex.first) << L"." <<
+                                                    ((D3D12_STATE_OBJECT_TYPE_COLLECTION == m_SOType) ? 
+                                                    L" If the intent is this will be resolved later, when this state object is combined with other state object(s), "
+                                                    L"use a D3D12_STATE_OBJECT_CONFIG subobject with D3D12_STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITIONS set in Flags." : L""));                            
+
                                         m_AssociateableSubobjectData[i].bContinuePrintingMissingSubobjectMessages = false;
                                     }
                                     else
     #endif
                                     {
-                                        LOG_ERROR(L"Export " << unMangled->second << L" (mangled name: " << PrettyPrintPossiblyMangledName(ex.first) << L") is missing a required subobject association of type " 
-                                        << m_sAssociateableSubobjectData[i].StringAPIName << L".");                            
+                                        LOG_ERROR(L"Export " << PrettyPrintPossiblyMangledName(ex.first) << L" is missing a required subobject association of type " 
+                                        << m_sAssociateableSubobjectData[i].StringAPIName << L"." <<
+                                        ((D3D12_STATE_OBJECT_TYPE_COLLECTION == m_SOType) ? 
+                                            L" If the intent is this will be resolved later, when this state object is combined with other state object(s), "
+                                            L"use a D3D12_STATE_OBJECT_CONFIG subobject with D3D12_STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITIONS set in Flags." : L""));                            
+    
                                     }
     #ifdef INCLUDE_MESSAGE_LOG
                                 }
@@ -1016,7 +1083,7 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
                                 {
                                     auto unMangled = m_ExportNameMangledToUnmangled.find(ex.first);
                                     assert(unMangled != m_ExportNameMangledToUnmangled.end());
-                                    LOG_ERROR( L"Export " << unMangled->second << L" (mangled name: " << PrettyPrintPossiblyMangledName(ex.first) << L") has multiple subobject associations of type " 
+                                    LOG_ERROR( L"Export " << PrettyPrintPossiblyMangledName(ex.first) << L" has multiple subobject associations of type " 
                                     << m_sAssociateableSubobjectData[i].StringAPIName << L" when only one is expected, or if there are multiple subobjects associated they must have matching definitions.");
                                     break;                                    
                                 }
@@ -1045,7 +1112,9 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
         switch(m_sAssociateableSubobjectData[i].MatchScope)
         {
         case MatchScope_FullStateObject:
+        case MatchScope_LocalStateObject:
         {
+            bool bMatchScopeLocal = (MatchScope_LocalStateObject == m_sAssociateableSubobjectData[i].MatchScope);
             bool bSkip = true;
             switch(MatchRule)
             {
@@ -1069,6 +1138,10 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
             bool bAssignedRef = false;
             for(auto function : m_ExportInfoMap)
             {
+                if(bMatchScopeLocal && (function.second->m_pOwningStateObject != this))
+                {
+                    continue;
+                }
                 auto& currAssociation = function.second->m_Associations[i];
                 auto pCurrSubobject = currAssociation.size() ? currAssociation.front()->m_pSubobject : nullptr; // just take first
                 if(bAssignedRef)
@@ -1077,6 +1150,7 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
                     {
                     case MatchRule_RequiredAndMatchingForAllExports:
                     case MatchRule_IfExistsMustMatchOthersThatExistPlusShaderEntry: // "ShaderEntry" clause isn't meanigful for full graph matching but the rest is
+                        assert(!bMatchScopeLocal); // would need to differentiate error message if this case is added.
                         if(pRefSubobject && pCurrSubobject && !pRefSubobject->Compare(pCurrSubobject)) // seperately validated they all have to be assiged, so here only need to compare if they both exist
                         {
                             LOG_ERROR(L"For subobjects of type " <<
@@ -1084,10 +1158,8 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
                             ((MatchRule_RequiredAndMatchingForAllExports == MatchRule)? 
                                 L", every function in a state object must be associated to either the same sububject definition, or if there are different subobjects their respective definitions must match. "
                             : L" it is optional to associate them to any given function, but for any function in a state object that has this type of subobject associated, it must either match the subobject (if any) associated with other functions in the state object, or if there are different subobjects their respective definitions must match. ")
-                            << L"In this case function \"" << m_ExportNameMangledToUnmangled.find(function.first)->second << L"\" (mangled name: \"" <<
-                            PrettyPrintPossiblyMangledName(function.first) << L"\") has a different definition for this subobject type than another function in the same state object: \"" <<
-                            m_ExportNameMangledToUnmangled.find(m_TraversalGlobals.pNameOfExportWithReferenceSubobject)->second << L"\" (mangled name: \"" <<
-                            PrettyPrintPossiblyMangledName(m_TraversalGlobals.pNameOfExportWithReferenceSubobject) << L"\").");            
+                            << L"In this case function " << PrettyPrintPossiblyMangledName(function.first) << L" has a different definition for this subobject type than another function in the same state object: " <<
+                            PrettyPrintPossiblyMangledName(m_TraversalGlobals.pNameOfExportWithReferenceSubobject) << L".");            
                         }
                         break;
                     case MatchRule_IfExistsMustExistAndMatchForAllExports:
@@ -1095,11 +1167,14 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
                         {
                             LOG_ERROR(L"For subobjects of type " <<
                             m_sAssociateableSubobjectData[i].StringAPIName << 
-                            L" it is optional to associate them to any given function, but once any function in a state object that has this type of subobject associated, all functions either have the same subobject associated, or if there are different subobjects their respective definitions must match. "
-                            << L"In this case function \"" << m_ExportNameMangledToUnmangled.find(function.first)->second << L"\" (mangled name: \"" <<
-                            PrettyPrintPossiblyMangledName(function.first) << L"\") has a different definition for (or presence of) this subobject type than another function in the same state object: \"" <<
-                            m_ExportNameMangledToUnmangled.find(m_TraversalGlobals.pNameOfExportWithReferenceSubobject)->second << L"\" (mangled name: \"" <<
-                            PrettyPrintPossiblyMangledName(m_TraversalGlobals.pNameOfExportWithReferenceSubobject) << L"\").");                                        
+                            L" it is optional to associate them to any given function, but once any function defined in this state object " <<
+                            ((D3D12_STATE_OBJECT_TYPE_COLLECTION == m_SOType) 
+                            ? (bMatchScopeLocal ? L"(not including definition in any state objects that enclose this one or are peers)" : L"(including definition in any state objects that enclose this collection or are peers) ")
+                            : (bMatchScopeLocal ? L"(not including definition in any contained collections)" : L"(including definition in any contained collections) ")) <<
+                            L"has this type of subobject associated, all functions either have the same subobject associated, or if there are different subobjects their respective definitions must match. "
+                            << L"In this case function " <<
+                            PrettyPrintPossiblyMangledName(function.first) << L" has a different definition for (or presence of) this subobject type than another function in the same state object: " <<
+                            PrettyPrintPossiblyMangledName(m_TraversalGlobals.pNameOfExportWithReferenceSubobject) << L".");   
                         }
                         break;
                     default:
@@ -1187,13 +1262,20 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
         {
         case MatchScope_CallGraph:
         case MatchScope_FullStateObject:
+        case MatchScope_LocalStateObject:
+        {
+            bool bMatchScopeLocal = (MatchScope_LocalStateObject == m_sAssociateableSubobjectData[i].MatchScope);
             for(auto& hg : m_HitGroups)
             {
                 auto& currHitGroupGlobalAssociations = hg.second->m_Associations[i];
                 auto pHitGroupSubobject = currHitGroupGlobalAssociations.size() ? currHitGroupGlobalAssociations.front()->m_pSubobject : nullptr; // just take first
                 auto pRefSubobject = pHitGroupSubobject; // initial reference is what's assigned to the hit group, but if it's null, don't count it as being unassociated
+                if(bMatchScopeLocal && (this != hg.second->m_pOwningStateObject))
+                {
+                    pRefSubobject = nullptr;
+                }
                 const auto& MatchRule = m_sAssociateableSubobjectData[i].MatchRule;
-                if(!pRefSubobject && (MatchScope_FullStateObject == m_sAssociateableSubobjectData[i].MatchScope) && (MatchRule_RequiredAndMatchingForAllExports == MatchRule))
+                if(!pRefSubobject && ((MatchScope_FullStateObject == m_sAssociateableSubobjectData[i].MatchScope) || bMatchScopeLocal) && (MatchRule_RequiredAndMatchingForAllExports == MatchRule))
                 {
                     break; // for FullStateObject, would have already validated that all exports match, and if the HitGroup has no association, nothing to validate
                 }
@@ -1248,6 +1330,10 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
                         // Error case validated elsewhere, ignore
                         break;
                     }
+                    if(bMatchScopeLocal && pMatch && (this != pMatch->m_pOwningStateObject))
+                    {
+                        continue;
+                    }
                     if (pMatch)
                     {
                         auto& currAssociations = pMatch->m_Associations[i];
@@ -1270,6 +1356,7 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
                         case MatchRule_IfExistsMustMatchOthersThatExistPlusShaderEntry:
                             if(pRefSubobject && pNewSubobject && !pRefSubobject->Compare(pNewSubobject))
                             {
+                                assert(!bMatchScopeLocal); // would need to differentiate error message if this case is needed
 #ifdef INCLUDE_MESSAGE_LOG
                                 bool bSubobjectCameFromHitGroup = (DependencyIndexWhereSubobjectCameFrom == -1) ? true : false;
 #endif                                
@@ -1282,8 +1369,8 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
                                 (bSubobjectCameFromHitGroup ? L"overall HitGroupExport" : GetHitGroupDependencyTypeName(DependencyIndexWhereSubobjectCameFrom)) << 
                                 L" \"" <<
                                 (bSubobjectCameFromHitGroup ? hgDesc.HitGroupExport : pNameOfHitGroupDependencyForRefSubobject) <<
-                                L"\" has a different definition for this subobject type than " << GetHitGroupDependencyTypeName(s) << L": \"" <<
-                                PrettyPrintPossiblyMangledName(pDependency) << L"\".");                                        
+                                L"\" has a different definition for this subobject type than " << GetHitGroupDependencyTypeName(s) << L": " <<
+                                PrettyPrintPossiblyMangledName(pDependency) << L".");                                        
                             }
                             break;
                         case MatchRule_IfExistsMustExistAndMatchForAllExports:
@@ -1297,13 +1384,17 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
 #endif                                
                                 LOG_ERROR(L"For subobjects of type " <<
                                 m_sAssociateableSubobjectData[i].StringAPIName <<                                     
-                                    L", if any member of a HitGroup that has this type of subobject associated, all other members of the hitgroup must either have the same subobject associated, or if there are different subobjects their respective definitions must match. "
+                                    L", if any member of a HitGroup defined in this state object " << 
+                                    ((D3D12_STATE_OBJECT_TYPE_COLLECTION == m_SOType) 
+                                    ? (bMatchScopeLocal ? L"(not defined in any state objects that enclose this one or are peers)" : L"(including definition in state objects that enclose this collection or are peers) ")
+                                    : (bMatchScopeLocal ? L"(not defined within any contained collections)" : L"(including definition within any contained collections) ")) <<
+                                    L"has this type of subobject associated, all other members of the HitGroup must either have the same subobject associated, or if there are different subobjects their respective definitions must match. "
                                         L"In this case " << 
                                 (bSubobjectCameFromHitGroup ? L"overall HitGroupExport" : GetHitGroupDependencyTypeName(DependencyIndexWhereSubobjectCameFrom)) << 
                                 L" \"" <<
                                 (bSubobjectCameFromHitGroup ? hgDesc.HitGroupExport : pNameOfHitGroupDependencyForRefSubobject) <<
-                                L"\" has a different definition for this subobject type than " << GetHitGroupDependencyTypeName(s) << L": \"" <<
-                                PrettyPrintPossiblyMangledName(pDependency) << L"\".");                                        
+                                L"\" has a different definition for this subobject type than " << GetHitGroupDependencyTypeName(s) << L": " <<
+                                PrettyPrintPossiblyMangledName(pDependency) << L".");                                        
                             }
                             break;
                         }
@@ -1319,6 +1410,7 @@ void CStateObjectInfo::ResolveSubobjectAssociations()
                 }
             }
             break;
+        }
         default:
             assert(false);
             break;
@@ -1393,7 +1485,6 @@ void CStateObjectInfo::TraverseFunctionsResourceBindingValidation(LPCWSTR functi
     cc.pLibraryFunction = function;
     cc.pExportInfo = ex->second;
     cc.pThis = this;
-#if !IGNORE_ROOT_SIGNATURE_VALIDATOR
     m_TraversalGlobals.pRootSigVerifier->m_RSV.VerifyLibraryFunction(pFuncInfo,&cc,ReportLibraryFunctionErrorCallback);
 
     // Validate subtree against root signatures
@@ -1402,7 +1493,6 @@ void CStateObjectInfo::TraverseFunctionsResourceBindingValidation(LPCWSTR functi
         TraverseFunctionsResourceBindingValidation(pFuncInfo->FunctionDependencies[i]);
     }
     ex->second->m_RootSigsValidatedOnSubtree.insert(m_TraversalGlobals.RootSigs);
-#endif
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -1412,8 +1502,7 @@ void CStateObjectInfo::ReportLibraryFunctionErrorCallback(void* pContext,LPCWSTR
 {
     auto pCallbackContext = (RLFECallbackContext*)pContext;
     auto pThis = pCallbackContext->pThis;
-#if !IGNORE_ROOT_SIGNATURE_VALIDATOR
-    if((ErrorFlags & RootSignatureVerifier::VLF_UNRESOLVED_REFERENCE && !pThis->AllowUnresolvedRefs()) ||
+    if(((ErrorFlags & RootSignatureVerifier::VLF_UNRESOLVED_REFERENCE) && !pThis->AllowLocalDependenciesOnExternalDefinitions()) ||
        (!(ErrorFlags & RootSignatureVerifier::VLF_UNRESOLVED_REFERENCE))) // another type of error
     {
 #ifdef INCLUDE_MESSAGE_LOG
@@ -1421,16 +1510,21 @@ void CStateObjectInfo::ReportLibraryFunctionErrorCallback(void* pContext,LPCWSTR
 #else
         UNREFERENCED_PARAMETER(pError);
 #endif
-        LOG_ERROR_IN_CALLBACK(L"Resource bindings for function \"" << pThis->PrettyPrintPossiblyMangledName(pCallbackContext->pLibraryFunction) << L"\" not compatible with associated root signatures (if any): local root signature object: 0x" << 
+        LOG_ERROR_IN_CALLBACK(L"Resource bindings for function " << pThis->PrettyPrintPossiblyMangledName(pCallbackContext->pLibraryFunction) << L" not compatible with associated root signatures (if any): local root signature object: 0x" << 
                 (RootSigs.m_pLocal ? RootSigs.m_pLocal->pLocalRootSignature : 0) << L", global root signature object: 0x" <<
-                (RootSigs.m_pGlobal ? RootSigs.m_pGlobal->pGlobalRootSignature : 0) << L". Error detail: " << pError );
+                (RootSigs.m_pGlobal ? RootSigs.m_pGlobal->pGlobalRootSignature : 0) << L". Error detail: " << pError <<
+                  ( ((D3D12_STATE_OBJECT_TYPE_COLLECTION == pThis->m_SOType) &&
+                    (ErrorFlags == RootSignatureVerifier::VLF_UNRESOLVED_REFERENCE) && !pThis->AllowLocalDependenciesOnExternalDefinitions()) ? 
+                    L" If the intent is this will be resolved later when this state object is combined with other state object(s), "
+                    L"use a D3D12_STATE_OBJECT_CONFIG subobject with D3D12_STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITIONS set in Flags." : L""
+                  )
+                );          
     }
     if(ErrorFlags & RootSignatureVerifier::VLF_UNRESOLVED_REFERENCE)
     {
         pThis->m_bUnresolvedResourceBindings = true;
         pCallbackContext->pExportInfo->m_bUnresolvedResourceBindings = true;
     }
-#endif
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -1471,7 +1565,6 @@ void CStateObjectInfo::ValidateRootSignaturePair(const CRootSigPair& RootSigs, C
         }
     }
 
-#if !IGNORE_ROOT_SIGNATURE_VALIDATOR
     pVerifier->m_RSV.AllowRaytracing(true);
     CComPtr<ID3DBlob> pErrorBlob = nullptr;
     hr = pVerifier->m_RSV.VerifyRootSignaturePair(pDescLocal,pDescGlobal,&pErrorBlob);
@@ -1493,7 +1586,6 @@ void CStateObjectInfo::ValidateRootSignaturePair(const CRootSigPair& RootSigs, C
         pVerifier->m_bRootSigsValidTogether = false;
         return;
     }
-#endif
     pVerifier->m_bRootSigsValidTogether = true;
     return;
 }
@@ -1518,9 +1610,9 @@ void CStateObjectInfo::ValidateMiscAssociations()
 #ifdef INCLUDE_MESSAGE_LOG            
         auto unmangledName = m_ExportNameMangledToUnmangled.find(ex.m_MangledName);
         LOG_ERROR(L"Raytracing shader config specifies MaxAttributeSizeInBytes of " << pConfig->MaxAttributeSizeInBytes <<
-         L" but function this config is associated with \"" 
-            << unmangledName->second << L"\", mangled name: \"" << PrettyPrintPossiblyMangledName(ex.m_MangledName) << 
-            L"\", has a larger attribute size: " << pFuncInfo->AttributeSizeInBytes << L" bytes.");
+         L" but function this config is associated with, " <<
+             PrettyPrintPossiblyMangledName(ex.m_MangledName) << 
+            L", has a larger attribute size: " << pFuncInfo->AttributeSizeInBytes << L" bytes.");
 #else
         LOG_ERROR_NOMESSAGE;
 #endif   
@@ -1530,9 +1622,9 @@ void CStateObjectInfo::ValidateMiscAssociations()
 #ifdef INCLUDE_MESSAGE_LOG            
         auto unmangledName = m_ExportNameMangledToUnmangled.find(ex.m_MangledName);
         LOG_ERROR(L"Raytracing shader config specifies MaxPayloadSizeInBytes of " << pConfig->MaxPayloadSizeInBytes <<
-         L" but function this config is associated with \"" 
-            << unmangledName->second << L"\", mangled name: \"" << PrettyPrintPossiblyMangledName(ex.m_MangledName) << 
-            L"\", has a larger payload size: " << pFuncInfo->PayloadSizeInBytes << L" bytes.");
+         L" but function this config is associated with, " <<
+            PrettyPrintPossiblyMangledName(ex.m_MangledName) << 
+            L", has a larger payload size: " << pFuncInfo->PayloadSizeInBytes << L" bytes.");
 #else
         LOG_ERROR_NOMESSAGE;
 #endif   
@@ -1554,9 +1646,8 @@ void CStateObjectInfo::ValidateShaderFeatures()
         {
 #ifdef INCLUDE_MESSAGE_LOG            
             auto unmangledName = m_ExportNameMangledToUnmangled.find(ex.m_MangledName);
-            LOG_ERROR(L"Export \"" 
-            << unmangledName->second << L"\", mangled name: \"" << PrettyPrintPossiblyMangledName(ex.m_MangledName) << 
-            L"\", expects shader model (D3D_SHADER_MODEL enum value) " << ex.m_pFunctionInfo->MinShaderTarget << 
+            LOG_ERROR(L"Export " << PrettyPrintPossiblyMangledName(ex.m_MangledName) << 
+            L" expects shader model (D3D_SHADER_MODEL enum value) " << ex.m_pFunctionInfo->MinShaderTarget << 
             L" but device supports D3D_SHADER_MODEL " << m_ShaderModel << L".");
 #else
         LOG_ERROR_NOMESSAGE;
@@ -1567,9 +1658,8 @@ void CStateObjectInfo::ValidateShaderFeatures()
         {
 #ifdef INCLUDE_MESSAGE_LOG            
             auto unmangledName = m_ExportNameMangledToUnmangled.find(ex.m_MangledName);
-            LOG_ERROR(L"Export \"" 
-            << unmangledName->second << L"\", mangled name: \"" << PrettyPrintPossiblyMangledName(ex.m_MangledName) << 
-            L"\", uses shader feature(s) not supported by the device.");
+            LOG_ERROR(L"Export " << PrettyPrintPossiblyMangledName(ex.m_MangledName) << 
+            L" uses shader feature(s) not supported by the device.");
 #else
         LOG_ERROR_NOMESSAGE;
 #endif               
@@ -1614,9 +1704,9 @@ UINT CStateObjectInfo::TraverseFunctionsShaderStageValidation(LPCWSTR function)
         {
 #ifdef INCLUDE_MESSAGE_LOG            
             auto unmangledName = m_ExportNameMangledToUnmangled.find(LocalUniqueCopy(function));
-            LOG_ERROR(ShaderStageName((ShaderKind)pFuncInfo->ShaderKind) << " shader named \"" 
-                << unmangledName->second << L"\", mangled name: \"" << PrettyPrintPossiblyMangledName(function) << 
-                L"\", calls library function(s) where somewhere in the call graph features are used which are not compatible with this shader stage." );
+            LOG_ERROR(ShaderStageName((ShaderKind)pFuncInfo->ShaderKind) << " shader named " <<
+                PrettyPrintPossiblyMangledName(function) << 
+                L" calls library function(s) where somewhere in the call graph features are used which are not compatible with this shader stage." );
 #else
             LOG_ERROR_NOMESSAGE;
 #endif   
@@ -1675,11 +1765,16 @@ void CStateObjectInfo::AddCollection(const D3D12_EXISTING_COLLECTION_DESC* pColl
         {
             auto exportNameUnmangled = pColInfo->m_ExportNameMangledToUnmangled.find(exportInfo.first);
             assert(exportNameUnmangled != pColInfo->m_ExportNameMangledToUnmangled.end());
-            AddExport(exportInfo.first, exportNameUnmangled->second, exportInfo.second->m_pFunctionInfo);
+            AddExport(
+                exportInfo.first, 
+                exportNameUnmangled->second, 
+                exportInfo.second->m_pFunctionInfo,
+                exportInfo.second->m_pOwningStateObject,
+                pColInfo->AllowExternalDependenciesOnLocalDefinitions());
         }
         for(auto& hitGroup : pColInfo->m_HitGroupList)
         {
-            AddHitGroup(&hitGroup);
+            AddHitGroup(&hitGroup,hitGroup.m_pOwningStateObject);
         }
         for(ASSOCIATEABLE_SUBOBJECT_NAME i = (ASSOCIATEABLE_SUBOBJECT_NAME)0; i < NUM_ASSOCIATEABLE_SUBOBJECT_TYPES; ((UINT&)i)++)
         {
@@ -1739,7 +1834,7 @@ void CStateObjectInfo::AddCollection(const D3D12_EXISTING_COLLECTION_DESC* pColl
         std::unordered_set<LPCWSTR> OldMangledNamesRenamed;
         // Examine functions
         {
-            auto AddExportWrapper = [&ReferencedAssociations,&UniqueReferencedAssociations,&OldMangledNamesExported,this]
+            auto AddExportWrapper = [&ReferencedAssociations,&UniqueReferencedAssociations,&OldMangledNamesExported,&pColInfo,this]
                 (LPCWSTR pExternalNameMangled, LPCWSTR pExternalNameUnmangled, LPCWSTR pOldMangledName, const CExportInfo* pColExportInfo)
             {
                 for(ASSOCIATEABLE_SUBOBJECT_NAME i = (ASSOCIATEABLE_SUBOBJECT_NAME)0; i < NUM_ASSOCIATEABLE_SUBOBJECT_TYPES; ((UINT&)i)++)
@@ -1751,7 +1846,12 @@ void CStateObjectInfo::AddCollection(const D3D12_EXISTING_COLLECTION_DESC* pColl
                     }
                 }
                 OldMangledNamesExported.insert(pOldMangledName);
-                AddExport(pExternalNameMangled,pExternalNameUnmangled,pColExportInfo->m_pFunctionInfo);
+                AddExport(
+                    pExternalNameMangled,
+                    pExternalNameUnmangled,
+                    pColExportInfo->m_pFunctionInfo,
+                    pColExportInfo->m_pOwningStateObject,
+                    pColInfo->AllowExternalDependenciesOnLocalDefinitions());
             };
 
             for (UINT i = 0; i < pCollection->NumExports; i++)
@@ -1872,9 +1972,9 @@ void CStateObjectInfo::AddCollection(const D3D12_EXISTING_COLLECTION_DESC* pColl
                         }
                         default:
                             LOG_ERROR(L"HitGroupExport \"" << hgDesc.HitGroupExport <<
-                                L"\" imports " << DependencyType << L" \"" << PrettyPrintPossiblyMangledName(pDependency) <<
-                                L"\" which is being renamed as part of collection creation to multiple export names. "
-                                L"so it is ambiguous which rename applies to \"" << PrettyPrintPossiblyMangledName(pDependency) << L"\".");
+                                L"\" imports " << DependencyType << L" named " << PrettyPrintPossiblyMangledName(pDependency) <<
+                                L" which is being renamed as part of collection creation to multiple export names. "
+                                L"so it is ambiguous which rename applies to " << PrettyPrintPossiblyMangledName(pDependency) << L".");
                             break;
                         }
                         if (pName)
@@ -1909,7 +2009,7 @@ void CStateObjectInfo::AddCollection(const D3D12_EXISTING_COLLECTION_DESC* pColl
                     {
                         OldMangledNamesRenamed.insert(match->first);
                     }
-                    AddHitGroup(&newHgDesc);
+                    AddHitGroup(&newHgDesc,hgDesc.m_pOwningStateObject);
                     HitGroupFound.insert(ex);
                 } // else unresolved reference so far, ok                
             }
@@ -1998,7 +2098,7 @@ void CStateObjectInfo::AddCollection(const D3D12_EXISTING_COLLECTION_DESC* pColl
         {
             LPCWSTR InternalName = ex->ExportToRename ? ex->ExportToRename : ex->Name;
             size_t i = (ex - &pCollection->pExports[0]);
-            LOG_ERROR(L"Manually listed export [" << i << L"], \"" << PrettyPrintPossiblyMangledName(InternalName) << L"\", doesn't exist in collection " << pCollection->pExistingCollection << L".");
+            LOG_ERROR(L"Manually listed export [" << i << L"], " << PrettyPrintPossiblyMangledName(InternalName) << L", doesn't exist in collection " << pCollection->pExistingCollection << L".");
         }
 #else
         if(ExportMissing.size())
@@ -2012,10 +2112,11 @@ void CStateObjectInfo::AddCollection(const D3D12_EXISTING_COLLECTION_DESC* pColl
 //----------------------------------------------------------------------------------------------------------------------------------
 // CStateObjectInfo::AddHitGroup
 //----------------------------------------------------------------------------------------------------------------------------------
-void CStateObjectInfo::AddHitGroup(const D3D12_HIT_GROUP_DESC* pHitGroup)
+void CStateObjectInfo::AddHitGroup(const D3D12_HIT_GROUP_DESC* pHitGroup, CStateObjectInfo* pOwningStateObject)
 {
     // Don't keep any references to pHitGroup or it's contents -> app memory
     CWrappedHitGroup desc;
+    desc.m_pOwningStateObject = pOwningStateObject;
     desc.HitGroupExport = LocalUniqueCopy(pHitGroup->HitGroupExport);
     desc.Type = pHitGroup->Type;
     switch(pHitGroup->Type)
@@ -2178,7 +2279,6 @@ void CStateObjectInfo::AddGlobalRootSignature(
         LOG_ERROR(L"Null D3D12_GLOBAL_ROOT_SIGNATURE specified in D3D12_STATE_SUBOBJECT " << pEnclosingSubobject <<L" (pGlobalRootSignature member can be null if desired).");
         return;
     }
-
 #ifndef SKIP_BINDING_VALIDATION
     if(pGlobalRS->pGlobalRootSignature)
     {
@@ -2266,7 +2366,7 @@ void CStateObjectInfo::AddStateObjectConfig(
         LOG_ERROR(L"Null D3D12_STATE_OBJECT_CONFIG specified in D3D12_STATE_SUBOBJECT " << pEnclosingSubobject);
         return;
     }
-#if !IGNORE_STATE_OBJECT_FLAG_CHECK
+#ifndef SKIP_STATE_OBJECT_MASK_VALIDATION
     if(pSOConfig->Flags & ~D3D12_STATE_OBJECT_FLAG_VALID_MASK)
     {
         LOG_ERROR(L"Invalid D3D12_STATE_OBJECT_FLAGS: 0x" << pSOConfig->Flags);
@@ -2369,18 +2469,33 @@ LPCWSTR CStateObjectInfo::LocalUniqueCopy(LPCWSTR string, std::unordered_set<std
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
-// CStateObjectInfo::AllowUnresolvedRefs
+// CStateObjectInfo::AllowLocalDependenciesOnExternalDefinitions
 //----------------------------------------------------------------------------------------------------------------------------------
-bool CStateObjectInfo::AllowUnresolvedRefs() const
+bool CStateObjectInfo::AllowLocalDependenciesOnExternalDefinitions() const
 {
     assert(m_bStateObjectTypeSelected);
     switch(m_SOType)
     {
     case D3D12_STATE_OBJECT_TYPE_COLLECTION:
-        return (m_StateObjectConfig.Flags & D3D12_STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITONS);
+        return (m_StateObjectConfig.Flags & D3D12_STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITIONS);
     }
     return false;
 }
+
+//----------------------------------------------------------------------------------------------------------------------------------
+// CStateObjectInfo::AllowExternalDependenciesOnLocalDefinitions()
+//----------------------------------------------------------------------------------------------------------------------------------
+bool CStateObjectInfo::AllowExternalDependenciesOnLocalDefinitions() const
+{
+    assert(m_bStateObjectTypeSelected);
+    switch(m_SOType)
+    {
+    case D3D12_STATE_OBJECT_TYPE_COLLECTION:
+        return (m_StateObjectConfig.Flags & D3D12_STATE_OBJECT_FLAG_ALLOW_EXTERNAL_DEPENDENCIES_ON_LOCAL_DEFINITIONS);
+    }
+    return false;
+}
+
 
 //----------------------------------------------------------------------------------------------------------------------------------
 // CStateObjectInfo::SupportedShaderType
@@ -2534,7 +2649,7 @@ void CStateObjectInfo::PrepareForInformationReflection()
             }
         }
     }
-    // Determine any globally associated subobjects
+    // Determine any globally associated subobjects (MatchScope_FullStateObject or MatchScope_LocalStateObject)
     // First, any subobjects of MatchRule_IfExistsMustExistAndMatchForAllExports, MatchScope_FullStateObject that have not been defined go to defaults:
     if(m_GlobalSubobjectDefinitions[ASN_NODE_MASK].pDesc == nullptr)
     {
@@ -2549,10 +2664,15 @@ void CStateObjectInfo::PrepareForInformationReflection()
     // Then look over all subobjects to determine any global associations
     for(ASSOCIATEABLE_SUBOBJECT_NAME i = (ASSOCIATEABLE_SUBOBJECT_NAME)0; i < NUM_ASSOCIATEABLE_SUBOBJECT_TYPES; ((UINT&)i)++)    
     {
-        if(MatchScope_FullStateObject != m_sAssociateableSubobjectData[i].MatchScope)
+        switch(m_sAssociateableSubobjectData[i].MatchScope)
         {
+        case MatchScope_FullStateObject:
+        case MatchScope_LocalStateObject:
+            break;
+        default:
             continue;
         }
+
         switch(m_sAssociateableSubobjectData[i].MatchRule)
         {
         case MatchRule_RequiredAndMatchingForAllExports:
@@ -2591,8 +2711,12 @@ const D3D12_STATE_SUBOBJECT* CStateObjectInfo::GetGloballyAssociatedSubobject(D3
     {
         return nullptr;
     }
-    if(MatchScope_FullStateObject != m_sAssociateableSubobjectData[ASN].MatchScope)
+    switch(m_sAssociateableSubobjectData[ASN].MatchScope)
     {
+    case MatchScope_FullStateObject:
+    case MatchScope_LocalStateObject:
+        break;
+    default:
         return nullptr;
     }
     switch(m_sAssociateableSubobjectData[ASN].MatchRule)

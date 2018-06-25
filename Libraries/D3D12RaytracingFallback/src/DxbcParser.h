@@ -2,5 +2,5 @@
 
 namespace FallbackLayer
 {
-    HRESULT GetRuntimeData(BYTE * pShaderByteCode, BYTE **ppRuntimeData, UINT *pRuntimeDataSizeInBytes);
+    HRESULT GetRuntimeData(const void * pShaderByteCode, const UINT **ppRuntimeData, UINT *pRuntimeDataSizeInBytes);
 }

@@ -2480,9 +2480,23 @@ namespace FallbackLayerUnitTests
 
             D3D12_EXPORT_DESC exports[] = {
                 { ClosestHitExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-            { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-            { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
             };
+
+            D3D12_STATE_SUBOBJECT shaderConfigSubObject;
+            D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
+            shaderConfig.MaxAttributeSizeInBytes = shaderConfig.MaxPayloadSizeInBytes = 8;
+            shaderConfigSubObject.pDesc = &shaderConfig;
+            shaderConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
+            subObjects.push_back(shaderConfigSubObject);
+
+            D3D12_STATE_SUBOBJECT pipelineConfigSubObject;
+            D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
+            pipelineConfig.MaxTraceRecursionDepth = 2;
+            pipelineConfigSubObject.pDesc = &pipelineConfig;
+            pipelineConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
+            subObjects.push_back(pipelineConfigSubObject);
 
             D3D12_STATE_SUBOBJECT baseSubObject = {};
             D3D12_EXISTING_COLLECTION_DESC baseCollection = {};
@@ -2516,10 +2530,10 @@ namespace FallbackLayerUnitTests
             CComPtr<ID3D12RaytracingFallbackStateObject> pStateObject;
             AssertSucceeded(rayTracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pStateObject)));
 
-            Assert::IsNotNull(pStateObject->GetShaderIdentifier(ClosestHitExportName));
+            Assert::IsNotNull(pStateObject->GetShaderIdentifier(HitGroupExportName));
 
             // Make sure it's not dependant on string pointers
-            std::wstring stringCopy = ClosestHitExportName;
+            std::wstring stringCopy = HitGroupExportName;
             Assert::IsNotNull(pStateObject->GetShaderIdentifier(stringCopy.c_str()));
         }
 
