@@ -2979,7 +2979,7 @@ namespace FallbackLayerUnitTests
             float ReferenceVertices2[numTriangles * 9];
             for (UINT i = 0; i < numTriangles * 9; i++)
             {
-                ReferenceVertices2[i] = (ReferenceVerticies1[i % ARRAYSIZE(ReferenceVerticies1)] + (i / ARRAYSIZE(ReferenceVerticies1)) * 4.0) * ((((i / 3) % 2) == 0) ? 1 : -1);
+                ReferenceVertices2[i] = (ReferenceVerticies1[i % ARRAYSIZE(ReferenceVerticies1)] + (i / ARRAYSIZE(ReferenceVerticies1)) * 4.f) * ((((i / 3) % 2) == 0) ? 1 : -1);
             }
 
             std::vector<Primitive> triangleBuffer(numTriangles);
@@ -3033,9 +3033,9 @@ namespace FallbackLayerUnitTests
             CComPtr<ID3D12Resource> pNodeCountBuffer;
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &nodeCountBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pNodeCountBuffer)));
 
-            auto bubbleBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT) * TreeletReorder::RequiredSizeForBubbleBuffer(numLeafNodes), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            auto baseTreeletCountBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(TreeletReorder::RequiredSizeForBaseTreeletIndexBuffer(numLeafNodes), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             CComPtr<ID3D12Resource> pBubbleBuffer;
-            AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &bubbleBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pBubbleBuffer)));
+            AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &baseTreeletCountBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pBubbleBuffer)));
 
             treeletReorder.Optimize(
                 pCommandList,
@@ -3045,6 +3045,7 @@ namespace FallbackLayerUnitTests
                 pAABBBuffer->GetGPUVirtualAddress(),
                 pTriangleBuffer->GetGPUVirtualAddress(),
                 pBubbleBuffer->GetGPUVirtualAddress(),
+                pBubbleBuffer->GetGPUVirtualAddress() + sizeof(UINT),
                 flag);
 
             pCommandList->Close();
@@ -3059,7 +3060,7 @@ namespace FallbackLayerUnitTests
             std::vector<AABB> outputAABBs(numNodes);
             m_d3d12Context.ReadbackResource(pAABBBuffer, outputAABBs.data(), (UINT)(outputAABBs.size() * sizeof(*outputAABBs.data())));
 
-            std::vector<UINT> outputBubbleBuffer(TreeletReorder::RequiredSizeForBubbleBuffer(numLeafNodes));
+            std::vector<UINT> outputBubbleBuffer(TreeletReorder::RequiredSizeForBaseTreeletIndexBuffer(numLeafNodes));
             m_d3d12Context.ReadbackResource(pBubbleBuffer, outputBubbleBuffer.data(), (UINT)(outputBubbleBuffer.size() * sizeof(*outputBubbleBuffer.data())));
 
             UINT *pOutputBubbleBuffer = outputBubbleBuffer.data();

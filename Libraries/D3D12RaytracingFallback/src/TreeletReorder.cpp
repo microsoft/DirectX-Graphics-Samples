@@ -77,7 +77,19 @@ namespace FallbackLayer
         bool bPrioritizeTrace = buildFlag & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
         bool bPrioritizeBuild = buildFlag & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
 
-        UINT numOptimizationPasses = 3;
+        UINT numOptimizationPasses;
+
+        // if (bDefault)
+        // {
+            numOptimizationPasses = 1;
+        // }
+        // else if (bPrioritizeBuild)
+        // {
+        //     numOptimizationPasses = 2;
+        // } else if (bPrioritizeTrace)
+        // {
+        //     numOptimizationPasses = 3;
+        // }
 
         for (UINT i = 0; i < numOptimizationPasses; i++)
         {
@@ -96,25 +108,25 @@ namespace FallbackLayer
             pCommandList->Dispatch(numGroupsForElements, 1, 1);
             pCommandList->ResourceBarrier(1, &uavBarrier);
 
-            if (bDefault)
-            {
-#if FORCE_PL
-                pCommandList->SetPipelineState(m_pFindTreeletsPSO);
-                pCommandList->Dispatch(numGroupsForElements, 1, 1);
-                pCommandList->ResourceBarrier(1, &uavBarrier);
+//             if (bDefault)
+//             {
+// #if FORCE_PL
+//                 pCommandList->SetPipelineState(m_pFindTreeletsPSO);
+//                 pCommandList->Dispatch(numGroupsForElements, 1, 1);
+//                 pCommandList->ResourceBarrier(1, &uavBarrier);
                 
-                pCommandList->SetPipelineState(m_pPSO_OPT_T);
-                UINT numTreelets = (UINT) std::max(numElements / constants.MinTrianglesPerTreelet, 1u);
-                pCommandList->Dispatch(numTreelets, 1, 1);
-                pCommandList->ResourceBarrier(1, &uavBarrier);
-#else
-                pCommandList->SetPipelineState(m_pPSO);
-                pCommandList->Dispatch(numGroupsForElements, 1, 1);
-                pCommandList->ResourceBarrier(1, &uavBarrier);
-#endif
-            } 
-            else if (bPrioritizeTrace)
-            {
+//                 pCommandList->SetPipelineState(m_pPSO_OPT_T);
+//                 UINT numTreelets = (UINT) std::max(numElements / constants.MinTrianglesPerTreelet, 1u);
+//                 pCommandList->Dispatch(numTreelets, 1, 1);
+//                 pCommandList->ResourceBarrier(1, &uavBarrier);
+// #else
+//                 pCommandList->SetPipelineState(m_pPSO);
+//                 pCommandList->Dispatch(numGroupsForElements, 1, 1);
+//                 pCommandList->ResourceBarrier(1, &uavBarrier);
+// #endif
+//             } 
+//             else if (bPrioritizeTrace)
+//             {
                 pCommandList->SetPipelineState(m_pFindTreeletsPSO);
                 pCommandList->Dispatch(numGroupsForElements, 1, 1);
                 pCommandList->ResourceBarrier(1, &uavBarrier);
@@ -123,13 +135,15 @@ namespace FallbackLayer
                 UINT numTreelets = (UINT) std::max(numElements / constants.MinTrianglesPerTreelet, 1u);
                 pCommandList->Dispatch(numTreelets, 1, 1);
                 pCommandList->ResourceBarrier(1, &uavBarrier);
-            }
-            else if (bPrioritizeBuild)
-            {
-                pCommandList->SetPipelineState(m_pPSO_OPT);
-                pCommandList->Dispatch(numGroupsForElements, 1, 1);
-                pCommandList->ResourceBarrier(1, &uavBarrier);
-            }
+            // }
+            // else if (bPrioritizeBuild)
+            // {
+            //     pCommandList->SetPipelineState(m_pPSO_OPT);
+            //     pCommandList->Dispatch(numGroupsForElements, 1, 1);
+            //     pCommandList->ResourceBarrier(1, &uavBarrier);
+            // }
+
+
 
             constants.MinTrianglesPerTreelet *= 2;
         }
