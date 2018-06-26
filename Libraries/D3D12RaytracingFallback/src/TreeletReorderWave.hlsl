@@ -92,15 +92,19 @@ groupshared float optimalCost[numTreeletSplitPermutations];
 groupshared byte optimalPartition[numTreeletSplitPermutations >> 2];
 groupshared bool finished;
 
-// THREAD_GROUP_1D_WIDTH
-#define NumThreadsInGroup 2
+#define NumThreadsInGroup 3
 [numthreads(NumThreadsInGroup, 1, 1)]
 void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
 {   
-    const uint NumberOfAABBs = GetNumInternalNodes(Constants.NumberOfElements) + Constants.NumberOfElements;
+    if (GTid.x == 0)
+    {
+        nodeIndex = BaseTreeletsIndexBuffer.Load(Gid.x);
+        finished = false;
+    }
 
-    nodeIndex = ReorderBubbleBuffer.Load((Gid.x + 1) * SizeOfUINT32);
-    finished = false;
+    GroupMemoryBarrierWithGroupSync();
+
+    const uint NumberOfAABBs = GetNumInternalNodes(Constants.NumberOfElements) + Constants.NumberOfElements;
 
     while (nodeIndex >= rootNodeIndex && nodeIndex < NumberOfAABBs)
     {
@@ -179,22 +183,26 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                 }
             }
 
+            GroupMemoryBarrierWithGroupSync();
+
             // if(GTid.x == 0)
             {
                 [unroll]
                 for (uint subsetSize = 2; subsetSize <= MaxTreeletSize; subsetSize++)
                 {
                     uint numTreeletBitmasks = MaxTreeletSizeChoose[subsetSize];
-                    uint numBitmasksPerThread = max(numTreeletBitmasks / NumThreadsInGroup, 1);
                     if (GTid.x < numTreeletBitmasks)
                     {
+                        uint numBitmasksPerThread = max(numTreeletBitmasks / NumThreadsInGroup, 1);
                         uint extraBitmasks = numTreeletBitmasks > NumThreadsInGroup ? numTreeletBitmasks % NumThreadsInGroup : 0;
 
                         uint bitmasksStart = numBitmasksPerThread * GTid.x + (GTid.x != 0 ? extraBitmasks : 0);
                         uint bitmasksEnd = bitmasksStart + numBitmasksPerThread + (GTid.x == 0 ? extraBitmasks : 0);
 
+                        // uint bitmasksStart = numBitmasksPerThread * GTid.x + min(GTid.x, extraBitmasks);
+                        // uint bitmasksEnd = bitmasksStart + numBitmasksPerThread + (GTid.x < extraBitmasks ? 1 : 0);
+
                         // For each subset with [subsetSize] bits set
-                        [unroll]
                         for (uint i = bitmasksStart; i < bitmasksEnd; i++)
                         {
                             uint treeletBitmask = BitPermutations[subsetSize][i];
@@ -247,7 +255,6 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
 
                 PartitionEntry leftEntry;
                 leftEntry.Mask = getByte(optimalPartition[partition.Mask >> 2], partition.Mask & 3);
-
                 if (countbits(leftEntry.Mask) > 1)
                 {
                     leftEntry.NodeIndex = internalNodes[nodesAllocated++];
@@ -318,6 +325,8 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                     nodeIndex = parentNodeIndex;   
                 }
             }
+
+            GroupMemoryBarrierWithGroupSync();
 
             if (finished)
             {

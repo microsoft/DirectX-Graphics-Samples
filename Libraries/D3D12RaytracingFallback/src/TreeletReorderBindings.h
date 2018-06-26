@@ -28,10 +28,13 @@ struct InputConstants
 #define NumTrianglesBufferRegister 1
 #define AABBBufferRegister 2
 #define ElementBufferRegister 3
-#define BubbleBufferRegister 4
+#define BaseTreeletsCountBufferRegister 4
+#define BaseTreeletsIndexBufferRegister 5
 
 #define GlobalDescriptorHeapRegister 0
 #define GlobalDescriptorHeapRegisterSpace 1
+
+static const uint MaxTreeletSize = 7;
 
 #ifdef HLSL
 // These need to be UAVs despite being read-only because the fallback layer only gets a 
@@ -42,14 +45,15 @@ RWStructuredBuffer<Primitive> InputBuffer : UAV_REGISTER(ElementBufferRegister);
 globallycoherent RWByteAddressBuffer NumTrianglesBuffer : UAV_REGISTER(NumTrianglesBufferRegister);
 globallycoherent RWStructuredBuffer<HierarchyNode> hierarchyBuffer : UAV_REGISTER(HierarchyBufferRegister);
 globallycoherent RWStructuredBuffer<AABB> AABBBuffer : UAV_REGISTER(AABBBufferRegister);
-globallycoherent RWByteAddressBuffer ReorderBubbleBuffer : UAV_REGISTER(BubbleBufferRegister);
+
+globallycoherent RWByteAddressBuffer BaseTreeletsCountBuffer : UAV_REGISTER(BaseTreeletsCountBufferRegister);
+RWStructuredBuffer<uint> BaseTreeletsIndexBuffer : UAV_REGISTER(BaseTreeletsIndexBufferRegister);
 
 cbuffer TreeletConstants : CONSTANT_REGISTER(ConstantsRegister)
 {
     InputConstants Constants;
 };
 
-static const uint MaxTreeletSize = 7;
 static const uint numTreeletSplitPermutations = 1 << MaxTreeletSize;
 static const uint numInternalTreeletNodes = MaxTreeletSize - 1;
 static const uint rootNodeIndex = 0; 

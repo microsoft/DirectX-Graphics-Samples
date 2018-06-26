@@ -72,9 +72,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
         if (numTriangles >= Constants.MinTrianglesPerTreelet)
         {
-            uint stackTop;
-            ReorderBubbleBuffer.InterlockedAdd(0, 1, stackTop);
-            ReorderBubbleBuffer.Store(stackTop * SizeOfUINT32, nodeIndex);
+            uint previousCount;
+            BaseTreeletsCountBuffer.InterlockedAdd(0, 1, previousCount);
+            BaseTreeletsIndexBuffer[previousCount] = nodeIndex;
             return;
         }
 

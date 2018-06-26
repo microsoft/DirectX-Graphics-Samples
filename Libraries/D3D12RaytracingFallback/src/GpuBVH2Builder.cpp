@@ -114,7 +114,8 @@ namespace FallbackLayer
                 buffers.outputMetadataBuffer = buffers.outputElementBuffer + GetOffsetFromPrimitivesToPrimitiveMetaData(numElements);
                 buffers.outputSortCacheBuffer = buffers.outputMetadataBuffer + GetOffsetFromPrimitiveMetaDataToSortedIndices(numElements);
                 buffers.outputAABBParentBuffer = buffers.outputSortCacheBuffer + GetOffsetFromSortedIndicesToAABBParents(numElements);
-                buffers.reorderBubbleBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToBubbleBuffer;
+                buffers.baseTreeletsCountBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToBaseTreeletsCount;
+                buffers.baseTreeletsIndexBuffer = buffers.baseTreeletsCountBuffer + sizeof(UINT);
             }
             break;
         }
@@ -209,7 +210,8 @@ namespace FallbackLayer
                 updatesAllowed ? buffers.outputSortCacheBuffer : 0,
                 buffers.hierarchyBuffer,
                 buffers.nodeCountBuffer,
-                buffers.reorderBubbleBuffer,
+                buffers.baseTreeletsCountBuffer,
+                buffers.baseTreeletsIndexBuffer,
                 globalDescriptorHeap);
         }
 
@@ -294,7 +296,8 @@ namespace FallbackLayer
         D3D12_GPU_VIRTUAL_ADDRESS outputSortCacheBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS hierarchyBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS nodeCountBuffer,
-        D3D12_GPU_VIRTUAL_ADDRESS reorderBubbleBuffer,
+        D3D12_GPU_VIRTUAL_ADDRESS baseTreeletsCountBuffer,
+        D3D12_GPU_VIRTUAL_ADDRESS baseTreeletsIndexBuffer,
         D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap) 
     {
         m_mortonCodeCalculator.CalculateMortonCodes(
@@ -342,7 +345,8 @@ namespace FallbackLayer
                 nodeCountBuffer,
                 sceneAABBScratchMemory,
                 outputElementBuffer,
-                reorderBubbleBuffer,
+                baseTreeletsCountBuffer,
+                baseTreeletsIndexBuffer,
                 pDesc->Flags);
         }
     }
@@ -422,9 +426,9 @@ namespace FallbackLayer
         
         if (level == Level::Bottom)
         {
-            const UINT bubbleBufferSize = sizeof(UINT) * TreeletReorder::RequiredSizeForBubbleBuffer(numPrimitives);
-            scratchMemoryPartitions.OffsetToBubbleBuffer = totalSize;
-            totalSize += bubbleBufferSize;
+            const UINT baseTreeletsScratchSize = TreeletReorder::RequiredSizeForBaseTreeletIndexBuffer(numPrimitives);
+            scratchMemoryPartitions.OffsetToBaseTreeletsCount = totalSize;
+            totalSize += baseTreeletsScratchSize;
         }
         
 

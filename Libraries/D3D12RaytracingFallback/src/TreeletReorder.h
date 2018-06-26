@@ -23,11 +23,12 @@ namespace FallbackLayer
             D3D12_GPU_VIRTUAL_ADDRESS triangleCountBuffer,
             D3D12_GPU_VIRTUAL_ADDRESS aabbBuffer,
             D3D12_GPU_VIRTUAL_ADDRESS inputElementBuffer,
-            D3D12_GPU_VIRTUAL_ADDRESS reorderBubbleBuffer,
+            D3D12_GPU_VIRTUAL_ADDRESS baseTreeletsCountBuffer,
+            D3D12_GPU_VIRTUAL_ADDRESS baseTreeletsBuffer,
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlag);
 
         static UINT RequiredSizeForAABBBuffer(UINT numElements);
-        static UINT RequiredSizeForBubbleBuffer(UINT numElements);
+        static UINT RequiredSizeForBaseTreeletIndexBuffer(UINT numElements);
     private:
         CComPtr<ID3D12RootSignature> m_pRootSignature;
         CComPtr<ID3D12PipelineState> m_pPSO;
@@ -43,7 +44,8 @@ namespace FallbackLayer
             TriangleCountBufferSlot,
             AABBBufferSlot,
             InputElementSlot,
-            BubbleBufferSlot,
+            BaseTreeletsCountBufferSlot,
+            BaseTreeletsIndexBufferSlot,
             ConstantsSlot,
             NumParameters
         };

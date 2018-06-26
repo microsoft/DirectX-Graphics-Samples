@@ -101,7 +101,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
     const uint NumberOfAABBs = GetNumInternalNodes(Constants.NumberOfElements) + Constants.NumberOfElements;
     const uint MaxNumTreelets = Constants.NumberOfElements / MaxTreeletSize;
 
-    uint nodeIndex = ReorderBubbleBuffer.Load((Gid.x + 1) * SizeOfUINT32);
+    uint nodeIndex = BaseTreeletsIndexBuffer[Gid.x];
     
     while (nodeIndex >= rootNodeIndex && nodeIndex < NumberOfAABBs)
     {
