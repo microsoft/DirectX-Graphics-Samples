@@ -15,8 +15,23 @@
 [numthreads(THREAD_GROUP_1D_WIDTH, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-    const uint NumberOfInternalNodes = GetNumInternalNodes(Constants.NumberOfElements);
-    if (DTid.x >= NumberOfInternalNodes) return;
+	const uint NumberOfLeafNodes = Constants.NumberOfElements;
+    const uint NumberOfInternalNodes = GetNumInternalNodes(NumberOfLeafNodes);
+    const uint TotalNumberOfNodes = NumberOfLeafNodes + NumberOfInternalNodes;
+    const uint MaxNumberOfTreelets = NumberOfLeafNodes / MaxTreeletSize;
 
-    NumTrianglesBuffer.Store(DTid.x * SizeOfUINT32, 0);
+    if (DTid.x == 0) 
+    {
+        BaseTreeletsCountBuffer.Store(0, 0);
+    }
+
+    if (DTid.x < MaxNumberOfTreelets) 
+    {
+		BaseTreeletsIndexBuffer[DTid.x] = TotalNumberOfNodes;
+    }
+
+    if (DTid.x < NumberOfInternalNodes) 
+    {
+		NumTrianglesBuffer.Store(DTid.x * SizeOfUINT32, 0);
+    }
 }

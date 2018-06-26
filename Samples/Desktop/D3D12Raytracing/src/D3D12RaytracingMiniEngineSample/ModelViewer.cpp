@@ -20,7 +20,7 @@
 #include "CameraController.h"
 #include "BufferManager.h"
 #include "Camera.h"
-#include "Model.h"
+#include "../../MiniEngine/Model/Model.h" 
 #include "GpuBuffer.h"
 #include "CommandContext.h"
 #include "SamplerManager.h"
