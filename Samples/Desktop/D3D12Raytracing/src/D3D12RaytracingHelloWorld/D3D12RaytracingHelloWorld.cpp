@@ -193,13 +193,18 @@ void D3D12RaytracingHelloWorld::CreateLocalRootSignatureSubobjects(CD3D12_STATE_
         rootSignatureAssociation->AddExport(c_raygenShaderName);
     }
 #if USE_NON_NULL_LOCAL_ROOT_SIG 
-    // Empty local root signature is set as the default shader association.
-    // A state object can have exactly 1 default shader association in each scope
-    // and is defined by either having no shader associations or having
-    // a shader association with 0 exports.
+    // Empty local root signature to be used in a miss shader and a hit group.
     {
         auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
         localRootSignature->SetRootSignature(m_raytracingLocalRootSignatureEmpty.Get());
+        
+        // Shader association
+        // In this sample, this could be omitted for convenience and use the default shader association instead,
+        // automatically assigning this local root signature to all shaders without an explicit association
+        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+        rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
+        rootSignatureAssociation->AddExport(c_missShaderName);
+        rootSignatureAssociation->AddExport(c_hitGroupName);
     }
 #endif
 }
