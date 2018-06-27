@@ -111,9 +111,6 @@
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
-    <FxCompile Include="ClearBuffer.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="*Lib.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -159,6 +156,21 @@
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="FindTreelets.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="ClearBuffers.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AccelerationStructureBuilderFactory.cpp">
