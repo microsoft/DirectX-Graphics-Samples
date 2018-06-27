@@ -338,19 +338,6 @@ namespace FallbackLayer
         }
     }
 
-    void RaytracingDevice::ProcessDxilLibraries(const D3D12_STATE_OBJECT_DESC &desc, RaytracingStateObject &rayTracingStateObject)
-    {
-        for (UINT i = 0; i < desc.NumSubobjects; i++)
-        {
-            auto &subObject = desc.pSubobjects[i];
-            if(subObject.Type == D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY)
-            {
-                D3D12_DXIL_LIBRARY_DESC &dxilLibDesc = *(D3D12_DXIL_LIBRARY_DESC*)subObject.pDesc;
-                rayTracingStateObject.m_collection.m_dxilLibraries.push_back(dxilLibDesc);
-            }
-        }
-    }
-
     ShaderAssociations RaytracingDevice::ProcessAssociations(_In_ LPCWSTR exportName, _Inout_ RaytracingStateObject &rayTracingStateObject)
     {
         auto &stateObjectCollection = rayTracingStateObject.m_collection;
@@ -478,7 +465,13 @@ namespace FallbackLayer
                 }
             }
 
-            ProcessDxilLibraries(stateObject, rayTracingStateObject);
+            CStateObjectInfo::CDxilLibraryIterator dxilLibIterator(&stateObjectInfo);
+            UINT dxilLibCount = (UINT)dxilLibIterator.GetCount();
+            stateObjectCollection.m_dxilLibraries.resize(dxilLibCount);
+            for (UINT i = 0; i < dxilLibCount; i++)
+            {
+                dxilLibIterator.Next(&stateObjectCollection.m_dxilLibraries[i]);
+            }
         }
     }
 

@@ -2457,6 +2457,14 @@ namespace FallbackLayerUnitTests
             CComPtr<ID3D12RaytracingFallbackStateObject> pBaseStateObject;
             {
                 std::vector<D3D12_STATE_SUBOBJECT> subObjects;
+
+                D3D12_STATE_OBJECT_CONFIG stateObjectConfig;
+                stateObjectConfig.Flags = D3D12_STATE_OBJECT_FLAG_NONE;
+                D3D12_STATE_SUBOBJECT stateObjectConfigSubobject;
+                stateObjectConfigSubobject.pDesc = &stateObjectConfig;
+                stateObjectConfigSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG;
+                subObjects.push_back(stateObjectConfigSubobject);
+
                 D3D12_STATE_SUBOBJECT nodeMaskSubObject;
                 UINT nodeMask = 1;
                 nodeMaskSubObject.pDesc = &nodeMask;
@@ -2468,6 +2476,43 @@ namespace FallbackLayerUnitTests
                 rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
                 subObjects.push_back(rootSignatureSubObject);
 
+                D3D12_STATE_SUBOBJECT shaderConfigSubObject;
+                D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
+                shaderConfig.MaxAttributeSizeInBytes = shaderConfig.MaxPayloadSizeInBytes = 8;
+                shaderConfigSubObject.pDesc = &shaderConfig;
+                shaderConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
+                subObjects.push_back(shaderConfigSubObject);
+
+                D3D12_EXPORT_DESC exports[] = {
+                    { ClosestHitExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                    { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                    { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                };
+
+                D3D12_STATE_SUBOBJECT pipelineConfigSubObject;
+                D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
+                pipelineConfig.MaxTraceRecursionDepth = 2;
+                pipelineConfigSubObject.pDesc = &pipelineConfig;
+                pipelineConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
+                subObjects.push_back(pipelineConfigSubObject);
+
+                D3D12_STATE_SUBOBJECT hitGroupSubObject;
+                D3D12_HIT_GROUP_DESC hitGroupDesc = {};
+                hitGroupDesc.ClosestHitShaderImport = ClosestHitExportName;
+                hitGroupDesc.HitGroupExport = HitGroupExportName;
+                hitGroupSubObject.pDesc = &hitGroupDesc;
+                hitGroupSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
+                subObjects.push_back(hitGroupSubObject);
+
+                D3D12_DXIL_LIBRARY_DESC libraryDesc = {};
+                libraryDesc.DXILLibrary = CD3DX12_SHADER_BYTECODE((void *)g_pSimpleRayTracing, ARRAYSIZE(g_pSimpleRayTracing));
+                libraryDesc.NumExports = ARRAYSIZE(exports);
+                libraryDesc.pExports = exports;
+                D3D12_STATE_SUBOBJECT DxilLibrarySubObject = {};
+                DxilLibrarySubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
+                DxilLibrarySubObject.pDesc = &libraryDesc;
+                subObjects.push_back(DxilLibrarySubObject);
+
                 D3D12_STATE_OBJECT_DESC stateObject;
                 stateObject.NumSubobjects = (UINT)subObjects.size();
                 stateObject.pSubobjects = subObjects.data();
@@ -2478,25 +2523,8 @@ namespace FallbackLayerUnitTests
 
             std::vector<D3D12_STATE_SUBOBJECT> subObjects;
 
-            D3D12_EXPORT_DESC exports[] = {
-                { ClosestHitExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-                { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-                { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-            };
+            
 
-            D3D12_STATE_SUBOBJECT shaderConfigSubObject;
-            D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
-            shaderConfig.MaxAttributeSizeInBytes = shaderConfig.MaxPayloadSizeInBytes = 8;
-            shaderConfigSubObject.pDesc = &shaderConfig;
-            shaderConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
-            subObjects.push_back(shaderConfigSubObject);
-
-            D3D12_STATE_SUBOBJECT pipelineConfigSubObject;
-            D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
-            pipelineConfig.MaxTraceRecursionDepth = 2;
-            pipelineConfigSubObject.pDesc = &pipelineConfig;
-            pipelineConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
-            subObjects.push_back(pipelineConfigSubObject);
 
             D3D12_STATE_SUBOBJECT baseSubObject = {};
             D3D12_EXISTING_COLLECTION_DESC baseCollection = {};
@@ -2504,23 +2532,6 @@ namespace FallbackLayerUnitTests
             baseSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION;
             baseSubObject.pDesc = &baseCollection;
             subObjects.push_back(baseSubObject);
-
-            D3D12_STATE_SUBOBJECT hitGroupSubObject;
-            D3D12_HIT_GROUP_DESC hitGroupDesc = {};
-            hitGroupDesc.ClosestHitShaderImport = ClosestHitExportName;
-            hitGroupDesc.HitGroupExport = HitGroupExportName;
-            hitGroupSubObject.pDesc = &hitGroupDesc;
-            hitGroupSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
-            subObjects.push_back(hitGroupSubObject);
-
-            D3D12_DXIL_LIBRARY_DESC libraryDesc = {};
-            libraryDesc.DXILLibrary = CD3DX12_SHADER_BYTECODE((void *)g_pSimpleRayTracing, ARRAYSIZE(g_pSimpleRayTracing));
-            libraryDesc.NumExports = ARRAYSIZE(exports);
-            libraryDesc.pExports = exports;
-            D3D12_STATE_SUBOBJECT DxilLibrarySubObject = {};
-            DxilLibrarySubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
-            DxilLibrarySubObject.pDesc = &libraryDesc;
-            subObjects.push_back(DxilLibrarySubObject);
 
             D3D12_STATE_OBJECT_DESC stateObject;
             stateObject.NumSubobjects = (UINT)subObjects.size();

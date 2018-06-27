@@ -397,6 +397,26 @@ private:
     };
     std::list<std::shared_ptr<CWrappedDXILLibrary>> m_DXILLibraryList;
 
+
+public:
+    //------------------------------------------------------------------------------------------------------------------------------
+    // CDxilLibraryIterator: Enumerates Dxil Libraries for state object
+    //------------------------------------------------------------------------------------------------------------------------------
+    class CDxilLibraryIterator
+    {
+    public:
+        CDxilLibraryIterator(CStateObjectInfo*pStateObjectInfo);
+        size_t GetCount();
+        void Next(D3D12_DXIL_LIBRARY_DESC *pDxilLibraryDesc);
+        void Reset(); // only needs to be called if repeating an iteration after the first time
+    private:
+        CStateObjectInfo * m_pSOI;
+        size_t m_Count;
+        decltype(m_DXILLibraryList)::const_iterator m_libIterator;
+    };
+    friend class CDxilLibraryIterator;
+private:
+
     //------------------------------------------------------------------------------------------------------------------------------
     // CWrappedExistingCollection:  Tracking information for existing collection state objects.
     //------------------------------------------------------------------------------------------------------------------------------

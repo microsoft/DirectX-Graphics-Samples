@@ -274,24 +274,12 @@ LPCWSTR CStateObjectInfo::RenameMangledName(LPCWSTR OriginalMangledName, LPCWSTR
         throw E_INVALIDARG; // don't bother trying to continue                
     }
     size_t newUnmangledLength = wcslen(NewUnmangledName);
-    size_t newMangledLength = originalMangledLength - originalUnmangledLength + newUnmangledLength;
-    size_t newStringAllocatedSize = newMangledLength + 1;
-    std::auto_ptr<wchar_t> newString(new wchar_t[newStringAllocatedSize]);
-
-    wchar_t* pNewString = newString.get();
-    wcsncpy_s(pNewString, newStringAllocatedSize, OriginalMangledName, mangledPrefixSize);
-    newStringAllocatedSize -= mangledPrefixSize;
-
-    wcsncpy_s(&pNewString[mangledPrefixSize], newStringAllocatedSize,  NewUnmangledName, newUnmangledLength);
-    newStringAllocatedSize -= newUnmangledLength;
-
-    wcsncpy_s(&pNewString[mangledPrefixSize + newUnmangledLength], 
-            newStringAllocatedSize,
-            &OriginalMangledName[mangledPrefixSize + originalUnmangledLength],
-            originalMangledLength - mangledPrefixSize - originalUnmangledLength);
-
-    pNewString[newMangledLength] = L'\0';
-    return LocalUniqueCopy(pNewString);
+    std::wstring newString = 
+        std::wstring(OriginalMangledName, 0, mangledPrefixSize) + 
+        NewUnmangledName + 
+        std::wstring(OriginalMangledName, mangledPrefixSize + originalUnmangledLength, originalMangledLength - mangledPrefixSize - originalUnmangledLength);
+    assert(newString.size() == originalMangledLength - originalUnmangledLength + newUnmangledLength);
+    return LocalUniqueCopy(newString.c_str());
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
@@ -314,28 +302,15 @@ LPCWSTR CStateObjectInfo::PrettyPrintPossiblyMangledName(LPCWSTR name)
     {   
         // Cleanup mangled name     
         size_t newLength = length+3; // incl terminating null
-        std::auto_ptr<wchar_t> newString(new wchar_t[newLength]);
-        wchar_t* pNewString = newString.get();
-        pNewString[0] = L'\\';
-        pNewString[1] = L'0';
-        pNewString[2] = L'1';
-        pNewString[3] = L'?';
-        wcsncpy(&pNewString[4],name+2,length-2);
-        pNewString[newLength-1] = L'\0';
+        std::wstring newString = L"\\01?" + std::wstring(name + 2);
+        auto pNewString = newString.c_str();
 
         // Find end of mangled portion
-        auto end = wcschr(&pNewString[4],L'@');
-        if(!end)
-        {
-            end = &pNewString[newLength-1];
-        }
+        auto end = std::find(newString.begin() + 4, newString.end(), L'@');
         
         // Make unmangled name
-        size_t unmangledLength = end - &pNewString[4] + 1;
-        std::auto_ptr<wchar_t> newUnmangledString(new wchar_t[unmangledLength]);
-        wchar_t* pNewUnmangledString = newUnmangledString.get();
-        wcsncpy(pNewUnmangledString,&pNewString[4],unmangledLength-1);
-        pNewUnmangledString[unmangledLength-1] = L'\0';
+        std::wstring newUnmangledString = std::wstring(newString.begin() + 4, end);
+        auto pNewUnmangledString = newUnmangledString.c_str();
 
         // Print string with both unmangled and mangled for clarity
         snippet << L"\"" << pNewUnmangledString << L"\" (mangled name: \"" << pNewString << L"\")";
@@ -2733,6 +2708,53 @@ const D3D12_STATE_SUBOBJECT* CStateObjectInfo::GetGloballyAssociatedSubobject(D3
         break;
     }
     return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------
+// CStateObjectInfo::CDxilLibraryIterator::CDxilLibraryIterator
+//----------------------------------------------------------------------------------------------------------------------------------
+CStateObjectInfo::CDxilLibraryIterator::CDxilLibraryIterator(CStateObjectInfo*pStateObjectInfo) : 
+    m_pSOI(nullptr), m_Count(0)
+{
+    if (pStateObjectInfo && pStateObjectInfo->m_bPreparedForReflection)
+    {
+        m_pSOI = pStateObjectInfo;
+        m_Count = m_pSOI->m_DXILLibraryList.size();
+    }
+    Reset();
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------
+// CStateObjectInfo::CExportedFunctionIteraor::GetCount
+//----------------------------------------------------------------------------------------------------------------------------------
+size_t CStateObjectInfo::CDxilLibraryIterator::GetCount()
+{
+    return m_Count;
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------
+// CStateObjectInfo::CDxilLibraryIterator::Reset
+//----------------------------------------------------------------------------------------------------------------------------------
+void CStateObjectInfo::CDxilLibraryIterator::Reset()
+{
+    if (m_pSOI)
+    {
+        m_libIterator = m_pSOI->m_DXILLibraryList.begin();
+    }
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------
+// CStateObjectInfo::CDxilLibraryIterator::Next
+//----------------------------------------------------------------------------------------------------------------------------------
+void CStateObjectInfo::CDxilLibraryIterator::Next(D3D12_DXIL_LIBRARY_DESC *pOutDxilLibraryDesc)
+{
+    if (!m_pSOI || m_libIterator == m_pSOI->m_DXILLibraryList.end())
+    {
+        *pOutDxilLibraryDesc = {};
+        return;
+    }
+    *pOutDxilLibraryDesc = (*m_libIterator)->m_LocalLibraryDesc;
+    m_libIterator++;
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------
