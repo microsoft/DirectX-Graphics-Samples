@@ -92,15 +92,15 @@ void main( uint3 DTid : SV_DispatchThreadID )
         if (numTriangles >= Constants.MinTrianglesPerTreelet)
         {
             // Form a treelet
-            uint nodesToReorder[MaxTreeletSize];
-            const uint numInternalTreeletNodes = MaxTreeletSize - 1;
-            uint internalNodes[numInternalTreeletNodes];
+            uint nodesToReorder[FullTreeletSize];
+            const uint NumInternalTreeletNodes = FullTreeletSize - 1;
+            uint internalNodes[NumInternalTreeletNodes];
             internalNodes[0] = nodeIndex;
 
             nodesToReorder[0] = hierarchyBuffer[nodeIndex].LeftChildIndex;
             nodesToReorder[1] = hierarchyBuffer[nodeIndex].RightChildIndex;
             uint treeletSize = 2;
-            while(treeletSize < MaxTreeletSize)
+            while(treeletSize < FullTreeletSize)
             {
                 float largestSurfaceArea = 0.0;
                 uint nodeIndexToTraverse = 0;
@@ -130,18 +130,18 @@ void main( uint3 DTid : SV_DispatchThreadID )
             }
 
             // Now that a treelet has been formed, try to reorder
-            const uint numTreeletSplitPermutations = 1 << MaxTreeletSize;
-            float area[numTreeletSplitPermutations];
-            float optimalCost[numTreeletSplitPermutations];
-            uint optimalPartition[numTreeletSplitPermutations];
+            const uint NumTreeletSplitPermutations = 1 << FullTreeletSize;
+            float area[NumTreeletSplitPermutations];
+            float optimalCost[NumTreeletSplitPermutations];
+            uint optimalPartition[NumTreeletSplitPermutations];
 
-            const uint FullPartitionMask = numTreeletSplitPermutations - 1;
-            for (uint treeletBitmask = 1; treeletBitmask < numTreeletSplitPermutations; treeletBitmask++)
+            const uint FullPartitionMask = NumTreeletSplitPermutations - 1;
+            for (uint treeletBitmask = 1; treeletBitmask < NumTreeletSplitPermutations; treeletBitmask++)
             {
                 AABB aabb;
                 aabb.min = float3(FLT_MAX, FLT_MAX, FLT_MAX);
                 aabb.max = float3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-                for (uint i = 0; i < MaxTreeletSize; i++)
+                for (uint i = 0; i < FullTreeletSize; i++)
                 {
                     if (BIT(i) & treeletBitmask)
                     {
@@ -153,14 +153,14 @@ void main( uint3 DTid : SV_DispatchThreadID )
             }
 
             float rootAABBSurfaceArea = ComputeBoxSurfaceArea(nodeAABB);
-            for (uint i = 0; i < MaxTreeletSize; i++)
+            for (uint i = 0; i < FullTreeletSize; i++)
             {
                 optimalCost[BIT(i)] = CalculateCost(AABBBuffer[nodesToReorder[i]], rootAABBSurfaceArea);
             }
 
-            for (uint bits = 2; bits <= MaxTreeletSize; bits++)
+            for (uint bits = 2; bits <= FullTreeletSize; bits++)
             {
-                for (uint treeletBitmask = BIT(bits) - 1; treeletBitmask < numTreeletSplitPermutations; treeletBitmask++)
+                for (uint treeletBitmask = BIT(bits) - 1; treeletBitmask < NumTreeletSplitPermutations; treeletBitmask++)
                 {
                     if (countbits(treeletBitmask) == bits)
                     {
@@ -193,7 +193,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
             };
             uint nodesAllocated = 1;
             uint partitionStackSize = 1;
-            PartitionEntry partitionStack[MaxTreeletSize];
+            PartitionEntry partitionStack[FullTreeletSize];
             partitionStack[0].Mask = FullPartitionMask;
             partitionStack[0].NodeIndex = internalNodes[0];
             while (partitionStackSize > 0)
@@ -233,7 +233,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
             // Start from the back. This is optimizing since the previous traversal went from
             // top-down, the reverse order is guaranteed to be bottom-up
-            for (int j = numInternalTreeletNodes - 1; j >= 0; j--)
+            for (int j = NumInternalTreeletNodes - 1; j >= 0; j--)
             {
                 uint internalNodeIndex = internalNodes[j];
                 AABB leftAABB = AABBBuffer[hierarchyBuffer[internalNodeIndex].LeftChildIndex];
@@ -245,7 +245,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
         AABBBuffer[nodeIndex] = nodeAABB;
         DeviceMemoryBarrier(); // Ensure AABBs have been written out and are visible to all waves
 
-        if (nodeIndex == rootNodeIndex) return;
+        if (nodeIndex == RootNodeIndex) return;
 
         uint parentNodeIndex = hierarchyBuffer[nodeIndex].ParentIndex;
 

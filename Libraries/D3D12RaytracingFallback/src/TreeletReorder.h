@@ -28,15 +28,13 @@ namespace FallbackLayer
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlag);
 
         static UINT RequiredSizeForAABBBuffer(UINT numElements);
-        static UINT RequiredSizeForBaseTreeletIndexBuffer(UINT numElements);
+        static UINT RequiredSizeForBaseTreeletBuffers(UINT numElements);
     private:
         CComPtr<ID3D12RootSignature> m_pRootSignature;
         CComPtr<ID3D12PipelineState> m_pPSO;
-        CComPtr<ID3D12PipelineState> m_pPSO_OPT;
-        CComPtr<ID3D12PipelineState> m_pPSO_OPT_PL;
-        CComPtr<ID3D12PipelineState> m_pPSO_OPT_T;
         CComPtr<ID3D12PipelineState> m_pClearBufferPSO;
         CComPtr<ID3D12PipelineState> m_pFindTreeletsPSO;
+        CComPtr<ID3D12PipelineState> m_pPSO_OPT_PL;
 
         enum RootParameterSlot
         {

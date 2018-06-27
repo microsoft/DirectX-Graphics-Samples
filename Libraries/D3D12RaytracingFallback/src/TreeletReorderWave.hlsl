@@ -17,9 +17,7 @@
 #include "TreeletReorderBindings.h"
 #include "RayTracingHelper.hlsli"
 
-#define BREAK_POINT hierarchyBuffer[4294967291] = hierarchyBuffer[4294967294];
-
-static const uint FullPartitionMask = numTreeletSplitPermutations - 1;
+static const uint FullPartitionMask = NumTreeletSplitPermutations - 1;
 
 static const float CostOfRayBoxIntersection = 1.0;
 
@@ -33,21 +31,6 @@ float CalculateCost(AABB nodeAABB, float parentAABBSurfaceArea)
 {
     // TODO consider caching rcp(parentAABBSurfaceArea)
     return CostOfRayBoxIntersection * ComputeBoxSurfaceArea(nodeAABB) / parentAABBSurfaceArea;
-}
-
-AABB ComputeLeafAABB(uint triangleIndex)
-{
-    uint2 unused;
-    Primitive primitive = InputBuffer[triangleIndex];
-    if (primitive.PrimitiveType == TRIANGLE_TYPE)
-    {
-        Triangle tri = GetTriangle(primitive);
-        return BoundingBoxToAABB(GetBoxDataFromTriangle(tri.v0, tri.v1, tri.v2, triangleIndex, unused));
-    }
-    else // if(primitiveType == PROCEDURAL_PRIMITIVE_TYPE)
-    {
-        return GetProceduralPrimitiveAABB(primitive);
-    }
 }
 
 AABB CombineAABB(AABB aabb0, AABB aabb1)
@@ -80,30 +63,20 @@ uint getByte(uint src, uint byteIndex)
     return ((src & (0xff << bitIndex)) >> bitIndex);
 }
 
-// http://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
-uint NextBitPermutation(uint bits)
-{
-    const uint t = bits | (bits - 1);
-    return (t + 1) | (((~t & -~t) - 1) >> (firstbitlow(bits) + 1));
-}
-
 groupshared uint nodeIndex;
-groupshared float optimalCost[numTreeletSplitPermutations];
-groupshared byte optimalPartition[numTreeletSplitPermutations >> 2];
+groupshared float optimalCost[NumTreeletSplitPermutations];
+groupshared uint optimalPartition[NumTreeletSplitPermutations];
+groupshared uint treeletToReorder[FullTreeletSize];
+groupshared uint internalNodes[NumInternalTreeletNodes];
 groupshared bool finished;
-groupshared uint treeletToReorder[MaxTreeletSize];
-groupshared uint internalNodes[numInternalTreeletNodes];
 
-
-#define MAX_LOOPS 200
-
-#define NumThreadsInGroup 4
+#define NumThreadsInGroup 32
 [numthreads(NumThreadsInGroup, 1, 1)]
 void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
 {   
     if (GTid.x == 0)
     {
-        nodeIndex = BaseTreeletsIndexBuffer.Load(Gid.x);
+        nodeIndex = BaseTreeletsIndexBuffer[Gid.x];
         finished = false;
     }
 
@@ -114,16 +87,8 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
     if (nodeIndex >= NumberOfAABBs)
         return;
 
-    GroupMemoryBarrierWithGroupSync();
-
-    uint numLoops1 = 0;
-    uint numLoops2 = 0;
-    uint numLoops3 = 0;
-
     while (true)
     {
-        // numLoops1++;
-
         // Form Treelet
         if (GTid.x == 0)
         {
@@ -133,7 +98,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
             treeletToReorder[1] = hierarchyBuffer[nodeIndex].RightChildIndex;
 
             [unroll]
-            for (uint treeletSize = 2; treeletSize < MaxTreeletSize; treeletSize++)
+            for (uint treeletSize = 2; treeletSize < FullTreeletSize; treeletSize++)
             {
                 float largestSurfaceArea = 0.0;
                 uint nodeIndexToTraverse = 0;
@@ -171,14 +136,14 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
             {
                 AABB nodeAABB = AABBBuffer[nodeIndex];
                 // Now that a treelet has been formed, try to reorder
-                for (uint treeletBitmask = 1; treeletBitmask < numTreeletSplitPermutations; treeletBitmask++)
+                for (uint treeletBitmask = 1; treeletBitmask < NumTreeletSplitPermutations; treeletBitmask++)
                 {
                     AABB aabb;
                     aabb.min = float3(FLT_MAX, FLT_MAX, FLT_MAX);
                     aabb.max = float3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
                     
                     [unroll]
-                    for (uint i = 0; i < MaxTreeletSize; i++)
+                    for (uint i = 0; i < FullTreeletSize; i++)
                     {
                         if (BIT(i) & treeletBitmask)
                         {
@@ -192,7 +157,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
 
                 float rootAABBSurfaceArea = ComputeBoxSurfaceArea(nodeAABB);
                 [unroll]
-                for (uint i = 0; i < MaxTreeletSize; i++)
+                for (uint i = 0; i < FullTreeletSize; i++)
                 {
                     optimalCost[BIT(i)] = CalculateCost(AABBBuffer[treeletToReorder[i]], rootAABBSurfaceArea);
                 }
@@ -200,12 +165,11 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
 
             GroupMemoryBarrierWithGroupSync();
 
-            // if(GTid.x == 0)
             {
                 [unroll]
-                for (uint subsetSize = 2; subsetSize <= MaxTreeletSize; subsetSize++)
+                for (uint subsetSize = 2; subsetSize <= FullTreeletSize; subsetSize++)
                 {
-                    uint numTreeletBitmasks = MaxTreeletSizeChoose[subsetSize];
+                    uint numTreeletBitmasks = FullTreeletSizeChoose[subsetSize];
                     if (GTid.x < numTreeletBitmasks)
                     {
                         uint numBitmasksPerThread = max(numTreeletBitmasks / NumThreadsInGroup, 1);
@@ -220,7 +184,7 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                         // For each subset with [subsetSize] bits set
                         for (uint i = bitmasksStart; i < bitmasksEnd; i++)
                         {
-                            uint treeletBitmask = min(BitPermutations[subsetSize][i], numTreeletSplitPermutations);
+                            uint treeletBitmask = min(BitPermutations[subsetSize][i], NumTreeletSplitPermutations);
 
                             float lowestCost = FLT_MAX;
                             uint bestPartition = 0;
@@ -228,7 +192,6 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                             uint delta = (treeletBitmask - 1) & treeletBitmask;
                             uint partitionBitmask = (-delta) & treeletBitmask;
 
-                            numLoops2 = 0;
                             do
                             {
                                 const float cost = optimalCost[partitionBitmask] + optimalCost[treeletBitmask ^ partitionBitmask];
@@ -238,12 +201,11 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                                     bestPartition = partitionBitmask;
                                 }
                                 partitionBitmask = (partitionBitmask - delta) & treeletBitmask;
-
-                                // numLoops2++;
-                            } while (partitionBitmask != 0 && numLoops2 < MAX_LOOPS);
+                            } while (partitionBitmask != 0);
 
                             optimalCost[treeletBitmask] = CostOfRayBoxIntersection * optimalCost[treeletBitmask] + lowestCost; // TODO: Consider cost of flattening to triangle list
-                            optimalPartition[treeletBitmask >> 2] = setByte(optimalPartition[treeletBitmask >> 2], bestPartition & 0xff, treeletBitmask & 3);
+                            // optimalPartition[treeletBitmask >> 2] = setByte(optimalPartition[treeletBitmask >> 2], bestPartition & 0xff, treeletBitmask & 3);
+                            optimalPartition[treeletBitmask] = bestPartition;
                         }
                     }
                         
@@ -253,14 +215,6 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
         }
 
         GroupMemoryBarrierWithGroupSync();
-
-        for (uint i = 0; i < MaxTreeletSize; i++)
-        {
-            if (treeletToReorder[i] >= NumberOfAABBs)
-            {
-                BREAK_POINT
-            }
-        }
 
         // Reform tree
         if (GTid.x == 0)
@@ -273,21 +227,17 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
             };
             uint nodesAllocated = 1;
             uint partitionStackSize = 1;
-            PartitionEntry partitionStack[MaxTreeletSize];
+            PartitionEntry partitionStack[FullTreeletSize];
             partitionStack[0].Mask = FullPartitionMask;
             partitionStack[0].NodeIndex = internalNodes[0];
 
-            numLoops3 = 0;
-
-            while (partitionStackSize > 0 && numLoops3 < 200)
+            while (partitionStackSize > 0)
             {
-                numLoops3++;
-
                 PartitionEntry partition = partitionStack[partitionStackSize - 1];
                 partitionStackSize--;
 
                 PartitionEntry leftEntry;
-                leftEntry.Mask = getByte(optimalPartition[partition.Mask >> 2], partition.Mask & 3);
+                leftEntry.Mask = optimalPartition[partition.Mask]; // getByte(optimalPartition[partition.Mask >> 2], partition.Mask & 3);
                 if (countbits(leftEntry.Mask) > 1)
                 {
                     leftEntry.NodeIndex = internalNodes[nodesAllocated++];
@@ -310,26 +260,16 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
                     rightEntry.NodeIndex = treeletToReorder[firstbitlow(rightEntry.Mask)];
                 }
 
-                // if (partition.NodeIndex >= NumberOfAABBs)
-                // {
-                //     BREAK_POINT
-                // }
-
-                // hierarchyBuffer[partition.NodeIndex % NumberOfAABBs].LeftChildIndex = leftEntry.NodeIndex % NumberOfAABBs;
-                // hierarchyBuffer[partition.NodeIndex % NumberOfAABBs].RightChildIndex = rightEntry.NodeIndex % NumberOfAABBs;
-                // hierarchyBuffer[leftEntry.NodeIndex % NumberOfAABBs].ParentIndex = partition.NodeIndex % NumberOfAABBs;
-                // hierarchyBuffer[rightEntry.NodeIndex % NumberOfAABBs].ParentIndex = partition.NodeIndex % NumberOfAABBs;
+                hierarchyBuffer[partition.NodeIndex].LeftChildIndex = leftEntry.NodeIndex;
+                hierarchyBuffer[partition.NodeIndex].RightChildIndex = rightEntry.NodeIndex;
+                hierarchyBuffer[leftEntry.NodeIndex].ParentIndex = partition.NodeIndex;
+                hierarchyBuffer[rightEntry.NodeIndex].ParentIndex = partition.NodeIndex;
             }
-        }
 
-        // DeviceMemoryBarrierWithGroupSync();
-
-        if (GTid.x == 0)
-        {
             // Start from the back. This is optimizing since the previous traversal went from
             // top-down, the reverse order is guaranteed to be bottom-up
             [unroll]
-            for (int j = numInternalTreeletNodes - 1; j >= 0; j--)
+            for (int j = NumInternalTreeletNodes - 1; j >= 0; j--)
             {
                 uint internalNodeIndex = internalNodes[j];
                 AABB leftAABB = AABBBuffer[hierarchyBuffer[internalNodeIndex].LeftChildIndex];
@@ -338,13 +278,11 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID)
             }
         }
 
-        DeviceMemoryBarrierWithGroupSync();
-
         // Build parent boxes
         {
             if (GTid.x == 0)
             {
-                if (nodeIndex == rootNodeIndex)
+                if (nodeIndex == RootNodeIndex)
                 {
                     finished = true;
                 }

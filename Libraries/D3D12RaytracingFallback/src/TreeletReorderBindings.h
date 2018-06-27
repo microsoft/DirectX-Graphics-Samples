@@ -34,12 +34,11 @@ struct InputConstants
 #define GlobalDescriptorHeapRegister 0
 #define GlobalDescriptorHeapRegisterSpace 1
 
-static const uint MaxTreeletSize = 7;
+static const uint FullTreeletSize = 7;
 
 #ifdef HLSL
 // These need to be UAVs despite being read-only because the fallback layer only gets a 
 // GPU VA and the API doesn't allow any way to transition that GPU VA from UAV->SRV
-
 RWStructuredBuffer<Primitive> InputBuffer : UAV_REGISTER(ElementBufferRegister);
 
 globallycoherent RWByteAddressBuffer NumTrianglesBuffer : UAV_REGISTER(NumTrianglesBufferRegister);
@@ -54,15 +53,14 @@ cbuffer TreeletConstants : CONSTANT_REGISTER(ConstantsRegister)
     InputConstants Constants;
 };
 
-static const uint numTreeletSplitPermutations = 1 << MaxTreeletSize;
-static const uint numInternalTreeletNodes = MaxTreeletSize - 1;
-static const uint rootNodeIndex = 0; 
+static const uint NumTreeletSplitPermutations = 1 << FullTreeletSize;
+static const uint NumInternalTreeletNodes = FullTreeletSize - 1;
+static const uint RootNodeIndex = 0; 
 
-// All results of [MaxTreeletSize] choose [i]
-static const uint MaxTreeletSizeChoose[MaxTreeletSize + 1] = { 1, 7, 21, 35, 35, 21, 7, 1 };
+// All results of [FullTreeletSize] choose [i]
+static const uint FullTreeletSizeChoose[FullTreeletSize + 1] = { 1, 7, 21, 35, 35, 21, 7, 1 };
 
-
-static const uint BitPermutations[MaxTreeletSize + 1][35] = {
+static const uint BitPermutations[FullTreeletSize + 1][35] = {
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
     { 1, 2, 4, 8, 16, 32, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
     { 3, 5, 6, 9, 10, 12, 17, 18, 20, 24, 33, 34, 36, 40, 48, 65, 66, 68, 72, 80, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -73,89 +71,3 @@ static const uint BitPermutations[MaxTreeletSize + 1][35] = {
     { 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-inline void SetBubbleBufferBit(uint nodeIndex)
-{
-	uint dwordByteIndex = (nodeIndex / 32) * 4; // Divide into bytes, align on 4-byte
-	uint byteIndex = ((nodeIndex % 32) / 8); // Find bit within 4-byte, get byte index
-	uint bitIndex = nodeIndex & 0x7; // Fing bit within byte
-
-	uint previousValue;
-	ReorderBubbleBuffer.InterlockedOr(dwordByteIndex , (1 << bitIndex) << (byteIndex * 8), previousValue);
-}
-
-inline void ClearBubbleBufferBit(uint nodeIndex)
-{
-	uint dwordByteIndex = ((nodeIndex / 8) / 4) * 4;
-	uint byteIndex = ((nodeIndex % 32) / 8);
-	uint bitIndex = nodeIndex & 0x7;
-
-	uint previousValue;
-	ReorderBubbleBuffer.InterlockedAnd(dwordByteIndex , ~((1 << bitIndex) << (byteIndex * 8)), previousValue);
-}
-
-inline uint NextSetBubbleBufferBit(inout uint readIndex, inout uint waits, out uint status)
-{
-	while (readIndex > 0 && waits > 0)
-	{
-		uint loaded = ReorderBubbleBuffer.Load(readIndex * SizeOfUINT32);
-		
-		status = countbits(loaded);
-
-		if (status != 0) 
-		{
-			if (status > waits)
-			{
-				while (waits > 0) {
-					loaded &= (~(1 << firstbithigh(loaded)));
-					waits--;
-				}
-
-				return readIndex * 32 + firstbithigh(loaded); // nodeIndex
-			}
-			else
-			{
-				waits -= status;
-				status = 0;
-			}
-		}
-
-		readIndex--;
-	}
-
-	return 0;
-}
-
-inline bool BubbleBufferBitSet(uint nodeIndex)
-{
-	uint byteIndex = ((nodeIndex % 32) / 8) * 8;
-	uint bitIndex = nodeIndex & 0x7;
-
-	uint loaded = ReorderBubbleBuffer.Load((nodeIndex / 32) * SizeOfUINT32);
-	uint byteMask = 0xff << byteIndex;
-	uint byte = (loaded & byteMask) >> byteIndex;
-	uint bitMask = 1 << bitIndex;
-	uint bit = (byte & bitMask) >> bitIndex;
-	return bit;
-}
-*/

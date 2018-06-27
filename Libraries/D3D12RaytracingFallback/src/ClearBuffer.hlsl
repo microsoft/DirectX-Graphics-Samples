@@ -18,7 +18,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 	const uint NumberOfLeafNodes = Constants.NumberOfElements;
     const uint NumberOfInternalNodes = GetNumInternalNodes(NumberOfLeafNodes);
     const uint TotalNumberOfNodes = NumberOfLeafNodes + NumberOfInternalNodes;
-    const uint MaxNumberOfTreelets = NumberOfLeafNodes / MaxTreeletSize;
+    const uint MaxNumberOfTreelets = NumberOfLeafNodes / FullTreeletSize;
 
     if (DTid.x == 0) 
     {

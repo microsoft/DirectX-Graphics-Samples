@@ -9,10 +9,6 @@
 //
 //*********************************************************
 
-// Using the Karras/Aila paper on treelet reoordering:
-// "Fast Parallel Construction of High-Quality Bounding Volume
-// Hierarchies"
-
 #define HLSL
 #include "TreeletReorderBindings.h"
 #include "RayTracingHelper.hlsli"
@@ -52,7 +48,8 @@ void main(uint3 DTid : SV_DispatchThreadID)
     uint nodeIndex = NumberOfAABBs - DTid.x - 1;
     uint numTriangles = 1;
     bool isLeaf = true;
-    do
+
+    while(true)
     {
         AABB nodeAABB;
         if (isLeaf)
@@ -78,22 +75,19 @@ void main(uint3 DTid : SV_DispatchThreadID)
             return;
         }
 
-        if (nodeIndex == rootNodeIndex) return;
-
         uint parentNodeIndex = hierarchyBuffer[nodeIndex].ParentIndex;
 
         uint numTrianglesFromOtherNode = 0;
         NumTrianglesBuffer.InterlockedAdd(parentNodeIndex * SizeOfUINT32, numTriangles, numTrianglesFromOtherNode);
 
-        // Wait for sibling in tree
+        // Leave for sibling in tree
         if (numTrianglesFromOtherNode == 0)
         {
             return;
         }
 
-        numTriangles = numTrianglesFromOtherNode + numTriangles;
         nodeIndex = parentNodeIndex;
+        numTriangles = numTrianglesFromOtherNode + numTriangles;
         isLeaf = false;
-
-    } while (true);
+    }
 }

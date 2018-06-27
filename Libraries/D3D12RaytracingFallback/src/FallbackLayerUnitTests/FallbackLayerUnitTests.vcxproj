@@ -113,7 +113,8 @@
       <AdditionalDependencies>dxgi.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy "$(SolutionDir)..\tools\x64\dxcompiler.dll" "$(SolutionDir)\$(Platform)\$(Configuration)"</Command>
+      <Command>copy "$(SolutionDir)..\tools\x64\dxcompiler.dll" "$(SolutionDir)\$(Platform)\$(Configuration)"
+copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Platform)\$(Configuration)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -131,7 +132,8 @@
       <AdditionalDependencies>dxgi.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)..\DxilCompiler\$(Platform)\dxcompiler.dll  $(SolutionDir)..\ModelViewer\$(Platform)\$(Configuration)</Command>
+      <Command>copy "$(SolutionDir)..\tools\x64\dxcompiler.dll" "$(SolutionDir)\$(Platform)\$(Configuration)"
+copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Platform)\$(Configuration)"</Command>
     </PostBuildEvent>
     <FxCompile>
       <VariableName>g_p%(Filename)</VariableName>
@@ -155,7 +157,8 @@
       <AdditionalDependencies>dxgi.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy "$(SolutionDir)..\tools\x64\dxcompiler.dll" "$(SolutionDir)\$(Platform)\$(Configuration)"</Command>
+      <Command>copy "$(SolutionDir)..\tools\x64\dxcompiler.dll" "$(SolutionDir)\$(Platform)\$(Configuration)"
+copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Platform)\$(Configuration)"</Command>
     </PostBuildEvent>
     <FxCompile>
       <VariableName>g_p%(Filename)</VariableName>
@@ -183,7 +186,8 @@
       <AdditionalDependencies>dxgi.lib;d3d12.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)..\DxilCompiler\$(Platform)\dxcompiler.dll  $(SolutionDir)..\ModelViewer\$(Platform)\$(Configuration)</Command>
+      <Command>copy "$(SolutionDir)..\tools\x64\dxcompiler.dll" "$(SolutionDir)\$(Platform)\$(Configuration)"
+copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Platform)\$(Configuration)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -426,7 +426,7 @@ namespace FallbackLayer
         
         if (level == Level::Bottom)
         {
-            const UINT baseTreeletsScratchSize = TreeletReorder::RequiredSizeForBaseTreeletIndexBuffer(numPrimitives);
+            const UINT baseTreeletsScratchSize = TreeletReorder::RequiredSizeForBaseTreeletBuffers(numPrimitives);
             scratchMemoryPartitions.OffsetToBaseTreeletsCount = totalSize;
             totalSize += baseTreeletsScratchSize;
         }

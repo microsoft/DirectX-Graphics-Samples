@@ -2974,7 +2974,7 @@ namespace FallbackLayerUnitTests
             auto &d3d12Device = m_d3d12Context.GetDevice();
             TreeletReorder treeletReorder(&d3d12Device, 0);
 
-            const UINT numTriangles = 100000; // 278874;
+            const UINT numTriangles = 2000; // 32145;
             
             float ReferenceVertices2[numTriangles * 9];
             for (UINT i = 0; i < numTriangles * 9; i++)
@@ -3033,7 +3033,7 @@ namespace FallbackLayerUnitTests
             CComPtr<ID3D12Resource> pNodeCountBuffer;
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &nodeCountBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pNodeCountBuffer)));
 
-            auto baseTreeletCountBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(TreeletReorder::RequiredSizeForBaseTreeletIndexBuffer(numLeafNodes), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            auto baseTreeletCountBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(TreeletReorder::RequiredSizeForBaseTreeletBuffers(numLeafNodes) * 8, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             CComPtr<ID3D12Resource> pBubbleBuffer;
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &baseTreeletCountBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pBubbleBuffer)));
 
@@ -3060,7 +3060,9 @@ namespace FallbackLayerUnitTests
             std::vector<AABB> outputAABBs(numNodes);
             m_d3d12Context.ReadbackResource(pAABBBuffer, outputAABBs.data(), (UINT)(outputAABBs.size() * sizeof(*outputAABBs.data())));
 
-            std::vector<UINT> outputBubbleBuffer(TreeletReorder::RequiredSizeForBaseTreeletIndexBuffer(numLeafNodes));
+            AABB *pOutputAABBs = outputAABBs.data();
+
+            std::vector<UINT> outputBubbleBuffer(TreeletReorder::RequiredSizeForBaseTreeletBuffers(numLeafNodes) * 8);
             m_d3d12Context.ReadbackResource(pBubbleBuffer, outputBubbleBuffer.data(), (UINT)(outputBubbleBuffer.size() * sizeof(*outputBubbleBuffer.data())));
 
             UINT *pOutputBubbleBuffer = outputBubbleBuffer.data();
