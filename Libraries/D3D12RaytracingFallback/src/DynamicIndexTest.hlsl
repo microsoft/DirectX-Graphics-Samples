@@ -8,15 +8,15 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
+Buffer inputBuffers[] : register(t0);
 
-#define HLSL
-#include "ModelViewerRaytracing.h"
+RWByteAddressBuffer outputBuffer : register(u0);
 
-[shader("miss")]
-void Miss(inout RayPayload payload)
+[numthreads(1, 1, 1)]
+void main(uint3 DTid : SV_DispatchThreadID)
 {
-    if (!payload.SkipShading)
+    for (uint i = 0; i < 3; i++)
     {
-        g_screenOutput[DispatchRaysIndex()] = float4(0, 0, 0, 1);
+        outputBuffer.Store4(i * 16, asuint(inputBuffers[i].Load(0)));
     }
 }

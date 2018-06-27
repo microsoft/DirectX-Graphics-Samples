@@ -184,12 +184,6 @@ In addition, to enable root descriptors in the first place, developers must pass
 * #### No Callable shaders
 Callable shaders are not yet supported. 
 
-* #### No Cross libs dependencies
-All raytracing shaders are expected to be contained within a single DXIL library.
-
-* #### No Export Renames
-Export renames for state objects are not supported
-
 * #### D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS for compaction are ignored
 Both D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION and D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_MINIMIZE_MEMORY are ignored by the Fallback Layer
 
@@ -208,9 +202,6 @@ The stack size passed by `SetPipelineStackSize` is ignored and the Fallback inst
 
 * #### D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE doesn't prevent Any-Hit invocation from getting called on geometry using Intersection Shaders
 Note: On regular triangle geometry, all opaque/non-opaque flags should still work as expected
-
-* #### Intersection Shader doesn't respect D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE/D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE
-The invocation of an AnyHit shader after a ReportHit() call from an Intersection shader will not correctly respond based on the use of the instance flags
  
 ## Debugging & Tooling
 The Fallback Layer natively works with PIX. However, PIX does not have support for using ray tracing debugging capabilities with the Fallback and will instead show all operations as the underlying compute shader dispatches. 

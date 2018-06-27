@@ -8,15 +8,18 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
+#include "Validate.hlsli"
 
-#define HLSL
-#include "ModelViewerRaytracing.h"
+RaytracingAccelerationStructure AS : register(t0);
 
-[shader("miss")]
-void Miss(inout RayPayload payload)
+[shader("raygeneration")]
+void raygen()
 {
-    if (!payload.SkipShading)
-    {
-        g_screenOutput[DispatchRaysIndex()] = float4(0, 0, 0, 1);
-    }
+    EmptyPayload payload = { 0 };
+    RayDesc ray = { 
+        float3(1, 0, 0),
+        0.0f,
+        float3(1, 0, 0),
+        0.0f };
+    TraceRay(AS, 0, ~0, 0, 1, 0, ray, payload);
 }

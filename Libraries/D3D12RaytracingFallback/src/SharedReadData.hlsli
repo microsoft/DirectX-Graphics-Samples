@@ -8,15 +8,14 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
+#include "Validate.hlsli"
+float4 ReadData();
 
-#define HLSL
-#include "ModelViewerRaytracing.h"
+RWByteAddressBuffer outputBuffer : register(u0);
 
 [shader("miss")]
-void Miss(inout RayPayload payload)
+void miss(inout EmptyPayload payload : SV_RayPayload)
 {
-    if (!payload.SkipShading)
-    {
-        g_screenOutput[DispatchRaysIndex()] = float4(0, 0, 0, 1);
-    }
+    float4 color0 = ReadData();
+    outputBuffer.Store4(0, asuint(color0));
 }

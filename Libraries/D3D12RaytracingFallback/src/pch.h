@@ -22,6 +22,7 @@
 #include <vector>
 #include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 #include <map>
 #include <deque>
 #include <string>
@@ -33,7 +34,17 @@
 #include "dxc\dxcdxrfallbackcompiler.h"
 #include "dxc\dxcdxrfallbackcompiler.use.h"
 #include "dxc\hlsl\DxilContainer.h"
+#include "dxc\hlsl\DxilRuntimeReflection.h"
 #include "Util.h"
+
+#include <iostream>
+#include <sstream> 
+#define SKIP_BINDING_VALIDATION
+#define SKIP_STATE_OBJECT_MASK_VALIDATION
+#define INCLUDE_MESSAGE_LOG
+#include "StateObjectProcessing.hpp"
+#include "DxbcParser.h"
+
 
 #include "FallbackDebug.h"
 

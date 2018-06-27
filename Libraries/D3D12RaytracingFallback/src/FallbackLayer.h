@@ -109,6 +109,11 @@ namespace FallbackLayer
         {
             return (ID3D12StateObject *)this;
         }
+
+        CStateObjectInfo &GetCachedStateInfo()
+        {
+            return m_collection.m_stateObjectInfo;
+        }
     private:
 
         StateObjectCollection m_collection;
@@ -184,8 +189,8 @@ namespace FallbackLayer
         }
 
     private:
-        void ProcessSubObject(const D3D12_STATE_SUBOBJECT &subObject, RaytracingStateObject &rayTracingStateObject);
-        void ProcessShaderAssociation(const D3D12_STATE_SUBOBJECT &subObject, ShaderAssociations &shaderAssociations);
+        void ProcessStateObject(_In_ const D3D12_STATE_OBJECT_DESC &stateObject, _Out_ RaytracingStateObject &rayTracingStateObject);
+        ShaderAssociations ProcessAssociations(_In_ LPCWSTR exportName, _Inout_ RaytracingStateObject &rayTracingStateObject);
 
         friend D3D12RaytracingCommandList;
         CComPtr<ID3D12Device> m_pDevice;
