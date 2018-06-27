@@ -50,14 +50,6 @@ typedef UINT16 Index;
 //*************************************************************************
 
 
-//******-------Fallback Layer limitation workarounds -----*****************
-//
-// Fallback Layer does not support default exports for DXIL libraries yet.
-#define DEFINE_EXPLICIT_SHADER_EXPORTS 1
-//
-//*************************************************************************
-
-
 // Limitting calculations only to metaballs a ray intersects can speed up raytracing
 // dramatically.  the more the number of metaballs are used.
 // Requires: USE_DYNAMIC_LOOPS set to 1 to take effect.

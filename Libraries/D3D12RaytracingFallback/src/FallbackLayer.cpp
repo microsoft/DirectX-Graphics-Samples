@@ -417,21 +417,24 @@ namespace FallbackLayer
                 EXPORTED_FUNCTION exportedFunction;
                 exportIterator.Next(&exportedFunction);
 
-                auto shaderAssociation = ProcessAssociations(exportedFunction.MangledName, rayTracingStateObject);
-                shaderAssociation.m_exportToRename = exportedFunction.pDXILFunction->UnmangledName;
-                shaderAssociation.m_mangledExport = exportedFunction.MangledName;
-                DxcExportDesc desc = {};
-                desc.ExportName = exportedFunction.MangledName;
-                bool bRename = std::wstring(exportedFunction.UnmangledName).compare(exportedFunction.pDXILFunction->UnmangledName) != 0;
-                if (bRename)
+                if ((ShaderKind)exportedFunction.pDXILFunction->ShaderKind != ShaderKind::Library)
                 {
-                    desc.ExportToRename = exportedFunction.pDXILFunction->Name;
-                    shaderAssociation.m_mangledExportToRename = exportedFunction.pDXILFunction->Name;
-                }
+                    auto shaderAssociation = ProcessAssociations(exportedFunction.MangledName, rayTracingStateObject);
+                    shaderAssociation.m_exportToRename = exportedFunction.pDXILFunction->UnmangledName;
+                    shaderAssociation.m_mangledExport = exportedFunction.MangledName;
+                    DxcExportDesc desc = {};
+                    desc.ExportName = exportedFunction.MangledName;
+                    bool bRename = std::wstring(exportedFunction.UnmangledName).compare(exportedFunction.pDXILFunction->UnmangledName) != 0;
+                    if (bRename)
+                    {
+                        desc.ExportToRename = exportedFunction.pDXILFunction->Name;
+                        shaderAssociation.m_mangledExportToRename = exportedFunction.pDXILFunction->Name;
+                    }
 
-                stateObjectCollection.m_exportDescs.push_back(desc);
-                stateObjectCollection.m_exportNames.push_back(exportedFunction.UnmangledName);
-                stateObjectCollection.m_shaderAssociations[exportedFunction.UnmangledName] = shaderAssociation;
+                    stateObjectCollection.m_exportDescs.push_back(desc);
+                    stateObjectCollection.m_exportNames.push_back(exportedFunction.UnmangledName);
+                    stateObjectCollection.m_shaderAssociations[exportedFunction.UnmangledName] = shaderAssociation;
+                }
             }
 
             {
