@@ -197,7 +197,10 @@ void D3D12RaytracingHelloWorld::CreateLocalRootSignatureSubobjects(CD3D12_STATE_
     {
         auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
         localRootSignature->SetRootSignature(m_raytracingLocalRootSignatureEmpty.Get());
+        
         // Shader association
+        // In this sample, this could be omitted for convenience and use the default shader association instead,
+        // automatically assigning this local root signature to all shaders without an explicit association
         auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         rootSignatureAssociation->AddExport(c_missShaderName);
