@@ -495,10 +495,7 @@ void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3D1
         // Shader association
         auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
-        for (auto &name : c_hitGroupNames_TriangleGeometry)
-        {
-            rootSignatureAssociation->AddExport(name);
-        }
+        rootSignatureAssociation->AddExports(c_hitGroupNames_TriangleGeometry);
     }
 
     // AABB geometry
@@ -510,10 +507,7 @@ void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3D1
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         for (auto& hitGroupsForIntersectionShaderType : c_hitGroupNames_AABBGeometry)
         {
-            for (auto &name : hitGroupsForIntersectionShaderType)
-            {
-                rootSignatureAssociation->AddExport(name);
-            }
+            rootSignatureAssociation->AddExports(hitGroupsForIntersectionShaderType);
         }
     }
 }

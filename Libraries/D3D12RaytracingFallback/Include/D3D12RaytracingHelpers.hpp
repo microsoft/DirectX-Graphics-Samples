@@ -315,6 +315,24 @@ public:
         m_Exports.push_back(m_Strings.LocalCopy(Export));
         m_Desc.pExports = m_Exports.data();
     }
+
+    template<size_t N>
+    void AddExports(LPCWSTR(&Exports)[N])
+    {
+        for (UINT i = 0; i < N; i++)
+        {
+            AddExport(Exports[i]);
+        }
+    }
+
+    void AddExports(LPCWSTR* Exports, UINT N)
+    {
+        for (UINT i = 0; i < N; i++)
+        {
+            AddExport(Exports[i]);
+        }
+    }
+
     D3D12_STATE_SUBOBJECT_TYPE Type() { return D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION; }
     operator const D3D12_STATE_SUBOBJECT&() const { return *m_pSubobject; }
     operator const D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION&() const { return m_Desc; }
