@@ -32,7 +32,6 @@
 #include "dxc\dxcapi.h"
 #include "dxc\dxcapi.use.h"
 #include "dxc\dxcdxrfallbackcompiler.h"
-#include "dxc\dxcdxrfallbackcompiler.use.h"
 #include "dxc\hlsl\DxilContainer.h"
 #include "dxc\hlsl\DxilRuntimeReflection.h"
 #include "Util.h"
