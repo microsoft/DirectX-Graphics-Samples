@@ -873,7 +873,7 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
         XMMATRIX mScale = XMMatrixScaling(fWidth.x, fWidth.y, fWidth.z);
         XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
         XMMATRIX mTransform = mScale * mTranslation;         
-        StoreXMMatrixAsTransform3x4(static_cast<float*>(instanceDesc.Transform), mTransform);
+        StoreXMMatrixAsTransform3x4(static_cast<float*>(instanceDesc.Transform[0]), mTransform);
     }
 
     // Create instanced bottom-level AS with procedural geometry AABBs.
@@ -889,7 +889,7 @@ void D3D12RaytracingProceduralGeometry::BuildBotomLevelASInstanceDescs(BLASPtrTy
 
         // Move all AABBS above the ground plane.
         XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(0, c_aabbWidth/2, 0)));
-        StoreXMMatrixAsTransform3x4(static_cast<float*>(instanceDesc.Transform), mTranslation);
+        StoreXMMatrixAsTransform3x4(static_cast<float*>(instanceDesc.Transform[0]), mTranslation);
     }
     UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));
     AllocateUploadBuffer(device, instanceDescs.data(), bufferSize, &(*instanceDescsResource), L"InstanceDescs");
