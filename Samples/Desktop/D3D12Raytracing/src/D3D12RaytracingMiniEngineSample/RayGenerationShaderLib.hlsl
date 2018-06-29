@@ -17,7 +17,7 @@
 void RayGen()
 {
     float3 origin, direction;
-    GenerateCameraRay(DispatchRaysIndex(), origin, direction);
+    GenerateCameraRay(DispatchRaysIndex().xy, origin, direction);
 
     RayDesc rayDesc = { origin,
         0.0f,

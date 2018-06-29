@@ -27,7 +27,7 @@ namespace FallbackLayer
     public:
         DxilShaderPatcher()
         {
-            ThrowFailure(dxcDxrFallbackSupport.Initialize(),
+            ThrowFailure(dxcDxrFallbackSupport.InitializeForDll(L"DxrFallbackCompiler.dll", "DxcCreateDxrFallbackCompiler"),
               L"Failed to load DxrFallbackCompiler.dll, verify this executable is in the executable directory."
               L" The Fallback Layer is sensitive to the DxrFallbackCompiler.dll version, make sure the"
               L" DxrFallbackCompiler.dll is the correct version packaged with the Fallback");
@@ -42,7 +42,7 @@ namespace FallbackLayer
     private:
         void VerifyResult(IDxcOperationResult *pResult);
 
-        dxc::DxcDxrFallbackDllSupport dxcDxrFallbackSupport;
+        dxc::DxcDllSupport dxcDxrFallbackSupport;
         void CreateFallbackCompiler(IDxcDxrFallbackCompiler **ppCompiler);
 
 

@@ -570,8 +570,6 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
     g_pRaytracingDevice->CreateRootSignature(0, pLocalRootSignatureBlob->GetBufferPointer(), pLocalRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&g_LocalRaytracingRootSignature));
 
     std::vector<D3D12_STATE_SUBOBJECT> subObjects;
-    subObjects.reserve(50); // Being lazy, pick some large amount to avoid a resize
-
     D3D12_STATE_SUBOBJECT nodeMaskSubObject;
     UINT nodeMask = 1;
     nodeMaskSubObject.pDesc = &nodeMask;
@@ -645,25 +643,6 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
     localRootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
     subObjects.push_back(localRootSignatureSubObject);
     D3D12_STATE_SUBOBJECT &rootSignatureSubobject = subObjects.back();
-
-    D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderAssociationDescTemplate;
-    shaderAssociationDescTemplate.NumExports = (UINT)shadersToAssociate.size();
-    shaderAssociationDescTemplate.pExports = shadersToAssociate.data();
-
-
-    D3D12_STATE_SUBOBJECT rootSignatureAssociationSubobject;
-    D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION rootSigAssociationDesc = shaderAssociationDescTemplate;
-    rootSigAssociationDesc.pSubobjectToAssociate = &rootSignatureSubobject;
-    rootSignatureAssociationSubobject.pDesc = &rootSigAssociationDesc;
-    rootSignatureAssociationSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-    subObjects.push_back(rootSignatureAssociationSubobject);
-
-    D3D12_STATE_SUBOBJECT shaderConfigAssociationSubobject;
-    D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderConfigAssociationDesc = shaderAssociationDescTemplate;
-    shaderConfigAssociationDesc.pSubobjectToAssociate = &rootSignatureSubobject;
-    shaderConfigAssociationSubobject.pDesc = &rootSigAssociationDesc;
-    shaderConfigAssociationSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-    subObjects.push_back(shaderConfigAssociationSubobject);
 
     D3D12_STATE_OBJECT_DESC stateObject;
     stateObject.NumSubobjects = (UINT)subObjects.size();

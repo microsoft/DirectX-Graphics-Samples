@@ -18,7 +18,7 @@ Texture2D<float3>   normals  : register(t13);
 [shader("raygeneration")]
 void RayGen()
 {
-    uint2 DTid = DispatchRaysIndex();
+    uint2 DTid = DispatchRaysIndex().xy;
     float2 xy = DTid.xy + 0.5;
 
     // Screen position for the ray
