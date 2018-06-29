@@ -65,6 +65,12 @@ namespace FallbackLayer
         buffers.calculateAABBScratchBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToCalculateAABBDispatchArgs;
         buffers.nodeCountBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToPerNodeCounter;
 
+        if (SupportsTreeletReordering(bvhLevel))
+        {
+            buffers.baseTreeletsCountBuffer = scratchGpuVA + scratchMemoryPartition.OffsetToBaseTreeletsCount;
+            buffers.baseTreeletsIndexBuffer = buffers.baseTreeletsCountBuffer + sizeof(UINT);
+        }
+
         switch(bvhLevel) 
         {
             case Level::Top:
@@ -178,6 +184,8 @@ namespace FallbackLayer
                 updatesAllowed ? buffers.outputSortCacheBuffer : 0,
                 buffers.hierarchyBuffer,
                 buffers.nodeCountBuffer,
+                buffers.baseTreeletsCountBuffer,
+                buffers.baseTreeletsIndexBuffer,
                 globalDescriptorHeap);
         }
 
@@ -262,6 +270,8 @@ namespace FallbackLayer
         D3D12_GPU_VIRTUAL_ADDRESS outputSortCacheBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS hierarchyBuffer,
         D3D12_GPU_VIRTUAL_ADDRESS nodeCountBuffer,
+        D3D12_GPU_VIRTUAL_ADDRESS baseTreeletsCountBuffer,
+        D3D12_GPU_VIRTUAL_ADDRESS baseTreeletsIndexBuffer,
         D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap) 
     {
         m_mortonCodeCalculator.CalculateMortonCodes(
@@ -309,7 +319,8 @@ namespace FallbackLayer
                 nodeCountBuffer,
                 sceneAABBScratchMemory,
                 outputElementBuffer,
-                globalDescriptorHeap,
+                baseTreeletsCountBuffer,
+                baseTreeletsIndexBuffer,
                 pDesc->Inputs.Flags);
         }
     }
@@ -371,7 +382,6 @@ namespace FallbackLayer
             totalSize += extraBufferSize;
         }
 
-
         {
             UINT64 sizeNeededForAABBCalculation = 0;
             scratchMemoryPartitions.OffsetToCalculateAABBDispatchArgs = sizeNeededForAABBCalculation;
@@ -386,6 +396,13 @@ namespace FallbackLayer
         const UINT64 hierarchySize = ALIGN_GPU_VA_OFFSET(sizeof(HierarchyNode) * totalNumNodes);
         scratchMemoryPartitions.OffsetToHierarchy = totalSize;
         totalSize += hierarchySize;
+        
+        if (SupportsTreeletReordering(level))
+        {
+            const UINT baseTreeletsScratchSize = TreeletReorder::RequiredSizeForBaseTreeletBuffers(numPrimitives);
+            scratchMemoryPartitions.OffsetToBaseTreeletsCount = totalSize;
+            totalSize += baseTreeletsScratchSize;
+        }
 
         return scratchMemoryPartitions;
     }
@@ -446,5 +463,10 @@ namespace FallbackLayer
             pDesc->DestBuffer,
             NumSourceAccelerationStructures,
             pSourceAccelerationStructureData);
+    }
+
+    bool GpuBvh2Builder::SupportsTreeletReordering(Level level) 
+    {
+        return level == Level::Bottom;
     }
 }
