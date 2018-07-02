@@ -40,6 +40,7 @@ namespace FallbackLayer
             const D3D12_FALLBACK_DISPATCH_RAYS_DESC &desc) = 0;
 
         virtual ShaderIdentifier *GetShaderIdentifier(LPCWSTR pExportName) = 0;
+        virtual UINT64 GetShaderStackSize(LPCWSTR pExportName) = 0;
 
         virtual void SetPredispatchCallback(std::function<void(ID3D12GraphicsCommandList *, UINT)> callback) = 0;
     };

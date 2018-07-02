@@ -23,22 +23,29 @@ namespace FallbackLayer
         ThrowInternalFailure(pDevice->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(ppPipelineState)));
     }
 
+    UINT64 UberShaderRaytracingProgram::GetShaderStackSize(LPCWSTR pExportName)
+    {
+        auto shaderData = GetShaderData(pExportName);
+        return shaderData ? shaderData->stackSize : 0;
+    }
+
+    UberShaderRaytracingProgram::ShaderData *UberShaderRaytracingProgram::GetShaderData(LPCWSTR pExportName)
+    {
+      if (pExportName)
+      {
+        const auto &shaderData = m_ExportNameToShaderData.find(pExportName);
+        if (shaderData != m_ExportNameToShaderData.end())
+        {
+          return &shaderData->second;
+        }
+      }
+      return nullptr;
+    }
+
     StateIdentifier UberShaderRaytracingProgram::GetStateIdentfier(LPCWSTR pExportName)
     {
-        StateIdentifier id = 0;
-        if (pExportName)
-        {
-            auto shaderIdentifier = m_ExportNameToShaderIdentifier.find(pExportName);
-            if (shaderIdentifier != m_ExportNameToShaderIdentifier.end())
-            {
-                id = shaderIdentifier->second.StateId;
-            }
-            else
-            {
-                ThrowFailure(E_INVALIDARG, L"Hit group is referring to a shader name that wasn't found in the state object");
-            }
-        }
-        return id;
+        auto shaderData = GetShaderData(pExportName);
+        return shaderData ? shaderData->stateIdentifier.StateId : (StateIdentifier)0u;
     }
 
 
@@ -145,22 +152,28 @@ namespace FallbackLayer
             librariesInfo.emplace_back((void *)g_pStateMachineLib, ARRAYSIZE(g_pStateMachineLib));
         }
 
-        std::vector<FallbackLayer::StateIdentifier> stateIdentifiers;
-        CComPtr<IDxcBlob> pLinkedBlob;
-        UINT stackSize = (UINT)stateObjectCollection.m_pipelineStackSize;
-        if (stackSize == 0 && (stateObjectCollection.IsUsingAnyHit || stateObjectCollection.IsUsingIntersection))
-        {
-            // TODO: The stack size used by the traversal shader is high when it's split by a continuation from the
-            // Intersection shader or the Anyhit. Currently setting a higher hard-coded value, this can go-away
-            // once API-specified stack-sizes are supported
-            stackSize = 2048;
-        }
+        // Link shaders just to get the stack sizes (very bad)
+        CComPtr<IDxcBlob> pCollectionBlob;
+        std::vector<DxcShaderInfo> shaderInfo;
+        m_DxilShaderPatcher.LinkCollection(stateObjectCollection.m_maxAttributeSizeInBytes, librariesInfo, exportNames, shaderInfo, &pCollectionBlob);
 
-        m_DxilShaderPatcher.LinkShaders(stackSize, librariesInfo, exportNames, stateIdentifiers, &pLinkedBlob);
-
-        for (size_t i = 0; i < exportNames.size(); ++i)
+        UINT traceRayStackSize = shaderInfo[exportNames.size() - 1].StackSize;
+        for (size_t i = 0; i < exportNames.size() - 1; ++i)
         {
-            m_ExportNameToShaderIdentifier[exportNames[i]] = { stateIdentifiers[i], 0 };
+            auto &shader = shaderInfo[i];
+            bool isRaygen = shader.Type == ShaderType::Raygen;
+            UINT shaderStackSize = shader.StackSize;
+            if (isRaygen)
+            {
+                m_largestRayGenStackSize = std::max(shaderStackSize, m_largestRayGenStackSize);
+            }
+            else if (shader.Type == ShaderType::Miss)
+            {
+                shaderStackSize += traceRayStackSize;
+                m_largestNonRayGenStackSize = std::max(shaderStackSize, m_largestNonRayGenStackSize);
+            }
+
+            m_ExportNameToShaderData[exportNames[i]] = { {shader.Identifier, 0}, shaderStackSize };
         }
 
         for (auto &hitGroupMapEntry : stateObjectCollection.m_hitGroups)
@@ -173,10 +186,17 @@ namespace FallbackLayer
             shaderId.StateId = GetStateIdentfier(closestHitName);
             shaderId.AnyHitId = GetStateIdentfier(anyHitName);
             shaderId.IntersectionShaderId = GetStateIdentfier(intersectionName);
+            UINT shaderStackSize = (UINT)std::max(std::max(
+                GetShaderStackSize(closestHitName), GetShaderStackSize(anyHitName)), GetShaderStackSize(intersectionName));
 
+            m_largestNonRayGenStackSize = std::max(shaderStackSize + traceRayStackSize, m_largestNonRayGenStackSize);
             auto hitGroupName = hitGroupMapEntry.first;
-            m_ExportNameToShaderIdentifier[hitGroupName] = shaderId;
+            m_ExportNameToShaderData[hitGroupName] = { shaderId, shaderStackSize };
         }
+
+        UINT stackSize = stateObjectCollection.m_config.MaxTraceRecursionDepth * m_largestNonRayGenStackSize + m_largestRayGenStackSize;
+        CComPtr<IDxcBlob> pLinkedBlob;
+        m_DxilShaderPatcher.LinkStateObject(stateObjectCollection.m_maxAttributeSizeInBytes, stackSize, pCollectionBlob, exportNames, shaderInfo, &pLinkedBlob);
 
         CompilePSO(
             pDevice, 
@@ -197,15 +217,15 @@ namespace FallbackLayer
 
     ShaderIdentifier *UberShaderRaytracingProgram::GetShaderIdentifier(LPCWSTR pExportName)
     {
-        auto pEntry = m_ExportNameToShaderIdentifier.find(pExportName);
-        if (pEntry == m_ExportNameToShaderIdentifier.end())
+        auto pEntry = m_ExportNameToShaderData.find(pExportName);
+        if (pEntry == m_ExportNameToShaderData.end())
         {
             return nullptr;
         }
         else
         {
             // Handing out this pointer is safe because the map is read-only at this point
-            return &pEntry->second;
+            return &pEntry->second.stateIdentifier;
         }
     }
 

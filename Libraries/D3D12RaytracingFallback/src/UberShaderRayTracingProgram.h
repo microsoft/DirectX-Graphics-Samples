@@ -25,6 +25,7 @@ namespace FallbackLayer
             const D3D12_FALLBACK_DISPATCH_RAYS_DESC &desc);
 
         virtual ShaderIdentifier *GetShaderIdentifier(LPCWSTR pExportName);
+        virtual UINT64 GetShaderStackSize(LPCWSTR pExportName);
 
         virtual void SetPredispatchCallback(std::function<void(ID3D12GraphicsCommandList *, UINT)> callback)
         {
@@ -35,9 +36,19 @@ namespace FallbackLayer
         StateIdentifier GetStateIdentfier(LPCWSTR pExportName);
 
         DxilShaderPatcher &m_DxilShaderPatcher;
+        struct ShaderData
+        {
+          ShaderIdentifier stateIdentifier;
+          UINT stackSize;
+        };
 
-        std::unordered_map<std::wstring, ShaderIdentifier> m_ExportNameToShaderIdentifier;
+        ShaderData *GetShaderData(LPCWSTR pExportName);
+
+        std::unordered_map<std::wstring, ShaderData> m_ExportNameToShaderData;
         CComPtr<ID3D12PipelineState> m_pRayTracePSO;
         UINT m_patchRootSignatureParameterStart;
+
+        UINT m_largestNonRayGenStackSize = 0;
+        UINT m_largestRayGenStackSize = 0;
     };
 }

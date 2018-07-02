@@ -12,7 +12,7 @@ This path is used when the Fallback Layer detects that the OS + GPU have support
 This path is used when the Fallback Layer detects the OS + GPU do *not* support the DirectX Raytracing API. Instead, it will use the DirectCompute API to emulate Raytracing capabilities. It is expected that this path with be slower than the DXR API path due to lack of fixed-function/driver-optimizations.
 
 ## Fallback Layer Integration
-For use in a project outside of the samples, the Fallback Layer is a stand-alone static lib in FallbackLayer/(debug|release)/FallbackLayer.lib that can be compiled into other DX projects. In addition, some Fallback Layer logic exists in the Dxil Compiler, and so projects should also always use the DxCompiler.dll bundles with the Fallback Layer.
+For use in a project outside of the samples, the Fallback Layer is a stand-alone static lib in FallbackLayer/(debug|release)/FallbackLayer.lib that can be compiled into other DX projects. In addition, some Fallback Layer logic exists in the Dxil Compiler Repo, and so projects should also always use the DxrFallbackCompiler.dll bundled with the Fallback Layer.
 
 ## Fallback Layer Interface differences
 This is an outline of the major concepts that differ from DXR.
@@ -188,8 +188,8 @@ All raytracing shaders are expected to be contained within a single DXIL library
 * #### No Export Renames
 Export renames for state objects are not supported
 
-* #### D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS for update/compact are ignored
-Updating Acceleration Structures is implemented as a full rebuild of the Acceleration Structure and does not offer any performance benefit.
+* #### D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS for compaction are ignored
+Both D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION and D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_MINIMIZE_MEMORY are ignored by the Fallback Layer
 
 * #### D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_COMPACT is ignored
 
@@ -197,15 +197,15 @@ Compacting Acceleration Structures is treated as a normal copy and will not redu
 
 * #### No Support for Subobjects Specified in HLSL
 
-* #### Hard-coded Pipeline-state stack size
-The stack size passed by `SetPipelineStackSize` is ignored and uses a hard-coded stack size.
+* #### App-provided Pipeline-state stack size
+The stack size passed by `SetPipelineStackSize` is ignored and the Fallback instead uses a worst-case calculated stack size based on the max recursion count provided in the state object
 
 * #### Only one AccelerationStructure can be bound per call to DispatchRays()
 
 * #### Use of the Shader Record is thrown off when using an empty ray payload
 
-* #### D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE  is ignored
-As a result, the `RAY_FLAG_CULL_OPAQUE`/`RAY_FLAG_CULL_NON_OPAQUE` flags will have no effect either        
+* #### D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE doesn't prevent Any-Hit invocation from getting called on geometry using Intersection Shaders
+Note: On regular triangle geometry, all opaque/non-opaque flags should still work as expected
 
 * #### Intersection Shader doesn't respect D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE/D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE
 The invocation of an AnyHit shader after a ReportHit() call from an Intersection shader will not correctly respond based on the use of the instance flags
@@ -247,7 +247,6 @@ Initial development is expected to focus on some of the major functional gaps ou
 There is also a significant opportunity left for performance. As of this release, little time has been afforded for performance, and it's expected that optimizations here could greatly multiply performance. Some examples of performance work are listed below. 
 
 Performance opportunities:
-* Treelet re-ordering 
 * Optimize for NO_DUPLICATE_ANY_HIT  (Triangle spatial splitting)
 * Compressed-wide BVH nodes
 * Use ExecuteIndirect with *simple* StateObjects 
@@ -262,10 +261,6 @@ Functional work includes resolving gaps already laid out in *Known Issues & Limi
 ### Performance work:
 #### Add Triangle Splitting
 Implement triangle splitting for better handling of large-thin triangles that sabotage the use of AABBs: [reference](http://www.nvidia.com/docs/IO/77714/sbvh.pdf)
-
-
-#### AABB refitting (support for quick Acceleration Structure updates)
-Meshes that are being animated every frame but have only small, localized changes do not require that a whole new Acceleration Structure be built from scratch, and can request the Acceleration Structure only be updated. The Fallback does not support this path, but a fast path could be added where the BVH hierarchy is not rebuilt, and only the corresponding AABBs for each shifted triangle are updated.
 
 #### Multiple triangles per leaf node
 Currently there is only ever 1 triangle per leaf node. In some cases, the cost of traversing each leaf's individual bounding box may outweigh the cost of simply having an encompassing bounding box that contains a list of many triangles. A Surface Area Heuristic-style check should be used to determine when to combine triangles
