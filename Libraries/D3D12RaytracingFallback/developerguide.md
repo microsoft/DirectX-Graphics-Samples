@@ -238,7 +238,7 @@ struct Primitive
 ```
 
 Here's an example of a vertex buffer input in Visual Studio and then a corresponding view in PIX, with the first triangle primitive highlighted in red.
-![D3D12 Raytracing Simple Lighting GUI](data/FallbackLayerASBuildPrimitiveBuffer.png)
+![Primitive buffer in PIX Pipeline view](Data/FallbackLayerASBuildPrimitiveBuffer.png)
 
 
 ## Roadmap
