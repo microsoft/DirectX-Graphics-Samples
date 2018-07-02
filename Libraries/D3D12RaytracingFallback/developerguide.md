@@ -211,9 +211,34 @@ As a result, the `RAY_FLAG_CULL_OPAQUE`/`RAY_FLAG_CULL_NON_OPAQUE` flags will ha
 The invocation of an AnyHit shader after a ReportHit() call from an Intersection shader will not correctly respond based on the use of the instance flags
  
 ## Debugging & Tooling
-The Fallback Layer natively works with PIX. However, PIX does not have support for using ray tracing debugging capabilities with the Fallback and will instead show all operations as the underlying compute shader dispatches. 
+The Fallback Layer natively works with PIX. However, PIX does not have support for using ray tracing debugging capabilities with the Fallback and will instead show all operations as the underlying compute shader dispatches. Debugging more advanced problems will require a more in-depth knowledge of how the Fallback works. This section include guidelines on how to go about investigating different problem areas.
 
 When using the debug version of the Fallback Layer library, the Fallback layer has limited validation that will catch unsupported cases and output the cause of failure to the debugger. 
+
+### Debugging vertex input to Acceleration structure build
+First, make sure that an AS build is part of the frame when you collect a PIX capture. Then look at a first Dispatch call corresponding to the AS build and see the *PrimitiveBuffer* UAV with the passed in vertex data in PIX's Pipeline view. The format of the buffer corresponds to the *Primitive* object defined in [RayTracingHlslCompat.h](src/RayTracingHlslCompat.h) which is {PrimitiveType + primitive data} (see below). For a triangle primitive that is going to be {TRIANGLE_TYPE, three XYZ vertices}. Note TRIANGLE_TYPE has a value of 1 from the define.
+
+```c
+#define TRIANGLE_TYPE 0x1
+#define PROCEDURAL_PRIMITIVE_TYPE 0x2
+struct Primitive
+{
+    uint PrimitiveType;
+#ifdef HLSL
+    uint4 data0;
+    uint4 data1;
+    uint data2;
+#else
+    union
+    {
+        Triangle triangle;
+        AABB aabb;
+    };
+#endif
+```
+
+Here's an example of a vertex buffer input in Visual Studio and then a corresponding view in PIX, with the first triangle primitive highlighted in red.
+![D3D12 Raytracing Simple Lighting GUI](data/FallbackLayerASBuildPrimitiveBuffer.png)
 
 
 ## Roadmap
