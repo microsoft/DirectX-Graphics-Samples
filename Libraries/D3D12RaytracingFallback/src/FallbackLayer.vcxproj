@@ -335,6 +335,7 @@ PrebuildCheck.bat</Command>
     <None Include="..\contributing.md" />
     <None Include="..\developerguide.md" />
     <None Include="..\readme.md" />
+    <None Include="CalculateMortonCodes.hlsli" />
     <None Include="DebugLog.hlsli" />
     <None Include="packages.config" />
     <None Include="TopLevelLoadAABBs.hlsli">

@@ -10,19 +10,12 @@
 //*********************************************************
 #define HLSL
 #include "CalculateMortonCodesBindings.h"
-RWByteAddressBuffer InputBuffer : UAV_REGISTER(MortonCodeCalculatorInputBufferRegister);
 
-BoundingBox ReadBottomLevelBoundingBox(uint bottomLevelIndex)
-{
-    uint address = bottomLevelIndex * SizeOfAABBNode;
-    uint4 dataA = InputBuffer.Load4(address);
-    uint4 dataB = InputBuffer.Load4(address + 16);
-
-    uint2 unusedFlags;
-    return RawDataToBoundingBox(dataA, dataB, unusedFlags);
-}
+RWStructuredBuffer<AABBNodeSibling> InputBuffer : UAV_REGISTER(MortonCodeCalculatorInputBufferRegister);
 
 float3 GetCentroid(uint elementIndex)
 {
-    return ReadBottomLevelBoundingBox(elementIndex).center;
+	return float3(InputBuffer[elementIndex].center);
 }
+
+#include "CalculateMortonCodes.hlsli"

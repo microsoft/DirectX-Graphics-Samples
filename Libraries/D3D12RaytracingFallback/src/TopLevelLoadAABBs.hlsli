@@ -66,15 +66,20 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     uint outputIndex = GetOutputIndex(instanceIndex);
 
-    uint totalSizeOfAABBNodes = Constants.NumberOfElements * SizeOfAABBNode;
+    uint totalSizeOfAABBNodes = GetNumAABBNodes(Constants.NumberOfElements) * SizeOfAABBNode;
+
     const uint offsetToLeafNodeMetadata = totalSizeOfAABBNodes;
 
     RaytracingInstanceDesc instanceDesc = GetInstanceDesc(instanceIndex);
 
     RWByteAddressBufferPointer bottomLevelByteAddressPointer = CreateRWByteAddressBufferPointerFromGpuVA(instanceDesc.AccelerationStructure);
 
-    int2 unusedFlag;
-    AABB box = BoundingBoxToAABB(BVHReadBoundingBox(bottomLevelByteAddressPointer, 0, unusedFlag));
+    uint2 unusedInfo;
+    BoundingBox leftRootBox = GetLeftBoxFromBVH(bottomLevelByteAddressPointer, 0, unusedInfo);
+    BoundingBox rightRootBox = GetRightBoxFromBVH(bottomLevelByteAddressPointer, 0, unusedInfo);
+    
+    AABB box = GetAABBFromChildBoxes(leftRootBox, rightRootBox);
+
     AffineMatrix ObjectToWorld = CreateMatrix(instanceDesc.Transform);
 
     // Convert the instance transform from ObjectToWorld->WorldToObject which is all we'll need for BVH build/Raytracing
@@ -82,12 +87,20 @@ void main(uint3 DTid : SV_DispatchThreadID)
     instanceDesc.Transform[0] = WorldToObject[0];
     instanceDesc.Transform[1] = WorldToObject[1];
     instanceDesc.Transform[2] = WorldToObject[2];
-   
+    
     // The AABBs for all top level nodes needs to be in world-space
     AABB transformedBox = TransformAABB(box, ObjectToWorld);
 
-    int leafFlag = IsLeafFlag | instanceIndex;
-    WriteBoxToBuffer(outputBVH, 0, outputIndex, AABBtoBoundingBox(transformedBox), leafFlag);
+    uint2 boxInfo;
+    boxInfo.x = instanceIndex;
+    boxInfo.y = IsLeafFlag;
+    
+    WriteBoxToBuffer(
+        outputBVH, 
+        outputIndex * SizeOfAABBNodeSibling, 
+        AABBtoBoundingBox(transformedBox), 
+        boxInfo
+    );
     
     BVHMetadata metadata;
     metadata.instanceDesc = instanceDesc;

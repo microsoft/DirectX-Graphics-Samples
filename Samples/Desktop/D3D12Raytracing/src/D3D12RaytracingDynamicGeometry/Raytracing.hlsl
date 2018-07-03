@@ -169,6 +169,11 @@ void MyRaygenShader()
     UINT currentRecursionDepth = 0;
     float4 color = TraceRadianceRay(ray, currentRecursionDepth);
 
+    
+#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
+    return;
+#endif
+    
     // Write the raytraced color to the output texture.
     g_renderTarget[DispatchRaysIndex().xy] = color;
 }

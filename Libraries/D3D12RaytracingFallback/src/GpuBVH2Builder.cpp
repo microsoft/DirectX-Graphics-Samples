@@ -75,10 +75,9 @@ namespace FallbackLayer
         {
             case Level::Top:
             {
-                UINT offsetFromElementsToMetadata = GetOffsetFromLeafNodesToBottomLevelMetadata(numElements);
-                buffers.scratchMetadataBuffer = buffers.scratchElementBuffer + offsetFromElementsToMetadata;
-                buffers.outputElementBuffer = bvhGpuVA + GetOffsetToLeafNodeAABBs(numElements);
-                buffers.outputMetadataBuffer = buffers.outputElementBuffer + offsetFromElementsToMetadata;
+                buffers.scratchMetadataBuffer = buffers.scratchElementBuffer + GetNumAABBNodes(numElements) * SizeOfAABBNode;
+                buffers.outputElementBuffer = bvhGpuVA + sizeof(BVHOffsets); 
+                buffers.outputMetadataBuffer = bvhGpuVA + GetOffsetToBVHMetadata(numElements);
                 buffers.outputSortCacheBuffer = bvhGpuVA + GetOffsetToBVHSortedIndices(numElements);
                 buffers.outputAABBParentBuffer = buffers.outputSortCacheBuffer + GetOffsetFromSortedIndicesToAABBParents(numElements);
             }
@@ -361,7 +360,7 @@ namespace FallbackLayer
 
         const UINT sizePerElement = level == Level::Bottom ?
             sizeof(Primitive) + sizeof(PrimitiveMetaData) :
-            (sizeof(AABBNode) + sizeof(BVHMetadata));
+            sizeof(AABBNode) + sizeof(BVHMetadata);
         scratchMemoryPartitions.OffsetToElements = totalSize;
         totalSize += ALIGN_GPU_VA_OFFSET(sizePerElement * numPrimitives);
 
@@ -417,6 +416,8 @@ namespace FallbackLayer
         UINT NumElements = pDesc->NumDescs;
 
         UINT numLeaves = 0;
+        UINT numInternalNodes = 0;
+        UINT numAABBNodes = 0;
         UINT totalNumNodes = 0;
         Level level = Level::Bottom;
 
@@ -426,18 +427,22 @@ namespace FallbackLayer
         {
             level = Level::Bottom;
             numLeaves = GetTotalPrimitiveCount(*pDesc);
-            totalNumNodes = numLeaves + GetNumberOfInternalNodes(numLeaves);
+            numInternalNodes = GetNumberOfInternalNodes(numLeaves);
+            numAABBNodes = GetNumAABBNodes(numLeaves);
+            totalNumNodes = numInternalNodes + numLeaves;
 
-            pInfo->ResultDataMaxSizeInBytes = sizeof(BVHOffsets) + numLeaves * (sizeof(Primitive) + sizeof(PrimitiveMetaData)) + totalNumNodes * sizeof(AABBNode);
+            pInfo->ResultDataMaxSizeInBytes = sizeof(BVHOffsets) + numAABBNodes * sizeof(AABBNode) + numLeaves * (sizeof(Primitive) + sizeof(PrimitiveMetaData));
         }
         break;
         case D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL:
         {
             level = Level::Top;
             numLeaves = NumElements;
-            totalNumNodes = numLeaves + GetNumberOfInternalNodes(numLeaves);
+            numInternalNodes = GetNumberOfInternalNodes(numLeaves);
+            numAABBNodes = GetNumAABBNodes(numLeaves);
+            totalNumNodes = numInternalNodes + numLeaves;
 
-            pInfo->ResultDataMaxSizeInBytes = sizeof(BVHOffsets) + sizeof(AABBNode) * totalNumNodes + sizeof(BVHMetadata) * numLeaves;
+            pInfo->ResultDataMaxSizeInBytes = sizeof(BVHOffsets) + numAABBNodes * sizeof(AABBNode) + numLeaves * sizeof(BVHMetadata);
         }
         break;
         default:

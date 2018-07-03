@@ -57,7 +57,7 @@ void FormTreelet(in uint groupThreadId)
             {
                 uint treeletNodeIndex = treeletToReorder[i];
                 // Leaf nodes can't be split so skip these
-                if (!IsLeaf(treeletNodeIndex))
+                if (!IsLeafIndex(treeletNodeIndex))
                 {
                     float surfaceArea = ComputeBoxSurfaceArea(AABBBuffer[treeletNodeIndex]);
                     if (surfaceArea > largestSurfaceArea)

@@ -451,6 +451,9 @@
     <None Include="..\contributing.md" />
     <None Include="..\developerguide.md" />
     <None Include="..\readme.md" />
+    <None Include="CalculateMortonCodes.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">

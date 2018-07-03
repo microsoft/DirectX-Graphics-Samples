@@ -17,46 +17,46 @@
 void main(uint3 DTid : SV_DispatchThreadID)
 {
     uint instanceIndex = DTid.x;
-    bool IsEmptyAccelerationStructure = Constants.NumberOfElements == 0;
-    if (instanceIndex >= Constants.NumberOfElements ||
+    const uint NumberOfElements = Constants.NumberOfElements;
+    bool IsEmptyAccelerationStructure = NumberOfElements == 0;
+    if (instanceIndex >= NumberOfElements ||
         (IsEmptyAccelerationStructure && DTid.x != 0)) // Special case for constructing empty AS
     {
         return;
     }
 
-    const uint NumberOfInternalNodes = GetNumInternalNodes(Constants.NumberOfElements);
-    const uint NumberOfAABBs = NumberOfInternalNodes + Constants.NumberOfElements;
-    const uint offsetToBoxes = SizeOfBVHOffsets;
-    const uint offsetToLeafNodes = GetOffsetToLeafNodeAABBs(Constants.NumberOfElements);
-    const uint offsetToLeafNodeMetadata = offsetToLeafNodes + GetOffsetFromLeafNodesToBottomLevelMetadata(Constants.NumberOfElements);
-    const uint totalSize = offsetToLeafNodeMetadata + Constants.NumberOfElements * SizeOfBVHMetadata;
+    const uint OffsetToAABBNodes = SizeOfBVHOffsets;
+    const uint NumberOfAABBs = GetNumAABBNodes(NumberOfElements);
+    const uint OffsetToBVHMetadata = OffsetToAABBNodes + NumberOfAABBs * SizeOfAABBNode;
+    const uint TotalSize = OffsetToBVHMetadata + NumberOfElements * SizeOfBVHMetadata;
 
     if (DTid.x == 0)
     {
-        outputBVH.Store(OffsetToBoxesOffset, offsetToBoxes);
-        outputBVH.Store(OffsetToLeafNodeMetaDataOffset, offsetToLeafNodeMetadata);
-        outputBVH.Store(OffsetToTotalSize, totalSize);
+        outputBVH.Store(OffsetToBoxesOffset, OffsetToAABBNodes);
+        outputBVH.Store(OffsetToLeafNodeMetaDataOffset, OffsetToBVHMetadata);
+        outputBVH.Store(OffsetToTotalSize, TotalSize);
 
         if (IsEmptyAccelerationStructure)
         {
-            BoundingBox boxData;
-            boxData.center = 0;
-            boxData.halfDim = 0;
-            uint2 flags = 0;
-            WriteBoxToBuffer(outputBVH, offsetToBoxes, 0, boxData, flags);
+            uint2 dummyFlags;
+            BoundingBox dummyBox = CreateDummyBox(dummyFlags); 
+            dummyBox.center = 0; dummyBox.halfDim = 0;
+            WriteLeftBoxToBuffer(outputBVH, OffsetToAABBNodes, 0, dummyBox, dummyFlags);
+            WriteRightBoxToBuffer(outputBVH, OffsetToAABBNodes, 0, dummyBox, dummyFlags);
             return;
         }
     }
 
     // Initialize argument for the AABB building phase, easier than uploading them
     // but probably not the best place for this logic
+    const uint TotalNumNodes = GetNumInternalNodes(NumberOfElements) + NumberOfElements;
     {
-        uint nodeIndex = NumberOfAABBs - DTid.x - 1;
+        uint nodeIndex = TotalNumNodes - DTid.x - 1;
         uint threadScratchAddress = DTid.x * SizeOfUINT32;
         scratchMemory.Store(threadScratchAddress, nodeIndex);
 
         // Initialize count buffer to 0
-        if (DTid.x < NumberOfInternalNodes)
+        if (DTid.x < NumberOfAABBs)
         {
             childNodesProcessedCounter.Store(threadScratchAddress, 0);
         }

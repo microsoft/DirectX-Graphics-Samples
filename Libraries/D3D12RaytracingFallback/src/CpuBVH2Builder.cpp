@@ -8,6 +8,8 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
+// DEPRECATED
+/*
 #include "pch.h"
 
 namespace FallbackLayer
@@ -697,3 +699,4 @@ void BuildRaytracingAccelerationStructureOnCpu(
     }
     memcpy(outputData + offsets.offsetToPrimitiveMetaData, bvh.m_metadata.data(), sizeofMetadata);
 }
+*/

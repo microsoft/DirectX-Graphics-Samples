@@ -70,6 +70,9 @@ typedef UINT16 Index;
 // as drivers may apply optimization strategies for low recursion depths.
 #define MAX_RAY_RECURSION_DEPTH 3    // ~ primary rays + reflections + shadow rays from reflected geometry.
 
+// Set to 1 to visualize acceleration structure. This needs to be enabled in Fallback Layer as well.
+#define ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION 0
+
 // ToDo:
 // Options:
 // - shading - simple/complex

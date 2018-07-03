@@ -3,7 +3,7 @@
 #endif
 
 // Set to 0 to visualize acceleration structure. This needs to be enabled in Fallback Layer as well.
-#define ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION 0
+#define ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION 1
 
 #ifdef HLSL
 struct RayPayload

@@ -15,7 +15,7 @@
 RWByteAddressBuffer InputBuffer : UAV_REGISTER(SceneAABBCalculatorInputBufferRegister);
 AABB ReadBottomLevelAABB(uint bottomLevelIndex)
 {
-    uint address = bottomLevelIndex * SizeOfAABBNode;
+    uint address = bottomLevelIndex * SizeOfAABBNodeSibling;
     uint4 dataA = InputBuffer.Load4(address);
     uint4 dataB = InputBuffer.Load4(address + 16);
 
