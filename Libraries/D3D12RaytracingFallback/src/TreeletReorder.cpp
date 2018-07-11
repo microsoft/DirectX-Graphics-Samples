@@ -115,6 +115,6 @@ namespace FallbackLayer
 
     UINT TreeletReorder::RequiredSizeForBaseTreeletBuffers(UINT numElements)
     {
-        return ((numElements / FullTreeletSize) + 1) * sizeof(UINT);
+        return (DivideAndRoundUp<UINT>(numElements, FullTreeletSize) + 1) * sizeof(UINT);
     }
 }
