@@ -52,7 +52,8 @@ bool IsInRange(in float val, in float min, in float max)
     return (val >= min && val <= max);
 }
 
-// Load three 16 bit indices from a byte addressed buffer.
+// Load three 16 bit indices.
+static
 uint3 Load3x16BitIndices(uint offsetBytes, ByteAddressBuffer Indices)
 {
     uint3 indices;
