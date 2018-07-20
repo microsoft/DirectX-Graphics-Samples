@@ -50,7 +50,7 @@ namespace FallbackLayer
 
         InputConstants constants;
         constants.NumberOfElements = numElements;
-        constants.MinTrianglesPerTreelet = 7;
+        constants.MinTrianglesPerTreelet = FullTreeletSize;
 
         pCommandList->SetComputeRootSignature(m_pRootSignature);
         pCommandList->SetComputeRootUnorderedAccessView(HierarchyBufferSlot, hierarchyBuffer);
@@ -90,7 +90,7 @@ namespace FallbackLayer
             auto uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
             
             UINT numGroupsForElements = DivideAndRoundUp<UINT>(numElements, THREAD_GROUP_1D_WIDTH);
-            UINT maxNumTreelets = (UINT) std::max(numElements / constants.MinTrianglesPerTreelet, 1u);
+            UINT maxNumTreelets = MaxNumTreelets(numElements, constants.MinTrianglesPerTreelet);
 
             pCommandList->SetPipelineState(m_pClearBuffersPSO);
             pCommandList->Dispatch(numGroupsForElements, 1, 1);
@@ -113,8 +113,13 @@ namespace FallbackLayer
         return (numElements + (numElements - 1)) * sizeof(AABB);
     }
 
+    UINT TreeletReorder::MaxNumTreelets(UINT numElements, UINT minElementsPerTreelet)
+    {
+        return (UINT) std::max(numElements / minElementsPerTreelet, 1u);
+    }
+
     UINT TreeletReorder::RequiredSizeForBaseTreeletBuffers(UINT numElements)
     {
-        return (DivideAndRoundUp<UINT>(numElements, FullTreeletSize) + 1) * sizeof(UINT);
+        return (MaxNumTreelets(numElements, FullTreeletSize) + 1) * sizeof(UINT);
     }
 }
