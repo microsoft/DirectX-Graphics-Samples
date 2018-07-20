@@ -266,6 +266,7 @@ void RayTriangleIntersect(
 }
 
 #define MULTIPLE_LEAVES_PER_NODE 0
+static
 bool TestLeafNodeIntersections(
     RWByteAddressBufferPointer accelStruct,
     uint2 flags,

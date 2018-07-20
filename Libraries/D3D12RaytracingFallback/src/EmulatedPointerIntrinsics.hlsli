@@ -11,6 +11,7 @@
 #pragma once
 #include "EmulatedPointer.hlsli"
 
+static
 RWByteAddressBuffer PointerGetBuffer(GpuVA address)
 {
     return DescriptorHeapBufferTable[NonUniformResourceIndex(address[EmulatedPointerDescriptorHeapIndex])];
@@ -26,6 +27,7 @@ uint4 Load4(GpuVA address)
     return PointerGetBuffer(address).Load4(PointerGetBufferStartOffset(address));
 }
 
+static
 RWByteAddressBufferPointer CreateRWByteAddressBufferPointerFromGpuVA(GpuVA address)
 {
     return CreateRWByteAddressBufferPointer(PointerGetBuffer(address), PointerGetBufferStartOffset(address));

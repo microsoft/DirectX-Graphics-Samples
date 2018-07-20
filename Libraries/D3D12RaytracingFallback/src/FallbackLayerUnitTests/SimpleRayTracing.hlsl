@@ -28,7 +28,7 @@ struct MyPayload
 [shader("raygeneration")]
 void RayGen()
 {
-    float2 lerpValues = (float2(DispatchRaysIndex()) + 0.5) / DispatchRaysDimensions();
+    float2 lerpValues = (DispatchRaysIndex().xy + 0.5) / DispatchRaysDimensions().xy;
 
     float3 rayDir = float3(0.0, 0.0, 1);
     float3 origin = float3(
@@ -47,11 +47,11 @@ void RayGen()
 [shader("miss")]
 void Miss(inout MyPayload payload)
 {
-    RenderTarget[DispatchRaysIndex()] = float4(1, 0, 0, 1);
+    RenderTarget[DispatchRaysIndex().xy] = float4(1, 0, 0, 1);
 }
 
 [shader("closesthit")]
 void Hit(inout MyPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
-    RenderTarget[DispatchRaysIndex()] = float4(1, 0, 1, 1);
+    RenderTarget[DispatchRaysIndex().xy] = float4(1, 0, 1, 1);
 }
