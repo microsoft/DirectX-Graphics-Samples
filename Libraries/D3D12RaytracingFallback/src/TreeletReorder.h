@@ -46,6 +46,8 @@ namespace FallbackLayer
             ConstantsSlot,
             NumParameters
         };
+
+        static UINT MaxNumTreelets(UINT numElements, UINT minElementsPerTreelet);
     };
 }
 
