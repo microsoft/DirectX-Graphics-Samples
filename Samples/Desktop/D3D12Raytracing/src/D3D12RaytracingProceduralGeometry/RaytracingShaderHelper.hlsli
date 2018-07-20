@@ -102,7 +102,7 @@ float3 HitAttribute(float3 vertexAttribute[3], float2 barycentrics)
 inline Ray GenerateCameraRay(uint2 index, in float3 cameraPosition, in float4x4 projectionToWorld)
 {
     float2 xy = index + 0.5f; // center in the middle of the pixel.
-    float2 screenPos = xy / DispatchRaysDimensions() * 2.0 - 1.0;
+    float2 screenPos = xy / DispatchRaysDimensions().xy * 2.0 - 1.0;
 
     // Invert Y for DirectX-style coordinates.
     screenPos.y = -screenPos.y;
@@ -147,8 +147,8 @@ float2 TexCoords(in float3 position)
 void CalculateRayDifferentials(out float2 ddx_uv, out float2 ddy_uv, in float2 uv, in float3 hitPosition, in float3 surfaceNormal, in float3 cameraPosition, in float4x4 projectionToWorld)
 {
     // Compute ray differentials by intersecting the tangent plane to the  surface.
-    Ray ddx = GenerateCameraRay(DispatchRaysIndex() + uint2(1, 0), cameraPosition, projectionToWorld);
-    Ray ddy = GenerateCameraRay(DispatchRaysIndex() + uint2(0, 1), cameraPosition, projectionToWorld);
+    Ray ddx = GenerateCameraRay(DispatchRaysIndex().xy + uint2(1, 0), cameraPosition, projectionToWorld);
+    Ray ddy = GenerateCameraRay(DispatchRaysIndex().xy + uint2(0, 1), cameraPosition, projectionToWorld);
 
     // Compute ray differentials.
     float3 ddx_pos = ddx.origin - ddx.direction * dot(ddx.origin - hitPosition, surfaceNormal) / dot(ddx.direction, surfaceNormal);
