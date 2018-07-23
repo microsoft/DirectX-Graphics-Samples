@@ -342,6 +342,7 @@ namespace FallbackLayer
 
         if (sceneType == SceneType::Triangles) 
         {
+#if ENABLE_TREELET_REORDERING
             m_treeletReorder.Optimize(
                 pCommandList,
                 numElements,
@@ -351,7 +352,8 @@ namespace FallbackLayer
                 outputElementBuffer,
                 baseTreeletsCountBuffer,
                 baseTreeletsIndexBuffer,
-                pDesc->Flags);
+                pDesc->Inputs.Flags);
+#endif
         }
     }
 

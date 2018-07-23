@@ -44,8 +44,10 @@ void FormTreelet(in uint groupThreadId)
         treeletToReorder[0] = hierarchyBuffer[nodeIndex].LeftChildIndex;
         treeletToReorder[1] = hierarchyBuffer[nodeIndex].RightChildIndex;
 
+#if USE_EXPLICIT_UNROLL_IN_FORMTREELET
         [unroll]
-        for (uint treeletSize = 2; treeletSize < FullTreeletSize; treeletSize++)
+#endif
+	for (uint treeletSize = 2; treeletSize < FullTreeletSize; treeletSize++)
         {
             float largestSurfaceArea = 0.0;
             uint nodeIndexToTraverse = 0;
