@@ -1117,7 +1117,7 @@ void D3D12RaytracingMiniEngineSample::RenderObjects( GraphicsContext& gfxContext
             materialIdx = mesh.materialIndex;
             gfxContext.SetDynamicDescriptors(2, 0, 6, m_Model.GetSRVs(materialIdx) );
         }
-        uint32_t areNormalsNeeded = (rayTracingMode != RTM_REFLECTIONS) || m_pMaterialIsReflective[mesh.materialIndex];
+        uint32_t areNormalsNeeded = 1;// (rayTracingMode != RTM_REFLECTIONS) || m_pMaterialIsReflective[mesh.materialIndex];
         gfxContext.SetConstants(4, baseVertex, materialIdx);
         gfxContext.SetConstants(5, areNormalsNeeded);
 
@@ -1633,6 +1633,10 @@ void D3D12RaytracingMiniEngineSample::RenderUI(class GraphicsContext& gfxContext
 
 void D3D12RaytracingMiniEngineSample::Raytrace(class GraphicsContext& gfxContext)
 {
+    ScopedTimer _prof(L"Raytrace", gfxContext);
+
+    gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
     uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
 
     switch (rayTracingMode)
