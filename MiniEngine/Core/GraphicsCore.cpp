@@ -36,7 +36,7 @@
 #define CONDITIONALLY_ENABLE_HDR_OUTPUT 1
 
 // Uncomment this to enable experimental support for the new shader compiler, DXC.exe
-//#define DXIL
+#define DXIL
 
 #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     #include <agile.h>
