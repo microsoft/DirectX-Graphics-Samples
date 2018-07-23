@@ -18,7 +18,7 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
     payload.RayHitT = RayTCurrent();
     if (!payload.SkipShading)
     {
-        g_screenOutput[DispatchRaysIndex()] = float4(attr.barycentrics, 1, 1);
+        g_screenOutput[DispatchRaysIndex().xy] = float4(attr.barycentrics, 1, 1);
     }
 }
 

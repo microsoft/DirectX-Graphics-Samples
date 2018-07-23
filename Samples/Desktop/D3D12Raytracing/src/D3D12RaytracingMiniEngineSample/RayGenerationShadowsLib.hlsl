@@ -17,7 +17,7 @@ Texture2D<float>    depth    : register(t1);
 [shader("raygeneration")]
 void RayGen()
 {
-    uint2 DTid = DispatchRaysIndex();
+    uint2 DTid = DispatchRaysIndex().xy;
     float2 xy = DTid.xy + 0.5;
 
     // Screen position for the ray
@@ -48,11 +48,11 @@ void RayGen()
 
     if (payload.RayHitT < FLT_MAX)
     {
-        g_screenOutput[DispatchRaysIndex()] = float4(0, 0, 0, 1);
+        g_screenOutput[DispatchRaysIndex().xy] = float4(0, 0, 0, 1);
     }
     else
     {
-        g_screenOutput[DispatchRaysIndex()] = float4(1, 1, 1, 1);
+        g_screenOutput[DispatchRaysIndex().xy] = float4(1, 1, 1, 1);
     }
 }
 

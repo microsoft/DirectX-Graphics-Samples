@@ -79,7 +79,7 @@ float3 HitAttribute(float3 vertexAttribute[3], BuiltInTriangleIntersectionAttrib
 inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction)
 {
     float2 xy = index + 0.5f; // center in the middle of the pixel.
-    float2 screenPos = xy / DispatchRaysDimensions() * 2.0 - 1.0;
+    float2 screenPos = xy / DispatchRaysDimensions().xy * 2.0 - 1.0;
 
     // Invert Y for DirectX-style coordinates.
     screenPos.y = -screenPos.y;
@@ -125,7 +125,7 @@ void MyRaygenShader()
     TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
 
     // Write the raytraced color to the output texture.
-    RenderTarget[DispatchRaysIndex()] = payload.color;
+    RenderTarget[DispatchRaysIndex().xy] = payload.color;
 }
 
 [shader("closesthit")]
