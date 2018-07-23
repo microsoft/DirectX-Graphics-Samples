@@ -16,7 +16,7 @@ using namespace FallbackLayer;
 
 namespace FallbackLayerUnitTests
 {
-    const UINT FloatsPerMatrix = ARRAYSIZE(D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC::Transform);
+    const UINT FloatsPerMatrix = sizeof(D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC::Transform) / sizeof(float);
     bool IsFloatArrayEqual(float *pArray1, float *pArray2, unsigned int floatCount)
     {
         const float epsilon = 0.002f;
