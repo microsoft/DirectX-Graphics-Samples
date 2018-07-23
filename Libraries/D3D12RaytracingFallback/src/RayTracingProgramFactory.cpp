@@ -118,6 +118,7 @@ namespace FallbackLayer
         {
             IsUsingIntersection = true;
         }
+        m_maxAttributeSizeInBytes = (UINT)std::max(m_maxAttributeSizeInBytes, collection.m_maxAttributeSizeInBytes);
     }
 
 }

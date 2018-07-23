@@ -23,14 +23,17 @@ namespace FallbackLayer
             D3D12_GPU_VIRTUAL_ADDRESS triangleCountBuffer,
             D3D12_GPU_VIRTUAL_ADDRESS aabbBuffer,
             D3D12_GPU_VIRTUAL_ADDRESS inputElementBuffer,
-            D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap,
+            D3D12_GPU_VIRTUAL_ADDRESS baseTreeletsCountBuffer,
+            D3D12_GPU_VIRTUAL_ADDRESS baseTreeletsBuffer,
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlag);
 
         static UINT RequiredSizeForAABBBuffer(UINT numElements);
+        static UINT RequiredSizeForBaseTreeletBuffers(UINT numElements);
     private:
         CComPtr<ID3D12RootSignature> m_pRootSignature;
-        CComPtr<ID3D12PipelineState> m_pPSO;
-        CComPtr<ID3D12PipelineState> m_pClearBufferPSO;
+        CComPtr<ID3D12PipelineState> m_pClearBuffersPSO;
+        CComPtr<ID3D12PipelineState> m_pFindTreeletsPSO;
+        CComPtr<ID3D12PipelineState> m_pTreeletReorderPSO;
 
         enum RootParameterSlot
         {
@@ -38,10 +41,13 @@ namespace FallbackLayer
             TriangleCountBufferSlot,
             AABBBufferSlot,
             InputElementSlot,
+            BaseTreeletsCountBufferSlot,
+            BaseTreeletsIndexBufferSlot,
             ConstantsSlot,
-            GlobalDescriptorHeap,
             NumParameters
         };
+
+        static UINT MaxNumTreelets(UINT numElements, UINT minElementsPerTreelet);
     };
 }
 

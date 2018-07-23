@@ -87,11 +87,7 @@ namespace FallbackLayer
         virtual ~RaytracingStateObject() {}
 
         virtual void *STDMETHODCALLTYPE GetShaderIdentifier(LPCWSTR pExportName);
-        virtual UINT64 STDMETHODCALLTYPE GetShaderStackSize(_In_  LPCWSTR pExportName)
-        {
-            UNREFERENCED_PARAMETER(pExportName);
-            return 0;
-        }
+        virtual UINT64 STDMETHODCALLTYPE GetShaderStackSize(_In_  LPCWSTR pExportName);
 
         virtual UINT64 STDMETHODCALLTYPE GetPipelineStackSize(void)
         {

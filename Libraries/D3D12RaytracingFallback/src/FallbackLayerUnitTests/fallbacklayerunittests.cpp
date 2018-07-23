@@ -2175,9 +2175,6 @@ namespace FallbackLayerUnitTests
         void InitializeDxcComponents()
         {
             ThrowFailure(m_dxcSupport.Initialize());
-
-            ThrowFailure(m_dxcSupport.CreateInstance(CLSID_DxcLibrary, &m_pLibrary));
-            ThrowFailure(m_dxcSupport.CreateInstance(CLSID_DxcCompiler, &m_pCompiler));
         }
 
         void InitializeDescriptorHeaps()
@@ -2225,8 +2222,10 @@ namespace FallbackLayerUnitTests
         {
             m_shaderPatcher.PatchShaderBindingTables(pShaderBytecode, bytecodeLength, pShaderInfo, ppOutputBlob);
 
+            CComPtr<IDxcValidator> pValidator;
             CComPtr<IDxcOperationResult> pResult;
-            m_shaderPatcher.GetValidator().Validate(*ppOutputBlob, DxcValidatorFlags_Default, &pResult);
+            m_dxcSupport.CreateInstance(CLSID_DxcValidator, &pValidator);
+            pValidator->Validate(*ppOutputBlob, DxcValidatorFlags_Default, &pResult);
 
             HRESULT hr;
             AssertSucceeded(pResult->GetStatus(&hr));
@@ -2258,8 +2257,6 @@ namespace FallbackLayerUnitTests
         FallbackLayer::DxilShaderPatcher m_shaderPatcher;
 
         dxc::DxcDllSupport m_dxcSupport;
-        CComPtr<IDxcCompiler> m_pCompiler;
-        CComPtr<IDxcLibrary> m_pLibrary;
     };
 
 #include "CompiledShaders/SimpleRaytracing.h"
@@ -3017,6 +3014,10 @@ namespace FallbackLayerUnitTests
             CComPtr<ID3D12Resource> pNodeCountBuffer;
             AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &nodeCountBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pNodeCountBuffer)));
 
+            auto baseTreeletBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(TreeletReorder::RequiredSizeForBaseTreeletBuffers(numLeafNodes), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            CComPtr<ID3D12Resource> pBaseTreeletBuffer;
+            AssertSucceeded(d3d12Device.CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &baseTreeletBufferDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&pBaseTreeletBuffer)));
+
             treeletReorder.Optimize(
                 pCommandList,
                 numLeafNodes,
@@ -3024,7 +3025,8 @@ namespace FallbackLayerUnitTests
                 pNodeCountBuffer->GetGPUVirtualAddress(),
                 pAABBBuffer->GetGPUVirtualAddress(),
                 pTriangleBuffer->GetGPUVirtualAddress(),
-                {},
+                pBaseTreeletBuffer->GetGPUVirtualAddress(),
+                pBaseTreeletBuffer->GetGPUVirtualAddress() + sizeof(UINT),
                 flag);
 
             pCommandList->Close();

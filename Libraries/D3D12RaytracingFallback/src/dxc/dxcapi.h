@@ -1,13 +1,3 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// This code is licensed under the MIT License (MIT).
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                           //
@@ -320,29 +310,6 @@ IDxcVersionInfo : public IUnknown {
   virtual HRESULT STDMETHODCALLTYPE GetFlags(_Out_ UINT32 *pFlags) = 0;
 };
 
-struct __declspec(uuid("76bb3c85-006d-4b72-9e10-63cd97df57f0"))
-IDxcDxrFallbackCompiler : public IUnknown {
-
-  // If set to true then shaders not listed in pShaderNames in Compile() but 
-  // called by shaders in pShaderNames are added to the megakernel, otherwise
-  // these are consider errors.
-  virtual HRESULT STDMETHODCALLTYPE SetFindCalledShaders(bool val) = 0;
-
-  virtual HRESULT STDMETHODCALLTYPE SetDebugOutput(int val) = 0;
-
-  // Compiles the compute shader and produces a shader blob 
-  virtual HRESULT STDMETHODCALLTYPE Compile(
-    _In_ const LPCWSTR pEntryName,                          // Name of entry function
-    _In_count_(libCount) IDxcBlob **pLibs,                  // Array of libraries containing shaders
-    UINT32 libCount,                                        // Number of libraries containing shaders
-    _In_count_(shaderCount) const LPCWSTR *pShaderNames,    // Array of shader names to compile
-    _Out_ int* pShaderIdentifiers,                          // Array of generated shader identifiers
-    UINT32 shaderCount,                                     // Number of shaders to compile
-    UINT32 stackSizeInBytes,                                // Continuation stack size. Use 0 for default.
-    _COM_Outptr_ IDxcOperationResult **ppResult             // Compiler output status, buffer, and errors
-  ) = 0;
-};
-
 // {73e22d93-e6ce-47f3-b5bf-f0664f39c1b0}
 __declspec(selectany) extern const CLSID CLSID_DxcCompiler = {
   0x73e22d93,
@@ -413,13 +380,5 @@ __declspec(selectany) extern const GUID CLSID_DxcContainerBuilder = {
   0x411f,
   0x4574,  
   { 0xb4, 0xd0, 0x87, 0x41, 0xe2, 0x52, 0x40, 0xd2 }
-};
-
-// {76bb3c85-006d-4b72-9e10-63cd97df57f0}
-__declspec(selectany) extern const GUID CLSID_DxcDxrFallbackCompiler = {
-  0x76bb3c85,
-  0x006d,
-  0x4b72,  
-  { 0x9e, 0x10, 0x63, 0xcd, 0x97, 0xdf, 0x57, 0xf0 }
 };
 #endif

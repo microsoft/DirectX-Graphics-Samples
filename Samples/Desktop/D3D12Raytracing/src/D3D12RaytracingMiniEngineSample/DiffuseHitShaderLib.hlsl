@@ -259,7 +259,7 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
 
     float3 worldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
 
-    uint2 threadID = DispatchRaysIndex();
+    uint2 threadID = DispatchRaysIndex().xy;
     float3 ddxOrigin, ddxDir, ddyOrigin, ddyDir;
     GenerateCameraRay(uint2(threadID.x + 1, threadID.y), ddxOrigin, ddxDir);
     GenerateCameraRay(uint2(threadID.x, threadID.y + 1), ddyOrigin, ddyDir);
@@ -288,7 +288,7 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
         normal = normalize(mul(normal, tbn));
     }
     
-    float3 outputColor = AmbientColor * diffuseColor * texSSAO[DispatchRaysIndex()];
+    float3 outputColor = AmbientColor * diffuseColor * texSSAO[DispatchRaysIndex().xy];
 
     float shadow = 1.0;
     if (UseShadowRays)
@@ -328,8 +328,8 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
     // TODO: Should be passed in via material info
     if (IsReflection)
     {
-        outputColor = outputColor * 0.3 + g_screenOutput[DispatchRaysIndex()];
+        outputColor = outputColor * 0.3 + g_screenOutput[DispatchRaysIndex().xy];
     }
 
-    g_screenOutput[DispatchRaysIndex()] = float4(outputColor, 1);
+    g_screenOutput[DispatchRaysIndex().xy] = float4(outputColor, 1);
 }
