@@ -1449,13 +1449,13 @@ namespace FallbackLayerUnitTests
     {
         const auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-        d3d12device.CreateCommittedResource(
+        ThrowFailure(d3d12device.CreateCommittedResource(
             &uploadHeapProperties,
             D3D12_HEAP_FLAG_NONE,
             &bufferDesc,
             D3D12_RESOURCE_STATE_COMMON,
             nullptr,
-            IID_PPV_ARGS(ppResource));
+            IID_PPV_ARGS(ppResource)));
     }
 
 #include "CompiledShaders/SimpleRaygen.h"
