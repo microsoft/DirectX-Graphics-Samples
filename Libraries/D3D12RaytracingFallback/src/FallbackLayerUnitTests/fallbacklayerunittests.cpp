@@ -2090,6 +2090,20 @@ namespace FallbackLayerUnitTests
             localRSAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
             subObjects.push_back(localRSAssociation);
 
+            D3D12_STATE_SUBOBJECT shaderConfigSubObject;
+            D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
+            shaderConfig.MaxAttributeSizeInBytes = shaderConfig.MaxPayloadSizeInBytes = 8;
+            shaderConfigSubObject.pDesc = &shaderConfig;
+            shaderConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
+            subObjects.push_back(shaderConfigSubObject);
+
+            D3D12_STATE_SUBOBJECT pipelineConfigSubObject;
+            D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
+            pipelineConfig.MaxTraceRecursionDepth = 2;
+            pipelineConfigSubObject.pDesc = &pipelineConfig;
+            pipelineConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
+            subObjects.push_back(pipelineConfigSubObject);
+
             D3D12_STATE_SUBOBJECT rootSignatureSubObject;
             rootSignatureSubObject.pDesc = &m_pFallbackRootSignature.p;
             rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
