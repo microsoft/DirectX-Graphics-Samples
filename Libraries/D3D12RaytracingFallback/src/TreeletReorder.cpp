@@ -110,6 +110,9 @@ namespace FallbackLayer
 
     UINT TreeletReorder::RequiredSizeForAABBBuffer(UINT numElements)
     {
+        if (numElements == 0)
+            return 0;
+
         return (numElements + (numElements - 1)) * sizeof(AABB);
     }
 
