@@ -2035,11 +2035,6 @@ namespace FallbackLayerUnitTests
                 nodeMaskSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK;
                 subObjects.push_back(nodeMaskSubObject);
 
-                D3D12_STATE_SUBOBJECT rootSignatureSubObject;
-                rootSignatureSubObject.pDesc = &m_pFallbackRootSignature.p;
-                rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
-                subObjects.push_back(rootSignatureSubObject);
-
                 D3D12_STATE_OBJECT_DESC stateObject;
                 stateObject.NumSubobjects = (UINT)subObjects.size();
                 stateObject.pSubobjects = subObjects.data();
@@ -2094,6 +2089,11 @@ namespace FallbackLayerUnitTests
             localRSAssociation.pDesc = &shaderAssociationDesc;
             localRSAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
             subObjects.push_back(localRSAssociation);
+
+            D3D12_STATE_SUBOBJECT rootSignatureSubObject;
+            rootSignatureSubObject.pDesc = &m_pFallbackRootSignature.p;
+            rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
+            subObjects.push_back(rootSignatureSubObject);
 
             D3D12_STATE_OBJECT_DESC stateObject;
             stateObject.NumSubobjects = (UINT)subObjects.size();
