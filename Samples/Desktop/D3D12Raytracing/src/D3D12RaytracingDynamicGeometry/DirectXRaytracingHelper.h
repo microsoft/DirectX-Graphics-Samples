@@ -313,10 +313,7 @@ inline void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
         wstr << L"| [" << i << L"]: ";
         switch (desc->pSubobjects[i].Type)
         {
-        case D3D12_STATE_SUBOBJECT_TYPE_FLAGS:
-            wstr << L"Flags (not yet defined)\n";
-            break;
-        case D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE:
+        case D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE:
             wstr << L"Root Signature 0x" << desc->pSubobjects[i].pDesc << L"\n";
             break;
         case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
@@ -324,9 +321,6 @@ inline void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
             break;
         case D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK:
             wstr << L"Node Mask: 0x" << std::hex << std::setfill(L'0') << std::setw(8) << *static_cast<const UINT*>(desc->pSubobjects[i].pDesc) << std::setw(0) << std::dec << L"\n";
-            break;
-        case D3D12_STATE_SUBOBJECT_TYPE_CACHED_STATE_OBJECT:
-            wstr << L"Cached State Object (not yet defined)\n";
             break;
         case D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY:
         {
@@ -427,12 +421,12 @@ inline bool EnableRaytracing(IDXGIAdapter1* adapter)
 
 inline void StoreXMMatrixAsTransform3x4
 (
-    float transform3x4[12],
+    float transform3x4[3][4],
     const XMMATRIX& m
 )
 {
     XMMATRIX mT = XMMatrixTranspose(m); // convert row-major to column-major
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[0]), mT.r[0]);
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[4]), mT.r[1]);
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[8]), mT.r[2]);
+    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[0][0]), mT.r[0]);
+    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[1][0]), mT.r[1]);
+    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[2][0]), mT.r[2]);
 }

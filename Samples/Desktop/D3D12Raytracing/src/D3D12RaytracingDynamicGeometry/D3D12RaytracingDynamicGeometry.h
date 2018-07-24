@@ -119,7 +119,7 @@ private:
 
 	struct alignas(16) AlignedGeometryTransform3x4
 	{
-		float transform3x4[12];
+		float transform3x4[12]; // This should change to [3][4] ~ Robert (7/23)
 	};
 
 	std::vector<TriangleGeometryBuffer> m_geometries;
