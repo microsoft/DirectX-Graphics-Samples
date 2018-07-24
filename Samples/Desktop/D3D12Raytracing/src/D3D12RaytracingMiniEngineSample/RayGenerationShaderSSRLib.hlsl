@@ -32,9 +32,13 @@ void RayGen()
     // Read depth and normal
     float sceneDepth = depth.Load(int3(readGBufferAt, 0));
     float3 normalData = normals.Load(int3(readGBufferAt, 0)).xyz;
-    if (length(normalData) < 0.1) return;
 
-    float3 normal = normalize(normalData);
+    // Check if normal is real and non-zero
+    float lenSq = dot(normalData, normalData);
+    if (!isfinite(lenSq) || lenSq < 1e-6)
+        return;
+
+    float3 normal = normalData * rsqrt(lenSq);
 
     // Unproject into the world position using depth
     float4 unprojected = mul(g_dynamic.cameraToWorld, float4(screenPos, sceneDepth, 1));
