@@ -91,8 +91,8 @@
 #include "UberShaderBindings.h"
 #include "UberShaderRaytracingProgram.h"
 
-#define USE_PIX_MARKERS 1
+#define USE_PIX_MARKERS 0
 #if USE_PIX_MARKERS
-#include "..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170918004\Include\WinPixEventRuntime\pix3.h"
+- #include <pix3.h>
 static const UINT FallbackPixColor = PIX_COLOR(10, 10, 255);
 #endif

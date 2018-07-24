@@ -52,8 +52,8 @@ public:
 	RaytracingAPI GetRaytracingAPI() { return m_raytracingAPI; }
 	ID3D12RaytracingFallbackDevice* GetFallbackDevice() { return m_fallbackDevice.Get(); }
 	ID3D12RaytracingFallbackCommandList* GetFallbackCommandList() { return m_fallbackCommandList.Get(); }
-	ID3D12DeviceRaytracingPrototype* GetDxrDevice() { return m_dxrDevice.Get(); }
-	ID3D12CommandListRaytracingPrototype* GetDxrCommandList() { return m_dxrCommandList.Get(); }
+	ID3D12Device5* GetDxrDevice() { return m_dxrDevice.Get(); }
+	ID3D12GraphicsCommandList5* GetDxrCommandList() { return m_dxrCommandList.Get(); }
 
 	void RequestGeometryInitialization(bool bRequest) { m_isGeometryInitializationRequested = bRequest; }
 	void RequestASInitialization(bool bRequest) { m_isASinitializationRequested = bRequest; }
@@ -85,9 +85,9 @@ private:
 	UINT m_topLevelASdescritorHeapIndex;
 
 	// DirectX Raytracing (DXR) attributes
-	ComPtr<ID3D12DeviceRaytracingPrototype> m_dxrDevice;
-	ComPtr<ID3D12CommandListRaytracingPrototype> m_dxrCommandList;
-	ComPtr<ID3D12StateObjectPrototype> m_dxrStateObject;
+	ComPtr<ID3D12Device5> m_dxrDevice;
+	ComPtr<ID3D12GraphicsCommandList5> m_dxrCommandList;
+	ComPtr<ID3D12StateObject> m_dxrStateObject;
 	bool m_isDxrSupported;
 
 	// Root signatures
@@ -106,7 +106,6 @@ private:
 
 	// Root constants
 	PrimitiveConstantBuffer m_planeMaterialCB;
-	PrimitiveConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
 
 	// Geometry
 	D3DBuffer m_indexBuffer;
@@ -119,7 +118,7 @@ private:
 
 	struct alignas(16) AlignedGeometryTransform3x4
 	{
-		float transform3x4[12]; // This should change to [3][4] ~ Robert (7/23)
+		float transform3x4[3][4];
 	};
 
 	std::vector<TriangleGeometryBuffer> m_geometries;
@@ -132,9 +131,7 @@ private:
 
 	// Shader tables
 	static const wchar_t* c_hitGroupNames_TriangleGeometry[RayType::Count];
-	static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][RayType::Count];
 	static const wchar_t* c_raygenShaderName;
-	static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
 	static const wchar_t* c_closestHitShaderNames[GeometryType::Count];
 	static const wchar_t* c_missShaderNames[RayType::Count];
 
@@ -192,7 +189,6 @@ private:
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
 	void CreateAuxilaryDeviceResources();
-    void BuildDynamicGeometryAABBs();
     void InitializeGeometry();
     void BuildPlaneGeometry();
     void BuildTesselatedGeometry();

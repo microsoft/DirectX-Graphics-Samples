@@ -62,7 +62,7 @@ extern D3D12RaytracingDynamicGeometry* g_pSample;
 
 struct alignas(16) AlignedGeometryTransform3x4
 {
-	float transform3x4[12];
+	float transform3x4[3][4];
 };
 
 // AccelerationStructure

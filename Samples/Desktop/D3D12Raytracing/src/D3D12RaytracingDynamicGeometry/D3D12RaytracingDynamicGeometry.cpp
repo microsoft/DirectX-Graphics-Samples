@@ -24,16 +24,9 @@ HWND g_hWnd = 0;
 
 // Shader entry points.
 const wchar_t* D3D12RaytracingDynamicGeometry::c_raygenShaderName = L"MyRaygenShader";
-const wchar_t* D3D12RaytracingDynamicGeometry::c_intersectionShaderNames[] =
-{
-    L"MyIntersectionShader_AnalyticPrimitive",
-    L"MyIntersectionShader_VolumetricPrimitive",
-    L"MyIntersectionShader_SignedDistancePrimitive",
-};
 const wchar_t* D3D12RaytracingDynamicGeometry::c_closestHitShaderNames[] =
 {
-    L"MyClosestHitShader_Triangle",
-    L"MyClosestHitShader_AABB",
+    L"MyClosestHitShader_Triangle"
 };
 const wchar_t* D3D12RaytracingDynamicGeometry::c_missShaderNames[] =
 {
@@ -43,12 +36,6 @@ const wchar_t* D3D12RaytracingDynamicGeometry::c_missShaderNames[] =
 const wchar_t* D3D12RaytracingDynamicGeometry::c_hitGroupNames_TriangleGeometry[] = 
 { 
     L"MyHitGroup_Triangle", L"MyHitGroup_Triangle_ShadowRay" 
-};
-const wchar_t* D3D12RaytracingDynamicGeometry::c_hitGroupNames_AABBGeometry[][RayType::Count] = 
-{
-    { L"MyHitGroup_AABB_AnalyticPrimitive", L"MyHitGroup_AABB_AnalyticPrimitive_ShadowRay" },
-    { L"MyHitGroup_AABB_VolumetricPrimitive", L"MyHitGroup_AABB_VolumetricPrimitive_ShadowRay" },
-    { L"MyHitGroup_AABB_SignedDistancePrimitive", L"MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay" },
 };
 
 namespace SceneArgs
@@ -216,59 +203,12 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
 
     // Setup materials.
     {
-        auto SetAttributes = [&](
-            UINT primitiveIndex, 
-            const XMFLOAT4& albedo, 
-            float reflectanceCoef = 0.0f,
-            float diffuseCoef = 0.9f,
-            float specularCoef = 0.7f,
-            float specularPower = 50.0f,
-            float stepScale = 1.0f )
-        {
-            auto& attributes = m_aabbMaterialCB[primitiveIndex];
-            attributes.albedo = albedo;
-            attributes.reflectanceCoef = reflectanceCoef;
-            attributes.diffuseCoef = diffuseCoef;
-            attributes.specularCoef = specularCoef;
-            attributes.specularPower = specularPower;
-            attributes.stepScale = stepScale;
-        };
+		// Albedos
+		XMFLOAT4 green = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
+		XMFLOAT4 red = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
+		XMFLOAT4 yellow = XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f);
 
-
-        m_planeMaterialCB = { XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.4f, 50, 1};
-
-        // Albedos
-        XMFLOAT4 green = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
-        XMFLOAT4 red = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
-        XMFLOAT4 yellow = XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f);
-        
-        UINT offset = 0;
-        // Analytic primitives.
-        {
-            using namespace AnalyticPrimitive;
-            SetAttributes(offset + AABB, red);
-            SetAttributes(offset + Spheres, ChromiumReflectance, 1);
-            offset += AnalyticPrimitive::Count;
-        }
-
-        // Volumetric primitives.
-        {
-            using namespace VolumetricPrimitive;
-            SetAttributes(offset + Metaballs, ChromiumReflectance, 1);
-            offset += VolumetricPrimitive::Count;
-        }
-
-        // Signed distance primitives.
-        {
-            using namespace SignedDistancePrimitive;
-            SetAttributes(offset + MiniSpheres, green);
-            SetAttributes(offset + IntersectedRoundCube, green);
-            SetAttributes(offset + SquareTorus, ChromiumReflectance, 1);
-            SetAttributes(offset + TwistedTorus, yellow, 0, 1.0f, 0.7f, 50, 0.5f );
-            SetAttributes(offset + Cog, yellow, 0, 1.0f, 0.1f, 2);
-            SetAttributes(offset + Cylinder, red);
-            SetAttributes(offset + FractalPyramid, green, 0, 1, 0.1f, 4, 0.8f);
-        }
+		m_planeMaterialCB = { XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.4f, 50, 1};
     }
 
     // Setup camera.
@@ -322,7 +262,7 @@ void D3D12RaytracingDynamicGeometry::CreateAABBPrimitiveAttributesBuffers()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto frameCount = m_deviceResources->GetBackBufferCount();
-    m_aabbPrimitiveAttributeBuffer.Create(device, IntersectionShaderType::TotalPrimitiveCount, frameCount, L"AABB primitive attributes");
+    m_aabbPrimitiveAttributeBuffer.Create(device, 1, frameCount, L"AABB primitive attributes");
 }
 
 // Create resources that depend on the device.
@@ -396,7 +336,6 @@ void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
 		rootParameters[GlobalRootSignature::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
 		rootParameters[GlobalRootSignature::Slot::AccelerationStructure].InitAsShaderResourceView(0);
 		rootParameters[GlobalRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
-		rootParameters[GlobalRootSignature::Slot::AABBattributeBuffer].InitAsShaderResourceView(3);
 		rootParameters[GlobalRootSignature::Slot::VertexBuffers].InitAsDescriptorTable(1, &ranges[1]);
 		CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 		SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
@@ -422,18 +361,6 @@ void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
 			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
 			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::Triangle]);
-		}
-
-		// AABB geometry
-		{
-			namespace RootSignatureSlots = LocalRootSignature::AABB::Slot;
-			CD3DX12_ROOT_PARAMETER rootParameters[RootSignatureSlots::Count];
-			rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(PrimitiveConstantBuffer), 1);
-			rootParameters[RootSignatureSlots::GeometryIndex].InitAsConstants(SizeOfInUint32(PrimitiveInstanceConstantBuffer), 2);
-
-			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-			SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::AABB]);
 		}
 	}
 }
@@ -473,7 +400,6 @@ void D3D12RaytracingDynamicGeometry::CreateDxilLibrarySubobject(CD3D12_STATE_OBJ
     // In this sample, this could be ommited for convenience since the sample uses all shaders in the library. 
     {
         lib->DefineExport(c_raygenShaderName);
-        DefineExports(lib, c_intersectionShaderNames);
         DefineExports(lib, c_closestHitShaderNames);
         DefineExports(lib, c_missShaderNames);
     }
@@ -498,22 +424,6 @@ void D3D12RaytracingDynamicGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OBJEC
             }
             hitGroup->SetHitGroupExport(c_hitGroupNames_TriangleGeometry[rayType]);
         }
-    }
-
-    // AABB geometry hit groups
-    {
-        // Create hit groups for each intersection shader.
-        for (UINT t = 0; t < IntersectionShaderType::Count; t++)
-            for (UINT rayType = 0; rayType < RayType::Count; rayType++)
-            {
-                auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-                hitGroup->SetIntersectionShaderImport(c_intersectionShaderNames[t]);
-                if (rayType == RayType::Radiance)
-                {
-                    hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::AABB]);
-                }
-                hitGroup->SetHitGroupExport(c_hitGroupNames_AABBGeometry[t][rayType]);
-            }
     }
 }
 
@@ -541,19 +451,6 @@ void D3D12RaytracingDynamicGeometry::CreateLocalRootSignatureSubobjects(CD3D12_S
         auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         rootSignatureAssociation->AddExports(c_hitGroupNames_TriangleGeometry);
-    }
-
-    // AABB geometry
-    {
-        auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
-        localRootSignature->SetRootSignature(m_raytracingLocalRootSignature[LocalRootSignature::Type::AABB].Get());
-        // Shader association
-        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
-        rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
-        for (auto& hitGroupsForIntersectionShaderType : c_hitGroupNames_AABBGeometry)
-        {
-            rootSignatureAssociation->AddExports(hitGroupsForIntersectionShaderType);
-        }
     }
 }
 
@@ -594,7 +491,7 @@ void D3D12RaytracingDynamicGeometry::CreateRaytracingPipelineStateObject()
 
     // Global root signature
     // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
-    auto globalRootSignature = raytracingPipeline.CreateSubobject<CD3D12_ROOT_SIGNATURE_SUBOBJECT>();
+    auto globalRootSignature = raytracingPipeline.CreateSubobject<CD3D12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
     globalRootSignature->SetRootSignature(m_raytracingGlobalRootSignature.Get());
 
     // Pipeline config
@@ -669,66 +566,6 @@ void D3D12RaytracingDynamicGeometry::CreateDescriptorHeap()
     NAME_D3D12_OBJECT(m_descriptorHeap);
 
     m_descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-}
-
-// Build AABBs for procedural geometry within a bottom-level acceleration structure.
-void D3D12RaytracingDynamicGeometry::BuildDynamicGeometryAABBs()
-{
-    auto device = m_deviceResources->GetD3DDevice();
-
-    // Set up AABBs on a grid.
-    {
-        XMINT3 aabbGrid = XMINT3(4, 1, 4);
-        const XMFLOAT3 basePosition =
-        {
-            -(aabbGrid.x * c_aabbWidth + (aabbGrid.x - 1) * c_aabbDistance) / 2.0f,
-            -(aabbGrid.y * c_aabbWidth + (aabbGrid.y - 1) * c_aabbDistance) / 2.0f,
-            -(aabbGrid.z * c_aabbWidth + (aabbGrid.z - 1) * c_aabbDistance) / 2.0f,
-        };
-
-        XMFLOAT3 stride = XMFLOAT3(c_aabbWidth + c_aabbDistance, c_aabbWidth + c_aabbDistance, c_aabbWidth + c_aabbDistance);
-        auto InitializeAABB = [&](auto& offsetIndex, auto& size)
-        {
-            return D3D12_RAYTRACING_AABB { 
-                basePosition.x + offsetIndex.x * stride.x, 
-                basePosition.y + offsetIndex.y * stride.y,
-                basePosition.z + offsetIndex.z * stride.z,
-                basePosition.x + offsetIndex.x * stride.x + size.x,
-                basePosition.y + offsetIndex.y * stride.y + size.y,
-                basePosition.z + offsetIndex.z * stride.z + size.z,
-            };
-        };
-        m_aabbs.resize(IntersectionShaderType::TotalPrimitiveCount);
-        UINT offset = 0;
-
-        // Analytic primitives.
-        {
-            using namespace AnalyticPrimitive;
-            m_aabbs[offset + AABB] = InitializeAABB(XMINT3(3, 0, 0), XMFLOAT3(2, 3, 2));
-            m_aabbs[offset + Spheres] = InitializeAABB(XMFLOAT3(2.25f, 0, 0.75f), XMFLOAT3(3, 3, 3));
-            offset += AnalyticPrimitive::Count;
-        }
-
-        // Volumetric primitives.
-        {
-            using namespace VolumetricPrimitive;
-            m_aabbs[offset + Metaballs] = InitializeAABB(XMINT3(0, 0, 0), XMFLOAT3(3, 3, 3));
-            offset += VolumetricPrimitive::Count;
-        }
-
-        // Signed distance primitives.
-        {
-            using namespace SignedDistancePrimitive;
-            m_aabbs[offset + MiniSpheres] = InitializeAABB(XMINT3(2, 0, 0), XMFLOAT3(2, 2, 2));
-            m_aabbs[offset + TwistedTorus] = InitializeAABB(XMINT3(0, 0, 1), XMFLOAT3(2, 2, 2));
-            m_aabbs[offset + IntersectedRoundCube] = InitializeAABB(XMINT3(0, 0, 2), XMFLOAT3(2, 2, 2));
-            m_aabbs[offset + SquareTorus] = InitializeAABB(XMFLOAT3(0.75f, -0.1f, 2.25f), XMFLOAT3(3, 3, 3));
-            m_aabbs[offset + Cog] = InitializeAABB(XMINT3(1, 0, 0), XMFLOAT3(2, 2, 2));
-            m_aabbs[offset + Cylinder] = InitializeAABB(XMINT3(0, 0, 3), XMFLOAT3(2, 3, 2));
-            m_aabbs[offset + FractalPyramid] = InitializeAABB(XMINT3(2, 0, 2), XMFLOAT3(6, 6, 6));
-        }
-        AllocateUploadBuffer(device, m_aabbs.data(), m_aabbs.size()*sizeof(m_aabbs[0]), &m_aabbBuffer.resource);
-    }
 }
 
 void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
@@ -822,7 +659,7 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 		for (int iX = 0; iX < dim; iX++)
 			for (int iZ = 0; iZ < dim; iZ++, i++)
 			{
-				if (i >= static_cast<UINT>(SceneArgs::NumGeometriesPerBLAS))
+				if (i >= static_cast<int>(SceneArgs::NumGeometriesPerBLAS))
 				{
 					break;
 				}
@@ -903,7 +740,6 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
     void* rayGenShaderID;
     void* missShaderIDs[RayType::Count];
     void* hitGroupShaderIDs_TriangleGeometry[RayType::Count];
-    void* hitGroupShaderIDs_AABBGeometry[IntersectionShaderType::Count][RayType::Count];
 
     // A shader name look-up table for shader table debug print out.
     unordered_map<void*, wstring> shaderIdToStringMap;
@@ -923,12 +759,6 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
             hitGroupShaderIDs_TriangleGeometry[i] = stateObjectProperties->GetShaderIdentifier(c_hitGroupNames_TriangleGeometry[i]);
             shaderIdToStringMap[hitGroupShaderIDs_TriangleGeometry[i]] = c_hitGroupNames_TriangleGeometry[i];
         }
-        for (UINT r = 0; r < IntersectionShaderType::Count; r++)
-            for (UINT c = 0; c < RayType::Count; c++)        
-            {
-                hitGroupShaderIDs_AABBGeometry[r][c] = stateObjectProperties->GetShaderIdentifier(c_hitGroupNames_AABBGeometry[r][c]); 
-                shaderIdToStringMap[hitGroupShaderIDs_AABBGeometry[r][c]] = c_hitGroupNames_AABBGeometry[r][c];
-            }
     };
 
     // Get shader identifiers.
@@ -943,7 +773,7 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
         ComPtr<ID3D12StateObjectPropertiesPrototype> stateObjectProperties;
         ThrowIfFailed(m_dxrStateObject.As(&stateObjectProperties));
         GetShaderIDs(stateObjectProperties.Get());
-        shaderIDSize = m_dxrDevice->GetShaderIdentifierSize();
+        shaderIDSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
     }
 
     /*************--------- Shader table layout -------*******************
@@ -992,7 +822,7 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
 
     // Hit group shader table.
     {
-        UINT numShaderRecords = RayType::Count + IntersectionShaderType::TotalPrimitiveCount * RayType::Count;
+        UINT numShaderRecords = RayType::Count;
         UINT shaderRecordSize = shaderIDSize + LocalRootSignature::MaxRootArgumentsSize();
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
@@ -1006,33 +836,7 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
                 hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
             }
         }
-      
-        // AABB geometry hit groups.
-        {
-            LocalRootSignature::AABB::RootArguments rootArgs;
-            UINT instanceIndex = 0;
 
-            // Create a shader record for each primitive.
-            for (UINT iShader = 0, instanceIndex = 0; iShader < IntersectionShaderType::Count; iShader++)
-            {
-                UINT numPrimitiveTypes = IntersectionShaderType::PerPrimitiveTypeCount(static_cast<IntersectionShaderType::Enum>(iShader));
-                
-                // Primitives for each intersection shader.
-                for (UINT primitiveIndex = 0; primitiveIndex < numPrimitiveTypes; primitiveIndex++, instanceIndex++)
-                {
-                    rootArgs.materialCb = m_aabbMaterialCB[instanceIndex];
-                    rootArgs.aabbCB.instanceIndex = instanceIndex;
-                    rootArgs.aabbCB.primitiveType = primitiveIndex;
-                    
-                    // Ray types.
-                    for (UINT r = 0; r < RayType::Count; r++)
-                    {
-                        auto& hitGroupShaderID = hitGroupShaderIDs_AABBGeometry[iShader][r];
-                        hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
-                    }
-                }
-            }
-        }
         hitGroupShaderTable.DebugPrint(shaderIdToStringMap);
         m_hitGroupShaderTableStrideInBytes = hitGroupShaderTable.GetShaderRecordSize();
         m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
@@ -1354,8 +1158,9 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
         dispatchDesc->Width = m_width;
         dispatchDesc->Height = m_height;
 
+		raytracingCommandList->SetPipelineState1(stateObject);
 		m_gpuTimers[GpuTimers::Raytracing].Start(commandList);
-		raytracingCommandList->DispatchRays(stateObject, dispatchDesc);
+		raytracingCommandList->DispatchRays(dispatchDesc);
 		m_gpuTimers[GpuTimers::Raytracing].Stop(commandList);
     };
 
@@ -1377,22 +1182,18 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     {
         m_sceneCB.CopyStagingToGpu(frameIndex);
         commandList->SetComputeRootConstantBufferView(GlobalRootSignature::Slot::SceneConstant, m_sceneCB.GpuVirtualAddress(frameIndex));
-
-        m_aabbPrimitiveAttributeBuffer.CopyStagingToGpu(frameIndex);
-        commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AABBattributeBuffer, m_aabbPrimitiveAttributeBuffer.GpuVirtualAddress(frameIndex));
     }
 
     // Bind the heaps, acceleration structure and dispatch rays.    
+	D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
     if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
-        D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchDesc = {};
         SetCommonPipelineState(m_fallbackCommandList.Get());
         m_fallbackCommandList->SetTopLevelAccelerationStructure(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetFallbackAccelerationStructurePointer());
         DispatchRays(m_fallbackCommandList.Get(), m_fallbackStateObject.Get(), &dispatchDesc);
     }
     else // DirectX Raytracing
     {
-        D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
         SetCommonPipelineState(commandList);
         commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetResource()->GetGPUVirtualAddress());
         DispatchRays(m_dxrCommandList.Get(), m_dxrStateObject.Get(), &dispatchDesc);
@@ -1529,9 +1330,6 @@ void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
     m_dxrDevice.Reset();
     m_dxrCommandList.Reset();
     m_dxrStateObject.Reset();
-
-    m_raytracingGlobalRootSignature.Reset();
-    ResetComPtrArray(&m_raytracingLocalRootSignature);
 
     m_descriptorHeap.Reset();
     m_descriptorsAllocated = 0;
