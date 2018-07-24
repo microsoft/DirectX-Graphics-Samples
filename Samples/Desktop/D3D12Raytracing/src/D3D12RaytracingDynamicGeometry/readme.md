@@ -1,6 +1,7 @@
 # D3D12 Raytracing Dynamic Geometry sample
 [![D3D12 Raytracing Dynamic Geometry GUI](Screenshot.png)](https://www.youtube.com/watch?v=GwAagGuwJRI "D3D12 Raytracing Dynamic Geometry")
 
+[This sample is under development] - Not working GUI options are marked as *[ToDo]* - they are either inactive or cause issues.
 
 This sample demonstrates how to implement dynamic geometry. The sample assumes familiarity with Dx12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Procedural Geometry sample](../D3D12RaytracingProceduralGeometry/readme.md).
 
@@ -34,6 +35,7 @@ The title bar of the sample provides runtime information:
 * 3 - select DirectX Raytracing API.
 * L - enable/disable light animation.
 * C - enable/disable camera animation.
+* X - enable/disable GUI.
 
 ## Requirements
 * Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.

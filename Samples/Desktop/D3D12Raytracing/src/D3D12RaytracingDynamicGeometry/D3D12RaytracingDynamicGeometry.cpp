@@ -953,6 +953,9 @@ void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
 	case 'A':
 		m_animateScene = !m_animateScene;
 		break;
+	case 'X':
+		m_enableUI = !m_enableUI;
+		break;
 	default:
 		break;
 	}
