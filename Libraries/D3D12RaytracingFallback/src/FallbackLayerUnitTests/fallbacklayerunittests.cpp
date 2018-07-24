@@ -2026,34 +2026,10 @@ namespace FallbackLayerUnitTests
 
         void CreateStateObject(ID3D12RaytracingFallbackStateObject **ppStateObject, ID3D12RootSignature *localRootSignature, D3D12_SHADER_BYTECODE missShader, LPCWSTR missShaderExportName)
         {
-            CComPtr<ID3D12RaytracingFallbackStateObject> pBaseStateObject;
-            {
-                std::vector<D3D12_STATE_SUBOBJECT> subObjects;
-                D3D12_STATE_SUBOBJECT nodeMaskSubObject;
-                UINT nodeMask = 1;
-                nodeMaskSubObject.pDesc = &nodeMask;
-                nodeMaskSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK;
-                subObjects.push_back(nodeMaskSubObject);
-
-                D3D12_STATE_OBJECT_DESC stateObject;
-                stateObject.NumSubobjects = (UINT)subObjects.size();
-                stateObject.pSubobjects = subObjects.data();
-                stateObject.Type = D3D12_STATE_OBJECT_TYPE_COLLECTION;
-
-                AssertSucceeded(m_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pBaseStateObject)));
-            }
-
             std::vector<D3D12_STATE_SUBOBJECT> subObjects;
             subObjects.reserve(10);
 
             D3D12_EXPORT_DESC raygenExport = { L"raygen", nullptr, D3D12_EXPORT_FLAG_NONE };
-
-            D3D12_STATE_SUBOBJECT baseSubObject = {};
-            D3D12_EXISTING_COLLECTION_DESC baseCollection = {};
-            baseCollection.pExistingCollection = (ID3D12StateObjectPrototype *)pBaseStateObject.p;
-            baseSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION;
-            baseSubObject.pDesc = &baseCollection;
-            subObjects.push_back(baseSubObject);
 
             D3D12_DXIL_LIBRARY_DESC libraryDesc = {};
             libraryDesc.DXILLibrary = CD3DX12_SHADER_BYTECODE((void *)g_pSimpleRaygen, sizeof(g_pSimpleRaygen));
@@ -3469,8 +3445,8 @@ namespace FallbackLayerUnitTests
 
             D3D12_EXPORT_DESC exports[] = {
                 { ClosestHitExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-            { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-            { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
             };
 
             D3D12_DXIL_LIBRARY_DESC libraryDesc = {};
