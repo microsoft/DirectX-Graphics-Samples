@@ -41,6 +41,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingProceduralGe
 		{4BE280A6-1066-41CA-ACDD-6BB7E532508B} = {4BE280A6-1066-41CA-ACDD-6BB7E532508B}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingDynamicGeometry", "D3D12RaytracingDynamicGeometry\D3D12RaytracingDynamicGeometry.vcxproj", "{19585C81-FB12-4A4B-B700-CCE253BDBA02}"
+	ProjectSection(ProjectDependencies) = postProject
+		{4BE280A6-1066-41CA-ACDD-6BB7E532508B} = {4BE280A6-1066-41CA-ACDD-6BB7E532508B}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -97,6 +102,12 @@ Global
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Profile|x64.Build.0 = Release|x64
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Release|x64.ActiveCfg = Release|x64
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Release|x64.Build.0 = Release|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Debug|x64.ActiveCfg = Debug|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Debug|x64.Build.0 = Debug|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Profile|x64.ActiveCfg = Release|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Profile|x64.Build.0 = Release|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Release|x64.ActiveCfg = Release|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -112,6 +123,7 @@ Global
 		{22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331} = {250B50F1-543D-4D9D-B4FC-A1EA4E61B9E4}
 		{024FAECC-CCE3-4B06-9F06-C83FB58877EF} = {250B50F1-543D-4D9D-B4FC-A1EA4E61B9E4}
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7} = {22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331}
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02} = {22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F763A25B-2115-4E87-87C4-2C6AA75C1542}
