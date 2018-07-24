@@ -62,7 +62,7 @@ namespace SceneArgs
 
 	enum RaytracingMode { FLDXR = 0, FL, DXR };
 	const WCHAR* RaytracingModes[] = { L"FL-DXR", L"FL",L"DXR" };
-	EnumVar RaytracingMode(L"RaytracingMode", FLDXR, _countof(RaytracingModes), RaytracingModes);
+	EnumVar RaytracingMode(L"[ToDo] RaytracingMode", FLDXR, _countof(RaytracingModes), RaytracingModes);
 
 	BoolVar EnableGeometryAndASRebuilds(L"Enable geometry & AS rebuilds", true);
 
@@ -80,7 +80,7 @@ namespace SceneArgs
 
 	IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 2, 0, 80, 1, OnGeometryChange, nullptr);
 	IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1, OnGeometryChange, nullptr);
-	IntVar NumBLAS(L"Geometry/# BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnGeometryChange, nullptr);
+	IntVar NumBLAS(L"Geometry/[ToDo] # BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnGeometryChange, nullptr);
     BoolVar EnableUI(L"Toggle UI", true, ToggleUI, nullptr);
 };
 
@@ -1259,7 +1259,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         wLabel << L" " << L"AS memory footprint: " << static_cast<double>(m_ASmemoryFootprint) / (1024 * 1024) << L"MB\n";
 		wLabel << L" " << L" # triangles per geometry: " << m_numTrianglesPerGeometry << L"\n";
 		wLabel << L" " << L" # geometries per BLAS: " << SceneArgs::NumGeometriesPerBLAS << L"\n";
-		wLabel << L" " << L" # BLAS: " << SceneArgs::NumBLAS << L"\n";
+		wLabel << L" " << L" # BLAS: " << SceneArgs::NumBLAS << L" \n";
 		wLabel << L" " << L" # total triangles: " << SceneArgs::NumBLAS * SceneArgs::NumGeometriesPerBLAS* m_numTrianglesPerGeometry << L"\n";
 		// ToDo AS memory
 		labels.push_back(wLabel.str());

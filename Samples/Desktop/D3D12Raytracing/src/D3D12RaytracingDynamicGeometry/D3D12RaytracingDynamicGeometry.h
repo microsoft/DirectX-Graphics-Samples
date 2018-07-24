@@ -58,7 +58,7 @@ public:
 	void RequestGeometryInitialization(bool bRequest) { m_isGeometryInitializationRequested = bRequest; }
 	void RequestASInitialization(bool bRequest) { m_isASinitializationRequested = bRequest; }
 
-	static const UINT MaxBLAS = 1000;
+	static const UINT MaxBLAS = 1; // ToDo 1000;
 	static const UINT MaxGeometries = 1;
 
 private:
