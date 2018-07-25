@@ -528,11 +528,6 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     // 6 - 3 x Local root signature and association
     // 1 - Global root signature
     // 1 - Pipeline config
-#if USE_NON_NULL_LOCAL_ROOT_SIG
-    const UINT NUM_SUBOBJECTS = 18;
-#else
-    const UINT NUM_SUBOBJECTS = 16;
-#endif
     CD3D12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
 
     // DXIL library

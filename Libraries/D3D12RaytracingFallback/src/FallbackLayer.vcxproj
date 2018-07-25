@@ -332,6 +332,9 @@ PrebuildCheck.bat</Command>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
     </FxCompile>
+    <None Include="..\contributing.md" />
+    <None Include="..\developerguide.md" />
+    <None Include="..\readme.md" />
     <None Include="DebugLog.hlsli" />
     <None Include="packages.config" />
     <None Include="TopLevelLoadAABBs.hlsli">
