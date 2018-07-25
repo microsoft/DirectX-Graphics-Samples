@@ -208,6 +208,16 @@ The Fallback Layer natively works with PIX. However, PIX does not have support f
 
 When using the debug version of the Fallback Layer library, the Fallback layer has limited validation that will catch unsupported cases and output the cause of failure to the debugger. 
 
+### Acceleration structure visualization
+It can be helpful to visualize the acceleration structure, particularly when you make changes to the structure logic in the library. To do this, enable ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION in [FallbackDebug.h](src/FallbackDebug.h) and set FallbackLayer::m_levelToVisualize in [FallbackLayer.h](src/FallbackLayer.h) to a tree level you want to visualize.
+```c
+// Set to 1 to visualize acceleration structure. 
+// Since this writes to a raytracing output during ray traversal, 
+// the Fallback Layer must have an output that is used by the application defined and
+// an application shaders must disable writing to the output (i.e. in a miss/hit shaders).
+#define ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION 0
+```
+
 ### Debugging vertex input to Acceleration structure build
 First, make sure that an AS build is part of the frame when you collect a PIX capture. Then look at a first Dispatch call corresponding to the AS build and see the *PrimitiveBuffer* UAV with the passed in vertex data in PIX's Pipeline view (see below). The format of the buffer corresponds to the *Primitive* object defined in [RayTracingHlslCompat.h](src/RayTracingHlslCompat.h) which is {PrimitiveType + primitive data} (see below). For a triangle primitive that is going to be {TRIANGLE_TYPE, three XYZ vertices}. Note TRIANGLE_TYPE has a value of 1 from the define.
 
