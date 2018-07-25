@@ -19,7 +19,7 @@ uint    stack[TRAVERSAL_MAX_STACK_DEPTH];
 RWTexture2D<float4> g_screenOutput : register(u2);
 void VisualizeAcceleratonStructure(float closestBoxT)
 {
-    g_screenOutput[DispatchRaysIndex()] = float4(closestBoxT / 3000.0f, 0, 0, 1);
+    g_screenOutput[DispatchRaysIndex().xy] = float4(closestBoxT / 3000.0f, 0, 0, 1);
 }
 
 static
@@ -566,12 +566,13 @@ bool Traverse(
             RWByteAddressBufferPointer currentBVH = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
 
             uint2 flags;
+
             BoundingBox box = BVHReadBoundingBox(
                 currentBVH,
                 thisNodeIndex,
                 flags);
 
-            {
+			{
                 MARK(4, 0);
                 if (IsLeaf(flags))
                 {
