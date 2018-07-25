@@ -168,6 +168,13 @@ struct MaterialRootConstant
     UINT MaterialID;
 };
 
+struct CameraPosition
+{
+	Vector3 position;
+	float heading;
+	float pitch;
+};
+
 RaytracingDispatchRayInputs g_RaytracingInputs[RaytracingTypes::NumTypes];
 D3D12_CPU_DESCRIPTOR_HANDLE g_bvh_attributeSrvs[34];
 
@@ -221,6 +228,11 @@ private:
 
     Vector3 m_SunDirection;
     ShadowCamera m_SunShadow;
+
+	CameraPosition m_CameraPosArray[3];
+	UINT m_NumCameraPositions;
+	UINT m_CameraPosArrayCurrentPosition;
+
 };
 
 int wmain(int argc, wchar_t** argv)
@@ -1000,11 +1012,24 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     InitializeRaytracingStateObjects(m_Model, numMeshes);
 
     float modelRadius = Length(m_Model.m_Header.boundingBox.max - m_Model.m_Header.boundingBox.min) * .5f;
-    const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
-    m_Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
+	const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
+	m_Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
+	
+	// set first camera position at startup    
+	m_NumCameraPositions = 2;
+	m_CameraPosArrayCurrentPosition = 0;
+	
+	m_CameraPosArray[0].position = Vector3(-1100.0, 145.0, -44.0);
+	m_CameraPosArray[0].heading = 1.534;
+	m_CameraPosArray[0].pitch = 0.082;
+
+	m_CameraPosArray[1].position = Vector3(299.0, 208.0, -202.0);
+	m_CameraPosArray[1].heading = -3.1111;
+	m_CameraPosArray[1].pitch = 0.5953;
+	
     m_Camera.SetZRange( 1.0f, 10000.0f );
     m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
-
+	
     MotionBlur::Enable = false;//true;
     TemporalEffects::EnableTAA = false;//true;
     FXAA::Enable = false;
@@ -1052,8 +1077,25 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
       rayTracingMode = RTM_DIFFUSE_WITH_SHADOWRAYS;
     else if(GameInput::IsFirstPressed(GameInput::kKey_7))
       rayTracingMode = RTM_REFLECTIONS;
+	
+	static bool ignoreController = false;
+	
+	if (GameInput::IsFirstPressed(GameInput::kKey_left))
+	{
+		ignoreController = true;
+		m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + 1) % m_NumCameraPositions;
+	}
+	else if (GameInput::IsFirstPressed(GameInput::kKey_right))
+		ignoreController = false;
 
-    m_CameraController->Update(deltaT);
+	if (ignoreController)
+	{
+		m_CameraController->UpdateToPosition(m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
+	}
+	else
+	{
+		m_CameraController->Update(deltaT);
+	}
     m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
 
     float costheta = cosf(m_SunOrientation);
@@ -1565,7 +1607,7 @@ void D3D12RaytracingMiniEngineSample::RaytraceReflections(
     ScopedTimer _p0(L"RaytracingWithHitShader", context);
 
     // Prepare constants
-    DynamicCB inputs = g_dynamicCb;
+    DynamicCB inputs = g_dynamicCb;	
     auto m0 = camera.GetViewProjMatrix();
     auto m1 = Transpose(Invert(m0));
     memcpy(&inputs.cameraToWorld, &m1, sizeof(inputs.cameraToWorld));
