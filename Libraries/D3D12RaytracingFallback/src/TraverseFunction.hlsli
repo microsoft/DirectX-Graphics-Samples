@@ -572,7 +572,7 @@ bool Traverse(
                 thisNodeIndex,
                 flags);
 
-			{
+            {
                 MARK(4, 0);
                 if (IsLeaf(flags))
                 {
