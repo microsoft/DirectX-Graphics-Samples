@@ -31,6 +31,7 @@ SamplerComparisonState shadowSampler : register(s1);
 Texture2D<float4> g_localTexture : register(t6);
 Texture2D<float4> g_localNormal : register(t7);
 
+Texture2D<float4>   normals  : register(t13);
 
 uint3 Load3x16BitIndices(
     uint offsetBytes)
@@ -328,7 +329,8 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
     // TODO: Should be passed in via material info
     if (IsReflection)
     {
-        outputColor = outputColor * 0.3 + g_screenOutput[DispatchRaysIndex().xy].xyz;
+        float reflectivity = normals[DispatchRaysIndex().xy].w;
+        outputColor = outputColor * reflectivity + g_screenOutput[DispatchRaysIndex().xy].xyz;
     }
 
     g_screenOutput[DispatchRaysIndex().xy] = float4(outputColor, 1);
