@@ -17,7 +17,8 @@
 #include "TreeletReorderBindings.h"
 #include "RayTracingHelper.hlsli"
 
-static const float CostOfRayBoxIntersection = 1.0;
+static const float CostOfRayBoxIntersection = 1.2;
+static const float CostOfRayTriangleIntersection = 1.0;
 
 float CalculateCost(AABB nodeAABB, float parentAABBSurfaceArea)
 {
@@ -47,6 +48,7 @@ void FormTreelet(in uint groupThreadId)
 #if USE_EXPLICIT_UNROLL_IN_FORMTREELET
         [unroll]
 #endif
+        // elroyc: Isn't FullTreeletSize dynamic? It doubles per optimization pass, 7 -> 14 -> 28
 	for (uint treeletSize = 2; treeletSize < FullTreeletSize; treeletSize++)
         {
             float largestSurfaceArea = 0.0;
@@ -59,6 +61,7 @@ void FormTreelet(in uint groupThreadId)
                 // Leaf nodes can't be split so skip these
                 if (!IsLeaf(treeletNodeIndex))
                 {
+                    // elroyc: can save on NOT computing SA for nodes that weren't replaced by its children. Store SA in a buffer?
                     float surfaceArea = ComputeBoxSurfaceArea(AABBBuffer[treeletNodeIndex]);
                     if (surfaceArea > largestSurfaceArea)
                     {
@@ -67,6 +70,7 @@ void FormTreelet(in uint groupThreadId)
                         indexOfNodeIndexToTraverse = i;
                     }
                 }
+                // elroyc: What if all treeletToReorder nodes are Leaf nodes? We are forcing to add 'child nodes' when there is none
             }
 
             // Replace the original node with its left child and add the right child to the end
@@ -86,6 +90,7 @@ void FindOptimalPartitions(in uint threadId)
     uint bitmasksStart;
     uint bitmasksEnd;
 
+    // For every combination of bitmasks (representing which leaves are included), ie. 0000001, 0000010, 0000011, ..., 1111111, calculate its Surface Area
     if (threadId < NumTreeletSplitPermutations)
     {
         numBitmasksPerThread = max(NumTreeletSplitPermutations / NumThreadsInGroup, 1);
@@ -123,6 +128,7 @@ void FindOptimalPartitions(in uint threadId)
     AABB nodeAABB = AABBBuffer[nodeIndex];
     float rootAABBSurfaceArea = ComputeBoxSurfaceArea(nodeAABB);
 
+    // For every individual leaf [0-6], calculate its Surface Area Heuristic Cost, and store it in array where leaf's bitmask is the index
     if (threadId < FullTreeletSize)
     {
         optimalCost[BIT(threadId)] = CalculateCost(AABBBuffer[treeletToReorder[threadId]], rootAABBSurfaceArea);
@@ -131,8 +137,10 @@ void FindOptimalPartitions(in uint threadId)
     GroupMemoryBarrierWithGroupSync();
 
     [unroll]
+    // Dynamic programming from 'treelet/subset' of size 2 up to FullTreeletSize, calculate and store optimal (lowest) cost and its partition bitmask
     for (uint subsetSize = 2; subsetSize <= FullTreeletSize; subsetSize++)
     {
+        // eg. In 'treelet/subset' of size 2, there are (7 Choose 2) distinct 'treelets' in the original treelet of 7 leaves, ie. 0000011, 0000101, ..., 1100000
         uint numTreeletBitmasks = FullTreeletSizeChoose[subsetSize];
         if (threadId < numTreeletBitmasks)
         {
@@ -164,8 +172,15 @@ void FindOptimalPartitions(in uint threadId)
                     partitionBitmask = (partitionBitmask - delta) & treeletBitmask;
                 } while (partitionBitmask != 0);
 
-                optimalCost[treeletBitmask] = CostOfRayBoxIntersection * optimalCost[treeletBitmask] + lowestCost; // TODO: Consider cost of flattening to triangle list
+                float costAsLeafNode = CostOfRayTriangleIntersection * optimalCost[treeletBitmask] * subsetSize;
+                float costAsInternalNode = CostOfRayBoxIntersection * optimalCost[treeletBitmask] + lowestCost;
+                optimalCost[treeletBitmask] = min(costAsInternalNode, costAsLeafNode);
                 optimalPartition[treeletBitmask] = bestPartition;
+                if (costAsLeafNode < costAsInternalNode)
+                {
+                    // Consider cost of flattening to triangle list as a leaf node
+                    optimalPartition[treeletBitmask] = 0; // Or optimalPartition[treeletBitmask] |= BIT(FullTreeletSize); // Set the unused bit, as a bCollapseChildren flag
+                }
             }
         }
 
@@ -194,8 +209,7 @@ void ReformTree(in uint groupThreadId)
 
     while (partitionStackSize > 0)
     {
-        PartitionEntry partition = partitionStack[partitionStackSize - 1];
-        partitionStackSize--;
+        PartitionEntry partition = partitionStack[--partitionStackSize];
 
         PartitionEntry leftEntry;
         leftEntry.Mask = optimalPartition[partition.Mask];
@@ -225,6 +239,12 @@ void ReformTree(in uint groupThreadId)
         hierarchyBuffer[partition.NodeIndex].RightChildIndex = rightEntry.NodeIndex;
         hierarchyBuffer[leftEntry.NodeIndex].ParentIndex = partition.NodeIndex;
         hierarchyBuffer[rightEntry.NodeIndex].ParentIndex = partition.NodeIndex;
+        if (leftEntry.Mask == 0)
+        {
+            // Only possible if this node was calculated to be more optimal to be flattened as a leaf with triangle list
+            hierarchyBuffer[leftEntry.NodeIndex].ParentIndex |= IsCollapseChildren;
+            hierarchyBuffer[rightEntry.NodeIndex].ParentIndex |= IsCollapseChildren;
+        }
     }
 
     // Start from the back. This is optimizing since the previous traversal went from
@@ -249,7 +269,7 @@ void TraverseToParent(in uint groupThreadId)
         }
         else
         {
-            uint parentNodeIndex = hierarchyBuffer[nodeIndex].ParentIndex;
+            uint parentNodeIndex = GetActualParentIndex(hierarchyBuffer[nodeIndex].ParentIndex);
 
             uint ourNumTriangles = NumTrianglesBuffer.Load(nodeIndex * SizeOfUINT32);
             uint numTrianglesFromOtherNode = 0;

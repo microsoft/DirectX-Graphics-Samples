@@ -78,8 +78,8 @@ namespace SceneArgs
 	const WCHAR* BuildFlags[] = { L"Default", L"Fast trace", L"Fast build" };
 	EnumVar ASBuildFlag(L"Acceleration structure/Build quality", FastTrace, _countof(BuildFlags), BuildFlags, OnASChange, nullptr);
 
-	IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 2, 0, 80, 1, OnGeometryChange, nullptr);
-	IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1, OnGeometryChange, nullptr);
+	IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", /*2*/10, 0, 80, 1, OnGeometryChange, nullptr);
+	IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", /*1*/100, 1, 1000, 1, OnGeometryChange, nullptr);
 	IntVar NumBLAS(L"Geometry/[ToDo] # BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnGeometryChange, nullptr);
     BoolVar EnableUI(L"Toggle UI", true, ToggleUI, nullptr);
 };
