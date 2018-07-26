@@ -70,6 +70,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
             return;
         }
 
+        // elroyc: How does this terminate if nodeIndex == 0, the root parent Node? Is it's ParentIndex == 0?
+        // elroyc: Looks like a potential infinite while loop, are we depending on numTriangles >= MinTrianglesPerTreelet condition?
+        // TreeletReorder has not run on the hierarchyBuffer yet, so the ParentIndex is already accurate, ie. doesn't need GetActualParentIndex()
         uint parentNodeIndex = hierarchyBuffer[nodeIndex].ParentIndex;
 
         uint numTrianglesFromOtherNode = 0;

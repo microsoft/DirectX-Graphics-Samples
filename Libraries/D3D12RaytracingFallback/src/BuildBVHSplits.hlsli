@@ -22,6 +22,7 @@ int CountLeadingZeroes(uint num)
 
 void WriteChild(uint childIndex, uint parentIndex)
 {
+    // Constructing new hierarchy, so the ParentIndex is already accurate, ie. doesn't need GetActualParentIndex()
     hierarchyBuffer[childIndex].ParentIndex = parentIndex;
 }
 
