@@ -285,7 +285,7 @@ bool TestLeafNodeIntersections(
 {
     // Intersect a bunch of triangles
     const uint firstId = flags.x & 0x00ffffff;
-    const uint numTris = flags.y;
+    const uint numTris = flags.y; // referencing AABBNode::numTriangles
 
     // Unroll mildly, it'd be awesome if we had some helpers here to intersect.
     uint i = 0;

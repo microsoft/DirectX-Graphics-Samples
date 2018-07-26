@@ -45,9 +45,16 @@
 
 struct HierarchyNode
 {
+#ifdef HLSL
     uint ParentIndex;
+#else
+    uint ParentIndex : 31;
+    uint bCollapseChildren : 1;
+#endif
     uint LeftChildIndex;
     uint RightChildIndex;
+
+    static const int IsCollapseChildren = 0x80000000; // for extracting HierarchyNode::bCollapseChildren
 };
 
 struct AABB

@@ -74,15 +74,8 @@ static const uint BitPermutations[FullTreeletSize - 2][35] = {
 
 uint GetBitPermutation(uint numBitsSet, uint n)
 {
-    if (numBitsSet == 0)
-    {
-        return 0;
-    }
-    else if (numBitsSet == 1)
-    {
-        return n < FullTreeletSizeChoose[1] ? BIT(n) : 0;
-    }
-    else if (numBitsSet == FullTreeletSize)
+    // GetBitPermutation is always called with numBitsSet == [2, FullTreeletSize]
+    if (numBitsSet == FullTreeletSize)
     {
         return n == 0 ? BIT(FullTreeletSize) - 1 : 0;
     }
