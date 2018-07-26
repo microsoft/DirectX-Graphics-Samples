@@ -45,12 +45,7 @@
 
 struct HierarchyNode
 {
-#ifdef HLSL
     uint ParentIndex;
-#else
-    uint ParentIndex : 31;
-    uint bCollapseChildren : 1;
-#endif
     uint LeftChildIndex;
     uint RightChildIndex;
 };

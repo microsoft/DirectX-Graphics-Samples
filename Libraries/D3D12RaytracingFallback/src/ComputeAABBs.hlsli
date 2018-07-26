@@ -63,7 +63,7 @@ uint GetParentIndex(uint boxIndex)
         return aabbParentBuffer[boxIndex];
     }
 
-    return GetActualParentIndex(hierarchyBuffer[boxIndex].ParentIndex);
+    return hierarchyBuffer[boxIndex].ParentIndex;
 }
 
 [numthreads(THREAD_GROUP_1D_WIDTH, 1, 1)]

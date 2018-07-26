@@ -24,7 +24,6 @@
 static const int IsLeafFlag = 0x80000000;
 static const int IsProceduralGeometryFlag = 0x40000000;
 static const int LeafFlags = IsLeafFlag | IsProceduralGeometryFlag;
-static const int IsCollapseChildren = 0x80000000; // for extracting HierarchyNode::bCollapseChildren
 
 // BVH description for the traversal shader
 //struct BVHOffsets
@@ -52,12 +51,6 @@ static const int OffsetToTotalSize = 12;
 int GetLeafIndexFromFlag(uint2 flag)
 {
     return flag.x & ~LeafFlags;
-}
-
-uint GetActualParentIndex(uint index)
-{
-    // Zero out HierarchyNode::bCollapseChildren flag
-    return index & ~IsCollapseChildren;
 }
 
 // Reorganized AABB for faster intersection testing

@@ -269,7 +269,7 @@ void RayTriangleIntersect(
     hitT = T * rcpDet;
 }
 
-#define MULTIPLE_LEAVES_PER_NODE 1
+#define MULTIPLE_LEAVES_PER_NODE 0
 static
 bool TestLeafNodeIntersections(
     RWByteAddressBufferPointer accelStruct,
@@ -285,7 +285,7 @@ bool TestLeafNodeIntersections(
 {
     // Intersect a bunch of triangles
     const uint firstId = flags.x & 0x00ffffff;
-    const uint numTris = flags.y; // referencing AABBNode::numTriangles
+    const uint numTris = flags.y;
 
     // Unroll mildly, it'd be awesome if we had some helpers here to intersect.
     uint i = 0;

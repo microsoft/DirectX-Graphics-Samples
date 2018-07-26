@@ -2963,7 +2963,7 @@ namespace FallbackLayerUnitTests
             auto &d3d12Device = m_d3d12Context.GetDevice();
             TreeletReorder treeletReorder(&d3d12Device, 0);
 
-            const UINT numTriangles = 8;
+            const UINT numTriangles = 16;
             std::vector<Primitive> triangleBuffer(numTriangles);
             for (INT i = 0; i < numTriangles; i++)
             {
@@ -3028,32 +3028,17 @@ namespace FallbackLayerUnitTests
                 pTriangleBuffer->GetGPUVirtualAddress(),
                 pBaseTreeletBuffer->GetGPUVirtualAddress(),
                 pBaseTreeletBuffer->GetGPUVirtualAddress() + sizeof(UINT),
-                /*flag*/D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE);
-
-            /*D3D12_RESOURCE_BARRIER uavToCopySourceBarrier[] =
-            {
-                CD3DX12_RESOURCE_BARRIER::Transition(pAABBBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE),
-            };
-            pCommandList->ResourceBarrier(ARRAYSIZE(uavToCopySourceBarrier), uavToCopySourceBarrier);*/
+                flag);
 
             pCommandList->Close();
             m_d3d12Context.ExecuteCommandList(pCommandList);
-            m_d3d12Context.WaitForGpuWork();
 
             std::vector<HierarchyNode> outputHierarchy(numNodes);
             m_d3d12Context.ReadbackResource(pHierarchyBuffer, outputHierarchy.data(), (UINT)(outputHierarchy.size() * sizeof(*outputHierarchy.data())));
 
             // Not needed but helpful for debugging
             std::vector<AABB> outputAABBs(numNodes);
-            // elroyc: All outputAABBs values are 0s. Why?!?! Bug?
-            //D3D12 ERROR : ID3D12CommandQueue::ExecuteCommandLists : Using CopyResource on Command List(0x00000182F2D42CF0:'Unnamed ID3D12GraphicsCommandList Object') : Resource state(0x8: D3D12_RESOURCE_STATE_UNORDERED_ACCESS) of resource(0x00000182F32011F0:'Unnamed ID3D12Resource Object') (subresource : 0) is invalid for use as a source resource.Expected State Bits(all) : 0x800 : D3D12_RESOURCE_STATE_COPY_SOURCE, Actual State : 0x8 : D3D12_RESOURCE_STATE_UNORDERED_ACCESS, Missing State : 0x800 : D3D12_RESOURCE_STATE_COPY_SOURCE.[EXECUTION ERROR #538: INVALID_SUBRESOURCE_STATE]
             m_d3d12Context.ReadbackResource(pAABBBuffer, outputAABBs.data(), (UINT)(outputAABBs.size() * sizeof(*outputAABBs.data())));
-
-            std::vector<UINT> outputNodeCountBuffer(numNodes);
-            m_d3d12Context.ReadbackResource(pNodeCountBuffer, outputNodeCountBuffer.data(), (UINT)(outputNodeCountBuffer.size() * sizeof(*outputNodeCountBuffer.data())));
-
-            std::vector<UINT> outputBaseTreeletBuffer(baseTreeletBufferDesc.Width / sizeof(UINT) + 1);
-            m_d3d12Context.ReadbackResource(pBaseTreeletBuffer, outputBaseTreeletBuffer.data(), (UINT)(outputBaseTreeletBuffer.size() * sizeof(*outputBaseTreeletBuffer.data())));
 
             std::vector<UINT> nodeStack;
             nodeStack.push_back(0);
