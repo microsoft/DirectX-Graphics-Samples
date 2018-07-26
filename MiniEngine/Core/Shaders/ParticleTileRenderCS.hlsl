@@ -181,8 +181,8 @@ float4x4 RenderParticles( uint2 TileCoord, uint2 ST, uint NumParticles, uint Hit
 
             //if (all(float4(Quad[0].a, Quad[1].a, Quad[2].a, Quad[3].a) > ALPHA_THRESHOLD))
             //{
-            //	Quad[0].a = Quad[1].a = Quad[2].a = Quad[3].a = 1.0;
-            //	return Quad;
+            //    Quad[0].a = Quad[1].a = Quad[2].a = Quad[3].a = 1.0;
+            //    return Quad;
             //}
 
         } // for

@@ -23,8 +23,8 @@ cbuffer CB0 : register(b0)
 {
     float FocusCenter;
     float FocalSpread;
-    float FocalMinDist;	// Closer than this is max blurriness
-    float FocalMaxDist;	// Farther than this is also max blurriness
+    float FocalMinDist;    // Closer than this is max blurriness
+    float FocalMaxDist;    // Farther than this is also max blurriness
     float2 RcpBufferDim;
     uint2 FullDimension;
     int2 HalfDimensionMinusOne;

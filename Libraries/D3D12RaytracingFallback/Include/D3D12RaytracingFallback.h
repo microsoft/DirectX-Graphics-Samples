@@ -42,7 +42,7 @@ typedef struct D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC
     UINT InstanceContributionToHitGroupIndex : 24;
     UINT Flags : 8;
     WRAPPED_GPU_POINTER AccelerationStructure;
-} 	D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC;
+}     D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC;
 
 class
 _declspec(uuid("539e5c40-df25-4c7d-81d8-6537f54306ed"))

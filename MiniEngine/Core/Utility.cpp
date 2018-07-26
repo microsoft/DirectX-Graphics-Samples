@@ -31,9 +31,9 @@ void SIMDMemCopy( void* __restrict _Dest, const void* __restrict _Source, size_t
 
     switch (InitialQuadwordCount)
     {
-    case 3: _mm_stream_si128(Dest + 2, _mm_load_si128(Source + 2));	 // Fall through
-    case 2: _mm_stream_si128(Dest + 1, _mm_load_si128(Source + 1));	 // Fall through
-    case 1: _mm_stream_si128(Dest + 0, _mm_load_si128(Source + 0));	 // Fall through
+    case 3: _mm_stream_si128(Dest + 2, _mm_load_si128(Source + 2));     // Fall through
+    case 2: _mm_stream_si128(Dest + 1, _mm_load_si128(Source + 1));     // Fall through
+    case 1: _mm_stream_si128(Dest + 0, _mm_load_si128(Source + 0));     // Fall through
     default:
         break;
     }
@@ -50,16 +50,16 @@ void SIMDMemCopy( void* __restrict _Dest, const void* __restrict _Source, size_t
     switch (CacheLines)
     {
     default:
-    case 10: _mm_prefetch((char*)(Source + 36), _MM_HINT_NTA);	// Fall through
-    case 9:  _mm_prefetch((char*)(Source + 32), _MM_HINT_NTA);	// Fall through
-    case 8:  _mm_prefetch((char*)(Source + 28), _MM_HINT_NTA);	// Fall through
-    case 7:  _mm_prefetch((char*)(Source + 24), _MM_HINT_NTA);	// Fall through
-    case 6:  _mm_prefetch((char*)(Source + 20), _MM_HINT_NTA);	// Fall through
-    case 5:  _mm_prefetch((char*)(Source + 16), _MM_HINT_NTA);	// Fall through
-    case 4:  _mm_prefetch((char*)(Source + 12), _MM_HINT_NTA);	// Fall through
-    case 3:  _mm_prefetch((char*)(Source + 8 ), _MM_HINT_NTA);	// Fall through
-    case 2:  _mm_prefetch((char*)(Source + 4 ), _MM_HINT_NTA);	// Fall through
-    case 1:  _mm_prefetch((char*)(Source + 0 ), _MM_HINT_NTA);	// Fall through
+    case 10: _mm_prefetch((char*)(Source + 36), _MM_HINT_NTA);    // Fall through
+    case 9:  _mm_prefetch((char*)(Source + 32), _MM_HINT_NTA);    // Fall through
+    case 8:  _mm_prefetch((char*)(Source + 28), _MM_HINT_NTA);    // Fall through
+    case 7:  _mm_prefetch((char*)(Source + 24), _MM_HINT_NTA);    // Fall through
+    case 6:  _mm_prefetch((char*)(Source + 20), _MM_HINT_NTA);    // Fall through
+    case 5:  _mm_prefetch((char*)(Source + 16), _MM_HINT_NTA);    // Fall through
+    case 4:  _mm_prefetch((char*)(Source + 12), _MM_HINT_NTA);    // Fall through
+    case 3:  _mm_prefetch((char*)(Source + 8 ), _MM_HINT_NTA);    // Fall through
+    case 2:  _mm_prefetch((char*)(Source + 4 ), _MM_HINT_NTA);    // Fall through
+    case 1:  _mm_prefetch((char*)(Source + 0 ), _MM_HINT_NTA);    // Fall through
 
         // Do four quadwords per loop to minimize stalls.
         for (size_t i = CacheLines; i > 0; --i)
@@ -78,16 +78,16 @@ void SIMDMemCopy( void* __restrict _Dest, const void* __restrict _Source, size_t
             Source += 4;
         }
 
-    case 0:	// No whole cache lines to read
+    case 0:    // No whole cache lines to read
         break;
     }
 
     // Copy the remaining quadwords
     switch (NumQuadwords & 3)
     {
-    case 3: _mm_stream_si128(Dest + 2, _mm_load_si128(Source + 2));	 // Fall through
-    case 2: _mm_stream_si128(Dest + 1, _mm_load_si128(Source + 1));	 // Fall through
-    case 1: _mm_stream_si128(Dest + 0, _mm_load_si128(Source + 0));	 // Fall through
+    case 3: _mm_stream_si128(Dest + 2, _mm_load_si128(Source + 2));     // Fall through
+    case 2: _mm_stream_si128(Dest + 1, _mm_load_si128(Source + 1));     // Fall through
+    case 1: _mm_stream_si128(Dest + 0, _mm_load_si128(Source + 0));     // Fall through
     default:
         break;
     }
@@ -104,9 +104,9 @@ void SIMDMemFill( void* __restrict _Dest, __m128 FillVector, size_t NumQuadwords
 
     switch (((size_t)Dest >> 4) & 3)
     {
-    case 1: _mm_stream_si128(Dest++, Source); --NumQuadwords;	 // Fall through
-    case 2: _mm_stream_si128(Dest++, Source); --NumQuadwords;	 // Fall through
-    case 3: _mm_stream_si128(Dest++, Source); --NumQuadwords;	 // Fall through
+    case 1: _mm_stream_si128(Dest++, Source); --NumQuadwords;     // Fall through
+    case 2: _mm_stream_si128(Dest++, Source); --NumQuadwords;     // Fall through
+    case 3: _mm_stream_si128(Dest++, Source); --NumQuadwords;     // Fall through
     default:
         break;
     }
@@ -125,9 +125,9 @@ void SIMDMemFill( void* __restrict _Dest, __m128 FillVector, size_t NumQuadwords
     // Copy the remaining quadwords
     switch (NumQuadwords & 3)
     {
-    case 3: _mm_stream_si128(Dest++, Source);	 // Fall through
-    case 2: _mm_stream_si128(Dest++, Source);	 // Fall through
-    case 1: _mm_stream_si128(Dest++, Source);	 // Fall through
+    case 3: _mm_stream_si128(Dest++, Source);     // Fall through
+    case 2: _mm_stream_si128(Dest++, Source);     // Fall through
+    case 1: _mm_stream_si128(Dest++, Source);     // Fall through
     default:
         break;
     }

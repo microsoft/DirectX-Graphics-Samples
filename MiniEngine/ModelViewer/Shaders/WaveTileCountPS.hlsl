@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	Alex Nankervis
+// Author(s):    Alex Nankervis
 //
 
 #include "ModelViewerRS.hlsli"
@@ -26,14 +26,14 @@ struct VSOutput
     sample float3 bitangent : bitangent;
 };
 
-Texture2D<float3> texDiffuse		: register(t0);
-Texture2D<float3> texSpecular		: register(t1);
-//Texture2D<float4> texEmissive		: register(t2);
-Texture2D<float3> texNormal			: register(t3);
-//Texture2D<float4> texLightmap		: register(t4);
-//Texture2D<float4> texReflection	: register(t5);
-Texture2D<float> texSSAO			: register(t64);
-Texture2D<float> texShadow			: register(t65);
+Texture2D<float3> texDiffuse        : register(t0);
+Texture2D<float3> texSpecular        : register(t1);
+//Texture2D<float4> texEmissive        : register(t2);
+Texture2D<float3> texNormal            : register(t3);
+//Texture2D<float4> texLightmap        : register(t4);
+//Texture2D<float4> texReflection    : register(t5);
+Texture2D<float> texSSAO            : register(t64);
+Texture2D<float> texShadow            : register(t65);
 
 StructuredBuffer<LightData> lightBuffer : register(t66);
 Texture2DArray<float> lightShadowArrayTex : register(t67);

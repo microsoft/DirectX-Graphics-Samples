@@ -12,6 +12,7 @@ struct RayTraceMeshInfo
     uint  m_uvAttributeOffsetBytes;
     uint  m_normalAttributeOffsetBytes;
     uint  m_tangentAttributeOffsetBytes;
+    uint  m_bitangentAttributeOffsetBytes;
     uint  m_positionAttributeOffsetBytes;
     uint  m_attributeStrideBytes;
     uint  m_materialInstanceId;

@@ -12,6 +12,19 @@
 #define RAYTRACING_HLSL_COMPAT_H_INCLUDED
 #include "WaveDimensions.h"
 
+//*********----- AMD driver limitation workarounds ------******************
+//  
+// Set following to 0 to get MiniEngineSample to run on AMD.
+//
+// Enables an unroll in treelet. Fails to compile on AMD.
+#define USE_EXPLICIT_UNROLL_IN_FORMTREELET 1
+
+// Enables treelet BVH optimization. TDRs on AMD.
+#define ENABLE_TREELET_REORDERING 1
+//
+//*************************************************************************
+
+
 #define     TRAVERSAL_MAX_STACK_DEPTH       32
 
 #define     MAX_TRIS_IN_LEAF                1
@@ -32,9 +45,16 @@
 
 struct HierarchyNode
 {
+#ifdef HLSL
     uint ParentIndex;
+#else
+    uint ParentIndex : 31;
+    uint bCollapseChildren : 1;
+#endif
     uint LeftChildIndex;
     uint RightChildIndex;
+
+    static const int IsCollapseChildren = 0x80000000; // for extracting HierarchyNode::bCollapseChildren
 };
 
 struct AABB

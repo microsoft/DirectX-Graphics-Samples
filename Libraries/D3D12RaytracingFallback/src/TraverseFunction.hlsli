@@ -17,13 +17,22 @@ uint    stack[TRAVERSAL_MAX_STACK_DEPTH];
 
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
 RWTexture2D<float4> g_screenOutput : register(u2);
-void VisualizeAcceleratonStructure(float closestBoxT)
+static uint g_maxDepth = 0;
+void VisualizeAcceleratonStructure()
 {
-    g_screenOutput[DispatchRaysIndex()] = float4(closestBoxT / 3000.0f, 0, 0, 1);
+    if (g_maxDepth >= 22)
+    {
+        g_screenOutput[DispatchRaysIndex().xy] = float4((g_maxDepth - 21) / 11.0, 0, 0, 1);
+    }
+    else if (g_maxDepth >= 10)
+    {
+        g_screenOutput[DispatchRaysIndex().xy] = float4(0, (g_maxDepth - 9) / 12.0, 0, 1);
+    }
+    else
+    {
+        g_screenOutput[DispatchRaysIndex().xy] = float4(0, 0, g_maxDepth / 9.0, 1);
+    }
 }
-
-static
-uint    depthStack[TRAVERSAL_MAX_STACK_DEPTH];
 #endif
 
 void RecordClosestBox(uint currentLevel, inout bool leftTest, float leftT, inout bool rightTest, float rightT, inout float closestBoxT)
@@ -50,10 +59,10 @@ void StackPush(inout int stackTop, uint value, uint level, uint tidInWave)
 {
     uint stackIndex = stackTop;
     stack[stackIndex] = value;
-#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    depthStack[stackIndex] = level;
-#endif
     stackTop++;
+#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
+    g_maxDepth = max(stackTop, g_maxDepth);
+#endif
 }
 
 void StackPush2(inout int stackTop, bool selector, uint valueA, uint valueB, uint level, uint tidInWave)
@@ -65,21 +74,16 @@ void StackPush2(inout int stackTop, bool selector, uint valueA, uint valueB, uin
     stack[stackIndex0] = store0;
     stack[stackIndex1] = store1;
 
-#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    depthStack[stackIndex0] = level;
-    depthStack[stackIndex1] = level;
-#endif
-
     stackTop += 2;
+#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
+    g_maxDepth = max(stackTop, g_maxDepth);
+#endif
 }
 
 uint StackPop(inout int stackTop, out uint depth, uint tidInWave)
 {
     --stackTop;
     uint stackIndex = stackTop;
-#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    depth = depthStack[stackIndex];
-#endif
     return stack[stackIndex];
 }
 
@@ -281,7 +285,7 @@ bool TestLeafNodeIntersections(
 {
     // Intersect a bunch of triangles
     const uint firstId = flags.x & 0x00ffffff;
-    const uint numTris = flags.y;
+    const uint numTris = flags.y; // referencing AABBNode::numTriangles
 
     // Unroll mildly, it'd be awesome if we had some helpers here to intersect.
     uint i = 0;
@@ -566,6 +570,7 @@ bool Traverse(
             RWByteAddressBufferPointer currentBVH = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
 
             uint2 flags;
+
             BoundingBox box = BVHReadBoundingBox(
                 currentBVH,
                 thisNodeIndex,
@@ -768,11 +773,7 @@ bool Traverse(
     MARK(10,0);
     bool isHit = Fallback_InstanceIndex() != NO_HIT_SENTINEL;
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    if (isHit)
-    {
-        closestBoxT = Fallback_RayTCurrent();
-    }
-    VisualizeAcceleratonStructure(closestBoxT);
+    VisualizeAcceleratonStructure();
 #endif
     return isHit;   
 }

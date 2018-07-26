@@ -25,8 +25,8 @@
 cbuffer CB0 : register(b0)
 {
     float2 RcpTextureSize;
-    float ContrastThreshold;	// default = 0.2, lower is more expensive
-    float SubpixelRemoval;		// default = 0.75, lower blurs less
+    float ContrastThreshold;    // default = 0.2, lower is more expensive
+    float SubpixelRemoval;        // default = 0.75, lower blurs less
     uint LastQueueIndex;
     uint2 StartPixel;
 }

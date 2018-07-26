@@ -70,6 +70,10 @@ enum RootSignatureParameterOffset {
 #if ENABLE_UAV_LOG
   DebugUAVLog,
 #endif
+#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
+  DebugConstants,
+#endif
+
   NumParameters
 };
 #endif

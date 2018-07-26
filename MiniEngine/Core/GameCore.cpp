@@ -353,7 +353,7 @@ namespace GameCore
             if (msg.message == WM_QUIT)
                 break;
         }
-        while (UpdateApplication(app));	// Returns false to quit loop
+        while (UpdateApplication(app));    // Returns false to quit loop
 
         Graphics::Terminate();
         TerminateApplication(app);

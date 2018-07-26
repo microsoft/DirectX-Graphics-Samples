@@ -70,6 +70,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
             return;
         }
 
+        // TreeletReorder has not run on the hierarchyBuffer yet, so the ParentIndex is already accurate, ie. doesn't need GetActualParentIndex()
         uint parentNodeIndex = hierarchyBuffer[nodeIndex].ParentIndex;
 
         uint numTrianglesFromOtherNode = 0;

@@ -15,8 +15,8 @@
 
 using Microsoft::WRL::ComPtr;
 
-const float Settings::TriangleHalfWidth = 0.05f;	// The x and y offsets used by the triangle vertices.
-const float Settings::TriangleDepth = 1.0f;			// The z offset used by the triangle vertices.
+const float Settings::TriangleHalfWidth = 0.05f;    // The x and y offsets used by the triangle vertices.
+const float Settings::TriangleDepth = 1.0f;            // The z offset used by the triangle vertices.
 const float Settings::ClearColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
 UINT Settings::NodeCount;
@@ -36,34 +36,34 @@ D3D12_RECT Settings::ScissorRect;
 
 void Settings::Initialize(ID3D12Device* pDevice, UINT width, UINT height, bool tearingSupport)
 {
-	NodeCount = pDevice->GetNodeCount();
-	_ASSERT(NodeCount <= MaxNodeCount);
+    NodeCount = pDevice->GetNodeCount();
+    _ASSERT(NodeCount <= MaxNodeCount);
 
-	BackBuffersPerNode = (NodeCount > 1) ? 1 : 2;
-	FrameCount = (NodeCount > 1) ? 1 : 2;
-	_ASSERT(FrameCount * NodeCount <= SceneConstantBufferFrames);
+    BackBuffersPerNode = (NodeCount > 1) ? 1 : 2;
+    FrameCount = (NodeCount > 1) ? 1 : 2;
+    _ASSERT(FrameCount * NodeCount <= SceneConstantBufferFrames);
 
-	D3D12_FEATURE_DATA_D3D12_OPTIONS featureOptions;
-	ThrowIfFailed(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureOptions, sizeof(featureOptions)));
-	Tier2Support = (featureOptions.CrossNodeSharingTier == D3D12_CROSS_NODE_SHARING_TIER_2);
-	TearingSupport = tearingSupport;
+    D3D12_FEATURE_DATA_D3D12_OPTIONS featureOptions;
+    ThrowIfFailed(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureOptions, sizeof(featureOptions)));
+    Tier2Support = (featureOptions.CrossNodeSharingTier == D3D12_CROSS_NODE_SHARING_TIER_2);
+    TearingSupport = tearingSupport;
 
-	RtvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	CbvSrvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    RtvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    CbvSrvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	SharedNodeMask = (1 << NodeCount) - 1;
-	BackBufferCount = NodeCount * BackBuffersPerNode;
+    SharedNodeMask = (1 << NodeCount) - 1;
+    BackBufferCount = NodeCount * BackBuffersPerNode;
 
-	// We assume that each node will be assigned the same number of render targets.
-	_ASSERT(SceneHistoryCount % NodeCount == 0);
+    // We assume that each node will be assigned the same number of render targets.
+    _ASSERT(SceneHistoryCount % NodeCount == 0);
 
-	OnSizeChanged(width, height);
+    OnSizeChanged(width, height);
 }
 
 void Settings::OnSizeChanged(UINT width, UINT height)
 {
-	Width = width;
-	Height = height;
-	Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
-	ScissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(width), static_cast<LONG>(height));
+    Width = width;
+    Height = height;
+    Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
+    ScissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(width), static_cast<LONG>(height));
 }

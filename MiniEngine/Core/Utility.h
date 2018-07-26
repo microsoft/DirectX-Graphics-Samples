@@ -87,7 +87,7 @@ namespace Utility
     #define DEBUGPRINT( msg, ... ) do {} while(0)
     #define ASSERT_SUCCEEDED( hr, ... ) (void)(hr)
 
-#else	// !RELEASE
+#else    // !RELEASE
 
     #define STRINGIFY(x) #x
     #define STRINGIFY_BUILTIN(x) STRINGIFY(x)

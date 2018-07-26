@@ -86,7 +86,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     uint BinIndex = Gid.y * gBinsPerRow + Gid.x;
 
     uint ParticleCountInBin = g_BinCounters[BinIndex];
-    if (ParticleCountInBin == 0)	
+    if (ParticleCountInBin == 0)    
         return;
 
     // Get the start location for particles in this bin

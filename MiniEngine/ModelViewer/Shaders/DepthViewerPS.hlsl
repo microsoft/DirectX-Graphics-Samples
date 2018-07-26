@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard
+// Author(s):    James Stanard
 //
 
 #include "ModelViewerRS.hlsli"
@@ -19,8 +19,8 @@ struct VSOutput
     float2 uv : TexCoord0;
 };
 
-Texture2D<float4>	texDiffuse		: register(t0);
-SamplerState		sampler0		: register(s0);
+Texture2D<float4>    texDiffuse        : register(t0);
+SamplerState        sampler0        : register(s0);
 
 [RootSignature(ModelViewer_RootSig)]
 void main(VSOutput vsOutput)

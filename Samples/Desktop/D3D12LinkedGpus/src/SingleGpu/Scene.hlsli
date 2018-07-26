@@ -11,19 +11,19 @@
 
 cbuffer SceneConstantBuffer : register(b0)
 {
-	float4 velocity;
-	float4 offset;
-	float4 color;
-	float4x4 projection;
+    float4 velocity;
+    float4 offset;
+    float4 color;
+    float4x4 projection;
 };
 
 cbuffer SceneRootConstants : register(b1)
 {
-	uint simulatedGpuLoad;
+    uint simulatedGpuLoad;
 };
 
 struct PSInput
 {
-	float4 position : SV_POSITION;
-	float4 color : COLOR;
+    float4 position : SV_POSITION;
+    float4 color : COLOR;
 };

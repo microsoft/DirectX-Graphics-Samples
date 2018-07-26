@@ -30,7 +30,7 @@
       <ShaderModel>5.0</ShaderModel>
       <VariableName>g_p%(Filename)</VariableName>
       <HeaderFileOutput>$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</HeaderFileOutput>
-	  <ObjectFileOutput>$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\Shaders\%(Filename).cso</ObjectFileOutput>
+	  <ObjectFileOutput />
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup />

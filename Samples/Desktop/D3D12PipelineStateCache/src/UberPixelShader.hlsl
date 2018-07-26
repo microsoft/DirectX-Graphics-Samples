@@ -22,7 +22,7 @@
 
 cbuffer cb : register(b0)
 {
-	uint shaderType;
+    uint shaderType;
 };
 
 #define PostBlit 2
@@ -37,52 +37,52 @@ cbuffer cb : register(b0)
 
 float4 mainUber(PSInput input) : SV_TARGET
 {
-	float4 color = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    float4 color = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
-	[branch] switch (shaderType)
-	{
-	case PostBlit:
-		color = Blit(input.uv);
-		break;
+    [branch] switch (shaderType)
+    {
+    case PostBlit:
+        color = Blit(input.uv);
+        break;
 
-	case PostInvert:
-		color = InvertPixel(input.uv);
-		break;
+    case PostInvert:
+        color = InvertPixel(input.uv);
+        break;
 
-	case PostGrayScale:
-		color = GrayScale(input.uv);
-		break;
+    case PostGrayScale:
+        color = GrayScale(input.uv);
+        break;
 
-	case PostEdgeDetect:
-		color = EdgeDetect(input.uv);
-		break;
+    case PostEdgeDetect:
+        color = EdgeDetect(input.uv);
+        break;
 
-	case PostBlur:
-		color = Blur(input.uv);
-		break;
+    case PostBlur:
+        color = Blur(input.uv);
+        break;
 
-	case PostWarp:
-		color = Warp(input.uv);
-		break;
+    case PostWarp:
+        color = Warp(input.uv);
+        break;
 
-	case PostPixelate:
-		color = Pixelate(input.uv);
-		break;
+    case PostPixelate:
+        color = Pixelate(input.uv);
+        break;
 
-	case PostDistort:
-		color = Distort(input.uv);
-		break;
+    case PostDistort:
+        color = Distort(input.uv);
+        break;
 
-	case PostWave:
-		color = Wave(input.uv);
-		break;
+    case PostWave:
+        color = Wave(input.uv);
+        break;
 
-	default:
-		break;
-	}
+    default:
+        break;
+    }
 
-	// Indicate that the Uber shader is running.
-	color *= 0.4f;
+    // Indicate that the Uber shader is running.
+    color *= 0.4f;
 
-	return color;
+    return color;
 }

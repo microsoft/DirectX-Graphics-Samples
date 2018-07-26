@@ -63,7 +63,7 @@ uint GetParentIndex(uint boxIndex)
         return aabbParentBuffer[boxIndex];
     }
 
-    return hierarchyBuffer[boxIndex].ParentIndex;
+    return GetActualParentIndex(hierarchyBuffer[boxIndex].ParentIndex);
 }
 
 [numthreads(THREAD_GROUP_1D_WIDTH, 1, 1)]
@@ -115,7 +115,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
             boxData = GetBoxFromChildBoxes(leftBox, leftNodeIndex, rightBox, rightNodeIndex, outputFlag);
 
-#if COMBINE_LEAF_NODES
+#if COMBINE_LEAF_NODES_2ND_PART_TBD
             uint2 leftFlags;
             uint4 leftData = GetNodeData(leftNodeIndex, leftFlags);
 
