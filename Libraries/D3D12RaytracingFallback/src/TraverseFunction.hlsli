@@ -269,7 +269,7 @@ void RayTriangleIntersect(
     hitT = T * rcpDet;
 }
 
-#define MULTIPLE_LEAVES_PER_NODE 1
+#define MULTIPLE_LEAVES_PER_NODE 0
 static
 bool TestLeafNodeIntersections(
     RWByteAddressBufferPointer accelStruct,

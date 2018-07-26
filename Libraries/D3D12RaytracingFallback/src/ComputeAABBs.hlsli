@@ -115,7 +115,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
             boxData = GetBoxFromChildBoxes(leftBox, leftNodeIndex, rightBox, rightNodeIndex, outputFlag);
 
-#if COMBINE_LEAF_NODES
+#if COMBINE_LEAF_NODES_1
             uint2 leftFlags;
             uint4 leftData = GetNodeData(leftNodeIndex, leftFlags);
 

@@ -24,6 +24,8 @@
 static const int IsLeafFlag = 0x80000000;
 static const int IsProceduralGeometryFlag = 0x40000000;
 static const int LeafFlags = IsLeafFlag | IsProceduralGeometryFlag;
+
+#define COMBINE_LEAF_NODES 1
 static const int IsCollapseChildren = 0x80000000; // for extracting HierarchyNode::bCollapseChildren
 
 // BVH description for the traversal shader
@@ -56,8 +58,12 @@ int GetLeafIndexFromFlag(uint2 flag)
 
 uint GetActualParentIndex(uint index)
 {
+#if COMBINE_LEAF_NODES
     // Zero out HierarchyNode::bCollapseChildren flag
     return index & ~IsCollapseChildren;
+#else
+    return index;
+#endif
 }
 
 // Reorganized AABB for faster intersection testing
