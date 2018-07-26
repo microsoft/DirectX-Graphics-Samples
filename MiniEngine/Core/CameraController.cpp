@@ -104,9 +104,12 @@ void CameraController::Update( float deltaTime )
     m_CurrentPitch = XMMin( XM_PIDIV2, m_CurrentPitch);
     m_CurrentPitch = XMMax(-XM_PIDIV2, m_CurrentPitch);
 
+	/*
 	if (GameInput::IsFirstPressed(GameInput::kKey_u)) {
+		auto position = m_TargetCamera.GetPosition();
 		OutputDebugString(L"Hello");
 	}
+	*/
 
     m_CurrentHeading -= yaw;
     if (m_CurrentHeading > XM_PI)
