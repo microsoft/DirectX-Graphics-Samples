@@ -324,6 +324,8 @@ struct MRT
 MRT main(VSOutput vsOutput)
 {
     MRT mrt;
+    mrt.Color = 0.0;
+    mrt.Normal = 0.0;
 
     uint2 pixelPos = uint2(vsOutput.position.xy);
 # define SAMPLE_TEX(texName) texName.Sample(sampler0, vsOutput.uv)
@@ -341,7 +343,16 @@ MRT main(VSOutput vsOutput)
         normal = SAMPLE_TEX(texNormal) * 2.0 - 1.0;
         AntiAliasSpecular(normal, gloss);
         float3x3 tbn = float3x3(normalize(vsOutput.tangent), normalize(vsOutput.bitangent), normalize(vsOutput.normal));
-        normal = normalize(mul(normal, tbn));
+        normal = mul(normal, tbn);
+
+        // Normalize result...
+        float lenSq = dot(normal, normal);
+
+        // Some Sponza content appears to have no tangent space provided, resulting in degenerate normal vectors.
+        if (!isfinite(lenSq) || lenSq < 1e-6)
+            return mrt;
+
+        normal *= rsqrt(lenSq);
     }
 
     float3 specularAlbedo = float3(0.56, 0.56, 0.56);
@@ -349,16 +360,12 @@ MRT main(VSOutput vsOutput)
     float3 viewDir = normalize(vsOutput.viewDir);
     colorSum += ApplyDirectionalLight(diffuseAlbedo, specularAlbedo, specularMask, gloss, normal, viewDir, SunDirection, SunColor, vsOutput.shadowCoord);
 
+    mrt.Color = colorSum;
+
     if (AreNormalsNeeded)
     {
         float reflection = specularMask * pow(1.0 - saturate(dot(-viewDir, normal)), 5.0);
-        mrt.Color = colorSum * (1 - reflection);
         mrt.Normal = float4(normal, reflection);
-    }
-    else
-    {
-        mrt.Color = colorSum;
-        mrt.Normal = 0.0;
     }
 
     return mrt;

@@ -330,7 +330,7 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
     if (IsReflection)
     {
         float reflectivity = normals[DispatchRaysIndex().xy].w;
-        outputColor = outputColor * reflectivity + g_screenOutput[DispatchRaysIndex().xy].xyz;
+        outputColor = lerp(g_screenOutput[DispatchRaysIndex().xy].rgb, outputColor, reflectivity);
     }
 
     g_screenOutput[DispatchRaysIndex().xy] = float4(outputColor, 1);
