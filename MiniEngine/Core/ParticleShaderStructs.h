@@ -32,7 +32,7 @@ __declspec(align(16)) struct EmissionProperties
     XMFLOAT3 Gravity;
     UINT TextureID;
     XMFLOAT3 EmissiveColor;
-    float pad1;	
+    float pad1;    
     XMUINT4 RandIndex[64];
 };
 
@@ -54,7 +54,7 @@ struct ParticleSpawnData
 struct ParticleMotion
 {
     XMFLOAT3 Position;
-    float Mass;	
+    float Mass;    
     XMFLOAT3 Velocity;
     float Age;
     float Rotation;

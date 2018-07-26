@@ -547,9 +547,9 @@ namespace FallbackLayerUnitTests
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
     };
 
-	TEST_CLASS(AccelerationStructureUnitTests)
-	{
-	public:
+    TEST_CLASS(AccelerationStructureUnitTests)
+    {
+    public:
         TEST_METHOD_INITIALIZE(MethodSetup)
         {
             m_pDescriptorHeapStack = std::unique_ptr<DescriptorHeapStack>(
@@ -1154,7 +1154,7 @@ namespace FallbackLayerUnitTests
         D3D12Context m_d3d12Context;
         std::unique_ptr<DescriptorHeapStack> m_pDescriptorHeapStack;
         std::unique_ptr<AccelerationStructureBuilderHelper> m_pBuilderHelper;
-	};
+    };
 
 void AllocateUAVBuffer(ID3D12Device &d3d12device, UINT64 bufferSize, ID3D12Resource **ppResource)
 {

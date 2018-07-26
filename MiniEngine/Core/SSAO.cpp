@@ -74,12 +74,12 @@ namespace
     ComputePSO s_DepthPrepare2CS;
     ComputePSO s_Render1CS;
     ComputePSO s_Render2CS;
-    ComputePSO s_BlurUpsampleBlend[2];	// Blend the upsampled result with the next higher resolution
-    ComputePSO s_BlurUpsampleFinal[2];	// Don't blend the result, just upsample it
+    ComputePSO s_BlurUpsampleBlend[2];    // Blend the upsampled result with the next higher resolution
+    ComputePSO s_BlurUpsampleFinal[2];    // Don't blend the result, just upsample it
     ComputePSO s_LinearizeDepthCS;
     ComputePSO s_DebugSSAOCS;
 
-    float SampleThickness[12];	// Pre-computed sample thicknesses
+    float SampleThickness[12];    // Pre-computed sample thicknesses
 }
 
 void SSAO::Initialize( void )
@@ -184,18 +184,18 @@ namespace SSAO
         // of samples with this weight because we sum the samples together before multiplying by the weight,
         // so as an aggregate all of those samples matter more.  After generating this table, the weights
         // are normalized.
-        SsaoCB[12] = 4.0f * SampleThickness[ 0];	// Axial
-        SsaoCB[13] = 4.0f * SampleThickness[ 1];	// Axial
-        SsaoCB[14] = 4.0f * SampleThickness[ 2];	// Axial
-        SsaoCB[15] = 4.0f * SampleThickness[ 3];	// Axial
-        SsaoCB[16] = 4.0f * SampleThickness[ 4];	// Diagonal
-        SsaoCB[17] = 8.0f * SampleThickness[ 5];	// L-shaped
-        SsaoCB[18] = 8.0f * SampleThickness[ 6];	// L-shaped
-        SsaoCB[19] = 8.0f * SampleThickness[ 7];	// L-shaped
-        SsaoCB[20] = 4.0f * SampleThickness[ 8];	// Diagonal
-        SsaoCB[21] = 8.0f * SampleThickness[ 9];	// L-shaped
-        SsaoCB[22] = 8.0f * SampleThickness[10];	// L-shaped
-        SsaoCB[23] = 4.0f * SampleThickness[11];	// Diagonal
+        SsaoCB[12] = 4.0f * SampleThickness[ 0];    // Axial
+        SsaoCB[13] = 4.0f * SampleThickness[ 1];    // Axial
+        SsaoCB[14] = 4.0f * SampleThickness[ 2];    // Axial
+        SsaoCB[15] = 4.0f * SampleThickness[ 3];    // Axial
+        SsaoCB[16] = 4.0f * SampleThickness[ 4];    // Diagonal
+        SsaoCB[17] = 8.0f * SampleThickness[ 5];    // L-shaped
+        SsaoCB[18] = 8.0f * SampleThickness[ 6];    // L-shaped
+        SsaoCB[19] = 8.0f * SampleThickness[ 7];    // L-shaped
+        SsaoCB[20] = 4.0f * SampleThickness[ 8];    // Diagonal
+        SsaoCB[21] = 8.0f * SampleThickness[ 9];    // L-shaped
+        SsaoCB[22] = 8.0f * SampleThickness[10];    // L-shaped
+        SsaoCB[23] = 4.0f * SampleThickness[11];    // Diagonal
 
 //#define SAMPLE_EXHAUSTIVELY
 
@@ -436,7 +436,7 @@ void SSAO::Render( GraphicsContext& GfxContext, const float* ProjMat, float Near
     {
         Context.SetPipelineState( s_Render1CS );
         ComputeAO( Context, g_AOMerged2, g_DepthTiled2, FovTangent );
-        if (g_QualityLevel >= kSsaoQualityHigh)	   
+        if (g_QualityLevel >= kSsaoQualityHigh)       
         {
             Context.SetPipelineState( s_Render2CS );
             ComputeAO( Context, g_AOHighQuality2, g_DepthDownsize2, FovTangent );

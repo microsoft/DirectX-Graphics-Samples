@@ -167,8 +167,8 @@ protected:
     ID3D12RootSignature* m_CurComputeRootSignature;
     ID3D12PipelineState* m_CurComputePipelineState;
 
-    DynamicDescriptorHeap m_DynamicViewDescriptorHeap;		// HEAP_TYPE_CBV_SRV_UAV
-    DynamicDescriptorHeap m_DynamicSamplerDescriptorHeap;	// HEAP_TYPE_SAMPLER
+    DynamicDescriptorHeap m_DynamicViewDescriptorHeap;        // HEAP_TYPE_CBV_SRV_UAV
+    DynamicDescriptorHeap m_DynamicSamplerDescriptorHeap;    // HEAP_TYPE_SAMPLER
 
     D3D12_RESOURCE_BARRIER m_ResourceBarrierBuffer[16];
     UINT m_NumBarriersToFlush;

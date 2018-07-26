@@ -114,14 +114,14 @@ public:
     };
     Header m_Header;
 
-	struct Attrib
-	{
-		uint16_t offset; // byte offset from the start of the vertex
-		uint16_t normalized; // if true, integer formats are interpreted as [-1, 1] or [0, 1]
-		uint16_t components; // 1-4
-		uint16_t format;
-	};
-	struct Mesh
+    struct Attrib
+    {
+        uint16_t offset; // byte offset from the start of the vertex
+        uint16_t normalized; // if true, integer formats are interpreted as [-1, 1] or [0, 1]
+        uint16_t components; // 1-4
+        uint16_t format;
+    };
+    struct Mesh
     {
         BoundingBox boundingBox;
 
@@ -182,15 +182,15 @@ public:
     ByteAddressBuffer m_IndexBufferDepth;
     uint32_t m_VertexStrideDepth;
 
-	virtual bool Load(const char* filename)
-	{
-		return LoadH3D(filename);
-	}
+    virtual bool Load(const char* filename)
+    {
+        return LoadH3D(filename);
+    }
 
-	const BoundingBox& GetBoundingBox() const
-	{
-		return m_Header.boundingBox;
-	}
+    const BoundingBox& GetBoundingBox() const
+    {
+        return m_Header.boundingBox;
+    }
 
     D3D12_CPU_DESCRIPTOR_HANDLE* GetSRVs( uint32_t materialIdx ) const
     {
@@ -199,12 +199,12 @@ public:
 
 protected:
 
-	bool LoadH3D(const char *filename);
-	bool SaveH3D(const char *filename) const;
+    bool LoadH3D(const char *filename);
+    bool SaveH3D(const char *filename) const;
 
-	void ComputeMeshBoundingBox(unsigned int meshIndex, BoundingBox &bbox) const;
-	void ComputeGlobalBoundingBox(BoundingBox &bbox) const;
-	void ComputeAllBoundingBoxes();
+    void ComputeMeshBoundingBox(unsigned int meshIndex, BoundingBox &bbox) const;
+    void ComputeGlobalBoundingBox(BoundingBox &bbox) const;
+    void ComputeAllBoundingBoxes();
 
     void ReleaseTextures();
     void LoadTextures();

@@ -41,7 +41,7 @@ D3D12SM6WaveIntrinsics::D3D12SM6WaveIntrinsics(UINT width, UINT height, std::wst
     m_cbSrvDescriptorSize(0),
     m_constantBufferData{},
     m_mousePosition{ width*0.5f, height*0.5f },
-	m_mouseLeftButtonDown(false),
+    m_mouseLeftButtonDown(false),
     m_rendermode{ 1 }
 {
 }
@@ -104,8 +104,8 @@ void D3D12SM6WaveIntrinsics::LoadPipeline()
     ComPtr<IDXGIFactory4> factory;
     ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
-	// Create device.
-	CreateDevice(factory);
+    // Create device.
+    CreateDevice(factory);
 
     // Query the level of support of Shader Model.
     D3D12_FEATURE_DATA_SHADER_MODEL shaderModelSupport = { D3D_SHADER_MODEL_6_0 };
@@ -132,8 +132,8 @@ void D3D12SM6WaveIntrinsics::LoadPipeline()
         {
             exit(-1);
         }
-    }	
-	
+    }    
+    
     // Describe and create the command queue.
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -155,7 +155,7 @@ void D3D12SM6WaveIntrinsics::LoadPipeline()
     ComPtr<IDXGISwapChain1> swapChain;
 
     ThrowIfFailed(factory->CreateSwapChainForHwnd(
-        m_commandQueue.Get(),		// Swap chain needs the queue so that it can force a flush on it.
+        m_commandQueue.Get(),        // Swap chain needs the queue so that it can force a flush on it.
         Win32Application::GetHwnd(),
         &swapChainDesc,
         nullptr,
@@ -353,13 +353,13 @@ void D3D12SM6WaveIntrinsics::LoadAssets()
         // Describe and create a constant buffer view.
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
         cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
-        cbvDesc.SizeInBytes = (sizeof(SceneConstantBuffer) + 255) & ~255;	// CB size is required to be 256-byte aligned.
+        cbvDesc.SizeInBytes = (sizeof(SceneConstantBuffer) + 255) & ~255;    // CB size is required to be 256-byte aligned.
         CD3DX12_CPU_DESCRIPTOR_HANDLE cbHandle(m_cbSrvHeap->GetCPUDescriptorHandleForHeapStart());
         m_d3d12Device->CreateConstantBufferView(&cbvDesc, cbHandle);
 
         // Map and initialize the constant buffer. We don't unmap this until the
         // app closes. Keeping things mapped for the lifetime of the resource is okay.
-        CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+        CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
         ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbSrvDataBegin)));
         memcpy(m_pCbSrvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
     }
@@ -420,7 +420,7 @@ void D3D12SM6WaveIntrinsics::LoadSizeDependentResources()
 
         // Copy the triangle data to the vertex buffer.
         UINT8* pVertexDataBegin;
-        CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+        CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
         ThrowIfFailed(m_renderPass1VertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
         memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
         m_renderPass1VertexBuffer->Unmap(0, nullptr);
@@ -461,7 +461,7 @@ void D3D12SM6WaveIntrinsics::LoadSizeDependentResources()
 
         // Copy the triangle data to the vertex buffer.
         UINT8* pVertexDataBegin;
-        CD3DX12_RANGE readRange(0, 0);		// We do not intend to read from this resource on the CPU.
+        CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
         ThrowIfFailed(m_renderPass2VertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
         memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
         m_renderPass2VertexBuffer->Unmap(0, nullptr);
@@ -795,17 +795,17 @@ void D3D12SM6WaveIntrinsics::OnSizeChanged(UINT width, UINT height, bool minimiz
 
 void D3D12SM6WaveIntrinsics::OnMouseMove(UINT x, UINT y)
 {
-	// Only update the zoom-in area while mouse left button is pressed.
-	if(m_mouseLeftButtonDown)
-	{
-		m_mousePosition[0] = static_cast<float>(x);
-		m_mousePosition[1] = static_cast<float>(y);		
-	}
+    // Only update the zoom-in area while mouse left button is pressed.
+    if(m_mouseLeftButtonDown)
+    {
+        m_mousePosition[0] = static_cast<float>(x);
+        m_mousePosition[1] = static_cast<float>(y);        
+    }
 }
 
 void D3D12SM6WaveIntrinsics::OnLeftButtonDown(UINT /*x*/, UINT /*y*/)
 {
-	m_mouseLeftButtonDown = true;
+    m_mouseLeftButtonDown = true;
 }
 
 void D3D12SM6WaveIntrinsics::OnLeftButtonUp(UINT /*x*/, UINT /*y*/)

@@ -47,9 +47,9 @@ namespace Math
         // simple struct in the Model project.)
         bool IntersectBoundingBox(const Vector3 minBound, const Vector3 maxBound) const;
 
-        friend Frustum  operator* ( const OrthogonalTransform& xform, const Frustum& frustum );	// Fast
-        friend Frustum  operator* ( const AffineTransform& xform, const Frustum& frustum );		// Slow
-        friend Frustum  operator* ( const Matrix4& xform, const Frustum& frustum );				// Slowest (and most general)
+        friend Frustum  operator* ( const OrthogonalTransform& xform, const Frustum& frustum );    // Fast
+        friend Frustum  operator* ( const AffineTransform& xform, const Frustum& frustum );        // Slow
+        friend Frustum  operator* ( const Matrix4& xform, const Frustum& frustum );                // Slowest (and most general)
 
     private:
 
@@ -59,8 +59,8 @@ namespace Math
         // Orthographic frustum constructor (for box-shaped frusta)
         void ConstructOrthographicFrustum( float Left, float Right, float Top, float Bottom, float NearClip, float FarClip );
 
-        Vector3 m_FrustumCorners[8];		// the corners of the frustum
-        BoundingPlane m_FrustumPlanes[6];			// the bounding planes
+        Vector3 m_FrustumCorners[8];        // the corners of the frustum
+        BoundingPlane m_FrustumPlanes[6];            // the bounding planes
     };
 
     //=======================================================================================================

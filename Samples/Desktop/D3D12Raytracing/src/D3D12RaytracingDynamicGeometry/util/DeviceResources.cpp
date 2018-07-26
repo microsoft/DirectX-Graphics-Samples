@@ -51,7 +51,7 @@ DeviceResources::DeviceResources(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depth
     m_isWindowVisible(true),
     m_adapterIDoverride(adapterIDoverride),
     m_adapterID(UINT_MAX),
-	m_openCommandList(false)
+    m_openCommandList(false)
 {
     if (backBufferCount > MAX_BACK_BUFFER_COUNT)
     {
@@ -246,10 +246,10 @@ void DeviceResources::CreateWindowSizeDependentResources()
     // Wait until all previous GPU work is complete.
     WaitForGpu();
 
-	if (m_deviceNotify)
-	{
-		m_deviceNotify->OnReleaseWindowSizeDependentResources();
-	}
+    if (m_deviceNotify)
+    {
+        m_deviceNotify->OnReleaseWindowSizeDependentResources();
+    }
 
     // Release resources that are tied to the swap chain and update fence values.
     for (UINT n = 0; n < m_backBufferCount; n++)
@@ -410,10 +410,10 @@ void DeviceResources::CreateWindowSizeDependentResources()
     m_scissorRect.right = backBufferWidth;
     m_scissorRect.bottom = backBufferHeight;
 
-	if (m_deviceNotify)
-	{
-		m_deviceNotify->OnCreateWindowSizeDependentResources();
-	}
+    if (m_deviceNotify)
+    {
+        m_deviceNotify->OnCreateWindowSizeDependentResources();
+    }
 }
 
 // This method is called when the Win32 window is created (or re-created).
@@ -502,18 +502,18 @@ void DeviceResources::HandleDeviceLost()
 // Prepare the command list for rendering.
 void DeviceResources::ResetCommandAllocatorAndCommandlist()
 {
-	// Reset command list and allocator.
-	ThrowIfFailed(m_commandAllocators[m_backBufferIndex]->Reset());
-	ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_backBufferIndex].Get(), nullptr));
+    // Reset command list and allocator.
+    ThrowIfFailed(m_commandAllocators[m_backBufferIndex]->Reset());
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_backBufferIndex].Get(), nullptr));
 
-	m_openCommandList = true;
+    m_openCommandList = true;
 }
 
 // Prepare the command list and render target for rendering.
 void DeviceResources::Prepare(D3D12_RESOURCE_STATES beforeState)
 {
     // Reset command list and allocator.
-	ResetCommandAllocatorAndCommandlist();
+    ResetCommandAllocatorAndCommandlist();
 
     if (beforeState != D3D12_RESOURCE_STATE_RENDER_TARGET)
     {
@@ -532,9 +532,9 @@ void DeviceResources::Present(D3D12_RESOURCE_STATES beforeState)
         D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_backBufferIndex].Get(), beforeState, D3D12_RESOURCE_STATE_PRESENT);
         m_commandList->ResourceBarrier(1, &barrier);
     }
-	
-	ExecuteCommandList();
-	
+    
+    ExecuteCommandList();
+    
     HRESULT hr;
     if (m_options & c_AllowTearing)
     {
@@ -572,15 +572,15 @@ void DeviceResources::Present(D3D12_RESOURCE_STATES beforeState)
 // ToDo remove force paramter
 void DeviceResources::ExecuteCommandList(bool force)
 {
-	// ToDo is openCommandList var necessary
-	if (m_openCommandList || force)
-	{
-		ThrowIfFailed(m_commandList->Close());
-		ID3D12CommandList *commandLists[] = { m_commandList.Get() };
-		m_commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
+    // ToDo is openCommandList var necessary
+    if (m_openCommandList || force)
+    {
+        ThrowIfFailed(m_commandList->Close());
+        ID3D12CommandList *commandLists[] = { m_commandList.Get() };
+        m_commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
-		m_openCommandList = false;
-	}
+        m_openCommandList = false;
+    }
 }
 
 // Wait for pending GPU work to complete.

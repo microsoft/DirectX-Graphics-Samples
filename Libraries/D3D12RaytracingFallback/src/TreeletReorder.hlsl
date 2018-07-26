@@ -47,7 +47,7 @@ void FormTreelet(in uint groupThreadId)
 #if USE_EXPLICIT_UNROLL_IN_FORMTREELET
         [unroll]
 #endif
-	for (uint treeletSize = 2; treeletSize < FullTreeletSize; treeletSize++)
+    for (uint treeletSize = 2; treeletSize < FullTreeletSize; treeletSize++)
         {
             float largestSurfaceArea = 0.0;
             uint nodeIndexToTraverse = 0;

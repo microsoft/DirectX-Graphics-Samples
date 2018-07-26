@@ -17,8 +17,8 @@ RWByteAddressBuffer g_SortBuffer : register(u0);
 
 cbuffer Constants : register(b0)
 {
-    uint k;	// k >= 4096
-    uint j;	// j >= 2048 && j < k
+    uint k;    // k >= 4096
+    uint j;    // j >= 2048 && j < k
 };
 
 #ifdef BITONICSORT_64BIT

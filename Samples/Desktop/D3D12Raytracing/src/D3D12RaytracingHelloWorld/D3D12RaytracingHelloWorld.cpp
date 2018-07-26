@@ -49,7 +49,7 @@ void D3D12RaytracingHelloWorld::EnableDXRExperimentalFeatures(IDXGIAdapter1* ada
 
         OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
         ThrowIfFalse(EnableComputeRaytracingFallback(adapter), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
-		m_raytracingAPI = RaytracingAPI::FallbackLayer;
+        m_raytracingAPI = RaytracingAPI::FallbackLayer;
     }
 }
 
@@ -662,11 +662,11 @@ void D3D12RaytracingHelloWorld::ParseCommandLineArgs(WCHAR* argv[], int argc)
         if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0 )
         {
             m_forceComputeFallback = true;
-			m_raytracingAPI = RaytracingAPI::FallbackLayer;
+            m_raytracingAPI = RaytracingAPI::FallbackLayer;
         }
         else if (_wcsnicmp(argv[1], L"-DXR", wcslen(argv[1])) == 0)
         {
-			m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
+            m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
         }
     }
 }

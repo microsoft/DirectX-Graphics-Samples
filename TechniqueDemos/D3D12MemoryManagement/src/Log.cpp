@@ -16,35 +16,35 @@
 
 static LPCSTR g_SeverityStrings[_ELS_COUNT] =
 {
-	"Message",
-	"Warning",
-	"Error",
-	"Critical Error"
+    "Message",
+    "Warning",
+    "Error",
+    "Critical Error"
 };
 
 _Use_decl_annotations_
 void LogMessage(LogSeverity Severity, LPCSTR pFormat, ...)
 {
-	assert(Severity < _ELS_COUNT);
+    assert(Severity < _ELS_COUNT);
 
 #if(!DISABLE_LOGGING)
-	va_list Args;
-	va_start(Args, pFormat);
+    va_list Args;
+    va_start(Args, pFormat);
 
-	printf("%s: ", g_SeverityStrings[Severity]);
-	vprintf(pFormat, Args);
-	printf("\n");
+    printf("%s: ", g_SeverityStrings[Severity]);
+    vprintf(pFormat, Args);
+    printf("\n");
 #endif
 
 #if(_DEBUG)
-	if (Severity >= ELS_Error)
-	{
-		__debugbreak();
-	}
+    if (Severity >= ELS_Error)
+    {
+        __debugbreak();
+    }
 #endif
 
-	if (Severity == ELS_Critical)
-	{
-		ExitProcess(0);
-	}
+    if (Severity == ELS_Critical)
+    {
+        ExitProcess(0);
+    }
 }

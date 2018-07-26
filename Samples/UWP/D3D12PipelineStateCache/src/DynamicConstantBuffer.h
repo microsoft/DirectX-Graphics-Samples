@@ -18,19 +18,19 @@ using namespace DirectX;
 class DynamicConstantBuffer
 {
 public:
-	DynamicConstantBuffer(UINT constantSize, UINT maxDrawsPerFrame, UINT frameCount);
-	~DynamicConstantBuffer();
+    DynamicConstantBuffer(UINT constantSize, UINT maxDrawsPerFrame, UINT frameCount);
+    ~DynamicConstantBuffer();
 
-	void Init(ID3D12Device* pDevice);
-	void* GetMappedMemory(UINT drawIndex, UINT frameIndex);
-	D3D12_GPU_VIRTUAL_ADDRESS GetGpuVirtualAddress(UINT drawIndex, UINT frameIndex);
+    void Init(ID3D12Device* pDevice);
+    void* GetMappedMemory(UINT drawIndex, UINT frameIndex);
+    D3D12_GPU_VIRTUAL_ADDRESS GetGpuVirtualAddress(UINT drawIndex, UINT frameIndex);
 
 private:
-	ComPtr<ID3D12Resource> m_constantBuffer;
-	void* m_pMappedConstantBuffer;
-	UINT  m_alignedPerDrawConstantBufferSize;
-	UINT  m_perFrameConstantBufferSize;
+    ComPtr<ID3D12Resource> m_constantBuffer;
+    void* m_pMappedConstantBuffer;
+    UINT  m_alignedPerDrawConstantBufferSize;
+    UINT  m_perFrameConstantBufferSize;
 
-	UINT m_frameCount;
-	UINT m_maxDrawsPerFrame;
+    UINT m_frameCount;
+    UINT m_maxDrawsPerFrame;
 };

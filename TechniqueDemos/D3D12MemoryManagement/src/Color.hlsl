@@ -11,27 +11,27 @@
 
 cbuffer Projection : register(b0)
 {
-	float4x4 GProjectionMatrix;
+    float4x4 GProjectionMatrix;
 };
 
 struct PSInput
 {
-	float4 Position : SV_POSITION;
-	float4 Color : COLOR;
+    float4 Position : SV_POSITION;
+    float4 Color : COLOR;
 };
 
 PSInput VShader(float3 Position : POSITION, float4 Color : COLOR)
 {
-	PSInput Output;
+    PSInput Output;
 
-	Output.Position = float4(Position, 1.0f);
-	Output.Position = mul(GProjectionMatrix, Output.Position);
-	Output.Color = Color;
+    Output.Position = float4(Position, 1.0f);
+    Output.Position = mul(GProjectionMatrix, Output.Position);
+    Output.Color = Color;
 
-	return Output;
+    return Output;
 }
 
 float4 PShader(PSInput Input) : SV_TARGET
 {
-	return Input.Color;
+    return Input.Color;
 }

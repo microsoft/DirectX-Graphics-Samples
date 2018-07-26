@@ -28,9 +28,9 @@ public:
 
     virtual ~EngineVar() {}
 
-    virtual void Increment( void ) {}	// DPad Right
-    virtual void Decrement( void ) {}	// DPad Left
-    virtual void Bang( void ) {}		// A Button
+    virtual void Increment( void ) {}    // DPad Right
+    virtual void Decrement( void ) {}    // DPad Left
+    virtual void Bang( void ) {}        // A Button
 
     virtual void DisplayValue( TextContext& ) const {}
     virtual std::string ToString( void ) const { return ""; }
@@ -94,8 +94,8 @@ class ExpVar : public NumVar
 {
 public:
     ExpVar( const std::string& path, float val, float minExp = -FLT_MAX, float maxExp = FLT_MAX, float expStepSize = 1.0f );
-    ExpVar& operator=( float val );	// m_Value = log2(val)
-    operator float() const;			// returns exp2(m_Value)
+    ExpVar& operator=( float val );    // m_Value = log2(val)
+    operator float() const;            // returns exp2(m_Value)
 
     virtual void DisplayValue( TextContext& Text ) const override;
     virtual std::string ToString( void ) const override;

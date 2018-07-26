@@ -53,92 +53,92 @@ template <class T>
 class UIParameter
 {
 public:
-	UIParameter() {}
-	virtual void Update(bool bIncrease) = 0;
-	const T& GetValue() = 0;
+    UIParameter() {}
+    virtual void Update(bool bIncrease) = 0;
+    const T& GetValue() = 0;
 };
 
 template <class T>
 class UIParameterRange : public UIParameter<T>
 {
-	T  m_value;
-	T  m_minValue;
-	T  m_maxValue;
-	T  m_increment;
+    T  m_value;
+    T  m_minValue;
+    T  m_maxValue;
+    T  m_increment;
 public:
-	UIParameterRange(const T& initialValue, const T& minValue, const T& maxValue, const T& increment) :
-		m_value(initialValue),
-		m_minValue(minValue),
-		m_maxValue(maxValue),
-		m_increment(increment)
-	{}
+    UIParameterRange(const T& initialValue, const T& minValue, const T& maxValue, const T& increment) :
+        m_value(initialValue),
+        m_minValue(minValue),
+        m_maxValue(maxValue),
+        m_increment(increment)
+    {}
 
-	void Initialize(const T& initialValue, const T& minValue, const T& maxValue, const T& increment)
-	{
-		m_value = initialValue;
-		m_minValue = minValue;
-		m_maxValue = maxValue;
-		m_increment = increment;
-	}
+    void Initialize(const T& initialValue, const T& minValue, const T& maxValue, const T& increment)
+    {
+        m_value = initialValue;
+        m_minValue = minValue;
+        m_maxValue = maxValue;
+        m_increment = increment;
+    }
 
-	const T& GetValue() { return m_value; }
-	const T& GetMinValue() { return m_minValue; }
-	const T& GetMaxValue() { return m_maxValue; }
+    const T& GetValue() { return m_value; }
+    const T& GetMinValue() { return m_minValue; }
+    const T& GetMaxValue() { return m_maxValue; }
 
-	void SetValue(const T& value) { m_value = value; }
-	void SetMinValue(const T& minValue) { m_minValue = minValue; }
-	void SetMaxValue(const T& maxValue) { m_maxValue = maxValue; }
+    void SetValue(const T& value) { m_value = value; }
+    void SetMinValue(const T& minValue) { m_minValue = minValue; }
+    void SetMaxValue(const T& maxValue) { m_maxValue = maxValue; }
 
-	void Update(bool bIncrease)
-	{
-		if (bIncrease)
-		{
-			if (m_maxValue - *m_pParameter > increment)
-			{
-				*m_pParameter += increment;
-			}
-			else
-			{
-				*m_pParameter = m_maxValue;
-			}
-		}
-		else // decrease
-		{
-			if (*m_pParameter - m_minValue > increment)
-			{
-				*m_pParameter -= increment;
-			}
-			else
-			{
-				*m_pParameter = m_minValue;
-			}
-		}
-	}
+    void Update(bool bIncrease)
+    {
+        if (bIncrease)
+        {
+            if (m_maxValue - *m_pParameter > increment)
+            {
+                *m_pParameter += increment;
+            }
+            else
+            {
+                *m_pParameter = m_maxValue;
+            }
+        }
+        else // decrease
+        {
+            if (*m_pParameter - m_minValue > increment)
+            {
+                *m_pParameter -= increment;
+            }
+            else
+            {
+                *m_pParameter = m_minValue;
+            }
+        }
+    }
 };
 
 template<class T>
 class UIParameterList : public UIParameter<T>
 {
-	std::vector<T> m_values;
-	UIParameterRange<UINT> m_currentIndex;
+    std::vector<T> m_values;
+    UIParameterRange<UINT> m_currentIndex;
 public:
-	UIParameterList() {}
-	void SetValue(const T& value) 
-	{
-		T* p = std::find(m_values, m_values.end(), value);
-		
-		assert(p != m_values.end());
-		UIParameterRange.SetValue(p - m_values);
-	}
-	void push_back(const T& parameter)
-	{
-		m_values.push_back(parameter);
-		m_currentIndex.SetMaxValue(m_values.size() - 1);
-	}
-	void Update(bool bIncrease)
-	{
-		m_currentIndex.Update(bIncrease);
-	}
+    UIParameterList() {}
+    void SetValue(const T& value) 
+    {
+        T* p = std::find(m_values, m_values.end(), value);
+        
+        assert(p != m_values.end());
+        UIParameterRange.SetValue(p - m_values);
+    }
+    void push_back(const T& parameter)
+    {
+        m_values.push_back(parameter);
+        m_currentIndex.SetMaxValue(m_values.size() - 1);
+    }
+    void Update(bool bIncrease)
+    {
+        m_currentIndex.Update(bIncrease);
+    }
 };
 
 */

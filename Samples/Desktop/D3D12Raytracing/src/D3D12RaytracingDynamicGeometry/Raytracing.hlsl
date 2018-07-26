@@ -104,7 +104,7 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
     // Note: make sure to enable face culling so as to avoid surface face fighting.
-	// ToDo Tmin
+    // ToDo Tmin
     rayDesc.TMin = 0.001;
     rayDesc.TMax = 10000;
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
@@ -135,7 +135,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0.001;
-    rayDesc.TMax = 10000;	// ToDo set this to dist to light
+    rayDesc.TMax = 10000;    // ToDo set this to dist to light
 
     // Initialize shadow ray payload.
     // Set the initial value to true since closest and any hit shaders are skipped. 
@@ -181,8 +181,8 @@ void MyRaygenShader()
 void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
 {
 #if SINGLE_COLOR_SHADING
-	rayPayload.color = float4(1, 0, 0, 1);
-	return;
+    rayPayload.color = float4(1, 0, 0, 1);
+    return;
 #endif
     // Get the base index of the triangle's first 16 bit index.
     uint indexSizeInBytes = 2;
@@ -190,17 +190,17 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
 
     //Todo uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-	uint baseIndex = triangleIndexStride;
+    uint baseIndex = triangleIndexStride;
 
     // Load up three 16 bit indices for the triangle.
     const uint3 indices = Load3x16BitIndices(baseIndex, g_indices);
 
 #if RENDER_SPHERES
-	// Retrieve corresponding vertex normals for the triangle vertices.
-	float3 vertexNormals[3] = { g_vertices[indices[0]].normal, g_vertices[indices[1]].normal, g_vertices[indices[2]].normal};
-	float3 triangleNormal = (vertexNormals[0] + vertexNormals[1] + vertexNormals[2]) / 3;
-	// ToDo
-	triangleNormal = normalize(HitWorldPosition());
+    // Retrieve corresponding vertex normals for the triangle vertices.
+    float3 vertexNormals[3] = { g_vertices[indices[0]].normal, g_vertices[indices[1]].normal, g_vertices[indices[2]].normal};
+    float3 triangleNormal = (vertexNormals[0] + vertexNormals[1] + vertexNormals[2]) / 3;
+    // ToDo
+    triangleNormal = normalize(HitWorldPosition());
 #else
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 triangleNormal = g_vertices[indices[0]].normal;
@@ -214,7 +214,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     Ray shadowRay = { hitPosition, normalize(g_sceneCB.lightPosition.xyz - hitPosition) };
     bool shadowRayHit = TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
 
-	float checkers = AnalyticalCheckersTexture(HitWorldPosition(), triangleNormal, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld);
+    float checkers = AnalyticalCheckersTexture(HitWorldPosition(), triangleNormal, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld);
 
     // Reflected component.
     float4 reflectedColor = float4(0, 0, 0, 0);
@@ -237,8 +237,8 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
 
     rayPayload.color = color;
-	//rayPayload.color = float4(1, 0, 0, 1);
-	//rayPayload.color = float4(triangleNormal, 1);
+    //rayPayload.color = float4(1, 0, 0, 1);
+    //rayPayload.color = float4(triangleNormal, 1);
 }
 
 //***************************************************************************
@@ -248,7 +248,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 [shader("miss")]
 void MyMissShader(inout RayPayload rayPayload)
 {
-	float4 skydome = float4(1, 1, 1, 1)* max(0, (WorldRayDirection().y + 0.75)/1.75f);
+    float4 skydome = float4(1, 1, 1, 1)* max(0, (WorldRayDirection().y + 0.75)/1.75f);
     float4 backgroundColor = float4(BackgroundColor) +skydome;
     rayPayload.color = backgroundColor;
 }

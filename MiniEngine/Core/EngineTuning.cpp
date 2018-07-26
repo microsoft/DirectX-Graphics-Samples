@@ -128,7 +128,7 @@ void VariableGroup::Display( TextContext& Text, float leftMargin, EngineVar* hig
             }
             else
             {
-                Text.DrawString("+ ");				
+                Text.DrawString("+ ");                
             }
             Text.DrawString(iter->first);
             Text.DrawString("/...\n");
@@ -161,14 +161,14 @@ void VariableGroup::SaveToFile( FILE* file, int fileMargin )
 
         VariableGroup* subGroup = dynamic_cast<VariableGroup*>(iter->second);
         if (subGroup != nullptr)
-        {		
+        {        
             fprintf(file, "%*c + %s ...\r\n", fileMargin, ' ', buffer);
             subGroup->SaveToFile(file, fileMargin + 5);
         }
         else if (dynamic_cast<CallbackTrigger*>(iter->second) == nullptr)
         {
             fprintf(file, "%*c %s:  %s\r\n", fileMargin, ' ', buffer, iter->second->ToString().c_str());
-        }		
+        }        
     }
 }
 
@@ -184,7 +184,7 @@ void VariableGroup::LoadSettingsFromFile( FILE* file )
             subGroup->LoadSettingsFromFile(file);
         }
         else
-        {	
+        {    
             iter->second->SetValue(file, iter->first);
         }
     }
@@ -309,7 +309,7 @@ std::string BoolVar::ToString( void ) const
 } 
 
 void BoolVar::SetValue(FILE* file, const std::string& setting)
-{	
+{    
     std::string pattern = "\n " + setting + ": %s";
     char valstr[6];
 
@@ -555,14 +555,14 @@ void EngineTuning::Update( float frameTime )
 
     // Detect a DPad button press
     HandleDigitalButtonPress(GameInput::kDPadRight, frameTime, []{ sm_SelectedVariable->Increment(); } );
-    HandleDigitalButtonPress(GameInput::kDPadLeft,	frameTime, []{ sm_SelectedVariable->Decrement(); } );
-    HandleDigitalButtonPress(GameInput::kDPadDown,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
-    HandleDigitalButtonPress(GameInput::kDPadUp,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
+    HandleDigitalButtonPress(GameInput::kDPadLeft,    frameTime, []{ sm_SelectedVariable->Decrement(); } );
+    HandleDigitalButtonPress(GameInput::kDPadDown,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
+    HandleDigitalButtonPress(GameInput::kDPadUp,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
 
     HandleDigitalButtonPress(GameInput::kKey_right, frameTime, []{ sm_SelectedVariable->Increment(); } );
-    HandleDigitalButtonPress(GameInput::kKey_left,	frameTime, []{ sm_SelectedVariable->Decrement(); } );
-    HandleDigitalButtonPress(GameInput::kKey_down,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
-    HandleDigitalButtonPress(GameInput::kKey_up,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
+    HandleDigitalButtonPress(GameInput::kKey_left,    frameTime, []{ sm_SelectedVariable->Decrement(); } );
+    HandleDigitalButtonPress(GameInput::kKey_down,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
+    HandleDigitalButtonPress(GameInput::kKey_up,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
 
     if (GameInput::IsFirstPressed( GameInput::kAButton )
         || GameInput::IsFirstPressed( GameInput::kKey_return ))

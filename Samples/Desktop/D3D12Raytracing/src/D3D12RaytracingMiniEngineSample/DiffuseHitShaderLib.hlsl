@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard, Christopher Wallis
+// Author(s):    James Stanard, Christopher Wallis
 //
 
 #define HLSL
@@ -101,14 +101,14 @@ void FSchlick(inout float3 specular, inout float3 diffuse, float3 lightDir, floa
 }
 
 float3 ApplyLightCommon(
-    float3	diffuseColor,	// Diffuse albedo
-    float3	specularColor,	// Specular albedo
-    float	specularMask,	// Where is it shiny or dingy?
-    float	gloss,			// Specular power
-    float3	normal,			// World-space normal
-    float3	viewDir,		// World-space vector from eye to point
-    float3	lightDir,		// World-space vector from point to light
-    float3	lightColor		// Radiance of directional light
+    float3    diffuseColor,    // Diffuse albedo
+    float3    specularColor,    // Specular albedo
+    float    specularMask,    // Where is it shiny or dingy?
+    float    gloss,            // Specular power
+    float3    normal,            // World-space normal
+    float3    viewDir,        // World-space vector from eye to point
+    float3    lightDir,        // World-space vector from point to light
+    float3    lightColor        // Radiance of directional light
 )
 {
     float3 halfVec = normalize(lightDir - viewDir);
