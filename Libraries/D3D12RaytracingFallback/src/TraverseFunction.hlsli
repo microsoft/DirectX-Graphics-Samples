@@ -64,7 +64,9 @@ void RecordClosestBox(uint currentLevel, inout bool leftTest, float leftT, inout
 void StackPush(inout int stackTop, uint level, uint value)
 {
     stacks[level][stackTop++] = value;
+#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
     g_maxDepth = max(g_maxDepth, stackTop);
+#endif
 }
 
 uint StackPop(inout int stackTop, uint level)

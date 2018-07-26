@@ -15,4 +15,4 @@
 // Since this writes to a raytracing output during ray traversal, 
 // the Fallback Layer must have an output that is used by the application defined and
 // an application shaders must disable writing to the output (i.e. in a miss/hit shaders).
-#define ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION 1
+#define ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION 0
