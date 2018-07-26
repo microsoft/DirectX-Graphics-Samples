@@ -17,6 +17,8 @@ The keys '1'...'7' can also be used to cycle through different modes (or using B
 * forward/backward/strafe: left thumbstick or WASD (FPS controls)
 * up/down: triggers or E/Q
 * yaw/pitch: right thumbstick or mouse
+* freeze/unfreeze camera: F
+* cycle through pre-set camera positions: right and left arrow keys
 * toggle slow movement: click left thumbstick or lshift
 * open debug menu: back button or backspace
 * navigate debug menu: dpad or arrow keys
