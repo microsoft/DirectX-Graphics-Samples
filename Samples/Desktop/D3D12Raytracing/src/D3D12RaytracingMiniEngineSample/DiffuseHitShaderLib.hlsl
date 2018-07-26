@@ -251,7 +251,13 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
     const float3 tangent2 = asfloat(g_attributes.Load3(info.m_tangentAttributeOffsetBytes + ii.z * info.m_attributeStrideBytes));
     float3 vsTangent = normalize(tangent0 * bary.x + tangent1 * bary.y + tangent2 * bary.z);
 
-
+    // Reintroduced the bitangent because we aren't storing the handedness of the tangent frame anywhere.  Assuming the space
+    // is right-handed causes normal maps to invert for some surfaces.  The Sponza mesh has all three axes of the tangent frame.
+    //float3 vsBitangent = normalize(cross(vsNormal, vsTangent)) * (isRightHanded ? 1.0 : -1.0);
+    const float3 bitangent0 = asfloat(g_attributes.Load3(info.m_bitangentAttributeOffsetBytes + ii.x * info.m_attributeStrideBytes));
+    const float3 bitangent1 = asfloat(g_attributes.Load3(info.m_bitangentAttributeOffsetBytes + ii.y * info.m_attributeStrideBytes));
+    const float3 bitangent2 = asfloat(g_attributes.Load3(info.m_bitangentAttributeOffsetBytes + ii.z * info.m_attributeStrideBytes));
+    float3 vsBitangent = normalize(bitangent0 * bary.x + bitangent1 * bary.y + bitangent2 * bary.z);
 
     // TODO: Should just store uv partial derivatives in here rather than loading position and caculating it per pixel
     const float3 p0 = asfloat(g_attributes.Load3(info.m_positionAttributeOffsetBytes + ii.x * info.m_attributeStrideBytes));
@@ -285,7 +291,7 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
     {
         normal = g_localNormal.SampleGrad(g_s0, uv, ddx, ddy).rgb * 2.0 - 1.0;
         AntiAliasSpecular(normal, gloss);
-        float3x3 tbn = float3x3(vsTangent, cross(vsNormal, vsTangent), vsNormal);
+        float3x3 tbn = float3x3(vsTangent, vsBitangent, vsNormal);
         normal = normalize(mul(normal, tbn));
     }
     
