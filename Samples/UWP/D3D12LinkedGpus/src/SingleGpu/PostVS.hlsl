@@ -13,10 +13,10 @@
 
 PSInput VSMain(VSInput input)
 {
-	PSInput result;
+    PSInput result;
 
-	result.position = input.position;
-	result.uv = input.uv;
+    result.position = input.position;
+    result.uv = input.uv;
 
-	return result;
+    return result;
 }

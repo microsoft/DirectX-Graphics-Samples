@@ -13,14 +13,14 @@
 
 float4 Wave(float2 uv)
 {
-	float angle = distance(float2(0.5f, 0.5f), uv) * 50.0f;
-	uv.x = 0.5f + (uv.x - 0.5f) * cos(angle) - (uv.y - 0.5f) * sin(angle);
-	uv.y = 0.5f + (uv.x - 0.5f) * sin(angle) + (uv.y - 0.5f) * cos(angle);
+    float angle = distance(float2(0.5f, 0.5f), uv) * 50.0f;
+    uv.x = 0.5f + (uv.x - 0.5f) * cos(angle) - (uv.y - 0.5f) * sin(angle);
+    uv.y = 0.5f + (uv.x - 0.5f) * sin(angle) + (uv.y - 0.5f) * cos(angle);
 
-	return g_tex.Sample(g_samp, uv);
+    return g_tex.Sample(g_samp, uv);
 }
 
 float4 mainWave(PSInput input) : SV_TARGET
 {
-	return Wave(input.uv);
+    return Wave(input.uv);
 }

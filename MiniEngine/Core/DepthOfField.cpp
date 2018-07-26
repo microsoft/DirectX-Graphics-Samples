@@ -59,28 +59,28 @@ namespace DepthOfField
 
     RootSignature s_RootSignature;
 
-    ComputePSO s_DoFPass1CS;				// Responsible for classifying tiles (1st pass)
-    ComputePSO s_DoFTilePassCS;				// Disperses tile info to its neighbors (3x3)
-    ComputePSO s_DoFTilePassFixupCS;		// Searches for straggler tiles to "fixup"
+    ComputePSO s_DoFPass1CS;                // Responsible for classifying tiles (1st pass)
+    ComputePSO s_DoFTilePassCS;                // Disperses tile info to its neighbors (3x3)
+    ComputePSO s_DoFTilePassFixupCS;        // Searches for straggler tiles to "fixup"
 
-    ComputePSO s_DoFPreFilterCS;			// Full pre-filter with variable focus
-    ComputePSO s_DoFPreFilterFastCS;		// Pre-filter assuming near-constant focus
-    ComputePSO s_DoFPreFilterFixupCS;		// Pass through colors for completely in focus tile
+    ComputePSO s_DoFPreFilterCS;            // Full pre-filter with variable focus
+    ComputePSO s_DoFPreFilterFastCS;        // Pre-filter assuming near-constant focus
+    ComputePSO s_DoFPreFilterFixupCS;        // Pass through colors for completely in focus tile
 
-    ComputePSO s_DoFPass2CS;				// Perform full CoC convolution pass
-    ComputePSO s_DoFPass2FastCS;			// Perform color-only convolution for near-constant focus
-    ComputePSO s_DoFPass2FixupCS;			// Pass through colors again
-    ComputePSO s_DoFPass2DebugCS;			// Full pass 2 shader with options for debugging
+    ComputePSO s_DoFPass2CS;                // Perform full CoC convolution pass
+    ComputePSO s_DoFPass2FastCS;            // Perform color-only convolution for near-constant focus
+    ComputePSO s_DoFPass2FixupCS;            // Pass through colors again
+    ComputePSO s_DoFPass2DebugCS;            // Full pass 2 shader with options for debugging
 
-    ComputePSO s_DoFMedianFilterCS;			// 3x3 median filter to reduce fireflies
-    ComputePSO s_DoFMedianFilterSepAlphaCS;	// 3x3 median filter to reduce fireflies (separate filter on alpha)
-    ComputePSO s_DoFMedianFilterFixupCS;	// Pass through without performing median
+    ComputePSO s_DoFMedianFilterCS;            // 3x3 median filter to reduce fireflies
+    ComputePSO s_DoFMedianFilterSepAlphaCS;    // 3x3 median filter to reduce fireflies (separate filter on alpha)
+    ComputePSO s_DoFMedianFilterFixupCS;    // Pass through without performing median
 
-    ComputePSO s_DoFCombineCS;				// Combine DoF blurred buffer with focused color buffer
-    ComputePSO s_DoFCombineFastCS;			// Upsample DoF blurred buffer
-    ComputePSO s_DoFDebugRedCS;				// Output red to entire tile for debugging
-    ComputePSO s_DoFDebugGreenCS;			// Output green to entire tile for debugging
-    ComputePSO s_DoFDebugBlueCS;			// Output blue to entire tile for debugging
+    ComputePSO s_DoFCombineCS;                // Combine DoF blurred buffer with focused color buffer
+    ComputePSO s_DoFCombineFastCS;            // Upsample DoF blurred buffer
+    ComputePSO s_DoFDebugRedCS;                // Output red to entire tile for debugging
+    ComputePSO s_DoFDebugGreenCS;            // Output green to entire tile for debugging
+    ComputePSO s_DoFDebugBlueCS;            // Output blue to entire tile for debugging
 
     IndirectArgsBuffer s_IndirectParameters;
 }

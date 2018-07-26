@@ -15,25 +15,25 @@
 
 cbuffer cbFontParams : register(b0)
 {
-    float2 Scale;			// Scale and offset for transforming coordinates
+    float2 Scale;            // Scale and offset for transforming coordinates
     float2 Offset;
-    float2 InvTexDim;		// Normalizes texture coordinates
-    float TextSize;			// Height of text in destination pixels
-    float TextScale;		// TextSize / FontHeight
-    float DstBorder;		// Extra space around a glyph measured in screen space coordinates
-    uint SrcBorder;			// Extra spacing around glyphs to avoid sampling neighboring glyphs
+    float2 InvTexDim;        // Normalizes texture coordinates
+    float TextSize;            // Height of text in destination pixels
+    float TextScale;        // TextSize / FontHeight
+    float DstBorder;        // Extra space around a glyph measured in screen space coordinates
+    uint SrcBorder;            // Extra spacing around glyphs to avoid sampling neighboring glyphs
 }
 
 struct VS_INPUT
 {
-    float2 ScreenPos : POSITION;	// Upper-left position in screen pixel coordinates
-    uint4  Glyph : TEXCOORD;		// X, Y, Width, Height in texel space
+    float2 ScreenPos : POSITION;    // Upper-left position in screen pixel coordinates
+    uint4  Glyph : TEXCOORD;        // X, Y, Width, Height in texel space
 };
 
 struct VS_OUTPUT
 {
-    float4 Pos : SV_POSITION;	// Upper-left and lower-right coordinates in clip space
-    float2 Tex : TEXCOORD0;		// Upper-left and lower-right normalized UVs
+    float4 Pos : SV_POSITION;    // Upper-left and lower-right coordinates in clip space
+    float2 Tex : TEXCOORD0;        // Upper-left and lower-right normalized UVs
 };
 
 [RootSignature(Text_RootSig)]

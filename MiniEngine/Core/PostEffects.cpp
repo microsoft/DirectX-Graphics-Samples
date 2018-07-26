@@ -80,10 +80,10 @@ namespace PostEffects
     BoolVar DrawHistogram("Graphics/HDR/Draw Histogram", false);
 
     BoolVar BloomEnable("Graphics/Bloom/Enable", true);
-    NumVar BloomThreshold("Graphics/Bloom/Threshold", 4.0f, 0.0f, 8.0f, 0.1f);		// The threshold luminance above which a pixel will start to bloom
-    NumVar BloomStrength("Graphics/Bloom/Strength", 0.1f, 0.0f, 2.0f, 0.05f);		// A modulator controlling how much bloom is added back into the image
-    NumVar BloomUpsampleFactor("Graphics/Bloom/Scatter", 0.65f, 0.0f, 1.0f, 0.05f);	// Controls the "focus" of the blur.  High values spread out more causing a haze.
-    BoolVar HighQualityBloom("Graphics/Bloom/High Quality", true);					// High quality blurs 5 octaves of bloom; low quality only blurs 3.
+    NumVar BloomThreshold("Graphics/Bloom/Threshold", 4.0f, 0.0f, 8.0f, 0.1f);        // The threshold luminance above which a pixel will start to bloom
+    NumVar BloomStrength("Graphics/Bloom/Strength", 0.1f, 0.0f, 2.0f, 0.05f);        // A modulator controlling how much bloom is added back into the image
+    NumVar BloomUpsampleFactor("Graphics/Bloom/Scatter", 0.65f, 0.0f, 1.0f, 0.05f);    // Controls the "focus" of the blur.  High values spread out more causing a haze.
+    BoolVar HighQualityBloom("Graphics/Bloom/High Quality", true);                    // High quality blurs 5 octaves of bloom; low quality only blurs 3.
 
     RootSignature PostEffectsRS;
     ComputePSO ToneMapCS;

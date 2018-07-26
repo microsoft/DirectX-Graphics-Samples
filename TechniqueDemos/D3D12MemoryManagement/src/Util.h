@@ -28,7 +28,7 @@ DXGI_FORMAT GetDXGIFormatFromPixelFormat(const GUID* pPixelFormat);
 //
 inline UINT8 GetLeastDetailedMipIndex(_In_ const Resource* pResource)
 {
-	return pResource->NumStandardMips + pResource->NumPackedMips - 1;
+    return pResource->NumStandardMips + pResource->NumPackedMips - 1;
 }
 
 //
@@ -38,11 +38,11 @@ inline UINT8 GetLeastDetailedMipIndex(_In_ const Resource* pResource)
 //
 inline UINT8 GetLeastDetailedMipHeapIndex(_In_ const Resource* pResource)
 {
-	if (pResource->NumPackedMips != 0)
-	{
-		return pResource->PackedMipHeapIndex;
-	}
-	return pResource->NumStandardMips - 1;
+    if (pResource->NumPackedMips != 0)
+    {
+        return pResource->PackedMipHeapIndex;
+    }
+    return pResource->NumStandardMips - 1;
 }
 
 //
@@ -50,7 +50,7 @@ inline UINT8 GetLeastDetailedMipHeapIndex(_In_ const Resource* pResource)
 //
 inline bool IsLessDetailedMip(UINT8 CurrentMip, UINT8 MipToCheck)
 {
-	return MipToCheck > CurrentMip;
+    return MipToCheck > CurrentMip;
 }
 
 //
@@ -58,7 +58,7 @@ inline bool IsLessDetailedMip(UINT8 CurrentMip, UINT8 MipToCheck)
 //
 inline bool IsMoreDetailedMip(UINT8 CurrentMip, UINT8 MipToCheck)
 {
-	return MipToCheck < CurrentMip;
+    return MipToCheck < CurrentMip;
 }
 
 //
@@ -67,22 +67,22 @@ inline bool IsMoreDetailedMip(UINT8 CurrentMip, UINT8 MipToCheck)
 //
 inline float CalculateRequiredMipLevel(_In_ const Resource* pResource, float ImageScale)
 {
-	D3D12_RESOURCE_DESC Desc = pResource->pDeviceState->pD3DResource->GetDesc();
+    D3D12_RESOURCE_DESC Desc = pResource->pDeviceState->pD3DResource->GetDesc();
 
-	//
-	// Calculate rough derivative, knowing that the image is a screen-space quad.
-	// This should be equal to the ratio of texels per pixel (ImageScale is equal
-	// to the screen space pixel size of the texture with projection zoom applied).
-	//
-	float d = Desc.Width / ImageScale;
-	float dSqr = d * d;
+    //
+    // Calculate rough derivative, knowing that the image is a screen-space quad.
+    // This should be equal to the ratio of texels per pixel (ImageScale is equal
+    // to the screen space pixel size of the texture with projection zoom applied).
+    //
+    float d = Desc.Width / ImageScale;
+    float dSqr = d * d;
 
-	//
-	// Mip = log2(DerivativeSquared) / 2
-	//
-	float Log = log(dSqr) / log(2.0f);
-	float Mip = 0.5f * Log;
-	return max(Mip, 0.0f);
+    //
+    // Mip = log2(DerivativeSquared) / 2
+    //
+    float Log = log(dSqr) / log(2.0f);
+    float Mip = 0.5f * Log;
+    return max(Mip, 0.0f);
 }
 
 //
@@ -90,7 +90,7 @@ inline float CalculateRequiredMipLevel(_In_ const Resource* pResource, float Ima
 //
 inline UINT8 GetResourceMipCount(_In_ const Resource* pResource)
 {
-	return pResource->NumStandardMips + pResource->NumPackedMips;
+    return pResource->NumStandardMips + pResource->NumPackedMips;
 }
 
 //
@@ -103,8 +103,8 @@ UINT GetGeneratedImageColor(UINT ImageIndex);
 //
 inline bool RectIntersects(const RectF& a, const RectF& b)
 {
-	return a.Left < b.Right && a.Right > b.Left &&
-		a.Top < b.Bottom && a.Bottom > b.Top;
+    return a.Left < b.Right && a.Right > b.Left &&
+        a.Top < b.Bottom && a.Bottom > b.Top;
 }
 
 //
@@ -112,8 +112,8 @@ inline bool RectIntersects(const RectF& a, const RectF& b)
 //
 inline bool RectNearlyIntersects(const RectF& a, const RectF& b, float Tolerence)
 {
-	return a.Left - Tolerence < b.Right && a.Right + Tolerence > b.Left &&
-		a.Top - Tolerence < b.Bottom && a.Bottom + Tolerence> b.Top;
+    return a.Left - Tolerence < b.Right && a.Right + Tolerence > b.Left &&
+        a.Top - Tolerence < b.Bottom && a.Bottom + Tolerence> b.Top;
 }
 
 //
@@ -121,10 +121,10 @@ inline bool RectNearlyIntersects(const RectF& a, const RectF& b, float Tolerence
 //
 inline void InflateRectangle(RectF& Rectangle, float Size)
 {
-	Rectangle.Bottom += Size;
-	Rectangle.Left -= Size;
-	Rectangle.Right += Size;
-	Rectangle.Top -= Size;
+    Rectangle.Bottom += Size;
+    Rectangle.Left -= Size;
+    Rectangle.Right += Size;
+    Rectangle.Top -= Size;
 }
 
 //
@@ -132,7 +132,7 @@ inline void InflateRectangle(RectF& Rectangle, float Size)
 //
 inline UINT8 ChooseMoreDetailedMip(UINT8 MipA, UINT8 MipB)
 {
-	return min(MipA, MipB);
+    return min(MipA, MipB);
 }
 
 //
@@ -140,7 +140,7 @@ inline UINT8 ChooseMoreDetailedMip(UINT8 MipA, UINT8 MipB)
 //
 inline UINT8 ChooseLessDetailedMip(UINT8 MipA, UINT8 MipB)
 {
-	return max(MipA, MipB);
+    return max(MipA, MipB);
 }
 
 //
@@ -149,11 +149,11 @@ inline UINT8 ChooseLessDetailedMip(UINT8 MipA, UINT8 MipB)
 //
 inline UINT8 IncreaseMipQuality(UINT8 Mip, UINT8 IncreaseBy)
 {
-	if (IncreaseBy > Mip)
-	{
-		return 0;
-	}
-	return Mip - IncreaseBy;
+    if (IncreaseBy > Mip)
+    {
+        return 0;
+    }
+    return Mip - IncreaseBy;
 }
 
 //
@@ -161,7 +161,7 @@ inline UINT8 IncreaseMipQuality(UINT8 Mip, UINT8 IncreaseBy)
 //
 inline UINT8 DecreaseMipQuality(UINT8 Mip, UINT8 DecreaseBy)
 {
-	return Mip + DecreaseBy;
+    return Mip + DecreaseBy;
 }
 
 //
@@ -169,7 +169,7 @@ inline UINT8 DecreaseMipQuality(UINT8 Mip, UINT8 DecreaseBy)
 //
 inline UINT GetVirtualKeyFromCharacter(char c)
 {
-	return 0x41 + (c - 'a');
+    return 0x41 + (c - 'a');
 }
 
 //
@@ -178,7 +178,7 @@ inline UINT GetVirtualKeyFromCharacter(char c)
 //
 inline UINT GetResourceMipHeapCount(const ResourceMip& rMip)
 {
-	return ((rMip.Desc.WidthInTiles * rMip.Desc.HeightInTiles * TILE_SIZE) + MAX_HEAP_SIZE - 1) / MAX_HEAP_SIZE;
+    return ((rMip.Desc.WidthInTiles * rMip.Desc.HeightInTiles * TILE_SIZE) + MAX_HEAP_SIZE - 1) / MAX_HEAP_SIZE;
 }
 
 //
@@ -187,13 +187,13 @@ inline UINT GetResourceMipHeapCount(const ResourceMip& rMip)
 //
 inline UINT8 GetMipHeapIndexForResource(_In_ const Resource* pResource, UINT8 Mip)
 {
-	UINT8 Index = Mip;
-	if (Index > pResource->PackedMipHeapIndex)
-	{
-		Index = pResource->PackedMipHeapIndex;
-	}
+    UINT8 Index = Mip;
+    if (Index > pResource->PackedMipHeapIndex)
+    {
+        Index = pResource->PackedMipHeapIndex;
+    }
 
-	return Index;
+    return Index;
 }
 
 //
@@ -201,8 +201,8 @@ inline UINT8 GetMipHeapIndexForResource(_In_ const Resource* pResource, UINT8 Mi
 //
 inline UINT64 GetNonPackedMipSize(_In_ const Resource* pResource, UINT MipHeapIndex)
 {
-	ResourceMip* pMip = &pResource->pDeviceState->Mips[MipHeapIndex];
-	return (UINT64)pMip->Desc.WidthInTiles * (UINT64)pMip->Desc.HeightInTiles * TILE_SIZE;
+    ResourceMip* pMip = &pResource->pDeviceState->Mips[MipHeapIndex];
+    return (UINT64)pMip->Desc.WidthInTiles * (UINT64)pMip->Desc.HeightInTiles * TILE_SIZE;
 }
 
 //
@@ -210,20 +210,20 @@ inline UINT64 GetNonPackedMipSize(_In_ const Resource* pResource, UINT MipHeapIn
 //
 inline LPCSTR GetFeatureLevelName(D3D_FEATURE_LEVEL FeatureLevel)
 {
-	switch (FeatureLevel)
-	{
-	case D3D_FEATURE_LEVEL_9_1: return "9.1";
-	case D3D_FEATURE_LEVEL_9_2: return "9.2";
-	case D3D_FEATURE_LEVEL_9_3: return "9.3";
-	case D3D_FEATURE_LEVEL_10_0: return "10.0";
-	case D3D_FEATURE_LEVEL_10_1: return "10.1";
-	case D3D_FEATURE_LEVEL_11_0: return "11.0";
-	case D3D_FEATURE_LEVEL_11_1: return "11.1";
-	case D3D_FEATURE_LEVEL_12_0: return "12.0";
-	case D3D_FEATURE_LEVEL_12_1: return "12.1";
+    switch (FeatureLevel)
+    {
+    case D3D_FEATURE_LEVEL_9_1: return "9.1";
+    case D3D_FEATURE_LEVEL_9_2: return "9.2";
+    case D3D_FEATURE_LEVEL_9_3: return "9.3";
+    case D3D_FEATURE_LEVEL_10_0: return "10.0";
+    case D3D_FEATURE_LEVEL_10_1: return "10.1";
+    case D3D_FEATURE_LEVEL_11_0: return "11.0";
+    case D3D_FEATURE_LEVEL_11_1: return "11.1";
+    case D3D_FEATURE_LEVEL_12_0: return "12.0";
+    case D3D_FEATURE_LEVEL_12_1: return "12.1";
 
-	default: return "12.1+";
-	}
+    default: return "12.1+";
+    }
 }
 
 //
@@ -232,10 +232,10 @@ inline LPCSTR GetFeatureLevelName(D3D_FEATURE_LEVEL FeatureLevel)
 //
 inline UINT32 CalculateConstantBufferSize(UINT32 Size)
 {
-	//
-	// Constant buffers are required to be 256 byte aligned, and multiples of 256 bytes.
-	//
-	return (Size + (D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1)) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1);
+    //
+    // Constant buffers are required to be 256 byte aligned, and multiples of 256 bytes.
+    //
+    return (Size + (D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1)) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1);
 }
 
 //
@@ -243,23 +243,23 @@ inline UINT32 CalculateConstantBufferSize(UINT32 Size)
 //
 inline void GetWorkingDir(_Out_writes_z_(pathSize) WCHAR* path, UINT pathSize)
 {
-	if (path == nullptr)
-	{
-		return;
-	}
+    if (path == nullptr)
+    {
+        return;
+    }
 
-	DWORD size = GetModuleFileName(nullptr, path, pathSize);
+    DWORD size = GetModuleFileName(nullptr, path, pathSize);
 
-	if (size == 0 || size == pathSize)
-	{
-		// Method failed or path was truncated.
-		*path = L'\0';
-		return;
-	}
+    if (size == 0 || size == pathSize)
+    {
+        // Method failed or path was truncated.
+        *path = L'\0';
+        return;
+    }
 
-	WCHAR* lastSlash = wcsrchr(path, L'\\');
-	if (lastSlash)
-	{
-		*(lastSlash+1) = L'\0';
-	}
+    WCHAR* lastSlash = wcsrchr(path, L'\\');
+    if (lastSlash)
+    {
+        *(lastSlash+1) = L'\0';
+    }
 }

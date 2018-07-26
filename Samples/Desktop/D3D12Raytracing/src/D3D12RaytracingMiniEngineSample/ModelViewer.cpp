@@ -395,6 +395,7 @@ void InitializeSceneInfo(
         meshInfoData[i].m_normalAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_normal].offset;
         meshInfoData[i].m_positionAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_position].offset;
         meshInfoData[i].m_tangentAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_tangent].offset;
+        meshInfoData[i].m_bitangentAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_bitangent].offset;
         meshInfoData[i].m_attributeStrideBytes = model.m_pMesh[i].vertexStride;
         meshInfoData[i].m_materialInstanceId = model.m_pMesh[i].materialIndex;
         ASSERT(meshInfoData[i].m_materialInstanceId < 27);

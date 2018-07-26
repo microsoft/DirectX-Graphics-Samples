@@ -415,7 +415,7 @@ void GameInput::SetKeyState(Windows::System::VirtualKey key, bool IsDown)
 void GameInput::Initialize()
 {
     // For Windows 8
-    //	XInputEnable(TRUE);
+    //    XInputEnable(TRUE);
 
     ZeroMemory( s_Buttons, sizeof(s_Buttons) );
     ZeroMemory( s_Analogs, sizeof(s_Analogs) );
@@ -457,12 +457,12 @@ void GameInput::Update( float frameDelta )
         if (newInputState.Gamepad.wButtons & (1 << 14)) s_Buttons[0][kXButton] = true;
         if (newInputState.Gamepad.wButtons & (1 << 15)) s_Buttons[0][kYButton] = true;
 
-        s_Analogs[ kAnalogLeftTrigger ]		= newInputState.Gamepad.bLeftTrigger / 255.0f;
-        s_Analogs[ kAnalogRightTrigger ]	= newInputState.Gamepad.bRightTrigger / 255.0f;
-        s_Analogs[ kAnalogLeftStickX ]		= FilterAnalogInput(newInputState.Gamepad.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE );
-        s_Analogs[ kAnalogLeftStickY ]		= FilterAnalogInput(newInputState.Gamepad.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE );
-        s_Analogs[ kAnalogRightStickX ]		= FilterAnalogInput(newInputState.Gamepad.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
-        s_Analogs[ kAnalogRightStickY ]		= FilterAnalogInput(newInputState.Gamepad.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
+        s_Analogs[ kAnalogLeftTrigger ]        = newInputState.Gamepad.bLeftTrigger / 255.0f;
+        s_Analogs[ kAnalogRightTrigger ]    = newInputState.Gamepad.bRightTrigger / 255.0f;
+        s_Analogs[ kAnalogLeftStickX ]        = FilterAnalogInput(newInputState.Gamepad.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE );
+        s_Analogs[ kAnalogLeftStickY ]        = FilterAnalogInput(newInputState.Gamepad.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE );
+        s_Analogs[ kAnalogRightStickX ]        = FilterAnalogInput(newInputState.Gamepad.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
+        s_Analogs[ kAnalogRightStickY ]        = FilterAnalogInput(newInputState.Gamepad.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
     }
 #else
 
@@ -489,12 +489,12 @@ void GameInput::Update( float frameDelta )
 
         static const float kAnalogStickDeadZone = 0.18f;
 
-        s_Analogs[ kAnalogLeftTrigger ]		= (float)reading.LeftTrigger;
-        s_Analogs[ kAnalogRightTrigger ]	= (float)reading.RightTrigger;
-        s_Analogs[ kAnalogLeftStickX ]		= FilterAnalogInput((float)reading.LeftThumbstickX, kAnalogStickDeadZone );
-        s_Analogs[ kAnalogLeftStickY ]		= FilterAnalogInput((float)reading.LeftThumbstickY, kAnalogStickDeadZone );
-        s_Analogs[ kAnalogRightStickX ]		= FilterAnalogInput((float)reading.RightThumbstickX, kAnalogStickDeadZone );
-        s_Analogs[ kAnalogRightStickY ]		= FilterAnalogInput((float)reading.RightThumbstickY, kAnalogStickDeadZone );
+        s_Analogs[ kAnalogLeftTrigger ]        = (float)reading.LeftTrigger;
+        s_Analogs[ kAnalogRightTrigger ]    = (float)reading.RightTrigger;
+        s_Analogs[ kAnalogLeftStickX ]        = FilterAnalogInput((float)reading.LeftThumbstickX, kAnalogStickDeadZone );
+        s_Analogs[ kAnalogLeftStickY ]        = FilterAnalogInput((float)reading.LeftThumbstickY, kAnalogStickDeadZone );
+        s_Analogs[ kAnalogRightStickX ]        = FilterAnalogInput((float)reading.RightThumbstickX, kAnalogStickDeadZone );
+        s_Analogs[ kAnalogRightStickY ]        = FilterAnalogInput((float)reading.RightThumbstickY, kAnalogStickDeadZone );
     }
 
 #endif

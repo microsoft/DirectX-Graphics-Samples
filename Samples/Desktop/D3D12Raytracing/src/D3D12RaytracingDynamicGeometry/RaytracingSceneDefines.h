@@ -67,23 +67,23 @@ namespace GeometryType {
 }
 
 namespace GpuTimers {
-	enum Enum {
-		Raytracing = 0,
-		UpdateBLAS,
-		UpdateTLAS,
-		Count
-	};
+    enum Enum {
+        Raytracing = 0,
+        UpdateBLAS,
+        UpdateTLAS,
+        Count
+    };
 }
 
 namespace UIParameters {
-	enum Enum {
-		RaytracingAPI = 0,
-		BuildQuality,
-		UpdateAlgorithm,
-		TesselationQuality,
-		NumberOfObjects,
-		Count
-	};
+    enum Enum {
+        RaytracingAPI = 0,
+        BuildQuality,
+        UpdateAlgorithm,
+        TesselationQuality,
+        NumberOfObjects,
+        Count
+    };
 }
 
 // Bottom-level acceleration structures (BottomLevelASType).

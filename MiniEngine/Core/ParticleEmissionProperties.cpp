@@ -16,7 +16,7 @@
 
 EmissionProperties* CreateEmissionProperties()
 {
-    EmissionProperties* emitProps = new EmissionProperties;	
+    EmissionProperties* emitProps = new EmissionProperties;    
     ZeroMemory(emitProps, sizeof(*emitProps));
     emitProps->EmitPosW = emitProps->LastEmitPosW = XMFLOAT3(0.0,0.0,0.0);
     emitProps->EmitDirW = XMFLOAT3(0.0,0.0,1.0); 

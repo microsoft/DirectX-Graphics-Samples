@@ -66,11 +66,11 @@ namespace Graphics
     ColorBuffer g_MotionPrepBuffer;
     ColorBuffer g_LumaBuffer;
     ColorBuffer g_TemporalColor[2];
-    ColorBuffer g_aBloomUAV1[2];	// 640x384 (1/3)
-    ColorBuffer g_aBloomUAV2[2];	// 320x192 (1/6)  
-    ColorBuffer g_aBloomUAV3[2];	// 160x96  (1/12)
-    ColorBuffer g_aBloomUAV4[2];	// 80x48   (1/24)
-    ColorBuffer g_aBloomUAV5[2];	// 40x24   (1/48)
+    ColorBuffer g_aBloomUAV1[2];    // 640x384 (1/3)
+    ColorBuffer g_aBloomUAV2[2];    // 320x192 (1/6)  
+    ColorBuffer g_aBloomUAV3[2];    // 160x96  (1/12)
+    ColorBuffer g_aBloomUAV4[2];    // 80x48   (1/24)
+    ColorBuffer g_aBloomUAV5[2];    // 40x24   (1/48)
     ColorBuffer g_LumaLR;
     ByteAddressBuffer g_Histogram;
     ByteAddressBuffer g_FXAAWorkCounters;
@@ -112,7 +112,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
         g_VelocityBuffer.Create( L"Motion Vectors", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT );
         g_PostEffectsBuffer.Create( L"Post Effects Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT );
 
-        esram.PushStack();	// Render HDR image
+        esram.PushStack();    // Render HDR image
 
             g_LinearDepth[0].Create( L"Linear Depth 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16_UNORM );
             g_LinearDepth[1].Create( L"Linear Depth 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16_UNORM );
@@ -124,11 +124,11 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 
             esram.PushStack(); // Begin opaque geometry
 
-                esram.PushStack();	// Begin Shading
+                esram.PushStack();    // Begin Shading
 
                     g_SSAOFullScreen.Create( L"SSAO Full Res", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R8_UNORM );
 
-                    esram.PushStack();	// Begin generating SSAO
+                    esram.PushStack();    // Begin generating SSAO
                         g_DepthDownsize1.Create( L"Depth Down-Sized 1", bufferWidth1, bufferHeight1, 1, DXGI_FORMAT_R32_FLOAT, esram );
                         g_DepthDownsize2.Create( L"Depth Down-Sized 2", bufferWidth2, bufferHeight2, 1, DXGI_FORMAT_R32_FLOAT, esram );
                         g_DepthDownsize3.Create( L"Depth Down-Sized 3", bufferWidth3, bufferHeight3, 1, DXGI_FORMAT_R32_FLOAT, esram );
@@ -148,13 +148,13 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
                         g_AOHighQuality2.Create( L"AO High Quality 2", bufferWidth2, bufferHeight2, 1, DXGI_FORMAT_R8_UNORM, esram );
                         g_AOHighQuality3.Create( L"AO High Quality 3", bufferWidth3, bufferHeight3, 1, DXGI_FORMAT_R8_UNORM, esram );
                         g_AOHighQuality4.Create( L"AO High Quality 4", bufferWidth4, bufferHeight4, 1, DXGI_FORMAT_R8_UNORM, esram );
-                    esram.PopStack();	// End generating SSAO
+                    esram.PopStack();    // End generating SSAO
 
                     g_ShadowBuffer.Create( L"Shadow Map", 2048, 2048, esram );
 
-                esram.PopStack();	// End Shading
+                esram.PopStack();    // End Shading
 
-                esram.PushStack();	// Begin depth of field
+                esram.PushStack();    // Begin depth of field
                     g_DoFTileClass[0].Create(L"DoF Tile Classification Buffer 0", bufferWidth4, bufferHeight4, 1, DXGI_FORMAT_R11G11B10_FLOAT);
                     g_DoFTileClass[1].Create(L"DoF Tile Classification Buffer 1", bufferWidth4, bufferHeight4, 1, DXGI_FORMAT_R11G11B10_FLOAT);
 
@@ -167,21 +167,21 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
                     g_DoFWorkQueue.Create(L"DoF Work Queue", bufferWidth4 * bufferHeight4, 4, esram );
                     g_DoFFastQueue.Create(L"DoF Fast Queue", bufferWidth4 * bufferHeight4, 4, esram );
                     g_DoFFixupQueue.Create(L"DoF Fixup Queue", bufferWidth4 * bufferHeight4, 4, esram );
-                esram.PopStack();	// End depth of field
+                esram.PopStack();    // End depth of field
 
                 g_TemporalColor[0].Create( L"Temporal Color 0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
                 g_TemporalColor[1].Create( L"Temporal Color 1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
                 TemporalEffects::ClearHistory(InitContext);
 
-                esram.PushStack();	// Begin motion blur
+                esram.PushStack();    // Begin motion blur
                     g_MotionPrepBuffer.Create( L"Motion Blur Prep", bufferWidth1, bufferHeight1, 1, HDR_MOTION_FORMAT, esram );
-                esram.PopStack();	// End motion blur
+                esram.PopStack();    // End motion blur
 
-            esram.PopStack();	// End opaque geometry
+            esram.PopStack();    // End opaque geometry
 
-        esram.PopStack();	// End HDR image
+        esram.PopStack();    // End HDR image
 
-        esram.PushStack();	// Begin post processing
+        esram.PushStack();    // Begin post processing
 
             // This is useful for storing per-pixel weights such as motion strength or pixel luminance
             g_LumaBuffer.Create( L"Luminance", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R8_UNORM, esram );
@@ -194,7 +194,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
             uint32_t kBloomWidth = bufferWidth > 2560 ? 1280 : 640;
             uint32_t kBloomHeight = bufferHeight > 1440 ? 768 : 384;
 
-            esram.PushStack();	// Begin bloom and tone mapping
+            esram.PushStack();    // Begin bloom and tone mapping
                 g_LumaLR.Create( L"Luma Buffer", kBloomWidth, kBloomHeight, 1, DXGI_FORMAT_R8_UINT, esram );
                 g_aBloomUAV1[0].Create( L"Bloom Buffer 1a", kBloomWidth,    kBloomHeight,    1, DefaultHdrColorFormat, esram );
                 g_aBloomUAV1[1].Create( L"Bloom Buffer 1b", kBloomWidth,    kBloomHeight,    1, DefaultHdrColorFormat, esram);
@@ -206,17 +206,17 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
                 g_aBloomUAV4[1].Create( L"Bloom Buffer 4b", kBloomWidth/8,  kBloomHeight/8,  1, DefaultHdrColorFormat, esram );
                 g_aBloomUAV5[0].Create( L"Bloom Buffer 5a", kBloomWidth/16, kBloomHeight/16, 1, DefaultHdrColorFormat, esram );
                 g_aBloomUAV5[1].Create( L"Bloom Buffer 5b", kBloomWidth/16, kBloomHeight/16, 1, DefaultHdrColorFormat, esram );
-            esram.PopStack();	// End tone mapping
+            esram.PopStack();    // End tone mapping
 
-            esram.PushStack();	// Begin antialiasing
+            esram.PushStack();    // Begin antialiasing
                 const uint32_t kFXAAWorkSize = bufferWidth * bufferHeight / 4 + 128;
                 g_FXAAWorkQueue.Create( L"FXAA Work Queue", kFXAAWorkSize, sizeof(uint32_t), esram );
                 g_FXAAColorQueue.Create( L"FXAA Color Queue", kFXAAWorkSize, sizeof(uint32_t), esram );
                 g_FXAAWorkCounters.Create(L"FXAA Work Counters", 2, sizeof(uint32_t));
                 InitContext.ClearUAV(g_FXAAWorkCounters);
-            esram.PopStack();	// End antialiasing
+            esram.PopStack();    // End antialiasing
 
-        esram.PopStack();	// End post processing
+        esram.PopStack();    // End post processing
 
         esram.PushStack(); // GenerateMipMaps() test
             g_GenMipsBuffer.Create(L"GenMips", bufferWidth, bufferHeight, 0, DXGI_FORMAT_R11G11B10_FLOAT, esram );

@@ -318,7 +318,7 @@ void PixelBuffer::AssociateWithResource( ID3D12Device* Device, const std::wstrin
     m_pResource.Attach(Resource);
     m_UsageState = CurrentState;
 
-    m_Width = (uint32_t)ResourceDesc.Width;		// We don't care about large virtual textures yet
+    m_Width = (uint32_t)ResourceDesc.Width;        // We don't care about large virtual textures yet
     m_Height = ResourceDesc.Height;
     m_ArraySize = ResourceDesc.DepthOrArraySize;
     m_Format = ResourceDesc.Format;

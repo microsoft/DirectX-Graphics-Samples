@@ -68,15 +68,15 @@ namespace DXIL {
   const float kHSMaxTessFactorUpperBound = 64.0f;
   const unsigned kHSDefaultInputControlPointCount = 1;
   const unsigned kMaxCSThreadsPerGroup = 1024;
-  const unsigned kMaxCSThreadGroupX	= 1024;
-  const unsigned kMaxCSThreadGroupY	= 1024;
+  const unsigned kMaxCSThreadGroupX    = 1024;
+  const unsigned kMaxCSThreadGroupY    = 1024;
   const unsigned kMaxCSThreadGroupZ = 64;
   const unsigned kMinCSThreadGroupX = 1;
   const unsigned kMinCSThreadGroupY = 1;
   const unsigned kMinCSThreadGroupZ = 1;
   const unsigned kMaxCS4XThreadsPerGroup = 768;
-  const unsigned kMaxCS4XThreadGroupX	= 768;
-  const unsigned kMaxCS4XThreadGroupY	= 768;
+  const unsigned kMaxCS4XThreadGroupX    = 768;
+  const unsigned kMaxCS4XThreadGroupY    = 768;
   const unsigned kMaxTGSMSize = 8192*4;
   const unsigned kMaxGSOutputTotalScalars = 1024;
 

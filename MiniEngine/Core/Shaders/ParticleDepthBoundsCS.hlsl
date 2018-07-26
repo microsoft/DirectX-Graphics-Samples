@@ -79,7 +79,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 DTid : SV_Disp
     Max4(This, 1);
 
     // if (X % 2 == 0 && Y % 2 == 0 && Y < 8)
-    if ((This & 0x49) == 0)	
+    if ((This & 0x49) == 0)    
     {
         uint2 SubTile = uint2(This >> 1, This >> 4) & 3;
         g_Output8[Gid.xy * 4 + SubTile] = PackMinMax(This);
@@ -88,7 +88,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 DTid : SV_Disp
     Max4(This, 2);
 
     // if (X % 4 == 0 && Y % 4 == 0 && Y < 8)
-    if ((This & 0x5B) == 0)	
+    if ((This & 0x5B) == 0)    
     {
         uint2 SubTile = uint2(This >> 2, This >> 5) & 1;
         g_Output16[Gid.xy * 2 + SubTile] = PackMinMax(This);

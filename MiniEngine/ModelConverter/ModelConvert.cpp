@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	Alex Nankervis
+// Author(s):    Alex Nankervis
 //
 
 #include "ModelAssimp.h"
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
     printf("input file %s\n", input_file);
     printf("output file %s\n", output_file);
 
-	AssimpModel model;
+    AssimpModel model;
 
     printf("loading...\n");
     if (!model.Load(input_file))

@@ -29,7 +29,7 @@
 #include "CompiledShaders/BitonicOuterSortCS.h"
 
 BitonicSort::BitonicSort(ID3D12Device *pDevice, UINT nodeMask)
-{	
+{    
     auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto indirectArgBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(cIndirectArgStride * 22 * 23 / 2, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     ThrowInternalFailure(pDevice->CreateCommittedResource(

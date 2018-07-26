@@ -57,7 +57,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
     }
 
     // The spawn dispatch will be simultaneously adding particles as well.  It's possible to overflow.
-    uint index = g_OutputBuffer.IncrementCounter();	
+    uint index = g_OutputBuffer.IncrementCounter();    
     if (index >= MaxParticles)
         return;
 

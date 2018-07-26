@@ -20,9 +20,9 @@ class EngineVar
 public:
     virtual ~EngineVar() {}
 
-    virtual void Increment() {}	// DPad Right
-    virtual void Decrement() {}	// DPad Left
-    virtual void Bang() {}		// A Button
+    virtual void Increment() {}    // DPad Right
+    virtual void Decrement() {}    // DPad Left
+    virtual void Bang() {}        // A Button
 
     virtual std::wstring ToFormattedString() const { return L""; }
     virtual std::wstring ToString() const { return L""; }
@@ -35,10 +35,10 @@ protected:
     EngineVar( std::function<void(void*)> callback = nullptr, void* args = nullptr);
     EngineVar( const std::wstring& path, std::function<void(void*)> callback = nullptr, void* args = nullptr);
 
-	void OnChanged();
+    void OnChanged();
 
-	std::function<void(void*)> m_Callback;
-	void* m_Arguments;
+    std::function<void(void*)> m_Callback;
+    void* m_Arguments;
 private:
     friend class VariableGroup;
     VariableGroup* m_GroupPtr;
@@ -52,7 +52,7 @@ public:
     BoolVar& operator=( bool val ) { m_Flag = val; return *this; }
     operator bool() const { return m_Flag; }
 
-	virtual void Increment() override { m_Flag = true; OnChanged(); }
+    virtual void Increment() override { m_Flag = true; OnChanged(); }
     virtual void Decrement() override { m_Flag = false; OnChanged(); }
     virtual void Bang() override { m_Flag = !m_Flag; }
 
@@ -91,8 +91,8 @@ class ExpVar : public NumVar
 {
 public:
     ExpVar( const std::wstring& path, float val, float minExp = -FLT_MAX, float maxExp = FLT_MAX, float expStepSize = 1.0f, std::function<void(void*)> callback = nullptr, void* args = nullptr);
-    ExpVar& operator=( float val );	// m_Value = log2(val)
-    operator float() const;			// returns exp2(m_Value)
+    ExpVar& operator=( float val );    // m_Value = log2(val)
+    operator float() const;            // returns exp2(m_Value)
 
     virtual std::wstring ToFormattedString() const override;
     virtual std::wstring ToString() const override;
@@ -108,7 +108,7 @@ public:
     operator int32_t() const { return m_Value; }
 
     virtual void Increment() override { m_Value = Clamp(m_Value + m_StepSize); OnChanged(); }
-	virtual void Decrement() override { m_Value = Clamp(m_Value - m_StepSize); OnChanged(); }
+    virtual void Decrement() override { m_Value = Clamp(m_Value - m_StepSize); OnChanged(); }
 
     virtual std::wstring ToFormattedString() const override;
     virtual std::wstring ToString() const override;
@@ -131,7 +131,7 @@ public:
     operator int32_t() const { return m_Value; }
 
     virtual void Increment() override { m_Value = (m_Value + 1) % m_EnumLength; OnChanged(); }
-    virtual void Decrement() override { m_Value = (m_Value + m_EnumLength - 1) % m_EnumLength; OnChanged();	}
+    virtual void Decrement() override { m_Value = (m_Value + m_EnumLength - 1) % m_EnumLength; OnChanged();    }
 
     virtual std::wstring ToFormattedString() const override;
     virtual std::wstring ToString() const override;

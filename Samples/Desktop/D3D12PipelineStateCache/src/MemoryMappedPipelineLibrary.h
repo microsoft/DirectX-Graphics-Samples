@@ -18,11 +18,11 @@
 class MemoryMappedPipelineLibrary : public MemoryMappedFile
 {
 public:
-	bool Init(ID3D12Device* pDevice, std::wstring filename);
-	void Destroy(bool deleteFile);
-	
-	ID3D12PipelineLibrary* GetPipelineLibrary() { return m_pipelineLibrary.Get(); }
+    bool Init(ID3D12Device* pDevice, std::wstring filename);
+    void Destroy(bool deleteFile);
+    
+    ID3D12PipelineLibrary* GetPipelineLibrary() { return m_pipelineLibrary.Get(); }
 
 private:
-	Microsoft::WRL::ComPtr<ID3D12PipelineLibrary> m_pipelineLibrary;
+    Microsoft::WRL::ComPtr<ID3D12PipelineLibrary> m_pipelineLibrary;
 };

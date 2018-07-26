@@ -59,8 +59,8 @@ struct ParticleVertex
 // Intentionally left unpacked to allow scalar register loads and ops
 struct ParticleScreenData
 {
-    float2 Corner;		// Top-left location
-    float2 RcpSize;		// 1/width, 1/height
+    float2 Corner;        // Top-left location
+    float2 RcpSize;        // 1/width, 1/height
     float4 Color;
     float Depth;
     float TextureIndex;

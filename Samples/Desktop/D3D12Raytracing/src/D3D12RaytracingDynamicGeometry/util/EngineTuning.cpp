@@ -18,11 +18,11 @@ using namespace std;
 
 wstring FormattedString(const wchar_t* format, ...)
 {
-	wchar_t buffer[256];
-	va_list ap;
-	va_start(ap, format);
-	vswprintf(buffer, 256, format, ap);
-	return wstring(buffer);
+    wchar_t buffer[256];
+    va_list ap;
+    va_start(ap, format);
+    vswprintf(buffer, 256, format, ap);
+    return wstring(buffer);
 }
 
 namespace EngineTuning
@@ -96,20 +96,20 @@ VariableGroup VariableGroup::sm_RootGroup;
 
 wstring Indent(UINT spaces)
 {
-	wstringstream indent;
-	for (UINT i = 0; i < spaces; i++)
-	{
-		indent << L" ";
-	}
-	return indent.str();
+    wstringstream indent;
+    for (UINT i = 0; i < spaces; i++)
+    {
+        indent << L" ";
+    }
+    return indent.str();
 }
 
 void VariableGroup::Display( wstringstream* renderText, UINT leftMargin, EngineVar* highlightedTweak )
 {
     for (auto iter = m_Children.begin(); iter != m_Children.end(); ++iter)
     {
-		*renderText << ((iter->second == highlightedTweak) ? L"[x] " : L"[] ");
-	
+        *renderText << ((iter->second == highlightedTweak) ? L"[x] " : L"[] ");
+    
         VariableGroup* subGroup = dynamic_cast<VariableGroup*>(iter->second);
         if (subGroup != nullptr)
         {
@@ -119,7 +119,7 @@ void VariableGroup::Display( wstringstream* renderText, UINT leftMargin, EngineV
             }
             else
             {
-                *renderText << L"+ ";				
+                *renderText << L"+ ";                
             }
             *renderText << iter->first;
             *renderText << L"/...\n";
@@ -131,9 +131,9 @@ void VariableGroup::Display( wstringstream* renderText, UINT leftMargin, EngineV
         }
         else
         {
-			*renderText << Indent(leftMargin) 
-						<< iter->first << L": " << iter->second->ToFormattedString()
-						<< L"\n";
+            *renderText << Indent(leftMargin) 
+                        << iter->first << L": " << iter->second->ToFormattedString()
+                        << L"\n";
         }
         
     }
@@ -147,14 +147,14 @@ void VariableGroup::SaveToFile( FILE* file, int fileMargin )
 
         VariableGroup* subGroup = dynamic_cast<VariableGroup*>(iter->second);
         if (subGroup != nullptr)
-        {		
+        {        
             fwprintf(file, L"%*c + %s ...\r\n", fileMargin, L' ', buffer);
             subGroup->SaveToFile(file, fileMargin + 5);
         }
         else if (dynamic_cast<CallbackTrigger*>(iter->second) == nullptr)
         {
             fwprintf(file, L"%*c %s:  %s\r\n", fileMargin, L' ', buffer, iter->second->ToString().c_str());
-        }		
+        }        
     }
 }
 
@@ -170,7 +170,7 @@ void VariableGroup::LoadSettingsFromFile( FILE* file )
             subGroup->LoadSettingsFromFile(file);
         }
         else
-        {	
+        {    
             iter->second->SetValue(file, iter->first);
         }
     }
@@ -244,16 +244,16 @@ EngineVar* VariableGroup::PrevVariable( EngineVar* curVar )
 // EngineVar implementations
 
 EngineVar::EngineVar(function<void(void*)> callback, void* args) :
-	m_GroupPtr(nullptr),
-	m_Callback(callback),
-	m_Arguments(args)
+    m_GroupPtr(nullptr),
+    m_Callback(callback),
+    m_Arguments(args)
 {
 }
 
 EngineVar::EngineVar( const wstring& path, function<void(void*)> callback, void* args) : 
-	m_GroupPtr(nullptr),
-	m_Callback(callback),
-	m_Arguments(args)
+    m_GroupPtr(nullptr),
+    m_Callback(callback),
+    m_Arguments(args)
 {
     EngineTuning::RegisterVariable(path, *this);
 }
@@ -285,10 +285,10 @@ EngineVar* EngineVar::PrevVar( void )
 
 void EngineVar::OnChanged() 
 {
-	if (m_Callback)
-	{
-		m_Callback(m_Arguments);
-	}
+    if (m_Callback)
+    {
+        m_Callback(m_Arguments);
+    }
 }
 
 
@@ -309,7 +309,7 @@ wstring BoolVar::ToString( void ) const
 } 
 
 void BoolVar::SetValue(FILE* file, const wstring& setting)
-{	
+{    
     wstring pattern = L"\n L" + setting + L": %s";
     WCHAR valstr[6];
 
@@ -481,8 +481,8 @@ CallbackTrigger::CallbackTrigger( const wstring& path, function<void (void*)> ca
 
 wstring CallbackTrigger::ToFormattedString() const
 {
-	if (m_BangDisplay > 0)
-		--m_BangDisplay;
+    if (m_BangDisplay > 0)
+        --m_BangDisplay;
 
     static const WCHAR s_animation[] = { L'-', L'\\', L'|', L'/' };
     return FormattedString(L"[%c]", s_animation[(m_BangDisplay >> 3) & 3]);
@@ -551,14 +551,14 @@ void EngineTuning::Update( float frameTime )
 
     // Detect a DPad button press
     HandleDigitalButtonPress(GameInput::kDPadRight, frameTime, []{ sm_SelectedVariable->Increment(); } );
-    HandleDigitalButtonPress(GameInput::kDPadLeft,	frameTime, []{ sm_SelectedVariable->Decrement(); } );
-    HandleDigitalButtonPress(GameInput::kDPadDown,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
-    HandleDigitalButtonPress(GameInput::kDPadUp,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
+    HandleDigitalButtonPress(GameInput::kDPadLeft,    frameTime, []{ sm_SelectedVariable->Decrement(); } );
+    HandleDigitalButtonPress(GameInput::kDPadDown,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
+    HandleDigitalButtonPress(GameInput::kDPadUp,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
 
     HandleDigitalButtonPress(GameInput::kKey_right, frameTime, []{ sm_SelectedVariable->Increment(); } );
-    HandleDigitalButtonPress(GameInput::kKey_left,	frameTime, []{ sm_SelectedVariable->Decrement(); } );
-    HandleDigitalButtonPress(GameInput::kKey_down,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
-    HandleDigitalButtonPress(GameInput::kKey_up,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
+    HandleDigitalButtonPress(GameInput::kKey_left,    frameTime, []{ sm_SelectedVariable->Decrement(); } );
+    HandleDigitalButtonPress(GameInput::kKey_down,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
+    HandleDigitalButtonPress(GameInput::kKey_up,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
 
     if (GameInput::IsFirstPressed( GameInput::kAButton )
         || GameInput::IsFirstPressed( GameInput::kKey_return ))
@@ -596,7 +596,7 @@ function<void(void*)> StartLoadFunc = StartLoad;
 
 void EngineTuning::Display( wstringstream* renderText)
 {
-	*renderText << L"Engine Tuning (use arrow keys)\n";
+    *renderText << L"Engine Tuning (use arrow keys)\n";
     VariableGroup::sm_RootGroup.Display( renderText, 0, sm_SelectedVariable );    
 }
 

@@ -22,7 +22,7 @@ void CopyPrimitive(uint srcIndex, uint dstIndex)
     OutputMetadataBuffer[dstIndex] = InputMetadataBuffer[srcIndex];
     if (Constants.UpdatesAllowed)
     {
-    	OutputIndexBuffer[srcIndex] = dstIndex;
+        OutputIndexBuffer[srcIndex] = dstIndex;
     }
 }
 
