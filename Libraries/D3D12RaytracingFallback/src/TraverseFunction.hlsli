@@ -22,21 +22,21 @@ static
 uint    stacks[NUM_BVH_LEVELS][TRAVERSAL_MAX_STACK_DEPTH];
 
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-RWTexture2D<float4> g_screenOutput : register(u2);
-static uint g_maxDepth = 0;
-void VisualizeAcceleratonStructure()
+RWTexture2D<float4> g_screenOutput : register(u0);
+static uint depthStack[NUM_BVH_LEVELS][TRAVERSAL_MAX_STACK_DEPTH];
+void VisualizeAcceleratonStructure(uint depth)
 {
-    if (g_maxDepth >= 22)
+    if (depth >= 22)
     {
-        g_screenOutput[DispatchRaysIndex().xy] = float4((g_maxDepth - 21) / 11.0, 0, 0, 1);
+        g_screenOutput[DispatchRaysIndex().xy] = float4((depth - 21) / 11.0, 0, 0, 1);
     }
-    else if (g_maxDepth >= 10)
+    else if (depth >= 10)
     {
-        g_screenOutput[DispatchRaysIndex().xy] = float4(0, (g_maxDepth - 9) / 12.0, 0, 1);
+        g_screenOutput[DispatchRaysIndex().xy] = float4(0, (depth - 9) / 12.0, 0, 1);
     }
     else
     {
-        g_screenOutput[DispatchRaysIndex().xy] = float4(0, 0, g_maxDepth / 9.0, 1);
+        g_screenOutput[DispatchRaysIndex().xy] = float4(0, 0, depth / 9.0, 1);
     }
 }
 #endif
@@ -61,16 +61,19 @@ void RecordClosestBox(uint currentLevel, inout bool leftTest, float leftT, inout
 #endif
 }
 
-void StackPush(inout int stackTop, uint level, uint value)
+void StackPush(inout int stackTop, uint level, uint value, uint depth)
 {
-    stacks[level][stackTop++] = value;
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    g_maxDepth = max(g_maxDepth, stackTop);
+    depthStack[level][stackTop] = depth;
 #endif
+    stacks[level][stackTop++] = value;
 }
 
-uint StackPop(inout int stackTop, uint level)
+uint StackPop(inout int stackTop, uint level, out uint depth)
 {
+#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
+    depth = depthStack[level][stackTop - 1];
+#endif 
     return stacks[level][--stackTop];
 }
 
@@ -727,13 +730,15 @@ bool Traverse(
 
     bool endSearch = false;
 
-    StackPush(nodesToProcess[TOP_LEVEL_INDEX], TOP_LEVEL_INDEX, 0);
+    uint currentDepth = 0;
+
+    StackPush(nodesToProcess[TOP_LEVEL_INDEX], TOP_LEVEL_INDEX, 0, currentDepth);
 
     MARK(2, 0);
     while (nodesToProcess[currentBVHLevel] != 0)
     {
         MARK(3, 0);
-        uint parentNodeIndex = StackPop(nodesToProcess[currentBVHLevel], currentBVHLevel);
+        uint parentNodeIndex = StackPop(nodesToProcess[currentBVHLevel], currentBVHLevel, currentDepth);
         
         MARK(4, 0);
         BoundingBox leftBox, rightBox;
@@ -794,12 +799,12 @@ bool Traverse(
 
         if (doubleHit && !IsLeaf(secondInfo))
         {
-            StackPush(nodesToProcess[currentBVHLevel], currentBVHLevel, GetChildIndexFromInfo(secondInfo));
+            StackPush(nodesToProcess[currentBVHLevel], currentBVHLevel, GetChildIndexFromInfo(secondInfo), currentDepth + 1);
         }
 
         if (singleHit && !IsLeaf(firstInfo))
         {
-            StackPush(nodesToProcess[currentBVHLevel], currentBVHLevel, GetChildIndexFromInfo(firstInfo));
+            StackPush(nodesToProcess[currentBVHLevel], currentBVHLevel, GetChildIndexFromInfo(firstInfo), currentDepth + 1);
         }
 
         
@@ -891,7 +896,8 @@ bool Traverse(
                     blasCtxLoadPtr = (blasCtxLoadPtr + 1) % 2;
                 }
 
-                StackPush(nodesToProcess[BOTTOM_LEVEL_INDEX], BOTTOM_LEVEL_INDEX, 0);
+                currentDepth = 0;
+                StackPush(nodesToProcess[BOTTOM_LEVEL_INDEX], BOTTOM_LEVEL_INDEX, 0, currentDepth);
                 
                 blasContext = savedBLASContexts[blasCtxLoadPtr];
                 currentRayData = blasContext.rayData;
@@ -916,7 +922,7 @@ bool Traverse(
     MARK(10,0);
     bool isHit = Fallback_InstanceIndex() != NO_HIT_SENTINEL;
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    VisualizeAcceleratonStructure();
+    VisualizeAcceleratonStructure(currentDepth);
 #endif
 
     return isHit;   
