@@ -17,6 +17,7 @@
 #include "TreeletReorderBindings.h"
 #include "RayTracingHelper.hlsli"
 
+// This constant is pulled from this paper, http://research.nvidia.com/sites/default/files/pubs/2013-07_Fast-Parallel-Construction/karras2013hpg_paper.pdf
 static const float CostOfRayBoxIntersection = 1.2;
 static const float CostOfRayTriangleIntersection = 1.0;
 
@@ -133,8 +134,8 @@ void FindOptimalPartitions(in uint threadId)
 
     GroupMemoryBarrierWithGroupSync();
 
-    [unroll]
     // Dynamic programming from 'treelet/subset' of size 2 up to FullTreeletSize, calculate and store optimal (lowest) cost and its partition bitmask
+    [unroll]
     for (uint subsetSize = 2; subsetSize <= FullTreeletSize; subsetSize++)
     {
         // eg. In 'treelet/subset' of size 2, there are (7 Choose 2) distinct 'treelets' in the original treelet of 7 leaves, ie. 0000011, 0000101, ..., 1100000
@@ -247,8 +248,8 @@ void ReformTree(in uint groupThreadId)
         if (bCollapseChildren)
         {
             // Only possible if this node was calculated to be more optimal to be flattened as a leaf with triangle list
-            hierarchyBuffer[leftEntry.NodeIndex].ParentIndex |= IsCollapseChildren;
-            hierarchyBuffer[rightEntry.NodeIndex].ParentIndex |= IsCollapseChildren;
+            hierarchyBuffer[leftEntry.NodeIndex].ParentIndex |= HierarchyNode::IsCollapseChildren;
+            hierarchyBuffer[rightEntry.NodeIndex].ParentIndex |= HierarchyNode::IsCollapseChildren;
         }
 #endif
     }
