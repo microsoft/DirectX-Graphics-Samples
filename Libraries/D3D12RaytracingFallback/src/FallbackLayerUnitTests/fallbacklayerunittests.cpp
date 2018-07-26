@@ -3497,7 +3497,7 @@ namespace FallbackLayerUnitTests
             stateObject.pSubobjects = subObjects.data();
             stateObject.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
 
-            m_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&m_pRaytracingStateObject));
+            ThrowFailure(m_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&m_pRaytracingStateObject)));
 
             // Create the Shader Tables
             UINT shaderIdentifierSize = m_pRaytracingDevice->GetShaderIdentifierSize();
