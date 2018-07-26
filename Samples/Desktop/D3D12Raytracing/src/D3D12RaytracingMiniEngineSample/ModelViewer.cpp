@@ -1048,8 +1048,6 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
 
     m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
     
-    
-
     MotionBlur::Enable = false;//true;
     TemporalEffects::EnableTAA = false;//true;
     FXAA::Enable = false;
@@ -1098,26 +1096,33 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
     else if(GameInput::IsFirstPressed(GameInput::kKey_7))
       rayTracingMode = RTM_REFLECTIONS;
     
-    static bool ignoreController = false;
+    static bool freezeCamera = false;
     
+    if (GameInput::IsFirstPressed(GameInput::kKey_f))
+    {
+        freezeCamera = !freezeCamera;
+    }
+
     if (GameInput::IsFirstPressed(GameInput::kKey_left))
     {
-        ignoreController = true;
-        m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + 1) % c_NumCameraPositions;
+        if (m_CameraPosArrayCurrentPosition == 0)
+            m_CameraPosArrayCurrentPosition = c_NumCameraPositions - 1;
+        else
+            m_CameraPosArrayCurrentPosition = m_CameraPosArrayCurrentPosition - 1;
+
+        m_CameraController->UpdateToPosition(m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
     }
     else if (GameInput::IsFirstPressed(GameInput::kKey_right))
     {
-        ignoreController = false;
-    }
-        
-    if (ignoreController)
-    {
+        m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + 1) % c_NumCameraPositions;
         m_CameraController->UpdateToPosition(m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
     }
-    else
+
+    if (!freezeCamera) 
     {
         m_CameraController->Update(deltaT);
     }
+
     m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
 
     float costheta = cosf(m_SunOrientation);
