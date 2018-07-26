@@ -237,14 +237,14 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets" Condition="Exists('..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets')" />
-    <Import Project="..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170918004\build\WinPixEventRuntime.targets" Condition="Exists('..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170918004\build\WinPixEventRuntime.targets')" />
+    <Import Project="..\..\..\..\..\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets" Condition="Exists('..\..\..\..\..\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets')" />
+    <Import Project="..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets" Condition="Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\MiniEngine\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170918004\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170918004\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxtk12_desktop_2015.2018.6.1.2\build\native\directxtk12_desktop_2015.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets'))" />
   </Target>
 </Project>
