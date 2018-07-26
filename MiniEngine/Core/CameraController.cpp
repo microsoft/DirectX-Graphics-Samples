@@ -70,7 +70,7 @@ void CameraController::Update( float deltaTime )
 
     float yaw = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickX ) * m_HorizontalLookSensitivity * panScale;
     float pitch = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickY ) * m_VerticalLookSensitivity * panScale;
-    float forward =	m_MoveSpeed * speedScale * (
+    float forward =    m_MoveSpeed * speedScale * (
         GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogLeftStickY ) +
         (GameInput::IsPressed( GameInput::kKey_w ) ? deltaTime : 0.0f) +
         (GameInput::IsPressed( GameInput::kKey_s ) ? -deltaTime : 0.0f)
@@ -104,13 +104,6 @@ void CameraController::Update( float deltaTime )
     m_CurrentPitch = XMMin( XM_PIDIV2, m_CurrentPitch);
     m_CurrentPitch = XMMax(-XM_PIDIV2, m_CurrentPitch);
 
-	/*
-	if (GameInput::IsFirstPressed(GameInput::kKey_u)) {
-		auto position = m_TargetCamera.GetPosition();
-		OutputDebugString(L"Hello");
-	}
-	*/
-
     m_CurrentHeading -= yaw;
     if (m_CurrentHeading > XM_PI)
         m_CurrentHeading -= XM_2PI;
@@ -119,18 +112,17 @@ void CameraController::Update( float deltaTime )
 
     Matrix3 orientation = Matrix3(m_WorldEast, m_WorldUp, -m_WorldNorth) * Matrix3::MakeYRotation( m_CurrentHeading ) * Matrix3::MakeXRotation( m_CurrentPitch );
     Vector3 position = orientation * Vector3( strafe, ascent, -forward ) + m_TargetCamera.GetPosition();
-	m_TargetCamera.SetTransform( AffineTransform( orientation, position ) );
-	m_TargetCamera.Update();
+    m_TargetCamera.SetTransform( AffineTransform( orientation, position ) );
+    m_TargetCamera.Update();
 }
 
-void GameCore::CameraController::UpdateToPosition(Vector3 position, float heading, float pitch)
+void GameCore::CameraController::UpdateToPosition(const Vector3 position, const float heading, const float pitch)
 {
-	//m_TargetCamera.SetEyeAtUp(Vector3(299,208,-202), Vector3(298.987, 208.626, -201.220), Vector3());
-	m_CurrentPitch = pitch;
-	m_CurrentHeading = heading;
-	Matrix3 neworientation = Matrix3(m_WorldEast, m_WorldUp, -m_WorldNorth) * Matrix3::MakeYRotation(heading) * Matrix3::MakeXRotation(pitch);
-	m_TargetCamera.SetTransform(AffineTransform(neworientation, position));
-	m_TargetCamera.Update();
+    m_CurrentPitch = pitch;
+    m_CurrentHeading = heading;
+    Matrix3 neworientation = Matrix3(m_WorldEast, m_WorldUp, -m_WorldNorth) * Matrix3::MakeYRotation(heading) * Matrix3::MakeXRotation(pitch);
+    m_TargetCamera.SetTransform(AffineTransform(neworientation, position));
+    m_TargetCamera.Update();
 }
 
 void CameraController::ApplyMomentum( float& oldValue, float& newValue, float deltaTime )

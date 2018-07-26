@@ -107,6 +107,8 @@ enum RaytracingTypes
 
 const static UINT MaxRayRecursion = 2;
 
+const UINT c_NumCameraPositions = 5;
+
 struct RaytracingDispatchRayInputs
 {
     RaytracingDispatchRayInputs() {}
@@ -168,12 +170,7 @@ struct MaterialRootConstant
     UINT MaterialID;
 };
 
-struct CameraPosition
-{
-	Vector3 position;
-	float heading;
-	float pitch;
-};
+
 
 RaytracingDispatchRayInputs g_RaytracingInputs[RaytracingTypes::NumTypes];
 D3D12_CPU_DESCRIPTOR_HANDLE g_bvh_attributeSrvs[34];
@@ -229,9 +226,15 @@ private:
     Vector3 m_SunDirection;
     ShadowCamera m_SunShadow;
 
-	CameraPosition m_CameraPosArray[5];
-	UINT m_NumCameraPositions;
-	UINT m_CameraPosArrayCurrentPosition;
+    struct CameraPosition
+    {
+        Vector3 position;
+        float heading;
+        float pitch;
+    };
+
+    CameraPosition m_CameraPosArray[c_NumCameraPositions];
+    UINT m_CameraPosArrayCurrentPosition;
 
 };
 
@@ -1011,43 +1014,41 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     InitializeRaytracingStateObjects(m_Model, numMeshes);
 
     float modelRadius = Length(m_Model.m_Header.boundingBox.max - m_Model.m_Header.boundingBox.min) * .5f;
-	const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
-	m_Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
-	
-	
-	m_NumCameraPositions = 5;
-	m_CameraPosArrayCurrentPosition = 0;
-	
-	// Lion's head
-	m_CameraPosArray[0].position = Vector3(-1100.0, 170.0, -30.0);
-	m_CameraPosArray[0].heading = 1.5707;
-	m_CameraPosArray[0].pitch = 0.0;
+    const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
+    m_Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
+    
+    m_CameraPosArrayCurrentPosition = 0;
+    
+    // Lion's head
+    m_CameraPosArray[0].position = Vector3(-1100.0f, 170.0f, -30.0f);
+    m_CameraPosArray[0].heading = 1.5707f;
+    m_CameraPosArray[0].pitch = 0.0f;
 
-	// View of columns
-	m_CameraPosArray[1].position = Vector3(299.0, 208.0, -202.0);
-	m_CameraPosArray[1].heading = -3.1111;
-	m_CameraPosArray[1].pitch = 0.5953;
+    // View of columns
+    m_CameraPosArray[1].position = Vector3(299.0f, 208.0f, -202.0f);
+    m_CameraPosArray[1].heading = -3.1111f;
+    m_CameraPosArray[1].pitch = 0.5953f;
 
-	// Bottom-up view from the floor
-	m_CameraPosArray[2].position = Vector3(-1237.61, 80.60, -26.02);
-	m_CameraPosArray[2].heading = -1.5707;
-	m_CameraPosArray[2].pitch = 0.268;
+    // Bottom-up view from the floor
+    m_CameraPosArray[2].position = Vector3(-1237.61f, 80.60f, -26.02f);
+    m_CameraPosArray[2].heading = -1.5707f;
+    m_CameraPosArray[2].pitch = 0.268f;
 
-	// Top-down view from the second floor
-	m_CameraPosArray[3].position = Vector3(-977.90, 595.05, -194.97);
-	m_CameraPosArray[3].heading = -2.077;
-	m_CameraPosArray[3].pitch =  - 0.450;
+    // Top-down view from the second floor
+    m_CameraPosArray[3].position = Vector3(-977.90f, 595.05f, -194.97f);
+    m_CameraPosArray[3].heading = -2.077f;
+    m_CameraPosArray[3].pitch =  - 0.450f;
 
-	// View of corridors on the second floor
-	m_CameraPosArray[4].position = Vector3(-1463.0, 600, 394.52);
-	m_CameraPosArray[4].heading = -1.236;
-	m_CameraPosArray[4].pitch = 0.0;
+    // View of corridors on the second floor
+    m_CameraPosArray[4].position = Vector3(-1463.0f, 600.0f, 394.52f);
+    m_CameraPosArray[4].heading = -1.236f;
+    m_CameraPosArray[4].pitch = 0.0f;
 
     m_Camera.SetZRange( 1.0f, 10000.0f );
 
     m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
-	
-	
+    
+    
 
     MotionBlur::Enable = false;//true;
     TemporalEffects::EnableTAA = false;//true;
@@ -1096,25 +1097,27 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
       rayTracingMode = RTM_DIFFUSE_WITH_SHADOWRAYS;
     else if(GameInput::IsFirstPressed(GameInput::kKey_7))
       rayTracingMode = RTM_REFLECTIONS;
-	
-	static bool ignoreController = false;
-	
-	if (GameInput::IsFirstPressed(GameInput::kKey_left))
-	{
-		ignoreController = true;
-		m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + 1) % m_NumCameraPositions;
-	}
-	else if (GameInput::IsFirstPressed(GameInput::kKey_right))
-		ignoreController = false;
-
-	if (ignoreController)
-	{
-		m_CameraController->UpdateToPosition(m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
-	}
-	else
-	{
-		m_CameraController->Update(deltaT);
-	}
+    
+    static bool ignoreController = false;
+    
+    if (GameInput::IsFirstPressed(GameInput::kKey_left))
+    {
+        ignoreController = true;
+        m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + 1) % c_NumCameraPositions;
+    }
+    else if (GameInput::IsFirstPressed(GameInput::kKey_right))
+    {
+        ignoreController = false;
+    }
+        
+    if (ignoreController)
+    {
+        m_CameraController->UpdateToPosition(m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
+    }
+    else
+    {
+        m_CameraController->Update(deltaT);
+    }
     m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
 
     float costheta = cosf(m_SunOrientation);
@@ -1626,7 +1629,7 @@ void D3D12RaytracingMiniEngineSample::RaytraceReflections(
     ScopedTimer _p0(L"RaytracingWithHitShader", context);
 
     // Prepare constants
-    DynamicCB inputs = g_dynamicCb;	
+    DynamicCB inputs = g_dynamicCb;   
     auto m0 = camera.GetViewProjMatrix();
     auto m1 = Transpose(Invert(m0));
     memcpy(&inputs.cameraToWorld, &m1, sizeof(inputs.cameraToWorld));

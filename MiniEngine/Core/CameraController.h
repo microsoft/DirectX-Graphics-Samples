@@ -32,7 +32,7 @@ namespace GameCore
         CameraController( Camera& camera, Vector3 worldUp );
 
         void Update( float dt );
-		void UpdateToPosition(Vector3 position, float heading, float pitch);
+        void UpdateToPosition(const Vector3 position, const float heading,  const float pitch);
 
         void SlowMovement( bool enable ) { m_FineMovement = enable; }
         void SlowRotation( bool enable ) { m_FineRotation = enable; }
@@ -67,5 +67,5 @@ namespace GameCore
         float m_LastForward;
         float m_LastStrafe;
         float m_LastAscent;
-	};
+    };
 }
