@@ -229,7 +229,7 @@ private:
     Vector3 m_SunDirection;
     ShadowCamera m_SunShadow;
 
-	CameraPosition m_CameraPosArray[3];
+	CameraPosition m_CameraPosArray[5];
 	UINT m_NumCameraPositions;
 	UINT m_CameraPosArrayCurrentPosition;
 
@@ -1015,21 +1015,41 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
 	const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
 	m_Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
 	
-	// set first camera position at startup    
-	m_NumCameraPositions = 2;
+	
+	m_NumCameraPositions = 5;
 	m_CameraPosArrayCurrentPosition = 0;
 	
-	m_CameraPosArray[0].position = Vector3(-1100.0, 145.0, -44.0);
-	m_CameraPosArray[0].heading = 1.534;
-	m_CameraPosArray[0].pitch = 0.082;
+	// Lion's head
+	m_CameraPosArray[0].position = Vector3(-1100.0, 170.0, -30.0);
+	m_CameraPosArray[0].heading = 1.5707;
+	m_CameraPosArray[0].pitch = 0.0;
 
+	// View of columns
 	m_CameraPosArray[1].position = Vector3(299.0, 208.0, -202.0);
 	m_CameraPosArray[1].heading = -3.1111;
 	m_CameraPosArray[1].pitch = 0.5953;
-	
+
+	// Bottom-up view from the floor
+	m_CameraPosArray[2].position = Vector3(-1237.61, 80.60, -26.02);
+	m_CameraPosArray[2].heading = -1.5707;
+	m_CameraPosArray[2].pitch = 0.268;
+
+	// Top-down view from the second floor
+	m_CameraPosArray[3].position = Vector3(-977.90, 595.05, -194.97);
+	m_CameraPosArray[3].heading = -2.077;
+	m_CameraPosArray[3].pitch =  - 0.450;
+
+	// View of corridors on the second floor
+	m_CameraPosArray[4].position = Vector3(-1463.0, 600, 394.52);
+	m_CameraPosArray[4].heading = -1.236;
+	m_CameraPosArray[4].pitch = 0.0;
+
     m_Camera.SetZRange( 1.0f, 10000.0f );
+
     m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
 	
+	
+
     MotionBlur::Enable = false;//true;
     TemporalEffects::EnableTAA = false;//true;
     FXAA::Enable = false;
