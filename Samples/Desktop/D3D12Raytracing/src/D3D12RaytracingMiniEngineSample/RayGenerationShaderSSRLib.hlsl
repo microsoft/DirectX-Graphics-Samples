@@ -13,7 +13,7 @@
 #include "ModelViewerRaytracing.h"
 
 Texture2D<float>    depth    : register(t12);
-Texture2D<float3>   normals  : register(t13);
+Texture2D<float4>   normals  : register(t13);
 
 [shader("raygeneration")]
 void RayGen()
