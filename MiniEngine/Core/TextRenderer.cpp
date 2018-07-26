@@ -66,16 +66,16 @@ namespace TextRenderer
 
             struct FontHeader
             {
-                char FileDescriptor[8];		// "SDFFONT\0"
-                uint8_t  majorVersion;		// '1'
-                uint8_t  minorVersion;		// '0'
-                uint16_t borderSize;		// Pixel empty space border width
-                uint16_t textureWidth;		// Width of texture buffer
-                uint16_t textureHeight;		// Height of texture buffer
-                uint16_t fontHeight;		// Font height in 12.4
-                uint16_t advanceY;			// Line height in 12.4
-                uint16_t numGlyphs;			// Glyph count in texture
-                uint16_t searchDist;		// Range of search space 12.4
+                char FileDescriptor[8];        // "SDFFONT\0"
+                uint8_t  majorVersion;        // '1'
+                uint8_t  minorVersion;        // '0'
+                uint16_t borderSize;        // Pixel empty space border width
+                uint16_t textureWidth;        // Width of texture buffer
+                uint16_t textureHeight;        // Height of texture buffer
+                uint16_t fontHeight;        // Font height in 12.4
+                uint16_t advanceY;            // Line height in 12.4
+                uint16_t numGlyphs;            // Glyph count in texture
+                uint16_t searchDist;        // Range of search space 12.4
             };
 
             FontHeader* header = (FontHeader*)pBinary;
@@ -181,8 +181,8 @@ namespace TextRenderer
     }
 
     RootSignature s_RootSignature;
-    GraphicsPSO s_TextPSO[2];	// 0: R8G8B8A8_UNORM   1: R11G11B10_FLOAT
-    GraphicsPSO s_ShadowPSO[2];	// 0: R8G8B8A8_UNORM   1: R11G11B10_FLOAT
+    GraphicsPSO s_TextPSO[2];    // 0: R8G8B8A8_UNORM   1: R11G11B10_FLOAT
+    GraphicsPSO s_ShadowPSO[2];    // 0: R8G8B8A8_UNORM   1: R11G11B10_FLOAT
 
 
 } // namespace TextRenderer

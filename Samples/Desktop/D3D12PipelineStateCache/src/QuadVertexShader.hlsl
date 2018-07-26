@@ -14,14 +14,14 @@
 
 struct VSInput
 {
-	float4 position : POSITION;
-	float2 uv : TEXCOORD;
+    float4 position : POSITION;
+    float2 uv : TEXCOORD;
 };
 
 struct PSInput
 {
-	float4 position : SV_POSITION;
-	float2 uv : TEXCOORD;
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD;
 };
 
 Texture2D g_tex : register(t0);
@@ -29,11 +29,11 @@ SamplerState g_samp : register(s0);
 
 PSInput mainQuad(VSInput input)
 {
-	PSInput result;
-	result.position = input.position;
-	result.uv = input.uv;
+    PSInput result;
+    result.position = input.position;
+    result.uv = input.uv;
 
-	return result;
+    return result;
 }
 
 #endif

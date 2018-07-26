@@ -125,7 +125,7 @@ void D3D12xGPU::LoadPipeline()
 
     ComPtr<IDXGISwapChain1> swapChain;
     ThrowIfFailed(m_dxgiFactory->CreateSwapChainForCoreWindow(
-        m_commandQueue.Get(),		// Swap chain needs the queue so that it can force a flush on it.
+        m_commandQueue.Get(),        // Swap chain needs the queue so that it can force a flush on it.
         reinterpret_cast<IUnknown*>(Windows::UI::Core::CoreWindow::GetForCurrentThread()),
         &swapChainDesc,
         nullptr,

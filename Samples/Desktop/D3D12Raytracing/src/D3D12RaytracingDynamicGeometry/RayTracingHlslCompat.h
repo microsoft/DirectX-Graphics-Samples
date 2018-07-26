@@ -145,9 +145,9 @@ struct Vertex
 
 struct VertexPositionNormalTexture
 {
-	XMFLOAT3 position;
-	XMFLOAT3 normal;
-	XMFLOAT2 uv;
+    XMFLOAT3 position;
+    XMFLOAT3 normal;
+    XMFLOAT2 uv;
 };
 
 
@@ -169,8 +169,8 @@ namespace TraceRayParameters
             0, // Radiance ray
             1  // Shadow ray
         };
-		// ToDo For now all geometries reusing shader records
-		static const UINT GeometryStride = 0;// RayType::Count;
+        // ToDo For now all geometries reusing shader records
+        static const UINT GeometryStride = 0;// RayType::Count;
     }
     namespace MissShader {
         static const UINT Offset[RayType::Count] =

@@ -18,7 +18,7 @@
 template <class T>
 inline T Clamp(T value, T minValue, T maxValue)
 {
-	return max(minValue, min(maxValue, value));
+    return max(minValue, min(maxValue, value));
 }
 
 struct AccelerationStructureBuffers
@@ -31,30 +31,30 @@ struct AccelerationStructureBuffers
 
 inline void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Resource **ppResource, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr)
 {
-	auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	ThrowIfFailed(pDevice->CreateCommittedResource(
-		&uploadHeapProperties,
-		D3D12_HEAP_FLAG_NONE,
-		&bufferDesc,
-		initialResourceState,
-		nullptr,
-		IID_PPV_ARGS(ppResource)));
-	if (resourceName)
-	{
-		(*ppResource)->SetName(resourceName);
-	}
+    auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    ThrowIfFailed(pDevice->CreateCommittedResource(
+        &uploadHeapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &bufferDesc,
+        initialResourceState,
+        nullptr,
+        IID_PPV_ARGS(ppResource)));
+    if (resourceName)
+    {
+        (*ppResource)->SetName(resourceName);
+    }
 }
 struct TriangleGeometryBuffer
 {
-	D3DBuffer ib;
-	D3DBuffer vb;
-	D3D12_GPU_VIRTUAL_ADDRESS transform;
+    D3DBuffer ib;
+    D3DBuffer vb;
+    D3D12_GPU_VIRTUAL_ADDRESS transform;
 };
 
 enum class RaytracingAPI {
-	FallbackLayer,
-	DirectXRaytracing,
+    FallbackLayer,
+    DirectXRaytracing,
 };
 
 class D3D12RaytracingDynamicGeometry;
@@ -62,7 +62,7 @@ extern D3D12RaytracingDynamicGeometry* g_pSample;
 
 struct alignas(16) AlignedGeometryTransform3x4
 {
-	float transform3x4[3][4];
+    float transform3x4[3][4];
 };
 
 // AccelerationStructure
@@ -70,85 +70,85 @@ struct alignas(16) AlignedGeometryTransform3x4
 class AccelerationStructure
 {
 protected:
-	ComPtr<ID3D12Resource> m_accelerationStructure;
-	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS m_buildFlags;
-	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO m_prebuildInfo;
-	
+    ComPtr<ID3D12Resource> m_accelerationStructure;
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS m_buildFlags;
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO m_prebuildInfo;
+    
 public:
-	AccelerationStructure();
-	virtual ~AccelerationStructure() {}
-	void ReleaseD3DResources();
+    AccelerationStructure();
+    virtual ~AccelerationStructure() {}
+    void ReleaseD3DResources();
     UINT64 RequiredScratchSize() { return max(m_prebuildInfo.ScratchDataSizeInBytes, m_prebuildInfo.UpdateScratchDataSizeInBytes); }
     UINT64 RequiredResultDataSizeInBytes() { return m_prebuildInfo.ResultDataMaxSizeInBytes; }
-	ID3D12Resource* GetResource() { return m_accelerationStructure.Get(); }
-	const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& PrebuildInfo() { return m_prebuildInfo; }
-	virtual void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false) = 0;
+    ID3D12Resource* GetResource() { return m_accelerationStructure.Get(); }
+    const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& PrebuildInfo() { return m_prebuildInfo; }
+    virtual void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false) = 0;
 
 protected:
-	void AllocateResource(ID3D12Device* device);
+    void AllocateResource(ID3D12Device* device);
 };
 
 class BottomLevelAccelerationStructure : public AccelerationStructure
 {
-	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> m_geometryDescs;
-	DirectX::XMMATRIX m_transform;
+    std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> m_geometryDescs;
+    DirectX::XMMATRIX m_transform;
 
-	// Runtime state
-	bool m_isDirty;		// if true, AS requires an update/build.
+    // Runtime state
+    bool m_isDirty;        // if true, AS requires an update/build.
 
 public:
-	BottomLevelAccelerationStructure();
-	~BottomLevelAccelerationStructure() {}
-	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>* GetGeometryDescs() { return &m_geometryDescs; }
-	
-	// ToDo:
-	// UpdateGeometry()
+    BottomLevelAccelerationStructure();
+    ~BottomLevelAccelerationStructure() {}
+    std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>* GetGeometryDescs() { return &m_geometryDescs; }
+    
+    // ToDo:
+    // UpdateGeometry()
 
-	void Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
-	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
-	void BuildInstanceDesc(void* destInstanceDesc, UINT* descriptorHeapIndex);
-	void SetTransform(const DirectX::XMMATRIX& transform)
-	{
-		m_transform = transform;
-		SetDirty(true);
-	}
-	void SetDirty(bool isDirty) { m_isDirty = isDirty; }
-	bool IsDirty() { return m_isDirty; }
+    void Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
+    void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
+    void BuildInstanceDesc(void* destInstanceDesc, UINT* descriptorHeapIndex);
+    void SetTransform(const DirectX::XMMATRIX& transform)
+    {
+        m_transform = transform;
+        SetDirty(true);
+    }
+    void SetDirty(bool isDirty) { m_isDirty = isDirty; }
+    bool IsDirty() { return m_isDirty; }
 
-	const XMMATRIX& GetTransform() { return m_transform; }
+    const XMMATRIX& GetTransform() { return m_transform; }
 
 private:
-	void BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress);
-	void ComputePrebuildInfo();
+    void BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress);
+    void ComputePrebuildInfo();
 };
 
 class TopLevelAccelerationStructure : public AccelerationStructure
 {
-	union {
-		// ToDo handle release when API is being changed
-		// Descruction is  not safe if API changes before release
-		StructuredBuffer<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> m_fallbackLayerInstanceDescs;
-		StructuredBuffer<D3D12_RAYTRACING_INSTANCE_DESC> m_dxrInstanceDescs;
-	};
+    union {
+        // ToDo handle release when API is being changed
+        // Descruction is  not safe if API changes before release
+        StructuredBuffer<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> m_fallbackLayerInstanceDescs;
+        StructuredBuffer<D3D12_RAYTRACING_INSTANCE_DESC> m_dxrInstanceDescs;
+    };
 
 public:
-	TopLevelAccelerationStructure() : m_fallbackAccelerationStructureDescritorHeapIndex(UINT_MAX) {}
-	~TopLevelAccelerationStructure();
+    TopLevelAccelerationStructure() : m_fallbackAccelerationStructureDescritorHeapIndex(UINT_MAX) {}
+    ~TopLevelAccelerationStructure();
 
-	UINT NumberOfBLAS();
+    UINT NumberOfBLAS();
 
-	void Initialize(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags, std::vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices);
-	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
-	void UpdateInstanceDescTransforms(std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS);
+    void Initialize(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags, std::vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices);
+    void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
+    void UpdateInstanceDescTransforms(std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS);
 
-	const WRAPPED_GPU_POINTER& GetFallbackAccelerationStructurePointer() { return m_fallbackAccelerationStructurePointer; }
+    const WRAPPED_GPU_POINTER& GetFallbackAccelerationStructurePointer() { return m_fallbackAccelerationStructurePointer; }
 
 private:
-	void ComputePrebuildInfo();
-	void BuildInstanceDescs(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, std::vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices);
+    void ComputePrebuildInfo();
+    void BuildInstanceDescs(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, std::vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices);
 
-	UINT m_fallbackAccelerationStructureDescritorHeapIndex;
-	WRAPPED_GPU_POINTER m_fallbackAccelerationStructurePointer;
+    UINT m_fallbackAccelerationStructureDescritorHeapIndex;
+    WRAPPED_GPU_POINTER m_fallbackAccelerationStructurePointer;
 };
 
 // Shader record = {{Shader ID}, {RootArguments}}
@@ -303,7 +303,7 @@ inline void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
             }
             woss << L" [" << i << L"]: ";
             if (exports[i].ExportToRename) woss << exports[i].ExportToRename << L" --> ";
-			woss << exports[i].Name << L"\n";
+            woss << exports[i].Name << L"\n";
         }
         return woss.str();
     };
@@ -398,11 +398,11 @@ inline void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
 // Returns bool whether the call succeeded and the device supports the feature.
 inline bool EnableComputeRaytracingFallback(IDXGIAdapter1* adapter)
 {
-	ComPtr<ID3D12Device> testDevice;
-	UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels };
+    ComPtr<ID3D12Device> testDevice;
+    UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels };
 
-	return SUCCEEDED(D3D12EnableExperimentalFeatures(1, experimentalFeatures, nullptr, nullptr))
-		&& SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)));
+    return SUCCEEDED(D3D12EnableExperimentalFeatures(1, experimentalFeatures, nullptr, nullptr))
+        && SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)));
 }
 
 // Enable experimental features required for driver and compute-based fallback raytracing.
@@ -410,13 +410,13 @@ inline bool EnableComputeRaytracingFallback(IDXGIAdapter1* adapter)
 // Returns bool whether the call succeeded and the device supports the feature.
 inline bool EnableRaytracing(IDXGIAdapter1* adapter)
 {
-	ComPtr<ID3D12Device> testDevice;
-	ComPtr<ID3D12DeviceRaytracingPrototype> testRaytracingDevice;
-	UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels, D3D12RaytracingPrototype };
+    ComPtr<ID3D12Device> testDevice;
+    ComPtr<ID3D12DeviceRaytracingPrototype> testRaytracingDevice;
+    UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels, D3D12RaytracingPrototype };
 
-	return SUCCEEDED(D3D12EnableExperimentalFeatures(2, experimentalFeatures, nullptr, nullptr))
-		&& SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)))
-		&& SUCCEEDED(testDevice->QueryInterface(IID_PPV_ARGS(&testRaytracingDevice)));
+    return SUCCEEDED(D3D12EnableExperimentalFeatures(2, experimentalFeatures, nullptr, nullptr))
+        && SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)))
+        && SUCCEEDED(testDevice->QueryInterface(IID_PPV_ARGS(&testRaytracingDevice)));
 }
 
 inline void StoreXMMatrixAsTransform3x4

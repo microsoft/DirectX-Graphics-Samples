@@ -11,27 +11,27 @@
 
 cbuffer SceneConstantBuffer : register(b0)
 {
-	float4x4 transform;
-	float4 offset;
+    float4x4 transform;
+    float4 offset;
 };
 
 struct PSInput
 {
-	float4 position : SV_POSITION;
-	float4 color : COLOR;
+    float4 position : SV_POSITION;
+    float4 color : COLOR;
 };
 
 PSInput VSMain(float4 position : POSITION, float4 color : COLOR)
 {
-	PSInput result;
+    PSInput result;
 
-	result.position = mul(position, transform);
-	result.color = color;
+    result.position = mul(position, transform);
+    result.color = color;
 
-	return result;
+    return result;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-	return input.color;
+    return input.color;
 }

@@ -17,26 +17,26 @@ class AssimpModel : public Model
 {
 public:
 
-	enum
-	{
-		format_none = 0,
-		format_h3d, // native format
+    enum
+    {
+        format_none = 0,
+        format_h3d, // native format
 
-		formats,
-	};
-	static const char *s_FormatString[];
-	static int FormatFromFilename(const char *filename);
+        formats,
+    };
+    static const char *s_FormatString[];
+    static int FormatFromFilename(const char *filename);
 
-	virtual bool Load(const char* filename) override;
-	bool Save(const char* filename) const;
+    virtual bool Load(const char* filename) override;
+    bool Save(const char* filename) const;
 
 private:
 
-	bool LoadAssimp(const char *filename);
+    bool LoadAssimp(const char *filename);
 
-	void Optimize();
-	void OptimizeRemoveDuplicateVertices(bool depth);
-	void OptimizePostTransform(bool depth);
-	void OptimizePreTransform(bool depth);
+    void Optimize();
+    void OptimizeRemoveDuplicateVertices(bool depth);
+    void OptimizePostTransform(bool depth);
+    void OptimizePreTransform(bool depth);
 };
 

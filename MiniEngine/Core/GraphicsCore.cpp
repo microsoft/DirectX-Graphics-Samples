@@ -47,9 +47,9 @@
 #if defined(NTDDI_WIN10_RS2) && (NTDDI_VERSION >= NTDDI_WIN10_RS2)
     #include <dxgi1_6.h>
 #else
-    #include <dxgi1_4.h>	// For WARP
+    #include <dxgi1_4.h>    // For WARP
 #endif
-#include <winreg.h>		// To read the registry
+#include <winreg.h>        // To read the registry
 
 #include "CompiledShaders/ScreenQuadVS.h"
 #include "CompiledShaders/BufferCopyPS.h"
@@ -374,7 +374,7 @@ void Graphics::Initialize(void)
         if (DeveloperModeEnabled)
             g_Device->SetStablePowerState(TRUE);
     }
-#endif	
+#endif    
 
 #if _DEBUG
     ID3D12InfoQueue* pInfoQueue = nullptr;
@@ -787,8 +787,8 @@ void Graphics::Present(void)
     // Test robustness to handle spikes in CPU time
     //if (s_DropRandomFrames)
     //{
-    //	if (std::rand() % 25 == 0)
-    //		BusyLoopSleep(0.010);
+    //    if (std::rand() % 25 == 0)
+    //        BusyLoopSleep(0.010);
     //}
 
     int64_t CurrentTick = SystemTime::GetCurrentTick();

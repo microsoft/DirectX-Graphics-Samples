@@ -20,9 +20,9 @@ StructuredBuffer<uint> WorkQueue : register(t3);
 RWTexture2D<float3> OutputColor : register(u0);
 RWTexture2D<float> OutputAlpha : register(u1);
 
-groupshared uint gs_RG[24 * 24];	// Red, Green
-groupshared uint gs_BW[24 * 24];	// Blue, Weight
-groupshared uint gs_CF[24 * 24];	// CoC, FG Weight
+groupshared uint gs_RG[24 * 24];    // Red, Green
+groupshared uint gs_BW[24 * 24];    // Blue, Weight
+groupshared uint gs_CF[24 * 24];    // CoC, FG Weight
 
 void PrefetchPixel(int2 Corner, uint2 Offset, float FgRenormFactor, float TileMinDepth)
 {

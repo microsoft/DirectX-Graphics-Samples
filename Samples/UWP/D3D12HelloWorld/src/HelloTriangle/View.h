@@ -23,20 +23,20 @@ using namespace Windows::UI::ViewManagement;
 ref class View sealed : public IFrameworkView
 {
 public:
-	View(UINT_PTR pSample);
+    View(UINT_PTR pSample);
 
-	virtual void Initialize(CoreApplicationView^ applicationView);
-	virtual void SetWindow(CoreWindow^ window);
-	virtual void Load(String^ entryPoint);
-	virtual void Run();
-	virtual void Uninitialize();
+    virtual void Initialize(CoreApplicationView^ applicationView);
+    virtual void SetWindow(CoreWindow^ window);
+    virtual void Load(String^ entryPoint);
+    virtual void Run();
+    virtual void Uninitialize();
 
 private:
-	void OnActivated(CoreApplicationView^ applicationView, IActivatedEventArgs^ args);
-	void OnKeyDown(CoreWindow^ window, KeyEventArgs^ keyEventArgs);
-	void OnKeyUp(CoreWindow^ window, KeyEventArgs^ keyEventArgs);
-	void OnClosed(CoreWindow ^sender, CoreWindowEventArgs ^args);
+    void OnActivated(CoreApplicationView^ applicationView, IActivatedEventArgs^ args);
+    void OnKeyDown(CoreWindow^ window, KeyEventArgs^ keyEventArgs);
+    void OnKeyUp(CoreWindow^ window, KeyEventArgs^ keyEventArgs);
+    void OnClosed(CoreWindow ^sender, CoreWindowEventArgs ^args);
 
-	DXSample* m_pSample;
-	bool m_windowClosed;
+    DXSample* m_pSample;
+    bool m_windowClosed;
 };

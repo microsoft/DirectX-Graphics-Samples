@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	Alex Nankervis
+// Author(s):    Alex Nankervis
 //
 
 #include "LightGrid.hlsli"
@@ -18,8 +18,8 @@
 
 #define FLT_MIN         1.175494351e-38F        // min positive value
 #define FLT_MAX         3.402823466e+38F        // max value
-#define PI				3.1415926535f
-#define TWOPI			6.283185307f
+#define PI                3.1415926535f
+#define TWOPI            6.283185307f
 
 #define WORK_GROUP_THREADS (WORK_GROUP_SIZE_X * WORK_GROUP_SIZE_Y * WORK_GROUP_SIZE_Z)
 

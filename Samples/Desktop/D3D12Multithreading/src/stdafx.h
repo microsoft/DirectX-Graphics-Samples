@@ -16,7 +16,7 @@
 #pragma once
 
 #ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN			// Exclude rarely-used stuff from Windows headers.
+#define WIN32_LEAN_AND_MEAN            // Exclude rarely-used stuff from Windows headers.
 #endif
 
 #include <windows.h>
@@ -38,9 +38,9 @@
 static const UINT FrameCount = 3;
 
 static const UINT NumContexts = 3;
-static const UINT NumLights = 3;		// Keep this in sync with "shaders.hlsl".
+static const UINT NumLights = 3;        // Keep this in sync with "shaders.hlsl".
 
-static const UINT TitleThrottle = 200;	// Only update the titlebar every X number of frames.
+static const UINT TitleThrottle = 200;    // Only update the titlebar every X number of frames.
 
 // Command list submissions from main thread.
 static const int CommandListCount = 3;

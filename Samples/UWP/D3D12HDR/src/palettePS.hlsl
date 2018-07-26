@@ -14,6 +14,6 @@
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-	// The triangle stores the data in CIE xyY color space. We convert the data to RGB format in Rec709 RGB color space.
-	return float4(xyYToRec709(input.uv), 1.0);
+    // The triangle stores the data in CIE xyY color space. We convert the data to RGB format in Rec709 RGB color space.
+    return float4(xyYToRec709(input.uv), 1.0);
 }

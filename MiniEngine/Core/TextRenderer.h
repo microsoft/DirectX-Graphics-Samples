@@ -113,8 +113,8 @@ private:
     {
         Color TextColor;
         float ShadowOffsetX, ShadowOffsetY;
-        float ShadowHardness;		// More than 1 will cause aliasing
-        float ShadowOpacity;		// Should make less opaque when making softer
+        float ShadowHardness;        // More than 1 will cause aliasing
+        float ShadowOpacity;        // Should make less opaque when making softer
         float HeightRange;
     };
 
@@ -123,8 +123,8 @@ private:
     // 16 Byte structure to represent an entire glyph in the text vertex buffer
     __declspec(align(16)) struct TextVert
     {
-        float X, Y;				// Upper-left glyph position in screen space
-        uint16_t U, V, W, H;	// Upper-left glyph UV and the width in texture space
+        float X, Y;                // Upper-left glyph position in screen space
+        uint16_t U, V, W, H;    // Upper-left glyph UV and the width in texture space
     };
 
     UINT FillVertexBuffer( TextVert volatile* verts, const char* str, size_t stride, size_t slen );
@@ -135,17 +135,17 @@ private:
     const TextRenderer::Font* m_CurrentFont;
     VertexShaderParams m_VSParams;
     PixelShaderParams m_PSParams;
-    bool m_VSConstantBufferIsStale;	// Tracks when the CB needs updating
-    bool m_PSConstantBufferIsStale;	// Tracks when the CB needs updating
+    bool m_VSConstantBufferIsStale;    // Tracks when the CB needs updating
+    bool m_PSConstantBufferIsStale;    // Tracks when the CB needs updating
     bool m_TextureIsStale;
     bool m_EnableShadow;
     float m_LeftMargin;
     float m_TextPosX;
     float m_TextPosY;
     float m_LineHeight;
-    float m_ViewWidth;				// Width of the drawable area
-    float m_ViewHeight;				// Height of the drawable area
-    float m_ShadowOffsetX;			// Percentage of the font's TextSize should the shadow be offset
-    float m_ShadowOffsetY;			// Percentage of the font's TextSize should the shadow be offset
+    float m_ViewWidth;                // Width of the drawable area
+    float m_ViewHeight;                // Height of the drawable area
+    float m_ShadowOffsetX;            // Percentage of the font's TextSize should the shadow be offset
+    float m_ShadowOffsetY;            // Percentage of the font's TextSize should the shadow be offset
     BOOL m_HDR;
 };

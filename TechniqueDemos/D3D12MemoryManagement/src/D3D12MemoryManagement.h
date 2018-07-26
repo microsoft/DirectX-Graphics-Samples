@@ -32,61 +32,61 @@
 //
 struct Image
 {
-	RectF Bounds;
-	Resource* pResource;
+    RectF Bounds;
+    Resource* pResource;
 };
 
 class D3D12MemoryManagement : public DX12Framework
 {
 private:
-	std::vector<Image> m_Images;
+    std::vector<Image> m_Images;
 
-	Camera m_ViewportCamera;
-	Camera m_DebugCamera;
-	Camera* m_pCapturedCamera;
-	Camera* m_pSceneCamera;
+    Camera m_ViewportCamera;
+    Camera m_DebugCamera;
+    Camera* m_pCapturedCamera;
+    Camera* m_pSceneCamera;
 
-	int m_MouseX = 0;
-	int m_MouseY = 0;
-	bool m_bMouseDown = false;
+    int m_MouseX = 0;
+    int m_MouseY = 0;
+    bool m_bMouseDown = false;
 
-	UINT64 m_LastGraphTick = 0;
-	bool m_bRenderStats = false;
-	UINT32 m_CurrentGraphPoint = 0;
-	UINT64 m_GraphPoints[NUM_GRAPH_POINTS];
+    UINT64 m_LastGraphTick = 0;
+    bool m_bRenderStats = false;
+    UINT32 m_CurrentGraphPoint = 0;
+    UINT64 m_GraphPoints[NUM_GRAPH_POINTS];
 
-	bool m_bDrawMipColors = false;
-	bool m_bSimulateDeviceRemoved = false;
-	bool m_bFullscreen = false;
-	RECT m_WindowRect;
+    bool m_bDrawMipColors = false;
+    bool m_bSimulateDeviceRemoved = false;
+    bool m_bFullscreen = false;
+    RECT m_WindowRect;
 
-	//
-	// D2D UI rendering
-	//
-	ID2D1SolidColorBrush* m_pTextBrush = nullptr;
-	IDWriteTextFormat* m_pTextFormat = nullptr;
+    //
+    // D2D UI rendering
+    //
+    ID2D1SolidColorBrush* m_pTextBrush = nullptr;
+    IDWriteTextFormat* m_pTextFormat = nullptr;
 
 protected:
-	virtual HRESULT CreateDeviceIndependentState() override;
-	virtual HRESULT CreateDeviceDependentState() override;
-	virtual void DestroyDeviceIndependentState() override;
-	virtual void DestroyDeviceDependentState() override;
+    virtual HRESULT CreateDeviceIndependentState() override;
+    virtual HRESULT CreateDeviceDependentState() override;
+    virtual void DestroyDeviceIndependentState() override;
+    virtual void DestroyDeviceDependentState() override;
 
-	virtual HRESULT LoadAssets();
-	virtual HRESULT RenderScene(const RectF& ViewportBounds);
-	virtual HRESULT RenderUI();
-	virtual bool HandleMessage(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+    virtual HRESULT LoadAssets();
+    virtual HRESULT RenderScene(const RectF& ViewportBounds);
+    virtual HRESULT RenderUI();
+    virtual bool HandleMessage(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
 
-	HRESULT GenerateMemoryGraphGeometry(const RectF& Bounds, UINT GraphSizeMB, ID2D1PathGeometry** ppPathGeometry);
-	void RenderMemoryGraph();
+    HRESULT GenerateMemoryGraphGeometry(const RectF& Bounds, UINT GraphSizeMB, ID2D1PathGeometry** ppPathGeometry);
+    void RenderMemoryGraph();
 
-	void CalculateImagePagingData(
-		const RectF* pViewportBounds,
-		const Image* pImage,
-		UINT8* pVisibleMip,
-		UINT8* pPrefetchMip);
+    void CalculateImagePagingData(
+        const RectF* pViewportBounds,
+        const Image* pImage,
+        UINT8* pVisibleMip,
+        UINT8* pPrefetchMip);
 
 public:
-	D3D12MemoryManagement();
-	virtual ~D3D12MemoryManagement();
+    D3D12MemoryManagement();
+    virtual ~D3D12MemoryManagement();
 };

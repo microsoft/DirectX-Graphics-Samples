@@ -15,6 +15,6 @@
 _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-	D3D12ReservedResources sample(1280, 720, L"D3D12 Reserved resources sample - Use arrow keys to cycle through resources");
-	return Win32Application::Run(&sample, hInstance, nCmdShow);
+    D3D12ReservedResources sample(1280, 720, L"D3D12 Reserved resources sample - Use arrow keys to cycle through resources");
+    return Win32Application::Run(&sample, hInstance, nCmdShow);
 }

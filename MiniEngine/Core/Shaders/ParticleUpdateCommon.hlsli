@@ -13,7 +13,7 @@
 //
 
 cbuffer EmissionProperties : register(b2)
-{	
+{    
     float3 LastEmitPosW;
     float EmitSpeed;
     float3 EmitPosW;

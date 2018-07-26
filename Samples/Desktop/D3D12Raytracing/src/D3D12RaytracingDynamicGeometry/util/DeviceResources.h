@@ -22,8 +22,8 @@ namespace DX
     {
         virtual void OnDeviceLost() = 0;
         virtual void OnDeviceRestored() = 0;
-		virtual void OnReleaseWindowSizeDependentResources() = 0;
-		virtual void OnCreateWindowSizeDependentResources() = 0;
+        virtual void OnReleaseWindowSizeDependentResources() = 0;
+        virtual void OnCreateWindowSizeDependentResources() = 0;
     };
 
     // Controls all the DirectX device resources.
@@ -67,7 +67,7 @@ namespace DX
             }
         }
 
-		void ResetCommandAllocatorAndCommandlist();
+        void ResetCommandAllocatorAndCommandlist();
         void Prepare(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_PRESENT);
         void Present(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_RENDER_TARGET);
         void ExecuteCommandList(bool force = false);
@@ -85,7 +85,7 @@ namespace DX
         IDXGISwapChain3*            GetSwapChain() const { return m_swapChain.Get(); }
         D3D_FEATURE_LEVEL           GetDeviceFeatureLevel() const { return m_d3dFeatureLevel; }
         ID3D12Resource*             GetRenderTarget() const { return m_renderTargets[m_backBufferIndex].Get(); }
-		Microsoft::WRL::ComPtr<ID3D12Resource>*     GetRenderTargets() { return m_renderTargets; }
+        Microsoft::WRL::ComPtr<ID3D12Resource>*     GetRenderTargets() { return m_renderTargets; }
         ID3D12Resource*             GetDepthStencil() const { return m_depthStencil.Get(); }
         ID3D12CommandQueue*         GetCommandQueue() const { return m_commandQueue.Get(); }
         ID3D12CommandAllocator*     GetCommandAllocator() const { return m_commandAllocators[m_backBufferIndex].Get(); }
@@ -127,7 +127,7 @@ namespace DX
         Microsoft::WRL::ComPtr<ID3D12CommandQueue>          m_commandQueue;
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>   m_commandList;
         Microsoft::WRL::ComPtr<ID3D12CommandAllocator>      m_commandAllocators[MAX_BACK_BUFFER_COUNT];
-		bool												m_openCommandList;
+        bool                                                m_openCommandList;
 
         // Swap chain objects.
         Microsoft::WRL::ComPtr<IDXGIFactory4>               m_dxgiFactory;

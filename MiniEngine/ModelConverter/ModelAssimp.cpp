@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	Alex Nankervis
+// Author(s):    Alex Nankervis
 //
 
 #include "ModelAssimp.h"
@@ -19,71 +19,71 @@
 
 const char* AssimpModel::s_FormatString[] =
 {
-	"none",
-	"h3d",
+    "none",
+    "h3d",
 };
 static_assert(_countof(AssimpModel::s_FormatString) == AssimpModel::formats, "s_FormatString doesn't match format enum");
 
 int AssimpModel::FormatFromFilename(const char *filename)
 {
-	const char *p = strrchr(filename, '.');
-	if (!p || *p == 0)
-		return format_none;
+    const char *p = strrchr(filename, '.');
+    if (!p || *p == 0)
+        return format_none;
 
-	for (int n = 1; n < formats; n++)
-	{
-		if (_stricmp(p + 1, s_FormatString[n]) == 0)
-			return n;
-	}
+    for (int n = 1; n < formats; n++)
+    {
+        if (_stricmp(p + 1, s_FormatString[n]) == 0)
+            return n;
+    }
 
-	return format_none;
+    return format_none;
 }
 
 bool AssimpModel::Load(const char *filename)
 {
-	Clear();
+    Clear();
 
-	int format = FormatFromFilename(filename);
+    int format = FormatFromFilename(filename);
 
-	bool rval = false;
-	bool needToOptimize = true;
-	switch (format)
-	{
-	case format_none:
-		rval = LoadAssimp(filename);
-		break;
+    bool rval = false;
+    bool needToOptimize = true;
+    switch (format)
+    {
+    case format_none:
+        rval = LoadAssimp(filename);
+        break;
 
-	case format_h3d:
-		rval = LoadH3D(filename);
-		needToOptimize = false;
-		break;
-	}
+    case format_h3d:
+        rval = LoadH3D(filename);
+        needToOptimize = false;
+        break;
+    }
 
-	if (!rval)
-		return false;
+    if (!rval)
+        return false;
 
-	if (needToOptimize)
-		Optimize();
+    if (needToOptimize)
+        Optimize();
 
-	return true;
+    return true;
 }
 
 bool AssimpModel::Save(const char *filename) const
 {
-	int format = FormatFromFilename(filename);
+    int format = FormatFromFilename(filename);
 
-	bool rval = false;
-	switch (format)
-	{
-	case format_none:
-		break;
+    bool rval = false;
+    switch (format)
+    {
+    case format_none:
+        break;
 
-	case format_h3d:
-		rval = SaveH3D(filename);
-		break;
-	}
+    case format_h3d:
+        rval = SaveH3D(filename);
+        break;
+    }
 
-	return rval;
+    return rval;
 }
 
 
