@@ -116,15 +116,6 @@ void CameraController::Update( float deltaTime )
     m_TargetCamera.Update();
 }
 
-void GameCore::CameraController::UpdateToPosition(const Vector3 position, const float heading, const float pitch)
-{
-    m_CurrentPitch = pitch;
-    m_CurrentHeading = heading;
-    Matrix3 neworientation = Matrix3(m_WorldEast, m_WorldUp, -m_WorldNorth) * Matrix3::MakeYRotation(heading) * Matrix3::MakeXRotation(pitch);
-    m_TargetCamera.SetTransform(AffineTransform(neworientation, position));
-    m_TargetCamera.Update();
-}
-
 void CameraController::ApplyMomentum( float& oldValue, float& newValue, float deltaTime )
 {
     float blendedValue;

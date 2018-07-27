@@ -189,6 +189,8 @@ public:
     virtual void RenderUI(class GraphicsContext&) override;
     virtual void Raytrace(class GraphicsContext&);
 
+    void SetCameraToPredefinedPosition(CameraController* cameracont, Vector3 position, float heading, float pitch);
+
 private:
 
     void RenderLightShadows(GraphicsContext& gfxContext);
@@ -1111,12 +1113,13 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
         else
             m_CameraPosArrayCurrentPosition = m_CameraPosArrayCurrentPosition - 1;
 
-        m_CameraController->UpdateToPosition(m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
+        SetCameraToPredefinedPosition(m_CameraController.get(), m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
     }
     else if (GameInput::IsFirstPressed(GameInput::kKey_right))
     {
         m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + 1) % c_NumCameraPositions;
-        m_CameraController->UpdateToPosition(m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
+        SetCameraToPredefinedPosition(m_CameraController.get(), m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
+
     }
 
     if (!freezeCamera) 
@@ -1194,6 +1197,17 @@ void D3D12RaytracingMiniEngineSample::RenderObjects( GraphicsContext& gfxContext
 
         gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
     }
+}
+
+
+void D3D12RaytracingMiniEngineSample::SetCameraToPredefinedPosition(CameraController* cameracont, Vector3 position, float heading, float pitch) 
+{
+    cameracont->SetCurrentHeading(heading);
+    cameracont->SetCurrentPitch(pitch);
+
+    Matrix3 neworientation = Matrix3(cameracont->GetWorldEast(), cameracont->GetWorldUp(), -cameracont->GetWorldNorth()) * Matrix3::MakeYRotation(heading) * Matrix3::MakeXRotation(pitch);
+    m_Camera.SetTransform(AffineTransform(neworientation, position));
+    m_Camera.Update();
 }
 
 void D3D12RaytracingMiniEngineSample::RenderLightShadows(GraphicsContext& gfxContext)
