@@ -1647,7 +1647,7 @@ void D3D12RaytracingMiniEngineSample::RaytraceReflections(
     ScopedTimer _p0(L"RaytracingWithHitShader", context);
 
     // Prepare constants
-    DynamicCB inputs = g_dynamicCb;   
+    DynamicCB inputs = g_dynamicCb;
     auto m0 = camera.GetViewProjMatrix();
     auto m1 = Transpose(Invert(m0));
     memcpy(&inputs.cameraToWorld, &m1, sizeof(inputs.cameraToWorld));
