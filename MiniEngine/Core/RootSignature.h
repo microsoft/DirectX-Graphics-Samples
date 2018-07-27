@@ -99,6 +99,17 @@ public:
 
     const D3D12_ROOT_PARAMETER& operator() ( void ) const { return m_RootParam; }
         
+  D3D12_DESCRIPTOR_RANGE_TYPE GetRangeType(void) const {
+    if(m_RootParam.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE) {
+      auto& range = m_RootParam.DescriptorTable.pDescriptorRanges[0];
+      return range.RangeType;
+    }
+    return (D3D12_DESCRIPTOR_RANGE_TYPE)-1;
+  }
+
+  D3D12_ROOT_PARAMETER_TYPE GetType(void) const {
+    return m_RootParam.ParameterType;
+  }
 
 protected:
 
