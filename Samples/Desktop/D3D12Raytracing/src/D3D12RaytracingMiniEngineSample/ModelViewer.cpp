@@ -107,7 +107,7 @@ enum RaytracingTypes
 
 const static UINT MaxRayRecursion = 2;
 
-const UINT c_NumCameraPositions = 5;
+const static UINT c_NumCameraPositions = 5;
 
 struct RaytracingDispatchRayInputs
 {
@@ -170,8 +170,6 @@ struct MaterialRootConstant
     UINT MaterialID;
 };
 
-
-
 RaytracingDispatchRayInputs g_RaytracingInputs[RaytracingTypes::NumTypes];
 D3D12_CPU_DESCRIPTOR_HANDLE g_bvh_attributeSrvs[34];
 
@@ -189,7 +187,7 @@ public:
     virtual void RenderUI(class GraphicsContext&) override;
     virtual void Raytrace(class GraphicsContext&);
 
-    void SetCameraToPredefinedPosition(CameraController* cameracont, Vector3 position, float heading, float pitch);
+    void SetCameraToPredefinedPosition(int cameraPosition);
 
 private:
 
@@ -1108,18 +1106,13 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
 
     if (GameInput::IsFirstPressed(GameInput::kKey_left))
     {
-        if (m_CameraPosArrayCurrentPosition == 0)
-            m_CameraPosArrayCurrentPosition = c_NumCameraPositions - 1;
-        else
-            m_CameraPosArrayCurrentPosition = m_CameraPosArrayCurrentPosition - 1;
-
-        SetCameraToPredefinedPosition(m_CameraController.get(), m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
+        m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + c_NumCameraPositions - 1) % c_NumCameraPositions;
+        SetCameraToPredefinedPosition(m_CameraPosArrayCurrentPosition);
     }
     else if (GameInput::IsFirstPressed(GameInput::kKey_right))
     {
         m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + 1) % c_NumCameraPositions;
-        SetCameraToPredefinedPosition(m_CameraController.get(), m_CameraPosArray[m_CameraPosArrayCurrentPosition].position, m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading, m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
-
+        SetCameraToPredefinedPosition(m_CameraPosArrayCurrentPosition);
     }
 
     if (!freezeCamera) 
@@ -1200,13 +1193,18 @@ void D3D12RaytracingMiniEngineSample::RenderObjects( GraphicsContext& gfxContext
 }
 
 
-void D3D12RaytracingMiniEngineSample::SetCameraToPredefinedPosition(CameraController* cameracont, Vector3 position, float heading, float pitch) 
+void D3D12RaytracingMiniEngineSample::SetCameraToPredefinedPosition(int cameraPosition) 
 {
-    cameracont->SetCurrentHeading(heading);
-    cameracont->SetCurrentPitch(pitch);
+    if (cameraPosition < 0 || cameraPosition >= c_NumCameraPositions)
+        return;
+    
+    m_CameraController->SetCurrentHeading(m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading);
+    m_CameraController->SetCurrentPitch(m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
 
-    Matrix3 neworientation = Matrix3(cameracont->GetWorldEast(), cameracont->GetWorldUp(), -cameracont->GetWorldNorth()) * Matrix3::MakeYRotation(heading) * Matrix3::MakeXRotation(pitch);
-    m_Camera.SetTransform(AffineTransform(neworientation, position));
+    Matrix3 neworientation = Matrix3(m_CameraController->GetWorldEast(), m_CameraController->GetWorldUp(), -m_CameraController->GetWorldNorth()) 
+                           * Matrix3::MakeYRotation(m_CameraController->GetCurrentHeading())
+                           * Matrix3::MakeXRotation(m_CameraController->GetCurrentPitch());
+    m_Camera.SetTransform(AffineTransform(neworientation, m_CameraPosArray[m_CameraPosArrayCurrentPosition].position));
     m_Camera.Update();
 }
 
