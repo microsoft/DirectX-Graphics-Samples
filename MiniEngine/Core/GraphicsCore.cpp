@@ -35,10 +35,8 @@
 // Currently, with HDR display enabled, the pixel magnfication functionality is broken.
 #define CONDITIONALLY_ENABLE_HDR_OUTPUT 1
 
-#if defined(NTDDI_WIN10_RS4) && (NTDDI_VERSION == NTDDI_WIN10_RS4)
-// Needed on RS4 but should not be used on RS5
-#define ENABLE_EXPERIMENTAL_DXIL_SUPPORT
-#endif
+// Uncomment this to enable experimental support for the new shader compiler, DXC.exe
+//#define DXIL
 
 #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
     #include <agile.h>

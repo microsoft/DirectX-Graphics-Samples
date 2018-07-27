@@ -107,6 +107,8 @@ enum RaytracingTypes
 
 const static UINT MaxRayRecursion = 2;
 
+const static UINT c_NumCameraPositions = 5;
+
 struct RaytracingDispatchRayInputs
 {
     RaytracingDispatchRayInputs() {}
@@ -185,6 +187,8 @@ public:
     virtual void RenderUI(class GraphicsContext&) override;
     virtual void Raytrace(class GraphicsContext&);
 
+    void SetCameraToPredefinedPosition(int cameraPosition);
+
 private:
 
     void RenderLightShadows(GraphicsContext& gfxContext);
@@ -221,6 +225,17 @@ private:
 
     Vector3 m_SunDirection;
     ShadowCamera m_SunShadow;
+
+    struct CameraPosition
+    {
+        Vector3 position;
+        float heading;
+        float pitch;
+    };
+
+    CameraPosition m_CameraPosArray[c_NumCameraPositions];
+    UINT m_CameraPosArrayCurrentPosition;
+
 };
 
 int wmain(int argc, wchar_t** argv)
@@ -1002,9 +1017,38 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     float modelRadius = Length(m_Model.m_Header.boundingBox.max - m_Model.m_Header.boundingBox.min) * .5f;
     const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
     m_Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
-    m_Camera.SetZRange( 1.0f, 10000.0f );
-    m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
+    
+    m_CameraPosArrayCurrentPosition = 0;
+    
+    // Lion's head
+    m_CameraPosArray[0].position = Vector3(-1100.0f, 170.0f, -30.0f);
+    m_CameraPosArray[0].heading = 1.5707f;
+    m_CameraPosArray[0].pitch = 0.0f;
 
+    // View of columns
+    m_CameraPosArray[1].position = Vector3(299.0f, 208.0f, -202.0f);
+    m_CameraPosArray[1].heading = -3.1111f;
+    m_CameraPosArray[1].pitch = 0.5953f;
+
+    // Bottom-up view from the floor
+    m_CameraPosArray[2].position = Vector3(-1237.61f, 80.60f, -26.02f);
+    m_CameraPosArray[2].heading = -1.5707f;
+    m_CameraPosArray[2].pitch = 0.268f;
+
+    // Top-down view from the second floor
+    m_CameraPosArray[3].position = Vector3(-977.90f, 595.05f, -194.97f);
+    m_CameraPosArray[3].heading = -2.077f;
+    m_CameraPosArray[3].pitch =  - 0.450f;
+
+    // View of corridors on the second floor
+    m_CameraPosArray[4].position = Vector3(-1463.0f, 600.0f, 394.52f);
+    m_CameraPosArray[4].heading = -1.236f;
+    m_CameraPosArray[4].pitch = 0.0f;
+
+    m_Camera.SetZRange( 1.0f, 10000.0f );
+
+    m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
+    
     MotionBlur::Enable = false;//true;
     TemporalEffects::EnableTAA = false;//true;
     FXAA::Enable = false;
@@ -1052,8 +1096,30 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
       rayTracingMode = RTM_DIFFUSE_WITH_SHADOWRAYS;
     else if(GameInput::IsFirstPressed(GameInput::kKey_7))
       rayTracingMode = RTM_REFLECTIONS;
+    
+    static bool freezeCamera = false;
+    
+    if (GameInput::IsFirstPressed(GameInput::kKey_f))
+    {
+        freezeCamera = !freezeCamera;
+    }
 
-    m_CameraController->Update(deltaT);
+    if (GameInput::IsFirstPressed(GameInput::kKey_left))
+    {
+        m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + c_NumCameraPositions - 1) % c_NumCameraPositions;
+        SetCameraToPredefinedPosition(m_CameraPosArrayCurrentPosition);
+    }
+    else if (GameInput::IsFirstPressed(GameInput::kKey_right))
+    {
+        m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + 1) % c_NumCameraPositions;
+        SetCameraToPredefinedPosition(m_CameraPosArrayCurrentPosition);
+    }
+
+    if (!freezeCamera) 
+    {
+        m_CameraController->Update(deltaT);
+    }
+
     m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
 
     float costheta = cosf(m_SunOrientation);
@@ -1124,6 +1190,22 @@ void D3D12RaytracingMiniEngineSample::RenderObjects( GraphicsContext& gfxContext
 
         gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
     }
+}
+
+
+void D3D12RaytracingMiniEngineSample::SetCameraToPredefinedPosition(int cameraPosition) 
+{
+    if (cameraPosition < 0 || cameraPosition >= c_NumCameraPositions)
+        return;
+    
+    m_CameraController->SetCurrentHeading(m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading);
+    m_CameraController->SetCurrentPitch(m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
+
+    Matrix3 neworientation = Matrix3(m_CameraController->GetWorldEast(), m_CameraController->GetWorldUp(), -m_CameraController->GetWorldNorth()) 
+                           * Matrix3::MakeYRotation(m_CameraController->GetCurrentHeading())
+                           * Matrix3::MakeXRotation(m_CameraController->GetCurrentPitch());
+    m_Camera.SetTransform(AffineTransform(neworientation, m_CameraPosArray[m_CameraPosArrayCurrentPosition].position));
+    m_Camera.Update();
 }
 
 void D3D12RaytracingMiniEngineSample::RenderLightShadows(GraphicsContext& gfxContext)

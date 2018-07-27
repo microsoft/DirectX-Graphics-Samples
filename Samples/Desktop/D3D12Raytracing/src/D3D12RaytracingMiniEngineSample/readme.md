@@ -14,14 +14,16 @@ The keys '1'...'7' can also be used to cycle through different modes (or using B
 * *Reflection Rays* - [7] Hybrid pass that renders primary diffuse with rasterization and if the ground plane is detected, fires of reflections rays.
 
 ## Controls:
-* forward/backward/strafe: left thumbstick or WASD (FPS controls)
-* up/down: triggers or E/Q
-* yaw/pitch: right thumbstick or mouse
-* toggle slow movement: click left thumbstick or lshift
-* open debug menu: back button or backspace
-* navigate debug menu: dpad or arrow keys
-* toggle debug menu item: A button or return
-* adjust debug menu value: dpad left/right or left/right arrow keys
+* forward/backward/strafe - left thumbstick or WASD (FPS controls).
+* triggers or E/Q - camera up/down .
+* right thumbstick or mouse - camera yaw/pitch.
+* F - freeze/unfreeze camera. 
+* right/left - cycle through pre-set camera positions.
+* click left thumbstick or lshift - toggle slow movement.
+* back button or backspace - open debug menu. 
+* dpad or arrow keys - navigate debug menu.
+* button or return - toggle debug menu item.
+* dpad left/right or left/right arrow key - adjust debug menu values.
 
 ## Limitations:
  * Currently only tested on the Compute-based Fallback Layer
