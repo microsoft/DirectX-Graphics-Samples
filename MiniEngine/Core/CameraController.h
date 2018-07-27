@@ -32,12 +32,18 @@ namespace GameCore
         CameraController( Camera& camera, Vector3 worldUp );
 
         void Update( float dt );
-        void UpdateToPosition(const Vector3 position, const float heading,  const float pitch);
 
         void SlowMovement( bool enable ) { m_FineMovement = enable; }
         void SlowRotation( bool enable ) { m_FineRotation = enable; }
 
         void EnableMomentum( bool enable ) { m_Momentum = enable; }
+
+        void CameraController::SetCurrentHeading( float heading ) { m_CurrentHeading = heading; }
+        void CameraController::SetCurrentPitch( float pitch ) { m_CurrentPitch = pitch; }
+
+        Vector3 CameraController::GetWorldEast() { return m_WorldEast; }
+        Vector3 CameraController::GetWorldUp() { return m_WorldUp; }
+        Vector3 CameraController::GetWorldNorth() { return m_WorldNorth; }
 
     private:
         CameraController& operator=( const CameraController& ) {return *this;}
