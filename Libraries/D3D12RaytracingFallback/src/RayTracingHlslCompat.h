@@ -77,15 +77,6 @@ struct AABB
 };
 #define SizeOfAABB (6 * 4)
 #ifdef HLSL
-AABB RawDataToAABB(uint4 a, uint2 b)
-{
-    AABB aabb;
-    aabb.min = asfloat(a.xyz);
-    aabb.max = asfloat(uint3(a.w, b.xy));
-
-    return aabb;
-}
-
 void AABBToRawData(in AABB aabb, out uint4 a, out uint2 b)
 {
     a = asuint(float4(aabb.min.xyz, aabb.max.x));
@@ -188,7 +179,11 @@ Triangle GetTriangle(Primitive prim)
 
 AABB GetProceduralPrimitiveAABB(Primitive prim)
 {
-    return RawDataToAABB(prim.data0, prim.data1.xy);
+    AABB aabb;
+    aabb.min = asfloat(prim.data0.xyz);
+    aabb.max = asfloat(uint3(prim.data0.w, prim.data1.xy));
+
+    return aabb;
 }
 
 #endif
@@ -365,48 +360,44 @@ static_assert(sizeof(D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC) == SizeOfRaytracin
 static_assert(offsetof(D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC, AccelerationStructure) == RaytracingInstanceDescOffsetToPointer, L"Incorrect offset calculated for RaytracingInstanceDesc");
 #endif
 
-struct AABBNode
+struct AABBNodeSibling
 {
-    float    center[3];
 #ifdef HLSL
-    uint    flags;
+    uint    childIndex;
 #else
-    union
+    union 
     {
-        struct
-        {
-            uint    leftNodeIndex : 24;
-            uint    separatingAxis : 3;
-        } internalNode;
-
-        struct
-        {
-            uint    firstTriangleId : 24;
-            uint    numTriangleIds  : 7;
-        } leafNode;
-
-        uint nodeAllBits;
-
-        struct
-        {
-            uint         : 31;
-            uint    leaf : 1;
-        };
+        uint    childNodeIndex;
+        uint    firstPrimitiveId;
     };
 #endif
 
-    float halfDim[3];
+    float   center[3];
+    float   halfDim[3];
+
 #ifdef HLSL
-    uint    rightNodeIndex;
+    uint    primitiveFlags;
 #else
-    union
+    struct 
     {
-        uint    rightNodeIndex;
-        uint    numTriangles;
+        uint    numPrimitives : 29;
+        uint    isDummy : 1;
+        uint    isProcedural : 1;
+        uint    isLeaf : 1;
     };
 #endif
 };
-#define SizeOfAABBNode (4 * 8)
+#define SizeOfAABBNodeSibling (8 * 4)
+#ifndef HLSL
+static_assert(sizeof(AABBNodeSibling) == SizeOfAABBNodeSibling, L"Incorrect sizeof for AABB");
+#endif
+
+struct AABBNode
+{
+    AABBNodeSibling left;
+    AABBNodeSibling right;
+};
+#define SizeOfAABBNode (SizeOfAABBNodeSibling * 2)
 #ifndef HLSL
 static_assert(sizeof(AABBNode) == SizeOfAABBNode, L"Incorrect sizeof for AABB");
 #endif
@@ -431,14 +422,25 @@ uint GetNumInternalNodes(uint numLeaves)
 }
 
 inline
+uint GetNumAABBNodes(uint numLeaves)
+{
+    return numLeaves <= 1 ? 1 : GetNumInternalNodes(numLeaves);
+}
+
+inline
 uint GetOffsetFromSortedIndicesToAABBParents(uint numPrimitives) {
     return SizeOfUINT32 * numPrimitives;
 }
 
 inline
+uint GetOffsetToBVHMetadata(uint numElements)
+{
+    return SizeOfBVHOffsets + GetNumAABBNodes(numElements) * SizeOfAABBNode;
+}
+
+inline
 uint GetOffsetToBVHSortedIndices(uint numElements) {
-    uint totalNodes = numElements + GetNumInternalNodes(numElements);
-    return SizeOfBVHOffsets + SizeOfAABBNode * totalNodes + SizeOfBVHMetadata * numElements;
+    return GetOffsetToBVHMetadata(numElements) + SizeOfBVHMetadata * numElements;
 }
 
 inline
@@ -454,23 +456,9 @@ uint GetOffsetFromPrimitivesToPrimitiveMetaData(uint numPrimitives)
 }
 
 inline
-uint GetOffsetToLeafNodeAABBs(uint numElements)
+uint GetOffsetToPrimitives(uint numElements)
 {
-    uint numInternalLeafNodes = GetNumInternalNodes(numElements);
-    return SizeOfBVHOffsets + SizeOfAABBNode * numInternalLeafNodes;
-}
-
-inline
-uint GetOffsetToPrimitives(uint numTriangles)
-{
-    uint numAABBs = numTriangles + GetNumInternalNodes(numTriangles);
-    return SizeOfBVHOffsets + SizeOfAABBNode * numAABBs;
-}
-
-inline
-uint GetOffsetFromLeafNodesToBottomLevelMetadata(uint numElements)
-{
-    return SizeOfAABBNode * numElements;
+    return SizeOfBVHOffsets + GetNumAABBNodes(numElements) * SizeOfAABBNode;
 }
 
 #ifndef HLSL
