@@ -19,7 +19,7 @@ RWStructuredBuffer<BVHMetadata> OutputBVHMetadataBuffer : UAV_REGISTER(OutputMet
 
 void CopyBVHAABB(uint srcIndex, uint dstIndex)
 {
-    const uint sizeInUint4s = SizeOfAABBNode / (SizeOfUINT32 * 4);
+    const uint sizeInUint4s = SizeOfAABBNodeSibling / (SizeOfUINT32 * 4);
 
     uint srcAddress = srcIndex * sizeInUint4s;
     uint dstAddress = dstIndex * sizeInUint4s;
