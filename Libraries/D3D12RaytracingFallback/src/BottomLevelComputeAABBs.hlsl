@@ -12,7 +12,7 @@
 #include "ConstructAABBBindings.h"
 #include "RayTracingHelper.hlsli"
 
-BoundingBox ComputeLeafAABB(uint primitiveIndex, uint offsetToPrimitives, out uint2 flags)
+BoundingBox ComputeLeafAABB(uint primitiveIndex, uint offsetToPrimitives, out uint2 extraInfo)
 {
     uint offsetToReadPrimitive = offsetToPrimitives + primitiveIndex * SizeOfPrimitive;
     uint primitiveType = outputBVH.Load(offsetToReadPrimitive);
@@ -27,12 +27,12 @@ BoundingBox ComputeLeafAABB(uint primitiveIndex, uint offsetToPrimitives, out ui
             v[i] = asfloat(outputBVH.Load3(offsetToReadPrimitive + i * SizeOfVertex));
         }
 
-        return GetBoxDataFromTriangle(v[0], v[1], v[2], primitiveIndex, flags);
+        return GetBoxDataFromTriangle(v[0], v[1], v[2], primitiveIndex, extraInfo);
     }
     else // if(primitiveType == PROCEDURAL_PRIMITIVE_TYPE)
     {
-        flags.x = primitiveIndex | IsLeafFlag | IsProceduralGeometryFlag;
-        flags.y = 1;
+        extraInfo.x = primitiveIndex;
+        extraInfo.y = IsLeafFlag | IsProceduralGeometryFlag | MinNumberOfPrimitives;
     
         AABB aabb;
         aabb.min = asfloat(outputBVH.Load3(offsetToReadPrimitive));
