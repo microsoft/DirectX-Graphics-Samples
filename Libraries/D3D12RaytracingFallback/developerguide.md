@@ -209,7 +209,9 @@ The Fallback Layer natively works with PIX. However, PIX does not have support f
 When using the debug version of the Fallback Layer library, the Fallback layer has limited validation that will catch unsupported cases and output the cause of failure to the debugger. 
 
 ### Acceleration structure visualization
-It can be helpful to visualize the acceleration structure, particularly when you make changes to the structure logic in the library. To do this, enable ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION in [FallbackDebug.h](src/FallbackDebug.h) and set FallbackLayer::m_levelToVisualize in [FallbackLayer.h](src/FallbackLayer.h) to a tree level you want to visualize.
+It can be helpful to visualize the acceleration structure, particularly when you make changes to the structure logic in the library. To do this, enable ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION in [FallbackDebug.h](src/FallbackDebug.h) and in [ModelViewerRayTracing.h](../../Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingMiniEngineSample/ModelViewerRayTracing.h).
+
+The visualization shows the depth of each triangle in the BVH, starting with the root of the top-level acceleration structure. Blue triangles are located at depths of 0-9 levels deep, green triangles are at 10-21 levels deep, and red triangles are at 22-31 levels deep. Darker colors imply deeper triangles (thus longer ray traversals to intersection) in each range.
 ```c
 // Set to 1 to visualize acceleration structure. 
 // Since this writes to a raytracing output during ray traversal, 
@@ -217,6 +219,7 @@ It can be helpful to visualize the acceleration structure, particularly when you
 // an application shaders must disable writing to the output (i.e. in a miss/hit shaders).
 #define ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION 0
 ```
+![MiniEngine Sponza scene acceleration structure visualized](Data/MiniEngineASVisualization.png)
 
 ### Debugging vertex input to Acceleration structure build
 First, make sure that an AS build is part of the frame when you collect a PIX capture. Then look at a first Dispatch call corresponding to the AS build and see the *PrimitiveBuffer* UAV with the passed in vertex data in PIX's Pipeline view (see below). The format of the buffer corresponds to the *Primitive* object defined in [RayTracingHlslCompat.h](src/RayTracingHlslCompat.h) which is {PrimitiveType + primitive data} (see below). For a triangle primitive that is going to be {TRIANGLE_TYPE, three XYZ vertices}. Note TRIANGLE_TYPE has a value of 1 from the define.
