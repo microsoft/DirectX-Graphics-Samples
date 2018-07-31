@@ -428,7 +428,7 @@ namespace FallbackLayer
             numLeaves = GetTotalPrimitiveCount(*pDesc);
             totalNumNodes = numLeaves + GetNumberOfInternalNodes(numLeaves);
 
-            pInfo->ResultDataMaxSizeInBytes = sizeof(BVHOffsets) + numLeaves * (sizeof(Primitive) + sizeof(PrimitiveMetaData)) + totalNumNodes * sizeof(AABBNode);
+            pInfo->ResultDataMaxSizeInBytes = sizeof(BVHOffsets) + totalNumNodes * sizeof(AABBNode) + numLeaves * (sizeof(Primitive) + sizeof(PrimitiveMetaData));
         }
         break;
         case D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL:
