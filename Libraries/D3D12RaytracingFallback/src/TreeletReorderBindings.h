@@ -82,7 +82,7 @@ uint GetBitPermutation(uint numBitsSet, uint n)
     return BitPermutations[numBitsSet - 2][n];
 }
 
-bool IsLeaf(uint nodeIndex)
+bool IsLeafIndex(uint nodeIndex)
 {
     const uint NumberOfInternalNodes = GetNumInternalNodes(Constants.NumberOfElements);
     return nodeIndex >= NumberOfInternalNodes;

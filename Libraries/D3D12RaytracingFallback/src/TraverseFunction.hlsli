@@ -17,22 +17,25 @@ uint    stack[TRAVERSAL_MAX_STACK_DEPTH];
 
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
 RWTexture2D<float4> g_screenOutput : register(u2);
-static uint g_maxDepth = 0;
-void VisualizeAcceleratonStructure()
+
+void VisualizeAcceleratonStructure(uint depth)
 {
-    if (g_maxDepth >= 22)
+    if (depth >= 22)
     {
-        g_screenOutput[DispatchRaysIndex().xy] = float4((g_maxDepth - 21) / 11.0, 0, 0, 1);
+        g_screenOutput[DispatchRaysIndex().xy] = float4((depth - 21) / 11.0, 0, 0, 1);
     }
-    else if (g_maxDepth >= 10)
+    else if (depth >= 10)
     {
-        g_screenOutput[DispatchRaysIndex().xy] = float4(0, (g_maxDepth - 9) / 12.0, 0, 1);
+        g_screenOutput[DispatchRaysIndex().xy] = float4(0, (depth - 9) / 12.0, 0, 1);
     }
     else
     {
-        g_screenOutput[DispatchRaysIndex().xy] = float4(0, 0, g_maxDepth / 9.0, 1);
+        g_screenOutput[DispatchRaysIndex().xy] = float4(0, 0, depth / 9.0, 1);
     }
 }
+
+static
+uint depthStack[TRAVERSAL_MAX_STACK_DEPTH];
 #endif
 
 void RecordClosestBox(uint currentLevel, inout bool leftTest, float leftT, inout bool rightTest, float rightT, inout float closestBoxT)
@@ -59,10 +62,12 @@ void StackPush(inout int stackTop, uint value, uint level, uint tidInWave)
 {
     uint stackIndex = stackTop;
     stack[stackIndex] = value;
-    stackTop++;
+
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    g_maxDepth = max(stackTop, g_maxDepth);
+    depthStack[stackIndex] = level;
 #endif
+
+    stackTop++;
 }
 
 void StackPush2(inout int stackTop, bool selector, uint valueA, uint valueB, uint level, uint tidInWave)
@@ -74,16 +79,23 @@ void StackPush2(inout int stackTop, bool selector, uint valueA, uint valueB, uin
     stack[stackIndex0] = store0;
     stack[stackIndex1] = store1;
 
-    stackTop += 2;
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    g_maxDepth = max(stackTop, g_maxDepth);
+    depthStack[stackIndex0] = level;
+    depthStack[stackIndex1] = level;
 #endif
+
+    stackTop += 2;
 }
 
 uint StackPop(inout int stackTop, out uint depth, uint tidInWave)
 {
     --stackTop;
     uint stackIndex = stackTop;
+
+#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
+    depth = depthStack[stackIndex];
+#endif
+
     return stack[stackIndex];
 }
 
@@ -556,6 +568,8 @@ bool Traverse(
     Fallback_SetInstanceIndex(NO_HIT_SENTINEL);
 
 
+    uint hitLevel = 0;
+
     MARK(1, 0);
     while (nodesToProcess[TOP_LEVEL_INDEX] != 0)
     {
@@ -706,7 +720,13 @@ bool Traverse(
 
                                 SetBoolFlag(flagContainer, EndSearch, (ret == END_SEARCH) || (RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH));
                             }
+
+                            if (resultT == closestBoxT)
+                            {
+                                hitLevel = currentLevel;
+                            }
                         }
+
                         if (GetBoolFlag(flagContainer, EndSearch))
                         {
                             nodesToProcess[BOTTOM_LEVEL_INDEX] = 0;
@@ -773,7 +793,7 @@ bool Traverse(
     MARK(10,0);
     bool isHit = Fallback_InstanceIndex() != NO_HIT_SENTINEL;
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    VisualizeAcceleratonStructure();
+    VisualizeAcceleratonStructure(hitLevel);
 #endif
     return isHit;   
 }
