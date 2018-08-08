@@ -6,3 +6,5 @@
 /Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingMiniEngineSample
 /Libraries/D3D12RaytracingFallback/src/FallbackLayerUnitTests/x64/
 /Packages
+/Libraries/D3D12RaytracingFallback/src/FallbackLayerCompilerRepro/x64/
+/Libraries/D3D12RaytracingFallback/src/FallbackLayerCompilerRepro/Build/
