@@ -98,7 +98,7 @@ namespace FallbackLayer
             D3D12_GPU_VIRTUAL_ADDRESS outputAABBParentBuffer;
         };
 
-        void GpuBvh2Builder::LoadGpuBVHBuffers(
+        void LoadGpuBVHBuffers(
             _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
             Level bvhLevel,
             UINT numElements,
@@ -116,7 +116,7 @@ namespace FallbackLayer
             _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc
         );
 
-        void GpuBvh2Builder::BuildBVH(
+        void BuildBVH(
             _In_  ID3D12GraphicsCommandList *pCommandList,
             _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
             Level bvhLevel,
@@ -125,7 +125,7 @@ namespace FallbackLayer
             D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap
         );
 
-        void GpuBvh2Builder::LoadBVHElements(
+        void LoadBVHElements(
             _In_ ID3D12GraphicsCommandList *pCommandList,
             _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
             const SceneType sceneType,
@@ -138,7 +138,7 @@ namespace FallbackLayer
             D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap
         );
 
-        void GpuBvh2Builder::BuildBVHHierarchy(
+        void BuildBVHHierarchy(
             _In_ ID3D12GraphicsCommandList *pCommandList,
             _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
             const SceneType sceneType,
@@ -159,6 +159,6 @@ namespace FallbackLayer
             D3D12_GPU_DESCRIPTOR_HANDLE globalDescriptorHeap
         );
 
-        bool GpuBvh2Builder::SupportsTreeletReordering(Level level);
+        bool SupportsTreeletReordering(Level level);
     };
 }

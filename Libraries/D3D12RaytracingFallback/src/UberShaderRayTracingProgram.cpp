@@ -10,6 +10,10 @@
 //*********************************************************
 #include "pch.h"
 #include "CompiledShaders\StateMachineLib.h"
+#ifdef DUMP_UBERSHADER
+static UINT g_ReproNumber = 0;
+#include <fstream>
+#endif
 
 namespace FallbackLayer
 {
@@ -81,8 +85,6 @@ namespace FallbackLayer
             m_DxilShaderPatcher.RenameAndLink(libraryInfo, stateObjectCollection.m_exportDescs, &pAppLibrariesBlob);
         }
 
-        
-
         std::vector<DxilLibraryInfo> librariesInfo;
         DxilLibraryInfo outputLibInfo((void *)pAppLibrariesBlob->GetBufferPointer(), (UINT)pAppLibrariesBlob->GetBufferSize());
         CComPtr<IDxcBlob> pOutputBlob;
@@ -134,8 +136,13 @@ namespace FallbackLayer
             librariesInfo.emplace_back((void *)g_pStateMachineLib, ARRAYSIZE(g_pStateMachineLib));
         }
 
+#ifdef DUMP_UBERSHADER
+        DumpReproInformation(stateObjectCollection.m_maxAttributeSizeInBytes, librariesInfo, exportNames);
+#endif
+
         CComPtr<IDxcBlob> pCollectionBlob;
         std::vector<DxcShaderInfo> shaderInfo;
+
         m_DxilShaderPatcher.LinkCollection(stateObjectCollection.m_maxAttributeSizeInBytes, librariesInfo, exportNames, shaderInfo, &pCollectionBlob);
 
         UINT traceRayStackSize = shaderInfo[exportNames.size() - 1].StackSize;
@@ -194,6 +201,46 @@ namespace FallbackLayer
             L"Fallback Layer-specific interaces. Either use RaytracingDevice::D3D12SerializeRootSignature "
             L"or RaytracingDevice::D3D12SerializeFallbackRootSignature and create with "
             L"RaytracingDevice::CreateRootSignature");
+    }
+
+    void UberShaderRaytracingProgram::DumpReproInformation(UINT maxAttributeSizeInBytes, std::vector<DxilLibraryInfo> librariesInfo, std::vector<LPCWSTR> exportNames)
+    {
+        std::ofstream cmdFile("fallbackcompilerrepro" + std::to_string(g_ReproNumber++) + ".cmd");
+        if (cmdFile.is_open())
+        {
+            cmdFile << "set maxAttributeSizeInBytes=" << maxAttributeSizeInBytes << "\n";
+
+            cmdFile << "set libraries=\"";
+            for (int libIndex = 0; libIndex < librariesInfo.size(); libIndex++)
+            {
+                char libFileName[25];
+                sprintf_s(libFileName, "lib@%p.bin", (void *)librariesInfo[libIndex].pByteCode);
+                std::ofstream libFile(libFileName, std::ios::binary);
+                cmdFile << libFileName << ";";
+                if (libFile.is_open())
+                {
+                    libFile.write((char *)librariesInfo[libIndex].pByteCode, librariesInfo[libIndex].BytecodeLength);
+                    libFile.close();
+                }
+            }
+            cmdFile << "\"\n";
+            cmdFile << "set exportNames=\"";
+            for (int nameIndex = 0; nameIndex < exportNames.size(); nameIndex++)
+            {
+                char exportName[128]; // Convert wide string to normal string
+                sprintf_s(exportName, "%S", exportNames[nameIndex]);
+                cmdFile << exportName << ";";
+            }
+            cmdFile << "\"\n";
+
+            cmdFile << "cls\n";
+            cmdFile << "cmd /K \"FallbackLayerCompilerRepro.exe %maxAttributeSizeInBytes% %libraries% %exportNames%\"";
+            cmdFile.close();
+        }
+        else
+        {
+            ThrowFailure(-1, L"Could not create cmd file for UberShaderRayTracingProgram DXIL dump.\n");
+        }
     }
 
     ShaderIdentifier *UberShaderRaytracingProgram::GetShaderIdentifier(LPCWSTR pExportName)

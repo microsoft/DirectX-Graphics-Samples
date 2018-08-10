@@ -50,5 +50,7 @@ namespace FallbackLayer
 
         UINT m_largestNonRayGenStackSize = 0;
         UINT m_largestRayGenStackSize = 0;
+
+        void DumpReproInformation(UINT maxAttributeSizeInBytes, std::vector<DxilLibraryInfo> librariesInfo, std::vector<LPCWSTR> exportNames);
     };
 }

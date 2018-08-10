@@ -105,6 +105,8 @@ PrebuildCheck.bat</Command>
     </PreBuildEvent>
     <ClCompile>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..Core/;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AdditionalOptions>
     </ClCompile>
     <ClCompile>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">..Core/;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
@@ -112,6 +114,10 @@ PrebuildCheck.bat</Command>
     <ClCompile>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..Core/;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
     </ClCompile>
+    <Bscmake>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AdditionalOptions>
+    </Bscmake>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AccelerationStructureBuilder.h" />
