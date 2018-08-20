@@ -90,7 +90,7 @@ float3 ApplyAmbientLight(
 float GetShadow( float3 ShadowCoord )
 {
 #ifdef SINGLE_SAMPLE
-    float result = ShadowMap.SampleCmpLevelZero( shadowSampler, ShadowCoord.xy, ShadowCoord.z );
+    float result = texShadow.SampleCmpLevelZero( shadowSampler, ShadowCoord.xy, ShadowCoord.z );
 #else
     const float Dilation = 2.0;
     float d1 = Dilation * ShadowTexelSize.x * 0.125;
