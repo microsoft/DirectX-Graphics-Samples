@@ -343,16 +343,16 @@ namespace FallbackLayer
         if (sceneType == SceneType::Triangles) 
         {
 #if ENABLE_TREELET_REORDERING
-			m_treeletReorder.Optimize(
-				pCommandList,
-				numElements,
-				hierarchyBuffer,
-				nodeCountBuffer,
-				sceneAABBScratchMemory,
-				outputElementBuffer,
-				baseTreeletsCountBuffer,
-				baseTreeletsIndexBuffer,
-				pDesc->Flags);
+            m_treeletReorder.Optimize(
+                pCommandList,
+                numElements,
+                hierarchyBuffer,
+                nodeCountBuffer,
+                sceneAABBScratchMemory,
+                outputElementBuffer,
+                baseTreeletsCountBuffer,
+                baseTreeletsIndexBuffer,
+                pDesc->Flags);
 #endif
         }
     }
