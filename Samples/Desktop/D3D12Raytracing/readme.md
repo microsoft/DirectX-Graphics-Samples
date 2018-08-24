@@ -45,6 +45,7 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
 
 ## Known limitations
   - NV 397.31+ drivers do not properly support compute Fallback Layer on Nvidia Volta. Samples have artifacts and/or scenes miss altogether. Use the recommended DXR / driver based raytracing mode of samples on this configuration instead.
+  - AMD: current/v1.3 revision of the DXR samples and Fallback Layer are not supported on AMD cards and will fail to run. You will need to use v1.1 source and binary overlay snapshot from the repository releases.
 
 ## Feedback and Questions
 We welcome all feedback, questions and discussions about DXR and the Fallback Layer at [DirectX Raytracing forums](http://forums.directxtech.com/index.php?PHPSESSID=394klvdd3683tt1fjkh2jteav1&board=248.0).
