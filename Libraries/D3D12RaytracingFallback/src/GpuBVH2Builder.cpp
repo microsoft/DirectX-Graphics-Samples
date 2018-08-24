@@ -346,13 +346,13 @@ namespace FallbackLayer
             m_treeletReorder.Optimize(
                 pCommandList,
                 numElements,
-                hierarchyBuffer,                
+                hierarchyBuffer,
                 nodeCountBuffer,
                 sceneAABBScratchMemory,
                 outputElementBuffer,
                 baseTreeletsCountBuffer,
                 baseTreeletsIndexBuffer,
-                pDesc->Inputs.Flags);
+                pDesc->Flags);
 #endif
         }
     }
