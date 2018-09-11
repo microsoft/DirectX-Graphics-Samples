@@ -252,11 +252,9 @@ int wmain(int argc, wchar_t** argv)
     }
 #endif
 
-    UUID experimentalRaytracingFeatures[] = { D3D12ExperimentalShaderModels, D3D12RaytracingPrototype };
     UUID experimentalShadersFeatures[] = { D3D12ExperimentalShaderModels };
     struct Experiment { UUID *Experiments; UINT numFeatures; };
     Experiment experiments[] = {
-        { experimentalRaytracingFeatures, ARRAYSIZE(experimentalRaytracingFeatures) },
         { experimentalShadersFeatures, ARRAYSIZE(experimentalShadersFeatures) },
         { nullptr, 0 },
     };
