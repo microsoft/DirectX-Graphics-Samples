@@ -292,17 +292,29 @@ inline bool EnableComputeRaytracingFallback(IDXGIAdapter1* adapter)
         && SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)));
 }
 
-// Enable experimental features required for driver and compute-based fallback raytracing.
+// Enable experimental features required for compute-based fallback raytracing.
 // This will set active D3D12 devices to DEVICE_REMOVED state.
 // Returns bool whether the call succeeded and the device supports the feature.
 inline bool EnableRaytracing(IDXGIAdapter1* adapter)
 {
     ComPtr<ID3D12Device> testDevice;
+    UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels };
     D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupportData = {};
 
-    bool passed = SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)))
+    return SUCCEEDED(D3D12EnableExperimentalFeatures(1, experimentalFeatures, nullptr, nullptr))
+        && SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)))
         && SUCCEEDED(testDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData)))
         && featureSupportData.RaytracingTier == D3D12_RAYTRACING_TIER_1_0;
+}
 
-    return passed;
+inline void StoreXMMatrixAsTransform3x4
+(
+    float transform3x4[12],
+    const XMMATRIX& m
+)
+{
+    XMMATRIX mT = XMMatrixTranspose(m); // convert row-major to column-major
+    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[0]), mT.r[0]);
+    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[4]), mT.r[1]);
+    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[8]), mT.r[2]);
 }
