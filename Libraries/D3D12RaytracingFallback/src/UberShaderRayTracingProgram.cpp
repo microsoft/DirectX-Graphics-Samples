@@ -205,6 +205,7 @@ namespace FallbackLayer
 
     void UberShaderRaytracingProgram::DumpReproInformation(UINT maxAttributeSizeInBytes, std::vector<DxilLibraryInfo> librariesInfo, std::vector<LPCWSTR> exportNames)
     {
+#ifdef DUMP_UBERSHADER
         std::ofstream cmdFile("fallbackcompilerrepro" + std::to_string(g_ReproNumber++) + ".cmd");
         if (cmdFile.is_open())
         {
@@ -241,6 +242,7 @@ namespace FallbackLayer
         {
             ThrowFailure(-1, L"Could not create cmd file for UberShaderRayTracingProgram DXIL dump.\n");
         }
+#endif
     }
 
     ShaderIdentifier *UberShaderRaytracingProgram::GetShaderIdentifier(LPCWSTR pExportName)
