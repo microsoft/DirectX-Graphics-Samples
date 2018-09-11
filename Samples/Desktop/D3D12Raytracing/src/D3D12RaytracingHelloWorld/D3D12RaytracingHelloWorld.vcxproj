@@ -183,8 +183,8 @@ PrebuildCheck.bat</Command>
   <ItemGroup>
     <CustomBuild Include="Raytracing.hlsl">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(SolutionDir)..\tools\x64\dxc.exe" -nologo -Zpr -Fh "$(IntDir)\CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) -T lib_6_1 "%(Identity)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(SolutionDir)..\tools\x64\dxc.exe" -nologo -Zpr -Fh "$(IntDir)\CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) -T lib_6_1 "%(Identity)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(SolutionDir)..\tools\x64\dxc.exe" -nologo -Zpr -Fh "$(IntDir)\CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) -T lib_6_3 "%(Identity)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(SolutionDir)..\tools\x64\dxc.exe" -nologo -Zpr -Fh "$(IntDir)\CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) -T lib_6_3 "%(Identity)"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Identity)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Identity)</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)\CompiledShaders\%(Filename).hlsl.h</Outputs>

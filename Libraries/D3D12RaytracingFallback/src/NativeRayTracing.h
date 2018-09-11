@@ -133,7 +133,7 @@ class NativeRaytracingDevice : public ID3D12RaytracingFallbackDevice
 public:
     NativeRaytracingDevice(ID3D12Device *pDevice)
     {
-        ThrowFailure(m_pDevice->QueryInterface(&pDevice));
+        ThrowFailure(pDevice->QueryInterface(&m_pDevice));
     }
 
     virtual ~NativeRaytracingDevice() {}

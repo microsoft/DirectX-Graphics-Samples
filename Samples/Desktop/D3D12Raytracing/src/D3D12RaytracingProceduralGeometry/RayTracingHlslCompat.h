@@ -45,7 +45,7 @@ typedef UINT16 Index;
 //
 // NV driver does not support null local root signatures. 
 // Use an empty local root signature where a shader does not require it.
-#define USE_NON_NULL_LOCAL_ROOT_SIG 1 
+#define USE_NON_NULL_LOCAL_ROOT_SIG 0 
 //
 //*************************************************************************
 

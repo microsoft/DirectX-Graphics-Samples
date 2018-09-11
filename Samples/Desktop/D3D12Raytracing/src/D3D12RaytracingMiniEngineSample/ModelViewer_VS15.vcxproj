@@ -178,9 +178,9 @@
       </EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
       </EntryPointName>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -T lib_6_1 -HV 2017 -O4 -Zpr </AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -T lib_6_1 -HV 2017 -O4 -Zpr </AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Profile|x64'"> -T lib_6_1 -HV 2017 -O4 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -T lib_6_3 -HV 2017 -O4 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -T lib_6_3 -HV 2017 -O4 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Profile|x64'"> -T lib_6_3 -HV 2017 -O4 -Zpr </AdditionalOptions>
     </FxCompile>
     <FxCompile Include="Shaders\DepthViewerPS.hlsl">
       <ShaderType>Pixel</ShaderType>
