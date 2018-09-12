@@ -16,7 +16,7 @@ if not exist dxrfallbackcompiler.dll (
    set FILENOTFOUND=1
 )
 
-echo Renaming dxc->fxc so that Visual Studio can natively work with HLSL files and still compile them to SM 6.1
+echo Renaming dxc->fxc so that Visual Studio can natively work with HLSL files and still compile them to SM 6.3
 copy dxc.exe fxc.exe
 
 if %FILENOTFOUND% NEQ 0 (
@@ -28,14 +28,14 @@ if not exist version.txt (
 ) 
 
 set /p version=< version.txt
-if not "%version%"=="1.4-dxr" (
+if not "%version%"=="1.5-dxr" (
 	goto :mismatch
 )
 
 exit
 
 :mismatch
-	echo Stale binaries detected, please grab the v1.4-dxr binaries from https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.4-dxr 
+	echo Stale binaries detected, please grab the v1.5-dxr binaries from https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.5-dxr 
 	echo Copy all the binaries to Samples\Desktop\D3D12Raytracing\tools\x64"
 	exit /b 1
 )
