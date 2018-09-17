@@ -306,15 +306,3 @@ inline bool EnableRaytracing(IDXGIAdapter1* adapter)
         && SUCCEEDED(testDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData)))
         && featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
 }
-
-inline void StoreXMMatrixAsTransform3x4
-(
-    float transform3x4[12],
-    const XMMATRIX& m
-)
-{
-    XMMATRIX mT = XMMatrixTranspose(m); // convert row-major to column-major
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[0]), mT.r[0]);
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[4]), mT.r[1]);
-    XMStoreFloat4(reinterpret_cast<XMFLOAT4*>(&transform3x4[8]), mT.r[2]);
-}
