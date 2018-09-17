@@ -15,6 +15,7 @@
 #include "StepTimer.h"
 #include "RaytracingSceneDefines.h"
 #include "DirectXRaytracingHelper.h"
+#include "PerformanceTimers.h"
 
 // The sample supports both Raytracing Fallback Layer and DirectX Raytracing APIs. 
 // This is purely for demonstration purposes to show where the API differences are. 
@@ -112,6 +113,7 @@ private:
     ComPtr<ID3D12Resource> m_rayGenShaderTable;
 
     // Application state
+    GPUTimer m_gpuTimers[GpuTimers::Count];
     RaytracingAPI m_raytracingAPI;
     bool m_forceComputeFallback;
     StepTimer m_timer;
@@ -141,6 +143,7 @@ private:
     void CreateHitGroupSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateLocalRootSignatureSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateRaytracingPipelineStateObject();
+    void CreateAuxilaryDeviceResources();
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
     void BuildProceduralGeometryAABBs();

@@ -84,6 +84,13 @@ namespace GeometryType {
     };
 }
 
+namespace GpuTimers {
+    enum Enum {
+        Raytracing = 0,
+        Count
+    };
+}
+
 // Bottom-level acceleration structures (BottomLevelASType).
 // This sample uses two BottomLevelASType, one for AABB and one for Triangle geometry.
 // Mixing of geometry types within a BLAS is not supported.

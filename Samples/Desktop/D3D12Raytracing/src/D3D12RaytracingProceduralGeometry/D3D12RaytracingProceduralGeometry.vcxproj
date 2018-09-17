@@ -181,6 +181,7 @@ PrebuildCheck.bat</Command>
     <ClInclude Include="util\DXSample.h" />
     <ClInclude Include="util\DXSampleHelper.h" />
     <ClInclude Include="util\HlslCompat.h" />
+    <ClInclude Include="util\PerformanceTimers.h" />
     <ClInclude Include="util\StepTimer.h" />
     <ClInclude Include="util\Win32Application.h" />
     <ClInclude Include="VolumetricPrimitives.hlsli" />
@@ -194,6 +195,7 @@ PrebuildCheck.bat</Command>
     </ClCompile>
     <ClCompile Include="util\DeviceResources.cpp" />
     <ClCompile Include="util\DXSample.cpp" />
+    <ClCompile Include="util\PerformanceTimers.cpp" />
     <ClCompile Include="util\Win32Application.cpp" />
   </ItemGroup>
   <ItemGroup>
