@@ -12,7 +12,9 @@
 #include "stdafx.h"
 #include "PerformanceTimers.h"
 
-#include "DirectXHelpers.h"
+#ifndef IID_GRAPHICS_PPV_ARGS
+#define IID_GRAPHICS_PPV_ARGS(x) IID_PPV_ARGS(x)
+#endif
 
 #include <exception>
 #include <stdexcept>
@@ -140,13 +142,18 @@ void GPUTimer::BeginFrame(_In_ ID3D12GraphicsCommandList* commandList)
 
 void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
 {
-    commandList->ResolveQueryData(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, c_timerSlots, m_buffer.Get(), 0);
-    
-    // Grab read-back data for the queries
+    // Resolve query for the current frame.
+    static UINT resolveToFrameID = 0;
+    UINT64 resolveToBaseAddress = resolveToFrameID * c_timerSlots * sizeof(UINT64);
+    commandList->ResolveQueryData(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, c_timerSlots, m_buffer.Get(), resolveToBaseAddress);
+
+    // Grab read-back data for the queries from a finished frame m_maxframeCount ago.                                                           
+    UINT readBackFrameID = (resolveToFrameID + 1) % (m_maxframeCount + 1);
+    SIZE_T readBackBaseOffset = readBackFrameID * c_timerSlots * sizeof(UINT64);
     D3D12_RANGE dataRange =
     {
-        0,
-        c_timerSlots * sizeof(UINT64),
+        readBackBaseOffset,
+        readBackBaseOffset + c_timerSlots * sizeof(UINT64),
     };
 
     UINT64* timingData;
@@ -164,6 +171,8 @@ void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
         float value = float(double(end - start) * m_gpuFreqInv);
         m_avg[j] = UpdateRunningAverage(m_avg[j], value);
     }
+
+    resolveToFrameID = readBackFrameID;
 }
 
 void GPUTimer::Start(_In_ ID3D12GraphicsCommandList* commandList, uint32_t timerid)
@@ -207,16 +216,31 @@ void GPUTimer::ReleaseDevice()
     m_buffer.Reset();
 }
 
-void GPUTimer::RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue* commandQueue)
+void GPUTimer::RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue* commandQueue, UINT maxFrameCount)
 {
     assert(device != 0 && commandQueue != 0);
+    m_maxframeCount = maxFrameCount;
 
-#if defined(_DEBUG) || defined(PROFILE)
-    if (FAILED(device->SetStablePowerState(TRUE)))
+    // Filter a debug warning coming when accessing a readback resource for the timing queries.
+    // The readback resource handles multiple frames data via per-frame offsets within the same resource and CPU
+    // maps an offset written "frame_count" frames ago and the data is guaranteed to had been written to by GPU by this time. 
+    // Therefore the race condition doesn't apply in this case.
+    ComPtr<ID3D12InfoQueue> d3dInfoQueue;
+    if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&d3dInfoQueue))))
     {
-        OutputDebugStringA("WARNING: Unable to set a stable power state.\n        profiling data may be inaccurate due to power management!\n");
+        // Suppress individual messages by their ID.
+        D3D12_MESSAGE_ID denyIds[] =
+        {
+            D3D12_MESSAGE_ID_EXECUTECOMMANDLISTS_GPU_WRITTEN_READBACK_RESOURCE_MAPPED,
+        };
+
+        D3D12_INFO_QUEUE_FILTER filter = {};
+        filter.DenyList.NumIDs = _countof(denyIds);
+        filter.DenyList.pIDList = denyIds;
+        d3dInfoQueue->AddStorageFilterEntries(&filter);
+        OutputDebugString(L"Warning: GPUTimer is disabling an unwanted D3D12 debug layer warning: D3D12_MESSAGE_ID_EXECUTECOMMANDLISTS_GPU_WRITTEN_READBACK_RESOURCE_MAPPED.");
     }
-#endif
+
 
     UINT64 gpuFreq;
     ThrowIfFailed(commandQueue->GetTimestampFrequency(&gpuFreq));
@@ -226,11 +250,15 @@ void GPUTimer::RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue*
     desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
     desc.Count = c_timerSlots;
     ThrowIfFailed(device->CreateQueryHeap(&desc, IID_GRAPHICS_PPV_ARGS(m_heap.ReleaseAndGetAddressOf())));
-    m_heap->SetName(L"GPUTimer");
+    m_heap->SetName(L"GPUTimerHeap");
 
     auto readBack = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
 
-    auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(c_timerSlots * sizeof(UINT64));
+    // We allocate m_maxframeCount + 1 instances as an instance is guaranteed to be written to if maxPresentFrameCount frames
+    // have been submitted since. This is due to a fact that Present stalls when none of the m_maxframeCount frames are done/available.
+    size_t nPerFrameInstances = m_maxframeCount + 1;
+
+    auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(nPerFrameInstances * c_timerSlots * sizeof(UINT64));
     ThrowIfFailed(device->CreateCommittedResource(
         &readBack,
         D3D12_HEAP_FLAG_NONE,
@@ -239,6 +267,6 @@ void GPUTimer::RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue*
         nullptr,
         IID_GRAPHICS_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf()))
     );
-    m_buffer->SetName(L"GPUTimer");
+    m_buffer->SetName(L"GPUTimerBuffer");
 }
 

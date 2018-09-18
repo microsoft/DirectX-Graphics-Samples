@@ -70,15 +70,16 @@ namespace DX
         GPUTimer() :
             m_gpuFreqInv(1.f),
             m_avg{},
-            m_timing{}
+            m_timing{},
+            m_maxframeCount(0)
         {}
 
-        GPUTimer(ID3D12Device* device, ID3D12CommandQueue* commandQueue) :
+        GPUTimer(ID3D12Device* device, ID3D12CommandQueue* commandQueue, UINT maxFrameCount) :
             m_gpuFreqInv(1.f),
             m_avg{},
             m_timing{}
         {
-            RestoreDevice(device, commandQueue);
+            RestoreDevice(device, commandQueue, maxFrameCount);
         }
 
         GPUTimer(const GPUTimer&) = delete;
@@ -111,7 +112,8 @@ namespace DX
 
         // Device management
         void ReleaseDevice();
-        void RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue* commandQueue);
+
+        void RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue* commandQueue, UINT maxFrameCount);
 
     private:
         static const size_t c_timerSlots = c_maxTimers * 2;
@@ -121,5 +123,7 @@ namespace DX
         double                                  m_gpuFreqInv;
         float                                   m_avg[c_maxTimers];
         UINT64                                  m_timing[c_timerSlots];
+        size_t                                  m_maxframeCount;
+
     };
 }

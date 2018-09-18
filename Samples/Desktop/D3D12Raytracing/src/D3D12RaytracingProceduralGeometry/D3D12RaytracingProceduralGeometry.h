@@ -113,7 +113,7 @@ private:
     ComPtr<ID3D12Resource> m_rayGenShaderTable;
 
     // Application state
-    GPUTimer m_gpuTimers[GpuTimers::Count];
+    DX::GPUTimer m_gpuTimers[GpuTimers::Count];
     RaytracingAPI m_raytracingAPI;
     bool m_forceComputeFallback;
     StepTimer m_timer;

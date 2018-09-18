@@ -307,7 +307,7 @@ inline bool EnableRaytracing(IDXGIAdapter1* adapter)
         && featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
 }
 
-float NumMRaysPerSecond(UINT width, UINT height, float dispatchRaysTimeMs)
+inline float NumMRaysPerSecond(UINT width, UINT height, float dispatchRaysTimeMs)
 {
     float resolutionMRays = static_cast<float>(width * height);
     float raytracingTimeInSeconds = 0.001f * dispatchRaysTimeMs;

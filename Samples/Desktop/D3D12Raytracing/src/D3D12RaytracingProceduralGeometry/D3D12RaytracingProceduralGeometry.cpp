@@ -604,7 +604,7 @@ void D3D12RaytracingProceduralGeometry::CreateAuxilaryDeviceResources()
 
     for (auto& gpuTimer : m_gpuTimers)
     {
-        gpuTimer.RestoreDevice(device, commandQueue);
+        gpuTimer.RestoreDevice(device, commandQueue, FrameCount);
     }
 }
 
@@ -1489,6 +1489,7 @@ void D3D12RaytracingProceduralGeometry::OnRender()
         return;
     }
 
+    auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
 
     // Begin frame.
@@ -1548,8 +1549,8 @@ void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
 
         frameCnt = 0;
         prevTime = totalTime;
-        float MRaysPerSecond = NumMRaysPerSecond(m_width, m_height, 
-            static_cast<float>(m_gpuTimers[GpuTimers::Raytracing].GetElapsedMS()));
+        float raytracingTime = static_cast<float>(m_gpuTimers[GpuTimers::Raytracing].GetElapsedMS());
+        float MRaysPerSecond = NumMRaysPerSecond(m_width, m_height, raytracingTime);
         
         wstringstream windowText;
         if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
@@ -1568,7 +1569,9 @@ void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
             windowText << L"(DXR)";
         }
         windowText << setprecision(2) << fixed
-            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
+            << L"    fps: " << fps 
+            << L"    DispatchRays(): " << raytracingTime << "ms"
+            << L"     ~Million Primary Rays/s: " << MRaysPerSecond
             << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
         SetCustomWindowText(windowText.str().c_str());
     }
