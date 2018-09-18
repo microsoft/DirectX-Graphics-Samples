@@ -300,6 +300,8 @@ void D3D12RaytracingProceduralGeometry::CreateAABBPrimitiveAttributesBuffers()
 // Create resources that depend on the device.
 void D3D12RaytracingProceduralGeometry::CreateDeviceDependentResources()
 {
+    CreateAuxilaryDeviceResources();
+
     // Initialize raytracing pipeline.
 
     // Create raytracing interfaces: raytracing device and commandlist.
@@ -593,6 +595,17 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingOutputResource()
     UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
     device->CreateUnorderedAccessView(m_raytracingOutput.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
     m_raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
+}
+
+void D3D12RaytracingProceduralGeometry::CreateAuxilaryDeviceResources()
+{
+    auto device = m_deviceResources->GetD3DDevice();
+    auto commandQueue = m_deviceResources->GetCommandQueue();
+
+    for (auto& gpuTimer : m_gpuTimers)
+    {
+        gpuTimer.RestoreDevice(device, commandQueue, FrameCount);
+    }
 }
 
 void D3D12RaytracingProceduralGeometry::CreateDescriptorHeap()
@@ -1321,7 +1334,7 @@ void D3D12RaytracingProceduralGeometry::DoRaytracing()
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-    auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
+    auto DispatchRays = [&](auto* raytracingCommandList, auto* stateObject, auto* dispatchDesc)
     {
         dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
         dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
@@ -1334,8 +1347,11 @@ void D3D12RaytracingProceduralGeometry::DoRaytracing()
         dispatchDesc->Width = m_width;
         dispatchDesc->Height = m_height;
         dispatchDesc->Depth = 1;
-        commandList->SetPipelineState1(stateObject);
-        commandList->DispatchRays(dispatchDesc);
+        raytracingCommandList->SetPipelineState1(stateObject);
+
+        m_gpuTimers[GpuTimers::Raytracing].Start(commandList);
+        raytracingCommandList->DispatchRays(dispatchDesc);
+        m_gpuTimers[GpuTimers::Raytracing].Stop(commandList);
     };
 
     auto SetCommonPipelineState = [&](auto* descriptorSetCommandList)
@@ -1415,6 +1431,11 @@ void D3D12RaytracingProceduralGeometry::ReleaseWindowSizeDependentResources()
 // Release all resources that depend on the device.
 void D3D12RaytracingProceduralGeometry::ReleaseDeviceDependentResources()
 {
+    for (auto& gpuTimer : m_gpuTimers)
+    {
+        gpuTimer.ReleaseDevice();
+    }
+
     m_fallbackDevice.Reset();
     m_fallbackCommandList.Reset();
     m_fallbackStateObject.Reset();
@@ -1468,9 +1489,24 @@ void D3D12RaytracingProceduralGeometry::OnRender()
         return;
     }
 
+    auto device = m_deviceResources->GetD3DDevice();
+    auto commandList = m_deviceResources->GetCommandList();
+
+    // Begin frame.
     m_deviceResources->Prepare();
+    for (auto& gpuTimer : m_gpuTimers)
+    {
+        gpuTimer.BeginFrame(commandList);
+    }
+
     DoRaytracing();
     CopyRaytracingOutputToBackbuffer();
+
+    // End frame.
+    for (auto& gpuTimer : m_gpuTimers)
+    {
+        gpuTimer.EndFrame(commandList);
+    }
 
     m_deviceResources->Present(D3D12_RESOURCE_STATE_PRESENT);
 }
@@ -1513,8 +1549,9 @@ void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
 
         frameCnt = 0;
         prevTime = totalTime;
-        float MRaysPerSecond = (m_width * m_height * fps) / static_cast<float>(1e6);
-
+        float raytracingTime = static_cast<float>(m_gpuTimers[GpuTimers::Raytracing].GetElapsedMS());
+        float MRaysPerSecond = NumMRaysPerSecond(m_width, m_height, raytracingTime);
+        
         wstringstream windowText;
         if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
         {
@@ -1532,7 +1569,9 @@ void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
             windowText << L"(DXR)";
         }
         windowText << setprecision(2) << fixed
-            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
+            << L"    fps: " << fps 
+            << L"    DispatchRays(): " << raytracingTime << "ms"
+            << L"     ~Million Primary Rays/s: " << MRaysPerSecond
             << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
         SetCustomWindowText(windowText.str().c_str());
     }
