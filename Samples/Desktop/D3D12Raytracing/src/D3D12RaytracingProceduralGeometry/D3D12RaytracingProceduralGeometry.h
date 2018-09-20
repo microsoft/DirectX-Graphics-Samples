@@ -117,6 +117,8 @@ private:
     RaytracingAPI m_raytracingAPI;
     bool m_forceComputeFallback;
     StepTimer m_timer;
+    float m_animateGeometryTime;
+    bool m_animateGeometry;
     bool m_animateCamera;
     bool m_animateLight;
     XMVECTOR m_eye;
@@ -126,7 +128,7 @@ private:
     void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
-    void UpdateAABBPrimitiveAttributes();
+    void UpdateAABBPrimitiveAttributes(float animationTime);
     void InitializeScene();
     void RecreateD3D();
     void DoRaytracing();
