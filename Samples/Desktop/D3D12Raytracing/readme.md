@@ -40,7 +40,6 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
   * Dx12 gpu with a compatible DirectX Raytracing driver.
     * Nvidia: Volta or higher with 415+ driver.
     * Other vendors - please consult the vendor you’re working with for HW and driver availability.
-* Enable Developer Mode or sideload DXIL.dll from the latest Windows SDK to accompany the compiler.
 * DXR SDK overlay binaries - download DirectXRaytracingBinariesV1.5.zip from https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.5-dxr and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64.
 
 ## Known limitations
