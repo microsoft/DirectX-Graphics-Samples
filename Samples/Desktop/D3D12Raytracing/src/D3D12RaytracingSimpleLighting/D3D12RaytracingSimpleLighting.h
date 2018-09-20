@@ -90,9 +90,6 @@ private:
     // Root signatures
     ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
     ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature;
-#if USE_NON_NULL_LOCAL_ROOT_SIG 
-    ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignatureEmpty;
-#endif
 
     // Descriptors
     ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;

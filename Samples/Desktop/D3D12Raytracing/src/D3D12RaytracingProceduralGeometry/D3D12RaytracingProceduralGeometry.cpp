@@ -377,14 +377,6 @@ void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
     // Local Root Signature
     // This is a root signature that enables a shader to have unique arguments that come from shader tables.
     {
-#if USE_NON_NULL_LOCAL_ROOT_SIG 
-        // Empty root signature
-        {
-            CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(D3D12_DEFAULT);
-            localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-            SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::Empty]);
-        }
-#endif
         // Triangle geometry
         {
             namespace RootSignatureSlots = LocalRootSignature::Triangle::Slot;
@@ -483,13 +475,9 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
 // This is a root signature that enables a shader to have unique arguments that come from shader tables.
 void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline)
 {
-#if USE_NON_NULL_LOCAL_ROOT_SIG 
-    // Empty
-    {
-        auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
-        localRootSignature->SetRootSignature(m_raytracingLocalRootSignature[LocalRootSignature::Type::Empty].Get());
-    }
-#endif
+    // Ray gen and miss shaders in this sample are not using a local root signature and thus one is not associated with them.
+
+    // Hit groups
     // Triangle geometry
     {
         auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();

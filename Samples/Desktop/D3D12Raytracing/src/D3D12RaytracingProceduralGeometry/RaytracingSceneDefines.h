@@ -31,9 +31,6 @@ namespace LocalRootSignature {
         enum Enum {
             Triangle = 0,
             AABB,
-    #if USE_NON_NULL_LOCAL_ROOT_SIG
-            Empty,
-    #endif
             Count
         };
     }

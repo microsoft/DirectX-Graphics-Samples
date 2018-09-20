@@ -35,17 +35,12 @@ typedef UINT16 Index;
 // - N_METABALLS 5
 // - USE_DYNAMIC_LOOPS 0
 // - USE_EXPLICIT_UNROLL 0
-// - USE_NON_NULL_LOCAL_ROOT_SIG 0  
 //
 // Enables dynamic for-loop range.
 #define USE_DYNAMIC_LOOPS 0
 //
 #define N_METABALLS 3     // = {3, 5}
 #define USE_EXPLICIT_UNROLL 1
-//
-// NV driver does not support null local root signatures. 
-// Use an empty local root signature where a shader does not require it.
-#define USE_NON_NULL_LOCAL_ROOT_SIG 0
 //
 //*************************************************************************
 
