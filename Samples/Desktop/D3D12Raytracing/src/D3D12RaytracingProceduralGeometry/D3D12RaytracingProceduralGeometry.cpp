@@ -1302,7 +1302,7 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
         m_animateGeometryTime += elapsedTime;
     }
     UpdateAABBPrimitiveAttributes(m_animateGeometryTime);
-    m_sceneCB->elapsedTime = static_cast<float>(m_animateGeometryTime);
+    m_sceneCB->elapsedTime = m_animateGeometryTime;
 }
 
 
