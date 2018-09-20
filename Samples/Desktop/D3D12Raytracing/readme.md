@@ -31,14 +31,14 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
 ![D3D12 Raytracing Mini Engine](src/D3D12RaytracingMiniEngineSample/Screenshot_small.png)
 
 ## Requirements
-* [Visual Studio 2017](https://www.visualstudio.com/) with the [Windows 10 Fall Creators Update SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
+* [Visual Studio 2017](https://www.visualstudio.com/) with the [Windows 10 Fall 2018 (v17763) SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
 * *Fallback Layer* requires:
   * Windows 10 with the Fall Creators Update or higher.
   * Dx12 GPU with a driver that has retail DXIL support.
 * *DirectX Raytracing* requires:
-  * Windows 10 with the April 2018 update with DXR SDK overlay binaries. 
+  * Windows 10 with the Fall 2018 update. 
   * Dx12 gpu with a compatible DirectX Raytracing driver.
-    * Nvidia: Volta or higher with 397.31+ driver.
+    * Nvidia: Volta or higher with 415+ driver.
     * Other vendors - please consult the vendor you’re working with for HW and driver availability.
 * Enable Developer Mode or sideload DXIL.dll from the latest Windows SDK to accompany the compiler.
 * DXR SDK overlay binaries - download DirectXRaytracingBinariesV1.5.zip from https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.5-dxr and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64.
