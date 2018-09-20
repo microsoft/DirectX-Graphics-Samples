@@ -217,6 +217,7 @@ The title bar of the sample provides runtime information:
   * FL-DXR - Fallback Layer with raytracing driver being used
   * DXR - DirectX Raytracing being used
 * Frames per second
+* DispatchRays(): a GPU execution time of raytracing DispatchRays call.
 * Million Primary Rays/s: a number of dispatched rays per second calculated based of FPS.
 * GPU[ID]: name
 
