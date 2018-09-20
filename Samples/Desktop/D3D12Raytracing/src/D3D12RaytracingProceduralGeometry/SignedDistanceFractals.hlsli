@@ -42,9 +42,6 @@ float sdFractalPyramid(in float3 position, float3 h, in float Scale = 2.0f)
     float3 v5 = float3(-a, 0, -a);
 
     int n = 0;
-#if USE_EXPLICIT_UNROLL
-    [unroll]
-#endif
     for (n = 0; n < N_FRACTAL_ITERATIONS; n++)
     {
         // Find the closest vertex.

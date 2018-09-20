@@ -225,8 +225,9 @@ The title bar of the sample provides runtime information:
 * 1 - select Fallback Layer API.
 * 2 - select Fallback Layer API with forced compute fallback path.
 * 3 - select DirectX Raytracing API.
-* L - enable/disable light animation.
 * C - enable/disable camera animation.
+* G - enable/disable geometry animation.
+* L - enable/disable light animation.
 
 ## Requirements
 * Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.

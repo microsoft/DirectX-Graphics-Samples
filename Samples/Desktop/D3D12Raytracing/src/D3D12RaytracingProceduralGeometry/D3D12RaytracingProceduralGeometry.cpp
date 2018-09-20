@@ -48,7 +48,9 @@ const wchar_t* D3D12RaytracingProceduralGeometry::c_hitGroupNames_AABBGeometry[]
 D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
+    m_animateGeometryTime(0.0f),
     m_animateCamera(false),
+    m_animateGeometry(true),
     m_animateLight(false),
     m_isDxrSupported(false),
     m_descriptorsAllocated(0),
@@ -122,7 +124,7 @@ void D3D12RaytracingProceduralGeometry::UpdateCameraMatrices()
 }
 
 // Update AABB primite attributes buffers passed into the shader.
-void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
+void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes(float animationTime)
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
@@ -133,8 +135,7 @@ void D3D12RaytracingProceduralGeometry::UpdateAABBPrimitiveAttributes()
     XMMATRIX mScale2 = XMMatrixScaling(2, 2, 2);
     XMMATRIX mScale3 = XMMatrixScaling(3, 3, 3);
 
-    const float animationTime = -2 * static_cast<float>(m_timer.GetTotalSeconds());
-    XMMATRIX mRotation = XMMatrixRotationY(animationTime);
+    XMMATRIX mRotation = XMMatrixRotationY(-2 * animationTime);
 
     // Apply scale, rotation and translation transforms.
     // The intersection shader tests in this sample work with local space, so here
@@ -1244,13 +1245,15 @@ void D3D12RaytracingProceduralGeometry::OnKeyDown(UINT8 key)
     case '3': // DirectX Raytracing
         SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
         break;
-    case 'L': 
-        m_animateLight = !m_animateLight;
-        break;
     case 'C':
         m_animateCamera = !m_animateCamera;
         break;
-    default:
+    case 'G':
+        m_animateGeometry = !m_animateGeometry;
+        break;
+    case 'L': 
+        m_animateLight = !m_animateLight;
+        break;
         break;
     }
 
@@ -1292,9 +1295,14 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
         const XMVECTOR& prevLightPosition = m_sceneCB->lightPosition;
         m_sceneCB->lightPosition = XMVector3Transform(prevLightPosition, rotate);
     }
-    m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
-    UpdateAABBPrimitiveAttributes();
+    // Transform the procedural geometry.
+    if (m_animateGeometry)
+    {
+        m_animateGeometryTime += elapsedTime;
+    }
+    UpdateAABBPrimitiveAttributes(m_animateGeometryTime);
+    m_sceneCB->elapsedTime = m_animateGeometryTime;
 }
 
 
