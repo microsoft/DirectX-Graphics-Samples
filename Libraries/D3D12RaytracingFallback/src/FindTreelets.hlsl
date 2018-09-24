@@ -28,11 +28,9 @@ AABB ComputeLeafAABB(uint triangleIndex)
     }
 }
 
-
 [numthreads(THREAD_GROUP_1D_WIDTH, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-#if ENABLE_TREELET_REORDERING
     if (DTid.x >= Constants.NumberOfElements) 
     {
         return;
@@ -88,5 +86,4 @@ void main(uint3 DTid : SV_DispatchThreadID)
         numTriangles = numTrianglesFromOtherNode + numTriangles;
         isLeaf = false;
     } while (true);
-#endif
 }

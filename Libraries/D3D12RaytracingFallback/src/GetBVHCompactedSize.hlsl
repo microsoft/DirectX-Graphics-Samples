@@ -17,7 +17,7 @@ uint GetBVHSize(RWByteAddressBuffer bvh)
     return bvh.Load(OffsetToTotalSize);
 }
 
-#define GET_BVH_SIZE(ID) case ID: size =  GetBVHSize(BVH##ID);  break
+#define GetBVHSize(ID) case ID: size =  GetBVHSize(BVH##ID);  break
 
 [numthreads(THREAD_GROUP_1D_WIDTH, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
@@ -28,36 +28,36 @@ void main( uint3 DTid : SV_DispatchThreadID )
     uint size = 0;
     switch (DTid.x + 1)
     {
-        GET_BVH_SIZE(1);
-        GET_BVH_SIZE(2);
-        GET_BVH_SIZE(3);
-        GET_BVH_SIZE(4);
-        GET_BVH_SIZE(5);
-        GET_BVH_SIZE(6);
-        GET_BVH_SIZE(7);
-        GET_BVH_SIZE(8);
-        GET_BVH_SIZE(9);
-        GET_BVH_SIZE(10);
-        GET_BVH_SIZE(11);
-        GET_BVH_SIZE(12);
-        GET_BVH_SIZE(13);
-        GET_BVH_SIZE(14);
-        GET_BVH_SIZE(15);
-        GET_BVH_SIZE(16);
-        GET_BVH_SIZE(17);
-        GET_BVH_SIZE(18);
-        GET_BVH_SIZE(19);
-        GET_BVH_SIZE(20);
-        GET_BVH_SIZE(21);
-        GET_BVH_SIZE(22);
-        GET_BVH_SIZE(23);
-        GET_BVH_SIZE(24);
-        GET_BVH_SIZE(25);
-        GET_BVH_SIZE(26);
-        GET_BVH_SIZE(27);
-        GET_BVH_SIZE(28);
-        GET_BVH_SIZE(29);
-        GET_BVH_SIZE(30);
+        GetBVHSize(1);
+        GetBVHSize(2);
+        GetBVHSize(3);
+        GetBVHSize(4);
+        GetBVHSize(5);
+        GetBVHSize(6);
+        GetBVHSize(7);
+        GetBVHSize(8);
+        GetBVHSize(9);
+        GetBVHSize(10);
+        GetBVHSize(11);
+        GetBVHSize(12);
+        GetBVHSize(13);
+        GetBVHSize(14);
+        GetBVHSize(15);
+        GetBVHSize(16);
+        GetBVHSize(17);
+        GetBVHSize(18);
+        GetBVHSize(19);
+        GetBVHSize(20);
+        GetBVHSize(21);
+        GetBVHSize(22);
+        GetBVHSize(23);
+        GetBVHSize(24);
+        GetBVHSize(25);
+        GetBVHSize(26);
+        GetBVHSize(27);
+        GetBVHSize(28);
+        GetBVHSize(29);
+        GetBVHSize(30);
     }
     OutputCount.Store(outputOffset, size);
 }

@@ -8,7 +8,7 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-Buffer inputBuffers[3] : register(t0);
+Buffer inputBuffers[] : register(t0);
 
 RWByteAddressBuffer outputBuffer : register(u0);
 
