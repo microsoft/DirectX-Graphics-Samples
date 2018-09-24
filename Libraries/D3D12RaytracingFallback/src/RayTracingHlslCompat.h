@@ -19,10 +19,8 @@
 // Enables an unroll in treelet. Fails to compile on AMD.
 #define USE_EXPLICIT_UNROLL_IN_FORMTREELET 1
 
-// Enables treelet BVH optimization. 
-// - TDRs on AMD.
-// - Doesn't compile with 17763+ native dxc via VS HLSL compiler.
-#define ENABLE_TREELET_REORDERING 0
+// Enables treelet BVH optimization. TDRs on AMD.
+#define ENABLE_TREELET_REORDERING 1
 //
 //*************************************************************************
 
