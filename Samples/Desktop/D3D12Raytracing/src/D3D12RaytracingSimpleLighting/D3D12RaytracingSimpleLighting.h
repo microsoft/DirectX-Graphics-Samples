@@ -137,7 +137,7 @@ private:
     XMVECTOR m_at;
     XMVECTOR m_up;
 
-    void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
+    void EnableDirectXRaytracing(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
     void InitializeScene();
