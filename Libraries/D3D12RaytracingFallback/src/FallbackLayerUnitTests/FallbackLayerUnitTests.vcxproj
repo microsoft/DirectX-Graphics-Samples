@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup>
-    <FXCToolPath>$(SolutionDir)..\tools\x64\</FXCToolPath>
-  </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -224,22 +221,14 @@ copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Plat
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\Shaders\%(Filename).cso</ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="ReadData*.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.1</ShaderModel>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</HeaderFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">g_p%(Filename)</VariableName>
@@ -260,30 +249,22 @@ copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Plat
       </EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </EntryPointName>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</EnableDebuggingInformation>
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</EnableDebuggingInformation>
     </FxCompile>
     <FxCompile Include="ReadRootConstants.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">6.1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">g_p%(Filename)</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">g_p%(Filename)</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_p%(Filename)</VariableName>
@@ -296,10 +277,10 @@ copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Plat
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\Shaders\%(Filename).cso</ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\Shaders\%(Filename).cso</ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\Shaders\%(Filename).cso</ObjectFileOutput>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -310,22 +291,14 @@ copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Plat
       </EntryPointName>
     </FxCompile>
     <FxCompile Include="SimpleRaygen.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -334,10 +307,10 @@ copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Plat
       </EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </EntryPointName>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">g_p%(Filename)</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_p%(Filename)</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</HeaderFileOutput>
@@ -348,18 +321,14 @@ copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Plat
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</EnableDebuggingInformation>
     </FxCompile>
     <FxCompile Include="SimpleRayTracing.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">6.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.1</ShaderModel>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -369,19 +338,19 @@ copy "$(SolutionDir)..\tools\x64\dxrfallbackcompiler.dll" "$(SolutionDir)\$(Plat
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ExcludedFromBuild>
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(FXCToolPath)\fxc.exe %(Filename).hlsl  -T lib_6_1 -HV 2017 /Fh $(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h  /Vn g_p%(Filename) </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">dxc.exe %(Filename).hlsl  -HV 2017 /Fh $(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h  /Vn g_p%(Filename) </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(FXCToolPath)\fxc.exe %(Filename).hlsl  -T lib_6_1 -HV 2017 /Fh $(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h  /Vn g_p%(Filename) </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">dxc.exe %(Filename).hlsl -HV 2017 /Fh $(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h  /Vn g_p%(Filename) </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(FXCToolPath)\fxc.exe %(Filename).hlsl  -T lib_6_1 -HV 2017 /Fh $(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h  /Vn g_p%(Filename) </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe %(Filename).hlsl -HV 2017 /Fh $(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h  /Vn g_p%(Filename) </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(FXCToolPath)\fxc.exe %(Filename).hlsl  -T lib_6_1 -HV 2017 /Fh $(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h  /Vn g_p%(Filename) </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe %(Filename).hlsl -HV 2017 /Fh $(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h  /Vn g_p%(Filename) </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</Outputs>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_p%(Filename)</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</ObjectFileOutput>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -T lib_6_1 -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -HV 2017 -O4 %(AdditionalOptions)</AdditionalOptions>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

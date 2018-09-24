@@ -8,7 +8,8 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-#pragma once
+#ifndef EMULATED_POINTER_H_INCLUDED
+#define EMULATED_POINTER_H_INCLUDED
 #define uint64 uint2 
 #define GpuVA uint64
 
@@ -35,3 +36,4 @@ RWByteAddressBufferPointer CreateRWByteAddressBufferPointer(in RWByteAddressBuff
     pointer.offsetInBytes = offsetInBytes;
     return pointer;
 }
+#endif

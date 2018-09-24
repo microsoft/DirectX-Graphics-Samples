@@ -30,6 +30,11 @@ float CalculateCost(AABB nodeAABB, float parentAABBSurfaceArea)
 // Must be at least FullTreeletSize
 #define NumThreadsInGroup 32
 
+#if !ENABLE_TREELET_REORDERING
+[numthreads(NumThreadsInGroup, 1, 1)]
+void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadId) {}
+#else
+
 groupshared uint nodeIndex;
 groupshared float optimalCost[NumTreeletSplitPermutations];
 groupshared uint optimalPartition[NumTreeletSplitPermutations];
@@ -338,3 +343,5 @@ void main(uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadId)
         DeviceMemoryBarrierWithGroupSync();
     } while (true);
 }
+
+#endif

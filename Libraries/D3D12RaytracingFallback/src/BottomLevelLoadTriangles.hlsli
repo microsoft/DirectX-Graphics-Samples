@@ -61,7 +61,7 @@ uint3 GetIndex(uint threadIndex)
 {
     uint triangleIndex = threadIndex * NumberOfVerticesPerTriangle;
 
-    uint3 indexData;
+    uint3 indexData = uint3(0,0,0);
 #ifdef NO_INDEX_BUFFER
     indexData = GetIndexNoIndexBuffer(triangleIndex);
 #endif
