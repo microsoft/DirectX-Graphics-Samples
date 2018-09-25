@@ -1,8 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup>
-    <FXCToolPath>$(SolutionDir)..\DxilCompiler\x64</FXCToolPath>
-  </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -94,7 +91,7 @@
     <PostBuildEvent>
       <Command>cd "$(SolutionDir)..\tools\x64\"
 PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Configuration)\"</Command>
-      <Message>Sideload required DXR binaries.</Message>
+      <Message>Sideloading DXR Fallback Compiler.</Message>
     </PostBuildEvent>
     <PreLinkEvent>
       <Command>
@@ -147,7 +144,7 @@ PrebuildCheck.bat</Command>
     <PostBuildEvent>
       <Command>cd "$(SolutionDir)..\tools\x64\"
 PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Configuration)\"</Command>
-      <Message>Sideload required DXR binaries.</Message>
+      <Message>Sideloading DXR Fallback Compiler.</Message>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>cd "$(SolutionDir)..\tools\x64\"
@@ -181,21 +178,6 @@ PrebuildCheck.bat</Command>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="Raytracing.hlsl">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(SolutionDir)..\tools\x64\dxc.exe" -nologo -Zpr -Fh "$(IntDir)\CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) -T lib_6_3 "%(Identity)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(SolutionDir)..\tools\x64\dxc.exe" -nologo -Zpr -Fh "$(IntDir)\CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) -T lib_6_3 "%(Identity)"</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Identity)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Identity)</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)\CompiledShaders\%(Filename).hlsl.h</Outputs>
-      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatOutputAsContent>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)\CompiledShaders\%(Filename).hlsl.h</Outputs>
-      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatOutputAsContent>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
     <None Include="readme.md" />
   </ItemGroup>
@@ -203,6 +185,18 @@ PrebuildCheck.bat</Command>
     <ProjectReference Include="..\..\..\..\..\Libraries\D3D12RaytracingFallback\src\FallbackLayer.vcxproj">
       <Project>{4be280a6-1066-41ca-acdd-6bb7e532508b}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Raytracing.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.3</ShaderModel>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_p%(Filename)</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)\CompiledShaders\%(Filename).hlsl.h</HeaderFileOutput>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_p%(Filename)</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)\CompiledShaders\%(Filename).hlsl.h</HeaderFileOutput>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

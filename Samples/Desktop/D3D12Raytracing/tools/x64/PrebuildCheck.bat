@@ -1,23 +1,11 @@
 set FILENOTFOUND=0
 
-if not exist dxcompiler.dll (
-   echo No dxcompiler.dll found!
-   set FILENOTFOUND=1
-)
-
-if not exist dxc.exe (
-   echo No dxc.exe found!
-   set FILENOTFOUND=1
-)
-
 if not exist dxrfallbackcompiler.dll (
    echo No dxrfallbackcompiler.dll found!
    echo Note that if you were using an older version of the Raytracing samples, the Fallback Layer has been changed to require dxrfallbackcompiler.dll instead of dxcompiler.dll. This can be pulled from the below linked release
    set FILENOTFOUND=1
 )
 
-echo Renaming dxc->fxc so that Visual Studio can natively work with HLSL files and still compile them to SM 6.3
-copy dxc.exe fxc.exe
 
 if %FILENOTFOUND% NEQ 0 (
 	goto :mismatch
