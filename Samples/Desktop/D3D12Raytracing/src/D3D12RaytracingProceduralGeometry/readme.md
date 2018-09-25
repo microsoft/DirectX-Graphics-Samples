@@ -64,7 +64,7 @@ If the ray intersects the geometry, the test returns true with the time of the h
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-        attr.normal = normalize(mul((float3x3) ObjectToWorld(), attr.normal));
+        attr.normal = normalize(mul((float3x3) ObjectToWorld3x4(), attr.normal));
 
         ReportHit(thit, /*hitKind*/ 0, attr);
     }

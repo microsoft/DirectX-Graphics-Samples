@@ -33,22 +33,27 @@ D3D12RaytracingHelloWorld::D3D12RaytracingHelloWorld(UINT width, UINT height, st
     UpdateForSizeChange(width, height);
 }
 
-void D3D12RaytracingHelloWorld::EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter)
+void D3D12RaytracingHelloWorld::EnableDirectXRaytracing(IDXGIAdapter1* adapter)
 {
-    // DXR is an experimental feature and needs to be enabled before creating a D3D12 device.
-    m_isDxrSupported = EnableRaytracing(adapter);
+    // Fallback Layer uses an experimental feature and needs to be enabled before creating a D3D12 device.
+    bool isFallbackSupported = EnableComputeRaytracingFallback(adapter);
+
+    if (!isFallbackSupported)
+    {
+        OutputDebugString(
+            L"Warning: Could not enable Compute Raytracing Fallback (D3D12EnableExperimentalFeatures() failed).\n" \
+            L"         Possible reasons: your OS is not in developer mode.\n\n");
+    }
+
+    m_isDxrSupported = IsDirectXRaytracingSupported(adapter);
 
     if (!m_isDxrSupported)
     {
-        OutputDebugString(
-            L"Could not enable raytracing driver (D3D12EnableExperimentalFeatures() failed).\n" \
-            L"Possible reasons:\n" \
-            L"  1) your OS is not in developer mode.\n" \
-            L"  2) your GPU driver doesn't match the D3D12 runtime loaded by the app (d3d12.dll and friends).\n" \
-            L"  3) your D3D12 runtime doesn't match the D3D12 headers used by your app (in particular, the GUID passed to D3D12EnableExperimentalFeatures).\n\n");
+        OutputDebugString(L"Warning: DirectX Raytracing is not supported by your GPU and driver.\n\n");
 
-        OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
-        ThrowIfFalse(EnableComputeRaytracingFallback(adapter), L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
+        ThrowIfFalse(isFallbackSupported,
+            L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n"\
+            L"Possible reasons: your OS is not in developer mode.\n\n");
         m_raytracingAPI = RaytracingAPI::FallbackLayer;
     }
 }
@@ -68,7 +73,7 @@ void D3D12RaytracingHelloWorld::OnInit()
     m_deviceResources->RegisterDeviceNotify(this);
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
     m_deviceResources->InitializeDXGIAdapter();
-    EnableDXRExperimentalFeatures(m_deviceResources->GetAdapter());
+    EnableDirectXRaytracing(m_deviceResources->GetAdapter());
 
     m_deviceResources->CreateDeviceResources();
     m_deviceResources->CreateWindowSizeDependentResources();
