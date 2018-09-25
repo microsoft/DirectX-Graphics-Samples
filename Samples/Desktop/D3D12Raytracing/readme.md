@@ -34,6 +34,7 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
 * [Visual Studio 2017](https://www.visualstudio.com/) (v15.8.4) with the [Windows 10 Fall 2018 (v17763) SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
 * *Fallback Layer* requires:
   * Windows 10 with the Fall Creators Update or higher.
+  * Developer Mode enabled in the OS.
   * Dx12 GPU with a driver that has retail DXIL support.
 * *DirectX Raytracing* requires:
   * Windows 10 with the Fall 2018 update. 

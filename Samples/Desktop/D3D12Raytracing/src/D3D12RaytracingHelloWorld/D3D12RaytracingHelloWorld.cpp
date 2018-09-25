@@ -38,14 +38,22 @@ void D3D12RaytracingHelloWorld::EnableDirectXRaytracing(IDXGIAdapter1* adapter)
     // Fallback Layer uses an experimental feature and needs to be enabled before creating a D3D12 device.
     bool isFallbackSupported = EnableComputeRaytracingFallback(adapter);
 
+    if (!isFallbackSupported)
+    {
+        OutputDebugString(
+            L"Warning: Could not enable Compute Raytracing Fallback (D3D12EnableExperimentalFeatures() failed).\n" \
+            L"         Possible reasons: your OS is not in developer mode.\n\n");
+    }
+
     m_isDxrSupported = IsDirectXRaytracingSupported(adapter);
 
     if (!m_isDxrSupported)
     {
-        OutputDebugString(L"WARNING: DirectX Raytracing is not supported by your GPU and driver.\n\n");
+        OutputDebugString(L"Warning: DirectX Raytracing is not supported by your GPU and driver.\n\n");
 
-        OutputDebugString(L"Enabling compute based fallback raytracing support.\n");
-        ThrowIfFalse(isFallbackSupported, L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n");
+        ThrowIfFalse(isFallbackSupported,
+            L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n"\
+            L"Possible reasons: your OS is not in developer mode.\n\n");
         m_raytracingAPI = RaytracingAPI::FallbackLayer;
     }
 }
