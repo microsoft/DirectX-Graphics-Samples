@@ -209,7 +209,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 #endif
     // PERFORMANCE TIP: it is recommended to avoid values carry over across TraceRay() calls. 
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
-
+#if !AO_ONLY
     // Shadow component.
     // Trace a shadow ray.
     float3 hitPosition = HitWorldPosition();
@@ -237,7 +237,9 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     // Apply visibility falloff.
     float t = RayTCurrent();
     color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
-
+#else
+    float4 color = l_materialCB.albedo;
+#endif
     rayPayload.color = color;
 	//rayPayload.color = float4(1, 0, 0, 1);
 	//rayPayload.color = float4(triangleNormal, 1);

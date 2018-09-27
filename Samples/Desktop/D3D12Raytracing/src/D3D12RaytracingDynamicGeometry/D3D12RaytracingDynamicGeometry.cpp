@@ -74,7 +74,8 @@ namespace SceneArgs
     const WCHAR* BuildFlags[] = { L"Default", L"Fast trace", L"Fast build" };
     EnumVar ASBuildFlag(L"Acceleration structure/Build quality", FastTrace, _countof(BuildFlags), BuildFlags, OnASChange, nullptr);
 
-    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 10, 0, 80, 1, OnGeometryChange, nullptr);
+    // ToDo test tessFactor 16
+    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 14, 0, 80, 1, OnGeometryChange, nullptr);
     IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1, OnGeometryChange, nullptr);
     IntVar NumSphereBLAS(L"Geometry/# Sphere BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnASChange, nullptr);
 };
@@ -191,7 +192,7 @@ void D3D12RaytracingDynamicGeometry::UpdateBottomLevelASTransforms()
     //ToDo
     t = 0.0f;
 
-    float baseAmplitude = 12.0f;
+    float baseAmplitude = 16.0f;
     for (auto& bottomLevelAS : m_vBottomLevelAS)
     {
         // Animate along Y coordinate.
@@ -283,7 +284,7 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
         };
 
 
-        m_planeMaterialCB = { XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.0f, 1, 0.4f, 50, 1};
+        m_planeMaterialCB = { XMFLOAT4(0.75f, 0.75f, 0.75f, 1.0f), 0.0f, 1, 0.4f, 50, 1};
 
 
         // Albedos
@@ -305,8 +306,8 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 0.0f, 5.3f, -17.0f, 1.0f }; 
-        m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
+        m_eye = { 0.0f, 6.3f, -17.0f, 1.0f }; 
+        m_at = { 0.0f, 1.0f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);

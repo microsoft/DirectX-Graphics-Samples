@@ -40,6 +40,7 @@ typedef UINT16 Index;
 //*************************************************************************
 
 #define RENDER_SPHERES 1
+#define AO_ONLY 1
 
 // Limitting calculations only to metaballs a ray intersects can speed up raytracing
 // dramatically particularly when there is a higher number of metaballs used. 
