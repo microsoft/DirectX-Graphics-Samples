@@ -133,7 +133,7 @@ bool IsOpaque(bool geomOpaque, uint instanceFlags, uint rayFlags)
     return opaque;
 }
 
-int Fallback_ReportHit(float tHit, uint hitKind)
+export int Fallback_ReportHit(float tHit, uint hitKind)
 {
     if (tHit < RayTMin() || Fallback_RayTCurrent() <= tHit)
         return 0;
