@@ -39,6 +39,7 @@
 #include <unordered_map>
 #include <functional>
 #include <random>
+#include <numeric>
 
 #include <stdint.h>
 #include <float.h>
