@@ -24,10 +24,8 @@ Sampler::Sampler() :
     uniform_int_distribution<UINT> jumpDistribution(0, m_numSamples - 1);
     uniform_int_distribution<UINT> jumpSetDistribution(0, m_numSampleSets - 1);
 
-    // Ref: https://stackoverflow.com/questions/16224446/stduniform-real-distribution-inclusive-range
-    // Note: uniform_real_distribution does [start, stop),
-    //   but we want to do [start, stop].
-    //   Pass the next largest value instead.
+    // Specify the next representable value for the end range, since
+    // uniform_real_distribution constructs excluding the end value [being, end).
     uniform_real_distribution<float> unitSquareDistribution(0.f, nextafter(1.0f, FLT_MAX));
 
     GetRandomJump = bind(jumpDistribution, std::ref(m_generatorURNG));
@@ -108,16 +106,7 @@ void Sampler::InitializeCosineHemisphereSamples()
 }
 
 // Generate multi-jittered sample patterns on unit square
-// Ref: Section 5.3.4 in Ray Tracing from the Ground Up
-// The distribution has good random sampling distributions
-// with somewhat uniform distributions in both:
-// - 2D
-// - 1D projections of each axes.
-// Multi-jittered is a combination of two sample distributions:
-// - Jittered: samples are distributed on a NxN grid, 
-//             with each sample being random within its cell.
-// - N-rooks/Linear hypercube sampling: samples have uniform
-//             distribution in 1D projections of each axes.
+// ...
 void Random::GenerateSamples2D()
 {
 
@@ -139,7 +128,7 @@ void MultiJittered::GenerateSamples2D()
 
 }
 
-// Generate random sample patters on unit square
+// Generate random sample patterns on unit square.
 void Random::GenerateSamples2D()
 {
     for (auto& sample : m_samples)

@@ -84,13 +84,24 @@ namespace Samplers {
         UINT m_setJump;
     };
 
-
+    // Multi-jittered sample patterns on unit square
+    // Ref: Section 5.3.4 in [Ray Tracing from the Ground Up]
+    // The distribution has good random sampling distributions
+    // with somewhat uniform distributions in both:
+    // - 2D
+    // - 1D projections of each axes.
+    // Multi-jittered is a combination of two sample distributions:
+    // - Jittered: samples are distributed on a NxN grid, 
+    //             with each sample being random within its cell.
+    // - N-rooks/Linear hypercube sampling: samples have uniform
+    //             distribution in 1D projections of each axes.
     class MultiJittered : public Sampler
     {
     private:
         void GenerateSamples2D();
     };
 
+    // Random sample patterns on unit square
     class Random : public Sampler
     {
     private:
