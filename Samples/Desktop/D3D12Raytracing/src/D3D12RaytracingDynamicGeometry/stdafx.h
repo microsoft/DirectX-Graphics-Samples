@@ -38,6 +38,7 @@
 #include <array>
 #include <unordered_map>
 #include <functional>
+#include <random>
 
 #include <stdint.h>
 #include <float.h>

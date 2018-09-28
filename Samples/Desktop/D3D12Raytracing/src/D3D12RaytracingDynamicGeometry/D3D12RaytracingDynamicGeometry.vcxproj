@@ -171,6 +171,7 @@ PrebuildCheck.bat</Command>
     <ClInclude Include="RaytracingHlslCompat.h" />
     <ClInclude Include="RaytracingShaderHelper.hlsli" />
     <ClInclude Include="D3D12RaytracingDynamicGeometry.h" />
+    <ClInclude Include="Sampler.h" />
     <ClInclude Include="SignedDistanceFractals.hlsli" />
     <ClInclude Include="SignedDistancePrimitives.hlsli" />
     <ClInclude Include="stdafx.h" />
@@ -190,6 +191,7 @@ PrebuildCheck.bat</Command>
     <ClCompile Include="D3D12RaytracingDynamicGeometry.cpp" />
     <ClCompile Include="DirectXRaytracingHelper.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Sampler.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
