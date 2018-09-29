@@ -353,6 +353,9 @@ public:
         memcpy(m_mappedBuffers + instanceIndex * NumElementsPerInstance(), &m_staging[0], InstanceSize());
     }
 
+    auto begin() { return m_staging.begin(); }
+    auto end() { return m_staging.end(); }
+
     // Accessors
     T& operator[](UINT elementIndex) { return m_staging[elementIndex]; }
     size_t NumElementsPerInstance() { return m_staging.size(); }

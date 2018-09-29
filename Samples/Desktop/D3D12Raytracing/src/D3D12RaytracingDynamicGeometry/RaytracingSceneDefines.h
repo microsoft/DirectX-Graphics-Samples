@@ -13,6 +13,17 @@
 
 #include "RayTracingHlslCompat.h"
 
+namespace RNGVisualizerRootSignature {
+    namespace Slot {
+        enum Enum {
+            OutputView = 0,
+            SampleBuffers,
+            SceneConstant,
+            Count
+        };
+    }
+}
+
 namespace GlobalRootSignature {
     namespace Slot {
         enum Enum {

@@ -18,5 +18,6 @@ typedef float4 XMFLOAT4;
 typedef float4 XMVECTOR;
 typedef float4x4 XMMATRIX;
 typedef uint UINT;
+typedef uint2 XMUINT2;
 
 #endif // HLSLCOMPAT_H

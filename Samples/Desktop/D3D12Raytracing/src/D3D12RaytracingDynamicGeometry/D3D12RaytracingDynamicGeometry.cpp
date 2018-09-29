@@ -14,6 +14,8 @@
 #include "GameInput.h"
 #include "EngineTuning.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
+#include "CompiledShaders\RNGVisualizer.hlsl.h"
+#include "Sampler.h"
 
 using namespace std;
 using namespace DX;
@@ -357,6 +359,72 @@ void D3D12RaytracingDynamicGeometry::CreateAABBPrimitiveAttributesBuffers()
     m_aabbPrimitiveAttributeBuffer.Create(device, IntersectionShaderType::TotalPrimitiveCount, frameCount, L"AABB primitive attributes");
 }
 
+void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
+{
+    auto device = m_deviceResources->GetD3DDevice(); 
+    auto frameCount = m_deviceResources->GetBackBufferCount();
+
+    Samplers::Random randomSampler;
+    randomSampler.Reset(16, 3, Samplers::HemisphereDistribution::Uniform);
+
+    // Create root signature
+    {
+        CD3DX12_DESCRIPTOR_RANGE ranges[1]; // Perfomance TIP: Order from most frequent to least frequent.
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output texture
+
+        CD3DX12_ROOT_PARAMETER rootParameters[RNGVisualizerRootSignature::Slot::Count];
+        rootParameters[RNGVisualizerRootSignature::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
+        rootParameters[RNGVisualizerRootSignature::Slot::SampleBuffers].InitAsShaderResourceView(1);
+        rootParameters[RNGVisualizerRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
+
+        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+        SerializeAndCreateRaytracingRootSignature(rootSignatureDesc, &m_csSamleVisualizerRootSignature, L"RNG Visualizer Compute Root Signature");
+    }
+
+    // Create compute pipeline state.
+    {
+        D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO = {};
+        descComputePSO.pRootSignature = m_csSamleVisualizerRootSignature.Get();
+        descComputePSO.CS = CD3DX12_SHADER_BYTECODE((void *)g_pRNGVisualizer, ARRAYSIZE(g_pRNGVisualizer));
+
+        ThrowIfFailed(device->CreateComputePipelineState(&descComputePSO, IID_PPV_ARGS(&m_computePSO)));
+        m_computePSO->SetName(L"Compute PSO");
+    }
+
+    // Create compute allocator, command queue and command list
+    {
+        D3D12_COMMAND_QUEUE_DESC descCommandQueue = { D3D12_COMMAND_LIST_TYPE_COMPUTE, 0, D3D12_COMMAND_QUEUE_FLAG_NONE };
+        ThrowIfFailed(device->CreateCommandQueue(&descCommandQueue, IID_PPV_ARGS(&m_computeCommandQueue)));
+        for (auto& computeAllocator: m_computeAllocators)
+        {
+            ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&computeAllocator)));
+        }
+        ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeAllocators[0].Get(), m_computePSO.Get(), IID_PPV_ARGS(&m_computeCommandList)));
+        ThrowIfFailed(m_computeCommandList->Close());
+
+        // Create a fence for tracking GPU execution progress.
+        ThrowIfFailed(device->CreateFence(m_fenceValues[0], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
+        m_fenceValues[0]++;
+
+        m_fenceEvent.Attach(CreateEvent(nullptr, FALSE, FALSE, nullptr));
+        if (!m_fenceEvent.IsValid())
+        {
+            ThrowIfFailed(E_FAIL, L"CreateEvent failed.\n");
+        }
+    }
+
+    // Create shader resources
+    {
+        m_computeCB.Create(device, frameCount, L"GPU CB: RNG");
+        m_samplesGPUBuffer.Create(device, randomSampler.NumSamples(), frameCount, L"GPU buffer: Random samples");
+
+        for (auto& sample : m_samplesGPUBuffer)
+        {
+            sample.value = randomSampler.GetSample2D();
+        }
+    }
+}
+
 // Create resources that depend on the device.
 void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
 {
@@ -367,12 +435,13 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
     // Create raytracing interfaces: raytracing device and commandlist.
     CreateRaytracingInterfaces();
 
+#if ENABLE_RAYTRACING
     // Create root signatures for the shaders.
     CreateRootSignatures();
 
     // Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
     CreateRaytracingPipelineStateObject();
-
+#endif
     // Create a heap for descriptors.
     CreateDescriptorHeap();
 
@@ -388,14 +457,18 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
     // Create AABB primitive attribute buffers.
     CreateAABBPrimitiveAttributesBuffers();
 
+#if ENABLE_RAYTRACING
     // Build shader tables, which define shaders and their local root arguments.
     BuildShaderTables();
+#endif
 
     // Create an output 2D texture to store the raytracing result to.
     CreateRaytracingOutputResource();
+
+    CreateSamplesRNG();
 }
 
-void D3D12RaytracingDynamicGeometry::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
+void D3D12RaytracingDynamicGeometry::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig, LPCWSTR resourceName)
 {
     auto device = m_deviceResources->GetD3DDevice();
     ComPtr<ID3DBlob> blob;
@@ -411,6 +484,8 @@ void D3D12RaytracingDynamicGeometry::SerializeAndCreateRaytracingRootSignature(D
         ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error), error ? static_cast<wchar_t*>(error->GetBufferPointer()) : nullptr);
         ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
     }
+
+    (*rootSig)->SetName(resourceName);
 }
 
 void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
@@ -420,16 +495,17 @@ void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
     // Global Root Signature
     // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
     {
-        CD3DX12_DESCRIPTOR_RANGE ranges[2]; // Perfomance TIP: Order from most frequent to least frequent.
+        CD3DX12_DESCRIPTOR_RANGE ranges[3]; // Perfomance TIP: Order from most frequent to least frequent.
         ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output texture
         ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);  // 2 static index and vertex buffers.
-
+        
         CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignature::Slot::Count];
         rootParameters[GlobalRootSignature::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
         rootParameters[GlobalRootSignature::Slot::AccelerationStructure].InitAsShaderResourceView(0);
         rootParameters[GlobalRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
         rootParameters[GlobalRootSignature::Slot::AABBattributeBuffer].InitAsShaderResourceView(3);
         rootParameters[GlobalRootSignature::Slot::VertexBuffers].InitAsDescriptorTable(1, &ranges[1]);
+        
         CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
     }
@@ -1212,6 +1288,7 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
         m_deviceResources->WaitForGpu();
 
         m_deviceResources->ResetCommandAllocatorAndCommandlist();
+#if ENABLE_RAYTRACING
         if (m_isGeometryInitializationRequested)
         {
             InitializeGeometry();
@@ -1222,17 +1299,17 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
         }
         m_isGeometryInitializationRequested = false;
         m_isASinitializationRequested = false;
-
+#endif
         m_deviceResources->ExecuteCommandList();
         m_deviceResources->WaitForGpu();
     }
-
+#if ENABLE_RAYTRACING
     if (m_animateScene)
     {
         UpdateSphereGeometryTransforms();
         UpdateBottomLevelASTransforms();
     }
-
+#endif
     if (m_enableUI)
     {
         UpdateUI();
@@ -1503,6 +1580,7 @@ void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
         gpuTimer.ReleaseDevice();
     }
 
+
     m_fallbackDevice.Reset();
     m_fallbackCommandList.Reset();
     m_fallbackStateObject.Reset();
@@ -1519,6 +1597,9 @@ void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
     m_descriptorHeap.Reset();
     m_descriptorsAllocated = 0;
     m_sceneCB.Release();
+
+    m_computeCB.Release();
+
     // ToDo
     for (auto& bottomLevelAS : m_vBottomLevelAS)
     {
@@ -1547,6 +1628,61 @@ void D3D12RaytracingDynamicGeometry::RecreateD3D()
     m_deviceResources->HandleDeviceLost();
 }
 
+void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
+{
+    auto device = m_deviceResources->GetD3DDevice();
+    auto commandList = m_deviceResources->GetCommandList();
+    auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+
+    m_computeAllocators[frameIndex]->Reset();
+    m_computeCommandList->Reset(m_computeAllocators[frameIndex].Get(), m_computePSO.Get());
+
+    commandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
+    commandList->SetComputeRootSignature(m_csSamleVisualizerRootSignature.Get());
+
+    XMUINT2 rngWindowSize(128, 192);
+    m_computeCB->dispatchDimensions = rngWindowSize;
+
+    static UINT seed = 0;
+    m_computeCB->seed = (seed++ / 1000) * rngWindowSize.x * rngWindowSize.y;
+    m_computeCB->uavOffset = XMUINT2(m_width - rngWindowSize.x, m_height - rngWindowSize.y);
+
+    // Copy dynamic buffers to GPU
+    {
+        m_computeCB.CopyStagingToGpu(frameIndex);
+        m_samplesGPUBuffer.CopyStagingToGpu(frameIndex);
+    }
+    commandList->SetComputeRootConstantBufferView(RNGVisualizerRootSignature::Slot::SceneConstant, m_computeCB.GpuVirtualAddress(frameIndex));
+    commandList->SetComputeRootShaderResourceView(RNGVisualizerRootSignature::Slot::SampleBuffers, m_samplesGPUBuffer.GpuVirtualAddress(frameIndex));
+    commandList->SetComputeRootDescriptorTable(RNGVisualizerRootSignature::Slot::OutputView, m_raytracingOutputResourceUAVGpuDescriptor);
+
+    commandList->SetPipelineState(m_computePSO.Get());
+ 
+    commandList->Dispatch(rngWindowSize.x, rngWindowSize.y, 1);
+
+    // close and execute the command list
+    m_computeCommandList->Close();
+    ID3D12CommandList *tempList = m_computeCommandList.Get();
+    m_computeCommandQueue->ExecuteCommandLists(1, &tempList);
+
+    if (m_computeCommandQueue && m_fence && m_fenceEvent.IsValid())
+    {
+        // Schedule a Signal command in the GPU queue.
+        UINT64 fenceValue = m_fenceValues[frameIndex];
+        if (SUCCEEDED(m_computeCommandQueue->Signal(m_fence.Get(), fenceValue)))
+        {
+            // Wait until the Signal has been processed.
+            if (SUCCEEDED(m_fence->SetEventOnCompletion(fenceValue, m_fenceEvent.Get())))
+            {
+                WaitForSingleObjectEx(m_fenceEvent.Get(), INFINITE, FALSE);
+
+                // Increment the fence value for the current frame.
+                m_fenceValues[frameIndex]++;
+            }
+        }
+    }
+}
+
 // Render the scene.
 void D3D12RaytracingDynamicGeometry::OnRender()
 {
@@ -1564,6 +1700,7 @@ void D3D12RaytracingDynamicGeometry::OnRender()
         gpuTimer.BeginFrame(commandList);
     }
 
+#if ENABLE_RAYTRACING
     // Update acceleration structures.
     if (SceneArgs::EnableGeometryAndASBuildsAndUpdates)
     {
@@ -1572,6 +1709,10 @@ void D3D12RaytracingDynamicGeometry::OnRender()
     }
     // Render.
     DoRaytracing();
+#endif
+
+    RenderRNGVisualizations();
+
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
     
     // End frame.
@@ -1642,6 +1783,7 @@ void D3D12RaytracingDynamicGeometry::CalculateFrameStats()
             wstringstream windowText;
             if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
             {
+#if ENABLE_RAYTRACING
                 if (m_fallbackDevice->UsingRaytracingDriver())
                 {
                     windowText << L"(FL-DXR)";
@@ -1650,6 +1792,7 @@ void D3D12RaytracingDynamicGeometry::CalculateFrameStats()
                 {
                     windowText << L"(FL)";
                 }
+#endif
             }
             else
             {

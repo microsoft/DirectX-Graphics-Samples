@@ -91,8 +91,18 @@ private:
 	ComPtr<ID3D12StateObjectPrototype> m_dxrStateObject;
 	bool m_isDxrSupported;
 
+    // Compute resources.
+    ConstantBuffer<RNGConstantBuffer>   m_computeCB;
+    ComPtr<ID3D12PipelineState>         m_computePSO;
+    ComPtr<ID3D12RootSignature>         m_csSamleVisualizerRootSignature;
+    ComPtr<ID3D12CommandAllocator>      m_computeAllocators[FrameCount];
+    ComPtr<ID3D12CommandQueue>          m_computeCommandQueue;
+    ComPtr<ID3D12GraphicsCommandList>   m_computeCommandList;
+    ComPtr<ID3D12Fence>                 m_fence;
+    UINT64                              m_fenceValues[FrameCount];
+    Microsoft::WRL::Wrappers::Event     m_fenceEvent;
 	// Root signatures
-	ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
+    ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
 	ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature[LocalRootSignature::Type::Count];
 
 	// Descriptors
@@ -123,6 +133,8 @@ private:
 
 	std::vector<TriangleGeometryBuffer> m_geometries;
     StructuredBuffer<AlignedGeometryTransform3x4> m_geometryTransforms;
+
+    StructuredBuffer<AlignedUnitSquareSample2D> m_samplesGPUBuffer;
 
 	// Raytracing output
 	ComPtr<ID3D12Resource> m_raytracingOutput;
@@ -174,6 +186,7 @@ private:
 	void UpdateAccelerationStructures(bool forceBuild = false);
     void DoRaytracing();
     void CreateConstantBuffers();
+    void CreateSamplesRNG();
     void CreateAABBPrimitiveAttributesBuffers();
 	void ModifyActiveUIParameter(bool bIncreaseValue);
 	void UpdateUI();
@@ -181,8 +194,9 @@ private:
     void CreateWindowSizeDependentResources();
     void ReleaseDeviceDependentResources();
     void ReleaseWindowSizeDependentResources();
+    void RenderRNGVisualizations();
     void CreateRaytracingInterfaces();
-    void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig);
+    void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig, LPCWSTR resournceName = nullptr);
     void CreateRootSignatures();
     void CreateDxilLibrarySubobject(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateHitGroupSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);

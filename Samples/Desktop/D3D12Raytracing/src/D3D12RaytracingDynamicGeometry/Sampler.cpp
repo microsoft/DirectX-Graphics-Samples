@@ -21,16 +21,6 @@ Sampler::Sampler() :
     m_numSampleSets(0), 
     m_index(0) 
 {
-    uniform_int_distribution<UINT> jumpDistribution(0, m_numSamples - 1);
-    uniform_int_distribution<UINT> jumpSetDistribution(0, m_numSampleSets - 1);
-
-    // Specify the next representable value for the end range, since
-    // uniform_real_distribution constructs excluding the end value [being, end).
-    uniform_real_distribution<float> unitSquareDistribution(0.f, nextafter(1.0f, FLT_MAX));
-
-    GetRandomJump = bind(jumpDistribution, std::ref(m_generatorURNG));
-    GetRandomSetJump = bind(jumpSetDistribution, std::ref(m_generatorURNG));
-    GetRandomFloat01 = bind(unitSquareDistribution, std::ref(m_generatorURNG));
 }
 
 // Get a valid index from <0, m_numSapleSets * m_numSamples>.
@@ -57,27 +47,42 @@ UINT Sampler::GetSampleIndex()
 void Sampler::Reset(UINT numSamples, UINT numSampleSets, HemisphereDistribution::Enum hemisphereDistribution)
 {
     m_index = 0;
-
-    // Reset the generator for determinism.
-    m_generatorURNG.seed(s_seed);
-
-    m_samples.resize(numSamples, UnitSquareSample2D(FLT_MAX, FLT_MAX));
-    m_hemisphereSamples.resize(numSamples, HemisphereSample3D(FLT_MAX, FLT_MAX, FLT_MAX));
     m_numSamples = numSamples;
     m_numSampleSets = numSampleSets;
+    m_samples.resize(m_numSamples * m_numSampleSets, UnitSquareSample2D(FLT_MAX, FLT_MAX));
+    m_shuffledIndices.resize(m_numSamples);
+    m_hemisphereSamples.resize(m_numSamples, HemisphereSample3D(FLT_MAX, FLT_MAX, FLT_MAX));
+    iota(begin(m_shuffledIndices), end(m_shuffledIndices), 0u);     // Fill with 0, 1, ..., m_numSamples - 1
 
-    GenerateSamples2D();
-
-    switch (hemisphereDistribution)
+    // Reset generator and initialize distributions.
     {
-        HemisphereDistribution::Uniform: InitializeUniformHemisphereSamples(); break;
-        HemisphereDistribution::Cosine: InitializeCosineHemisphereSamples(); break;
+        // Initialize to the same seed for determinism.
+        m_generatorURNG.seed(s_seed);
+
+        uniform_int_distribution<UINT> jumpDistribution(0, m_numSamples - 1);
+        uniform_int_distribution<UINT> jumpSetDistribution(0, m_numSampleSets - 1);
+
+        // Specify the next representable value for the end range, since
+        // uniform_real_distribution constructs excluding the end value [being, end).
+        uniform_real_distribution<float> unitSquareDistribution(0.f, nextafter(1.0f, FLT_MAX));
+
+        GetRandomJump = bind(jumpDistribution, std::ref(m_generatorURNG));
+        GetRandomSetJump = bind(jumpSetDistribution, std::ref(m_generatorURNG));
+        GetRandomFloat01 = bind(unitSquareDistribution, std::ref(m_generatorURNG));
     }
 
-    // Fill with 0, 1, ..., m_numSamples - 1
-    iota(begin(m_shuffledIndices), end(m_shuffledIndices), 0u); // Fill with 0, 1, ..., 99.
-    shuffle(m_shuffledIndices, m_shuffledIndices, m_generatorURNG);
-    
+    // Generate random samples.
+    {
+        GenerateSamples2D();
+
+        switch (hemisphereDistribution)
+        {
+        case HemisphereDistribution::Uniform: InitializeUniformHemisphereSamples(); break;
+        case HemisphereDistribution::Cosine: InitializeCosineHemisphereSamples(); break;
+        }
+
+        shuffle(begin(m_shuffledIndices), end(m_shuffledIndices), m_generatorURNG);
+    }
 };
 
 UnitSquareSample2D Sampler::GenerateRandomUnitSquareSample2D()
@@ -105,14 +110,7 @@ void Sampler::InitializeCosineHemisphereSamples()
 
 }
 
-// Generate multi-jittered sample patterns on unit square
-// ...
-void Random::GenerateSamples2D()
-{
-
-}
-
-// Generate multi-jittered sample patterns on unit square
+// Generate multi-jittered sample patterns on unit square.
 // Ref: Section 5.3.4 in Ray Tracing from the Ground Up
 // The distribution has good random sampling distributions
 // with somewhat uniform distributions in both:

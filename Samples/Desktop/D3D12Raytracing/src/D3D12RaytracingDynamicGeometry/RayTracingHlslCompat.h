@@ -20,6 +20,8 @@
 //
 //**********************************************************************************************
 
+#define ENABLE_RAYTRACING 0 // for non-dxr development
+
 #ifdef HLSL
 #include "util\HlslCompat.h"
 #else
@@ -89,6 +91,14 @@ struct ShadowRayPayload
     bool hit;
 };
 
+struct RNGConstantBuffer
+{
+    XMUINT2 uavOffset;     // offset where [0,0] thread should write to.
+    XMUINT2 dispatchDimensions;  // for 2D dispatches
+    UINT seed;
+};
+
+
 struct SceneConstantBuffer
 {
     XMMATRIX projectionToWorld;
@@ -127,6 +137,13 @@ struct PrimitiveInstancePerFrameBuffer
     XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space.
     XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space.
 };
+
+struct AlignedUnitSquareSample2D
+{
+    XMFLOAT2 value;
+    XMUINT2 padding;  // Padding to 16B
+};
+
 
 struct Vertex
 {

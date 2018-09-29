@@ -16,8 +16,8 @@
 
 namespace RNG
 {
-    // Create initial random number using 
-     uint SeedThread(uint seed)
+    // Create an initial random number for a thread.
+    uint SeedThread(uint seed)
     {
         // Thomas Wang hash 
         // Ref: http://www.burtleburtle.net/bob/hash/integer.html
@@ -29,21 +29,35 @@ namespace RNG
         return seed;
     }
 
-    // Generate a random number [0, UINT_MAX]
+    // Generate a random number [0, UINT_MAX].
     uint Random(inout uint state)
     {
-        // Xorshift algorithm from George Marsaglia's paper
+        // Xorshift algorithm from George Marsaglia's paper.
         state ^= (state << 13);
         state ^= (state >> 17);
         state ^= (state << 5);
         return state;
     }
 
-    // Generate a random number [0,1]
+    // Generate a random number [0,1].
     float Random01(inout uint state)
     {
-        unsigned int UintMax = 0xffffffff;
+        uint UintMax = 0xffffffff;
         return Random(state) / float(UintMax);
+    }
+
+    // Generate a random number [0,1).
+    float Random01ex(inout uint state)
+    {
+        uint UintMax = 0xffffffff;
+        return Random(state) / (float(UintMax) + 1.0f);
+    }
+
+    // Generate a random number [_min,_max].
+    uint Random(inout uint state, uint _min, uint _max)
+    {
+        // min is here just for safety not to return _max + 1 due float imprecision.
+        return min(_min + floor((_max - _min + 1) * Random01ex(state)), _max);
     }
 }
 #endif // RANDOMNUMBERGENERATOR_H

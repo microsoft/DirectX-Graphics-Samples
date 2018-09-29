@@ -140,8 +140,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Raytracing.hlsl" />
-    <FxCompile Include="NoiseVisualizer.hlsl">
+    <FxCompile Include="Raytracing.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="RNGVisualizer.hlsl">
       <Filter>Assets\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

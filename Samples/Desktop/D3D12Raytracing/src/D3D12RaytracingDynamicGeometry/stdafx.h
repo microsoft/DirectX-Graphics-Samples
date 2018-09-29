@@ -40,6 +40,7 @@
 #include <functional>
 #include <random>
 #include <numeric>
+#include <iterator>
 
 #include <stdint.h>
 #include <float.h>
