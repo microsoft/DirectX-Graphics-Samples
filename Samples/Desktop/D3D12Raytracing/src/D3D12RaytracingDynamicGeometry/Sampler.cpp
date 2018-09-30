@@ -40,6 +40,7 @@ UINT Sampler::GetSampleIndex()
         // Pick a random set index jump.
         m_setJump = GetRandomSetJump() * m_numSamples;
     }
+    return m_index++ % (m_numSamples * m_numSampleSets);
     return m_setJump + m_shuffledIndices[(m_index++ + m_jump) % m_numSamples];
 }
 
@@ -66,9 +67,9 @@ void Sampler::Reset(UINT numSamples, UINT numSampleSets, HemisphereDistribution:
         // uniform_real_distribution constructs excluding the end value [being, end).
         uniform_real_distribution<float> unitSquareDistribution(0.f, nextafter(1.0f, FLT_MAX));
 
-        GetRandomJump = bind(jumpDistribution, std::ref(m_generatorURNG));
-        GetRandomSetJump = bind(jumpSetDistribution, std::ref(m_generatorURNG));
-        GetRandomFloat01 = bind(unitSquareDistribution, std::ref(m_generatorURNG));
+        GetRandomJump = bind(jumpDistribution, ref(m_generatorURNG));
+        GetRandomSetJump = bind(jumpSetDistribution, ref(m_generatorURNG));
+        GetRandomFloat01 = bind(unitSquareDistribution, ref(m_generatorURNG));
     }
 
     // Generate random samples.
@@ -81,7 +82,7 @@ void Sampler::Reset(UINT numSamples, UINT numSampleSets, HemisphereDistribution:
         case HemisphereDistribution::Cosine: InitializeCosineHemisphereSamples(); break;
         }
 
-        shuffle(begin(m_shuffledIndices), end(m_shuffledIndices), m_generatorURNG);
+        //shuffle(begin(m_shuffledIndices), end(m_shuffledIndices), m_generatorURNG);
     }
 };
 
@@ -123,7 +124,48 @@ void Sampler::InitializeCosineHemisphereSamples()
 //             distribution in 1D projections of each axes.
 void MultiJittered::GenerateSamples2D()
 {
+    for (UINT s = 0; s < NumSampleSets(); s++)
+    {
+        // Generate samples on 2 level grid, with one sample per each (x,y)
+        UINT sampleSetStartID = s * NumSamples();
 
+        const UINT T = NumSamples();
+        const UINT N = static_cast<UINT>(sqrt(T));
+
+        #define SAMPLE(i) m_samples[sampleSetStartID + i]
+
+        // Generate random samples
+        for (UINT y = 0, i = 0; y < N; y++)
+            for (UINT x = 0; x < N; x++, i++)
+            {
+                XMFLOAT2 gridID(static_cast<float>(x), static_cast<float>(y));
+                XMFLOAT2 subID(static_cast<float>(y), static_cast<float>(x));
+                UnitSquareSample2D randomValue01 = GenerateRandomUnitSquareSample2D();
+
+                SAMPLE(i).x = (randomValue01.x + subID.x) / T + gridID.x / N;
+                SAMPLE(i).y = (randomValue01.y + subID.y) / T + gridID.y / N;
+            }
+
+        // Shuffle sample axes such that there's a sample in each stratum 
+        // and n-rooks is maintained.
+
+        for (UINT i = 0; i < N; i++)
+            for (UINT j = 0; j < N; j++)
+            {
+                uniform_int_distribution<UINT> dis(j, N - 1);
+                UINT k = dis(m_generatorURNG);
+                swap(SAMPLE(i*N + j).x, SAMPLE(i*N + k).x);
+            }
+        
+        for (UINT i = 0; i < N; i++)
+            for (UINT j = 0; j < N; j++)
+            {
+                uniform_int_distribution<UINT> dis(j, N - 1);
+                UINT k = dis(m_generatorURNG);
+               // if (i * N + j >= 1) break;
+                swap(SAMPLE(j*N + i).y, SAMPLE(k*N + i).y);
+            }
+    }
 }
 
 // Generate random sample patterns on unit square.

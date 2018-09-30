@@ -34,6 +34,7 @@ The title bar of the sample provides runtime information:
 * 3 - select DirectX Raytracing API.
 * L - enable/disable light animation.
 * C - enable/disable camera animation.
+* ESC - terminate the application.
 
 ## Requirements
 * Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.

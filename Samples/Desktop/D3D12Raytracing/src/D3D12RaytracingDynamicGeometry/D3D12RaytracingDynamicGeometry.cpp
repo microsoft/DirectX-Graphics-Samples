@@ -15,7 +15,6 @@
 #include "EngineTuning.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 #include "CompiledShaders\RNGVisualizer.hlsl.h"
-#include "Sampler.h"
 
 using namespace std;
 using namespace DX;
@@ -364,8 +363,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    Samplers::Random randomSampler;
-    randomSampler.Reset(16, 3, Samplers::HemisphereDistribution::Uniform);
+    m_randomSampler.Reset(9, 83, Samplers::HemisphereDistribution::Uniform);
 
     // Create root signature
     {
@@ -416,11 +414,11 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     // Create shader resources
     {
         m_computeCB.Create(device, frameCount, L"GPU CB: RNG");
-        m_samplesGPUBuffer.Create(device, randomSampler.NumSamples(), frameCount, L"GPU buffer: Random samples");
+        m_samplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random samples");
 
         for (auto& sample : m_samplesGPUBuffer)
         {
-            sample.value = randomSampler.GetSample2D();
+            sample.value = m_randomSampler.GetSample2D();
         }
     }
 }
@@ -1192,6 +1190,8 @@ void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
     case '3': // DirectX Raytracing
         SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
         break;
+    case VK_ESCAPE:
+        throw HrException(E_APPLICATION_EXITING);
     case 'L':
         m_animateLight = !m_animateLight;
         break;
@@ -1640,12 +1640,15 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     commandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
     commandList->SetComputeRootSignature(m_csSamleVisualizerRootSignature.Get());
 
-    XMUINT2 rngWindowSize(128, 192);
+    XMUINT2 rngWindowSize(192, 192);
     m_computeCB->dispatchDimensions = rngWindowSize;
 
     static UINT seed = 0;
-    m_computeCB->seed = (seed++ / 1000) * rngWindowSize.x * rngWindowSize.y;
+    //m_computeCB->seed = (seed++ / 1000) * rngWindowSize.x * rngWindowSize.y;
+    m_computeCB->seed = 0;// ((seed++ / 250) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
     m_computeCB->uavOffset = XMUINT2(m_width - rngWindowSize.x, m_height - rngWindowSize.y);
+    m_computeCB->numSamples = m_randomSampler.NumSamples();
+    m_computeCB->numSampleSets = m_randomSampler.NumSampleSets();
 
     // Copy dynamic buffers to GPU
     {

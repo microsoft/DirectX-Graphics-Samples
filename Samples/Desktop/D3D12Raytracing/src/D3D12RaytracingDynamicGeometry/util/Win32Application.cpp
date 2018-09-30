@@ -77,6 +77,22 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         // Return this part of the WM_QUIT message to Windows.
         return static_cast<char>(msg.wParam);
     }
+    catch (HrException& e)
+    {
+        if (e.Error() == E_APPLICATION_EXITING)
+        {
+            OutputDebugString(L"User initiated shutdown. Application is terminating.");
+            pSample->OnDestroy();
+            return 0;
+        }
+
+        OutputDebugString(L"Application hit a problem: ");
+        OutputDebugStringA(e.what());
+        OutputDebugString(L"\nTerminating.\n");
+
+        pSample->OnDestroy();
+        return EXIT_FAILURE;
+    }
     catch (std::exception& e)
     {
         OutputDebugString(L"Application hit a problem: ");

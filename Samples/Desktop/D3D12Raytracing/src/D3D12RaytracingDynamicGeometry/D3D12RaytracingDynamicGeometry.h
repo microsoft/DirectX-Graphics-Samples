@@ -16,6 +16,7 @@
 #include "RaytracingSceneDefines.h"
 #include "DirectXRaytracingHelper.h"
 #include "PerformanceTimers.h"
+#include "Sampler.h"
 
 #include "UILayer.h"
 
@@ -92,6 +93,7 @@ private:
 	bool m_isDxrSupported;
 
     // Compute resources.
+    Samplers::MultiJittered m_randomSampler;
     ConstantBuffer<RNGConstantBuffer>   m_computeCB;
     ComPtr<ID3D12PipelineState>         m_computePSO;
     ComPtr<ID3D12RootSignature>         m_csSamleVisualizerRootSignature;
