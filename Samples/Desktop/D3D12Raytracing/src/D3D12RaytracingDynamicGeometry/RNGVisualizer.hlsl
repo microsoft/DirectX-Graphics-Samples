@@ -18,6 +18,7 @@ ConstantBuffer<RNGConstantBuffer> rngCB: register(b0);
 RWTexture2D<float4> g_renderTarget : register(u0);
 StructuredBuffer<AlignedUnitSquareSample2D> g_sampleSets : register(t1);
 
+
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
@@ -29,6 +30,14 @@ void main( uint3 DTid : SV_DispatchThreadID )
     float4 color = (float4) 0.0f;
     
 #if 1
+    // Polar angles
+    float distToCenter = length((float2)DTid.xy / rngCB.dispatchDimensions - (float2)0.5);
+    float lineWidth = 0.005;
+    if (distToCenter >= 0.5f - lineWidth / 2 && distToCenter <= 0.5f + lineWidth / 2)
+        color = 0.f;
+    else
+        color = 1.f;
+#elif 0
     color = 1.f;
 #else
     // Stratum grid lines
