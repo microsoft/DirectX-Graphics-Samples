@@ -363,7 +363,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(9, 83, Samplers::HemisphereDistribution::Uniform);
+    m_randomSampler.Reset(64, 83, Samplers::HemisphereDistribution::Uniform);
 
     // Create root signature
     {
@@ -418,7 +418,9 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
 
         for (auto& sample : m_samplesGPUBuffer)
         {
-            sample.value = m_randomSampler.GetSample2D();
+            //sample.value = m_randomSampler.GetSample2D();
+            XMFLOAT3 p = m_randomSampler.GetHemisphereSample3D();
+            sample.value = XMFLOAT2(p.x*0.5f + 0.5f, p.y*0.5f + 0.5f);
         }
     }
 }
@@ -1640,12 +1642,14 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     commandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
     commandList->SetComputeRootSignature(m_csSamleVisualizerRootSignature.Get());
 
-    XMUINT2 rngWindowSize(192, 192);
+    XMUINT2 rngWindowSize(256, 256);
     m_computeCB->dispatchDimensions = rngWindowSize;
 
     static UINT seed = 0;
-    //m_computeCB->seed = (seed++ / 1000) * rngWindowSize.x * rngWindowSize.y;
-    m_computeCB->seed = 0;// ((seed++ / 250) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
+    m_computeCB->seed = ((seed++ / 250) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
+    m_computeCB->stratums = XMUINT2(static_cast<UINT>(sqrt(m_randomSampler.NumSamples())), 
+                                    static_cast<UINT>(sqrt(m_randomSampler.NumSamples())));
+    m_computeCB->grid = XMUINT2(m_randomSampler.NumSamples(), m_randomSampler.NumSamples());
     m_computeCB->uavOffset = XMUINT2(m_width - rngWindowSize.x, m_height - rngWindowSize.y);
     m_computeCB->numSamples = m_randomSampler.NumSamples();
     m_computeCB->numSampleSets = m_randomSampler.NumSampleSets();

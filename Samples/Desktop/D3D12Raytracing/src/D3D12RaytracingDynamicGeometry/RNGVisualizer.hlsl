@@ -25,24 +25,54 @@ void main( uint3 DTid : SV_DispatchThreadID )
 #define RNG_CPUSAMPLES 1
 
 #if RNG_CPUSAMPLES
-    float sampleRadius = 0.025f;
+    float sampleRadius = 0.015f;
     float4 color = (float4) 0.0f;
-    float2 pixelPosition = (float2) DTid.xy / (rngCB.dispatchDimensions - (uint2)1);
-    for (uint i = 0; i < rngCB.numSamples; i++)
+    
+#if 1
+    color = 1.f;
+#else
+    // Stratum grid lines
     {
-       // if (g_sampleSets[i + 9 * rngCB.seed].value.x > 0.5 && g_sampleSets[i + 9 * rngCB.seed].value.y <0.5)
-        if (length(g_sampleSets[i+ 9*rngCB.seed].value - pixelPosition) <= sampleRadius)
+        float2 dist = (float2)0.5 - fmod((float2)DTid.xy * rngCB.stratums / rngCB.dispatchDimensions, 1.0);
+        float2 dots = fmod((float2) DTid.xy * 32.0 / rngCB.dispatchDimensions, 1.0);
+        
+        if (dist.x > dist.y)
+            color = dist.x > 0.46 && dots.y < 0.50 ? 0.0 : 1.0;
+        else
+            color = dist.y > 0.46 && dots.x < 0.50 ? 0.0 : 1.0;
+        
+    }
+    // Grid lines
+    {
+        float2 dist = (float2)0.5 - fmod((float2)DTid.xy * rngCB.grid / rngCB.dispatchDimensions, 1.0);
+      
+        if (dist.x > dist.y)
+            color = dist.x > 0.47 ? 0.5 : color;
+        else
+            color = dist.y > 0.47 ? 0.5 : color;
+
+    }
+#endif
+
+    // Border
+    {
+        color = (min(DTid.x, DTid.y) <= 2
+            || DTid.x >= rngCB.dispatchDimensions.x - 3
+            || DTid.y >= rngCB.dispatchDimensions.y - 3)
+            ? 1.0 : color;
+    }
+
+    // Samples
+    {
+        float2 pixelPosition = (float2) DTid.xy / (rngCB.dispatchDimensions - (uint2)1);
+        for (uint i = 0; i < rngCB.numSamples; i++)
         {
-            color = (float4) 1.0f;
+            if (length(g_sampleSets[i + rngCB.seed].value - pixelPosition) <= sampleRadius)
+            {
+                color = 0.0f;
+            }
         }
     }
-    float2 dist = (float2)0.5 - fmod((float2) DTid.xy * 3.0 / rngCB.dispatchDimensions, 1.0);
-    color += max(dist.x, dist.y) > 0.45f ? 1.0 : 0.0;
-    color += (min(DTid.x, DTid.y) == 0
-                || DTid.x == rngCB.dispatchDimensions.x - 1
-                || DTid.y == rngCB.dispatchDimensions.y - 1) 
-           ? 1.0 : 0.0;
-
 #endif 
 
 #if RNG_GPUONLY

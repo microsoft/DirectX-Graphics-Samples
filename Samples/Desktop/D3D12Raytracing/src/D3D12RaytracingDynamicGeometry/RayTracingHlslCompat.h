@@ -98,6 +98,9 @@ struct RNGConstantBuffer
     UINT seed;
     UINT numSamples;
     UINT numSampleSets;
+    UINT padding; // TODo: Why is this needed? cb gets corrupted otherwise. Put a static_assert in ConstantBuffer
+    XMUINT2 stratums;      // Stratum resolution
+    XMUINT2 grid;      // Grid resolution
 };
 
 

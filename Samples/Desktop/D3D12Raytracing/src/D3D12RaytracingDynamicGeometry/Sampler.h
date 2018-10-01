@@ -27,7 +27,8 @@ namespace Samplers {
         static const UINT s_seed = 1729;
         std::function<UINT()> GetRandomJump;        // Generates a random uniform index within [0, m_numSamples - 1]
         std::function<UINT()> GetRandomSetJump;     // Generates a random uniform index within [0, m_numSampleSets - 1]
-        std::function<float()> GetRandomFloat01;    // Generates a random uniform float within [0,1]
+        std::function<float()> GetRandomFloat01;    // Generates a random uniform float within [0,1)
+        std::function<float()> GetRandomFloat01inclusive; // Generates a random uniform float within [0,1]
     public:
         // Constructor, desctructor
         Sampler();
@@ -44,12 +45,13 @@ namespace Samplers {
 
     private:
         UINT GetSampleIndex();
-        void InitializeUniformHemisphereSamples();
-        void InitializeCosineHemisphereSamples();
+        void InitializeHemisphereSamples(float cosDensityPower);
 
     protected:
         virtual void GenerateSamples2D() = 0; // Generate sample patterns in a unit square.
-        UnitSquareSample2D GenerateRandomUnitSquareSample2D();
+        UnitSquareSample2D RandomFloat01_2D();
+        UINT GetRandomNumber(UINT min, UINT max);
+
         
         std::mt19937 m_generatorURNG;  // Uniform random number generator
         UINT m_numSamples;      // number of samples in a set (pattern).

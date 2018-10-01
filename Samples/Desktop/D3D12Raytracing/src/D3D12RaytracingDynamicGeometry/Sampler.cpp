@@ -51,10 +51,9 @@ void Sampler::Reset(UINT numSamples, UINT numSampleSets, HemisphereDistribution:
     m_numSamples = numSamples;
     m_numSampleSets = numSampleSets;
     m_samples.resize(m_numSamples * m_numSampleSets, UnitSquareSample2D(FLT_MAX, FLT_MAX));
-    m_shuffledIndices.resize(m_numSamples);
-    m_hemisphereSamples.resize(m_numSamples, HemisphereSample3D(FLT_MAX, FLT_MAX, FLT_MAX));
-    iota(begin(m_shuffledIndices), end(m_shuffledIndices), 0u);     // Fill with 0, 1, ..., m_numSamples - 1
-
+    m_shuffledIndices.resize(m_numSamples * m_numSampleSets);
+    m_hemisphereSamples.resize(m_numSamples * m_numSampleSets, HemisphereSample3D(FLT_MAX, FLT_MAX, FLT_MAX));
+    
     // Reset generator and initialize distributions.
     {
         // Initialize to the same seed for determinism.
@@ -63,13 +62,16 @@ void Sampler::Reset(UINT numSamples, UINT numSampleSets, HemisphereDistribution:
         uniform_int_distribution<UINT> jumpDistribution(0, m_numSamples - 1);
         uniform_int_distribution<UINT> jumpSetDistribution(0, m_numSampleSets - 1);
 
+        uniform_real_distribution<float> unitSquareDistribution(0.f, 1.f);
+
         // Specify the next representable value for the end range, since
         // uniform_real_distribution constructs excluding the end value [being, end).
-        uniform_real_distribution<float> unitSquareDistribution(0.f, nextafter(1.0f, FLT_MAX));
+        uniform_real_distribution<float> unitSquareDistributionInclusive(0.f, nextafter(1.f, FLT_MAX));
 
         GetRandomJump = bind(jumpDistribution, ref(m_generatorURNG));
         GetRandomSetJump = bind(jumpSetDistribution, ref(m_generatorURNG));
         GetRandomFloat01 = bind(unitSquareDistribution, ref(m_generatorURNG));
+        GetRandomFloat01inclusive = bind(unitSquareDistributionInclusive, ref(m_generatorURNG));
     }
 
     // Generate random samples.
@@ -78,19 +80,31 @@ void Sampler::Reset(UINT numSamples, UINT numSampleSets, HemisphereDistribution:
 
         switch (hemisphereDistribution)
         {
-        case HemisphereDistribution::Uniform: InitializeUniformHemisphereSamples(); break;
-        case HemisphereDistribution::Cosine: InitializeCosineHemisphereSamples(); break;
+        case HemisphereDistribution::Uniform: InitializeHemisphereSamples(9.f); break;
+        case HemisphereDistribution::Cosine: InitializeHemisphereSamples(1.f); break;
         }
 
-        //shuffle(begin(m_shuffledIndices), end(m_shuffledIndices), m_generatorURNG);
+        for (UINT i = 0; i < m_numSampleSets; i++)
+        {
+            auto first = begin(m_shuffledIndices) + i * m_numSamples;
+            auto last = first + m_numSamples;
+            
+            iota(first, last, 0u); // Fill with 0, 1, ..., m_numSamples - 1            
+            shuffle(first, last, m_generatorURNG);
+        }
     }
 };
 
-UnitSquareSample2D Sampler::GenerateRandomUnitSquareSample2D()
+UnitSquareSample2D Sampler::RandomFloat01_2D()
 {
     return XMFLOAT2(GetRandomFloat01(), GetRandomFloat01());
 }
 
+UINT Sampler::GetRandomNumber(UINT min, UINT max)
+{
+    uniform_int_distribution<UINT> distribution(min, max);
+    return distribution(m_generatorURNG);
+}
 UnitSquareSample2D Sampler::GetSample2D()
 {
     return m_samples[GetSampleIndex()];
@@ -101,14 +115,22 @@ HemisphereSample3D Sampler::GetHemisphereSample3D()
     return m_hemisphereSamples[GetSampleIndex()];
 }
 
-void Sampler::InitializeUniformHemisphereSamples()
+// cosDensityPower - cosine density power {0, 1, ...}. uniform(0), cosine(1),...
+//
+void Sampler::InitializeHemisphereSamples(float cosDensityPower)
 {
+    for (UINT i = 0; i < m_samples.size(); i++)
+    {
+        // Compute azimuth (rho) and polar angle (omega)
+        float rho = XM_2PI * m_samples[i].x;   
+        float omega = acos(powf((1.f - m_samples[i].y), 1.f / (cosDensityPower + 1)));
 
-}
-
-void Sampler::InitializeCosineHemisphereSamples()
-{
-
+        // Convert the polar angles to a 3D point in local orthornomal 
+        // basis with orthogonal unit vectors along x, y, z.
+        m_hemisphereSamples[i].x = sinf(omega) * cosf(rho);
+        m_hemisphereSamples[i].y = sinf(omega) * sinf(rho);
+        m_hemisphereSamples[i].z = cosf(omega);
+    }
 }
 
 // Generate multi-jittered sample patterns on unit square.
@@ -134,37 +156,38 @@ void MultiJittered::GenerateSamples2D()
 
         #define SAMPLE(i) m_samples[sampleSetStartID + i]
 
+        // ToDo support X x Y dimensions
         // Generate random samples
-        for (UINT y = 0, i = 0; y < N; y++)
-            for (UINT x = 0; x < N; x++, i++)
+        for (UINT col = 0, i = 0; col < N; col++)
+            for (UINT row = 0; row < N; row++, i++)
             {
-                XMFLOAT2 gridID(static_cast<float>(x), static_cast<float>(y));
-                XMFLOAT2 subID(static_cast<float>(y), static_cast<float>(x));
-                UnitSquareSample2D randomValue01 = GenerateRandomUnitSquareSample2D();
+                XMFLOAT2 stratum(static_cast<float>(row), static_cast<float>(col));
+                XMFLOAT2 cell(static_cast<float>(col), static_cast<float>(row));
+                UnitSquareSample2D randomValue01 = RandomFloat01_2D();
 
-                SAMPLE(i).x = (randomValue01.x + subID.x) / T + gridID.x / N;
-                SAMPLE(i).y = (randomValue01.y + subID.y) / T + gridID.y / N;
+                SAMPLE(i).x = (randomValue01.x + cell.x) / T + stratum.x / N;
+                SAMPLE(i).y = (randomValue01.y + cell.y) / T + stratum.y / N;
             }
 
         // Shuffle sample axes such that there's a sample in each stratum 
         // and n-rooks is maintained.
 
-        for (UINT i = 0; i < N; i++)
-            for (UINT j = 0; j < N; j++)
+        // Shuffle x coordinate across rows within a column
+        for (UINT row = 0; row < N - 1; row++)
+            for (UINT col = 0; col < N; col++)
             {
-                uniform_int_distribution<UINT> dis(j, N - 1);
-                UINT k = dis(m_generatorURNG);
-                swap(SAMPLE(i*N + j).x, SAMPLE(i*N + k).x);
+                UINT k = GetRandomNumber(row + 1, N - 1);
+                swap(SAMPLE(row*N + col).x, SAMPLE(k*N + col).x);
+            }
+
+        // Shuffle y coordinate across columns within a row
+        for (UINT row = 0; row < N; row++)
+            for (UINT col = 0; col < N - 1; col++)
+            {
+                UINT k = GetRandomNumber(col + 1, N - 1);
+                swap(SAMPLE(row*N + col).y, SAMPLE(row*N + k).y);
             }
         
-        for (UINT i = 0; i < N; i++)
-            for (UINT j = 0; j < N; j++)
-            {
-                uniform_int_distribution<UINT> dis(j, N - 1);
-                UINT k = dis(m_generatorURNG);
-               // if (i * N + j >= 1) break;
-                swap(SAMPLE(j*N + i).y, SAMPLE(k*N + i).y);
-            }
     }
 }
 
@@ -173,7 +196,7 @@ void Random::GenerateSamples2D()
 {
     for (auto& sample : m_samples)
     {
-        sample = GenerateRandomUnitSquareSample2D();
+        sample = RandomFloat01_2D();
     }
 }
 
