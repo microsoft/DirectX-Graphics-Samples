@@ -363,7 +363,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(64, 83, Samplers::HemisphereDistribution::Uniform);
+    m_randomSampler.Reset(64, 83, Samplers::HemisphereDistribution::Cosine);
 
     // Create root signature
     {
@@ -421,6 +421,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
             //sample.value = m_randomSampler.GetSample2D();
             XMFLOAT3 p = m_randomSampler.GetHemisphereSample3D();
             sample.value = XMFLOAT2(p.x*0.5f + 0.5f, p.y*0.5f + 0.5f);
+            //sample.value = XMFLOAT2(p.x*0.5f + 0.5f, 0.5f*(1.0f - p.z));
         }
     }
 }

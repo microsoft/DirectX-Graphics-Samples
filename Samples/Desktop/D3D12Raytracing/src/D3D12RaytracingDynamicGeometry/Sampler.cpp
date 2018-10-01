@@ -80,7 +80,7 @@ void Sampler::Reset(UINT numSamples, UINT numSampleSets, HemisphereDistribution:
 
         switch (hemisphereDistribution)
         {
-        case HemisphereDistribution::Uniform: InitializeHemisphereSamples(9.f); break;
+        case HemisphereDistribution::Uniform: InitializeHemisphereSamples(0.f); break;
         case HemisphereDistribution::Cosine: InitializeHemisphereSamples(1.f); break;
         }
 
