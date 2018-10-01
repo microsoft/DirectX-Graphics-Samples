@@ -19,7 +19,7 @@
 #include "TraverseFunction.hlsli"
 
 SHADER_internal
-void Fallback_TraceRay(
+export void Fallback_TraceRay(
     uint rayFlags,
     uint instanceInclusionMask,
     uint rayContributionToHitGroupIndex,
