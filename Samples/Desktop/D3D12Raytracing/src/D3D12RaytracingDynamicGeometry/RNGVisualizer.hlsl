@@ -65,7 +65,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
     // Samples
     {
         float2 pixelPosition = (float2) DTid.xy / (rngCB.dispatchDimensions - (uint2)1);
-        for (uint i = 0; i < rngCB.numSamples; i++)
+        for (uint i = 0; i < rngCB.numSamplesToShow; i++)
         {
             if (length(g_sampleSets[i + rngCB.seed].value - pixelPosition) <= sampleRadius)
             {

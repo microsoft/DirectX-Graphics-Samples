@@ -1647,7 +1647,10 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     m_computeCB->dispatchDimensions = rngWindowSize;
 
     static UINT seed = 0;
-    m_computeCB->seed = ((seed++ / 250) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
+    static UINT frameID = 0;
+    UINT NumFramesPerIter = 400;
+    m_computeCB->numSamplesToShow = (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
+    m_computeCB->seed =  ((seed++ / (NumFramesPerIter * m_randomSampler.NumSamples())) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
     m_computeCB->stratums = XMUINT2(static_cast<UINT>(sqrt(m_randomSampler.NumSamples())), 
                                     static_cast<UINT>(sqrt(m_randomSampler.NumSamples())));
     m_computeCB->grid = XMUINT2(m_randomSampler.NumSamples(), m_randomSampler.NumSamples());

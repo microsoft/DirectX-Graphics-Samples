@@ -40,7 +40,6 @@ UINT Sampler::GetSampleIndex()
         // Pick a random set index jump.
         m_setJump = GetRandomSetJump() * m_numSamples;
     }
-    return m_index++ % (m_numSamples * m_numSampleSets);
     return m_setJump + m_shuffledIndices[(m_index++ + m_jump) % m_numSamples];
 }
 
