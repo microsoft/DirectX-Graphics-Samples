@@ -121,15 +121,24 @@ void Sampler::InitializeHemisphereSamples(float cosDensityPower)
 {
     for (UINT i = 0; i < m_samples.size(); i++)
     {
-        // Compute azimuth (rho) and polar angle (omega)
-        float rho = XM_2PI * m_samples[i].x;   
-        float omega = acos(powf((1.f - m_samples[i].y), 1.f / (cosDensityPower + 1)));
+        // Compute azimuth (phi) and polar angle (theta)
+      /*
+        float phi = XM_2PI * m_samples[i].x;   
+        float theta = acos(powf((1.f - m_samples[i].y), 1.f / (cosDensityPower + 1)));
 
         // Convert the polar angles to a 3D point in local orthornomal 
         // basis with orthogonal unit vectors along x, y, z.
-        m_hemisphereSamples[i].x = sinf(omega) * cosf(rho);
-        m_hemisphereSamples[i].y = sinf(omega) * sinf(rho);
-        m_hemisphereSamples[i].z = cosf(omega);
+        m_hemisphereSamples[i].x = sinf(theta) * cosf(phi);
+        m_hemisphereSamples[i].y = sinf(theta) * sinf(phi);
+        m_hemisphereSamples[i].z = cosf(theta);
+      */ 
+        // Optimized version using trigonometry equations.
+        float cosTheta = powf((1.f - m_samples[i].y), 1.f / (cosDensityPower + 1));
+        float sinTheta = sqrtf(1.f - cosTheta * cosTheta);
+        m_hemisphereSamples[i].x = sinTheta * cosf(XM_2PI * m_samples[i].x);
+        m_hemisphereSamples[i].y = sinTheta * sinf(XM_2PI * m_samples[i].x);
+        m_hemisphereSamples[i].z = cosTheta;
+
     }
 }
 
