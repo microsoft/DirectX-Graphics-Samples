@@ -31,9 +31,15 @@ void main( uint3 DTid : SV_DispatchThreadID )
     
 #if 1
     // Polar angles
-    float distToCenter = length((float2)DTid.xy / rngCB.dispatchDimensions - (float2)0.5);
-    float lineWidth = 0.005;
-    if (distToCenter >= 0.5f - lineWidth / 2 && distToCenter <= 0.5f + lineWidth / 2)
+    // Get pixel position in [-1,1] from [0,1]
+    static const float TwoPI = 2.f* 3.14159265f;
+    float2 pixelPosition = 2.f * ((float2)DTid.xy / rngCB.dispatchDimensions - (float2)0.5);
+    float distToCenter = length(pixelPosition);
+    float angle = fmod(atan2(pixelPosition.y, pixelPosition.x) + TwoPI, TwoPI) * 360.f / TwoPI;
+    float lineWidth = 0.01;
+    float lineRadius = 1.f;
+    if (distToCenter >= lineRadius - lineWidth / 2 && distToCenter <= lineRadius + lineWidth / 2 &&
+        fmod (angle, 3.f) >=1.0f)
         color = 0.f;
     else
         color = 1.f;
