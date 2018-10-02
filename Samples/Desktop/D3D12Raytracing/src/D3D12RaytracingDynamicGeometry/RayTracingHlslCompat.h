@@ -117,7 +117,8 @@ struct SceneConstantBuffer
     UINT seed;
     UINT numSamples;
     UINT numSampleSets;
-    UINT numSamplesToUse;
+    UINT numSamplesToUse;    
+    XMFLOAT2 padding;
 };
 
 // Attributes per primitive type.

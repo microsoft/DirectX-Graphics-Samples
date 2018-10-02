@@ -363,7 +363,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(4, 83, Samplers::HemisphereDistribution::Cosine);
+    m_randomSampler.Reset(9, 83, Samplers::HemisphereDistribution::Cosine);
 
     // Create root signature
     {
@@ -808,7 +808,7 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
     };
 
     // Cube vertices positions and corresponding triangle normals.
-#if 0
+#if 1
     DirectX::VertexPositionNormalTexture vertices[] =
     {
         { XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
@@ -819,10 +819,10 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
 #else
     GeometricPrimitive::VertexType vertices[] =
     {
-        { XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+        { XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
         { XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
-        { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f) },
-        { XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) }
+        { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
+        { XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) }
     };
 #endif
     AllocateUploadBuffer(device, indices, sizeof(indices), &m_geometries[GeometryType::Plane].ib.resource);
@@ -1471,8 +1471,13 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     m_sceneCB->seed = 0;
     m_sceneCB->numSamples = m_randomSampler.NumSamples();
     m_sceneCB->numSampleSets = m_randomSampler.NumSampleSets();
-    m_sceneCB->numSamplesToUse = m_randomSampler.NumSamples();
-
+#if 0
+    m_sceneCB->numSamplesToUse = m_randomSampler.NumSamples();    UINT NumFramesPerIter = 400;
+#else
+    UINT NumFramesPerIter = 1000;
+    static UINT frameID = NumFramesPerIter;
+    m_sceneCB->numSamplesToUse = (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
+#endif
     // Copy dynamic buffers to GPU.
     {
         m_hemisphereSamplesGPUBuffer.CopyStagingToGpu(frameIndex);
@@ -1758,7 +1763,7 @@ void D3D12RaytracingDynamicGeometry::OnRender()
     DoRaytracing();
 #endif
 
-    RenderRNGVisualizations();
+   // RenderRNGVisualizations();
 
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
     

@@ -200,9 +200,8 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 
 #if RENDER_SPHERES
 	// Retrieve corresponding vertex normals for the triangle vertices.
-	//float3 vertexNormals[3] = { l_vertices[indices[0]].normal, l_vertices[indices[1]].normal, l_vertices[indices[2]].normal};
-    float3 vertexNormals[3] = { l_vertices[2].normal, l_vertices[2].normal, l_vertices[2].normal };
-    float3 triangleNormal = (vertexNormals[0] + vertexNormals[1] + vertexNormals[2]) / 3;
+	float3 vertexNormals[3] = { l_vertices[indices[0]].normal, l_vertices[indices[1]].normal, l_vertices[indices[2]].normal};
+    float3 triangleNormal = HitAttribute(vertexNormals, attr);
 #else
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 triangleNormal = l_vertices[indices[0]].normal;
@@ -241,20 +240,21 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     uint seed = DispatchRaysDimensions().x * DispatchRaysIndex().y + DispatchRaysIndex().x + g_sceneCB.seed;
 
     uint RNGState = RNG::SeedThread(seed);
-    uint sampleSetStart = RNG::Random(RNGState, 0, g_sceneCB.numSampleSets - 1) * g_sceneCB.numSamples;
+    uint sampleSetJump = RNG::Random(RNGState, 0, g_sceneCB.numSampleSets - 1) * g_sceneCB.numSamples;
 
-    uint shadowRayMisses = 0;
-    bool shadowRayHit = false;
-    for (uint i = 0; i < g_sceneCB.numSamples; i++)
+    uint sampleJump = RNG::Random(RNGState, 0, g_sceneCB.numSamples - 1);
+    uint shadowRayHits = 0;
+    for (uint i = 0; i < g_sceneCB.numSamplesToUse; i++)
     {
-        float3 sample = g_sampleSets[sampleSetStart + i].value;
+
+        float3 sample = g_sampleSets[sampleSetJump + (sampleJump + i)% g_sceneCB.numSamples].value;
         
         
         // Calculate coordinate system for the hemisphere
         float3 u, v, w; 
         w = triangleNormal;
 //        float3 right = w.yzx; 
-        float3 right = float3(0.0072, 1.0, 0.0034);
+        float3 right = normalize(float3(0.0072, 1.0, 0.0034));
         v = normalize(cross(w, right));
         u = cross(v, w);
 
@@ -262,27 +262,19 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 
         float3 hitPosition = HitWorldPosition();
         Ray shadowRay = { hitPosition, normalize(rayDirection) };
-#if 0
-        if (!TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth))
-        {
-            shadowRayMisses++;
-        }
-#else
+#if 1
         if (TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth))
         {
-            shadowRayHit = true;
-            break;
+            shadowRayHits++;
         }
 #endif
     }
-    float4 color = (shadowRayHit ? 0.25 : 1.0f) * l_materialCB.albedo;
-//    float4 color = ((float)shadowRayMisses / g_sceneCB.numSamples) * l_materialCB.albedo;
+    //float4 color = (shadowRayHit ? 0.25 : 1.0f) * l_materialCB.albedo;
+    float4 color = (1.f - ((float)shadowRayHits / g_sceneCB.numSamples)) * l_materialCB.albedo;
 #else
     float4 color = l_materialCB.albedo;
 #endif     
-    triangleNormal = l_vertices[2].normal;
 
-    color = float4(triangleNormal, 1);
     rayPayload.color = color;
 	//rayPayload.color = float4(1, 0, 0, 1);
 	//rayPayload.color = float4(triangleNormal, 1);
