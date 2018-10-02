@@ -363,7 +363,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(9, 83, Samplers::HemisphereDistribution::Cosine);
+    m_randomSampler.Reset(144, 1, Samplers::HemisphereDistribution::Cosine);
 
     // Create root signature
     {
@@ -414,9 +414,11 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     // Create shader resources
     {
         m_computeCB.Create(device, frameCount, L"GPU CB: RNG");
-        m_samplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random unit square samples");
-        m_hemisphereSamplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random hemisphere samples");
 
+        m_samplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random unit square samples");
+
+        m_hemisphereSamplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random hemisphere samples");
+#if 1
         for (UINT i = 0; i < m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(); i++)
         {
             //sample.value = m_randomSampler.GetSample2D();
@@ -424,6 +426,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
             m_samplesGPUBuffer[i].value = XMFLOAT2(p.x*0.5f + 0.5f, p.y*0.5f + 0.5f);
             m_hemisphereSamplesGPUBuffer[i].value = p;
         }
+#endif
     }
 }
 
@@ -1475,7 +1478,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     m_sceneCB->numSamplesToUse = m_randomSampler.NumSamples();    UINT NumFramesPerIter = 400;
 #else
     UINT NumFramesPerIter = 1000;
-    static UINT frameID = NumFramesPerIter;
+    static UINT frameID = NumFramesPerIter * 4;
     m_sceneCB->numSamplesToUse = (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
 #endif
     // Copy dynamic buffers to GPU.

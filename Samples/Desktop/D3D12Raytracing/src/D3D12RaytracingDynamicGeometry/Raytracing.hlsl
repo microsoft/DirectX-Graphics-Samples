@@ -270,7 +270,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 #endif
     }
     //float4 color = (shadowRayHit ? 0.25 : 1.0f) * l_materialCB.albedo;
-    float4 color = (1.f - ((float)shadowRayHits / g_sceneCB.numSamples)) * l_materialCB.albedo;
+    float4 color = (1.f - ((float)shadowRayHits / g_sceneCB.numSamplesToUse)) * l_materialCB.albedo;
 #else
     float4 color = l_materialCB.albedo;
 #endif     
