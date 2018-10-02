@@ -10,11 +10,12 @@ The goal of the Fallback Layer is to enable developers to hit the ground running
 
 ## Building the Fallback Layer
 In order to build and run the Fallback Layer you will need:
-* [Visual Studio 2017](https://www.visualstudio.com/) with the [Windows 10 Fall Creators Update SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
-* Windows 10 with the Fall Creators Update
-* A graphics card with retail DXIL capabilities
-* DXIL.dll should be pulled from the latest Windows SDK to accompany the compiler or enable Developer mode
-* Download DirectXRaytracingBinariesV1.0.zip from https://github.com/Microsoft/DirectX-Graphics-Samples/releases and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64
+* Windows 10 with the Fall Creators Update or higher.
+* [Visual Studio 2017](https://www.visualstudio.com/) version 15.8.4 or higher.
+* [Windows 10 Fall Creators Update SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk) or higher.
+* A graphics card with retail DXIL capabilities.
+* DXIL.dll should be pulled from the latest Windows SDK to accompany the compiler or enable Developer mode.
+* DXR Fallback Compiler - download [DirectXRaytracingBinariesV1.5.zip](https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.5-dxr) and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64.
 
 ## API Samples
 After cloning the project, you can open up D3D12Raytracing.sln in Samples/Desktop/D3D12Raytracing/src. There are several projects that demonstrate basic usage of the Fallback Layer/DXR API including a larger demo integrated with the MiniEngine. More details in the [readme](../../Samples/Desktop/D3D12Raytracing/readme.md)
