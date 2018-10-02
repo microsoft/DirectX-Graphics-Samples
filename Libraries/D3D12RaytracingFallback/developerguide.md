@@ -174,6 +174,10 @@ The use of an AnyHit/Intersection shader require that the traversal code must st
 
 ## Known Issues & Limitations
 
+* #### NV 397.31+ drivers do not properly support compute Fallback Layer on Nvidia Volta. Use the recommended DXR / driver based raytracing mode on this configuration instead.
+
+* #### Indexing in shaders is not supported for buffers specified via root descriptor tables in local root signature
+  
 * #### Limited Local Root Signature Support for Root Descriptors
 Root Descriptors are partially supported, however currently the offset in bytes portion of the pointer will always be ignored and it will only read from the start of the buffer. 
 
