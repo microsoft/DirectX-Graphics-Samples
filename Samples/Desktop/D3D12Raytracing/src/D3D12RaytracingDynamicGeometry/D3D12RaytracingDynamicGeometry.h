@@ -136,7 +136,8 @@ private:
 	std::vector<TriangleGeometryBuffer> m_geometries;
     StructuredBuffer<AlignedGeometryTransform3x4> m_geometryTransforms;
 
-    StructuredBuffer<AlignedUnitSquareSample2D> m_samplesGPUBuffer;
+    StructuredBuffer<AlignedUnitSquareSample2D> m_samplesGPUBuffer; 
+    StructuredBuffer<AlignedHemisphereSample3D> m_hemisphereSamplesGPUBuffer;
 
 	// Raytracing output
 	ComPtr<ID3D12Resource> m_raytracingOutput;

@@ -31,7 +31,7 @@ namespace GlobalRootSignature {
             AccelerationStructure,
             SceneConstant,
             AABBattributeBuffer,
-            VertexBuffers,
+            SampleBuffers,
             Count
         };
     }
@@ -52,11 +52,14 @@ namespace LocalRootSignature {
         namespace Slot {
             enum Enum {
                 MaterialConstant = 0,
+                VertexBuffers,
                 Count
             };
         }
         struct RootArguments {
             PrimitiveConstantBuffer materialCb;
+            UINT32 vertexBufferGPUHandle;
+            UINT32 padding; // ToDo desc
         };
     }
 }

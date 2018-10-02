@@ -94,6 +94,7 @@ class BottomLevelAccelerationStructure : public AccelerationStructure
 
 	// Runtime state
 	bool m_isDirty;		// if true, AS requires an update/build.
+    UINT m_instanceContributionToHitGroupIndex;
 
 public:
 	BottomLevelAccelerationStructure();
@@ -112,6 +113,7 @@ public:
 		m_transform = transform;
 		SetDirty(true);
 	}
+    void SetInstanceContributionToHitGroupIndex(UINT index) { m_instanceContributionToHitGroupIndex = index; }
 	void SetDirty(bool isDirty) { m_isDirty = isDirty; }
 	bool IsDirty() { return m_isDirty; }
 

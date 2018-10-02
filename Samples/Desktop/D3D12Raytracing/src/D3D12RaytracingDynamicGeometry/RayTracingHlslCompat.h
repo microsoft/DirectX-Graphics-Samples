@@ -20,7 +20,7 @@
 //
 //**********************************************************************************************
 
-#define ENABLE_RAYTRACING 0 // for non-dxr development
+#define ENABLE_RAYTRACING 1 // for non-dxr development
 
 #ifdef HLSL
 #include "util\HlslCompat.h"
@@ -114,6 +114,10 @@ struct SceneConstantBuffer
     XMVECTOR lightDiffuseColor;
     float    reflectance;
     float    elapsedTime;                 // Elapsed application time.
+    UINT seed;
+    UINT numSamples;
+    UINT numSampleSets;
+    UINT numSamplesToUse;
 };
 
 // Attributes per primitive type.
@@ -149,6 +153,13 @@ struct AlignedUnitSquareSample2D
     XMFLOAT2 value;
     XMUINT2 padding;  // Padding to 16B
 };
+
+struct AlignedHemisphereSample3D
+{
+    XMFLOAT3 value;
+    UINT padding;  // Padding to 16B
+};
+
 
 
 struct Vertex

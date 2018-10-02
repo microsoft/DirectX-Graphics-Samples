@@ -54,7 +54,8 @@ void AccelerationStructure::AllocateResource(ID3D12Device* device)
 
 BottomLevelAccelerationStructure::BottomLevelAccelerationStructure() :
 	m_isDirty(true),
-	m_transform(XMMatrixIdentity())
+	m_transform(XMMatrixIdentity()),
+    m_instanceContributionToHitGroupIndex(0)
 {
 }
 
@@ -64,7 +65,7 @@ void BottomLevelAccelerationStructure::BuildInstanceDesc(void* destInstanceDesc,
 	{
 		*instanceDesc = {};
 		instanceDesc->InstanceMask = 1;
-		instanceDesc->InstanceContributionToHitGroupIndex = 0;
+		instanceDesc->InstanceContributionToHitGroupIndex = m_instanceContributionToHitGroupIndex;
 		instanceDesc->AccelerationStructure = bottomLevelAddress;
         XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(instanceDesc->Transform), m_transform);
 	};

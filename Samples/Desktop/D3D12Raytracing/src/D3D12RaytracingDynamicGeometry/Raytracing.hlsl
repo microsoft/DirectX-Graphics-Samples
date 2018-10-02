@@ -16,6 +16,7 @@
 #include "RaytracingHlslCompat.h"
 #include "ProceduralPrimitivesLibrary.hlsli"
 #include "RaytracingShaderHelper.hlsli"
+#include "RandomNumberGenerator.hlsli"
 
 //***************************************************************************
 //*****------ Shader resources bound via root signatures -------*************
@@ -40,6 +41,7 @@ StructuredBuffer<PrimitiveInstancePerFrameBuffer> g_AABBPrimitiveAttributes : re
 ConstantBuffer<PrimitiveConstantBuffer> l_materialCB : register(b1);
 ConstantBuffer<PrimitiveInstanceConstantBuffer> l_aabbCB: register(b2);
 
+StructuredBuffer<AlignedHemisphereSample3D> g_sampleSets : register(t4);
 
 //***************************************************************************
 //****************------ Utility functions -------***************************
@@ -136,7 +138,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
-    rayDesc.TMin = 0.001;
+    rayDesc.TMin = 0.01;
     rayDesc.TMax = 10000;	// ToDo set this to dist to light
 
     // Initialize shadow ray payload.
@@ -191,8 +193,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     uint indicesPerTriangle = 3;
     uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
 
-    //Todo uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-	uint baseIndex = triangleIndexStride;
+    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
 
     // Load up three 16 bit indices for the triangle.
     const uint3 indices = Load3x16BitIndices(baseIndex, g_indices);
@@ -201,8 +202,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 	// Retrieve corresponding vertex normals for the triangle vertices.
 	float3 vertexNormals[3] = { g_vertices[indices[0]].normal, g_vertices[indices[1]].normal, g_vertices[indices[2]].normal};
 	float3 triangleNormal = (vertexNormals[0] + vertexNormals[1] + vertexNormals[2]) / 3;
-	// ToDo
-	triangleNormal = normalize(HitWorldPosition());
+
 #else
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 triangleNormal = g_vertices[indices[0]].normal;
@@ -237,9 +237,50 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     // Apply visibility falloff.
     float t = RayTCurrent();
     color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
+#elif 1
+    uint seed = DispatchRaysDimensions().x * DispatchRaysIndex().y + DispatchRaysIndex().x + g_sceneCB.seed;
+
+    uint RNGState = RNG::SeedThread(seed);
+    uint sampleSetStart = RNG::Random(RNGState, 0, g_sceneCB.numSampleSets - 1) * g_sceneCB.numSamples;
+
+    uint shadowRayMisses = 0;
+    bool shadowRayHit = false;
+    for (uint i = 0; i < g_sceneCB.numSamples; i++)
+    {
+        float3 sample = g_sampleSets[sampleSetStart + i].value;
+        
+        
+        // Calculate coordinate system for the hemisphere
+        float3 u, v, w; 
+        w = triangleNormal;
+//        float3 right = w.yzx; 
+        float3 right = float3(0.0072, 1.0, 0.0034);
+        v = normalize(cross(w, right));
+        u = cross(v, w);
+
+        float3 rayDirection = sample.x * u + sample.y * v + sample.z * w;
+
+        float3 hitPosition = HitWorldPosition();
+        Ray shadowRay = { hitPosition, normalize(rayDirection) };
+#if 0
+        if (!TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth))
+        {
+            shadowRayMisses++;
+        }
+#else
+        if (TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth))
+        {
+            shadowRayHit = true;
+            break;
+        }
+#endif
+    }
+    float4 color = (shadowRayHit ? 0.25 : 1.0f) * l_materialCB.albedo;
+//    float4 color = ((float)shadowRayMisses / g_sceneCB.numSamples) * l_materialCB.albedo;
 #else
     float4 color = l_materialCB.albedo;
-#endif
+#endif 
+    color = float4(triangleNormal, 1);
     rayPayload.color = color;
 	//rayPayload.color = float4(1, 0, 0, 1);
 	//rayPayload.color = float4(triangleNormal, 1);

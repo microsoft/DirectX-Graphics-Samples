@@ -76,7 +76,7 @@ namespace SceneArgs
     EnumVar ASBuildFlag(L"Acceleration structure/Build quality", FastTrace, _countof(BuildFlags), BuildFlags, OnASChange, nullptr);
 
     // ToDo test tessFactor 16
-    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 14, 0, 80, 1, OnGeometryChange, nullptr);
+    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 0, 0, 80, 1, OnGeometryChange, nullptr);
     IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1, OnGeometryChange, nullptr);
     IntVar NumSphereBLAS(L"Geometry/# Sphere BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnASChange, nullptr);
 };
@@ -363,7 +363,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(64, 83, Samplers::HemisphereDistribution::Cosine);
+    m_randomSampler.Reset(4, 83, Samplers::HemisphereDistribution::Cosine);
 
     // Create root signature
     {
@@ -414,14 +414,15 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     // Create shader resources
     {
         m_computeCB.Create(device, frameCount, L"GPU CB: RNG");
-        m_samplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random samples");
+        m_samplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random unit square samples");
+        m_hemisphereSamplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random hemisphere samples");
 
-        for (auto& sample : m_samplesGPUBuffer)
+        for (UINT i = 0; i < m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(); i++)
         {
             //sample.value = m_randomSampler.GetSample2D();
             XMFLOAT3 p = m_randomSampler.GetHemisphereSample3D();
-            sample.value = XMFLOAT2(p.x*0.5f + 0.5f, p.y*0.5f + 0.5f);
-            //sample.value = XMFLOAT2(p.x*0.5f + 0.5f, 0.5f*(1.0f - p.z));
+            m_samplesGPUBuffer[i].value = XMFLOAT2(p.x*0.5f + 0.5f, p.y*0.5f + 0.5f);
+            m_hemisphereSamplesGPUBuffer[i].value = p;
         }
     }
 }
@@ -436,6 +437,19 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
     // Create raytracing interfaces: raytracing device and commandlist.
     CreateRaytracingInterfaces();
 
+
+    // Create a heap for descriptors.
+    CreateDescriptorHeap();
+
+    // Build geometry to be used in the sample.
+    // ToDO
+    m_isGeometryInitializationRequested = true;
+    InitializeGeometry();
+    m_isGeometryInitializationRequested = false;
+
+    // Build raytracing acceleration structures from the generated geometry.
+    m_isASinitializationRequested = true;
+
 #if ENABLE_RAYTRACING
     // Create root signatures for the shaders.
     CreateRootSignatures();
@@ -443,15 +457,7 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
     // Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
     CreateRaytracingPipelineStateObject();
 #endif
-    // Create a heap for descriptors.
-    CreateDescriptorHeap();
 
-    // Build geometry to be used in the sample.
-    m_isGeometryInitializationRequested = true;
-    
-    // Build raytracing acceleration structures from the generated geometry.
-    m_isASinitializationRequested = true;
-    
     // Create constant buffers for the geometry and the scene.
     CreateConstantBuffers();
 
@@ -486,7 +492,10 @@ void D3D12RaytracingDynamicGeometry::SerializeAndCreateRaytracingRootSignature(D
         ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
     }
 
-    (*rootSig)->SetName(resourceName);
+    if (resourceName)
+    {
+        (*rootSig)->SetName(resourceName);
+    }
 }
 
 void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
@@ -496,16 +505,15 @@ void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
     // Global Root Signature
     // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
     {
-        CD3DX12_DESCRIPTOR_RANGE ranges[3]; // Perfomance TIP: Order from most frequent to least frequent.
+        CD3DX12_DESCRIPTOR_RANGE ranges[1]; // Perfomance TIP: Order from most frequent to least frequent.
         ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output texture
-        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);  // 2 static index and vertex buffers.
         
         CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignature::Slot::Count];
         rootParameters[GlobalRootSignature::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
         rootParameters[GlobalRootSignature::Slot::AccelerationStructure].InitAsShaderResourceView(0);
         rootParameters[GlobalRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
         rootParameters[GlobalRootSignature::Slot::AABBattributeBuffer].InitAsShaderResourceView(3);
-        rootParameters[GlobalRootSignature::Slot::VertexBuffers].InitAsDescriptorTable(1, &ranges[1]);
+        rootParameters[GlobalRootSignature::Slot::SampleBuffers].InitAsShaderResourceView(4);
         
         CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
@@ -516,9 +524,13 @@ void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
     {
         // Triangle geometry
         {
+            CD3DX12_DESCRIPTOR_RANGE ranges[1]; // Perfomance TIP: Order from most frequent to least frequent.
+            ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);  // 2 static index and vertex buffers.
+
             namespace RootSignatureSlots = LocalRootSignature::Triangle::Slot;
             CD3DX12_ROOT_PARAMETER rootParameters[RootSignatureSlots::Count];
             rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(PrimitiveConstantBuffer), 1);
+            rootParameters[RootSignatureSlots::VertexBuffers].InitAsDescriptorTable(1, &ranges[0]);
 
             CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
             localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
@@ -810,7 +822,6 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
     CreateBufferSRV(&m_geometries[GeometryType::Plane].ib, sizeof(indices) / 4, 0, &m_geometryIBHeapIndices[GeometryType::Plane]);
     CreateBufferSRV(&m_geometries[GeometryType::Plane].vb, ARRAYSIZE(vertices), sizeof(vertices[0]), &m_geometryVBHeapIndices[GeometryType::Plane]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Plane] == m_geometryIBHeapIndices[GeometryType::Plane] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
-
 }
 
 void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
@@ -875,7 +886,7 @@ void D3D12RaytracingDynamicGeometry::GenerateBottomLevelASInstanceTransforms()
     int BLASindex = 0;
     {
         // Scale in XZ dimensions.
-        float width = 12.0f;
+        float width = 36.0f;
         XMMATRIX mScale = XMMatrixScaling(width, 1.0f, width);
         XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(-width/2.0f, 0.0f, -width/2.0f)));
         XMMATRIX mTransform = mScale * mTranslation;
@@ -953,6 +964,7 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
             };
 
             m_vBottomLevelAS[i].Initialize(device, m_geometries[i], numInstances, buildFlags);
+            m_vBottomLevelAS[i].SetInstanceContributionToHitGroupIndex(i * RayType::Count);
             maxScratchResourceSize = max(m_vBottomLevelAS[i].RequiredScratchSize(), maxScratchResourceSize);
             m_ASmemoryFootprint += m_vBottomLevelAS[i].RequiredResultDataSizeInBytes();
         }
@@ -1076,9 +1088,13 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
         // Triangle geometry hit groups.
+        for (UINT i = 0; i < GeometryType::Count; i++)
         {
             LocalRootSignature::Triangle::RootArguments rootArgs;
             rootArgs.materialCb = m_planeMaterialCB;
+            if (i == GeometryType::Sphere)
+                rootArgs.materialCb.albedo = XMFLOAT4(1, 0, 0, 0);
+            memcpy(&rootArgs.vertexBufferGPUHandle, &m_geometries[i].ib.gpuDescriptorHandle, sizeof(m_geometries[i].ib.gpuDescriptorHandle));
 
             for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
             {
@@ -1433,15 +1449,21 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
         descriptorSetCommandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
         // Set index and successive vertex buffer decriptor tables.
 
-        commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::VertexBuffers, m_geometries[GeometryType::Plane].ib.gpuDescriptorHandle);
-        commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::VertexBuffers, m_geometries[GeometryType::Sphere].ib.gpuDescriptorHandle);
         commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::OutputView, m_raytracingOutputResourceUAVGpuDescriptor);
     };
 
     commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
 
+    m_sceneCB->seed = 0;
+    m_sceneCB->numSamples = m_randomSampler.NumSamples();
+    m_sceneCB->numSampleSets = m_randomSampler.NumSampleSets();
+    m_sceneCB->numSamplesToUse = m_randomSampler.NumSamples();
+
     // Copy dynamic buffers to GPU.
     {
+        m_hemisphereSamplesGPUBuffer.CopyStagingToGpu(frameIndex);
+        commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::SampleBuffers, m_hemisphereSamplesGPUBuffer.GpuVirtualAddress(frameIndex));
+
         m_sceneCB.CopyStagingToGpu(frameIndex);
         commandList->SetComputeRootConstantBufferView(GlobalRootSignature::Slot::SceneConstant, m_sceneCB.GpuVirtualAddress(frameIndex));
     }
