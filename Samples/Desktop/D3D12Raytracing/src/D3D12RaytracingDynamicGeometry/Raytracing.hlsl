@@ -30,11 +30,11 @@ RWTexture2D<float4> g_renderTarget : register(u0);
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 
 // Triangle resources
-ByteAddressBuffer g_indices : register(t1, space0);
+ByteAddressBuffer l_indices : register(t1, space0);
 #if RENDER_SPHERES
-StructuredBuffer<VertexPositionNormalTexture> g_vertices : register(t2, space0);
+StructuredBuffer<VertexPositionNormalTexture> l_vertices : register(t2, space0);
 #else
-StructuredBuffer<Vertex> g_vertices : register(t2, space0);
+StructuredBuffer<Vertex> l_vertices : register(t2, space0);
 #endif
 // Procedural geometry resources
 StructuredBuffer<PrimitiveInstancePerFrameBuffer> g_AABBPrimitiveAttributes : register(t3, space0);
@@ -196,16 +196,16 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     uint baseIndex = PrimitiveIndex() * triangleIndexStride;
 
     // Load up three 16 bit indices for the triangle.
-    const uint3 indices = Load3x16BitIndices(baseIndex, g_indices);
+    const uint3 indices = Load3x16BitIndices(baseIndex, l_indices);
 
 #if RENDER_SPHERES
 	// Retrieve corresponding vertex normals for the triangle vertices.
-	float3 vertexNormals[3] = { g_vertices[indices[0]].normal, g_vertices[indices[1]].normal, g_vertices[indices[2]].normal};
-	float3 triangleNormal = (vertexNormals[0] + vertexNormals[1] + vertexNormals[2]) / 3;
-
+	//float3 vertexNormals[3] = { l_vertices[indices[0]].normal, l_vertices[indices[1]].normal, l_vertices[indices[2]].normal};
+    float3 vertexNormals[3] = { l_vertices[2].normal, l_vertices[2].normal, l_vertices[2].normal };
+    float3 triangleNormal = (vertexNormals[0] + vertexNormals[1] + vertexNormals[2]) / 3;
 #else
     // Retrieve corresponding vertex normals for the triangle vertices.
-    float3 triangleNormal = g_vertices[indices[0]].normal;
+    float3 triangleNormal = l_vertices[indices[0]].normal;
 #endif
     // PERFORMANCE TIP: it is recommended to avoid values carry over across TraceRay() calls. 
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
@@ -279,7 +279,9 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 //    float4 color = ((float)shadowRayMisses / g_sceneCB.numSamples) * l_materialCB.albedo;
 #else
     float4 color = l_materialCB.albedo;
-#endif 
+#endif     
+    triangleNormal = l_vertices[2].normal;
+
     color = float4(triangleNormal, 1);
     rayPayload.color = color;
 	//rayPayload.color = float4(1, 0, 0, 1);

@@ -76,7 +76,7 @@ namespace SceneArgs
     EnumVar ASBuildFlag(L"Acceleration structure/Build quality", FastTrace, _countof(BuildFlags), BuildFlags, OnASChange, nullptr);
 
     // ToDo test tessFactor 16
-    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 0, 0, 80, 1, OnGeometryChange, nullptr);
+    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 14, 0, 80, 1, OnGeometryChange, nullptr);
     IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1, OnGeometryChange, nullptr);
     IntVar NumSphereBLAS(L"Geometry/# Sphere BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnASChange, nullptr);
 };
@@ -725,6 +725,7 @@ void D3D12RaytracingDynamicGeometry::CreateDescriptorHeap()
     // 1 - raytracing output texture SRV
     // 2 per BLAS - one for the acceleration structure and one for its instance desc 
     // 1 - top level acceleration structure
+    //ToDo
     descriptorHeapDesc.NumDescriptors = 2 * GeometryType::Count + 1 + 2 * MaxBLAS + 1;
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -807,19 +808,30 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
     };
 
     // Cube vertices positions and corresponding triangle normals.
+#if 0
     DirectX::VertexPositionNormalTexture vertices[] =
     {
-        { XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) , XMFLOAT2(0.0f, 0.0f) },
-        { XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) , XMFLOAT2(1.0f, 0.0f) },
-        { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) , XMFLOAT2(1.0f, 0.0f) },
-        { XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) , XMFLOAT2(0.0f, 1.0f) }
+        { XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+        { XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
+        { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
+        { XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) }
     };
-
+#else
+    GeometricPrimitive::VertexType vertices[] =
+    {
+        { XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+        { XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
+        { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f) },
+        { XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) }
+    };
+#endif
     AllocateUploadBuffer(device, indices, sizeof(indices), &m_geometries[GeometryType::Plane].ib.resource);
     AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_geometries[GeometryType::Plane].vb.resource);
 
     // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
-    CreateBufferSRV(&m_geometries[GeometryType::Plane].ib, sizeof(indices) / 4, 0, &m_geometryIBHeapIndices[GeometryType::Plane]);
+
+    // ToDo revise numElements calculation
+    CreateBufferSRV(&m_geometries[GeometryType::Plane].ib, static_cast<UINT>(ceil((float)sizeof(indices) / sizeof(UINT))), 0, &m_geometryIBHeapIndices[GeometryType::Plane]);
     CreateBufferSRV(&m_geometries[GeometryType::Plane].vb, ARRAYSIZE(vertices), sizeof(vertices[0]), &m_geometryVBHeapIndices[GeometryType::Plane]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Plane] == m_geometryIBHeapIndices[GeometryType::Plane] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 }
@@ -865,10 +877,11 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
     AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
 
     // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
-    CreateBufferSRV(&geometry.ib, static_cast<UINT>(indices.size()) / sizeof(UINT) * sizeof(Index), 0, &m_geometryIBHeapIndices[GeometryType::Sphere]);
+    CreateBufferSRV(&geometry.ib, static_cast<UINT>(ceil(static_cast<float>(indices.size() * sizeof(Index)) / sizeof(UINT))) , 0, &m_geometryIBHeapIndices[GeometryType::Sphere]);
     CreateBufferSRV(&geometry.vb, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), &m_geometryVBHeapIndices[GeometryType::Sphere]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Sphere] == m_geometryIBHeapIndices[GeometryType::Sphere] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
+    // ToDo
     m_numTrianglesPerGeometry = static_cast<UINT>(indices.size()) / 3;
 }
 
@@ -1399,7 +1412,8 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
                 D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;                
                 if (i > 0)
                 {
-                    baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex) + (i - 1) * SceneArgs::NumGeometriesPerBLAS;
+                    // ToDo
+                    baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex) + (i - GeometryType::Sphere) * SceneArgs::NumGeometriesPerBLAS;
                 }
                 bottomLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap.Get(), baseGeometryTransformGpuAddress, bUpdate);
                 isTopLevelASUpdateNeeded = true;
