@@ -2,7 +2,6 @@
 
 #define FallbackLayerRegisterSpace 214743647
 
-
 // SRVs
 #define FallbackLayerHitGroupRecordByteAddressBufferRegister 0
 #define FallbackLayerMissShaderRecordByteAddressBufferRegister 1
@@ -24,59 +23,57 @@
 
 #ifndef HLSL
 struct ViewKey {
-    unsigned int ViewType;
-    unsigned int StructuredStride;
+  unsigned int ViewType;
+  union 
+  {
+    unsigned int StructuredStride; // When ViewType == StructuredBuffer
+    unsigned int SRVComponentType; // When ViewType != StructuredBuffer &&  ViewType != RawBuffer
+  };
 };
 
-struct ShaderInfo
-{
-    const wchar_t *ExportName;
-    unsigned int SamplerDescriptorSizeInBytes;
-    unsigned int SrvCbvUavDescriptorSizeInBytes;
-    unsigned int ShaderRecordIdentifierSizeInBytes;
-    const D3D12_VERSIONED_ROOT_SIGNATURE_DESC *pRootSignatureDesc;
+struct ShaderInfo {
+  const wchar_t *ExportName;
+  unsigned int SamplerDescriptorSizeInBytes;
+  unsigned int SrvCbvUavDescriptorSizeInBytes;
+  unsigned int ShaderRecordIdentifierSizeInBytes;
+  const D3D12_VERSIONED_ROOT_SIGNATURE_DESC *pRootSignatureDesc;
 
-    ViewKey *pSRVRegisterSpaceArray;
-    UINT *pNumSRVSpaces;
+  ViewKey *pSRVRegisterSpaceArray;
+  unsigned int *pNumSRVSpaces;
 
-    ViewKey *pUAVRegisterSpaceArray;
-    UINT *pNumUAVSpaces;
+  ViewKey *pUAVRegisterSpaceArray;
+  unsigned int *pNumUAVSpaces;
 };
 
-struct DispatchRaysConstants
-{
-    unsigned __int32 RayDispatchDimensionsWidth;
-    unsigned __int32 RayDispatchDimensionsHeight;
-    unsigned __int32 HitGroupShaderRecordStride;
-    unsigned __int32 MissShaderRecordStride;
+struct DispatchRaysConstants {
+  unsigned __int32 RayDispatchDimensionsWidth;
+  unsigned __int32 RayDispatchDimensionsHeight;
+  unsigned __int32 HitGroupShaderRecordStride;
+  unsigned __int32 MissShaderRecordStride;
 
-    // 64-bit values
-    unsigned __int64 SamplerDescriptorHeapStart;
-    unsigned __int64 SrvCbvUavDescriptorHeapStart;
+  // 64-bit values
+  unsigned __int64 SamplerDescriptorHeapStart;
+  unsigned __int64 SrvCbvUavDescriptorHeapStart;
 };
 
-enum DescriptorRangeTypes
-{
-    SRV = 0,
-    CBV,
-    UAV,
-    Sampler,
-    NumRangeTypes
-};
+enum DescriptorRangeTypes { SRV = 0, CBV, UAV, Sampler, NumRangeTypes };
 
-enum RootSignatureParameterOffset
-{
-    HitGroupRecord = 0,
-    MissShaderRecord,
-    RayGenShaderRecord,
-    CallableShaderRecord,
-    DispatchConstants,
-    CbvSrvUavDescriptorHeapAliasedTables,
-    SamplerDescriptorHeapAliasedTables,
-    AccelerationStructuresList,
+enum RootSignatureParameterOffset {
+  HitGroupRecord = 0,
+  MissShaderRecord,
+  RayGenShaderRecord,
+  CallableShaderRecord,
+  DispatchConstants,
+  CbvSrvUavDescriptorHeapAliasedTables,
+  SamplerDescriptorHeapAliasedTables,
+  AccelerationStructuresList,
 #if ENABLE_UAV_LOG
-    DebugUAVLog,
+  DebugUAVLog,
 #endif
-    NumParameters
+#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
+  DebugConstants,
+#endif
+
+  NumParameters
 };
 #endif

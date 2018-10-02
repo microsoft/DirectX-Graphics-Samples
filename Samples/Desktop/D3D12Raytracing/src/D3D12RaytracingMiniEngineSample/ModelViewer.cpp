@@ -60,9 +60,6 @@ using namespace GameCore;
 using namespace Math;
 using namespace Graphics;
 
-// GPU stuff
-#define BUILD_ACCELERATION_STRUCT_ON_CPU 0
-
 extern ByteAddressBuffer   g_bvh_bottomLevelAccelerationStructure;
 ColorBuffer g_SceneNormalBuffer;
 
@@ -110,6 +107,8 @@ enum RaytracingTypes
 
 const static UINT MaxRayRecursion = 2;
 
+const static UINT c_NumCameraPositions = 5;
+
 struct RaytracingDispatchRayInputs
 {
     RaytracingDispatchRayInputs() {}
@@ -141,9 +140,9 @@ struct RaytracingDispatchRayInputs
         m_HitShaderTable.Create(L"Hit Shader Table", 1, HitGroupTableSize, pHitGroupShaderTable);
     }
 
-    D3D12_FALLBACK_DISPATCH_RAYS_DESC GetDispatchRayDesc(UINT DispatchWidth, UINT DispatchHeight)
+    D3D12_DISPATCH_RAYS_DESC GetDispatchRayDesc(UINT DispatchWidth, UINT DispatchHeight)
     {
-        D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchRaysDesc = {};
+        D3D12_DISPATCH_RAYS_DESC dispatchRaysDesc = {};
 
         dispatchRaysDesc.RayGenerationShaderRecord.StartAddress = m_RayGenShaderTable.GetGpuVirtualAddress();
         dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = m_RayGenShaderTable.GetBufferSize();
@@ -155,6 +154,7 @@ struct RaytracingDispatchRayInputs
         dispatchRaysDesc.MissShaderTable.StrideInBytes = dispatchRaysDesc.MissShaderTable.SizeInBytes; // Only one entry
         dispatchRaysDesc.Width = DispatchWidth;
         dispatchRaysDesc.Height = DispatchHeight;
+        dispatchRaysDesc.Depth = 1;
         return dispatchRaysDesc;
     }
 
@@ -186,6 +186,8 @@ public:
     virtual void RenderScene( void ) override;
     virtual void RenderUI(class GraphicsContext&) override;
     virtual void Raytrace(class GraphicsContext&);
+
+    void SetCameraToPredefinedPosition(int cameraPosition);
 
 private:
 
@@ -223,6 +225,17 @@ private:
 
     Vector3 m_SunDirection;
     ShadowCamera m_SunShadow;
+
+    struct CameraPosition
+    {
+        Vector3 position;
+        float heading;
+        float pitch;
+    };
+
+    CameraPosition m_CameraPosArray[c_NumCameraPositions];
+    UINT m_CameraPosArrayCurrentPosition;
+
 };
 
 int wmain(int argc, wchar_t** argv)
@@ -239,11 +252,9 @@ int wmain(int argc, wchar_t** argv)
     }
 #endif
 
-    UUID experimentalRaytracingFeatures[] = { D3D12ExperimentalShaderModels, D3D12RaytracingPrototype };
     UUID experimentalShadersFeatures[] = { D3D12ExperimentalShaderModels };
     struct Experiment { UUID *Experiments; UINT numFeatures; };
     Experiment experiments[] = {
-        { experimentalRaytracingFeatures, ARRAYSIZE(experimentalRaytracingFeatures) },
         { experimentalShadersFeatures, ARRAYSIZE(experimentalShadersFeatures) },
         { nullptr, 0 },
     };
@@ -397,6 +408,7 @@ void InitializeSceneInfo(
         meshInfoData[i].m_normalAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_normal].offset;
         meshInfoData[i].m_positionAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_position].offset;
         meshInfoData[i].m_tangentAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_tangent].offset;
+        meshInfoData[i].m_bitangentAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_bitangent].offset;
         meshInfoData[i].m_attributeStrideBytes = model.m_pMesh[i].vertexStride;
         meshInfoData[i].m_materialInstanceId = model.m_pMesh[i].materialIndex;
         ASSERT(meshInfoData[i].m_materialInstanceId < 27);
@@ -572,8 +584,6 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
     g_pRaytracingDevice->CreateRootSignature(0, pLocalRootSignatureBlob->GetBufferPointer(), pLocalRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&g_LocalRaytracingRootSignature));
 
     std::vector<D3D12_STATE_SUBOBJECT> subObjects;
-    subObjects.reserve(50); // Being lazy, pick some large amount to avoid a resize
-
     D3D12_STATE_SUBOBJECT nodeMaskSubObject;
     UINT nodeMask = 1;
     nodeMaskSubObject.pDesc = &nodeMask;
@@ -582,7 +592,7 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
 
     D3D12_STATE_SUBOBJECT rootSignatureSubObject;
     rootSignatureSubObject.pDesc = &g_GlobalRaytracingRootSignature.p;
-    rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE;
+    rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
     subObjects.push_back(rootSignatureSubObject);
 
     D3D12_STATE_SUBOBJECT configurationSubObject;
@@ -647,25 +657,6 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
     localRootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
     subObjects.push_back(localRootSignatureSubObject);
     D3D12_STATE_SUBOBJECT &rootSignatureSubobject = subObjects.back();
-
-    D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderAssociationDescTemplate;
-    shaderAssociationDescTemplate.NumExports = (UINT)shadersToAssociate.size();
-    shaderAssociationDescTemplate.pExports = shadersToAssociate.data();
-
-
-    D3D12_STATE_SUBOBJECT rootSignatureAssociationSubobject;
-    D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION rootSigAssociationDesc = shaderAssociationDescTemplate;
-    rootSigAssociationDesc.pSubobjectToAssociate = &rootSignatureSubobject;
-    rootSignatureAssociationSubobject.pDesc = &rootSigAssociationDesc;
-    rootSignatureAssociationSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-    subObjects.push_back(rootSignatureAssociationSubobject);
-
-    D3D12_STATE_SUBOBJECT shaderConfigAssociationSubobject;
-    D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderConfigAssociationDesc = shaderAssociationDescTemplate;
-    shaderConfigAssociationDesc.pSubobjectToAssociate = &rootSignatureSubobject;
-    shaderConfigAssociationSubobject.pDesc = &rootSigAssociationDesc;
-    shaderConfigAssociationSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-    subObjects.push_back(shaderConfigAssociationSubobject);
 
     D3D12_STATE_OBJECT_DESC stateObject;
     stateObject.NumSubobjects = (UINT)subObjects.size();
@@ -751,7 +742,7 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
 
 void D3D12RaytracingMiniEngineSample::Startup( void )
 {
-    D3D12CreateRaytracingFallbackDevice(g_Device, CreateRaytracingFallbackDeviceFlags::ForceComputeFallback, 0, IID_PPV_ARGS(&g_pRaytracingDevice));
+    D3D12CreateRaytracingFallbackDevice(g_Device, CreateRaytracingFallbackDeviceFlags::None, 0, IID_PPV_ARGS(&g_pRaytracingDevice));
     g_SceneNormalBuffer.Create(L"Main Normal Buffer", g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight(), 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
     g_pRaytracingDescriptorHeap = std::unique_ptr<DescriptorHeapStack>(
@@ -888,19 +879,15 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
 
     const UINT numBottomLevels = 1;
 
-    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelAccelerationStructureDesc = {};
-    topLevelAccelerationStructureDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-    topLevelAccelerationStructureDesc.NumDescs = numBottomLevels;
-    topLevelAccelerationStructureDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo;
-    D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInputInfo;
-    prebuildInputInfo.Type = topLevelAccelerationStructureDesc.Type;
-    prebuildInputInfo.Flags = topLevelAccelerationStructureDesc.Flags;
-    prebuildInputInfo.NumDescs = topLevelAccelerationStructureDesc.NumDescs;
-    prebuildInputInfo.pGeometryDescs = nullptr;
-    prebuildInputInfo.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    g_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInputInfo, &topLevelPrebuildInfo);
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelAccelerationStructureDesc = {};
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &topLevelInputs = topLevelAccelerationStructureDesc.Inputs;
+    topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+    topLevelInputs.NumDescs = numBottomLevels;
+    topLevelInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+    topLevelInputs.pGeometryDescs = nullptr;
+    topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+    g_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &topLevelPrebuildInfo);
     
     const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlag = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
     std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometryDescs(m_Model.m_Header.meshCount);
@@ -916,17 +903,12 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
         D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC &trianglesDesc = desc.Triangles;
         trianglesDesc.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
         trianglesDesc.VertexCount = mesh.vertexCount;
-#if BUILD_ACCELERATION_STRUCT_ON_CPU
-        trianglesDesc.VertexBuffer.StartAddress = (D3D12_GPU_VIRTUAL_ADDRESS)(m_Model.m_pVertexData + (mesh.vertexDataByteOffset + mesh.attrib[Model::attrib_position].offset));
-        trianglesDesc.IndexBuffer = (D3D12_GPU_VIRTUAL_ADDRESS)(m_Model.m_pIndexData + mesh.indexDataByteOffset);
-#else
         trianglesDesc.VertexBuffer.StartAddress = m_Model.m_VertexBuffer.GetGpuVirtualAddress() + (mesh.vertexDataByteOffset + mesh.attrib[Model::attrib_position].offset);
         trianglesDesc.IndexBuffer = m_Model.m_IndexBuffer.GetGpuVirtualAddress() + mesh.indexDataByteOffset;
-#endif
         trianglesDesc.VertexBuffer.StrideInBytes = mesh.vertexStride;
         trianglesDesc.IndexCount = mesh.indexCount;
         trianglesDesc.IndexFormat = DXGI_FORMAT_R16_UINT;
-        trianglesDesc.Transform = 0;
+        trianglesDesc.Transform3x4 = 0;
     }
 
     std::vector<UINT64> bottomLevelAccelerationStructureSize(numBottomLevels);
@@ -934,23 +916,17 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     for (UINT i = 0; i < numBottomLevels; i++)
     {
         D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC &bottomLevelAccelerationStructureDesc = bottomLevelAccelerationStructureDescs[i];
-        bottomLevelAccelerationStructureDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-        bottomLevelAccelerationStructureDesc.NumDescs = numMeshes;
-        bottomLevelAccelerationStructureDesc.pGeometryDescs = &geometryDescs[i];
-        bottomLevelAccelerationStructureDesc.Flags = buildFlag;
+        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &bottomLevelInputs = bottomLevelAccelerationStructureDesc.Inputs;
+        bottomLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+        bottomLevelInputs.NumDescs = numMeshes;
+        bottomLevelInputs.pGeometryDescs = &geometryDescs[i];
+        bottomLevelInputs.Flags = buildFlag;
+        bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelprebuildInfo;
-        D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC bottomLevelPrebuildInputInfo;
-        bottomLevelPrebuildInputInfo.Type = bottomLevelAccelerationStructureDesc.Type;
-        bottomLevelPrebuildInputInfo.Flags = bottomLevelAccelerationStructureDesc.Flags;
-        bottomLevelPrebuildInputInfo.NumDescs = bottomLevelAccelerationStructureDesc.NumDescs;
-        bottomLevelPrebuildInputInfo.pGeometryDescs = bottomLevelAccelerationStructureDesc.pGeometryDescs;
-        bottomLevelPrebuildInputInfo.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-        
-        g_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelPrebuildInputInfo, &bottomLevelprebuildInfo);
+        g_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &bottomLevelprebuildInfo);
 
         bottomLevelAccelerationStructureSize[i] = bottomLevelprebuildInfo.ResultDataMaxSizeInBytes;
-
         scratchBufferSizeNeeded = std::max(bottomLevelprebuildInfo.ScratchDataSizeInBytes, scratchBufferSizeNeeded);
     }
 
@@ -967,10 +943,8 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
         nullptr,
         IID_PPV_ARGS(&g_bvh_topLevelAccelerationStructure));
 
-    topLevelAccelerationStructureDesc.DestAccelerationStructureData.StartAddress = g_bvh_topLevelAccelerationStructure->GetGPUVirtualAddress();
-    topLevelAccelerationStructureDesc.DestAccelerationStructureData.SizeInBytes = g_bvh_topLevelAccelerationStructure->GetDesc().Width;
-    topLevelAccelerationStructureDesc.ScratchAccelerationStructureData.StartAddress = scratchBuffer.GetGpuVirtualAddress();
-    topLevelAccelerationStructureDesc.ScratchAccelerationStructureData.SizeInBytes = scratchBuffer.GetBufferSize();
+    topLevelAccelerationStructureDesc.DestAccelerationStructureData = g_bvh_topLevelAccelerationStructure->GetGPUVirtualAddress();
+    topLevelAccelerationStructureDesc.ScratchAccelerationStructureData = scratchBuffer.GetGpuVirtualAddress();
 
     std::vector<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> instanceDescs(numBottomLevels);
     g_bvh_bottomLevelAccelerationStructures.resize(numBottomLevels);
@@ -987,19 +961,17 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
             nullptr, 
             IID_PPV_ARGS(&bottomLevelStructure));
 
-        bottomLevelAccelerationStructureDescs[i].DestAccelerationStructureData.StartAddress = bottomLevelStructure->GetGPUVirtualAddress();
-        bottomLevelAccelerationStructureDescs[i].DestAccelerationStructureData.SizeInBytes = bottomLevelAccelerationStructureSize[i];
-        bottomLevelAccelerationStructureDescs[i].ScratchAccelerationStructureData.StartAddress = scratchBuffer.GetGpuVirtualAddress();
-        bottomLevelAccelerationStructureDescs[i].ScratchAccelerationStructureData.SizeInBytes = scratchBuffer.GetBufferSize();
+        bottomLevelAccelerationStructureDescs[i].DestAccelerationStructureData = bottomLevelStructure->GetGPUVirtualAddress();
+        bottomLevelAccelerationStructureDescs[i].ScratchAccelerationStructureData = scratchBuffer.GetGpuVirtualAddress();
 
         D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC &instanceDesc = instanceDescs[i];
         UINT descriptorIndex = g_pRaytracingDescriptorHeap->AllocateBufferUav(*bottomLevelStructure);
         
         // Identity matrix
         ZeroMemory(instanceDesc.Transform, sizeof(instanceDesc.Transform));
-        instanceDesc.Transform[0] = 1.0f;
-        instanceDesc.Transform[5] = 1.0f;
-        instanceDesc.Transform[10] = 1.0f;
+        instanceDesc.Transform[0][0] = 1.0f;
+        instanceDesc.Transform[1][1] = 1.0f;
+        instanceDesc.Transform[2][2] = 1.0f;
         
         instanceDesc.AccelerationStructure = g_pRaytracingDevice->GetWrappedPointerSimple(descriptorIndex, g_bvh_bottomLevelAccelerationStructures[i]->GetGPUVirtualAddress());
         instanceDesc.Flags = 0;
@@ -1011,8 +983,8 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     ByteAddressBuffer instanceDataBuffer;
     instanceDataBuffer.Create(L"Instance Data Buffer", numBottomLevels, sizeof(D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC), instanceDescs.data());
 
-    topLevelAccelerationStructureDesc.InstanceDescs = instanceDataBuffer.GetGpuVirtualAddress();
-    topLevelAccelerationStructureDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+    topLevelInputs.InstanceDescs = instanceDataBuffer.GetGpuVirtualAddress();
+    topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
     GraphicsContext& gfxContext = GraphicsContext::Begin(L"Create Acceleration Structure");
     ID3D12GraphicsCommandList *pCommandList = gfxContext.GetCommandList();
@@ -1026,11 +998,11 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     auto uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
     for (UINT i = 0; i < bottomLevelAccelerationStructureDescs.size(); i++)
     {
-        pRaytracingCommandList->BuildRaytracingAccelerationStructure(&bottomLevelAccelerationStructureDescs[i]);
+        pRaytracingCommandList->BuildRaytracingAccelerationStructure(&bottomLevelAccelerationStructureDescs[i], 0, nullptr);
     }
     pCommandList->ResourceBarrier(1, &uavBarrier);
 
-    pRaytracingCommandList->BuildRaytracingAccelerationStructure(&topLevelAccelerationStructureDesc);
+    pRaytracingCommandList->BuildRaytracingAccelerationStructure(&topLevelAccelerationStructureDesc, 0, nullptr);
     
     g_bvh_topLevelAccelerationStructurePointer = g_pRaytracingDevice->GetWrappedPointerSimple(
         g_pRaytracingDescriptorHeap->AllocateBufferUav(*g_bvh_topLevelAccelerationStructure),
@@ -1043,9 +1015,38 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     float modelRadius = Length(m_Model.m_Header.boundingBox.max - m_Model.m_Header.boundingBox.min) * .5f;
     const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
     m_Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
-    m_Camera.SetZRange( 1.0f, 10000.0f );
-    m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
+    
+    m_CameraPosArrayCurrentPosition = 0;
+    
+    // Lion's head
+    m_CameraPosArray[0].position = Vector3(-1100.0f, 170.0f, -30.0f);
+    m_CameraPosArray[0].heading = 1.5707f;
+    m_CameraPosArray[0].pitch = 0.0f;
 
+    // View of columns
+    m_CameraPosArray[1].position = Vector3(299.0f, 208.0f, -202.0f);
+    m_CameraPosArray[1].heading = -3.1111f;
+    m_CameraPosArray[1].pitch = 0.5953f;
+
+    // Bottom-up view from the floor
+    m_CameraPosArray[2].position = Vector3(-1237.61f, 80.60f, -26.02f);
+    m_CameraPosArray[2].heading = -1.5707f;
+    m_CameraPosArray[2].pitch = 0.268f;
+
+    // Top-down view from the second floor
+    m_CameraPosArray[3].position = Vector3(-977.90f, 595.05f, -194.97f);
+    m_CameraPosArray[3].heading = -2.077f;
+    m_CameraPosArray[3].pitch =  - 0.450f;
+
+    // View of corridors on the second floor
+    m_CameraPosArray[4].position = Vector3(-1463.0f, 600.0f, 394.52f);
+    m_CameraPosArray[4].heading = -1.236f;
+    m_CameraPosArray[4].pitch = 0.0f;
+
+    m_Camera.SetZRange( 1.0f, 10000.0f );
+
+    m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
+    
     MotionBlur::Enable = false;//true;
     TemporalEffects::EnableTAA = false;//true;
     FXAA::Enable = false;
@@ -1093,8 +1094,30 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
       rayTracingMode = RTM_DIFFUSE_WITH_SHADOWRAYS;
     else if(GameInput::IsFirstPressed(GameInput::kKey_7))
       rayTracingMode = RTM_REFLECTIONS;
+    
+    static bool freezeCamera = false;
+    
+    if (GameInput::IsFirstPressed(GameInput::kKey_f))
+    {
+        freezeCamera = !freezeCamera;
+    }
 
-    m_CameraController->Update(deltaT);
+    if (GameInput::IsFirstPressed(GameInput::kKey_left))
+    {
+        m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + c_NumCameraPositions - 1) % c_NumCameraPositions;
+        SetCameraToPredefinedPosition(m_CameraPosArrayCurrentPosition);
+    }
+    else if (GameInput::IsFirstPressed(GameInput::kKey_right))
+    {
+        m_CameraPosArrayCurrentPosition = (m_CameraPosArrayCurrentPosition + 1) % c_NumCameraPositions;
+        SetCameraToPredefinedPosition(m_CameraPosArrayCurrentPosition);
+    }
+
+    if (!freezeCamera) 
+    {
+        m_CameraController->Update(deltaT);
+    }
+
     m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
 
     float costheta = cosf(m_SunOrientation);
@@ -1159,12 +1182,28 @@ void D3D12RaytracingMiniEngineSample::RenderObjects( GraphicsContext& gfxContext
             materialIdx = mesh.materialIndex;
             gfxContext.SetDynamicDescriptors(2, 0, 6, m_Model.GetSRVs(materialIdx) );
         }
-        uint32_t areNormalsNeeded = (rayTracingMode != RTM_REFLECTIONS) || m_pMaterialIsReflective[mesh.materialIndex];
+        uint32_t areNormalsNeeded = 1;// (rayTracingMode != RTM_REFLECTIONS) || m_pMaterialIsReflective[mesh.materialIndex];
         gfxContext.SetConstants(4, baseVertex, materialIdx);
         gfxContext.SetConstants(5, areNormalsNeeded);
 
         gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
     }
+}
+
+
+void D3D12RaytracingMiniEngineSample::SetCameraToPredefinedPosition(int cameraPosition) 
+{
+    if (cameraPosition < 0 || cameraPosition >= c_NumCameraPositions)
+        return;
+    
+    m_CameraController->SetCurrentHeading(m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading);
+    m_CameraController->SetCurrentPitch(m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
+
+    Matrix3 neworientation = Matrix3(m_CameraController->GetWorldEast(), m_CameraController->GetWorldUp(), -m_CameraController->GetWorldNorth()) 
+                           * Matrix3::MakeYRotation(m_CameraController->GetCurrentHeading())
+                           * Matrix3::MakeXRotation(m_CameraController->GetCurrentPitch());
+    m_Camera.SetTransform(AffineTransform(neworientation, m_CameraPosArray[m_CameraPosArrayCurrentPosition].position));
+    m_Camera.Update();
 }
 
 void D3D12RaytracingMiniEngineSample::RenderLightShadows(GraphicsContext& gfxContext)
@@ -1435,8 +1474,9 @@ void Raytracebarycentrics(
     pCommandList->SetComputeRootDescriptorTable(4, g_OutputUAV);
     pRaytracingCommandList->SetTopLevelAccelerationStructure(7, g_bvh_topLevelAccelerationStructurePointer);
 
-    D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchRaysDesc = g_RaytracingInputs[Primarybarycentric].GetDispatchRayDesc(colorTarget.GetWidth(), colorTarget.GetHeight());
-    pRaytracingCommandList->DispatchRays(g_RaytracingInputs[Primarybarycentric].m_pPSO, &dispatchRaysDesc);
+    D3D12_DISPATCH_RAYS_DESC dispatchRaysDesc = g_RaytracingInputs[Primarybarycentric].GetDispatchRayDesc(colorTarget.GetWidth(), colorTarget.GetHeight());
+    pRaytracingCommandList->SetPipelineState1(g_RaytracingInputs[Primarybarycentric].m_pPSO);
+    pRaytracingCommandList->DispatchRays(&dispatchRaysDesc);
 }
 
 void RaytracebarycentricsSSR(
@@ -1479,8 +1519,9 @@ void RaytracebarycentricsSSR(
     pCommandList->SetComputeRootDescriptorTable(3, g_DepthAndNormalsTable);
     pRaytracingCommandList->SetTopLevelAccelerationStructure(7, g_bvh_topLevelAccelerationStructurePointer);
 
-    D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchRaysDesc = g_RaytracingInputs[Reflectionbarycentric].GetDispatchRayDesc(colorTarget.GetWidth(), colorTarget.GetHeight());
-    pRaytracingCommandList->DispatchRays(g_RaytracingInputs[Reflectionbarycentric].m_pPSO, &dispatchRaysDesc);
+    D3D12_DISPATCH_RAYS_DESC dispatchRaysDesc = g_RaytracingInputs[Reflectionbarycentric].GetDispatchRayDesc(colorTarget.GetWidth(), colorTarget.GetHeight());
+    pRaytracingCommandList->SetPipelineState1(g_RaytracingInputs[Reflectionbarycentric].m_pPSO);
+    pRaytracingCommandList->DispatchRays(&dispatchRaysDesc);
 }
 
 void D3D12RaytracingMiniEngineSample::RaytraceShadows(
@@ -1535,8 +1576,9 @@ void D3D12RaytracingMiniEngineSample::RaytraceShadows(
     pCommandList->SetComputeRootDescriptorTable(3, g_DepthAndNormalsTable);
     pRaytracingCommandList->SetTopLevelAccelerationStructure(7, g_bvh_topLevelAccelerationStructurePointer);
 
-    D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchRaysDesc = g_RaytracingInputs[Shadows].GetDispatchRayDesc(colorTarget.GetWidth(), colorTarget.GetHeight());
-    pRaytracingCommandList->DispatchRays(g_RaytracingInputs[Shadows].m_pPSO, &dispatchRaysDesc);
+    D3D12_DISPATCH_RAYS_DESC dispatchRaysDesc = g_RaytracingInputs[Shadows].GetDispatchRayDesc(colorTarget.GetWidth(), colorTarget.GetHeight());
+    pRaytracingCommandList->SetPipelineState1(g_RaytracingInputs[Shadows].m_pPSO);
+    pRaytracingCommandList->DispatchRays(&dispatchRaysDesc);
 }
 
 void D3D12RaytracingMiniEngineSample::RaytraceDiffuse(
@@ -1588,8 +1630,9 @@ void D3D12RaytracingMiniEngineSample::RaytraceDiffuse(
     pCommandList->SetComputeRootDescriptorTable(4, g_OutputUAV);
     pRaytracingCommandList->SetTopLevelAccelerationStructure(7, g_bvh_topLevelAccelerationStructurePointer);
 
-    D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchRaysDesc = g_RaytracingInputs[DiffuseHitShader].GetDispatchRayDesc(colorTarget.GetWidth(), colorTarget.GetHeight());
-    pRaytracingCommandList->DispatchRays(g_RaytracingInputs[DiffuseHitShader].m_pPSO, &dispatchRaysDesc);
+    D3D12_DISPATCH_RAYS_DESC dispatchRaysDesc = g_RaytracingInputs[DiffuseHitShader].GetDispatchRayDesc(colorTarget.GetWidth(), colorTarget.GetHeight());
+    pRaytracingCommandList->SetPipelineState1(g_RaytracingInputs[DiffuseHitShader].m_pPSO);
+    pRaytracingCommandList->DispatchRays(&dispatchRaysDesc);
 }
 
 void D3D12RaytracingMiniEngineSample::RaytraceReflections(
@@ -1646,8 +1689,9 @@ void D3D12RaytracingMiniEngineSample::RaytraceReflections(
     pCommandList->SetComputeRootDescriptorTable(4, g_OutputUAV);
     pRaytracingCommandList->SetTopLevelAccelerationStructure(7, g_bvh_topLevelAccelerationStructurePointer);
 
-    D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchRaysDesc = g_RaytracingInputs[Reflection].GetDispatchRayDesc(colorTarget.GetWidth(), colorTarget.GetHeight());
-    pRaytracingCommandList->DispatchRays(g_RaytracingInputs[Reflection].m_pPSO, &dispatchRaysDesc);
+    D3D12_DISPATCH_RAYS_DESC dispatchRaysDesc = g_RaytracingInputs[Reflection].GetDispatchRayDesc(colorTarget.GetWidth(), colorTarget.GetHeight());
+    pRaytracingCommandList->SetPipelineState1(g_RaytracingInputs[Reflection].m_pPSO);
+    pRaytracingCommandList->DispatchRays(&dispatchRaysDesc);
 }
 
 void D3D12RaytracingMiniEngineSample::RenderUI(class GraphicsContext& gfxContext)
@@ -1670,6 +1714,10 @@ void D3D12RaytracingMiniEngineSample::RenderUI(class GraphicsContext& gfxContext
 
 void D3D12RaytracingMiniEngineSample::Raytrace(class GraphicsContext& gfxContext)
 {
+    ScopedTimer _prof(L"Raytrace", gfxContext);
+
+    gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
     uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
 
     switch (rayTracingMode)

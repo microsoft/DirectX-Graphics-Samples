@@ -131,7 +131,7 @@ void ShadowsFogScatteringSquidScene::CreateDescriptorHeaps(ID3D12Device* pDevice
     // 1) null views, 
     // 2) object diffuse + normal textures views, 
     // 3) per frame views: 2x depth buffers (shadow, scene pass), 3x constant buffers (shadow, scene, postprocess pass)
-    const UINT NumNullSrvs = 2;		// Null descriptors are needed for out of bounds behavior reads.
+    const UINT NumNullSrvs = 2;        // Null descriptors are needed for out of bounds behavior reads.
     const UINT cbvCount = m_frameCount * NumConstantBuffers;
     const UINT srvCount = _countof(SampleAssets::Textures) + m_frameCount * NumDepthBuffers;
     D3D12_DESCRIPTOR_HEAP_DESC cbvSrvHeapDesc = {};
@@ -143,7 +143,7 @@ void ShadowsFogScatteringSquidScene::CreateDescriptorHeaps(ID3D12Device* pDevice
 
     // Describe and create a sampler descriptor heap.
     D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
-    samplerHeapDesc.NumDescriptors = 2;		// One clamp and one wrap sampler.
+    samplerHeapDesc.NumDescriptors = 2;        // One clamp and one wrap sampler.
     samplerHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
     samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     ThrowIfFailed(pDevice->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(&m_samplerHeap)));
@@ -169,10 +169,10 @@ void ShadowsFogScatteringSquidScene::CreateRootSignatures(ID3D12Device* pDevice)
     // Create a root signature for shadow and scene render pass.
     {
         CD3DX12_DESCRIPTOR_RANGE1 ranges[4]; // Perfomance TIP: Order from most frequent to least frequent.
-        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);	// 2 frequently changed diffuse + normal textures - using registers t1 and t2.
-        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);	// 1 frequently changed constant buffer.
-        ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);												// 1 infrequently changed shadow texture - starting in register t0.
-        ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 2, 0);											// 2 static samplers.
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);    // 2 frequently changed diffuse + normal textures - using registers t1 and t2.
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);    // 1 frequently changed constant buffer.
+        ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);                                                // 1 infrequently changed shadow texture - starting in register t0.
+        ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 2, 0);                                            // 2 static samplers.
 
         CD3DX12_ROOT_PARAMETER1 rootParameters[4];
         rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
@@ -195,7 +195,7 @@ void ShadowsFogScatteringSquidScene::CreateRootSignatures(ID3D12Device* pDevice)
         CD3DX12_DESCRIPTOR_RANGE1 ranges[3];
         CD3DX12_ROOT_PARAMETER1 rootParameters[3];
 
-        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);	// depth texture - using register t0.
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);    // depth texture - using register t0.
         ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
         ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
         rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);

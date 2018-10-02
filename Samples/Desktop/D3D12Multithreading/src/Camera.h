@@ -17,19 +17,19 @@ using namespace DirectX;
 class Camera
 {
 public:
-	Camera();
-	~Camera();
+    Camera();
+    ~Camera();
 
-	void Get3DViewProjMatrices(XMFLOAT4X4 *view, XMFLOAT4X4 *proj, float fovInDegrees, float screenWidth, float screenHeight);
-	void Reset();
-	void Set(XMVECTOR eye, XMVECTOR at, XMVECTOR up);
-	static Camera *get();
-	void RotateYaw(float deg);
-	void RotatePitch(float deg);
-	void GetOrthoProjMatrices(XMFLOAT4X4 *view, XMFLOAT4X4 *proj, float width, float height);
-	XMVECTOR mEye; // Where the camera is in world space. Z increases into of the screen when using LH coord system (which we are and DX uses)
-	XMVECTOR mAt; // What the camera is looking at (world origin)
-	XMVECTOR mUp; // Which way is up
+    void Get3DViewProjMatrices(XMFLOAT4X4 *view, XMFLOAT4X4 *proj, float fovInDegrees, float screenWidth, float screenHeight);
+    void Reset();
+    void Set(XMVECTOR eye, XMVECTOR at, XMVECTOR up);
+    static Camera *get();
+    void RotateYaw(float deg);
+    void RotatePitch(float deg);
+    void GetOrthoProjMatrices(XMFLOAT4X4 *view, XMFLOAT4X4 *proj, float width, float height);
+    XMVECTOR mEye; // Where the camera is in world space. Z increases into of the screen when using LH coord system (which we are and DX uses)
+    XMVECTOR mAt; // What the camera is looking at (world origin)
+    XMVECTOR mUp; // Which way is up
 private:
-	static Camera* mCamera;
+    static Camera* mCamera;
 };

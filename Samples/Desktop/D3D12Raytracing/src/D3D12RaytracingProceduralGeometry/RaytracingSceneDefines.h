@@ -31,9 +31,6 @@ namespace LocalRootSignature {
         enum Enum {
             Triangle = 0,
             AABB,
-    #if USE_NON_NULL_LOCAL_ROOT_SIG
-            Empty,
-    #endif
             Count
         };
     }
@@ -80,6 +77,13 @@ namespace GeometryType {
     enum Enum {
         Triangle = 0,
         AABB,       // Procedural geometry with an application provided AABB.
+        Count
+    };
+}
+
+namespace GpuTimers {
+    enum Enum {
+        Raytracing = 0,
         Count
     };
 }

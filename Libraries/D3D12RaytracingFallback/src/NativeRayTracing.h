@@ -13,84 +13,84 @@
 class NativeRaytracingStateObject : public ID3D12RaytracingFallbackStateObject
 {
 public:
-    NativeRaytracingStateObject(ID3D12StateObjectPrototype *pStateObject) : m_pStateObject(pStateObject)
+    NativeRaytracingStateObject(ID3D12StateObject *pStateObject) : m_pStateObject(pStateObject)
     {
-        ThrowFailure(m_pStateObject->QueryInterface(&m_pStateObjectInfo));
+        ThrowFailure(m_pStateObject->QueryInterface(&m_pStateObjectProperties));
     }
 
     virtual ~NativeRaytracingStateObject() {}
 
     virtual void *STDMETHODCALLTYPE GetShaderIdentifier(LPCWSTR pExportName)
     {
-        return m_pStateObjectInfo->GetShaderIdentifier(pExportName);
+        return m_pStateObjectProperties->GetShaderIdentifier(pExportName);
     }
 
     virtual UINT64 STDMETHODCALLTYPE GetShaderStackSize(_In_  LPCWSTR pExportName)
     {
-        return m_pStateObjectInfo->GetShaderStackSize(pExportName);
+        return m_pStateObjectProperties->GetShaderStackSize(pExportName);
     }
 
     virtual UINT64 STDMETHODCALLTYPE GetPipelineStackSize(void)
     {
-        return m_pStateObjectInfo->GetPipelineStackSize();
+        return m_pStateObjectProperties->GetPipelineStackSize();
     }
 
     virtual void STDMETHODCALLTYPE SetPipelineStackSize(
         UINT64 PipelineStackSizeInBytes)
     {
-        m_pStateObjectInfo->SetPipelineStackSize(PipelineStackSizeInBytes);
+        m_pStateObjectProperties->SetPipelineStackSize(PipelineStackSizeInBytes);
     }
 
-    virtual ID3D12StateObjectPrototype *GetStateObjectPrototype()
+    virtual ID3D12StateObject *GetStateObject()
     {
         return m_pStateObject;
     }
 private:
-    CComPtr<ID3D12StateObjectPropertiesPrototype> m_pStateObjectInfo;
-    CComPtr<ID3D12StateObjectPrototype> m_pStateObject;
+    CComPtr<ID3D12StateObjectProperties> m_pStateObjectProperties;
+    CComPtr<ID3D12StateObject> m_pStateObject;
     COM_IMPLEMENTATION_WITH_QUERYINTERFACE(m_pStateObject.p);
 };
 
 class NativeRaytracingCommandList : public ID3D12RaytracingFallbackCommandList
 {
 public:
-    NativeRaytracingCommandList(ID3D12GraphicsCommandList *pCommandList) :
-        m_pCommandList(pCommandList)
+    NativeRaytracingCommandList(ID3D12GraphicsCommandList *pCommandList) 
     {
-        ThrowFailure(m_pCommandList->QueryInterface(&m_pRaytracingCommandList));
+        ThrowFailure(pCommandList->QueryInterface(&m_pCommandList), 
+            L"QueryInterface for ID3D12GraphicsCommandList4 failed");
     }
 
     virtual ~NativeRaytracingCommandList() {}
 
 
     virtual void STDMETHODCALLTYPE BuildRaytracingAccelerationStructure(
-        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc)
+        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
+        _In_  UINT NumPostbuildInfoDescs,
+        _In_reads_opt_(NumPostbuildInfoDescs)  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pPostbuildInfoDescs)
     {
-        static_assert(sizeof(D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC) == sizeof(D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC),
-            "The D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC is required to be a bitwise match of D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC");
-
-        m_pRaytracingCommandList->BuildRaytracingAccelerationStructure(reinterpret_cast<const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC*>(pDesc));
+        m_pCommandList->BuildRaytracingAccelerationStructure(
+            pDesc, 
+            NumPostbuildInfoDescs, 
+            pPostbuildInfoDescs);
     }
 
-    virtual void STDMETHODCALLTYPE EmitRaytracingAccelerationStructurePostBuildInfo(
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestBuffer,
-        _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_TYPE InfoType,
+    virtual void STDMETHODCALLTYPE EmitRaytracingAccelerationStructurePostbuildInfo(
+        _In_  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pDesc,
         _In_  UINT NumSourceAccelerationStructures,
         _In_reads_(NumSourceAccelerationStructures)  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData)
     {
-        m_pRaytracingCommandList->EmitRaytracingAccelerationStructurePostBuildInfo(
-            DestBuffer,
-            InfoType,
+        m_pCommandList->EmitRaytracingAccelerationStructurePostbuildInfo(
+            pDesc,
             NumSourceAccelerationStructures,
             pSourceAccelerationStructureData);
     }
 
     virtual void STDMETHODCALLTYPE CopyRaytracingAccelerationStructure(
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructureData,
+        _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
         _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
         _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Flags)
     {
-        m_pRaytracingCommandList->CopyRaytracingAccelerationStructure(
+        m_pCommandList->CopyRaytracingAccelerationStructure(
             DestAccelerationStructureData,
             SourceAccelerationStructureData,
             Flags);
@@ -111,34 +111,29 @@ public:
     }
 
     virtual void STDMETHODCALLTYPE DispatchRays(
-        _In_  ID3D12RaytracingFallbackStateObject *pRaytracingPipelineState,
-        _In_  const D3D12_FALLBACK_DISPATCH_RAYS_DESC *pDesc)
+        _In_  const D3D12_DISPATCH_RAYS_DESC *pDesc)
     {
-        NativeRaytracingStateObject *pStateObject = reinterpret_cast<NativeRaytracingStateObject *>(pRaytracingPipelineState);
+        m_pCommandList->DispatchRays(pDesc);
+    }
 
-        D3D12_DISPATCH_RAYS_DESC nativeDesc;
-        nativeDesc.Width = pDesc->Width;
-        nativeDesc.Height = pDesc->Height;
-        nativeDesc.CallableShaderTable = pDesc->CallableShaderTable;
-        nativeDesc.HitGroupTable = pDesc->HitGroupTable;
-        nativeDesc.MissShaderTable = pDesc->MissShaderTable;
-        nativeDesc.RayGenerationShaderRecord = pDesc->RayGenerationShaderRecord;
-
-        m_pRaytracingCommandList->DispatchRays(pStateObject->GetStateObjectPrototype(), &nativeDesc);
+    virtual void STDMETHODCALLTYPE SetPipelineState1(
+        _In_  ID3D12RaytracingFallbackStateObject *pStateObject)
+    {
+        NativeRaytracingStateObject *pNativeStateObject = reinterpret_cast<NativeRaytracingStateObject *>(pStateObject);
+        m_pCommandList->SetPipelineState1(pNativeStateObject->GetStateObject());
     }
 private:
-    CComPtr<ID3D12GraphicsCommandList> m_pCommandList;
-    CComPtr<ID3D12CommandListRaytracingPrototype> m_pRaytracingCommandList;
-    COM_IMPLEMENTATION_WITH_QUERYINTERFACE(m_pRaytracingCommandList.p);
+    CComPtr<ID3D12GraphicsCommandList4> m_pCommandList;
+    COM_IMPLEMENTATION_WITH_QUERYINTERFACE(m_pCommandList.p);
 };
 
 class NativeRaytracingDevice : public ID3D12RaytracingFallbackDevice
 {
 
 public:
-    NativeRaytracingDevice(ID3D12Device *pDevice) : m_pDevice(pDevice)
+    NativeRaytracingDevice(ID3D12Device *pDevice)
     {
-        ThrowFailure(m_pDevice->QueryInterface(&m_pRaytracingDevice));
+        ThrowFailure(pDevice->QueryInterface(&m_pDevice));
     }
 
     virtual ~NativeRaytracingDevice() {}
@@ -183,7 +178,7 @@ public:
         }
 
         CComPtr<ID3D12StateObjectPrototype> pStateObject;
-        HRESULT hr = m_pRaytracingDevice->CreateStateObject(pDesc, IID_PPV_ARGS(&pStateObject));
+        HRESULT hr = m_pDevice->CreateStateObject(pDesc, IID_PPV_ARGS(&pStateObject));
 
         if (SUCCEEDED(hr))
         {
@@ -196,14 +191,14 @@ public:
 
     virtual UINT STDMETHODCALLTYPE GetShaderIdentifierSize(void)
     {
-        return m_pRaytracingDevice->GetShaderIdentifierSize();
+        return D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
     }
 
     virtual void STDMETHODCALLTYPE GetRaytracingAccelerationStructurePrebuildInfo(
-        _In_  D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC *pDesc,
+        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
         _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
     {
-        m_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(
+        m_pDevice->GetRaytracingAccelerationStructurePrebuildInfo(
             pDesc,
             pInfo);
     }
@@ -245,7 +240,6 @@ public:
         return ::D3D12SerializeRootSignature(pRootSignature, Version, ppBlob, ppErrorBlob);
     }
 private:
-    CComPtr<ID3D12DeviceRaytracingPrototype> m_pRaytracingDevice;
-    CComPtr<ID3D12Device> m_pDevice;
+    CComPtr<ID3D12Device5> m_pDevice;
     COM_IMPLEMENTATION_WITH_QUERYINTERFACE(m_pDevice.p);
 };

@@ -1,13 +1,3 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// This code is licensed under the MIT License (MIT).
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                           //
 // DxilConstants.h                                                           //
@@ -37,7 +27,7 @@ import hctdb_instrhelp
 namespace DXIL {
   // DXIL version.
   const unsigned kDxilMajor = 1;
-  const unsigned kDxilMinor = 2;
+  const unsigned kDxilMinor = 3;
 
   inline unsigned MakeDxilVersion(unsigned DxilMajor, unsigned DxilMinor) {
     return 0 | (DxilMajor << 8) | (DxilMinor);
@@ -66,8 +56,9 @@ namespace DXIL {
   const unsigned kMaxStructBufferStride = 2048;
   const unsigned kMaxHSOutputControlPointsTotalScalars = 3968;
   const unsigned kMaxHSOutputPatchConstantTotalScalars = 32*4;
-  const unsigned kMaxOutputTotalScalars = 32*4;
-  const unsigned kMaxInputTotalScalars = 32*4;
+  const unsigned kMaxSignatureTotalVectors = 32;
+  const unsigned kMaxOutputTotalScalars = kMaxSignatureTotalVectors * 4;
+  const unsigned kMaxInputTotalScalars = kMaxSignatureTotalVectors * 4;
   const unsigned kMaxClipOrCullDistanceElementCount = 2;
   const unsigned kMaxClipOrCullDistanceCount = 2 * 4;
   const unsigned kMaxGSOutputVertexCount = 1024;
@@ -75,21 +66,24 @@ namespace DXIL {
   const unsigned kMaxIAPatchControlPointCount = 32;
   const float kHSMaxTessFactorLowerBound = 1.0f;
   const float kHSMaxTessFactorUpperBound = 64.0f;
+  const unsigned kHSDefaultInputControlPointCount = 1;
   const unsigned kMaxCSThreadsPerGroup = 1024;
-  const unsigned kMaxCSThreadGroupX	= 1024;
-  const unsigned kMaxCSThreadGroupY	= 1024;
+  const unsigned kMaxCSThreadGroupX    = 1024;
+  const unsigned kMaxCSThreadGroupY    = 1024;
   const unsigned kMaxCSThreadGroupZ = 64;
   const unsigned kMinCSThreadGroupX = 1;
   const unsigned kMinCSThreadGroupY = 1;
   const unsigned kMinCSThreadGroupZ = 1;
   const unsigned kMaxCS4XThreadsPerGroup = 768;
-  const unsigned kMaxCS4XThreadGroupX	= 768;
-  const unsigned kMaxCS4XThreadGroupY	= 768;
+  const unsigned kMaxCS4XThreadGroupX    = 768;
+  const unsigned kMaxCS4XThreadGroupY    = 768;
   const unsigned kMaxTGSMSize = 8192*4;
   const unsigned kMaxGSOutputTotalScalars = 1024;
 
   const float kMaxMipLodBias = 15.99f;
   const float kMinMipLodBias = -16.0f;
+
+  const unsigned kResRetStatusIndex = 4;
 
   enum class ComponentType : uint8_t { 
     Invalid = 0,
@@ -132,6 +126,12 @@ namespace DXIL {
     Domain,
     Compute,
     Library,
+    RayGeneration,
+    Intersection,
+    AnyHit,
+    ClosestHit,
+    Miss,
+    Callable,
     Invalid,
   };
 
@@ -226,10 +226,10 @@ namespace DXIL {
   };
   // PackingKind-ENUM:END
 
-  /* <py::lines('FPDenormMode-ENUM')>hctdb_instrhelp.get_enum_decl("FPDenormMode", hide_val=False, sort_val=False)</py>*/
+  /* <py::lines('FPDenormMode-ENUM')>hctdb_instrhelp.get_enum_decl("Float32DenormMode", hide_val=False, sort_val=False)</py>*/
   // FPDenormMode-ENUM:BEGIN
-  // Floating point behavior
-  enum class FPDenormMode : unsigned {
+  // float32 denorm behavior
+  enum class Float32DenormMode : unsigned {
     Any = 0, // Undefined behavior for denormal numbers
     Preserve = 1, // Preserve both input and output
     FTZ = 2, // Preserve denormal inputs. Flush denorm outputs
@@ -280,6 +280,7 @@ namespace DXIL {
     CBuffer,
     Sampler,
     TBuffer,
+    RTAccelerationStructure,
     NumEntries,
   };
 
@@ -288,24 +289,32 @@ namespace DXIL {
   // OPCODE-ENUM:BEGIN
   // Enumeration for operations specified by DXIL
   enum class OpCode : unsigned {
+    // AnyHit Terminals
+    AcceptHitAndEndSearch = 156, // Used in an any hit shader to abort the ray query and the intersection shader (if any). The current hit is committed and execution passes to the closest hit shader with the closest hit recorded so far
+    IgnoreHit = 155, // Used in an any hit shader to reject an intersection and terminate the shader
+  
     // Binary float
     FMax = 35, // returns a if a >= b, else b
     FMin = 36, // returns a if a < b, else b
   
     // Binary int with two outputs
     IMul = 41, // multiply of 32-bit operands to produce the correct full 64-bit result.
-    UDiv = 43, // unsigned divide of the 32-bit operand src0 by the 32-bit operand src1.
-    UMul = 42, // multiply of 32-bit operands to produce the correct full 64-bit result.
   
     // Binary int
     IMax = 37, // IMax(a,b) returns a if a > b, else b
     IMin = 38, // IMin(a,b) returns a if a < b, else b
-    UMax = 39, // unsigned integer maximum. UMax(a,b) = a > b ? a : b
-    UMin = 40, // unsigned integer minimum. UMin(a,b) = a < b ? a : b
   
     // Binary uint with carry or borrow
     UAddc = 44, // unsigned add of 32-bit operand with the carry
     USubb = 45, // unsigned subtract of 32-bit operands with the borrow
+  
+    // Binary uint with two outputs
+    UDiv = 43, // unsigned divide of the 32-bit operand src0 by the 32-bit operand src1.
+    UMul = 42, // multiply of 32-bit operands to produce the correct full 64-bit result.
+  
+    // Binary uint
+    UMax = 39, // unsigned integer maximum. UMax(a,b) = a > b ? a : b
+    UMin = 40, // unsigned integer minimum. UMin(a,b) = a < b ? a : b
   
     // Bitcasts with different sizes
     BitcastF16toI16 = 125, // bitcast between different sizes
@@ -351,12 +360,22 @@ namespace DXIL {
   
     // Hull shader
     OutputControlPointID = 107, // OutputControlPointID
-    PrimitiveID = 108, // PrimitiveID
     StorePatchConstant = 106, // StorePatchConstant
+  
+    // Hull, Domain and Geometry shaders
+    PrimitiveID = 108, // PrimitiveID
+  
+    // Indirect Shader Invocation
+    CallShader = 159, // Call a shader in the callable shader table supplied through the DispatchRays() API
+    ReportHit = 158, // returns true if hit was accepted
+    TraceRay = 157, // returns the view index
   
     // Legacy floating-point
     LegacyF16ToF32 = 131, // legacy fuction to convert half (f16) to float (f32) (this is not related to min-precision)
     LegacyF32ToF16 = 130, // legacy fuction to convert float (f32) to half (f16) (this is not related to min-precision)
+  
+    // Library create handle from resource struct (like HL intrinsic)
+    CreateHandleForLib = 160, // create resource handle from resource struct for library
   
     // Other
     CycleCounterLegacy = 109, // CycleCounterLegacy
@@ -378,6 +397,37 @@ namespace DXIL {
   
     // Quaternary
     Bfi = 53, // Given a bit range from the LSB of a number, places that number of bits in another number at any offset
+  
+    // Ray Dispatch Arguments
+    DispatchRaysDimensions = 146, // The Width and Height values from the D3D12_DISPATCH_RAYS_DESC structure provided to the originating DispatchRays() call.
+    DispatchRaysIndex = 145, // The current x and y location within the Width and Height
+  
+    // Ray Transforms
+    ObjectToWorld = 151, // Matrix for transforming from object-space to world-space.
+    WorldToObject = 152, // Matrix for transforming from world-space to object-space.
+  
+    // Ray Vectors
+    WorldRayDirection = 148, // The world-space direction for the current ray.
+    WorldRayOrigin = 147, // The world-space origin for the current ray.
+  
+    // Ray object space Vectors
+    ObjectRayDirection = 150, // Object-space direction for the current ray.
+    ObjectRayOrigin = 149, // Object-space origin for the current ray.
+  
+    // RayT
+    RayTCurrent = 154, // float representing the current parametric ending point for the ray
+    RayTMin = 153, // float representing the parametric starting point for the ray.
+  
+    // Raytracing hit uint System Values
+    HitKind = 143, // Returns the value passed as HitKind in ReportIntersection().  If intersection was reported by fixed-function triangle intersection, HitKind will be one of HIT_KIND_TRIANGLE_FRONT_FACE or HIT_KIND_TRIANGLE_BACK_FACE.
+  
+    // Raytracing object space uint System Values
+    InstanceID = 141, // The user-provided InstanceID on the bottom-level acceleration structure instance within the top-level structure
+    InstanceIndex = 142, // The autogenerated index of the current instance in the top-level structure
+    PrimitiveIndex = 161, // PrimitiveIndex for raytracing shaders
+  
+    // Raytracing uint System Values
+    RayFlags = 144, // uint containing the current ray flags.
   
     // Resources - gather
     TextureGather = 73, // gathers the four texels that would be used in a bi-linear filtering operation
@@ -403,6 +453,8 @@ namespace DXIL {
     CheckAccessFullyMapped = 71, // determines whether all values from a Sample, Gather, or Load operation accessed mapped tiles in a tiled resource
     CreateHandle = 57, // creates the handle to a resource
     GetDimensions = 72, // gets texture size information
+    RawBufferLoad = 139, // reads from a raw buffer and structured buffer
+    RawBufferStore = 140, // writes to a RWByteAddressBuffer or RWStructuredBuffer
     TextureLoad = 66, // reads texel data without any filtering or sampling
     TextureStore = 67, // reads texel data without any filtering or sampling
   
@@ -427,6 +479,8 @@ namespace DXIL {
     IMad = 48, // Signed integer multiply & add
     Ibfe = 51, // Integer bitfield extract
     Msad = 50, // masked Sum of Absolute Differences.
+  
+    // Tertiary uint
     UMad = 49, // Unsigned integer multiply & add
     Ubfe = 52, // Unsigned integer bitfield extract
   
@@ -461,9 +515,11 @@ namespace DXIL {
     // Unary int
     Bfrev = 30, // Reverses the order of the bits.
     Countbits = 31, // Counts the number of bits in the input integer.
-    FirstbitHi = 33, // Returns the location of the first set bit starting from the highest order bit and working downward.
     FirstbitLo = 32, // Returns the location of the first set bit starting from the lowest order bit and working upward.
     FirstbitSHi = 34, // Returns the location of the first set bit from the highest order bit based on the sign.
+  
+    // Unary uint
+    FirstbitHi = 33, // Returns the location of the first set bit starting from the highest order bit and working downward.
   
     // Wave
     QuadOp = 123, // returns the result of a quad-level operation
@@ -485,8 +541,10 @@ namespace DXIL {
   
     NumOpCodes_Dxil_1_0 = 137,
     NumOpCodes_Dxil_1_1 = 139,
+    NumOpCodes_Dxil_1_2 = 141,
+    NumOpCodes_Dxil_1_3 = 162,
   
-    NumOpCodes = 139 // exclusive last value of enumeration
+    NumOpCodes = 162 // exclusive last value of enumeration
   };
   // OPCODE-ENUM:END
 
@@ -494,14 +552,18 @@ namespace DXIL {
   // OPCODECLASS-ENUM:BEGIN
   // Groups for DXIL operations with equivalent function templates
   enum class OpCodeClass : unsigned {
-    // Binary int with two outputs
-    BinaryWithTwoOuts,
-  
-    // Binary int
-    Binary,
+    // AnyHit Terminals
+    AcceptHitAndEndSearch,
+    IgnoreHit,
   
     // Binary uint with carry or borrow
     BinaryWithCarryOrBorrow,
+  
+    // Binary uint with two outputs
+    BinaryWithTwoOuts,
+  
+    // Binary uint
+    Binary,
   
     // Bitcasts with different sizes
     BitcastF16toI16,
@@ -547,8 +609,15 @@ namespace DXIL {
   
     // Hull shader
     OutputControlPointID,
-    PrimitiveID,
     StorePatchConstant,
+  
+    // Hull, Domain and Geometry shaders
+    PrimitiveID,
+  
+    // Indirect Shader Invocation
+    CallShader,
+    ReportHit,
+    TraceRay,
   
     // LLVM Instructions
     LlvmInst,
@@ -556,6 +625,9 @@ namespace DXIL {
     // Legacy floating-point
     LegacyF16ToF32,
     LegacyF32ToF16,
+  
+    // Library create handle from resource struct (like HL intrinsic)
+    CreateHandleForLib,
   
     // Other
     CycleCounterLegacy,
@@ -574,6 +646,37 @@ namespace DXIL {
   
     // Quaternary
     Quaternary,
+  
+    // Ray Dispatch Arguments
+    DispatchRaysDimensions,
+    DispatchRaysIndex,
+  
+    // Ray Transforms
+    ObjectToWorld,
+    WorldToObject,
+  
+    // Ray Vectors
+    WorldRayDirection,
+    WorldRayOrigin,
+  
+    // Ray object space Vectors
+    ObjectRayDirection,
+    ObjectRayOrigin,
+  
+    // RayT
+    RayTCurrent,
+    RayTMin,
+  
+    // Raytracing hit uint System Values
+    HitKind,
+  
+    // Raytracing object space uint System Values
+    InstanceID,
+    InstanceIndex,
+    PrimitiveIndex,
+  
+    // Raytracing uint System Values
+    RayFlags,
   
     // Resources - gather
     TextureGather,
@@ -599,6 +702,8 @@ namespace DXIL {
     CheckAccessFullyMapped,
     CreateHandle,
     GetDimensions,
+    RawBufferLoad,
+    RawBufferStore,
     TextureLoad,
     TextureStore,
   
@@ -615,7 +720,7 @@ namespace DXIL {
     TempRegLoad,
     TempRegStore,
   
-    // Tertiary int
+    // Tertiary uint
     Tertiary,
   
     // Unary float
@@ -643,8 +748,10 @@ namespace DXIL {
   
     NumOpClasses_Dxil_1_0 = 93,
     NumOpClasses_Dxil_1_1 = 95,
+    NumOpClasses_Dxil_1_2 = 97,
+    NumOpClasses_Dxil_1_3 = 118,
   
-    NumOpClasses = 95 // exclusive last value of enumeration
+    NumOpClasses = 118 // exclusive last value of enumeration
   };
   // OPCODECLASS-ENUM:END
 
@@ -694,6 +801,24 @@ namespace DXIL {
     const unsigned kBufferStoreVal2OpIdx = 6;
     const unsigned kBufferStoreVal3OpIdx = 7;
     const unsigned kBufferStoreMaskOpIdx = 8;
+
+    // RawBufferLoad.
+    const unsigned kRawBufferLoadHandleOpIdx        = 1;
+    const unsigned kRawBufferLoadIndexOpIdx         = 2;
+    const unsigned kRawBufferLoadElementOffsetOpIdx = 3;
+    const unsigned kRawBufferLoadMaskOpIdx          = 4;
+    const unsigned kRawBufferLoadAlignmentOpIdx     = 5;
+
+    // RawBufferStore
+    const unsigned kRawBufferStoreHandleOpIdx = 1;
+    const unsigned kRawBufferStoreIndexOpIdx = 2;
+    const unsigned kRawBufferStoreElementOffsetOpIdx = 3;
+    const unsigned kRawBufferStoreVal0OpIdx = 4;
+    const unsigned kRawBufferStoreVal1OpIdx = 5;
+    const unsigned kRawBufferStoreVal2OpIdx = 6;
+    const unsigned kRawBufferStoreVal3OpIdx = 7;
+    const unsigned kRawBufferStoreMaskOpIdx = 8;
+    const unsigned kRawBufferStoreAlignmentOpIdx = 8;
 
     // TextureStore.
     const unsigned kTextureStoreHandleOpIdx = 1;
@@ -747,6 +872,15 @@ namespace DXIL {
     const unsigned kCreateHandleResIDOpIdx = 2;
     const unsigned kCreateHandleResIndexOpIdx = 3;
     const unsigned kCreateHandleIsUniformOpIdx = 4;
+
+    // CreateHandleFromResource
+    const unsigned kCreateHandleForLibResOpIdx = 1;
+
+    // TraceRay
+    const unsigned kTraceRayRayDescOpIdx = 7;
+    const unsigned kTraceRayPayloadOpIdx = 15;
+    const unsigned kTraceRayNumOp = 16;
+
 
     // Emit/Cut
     const unsigned kStreamEmitCutIDOpIdx = 1;
@@ -937,6 +1071,14 @@ namespace DXIL {
     UseMinPrecision,
     UseNativeLowPrecision
   };
+
+
+  extern const char* kLegacyLayoutString;
+  extern const char* kNewLayoutString;
+  extern const char* kFP32DenormKindString;
+  extern const char* kFP32DenormValueAnyString;
+  extern const char* kFP32DenormValuePreserveString;
+  extern const char* kFP32DenormValueFtzString;
 
 } // namespace DXIL
 

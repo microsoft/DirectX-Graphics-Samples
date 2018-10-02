@@ -59,7 +59,7 @@
 
 #define EFFECTS_ERROR uint32_t(0xFFFFFFFF)
 
-#define MAX_TOTAL_PARTICLES 0x40000		// 256k (18-bit indices)
+#define MAX_TOTAL_PARTICLES 0x40000        // 256k (18-bit indices)
 #define MAX_PARTICLES_PER_BIN 1024
 #define BIN_SIZE_X 128
 #define BIN_SIZE_Y 64
@@ -122,8 +122,8 @@ namespace
     ComputePSO s_ParticleLargeBinCullingCS; 
     ComputePSO s_ParticleBinCullingCS; 
     ComputePSO s_ParticleTileCullingCS; 
-    ComputePSO s_ParticleTileRenderSlowCS[3];	// High-Res, Low-Res, Dynamic-Res
-    ComputePSO s_ParticleTileRenderFastCS[3]; 	// High-Res, Low-Res, Dynamic-Res (disable depth tests)
+    ComputePSO s_ParticleTileRenderSlowCS[3];    // High-Res, Low-Res, Dynamic-Res
+    ComputePSO s_ParticleTileRenderFastCS[3];     // High-Res, Low-Res, Dynamic-Res (disable depth tests)
     ComputePSO s_ParticleDepthBoundsCS;
     GraphicsPSO s_NoTileRasterizationPSO[2];
     ComputePSO s_ParticleSortIndirectArgsCS;
@@ -198,7 +198,7 @@ namespace
 
 
     void RenderTiles(ComputeContext& CompContext, ColorBuffer& ColorTarget, ColorBuffer& LinearDepth)
-    {	
+    {    
         size_t ScreenWidth = ColorTarget.GetWidth();
         size_t ScreenHeight = ColorTarget.GetHeight();
 
@@ -407,12 +407,12 @@ namespace
 
 //---------------------------------------------------------------------
 //
-//	Initialize
+//    Initialize
 //
 //---------------------------------------------------------------------
 
 void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayHeight )
-{	
+{    
     D3D12_SAMPLER_DESC SamplerBilinearBorderDesc = SamplerPointBorderDesc;
     SamplerBilinearBorderDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 
@@ -485,7 +485,7 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
     FinalDispatchIndirectArgs.Create(L"ParticleEffects::FinalDispatchIndirectArgs", 1, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
     SpriteVertexBuffer.Create(L"ParticleEffects::SpriteVertexBuffer", MAX_TOTAL_PARTICLES, sizeof(ParticleVertex));
     VisibleParticleBuffer.Create(L"ParticleEffects::VisibleParticleBuffer", MAX_TOTAL_PARTICLES, sizeof(ParticleScreenData));
-    SpriteIndexBuffer.Create(L"ParticleEffects::SpriteIndexBuffer", MAX_TOTAL_PARTICLES, sizeof(UINT));	
+    SpriteIndexBuffer.Create(L"ParticleEffects::SpriteIndexBuffer", MAX_TOTAL_PARTICLES, sizeof(UINT));    
     SortIndirectArgs.Create(L"ParticleEffects::SortIndirectArgs", 1, sizeof(D3D12_DISPATCH_ARGUMENTS));
     TileDrawDispatchIndirectArgs.Create(L"ParticleEffects::DrawPackets_IArgs", 2, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
 
@@ -631,12 +631,12 @@ EffectHandle ParticleEffects::InstantiateEffect( ParticleEffectProperties& effec
 
     EffectHandle index = (EffectHandle)ParticleEffectsActive.size() - 1;
     ParticleEffectsActive[index]->LoadDeviceResources(Graphics::g_Device);
-    return index;	
+    return index;    
 }
 
 //---------------------------------------------------------------------
 //
-//	Update
+//    Update
 //
 //---------------------------------------------------------------------
 
@@ -664,7 +664,7 @@ void ParticleEffects::Update(ComputeContext& Context, float timeDelta )
     Context.SetDynamicDescriptor(3, 0, SpriteVertexBuffer.GetUAV());
 
     for (UINT i = 0; i < ParticleEffectsActive.size(); ++i)
-    {	
+    {    
         ParticleEffectsActive[i]->Update(Context, timeDelta);
 
         if (ParticleEffectsActive[i]->GetLifetime() <= ParticleEffectsActive[i]->GetElapsedTime())
@@ -684,7 +684,7 @@ void ParticleEffects::Update(ComputeContext& Context, float timeDelta )
 
 //---------------------------------------------------------------------
 //
-//	Render
+//    Render
 //
 //---------------------------------------------------------------------
 
@@ -751,7 +751,7 @@ void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, Col
     {
         GraphicsContext& GrContext = Context.GetGraphicsContext();
         GrContext.SetRootSignature(RootSig);
-        GrContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);	
+        GrContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);    
         RenderSprites(GrContext, ColorTarget, DepthTarget, LinearDepth);
     }
 
@@ -761,7 +761,7 @@ void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, Col
 
 //---------------------------------------------------------------------
 //
-//	Clean up
+//    Clean up
 //
 //---------------------------------------------------------------------
 

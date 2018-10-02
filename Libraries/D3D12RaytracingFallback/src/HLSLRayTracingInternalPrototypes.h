@@ -54,7 +54,7 @@ void Fallback_CommitHit();
 void Fallback_CallIndirect(int stateId);
 void Fallback_Scheduler(int initialStateId, uint dimx, uint dimy);
 
-// These are need in traversal. Don't call the intrinsics because they are
+// These are needed in traversal. Don't call the intrinsics because they are
 // marked as "readnone".
 uint Fallback_InstanceIndex();
 float Fallback_RayTCurrent();

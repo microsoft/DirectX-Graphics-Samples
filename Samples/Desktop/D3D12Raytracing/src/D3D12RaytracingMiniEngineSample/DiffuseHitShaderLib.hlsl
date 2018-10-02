@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard, Christopher Wallis
+// Author(s):    James Stanard, Christopher Wallis
 //
 
 #define HLSL
@@ -25,12 +25,13 @@ ByteAddressBuffer g_indices : register(t2);
 ByteAddressBuffer g_attributes : register(t3);
 Texture2D<float> texShadow : register(t4);
 Texture2D<float> texSSAO : register(t5);
-SamplerState      g_s0;
+SamplerState      g_s0 : register(s0);
 SamplerComparisonState shadowSampler : register(s1);
 
 Texture2D<float4> g_localTexture : register(t6);
 Texture2D<float4> g_localNormal : register(t7);
 
+Texture2D<float4>   normals  : register(t13);
 
 uint3 Load3x16BitIndices(
     uint offsetBytes)
@@ -100,14 +101,14 @@ void FSchlick(inout float3 specular, inout float3 diffuse, float3 lightDir, floa
 }
 
 float3 ApplyLightCommon(
-    float3	diffuseColor,	// Diffuse albedo
-    float3	specularColor,	// Specular albedo
-    float	specularMask,	// Where is it shiny or dingy?
-    float	gloss,			// Specular power
-    float3	normal,			// World-space normal
-    float3	viewDir,		// World-space vector from eye to point
-    float3	lightDir,		// World-space vector from point to light
-    float3	lightColor		// Radiance of directional light
+    float3    diffuseColor,    // Diffuse albedo
+    float3    specularColor,    // Specular albedo
+    float    specularMask,    // Where is it shiny or dingy?
+    float    gloss,            // Specular power
+    float3    normal,            // World-space normal
+    float3    viewDir,        // World-space vector from eye to point
+    float3    lightDir,        // World-space vector from point to light
+    float3    lightColor        // Radiance of directional light
 )
 {
     float3 halfVec = normalize(lightDir - viewDir);
@@ -250,7 +251,13 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
     const float3 tangent2 = asfloat(g_attributes.Load3(info.m_tangentAttributeOffsetBytes + ii.z * info.m_attributeStrideBytes));
     float3 vsTangent = normalize(tangent0 * bary.x + tangent1 * bary.y + tangent2 * bary.z);
 
-
+    // Reintroduced the bitangent because we aren't storing the handedness of the tangent frame anywhere.  Assuming the space
+    // is right-handed causes normal maps to invert for some surfaces.  The Sponza mesh has all three axes of the tangent frame.
+    //float3 vsBitangent = normalize(cross(vsNormal, vsTangent)) * (isRightHanded ? 1.0 : -1.0);
+    const float3 bitangent0 = asfloat(g_attributes.Load3(info.m_bitangentAttributeOffsetBytes + ii.x * info.m_attributeStrideBytes));
+    const float3 bitangent1 = asfloat(g_attributes.Load3(info.m_bitangentAttributeOffsetBytes + ii.y * info.m_attributeStrideBytes));
+    const float3 bitangent2 = asfloat(g_attributes.Load3(info.m_bitangentAttributeOffsetBytes + ii.z * info.m_attributeStrideBytes));
+    float3 vsBitangent = normalize(bitangent0 * bary.x + bitangent1 * bary.y + bitangent2 * bary.z);
 
     // TODO: Should just store uv partial derivatives in here rather than loading position and caculating it per pixel
     const float3 p0 = asfloat(g_attributes.Load3(info.m_positionAttributeOffsetBytes + ii.x * info.m_attributeStrideBytes));
@@ -284,7 +291,7 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
     {
         normal = g_localNormal.SampleGrad(g_s0, uv, ddx, ddy).rgb * 2.0 - 1.0;
         AntiAliasSpecular(normal, gloss);
-        float3x3 tbn = float3x3(vsTangent, cross(vsNormal, vsTangent), vsNormal);
+        float3x3 tbn = float3x3(vsTangent, vsBitangent, vsNormal);
         normal = normalize(mul(normal, tbn));
     }
     
@@ -328,7 +335,8 @@ void Hit(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr
     // TODO: Should be passed in via material info
     if (IsReflection)
     {
-        outputColor = outputColor * 0.3 + g_screenOutput[DispatchRaysIndex().xy];
+        float reflectivity = normals[DispatchRaysIndex().xy].w;
+        outputColor = g_screenOutput[DispatchRaysIndex().xy].rgb + reflectivity * outputColor;
     }
 
     g_screenOutput[DispatchRaysIndex().xy] = float4(outputColor, 1);

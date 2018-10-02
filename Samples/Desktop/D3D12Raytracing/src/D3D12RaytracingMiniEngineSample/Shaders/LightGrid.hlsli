@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	Alex Nankervis
+// Author(s):    Alex Nankervis
 //
 
 // keep in sync with C code

@@ -104,8 +104,8 @@ void main( uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : S
     //
     // Load 4 pixels per thread into LDS
     //
-    int2 GroupUL = (Gid.xy << 3) - 4;				// Upper-left pixel coordinate of group read location
-    int2 ThreadUL = (GTid.xy << 1) + GroupUL;		// Upper-left pixel coordinate of quad that this thread will read
+    int2 GroupUL = (Gid.xy << 3) - 4;                // Upper-left pixel coordinate of group read location
+    int2 ThreadUL = (GTid.xy << 1) + GroupUL;        // Upper-left pixel coordinate of quad that this thread will read
 
     //
     // Store 4 unblurred pixels in LDS

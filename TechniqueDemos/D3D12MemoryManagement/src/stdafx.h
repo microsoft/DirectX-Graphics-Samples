@@ -93,24 +93,24 @@ class DynamicDescriptorHeap;
 
 struct RectF
 {
-	float Left;
-	float Top;
-	float Right;
-	float Bottom;
+    float Left;
+    float Top;
+    float Right;
+    float Bottom;
 };
 
 struct PointF
 {
-	float X;
-	float Y;
+    float X;
+    float Y;
 };
 
 struct ColorF
 {
-	float R;
-	float G;
-	float B;
-	float A;
+    float R;
+    float G;
+    float B;
+    float A;
 };
 
 #include "Log.h"
@@ -129,25 +129,25 @@ struct ColorF
 template<typename T>
 inline void SafeRelease(T *&rpInterface)
 {
-	T* pInterface = rpInterface;
+    T* pInterface = rpInterface;
 
-	if (pInterface)
-	{
-		pInterface->Release();
-		rpInterface = nullptr;
-	}
+    if (pInterface)
+    {
+        pInterface->Release();
+        rpInterface = nullptr;
+    }
 }
 
 template<typename T>
 inline void SafeDelete(T *&rpObject)
 {
-	T* pObject = rpObject;
+    T* pObject = rpObject;
 
-	if (pObject)
-	{
-		delete pObject;
-		rpObject = nullptr;
-	}
+    if (pObject)
+    {
+        delete pObject;
+        rpObject = nullptr;
+    }
 }
 
 #include "D3D12MemoryManagement.h"

@@ -16,7 +16,7 @@ namespace FallbackLayer
     public:
         LoadPrimitivesPass(ID3D12Device *pDevice, UINT nodeMask);
         void LoadPrimitives(ID3D12GraphicsCommandList *pCommandList,
-            const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC &buildDesc,
+            const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &buildDesc,
             UINT totalTriangleCount,
             D3D12_GPU_VIRTUAL_ADDRESS outputTriangleBuffer,
             D3D12_GPU_VIRTUAL_ADDRESS outputMetadataBuffer,

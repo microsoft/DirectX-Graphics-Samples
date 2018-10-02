@@ -13,10 +13,10 @@
 
 float4 InvertPixel(float2 uv)
 {
-	return float4(1.0f, 1.0f, 1.0f, 1.0f) - g_tex.Sample(g_samp, uv);
+    return float4(1.0f, 1.0f, 1.0f, 1.0f) - g_tex.Sample(g_samp, uv);
 }
 
 float4 mainInvert(PSInput input) : SV_TARGET
 {
-	return InvertPixel(input.uv);
+    return InvertPixel(input.uv);
 }

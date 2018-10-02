@@ -17,14 +17,14 @@
 #define MAX_SAMPLE_COUNT  10
 #define STEP_SIZE         3.0
 
-Texture2D<packed_velocity_t> VelocityBuffer : register(t0);		// full resolution motion vectors
-Texture2D<float4> PrepBuffer : register(t1);		// 1/4 resolution pre-weighted blurred color samples
-RWTexture2D<float3> DstColor : register(u0);		// final output color (blurred and temporally blended)
+Texture2D<packed_velocity_t> VelocityBuffer : register(t0);        // full resolution motion vectors
+Texture2D<float4> PrepBuffer : register(t1);        // 1/4 resolution pre-weighted blurred color samples
+RWTexture2D<float3> DstColor : register(u0);        // final output color (blurred and temporally blended)
 SamplerState LinearSampler : register(s0);
 
 cbuffer c0 : register(b0)
 {
-    float2 RcpBufferDim;	// 1 / width, 1 / height
+    float2 RcpBufferDim;    // 1 / width, 1 / height
 }
 
 [RootSignature(MotionBlur_RootSig)]

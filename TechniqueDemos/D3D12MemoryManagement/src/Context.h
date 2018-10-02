@@ -23,9 +23,9 @@
 //
 struct Frame : LIST_ENTRY
 {
-	ID3D12CommandAllocator* pCommandAllocator;
-	ID3D12GraphicsCommandList* pCommandList;
-	UINT64 CompletionFence;
+    ID3D12CommandAllocator* pCommandAllocator;
+    ID3D12GraphicsCommandList* pCommandList;
+    UINT64 CompletionFence;
 };
 
 //
@@ -38,75 +38,75 @@ struct Frame : LIST_ENTRY
 class Context
 {
 protected:
-	DX12Framework* m_pFramework;
+    DX12Framework* m_pFramework;
 
-	// List entry head storing a list of all actively running frames. All actively running
-	// frames are assumed to be running on the GPU until they are retired.
-	LIST_ENTRY m_ActiveFrameListHead;
+    // List entry head storing a list of all actively running frames. All actively running
+    // frames are assumed to be running on the GPU until they are retired.
+    LIST_ENTRY m_ActiveFrameListHead;
 
-	// List entry head storing a list of free frame objects which can be reused.
-	LIST_ENTRY m_FreeFrameListHead;
+    // List entry head storing a list of free frame objects which can be reused.
+    LIST_ENTRY m_FreeFrameListHead;
 
-	// The current fence for this command queue. This fence value is incremented once per frame.
-	UINT64 m_CurrentFence = 0;
+    // The current fence for this command queue. This fence value is incremented once per frame.
+    UINT64 m_CurrentFence = 0;
 
-	// Stores the fence of the most recently completed and retired frame. It can safely be
-	// assumed that any fence value lower than this is referring to work that has completed
-	// on the GPU, and is safe to reuse.
-	UINT64 m_LastCompletedFence = 0;
+    // Stores the fence of the most recently completed and retired frame. It can safely be
+    // assumed that any fence value lower than this is referring to work that has completed
+    // on the GPU, and is safe to reuse.
+    UINT64 m_LastCompletedFence = 0;
 
-	// The frame currently being recorded by the context. This value is null outside of
-	// calls to Begin() and End().
-	Frame* m_pCurrentFrame = nullptr;
+    // The frame currently being recorded by the context. This value is null outside of
+    // calls to Begin() and End().
+    Frame* m_pCurrentFrame = nullptr;
 
-	// The D3D12 command queue object to which all work is submitted.
-	ID3D12CommandQueue* m_pCommandQueue = nullptr;
+    // The D3D12 command queue object to which all work is submitted.
+    ID3D12CommandQueue* m_pCommandQueue = nullptr;
 
-	// The D3D12 fence object used track progress on the command queue.
-	ID3D12Fence* m_pFenceObject = nullptr;
+    // The D3D12 fence object used track progress on the command queue.
+    ID3D12Fence* m_pFenceObject = nullptr;
 
-	// A handle (allocated per thread with TLS) allowing a thread to safely wait on this context.
-	HANDLE m_hFlushEvent = nullptr;
+    // A handle (allocated per thread with TLS) allowing a thread to safely wait on this context.
+    HANDLE m_hFlushEvent = nullptr;
 
-	// The number of active frames in flight that are accessing the GPU.
-	UINT32 m_ActiveFrames = 0;
+    // The number of active frames in flight that are accessing the GPU.
+    UINT32 m_ActiveFrames = 0;
 
 protected:
-	HRESULT InitializeFrame(Frame* pFrame, D3D12_COMMAND_LIST_TYPE Type);
-	virtual void RetireFrame(Frame* /*pFrame*/) { }
+    HRESULT InitializeFrame(Frame* pFrame, D3D12_COMMAND_LIST_TYPE Type);
+    virtual void RetireFrame(Frame* /*pFrame*/) { }
 
 private:
-	void RetireFrameInternal(Frame* pFrame);
+    void RetireFrameInternal(Frame* pFrame);
 
 public:
-	Context(DX12Framework* pFramework);
-	~Context();
+    Context(DX12Framework* pFramework);
+    ~Context();
 
-	HRESULT CreateDeviceDependentState(D3D12_COMMAND_LIST_TYPE Type);
-	void DestroyDeviceDependentState();
+    HRESULT CreateDeviceDependentState(D3D12_COMMAND_LIST_TYPE Type);
+    void DestroyDeviceDependentState();
 
-	void Begin();
-	HRESULT Execute();
-	void End();
+    void Begin();
+    HRESULT Execute();
+    void End();
 
-	void WaitForFence(UINT64 Fence);
-	void WaitForSingleFrame();
-	void WaitForAllFrames();
+    void WaitForFence(UINT64 Fence);
+    void WaitForSingleFrame();
+    void WaitForAllFrames();
 
-	void Flush();
+    void Flush();
 
-	inline ID3D12CommandQueue* GetCommandQueue()
-	{
-		return m_pCommandQueue;
-	}
+    inline ID3D12CommandQueue* GetCommandQueue()
+    {
+        return m_pCommandQueue;
+    }
 
-	inline UINT32 GetActiveFrameCount() const
-	{
-		return m_ActiveFrames;
-	}
+    inline UINT32 GetActiveFrameCount() const
+    {
+        return m_ActiveFrames;
+    }
 
-	inline UINT64 GetLastCompletedFence() const
-	{
-		return m_LastCompletedFence;
-	}
+    inline UINT64 GetLastCompletedFence() const
+    {
+        return m_LastCompletedFence;
+    }
 };

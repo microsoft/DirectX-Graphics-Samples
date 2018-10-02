@@ -45,9 +45,16 @@
 
 struct HierarchyNode
 {
+#ifdef HLSL
     uint ParentIndex;
+#else
+    uint ParentIndex : 31;
+    uint bCollapseChildren : 1;
+#endif
     uint LeftChildIndex;
     uint RightChildIndex;
+
+    static const int IsCollapseChildren = 0x80000000; // for extracting HierarchyNode::bCollapseChildren
 };
 
 struct AABB
@@ -249,6 +256,7 @@ struct BVHMetadata
 
 #ifdef HLSL
 #define Store4StrideInBytes 16
+static
 void StoreBVHMetadataToRawData(RWByteAddressBuffer buffer, uint offset, BVHMetadata metadata)
 {
     uint4 data[7];
@@ -288,6 +296,7 @@ RaytracingInstanceDesc RawDataToRaytracingInstanceDesc(uint4 a, uint4 b, uint4 c
     return desc;
 }
 
+static
 BVHMetadata LoadBVHMetadata(RWByteAddressBuffer buffer, uint offset)
 {
     uint4 data[7];
@@ -307,6 +316,7 @@ BVHMetadata LoadBVHMetadata(RWByteAddressBuffer buffer, uint offset)
     return metadata;
 }
 
+static
 RaytracingInstanceDesc LoadRaytracingInstanceDesc(RWByteAddressBuffer buffer, uint offset)
 {
     uint4 data[4];
@@ -318,6 +328,7 @@ RaytracingInstanceDesc LoadRaytracingInstanceDesc(RWByteAddressBuffer buffer, ui
     return RawDataToRaytracingInstanceDesc(data[0], data[1], data[2], data[3]);
 }
 
+static
 RaytracingInstanceDesc LoadRaytracingInstanceDesc(ByteAddressBuffer buffer, uint offset)
 {
     uint4 data[4];

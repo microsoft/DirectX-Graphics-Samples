@@ -46,11 +46,11 @@ namespace Graphics
     extern D3D12_RASTERIZER_DESC RasterizerShadowCW;
     extern D3D12_RASTERIZER_DESC RasterizerShadowTwoSided;
 
-    extern D3D12_BLEND_DESC BlendNoColorWrite;		// XXX
-    extern D3D12_BLEND_DESC BlendDisable;			// 1, 0
-    extern D3D12_BLEND_DESC BlendPreMultiplied;		// 1, 1-SrcA
-    extern D3D12_BLEND_DESC BlendTraditional;		// SrcA, 1-SrcA
-    extern D3D12_BLEND_DESC BlendAdditive;			// 1, 1
+    extern D3D12_BLEND_DESC BlendNoColorWrite;        // XXX
+    extern D3D12_BLEND_DESC BlendDisable;            // 1, 0
+    extern D3D12_BLEND_DESC BlendPreMultiplied;        // 1, 1-SrcA
+    extern D3D12_BLEND_DESC BlendTraditional;        // SrcA, 1-SrcA
+    extern D3D12_BLEND_DESC BlendAdditive;            // 1, 1
     extern D3D12_BLEND_DESC BlendTraditionalAdditive;// SrcA, 1
 
     extern D3D12_DEPTH_STENCIL_DESC DepthStateDisabled;

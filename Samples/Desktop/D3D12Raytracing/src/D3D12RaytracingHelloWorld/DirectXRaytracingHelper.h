@@ -200,20 +200,14 @@ inline void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
         wstr << L"| [" << i << L"]: ";
         switch (desc->pSubobjects[i].Type)
         {
-        case D3D12_STATE_SUBOBJECT_TYPE_FLAGS:
-            wstr << L"Flags (not yet defined)\n";
-            break;
-        case D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE:
-            wstr << L"Root Signature 0x" << desc->pSubobjects[i].pDesc << L"\n";
+        case D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE:
+            wstr << L"Global Root Signature 0x" << desc->pSubobjects[i].pDesc << L"\n";
             break;
         case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
             wstr << L"Local Root Signature 0x" << desc->pSubobjects[i].pDesc << L"\n";
             break;
         case D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK:
             wstr << L"Node Mask: 0x" << std::hex << std::setfill(L'0') << std::setw(8) << *static_cast<const UINT*>(desc->pSubobjects[i].pDesc) << std::setw(0) << std::dec << L"\n";
-            break;
-        case D3D12_STATE_SUBOBJECT_TYPE_CACHED_STATE_OBJECT:
-            wstr << L"Cached State Object (not yet defined)\n";
             break;
         case D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY:
         {
@@ -291,23 +285,20 @@ inline void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
 // Returns bool whether the call succeeded and the device supports the feature.
 inline bool EnableComputeRaytracingFallback(IDXGIAdapter1* adapter)
 {
-	ComPtr<ID3D12Device> testDevice;
+    ComPtr<ID3D12Device> testDevice;
     UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels };
 
-	return SUCCEEDED(D3D12EnableExperimentalFeatures(1, experimentalFeatures, nullptr, nullptr))
-		&& SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)));
+    return SUCCEEDED(D3D12EnableExperimentalFeatures(1, experimentalFeatures, nullptr, nullptr))
+        && SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)));
 }
 
-// Enable experimental features required for driver and compute-based fallback raytracing.
-// This will set active D3D12 devices to DEVICE_REMOVED state.
-// Returns bool whether the call succeeded and the device supports the feature.
-inline bool EnableRaytracing(IDXGIAdapter1* adapter)
+// Returns bool whether the device supports DirectX Raytracing tier.
+inline bool IsDirectXRaytracingSupported(IDXGIAdapter1* adapter)
 {
-	ComPtr<ID3D12Device> testDevice;
-	ComPtr<ID3D12DeviceRaytracingPrototype> testRaytracingDevice;
-    UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels, D3D12RaytracingPrototype };
+    ComPtr<ID3D12Device> testDevice;
+    D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupportData = {};
 
-	return SUCCEEDED(D3D12EnableExperimentalFeatures(2, experimentalFeatures, nullptr, nullptr))
-		&& SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)))
-		&& SUCCEEDED(testDevice->QueryInterface(IID_PPV_ARGS(&testRaytracingDevice)));
+    return SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)))
+        && SUCCEEDED(testDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData)))
+        && featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
 }

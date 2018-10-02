@@ -171,6 +171,21 @@
     <FxCompile Include="ClearBuffers.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AccelerationStructureBuilderFactory.cpp">
@@ -243,6 +258,12 @@
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="LoadPrimitivesPass.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="StateObjectProcessing.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="DxbcParser.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
@@ -403,9 +424,17 @@
     <ClInclude Include="LoadPrimitivesBindings.h">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="ExperimentalRaytracing.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="StateObjectProcessing.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="DxbcParser.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
     <None Include="BitonicSortCommon.hlsli">
       <Filter>Shaders</Filter>
     </None>
@@ -428,6 +457,13 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="TraverseShader.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\contributing.md" />
+    <None Include="..\developerguide.md" />
+    <None Include="..\readme.md" />
+    <None Include="packages.config" />
+    <None Include="CalculateMortonCodes.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

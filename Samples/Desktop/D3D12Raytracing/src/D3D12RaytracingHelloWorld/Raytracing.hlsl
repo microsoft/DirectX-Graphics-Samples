@@ -33,7 +33,7 @@ bool IsInsideViewport(float2 p, Viewport viewport)
 [shader("raygeneration")]
 void MyRaygenShader()
 {
-    float2 lerpValues = (float2)DispatchRaysIndex() / DispatchRaysDimensions();
+    float2 lerpValues = (float2)DispatchRaysIndex() / (float2)DispatchRaysDimensions();
 
     // Orthographic projection since we're raytracing in screen space.
     float3 rayDir = float3(0, 0, 1);

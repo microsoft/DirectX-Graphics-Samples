@@ -18,8 +18,8 @@
 //
 struct Buffer : LIST_ENTRY
 {
-	ID3D12Resource* pBuffer;
-	ULONG_PTR pBaseAddress;
+    ID3D12Resource* pBuffer;
+    ULONG_PTR pBaseAddress;
 };
 
 //
@@ -29,30 +29,30 @@ struct Buffer : LIST_ENTRY
 //
 class DynamicBuffer
 {
-	friend class DX12Framework;
+    friend class DX12Framework;
 
 private:
-	Buffer* m_pBuffer;
-	ULONG_PTR m_pCurrentAddress;
+    Buffer* m_pBuffer;
+    ULONG_PTR m_pCurrentAddress;
 
 public:
-	//
-	// Align does not need to be a power of two, simply a boundary to align to. This is
-	// used to share the vertex buffer across shaders by aligning the vertices
-	// to multiples of the vertex stride.
-	//
-	void Align(UINT32 Alignment);
-	HRESULT Allocate(UINT32 ElementSize, UINT32 ElementCount, _Outptr_ void** pData, UINT32* pOffset);
+    //
+    // Align does not need to be a power of two, simply a boundary to align to. This is
+    // used to share the vertex buffer across shaders by aligning the vertices
+    // to multiples of the vertex stride.
+    //
+    void Align(UINT32 Alignment);
+    HRESULT Allocate(UINT32 ElementSize, UINT32 ElementCount, _Outptr_ void** pData, UINT32* pOffset);
 
-	inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const
-	{
-		return m_pBuffer->pBuffer->GetGPUVirtualAddress();
-	}
+    inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const
+    {
+        return m_pBuffer->pBuffer->GetGPUVirtualAddress();
+    }
 
-	inline void Reset()
-	{
-		m_pCurrentAddress = m_pBuffer->pBaseAddress;
-	}
+    inline void Reset()
+    {
+        m_pCurrentAddress = m_pBuffer->pBaseAddress;
+    }
 };
 
 //
@@ -61,7 +61,7 @@ public:
 //
 struct DescriptorHeap : LIST_ENTRY
 {
-	ID3D12DescriptorHeap* pHeap;
+    ID3D12DescriptorHeap* pHeap;
 };
 
 //
@@ -71,40 +71,40 @@ struct DescriptorHeap : LIST_ENTRY
 //
 class DynamicDescriptorHeap
 {
-	friend class DX12Framework;
+    friend class DX12Framework;
 
 private:
-	DescriptorHeap* m_pHeap;
-	UINT32 m_CurrentHandleIndex;
-	UINT32 m_DescriptorSize;
+    DescriptorHeap* m_pHeap;
+    UINT32 m_CurrentHandleIndex;
+    UINT32 m_DescriptorSize;
 
 public:
-	DynamicDescriptorHeap() :
-		m_CurrentHandleIndex(0)
-	{
-	}
+    DynamicDescriptorHeap() :
+        m_CurrentHandleIndex(0)
+    {
+    }
 
-	HRESULT Allocate(UINT32 ElementCount, D3D12_GPU_DESCRIPTOR_HANDLE* pGpuHandleStart, D3D12_CPU_DESCRIPTOR_HANDLE* pCpuHandleStart)
-	{
-		if (m_CurrentHandleIndex + ElementCount > DYNAMIC_HEAP_SIZE)
-		{
-			return E_OUTOFMEMORY;
-		}
+    HRESULT Allocate(UINT32 ElementCount, D3D12_GPU_DESCRIPTOR_HANDLE* pGpuHandleStart, D3D12_CPU_DESCRIPTOR_HANDLE* pCpuHandleStart)
+    {
+        if (m_CurrentHandleIndex + ElementCount > DYNAMIC_HEAP_SIZE)
+        {
+            return E_OUTOFMEMORY;
+        }
 
-		UINT32 Offset = m_CurrentHandleIndex * m_DescriptorSize;
-		CD3DX12_GPU_DESCRIPTOR_HANDLE GpuHandle(m_pHeap->pHeap->GetGPUDescriptorHandleForHeapStart(), Offset);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE CpuHandle(m_pHeap->pHeap->GetCPUDescriptorHandleForHeapStart(), Offset);
+        UINT32 Offset = m_CurrentHandleIndex * m_DescriptorSize;
+        CD3DX12_GPU_DESCRIPTOR_HANDLE GpuHandle(m_pHeap->pHeap->GetGPUDescriptorHandleForHeapStart(), Offset);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE CpuHandle(m_pHeap->pHeap->GetCPUDescriptorHandleForHeapStart(), Offset);
 
-		*pGpuHandleStart = GpuHandle;
-		*pCpuHandleStart = CpuHandle;
+        *pGpuHandleStart = GpuHandle;
+        *pCpuHandleStart = CpuHandle;
 
-		m_CurrentHandleIndex += ElementCount;
+        m_CurrentHandleIndex += ElementCount;
 
-		return S_OK;
-	}
+        return S_OK;
+    }
 
-	void Reset()
-	{
-		m_CurrentHandleIndex = 0;
-	}
+    void Reset()
+    {
+        m_CurrentHandleIndex = 0;
+    }
 };

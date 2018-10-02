@@ -202,7 +202,7 @@ void Lighting::CreateRandomLights( const Vector3 minBound, const Vector3 maxBoun
         //*(Matrix4*)(m_LightData[n].shadowTextureMatrix) = shadowTextureMatrix;
     }
     // sort lights by type, needed for efficiency in the BIT_MASK approach
-    /*	{
+    /*    {
     Matrix4 copyLightShadowMatrix[MaxLights];
     memcpy(copyLightShadowMatrix, m_LightShadowMatrix, sizeof(Matrix4) * MaxLights);
     LightData copyLightData[MaxLights];

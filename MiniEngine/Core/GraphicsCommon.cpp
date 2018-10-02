@@ -37,9 +37,9 @@ namespace Graphics
     D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointBorder;
     D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearBorder;
 
-    D3D12_RASTERIZER_DESC RasterizerDefault;	// Counter-clockwise
+    D3D12_RASTERIZER_DESC RasterizerDefault;    // Counter-clockwise
     D3D12_RASTERIZER_DESC RasterizerDefaultMsaa;
-    D3D12_RASTERIZER_DESC RasterizerDefaultCw;	// Clockwise winding
+    D3D12_RASTERIZER_DESC RasterizerDefaultCw;    // Clockwise winding
     D3D12_RASTERIZER_DESC RasterizerDefaultCwMsaa;
     D3D12_RASTERIZER_DESC RasterizerTwoSided;
     D3D12_RASTERIZER_DESC RasterizerTwoSidedMsaa;

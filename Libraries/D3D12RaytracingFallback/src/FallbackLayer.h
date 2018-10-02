@@ -28,18 +28,19 @@ namespace FallbackLayer
         virtual ~D3D12RaytracingCommandList() {}
 
         virtual void STDMETHODCALLTYPE BuildRaytracingAccelerationStructure(
-            _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc);
+            _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
+            _In_  UINT NumPostbuildInfoDescs,
+            _In_reads_opt_(NumPostbuildInfoDescs)  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pPostbuildInfoDescs);
 
-        virtual void STDMETHODCALLTYPE EmitRaytracingAccelerationStructurePostBuildInfo(
-            _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestBuffer,
-            _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_TYPE InfoType,
+        virtual void STDMETHODCALLTYPE EmitRaytracingAccelerationStructurePostbuildInfo(
+            _In_  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pDesc,
             _In_  UINT NumSourceAccelerationStructures,
             _In_reads_(NumSourceAccelerationStructures)  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData);
 
         virtual void STDMETHODCALLTYPE CopyRaytracingAccelerationStructure(
-            _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructureData,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
-            _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Flags);
+            _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode);
 
         virtual void STDMETHODCALLTYPE SetDescriptorHeaps(
             _In_  UINT NumDescriptorHeaps,
@@ -49,9 +50,14 @@ namespace FallbackLayer
             _In_  UINT RootParameterIndex,
             _In_  WRAPPED_GPU_POINTER  BufferLocation);
 
+        virtual void STDMETHODCALLTYPE SetPipelineState1(
+            _In_  ID3D12RaytracingFallbackStateObject *pStateObject)
+        {
+            m_pStateObject = pStateObject;
+        }
+
         virtual void STDMETHODCALLTYPE DispatchRays(
-            _In_  ID3D12RaytracingFallbackStateObject *pRaytracingPipelineState,
-            _In_  const D3D12_FALLBACK_DISPATCH_RAYS_DESC *pDesc);
+            _In_  const D3D12_DISPATCH_RAYS_DESC *pDesc);
     private:
         enum DescriptorHeapType
         {
@@ -74,6 +80,7 @@ namespace FallbackLayer
             }
         }
 
+        CComPtr<ID3D12RaytracingFallbackStateObject> m_pStateObject;
         std::unordered_map<UINT, WRAPPED_GPU_POINTER> m_BoundAccelerationStructures;
         ID3D12DescriptorHeap *m_pBoundDescriptorHeaps[DescriptorHeapType::NumTypes] = {};
         ATL::CComPtr<ID3D12GraphicsCommandList> m_pCommandList;
@@ -98,9 +105,14 @@ namespace FallbackLayer
             m_collection.m_pipelineStackSize = PipelineStackSizeInBytes;
         }
 
-        virtual ID3D12StateObjectPrototype *GetStateObjectPrototype()
+        virtual ID3D12StateObject *GetStateObject()
         {
-            return (ID3D12StateObjectPrototype *)this;
+            return (ID3D12StateObject *)this;
+        }
+
+        CStateObjectInfo &GetCachedStateInfo()
+        {
+            return m_collection.m_stateObjectInfo;
         }
     private:
 
@@ -135,7 +147,7 @@ namespace FallbackLayer
         virtual UINT STDMETHODCALLTYPE GetShaderIdentifierSize(void);
 
         virtual void STDMETHODCALLTYPE GetRaytracingAccelerationStructurePrebuildInfo(
-            _In_  D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC *pDesc,
+            _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
             _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo);
 
         virtual void QueryRaytracingCommandList(ID3D12GraphicsCommandList *pCommandList, 
@@ -177,8 +189,8 @@ namespace FallbackLayer
         }
 
     private:
-        void ProcessSubObject(const D3D12_STATE_SUBOBJECT &subObject, RaytracingStateObject &rayTracingStateObject);
-        void ProcessShaderAssociation(const D3D12_STATE_SUBOBJECT &subObject, ShaderAssociations &shaderAssociations);
+        void ProcessStateObject(_In_ const D3D12_STATE_OBJECT_DESC &stateObject, _Out_ RaytracingStateObject &rayTracingStateObject);
+        ShaderAssociations ProcessAssociations(_In_ LPCWSTR exportName, _Inout_ RaytracingStateObject &rayTracingStateObject);
 
         friend D3D12RaytracingCommandList;
         CComPtr<ID3D12Device> m_pDevice;

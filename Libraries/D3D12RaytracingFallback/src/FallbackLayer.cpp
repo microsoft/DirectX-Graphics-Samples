@@ -315,148 +315,169 @@ namespace FallbackLayer
     }
 
     void STDMETHODCALLTYPE D3D12RaytracingCommandList::BuildRaytracingAccelerationStructure(
-        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc)
+        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
+        _In_  UINT NumPostbuildInfoDescs,
+        _In_reads_opt_(NumPostbuildInfoDescs)  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pPostbuildInfoDescs)
     {
 #if USE_PIX_MARKERS
         PIXScopedEvent(m_pCommandList.p, FallbackPixColor, L"BuildRaytracingAccelerationStructure");
 #endif
-
-        m_device.m_AccelerationStructureBuilderFactory.GetAccelerationStructureBuilder().BuildRaytracingAccelerationStructure(
+        auto &accelerationStructureBuilder = m_device.m_AccelerationStructureBuilderFactory.GetAccelerationStructureBuilder();
+        accelerationStructureBuilder.BuildRaytracingAccelerationStructure(
             m_pCommandList,
             pDesc,
             m_pBoundDescriptorHeaps[SrvUavCbvType]);
-    }
 
-    bool IsShaderAssociationField(D3D12_STATE_SUBOBJECT_TYPE type)
-    {
-        switch (type)
+        if (NumPostbuildInfoDescs)
         {
-        case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
-            return true;
-        default:
-            return false;
+            accelerationStructureBuilder.EmitRaytracingAccelerationStructurePostbuildInfo(
+                m_pCommandList,
+                pPostbuildInfoDescs,
+                NumPostbuildInfoDescs,
+                &pDesc->DestAccelerationStructureData);
         }
     }
 
-    void RaytracingDevice::ProcessShaderAssociation(const D3D12_STATE_SUBOBJECT &subObject, ShaderAssociations &shaderAssociation)
+    ShaderAssociations RaytracingDevice::ProcessAssociations(_In_ LPCWSTR exportName, _Inout_ RaytracingStateObject &rayTracingStateObject)
     {
-        switch (subObject.Type)
+        auto &stateObjectCollection = rayTracingStateObject.m_collection;
+        CStateObjectInfo::CAssociatedSubobjectIterator associationIterator(&stateObjectCollection.m_stateObjectInfo);
+        associationIterator.ResetAndSelectExport(exportName, (D3D12_STATE_SUBOBJECT_TYPE)-1); // TODO: Should make this an explicit type
+        UINT numAssociations = (UINT)associationIterator.GetCount();
+        ShaderAssociations shaderAssociation = {};
+        for (UINT associationIndex = 0; associationIndex < numAssociations; associationIndex++)
         {
-        case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
-            {
-                ID3D12RootSignature** ppRootSignatureDesc = (ID3D12RootSignature**)subObject.pDesc;
-                if (!ppRootSignatureDesc || !(*ppRootSignatureDesc))
-                {
-                    ThrowFailure(E_INVALIDARG, L"Local root signature suboject being created with a null desc");
-                }
-
-                shaderAssociation.m_pRootSignature = *ppRootSignatureDesc;
-                break;
-            }
-
-        case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG:
-            {
-                D3D12_RAYTRACING_SHADER_CONFIG &shaderConfig = *(D3D12_RAYTRACING_SHADER_CONFIG *)subObject.pDesc;
-                shaderAssociation.m_shaderConfig = shaderConfig;
-                break;
-            }
-        }
-    }
-
-
-    void RaytracingDevice::ProcessSubObject(const D3D12_STATE_SUBOBJECT &subObject, RaytracingStateObject &rayTracingStateObject)
-    {
-        // Shader Association fields are added when referenced in a D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_SHADERS_ASSOCIATION
-        if (!IsShaderAssociationField(subObject.Type))
-        {
-            switch (subObject.Type)
+            auto pStateObject = associationIterator.Next();
+            switch (pStateObject->Type)
             {
             case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG:
-            {
-                D3D12_RAYTRACING_SHADER_CONFIG & shaderConfig = *(D3D12_RAYTRACING_SHADER_CONFIG*)subObject.pDesc;
-                rayTracingStateObject.m_collection.m_maxAttributeSizeInBytes = (UINT)std::max(
-                    (UINT)rayTracingStateObject.m_collection.m_maxAttributeSizeInBytes,
-                    (UINT)shaderConfig.MaxAttributeSizeInBytes);
+                shaderAssociation.m_shaderConfig = *((D3D12_RAYTRACING_SHADER_CONFIG*)pStateObject->pDesc);
                 break;
-            }
-            case D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE:
+            case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
+                shaderAssociation.m_pRootSignature = ((D3D12_LOCAL_ROOT_SIGNATURE*)pStateObject->pDesc)->pLocalRootSignature;
+                break;
+            case D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE:
             {
-                ID3D12RootSignature** ppRootSignatureDesc = (ID3D12RootSignature**)subObject.pDesc;
-                if (!ppRootSignatureDesc || !(*ppRootSignatureDesc))
+                auto *pGlobalRootSignature = ((D3D12_GLOBAL_ROOT_SIGNATURE*)pStateObject->pDesc)->pGlobalRootSignature;
+                if (stateObjectCollection.m_pGlobalRootSignature && stateObjectCollection.m_pGlobalRootSignature != pGlobalRootSignature)
                 {
-                    ThrowFailure(E_INVALIDARG,
-                        L"Global root signature suboject being created with a null desc");
+                    ThrowFailure(E_NOTIMPL, L"The Fallback Layer currently only supports a single global root signature in the state object");
                 }
-
-                rayTracingStateObject.m_collection.m_pGlobalRootSignature = *ppRootSignatureDesc;
-                break;
-            }
-            case D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK:
-            {
-                UINT nodeMask = *(UINT*)subObject.pDesc;
-                rayTracingStateObject.m_collection.m_nodeMask = nodeMask;
-                break;
-            }
-
-            case D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY:
-            {
-                D3D12_DXIL_LIBRARY_DESC &dxilLibDesc = *(D3D12_DXIL_LIBRARY_DESC*)subObject.pDesc;
-                rayTracingStateObject.m_collection.m_dxilLibraries.push_back(dxilLibDesc);
-                break;
-            }
-            case D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION:
-            {
-                D3D12_EXISTING_COLLECTION_DESC &collectionDesc = *(D3D12_EXISTING_COLLECTION_DESC*)subObject.pDesc;
-                RaytracingStateObject *pRaytracingPipelineState = reinterpret_cast<RaytracingStateObject *>(collectionDesc.pExistingCollection);
-                rayTracingStateObject.m_collection.CombineCollection(pRaytracingPipelineState->m_collection);
-                for (UINT i = 0; i < collectionDesc.NumExports; i++)
+                else
                 {
-                    if (collectionDesc.pExports[i].ExportToRename)
-                    {
-                        ThrowFailure(E_NOTIMPL, L"Export renaming is not currently supported");
-                    }
-                }
-                // TODO: Need to handle export renaming
-                break;
-            }
-            case D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION:
-            {
-                D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION &subobjectToShaderAssociation = *(D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION*)subObject.pDesc;
-
-                for (UINT i = 0; i < subobjectToShaderAssociation.NumExports; i++)
-                {
-                    ShaderAssociations &shaderAssociations = rayTracingStateObject.m_collection.m_shaderAssociations[subobjectToShaderAssociation.pExports[i]];
-                    ProcessShaderAssociation(*subobjectToShaderAssociation.pSubobjectToAssociate, shaderAssociations);
+                    stateObjectCollection.m_pGlobalRootSignature = pGlobalRootSignature;
                 }
                 break;
             }
             case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG:
             {
-                D3D12_RAYTRACING_PIPELINE_CONFIG &config = *(D3D12_RAYTRACING_PIPELINE_CONFIG *)subObject.pDesc;
-                rayTracingStateObject.m_collection.m_config = config;
+                stateObjectCollection.m_config = *((D3D12_RAYTRACING_PIPELINE_CONFIG*)pStateObject->pDesc);
                 break;
+            }
+            }
+        }
+        stateObjectCollection.m_maxAttributeSizeInBytes = (UINT)std::max(
+            (UINT)stateObjectCollection.m_maxAttributeSizeInBytes,
+            (UINT)shaderAssociation.m_shaderConfig.MaxAttributeSizeInBytes);
+
+        return shaderAssociation;
+    }
+
+
+    void RaytracingDevice::ProcessStateObject(_In_ const D3D12_STATE_OBJECT_DESC &stateObject, _Out_ RaytracingStateObject &rayTracingStateObject)
+    {
+        PFN_CALLBACK_GET_STATE_OBJECT_INFO_FOR_EXISTING_COLLECTION pfnGetStateObjectInfo = [](ID3D12StateObject *pStateObject)->CStateObjectInfo*
+        {
+            RaytracingStateObject *pRaytracingPipelineState = reinterpret_cast<RaytracingStateObject *>(pStateObject);
+            return &pRaytracingPipelineState->GetCachedStateInfo();
+        };
+
+        auto &stateObjectCollection = rayTracingStateObject.m_collection;
+        auto &stateObjectInfo = stateObjectCollection.m_stateObjectInfo;
+
+        stateObjectInfo.ParseStateObject(&stateObject, pfnGetStateObjectInfo, GetRuntimeData, &stateObjectCollection.m_libraryCache);
+        if (stateObjectInfo.GetLog().size())
+        {
+            std::wstring fullErrorString = L"State object creation failures due to: \n";
+            auto &logList = stateObjectInfo.GetLog();
+            for (auto &errorStr : logList)
+            {
+                fullErrorString += errorStr;
+                fullErrorString += L"\n";
+            }
+            ThrowFailure(E_INVALIDARG, fullErrorString.c_str());
+        }
+
+        if (stateObject.Type == D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE)
+        {
+            CStateObjectInfo::CExportedFunctionIterator exportIterator(&stateObjectInfo);
+            UINT exportCount = (UINT)exportIterator.GetCount();
+            for (UINT i = 0; i < exportCount; i++)
+            {
+                EXPORTED_FUNCTION exportedFunction;
+                exportIterator.Next(&exportedFunction);
+
+                if ((ShaderKind)exportedFunction.pDXILFunction->ShaderKind != ShaderKind::Library)
+                {
+                    auto shaderAssociation = ProcessAssociations(exportedFunction.MangledName, rayTracingStateObject);
+                    shaderAssociation.m_exportToRename = exportedFunction.pDXILFunction->UnmangledName;
+                    shaderAssociation.m_mangledExport = exportedFunction.MangledName;
+                    DxcExportDesc desc = {};
+                    desc.ExportName = exportedFunction.MangledName;
+                    bool bRename = std::wstring(exportedFunction.UnmangledName).compare(exportedFunction.pDXILFunction->UnmangledName) != 0;
+                    if (bRename)
+                    {
+                        desc.ExportToRename = exportedFunction.pDXILFunction->Name;
+                        shaderAssociation.m_mangledExportToRename = exportedFunction.pDXILFunction->Name;
+                    }
+
+                    stateObjectCollection.m_exportDescs.push_back(desc);
+                    stateObjectCollection.m_exportNames.push_back(exportedFunction.UnmangledName);
+                    stateObjectCollection.m_shaderAssociations[exportedFunction.UnmangledName] = shaderAssociation;
+                }
             }
 
-            case D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP:
             {
-                D3D12_HIT_GROUP_DESC &hitGroup = *(D3D12_HIT_GROUP_DESC *)subObject.pDesc;
-                rayTracingStateObject.m_collection.m_hitGroups[hitGroup.HitGroupExport] = hitGroup;
-                if (hitGroup.AnyHitShaderImport)
+                auto pStateSubobject = stateObjectInfo.GetGloballyAssociatedSubobject(D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK);
+                if (pStateSubobject && pStateSubobject->pDesc)
                 {
-                    rayTracingStateObject.m_collection.IsUsingAnyHit = true;
+                    stateObjectCollection.m_nodeMask = ((D3D12_NODE_MASK*)pStateSubobject->pDesc)->NodeMask;
                 }
-                if (hitGroup.IntersectionShaderImport)
-                {
-                    rayTracingStateObject.m_collection.IsUsingIntersection = true;
-                }
-                break;
             }
-            case D3D12_STATE_SUBOBJECT_TYPE_CACHED_STATE_OBJECT:
-            default:
-                ThrowFailure(E_INVALIDARG, L"D3D12_STATE_SUBOBJECT_TYPE_CACHED_STATE_OBJECT is not supported");
+
+            CStateObjectInfo::CExportedHitGroupIterator hitGroupIterator(&stateObjectInfo);
+            UINT hitGroupCount = (UINT)hitGroupIterator.GetCount();
+            for (UINT i = 0; i < hitGroupCount; i++)
+            {
+                EXPORTED_HIT_GROUP hitGroupExport;
+                hitGroupIterator.Next(&hitGroupExport);
+
+                if (hitGroupExport.pHitGroup && hitGroupExport.pHitGroup->pDesc)
+                {
+                    auto &hitGroup = *(D3D12_HIT_GROUP_DESC*)hitGroupExport.pHitGroup->pDesc;
+
+                    stateObjectCollection.m_hitGroups[hitGroup.HitGroupExport] = hitGroup;
+                    if (hitGroup.AnyHitShaderImport)
+                    {
+                        stateObjectCollection.IsUsingAnyHit = true;
+                    }
+                    if (hitGroup.IntersectionShaderImport)
+                    {
+                        stateObjectCollection.IsUsingIntersection = true;
+                    }
+                }
+            }
+
+            CStateObjectInfo::CDxilLibraryIterator dxilLibIterator(&stateObjectInfo);
+            UINT dxilLibCount = (UINT)dxilLibIterator.GetCount();
+            stateObjectCollection.m_dxilLibraries.resize(dxilLibCount);
+            for (UINT i = 0; i < dxilLibCount; i++)
+            {
+                dxilLibIterator.Next(&stateObjectCollection.m_dxilLibraries[i]);
             }
         }
     }
+
 
     HRESULT STDMETHODCALLTYPE RaytracingDevice::CreateStateObject(
         const D3D12_STATE_OBJECT_DESC *pDesc,
@@ -468,69 +489,78 @@ namespace FallbackLayer
             ThrowFailure(E_INVALIDARG, L"Null ppStateObject passed in or invalid riid");
         }
 
-        RaytracingStateObject *pRaytracingStateObject = new RaytracingStateObject();
-        *ppStateObject = pRaytracingStateObject;
-        if (!*ppStateObject)
+        try
         {
-            ThrowFailure(E_OUTOFMEMORY, L"Out of memory");
-        }
-
-        for (UINT i = 0; i < pDesc->NumSubobjects; i++)
-        {
-            auto &subObject = pDesc->pSubobjects[i];
-            ProcessSubObject(subObject, *pRaytracingStateObject);
-        }
-
-        if (pDesc->Type == D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE)
-        {
-            pRaytracingStateObject->m_spProgram.reset(
-                m_RaytracingProgramFactory.GetRaytracingProgram(pRaytracingStateObject->m_collection));
-
-            pRaytracingStateObject->m_spProgram->SetPredispatchCallback([=](ID3D12GraphicsCommandList *pCommandList, UINT patchRootSignatureParameterStart)
+            RaytracingStateObject *pRaytracingStateObject = new RaytracingStateObject();
+            *ppStateObject = pRaytracingStateObject;
+            if (!*ppStateObject)
             {
-                UNREFERENCED_PARAMETER(pCommandList);
-                UNREFERENCED_PARAMETER(patchRootSignatureParameterStart);
+                ThrowFailure(E_OUTOFMEMORY, L"Out of memory");
+            }
+
+            ProcessStateObject(*pDesc, *pRaytracingStateObject);
+
+            if (pDesc->Type == D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE)
+            {
+                pRaytracingStateObject->m_spProgram.reset(
+                    m_RaytracingProgramFactory.GetRaytracingProgram(pRaytracingStateObject->m_collection));
+
+                pRaytracingStateObject->m_spProgram->SetPredispatchCallback([=](ID3D12GraphicsCommandList *pCommandList, UINT patchRootSignatureParameterStart)
+                {
+                    UNREFERENCED_PARAMETER(pCommandList);
+                    UNREFERENCED_PARAMETER(patchRootSignatureParameterStart);
 #if ENABLE_UAV_LOG
-                pCommandList->SetComputeRootUnorderedAccessView(
-                    patchRootSignatureParameterStart + DebugUAVLog, m_pUAVLog->GetGPUVirtualAddress());
+                    pCommandList->SetComputeRootUnorderedAccessView(
+                        patchRootSignatureParameterStart + DebugUAVLog, m_pUAVLog->GetGPUVirtualAddress());
 #endif
 
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-                DebugVariables variables;
-                variables.LevelToVisualize = m_levelToVisualize;
-                pCommandList->SetComputeRoot32BitConstants(patchRootSignatureParameterStart + DebugConstants,
-                    SizeOfInUint32(variables),
-                    &variables,
-                    0);
+                    DebugVariables variables;
+                    variables.LevelToVisualize = m_levelToVisualize;
+                    pCommandList->SetComputeRoot32BitConstants(patchRootSignatureParameterStart + DebugConstants,
+                        SizeOfInUint32(variables),
+                        &variables,
+                        0);
 #endif
-            });
+                });
+            }
+        }
+        catch (_com_error &e)
+        {
+            return e.Error();
         }
 
         return S_OK;
     }
 
-    void STDMETHODCALLTYPE D3D12RaytracingCommandList::EmitRaytracingAccelerationStructurePostBuildInfo(
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestBuffer,
-        _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_TYPE InfoType,
+    void STDMETHODCALLTYPE D3D12RaytracingCommandList::EmitRaytracingAccelerationStructurePostbuildInfo(
+        _In_  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pDesc,
         _In_  UINT NumSourceAccelerationStructures,
         _In_reads_(NumSourceAccelerationStructures)  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData)
     {
-        UNREFERENCED_PARAMETER(InfoType);
+        if (pDesc->InfoType != D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE ||
+            pDesc->InfoType != D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE)
+        {
+            ThrowFailure(E_INVALIDARG,
+                L"Unsupported InfoType passed in, only supported POSTBUILD_INFO flags are "
+                L"D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE and D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE, "
+            );
+        }
 #if USE_PIX_MARKERS
         PIXScopedEvent(m_pCommandList.p, FallbackPixColor, L"EmitRaytracingAccelerationStructurePostBuildInfo");
 #endif
 
-        m_device.GetAccelerationStructureBuilderFactory().GetAccelerationStructureBuilder().EmitRaytracingAccelerationStructurePostBuildInfo(
+        m_device.GetAccelerationStructureBuilderFactory().GetAccelerationStructureBuilder().EmitRaytracingAccelerationStructurePostbuildInfo(
             m_pCommandList,
-            DestBuffer,
+            pDesc,
             NumSourceAccelerationStructures,
             pSourceAccelerationStructureData);
     }
 
     void STDMETHODCALLTYPE D3D12RaytracingCommandList::CopyRaytracingAccelerationStructure(
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructureData,
+        _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
         _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
-        _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Flags)
+        _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode)
     {
 #if USE_PIX_MARKERS
         PIXScopedEvent(m_pCommandList.p, FallbackPixColor, L"CopyRaytracingAccelerationStructure");
@@ -539,7 +569,7 @@ namespace FallbackLayer
             m_pCommandList,
             DestAccelerationStructureData,
             SourceAccelerationStructureData,
-            Flags
+            Mode
         );
     }
 
@@ -572,13 +602,12 @@ namespace FallbackLayer
     }
 
     void STDMETHODCALLTYPE D3D12RaytracingCommandList::DispatchRays(
-        _In_  ID3D12RaytracingFallbackStateObject *pStateObject,
-        _In_  const D3D12_FALLBACK_DISPATCH_RAYS_DESC *pDesc)
+        _In_  const D3D12_DISPATCH_RAYS_DESC *pDesc)
     {
         // A view-type descriptor heap is required to be bound since the Top-Level 
         // Acceleration Structure will have emulated-SRV-pointers to Bottom-Level 
         // structures
-        RaytracingStateObject *pRaytracingPipelineState = static_cast<RaytracingStateObject *>(pStateObject);
+        RaytracingStateObject *pRaytracingPipelineState = static_cast<RaytracingStateObject *>(m_pStateObject.p);
         if (!pDesc || (!m_pBoundDescriptorHeaps[SrvUavCbvType]))
         {
             ThrowFailure(E_INVALIDARG, 
@@ -639,7 +668,7 @@ namespace FallbackLayer
     }
 
     void STDMETHODCALLTYPE RaytracingDevice::GetRaytracingAccelerationStructurePrebuildInfo(
-        _In_  D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC *pDesc,
+        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
         _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
     {
         m_AccelerationStructureBuilderFactory.GetAccelerationStructureBuilder().GetRaytracingAccelerationStructurePrebuildInfo(

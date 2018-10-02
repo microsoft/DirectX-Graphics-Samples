@@ -35,9 +35,9 @@ SamplerState BilinearClamp : register(s0);
 
 cbuffer CB0 : register(b0)
 {
-    uint SrcMipLevel;	// Texture level of source mip
-    uint NumMipLevels;	// Number of OutMips to write: [1, 4]
-    float2 TexelSize;	// 1.0 / OutMip1.Dimensions
+    uint SrcMipLevel;    // Texture level of source mip
+    uint NumMipLevels;    // Number of OutMips to write: [1, 4]
+    float2 TexelSize;    // 1.0 / OutMip1.Dimensions
 }
 
 // The reason for separating channels is to reduce bank conflicts in the

@@ -34,8 +34,14 @@ struct DxcShaderInfo
 
 struct DxcShaderBytecode
 {
-    LPBYTE pShaderBytecode;
-    UINT32 shaderBytecodeSize;
+    LPBYTE pData;
+    UINT32 Size;
+};
+
+struct DxcExportDesc
+{
+    LPCWSTR ExportToRename;
+    LPCWSTR ExportName;
 };
 
 struct __declspec(uuid("76bb3c85-006d-4b72-9e10-63cd97df57f0"))
@@ -47,6 +53,14 @@ struct __declspec(uuid("76bb3c85-006d-4b72-9e10-63cd97df57f0"))
   virtual HRESULT STDMETHODCALLTYPE SetFindCalledShaders(bool val) = 0;
 
   virtual HRESULT STDMETHODCALLTYPE SetDebugOutput(int val) = 0;
+
+  virtual HRESULT STDMETHODCALLTYPE RenameAndLink(
+      _In_count_(libCount) DxcShaderBytecode *pLibs,
+      UINT32 libCount,
+      _In_count_(ExportCount) DxcExportDesc *pExports,
+      UINT32 ExportCount,
+      _COM_Outptr_ IDxcOperationResult **ppResult
+  ) = 0;
 
   virtual HRESULT STDMETHODCALLTYPE PatchShaderBindingTables(
       _In_ const LPCWSTR pEntryName,

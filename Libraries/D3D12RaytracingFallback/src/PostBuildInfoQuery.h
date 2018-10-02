@@ -17,7 +17,7 @@ public:
 
     void GetCompactedBVHSizes(
         _In_  ID3D12GraphicsCommandList *pCommandList,
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestBuffer,
+        _In_  D3D12_GPU_VIRTUAL_ADDRESS DestBuffer,
         _In_  UINT NumSourceAccelerationStructures,
         _In_reads_(NumSourceAccelerationStructures) const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData);
 

@@ -8,7 +8,7 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	Alex Nankervis
+// Author(s):    Alex Nankervis
 //
 
 #include "LightGrid.hlsli"
@@ -18,8 +18,8 @@
 
 #define FLT_MIN         1.175494351e-38F        // min positive value
 #define FLT_MAX         3.402823466e+38F        // max value
-#define PI				3.1415926535f
-#define TWOPI			6.283185307f
+#define PI                3.1415926535f
+#define TWOPI            6.283185307f
 
 #define WORK_GROUP_THREADS (WORK_GROUP_SIZE_X * WORK_GROUP_SIZE_Y * WORK_GROUP_SIZE_Z)
 
@@ -213,18 +213,19 @@ void main(
             ((tileLightCountConeShadowed & 0xff) << 16);
         lightGrid.Store(tileOffset + 0, lightCount);
 
+        uint n;
         uint storeOffset = tileOffset + 4;
-        for (uint n = 0; n < tileLightCountSphere; n++)
+        for (n = 0; n < tileLightCountSphere; n++)
         {
             lightGrid.Store(storeOffset, tileLightIndicesSphere[n]);
             storeOffset += 4;
         }
-        for (uint n = 0; n < tileLightCountCone; n++)
+        for (n = 0; n < tileLightCountCone; n++)
         {
             lightGrid.Store(storeOffset, tileLightIndicesCone[n]);
             storeOffset += 4;
         }
-        for (uint n = 0; n < tileLightCountConeShadowed; n++)
+        for (n = 0; n < tileLightCountConeShadowed; n++)
         {
             lightGrid.Store(storeOffset, tileLightIndicesConeShadowed[n]);
             storeOffset += 4;

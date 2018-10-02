@@ -22,7 +22,7 @@ namespace FallbackLayer
             ID3D12DescriptorHeap *pSrvCbvUavDescriptorHeap,
             ID3D12DescriptorHeap *pSamplerDescriptorHeap,
             const std::unordered_map<UINT, WRAPPED_GPU_POINTER> &boundAccelerationStructures,
-            const D3D12_FALLBACK_DISPATCH_RAYS_DESC &desc);
+            const D3D12_DISPATCH_RAYS_DESC &desc);
 
         virtual ShaderIdentifier *GetShaderIdentifier(LPCWSTR pExportName);
         virtual UINT64 GetShaderStackSize(LPCWSTR pExportName);

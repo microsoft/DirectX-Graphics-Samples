@@ -15,6 +15,6 @@
 _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-	D3D12DepthBoundsTest sample(1280, 720, L"D3D12 Depth Bounds Test Sample");
-	return Win32Application::Run(&sample, hInstance, nCmdShow);
+    D3D12DepthBoundsTest sample(1280, 720, L"D3D12 Depth Bounds Test Sample");
+    return Win32Application::Run(&sample, hInstance, nCmdShow);
 }
