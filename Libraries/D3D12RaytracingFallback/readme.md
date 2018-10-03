@@ -1,5 +1,7 @@
 # D3D12 Raytracing Fallback Layer
-The D3D12 Raytracing Fallback Layer is a library that emulates the DirectX Raytracing API on devices without native driver/hardware support.
+The D3D12 Raytracing Fallback Layer is a library that emulates the DirectX Raytracing (DXR) API on devices without native driver/hardware support.
+
+**[Windows October 2018 Update]** The Fallback Layer emulation runtime works with the final DXR API in Windows October 2018 update. The emulation feature proved useful during the experimental phase of DXR design. But as of the first shipping release of DXR, the plan is to stop maintaining this codebase.  The cost/benefit is not justified and further, over time as more native DXR support comes online, the value of emulation will diminish further. That said, the code functionality that was implemented is left in place for any further external contributions or if a strong justification crops up to resurrect the feature. We welcome external pull requests on extending or improving the Fallback Layer codebase.
 
 ## Overview
 ![MiniEngine Screenshot](../../Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingMiniEngineSample/Screenshot.png)
