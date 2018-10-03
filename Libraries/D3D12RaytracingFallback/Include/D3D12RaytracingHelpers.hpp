@@ -1,21 +1,19 @@
-#pragma once
-#include <list>
-#include <vector>
-#include <atlbase.h>
 //=============================================================================================================================
-// D3D12 Raytracing prototype state object creation helpers
+// D3D12 Raytracing State Object Creation Helpers
 // 
-// Prototype Helper classes for creating new style state objects out of an arbitrary set of subobjects.
-// Uses STL - clean implmentation could be made if needed.
+// Helper classes for creating new style state objects out of an arbitrary set of subobjects.
+// Uses STL
 //
 // Start by instantiating CD3D12_STATE_OBJECT_DESC (see it's public methods).
 // One of its methods is CreateSubobject(), which has a comment showing a couple of options for defining
 // subobjects using the helper classes for each subobject (CD3D12_DXIL_LIBRARY_SUBOBJECT etc.).
 // The subobject helpers each have methods specific to the subobject for configuring it's contents.
-// 
-// At the end of the file is a large comment block showing 3 example state object creations.
-//
 //=============================================================================================================================
+#pragma once
+#include <list>
+#include <vector>
+#include <atlbase.h>
+
 class CD3D12_STATE_OBJECT_DESC
 {
 public:
@@ -60,8 +58,6 @@ public:
     {
         return  &(const D3D12_STATE_OBJECT_DESC&)(*this);
     }
-
-    UINT NumSubbojects() { return m_Desc.NumSubobjects; }
 
     // CreateSubobject creates a sububject helper (e.g. CD3D12_HIT_GROUP_SUBOBJECT) whose lifetime is owned by this class.
     // e.g. 
@@ -182,8 +178,10 @@ private:
     friend class CD3D12_HIT_GROUP_SUBOBJECT;
     friend class CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT;
     friend class CD3D12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT;
-    friend class CD3D12_ROOT_SIGNATURE_SUBOBJECT;
+    friend class CD3D12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT;
     friend class CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT;
+    friend class CD3D12_STATE_OBJECT_CONFIG_SUBOBJECT;
+    friend class CD3D12_NODE_MASK_SUBOBJECT;
 };
 
 class CD3D12_DXIL_LIBRARY_SUBOBJECT : public CD3D12_STATE_OBJECT_DESC::SUBOBJECT_HELPER_BASE
@@ -223,7 +221,7 @@ public:
         {
             DefineExport(Exports[i]);
         }
-    }
+    }    
     D3D12_STATE_SUBOBJECT_TYPE Type() { return D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY; }
     operator const D3D12_STATE_SUBOBJECT&() const { return *m_pSubobject; }
     operator const D3D12_DXIL_LIBRARY_DESC&() const { return m_Desc; }
@@ -253,7 +251,7 @@ public:
         Init();
         AddToStateObject(ContainingStateObject);
     }
-    void SetExistingCollection(ID3D12StateObjectPrototype*pExistingCollection) { m_Desc.pExistingCollection = pExistingCollection; m_CollectionRef = pExistingCollection; }
+    void SetExistingCollection(ID3D12StateObject*pExistingCollection) { m_Desc.pExistingCollection = pExistingCollection; m_CollectionRef = pExistingCollection; }
     void DefineExport(LPCWSTR Name, LPCWSTR ExportToRename = nullptr, D3D12_EXPORT_FLAGS Flags = D3D12_EXPORT_FLAG_NONE)
     {
         D3D12_EXPORT_DESC Export;
@@ -264,6 +262,21 @@ public:
         m_Desc.pExports = m_Exports.data();
         m_Desc.NumExports = (UINT)m_Exports.size();
     }
+    template<size_t N>
+    void DefineExports(LPCWSTR(&Exports)[N])
+    {
+        for (UINT i = 0; i < N; i++)
+        {
+            DefineExport(Exports[i]);
+        }
+    }
+    void DefineExports(LPCWSTR* Exports, UINT N)
+    {
+        for (UINT i = 0; i < N; i++)
+        {
+            DefineExport(Exports[i]);
+        }
+    }    
     D3D12_STATE_SUBOBJECT_TYPE Type() { return D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION; }
     operator const D3D12_STATE_SUBOBJECT&() const { return *m_pSubobject; }
     operator const D3D12_EXISTING_COLLECTION_DESC&() const { return m_Desc; }
@@ -278,7 +291,7 @@ private:
     }
     void* Data() { return &m_Desc; }
     D3D12_EXISTING_COLLECTION_DESC m_Desc;
-    CComPtr<ID3D12StateObjectPrototype> m_CollectionRef;
+    CComPtr<ID3D12StateObject> m_CollectionRef;
     CD3D12_STATE_OBJECT_DESC::StringContainer m_Strings;
     std::vector<D3D12_EXPORT_DESC> m_Exports;
 };
@@ -302,14 +315,16 @@ public:
         m_Exports.push_back(m_Strings.LocalCopy(Export));
         m_Desc.pExports = m_Exports.data();
     }
+
     template<size_t N>
-    void AddExports(LPCWSTR (&Exports)[N])
+    void AddExports(LPCWSTR(&Exports)[N])
     {
         for (UINT i = 0; i < N; i++)
         {
             AddExport(Exports[i]);
         }
     }
+
     void AddExports(LPCWSTR* Exports, UINT N)
     {
         for (UINT i = 0; i < N; i++)
@@ -317,6 +332,7 @@ public:
             AddExport(Exports[i]);
         }
     }
+
     D3D12_STATE_SUBOBJECT_TYPE Type() { return D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION; }
     operator const D3D12_STATE_SUBOBJECT&() const { return *m_pSubobject; }
     operator const D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION&() const { return m_Desc; }
@@ -346,7 +362,7 @@ public:
         Init();
         AddToStateObject(ContainingStateObject);
     }
-    void SetSubobjectNameAssociate(LPCWSTR SubobjectToAssociate) { m_Desc.SubobjectToAssociate = m_SubobjectName.LocalCopy(SubobjectToAssociate, true); }
+    void SetSubobjectNameToAssociate(LPCWSTR SubobjectToAssociate) { m_Desc.SubobjectToAssociate = m_SubobjectName.LocalCopy(SubobjectToAssociate, true); }
     void AddExport(LPCWSTR Export)
     {
         m_Desc.NumExports++;
@@ -385,6 +401,7 @@ public:
         AddToStateObject(ContainingStateObject);
     }
     void SetHitGroupExport(LPCWSTR exportName) { m_Desc.HitGroupExport = m_Strings[0].LocalCopy(exportName, true); }
+    void SetHitGroupType(D3D12_HIT_GROUP_TYPE Type) { m_Desc.Type = Type; }
     void SetAnyHitShaderImport(LPCWSTR importName) { m_Desc.AnyHitShaderImport = m_Strings[1].LocalCopy(importName, true); }
     void SetClosestHitShaderImport(LPCWSTR importName) { m_Desc.ClosestHitShaderImport = m_Strings[2].LocalCopy(importName, true); }
     void SetIntersectionShaderImport(LPCWSTR importName) { m_Desc.IntersectionShaderImport = m_Strings[3].LocalCopy(importName, true); }
@@ -466,14 +483,14 @@ private:
     D3D12_RAYTRACING_PIPELINE_CONFIG m_Desc;
 };
 
-class CD3D12_ROOT_SIGNATURE_SUBOBJECT : public CD3D12_STATE_OBJECT_DESC::SUBOBJECT_HELPER_BASE
+class CD3D12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT : public CD3D12_STATE_OBJECT_DESC::SUBOBJECT_HELPER_BASE
 {
 public:
-    CD3D12_ROOT_SIGNATURE_SUBOBJECT()
+    CD3D12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT()
     {
         Init();
     }
-    CD3D12_ROOT_SIGNATURE_SUBOBJECT(CD3D12_STATE_OBJECT_DESC& ContainingStateObject)
+    CD3D12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT(CD3D12_STATE_OBJECT_DESC& ContainingStateObject)
     {
         Init();
         AddToStateObject(ContainingStateObject);
@@ -482,7 +499,7 @@ public:
     {
         m_pRootSig = pRootSig;
     }
-    D3D12_STATE_SUBOBJECT_TYPE Type() { return D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE; }
+    D3D12_STATE_SUBOBJECT_TYPE Type() { return D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE; }
     operator const D3D12_STATE_SUBOBJECT&() const { return *m_pSubobject; }
     operator ID3D12RootSignature*() const { return m_pRootSig; }
 private:
@@ -524,284 +541,60 @@ private:
     CComPtr<ID3D12RootSignature> m_pRootSig;
 };
 
-//=============================================================================================================================
-// Some dummy examples creating various state objects
-//
-// At the start is a bunch of init code, then 3 examples of creating state objects.
-// As these examples were authored before state object validation has been authored in the D3D runtime,
-// take these as examples of using the subobject helpers only.  They may not be creating valid state objects (yet),
-// due to missing some configuration or whatnot.  Until validation is in place to help correctly build state objects,
-// other samples that actually execute and the raytracing spec are better guides.
-//=============================================================================================================================
+class CD3D12_STATE_OBJECT_CONFIG_SUBOBJECT : public CD3D12_STATE_OBJECT_DESC::SUBOBJECT_HELPER_BASE
+{
+public:
+    CD3D12_STATE_OBJECT_CONFIG_SUBOBJECT()
+    {
+        Init();
+    }
+    CD3D12_STATE_OBJECT_CONFIG_SUBOBJECT(CD3D12_STATE_OBJECT_DESC& ContainingStateObject)
+    {
+        Init();
+        AddToStateObject(ContainingStateObject);
+    }
+    void SetFlags(D3D12_STATE_OBJECT_FLAGS Flags)
+    {
+        m_Desc.Flags = Flags;
+    }
+    D3D12_STATE_SUBOBJECT_TYPE Type() { return D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG; }
+    operator const D3D12_STATE_SUBOBJECT&() const { return *m_pSubobject; }
+    operator const D3D12_STATE_OBJECT_CONFIG&() const { return m_Desc; }
+private:
+    void Init()
+    {
+        SUBOBJECT_HELPER_BASE::Init();
+        m_Desc = {};
+    }
+    void* Data() { return &m_Desc; }
+    D3D12_STATE_OBJECT_CONFIG m_Desc;
+};
 
-//InitDeviceAndContext(&m_Ctx);
-//CComPtr<ID3D12DeviceRaytracingPrototype> spFPDevice = m_Ctx.spFPDevice;
-//CComPtr<ID3D12Device2> spDevice = m_Ctx.spDevice;
-//CComPtr<ID3D12GraphicsCommandList1> spCL = m_Ctx.spCL;
-//CComPtr<ID3D12CommandListRaytracingPrototype> spFPCL = m_Ctx.spFPCL;
-//D3D12_SHADER_BYTECODE pMyAppDxilLibs[8] = {
-//    CD3DX12_SHADER_BYTECODE(g_Lib1,sizeof(g_Lib1)),  // TODO, make actual different libraries with the appropriate content
-//    CD3DX12_SHADER_BYTECODE(g_Lib1,sizeof(g_Lib1)),
-//    CD3DX12_SHADER_BYTECODE(g_Lib1,sizeof(g_Lib1)),
-//    CD3DX12_SHADER_BYTECODE(g_Lib1,sizeof(g_Lib1)),
-//    CD3DX12_SHADER_BYTECODE(g_Lib1,sizeof(g_Lib1)),
-//    CD3DX12_SHADER_BYTECODE(g_Lib1,sizeof(g_Lib1)),
-//    CD3DX12_SHADER_BYTECODE(g_Lib1,sizeof(g_Lib1)),
-//    CD3DX12_SHADER_BYTECODE(g_Lib1,sizeof(g_Lib1))
-//};
-//CComPtr<ID3D12RootSignature> pMyAppRootSigs[4] = {}; // in practice these would not be null
-
-//for (UINT i = 0; i < _countof(pMyAppRootSigs); i++)
-//{
-//    // Make some dummy root signatures
-//    CD3DX12_DESCRIPTOR_RANGE dr[4];
-//    dr[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-//    dr[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-//    dr[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
-//    dr[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
-//    CD3DX12_ROOT_PARAMETER rp[5];
-//    rp[0].InitAsDescriptorTable(3, dr);
-//    rp[1].InitAsDescriptorTable(1, &dr[3]);
-//    rp[2].InitAsConstantBufferView(2);
-//    rp[3].InitAsUnorderedAccessView(2);
-//    rp[4].InitAsShaderResourceView(2);
-//    CD3DX12_ROOT_SIGNATURE_DESC rs;
-//    rs.Init(5 - i, rp); // make each rs a bit different just for fun
-//    CComPtr<ID3DBlob> pRSBlob;
-//    VERIFY_SUCCEEDED(D3D12SerializeRootSignature(&rs, D3D_ROOT_SIGNATURE_VERSION_1, &pRSBlob, NULL));
-
-//    CComPtr<ID3D12RootSignature> pRS;
-//    VERIFY_SUCCEEDED(m_Ctx.spDevice->CreateRootSignature(GetFullNodeMask(m_Ctx.spDevice), pRSBlob->GetBufferPointer(), pRSBlob->GetBufferSize(), __uuidof(ID3D12RootSignature), (void**)&pMyAppRootSigs[i]));
-//}
-
-//CComPtr<ID3D12StateObjectPrototype> spRaytracingPipelineState;
-//CComPtr<ID3D12StateObjectPrototype> spRaytracingPipelineState2;
-
-////=============================================================================================================================
-//// Example 1:
-////
-////  Collection 1:
-////   3 DXIL libraries, exporting various raytracing shaders
-////   5 hit shader definitions built from exports in the DXIL libraries
-////   2 raytracing shader configurations
-////   3 root signatures
-////
-////  Collection 2:
-////   2 DXIL libraries, exporting various raytracing shaders 
-////                (one of the libs is same as previous collection, just using different exports)
-////   4 hit shader definitions built from exports in the DXIL libraries
-////   1 raytracing shader configurations
-////   1 root signature
-////
-////  Raytracing PSO:
-////   2 collections
-////   1 raytracing configuration
-////
-////=============================================================================================================================
-//{
-//    //=========================================================================================================================
-//    // Collection1
-//    //=========================================================================================================================
-//    CD3D12_STATE_OBJECT_DESC Collection1(D3D12_STATE_OBJECT_TYPE_COLLECTION);
-
-//    auto Lib0 = Collection1.CreateSubobject<CD3D12_DXIL_LIBRARY_SUBOBJECT>();
-//    Lib0->SetDXILLibrary(&pMyAppDxilLibs[0]);
-//    Lib0->DefineExport(L"rayGenShader0"); // in practice these export listings might be data/engine driven
-//    Lib0->DefineExport(L"rayGenShader1");
-//    Lib0->DefineExport(L"rayGenShader2", L"rayGenShader99"); // rename rayGenShader99 in the lib to rayGenShader2
-//    Lib0->DefineExport(L"anyHitShader0");
-//    Lib0->DefineExport(L"anyHitShader1");
-//    Lib0->DefineExport(L"anyHitShader2");
-//    Lib0->DefineExport(L"callableShader0");
-//    Lib0->DefineExport(L"intersectionShader0");
-//    Lib0->DefineExport(L"intersectionShader1");
-//    Lib0->DefineExport(L"closestHitShader0");
-//    Lib0->DefineExport(L"intersectionShader2");
-//    Lib0->DefineExport(L"closestHitShader1");
-//    Lib0->DefineExport(L"callableShader1");
-//    Lib0->DefineExport(L"callableShader2");
-//    Lib0->DefineExport(L"closestHitShader2");
-
-//    auto Lib1 = Collection1.CreateSubobject<CD3D12_DXIL_LIBRARY_SUBOBJECT>();
-//    Lib1->SetDXILLibrary(&pMyAppDxilLibs[1]);
-//    Lib1->DefineExport(L"rayGenShader3");
-//    Lib1->DefineExport(L"anyHitShader3");
-//    Lib1->DefineExport(L"closestHitShader3");
-//    Lib1->DefineExport(L"intersectionShader3");
-//    Lib1->DefineExport(L"hitGroup0"); // suppose this is defined in DXIL as {"anyHitShader4","closestHitShader1"}
-//    Lib1->DefineExport(L"missShader0");
-
-//    auto Lib2 = Collection1.CreateSubobject<CD3D12_DXIL_LIBRARY_SUBOBJECT>();
-//    Lib2->SetDXILLibrary(&pMyAppDxilLibs[2]);
-//    // Omitting export list for Lib2, which means export all the exports in the DXIL library.
-//    // Suppose they are:
-//    // anyHitShader4
-//    // closestHitShader4
-//    // intersectionShader4;
-//    // hitGroup1 = {"anyHitShader0","closestHitShader4","intersectionShader2"}
-//    // hitGroup2 = {"closestHitShader2"}
-//    // hitGroup3 = {"closestHitShader3"}
-
-//    auto LocalHitGroup = Collection1.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-//    LocalHitGroup->SetHitGroupExport(L"hitGroup4");
-//    LocalHitGroup->SetAnyHitShaderImport(L"anyHitShader4");
-//    LocalHitGroup->SetClosestHitShaderImport(L"closestHitShader2");
-
-//    CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT* ShaderConfig[2];
-//    for (UINT i = 0; i < _countof(ShaderConfig); i++) { ShaderConfig[i] = Collection1.CreateSubobject<CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>(); }
-//    ShaderConfig[0]->Config(8, 8);
-//    ShaderConfig[1]->Config(2, 2);
-
-//    CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT* ShaderConfigAssociation[2];
-//    for (UINT i = 0; i < _countof(ShaderConfigAssociation); i++) { ShaderConfigAssociation[i] = Collection1.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>(); }
-
-//    ShaderConfigAssociation[0]->SetSubobjectToAssociate(*ShaderConfig[0]);
-//    ShaderConfigAssociation[0]->AddExport(L"rayGenShader0");
-//    ShaderConfigAssociation[0]->AddExport(L"rayGenShader1");
-//    ShaderConfigAssociation[0]->AddExport(L"hitShader0");
-//    ShaderConfigAssociation[0]->AddExport(L"hitShader1");
-//    ShaderConfigAssociation[0]->AddExport(L"hitShader2");
-//    ShaderConfigAssociation[0]->AddExport(L"callableShader0");
-//    ShaderConfigAssociation[0]->AddExport(L"callableShader1");
-
-//    ShaderConfigAssociation[1]->SetSubobjectToAssociate(*ShaderConfig[1]);
-//    ShaderConfigAssociation[1]->AddExport(L"rayGenShader2");
-//    ShaderConfigAssociation[1]->AddExport(L"rayGenShader3");
-//    ShaderConfigAssociation[1]->AddExport(L"hitShader3");
-//    ShaderConfigAssociation[1]->AddExport(L"hitShader4");
-//    ShaderConfigAssociation[1]->AddExport(L"missShader0");
-//    ShaderConfigAssociation[1]->AddExport(L"callableShader2");
-//    ShaderConfigAssociation[1]->AddExport(L"callableShader3");
-//    ShaderConfigAssociation[1]->AddExport(L"callableShader4");
-
-//    CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT* RootSig[3];
-//    for (UINT i = 0; i < _countof(RootSig); i++) { RootSig[i] = Collection1.CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>(); }
-//    RootSig[0]->SetRootSignature(pMyAppRootSigs[0]);
-//    RootSig[1]->SetRootSignature(pMyAppRootSigs[1]);
-//    RootSig[2]->SetRootSignature(pMyAppRootSigs[2]);
-
-//    CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT* RootSigAssociation[3];
-//    for (UINT i = 0; i < _countof(RootSigAssociation); i++) { RootSigAssociation[i] = Collection1.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>(); }
-
-//    RootSigAssociation[0]->SetSubobjectToAssociate(*RootSig[0]);
-//    RootSigAssociation[0]->AddExport(L"rayGenShader0");
-//    RootSigAssociation[0]->AddExport(L"rayGenShader1");
-//    RootSigAssociation[0]->AddExport(L"rayGenShader2");
-//    RootSigAssociation[0]->AddExport(L"rayGenShader3");
-
-//    RootSigAssociation[1]->SetSubobjectToAssociate(*RootSig[1]);
-//    RootSigAssociation[1]->AddExport(L"hitShader0");
-//    RootSigAssociation[1]->AddExport(L"hitShader1");
-//    RootSigAssociation[1]->AddExport(L"hitShader2");
-//    RootSigAssociation[1]->AddExport(L"hitShader3");
-//    RootSigAssociation[1]->AddExport(L"hitShader4");
-
-//    RootSigAssociation[2]->SetSubobjectToAssociate(*RootSig[2]);
-//    RootSigAssociation[2]->AddExport(L"callableShader0");
-//    RootSigAssociation[2]->AddExport(L"callableShader1");
-//    RootSigAssociation[2]->AddExport(L"callableShader2");
-//    RootSigAssociation[2]->AddExport(L"missShader0");
-
-//    CComPtr<ID3D12StateObjectPrototype> spCollection1;
-//    VERIFY_SUCCEEDED(spFPDevice->CreateStateObject(Collection1, IID_PPV_ARGS(&spCollection1)));
-
-//    //=========================================================================================================================
-//    // Collection2
-//    //=========================================================================================================================
-//    CD3D12_STATE_OBJECT_DESC Collection2(D3D12_STATE_OBJECT_TYPE_COLLECTION);
-
-//    auto Lib3 = Collection2.CreateSubobject<CD3D12_DXIL_LIBRARY_SUBOBJECT>();
-//    Lib3->SetDXILLibrary(&pMyAppDxilLibs[0]); // Note, same DXIL library as used in earlier collection, 
-//                                              // but we're taking different exports
-//    Lib3->DefineExport(L"rayGenShaderA");
-//    Lib3->DefineExport(L"rayGenShaderB");
-//    Lib3->DefineExport(L"rayGenShaderC", L"rayGenShader99"); // rename rayGenShader99 in the lib to rayGenShaderC 
-//                                                             // (was also renamed to rayGenShader2 in earlier lib)
-//    Lib3->DefineExport(L"anyHitShaderA");
-//    Lib3->DefineExport(L"anyHitShaderB");
-//    Lib3->DefineExport(L"anyHitShaderC");
-//    Lib3->DefineExport(L"callableShaderA");
-//    Lib3->DefineExport(L"intersectionShaderA");
-//    Lib3->DefineExport(L"intersectionShaderB");
-//    Lib3->DefineExport(L"closestHitShaderA");
-//    Lib3->DefineExport(L"intersectionShaderC");
-//    Lib3->DefineExport(L"closestHitShaderB");
-//    Lib3->DefineExport(L"callableShaderB");
-//    Lib3->DefineExport(L"callableShaderC");
-//    Lib3->DefineExport(L"closestHitShaderC");
-
-//    auto Lib4 = Collection2.CreateSubobject<CD3D12_DXIL_LIBRARY_SUBOBJECT>();
-//    Lib4->SetDXILLibrary(&pMyAppDxilLibs[3]);
-//    Lib4->DefineExport(L"rayGenShaderD");
-//    Lib4->DefineExport(L"anyHitShaderD");
-//    Lib4->DefineExport(L"closestHitShaderD");
-//    Lib4->DefineExport(L"intersectionShaderD");
-//    Lib4->DefineExport(L"hitGroupA"); // suppose this is defined in DXIL as {"anyHitShaderD","closestHitShaderB"}
-//    Lib4->DefineExport(L"missShaderA");
-
-//    auto LocalHitGroupB = Collection2.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-//    LocalHitGroupB->SetHitGroupExport(L"hitGroupB");
-//    LocalHitGroupB->SetAnyHitShaderImport(L"anyHitShaderA");
-//    LocalHitGroupB->SetClosestHitShaderImport(L"closestHitShaderC");
-//    LocalHitGroupB->SetIntersectionShaderImport(L"intersectionHitShaderB");
-
-//    auto LocalHitGroupC = Collection2.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-//    LocalHitGroupC->SetHitGroupExport(L"hitGroupC");
-//    LocalHitGroupC->SetAnyHitShaderImport(L"anyHitShaderA");
-//    LocalHitGroupC->SetClosestHitShaderImport(L"closestHitShaderA");
-//    LocalHitGroupC->SetIntersectionShaderImport(L"intersectionShaderA");
-
-//    auto LocalHitGroupD = Collection2.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-//    LocalHitGroupD->SetHitGroupExport(L"hitGroupD");
-//    LocalHitGroupD->SetAnyHitShaderImport(L"anyHitShaderD");
-
-//    auto ShaderConfigA = Collection2.CreateSubobject<CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
-//    ShaderConfigA->Config(8, 8); // not specifying associations, so by default will map to all relevant exports
-
-//    auto RootSigA = Collection2.CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
-//    RootSigA->SetRootSignature(pMyAppRootSigs[3]); // not specifying associations, so by default will map to all relevant exports
-
-//    CComPtr<ID3D12StateObjectPrototype> spCollection2;
-//    VERIFY_SUCCEEDED(spFPDevice->CreateStateObject(Collection2, IID_PPV_ARGS(&spCollection2)));
-
-//    //=========================================================================================================================
-//    // Raytracing Pipeline State
-//    //=========================================================================================================================
-//    CD3D12_STATE_OBJECT_DESC RaytracingPipelineState(D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE);
-
-//    auto ExistingLib0 = RaytracingPipelineState.CreateSubobject<CD3D12_EXISTING_COLLECTION_SUBOBJECT>();
-//    ExistingLib0->SetExistingCollection(spCollection1);
-//    auto ExistingLib1 = RaytracingPipelineState.CreateSubobject<CD3D12_EXISTING_COLLECTION_SUBOBJECT>();
-//    ExistingLib1->SetExistingCollection(spCollection2);
-
-//    auto RaytracingConfig = RaytracingPipelineState.CreateSubobject<CD3D12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
-//    RaytracingConfig->Config(8); // not specifying associations, so by default will map to all relevant exports
-
-//    VERIFY_SUCCEEDED(spFPDevice->CreateStateObject(RaytracingPipelineState, IID_PPV_ARGS(&spRaytracingPipelineState)));
-//}
-////=============================================================================================================================
-//// Example 2:
-////
-////  Raytracing PSO:
-////   4 DXIL libraries (entrypoints in the dxil already have root signatures and raytracing shader configs where applicable)
-////   1 raytracing configuration
-////
-//// This example uses alternative syntax for declaring subobjects, where the helpers for each subobject are declared as
-//// stack variables.
-////
-////=============================================================================================================================
-//{
-//    CD3D12_STATE_OBJECT_DESC RaytracingState2(D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE);
-
-//    CD3D12_DXIL_LIBRARY_SUBOBJECT LibA(RaytracingState2), LibB(RaytracingState2), LibC(RaytracingState2), LibD(RaytracingState2);
-//    LibA.SetDXILLibrary(&pMyAppDxilLibs[4]); // not manually specifying exports - meaning all exports in the libraries are exported
-//    LibB.SetDXILLibrary(&pMyAppDxilLibs[5]);
-//    LibC.SetDXILLibrary(&pMyAppDxilLibs[6]);
-//    LibD.SetDXILLibrary(&pMyAppDxilLibs[7]);
-
-//    CD3D12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT RaytracingConfigA(RaytracingState2);
-//    RaytracingConfigA.Config(16); // not specifying associations, so by default will map to all relevant exports
-
-//    VERIFY_SUCCEEDED(spFPDevice->CreateStateObject(RaytracingState2, IID_PPV_ARGS(&spRaytracingPipelineState2)));
-//}
-
+class CD3D12_NODE_MASK_SUBOBJECT : public CD3D12_STATE_OBJECT_DESC::SUBOBJECT_HELPER_BASE
+{
+public:
+    CD3D12_NODE_MASK_SUBOBJECT()
+    {
+        Init();
+    }
+    CD3D12_NODE_MASK_SUBOBJECT(CD3D12_STATE_OBJECT_DESC& ContainingStateObject)
+    {
+        Init();
+        AddToStateObject(ContainingStateObject);
+    }
+    void SetNodeMask(UINT NodeMask)
+    {
+        m_Desc.NodeMask = NodeMask;
+    }
+    D3D12_STATE_SUBOBJECT_TYPE Type() { return D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK; }
+    operator const D3D12_STATE_SUBOBJECT&() const { return *m_pSubobject; }
+    operator const D3D12_NODE_MASK&() const { return m_Desc; }
+private:
+    void Init()
+    {
+        SUBOBJECT_HELPER_BASE::Init();
+        m_Desc = {};
+    }
+    void* Data() { return &m_Desc; }
+    D3D12_NODE_MASK m_Desc;
+};

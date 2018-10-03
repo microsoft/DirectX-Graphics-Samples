@@ -17,7 +17,7 @@
 #include "Color.h"
 
 struct ParticleEffectProperties
-{	
+{    
     ParticleEffectProperties() 
     { 
         ZeroMemory(this, sizeof(*this));
@@ -29,9 +29,9 @@ struct ParticleEffectProperties
         EmitRate = 200;
         LifeMinMax = XMFLOAT2(1.0f, 2.0f);
         MassMinMax = XMFLOAT2(0.5f, 1.0f);
-        Size = Vector4(0.07f, 0.7f, 0.8f, 0.8f); // (Start size min, Start size max, End size min, End size max) 		
+        Size = Vector4(0.07f, 0.7f, 0.8f, 0.8f); // (Start size min, Start size max, End size min, End size max)         
         Spread = XMFLOAT3(0.5f, 1.5f, 0.1f);
-        TexturePath = L"Resources/Textures/sparkTex.dds"; 	
+        TexturePath = L"Resources/Textures/sparkTex.dds";     
         TotalActiveLifetime = 20.0;
         Velocity = Vector4(0.5, 3.0, -0.5, 3.0 ); // (X velocity min, X velocity max, Y velocity min, Y velocity max)
     };
@@ -48,7 +48,7 @@ struct ParticleEffectProperties
     Vector4 Size;
     XMFLOAT3 Spread;
     std::wstring TexturePath;
-    float TotalActiveLifetime;	 
+    float TotalActiveLifetime;     
     Vector4 Velocity;
 
 };

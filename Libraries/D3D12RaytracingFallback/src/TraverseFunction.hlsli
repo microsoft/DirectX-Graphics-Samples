@@ -17,13 +17,25 @@ uint    stack[TRAVERSAL_MAX_STACK_DEPTH];
 
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
 RWTexture2D<float4> g_screenOutput : register(u2);
-void VisualizeAcceleratonStructure(float closestBoxT)
+
+void VisualizeAcceleratonStructure(uint depth)
 {
-    g_screenOutput[DispatchRaysIndex()] = float4(closestBoxT / 3000.0f, 0, 0, 1);
+    if (depth >= 22)
+    {
+        g_screenOutput[DispatchRaysIndex().xy] = float4((depth - 21) / 11.0, 0, 0, 1);
+    }
+    else if (depth >= 10)
+    {
+        g_screenOutput[DispatchRaysIndex().xy] = float4(0, (depth - 9) / 12.0, 0, 1);
+    }
+    else
+    {
+        g_screenOutput[DispatchRaysIndex().xy] = float4(0, 0, depth / 9.0, 1);
+    }
 }
 
 static
-uint    depthStack[TRAVERSAL_MAX_STACK_DEPTH];
+uint depthStack[TRAVERSAL_MAX_STACK_DEPTH];
 #endif
 
 void RecordClosestBox(uint currentLevel, inout bool leftTest, float leftT, inout bool rightTest, float rightT, inout float closestBoxT)
@@ -50,9 +62,11 @@ void StackPush(inout int stackTop, uint value, uint level, uint tidInWave)
 {
     uint stackIndex = stackTop;
     stack[stackIndex] = value;
+
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
     depthStack[stackIndex] = level;
 #endif
+
     stackTop++;
 }
 
@@ -77,9 +91,11 @@ uint StackPop(inout int stackTop, out uint depth, uint tidInWave)
 {
     --stackTop;
     uint stackIndex = stackTop;
+
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
     depth = depthStack[stackIndex];
 #endif
+
     return stack[stackIndex];
 }
 
@@ -117,7 +133,7 @@ bool IsOpaque(bool geomOpaque, uint instanceFlags, uint rayFlags)
     return opaque;
 }
 
-int Fallback_ReportHit(float tHit, uint hitKind)
+export int Fallback_ReportHit(float tHit, uint hitKind)
 {
     if (tHit < RayTMin() || Fallback_RayTCurrent() <= tHit)
         return 0;
@@ -266,6 +282,7 @@ void RayTriangleIntersect(
 }
 
 #define MULTIPLE_LEAVES_PER_NODE 0
+static
 bool TestLeafNodeIntersections(
     RWByteAddressBufferPointer accelStruct,
     uint2 flags,
@@ -280,7 +297,7 @@ bool TestLeafNodeIntersections(
 {
     // Intersect a bunch of triangles
     const uint firstId = flags.x & 0x00ffffff;
-    const uint numTris = flags.y;
+    const uint numTris = flags.y; // referencing AABBNode::numTriangles
 
     // Unroll mildly, it'd be awesome if we had some helpers here to intersect.
     uint i = 0;
@@ -551,6 +568,8 @@ bool Traverse(
     Fallback_SetInstanceIndex(NO_HIT_SENTINEL);
 
 
+    uint hitLevel = 0;
+
     MARK(1, 0);
     while (nodesToProcess[TOP_LEVEL_INDEX] != 0)
     {
@@ -565,6 +584,7 @@ bool Traverse(
             RWByteAddressBufferPointer currentBVH = CreateRWByteAddressBufferPointerFromGpuVA(currentGpuVA);
 
             uint2 flags;
+
             BoundingBox box = BVHReadBoundingBox(
                 currentBVH,
                 thisNodeIndex,
@@ -700,7 +720,13 @@ bool Traverse(
 
                                 SetBoolFlag(flagContainer, EndSearch, (ret == END_SEARCH) || (RayFlags() & RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH));
                             }
+
+                            if (resultT == closestBoxT)
+                            {
+                                hitLevel = currentLevel;
+                            }
                         }
+
                         if (GetBoolFlag(flagContainer, EndSearch))
                         {
                             nodesToProcess[BOTTOM_LEVEL_INDEX] = 0;
@@ -767,11 +793,7 @@ bool Traverse(
     MARK(10,0);
     bool isHit = Fallback_InstanceIndex() != NO_HIT_SENTINEL;
 #if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    if (isHit)
-    {
-        closestBoxT = Fallback_RayTCurrent();
-    }
-    VisualizeAcceleratonStructure(closestBoxT);
+    VisualizeAcceleratonStructure(hitLevel);
 #endif
     return isHit;   
 }

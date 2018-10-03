@@ -309,7 +309,7 @@ void MyIntersectionShader_AnalyticPrimitive()
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-        attr.normal = normalize(mul((float3x3) ObjectToWorld(), attr.normal));
+        attr.normal = normalize(mul((float3x3) ObjectToWorld3x4(), attr.normal));
 
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
@@ -327,7 +327,7 @@ void MyIntersectionShader_VolumetricPrimitive()
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-        attr.normal = normalize(mul((float3x3) ObjectToWorld(), attr.normal));
+        attr.normal = normalize(mul((float3x3) ObjectToWorld3x4(), attr.normal));
 
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
@@ -345,7 +345,7 @@ void MyIntersectionShader_SignedDistancePrimitive()
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-        attr.normal = normalize(mul((float3x3) ObjectToWorld(), attr.normal));
+        attr.normal = normalize(mul((float3x3) ObjectToWorld3x4(), attr.normal));
         
         ReportHit(thit, /*hitKind*/ 0, attr);
     }

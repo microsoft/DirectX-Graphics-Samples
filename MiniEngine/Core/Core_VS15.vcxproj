@@ -22,7 +22,7 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>
     <ApplicationEnvironment>title</ApplicationEnvironment>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -401,17 +401,18 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>..\Packages\zlib-vc140-static-64.1.2.11\lib\native\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets" Condition="Exists('..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" />
+    <Import Project="..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets" Condition="Exists('..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" />
+    <Import Project="..\..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets" Condition="Exists('..\..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
-    <Error Condition="!Exists('..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('..\..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
   </Target>
 </Project>

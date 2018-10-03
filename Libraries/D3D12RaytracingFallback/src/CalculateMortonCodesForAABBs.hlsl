@@ -26,3 +26,5 @@ float3 GetCentroid(uint elementIndex)
 {
     return ReadBottomLevelBoundingBox(elementIndex).center;
 }
+
+#include "CalculateMortonCodes.hlsli"

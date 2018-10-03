@@ -15,6 +15,7 @@
 #include "StepTimer.h"
 #include "RaytracingSceneDefines.h"
 #include "DirectXRaytracingHelper.h"
+#include "PerformanceTimers.h"
 
 // The sample supports both Raytracing Fallback Layer and DirectX Raytracing APIs. 
 // This is purely for demonstration purposes to show where the API differences are. 
@@ -60,9 +61,9 @@ private:
     WRAPPED_GPU_POINTER m_fallbackTopLevelAccelerationStructurePointer;
 
     // DirectX Raytracing (DXR) attributes
-    ComPtr<ID3D12DeviceRaytracingPrototype> m_dxrDevice;
-    ComPtr<ID3D12CommandListRaytracingPrototype> m_dxrCommandList;
-    ComPtr<ID3D12StateObjectPrototype> m_dxrStateObject;
+    ComPtr<ID3D12Device5> m_dxrDevice;
+    ComPtr<ID3D12GraphicsCommandList5> m_dxrCommandList;
+    ComPtr<ID3D12StateObject> m_dxrStateObject;
     bool m_isDxrSupported;
 
     // Root signatures
@@ -112,19 +113,22 @@ private:
     ComPtr<ID3D12Resource> m_rayGenShaderTable;
 
     // Application state
+    DX::GPUTimer m_gpuTimers[GpuTimers::Count];
     RaytracingAPI m_raytracingAPI;
     bool m_forceComputeFallback;
     StepTimer m_timer;
+    float m_animateGeometryTime;
+    bool m_animateGeometry;
     bool m_animateCamera;
     bool m_animateLight;
     XMVECTOR m_eye;
     XMVECTOR m_at;
     XMVECTOR m_up;
 
-    void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
+    void EnableDirectXRaytracing(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
-    void UpdateAABBPrimitiveAttributes();
+    void UpdateAABBPrimitiveAttributes(float animationTime);
     void InitializeScene();
     void RecreateD3D();
     void DoRaytracing();
@@ -141,6 +145,7 @@ private:
     void CreateHitGroupSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateLocalRootSignatureSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateRaytracingPipelineStateObject();
+    void CreateAuxilaryDeviceResources();
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
     void BuildProceduralGeometryAABBs();

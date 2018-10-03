@@ -13,10 +13,10 @@
 
 float4 Blit(float2 uv)
 {
-	return g_tex.Sample(g_samp, uv);
+    return g_tex.Sample(g_samp, uv);
 }
 
 float4 mainBlit(PSInput input) : SV_TARGET
 {
-	return Blit(input.uv);
+    return Blit(input.uv);
 }

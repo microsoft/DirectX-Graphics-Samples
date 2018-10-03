@@ -78,6 +78,9 @@
     <ClInclude Include="RaytracingShaderHelper.hlsli">
       <Filter>Assets\Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="util\PerformanceTimers.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -98,13 +101,17 @@
     <ClCompile Include="util\Win32Application.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="Raytracing.hlsl">
-      <Filter>Assets\Shaders</Filter>
-    </CustomBuild>
+    <ClCompile Include="util\PerformanceTimers.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.md" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Raytracing.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

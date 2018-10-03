@@ -25,6 +25,8 @@ static const int IsLeafFlag = 0x80000000;
 static const int IsProceduralGeometryFlag = 0x40000000;
 static const int LeafFlags = IsLeafFlag | IsProceduralGeometryFlag;
 
+#define COMBINE_LEAF_NODES 1
+
 // BVH description for the traversal shader
 //struct BVHOffsets
 //{
@@ -53,6 +55,16 @@ int GetLeafIndexFromFlag(uint2 flag)
     return flag.x & ~LeafFlags;
 }
 
+uint GetActualParentIndex(uint index)
+{
+#if COMBINE_LEAF_NODES
+    // Zero out HierarchyNode::bCollapseChildren flag
+    return index & ~HierarchyNode::IsCollapseChildren;
+#else
+    return index;
+#endif
+}
+
 // Reorganized AABB for faster intersection testing
 struct BoundingBox
 {
@@ -66,6 +78,7 @@ struct BoundingBox
 #define GetOffsetToInstanceDesc(pointer) \
     GetOffsetToOffset(pointer, OffsetToLeafNodeMetaDataOffset)
 
+static
 int GetOffsetToBoxes(RWByteAddressBufferPointer pointer)
 {
     // Optimization, Boxes are always at a fixed location
@@ -74,11 +87,13 @@ int GetOffsetToBoxes(RWByteAddressBufferPointer pointer)
     return pointer.offsetInBytes + SizeOfBVHOffsets;
 }
 
+static
 int GetOffsetToVertices(RWByteAddressBufferPointer pointer)
 {
     return GetOffsetToOffset(pointer, OffsetToPrimitivesOffset);
 }
 
+static
 int GetOffsetToPrimitiveMetaData(RWByteAddressBufferPointer pointer)
 {
     return GetOffsetToOffset(pointer, OffsetToPrimitiveMetaDataOffset);
@@ -117,6 +132,7 @@ uint GetBoxAddress(uint startAddress, uint boxIndex)
     return startAddress + boxIndex * SizeOfAABBNode;
 }
 
+static
 BoundingBox RawDataToBoundingBox(int4 a, int4 b, out uint2 flags)
 {
     BoundingBox box;
@@ -132,6 +148,7 @@ BoundingBox RawDataToBoundingBox(int4 a, int4 b, out uint2 flags)
     return box;
 }
 
+static
 BoundingBox GetBoxFromBuffer(RWByteAddressBuffer buffer, uint boxStartOffset, uint boxIndex)
 {
     uint boxAddress = GetBoxAddress(boxStartOffset, boxIndex);
@@ -149,6 +166,7 @@ BoundingBox GetBoxFromBuffer(RWByteAddressBuffer buffer, uint boxStartOffset, ui
 #define GetBVHMetadataFromLeafIndex(byteAddressBufferPointer, offsetToLeafNodeMetaData, leafIndex) \
     LoadBVHMetadata(byteAddressBufferPointer.buffer, GetBVHMetadataAddress(byteAddressBufferPointer, offsetToLeafNodeMetaData, leafIndex))
 
+static
 BoundingBox BVHReadBoundingBox(RWByteAddressBufferPointer pointer, int nodeIndex, out uint2 flags)
 {
     const uint boxAddress = GetBoxAddress(GetOffsetToBoxes(pointer), nodeIndex);
@@ -176,6 +194,7 @@ uint GetPrimitiveMetaDataAddress(uint startAddress, uint triangleIndex)
     return startAddress + triangleIndex * SizeOfPrimitiveMetaData;
 }
 
+static
 PrimitiveMetaData BVHReadPrimitiveMetaData(RWByteAddressBufferPointer pointer, int primitiveIndex)
 {
     const uint readAddress = GetPrimitiveMetaDataAddress(GetOffsetToPrimitiveMetaData(pointer), primitiveIndex);
@@ -188,6 +207,7 @@ PrimitiveMetaData BVHReadPrimitiveMetaData(RWByteAddressBufferPointer pointer, i
     return metadata;
 }
 
+static
 void WriteOnlyFlagToBuffer(RWByteAddressBuffer buffer, uint boxStartOffset, uint boxIndex, uint2 flags)
 {
     uint boxAddress = GetBoxAddress(boxStartOffset, boxIndex);
@@ -196,6 +216,7 @@ void WriteOnlyFlagToBuffer(RWByteAddressBuffer buffer, uint boxStartOffset, uint
     buffer.Store(boxAddress + 4 * 7, flags.y);
 }
 
+static
 void WriteBoxToBuffer(RWByteAddressBuffer buffer, uint boxStartOffset, uint boxIndex, BoundingBox box, uint2 flags)
 {
     uint boxAddress = GetBoxAddress(boxStartOffset, boxIndex);
@@ -207,6 +228,7 @@ void WriteBoxToBuffer(RWByteAddressBuffer buffer, uint boxStartOffset, uint boxI
     buffer.Store4(boxAddress + 16, data2);
 }
 
+static
 void BVHReadTriangle(
     RWByteAddressBufferPointer pointer,
     out float3 v0,
@@ -345,11 +367,13 @@ AABB TransformAABB(AABB box, AffineMatrix transform)
 
 static const uint OffsetToAnyHitStateId = 4;
 static const uint OffsetToIntersectionStateId = 8;
+static
 uint GetAnyHitStateId(ByteAddressBuffer shaderTable, uint recordOffset)
 {
     return shaderTable.Load(recordOffset + OffsetToAnyHitStateId);
 }
 
+static
 void GetAnyHitAndIntersectionStateId(ByteAddressBuffer shaderTable, uint recordOffset, out uint AnyHitStateId, out uint IntersectionStateId)
 {
     uint2 stateIds = shaderTable.Load2(recordOffset + OffsetToAnyHitStateId);

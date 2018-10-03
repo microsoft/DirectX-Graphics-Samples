@@ -79,11 +79,12 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="Raytracing.hlsl">
-      <Filter>Assets\Shaders</Filter>
-    </CustomBuild>
+    <None Include="readme.md" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="readme.md" />
+    <FxCompile Include="Raytracing.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

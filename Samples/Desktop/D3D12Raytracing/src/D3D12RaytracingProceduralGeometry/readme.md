@@ -8,7 +8,7 @@ This sample demonstrates how to implement procedural geometry using intersection
 * Extended shader table layouts and indexing covering multiple geometries and bottom-level acceleration structures (bottom-level AS, or BLAS for short).
 * Use of trace ray recursion and two different ray types: radiance and shadow rays.
 
-The sample assumes familiarity with Dx12 programming and DirectX raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingSimpleLighting/readme.md).
+The sample assumes familiarity with Dx12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingSimpleLighting/readme.md).
 
 ##### Known limitations
 * The sample does not currently work on AMD due to ubershader compilation issue in the Fallback Layer compute path.
@@ -64,7 +64,7 @@ If the ray intersects the geometry, the test returns true with the time of the h
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3) aabbAttribute.localSpaceToBottomLevelAS);
-        attr.normal = normalize(mul((float3x3) ObjectToWorld(), attr.normal));
+        attr.normal = normalize(mul((float3x3) ObjectToWorld3x4(), attr.normal));
 
         ReportHit(thit, /*hitKind*/ 0, attr);
     }
@@ -217,6 +217,7 @@ The title bar of the sample provides runtime information:
   * FL-DXR - Fallback Layer with raytracing driver being used
   * DXR - DirectX Raytracing being used
 * Frames per second
+* DispatchRays(): a GPU execution time of raytracing DispatchRays call.
 * Million Primary Rays/s: a number of dispatched rays per second calculated based of FPS.
 * GPU[ID]: name
 
@@ -225,8 +226,9 @@ The title bar of the sample provides runtime information:
 * 1 - select Fallback Layer API.
 * 2 - select Fallback Layer API with forced compute fallback path.
 * 3 - select DirectX Raytracing API.
-* L - enable/disable light animation.
 * C - enable/disable camera animation.
+* G - enable/disable geometry animation.
+* L - enable/disable light animation.
 
 ## Requirements
 * Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.

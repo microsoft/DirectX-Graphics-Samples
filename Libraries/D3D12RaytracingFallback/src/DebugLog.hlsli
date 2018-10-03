@@ -28,17 +28,17 @@ void LogNoData(uint EntryType)
     Log(uint4(EntryType, 0, 0, 0));
 }
 
-void LogTraceRayStart()
+export void LogTraceRayStart()
 {
     LogNoData(TRACE_RAY_BEGIN);
 }
 
-void LogTraceRayEnd()
+export void LogTraceRayEnd()
 {
     LogNoData(TRACE_RAY_END);
 }
 
-void LogInt(int val)
+export void LogInt(int val)
 {
     Log(uint4(LOG_INT, val, 0, 0));
 }

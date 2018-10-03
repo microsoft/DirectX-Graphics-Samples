@@ -28,7 +28,7 @@ struct MyPayload
 [shader("raygeneration")]
 void RayGen()
 {
-    float2 lerpValues = (float2(DispatchRaysIndex().xy) + 0.5) / DispatchRaysDimensions().xy;
+    float2 lerpValues = (DispatchRaysIndex().xy + 0.5) / DispatchRaysDimensions().xy;
 
     float3 rayDir = float3(0.0, 0.0, 1);
     float3 origin = float3(

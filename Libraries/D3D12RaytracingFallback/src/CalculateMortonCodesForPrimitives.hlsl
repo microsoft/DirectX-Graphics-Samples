@@ -10,7 +10,6 @@
 //*********************************************************
 #define HLSL
 #include "CalculateMortonCodesBindings.h"
-#include "RayTracingHelper.hlsli"
 
 RWStructuredBuffer<Primitive> InputBuffer : UAV_REGISTER(MortonCodeCalculatorInputBufferRegister);
 
@@ -28,3 +27,5 @@ float3 GetCentroid(uint elementIndex)
         return (aabb.min + aabb.max) / 2.0;
     }
 }
+
+#include "CalculateMortonCodes.hlsli"

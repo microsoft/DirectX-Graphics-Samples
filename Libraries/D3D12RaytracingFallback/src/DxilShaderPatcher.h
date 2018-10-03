@@ -27,12 +27,13 @@ namespace FallbackLayer
     public:
         DxilShaderPatcher()
         {
-            ThrowFailure(dxcDxrFallbackSupport.Initialize(),
+            ThrowFailure(dxcDxrFallbackSupport.InitializeForDll(L"DxrFallbackCompiler.dll", "DxcCreateDxrFallbackCompiler"),
               L"Failed to load DxrFallbackCompiler.dll, verify this executable is in the executable directory."
               L" The Fallback Layer is sensitive to the DxrFallbackCompiler.dll version, make sure the"
               L" DxrFallbackCompiler.dll is the correct version packaged with the Fallback");
         }
 
+        void RenameAndLink(const std::vector<DxilLibraryInfo> &dxilLibraries, std::vector<DxcExportDesc> exports, IDxcBlob** ppOutputBlob);
         void PatchShaderBindingTables(const BYTE *pShaderBytecode, UINT bytecodeLength, ShaderInfo *pShaderInfo, IDxcBlob** ppOutputBlob);
         
         void LinkCollection(UINT maxAttributeSize, const std::vector<DxilLibraryInfo> &dxilLibraries, const std::vector<LPCWSTR>& exportNames, std::vector<DxcShaderInfo>& shaderInfo, IDxcBlob** ppOutputBlob);
@@ -41,7 +42,9 @@ namespace FallbackLayer
     private:
         void VerifyResult(IDxcOperationResult *pResult);
 
-        dxc::DxcDxrFallbackDllSupport dxcDxrFallbackSupport;
+        dxc::DxcDllSupport dxcDxrFallbackSupport;
+        void CreateFallbackCompiler(IDxcDxrFallbackCompiler **ppCompiler);
+
 
 #ifdef DEBUG
         CComPtr<IDxcCompiler> m_pCompiler;

@@ -38,6 +38,16 @@ namespace GameCore
 
         void EnableMomentum( bool enable ) { m_Momentum = enable; }
 
+        Vector3 GetWorldEast() { return m_WorldEast; }
+        Vector3 GetWorldUp() { return m_WorldUp; }
+        Vector3 GetWorldNorth() { return m_WorldNorth; }
+        float GetCurrentHeading() { return m_CurrentHeading; }
+        float GetCurrentPitch() { return m_CurrentPitch; }
+
+        void SetCurrentHeading(float heading) { m_CurrentHeading = heading; }
+        void SetCurrentPitch(float pitch) { m_CurrentPitch = pitch; }
+
+
     private:
         CameraController& operator=( const CameraController& ) {return *this;}
 

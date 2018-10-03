@@ -168,9 +168,9 @@ protected:
     UINT m_NumParameters;
     UINT m_NumSamplers;
     UINT m_NumInitializedStaticSamplers;
-    uint32_t m_DescriptorTableBitMap;		// One bit is set for root parameters that are non-sampler descriptor tables
-    uint32_t m_SamplerTableBitMap;			// One bit is set for root parameters that are sampler descriptor tables
-    uint32_t m_DescriptorTableSize[16];		// Non-sampler descriptor tables need to know their descriptor count
+    uint32_t m_DescriptorTableBitMap;        // One bit is set for root parameters that are non-sampler descriptor tables
+    uint32_t m_SamplerTableBitMap;            // One bit is set for root parameters that are sampler descriptor tables
+    uint32_t m_DescriptorTableSize[16];        // Non-sampler descriptor tables need to know their descriptor count
     std::unique_ptr<RootParameter[]> m_ParamArray;
     std::unique_ptr<D3D12_STATIC_SAMPLER_DESC[]> m_SamplerArray;
     ID3D12RootSignature* m_Signature;

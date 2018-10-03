@@ -16,9 +16,9 @@
 [Platform::MTAThread]
 int WINAPIV main(Platform::Array<Platform::String^>^ /*params*/)
 {
-	D3D12ReservedResources sample(1200, 900, L"Use arrow keys to cycle through resources");
-	auto viewProvider = ref new ViewProvider(reinterpret_cast<UINT_PTR>(&sample));
+    D3D12ReservedResources sample(1200, 900, L"Use arrow keys to cycle through resources");
+    auto viewProvider = ref new ViewProvider(reinterpret_cast<UINT_PTR>(&sample));
 
-	Windows::ApplicationModel::Core::CoreApplication::Run(viewProvider);
-	return 0;
+    Windows::ApplicationModel::Core::CoreApplication::Run(viewProvider);
+    return 0;
 }

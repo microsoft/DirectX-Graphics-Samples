@@ -185,14 +185,14 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     // Goal:  End up with a 9x9 patch that is blurred so we can upsample.  Blur radius is 2 pixels, so start with 13x13 area.
 
     //
-    // Horizontally blur the pixels.	13x13 -> 9x13
+    // Horizontally blur the pixels.    13x13 -> 9x13
     //
     if (GI < 39)
         BlurHorizontally((GI / 3) * 16 + (GI % 3) * 3);
     GroupMemoryBarrierWithGroupSync();
 
     //
-    // Vertically blur the pixels.		9x13 -> 9x9
+    // Vertically blur the pixels.        9x13 -> 9x9
     //
     if (GI < 45)
         BlurVertically((GI / 9) * 32 + GI % 9);

@@ -13,10 +13,10 @@
 
 int __cdecl main(int argc, LPCSTR argv[])
 {
-	{
-		D3D12MemoryManagement App;
-		App.LoadConfig(argc, argv);
-		App.Run();
-	}
-	CoUninitialize();
+    {
+        D3D12MemoryManagement App;
+        App.LoadConfig(argc, argv);
+        App.Run();
+    }
+    CoUninitialize();
 }

@@ -110,7 +110,7 @@ void MyRaygenShader()
     float3 origin;
     
     // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
-    GenerateCameraRay(DispatchRaysIndex(), origin, rayDir);
+    GenerateCameraRay(DispatchRaysIndex().xy, origin, rayDir);
 
     // Trace the ray.
     // Set the ray's extents.

@@ -82,17 +82,14 @@ private:
     WRAPPED_GPU_POINTER m_fallbackTopLevelAccelerationStructurePointer;
 
     // DirectX Raytracing (DXR) attributes
-    ComPtr<ID3D12DeviceRaytracingPrototype> m_dxrDevice;
-    ComPtr<ID3D12CommandListRaytracingPrototype> m_dxrCommandList;
-    ComPtr<ID3D12StateObjectPrototype> m_dxrStateObject;
+    ComPtr<ID3D12Device5> m_dxrDevice;
+    ComPtr<ID3D12GraphicsCommandList5> m_dxrCommandList;
+    ComPtr<ID3D12StateObject> m_dxrStateObject;
     bool m_isDxrSupported;
 
     // Root signatures
     ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
     ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature;
-#if USE_NON_NULL_LOCAL_ROOT_SIG 
-    ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignatureEmpty;
-#endif
 
     // Descriptors
     ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
@@ -140,7 +137,7 @@ private:
     XMVECTOR m_at;
     XMVECTOR m_up;
 
-    void EnableDXRExperimentalFeatures(IDXGIAdapter1* adapter);
+    void EnableDirectXRaytracing(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
     void InitializeScene();

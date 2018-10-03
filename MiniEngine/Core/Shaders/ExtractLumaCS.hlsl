@@ -53,7 +53,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
     {
         const float MinLog = Exposure[4];
         const float RcpLogRange = Exposure[7];
-        float logLuma = saturate((log2(luma) - MinLog) * RcpLogRange);	// Rescale to [0.0, 1.0]
-        LumaResult[DTid.xy] = logLuma * 254.0 + 1.0;					// Rescale to [1, 255]
+        float logLuma = saturate((log2(luma) - MinLog) * RcpLogRange);    // Rescale to [0.0, 1.0]
+        LumaResult[DTid.xy] = logLuma * 254.0 + 1.0;                    // Rescale to [1, 255]
     }
 }

@@ -18,7 +18,7 @@ Texture2D<float> Depth : register(t0);
 
 cbuffer CB0 : register(b0)
 {
-    float ZMagic;				// (zFar - zNear) / zNear
+    float ZMagic;                // (zFar - zNear) / zNear
 }
 
 [RootSignature(SSAO_RootSig)]

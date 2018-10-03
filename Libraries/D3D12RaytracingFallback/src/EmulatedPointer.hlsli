@@ -27,6 +27,7 @@ struct RWByteAddressBufferPointer
     uint offsetInBytes;
 };
 
+static
 RWByteAddressBufferPointer CreateRWByteAddressBufferPointer(in RWByteAddressBuffer buffer, uint offsetInBytes)
 {
     RWByteAddressBufferPointer pointer;

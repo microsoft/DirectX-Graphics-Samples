@@ -11,14 +11,14 @@
 
 struct PSInput
 {
-	float4 position : SV_POSITION;
-	float2 uv : TEXCOORD;
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD;
 };
 
 cbuffer RootConstants : register(b0)
 {
-	float standardNits;		// The reference brightness level of the display.
-	uint displayCurve;		// The expected format of the output signal.
+    float standardNits;        // The reference brightness level of the display.
+    uint displayCurve;        // The expected format of the output signal.
 };
 
 Texture2D g_scene : register(t0);

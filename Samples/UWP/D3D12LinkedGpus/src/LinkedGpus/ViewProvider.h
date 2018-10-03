@@ -16,9 +16,9 @@ using namespace Windows::ApplicationModel::Core;
 ref class ViewProvider sealed : IFrameworkViewSource
 {
 public:
-	ViewProvider(UINT_PTR pSample);
-	virtual IFrameworkView^ CreateView();
+    ViewProvider(UINT_PTR pSample);
+    virtual IFrameworkView^ CreateView();
 
 private:
-	UINT_PTR m_pSample;
+    UINT_PTR m_pSample;
 };

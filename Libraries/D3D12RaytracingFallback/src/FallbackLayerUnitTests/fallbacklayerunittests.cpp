@@ -16,7 +16,7 @@ using namespace FallbackLayer;
 
 namespace FallbackLayerUnitTests
 {
-    const UINT FloatsPerMatrix = ARRAYSIZE(D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC::Transform);
+    const UINT FloatsPerMatrix = sizeof(D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC::Transform) / sizeof(float);
     bool IsFloatArrayEqual(float *pArray1, float *pArray2, unsigned int floatCount)
     {
         const float epsilon = 0.002f;
@@ -111,7 +111,7 @@ namespace FallbackLayerUnitTests
         geometryDesc.Triangles.IndexBuffer = pIndexBuffer ? pIndexBuffer->GetGPUVirtualAddress() : 0;
         geometryDesc.Triangles.IndexCount = geomDesc.m_numIndicies;
         geometryDesc.Triangles.IndexFormat = geomDesc.m_indexBufferFormat;
-        geometryDesc.Triangles.Transform = transform;
+        geometryDesc.Triangles.Transform3x4 = transform;
         geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
         geometryDesc.Triangles.VertexCount = geomDesc.m_numVerticies;
         geometryDesc.Triangles.VertexBuffer.StartAddress = pVertexBuffer ? pVertexBuffer->GetGPUVirtualAddress() : 0;
@@ -169,7 +169,7 @@ namespace FallbackLayerUnitTests
 
         virtual void CopyRaytracingAccelerationStructure(
             _In_  ID3D12GraphicsCommandList *pCommandList,
-            _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructureData,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
             _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Flags) = 0;
 
@@ -190,7 +190,7 @@ namespace FallbackLayerUnitTests
 
         virtual void CopyRaytracingAccelerationStructure(
             _In_  ID3D12GraphicsCommandList *pCommandList,
-            _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructureData,
+            _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
             _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
             _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Flags)
         {
@@ -216,7 +216,7 @@ namespace FallbackLayerUnitTests
             _In_reads_opt_(NumElements)  const D3D12_RAYTRACING_GEOMETRY_DESC *pGeometries,
             _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
         {
-            D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC desc;
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc;
             desc.Type = Type;
             desc.Flags = Flags;
             desc.NumDescs = NumElements;
@@ -317,14 +317,14 @@ namespace FallbackLayerUnitTests
 
                 if (ppTransformations)
                 {
-                    memcpy(&desc.Transform, ppTransformations[i], sizeof(D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC::Transform));
+                    memcpy(desc.Transform, ppTransformations[i], sizeof(D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC::Transform));
                 }
                 else
                 {
                     // Identity matrix
-                    desc.Transform[0] = 1.0f;
-                    desc.Transform[5] = 1.0f;
-                    desc.Transform[10] = 1.0f;
+                    desc.Transform[0][0] = 1.0f;
+                    desc.Transform[1][1] = 1.0f;
+                    desc.Transform[2][2] = 1.0f;
                 }
 
 
@@ -361,22 +361,21 @@ namespace FallbackLayerUnitTests
             }
 
             D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelDesc = {};
-            topLevelDesc.DestAccelerationStructureData.StartAddress = pTopLevelResource->GetGPUVirtualAddress();
-            topLevelDesc.DestAccelerationStructureData.SizeInBytes = pTopLevelResource->GetDesc().Width;
-            topLevelDesc.ScratchAccelerationStructureData.StartAddress = pScratchResource->GetGPUVirtualAddress();
-            topLevelDesc.ScratchAccelerationStructureData.SizeInBytes = pScratchResource->GetDesc().Width;
-            topLevelDesc.Flags = buildFlags;
-            topLevelDesc.NumDescs = numGeoms;
-            topLevelDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-            topLevelDesc.InstanceDescs = layoutToTest == D3D12_ELEMENTS_LAYOUT_ARRAY ?
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &topLevelInput = topLevelDesc.Inputs;
+            topLevelDesc.DestAccelerationStructureData = pTopLevelResource->GetGPUVirtualAddress();
+            topLevelDesc.ScratchAccelerationStructureData = pScratchResource->GetGPUVirtualAddress();
+            topLevelInput.Flags = buildFlags;
+            topLevelInput.NumDescs = numGeoms;
+            topLevelInput.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+            topLevelInput.InstanceDescs = layoutToTest == D3D12_ELEMENTS_LAYOUT_ARRAY ?
                 pInstanceDescsResource->GetGPUVirtualAddress() :
                 pInstanceLocationList->GetGPUVirtualAddress();
-            topLevelDesc.DescsLayout = layoutToTest;
+            topLevelInput.DescsLayout = layoutToTest;
             builder.BuildRaytracingAccelerationStructure(pCommandList, &topLevelDesc, &m_descriptorHeapStack.GetDescriptorHeap());
 
             if (performUpdate)
             {
-                topLevelDesc.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+                topLevelInput.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
                 builder.BuildRaytracingAccelerationStructure(pCommandList, &topLevelDesc, &m_descriptorHeapStack.GetDescriptorHeap());
             }
 
@@ -397,7 +396,7 @@ namespace FallbackLayerUnitTests
 
             builder.CopyRaytracingAccelerationStructure(
                 pCommandList,
-                { pDestAccelerationStructure->GetGPUVirtualAddress(), pDestAccelerationStructure->GetDesc().Width },
+                pDestAccelerationStructure->GetGPUVirtualAddress(),
                 pSourceAccelerationStructure->GetGPUVirtualAddress(),
                 D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE);
 
@@ -469,16 +468,15 @@ namespace FallbackLayerUnitTests
             m_d3d12Context.GetGraphicsCommandList(&pCommandList);
 
             D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelDesc = {};
-            bottomLevelDesc.DestAccelerationStructureData.StartAddress = offsetPointer + (*ppBottomLevelAccelerationStructure)->GetGPUVirtualAddress();
-            bottomLevelDesc.DestAccelerationStructureData.SizeInBytes = (*ppBottomLevelAccelerationStructure)->GetDesc().Width;
-            bottomLevelDesc.ScratchAccelerationStructureData.StartAddress = prebuildInfo.ScratchDataSizeInBytes > 0 ? pScratchMemory->GetGPUVirtualAddress() : 0;
-            bottomLevelDesc.ScratchAccelerationStructureData.SizeInBytes = pScratchMemory->GetDesc().Width;
-            bottomLevelDesc.Flags = buildFlags;
-            bottomLevelDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-            bottomLevelDesc.NumDescs = (UINT)geometryDescs.size();
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &bottomLevelInput = bottomLevelDesc.Inputs;
+            bottomLevelDesc.DestAccelerationStructureData = offsetPointer + (*ppBottomLevelAccelerationStructure)->GetGPUVirtualAddress();
+            bottomLevelDesc.ScratchAccelerationStructureData = prebuildInfo.ScratchDataSizeInBytes > 0 ? pScratchMemory->GetGPUVirtualAddress() : 0;
+            bottomLevelInput.Flags = buildFlags;
+            bottomLevelInput.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            bottomLevelInput.NumDescs = (UINT)geometryDescs.size();
             if (layoutToTest == D3D12_ELEMENTS_LAYOUT_ARRAY)
             {
-                bottomLevelDesc.pGeometryDescs = geometryDescs.data();
+                bottomLevelInput.pGeometryDescs = geometryDescs.data();
             }
             else
             {
@@ -486,9 +484,9 @@ namespace FallbackLayerUnitTests
                 {
                     geometryDescPointers[i] = &geometryDescs[i];
                 }
-                bottomLevelDesc.ppGeometryDescs = geometryDescPointers.data();
+                bottomLevelInput.ppGeometryDescs = geometryDescPointers.data();
             }
-            bottomLevelDesc.DescsLayout = layoutToTest;
+            bottomLevelInput.DescsLayout = layoutToTest;
             builder.BuildRaytracingAccelerationStructure(pCommandList, &bottomLevelDesc, &m_descriptorHeapStack.GetDescriptorHeap());
 
             AssertSucceeded(pCommandList->Close());
@@ -982,13 +980,13 @@ namespace FallbackLayerUnitTests
                 geometryDesc.Triangles.IndexBuffer = 0;
                 geometryDesc.Triangles.IndexCount = 0;
                 geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
-                geometryDesc.Triangles.Transform = 0;
+                geometryDesc.Triangles.Transform3x4 = 0;
                 geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
                 geometryDesc.Triangles.VertexCount = triangleCount * verticesPerTriangle;
                 geometryDesc.Triangles.VertexBuffer.StartAddress = pVertexBuffers[i]->GetGPUVirtualAddress();
                 geometryDesc.Triangles.VertexBuffer.StrideInBytes = floatsPerVertex * sizeof(float);
 
-                D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC getPrebuildDesc = {};
+                D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS getPrebuildDesc = {};
                 getPrebuildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
                 getPrebuildDesc.NumDescs = 1;
                 getPrebuildDesc.pGeometryDescs = &geometryDesc;
@@ -1015,15 +1013,14 @@ namespace FallbackLayerUnitTests
             for (UINT i = 0; i < numBottomLevels; i++)
             {
                 D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelDesc = {};
-                bottomLevelDesc.DestAccelerationStructureData.StartAddress = pBottomLevelResources[i]->GetGPUVirtualAddress();
-                bottomLevelDesc.DestAccelerationStructureData.SizeInBytes = pBottomLevelResources[i]->GetDesc().Width;
-                bottomLevelDesc.ScratchAccelerationStructureData.StartAddress = pScratchBuffer->GetGPUVirtualAddress();
-                bottomLevelDesc.ScratchAccelerationStructureData.SizeInBytes = pScratchBuffer->GetDesc().Width;
-                bottomLevelDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-                bottomLevelDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-                bottomLevelDesc.NumDescs = 1;
-                bottomLevelDesc.pGeometryDescs = &pGeometryDescs[i];
-                bottomLevelDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+                D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &bottomLevelInputs = bottomLevelDesc.Inputs;
+                bottomLevelDesc.DestAccelerationStructureData = pBottomLevelResources[i]->GetGPUVirtualAddress();
+                bottomLevelDesc.ScratchAccelerationStructureData = pScratchBuffer->GetGPUVirtualAddress();
+                bottomLevelInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+                bottomLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+                bottomLevelInputs.NumDescs = 1;
+                bottomLevelInputs.pGeometryDescs = &pGeometryDescs[i];
+                bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
                 pBuilder->BuildRaytracingAccelerationStructure(
                     pCommandList,
@@ -1031,9 +1028,12 @@ namespace FallbackLayerUnitTests
                     nullptr);
             }
 
-            pBuilder->EmitRaytracingAccelerationStructurePostBuildInfo(
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC postBuildDesc = {};
+            postBuildDesc.DestBuffer = pOutputCountBuffer->GetGPUVirtualAddress();
+            postBuildDesc.InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE;
+            pBuilder->EmitRaytracingAccelerationStructurePostbuildInfo(
                 pCommandList,
-                { pOutputCountBuffer->GetGPUVirtualAddress(), pOutputCountBuffer->GetDesc().Width },
+                &postBuildDesc,
                 (UINT)pBottomLevelResourcesGpuVA.size(),
                 pBottomLevelResourcesGpuVA.data());
 
@@ -1066,7 +1066,7 @@ namespace FallbackLayerUnitTests
             CpuGeometryDescriptor cpuGeomDesc = CpuGeometryDescriptor(ReferenceVerticies0, numVertices);
             D3D12_RAYTRACING_GEOMETRY_DESC gpuGeomDesc = GetGeometryDesc(cpuGeomDesc);
 
-            D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC bottomLevelDesc = {};
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS bottomLevelDesc = {};
             bottomLevelDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
             bottomLevelDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
             bottomLevelDesc.NumDescs = 1;
@@ -1202,7 +1202,7 @@ namespace FallbackLayerUnitTests
             geometryDesc.Triangles.IndexBuffer = 0;
             geometryDesc.Triangles.IndexCount = 0;
             geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
-            geometryDesc.Triangles.Transform = 0;
+            geometryDesc.Triangles.Transform3x4 = 0;
             geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
             geometryDesc.Triangles.VertexCount = numVertices;
             geometryDesc.Triangles.VertexBuffer.StartAddress = pVertexBuffer->GetGPUVirtualAddress();
@@ -1210,15 +1210,16 @@ namespace FallbackLayerUnitTests
 
             auto heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-            D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC getPrebuildDesc = {};
-            getPrebuildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            getPrebuildDesc.NumDescs = 1;
-            getPrebuildDesc.pGeometryDescs = &geometryDesc;
-            getPrebuildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-            getPrebuildDesc.Flags = buildFlags;
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelDesc = {};
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &bottomLevelInputs = bottomLevelDesc.Inputs;
+            bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            bottomLevelInputs.NumDescs = 1;
+            bottomLevelInputs.pGeometryDescs = &geometryDesc;
+            bottomLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            bottomLevelInputs.Flags = buildFlags;
 
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo;
-            pBuilder->GetRaytracingAccelerationStructurePrebuildInfo(&getPrebuildDesc, &prebuildInfo);
+            pBuilder->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &prebuildInfo);
 
             CComPtr<ID3D12Resource> pBottomLevelResource;
             D3D12_GPU_VIRTUAL_ADDRESS bottomLevelGpuVA;
@@ -1234,16 +1235,8 @@ namespace FallbackLayerUnitTests
             CComPtr<ID3D12GraphicsCommandList> pCommandList;
             m_d3d12Context.GetGraphicsCommandList(&pCommandList);
 
-            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelDesc = {};
-            bottomLevelDesc.DestAccelerationStructureData.StartAddress = bottomLevelGpuVA;
-            bottomLevelDesc.DestAccelerationStructureData.SizeInBytes = prebuildInfo.ResultDataMaxSizeInBytes;
-            bottomLevelDesc.ScratchAccelerationStructureData.StartAddress = pScratchBufferResources[0]->GetGPUVirtualAddress();
-            bottomLevelDesc.ScratchAccelerationStructureData.SizeInBytes = prebuildInfo.ScratchDataSizeInBytes;
-            bottomLevelDesc.Flags = buildFlags;
-            bottomLevelDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-            bottomLevelDesc.NumDescs = 1;
-            bottomLevelDesc.pGeometryDescs = &geometryDesc;
-            bottomLevelDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            bottomLevelDesc.DestAccelerationStructureData = bottomLevelGpuVA;
+            bottomLevelDesc.ScratchAccelerationStructureData = pScratchBufferResources[0]->GetGPUVirtualAddress();
 
             pBuilder->BuildRaytracingAccelerationStructure(
                 pCommandList,
@@ -1251,8 +1244,8 @@ namespace FallbackLayerUnitTests
                 nullptr);
 
             // Clear scratch buffer and signal perform update.
-            bottomLevelDesc.ScratchAccelerationStructureData.StartAddress = pScratchBufferResources[1]->GetGPUVirtualAddress();
-            bottomLevelDesc.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+            bottomLevelDesc.ScratchAccelerationStructureData = pScratchBufferResources[1]->GetGPUVirtualAddress();
+            bottomLevelInputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
             geometryDesc.Triangles.VertexBuffer.StartAddress = pUpdatedVertexBuffer->GetGPUVirtualAddress();
 
             
@@ -1378,12 +1371,12 @@ namespace FallbackLayerUnitTests
                 &prebuildInfo);
             std::unique_ptr<BYTE[]> pData = std::unique_ptr<BYTE[]>(new BYTE[prebuildInfo.ResultDataMaxSizeInBytes]);
 
-
-            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC desc{};
-            desc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            desc.NumDescs = numGeoms;
-            desc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-            desc.pGeometryDescs = geomDescs.data();
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC desc = {};
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &inputs = desc.Inputs;
+            inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            inputs.NumDescs = numGeoms;
+            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            inputs.pGeometryDescs = geomDescs.data();
 
             BuildRaytracingAccelerationStructureOnCpu(&desc, pData.get());
             std::wstring errorMessage;
@@ -1456,13 +1449,13 @@ namespace FallbackLayerUnitTests
     {
         const auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-        d3d12device.CreateCommittedResource(
+        ThrowFailure(d3d12device.CreateCommittedResource(
             &uploadHeapProperties,
             D3D12_HEAP_FLAG_NONE,
             &bufferDesc,
             D3D12_RESOURCE_STATE_COMMON,
             nullptr,
-            IID_PPV_ARGS(ppResource));
+            IID_PPV_ARGS(ppResource)));
     }
 
 #include "CompiledShaders/SimpleRaygen.h"
@@ -1488,14 +1481,15 @@ namespace FallbackLayerUnitTests
         {
             auto &d3d12device = m_d3d12Context.GetDevice();
 
-            D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC getPrebuildInfoDesc = {};
-            getPrebuildInfoDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            getPrebuildInfoDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
-            getPrebuildInfoDesc.NumDescs = 0;
-            getPrebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-            getPrebuildInfoDesc.pGeometryDescs = nullptr;
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &topLevelInputs = buildDesc.Inputs;
+            topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            topLevelInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+            topLevelInputs.NumDescs = 0;
+            topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+            topLevelInputs.pGeometryDescs = nullptr;
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo;
-            m_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&getPrebuildInfoDesc, &topLevelPrebuildInfo);
+            m_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &topLevelPrebuildInfo);
 
             CComPtr<ID3D12Resource> pScratchResource;
             AllocateUAVBuffer(d3d12device, topLevelPrebuildInfo.ScratchDataSizeInBytes, &pScratchResource);
@@ -1512,19 +1506,10 @@ namespace FallbackLayerUnitTests
             ID3D12DescriptorHeap *pDescriptorHeaps[] = { &m_pDescriptorHeapStack->GetDescriptorHeap() };
             pRaytracingCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
 
-            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
-            buildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            buildDesc.DestAccelerationStructureData.StartAddress = m_pTopLevelAccelerationStructure->GetGPUVirtualAddress();
-            buildDesc.DestAccelerationStructureData.SizeInBytes = m_pTopLevelAccelerationStructure->GetDesc().Width;
-            buildDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-            buildDesc.NumDescs = 0;
-            buildDesc.pGeometryDescs = nullptr;
-            buildDesc.InstanceDescs = 0;
-            buildDesc.ScratchAccelerationStructureData.StartAddress = pScratchResource ? pScratchResource->GetGPUVirtualAddress() : 0;
-            buildDesc.ScratchAccelerationStructureData.SizeInBytes = pScratchResource ? pScratchResource->GetDesc().Width : 0;
-            buildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+            buildDesc.DestAccelerationStructureData = m_pTopLevelAccelerationStructure->GetGPUVirtualAddress();
+            buildDesc.ScratchAccelerationStructureData = pScratchResource ? pScratchResource->GetGPUVirtualAddress() : 0;
 
-            pRaytracingCommandList->BuildRaytracingAccelerationStructure(&buildDesc);
+            pRaytracingCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 
             pCommandList->Close();
             m_d3d12Context.ExecuteCommandList(pCommandList);
@@ -2041,39 +2026,10 @@ namespace FallbackLayerUnitTests
 
         void CreateStateObject(ID3D12RaytracingFallbackStateObject **ppStateObject, ID3D12RootSignature *localRootSignature, D3D12_SHADER_BYTECODE missShader, LPCWSTR missShaderExportName)
         {
-            CComPtr<ID3D12RaytracingFallbackStateObject> pBaseStateObject;
-            {
-                std::vector<D3D12_STATE_SUBOBJECT> subObjects;
-                D3D12_STATE_SUBOBJECT nodeMaskSubObject;
-                UINT nodeMask = 1;
-                nodeMaskSubObject.pDesc = &nodeMask;
-                nodeMaskSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK;
-                subObjects.push_back(nodeMaskSubObject);
-
-                D3D12_STATE_SUBOBJECT rootSignatureSubObject;
-                rootSignatureSubObject.pDesc = &m_pFallbackRootSignature.p;
-                rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE;
-                subObjects.push_back(rootSignatureSubObject);
-
-                D3D12_STATE_OBJECT_DESC stateObject;
-                stateObject.NumSubobjects = (UINT)subObjects.size();
-                stateObject.pSubobjects = subObjects.data();
-                stateObject.Type = D3D12_STATE_OBJECT_TYPE_COLLECTION;
-
-                AssertSucceeded(m_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pBaseStateObject)));
-            }
-
             std::vector<D3D12_STATE_SUBOBJECT> subObjects;
             subObjects.reserve(10);
 
             D3D12_EXPORT_DESC raygenExport = { L"raygen", nullptr, D3D12_EXPORT_FLAG_NONE };
-
-            D3D12_STATE_SUBOBJECT baseSubObject = {};
-            D3D12_EXISTING_COLLECTION_DESC baseCollection = {};
-            baseCollection.pExistingCollection = (ID3D12StateObjectPrototype *)pBaseStateObject.p;
-            baseSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION;
-            baseSubObject.pDesc = &baseCollection;
-            subObjects.push_back(baseSubObject);
 
             D3D12_DXIL_LIBRARY_DESC libraryDesc = {};
             libraryDesc.DXILLibrary = CD3DX12_SHADER_BYTECODE((void *)g_pSimpleRaygen, sizeof(g_pSimpleRaygen));
@@ -2109,6 +2065,25 @@ namespace FallbackLayerUnitTests
             localRSAssociation.pDesc = &shaderAssociationDesc;
             localRSAssociation.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
             subObjects.push_back(localRSAssociation);
+
+            D3D12_STATE_SUBOBJECT shaderConfigSubObject;
+            D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
+            shaderConfig.MaxAttributeSizeInBytes = shaderConfig.MaxPayloadSizeInBytes = 8;
+            shaderConfigSubObject.pDesc = &shaderConfig;
+            shaderConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
+            subObjects.push_back(shaderConfigSubObject);
+
+            D3D12_STATE_SUBOBJECT pipelineConfigSubObject;
+            D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
+            pipelineConfig.MaxTraceRecursionDepth = 2;
+            pipelineConfigSubObject.pDesc = &pipelineConfig;
+            pipelineConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
+            subObjects.push_back(pipelineConfigSubObject);
+
+            D3D12_STATE_SUBOBJECT rootSignatureSubObject;
+            rootSignatureSubObject.pDesc = &m_pFallbackRootSignature.p;
+            rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
+            subObjects.push_back(rootSignatureSubObject);
 
             D3D12_STATE_OBJECT_DESC stateObject;
             stateObject.NumSubobjects = (UINT)subObjects.size();
@@ -2155,15 +2130,16 @@ namespace FallbackLayerUnitTests
             pRaytracingCommandList->SetDescriptorHeaps(ARRAYSIZE(pHeaps), pHeaps);
             pCommandList->SetComputeRootUnorderedAccessView(GlobalRootSignatureSlots::UAVParam, pOutputBuffer->GetGPUVirtualAddress());
 
-            D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchRaysArg = {};
-            dispatchRaysArg.Width = dispatchRaysArg.Height = 1;
+            D3D12_DISPATCH_RAYS_DESC dispatchRaysArg = {};
+            dispatchRaysArg.Depth = dispatchRaysArg.Width = dispatchRaysArg.Height = 1;
             dispatchRaysArg.RayGenerationShaderRecord.StartAddress = pRaygenTable->GetGPUVirtualAddress();
             dispatchRaysArg.RayGenerationShaderRecord.SizeInBytes = shaderIndentifierSize;
             dispatchRaysArg.MissShaderTable.StartAddress = pShaderRecord->GetGPUVirtualAddress();
             dispatchRaysArg.MissShaderTable.StrideInBytes = dispatchRaysArg.MissShaderTable.SizeInBytes = patchedShaderTable.size();
 
             pRaytracingCommandList->SetTopLevelAccelerationStructure(GlobalRootSignatureSlots::AccelerationStructureParam, m_TopLevelAccelerationStructurePointer);
-            pRaytracingCommandList->DispatchRays(pStateObject, &dispatchRaysArg);
+            pRaytracingCommandList->SetPipelineState1(pStateObject);
+            pRaytracingCommandList->DispatchRays(&dispatchRaysArg);
             AssertSucceeded(pCommandList->Close());
 
             m_d3d12Context.ExecuteCommandList(pCommandList);
@@ -2309,7 +2285,7 @@ namespace FallbackLayerUnitTests
 
             // Test Top level
             {
-                D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfo = {};
+                D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS prebuildInfo = {};
                 prebuildInfo.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
                 prebuildInfo.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
                 prebuildInfo.NumDescs = UINT32_MAX;
@@ -2332,7 +2308,7 @@ namespace FallbackLayerUnitTests
                     geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
                 }
 
-                D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfo = {};
+                D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS prebuildInfo = {};
                 prebuildInfo.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
                 prebuildInfo.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
                 prebuildInfo.NumDescs = ARRAYSIZE(bottomLevelDescs);
@@ -2471,6 +2447,14 @@ namespace FallbackLayerUnitTests
             CComPtr<ID3D12RaytracingFallbackStateObject> pBaseStateObject;
             {
                 std::vector<D3D12_STATE_SUBOBJECT> subObjects;
+
+                D3D12_STATE_OBJECT_CONFIG stateObjectConfig;
+                stateObjectConfig.Flags = D3D12_STATE_OBJECT_FLAG_NONE;
+                D3D12_STATE_SUBOBJECT stateObjectConfigSubobject;
+                stateObjectConfigSubobject.pDesc = &stateObjectConfig;
+                stateObjectConfigSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG;
+                subObjects.push_back(stateObjectConfigSubobject);
+
                 D3D12_STATE_SUBOBJECT nodeMaskSubObject;
                 UINT nodeMask = 1;
                 nodeMaskSubObject.pDesc = &nodeMask;
@@ -2479,8 +2463,45 @@ namespace FallbackLayerUnitTests
 
                 D3D12_STATE_SUBOBJECT rootSignatureSubObject;
                 rootSignatureSubObject.pDesc = &pRootSignature.p;
-                rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE;
+                rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
                 subObjects.push_back(rootSignatureSubObject);
+
+                D3D12_STATE_SUBOBJECT shaderConfigSubObject;
+                D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
+                shaderConfig.MaxAttributeSizeInBytes = shaderConfig.MaxPayloadSizeInBytes = 8;
+                shaderConfigSubObject.pDesc = &shaderConfig;
+                shaderConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
+                subObjects.push_back(shaderConfigSubObject);
+
+                D3D12_EXPORT_DESC exports[] = {
+                    { ClosestHitExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                    { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                    { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                };
+
+                D3D12_STATE_SUBOBJECT pipelineConfigSubObject;
+                D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
+                pipelineConfig.MaxTraceRecursionDepth = 2;
+                pipelineConfigSubObject.pDesc = &pipelineConfig;
+                pipelineConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
+                subObjects.push_back(pipelineConfigSubObject);
+
+                D3D12_STATE_SUBOBJECT hitGroupSubObject;
+                D3D12_HIT_GROUP_DESC hitGroupDesc = {};
+                hitGroupDesc.ClosestHitShaderImport = ClosestHitExportName;
+                hitGroupDesc.HitGroupExport = HitGroupExportName;
+                hitGroupSubObject.pDesc = &hitGroupDesc;
+                hitGroupSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
+                subObjects.push_back(hitGroupSubObject);
+
+                D3D12_DXIL_LIBRARY_DESC libraryDesc = {};
+                libraryDesc.DXILLibrary = CD3DX12_SHADER_BYTECODE((void *)g_pSimpleRayTracing, ARRAYSIZE(g_pSimpleRayTracing));
+                libraryDesc.NumExports = ARRAYSIZE(exports);
+                libraryDesc.pExports = exports;
+                D3D12_STATE_SUBOBJECT DxilLibrarySubObject = {};
+                DxilLibrarySubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
+                DxilLibrarySubObject.pDesc = &libraryDesc;
+                subObjects.push_back(DxilLibrarySubObject);
 
                 D3D12_STATE_OBJECT_DESC stateObject;
                 stateObject.NumSubobjects = (UINT)subObjects.size();
@@ -2492,11 +2513,8 @@ namespace FallbackLayerUnitTests
 
             std::vector<D3D12_STATE_SUBOBJECT> subObjects;
 
-            D3D12_EXPORT_DESC exports[] = {
-                { ClosestHitExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-            { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-            { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-            };
+            
+
 
             D3D12_STATE_SUBOBJECT baseSubObject = {};
             D3D12_EXISTING_COLLECTION_DESC baseCollection = {};
@@ -2504,23 +2522,6 @@ namespace FallbackLayerUnitTests
             baseSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION;
             baseSubObject.pDesc = &baseCollection;
             subObjects.push_back(baseSubObject);
-
-            D3D12_STATE_SUBOBJECT hitGroupSubObject;
-            D3D12_HIT_GROUP_DESC hitGroupDesc = {};
-            hitGroupDesc.ClosestHitShaderImport = ClosestHitExportName;
-            hitGroupDesc.HitGroupExport = HitGroupExportName;
-            hitGroupSubObject.pDesc = &hitGroupDesc;
-            hitGroupSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
-            subObjects.push_back(hitGroupSubObject);
-
-            D3D12_DXIL_LIBRARY_DESC libraryDesc = {};
-            libraryDesc.DXILLibrary = CD3DX12_SHADER_BYTECODE((void *)g_pSimpleRayTracing, ARRAYSIZE(g_pSimpleRayTracing));
-            libraryDesc.NumExports = ARRAYSIZE(exports);
-            libraryDesc.pExports = exports;
-            D3D12_STATE_SUBOBJECT DxilLibrarySubObject = {};
-            DxilLibrarySubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
-            DxilLibrarySubObject.pDesc = &libraryDesc;
-            subObjects.push_back(DxilLibrarySubObject);
 
             D3D12_STATE_OBJECT_DESC stateObject;
             stateObject.NumSubobjects = (UINT)subObjects.size();
@@ -2530,10 +2531,10 @@ namespace FallbackLayerUnitTests
             CComPtr<ID3D12RaytracingFallbackStateObject> pStateObject;
             AssertSucceeded(rayTracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pStateObject)));
 
-            Assert::IsNotNull(pStateObject->GetShaderIdentifier(ClosestHitExportName));
+            Assert::IsNotNull(pStateObject->GetShaderIdentifier(HitGroupExportName));
 
             // Make sure it's not dependant on string pointers
-            std::wstring stringCopy = ClosestHitExportName;
+            std::wstring stringCopy = HitGroupExportName;
             Assert::IsNotNull(pStateObject->GetShaderIdentifier(stringCopy.c_str()));
         }
 
@@ -2728,7 +2729,7 @@ namespace FallbackLayerUnitTests
                         metadata.instanceDesc.AccelerationStructure.GpuVA = i;
                         for (UINT j = 0; j < ARRAYSIZE(metadata.instanceDesc.Transform); j++)
                         {
-                            metadata.instanceDesc.Transform[j] = (float)(i + j);
+                            metadata.instanceDesc.Transform[j / 4][j % 4] = (float)(i + j);
                         }
                         boxMetadata.push_back(metadata);
                     }
@@ -3186,15 +3187,15 @@ namespace FallbackLayerUnitTests
                 geometryDescs[i] = geometryDesc;
             }
 
-            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
-            buildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            buildDesc.pGeometryDescs = geometryDescs;
-            buildDesc.NumDescs = numGeometryDescs;
-            buildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
+            inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            inputs.pGeometryDescs = geometryDescs;
+            inputs.NumDescs = numGeometryDescs;
+            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
 
             loadPrimitivesPass.LoadPrimitives(
                 pCommandList,
-                buildDesc,
+                inputs,
                 totalPrimCount,
                 pOutputBuffer->GetGPUVirtualAddress(),
                 pOutputMetadataBuffer->GetGPUVirtualAddress(),
@@ -3444,8 +3445,8 @@ namespace FallbackLayerUnitTests
 
             D3D12_EXPORT_DESC exports[] = {
                 { ClosestHitExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-            { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
-            { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                { RayGenExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
+                { MissExportName, nullptr, D3D12_EXPORT_FLAG_NONE },
             };
 
             D3D12_DXIL_LIBRARY_DESC libraryDesc = {};
@@ -3474,15 +3475,29 @@ namespace FallbackLayerUnitTests
             ID3D12RootSignature *pGlobalRootSignature = m_pRootSignature;
             D3D12_STATE_SUBOBJECT rootSignatureSubObject;
             rootSignatureSubObject.pDesc = &pGlobalRootSignature;
-            rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE;
+            rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
             subObjects.push_back(rootSignatureSubObject);
+
+            D3D12_STATE_SUBOBJECT shaderConfigSubObject;
+            D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
+            shaderConfig.MaxAttributeSizeInBytes = shaderConfig.MaxPayloadSizeInBytes = 8;
+            shaderConfigSubObject.pDesc = &shaderConfig;
+            shaderConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
+            subObjects.push_back(shaderConfigSubObject);
+
+            D3D12_STATE_SUBOBJECT pipelineConfigSubObject;
+            D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
+            pipelineConfig.MaxTraceRecursionDepth = 2;
+            pipelineConfigSubObject.pDesc = &pipelineConfig;
+            pipelineConfigSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
+            subObjects.push_back(pipelineConfigSubObject);
 
             D3D12_STATE_OBJECT_DESC stateObject;
             stateObject.NumSubobjects = (UINT)subObjects.size();
             stateObject.pSubobjects = subObjects.data();
             stateObject.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
 
-            m_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&m_pRaytracingStateObject));
+            ThrowFailure(m_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&m_pRaytracingStateObject)));
 
             // Create the Shader Tables
             UINT shaderIdentifierSize = m_pRaytracingDevice->GetShaderIdentifierSize();
@@ -3515,9 +3530,10 @@ namespace FallbackLayerUnitTests
             pCommandList->SetComputeRootDescriptorTable(OutputViewSlot, m_UAVGpuDescriptor);
             pRaytracingCommandList->SetTopLevelAccelerationStructure(AccelerationStructureSlot, m_TopLevelAccelerationStructurePointer);
 
-            D3D12_FALLBACK_DISPATCH_RAYS_DESC dispatchRaysDesc = {};
+            D3D12_DISPATCH_RAYS_DESC dispatchRaysDesc = {};
             dispatchRaysDesc.Width = cOutputBufferWidth;
             dispatchRaysDesc.Height = cOutputBufferHeight;
+            dispatchRaysDesc.Depth = 1;
             dispatchRaysDesc.HitGroupTable.StartAddress = m_pHitShaderTable->GetGPUVirtualAddress();
             dispatchRaysDesc.HitGroupTable.SizeInBytes = m_pHitShaderTable->GetDesc().Width;
             dispatchRaysDesc.HitGroupTable.StrideInBytes = dispatchRaysDesc.HitGroupTable.SizeInBytes;
@@ -3527,7 +3543,8 @@ namespace FallbackLayerUnitTests
             dispatchRaysDesc.RayGenerationShaderRecord.StartAddress = m_pRayGenShaderTable->GetGPUVirtualAddress();
             dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = m_pRayGenShaderTable->GetDesc().Width;
 
-            pRaytracingCommandList->DispatchRays(m_pRaytracingStateObject, &dispatchRaysDesc);
+            pRaytracingCommandList->SetPipelineState1(m_pRaytracingStateObject);
+            pRaytracingCommandList->DispatchRays(&dispatchRaysDesc);
 
             pCommandList->Close();
             m_d3d12Context.ExecuteCommandList(pCommandList);
@@ -3662,20 +3679,21 @@ namespace FallbackLayerUnitTests
             geometryDesc.Triangles.IndexBuffer = pIndexBuffer->GetGPUVirtualAddress();
             geometryDesc.Triangles.IndexCount = ARRAYSIZE(indicies);
             geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
-            geometryDesc.Triangles.Transform = 0;
+            geometryDesc.Triangles.Transform3x4 = 0;
             geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
             geometryDesc.Triangles.VertexCount = ARRAYSIZE(triangleVerts) / 3;
             geometryDesc.Triangles.VertexBuffer.StartAddress = pVertexBuffer->GetGPUVirtualAddress();
             geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(float) * 3;
 
-            D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC getPrebuildInfoDesc = {};
-            getPrebuildInfoDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            getPrebuildInfoDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-            getPrebuildInfoDesc.NumDescs = 1;
-            getPrebuildInfoDesc.pGeometryDescs = &geometryDesc;
-            getPrebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &inputs = buildDesc.Inputs;
+            inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+            inputs.NumDescs = 1;
+            inputs.pGeometryDescs = &geometryDesc;
+            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelPrebuildInfo;
-            m_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&getPrebuildInfoDesc, &bottomLevelPrebuildInfo);
+            m_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &bottomLevelPrebuildInfo);
 
             CComPtr<ID3D12Resource> pScratchResource;
             AllocateUAVBuffer(d3d12device, bottomLevelPrebuildInfo.ScratchDataSizeInBytes, &pScratchResource);
@@ -3689,18 +3707,10 @@ namespace FallbackLayerUnitTests
             ID3D12DescriptorHeap *pDescriptorHeaps[] = { &m_pDescriptorHeapStack->GetDescriptorHeap() };
             pRaytracingCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
 
-            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
-            buildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            buildDesc.DestAccelerationStructureData.StartAddress = pBottomLevelAccStructs.back()->GetGPUVirtualAddress();
-            buildDesc.DestAccelerationStructureData.SizeInBytes = pBottomLevelAccStructs.back()->GetDesc().Width;
-            buildDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-            buildDesc.NumDescs = 1;
-            buildDesc.pGeometryDescs = &geometryDesc;
-            buildDesc.ScratchAccelerationStructureData.StartAddress = pScratchResource->GetGPUVirtualAddress();
-            buildDesc.ScratchAccelerationStructureData.SizeInBytes = pScratchResource->GetDesc().Width;
-            buildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            buildDesc.DestAccelerationStructureData = pBottomLevelAccStructs.back()->GetGPUVirtualAddress();
+            buildDesc.ScratchAccelerationStructureData = pScratchResource->GetGPUVirtualAddress();
 
-            pRaytracingCommandList->BuildRaytracingAccelerationStructure(&buildDesc);
+            pRaytracingCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 
             auto uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
             pCommandList->ResourceBarrier(1, &uavBarrier);
@@ -3718,14 +3728,15 @@ namespace FallbackLayerUnitTests
         {
             auto &d3d12device = m_d3d12Context.GetDevice();
 
-            D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC getPrebuildInfoDesc = {};
-            getPrebuildInfoDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            getPrebuildInfoDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-            getPrebuildInfoDesc.NumDescs = (UINT)pBottomLevelAccStructs.size();
-            getPrebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-            getPrebuildInfoDesc.pGeometryDescs = nullptr;
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &inputs = buildDesc.Inputs;
+            inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+            inputs.NumDescs = (UINT)pBottomLevelAccStructs.size();
+            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+            inputs.pGeometryDescs = nullptr;
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo;
-            m_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&getPrebuildInfoDesc, &topLevelPrebuildInfo);
+            m_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &topLevelPrebuildInfo);
 
             CComPtr<ID3D12Resource> pScratchResource;
             AllocateUAVBuffer(d3d12device, topLevelPrebuildInfo.ScratchDataSizeInBytes, &pScratchResource);
@@ -3766,19 +3777,11 @@ namespace FallbackLayerUnitTests
             ID3D12DescriptorHeap *pDescriptorHeaps[] = { &m_pDescriptorHeapStack->GetDescriptorHeap() };
             pRaytracingCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
 
-            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
-            buildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            buildDesc.DestAccelerationStructureData.StartAddress = m_pTopLevelAccelerationStructure->GetGPUVirtualAddress();
-            buildDesc.DestAccelerationStructureData.SizeInBytes = m_pTopLevelAccelerationStructure->GetDesc().Width;
-            buildDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-            buildDesc.NumDescs = (UINT)pBottomLevelAccStructs.size();
-            buildDesc.pGeometryDescs = nullptr;
-            buildDesc.InstanceDescs = pInstanceDescs->GetGPUVirtualAddress();
-            buildDesc.ScratchAccelerationStructureData.StartAddress = pScratchResource->GetGPUVirtualAddress();
-            buildDesc.ScratchAccelerationStructureData.SizeInBytes = pScratchResource->GetDesc().Width;
-            buildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+            buildDesc.ScratchAccelerationStructureData = pScratchResource->GetGPUVirtualAddress();
+            buildDesc.DestAccelerationStructureData = m_pTopLevelAccelerationStructure->GetGPUVirtualAddress();
+            inputs.InstanceDescs = pInstanceDescs->GetGPUVirtualAddress();
 
-            pRaytracingCommandList->BuildRaytracingAccelerationStructure(&buildDesc);
+            pRaytracingCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 
             pCommandList->Close();
             m_d3d12Context.ExecuteCommandList(pCommandList);
@@ -3790,14 +3793,16 @@ namespace FallbackLayerUnitTests
         {
             auto &d3d12device = m_d3d12Context.GetDevice();
 
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &inputs = buildDesc.Inputs;
             D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC getPrebuildInfoDesc = {};
-            getPrebuildInfoDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            getPrebuildInfoDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
-            getPrebuildInfoDesc.NumDescs = 0;
-            getPrebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-            getPrebuildInfoDesc.pGeometryDescs = nullptr;
+            inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+            inputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+            inputs.NumDescs = 0;
+            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+            inputs.pGeometryDescs = nullptr;
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo;
-            m_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&getPrebuildInfoDesc, &topLevelPrebuildInfo);
+            m_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &topLevelPrebuildInfo);
 
             CComPtr<ID3D12Resource> pScratchResource;
             AllocateUAVBuffer(d3d12device, topLevelPrebuildInfo.ScratchDataSizeInBytes, &pScratchResource);
@@ -3814,19 +3819,11 @@ namespace FallbackLayerUnitTests
             ID3D12DescriptorHeap *pDescriptorHeaps[] = { &m_pDescriptorHeapStack->GetDescriptorHeap() };
             pRaytracingCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
 
-            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
-            buildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-            buildDesc.DestAccelerationStructureData.StartAddress = m_pTopLevelAccelerationStructure->GetGPUVirtualAddress();
-            buildDesc.DestAccelerationStructureData.SizeInBytes = m_pTopLevelAccelerationStructure->GetDesc().Width;
-            buildDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-            buildDesc.NumDescs = 0;
-            buildDesc.pGeometryDescs = nullptr;
-            buildDesc.InstanceDescs = 0;
-            buildDesc.ScratchAccelerationStructureData.StartAddress = pScratchResource ? pScratchResource->GetGPUVirtualAddress() : 0;
-            buildDesc.ScratchAccelerationStructureData.SizeInBytes = pScratchResource ? pScratchResource->GetDesc().Width : 0;
-            buildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+            buildDesc.DestAccelerationStructureData = m_pTopLevelAccelerationStructure->GetGPUVirtualAddress();
+            buildDesc.ScratchAccelerationStructureData = pScratchResource ? pScratchResource->GetGPUVirtualAddress() : 0;
+            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
-            pRaytracingCommandList->BuildRaytracingAccelerationStructure(&buildDesc);
+            pRaytracingCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 
             pCommandList->Close();
             m_d3d12Context.ExecuteCommandList(pCommandList);

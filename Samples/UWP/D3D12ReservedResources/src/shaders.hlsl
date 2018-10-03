@@ -11,13 +11,13 @@
 
 struct PSInput
 {
-	float4 position : SV_POSITION;
-	float2 uv : TEXCOORD;
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD;
 };
 
 cbuffer RootConstants : register(b0)
 {
-	uint activeMip;
+    uint activeMip;
 }
 
 Texture2D g_texture : register(t0);
@@ -25,15 +25,15 @@ SamplerState g_sampler : register(s0);
 
 PSInput VSMain(float4 position : POSITION, float4 uv : TEXCOORD)
 {
-	PSInput result;
+    PSInput result;
 
-	result.position = position;
-	result.uv = uv;
+    result.position = position;
+    result.uv = uv;
 
-	return result;
+    return result;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-	return g_texture.SampleLevel(g_sampler, input.uv, activeMip);
+    return g_texture.SampleLevel(g_sampler, input.uv, activeMip);
 }

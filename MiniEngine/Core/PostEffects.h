@@ -20,11 +20,11 @@ class ComputeContext;
 
 namespace PostEffects
 {
-    extern BoolVar EnableHDR;			// Turn on tone mapping features
+    extern BoolVar EnableHDR;            // Turn on tone mapping features
 
     // Tone mapping parameters
-    extern ExpVar Exposure;				// Brightness scaler when adapative exposure is disabled
-    extern BoolVar EnableAdaptation;	// Automatically adjust brightness based on perceived luminance
+    extern ExpVar Exposure;                // Brightness scaler when adapative exposure is disabled
+    extern BoolVar EnableAdaptation;    // Automatically adjust brightness based on perceived luminance
 
     // Adapation parameters
     extern ExpVar MinExposure;

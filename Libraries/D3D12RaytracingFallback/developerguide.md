@@ -174,19 +174,19 @@ The use of an AnyHit/Intersection shader require that the traversal code must st
 
 ## Known Issues & Limitations
 
+* #### NV 397.31+ drivers do not properly support compute Fallback Layer on Nvidia Volta. Use the recommended DXR / driver based raytracing mode on this configuration instead.
+
+* #### Indexing in shaders is not supported for buffers specified via root descriptor tables in local root signature
+  
 * #### Limited Local Root Signature Support for Root Descriptors
 Root Descriptors are partially supported, however currently the offset in bytes portion of the pointer will always be ignored and it will only read from the start of the buffer. 
 
 In addition, to enable root descriptors in the first place, developers must pass in CreateRaytracingFallbackDeviceFlags::EnableRootDescriptorsInShaderRecords to D3D12CreateRaytracingFallbackDevice to enable this functionality.
 
+* #### Depth value of DispatchRays is ignored
+
 * #### No Callable shaders
 Callable shaders are not yet supported. 
-
-* #### No Cross libs dependencies
-All raytracing shaders are expected to be contained within a single DXIL library.
-
-* #### No Export Renames
-Export renames for state objects are not supported
 
 * #### D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS for compaction are ignored
 Both D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION and D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_MINIMIZE_MEMORY are ignored by the Fallback Layer
@@ -206,14 +206,24 @@ The stack size passed by `SetPipelineStackSize` is ignored and the Fallback inst
 
 * #### D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE doesn't prevent Any-Hit invocation from getting called on geometry using Intersection Shaders
 Note: On regular triangle geometry, all opaque/non-opaque flags should still work as expected
-
-* #### Intersection Shader doesn't respect D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE/D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE
-The invocation of an AnyHit shader after a ReportHit() call from an Intersection shader will not correctly respond based on the use of the instance flags
  
 ## Debugging & Tooling
 The Fallback Layer natively works with PIX. However, PIX does not have support for using ray tracing debugging capabilities with the Fallback and will instead show all operations as the underlying compute shader dispatches. Debugging more advanced problems will require a more in-depth knowledge of how the Fallback works. This section include guidelines on how to go about investigating different problem areas.
 
 When using the debug version of the Fallback Layer library, the Fallback layer has limited validation that will catch unsupported cases and output the cause of failure to the debugger. 
+
+### Acceleration structure visualization
+It can be helpful to visualize the acceleration structure, particularly when you make changes to the structure logic in the library. To do this, enable ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION in [FallbackDebug.h](src/FallbackDebug.h) and in [ModelViewerRayTracing.h](../../Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingMiniEngineSample/ModelViewerRayTracing.h).
+
+The visualization shows the depth of each triangle in the BVH, starting with the root of the top-level acceleration structure. Blue triangles are located at depths of 0-9 levels deep, green triangles are at 10-21 levels deep, and red triangles are at 22-31 levels deep. Darker colors imply deeper triangles (thus longer ray traversals to intersection) in each range.
+```c
+// Set to 1 to visualize acceleration structure. 
+// Since this writes to a raytracing output during ray traversal, 
+// the Fallback Layer must have an output that is used by the application defined and
+// an application shaders must disable writing to the output (i.e. in a miss/hit shaders).
+#define ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION 0
+```
+![MiniEngine Sponza scene acceleration structure visualized](Data/MiniEngineASVisualization.png)
 
 ### Debugging vertex input to Acceleration structure build
 First, make sure that an AS build is part of the frame when you collect a PIX capture. Then look at a first Dispatch call corresponding to the AS build and see the *PrimitiveBuffer* UAV with the passed in vertex data in PIX's Pipeline view (see below). The format of the buffer corresponds to the *Primitive* object defined in [RayTracingHlslCompat.h](src/RayTracingHlslCompat.h) which is {PrimitiveType + primitive data} (see below). For a triangle primitive that is going to be {TRIANGLE_TYPE, three XYZ vertices}. Note TRIANGLE_TYPE has a value of 1 from the define.

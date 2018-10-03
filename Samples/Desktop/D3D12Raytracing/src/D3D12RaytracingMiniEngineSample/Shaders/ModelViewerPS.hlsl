@@ -8,8 +8,8 @@
 //
 // Developed by Minigraph
 //
-// Author(s):	James Stanard
-//				Alex Nankervis
+// Author(s):    James Stanard
+//                Alex Nankervis
 //
 // Thanks to Michal Drobot for his feedback.
 
@@ -36,14 +36,14 @@ struct VSOutput
 #endif
 };
 
-Texture2D<float3> texDiffuse		: register(t0);
-Texture2D<float3> texSpecular		: register(t1);
-//Texture2D<float4> texEmissive		: register(t2);
-Texture2D<float3> texNormal			: register(t3);
-//Texture2D<float4> texLightmap		: register(t4);
-//Texture2D<float4> texReflection	: register(t5);
-Texture2D<float> texSSAO			: register(t64);
-Texture2D<float> texShadow			: register(t65);
+Texture2D<float3> texDiffuse        : register(t0);
+Texture2D<float3> texSpecular        : register(t1);
+//Texture2D<float4> texEmissive        : register(t2);
+Texture2D<float3> texNormal            : register(t3);
+//Texture2D<float4> texLightmap        : register(t4);
+//Texture2D<float4> texReflection    : register(t5);
+Texture2D<float> texSSAO            : register(t64);
+Texture2D<float> texShadow            : register(t65);
 
 StructuredBuffer<LightData> lightBuffer : register(t66);
 Texture2DArray<float> lightShadowArrayTex : register(t67);
@@ -88,9 +88,9 @@ void FSchlick(inout float3 specular, inout float3 diffuse, float3 lightDir, floa
 }
 
 float3 ApplyAmbientLight(
-    float3	diffuse,	// Diffuse albedo
-    float	ao,			// Pre-computed ambient-occlusion
-    float3	lightColor	// Radiance of ambient light
+    float3    diffuse,    // Diffuse albedo
+    float    ao,            // Pre-computed ambient-occlusion
+    float3    lightColor    // Radiance of ambient light
 )
 {
     return ao * diffuse * lightColor;
@@ -129,14 +129,14 @@ float GetShadowConeLight(uint lightIndex, float3 shadowCoord)
 }
 
 float3 ApplyLightCommon(
-    float3	diffuseColor,	// Diffuse albedo
-    float3	specularColor,	// Specular albedo
-    float	specularMask,	// Where is it shiny or dingy?
-    float	gloss,			// Specular power
-    float3	normal,			// World-space normal
-    float3	viewDir,		// World-space vector from eye to point
-    float3	lightDir,		// World-space vector from point to light
-    float3	lightColor		// Radiance of directional light
+    float3    diffuseColor,    // Diffuse albedo
+    float3    specularColor,    // Specular albedo
+    float    specularMask,    // Where is it shiny or dingy?
+    float    gloss,            // Specular power
+    float3    normal,            // World-space normal
+    float3    viewDir,        // World-space vector from eye to point
+    float3    lightDir,        // World-space vector from point to light
+    float3    lightColor        // Radiance of directional light
 )
 {
     float3 halfVec = normalize(lightDir - viewDir);
@@ -152,15 +152,15 @@ float3 ApplyLightCommon(
 }
 
 float3 ApplyDirectionalLight(
-    float3	diffuseColor,	// Diffuse albedo
-    float3	specularColor,	// Specular albedo
-    float	specularMask,	// Where is it shiny or dingy?
-    float	gloss,			// Specular power
-    float3	normal,			// World-space normal
-    float3	viewDir,		// World-space vector from eye to point
-    float3	lightDir,		// World-space vector from point to light
-    float3	lightColor,		// Radiance of directional light
-    float3	shadowCoord		// Shadow coordinate (Shadow map UV & light-relative Z)
+    float3    diffuseColor,    // Diffuse albedo
+    float3    specularColor,    // Specular albedo
+    float    specularMask,    // Where is it shiny or dingy?
+    float    gloss,            // Specular power
+    float3    normal,            // World-space normal
+    float3    viewDir,        // World-space vector from eye to point
+    float3    lightDir,        // World-space vector from point to light
+    float3    lightColor,        // Radiance of directional light
+    float3    shadowCoord        // Shadow coordinate (Shadow map UV & light-relative Z)
 )
 {
     float shadow = GetShadow(shadowCoord);
@@ -178,16 +178,16 @@ float3 ApplyDirectionalLight(
 }
 
 float3 ApplyPointLight(
-    float3	diffuseColor,	// Diffuse albedo
-    float3	specularColor,	// Specular albedo
-    float	specularMask,	// Where is it shiny or dingy?
-    float	gloss,			// Specular power
-    float3	normal,			// World-space normal
-    float3	viewDir,		// World-space vector from eye to point
-    float3	worldPos,		// World-space fragment position
-    float3	lightPos,		// World-space light position
-    float	lightRadiusSq,
-    float3	lightColor		// Radiance of directional light
+    float3    diffuseColor,    // Diffuse albedo
+    float3    specularColor,    // Specular albedo
+    float    specularMask,    // Where is it shiny or dingy?
+    float    gloss,            // Specular power
+    float3    normal,            // World-space normal
+    float3    viewDir,        // World-space vector from eye to point
+    float3    worldPos,        // World-space fragment position
+    float3    lightPos,        // World-space light position
+    float    lightRadiusSq,
+    float3    lightColor        // Radiance of directional light
 )
 {
     float3 lightDir = lightPos - worldPos;
@@ -213,18 +213,18 @@ float3 ApplyPointLight(
 }
 
 float3 ApplyConeLight(
-    float3	diffuseColor,	// Diffuse albedo
-    float3	specularColor,	// Specular albedo
-    float	specularMask,	// Where is it shiny or dingy?
-    float	gloss,			// Specular power
-    float3	normal,			// World-space normal
-    float3	viewDir,		// World-space vector from eye to point
-    float3	worldPos,		// World-space fragment position
-    float3	lightPos,		// World-space light position
-    float	lightRadiusSq,
-    float3	lightColor,		// Radiance of directional light
-    float3	coneDir,
-    float2	coneAngles
+    float3    diffuseColor,    // Diffuse albedo
+    float3    specularColor,    // Specular albedo
+    float    specularMask,    // Where is it shiny or dingy?
+    float    gloss,            // Specular power
+    float3    normal,            // World-space normal
+    float3    viewDir,        // World-space vector from eye to point
+    float3    worldPos,        // World-space fragment position
+    float3    lightPos,        // World-space light position
+    float    lightRadiusSq,
+    float3    lightColor,        // Radiance of directional light
+    float3    coneDir,
+    float2    coneAngles
 )
 {
     float3 lightDir = lightPos - worldPos;
@@ -253,20 +253,20 @@ float3 ApplyConeLight(
 }
 
 float3 ApplyConeShadowedLight(
-    float3	diffuseColor,	// Diffuse albedo
-    float3	specularColor,	// Specular albedo
-    float	specularMask,	// Where is it shiny or dingy?
-    float	gloss,			// Specular power
-    float3	normal,			// World-space normal
-    float3	viewDir,		// World-space vector from eye to point
-    float3	worldPos,		// World-space fragment position
-    float3	lightPos,		// World-space light position
-    float	lightRadiusSq,
-    float3	lightColor,		// Radiance of directional light
-    float3	coneDir,
-    float2	coneAngles,
+    float3    diffuseColor,    // Diffuse albedo
+    float3    specularColor,    // Specular albedo
+    float    specularMask,    // Where is it shiny or dingy?
+    float    gloss,            // Specular power
+    float3    normal,            // World-space normal
+    float3    viewDir,        // World-space vector from eye to point
+    float3    worldPos,        // World-space fragment position
+    float3    lightPos,        // World-space light position
+    float    lightRadiusSq,
+    float3    lightColor,        // Radiance of directional light
+    float3    coneDir,
+    float2    coneAngles,
     float4x4 shadowTextureMatrix,
-    uint	lightIndex
+    uint    lightIndex
 )
 {
     float4 shadowCoord = mul(shadowTextureMatrix, float4(worldPos, 1.0));
@@ -302,7 +302,7 @@ float3 ApplyConeShadowedLight(
     lightData.color
 
 #define SPOT_LIGHT_PARAMS \
-    POINT_LIGHT_PARAMS,	lightData.coneDir, lightData.coneAngles
+    POINT_LIGHT_PARAMS,    lightData.coneDir, lightData.coneAngles
 
 #define SHADOWED_LIGHT_PARAMS \
     SPOT_LIGHT_PARAMS, lightData.shadowTextureMatrix, lightIndex
@@ -317,13 +317,15 @@ uint PullNextBit(inout uint bits)
 struct MRT
 {
     float3 Color : SV_Target0;
-    float3 Normal : SV_Target1;
+    float4 Normal : SV_Target1;
 };
 
 [RootSignature(ModelViewer_RootSig)]
 MRT main(VSOutput vsOutput)
 {
     MRT mrt;
+    mrt.Color = 0.0;
+    mrt.Normal = 0.0;
 
     uint2 pixelPos = uint2(vsOutput.position.xy);
 # define SAMPLE_TEX(texName) texName.Sample(sampler0, vsOutput.uv)
@@ -341,7 +343,16 @@ MRT main(VSOutput vsOutput)
         normal = SAMPLE_TEX(texNormal) * 2.0 - 1.0;
         AntiAliasSpecular(normal, gloss);
         float3x3 tbn = float3x3(normalize(vsOutput.tangent), normalize(vsOutput.bitangent), normalize(vsOutput.normal));
-        normal = normalize(mul(normal, tbn));
+        normal = mul(normal, tbn);
+
+        // Normalize result...
+        float lenSq = dot(normal, normal);
+
+        // Some Sponza content appears to have no tangent space provided, resulting in degenerate normal vectors.
+        if (!isfinite(lenSq) || lenSq < 1e-6)
+            return mrt;
+
+        normal *= rsqrt(lenSq);
     }
 
     float3 specularAlbedo = float3(0.56, 0.56, 0.56);
@@ -349,11 +360,12 @@ MRT main(VSOutput vsOutput)
     float3 viewDir = normalize(vsOutput.viewDir);
     colorSum += ApplyDirectionalLight(diffuseAlbedo, specularAlbedo, specularMask, gloss, normal, viewDir, SunDirection, SunColor, vsOutput.shadowCoord);
 
-    mrt.Color.rgb = colorSum;
-    mrt.Normal = float3(0, 0, 0);
+    mrt.Color = colorSum;
+
     if (AreNormalsNeeded)
     {
-        mrt.Normal = normal;
+        float reflection = specularMask * pow(1.0 - saturate(dot(-viewDir, normal)), 5.0);
+        mrt.Normal = float4(normal, reflection);
     }
 
     return mrt;

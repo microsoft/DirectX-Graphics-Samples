@@ -24,7 +24,7 @@ void FillSortKey( uint GroupStart, uint Offset, uint VertexCount )
 {
     if (GroupStart + Offset >= VertexCount)
     {
-        gs_SortKeys[Offset] = 0;		// Z = 0 will sort to the end of the list (back to front)
+        gs_SortKeys[Offset] = 0;        // Z = 0 will sort to the end of the list (back to front)
         return;
     }
 

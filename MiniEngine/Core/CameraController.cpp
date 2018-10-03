@@ -70,7 +70,7 @@ void CameraController::Update( float deltaTime )
 
     float yaw = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickX ) * m_HorizontalLookSensitivity * panScale;
     float pitch = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickY ) * m_VerticalLookSensitivity * panScale;
-    float forward =	m_MoveSpeed * speedScale * (
+    float forward = m_MoveSpeed * speedScale * (
         GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogLeftStickY ) +
         (GameInput::IsPressed( GameInput::kKey_w ) ? deltaTime : 0.0f) +
         (GameInput::IsPressed( GameInput::kKey_s ) ? -deltaTime : 0.0f)

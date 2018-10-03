@@ -1,8 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup>
-    <FXCToolPath>$(SolutionDir)..\tools\x64\</FXCToolPath>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>
     </LinkIncremental>
@@ -38,7 +35,7 @@
     <PlatformToolset>v141</PlatformToolset>
     <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>
     <TargetRuntime>Native</TargetRuntime>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -152,6 +149,7 @@
     <None Include="Models\sponza.h3d">
       <DeploymentContent>true</DeploymentContent>
     </None>
+    <None Include="packages.config" />
     <None Include="readme.md" />
     <None Include="Shaders\FillLightGridCS.hlsli" />
     <None Include="Shaders\LightGrid.hlsli" />
@@ -159,27 +157,21 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="*Lib.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-      </ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">6.3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.3</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
       </EntryPointName>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -T lib_6_1 -HV 2017 -O4 -Zpr </AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -T lib_6_1 -HV 2017 -O4 -Zpr </AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Profile|x64'"> -T lib_6_1 -HV 2017 -O4 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -HV 2017 -O4 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -HV 2017 -O4 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Profile|x64'"> -HV 2017 -O4 -Zpr </AdditionalOptions>
     </FxCompile>
     <FxCompile Include="Shaders\DepthViewerPS.hlsl">
       <ShaderType>Pixel</ShaderType>
@@ -220,24 +212,24 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemDefinitionGroup>
     <Link>
-      <AdditionalLibraryDirectories>..\..\..\..\..\MiniEngine\Packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\..\..\..\Packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>zlibstatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/nodefaultlib:LIBCMT %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cd "$(SolutionDir)..\tools\x64\"
 PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingMiniEngineSample\"</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Sideload required DXR binaries.</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Sideloading DXR Fallback Compiler.</Message>
     </PostBuildEvent>
     <PostBuildEvent>
       <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">cd "$(SolutionDir)..\tools\x64\"
 PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingMiniEngineSample\"</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Sideload required DXR binaries.</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Sideloading DXR Fallback Compiler.</Message>
     </PostBuildEvent>
     <PostBuildEvent>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cd "$(SolutionDir)..\tools\x64\"
 PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingMiniEngineSample\"</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Sideload required DXR binaries.</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Sideloading DXR Fallback Compiler.</Message>
     </PostBuildEvent>
     <ProjectReference>
       <UseLibraryDependencyInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</UseLibraryDependencyInputs>
@@ -260,15 +252,20 @@ PrebuildCheck.bat</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cd $(SolutionDir)..\tools\x64\
 PrebuildCheck.bat</Command>
     </PreBuildEvent>
+    <FxCompile>
+      <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</EnableDebuggingInformation>
+    </FxCompile>
+    <FxCompile>
+      <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">false</EnableDebuggingInformation>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ImportGroup Label="ExtensionTargets">
-    <Import Project=".\..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets" Condition="Exists('.\..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets')" />
+    <Import Project="..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets" Condition="Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('.\..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '.\..\..\..\..\..\MiniEngine\Packages\WinPixEventRuntime.1.0.170625002\build\WinPixEventRuntime.targets'))" />
-    <Error Condition="!Exists('.\..\..\..\..\..\MiniEngine\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets')" Text="$([System.String]::Format('$(ErrorText)', '.\..\..\..\..\..\MiniEngine\Packages\zlib-vc140-static-64.1.2.11\build\native\zlib-vc140-static-64.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets'))" />
   </Target>
 </Project>

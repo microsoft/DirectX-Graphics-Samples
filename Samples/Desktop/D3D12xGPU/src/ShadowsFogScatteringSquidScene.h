@@ -29,11 +29,11 @@ class DXSample;
 
 #define SINGLETHREADED FALSE
 
-static const UINT NumNullSrvs = 2;		// Null descriptors at the start of the heap.
+static const UINT NumNullSrvs = 2;        // Null descriptors at the start of the heap.
 static const UINT NumContexts = 3;
 
 // Currently the rendering code can only handle a single point light.
-static const UINT NumLights = 1;		// Keep this in sync with "ShadowsAndScenePass.hlsl".
+static const UINT NumLights = 1;        // Keep this in sync with "ShadowsAndScenePass.hlsl".
             
 
 static const UINT NumDepthBuffers = 2;      // Shadow + Scene pass
@@ -82,7 +82,7 @@ struct SceneConstantBuffer
     XMFLOAT4X4 projection;
     XMFLOAT4 ambientColor;
     BOOL sampleShadowMap;
-    BOOL padding[3];		// Must be aligned to be made up of N float4s.
+    BOOL padding[3];        // Must be aligned to be made up of N float4s.
     LightState lights[NumLights];
 };
 

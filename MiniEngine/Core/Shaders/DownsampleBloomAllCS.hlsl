@@ -26,7 +26,7 @@ cbuffer cb0 : register(b0)
     float2 g_inverseDimensions;
 }
 
-groupshared float3 g_Tile[64];	// 8x8 input pixels
+groupshared float3 g_Tile[64];    // 8x8 input pixels
 
 [RootSignature(PostEffects_RootSig)]
 [numthreads( 8, 8, 1 )]

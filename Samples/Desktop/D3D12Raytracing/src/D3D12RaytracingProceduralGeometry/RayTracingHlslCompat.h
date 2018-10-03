@@ -29,41 +29,23 @@ using namespace DirectX;
 typedef UINT16 Index;
 #endif
 
-//*********----- NV driver limitation workarounds ------******************
-//  
-// Setting following causes a NV driver to fail to create a state object:
-// - N_METABALLS 5
-// - USE_DYNAMIC_LOOPS 0
-// - USE_EXPLICIT_UNROLL 0
-// - USE_NON_NULL_LOCAL_ROOT_SIG 0  
-//
-// Enables dynamic for-loop range.
-#define USE_DYNAMIC_LOOPS 0
-//
-#define N_METABALLS 3     // = {3, 5}
-#define USE_EXPLICIT_UNROLL 1
-//
-// NV driver does not support null local root signatures. 
-// Use an empty local root signature where a shader does not require it.
-#define USE_NON_NULL_LOCAL_ROOT_SIG 1 
-//
-//*************************************************************************
-
-
-//******-------Fallback Layer limitation workarounds -----*****************
-//
-// Fallback Layer does not support default exports for DXIL libraries yet.
-#define DEFINE_EXPLICIT_SHADER_EXPORTS 1
-//
-//*************************************************************************
-
+// Number of metaballs to use within an AABB.
+#define N_METABALLS 3    // = {3, 5}
 
 // Limitting calculations only to metaballs a ray intersects can speed up raytracing
-// dramatically.  the more the number of metaballs are used.
+// dramatically particularly when there is a higher number of metaballs used. 
+// Use of dynamic loops can have detrimental effects to performance for low iteration counts
+// and outweighing any potential gains from avoiding redundant calculations.
 // Requires: USE_DYNAMIC_LOOPS set to 1 to take effect.
+#if N_METABALLS >= 5
+#define USE_DYNAMIC_LOOPS 1
+#define LIMIT_TO_ACTIVE_METABALLS 1
+#else 
+#define USE_DYNAMIC_LOOPS 0
 #define LIMIT_TO_ACTIVE_METABALLS 0
+#endif
 
-#define N_FRACTAL_ITERATIONS 4      // <1,...>
+#define N_FRACTAL_ITERATIONS 4      // = <1,...>
 
 // PERFORMANCE TIP: Set max recursion depth as low as needed
 // as drivers may apply optimization strategies for low recursion depths.

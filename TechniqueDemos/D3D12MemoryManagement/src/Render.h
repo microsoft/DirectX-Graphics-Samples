@@ -22,14 +22,14 @@
 //
 struct RenderFrame : Frame
 {
-	LIST_ENTRY PendingBufferListHead;
-	LIST_ENTRY PendingHeapListHead;
+    LIST_ENTRY PendingBufferListHead;
+    LIST_ENTRY PendingHeapListHead;
 
-	DynamicBuffer VertexBuffer;
-	DynamicBuffer ConstantBuffer;
-	DynamicDescriptorHeap SrvCbvHeap;
+    DynamicBuffer VertexBuffer;
+    DynamicBuffer ConstantBuffer;
+    DynamicDescriptorHeap SrvCbvHeap;
 
-	D3D12_GPU_VIRTUAL_ADDRESS CameraAddress;
+    D3D12_GPU_VIRTUAL_ADDRESS CameraAddress;
 };
 
 //
@@ -40,20 +40,20 @@ struct RenderFrame : Frame
 class RenderContext : public Context
 {
 protected:
-	virtual void RetireFrame(Frame* pFrame);
+    virtual void RetireFrame(Frame* pFrame);
 
 public:
-	RenderContext(DX12Framework* pFramework);
-	~RenderContext();
+    RenderContext(DX12Framework* pFramework);
+    ~RenderContext();
 
-	HRESULT CreateDeviceDependentState(UINT MaxFrameCount);
-	void DestroyDeviceDependentState();
+    HRESULT CreateDeviceDependentState(UINT MaxFrameCount);
+    void DestroyDeviceDependentState();
 
-	void CloseBuffer(Buffer* pBuffer);
-	void CloseHeap(DescriptorHeap* pHeap);
+    void CloseBuffer(Buffer* pBuffer);
+    void CloseHeap(DescriptorHeap* pHeap);
 
-	inline RenderFrame* GetCurrentFrame() const
-	{
-		return static_cast<RenderFrame*>(m_pCurrentFrame);
-	}
+    inline RenderFrame* GetCurrentFrame() const
+    {
+        return static_cast<RenderFrame*>(m_pCurrentFrame);
+    }
 };

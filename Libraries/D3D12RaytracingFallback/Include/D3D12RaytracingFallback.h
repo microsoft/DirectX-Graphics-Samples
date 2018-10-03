@@ -36,13 +36,13 @@ struct WRAPPED_GPU_POINTER
 
 typedef struct D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC
 {
-    FLOAT Transform[12];
+    FLOAT Transform[3][4];
     UINT InstanceID : 24;
     UINT InstanceMask : 8;
     UINT InstanceContributionToHitGroupIndex : 24;
     UINT Flags : 8;
     WRAPPED_GPU_POINTER AccelerationStructure;
-} 	D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC;
+}     D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC;
 
 class
 _declspec(uuid("539e5c40-df25-4c7d-81d8-6537f54306ed"))
@@ -52,8 +52,8 @@ public:
     virtual ~ID3D12RaytracingFallbackStateObject() {};
 
     virtual void *STDMETHODCALLTYPE GetShaderIdentifier(
-        LPCWSTR pExportName) = 0;
-    
+        _In_  LPCWSTR pExportName) = 0;
+
     virtual UINT64 STDMETHODCALLTYPE GetShaderStackSize(
         _In_  LPCWSTR pExportName) = 0;
 
@@ -62,18 +62,8 @@ public:
     virtual void STDMETHODCALLTYPE SetPipelineStackSize(
         UINT64 PipelineStackSizeInBytes) = 0;
 
-    virtual ID3D12StateObjectPrototype *GetStateObjectPrototype() = 0;
+    virtual ID3D12StateObject *GetStateObject() = 0;
 };
-
-typedef struct D3D12_FALLBACK_DISPATCH_RAYS_DESC
-{
-    D3D12_GPU_VIRTUAL_ADDRESS_RANGE RayGenerationShaderRecord;
-    D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE MissShaderTable;
-    D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE HitGroupTable;
-    D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE CallableShaderTable;
-    UINT Width;
-    UINT Height;
-} 	D3D12_FALLBACK_DISPATCH_RAYS_DESC;
 
 class
 _declspec(uuid("348a2a6b-6760-4b78-a9a7-1758b6f78d46"))
@@ -82,17 +72,18 @@ ID3D12RaytracingFallbackCommandList : public IUnknown
 public:
     virtual ~ID3D12RaytracingFallbackCommandList() {}
 
-    virtual void STDMETHODCALLTYPE BuildRaytracingAccelerationStructure(
-        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc) = 0;
+    virtual void BuildRaytracingAccelerationStructure(
+        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc,
+        _In_  UINT NumPostbuildInfoDescs,
+        _In_reads_opt_(NumPostbuildInfoDescs)  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pPostbuildInfoDescs) = 0;
 
-    virtual void STDMETHODCALLTYPE EmitRaytracingAccelerationStructurePostBuildInfo(
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestBuffer,
-        _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_TYPE InfoType,
+    virtual void STDMETHODCALLTYPE EmitRaytracingAccelerationStructurePostbuildInfo(
+        _In_  const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pDesc,
         _In_  UINT NumSourceAccelerationStructures,
         _In_reads_(NumSourceAccelerationStructures)  const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData) = 0;
 
     virtual void STDMETHODCALLTYPE CopyRaytracingAccelerationStructure(
-        _In_  D3D12_GPU_VIRTUAL_ADDRESS_RANGE DestAccelerationStructureData,
+        _In_  D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData,
         _In_  D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData,
         _In_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode) = 0;
 
@@ -104,9 +95,11 @@ public:
         _In_  UINT RootParameterIndex,
         _In_  WRAPPED_GPU_POINTER  BufferLocation) = 0;
 
+    virtual void STDMETHODCALLTYPE SetPipelineState1(
+        _In_  ID3D12RaytracingFallbackStateObject *pStateObject) = 0;
+
     virtual void STDMETHODCALLTYPE DispatchRays(
-        _In_ ID3D12RaytracingFallbackStateObject *pRaytracingPipelineState,
-        _In_  const D3D12_FALLBACK_DISPATCH_RAYS_DESC *pDesc) = 0;
+        _In_  const D3D12_DISPATCH_RAYS_DESC *pDesc) = 0;
 };
 
 class
@@ -128,16 +121,16 @@ public:
     virtual WRAPPED_GPU_POINTER GetWrappedPointerFromGpuVA(D3D12_GPU_VIRTUAL_ADDRESS gpuVA) = 0;
 
     virtual D3D12_RESOURCE_STATES GetAccelerationStructureResourceState() = 0;
+    
+    virtual UINT STDMETHODCALLTYPE GetShaderIdentifierSize(void) = 0;
 
     virtual HRESULT STDMETHODCALLTYPE CreateStateObject(
         const D3D12_STATE_OBJECT_DESC *pDesc,
         REFIID riid,
         _COM_Outptr_  void **ppStateObject) = 0;
 
-    virtual UINT STDMETHODCALLTYPE GetShaderIdentifierSize(void) = 0;
-
     virtual void STDMETHODCALLTYPE GetRaytracingAccelerationStructurePrebuildInfo(
-        _In_  D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC *pDesc,
+        _In_  const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc,
         _Out_  D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo) = 0;
 
     virtual void QueryRaytracingCommandList(
