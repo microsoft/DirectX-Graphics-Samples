@@ -253,8 +253,16 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
         // Calculate coordinate system for the hemisphere
         float3 u, v, w; 
         w = triangleNormal;
-//        float3 right = w.yzx; 
-        float3 right = normalize(float3(0.0072, 1.0, 0.0034));
+        
+#if 1	// Break hemisphere coordinate correlation - ToDo is this needed with >#N sample sets? Compare perf
+		float x = RNG::Random01(RNGState);
+		float y = RNG::Random01(RNGState);
+		float z = RNG::Random01(RNGState);
+		float3 right = normalize(float3(x, y, z) + 0.001f*w.yzx);
+#else
+		float3 right = w.yzx;
+#endif
+		//        float3 right = normalize(float3(0.0072, 1.0, 0.0034));
         v = normalize(cross(w, right));
         u = cross(v, w);
 

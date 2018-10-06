@@ -76,7 +76,8 @@ namespace SceneArgs
     EnumVar ASBuildFlag(L"Acceleration structure/Build quality", FastTrace, _countof(BuildFlags), BuildFlags, OnASChange, nullptr);
 
     // ToDo test tessFactor 16
-    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 14, 0, 80, 1, OnGeometryChange, nullptr);
+	// ToDo fix alias on TessFactor 2
+    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 2, 0, 80, 1, OnGeometryChange, nullptr);
     IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1, OnGeometryChange, nullptr);
     IntVar NumSphereBLAS(L"Geometry/# Sphere BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnASChange, nullptr);
 };
@@ -363,7 +364,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(144, 1, Samplers::HemisphereDistribution::Cosine);
+    m_randomSampler.Reset(81, 83, Samplers::HemisphereDistribution::Cosine);
 
     // Create root signature
     {
@@ -414,11 +415,11 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     // Create shader resources
     {
         m_computeCB.Create(device, frameCount, L"GPU CB: RNG");
-
+#if 1
         m_samplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random unit square samples");
 
         m_hemisphereSamplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random hemisphere samples");
-#if 1
+
         for (UINT i = 0; i < m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(); i++)
         {
             //sample.value = m_randomSampler.GetSample2D();
@@ -1477,7 +1478,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
 #if 0
     m_sceneCB->numSamplesToUse = m_randomSampler.NumSamples();    UINT NumFramesPerIter = 400;
 #else
-    UINT NumFramesPerIter = 1000;
+    UINT NumFramesPerIter = 100;
     static UINT frameID = NumFramesPerIter * 4;
     m_sceneCB->numSamplesToUse = (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
 #endif
@@ -1691,8 +1692,8 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     m_computeCB->dispatchDimensions = rngWindowSize;
 
     static UINT seed = 0;
-    static UINT frameID = 0;
-    UINT NumFramesPerIter = 400;
+	UINT NumFramesPerIter = 100;
+	static UINT frameID = NumFramesPerIter * 4;
     m_computeCB->numSamplesToShow = (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
     m_computeCB->seed =  ((seed++ / (NumFramesPerIter * m_randomSampler.NumSamples())) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
     m_computeCB->stratums = XMUINT2(static_cast<UINT>(sqrt(m_randomSampler.NumSamples())), 
@@ -1757,16 +1758,16 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 
 #if ENABLE_RAYTRACING
     // Update acceleration structures.
-    if (SceneArgs::EnableGeometryAndASBuildsAndUpdates)
+    if (m_isASrebuildRequested && SceneArgs::EnableGeometryAndASBuildsAndUpdates)
     {
         UpdateAccelerationStructures(m_isASrebuildRequested);
         m_isASrebuildRequested = false;
     }
     // Render.
-    DoRaytracing();
+	DoRaytracing();
 #endif
 
-   // RenderRNGVisualizations();
+    RenderRNGVisualizations();
 
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
     
