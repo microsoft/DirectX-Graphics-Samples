@@ -24,6 +24,9 @@
 #define ENABLE_BREAK_ON_DEBUG_LAYER_ERROR 0
 #define DEBUG_UI_DEVICE_HUNG 0
 
+// Cull the panels as they're inverted
+#define CULL_SQUID_CONTAINER_SIDE_PANELS 1
+
 #define ENABLE_RAYTRACING 1 // for non-dxr development
 
 #ifdef HLSL

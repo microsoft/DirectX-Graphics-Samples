@@ -1018,12 +1018,11 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 		m_geometryInstances[i].vb.startIndex = SampleAssets::Draws[i].VertexBase;
 		m_geometryInstances[i].vb.count = SampleAssets::VertexDataSize / SampleAssets::StandardVertexStride - SampleAssets::Draws[i].VertexBase;
 
-#if CULL_FRONT_SIDE_SQUID_CONTAINER_PANELS
+#if CULL_SQUID_CONTAINER_SIDE_PANELS
 		const UINT sidePanelsGeometryID = 848;
 		if (i == sidePanelsGeometryID)
 		{
-			m_geometryInstances[i].ib.startIndex += 6;
-			m_geometryInstances[i].ib.count = 6;
+			m_geometryInstances[i].ib.count = 0;
 		}
 #endif
 		UINT geometryIBHeapIndex = UINT_MAX;
