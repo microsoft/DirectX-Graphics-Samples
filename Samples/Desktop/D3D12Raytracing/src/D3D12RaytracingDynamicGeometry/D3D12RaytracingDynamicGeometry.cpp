@@ -310,7 +310,7 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-#if 1 //ONLY_SQUID_SCENE_BLAS
+#if ONLY_SQUID_SCENE_BLAS
 		m_eye = { 0.0f, 80, -268.555980f, 1.0f };
         m_at = { 0.0f, 8.0f, 0.0f, 1.0f };
 		m_up = { 0.0f, 1, 0, 1.0f };
@@ -337,8 +337,11 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
         XMFLOAT4 lightPosition;
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
-
+#if ONLY_SQUID_SCENE_BLAS
         lightPosition = XMFLOAT4(0.0f, 50.0f, -60.0f, 0.0f);
+#else
+		lightPosition = XMFLOAT4(0.0f, 50.0f, -60.0f, 0.0f);
+#endif
         m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 
         lightAmbientColor = XMFLOAT4(0.45f, 0.45f, 0.45f, 1.0f);
@@ -372,7 +375,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(9, 83, Samplers::HemisphereDistribution::Cosine);
+    m_randomSampler.Reset(81, 83, Samplers::HemisphereDistribution::Cosine);
 
     // Create root signature
     {
@@ -1280,8 +1283,8 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
 		{
 			LocalRootSignature::Triangle::RootArguments rootArgs;
 			rootArgs.materialCb = m_planeMaterialCB;
-			float value = (float)i / m_geometryInstances.size();
-			rootArgs.materialCb.albedo = XMFLOAT4(value, value, value, value);
+			//float value = (float)i / m_geometryInstances.size();
+			//rootArgs.materialCb.albedo = XMFLOAT4(value, value, value, value);
 			memcpy(&rootArgs.vertexBufferGPUHandle, &m_geometryInstances[i].ib.gpuDescriptorHandle, sizeof(m_geometries[i].ib.gpuDescriptorHandle));
 			for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
 			{

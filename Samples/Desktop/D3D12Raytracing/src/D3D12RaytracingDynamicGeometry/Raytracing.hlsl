@@ -155,7 +155,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0.01;
-    rayDesc.TMax = 10000;	// ToDo set this to dist to light
+	rayDesc.TMax = 15;// 0000;	// ToDo set this to dist to light
 
     // Initialize shadow ray payload.
     // Set the initial value to true since closest and any hit shaders are skipped. 
@@ -168,7 +168,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 #else
 		RAY_FLAG_CULL_BACK_FACING_TRIANGLES
 #endif
-        | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
+// ToDo - define smaller ray distances       | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
         | RAY_FLAG_FORCE_OPAQUE             // ~skip any hit shaders
         | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders,
         TraceRayParameters::InstanceMask,
@@ -274,7 +274,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 
     // Apply visibility falloff.
     float t = RayTCurrent();
-    color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
+    //color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
 #elif 1
     uint seed = DispatchRaysDimensions().x * DispatchRaysIndex().y + DispatchRaysIndex().x + g_sceneCB.seed;
 
