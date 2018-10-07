@@ -171,6 +171,13 @@ struct AlignedHemisphereSample3D
     UINT padding;  // Padding to 16B
 };
 
+// ToDo rename
+struct SquidVertex {
+	XMFLOAT3 position;
+	XMFLOAT3 normal;
+	XMFLOAT2 textureCoordinate;
+	XMFLOAT3 tangent;
+};
 
 
 struct Vertex

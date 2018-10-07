@@ -33,12 +33,6 @@ ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 #if RENDER_SPHERES
 #if ONLY_SQUID_SCENE_BLAS
 StructuredBuffer<UINT> l_indices : register(t1, space0);
-struct SquidVertex {
-	XMFLOAT3 position;
-	XMFLOAT3 normal;
-	XMFLOAT2 textureCoordinate;
-	XMFLOAT3 tangent;
-};
 StructuredBuffer<SquidVertex> l_vertices : register(t2, space0);
 #else
 ByteAddressBuffer l_indices : register(t1, space0);

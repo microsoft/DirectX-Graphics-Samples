@@ -938,6 +938,20 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 		vertexData.RowPitch = SampleAssets::VertexDataSize;
 		vertexData.SlicePitch = vertexData.RowPitch;
 
+#if CULL_SQUID_CONTAINER_SIDE_PANELS
+		const UINT sidePanelsGeometryID = 848;
+		auto& geometryDesc = SampleAssets::Draws[sidePanelsGeometryID];
+		SquidVertex* geometryVertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset) + geometryDesc.VertexBase;
+		UINT* geometryIndices = reinterpret_cast<UINT*>(pAssetData + SampleAssets::IndexDataOffset) + geometryDesc.IndexStart;
+
+		// Deactivate vertices by setting x-coordinate to NaN.
+		for (UINT i = 0; i < geometryDesc.IndexCount; i++)
+		{
+			auto& vertex = geometryVertices[geometryIndices[i]];
+			vertex.position.x = nanf("");
+		}
+#endif
+
 		PIXBeginEvent(commandList, 0, L"Copy vertex buffer data to default resource...");
 
 		UpdateSubresources<1>(commandList, m_vertexBuffer.Get(), m_vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
@@ -1018,13 +1032,6 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 		m_geometryInstances[i].vb.startIndex = SampleAssets::Draws[i].VertexBase;
 		m_geometryInstances[i].vb.count = SampleAssets::VertexDataSize / SampleAssets::StandardVertexStride - SampleAssets::Draws[i].VertexBase;
 
-#if CULL_SQUID_CONTAINER_SIDE_PANELS
-		const UINT sidePanelsGeometryID = 848;
-		if (i == sidePanelsGeometryID)
-		{
-			m_geometryInstances[i].ib.count = 0;
-		}
-#endif
 		UINT geometryIBHeapIndex = UINT_MAX;
 		UINT geometryVBHeapIndex = UINT_MAX;
 		CreateBufferSRV(&m_geometries[GeometryType::SquidScene].ib, m_geometryInstances[i].ib.count, sizeof(UINT), &geometryIBHeapIndex, m_geometryInstances[i].ib.startIndex);
