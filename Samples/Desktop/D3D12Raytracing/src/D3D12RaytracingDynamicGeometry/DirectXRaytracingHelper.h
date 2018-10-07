@@ -52,6 +52,18 @@ struct TriangleGeometryBuffer
 	D3D12_GPU_VIRTUAL_ADDRESS transform;
 };
 
+struct GeometryInstance
+{
+	struct Buffer {
+		UINT startIndex;
+		UINT count;
+		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
+	};
+
+	Buffer vb;
+	Buffer ib;
+};
+
 enum class RaytracingAPI {
 	FallbackLayer,
 	DirectXRaytracing,
@@ -104,7 +116,7 @@ public:
 	// ToDo:
 	// UpdateGeometry()
 
-	void Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags);
+	void Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags, DXGI_FORMAT indexFormat, UINT ibStrideInBytes, UINT vbStrideInBytes, std::vector<GeometryInstance>& instances);
 	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, bool bUpdate = false);
 	void BuildInstanceDesc(void* destInstanceDesc, UINT* descriptorHeapIndex);
 	void UpdateGeometryDescsTransform(D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress);
@@ -120,7 +132,7 @@ public:
 	const XMMATRIX& GetTransform() { return m_transform; }
 
 private:
-	void BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances);
+	void BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances, DXGI_FORMAT indexFormat, UINT ibStrideInBytes, UINT vbStrideInBytes, std::vector<GeometryInstance>& instances);
 	void ComputePrebuildInfo();
 };
 

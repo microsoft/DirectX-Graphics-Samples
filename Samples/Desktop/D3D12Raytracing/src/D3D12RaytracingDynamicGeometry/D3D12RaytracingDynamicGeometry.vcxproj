@@ -182,6 +182,7 @@ PrebuildCheck.bat</Command>
     <ClInclude Include="util\GameInput.h" />
     <ClInclude Include="util\HlslCompat.h" />
     <ClInclude Include="util\PerformanceTimers.h" />
+    <ClInclude Include="util\SquidRoom.h" />
     <ClInclude Include="util\StepTimer.h" />
     <ClInclude Include="util\UILayer.h" />
     <ClInclude Include="util\Win32Application.h" />
@@ -200,7 +201,7 @@ PrebuildCheck.bat</Command>
     <ClCompile Include="util\DXSample.cpp" />
     <ClCompile Include="util\EngineTuning.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="util\GameInput.cpp" />
     <ClCompile Include="util\PerformanceTimers.cpp" />
@@ -237,6 +238,11 @@ PrebuildCheck.bat</Command>
       <FileType>Document</FileType>
     </ClInclude>
     <None Include="readme.md" />
+    <CustomBuild Include="util\SquidRoom.bin">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <FileType>Document</FileType>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\..\Libraries\D3D12RaytracingFallback\src\FallbackLayer.vcxproj">

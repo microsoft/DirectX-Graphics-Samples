@@ -20,6 +20,10 @@
 //
 //**********************************************************************************************
 
+#define ONLY_SQUID_SCENE_BLAS 1
+#define ENABLE_BREAK_ON_DEBUG_LAYER_ERROR 0
+#define DEBUG_UI_DEVICE_HUNG 0
+
 #define ENABLE_RAYTRACING 1 // for non-dxr development
 
 #ifdef HLSL
@@ -42,7 +46,7 @@ typedef UINT16 Index;
 //*************************************************************************
 
 #define RENDER_SPHERES 1
-#define AO_ONLY 1
+#define AO_ONLY 0
 
 // Limitting calculations only to metaballs a ray intersects can speed up raytracing
 // dramatically particularly when there is a higher number of metaballs used. 
@@ -70,6 +74,8 @@ typedef UINT16 Index;
 // - deformed geometry
 // - Dynamic options
 // - Update/Build
+#define NORMAL_SHADING 1
+#define DEPTH_SHADING 0
 #define SINGLE_COLOR_SHADING 0
 #define SIMPLE_SHADING 1
 #define AS_BUILD_DEBUG 0

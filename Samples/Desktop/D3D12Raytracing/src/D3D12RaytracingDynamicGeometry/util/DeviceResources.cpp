@@ -94,6 +94,7 @@ void DeviceResources::InitializeDXGIAdapter()
             OutputDebugStringA("WARNING: Direct3D Debug Device is not available\n");
         }
 
+#if ENABLE_BREAK_ON_DEBUG_LAYER_ERROR
         ComPtr<IDXGIInfoQueue> dxgiInfoQueue;
         if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiInfoQueue))))
         {
@@ -104,6 +105,7 @@ void DeviceResources::InitializeDXGIAdapter()
             dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
             dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
         }
+#endif
     }
 #endif
 
@@ -149,12 +151,16 @@ void DeviceResources::CreateDeviceResources()
     ComPtr<ID3D12InfoQueue> d3dInfoQueue;
     if (SUCCEEDED(m_d3dDevice.As(&d3dInfoQueue)))
     {
+		// ToDo defined twice here and above
+#if ENABLE_BREAK_ON_DEBUG_LAYER_ERROR
 #ifdef _DEBUG
         d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
         d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
 #endif
+#endif
         D3D12_MESSAGE_ID hide[] =
         {
+			// ToDo remove
             D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
             D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE
         };

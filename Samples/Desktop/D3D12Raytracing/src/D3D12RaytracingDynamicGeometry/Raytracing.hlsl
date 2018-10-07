@@ -30,9 +30,20 @@ RWTexture2D<float4> g_renderTarget : register(u0);
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 
 // Triangle resources
-ByteAddressBuffer l_indices : register(t1, space0);
 #if RENDER_SPHERES
+#if ONLY_SQUID_SCENE_BLAS
+StructuredBuffer<UINT> l_indices : register(t1, space0);
+struct SquidVertex {
+	XMFLOAT3 position;
+	XMFLOAT3 normal;
+	XMFLOAT2 textureCoordinate;
+	XMFLOAT3 tangent;
+};
+StructuredBuffer<SquidVertex> l_vertices : register(t2, space0);
+#else
+ByteAddressBuffer l_indices : register(t1, space0);
 StructuredBuffer<VertexPositionNormalTexture> l_vertices : register(t2, space0);
+#endif
 #else
 StructuredBuffer<Vertex> l_vertices : register(t2, space0);
 #endif
@@ -113,8 +124,13 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.TMax = 10000;
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
     TraceRay(g_scene,
+#if ONLY_SQUID_SCENE_BLAS
+// ToDo Fix assets
+		RAY_FLAG_CULL_FRONT_FACING_TRIANGLES,
+#else
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
-        TraceRayParameters::InstanceMask,
+#endif
+		TraceRayParameters::InstanceMask,
         TraceRayParameters::HitGroup::Offset[RayType::Radiance],
         TraceRayParameters::HitGroup::GeometryStride,
         TraceRayParameters::MissShader::Offset[RayType::Radiance],
@@ -146,7 +162,12 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     // Shadow miss shader, if called, will set it to false.
     ShadowRayPayload shadowPayload = { true };
     TraceRay(g_scene,
-        RAY_FLAG_CULL_BACK_FACING_TRIANGLES
+#if ONLY_SQUID_SCENE_BLAS
+		// ToDo Fix assets
+		RAY_FLAG_CULL_FRONT_FACING_TRIANGLES
+#else
+		RAY_FLAG_CULL_BACK_FACING_TRIANGLES
+#endif
         | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
         | RAY_FLAG_FORCE_OPAQUE             // ~skip any hit shaders
         | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders,
@@ -184,24 +205,37 @@ void MyRaygenShader()
 [shader("closesthit")]
 void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
 {
+#if DEPTH_SHADING
+	rayPayload.color = (log(RayTCurrent() / 100 + 1));// +2) / 4;
+	return;
+#endif
 #if SINGLE_COLOR_SHADING
 	rayPayload.color = float4(1, 0, 0, 1);
 	return;
 #endif
-    // Get the base index of the triangle's first 16 bit index.
-    uint indexSizeInBytes = 2;
-    uint indicesPerTriangle = 3;
-    uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
+#if ONLY_SQUID_SCENE_BLAS
+	uint startIndex = PrimitiveIndex() * 3;
+	const uint3 indices = {l_indices[startIndex], l_indices[startIndex + 1], l_indices[startIndex + 2]};
+#else
+	// Get the base index of the triangle's first 16 bit index.
+	uint indexSizeInBytes = 2;
+	uint indicesPerTriangle = 3;
+	uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
 
-    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
+	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
 
-    // Load up three 16 bit indices for the triangle.
-    const uint3 indices = Load3x16BitIndices(baseIndex, l_indices);
-
+	// Load up three 16 bit indices for the triangle.
+	const uint3 indices = Load3x16BitIndices(baseIndex, l_indices);
+#endif
 #if RENDER_SPHERES
 	// Retrieve corresponding vertex normals for the triangle vertices.
 	float3 vertexNormals[3] = { l_vertices[indices[0]].normal, l_vertices[indices[1]].normal, l_vertices[indices[2]].normal};
     float3 triangleNormal = HitAttribute(vertexNormals, attr);
+
+#if NORMAL_SHADING
+	rayPayload.color = float4(triangleNormal, 1.0f);
+	return;
+#endif
 #else
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 triangleNormal = l_vertices[indices[0]].normal;

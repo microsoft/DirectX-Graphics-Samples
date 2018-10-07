@@ -53,6 +53,7 @@
 #include "D3D12RaytracingFallback.h"
 #include "D3D12RaytracingHelpers.hpp"
 #include "d3dx12.h"
+#include <pix3.h>
 
 #include <GeometricPrimitive.h>
 #include <DirectXMath.h>

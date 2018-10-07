@@ -92,7 +92,7 @@ void BottomLevelAccelerationStructure::UpdateGeometryDescsTransform(D3D12_GPU_VI
 }
 
 // Build geometry descs for bottom-level AS.
-void BottomLevelAccelerationStructure::BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances)
+void BottomLevelAccelerationStructure::BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances, DXGI_FORMAT indexFormat, UINT ibStrideInBytes, UINT vbStrideInBytes, vector<GeometryInstance>& instances)
 {
 	// ToDo pass geometry flag from the sample cpp
 	// Mark the geometry as opaque. 
@@ -102,9 +102,9 @@ void BottomLevelAccelerationStructure::BuildGeometryDescs(const TriangleGeometry
 
 	D3D12_RAYTRACING_GEOMETRY_DESC geometryDescTemplate = {};
 	geometryDescTemplate.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-	geometryDescTemplate.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
+	geometryDescTemplate.Triangles.IndexFormat = indexFormat;
 	geometryDescTemplate.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-	geometryDescTemplate.Triangles.VertexBuffer.StrideInBytes = sizeof(DirectX::GeometricPrimitive::VertexType);
+	geometryDescTemplate.Triangles.VertexBuffer.StrideInBytes = vbStrideInBytes;
 	geometryDescTemplate.Flags = geometryFlags;
 
 	m_geometryDescs.resize(numInstances, geometryDescTemplate);
@@ -113,10 +113,18 @@ void BottomLevelAccelerationStructure::BuildGeometryDescs(const TriangleGeometry
 	for (UINT i = 0; i < numInstances; i++)
 	{
 		auto& geometryDesc = m_geometryDescs[i];
+#if ONLY_SQUID_SCENE_BLAS
+		auto& instance = instances[i];
+		geometryDesc.Triangles.IndexBuffer = geometry.ib.resource->GetGPUVirtualAddress() + instance.ib.startIndex * ibStrideInBytes;
+		geometryDesc.Triangles.IndexCount = instance.ib.count;
+		geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress() + instance.vb.startIndex * vbStrideInBytes;
+		geometryDesc.Triangles.VertexCount = instance.vb.count;
+#else
 		geometryDesc.Triangles.IndexBuffer = geometry.ib.resource->GetGPUVirtualAddress();
-		geometryDesc.Triangles.IndexCount = static_cast<UINT>(geometry.ib.resource->GetDesc().Width) / sizeof(Index);
+		geometryDesc.Triangles.IndexCount = static_cast<UINT>(geometry.ib.resource->GetDesc().Width) / ibStrideInBytes;
 		geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress();
-		geometryDesc.Triangles.VertexCount = static_cast<UINT>(geometry.vb.resource->GetDesc().Width) / sizeof(DirectX::GeometricPrimitive::VertexType);
+		geometryDesc.Triangles.VertexCount = static_cast<UINT>(geometry.vb.resource->GetDesc().Width) / vbStrideInBytes;
+#endif
 	}
 }
 
@@ -142,10 +150,18 @@ void BottomLevelAccelerationStructure::ComputePrebuildInfo()
 	ThrowIfFalse(m_prebuildInfo.ResultDataMaxSizeInBytes > 0);
 }
 
-void BottomLevelAccelerationStructure::Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
+void BottomLevelAccelerationStructure::Initialize(
+	ID3D12Device* device, 
+	const TriangleGeometryBuffer& geometry, 
+	UINT numInstances, 
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags, 
+	DXGI_FORMAT indexFormat, 
+	UINT ibStrideInBytes, 
+	UINT vbStrideInBytes, 
+	vector<GeometryInstance>& instances)
 {
 	m_buildFlags = buildFlags;
-	BuildGeometryDescs(geometry, numInstances);
+	BuildGeometryDescs(geometry, numInstances, indexFormat, ibStrideInBytes, vbStrideInBytes, instances);
 	ComputePrebuildInfo();
 	AllocateResource(device);
 	m_isDirty = true;

@@ -91,6 +91,7 @@ namespace GeometryType {
     enum Enum {
         Plane = 0,
         Sphere,
+		SquidScene,
         Count
     };
 }
@@ -113,6 +114,13 @@ namespace UIParameters {
 		NumberOfObjects,
 		Count
 	};
+}
+
+namespace SceneEnums
+{
+	namespace VertexBuffer {
+		enum Value { SceneGeometry = 0, Count };
+	}
 }
 
 // Bottom-level acceleration structures (BottomLevelASType).

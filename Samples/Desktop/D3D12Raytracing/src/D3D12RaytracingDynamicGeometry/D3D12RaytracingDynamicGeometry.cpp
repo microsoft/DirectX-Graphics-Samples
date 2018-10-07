@@ -15,10 +15,12 @@
 #include "EngineTuning.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 #include "CompiledShaders\RNGVisualizer.hlsl.h"
+#include "SquidRoom.h"
 
 using namespace std;
 using namespace DX;
 using namespace DirectX;
+using namespace SceneEnums;
 
 D3D12RaytracingDynamicGeometry* g_pSample = nullptr;
 HWND g_hWnd = 0;
@@ -77,7 +79,7 @@ namespace SceneArgs
 
     // ToDo test tessFactor 16
 	// ToDo fix alias on TessFactor 2
-    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 2, 0, 80, 1, OnGeometryChange, nullptr);
+    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 14, 0, 80, 1, OnGeometryChange, nullptr);
     IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1, OnGeometryChange, nullptr);
     IntVar NumSphereBLAS(L"Geometry/# Sphere BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnASChange, nullptr);
 };
@@ -116,7 +118,7 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
 void D3D12RaytracingDynamicGeometry::EnableDirectXRaytracing(IDXGIAdapter1* adapter)
 {
     // Fallback Layer uses an experimental feature and needs to be enabled before creating a D3D12 device.
-    bool isFallbackSupported = EnableComputeRaytracingFallback(adapter);
+	bool isFallbackSupported = false;// EnableComputeRaytracingFallback(adapter);
 
     if (!isFallbackSupported)
     {
@@ -178,7 +180,7 @@ void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
     m_sceneCB->cameraPosition = m_eye;
-    float fovAngleY = 45.0f;
+    float fovAngleY = 90.0f;
     XMMATRIX view = XMMatrixLookAtLH(m_eye, m_at, m_up);
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 0.01f, 125.0f);
     XMMATRIX viewProj = view * proj;
@@ -308,17 +310,23 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 0.0f, 6.3f, -17.0f, 1.0f }; 
-        m_at = { 0.0f, 1.0f, 0.0f, 1.0f };
-        XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
+#if 1 //ONLY_SQUID_SCENE_BLAS
+		m_eye = { 0.0f, 80, -268.555980f, 1.0f };
+        m_at = { 0.0f, 8.0f, 0.0f, 1.0f };
+		m_up = { 0.0f, 1, 0, 1.0f };
+#else
+		m_eye = { 0.0f, 6.3f, -17.0f, 1.0f };
+		m_at = { 0.0f, 1.0f, 0.0f, 1.0f };
+		XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
-        XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
-        m_up = XMVector3Normalize(XMVector3Cross(direction, right));
+		XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
+		m_up = XMVector3Normalize(XMVector3Cross(direction, right));
 
-        // Rotate camera around Y axis.
-        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
-        m_eye = XMVector3Transform(m_eye, rotate);
-        m_up = XMVector3Transform(m_up, rotate);
+		// Rotate camera around Y axis.
+		XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
+		m_eye = XMVector3Transform(m_eye, rotate);
+		m_up = XMVector3Transform(m_up, rotate);
+#endif
 
         UpdateCameraMatrices();
     }
@@ -364,7 +372,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(81, 83, Samplers::HemisphereDistribution::Cosine);
+    m_randomSampler.Reset(9, 83, Samplers::HemisphereDistribution::Cosine);
 
     // Create root signature
     {
@@ -730,7 +738,7 @@ void D3D12RaytracingDynamicGeometry::CreateDescriptorHeap()
     // 2 per BLAS - one for the acceleration structure and one for its instance desc 
     // 1 - top level acceleration structure
     //ToDo
-    descriptorHeapDesc.NumDescriptors = 2 * GeometryType::Count + 1 + 2 * MaxBLAS + 1;
+	descriptorHeapDesc.NumDescriptors = 2 * GeometryType::Count + 1 + 2 * MaxBLAS + 1 + ARRAYSIZE(SampleAssets::Draws) * 2;
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
@@ -889,16 +897,164 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
     m_numTrianglesPerGeometry = static_cast<UINT>(indices.size()) / 3;
 }
 
+
+void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
+{
+	auto device = m_deviceResources->GetD3DDevice();
+	auto commandList = m_deviceResources->GetCommandList();
+
+	// Load scene assets.
+	UINT fileSize = 0;
+	UINT8* pAssetData;
+	ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(SampleAssets::DataFileName).c_str(), &pAssetData, &fileSize));
+
+	// Create the vertex buffer.
+	{
+		ThrowIfFailed(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(SampleAssets::VertexDataSize),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(&m_vertexBuffer)));
+
+		NAME_D3D12_OBJECT(m_vertexBuffer);
+
+		ThrowIfFailed(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(SampleAssets::VertexDataSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&m_vertexBufferUpload)));
+
+		// Copy data to the upload heap and then schedule a copy 
+		// from the upload heap to the vertex buffer.
+		D3D12_SUBRESOURCE_DATA vertexData = {};
+		vertexData.pData = pAssetData + SampleAssets::VertexDataOffset;
+		vertexData.RowPitch = SampleAssets::VertexDataSize;
+		vertexData.SlicePitch = vertexData.RowPitch;
+
+		PIXBeginEvent(commandList, 0, L"Copy vertex buffer data to default resource...");
+
+		UpdateSubresources<1>(commandList, m_vertexBuffer.Get(), m_vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+
+		PIXEndEvent(commandList);
+
+		// Initialize the vertex buffer view.
+		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+		m_vertexBufferView.SizeInBytes = SampleAssets::VertexDataSize;
+		m_vertexBufferView.StrideInBytes = SampleAssets::StandardVertexStride;
+	}
+
+	// Create the index buffer.
+	{
+		ThrowIfFailed(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(SampleAssets::IndexDataSize),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(&m_indexBuffer)));
+
+		NAME_D3D12_OBJECT(m_indexBuffer);
+
+		ThrowIfFailed(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(SampleAssets::IndexDataSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&m_indexBufferUpload)));
+
+		// Copy data to the upload heap and then schedule a copy 
+		// from the upload heap to the index buffer.
+		D3D12_SUBRESOURCE_DATA indexData = {};
+		indexData.pData = pAssetData + SampleAssets::IndexDataOffset;
+		indexData.RowPitch = SampleAssets::IndexDataSize;
+		indexData.SlicePitch = indexData.RowPitch;
+
+		PIXBeginEvent(commandList, 0, L"Copy index buffer data to default resource...");
+
+		UpdateSubresources<1>(commandList, m_indexBuffer.Get(), m_indexBufferUpload.Get(), 0, 0, 1, &indexData);
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+
+		PIXEndEvent(commandList);
+
+		// Initialize the index buffer view.
+		m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
+		m_indexBufferView.SizeInBytes = SampleAssets::IndexDataSize;
+		m_indexBufferView.Format = SampleAssets::StandardIndexFormat;
+	}
+
+	auto& geometry = m_geometries[GeometryType::SquidScene];
+	geometry.vb.resource = m_vertexBuffer;
+	geometry.ib.resource = m_indexBuffer;
+	
+	// ToDo revise numElements calculation
+	CreateBufferSRV(&m_geometries[GeometryType::SquidScene].ib, m_indexBufferView.SizeInBytes / sizeof(UINT), 0, &m_geometryIBHeapIndices[GeometryType::SquidScene]);
+	CreateBufferSRV(&m_geometries[GeometryType::SquidScene].vb, m_vertexBufferView.SizeInBytes / m_vertexBufferView.StrideInBytes, m_vertexBufferView.StrideInBytes, &m_geometryVBHeapIndices[GeometryType::SquidScene]);
+	ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::SquidScene] == m_geometryIBHeapIndices[GeometryType::SquidScene] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
+
+	// ToDo remove
+	// Backup primary handles
+	struct Handles {
+		D3D12_CPU_DESCRIPTOR_HANDLE cpu;
+		D3D12_GPU_DESCRIPTOR_HANDLE gpu;
+	};
+	Handles ib = { m_geometries[GeometryType::SquidScene].ib.cpuDescriptorHandle, m_geometries[GeometryType::SquidScene].ib.gpuDescriptorHandle };
+	Handles vb = { m_geometries[GeometryType::SquidScene].vb.cpuDescriptorHandle, m_geometries[GeometryType::SquidScene].vb.gpuDescriptorHandle };
+
+	m_geometryInstances.resize(ARRAYSIZE(SampleAssets::Draws));
+	for (UINT i = 0; i < ARRAYSIZE(SampleAssets::Draws); i++)
+	{
+		m_geometryInstances[i].ib.startIndex = SampleAssets::Draws[i].IndexStart;
+		m_geometryInstances[i].ib.count = SampleAssets::Draws[i].IndexCount;
+		
+		m_geometryInstances[i].vb.startIndex = SampleAssets::Draws[i].VertexBase;
+		m_geometryInstances[i].vb.count = SampleAssets::VertexDataSize / SampleAssets::StandardVertexStride - SampleAssets::Draws[i].VertexBase;
+
+		UINT geometryIBHeapIndex = UINT_MAX;
+		UINT geometryVBHeapIndex = UINT_MAX;
+		CreateBufferSRV(&m_geometries[GeometryType::SquidScene].ib, m_geometryInstances[i].ib.count, sizeof(UINT), &geometryIBHeapIndex, m_geometryInstances[i].ib.startIndex);
+		CreateBufferSRV(&m_geometries[GeometryType::SquidScene].vb, m_geometryInstances[i].vb.count, m_vertexBufferView.StrideInBytes, &geometryVBHeapIndex, m_geometryInstances[i].vb.startIndex);
+
+		m_geometryInstances[i].ib.gpuDescriptorHandle = m_geometries[GeometryType::SquidScene].ib.gpuDescriptorHandle;
+		m_geometryInstances[i].vb.gpuDescriptorHandle = m_geometries[GeometryType::SquidScene].vb.gpuDescriptorHandle;
+	}
+
+	// Revert
+	m_geometries[GeometryType::SquidScene].ib.cpuDescriptorHandle = ib.cpu;
+	m_geometries[GeometryType::SquidScene].ib.gpuDescriptorHandle = ib.gpu;
+	m_geometries[GeometryType::SquidScene].vb.cpuDescriptorHandle = vb.cpu;
+	m_geometries[GeometryType::SquidScene].vb.gpuDescriptorHandle = vb.gpu;
+
+	free(pAssetData);
+}
+
 // Build geometry used in the sample.
 void D3D12RaytracingDynamicGeometry::InitializeGeometry()
 {
     m_geometries.resize(GeometryType::Count);
     BuildTesselatedGeometry();
-    BuildPlaneGeometry();
+    BuildPlaneGeometry();   
+
+	// Begin frame.
+	m_deviceResources->ResetCommandAllocatorAndCommandlist();
+	LoadSceneGeometry();
+	m_deviceResources->ExecuteCommandList();
 }
 
 void D3D12RaytracingDynamicGeometry::GenerateBottomLevelASInstanceTransforms()
 {
+#if ONLY_SQUID_SCENE_BLAS
+	// Bottom-level AS with a single plane.
+	int BLASindex = 0;
+	{
+		m_vBottomLevelAS[0].SetTransform(XMMatrixIdentity());
+	}
+#else
     // Bottom-level AS with a single plane.
     int BLASindex = 0;
     {
@@ -940,6 +1096,7 @@ void D3D12RaytracingDynamicGeometry::GenerateBottomLevelASInstanceTransforms()
                 m_vBottomLevelAS[BLASindex].SetTransform(transform);
             }
     }
+#endif
 }
 
 // Build acceleration structure needed for raytracing.
@@ -969,8 +1126,16 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
     UINT64 maxScratchResourceSize = 0;
     m_ASmemoryFootprint = 0;
     {
+#if ONLY_SQUID_SCENE_BLAS
+		m_vBottomLevelAS.resize(1);
+		m_vBottomLevelAS[0].Initialize(device, m_geometries[GeometryType::SquidScene], m_geometryInstances.size(), buildFlags, DXGI_FORMAT_R32_UINT, sizeof(UINT), SampleAssets::StandardVertexStride, m_geometryInstances);
+		m_vBottomLevelAS[0].SetInstanceContributionToHitGroupIndex(0);
+		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
+		m_ASmemoryFootprint += m_vBottomLevelAS[0].RequiredResultDataSizeInBytes();
+		UINT numGeometryTransforms = 1; 
+#else
         m_vBottomLevelAS.resize(SceneArgs::NumSphereBLAS + 1);
-
+	
         for (UINT i = 0; i < m_vBottomLevelAS.size(); i++)
         {
             UINT numInstances = 0;
@@ -980,13 +1145,14 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
             case GeometryType::Sphere: numInstances = SceneArgs::NumGeometriesPerBLAS;
             };
 
-            m_vBottomLevelAS[i].Initialize(device, m_geometries[i], numInstances, buildFlags);
-            m_vBottomLevelAS[i].SetInstanceContributionToHitGroupIndex(i * RayType::Count);
+			m_vBottomLevelAS[i].Initialize(device, m_geometries[i], numInstances, buildFlags, DXGI_FORMAT_R16_UINT, sizeof(Index), sizeof(DirectX::GeometricPrimitive::VertexType));
+			m_vBottomLevelAS[i].SetInstanceContributionToHitGroupIndex(i * RayType::Count);
             maxScratchResourceSize = max(m_vBottomLevelAS[i].RequiredScratchSize(), maxScratchResourceSize);
             m_ASmemoryFootprint += m_vBottomLevelAS[i].RequiredResultDataSizeInBytes();
         }
+		UINT numGeometryTransforms = SceneArgs::NumSphereBLAS * SceneArgs::NumGeometriesPerBLAS;
+#endif
         
-        UINT numGeometryTransforms = SceneArgs::NumSphereBLAS * SceneArgs::NumGeometriesPerBLAS;
         if (m_geometryTransforms.Size() != numGeometryTransforms)
         {
             m_geometryTransforms.Create(device, numGeometryTransforms, FrameCount, L"Geometry descs transforms");
@@ -1100,10 +1266,27 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
 
     // Hit group shader table.
     {
-        UINT numShaderRecords = RayType::Count + IntersectionShaderType::TotalPrimitiveCount * RayType::Count;
+#if ONLY_SQUID_SCENE_BLAS
+		UINT numShaderRecords = m_geometryInstances.size() * RayType::Count;
+#else
+		UINT numShaderRecords = RayType::Count + IntersectionShaderType::TotalPrimitiveCount * RayType::Count;
+#endif
         UINT shaderRecordSize = shaderIDSize + LocalRootSignature::MaxRootArgumentsSize();
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
+#if ONLY_SQUID_SCENE_BLAS
+		// Triangle geometry hit groups.
+		for (UINT i = 0; i < m_geometryInstances.size(); i++)
+		{
+			LocalRootSignature::Triangle::RootArguments rootArgs;
+			rootArgs.materialCb = m_planeMaterialCB;
+			memcpy(&rootArgs.vertexBufferGPUHandle, &m_geometryInstances[i].ib.gpuDescriptorHandle, sizeof(m_geometries[i].ib.gpuDescriptorHandle));
+			for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
+			{
+				hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
+			}
+		}
+#else
         // Triangle geometry hit groups.
         for (UINT i = 0; i < GeometryType::Count; i++)
         {
@@ -1112,13 +1295,12 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
             if (i == GeometryType::Sphere)
                 rootArgs.materialCb.albedo = XMFLOAT4(1, 0, 0, 0);
             memcpy(&rootArgs.vertexBufferGPUHandle, &m_geometries[i].ib.gpuDescriptorHandle, sizeof(m_geometries[i].ib.gpuDescriptorHandle));
-
             for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
             {
                 hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
             }
         }
-
+#endif
         hitGroupShaderTable.DebugPrint(shaderIdToStringMap);
         m_hitGroupShaderTableStrideInBytes = hitGroupShaderTable.GetShaderRecordSize();
         m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
@@ -1333,6 +1515,7 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
         {
             InitializeAccelerationStructures();
         }
+
         m_isGeometryInitializationRequested = false;
         m_isASinitializationRequested = false;
 #endif
@@ -1536,7 +1719,7 @@ void D3D12RaytracingDynamicGeometry::CopyRaytracingOutputToBackbuffer(D3D12_RESO
 void D3D12RaytracingDynamicGeometry::UpdateUI()
 {
     vector<wstring> labels;
-    
+#if 1
     // Main runtime information.
     {
         wstringstream wLabel;
@@ -1579,7 +1762,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         EngineTuning::Display(&wLabel);
         labels.push_back(wLabel.str());
     }
-
+#endif
     wstring uiText = L"";
     for (auto s : labels)
     {
@@ -1627,7 +1810,10 @@ void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
     {
         gpuTimer.ReleaseDevice();
     }
-
+	if (m_enableUI)
+	{
+		m_uiLayer.reset();
+	}
 
     m_fallbackDevice.Reset();
     m_fallbackCommandList.Reset();
@@ -1751,6 +1937,7 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 
     // Begin frame.
     m_deviceResources->Prepare();
+#if !DEBUG_UI_DEVICE_HUNG
     for (auto& gpuTimer : m_gpuTimers)
     {
         gpuTimer.BeginFrame(commandList);
@@ -1769,6 +1956,7 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 
     RenderRNGVisualizations();
 
+	// UILayer will transition backbuffer to a present state.
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
     
     // End frame.
@@ -1776,11 +1964,13 @@ void D3D12RaytracingDynamicGeometry::OnRender()
     {
         gpuTimer.EndFrame(commandList);
     }
+#endif
     m_deviceResources->ExecuteCommandList();
 
     // UI overlay.
     if (m_enableUI)
     {
+		m_deviceResources->WaitForGpu();
         m_uiLayer->Render(m_deviceResources->GetCurrentFrameIndex());
     }
     
@@ -1910,7 +2100,7 @@ UINT D3D12RaytracingDynamicGeometry::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HAN
 }
 
 // Create a SRV for a buffer.
-void D3D12RaytracingDynamicGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex)
+void D3D12RaytracingDynamicGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex, UINT firstElement)
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -1919,6 +2109,7 @@ void D3D12RaytracingDynamicGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT num
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Buffer.NumElements = numElements;
+	srvDesc.Buffer.FirstElement = firstElement;
     if (elementSize == 0)
     {
         srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;

@@ -47,7 +47,7 @@ public:
 	virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
 
 	UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
-	void CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex);
+	void CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex, UINT firstElement = 0);
 	WRAPPED_GPU_POINTER CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements, UINT* descriptorHeapIndex);
 
 	const DX::DeviceResources& GetDeviceResources() { return *m_deviceResources; }
@@ -72,6 +72,7 @@ private:
 
 	// DynamicGeometry
 	std::vector<BottomLevelAccelerationStructure> m_vBottomLevelAS;
+	std::vector<GeometryInstance> m_geometryInstances;
 	TopLevelAccelerationStructure m_topLevelAS;
 	ComPtr<ID3D12Resource> m_accelerationStructureScratch;
 	UINT64 m_ASmemoryFootprint;
@@ -99,7 +100,8 @@ private:
     ComPtr<ID3D12RootSignature>         m_csSamleVisualizerRootSignature;
     ComPtr<ID3D12CommandAllocator>      m_computeAllocators[FrameCount];
     ComPtr<ID3D12CommandQueue>          m_computeCommandQueue;
-    ComPtr<ID3D12GraphicsCommandList>   m_computeCommandList;
+	ComPtr<ID3D12GraphicsCommandList>   m_computeCommandList;
+	
     ComPtr<ID3D12Fence>                 m_fence;
     UINT64                              m_fenceValues[FrameCount];
     Microsoft::WRL::Wrappers::Event     m_fenceEvent;
@@ -125,6 +127,16 @@ private:
 	D3DBuffer m_aabbBuffer;
 	std::vector<UINT> m_geometryIBHeapIndices;
 	std::vector<UINT> m_geometryVBHeapIndices;
+
+
+	// ToDo clean up buffer management
+	// SquidScene buffers
+	ComPtr<ID3D12Resource> m_vertexBuffer;
+	ComPtr<ID3D12Resource> m_vertexBufferUpload;
+	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+	ComPtr<ID3D12Resource> m_indexBuffer;
+	ComPtr<ID3D12Resource> m_indexBufferUpload;
+	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
 	DX::GPUTimer m_gpuTimers[GpuTimers::Count];
 
@@ -179,6 +191,7 @@ private:
 	bool m_isASinitializationRequested;
 	bool m_isASrebuildRequested;
 
+	void LoadSceneGeometry();
     void EnableDirectXRaytracing(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();

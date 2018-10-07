@@ -25,6 +25,9 @@
     <Filter Include="Assets\Shaders\ProceduralPrimitives">
       <UniqueIdentifier>{69efd3aa-04fd-4b1e-be35-61217582c550}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Scene">
+      <UniqueIdentifier>{4ccb2e49-99e4-498b-8dc2-2e7d39bde6a4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -96,6 +99,9 @@
     <ClInclude Include="RandomNumberGenerator.hlsli">
       <Filter>Assets\Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="util\SquidRoom.h">
+      <Filter>Assets\Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -146,5 +152,10 @@
     <FxCompile Include="RNGVisualizer.hlsl">
       <Filter>Assets\Shaders</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="util\SquidRoom.bin">
+      <Filter>Assets\Scene</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>
