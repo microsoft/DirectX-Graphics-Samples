@@ -205,6 +205,11 @@ void MyRaygenShader()
 [shader("closesthit")]
 void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
 {
+#if ALBEDO_SHADING
+	rayPayload.color = l_materialCB.albedo;
+	return;
+#endif
+
 #if DEPTH_SHADING
 	rayPayload.color = (log(RayTCurrent() / 100 + 1));// +2) / 4;
 	return;

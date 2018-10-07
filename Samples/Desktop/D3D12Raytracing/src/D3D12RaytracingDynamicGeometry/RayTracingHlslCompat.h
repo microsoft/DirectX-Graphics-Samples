@@ -74,6 +74,7 @@ typedef UINT16 Index;
 // - deformed geometry
 // - Dynamic options
 // - Update/Build
+#define ALBEDO_SHADING 0
 #define NORMAL_SHADING 1
 #define DEPTH_SHADING 0
 #define SINGLE_COLOR_SHADING 0
@@ -202,7 +203,7 @@ namespace TraceRayParameters
             1  // Shadow ray
         };
 		// ToDo For now all geometries reusing shader records
-		static const UINT GeometryStride = 0;// RayType::Count;
+		static const UINT GeometryStride = RayType::Count;
     }
     namespace MissShader {
         static const UINT Offset[RayType::Count] =

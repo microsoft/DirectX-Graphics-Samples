@@ -1280,6 +1280,8 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
 		{
 			LocalRootSignature::Triangle::RootArguments rootArgs;
 			rootArgs.materialCb = m_planeMaterialCB;
+			float value = (float)i / m_geometryInstances.size();
+			rootArgs.materialCb.albedo = XMFLOAT4(value, value, value, value);
 			memcpy(&rootArgs.vertexBufferGPUHandle, &m_geometryInstances[i].ib.gpuDescriptorHandle, sizeof(m_geometries[i].ib.gpuDescriptorHandle));
 			for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
 			{
