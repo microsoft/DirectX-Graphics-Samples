@@ -583,7 +583,6 @@ void D3D12RaytracingDynamicGeometry::CreateRaytracingInterfaces()
     else // DirectX Raytracing
     {
         ThrowIfFailed(device->QueryInterface(IID_PPV_ARGS(&m_dxrDevice)), L"Couldn't get DirectX Raytracing interface for the device.\n");
-        ThrowIfFailed(commandList->QueryInterface(IID_PPV_ARGS(&m_dxrCommandList)), L"Couldn't get DirectX Raytracing interface for the command list.\n");
     }
 }
 
@@ -1705,7 +1704,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     {
         SetCommonPipelineState(commandList);
         commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetResource()->GetGPUVirtualAddress());
-        DispatchRays(m_dxrCommandList.Get(), m_dxrStateObject.Get(), &dispatchDesc);
+        DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);
     }
 }
 
@@ -1841,7 +1840,6 @@ void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
     ResetComPtrArray(&m_raytracingLocalRootSignature);
 
     m_dxrDevice.Reset();
-    m_dxrCommandList.Reset();
     m_dxrStateObject.Reset();
 
     m_raytracingGlobalRootSignature.Reset();

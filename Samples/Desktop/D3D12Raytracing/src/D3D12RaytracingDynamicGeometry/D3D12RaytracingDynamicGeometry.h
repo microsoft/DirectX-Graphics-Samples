@@ -55,7 +55,7 @@ public:
 	ID3D12RaytracingFallbackDevice* GetFallbackDevice() { return m_fallbackDevice.Get(); }
 	ID3D12RaytracingFallbackCommandList* GetFallbackCommandList() { return m_fallbackCommandList.Get(); }
     ID3D12Device5* GetDxrDevice() { return m_dxrDevice.Get(); }
-    ID3D12GraphicsCommandList5* GetDxrCommandList() { return m_dxrCommandList.Get(); }
+    ID3D12GraphicsCommandList5* GetDxrCommandList() { return m_deviceResources->GetCommandList(); }
 
 	void RequestGeometryInitialization(bool bRequest) { m_isGeometryInitializationRequested = bRequest; }
 	void RequestASInitialization(bool bRequest) { m_isASinitializationRequested = bRequest; }
@@ -89,7 +89,6 @@ private:
 
 	// DirectX Raytracing (DXR) attributes
 	ComPtr<ID3D12Device5> m_dxrDevice;
-	ComPtr<ID3D12GraphicsCommandList5> m_dxrCommandList;
 	ComPtr<ID3D12StateObjectPrototype> m_dxrStateObject;
 	bool m_isDxrSupported;
 
