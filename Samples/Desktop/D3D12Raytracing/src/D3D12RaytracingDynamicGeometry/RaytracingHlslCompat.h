@@ -25,7 +25,7 @@
 #define DEBUG_UI_DEVICE_HUNG 0
 
 // Cull the panels as they're inverted
-#define CULL_FRONT_SIDE_SQUID_CONTAINER_PANELS 1
+#define CULL_SQUID_CONTAINER_SIDE_PANELS 1
 
 #define ENABLE_RAYTRACING 1 // for non-dxr development
 
@@ -171,6 +171,13 @@ struct AlignedHemisphereSample3D
     UINT padding;  // Padding to 16B
 };
 
+// ToDo rename
+struct SquidVertex {
+	XMFLOAT3 position;
+	XMFLOAT3 normal;
+	XMFLOAT2 textureCoordinate;
+	XMFLOAT3 tangent;
+};
 
 
 struct Vertex
