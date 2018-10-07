@@ -177,8 +177,6 @@ D3D12RaytracingDynamicGeometry::~D3D12RaytracingDynamicGeometry()
 // Update camera matrices passed into the shader.
 void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
 {
-    auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
-
     m_sceneCB->cameraPosition = m_eye;
     float fovAngleY = 90.0f;
     XMMATRIX view = XMMatrixLookAtLH(m_eye, m_at, m_up);
@@ -313,7 +311,9 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
 #if ONLY_SQUID_SCENE_BLAS
 		m_eye = { 0.0f, 80, -268.555980f, 1.0f };
         m_at = { 0.0f, 8.0f, 0.0f, 1.0f };
-		m_up = { 0.0f, 1, 0, 1.0f };
+		XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
+		XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
+		m_up = XMVector3Normalize(XMVector3Cross(direction, right));
 #else
 		m_eye = { 0.0f, 6.3f, -17.0f, 1.0f };
 		m_at = { 0.0f, 1.0f, 0.0f, 1.0f };
@@ -375,7 +375,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(81, 83, Samplers::HemisphereDistribution::Cosine);
+    m_randomSampler.Reset(9, 83, Samplers::HemisphereDistribution::Cosine);
 
     // Create root signature
     {
@@ -1499,9 +1499,8 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
         float secondsToRotateAround = 48.0f;
         float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
         XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
-        m_eye = XMVector3Transform(m_eye, rotate);
-        m_up = XMVector3Transform(m_up, rotate);
-        m_at = XMVector3Transform(m_at, rotate);
+        m_eye = m_at + XMVector3TransformCoord(m_eye - m_at, rotate);
+        m_up = XMVector3TransformCoord(m_up, rotate);
         UpdateCameraMatrices();
     }
 
@@ -1538,7 +1537,6 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
         m_isASinitializationRequested = false;
 #endif
         m_deviceResources->ExecuteCommandList();
-        m_deviceResources->WaitForGpu();
     }
 #if ENABLE_RAYTRACING
     if (m_animateScene)
@@ -1676,7 +1674,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     m_sceneCB->seed = 0;
     m_sceneCB->numSamples = m_randomSampler.NumSamples();
     m_sceneCB->numSampleSets = m_randomSampler.NumSampleSets();
-#if 0
+#if 1
     m_sceneCB->numSamplesToUse = m_randomSampler.NumSamples();    UINT NumFramesPerIter = 400;
 #else
     UINT NumFramesPerIter = 100;
