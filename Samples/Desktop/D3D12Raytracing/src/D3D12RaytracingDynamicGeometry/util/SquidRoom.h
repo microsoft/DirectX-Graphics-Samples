@@ -986,7 +986,7 @@ namespace SampleAssets
         {  44,  45,  -1,   441294,     2826,   139376 }, // subset0_shelves3_diff
         {  35,  36,  -1,   444120,     2637,   139376 }, // subset1_shelves2_diff_0
         {  14,  15,  -1,   446757,      636,   139376 }, // subset2_Stack__Boxes_Diff03_0
-        {  46,  47,  -1,   447393,       24,   141190 }, // subset0_blinn46
+        {  46,  47,  -1,   447393,       24,   141190 }, // subset0_blinn46 - squid container side panels
         {  46,  47,  -1,   447417,      306,   141206 }, // subset0_phongMisc_Boss_3_2048
         {  46,  47,  -1,   447723,      306,   141325 }, // subset0_phongMisc_Boss_3_2048
         {  46,  47,  -1,   448029,      306,   141443 }, // subset0_phongMisc_Boss_3_2048
