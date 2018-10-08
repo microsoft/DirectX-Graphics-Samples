@@ -45,9 +45,9 @@
 #if defined(NTDDI_WIN10_RS2) && (NTDDI_VERSION >= NTDDI_WIN10_RS2)
     #include <dxgi1_6.h>
 #else
-    #include <dxgi1_4.h>	// For WARP
+    #include <dxgi1_4.h>    // For WARP
 #endif
-#include <winreg.h>		// To read the registry
+#include <winreg.h>        // To read the registry
 
 #include "CompiledShaders/ScreenQuadVS.h"
 #include "CompiledShaders/BufferCopyPS.h"
@@ -92,7 +92,6 @@ namespace
     uint64_t s_FrameIndex = 0;
     int64_t s_FrameStartTick = 0;
 
-    BoolVar s_EnableVSync("Timing/VSync", true);
     BoolVar s_LimitTo30Hz("Timing/Limit To 30Hz", false);
     BoolVar s_DropRandomFrames("Timing/Drop Random Frames", false);
 }
@@ -107,14 +106,14 @@ namespace Graphics
     const GUID WKPDID_D3DDebugObjectName = { 0x429b8c22,0x9188,0x4b0c, { 0x87,0x42,0xac,0xb0,0xbf,0x85,0xc2,0x00 }};
 #endif
 
-    enum eResolution { k720p, k900p, k1080p, k1440p, k1800p, k2160p };
-
     const uint32_t kMaxNativeWidth = 3840;
     const uint32_t kMaxNativeHeight = 2160;
     const uint32_t kNumPredefinedResolutions = 6;
 
     const char* ResolutionLabels[] = { "1280x720", "1600x900", "1920x1080", "2560x1440", "3200x1800", "3840x2160" };
     EnumVar TargetResolution("Graphics/Display/Native Resolution", k1080p, kNumPredefinedResolutions, ResolutionLabels);
+
+    BoolVar s_EnableVSync("Timing/VSync", true);
 
     bool g_bTypedUAVLoadSupport_R11G11B10_FLOAT = false;
     bool g_bTypedUAVLoadSupport_R16G16B16A16_FLOAT = false;
@@ -255,7 +254,7 @@ void Graphics::Resize(uint32_t width, uint32_t height)
     ResizeDisplayDependentBuffers(g_NativeWidth, g_NativeHeight);
 }
 
-#ifdef DXIL
+#ifdef ENABLE_EXPERIMENTAL_DXIL_SUPPORT
 // A more recent Windows SDK than currently required is needed for these.
 typedef HRESULT(WINAPI *D3D12EnableExperimentalFeaturesFn)(
     UINT                                    NumFeatures,
@@ -263,30 +262,32 @@ typedef HRESULT(WINAPI *D3D12EnableExperimentalFeaturesFn)(
     __in_ecount_opt(NumFeatures) void*      pConfigurationStructs,
     __in_ecount_opt(NumFeatures) UINT*      pConfigurationStructSizes);
 
-static const GUID D3D12ExperimentalShaderModelsID = { /* 76f5573e-f13a-40f5-b297-81ce9e18933f */
-    0x76f5573e,
-    0xf13a,
-    0x40f5,
-    { 0xb2, 0x97, 0x81, 0xce, 0x9e, 0x18, 0x93, 0x3f }
+static const GUID D3D12ExperimentalShaderModelsID = // 76f5573e-f13a-40f5-b297-81ce9e18933f
+{
+    0x76f5573e, 0xf13a, 0x40f5, { 0xb2, 0x97, 0x81, 0xce, 0x9e, 0x18, 0x93, 0x3f }
 };
 
 using namespace DirectX;
 
-static HRESULT EnableExperimentalShaderModels() {
+static HRESULT EnableExperimentalShaderModels()
+{
     HMODULE hRuntime = LoadLibraryW(L"d3d12.dll");
-    if (hRuntime == NULL) {
+    if (!hRuntime)
         return HRESULT_FROM_WIN32(GetLastError());
-    }
 
     D3D12EnableExperimentalFeaturesFn pD3D12EnableExperimentalFeatures =
         (D3D12EnableExperimentalFeaturesFn)GetProcAddress(hRuntime, "D3D12EnableExperimentalFeatures");
-    if (pD3D12EnableExperimentalFeatures == nullptr) {
+
+    if (pD3D12EnableExperimentalFeatures == nullptr)
+    {
         FreeLibrary(hRuntime);
         return HRESULT_FROM_WIN32(GetLastError());
     }
 
     return pD3D12EnableExperimentalFeatures(1, &D3D12ExperimentalShaderModelsID, nullptr, nullptr);
 }
+#else
+static HRESULT EnableExperimentalShaderModels() { return S_OK; }
 #endif
 
 // Initialize the DirectX resources required to run.
@@ -304,9 +305,7 @@ void Graphics::Initialize(void)
         Utility::Print("WARNING:  Unable to enable D3D12 debug validation layer\n");
 #endif
 
-#ifdef DXIL
     EnableExperimentalShaderModels();
-#endif
 
     // Obtain the DXGI factory
     Microsoft::WRL::ComPtr<IDXGIFactory4> dxgiFactory;
@@ -373,7 +372,7 @@ void Graphics::Initialize(void)
         if (DeveloperModeEnabled)
             g_Device->SetStablePowerState(TRUE);
     }
-#endif	
+#endif    
 
 #if _DEBUG
     ID3D12InfoQueue* pInfoQueue = nullptr;
@@ -786,8 +785,8 @@ void Graphics::Present(void)
     // Test robustness to handle spikes in CPU time
     //if (s_DropRandomFrames)
     //{
-    //	if (std::rand() % 25 == 0)
-    //		BusyLoopSleep(0.010);
+    //    if (std::rand() % 25 == 0)
+    //        BusyLoopSleep(0.010);
     //}
 
     int64_t CurrentTick = SystemTime::GetCurrentTick();

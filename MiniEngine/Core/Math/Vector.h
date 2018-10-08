@@ -63,9 +63,9 @@ namespace Math
         INLINE Vector3& operator /= ( Vector3 v ) { *this = *this / v; return *this; }
 
         INLINE friend Vector3 operator* ( Scalar  v1, Vector3 v2 ) { return Vector3(v1) * v2; }
-        INLINE friend Vector3 operator/ ( Scalar  v1, Vector3 v2 ) 	{ return Vector3(v1) / v2; }
+        INLINE friend Vector3 operator/ ( Scalar  v1, Vector3 v2 )     { return Vector3(v1) / v2; }
         INLINE friend Vector3 operator* ( float   v1, Vector3 v2 ) { return Scalar(v1) * v2; }
-        INLINE friend Vector3 operator/ ( float   v1, Vector3 v2 ) 	{ return Scalar(v1) / v2; }
+        INLINE friend Vector3 operator/ ( float   v1, Vector3 v2 )     { return Scalar(v1) / v2; }
 
     protected:
         XMVECTOR m_vec;
@@ -84,7 +84,7 @@ namespace Math
         INLINE explicit Vector4( FXMVECTOR vec ) { m_vec = vec; }
         INLINE explicit Vector4( EZeroTag ) { m_vec = SplatZero(); }
         INLINE explicit Vector4( EIdentityTag ) { m_vec = SplatOne(); }
-        INLINE explicit Vector4( EXUnitVector	) { m_vec = CreateXUnitVector(); }
+        INLINE explicit Vector4( EXUnitVector    ) { m_vec = CreateXUnitVector(); }
         INLINE explicit Vector4( EYUnitVector ) { m_vec = CreateYUnitVector(); }
         INLINE explicit Vector4( EZUnitVector ) { m_vec = CreateZUnitVector(); }
         INLINE explicit Vector4( EWUnitVector ) { m_vec = CreateWUnitVector(); }
@@ -114,9 +114,9 @@ namespace Math
         INLINE void operator/= ( float   v2 ) { *this = *this / Scalar(v2); }
 
         INLINE friend Vector4 operator* ( Scalar  v1, Vector4 v2 ) { return Vector4(v1) * v2; }
-        INLINE friend Vector4 operator/ ( Scalar  v1, Vector4 v2 ) 	{ return Vector4(v1) / v2; }
+        INLINE friend Vector4 operator/ ( Scalar  v1, Vector4 v2 )     { return Vector4(v1) / v2; }
         INLINE friend Vector4 operator* ( float   v1, Vector4 v2 ) { return Scalar(v1) * v2; }
-        INLINE friend Vector4 operator/ ( float   v1, Vector4 v2 ) 	{ return Scalar(v1) / v2; }
+        INLINE friend Vector4 operator/ ( float   v1, Vector4 v2 )     { return Scalar(v1) / v2; }
 
     protected:
         XMVECTOR m_vec;

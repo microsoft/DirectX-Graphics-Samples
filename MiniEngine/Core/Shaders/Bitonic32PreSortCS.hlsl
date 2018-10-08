@@ -25,9 +25,9 @@
 
 #include "BitonicSortCommon.hlsli"
 
-#ifdef BITONICSORT_64BIT
+RWByteAddressBuffer g_SortBuffer : register(u0);
 
-RWStructuredBuffer<uint2> g_SortBuffer : register(u0);
+#ifdef BITONICSORT_64BIT
 
 groupshared uint gs_SortIndices[2048];
 groupshared uint gs_SortKeys[2048];
@@ -37,7 +37,7 @@ void FillSortKey( uint Element, uint ListCount )
     // Unused elements must sort to the end
     if (Element < ListCount)
     {
-        uint2 KeyIndexPair = g_SortBuffer[Element];
+        uint2 KeyIndexPair = g_SortBuffer.Load2(Element * 8);
         gs_SortKeys[Element & 2047] = KeyIndexPair.y;
         gs_SortIndices[Element & 2047] = KeyIndexPair.x;
     }
@@ -50,25 +50,23 @@ void FillSortKey( uint Element, uint ListCount )
 void StoreKeyIndexPair( uint Element, uint ListCount)
 {
     if (Element < ListCount)
-        g_SortBuffer[Element] = uint2(gs_SortIndices[Element & 2047], gs_SortKeys[Element & 2047]);
+        g_SortBuffer.Store2(Element * 8, uint2(gs_SortIndices[Element & 2047], gs_SortKeys[Element & 2047]));
 }
 
 #else // 32-bit packed key/index pairs
-
-RWStructuredBuffer<uint> g_SortBuffer : register(u0);
 
 groupshared uint gs_SortKeys[2048];
 
 void FillSortKey( uint Element, uint ListCount )
 {
     // Unused elements must sort to the end
-    gs_SortKeys[Element & 2047] = (Element < ListCount ? g_SortBuffer[Element] : NullItem);
+    gs_SortKeys[Element & 2047] = (Element < ListCount ? g_SortBuffer.Load(Element * 4) : NullItem);
 }
 
 void StoreKeyIndexPair( uint Element, uint ListCount )
 {
     if (Element < ListCount)
-        g_SortBuffer[Element] = gs_SortKeys[Element & 2047];
+        g_SortBuffer.Store(Element * 4, gs_SortKeys[Element & 2047]);
 }
 
 #endif

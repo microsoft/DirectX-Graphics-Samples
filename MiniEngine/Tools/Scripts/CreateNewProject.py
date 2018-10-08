@@ -38,9 +38,6 @@ def copy_app_template(project, guid):
     shutil.copy(os.path.join(TEMPLATES_FOLDER, 'pch.h'), project)
     shutil.copy(os.path.join(TEMPLATES_FOLDER, 'pch.cpp'), project)
     copy_template_file('Main.cpp', project, guid)
-    copy_template_file('AppTemplate_VS14.sln', project, guid)
-    copy_template_file('AppTemplate_VS14.vcxproj', project, guid)
-    copy_template_file('AppTemplate_VS14.vcxproj.filters', project, guid)
     copy_template_file('AppTemplate_VS15.sln', project, guid)
     copy_template_file('AppTemplate_VS15.vcxproj', project, guid)
     copy_template_file('AppTemplate_VS15.vcxproj.filters', project, guid)
@@ -51,8 +48,6 @@ def copy_lib_template(project, guid):
     '''Instantiates a new library project from a template'''
     shutil.copy(os.path.join(TEMPLATES_FOLDER, 'pch.h'), project)
     shutil.copy(os.path.join(TEMPLATES_FOLDER, 'pch.cpp'), project)
-    copy_template_file('LibTemplate_VS14.vcxproj', project, guid)
-    copy_template_file('LibTemplate_VS14.vcxproj.filters', project, guid)
     copy_template_file('LibTemplate_VS15.vcxproj', project, guid)
     copy_template_file('LibTemplate_VS15.vcxproj.filters', project, guid)
 
@@ -63,8 +58,8 @@ def create_project():
 
     project_name = sys.argv[2]
     folder_contents = set(os.listdir())
-    expected_folders = set(['3rdParty', 'Core', 'Tools'])
-    if not expected_folders.issubset(folder_contents):
+    expected_contents = set(['readme.md', 'Core', 'Tools'])
+    if not expected_contents.issubset(folder_contents):
         print('Run this script from the root of MiniEngine')
     elif project_name in folder_contents:
         print('Project already exists')

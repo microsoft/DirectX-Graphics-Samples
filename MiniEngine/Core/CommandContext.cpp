@@ -20,8 +20,8 @@
 #include "EngineProfiling.h"
 
 #ifndef RELEASE
-	#include <d3d11_2.h>
-	#include <pix3.h>
+    #include <d3d11_2.h>
+    #include <pix3.h>
 #endif
 
 using namespace Graphics;
@@ -560,24 +560,24 @@ void CommandContext::InitializeBuffer( GpuResource& Dest, const void* BufferData
 void CommandContext::PIXBeginEvent(const wchar_t* label)
 {
 #ifdef RELEASE
-	(label);
+    (label);
 #else
-	::PIXBeginEvent(m_CommandList, 0, label);
+    ::PIXBeginEvent(m_CommandList, 0, label);
 #endif
 }
 
 void CommandContext::PIXEndEvent(void)
 {
 #ifndef RELEASE
-	::PIXEndEvent(m_CommandList);
+    ::PIXEndEvent(m_CommandList);
 #endif
 }
 
 void CommandContext::PIXSetMarker(const wchar_t* label)
 {
 #ifdef RELEASE
-	(label);
+    (label);
 #else
-	::PIXSetMarker(m_CommandList, 0, label);
+    ::PIXSetMarker(m_CommandList, 0, label);
 #endif
 }

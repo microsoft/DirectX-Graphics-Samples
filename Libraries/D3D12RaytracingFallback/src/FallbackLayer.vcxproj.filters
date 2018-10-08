@@ -1,0 +1,484 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <FxCompile Include="BitonicIndirectArgsCS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="BitonicInnerSortCS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="BitonicOuterSortCS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="BitonicPreSortCS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="BottomLevelBuildBVHSplits.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="BottomLevelComputeAABBs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="BottomLevelLoadTriangles.hlsli">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="BottomLevelPrepareForComputeAABBs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="CalculateSceneAABBFromBVHs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="CalculateSceneAABBFromAABBs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="CalculateMortonCodesForAABBs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="GetBVHCompactedSize.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="GpuBvh2Copy.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="LoadTrianglesFromR16IndexBuffer.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="LoadTrianglesFromR32IndexBuffer.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="LoadTrianglesNoIndexBuffer.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="TopLevelBuildBVHSplits.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="TopLevelComputeAABBs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="TopLevelLoadAABBsFromArrayOfInstances.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="TopLevelLoadAABBsFromArrayOfPointers.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="TopLevelPrepareForComputeAABBs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="RearrangeBVHs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="RearrangeTriangles.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="TreeletReorder.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="LoadProceduralGeometry.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="CalculateMortonCodesForPrimitives.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="CalculateSceneAABBFromPrimitives.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="FindTreelets.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="ClearBuffers.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AccelerationStructureBuilderFactory.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="AccelerationStructureValidator.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="BitonicSort.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="BVHTraversalShaderBuilder.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="BVHValidator.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="ConstructHierarchyPass.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="DxilShaderPatcher.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="FallbackLayer.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="GpuBVH2Builder.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="GpuBVH2Copy.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="LoadInstancesPass.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="MortonCodesCalculator.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="PostBuildInfoQuery.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="RayTracingProgramFactory.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="RearrangeElementsPass.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneAABBCalculator.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="UberShaderRayTracingProgram.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="D3D12RaytracingFallback.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="FallbackDebug.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="CpuBVH2Builder.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="TreeletReorder.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="ConstructAABBPass.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="LoadPrimitivesPass.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="StateObjectProcessing.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="DxbcParser.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="BitonicSort.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="BVHValidator.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="BVHTraversalShaderBuilder.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="AccelerationStructureValidator.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="AccelerationStructureBuilderFactory.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="AccelerationStructureBuilder.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="EmulatedPointer.hlsli">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="EmulatedPointerIntrinsics.hlsli">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderUtil.hlsli">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="UberShaderRayTracingProgram.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="TraversalShaderBuilder.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneAABBCalculator.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="RearrangeElementsPass.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="RayTracingProgramFactory.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="RayTracingProgram.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="RaytracingCompatibilityDebug.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="PostBuildInfoQuery.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="NativeRayTracing.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="CalculateSceneAABBBindings.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="CalculateMortonCodesBindings.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ConstructHierarchyBindings.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ComObject.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ConstructHierarchyPass.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="DxilShaderPatcher.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="FallbackDxil.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="FallbackLayer.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="GpuBvh2Builder.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="GpuBvh2Copy.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="LoadInstancesPass.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MortonCodesCalculator.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="GetBVHCompactedSizeBindings.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="GpuBvh2CopyBindings.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="HLSLRayTracingInternalPrototypes.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="HLSLRayTracingPrototypes.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="RayTracingHlslCompat.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="UberShaderBindings.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="WaveDimensions.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="LoadInstancesBindings.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderPass.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="HlslCompat.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="RearrangeTrianglesBindings.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="DebugLog.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="D3D12RaytracingFallback.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="FallbackDebug.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="TreeletReorder.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="TreeletReorderBindings.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ConstructAABBPass.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ConstructAABBBindings.h">
+      <Filter>Shader Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="LoadPrimitivesPass.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="LoadPrimitivesBindings.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="ExperimentalRaytracing.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="StateObjectProcessing.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="DxbcParser.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BitonicSortCommon.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="BuildBVHSplits.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="ComputeAABBs.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="DebugLog.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="RayTracingHelper.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="TopLevelLoadAABBs.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="TraverseFunction.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="TraverseShader.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\contributing.md" />
+    <None Include="..\developerguide.md" />
+    <None Include="..\readme.md" />
+    <None Include="packages.config" />
+    <None Include="CalculateMortonCodes.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{77282a99-fed8-4804-a6f4-911308035ea7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers">
+      <UniqueIdentifier>{d6b70115-8a1c-4a50-9a63-8a83a0f0a274}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader Headers">
+      <UniqueIdentifier>{5a382411-99f3-43dd-a3e6-e1e530a2f302}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{5ccb8222-9ccd-43d6-bcff-54bb21ec76ae}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

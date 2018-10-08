@@ -37,7 +37,7 @@ groupshared float ldsB[kLdsPitch * kLdsRows];
 
 cbuffer CB1 : register(b1)
 {
-    float2 RcpBufferDim;	// 1 / width, 1 / height
+    float2 RcpBufferDim;    // 1 / width, 1 / height
     float TemporalBlendFactor;
     float RcpSpeedLimiter;
     float2 ViewportJitter;

@@ -13,17 +13,23 @@
 
 #include "BitonicSortCommon.hlsli"
 
-#ifdef BITONICSORT_64BIT
-RWStructuredBuffer<uint2> g_SortBuffer : register(u0);
-#else
-RWStructuredBuffer<uint> g_SortBuffer : register(u0);
-#endif
+RWByteAddressBuffer g_SortBuffer : register(u0);
 
 cbuffer Constants : register(b0)
 {
-    uint k;	// k >= 4096
-    uint j;	// j >= 2048 && j < k
+    uint k;    // k >= 4096
+    uint j;    // j >= 2048 && j < k
 };
+
+#ifdef BITONICSORT_64BIT
+    #define Element uint2
+    #define LoadElement(idx) g_SortBuffer.Load2(idx * 8)
+    #define StoreElement(idx, elem) g_SortBuffer.Store2(idx * 8, elem)
+#else
+    #define Element uint
+    #define LoadElement(idx) g_SortBuffer.Load(idx * 4)
+    #define StoreElement(idx, elem) g_SortBuffer.Store(idx * 4, elem)
+#endif
 
 [RootSignature(BitonicSort_RootSig)]
 [numthreads(1024, 1, 1)]
@@ -38,17 +44,12 @@ void main( uint3 DTid : SV_DispatchThreadID  )
     if (Index2 >= ListCount)
         return;
 
-#ifdef BITONICSORT_64BIT
-    uint2 A = g_SortBuffer[Index1];
-    uint2 B = g_SortBuffer[Index2];
-#else
-    uint A = g_SortBuffer[Index1];
-    uint B = g_SortBuffer[Index2];
-#endif
+    Element A = LoadElement(Index1);
+    Element B = LoadElement(Index2);
 
     if (ShouldSwap(A, B))
     {
-        g_SortBuffer[Index1] = B;
-        g_SortBuffer[Index2] = A;
+        StoreElement(Index1, B);
+        StoreElement(Index2, A);
     }
 }

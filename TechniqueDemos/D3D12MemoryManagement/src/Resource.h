@@ -18,9 +18,9 @@
 //
 struct MipDescription
 {
-	UINT WidthInTiles;
-	UINT HeightInTiles;
-	UINT HeapStartIndex;
+    UINT WidthInTiles;
+    UINT HeightInTiles;
+    UINT HeapStartIndex;
 };
 
 //
@@ -34,9 +34,9 @@ struct MipDescription
 //
 struct ResourceMip
 {
-	MipDescription Desc;
-	ID3D12Heap** ppHeaps;
-	UINT64 ReferenceFence;
+    MipDescription Desc;
+    ID3D12Heap** ppHeaps;
+    UINT64 ReferenceFence;
 };
 
 //
@@ -45,11 +45,11 @@ struct ResourceMip
 //
 enum ResourcePriority
 {
-	ERP_VeryHigh,
-	ERP_High,
-	ERP_Medium,
-	ERP_Low,
-	_ERP_COUNT
+    ERP_VeryHigh,
+    ERP_High,
+    ERP_Medium,
+    ERP_Low,
+    _ERP_COUNT
 };
 
 //
@@ -62,10 +62,10 @@ enum ResourcePriority
 //
 enum ResourceTrimPass
 {
-	ERTP_None,
-	ERTP_NonPrefetchable,
-	ERTP_NonVisible,
-	ERTP_Visible,
+    ERTP_None,
+    ERTP_NonPrefetchable,
+    ERTP_NonVisible,
+    ERTP_Visible,
 };
 
 //
@@ -77,17 +77,17 @@ enum ResourceTrimPass
 //
 struct ResourceDeviceState
 {
-	ID3D12Resource* pD3DResource;
-	UINT32 NumHeaps;
+    ID3D12Resource* pD3DResource;
+    UINT32 NumHeaps;
 
-	//
-	// Mips must always be the last element, since it is actually a dynamic array.
-	// The actual count of the array is equal to the number of unique mip heaps.
-	// There is one mip heap for all packed mipmaps (mipmaps which can be packed
-	// into one or few tiles), and one mip heap for each standard mipmap (mipmaps
-	// which cannot be packed).
-	//
-	ResourceMip Mips[1];
+    //
+    // Mips must always be the last element, since it is actually a dynamic array.
+    // The actual count of the array is equal to the number of unique mip heaps.
+    // There is one mip heap for all packed mipmaps (mipmaps which can be packed
+    // into one or few tiles), and one mip heap for each standard mipmap (mipmaps
+    // which cannot be packed).
+    //
+    ResourceMip Mips[1];
 };
 
 //
@@ -96,75 +96,75 @@ struct ResourceDeviceState
 //
 struct Resource
 {
-	// List entry for tracking the existence of the Resource object.
-	LIST_ENTRY ListEntry;
+    // List entry for tracking the existence of the Resource object.
+    LIST_ENTRY ListEntry;
 
-	// List entry for tracking the commitment of mipmaps for this resource.
-	LIST_ENTRY CommittedListEntry;
+    // List entry for tracking the commitment of mipmaps for this resource.
+    LIST_ENTRY CommittedListEntry;
 
-	// List entry used by the worker thread to prioritize paging operations.
-	LIST_ENTRY PrioritizationEntry;
+    // List entry used by the worker thread to prioritize paging operations.
+    LIST_ENTRY PrioritizationEntry;
 
-	// List entry used to track paging requests.
-	LIST_ENTRY PagingEntry;
+    // List entry used to track paging requests.
+    LIST_ENTRY PagingEntry;
 
-	CRITICAL_SECTION ReferenceLock;
+    CRITICAL_SECTION ReferenceLock;
 
 #if(_DEBUG)
-	// Store the file name of the resource for easy identification during debugging.
-	const wchar_t* pFileName;
+    // Store the file name of the resource for easy identification during debugging.
+    const wchar_t* pFileName;
 #endif
 
-	// The image decoder associated with this resource if it is backed by a file.
-	IWICBitmapDecoder* pDecoder;
+    // The image decoder associated with this resource if it is backed by a file.
+    IWICBitmapDecoder* pDecoder;
 
-	// The image index associated with this resource if it is generated at runtime.
-	UINT GeneratedImageIndex;
+    // The image index associated with this resource if it is generated at runtime.
+    UINT GeneratedImageIndex;
 
-	// The number of tiles required to store packed mipmaps.
-	UINT32 PackedMipTileCount;
-	union
-	{
-		// The number of standard mipmaps in this resource.
-		UINT8 NumStandardMips : MAX_MIP_COUNT_BITS;
+    // The number of tiles required to store packed mipmaps.
+    UINT32 PackedMipTileCount;
+    union
+    {
+        // The number of standard mipmaps in this resource.
+        UINT8 NumStandardMips : MAX_MIP_COUNT_BITS;
 
-		// Index to the first packed mipmap.
-		UINT8 PackedMipHeapIndex : MAX_MIP_COUNT_BITS;
-	};
+        // Index to the first packed mipmap.
+        UINT8 PackedMipHeapIndex : MAX_MIP_COUNT_BITS;
+    };
 
-	// The number of packed mipmaps in this resource.
-	UINT8 NumPackedMips : MAX_MIP_COUNT_BITS;
+    // The number of packed mipmaps in this resource.
+    UINT8 NumPackedMips : MAX_MIP_COUNT_BITS;
 
-	// Set by the paging thread to indicate the most detailed mip level that is
-	// currently paged in and fully resident.
-	UINT8 MostDetailedMipResident : MAX_MIP_COUNT_BITS;
+    // Set by the paging thread to indicate the most detailed mip level that is
+    // currently paged in and fully resident.
+    UINT8 MostDetailedMipResident : MAX_MIP_COUNT_BITS;
 
-	// Used to restrict the maximum mip quality that can be used during rendering
-	// when preparing to trim mipmaps from visible resources.
-	UINT8 MipRestriction : MAX_MIP_COUNT_BITS;
+    // Used to restrict the maximum mip quality that can be used during rendering
+    // when preparing to trim mipmaps from visible resources.
+    UINT8 MipRestriction : MAX_MIP_COUNT_BITS;
 
-	// The current mip level that is visible on screen for this resource. When
-	// the resource is not visible, this value will be UNDEFINED_MIPMAP_INDEX.
-	UINT8 VisibleMip : MAX_MIP_COUNT_BITS;
+    // The current mip level that is visible on screen for this resource. When
+    // the resource is not visible, this value will be UNDEFINED_MIPMAP_INDEX.
+    UINT8 VisibleMip : MAX_MIP_COUNT_BITS;
 
-	// The minimum mip level, requested by the render thread, that the paging thread
-	// should attempt to prefetch to avoid texture popping issues caused by fast
-	// camera movement.
-	UINT8 PrefetchMip : MAX_MIP_COUNT_BITS;
+    // The minimum mip level, requested by the render thread, that the paging thread
+    // should attempt to prefetch to avoid texture popping issues caused by fast
+    // camera movement.
+    UINT8 PrefetchMip : MAX_MIP_COUNT_BITS;
 
-	// True if the paging operation determined during prioritization should ignore
-	// the local memory budget. This is used when paging in minimum quality mipmaps
-	// to ensure that every resource has at least some low quality content.
-	bool bIgnoreBudget : 1;
+    // True if the paging operation determined during prioritization should ignore
+    // the local memory budget. This is used when paging in minimum quality mipmaps
+    // to ensure that every resource has at least some low quality content.
+    bool bIgnoreBudget : 1;
 
-	// The maximum trimming pass that should be used to help resolve paging failures
-	// when paging in a resource would normally go over the budget. This limitation
-	// prevents resources from recursively trimming one another by preventing lower
-	// priority resources from trimming higher priority ones.
-	ResourceTrimPass TrimLimit;
+    // The maximum trimming pass that should be used to help resolve paging failures
+    // when paging in a resource would normally go over the budget. This limitation
+    // prevents resources from recursively trimming one another by preventing lower
+    // priority resources from trimming higher priority ones.
+    ResourceTrimPass TrimLimit;
 
-	//
-	// Device dependent state information.
-	//
-	ResourceDeviceState* pDeviceState;
+    //
+    // Device dependent state information.
+    //
+    ResourceDeviceState* pDeviceState;
 };

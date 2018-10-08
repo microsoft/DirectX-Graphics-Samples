@@ -13,7 +13,7 @@
 
 #include "DoFCommon.hlsli"
 
-Texture2D<float> LNDepthBuffer : register(t0);		// Linear/normalized depth buffer
+Texture2D<float> LNDepthBuffer : register(t0);        // Linear/normalized depth buffer
 RWTexture2D<float3> TileClass : register(u0);
 
 groupshared float gs_ClosestDepthSearch[64];

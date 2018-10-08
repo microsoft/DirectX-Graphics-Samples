@@ -14,29 +14,29 @@ SamplerState GSampler : register(s0);
 
 cbuffer Projection : register(b0)
 {
-	float4x4 GProjectionMatrix;
+    float4x4 GProjectionMatrix;
 };
 
 struct PSInput
 {
-	float4 Position : SV_POSITION;
-	float4 Color : COLOR;
-	float2 UV : TEXCOORD;
+    float4 Position : SV_POSITION;
+    float4 Color : COLOR;
+    float2 UV : TEXCOORD;
 };
 
 PSInput VShader(float3 Position : POSITION, float2 UV : TEXCOORD, float4 Color : COLOR)
 {
-	PSInput Result;
+    PSInput Result;
 
-	Result.Position = float4(Position, 1.0f);
-	Result.Position = mul(GProjectionMatrix, Result.Position);
-	Result.UV = UV;
-	Result.Color = Color;
+    Result.Position = float4(Position, 1.0f);
+    Result.Position = mul(GProjectionMatrix, Result.Position);
+    Result.UV = UV;
+    Result.Color = Color;
 
-	return Result;
+    return Result;
 }
 
 float4 PShader(PSInput Input) : SV_TARGET
 {
-	return GTexture.Sample(GSampler, Input.UV) * Input.Color;
+    return GTexture.Sample(GSampler, Input.UV) * Input.Color;
 }

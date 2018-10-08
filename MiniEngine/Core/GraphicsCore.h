@@ -72,4 +72,11 @@ namespace Graphics
     extern RootSignature g_GenerateMipsRS;
     extern ComputePSO g_GenerateMipsLinearPSO[4];
     extern ComputePSO g_GenerateMipsGammaPSO[4];
+
+    enum eResolution { k720p, k900p, k1080p, k1440p, k1800p, k2160p };
+
+    extern BoolVar s_EnableVSync;
+    extern EnumVar TargetResolution;
+    extern uint32_t g_DisplayWidth;
+    extern uint32_t g_DisplayHeight;
 }

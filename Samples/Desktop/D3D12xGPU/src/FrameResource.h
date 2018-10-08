@@ -36,12 +36,12 @@ public:
     ComPtr<ID3D12Resource> m_renderTarget;
     D3D12_CPU_DESCRIPTOR_HANDLE m_renderTargetView;
     ComPtr<ID3D12PipelineState> m_pipelineStates[SceneEnums::RenderPass::Count];
-    D3D12_GPU_DESCRIPTOR_HANDLE m_nullSrvHandle;                	    // Null SRV for out of bounds behavior.
+    D3D12_GPU_DESCRIPTOR_HANDLE m_nullSrvHandle;                        // Null SRV for out of bounds behavior.
 
     ComPtr<ID3D12Resource> m_constantBuffers[SceneEnums::RenderPass::Count];
-	SceneConstantBuffer* m_pConstantBuffersWO[SceneEnums::RenderPass::Count];		// WRITE-ONLY pointers to the constant buffers
+    SceneConstantBuffer* m_pConstantBuffersWO[SceneEnums::RenderPass::Count];        // WRITE-ONLY pointers to the constant buffers
     D3D12_GPU_DESCRIPTOR_HANDLE m_cbvHandles[SceneEnums::RenderPass::Count];
-	
+    
     ComPtr<ID3D12Resource> m_depthTextures[SceneEnums::DepthGenPass::Count];
     D3D12_CPU_DESCRIPTOR_HANDLE m_depthDSVs[SceneEnums::DepthGenPass::Count];
     D3D12_CPU_DESCRIPTOR_HANDLE m_depthSRVs[SceneEnums::DepthGenPass::Count];
@@ -50,18 +50,18 @@ public:
     UINT m_frameResourceIndex;
 
 public:
-	FrameResource(ID3D12Device* pDevice, ComPtr<ID3D12PipelineState> pPipelineStates[SceneEnums::RenderPass::Count], ID3D12DescriptorHeap* pDsvHeap, ID3D12DescriptorHeap* pCbvSrvHeap, UINT frameResourceIndex);
-	~FrameResource();
+    FrameResource(ID3D12Device* pDevice, ComPtr<ID3D12PipelineState> pPipelineStates[SceneEnums::RenderPass::Count], ID3D12DescriptorHeap* pDsvHeap, ID3D12DescriptorHeap* pCbvSrvHeap, UINT frameResourceIndex);
+    ~FrameResource();
 
     void LoadSizeDependentResources(ID3D12Device* pDevice, UINT width, UINT height);
     void ReleaseSizeDependentResources();
    
     void ClearDepthStencilViews(ID3D12GraphicsCommandList* pCommandList);
     void Bind(ID3D12GraphicsCommandList* pCommandList, SceneEnums::RenderPass::Value renderPass, D3D12_CPU_DESCRIPTOR_HANDLE* pRtvHandle);
-	void Init();
-	void SwapBarriers();
-	void Finish();
-	void WriteConstantBuffers(D3D12_VIEWPORT* pViewport, Camera* pSceneCamera, Camera lightCams[NumLights], LightState lights[NumLights]);
+    void Init();
+    void SwapBarriers();
+    void Finish();
+    void WriteConstantBuffers(D3D12_VIEWPORT* pViewport, Camera* pSceneCamera, Camera lightCams[NumLights], LightState lights[NumLights]);
 };
 
 
@@ -96,7 +96,7 @@ inline HRESULT CreateDepthStencilTexture2D(
             D3D12_TEXTURE_LAYOUT_UNKNOWN,
             D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
-        D3D12_CLEAR_VALUE clearValue;		// Performance tip: Tell the runtime at resource creation the desired clear value.
+        D3D12_CLEAR_VALUE clearValue;        // Performance tip: Tell the runtime at resource creation the desired clear value.
         clearValue.Format = dsvFormat;
         clearValue.DepthStencil.Depth = initDepthValue;
         clearValue.DepthStencil.Stencil = initStencilValue;

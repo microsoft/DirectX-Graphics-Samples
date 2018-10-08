@@ -11,19 +11,19 @@
 
 #include "QuadVertexShader.hlsl"
 
-static const float threshold = 0.015f;	// What do we consider an edge?
-static const float edgeSize = 0.001f;	// The offest to look for neighboring pixels.
+static const float threshold = 0.015f;    // What do we consider an edge?
+static const float edgeSize = 0.001f;    // The offest to look for neighboring pixels.
 
 static const float2 samplePoints[9] = {
-	float2(-edgeSize, edgeSize),
-	float2(0.0f, edgeSize),
-	float2(edgeSize, edgeSize),
-	float2(-edgeSize, 0.0f),
-	float2(0.0f, 0.0f),
-	float2(edgeSize, edgeSize),
-	float2(-edgeSize, -edgeSize),
-	float2(0.0f, -edgeSize),
-	float2(edgeSize, -edgeSize),
+    float2(-edgeSize, edgeSize),
+    float2(0.0f, edgeSize),
+    float2(edgeSize, edgeSize),
+    float2(-edgeSize, 0.0f),
+    float2(0.0f, 0.0f),
+    float2(edgeSize, edgeSize),
+    float2(-edgeSize, -edgeSize),
+    float2(0.0f, -edgeSize),
+    float2(edgeSize, -edgeSize),
 };
 
 float4 EdgeDetect(float2 uv)

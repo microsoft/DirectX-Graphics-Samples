@@ -30,13 +30,13 @@ SamplerState LinearSampler : register(s0);
 // so we don't need to load it.
 #ifdef FXAA_EXTREME_QUALITY
     #define NUM_SAMPLES 11
-    static const float s_SampleDistances[12] =	// FXAA_QUALITY__PRESET == 39
+    static const float s_SampleDistances[12] =    // FXAA_QUALITY__PRESET == 39
     {
         1.0, 2.0, 3.0, 4.0, 5.0, 6.5, 8.5, 10.5, 12.5, 14.5, 18.5, 36.5, 
     };
 #else
     #define NUM_SAMPLES 7
-    static const float s_SampleDistances[8] =	// FXAA_QUALITY__PRESET == 25
+    static const float s_SampleDistances[8] =    // FXAA_QUALITY__PRESET == 25
     {
         1.0, 2.5, 4.5, 6.5, 8.5, 10.5, 14.5, 22.5
     };

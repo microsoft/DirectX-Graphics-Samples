@@ -15,8 +15,8 @@
 
 using Microsoft::WRL::ComPtr;
 
-const float Settings::TriangleHalfWidth = 0.05f;	// The x and y offsets used by the triangle vertices.
-const float Settings::TriangleDepth = 1.0f;			// The z offset used by the triangle vertices.
+const float Settings::TriangleHalfWidth = 0.05f;    // The x and y offsets used by the triangle vertices.
+const float Settings::TriangleDepth = 1.0f;            // The z offset used by the triangle vertices.
 const float Settings::ClearColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
 UINT Settings::FrameCount;
@@ -31,20 +31,20 @@ D3D12_RECT Settings::ScissorRect;
 
 void Settings::Initialize(ID3D12Device* pDevice, UINT width, UINT height)
 {
-	FrameCount = 2;
+    FrameCount = 2;
 
-	RtvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	CbvSrvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    RtvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    CbvSrvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	BackBufferCount = 2;
+    BackBufferCount = 2;
 
-	OnSizeChanged(width, height);
+    OnSizeChanged(width, height);
 }
 
 void Settings::OnSizeChanged(UINT width, UINT height)
 {
-	Width = width;
-	Height = height;
-	Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
-	ScissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(width), static_cast<LONG>(height));
+    Width = width;
+    Height = height;
+    Viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
+    ScissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(width), static_cast<LONG>(height));
 }

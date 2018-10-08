@@ -47,7 +47,7 @@ namespace BitonicSort
 }
 
 void BitonicSort::Initialize( void )
-{	
+{    
     s_DispatchArgs.Create(L"Bitonic sort dispatch args", 22*23/2, 12);
 
     s_RootSignature.Reset(4, 0);

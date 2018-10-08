@@ -11,27 +11,27 @@
 
 struct VSInput
 {
-	float4 position : POSITION;
-	float3 color : COLOR;
+    float4 position : POSITION;
+    float3 color : COLOR;
 };
 
 struct PSInput
 {
-	float4 position : SV_POSITION;
-	float3 color : COLOR;
+    float4 position : SV_POSITION;
+    float3 color : COLOR;
 };
 
 cbuffer PerDraw : register(b1)
 {
-	float4x4 worldViewProjection;
+    float4x4 worldViewProjection;
 };
 
 PSInput main(VSInput input) 
 {
-	PSInput result;
+    PSInput result;
 
-	result.position = mul(input.position, worldViewProjection);
-	result.color = input.color;
+    result.position = mul(input.position, worldViewProjection);
+    result.color = input.color;
 
-	return result;
+    return result;
 }

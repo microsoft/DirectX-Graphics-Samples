@@ -41,10 +41,10 @@ void main( uint GI : SV_GroupIndex )
     [unroll]
     for (uint i = 1; i < 256; i *= 2)
     {
-        gs_Accum[GI] = WeightedSum;					// Write
-        GroupMemoryBarrierWithGroupSync();			// Sync
-        WeightedSum += gs_Accum[(GI + i) % 256];	// Read
-        GroupMemoryBarrierWithGroupSync();			// Sync
+        gs_Accum[GI] = WeightedSum;                    // Write
+        GroupMemoryBarrierWithGroupSync();            // Sync
+        WeightedSum += gs_Accum[(GI + i) % 256];    // Read
+        GroupMemoryBarrierWithGroupSync();            // Sync
     }
 
     float MinLog = Exposure[4];

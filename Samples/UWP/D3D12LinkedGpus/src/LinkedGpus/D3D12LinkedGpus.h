@@ -32,33 +32,33 @@ using Microsoft::WRL::ComPtr;
 class D3D12LinkedGpus : public DXSample
 {
 public:
-	D3D12LinkedGpus(UINT width, UINT height, std::wstring name);
+    D3D12LinkedGpus(UINT width, UINT height, std::wstring name);
 
 protected:
-	virtual void OnInit();
-	virtual void OnUpdate();
-	virtual void OnRender();
-	virtual void OnSizeChanged(UINT width, UINT height, bool minimized);
-	virtual void OnKeyDown(UINT8 key);
-	virtual void OnDestroy();
+    virtual void OnInit();
+    virtual void OnUpdate();
+    virtual void OnRender();
+    virtual void OnSizeChanged(UINT width, UINT height, bool minimized);
+    virtual void OnKeyDown(UINT8 key);
+    virtual void OnDestroy();
 
 private:
-	// Data about each of the triangles in the scene.
-	std::vector<SceneConstantBuffer> m_sceneData;
+    // Data about each of the triangles in the scene.
+    std::vector<SceneConstantBuffer> m_sceneData;
 
-	std::shared_ptr<CrossNodeResources> m_crossNodeResources;
-	std::shared_ptr<GpuNode> m_nodes[Settings::MaxNodeCount];
+    std::shared_ptr<CrossNodeResources> m_crossNodeResources;
+    std::shared_ptr<GpuNode> m_nodes[Settings::MaxNodeCount];
 
-	UINT64 m_frameId;
-	UINT m_simulatedGpuLoad;
-	UINT m_nodeIndex;
-	UINT m_syncInterval;
-	bool m_windowVisible;
-	bool m_windowedMode;
+    UINT64 m_frameId;
+    UINT m_simulatedGpuLoad;
+    UINT m_nodeIndex;
+    UINT m_syncInterval;
+    bool m_windowVisible;
+    bool m_windowedMode;
 
-	void LoadSceneData();
-	float GetRandomFloat(float min, float max);
-	void UpdateWindowTitle();
-	void WaitForGpus();
-	void MoveToNextFrame();
+    void LoadSceneData();
+    float GetRandomFloat(float min, float max);
+    void UpdateWindowTitle();
+    void WaitForGpus();
+    void MoveToNextFrame();
 };
