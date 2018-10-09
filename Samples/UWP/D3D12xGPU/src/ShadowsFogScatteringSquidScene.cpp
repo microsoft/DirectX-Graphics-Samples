@@ -58,11 +58,13 @@ void ShadowsFogScatteringSquidScene::InitializeCameraAndLights()
             switch (i)
             {
             case 0: m_lights[0].direction = { 0.0, 0.0f, 1.0f, 0.0f }; break;   // +z
+#if NumLights > 1
             case 1: m_lights[1].direction = { 1.0, 0.0f, 0.0f, 0.0f }; break;   // +x
             case 2: m_lights[2].direction = { 0.0, 0.0f, -1.0f, 0.0f }; break;  // -z
             case 3: m_lights[3].direction = { -1.0, 0.0f, 0.0f, 0.0f }; break;  // -x
             case 4: m_lights[4].direction = { 0.0, 1.0f, 0.0f, 0.0f }; break;   // +y
             case 5: m_lights[5].direction = { 0.0, -1.0f, 0.0f, 0.0f }; break;  // -y
+#endif
             }
             m_lights[i].position = { 0.0f, 15.0f, -30.0f, 1.0f };
             m_lights[i].falloff = { 120.0f, 1.0f, 0.0f, 1.0f };

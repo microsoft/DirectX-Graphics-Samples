@@ -102,7 +102,7 @@ void D3D12xGPU::LoadPipeline()
         {
             ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
         }
-        ThrowIfFailed(spDxgiFactory7->RegisterAdapterEnumerationEvent(m_adapterChangeEvent, &m_adapterChangeRegistrationCookie));
+        ThrowIfFailed(spDxgiFactory7->RegisterAdaptersChangedEvent(m_adapterChangeEvent, &m_adapterChangeRegistrationCookie));
     }
 #endif
 
@@ -295,7 +295,7 @@ void D3D12xGPU::ReleaseD3DObjects()
     ComPtr<IDXGIFactory7> spDxgiFactory7;
     if (m_adapterChangeRegistrationCookie != 0 && SUCCEEDED(m_dxgiFactory->QueryInterface(IID_PPV_ARGS(&spDxgiFactory7))))
     {
-        ThrowIfFailed(spDxgiFactory7->UnregisterAdapterEnumerationEvent(m_adapterChangeRegistrationCookie));
+        ThrowIfFailed(spDxgiFactory7->UnregisterAdaptersChangedEvent(m_adapterChangeRegistrationCookie));
         m_adapterChangeRegistrationCookie = 0;
         CloseHandle(m_adapterChangeEvent);
         m_adapterChangeEvent = NULL;
@@ -460,7 +460,7 @@ void D3D12xGPU::OnRender()
                     {
                         ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
                     }
-                    ThrowIfFailed(spDxgiFactory7->RegisterAdapterEnumerationEvent(m_adapterChangeEvent, &m_adapterChangeRegistrationCookie));
+                    ThrowIfFailed(spDxgiFactory7->RegisterAdaptersChangedEvent(m_adapterChangeEvent, &m_adapterChangeRegistrationCookie));
                 }
 #endif
 
@@ -605,7 +605,7 @@ bool D3D12xGPU::QueryForAdapterEnumerationChanges()
     if (m_adapterChangeEvent)
     {
 #ifdef USE_DXGI_1_6
-        // If QueryInterface for IDXGIFactory7 succeeded, then use RegisterAdapterEnumerationEvent notifications.
+        // If QueryInterface for IDXGIFactory7 succeeded, then use RegisterAdaptersChangedEvent notifications.
         DWORD waitResult = WaitForSingleObject(m_adapterChangeEvent, 0);
         bChangeInAdapterEnumeration = (waitResult == WAIT_OBJECT_0);
 
@@ -615,7 +615,7 @@ bool D3D12xGPU::QueryForAdapterEnumerationChanges()
             ComPtr<IDXGIFactory7> spDxgiFactory7;
             if (SUCCEEDED(m_dxgiFactory->QueryInterface(IID_PPV_ARGS(&spDxgiFactory7))))
             {
-                ThrowIfFailed(spDxgiFactory7->UnregisterAdapterEnumerationEvent(m_adapterChangeRegistrationCookie));
+                ThrowIfFailed(spDxgiFactory7->UnregisterAdaptersChangedEvent(m_adapterChangeRegistrationCookie));
                 m_adapterChangeRegistrationCookie = 0;
                 CloseHandle(m_adapterChangeEvent);
                 m_adapterChangeEvent = NULL;
