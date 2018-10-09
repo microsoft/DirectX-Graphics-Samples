@@ -15,6 +15,7 @@
 #include "StepTimer.h"
 #include "RaytracingSceneDefines.h"
 #include "DirectXRaytracingHelper.h"
+#include "CameraController.h"
 #include "PerformanceTimers.h"
 #include "Sampler.h"
 
@@ -175,9 +176,9 @@ private:
 	bool m_animateCamera;
 	bool m_animateLight;
 	bool m_animateScene;
-	XMVECTOR m_eye;
-	XMVECTOR m_at;
-	XMVECTOR m_up;
+	bool m_isCameraFrozen;
+	GameCore::Camera m_camera;
+	std::unique_ptr<GameCore::CameraController> m_cameraController;
 
 	// UI
 	std::unique_ptr<UILayer> m_uiLayer;

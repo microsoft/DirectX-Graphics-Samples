@@ -21,6 +21,7 @@ using namespace std;
 using namespace DX;
 using namespace DirectX;
 using namespace SceneEnums;
+using namespace GameCore;
 
 D3D12RaytracingDynamicGeometry* g_pSample = nullptr;
 HWND g_hWnd = 0;
@@ -102,7 +103,8 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_isASinitializationRequested(true),
     m_isASrebuildRequested(true),
     m_ASmemoryFootprint(0),
-    m_numFramesSinceASBuild(0)
+    m_numFramesSinceASBuild(0),
+	m_isCameraFrozen(false)
 {
     g_pSample = this;
     m_forceComputeFallback = false;
@@ -113,6 +115,7 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_topLevelASdescritorHeapIndex = UINT_MAX;
     m_geometryIBHeapIndices.resize(GeometryType::Count, UINT_MAX);
     m_geometryVBHeapIndices.resize(GeometryType::Count, UINT_MAX);
+	XMVectorZero();
 }
 
 void D3D12RaytracingDynamicGeometry::EnableDirectXRaytracing(IDXGIAdapter1* adapter)
@@ -177,10 +180,10 @@ D3D12RaytracingDynamicGeometry::~D3D12RaytracingDynamicGeometry()
 // Update camera matrices passed into the shader.
 void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
 {
-    m_sceneCB->cameraPosition = m_eye;
+    m_sceneCB->cameraPosition = m_camera.Eye();
     float fovAngleY = 90.0f;
-    XMMATRIX view = XMMatrixLookAtLH(m_eye, m_at, m_up);
-    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 0.01f, 125.0f);
+	XMMATRIX view, proj;
+	m_camera.GetViewProj(&view, &proj, fovAngleY, m_width, m_height);
     XMMATRIX viewProj = view * proj;
     m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, viewProj);
 }
@@ -309,11 +312,11 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
     {
         // Initialize the view and projection inverse matrices.
 #if ONLY_SQUID_SCENE_BLAS
-		m_eye = { 0.0f, 80, -268.555980f, 1.0f };
-        m_at = { 0.0f, 8.0f, 0.0f, 1.0f };
-		XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
-		XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
-		m_up = XMVector3Normalize(XMVector3Cross(direction, right));
+		
+		XMVECTOR eye = XMVectorSet(0.0f, 80, -268.555980f, 1);
+		XMVECTOR at = XMVectorSet(0, 8, 0, 1);
+		XMVECTOR up = XMVectorSet(0, 1, 0, 0);
+		m_camera.Set(eye, at, up);
 #else
 		m_eye = { 0.0f, 6.3f, -17.0f, 1.0f };
 		m_at = { 0.0f, 1.0f, 0.0f, 1.0f };
@@ -330,6 +333,7 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
 
         UpdateCameraMatrices();
     }
+	m_cameraController = make_unique<CameraController>(m_camera);
 
     // Setup lights.
     {
@@ -1492,15 +1496,30 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
 
     GameInput::Update(elapsedTime);
     EngineTuning::Update(elapsedTime);
+	
+	if (GameInput::IsFirstPressed(GameInput::kKey_f))
+	{
+		m_isCameraFrozen = !m_isCameraFrozen;
+	}
+
+	if (!m_isCameraFrozen)
+	{
+		m_cameraController->Update(elapsedTime);
+		UpdateCameraMatrices();
+	}
+
 
     // Rotate the camera around Y axis.
     if (m_animateCamera)
     {
+		// ToDo
+#if 0
         float secondsToRotateAround = 48.0f;
         float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
         XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
         m_eye = m_at + XMVector3TransformCoord(m_eye - m_at, rotate);
         m_up = XMVector3TransformCoord(m_up, rotate);
+#endif
         UpdateCameraMatrices();
     }
 

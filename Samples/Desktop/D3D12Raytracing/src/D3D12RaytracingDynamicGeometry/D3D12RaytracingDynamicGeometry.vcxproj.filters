@@ -102,6 +102,12 @@
     <ClInclude Include="util\SquidRoom.h">
       <Filter>Assets\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="util\Camera.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="util\CameraController.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -139,6 +145,12 @@
     </ClCompile>
     <ClCompile Include="Sampler.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="util\Camera.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="util\CameraController.cpp">
+      <Filter>Source Files\Util</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
