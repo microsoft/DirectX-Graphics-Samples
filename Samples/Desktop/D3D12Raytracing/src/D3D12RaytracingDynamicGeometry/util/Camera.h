@@ -25,7 +25,7 @@ namespace GameCore
 		const DirectX::XMVECTOR& Eye() const { return m_eye; }
 		const DirectX::XMVECTOR& At() const { return m_at; }
 		const DirectX::XMVECTOR& Up() const { return m_up; }
-		DirectX::XMVECTOR Forward() { return DirectX::XMVectorSubtract(m_at, m_eye); }
+		DirectX::XMVECTOR Forward() { return DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(m_at, m_eye)); }
 
 
 		void GetViewProj(DirectX::XMMATRIX *view, DirectX::XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords = false);
@@ -36,6 +36,11 @@ namespace GameCore
 		void RotateAroundYAxis(float angleRad);
 		void RotateYaw(float angleRad);
 		void RotatePitch(float angleRad);
+		void TranslateForward(float translation);
+		void TranslateRight(float translation);
+		void TranslateUp(float translation);
+		void TranslateRightUpForward(float right, float up, float forward);
+
 		void SetViewMatrix(const DirectX::XMMATRIX& transform);
 	private:
 		static Camera* mCamera;

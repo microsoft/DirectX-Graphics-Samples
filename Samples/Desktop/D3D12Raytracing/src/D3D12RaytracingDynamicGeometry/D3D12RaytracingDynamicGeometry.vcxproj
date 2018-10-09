@@ -199,7 +199,10 @@ PrebuildCheck.bat</Command>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="util\Camera.cpp" />
+    <ClCompile Include="util\Camera.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="util\CameraController.cpp" />
     <ClCompile Include="util\DeviceResources.cpp" />
     <ClCompile Include="util\DXSample.cpp" />

@@ -181,11 +181,16 @@ D3D12RaytracingDynamicGeometry::~D3D12RaytracingDynamicGeometry()
 void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
 {
     m_sceneCB->cameraPosition = m_camera.Eye();
-    float fovAngleY = 90.0f;
+#if 0
+	m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, m_camera.GetViewProjMatrix());
+	m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, m_camera.GetViewProjMatrix());
+#else
+	float fovAngleY = 90.0f;
 	XMMATRIX view, proj;
 	m_camera.GetViewProj(&view, &proj, fovAngleY, m_width, m_height);
-    XMMATRIX viewProj = view * proj;
-    m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, viewProj);
+	XMMATRIX viewProj = view * proj;
+	m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, viewProj);
+#endif
 }
 
 void D3D12RaytracingDynamicGeometry::UpdateBottomLevelASTransforms()
@@ -314,9 +319,15 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
 #if ONLY_SQUID_SCENE_BLAS
 		
 		XMVECTOR eye = XMVectorSet(0.0f, 80, -268.555980f, 1);
-		XMVECTOR at = XMVectorSet(0, 8, 0, 1);
+		XMVECTOR at = XMVectorSet(0, 80, 0, 1);
 		XMVECTOR up = XMVectorSet(0, 1, 0, 0);
+#if 0
+		m_camera.SetEyeAtUp(eye, at, up);
+		m_camera.SetZRange(1.0f, 10000.0f);
+		m_camera.SetPerspectiveMatrix(XM_PIDIV4, static_cast<float>(m_height) / m_width, 0.1f, 1000.f);
+#else
 		m_camera.Set(eye, at, up);
+#endif
 #else
 		m_eye = { 0.0f, 6.3f, -17.0f, 1.0f };
 		m_at = { 0.0f, 1.0f, 0.0f, 1.0f };
