@@ -41,7 +41,6 @@ namespace GameCore
 		void TranslateUp(float translation);
 		void TranslateRightUpForward(float right, float up, float forward);
 
-		void SetViewMatrix(const DirectX::XMMATRIX& transform);
 	private:
 		static Camera* mCamera;
 		DirectX::XMVECTOR m_eye; // Where the camera is in world space. Z increases into of the screen when using LH coord system (which we are and DX uses)

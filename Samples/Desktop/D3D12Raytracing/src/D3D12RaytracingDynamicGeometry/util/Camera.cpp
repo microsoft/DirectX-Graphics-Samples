@@ -108,17 +108,8 @@ void Camera::TranslateRightUpForward(float right, float up, float forward)
 	m_at += XMVectorSetW(translationVec, 1);
 }
 
-void Camera::SetViewMatrix(const XMMATRIX& transform)
-{
-	m_up = XMVector4Transform(XMVectorSet(0,1,0,0), transform);
-	float forwardLength = XMVectorGetX(XMVector3Length(Forward()));
-	m_eye = XMVectorSetW(XMVector3TransformCoord(XMVectorZero(), transform), 1);
-	m_at = XMVector4Transform(XMVectorSet(0,forwardLength,0,0), transform);
-}
-
 void Camera::Reset()
 {
-	// ToDo
     m_eye = XMVectorSet(0.0f, 8.0f, -30.0f, 0.0f);
     m_at = XMVectorSet(0.0f, 8.0f, 0.0f, 0.0f);
     m_up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);

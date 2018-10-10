@@ -6,10 +6,7 @@
 // IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
-// Developed by Minigraph
-//
-// Author:  James Stanard 
-//
+
 
 #include "stdafx.h"
 #include "CameraController.h"
@@ -20,21 +17,12 @@ using namespace GameCore;
 
 CameraController::CameraController( Camera& camera) : m_TargetCamera( camera )
 {
-    m_WorldUp = XMVectorSet(0, 1, 0, 0);
-    m_WorldNorth = XMVectorSet(0, 0, 1, 0);
-    m_WorldEast = XMVectorSet(1, 0, 0, 0);
-
     m_HorizontalLookSensitivity = 2.0f;
     m_VerticalLookSensitivity = 2.0f;
     m_MoveSpeed = 1000.0f;
     m_StrafeSpeed = 1000.0f;
     m_MouseSensitivityX = 1.0f;
     m_MouseSensitivityY = 1.0f;
-
-   // m_CurrentPitch = sinf(XMVectorGetX(XMVector3Dot(camera.GetForwardVec(), m_WorldUp)));
-
-   // XMVECTOR forward = XMVector3Normalize(camera.GetForwardVec());
- //   m_CurrentHeading = atan2f(-XMVectorGetX(XMVector3Dot(forward, m_WorldEast)), XMVectorGetX(XMVector3Dot(forward, m_WorldNorth)));
 
     m_FineMovement = false;
     m_FineRotation = false;
@@ -94,23 +82,9 @@ void CameraController::Update( float deltaTime )
     yaw += GameInput::GetAnalogInput(GameInput::kAnalogMouseX) * m_MouseSensitivityX;
     pitch += GameInput::GetAnalogInput(GameInput::kAnalogMouseY) * m_MouseSensitivityY;
 
-    m_CurrentPitch += pitch;
-    m_CurrentPitch = XMMin( XM_PIDIV2, m_CurrentPitch);
-    m_CurrentPitch = XMMax(-XM_PIDIV2, m_CurrentPitch);
-
-    m_CurrentHeading -= yaw;
-    if (m_CurrentHeading > XM_PI)
-        m_CurrentHeading -= XM_2PI;
-    else if (m_CurrentHeading <= -XM_PI)
-        m_CurrentHeading += XM_2PI; 
-
-	// ToDo cleanup camera, add roll
 	m_TargetCamera.RotateYaw(yaw);
 	m_TargetCamera.RotatePitch(pitch);
 	m_TargetCamera.TranslateRightUpForward(strafe, ascent, forward);
-//    XMMATRIX rotation = XMMATRIX(m_WorldEast, m_WorldUp, m_WorldNorth, XMVectorSet(0,0,0,1)) * XMMatrixRotationY(m_CurrentHeading) * XMMatrixRotationX(m_CurrentPitch);
-//    XMMATRIX translation = XMMatrixTranslationFromVector(XMVectorSet( strafe, ascent, forward, 0) + m_TargetCamera.GetPosition());
-//	m_TargetCamera.SetTransform(rotation * translation);
 }
 
 void CameraController::ApplyMomentum( float& oldValue, float& newValue, float deltaTime )
