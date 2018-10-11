@@ -88,7 +88,8 @@ void Camera::TranslateForward(float translation)
 
 void Camera::TranslateRight(float translation)
 {
-    XMVECTOR rightVec = XMVector3Normalize(XMVector3Cross(m_at - m_eye, m_up));
+	XMVECTOR forwardVec = Forward();
+    XMVECTOR rightVec = XMVector3Normalize(XMVector3Cross(-forwardVec, m_up));
 	m_eye += translation * rightVec;
 	m_at += translation * rightVec;
 }
@@ -104,8 +105,8 @@ void Camera::TranslateRightUpForward(float right, float up, float forward)
 	XMVECTOR forwardVec = Forward();
 	XMVECTOR rightVec = XMVector3Normalize(XMVector3Cross(-forwardVec, m_up));
 	XMVECTOR translationVec = right * rightVec + up * m_up + forward * forwardVec;
-	m_eye += XMVectorSetW(translationVec, 1);
-	m_at += XMVectorSetW(translationVec, 1);
+	m_eye += translationVec;
+	m_at += translationVec;
 }
 
 void Camera::Reset()
