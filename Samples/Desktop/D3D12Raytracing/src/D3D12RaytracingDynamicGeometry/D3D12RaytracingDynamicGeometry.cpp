@@ -1038,6 +1038,7 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 	Handles ib = { m_geometries[GeometryType::SquidScene].ib.cpuDescriptorHandle, m_geometries[GeometryType::SquidScene].ib.gpuDescriptorHandle };
 	Handles vb = { m_geometries[GeometryType::SquidScene].vb.cpuDescriptorHandle, m_geometries[GeometryType::SquidScene].vb.gpuDescriptorHandle };
 
+	m_numTrianglesPerGeometry = 0;
 	m_geometryInstances.resize(ARRAYSIZE(SampleAssets::Draws));
 	for (UINT i = 0; i < ARRAYSIZE(SampleAssets::Draws); i++)
 	{
@@ -1054,6 +1055,8 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 
 		m_geometryInstances[i].ib.gpuDescriptorHandle = m_geometries[GeometryType::SquidScene].ib.gpuDescriptorHandle;
 		m_geometryInstances[i].vb.gpuDescriptorHandle = m_geometries[GeometryType::SquidScene].vb.gpuDescriptorHandle;
+	
+		m_numTrianglesPerGeometry += SampleAssets::Draws[i].IndexCount / 3;
 	}
 
 	// Revert
