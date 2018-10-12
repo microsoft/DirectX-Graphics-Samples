@@ -115,7 +115,8 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_topLevelASdescritorHeapIndex = UINT_MAX;
     m_geometryIBHeapIndices.resize(GeometryType::Count, UINT_MAX);
     m_geometryVBHeapIndices.resize(GeometryType::Count, UINT_MAX);
-	XMVectorZero();
+	
+	m_generatorURNG.seed(1729);
 }
 
 void D3D12RaytracingDynamicGeometry::EnableDirectXRaytracing(IDXGIAdapter1* adapter)
@@ -1701,7 +1702,10 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
 
     commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
 
-    m_sceneCB->seed = 0;
+	uniform_int_distribution<UINT> seedDistribution(0, UINT_MAX);
+	
+	static UINT seed = 0;
+    m_sceneCB->seed = seedDistribution(m_generatorURNG);
     m_sceneCB->numSamples = m_randomSampler.NumSamples();
     m_sceneCB->numSampleSets = m_randomSampler.NumSampleSets();
 #if 1

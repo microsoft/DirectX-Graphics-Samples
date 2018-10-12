@@ -66,6 +66,9 @@ public:
 private:
 	static const UINT FrameCount = 3;
 
+
+	std::mt19937 m_generatorURNG;
+
 	// Constants.
 	const UINT NUM_BLAS = 2;          // Triangle + AABB bottom-level AS.
 	const float c_aabbWidth = 2;      // AABB width.

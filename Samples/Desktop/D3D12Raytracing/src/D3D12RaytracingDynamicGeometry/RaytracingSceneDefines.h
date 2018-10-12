@@ -58,8 +58,7 @@ namespace LocalRootSignature {
         }
         struct RootArguments {
             PrimitiveConstantBuffer materialCb;
-            UINT32 vertexBufferGPUHandle;
-            UINT32 padding; // ToDo desc
+            D3D12_GPU_DESCRIPTOR_HANDLE vertexBufferGPUHandle;
         };
     }
 }
