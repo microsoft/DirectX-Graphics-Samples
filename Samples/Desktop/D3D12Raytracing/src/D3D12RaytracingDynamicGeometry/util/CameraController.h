@@ -6,10 +6,6 @@
 // IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
-// Developed by Minigraph
-//
-// Author:  James Stanard 
-//
 
 #pragma once
 
@@ -44,9 +40,6 @@ namespace GameCore
 
         void ApplyMomentum( float& oldValue, float& newValue, float deltaTime );
 
-        DirectX::XMVECTOR m_WorldUp;
-        DirectX::XMVECTOR m_WorldNorth;
-        DirectX::XMVECTOR m_WorldEast;
         Camera& m_TargetCamera;
         float m_HorizontalLookSensitivity;
         float m_VerticalLookSensitivity;
@@ -54,9 +47,6 @@ namespace GameCore
         float m_StrafeSpeed;
         float m_MouseSensitivityX;
         float m_MouseSensitivityY;
-
-        float m_CurrentHeading;
-        float m_CurrentPitch;
 
         bool m_FineMovement;
         bool m_FineRotation;
