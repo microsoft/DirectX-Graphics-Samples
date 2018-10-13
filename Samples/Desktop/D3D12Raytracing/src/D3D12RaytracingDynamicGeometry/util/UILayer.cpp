@@ -9,7 +9,7 @@
 //
 //*********************************************************
 
-#include "stdafx.h"
+#include "../stdafx.h"
 #include "DxSampleHelper.h"
 #include "UILayer.h"
 

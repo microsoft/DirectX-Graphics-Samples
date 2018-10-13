@@ -182,16 +182,18 @@ D3D12RaytracingDynamicGeometry::~D3D12RaytracingDynamicGeometry()
 void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
 {
     m_sceneCB->cameraPosition = m_camera.Eye();
-#if 0
-	m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, m_camera.GetViewProjMatrix());
-	m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, m_camera.GetViewProjMatrix());
-#else
+
+
 	float fovAngleY = 90.0f;
 	XMMATRIX view, proj;
-	m_camera.GetViewProj(&view, &proj, fovAngleY, m_width, m_height);
+	m_camera.GetProj(&proj, fovAngleY, m_width, m_height);
+
+	// Calculate view matrix as if the camera was at (0,0,0) to avoid 
+	// precision issues when camera position is too far from (0,0,0).
+	// GenerateCameraRay takes this into consideration in the raytracing shader.
+	view = XMMatrixLookAtLH(XMVectorSet(0, 0, 0, 1), XMVectorSetW(m_camera.At() - m_camera.Eye(), 1), m_camera.Up());
 	XMMATRIX viewProj = view * proj;
-	m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, viewProj);
-#endif
+	m_sceneCB->projectionToWorldWithCameraEyeAtOrigin = XMMatrixInverse(nullptr, viewProj);
 }
 
 void D3D12RaytracingDynamicGeometry::UpdateBottomLevelASTransforms()
@@ -318,10 +320,19 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
     {
         // Initialize the view and projection inverse matrices.
 #if ONLY_SQUID_SCENE_BLAS
-		
+#if 1
 		XMVECTOR eye = XMVectorSet(0.0f, 80, -268.555980f, 1);
 		XMVECTOR at = XMVectorSet(0, 80, 0, 1);
 		XMVECTOR up = XMVectorSet(0, 1, 0, 0);
+#elif 0
+		XMVECTOR eye = XMVectorSet(215.815994, 1238.98132, -2074.55811, 1.00000000);
+		XMVECTOR at = XMVectorSet(188.561310, 1094.73657, -1849.67334, 1.00000000);
+		XMVECTOR up = XMVectorSet(-0.0206577014, 0.842688203, 0.538005412, 0.000000000);
+#else
+		XMVECTOR eye = XMVectorSet(0.0f, 80, -268.555980f, 1);
+		XMVECTOR at = XMVectorSet(0, 80, 0, 1);
+		XMVECTOR up = XMVectorSet(0, 1, 0, 0);
+#endif
 #if 0
 		m_camera.SetEyeAtUp(eye, at, up);
 		m_camera.SetZRange(1.0f, 10000.0f);
@@ -1591,18 +1602,18 @@ void D3D12RaytracingDynamicGeometry::ParseCommandLineArgs(WCHAR* argv[], int arg
 {
     DXSample::ParseCommandLineArgs(argv, argc);
 
-    if (argc > 1)
-    {
-        if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0)
-        {
-            m_forceComputeFallback = true;
-            m_raytracingAPI = RaytracingAPI::FallbackLayer;
-        }
-        else if (_wcsnicmp(argv[1], L"-DXR", wcslen(argv[1])) == 0)
-        {
-            m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
-        }
-    }
+	for (int i = 1; i < argc; ++i)
+	{
+		if (_wcsnicmp(argv[i], L"-FL", wcslen(argv[i])) == 0)
+		{
+			m_forceComputeFallback = true;
+			m_raytracingAPI = RaytracingAPI::FallbackLayer;
+		}
+		else if (_wcsnicmp(argv[i], L"-DXR", wcslen(argv[i])) == 0)
+		{
+			m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
+		}
+	}
 }
 
 void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuild)

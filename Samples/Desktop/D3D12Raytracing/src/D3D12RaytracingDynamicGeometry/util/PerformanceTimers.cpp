@@ -9,7 +9,7 @@
 //
 //*********************************************************
 
-#include "stdafx.h"
+#include "../stdafx.h"
 #include "PerformanceTimers.h"
 
 #ifndef IID_GRAPHICS_PPV_ARGS

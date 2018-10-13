@@ -9,50 +9,56 @@
 //
 //*********************************************************
 
-#include "stdafx.h"
+#include "../stdafx.h"
 #include "Camera.h"
 
 using namespace DirectX;
 using namespace GameCore;
 
-Camera* Camera::mCamera = nullptr;
+Camera* Camera::s_camera = nullptr;
 
 Camera::Camera()
 {
-    Reset();
-    mCamera = this;
+    s_camera = this;
 }
 
 Camera::~Camera()
 {
-    mCamera = nullptr;
+    s_camera = nullptr;
 }
 
-Camera* Camera::get()
+void Camera::GetProj(XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords)
 {
-    return mCamera;
-}
+	float aspectRatio = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
+	float fovAngleY = fovInDegrees * XM_PI / 180.0f;
 
-void Camera::GetViewProj(XMMATRIX *view, XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords)
-{
-    float aspectRatio = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
-    float fovAngleY = fovInDegrees * XM_PI / 180.0f;
-
-    if (aspectRatio < 1.0f)
-    {
-        fovAngleY /= aspectRatio;
-    }
+	if (aspectRatio < 1.0f)
+	{
+		fovAngleY /= aspectRatio;
+	}
 
 	if (rhCoords)
 	{
-		*view = XMMatrixLookAtRH(m_eye, m_at, m_up);
 		*proj = XMMatrixPerspectiveFovRH(fovAngleY, aspectRatio, ZMin, ZMax);
 	}
 	else
 	{
-		*view = XMMatrixLookAtLH(m_eye, m_at, m_up);
 		*proj = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, ZMin, ZMax);
 	}
+}
+
+void Camera::GetViewProj(XMMATRIX *view, XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords)
+{
+	if (rhCoords)
+	{
+		*view = XMMatrixLookAtRH(m_eye, m_at, m_up);
+	}
+	else
+	{
+		*view = XMMatrixLookAtLH(m_eye, m_at, m_up);
+	}
+
+	GetProj(proj, fovInDegrees, screenWidth, screenHeight, rhCoords);
 }
 
 void Camera::RotateAroundYAxis(float angleRad)
@@ -60,65 +66,58 @@ void Camera::RotateAroundYAxis(float angleRad)
     XMMATRIX rotation = XMMatrixRotationY(angleRad);
 
     m_eye = m_at + XMVector3TransformCoord(m_eye - m_at, rotation);
-    m_up = XMVector3TransformCoord(m_up, rotation);
+    m_up = XMVector3TransformNormal(m_up, rotation);
 }
 
 void Camera::RotateYaw(float angleRad)
 {
     XMMATRIX rotation = XMMatrixRotationAxis(m_up, angleRad);
 
-    m_at = m_eye + XMVector3TransformCoord(m_at - m_eye, rotation);
+    m_at = m_eye + XMVector3TransformNormal(m_at - m_eye, rotation);
 }
 
 void Camera::RotatePitch(float angleRad)
 {
-	XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_at - m_eye, m_up));
+	XMVECTOR right = XMVector3Cross(m_at - m_eye, m_up);
 	XMMATRIX rotation = XMMatrixRotationAxis(right, angleRad);
 
-	m_at = m_eye + XMVector3TransformCoord(m_at - m_eye, rotation);
-	m_up = XMVector3TransformCoord(m_up, rotation);
+	m_at = m_eye + XMVector3TransformNormal(m_at - m_eye, rotation);
+	m_up = XMVector3TransformNormal(m_up, rotation);
 }
 
-void Camera::TranslateForward(float translation)
+void Camera::TranslateForward(float delta)
 {
-	XMVECTOR forwardVec = Forward();
-	m_eye += translation * forwardVec;
-	m_at += translation * forwardVec;
+	XMVECTOR forward = Forward();
+	m_eye += delta * forward;
+	m_at += delta * forward;
 }
 
-void Camera::TranslateRight(float translation)
+void Camera::TranslateRight(float delta)
 {
-	XMVECTOR forwardVec = Forward();
-    XMVECTOR rightVec = XMVector3Normalize(XMVector3Cross(-forwardVec, m_up));
-	m_eye += translation * rightVec;
-	m_at += translation * rightVec;
+	XMVECTOR forward = Forward();
+    XMVECTOR right = XMVector3Cross(-forward, m_up);
+	m_eye += delta * right;
+	m_at += delta * right;
 }
 
-void Camera::TranslateUp(float translation)
+void Camera::TranslateUp(float delta)
 {
-	m_eye += translation * m_up;
-	m_at += translation * m_up;
+	m_eye += delta * m_up;
+	m_at += delta * m_up;
 }
 
-void Camera::TranslateRightUpForward(float right, float up, float forward)
+void Camera::TranslateRightUpForward(float deltaRight, float deltaUp, float deltaForward)
 {
-	XMVECTOR forwardVec = Forward();
-	XMVECTOR rightVec = XMVector3Normalize(XMVector3Cross(-forwardVec, m_up));
-	XMVECTOR translationVec = right * rightVec + up * m_up + forward * forwardVec;
+	XMVECTOR forward = Forward();
+	XMVECTOR right = XMVector3Cross(-forward, m_up);
+	XMVECTOR translationVec = deltaRight * right + deltaUp * m_up + deltaForward * forward;
 	m_eye += translationVec;
 	m_at += translationVec;
-}
-
-void Camera::Reset()
-{
-    m_eye = XMVectorSet(0.0f, 8.0f, -30.0f, 0.0f);
-    m_at = XMVectorSet(0.0f, 8.0f, 0.0f, 0.0f);
-    m_up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 }
 
 void Camera::Set(const XMVECTOR& eye, const XMVECTOR& at, const XMVECTOR& up)
 {
     m_eye = XMVectorSetW(eye, 1);
-	m_at = XMVectorSetW(at, 0);
+	m_at = XMVectorSetW(at, 1);
 	m_up = XMVectorSetW(up, 0);
 }

@@ -11,7 +11,7 @@
 // Author:  James Stanard 
 //
 
-#include "stdafx.h"
+#include "../stdafx.h"
 #include "GameInput.h"
 
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)

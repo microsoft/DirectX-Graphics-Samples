@@ -8,7 +8,7 @@
 //
 
 
-#include "stdafx.h"
+#include "../stdafx.h"
 #include "CameraController.h"
 #include "GameInput.h"
 

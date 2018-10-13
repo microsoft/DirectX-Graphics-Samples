@@ -1316,18 +1316,18 @@ void D3D12RaytracingProceduralGeometry::ParseCommandLineArgs(WCHAR* argv[], int 
 {
     DXSample::ParseCommandLineArgs(argv, argc);
 
-    if (argc > 1)
-    {
-        if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0)
-        {
-            m_forceComputeFallback = true;
-            m_raytracingAPI = RaytracingAPI::FallbackLayer;
-        }
-        else if (_wcsnicmp(argv[1], L"-DXR", wcslen(argv[1])) == 0)
-        {
-            m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
-        }
-    }
+	for (int i = 1; i < argc; ++i)
+	{
+		if (_wcsnicmp(argv[i], L"-FL", wcslen(argv[i])) == 0)
+		{
+			m_forceComputeFallback = true;
+			m_raytracingAPI = RaytracingAPI::FallbackLayer;
+		}
+		else if (_wcsnicmp(argv[i], L"-DXR", wcslen(argv[i])) == 0)
+		{
+			m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
+		}
+	}
 }
 
 void D3D12RaytracingProceduralGeometry::DoRaytracing()

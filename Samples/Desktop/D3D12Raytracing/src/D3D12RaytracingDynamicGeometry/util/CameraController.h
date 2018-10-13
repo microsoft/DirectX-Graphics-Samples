@@ -22,19 +22,8 @@ namespace GameCore
 
         void SlowMovement( bool enable ) { m_FineMovement = enable; }
         void SlowRotation( bool enable ) { m_FineRotation = enable; }
-
         void EnableMomentum( bool enable ) { m_Momentum = enable; }
-
-		const DirectX::XMVECTOR& GetWorldEast() const { return m_WorldEast; }
-		const DirectX::XMVECTOR& GetWorldUp() const { return m_WorldUp; }
-        const DirectX::XMVECTOR& GetWorldNorth() const { return m_WorldNorth; }
-        float GetCurrentHeading() { return m_CurrentHeading; }
-        float GetCurrentPitch() { return m_CurrentPitch; }
-
-        void SetCurrentHeading(float heading) { m_CurrentHeading = heading; }
-        void SetCurrentPitch(float pitch) { m_CurrentPitch = pitch; }
-
-
+			   
     private:
         CameraController& operator=( const CameraController& ) {return *this;}
 

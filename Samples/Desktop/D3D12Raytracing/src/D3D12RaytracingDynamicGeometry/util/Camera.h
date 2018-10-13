@@ -22,29 +22,30 @@ namespace GameCore
 		Camera();
 		~Camera();
 
+		// Accessors.
+		Camera* Get() { return s_camera; }
 		const DirectX::XMVECTOR& Eye() const { return m_eye; }
 		const DirectX::XMVECTOR& At() const { return m_at; }
 		const DirectX::XMVECTOR& Up() const { return m_up; }
 		DirectX::XMVECTOR Forward() { return DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(m_at, m_eye)); }
 
-
+		// Member functions.
+		void GetProj(DirectX::XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords = false);
 		void GetViewProj(DirectX::XMMATRIX *view, DirectX::XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords = false);
-
-		void Reset();
 		void Set(const DirectX::XMVECTOR& eye, const DirectX::XMVECTOR& at, const DirectX::XMVECTOR& up);
-		static Camera *get();
 		void RotateAroundYAxis(float angleRad);
 		void RotateYaw(float angleRad);
 		void RotatePitch(float angleRad);
-		void TranslateForward(float translation);
-		void TranslateRight(float translation);
-		void TranslateUp(float translation);
-		void TranslateRightUpForward(float right, float up, float forward);
+		void TranslateForward(float delta);
+		void TranslateRight(float delta);
+		void TranslateUp(float delta);
+		void TranslateRightUpForward(float deltaRight, float deltaUp, float deltaForward);
 
 	private:
-		static Camera* mCamera;
-		DirectX::XMVECTOR m_eye; // Where the camera is in world space. Z increases into of the screen when using LH coord system (which we are and DX uses)
-		DirectX::XMVECTOR m_at; // What the camera is looking at (world origin)
-		DirectX::XMVECTOR m_up; // Which way is up
+		static Camera* s_camera;
+		// Homogenous camera vectors: points(x,y,z,1), vectors(x,y,z,0).
+		DirectX::XMVECTOR m_eye; // Where the camera is in world space. Z increases into of the screen when using LH coord system (which we are and DX uses).
+		DirectX::XMVECTOR m_at; // What the camera is looking at (world origin).
+		DirectX::XMVECTOR m_up; // Normalized up vector always with w = 0.
 	};
 }

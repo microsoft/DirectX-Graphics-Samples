@@ -9,7 +9,7 @@
 //
 //*********************************************************
 
-#include "stdafx.h"
+#include "../stdafx.h"
 #include "DeviceResources.h"
 #include "Win32Application.h"
 

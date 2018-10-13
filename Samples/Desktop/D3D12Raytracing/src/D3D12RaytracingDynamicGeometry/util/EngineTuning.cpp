@@ -11,7 +11,7 @@
 // Author:  James Stanard 
 //
 
-#include "stdafx.h"
+#include "../stdafx.h"
 #include "EngineTuning.h"
 #include "GameInput.h"
 using namespace std;

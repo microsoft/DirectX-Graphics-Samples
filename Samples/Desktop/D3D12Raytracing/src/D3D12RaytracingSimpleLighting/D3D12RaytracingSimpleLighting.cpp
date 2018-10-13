@@ -815,14 +815,14 @@ void D3D12RaytracingSimpleLighting::ParseCommandLineArgs(WCHAR* argv[], int argc
 {
     DXSample::ParseCommandLineArgs(argv, argc);
 
-    if (argc > 1)
+	for (int i = 1; i < argc; ++i)
     {
-        if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0 )
+        if (_wcsnicmp(argv[i], L"-FL", wcslen(argv[i])) == 0 )
         {
             m_forceComputeFallback = true;
             m_raytracingAPI = RaytracingAPI::FallbackLayer;
         }
-        else if (_wcsnicmp(argv[1], L"-DXR", wcslen(argv[1])) == 0)
+        else if (_wcsnicmp(argv[i], L"-DXR", wcslen(argv[i])) == 0)
         {
             m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
         }
