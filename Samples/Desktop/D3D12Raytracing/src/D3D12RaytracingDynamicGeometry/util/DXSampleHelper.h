@@ -95,7 +95,7 @@ inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
     }
 }
 
-inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)
+inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size, bool rhCoords = true)
 {
     using namespace Microsoft::WRL;
 

@@ -78,7 +78,7 @@ void Camera::RotateYaw(float angleRad)
 
 void Camera::RotatePitch(float angleRad)
 {
-	XMVECTOR right = XMVector3Cross(m_at - m_eye, m_up);
+	XMVECTOR right = XMVector3Cross(-(m_at - m_eye), m_up);
 	XMMATRIX rotation = XMMatrixRotationAxis(right, angleRad);
 
 	m_at = m_eye + XMVector3TransformNormal(m_at - m_eye, rotation);

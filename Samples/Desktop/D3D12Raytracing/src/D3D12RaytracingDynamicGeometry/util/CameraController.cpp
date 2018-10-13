@@ -22,7 +22,7 @@ CameraController::CameraController( Camera& camera) : m_TargetCamera( camera )
     m_MoveSpeed = 1000.0f;
     m_StrafeSpeed = 1000.0f;
     m_MouseSensitivityX = 1.0f;
-    m_MouseSensitivityY = 1.0f;
+    m_MouseSensitivityY = -1.0f;
 
     m_FineMovement = false;
     m_FineRotation = false;

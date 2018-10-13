@@ -118,12 +118,7 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.TMax = 10000;
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
     TraceRay(g_scene,
-#if ONLY_SQUID_SCENE_BLAS
-// ToDo Fix assets
-		RAY_FLAG_CULL_FRONT_FACING_TRIANGLES,
-#else
         RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
-#endif
 		TraceRayParameters::InstanceMask,
         TraceRayParameters::HitGroup::Offset[RayType::Radiance],
         TraceRayParameters::HitGroup::GeometryStride,
@@ -148,7 +143,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
-    rayDesc.TMin = 0.01;
+    rayDesc.TMin = 0.0;
 	rayDesc.TMax = 15;// 0000;	// ToDo set this to dist to light
 
     // Initialize shadow ray payload.
@@ -156,12 +151,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     // Shadow miss shader, if called, will set it to false.
     ShadowRayPayload shadowPayload = { true };
     TraceRay(g_scene,
-#if ONLY_SQUID_SCENE_BLAS
-		// ToDo Fix assets
-		RAY_FLAG_CULL_FRONT_FACING_TRIANGLES
-#else
 		RAY_FLAG_CULL_BACK_FACING_TRIANGLES
-#endif
 // ToDo - define smaller ray distances       | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
         | RAY_FLAG_FORCE_OPAQUE             // ~skip any hit shaders
         | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders,
@@ -245,7 +235,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
     // Shadow component.
     // Trace a shadow ray.
     float3 hitPosition = HitWorldPosition();
-    Ray shadowRay = { hitPosition, normalize(g_sceneCB.lightPosition.xyz - hitPosition) };
+    Ray shadowRay = { hitPosition + 0.0001f * triangleNormal, normalize(g_sceneCB.lightPosition.xyz - hitPosition) };
     bool shadowRayHit = TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
 
     float checkers = 1.0f;// AnalyticalCheckersTexture(HitWorldPosition(), triangleNormal, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorldWithCameraEyeAtOrigin );
@@ -302,7 +292,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
         float3 rayDirection = sample.x * u + sample.y * v + sample.z * w;
 
         float3 hitPosition = HitWorldPosition();
-        Ray shadowRay = { hitPosition, normalize(rayDirection) };
+        Ray shadowRay = { hitPosition + 0.0001f * triangleNormal, normalize(rayDirection) };
 #if 1
         if (TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth))
         {

@@ -194,6 +194,7 @@ private:
 	bool m_isASinitializationRequested;
 	bool m_isASrebuildRequested;
 
+	void ConvertRHtoLHGeometry(UINT8* pAssetData);
 	void LoadSceneGeometry();
     void EnableDirectXRaytracing(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);

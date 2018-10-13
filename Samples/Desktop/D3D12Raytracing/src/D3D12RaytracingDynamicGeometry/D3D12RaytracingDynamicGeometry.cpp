@@ -321,7 +321,7 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
         // Initialize the view and projection inverse matrices.
 #if ONLY_SQUID_SCENE_BLAS
 #if 1
-		XMVECTOR eye = XMVectorSet(0.0f, 80, -268.555980f, 1);
+		XMVECTOR eye = XMVectorSet(0.0f, 80, 268.555980f, 1);
 		XMVECTOR at = XMVectorSet(0, 80, 0, 1);
 		XMVECTOR up = XMVectorSet(0, 1, 0, 0);
 #elif 0
@@ -402,7 +402,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(9, 83, Samplers::HemisphereDistribution::Cosine);
+    m_randomSampler.Reset(36, 83, Samplers::HemisphereDistribution::Cosine);
 
     // Create root signature
     {
@@ -927,6 +927,42 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 }
 
 
+void D3D12RaytracingDynamicGeometry::ConvertRHtoLHGeometry(UINT8* pAssetData)
+{
+#if 0
+	// For every geometry.
+	for (auto& geometryDesc : SampleAssets::Draws)
+	{
+		SquidVertex* geometryVertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset) + geometryDesc.VertexBase;
+		UINT* geometryIndices = reinterpret_cast<UINT*>(pAssetData + SampleAssets::IndexDataOffset) + geometryDesc.IndexStart;
+		
+		// For every triangle.
+		for (UINT index = 0; index < geometryDesc.IndexCount; index += 3)
+		{
+			UINT* triangleIndices[3] = { &geometryIndices[index], &geometryIndices[index + 1], &geometryIndices[index + 2] };
+
+			// RH -> LH
+			for (UINT i = 0; i < 3; i++)
+			{
+				auto& vertex = geometryVertices[*triangleIndices[i]];
+				vertex.position.z = -vertex.position.z;
+				vertex.normal.z = -vertex.normal.z;
+			}
+		}
+	}
+#else
+	SquidVertex* vertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset);
+	UINT nVertices = SampleAssets::VertexDataSize / sizeof(SquidVertex);
+
+	for (UINT i = 0; i < nVertices; i++)
+	{
+		auto& vertex = vertices[i];
+		vertex.position.z = -vertex.position.z;
+		// ToDo Why normal.z shouldn't get mirrored?
+	}
+#endif
+}
+
 void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 {
 	auto device = m_deviceResources->GetD3DDevice();
@@ -936,6 +972,7 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 	UINT fileSize = 0;
 	UINT8* pAssetData;
 	ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(SampleAssets::DataFileName).c_str(), &pAssetData, &fileSize));
+	ConvertRHtoLHGeometry(pAssetData);
 
 	// Create the vertex buffer.
 	{
