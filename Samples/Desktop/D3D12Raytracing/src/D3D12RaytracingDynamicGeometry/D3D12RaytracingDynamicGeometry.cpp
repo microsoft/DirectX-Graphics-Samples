@@ -397,7 +397,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
-    m_randomSampler.Reset(36, 83, Samplers::HemisphereDistribution::Cosine);
+    m_randomSampler.Reset(c_sppAO, 83, Samplers::HemisphereDistribution::Cosine);
 
     // Create root signature
     {
@@ -1823,8 +1823,9 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         wLabel << L" GPU[" << m_deviceResources->GetAdapterID() << L"]: " 
                << m_deviceResources->GetAdapterDescription() << L"\n";
         wLabel << fixed << L" FPS: " << m_fps << L"\n";
-        wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing].GetElapsedMS()
-               << L"ms" << L"     ~Million Primary Rays/s: " << NumMRaysPerSecond()
+		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing].GetElapsedMS()
+			   << L"ms" << L"     ~Million Primary Rays/s: " << NumMRaysPerSecond()
+   			   << L"   ~Million AO rays/s" << NumMRaysPerSecond() * c_sppAO
                << L"\n";
         wLabel << fixed << L" AS update (BLAS / TLAS / Total): "
                << m_gpuTimers[GpuTimers::UpdateBLAS].GetElapsedMS() << L"ms / "
@@ -1863,7 +1864,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
 	{
 		wstringstream wLabel;
 		wLabel << L"\n\n\n\n";
-		wLabel << L"														   ";
+		//wLabel << L"														   ";
 		wLabel << L"Sample set: " << 25; // ToDO
 		labels.push_back(wLabel.str());
 	}
@@ -1990,7 +1991,7 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     m_computeCB->stratums = XMUINT2(static_cast<UINT>(sqrt(m_randomSampler.NumSamples())), 
                                     static_cast<UINT>(sqrt(m_randomSampler.NumSamples())));
     m_computeCB->grid = XMUINT2(m_randomSampler.NumSamples(), m_randomSampler.NumSamples());
-    m_computeCB->uavOffset = XMUINT2(m_width - rngWindowSize.x, m_height - rngWindowSize.y);
+    m_computeCB->uavOffset = XMUINT2(0 /*m_width - rngWindowSize.x*/, m_height - rngWindowSize.y);
     m_computeCB->numSamples = m_randomSampler.NumSamples();
     m_computeCB->numSampleSets = m_randomSampler.NumSampleSets();
 
