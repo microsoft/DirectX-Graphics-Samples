@@ -117,7 +117,7 @@ struct RNGConstantBuffer
 
 struct SceneConstantBuffer
 {
-    XMMATRIX projectionToWorld;
+    XMMATRIX projectionToWorldWithCameraEyeAtOrigin;	// projection to world matrix with Camera at (0,0,0).
     XMVECTOR cameraPosition;
     XMVECTOR lightPosition;
     XMVECTOR lightAmbientColor;
