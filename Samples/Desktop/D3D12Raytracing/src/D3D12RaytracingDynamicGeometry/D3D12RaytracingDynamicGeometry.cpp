@@ -320,19 +320,10 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
     {
         // Initialize the view and projection inverse matrices.
 #if ONLY_SQUID_SCENE_BLAS
-#if 1
 		XMVECTOR eye = XMVectorSet(0.0f, 80, 268.555980f, 1);
 		XMVECTOR at = XMVectorSet(0, 80, 0, 1);
 		XMVECTOR up = XMVectorSet(0, 1, 0, 0);
-#elif 0
-		XMVECTOR eye = XMVectorSet(215.815994, 1238.98132, -2074.55811, 1.00000000);
-		XMVECTOR at = XMVectorSet(188.561310, 1094.73657, -1849.67334, 1.00000000);
-		XMVECTOR up = XMVectorSet(-0.0206577014, 0.842688203, 0.538005412, 0.000000000);
-#else
-		XMVECTOR eye = XMVectorSet(0.0f, 80, -268.555980f, 1);
-		XMVECTOR at = XMVectorSet(0, 80, 0, 1);
-		XMVECTOR up = XMVectorSet(0, 1, 0, 0);
-#endif
+		
 #if 0
 		m_camera.SetEyeAtUp(eye, at, up);
 		m_camera.SetZRange(1.0f, 10000.0f);
@@ -357,6 +348,10 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
         UpdateCameraMatrices();
     }
 	m_cameraController = make_unique<CameraController>(m_camera);
+
+#if ONLY_SQUID_SCENE_BLAS
+	m_cameraController->SetBoundaries(XMVectorSet(-430, 2.2, -428, 1), XMVectorSet(408, 358, 416, 1));
+#endif
 
     // Setup lights.
     {
@@ -1863,13 +1858,23 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         EngineTuning::Display(&wLabel);
         labels.push_back(wLabel.str());
     }
+
+	// Sampling info:
+	{
+		wstringstream wLabel;
+		wLabel << L"\n\n\n\n";
+		wLabel << L"														   ";
+		wLabel << L"Sample set: " << 25; // ToDO
+		labels.push_back(wLabel.str());
+	}
 #endif
     wstring uiText = L"";
     for (auto s : labels)
     {
         uiText += s;
     }
-    m_uiLayer->UpdateLabels(uiText);
+
+	m_uiLayer->UpdateLabels(uiText);
 }
 
 // Create resources that are dependent on the size of the main window.

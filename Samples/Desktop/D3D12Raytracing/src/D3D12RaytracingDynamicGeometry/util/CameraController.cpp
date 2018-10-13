@@ -15,7 +15,7 @@
 using namespace DirectX;
 using namespace GameCore;
 
-CameraController::CameraController( Camera& camera) : m_TargetCamera( camera )
+CameraController::CameraController(Camera& camera) : m_camera(camera)
 {
     m_HorizontalLookSensitivity = 2.0f;
     m_VerticalLookSensitivity = 2.0f;
@@ -33,9 +33,18 @@ CameraController::CameraController( Camera& camera) : m_TargetCamera( camera )
     m_LastForward = 0.0f;
     m_LastStrafe = 0.0f;
     m_LastAscent = 0.0f;
+
+	m_boundaryMin = -XMVectorSplatInfinity();
+	m_boundaryMax = XMVectorSplatInfinity();
 }
 
-void CameraController::Update( float deltaTime )
+void CameraController::SetBoundaries(const XMVECTOR& _min, XMVECTOR& _max)
+{
+	m_boundaryMin = _min;
+	m_boundaryMax = _max;
+}
+
+void CameraController::Update(float deltaTime)
 {
     (deltaTime);
 
@@ -50,24 +59,24 @@ void CameraController::Update( float deltaTime )
     float speedScale = (m_FineMovement ? 0.1f : 1.0f) * timeScale;
     float panScale = (m_FineRotation ? 0.5f : 1.0f) * timeScale;
 
-    float yaw = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickX ) * m_HorizontalLookSensitivity * panScale;
-    float pitch = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickY ) * m_VerticalLookSensitivity * panScale;
+    float yaw = GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogRightStickX) * m_HorizontalLookSensitivity * panScale;
+    float pitch = GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogRightStickY) * m_VerticalLookSensitivity * panScale;
     float forward = m_MoveSpeed * speedScale * (
-        GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogLeftStickY ) +
-        (GameInput::IsPressed( GameInput::kKey_w ) ? deltaTime : 0.0f) +
-        (GameInput::IsPressed( GameInput::kKey_s ) ? -deltaTime : 0.0f)
-        );
+        GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogLeftStickY) +
+        (GameInput::IsPressed(GameInput::kKey_w) ? deltaTime : 0.0f) +
+        (GameInput::IsPressed(GameInput::kKey_s) ? -deltaTime : 0.0f)
+      );
     float strafe = m_StrafeSpeed * speedScale * (
-        GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogLeftStickX  ) +
-        (GameInput::IsPressed( GameInput::kKey_d ) ? deltaTime : 0.0f) +
-        (GameInput::IsPressed( GameInput::kKey_a ) ? -deltaTime : 0.0f)
-        );
+        GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogLeftStickX) +
+        (GameInput::IsPressed(GameInput::kKey_d) ? deltaTime : 0.0f) +
+        (GameInput::IsPressed(GameInput::kKey_a) ? -deltaTime : 0.0f)
+      );
     float ascent = m_StrafeSpeed * speedScale * (
-        GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightTrigger ) -
-        GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogLeftTrigger ) +
-        (GameInput::IsPressed( GameInput::kKey_e ) ? deltaTime : 0.0f) +
-        (GameInput::IsPressed( GameInput::kKey_q ) ? -deltaTime : 0.0f)
-        );
+        GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogRightTrigger) -
+        GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogLeftTrigger) +
+        (GameInput::IsPressed(GameInput::kKey_e) ? deltaTime : 0.0f) +
+        (GameInput::IsPressed(GameInput::kKey_q) ? -deltaTime : 0.0f)
+      );
 
     if (m_Momentum)
     {
@@ -82,12 +91,21 @@ void CameraController::Update( float deltaTime )
     yaw += GameInput::GetAnalogInput(GameInput::kAnalogMouseX) * m_MouseSensitivityX;
     pitch += GameInput::GetAnalogInput(GameInput::kAnalogMouseY) * m_MouseSensitivityY;
 
-	m_TargetCamera.RotateYaw(yaw);
-	m_TargetCamera.RotatePitch(pitch);
-	m_TargetCamera.TranslateRightUpForward(strafe, ascent, forward);
+	m_camera.RotateYaw(yaw);
+	m_camera.RotatePitch(pitch);
+	m_camera.TranslateRightUpForward(strafe, ascent, forward);
+
+	// Confine camera within a boundary.
+	{
+		XMVECTOR eye = m_camera.Eye();
+		XMVECTOR eyeToAt = m_camera.At() - eye;
+		eye = XMVectorMin(eye, m_boundaryMax);
+		eye = XMVectorMax(eye, m_boundaryMin);
+		m_camera.Set(eye, eye + eyeToAt, m_camera.Up());
+	}
 }
 
-void CameraController::ApplyMomentum( float& oldValue, float& newValue, float deltaTime )
+void CameraController::ApplyMomentum(float& oldValue, float& newValue, float deltaTime)
 {
     float blendedValue;
     if (fabsf(newValue) > fabsf(oldValue))

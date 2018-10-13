@@ -318,8 +318,8 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 [shader("miss")]
 void MyMissShader(inout RayPayload rayPayload)
 {
-	float4 skydome = float4(1, 1, 1, 1)* max(0, (WorldRayDirection().y + 0.75)/1.75f);
-    float4 backgroundColor = float4(BackgroundColor) +skydome;
+	
+    float4 backgroundColor = float4(BackgroundColor);
     rayPayload.color = backgroundColor;
 }
 

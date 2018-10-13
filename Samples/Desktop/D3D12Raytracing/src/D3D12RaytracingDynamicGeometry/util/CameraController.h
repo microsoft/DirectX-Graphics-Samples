@@ -16,20 +16,21 @@ namespace GameCore
     class CameraController
     {
     public:
-        CameraController( Camera& camera );
+        CameraController(Camera& camera);
 
-        void Update( float dt );
+        void Update(float dt);
 
-        void SlowMovement( bool enable ) { m_FineMovement = enable; }
-        void SlowRotation( bool enable ) { m_FineRotation = enable; }
-        void EnableMomentum( bool enable ) { m_Momentum = enable; }
-			   
+        void SlowMovement(bool enable) { m_FineMovement = enable; }
+        void SlowRotation(bool enable) { m_FineRotation = enable; }
+        void EnableMomentum(bool enable) { m_Momentum = enable; }
+		void SetBoundaries(const DirectX::XMVECTOR& _min, DirectX::XMVECTOR& _max);
+
     private:
-        CameraController& operator=( const CameraController& ) {return *this;}
+        CameraController& operator=(const CameraController&) {return *this;}
 
-        void ApplyMomentum( float& oldValue, float& newValue, float deltaTime );
+        void ApplyMomentum(float& oldValue, float& newValue, float deltaTime);
 
-        Camera& m_TargetCamera;
+        Camera& m_camera;
         float m_HorizontalLookSensitivity;
         float m_VerticalLookSensitivity;
         float m_MoveSpeed;
@@ -46,5 +47,8 @@ namespace GameCore
         float m_LastForward;
         float m_LastStrafe;
         float m_LastAscent;
+
+		DirectX::XMVECTOR m_boundaryMin;
+		DirectX::XMVECTOR m_boundaryMax;
     };
 }
