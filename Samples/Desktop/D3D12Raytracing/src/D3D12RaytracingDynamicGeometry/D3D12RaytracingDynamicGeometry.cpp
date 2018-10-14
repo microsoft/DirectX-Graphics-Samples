@@ -1614,6 +1614,9 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
         m_isASinitializationRequested = false;
 #endif
         m_deviceResources->ExecuteCommandList();
+
+		// ToDo remove CPU-GPU syncs
+		m_deviceResources->WaitForGpu();
     }
 #if ENABLE_RAYTRACING
     if (m_animateScene)
