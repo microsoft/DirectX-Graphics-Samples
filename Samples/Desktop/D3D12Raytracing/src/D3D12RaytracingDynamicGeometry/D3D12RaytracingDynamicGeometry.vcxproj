@@ -196,6 +196,7 @@ PrebuildCheck.bat</Command>
     <ClCompile Include="D3D12RaytracingDynamicGeometry.cpp" />
     <ClCompile Include="DirectXRaytracingHelper.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="RaytracingSceneDefines.cpp" />
     <ClCompile Include="Sampler.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

@@ -115,6 +115,35 @@ namespace UIParameters {
 	};
 }
 
+struct CameraPosition
+{
+	XMVECTOR eye, at, up;
+};
+
+namespace Scene {
+	namespace Type {
+		enum Enum {
+			SingleObject = 0,
+			GeometricForest,
+			SquidRoom,
+			Count
+		};
+		extern const WCHAR* Names[Count];
+	}
+	
+
+	struct Params {
+		CameraPosition cameraPosition;
+	};
+
+	class Initialize
+	{
+	public:
+		Initialize();
+	};
+	extern Params args[Scene::Type::Count];
+}
+
 namespace SceneEnums
 {
 	namespace VertexBuffer {

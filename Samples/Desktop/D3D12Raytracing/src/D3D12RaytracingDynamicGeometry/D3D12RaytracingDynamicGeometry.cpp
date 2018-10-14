@@ -68,6 +68,9 @@ namespace SceneArgs
 
     BoolVar EnableGeometryAndASBuildsAndUpdates(L"Enable geometry & AS builds and updates", true);
 
+
+	EnumVar SceneType(L"Scene", Scene::Type::SquidRoom, Scene::Type::Count, Scene::Type::Names);
+
     enum UpdateMode { Build = 0, Update, Update_BuildEveryXFrames };
     const WCHAR* UpdateModes[] = { L"Build only", L"Update only", L"Update + build every X frames" };
     EnumVar ASUpdateMode(L"Acceleration structure/Update mode", Build, _countof(UpdateModes), UpdateModes);
@@ -143,6 +146,8 @@ void D3D12RaytracingDynamicGeometry::EnableDirectXRaytracing(IDXGIAdapter1* adap
         m_raytracingAPI = RaytracingAPI::FallbackLayer;
     }
 }
+
+
 
 void D3D12RaytracingDynamicGeometry::OnInit()
 {
@@ -319,32 +324,8 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-#if ONLY_SQUID_SCENE_BLAS
-		XMVECTOR eye = XMVectorSet(0.0f, 80, 268.555980f, 1);
-		XMVECTOR at = XMVectorSet(0, 80, 0, 1);
-		XMVECTOR up = XMVectorSet(0, 1, 0, 0);
-		
-#if 0
-		m_camera.SetEyeAtUp(eye, at, up);
-		m_camera.SetZRange(1.0f, 10000.0f);
-		m_camera.SetPerspectiveMatrix(XM_PIDIV4, static_cast<float>(m_height) / m_width, 0.1f, 1000.f);
-#else
-		m_camera.Set(eye, at, up);
-#endif
-#else
-		m_eye = { 0.0f, 6.3f, -17.0f, 1.0f };
-		m_at = { 0.0f, 1.0f, 0.0f, 1.0f };
-		XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
-
-		XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
-		m_up = XMVector3Normalize(XMVector3Cross(direction, right));
-
-		// Rotate camera around Y axis.
-		XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
-		m_eye = XMVector3Transform(m_eye, rotate);
-		m_up = XMVector3Transform(m_up, rotate);
-#endif
-
+		auto& camera = Scene::args[SceneArgs::SceneType].cameraPosition;
+		m_camera.Set(camera.eye, camera.at, camera.up);
         UpdateCameraMatrices();
     }
 	m_cameraController = make_unique<CameraController>(m_camera);
@@ -997,18 +978,34 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 		vertexData.SlicePitch = vertexData.RowPitch;
 
 #if CULL_SQUID_CONTAINER_SIDE_PANELS
-		const UINT sidePanelsGeometryID = 848;
-		auto& geometryDesc = SampleAssets::Draws[sidePanelsGeometryID];
-		SquidVertex* geometryVertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset) + geometryDesc.VertexBase;
-		UINT* geometryIndices = reinterpret_cast<UINT*>(pAssetData + SampleAssets::IndexDataOffset) + geometryDesc.IndexStart;
-
-		// Deactivate vertices by setting x-coordinate to NaN.
-		for (UINT i = 0; i < geometryDesc.IndexCount; i++)
 		{
-			auto& vertex = geometryVertices[geometryIndices[i]];
-			vertex.position.x = nanf("");
+			const UINT sidePanelsGeometryID = 848;
+			auto& geometryDesc = SampleAssets::Draws[sidePanelsGeometryID];
+			SquidVertex* geometryVertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset) + geometryDesc.VertexBase;
+			UINT* geometryIndices = reinterpret_cast<UINT*>(pAssetData + SampleAssets::IndexDataOffset) + geometryDesc.IndexStart;
+
+			// Deactivate vertices by setting x-coordinate to NaN.
+			for (UINT i = 0; i < geometryDesc.IndexCount; i++)
+			{
+				auto& vertex = geometryVertices[geometryIndices[i]];
+				vertex.position.x = nanf("");
+			}
 		}
 #endif
+		//{
+		//	// Disable geometry with bad normals.
+		//	const UINT sidePanelsGeometryID = 300;
+		//	auto& geometryDesc = SampleAssets::Draws[sidePanelsGeometryID];
+		//	SquidVertex* geometryVertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset) + geometryDesc.VertexBase;
+		//	UINT* geometryIndices = reinterpret_cast<UINT*>(pAssetData + SampleAssets::IndexDataOffset) + geometryDesc.IndexStart;
+
+		//	// Deactivate vertices by setting x-coordinate to NaN.
+		//	for (UINT i = 0; i < geometryDesc.IndexCount; i++)
+		//	{
+		//		auto& vertex = geometryVertices[geometryIndices[i]];
+		//		vertex.position.x = nanf("");
+		//	}
+		//}
 
 		PIXBeginEvent(commandList, 0, L"Copy vertex buffer data to default resource...");
 

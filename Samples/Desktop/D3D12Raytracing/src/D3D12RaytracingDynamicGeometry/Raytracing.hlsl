@@ -152,7 +152,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     ShadowRayPayload shadowPayload = { true };
     TraceRay(g_scene,
 		RAY_FLAG_CULL_BACK_FACING_TRIANGLES
-// ToDo - define smaller ray distances       | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
+		| RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
         | RAY_FLAG_FORCE_OPAQUE             // ~skip any hit shaders
         | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders,
         TraceRayParameters::InstanceMask,

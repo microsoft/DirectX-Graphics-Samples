@@ -132,6 +132,8 @@ private:
 	std::vector<UINT> m_geometryVBHeapIndices;
 
 
+
+
 	// ToDo clean up buffer management
 	// SquidScene buffers
 	ComPtr<ID3D12Resource> m_vertexBuffer;
@@ -182,7 +184,7 @@ private:
 	bool m_isCameraFrozen;
 	GameCore::Camera m_camera;
 	std::unique_ptr<GameCore::CameraController> m_cameraController;
-
+	
 	// AO
 	const UINT c_sppAO = 16;	// Samples per pixel for Ambient Occlusion.
 
@@ -199,6 +201,7 @@ private:
 
 	void ConvertRHtoLHGeometry(UINT8* pAssetData);
 	void LoadSceneGeometry();
+	void InitializeSceneParameters();
     void EnableDirectXRaytracing(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
