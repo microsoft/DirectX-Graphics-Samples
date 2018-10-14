@@ -115,11 +115,6 @@ namespace UIParameters {
 	};
 }
 
-struct CameraPosition
-{
-	XMVECTOR eye, at, up;
-};
-
 namespace Scene {
 	namespace Type {
 		enum Enum {
@@ -130,10 +125,26 @@ namespace Scene {
 		};
 		extern const WCHAR* Names[Count];
 	}
-	
+
+
+	struct Camera
+	{
+		struct CameraPosition
+		{
+			XMVECTOR eye, at, up;
+		};
+
+		struct CameraBoundaries
+		{
+			XMVECTOR min, max;
+		};
+
+		CameraPosition position;
+		CameraBoundaries boundaries;
+	};
 
 	struct Params {
-		CameraPosition cameraPosition;
+		Camera camera;
 	};
 
 	class Initialize

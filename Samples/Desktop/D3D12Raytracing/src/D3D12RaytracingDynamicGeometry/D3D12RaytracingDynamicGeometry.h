@@ -60,6 +60,7 @@ public:
 
 	void RequestGeometryInitialization(bool bRequest) { m_isGeometryInitializationRequested = bRequest; }
 	void RequestASInitialization(bool bRequest) { m_isASinitializationRequested = bRequest; }
+	void RequestSceneInitialization() { m_isSceneInitializationRequested = true; }
 
 	static const UINT MaxBLAS = 1000;
 
@@ -198,10 +199,10 @@ private:
 	bool m_isGeometryInitializationRequested;
 	bool m_isASinitializationRequested;
 	bool m_isASrebuildRequested;
+	bool m_isSceneInitializationRequested;
 
 	void ConvertRHtoLHGeometry(UINT8* pAssetData);
 	void LoadSceneGeometry();
-	void InitializeSceneParameters();
     void EnableDirectXRaytracing(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();

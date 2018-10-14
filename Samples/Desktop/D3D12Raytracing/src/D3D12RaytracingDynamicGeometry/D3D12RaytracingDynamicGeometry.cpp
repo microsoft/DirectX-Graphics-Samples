@@ -61,6 +61,11 @@ namespace SceneArgs
     }
     function<void(void*)> OnGeometryChange = OnGeometryReinitializationNeeded;
     function<void(void*)> OnASChange = OnASReinitializationNeeded;
+	
+	void OnSceneChange()
+	{
+		g_pSample->RequestSceneInitialization();
+	}
 
     enum RaytracingMode { FLDXR = 0, FL, DXR };
     const WCHAR* RaytracingModes[] = { L"FL-DXR", L"FL",L"DXR" };
@@ -69,7 +74,7 @@ namespace SceneArgs
     BoolVar EnableGeometryAndASBuildsAndUpdates(L"Enable geometry & AS builds and updates", true);
 
 
-	EnumVar SceneType(L"Scene", Scene::Type::SquidRoom, Scene::Type::Count, Scene::Type::Names);
+	EnumVar SceneType(L"Scene", Scene::Type::SquidRoom, Scene::Type::Count, Scene::Type::Names, OnSceneChange, nullptr);
 
     enum UpdateMode { Build = 0, Update, Update_BuildEveryXFrames };
     const WCHAR* UpdateModes[] = { L"Build only", L"Update only", L"Update + build every X frames" };
@@ -173,6 +178,7 @@ void D3D12RaytracingDynamicGeometry::OnInit()
     
     // ToDo cleanup
     m_deviceResources->CreateDeviceResources();
+	// Initialize scene ToDo
     InitializeScene();
     CreateDeviceDependentResources();
     m_deviceResources->CreateWindowSizeDependentResources();
@@ -187,7 +193,6 @@ D3D12RaytracingDynamicGeometry::~D3D12RaytracingDynamicGeometry()
 void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
 {
     m_sceneCB->cameraPosition = m_camera.Eye();
-
 
 	float fovAngleY = 90.0f;
 	XMMATRIX view, proj;
@@ -309,43 +314,26 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
         XMFLOAT4 green = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
         XMFLOAT4 red = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
         XMFLOAT4 yellow = XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f);
-
-#if 0
-        UINT offset = 0;
-        // Analytic primitives.
-        {
-            using namespace AnalyticPrimitive;
-            SetAttributes(offset + Spheres, ChromiumReflectance, 1);
-            offset += AnalyticPrimitive::Count;
-        }
-#endif
     }
 
     // Setup camera.
-    {
-        // Initialize the view and projection inverse matrices.
-		auto& camera = Scene::args[SceneArgs::SceneType].cameraPosition;
-		m_camera.Set(camera.eye, camera.at, camera.up);
-        UpdateCameraMatrices();
-    }
-	m_cameraController = make_unique<CameraController>(m_camera);
-
-#if ONLY_SQUID_SCENE_BLAS
-	m_cameraController->SetBoundaries(XMVectorSet(-430, 2.2, -428, 1), XMVectorSet(408, 358, 416, 1));
-#endif
+	{
+		// Initialize the view and projection inverse matrices.
+		auto& camera = Scene::args[SceneArgs::SceneType].camera;
+		m_camera.Set(camera.position.eye, camera.position.at, camera.position.up);
+		m_cameraController = make_unique<CameraController>(m_camera);
+		m_cameraController->SetBoundaries(camera.boundaries.min, camera.boundaries.max);
+	}
 
     // Setup lights.
     {
         // Initialize the lighting parameters.
+		// ToDo remove
         XMFLOAT4 lightPosition;
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
-#if ONLY_SQUID_SCENE_BLAS
-        lightPosition = XMFLOAT4(0.0f, 50.0f, -60.0f, 0.0f);
-#else
 		lightPosition = XMFLOAT4(0.0f, 50.0f, -60.0f, 0.0f);
-#endif
-        m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
+		m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 
         lightAmbientColor = XMFLOAT4(0.45f, 0.45f, 0.45f, 1.0f);
         m_sceneCB->lightAmbientColor = XMLoadFloat4(&lightAmbientColor);
@@ -1342,7 +1330,7 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
     // Hit group shader table.
     {
 #if ONLY_SQUID_SCENE_BLAS
-		UINT numShaderRecords = m_geometryInstances.size() * RayType::Count;
+		UINT numShaderRecords = static_cast<UINT>(m_geometryInstances.size()) * RayType::Count;
 #else
 		UINT numShaderRecords = RayType::Count + IntersectionShaderType::TotalPrimitiveCount * RayType::Count;
 #endif
@@ -1547,6 +1535,13 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
     auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
 
+	if (m_isSceneInitializationRequested)
+	{
+		m_isSceneInitializationRequested = false;
+		m_deviceResources->WaitForGpu();
+		OnInit();
+	}
+
     CalculateFrameStats();
 
     GameInput::Update(elapsedTime);
@@ -1560,7 +1555,6 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
 	if (!m_isCameraFrozen)
 	{
 		m_cameraController->Update(elapsedTime);
-		UpdateCameraMatrices();
 	}
 
 
@@ -1575,8 +1569,8 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
         m_eye = m_at + XMVector3TransformCoord(m_eye - m_at, rotate);
         m_up = XMVector3TransformCoord(m_up, rotate);
 #endif
-        UpdateCameraMatrices();
     }
+	UpdateCameraMatrices();
 
     // Rotate the second light around Y axis.
     if (m_animateLight)
@@ -1887,9 +1881,7 @@ void D3D12RaytracingDynamicGeometry::CreateWindowSizeDependentResources()
 
     // Create an output 2D texture to store the raytracing result to.
     CreateRaytracingOutputResource();
-    
-    UpdateCameraMatrices();
-    
+        
     if (m_enableUI)
     {
         if (!m_uiLayer)
