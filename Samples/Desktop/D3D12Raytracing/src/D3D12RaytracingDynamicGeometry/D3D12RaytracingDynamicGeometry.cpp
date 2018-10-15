@@ -1263,13 +1263,6 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
 #if RUNTIME_AS_UPDATES
-	// Update acceleration structures.
-	if (m_isASrebuildRequested && SceneArgs::EnableGeometryAndASBuildsAndUpdates)
-	{
-		UpdateAccelerationStructures(m_isASrebuildRequested);
-		m_isASrebuildRequested = false;
-	}
-
     // Lazy initialize and update geometries and acceleration structures.
     if (SceneArgs::EnableGeometryAndASBuildsAndUpdates &&
         (m_isGeometryInitializationRequested || m_isASinitializationRequested))
