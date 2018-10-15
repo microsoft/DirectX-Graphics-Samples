@@ -20,9 +20,12 @@
 //
 //**********************************************************************************************
 
+#define RUNTIME_AS_UPDATES 1
+#define USE_GPU_TRANSFORM 1
+
+
+
 #define ONLY_SQUID_SCENE_BLAS 0
-#define ENABLE_BREAK_ON_DEBUG_LAYER_ERROR 0
-#define RUNTIME_AS_UPDATES 0
 
 
 #ifdef HLSL
