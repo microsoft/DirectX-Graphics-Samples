@@ -21,12 +21,6 @@
 
 #include "UILayer.h"
 
-// The sample supports both Raytracing Fallback Layer and DirectX Raytracing APIs. 
-// This is purely for demonstration purposes to show where the API differences are. 
-// Real-world applications will implement only one or the other. 
-// Fallback Layer uses DirectX Raytracing if a driver and OS supports it. 
-// Otherwise, it falls back to compute pipeline to emulate raytracing.
-// Developers aiming for a wider HW support should target Fallback Layer.
 class D3D12RaytracingDynamicGeometry : public DXSample
 {
 public:
@@ -49,14 +43,10 @@ public:
 
 	UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
 	void CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex, UINT firstElement = 0);
-	WRAPPED_GPU_POINTER CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements, UINT* descriptorHeapIndex);
 
 	const DX::DeviceResources& GetDeviceResources() { return *m_deviceResources; }
-	RaytracingAPI GetRaytracingAPI() { return m_raytracingAPI; }
-	ID3D12RaytracingFallbackDevice* GetFallbackDevice() { return m_fallbackDevice.Get(); }
-	ID3D12RaytracingFallbackCommandList* GetFallbackCommandList() { return m_fallbackCommandList.Get(); }
     ID3D12Device5* GetDxrDevice() { return m_dxrDevice.Get(); }
-    ID3D12GraphicsCommandList5* GetDxrCommandList() { return m_deviceResources->GetCommandList(); }
+	ID3D12GraphicsCommandList4* GetDxrCommandList() { return m_deviceResources->GetCommandList(); }
 
 	void RequestGeometryInitialization(bool bRequest) { m_isGeometryInitializationRequested = bRequest; }
 	void RequestASInitialization(bool bRequest) { m_isASinitializationRequested = bRequest; }
@@ -84,17 +74,13 @@ private:
 	int m_numFramesSinceASBuild;
 	const float m_geometryRadius = 3.0f;
 
-	// Raytracing Fallback Layer (FL) attributes
-	ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
-	ComPtr<ID3D12RaytracingFallbackCommandList> m_fallbackCommandList;
-	ComPtr<ID3D12RaytracingFallbackStateObject> m_fallbackStateObject;
 	std::vector<UINT> m_bottomLevelASdescritorHeapIndices;
 	std::vector<UINT> m_bottomLevelASinstanceDescsDescritorHeapIndices;
 	UINT m_topLevelASdescritorHeapIndex;
 
 	// DirectX Raytracing (DXR) attributes
-	ComPtr<ID3D12Device5> m_dxrDevice;
-	ComPtr<ID3D12StateObjectPrototype> m_dxrStateObject;
+	ComPtr<ID3D12Device5> m_dxrDevice;		// ToDo remove
+	ComPtr<ID3D12StateObject> m_dxrStateObject;
 	bool m_isDxrSupported;
 
     // Compute resources.
@@ -176,8 +162,6 @@ private:
 	ComPtr<ID3D12Resource> m_rayGenShaderTable;
 
 	// Application state
-	RaytracingAPI m_raytracingAPI;
-	bool m_forceComputeFallback;
 	StepTimer m_timer;
 	bool m_animateCamera;
 	bool m_animateLight;
@@ -203,7 +187,6 @@ private:
 
 	void ConvertRHtoLHGeometry(UINT8* pAssetData);
 	void LoadSceneGeometry();
-    void EnableDirectXRaytracing(IDXGIAdapter1* adapter);
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
 	void UpdateBottomLevelASTransforms();
@@ -232,14 +215,12 @@ private:
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
 	void CreateAuxilaryDeviceResources();
-    void BuildDynamicGeometryAABBs();
     void InitializeGeometry();
     void BuildPlaneGeometry();
     void BuildTesselatedGeometry();
 	void GenerateBottomLevelASInstanceTransforms();
     void InitializeAccelerationStructures();
     void BuildShaderTables();
-    void SelectRaytracingAPI(RaytracingAPI type);
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
     void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();

@@ -14,7 +14,6 @@
 
 #define HLSL
 #include "RaytracingHlslCompat.h"
-#include "ProceduralPrimitivesLibrary.hlsli"
 #include "RaytracingShaderHelper.hlsli"
 #include "RandomNumberGenerator.hlsli"
 

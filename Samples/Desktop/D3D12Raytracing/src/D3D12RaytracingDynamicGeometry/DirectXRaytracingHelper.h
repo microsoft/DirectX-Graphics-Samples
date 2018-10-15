@@ -64,11 +64,6 @@ struct GeometryInstance
 	Buffer ib;
 };
 
-enum class RaytracingAPI {
-	FallbackLayer,
-	DirectXRaytracing,
-};
-
 class D3D12RaytracingDynamicGeometry;
 extern D3D12RaytracingDynamicGeometry* g_pSample;
 
@@ -138,15 +133,10 @@ private:
 
 class TopLevelAccelerationStructure : public AccelerationStructure
 {
-	union {
-		// ToDo handle release when API is being changed
-		// Descruction is  not safe if API changes before release
-		StructuredBuffer<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> m_fallbackLayerInstanceDescs;
-		StructuredBuffer<D3D12_RAYTRACING_INSTANCE_DESC> m_dxrInstanceDescs;
-	};
+	StructuredBuffer<D3D12_RAYTRACING_INSTANCE_DESC> m_dxrInstanceDescs;
 
 public:
-	TopLevelAccelerationStructure() : m_fallbackAccelerationStructureDescritorHeapIndex(UINT_MAX) {}
+	TopLevelAccelerationStructure() {}
 	~TopLevelAccelerationStructure();
 
 	UINT NumberOfBLAS();
@@ -155,14 +145,9 @@ public:
 	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, bool bUpdate = false);
 	void UpdateInstanceDescTransforms(std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS);
 
-	const WRAPPED_GPU_POINTER& GetFallbackAccelerationStructurePointer() { return m_fallbackAccelerationStructurePointer; }
-
 private:
 	void ComputePrebuildInfo();
 	void BuildInstanceDescs(ID3D12Device* device, std::vector<BottomLevelAccelerationStructure>& vBottomLevelAS, std::vector<UINT>* bottomLevelASinstanceDescsDescritorHeapIndices);
-
-	UINT m_fallbackAccelerationStructureDescritorHeapIndex;
-	WRAPPED_GPU_POINTER m_fallbackAccelerationStructurePointer;
 };
 
 // Shader record = {{Shader ID}, {RootArguments}}
@@ -405,18 +390,6 @@ inline void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc)
     }
     wstr << L"\n";
     OutputDebugStringW(wstr.str().c_str());
-}
-
-// Enable experimental features required for compute-based raytracing fallback.
-// This will set active D3D12 devices to DEVICE_REMOVED state.
-// Returns bool whether the call succeeded and the device supports the feature.
-inline bool EnableComputeRaytracingFallback(IDXGIAdapter1* adapter)
-{
-    ComPtr<ID3D12Device> testDevice;
-    UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels };
-
-    return SUCCEEDED(D3D12EnableExperimentalFeatures(1, experimentalFeatures, nullptr, nullptr))
-        && SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)));
 }
 
 // Returns bool whether the device supports DirectX Raytracing tier.

@@ -62,7 +62,7 @@ namespace SceneArgs
     function<void(void*)> OnGeometryChange = OnGeometryReinitializationNeeded;
     function<void(void*)> OnASChange = OnASReinitializationNeeded;
 	
-	void OnSceneChange()
+	void OnSceneChange(void*)
 	{
 		g_pSample->RequestSceneInitialization();
 	}
@@ -82,10 +82,7 @@ namespace SceneArgs
     IntVar ASBuildFrequency(L"Acceleration structure/Rebuild frame frequency", 1, 1, 1200, 1);
     BoolVar ASMinimizeMemory(L"Acceleration structure/Minimize memory", false, OnASChange, nullptr);
     BoolVar ASAllowUpdate(L"Acceleration structure/Allow update", true, OnASChange, nullptr);
-    enum BuildFlag { Default = 0, FastTrace, FastBuild };
-    const WCHAR* BuildFlags[] = { L"Default", L"Fast trace", L"Fast build" };
-    EnumVar ASBuildFlag(L"Acceleration structure/Build quality", FastTrace, _countof(BuildFlags), BuildFlags, OnASChange, nullptr);
-
+ 
     // ToDo test tessFactor 16
 	// ToDo fix alias on TessFactor 2
     IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 14, 0, 80, 1, OnGeometryChange, nullptr);
@@ -105,7 +102,6 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_descriptorSize(0),
     m_missShaderTableStrideInBytes(UINT_MAX),
     m_hitGroupShaderTableStrideInBytes(UINT_MAX),
-    m_forceComputeFallback(false),
     m_numTrianglesPerGeometry(0),
     m_isGeometryInitializationRequested(true),
     m_isASinitializationRequested(true),
@@ -115,8 +111,6 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
 	m_isCameraFrozen(false)
 {
     g_pSample = this;
-    m_forceComputeFallback = false;
-    SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
     UpdateForSizeChange(width, height);
     m_bottomLevelASdescritorHeapIndices.resize(MaxBLAS, UINT_MAX);
     m_bottomLevelASinstanceDescsDescritorHeapIndices.resize(MaxBLAS, UINT_MAX);
@@ -127,32 +121,6 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
 	m_generatorURNG.seed(1729);
 }
 
-void D3D12RaytracingDynamicGeometry::EnableDirectXRaytracing(IDXGIAdapter1* adapter)
-{
-    // Fallback Layer uses an experimental feature and needs to be enabled before creating a D3D12 device.
-	bool isFallbackSupported = false;// EnableComputeRaytracingFallback(adapter);
-
-    if (!isFallbackSupported)
-    {
-        OutputDebugString(
-            L"Warning: Could not enable Compute Raytracing Fallback (D3D12EnableExperimentalFeatures() failed).\n" \
-            L"         Possible reasons: your OS is not in developer mode.\n\n");
-    }
-
-    m_isDxrSupported = IsDirectXRaytracingSupported(adapter);
-
-    if (!m_isDxrSupported)
-    {
-        OutputDebugString(L"Warning: DirectX Raytracing is not supported by your GPU and driver.\n\n");
-
-        ThrowIfFalse(isFallbackSupported,
-            L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n"\
-            L"Possible reasons: your OS is not in developer mode.\n\n");
-        m_raytracingAPI = RaytracingAPI::FallbackLayer;
-    }
-}
-
-
 
 void D3D12RaytracingDynamicGeometry::OnInit()
 {
@@ -162,7 +130,7 @@ void D3D12RaytracingDynamicGeometry::OnInit()
         FrameCount,
         D3D_FEATURE_LEVEL_11_0,
         // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since TH2.
-        // Since the Fallback Layer requires Fall Creator's update (RS3), we don't need to handle non-tearing cases.
+        // Since the DXR requires October 2018 update, we don't need to handle non-tearing cases.
         DeviceResources::c_RequireTearingSupport,
         m_adapterIDoverride
         );
@@ -174,7 +142,8 @@ void D3D12RaytracingDynamicGeometry::OnInit()
     EngineTuning::Initialize();
 
     m_deviceResources->InitializeDXGIAdapter();
-    EnableDirectXRaytracing(m_deviceResources->GetAdapter());
+	ThrowIfFalse(IsDirectXRaytracingSupported(m_deviceResources->GetAdapter()),
+		L"ERROR: DirectX Raytracing is not supported by your GPU and driver.\n\n");
     
     // ToDo cleanup
     m_deviceResources->CreateDeviceResources();
@@ -485,19 +454,11 @@ void D3D12RaytracingDynamicGeometry::SerializeAndCreateRaytracingRootSignature(D
 {
     auto device = m_deviceResources->GetD3DDevice();
     ComPtr<ID3DBlob> blob;
-    ComPtr<ID3DBlob> error;
-
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        ThrowIfFailed(m_fallbackDevice->D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error), error ? static_cast<wchar_t*>(error->GetBufferPointer()) : nullptr);
-        ThrowIfFailed(m_fallbackDevice->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
-    }
-    else // DirectX Raytracing
-    {
-        ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error), error ? static_cast<wchar_t*>(error->GetBufferPointer()) : nullptr);
-        ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
-    }
-
+	ComPtr<ID3DBlob> error;
+    ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error), error ? static_cast<wchar_t*>(error->GetBufferPointer()) : nullptr);
+    ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
+    
+	// ToDo is this check needed?
     if (resourceName)
     {
         (*rootSig)->SetName(resourceName);
@@ -563,18 +524,7 @@ void D3D12RaytracingDynamicGeometry::CreateRaytracingInterfaces()
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
 
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        CreateRaytracingFallbackDeviceFlags createDeviceFlags = m_forceComputeFallback ?
-            CreateRaytracingFallbackDeviceFlags::ForceComputeFallback :
-            CreateRaytracingFallbackDeviceFlags::None;
-        ThrowIfFailed(D3D12CreateRaytracingFallbackDevice(device, createDeviceFlags, 0, IID_PPV_ARGS(&m_fallbackDevice)));
-        m_fallbackDevice->QueryRaytracingCommandList(commandList, IID_PPV_ARGS(&m_fallbackCommandList));
-    }
-    else // DirectX Raytracing
-    {
-        ThrowIfFailed(device->QueryInterface(IID_PPV_ARGS(&m_dxrDevice)), L"Couldn't get DirectX Raytracing interface for the device.\n");
-    }
+   ThrowIfFailed(device->QueryInterface(IID_PPV_ARGS(&m_dxrDevice)), L"Couldn't get DirectX Raytracing interface for the device.\n");
 }
 
 // DXIL library
@@ -677,14 +627,7 @@ void D3D12RaytracingDynamicGeometry::CreateRaytracingPipelineStateObject()
     PrintStateObjectDesc(raytracingPipeline);
 
     // Create the state object.
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        ThrowIfFailed(m_fallbackDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&m_fallbackStateObject)), L"Couldn't create DirectX Raytracing state object.\n");
-    }
-    else // DirectX Raytracing
-    {
-        ThrowIfFailed(m_dxrDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&m_dxrStateObject)), L"Couldn't create DirectX Raytracing state object.\n");
-    }
+    ThrowIfFailed(m_dxrDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&m_dxrStateObject)), L"Couldn't create DirectX Raytracing state object.\n");
 }
 
 // Create a 2D output texture for raytracing.
@@ -741,66 +684,6 @@ void D3D12RaytracingDynamicGeometry::CreateDescriptorHeap()
     m_descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
-// Build AABBs for procedural geometry within a bottom-level acceleration structure.
-void D3D12RaytracingDynamicGeometry::BuildDynamicGeometryAABBs()
-{
-    auto device = m_deviceResources->GetD3DDevice();
-
-    // Set up AABBs on a grid.
-    {
-        XMINT3 aabbGrid = XMINT3(4, 1, 4);
-        const XMFLOAT3 basePosition =
-        {
-            -(aabbGrid.x * c_aabbWidth + (aabbGrid.x - 1) * c_aabbDistance) / 2.0f,
-            -(aabbGrid.y * c_aabbWidth + (aabbGrid.y - 1) * c_aabbDistance) / 2.0f,
-            -(aabbGrid.z * c_aabbWidth + (aabbGrid.z - 1) * c_aabbDistance) / 2.0f,
-        };
-
-        XMFLOAT3 stride = XMFLOAT3(c_aabbWidth + c_aabbDistance, c_aabbWidth + c_aabbDistance, c_aabbWidth + c_aabbDistance);
-        auto InitializeAABB = [&](auto& offsetIndex, auto& size)
-        {
-            return D3D12_RAYTRACING_AABB { 
-                basePosition.x + offsetIndex.x * stride.x, 
-                basePosition.y + offsetIndex.y * stride.y,
-                basePosition.z + offsetIndex.z * stride.z,
-                basePosition.x + offsetIndex.x * stride.x + size.x,
-                basePosition.y + offsetIndex.y * stride.y + size.y,
-                basePosition.z + offsetIndex.z * stride.z + size.z,
-            };
-        };
-        m_aabbs.resize(IntersectionShaderType::TotalPrimitiveCount);
-        UINT offset = 0;
-
-        // Analytic primitives.
-        {
-            using namespace AnalyticPrimitive;
-            m_aabbs[offset + AABB] = InitializeAABB(XMINT3(3, 0, 0), XMFLOAT3(2, 3, 2));
-            m_aabbs[offset + Spheres] = InitializeAABB(XMFLOAT3(2.25f, 0, 0.75f), XMFLOAT3(3, 3, 3));
-            offset += AnalyticPrimitive::Count;
-        }
-
-        // Volumetric primitives.
-        {
-            using namespace VolumetricPrimitive;
-            m_aabbs[offset + Metaballs] = InitializeAABB(XMINT3(0, 0, 0), XMFLOAT3(3, 3, 3));
-            offset += VolumetricPrimitive::Count;
-        }
-
-        // Signed distance primitives.
-        {
-            using namespace SignedDistancePrimitive;
-            m_aabbs[offset + MiniSpheres] = InitializeAABB(XMINT3(2, 0, 0), XMFLOAT3(2, 2, 2));
-            m_aabbs[offset + TwistedTorus] = InitializeAABB(XMINT3(0, 0, 1), XMFLOAT3(2, 2, 2));
-            m_aabbs[offset + IntersectedRoundCube] = InitializeAABB(XMINT3(0, 0, 2), XMFLOAT3(2, 2, 2));
-            m_aabbs[offset + SquareTorus] = InitializeAABB(XMFLOAT3(0.75f, -0.1f, 2.25f), XMFLOAT3(3, 3, 3));
-            m_aabbs[offset + Cog] = InitializeAABB(XMINT3(1, 0, 0), XMFLOAT3(2, 2, 2));
-            m_aabbs[offset + Cylinder] = InitializeAABB(XMINT3(0, 0, 3), XMFLOAT3(2, 3, 2));
-            m_aabbs[offset + FractalPyramid] = InitializeAABB(XMINT3(2, 0, 2), XMFLOAT3(6, 6, 6));
-        }
-        AllocateUploadBuffer(device, m_aabbs.data(), m_aabbs.size()*sizeof(m_aabbs[0]), &m_aabbBuffer.resource);
-    }
-}
-
 void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
@@ -813,7 +696,6 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
     };
 
     // Cube vertices positions and corresponding triangle normals.
-#if 1
     DirectX::VertexPositionNormalTexture vertices[] =
     {
         { XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
@@ -821,15 +703,6 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
         { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
         { XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) }
     };
-#else
-    GeometricPrimitive::VertexType vertices[] =
-    {
-        { XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
-        { XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
-        { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
-        { XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) }
-    };
-#endif
     AllocateUploadBuffer(device, indices, sizeof(indices), &m_geometries[GeometryType::Plane].ib.resource);
     AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_geometries[GeometryType::Plane].vb.resource);
 
@@ -893,28 +766,6 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 
 void D3D12RaytracingDynamicGeometry::ConvertRHtoLHGeometry(UINT8* pAssetData)
 {
-#if 0
-	// For every geometry.
-	for (auto& geometryDesc : SampleAssets::Draws)
-	{
-		SquidVertex* geometryVertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset) + geometryDesc.VertexBase;
-		UINT* geometryIndices = reinterpret_cast<UINT*>(pAssetData + SampleAssets::IndexDataOffset) + geometryDesc.IndexStart;
-		
-		// For every triangle.
-		for (UINT index = 0; index < geometryDesc.IndexCount; index += 3)
-		{
-			UINT* triangleIndices[3] = { &geometryIndices[index], &geometryIndices[index + 1], &geometryIndices[index + 2] };
-
-			// RH -> LH
-			for (UINT i = 0; i < 3; i++)
-			{
-				auto& vertex = geometryVertices[*triangleIndices[i]];
-				vertex.position.z = -vertex.position.z;
-				vertex.normal.z = -vertex.normal.z;
-			}
-		}
-	}
-#else
 	SquidVertex* vertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset);
 	UINT nVertices = SampleAssets::VertexDataSize / sizeof(SquidVertex);
 
@@ -922,9 +773,7 @@ void D3D12RaytracingDynamicGeometry::ConvertRHtoLHGeometry(UINT8* pAssetData)
 	{
 		auto& vertex = vertices[i];
 		vertex.position.z = -vertex.position.z;
-		// ToDo Why normal.z shouldn't get mirrored?
 	}
-#endif
 }
 
 void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
@@ -1168,22 +1017,7 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
     auto device = m_deviceResources->GetD3DDevice();
     
     // Build flags.
-    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
-    {
-        switch (SceneArgs::ASBuildFlag)
-        {
-        case SceneArgs::FastBuild:
-            buildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
-            break;
-        case SceneArgs::FastTrace:
-            buildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-            break;
-        default: break;
-        };
-
-        if (SceneArgs::ASAllowUpdate) buildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
-        if (SceneArgs::ASMinimizeMemory) buildFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_MINIMIZE_MEMORY;
-    }
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 
     // Initialize bottom-level AS.
     UINT64 maxScratchResourceSize = 0;
@@ -1191,7 +1025,7 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
     {
 #if ONLY_SQUID_SCENE_BLAS
 		m_vBottomLevelAS.resize(1);
-		m_vBottomLevelAS[0].Initialize(device, m_geometries[GeometryType::SquidScene], m_geometryInstances.size(), buildFlags, DXGI_FORMAT_R32_UINT, sizeof(UINT), SampleAssets::StandardVertexStride, m_geometryInstances);
+		m_vBottomLevelAS[0].Initialize(device, m_geometries[GeometryType::SquidScene], static_cast<UINT>(m_geometryInstances.size()), buildFlags, DXGI_FORMAT_R32_UINT, sizeof(UINT), SampleAssets::StandardVertexStride, m_geometryInstances);
 		m_vBottomLevelAS[0].SetInstanceContributionToHitGroupIndex(0);
 		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
 		m_ASmemoryFootprint += m_vBottomLevelAS[0].RequiredResultDataSizeInBytes();
@@ -1270,19 +1104,12 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
 
     // Get shader identifiers.
     UINT shaderIDSize;
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        GetShaderIDs(m_fallbackStateObject.Get());
-        shaderIDSize = m_fallbackDevice->GetShaderIdentifierSize();
-    }
-    else // DirectX Raytracing
-    {
-        ComPtr<ID3D12StateObjectPropertiesPrototype> stateObjectProperties;
-        ThrowIfFailed(m_dxrStateObject.As(&stateObjectProperties));
-        GetShaderIDs(stateObjectProperties.Get());
-        shaderIDSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-    }
+    ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
+    ThrowIfFailed(m_dxrStateObject.As(&stateObjectProperties));
+    GetShaderIDs(stateObjectProperties.Get());
+    shaderIDSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
+	// ToDo
     /*************--------- Shader table layout -------*******************
     | --------------------------------------------------------------------
     | Shader table - HitGroupShaderTable: 
@@ -1372,25 +1199,6 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
     }
 }
 
-void D3D12RaytracingDynamicGeometry::SelectRaytracingAPI(RaytracingAPI type)
-{
-    if (type == RaytracingAPI::FallbackLayer)
-    {
-        m_raytracingAPI = type;
-    }
-    else // DirectX Raytracing
-    {
-        if (m_isDxrSupported)
-        {
-            m_raytracingAPI = type;
-        }
-        else
-        {
-            OutputDebugString(L"Invalid selection - DXR is not available.\n");
-        }
-    }
-}
-
 // ToDo move to UILayer
 void D3D12RaytracingDynamicGeometry::ModifyActiveUIParameter(bool bIncreaseValue)
 {
@@ -1427,30 +1235,6 @@ void D3D12RaytracingDynamicGeometry::ModifyActiveUIParameter(bool bIncreaseValue
     break;
     default:
     }
-
-    case '1': // Fallback Layer
-        m_forceComputeFallback = false;
-        SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-        break;
-    case VK_NUMPAD2:
-    case '2': // Fallback Layer + force compute path
-        m_forceComputeFallback = true;
-        SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-        break;
-    case VK_NUMPAD3:
-    case '3': // DirectX Raytracing
-        SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
-        break;
-    default:
-        break;
-        
-
-if (m_raytracingAPI != previousRaytracingAPI ||
-    m_forceComputeFallback != previousForceComputeFallback)
-{
-    // Raytracing API selection changed, recreate everything.
-    RecreateD3D();
-}
 */
 }
 
@@ -1459,20 +1243,6 @@ void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
 #if 1
     switch (key)
     {
-    case VK_NUMPAD1:
-    case '1': // Fallback Layer
-        m_forceComputeFallback = false;
-        SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-        break;
-    case VK_NUMPAD2:
-    case '2': // Fallback Layer + force compute path
-        m_forceComputeFallback = true;
-        SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-        break;
-    case VK_NUMPAD3:
-    case '3': // DirectX Raytracing
-        SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
-        break;
     case VK_ESCAPE:
         throw HrException(E_APPLICATION_EXITING);
     case 'L':
@@ -1488,9 +1258,6 @@ void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
         break;
     }
 #else
-    // Store previous values.
-    RaytracingAPI previousRaytracingAPI = m_raytracingAPI;
-    bool previousForceComputeFallback = m_forceComputeFallback;
     
     switch (key)
     {
@@ -1627,19 +1394,6 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
 void D3D12RaytracingDynamicGeometry::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
     DXSample::ParseCommandLineArgs(argv, argc);
-
-	for (int i = 1; i < argc; ++i)
-	{
-		if (_wcsnicmp(argv[i], L"-FL", wcslen(argv[i])) == 0)
-		{
-			m_forceComputeFallback = true;
-			m_raytracingAPI = RaytracingAPI::FallbackLayer;
-		}
-		else if (_wcsnicmp(argv[i], L"-DXR", wcslen(argv[i])) == 0)
-		{
-			m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
-		}
-	}
 }
 
 void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuild)
@@ -1713,22 +1467,24 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-    auto DispatchRays = [&](auto* raytracingCommandList, auto* stateObject, auto* dispatchDesc)
+    auto DispatchRays = [&](auto* raytracingCommandList, auto* stateObject)
     {
-        dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
-        dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
-        dispatchDesc->HitGroupTable.StrideInBytes = m_hitGroupShaderTableStrideInBytes;
-        dispatchDesc->MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
-        dispatchDesc->MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
-        dispatchDesc->MissShaderTable.StrideInBytes = m_missShaderTableStrideInBytes;
-        dispatchDesc->RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable->GetGPUVirtualAddress();
-        dispatchDesc->RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable->GetDesc().Width;
-        dispatchDesc->Width = m_width;
-        dispatchDesc->Height = m_height;
+		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
+
+        dispatchDesc.HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
+        dispatchDesc.HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
+        dispatchDesc.HitGroupTable.StrideInBytes = m_hitGroupShaderTableStrideInBytes;
+        dispatchDesc.MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
+        dispatchDesc.MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
+        dispatchDesc.MissShaderTable.StrideInBytes = m_missShaderTableStrideInBytes;
+        dispatchDesc.RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable->GetGPUVirtualAddress();
+        dispatchDesc.RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable->GetDesc().Width;
+        dispatchDesc.Width = m_width;
+        dispatchDesc.Height = m_height;
         raytracingCommandList->SetPipelineState1(stateObject);
 
         m_gpuTimers[GpuTimers::Raytracing].Start(commandList);
-        raytracingCommandList->DispatchRays(dispatchDesc);
+        raytracingCommandList->DispatchRays(&dispatchDesc);
         m_gpuTimers[GpuTimers::Raytracing].Stop(commandList);
     };
 
@@ -1765,19 +1521,9 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     }
 
     // Bind the heaps, acceleration structure and dispatch rays. 
-    D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        SetCommonPipelineState(m_fallbackCommandList.Get());
-        m_fallbackCommandList->SetTopLevelAccelerationStructure(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetFallbackAccelerationStructurePointer());
-        DispatchRays(m_fallbackCommandList.Get(), m_fallbackStateObject.Get(), &dispatchDesc);
-    }
-    else // DirectX Raytracing
-    {
-        SetCommonPipelineState(commandList);
-        commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetResource()->GetGPUVirtualAddress());
-        DispatchRays(commandList, m_dxrStateObject.Get(), &dispatchDesc);
-    }
+    SetCommonPipelineState(commandList);
+    commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetResource()->GetGPUVirtualAddress());
+    DispatchRays(commandList, m_dxrStateObject.Get());
 }
 
 // Update the application state with the new resolution.
@@ -1914,9 +1660,6 @@ void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
 		m_uiLayer.reset();
 	}
 
-    m_fallbackDevice.Reset();
-    m_fallbackCommandList.Reset();
-    m_fallbackStateObject.Reset();
     m_raytracingGlobalRootSignature.Reset();
     ResetComPtrArray(&m_raytracingLocalRootSignature);
 
@@ -2125,23 +1868,6 @@ void D3D12RaytracingDynamicGeometry::CalculateFrameStats()
         if (1)//!m_enableUI)
         {
             wstringstream windowText;
-            if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-            {
-#if ENABLE_RAYTRACING
-                if (m_fallbackDevice->UsingRaytracingDriver())
-                {
-                    windowText << L"(FL-DXR)";
-                }
-                else
-                {
-                    windowText << L"(FL)";
-                }
-#endif
-            }
-            else
-            {
-                windowText << L"(DXR)";
-            }
             windowText << setprecision(2) << fixed
                 << L"    fps: " << m_fps << L"     ~Million Primary Rays/s: " << NumMRaysPerSecond()
                 << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
@@ -2159,28 +1885,6 @@ void D3D12RaytracingDynamicGeometry::OnSizeChanged(UINT width, UINT height, bool
     {
         return;
     }
-}
-
-// Create a wrapped pointer for the Fallback Layer path.
-WRAPPED_GPU_POINTER D3D12RaytracingDynamicGeometry::CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements, UINT* descriptorHeapIndex)
-{
-    auto device = m_deviceResources->GetD3DDevice();
-
-    D3D12_UNORDERED_ACCESS_VIEW_DESC rawBufferUavDesc = {};
-    rawBufferUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-    rawBufferUavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
-    rawBufferUavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-    rawBufferUavDesc.Buffer.NumElements = bufferNumElements;
-
-    D3D12_CPU_DESCRIPTOR_HANDLE bottomLevelDescriptor;
-
-    // Only compute fallback requires a valid descriptor index when creating a wrapped pointer.
-    if (!m_fallbackDevice->UsingRaytracingDriver())
-    {
-        *descriptorHeapIndex = AllocateDescriptor(&bottomLevelDescriptor, *descriptorHeapIndex);
-        device->CreateUnorderedAccessView(resource, nullptr, &rawBufferUavDesc, bottomLevelDescriptor);
-    }
-    return m_fallbackDevice->GetWrappedPointerSimple(*descriptorHeapIndex, resource->GetGPUVirtualAddress());
 }
 
 // Allocate a descriptor and return its index. 

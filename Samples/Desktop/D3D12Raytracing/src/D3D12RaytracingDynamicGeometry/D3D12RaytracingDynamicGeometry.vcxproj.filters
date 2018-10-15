@@ -10,23 +10,20 @@
     <Filter Include="Assets">
       <UniqueIdentifier>{09095d68-bcd7-45c4-b007-5c8ddb5d60a4}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Assets\Shaders">
-      <UniqueIdentifier>{8b0cb0c9-e0d8-4107-91c8-11654fac88e7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Util">
       <UniqueIdentifier>{500a71f9-a0df-431e-9f3b-5d4ab5e3942b}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Util">
       <UniqueIdentifier>{93d5e482-943e-4182-8023-5676929aec55}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Assets\Shaders\Util">
-      <UniqueIdentifier>{f6ae1511-f58a-4af8-a167-b79e11f8c1de}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Assets\Shaders\ProceduralPrimitives">
-      <UniqueIdentifier>{69efd3aa-04fd-4b1e-be35-61217582c550}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Assets\Scene">
       <UniqueIdentifier>{4ccb2e49-99e4-498b-8dc2-2e7d39bde6a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets\Shaders">
+      <UniqueIdentifier>{8b0cb0c9-e0d8-4107-91c8-11654fac88e7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets\Shaders\Util">
+      <UniqueIdentifier>{f6ae1511-f58a-4af8-a167-b79e11f8c1de}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -62,21 +59,6 @@
     </ClInclude>
     <ClInclude Include="util\HlslCompat.h">
       <Filter>Assets\Shaders\Util</Filter>
-    </ClInclude>
-    <ClInclude Include="AnalyticPrimitives.hlsli">
-      <Filter>Assets\Shaders\ProceduralPrimitives</Filter>
-    </ClInclude>
-    <ClInclude Include="ProceduralPrimitivesLibrary.hlsli">
-      <Filter>Assets\Shaders\ProceduralPrimitives</Filter>
-    </ClInclude>
-    <ClInclude Include="SignedDistanceFractals.hlsli">
-      <Filter>Assets\Shaders\ProceduralPrimitives</Filter>
-    </ClInclude>
-    <ClInclude Include="SignedDistancePrimitives.hlsli">
-      <Filter>Assets\Shaders\ProceduralPrimitives</Filter>
-    </ClInclude>
-    <ClInclude Include="VolumetricPrimitives.hlsli">
-      <Filter>Assets\Shaders\ProceduralPrimitives</Filter>
     </ClInclude>
     <ClInclude Include="RaytracingShaderHelper.hlsli">
       <Filter>Assets\Shaders</Filter>

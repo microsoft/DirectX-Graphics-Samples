@@ -43,9 +43,9 @@ namespace GameCore
 
 	private:
 		static Camera* s_camera;
-		// Homogenous camera vectors: points(x,y,z,1), vectors(x,y,z,0).
+		// Homogenous vectors: points(x,y,z,1), vectors(x,y,z,0).
 		DirectX::XMVECTOR m_eye; // Where the camera is in world space. Z increases into of the screen when using LH coord system (which we are and DX uses).
 		DirectX::XMVECTOR m_at; // What the camera is looking at (world origin).
-		DirectX::XMVECTOR m_up; // Normalized up vector always with w = 0.
+		DirectX::XMVECTOR m_up; // Normalized up vector.
 	};
 }

@@ -37,14 +37,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Advanced", "Advanced", "{024FAECC-CCE3-4B06-9F06-C83FB58877EF}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingProceduralGeometry", "D3D12RaytracingProceduralGeometry\D3D12RaytracingProceduralGeometry.vcxproj", "{0C266269-AC0C-41B0-9D25-0117DC23CFC7}"
-	ProjectSection(ProjectDependencies) = postProject
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B} = {4BE280A6-1066-41CA-ACDD-6BB7E532508B}
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingDynamicGeometry", "D3D12RaytracingDynamicGeometry\D3D12RaytracingDynamicGeometry.vcxproj", "{19585C81-FB12-4A4B-B700-CCE253BDBA02}"
-	ProjectSection(ProjectDependencies) = postProject
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B} = {4BE280A6-1066-41CA-ACDD-6BB7E532508B}
-	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
