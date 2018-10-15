@@ -38,31 +38,9 @@ using namespace DirectX;
 typedef UINT16 Index;
 #endif
 
-// Number of metaballs to use within an AABB.
-#define N_METABALLS 3    // = {3, 5}
-
-//******-------Fallback Layer limitation workarounds -----*****************
-//
-// Fallback Layer does not support default exports for DXIL libraries yet.
-#define DEFINE_EXPLICIT_SHADER_EXPORTS 1
-//
-//*************************************************************************
-
 #define RENDER_SPHERES 1
 #define AO_ONLY 1
 
-// Limitting calculations only to metaballs a ray intersects can speed up raytracing
-// dramatically particularly when there is a higher number of metaballs used. 
-// Use of dynamic loops can have detrimental effects to performance for low iteration counts
-// and outweighing any potential gains from avoiding redundant calculations.
-// Requires: USE_DYNAMIC_LOOPS set to 1 to take effect.
-#if N_METABALLS >= 5
-#define USE_DYNAMIC_LOOPS 1
-#define LIMIT_TO_ACTIVE_METABALLS 1
-#else 
-#define USE_DYNAMIC_LOOPS 0
-#define LIMIT_TO_ACTIVE_METABALLS 0
-#endif
 
 #define N_FRACTAL_ITERATIONS 4      // = <1,...>
 
