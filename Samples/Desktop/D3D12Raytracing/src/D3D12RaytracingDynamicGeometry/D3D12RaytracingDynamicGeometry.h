@@ -114,7 +114,7 @@ private:
 
 
 	// ToDo clean up buffer management
-	// SquidScene buffers
+	// SquidRoom buffers
 	ComPtr<ID3D12Resource> m_vertexBuffer;
 	ComPtr<ID3D12Resource> m_vertexBufferUpload;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;

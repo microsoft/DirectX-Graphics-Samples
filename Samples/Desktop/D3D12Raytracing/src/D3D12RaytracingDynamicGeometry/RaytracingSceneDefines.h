@@ -74,7 +74,7 @@ namespace GeometryType {
     enum Enum {
         Plane = 0,
         Sphere,
-		SquidScene,
+		SquidRoom,
         Count
     };
 }

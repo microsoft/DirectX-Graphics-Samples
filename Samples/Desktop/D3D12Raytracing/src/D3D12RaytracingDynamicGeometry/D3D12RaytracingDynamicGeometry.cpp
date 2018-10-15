@@ -90,7 +90,7 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
     m_animateCamera(false),
     m_animateLight(false),
-    m_animateScene(true),
+    m_animateScene(false),
     m_missShaderTableStrideInBytes(UINT_MAX),
     m_hitGroupShaderTableStrideInBytes(UINT_MAX),
     m_numTrianglesPerGeometry(0),
@@ -373,9 +373,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     // Create shader resources
     {
         m_computeCB.Create(device, frameCount, L"GPU CB: RNG");
-#if 1
         m_samplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random unit square samples");
-
         m_hemisphereSamplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random hemisphere samples");
 
         for (UINT i = 0; i < m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(); i++)
@@ -385,7 +383,6 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
             m_samplesGPUBuffer[i].value = XMFLOAT2(p.x*0.5f + 0.5f, p.y*0.5f + 0.5f);
             m_hemisphereSamplesGPUBuffer[i].value = p;
         }
-#endif
     }
 }
 
@@ -872,14 +869,14 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 		m_indexBufferView.Format = SampleAssets::StandardIndexFormat;
 	}
 
-	auto& geometry = m_geometries[GeometryType::SquidScene];
+	auto& geometry = m_geometries[GeometryType::SquidRoom];
 	geometry.vb.resource = m_vertexBuffer;
 	geometry.ib.resource = m_indexBuffer;
 	
 	// ToDo revise numElements calculation
-	CreateBufferSRV(&m_geometries[GeometryType::SquidScene].ib, m_indexBufferView.SizeInBytes / sizeof(UINT), 0, &m_geometryIBHeapIndices[GeometryType::SquidScene]);
-	CreateBufferSRV(&m_geometries[GeometryType::SquidScene].vb, m_vertexBufferView.SizeInBytes / m_vertexBufferView.StrideInBytes, m_vertexBufferView.StrideInBytes, &m_geometryVBHeapIndices[GeometryType::SquidScene]);
-	ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::SquidScene] == m_geometryIBHeapIndices[GeometryType::SquidScene] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
+	CreateBufferSRV(&m_geometries[GeometryType::SquidRoom].ib, m_indexBufferView.SizeInBytes / sizeof(UINT), 0, &m_geometryIBHeapIndices[GeometryType::SquidRoom]);
+	CreateBufferSRV(&m_geometries[GeometryType::SquidRoom].vb, m_vertexBufferView.SizeInBytes / m_vertexBufferView.StrideInBytes, m_vertexBufferView.StrideInBytes, &m_geometryVBHeapIndices[GeometryType::SquidRoom]);
+	ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::SquidRoom] == m_geometryIBHeapIndices[GeometryType::SquidRoom] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
 	// ToDo remove
 	// Backup primary handles
@@ -887,8 +884,8 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 		D3D12_CPU_DESCRIPTOR_HANDLE cpu;
 		D3D12_GPU_DESCRIPTOR_HANDLE gpu;
 	};
-	Handles ib = { m_geometries[GeometryType::SquidScene].ib.cpuDescriptorHandle, m_geometries[GeometryType::SquidScene].ib.gpuDescriptorHandle };
-	Handles vb = { m_geometries[GeometryType::SquidScene].vb.cpuDescriptorHandle, m_geometries[GeometryType::SquidScene].vb.gpuDescriptorHandle };
+	Handles ib = { m_geometries[GeometryType::SquidRoom].ib.cpuDescriptorHandle, m_geometries[GeometryType::SquidRoom].ib.gpuDescriptorHandle };
+	Handles vb = { m_geometries[GeometryType::SquidRoom].vb.cpuDescriptorHandle, m_geometries[GeometryType::SquidRoom].vb.gpuDescriptorHandle };
 
 	m_numTrianglesPerGeometry = 0;
 	m_geometryInstances.resize(ARRAYSIZE(SampleAssets::Draws));
@@ -902,20 +899,20 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 
 		UINT geometryIBHeapIndex = UINT_MAX;
 		UINT geometryVBHeapIndex = UINT_MAX;
-		CreateBufferSRV(&m_geometries[GeometryType::SquidScene].ib, m_geometryInstances[i].ib.count, sizeof(UINT), &geometryIBHeapIndex, m_geometryInstances[i].ib.startIndex);
-		CreateBufferSRV(&m_geometries[GeometryType::SquidScene].vb, m_geometryInstances[i].vb.count, m_vertexBufferView.StrideInBytes, &geometryVBHeapIndex, m_geometryInstances[i].vb.startIndex);
+		CreateBufferSRV(&m_geometries[GeometryType::SquidRoom].ib, m_geometryInstances[i].ib.count, sizeof(UINT), &geometryIBHeapIndex, m_geometryInstances[i].ib.startIndex);
+		CreateBufferSRV(&m_geometries[GeometryType::SquidRoom].vb, m_geometryInstances[i].vb.count, m_vertexBufferView.StrideInBytes, &geometryVBHeapIndex, m_geometryInstances[i].vb.startIndex);
 
-		m_geometryInstances[i].ib.gpuDescriptorHandle = m_geometries[GeometryType::SquidScene].ib.gpuDescriptorHandle;
-		m_geometryInstances[i].vb.gpuDescriptorHandle = m_geometries[GeometryType::SquidScene].vb.gpuDescriptorHandle;
+		m_geometryInstances[i].ib.gpuDescriptorHandle = m_geometries[GeometryType::SquidRoom].ib.gpuDescriptorHandle;
+		m_geometryInstances[i].vb.gpuDescriptorHandle = m_geometries[GeometryType::SquidRoom].vb.gpuDescriptorHandle;
 	
 		m_numTrianglesPerGeometry += SampleAssets::Draws[i].IndexCount / 3;
 	}
 
 	// Revert
-	m_geometries[GeometryType::SquidScene].ib.cpuDescriptorHandle = ib.cpu;
-	m_geometries[GeometryType::SquidScene].ib.gpuDescriptorHandle = ib.gpu;
-	m_geometries[GeometryType::SquidScene].vb.cpuDescriptorHandle = vb.cpu;
-	m_geometries[GeometryType::SquidScene].vb.gpuDescriptorHandle = vb.gpu;
+	m_geometries[GeometryType::SquidRoom].ib.cpuDescriptorHandle = ib.cpu;
+	m_geometries[GeometryType::SquidRoom].ib.gpuDescriptorHandle = ib.gpu;
+	m_geometries[GeometryType::SquidRoom].vb.cpuDescriptorHandle = vb.cpu;
+	m_geometries[GeometryType::SquidRoom].vb.gpuDescriptorHandle = vb.gpu;
 
 	free(pAssetData);
 }
@@ -1003,7 +1000,7 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
     {
 #if ONLY_SQUID_SCENE_BLAS
 		m_vBottomLevelAS.resize(1);
-		m_vBottomLevelAS[0].Initialize(device, m_geometries[GeometryType::SquidScene], static_cast<UINT>(m_geometryInstances.size()), buildFlags, DXGI_FORMAT_R32_UINT, sizeof(UINT), SampleAssets::StandardVertexStride, m_geometryInstances);
+		m_vBottomLevelAS[0].Initialize(device, m_geometries[GeometryType::SquidRoom], static_cast<UINT>(m_geometryInstances.size()), buildFlags, DXGI_FORMAT_R32_UINT, sizeof(UINT), SampleAssets::StandardVertexStride, m_geometryInstances);
 		m_vBottomLevelAS[0].SetInstanceContributionToHitGroupIndex(0);
 		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
 		m_ASmemoryFootprint += m_vBottomLevelAS[0].RequiredResultDataSizeInBytes();
@@ -1304,7 +1301,6 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
-    bool isTopLevelASUpdateNeeded = false;
     m_numFramesSinceASBuild++;
 
     // ToDo move this next to TLAS build? But BLAS update resets its dirty flag
@@ -1328,38 +1324,40 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
         };
     }
 
-    {
-        m_gpuTimers[GpuTimers::UpdateBLAS].Start(commandList);
-        for (UINT i = 0; i < m_vBottomLevelAS.size(); i++)
-        {
-            auto& bottomLevelAS = m_vBottomLevelAS[i];
+	m_gpuTimers[GpuTimers::UpdateBLAS].Start(commandList);
+	{
+#if ONLY_SQUID_SCENE_BLAS
+		// ToDo this should be per scene
+		// SquidRoom
+		{
+			// ToDo Heuristic to do an update based on transform amplitude
+			D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;
+			m_vBottomLevelAS[0].Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
+		}
+#else
+		// Plane
+		{
+			// ToDo Heuristic to do an update based on transform amplitude
+			D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;
+			m_vBottomLevelAS[BottomLevelASType::Plane].Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
 
-            // ToDo - there should be two dirty flags 
-            // - one for geometry transform/VB changes 
-            // - and one for BLAS transform change
-            // For now, update everything every frame
-            //if (bottomLevelAS.IsDirty() || forceBuild)
-            {
-                // ToDo Heuristic to do an update based on transform amplitude
-                D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;                
-                if (i > 0)
-                {
-                    // ToDo
-                    baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex) + (i - GeometryType::Sphere) * SceneArgs::NumGeometriesPerBLAS;
-                }
-                bottomLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
-                isTopLevelASUpdateNeeded = true;
-            }
+		}
+		// Sphere
+		{
+            // ToDo Heuristic to do an update based on transform amplitude
+            D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;                
+            baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex) + GeometryType::Sphere * SceneArgs::NumGeometriesPerBLAS;
+               
+			m_vBottomLevelAS[BottomLevelASType::Sphere].Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
         }
-        m_gpuTimers[GpuTimers::UpdateBLAS].Stop(commandList);
+#endif
     }
+	m_gpuTimers[GpuTimers::UpdateBLAS].Stop(commandList);
 
-    if (isTopLevelASUpdateNeeded)
-    {
-        m_gpuTimers[GpuTimers::UpdateTLAS].Start(commandList);
-        m_topLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), bUpdate);
-        m_gpuTimers[GpuTimers::UpdateTLAS].Stop(commandList);
-    }
+    m_gpuTimers[GpuTimers::UpdateTLAS].Start(commandList);
+    m_topLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), bUpdate);
+    m_gpuTimers[GpuTimers::UpdateTLAS].Stop(commandList);
+
     if (!bUpdate)
     {
         m_numFramesSinceASBuild = 0;
@@ -1681,7 +1679,6 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 
     // Begin frame.
     m_deviceResources->Prepare();
-#if !DEBUG_UI_DEVICE_HUNG
     for (auto& gpuTimer : m_gpuTimers)
     {
         gpuTimer.BeginFrame(commandList);
@@ -1693,6 +1690,7 @@ void D3D12RaytracingDynamicGeometry::OnRender()
         UpdateAccelerationStructures(m_isASrebuildRequested);
         m_isASrebuildRequested = false;
     }
+#if !DEBUG_UI_DEVICE_HUNG
     // Render.
 	DoRaytracing();
 #endif
@@ -1702,13 +1700,11 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 	// UILayer will transition backbuffer to a present state.
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
 
-#if !DEBUG_UI_DEVICE_HUNG
     // End frame.
     for (auto& gpuTimer : m_gpuTimers)
     {
         gpuTimer.EndFrame(commandList);
     }
-#endif
     m_deviceResources->ExecuteCommandList();
 
     // UI overlay.
