@@ -13,7 +13,6 @@
 #define RANDOMNUMBERGENERATOR_H
 
 // Ref: http://www.reedbeta.com/blog/quick-and-easy-gpu-random-numbers-in-d3d11/
-
 namespace RNG
 {
     // Create an initial random number for a thread.
@@ -56,7 +55,7 @@ namespace RNG
     // Generate a random number [_min,_max].
     uint Random(inout uint state, uint _min, uint _max)
     {
-        // min is here just for safety not to return _max + 1 due float imprecision.
+        // min is here just for safety so as not to return _max + 1 due float imprecision.
         return min(_min + floor((_max - _min + 1) * Random01ex(state)), _max);
     }
 }

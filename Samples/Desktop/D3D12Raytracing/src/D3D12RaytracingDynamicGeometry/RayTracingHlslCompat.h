@@ -20,7 +20,6 @@
 //
 //**********************************************************************************************
 
- 
 #define ONLY_SQUID_SCENE_BLAS 1
 #define ENABLE_BREAK_ON_DEBUG_LAYER_ERROR 0
 #define DEBUG_UI_DEVICE_HUNG 0
@@ -191,38 +190,7 @@ namespace TraceRayParameters
     }
 }
 
-// From: http://blog.selfshadow.com/publications/s2015-shading-course/hoffman/s2015_pbs_physics_math_slides.pdf
-static const XMFLOAT4 ChromiumReflectance = XMFLOAT4(0.549f, 0.556f, 0.554f, 1.0f);
-
 static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.7f, 0.7f, 0.7f, 1.0f);
 static const float InShadowRadiance = 0.35f;
-
-namespace AnalyticPrimitive {
-    enum Enum {
-        AABB = 0,
-        Spheres,
-        Count
-    };
-}
-
-namespace VolumetricPrimitive {
-    enum Enum {
-        Metaballs = 0,
-        Count
-    };
-}
-
-namespace SignedDistancePrimitive {
-    enum Enum {
-        MiniSpheres = 0,
-        IntersectedRoundCube,
-        SquareTorus,
-        TwistedTorus,
-        Cog,
-        Cylinder,
-        FractalPyramid,
-        Count
-    };
-}
 
 #endif // RAYTRACINGHLSLCOMPAT_H
