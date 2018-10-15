@@ -929,6 +929,15 @@ void D3D12RaytracingDynamicGeometry::InitializeGeometry()
 #if ONLY_SQUID_SCENE_BLAS
 	LoadSceneGeometry();
 #endif
+
+#if !RUNTIME_AS_UPDATES
+	InitializeAccelerationStructures();
+
+	UpdateSphereGeometryTransforms();
+	UpdateBottomLevelASTransforms();
+
+	UpdateAccelerationStructures(m_isASrebuildRequested);
+#endif
 	m_deviceResources->ExecuteCommandList();
 }
 
@@ -983,6 +992,7 @@ void D3D12RaytracingDynamicGeometry::GenerateBottomLevelASInstanceTransforms()
             }
     }
 #endif
+
 }
 
 // Build acceleration structure needed for raytracing.
@@ -1252,6 +1262,14 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     }
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
+#if RUNTIME_AS_UPDATES
+	// Update acceleration structures.
+	if (m_isASrebuildRequested && SceneArgs::EnableGeometryAndASBuildsAndUpdates)
+	{
+		UpdateAccelerationStructures(m_isASrebuildRequested);
+		m_isASrebuildRequested = false;
+	}
+
     // Lazy initialize and update geometries and acceleration structures.
     if (SceneArgs::EnableGeometryAndASBuildsAndUpdates &&
         (m_isGeometryInitializationRequested || m_isASinitializationRequested))
@@ -1282,6 +1300,7 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
         UpdateSphereGeometryTransforms();
         UpdateBottomLevelASTransforms();
     }
+#endif
 
 	if (m_enableUI)
     {
@@ -1680,21 +1699,22 @@ void D3D12RaytracingDynamicGeometry::OnRender()
         gpuTimer.BeginFrame(commandList);
     }
 
+#if RUNTIME_AS_UPDATES
     // Update acceleration structures.
     if (m_isASrebuildRequested && SceneArgs::EnableGeometryAndASBuildsAndUpdates)
     {
         UpdateAccelerationStructures(m_isASrebuildRequested);
         m_isASrebuildRequested = false;
     }
-#if !DEBUG_UI_DEVICE_HUNG
+#endif
     // Render.
 	DoRaytracing();
-#endif
+
 
     RenderRNGVisualizations();
 
 	// UILayer will transition backbuffer to a present state.
-    CopyRaytracingOutputToBackbuffer(false && m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
+    CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
 
     // End frame.
     for (auto& gpuTimer : m_gpuTimers)
