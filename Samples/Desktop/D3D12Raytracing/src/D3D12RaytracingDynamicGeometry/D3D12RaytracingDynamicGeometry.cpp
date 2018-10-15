@@ -257,18 +257,17 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
             float specularPower = 50.0f,
             float stepScale = 1.0f )
         {
-            auto& attributes = m_aabbMaterialCB[primitiveIndex];
-            attributes.albedo = albedo;
-            attributes.reflectanceCoef = reflectanceCoef;
-            attributes.diffuseCoef = diffuseCoef;
-            attributes.specularCoef = specularCoef;
-            attributes.specularPower = specularPower;
-            attributes.stepScale = stepScale;
+			// ToDo
+            //auto& attributes = m_aabbMaterialCB[primitiveIndex];
+            //attributes.albedo = albedo;
+            //attributes.reflectanceCoef = reflectanceCoef;
+            //attributes.diffuseCoef = diffuseCoef;
+            //attributes.specularCoef = specularCoef;
+            //attributes.specularPower = specularPower;
+            //attributes.stepScale = stepScale;
         };
 
-
         m_planeMaterialCB = { XMFLOAT4(0.75f, 0.75f, 0.75f, 1.0f), 0.0f, 1, 0.4f, 50, 1};
-
 
         // Albedos
         XMFLOAT4 green = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
@@ -311,14 +310,6 @@ void D3D12RaytracingDynamicGeometry::CreateConstantBuffers()
     auto frameCount = m_deviceResources->GetBackBufferCount();
 
     m_sceneCB.Create(device, frameCount, L"Scene Constant Buffer");
-}
-
-// Create AABB primitive attributes buffers.
-void D3D12RaytracingDynamicGeometry::CreateAABBPrimitiveAttributesBuffers()
-{
-    auto device = m_deviceResources->GetD3DDevice();
-    auto frameCount = m_deviceResources->GetBackBufferCount();
-    m_aabbPrimitiveAttributeBuffer.Create(device, IntersectionShaderType::TotalPrimitiveCount, frameCount, L"AABB primitive attributes");
 }
 
 void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
@@ -430,9 +421,6 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
 
     // Create constant buffers for the geometry and the scene.
     CreateConstantBuffers();
-
-    // Create AABB primitive attribute buffers.
-    CreateAABBPrimitiveAttributesBuffers();
 
     // Build shader tables, which define shaders and their local root arguments.
     BuildShaderTables();
@@ -1103,20 +1091,25 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
 
 	// ToDo
     /*************--------- Shader table layout -------*******************
-    | --------------------------------------------------------------------
-    | Shader table - HitGroupShaderTable: 
-    | [0] : MyHitGroup_Triangle
-    | [1] : MyHitGroup_Triangle_ShadowRay
-    | [2] : MyHitGroup_AABB_AnalyticPrimitive
-    | [3] : MyHitGroup_AABB_AnalyticPrimitive_ShadowRay 
-    | ...
-    | [6] : MyHitGroup_AABB_VolumetricPrimitive
-    | [7] : MyHitGroup_AABB_VolumetricPrimitive_ShadowRay
-    | [8] : MyHitGroup_AABB_SignedDistancePrimitive 
-    | [9] : MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay,
-    | ...
-    | [20] : MyHitGroup_AABB_SignedDistancePrimitive
-    | [21] : MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay
+    | -------------------------------------------------------------------
+	| -------------------------------------------------------------------
+	|Shader table - RayGenShaderTable: 32 | 32 bytes
+	| [0]: MyRaygenShader, 32 + 0 bytes
+	| -------------------------------------------------------------------
+
+	| -------------------------------------------------------------------
+	|Shader table - MissShaderTable: 32 | 64 bytes
+	| [0]: MyMissShader, 32 + 0 bytes
+	| [1]: MyMissShader_ShadowRay, 32 + 0 bytes
+	| -------------------------------------------------------------------
+
+	| -------------------------------------------------------------------
+	|Shader table - HitGroupShaderTable: 96 | 196800 bytes
+	| [0]: MyHitGroup_Triangle, 32 + 56 bytes
+	| [1]: MyHitGroup_Triangle_ShadowRay, 32 + 56 bytes
+	| [2]: MyHitGroup_Triangle, 32 + 56 bytes
+	| [3]: MyHitGroup_Triangle_ShadowRay, 32 + 56 bytes
+	| ...
     | --------------------------------------------------------------------
     **********************************************************************/
 

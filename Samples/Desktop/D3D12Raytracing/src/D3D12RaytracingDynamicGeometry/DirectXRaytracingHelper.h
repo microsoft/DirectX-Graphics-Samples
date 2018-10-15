@@ -222,7 +222,7 @@ public:
     void DebugPrint(std::unordered_map<void*, std::wstring> shaderIdToStringMap)
     {
         std::wstringstream wstr;
-        wstr << L"|--------------------------------------------------------------------\n";
+        wstr << L"| --------------------------------------------------------------------\n";
         wstr << L"|Shader table - " << m_name.c_str() << L": " 
              << m_shaderRecordSize << L" | "
              << m_shaderRecords.size() * m_shaderRecordSize << L" bytes\n";
@@ -233,7 +233,7 @@ public:
             wstr << shaderIdToStringMap[m_shaderRecords[i].shaderIdentifier.ptr] << L", ";
             wstr << m_shaderRecords[i].shaderIdentifier.size << L" + " << m_shaderRecords[i].localRootArguments.size << L" bytes \n";
         }
-        wstr << L"|--------------------------------------------------------------------\n";
+        wstr << L"| --------------------------------------------------------------------\n";
         wstr << L"\n";
         OutputDebugStringW(wstr.str().c_str());
     }

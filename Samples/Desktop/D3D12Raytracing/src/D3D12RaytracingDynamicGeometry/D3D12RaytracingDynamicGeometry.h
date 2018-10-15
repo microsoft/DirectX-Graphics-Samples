@@ -101,12 +101,9 @@ private:
 
 	// Raytracing scene
 	ConstantBuffer<SceneConstantBuffer> m_sceneCB;
-	StructuredBuffer<PrimitiveInstancePerFrameBuffer> m_aabbPrimitiveAttributeBuffer;
-	std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
 
 	// Root constants
 	PrimitiveConstantBuffer m_planeMaterialCB;
-	PrimitiveConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
 
 	// Geometry
 	D3DBuffer m_aabbBuffer;
@@ -191,7 +188,6 @@ private:
     void DoRaytracing();
     void CreateConstantBuffers();
     void CreateSamplesRNG();
-    void CreateAABBPrimitiveAttributesBuffers();
 	void UpdateUI();
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
