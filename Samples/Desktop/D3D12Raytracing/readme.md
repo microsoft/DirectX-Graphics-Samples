@@ -39,7 +39,7 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
 * *DirectX Raytracing* requires:
   * Windows 10 with the Fall 2018 update. 
   * Dx12 gpu with a compatible DirectX Raytracing driver.
-    * Nvidia: Volta or higher with 415+ driver.
+    * Nvidia: Volta or higher with 416.16+ driver.
     * Other vendors - please consult the vendor you’re working with for HW and driver availability.
 * DXR SDK overlay binaries - download DirectXRaytracingBinariesV1.5.zip from https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.5-dxr and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64.
 
