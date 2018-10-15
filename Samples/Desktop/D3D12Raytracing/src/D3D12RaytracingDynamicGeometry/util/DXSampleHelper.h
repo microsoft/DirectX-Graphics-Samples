@@ -124,6 +124,7 @@ inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size, bool 
         throw std::exception();
     }
 
+	// ToDo replace malloc
     *data = reinterpret_cast<byte*>(malloc(fileInfo.EndOfFile.LowPart));
     *size = fileInfo.EndOfFile.LowPart;
 

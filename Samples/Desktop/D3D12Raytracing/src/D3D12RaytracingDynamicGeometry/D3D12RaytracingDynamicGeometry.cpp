@@ -810,20 +810,6 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 			DeactivateGeometry(sidePanelsGeometryID);
 		}
 #endif
-		//{
-		//	// Disable geometry with bad normals.
-		//	const UINT sidePanelsGeometryID = 300;
-		//	auto& geometryDesc = SampleAssets::Draws[sidePanelsGeometryID];
-		//	SquidVertex* geometryVertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset) + geometryDesc.VertexBase;
-		//	UINT* geometryIndices = reinterpret_cast<UINT*>(pAssetData + SampleAssets::IndexDataOffset) + geometryDesc.IndexStart;
-
-		//	// Deactivate vertices by setting x-coordinate to NaN.
-		//	for (UINT i = 0; i < geometryDesc.IndexCount; i++)
-		//	{
-		//		auto& vertex = geometryVertices[geometryIndices[i]];
-		//		vertex.position.x = nanf("");
-		//	}
-		//}
 
 		PIXBeginEvent(commandList, 0, L"Copy vertex buffer data to default resource...");
 
