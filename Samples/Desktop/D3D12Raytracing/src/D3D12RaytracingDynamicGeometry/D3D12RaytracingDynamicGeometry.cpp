@@ -68,7 +68,7 @@ namespace SceneArgs
     BoolVar EnableGeometryAndASBuildsAndUpdates(L"Enable geometry & AS builds and updates", true);
 
 
-	EnumVar SceneType(L"Scene", Scene::Type::SquidRoom, Scene::Type::Count, Scene::Type::Names, OnSceneChange, nullptr);
+	EnumVar SceneType(L"Scene", Scene::Type::SingleObject, Scene::Type::Count, Scene::Type::Names, OnSceneChange, nullptr);
 
     enum UpdateMode { Build = 0, Update, Update_BuildEveryXFrames };
     const WCHAR* UpdateModes[] = { L"Build only", L"Update only", L"Update + build every X frames" };

@@ -26,7 +26,7 @@ namespace Scene
 		// Camera Position
 		{
 			auto& camera = args[Scene::Type::SingleObject].camera;
-			camera.position.eye = { 0, 6.3f, -17.0f, 1 };
+			camera.position.eye = { 0, 6.3f, -10.0f, 1 };
 			camera.position.at = { 0, 1, 0, 1 };
 			XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 			XMVECTOR forward = XMVector4Normalize(camera.position.at - camera.position.eye);
