@@ -27,9 +27,10 @@
 RaytracingAccelerationStructure g_scene : register(t0, space0);
 RWTexture2D<float4> g_renderTarget : register(u0);
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
+StructuredBuffer<AlignedHemisphereSample3D> g_sampleSets : register(t4);
 
-// Triangle resources
-#if RENDER_SPHERES
+// Per-object resources
+ConstantBuffer<PrimitiveConstantBuffer> l_materialCB : register(b1);
 #if ONLY_SQUID_SCENE_BLAS
 StructuredBuffer<UINT> l_indices : register(t1, space0);
 StructuredBuffer<SquidVertex> l_vertices : register(t2, space0);
@@ -37,15 +38,7 @@ StructuredBuffer<SquidVertex> l_vertices : register(t2, space0);
 ByteAddressBuffer l_indices : register(t1, space0);
 StructuredBuffer<VertexPositionNormalTexture> l_vertices : register(t2, space0);
 #endif
-#else
-StructuredBuffer<Vertex> l_vertices : register(t2, space0);
-#endif
-// Procedural geometry resources
-StructuredBuffer<PrimitiveInstancePerFrameBuffer> g_AABBPrimitiveAttributes : register(t3, space0);
-ConstantBuffer<PrimitiveConstantBuffer> l_materialCB : register(b1);
-ConstantBuffer<PrimitiveInstanceConstantBuffer> l_aabbCB: register(b2);
 
-StructuredBuffer<AlignedHemisphereSample3D> g_sampleSets : register(t4);
 
 //***************************************************************************
 //****************------ Utility functions -------***************************
@@ -143,7 +136,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0.0;
-	rayDesc.TMax = 15;// 0000;	// ToDo set this to dist to light
+	rayDesc.TMax = 35;// 0000;	// ToDo set this to dist to light
 
     // Initialize shadow ray payload.
     // Set the initial value to true since closest and any hit shaders are skipped. 
@@ -215,7 +208,6 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 	// Load up three 16 bit indices for the triangle.
 	const uint3 indices = Load3x16BitIndices(baseIndex, l_indices);
 #endif
-#if RENDER_SPHERES
 	// Retrieve corresponding vertex normals for the triangle vertices.
 	float3 vertexNormals[3] = { l_vertices[indices[0]].normal, l_vertices[indices[1]].normal, l_vertices[indices[2]].normal};
     float3 triangleNormal = HitAttribute(vertexNormals, attr);
@@ -224,10 +216,7 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 	rayPayload.color = float4(triangleNormal, 1.0f);
 	return;
 #endif
-#else
-    // Retrieve corresponding vertex normals for the triangle vertices.
-    float3 triangleNormal = l_vertices[indices[0]].normal;
-#endif
+
     // PERFORMANCE TIP: it is recommended to avoid values carry over across TraceRay() calls. 
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
 #if !AO_ONLY

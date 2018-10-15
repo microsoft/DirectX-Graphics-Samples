@@ -155,6 +155,7 @@ void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
 
 	float fovAngleY = 90.0f;
 	XMMATRIX view, proj;
+	// ToDo camera is creating fisheye in spehere scene
 	m_camera.GetProj(&proj, fovAngleY, m_width, m_height);
 
 	// Calculate view matrix as if the camera was at (0,0,0) to avoid 
@@ -366,6 +367,11 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
         ThrowIfFailed(device->CreateFence(m_fenceValues[0], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
         m_fenceValues[0]++;
 
+		for (auto& fenceValue : m_fenceValues)
+		{
+			fenceValue = m_fenceValues[0];
+		}
+
         m_fenceEvent.Attach(CreateEvent(nullptr, FALSE, FALSE, nullptr));
         if (!m_fenceEvent.IsValid())
         {
@@ -416,13 +422,11 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
     // Build raytracing acceleration structures from the generated geometry.
     m_isASinitializationRequested = true;
 
-#if ENABLE_RAYTRACING
     // Create root signatures for the shaders.
     CreateRootSignatures();
 
     // Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
     CreateRaytracingPipelineStateObject();
-#endif
 
     // Create constant buffers for the geometry and the scene.
     CreateConstantBuffers();
@@ -430,10 +434,8 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
     // Create AABB primitive attribute buffers.
     CreateAABBPrimitiveAttributesBuffers();
 
-#if ENABLE_RAYTRACING
     // Build shader tables, which define shaders and their local root arguments.
     BuildShaderTables();
-#endif
 
     // Create an output 2D texture to store the raytracing result to.
     CreateRaytracingOutputResource();
@@ -687,6 +689,16 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
     CreateBufferSRV(&m_geometries[GeometryType::Plane].ib, static_cast<UINT>(ceil((float)sizeof(indices) / sizeof(UINT))), 0, &m_geometryIBHeapIndices[GeometryType::Plane]);
     CreateBufferSRV(&m_geometries[GeometryType::Plane].vb, ARRAYSIZE(vertices), sizeof(vertices[0]), &m_geometryVBHeapIndices[GeometryType::Plane]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Plane] == m_geometryIBHeapIndices[GeometryType::Plane] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
+
+
+	m_geometryInstances[GeometryType::Plane].ib.startIndex = 0;
+	m_geometryInstances[GeometryType::Plane].ib.count = ARRAYSIZE(indices);
+
+	m_geometryInstances[GeometryType::Plane].vb.startIndex = 0;
+	m_geometryInstances[GeometryType::Plane].vb.count = ARRAYSIZE(vertices);
+
+	m_geometryInstances[GeometryType::Plane].ib.gpuDescriptorHandle = m_geometries[GeometryType::Plane].ib.gpuDescriptorHandle;
+	m_geometryInstances[GeometryType::Plane].vb.gpuDescriptorHandle = m_geometries[GeometryType::Plane].vb.gpuDescriptorHandle;
 }
 
 void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
@@ -733,6 +745,15 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
     CreateBufferSRV(&geometry.ib, static_cast<UINT>(ceil(static_cast<float>(indices.size() * sizeof(Index)) / sizeof(UINT))) , 0, &m_geometryIBHeapIndices[GeometryType::Sphere]);
     CreateBufferSRV(&geometry.vb, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), &m_geometryVBHeapIndices[GeometryType::Sphere]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Sphere] == m_geometryIBHeapIndices[GeometryType::Sphere] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
+
+	m_geometryInstances[GeometryType::Sphere].ib.startIndex = 0;
+	m_geometryInstances[GeometryType::Sphere].ib.count = static_cast<UINT>(indices.size());
+
+	m_geometryInstances[GeometryType::Sphere].vb.startIndex = 0;
+	m_geometryInstances[GeometryType::Sphere].vb.count = static_cast<UINT>(vertices.size());
+
+	m_geometryInstances[GeometryType::Sphere].ib.gpuDescriptorHandle = geometry.ib.gpuDescriptorHandle;
+	m_geometryInstances[GeometryType::Sphere].vb.gpuDescriptorHandle = geometry.vb.gpuDescriptorHandle;
 
     // ToDo
     m_numTrianglesPerGeometry = static_cast<UINT>(indices.size()) / 3;
@@ -804,12 +825,11 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 		vertexData.RowPitch = SampleAssets::VertexDataSize;
 		vertexData.SlicePitch = vertexData.RowPitch;
 
-#if CULL_SQUID_CONTAINER_SIDE_PANELS
+		// Disable side panels on the squid container to make the squid visible.
 		{
 			const UINT sidePanelsGeometryID = 848;
 			DeactivateGeometry(sidePanelsGeometryID);
 		}
-#endif
 
 		PIXBeginEvent(commandList, 0, L"Copy vertex buffer data to default resource...");
 
@@ -916,12 +936,15 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 void D3D12RaytracingDynamicGeometry::InitializeGeometry()
 {
     m_geometries.resize(GeometryType::Count);
+	m_geometryInstances.resize(GeometryType::Count);
     BuildTesselatedGeometry();
     BuildPlaneGeometry();   
 
 	// Begin frame.
 	m_deviceResources->ResetCommandAllocatorAndCommandlist();
+#if ONLY_SQUID_SCENE_BLAS
 	LoadSceneGeometry();
+#endif
 	m_deviceResources->ExecuteCommandList();
 }
 
@@ -1009,7 +1032,9 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
             case GeometryType::Sphere: numInstances = SceneArgs::NumGeometriesPerBLAS;
             };
 
-			m_vBottomLevelAS[i].Initialize(device, m_geometries[i], numInstances, buildFlags, DXGI_FORMAT_R16_UINT, sizeof(Index), sizeof(DirectX::GeometricPrimitive::VertexType));
+			std::vector<GeometryInstance> geometryInstances;
+			geometryInstances.resize(1, m_geometryInstances[GeometryType::Plane]);
+			m_vBottomLevelAS[i].Initialize(device, m_geometries[i], numInstances, buildFlags, DXGI_FORMAT_R16_UINT, sizeof(Index), sizeof(DirectX::GeometricPrimitive::VertexType), geometryInstances);
 			m_vBottomLevelAS[i].SetInstanceContributionToHitGroupIndex(i * RayType::Count);
             maxScratchResourceSize = max(m_vBottomLevelAS[i].RequiredScratchSize(), maxScratchResourceSize);
             m_ASmemoryFootprint += m_vBottomLevelAS[i].RequiredResultDataSizeInBytes();
@@ -1123,11 +1148,7 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
 
     // Hit group shader table.
     {
-#if ONLY_SQUID_SCENE_BLAS
 		UINT numShaderRecords = static_cast<UINT>(m_geometryInstances.size()) * RayType::Count;
-#else
-		UINT numShaderRecords = RayType::Count + IntersectionShaderType::TotalPrimitiveCount * RayType::Count;
-#endif
         UINT shaderRecordSize = shaderIDSize + LocalRootSignature::MaxRootArgumentsSize();
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
@@ -1248,10 +1269,10 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
         (m_isGeometryInitializationRequested || m_isASinitializationRequested))
     {
         // Since we'll be recreating D3D resources, GPU needs to be done with the current ones.
+		// ToDo
         m_deviceResources->WaitForGpu();
 
         m_deviceResources->ResetCommandAllocatorAndCommandlist();
-#if ENABLE_RAYTRACING
         if (m_isGeometryInitializationRequested)
         {
             InitializeGeometry();
@@ -1263,20 +1284,18 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
 
         m_isGeometryInitializationRequested = false;
         m_isASinitializationRequested = false;
-#endif
         m_deviceResources->ExecuteCommandList();
 
 		// ToDo remove CPU-GPU syncs
 		m_deviceResources->WaitForGpu();
     }
-#if ENABLE_RAYTRACING
     if (m_animateScene)
     {
         UpdateSphereGeometryTransforms();
         UpdateBottomLevelASTransforms();
     }
-#endif
-    if (m_enableUI)
+
+	if (m_enableUI)
     {
         UpdateUI();
     }
@@ -1421,7 +1440,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
 // Update the application state with the new resolution.
 void D3D12RaytracingDynamicGeometry::UpdateForSizeChange(UINT width, UINT height)
 {
-    DXSample::UpdateForSizeChange(width, height);
+	DXSample::UpdateForSizeChange(width, height);
 }
 
 // Copy the raytracing output to the backbuffer.
@@ -1446,6 +1465,7 @@ void D3D12RaytracingDynamicGeometry::CopyRaytracingOutputToBackbuffer(D3D12_RESO
 
 void D3D12RaytracingDynamicGeometry::UpdateUI()
 {
+	// ToDo average/smoothen numbers of 1/4 second.
     vector<wstring> labels;
 #if 1
     // Main runtime information.
@@ -1495,9 +1515,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
 	// Sampling info:
 	{
 		wstringstream wLabel;
-		wLabel << L"\n\n\n\n";
-		//wLabel << L"														   ";
-		wLabel << L"Sample set: " << 25; // ToDO
+		wLabel << L"\n\n\n\nSample set: " << c_sppAO; 
 		labels.push_back(wLabel.str());
 	}
 #endif
@@ -1599,6 +1617,24 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
+	// Make sure execution for the current index FrameCount frames ago is finished.
+	{
+		// Schedule a Signal command in the queue.
+		UINT prevFrameIndex = (frameIndex + (FrameCount - 1)) % FrameCount;
+		const UINT64 currentFenceValue = m_fenceValues[prevFrameIndex];
+		ThrowIfFailed(m_computeCommandQueue->Signal(m_fence.Get(), currentFenceValue));
+
+		// If the next frame is not ready to be rendered yet, wait until it is ready.
+		if (m_fence->GetCompletedValue() < m_fenceValues[frameIndex])
+		{
+			ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[frameIndex], m_fenceEvent.Get()));
+			WaitForSingleObjectEx(m_fenceEvent.Get(), INFINITE, FALSE);
+		}
+
+		// Set the fence value for the next frame.
+		m_fenceValues[frameIndex] = currentFenceValue + 1;
+	}
+
     m_computeAllocators[frameIndex]->Reset();
     m_computeCommandList->Reset(m_computeAllocators[frameIndex].Get(), m_computePSO.Get());
 
@@ -1638,23 +1674,6 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     ID3D12CommandList *tempList = m_computeCommandList.Get();
     m_computeCommandQueue->ExecuteCommandLists(1, &tempList);
 	
-	// ToDo remove
-    if (m_computeCommandQueue && m_fence && m_fenceEvent.IsValid())
-    {
-        // Schedule a Signal command in the GPU queue.
-        UINT64 fenceValue = m_fenceValues[frameIndex];
-        if (SUCCEEDED(m_computeCommandQueue->Signal(m_fence.Get(), fenceValue)))
-        {
-            // Wait until the Signal has been processed.
-            if (SUCCEEDED(m_fence->SetEventOnCompletion(fenceValue, m_fenceEvent.Get())))
-            {
-                WaitForSingleObjectEx(m_fenceEvent.Get(), INFINITE, FALSE);
-
-                // Increment the fence value for the current frame.
-                m_fenceValues[frameIndex]++;
-            }
-        }
-    }
 }
 
 // Render the scene.
@@ -1675,7 +1694,6 @@ void D3D12RaytracingDynamicGeometry::OnRender()
         gpuTimer.BeginFrame(commandList);
     }
 
-#if ENABLE_RAYTRACING
     // Update acceleration structures.
     if (m_isASrebuildRequested && SceneArgs::EnableGeometryAndASBuildsAndUpdates)
     {
@@ -1690,7 +1708,8 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 
 	// UILayer will transition backbuffer to a present state.
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
-    
+
+#if !DEBUG_UI_DEVICE_HUNG
     // End frame.
     for (auto& gpuTimer : m_gpuTimers)
     {
@@ -1702,7 +1721,6 @@ void D3D12RaytracingDynamicGeometry::OnRender()
     // UI overlay.
     if (m_enableUI)
     {
-		m_deviceResources->WaitForGpu();
         m_uiLayer->Render(m_deviceResources->GetCurrentFrameIndex());
     }
     

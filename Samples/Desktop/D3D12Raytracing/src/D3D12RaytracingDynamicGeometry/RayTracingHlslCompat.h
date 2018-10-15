@@ -20,14 +20,10 @@
 //
 //**********************************************************************************************
 
+ 
 #define ONLY_SQUID_SCENE_BLAS 1
 #define ENABLE_BREAK_ON_DEBUG_LAYER_ERROR 0
 #define DEBUG_UI_DEVICE_HUNG 0
-
-// Cull the panels as they're inverted
-#define CULL_SQUID_CONTAINER_SIDE_PANELS 1
-
-#define ENABLE_RAYTRACING 1 // for non-dxr development
 
 #ifdef HLSL
 #include "util\HlslCompat.h"
@@ -38,11 +34,7 @@ using namespace DirectX;
 typedef UINT16 Index;
 #endif
 
-#define RENDER_SPHERES 1
 #define AO_ONLY 1
-
-
-#define N_FRACTAL_ITERATIONS 4      // = <1,...>
 
 // PERFORMANCE TIP: Set max recursion depth as low as needed
 // as drivers may apply optimization strategies for low recursion depths.
@@ -59,9 +51,6 @@ typedef UINT16 Index;
 #define NORMAL_SHADING 0
 #define DEPTH_SHADING 0
 #define SINGLE_COLOR_SHADING 0
-#define SIMPLE_SHADING 1
-#define AS_BUILD_DEBUG 0
-#define AS_BUILD_OLD 0
 
 struct ProceduralPrimitiveAttributes
 {

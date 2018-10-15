@@ -179,6 +179,7 @@ private:
 	bool m_isASrebuildRequested;
 	bool m_isSceneInitializationRequested;
 
+	void UpdateForSizeChange(UINT width, UINT height);
 	void LoadSceneGeometry();
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
@@ -213,7 +214,6 @@ private:
 	void GenerateBottomLevelASInstanceTransforms();
     void InitializeAccelerationStructures();
     void BuildShaderTables();
-    void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
     void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();
 	float NumMRaysPerSecond();
