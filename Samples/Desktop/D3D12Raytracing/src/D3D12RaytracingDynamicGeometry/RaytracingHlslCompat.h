@@ -24,11 +24,6 @@
 #define ENABLE_BREAK_ON_DEBUG_LAYER_ERROR 0
 #define DEBUG_UI_DEVICE_HUNG 0
 
-// Cull the panels as they're inverted
-#define CULL_SQUID_CONTAINER_SIDE_PANELS 1
-
-#define ENABLE_RAYTRACING 1 // for non-dxr development
-
 #ifdef HLSL
 #include "util\HlslCompat.h"
 #else
@@ -38,11 +33,7 @@ using namespace DirectX;
 typedef UINT16 Index;
 #endif
 
-#define RENDER_SPHERES 1
 #define AO_ONLY 1
-
-
-#define N_FRACTAL_ITERATIONS 4      // = <1,...>
 
 // PERFORMANCE TIP: Set max recursion depth as low as needed
 // as drivers may apply optimization strategies for low recursion depths.
@@ -59,9 +50,6 @@ typedef UINT16 Index;
 #define NORMAL_SHADING 0
 #define DEPTH_SHADING 0
 #define SINGLE_COLOR_SHADING 0
-#define SIMPLE_SHADING 1
-#define AS_BUILD_DEBUG 0
-#define AS_BUILD_OLD 0
 
 struct ProceduralPrimitiveAttributes
 {
@@ -202,38 +190,7 @@ namespace TraceRayParameters
     }
 }
 
-// From: http://blog.selfshadow.com/publications/s2015-shading-course/hoffman/s2015_pbs_physics_math_slides.pdf
-static const XMFLOAT4 ChromiumReflectance = XMFLOAT4(0.549f, 0.556f, 0.554f, 1.0f);
-
 static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.7f, 0.7f, 0.7f, 1.0f);
 static const float InShadowRadiance = 0.35f;
-
-namespace AnalyticPrimitive {
-    enum Enum {
-        AABB = 0,
-        Spheres,
-        Count
-    };
-}
-
-namespace VolumetricPrimitive {
-    enum Enum {
-        Metaballs = 0,
-        Count
-    };
-}
-
-namespace SignedDistancePrimitive {
-    enum Enum {
-        MiniSpheres = 0,
-        IntersectedRoundCube,
-        SquareTorus,
-        TwistedTorus,
-        Cog,
-        Cylinder,
-        FractalPyramid,
-        Count
-    };
-}
 
 #endif // RAYTRACINGHLSLCOMPAT_H
