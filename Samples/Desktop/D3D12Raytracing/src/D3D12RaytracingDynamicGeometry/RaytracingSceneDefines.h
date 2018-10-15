@@ -64,25 +64,9 @@ namespace LocalRootSignature {
 }
 
 namespace LocalRootSignature {
-    namespace AABB {
-        namespace Slot {
-            enum Enum {
-                MaterialConstant = 0,
-                GeometryIndex,
-                Count
-            };
-        }
-        struct RootArguments {
-            PrimitiveConstantBuffer materialCb;
-            PrimitiveInstanceConstantBuffer aabbCB;
-        };
-    }
-}
-
-namespace LocalRootSignature {
     inline UINT MaxRootArgumentsSize()
     {
-        return max(sizeof(Triangle::RootArguments), sizeof(AABB::RootArguments));
+        return sizeof(Triangle::RootArguments);
     }
 }
 

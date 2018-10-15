@@ -41,7 +41,6 @@ public:
 	virtual void OnDestroy();
 	virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
 
-	UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
 	void CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex, UINT firstElement = 0);
 
 	const DX::DeviceResources& GetDeviceResources() { return *m_deviceResources; }
@@ -81,7 +80,6 @@ private:
 	// DirectX Raytracing (DXR) attributes
 	ComPtr<ID3D12Device5> m_dxrDevice;		// ToDo remove
 	ComPtr<ID3D12StateObject> m_dxrStateObject;
-	bool m_isDxrSupported;
 
     // Compute resources.
     Samplers::MultiJittered m_randomSampler;
@@ -99,10 +97,7 @@ private:
     ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
 	ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature[LocalRootSignature::Type::Count];
 
-	// Descriptors
-	ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
-	UINT m_descriptorsAllocated;
-	UINT m_descriptorSize;
+	std::unique_ptr<DescriptorHeap> m_descriptorHeap;
 
 	// Raytracing scene
 	ConstantBuffer<SceneConstantBuffer> m_sceneCB;
@@ -151,7 +146,6 @@ private:
 	// Shader tables
 	static const wchar_t* c_hitGroupNames_TriangleGeometry[RayType::Count];
 	static const wchar_t* c_raygenShaderName;
-	static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
 	static const wchar_t* c_closestHitShaderNames[1];
 	static const wchar_t* c_missShaderNames[RayType::Count];
 
@@ -185,7 +179,6 @@ private:
 	bool m_isASrebuildRequested;
 	bool m_isSceneInitializationRequested;
 
-	void ConvertRHtoLHGeometry(UINT8* pAssetData);
 	void LoadSceneGeometry();
     void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
@@ -198,7 +191,6 @@ private:
     void CreateConstantBuffers();
     void CreateSamplesRNG();
     void CreateAABBPrimitiveAttributesBuffers();
-	void ModifyActiveUIParameter(bool bIncreaseValue);
 	void UpdateUI();
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
