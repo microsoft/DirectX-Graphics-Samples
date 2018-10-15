@@ -20,7 +20,7 @@
 //
 //**********************************************************************************************
 
-#define ONLY_SQUID_SCENE_BLAS 1
+#define ONLY_SQUID_SCENE_BLAS 0
 #define ENABLE_BREAK_ON_DEBUG_LAYER_ERROR 0
 #define DEBUG_UI_DEVICE_HUNG 0
 

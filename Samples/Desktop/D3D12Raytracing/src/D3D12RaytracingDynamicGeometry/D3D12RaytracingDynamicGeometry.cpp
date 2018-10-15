@@ -90,7 +90,7 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
     m_animateCamera(false),
     m_animateLight(false),
-    m_animateScene(false),
+    m_animateScene(true),
     m_missShaderTableStrideInBytes(UINT_MAX),
     m_hitGroupShaderTableStrideInBytes(UINT_MAX),
     m_numTrianglesPerGeometry(0),
@@ -238,7 +238,6 @@ void D3D12RaytracingDynamicGeometry::UpdateSphereGeometryTransforms()
         			XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(m_geometryTransforms[transformIndex].transform3x4), transform);
                 }
             }
-    m_geometryTransforms.CopyStagingToGpu(frameIndex);
 }
 
 // Initialize scene rendering parameters.
@@ -1086,7 +1085,6 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
     GetShaderIDs(stateObjectProperties.Get());
     shaderIDSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
-	// ToDo
     /*************--------- Shader table layout -------*******************
     | -------------------------------------------------------------------
 	| -------------------------------------------------------------------
@@ -1337,17 +1335,15 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 #else
 		// Plane
 		{
-			// ToDo Heuristic to do an update based on transform amplitude
 			D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;
 			m_vBottomLevelAS[BottomLevelASType::Plane].Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
-
 		}
 		// Sphere
 		{
-            // ToDo Heuristic to do an update based on transform amplitude
             D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;                
-            baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex) + GeometryType::Sphere * SceneArgs::NumGeometriesPerBLAS;
-               
+            baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex);
+
+			m_geometryTransforms.CopyStagingToGpu(frameIndex);
 			m_vBottomLevelAS[BottomLevelASType::Sphere].Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
         }
 #endif
@@ -1698,7 +1694,7 @@ void D3D12RaytracingDynamicGeometry::OnRender()
     RenderRNGVisualizations();
 
 	// UILayer will transition backbuffer to a present state.
-    CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
+    CopyRaytracingOutputToBackbuffer(false && m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);
 
     // End frame.
     for (auto& gpuTimer : m_gpuTimers)

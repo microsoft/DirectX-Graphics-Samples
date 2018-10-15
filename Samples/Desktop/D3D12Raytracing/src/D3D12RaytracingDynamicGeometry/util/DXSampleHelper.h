@@ -360,8 +360,9 @@ public:
     // Accessors
     T& operator[](UINT elementIndex) { return m_staging[elementIndex]; }
     size_t NumElementsPerInstance() { return m_staging.size(); }
+	UINT ElementSize() { return sizeof(T); }
     UINT NumInstances() { return m_staging.size(); }
-    size_t InstanceSize() { return NumElementsPerInstance() * sizeof(T); }
+    size_t InstanceSize() { return NumElementsPerInstance() * ElementSize(); }
     D3D12_GPU_VIRTUAL_ADDRESS GpuVirtualAddress(UINT instanceIndex = 0)
     {
         return m_resource->GetGPUVirtualAddress() + instanceIndex * InstanceSize();
