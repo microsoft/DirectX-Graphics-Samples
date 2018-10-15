@@ -51,8 +51,6 @@
 #include <d3d12.h>
 #include <atlbase.h>
 #include "d3dx12.h"
-// ToDo remove
-#include "..\..\..\..\Libraries\D3D12RaytracingFallback\Include\D3D12RaytracingHelpers.hpp"
 #include <pix3.h>
 
 #include <GeometricPrimitive.h>
