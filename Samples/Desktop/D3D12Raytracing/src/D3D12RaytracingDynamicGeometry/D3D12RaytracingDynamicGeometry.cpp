@@ -1352,8 +1352,10 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 		}
 		// Sphere
 		{
-            D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;                
+            D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;     
+#if USE_GPU_TRANSFORM
             baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex);
+#endif
 
 			m_geometryTransforms.CopyStagingToGpu(frameIndex);
 			m_vBottomLevelAS[BottomLevelASType::Sphere].Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
