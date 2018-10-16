@@ -25,4 +25,4 @@ The title bar of the sample provides runtime information:
 * ESC - terminate the application.
 
 ## Requirements
-* Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.
+* Requires DXR capable HW and SW. Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements. The sample doesn't implement Raytracing Fallback Layer path.

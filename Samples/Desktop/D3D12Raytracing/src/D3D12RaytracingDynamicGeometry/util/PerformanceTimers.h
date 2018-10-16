@@ -65,7 +65,7 @@ namespace DX
     class GPUTimer
     {
     public:
-        static const size_t c_maxTimers = 8;
+        static const size_t c_maxTimers = 200;
 
         GPUTimer() :
             m_gpuFreqInv(1.f),

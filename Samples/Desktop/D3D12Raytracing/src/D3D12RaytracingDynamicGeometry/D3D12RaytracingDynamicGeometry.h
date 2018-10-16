@@ -111,6 +111,7 @@ private:
 	std::vector<UINT> m_geometryVBHeapIndices;
 
 
+	UINT m_timerID = 0;
 
 
 	// ToDo clean up buffer management

@@ -26,11 +26,17 @@ namespace Scene
 		// Camera Position
 		{
 			auto& camera = args[Scene::Type::SingleObject].camera;
+#if 1
+			camera.position.eye = { 0.509415329, 2.28009248, -4.69469929, 1.00000000 };
+			camera.position.at = { 1.17371607, -6.80418682, 2.02239656, 1.00000000 };
+			camera.position.up = { 0.109009691, 0.596148014, 0.795441568, 0.000000000 };
+#else
 			camera.position.eye = { 0, 6.3f, -10.0f, 1 };
 			camera.position.at = { 0, 1, 0, 1 };
 			XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 			XMVECTOR forward = XMVector4Normalize(camera.position.at - camera.position.eye);
 			camera.position.up = XMVector3Normalize(XMVector3Cross(forward, right));
+#endif
 			camera.boundaries.min = -XMVectorSplatInfinity();
 			camera.boundaries.max = XMVectorSplatInfinity();
 		}

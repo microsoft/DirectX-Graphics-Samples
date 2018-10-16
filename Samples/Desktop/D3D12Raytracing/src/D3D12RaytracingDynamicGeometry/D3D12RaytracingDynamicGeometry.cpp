@@ -67,8 +67,11 @@ namespace SceneArgs
 
     BoolVar EnableGeometryAndASBuildsAndUpdates(L"Enable geometry & AS builds and updates", true);
 
-
+#if ONLY_SQUID_SCENE_BLAS
+	EnumVar SceneType(L"Scene", Scene::Type::SquidRoom, Scene::Type::Count, Scene::Type::Names, OnSceneChange, nullptr);
+#else
 	EnumVar SceneType(L"Scene", Scene::Type::SingleObject, Scene::Type::Count, Scene::Type::Names, OnSceneChange, nullptr);
+#endif
 
     enum UpdateMode { Build = 0, Update, Update_BuildEveryXFrames };
     const WCHAR* UpdateModes[] = { L"Build only", L"Update only", L"Update + build every X frames" };
@@ -99,7 +102,8 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_isASrebuildRequested(true),
     m_ASmemoryFootprint(0),
     m_numFramesSinceASBuild(0),
-	m_isCameraFrozen(false)
+	m_isCameraFrozen(false),
+	m_timerID(0)
 {
     g_pSample = this;
     UpdateForSizeChange(width, height);
@@ -1209,6 +1213,8 @@ void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
 void D3D12RaytracingDynamicGeometry::OnUpdate()
 {
     m_timer.Tick();
+	// ToDo Switch to time range averaged timers
+	m_timerID = (m_timerID + 1) % m_gpuTimers->c_maxTimers;
 
     float elapsedTime = static_cast<float>(m_timer.GetElapsedSeconds());
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
@@ -1396,9 +1402,9 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
 		dispatchDesc.Depth = 1;
         raytracingCommandList->SetPipelineState1(stateObject);
 
-        m_gpuTimers[GpuTimers::Raytracing].Start(commandList);
+        m_gpuTimers[GpuTimers::Raytracing].Start(commandList, m_timerID);
         raytracingCommandList->DispatchRays(&dispatchDesc);
-        m_gpuTimers[GpuTimers::Raytracing].Stop(commandList);
+        m_gpuTimers[GpuTimers::Raytracing].Stop(commandList, m_timerID);
     };
 
     auto SetCommonPipelineState = [&](auto* descriptorSetCommandList)
@@ -1477,7 +1483,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         wLabel << L" GPU[" << m_deviceResources->GetAdapterID() << L"]: " 
                << m_deviceResources->GetAdapterDescription() << L"\n";
         wLabel << fixed << L" FPS: " << m_fps << L"\n";
-		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing].GetElapsedMS()
+		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing].GetAverageMS()
 			   << L"ms" << L"     ~Million Primary Rays/s: " << NumMRaysPerSecond()
    			   << L"   ~Million AO rays/s" << NumMRaysPerSecond() * c_sppAO
                << L"\n";
@@ -1517,7 +1523,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
 	// Sampling info:
 	{
 		wstringstream wLabel;
-		wLabel << L"\n\n\n\nSample set: " << c_sppAO; 
+		wLabel << L"\n\n\nSample set: " << c_sppAO; 
 		labels.push_back(wLabel.str());
 	}
 #endif
@@ -1647,10 +1653,10 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     m_computeCB->dispatchDimensions = rngWindowSize;
 
     static UINT seed = 0;
-	UINT NumFramesPerIter = 100;
+	UINT NumFramesPerIter = 400;
 	static UINT frameID = NumFramesPerIter * 4;
-    m_computeCB->numSamplesToShow = (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
-    m_computeCB->seed =  ((seed++ / (NumFramesPerIter * m_randomSampler.NumSamples())) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
+	m_computeCB->numSamplesToShow = c_sppAO;// (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
+	m_computeCB->seed = (seed++ / NumFramesPerIter) * m_randomSampler.NumSamples();// ((seed++ / (NumFramesPerIter * m_randomSampler.NumSamples())) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
     m_computeCB->stratums = XMUINT2(static_cast<UINT>(sqrt(m_randomSampler.NumSamples())), 
                                     static_cast<UINT>(sqrt(m_randomSampler.NumSamples())));
     m_computeCB->grid = XMUINT2(m_randomSampler.NumSamples(), m_randomSampler.NumSamples());
@@ -1703,8 +1709,11 @@ void D3D12RaytracingDynamicGeometry::OnRender()
         m_isASrebuildRequested = false;
     }
 #endif
+
+#if DO_RAYTRACING
     // Render.
 	DoRaytracing();
+#endif
 
 #if SAMPLES_CS_VISUALIZATION 
     RenderRNGVisualizations();
@@ -1753,7 +1762,7 @@ void D3D12RaytracingDynamicGeometry::OnDeviceRestored()
 float D3D12RaytracingDynamicGeometry::NumMRaysPerSecond()
 {
     float resolution = static_cast<float>(m_width * m_height);
-    float raytracingTime = 0.001f * static_cast<float>(m_gpuTimers[GpuTimers::Raytracing].GetElapsedMS());
+    float raytracingTime = 0.001f * static_cast<float>(m_gpuTimers[GpuTimers::Raytracing].GetAverageMS());
     return resolution / ( raytracingTime * static_cast<float>(1e6));
 }
 
