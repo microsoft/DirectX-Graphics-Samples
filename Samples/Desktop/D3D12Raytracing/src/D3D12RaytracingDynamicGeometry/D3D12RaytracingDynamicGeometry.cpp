@@ -1393,6 +1393,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
         dispatchDesc.RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable->GetDesc().Width;
         dispatchDesc.Width = m_width;
         dispatchDesc.Height = m_height;
+		dispatchDesc.Depth = 1;
         raytracingCommandList->SetPipelineState1(stateObject);
 
         m_gpuTimers[GpuTimers::Raytracing].Start(commandList);
