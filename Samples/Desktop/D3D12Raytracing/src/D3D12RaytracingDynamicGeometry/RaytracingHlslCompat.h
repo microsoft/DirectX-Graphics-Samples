@@ -20,10 +20,12 @@
 //
 //**********************************************************************************************
 
-#define RUNTIME_AS_UPDATES 1
-#define USE_GPU_TRANSFORM 1
+#define RUNTIME_AS_UPDATES 0
+#define USE_GPU_TRANSFORM 0
 
 
+#define RAYGEN_SINGLE_COLOR_SHADING 1
+#define SAMPLES_CS_VISUALIZATION 0
 
 #define ONLY_SQUID_SCENE_BLAS 0
 
