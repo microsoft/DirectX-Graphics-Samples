@@ -1705,8 +1705,9 @@ void D3D12RaytracingDynamicGeometry::OnRender()
     // Render.
 	DoRaytracing();
 
-
+#if SAMPLES_CS_VISUALIZATION 
     RenderRNGVisualizations();
+#endif
 
 	// UILayer will transition backbuffer to a present state.
     CopyRaytracingOutputToBackbuffer(m_enableUI ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_PRESENT);

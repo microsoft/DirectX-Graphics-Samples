@@ -163,6 +163,10 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 [shader("raygeneration")]
 void MyRaygenShader()
 {
+#if RAYGEN_SINGLE_COLOR_SHADING
+	g_renderTarget[DispatchRaysIndex().xy] = float4(0,1,0,1);
+	return;
+#endif
     // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
     Ray ray = GenerateCameraRay(DispatchRaysIndex().xy, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorldWithCameraEyeAtOrigin );
  
