@@ -114,14 +114,14 @@ HemisphereSample3D Sampler::GetHemisphereSample3D()
     return m_hemisphereSamples[GetSampleIndex()];
 }
 
-// cosDensityPower - cosine density power {0, 1, ...}. uniform(0), cosine(1),...
-//
+// Initialize samples on a 3D hemisphere from 2D unit square samples
+// cosDensityPower - cosine density power {0, 1, ...}. 0:uniform, 1:cosine,...
 void Sampler::InitializeHemisphereSamples(float cosDensityPower)
 {
     for (UINT i = 0; i < m_samples.size(); i++)
     {
         // Compute azimuth (phi) and polar angle (theta)
-      /*
+        /*
         float phi = XM_2PI * m_samples[i].x;   
         float theta = acos(powf((1.f - m_samples[i].y), 1.f / (cosDensityPower + 1)));
 
@@ -130,7 +130,7 @@ void Sampler::InitializeHemisphereSamples(float cosDensityPower)
         m_hemisphereSamples[i].x = sinf(theta) * cosf(phi);
         m_hemisphereSamples[i].y = sinf(theta) * sinf(phi);
         m_hemisphereSamples[i].z = cosf(theta);
-      */ 
+        */ 
         // Optimized version using trigonometry equations.
         float cosTheta = powf((1.f - m_samples[i].y), 1.f / (cosDensityPower + 1));
         float sinTheta = sqrtf(1.f - cosTheta * cosTheta);
@@ -141,8 +141,8 @@ void Sampler::InitializeHemisphereSamples(float cosDensityPower)
     }
 }
 
-// Generate multi-jittered sample patterns on unit square.
-// Ref: Section 5.3.4 in Ray Tracing from the Ground Up
+// Generate multi-jittered sample patterns on a unit square [0,1].
+// Ref: Section 5.3.4 in Ray Tracing from the Ground Up.
 // The distribution has good random sampling distributions
 // with somewhat uniform distributions in both:
 // - 2D

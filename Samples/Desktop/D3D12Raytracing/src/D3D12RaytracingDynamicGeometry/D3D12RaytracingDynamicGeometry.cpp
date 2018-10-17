@@ -383,6 +383,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
         {
             //sample.value = m_randomSampler.GetSample2D();
             XMFLOAT3 p = m_randomSampler.GetHemisphereSample3D();
+			// Convert [-1,1] to [0,1].
             m_samplesGPUBuffer[i].value = XMFLOAT2(p.x*0.5f + 0.5f, p.y*0.5f + 0.5f);
             m_hemisphereSamplesGPUBuffer[i].value = p;
         }
