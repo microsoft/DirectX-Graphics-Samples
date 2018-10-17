@@ -157,10 +157,10 @@ void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
 {
     m_sceneCB->cameraPosition = m_camera.Eye();
 
-	float fovAngleY = 90.0f;
+	float verticalFovAngle = 45.0f;
 	XMMATRIX view, proj;
 	// ToDo camera is creating fisheye in spehere scene
-	m_camera.GetProj(&proj, fovAngleY, m_width, m_height);
+	m_camera.GetProj(&proj, verticalFovAngle, m_width, m_height);
 
 	// Calculate view matrix as if the camera was at (0,0,0) to avoid 
 	// precision issues when camera position is too far from (0,0,0).

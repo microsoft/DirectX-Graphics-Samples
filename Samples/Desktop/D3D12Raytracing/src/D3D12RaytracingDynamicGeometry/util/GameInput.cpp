@@ -346,7 +346,7 @@ namespace
             ThrowIfFalse(false, L"Mouse CreateDevice failed.");
         if (FAILED(s_Mouse->SetDataFormat(&c_dfDIMouse2)))
             ThrowIfFalse(false, L"Mouse SetDataFormat failed.");
-        if (FAILED(s_Mouse->SetCooperativeLevel(g_hWnd, DISCL_FOREGROUND | DISCL_EXCLUSIVE)))
+        if (FAILED(s_Mouse->SetCooperativeLevel(g_hWnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE)))
             ThrowIfFalse(false, L"Mouse SetCooperativeLevel failed.");
 #endif
 

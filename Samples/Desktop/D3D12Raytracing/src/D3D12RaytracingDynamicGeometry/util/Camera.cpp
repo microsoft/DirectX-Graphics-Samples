@@ -30,7 +30,7 @@ Camera::~Camera()
 void Camera::GetProj(XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords)
 {
 	float aspectRatio = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
-	float fovAngleY = fovInDegrees * XM_PI / 180.0f;
+	float fovAngleY = XMConvertToRadians(fovInDegrees);
 
 	if (aspectRatio < 1.0f)
 	{

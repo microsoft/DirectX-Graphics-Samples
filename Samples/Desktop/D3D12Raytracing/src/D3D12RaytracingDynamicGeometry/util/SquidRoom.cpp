@@ -17,7 +17,8 @@
 using namespace SquidRoomAssets;
 using namespace std;
 
-	// ToDo move this out as a helper
+
+// Load geometry from a file into buffers.
 void SquidRoomAssets::LoadGeometry(
 	ID3D12Device* device,
 	ID3D12GraphicsCommandList* commandList,

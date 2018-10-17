@@ -23,6 +23,8 @@ The title bar of the sample provides runtime information:
 * L - enable/disable light animation.
 * C - enable/disable camera animation.
 * ESC - terminate the application.
-
+* Hold left mouse key and drag - rotate camera's focus at position.
+* Hold right mouse key and drag - rotate scene.
+* 
 ## Requirements
 * Requires DXR capable HW and SW. Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements. The sample doesn't implement Raytracing Fallback Layer path.

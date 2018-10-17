@@ -88,8 +88,16 @@ void CameraController::Update(float deltaTime)
     }
 
     // don't apply momentum to mouse inputs
-    yaw += GameInput::GetAnalogInput(GameInput::kAnalogMouseX) * m_MouseSensitivityX;
-    pitch += GameInput::GetAnalogInput(GameInput::kAnalogMouseY) * m_MouseSensitivityY;
+	if (GameInput::IsPressed(GameInput::kMouse0))
+	{
+		yaw += GameInput::GetAnalogInput(GameInput::kAnalogMouseX) * m_MouseSensitivityX;
+		pitch += GameInput::GetAnalogInput(GameInput::kAnalogMouseY) * m_MouseSensitivityY;
+	}
+	else if (GameInput::IsPressed(GameInput::kMouse1))
+	{
+		yaw += -1 * GameInput::GetAnalogInput(GameInput::kAnalogMouseX) * m_MouseSensitivityX;
+		pitch += -1 * GameInput::GetAnalogInput(GameInput::kAnalogMouseY) * m_MouseSensitivityY;
+	}
 
 	m_camera.RotateYaw(yaw);
 	m_camera.RotatePitch(pitch);
