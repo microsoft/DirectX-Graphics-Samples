@@ -43,8 +43,6 @@ void main( uint3 DTid : SV_DispatchThreadID )
         color = 0.f;
     else
         color = 1.f;
-#elif 0
-    color = 1.f;
 #else
     // Stratum grid lines
     {
