@@ -77,7 +77,7 @@ struct RNGConstantBuffer
 {
     XMUINT2 uavOffset;     // offset where [0,0] thread should write to.
     XMUINT2 dispatchDimensions;  // for 2D dispatches
-    UINT seed;
+	UINT sampleSetBase;
     UINT numSamples;
     UINT numSampleSets;
     UINT numSamplesToShow; 

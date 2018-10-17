@@ -22,10 +22,6 @@ StructuredBuffer<AlignedUnitSquareSample2D> g_sampleSets : register(t1);
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-#define RNG_GPUONLY 0
-#define RNG_CPUSAMPLES 1
-
-#if RNG_CPUSAMPLES
     float sampleRadius = 0.015f;
     float4 color = (float4) 0.0f;
     
@@ -80,22 +76,12 @@ void main( uint3 DTid : SV_DispatchThreadID )
         float2 pixelPosition = (float2) DTid.xy / (rngCB.dispatchDimensions - (uint2)1);
         for (uint i = 0; i < rngCB.numSamplesToShow; i++)
         {
-            if (length(g_sampleSets[i + rngCB.seed].value - pixelPosition) <= sampleRadius)
+            if (length(g_sampleSets[i + rngCB.sampleSetBase].value - pixelPosition) <= sampleRadius)
             {
                 color = 0.0f;
             }
         }
     }
-#endif 
 
-#if RNG_GPUONLY
-    uint seed = rngCB.dispatchDimensions.x * DTid.y + DTid.x + rngCB.seed;
-
-    uint RNGState = RNG::SeedThread(seed);
-    float randomValue = RNG::Random01(RNGState);
-
-    // Write the raytraced color to the output texture.
-    float4 color = (float4) randomValue;
-#endif
     g_renderTarget[rngCB.uavOffset + DTid.xy] = color;
 }

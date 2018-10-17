@@ -1374,7 +1374,10 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
 	// Sampling info:
 	{
 		wstringstream wLabel;
-		wLabel << L"\n\n\nSample set: " << c_sppAO; 
+		wLabel << L"\n";
+		wLabel << L"Num samples: " << m_randomSampler.NumSamples() << L"\n";
+		wLabel << L"Sample set: " << m_computeCB->sampleSetBase / m_randomSampler.NumSamples() << " / " << m_randomSampler.NumSampleSets() << L"\n";
+		
 		labels.push_back(wLabel.str());
 	}
 #endif
@@ -1507,7 +1510,7 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
 	UINT NumFramesPerIter = 400;
 	static UINT frameID = NumFramesPerIter * 4;
 	m_computeCB->numSamplesToShow = c_sppAO;// (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
-	m_computeCB->seed = (seed++ / NumFramesPerIter) * m_randomSampler.NumSamples();// ((seed++ / (NumFramesPerIter * m_randomSampler.NumSamples())) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
+	m_computeCB->sampleSetBase = ((seed++ / NumFramesPerIter) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
     m_computeCB->stratums = XMUINT2(static_cast<UINT>(sqrt(m_randomSampler.NumSamples())), 
                                     static_cast<UINT>(sqrt(m_randomSampler.NumSamples())));
     m_computeCB->grid = XMUINT2(m_randomSampler.NumSamples(), m_randomSampler.NumSamples());
