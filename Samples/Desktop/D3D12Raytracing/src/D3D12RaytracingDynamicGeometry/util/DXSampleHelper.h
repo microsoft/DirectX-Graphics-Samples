@@ -428,3 +428,46 @@ inline float CalculateAnimationInterpolant(float elapsedTime, float cycleDuratio
 	return lerp(0.0f, 1.0f, curLinearCycleTime);
 }
 
+
+
+// Create a SRV for a buffer.
+inline void CreateBufferSRV(
+	D3DBuffer* destBuffer,
+	ID3D12Device* device, 
+	UINT numElements, 
+	UINT elementSize, 
+	DescriptorHeap* descriptorHeap, 
+	UINT* descriptorHeapIndex, 
+	UINT firstElement = 0)
+{
+	// SRV
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Buffer.NumElements = numElements;
+	srvDesc.Buffer.FirstElement = firstElement;
+	if (elementSize == 0)
+	{
+		srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+		srvDesc.Buffer.StructureByteStride = 0;
+	}
+	else
+	{
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+		srvDesc.Buffer.StructureByteStride = elementSize;
+	}
+	*descriptorHeapIndex = descriptorHeap->AllocateDescriptor(&destBuffer->cpuDescriptorHandle, *descriptorHeapIndex);
+	device->CreateShaderResourceView(destBuffer->resource.Get(), &srvDesc, destBuffer->cpuDescriptorHandle);
+	destBuffer->gpuDescriptorHandle =
+		CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetHeap()->GetGPUDescriptorHandleForHeapStart(),
+			*descriptorHeapIndex, descriptorHeap->DescriptorSize());
+};
+
+inline float NumMPixelsPerSecond(float timeMs, UINT width, UINT height)
+{
+	float resolution = static_cast<float>(width * height);
+	float raytracingTime = 0.001f * timeMs;
+	return resolution / (raytracingTime * static_cast<float>(1e6));
+}

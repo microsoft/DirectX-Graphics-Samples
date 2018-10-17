@@ -33,7 +33,7 @@ StructuredBuffer<AlignedHemisphereSample3D> g_sampleSets : register(t4);
 ConstantBuffer<PrimitiveConstantBuffer> l_materialCB : register(b1);
 #if ONLY_SQUID_SCENE_BLAS
 StructuredBuffer<UINT> l_indices : register(t1, space0);
-StructuredBuffer<SquidVertex> l_vertices : register(t2, space0);
+StructuredBuffer<VertexPositionNormalTextureTangent> l_vertices : register(t2, space0);
 #else
 ByteAddressBuffer l_indices : register(t1, space0);
 StructuredBuffer<VertexPositionNormalTexture> l_vertices : register(t2, space0);

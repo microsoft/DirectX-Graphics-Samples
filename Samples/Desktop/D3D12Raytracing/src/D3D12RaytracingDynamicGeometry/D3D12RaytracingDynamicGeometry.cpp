@@ -96,7 +96,7 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_animateScene(true),
     m_missShaderTableStrideInBytes(UINT_MAX),
     m_hitGroupShaderTableStrideInBytes(UINT_MAX),
-    m_numTrianglesPerGeometry(0),
+    m_numTriangles(0),
     m_isGeometryInitializationRequested(true),
     m_isASinitializationRequested(true),
     m_isASrebuildRequested(true),
@@ -646,7 +646,7 @@ void D3D12RaytracingDynamicGeometry::CreateDescriptorHeap()
     // 2 per BLAS - one for the acceleration structure and one for its instance desc 
     // 1 - top level acceleration structure
     //ToDo
-	UINT NumDescriptors = 2 * GeometryType::Count + 1 + 2 * MaxBLAS + 1 + ARRAYSIZE(SampleAssets::Draws) * 2;
+	UINT NumDescriptors = 2 * GeometryType::Count + 1 + 2 * MaxBLAS + 1 + ARRAYSIZE(SquidRoomAssets::Draws) * 2;
 	m_descriptorHeap = make_unique<DescriptorHeap>(device, NumDescriptors);
 }
 
@@ -656,8 +656,8 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
     // Plane indices.
     Index indices[] =
     {
-        3,1,0,
-        2,1,3
+        3, 1, 0,
+        2, 1, 3
 
     };
 
@@ -675,8 +675,8 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
     // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
 
     // ToDo revise numElements calculation
-    CreateBufferSRV(&m_geometries[GeometryType::Plane].ib, static_cast<UINT>(ceil((float)sizeof(indices) / sizeof(UINT))), 0, &m_geometryIBHeapIndices[GeometryType::Plane]);
-    CreateBufferSRV(&m_geometries[GeometryType::Plane].vb, ARRAYSIZE(vertices), sizeof(vertices[0]), &m_geometryVBHeapIndices[GeometryType::Plane]);
+    CreateBufferSRV(&m_geometries[GeometryType::Plane].ib, device, static_cast<UINT>(ceil((float)sizeof(indices) / sizeof(UINT))), 0, m_descriptorHeap.get(), &m_geometryIBHeapIndices[GeometryType::Plane]);
+    CreateBufferSRV(&m_geometries[GeometryType::Plane].vb, device, ARRAYSIZE(vertices), sizeof(vertices[0]), m_descriptorHeap.get(), &m_geometryVBHeapIndices[GeometryType::Plane]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Plane] == m_geometryIBHeapIndices[GeometryType::Plane] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
 
@@ -731,8 +731,8 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
     AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
 
     // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
-    CreateBufferSRV(&geometry.ib, static_cast<UINT>(ceil(static_cast<float>(indices.size() * sizeof(Index)) / sizeof(UINT))) , 0, &m_geometryIBHeapIndices[GeometryType::Sphere]);
-    CreateBufferSRV(&geometry.vb, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), &m_geometryVBHeapIndices[GeometryType::Sphere]);
+    CreateBufferSRV(&geometry.ib, device, static_cast<UINT>(ceil(static_cast<float>(indices.size() * sizeof(Index)) / sizeof(UINT))) , 0, m_descriptorHeap.get(), &m_geometryIBHeapIndices[GeometryType::Sphere]);
+    CreateBufferSRV(&geometry.vb, device, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), m_descriptorHeap.get(), &m_geometryVBHeapIndices[GeometryType::Sphere]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Sphere] == m_geometryIBHeapIndices[GeometryType::Sphere] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
 	m_geometryInstances[GeometryType::Sphere].ib.startIndex = 0;
@@ -745,7 +745,7 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 	m_geometryInstances[GeometryType::Sphere].vb.gpuDescriptorHandle = geometry.vb.gpuDescriptorHandle;
 
     // ToDo
-    m_numTrianglesPerGeometry = static_cast<UINT>(indices.size()) / 3;
+    m_numTriangles = static_cast<UINT>(indices.size()) / 3;
 }
 
 // ToDo move this out as a helper
@@ -754,171 +754,25 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 	auto device = m_deviceResources->GetD3DDevice();
 	auto commandList = m_deviceResources->GetCommandList();
 
-	UINT fileSize = 0;
-	UINT8* pAssetData = nullptr;
-
-	auto ConvertRHtoLHGeometry = [&]()
-	{
-		SquidVertex* vertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset);
-		UINT nVertices = SampleAssets::VertexDataSize / sizeof(SquidVertex);
-
-		for (UINT i = 0; i < nVertices; i++)
-		{
-			auto& vertex = vertices[i];
-			vertex.position.z = -vertex.position.z;
-		}
-	};
-
-	auto DeactivateGeometry = [&](UINT geometryID)
-	{
-		auto& geometryDesc = SampleAssets::Draws[geometryID];
-		SquidVertex* geometryVertices = reinterpret_cast<SquidVertex*>(pAssetData + SampleAssets::VertexDataOffset) + geometryDesc.VertexBase;
-		UINT* geometryIndices = reinterpret_cast<UINT*>(pAssetData + SampleAssets::IndexDataOffset) + geometryDesc.IndexStart;
-
-		// Deactivate vertices by setting x-coordinate to NaN.
-		for (UINT i = 0; i < geometryDesc.IndexCount; i++)
-		{
-			auto& vertex = geometryVertices[geometryIndices[i]];
-			vertex.position.x = nanf("");
-		}
-	};
-
-	// Load scene assets.
-	ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(SampleAssets::DataFileName).c_str(), &pAssetData, &fileSize));
-	ConvertRHtoLHGeometry();
-
-	// Create the vertex buffer.
-	{
-		ThrowIfFailed(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(SampleAssets::VertexDataSize),
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&m_vertexBuffer)));
-
-		NAME_D3D12_OBJECT(m_vertexBuffer);
-
-		ThrowIfFailed(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(SampleAssets::VertexDataSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_vertexBufferUpload)));
-
-		// Copy data to the upload heap and then schedule a copy 
-		// from the upload heap to the vertex buffer.
-		D3D12_SUBRESOURCE_DATA vertexData = {};
-		vertexData.pData = pAssetData + SampleAssets::VertexDataOffset;
-		vertexData.RowPitch = SampleAssets::VertexDataSize;
-		vertexData.SlicePitch = vertexData.RowPitch;
-
-		// Disable side panels on the squid container to make the squid visible.
-		{
-			const UINT sidePanelsGeometryID = 848;
-			DeactivateGeometry(sidePanelsGeometryID);
-		}
-
-		PIXBeginEvent(commandList, 0, L"Copy vertex buffer data to default resource...");
-
-		UpdateSubresources<1>(commandList, m_vertexBuffer.Get(), m_vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
-
-		PIXEndEvent(commandList);
-
-		// Initialize the vertex buffer view.
-		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-		m_vertexBufferView.SizeInBytes = SampleAssets::VertexDataSize;
-		m_vertexBufferView.StrideInBytes = SampleAssets::StandardVertexStride;
-	}
-
-	// Create the index buffer.
-	{
-		ThrowIfFailed(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(SampleAssets::IndexDataSize),
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&m_indexBuffer)));
-
-		NAME_D3D12_OBJECT(m_indexBuffer);
-
-		ThrowIfFailed(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(SampleAssets::IndexDataSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_indexBufferUpload)));
-
-		// Copy data to the upload heap and then schedule a copy 
-		// from the upload heap to the index buffer.
-		D3D12_SUBRESOURCE_DATA indexData = {};
-		indexData.pData = pAssetData + SampleAssets::IndexDataOffset;
-		indexData.RowPitch = SampleAssets::IndexDataSize;
-		indexData.SlicePitch = indexData.RowPitch;
-
-		PIXBeginEvent(commandList, 0, L"Copy index buffer data to default resource...");
-
-		UpdateSubresources<1>(commandList, m_indexBuffer.Get(), m_indexBufferUpload.Get(), 0, 0, 1, &indexData);
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
-
-		PIXEndEvent(commandList);
-
-		// Initialize the index buffer view.
-		m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
-		m_indexBufferView.SizeInBytes = SampleAssets::IndexDataSize;
-		m_indexBufferView.Format = SampleAssets::StandardIndexFormat;
-	}
-
-	auto& geometry = m_geometries[GeometryType::SquidRoom];
-	geometry.vb.resource = m_vertexBuffer;
-	geometry.ib.resource = m_indexBuffer;
-	
-	// ToDo revise numElements calculation
-	CreateBufferSRV(&m_geometries[GeometryType::SquidRoom].ib, m_indexBufferView.SizeInBytes / sizeof(UINT), 0, &m_geometryIBHeapIndices[GeometryType::SquidRoom]);
-	CreateBufferSRV(&m_geometries[GeometryType::SquidRoom].vb, m_vertexBufferView.SizeInBytes / m_vertexBufferView.StrideInBytes, m_vertexBufferView.StrideInBytes, &m_geometryVBHeapIndices[GeometryType::SquidRoom]);
+	SquidRoomAssets::LoadGeometry(
+		device,
+		commandList,
+		m_descriptorHeap.get(),
+		GetAssetFullPath(SquidRoomAssets::DataFileName).c_str(),
+		&m_geometries[GeometryType::SquidRoom].vb,
+		m_vertexBufferUpload.Get(),
+		&m_geometryVBHeapIndices[GeometryType::SquidRoom],
+		&m_geometries[GeometryType::SquidRoom].ib,
+		m_indexBufferUpload.Get(),
+		&m_geometryIBHeapIndices[GeometryType::SquidRoom],
+		&m_geometryInstances);
 	ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::SquidRoom] == m_geometryIBHeapIndices[GeometryType::SquidRoom] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
-	// ToDo remove
-	// Backup primary handles
-	struct Handles {
-		D3D12_CPU_DESCRIPTOR_HANDLE cpu;
-		D3D12_GPU_DESCRIPTOR_HANDLE gpu;
-	};
-	Handles ib = { m_geometries[GeometryType::SquidRoom].ib.cpuDescriptorHandle, m_geometries[GeometryType::SquidRoom].ib.gpuDescriptorHandle };
-	Handles vb = { m_geometries[GeometryType::SquidRoom].vb.cpuDescriptorHandle, m_geometries[GeometryType::SquidRoom].vb.gpuDescriptorHandle };
-
-	m_numTrianglesPerGeometry = 0;
-	m_geometryInstances.resize(ARRAYSIZE(SampleAssets::Draws));
-	for (UINT i = 0; i < ARRAYSIZE(SampleAssets::Draws); i++)
+	m_numTriangles = 0;
+	for (auto& geometry : m_geometryInstances)
 	{
-		m_geometryInstances[i].ib.startIndex = SampleAssets::Draws[i].IndexStart;
-		m_geometryInstances[i].ib.count = SampleAssets::Draws[i].IndexCount;
-		
-		m_geometryInstances[i].vb.startIndex = SampleAssets::Draws[i].VertexBase;
-		m_geometryInstances[i].vb.count = SampleAssets::VertexDataSize / SampleAssets::StandardVertexStride - SampleAssets::Draws[i].VertexBase;
-
-		UINT geometryIBHeapIndex = UINT_MAX;
-		UINT geometryVBHeapIndex = UINT_MAX;
-		CreateBufferSRV(&m_geometries[GeometryType::SquidRoom].ib, m_geometryInstances[i].ib.count, sizeof(UINT), &geometryIBHeapIndex, m_geometryInstances[i].ib.startIndex);
-		CreateBufferSRV(&m_geometries[GeometryType::SquidRoom].vb, m_geometryInstances[i].vb.count, m_vertexBufferView.StrideInBytes, &geometryVBHeapIndex, m_geometryInstances[i].vb.startIndex);
-
-		m_geometryInstances[i].ib.gpuDescriptorHandle = m_geometries[GeometryType::SquidRoom].ib.gpuDescriptorHandle;
-		m_geometryInstances[i].vb.gpuDescriptorHandle = m_geometries[GeometryType::SquidRoom].vb.gpuDescriptorHandle;
-	
-		m_numTrianglesPerGeometry += SampleAssets::Draws[i].IndexCount / 3;
+		m_numTriangles += geometry.ib.count / 3;
 	}
-
-	// Revert
-	m_geometries[GeometryType::SquidRoom].ib.cpuDescriptorHandle = ib.cpu;
-	m_geometries[GeometryType::SquidRoom].ib.gpuDescriptorHandle = ib.gpu;
-	m_geometries[GeometryType::SquidRoom].vb.cpuDescriptorHandle = vb.cpu;
-	m_geometries[GeometryType::SquidRoom].vb.gpuDescriptorHandle = vb.gpu;
-
-	free(pAssetData);
 }
 
 // Build geometry used in the sample.
@@ -1014,11 +868,12 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
     {
 #if ONLY_SQUID_SCENE_BLAS
 		m_vBottomLevelAS.resize(1);
-		m_vBottomLevelAS[0].Initialize(device, m_geometries[GeometryType::SquidRoom], static_cast<UINT>(m_geometryInstances.size()), buildFlags, DXGI_FORMAT_R32_UINT, sizeof(UINT), SampleAssets::StandardVertexStride, m_geometryInstances);
+		// ToDo apply scale transform to make all scenes using same spatial unit lengths.
+		m_vBottomLevelAS[0].Initialize(device, m_geometries[GeometryType::SquidRoom], static_cast<UINT>(m_geometryInstances.size()), buildFlags, DXGI_FORMAT_R32_UINT, sizeof(UINT), SquidRoomAssets::StandardVertexStride, m_geometryInstances);
 		m_vBottomLevelAS[0].SetInstanceContributionToHitGroupIndex(0);
 		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
 		m_ASmemoryFootprint += m_vBottomLevelAS[0].RequiredResultDataSizeInBytes();
-		UINT numGeometryTransforms = 1; 
+		UINT numGeometryTransforms = 1;
 #else
         m_vBottomLevelAS.resize(SceneArgs::NumSphereBLAS + 1);
 	
@@ -1192,6 +1047,7 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
 
 void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
 {
+	// ToDo
     switch (key)
     {
     case VK_ESCAPE:
@@ -1446,12 +1302,6 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     DispatchRays(commandList, m_dxrStateObject.Get());
 }
 
-// Update the application state with the new resolution.
-void D3D12RaytracingDynamicGeometry::UpdateForSizeChange(UINT width, UINT height)
-{
-	DXSample::UpdateForSizeChange(width, height);
-}
-
 // Copy the raytracing output to the backbuffer.
 void D3D12RaytracingDynamicGeometry::CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState)
 {
@@ -1505,10 +1355,10 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         wLabel << L" " << L"AS update mode: " << SceneArgs::ASUpdateMode << L"\n";
         wLabel.precision(2);
         wLabel << L" " << L"AS memory footprint: " << static_cast<double>(m_ASmemoryFootprint)/(1024*1024) << L"MB\n";
-        wLabel << L" " << L" # triangles per geometry: " << m_numTrianglesPerGeometry << L"\n";
+        wLabel << L" " << L" # triangles per geometry: " << m_numTriangles << L"\n";
         wLabel << L" " << L" # geometries per BLAS: " << SceneArgs::NumGeometriesPerBLAS << L"\n";
         wLabel << L" " << L" # Sphere BLAS: " << SceneArgs::NumSphereBLAS << L"\n";
-        wLabel << L" " << L" # total triangles: " << SceneArgs::NumSphereBLAS * SceneArgs::NumGeometriesPerBLAS* m_numTrianglesPerGeometry << L"\n";
+        wLabel << L" " << L" # total triangles: " << SceneArgs::NumSphereBLAS * SceneArgs::NumGeometriesPerBLAS* m_numTriangles << L"\n";
         // ToDo AS memory
         labels.push_back(wLabel.str());
     }
@@ -1739,34 +1589,6 @@ void D3D12RaytracingDynamicGeometry::OnRender()
     m_deviceResources->Present(D3D12_RESOURCE_STATE_PRESENT);
 }
 
-void D3D12RaytracingDynamicGeometry::OnDestroy()
-{
-    // Let GPU finish before releasing D3D resources.
-    m_deviceResources->WaitForGpu();
-    OnDeviceLost();
-}
-
-// Release all device dependent resouces when a device is lost.
-void D3D12RaytracingDynamicGeometry::OnDeviceLost()
-{
-    ReleaseWindowSizeDependentResources();
-    ReleaseDeviceDependentResources();
-}
-
-// Create all device dependent resources when a device is restored.
-void D3D12RaytracingDynamicGeometry::OnDeviceRestored()
-{
-    CreateDeviceDependentResources();
-    CreateWindowSizeDependentResources();
-}
-
-float D3D12RaytracingDynamicGeometry::NumMRaysPerSecond()
-{
-    float resolution = static_cast<float>(m_width * m_height);
-    float raytracingTime = 0.001f * static_cast<float>(m_gpuTimers[GpuTimers::Raytracing].GetAverageMS());
-    return resolution / ( raytracingTime * static_cast<float>(1e6));
-}
-
 // Compute the average frames per second and million rays per second.
 void D3D12RaytracingDynamicGeometry::CalculateFrameStats()
 {
@@ -1807,33 +1629,3 @@ void D3D12RaytracingDynamicGeometry::OnSizeChanged(UINT width, UINT height, bool
         return;
     }
 }
-
-// Create a SRV for a buffer.
-void D3D12RaytracingDynamicGeometry::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex, UINT firstElement)
-{
-    auto device = m_deviceResources->GetD3DDevice();
-
-    // SRV
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Buffer.NumElements = numElements;
-	srvDesc.Buffer.FirstElement = firstElement;
-    if (elementSize == 0)
-    {
-        srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
-        srvDesc.Buffer.StructureByteStride = 0;
-    }
-    else
-    {
-        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-        srvDesc.Buffer.StructureByteStride = elementSize;
-    }
-    *descriptorHeapIndex = m_descriptorHeap->AllocateDescriptor(&buffer->cpuDescriptorHandle, *descriptorHeapIndex);
-    device->CreateShaderResourceView(buffer->resource.Get(), &srvDesc, buffer->cpuDescriptorHandle);
-    buffer->gpuDescriptorHandle = 
-		CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetHeap()->GetGPUDescriptorHandleForHeapStart(),
-			*descriptorHeapIndex, m_descriptorHeap->DescriptorSize());
-};

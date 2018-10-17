@@ -27,8 +27,6 @@ public:
 	D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name);
 	~D3D12RaytracingDynamicGeometry();
 	// IDeviceNotify
-	virtual void OnDeviceLost() override;
-	virtual void OnDeviceRestored() override;
 	virtual void OnReleaseWindowSizeDependentResources() override { ReleaseWindowSizeDependentResources(); };
 	virtual void OnCreateWindowSizeDependentResources() override { CreateWindowSizeDependentResources(); };
 
@@ -38,10 +36,7 @@ public:
 	virtual void OnUpdate();
 	virtual void OnRender();
 	virtual void OnSizeChanged(UINT width, UINT height, bool minimized);
-	virtual void OnDestroy();
 	virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
-
-	void CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize, UINT* descriptorHeapIndex, UINT firstElement = 0);
 
 	const DX::DeviceResources& GetDeviceResources() { return *m_deviceResources; }
     ID3D12Device5* GetDxrDevice() { return m_dxrDevice.Get(); }
@@ -97,6 +92,7 @@ private:
     ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
 	ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature[LocalRootSignature::Type::Count];
 
+	// ToDo move to deviceResources
 	std::unique_ptr<DescriptorHeap> m_descriptorHeap;
 
 	// Raytracing scene
@@ -167,24 +163,22 @@ private:
 
 	// UI
 	std::unique_ptr<UILayer> m_uiLayer;
-	bool m_bCtrlKeyIsPressed;
+	
 	float m_fps;
-	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS m_ASBuildQuality;
-	UINT m_activeUIparameter;
-	UINT m_numTrianglesPerGeometry;
+	UINT m_numTriangles;
 	bool m_isGeometryInitializationRequested;
 	bool m_isASinitializationRequested;
 	bool m_isASrebuildRequested;
 	bool m_isSceneInitializationRequested;
 
-	void UpdateForSizeChange(UINT width, UINT height);
+	void ParseCommandLineArgs(WCHAR* argv[], int argc);
+	void RecreateD3D();
+
 	void LoadSceneGeometry();
-    void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
 	void UpdateBottomLevelASTransforms();
     void UpdateSphereGeometryTransforms();
     void InitializeScene();
-    void RecreateD3D();
 	void UpdateAccelerationStructures(bool forceBuild = false);
     void DoRaytracing();
     void CreateConstantBuffers();
@@ -213,5 +207,5 @@ private:
     void BuildShaderTables();
     void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();
-	float NumMRaysPerSecond();
+	float NumMRaysPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing].GetAverageMS(), m_width, m_height); }
 };

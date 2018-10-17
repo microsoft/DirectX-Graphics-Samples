@@ -25,7 +25,7 @@
 #define DO_RAYTRACING 1
 
 #define RAYGEN_SINGLE_COLOR_SHADING 0
-#define SAMPLES_CS_VISUALIZATION 0
+#define SAMPLES_CS_VISUALIZATION 1
 
 #define ONLY_SQUID_SCENE_BLAS 1
 
@@ -143,15 +143,6 @@ struct AlignedHemisphereSample3D
     UINT padding;  // Padding to 16B
 };
 
-// ToDo rename
-struct SquidVertex {
-	XMFLOAT3 position;
-	XMFLOAT3 normal;
-	XMFLOAT2 textureCoordinate;
-	XMFLOAT3 tangent;
-};
-
-
 struct Vertex
 {
     XMFLOAT3 position;
@@ -163,6 +154,14 @@ struct VertexPositionNormalTexture
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
 	XMFLOAT2 uv;
+};
+
+struct VertexPositionNormalTextureTangent
+{
+	XMFLOAT3 position;
+	XMFLOAT3 normal;
+	XMFLOAT2 textureCoordinate;
+	XMFLOAT3 tangent;
 };
 
 

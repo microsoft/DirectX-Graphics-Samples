@@ -137,6 +137,9 @@
     <ClCompile Include="RaytracingSceneDefines.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="util\SquidRoom.cpp">
+      <Filter>Assets\Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.md" />

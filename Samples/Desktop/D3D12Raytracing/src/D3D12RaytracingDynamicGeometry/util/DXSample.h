@@ -25,7 +25,7 @@ public:
     virtual void OnUpdate() = 0;
     virtual void OnRender() = 0;
     virtual void OnSizeChanged(UINT width, UINT height, bool minimized) = 0;
-    virtual void OnDestroy() = 0;
+    virtual void OnDestroy();
 
     // Samples override the event handlers to handle specific messages.
     virtual void OnKeyDown(UINT8 /*key*/) {}
@@ -35,6 +35,15 @@ public:
     virtual void OnLeftButtonDown(UINT /*x*/, UINT /*y*/) {}
     virtual void OnLeftButtonUp(UINT /*x*/, UINT /*y*/) {}
     virtual void OnDisplayChanged() {}
+
+
+	// IDeviceNotify
+	virtual void OnDeviceLost();
+	virtual void OnDeviceRestored();
+	virtual void CreateDeviceDependentResources() = 0;
+	virtual void CreateWindowSizeDependentResources() = 0;
+	virtual void ReleaseDeviceDependentResources() = 0;
+	virtual void ReleaseWindowSizeDependentResources() = 0;
 
     // Overridable members.
     virtual void ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[], int argc);

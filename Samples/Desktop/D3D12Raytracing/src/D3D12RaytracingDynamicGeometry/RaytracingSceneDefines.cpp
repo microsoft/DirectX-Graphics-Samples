@@ -27,9 +27,9 @@ namespace Scene
 		{
 			auto& camera = args[Scene::Type::SingleObject].camera;
 #if 1
-			camera.position.eye = { 0.509415329, 2.28009248, -4.69469929, 1.00000000 };
-			camera.position.at = { 1.17371607, -6.80418682, 2.02239656, 1.00000000 };
-			camera.position.up = { 0.109009691, 0.596148014, 0.795441568, 0.000000000 };
+			camera.position.eye = { 0.509415329f, 2.28009248f, -4.69469929f, 1 };
+			camera.position.at = { 1.17371607f, -6.80418682f, 2.02239656f, 1 };
+			camera.position.up = { 0.109009691f, 0.596148014f, 0.795441568f, 0};
 #else
 			camera.position.eye = { 0, 6.3f, -10.0f, 1 };
 			camera.position.at = { 0, 1, 0, 1 };

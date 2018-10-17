@@ -146,6 +146,18 @@ namespace SceneEnums
 	}
 }
 
+struct GeometryInstance
+{
+	struct Buffer {
+		UINT startIndex;
+		UINT count;
+		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
+	};
+
+	Buffer vb;
+	Buffer ib;
+};
+
 // Bottom-level acceleration structures (BottomLevelASType).
 // This sample uses two BottomLevelASType, one for AABB and one for Triangle geometry.
 // Mixing of geometry types within a BLAS is not supported.

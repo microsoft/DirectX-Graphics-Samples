@@ -88,3 +88,24 @@ void DXSample::SetWindowBounds(int left, int top, int right, int bottom)
     m_windowBounds.right = static_cast<LONG>(right);
     m_windowBounds.bottom = static_cast<LONG>(bottom);
 }
+
+// Release all device dependent resouces when a device is lost.
+void DXSample::OnDeviceLost()
+{
+	ReleaseWindowSizeDependentResources();
+	ReleaseDeviceDependentResources();
+}
+
+// Create all device dependent resources when a device is restored.
+void DXSample::OnDeviceRestored()
+{
+	CreateDeviceDependentResources();
+	CreateWindowSizeDependentResources();
+}
+
+void DXSample::OnDestroy()
+{
+	// Let GPU finish before releasing D3D resources.
+	m_deviceResources->WaitForGpu();
+	OnDeviceLost();
+}

@@ -13,8 +13,22 @@
 
 // SquidRoom
 
-namespace SampleAssets
+namespace SquidRoomAssets
 {
+	void LoadGeometry(
+		ID3D12Device* device,
+		ID3D12GraphicsCommandList* commandList,
+		DescriptorHeap* descriptorHeap,
+		LPCWSTR assetPath,
+		D3DBuffer* vertexBuffer,
+		ID3D12Resource* vertexBufferUpload,
+		UINT* vertexBufferHeapIndex,
+		D3DBuffer* indexBuffer,
+		ID3D12Resource* indexBufferUpload,
+		UINT* indexBufferHeapIndex,
+		std::vector<GeometryInstance>* geometryInstances
+	);
+
     const wchar_t DataFileName[] = L"SquidRoom.bin";
 
     const D3D12_INPUT_ELEMENT_DESC StandardVertexDescription[] =

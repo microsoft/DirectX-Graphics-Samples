@@ -13,6 +13,7 @@
 // ToDo move code definitions to cpp
 // ToDo Remove
 #include "RayTracingHlslCompat.h"
+#include "RaytracingSceneDefines.h"
 
 #define SizeOfInUint32(obj) ((sizeof(obj) - 1) / sizeof(UINT32) + 1)
 template <class T>
@@ -50,18 +51,6 @@ struct TriangleGeometryBuffer
 	D3DBuffer ib;
 	D3DBuffer vb;
 	D3D12_GPU_VIRTUAL_ADDRESS transform;
-};
-
-struct GeometryInstance
-{
-	struct Buffer {
-		UINT startIndex;
-		UINT count;
-		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
-	};
-
-	Buffer vb;
-	Buffer ib;
 };
 
 class D3D12RaytracingDynamicGeometry;

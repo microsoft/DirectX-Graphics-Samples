@@ -216,6 +216,7 @@
     </ClCompile>
     <ClCompile Include="util\GameInput.cpp" />
     <ClCompile Include="util\PerformanceTimers.cpp" />
+    <ClCompile Include="util\SquidRoom.cpp" />
     <ClCompile Include="util\UILayer.cpp" />
     <ClCompile Include="util\Win32Application.cpp" />
   </ItemGroup>
