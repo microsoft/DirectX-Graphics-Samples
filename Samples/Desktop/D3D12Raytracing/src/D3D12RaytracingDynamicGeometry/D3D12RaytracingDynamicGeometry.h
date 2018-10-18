@@ -215,5 +215,5 @@ private:
     void BuildShaderTables();
     void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();
-	float NumMRaysPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_PrimaryAndAO].GetAverageMS(), m_width, m_height); }
+	float NumMRaysPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_AO].GetAverageMS(), m_width, m_height); }
 };

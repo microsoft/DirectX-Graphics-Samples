@@ -1481,7 +1481,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         wLabel << L" GPU[" << m_deviceResources->GetAdapterID() << L"]: " 
                << m_deviceResources->GetAdapterDescription() << L"\n";
         wLabel << fixed << L" FPS: " << m_fps << L"\n";
-		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_PrimaryAndAO].GetAverageMS()
+		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_AO].GetAverageMS()
 			   << L"ms" << L"     ~Million Primary Rays/s: " << NumMRaysPerSecond()
    			   << L"   ~Million AO rays/s" << NumMRaysPerSecond() * c_sppAO
                << L"\n";
