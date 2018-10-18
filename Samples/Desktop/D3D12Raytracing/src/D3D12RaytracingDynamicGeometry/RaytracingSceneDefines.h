@@ -29,6 +29,7 @@ namespace GlobalRootSignature {
         enum Enum {
             OutputView = 0,
 			GBufferResources,
+			GBufferResourcesIn,
             AccelerationStructure,
             SceneConstant,
             AABBattributeBuffer,
@@ -82,7 +83,9 @@ namespace GeometryType {
 
 namespace GpuTimers {
 	enum Enum {
-		Raytracing = 0,
+		Raytracing_PrimaryAndAO = 0,
+		Raytracing_GBuffer,
+		Raytracing_AO,
 		UpdateBLAS,
 		UpdateTLAS,
 		Count

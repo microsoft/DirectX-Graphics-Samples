@@ -28,9 +28,15 @@
 //  l_* - bound via a local root signature.
 RaytracingAccelerationStructure g_scene : register(t0, space0);
 RWTexture2D<float4> g_renderTarget : register(u0);
-RWTexture2D<float4>  g_GBufferPositionHit : register(u1);
-RWTexture2D<float4> g_GBufferPositionRT : register(u2);
-RWTexture2D<float4> g_GBufferNormalRT : register(u3);
+
+// ToDo move this to local ray gen root sig
+RWTexture2D<float4> g_rtGBufferPositionHit : register(u5);
+RWTexture2D<float4> g_rtGBufferPosition : register(u6);
+RWTexture2D<float4> g_rtGBufferNormal : register(u7);
+Texture2D<float4> g_texGBufferPositionHit : register(t8);
+Texture2D<float4> g_texGBufferPositionRT : register(t9);
+Texture2D<float4> g_texGBufferNormal : register(t10);
+
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 StructuredBuffer<AlignedHemisphereSample3D> g_sampleSets : register(t4);
 
@@ -38,7 +44,7 @@ StructuredBuffer<AlignedHemisphereSample3D> g_sampleSets : register(t4);
 ConstantBuffer<PrimitiveConstantBuffer> l_materialCB : register(b1);
 #if ONLY_SQUID_SCENE_BLAS
 StructuredBuffer<UINT> l_indices : register(t1, space0);
-StructuredBuffer<SquidVertex> l_vertices : register(t2, space0);
+StructuredBuffer<VertexPositionNormalTextureTangent> l_vertices : register(t2, space0);
 #else
 ByteAddressBuffer l_indices : register(t1, space0);
 StructuredBuffer<VertexPositionNormalTexture> l_vertices : register(t2, space0);
@@ -192,7 +198,6 @@ GBufferRayPayload TraceGBufferRay(in Ray ray)
 // ToDo comment
 float CalculateAO(in float3 hitPosition, in float3 surfaceNormal)
 {
-
 	uint seed = DispatchRaysDimensions().x * DispatchRaysIndex().y + DispatchRaysIndex().x + g_sceneCB.seed;
 
 	uint RNGState = RNG::SeedThread(seed);
@@ -241,7 +246,7 @@ float CalculateAO(in float3 hitPosition, in float3 surfaceNormal)
 void MyRayGenShader_PrimaryAndAO()
 {
 #if RAYGEN_SINGLE_COLOR_SHADING
-	g_renderTarget[DispatchRaysIndex().xy] = float4(0,1,0,1);
+	g_renderTarget[DispatchRaysIndex().xy] = float4(1,0,0,1);
 	return;
 #endif
     // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
@@ -258,6 +263,10 @@ void MyRayGenShader_PrimaryAndAO()
 [shader("raygeneration")]
 void MyRayGenShader_GBuffer()
 {
+#if RAYGEN_SINGLE_COLOR_SHADING
+	g_renderTarget[DispatchRaysIndex().xy] = float4(0, 1, 0, 1);
+	return;
+#endif
 	// Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
 	Ray ray = GenerateCameraRay(DispatchRaysIndex().xy, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorldWithCameraEyeAtOrigin);
 
@@ -266,27 +275,39 @@ void MyRayGenShader_GBuffer()
 
 	// Write out GBuffer information to rendertargets.
 	// ToDo Test conditional write
-	g_GBufferPositionHit[DispatchRaysIndex().xy] = (float4) (rayPayload.hit ? 1 : 0);
-	g_GBufferPositionRT[DispatchRaysIndex().xy] = float4(rayPayload.hitPosition, 0);
-	g_GBufferNormalRT[DispatchRaysIndex().xy] = float4(rayPayload.surfaceNormal, 0);
+	g_rtGBufferPositionHit[DispatchRaysIndex().xy] = (rayPayload.hit ? 1 : 0);
+	g_rtGBufferPosition[DispatchRaysIndex().xy] = float4(rayPayload.hitPosition, 0);
+	g_rtGBufferNormal[DispatchRaysIndex().xy] = float4(rayPayload.surfaceNormal, 0);
 }
 
 [shader("raygeneration")]
 void MyRayGenShader_AO()
 {
-	bool hit = g_GBufferPositionHit[DispatchRaysIndex().xy].x > 0.5;
+#if RAYGEN_SINGLE_COLOR_SHADING
+	g_renderTarget[DispatchRaysIndex().xy] = float4(0, 0, 1, 1);
+	return;
+#endif
+
+	uint3 sampleCoord = uint3(DispatchRaysIndex().xy, 0);
+	bool hit = g_texGBufferPositionHit.Load(sampleCoord).x > 0.5;
+
 	float4 color;
 	if (hit)
 	{
-		float3 hitPosition = g_GBufferPositionRT[DispatchRaysIndex().xy].xyz;
-		float3 surfaceNormal = g_GBufferNormalRT[DispatchRaysIndex().xy].xyz;
+		float3 hitPosition = g_texGBufferPositionRT.Load(sampleCoord).xyz;
+		float3 surfaceNormal = g_texGBufferNormal.Load(sampleCoord).xyz;
 		float ambientCoef = CalculateAO(hitPosition, surfaceNormal);
-
-		color = ambientCoef * l_materialCB.albedo;
+		
+		// ToDo remove albedo
+		color = ambientCoef;
+#if GBUFFER_AO_USE_ALBEDO
+		float4 albedo = float4(0.75f, 0.75f, 0.75f, 1.0f);
+		color *= albedo;
+#endif
 	}
 	else
 	{
-		color = (float4)0;
+		color = (float4)1;
 	}
 
 	// Write the raytraced color to the output texture.

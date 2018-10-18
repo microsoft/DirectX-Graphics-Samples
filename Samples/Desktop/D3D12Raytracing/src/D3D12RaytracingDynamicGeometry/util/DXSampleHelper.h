@@ -376,7 +376,7 @@ class DescriptorHeap
 	UINT m_descriptorSize;
 
 public:
-	DescriptorHeap(ID3D12Device* device, UINT numDescriptors)
+	DescriptorHeap(ID3D12Device* device, UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type)
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
 		// Allocate a heap for descriptors:
@@ -386,7 +386,7 @@ public:
 		// 1 - top level acceleration structure
 		//ToDo
 		descriptorHeapDesc.NumDescriptors = numDescriptors;
-		descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		descriptorHeapDesc.Type = type;
 		descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		descriptorHeapDesc.NodeMask = 0;
 		device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_descriptorHeap));
@@ -430,6 +430,7 @@ inline float CalculateAnimationInterpolant(float elapsedTime, float cycleDuratio
 
 
 
+// ToDo standardize Create*SRV layouts
 // Create a SRV for a buffer.
 inline void CreateBufferSRV(
 	D3DBuffer* destBuffer,
@@ -465,6 +466,7 @@ inline void CreateBufferSRV(
 			*descriptorHeapIndex, descriptorHeap->DescriptorSize());
 };
 
+
 inline float NumMPixelsPerSecond(float timeMs, UINT width, UINT height)
 {
 	float resolution = static_cast<float>(width * height);
@@ -475,7 +477,8 @@ inline float NumMPixelsPerSecond(float timeMs, UINT width, UINT height)
 struct RenderTargetResource
 {
 	ComPtr<ID3D12Resource> resource;
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptor;
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorWriteAccess;
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorReadAccess;
 	UINT descriptorHeapIndex;
 };
 
@@ -485,13 +488,16 @@ inline void CreateRenderTargetResource(
 	UINT width,
 	UINT height,
 	DescriptorHeap* descriptorHeap,
-	RenderTargetResource* dest)
+	RenderTargetResource* dest,
+
+	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_RENDER_TARGET
+	)
 {
 	auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 	ThrowIfFailed(device->CreateCommittedResource(
-		&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&dest->resource)));
+		&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, initialResourceState, nullptr, IID_PPV_ARGS(&dest->resource)));
 	NAME_D3D12_OBJECT(dest->resource);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle;
@@ -499,7 +505,29 @@ inline void CreateRenderTargetResource(
 	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	device->CreateUnorderedAccessView(dest->resource.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
-	dest->gpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetHeap()->GetGPUDescriptorHandleForHeapStart(), dest->descriptorHeapIndex, descriptorHeap->DescriptorSize());
-
-
+	dest->gpuDescriptorWriteAccess = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetHeap()->GetGPUDescriptorHandleForHeapStart(), dest->descriptorHeapIndex, descriptorHeap->DescriptorSize());
 }
+
+// Combine with CreateRT?
+inline void CreateTextureSRV(
+	ID3D12Device* device,
+	ID3D12Resource* resource,
+	DescriptorHeap* descriptorHeap,
+	UINT* descriptorHeapIndex,
+	D3D12_CPU_DESCRIPTOR_HANDLE* cpuHandle,
+	D3D12_GPU_DESCRIPTOR_HANDLE* gpuHandle)
+{
+	// Describe and create an SRV.
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = resource->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = resource->GetDesc().MipLevels;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+	*descriptorHeapIndex = descriptorHeap->AllocateDescriptor(cpuHandle, *descriptorHeapIndex);
+	device->CreateShaderResourceView(resource, &srvDesc, *cpuHandle);
+	*gpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetHeap()->GetGPUDescriptorHandleForHeapStart(),
+			*descriptorHeapIndex, descriptorHeap->DescriptorSize());
+};

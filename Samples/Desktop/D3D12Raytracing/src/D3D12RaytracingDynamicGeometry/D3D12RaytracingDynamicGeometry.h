@@ -93,7 +93,8 @@ private:
 	ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature[LocalRootSignature::Type::Count];
 
 	// ToDo move to deviceResources
-	std::unique_ptr<DescriptorHeap> m_descriptorHeap;
+	std::unique_ptr<DescriptorHeap> m_cbvSrvUavHeap;
+	std::unique_ptr<DescriptorHeap> m_samplerHeap;
 
 	// Raytracing scene
 	ConstantBuffer<SceneConstantBuffer> m_sceneCB;
@@ -145,7 +146,7 @@ private:
 	static const wchar_t* c_closestHitShaderNames[RayType::Count];
 	static const wchar_t* c_missShaderNames[RayType::Count];
 
-	ComPtr<ID3D12Resource> m_rayGenShaderTable;
+	ComPtr<ID3D12Resource> m_rayGenShaderTables[RayGenShaderType::Count];
 	UINT m_rayGenShaderTableRecordSizeInBytes;
 	ComPtr<ID3D12Resource> m_hitGroupShaderTable;
 	UINT m_hitGroupShaderTableStrideInBytes;
@@ -183,6 +184,7 @@ private:
     void UpdateSphereGeometryTransforms();
     void InitializeScene();
 	void UpdateAccelerationStructures(bool forceBuild = false);
+	void DispatchRays(ID3D12Resource* rayGenShaderTable, DX::GPUTimer* gpuTimer);
     void DoRaytracing();
 	void DoRaytracingGBufferAndAOPasses();
     void CreateConstantBuffers();
@@ -193,6 +195,7 @@ private:
     void ReleaseDeviceDependentResources();
     void ReleaseWindowSizeDependentResources();
     void RenderRNGVisualizations();
+	void CreateSamplers();
     void CreateRaytracingInterfaces();
     void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig, LPCWSTR resournceName = nullptr);
     void CreateRootSignatures();
@@ -200,7 +203,7 @@ private:
     void CreateHitGroupSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateLocalRootSignatureSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateRaytracingPipelineStateObject();
-    void CreateDescriptorHeap();
+    void CreateDescriptorHeaps();
     void CreateRaytracingOutputResource();
 	void CreateGBufferResources();
 	void CreateAuxilaryDeviceResources();
@@ -212,5 +215,5 @@ private:
     void BuildShaderTables();
     void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();
-	float NumMRaysPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing].GetAverageMS(), m_width, m_height); }
+	float NumMRaysPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_PrimaryAndAO].GetAverageMS(), m_width, m_height); }
 };

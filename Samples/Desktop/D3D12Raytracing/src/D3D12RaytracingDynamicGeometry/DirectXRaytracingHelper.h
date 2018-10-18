@@ -175,6 +175,7 @@ public:
     PointerWithSize localRootArguments;
 };
 
+// ToDo move to d3dx12.h?
 // Shader table = {{ ShaderRecord 1}, {ShaderRecord 2}, ...}
 class ShaderTable : public GpuUploadBuffer
 {

@@ -336,6 +336,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
 
         CD3DX12_ROOT_PARAMETER rootParameters[RNGVisualizerRootSignature::Slot::Count];
         rootParameters[RNGVisualizerRootSignature::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
+
         rootParameters[RNGVisualizerRootSignature::Slot::SampleBuffers].InitAsShaderResourceView(1);
         rootParameters[RNGVisualizerRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
 
@@ -404,13 +405,13 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
 
     CreateAuxilaryDeviceResources();
 
+	// Create a heap for descriptors.
+	CreateDescriptorHeaps();
+
     // Initialize raytracing pipeline.
 
     // Create raytracing interfaces: raytracing device and commandlist.
     CreateRaytracingInterfaces();
-
-    // Create a heap for descriptors.
-	CreateDescriptorHeap();
 
     // Build geometry to be used in the sample.
     // ToDO
@@ -462,13 +463,16 @@ void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
     // Global Root Signature
     // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
     {
-        CD3DX12_DESCRIPTOR_RANGE ranges[2]; // Perfomance TIP: Order from most frequent to least frequent.
+        CD3DX12_DESCRIPTOR_RANGE ranges[3]; // Perfomance TIP: Order from most frequent to least frequent.
         ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output textures
-		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 3, 1);  // 3 output textures
+		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 3, 5);  // 3 output textures
+		ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 8);  // 3 input textures
+
 
         CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignature::Slot::Count];
         rootParameters[GlobalRootSignature::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
 		rootParameters[GlobalRootSignature::Slot::GBufferResources].InitAsDescriptorTable(1, &ranges[1]);
+		rootParameters[GlobalRootSignature::Slot::GBufferResourcesIn].InitAsDescriptorTable(1, &ranges[2]);
         rootParameters[GlobalRootSignature::Slot::AccelerationStructure].InitAsShaderResourceView(0);
         rootParameters[GlobalRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
         rootParameters[GlobalRootSignature::Slot::AABBattributeBuffer].InitAsShaderResourceView(3);
@@ -618,8 +622,7 @@ void D3D12RaytracingDynamicGeometry::CreateRaytracingOutputResource()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto backbufferFormat = m_deviceResources->GetBackBufferFormat();
-
-	CreateRenderTargetResource(device, backbufferFormat, m_width, m_height, m_descriptorHeap.get(), &m_raytracingOutput);
+	CreateRenderTargetResource(device, backbufferFormat, m_width, m_height, m_cbvSrvUavHeap.get(), &m_raytracingOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 
@@ -628,9 +631,40 @@ void D3D12RaytracingDynamicGeometry::CreateGBufferResources()
 	auto device = m_deviceResources->GetD3DDevice();
 
 	// ToDo tune formats
-	CreateRenderTargetResource(device, DXGI_FORMAT_R32G32B32A32_FLOAT, m_width, m_height, m_descriptorHeap.get(), &m_GBufferResources[GBufferResource::Hit]);
-	CreateRenderTargetResource(device, DXGI_FORMAT_R32G32B32A32_FLOAT, m_width, m_height, m_descriptorHeap.get(), &m_GBufferResources[GBufferResource::HitPosition]);
-	CreateRenderTargetResource(device, DXGI_FORMAT_R32G32B32A32_FLOAT, m_width, m_height, m_descriptorHeap.get(), &m_GBufferResources[GBufferResource::SurfaceNormal]);
+	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	CreateRenderTargetResource(device, DXGI_FORMAT_R32G32B32A32_FLOAT, m_width, m_height, m_cbvSrvUavHeap.get(), &m_GBufferResources[GBufferResource::Hit], initialResourceState);
+	CreateRenderTargetResource(device, DXGI_FORMAT_R32G32B32A32_FLOAT, m_width, m_height, m_cbvSrvUavHeap.get(), &m_GBufferResources[GBufferResource::HitPosition], initialResourceState);
+	CreateRenderTargetResource(device, DXGI_FORMAT_R32G32B32A32_FLOAT, m_width, m_height, m_cbvSrvUavHeap.get(), &m_GBufferResources[GBufferResource::SurfaceNormal], initialResourceState);
+	ThrowIfFalse(m_GBufferResources[GBufferResource::HitPosition].descriptorHeapIndex == m_GBufferResources[GBufferResource::Hit].descriptorHeapIndex + 1, 
+		L"GBuffer RT resources are expecected to be subsequent in the heap.");
+	ThrowIfFalse(m_GBufferResources[GBufferResource::SurfaceNormal].descriptorHeapIndex == m_GBufferResources[GBufferResource::Hit].descriptorHeapIndex + 2,
+		L"GBuffer RT resources are expecected to be subsequent in the heap.");
+
+	// Create SRVs
+	// ToDo store these with the resource? Or make them optional in Create...()
+	D3D12_CPU_DESCRIPTOR_HANDLE dummyHandle;
+	UINT heapIndices[3] = { UINT_MAX, UINT_MAX, UINT_MAX };
+	CreateTextureSRV(device, m_GBufferResources[GBufferResource::Hit].resource.Get(), m_cbvSrvUavHeap.get(), &heapIndices[0], &dummyHandle, &m_GBufferResources[GBufferResource::Hit].gpuDescriptorReadAccess);
+	CreateTextureSRV(device, m_GBufferResources[GBufferResource::HitPosition].resource.Get(), m_cbvSrvUavHeap.get(), &heapIndices[1], &dummyHandle, &m_GBufferResources[GBufferResource::HitPosition].gpuDescriptorReadAccess);
+	CreateTextureSRV(device, m_GBufferResources[GBufferResource::SurfaceNormal].resource.Get(), m_cbvSrvUavHeap.get(), &heapIndices[2], &dummyHandle, &m_GBufferResources[GBufferResource::SurfaceNormal].gpuDescriptorReadAccess);
+	ThrowIfFalse(heapIndices[1] == heapIndices[0] + 1,
+		L"GBuffer RT resources are expecected to be subsequent in the heap.");
+	ThrowIfFalse(heapIndices[2] == heapIndices[0] + 2,
+		L"GBuffer RT resources are expecected to be subsequent in the heap.");
+	// ToDo
+	// Describe and create the point clamping sampler used for reading from the GBuffer resources.
+	//CD3DX12_CPU_DESCRIPTOR_HANDLE samplerHandle(m_samplerHeap->GetHeap()->GetCPUDescriptorHandleForHeapStart());
+	//D3D12_SAMPLER_DESC clampSamplerDesc = {};
+	//clampSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	//clampSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	//clampSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	//clampSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	//clampSamplerDesc.MipLODBias = 0.0f;
+	//clampSamplerDesc.MaxAnisotropy = 1;
+	//clampSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	//clampSamplerDesc.MinLOD = 0;
+	//clampSamplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+	//device->CreateSampler(&clampSamplerDesc, samplerHandle);
 }
 
 void D3D12RaytracingDynamicGeometry::CreateAuxilaryDeviceResources()
@@ -644,19 +678,28 @@ void D3D12RaytracingDynamicGeometry::CreateAuxilaryDeviceResources()
     }
 }
 
-void D3D12RaytracingDynamicGeometry::CreateDescriptorHeap()
+void D3D12RaytracingDynamicGeometry::CreateDescriptorHeaps()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
-    D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-    // Allocate a heap for descriptors:
-    // 2 per geometry - vertex and index  buffer SRVs
-    // 1 - raytracing output texture SRV
-    // 2 per BLAS - one for the acceleration structure and one for its instance desc 
-    // 1 - top level acceleration structure
-    //ToDo
-	UINT NumDescriptors = 2 * GeometryType::Count + 1 + 2 * MaxBLAS + 1 + ARRAYSIZE(SquidRoomAssets::Draws) * 2;
-	m_descriptorHeap = make_unique<DescriptorHeap>(device, NumDescriptors);
+	// CBV SRV UAV heap.
+	{
+		// Allocate a heap for descriptors:
+		// 2 per geometry - vertex and index  buffer SRVs
+		// 1 - raytracing output texture SRV
+		// 2 per BLAS - one for the acceleration structure and one for its instance desc 
+		// 1 - top level acceleration structure
+		//ToDo
+		UINT NumDescriptors = 2 * GeometryType::Count + 1 + 2 * MaxBLAS + 1 + ARRAYSIZE(SquidRoomAssets::Draws) * 2;
+		m_cbvSrvUavHeap = make_unique<DescriptorHeap>(device, NumDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+
+	// Sampler heap.
+	{
+		UINT NumDescriptors = 1;
+		m_samplerHeap = make_unique<DescriptorHeap>(device, NumDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+	}
+
 }
 
 void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
@@ -684,8 +727,8 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
     // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
 
     // ToDo revise numElements calculation
-    CreateBufferSRV(&m_geometries[GeometryType::Plane].ib, device, static_cast<UINT>(ceil((float)sizeof(indices) / sizeof(UINT))), 0, m_descriptorHeap.get(), &m_geometryIBHeapIndices[GeometryType::Plane]);
-    CreateBufferSRV(&m_geometries[GeometryType::Plane].vb, device, ARRAYSIZE(vertices), sizeof(vertices[0]), m_descriptorHeap.get(), &m_geometryVBHeapIndices[GeometryType::Plane]);
+    CreateBufferSRV(&m_geometries[GeometryType::Plane].ib, device, static_cast<UINT>(ceil((float)sizeof(indices) / sizeof(UINT))), 0, m_cbvSrvUavHeap.get(), &m_geometryIBHeapIndices[GeometryType::Plane]);
+    CreateBufferSRV(&m_geometries[GeometryType::Plane].vb, device, ARRAYSIZE(vertices), sizeof(vertices[0]), m_cbvSrvUavHeap.get(), &m_geometryVBHeapIndices[GeometryType::Plane]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Plane] == m_geometryIBHeapIndices[GeometryType::Plane] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
 
@@ -740,8 +783,8 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
     AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
 
     // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
-    CreateBufferSRV(&geometry.ib, device, static_cast<UINT>(ceil(static_cast<float>(indices.size() * sizeof(Index)) / sizeof(UINT))) , 0, m_descriptorHeap.get(), &m_geometryIBHeapIndices[GeometryType::Sphere]);
-    CreateBufferSRV(&geometry.vb, device, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), m_descriptorHeap.get(), &m_geometryVBHeapIndices[GeometryType::Sphere]);
+    CreateBufferSRV(&geometry.ib, device, static_cast<UINT>(ceil(static_cast<float>(indices.size() * sizeof(Index)) / sizeof(UINT))) , 0, m_cbvSrvUavHeap.get(), &m_geometryIBHeapIndices[GeometryType::Sphere]);
+    CreateBufferSRV(&geometry.vb, device, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), m_cbvSrvUavHeap.get(), &m_geometryVBHeapIndices[GeometryType::Sphere]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Sphere] == m_geometryIBHeapIndices[GeometryType::Sphere] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
 	m_geometryInstances[GeometryType::Sphere].ib.startIndex = 0;
@@ -766,7 +809,7 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 	SquidRoomAssets::LoadGeometry(
 		device,
 		commandList,
-		m_descriptorHeap.get(),
+		m_cbvSrvUavHeap.get(),
 		GetAssetFullPath(SquidRoomAssets::DataFileName).c_str(),
 		&m_geometries[GeometryType::SquidRoom].vb,
 		m_vertexBufferUpload.Get(),
@@ -992,17 +1035,16 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
 
      // RayGen shader tables.
     {
-        UINT numShaderRecords = RayGenShaderType::Count;
-		UINT shaderRecordSize = Align(shaderIDSize /*No root arguments */, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-        
-		ShaderTable rayGenShaderTable(device, numShaderRecords, shaderRecordSize, L"RayGenShaderTable");
+        UINT numShaderRecords = 1;
+		UINT shaderRecordSize = shaderIDSize;
+
 		for (UINT i = 0; i < RayGenShaderType::Count; i++)
 		{
+			ShaderTable rayGenShaderTable(device, numShaderRecords, shaderRecordSize, L"RayGenShaderTable");
 			rayGenShaderTable.push_back(ShaderRecord(rayGenShaderIDs[i], shaderIDSize, nullptr, 0));
+			rayGenShaderTable.DebugPrint(shaderIdToStringMap);
+			m_rayGenShaderTables[i] = rayGenShaderTable.GetResource();
 		}
-		rayGenShaderTable.DebugPrint(shaderIdToStringMap);
-		m_rayGenShaderTableRecordSizeInBytes = rayGenShaderTable.GetShaderRecordSize();
-		m_rayGenShaderTable = rayGenShaderTable.GetResource();
     }
     
     // Miss shader table.
@@ -1221,13 +1263,13 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 		{
 			// ToDo Heuristic to do an update based on transform amplitude
 			D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;
-			m_vBottomLevelAS[0].Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
+			m_vBottomLevelAS[0].Build(commandList, m_accelerationStructureScratch.Get(), m_cbvSrvUavHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
 		}
 #else
 		// Plane
 		{
 			D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;
-			m_vBottomLevelAS[BottomLevelASType::Plane].Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
+			m_vBottomLevelAS[BottomLevelASType::Plane].Build(commandList, m_accelerationStructureScratch.Get(), m_cbvSrvUavHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
 		}
 		// Sphere
 		{
@@ -1237,14 +1279,14 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 #endif
 
 			m_geometryTransforms.CopyStagingToGpu(frameIndex);
-			m_vBottomLevelAS[BottomLevelASType::Sphere].Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
+			m_vBottomLevelAS[BottomLevelASType::Sphere].Build(commandList, m_accelerationStructureScratch.Get(), m_cbvSrvUavHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
         }
 #endif
     }
 	m_gpuTimers[GpuTimers::UpdateBLAS].Stop(commandList);
 
     m_gpuTimers[GpuTimers::UpdateTLAS].Start(commandList);
-    m_topLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_descriptorHeap->GetHeap(), bUpdate);
+    m_topLevelAS.Build(commandList, m_accelerationStructureScratch.Get(), m_cbvSrvUavHeap->GetHeap(), bUpdate);
     m_gpuTimers[GpuTimers::UpdateTLAS].Stop(commandList);
 
     if (!bUpdate)
@@ -1253,40 +1295,43 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
     }
 }
 
+void D3D12RaytracingDynamicGeometry::DispatchRays(ID3D12Resource* rayGenShaderTable, GPUTimer* gpuTimer)
+{
+	auto commandList = m_deviceResources->GetCommandList();
+	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+
+	D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
+	dispatchDesc.HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
+	dispatchDesc.HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
+	dispatchDesc.HitGroupTable.StrideInBytes = m_hitGroupShaderTableStrideInBytes;
+	dispatchDesc.MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
+	dispatchDesc.MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
+	dispatchDesc.MissShaderTable.StrideInBytes = m_missShaderTableStrideInBytes;
+	dispatchDesc.RayGenerationShaderRecord.StartAddress = rayGenShaderTable->GetGPUVirtualAddress();
+	dispatchDesc.RayGenerationShaderRecord.SizeInBytes = rayGenShaderTable->GetDesc().Width;
+	dispatchDesc.Width = m_width;
+	dispatchDesc.Height = m_height;
+	dispatchDesc.Depth = 1;
+	commandList->SetPipelineState1(m_dxrStateObject.Get());
+
+	gpuTimer->Start(commandList, m_timerID);
+	commandList->DispatchRays(&dispatchDesc);
+	gpuTimer->Stop(commandList, m_timerID);
+};
+
+
 void D3D12RaytracingDynamicGeometry::DoRaytracing()
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
-
-    auto DispatchRays = [&](auto* raytracingCommandList, auto* stateObject)
-    {
-		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
-
-        dispatchDesc.HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
-        dispatchDesc.HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
-        dispatchDesc.HitGroupTable.StrideInBytes = m_hitGroupShaderTableStrideInBytes;
-        dispatchDesc.MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
-        dispatchDesc.MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
-        dispatchDesc.MissShaderTable.StrideInBytes = m_missShaderTableStrideInBytes;
-        dispatchDesc.RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable->GetGPUVirtualAddress() + RayGenShaderType::PrimaryAndAO * m_rayGenShaderTableRecordSizeInBytes;
-        dispatchDesc.RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTableRecordSizeInBytes;
-        dispatchDesc.Width = m_width;
-        dispatchDesc.Height = m_height;
-		dispatchDesc.Depth = 1;
-        raytracingCommandList->SetPipelineState1(stateObject);
-
-        m_gpuTimers[GpuTimers::Raytracing].Start(commandList, m_timerID);
-        raytracingCommandList->DispatchRays(&dispatchDesc);
-        m_gpuTimers[GpuTimers::Raytracing].Stop(commandList, m_timerID);
-    };
-
+	
+	// ToDo dedupe
     auto SetCommonPipelineState = [&](auto* descriptorSetCommandList)
     {
-        descriptorSetCommandList->SetDescriptorHeaps(1, m_descriptorHeap->GetAddressOf());
+        descriptorSetCommandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
         // Set index and successive vertex buffer decriptor tables.
 
-        commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::OutputView, m_raytracingOutput.gpuDescriptor);
-		commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::GBufferResources, m_raytracingOutput.gpuDescriptor);
+        commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
     };
 
     commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
@@ -1298,7 +1343,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     m_sceneCB->numSamples = m_randomSampler.NumSamples();
     m_sceneCB->numSampleSets = m_randomSampler.NumSampleSets();
 #if 1
-    m_sceneCB->numSamplesToUse = m_randomSampler.NumSamples();    UINT NumFramesPerIter = 400;
+    m_sceneCB->numSamplesToUse = m_randomSampler.NumSamples();    
 #else
     UINT NumFramesPerIter = 100;
     static UINT frameID = NumFramesPerIter * 4;
@@ -1316,47 +1361,19 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
     // Bind the heaps, acceleration structure and dispatch rays. 
     SetCommonPipelineState(commandList);
     commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetResource()->GetGPUVirtualAddress());
-    DispatchRays(commandList, m_dxrStateObject.Get());
+	DispatchRays(m_rayGenShaderTables[RayGenShaderType::PrimaryAndAO].Get(), &m_gpuTimers[GpuTimers::Raytracing_PrimaryAndAO]);
 }
-
 
 void D3D12RaytracingDynamicGeometry::DoRaytracingGBufferAndAOPasses()
 {
 	auto commandList = m_deviceResources->GetCommandList();
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-	auto DispatchRays = [&](auto* raytracingCommandList, auto* stateObject)
+	auto SetCommonPipelineState = [&]()
 	{
-		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
-
-		dispatchDesc.HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
-		dispatchDesc.HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
-		dispatchDesc.HitGroupTable.StrideInBytes = m_hitGroupShaderTableStrideInBytes;
-		dispatchDesc.MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
-		dispatchDesc.MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
-		dispatchDesc.MissShaderTable.StrideInBytes = m_missShaderTableStrideInBytes;
-		dispatchDesc.RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable->GetGPUVirtualAddress() + RayGenShaderType::PrimaryAndAO * m_rayGenShaderTableRecordSizeInBytes;
-		dispatchDesc.RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTableRecordSizeInBytes;
-		dispatchDesc.Width = m_width;
-		dispatchDesc.Height = m_height;
-		dispatchDesc.Depth = 1;
-		raytracingCommandList->SetPipelineState1(stateObject);
-
-		m_gpuTimers[GpuTimers::Raytracing].Start(commandList, m_timerID);
-		raytracingCommandList->DispatchRays(&dispatchDesc);
-		m_gpuTimers[GpuTimers::Raytracing].Stop(commandList, m_timerID);
+		commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
 	};
 
-	auto SetCommonPipelineState = [&](auto* descriptorSetCommandList)
-	{
-		descriptorSetCommandList->SetDescriptorHeaps(1, m_descriptorHeap->GetAddressOf());
-		// Set index and successive vertex buffer decriptor tables.
-
-		commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::OutputView, m_raytracingOutput.gpuDescriptor);
-		commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::GBufferResources, m_raytracingOutput.gpuDescriptor);
-	};
-
-	commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
 
 	uniform_int_distribution<UINT> seedDistribution(0, UINT_MAX);
 
@@ -1364,27 +1381,72 @@ void D3D12RaytracingDynamicGeometry::DoRaytracingGBufferAndAOPasses()
 	m_sceneCB->seed = seedDistribution(m_generatorURNG);
 	m_sceneCB->numSamples = m_randomSampler.NumSamples();
 	m_sceneCB->numSampleSets = m_randomSampler.NumSampleSets();
-#if 1
-	m_sceneCB->numSamplesToUse = m_randomSampler.NumSamples();    UINT NumFramesPerIter = 400;
-#else
-	UINT NumFramesPerIter = 100;
-	static UINT frameID = NumFramesPerIter * 4;
-	m_sceneCB->numSamplesToUse = (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
-#endif
+	m_sceneCB->numSamplesToUse = m_randomSampler.NumSamples();    
+	UINT NumFramesPerIter = 400;
+
+	commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
+	SetCommonPipelineState();
+
 	// Copy dynamic buffers to GPU.
 	{
 		m_hemisphereSamplesGPUBuffer.CopyStagingToGpu(frameIndex);
-		commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::SampleBuffers, m_hemisphereSamplesGPUBuffer.GpuVirtualAddress(frameIndex));
-
 		m_sceneCB.CopyStagingToGpu(frameIndex);
-		commandList->SetComputeRootConstantBufferView(GlobalRootSignature::Slot::SceneConstant, m_sceneCB.GpuVirtualAddress(frameIndex));
 	}
 
-	// Bind the heaps, acceleration structure and dispatch rays. 
-	SetCommonPipelineState(commandList);
+	// Transition GBuffer resources to render target state.
+	{
+		D3D12_RESOURCE_BARRIER barriers[GBufferResource::Count];
+		D3D12_RESOURCE_STATES before = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		D3D12_RESOURCE_STATES after = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		barriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(m_GBufferResources[GBufferResource::Hit].resource.Get(), before, after);
+		barriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(m_GBufferResources[GBufferResource::HitPosition].resource.Get(), before, after);
+		barriers[2] = CD3DX12_RESOURCE_BARRIER::Transition(m_GBufferResources[GBufferResource::SurfaceNormal].resource.Get(), before, after);
+		commandList->ResourceBarrier(ARRAYSIZE(barriers), barriers);
+	}
+
+
+	// Bind inputs.
 	commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetResource()->GetGPUVirtualAddress());
-	DispatchRays(commandList, m_dxrStateObject.Get());
-}
+	commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::SampleBuffers, m_hemisphereSamplesGPUBuffer.GpuVirtualAddress(frameIndex));
+	commandList->SetComputeRootConstantBufferView(GlobalRootSignature::Slot::SceneConstant, m_sceneCB.GpuVirtualAddress(frameIndex));
+
+	// Bind output RTs.
+	commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::GBufferResources, m_GBufferResources[GBufferResource::Hit].gpuDescriptorWriteAccess);
+
+#if RAYGEN_SINGLE_COLOR_SHADING
+	commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
+#endif
+
+	// Dispatch Rays.
+	DispatchRays(m_rayGenShaderTables[RayGenShaderType::GBuffer].Get(), &m_gpuTimers[GpuTimers::Raytracing_GBuffer]);
+	
+	//*************************
+	// AO pass
+	//*************************
+
+	// Transition GBuffer resources to shader resource state.
+	{
+		D3D12_RESOURCE_BARRIER barriers[GBufferResource::Count];
+		D3D12_RESOURCE_STATES before = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		D3D12_RESOURCE_STATES after = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		barriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(m_GBufferResources[GBufferResource::Hit].resource.Get(), before, after);
+		barriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(m_GBufferResources[GBufferResource::HitPosition].resource.Get(), before, after);
+		barriers[2] = CD3DX12_RESOURCE_BARRIER::Transition(m_GBufferResources[GBufferResource::SurfaceNormal].resource.Get(), before, after);
+		commandList->ResourceBarrier(ARRAYSIZE(barriers), barriers);
+	}
+
+	// Bind inputs.
+	commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::GBufferResourcesIn, m_GBufferResources[GBufferResource::Hit].gpuDescriptorReadAccess);
+	commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::SampleBuffers, m_hemisphereSamplesGPUBuffer.GpuVirtualAddress(frameIndex));
+	commandList->SetComputeRootConstantBufferView(GlobalRootSignature::Slot::SceneConstant, m_sceneCB.GpuVirtualAddress(frameIndex));
+
+	// Bind output RT.
+	commandList->SetComputeRootDescriptorTable(GlobalRootSignature::Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
+
+	// Bind the heaps, acceleration structure and dispatch rays. 
+	commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetResource()->GetGPUVirtualAddress());
+	DispatchRays(m_rayGenShaderTables[RayGenShaderType::AO].Get(), &m_gpuTimers[GpuTimers::Raytracing_AO]);
+}//
 
 
 // Copy the raytracing output to the backbuffer.
@@ -1419,7 +1481,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         wLabel << L" GPU[" << m_deviceResources->GetAdapterID() << L"]: " 
                << m_deviceResources->GetAdapterDescription() << L"\n";
         wLabel << fixed << L" FPS: " << m_fps << L"\n";
-		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing].GetAverageMS()
+		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_PrimaryAndAO].GetAverageMS()
 			   << L"ms" << L"     ~Million Primary Rays/s: " << NumMRaysPerSecond()
    			   << L"   ~Million AO rays/s" << NumMRaysPerSecond() * c_sppAO
                << L"\n";
@@ -1528,7 +1590,7 @@ void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
     m_raytracingGlobalRootSignature.Reset();
     ResetComPtrArray(&m_raytracingLocalRootSignature);
 
-	m_descriptorHeap.release();
+	m_cbvSrvUavHeap.release();
 
     m_computeCB.Release();
 
@@ -1540,7 +1602,7 @@ void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
     m_topLevelAS.ReleaseD3DResources();
 
     m_raytracingOutput.resource.Reset();
-	m_rayGenShaderTable.Reset();
+	ResetComPtrArray(&m_rayGenShaderTables);
     m_missShaderTable.Reset();
     m_hitGroupShaderTable.Reset();
 }
@@ -1586,7 +1648,7 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     m_computeAllocators[frameIndex]->Reset();
     m_computeCommandList->Reset(m_computeAllocators[frameIndex].Get(), m_computePSO.Get());
 
-    commandList->SetDescriptorHeaps(1, m_descriptorHeap->GetAddressOf());
+    commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
     commandList->SetComputeRootSignature(m_csSamleVisualizerRootSignature.Get());
 
     XMUINT2 rngWindowSize(256, 256);
@@ -1611,7 +1673,7 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     }
     commandList->SetComputeRootConstantBufferView(RNGVisualizerRootSignature::Slot::SceneConstant, m_computeCB.GpuVirtualAddress(frameIndex));
     commandList->SetComputeRootShaderResourceView(RNGVisualizerRootSignature::Slot::SampleBuffers, m_samplesGPUBuffer.GpuVirtualAddress(frameIndex));
-    commandList->SetComputeRootDescriptorTable(RNGVisualizerRootSignature::Slot::OutputView, m_raytracingOutput.gpuDescriptor);
+    commandList->SetComputeRootDescriptorTable(RNGVisualizerRootSignature::Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
 
     commandList->SetPipelineState(m_computePSO.Get());
  
@@ -1652,7 +1714,8 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 
 #if DO_RAYTRACING
     // Render.
-	DoRaytracing();
+	//DoRaytracing();
+	DoRaytracingGBufferAndAOPasses();
 #endif
 
 #if SAMPLES_CS_VISUALIZATION 
