@@ -142,7 +142,7 @@ private:
 	// Shader tables
 	static const wchar_t* c_hitGroupNames_TriangleGeometry[RayType::Count];
 	static const wchar_t* c_rayGenShaderNames[RayGenShaderType::Count];
-	static const wchar_t* c_closestHitShaderNames[RayGenShaderType::Count];
+	static const wchar_t* c_closestHitShaderNames[RayType::Count];
 	static const wchar_t* c_missShaderNames[RayType::Count];
 
 	ComPtr<ID3D12Resource> m_rayGenShaderTable;

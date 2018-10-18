@@ -34,7 +34,7 @@ const wchar_t* D3D12RaytracingDynamicGeometry::c_rayGenShaderNames[] =
 };
 const wchar_t* D3D12RaytracingDynamicGeometry::c_closestHitShaderNames[] =
 {
-    L"MyClosestHitShader", L"MyClosestHitShader_GBuffer"
+    L"MyClosestHitShader", nullptr, L"MyClosestHitShader_GBuffer"
 };
 const wchar_t* D3D12RaytracingDynamicGeometry::c_missShaderNames[] =
 {
@@ -529,11 +529,10 @@ void D3D12RaytracingDynamicGeometry::CreateHitGroupSubobjects(CD3DX12_STATE_OBJE
         {
             auto hitGroup = raytracingPipeline->CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
             
-			switch (rayType)
+			if (c_closestHitShaderNames[rayType])
 			{
-			case RayType::Radiance: hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[0]); break;
-			case RayType::GBuffer: hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[1]); break;
-            }
+				hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[rayType]);
+			}
             hitGroup->SetHitGroupExport(c_hitGroupNames_TriangleGeometry[rayType]);
             hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
         }
@@ -555,6 +554,8 @@ void D3D12RaytracingDynamicGeometry::CreateLocalRootSignatureSubobjects(CD3DX12_
         auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         rootSignatureAssociation->AddExports(c_hitGroupNames_TriangleGeometry);
+		// ToDo cleanup
+        rootSignatureAssociation->AddExport(c_rayGenShaderNames[RayGenShaderType::AO]);
     }
 }
 

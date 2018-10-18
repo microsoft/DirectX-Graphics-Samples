@@ -187,6 +187,52 @@ GBufferRayPayload TraceGBufferRay(in Ray ray)
 	return rayPayload;
 }
 
+
+
+// ToDo comment
+float CalculateAO(in float3 hitPosition, in float3 surfaceNormal)
+{
+
+	uint seed = DispatchRaysDimensions().x * DispatchRaysIndex().y + DispatchRaysIndex().x + g_sceneCB.seed;
+
+	uint RNGState = RNG::SeedThread(seed);
+	uint sampleSetJump = RNG::Random(RNGState, 0, g_sceneCB.numSampleSets - 1) * g_sceneCB.numSamples;
+
+	uint sampleJump = RNG::Random(RNGState, 0, g_sceneCB.numSamples - 1);
+	uint shadowRayHits = 0;
+	for (uint i = 0; i < g_sceneCB.numSamplesToUse; i++)
+	{
+		float3 sample = g_sampleSets[sampleSetJump + (sampleJump + i) % g_sceneCB.numSamples].value;
+
+		// Calculate coordinate system for the hemisphere
+		float3 u, v, w;
+		w = surfaceNormal;
+
+		// Break hemisphere coordinate correlation - ToDo is this needed with >#N sample sets? Compare perf
+		float x = RNG::Random01(RNGState);
+		float y = RNG::Random01(RNGState);
+		float z = RNG::Random01(RNGState);
+		float3 right = normalize(float3(x, y, z) + 0.001f*w.yzx);
+
+		//        float3 right = normalize(float3(0.0072, 1.0, 0.0034));
+		v = normalize(cross(w, right));
+		u = cross(v, w);
+
+		float3 rayDirection = sample.x * u + sample.y * v + sample.z * w;
+
+		// ToDo hitPosition adjustment - fix crease artifacts
+		Ray shadowRay = { hitPosition + 0.0001f * surfaceNormal, normalize(rayDirection) };
+
+		if (TraceShadowRayAndReportIfHit(shadowRay, 0))
+		{
+			shadowRayHits++;
+		}
+	}
+	float ambientCoef = 1.f - ((float)shadowRayHits / g_sceneCB.numSamplesToUse);
+
+	return ambientCoef;
+}
+
 //***************************************************************************
 //********************------ Ray gen shader.. -------************************
 //***************************************************************************
@@ -228,17 +274,23 @@ void MyRayGenShader_GBuffer()
 [shader("raygeneration")]
 void MyRayGenShader_AO()
 {
-	// Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
-	Ray ray = GenerateCameraRay(DispatchRaysIndex().xy, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorldWithCameraEyeAtOrigin);
+	bool hit = g_GBufferPositionHit[DispatchRaysIndex().xy].x > 0.5;
+	float4 color;
+	if (hit)
+	{
+		float3 hitPosition = g_GBufferPositionRT[DispatchRaysIndex().xy].xyz;
+		float3 surfaceNormal = g_GBufferNormalRT[DispatchRaysIndex().xy].xyz;
+		float ambientCoef = CalculateAO(hitPosition, surfaceNormal);
 
-	// Cast a ray into the scene and retrieve GBuffer information.
-	GBufferRayPayload rayPayload = TraceGBufferRay(ray);
+		color = ambientCoef * l_materialCB.albedo;
+	}
+	else
+	{
+		color = (float4)0;
+	}
 
-	// Write out GBuffer information to rendertargets.
-	// ToDo Test conditional write
-	g_GBufferPositionHit[DispatchRaysIndex().xy] = (float4) (rayPayload.hit ? 1 : 0);
-	g_GBufferPositionRT[DispatchRaysIndex().xy] = float4(rayPayload.hitPosition, 0);
-	g_GBufferNormalRT[DispatchRaysIndex().xy] = float4(rayPayload.surfaceNormal, 0);
+	// Write the raytraced color to the output texture.
+	g_renderTarget[DispatchRaysIndex().xy] = color;
 }
 
 
@@ -311,60 +363,12 @@ void MyClosestHitShader(inout RayPayload rayPayload, in BuiltInTriangleIntersect
     // Calculate final color.
     float4 phongColor = CalculatePhongLighting(l_materialCB.albedo, triangleNormal, shadowRayHit, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower);
     float4 color = checkers * (phongColor + reflectedColor);
-
-    // Apply visibility falloff.
-    float t = RayTCurrent();
-    //color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002*t*t*t));
-#elif 1
-    uint seed = DispatchRaysDimensions().x * DispatchRaysIndex().y + DispatchRaysIndex().x + g_sceneCB.seed;
-
-    uint RNGState = RNG::SeedThread(seed);
-    uint sampleSetJump = RNG::Random(RNGState, 0, g_sceneCB.numSampleSets - 1) * g_sceneCB.numSamples;
-
-    uint sampleJump = RNG::Random(RNGState, 0, g_sceneCB.numSamples - 1);
-    uint shadowRayHits = 0;
-    for (uint i = 0; i < g_sceneCB.numSamplesToUse; i++)
-    {
-
-        float3 sample = g_sampleSets[sampleSetJump + (sampleJump + i)% g_sceneCB.numSamples].value;
-        
-        
-        // Calculate coordinate system for the hemisphere
-        float3 u, v, w; 
-        w = triangleNormal;
-        
-#if 1	// Break hemisphere coordinate correlation - ToDo is this needed with >#N sample sets? Compare perf
-		float x = RNG::Random01(RNGState);
-		float y = RNG::Random01(RNGState);
-		float z = RNG::Random01(RNGState);
-		float3 right = normalize(float3(x, y, z) + 0.001f*w.yzx);
 #else
-		float3 right = w.yzx;
-#endif
-		//        float3 right = normalize(float3(0.0072, 1.0, 0.0034));
-        v = normalize(cross(w, right));
-        u = cross(v, w);
-
-        float3 rayDirection = sample.x * u + sample.y * v + sample.z * w;
-
-        float3 hitPosition = HitWorldPosition();
-        Ray shadowRay = { hitPosition + 0.0001f * triangleNormal, normalize(rayDirection) };
-#if 1
-        if (TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth))
-        {
-            shadowRayHits++;
-        }
-#endif
-    }
-    //float4 color = (shadowRayHit ? 0.25 : 1.0f) * l_materialCB.albedo;
-    float4 color = (1.f - ((float)shadowRayHits / g_sceneCB.numSamplesToUse)) * l_materialCB.albedo;
-#else
-    float4 color = l_materialCB.albedo;
+	float ambientCoef = CalculateAO(HitWorldPosition(), triangleNormal);
+    float4 color = ambientCoef * l_materialCB.albedo;
 #endif     
 
     rayPayload.color = color;
-	//rayPayload.color = float4(1, 0, 0, 1);
-	//rayPayload.color = float4(triangleNormal, 1);
 }
 
 [shader("closesthit")]
@@ -393,6 +397,7 @@ void MyClosestHitShader_GBuffer(inout GBufferRayPayload rayPayload, in BuiltInTr
 	rayPayload.hitPosition = HitWorldPosition();
 	rayPayload.surfaceNormal = triangleNormal;
 }
+
 
 //***************************************************************************
 //**********************------ Miss shaders -------**************************
