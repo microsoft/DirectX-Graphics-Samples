@@ -17,6 +17,8 @@
 #include "RaytracingShaderHelper.hlsli"
 #include "RandomNumberGenerator.hlsli"
 
+// ToDo dedupe code triangle normal calc,..
+
 //***************************************************************************
 //*****------ Shader resources bound via root signatures -------*************
 //***************************************************************************
@@ -26,6 +28,9 @@
 //  l_* - bound via a local root signature.
 RaytracingAccelerationStructure g_scene : register(t0, space0);
 RWTexture2D<float4> g_renderTarget : register(u0);
+RWTexture2D<float4>  g_GBufferPositionHit : register(u1);
+RWTexture2D<float4> g_GBufferPositionRT : register(u2);
+RWTexture2D<float4> g_GBufferNormalRT : register(u3);
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 StructuredBuffer<AlignedHemisphereSample3D> g_sampleSets : register(t4);
 
@@ -156,12 +161,38 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     return shadowPayload.hit;
 }
 
+// Trace a radiance ray into the scene and returns a shaded color.
+GBufferRayPayload TraceGBufferRay(in Ray ray)
+{
+	// Set the ray's extents.
+	RayDesc rayDesc;
+	rayDesc.Origin = ray.origin;
+	rayDesc.Direction = ray.direction;
+	// ToDo update comments about Tmins
+	// Set TMin to a zero value to avoid aliasing artifacts along contact areas.
+	// Note: make sure to enable face culling so as to avoid surface face fighting.
+	// ToDo Tmin
+	rayDesc.TMin = 0.001;
+	rayDesc.TMax = 10000;
+	GBufferRayPayload rayPayload = {false, (float3)0, (float3)0 };
+	TraceRay(g_scene,
+		RAY_FLAG_CULL_BACK_FACING_TRIANGLES
+		| RAY_FLAG_FORCE_OPAQUE,             // ~skip any hit shaders,
+		TraceRayParameters::InstanceMask,
+		TraceRayParameters::HitGroup::Offset[RayType::GBuffer],
+		TraceRayParameters::HitGroup::GeometryStride,
+		TraceRayParameters::MissShader::Offset[RayType::GBuffer],
+		rayDesc, rayPayload);
+
+	return rayPayload;
+}
+
 //***************************************************************************
 //********************------ Ray gen shader.. -------************************
 //***************************************************************************
 
 [shader("raygeneration")]
-void MyRaygenShader()
+void MyRayGenShader_PrimaryAndAO()
 {
 #if RAYGEN_SINGLE_COLOR_SHADING
 	g_renderTarget[DispatchRaysIndex().xy] = float4(0,1,0,1);
@@ -172,18 +203,51 @@ void MyRaygenShader()
  
     // Cast a ray into the scene and retrieve a shaded color.
     UINT currentRecursionDepth = 0;
-    float4 color = TraceRadianceRay(ray, currentRecursionDepth);
+	float4 color = TraceRadianceRay(ray, currentRecursionDepth);
 
     // Write the raytraced color to the output texture.
     g_renderTarget[DispatchRaysIndex().xy] = color;
 }
+
+[shader("raygeneration")]
+void MyRayGenShader_GBuffer()
+{
+	// Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
+	Ray ray = GenerateCameraRay(DispatchRaysIndex().xy, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorldWithCameraEyeAtOrigin);
+
+	// Cast a ray into the scene and retrieve GBuffer information.
+	GBufferRayPayload rayPayload = TraceGBufferRay(ray);
+
+	// Write out GBuffer information to rendertargets.
+	// ToDo Test conditional write
+	g_GBufferPositionHit[DispatchRaysIndex().xy] = (float4) (rayPayload.hit ? 1 : 0);
+	g_GBufferPositionRT[DispatchRaysIndex().xy] = float4(rayPayload.hitPosition, 0);
+	g_GBufferNormalRT[DispatchRaysIndex().xy] = float4(rayPayload.surfaceNormal, 0);
+}
+
+[shader("raygeneration")]
+void MyRayGenShader_AO()
+{
+	// Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
+	Ray ray = GenerateCameraRay(DispatchRaysIndex().xy, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorldWithCameraEyeAtOrigin);
+
+	// Cast a ray into the scene and retrieve GBuffer information.
+	GBufferRayPayload rayPayload = TraceGBufferRay(ray);
+
+	// Write out GBuffer information to rendertargets.
+	// ToDo Test conditional write
+	g_GBufferPositionHit[DispatchRaysIndex().xy] = (float4) (rayPayload.hit ? 1 : 0);
+	g_GBufferPositionRT[DispatchRaysIndex().xy] = float4(rayPayload.hitPosition, 0);
+	g_GBufferNormalRT[DispatchRaysIndex().xy] = float4(rayPayload.surfaceNormal, 0);
+}
+
 
 //***************************************************************************
 //******************------ Closest hit shaders -------***********************
 //***************************************************************************
 
 [shader("closesthit")]
-void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
+void MyClosestHitShader(inout RayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
 {
 #if ALBEDO_SHADING
 	rayPayload.color = l_materialCB.albedo;
@@ -303,6 +367,33 @@ void MyClosestHitShader_Triangle(inout RayPayload rayPayload, in BuiltInTriangle
 	//rayPayload.color = float4(triangleNormal, 1);
 }
 
+[shader("closesthit")]
+void MyClosestHitShader_GBuffer(inout GBufferRayPayload rayPayload, in BuiltInTriangleIntersectionAttributes attr)
+{
+#if ONLY_SQUID_SCENE_BLAS
+	uint startIndex = PrimitiveIndex() * 3;
+	const uint3 indices = { l_indices[startIndex], l_indices[startIndex + 1], l_indices[startIndex + 2] };
+#else
+	// Get the base index of the triangle's first 16 bit index.
+	uint indexSizeInBytes = 2;
+	uint indicesPerTriangle = 3;
+	uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
+
+	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
+
+	// Load up three 16 bit indices for the triangle.
+	const uint3 indices = Load3x16BitIndices(baseIndex, l_indices);
+#endif
+
+	// Retrieve corresponding vertex normals for the triangle vertices.
+	float3 vertexNormals[3] = { l_vertices[indices[0]].normal, l_vertices[indices[1]].normal, l_vertices[indices[2]].normal };
+	float3 triangleNormal = HitAttribute(vertexNormals, attr);
+
+	rayPayload.hit = true;
+	rayPayload.hitPosition = HitWorldPosition();
+	rayPayload.surfaceNormal = triangleNormal;
+}
+
 //***************************************************************************
 //**********************------ Miss shaders -------**************************
 //***************************************************************************
@@ -319,6 +410,13 @@ void MyMissShader(inout RayPayload rayPayload)
 void MyMissShader_ShadowRay(inout ShadowRayPayload rayPayload)
 {
     rayPayload.hit = false;
+}
+
+// ToDo - remove miss shader for GBuffer
+[shader("miss")]
+void MyMissShader_GBuffer(inout GBufferRayPayload rayPayload)
+{
+	rayPayload.hit = false;
 }
 
 

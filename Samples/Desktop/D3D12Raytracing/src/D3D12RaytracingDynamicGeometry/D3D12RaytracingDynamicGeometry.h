@@ -39,7 +39,7 @@ public:
 	virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
 
 	const DX::DeviceResources& GetDeviceResources() { return *m_deviceResources; }
-    ID3D12Device5* GetDxrDevice() { return m_dxrDevice.Get(); }
+	ID3D12Device5* GetDxrDevice() { return m_dxrDevice.Get(); }
 	ID3D12GraphicsCommandList4* GetDxrCommandList() { return m_deviceResources->GetCommandList(); }
 
 	void RequestGeometryInitialization(bool bRequest) { m_isGeometryInitializationRequested = bRequest; }
@@ -76,20 +76,20 @@ private:
 	ComPtr<ID3D12Device5> m_dxrDevice;		// ToDo remove
 	ComPtr<ID3D12StateObject> m_dxrStateObject;
 
-    // Compute resources.
-    Samplers::MultiJittered m_randomSampler;
-    ConstantBuffer<RNGConstantBuffer>   m_computeCB;
-    ComPtr<ID3D12PipelineState>         m_computePSO;
-    ComPtr<ID3D12RootSignature>         m_csSamleVisualizerRootSignature;
-    ComPtr<ID3D12CommandAllocator>      m_computeAllocators[FrameCount];
-    ComPtr<ID3D12CommandQueue>          m_computeCommandQueue;
+	// Compute resources.
+	Samplers::MultiJittered m_randomSampler;
+	ConstantBuffer<RNGConstantBuffer>   m_computeCB;
+	ComPtr<ID3D12PipelineState>         m_computePSO;
+	ComPtr<ID3D12RootSignature>         m_csSamleVisualizerRootSignature;
+	ComPtr<ID3D12CommandAllocator>      m_computeAllocators[FrameCount];
+	ComPtr<ID3D12CommandQueue>          m_computeCommandQueue;
 	ComPtr<ID3D12GraphicsCommandList>   m_computeCommandList;
-	
-    ComPtr<ID3D12Fence>                 m_fence;
-    UINT64                              m_fenceValues[FrameCount];
-    Microsoft::WRL::Wrappers::Event     m_fenceEvent;
+
+	ComPtr<ID3D12Fence>                 m_fence;
+	UINT64                              m_fenceValues[FrameCount];
+	Microsoft::WRL::Wrappers::Event     m_fenceEvent;
 	// Root signatures
-    ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
+	ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
 	ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature[LocalRootSignature::Type::Count];
 
 	// ToDo move to deviceResources
@@ -127,27 +127,30 @@ private:
 	};
 
 	std::vector<TriangleGeometryBuffer> m_geometries;
-    StructuredBuffer<AlignedGeometryTransform3x4> m_geometryTransforms;
+	StructuredBuffer<AlignedGeometryTransform3x4> m_geometryTransforms;
 
-    StructuredBuffer<AlignedUnitSquareSample2D> m_samplesGPUBuffer; 
-    StructuredBuffer<AlignedHemisphereSample3D> m_hemisphereSamplesGPUBuffer;
+	StructuredBuffer<AlignedUnitSquareSample2D> m_samplesGPUBuffer;
+	StructuredBuffer<AlignedHemisphereSample3D> m_hemisphereSamplesGPUBuffer;
+
 
 	// Raytracing output
-	ComPtr<ID3D12Resource> m_raytracingOutput;
-	D3D12_GPU_DESCRIPTOR_HANDLE m_raytracingOutputResourceUAVGpuDescriptor;
-	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
+	// ToDo use the struct
+	RenderTargetResource m_raytracingOutput;
+	RenderTargetResource m_GBufferResources[GBufferResource::Count];
+
 
 	// Shader tables
 	static const wchar_t* c_hitGroupNames_TriangleGeometry[RayType::Count];
-	static const wchar_t* c_raygenShaderName;
-	static const wchar_t* c_closestHitShaderNames[1];
+	static const wchar_t* c_rayGenShaderNames[RayGenShaderType::Count];
+	static const wchar_t* c_closestHitShaderNames[RayGenShaderType::Count];
 	static const wchar_t* c_missShaderNames[RayType::Count];
 
-	ComPtr<ID3D12Resource> m_missShaderTable;
-	UINT m_missShaderTableStrideInBytes;
+	ComPtr<ID3D12Resource> m_rayGenShaderTable;
+	UINT m_rayGenShaderTableRecordSizeInBytes;
 	ComPtr<ID3D12Resource> m_hitGroupShaderTable;
 	UINT m_hitGroupShaderTableStrideInBytes;
-	ComPtr<ID3D12Resource> m_rayGenShaderTable;
+	ComPtr<ID3D12Resource> m_missShaderTable;
+	UINT m_missShaderTableStrideInBytes;
 
 	// Application state
 	StepTimer m_timer;
@@ -181,6 +184,7 @@ private:
     void InitializeScene();
 	void UpdateAccelerationStructures(bool forceBuild = false);
     void DoRaytracing();
+	void DoRaytracingGBufferAndAOPasses();
     void CreateConstantBuffers();
     void CreateSamplesRNG();
 	void UpdateUI();
@@ -198,6 +202,7 @@ private:
     void CreateRaytracingPipelineStateObject();
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
+	void CreateGBufferResources();
 	void CreateAuxilaryDeviceResources();
     void InitializeGeometry();
     void BuildPlaneGeometry();

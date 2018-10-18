@@ -68,6 +68,13 @@ struct RayPayload
     UINT   recursionDepth;
 };
 
+struct GBufferRayPayload
+{
+	bool hit;
+	XMFLOAT3 hitPosition;
+	XMFLOAT3 surfaceNormal;	// ToDo test encoding normal into 2D
+};
+
 struct ShadowRayPayload
 {
     bool hit;
@@ -165,11 +172,22 @@ struct VertexPositionNormalTextureTangent
 };
 
 
+namespace RayGenShaderType {
+	enum Enum {
+		GBuffer = 0,
+		PrimaryAndAO,
+		AO,
+		Count
+	};
+}
+
+
 // Ray types traced in this sample.
 namespace RayType {
     enum Enum {
         Radiance = 0,   // ~ Primary, reflected camera/view rays calculating color for each hit.
         Shadow,         // ~ Shadow/visibility rays, only testing for occlusion
+		GBuffer,		// ~ Primary camera ray generating GBuffer data.
         Count
     };
 }
@@ -181,7 +199,8 @@ namespace TraceRayParameters
         static const UINT Offset[RayType::Count] =
         {
             0, // Radiance ray
-            1  // Shadow ray
+            1, // Shadow ray
+			2  // GBuffer ray
         };
 		// ToDo For now all geometries reusing shader records
 		static const UINT GeometryStride = RayType::Count;
@@ -190,7 +209,8 @@ namespace TraceRayParameters
         static const UINT Offset[RayType::Count] =
         {
             0, // Radiance ray
-            1  // Shadow ray
+            1, // Shadow ray
+			2, // GBuffer ray
         };
     }
 }

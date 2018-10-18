@@ -471,3 +471,35 @@ inline float NumMPixelsPerSecond(float timeMs, UINT width, UINT height)
 	float raytracingTime = 0.001f * timeMs;
 	return resolution / (raytracingTime * static_cast<float>(1e6));
 }
+
+struct RenderTargetResource
+{
+	ComPtr<ID3D12Resource> resource;
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptor;
+	UINT descriptorHeapIndex;
+};
+
+inline void CreateRenderTargetResource(
+	ID3D12Device* device,
+	DXGI_FORMAT format,
+	UINT width,
+	UINT height,
+	DescriptorHeap* descriptorHeap,
+	RenderTargetResource* dest)
+{
+	auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	ThrowIfFailed(device->CreateCommittedResource(
+		&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&dest->resource)));
+	NAME_D3D12_OBJECT(dest->resource);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle;
+	dest->descriptorHeapIndex = descriptorHeap->AllocateDescriptor(&uavDescriptorHandle, dest->descriptorHeapIndex);
+	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	device->CreateUnorderedAccessView(dest->resource.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
+	dest->gpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetHeap()->GetGPUDescriptorHandleForHeapStart(), dest->descriptorHeapIndex, descriptorHeap->DescriptorSize());
+
+
+}

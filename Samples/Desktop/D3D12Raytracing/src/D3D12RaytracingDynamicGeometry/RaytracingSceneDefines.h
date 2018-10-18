@@ -28,6 +28,7 @@ namespace GlobalRootSignature {
     namespace Slot {
         enum Enum {
             OutputView = 0,
+			GBufferResources,
             AccelerationStructure,
             SceneConstant,
             AABBattributeBuffer,
@@ -95,6 +96,15 @@ namespace UIParameters {
 		UpdateAlgorithm,
 		TesselationQuality,
 		NumberOfObjects,
+		Count
+	};
+}
+
+namespace GBufferResource {
+	enum Enum {
+		Hit = 0,
+		HitPosition,
+		SurfaceNormal,
 		Count
 	};
 }
