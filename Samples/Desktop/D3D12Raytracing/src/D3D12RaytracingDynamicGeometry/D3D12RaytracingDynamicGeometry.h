@@ -111,9 +111,6 @@ private:
 	std::vector<UINT> m_geometryVBHeapIndices;
 
 
-	UINT m_timerID = 0;
-
-
 	// ToDo clean up buffer management
 	// SquidRoom buffers
 	ComPtr<ID3D12Resource> m_vertexBuffer;
@@ -219,5 +216,6 @@ private:
     void BuildShaderTables();
     void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();
-	float NumMRaysPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_AO].GetAverageMS(), m_width, m_height); }
+	float NumCameraRaysPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_AO].GetAverageMS(), m_width, m_height); }
+	float NumCameraRayGeometryHitsPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::CalculateNumCameraRayGeometryHits].GetAverageMS(), m_numCameraRayGeometryHits, 1); }
 };

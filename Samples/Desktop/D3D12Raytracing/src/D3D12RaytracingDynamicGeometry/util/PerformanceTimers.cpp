@@ -33,7 +33,7 @@ namespace
 
     inline float UpdateRunningAverage(float avg, float value)
     {
-        return lerp(value, avg, 0.95f);
+        return lerp(value, avg, 0.05f);
     }
 
     inline void DebugWarnings(uint32_t timerid, uint64_t start, uint64_t end)
@@ -169,8 +169,28 @@ void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
         DebugWarnings(j, start, end);
 
         float value = float(double(end - start) * m_gpuFreqInv);
-        m_avg[j] = UpdateRunningAverage(m_avg[j], value);
+		m_avgPeriodTotal[j] += value;
     }
+	m_avgTimestampsTotal++;
+
+	// Update averages if the period duration has passed.
+	m_avgPeriodTimer.Stop();
+	float elapsedMs = m_avgPeriodTimer.GetElapsedMS();
+	if (m_avgPeriodTimer.GetElapsedMS() >= m_avgRefreshPeriodMs)
+	{
+		for (uint32_t j = 0; j < c_maxTimers; ++j)
+		{
+			m_avg[j] = m_avgPeriodTotal[j] / m_avgTimestampsTotal;
+			m_avgPeriodTotal[j] = 0;
+		}
+		m_avgTimestampsTotal = 0;
+
+		m_avgPeriodTimer.Start();
+	}
+	else
+	{
+		elapsedMs;
+	}
 
     resolveToFrameID = readBackFrameID;
 }
@@ -194,6 +214,10 @@ void GPUTimer::Stop(_In_ ID3D12GraphicsCommandList* commandList, uint32_t timeri
 void GPUTimer::Reset()
 {
     memset(m_avg, 0, sizeof(m_avg));
+	memset(m_avgPeriodTotal, 0, sizeof(m_avg));
+	m_avgTimestampsTotal = 0;
+	m_avgPeriodTimer.Reset();
+	m_avgPeriodTimer.Start();
 }
 
 double GPUTimer::GetElapsedMS(uint32_t timerid) const
@@ -221,7 +245,7 @@ void GPUTimer::RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue*
     assert(device != 0 && commandQueue != 0);
     m_maxframeCount = maxFrameCount;
 
-    // Filter a debug warning coming when accessing a readback resource for the timing queries.
+    // Filter out a debug warning coming when accessing a readback resource for the timing queries.
     // The readback resource handles multiple frames data via per-frame offsets within the same resource and CPU
     // maps an offset written "frame_count" frames ago and the data is guaranteed to had been written to by GPU by this time. 
     // Therefore the race condition doesn't apply in this case.
@@ -231,7 +255,7 @@ void GPUTimer::RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue*
         // Suppress individual messages by their ID.
         D3D12_MESSAGE_ID denyIds[] =
         {
-            D3D12_MESSAGE_ID_EXECUTECOMMANDLISTS_GPU_WRITTEN_READBACK_RESOURCE_MAPPED,
+            D3D12_MESSAGE_ID_EXECUTECOMMANDLISTS_GPU_WRITTEN_READBACK_RESOURCE_MAPPED,	// ToDo this still spews sometimes...
         };
 
         D3D12_INFO_QUEUE_FILTER filter = {};
@@ -253,15 +277,13 @@ void GPUTimer::RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue*
     ThrowIfFailed(device->CreateQueryHeap(&desc, IID_GRAPHICS_PPV_ARGS(m_heap.ReleaseAndGetAddressOf())));
     m_heap->SetName(L"GPUTimerHeap");
 
-    auto readBack = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
-
     // We allocate m_maxframeCount + 1 instances as an instance is guaranteed to be written to if maxPresentFrameCount frames
     // have been submitted since. This is due to a fact that Present stalls when none of the m_maxframeCount frames are done/available.
     size_t nPerFrameInstances = m_maxframeCount + 1;
 
     auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(nPerFrameInstances * c_timerSlots * sizeof(UINT64));
     ThrowIfFailed(device->CreateCommittedResource(
-        &readBack,
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
         D3D12_HEAP_FLAG_NONE,
         &bufferDesc,
         D3D12_RESOURCE_STATE_COPY_DEST,

@@ -113,6 +113,7 @@ namespace GpuTimers {
 		Raytracing_PrimaryAndAO = 0,
 		Raytracing_GBuffer,
 		Raytracing_AO,
+		CalculateNumCameraRayGeometryHits,
 		UpdateBLAS,
 		UpdateTLAS,
 		Count

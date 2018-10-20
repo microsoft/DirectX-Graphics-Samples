@@ -20,9 +20,10 @@ Texture2D<float4> g_texGBufferPositionHit : register(t0);
 [numthreads(8, 8, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
-
-	bool hit = g_texGBufferPositionHit[DTid.xy].x > 0.5;
-    
+	UINT hit = g_texGBufferPositionHit[DTid.xy].x > 0.5 ? 1 : 0;
+	
+	//for (UINT i = 0; i < 1e2; i++)
+		hit += 1;
 	if (DTid.x == 0 && DTid.y == 0)
-		g_sum[0] = 128;// rngCB.numSamples;
+		g_sum[0] = hit;
 }

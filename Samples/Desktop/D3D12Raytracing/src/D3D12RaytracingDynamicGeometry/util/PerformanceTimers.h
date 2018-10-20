@@ -65,19 +65,25 @@ namespace DX
     class GPUTimer
     {
     public:
-        static const size_t c_maxTimers = 200;
+        static const size_t c_maxTimers = 8;
 
         GPUTimer() :
             m_gpuFreqInv(1.f),
             m_avg{},
             m_timing{},
-            m_maxframeCount(0)
+            m_maxframeCount(0),
+			m_avgTimestampsTotal(0),
+			m_avgPeriodTotal{},
+			m_avgRefreshPeriodMs(0)
         {}
 
-        GPUTimer(ID3D12Device* device, ID3D12CommandQueue* commandQueue, UINT maxFrameCount) :
+        GPUTimer(ID3D12Device* device, ID3D12CommandQueue* commandQueue, UINT maxFrameCount, float averageRefreshPeriodMs) :
             m_gpuFreqInv(1.f),
             m_avg{},
-            m_timing{}
+            m_timing{},
+			m_avgTimestampsTotal(0),
+			m_avgPeriodTotal{},
+			m_avgRefreshPeriodMs(averageRefreshPeriodMs)
         {
             RestoreDevice(device, commandQueue, maxFrameCount);
         }
@@ -97,10 +103,12 @@ namespace DX
         // Start/stop a particular performance timer (don't start same index more than once in a single frame)
         void Start(_In_ ID3D12GraphicsCommandList* commandList, uint32_t timerid = 0);
         void Stop(_In_ ID3D12GraphicsCommandList* commandList, uint32_t timerid = 0);
+		
+		void SetAvgRefreshPeriod(float avgRefreshPeriodMs) { m_avgRefreshPeriodMs = avgRefreshPeriodMs; }
 
         // Reset running average
         void Reset();
-
+		
         // Returns delta time in milliseconds
         double GetElapsedMS(uint32_t timerid = 0) const;
 
@@ -124,5 +132,9 @@ namespace DX
         float                                   m_avg[c_maxTimers];
         UINT64                                  m_timing[c_timerSlots];
         size_t                                  m_maxframeCount;
+		float									m_avgRefreshPeriodMs;
+		float									m_avgPeriodTotal[c_maxTimers];
+		UINT									m_avgTimestampsTotal;
+		CPUTimer								m_avgPeriodTimer;
     };
 }

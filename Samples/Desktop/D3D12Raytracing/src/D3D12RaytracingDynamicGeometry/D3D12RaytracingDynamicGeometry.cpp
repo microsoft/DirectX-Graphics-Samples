@@ -106,8 +106,7 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
     m_isASrebuildRequested(true),
     m_ASmemoryFootprint(0),
     m_numFramesSinceASBuild(0),
-	m_isCameraFrozen(false),
-	m_timerID(0)
+	m_isCameraFrozen(false)
 {
     g_pSample = this;
     UpdateForSizeChange(width, height);
@@ -418,6 +417,7 @@ void D3D12RaytracingDynamicGeometry::CreateReduceSumResources()
 		UINT bufferSize = sizeof(UINT);
 		m_csReduceSumOutput.rwFlags = ResourceRWFlags::AllowWrite;
 		AllocateUAVBuffer(device, 1, bufferSize, &m_csReduceSumOutput, DXGI_FORMAT_R32_UINT, m_cbvSrvUavHeap.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"UAV buffer: Reduce sum output");
+		// ToDo should we allocate FrameCount + 1 in GPUTImeras we're depending on Present to stall?
 		AllocateReadBackBuffer(device, FrameCount * bufferSize, &m_csReduceSumReadback, D3D12_RESOURCE_STATE_COPY_DEST, L"Readback buffer: Reduce sum output");
 	}
 }
@@ -702,6 +702,7 @@ void D3D12RaytracingDynamicGeometry::CreateAuxilaryDeviceResources()
 
     for (auto& gpuTimer : m_gpuTimers)
     {
+		gpuTimer.SetAvgRefreshPeriod(500);
         gpuTimer.RestoreDevice(device, commandQueue, FrameCount);
     }
 }
@@ -1156,8 +1157,6 @@ void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
 void D3D12RaytracingDynamicGeometry::OnUpdate()
 {
     m_timer.Tick();
-	// ToDo Switch to time range averaged timers
-	m_timerID = (m_timerID + 1) % m_gpuTimers->c_maxTimers;
 
     float elapsedTime = static_cast<float>(m_timer.GetElapsedSeconds());
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
@@ -1344,9 +1343,9 @@ void D3D12RaytracingDynamicGeometry::DispatchRays(ID3D12Resource* rayGenShaderTa
 	dispatchDesc.Depth = 1;
 	commandList->SetPipelineState1(m_dxrStateObject.Get());
 
-	gpuTimer->Start(commandList, m_timerID);
+	gpuTimer->Start(commandList);
 	commandList->DispatchRays(&dispatchDesc);
-	gpuTimer->Stop(commandList, m_timerID);
+	gpuTimer->Stop(commandList);
 };
 
 
@@ -1476,7 +1475,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracingGBufferAndAOPasses()
 	// Bind the heaps, acceleration structure and dispatch rays. 
 	commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS.GetResource()->GetGPUVirtualAddress());
 	DispatchRays(m_rayGenShaderTables[RayGenShaderType::AO].Get(), &m_gpuTimers[GpuTimers::Raytracing_AO]);
-}//
+}
 
 
 // Copy the raytracing output to the backbuffer.
@@ -1512,14 +1511,15 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
                << m_deviceResources->GetAdapterDescription() << L"\n";
         wLabel << fixed << L" FPS: " << m_fps << L"\n";
 		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_AO].GetAverageMS()
-			   << L"ms" << L"     ~Million Primary Rays/s: " << NumMRaysPerSecond()
-   			   << L"   ~Million AO rays/s" << NumMRaysPerSecond() * c_sppAO
+			   << L"ms" << L"     ~Million Primary Rays/s: " << NumCameraRaysPerSecond()
+   			   << L"   ~Million AO rays/s" << NumCameraRayGeometryHitsPerSecond() * c_sppAO
                << L"\n";
         wLabel << fixed << L" AS update (BLAS / TLAS / Total): "
                << m_gpuTimers[GpuTimers::UpdateBLAS].GetElapsedMS() << L"ms / "
                << m_gpuTimers[GpuTimers::UpdateTLAS].GetElapsedMS() << L"ms / "
                << m_gpuTimers[GpuTimers::UpdateBLAS].GetElapsedMS() +
                   m_gpuTimers[GpuTimers::UpdateTLAS].GetElapsedMS() << L"ms\n";
+		wLabel << fixed << L" ReduceSum: " << m_gpuTimers[GpuTimers::CalculateNumCameraRayGeometryHits].GetElapsedMS() << L"ms \n";
     
         labels.push_back(wLabel.str());
     }
@@ -1708,10 +1708,10 @@ void D3D12RaytracingDynamicGeometry::CalculateNumPrimaryRaysHit()
 
 	PIXBeginEvent(commandList, 0, L"CalculateNumCameraRayHits");
 	// Update constant buffer.
-	XMUINT2 rngWindowSize(256, 256);
+	XMUINT2 rngWindowSize(m_width, m_height);
 	{
 		m_csReduceSumCB->dispatchDimensions = rngWindowSize;
-		m_csReduceSumCB->numSamples = frameIndex + 1;
+		m_csReduceSumCB->numSamples = (frameIndex + 1) * 1000;
 	}
 
 	// Copy dynamic buffers to GPU.
@@ -1734,7 +1734,9 @@ void D3D12RaytracingDynamicGeometry::CalculateNumPrimaryRaysHit()
 	}
 
 	// Dispatch.
+	m_gpuTimers[GpuTimers::CalculateNumCameraRayGeometryHits].Start(commandList);
 	commandList->Dispatch(rngWindowSize.x, rngWindowSize.y, 1);
+	m_gpuTimers[GpuTimers::CalculateNumCameraRayGeometryHits].Stop(commandList);
 
 	// Copy the sum result to the readback buffer.
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutput.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE));
@@ -1834,7 +1836,7 @@ void D3D12RaytracingDynamicGeometry::CalculateFrameStats()
         {
             wstringstream windowText;
             windowText << setprecision(2) << fixed
-                << L"    fps: " << m_fps << L"     ~Million Primary Rays/s: " << NumMRaysPerSecond()
+                << L"    fps: " << m_fps << L"     ~Million Primary Rays/s: " << NumCameraRaysPerSecond()
                 << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
             SetCustomWindowText(windowText.str().c_str());
         }
