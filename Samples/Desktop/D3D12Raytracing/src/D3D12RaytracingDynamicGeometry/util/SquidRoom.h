@@ -29,7 +29,7 @@ namespace SquidRoomAssets
 		std::vector<GeometryInstance>* geometryInstances
 	);
 
-    const wchar_t DataFileName[] = L"SquidRoom.bin";
+    const wchar_t DensityTextureFile[] = L"SquidRoom.bin";
 
     const D3D12_INPUT_ELEMENT_DESC StandardVertexDescription[] =
     {

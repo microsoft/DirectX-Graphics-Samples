@@ -25,6 +25,9 @@
     <Filter Include="Assets\Shaders\Util">
       <UniqueIdentifier>{f6ae1511-f58a-4af8-a167-b79e11f8c1de}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Shaders\Assets">
+      <UniqueIdentifier>{ae18df80-754a-4361-baae-440ce51538d8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -90,6 +93,9 @@
     <ClInclude Include="util\CameraController.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="util\DXRTextWithPrimitiveScene.h">
+      <Filter>Assets\Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -140,6 +146,9 @@
     <ClCompile Include="util\SquidRoom.cpp">
       <Filter>Assets\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="util\DXRTextWithPrimitiveScene.cpp">
+      <Filter>Assets\Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.md" />
@@ -152,10 +161,18 @@
     <FxCompile Include="RNGVisualizer.hlsl">
       <Filter>Assets\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="util\GenerateTransforms.hlsl">
+      <Filter>Assets\Shaders\Assets</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="util\SquidRoom.bin">
       <Filter>Assets\Scene</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="util\DXR_abbr_300dpi_4.5pt_rgb.dds">
+      <Filter>Assets\Scene</Filter>
+    </Image>
   </ItemGroup>
 </Project>

@@ -182,6 +182,7 @@
     <ClInclude Include="util\Camera.h" />
     <ClInclude Include="util\CameraController.h" />
     <ClInclude Include="util\DeviceResources.h" />
+    <ClInclude Include="util\DXRTextWithPrimitiveScene.h" />
     <ClInclude Include="util\DXSample.h" />
     <ClInclude Include="util\DXSampleHelper.h" />
     <ClInclude Include="util\EngineTuning.h" />
@@ -209,6 +210,7 @@
     </ClCompile>
     <ClCompile Include="util\CameraController.cpp" />
     <ClCompile Include="util\DeviceResources.cpp" />
+    <ClCompile Include="util\DXRTextWithPrimitiveScene.cpp" />
     <ClCompile Include="util\DXSample.cpp" />
     <ClCompile Include="util\EngineTuning.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
@@ -243,6 +245,7 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/Zpr %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/Zpr %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
+    <FxCompile Include="util\GenerateTransforms.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -255,6 +258,11 @@
       <FileType>Document</FileType>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="util\DXR_abbr_300dpi_4.5pt_rgb.dds">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+    </Image>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
