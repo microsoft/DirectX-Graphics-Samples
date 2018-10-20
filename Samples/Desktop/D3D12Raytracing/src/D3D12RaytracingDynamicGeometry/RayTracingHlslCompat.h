@@ -19,10 +19,9 @@
 // A header with shared definitions for C++ and HLSL source files. 
 //
 //**********************************************************************************************
-
+#define ENABLE_RAYTRACING 0
 #define RUNTIME_AS_UPDATES 1
 #define USE_GPU_TRANSFORM 0
-#define DO_RAYTRACING 1
 
 #define RAYGEN_SINGLE_COLOR_SHADING 0
 #define SAMPLES_CS_VISUALIZATION 1
