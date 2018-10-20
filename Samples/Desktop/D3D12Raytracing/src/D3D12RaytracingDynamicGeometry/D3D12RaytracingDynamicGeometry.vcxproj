@@ -243,6 +243,7 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/Zpr %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/Zpr %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
+    <FxCompile Include="Sum.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
