@@ -51,6 +51,7 @@ public:
 private:
 	static const UINT FrameCount = 3;
 
+	// ToDo change ID3D12Resourcs with views to RWGpuResource
 
 	std::mt19937 m_generatorURNG;
 
@@ -61,9 +62,9 @@ private:
 
 	// DynamicGeometry
 	std::vector<BottomLevelAccelerationStructure> m_vBottomLevelAS;
-	std::vector<GeometryInstance> m_geometryInstances;
-	TopLevelAccelerationStructure m_topLevelAS;
-	ComPtr<ID3D12Resource> m_accelerationStructureScratch;
+	std::vector<GeometryInstance>	m_geometryInstances;
+	TopLevelAccelerationStructure	m_topLevelAS;
+	ComPtr<ID3D12Resource>			m_accelerationStructureScratch;
 	UINT64 m_ASmemoryFootprint;
 	int m_numFramesSinceASBuild;
 	const float m_geometryRadius = 3.0f;
@@ -78,9 +79,14 @@ private:
 
 	// Compute resources.
 	Samplers::MultiJittered m_randomSampler;
-	ConstantBuffer<RNGConstantBuffer>   m_computeCB;
+	ConstantBuffer<RNGConstantBuffer>   m_csHemisphereVisualizationCB;
+	ConstantBuffer<ReduceSumCS>			m_csReduceSumCB;
 	ComPtr<ID3D12PipelineState>         m_computePSOs[ComputeShader::Type::Count];
 	ComPtr<ID3D12RootSignature>         m_computeRootSigs[ComputeShader::Type::Count];
+
+	RWGpuResource						m_csReduceSumOutput;
+	ComPtr<ID3D12Resource>				m_csReduceSumReadback;
+	UINT								m_numCameraRayGeometryHits;
 
 	ComPtr<ID3D12Fence>                 m_fence;
 	UINT64                              m_fenceValues[FrameCount];
@@ -133,8 +139,8 @@ private:
 
 	// Raytracing output
 	// ToDo use the struct
-	RenderTargetResource m_raytracingOutput;
-	RenderTargetResource m_GBufferResources[GBufferResource::Count];
+	RWGpuResource m_raytracingOutput;
+	RWGpuResource m_GBufferResources[GBufferResource::Count];
 
 
 	// Shader tables

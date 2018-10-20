@@ -257,7 +257,10 @@ protected:
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&m_resource)));
-        m_resource->SetName(resourceName);
+		if (resourceName)
+		{
+			m_resource->SetName(resourceName);
+		}
     }
 
     uint8_t* MapCpuWriteOnly()
@@ -474,12 +477,25 @@ inline float NumMPixelsPerSecond(float timeMs, UINT width, UINT height)
 	return resolution / (raytracingTime * static_cast<float>(1e6));
 }
 
-struct RenderTargetResource
+
+// ToDo Gpu*flags?
+namespace ResourceRWFlags {
+	enum Enum
+	{
+		None = 0x0,
+		AllowRead = 0x1,
+		AllowWrite = 0x2,
+	};
+}
+
+// ToDo turn into class and check rwFlags being properly set on access.
+struct RWGpuResource
 {
+	ResourceRWFlags::Enum rwFlags = ResourceRWFlags::None;
 	ComPtr<ID3D12Resource> resource;
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorWriteAccess;
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorReadAccess;
-	UINT descriptorHeapIndex;
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorReadAccess = { UINT64_MAX };
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorWriteAccess = { UINT64_MAX };
+	UINT descriptorHeapIndex = UINT_MAX;
 };
 
 inline void CreateRenderTargetResource(
@@ -488,17 +504,19 @@ inline void CreateRenderTargetResource(
 	UINT width,
 	UINT height,
 	DescriptorHeap* descriptorHeap,
-	RenderTargetResource* dest,
-
-	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_RENDER_TARGET
-	)
+	RWGpuResource* dest,
+	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_RENDER_TARGET,
+	const wchar_t* resourceName = nullptr)
 {
 	auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 	ThrowIfFailed(device->CreateCommittedResource(
 		&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, initialResourceState, nullptr, IID_PPV_ARGS(&dest->resource)));
-	NAME_D3D12_OBJECT(dest->resource);
+	if (resourceName)
+	{
+		dest->resource->SetName(resourceName);
+	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle;
 	dest->descriptorHeapIndex = descriptorHeap->AllocateDescriptor(&uavDescriptorHandle, dest->descriptorHeapIndex);
@@ -531,3 +549,77 @@ inline void CreateTextureSRV(
 	*gpuHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetHeap()->GetGPUDescriptorHandleForHeapStart(),
 			*descriptorHeapIndex, descriptorHeap->DescriptorSize());
 };
+
+
+inline void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Resource **ppResource, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr)
+{
+	auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	ThrowIfFailed(pDevice->CreateCommittedResource(
+		&uploadHeapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDesc,
+		initialResourceState,
+		nullptr,
+		IID_PPV_ARGS(ppResource)));
+	if (resourceName)
+	{
+		(*ppResource)->SetName(resourceName);
+	}
+}
+
+// ToDo: standardize create/alloc resource calls
+inline void AllocateUAVBuffer(
+	ID3D12Device* device, 
+	UINT numElements,	// ToDo use template?
+	UINT elementSize,
+	RWGpuResource* dest,
+	DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN,
+	DescriptorHeap* descriptorHeap = nullptr,
+	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, 
+	const wchar_t* resourceName = nullptr)
+{
+	AllocateUAVBuffer(device, numElements * elementSize, &dest->resource, initialResourceState, resourceName);
+
+	if (dest->rwFlags & ResourceRWFlags::AllowWrite)
+	{
+		assert(descriptorHeap);
+		D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle;
+		dest->descriptorHeapIndex = descriptorHeap->AllocateDescriptor(&uavDescriptorHandle, dest->descriptorHeapIndex);
+		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		UAVDesc.Buffer.NumElements = numElements;
+		UAVDesc.Buffer.FirstElement = 0;
+		UAVDesc.Format = format;
+		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		device->CreateUnorderedAccessView(dest->resource.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
+		dest->gpuDescriptorWriteAccess = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetHeap()->GetGPUDescriptorHandleForHeapStart(), dest->descriptorHeapIndex, descriptorHeap->DescriptorSize());
+	}
+
+	if (dest->rwFlags & ResourceRWFlags::AllowRead)
+	{
+		assert(descriptorHeap);
+		assert(0 && L"ToDo");
+	}
+}
+
+inline void AllocateReadBackBuffer(
+	ID3D12Device* device, 
+	UINT64 bufferSize, 
+	ID3D12Resource **ppResource, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr)
+{
+	auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
+	ThrowIfFailed(device->CreateCommittedResource(
+		&uploadHeapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDesc,
+		initialResourceState,
+		nullptr,
+		IID_PPV_ARGS(ppResource)));
+	if (resourceName)
+	{
+		(*ppResource)->SetName(resourceName);
+	}
+}

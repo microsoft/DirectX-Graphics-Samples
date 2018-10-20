@@ -159,7 +159,7 @@ void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
     UINT64* timingData;
     ThrowIfFailed(m_buffer->Map(0, &dataRange, reinterpret_cast<void**>(&timingData)));
     memcpy(m_timing, timingData, sizeof(UINT64) * c_timerSlots);
-    m_buffer->Unmap(0, nullptr);
+    m_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
 
     for (uint32_t j = 0; j < c_maxTimers; ++j)
     {
