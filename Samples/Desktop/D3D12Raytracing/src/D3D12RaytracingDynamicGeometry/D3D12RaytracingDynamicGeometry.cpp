@@ -1659,30 +1659,7 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-	// ToDo remove or move all to CS pass
-	// Make sure execution for the current index FrameCount frames ago is finished.
-
-
-	auto SetPipelineState = [&]()
-	{
-		using namespace ComputeShader::RootSignature::HemisphereSampleSetVisualization;
-
-		commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
-		commandList->SetComputeRootSignature(m_computeRootSigs[ComputeShader::Type::HemisphereSampleSetVisualization].Get());
-
-		commandList->SetComputeRootConstantBufferView(Slot::SceneConstant, m_computeCB.GpuVirtualAddress(frameIndex));
-		commandList->SetComputeRootShaderResourceView(Slot::SampleBuffers, m_samplesGPUBuffer.GpuVirtualAddress(frameIndex));
-		commandList->SetComputeRootDescriptorTable(Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
-
-		commandList->SetPipelineState(m_computePSOs[ComputeShader::Type::HemisphereSampleSetVisualization].Get());
-	};
-
-
-  //  m_computeAllocators[frameIndex]->Reset();
-  //  m_computeCommandList->Reset(m_computeAllocators[frameIndex].Get(), m_computePSOs[ComputeShader::Type::HemisphereSampleSetVisualization].Get());
-
-
-	// Update Constant Buffer.
+	// Update constant buffer.
 	XMUINT2 rngWindowSize(256, 256);
 	{
 		m_computeCB->dispatchDimensions = rngWindowSize;
@@ -1706,14 +1683,22 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
         m_samplesGPUBuffer.CopyStagingToGpu(frameIndex);
     }
 
-	SetPipelineState();
-    commandList->Dispatch(rngWindowSize.x, rngWindowSize.y, 1);
+	// Set pipeline state.
+	{
+		using namespace ComputeShader::RootSignature::HemisphereSampleSetVisualization;
 
-	// ToDo combine for all CS
-    // close and execute the command list
-   // m_computeCommandList->Close();
-   // ID3D12CommandList *tempList = m_computeCommandList.Get();
-   // m_computeCommandQueue->ExecuteCommandLists(1, &tempList);	
+		commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
+		commandList->SetComputeRootSignature(m_computeRootSigs[ComputeShader::Type::HemisphereSampleSetVisualization].Get());
+
+		commandList->SetComputeRootConstantBufferView(Slot::SceneConstant, m_computeCB.GpuVirtualAddress(frameIndex));
+		commandList->SetComputeRootShaderResourceView(Slot::SampleBuffers, m_samplesGPUBuffer.GpuVirtualAddress(frameIndex));
+		commandList->SetComputeRootDescriptorTable(Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
+
+		commandList->SetPipelineState(m_computePSOs[ComputeShader::Type::HemisphereSampleSetVisualization].Get());
+	}
+
+	// Dispatch.
+    commandList->Dispatch(rngWindowSize.x, rngWindowSize.y, 1);
 }
 
 
@@ -1722,20 +1707,8 @@ void D3D12RaytracingDynamicGeometry::CalculateNumPrimaryRaysHit()
 	auto device = m_deviceResources->GetD3DDevice();
 	auto commandList = m_deviceResources->GetCommandList();
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
-	
-	auto SetPipelineState = [&]()
-	{
-		using namespace ComputeShader::RootSignature::ReduceSum;
 
-		commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
-		commandList->SetComputeRootSignature(m_computeRootSigs[ComputeShader::Type::ReduceSum].Get());
-
-		commandList->SetComputeRootConstantBufferView(Slot::ConstantBuffer, m_computeCB.GpuVirtualAddress(frameIndex));
-		commandList->SetComputeRootDescriptorTable(Slot::GBufferHits, m_GBufferResources[GBufferResource::Hit].gpuDescriptorReadAccess);
-		commandList->SetComputeRootDescriptorTable(Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
-	};
-
-	// Update Constant Buffer.
+	// Update constant buffer.
 	XMUINT2 rngWindowSize(256, 256);
 	{
 		m_computeCB->dispatchDimensions = rngWindowSize;
@@ -1753,13 +1726,25 @@ void D3D12RaytracingDynamicGeometry::CalculateNumPrimaryRaysHit()
 		m_computeCB->numSampleSets = m_randomSampler.NumSampleSets();
 	}
 
-	// Copy dynamic buffers to GPU
+	// Copy dynamic buffers to GPU.
 	{
 		m_computeCB.CopyStagingToGpu(frameIndex);
 		m_samplesGPUBuffer.CopyStagingToGpu(frameIndex);
 	}
 
-	SetPipelineState();
+	// Set pipeline state.
+	{
+		using namespace ComputeShader::RootSignature::ReduceSum;
+
+		commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
+		commandList->SetComputeRootSignature(m_computeRootSigs[ComputeShader::Type::ReduceSum].Get());
+
+		commandList->SetComputeRootConstantBufferView(Slot::ConstantBuffer, m_computeCB.GpuVirtualAddress(frameIndex));
+		commandList->SetComputeRootDescriptorTable(Slot::GBufferHits, m_GBufferResources[GBufferResource::Hit].gpuDescriptorReadAccess);
+		commandList->SetComputeRootDescriptorTable(Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
+	}
+
+	// Dispatch.
 	commandList->Dispatch(rngWindowSize.x, rngWindowSize.y, 1);
 
 }
