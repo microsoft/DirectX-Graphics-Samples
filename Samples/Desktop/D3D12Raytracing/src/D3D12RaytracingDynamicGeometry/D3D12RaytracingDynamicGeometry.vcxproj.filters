@@ -161,6 +161,9 @@
     <FxCompile Include="RNGVisualizer.hlsl">
       <Filter>Assets\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="ReduceSum.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
     <FxCompile Include="util\GenerateTransforms.hlsl">
       <Filter>Assets\Shaders\Assets</Filter>
     </FxCompile>

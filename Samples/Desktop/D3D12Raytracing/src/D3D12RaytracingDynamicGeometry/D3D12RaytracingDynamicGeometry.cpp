@@ -143,9 +143,10 @@ void D3D12RaytracingDynamicGeometry::OnInit()
     EngineTuning::Initialize();
 
     m_deviceResources->InitializeDXGIAdapter();
+#if ENABLE_RAYTRACING
 	ThrowIfFalse(IsDirectXRaytracingSupported(m_deviceResources->GetAdapter()),
 		L"ERROR: DirectX Raytracing is not supported by your GPU and driver.\n\n");
-    
+#endif
     // ToDo cleanup
     m_deviceResources->CreateDeviceResources();
 	// Initialize scene ToDo
@@ -422,18 +423,20 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
     // Build raytracing acceleration structures from the generated geometry.
     m_isASinitializationRequested = true;
 
+#if ENABLE_RAYTRACING
     // Create root signatures for the shaders.
     CreateRootSignatures();
 
     // Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used during raytracing.
     CreateRaytracingPipelineStateObject();
-
+#endif
     // Create constant buffers for the geometry and the scene.
     CreateConstantBuffers();
 
-    // Build shader tables, which define shaders and their local root arguments.
+#if ENABLE_RAYTRACING
+	// Build shader tables, which define shaders and their local root arguments.
     BuildShaderTables();
-
+#endif
     // Create an output 2D texture to store the raytracing result to.
 	// ToDo remove
     CreateRaytracingOutputResource();
@@ -1183,6 +1186,7 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     }
     m_sceneCB->elapsedTime = static_cast<float>(m_timer.GetTotalSeconds());
 
+#if ENABLE_RAYTRACING
 #if RUNTIME_AS_UPDATES
     // Lazy initialize and update geometries and acceleration structures.
     if (SceneArgs::EnableGeometryAndASBuildsAndUpdates &&
@@ -1214,6 +1218,7 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
         UpdateSphereGeometryTransforms();
         UpdateBottomLevelASTransforms();
     }
+#endif
 #endif
 
 	if (m_enableUI)
@@ -1703,6 +1708,7 @@ void D3D12RaytracingDynamicGeometry::OnRender()
         gpuTimer.BeginFrame(commandList);
     }
 
+#if ENABLE_RAYTRACING
 #if RUNTIME_AS_UPDATES
     // Update acceleration structures.
     if (m_isASrebuildRequested && SceneArgs::EnableGeometryAndASBuildsAndUpdates)
@@ -1712,7 +1718,6 @@ void D3D12RaytracingDynamicGeometry::OnRender()
     }
 #endif
 
-#if DO_RAYTRACING
     // Render.
 	//DoRaytracing();
 	DoRaytracingGBufferAndAOPasses();
