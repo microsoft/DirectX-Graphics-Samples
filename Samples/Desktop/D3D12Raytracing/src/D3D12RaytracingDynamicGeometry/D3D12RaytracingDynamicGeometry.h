@@ -79,8 +79,8 @@ private:
 	// Compute resources.
 	Samplers::MultiJittered m_randomSampler;
 	ConstantBuffer<RNGConstantBuffer>   m_computeCB;
-	ComPtr<ID3D12PipelineState>         m_computePSO;
-	ComPtr<ID3D12RootSignature>         m_csSamleVisualizerRootSignature;
+	ComPtr<ID3D12PipelineState>         m_computePSOs[ComputeShader::Type::Count];
+	ComPtr<ID3D12RootSignature>         m_computeRootSigs[ComputeShader::Type::Count];
 	ComPtr<ID3D12CommandAllocator>      m_computeAllocators[FrameCount];
 	ComPtr<ID3D12CommandQueue>          m_computeCommandQueue;
 	ComPtr<ID3D12GraphicsCommandList>   m_computeCommandList;
@@ -189,13 +189,14 @@ private:
 	void DoRaytracingGBufferAndAOPasses();
     void CreateConstantBuffers();
     void CreateSamplesRNG();
+	void CreateReduceSumResources();
 	void UpdateUI();
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
     void ReleaseDeviceDependentResources();
     void ReleaseWindowSizeDependentResources();
     void RenderRNGVisualizations();
-	void CreateSamplers();
+	void CalculateNumPrimaryRaysHit();
     void CreateRaytracingInterfaces();
     void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig, LPCWSTR resournceName = nullptr);
     void CreateRootSignatures();

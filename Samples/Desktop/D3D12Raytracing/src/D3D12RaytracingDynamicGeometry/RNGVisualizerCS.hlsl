@@ -22,6 +22,7 @@ Texture2D<float4> g_texGBufferPositionRT : register(t3);
 Texture2D<float4> g_texGBufferNormal : register(t4);
 
 
+// ToDo inc numThreads
 [numthreads(1, 1, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {

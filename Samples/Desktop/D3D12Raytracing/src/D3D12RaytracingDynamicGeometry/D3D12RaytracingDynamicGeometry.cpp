@@ -330,29 +330,31 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
 
     m_randomSampler.Reset(c_sppAO, 83, Samplers::HemisphereDistribution::Cosine);
 
-    // Create root signature
+    // Create root signature.
     {
+		using namespace ComputeShader::RootSignature;
+
         CD3DX12_DESCRIPTOR_RANGE ranges[1]; // Perfomance TIP: Order from most frequent to least frequent.
         ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output texture
 
-        CD3DX12_ROOT_PARAMETER rootParameters[RNGVisualizerRootSignature::Slot::Count];
-        rootParameters[RNGVisualizerRootSignature::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
+        CD3DX12_ROOT_PARAMETER rootParameters[HemisphereSampleSetVisualization::Slot::Count];
+        rootParameters[HemisphereSampleSetVisualization::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
 
-        rootParameters[RNGVisualizerRootSignature::Slot::SampleBuffers].InitAsShaderResourceView(1);
-        rootParameters[RNGVisualizerRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
+        rootParameters[HemisphereSampleSetVisualization::Slot::SampleBuffers].InitAsShaderResourceView(1);
+        rootParameters[HemisphereSampleSetVisualization::Slot::SceneConstant].InitAsConstantBufferView(0);
 
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-        SerializeAndCreateRaytracingRootSignature(rootSignatureDesc, &m_csSamleVisualizerRootSignature, L"RNG Visualizer Compute Root Signature");
+        SerializeAndCreateRaytracingRootSignature(rootSignatureDesc, &m_computeRootSigs[ComputeShader::Type::HemisphereSampleSetVisualization], L"Root signature: CS hemisphere sample set visualization");
     }
 
     // Create compute pipeline state.
     {
         D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO = {};
-        descComputePSO.pRootSignature = m_csSamleVisualizerRootSignature.Get();
+        descComputePSO.pRootSignature = m_computeRootSigs[ComputeShader::Type::HemisphereSampleSetVisualization].Get();
         descComputePSO.CS = CD3DX12_SHADER_BYTECODE((void *)g_pRNGVisualizer, ARRAYSIZE(g_pRNGVisualizer));
 
-        ThrowIfFailed(device->CreateComputePipelineState(&descComputePSO, IID_PPV_ARGS(&m_computePSO)));
-        m_computePSO->SetName(L"Compute PSO");
+        ThrowIfFailed(device->CreateComputePipelineState(&descComputePSO, IID_PPV_ARGS(&m_computePSOs[ComputeShader::Type::HemisphereSampleSetVisualization])));
+        m_computePSOs[ComputeShader::Type::HemisphereSampleSetVisualization]->SetName(L"PSO: CS hemisphere sample set visualization");
     }
 
     // Create compute allocator, command queue and command list
@@ -363,7 +365,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
         {
             ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&computeAllocator)));
         }
-        ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeAllocators[0].Get(), m_computePSO.Get(), IID_PPV_ARGS(&m_computeCommandList)));
+        ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeAllocators[0].Get(), m_computePSOs[ComputeShader::Type::HemisphereSampleSetVisualization].Get(), IID_PPV_ARGS(&m_computeCommandList)));
         ThrowIfFailed(m_computeCommandList->Close());
 
         // Create a fence for tracking GPU execution progress.
@@ -397,6 +399,84 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
             m_hemisphereSamplesGPUBuffer[i].value = p;
         }
     }
+}
+
+
+// ToDo: move it out?
+void D3D12RaytracingDynamicGeometry::CreateReduceSumResources()
+{
+	auto device = m_deviceResources->GetD3DDevice();
+	auto frameCount = m_deviceResources->GetBackBufferCount();
+
+	// Create root signature.
+	{
+		using namespace ComputeShader::RootSignature;
+
+		CD3DX12_DESCRIPTOR_RANGE ranges[2]; // Perfomance TIP: Order from most frequent to least frequent.
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 input texture
+		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);  // 1 output buffer
+
+		CD3DX12_ROOT_PARAMETER rootParameters[ReduceSum::Slot::Count];
+		rootParameters[ReduceSum::Slot::GBufferHits].InitAsShaderResourceView(1);
+		rootParameters[ReduceSum::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
+		rootParameters[ReduceSum::Slot::ConstantBuffer].InitAsConstantBufferView(0);
+
+		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+		SerializeAndCreateRaytracingRootSignature(rootSignatureDesc, &m_computeRootSigs[ComputeShader::Type::ReduceSum], L"Compute root signature: Reduce sum sample set visualization");
+	}
+
+	// Create compute pipeline state.
+	{
+		D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO = {};
+		descComputePSO.pRootSignature = m_computeRootSigs[ComputeShader::Type::ReduceSum].Get();
+		descComputePSO.CS = CD3DX12_SHADER_BYTECODE((void *)g_pRNGVisualizer, ARRAYSIZE(g_pRNGVisualizer));
+
+		ThrowIfFailed(device->CreateComputePipelineState(&descComputePSO, IID_PPV_ARGS(&m_computePSOs[ComputeShader::Type::ReduceSum])));
+		m_computePSOs[ComputeShader::Type::ReduceSum]->SetName(L"PSO: CS hemisphere sample set visualization");
+	}
+
+	// Create compute allocator, command queue and command list
+	{
+		D3D12_COMMAND_QUEUE_DESC descCommandQueue = { D3D12_COMMAND_LIST_TYPE_COMPUTE, 0, D3D12_COMMAND_QUEUE_FLAG_NONE };
+		ThrowIfFailed(device->CreateCommandQueue(&descCommandQueue, IID_PPV_ARGS(&m_computeCommandQueue)));
+		for (auto& computeAllocator : m_computeAllocators)
+		{
+			ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&computeAllocator)));
+		}
+		ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeAllocators[0].Get(), m_computePSOs[ComputeShader::Type::ReduceSum].Get(), IID_PPV_ARGS(&m_computeCommandList)));
+		ThrowIfFailed(m_computeCommandList->Close());
+
+		// Create a fence for tracking GPU execution progress.
+		ThrowIfFailed(device->CreateFence(m_fenceValues[0], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
+		m_fenceValues[0]++;
+
+		for (auto& fenceValue : m_fenceValues)
+		{
+			fenceValue = m_fenceValues[0];
+		}
+
+		m_fenceEvent.Attach(CreateEvent(nullptr, FALSE, FALSE, nullptr));
+		if (!m_fenceEvent.IsValid())
+		{
+			ThrowIfFailed(E_FAIL, L"CreateEvent failed.\n");
+		}
+	}
+
+	// Create shader resources
+	{
+		m_computeCB.Create(device, frameCount, L"GPU CB: RNG");
+		m_samplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random unit square samples");
+		m_hemisphereSamplesGPUBuffer.Create(device, m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(), frameCount, L"GPU buffer: Random hemisphere samples");
+
+		for (UINT i = 0; i < m_randomSampler.NumSamples() * m_randomSampler.NumSampleSets(); i++)
+		{
+			//sample.value = m_randomSampler.GetSample2D();
+			XMFLOAT3 p = m_randomSampler.GetHemisphereSample3D();
+			// Convert [-1,1] to [0,1].
+			m_samplesGPUBuffer[i].value = XMFLOAT2(p.x*0.5f + 0.5f, p.y*0.5f + 0.5f);
+			m_hemisphereSamplesGPUBuffer[i].value = p;
+		}
+	}
 }
 
 // Create resources that depend on the device.
@@ -1632,6 +1712,7 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
+	// ToDo remove or move all to CS pass
 	// Make sure execution for the current index FrameCount frames ago is finished.
 	{
 		// Schedule a Signal command in the queue.
@@ -1650,46 +1731,134 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
 		m_fenceValues[frameIndex] = currentFenceValue + 1;
 	}
 
-    m_computeAllocators[frameIndex]->Reset();
-    m_computeCommandList->Reset(m_computeAllocators[frameIndex].Get(), m_computePSO.Get());
+	auto SetPipelineState = [&]()
+	{
+		using namespace ComputeShader::RootSignature::HemisphereSampleSetVisualization;
 
-    commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
-    commandList->SetComputeRootSignature(m_csSamleVisualizerRootSignature.Get());
+		commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
+		commandList->SetComputeRootSignature(m_computeRootSigs[ComputeShader::Type::HemisphereSampleSetVisualization].Get());
 
-    XMUINT2 rngWindowSize(256, 256);
-    m_computeCB->dispatchDimensions = rngWindowSize;
+		commandList->SetComputeRootConstantBufferView(Slot::SceneConstant, m_computeCB.GpuVirtualAddress(frameIndex));
+		commandList->SetComputeRootShaderResourceView(Slot::SampleBuffers, m_samplesGPUBuffer.GpuVirtualAddress(frameIndex));
+		commandList->SetComputeRootDescriptorTable(Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
 
-    static UINT seed = 0;
-	UINT NumFramesPerIter = 400;
-	static UINT frameID = NumFramesPerIter * 4;
-	m_computeCB->numSamplesToShow = c_sppAO;// (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
-	m_computeCB->sampleSetBase = ((seed++ / NumFramesPerIter) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
-    m_computeCB->stratums = XMUINT2(static_cast<UINT>(sqrt(m_randomSampler.NumSamples())), 
-                                    static_cast<UINT>(sqrt(m_randomSampler.NumSamples())));
-    m_computeCB->grid = XMUINT2(m_randomSampler.NumSamples(), m_randomSampler.NumSamples());
-    m_computeCB->uavOffset = XMUINT2(0 /*m_width - rngWindowSize.x*/, m_height - rngWindowSize.y);
-    m_computeCB->numSamples = m_randomSampler.NumSamples();
-    m_computeCB->numSampleSets = m_randomSampler.NumSampleSets();
+		commandList->SetPipelineState(m_computePSOs[ComputeShader::Type::HemisphereSampleSetVisualization].Get());
+	};
+
+
+  //  m_computeAllocators[frameIndex]->Reset();
+  //  m_computeCommandList->Reset(m_computeAllocators[frameIndex].Get(), m_computePSOs[ComputeShader::Type::HemisphereSampleSetVisualization].Get());
+
+
+	// Update Constant Buffer.
+	XMUINT2 rngWindowSize(256, 256);
+	{
+		m_computeCB->dispatchDimensions = rngWindowSize;
+
+		static UINT seed = 0;
+		UINT NumFramesPerIter = 400;
+		static UINT frameID = NumFramesPerIter * 4;
+		m_computeCB->numSamplesToShow = c_sppAO;// (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
+		m_computeCB->sampleSetBase = ((seed++ / NumFramesPerIter) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
+		m_computeCB->stratums = XMUINT2(static_cast<UINT>(sqrt(m_randomSampler.NumSamples())),
+			static_cast<UINT>(sqrt(m_randomSampler.NumSamples())));
+		m_computeCB->grid = XMUINT2(m_randomSampler.NumSamples(), m_randomSampler.NumSamples());
+		m_computeCB->uavOffset = XMUINT2(0 /*ToDo remove m_width - rngWindowSize.x*/, m_height - rngWindowSize.y);
+		m_computeCB->numSamples = m_randomSampler.NumSamples();
+		m_computeCB->numSampleSets = m_randomSampler.NumSampleSets();
+	}
 
     // Copy dynamic buffers to GPU
     {
         m_computeCB.CopyStagingToGpu(frameIndex);
         m_samplesGPUBuffer.CopyStagingToGpu(frameIndex);
     }
-    commandList->SetComputeRootConstantBufferView(RNGVisualizerRootSignature::Slot::SceneConstant, m_computeCB.GpuVirtualAddress(frameIndex));
-    commandList->SetComputeRootShaderResourceView(RNGVisualizerRootSignature::Slot::SampleBuffers, m_samplesGPUBuffer.GpuVirtualAddress(frameIndex));
-    commandList->SetComputeRootDescriptorTable(RNGVisualizerRootSignature::Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
 
-    commandList->SetPipelineState(m_computePSO.Get());
- 
+	SetPipelineState();
     commandList->Dispatch(rngWindowSize.x, rngWindowSize.y, 1);
 
+	// ToDo combine for all CS
     // close and execute the command list
-    m_computeCommandList->Close();
-    ID3D12CommandList *tempList = m_computeCommandList.Get();
-    m_computeCommandQueue->ExecuteCommandLists(1, &tempList);
-	
+   // m_computeCommandList->Close();
+   // ID3D12CommandList *tempList = m_computeCommandList.Get();
+   // m_computeCommandQueue->ExecuteCommandLists(1, &tempList);	
 }
+
+
+void D3D12RaytracingDynamicGeometry::CalculateNumPrimaryRaysHit()
+{
+	auto device = m_deviceResources->GetD3DDevice();
+	auto commandList = m_deviceResources->GetCommandList();
+	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+
+	// Make sure execution for the current index FrameCount frames ago is finished.
+	{
+		// Schedule a Signal command in the queue.
+		UINT prevFrameIndex = (frameIndex + (FrameCount - 1)) % FrameCount;
+		const UINT64 currentFenceValue = m_fenceValues[prevFrameIndex];
+		ThrowIfFailed(m_computeCommandQueue->Signal(m_fence.Get(), currentFenceValue));
+
+		// If the next frame is not ready to be rendered yet, wait until it is ready.
+		if (m_fence->GetCompletedValue() < m_fenceValues[frameIndex])
+		{
+			ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[frameIndex], m_fenceEvent.Get()));
+			WaitForSingleObjectEx(m_fenceEvent.Get(), INFINITE, FALSE);
+		}
+
+		// Set the fence value for the next frame.
+		m_fenceValues[frameIndex] = currentFenceValue + 1;
+	}
+
+	auto SetPipelineState = [&]()
+	{
+		using namespace ComputeShader::RootSignature::ReduceSum;
+
+		commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
+		commandList->SetComputeRootSignature(m_computeRootSigs[ComputeShader::Type::ReduceSum].Get());
+
+		commandList->SetComputeRootConstantBufferView(Slot::ConstantBuffer, m_computeCB.GpuVirtualAddress(frameIndex));
+		commandList->SetComputeRootDescriptorTable(Slot::GBufferHits, m_GBufferResources[GBufferResource::Hit].gpuDescriptorReadAccess);
+		commandList->SetComputeRootDescriptorTable(Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
+	};
+
+	m_computeAllocators[frameIndex]->Reset();
+	m_computeCommandList->Reset(m_computeAllocators[frameIndex].Get(), m_computePSOs[ComputeShader::Type::ReduceSum].Get());
+
+
+	// Update Constant Buffer.
+	XMUINT2 rngWindowSize(256, 256);
+	{
+		m_computeCB->dispatchDimensions = rngWindowSize;
+
+		static UINT seed = 0;
+		UINT NumFramesPerIter = 400;
+		static UINT frameID = NumFramesPerIter * 4;
+		m_computeCB->numSamplesToShow = c_sppAO;// (frameID++ / NumFramesPerIter) % m_randomSampler.NumSamples();
+		m_computeCB->sampleSetBase = ((seed++ / NumFramesPerIter) % m_randomSampler.NumSampleSets()) * m_randomSampler.NumSamples();
+		m_computeCB->stratums = XMUINT2(static_cast<UINT>(sqrt(m_randomSampler.NumSamples())),
+			static_cast<UINT>(sqrt(m_randomSampler.NumSamples())));
+		m_computeCB->grid = XMUINT2(m_randomSampler.NumSamples(), m_randomSampler.NumSamples());
+		m_computeCB->uavOffset = XMUINT2(0 /*m_width - rngWindowSize.x*/, m_height - rngWindowSize.y);
+		m_computeCB->numSamples = m_randomSampler.NumSamples();
+		m_computeCB->numSampleSets = m_randomSampler.NumSampleSets();
+	}
+
+	// Copy dynamic buffers to GPU
+	{
+		m_computeCB.CopyStagingToGpu(frameIndex);
+		m_samplesGPUBuffer.CopyStagingToGpu(frameIndex);
+	}
+
+	SetPipelineState();
+	commandList->Dispatch(rngWindowSize.x, rngWindowSize.y, 1);
+
+	// close and execute the command list
+	m_computeCommandList->Close();
+	ID3D12CommandList *tempList = m_computeCommandList.Get();
+	m_computeCommandQueue->ExecuteCommandLists(1, &tempList);
+
+}
+
 
 // Render the scene.
 void D3D12RaytracingDynamicGeometry::OnRender()

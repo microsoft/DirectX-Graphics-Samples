@@ -19,7 +19,7 @@
 // A header with shared definitions for C++ and HLSL source files. 
 //
 //**********************************************************************************************
-#define ENABLE_RAYTRACING 0
+#define ENABLE_RAYTRACING 1
 #define RUNTIME_AS_UPDATES 1
 #define USE_GPU_TRANSFORM 0
 
@@ -94,6 +94,19 @@ struct RNGConstantBuffer
     // TODo: Why is padding to 16 needed? cb gets corrupted otherwise. Put a static_assert in ConstantBuffer
     XMUINT2 stratums;      // Stratum resolution
     XMUINT2 grid;      // Grid resolution
+};
+
+struct ReduceSumCS
+{
+	XMUINT2 uavOffset;     // offset where [0,0] thread should write to.
+	XMUINT2 dispatchDimensions;  // for 2D dispatches
+	UINT sampleSetBase;
+	UINT numSamples;
+	UINT numSampleSets;
+	UINT numSamplesToShow;
+	// TODo: Why is padding to 16 needed? cb gets corrupted otherwise. Put a static_assert in ConstantBuffer
+	XMUINT2 stratums;      // Stratum resolution
+	XMUINT2 grid;      // Grid resolution
 };
 
 

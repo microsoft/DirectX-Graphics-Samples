@@ -13,16 +13,43 @@
 
 #include "RayTracingHlslCompat.h"
 
-namespace RNGVisualizerRootSignature {
-    namespace Slot {
-        enum Enum {
-            OutputView = 0,
-            SampleBuffers,
-            SceneConstant,
-            Count
-        };
-    }
+// ToDo standardize use of CS suffix
+namespace ComputeShader {
+	namespace Type {
+		enum Enum {
+			HemisphereSampleSetVisualization = 0,
+			ReduceSum,
+			Count
+		};
+	}
+	namespace RootSignature {
+		namespace HemisphereSampleSetVisualization {
+			namespace Slot {
+				enum Enum {
+					OutputView = 0,
+					SampleBuffers,
+					SceneConstant,
+					Count
+				};
+			}
+		}		
+		namespace ReduceSum {
+			namespace Slot {
+				enum Enum {
+					OutputView = 0,
+					GBufferHits,
+					ConstantBuffer,		// ToDo: Standardize CB naming
+					Count
+				};
+			}
+		}
+	}
+	namespace RS = RootSignature;
 }
+namespace CSType = ComputeShader::Type;
+namespace CSRootSignature = ComputeShader::RootSignature;
+
+
 
 namespace GlobalRootSignature {
     namespace Slot {
@@ -111,6 +138,7 @@ namespace GBufferResource {
 		Count
 	};
 }
+
 
 namespace Scene {
 	namespace Type {

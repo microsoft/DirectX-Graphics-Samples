@@ -288,14 +288,13 @@ void MyRayGenShader_AO()
 	return;
 #endif
 
-	uint3 sampleCoord = uint3(DispatchRaysIndex().xy, 0);
-	bool hit = g_texGBufferPositionHit.Load(sampleCoord).x > 0.5;
+	bool hit = g_texGBufferPositionHit[DispatchRaysIndex().xy].x > 0.5;
 
 	float4 color;
 	if (hit)
 	{
-		float3 hitPosition = g_texGBufferPositionRT.Load(sampleCoord).xyz;
-		float3 surfaceNormal = g_texGBufferNormal.Load(sampleCoord).xyz;
+		float3 hitPosition = g_texGBufferPositionRT[DispatchRaysIndex().xy].xyz;
+		float3 surfaceNormal = g_texGBufferNormal[DispatchRaysIndex().xy].xyz;
 		float ambientCoef = CalculateAO(hitPosition, surfaceNormal);
 		
 		// ToDo remove albedo

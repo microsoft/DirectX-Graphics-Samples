@@ -158,14 +158,11 @@
     <FxCompile Include="Raytracing.hlsl">
       <Filter>Assets\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="RNGVisualizer.hlsl">
-      <Filter>Assets\Shaders</Filter>
+    <FxCompile Include="ReduceSumCS.hlsl">
+      <Filter>Assets\Shaders\Util</Filter>
     </FxCompile>
-    <FxCompile Include="ReduceSum.hlsl">
-      <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="util\GenerateTransforms.hlsl">
-      <Filter>Assets\Shaders\Assets</Filter>
+    <FxCompile Include="RNGVisualizerCS.hlsl">
+      <Filter>Assets\Shaders\Util</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
