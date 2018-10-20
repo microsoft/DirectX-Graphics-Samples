@@ -357,32 +357,6 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
         m_computePSOs[ComputeShader::Type::HemisphereSampleSetVisualization]->SetName(L"PSO: CS hemisphere sample set visualization");
     }
 
-    // Create compute allocator, command queue and command list
-    {
-        D3D12_COMMAND_QUEUE_DESC descCommandQueue = { D3D12_COMMAND_LIST_TYPE_COMPUTE, 0, D3D12_COMMAND_QUEUE_FLAG_NONE };
-        ThrowIfFailed(device->CreateCommandQueue(&descCommandQueue, IID_PPV_ARGS(&m_computeCommandQueue)));
-        for (auto& computeAllocator: m_computeAllocators)
-        {
-            ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&computeAllocator)));
-        }
-        ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeAllocators[0].Get(), m_computePSOs[ComputeShader::Type::HemisphereSampleSetVisualization].Get(), IID_PPV_ARGS(&m_computeCommandList)));
-        ThrowIfFailed(m_computeCommandList->Close());
-
-        // Create a fence for tracking GPU execution progress.
-        ThrowIfFailed(device->CreateFence(m_fenceValues[0], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-        m_fenceValues[0]++;
-
-		for (auto& fenceValue : m_fenceValues)
-		{
-			fenceValue = m_fenceValues[0];
-		}
-
-        m_fenceEvent.Attach(CreateEvent(nullptr, FALSE, FALSE, nullptr));
-        if (!m_fenceEvent.IsValid())
-        {
-            ThrowIfFailed(E_FAIL, L"CreateEvent failed.\n");
-        }
-    }
 
     // Create shader resources
     {
@@ -434,34 +408,7 @@ void D3D12RaytracingDynamicGeometry::CreateReduceSumResources()
 		ThrowIfFailed(device->CreateComputePipelineState(&descComputePSO, IID_PPV_ARGS(&m_computePSOs[ComputeShader::Type::ReduceSum])));
 		m_computePSOs[ComputeShader::Type::ReduceSum]->SetName(L"PSO: CS hemisphere sample set visualization");
 	}
-
-	// Create compute allocator, command queue and command list
-	{
-		D3D12_COMMAND_QUEUE_DESC descCommandQueue = { D3D12_COMMAND_LIST_TYPE_COMPUTE, 0, D3D12_COMMAND_QUEUE_FLAG_NONE };
-		ThrowIfFailed(device->CreateCommandQueue(&descCommandQueue, IID_PPV_ARGS(&m_computeCommandQueue)));
-		for (auto& computeAllocator : m_computeAllocators)
-		{
-			ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, IID_PPV_ARGS(&computeAllocator)));
-		}
-		ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, m_computeAllocators[0].Get(), m_computePSOs[ComputeShader::Type::ReduceSum].Get(), IID_PPV_ARGS(&m_computeCommandList)));
-		ThrowIfFailed(m_computeCommandList->Close());
-
-		// Create a fence for tracking GPU execution progress.
-		ThrowIfFailed(device->CreateFence(m_fenceValues[0], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-		m_fenceValues[0]++;
-
-		for (auto& fenceValue : m_fenceValues)
-		{
-			fenceValue = m_fenceValues[0];
-		}
-
-		m_fenceEvent.Attach(CreateEvent(nullptr, FALSE, FALSE, nullptr));
-		if (!m_fenceEvent.IsValid())
-		{
-			ThrowIfFailed(E_FAIL, L"CreateEvent failed.\n");
-		}
-	}
-
+	
 	// Create shader resources
 	{
 		m_computeCB.Create(device, frameCount, L"GPU CB: RNG");
@@ -1714,22 +1661,7 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
 
 	// ToDo remove or move all to CS pass
 	// Make sure execution for the current index FrameCount frames ago is finished.
-	{
-		// Schedule a Signal command in the queue.
-		UINT prevFrameIndex = (frameIndex + (FrameCount - 1)) % FrameCount;
-		const UINT64 currentFenceValue = m_fenceValues[prevFrameIndex];
-		ThrowIfFailed(m_computeCommandQueue->Signal(m_fence.Get(), currentFenceValue));
 
-		// If the next frame is not ready to be rendered yet, wait until it is ready.
-		if (m_fence->GetCompletedValue() < m_fenceValues[frameIndex])
-		{
-			ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[frameIndex], m_fenceEvent.Get()));
-			WaitForSingleObjectEx(m_fenceEvent.Get(), INFINITE, FALSE);
-		}
-
-		// Set the fence value for the next frame.
-		m_fenceValues[frameIndex] = currentFenceValue + 1;
-	}
 
 	auto SetPipelineState = [&]()
 	{
@@ -1790,25 +1722,7 @@ void D3D12RaytracingDynamicGeometry::CalculateNumPrimaryRaysHit()
 	auto device = m_deviceResources->GetD3DDevice();
 	auto commandList = m_deviceResources->GetCommandList();
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
-
-	// Make sure execution for the current index FrameCount frames ago is finished.
-	{
-		// Schedule a Signal command in the queue.
-		UINT prevFrameIndex = (frameIndex + (FrameCount - 1)) % FrameCount;
-		const UINT64 currentFenceValue = m_fenceValues[prevFrameIndex];
-		ThrowIfFailed(m_computeCommandQueue->Signal(m_fence.Get(), currentFenceValue));
-
-		// If the next frame is not ready to be rendered yet, wait until it is ready.
-		if (m_fence->GetCompletedValue() < m_fenceValues[frameIndex])
-		{
-			ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[frameIndex], m_fenceEvent.Get()));
-			WaitForSingleObjectEx(m_fenceEvent.Get(), INFINITE, FALSE);
-		}
-
-		// Set the fence value for the next frame.
-		m_fenceValues[frameIndex] = currentFenceValue + 1;
-	}
-
+	
 	auto SetPipelineState = [&]()
 	{
 		using namespace ComputeShader::RootSignature::ReduceSum;
@@ -1820,10 +1734,6 @@ void D3D12RaytracingDynamicGeometry::CalculateNumPrimaryRaysHit()
 		commandList->SetComputeRootDescriptorTable(Slot::GBufferHits, m_GBufferResources[GBufferResource::Hit].gpuDescriptorReadAccess);
 		commandList->SetComputeRootDescriptorTable(Slot::OutputView, m_raytracingOutput.gpuDescriptorWriteAccess);
 	};
-
-	m_computeAllocators[frameIndex]->Reset();
-	m_computeCommandList->Reset(m_computeAllocators[frameIndex].Get(), m_computePSOs[ComputeShader::Type::ReduceSum].Get());
-
 
 	// Update Constant Buffer.
 	XMUINT2 rngWindowSize(256, 256);
@@ -1851,11 +1761,6 @@ void D3D12RaytracingDynamicGeometry::CalculateNumPrimaryRaysHit()
 
 	SetPipelineState();
 	commandList->Dispatch(rngWindowSize.x, rngWindowSize.y, 1);
-
-	// close and execute the command list
-	m_computeCommandList->Close();
-	ID3D12CommandList *tempList = m_computeCommandList.Get();
-	m_computeCommandQueue->ExecuteCommandLists(1, &tempList);
 
 }
 

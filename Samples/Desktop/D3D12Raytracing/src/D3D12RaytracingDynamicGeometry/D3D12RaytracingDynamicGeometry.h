@@ -81,9 +81,6 @@ private:
 	ConstantBuffer<RNGConstantBuffer>   m_computeCB;
 	ComPtr<ID3D12PipelineState>         m_computePSOs[ComputeShader::Type::Count];
 	ComPtr<ID3D12RootSignature>         m_computeRootSigs[ComputeShader::Type::Count];
-	ComPtr<ID3D12CommandAllocator>      m_computeAllocators[FrameCount];
-	ComPtr<ID3D12CommandQueue>          m_computeCommandQueue;
-	ComPtr<ID3D12GraphicsCommandList>   m_computeCommandList;
 
 	ComPtr<ID3D12Fence>                 m_fence;
 	UINT64                              m_fenceValues[FrameCount];
