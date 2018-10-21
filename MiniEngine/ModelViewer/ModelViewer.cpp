@@ -135,7 +135,7 @@ void ModelViewer::Startup( void )
 
     DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
     DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
-    DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
+	DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
 
     D3D12_INPUT_ELEMENT_DESC vertElem[] =
     {
@@ -442,7 +442,7 @@ void ModelViewer::RenderScene( void )
         gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
 
         {
-            ScopedTimer _prof(L"Opaque", gfxContext);
+            ScopedTimer _prof_opaque(L"Opaque", gfxContext);
             gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
             gfxContext.ClearDepth(g_SceneDepthBuffer);
 
@@ -457,7 +457,7 @@ void ModelViewer::RenderScene( void )
         }
 
         {
-            ScopedTimer _prof(L"Cutout", gfxContext);
+            ScopedTimer _prof_cutout(L"Cutout", gfxContext);
             gfxContext.SetPipelineState(m_CutoutDepthPSO);
             RenderObjects(gfxContext, m_ViewProjMatrix, kCutout );
         }
@@ -477,7 +477,7 @@ void ModelViewer::RenderScene( void )
         pfnSetupGraphicsState();
 
         {
-            ScopedTimer _prof(L"Render Shadow Map", gfxContext);
+            ScopedTimer _prof_sm(L"Render Shadow Map", gfxContext);
 
             m_SunShadow.UpdateMatrix(-m_SunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
                 (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
@@ -500,7 +500,7 @@ void ModelViewer::RenderScene( void )
         }
 
         {
-            ScopedTimer _prof(L"Render Color", gfxContext);
+            ScopedTimer _prof_col(L"Render Color", gfxContext);
 
             gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
