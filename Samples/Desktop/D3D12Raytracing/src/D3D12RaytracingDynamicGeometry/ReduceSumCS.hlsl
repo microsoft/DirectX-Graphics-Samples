@@ -21,6 +21,8 @@ RWTexture2D<uint> g_texOutput : register(u1);
 //groupshared uint gShared[ReduceSumCS::ThreadGroup::Width*ReduceSumCS::ThreadGroup::Height];
 groupshared uint gShared[ReduceSumCS::ThreadGroup::Size];
 
+// Reduce sum kernel
+// - Sums values across a group and writes out the result once per group.
 // ReduceSumCS performance
 // Ref: http://on-demand.gputechconf.com/gtc/2010/presentations/S12312-DirectCompute-Pre-Conference-Tutorial.pdf
 //  N [uint] element loads per thread - 1080p | 4K [us gpu time]: 
@@ -40,7 +42,7 @@ void main(
 {
 	uint ThreadGroupSize = ReduceSumCS::ThreadGroup::Size;
 
-	// Load the input data
+	// Load the input data.
 	uint2 index = DTid.xy + uint2(Gid.x * ((ReduceSumCS::ThreadGroup::NumElementsToLoadPerThread - 1) * ReduceSumCS::ThreadGroup::Width), 0);
 	UINT i = 0;
 	uint sum = 0;
