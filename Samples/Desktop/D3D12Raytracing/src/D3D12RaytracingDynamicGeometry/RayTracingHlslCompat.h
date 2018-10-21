@@ -38,7 +38,6 @@ namespace ReduceSumCS {
 	{
 		enum Enum { Width = 16, Height = 16, Size = Width * Height, NumElementsToLoadPerThread = 4 };	
 	}
-	
 }
 
 #ifdef HLSL
