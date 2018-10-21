@@ -1611,6 +1611,7 @@ void D3D12RaytracingDynamicGeometry::CreateWindowSizeDependentResources()
     CreateRaytracingOutputResource();
 
 	CreateGBufferResources();
+	CreateReduceSumResources();
         
     if (m_enableUI)
     {

@@ -36,7 +36,7 @@
 namespace ReduceSumCS {
 	namespace ThreadGroup
 	{
-		enum Enum { Width = 16, Height = 16, Size = Width * Height, NumElementsToLoadPerThread = 4 };	
+		enum Enum { Width = 8, Height = 16, Size = Width * Height, NumElementsToLoadPerThread = 10 };	
 	}
 }
 

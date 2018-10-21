@@ -23,15 +23,14 @@ groupshared uint gShared[ReduceSumCS::ThreadGroup::Size];
 
 // ReduceSumCS performance
 // Ref: http://on-demand.gputechconf.com/gtc/2010/presentations/S12312-DirectCompute-Pre-Conference-Tutorial.pdf
-//  N [uint] element loads per thread - gpu time: 
-//		N = 1 - 41.5 us
-//		N = 3 -	26.5 us	
-//		N = 4 - 24.5 us
-//		N = 5 - 24.5 us
-//  Bandwidth: 1354 GB/s.
+//  N [uint] element loads per thread - 1080p | 4K gpu time: 
+//		N = 1:   44   | 114.5 us
+//		N = 4:   23.2 | 70 us
+//		N = 8:   23.5 | 42 us
+//		N = 10:  23	  | 42 us
+//  Bandwidth: 361 | 790 GB/s.
 //  GPU: RTX 2080 Ti
-//  Resolution: 2160p fullscreen
-//  ThreadGroup: [16, 16]
+//  ThreadGroup: [8, 16]
 [numthreads(ReduceSumCS::ThreadGroup::Width, ReduceSumCS::ThreadGroup::Height, 1)]
 void main(
 	uint3 DTid : SV_DispatchThreadID, 
