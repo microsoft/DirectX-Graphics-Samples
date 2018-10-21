@@ -230,11 +230,14 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
     InitContext.Finish();
 }
 
+#pragma warning(push)
+#pragma warning(disable : 4100)	// NativeWidth is not referenced, but retaining for clarity
 void Graphics::ResizeDisplayDependentBuffers(uint32_t NativeWidth, uint32_t NativeHeight)
 {
     g_OverlayBuffer.Create( L"UI Overlay", g_DisplayWidth, g_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM );
     g_HorizontalBuffer.Create( L"Bicubic Intermediate", g_DisplayWidth, NativeHeight, 1, DefaultHdrColorFormat );
 }
+#pragma warning(pop)
 
 void Graphics::DestroyRenderingBuffers()
 {

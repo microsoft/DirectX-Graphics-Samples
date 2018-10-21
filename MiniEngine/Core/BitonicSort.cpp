@@ -217,7 +217,7 @@ void TestBitonicSort(uint32_t ListSize, bool b64Bit, bool bAscending)
     Ctx.Finish(true);
 
     typedef uint32_t Args[3];
-    Args* iArgs = (Args*)IndirectArgs.Map();
+    IndirectArgs.Map();
     BufferPtr = ReadbackList.Map();
 
     // Scan through all items to ensure they are sorted in the proper order and that

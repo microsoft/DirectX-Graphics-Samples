@@ -135,7 +135,6 @@ void ModelViewer::Startup( void )
 
     DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
     DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
-	DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
 
     D3D12_INPUT_ELEMENT_DESC vertElem[] =
     {
