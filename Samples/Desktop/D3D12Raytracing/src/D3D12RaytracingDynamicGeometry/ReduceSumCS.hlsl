@@ -22,7 +22,8 @@ RWTexture2D<uint> g_texOutput : register(u1);
 groupshared uint gShared[ReduceSumCS::ThreadGroup::Size];
 
 // ReduceSumCS performance
-//  N element loads per thread - Time: 
+// Ref: http://on-demand.gputechconf.com/gtc/2010/presentations/S12312-DirectCompute-Pre-Conference-Tutorial.pdf
+//  N [uint] element loads per thread - gpu time: 
 //		N = 1 - 41.5 us
 //		N = 3 -	26.5 us	
 //		N = 4 - 24.5 us
