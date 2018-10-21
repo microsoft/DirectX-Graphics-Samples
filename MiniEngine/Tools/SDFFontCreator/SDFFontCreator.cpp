@@ -274,8 +274,8 @@ uint32_t UnwrapUVs(uint32_t textureWidth)
         }
 
         // The actual character UVs don't include the border pixels
-        g_glyphs[i].u = x;
-        g_glyphs[i].v = y;
+		g_glyphs[i].u = static_cast<uint16_t>(x);
+		g_glyphs[i].v = static_cast<uint16_t>(y);
 
         x += deltaX + glyphBorder;
     }
@@ -283,7 +283,7 @@ uint32_t UnwrapUVs(uint32_t textureWidth)
     return (y + rowSize + glyphBorder) / 16;
 }
 
-void PaintCharacters( float* distanceMap, uint32_t width, uint32_t height )
+void PaintCharacters( float* distanceMap, uint32_t width, uint32_t /*height*/ )
 {
     int32_t i = -1;
     while ((i = _InterlockedExchangeAdd((volatile long*)&g_nextGlyphIdx, 1)) < g_numGlyphs)
@@ -445,8 +445,8 @@ void CompileFont(const string& outputName)
             if (wc >= L'0' && wc <= L'9')
             {
                 int extraSpace = numberWidth - g_glyphs[i].width;
-                g_glyphs[i].bearing = extraSpace / 2;
-                g_glyphs[i].advance = numberWidth;
+				g_glyphs[i].bearing = static_cast<uint16_t>(extraSpace) / 2U;
+				g_glyphs[i].advance = static_cast<uint16_t>(numberWidth);
             }
         }
     }
@@ -552,7 +552,6 @@ void main( int argc, const char** argv )
     string characterSet = "ASCII";
     uint32_t size = 32;
     bool extendedASCII = false;
-    bool verbose = true;
     
     try
     {
@@ -574,9 +573,9 @@ void main( int argc, const char** argv )
             else if (strcmp("-character_set", argv[arg]) == 0)
                 characterSet = argv[++arg];
             else if (strcmp("-border", argv[arg]) == 0)
-                g_borderSize = atoi(argv[++arg]);
+                g_borderSize = static_cast<uint16_t>(atoi(argv[++arg]));
             else if (strcmp("-radius", argv[arg]) == 0)
-                g_maxDistance = atoi(argv[++arg]);
+                g_maxDistance = static_cast<uint16_t>(atoi(argv[++arg]));
             else
                 throw exception("Invalid option");
         }
