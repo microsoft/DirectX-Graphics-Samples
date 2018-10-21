@@ -526,7 +526,7 @@ void CommandContext::ReadbackTexture2D(GpuResource& ReadbackBuffer, PixelBuffer&
 {
     // The footprint may depend on the device of the resource, but we assume there is only one device.
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT PlacedFootprint;
-	D3D12_RESOURCE_DESC SrcResourceDesc = SrcBuffer.GetResource()->GetDesc();
+    D3D12_RESOURCE_DESC SrcResourceDesc = SrcBuffer.GetResource()->GetDesc();
     g_Device->GetCopyableFootprints(&SrcResourceDesc, 0, 1, 0, &PlacedFootprint, nullptr, nullptr, nullptr);
 
     // This very short command list only issues one API call and will be synchronized so we can immediately read
@@ -535,8 +535,8 @@ void CommandContext::ReadbackTexture2D(GpuResource& ReadbackBuffer, PixelBuffer&
 
     Context.TransitionResource(SrcBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
 
-	CD3DX12_TEXTURE_COPY_LOCATION ReadbackCopyLocation(ReadbackBuffer.GetResource(), PlacedFootprint);
-	CD3DX12_TEXTURE_COPY_LOCATION SrcCopyLocation(SrcBuffer.GetResource(), 0);
+    CD3DX12_TEXTURE_COPY_LOCATION ReadbackCopyLocation(ReadbackBuffer.GetResource(), PlacedFootprint);
+    CD3DX12_TEXTURE_COPY_LOCATION SrcCopyLocation(SrcBuffer.GetResource(), 0);
     Context.m_CommandList->CopyTextureRegion(&ReadbackCopyLocation, 0, 0, 0, &SrcCopyLocation, nullptr);
 
     Context.Finish(true);

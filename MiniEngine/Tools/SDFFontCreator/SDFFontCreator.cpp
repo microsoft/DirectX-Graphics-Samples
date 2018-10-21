@@ -274,8 +274,8 @@ uint32_t UnwrapUVs(uint32_t textureWidth)
         }
 
         // The actual character UVs don't include the border pixels
-		g_glyphs[i].u = static_cast<uint16_t>(x);
-		g_glyphs[i].v = static_cast<uint16_t>(y);
+        g_glyphs[i].u = static_cast<uint16_t>(x);
+        g_glyphs[i].v = static_cast<uint16_t>(y);
 
         x += deltaX + glyphBorder;
     }
@@ -445,8 +445,8 @@ void CompileFont(const string& outputName)
             if (wc >= L'0' && wc <= L'9')
             {
                 int extraSpace = numberWidth - g_glyphs[i].width;
-				g_glyphs[i].bearing = static_cast<uint16_t>(extraSpace) / 2U;
-				g_glyphs[i].advance = static_cast<uint16_t>(numberWidth);
+                g_glyphs[i].bearing = static_cast<uint16_t>(extraSpace) / 2U;
+                g_glyphs[i].advance = static_cast<uint16_t>(numberWidth);
             }
         }
     }

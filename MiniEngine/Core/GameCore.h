@@ -52,7 +52,7 @@ namespace GameCore
 #define CREATE_APPLICATION( app_class ) \
     MAIN_FUNCTION() \
     { \
-		app_class app; \
+        app_class app; \
         GameCore::RunApplication( static_cast<IGameApp&>(app), L#app_class ); \
         return 0; \
     }

@@ -231,7 +231,7 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 }
 
 #pragma warning(push)
-#pragma warning(disable : 4100)	// NativeWidth is not referenced, but retaining for clarity
+#pragma warning(disable : 4100)   // NativeWidth is not referenced, but retaining for clarity
 void Graphics::ResizeDisplayDependentBuffers(uint32_t NativeWidth, uint32_t NativeHeight)
 {
     g_OverlayBuffer.Create( L"UI Overlay", g_DisplayWidth, g_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM );

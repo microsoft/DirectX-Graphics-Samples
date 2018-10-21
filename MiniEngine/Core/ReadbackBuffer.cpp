@@ -64,7 +64,7 @@ void* ReadbackBuffer::Map(void)
 {
     void* Memory;
 
-	CD3DX12_RANGE Range(0, m_BufferSize);
+    CD3DX12_RANGE Range(0, m_BufferSize);
     m_pResource->Map(0, &Range, &Memory);
 
     return Memory;
@@ -72,6 +72,6 @@ void* ReadbackBuffer::Map(void)
 
 void ReadbackBuffer::Unmap(void)
 {
-	CD3DX12_RANGE Range(0, 0);
+    CD3DX12_RANGE Range(0, 0);
     m_pResource->Unmap(0, &Range);
 }
