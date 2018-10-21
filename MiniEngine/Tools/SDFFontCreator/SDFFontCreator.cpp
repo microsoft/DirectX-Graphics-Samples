@@ -397,7 +397,7 @@ void WritePreviewBMP(const string& fileName, const uint8_t* heightMap, uint32_t 
     file.close();
 }
 
-void CompileFont(const string& inputFile, uint32_t size, const string& outputName)
+void CompileFont(const string& outputName)
 {
     // Figure out how many threads to create, and then spawn them.  Leave their parameters blank.  We'll fill them in
     // before they're read.
@@ -682,7 +682,7 @@ void main( int argc, const char** argv )
                 g_glyphs[g_numGlyphs++].c = *it;
         }
 
-        CompileFont(inputFile, size, outputName);
+        CompileFont(outputName);
 
         printf("\nComplete!\n");
         //printf("Elapsed Time: %g sec\n", t.getElapsed());
