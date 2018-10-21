@@ -424,7 +424,7 @@ void ModelViewer::RenderScene( void )
     psConstants.FrameIndexMod2 = FrameIndex;
 
     // Set the default state for command lists
-    auto& pfnSetupGraphicsState = [&](void)
+    auto pfnSetupGraphicsState = [&](void)
     {
         gfxContext.SetRootSignature(m_RootSig);
         gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
