@@ -23,12 +23,13 @@ groupshared uint gShared[ReduceSumCS::ThreadGroup::Size];
 
 // ReduceSumCS performance
 //  N element loads per thread - Time: 
-//		N = 1 - 40 us
-//		N = 2 - 29 us
-//		N = 3 -	25.5 us	
-//		N = 4 - 24 us
-//  GPU: 2080 Ti
-//  Resolution: 1080p
+//		N = 1 - 41.5 us
+//		N = 3 -	26.5 us	
+//		N = 4 - 24.5 us
+//		N = 5 - 24.5 us
+//  Bandwidth: 1354 GB/s.
+//  GPU: RTX 2080 Ti
+//  Resolution: 2160p fullscreen
 //  ThreadGroup: [16, 16]
 [numthreads(ReduceSumCS::ThreadGroup::Width, ReduceSumCS::ThreadGroup::Height, 1)]
 void main(
