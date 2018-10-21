@@ -20,8 +20,8 @@
 //
 //**********************************************************************************************
 #define ENABLE_RAYTRACING 1
-#define RUNTIME_AS_UPDATES 1
-#define USE_GPU_TRANSFORM 0
+#define RUNTIME_AS_UPDATES 0
+#define USE_GPU_TRANSFORM 1
 
 #define RAYGEN_SINGLE_COLOR_SHADING 0
 #define SAMPLES_CS_VISUALIZATION 1
@@ -30,7 +30,11 @@
 #define GBUFFER_AO_HIT_VISUALIZATION 0
 #define GBUFFER_AO_USE_ALBEDO 1
 
-#define ONLY_SQUID_SCENE_BLAS 1
+#define ONLY_SQUID_SCENE_BLAS 0
+
+#define TESSELATED_GEOMETRY_BOX 1
+#define TESSELATED_GEOMETRY_THIN_BOXES 1
+#define TESSELATED_GEOMETRY_TILES 0
 
 // ToDo move
 namespace ReduceSumCS {
