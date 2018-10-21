@@ -119,7 +119,7 @@ void CPUTimer::Reset()
     memset(m_avg, 0, sizeof(m_avg));
 }
 
-double CPUTimer::GetElapsedMS(uint32_t timerid) const
+float CPUTimer::GetElapsedMS(uint32_t timerid) const
 {
     if (timerid >= c_maxTimers)
         return 0.0;
@@ -127,7 +127,7 @@ double CPUTimer::GetElapsedMS(uint32_t timerid) const
     uint64_t start = m_start[timerid].QuadPart;
     uint64_t end = m_end[timerid].QuadPart;
 
-    return double(end - start) * m_cpuFreqInv;
+    return static_cast<float>(double(end - start) * m_cpuFreqInv);
 }
 
 
@@ -220,7 +220,7 @@ void GPUTimer::Reset()
 	m_avgPeriodTimer.Start();
 }
 
-double GPUTimer::GetElapsedMS(uint32_t timerid) const
+float GPUTimer::GetElapsedMS(uint32_t timerid) const
 {
     if (timerid >= c_maxTimers)
         return 0.0;
@@ -231,7 +231,7 @@ double GPUTimer::GetElapsedMS(uint32_t timerid) const
     if (end < start)
         return 0.0;
 
-    return double(end - start) * m_gpuFreqInv;
+    return static_cast<float>(double(end - start) * m_gpuFreqInv);
 }
 
 void GPUTimer::ReleaseDevice()
@@ -274,7 +274,7 @@ void GPUTimer::RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue*
     D3D12_QUERY_HEAP_DESC desc = {};
     desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
     desc.Count = c_timerSlots;
-    ThrowIfFailed(device->CreateQueryHeap(&desc, IID_GRAPHICS_PPV_ARGS(m_heap.ReleaseAndGetAddressOf())));
+    ThrowIfFailed(device->CreateQueryHeap(&desc, IID_GRAPHICS_PPV_ARGS(&m_heap)));
     m_heap->SetName(L"GPUTimerHeap");
 
     // We allocate m_maxframeCount + 1 instances as an instance is guaranteed to be written to if maxPresentFrameCount frames
@@ -288,7 +288,7 @@ void GPUTimer::RestoreDevice(_In_ ID3D12Device* device, _In_ ID3D12CommandQueue*
         &bufferDesc,
         D3D12_RESOURCE_STATE_COPY_DEST,
         nullptr,
-        IID_GRAPHICS_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf()))
+        IID_GRAPHICS_PPV_ARGS(&m_buffer))
     );
     m_buffer->SetName(L"GPUTimerBuffer");
 }

@@ -10,20 +10,67 @@
 //*********************************************************
 
 #define HLSL
-#include "RandomNumberGenerator.hlsli"
 #include "RaytracingHlslCompat.h"
 
-ConstantBuffer<ReduceSumCS> rngCB: register(b0);
-RWStructuredBuffer<uint> g_sum : register(u1);
-Texture2D<float4> g_texGBufferPositionHit : register(t0);
+ConstantBuffer<ReduceSumCSCB> gCB: register(b0);
+Texture2D<uint> g_texInput : register(t0);
+RWTexture2D<uint> g_texOutput : register(u1);
 
-[numthreads(8, 8, 1)]
-void main( uint3 DTid : SV_DispatchThreadID )
+
+// ToDo - dxc fails on
+//groupshared uint gShared[ReduceSumCS::ThreadGroup::Width*ReduceSumCS::ThreadGroup::Height];
+groupshared uint gShared[ReduceSumCS::ThreadGroup::Size];
+
+// ReduceSumCS performance
+//  N element loads per thread - Time: 
+//		N = 1 - 40 us
+//		N = 2 - 29 us
+//		N = 3 -	25.5 us	
+//		N = 4 - 24 us
+//  GPU: 2080 Ti
+//  Resolution: 1080p
+//  ThreadGroup: [16, 16]
+[numthreads(ReduceSumCS::ThreadGroup::Width, ReduceSumCS::ThreadGroup::Height, 1)]
+void main(
+	uint3 DTid : SV_DispatchThreadID, 
+	uint3 GTid : SV_GroupThreadID,
+	uint GIndex: SV_GroupIndex,
+	uint2 Gid : SV_GroupID)
 {
-	UINT hit = g_texGBufferPositionHit[DTid.xy].x > 0.5 ? 1 : 0;
-	
-	//for (UINT i = 0; i < 1e2; i++)
-		hit += 1;
-	if (DTid.x == 0 && DTid.y == 0)
-		g_sum[0] = hit;
+	uint ThreadGroupSize = ReduceSumCS::ThreadGroup::Size;
+
+	// Load the input data
+	uint2 index = DTid.xy + uint2(Gid.x * ((ReduceSumCS::ThreadGroup::NumElementsToLoadPerThread - 1) * ReduceSumCS::ThreadGroup::Width), 0);
+	UINT i = 0;
+	uint sum = 0;
+	while (i++ < ReduceSumCS::ThreadGroup::NumElementsToLoadPerThread)
+	{
+		sum += g_texInput[index].x;
+		index += uint2(ReduceSumCS::ThreadGroup::Width, 0);
+	}
+
+	// Aggregate values across the wave.
+	sum = WaveActiveSum(sum);
+
+	for (UINT s = WaveGetLaneCount(); s < ThreadGroupSize; s*= WaveGetLaneCount())
+	{
+		// Store in shared memory and wait for all threads in group to finish.
+		gShared[GIndex] = sum;		// ToDo test conditional write if (WaveIsFirstLane())
+		GroupMemoryBarrierWithGroupSync();
+
+		uint numLanesToProcess = (ThreadGroupSize + s - 1) / s;
+		if (GIndex >= numLanesToProcess)
+		{
+			break;
+		}
+		// Load and aggregate values across the wave.
+		sum = gShared[GIndex * WaveGetLaneCount()];
+		sum = WaveActiveSum(sum);
+	}
+
+	// Write out summed result for each thread group.
+	if (GIndex == 0)
+	{
+		g_texOutput[Gid] = sum;
+	}
 }

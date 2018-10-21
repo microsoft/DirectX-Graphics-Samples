@@ -30,10 +30,10 @@ RaytracingAccelerationStructure g_scene : register(t0, space0);
 RWTexture2D<float4> g_renderTarget : register(u0);
 
 // ToDo move this to local ray gen root sig
-RWTexture2D<float4> g_rtGBufferPositionHit : register(u5);
+RWTexture2D<uint> g_rtGBufferPositionHit : register(u5);
 RWTexture2D<float4> g_rtGBufferPosition : register(u6);
 RWTexture2D<float4> g_rtGBufferNormal : register(u7);
-Texture2D<float4> g_texGBufferPositionHit : register(t8);
+Texture2D<uint> g_texGBufferPositionHit : register(t8);
 Texture2D<float4> g_texGBufferPositionRT : register(t9);
 Texture2D<float4> g_texGBufferNormal : register(t10);
 

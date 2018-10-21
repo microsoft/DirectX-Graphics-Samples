@@ -44,7 +44,7 @@ namespace DX
         void Reset();
 
         // Returns delta time in milliseconds
-        double GetElapsedMS(uint32_t timerid = 0) const;
+		float GetElapsedMS(uint32_t timerid = 0) const;
 
         // Returns running average in milliseconds
         float GetAverageMS(uint32_t timerid = 0) const
@@ -110,7 +110,7 @@ namespace DX
         void Reset();
 		
         // Returns delta time in milliseconds
-        double GetElapsedMS(uint32_t timerid = 0) const;
+        float GetElapsedMS(uint32_t timerid = 0) const;
 
         // Returns running average in milliseconds
         float GetAverageMS(uint32_t timerid = 0) const

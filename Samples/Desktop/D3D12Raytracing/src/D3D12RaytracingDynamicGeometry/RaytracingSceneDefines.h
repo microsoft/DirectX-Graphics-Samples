@@ -36,8 +36,8 @@ namespace ComputeShader {
 		namespace ReduceSum {
 			namespace Slot {
 				enum Enum {
-					OutputView = 0,
-					GBufferHits,
+					Output = 0,
+					Input,
 					ConstantBuffer,		// ToDo: Standardize CB naming
 					Count
 				};
@@ -108,13 +108,14 @@ namespace GeometryType {
     };
 }
 
+// ToDo Gputimers bug out changing enums around
 namespace GpuTimers {
 	enum Enum {
-		Raytracing_PrimaryAndAO = 0,
+		Raytracing_AO = 0,
+		Raytracing_PrimaryAndAO,
 		Raytracing_GBuffer,
-		Raytracing_AO,
-		CalculateNumCameraRayGeometryHits,
 		UpdateBLAS,
+		CalculateNumCameraRayGeometryHits,
 		UpdateTLAS,
 		Count
 	};

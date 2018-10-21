@@ -80,11 +80,11 @@ private:
 	// Compute resources.
 	Samplers::MultiJittered m_randomSampler;
 	ConstantBuffer<RNGConstantBuffer>   m_csHemisphereVisualizationCB;
-	ConstantBuffer<ReduceSumCS>			m_csReduceSumCB;
+	ConstantBuffer<ReduceSumCSCB>			m_csReduceSumCB;
 	ComPtr<ID3D12PipelineState>         m_computePSOs[ComputeShader::Type::Count];
 	ComPtr<ID3D12RootSignature>         m_computeRootSigs[ComputeShader::Type::Count];
 
-	RWGpuResource						m_csReduceSumOutput;
+	std::vector<RWGpuResource>			m_csReduceSumOutputs;
 	ComPtr<ID3D12Resource>				m_csReduceSumReadback;
 	UINT								m_numCameraRayGeometryHits;
 
@@ -110,6 +110,7 @@ private:
 	std::vector<UINT> m_geometryIBHeapIndices;
 	std::vector<UINT> m_geometryVBHeapIndices;
 
+	DX::GPUTimer m_gpuTimers[GpuTimers::Count];
 
 	// ToDo clean up buffer management
 	// SquidRoom buffers
@@ -120,7 +121,6 @@ private:
 	ComPtr<ID3D12Resource> m_indexBufferUpload;
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
-	DX::GPUTimer m_gpuTimers[GpuTimers::Count];
 
 	struct alignas(16) AlignedGeometryTransform3x4
 	{
@@ -216,6 +216,6 @@ private:
     void BuildShaderTables();
     void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();
-	float NumCameraRaysPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_AO].GetAverageMS(), m_width, m_height); }
-	float NumCameraRayGeometryHitsPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::CalculateNumCameraRayGeometryHits].GetAverageMS(), m_numCameraRayGeometryHits, 1); }
+	float NumCameraRaysPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_GBuffer].GetAverageMS(), m_width, m_height); }
+	float NumCameraRayGeometryHitsPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_AO].GetAverageMS(), m_numCameraRayGeometryHits, 1); }
 };

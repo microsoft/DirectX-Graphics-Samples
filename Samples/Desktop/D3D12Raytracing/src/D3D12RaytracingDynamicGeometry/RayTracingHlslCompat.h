@@ -32,6 +32,14 @@
 
 #define ONLY_SQUID_SCENE_BLAS 1
 
+// ToDo move
+namespace ReduceSumCS {
+	namespace ThreadGroup
+	{
+		enum Enum { Width = 16, Height = 16, Size = Width * Height, NumElementsToLoadPerThread = 4 };	
+	}
+	
+}
 
 #ifdef HLSL
 #include "util\HlslCompat.h"
@@ -96,7 +104,8 @@ struct RNGConstantBuffer
     XMUINT2 grid;      // Grid resolution
 };
 
-struct ReduceSumCS
+// ToDo rename
+struct ReduceSumCSCB
 {
 	XMUINT2 uavOffset;     // offset where [0,0] thread should write to.
 	XMUINT2 dispatchDimensions;  // for 2D dispatches

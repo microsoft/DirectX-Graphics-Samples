@@ -392,8 +392,8 @@ void D3D12RaytracingDynamicGeometry::CreateReduceSumResources()
 		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);  // 1 output buffer
 
 		CD3DX12_ROOT_PARAMETER rootParameters[ReduceSum::Slot::Count];
-		rootParameters[ReduceSum::Slot::GBufferHits].InitAsDescriptorTable(1, &ranges[0]);
-		rootParameters[ReduceSum::Slot::OutputView].InitAsDescriptorTable(1, &ranges[1]);
+		rootParameters[ReduceSum::Slot::Input].InitAsDescriptorTable(1, &ranges[0]);
+		rootParameters[ReduceSum::Slot::Output].InitAsDescriptorTable(1, &ranges[1]);
 		rootParameters[ReduceSum::Slot::ConstantBuffer].InitAsConstantBufferView(0);
 
 		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
@@ -414,10 +414,28 @@ void D3D12RaytracingDynamicGeometry::CreateReduceSumResources()
 	{
 		m_csReduceSumCB.Create(device, frameCount, L"GPU CB: RNG");
 
-		UINT bufferSize = sizeof(UINT);
-		m_csReduceSumOutput.rwFlags = ResourceRWFlags::AllowWrite;
-		AllocateUAVBuffer(device, 1, bufferSize, &m_csReduceSumOutput, DXGI_FORMAT_R32_UINT, m_cbvSrvUavHeap.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"UAV buffer: Reduce sum output");
+
+		UINT width = CeilDivide(m_width, ReduceSumCS::ThreadGroup::NumElementsToLoadPerThread);
+		UINT height = m_height;
+
+		// Number of reduce iterations to bring [m_width, m_height] down to [1, 1]
+		UINT numIterations = max(
+			CeilLogWithBase(width, ReduceSumCS::ThreadGroup::Width),
+			CeilLogWithBase(height, ReduceSumCS::ThreadGroup::Height));
+	
+		m_csReduceSumOutputs.resize(numIterations);
+		for (UINT i = 0; i < numIterations; i++)
+		{
+			width = max(1, CeilDivide(width, ReduceSumCS::ThreadGroup::Width));
+			height = max(1, CeilDivide(height, ReduceSumCS::ThreadGroup::Height));
+
+			m_csReduceSumOutputs[i].rwFlags = ResourceRWFlags::AllowWrite | ResourceRWFlags::AllowRead;
+			CreateRenderTargetResource(device, DXGI_FORMAT_R32_UINT, width, height, m_cbvSrvUavHeap.get(), 
+				&m_csReduceSumOutputs[i], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"UAV texture: Reduce sum intermediate output");
+		}
+
 		// ToDo should we allocate FrameCount + 1 in GPUTImeras we're depending on Present to stall?
+		UINT bufferSize = sizeof(UINT);
 		AllocateReadBackBuffer(device, FrameCount * bufferSize, &m_csReduceSumReadback, D3D12_RESOURCE_STATE_COPY_DEST, L"Readback buffer: Reduce sum output");
 	}
 }
@@ -650,6 +668,7 @@ void D3D12RaytracingDynamicGeometry::CreateRaytracingOutputResource()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto backbufferFormat = m_deviceResources->GetBackBufferFormat();
+	m_raytracingOutput.rwFlags = ResourceRWFlags::AllowWrite | ResourceRWFlags::AllowRead;
 	CreateRenderTargetResource(device, backbufferFormat, m_width, m_height, m_cbvSrvUavHeap.get(), &m_raytracingOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
@@ -660,7 +679,11 @@ void D3D12RaytracingDynamicGeometry::CreateGBufferResources()
 
 	// ToDo tune formats
 	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	CreateRenderTargetResource(device, DXGI_FORMAT_R32G32B32A32_FLOAT, m_width, m_height, m_cbvSrvUavHeap.get(), &m_GBufferResources[GBufferResource::Hit], initialResourceState);
+	for (auto& resource : m_GBufferResources)
+	{
+		resource.rwFlags = ResourceRWFlags::AllowWrite;
+	}
+	CreateRenderTargetResource(device, DXGI_FORMAT_R32_UINT, m_width, m_height, m_cbvSrvUavHeap.get(), &m_GBufferResources[GBufferResource::Hit], initialResourceState);
 	CreateRenderTargetResource(device, DXGI_FORMAT_R32G32B32A32_FLOAT, m_width, m_height, m_cbvSrvUavHeap.get(), &m_GBufferResources[GBufferResource::HitPosition], initialResourceState);
 	CreateRenderTargetResource(device, DXGI_FORMAT_R32G32B32A32_FLOAT, m_width, m_height, m_cbvSrvUavHeap.get(), &m_GBufferResources[GBufferResource::SurfaceNormal], initialResourceState);
 	ThrowIfFalse(m_GBufferResources[GBufferResource::HitPosition].descriptorHeapIndex == m_GBufferResources[GBufferResource::Hit].descriptorHeapIndex + 1, 
@@ -679,6 +702,14 @@ void D3D12RaytracingDynamicGeometry::CreateGBufferResources()
 		L"GBuffer RT resources are expecected to be subsequent in the heap.");
 	ThrowIfFalse(heapIndices[2] == heapIndices[0] + 2,
 		L"GBuffer RT resources are expecected to be subsequent in the heap.");
+
+
+	// ToDo cleanup?
+	for (auto& resource : m_GBufferResources)
+	{
+		resource.rwFlags |= ResourceRWFlags::AllowRead;
+	}
+
 	// ToDo
 	// Describe and create the point clamping sampler used for reading from the GBuffer resources.
 	//CD3DX12_CPU_DESCRIPTOR_HANDLE samplerHandle(m_samplerHeap->GetHeap()->GetCPUDescriptorHandleForHeapStart());
@@ -1519,7 +1550,9 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
                << m_gpuTimers[GpuTimers::UpdateTLAS].GetElapsedMS() << L"ms / "
                << m_gpuTimers[GpuTimers::UpdateBLAS].GetElapsedMS() +
                   m_gpuTimers[GpuTimers::UpdateTLAS].GetElapsedMS() << L"ms\n";
-		wLabel << fixed << L" ReduceSum: " << m_gpuTimers[GpuTimers::CalculateNumCameraRayGeometryHits].GetElapsedMS() << L"ms \n";
+		wLabel << fixed << L" ReduceSum: #/time " 
+			   << m_numCameraRayGeometryHits << "/"
+			   << 1000*m_gpuTimers[GpuTimers::CalculateNumCameraRayGeometryHits].GetAverageMS() << L"us \n";
     
         labels.push_back(wLabel.str());
     }
@@ -1702,18 +1735,15 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
 
 void D3D12RaytracingDynamicGeometry::CalculateNumPrimaryRaysHit()
 {
+	using namespace ComputeShader::RootSignature::ReduceSum;
+
 	auto device = m_deviceResources->GetD3DDevice();
 	auto commandList = m_deviceResources->GetCommandList();
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
 	PIXBeginEvent(commandList, 0, L"CalculateNumCameraRayHits");
-	// Update constant buffer.
-	XMUINT2 rngWindowSize(m_width, m_height);
-	{
-		m_csReduceSumCB->dispatchDimensions = rngWindowSize;
-		m_csReduceSumCB->numSamples = (frameIndex + 1) * 1000;
-	}
 
+#if 1
 	// Copy dynamic buffers to GPU.
 	{
 		m_csReduceSumCB.CopyStagingToGpu(frameIndex);
@@ -1721,38 +1751,86 @@ void D3D12RaytracingDynamicGeometry::CalculateNumPrimaryRaysHit()
 
 	// Set pipeline state.
 	{
-		using namespace ComputeShader::RootSignature::ReduceSum;
-
 		commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
 		commandList->SetComputeRootSignature(m_computeRootSigs[ComputeShader::Type::ReduceSum].Get());
-
+		commandList->SetComputeRootDescriptorTable(Slot::Input, m_GBufferResources[GBufferResource::Hit].gpuDescriptorReadAccess);
+		commandList->SetComputeRootDescriptorTable(Slot::Output, m_csReduceSumOutputs[0].gpuDescriptorWriteAccess);
 		commandList->SetComputeRootConstantBufferView(Slot::ConstantBuffer, m_csReduceSumCB.GpuVirtualAddress(frameIndex));
-		commandList->SetComputeRootDescriptorTable(Slot::GBufferHits, m_GBufferResources[GBufferResource::Hit].gpuDescriptorReadAccess);
-		commandList->SetComputeRootDescriptorTable(Slot::OutputView, m_csReduceSumOutput.gpuDescriptorWriteAccess);
-
 		commandList->SetPipelineState(m_computePSOs[ComputeShader::Type::ReduceSum].Get());
 	}
 
-	// Dispatch.
+	//
+	// Iterative sum reduce [m_width, m_height] to [1,1]
+	//
+	SIZE_T readBackBaseOffset = frameIndex * sizeof(m_numCameraRayGeometryHits);
 	m_gpuTimers[GpuTimers::CalculateNumCameraRayGeometryHits].Start(commandList);
-	commandList->Dispatch(rngWindowSize.x, rngWindowSize.y, 1);
+	{
+		// First iteration reads from the GBuffer resource
+		commandList->SetComputeRootDescriptorTable(Slot::Input, m_GBufferResources[GBufferResource::Hit].gpuDescriptorReadAccess);
+		commandList->SetComputeRootDescriptorTable(Slot::Output, m_csReduceSumOutputs[0].gpuDescriptorWriteAccess);
+
+		for (UINT i = 0; i < m_csReduceSumOutputs.size(); i++)
+		{
+			auto& outputResourceDesc = m_csReduceSumOutputs[i].resource.Get()->GetDesc();
+
+			// Each group writes out a single summed result accross group threads.
+			XMUINT2 groupSize(static_cast<UINT>(outputResourceDesc.Width), static_cast<UINT>(outputResourceDesc.Height));
+
+			// Dispatch.
+			commandList->Dispatch(groupSize.x, groupSize.y, 1);
+			
+			// Set the output resource as input in the next iteration. 
+			if (i < m_csReduceSumOutputs.size() - 1)
+			{
+				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutputs[i].resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+				commandList->SetComputeRootDescriptorTable(Slot::Input, m_csReduceSumOutputs[i].gpuDescriptorReadAccess);
+				commandList->SetComputeRootDescriptorTable(Slot::Output, m_csReduceSumOutputs[i+1].gpuDescriptorWriteAccess);
+			}
+			else  // We're done, prepare the last output for copy to readback.
+			{
+				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutputs.back().resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE));
+			}
+		}
+
+		// Copy the sum result to the readback buffer.
+		auto& srcDesc = m_csReduceSumReadback->GetDesc();
+		auto& destDesc = m_csReduceSumOutputs.back().resource.Get()->GetDesc();
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT bufferFootprint = {};
+		bufferFootprint.Offset = 0;
+		bufferFootprint.Footprint.Width = FrameCount;
+		bufferFootprint.Footprint.Height = 1;
+		bufferFootprint.Footprint.Depth = 1; 
+		bufferFootprint.Footprint.RowPitch = Align(static_cast<UINT>(srcDesc.Width) * sizeof(m_numCameraRayGeometryHits), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+		bufferFootprint.Footprint.Format = destDesc.Format;
+		CD3DX12_TEXTURE_COPY_LOCATION copyDest(m_csReduceSumReadback.Get(), bufferFootprint);
+		CD3DX12_TEXTURE_COPY_LOCATION copySrc(m_csReduceSumOutputs.back().resource.Get(), 0);
+		commandList->CopyTextureRegion(&copyDest, frameIndex, 0, 0, &copySrc, nullptr);
+
+		// Transition the intermediate output resources back.
+		{
+			std::vector<D3D12_RESOURCE_BARRIER> barriers;
+			barriers.resize(m_csReduceSumOutputs.size());
+			for (UINT i = 0; i < m_csReduceSumOutputs.size() - 1; i++)
+			{
+				barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutputs[i].resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			}
+			barriers[m_csReduceSumOutputs.size() - 1] = CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutputs.back().resource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+			commandList->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
+		}
+	}
 	m_gpuTimers[GpuTimers::CalculateNumCameraRayGeometryHits].Stop(commandList);
 
-	// Copy the sum result to the readback buffer.
-	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutput.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE));
-	SIZE_T readBackBaseOffset = frameIndex * sizeof(m_numCameraRayGeometryHits);
-	commandList->CopyBufferRegion(m_csReduceSumReadback.Get(), readBackBaseOffset, m_csReduceSumOutput.resource.Get(), 0, sizeof(m_numCameraRayGeometryHits));
-	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutput.resource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
 
 	// Performance optimization.
-	// To avoid stalling on the GPU, grab the data from finished frame FrameCount ago.
-	// This is fine for the purposes of using the value for UI display purposes only.
+	// To avoid stalling on CPU until GPU is done, grab the data from finished frame FrameCount ago.
+	// This is fine for the informational purposes of using the value for UI display only.
 	UINT* mappedData = nullptr;
 	CD3DX12_RANGE readRange(readBackBaseOffset, readBackBaseOffset + sizeof(m_numCameraRayGeometryHits));
 	ThrowIfFailed(m_csReduceSumReadback->Map(0, &readRange, reinterpret_cast<void**>(&mappedData)));
 	m_numCameraRayGeometryHits = *mappedData;
 	m_csReduceSumReadback->Unmap(0, &CD3DX12_RANGE(0,0));
-
+#endif
 	PIXEndEvent(commandList);
 }
 
