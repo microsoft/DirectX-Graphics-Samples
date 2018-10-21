@@ -23,7 +23,7 @@ groupshared uint gShared[ReduceSumCS::ThreadGroup::Size];
 
 // ReduceSumCS performance
 // Ref: http://on-demand.gputechconf.com/gtc/2010/presentations/S12312-DirectCompute-Pre-Conference-Tutorial.pdf
-//  N [uint] element loads per thread - 1080p | 4K gpu time: 
+//  N [uint] element loads per thread - 1080p | 4K [us gpu time]: 
 //		N = 1:   44   | 114.5 us
 //		N = 4:   23.2 | 70 us
 //		N = 8:   23.5 | 42 us
@@ -55,10 +55,11 @@ void main(
 
 	for (UINT s = WaveGetLaneCount(); s < ThreadGroupSize; s*= WaveGetLaneCount())
 	{
-		// Store in shared memory and wait for all threads in group to finish.
-		gShared[GIndex] = sum;		// ToDo test conditional write if (WaveIsFirstLane())
+		// Store the value in shared memory and wait for all threads in group to finish.
+		gShared[GIndex] = sum;
 		GroupMemoryBarrierWithGroupSync();
 
+		// Let through only so many lanes as there are unique sum values from the last store.
 		uint numLanesToProcess = (ThreadGroupSize + s - 1) / s;
 		if (GIndex >= numLanesToProcess)
 		{
