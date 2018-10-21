@@ -69,7 +69,7 @@ private:
 	int m_numFramesSinceASBuild;
 #if TESSELATED_GEOMETRY_BOX
 #if TESSELATED_GEOMETRY_THIN_BOXES
-	const XMFLOAT3 m_boxSize = XMFLOAT3(0.01, 0.1, 0.01);
+	const XMFLOAT3 m_boxSize = XMFLOAT3(0.01f, 0.1f, 0.01f);
 #else
 	const XMFLOAT3 m_boxSize = XMFLOAT3(1, 1, 1);
 #endif
@@ -94,8 +94,10 @@ private:
 	ComPtr<ID3D12RootSignature>         m_computeRootSigs[ComputeShader::Type::Count];
 
 	std::vector<RWGpuResource>			m_csReduceSumOutputs;
-	ComPtr<ID3D12Resource>				m_csReduceSumReadback;
-	UINT								m_numCameraRayGeometryHits;
+
+	
+	ComPtr<ID3D12Resource>				m_csReduceSumReadback[ReduceSumCalculations::Count];
+	UINT								m_numRayGeometryHits[ReduceSumCalculations::Count];
 
 	ComPtr<ID3D12Fence>                 m_fence;
 	UINT64                              m_fenceValues[FrameCount];
@@ -147,6 +149,7 @@ private:
 	// ToDo use the struct
 	RWGpuResource m_raytracingOutput;
 	RWGpuResource m_GBufferResources[GBufferResource::Count];
+	RWGpuResource m_AORayHits;
 
 
 	// Shader tables
@@ -206,7 +209,7 @@ private:
     void ReleaseDeviceDependentResources();
     void ReleaseWindowSizeDependentResources();
     void RenderRNGVisualizations();
-	void CalculateNumPrimaryRaysHit();
+	void CalculateRayHits(ReduceSumCalculations::Enum type);
     void CreateRaytracingInterfaces();
     void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig, LPCWSTR resournceName = nullptr);
     void CreateRootSignatures();
@@ -227,5 +230,5 @@ private:
     void CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState = D3D12_RESOURCE_STATE_PRESENT);
     void CalculateFrameStats();
 	float NumCameraRaysPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_GBuffer].GetAverageMS(), m_width, m_height); }
-	float NumCameraRayGeometryHitsPerSecond() { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_AO].GetAverageMS(), m_numCameraRayGeometryHits, 1); }
+	float NumRayGeometryHitsPerSecond(ReduceSumCalculations::Enum type) { return NumMPixelsPerSecond(m_gpuTimers[GpuTimers::Raytracing_AO].GetAverageMS(type), m_numRayGeometryHits[type], 1); }
 };

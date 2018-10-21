@@ -19,8 +19,8 @@ CameraController::CameraController(Camera& camera) : m_camera(camera)
 {
     m_HorizontalLookSensitivity = 2.0f;
     m_VerticalLookSensitivity = 2.0f;
-    m_MoveSpeed = 1000.0f;
-    m_StrafeSpeed = 1000.0f;
+    m_MoveSpeed = 5000.0f;
+    m_StrafeSpeed = 5000.0f;
     m_MouseSensitivityX = 1.0f;
     m_MouseSensitivityY = -1.0f;
 
@@ -48,7 +48,7 @@ void CameraController::Update(float deltaTime)
 {
     (deltaTime);
 
-	float timeScale = 1.0f;
+	float timeScale = deltaTime;
 
     if (GameInput::IsFirstPressed(GameInput::kLThumbClick) || GameInput::IsFirstPressed(GameInput::kKey_lshift))
         m_FineMovement = !m_FineMovement;

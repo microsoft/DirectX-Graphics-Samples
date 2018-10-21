@@ -65,7 +65,7 @@ void CameraController::Update( float deltaTime )
     if (GameInput::IsFirstPressed(GameInput::kRThumbClick))
         m_FineRotation = !m_FineRotation;
 
-    float speedScale = (m_FineMovement ? 0.01f : 1.0f) * timeScale;
+    float speedScale = (m_FineMovement ? 0.1f : 1.0f) * timeScale;
     float panScale = (m_FineRotation ? 0.5f : 1.0f) * timeScale;
 
     float yaw = GameInput::GetTimeCorrectedAnalogInput( GameInput::kAnalogRightStickX ) * m_HorizontalLookSensitivity * panScale;

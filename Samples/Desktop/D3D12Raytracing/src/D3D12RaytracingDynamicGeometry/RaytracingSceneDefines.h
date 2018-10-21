@@ -57,6 +57,7 @@ namespace GlobalRootSignature {
             OutputView = 0,
 			GBufferResources,
 			GBufferResourcesIn,
+			AOResourcesOut,	// ToDo cleanup, move to local root sigs 
             AccelerationStructure,
             SceneConstant,
             AABBattributeBuffer,
@@ -99,6 +100,15 @@ namespace LocalRootSignature {
     }
 }
 
+// Todo rename
+namespace ReduceSumCalculations {
+	enum Enum {
+		CameraRayHits = 0,
+		AORayHits,
+		Count
+	};
+}
+
 namespace GeometryType {
     enum Enum {
         Plane = 0,
@@ -115,7 +125,7 @@ namespace GpuTimers {
 		Raytracing_PrimaryAndAO,
 		Raytracing_GBuffer,
 		UpdateBLAS,
-		CalculateNumCameraRayGeometryHits,
+		ReduceSum,
 		UpdateTLAS,
 		Count
 	};

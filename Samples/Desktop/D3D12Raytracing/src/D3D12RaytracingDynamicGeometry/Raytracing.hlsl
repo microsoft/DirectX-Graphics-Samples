@@ -30,12 +30,13 @@ RaytracingAccelerationStructure g_scene : register(t0, space0);
 RWTexture2D<float4> g_renderTarget : register(u0);
 
 // ToDo move this to local ray gen root sig
-RWTexture2D<uint> g_rtGBufferPositionHit : register(u5);
+RWTexture2D<uint> g_rtGBufferCameraRayHits : register(u5);
 RWTexture2D<float4> g_rtGBufferPosition : register(u6);
 RWTexture2D<float4> g_rtGBufferNormal : register(u7);
 Texture2D<uint> g_texGBufferPositionHit : register(t8);
 Texture2D<float4> g_texGBufferPositionRT : register(t9);
 Texture2D<float4> g_texGBufferNormal : register(t10);
+RWTexture2D<uint> g_rtAORayHits : register(u8);
 
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 StructuredBuffer<AlignedHemisphereSample3D> g_sampleSets : register(t4);
@@ -196,7 +197,7 @@ GBufferRayPayload TraceGBufferRay(in Ray ray)
 
 
 // ToDo comment
-float CalculateAO(in float3 hitPosition, in float3 surfaceNormal)
+float CalculateAO(in float3 hitPosition, in float3 surfaceNormal, out uint shadowRayHits)
 {
 	uint seed = DispatchRaysDimensions().x * DispatchRaysIndex().y + DispatchRaysIndex().x + g_sceneCB.seed;
 
@@ -204,7 +205,7 @@ float CalculateAO(in float3 hitPosition, in float3 surfaceNormal)
 	uint sampleSetJump = RNG::Random(RNGState, 0, g_sceneCB.numSampleSets - 1) * g_sceneCB.numSamples;
 
 	uint sampleJump = RNG::Random(RNGState, 0, g_sceneCB.numSamples - 1);
-	uint shadowRayHits = 0;
+	shadowRayHits = 0;
 	for (uint i = 0; i < g_sceneCB.numSamplesToUse; i++)
 	{
 		float3 sample = g_sampleSets[sampleSetJump + (sampleJump + i) % g_sceneCB.numSamples].value;
@@ -234,8 +235,12 @@ float CalculateAO(in float3 hitPosition, in float3 surfaceNormal)
 			shadowRayHits++;
 		}
 	}
-	float ambientCoef = 1.f -((float)shadowRayHits / g_sceneCB.numSamplesToUse);
-
+#if AO_ANY_HIT_FULL_OCCLUSION
+	float ambientCoef = shadowRayHits > 0 ? 0 : 1;
+#else
+	float ambientCoef = 1.f - ((float)shadowRayHits / g_sceneCB.numSamplesToUse);
+#endif
+	
 	return ambientCoef;
 }
 
@@ -276,7 +281,7 @@ void MyRayGenShader_GBuffer()
 
 	// Write out GBuffer information to rendertargets.
 	// ToDo Test conditional write
-	g_rtGBufferPositionHit[DispatchRaysIndex().xy] = (rayPayload.hit ? 1 : 0);
+	g_rtGBufferCameraRayHits[DispatchRaysIndex().xy] = (rayPayload.hit ? 1 : 0);
 	g_rtGBufferPosition[DispatchRaysIndex().xy] = float4(rayPayload.hitPosition, 0);
 	g_rtGBufferNormal[DispatchRaysIndex().xy] = float4(rayPayload.surfaceNormal, 0);
 }
@@ -290,13 +295,13 @@ void MyRayGenShader_AO()
 #endif
 
 	bool hit = g_texGBufferPositionHit[DispatchRaysIndex().xy].x > 0.5;
-
+	uint shadowRayHits = 0;
 	float4 color;
 	if (hit)
 	{
 		float3 hitPosition = g_texGBufferPositionRT[DispatchRaysIndex().xy].xyz;
 		float3 surfaceNormal = g_texGBufferNormal[DispatchRaysIndex().xy].xyz;
-		float ambientCoef = CalculateAO(hitPosition, surfaceNormal);
+		float ambientCoef = CalculateAO(hitPosition, surfaceNormal, shadowRayHits);
 		
 
 #if NORMAL_SHADING
@@ -317,6 +322,9 @@ void MyRayGenShader_AO()
 
 	// Write the raytraced color to the output texture.
 	g_renderTarget[DispatchRaysIndex().xy] = color;
+#if GBUFFER_AO_COUNT_AO_HITS
+	g_rtAORayHits[DispatchRaysIndex().xy] = shadowRayHits;
+#endif
 }
 
 
@@ -390,7 +398,9 @@ void MyClosestHitShader(inout RayPayload rayPayload, in BuiltInTriangleIntersect
     float4 phongColor = CalculatePhongLighting(l_materialCB.albedo, triangleNormal, shadowRayHit, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower);
     float4 color = checkers * (phongColor + reflectedColor);
 #else
-	float ambientCoef = CalculateAO(HitWorldPosition(), triangleNormal);
+
+	uint shadowRayHits;
+	float ambientCoef = CalculateAO(HitWorldPosition(), triangleNormal, shadowRayHits);
     float4 color = ambientCoef * l_materialCB.albedo;
 #endif     
 
