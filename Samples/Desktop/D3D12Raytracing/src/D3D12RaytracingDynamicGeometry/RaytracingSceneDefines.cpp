@@ -26,7 +26,11 @@ namespace Scene
 		// Camera Position
 		{
 			auto& camera = args[Scene::Type::SingleObject].camera;
-#if 1
+#if TESSELATED_GEOMETRY_BOX
+			camera.position.eye = { 0, 70, 0, 1 };
+			camera.position.at = { 0, 0, 0, 1 };
+			camera.position.up = { 0, 0, 1, 0 };
+#elif 1
 			camera.position.eye = { 0.509415329f, 2.28009248f, -4.69469929f, 1 };
 			camera.position.at = { 1.17371607f, -6.80418682f, 2.02239656f, 1 };
 			camera.position.up = { 0.109009691f, 0.596148014f, 0.795441568f, 0};
@@ -37,6 +41,7 @@ namespace Scene
 			XMVECTOR forward = XMVector4Normalize(camera.position.at - camera.position.eye);
 			camera.position.up = XMVector3Normalize(XMVector3Cross(forward, right));
 #endif
+
 			camera.boundaries.min = -XMVectorSplatInfinity();
 			camera.boundaries.max = XMVectorSplatInfinity();
 		}

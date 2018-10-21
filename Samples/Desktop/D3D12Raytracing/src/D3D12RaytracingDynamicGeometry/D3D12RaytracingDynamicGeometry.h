@@ -67,7 +67,16 @@ private:
 	ComPtr<ID3D12Resource>			m_accelerationStructureScratch;
 	UINT64 m_ASmemoryFootprint;
 	int m_numFramesSinceASBuild;
+#if TESSELATED_GEOMETRY_BOX
+#if TESSELATED_GEOMETRY_THIN_BOXES
+	const XMFLOAT3 m_boxSize = XMFLOAT3(0.01, 0.1, 0.01);
+#else
+	const XMFLOAT3 m_boxSize = XMFLOAT3(1, 1, 1);
+#endif
+	const float m_geometryRadius = 2.0f;
+#else
 	const float m_geometryRadius = 3.0f;
+#endif
 
 	std::vector<UINT> m_bottomLevelASdescritorHeapIndices;
 	std::vector<UINT> m_bottomLevelASinstanceDescsDescritorHeapIndices;
@@ -181,7 +190,8 @@ private:
 	void LoadSceneGeometry();
     void UpdateCameraMatrices();
 	void UpdateBottomLevelASTransforms();
-    void UpdateSphereGeometryTransforms();
+	void UpdateSphereGeometryTransforms();
+    void UpdateGridGeometryTransforms();
     void InitializeScene();
 	void UpdateAccelerationStructures(bool forceBuild = false);
 	void DispatchRays(ID3D12Resource* rayGenShaderTable, DX::GPUTimer* gpuTimer);

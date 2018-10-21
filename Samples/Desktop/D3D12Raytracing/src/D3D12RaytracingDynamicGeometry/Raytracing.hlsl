@@ -226,6 +226,7 @@ float CalculateAO(in float3 hitPosition, in float3 surfaceNormal)
 		float3 rayDirection = sample.x * u + sample.y * v + sample.z * w;
 
 		// ToDo hitPosition adjustment - fix crease artifacts
+		// Todo fix noise on flat surface / box
 		Ray shadowRay = { hitPosition + 0.0001f * surfaceNormal, normalize(rayDirection) };
 
 		if (TraceShadowRayAndReportIfHit(shadowRay, 0))
@@ -233,7 +234,7 @@ float CalculateAO(in float3 hitPosition, in float3 surfaceNormal)
 			shadowRayHits++;
 		}
 	}
-	float ambientCoef = 1.f - ((float)shadowRayHits / g_sceneCB.numSamplesToUse);
+	float ambientCoef = 1.f -((float)shadowRayHits / g_sceneCB.numSamplesToUse);
 
 	return ambientCoef;
 }
@@ -297,16 +298,21 @@ void MyRayGenShader_AO()
 		float3 surfaceNormal = g_texGBufferNormal[DispatchRaysIndex().xy].xyz;
 		float ambientCoef = CalculateAO(hitPosition, surfaceNormal);
 		
+
+#if NORMAL_SHADING
+		color = float4(surfaceNormal, 1);
+#else
 		// ToDo remove albedo
 		color = ambientCoef;
 #if GBUFFER_AO_USE_ALBEDO
 		float4 albedo = float4(0.75f, 0.75f, 0.75f, 1.0f);
 		color *= albedo;
 #endif
+#endif
 	}
 	else
 	{
-		color = (float4)1;
+		color = BackgroundColor;
 	}
 
 	// Write the raytraced color to the output texture.
@@ -427,8 +433,7 @@ void MyClosestHitShader_GBuffer(inout GBufferRayPayload rayPayload, in BuiltInTr
 void MyMissShader(inout RayPayload rayPayload)
 {
 	
-    float4 backgroundColor = float4(BackgroundColor);
-    rayPayload.color = backgroundColor;
+    rayPayload.color = BackgroundColor;
 }
 
 [shader("miss")]

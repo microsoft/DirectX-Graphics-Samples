@@ -87,8 +87,8 @@ namespace SceneArgs
  
     // ToDo test tessFactor 16
 	// ToDo fix alias on TessFactor 2
-    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 14, 0, 80, 1, OnGeometryChange, nullptr);
-    IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1, 1, 1000, 1, OnGeometryChange, nullptr);
+    IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 0/*14*/, 0, 80, 1, OnGeometryChange, nullptr);
+    IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 100000, 1, 1000000, 1, OnGeometryChange, nullptr);
     IntVar NumSphereBLAS(L"Geometry/# Sphere BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnASChange, nullptr);
 };
 
@@ -202,11 +202,11 @@ void D3D12RaytracingDynamicGeometry::UpdateBottomLevelASTransforms()
 
 void D3D12RaytracingDynamicGeometry::UpdateSphereGeometryTransforms()
 {
-    auto device = m_deviceResources->GetD3DDevice();
-    auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+	auto device = m_deviceResources->GetD3DDevice();
+	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-    // Generate geometry desc transforms;
-    int dim = static_cast<int>(ceil(cbrt(static_cast<double>(SceneArgs::NumGeometriesPerBLAS))));
+	// Generate geometry desc transforms;
+	int dim = static_cast<int>(ceil(cbrt(static_cast<double>(SceneArgs::NumGeometriesPerBLAS))));
     float distanceBetweenGeometry = m_geometryRadius;
     float geometryWidth = 2 * m_geometryRadius;
     float stepDistance = geometryWidth + distanceBetweenGeometry;
@@ -250,6 +250,66 @@ void D3D12RaytracingDynamicGeometry::UpdateSphereGeometryTransforms()
         			XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(m_geometryTransforms[transformIndex].transform3x4), transform);
                 }
             }
+}
+
+void D3D12RaytracingDynamicGeometry::UpdateGridGeometryTransforms()
+{
+	auto device = m_deviceResources->GetD3DDevice();
+	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+
+	// Generate geometry desc transforms;
+	int dimX = static_cast<int>(ceil(sqrt(static_cast<double>(SceneArgs::NumGeometriesPerBLAS))));
+	XMUINT3 dim(dimX, 1, CeilDivide(SceneArgs::NumGeometriesPerBLAS, dimX));
+
+
+	float spacing = 0.1f * max(m_boxSize.x, m_boxSize.z);
+	XMVECTOR stepDistance = XMLoadFloat3(&m_boxSize) + XMVectorSet(spacing, spacing, spacing, 0);
+	XMVECTOR offset = - XMLoadUInt3(&dim) / 2 * stepDistance;
+	offset = XMVectorSetY(offset, m_boxSize.y / 2);
+
+	// ToDo
+
+	uniform_real_distribution<float> elevationDistribution(-0.25*m_boxSize.y, 0.5f*m_boxSize.y);
+	uniform_real_distribution<float> jitterDistribution(-2*spacing, 2*spacing);
+
+	for (UINT iY = 0, i = 0; iY < dim.y; iY++)
+		for (UINT iX = 0; iX < dim.x; iX++)
+			for (UINT iZ = 0; iZ < dim.z; iZ++, i++)
+			{
+				if (static_cast<int>(i) >= SceneArgs::NumGeometriesPerBLAS )
+				{
+					break;
+				}
+				const UINT Z_TILE_WIDTH = 5;
+				const UINT Z_TILE_SPACING = Z_TILE_WIDTH * 10;
+
+				XMVECTOR translationVector = offset + stepDistance * 
+					XMVectorSet(
+						iX, 
+						iY,
+#if TESSELATED_GEOMETRY_TILES
+						(iZ/ Z_TILE_WIDTH) * Z_TILE_SPACING + iZ % Z_TILE_WIDTH,
+#else
+						iZ,
+#endif
+						0);
+				// Break up Moire patterns by jittering the position.
+				translationVector += XMVectorSet(
+					jitterDistribution(m_generatorURNG),
+					elevationDistribution(m_generatorURNG), 
+					jitterDistribution(m_generatorURNG),
+					0);
+				XMMATRIX transform = XMMatrixTranslationFromVector(translationVector);
+				
+				XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(m_geometryTransforms[i].transform3x4), transform);
+			}
+
+	// Update the plane transform.
+	XMVECTOR size = XMVectorSetY(2*XMLoadUInt3(&dim) * stepDistance, 1);
+	XMMATRIX scale = XMMatrixScalingFromVector(size);
+	XMMATRIX translation = XMMatrixTranslationFromVector(XMVectorSetY (- size / 2, 0));
+	XMMATRIX transform = scale * translation;
+	XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(m_geometryTransforms[SceneArgs::NumGeometriesPerBLAS].transform3x4), transform);
 }
 
 // Initialize scene rendering parameters.
@@ -809,7 +869,6 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
     vector<GeometricPrimitive::VertexType> vertices;
     vector<Index> indices;
 
-    const float GeometryRange = 10.f;
     const bool RhCoords = false;
 
     // ToDo option to reuse multiple geometries
@@ -818,8 +877,12 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
     {
     case 0:
         // 24 indices
-        GeometricPrimitive::CreateOctahedron(vertices, indices, m_geometryRadius, RhCoords);
-        break;
+#if TESSELATED_GEOMETRY_BOX
+		GeometricPrimitive::CreateBox(vertices, indices, m_boxSize, RhCoords);
+#else
+		GeometricPrimitive::CreateOctahedron(vertices, indices, m_geometryRadius, RhCoords);
+#endif
+		break;
     case 1:
         // 36 indices
         GeometricPrimitive::CreateDodecahedron(vertices, indices, m_geometryRadius, RhCoords);
@@ -839,6 +902,17 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
         const float Diameter = 2 * m_geometryRadius;
         GeometricPrimitive::CreateSphere(vertices, indices, Diameter, SceneArgs::GeometryTesselationFactor, RhCoords);
     }
+#if TESSELATED_GEOMETRY_THIN_BOXES
+	for (auto& vertex : vertices)
+	{
+		if (vertex.position.y > 0)
+		{
+			vertex.position.x *= 0;
+			vertex.position.z *= 0;
+		}
+	}
+#endif
+
     AllocateUploadBuffer(device, indices.data(), indices.size() * sizeof(indices[0]), &geometry.ib.resource);
     AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
 
@@ -855,9 +929,18 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 
 	m_geometryInstances[GeometryType::Sphere].ib.gpuDescriptorHandle = geometry.ib.gpuDescriptorHandle;
 	m_geometryInstances[GeometryType::Sphere].vb.gpuDescriptorHandle = geometry.vb.gpuDescriptorHandle;
-
+	
     // ToDo
     m_numTriangles = static_cast<UINT>(indices.size()) / 3;
+
+
+#if TESSELATED_GEOMETRY_BOX
+	GeometryInstance plane = m_geometryInstances[GeometryType::Plane];
+	GeometryInstance box = m_geometryInstances[GeometryType::Sphere];
+	m_geometryInstances.resize(SceneArgs::NumGeometriesPerBLAS + 1, box);
+	m_geometryInstances.back() = plane;
+
+#endif
 }
 
 // ToDo move this out as a helper
@@ -904,7 +987,11 @@ void D3D12RaytracingDynamicGeometry::InitializeGeometry()
 #if !RUNTIME_AS_UPDATES
 	InitializeAccelerationStructures();
 
+#if TESSELATED_GEOMETRY_BOX
+	UpdateGridGeometryTransforms();
+#else 
 	UpdateSphereGeometryTransforms();
+#endif
 	UpdateBottomLevelASTransforms();
 
 	UpdateAccelerationStructures(m_isASrebuildRequested);
@@ -925,12 +1012,14 @@ void D3D12RaytracingDynamicGeometry::GenerateBottomLevelASInstanceTransforms()
     int BLASindex = 0;
     {
         // Scale in XZ dimensions.
-        float width = 36.0f;
+#if 0
+        float width = 50.0f;
         XMMATRIX mScale = XMMatrixScaling(width, 1.0f, width);
         XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(-width/2.0f, 0.0f, -width/2.0f)));
         XMMATRIX mTransform = mScale * mTranslation;
         m_vBottomLevelAS[BLASindex].SetTransform(mTransform);
-        BLASindex += 1;
+#endif
+		BLASindex += 1;
     }
 
 
@@ -985,27 +1074,39 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 		m_vBottomLevelAS[0].SetInstanceContributionToHitGroupIndex(0);
 		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
 		m_ASmemoryFootprint += m_vBottomLevelAS[0].RequiredResultDataSizeInBytes();
-		UINT numGeometryTransforms = 1;
+		UINT numGeometryTransforms = SceneArgs::NumGeometriesPerBLAS;
 #else
         m_vBottomLevelAS.resize(SceneArgs::NumSphereBLAS + 1);
 	
         for (UINT i = 0; i < m_vBottomLevelAS.size(); i++)
         {
             UINT numInstances = 0;
+			UINT instanceContributionHitGroupIndex;
             switch (i) 
             {
-            case GeometryType::Plane: numInstances = 1; break;
-            case GeometryType::Sphere: numInstances = SceneArgs::NumGeometriesPerBLAS;
+            case GeometryType::Plane: 
+				numInstances = 1; 
+				instanceContributionHitGroupIndex = SceneArgs::NumGeometriesPerBLAS * RayType::Count;
+				break;
+            case GeometryType::Sphere: 
+				numInstances = SceneArgs::NumGeometriesPerBLAS;
+				instanceContributionHitGroupIndex = 0;
+				break;
             };
 
 			std::vector<GeometryInstance> geometryInstances;
 			geometryInstances.resize(1, m_geometryInstances[GeometryType::Plane]);
 			m_vBottomLevelAS[i].Initialize(device, m_geometries[i], numInstances, buildFlags, DXGI_FORMAT_R16_UINT, sizeof(Index), sizeof(DirectX::GeometricPrimitive::VertexType), geometryInstances);
-			m_vBottomLevelAS[i].SetInstanceContributionToHitGroupIndex(i * RayType::Count);
+			
+			
+			m_vBottomLevelAS[i].SetInstanceContributionToHitGroupIndex(instanceContributionHitGroupIndex);
             maxScratchResourceSize = max(m_vBottomLevelAS[i].RequiredScratchSize(), maxScratchResourceSize);
             m_ASmemoryFootprint += m_vBottomLevelAS[i].RequiredResultDataSizeInBytes();
         }
 		UINT numGeometryTransforms = SceneArgs::NumSphereBLAS * SceneArgs::NumGeometriesPerBLAS;
+#if TESSELATED_GEOMETRY_BOX
+		numGeometryTransforms += 1; // plane
+#endif
 #endif
         
         if (m_geometryTransforms.Size() != numGeometryTransforms)
@@ -1144,13 +1245,24 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
 		}
 #else
         // Triangle geometry hit groups.
-        for (UINT i = 0; i < GeometryType::Count; i++)
+        for (UINT i = 0; i < m_geometryInstances.size(); i++)
         {
             LocalRootSignature::Triangle::RootArguments rootArgs;
             rootArgs.materialCb = m_planeMaterialCB;
-            if (i == GeometryType::Sphere)
+           // if (i == GeometryType::Sphere)
                 rootArgs.materialCb.albedo = XMFLOAT4(1, 0, 0, 0);
-            memcpy(&rootArgs.vertexBufferGPUHandle, &m_geometries[i].ib.gpuDescriptorHandle, sizeof(m_geometries[i].ib.gpuDescriptorHandle));
+			UINT geometryIndex;
+			if (i < m_geometryInstances.size() - 1) 
+			{
+				geometryIndex = GeometryType::Sphere;
+			}
+			else // plane
+			{
+				geometryIndex = GeometryType::Plane;
+			}
+			auto& geometry = m_geometries[geometryIndex];
+			memcpy(&rootArgs.vertexBufferGPUHandle, &geometry.ib.gpuDescriptorHandle, sizeof(geometry.ib.gpuDescriptorHandle));
+
             for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
             {
                 hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
@@ -1270,8 +1382,12 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
     }
     if (m_animateScene)
     {
+#if TESSELATED_GEOMETRY_BOX
+		UpdateGridGeometryTransforms();
+#else
         UpdateSphereGeometryTransforms();
-        UpdateBottomLevelASTransforms();
+#endif
+		UpdateBottomLevelASTransforms();
     }
 #endif
 #endif
@@ -1329,6 +1445,9 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
 		// Plane
 		{
 			D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;
+#if USE_GPU_TRANSFORM // ToDo either place in same blas or move transform to blas?
+			baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex) + SceneArgs::NumGeometriesPerBLAS * m_geometryTransforms.ElementSize();
+#endif
 			m_vBottomLevelAS[BottomLevelASType::Plane].Build(commandList, m_accelerationStructureScratch.Get(), m_cbvSrvUavHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
 		}
 		// Sphere
