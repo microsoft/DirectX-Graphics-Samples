@@ -66,7 +66,7 @@ void AssimpModel::OptimizeRemoveDuplicateVertices(bool depth)
         uint16_t *indexArray = (uint16_t*)((depth ? m_pIndexDataDepth : m_pIndexData) + mesh->indexDataByteOffset);
         for (unsigned int n = 0; n < indexCount; n++)
         {
-            indexArray[n] = vertexRemap[indexArray[n]];
+            indexArray[n] = static_cast<uint16_t>(vertexRemap[indexArray[n]]);
         }
 
         delete [] vertexRemap;
@@ -149,7 +149,7 @@ void AssimpModel::OptimizePreTransform(bool depth)
                 vertexRemap[index] = reorderedCount;
                 reorderedCount++;
             }
-            indexArray[n] = vertexRemap[index];
+            indexArray[n] = static_cast<uint16_t>(vertexRemap[index]);
         }
 
         delete [] vertexRemap;

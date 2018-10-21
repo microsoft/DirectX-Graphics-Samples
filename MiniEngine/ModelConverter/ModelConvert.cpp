@@ -105,7 +105,7 @@ void PrintModelStats(const Model *model)
     {
         const Model::Material *material = model->m_pMaterial + materialIndex;
 
-        printf("material %u\n", materialIndex);
+        printf("material %u: %s\n", materialIndex, material->name);
     }
     printf("\n");
 }

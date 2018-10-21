@@ -252,7 +252,7 @@ void OptimizeFaces(const IndexType* indexList, uint32_t indexCount, IndexType* n
                 || sortFunc(indexSorted[i - 1], indexSorted[i]))
             {
                 // it's not a duplicate
-                vertexRemap[indexSorted[i]] = uniqueVertexCount;
+                vertexRemap[indexSorted[i]] = static_cast<IndexType>(uniqueVertexCount);
                 uniqueVertexCount++;
             }
             else
