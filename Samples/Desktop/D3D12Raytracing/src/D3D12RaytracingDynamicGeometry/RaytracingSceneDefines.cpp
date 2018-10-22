@@ -28,11 +28,11 @@ namespace Scene
 			auto& camera = args[Scene::Type::SingleObject].camera;
 #if TESSELATED_GEOMETRY_BOX
 #if NUM_GEOMETRIES_1000
-			camera.position.eye = { 0, 0.43, 0, 1 };
+			camera.position.eye = { 0, (TESSELATED_GEOMETRY_TILES*TESSELATED_GEOMETRY_TILES_WIDTH + CAMERA_Y_SCALE) * 0.43, 0, 1 };
 #elif NUM_GEOMETRIES_100000
-			camera.position.eye = { 0, 3.65, 0, 1 };
+			camera.position.eye = { 0,  (TESSELATED_GEOMETRY_TILES*TESSELATED_GEOMETRY_TILES_WIDTH + CAMERA_Y_SCALE)*3.65, 0, 1 };
 #else
-			camera.position.eye = { 0, 11.3, 0, 1 };
+			camera.position.eye = { 0,  (TESSELATED_GEOMETRY_TILES*TESSELATED_GEOMETRY_TILES_WIDTH + CAMERA_Y_SCALE)*11.3, 0, 1 };
 #endif
 			camera.position.at = { 0, 0, 0, 1 };
 			camera.position.up = { 0, 0, 1, 0 };
@@ -41,7 +41,7 @@ namespace Scene
 			camera.position.at = { 1.17371607f, -6.80418682f, 2.02239656f, 1 };
 			camera.position.up = { 0.109009691f, 0.596148014f, 0.795441568f, 0};
 #else
-			camera.position.eye = { 0, 6.3f, -10.0f, 1 };
+			camera.position.eye = { 0, 6.3f * CAMERA_Y_SCALE , -10.0f, 1 };
 			camera.position.at = { 0, 1, 0, 1 };
 			XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 			XMVECTOR forward = XMVector4Normalize(camera.position.at - camera.position.eye);

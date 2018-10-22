@@ -175,6 +175,7 @@ private:
 	std::unique_ptr<GameCore::CameraController> m_cameraController;
 	
 	// AO
+	// ToDo fix artifacts at 4. Looks like selfshadowing on some AOrays in SquidScene
 	const UINT c_sppAO = 16;	// Samples per pixel for Ambient Occlusion.
 
 	// UI

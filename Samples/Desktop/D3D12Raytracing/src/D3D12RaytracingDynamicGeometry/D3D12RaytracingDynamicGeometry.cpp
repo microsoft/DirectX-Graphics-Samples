@@ -278,15 +278,15 @@ void D3D12RaytracingDynamicGeometry::UpdateGridGeometryTransforms()
 #endif
 	XMUINT3 dim(dimX, 1, CeilDivide(SceneArgs::NumGeometriesPerBLAS, dimX));
 
-	float spacing = 0.1f * max(m_boxSize.x, m_boxSize.z);
+	float spacing = 0.4f * max(m_boxSize.x, m_boxSize.z);
 	XMVECTOR stepDistance = XMLoadFloat3(&m_boxSize) + XMVectorSet(spacing, spacing, spacing, 0);
 	XMVECTOR offset = - XMLoadUInt3(&dim) / 2 * stepDistance;
 	offset = XMVectorSetY(offset, m_boxSize.y / 2);
 
 	// ToDo
 
-	uniform_real_distribution<float> elevationDistribution(-0.25f*m_boxSize.y, 0.5f*m_boxSize.y);
-	uniform_real_distribution<float> jitterDistribution(-2*spacing, 2*spacing);
+	uniform_real_distribution<float> elevationDistribution(-0.25f*m_boxSize.y, 0.2f*m_boxSize.y);
+	uniform_real_distribution<float> jitterDistribution(-4*spacing, 4*spacing);
 
 	for (UINT iY = 0, i = 0; iY < dim.y; iY++)
 		for (UINT iX = 0; iX < dim.x; iX++)
@@ -296,16 +296,18 @@ void D3D12RaytracingDynamicGeometry::UpdateGridGeometryTransforms()
 				{
 					break;
 				}
-				const UINT Z_TILE_WIDTH = 5;
-				const UINT Z_TILE_SPACING = Z_TILE_WIDTH * 10;
+				const UINT Z_TILE_WIDTH = 10;
+				const UINT Z_TILE_SPACING = Z_TILE_WIDTH * 2;
 
 				XMVECTOR translationVector = offset + stepDistance * 
 					XMVectorSet(
-						static_cast<float>(iX), 
-						static_cast<float>(iY),
 #if TESSELATED_GEOMETRY_TILES
+						static_cast<float>((iX / Z_TILE_WIDTH) * Z_TILE_SPACING + iX % Z_TILE_WIDTH),
+						static_cast<float>(iY),
 						static_cast<float>((iZ/ Z_TILE_WIDTH) * Z_TILE_SPACING + iZ % Z_TILE_WIDTH),
 #else
+						static_cast<float>(iX),
+						static_cast<float>(iY),
 						static_cast<float>(iZ),
 #endif
 						0);
@@ -1737,7 +1739,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         wstringstream wLabel;
         wLabel << L"Scene:" << L"\n";
         wLabel << L" " << L"AS update mode: " << SceneArgs::ASUpdateMode << L"\n";
-        wLabel.precision(2);
+        wLabel.precision(3);
         wLabel << L" " << L"AS memory footprint: " << static_cast<double>(m_ASmemoryFootprint)/(1024*1024) << L"MB\n";
         wLabel << L" " << L" # triangles per geometry: " << m_numTriangles << L"\n";
         wLabel << L" " << L" # geometries per BLAS: " << SceneArgs::NumGeometriesPerBLAS << L"\n";
@@ -2046,8 +2048,9 @@ void D3D12RaytracingDynamicGeometry::OnRender()
     // Render.
 #if GBUFFER_AO_SEPRATE_PATHS
 	DoRaytracingGBufferAndAOPasses();
-#endif
+#else
 	DoRaytracing();
+#endif
 #endif
 
 #if SAMPLES_CS_VISUALIZATION 
