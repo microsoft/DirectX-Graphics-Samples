@@ -295,7 +295,7 @@ void D3D12RaytracingAmbientOcclusion::UpdateGridGeometryTransforms()
 				}
 				const UINT X_TILE_WIDTH = 20;
 				const UINT X_TILE_SPACING = X_TILE_WIDTH * 2;
-				const UINT Z_TILE_WIDTH = 4;
+				const UINT Z_TILE_WIDTH = 6;
 				const UINT Z_TILE_SPACING = Z_TILE_WIDTH * 2;
 
 				XMVECTOR translationVector = offset + stepDistance * 
@@ -882,11 +882,16 @@ void D3D12RaytracingAmbientOcclusion::BuildTesselatedGeometry()
 		XMVector3Cross(Edge(0, 1), Edge(0, 2))
 	};
 
+	
 #if 1 // ToDo
 	XMStoreFloat3(&vertices[0].normal, (faceNormals[0] + faceNormals[2] + faceNormals[3]));
 	XMStoreFloat3(&vertices[1].normal, (faceNormals[0] + faceNormals[1] + faceNormals[3]));
 	XMStoreFloat3(&vertices[2].normal, (faceNormals[1] + faceNormals[2] + faceNormals[3]));
-	XMStoreFloat3(&vertices[3].normal, (faceNormals[0] + faceNormals[1] + faceNormals[2]));
+#if AO_OVERDOSE_BEND_NORMALS_DOWN
+	XMStoreFloat3(&vertices[3].normal, (faceNormals[0] + faceNormals[1] + faceNormals[2]) * XMVectorSet(1, 0.01f, 1, 0));
+#else
+	XMStoreFloat3(&vertices[3].normal, (faceNormals[0] + faceNormals[1] + faceNormals[2]) * XMVectorSet(1, 0.01f, 1, 0));
+#endif
 	float a = 2;
 #endif
 #else
@@ -962,7 +967,9 @@ void D3D12RaytracingAmbientOcclusion::BuildTesselatedGeometry()
 	GeometryInstance geometryInstance = {};
 	geometryInstance.ib.startIndex = 0;
 	geometryInstance.ib.count = static_cast<UINT>(indices.size());
-
+#if TESSELATED_GEOMETRY_BOX_TETRAHEDRON_REMOVE_BOTTOM_TRIANGLE
+	geometryInstance.ib.count -= 3;
+#endif
 	geometryInstance.vb.startIndex = 0;
 	geometryInstance.vb.count = static_cast<UINT>(vertices.size());
 
