@@ -111,6 +111,7 @@ namespace GpuKernels
 	{
 		using namespace RootSignature::ReduceSum;
 		
+		// ToDo move out or rename
 		PIXBeginEvent(commandList, 0, L"CalculateNumCameraRayHits");
 
 		// Set pipeline state.
