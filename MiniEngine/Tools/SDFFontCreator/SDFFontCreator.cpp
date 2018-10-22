@@ -22,23 +22,23 @@ template <typename T> inline T align16( T val ) { return (val + 15) & ~15; }
 // All measurements are in 12.4 fixed point
 struct GlyphInfo
 {
-    wchar_t c;            // The unicode (UCS2) character code corresponding to the glyph
-    uint16_t u, v;        // The upper left texture coordinate of the glyph, not counting border space
-    uint16_t width;        // The width of the glyph (not counting horizontal spacing) 
+    wchar_t c;          // The unicode (UCS2) character code corresponding to the glyph
+    uint16_t u, v;      // The upper left texture coordinate of the glyph, not counting border space
+    uint16_t width;     // The width of the glyph (not counting horizontal spacing) 
     int16_t bearing;    // The leading space before the glyph (sometimes negative)
-    uint16_t advance;    // The total distance to advance the pen after printing
+    uint16_t advance;   // The total distance to advance the pen after printing
 };
 
 __declspec(thread) FT_Library g_FreeTypeLib = 0;    // FreeType2 library wrapper
-__declspec(thread) FT_Face g_FreeTypeFace = 0;        // FreeType2 typeface
-uint16_t g_numGlyphs = 0;            // Number of glyphs to process
-GlyphInfo g_glyphs[0xFFFF];            // An array of glyph information
-uint16_t g_borderSize = 0;            // Extra space around each glyph used for effects like glow and drop shadow
-uint16_t g_maxDistance = 0;            // Range of search space which controls the "steepness" of the contour map
-bool g_fixNumberWidths = false;        // Prints all numbers with fixed spacing
-uint16_t g_maxGlyphHeight = 0;        // Max height of glyph = ascender - descender
-int16_t g_fontOffset = 0;            // Baseline offset to center the text vertically
-uint16_t g_fontAdvanceY = 0;        // Distance from baseline to baseline (line height)
+__declspec(thread) FT_Face g_FreeTypeFace = 0;      // FreeType2 typeface
+uint16_t g_numGlyphs = 0;       // Number of glyphs to process
+GlyphInfo g_glyphs[0xFFFF];     // An array of glyph information
+uint16_t g_borderSize = 0;      // Extra space around each glyph used for effects like glow and drop shadow
+uint16_t g_maxDistance = 0;     // Range of search space which controls the "steepness" of the contour map
+bool g_fixNumberWidths = false; // Prints all numbers with fixed spacing
+uint16_t g_maxGlyphHeight = 0;  // Max height of glyph = ascender - descender
+int16_t g_fontOffset = 0;       // Baseline offset to center the text vertically
+uint16_t g_fontAdvanceY = 0;    // Distance from baseline to baseline (line height)
 
 float* g_DistanceMap = 0;
 uint32_t g_MapWidth = 0;
@@ -242,9 +242,9 @@ inline uint16_t GetGlyphMetrics( wchar_t c, GlyphInfo& info )
         throw exception("Unable to access glyph data");
 
     FT_Glyph_Metrics& metrics = g_FreeTypeFace->glyph->metrics;
-    info.bearing =    (int16_t)(metrics.horiBearingX >> 6);
-    info.width =    (uint16_t)(metrics.width >> 6);
-    info.advance =    (uint16_t)(metrics.horiAdvance >> 6);
+    info.bearing = (int16_t)(metrics.horiBearingX >> 6);
+    info.width = (uint16_t)(metrics.width >> 6);
+    info.advance =  (uint16_t)(metrics.horiAdvance >> 6);
 
     return (uint16_t)info.width;
 }
@@ -274,8 +274,8 @@ uint32_t UnwrapUVs(uint32_t textureWidth)
         }
 
         // The actual character UVs don't include the border pixels
-        g_glyphs[i].u = x;
-        g_glyphs[i].v = y;
+        g_glyphs[i].u = (uint16_t)x;
+        g_glyphs[i].v = (uint16_t)y;
 
         x += deltaX + glyphBorder;
     }
@@ -283,7 +283,7 @@ uint32_t UnwrapUVs(uint32_t textureWidth)
     return (y + rowSize + glyphBorder) / 16;
 }
 
-void PaintCharacters( float* distanceMap, uint32_t width, uint32_t height )
+void PaintCharacters( float* distanceMap, uint32_t width, uint32_t /*height*/ )
 {
     int32_t i = -1;
     while ((i = _InterlockedExchangeAdd((volatile long*)&g_nextGlyphIdx, 1)) < g_numGlyphs)
@@ -397,7 +397,7 @@ void WritePreviewBMP(const string& fileName, const uint8_t* heightMap, uint32_t 
     file.close();
 }
 
-void CompileFont(const string& inputFile, uint32_t size, const string& outputName)
+void CompileFont(const string& outputName)
 {
     // Figure out how many threads to create, and then spawn them.  Leave their parameters blank.  We'll fill them in
     // before they're read.
@@ -430,12 +430,12 @@ void CompileFont(const string& inputFile, uint32_t size, const string& outputNam
     if (g_fixNumberWidths)
     {
         // Compute maximum numeric advance
-        uint32_t numberWidth = 0;
+        uint16_t numberWidth = 0;
         for (uint16_t i = 0; i < g_numGlyphs; ++i) 
         {
             wchar_t wc = g_glyphs[i].c;
             if (wc >= L'0' && wc <= L'9')
-                numberWidth = max(numberWidth, (uint32_t)g_glyphs[i].advance);    
+                numberWidth = max(numberWidth, g_glyphs[i].advance);    
         }
 
         // Adjust each numeral to advance the same amount and to center the digit by adjusting the bearing
@@ -444,8 +444,7 @@ void CompileFont(const string& inputFile, uint32_t size, const string& outputNam
             wchar_t wc = g_glyphs[i].c;
             if (wc >= L'0' && wc <= L'9')
             {
-                int extraSpace = numberWidth - g_glyphs[i].width;
-                g_glyphs[i].bearing = extraSpace / 2;
+                g_glyphs[i].bearing = (numberWidth - g_glyphs[i].width) / 2;
                 g_glyphs[i].advance = numberWidth;
             }
         }
@@ -552,7 +551,6 @@ void main( int argc, const char** argv )
     string characterSet = "ASCII";
     uint32_t size = 32;
     bool extendedASCII = false;
-    bool verbose = true;
     
     try
     {
@@ -574,9 +572,9 @@ void main( int argc, const char** argv )
             else if (strcmp("-character_set", argv[arg]) == 0)
                 characterSet = argv[++arg];
             else if (strcmp("-border", argv[arg]) == 0)
-                g_borderSize = atoi(argv[++arg]);
+                g_borderSize = (uint16_t)atoi(argv[++arg]);
             else if (strcmp("-radius", argv[arg]) == 0)
-                g_maxDistance = atoi(argv[++arg]);
+                g_maxDistance = (uint16_t)atoi(argv[++arg]);
             else
                 throw exception("Invalid option");
         }
@@ -682,7 +680,7 @@ void main( int argc, const char** argv )
                 g_glyphs[g_numGlyphs++].c = *it;
         }
 
-        CompileFont(inputFile, size, outputName);
+        CompileFont(outputName);
 
         printf("\nComplete!\n");
         //printf("Elapsed Time: %g sec\n", t.getElapsed());
