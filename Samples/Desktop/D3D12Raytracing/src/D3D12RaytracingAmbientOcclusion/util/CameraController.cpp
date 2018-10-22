@@ -19,8 +19,8 @@ CameraController::CameraController(Camera& camera) : m_camera(camera)
 {
     m_HorizontalLookSensitivity = 2.0f;
     m_VerticalLookSensitivity = 2.0f;
-	m_MoveSpeed = 5000.0f;
-	m_StrafeSpeed = 5000.0f;
+	m_MoveSpeed = 5.0f;
+	m_StrafeSpeed = 5.0f;
 #if ONLY_SQUID_SCENE_BLAS
 	m_MoveSpeed *= 10;
 	m_StrafeSpeed *= 10;
@@ -50,8 +50,6 @@ void CameraController::SetBoundaries(const XMVECTOR& _min, XMVECTOR& _max)
 
 void CameraController::Update(float deltaTime)
 {
-    (deltaTime);
-
 	float timeScale = deltaTime;
 
     if (GameInput::IsFirstPressed(GameInput::kLThumbClick) || GameInput::IsFirstPressed(GameInput::kKey_lshift))
@@ -67,19 +65,19 @@ void CameraController::Update(float deltaTime)
     float pitch = GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogRightStickY) * m_VerticalLookSensitivity * panScale;
     float forward = m_MoveSpeed * speedScale * (
         GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogLeftStickY) +
-        (GameInput::IsPressed(GameInput::kKey_w) ? deltaTime : 0.0f) +
-        (GameInput::IsPressed(GameInput::kKey_s) ? -deltaTime : 0.0f)
+        (GameInput::IsPressed(GameInput::kKey_w) ? 1.f : 0.0f) +
+        (GameInput::IsPressed(GameInput::kKey_s) ? -1.f: 0.0f)
       );
     float strafe = m_StrafeSpeed * speedScale * (
         GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogLeftStickX) +
-        (GameInput::IsPressed(GameInput::kKey_d) ? deltaTime : 0.0f) +
-        (GameInput::IsPressed(GameInput::kKey_a) ? -deltaTime : 0.0f)
+        (GameInput::IsPressed(GameInput::kKey_d) ? 1.f: 0.0f) +
+        (GameInput::IsPressed(GameInput::kKey_a) ? -1.f: 0.0f)
       );
     float ascent = m_StrafeSpeed * speedScale * (
         GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogRightTrigger) -
         GameInput::GetTimeCorrectedAnalogInput(GameInput::kAnalogLeftTrigger) +
-        (GameInput::IsPressed(GameInput::kKey_e) ? deltaTime : 0.0f) +
-        (GameInput::IsPressed(GameInput::kKey_q) ? -deltaTime : 0.0f)
+        (GameInput::IsPressed(GameInput::kKey_e) ? 1.f: 0.0f) +
+        (GameInput::IsPressed(GameInput::kKey_q) ? -1.f: 0.0f)
       );
 
     if (m_Momentum)

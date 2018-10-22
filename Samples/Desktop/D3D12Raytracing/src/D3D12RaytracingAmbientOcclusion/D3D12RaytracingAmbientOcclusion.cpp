@@ -89,7 +89,7 @@ namespace SceneArgs
 #if NUM_GEOMETRIES_1000
 		1000, 
 #elif NUM_GEOMETRIES_100000
-		100000,
+		1,//100000,
 #elif NUM_GEOMETRIES_1000000
 		1000000,
 #endif
@@ -251,10 +251,10 @@ void D3D12RaytracingAmbientOcclusion::UpdateSphereGeometryTransforms()
                     0.0f);
                 XMMATRIX transformWithinBLAS= XMMatrixTranslationFromVector(stepDistance * XMLoadFloat4(&translationVector));
                 XMMATRIX transform = localTransform * transformWithinBLAS;
-                assert(BottomLevelASType::Sphere == 1);
+
                 for (UINT j = BottomLevelASType::Sphere; j < m_vBottomLevelAS.size(); j++)
                 {
-                    UINT transformIndex = (j- BottomLevelASType::Sphere) * SceneArgs::NumGeometriesPerBLAS + i;
+                    UINT transformIndex = j + 1;	// + plane which is first. ToDo break geometries apart.
         			XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(m_geometryTransforms[transformIndex].transform3x4), transform);
                 }
             }
@@ -281,7 +281,7 @@ void D3D12RaytracingAmbientOcclusion::UpdateGridGeometryTransforms()
 
 	// ToDo
 
-	uniform_real_distribution<float> elevationDistribution(-0.4*m_boxSize.y, 0);
+	uniform_real_distribution<float> elevationDistribution(-0.4f*m_boxSize.y, 0);
 	uniform_real_distribution<float> jitterDistribution(-spacing, spacing);
 	uniform_real_distribution<float> rotationDistribution(-XM_PI, 180);
 
@@ -294,7 +294,7 @@ void D3D12RaytracingAmbientOcclusion::UpdateGridGeometryTransforms()
 					break;
 				}
 				const UINT X_TILE_WIDTH = 20;
-				const UINT X_TILE_SPACING = X_TILE_WIDTH * 1.2f;
+				const UINT X_TILE_SPACING = X_TILE_WIDTH * 2;
 				const UINT Z_TILE_WIDTH = 4;
 				const UINT Z_TILE_SPACING = Z_TILE_WIDTH * 2;
 
@@ -310,17 +310,18 @@ void D3D12RaytracingAmbientOcclusion::UpdateGridGeometryTransforms()
 						static_cast<float>(iZ),
 #endif
 						0);
-				// Break up Moire patterns by jittering the position.
+				// Break up Moire alias patterns by jittering the position.
 				translationVector += XMVectorSet(
 					jitterDistribution(m_generatorURNG),
 					elevationDistribution(m_generatorURNG), 
 					jitterDistribution(m_generatorURNG),
 					0);
 				XMMATRIX translation = XMMatrixTranslationFromVector(translationVector);
-				XMMATRIX rotation = XMMatrixRotationY(rotationDistribution(m_generatorURNG));
+				XMMATRIX rotation = XMMatrixIdentity();// ToDo - need to rotate normals too XMMatrixRotationY(rotationDistribution(m_generatorURNG));
 				XMMATRIX transform = rotation * translation;
 				
-				XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(m_geometryTransforms[i].transform3x4), transform);
+				// ToDO remove - skip past plane transform
+				XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(m_geometryTransforms[i + 1].transform3x4), transform);
 			}
 
 	// Update the plane transform.
@@ -328,7 +329,7 @@ void D3D12RaytracingAmbientOcclusion::UpdateGridGeometryTransforms()
 	XMMATRIX scale = XMMatrixScalingFromVector(size);
 	XMMATRIX translation = XMMatrixTranslationFromVector(XMVectorSetY (- size / 2, 0));
 	XMMATRIX transform = scale * translation;
-	XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(m_geometryTransforms[SceneArgs::NumGeometriesPerBLAS].transform3x4), transform);
+	XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(m_geometryTransforms[0].transform3x4), transform);
 }
 
 // Initialize scene rendering parameters.
@@ -778,7 +779,7 @@ void D3D12RaytracingAmbientOcclusion::BuildPlaneGeometry()
     Index indices[] =
     {
         3, 1, 0,
-      //  2, 1, 3
+        2, 1, 3
 
     };
 
@@ -805,15 +806,17 @@ void D3D12RaytracingAmbientOcclusion::BuildPlaneGeometry()
     CreateBufferSRV(&m_geometries[GeometryType::Plane].vb, device, ARRAYSIZE(vertices), sizeof(vertices[0]), m_cbvSrvUavHeap.get(), &m_geometryVBHeapIndices[GeometryType::Plane]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Plane] == m_geometryIBHeapIndices[GeometryType::Plane] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
+	GeometryInstance geometry = {};
+	geometry.ib.startIndex = 0;
+	geometry.ib.count = ARRAYSIZE(indices);
 
-	m_geometryInstances[GeometryType::Plane].ib.startIndex = 0;
-	m_geometryInstances[GeometryType::Plane].ib.count = ARRAYSIZE(indices);
+	geometry.vb.startIndex = 0;
+	geometry.vb.count = ARRAYSIZE(vertices);
 
-	m_geometryInstances[GeometryType::Plane].vb.startIndex = 0;
-	m_geometryInstances[GeometryType::Plane].vb.count = ARRAYSIZE(vertices);
+	geometry.ib.gpuDescriptorHandle = m_geometries[GeometryType::Plane].ib.gpuDescriptorHandle;
+	geometry.vb.gpuDescriptorHandle = m_geometries[GeometryType::Plane].vb.gpuDescriptorHandle;
 
-	m_geometryInstances[GeometryType::Plane].ib.gpuDescriptorHandle = m_geometries[GeometryType::Plane].ib.gpuDescriptorHandle;
-	m_geometryInstances[GeometryType::Plane].vb.gpuDescriptorHandle = m_geometries[GeometryType::Plane].vb.gpuDescriptorHandle;
+	m_geometryInstances[GeometryType::Plane].push_back(geometry);
 }
 
 void D3D12RaytracingAmbientOcclusion::BuildTesselatedGeometry()
@@ -879,7 +882,7 @@ void D3D12RaytracingAmbientOcclusion::BuildTesselatedGeometry()
 		XMVector3Cross(Edge(0, 1), Edge(0, 2))
 	};
 
-#if 1
+#if 1 // ToDo
 	XMStoreFloat3(&vertices[0].normal, (faceNormals[0] + faceNormals[2] + faceNormals[3]));
 	XMStoreFloat3(&vertices[1].normal, (faceNormals[0] + faceNormals[1] + faceNormals[3]));
 	XMStoreFloat3(&vertices[2].normal, (faceNormals[1] + faceNormals[2] + faceNormals[3]));
@@ -944,7 +947,7 @@ void D3D12RaytracingAmbientOcclusion::BuildTesselatedGeometry()
 
 	// Index buffer is created with a ByteAddressBuffer SRV. 
 	// ByteAddressBuffer SRV is created with an ElementSize = 0 and NumElements = number of 32 - bit words.
-	UINT indexBufferSize = CeilDivide(indices.size(), sizeof(UINT)) * sizeof(UINT);	// Pad the buffer to fit NumElements of 32bit words.
+	UINT indexBufferSize = CeilDivide(static_cast<UINT>(indices.size() * sizeof(indices[0])), sizeof(UINT)) * sizeof(UINT);	// Pad the buffer to fit NumElements of 32bit words.
 	UINT numIndexBufferElements = indexBufferSize / sizeof(UINT);
 
     AllocateUploadBuffer(device, indices.data(), indexBufferSize, &geometry.ib.resource);
@@ -955,26 +958,22 @@ void D3D12RaytracingAmbientOcclusion::BuildTesselatedGeometry()
     CreateBufferSRV(&geometry.vb, device, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), m_cbvSrvUavHeap.get(), &m_geometryVBHeapIndices[GeometryType::Sphere]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Sphere] == m_geometryIBHeapIndices[GeometryType::Sphere] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
-	m_geometryInstances[GeometryType::Sphere].ib.startIndex = 0;
-	m_geometryInstances[GeometryType::Sphere].ib.count = static_cast<UINT>(indices.size());
 
-	m_geometryInstances[GeometryType::Sphere].vb.startIndex = 0;
-	m_geometryInstances[GeometryType::Sphere].vb.count = static_cast<UINT>(vertices.size());
+	GeometryInstance geometryInstance = {};
+	geometryInstance.ib.startIndex = 0;
+	geometryInstance.ib.count = static_cast<UINT>(indices.size());
 
-	m_geometryInstances[GeometryType::Sphere].ib.gpuDescriptorHandle = geometry.ib.gpuDescriptorHandle;
-	m_geometryInstances[GeometryType::Sphere].vb.gpuDescriptorHandle = geometry.vb.gpuDescriptorHandle;
+	geometryInstance.vb.startIndex = 0;
+	geometryInstance.vb.count = static_cast<UINT>(vertices.size());
+
+	geometryInstance.ib.gpuDescriptorHandle = geometry.ib.gpuDescriptorHandle;
+	geometryInstance.vb.gpuDescriptorHandle = geometry.vb.gpuDescriptorHandle;
 	
     // ToDo
     m_numTriangles = static_cast<UINT>(indices.size()) / 3;
 
 
-#if TESSELATED_GEOMETRY_BOX
-	GeometryInstance plane = m_geometryInstances[GeometryType::Plane];
-	GeometryInstance box = m_geometryInstances[GeometryType::Sphere];
-	m_geometryInstances.resize(SceneArgs::NumGeometriesPerBLAS + 1, box);
-	m_geometryInstances.back() = plane;
-
-#endif
+	m_geometryInstances[GeometryType::Sphere].resize(SceneArgs::NumGeometriesPerBLAS, geometryInstance);
 }
 
 // ToDo move this out as a helper
@@ -994,11 +993,11 @@ void D3D12RaytracingAmbientOcclusion::LoadSceneGeometry()
 		&m_geometries[GeometryType::SquidRoom].ib,
 		m_indexBufferUpload.Get(),
 		&m_geometryIBHeapIndices[GeometryType::SquidRoom],
-		&m_geometryInstances);
+		&m_geometryInstances[GeometryType::SquidRoom]);
 	ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::SquidRoom] == m_geometryIBHeapIndices[GeometryType::SquidRoom] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
 	m_numTriangles = 0;
-	for (auto& geometry : m_geometryInstances)
+	for (auto& geometry : m_geometryInstances[GeometryType::SquidRoom])
 	{
 		m_numTriangles += geometry.ib.count / 3;
 	}
@@ -1008,7 +1007,6 @@ void D3D12RaytracingAmbientOcclusion::LoadSceneGeometry()
 void D3D12RaytracingAmbientOcclusion::InitializeGeometry()
 {
     m_geometries.resize(GeometryType::Count);
-	m_geometryInstances.resize(GeometryType::Count);
     BuildTesselatedGeometry();
     BuildPlaneGeometry();   
 
@@ -1104,7 +1102,7 @@ void D3D12RaytracingAmbientOcclusion::InitializeAccelerationStructures()
 #if ONLY_SQUID_SCENE_BLAS
 		m_vBottomLevelAS.resize(1);
 		// ToDo apply scale transform to make all scenes using same spatial unit lengths.
-		m_vBottomLevelAS[0].Initialize(device, m_geometries[GeometryType::SquidRoom], static_cast<UINT>(m_geometryInstances.size()), buildFlags, DXGI_FORMAT_R32_UINT, sizeof(UINT), SquidRoomAssets::StandardVertexStride, m_geometryInstances);
+		m_vBottomLevelAS[0].Initialize(device, m_geometries[GeometryType::SquidRoom], static_cast<UINT>(m_geometryInstances[GeometryType::SquidRoom].size()), buildFlags, DXGI_FORMAT_R32_UINT, sizeof(UINT), SquidRoomAssets::StandardVertexStride, m_geometryInstances[GeometryType::SquidRoom]);
 		m_vBottomLevelAS[0].SetInstanceContributionToHitGroupIndex(0);
 		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
 		m_ASmemoryFootprint += m_vBottomLevelAS[0].RequiredResultDataSizeInBytes();
@@ -1114,23 +1112,22 @@ void D3D12RaytracingAmbientOcclusion::InitializeAccelerationStructures()
 	
         for (UINT i = 0; i < m_vBottomLevelAS.size(); i++)
         {
-            UINT numInstances = 0;
+			auto& geometryInstances = m_geometryInstances[i];
 			UINT instanceContributionHitGroupIndex;
             switch (i) 
             {
             case GeometryType::Plane: 
-				numInstances = 1; 
-				instanceContributionHitGroupIndex = SceneArgs::NumGeometriesPerBLAS * RayType::Count;
-				break;
-            case GeometryType::Sphere: 
-				numInstances = SceneArgs::NumGeometriesPerBLAS;
 				instanceContributionHitGroupIndex = 0;
 				break;
+            case GeometryType::Sphere: 
+				instanceContributionHitGroupIndex = static_cast<UINT>(m_geometryInstances[GeometryType::Plane].size()) * RayType::Count;
+				break;
+			default:
+				assert(0);
+				break;
             };
-
-			std::vector<GeometryInstance> geometryInstances;
-			geometryInstances.resize(1, m_geometryInstances[GeometryType::Plane]);
-			m_vBottomLevelAS[i].Initialize(device, m_geometries[i], numInstances, buildFlags, DXGI_FORMAT_R16_UINT, sizeof(Index), sizeof(DirectX::GeometricPrimitive::VertexType), geometryInstances);
+			// ToDo pass IB stride from a geometryInstance object
+			m_vBottomLevelAS[i].Initialize(device, m_geometries[i], static_cast<UINT>(geometryInstances.size()), buildFlags, DXGI_FORMAT_R16_UINT, sizeof(Index), sizeof(DirectX::GeometricPrimitive::VertexType), geometryInstances);
 			
 			
 			m_vBottomLevelAS[i].SetInstanceContributionToHitGroupIndex(instanceContributionHitGroupIndex);
@@ -1170,44 +1167,44 @@ void D3D12RaytracingAmbientOcclusion::InitializeAccelerationStructures()
 // This encapsulates all shader records - shaders and the arguments for their local root signatures.
 void D3D12RaytracingAmbientOcclusion::BuildShaderTables()
 {
-    auto device = m_deviceResources->GetD3DDevice();
+	auto device = m_deviceResources->GetD3DDevice();
 
-    void* rayGenShaderIDs[RayGenShaderType::Count];
-    void* missShaderIDs[RayType::Count];
-    void* hitGroupShaderIDs_TriangleGeometry[RayType::Count];
+	void* rayGenShaderIDs[RayGenShaderType::Count];
+	void* missShaderIDs[RayType::Count];
+	void* hitGroupShaderIDs_TriangleGeometry[RayType::Count];
 
-    // A shader name look-up table for shader table debug print out.
-    unordered_map<void*, wstring> shaderIdToStringMap;
+	// A shader name look-up table for shader table debug print out.
+	unordered_map<void*, wstring> shaderIdToStringMap;
 
-    auto GetShaderIDs = [&](auto* stateObjectProperties)
-    {
+	auto GetShaderIDs = [&](auto* stateObjectProperties)
+	{
 		for (UINT i = 0; i < RayGenShaderType::Count; i++)
 		{
 			rayGenShaderIDs[i] = stateObjectProperties->GetShaderIdentifier(c_rayGenShaderNames[i]);
 			shaderIdToStringMap[rayGenShaderIDs[i]] = c_rayGenShaderNames[i];
 		}
 
-        for (UINT i = 0; i < RayType::Count; i++)
-        {
-            missShaderIDs[i] = stateObjectProperties->GetShaderIdentifier(c_missShaderNames[i]);
-            shaderIdToStringMap[missShaderIDs[i]] = c_missShaderNames[i];
-        }
-        for (UINT i = 0; i < RayType::Count; i++)
-        {
-            hitGroupShaderIDs_TriangleGeometry[i] = stateObjectProperties->GetShaderIdentifier(c_hitGroupNames_TriangleGeometry[i]);
-            shaderIdToStringMap[hitGroupShaderIDs_TriangleGeometry[i]] = c_hitGroupNames_TriangleGeometry[i];
-        }
-    };
+		for (UINT i = 0; i < RayType::Count; i++)
+		{
+			missShaderIDs[i] = stateObjectProperties->GetShaderIdentifier(c_missShaderNames[i]);
+			shaderIdToStringMap[missShaderIDs[i]] = c_missShaderNames[i];
+		}
+		for (UINT i = 0; i < RayType::Count; i++)
+		{
+			hitGroupShaderIDs_TriangleGeometry[i] = stateObjectProperties->GetShaderIdentifier(c_hitGroupNames_TriangleGeometry[i]);
+			shaderIdToStringMap[hitGroupShaderIDs_TriangleGeometry[i]] = c_hitGroupNames_TriangleGeometry[i];
+		}
+	};
 
-    // Get shader identifiers.
-    UINT shaderIDSize;
-    ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
-    ThrowIfFailed(m_dxrStateObject.As(&stateObjectProperties));
-    GetShaderIDs(stateObjectProperties.Get());
-    shaderIDSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+	// Get shader identifiers.
+	UINT shaderIDSize;
+	ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
+	ThrowIfFailed(m_dxrStateObject.As(&stateObjectProperties));
+	GetShaderIDs(stateObjectProperties.Get());
+	shaderIDSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
-    /*************--------- Shader table layout -------*******************
-    | -------------------------------------------------------------------
+	/*************--------- Shader table layout -------*******************
+	| -------------------------------------------------------------------
 	| -------------------------------------------------------------------
 	|Shader table - RayGenShaderTable: 32 | 32 bytes
 	| [0]: MyRaygenShader, 32 + 0 bytes
@@ -1226,12 +1223,12 @@ void D3D12RaytracingAmbientOcclusion::BuildShaderTables()
 	| [2]: MyHitGroup_Triangle, 32 + 56 bytes
 	| [3]: MyHitGroup_Triangle_ShadowRay, 32 + 56 bytes
 	| ...
-    | --------------------------------------------------------------------
-    **********************************************************************/
+	| --------------------------------------------------------------------
+	**********************************************************************/
 
-     // RayGen shader tables.
-    {
-        UINT numShaderRecords = 1;
+	// RayGen shader tables.
+	{
+		UINT numShaderRecords = 1;
 		UINT shaderRecordSize = shaderIDSize;
 
 		for (UINT i = 0; i < RayGenShaderType::Count; i++)
@@ -1241,69 +1238,47 @@ void D3D12RaytracingAmbientOcclusion::BuildShaderTables()
 			rayGenShaderTable.DebugPrint(shaderIdToStringMap);
 			m_rayGenShaderTables[i] = rayGenShaderTable.GetResource();
 		}
-    }
-    
-    // Miss shader table.
-    {
-        UINT numShaderRecords = RayType::Count;
-        UINT shaderRecordSize = shaderIDSize; // No root arguments
+	}
 
-        ShaderTable missShaderTable(device, numShaderRecords, shaderRecordSize, L"MissShaderTable");
-        for (UINT i = 0; i < RayType::Count; i++)
-        {
-            missShaderTable.push_back(ShaderRecord(missShaderIDs[i], shaderIDSize, nullptr, 0));
-        }
-        missShaderTable.DebugPrint(shaderIdToStringMap);
-        m_missShaderTableStrideInBytes = missShaderTable.GetShaderRecordSize();
-        m_missShaderTable = missShaderTable.GetResource();
-    }
+	// Miss shader table.
+	{
+		UINT numShaderRecords = RayType::Count;
+		UINT shaderRecordSize = shaderIDSize; // No root arguments
 
-    // Hit group shader table.
-    {
-		UINT numShaderRecords = static_cast<UINT>(m_geometryInstances.size()) * RayType::Count;
-        UINT shaderRecordSize = shaderIDSize + LocalRootSignature::MaxRootArgumentsSize();
-        ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
-
-#if ONLY_SQUID_SCENE_BLAS
-		// Triangle geometry hit groups.
-		for (UINT i = 0; i < m_geometryInstances.size(); i++)
+		ShaderTable missShaderTable(device, numShaderRecords, shaderRecordSize, L"MissShaderTable");
+		for (UINT i = 0; i < RayType::Count; i++)
 		{
-			LocalRootSignature::Triangle::RootArguments rootArgs;
-			rootArgs.materialCb = m_planeMaterialCB;
-			//float value = (float)i / m_geometryInstances.size();
-			//rootArgs.materialCb.albedo = XMFLOAT4(value, value, value, value);
-			memcpy(&rootArgs.vertexBufferGPUHandle, &m_geometryInstances[i].ib.gpuDescriptorHandle, sizeof(m_geometries[i].ib.gpuDescriptorHandle));
-			for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
-			{
-				hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
-			}
+			missShaderTable.push_back(ShaderRecord(missShaderIDs[i], shaderIDSize, nullptr, 0));
 		}
-#else
-        // Triangle geometry hit groups.
-        for (UINT i = 0; i < m_geometryInstances.size(); i++)
-        {
-            LocalRootSignature::Triangle::RootArguments rootArgs;
-            rootArgs.materialCb = m_planeMaterialCB;
-           // if (i == GeometryType::Sphere)
-                rootArgs.materialCb.albedo = XMFLOAT4(1, 0, 0, 0);
-			UINT geometryIndex;
-			if (i < m_geometryInstances.size() - 1) 
-			{
-				geometryIndex = GeometryType::Sphere;
-			}
-			else // plane
-			{
-				geometryIndex = GeometryType::Plane;
-			}
-			auto& geometry = m_geometries[geometryIndex];
-			memcpy(&rootArgs.vertexBufferGPUHandle, &geometry.ib.gpuDescriptorHandle, sizeof(geometry.ib.gpuDescriptorHandle));
+		missShaderTable.DebugPrint(shaderIdToStringMap);
+		m_missShaderTableStrideInBytes = missShaderTable.GetShaderRecordSize();
+		m_missShaderTable = missShaderTable.GetResource();
+	}
 
-            for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
-            {
-                hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
-            }
-        }
-#endif
+	// Hit group shader table.
+	{
+		UINT numShaderRecords = 0;
+		for (auto& geometryInstances : m_geometryInstances)
+		{
+			numShaderRecords += static_cast<UINT>(geometryInstances.size()) * RayType::Count;
+		}
+		UINT shaderRecordSize = shaderIDSize + LocalRootSignature::MaxRootArgumentsSize();
+		ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
+
+		// Triangle geometry hit groups.
+		for (auto& geometryInstances : m_geometryInstances)
+			for (UINT i = 0; i < geometryInstances.size(); i++)
+			{
+				LocalRootSignature::Triangle::RootArguments rootArgs;
+				rootArgs.materialCb = m_planeMaterialCB;	// ToDo
+				memcpy(&rootArgs.vertexBufferGPUHandle, &geometryInstances[i].ib.gpuDescriptorHandle, sizeof(m_geometries[i].ib.gpuDescriptorHandle));
+
+				for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
+				{
+					hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderID, shaderIDSize, &rootArgs, sizeof(rootArgs)));
+				}
+			}
+
         hitGroupShaderTable.DebugPrint(shaderIdToStringMap);
         m_hitGroupShaderTableStrideInBytes = hitGroupShaderTable.GetShaderRecordSize();
         m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
@@ -1477,11 +1452,12 @@ void D3D12RaytracingAmbientOcclusion::UpdateAccelerationStructures(bool forceBui
 			m_vBottomLevelAS[0].Build(commandList, m_accelerationStructureScratch.Get(), m_cbvSrvUavHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
 		}
 #else
+		m_geometryTransforms.CopyStagingToGpu(frameIndex);
 		// Plane
 		{
 			D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;
 #if USE_GPU_TRANSFORM // ToDo either place in same blas or move transform to blas?
-			baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex) + SceneArgs::NumGeometriesPerBLAS * m_geometryTransforms.ElementSize();
+			baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex);
 #endif
 			m_vBottomLevelAS[BottomLevelASType::Plane].Build(commandList, m_accelerationStructureScratch.Get(), m_cbvSrvUavHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
 		}
@@ -1489,10 +1465,9 @@ void D3D12RaytracingAmbientOcclusion::UpdateAccelerationStructures(bool forceBui
 		{
             D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGpuAddress = 0;     
 #if USE_GPU_TRANSFORM
-            baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex);
+			// ToDo - remove: skip past plane transform
+            baseGeometryTransformGpuAddress = m_geometryTransforms.GpuVirtualAddress(frameIndex) + 1 * m_geometryTransforms.ElementSize();
 #endif
-
-			m_geometryTransforms.CopyStagingToGpu(frameIndex);
 			m_vBottomLevelAS[BottomLevelASType::Sphere].Build(commandList, m_accelerationStructureScratch.Get(), m_cbvSrvUavHeap->GetHeap(), baseGeometryTransformGpuAddress, bUpdate);
         }
 #endif

@@ -94,18 +94,12 @@ void BottomLevelAccelerationStructure::BuildGeometryDescs(const TriangleGeometry
 	for (UINT i = 0; i < numInstances; i++)
 	{
 		auto& geometryDesc = m_geometryDescs[i];
-#if ONLY_SQUID_SCENE_BLAS
+
 		auto& instance = instances[i];
 		geometryDesc.Triangles.IndexBuffer = geometry.ib.resource->GetGPUVirtualAddress() + instance.ib.startIndex * ibStrideInBytes;
 		geometryDesc.Triangles.IndexCount = instance.ib.count;
 		geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress() + instance.vb.startIndex * vbStrideInBytes;
 		geometryDesc.Triangles.VertexCount = instance.vb.count;
-#else
-		geometryDesc.Triangles.IndexBuffer = geometry.ib.resource->GetGPUVirtualAddress();
-		geometryDesc.Triangles.IndexCount = static_cast<UINT>(geometry.ib.resource->GetDesc().Width) / ibStrideInBytes;
-		geometryDesc.Triangles.VertexBuffer.StartAddress = geometry.vb.resource->GetGPUVirtualAddress();
-		geometryDesc.Triangles.VertexCount = static_cast<UINT>(geometry.vb.resource->GetDesc().Width) / vbStrideInBytes;
-#endif
 	}
 }
 

@@ -62,7 +62,7 @@ private:
 
 	// AmbientOcclusion
 	std::vector<BottomLevelAccelerationStructure> m_vBottomLevelAS;
-	std::vector<GeometryInstance>	m_geometryInstances;
+	std::vector<GeometryInstance>	m_geometryInstances[GeometryType::Count];
 	TopLevelAccelerationStructure	m_topLevelAS;
 	ComPtr<ID3D12Resource>			m_accelerationStructureScratch;
 	UINT64 m_ASmemoryFootprint;

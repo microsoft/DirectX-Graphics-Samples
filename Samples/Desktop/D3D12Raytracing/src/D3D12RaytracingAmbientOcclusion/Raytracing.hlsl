@@ -168,7 +168,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     return shadowPayload.hit;
 }
 
-// Trace a radiance ray into the scene and returns a shaded color.
+// Trace a camera ray into the scene.
 GBufferRayPayload TraceGBufferRay(in Ray ray)
 {
 	// Set the ray's extents.
