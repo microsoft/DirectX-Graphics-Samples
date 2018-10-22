@@ -28,11 +28,11 @@ namespace Scene
 			auto& camera = args[Scene::Type::SingleObject].camera;
 #if TESSELATED_GEOMETRY_BOX
 #if NUM_GEOMETRIES_1000
-			camera.position.eye = { 0, (TESSELATED_GEOMETRY_TILES*TESSELATED_GEOMETRY_TILES_WIDTH + CAMERA_Y_SCALE) * 0.43, 0, 1 };
+			camera.position.eye = { 0, (TESSELATED_GEOMETRY_TILES*TESSELATED_GEOMETRY_TILES_WIDTH + CAMERA_Y_SCALE) * 0.43f, 0, 1 };
 #elif NUM_GEOMETRIES_100000
-			camera.position.eye = { 0,  (TESSELATED_GEOMETRY_TILES*TESSELATED_GEOMETRY_TILES_WIDTH + CAMERA_Y_SCALE)*3.65, 0, 1 };
+			camera.position.eye = { 0,  (TESSELATED_GEOMETRY_TILES*TESSELATED_GEOMETRY_TILES_WIDTH + CAMERA_Y_SCALE)*3.65f, 0, 1 };
 #else
-			camera.position.eye = { 0,  (TESSELATED_GEOMETRY_TILES*TESSELATED_GEOMETRY_TILES_WIDTH + CAMERA_Y_SCALE)*11.3, 0, 1 };
+			camera.position.eye = { 0,  (TESSELATED_GEOMETRY_TILES*TESSELATED_GEOMETRY_TILES_WIDTH + CAMERA_Y_SCALE)*11.3f, 0, 1 };
 #endif
 			camera.position.at = { 0, 0, 0, 1 };
 			camera.position.up = { 0, 0, 1, 0 };

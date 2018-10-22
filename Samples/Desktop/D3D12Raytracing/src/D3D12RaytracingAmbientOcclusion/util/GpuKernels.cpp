@@ -160,7 +160,7 @@ namespace GpuKernels
 			D3D12_PLACED_SUBRESOURCE_FOOTPRINT bufferFootprint = {};
 			bufferFootprint.Offset = 0;
 			bufferFootprint.Footprint.Width = static_cast<UINT>(destDesc.Width / sizeof(ResultType));
-			ToDo check width is FrameCount;
+			//ToDo check width is FrameCount;
 			bufferFootprint.Footprint.Height = 1;
 			bufferFootprint.Footprint.Depth = 1;
 			bufferFootprint.Footprint.RowPitch = Align(static_cast<UINT>(destDesc.Width) * sizeof(ResultType), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);

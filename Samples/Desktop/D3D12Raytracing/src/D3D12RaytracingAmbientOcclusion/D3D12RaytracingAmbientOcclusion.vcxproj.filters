@@ -39,9 +39,6 @@
     <ClInclude Include="DirectXRaytracingHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RaytracingHlslCompat.h">
-      <Filter>Assets\Shaders</Filter>
-    </ClInclude>
     <ClInclude Include="util\DeviceResources.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
@@ -98,6 +95,9 @@
     </ClInclude>
     <ClInclude Include="util\GpuKernels.h">
       <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="RaytracingHlslCompat.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

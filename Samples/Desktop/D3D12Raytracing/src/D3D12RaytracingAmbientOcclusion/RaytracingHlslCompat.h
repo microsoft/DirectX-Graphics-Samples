@@ -31,12 +31,13 @@
 #define GBUFFER_AO_USE_ALBEDO 1
 #define AO_ANY_HIT_FULL_OCCLUSION 0
 
-#define ONLY_SQUID_SCENE_BLAS 1
+
 
 #define GBUFFER_AO_SEPRATE_PATHS 1
 
+#define ONLY_SQUID_SCENE_BLAS 0
 #if !ONLY_SQUID_SCENE_BLAS 
-#define CAMERA_Y_SCALE 1.3
+#define CAMERA_Y_SCALE 1.3f
 #define NUM_GEOMETRIES_1000 1
 #define NUM_GEOMETRIES_100000 0
 #define NUM_GEOMETRIES_1000000 0
@@ -251,7 +252,8 @@ namespace TraceRayParameters
     }
 }
 
-static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.7f, 0.7f, 0.7f, 1.0f);
+static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.79f, 0.88f, 0.98f, 1.0f);
+// ToDo
 static const float InShadowRadiance = 0.35f;
 
 #endif // RAYTRACINGHLSLCOMPAT_H
