@@ -27,7 +27,13 @@ namespace Scene
 		{
 			auto& camera = args[Scene::Type::SingleObject].camera;
 #if TESSELATED_GEOMETRY_BOX
-			camera.position.eye = { 0, 70, 0, 1 };
+#if NUM_GEOMETRIES_1000
+			camera.position.eye = { 0, 0.43, 0, 1 };
+#elif NUM_GEOMETRIES_100000
+			camera.position.eye = { 0, 3.65, 0, 1 };
+#else
+			camera.position.eye = { 0, 11.3, 0, 1 };
+#endif
 			camera.position.at = { 0, 0, 0, 1 };
 			camera.position.up = { 0, 0, 1, 0 };
 #elif 1

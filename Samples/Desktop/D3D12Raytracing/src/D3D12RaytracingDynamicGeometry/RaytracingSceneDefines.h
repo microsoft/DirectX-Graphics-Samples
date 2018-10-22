@@ -121,8 +121,13 @@ namespace GeometryType {
 // ToDo Gputimers bug out changing enums around
 namespace GpuTimers {
 	enum Enum {
+#if GBUFFER_AO_SEPRATE_PATHS
 		Raytracing_AO = 0,
 		Raytracing_PrimaryAndAO,
+#else
+		Raytracing_PrimaryAndAO = 0,
+		Raytracing_AO ,
+#endif
 		Raytracing_GBuffer,
 		UpdateBLAS,
 		ReduceSum,

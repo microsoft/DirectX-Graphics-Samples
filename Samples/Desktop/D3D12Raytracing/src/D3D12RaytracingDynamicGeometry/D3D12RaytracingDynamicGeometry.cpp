@@ -88,7 +88,19 @@ namespace SceneArgs
     // ToDo test tessFactor 16
 	// ToDo fix alias on TessFactor 2
     IntVar GeometryTesselationFactor(L"Geometry/Tesselation factor", 0/*14*/, 0, 80, 1, OnGeometryChange, nullptr);
-    IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 1000, 1, 1000000, 1, OnGeometryChange, nullptr);
+    IntVar NumGeometriesPerBLAS(L"Geometry/# geometries per BLAS", 
+#if ONLY_SQUID_SCENE_BLAS
+		1,
+#else
+#if NUM_GEOMETRIES_1000
+		1000, 
+#elif NUM_GEOMETRIES_100000
+		100000,
+#elif NUM_GEOMETRIES_1000000
+		1000000,
+#endif
+#endif
+		1, 1000000, 1, OnGeometryChange, nullptr);
     IntVar NumSphereBLAS(L"Geometry/# Sphere BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnASChange, nullptr);
 };
 
@@ -259,9 +271,12 @@ void D3D12RaytracingDynamicGeometry::UpdateGridGeometryTransforms()
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
 	// Generate geometry desc transforms;
+#if TESSELATED_GEOMETRY_ASPECT_RATIO_DIMENSIONS
+	int dimX =static_cast<int>(ceil(sqrt(SceneArgs::NumGeometriesPerBLAS * m_aspectRatio)));
+#else
 	int dimX = static_cast<int>(ceil(sqrt(static_cast<double>(SceneArgs::NumGeometriesPerBLAS))));
+#endif
 	XMUINT3 dim(dimX, 1, CeilDivide(SceneArgs::NumGeometriesPerBLAS, dimX));
-
 
 	float spacing = 0.1f * max(m_boxSize.x, m_boxSize.z);
 	XMVECTOR stepDistance = XMLoadFloat3(&m_boxSize) + XMVectorSet(spacing, spacing, spacing, 0);
@@ -306,7 +321,7 @@ void D3D12RaytracingDynamicGeometry::UpdateGridGeometryTransforms()
 			}
 
 	// Update the plane transform.
-	XMVECTOR size = XMVectorSetY(40*XMLoadUInt3(&dim) * stepDistance, 1);
+	XMVECTOR size = XMVectorSetY(1.1f*XMLoadUInt3(&dim) * stepDistance, 1);
 	XMMATRIX scale = XMMatrixScalingFromVector(size);
 	XMMATRIX translation = XMMatrixTranslationFromVector(XMVectorSetY (- size / 2, 0));
 	XMMATRIX transform = scale * translation;
@@ -1111,12 +1126,13 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
             m_ASmemoryFootprint += m_vBottomLevelAS[i].RequiredResultDataSizeInBytes();
         }
 		UINT numGeometryTransforms = SceneArgs::NumSphereBLAS * SceneArgs::NumGeometriesPerBLAS;
-#if TESSELATED_GEOMETRY_BOX
+
+#endif
+
+		// ToDo - fix the hack
 		numGeometryTransforms += 1; // plane
-#endif
-#endif
-        
-        if (m_geometryTransforms.Size() != numGeometryTransforms)
+
+		if (m_geometryTransforms.Size() != numGeometryTransforms)
         {
             m_geometryTransforms.Create(device, numGeometryTransforms, FrameCount, L"Geometry descs transforms");
         }
@@ -1682,20 +1698,34 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         wLabel << L" GPU[" << m_deviceResources->GetAdapterID() << L"]: " 
                << m_deviceResources->GetAdapterDescription() << L"\n";
         wLabel << fixed << L" FPS: " << m_fps << L"\n";
-		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_GBuffer].GetAverageMS()
-			   << L"ms" << L"     ~Million Primary Rays/s: " << NumCameraRaysPerSecond()
+#if GBUFFER_AO_SEPRATE_PATHS
+		wLabel << fixed << L" CameraRay DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_GBuffer].GetAverageMS() << L"ms\n";
+		wLabel << fixed << L" AORay DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_AO].GetAverageMS() << L"ms\n";
+		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_GBuffer].GetAverageMS() << L"ms"
+			   << L"     ~Million Primary Rays/s: " << NumCameraRaysPerSecond()
    			   << L"   ~Million AO rays/s" << NumRayGeometryHitsPerSecond(ReduceSumCalculations::CameraRayHits) * c_sppAO
                << L"\n";
+#else
+		wLabel << fixed << L" CameraRay DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_PrimaryAndAO].GetAverageMS() << L"ms\n";
+		wLabel << fixed << L" AORay DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_PrimaryAndAO].GetAverageMS() << L"ms\n";
+		wLabel << fixed << L" DispatchRays: " << m_gpuTimers[GpuTimers::Raytracing_PrimaryAndAO].GetAverageMS() << L"ms"
+			<< L"     ~Million Primary Rays/s: " << NumCameraRaysPerSecond()
+			<< L"   ~Million AO rays/s" << NumRayGeometryHitsPerSecond(ReduceSumCalculations::CameraRayHits) * c_sppAO
+			<< L"\n";
+#endif
         wLabel << fixed << L" AS update (BLAS / TLAS / Total): "
                << m_gpuTimers[GpuTimers::UpdateBLAS].GetElapsedMS() << L"ms / "
                << m_gpuTimers[GpuTimers::UpdateTLAS].GetElapsedMS() << L"ms / "
                << m_gpuTimers[GpuTimers::UpdateBLAS].GetElapsedMS() +
                   m_gpuTimers[GpuTimers::UpdateTLAS].GetElapsedMS() << L"ms\n";
-		wLabel << fixed << L" CameraRayGeometryHits: #/time " 
+		wLabel << fixed << L" CameraRayGeometryHits: #/%%/time " 
 			   << m_numRayGeometryHits[ReduceSumCalculations::CameraRayHits] << "/"
+			   << ((m_width * m_height) > 0 ? (100.f * m_numRayGeometryHits[ReduceSumCalculations::CameraRayHits]) / (m_width*m_height) : 0) << "%%/"
 			   << 1000 * m_gpuTimers[GpuTimers::ReduceSum].GetAverageMS(ReduceSumCalculations::CameraRayHits) << L"us \n";
-		wLabel << fixed << L" AORayGeometryHits: #/time "
+		wLabel << fixed << L" AORayGeometryHits: #/%%/time "
 			   << m_numRayGeometryHits[ReduceSumCalculations::AORayHits] << "/"
+			   << ((m_numRayGeometryHits[ReduceSumCalculations::CameraRayHits] * c_sppAO) > 0 ?
+				   (100.f * m_numRayGeometryHits[ReduceSumCalculations::AORayHits]) / (m_numRayGeometryHits[ReduceSumCalculations::CameraRayHits] * c_sppAO) : 0) << "%%/"
 			   << 1000 * m_gpuTimers[GpuTimers::ReduceSum].GetAverageMS(ReduceSumCalculations::AORayHits) << L"us \n";
     
         labels.push_back(wLabel.str());
@@ -1711,7 +1741,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
         wLabel << L" " << L"AS memory footprint: " << static_cast<double>(m_ASmemoryFootprint)/(1024*1024) << L"MB\n";
         wLabel << L" " << L" # triangles per geometry: " << m_numTriangles << L"\n";
         wLabel << L" " << L" # geometries per BLAS: " << SceneArgs::NumGeometriesPerBLAS << L"\n";
-        wLabel << L" " << L" # Sphere BLAS: " << SceneArgs::NumSphereBLAS << L"\n";
+        wLabel << L" " << L" # Sphere BLAS: " << SceneArgs::NumSphereBLAS << L"\n";	// ToDo fix
         wLabel << L" " << L" # total triangles: " << SceneArgs::NumSphereBLAS * SceneArgs::NumGeometriesPerBLAS* m_numTriangles << L"\n";
         // ToDo AS memory
         labels.push_back(wLabel.str());
@@ -2014,8 +2044,10 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 #endif
 
     // Render.
-	//DoRaytracing();
+#if GBUFFER_AO_SEPRATE_PATHS
 	DoRaytracingGBufferAndAOPasses();
+#endif
+	DoRaytracing();
 #endif
 
 #if SAMPLES_CS_VISUALIZATION 

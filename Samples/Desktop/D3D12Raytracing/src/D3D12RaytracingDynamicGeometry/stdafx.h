@@ -65,6 +65,7 @@
 #include <dxgidebug.h>
 #endif
 
+#include "RaytracingHlslCompat.h"
 #include "DXSampleHelper.h"
 #include "DeviceResources.h"
 

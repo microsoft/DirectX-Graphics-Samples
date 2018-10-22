@@ -19,9 +19,13 @@ CameraController::CameraController(Camera& camera) : m_camera(camera)
 {
     m_HorizontalLookSensitivity = 2.0f;
     m_VerticalLookSensitivity = 2.0f;
-    m_MoveSpeed = 5000.0f;
-    m_StrafeSpeed = 5000.0f;
-    m_MouseSensitivityX = 1.0f;
+	m_MoveSpeed = 5000.0f;
+	m_StrafeSpeed = 5000.0f;
+#if ONLY_SQUID_SCENE_BLAS
+	m_MoveSpeed *= 10;
+	m_StrafeSpeed *= 10;
+#endif
+	m_MouseSensitivityX = 1.0f;
     m_MouseSensitivityY = -1.0f;
 
     m_FineMovement = false;
@@ -98,7 +102,7 @@ void CameraController::Update(float deltaTime)
 		yaw += -1 * GameInput::GetAnalogInput(GameInput::kAnalogMouseX) * m_MouseSensitivityX;
 		pitch += -1 * GameInput::GetAnalogInput(GameInput::kAnalogMouseY) * m_MouseSensitivityY;
 	}
-
+	// ToDo camera moves too fast sometimes going foward/back (when moving mouse as well?)
 	m_camera.RotateYaw(yaw);
 	m_camera.RotatePitch(pitch);
 	m_camera.TranslateRightUpForward(strafe, ascent, forward);

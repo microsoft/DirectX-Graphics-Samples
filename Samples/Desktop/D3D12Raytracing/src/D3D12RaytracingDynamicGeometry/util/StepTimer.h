@@ -90,11 +90,12 @@ public:
         m_qpcSecondCounter += timeDelta;
 
         // Clamp excessively large time deltas (e.g. after paused in the debugger).
+#if 0 // ToDo
         if (timeDelta > m_qpcMaxDelta)
         {
             timeDelta = m_qpcMaxDelta;
         }
-
+#endif
         // Convert QPC units into a canonical tick format. This cannot overflow due to the previous clamp.
         timeDelta *= TicksPerSecond;
         timeDelta /= m_qpcFrequency.QuadPart;

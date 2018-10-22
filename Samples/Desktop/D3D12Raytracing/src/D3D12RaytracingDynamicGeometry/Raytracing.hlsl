@@ -148,7 +148,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0.0;
-	rayDesc.TMax = 35;// 0000;	// ToDo set this to dist to light
+	rayDesc.TMax = AO_RAY_T_MAX;// 0000;	// ToDo set this to dist to light
 
     // Initialize shadow ray payload.
     // Set the initial value to true since closest and any hit shaders are skipped. 
@@ -323,6 +323,7 @@ void MyRayGenShader_AO()
 	// Write the raytraced color to the output texture.
 	g_renderTarget[DispatchRaysIndex().xy] = color;
 #if GBUFFER_AO_COUNT_AO_HITS
+	// ToDo test perf impact of writing this
 	g_rtAORayHits[DispatchRaysIndex().xy] = shadowRayHits;
 #endif
 }
