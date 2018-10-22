@@ -41,6 +41,7 @@ public:
     virtual void Destroy() override
     {
         GpuResource::Destroy();
+        // This leaks descriptor handles.  We should really give it back to be reused.
         m_hCpuDescriptorHandle.ptr = 0;
     }
 
