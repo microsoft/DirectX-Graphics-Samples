@@ -8,7 +8,7 @@ ToDo...
 ## Usage
 ToDo
 
-D3D12RaytracingDynamicGeometry.exe [...]
+D3D12RaytracingAmbientOcclusion.exe [...]
   * [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0.
 
 ### UI

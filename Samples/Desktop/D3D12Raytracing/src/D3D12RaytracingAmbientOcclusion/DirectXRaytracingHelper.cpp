@@ -11,7 +11,7 @@
 
 #include "stdafx.h"
 #include "DirectXRaytracingHelper.h"
-#include "D3D12RaytracingDynamicGeometry.h"
+#include "D3D12RaytracingAmbientOcclusion.h"
 
 using namespace std;
 using namespace DX;

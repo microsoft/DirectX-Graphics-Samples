@@ -38,7 +38,6 @@ namespace ComputeShader {
 				enum Enum {
 					Output = 0,
 					Input,
-					ConstantBuffer,		// ToDo: Standardize CB naming
 					Count
 				};
 			}

@@ -10,9 +10,8 @@
 //*********************************************************
 
 #define HLSL
-#include "RaytracingHlslCompat.h"
+#include "..\RaytracingHlslCompat.h"
 
-ConstantBuffer<ReduceSumCSCB> gCB: register(b0);
 Texture2D<uint> g_texInput : register(t0);
 RWTexture2D<uint> g_texOutput : register(u1);
 

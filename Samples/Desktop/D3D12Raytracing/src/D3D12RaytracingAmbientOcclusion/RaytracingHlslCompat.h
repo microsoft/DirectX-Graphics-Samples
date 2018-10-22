@@ -130,21 +130,6 @@ struct RNGConstantBuffer
     XMUINT2 grid;      // Grid resolution
 };
 
-// ToDo rename
-struct ReduceSumCSCB
-{
-	XMUINT2 uavOffset;     // offset where [0,0] thread should write to.
-	XMUINT2 dispatchDimensions;  // for 2D dispatches
-	UINT sampleSetBase;
-	UINT numSamples;
-	UINT numSampleSets;
-	UINT numSamplesToShow;
-	// TODo: Why is padding to 16 needed? cb gets corrupted otherwise. Put a static_assert in ConstantBuffer
-	XMUINT2 stratums;      // Stratum resolution
-	XMUINT2 grid;      // Grid resolution
-};
-
-
 struct SceneConstantBuffer
 {
     XMMATRIX projectionToWorldWithCameraEyeAtOrigin;	// projection to world matrix with Camera at (0,0,0).

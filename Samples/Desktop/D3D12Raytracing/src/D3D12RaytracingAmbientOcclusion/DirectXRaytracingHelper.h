@@ -37,8 +37,8 @@ struct TriangleGeometryBuffer
 	D3D12_GPU_VIRTUAL_ADDRESS transform;
 };
 
-class D3D12RaytracingDynamicGeometry;
-extern D3D12RaytracingDynamicGeometry* g_pSample;
+class D3D12RaytracingAmbientOcclusion;
+extern D3D12RaytracingAmbientOcclusion* g_pSample;
 
 struct alignas(16) AlignedGeometryTransform3x4
 {

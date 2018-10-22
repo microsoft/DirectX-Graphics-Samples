@@ -618,7 +618,9 @@ inline void AllocateUAVBuffer(
 inline void AllocateReadBackBuffer(
 	ID3D12Device* device,
 	UINT64 bufferSize,
-	ID3D12Resource **dest, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr)
+	ID3D12Resource **dest, 
+	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, 
+	LPCWSTR resourceName = nullptr)
 {
 	auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
 	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
@@ -644,4 +646,22 @@ inline UINT CeilDivide(UINT value, UINT divisor)
 inline UINT CeilLogWithBase(UINT value, UINT base)
 {
 	return static_cast<UINT>(ceil(log(value)/ log(base)));
+}
+
+inline void SerializeAndCreateRootSignature(
+	ID3D12Device* device,
+	D3D12_ROOT_SIGNATURE_DESC& desc, 
+	ComPtr<ID3D12RootSignature>* rootSignature, 
+	LPCWSTR resourceName = nullptr)
+{
+	ComPtr<ID3DBlob> blob;
+	ComPtr<ID3DBlob> error;
+	ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error), error ? static_cast<wchar_t*>(error->GetBufferPointer()) : nullptr);
+	ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSignature))));
+
+	// ToDo is this check needed?
+	if (resourceName)
+	{
+		(*rootSignature)->SetName(resourceName);
+	}
 }

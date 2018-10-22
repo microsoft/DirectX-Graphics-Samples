@@ -14,7 +14,7 @@
     <ProjectGuid>{19585C81-FB12-4A4B-B700-CCE253BDBA02}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>D3D12Raytracing</RootNamespace>
-    <ProjectName>D3D12RaytracingDynamicGeometry</ProjectName>
+    <ProjectName>D3D12RaytracingAmbientOcclusion</ProjectName>
     <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -176,7 +176,7 @@
     <ClInclude Include="RaytracingSceneDefines.h" />
     <ClInclude Include="RaytracingHlslCompat.h" />
     <ClInclude Include="RaytracingShaderHelper.hlsli" />
-    <ClInclude Include="D3D12RaytracingDynamicGeometry.h" />
+    <ClInclude Include="D3D12RaytracingAmbientOcclusion.h" />
     <ClInclude Include="Sampler.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="util\Camera.h" />
@@ -187,6 +187,7 @@
     <ClInclude Include="util\DXSampleHelper.h" />
     <ClInclude Include="util\EngineTuning.h" />
     <ClInclude Include="util\GameInput.h" />
+    <ClInclude Include="util\GpuKernels.h" />
     <ClInclude Include="util\HlslCompat.h" />
     <ClInclude Include="util\PerformanceTimers.h" />
     <ClInclude Include="util\SquidRoom.h" />
@@ -195,7 +196,7 @@
     <ClInclude Include="util\Win32Application.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="D3D12RaytracingDynamicGeometry.cpp" />
+    <ClCompile Include="D3D12RaytracingAmbientOcclusion.cpp" />
     <ClCompile Include="DirectXRaytracingHelper.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="RaytracingSceneDefines.cpp" />
@@ -220,6 +221,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="util\GameInput.cpp" />
+    <ClCompile Include="util\GpuKernels.cpp" />
     <ClCompile Include="util\PerformanceTimers.cpp" />
     <ClCompile Include="util\SquidRoom.cpp" />
     <ClCompile Include="util\UILayer.cpp" />
@@ -248,15 +250,15 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/Zpr %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/Zpr %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
-    <FxCompile Include="ReduceSumCS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)\CompiledShaders\%(Filename).hlsl.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)\CompiledShaders\%(Filename).hlsl.h</HeaderFileOutput>
+    <FxCompile Include="util\ReduceSumCS.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.3</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_p%(Filename)</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_p%(Filename)</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)\CompiledShaders\%(Filename).hlsl.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)\CompiledShaders\%(Filename).hlsl.h</HeaderFileOutput>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

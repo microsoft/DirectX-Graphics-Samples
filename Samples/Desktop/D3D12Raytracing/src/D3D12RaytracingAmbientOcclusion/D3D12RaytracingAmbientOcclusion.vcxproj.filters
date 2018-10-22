@@ -33,7 +33,7 @@
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="D3D12RaytracingDynamicGeometry.h">
+    <ClInclude Include="D3D12RaytracingAmbientOcclusion.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DirectXRaytracingHelper.h">
@@ -96,6 +96,9 @@
     <ClInclude Include="util\DXRTextWithPrimitiveScene.h">
       <Filter>Assets\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="util\GpuKernels.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -104,7 +107,7 @@
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="D3D12RaytracingDynamicGeometry.cpp">
+    <ClCompile Include="D3D12RaytracingAmbientOcclusion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="util\DeviceResources.cpp">
@@ -149,6 +152,9 @@
     <ClCompile Include="util\DXRTextWithPrimitiveScene.cpp">
       <Filter>Assets\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="util\GpuKernels.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.md" />
@@ -158,10 +164,10 @@
     <FxCompile Include="Raytracing.hlsl">
       <Filter>Assets\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="ReduceSumCS.hlsl">
+    <FxCompile Include="RNGVisualizerCS.hlsl">
       <Filter>Assets\Shaders\Util</Filter>
     </FxCompile>
-    <FxCompile Include="RNGVisualizerCS.hlsl">
+    <FxCompile Include="util\ReduceSumCS.hlsl">
       <Filter>Assets\Shaders\Util</Filter>
     </FxCompile>
   </ItemGroup>

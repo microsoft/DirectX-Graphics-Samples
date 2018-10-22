@@ -18,14 +18,14 @@
 #include "CameraController.h"
 #include "PerformanceTimers.h"
 #include "Sampler.h"
-
 #include "UILayer.h"
+#include "GpuKernels.h"
 
-class D3D12RaytracingDynamicGeometry : public DXSample
+class D3D12RaytracingAmbientOcclusion : public DXSample
 {
 public:
-	D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name);
-	~D3D12RaytracingDynamicGeometry();
+	D3D12RaytracingAmbientOcclusion(UINT width, UINT height, std::wstring name);
+	~D3D12RaytracingAmbientOcclusion();
 	// IDeviceNotify
 	virtual void OnReleaseWindowSizeDependentResources() override { ReleaseWindowSizeDependentResources(); };
 	virtual void OnCreateWindowSizeDependentResources() override { CreateWindowSizeDependentResources(); };
@@ -60,7 +60,7 @@ private:
 	const float c_aabbWidth = 2;      // AABB width.
 	const float c_aabbDistance = 2;   // Distance between AABBs.
 
-	// DynamicGeometry
+	// AmbientOcclusion
 	std::vector<BottomLevelAccelerationStructure> m_vBottomLevelAS;
 	std::vector<GeometryInstance>	m_geometryInstances;
 	TopLevelAccelerationStructure	m_topLevelAS;
@@ -89,14 +89,10 @@ private:
 	// Compute resources.
 	Samplers::MultiJittered m_randomSampler;
 	ConstantBuffer<RNGConstantBuffer>   m_csHemisphereVisualizationCB;
-	ConstantBuffer<ReduceSumCSCB>			m_csReduceSumCB;
 	ComPtr<ID3D12PipelineState>         m_computePSOs[ComputeShader::Type::Count];
 	ComPtr<ID3D12RootSignature>         m_computeRootSigs[ComputeShader::Type::Count];
 
-	std::vector<RWGpuResource>			m_csReduceSumOutputs;
-
-	
-	ComPtr<ID3D12Resource>				m_csReduceSumReadback[ReduceSumCalculations::Count];
+	GpuKernels::ReduceSum				m_reduceSumKernel;
 	UINT								m_numRayGeometryHits[ReduceSumCalculations::Count];
 
 	ComPtr<ID3D12Fence>                 m_fence;
@@ -210,9 +206,8 @@ private:
     void ReleaseDeviceDependentResources();
     void ReleaseWindowSizeDependentResources();
     void RenderRNGVisualizations();
-	void CalculateRayHits(ReduceSumCalculations::Enum type);
+	void CalculateRayHitCount(ReduceSumCalculations::Enum type);
     void CreateRaytracingInterfaces();
-    void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig, LPCWSTR resournceName = nullptr);
     void CreateRootSignatures();
     void CreateDxilLibrarySubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateHitGroupSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline);

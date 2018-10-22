@@ -10,12 +10,11 @@
 //*********************************************************
 
 #include "stdafx.h"
-#include "D3D12RaytracingDynamicGeometry.h"
+#include "D3D12RaytracingAmbientOcclusion.h"
 #include "GameInput.h"
 #include "EngineTuning.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 #include "CompiledShaders\RNGVisualizerCS.hlsl.h"
-#include "CompiledShaders\ReduceSumCS.hlsl.h"
 #include "SquidRoom.h"
 
 using namespace std;
@@ -24,25 +23,25 @@ using namespace DirectX;
 using namespace SceneEnums;
 using namespace GameCore;
 
-D3D12RaytracingDynamicGeometry* g_pSample = nullptr;
+D3D12RaytracingAmbientOcclusion* g_pSample = nullptr;
 HWND g_hWnd = 0;
 
 // Shader entry points.
-const wchar_t* D3D12RaytracingDynamicGeometry::c_rayGenShaderNames[] = 
+const wchar_t* D3D12RaytracingAmbientOcclusion::c_rayGenShaderNames[] = 
 {
 	// ToDo reorder
 	L"MyRayGenShader_GBuffer", L"MyRayGenShader_PrimaryAndAO", L"MyRayGenShader_AO"
 };
-const wchar_t* D3D12RaytracingDynamicGeometry::c_closestHitShaderNames[] =
+const wchar_t* D3D12RaytracingAmbientOcclusion::c_closestHitShaderNames[] =
 {
     L"MyClosestHitShader", nullptr, L"MyClosestHitShader_GBuffer"
 };
-const wchar_t* D3D12RaytracingDynamicGeometry::c_missShaderNames[] =
+const wchar_t* D3D12RaytracingAmbientOcclusion::c_missShaderNames[] =
 {
     L"MyMissShader", L"MyMissShader_ShadowRay", L"MyMissShader_GBuffer"
 };
 // Hit groups.
-const wchar_t* D3D12RaytracingDynamicGeometry::c_hitGroupNames_TriangleGeometry[] = 
+const wchar_t* D3D12RaytracingAmbientOcclusion::c_hitGroupNames_TriangleGeometry[] = 
 { 
     L"MyHitGroup_Triangle", L"MyHitGroup_Triangle_ShadowRay", L"MyHitGroup_Triangle_GBuffer"
 };
@@ -65,11 +64,6 @@ namespace SceneArgs
 	{
 		g_pSample->RequestSceneInitialization();
 	}
-
-    enum RaytracingMode { FLDXR = 0, FL, DXR };
-    const WCHAR* RaytracingModes[] = { L"FL-DXR", L"FL",L"DXR" };
-    // ToDo EnumVar RaytracingMode(L"RaytracingMode", FLDXR, _countof(RaytracingModes), RaytracingModes);
-
     BoolVar EnableGeometryAndASBuildsAndUpdates(L"Enable geometry & AS builds and updates", true);
 
 #if ONLY_SQUID_SCENE_BLAS
@@ -101,11 +95,11 @@ namespace SceneArgs
 #endif
 #endif
 		1, 1000000, 1, OnGeometryChange, nullptr);
-    IntVar NumSphereBLAS(L"Geometry/# Sphere BLAS", 1, 1, D3D12RaytracingDynamicGeometry::MaxBLAS, 1, OnASChange, nullptr);
+    IntVar NumSphereBLAS(L"Geometry/# Sphere BLAS", 1, 1, D3D12RaytracingAmbientOcclusion::MaxBLAS, 1, OnASChange, nullptr);
 };
 
 
-D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT height, std::wstring name) :
+D3D12RaytracingAmbientOcclusion::D3D12RaytracingAmbientOcclusion(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_animateCamera(false),
     m_animateLight(false),
@@ -136,7 +130,7 @@ D3D12RaytracingDynamicGeometry::D3D12RaytracingDynamicGeometry(UINT width, UINT 
 	m_generatorURNG.seed(1729);
 }
 
-void D3D12RaytracingDynamicGeometry::OnInit()
+void D3D12RaytracingAmbientOcclusion::OnInit()
 {
     m_deviceResources = std::make_unique<DeviceResources>(
         DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -168,13 +162,13 @@ void D3D12RaytracingDynamicGeometry::OnInit()
     m_deviceResources->CreateWindowSizeDependentResources();
 }
 
-D3D12RaytracingDynamicGeometry::~D3D12RaytracingDynamicGeometry()
+D3D12RaytracingAmbientOcclusion::~D3D12RaytracingAmbientOcclusion()
 {
     GameInput::Shutdown();
 }
 
 // Update camera matrices passed into the shader.
-void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
+void D3D12RaytracingAmbientOcclusion::UpdateCameraMatrices()
 {
     m_sceneCB->cameraPosition = m_camera.Eye();
 
@@ -191,7 +185,7 @@ void D3D12RaytracingDynamicGeometry::UpdateCameraMatrices()
 	m_sceneCB->projectionToWorldWithCameraEyeAtOrigin = XMMatrixInverse(nullptr, viewProj);
 }
 
-void D3D12RaytracingDynamicGeometry::UpdateBottomLevelASTransforms()
+void D3D12RaytracingAmbientOcclusion::UpdateBottomLevelASTransforms()
 {
     float animationDuration = 24.0f;
     float curTime = static_cast<float>(m_timer.GetTotalSeconds());
@@ -213,7 +207,7 @@ void D3D12RaytracingDynamicGeometry::UpdateBottomLevelASTransforms()
     }
 }
 
-void D3D12RaytracingDynamicGeometry::UpdateSphereGeometryTransforms()
+void D3D12RaytracingAmbientOcclusion::UpdateSphereGeometryTransforms()
 {
 	auto device = m_deviceResources->GetD3DDevice();
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
@@ -265,7 +259,7 @@ void D3D12RaytracingDynamicGeometry::UpdateSphereGeometryTransforms()
             }
 }
 
-void D3D12RaytracingDynamicGeometry::UpdateGridGeometryTransforms()
+void D3D12RaytracingAmbientOcclusion::UpdateGridGeometryTransforms()
 {
 	auto device = m_deviceResources->GetD3DDevice();
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
@@ -331,7 +325,7 @@ void D3D12RaytracingDynamicGeometry::UpdateGridGeometryTransforms()
 }
 
 // Initialize scene rendering parameters.
-void D3D12RaytracingDynamicGeometry::InitializeScene()
+void D3D12RaytracingAmbientOcclusion::InitializeScene()
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
@@ -393,7 +387,7 @@ void D3D12RaytracingDynamicGeometry::InitializeScene()
 }
 
 // Create constant buffers.
-void D3D12RaytracingDynamicGeometry::CreateConstantBuffers()
+void D3D12RaytracingAmbientOcclusion::CreateConstantBuffers()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto frameCount = m_deviceResources->GetBackBufferCount();
@@ -402,7 +396,7 @@ void D3D12RaytracingDynamicGeometry::CreateConstantBuffers()
 }
 
 // ToDo rename, move
-void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
+void D3D12RaytracingAmbientOcclusion::CreateSamplesRNG()
 {
     auto device = m_deviceResources->GetD3DDevice(); 
     auto frameCount = m_deviceResources->GetBackBufferCount();
@@ -423,7 +417,7 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
         rootParameters[HemisphereSampleSetVisualization::Slot::SceneConstant].InitAsConstantBufferView(0);
 
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-        SerializeAndCreateRaytracingRootSignature(rootSignatureDesc, &m_computeRootSigs[ComputeShader::Type::HemisphereSampleSetVisualization], L"Root signature: CS hemisphere sample set visualization");
+		SerializeAndCreateRootSignature(device, rootSignatureDesc, &m_computeRootSigs[ComputeShader::Type::HemisphereSampleSetVisualization], L"Root signature: CS hemisphere sample set visualization");
     }
 
     // Create compute pipeline state.
@@ -454,73 +448,8 @@ void D3D12RaytracingDynamicGeometry::CreateSamplesRNG()
     }
 }
 
-
-// ToDo: move it out?
-void D3D12RaytracingDynamicGeometry::CreateReduceSumResources()
-{
-	auto device = m_deviceResources->GetD3DDevice();
-	auto frameCount = m_deviceResources->GetBackBufferCount();
-
-	// Create root signature.
-	{
-		using namespace ComputeShader::RootSignature;
-
-		CD3DX12_DESCRIPTOR_RANGE ranges[2]; // Perfomance TIP: Order from most frequent to least frequent.
-		ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);  // 1 input texture
-		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);  // 1 output buffer
-
-		CD3DX12_ROOT_PARAMETER rootParameters[ReduceSum::Slot::Count];
-		rootParameters[ReduceSum::Slot::Input].InitAsDescriptorTable(1, &ranges[0]);
-		rootParameters[ReduceSum::Slot::Output].InitAsDescriptorTable(1, &ranges[1]);
-		rootParameters[ReduceSum::Slot::ConstantBuffer].InitAsConstantBufferView(0);
-
-		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-		SerializeAndCreateRaytracingRootSignature(rootSignatureDesc, &m_computeRootSigs[ComputeShader::Type::ReduceSum], L"Compute root signature: Reduce sum sample set visualization");
-	}
-
-	// Create compute pipeline state.
-	{
-		D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO = {};
-		descComputePSO.pRootSignature = m_computeRootSigs[ComputeShader::Type::ReduceSum].Get();
-		descComputePSO.CS = CD3DX12_SHADER_BYTECODE((void *)g_pReduceSumCS, ARRAYSIZE(g_pReduceSumCS));
-
-		ThrowIfFailed(device->CreateComputePipelineState(&descComputePSO, IID_PPV_ARGS(&m_computePSOs[ComputeShader::Type::ReduceSum])));
-		m_computePSOs[ComputeShader::Type::ReduceSum]->SetName(L"PSO: CS hemisphere sample set visualization");
-	}
-	
-	// Create shader resources
-	{
-		m_csReduceSumCB.Create(device, frameCount, L"GPU CB: RNG");
-
-
-		UINT width = CeilDivide(m_width, ReduceSumCS::ThreadGroup::NumElementsToLoadPerThread);
-		UINT height = m_height;
-
-		// Number of reduce iterations to bring [m_width, m_height] down to [1, 1]
-		UINT numIterations = max(
-			CeilLogWithBase(width, ReduceSumCS::ThreadGroup::Width),
-			CeilLogWithBase(height, ReduceSumCS::ThreadGroup::Height));
-	
-		m_csReduceSumOutputs.resize(numIterations);
-		for (UINT i = 0; i < numIterations; i++)
-		{
-			width = max(1, CeilDivide(width, ReduceSumCS::ThreadGroup::Width));
-			height = max(1, CeilDivide(height, ReduceSumCS::ThreadGroup::Height));
-
-			m_csReduceSumOutputs[i].rwFlags = ResourceRWFlags::AllowWrite | ResourceRWFlags::AllowRead;
-			CreateRenderTargetResource(device, DXGI_FORMAT_R32_UINT, width, height, m_cbvSrvUavHeap.get(), 
-				&m_csReduceSumOutputs[i], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"UAV texture: Reduce sum intermediate output");
-		}
-
-		// ToDo should we allocate FrameCount + 1 in GPUTImeras we're depending on Present to stall?
-		UINT bufferSize = sizeof(UINT);
-		AllocateReadBackBuffer(device, FrameCount * bufferSize, &m_csReduceSumReadback[ReduceSumCalculations::CameraRayHits], D3D12_RESOURCE_STATE_COPY_DEST, L"Readback buffer: CameraRayHits reduce sum output");
-		AllocateReadBackBuffer(device, FrameCount * bufferSize, &m_csReduceSumReadback[ReduceSumCalculations::AORayHits], D3D12_RESOURCE_STATE_COPY_DEST, L"Readback buffer: CameraRayHits reduce sum output");
-	}
-}
-
 // Create resources that depend on the device.
-void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
+void D3D12RaytracingAmbientOcclusion::CreateDeviceDependentResources()
 {
 	auto device = m_deviceResources->GetD3DDevice();
 
@@ -563,25 +492,10 @@ void D3D12RaytracingDynamicGeometry::CreateDeviceDependentResources()
 
 	// ToDo move
     CreateSamplesRNG();
-	CreateReduceSumResources();
+
 }
 
-void D3D12RaytracingDynamicGeometry::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig, LPCWSTR resourceName)
-{
-    auto device = m_deviceResources->GetD3DDevice();
-    ComPtr<ID3DBlob> blob;
-	ComPtr<ID3DBlob> error;
-    ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error), error ? static_cast<wchar_t*>(error->GetBufferPointer()) : nullptr);
-    ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
-    
-	// ToDo is this check needed?
-    if (resourceName)
-    {
-        (*rootSig)->SetName(resourceName);
-    }
-}
-
-void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
+void D3D12RaytracingAmbientOcclusion::CreateRootSignatures()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -606,7 +520,7 @@ void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
         rootParameters[GlobalRootSignature::Slot::SampleBuffers].InitAsShaderResourceView(4);
         
         CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-        SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
+		SerializeAndCreateRootSignature(device, globalRootSignatureDesc, &m_raytracingGlobalRootSignature, L"Global root signature");
     }
 
     // Local Root Signature
@@ -624,13 +538,13 @@ void D3D12RaytracingDynamicGeometry::CreateRootSignatures()
 
             CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
             localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-            SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::Triangle]);
+			SerializeAndCreateRootSignature(device, localRootSignatureDesc, &m_raytracingLocalRootSignature[LocalRootSignature::Type::Triangle], L"Local root signature: triangle geometry");
         }
     }
 }
 
 // Create raytracing device and command list.
-void D3D12RaytracingDynamicGeometry::CreateRaytracingInterfaces()
+void D3D12RaytracingAmbientOcclusion::CreateRaytracingInterfaces()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -641,7 +555,7 @@ void D3D12RaytracingDynamicGeometry::CreateRaytracingInterfaces()
 // DXIL library
 // This contains the shaders and their entrypoints for the state object.
 // Since shaders are not considered a subobject, they need to be passed in via DXIL library subobjects.
-void D3D12RaytracingDynamicGeometry::CreateDxilLibrarySubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
+void D3D12RaytracingAmbientOcclusion::CreateDxilLibrarySubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
 {
     auto lib = raytracingPipeline->CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
     D3D12_SHADER_BYTECODE libdxil = CD3DX12_SHADER_BYTECODE((void *)g_pRaytracing, ARRAYSIZE(g_pRaytracing));
@@ -652,7 +566,7 @@ void D3D12RaytracingDynamicGeometry::CreateDxilLibrarySubobject(CD3DX12_STATE_OB
 // Hit groups
 // A hit group specifies closest hit, any hit and intersection shaders 
 // to be executed when a ray intersects the geometry.
-void D3D12RaytracingDynamicGeometry::CreateHitGroupSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
+void D3D12RaytracingAmbientOcclusion::CreateHitGroupSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
 {
     // Triangle geometry hit groups
     {
@@ -672,7 +586,7 @@ void D3D12RaytracingDynamicGeometry::CreateHitGroupSubobjects(CD3DX12_STATE_OBJE
 
 // Local root signature and shader association
 // This is a root signature that enables a shader to have unique arguments that come from shader tables.
-void D3D12RaytracingDynamicGeometry::CreateLocalRootSignatureSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
+void D3D12RaytracingAmbientOcclusion::CreateLocalRootSignatureSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
 {
     // Ray gen and miss shaders in this sample are not using a local root signature and thus one is not associated with them.
 
@@ -693,7 +607,7 @@ void D3D12RaytracingDynamicGeometry::CreateLocalRootSignatureSubobjects(CD3DX12_
 // Create a raytracing pipeline state object (RTPSO).
 // An RTPSO represents a full set of shaders reachable by a DispatchRays() call,
 // with all configuration options resolved, such as local signatures and other state.
-void D3D12RaytracingDynamicGeometry::CreateRaytracingPipelineStateObject()
+void D3D12RaytracingAmbientOcclusion::CreateRaytracingPipelineStateObject()
 {
     // Create 18 subobjects that combine into a RTPSO:
     // Subobjects need to be associated with DXIL exports (i.e. shaders) either by way of default or explicit associations.
@@ -745,7 +659,7 @@ void D3D12RaytracingDynamicGeometry::CreateRaytracingPipelineStateObject()
 }
 
 // Create a 2D output texture for raytracing.
-void D3D12RaytracingDynamicGeometry::CreateRaytracingOutputResource()
+void D3D12RaytracingAmbientOcclusion::CreateRaytracingOutputResource()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto backbufferFormat = m_deviceResources->GetBackBufferFormat();
@@ -754,7 +668,7 @@ void D3D12RaytracingDynamicGeometry::CreateRaytracingOutputResource()
 }
 
 
-void D3D12RaytracingDynamicGeometry::CreateGBufferResources()
+void D3D12RaytracingAmbientOcclusion::CreateGBufferResources()
 {
 	auto device = m_deviceResources->GetD3DDevice();
 
@@ -810,19 +724,23 @@ void D3D12RaytracingDynamicGeometry::CreateGBufferResources()
 	//device->CreateSampler(&clampSamplerDesc, samplerHandle);
 }
 
-void D3D12RaytracingDynamicGeometry::CreateAuxilaryDeviceResources()
+void D3D12RaytracingAmbientOcclusion::CreateAuxilaryDeviceResources()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandQueue = m_deviceResources->GetCommandQueue();
+	auto commandList = m_deviceResources->GetCommandList();
 
     for (auto& gpuTimer : m_gpuTimers)
     {
 		gpuTimer.SetAvgRefreshPeriod(500);
         gpuTimer.RestoreDevice(device, commandQueue, FrameCount);
     }
+
+	// ToDo move?
+	m_reduceSumKernel.Initialize(device);
 }
 
-void D3D12RaytracingDynamicGeometry::CreateDescriptorHeaps()
+void D3D12RaytracingAmbientOcclusion::CreateDescriptorHeaps()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -846,7 +764,7 @@ void D3D12RaytracingDynamicGeometry::CreateDescriptorHeaps()
 
 }
 
-void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
+void D3D12RaytracingAmbientOcclusion::BuildPlaneGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
     // Plane indices.
@@ -886,7 +804,7 @@ void D3D12RaytracingDynamicGeometry::BuildPlaneGeometry()
 	m_geometryInstances[GeometryType::Plane].vb.gpuDescriptorHandle = m_geometries[GeometryType::Plane].vb.gpuDescriptorHandle;
 }
 
-void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
+void D3D12RaytracingAmbientOcclusion::BuildTesselatedGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -968,7 +886,7 @@ void D3D12RaytracingDynamicGeometry::BuildTesselatedGeometry()
 }
 
 // ToDo move this out as a helper
-void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
+void D3D12RaytracingAmbientOcclusion::LoadSceneGeometry()
 {
 	auto device = m_deviceResources->GetD3DDevice();
 	auto commandList = m_deviceResources->GetCommandList();
@@ -995,7 +913,7 @@ void D3D12RaytracingDynamicGeometry::LoadSceneGeometry()
 }
 
 // Build geometry used in the sample.
-void D3D12RaytracingDynamicGeometry::InitializeGeometry()
+void D3D12RaytracingAmbientOcclusion::InitializeGeometry()
 {
     m_geometries.resize(GeometryType::Count);
 	m_geometryInstances.resize(GeometryType::Count);
@@ -1023,7 +941,7 @@ void D3D12RaytracingDynamicGeometry::InitializeGeometry()
 	m_deviceResources->ExecuteCommandList();
 }
 
-void D3D12RaytracingDynamicGeometry::GenerateBottomLevelASInstanceTransforms()
+void D3D12RaytracingAmbientOcclusion::GenerateBottomLevelASInstanceTransforms()
 {
 #if ONLY_SQUID_SCENE_BLAS
 	// Bottom-level AS with a single plane.
@@ -1080,7 +998,7 @@ void D3D12RaytracingDynamicGeometry::GenerateBottomLevelASInstanceTransforms()
 }
 
 // Build acceleration structure needed for raytracing.
-void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
+void D3D12RaytracingAmbientOcclusion::InitializeAccelerationStructures()
 {
     auto device = m_deviceResources->GetD3DDevice();
     
@@ -1158,7 +1076,7 @@ void D3D12RaytracingDynamicGeometry::InitializeAccelerationStructures()
 
 // Build shader tables.
 // This encapsulates all shader records - shaders and the arguments for their local root signatures.
-void D3D12RaytracingDynamicGeometry::BuildShaderTables()
+void D3D12RaytracingAmbientOcclusion::BuildShaderTables()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -1300,7 +1218,7 @@ void D3D12RaytracingDynamicGeometry::BuildShaderTables()
     }
 }
 
-void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
+void D3D12RaytracingAmbientOcclusion::OnKeyDown(UINT8 key)
 {
 	// ToDo
     switch (key)
@@ -1322,7 +1240,7 @@ void D3D12RaytracingDynamicGeometry::OnKeyDown(UINT8 key)
 }
 
 // Update frame-based values.
-void D3D12RaytracingDynamicGeometry::OnUpdate()
+void D3D12RaytracingAmbientOcclusion::OnUpdate()
 {
     m_timer.Tick();
 
@@ -1424,12 +1342,12 @@ void D3D12RaytracingDynamicGeometry::OnUpdate()
 }
 
 // Parse supplied command line args.
-void D3D12RaytracingDynamicGeometry::ParseCommandLineArgs(WCHAR* argv[], int argc)
+void D3D12RaytracingAmbientOcclusion::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
     DXSample::ParseCommandLineArgs(argv, argc);
 }
 
-void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuild)
+void D3D12RaytracingAmbientOcclusion::UpdateAccelerationStructures(bool forceBuild)
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
@@ -1499,7 +1417,7 @@ void D3D12RaytracingDynamicGeometry::UpdateAccelerationStructures(bool forceBuil
     }
 }
 
-void D3D12RaytracingDynamicGeometry::DispatchRays(ID3D12Resource* rayGenShaderTable, GPUTimer* gpuTimer)
+void D3D12RaytracingAmbientOcclusion::DispatchRays(ID3D12Resource* rayGenShaderTable, GPUTimer* gpuTimer)
 {
 	auto commandList = m_deviceResources->GetCommandList();
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
@@ -1524,7 +1442,7 @@ void D3D12RaytracingDynamicGeometry::DispatchRays(ID3D12Resource* rayGenShaderTa
 };
 
 
-void D3D12RaytracingDynamicGeometry::DoRaytracing()
+void D3D12RaytracingAmbientOcclusion::DoRaytracing()
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
@@ -1568,8 +1486,9 @@ void D3D12RaytracingDynamicGeometry::DoRaytracing()
 	DispatchRays(m_rayGenShaderTables[RayGenShaderType::PrimaryAndAO].Get(), &m_gpuTimers[GpuTimers::Raytracing_PrimaryAndAO]);
 }
 
-void D3D12RaytracingDynamicGeometry::DoRaytracingGBufferAndAOPasses()
+void D3D12RaytracingAmbientOcclusion::DoRaytracingGBufferAndAOPasses()
 {
+	auto device = m_deviceResources->GetD3DDevice();
 	auto commandList = m_deviceResources->GetCommandList();
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
@@ -1578,9 +1497,30 @@ void D3D12RaytracingDynamicGeometry::DoRaytracingGBufferAndAOPasses()
 		commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
 	};
 
+	auto CalculateRayHitCount = [&](ReduceSumCalculations::Enum type)
+	{
+		RWGpuResource* inputResource = nullptr;
+		switch (type)
+		{
+		case ReduceSumCalculations::CameraRayHits: inputResource = &m_GBufferResources[GBufferResource::Hit]; break;
+		case ReduceSumCalculations::AORayHits: inputResource = &m_AORayHits; break;
+		}
+
+		m_gpuTimers[GpuTimers::ReduceSum].Start(commandList, type);
+		m_reduceSumKernel.Execute(
+			device,
+			commandList,
+			m_cbvSrvUavHeap->GetHeap(),
+			frameIndex,
+			inputResource->gpuDescriptorReadAccess,
+			type,
+			&m_numRayGeometryHits[type]);
+		m_gpuTimers[GpuTimers::ReduceSum].Stop(commandList, type);
+	};
 
 	uniform_int_distribution<UINT> seedDistribution(0, UINT_MAX);
 
+	// ToDo remove?
 	static UINT seed = 0;
 	m_sceneCB->seed = seedDistribution(m_generatorURNG);
 	m_sceneCB->numSamples = m_randomSampler.NumSamples();
@@ -1637,7 +1577,7 @@ void D3D12RaytracingDynamicGeometry::DoRaytracingGBufferAndAOPasses()
 		commandList->ResourceBarrier(ARRAYSIZE(barriers), barriers);
 	}
 
-	CalculateRayHits(ReduceSumCalculations::CameraRayHits);
+	CalculateRayHitCount(ReduceSumCalculations::CameraRayHits);
 
 	//*************************
 	// AO pass
@@ -1664,12 +1604,12 @@ void D3D12RaytracingDynamicGeometry::DoRaytracingGBufferAndAOPasses()
 		D3D12_RESOURCE_STATES after = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_AORayHits.resource.Get(), before, after));
 	}
-	CalculateRayHits(ReduceSumCalculations::AORayHits);
+
+	CalculateRayHitCount(ReduceSumCalculations::AORayHits);
 }
 
-
 // Copy the raytracing output to the backbuffer.
-void D3D12RaytracingDynamicGeometry::CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState)
+void D3D12RaytracingAmbientOcclusion::CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState)
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto renderTarget = m_deviceResources->GetRenderTarget();
@@ -1688,7 +1628,7 @@ void D3D12RaytracingDynamicGeometry::CopyRaytracingOutputToBackbuffer(D3D12_RESO
     commandList->ResourceBarrier(ARRAYSIZE(postCopyBarriers), postCopyBarriers);
 }
 
-void D3D12RaytracingDynamicGeometry::UpdateUI()
+void D3D12RaytracingAmbientOcclusion::UpdateUI()
 {
 	// ToDo average/smoothen numbers of 1/4 second.
     vector<wstring> labels;
@@ -1777,7 +1717,7 @@ void D3D12RaytracingDynamicGeometry::UpdateUI()
 }
 
 // Create resources that are dependent on the size of the main window.
-void D3D12RaytracingDynamicGeometry::CreateWindowSizeDependentResources()
+void D3D12RaytracingAmbientOcclusion::CreateWindowSizeDependentResources()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandQueue = m_deviceResources->GetCommandQueue();
@@ -1787,7 +1727,13 @@ void D3D12RaytracingDynamicGeometry::CreateWindowSizeDependentResources()
     CreateRaytracingOutputResource();
 
 	CreateGBufferResources();
-	CreateReduceSumResources();
+	m_reduceSumKernel.CreateInputResourceSizeDependentResources(
+		device,
+		m_cbvSrvUavHeap.get(), 
+		FrameCount, 
+		m_width, 
+		m_height, 
+		ReduceSumCalculations::Count);
         
     if (m_enableUI)
     {
@@ -1800,7 +1746,7 @@ void D3D12RaytracingDynamicGeometry::CreateWindowSizeDependentResources()
 }
 
 // Release resources that are dependent on the size of the main window.
-void D3D12RaytracingDynamicGeometry::ReleaseWindowSizeDependentResources()
+void D3D12RaytracingAmbientOcclusion::ReleaseWindowSizeDependentResources()
 {
     if (m_enableUI)
     {
@@ -1810,7 +1756,7 @@ void D3D12RaytracingDynamicGeometry::ReleaseWindowSizeDependentResources()
 }
 
 // Release all resources that depend on the device.
-void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
+void D3D12RaytracingAmbientOcclusion::ReleaseDeviceDependentResources()
 {
     for (auto& gpuTimer : m_gpuTimers)
     {
@@ -1847,7 +1793,7 @@ void D3D12RaytracingDynamicGeometry::ReleaseDeviceDependentResources()
     m_hitGroupShaderTable.Reset();
 }
 
-void D3D12RaytracingDynamicGeometry::RecreateD3D()
+void D3D12RaytracingAmbientOcclusion::RecreateD3D()
 {
     // Give GPU a chance to finish its execution in progress.
     try
@@ -1861,7 +1807,7 @@ void D3D12RaytracingDynamicGeometry::RecreateD3D()
     m_deviceResources->HandleDeviceLost();
 }
 
-void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
+void D3D12RaytracingAmbientOcclusion::RenderRNGVisualizations()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -1910,116 +1856,10 @@ void D3D12RaytracingDynamicGeometry::RenderRNGVisualizations()
 }
 
 
-void D3D12RaytracingDynamicGeometry::CalculateRayHits(ReduceSumCalculations::Enum type)
-{
-	using namespace ComputeShader::RootSignature::ReduceSum;
-
-	auto device = m_deviceResources->GetD3DDevice();
-	auto commandList = m_deviceResources->GetCommandList();
-	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
-
-	PIXBeginEvent(commandList, 0, L"CalculateNumCameraRayHits");
-
-#if 1
-	// Copy dynamic buffers to GPU.
-	{
-		m_csReduceSumCB.CopyStagingToGpu(frameIndex);
-	}
-
-	// Set pipeline state.
-	{
-		commandList->SetDescriptorHeaps(1, m_cbvSrvUavHeap->GetAddressOf());
-		commandList->SetComputeRootSignature(m_computeRootSigs[ComputeShader::Type::ReduceSum].Get());
-		commandList->SetComputeRootDescriptorTable(Slot::Output, m_csReduceSumOutputs[0].gpuDescriptorWriteAccess);
-		commandList->SetComputeRootConstantBufferView(Slot::ConstantBuffer, m_csReduceSumCB.GpuVirtualAddress(frameIndex));
-		commandList->SetPipelineState(m_computePSOs[ComputeShader::Type::ReduceSum].Get());
-	}
-
-	//
-	// Iterative sum reduce [m_width, m_height] to [1,1]
-	//
-	SIZE_T readBackBaseOffset = frameIndex * sizeof(m_numRayGeometryHits[0]);
-	m_gpuTimers[GpuTimers::ReduceSum].Start(commandList, type);
-	{
-		// First iteration reads from ray hit resource.		
-		if (type == ReduceSumCalculations::CameraRayHits)
-		{
-			commandList->SetComputeRootDescriptorTable(Slot::Input, m_GBufferResources[GBufferResource::Hit].gpuDescriptorReadAccess);
-		}
-		else // AORayHits
-		{
-		commandList->SetComputeRootDescriptorTable(Slot::Input, m_AORayHits.gpuDescriptorReadAccess);
-		}
-		commandList->SetComputeRootDescriptorTable(Slot::Output, m_csReduceSumOutputs[0].gpuDescriptorWriteAccess);
-
-		for (UINT i = 0; i < m_csReduceSumOutputs.size(); i++)
-		{
-			auto& outputResourceDesc = m_csReduceSumOutputs[i].resource.Get()->GetDesc();
-
-			// Each group writes out a single summed result accross group threads.
-			XMUINT2 groupSize(static_cast<UINT>(outputResourceDesc.Width), static_cast<UINT>(outputResourceDesc.Height));
-
-			// Dispatch.
-			commandList->Dispatch(groupSize.x, groupSize.y, 1);
-			
-			// Set the output resource as input in the next iteration. 
-			if (i < m_csReduceSumOutputs.size() - 1)
-			{
-				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutputs[i].resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
-				commandList->SetComputeRootDescriptorTable(Slot::Input, m_csReduceSumOutputs[i].gpuDescriptorReadAccess);
-				commandList->SetComputeRootDescriptorTable(Slot::Output, m_csReduceSumOutputs[i+1].gpuDescriptorWriteAccess);
-			}
-			else  // We're done, prepare the last output for copy to readback.
-			{
-				commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutputs.back().resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE));
-			}
-		}
-
-		// Copy the sum result to the readback buffer.
-		auto& srcDesc = m_csReduceSumReadback[type]->GetDesc();
-		auto& destDesc = m_csReduceSumOutputs.back().resource.Get()->GetDesc();
-		D3D12_PLACED_SUBRESOURCE_FOOTPRINT bufferFootprint = {};
-		bufferFootprint.Offset = 0;
-		bufferFootprint.Footprint.Width = FrameCount;
-		bufferFootprint.Footprint.Height = 1;
-		bufferFootprint.Footprint.Depth = 1; 
-		bufferFootprint.Footprint.RowPitch = Align(static_cast<UINT>(srcDesc.Width) * sizeof(m_numRayGeometryHits[type]), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-		bufferFootprint.Footprint.Format = destDesc.Format;
-		CD3DX12_TEXTURE_COPY_LOCATION copyDest(m_csReduceSumReadback[type].Get(), bufferFootprint);
-		CD3DX12_TEXTURE_COPY_LOCATION copySrc(m_csReduceSumOutputs.back().resource.Get(), 0);
-		commandList->CopyTextureRegion(&copyDest, frameIndex, 0, 0, &copySrc, nullptr);
-
-		// Transition the intermediate output resources back.
-		{
-			std::vector<D3D12_RESOURCE_BARRIER> barriers;
-			barriers.resize(m_csReduceSumOutputs.size());
-			for (UINT i = 0; i < m_csReduceSumOutputs.size() - 1; i++)
-			{
-				barriers[i] = CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutputs[i].resource.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			}
-			barriers[m_csReduceSumOutputs.size() - 1] = CD3DX12_RESOURCE_BARRIER::Transition(m_csReduceSumOutputs.back().resource.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-			commandList->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
-		}
-	}
-	m_gpuTimers[GpuTimers::ReduceSum].Stop(commandList, type);
-
-
-	// Performance optimization.
-	// To avoid stalling on CPU until GPU is done, grab the data from finished frame FrameCount ago.
-	// This is fine for the informational purposes of using the value for UI display only.
-	UINT* mappedData = nullptr;
-	CD3DX12_RANGE readRange(readBackBaseOffset, readBackBaseOffset + sizeof(m_numRayGeometryHits[type]));
-	ThrowIfFailed(m_csReduceSumReadback[type]->Map(0, &readRange, reinterpret_cast<void**>(&mappedData)));
-	m_numRayGeometryHits[type] = *mappedData;
-	m_csReduceSumReadback[type]->Unmap(0, &CD3DX12_RANGE(0,0));
-#endif
-	PIXEndEvent(commandList);
-}
 
 
 // Render the scene.
-void D3D12RaytracingDynamicGeometry::OnRender()
+void D3D12RaytracingAmbientOcclusion::OnRender()
 {
     if (!m_deviceResources->IsWindowVisible())
     {
@@ -2077,7 +1917,7 @@ void D3D12RaytracingDynamicGeometry::OnRender()
 }
 
 // Compute the average frames per second and million rays per second.
-void D3D12RaytracingDynamicGeometry::CalculateFrameStats()
+void D3D12RaytracingAmbientOcclusion::CalculateFrameStats()
 {
     static int frameCnt = 0;
     static double prevTime = 0.0f;
@@ -2107,7 +1947,7 @@ void D3D12RaytracingDynamicGeometry::CalculateFrameStats()
 }
 
 // Handle OnSizeChanged message event.
-void D3D12RaytracingDynamicGeometry::OnSizeChanged(UINT width, UINT height, bool minimized)
+void D3D12RaytracingAmbientOcclusion::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
     UpdateForSizeChange(width, height);
 
