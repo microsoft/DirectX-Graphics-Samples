@@ -89,7 +89,7 @@ namespace SceneArgs
 #if NUM_GEOMETRIES_1000
 		1000, 
 #elif NUM_GEOMETRIES_100000
-		1,//100000,
+		100000,
 #elif NUM_GEOMETRIES_1000000
 		1000000,
 #endif
@@ -1103,7 +1103,7 @@ void D3D12RaytracingAmbientOcclusion::InitializeAccelerationStructures()
 		m_vBottomLevelAS.resize(1);
 		// ToDo apply scale transform to make all scenes using same spatial unit lengths.
 		m_vBottomLevelAS[0].Initialize(device, m_geometries[GeometryType::SquidRoom], static_cast<UINT>(m_geometryInstances[GeometryType::SquidRoom].size()), buildFlags, DXGI_FORMAT_R32_UINT, sizeof(UINT), SquidRoomAssets::StandardVertexStride, m_geometryInstances[GeometryType::SquidRoom]);
-		m_vBottomLevelAS[0].SetInstanceContributionToHitGroupIndex(0);
+		m_vBottomLevelAS[0].SetInstanceContributionToHitGroupIndex(2 * RayType::Count);	// ToDo fix hack
 		maxScratchResourceSize = max(m_vBottomLevelAS[0].RequiredScratchSize(), maxScratchResourceSize);
 		m_ASmemoryFootprint += m_vBottomLevelAS[0].RequiredResultDataSizeInBytes();
 		UINT numGeometryTransforms = SceneArgs::NumGeometriesPerBLAS;
