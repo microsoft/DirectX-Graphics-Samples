@@ -130,6 +130,7 @@ D3D12RaytracingAmbientOcclusion::D3D12RaytracingAmbientOcclusion(UINT width, UIN
 	m_generatorURNG.seed(1729);
 }
 
+// ToDo worth moving some common member vars and fncs to DxSampleRaytracing base class?
 void D3D12RaytracingAmbientOcclusion::OnInit()
 {
     m_deviceResources = std::make_unique<DeviceResources>(
@@ -259,6 +260,7 @@ void D3D12RaytracingAmbientOcclusion::UpdateSphereGeometryTransforms()
             }
 }
 
+// ToDo move to CS.
 void D3D12RaytracingAmbientOcclusion::UpdateGridGeometryTransforms()
 {
 	auto device = m_deviceResources->GetD3DDevice();
@@ -1220,7 +1222,7 @@ void D3D12RaytracingAmbientOcclusion::BuildShaderTables()
 
 void D3D12RaytracingAmbientOcclusion::OnKeyDown(UINT8 key)
 {
-	// ToDo
+	// ToDo 
     switch (key)
     {
     case VK_ESCAPE:
@@ -1854,9 +1856,6 @@ void D3D12RaytracingAmbientOcclusion::RenderRNGVisualizations()
 	// Dispatch.
     commandList->Dispatch(rngWindowSize.x, rngWindowSize.y, 1);
 }
-
-
-
 
 // Render the scene.
 void D3D12RaytracingAmbientOcclusion::OnRender()
