@@ -68,7 +68,7 @@ private:
 	UINT64 m_ASmemoryFootprint;
 	int m_numFramesSinceASBuild;
 #if TESSELATED_GEOMETRY_BOX
-#if TESSELATED_GEOMETRY_THIN_BOXES
+#if TESSELATED_GEOMETRY_THIN
 	const XMFLOAT3 m_boxSize = XMFLOAT3(0.01f, 0.1f, 0.01f);
 #else
 	const XMFLOAT3 m_boxSize = XMFLOAT3(1, 1, 1);
@@ -199,14 +199,12 @@ private:
 	void DoRaytracingGBufferAndAOPasses();
     void CreateConstantBuffers();
     void CreateSamplesRNG();
-	void CreateReduceSumResources();
 	void UpdateUI();
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
     void ReleaseDeviceDependentResources();
     void ReleaseWindowSizeDependentResources();
     void RenderRNGVisualizations();
-	void CalculateRayHitCount(ReduceSumCalculations::Enum type);
     void CreateRaytracingInterfaces();
     void CreateRootSignatures();
     void CreateDxilLibrarySubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline);

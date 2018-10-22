@@ -637,7 +637,6 @@ inline void AllocateReadBackBuffer(
 	}
 }
 
-
 inline UINT CeilDivide(UINT value, UINT divisor)
 {
 	return (value + divisor - 1) / divisor;

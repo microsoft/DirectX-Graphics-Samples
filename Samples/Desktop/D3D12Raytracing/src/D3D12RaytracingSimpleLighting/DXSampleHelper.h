@@ -346,3 +346,8 @@ public:
         return m_resource->GetGPUVirtualAddress() + instanceIndex * InstanceSize();
     }
 };
+
+inline UINT CeilDivide(UINT value, UINT divisor)
+{
+	return (value + divisor - 1) / divisor;
+}

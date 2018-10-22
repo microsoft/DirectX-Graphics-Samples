@@ -365,7 +365,13 @@ void MyClosestHitShader(inout RayPayload rayPayload, in BuiltInTriangleIntersect
 #endif
 	// Retrieve corresponding vertex normals for the triangle vertices.
 	float3 vertexNormals[3] = { l_vertices[indices[0]].normal, l_vertices[indices[1]].normal, l_vertices[indices[2]].normal};
-    float3 triangleNormal = HitAttribute(vertexNormals, attr);
+#if FLAT_FACE_NORMALS
+	BuiltInTriangleIntersectionAttributes attrCenter;
+	attrCenter.barycentrics.x = attrCenter.barycentrics.y = 1.f / 3;
+	float3 triangleNormal = normalize(HitAttribute(vertexNormals, attrCenter));
+#else
+	float3 triangleNormal = HitAttribute(vertexNormals, attr);
+#endif
 
 #if NORMAL_SHADING
 	rayPayload.color = float4(triangleNormal, 1.0f);
@@ -428,7 +434,15 @@ void MyClosestHitShader_GBuffer(inout GBufferRayPayload rayPayload, in BuiltInTr
 
 	// Retrieve corresponding vertex normals for the triangle vertices.
 	float3 vertexNormals[3] = { l_vertices[indices[0]].normal, l_vertices[indices[1]].normal, l_vertices[indices[2]].normal };
+	
+#if FLAT_FACE_NORMALS
+	BuiltInTriangleIntersectionAttributes attrCenter;
+	attrCenter.barycentrics.x = attrCenter.barycentrics.y = 1.f / 3;
+	// ToDo input normals should be normalized already
+	float3 triangleNormal = normalize(HitAttribute(vertexNormals, attrCenter));
+#else
 	float3 triangleNormal = HitAttribute(vertexNormals, attr);
+#endif
 
 	rayPayload.hit = true;
 	rayPayload.hitPosition = HitWorldPosition();

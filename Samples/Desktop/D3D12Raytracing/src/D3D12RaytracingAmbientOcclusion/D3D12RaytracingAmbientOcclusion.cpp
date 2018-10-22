@@ -281,8 +281,9 @@ void D3D12RaytracingAmbientOcclusion::UpdateGridGeometryTransforms()
 
 	// ToDo
 
-	uniform_real_distribution<float> elevationDistribution(-0.25f*m_boxSize.y, 0.2f*m_boxSize.y);
-	uniform_real_distribution<float> jitterDistribution(-4*spacing, 4*spacing);
+	uniform_real_distribution<float> elevationDistribution(-0.4*m_boxSize.y, 0);
+	uniform_real_distribution<float> jitterDistribution(-spacing, spacing);
+	uniform_real_distribution<float> rotationDistribution(-XM_PI, 180);
 
 	for (UINT iY = 0, i = 0; iY < dim.y; iY++)
 		for (UINT iX = 0; iX < dim.x; iX++)
@@ -292,13 +293,15 @@ void D3D12RaytracingAmbientOcclusion::UpdateGridGeometryTransforms()
 				{
 					break;
 				}
-				const UINT Z_TILE_WIDTH = 10;
+				const UINT X_TILE_WIDTH = 20;
+				const UINT X_TILE_SPACING = X_TILE_WIDTH * 1.2f;
+				const UINT Z_TILE_WIDTH = 4;
 				const UINT Z_TILE_SPACING = Z_TILE_WIDTH * 2;
 
 				XMVECTOR translationVector = offset + stepDistance * 
 					XMVectorSet(
 #if TESSELATED_GEOMETRY_TILES
-						static_cast<float>((iX / Z_TILE_WIDTH) * Z_TILE_SPACING + iX % Z_TILE_WIDTH),
+						static_cast<float>((iX / X_TILE_WIDTH) * X_TILE_SPACING + iX % X_TILE_WIDTH),
 						static_cast<float>(iY),
 						static_cast<float>((iZ/ Z_TILE_WIDTH) * Z_TILE_SPACING + iZ % Z_TILE_WIDTH),
 #else
@@ -313,7 +316,9 @@ void D3D12RaytracingAmbientOcclusion::UpdateGridGeometryTransforms()
 					elevationDistribution(m_generatorURNG), 
 					jitterDistribution(m_generatorURNG),
 					0);
-				XMMATRIX transform = XMMatrixTranslationFromVector(translationVector);
+				XMMATRIX translation = XMMatrixTranslationFromVector(translationVector);
+				XMMATRIX rotation = XMMatrixRotationY(rotationDistribution(m_generatorURNG));
+				XMMATRIX transform = rotation * translation;
 				
 				XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(m_geometryTransforms[i].transform3x4), transform);
 			}
@@ -773,7 +778,7 @@ void D3D12RaytracingAmbientOcclusion::BuildPlaneGeometry()
     Index indices[] =
     {
         3, 1, 0,
-        2, 1, 3
+      //  2, 1, 3
 
     };
 
@@ -785,13 +790,18 @@ void D3D12RaytracingAmbientOcclusion::BuildPlaneGeometry()
         { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
         { XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) }
     };
-    AllocateUploadBuffer(device, indices, sizeof(indices), &m_geometries[GeometryType::Plane].ib.resource);
+	
+	// A ByteAddressBuffer SRV is created with a ElementSize = 0 and NumElements = number of 32 - bit words.
+	UINT indexBufferSize = CeilDivide(sizeof(indices), sizeof(UINT)) * sizeof(UINT);	// Pad the buffer to fit NumElements of 32bit words.
+	UINT numIndexBufferElements = indexBufferSize / sizeof(UINT);
+
+    AllocateUploadBuffer(device, indices, indexBufferSize, &m_geometries[GeometryType::Plane].ib.resource);
     AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_geometries[GeometryType::Plane].vb.resource);
 
     // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
 
     // ToDo revise numElements calculation
-    CreateBufferSRV(&m_geometries[GeometryType::Plane].ib, device, static_cast<UINT>(ceil((float)sizeof(indices) / sizeof(UINT))), 0, m_cbvSrvUavHeap.get(), &m_geometryIBHeapIndices[GeometryType::Plane]);
+	CreateBufferSRV(&m_geometries[GeometryType::Plane].ib, device, numIndexBufferElements, 0, m_cbvSrvUavHeap.get(), &m_geometryIBHeapIndices[GeometryType::Plane]);
     CreateBufferSRV(&m_geometries[GeometryType::Plane].vb, device, ARRAYSIZE(vertices), sizeof(vertices[0]), m_cbvSrvUavHeap.get(), &m_geometryVBHeapIndices[GeometryType::Plane]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Plane] == m_geometryIBHeapIndices[GeometryType::Plane] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
@@ -810,18 +820,82 @@ void D3D12RaytracingAmbientOcclusion::BuildTesselatedGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
-    vector<GeometricPrimitive::VertexType> vertices;
-    vector<Index> indices;
 
     const bool RhCoords = false;
 
     // ToDo option to reuse multiple geometries
     auto& geometry = m_geometries[GeometryType::Sphere];
-    switch (SceneArgs::GeometryTesselationFactor)
+
+#if	TESSELATED_GEOMETRY_BOX_TETRAHEDRON
+	// Plane indices.
+	array<Index, 12> indices =
+	{ {
+		0, 3, 1,
+		1, 3, 2,
+		2, 3, 0,
+		// ToDo remove bottom cap
+		0, 1, 2
+	} };
+
+	const float edgeLength = 0.707f;
+	const float e2 = edgeLength / 2;
+	// Cube vertices positions and corresponding triangle normals.
+	array<DirectX::VertexPositionNormalTexture, 4> vertices =
+	{ {
+#if 1
+		{ XMFLOAT3(-e2, -e2, -e2), XMFLOAT3(0, 0, 0), XMFLOAT2(FLT_MAX, FLT_MAX) },
+		{ XMFLOAT3(e2, -e2, -e2), XMFLOAT3(0, 0, 0), XMFLOAT2(FLT_MAX, FLT_MAX) },
+		{ XMFLOAT3(0, -e2, e2), XMFLOAT3(0, 0, 0), XMFLOAT2(FLT_MAX, FLT_MAX) },
+		{ XMFLOAT3(0, e2, 0), XMFLOAT3(0, 0, 0), XMFLOAT2(FLT_MAX, FLT_MAX) }
+#else
+		{ XMFLOAT3(e2, -e2, -e2), XMFLOAT3(1, 0, 0), XMFLOAT2(FLT_MAX, FLT_MAX) },
+		{ XMFLOAT3(e2, -e2, e2), XMFLOAT3(1, 0, 0), XMFLOAT2(FLT_MAX, FLT_MAX) },
+		{ XMFLOAT3(-e2, -e2, e2), XMFLOAT3(1, 0, 0), XMFLOAT2(FLT_MAX, FLT_MAX) },
+		{ XMFLOAT3(e2, e2, e2), XMFLOAT3(1,0, 0), XMFLOAT2(FLT_MAX, FLT_MAX) }
+#endif
+		} };
+
+#if 1
+	for (auto& vertex : vertices)
+	{
+		auto& scale = m_boxSize;
+		vertex.position.x *= (m_boxSize.x / e2);
+		vertex.position.y *= (m_boxSize.y / e2);
+		vertex.position.z *= (m_boxSize.z / e2);
+	}
+#endif
+
+	auto Edge = [&](UINT v0, UINT v1)
+	{
+		return XMLoadFloat3(&vertices[v1].position) - XMLoadFloat3(&vertices[v0].position);
+	};
+
+	// ToDo, normalizing face or vertex normals skews normal in the shader.?
+	XMVECTOR faceNormals[4] =
+	{
+		XMVector3Cross(Edge(0, 3), Edge(0, 1)),
+		XMVector3Cross(Edge(1, 3), Edge(1, 2)),
+		XMVector3Cross(Edge(2, 3), Edge(2, 0)),
+		XMVector3Cross(Edge(0, 1), Edge(0, 2))
+	};
+
+#if 1
+	XMStoreFloat3(&vertices[0].normal, (faceNormals[0] + faceNormals[2] + faceNormals[3]));
+	XMStoreFloat3(&vertices[1].normal, (faceNormals[0] + faceNormals[1] + faceNormals[3]));
+	XMStoreFloat3(&vertices[2].normal, (faceNormals[1] + faceNormals[2] + faceNormals[3]));
+	XMStoreFloat3(&vertices[3].normal, (faceNormals[0] + faceNormals[1] + faceNormals[2]));
+	float a = 2;
+#endif
+#else
+	vector<GeometricPrimitive::VertexType> vertices;
+	vector<Index> indices;
+	switch (SceneArgs::GeometryTesselationFactor)
     {
     case 0:
         // 24 indices
-#if TESSELATED_GEOMETRY_BOX
+#if TESSELATED_GEOMETRY_BOX_TETRAHEDRON
+		GeometricPrimitive::CreateTetrahedron(vertices, indices, m_boxSize.x, RhCoords);
+#elif TESSELATED_GEOMETRY_BOX
 		GeometricPrimitive::CreateBox(vertices, indices, m_boxSize, RhCoords);
 #else
 		GeometricPrimitive::CreateOctahedron(vertices, indices, m_geometryRadius, RhCoords);
@@ -846,7 +920,17 @@ void D3D12RaytracingAmbientOcclusion::BuildTesselatedGeometry()
         const float Diameter = 2 * m_geometryRadius;
         GeometricPrimitive::CreateSphere(vertices, indices, Diameter, SceneArgs::GeometryTesselationFactor, RhCoords);
     }
-#if TESSELATED_GEOMETRY_THIN_BOXES
+#endif
+#if TESSELATED_GEOMETRY_THIN
+#if TESSELATED_GEOMETRY_BOX_TETRAHEDRON
+	for (auto& vertex : vertices)
+	{
+		if (vertex.position.y > 0)
+		{
+			//vertex.position.y = m_boxSize.y;
+		}
+	}
+#else
 	for (auto& vertex : vertices)
 	{
 		if (vertex.position.y > 0)
@@ -856,12 +940,18 @@ void D3D12RaytracingAmbientOcclusion::BuildTesselatedGeometry()
 		}
 	}
 #endif
+#endif
 
-    AllocateUploadBuffer(device, indices.data(), indices.size() * sizeof(indices[0]), &geometry.ib.resource);
+	// Index buffer is created with a ByteAddressBuffer SRV. 
+	// ByteAddressBuffer SRV is created with an ElementSize = 0 and NumElements = number of 32 - bit words.
+	UINT indexBufferSize = CeilDivide(indices.size(), sizeof(UINT)) * sizeof(UINT);	// Pad the buffer to fit NumElements of 32bit words.
+	UINT numIndexBufferElements = indexBufferSize / sizeof(UINT);
+
+    AllocateUploadBuffer(device, indices.data(), indexBufferSize, &geometry.ib.resource);
     AllocateUploadBuffer(device, vertices.data(), vertices.size() * sizeof(vertices[0]), &geometry.vb.resource);
 
-    // Vertex buffer is passed to the shader along with index buffer as a descriptor range.
-    CreateBufferSRV(&geometry.ib, device, static_cast<UINT>(ceil(static_cast<float>(indices.size() * sizeof(Index)) / sizeof(UINT))) , 0, m_cbvSrvUavHeap.get(), &m_geometryIBHeapIndices[GeometryType::Sphere]);
+    // Vertex buffer is passed to the shader along with index buffer as a descriptor table.
+    CreateBufferSRV(&geometry.ib, device, numIndexBufferElements, 0, m_cbvSrvUavHeap.get(), &m_geometryIBHeapIndices[GeometryType::Sphere]);
     CreateBufferSRV(&geometry.vb, device, static_cast<UINT>(vertices.size()), sizeof(vertices[0]), m_cbvSrvUavHeap.get(), &m_geometryVBHeapIndices[GeometryType::Sphere]);
     ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::Sphere] == m_geometryIBHeapIndices[GeometryType::Sphere] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
