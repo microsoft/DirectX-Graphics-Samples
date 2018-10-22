@@ -216,8 +216,9 @@ void TestBitonicSort(uint32_t ListSize, bool b64Bit, bool bAscending)
     Ctx.CopyBuffer(ReadbackList, RandomListGpu);
     Ctx.Finish(true);
 
-    typedef uint32_t Args[3];
-    Args* iArgs = (Args*)IndirectArgs.Map();
+    // For debug purposes, you may uncomment these lines to verify that the args were created correctly.
+    //typedef uint32_t Args[3];
+    //Args* iArgs = (Args*)IndirectArgs.Map();
     BufferPtr = ReadbackList.Map();
 
     // Scan through all items to ensure they are sorted in the proper order and that
@@ -228,7 +229,7 @@ void TestBitonicSort(uint32_t ListSize, bool b64Bit, bool bAscending)
         VerifySort((uint32_t*)BufferPtr, ListSize, bAscending);
 
     ReadbackList.Unmap();
-    IndirectArgs.Unmap();
+    //IndirectArgs.Unmap();
 }
 
 void BitonicSort::Test( void )

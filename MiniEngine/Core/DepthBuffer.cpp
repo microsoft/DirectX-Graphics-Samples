@@ -45,7 +45,7 @@ void DepthBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Hei
     Create(Name, Width, Height, Format);
 }
 
-void DepthBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t Samples, DXGI_FORMAT Format, EsramAllocator& Allocator )
+void DepthBuffer::Create( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t Samples, DXGI_FORMAT Format, EsramAllocator& )
 {
     Create(Name, Width, Height, Samples, Format);
 }
