@@ -19,7 +19,7 @@ using namespace Graphics;
 
 void ReadbackBuffer::Create( const std::wstring& name, uint32_t NumElements, uint32_t ElementSize )
 {
-    GpuResource::Destroy();
+    Destroy();
 
     m_ElementCount = NumElements;
     m_ElementSize = ElementSize;
