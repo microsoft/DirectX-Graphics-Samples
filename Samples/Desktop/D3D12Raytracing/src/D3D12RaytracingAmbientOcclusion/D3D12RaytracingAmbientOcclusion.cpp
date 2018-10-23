@@ -607,8 +607,6 @@ void D3D12RaytracingAmbientOcclusion::CreateLocalRootSignatureSubobjects(CD3DX12
         auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         rootSignatureAssociation->AddExports(c_hitGroupNames_TriangleGeometry);
-		// ToDo cleanup
-        rootSignatureAssociation->AddExport(c_rayGenShaderNames[RayGenShaderType::AO]);
     }
 }
 
