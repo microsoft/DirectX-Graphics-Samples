@@ -20,6 +20,7 @@
 #include "Sampler.h"
 #include "UILayer.h"
 #include "GpuKernels.h"
+#include "PBRTParser.h"
 
 class D3D12RaytracingAmbientOcclusion : public DXSample
 {
@@ -134,6 +135,7 @@ private:
 		float transform3x4[12];
 	};
 
+	SceneParser::Scene m_pbrtScene;
 	std::vector<TriangleGeometryBuffer> m_geometries;
 	StructuredBuffer<AlignedGeometryTransform3x4> m_geometryTransforms;
 
@@ -186,7 +188,7 @@ private:
 
 	void ParseCommandLineArgs(WCHAR* argv[], int argc);
 	void RecreateD3D();
-
+	void BuildPBRTScene();
 	void LoadSceneGeometry();
     void UpdateCameraMatrices();
 	void UpdateBottomLevelASTransforms();

@@ -28,6 +28,9 @@
     <Filter Include="Assets\Shaders\Assets">
       <UniqueIdentifier>{ae18df80-754a-4361-baae-440ce51538d8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Scene\PBRTParser">
+      <UniqueIdentifier>{a353e976-b333-4508-9ef8-ee785fe93db5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -99,6 +102,15 @@
     <ClInclude Include="RaytracingHlslCompat.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="util\PBRTParser\PBRTParser.h">
+      <Filter>Assets\Scene\PBRTParser</Filter>
+    </ClInclude>
+    <ClInclude Include="util\PBRTParser\SceneParser.h">
+      <Filter>Assets\Scene\PBRTParser</Filter>
+    </ClInclude>
+    <ClInclude Include="util\PBRTParser\PlyParser.h">
+      <Filter>Assets\Scene\PBRTParser</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -154,6 +166,12 @@
     </ClCompile>
     <ClCompile Include="util\GpuKernels.cpp">
       <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="util\PBRTParser\PBRTParser.cpp">
+      <Filter>Assets\Scene\PBRTParser</Filter>
+    </ClCompile>
+    <ClCompile Include="util\PBRTParser\PlyParser.cpp">
+      <Filter>Assets\Scene\PBRTParser</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

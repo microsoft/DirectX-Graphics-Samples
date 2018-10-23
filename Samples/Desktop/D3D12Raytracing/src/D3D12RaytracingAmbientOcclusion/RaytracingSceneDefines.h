@@ -113,6 +113,7 @@ namespace GeometryType {
         Plane = 0,
         Sphere,
 		SquidRoom,
+		PBRTScene,
         Count
     };
 }
@@ -202,6 +203,21 @@ namespace SceneEnums
 		enum Value { SceneGeometry = 0, Count };
 	}
 }
+
+struct GeometryDescriptor
+{
+	struct Buffer {
+		UINT startIndex;
+		UINT count;
+		union {
+			UINT* indices;
+			VertexPositionNormalTextureTangent* vertices;
+		};
+	};
+
+	Buffer vb;
+	Buffer ib;
+};
 
 struct GeometryInstance
 {

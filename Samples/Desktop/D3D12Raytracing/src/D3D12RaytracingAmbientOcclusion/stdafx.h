@@ -25,6 +25,8 @@
 #include <stdlib.h>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
+#include <fstream>
 
 #include <list>
 #include <string>
@@ -41,6 +43,8 @@
 #include <random>
 #include <numeric>
 #include <iterator>
+#include <sal.h>
+#include <stack>
 
 #include <stdint.h>
 #include <float.h>

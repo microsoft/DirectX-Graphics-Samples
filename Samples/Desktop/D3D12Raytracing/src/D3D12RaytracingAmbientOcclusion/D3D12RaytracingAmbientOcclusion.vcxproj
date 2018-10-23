@@ -72,7 +72,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>util;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>util;util/PBRTParser;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DisableSpecificWarnings>
       </DisableSpecificWarnings>
@@ -127,7 +127,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>util;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>util;util/PBRTParser;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
     </ClCompile>
@@ -189,6 +189,9 @@
     <ClInclude Include="util\GameInput.h" />
     <ClInclude Include="util\GpuKernels.h" />
     <ClInclude Include="util\HlslCompat.h" />
+    <ClInclude Include="util\PBRTParser\PBRTParser.h" />
+    <ClInclude Include="util\PBRTParser\PlyParser.h" />
+    <ClInclude Include="util\PBRTParser\SceneParser.h" />
     <ClInclude Include="util\PerformanceTimers.h" />
     <ClInclude Include="util\SquidRoom.h" />
     <ClInclude Include="util\StepTimer.h" />
@@ -222,6 +225,8 @@
     </ClCompile>
     <ClCompile Include="util\GameInput.cpp" />
     <ClCompile Include="util\GpuKernels.cpp" />
+    <ClCompile Include="util\PBRTParser\PBRTParser.cpp" />
+    <ClCompile Include="util\PBRTParser\PlyParser.cpp" />
     <ClCompile Include="util\PerformanceTimers.cpp" />
     <ClCompile Include="util\SquidRoom.cpp" />
     <ClCompile Include="util\UILayer.cpp" />

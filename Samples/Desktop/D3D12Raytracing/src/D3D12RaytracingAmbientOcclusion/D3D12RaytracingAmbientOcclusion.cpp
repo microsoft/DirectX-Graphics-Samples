@@ -99,7 +99,76 @@ namespace SceneArgs
 };
 
 
-D3D12RaytracingAmbientOcclusion::D3D12RaytracingAmbientOcclusion(UINT width, UINT height, std::wstring name) :
+// ToDo move
+void D3D12RaytracingAmbientOcclusion::BuildPBRTScene()
+{
+	auto device = m_deviceResources->GetD3DDevice();
+	auto commandList = m_deviceResources->GetCommandList();
+	auto commandQueue = m_deviceResources->GetCommandQueue();
+	auto commandAllocator = m_deviceResources->GetCommandAllocator();
+
+	
+	auto pfnConvertVec3 = [](SceneParser::Vector3 v)
+	{
+		return XMFLOAT3(v.x, v.y, v.z);
+	};
+
+	auto pfnConvertVec2 = [](SceneParser::Vector2 v)
+	{
+		return XMFLOAT2(v.x, v.y);
+	};
+
+	vector<vector<VertexPositionNormalTextureTangent>> vertexBuffers(m_pbrtScene.m_Meshes.size());
+
+	for (UINT i = 0; i < m_pbrtScene.m_Meshes.size(); i++)
+	{
+		auto &mesh = m_pbrtScene.m_Meshes[i];
+		auto &vertexBuffer = vertexBuffers[i];
+		vertexBuffer.reserve(mesh.m_VertexBuffer.size());
+
+		GeometryDescriptor desc;
+		desc.ib.indices = mesh.m_IndexBuffer.data();
+		desc.ib.count = static_cast<UINT>(mesh.m_IndexBuffer.size());
+		desc.vb.count = static_cast<UINT>(mesh.m_VertexBuffer.size());
+		for (auto &parserVertex : mesh.m_VertexBuffer)
+		{
+			VertexPositionNormalTextureTangent vertex;
+			vertex.normal = pfnConvertVec3(parserVertex.Normal);
+			vertex.position = pfnConvertVec3(parserVertex.Position);
+			vertex.tangent = pfnConvertVec3(parserVertex.Tangents);
+			vertex.textureCoordinate = pfnConvertVec2(parserVertex.UV);
+			vertexBuffer.push_back(vertex);
+		}
+		desc.vb.vertices = vertexBuffer.data();
+		
+		auto pGeometry = g_pRenderer->CreateGeometry(desc);
+		m_pbrtScene->AddGeometry(pGeometry);
+	}
+
+	SquidRoomAssets::LoadGeometry(
+		device,
+		commandList,
+		m_cbvSrvUavHeap.get(),
+		GetAssetFullPath(SquidRoomAssets::DataFileName).c_str(),
+		&m_geometries[GeometryType::SquidRoom].vb,
+		m_vertexBufferUpload.Get(),
+		&m_geometryVBHeapIndices[GeometryType::SquidRoom],
+		&m_geometries[GeometryType::SquidRoom].ib,
+		m_indexBufferUpload.Get(),
+		&m_geometryIBHeapIndices[GeometryType::SquidRoom],
+		&m_geometryInstances[GeometryType::SquidRoom]);
+	ThrowIfFalse(m_geometryVBHeapIndices[GeometryType::SquidRoom] == m_geometryIBHeapIndices[GeometryType::SquidRoom] + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
+
+	m_numTriangles = 0;
+	for (auto& geometry : m_geometryInstances[GeometryType::SquidRoom])
+	{
+		m_numTriangles += geometry.ib.count / 3;
+	}
+
+}
+
+
+D3D12RaytracingAmbientOcclusion::D3D12RaytracingAmbientOcclusion(UINT width, UINT height, wstring name) :
     DXSample(width, height, name),
     m_animateCamera(false),
     m_animateLight(false),
@@ -133,7 +202,7 @@ D3D12RaytracingAmbientOcclusion::D3D12RaytracingAmbientOcclusion(UINT width, UIN
 // ToDo worth moving some common member vars and fncs to DxSampleRaytracing base class?
 void D3D12RaytracingAmbientOcclusion::OnInit()
 {
-    m_deviceResources = std::make_unique<DeviceResources>(
+    m_deviceResources = make_unique<DeviceResources>(
         DXGI_FORMAT_R8G8B8A8_UNORM,
         DXGI_FORMAT_UNKNOWN,
         FrameCount,
@@ -1008,6 +1077,9 @@ void D3D12RaytracingAmbientOcclusion::LoadSceneGeometry()
 	{
 		m_numTriangles += geometry.ib.count / 3;
 	}
+
+
+	PBRTParser::PBRTParser().Parse("Assets\\Teapot\\scene.pbrt", m_pbrtScene);
 }
 
 // Build geometry used in the sample.
