@@ -27,10 +27,10 @@ Camera::~Camera()
     s_camera = nullptr;
 }
 
-void Camera::GetProj(XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords)
+void Camera::GetProj(XMMATRIX *proj, UINT screenWidth, UINT screenHeight, bool rhCoords)
 {
 	float aspectRatio = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
-	float fovAngleY = XMConvertToRadians(fovInDegrees);
+	float fovAngleY = XMConvertToRadians(fov);
 
 	if (aspectRatio < 1.0f)
 	{
@@ -47,7 +47,7 @@ void Camera::GetProj(XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT 
 	}
 }
 
-void Camera::GetViewProj(XMMATRIX *view, XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords)
+void Camera::GetViewProj(XMMATRIX *view, XMMATRIX *proj, UINT screenWidth, UINT screenHeight, bool rhCoords)
 {
 	if (rhCoords)
 	{
@@ -58,7 +58,7 @@ void Camera::GetViewProj(XMMATRIX *view, XMMATRIX *proj, float fovInDegrees, UIN
 		*view = XMMatrixLookAtLH(m_eye, m_at, m_up);
 	}
 
-	GetProj(proj, fovInDegrees, screenWidth, screenHeight, rhCoords);
+	GetProj(proj, screenWidth, screenHeight, rhCoords);
 }
 
 void Camera::RotateAroundYAxis(float angleRad)

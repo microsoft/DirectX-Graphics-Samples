@@ -107,22 +107,31 @@ void D3D12RaytracingAmbientOcclusion::LoadPBRTScene()
 	auto commandQueue = m_deviceResources->GetCommandQueue();
 	auto commandAllocator = m_deviceResources->GetCommandAllocator();
 
-	
-	auto pfnConvertVec3 = [](SceneParser::Vector3 v)
+	auto Vec3ToXMFLOAT3 = [](SceneParser::Vector3 v)
 	{
 		return XMFLOAT3(v.x, v.y, v.z);
 	};
 
-	auto pfnConvertVec2 = [](SceneParser::Vector2 v)
+
+	auto Vec3ToXMVECTOR = [](SceneParser::Vector3 v)
+	{
+		return XMLoadFloat3(&XMFLOAT3(v.x, v.y, v.z));
+	};
+
+	auto Vec3ToXMFLOAT2 = [](SceneParser::Vector2 v)
 	{
 		return XMFLOAT2(v.x, v.y);
 	};
 
-	PBRTParser::PBRTParser().Parse("Assets\\Teapot\\scene.pbrt", m_pbrtScene);
+	PBRTParser::PBRTParser().Parse("Assets\\dragon\\scene.pbrt", m_pbrtScene);
+
+	m_camera.Set(
+		Vec3ToXMVECTOR(m_pbrtScene.m_Camera.m_Position),
+		Vec3ToXMVECTOR(m_pbrtScene.m_Camera.m_LookAt),
+		Vec3ToXMVECTOR(m_pbrtScene.m_Camera.m_Up));
+	m_camera.fov = m_pbrtScene.m_Camera.m_FieldOfView;
 
 	UINT numGeometries = static_cast<UINT>(m_pbrtScene.m_Meshes.size());
-	vector<vector<VertexPositionNormalTextureTangent>> vertexBuffers(numGeometries);
-	vector<Index> indexBuffer;
 
 	auto& geometries = m_geometries[GeometryType::PBRT];
 	geometries.resize(numGeometries);
@@ -135,7 +144,8 @@ void D3D12RaytracingAmbientOcclusion::LoadPBRTScene()
 	for (UINT i = 0; i < m_pbrtScene.m_Meshes.size(); i++)
 	{
 		auto &mesh = m_pbrtScene.m_Meshes[i];
-		auto &vertexBuffer = vertexBuffers[i];
+		vector<VertexPositionNormalTextureTangent> vertexBuffer;
+		vector<Index> indexBuffer;
 		vertexBuffer.reserve(mesh.m_VertexBuffer.size());
 		indexBuffer.reserve(mesh.m_IndexBuffer.size());
 
@@ -153,14 +163,38 @@ void D3D12RaytracingAmbientOcclusion::LoadPBRTScene()
 		for (auto &parserVertex : mesh.m_VertexBuffer)
 		{
 			VertexPositionNormalTextureTangent vertex;
-			vertex.normal = pfnConvertVec3(parserVertex.Normal);
-			vertex.position = pfnConvertVec3(parserVertex.Position);
-			vertex.tangent = pfnConvertVec3(parserVertex.Tangents);
-			vertex.textureCoordinate = pfnConvertVec2(parserVertex.UV);
+			vertex.normal = Vec3ToXMFLOAT3(parserVertex.Normal);
+			vertex.position = Vec3ToXMFLOAT3(parserVertex.Position);
+			vertex.tangent = Vec3ToXMFLOAT3(parserVertex.Tangents);
+			vertex.textureCoordinate = Vec3ToXMFLOAT2(parserVertex.UV);
 			vertexBuffer.push_back(vertex);
 		}
 		desc.vb.vertices = vertexBuffer.data();
 
+		auto IsTriangleClockwiseWinded = [&](UINT index0)
+		{
+			UINT indices[3] = { mesh.m_IndexBuffer[index0], mesh.m_IndexBuffer[index0 + 1], mesh.m_IndexBuffer[index0 + 2] };
+			SceneParser::Vertex vertices[3] = { mesh.m_VertexBuffer[indices[0]], mesh.m_VertexBuffer[indices[1]], mesh.m_VertexBuffer[indices[2]] };
+			XMVECTOR v01 = XMLoadFloat3(&vertexBuffer[indices[1]].position) - XMLoadFloat3(&vertexBuffer[indices[0]].position);
+			XMVECTOR v02 = XMLoadFloat3(&vertexBuffer[indices[2]].position) - XMLoadFloat3(&vertexBuffer[indices[0]].position);
+			XMVECTOR normal = XMLoadFloat3(&vertexBuffer[indices[0]].normal) +
+				XMLoadFloat3(&vertexBuffer[indices[1]].normal) +
+				XMLoadFloat3(&vertexBuffer[indices[2]].normal);
+			return XMVectorGetX(XMVector3Dot(XMVector3Cross(v01, v02), normal)) > 0;
+		};
+
+#if 0 //ToDo scene is mirrored 
+		for (UINT j = 0; j < vertexBuffer.size(); j += 1)
+		{
+			vertexBuffer[j].position.z = -vertexBuffer[j].position.z;
+		}
+#endif
+		// Make sure the triangles are in LH clockwise order 
+		if (!IsTriangleClockwiseWinded(0))
+			for (UINT j = 0; j < indexBuffer.size(); j += 3)
+			{
+				swap(indexBuffer[j], indexBuffer[j + 2]);
+			}
 		auto& geometry = geometries[i];
 		CreateGeometry(device, commandList, m_cbvSrvUavHeap.get(), desc, &geometry);
 		ThrowIfFalse(geometry.vb.buffer.heapIndex == geometry.ib.buffer.heapIndex + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
@@ -243,10 +277,9 @@ void D3D12RaytracingAmbientOcclusion::UpdateCameraMatrices()
 {
     m_sceneCB->cameraPosition = m_camera.Eye();
 
-	float verticalFovAngle = 45.0f;
 	XMMATRIX view, proj;
 	// ToDo camera is creating fisheye in spehere scene
-	m_camera.GetProj(&proj, verticalFovAngle, m_width, m_height);
+	m_camera.GetProj(&proj, m_width, m_height);
 
 	// Calculate view matrix as if the camera was at (0,0,0) to avoid 
 	// precision issues when camera position is too far from (0,0,0).
@@ -1054,8 +1087,9 @@ void D3D12RaytracingAmbientOcclusion::LoadSceneGeometry()
 	{
 		m_numTriangles[GeometryType::SquidRoom] += geometry.ib.count / 3;
 	}
-
+#if PBRT_SCENE
 	LoadPBRTScene();
+#endif
 }
 
 // Build geometry used in the sample.
@@ -1838,7 +1872,7 @@ void D3D12RaytracingAmbientOcclusion::UpdateUI()
         wLabel << L" " << L" # triangles per geometry: " << m_numTrianglesInTheScene << L"\n";
         wLabel << L" " << L" # geometries per BLAS: " << SceneArgs::NumGeometriesPerBLAS << L"\n";
         wLabel << L" " << L" # Sphere BLAS: " << SceneArgs::NumSphereBLAS << L"\n";	// ToDo fix
-        wLabel << L" " << L" # total triangles: " << SceneArgs::NumSphereBLAS * SceneArgs::NumGeometriesPerBLAS* m_numTriangles[SceneArgs::SceneType] << L"\n";
+		wLabel << L" " << L" # total triangles: " << m_numTrianglesInTheScene << L"\n";// SceneArgs::NumSphereBLAS * SceneArgs::NumGeometriesPerBLAS* m_numTriangles[SceneArgs::SceneType] << L"\n";
         // ToDo AS memory
         labels.push_back(wLabel.str());
     }

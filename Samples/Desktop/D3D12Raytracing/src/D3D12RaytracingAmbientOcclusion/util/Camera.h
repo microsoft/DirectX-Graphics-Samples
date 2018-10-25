@@ -18,6 +18,7 @@ namespace GameCore
 	public:
 		float ZMin = 0.01f;
 		float ZMax = 1000.f;
+		float fov = 45;
 
 		Camera();
 		~Camera();
@@ -30,8 +31,8 @@ namespace GameCore
 		DirectX::XMVECTOR Forward() { return DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(m_at, m_eye)); }
 
 		// Member functions.
-		void GetProj(DirectX::XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords = false);
-		void GetViewProj(DirectX::XMMATRIX *view, DirectX::XMMATRIX *proj, float fovInDegrees, UINT screenWidth, UINT screenHeight, bool rhCoords = false);
+		void GetProj(DirectX::XMMATRIX *proj, UINT screenWidth, UINT screenHeight, bool rhCoords = false);
+		void GetViewProj(DirectX::XMMATRIX *view, DirectX::XMMATRIX *proj, UINT screenWidth, UINT screenHeight, bool rhCoords = false);
 		void Set(const DirectX::XMVECTOR& eye, const DirectX::XMVECTOR& at, const DirectX::XMVECTOR& up);
 		void RotateAroundYAxis(float angleRad);
 		void RotateYaw(float angleRad);

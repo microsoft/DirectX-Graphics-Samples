@@ -10,7 +10,7 @@
 //*********************************************************
 
 //
-// PBRTParser functionality based on: https://github.com/wallisc/DuosRenderer/tree/DXRRenderer/PBRTParser
+// Original implementation: https://github.com/wallisc/DuosRenderer/tree/DXRRenderer/PBRTParser
 //
 
 #include "../../stdafx.h"

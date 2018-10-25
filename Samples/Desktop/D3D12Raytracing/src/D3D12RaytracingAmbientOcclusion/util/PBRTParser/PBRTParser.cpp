@@ -10,7 +10,7 @@
 //*********************************************************
 
 //
-// PBRTParser functionality based on: https://github.com/wallisc/DuosRenderer/tree/DXRRenderer/PBRTParser
+// Original implementation: https://github.com/wallisc/DuosRenderer/tree/DXRRenderer/PBRTParser
 //
 
 #include "..\..\stdafx.h"
@@ -20,7 +20,7 @@
 using namespace SceneParser;
 using namespace std;
 
-#define TEAPOT_HACK 1
+#define TEAPOT_HACK 1 // ToDo remove
 
 namespace PBRTParser
 {
@@ -152,8 +152,8 @@ namespace PBRTParser
         outputScene.m_Camera.m_Position = ConvertToVector3(pfnHomogenize(XMVector3Transform(m_camPos, m_currentTransform)));
 
 #ifndef TEAPOT_HACK
-        XMVECTOR normal = m_currentTransform * m_camUp;
-        outputScene.m_Camera.m_Up = ConvertToVector3(glm::normalize(glm::vec3(normal)));
+        XMVECTOR normal = XMVector3Transform(m_camUp, m_currentTransform);
+        outputScene.m_Camera.m_Up = ConvertToVector3(XMVector3Normalize(normal));
 #endif
     }
 
@@ -731,8 +731,8 @@ namespace PBRTParser
         m_lookAt = XMVectorSet(0.0f, 0.0f, 1.0f, 1.0f);
         m_camPos = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 #else
-        m_lookAt = XMVECTOR(0.0f, 2.0f, 1.0f, 1.0f);
-        m_camPos = XMVECTOR(0.0f, 2.0f, 0.0f, 1.0f);
+        m_lookAt = XMVectorSet(0.0f, 2.0f, 1.0f, 1.0f);
+        m_camPos = XMVectorSet(0.0f, 2.0f, 0.0f, 1.0f);
 #endif
 
         m_camUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);

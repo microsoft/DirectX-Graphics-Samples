@@ -70,6 +70,8 @@ static_assert(NUM_GEOMETRIES_1000 + NUM_GEOMETRIES_100000  + NUM_GEOMETRIES_1000
 #define AO_RAY_T_MAX 0.06
 #endif
 
+// ToDo separate per-vertex attributes from VB
+
 // ToDo move
 namespace ReduceSumCS {
 	namespace ThreadGroup
