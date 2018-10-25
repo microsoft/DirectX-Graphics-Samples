@@ -24,12 +24,7 @@ void SquidRoomAssets::LoadGeometry(
 	ID3D12GraphicsCommandList* commandList,
 	DescriptorHeap* descriptorHeap,
 	LPCWSTR assetPath,
-	D3DBuffer* vertexBuffer,
-	ID3D12Resource* vertexBufferUpload,
-	UINT* vertexBufferHeapIndex,
-	D3DBuffer* indexBuffer,
-	ID3D12Resource* indexBufferUpload,
-	UINT* indexBufferHeapIndex,
+	D3DGeometry* geometry,
 	vector<GeometryInstance>* geometryInstances
 )
 {
@@ -74,8 +69,8 @@ void SquidRoomAssets::LoadGeometry(
 			&CD3DX12_RESOURCE_DESC::Buffer(SquidRoomAssets::IndexDataSize),
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
-			IID_PPV_ARGS(&indexBuffer->resource)));
-		indexBuffer->resource->SetName(L"Index buffer: Squid room");
+			IID_PPV_ARGS(&geometry->ib.buffer.resource)));
+		geometry->ib.buffer.resource->SetName(L"Index buffer: Squid room");
 
 		ThrowIfFailed(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -83,8 +78,8 @@ void SquidRoomAssets::LoadGeometry(
 			&CD3DX12_RESOURCE_DESC::Buffer(SquidRoomAssets::IndexDataSize),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
-			IID_PPV_ARGS(&indexBufferUpload)));
-		indexBufferUpload->SetName(L"Index buffer upload: Squid room");
+			IID_PPV_ARGS(&geometry->ib.upload)));
+		geometry->ib.upload->SetName(L"Index buffer upload: Squid room");
 
 		// Copy data to the upload heap and then schedule a copy 
 		// from the upload heap to the index buffer.
@@ -95,15 +90,21 @@ void SquidRoomAssets::LoadGeometry(
 
 		PIXBeginEvent(commandList, 0, L"Copy index buffer data to default resource...");
 
-		UpdateSubresources<1>(commandList, indexBuffer->resource.Get(), indexBufferUpload, 0, 0, 1, &indexData);
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(indexBuffer->resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+		UpdateSubresources<1>(commandList, geometry->ib.buffer.resource.Get(), geometry->ib.upload.Get(), 0, 0, 1, &indexData);
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(geometry->ib.buffer.resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
 
 		PIXEndEvent(commandList);
-
+#if INDEX_FORMAT_UINT
+		UINT elementStride = sizeof(Index);
+		UINT numElements = SquidRoomAssets::IndexDataSize / sizeof(elementStride);
+#else
+		// Using raw typeless buffer. 
+		// - numElements - number of 32bit dwords.
+		// - elementSize - 0.
 		UINT numElements = SquidRoomAssets::IndexDataSize / sizeof(UINT);
-		UINT elementStride = 0;	// Using raw typeless buffer.
-		CreateBufferSRV(indexBuffer, device, numElements, elementStride, descriptorHeap, indexBufferHeapIndex);
-
+		UINT elementStride = 0;
+#endif
+		CreateBufferSRV(device, numElements, elementStride, descriptorHeap, &geometry->ib.buffer);
 	}
 
 	// Create the vertex buffer.
@@ -114,8 +115,8 @@ void SquidRoomAssets::LoadGeometry(
 			&CD3DX12_RESOURCE_DESC::Buffer(SquidRoomAssets::VertexDataSize),
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			nullptr,
-			IID_PPV_ARGS(&vertexBuffer->resource)));
-		vertexBuffer->resource->SetName( L"VertexPositionNormalTextureTangent buffer: Squid room");
+			IID_PPV_ARGS(&geometry->vb.buffer.resource)));
+		geometry->vb.buffer.resource->SetName( L"VertexPositionNormalTextureTangent buffer: Squid room");
 
 		ThrowIfFailed(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -123,8 +124,8 @@ void SquidRoomAssets::LoadGeometry(
 			&CD3DX12_RESOURCE_DESC::Buffer(SquidRoomAssets::VertexDataSize),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
-			IID_PPV_ARGS(&vertexBufferUpload)));
-		vertexBufferUpload->SetName(L"VertexPositionNormalTextureTangent buffer upload: Squid room");
+			IID_PPV_ARGS(&geometry->vb.upload)));
+		geometry->vb.upload->SetName(L"VertexPositionNormalTextureTangent buffer upload: Squid room");
 
 		// Copy data to the upload heap and then schedule a copy 
 		// from the upload heap to the vertex buffer.
@@ -141,49 +142,41 @@ void SquidRoomAssets::LoadGeometry(
 
 		PIXBeginEvent(commandList, 0, L"Copy vertex buffer data to default resource...");
 
-		UpdateSubresources<1>(commandList, vertexBuffer->resource.Get(), vertexBufferUpload, 0, 0, 1, &vertexData);
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer->resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+		UpdateSubresources<1>(commandList, geometry->vb.buffer.resource.Get(), geometry->vb.upload.Get(), 0, 0, 1, &vertexData);
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(geometry->vb.buffer.resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 		PIXEndEvent(commandList);
 
 		UINT numElements = SquidRoomAssets::VertexDataSize / SquidRoomAssets::StandardVertexStride;
 		UINT elementStride = SquidRoomAssets::StandardVertexStride;	
-		CreateBufferSRV(vertexBuffer, device, numElements, elementStride, descriptorHeap, vertexBufferHeapIndex);
+		CreateBufferSRV(device, numElements, elementStride, descriptorHeap, &geometry->vb.buffer);
 	}
+	ThrowIfFalse(geometry->vb.buffer.heapIndex == geometry->ib.buffer.heapIndex + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 
-
-	// ToDo remove
-	// Backup primary handles
-	struct Handles {
-		D3D12_CPU_DESCRIPTOR_HANDLE cpu;
-		D3D12_GPU_DESCRIPTOR_HANDLE gpu;
-	};
-	Handles ib = { indexBuffer->cpuDescriptorHandle, indexBuffer->gpuDescriptorHandle };
-	Handles vb = { vertexBuffer->cpuDescriptorHandle, vertexBuffer->gpuDescriptorHandle };
-
+	// Generate geometry instances.
 	geometryInstances->resize(ARRAYSIZE(SquidRoomAssets::Draws));
 	for (UINT i = 0; i < ARRAYSIZE(SquidRoomAssets::Draws); i++)
 	{
-		(*geometryInstances)[i].ib.startIndex = SquidRoomAssets::Draws[i].IndexStart;
-		(*geometryInstances)[i].ib.count = SquidRoomAssets::Draws[i].IndexCount;
+		auto& ib = (*geometryInstances)[i].ib;
+		auto& vb = (*geometryInstances)[i].vb;
 
-		(*geometryInstances)[i].vb.startIndex = SquidRoomAssets::Draws[i].VertexBase;
-		(*geometryInstances)[i].vb.count = SquidRoomAssets::VertexDataSize / SquidRoomAssets::StandardVertexStride - SquidRoomAssets::Draws[i].VertexBase;
+		ib.startIndex = SquidRoomAssets::Draws[i].IndexStart;
+		ib.count = SquidRoomAssets::Draws[i].IndexCount;
+		ib.indexBuffer = geometry->ib.buffer.resource->GetGPUVirtualAddress() + ib.startIndex * SquidRoomAssets::StandardIndexStride;
 
-		UINT geometryIBHeapIndex = UINT_MAX;
-		UINT geometryVBHeapIndex = UINT_MAX;
-		CreateBufferSRV(indexBuffer, device, (*geometryInstances)[i].ib.count, sizeof(UINT), descriptorHeap, &geometryIBHeapIndex, (*geometryInstances)[i].ib.startIndex);
-		CreateBufferSRV(vertexBuffer, device, (*geometryInstances)[i].vb.count, SquidRoomAssets::StandardVertexStride, descriptorHeap, &geometryVBHeapIndex, (*geometryInstances)[i].vb.startIndex);
+		vb.startIndex = SquidRoomAssets::Draws[i].VertexBase;
+		vb.count = SquidRoomAssets::VertexDataSize / SquidRoomAssets::StandardVertexStride - SquidRoomAssets::Draws[i].VertexBase;
+		vb.vertexBuffer.StrideInBytes = SquidRoomAssets::StandardVertexStride;
+		vb.vertexBuffer.StartAddress = geometry->vb.buffer.resource->GetGPUVirtualAddress() + vb.startIndex * SquidRoomAssets::StandardVertexStride;
 
-		(*geometryInstances)[i].ib.gpuDescriptorHandle = indexBuffer->gpuDescriptorHandle;
-		(*geometryInstances)[i].vb.gpuDescriptorHandle = vertexBuffer->gpuDescriptorHandle;
+		D3D12_CPU_DESCRIPTOR_HANDLE dummyCpuHandle;
+		UINT ibHeapIndex = UINT_MAX;
+		UINT vbHeapIndex = UINT_MAX;
+		CreateBufferSRV(geometry->ib.buffer.resource.Get(), device, ib.count, SquidRoomAssets::StandardIndexStride, descriptorHeap, &dummyCpuHandle, &ib.gpuDescriptorHandle, &ibHeapIndex, ib.startIndex);
+		CreateBufferSRV(geometry->vb.buffer.resource.Get(), device, vb.count, SquidRoomAssets::StandardVertexStride, descriptorHeap, &dummyCpuHandle, &vb.gpuDescriptorHandle, &vbHeapIndex, vb.startIndex);
+
+		ThrowIfFalse(vbHeapIndex == ibHeapIndex + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index");
 	}
-
-	// Revert
-	indexBuffer->cpuDescriptorHandle = ib.cpu;
-	indexBuffer->gpuDescriptorHandle = ib.gpu;
-	vertexBuffer->cpuDescriptorHandle = vb.cpu;
-	vertexBuffer->gpuDescriptorHandle = vb.gpu;
 
 	free(pAssetData);
 }

@@ -70,6 +70,7 @@
 #endif
 
 #include "RaytracingHlslCompat.h"
+#include "RaytracingSceneDefines.h"
 #include "DXSampleHelper.h"
 #include "DeviceResources.h"
 

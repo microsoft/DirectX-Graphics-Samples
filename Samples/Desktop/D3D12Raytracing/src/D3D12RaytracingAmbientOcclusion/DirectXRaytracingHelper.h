@@ -30,13 +30,6 @@ struct AccelerationStructureBuffers
     UINT64                 ResultDataMaxSizeInBytes;
 };
 
-struct TriangleGeometryBuffer
-{
-	D3DBuffer ib;
-	D3DBuffer vb;
-	D3D12_GPU_VIRTUAL_ADDRESS transform;
-};
-
 class D3D12RaytracingAmbientOcclusion;
 extern D3D12RaytracingAmbientOcclusion* g_pSample;
 
@@ -84,7 +77,7 @@ public:
 	// ToDo:
 	// UpdateGeometry()
 
-	void Initialize(ID3D12Device* device, const TriangleGeometryBuffer& geometry, UINT numInstances, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags, DXGI_FORMAT indexFormat, UINT ibStrideInBytes, UINT vbStrideInBytes, std::vector<GeometryInstance>& instances);
+	void Initialize(ID3D12Device* device, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags, DXGI_FORMAT indexFormat, UINT ibStrideInBytes, UINT vbStrideInBytes, std::vector<GeometryInstance>& geometries);
 	void Build(ID3D12GraphicsCommandList* commandList, ID3D12Resource* scratch, ID3D12DescriptorHeap* descriptorHeap, D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress, bool bUpdate = false);
 	void BuildInstanceDesc(void* destInstanceDesc, UINT* descriptorHeapIndex);
 	void UpdateGeometryDescsTransform(D3D12_GPU_VIRTUAL_ADDRESS baseGeometryTransformGPUAddress);
@@ -100,7 +93,7 @@ public:
 	const XMMATRIX& GetTransform() { return m_transform; }
 
 private:
-	void BuildGeometryDescs(const TriangleGeometryBuffer& geometry, UINT numInstances, DXGI_FORMAT indexFormat, UINT ibStrideInBytes, UINT vbStrideInBytes, std::vector<GeometryInstance>& instances);
+	void BuildGeometryDescs(DXGI_FORMAT indexFormat, UINT ibStrideInBytes, UINT vbStrideInBytes, std::vector<GeometryInstance>& geometries);
 	void ComputePrebuildInfo();
 };
 

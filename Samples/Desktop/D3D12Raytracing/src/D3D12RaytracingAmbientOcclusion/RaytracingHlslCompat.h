@@ -23,6 +23,8 @@
 #define RUNTIME_AS_UPDATES 0
 #define USE_GPU_TRANSFORM 1
 
+#define DEBUG_AS 0
+
 #define RAYGEN_SINGLE_COLOR_SHADING 0
 #define SAMPLES_CS_VISUALIZATION 1
 
@@ -35,10 +37,14 @@
 #define GBUFFER_AO_SEPRATE_PATHS 1
 
 #define ONLY_SQUID_SCENE_BLAS 1
-#if ONLY_SQUID_SCENE_BLAS 
+#if ONLY_SQUID_SCENE_BLAS
+#define PBRT_SCENE 0
 #define CAMERA_Y_SCALE 1
 #define FLAT_FACE_NORMALS 0
+#define INDEX_FORMAT_UINT 1
 #else
+
+#define INDEX_FORMAT_UINT 0
 #define FLAT_FACE_NORMALS 1
 #define CAMERA_Y_SCALE 1.3f
 #define NUM_GEOMETRIES_1000 1
@@ -54,7 +60,7 @@ static_assert(NUM_GEOMETRIES_1000 + NUM_GEOMETRIES_100000  + NUM_GEOMETRIES_1000
 #define TESSELATED_GEOMETRY_BOX_TETRAHEDRON 1
 #define TESSELATED_GEOMETRY_BOX_TETRAHEDRON_REMOVE_BOTTOM_TRIANGLE 1
 #define TESSELATED_GEOMETRY_THIN 1
-#define TESSELATED_GEOMETRY_TILES 1
+#define TESSELATED_GEOMETRY_TILES 0
 #define TESSELATED_GEOMETRY_TILES_WIDTH 4
 #define TESSELATED_GEOMETRY_ASPECT_RATIO_DIMENSIONS 1
 
@@ -74,11 +80,17 @@ namespace ReduceSumCS {
 
 #ifdef HLSL
 #include "util\HlslCompat.h"
+#if INDEX_FORMAT_UINT
+typedef UINT Index;
+#endif
 #else
 using namespace DirectX;
 
-// Shader will use byte encoding to access vertex indices.
+#if INDEX_FORMAT_UINT
+typedef UINT Index;
+#else
 typedef UINT16 Index;
+#endif
 #endif
 
 #define AO_ONLY 1

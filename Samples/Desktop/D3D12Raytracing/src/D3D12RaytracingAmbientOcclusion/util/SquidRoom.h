@@ -15,17 +15,13 @@
 
 namespace SquidRoomAssets
 {
+	// ToDo make it take D3DGeometry instead
 	void LoadGeometry(
 		ID3D12Device* device,
 		ID3D12GraphicsCommandList* commandList,
 		DescriptorHeap* descriptorHeap,
 		LPCWSTR assetPath,
-		D3DBuffer* vertexBuffer,
-		ID3D12Resource* vertexBufferUpload,
-		UINT* vertexBufferHeapIndex,
-		D3DBuffer* indexBuffer,
-		ID3D12Resource* indexBufferUpload,
-		UINT* indexBufferHeapIndex,
+		D3DGeometry* geometry,
 		std::vector<GeometryInstance>* geometryInstances
 	);
 
@@ -42,6 +38,7 @@ namespace SquidRoomAssets
     const UINT StandardVertexStride = 44;
 
     const DXGI_FORMAT StandardIndexFormat = DXGI_FORMAT_R32_UINT;
+	const UINT StandardIndexStride = sizeof(UINT);
 
     struct TextureResource
     {

@@ -43,7 +43,7 @@ namespace PBRTParser
         assert(m_AttributeStack.size() == 0);
     }
 
-    void PBRTParser::Parse(std::string filename, Scene &outputScene)
+    void PBRTParser::Parse(std::string filename, SceneParser::Scene &outputScene)
     {
         m_fileStream = ifstream(filename);
      
@@ -720,7 +720,7 @@ namespace PBRTParser
         return correctedString.substr(startIndex, endIndex - startIndex);
     }
 
-    void PBRTParser::InitializeDefaults(Scene &outputScene)
+    void PBRTParser::InitializeDefaults(SceneParser::Scene &outputScene)
     {
         InitializeCameraDefaults(outputScene.m_Camera);
     }

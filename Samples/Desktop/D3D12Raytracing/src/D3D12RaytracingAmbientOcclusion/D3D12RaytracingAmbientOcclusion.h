@@ -63,7 +63,7 @@ private:
 
 	// AmbientOcclusion
 	std::vector<BottomLevelAccelerationStructure> m_vBottomLevelAS;
-	std::vector<GeometryInstance>	m_geometryInstances[GeometryType::Count];
+	std::vector<GeometryInstance>	m_geometryInstances[Scene::Type::Count];
 	TopLevelAccelerationStructure	m_topLevelAS;
 	ComPtr<ID3D12Resource>			m_accelerationStructureScratch;
 	UINT64 m_ASmemoryFootprint;
@@ -114,9 +114,6 @@ private:
 	PrimitiveConstantBuffer m_planeMaterialCB;
 
 	// Geometry
-	D3DBuffer m_aabbBuffer;
-	std::vector<UINT> m_geometryIBHeapIndices;
-	std::vector<UINT> m_geometryVBHeapIndices;
 
 	DX::GPUTimer m_gpuTimers[GpuTimers::Count];
 
@@ -136,7 +133,7 @@ private:
 	};
 
 	SceneParser::Scene m_pbrtScene;
-	std::vector<TriangleGeometryBuffer> m_geometries;
+	std::vector<D3DGeometry> m_geometries[GeometryType::Count];
 	StructuredBuffer<AlignedGeometryTransform3x4> m_geometryTransforms;
 
 	StructuredBuffer<AlignedUnitSquareSample2D> m_samplesGPUBuffer;
@@ -180,7 +177,8 @@ private:
 	std::unique_ptr<UILayer> m_uiLayer;
 	
 	float m_fps;
-	UINT m_numTriangles;
+	UINT m_numTrianglesInTheScene;
+	UINT m_numTriangles[GeometryType::Count];
 	bool m_isGeometryInitializationRequested;
 	bool m_isASinitializationRequested;
 	bool m_isASrebuildRequested;
@@ -188,7 +186,7 @@ private:
 
 	void ParseCommandLineArgs(WCHAR* argv[], int argc);
 	void RecreateD3D();
-	void BuildPBRTScene();
+	void LoadPBRTScene();
 	void LoadSceneGeometry();
     void UpdateCameraMatrices();
 	void UpdateBottomLevelASTransforms();

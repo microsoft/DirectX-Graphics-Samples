@@ -113,7 +113,7 @@ namespace GeometryType {
         Plane = 0,
         Sphere,
 		SquidRoom,
-		PBRTScene,
+		PBRT,
         Count
     };
 }
@@ -163,6 +163,7 @@ namespace Scene {
 			SingleObject = 0,
 			GeometricForest,
 			SquidRoom,
+			PBRT,	// Rename
 			Count
 		};
 		extern const WCHAR* Names[Count];
@@ -204,32 +205,8 @@ namespace SceneEnums
 	}
 }
 
-struct GeometryDescriptor
-{
-	struct Buffer {
-		UINT startIndex;
-		UINT count;
-		union {
-			UINT* indices;
-			VertexPositionNormalTextureTangent* vertices;
-		};
-	};
 
-	Buffer vb;
-	Buffer ib;
-};
 
-struct GeometryInstance
-{
-	struct Buffer {
-		UINT startIndex;
-		UINT count;
-		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
-	};
-
-	Buffer vb;
-	Buffer ib;
-};
 
 // Bottom-level acceleration structures (BottomLevelASType).
 // This sample uses two BottomLevelASType, one for AABB and one for Triangle geometry.
