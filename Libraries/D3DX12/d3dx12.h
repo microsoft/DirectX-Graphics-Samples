@@ -2694,7 +2694,7 @@ inline bool operator==( const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC &a, const D3D
 {
     if (a.cpuDescriptor.ptr != b.cpuDescriptor.ptr) return false;
     if (!(a.DepthBeginningAccess == b.DepthBeginningAccess)) return false;
-    if (!(a.StencilBeginningAccess == b.DepthBeginningAccess)) return false;
+    if (!(a.StencilBeginningAccess == b.StencilBeginningAccess)) return false;
     if (!(a.DepthEndingAccess == b.DepthEndingAccess)) return false;
     if (!(a.StencilEndingAccess == b.StencilEndingAccess)) return false;
     return true;
