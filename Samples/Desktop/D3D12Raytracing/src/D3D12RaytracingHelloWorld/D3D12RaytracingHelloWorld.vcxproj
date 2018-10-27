@@ -90,7 +90,7 @@
     </FxCompile>
     <PostBuildEvent>
       <Command>cd "$(SolutionDir)..\tools\x64\"
-PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Configuration)\"</Command>
+PostbuildCopy.bat "$(SolutionDir)$(ProjectName)\bin\$(Platform)\$(Configuration)\"</Command>
       <Message>Sideloading DXR Fallback Compiler.</Message>
     </PostBuildEvent>
     <PreLinkEvent>
@@ -143,7 +143,7 @@ PrebuildCheck.bat</Command>
     </FxCompile>
     <PostBuildEvent>
       <Command>cd "$(SolutionDir)..\tools\x64\"
-PostbuildCopy.bat "$(SolutionDir)D3D12RaytracingHelloWorld\bin\$(Platform)\$(Configuration)\"</Command>
+PostbuildCopy.bat "$(SolutionDir)$(ProjectName)\bin\$(Platform)\$(Configuration)\"</Command>
       <Message>Sideloading DXR Fallback Compiler.</Message>
     </PostBuildEvent>
     <PreBuildEvent>
