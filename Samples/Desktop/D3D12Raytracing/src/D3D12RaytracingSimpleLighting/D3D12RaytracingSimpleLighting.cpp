@@ -528,7 +528,7 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     bottomLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
     bottomLevelInputs.pGeometryDescs = &geometryDesc;
 
-    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelBuildDesc = bottomLevelBuildDesc;
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelBuildDesc = {};
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &topLevelInputs = topLevelBuildDesc.Inputs;
     topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     topLevelInputs.Flags = buildFlags;

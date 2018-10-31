@@ -475,7 +475,7 @@ void D3D12RaytracingHelloWorld::BuildAccelerationStructures()
     }
 
     // Top Level Acceleration Structure desc
-    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelBuildDesc = bottomLevelBuildDesc;
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelBuildDesc = {};
     {
         topLevelInputs.InstanceDescs = instanceDescs->GetGPUVirtualAddress();
         topLevelBuildDesc.Inputs = topLevelInputs;
