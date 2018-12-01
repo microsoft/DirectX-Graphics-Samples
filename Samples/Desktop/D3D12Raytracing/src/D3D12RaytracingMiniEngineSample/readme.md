@@ -27,9 +27,12 @@ The keys '1'...'7' can also be used to cycle through different modes (or using B
 
 ## Limitations:
  * Currently only tested on the native DXR path of the Fallback Layer.
- * Shadow pass is buggy due to incorrect ray generation
- * Mipmap calculation is incorrect and uses too low of an LOD for distant objects
- * The sample has a few visual bugs on Intel cards
+ * Compute-path Fallback Layer:
+   * Compute-path TDRs on newer NVIDIA drivers. Use 398.82 drivers.
+   * Barycentric visualization (option 2 and 3) doesn't render properly.
+ * Shadow pass is buggy due to incorrect ray generation.
+ * Mipmap calculation is incorrect and uses too low of an LOD for distant objects.
+ * The sample has a few visual bugs on Intel cards.
  * An incorrect debug layer error message is outputted when run due to an issue in the debug layer on SM 6.0 drivers. This can be ignored. "D3D12 ERROR: ID3D12Device::CopyDescriptors: Source ranges and dest ranges overlap, which results in undefined behavior."
 
 ## Requirements
