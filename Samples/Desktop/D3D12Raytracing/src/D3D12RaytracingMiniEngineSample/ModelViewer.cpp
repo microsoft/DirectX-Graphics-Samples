@@ -736,9 +736,9 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
 
    for (auto &raytracingPipelineState : g_RaytracingInputs)
    {
-	   WCHAR hitGroupExportNameClosestHitType[64];
-	   swprintf_s(hitGroupExportNameClosestHitType, L"%s::closesthit", hitGroupExportName );
-       SetPipelineStateStackSize(rayGenShaderExportName, hitGroupExportNameClosestHitType, missExportName, MaxRayRecursion, raytracingPipelineState.m_pPSO);
+        WCHAR hitGroupExportNameClosestHitType[64];
+        swprintf_s(hitGroupExportNameClosestHitType, L"%s::closesthit", hitGroupExportName );
+        SetPipelineStateStackSize(rayGenShaderExportName, hitGroupExportNameClosestHitType, missExportName, MaxRayRecursion, raytracingPipelineState.m_pPSO);
    }
 }
 
@@ -1457,13 +1457,13 @@ void Raytracebarycentrics(
     inputs.resolution.x = (float)colorTarget.GetWidth();
     inputs.resolution.y = (float)colorTarget.GetHeight();
 
-	HitShaderConstants hitShaderConstants = {};
-	hitShaderConstants.IsReflection = false;
-	context.WriteBuffer(g_hitConstantBuffer, 0, &hitShaderConstants, sizeof(hitShaderConstants));
+    HitShaderConstants hitShaderConstants = {};
+    hitShaderConstants.IsReflection = false;
+    context.WriteBuffer(g_hitConstantBuffer, 0, &hitShaderConstants, sizeof(hitShaderConstants));
 
     context.WriteBuffer(g_dynamicConstantBuffer, 0, &inputs, sizeof(inputs));
 
-	context.TransitionResource(g_hitConstantBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    context.TransitionResource(g_hitConstantBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     context.TransitionResource(g_dynamicConstantBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     context.TransitionResource(colorTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     context.FlushResourceBarriers();
@@ -1478,7 +1478,7 @@ void Raytracebarycentrics(
 
     pCommandList->SetComputeRootSignature(g_GlobalRaytracingRootSignature);
     pCommandList->SetComputeRootDescriptorTable(0, g_SceneSrvs);
-	pCommandList->SetComputeRootConstantBufferView(1, g_hitConstantBuffer.GetGpuVirtualAddress());
+    pCommandList->SetComputeRootConstantBufferView(1, g_hitConstantBuffer.GetGpuVirtualAddress());
     pCommandList->SetComputeRootConstantBufferView(2, g_dynamicConstantBuffer.GetGpuVirtualAddress());
     pCommandList->SetComputeRootDescriptorTable(4, g_OutputUAV);
     pRaytracingCommandList->SetTopLevelAccelerationStructure(7, g_bvh_topLevelAccelerationStructurePointer);
@@ -1505,16 +1505,16 @@ void RaytracebarycentricsSSR(
     inputs.resolution.x = (float)colorTarget.GetWidth();
     inputs.resolution.y = (float)colorTarget.GetHeight();
 
-	HitShaderConstants hitShaderConstants = {};
-	hitShaderConstants.IsReflection = false;
-	context.WriteBuffer(g_hitConstantBuffer, 0, &hitShaderConstants, sizeof(hitShaderConstants));
+    HitShaderConstants hitShaderConstants = {};
+    hitShaderConstants.IsReflection = false;
+    context.WriteBuffer(g_hitConstantBuffer, 0, &hitShaderConstants, sizeof(hitShaderConstants));
 
     ComputeContext& ctx = context.GetComputeContext();
     ID3D12GraphicsCommandList *pCommandList = context.GetCommandList();
 
     ctx.WriteBuffer(g_dynamicConstantBuffer, 0, &inputs, sizeof(inputs));
     ctx.TransitionResource(g_dynamicConstantBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-	ctx.TransitionResource(g_hitConstantBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    ctx.TransitionResource(g_hitConstantBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     ctx.TransitionResource(normals, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     ctx.TransitionResource(depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     ctx.TransitionResource(g_ShadowBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -1528,7 +1528,7 @@ void RaytracebarycentricsSSR(
     pRaytracingCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
 
     pCommandList->SetComputeRootSignature(g_GlobalRaytracingRootSignature);
-	pCommandList->SetComputeRootConstantBufferView(1, g_hitConstantBuffer.GetGpuVirtualAddress());
+    pCommandList->SetComputeRootConstantBufferView(1, g_hitConstantBuffer.GetGpuVirtualAddress());
     pCommandList->SetComputeRootConstantBufferView(2, g_dynamicConstantBuffer.GetGpuVirtualAddress());
     pCommandList->SetComputeRootDescriptorTable(4, g_OutputUAV);
     pCommandList->SetComputeRootDescriptorTable(3, g_DepthAndNormalsTable);
