@@ -736,7 +736,9 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
 
    for (auto &raytracingPipelineState : g_RaytracingInputs)
    {
-       SetPipelineStateStackSize(rayGenShaderExportName, closestHitExportName, missExportName, MaxRayRecursion, raytracingPipelineState.m_pPSO);
+	   WCHAR hitGroupExportNameClosestHitType[64];
+	   swprintf_s(hitGroupExportNameClosestHitType, L"%s::closesthit", hitGroupExportName );
+       SetPipelineStateStackSize(rayGenShaderExportName, hitGroupExportNameClosestHitType, missExportName, MaxRayRecursion, raytracingPipelineState.m_pPSO);
    }
 }
 
