@@ -12,7 +12,7 @@
 #define HLSL
 #include "ModelViewerRaytracing.h"
 
-Texture2D<float>    depth    : register(t1);
+Texture2D<float>    depth    : register(t12);
 
 [shader("raygeneration")]
 void RayGen()

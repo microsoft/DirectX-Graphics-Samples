@@ -26,7 +26,6 @@ The keys '1'...'7' can also be used to cycle through different modes (or using B
 * dpad left/right or left/right arrow key - adjust debug menu values.
 
 ## Limitations:
- * Currently only tested on the Compute-based Fallback Layer
  * Shadow pass is buggy due to incorrect ray generation
  * Mipmap calculation is incorrect and uses too low of an LOD for distant objects
  * The sample has a few visual bugs on Intel cards
