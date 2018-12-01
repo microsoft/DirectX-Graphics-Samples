@@ -28,7 +28,7 @@ The keys '1'...'7' can also be used to cycle through different modes (or using B
 ## Limitations:
  * Currently only tested on the native DXR path of the Fallback Layer.
  * Compute-path Fallback Layer:
-   * Compute-path TDRs on newer NVIDIA drivers. Use 398.82 drivers.
+   * The sample TDRs on newer NVIDIA drivers. Use 398.82 drivers.
    * Barycentric visualization (option 2 and 3) doesn't render properly.
  * Shadow pass is buggy due to incorrect ray generation.
  * Mipmap calculation is incorrect and uses too low of an LOD for distant objects.
