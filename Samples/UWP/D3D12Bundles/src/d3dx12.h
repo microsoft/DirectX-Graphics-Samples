@@ -2169,6 +2169,8 @@ struct CD3DX12_RT_FORMAT_ARRAY : public D3D12_RT_FORMAT_ARRAY
 struct DefaultSampleMask { operator UINT() { return UINT_MAX; } };
 struct DefaultSampleDesc { operator DXGI_SAMPLE_DESC() { return DXGI_SAMPLE_DESC{1, 0}; } };
 
+#pragma warning(push)
+#pragma warning(disable : 4324)
 template <typename InnerStructType, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type, typename DefaultArg = InnerStructType>
 class alignas(void*) CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT
 {
@@ -2182,6 +2184,7 @@ public:
     operator InnerStructType() const { return _Inner; }
     operator InnerStructType&() { return _Inner; }
 };
+#pragma warning(pop)
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_PIPELINE_STATE_FLAGS,         D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS>                             CD3DX12_PIPELINE_STATE_STREAM_FLAGS;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< UINT,                               D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_NODE_MASK>                         CD3DX12_PIPELINE_STATE_STREAM_NODE_MASK;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< ID3D12RootSignature*,               D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE>                    CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE;
@@ -2691,7 +2694,7 @@ inline bool operator==( const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC &a, const D3D
 {
     if (a.cpuDescriptor.ptr != b.cpuDescriptor.ptr) return false;
     if (!(a.DepthBeginningAccess == b.DepthBeginningAccess)) return false;
-    if (!(a.StencilBeginningAccess == b.DepthBeginningAccess)) return false;
+    if (!(a.StencilBeginningAccess == b.StencilBeginningAccess)) return false;
     if (!(a.DepthEndingAccess == b.DepthEndingAccess)) return false;
     if (!(a.StencilEndingAccess == b.StencilEndingAccess)) return false;
     return true;
