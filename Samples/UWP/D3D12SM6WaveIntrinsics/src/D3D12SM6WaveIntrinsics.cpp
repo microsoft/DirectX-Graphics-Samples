@@ -44,6 +44,7 @@ D3D12SM6WaveIntrinsics::D3D12SM6WaveIntrinsics(UINT width, UINT height, std::wst
     m_mouseLeftButtonDown(false),
     m_rendermode{ 1 }
 {
+    ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
 }
 
 void D3D12SM6WaveIntrinsics::OnInit()
@@ -69,7 +70,7 @@ void D3D12SM6WaveIntrinsics::CreateDevice(const ComPtr<IDXGIFactory4>& factory)
     else
     {
         ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+        GetHardwareAdapter(factory.Get(), &hardwareAdapter, true);
 
         ThrowIfFailed(D3D12CreateDevice(
             hardwareAdapter.Get(),
@@ -598,14 +599,56 @@ void D3D12SM6WaveIntrinsics::OnUpdate()
 // Render the scene.
 void D3D12SM6WaveIntrinsics::OnRender()
 {
-    RenderUI();
-    // Record all the commands we need to render the scene into the command list.
-    RenderScene();
+    try
+    {
+        RenderUI();
+        // Record all the commands we need to render the scene into the command list.
+        RenderScene();
 
-    // Present the frame.
-    ThrowIfFailed(m_swapChain->Present(1, 0));
+        // Present the frame.
+        ThrowIfFailed(m_swapChain->Present(1, 0));
 
-    MoveToNextFrame();
+        MoveToNextFrame();
+    }
+    catch (HrException& e)
+    {
+        if (e.Error() == DXGI_ERROR_DEVICE_REMOVED || e.Error() == DXGI_ERROR_DEVICE_RESET)
+        {
+            RestoreD3DResources();
+        }
+        else
+        {
+            throw;
+        }
+    }
+}
+
+// Release sample's D3D objects.
+void D3D12SM6WaveIntrinsics::ReleaseD3DResources()
+{
+    m_fence.Reset();
+    m_renderPass1RenderTargets.Reset();
+    m_uiRenderTarget.Reset();
+    ResetComPtrArray(&m_renderPass2RenderTargets);
+    m_commandQueue.Reset();
+    m_swapChain.Reset();
+    m_d3d12Device.Reset();
+}
+
+// Tears down D3D resources and reinitializes them.
+void D3D12SM6WaveIntrinsics::RestoreD3DResources()
+{
+    // Give GPU a chance to finish its execution in progress.
+    try
+    {
+        WaitForGpu();
+    }
+    catch (HrException&)
+    {
+        // Do nothing, currently attached adapter is unresponsive.
+    }
+    ReleaseD3DResources();
+    OnInit();
 }
 
 void D3D12SM6WaveIntrinsics::OnDestroy()

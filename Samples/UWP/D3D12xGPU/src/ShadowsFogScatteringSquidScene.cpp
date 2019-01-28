@@ -19,13 +19,16 @@ using namespace std;
 using namespace SceneEnums;
 
 ShadowsFogScatteringSquidScene* ShadowsFogScatteringSquidScene::s_app = nullptr;
+const float ShadowsFogScatteringSquidScene::s_clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 ShadowsFogScatteringSquidScene::ShadowsFogScatteringSquidScene(UINT frameCount, DXSample* pSample) :
     m_frameCount(frameCount),
+    m_fogDensity(0.04f),
     m_frameIndex(0),
     m_viewport(0.0f, 0.0f, 0.0f, 0.0f),
     m_scissorRect(0, 0, 0L, 0L),
     m_rtvDescriptorSize(0),
+    m_cbvSrvDescriptorSize(0),
     m_keyboardInput(),
     m_pCurrentFrameResource(nullptr),
     m_pSample(pSample)
@@ -46,9 +49,9 @@ ShadowsFogScatteringSquidScene::~ShadowsFogScatteringSquidScene()
 
 void ShadowsFogScatteringSquidScene::InitializeCameraAndLights()
 {
-    XMVECTOR eye = { 0.0f, 17.1954231f, -28.555980f, 1.0f };
-    XMVECTOR at = { 0.0f, 8.0f, 0.0f, 0.0f };  
-    XMVECTOR up = { 0.0f, 0.951865792f, 0.306514263f, 1.0f };
+    XMVECTOR eye = XMVectorSet(0.0f, 17.1954231f, -28.555980f, 1.0f);
+    XMVECTOR at = XMVectorSet(0.0f, 8.0f, 0.0f, 0.0f);
+    XMVECTOR up = XMVectorSet(0.0f, 0.951865792f, 0.306514263f, 1.0f);
     m_camera.Set(eye, at, up);
 
     // Create lights.
@@ -72,11 +75,11 @@ void ShadowsFogScatteringSquidScene::InitializeCameraAndLights()
 
             XMVECTOR eye = XMLoadFloat4(&m_lights[i].position);
             XMVECTOR at = XMVectorAdd(eye, XMLoadFloat4(&m_lights[i].direction));
-            XMVECTOR up = { 0, 1, 0 };
+            XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
             switch (i)
             {
-            case 4: up = { 0, 0, -1 }; break;
-            case 5: up = { 0, 0, 1 }; break;
+            case 4: up = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f); break;
+            case 5: up = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); break;
             }
 
             m_lightCameras[i].Set(eye, at, up);
@@ -84,26 +87,17 @@ void ShadowsFogScatteringSquidScene::InitializeCameraAndLights()
     }
 }
 
-void ShadowsFogScatteringSquidScene::Initialize(ID3D12Device* pDevice, ID3D12CommandQueue* pCommandQueue, UINT frameIndex)
+void ShadowsFogScatteringSquidScene::Initialize(ID3D12Device* pDevice, ID3D12CommandQueue* pDirectCommandQueue, ID3D12GraphicsCommandList* pCommandList, UINT frameIndex)
 {
     CreateDescriptorHeaps(pDevice);
     CreateRootSignatures(pDevice);
     CreatePipelineStates(pDevice);
     CreatePostprocessPassResources(pDevice);
     CreateSamplers(pDevice);
-    CreateFrameResources(pDevice);
+    CreateFrameResources(pDevice, pDirectCommandQueue);
+    CreateCommandLists(pDevice);
 
-    // Temporarily use one of the cmdlists for loading data into GPU memory.
-    
-    ID3D12GraphicsCommandList* pAssetLoadingCmdList = m_frameResources[0]->m_commandLists[0].Get();
-    ID3D12CommandAllocator* pAssetLoadingCmdAllocator = m_frameResources[0]->m_commandAllocators[0].Get();
-
-    ThrowIfFailed(pAssetLoadingCmdAllocator->Reset());
-    ThrowIfFailed(pAssetLoadingCmdList->Reset(pAssetLoadingCmdAllocator, m_pipelineStates[RenderPass::Scene].Get()));
-    CreateAssetResources(pDevice, pAssetLoadingCmdList);
-    ThrowIfFailed(pAssetLoadingCmdList->Close());
-    ID3D12CommandList* ppCommandLists[] = { pAssetLoadingCmdList };
-    pCommandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    CreateAssetResources(pDevice, pCommandList);
 
     SetFrameIndex(frameIndex);
 }
@@ -113,31 +107,30 @@ void ShadowsFogScatteringSquidScene::CreateDescriptorHeaps(ID3D12Device* pDevice
 {
     // Describe and create a render target view (RTV) descriptor heap.
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-    rtvHeapDesc.NumDescriptors = m_frameCount;
+    rtvHeapDesc.NumDescriptors = GetNumRtvDescriptors();
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     ThrowIfFailed(pDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
+    NAME_D3D12_OBJECT(m_rtvHeap);
 
     // Describe and create a depth stencil view (DSV) descriptor heap.
-    // Each frame has its own depth stencils (to write shadows onto) 
-    // and then there is one for the scene itself.
     D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-    dsvHeapDesc.NumDescriptors = m_frameCount * NumDepthBuffers;
+    dsvHeapDesc.NumDescriptors = _countof(m_depthDsvs);
     dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     ThrowIfFailed(pDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+    NAME_D3D12_OBJECT(m_dsvHeap);
 
     // Describe and create a shader resource view (SRV) and constant 
     // buffer view (CBV) descriptor heap.  
     // Heap layout: 
     // 1) null views, 
-    // 2) object diffuse + normal textures views, 
-    // 3) per frame views: 2x depth buffers (shadow, scene pass), 3x constant buffers (shadow, scene, postprocess pass)
-    const UINT NumNullSrvs = 2;        // Null descriptors are needed for out of bounds behavior reads.
-    const UINT cbvCount = m_frameCount * NumConstantBuffers;
-    const UINT srvCount = _countof(SampleAssets::Textures) + m_frameCount * NumDepthBuffers;
+    // 2) depth buffer views,
+    // 3) object diffuse + normal textures views
+    // Note that we use root constant buffer views, so we don't need descriptor 
+    // heap space for each frames's constant buffer.
     D3D12_DESCRIPTOR_HEAP_DESC cbvSrvHeapDesc = {};
-    cbvSrvHeapDesc.NumDescriptors = NumNullSrvs + cbvCount + srvCount;
+    cbvSrvHeapDesc.NumDescriptors = GetNumCbvSrvUavDescriptors();
     cbvSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     cbvSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     ThrowIfFailed(pDevice->CreateDescriptorHeap(&cbvSrvHeapDesc, IID_PPV_ARGS(&m_cbvSrvHeap)));
@@ -145,15 +138,47 @@ void ShadowsFogScatteringSquidScene::CreateDescriptorHeaps(ID3D12Device* pDevice
 
     // Describe and create a sampler descriptor heap.
     D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
-    samplerHeapDesc.NumDescriptors = 2;        // One clamp and one wrap sampler.
+    samplerHeapDesc.NumDescriptors = 2; // One clamp and one wrap sampler.
     samplerHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
     samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     ThrowIfFailed(pDevice->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(&m_samplerHeap)));
     NAME_D3D12_OBJECT(m_samplerHeap);
 
-    // Get descriptor sizeS for the current device.
+    // Get descriptor sizes for the current device.
     m_cbvSrvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     m_rtvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+}
+
+void ShadowsFogScatteringSquidScene::CreateCommandLists(ID3D12Device* pDevice)
+{
+    // Temporarily use a frame resource's command allocator to create command lists.
+    ID3D12CommandAllocator* pCommandAllocator = m_frameResources[0]->m_commandAllocator.Get();
+
+    for (UINT i = 0; i < CommandListCount; i++)
+    {
+        ThrowIfFailed(pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, pCommandAllocator, nullptr, IID_PPV_ARGS(&m_commandLists[i])));
+        ThrowIfFailed(m_commandLists[i]->Close());
+        NAME_D3D12_OBJECT_INDEXED(m_commandLists, i);
+    }
+
+    for (UINT i = 0; i < NumContexts; i++)
+    {
+        ThrowIfFailed(pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, pCommandAllocator, nullptr, IID_PPV_ARGS(&m_shadowCommandLists[i])));
+        ThrowIfFailed(m_shadowCommandLists[i]->Close());
+        NAME_D3D12_OBJECT_INDEXED(m_shadowCommandLists, i);
+
+        ThrowIfFailed(pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, pCommandAllocator, nullptr, IID_PPV_ARGS(&m_sceneCommandLists[i])));
+        ThrowIfFailed(m_sceneCommandLists[i]->Close());
+        NAME_D3D12_OBJECT_INDEXED(m_sceneCommandLists, i);
+    }
+
+    // Batch up command lists for execution later.
+    const UINT batchSize = _countof(m_sceneCommandLists) + _countof(m_shadowCommandLists) + CommandListCount;
+    m_batchSubmit[0] = m_commandLists[CommandListPre].Get();
+    memcpy(m_batchSubmit + 1, m_shadowCommandLists, _countof(m_shadowCommandLists) * sizeof(ID3D12CommandList*));
+    m_batchSubmit[_countof(m_shadowCommandLists) + 1] = m_commandLists[CommandListMid].Get();
+    memcpy(m_batchSubmit + _countof(m_shadowCommandLists) + 2, m_sceneCommandLists, _countof(m_sceneCommandLists) * sizeof(ID3D12CommandList*));
+    m_batchSubmit[batchSize - 1] = m_commandLists[CommandListPost].Get();
 }
 
 void ShadowsFogScatteringSquidScene::CreateRootSignatures(ID3D12Device* pDevice)
@@ -168,44 +193,70 @@ void ShadowsFogScatteringSquidScene::CreateRootSignatures(ID3D12Device* pDevice)
         featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
     }
 
-    // Create a root signature for shadow and scene render pass.
+    // Create a root signature for the shadow pass.
     {
-        CD3DX12_DESCRIPTOR_RANGE1 ranges[4]; // Perfomance TIP: Order from most frequent to least frequent.
-        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);    // 2 frequently changed diffuse + normal textures - using registers t1 and t2.
-        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);    // 1 frequently changed constant buffer.
-        ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);                                                // 1 infrequently changed shadow texture - starting in register t0.
-        ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 2, 0);                                            // 2 static samplers.
-
-        CD3DX12_ROOT_PARAMETER1 rootParameters[4];
-        rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_ALL);
-        rootParameters[2].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[3].InitAsDescriptorTable(1, &ranges[3], D3D12_SHADER_VISIBILITY_PIXEL);
+        CD3DX12_ROOT_PARAMETER1 rootParameters[1]; // Performance tip: Order root parameters from most frequently accessed to least frequently accessed.
+        rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX); // 1 frequently changed constant buffer.
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr,
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS | // Performance tip: Limit root signature access when possible.
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS);
 
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
         ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
-        ThrowIfFailed(pDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignatures[RootSignature::SceneAndShadowPass])));
-        NAME_D3D12_OBJECT(m_rootSignatures[RootSignature::SceneAndShadowPass]);
+        ThrowIfFailed(pDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignatures[RootSignature::ShadowPass])));
+        NAME_D3D12_OBJECT(m_rootSignatures[RootSignature::ShadowPass]);
     }
 
-    // Create a root signature for post-process pass.
+    // Create a root signature for the scene pass.
     {
         CD3DX12_DESCRIPTOR_RANGE1 ranges[3];
-        CD3DX12_ROOT_PARAMETER1 rootParameters[3];
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);
+        ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 2, 0);
 
-        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);    // depth texture - using register t0.
-        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-        ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
-        rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_ALL);
-        rootParameters[2].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
+        CD3DX12_ROOT_PARAMETER1 rootParameters[4]; // Performance tip: Order root parameters from most frequently accessed to least frequently accessed.
+        rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL); // 2 frequently changed diffuse + normal textures - starting in register t0.
+        rootParameters[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL); // 1 frequently changed constant buffer.
+        rootParameters[2].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL); // 1 infrequently changed shadow texture - starting in register t2.
+        rootParameters[3].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL); // 2 static samplers.
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr,
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS | // Performance tip: Limit root signature access when possible.
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
+
+        ComPtr<ID3DBlob> signature;
+        ComPtr<ID3DBlob> error;
+        ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
+        ThrowIfFailed(pDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignatures[RootSignature::ScenePass])));
+        NAME_D3D12_OBJECT(m_rootSignatures[RootSignature::ScenePass]);
+    }
+
+    // Create a root signature for the post-process pass.
+    {
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
+
+        CD3DX12_ROOT_PARAMETER1 rootParameters[3];
+        rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL); // 1 depth texture - starting in register t0.
+        rootParameters[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_ALL); // 1 frequently changed constant buffer.
+        rootParameters[2].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL); // 1 static sampler.
+
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+        rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr,
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
 
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
@@ -221,7 +272,6 @@ void ShadowsFogScatteringSquidScene::CreatePipelineStates(ID3D12Device* pDevice)
     {
         ComPtr<ID3DBlob> vertexShader;
         ComPtr<ID3DBlob> pixelShader;
-
         vertexShader = CompileShader(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass.hlsl").c_str(), nullptr, "VSMain", "vs_5_0");
         pixelShader = CompileShader(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass.hlsl").c_str(), nullptr, "PSMain", "ps_5_0");
 
@@ -238,7 +288,7 @@ void ShadowsFogScatteringSquidScene::CreatePipelineStates(ID3D12Device* pDevice)
         // Describe and create the PSO for rendering the scene.
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = inputLayoutDesc;
-        psoDesc.pRootSignature = m_rootSignatures[RootSignature::SceneAndShadowPass].Get();
+        psoDesc.pRootSignature = m_rootSignatures[RootSignature::ScenePass].Get();
         psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
         psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -257,6 +307,7 @@ void ShadowsFogScatteringSquidScene::CreatePipelineStates(ID3D12Device* pDevice)
         // Alter the description and create the PSO for rendering
         // the shadow map.  The shadow map does not use a pixel
         // shader or render targets.
+        psoDesc.pRootSignature = m_rootSignatures[RootSignature::ShadowPass].Get();
         psoDesc.PS = CD3DX12_SHADER_BYTECODE(0, 0);
         psoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
         psoDesc.NumRenderTargets = 0;
@@ -269,10 +320,8 @@ void ShadowsFogScatteringSquidScene::CreatePipelineStates(ID3D12Device* pDevice)
     {
         ComPtr<ID3DBlob> vertexShader;
         ComPtr<ID3DBlob> pixelShader;
-
         vertexShader = CompileShader(m_pSample->GetAssetFullPath(L"PostprocessPass.hlsl").c_str(), nullptr, "VSMain", "vs_5_0");
         pixelShader = CompileShader(m_pSample->GetAssetFullPath(L"PostprocessPass.hlsl").c_str(), nullptr, "PSMain", "ps_5_0");
-
 
         // Define the vertex input layout.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
@@ -303,7 +352,7 @@ void ShadowsFogScatteringSquidScene::CreatePipelineStates(ID3D12Device* pDevice)
     }
 }
 
-void ShadowsFogScatteringSquidScene::CreateAssetResources(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCmdList)
+void ShadowsFogScatteringSquidScene::CreateAssetResources(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList)
 {
     // Load scene assets.
     UINT fileSize = 0;
@@ -319,7 +368,6 @@ void ShadowsFogScatteringSquidScene::CreateAssetResources(ID3D12Device* pDevice,
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
             IID_PPV_ARGS(&m_vertexBuffers[VertexBuffer::SceneGeometry])));
-
         NAME_D3D12_OBJECT(m_vertexBuffers[VertexBuffer::SceneGeometry]);
 
         ThrowIfFailed(pDevice->CreateCommittedResource(
@@ -337,12 +385,15 @@ void ShadowsFogScatteringSquidScene::CreateAssetResources(ID3D12Device* pDevice,
         vertexData.RowPitch = SampleAssets::VertexDataSize;
         vertexData.SlicePitch = vertexData.RowPitch;
 
-        PIXBeginEvent(pCmdList, 0, L"Copy vertex buffer data to default resource...");
+        PIXBeginEvent(pCommandList, 0, L"Copy vertex buffer data to default resource...");
 
-        UpdateSubresources<1>(pCmdList, m_vertexBuffers[VertexBuffer::SceneGeometry].Get(), m_vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
-        pCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffers[VertexBuffer::SceneGeometry].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+        UpdateSubresources<1>(pCommandList, m_vertexBuffers[VertexBuffer::SceneGeometry].Get(), m_vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
 
-        PIXEndEvent(pCmdList);
+        // Performance tip: You can avoid some resource barriers by relying on resource state promotion and decay.
+        // Resources accessed on a copy queue will decay back to the COMMON after ExecuteCommandLists()
+        // completes on the GPU. Search online for "D3D12 Implicit State Transitions" for more details. 
+
+        PIXEndEvent(pCommandList);
 
         // Initialize the vertex buffer view.
         m_vertexBufferViews[VertexBuffer::SceneGeometry].BufferLocation = m_vertexBuffers[VertexBuffer::SceneGeometry]->GetGPUVirtualAddress();
@@ -359,7 +410,6 @@ void ShadowsFogScatteringSquidScene::CreateAssetResources(ID3D12Device* pDevice,
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
             IID_PPV_ARGS(&m_indexBuffer)));
-
         NAME_D3D12_OBJECT(m_indexBuffer);
 
         ThrowIfFailed(pDevice->CreateCommittedResource(
@@ -377,23 +427,27 @@ void ShadowsFogScatteringSquidScene::CreateAssetResources(ID3D12Device* pDevice,
         indexData.RowPitch = SampleAssets::IndexDataSize;
         indexData.SlicePitch = indexData.RowPitch;
 
-        PIXBeginEvent(pCmdList, 0, L"Copy index buffer data to default resource...");
+        PIXBeginEvent(pCommandList, 0, L"Copy index buffer data to default resource...");
 
-        UpdateSubresources<1>(pCmdList, m_indexBuffer.Get(), m_indexBufferUpload.Get(), 0, 0, 1, &indexData);
-        pCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+        UpdateSubresources<1>(pCommandList, m_indexBuffer.Get(), m_indexBufferUpload.Get(), 0, 0, 1, &indexData);
 
-        PIXEndEvent(pCmdList);
+        // Performance tip: You can avoid some resource barriers by relying on resource state promotion and decay.
+        // Resources accessed on a copy queue will decay back to the COMMON after ExecuteCommandLists()
+        // completes on the GPU. Search online for "D3D12 Implicit State Transitions" for more details. 
+
+        PIXEndEvent(pCommandList);
 
         // Initialize the index buffer view.
         m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
         m_indexBufferView.SizeInBytes = SampleAssets::IndexDataSize;
         m_indexBufferView.Format = SampleAssets::StandardIndexFormat;
     }
-
+    
     // Create shader resources.
     {
         // Get a handle to the start of the descriptor heap.
-        CD3DX12_CPU_DESCRIPTOR_HANDLE cbvSrvHandle(m_cbvSrvHeap->GetCPUDescriptorHandleForHeapStart());
+        CD3DX12_CPU_DESCRIPTOR_HANDLE cbvSrvCpuHandle(m_cbvSrvHeap->GetCPUDescriptorHandleForHeapStart());
+        CD3DX12_GPU_DESCRIPTOR_HANDLE cbvSrvGpuHandle(m_cbvSrvHeap->GetGPUDescriptorHandleForHeapStart());
 
         {
             // Describe and create 2 null SRVs. Null descriptors are needed in order 
@@ -406,17 +460,26 @@ void ShadowsFogScatteringSquidScene::CreateAssetResources(ID3D12Device* pDevice,
             nullSrvDesc.Texture2D.MostDetailedMip = 0;
             nullSrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-            pDevice->CreateShaderResourceView(nullptr, &nullSrvDesc, cbvSrvHandle);
-            cbvSrvHandle.Offset(m_cbvSrvDescriptorSize);
+            for (UINT i = 0; i < NumNullSrvs; i++)
+            {
+                pDevice->CreateShaderResourceView(nullptr, &nullSrvDesc, cbvSrvCpuHandle);
+                cbvSrvCpuHandle.Offset(m_cbvSrvDescriptorSize);
+                cbvSrvGpuHandle.Offset(m_cbvSrvDescriptorSize);
+            }
+        }
 
-            pDevice->CreateShaderResourceView(nullptr, &nullSrvDesc, cbvSrvHandle);
-            cbvSrvHandle.Offset(m_cbvSrvDescriptorSize);
+        // Save the descriptor handles for the depth buffer views.
+        for (UINT i = 0; i < _countof(m_depthSrvCpuHandles); i++)
+        {
+            m_depthSrvCpuHandles[i] = cbvSrvCpuHandle;
+            m_depthSrvGpuHandles[i] = cbvSrvGpuHandle;
+            cbvSrvCpuHandle.Offset(m_cbvSrvDescriptorSize);
+            cbvSrvGpuHandle.Offset(m_cbvSrvDescriptorSize);
         }
 
         // Create each texture and SRV descriptor.
-        const UINT srvCount = _countof(SampleAssets::Textures);
-        PIXBeginEvent(pCmdList, 0, L"Copy diffuse and normal texture data to default resources...");
-        for (UINT i = 0; i < srvCount; i++)
+        PIXBeginEvent(pCommandList, 0, L"Copy diffuse and normal texture data to default resources...");
+        for (UINT i = 0; i < _countof(SampleAssets::Textures); i++)
         {
             // Describe and create a Texture2D.
             const SampleAssets::TextureResource &tex = SampleAssets::Textures[i];
@@ -440,7 +503,6 @@ void ShadowsFogScatteringSquidScene::CreateAssetResources(ID3D12Device* pDevice,
                 D3D12_RESOURCE_STATE_COPY_DEST,
                 nullptr,
                 IID_PPV_ARGS(&m_textures[i])));
-
             NAME_D3D12_OBJECT_INDEXED(m_textures, i);
 
             {
@@ -461,8 +523,11 @@ void ShadowsFogScatteringSquidScene::CreateAssetResources(ID3D12Device* pDevice,
                 textureData.RowPitch = tex.Data->Pitch;
                 textureData.SlicePitch = tex.Data->Size;
 
-                UpdateSubresources(pCmdList, m_textures[i].Get(), m_textureUploads[i].Get(), 0, 0, subresourceCount, &textureData);
-                pCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_textures[i].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+                UpdateSubresources(pCommandList, m_textures[i].Get(), m_textureUploads[i].Get(), 0, 0, subresourceCount, &textureData);
+                
+                // Performance tip: You can avoid some resource barriers by relying on resource state promotion and decay.
+                // Resources accessed on a copy queue will decay back to the COMMON after ExecuteCommandLists()
+                // completes on the GPU. Search online for "D3D12 Implicit State Transitions" for more details. 
             }
 
             // Describe and create an SRV.
@@ -473,12 +538,11 @@ void ShadowsFogScatteringSquidScene::CreateAssetResources(ID3D12Device* pDevice,
             srvDesc.Texture2D.MipLevels = tex.MipLevels;
             srvDesc.Texture2D.MostDetailedMip = 0;
             srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-            pDevice->CreateShaderResourceView(m_textures[i].Get(), &srvDesc, cbvSrvHandle);
-
-            // Move to the next descriptor slot.
-            cbvSrvHandle.Offset(m_cbvSrvDescriptorSize);
+            pDevice->CreateShaderResourceView(m_textures[i].Get(), &srvDesc, cbvSrvCpuHandle);
+            cbvSrvCpuHandle.Offset(m_cbvSrvDescriptorSize);
+            cbvSrvGpuHandle.Offset(m_cbvSrvDescriptorSize);
         }
-        PIXEndEvent(pCmdList);
+        PIXEndEvent(pCommandList);
     }
 
     free(pAssetData);
@@ -509,10 +573,11 @@ void ShadowsFogScatteringSquidScene::CreatePostprocessPassResources(ID3D12Device
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
         IID_PPV_ARGS(&m_vertexBuffers[VertexBuffer::ScreenQuad])));
+    NAME_D3D12_OBJECT(m_vertexBuffers[VertexBuffer::ScreenQuad]);
 
                                              // Copy the triangle data to the vertex buffer.
     UINT8* pVertexDataBegin;
-    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+    const CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
     ThrowIfFailed(m_vertexBuffers[VertexBuffer::ScreenQuad]->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
     memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
     m_vertexBuffers[VertexBuffer::ScreenQuad]->Unmap(0, nullptr);
@@ -565,11 +630,11 @@ void ShadowsFogScatteringSquidScene::CreateSamplers(ID3D12Device* pDevice)
     pDevice->CreateSampler(&wrapSamplerDesc, samplerHandle);
 }
 
-void ShadowsFogScatteringSquidScene::CreateFrameResources(ID3D12Device* pDevice)
+void ShadowsFogScatteringSquidScene::CreateFrameResources(ID3D12Device* pDevice, ID3D12CommandQueue* pCommandQueue)
 {
     for (UINT i = 0; i < m_frameCount; i++)
     {
-        m_frameResources[i] = make_unique<FrameResource>(pDevice, m_pipelineStates, m_dsvHeap.Get(), m_cbvSrvHeap.Get(), i);
+        m_frameResources[i] = make_unique<FrameResource>(pDevice, pCommandQueue);
     }
 }
 
@@ -595,7 +660,7 @@ void ShadowsFogScatteringSquidScene::LoadContexts()
             FALSE,
             NULL);
 
-        m_workerFinishedRenderFrame[i] = CreateEvent(
+        m_workerFinishedScenePass[i] = CreateEvent(
             NULL,
             FALSE,
             FALSE,
@@ -618,9 +683,8 @@ void ShadowsFogScatteringSquidScene::LoadContexts()
             nullptr));
 
         assert(m_workerBeginRenderFrame[i] != NULL);
-        assert(m_workerFinishedRenderFrame[i] != NULL);
+        assert(m_workerFinishedScenePass[i] != NULL);
         assert(m_threadHandles[i] != NULL);
-
     }
 #endif
 }
@@ -637,29 +701,45 @@ void ShadowsFogScatteringSquidScene::LoadSizeDependentResources(ID3D12Device* pD
     m_scissorRect.bottom = static_cast<LONG>(height);
 
     // Create render target views (RTVs).
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-    for (UINT i = 0; i < m_frameCount; i++)
     {
-        m_renderTargets[i] = ppRenderTargets[i];
-        pDevice->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
-        rtvHandle.Offset(1, m_rtvDescriptorSize);
-        NAME_D3D12_OBJECT_INDEXED(m_renderTargets, i);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvCpuHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+        for (UINT i = 0; i < m_frameCount; i++)
+        {
+            m_renderTargets[i] = ppRenderTargets[i];
+            pDevice->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvCpuHandle);
+            rtvCpuHandle.Offset(1, m_rtvDescriptorSize);
+            NAME_D3D12_OBJECT_INDEXED(m_renderTargets, i);
+        }
     }
 
-    for (UINT i = 0; i < m_frameCount; i++)
+    // Create the depth stencil views (DSVs).
     {
-        m_frameResources[i]->LoadSizeDependentResources(pDevice, width, height);
-        m_frameResources[i]->WriteConstantBuffers(&m_viewport, &m_camera, m_lightCameras, m_lights);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE dsvCpuHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+        const UINT dsvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+        // Shadow depth resource.
+        m_depthDsvs[DepthGenPass::Shadow] = dsvCpuHandle;
+        ThrowIfFailed(CreateDepthStencilTexture2D(pDevice, width, height, DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT, &m_depthTextures[DepthGenPass::Shadow], m_depthDsvs[DepthGenPass::Shadow], m_depthSrvCpuHandles[DepthGenPass::Shadow]));
+        NAME_D3D12_OBJECT(m_depthTextures[DepthGenPass::Shadow]);
+        
+        dsvCpuHandle.Offset(dsvDescriptorSize);
+        
+        // Scene depth resource.
+        m_depthDsvs[DepthGenPass::Scene] = dsvCpuHandle;
+        ThrowIfFailed(CreateDepthStencilTexture2D(pDevice, width, height, DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT, &m_depthTextures[DepthGenPass::Scene], m_depthDsvs[DepthGenPass::Scene], m_depthSrvCpuHandles[DepthGenPass::Scene]));
+        NAME_D3D12_OBJECT(m_depthTextures[DepthGenPass::Scene]);
     }
 }
 
 // Release sample's D3D objects
 void ShadowsFogScatteringSquidScene::ReleaseSizeDependentResources()
 {
+    m_depthTextures[DepthGenPass::Shadow].Reset();
+    m_depthTextures[DepthGenPass::Scene].Reset();
+
     for (UINT i = 0; i < m_frameCount; i++)
     {
         m_renderTargets[i].Reset();
-        m_frameResources[i]->ReleaseSizeDependentResources();
     }
 }
 
@@ -741,7 +821,8 @@ void ShadowsFogScatteringSquidScene::KeyDown(UINT8 key)
 // Update frame-based values.
 void ShadowsFogScatteringSquidScene::Update(double elapsedTime)
 {
-    float angleChange = 2.0f * static_cast<float>(elapsedTime);
+    // Update camera and lights.
+    const float angleChange = 2.0f * static_cast<float>(elapsedTime);
 
     if (m_keyboardInput.leftArrowPressed)
         m_camera.RotateAroundYAxis(-angleChange);
@@ -758,19 +839,22 @@ void ShadowsFogScatteringSquidScene::Update(double elapsedTime)
         {
             XMStoreFloat4(&m_lights[i].position, XMVector4Transform(XMLoadFloat4(&m_lights[i].position), XMMatrixRotationY(angleChange)));
             XMVECTOR eye = XMLoadFloat4(&m_lights[i].position);
-            XMVECTOR at = XMVectorSet(0.0f, 15.0f, 0.0f,0.0f);
-            XMVECTOR up = { 0, 1, 0 };
+            XMVECTOR at = XMVectorSet(0.0f, 15.0f, 0.0f, 0.0f);
+            XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
             switch (i)
             {
-            case 4: up = { 0, 0, -1 }; break;
-            case 5: up = { 0, 0, 1 }; break;
+            case 4: up = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f); break;
+            case 5: up = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); break;
             }
             m_lightCameras[i].Set(eye, at, up);
 
             m_lightCameras[i].Get3DViewProjMatrices(&m_lights[i].view, &m_lights[i].projection, 90.0f, m_viewport.Width, m_viewport.Height);
         }
     }
-    m_pCurrentFrameResource->WriteConstantBuffers(&m_viewport, &m_camera, m_lightCameras, m_lights);
+
+    // Update and commmit constant buffers.
+    UpdateConstantBuffers();
+    CommitConstantBuffers();
 }
 
 // Render the scene.
@@ -793,100 +877,250 @@ void ShadowsFogScatteringSquidScene::Render(ID3D12CommandQueue* pCommandQueue, b
     }
 
     MidFrame();
-    EndFrame();
+    EndFrame(setBackbufferReadyForPresent);
 
     WaitForMultipleObjects(NumContexts, m_workerFinishShadowPass, TRUE, INFINITE);
 
-    // You can execute command lists on any thread. Depending on the work 
-    // load, apps can choose between using ExecuteCommandLists on one thread 
-    // vs ExecuteCommandList from multiple threads.
-    pCommandQueue->ExecuteCommandLists(NumContexts + 2, m_pCurrentFrameResource->m_batchSubmit); // Submit PRE, MID and shadows.
+    pCommandQueue->ExecuteCommandLists(NumContexts + 2, m_batchSubmit); // Submit PRE, MID and shadows.
 
-    WaitForMultipleObjects(NumContexts, m_workerFinishedRenderFrame, TRUE, INFINITE);
+    WaitForMultipleObjects(NumContexts, m_workerFinishedScenePass, TRUE, INFINITE);
 
     // Submit remaining command lists.
-    pCommandQueue->ExecuteCommandLists(_countof(m_pCurrentFrameResource->m_batchSubmit) - NumContexts - 2, m_pCurrentFrameResource->m_batchSubmit + NumContexts + 2);
+    pCommandQueue->ExecuteCommandLists(_countof(m_batchSubmit) - NumContexts - 2, m_batchSubmit + NumContexts + 2);
 #endif
+}
 
-    // Postprocess pass
-    PostprocessPass(pCommandQueue, setBackbufferReadyForPresent);
+float ShadowsFogScatteringSquidScene::GetScenePassGPUTimeInMs() const
+{
+    return m_pCurrentFrameResource->m_gpuTimer.GetAverageMS(SceneEnums::Timestamp::ScenePass);
+}
+
+float ShadowsFogScatteringSquidScene::GetPostprocessPassGPUTimeInMs() const
+{
+    return m_pCurrentFrameResource->m_gpuTimer.GetAverageMS(SceneEnums::Timestamp::PostprocessPass);
+}
+
+void ShadowsFogScatteringSquidScene::ShadowPass(ID3D12GraphicsCommandList* pCommandList, int threadIndex)
+{
+    // Set necessary state.
+    pCommandList->SetGraphicsRootSignature(m_rootSignatures[RootSignature::ShadowPass].Get());
+
+    pCommandList->SetGraphicsRootConstantBufferView(0, m_pCurrentFrameResource->GetConstantBufferGPUVirtualAddress(RenderPass::Shadow));
+
+    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferViews[VertexBuffer::SceneGeometry]);
+    pCommandList->IASetIndexBuffer(&m_indexBufferView);
+    pCommandList->RSSetViewports(1, &m_viewport);
+    pCommandList->RSSetScissorRects(1, &m_scissorRect);
+    pCommandList->OMSetRenderTargets(0, nullptr, FALSE, &m_depthDsvs[DepthGenPass::Shadow]); // No render target needed for the shadow pass.
+
+    // Draw. Distribute objects over threads by drawing only 1/NumContexts 
+    // objects per worker (i.e. every object such that objectnum % 
+    // NumContexts == threadIndex).
+    for (int j = threadIndex; j < _countof(SampleAssets::Draws); j += NumContexts)
+    {
+        const SampleAssets::DrawParameters& drawArgs = SampleAssets::Draws[j];
+        pCommandList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.IndexStart, drawArgs.VertexBase, 0);
+    }
+}
+
+void ShadowsFogScatteringSquidScene::ScenePass(ID3D12GraphicsCommandList* pCommandList, int threadIndex)
+{
+    // Set necessary state.
+    pCommandList->SetGraphicsRootSignature(m_rootSignatures[RootSignature::ScenePass].Get());
+
+    pCommandList->SetGraphicsRootConstantBufferView(1, m_pCurrentFrameResource->GetConstantBufferGPUVirtualAddress(RenderPass::Scene)); // Set scene constant buffer.
+    pCommandList->SetGraphicsRootDescriptorTable(2, m_depthSrvGpuHandles[DepthGenPass::Shadow]); // Set the shadow texture as an SRV.
+    pCommandList->SetGraphicsRootDescriptorTable(3, m_samplerHeap->GetGPUDescriptorHandleForHeapStart()); // Set samplers.
+
+    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferViews[VertexBuffer::SceneGeometry]);
+    pCommandList->IASetIndexBuffer(&m_indexBufferView);
+    pCommandList->RSSetViewports(1, &m_viewport);
+    pCommandList->RSSetScissorRects(1, &m_scissorRect);
+    pCommandList->OMSetRenderTargets(1, &GetCurrentBackBufferRtvCpuHandle(), FALSE, &m_depthDsvs[DepthGenPass::Scene]);
+
+    // Draw.
+    const D3D12_GPU_DESCRIPTOR_HANDLE cbvSrvHeapStart = m_cbvSrvHeap->GetGPUDescriptorHandleForHeapStart();
+    for (int j = threadIndex; j < _countof(SampleAssets::Draws); j += NumContexts)
+    {
+        const SampleAssets::DrawParameters& drawArgs = SampleAssets::Draws[j];
+
+        // Set the diffuse and normal textures for the current object.
+        CD3DX12_GPU_DESCRIPTOR_HANDLE cbvSrvHandle(cbvSrvHeapStart, NumNullSrvs + _countof(m_depthSrvCpuHandles) + drawArgs.DiffuseTextureIndex, m_cbvSrvDescriptorSize);
+        pCommandList->SetGraphicsRootDescriptorTable(0, cbvSrvHandle);
+
+        pCommandList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.IndexStart, drawArgs.VertexBase, 0);
+    }
 }
 
 // Apply a postprocess pass with a light scattering effect. 
-void ShadowsFogScatteringSquidScene::PostprocessPass(ID3D12CommandQueue* pCommandQueue, bool setBackbufferReadyForPresent)
+void ShadowsFogScatteringSquidScene::PostprocessPass(ID3D12GraphicsCommandList* pCommandList)
 {
-    PIXBeginEvent(pCommandQueue, 0, L"Postprocess pass");
-
-    ID3D12GraphicsCommandList* pCmdList = m_pCurrentFrameResource->m_postprocessCommandList.Get();
-    pCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_pCurrentFrameResource->m_depthTextures[DepthGenPass::Scene].Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-
     // Set necessary state.
-    pCmdList->SetGraphicsRootSignature(m_rootSignatures[RootSignature::PostprocessPass].Get());
-    pCmdList->RSSetViewports(1, &m_viewport);
-    pCmdList->RSSetScissorRects(1, &m_scissorRect);
+    pCommandList->SetGraphicsRootSignature(m_rootSignatures[RootSignature::PostprocessPass].Get());
+    pCommandList->SetPipelineState(m_pipelineStates[RenderPass::Postprocess].Get());
 
-    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvSrvHeap.Get(), m_samplerHeap.Get() };
-    pCmdList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+    DrawInScattering(pCommandList, GetCurrentBackBufferRtvCpuHandle());
+}
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-    m_pCurrentFrameResource->Bind(pCmdList, RenderPass::Postprocess, &rtvHandle);
-    pCmdList->SetGraphicsRootDescriptorTable(2, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
+void ShadowsFogScatteringSquidScene::UpdateConstantBuffers()
+{
+    // Scale down the world a bit.
+    const float worldScale = GetWorldScale();
+    const XMMATRIX worldScalingMatrix = XMMatrixScaling(worldScale, worldScale, worldScale);
+    ::XMStoreFloat4x4(&m_sceneConstantBuffer.model, worldScalingMatrix);
+    ::XMStoreFloat4x4(&m_shadowConstantBuffer.model, worldScalingMatrix);
 
-    // Record commands.
-    pCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    pCmdList->IASetVertexBuffers(0, 1, &m_vertexBufferViews[VertexBuffer::ScreenQuad]);
-    pCmdList->DrawInstanced(4, 1, 0, 0);
+    m_sceneConstantBuffer.viewport = m_shadowConstantBuffer.viewport = { m_viewport.Width, m_viewport.Height, 0.0f, 0.0f };
 
-    pCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_pCurrentFrameResource->m_depthTextures[DepthGenPass::Scene].Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+    // The scene pass is drawn from the camera.
+    m_camera.Get3DViewProjMatrices(&m_sceneConstantBuffer.view, &m_sceneConstantBuffer.projection, 90.0f, m_viewport.Width, m_viewport.Height);
 
-    if (setBackbufferReadyForPresent)
+    // The light pass is drawn from the first light.
+    m_lightCameras[0].Get3DViewProjMatrices(&m_shadowConstantBuffer.view, &m_shadowConstantBuffer.projection, 90.0f, m_viewport.Width, m_viewport.Height);
+
+    for (int i = 0; i < NumLights; i++)
     {
-        // Indicate that the back buffer will now be used to present.
-        pCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+        memcpy(&m_sceneConstantBuffer.lights[i], &m_lights[i], sizeof(LightState));
+        memcpy(&m_shadowConstantBuffer.lights[i], &m_lights[i], sizeof(LightState));
     }
 
-    ThrowIfFailed(pCmdList->Close());
+    // The shadow pass won't sample the shadow map, but rather write to it.
+    m_shadowConstantBuffer.sampleShadowMap = FALSE;
 
-    // Execute the command list.
-    ID3D12CommandList* ppCommandLists[] = { pCmdList };
-    pCommandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    // The scene pass samples the shadow map.
+    m_sceneConstantBuffer.sampleShadowMap = TRUE;
 
-    PIXEndEvent(pCommandQueue);
+    m_shadowConstantBuffer.ambientColor = m_sceneConstantBuffer.ambientColor = { 0.1f, 0.2f, 0.3f, 1.0f };
+
+    m_postprocessConstantBuffer.lightPosition = m_lights[0].position;
+    m_postprocessConstantBuffer.fogDensity = m_fogDensity;
+    XMStoreFloat4(&m_postprocessConstantBuffer.cameraPosition, m_camera.mEye);
+
+    XMMATRIX view = XMMatrixLookAtRH(m_camera.mEye, m_camera.mAt, m_camera.mUp);
+    XMVECTOR determinant = XMMatrixDeterminant(view);
+    XMMATRIX viewInverse = XMMatrixInverse(&determinant, view);
+
+    const float fovAngleY = 90.0f;
+    const float fovRadiansY = fovAngleY * XM_PI / 180.0f;
+    XMMATRIX proj = XMMatrixPerspectiveFovRH(fovRadiansY, m_viewport.Width / m_viewport.Height, 0.01f, 125.0f);
+    determinant = XMMatrixDeterminant(proj);
+    XMMATRIX projInverse = XMMatrixInverse(&determinant, proj);
+
+    const float nearZ1 = 1.0f;
+    XMMATRIX projAtNearZ1 = XMMatrixPerspectiveFovRH(fovRadiansY, m_viewport.Width / m_viewport.Height, nearZ1, 125.0f);
+    XMMATRIX viewProjAtNearZ1 = view * projAtNearZ1;
+    determinant = XMMatrixDeterminant(viewProjAtNearZ1);
+    XMMATRIX viewProjInverseAtNearZ1 = XMMatrixInverse(&determinant, viewProjAtNearZ1);
+
+    // Copy over a transposed row-major inverse matrix, since HLSL assumes col-major order.
+    XMStoreFloat4x4(&m_postprocessConstantBuffer.viewInverse, XMMatrixTranspose(viewInverse));
+    XMStoreFloat4x4(&m_postprocessConstantBuffer.projInverse, XMMatrixTranspose(projInverse));
+    XMStoreFloat4x4(&m_postprocessConstantBuffer.viewProjInverseAtNearZ1, XMMatrixTranspose(viewProjInverseAtNearZ1));
 }
 
-// Assemble the CommandListPre command list.
+void ShadowsFogScatteringSquidScene::CommitConstantBuffers()
+{
+    memcpy(m_pCurrentFrameResource->m_pConstantBuffersWO[RenderPass::Scene], &m_sceneConstantBuffer, sizeof(m_sceneConstantBuffer));
+    memcpy(m_pCurrentFrameResource->m_pConstantBuffersWO[RenderPass::Shadow], &m_shadowConstantBuffer, sizeof(m_shadowConstantBuffer));
+    memcpy(m_pCurrentFrameResource->m_pConstantBuffersWO[RenderPass::Postprocess], &m_postprocessConstantBuffer, sizeof(m_postprocessConstantBuffer));
+}
+
+void ShadowsFogScatteringSquidScene::DrawInScattering(ID3D12GraphicsCommandList* pCommandList, const D3D12_CPU_DESCRIPTOR_HANDLE& renderTargetHandle)
+{
+    PIXBeginEvent(pCommandList, 0, L"In-Scattering");
+
+    // Set necessary state.
+    pCommandList->SetGraphicsRootDescriptorTable(0, m_depthSrvGpuHandles[DepthGenPass::Scene]); // Set scene depth as an SRV.
+    pCommandList->SetGraphicsRootConstantBufferView(1, m_pCurrentFrameResource->GetConstantBufferGPUVirtualAddress(RenderPass::Postprocess)); // Set postprocess constant buffer.
+    pCommandList->SetGraphicsRootDescriptorTable(2, m_samplerHeap->GetGPUDescriptorHandleForHeapStart()); // Set samplers.
+
+    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferViews[VertexBuffer::ScreenQuad]);
+    pCommandList->RSSetViewports(1, &m_viewport);
+    pCommandList->RSSetScissorRects(1, &m_scissorRect);
+    pCommandList->OMSetRenderTargets(1, &renderTargetHandle, FALSE, nullptr); // No depth stencil needed for in-scattering.
+
+    // Draw.
+    pCommandList->DrawInstanced(4, 1, 0, 0);
+
+    PIXEndEvent(pCommandList);
+}
+
+// Record the CommandListPre command list.
 void ShadowsFogScatteringSquidScene::BeginFrame()
 {
-    m_pCurrentFrameResource->Init();
+    m_pCurrentFrameResource->InitFrame();
 
-    ID3D12GraphicsCommandList* pCmdListPre = m_pCurrentFrameResource->m_commandLists[CommandListPre].Get();
-    // Indicate that the back buffer will be used as a render target.
-    pCmdListPre->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    ID3D12GraphicsCommandList* pCommandListPre = m_commandLists[CommandListPre].Get();
 
-    // Clear the render target and depth stencil.
-    const float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-    pCmdListPre->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    m_pCurrentFrameResource->ClearDepthStencilViews(pCmdListPre);
+    // Reset the command list.
+    ThrowIfFailed(pCommandListPre->Reset(m_pCurrentFrameResource->m_commandAllocator.Get(), nullptr));
 
-    ThrowIfFailed(pCmdListPre->Close());
+    m_pCurrentFrameResource->BeginFrame(pCommandListPre);
+
+    // Transition back-buffer to a writable state for rendering.
+    pCommandListPre->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+    // Clear the render target and depth stencils.
+    pCommandListPre->ClearRenderTargetView(GetCurrentBackBufferRtvCpuHandle(), s_clearColor, 0, nullptr);
+    pCommandListPre->ClearDepthStencilView(m_depthDsvs[DepthGenPass::Shadow], D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    pCommandListPre->ClearDepthStencilView(m_depthDsvs[DepthGenPass::Scene], D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+    // Close the command list.
+    ThrowIfFailed(pCommandListPre->Close());
 }
 
-// Assemble the CommandListMid command list.
+// Record the CommandListMid command list.
 void ShadowsFogScatteringSquidScene::MidFrame()
 {
-    // Transition our shadow map from the shadow pass to readable in the scene pass.
-    m_pCurrentFrameResource->SwapBarriers();
+    ID3D12GraphicsCommandList* pCommandListMid = m_commandLists[CommandListMid].Get();
 
-    ThrowIfFailed(m_pCurrentFrameResource->m_commandLists[CommandListMid]->Close());
+    // Reset the command list.
+    ThrowIfFailed(pCommandListMid->Reset(m_pCurrentFrameResource->m_commandAllocator.Get(), nullptr));
+
+    // Transition our shadow map to a readable state for scene rendering.
+    pCommandListMid->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthTextures[DepthGenPass::Shadow].Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+    // Close the command list.
+    ThrowIfFailed(pCommandListMid->Close());
 }
 
-// Assemble the CommandListPost command list.
-void ShadowsFogScatteringSquidScene::EndFrame()
+// Record the CommandListPost command list.
+void ShadowsFogScatteringSquidScene::EndFrame(bool setBackbufferReadyForPresent)
 {
-    m_pCurrentFrameResource->Finish();
+    ID3D12GraphicsCommandList* pCommandListPost = m_commandLists[CommandListPost].Get();
 
-    ThrowIfFailed(m_pCurrentFrameResource->m_commandLists[CommandListPost]->Close());
+    // Reset the command list.
+    ThrowIfFailed(pCommandListPost->Reset(m_pCurrentFrameResource->m_commandAllocator.Get(), nullptr));
+
+    // Set descriptor heaps.
+    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvSrvHeap.Get(), m_samplerHeap.Get() };
+    pCommandListPost->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+    // Transition scene depth to a readable state for post-processing.
+    pCommandListPost->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthTextures[DepthGenPass::Scene].Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+    PIXBeginEvent(pCommandListPost, 0, L"Postprocess pass");
+    m_pCurrentFrameResource->m_gpuTimer.Start(pCommandListPost, Timestamp::PostprocessPass);
+    PostprocessPass(pCommandListPost);
+    m_pCurrentFrameResource->m_gpuTimer.Stop(pCommandListPost, Timestamp::PostprocessPass);
+    PIXEndEvent(pCommandListPost);
+
+    // Transition depth buffers back to a writable state for the next frame
+    // and conditionally indicate that the back buffer will now be used to present.
+   // Performance tip: Batch resource barriers into as few API calls as possible to minimize the amount of work the GPU does.
+    D3D12_RESOURCE_BARRIER barriers[3];
+    barriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(m_depthTextures[DepthGenPass::Shadow].Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    barriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(m_depthTextures[DepthGenPass::Scene].Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    barriers[2] = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    pCommandListPost->ResourceBarrier(setBackbufferReadyForPresent ? _countof(barriers) : _countof(barriers) - 1, barriers);
+
+    m_pCurrentFrameResource->EndFrame(pCommandListPost);
+
+    // Close the command list.
+    ThrowIfFailed(pCommandListPost->Close());
 }
 
 // Worker thread body. workerIndex is an integer from 0 to NumContexts 
@@ -900,100 +1134,67 @@ void ShadowsFogScatteringSquidScene::WorkerThread(int threadIndex)
     while (threadIndex >= 0 && threadIndex < NumContexts)
     {
         // Wait for main thread to tell us to draw.
-
         WaitForSingleObject(m_workerBeginRenderFrame[threadIndex], INFINITE);
 
 #endif
-        ID3D12GraphicsCommandList* pShadowCommandList = m_pCurrentFrameResource->m_shadowCommandLists[threadIndex].Get();
-        ID3D12GraphicsCommandList* pSceneCommandList = m_pCurrentFrameResource->m_sceneCommandLists[threadIndex].Get();
 
         //
         // Shadow pass
         //
-
-        // Populate the command list.
-        SetCommonPipelineState(pShadowCommandList);
-        m_pCurrentFrameResource->Bind(pShadowCommandList, RenderPass::Shadow, nullptr);
-
-        // Set null SRVs for the diffuse/normal textures.
-        pShadowCommandList->SetGraphicsRootDescriptorTable(0, m_cbvSrvHeap->GetGPUDescriptorHandleForHeapStart());
-
-        // Distribute objects over threads by drawing only 1/NumContexts 
-        // objects per worker (i.e. every object such that objectnum % 
-        // NumContexts == threadIndex).
-        PIXBeginEvent(pShadowCommandList, 0, L"Worker drawing shadow pass...");
-
-        for (int j = threadIndex; j < _countof(SampleAssets::Draws); j += NumContexts)
         {
-            SampleAssets::DrawParameters drawArgs = SampleAssets::Draws[j];
+            ID3D12GraphicsCommandList* pShadowCommandList = m_shadowCommandLists[threadIndex].Get();
 
-            pShadowCommandList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.IndexStart, drawArgs.VertexBase, 0);
-        }
+        // Reset the command list.
+        ThrowIfFailed(pShadowCommandList->Reset(m_pCurrentFrameResource->m_contextCommandAllocators[threadIndex].Get(), m_pipelineStates[SceneEnums::RenderPass::Shadow].Get()));
+            PIXBeginEvent(pShadowCommandList, 0, L"Worker drawing shadow pass...");
 
+            // Performance tip: Only set descriptor heaps if you need access to them.
+            ShadowPass(pShadowCommandList, threadIndex);
+
+            // Close the command list.
         PIXEndEvent(pShadowCommandList);
-
         ThrowIfFailed(pShadowCommandList->Close());
 
 #if !SINGLETHREADED
-        // Submit shadow pass.
+            // Tell main thread that we are done with the shadow pass.
         SetEvent(m_workerFinishShadowPass[threadIndex]);
 #endif
+        }
 
         //
         // Scene pass
-        // 
-
-        // Populate the command list.  These can only be sent after the shadow 
-        // passes for this frame have been submitted.
-        SetCommonPipelineState(pSceneCommandList);
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-        m_pCurrentFrameResource->Bind(pSceneCommandList, RenderPass::Scene, &rtvHandle);
-
-        PIXBeginEvent(pSceneCommandList, 0, L"Worker drawing scene pass...");
-
-        D3D12_GPU_DESCRIPTOR_HANDLE cbvSrvHeapStart = m_cbvSrvHeap->GetGPUDescriptorHandleForHeapStart();
-        for (int j = threadIndex; j < _countof(SampleAssets::Draws); j += NumContexts)
+        //
         {
-            SampleAssets::DrawParameters drawArgs = SampleAssets::Draws[j];
+            ID3D12GraphicsCommandList* pSceneCommandList = m_sceneCommandLists[threadIndex].Get();
 
-            // Set the diffuse and normal textures for the current object.
-            CD3DX12_GPU_DESCRIPTOR_HANDLE cbvSrvHandle(cbvSrvHeapStart, NumNullSrvs + drawArgs.DiffuseTextureIndex, m_cbvSrvDescriptorSize);
-            pSceneCommandList->SetGraphicsRootDescriptorTable(0, cbvSrvHandle);
+        // Reset the command list.
+            ThrowIfFailed(pSceneCommandList->Reset(m_pCurrentFrameResource->m_contextCommandAllocators[threadIndex].Get(), m_pipelineStates[RenderPass::Scene].Get()));
+            PIXBeginEvent(pSceneCommandList, 0, L"Worker drawing scene pass...");
 
-            pSceneCommandList->DrawIndexedInstanced(drawArgs.IndexCount, 1, drawArgs.IndexStart, drawArgs.VertexBase, 0);
+            if (threadIndex == 0)
+            {
+                m_pCurrentFrameResource->m_gpuTimer.Start(pSceneCommandList, Timestamp::ScenePass);
+            }
+
+            // Set descriptor heaps.
+            ID3D12DescriptorHeap* ppHeaps[] = { m_cbvSrvHeap.Get(), m_samplerHeap.Get() };
+            pSceneCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+            ScenePass(pSceneCommandList, threadIndex);
+
+            if (threadIndex == NumContexts - 1)
+        {
+                m_pCurrentFrameResource->m_gpuTimer.Stop(pSceneCommandList, Timestamp::ScenePass);
         }
 
+            // Close the command list.
         PIXEndEvent(pSceneCommandList);
         ThrowIfFailed(pSceneCommandList->Close());
 
 #if !SINGLETHREADED
-        // Tell main thread that we are done.
-        SetEvent(m_workerFinishedRenderFrame[threadIndex]);
-    }
+            // Tell main thread that we are done with the scene pass.
+            SetEvent(m_workerFinishedScenePass[threadIndex]);
 #endif
+    }
 }
-
-void ShadowsFogScatteringSquidScene::SetCommonPipelineState(ID3D12GraphicsCommandList* pCommandList)
-{
-    pCommandList->SetGraphicsRootSignature(m_rootSignatures[RootSignature::SceneAndShadowPass].Get());
-
-    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvSrvHeap.Get(), m_samplerHeap.Get() };
-    pCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-
-    pCommandList->RSSetViewports(1, &m_viewport);
-    pCommandList->RSSetScissorRects(1, &m_scissorRect);
-    pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferViews[VertexBuffer::SceneGeometry]);
-    pCommandList->IASetIndexBuffer(&m_indexBufferView);
-    pCommandList->SetGraphicsRootDescriptorTable(3, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
-    pCommandList->OMSetStencilRef(0);
-
-    // Render targets and depth stencil are set elsewhere because the 
-    // depth stencil depends on the frame resource being used.
-
-    // Constant buffers are set elsewhere because they depend on the 
-    // frame resource being used.
-
-    // SRVs are set elsewhere because they change based on the object 
-    // being drawn.
 }

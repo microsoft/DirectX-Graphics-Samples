@@ -41,6 +41,8 @@ D3D12ExecuteIndirect::D3D12ExecuteIndirect(UINT width, UINT height, std::wstring
     m_cullingScissorRect.left = static_cast<LONG>(center - (center * CullingCutoff));
     m_cullingScissorRect.right = static_cast<LONG>(center + (center * CullingCutoff));
     m_cullingScissorRect.bottom = static_cast<LONG>(height);
+
+    ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
 }
 
 void D3D12ExecuteIndirect::OnInit()
@@ -86,7 +88,7 @@ void D3D12ExecuteIndirect::LoadPipeline()
     else
     {
         ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+        GetHardwareAdapter(factory.Get(), &hardwareAdapter, true);
 
         ThrowIfFailed(D3D12CreateDevice(
             hardwareAdapter.Get(),
@@ -607,37 +609,77 @@ void D3D12ExecuteIndirect::OnUpdate()
 // Render the scene.
 void D3D12ExecuteIndirect::OnRender()
 {
-    // Record all the commands we need to render the scene into the command list.
-    PopulateCommandLists();
-
-    // Execute the compute work.
-    if (m_enableCulling)
+    try
     {
-        PIXBeginEvent(m_commandQueue.Get(), 0, L"Cull invisible triangles");
+        // Record all the commands we need to render the scene into the command list.
+        PopulateCommandLists();
 
-        ID3D12CommandList* ppCommandLists[] = { m_computeCommandList.Get() };
-        m_computeCommandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+        // Execute the compute work.
+        if (m_enableCulling)
+        {
+            PIXBeginEvent(m_commandQueue.Get(), 0, L"Cull invisible triangles");
+
+            ID3D12CommandList* ppCommandLists[] = { m_computeCommandList.Get() };
+            m_computeCommandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+            PIXEndEvent(m_commandQueue.Get());
+
+            m_computeCommandQueue->Signal(m_computeFence.Get(), m_fenceValues[m_frameIndex]);
+
+            // Execute the rendering work only when the compute work is complete.
+            m_commandQueue->Wait(m_computeFence.Get(), m_fenceValues[m_frameIndex]);
+        }
+
+        PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+
+        // Execute the rendering work.
+        ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
+        m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
         PIXEndEvent(m_commandQueue.Get());
 
-        m_computeCommandQueue->Signal(m_computeFence.Get(), m_fenceValues[m_frameIndex]);
+        // Present the frame.
+        ThrowIfFailed(m_swapChain->Present(1, 0));
 
-        // Execute the rendering work only when the compute work is complete.
-        m_commandQueue->Wait(m_computeFence.Get(), m_fenceValues[m_frameIndex]);
+        MoveToNextFrame();
     }
+    catch (HrException& e)
+    {
+        if (e.Error() == DXGI_ERROR_DEVICE_REMOVED || e.Error() == DXGI_ERROR_DEVICE_RESET)
+        {
+            RestoreD3DResources();
+        }
+        else
+        {
+            throw;
+        }
+    }
+}
 
-    PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+// Release sample's D3D objects.
+void D3D12ExecuteIndirect::ReleaseD3DResources()
+{
+    m_fence.Reset();
+    ResetComPtrArray(&m_renderTargets);
+    m_commandQueue.Reset();
+    m_swapChain.Reset();
+    m_device.Reset();
+}
 
-    // Execute the rendering work.
-    ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-    PIXEndEvent(m_commandQueue.Get());
-
-    // Present the frame.
-    ThrowIfFailed(m_swapChain->Present(1, 0));
-
-    MoveToNextFrame();
+// Tears down D3D resources and reinitializes them.
+void D3D12ExecuteIndirect::RestoreD3DResources()
+{
+    // Give GPU a chance to finish its execution in progress.
+    try
+    {
+        WaitForGpu();
+    }
+    catch (HrException&)
+    {
+        // Do nothing, currently attached adapter is unresponsive.
+    }
+    ReleaseD3DResources();
+    OnInit();
 }
 
 void D3D12ExecuteIndirect::OnDestroy()

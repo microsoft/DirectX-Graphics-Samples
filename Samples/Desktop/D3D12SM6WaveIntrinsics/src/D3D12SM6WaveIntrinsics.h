@@ -123,6 +123,8 @@ private:
     void CreateDevice(const ComPtr<IDXGIFactory4>& factory);
     void LoadPipeline();
     void LoadAssets();
+    void RestoreD3DResources();
+    void ReleaseD3DResources();
     void LoadSizeDependentResources();
     void MoveToNextFrame();
     void WaitForGpu();
