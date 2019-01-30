@@ -170,6 +170,8 @@ private:
     HRESULT GetHardwareAdapters(_In_ IDXGIFactory2* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppPrimaryAdapter, _Outptr_result_maybenull_ IDXGIAdapter1** ppSecondaryAdapter);
     void LoadPipeline();
     void LoadAssets();
+    void RestoreD3DResources();
+    void ReleaseD3DResources();
     float GetRandomFloat(float min, float max);
     void PopulateCommandLists();
     void UpdateWindowTitle();

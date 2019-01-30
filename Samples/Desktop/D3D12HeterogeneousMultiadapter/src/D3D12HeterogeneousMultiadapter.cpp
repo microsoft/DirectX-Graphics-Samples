@@ -40,6 +40,7 @@ D3D12HeterogeneousMultiadapter::D3D12HeterogeneousMultiadapter(int width, int he
     m_frameFenceValues{}
 {
     m_constantBufferData.resize(MaxTriangleCount);
+    ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
 }
 
 void D3D12HeterogeneousMultiadapter::OnInit()
@@ -67,8 +68,30 @@ HRESULT D3D12HeterogeneousMultiadapter::GetHardwareAdapters(IDXGIFactory2* pFact
     // in this sample.
 
     ThrowIfFailed(pFactory->EnumAdapters1(0, ppSecondaryAdapter));
-    ThrowIfFailed(pFactory->EnumAdapters1(1, ppPrimaryAdapter));
+    DXGI_ADAPTER_DESC1 descSecondary;
+    ThrowIfFailed((*ppSecondaryAdapter)->GetDesc1(&descSecondary));
 
+    *ppPrimaryAdapter = nullptr;
+    ComPtr<IDXGIAdapter1> adapter;
+
+    ComPtr<IDXGIFactory6> factory6;
+    if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
+    {
+        for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != factory6->EnumAdapterByGpuPreference(adapterIndex, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter)); ++adapterIndex)
+        {
+            DXGI_ADAPTER_DESC1 descPrimary;
+            ThrowIfFailed(adapter->GetDesc1(&descPrimary));
+            if (descPrimary.AdapterLuid.HighPart != descSecondary.AdapterLuid.HighPart || descPrimary.AdapterLuid.LowPart != descSecondary.AdapterLuid.LowPart)
+            {
+                break;
+            }
+        }
+        *ppPrimaryAdapter = adapter.Detach();
+    }
+    else
+    {
+        ThrowIfFailed(pFactory->EnumAdapters1(1, ppPrimaryAdapter));
+    }
     return S_OK;
 }
 
@@ -951,50 +974,96 @@ void D3D12HeterogeneousMultiadapter::OnUpdate()
 // Render the scene.
 void D3D12HeterogeneousMultiadapter::OnRender()
 {
-    // Record all the commands we need to render the scene into the command lists.
-    PopulateCommandLists();
-
-    // Execute the command lists.
+    try
     {
-        {
-            ID3D12CommandList* ppRenderCommandLists[] = { m_directCommandLists[Primary].Get() };
-            m_directCommandQueues[Primary]->ExecuteCommandLists(_countof(ppRenderCommandLists), ppRenderCommandLists);
+        // Record all the commands we need to render the scene into the command lists.
+        PopulateCommandLists();
 
-            // Signal the copy queue to indicate render is complete.
-            ThrowIfFailed(m_directCommandQueues[Primary]->Signal(m_renderFence.Get(), m_currentRenderFenceValue));
+        // Execute the command lists.
+        {
+            {
+                ID3D12CommandList* ppRenderCommandLists[] = { m_directCommandLists[Primary].Get() };
+                m_directCommandQueues[Primary]->ExecuteCommandLists(_countof(ppRenderCommandLists), ppRenderCommandLists);
+
+                // Signal the copy queue to indicate render is complete.
+                ThrowIfFailed(m_directCommandQueues[Primary]->Signal(m_renderFence.Get(), m_currentRenderFenceValue));
+            }
+
+            {
+                // GPU Wait for the primary adapter to finish rendering.
+                ThrowIfFailed(m_copyCommandQueue->Wait(m_renderFence.Get(), m_currentRenderFenceValue));
+                m_currentRenderFenceValue++;
+
+                ID3D12CommandList* ppCopyCommandLists[] = { m_copyCommandList.Get() };
+                m_copyCommandQueue->ExecuteCommandLists(_countof(ppCopyCommandLists), ppCopyCommandLists);
+
+                // Signal the secondary adapter to indicate the copy is complete.
+                ThrowIfFailed(m_copyCommandQueue->Signal(m_crossAdapterFences[Primary].Get(), m_currentCrossAdapterFenceValue));
+            }
+
+            {
+                // GPU Wait for the primary adapter to finish copying.
+                ThrowIfFailed(m_directCommandQueues[Secondary]->Wait(m_crossAdapterFences[Secondary].Get(), m_currentCrossAdapterFenceValue));
+                m_currentCrossAdapterFenceValue++;
+
+                ID3D12CommandList* ppBlurCommandLists[] = { m_directCommandLists[Secondary].Get() };
+                m_directCommandQueues[Secondary]->ExecuteCommandLists(_countof(ppBlurCommandLists), ppBlurCommandLists);
+            }
         }
 
+        // Present the frame.
+        ThrowIfFailed(m_swapChain->Present(1, 0));
+
+        // Signal the frame is complete.
+        ThrowIfFailed(m_directCommandQueues[Secondary]->Signal(m_frameFence.Get(), m_currentPresentFenceValue));
+        m_frameFenceValues[m_frameIndex] = m_currentPresentFenceValue;
+        m_currentPresentFenceValue++;
+
+        MoveToNextFrame();
+    }
+    catch (HrException& e)
+    {
+        if (e.Error() == DXGI_ERROR_DEVICE_REMOVED || e.Error() == DXGI_ERROR_DEVICE_RESET)
         {
-            // GPU Wait for the primary adapter to finish rendering.
-            ThrowIfFailed(m_copyCommandQueue->Wait(m_renderFence.Get(), m_currentRenderFenceValue));
-            m_currentRenderFenceValue++;
-
-            ID3D12CommandList* ppCopyCommandLists[] = { m_copyCommandList.Get() };
-            m_copyCommandQueue->ExecuteCommandLists(_countof(ppCopyCommandLists), ppCopyCommandLists);
-
-            // Signal the secondary adapter to indicate the copy is complete.
-            ThrowIfFailed(m_copyCommandQueue->Signal(m_crossAdapterFences[Primary].Get(), m_currentCrossAdapterFenceValue));
+            RestoreD3DResources();
         }
-
+        else
         {
-            // GPU Wait for the primary adapter to finish copying.
-            ThrowIfFailed(m_directCommandQueues[Secondary]->Wait(m_crossAdapterFences[Secondary].Get(), m_currentCrossAdapterFenceValue));
-            m_currentCrossAdapterFenceValue++;
-
-            ID3D12CommandList* ppBlurCommandLists[] = { m_directCommandLists[Secondary].Get() };
-            m_directCommandQueues[Secondary]->ExecuteCommandLists(_countof(ppBlurCommandLists), ppBlurCommandLists);
+            throw;
         }
     }
+}
 
-    // Present the frame.
-    ThrowIfFailed(m_swapChain->Present(1, 0));
+// Release sample's D3D objects.
+void D3D12HeterogeneousMultiadapter::ReleaseD3DResources()
+{
+    m_frameFence.Reset();
+    m_swapChain.Reset();
+    ResetComPtrArray(&m_devices);
+    ResetComPtrArray(&m_directCommandQueues);
+    for (UINT i = 0; i < GraphicsAdaptersCount; i++)
+    {
+        ResetComPtrArray(&m_renderTargets[i]);
+    }
+}
 
-    // Signal the frame is complete.
-    ThrowIfFailed(m_directCommandQueues[Secondary]->Signal(m_frameFence.Get(), m_currentPresentFenceValue));
-    m_frameFenceValues[m_frameIndex] = m_currentPresentFenceValue;
-    m_currentPresentFenceValue++;
-
-    MoveToNextFrame();
+// Tears down D3D resources and reinitializes them.
+void D3D12HeterogeneousMultiadapter::RestoreD3DResources()
+{
+    // Give GPU a chance to finish its execution in progress.
+    try
+    {
+        for (UINT i = 0; i < GraphicsAdaptersCount; i++)
+        {
+            WaitForGpu(static_cast<GraphicsAdapter>(i));
+        }
+    }
+    catch (HrException&)
+    {
+        // Do nothing, currently attached adapter is unresponsive.
+    }
+    ReleaseD3DResources();
+    OnInit();
 }
 
 void D3D12HeterogeneousMultiadapter::OnDestroy()

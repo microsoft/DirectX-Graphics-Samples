@@ -104,6 +104,64 @@ inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)
     return S_OK;
 }
 
+inline HRESULT ReadDataFromDDSFile(LPCWSTR filename, byte** data, UINT* offset, UINT* size)
+{
+    if (FAILED(ReadDataFromFile(filename, data, size)))
+    {
+        return E_FAIL;
+    }
+
+    // DDS files always start with the same magic number.
+    static const UINT DDS_MAGIC = 0x20534444;
+    UINT magicNumber = *reinterpret_cast<const UINT*>(*data);
+    if (magicNumber != DDS_MAGIC)
+    {
+        return E_FAIL;
+    }
+
+    struct DDS_PIXELFORMAT
+    {
+        UINT size;
+        UINT flags;
+        UINT fourCC;
+        UINT rgbBitCount;
+        UINT rBitMask;
+        UINT gBitMask;
+        UINT bBitMask;
+        UINT aBitMask;
+    };
+
+    struct DDS_HEADER
+    {
+        UINT size;
+        UINT flags;
+        UINT height;
+        UINT width;
+        UINT pitchOrLinearSize;
+        UINT depth;
+        UINT mipMapCount;
+        UINT reserved1[11];
+        DDS_PIXELFORMAT ddsPixelFormat;
+        UINT caps;
+        UINT caps2;
+        UINT caps3;
+        UINT caps4;
+        UINT reserved2;
+    };
+
+    auto ddsHeader = reinterpret_cast<const DDS_HEADER*>(*data + sizeof(UINT));
+    if (ddsHeader->size != sizeof(DDS_HEADER) || ddsHeader->ddsPixelFormat.size != sizeof(DDS_PIXELFORMAT))
+    {
+        return E_FAIL;
+    }
+
+    const ptrdiff_t ddsDataOffset = sizeof(UINT) + sizeof(DDS_HEADER);
+    *offset = ddsDataOffset;
+    *size = *size - ddsDataOffset;
+
+    return S_OK;
+}
+
 // Assign a name to the object to aid with debugging.
 #if defined(_DEBUG) || defined(DBG)
 inline void SetName(ID3D12Object* pObject, LPCWSTR name)

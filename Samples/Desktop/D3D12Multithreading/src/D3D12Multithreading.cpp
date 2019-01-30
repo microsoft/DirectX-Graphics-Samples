@@ -31,6 +31,8 @@ D3D12Multithreading::D3D12Multithreading(UINT width, UINT height, std::wstring n
     s_app = this;
 
     m_keyboardInput.animate = true;
+
+    ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
 }
 
 D3D12Multithreading::~D3D12Multithreading()
@@ -82,7 +84,7 @@ void D3D12Multithreading::LoadPipeline()
     else
     {
         ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+        GetHardwareAdapter(factory.Get(), &hardwareAdapter, true);
 
         ThrowIfFailed(D3D12CreateDevice(
             hardwareAdapter.Get(),
@@ -552,7 +554,7 @@ void D3D12Multithreading::LoadAssets()
 
         XMVECTOR eye = XMLoadFloat4(&m_lights[i].position);
         XMVECTOR at = XMVectorAdd(eye, XMLoadFloat4(&m_lights[i].direction));
-        XMVECTOR up = { 0, 1, 0 };
+        XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
         m_lightCameras[i].Set(eye, at, up);
     }
@@ -700,9 +702,9 @@ void D3D12Multithreading::OnUpdate()
             XMStoreFloat4(&m_lights[i].position, XMVector4Transform(XMLoadFloat4(&m_lights[i].position), XMMatrixRotationY(direction)));
 
             XMVECTOR eye = XMLoadFloat4(&m_lights[i].position);
-            XMVECTOR at = { 0.0f, 8.0f, 0.0f };
+            XMVECTOR at = XMVectorSet(0.0f, 8.0f, 0.0f, 0.0f);
             XMStoreFloat4(&m_lights[i].direction, XMVector3Normalize(XMVectorSubtract(at, eye)));
-            XMVECTOR up = { 0.0f, 1.0f, 0.0f };
+            XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
             m_lightCameras[i].Set(eye, at, up);
 
             m_lightCameras[i].Get3DViewProjMatrices(&m_lights[i].view, &m_lights[i].projection, 90.0f, static_cast<float>(m_width), static_cast<float>(m_height));
@@ -715,65 +717,116 @@ void D3D12Multithreading::OnUpdate()
 // Render the scene.
 void D3D12Multithreading::OnRender()
 {
-    BeginFrame();
+    try
+    {
+        BeginFrame();
 
 #if SINGLETHREADED
-    for (int i = 0; i < NumContexts; i++)
-    {
-        WorkerThread(i);
-    }
-    MidFrame();
-    EndFrame();
-    m_commandQueue->ExecuteCommandLists(_countof(m_pCurrentFrameResource->m_batchSubmit), m_pCurrentFrameResource->m_batchSubmit);
+        for (int i = 0; i < NumContexts; i++)
+        {
+            WorkerThread(i);
+        }
+        MidFrame();
+        EndFrame();
+        m_commandQueue->ExecuteCommandLists(_countof(m_pCurrentFrameResource->m_batchSubmit), m_pCurrentFrameResource->m_batchSubmit);
 #else
-    for (int i = 0; i < NumContexts; i++)
-    {
-        SetEvent(m_workerBeginRenderFrame[i]); // Tell each worker to start drawing.
-    }
+        for (int i = 0; i < NumContexts; i++)
+        {
+            SetEvent(m_workerBeginRenderFrame[i]); // Tell each worker to start drawing.
+        }
 
-    MidFrame();
-    EndFrame();
+        MidFrame();
+        EndFrame();
 
-    WaitForMultipleObjects(NumContexts, m_workerFinishShadowPass, TRUE, INFINITE);
+        WaitForMultipleObjects(NumContexts, m_workerFinishShadowPass, TRUE, INFINITE);
 
-    // You can execute command lists on any thread. Depending on the work 
-    // load, apps can choose between using ExecuteCommandLists on one thread 
-    // vs ExecuteCommandList from multiple threads.
-    m_commandQueue->ExecuteCommandLists(NumContexts + 2, m_pCurrentFrameResource->m_batchSubmit); // Submit PRE, MID and shadows.
+        // You can execute command lists on any thread. Depending on the work 
+        // load, apps can choose between using ExecuteCommandLists on one thread 
+        // vs ExecuteCommandList from multiple threads.
+        m_commandQueue->ExecuteCommandLists(NumContexts + 2, m_pCurrentFrameResource->m_batchSubmit); // Submit PRE, MID and shadows.
 
-    WaitForMultipleObjects(NumContexts, m_workerFinishedRenderFrame, TRUE, INFINITE);
+        WaitForMultipleObjects(NumContexts, m_workerFinishedRenderFrame, TRUE, INFINITE);
 
-    // Submit remaining command lists.
-    m_commandQueue->ExecuteCommandLists(_countof(m_pCurrentFrameResource->m_batchSubmit) - NumContexts - 2, m_pCurrentFrameResource->m_batchSubmit + NumContexts + 2);
+        // Submit remaining command lists.
+        m_commandQueue->ExecuteCommandLists(_countof(m_pCurrentFrameResource->m_batchSubmit) - NumContexts - 2, m_pCurrentFrameResource->m_batchSubmit + NumContexts + 2);
 #endif
 
-    m_cpuTimer.Tick(NULL);
-    if (m_titleCount == TitleThrottle)
-    {
-        WCHAR cpu[64];
-        swprintf_s(cpu, L"%.4f CPU", m_cpuTime / m_titleCount);
-        SetCustomWindowText(cpu);
+        m_cpuTimer.Tick(NULL);
+        if (m_titleCount == TitleThrottle)
+        {
+            WCHAR cpu[64];
+            swprintf_s(cpu, L"%.4f CPU", m_cpuTime / m_titleCount);
+            SetCustomWindowText(cpu);
 
-        m_titleCount = 0;
-        m_cpuTime = 0;
+            m_titleCount = 0;
+            m_cpuTime = 0;
+        }
+        else
+        {
+            m_titleCount++;
+            m_cpuTime += m_cpuTimer.GetElapsedSeconds() * 1000;
+            m_cpuTimer.ResetElapsedTime();
+        }
+
+        // Present and update the frame index for the next frame.
+        PIXBeginEvent(m_commandQueue.Get(), 0, L"Presenting to screen");
+        ThrowIfFailed(m_swapChain->Present(1, 0));
+        PIXEndEvent(m_commandQueue.Get());
+        m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
+        // Signal and increment the fence value.
+        m_pCurrentFrameResource->m_fenceValue = m_fenceValue;
+        ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValue));
+        m_fenceValue++;
     }
-    else
+    catch (HrException& e)
     {
-        m_titleCount++;
-        m_cpuTime += m_cpuTimer.GetElapsedSeconds() * 1000;
-        m_cpuTimer.ResetElapsedTime();
+        if (e.Error() == DXGI_ERROR_DEVICE_REMOVED || e.Error() == DXGI_ERROR_DEVICE_RESET)
+        {
+            RestoreD3DResources();
+        }
+        else
+        {
+            throw;
+        }
     }
+}
 
-    // Present and update the frame index for the next frame.
-    PIXBeginEvent(m_commandQueue.Get(), 0, L"Presenting to screen");
-    ThrowIfFailed(m_swapChain->Present(1, 0));
-    PIXEndEvent(m_commandQueue.Get());
-    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+// Release sample's D3D objects.
+void D3D12Multithreading::ReleaseD3DResources()
+{
+    m_fence.Reset();
+    ResetComPtrArray(&m_renderTargets);
+    m_commandQueue.Reset();
+    m_swapChain.Reset();
+    m_device.Reset();
+}
 
-    // Signal and increment the fence value.
-    m_pCurrentFrameResource->m_fenceValue = m_fenceValue;
+// Tears down D3D resources and reinitializes them.
+void D3D12Multithreading::RestoreD3DResources()
+{
+    // Give GPU a chance to finish its execution in progress.
+    try
+    {
+        WaitForGpu();
+    }
+    catch (HrException&)
+    {
+        // Do nothing, currently attached adapter is unresponsive.
+    }
+    ReleaseD3DResources();
+    OnInit();
+}
+
+// Wait for pending GPU work to complete.
+void D3D12Multithreading::WaitForGpu()
+{
+    // Schedule a Signal command in the queue.
     ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValue));
-    m_fenceValue++;
+
+    // Wait until the fence has been processed.
+    ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValue, m_fenceEvent));
+    WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
 }
 
 void D3D12Multithreading::OnDestroy()

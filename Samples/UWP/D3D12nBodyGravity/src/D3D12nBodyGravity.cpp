@@ -46,6 +46,8 @@ D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name)
     {
         m_heightInstances--;
     }
+
+    ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
 }
 
 void D3D12nBodyGravity::OnInit()
@@ -95,7 +97,7 @@ void D3D12nBodyGravity::LoadPipeline()
     else
     {
         ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+        GetHardwareAdapter(factory.Get(), &hardwareAdapter, true);
 
         ThrowIfFailed(D3D12CreateDevice(
             hardwareAdapter.Get(),
@@ -612,40 +614,94 @@ void D3D12nBodyGravity::OnUpdate()
 // Render the scene.
 void D3D12nBodyGravity::OnRender()
 {
-    // Let the compute thread know that a new frame is being rendered.
-    for (int n = 0; n < ThreadCount; n++)
+    try
     {
-        InterlockedExchange(&m_renderContextFenceValues[n], m_renderContextFenceValue);
-    }
-
-    // Compute work must be completed before the frame can render or else the SRV 
-    // will be in the wrong state.
-    for (UINT n = 0; n < ThreadCount; n++)
-    {
-        UINT64 threadFenceValue = InterlockedGetValue(&m_threadFenceValues[n]);
-        if (m_threadFences[n]->GetCompletedValue() < threadFenceValue)
+        // Let the compute thread know that a new frame is being rendered.
+        for (int n = 0; n < ThreadCount; n++)
         {
-            // Instruct the rendering command queue to wait for the current 
-            // compute work to complete.
-            ThrowIfFailed(m_commandQueue->Wait(m_threadFences[n].Get(), threadFenceValue));
+            InterlockedExchange(&m_renderContextFenceValues[n], m_renderContextFenceValue);
+        }
+
+        // Compute work must be completed before the frame can render or else the SRV 
+        // will be in the wrong state.
+        for (UINT n = 0; n < ThreadCount; n++)
+        {
+            UINT64 threadFenceValue = InterlockedGetValue(&m_threadFenceValues[n]);
+            if (m_threadFences[n]->GetCompletedValue() < threadFenceValue)
+            {
+                // Instruct the rendering command queue to wait for the current 
+                // compute work to complete.
+                ThrowIfFailed(m_commandQueue->Wait(m_threadFences[n].Get(), threadFenceValue));
+            }
+        }
+
+        PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+
+        // Record all the commands we need to render the scene into the command list.
+        PopulateCommandList();
+
+        // Execute the command list.
+        ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
+        m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+        PIXEndEvent(m_commandQueue.Get());
+
+        // Present the frame.
+        ThrowIfFailed(m_swapChain->Present(1, 0));
+
+        MoveToNextFrame();
+    }
+    catch (HrException& e)
+    {
+        if (e.Error() == DXGI_ERROR_DEVICE_REMOVED || e.Error() == DXGI_ERROR_DEVICE_RESET)
+        {
+            RestoreD3DResources();
+        }
+        else
+        {
+            throw;
         }
     }
+}
 
-    PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+// Release sample's D3D objects.
+void D3D12nBodyGravity::ReleaseD3DResources()
+{
+    m_renderContextFence.Reset();
+    ResetComPtrArray(&m_renderTargets);
+    m_commandQueue.Reset();
+    m_swapChain.Reset();
+    m_device.Reset();
+}
 
-    // Record all the commands we need to render the scene into the command list.
-    PopulateCommandList();
+// Tears down D3D resources and reinitializes them.
+void D3D12nBodyGravity::RestoreD3DResources()
+{
+    // Give GPU a chance to finish its execution in progress.
+    try
+    {
+        WaitForGpu();
+    }
+    catch (HrException&)
+    {
+        // Do nothing, currently attached adapter is unresponsive.
+    }
+    ReleaseD3DResources();
+    OnInit();
+}
 
-    // Execute the command list.
-    ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+// Wait for pending GPU work to complete.
+void D3D12nBodyGravity::WaitForGpu()
+{
+    // Schedule a Signal command in the queue.
+    ThrowIfFailed(m_commandQueue->Signal(m_renderContextFence.Get(), m_renderContextFenceValues[m_frameIndex]));
 
-    PIXEndEvent(m_commandQueue.Get());
+    // Wait until the fence has been processed.
+    ThrowIfFailed(m_renderContextFence->SetEventOnCompletion(m_renderContextFenceValues[m_frameIndex], m_renderContextFenceEvent));
+    WaitForSingleObjectEx(m_renderContextFenceEvent, INFINITE, FALSE);
 
-    // Present the frame.
-    ThrowIfFailed(m_swapChain->Present(1, 0));
-
-    MoveToNextFrame();
+    // Increment the fence value for the current frame.
+    m_renderContextFenceValues[m_frameIndex]++;
 }
 
 // Fill the command list with all the render commands and dependent state.
