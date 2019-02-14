@@ -89,7 +89,7 @@ private:
 
     // Root signatures
     ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
-    ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature;
+    //ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature;
 
     // Descriptors
     ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
@@ -128,6 +128,13 @@ private:
     ComPtr<ID3D12Resource> m_hitGroupShaderTable;
     ComPtr<ID3D12Resource> m_rayGenShaderTable;
     
+    // Library subobjects
+    static const wchar_t*  c_globalRootSignatureName;
+    static const wchar_t*  c_localRootSignatureName;
+    static const wchar_t*  c_localRootSignatureAssociationName;
+    static const wchar_t*  c_shaderConfigName;
+    static const wchar_t*  c_pipelineConfigName;
+
     // Application state
     RaytracingAPI m_raytracingAPI;
     bool m_forceComputeFallback;
@@ -151,7 +158,6 @@ private:
     void CreateRaytracingInterfaces();
     void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig);
     void CreateRootSignatures();
-    void CreateLocalRootSignatureSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateRaytracingPipelineStateObject();
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();

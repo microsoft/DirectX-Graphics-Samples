@@ -22,6 +22,13 @@ const wchar_t* D3D12RaytracingSimpleLighting::c_raygenShaderName = L"MyRaygenSha
 const wchar_t* D3D12RaytracingSimpleLighting::c_closestHitShaderName = L"MyClosestHitShader";
 const wchar_t* D3D12RaytracingSimpleLighting::c_missShaderName = L"MyMissShader";
 
+// Library subobject names
+const wchar_t* D3D12RaytracingSimpleLighting::c_globalRootSignatureName = L"MyGlobalRootSignature";
+const wchar_t* D3D12RaytracingSimpleLighting::c_localRootSignatureName =  L"MyLocalRootSignature";
+const wchar_t* D3D12RaytracingSimpleLighting::c_localRootSignatureAssociationName = L"MyLocalRootSignatureAssociation";
+const wchar_t* D3D12RaytracingSimpleLighting::c_shaderConfigName = L"MyShaderConfig";
+const wchar_t* D3D12RaytracingSimpleLighting::c_pipelineConfigName = L"MyPipelineConfig";
+
 D3D12RaytracingSimpleLighting::D3D12RaytracingSimpleLighting(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
@@ -231,31 +238,16 @@ void D3D12RaytracingSimpleLighting::SerializeAndCreateRaytracingRootSignature(D3
 void D3D12RaytracingSimpleLighting::CreateRootSignatures()
 {
     auto device = m_deviceResources->GetD3DDevice();
-
-    // Global Root Signature
-    // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
+    
+    // A unique global root signature is defined in hlsl library g_pRaytracing. For such scenario we can create 
+    // compute root signature can directly from the library bytecode, using CreateRootSignature API. 
+    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
-        CD3DX12_DESCRIPTOR_RANGE ranges[2]; // Perfomance TIP: Order from most frequent to least frequent.
-        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output texture
-        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);  // 2 static index and vertex buffers.
-
-        CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
-        rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &ranges[0]);
-        rootParameters[GlobalRootSignatureParams::AccelerationStructureSlot].InitAsShaderResourceView(0);
-        rootParameters[GlobalRootSignatureParams::SceneConstantSlot].InitAsConstantBufferView(0);
-        rootParameters[GlobalRootSignatureParams::VertexBuffersSlot].InitAsDescriptorTable(1, &ranges[1]);
-        CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-        SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
+        ThrowIfFailed(m_fallbackDevice->CreateRootSignature(1, g_pRaytracing, ARRAYSIZE(g_pRaytracing), IID_PPV_ARGS(&m_raytracingGlobalRootSignature)));
     }
-
-    // Local Root Signature
-    // This is a root signature that enables a shader to have unique arguments that come from shader tables.
+    else // DirectX Raytracing
     {
-        CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
-        rootParameters[LocalRootSignatureParams::CubeConstantSlot].InitAsConstants(SizeOfInUint32(m_cubeCB), 1);
-        CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-        localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-        SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature);
+        ThrowIfFailed(device->CreateRootSignature(1, g_pRaytracing, ARRAYSIZE(g_pRaytracing), IID_PPV_ARGS(&m_raytracingGlobalRootSignature)));
     }
 }
 
@@ -277,23 +269,6 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingInterfaces()
     {
         ThrowIfFailed(device->QueryInterface(IID_PPV_ARGS(&m_dxrDevice)), L"Couldn't get DirectX Raytracing interface for the device.\n");
         ThrowIfFailed(commandList->QueryInterface(IID_PPV_ARGS(&m_dxrCommandList)), L"Couldn't get DirectX Raytracing interface for the command list.\n");
-    }
-}
-
-// Local root signature and shader association
-// This is a root signature that enables a shader to have unique arguments that come from shader tables.
-void D3D12RaytracingSimpleLighting::CreateLocalRootSignatureSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline)
-{
-    // Ray gen and miss shaders in this sample are not using a local root signature and thus one is not associated with them.
-
-    // Local root signature to be used in a hit group.
-    auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
-    localRootSignature->SetRootSignature(m_raytracingLocalRootSignature.Get());
-    // Define explicit shader association for the local root signature. 
-    {
-        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
-        rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
-        rootSignatureAssociation->AddExport(c_hitGroupName);
     }
 }
 
@@ -330,38 +305,17 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
         lib->DefineExport(c_closestHitShaderName);
         lib->DefineExport(c_missShaderName);
     }
-    
-    // Triangle hit group
-    // A hit group specifies closest hit, any hit and intersection shaders to be executed when a ray intersects the geometry's triangle/AABB.
-    // In this sample, we only use triangle geometry with a closest hit shader, so others are not set.
-    auto hitGroup = raytracingPipeline.CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
-    hitGroup->SetClosestHitShaderImport(c_closestHitShaderName);
-    hitGroup->SetHitGroupExport(c_hitGroupName);
-    hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
-    
-    // Shader config
-    // Defines the maximum sizes in bytes for the ray payload and attribute structure.
-    auto shaderConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
-    UINT payloadSize = sizeof(XMFLOAT4);    // float4 pixelColor
-    UINT attributeSize = sizeof(XMFLOAT2);  // float2 barycentrics
-    shaderConfig->Config(payloadSize, attributeSize);
 
-    // Local root signature and shader association
-    // This is a root signature that enables a shader to have unique arguments that come from shader tables.
-    CreateLocalRootSignatureSubobjects(&raytracingPipeline);
-
-    // Global root signature
-    // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
-    auto globalRootSignature = raytracingPipeline.CreateSubobject<CD3D12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
-    globalRootSignature->SetRootSignature(m_raytracingGlobalRootSignature.Get());
-
-    // Pipeline config
-    // Defines the maximum TraceRay() recursion depth.
-    auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
-    // PERFOMANCE TIP: Set max recursion depth as low as needed 
-    // as drivers may apply optimization strategies for low recursion depths.
-    UINT maxRecursionDepth = 1; // ~ primary rays only. 
-    pipelineConfig->Config(maxRecursionDepth);
+    // Define which subobjects exports to use from the library.
+    // If no exports are defined all subobjects are used. 
+    {
+        lib->DefineExport(c_globalRootSignatureName);
+        lib->DefineExport(c_localRootSignatureName);
+        lib->DefineExport(c_localRootSignatureAssociationName);
+        lib->DefineExport(c_shaderConfigName);
+        lib->DefineExport(c_pipelineConfigName);
+        lib->DefineExport(c_hitGroupName);
+    }
 
 #if _DEBUG
     PrintStateObjectDesc(raytracingPipeline);
@@ -929,7 +883,6 @@ void D3D12RaytracingSimpleLighting::ReleaseDeviceDependentResources()
     m_fallbackCommandList.Reset();
     m_fallbackStateObject.Reset();
     m_raytracingGlobalRootSignature.Reset();
-    m_raytracingLocalRootSignature.Reset();
 
     m_dxrDevice.Reset();
     m_dxrCommandList.Reset();
