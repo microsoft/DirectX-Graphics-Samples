@@ -23,6 +23,13 @@ This sample demonstrates how to implement procedural geometry using intersection
 
 ![D3D12 Raytracing Procedural Geometry GUI](src/D3D12RaytracingProceduralGeometry/Screenshot_small.png)
 
+
+## 4. [Library Subobject Sample](src/D3D12LibrarySubobjects/readme.md)
+This sample modifies the simple lighting sample, and illustrates how to use library subobjects.
+
+![D3D12 Raytracing Library Subobjects GUI](src/D3D12RaytracingLibrarySubobjects/Screenshot_small.png)
+
+
 # Advanced Samples
 
 ## [MiniEngine Sample](src/D3D12RaytracingMiniEngineSample/readme.md)
