@@ -3,12 +3,12 @@
 
 This sample modifies the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingSimpleLighting/readme.md) to illustrate how to  define `D3D12_STATE_SUBOBJECTS` in the DXIL library hlsl shader code, and use it in C++ source to create raytracing state objects. This method of specifying subobjects is simpler, modular, and more reusable since both the shader and its properties can be encapsulated within the same shader. 
 
-The sample assumes familiarity with Dx12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Hello World sample](../D3D12RaytracingHelloWorld/readme.md).
+The sample assumes familiarity with Dx12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingSimpleLighting/readme.md).
 
 ##### Changes for using library subobjects
-* This sample only used to use implicit default subobjects (except for local root signature) at state object scope. All the suboject except for the DXIL library can be removed, and moved inside the library (can be made into library subobjects). As all the shaders are within the same dxil library, existing implicit default subobject will apply to all the shader at this library scope. 
+* The D3D12 Raytracing Simple Lighting sample used implicit default subobjects (except for local root signature) at state object scope. All the suboject except for the DXIL library can be removed, and moved inside the library (can be made into library subobjects). As all the shaders are within the same DXIL library, existing implicit default subobject will apply to all the shader at this library scope. 
 
-* Thus library Subobjects (including local root signature association) can be defined in the `Raytrcing.hlsl` file using the compiler instrinsics as following:
+* Thus library subobjects (including local root signature association) can be defined in the `Raytracing.hlsl` file using  compiler instrinsics as follows:
 ```cpp
 GlobalRootSignature MyGlobalRootSignature =
   {
@@ -47,7 +47,7 @@ RaytracingPipelineConfig MyPipelineConfig =
 };
 ```
 
-* Subobject names in the library in the exports are exported from library subobject(without renaming them). Using this all the export subobjects are processed and associations are resolved while adding the DXIL library in `CreateStateObject` call. This exporting is done in `D3D12RaytracingLibrarySubobjects.cpp` as following:
+* Subobject names in the library in the exports are exported from library subobject (without renaming them). Using this all the export subobjects are processed and associations are resolved during the DXIL library in `CreateStateObject` call. This exporting is done in `D3D12RaytracingLibrarySubobjects.cpp` as follows:
 ```
   // Library subobject names
   const wchar_t* D3D12RaytracingLibrarySubobjects::c_globalRootSignatureName = L"MyGlobalRootSignature";
@@ -87,5 +87,5 @@ The title bar of the sample provides runtime information:
 * GPU[ID]: name
 
 ## Requirements
-* Windows SDK version 18282 or higher is required for update compiler (dxc), OS version 18290 or higher (19H1) is needed for runtime and debug layer binaries. 
+* Windows SDK version 18343 or higher is required for update compiler (dxc), OS version 18343 or higher (19H1) is needed for runtime and debug layer binaries. 
 * Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.

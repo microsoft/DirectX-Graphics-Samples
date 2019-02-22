@@ -32,9 +32,6 @@ namespace LocalRootSignatureParams {
     };
 }
 
-// The sample supports DirectX Raytracing API only, and will work only for 
-// machine where drivers and os support Directx Raytracing. Raytracing fallback layer is 
-// deprecated, and will not be suppored. 
 class D3D12RaytracingLibrarySubobjects : public DXSample
 {
 
