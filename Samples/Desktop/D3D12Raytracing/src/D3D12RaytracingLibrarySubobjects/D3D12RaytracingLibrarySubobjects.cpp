@@ -41,15 +41,7 @@ D3D12RaytracingLibrarySubobjects::D3D12RaytracingLibrarySubobjects(UINT width, U
 void D3D12RaytracingLibrarySubobjects::EnableDirectXRaytracing(IDXGIAdapter1* adapter)
 {
     m_isDxrSupported = IsDirectXRaytracingSupported(adapter);
-
-    if (!m_isDxrSupported)
-    {
-        OutputDebugString(L"Warning: DirectX Raytracing is not supported by your GPU and driver.\n\n");
-
-        ThrowIfFalse(false, 
-            L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n"\
-            L"Possible reasons: your OS is not in developer mode.\n\n");
-    }
+    ThrowIfFalse(m_isDxrSupported, L"DirectX Raytracing is not supported by your GPU and driver.\n\n");
 }
 
 void D3D12RaytracingLibrarySubobjects::OnInit()
@@ -60,7 +52,7 @@ void D3D12RaytracingLibrarySubobjects::OnInit()
         FrameCount,
         D3D_FEATURE_LEVEL_11_0,
         // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since TH2.
-        // Since the Fallback Layer requires Fall Creator's update (RS3), we don't need to handle non-tearing cases.
+        // Since the Library Subobjects requires 19h1 OS update, we don't need to handle non-tearing cases.
         DeviceResources::c_RequireTearingSupport,
         m_adapterIDoverride
         );
@@ -133,7 +125,7 @@ void D3D12RaytracingLibrarySubobjects::InitializeScene()
         lightAmbientColor = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_sceneCB[frameIndex].lightAmbientColor = XMLoadFloat4(&lightAmbientColor);
 
-        lightDiffuseColor = XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f);
+        lightDiffuseColor = XMFLOAT4(0.0f, 0.5f, 0.0f, 1.0f);
         m_sceneCB[frameIndex].lightDiffuseColor = XMLoadFloat4(&lightDiffuseColor);
     }
 
@@ -256,13 +248,13 @@ void D3D12RaytracingLibrarySubobjects::CreateRaytracingPipelineStateObject()
     // 1 - Global root signature
     // 1 - Pipeline config
     // 1 - Subobject to export association
-    CD3D12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
+    CD3DX12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
 
 
     // DXIL library
     // This contains the shaders and their entrypoints for the state object.
     // Since shaders are not considered a subobject, they need to be passed in via DXIL library subobjects.
-    auto lib = raytracingPipeline.CreateSubobject<CD3D12_DXIL_LIBRARY_SUBOBJECT>();
+    auto lib = raytracingPipeline.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
     D3D12_SHADER_BYTECODE libdxil = CD3DX12_SHADER_BYTECODE((void *)g_pRaytracing, ARRAYSIZE(g_pRaytracing));
     lib->SetDXILLibrary(&libdxil);
     // Define which shader exports to surface from the library.
@@ -319,11 +311,10 @@ void D3D12RaytracingLibrarySubobjects::CreateDescriptorHeap()
     auto device = m_deviceResources->GetD3DDevice();
 
     D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-    // Allocate a heap for 5 descriptors:
+    // Allocate a heap for 3 descriptors:
     // 2 - vertex and index buffer SRVs
     // 1 - raytracing output texture SRV
-    // 2 - bottom and top level acceleration structure fallback wrapped pointer UAVs
-    descriptorHeapDesc.NumDescriptors = 5; 
+    descriptorHeapDesc.NumDescriptors = 3; 
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
@@ -535,7 +526,7 @@ void D3D12RaytracingLibrarySubobjects::BuildShaderTables()
     // Get shader identifiers.
     UINT shaderIdentifierSize;
     {
-        ComPtr<ID3D12StateObjectPropertiesPrototype> stateObjectProperties;
+        ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
         ThrowIfFailed(m_dxrStateObject.As(&stateObjectProperties));
         GetShaderIdentifiers(stateObjectProperties.Get());
         shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
