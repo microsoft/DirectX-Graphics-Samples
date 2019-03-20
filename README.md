@@ -8,6 +8,8 @@ In the Samples directory, you will find samples that attempt to break off specif
 Recent API Sample Updates:
 1. [D3D12 Variable Rate Shading](Samples/Desktop/D3D12VariableRateShading/readme.md): This sample demonstrates how shading rate can be reduced with little or no reduction in visual quality, leading to “free” performance.
 
+![Variable Rate Shading GUI](Samples/Desktop/D3D12VariableRateShading/src/Screenshot.PNG)
+
 2. [D3D12 Raytracing](Samples/Desktop/D3D12Raytracing/readme.md): This is a set of tutorial and advanced samples that demonstrate the use of DirectX Raytracing.
 
 ![D3D12 Raytracing Procedural Geometry GUI](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingProceduralGeometry/Screenshot_small.png)
