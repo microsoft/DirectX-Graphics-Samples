@@ -446,7 +446,7 @@ The following table indicates how many coverage bits are needed for each combina
 
 ### Number of Coverage Bits Needed
 
-![NumberOfCoverageBits](images/NumberOfCoverageBits.png "NumberOfCoverageBits")
+![NumberOfCoverageBits](images/NumberOfCoverageBits.PNG "NumberOfCoverageBits")
 
 As indicated in the above table, it is not possible to use coarse pixels to write to more than 16 samples at a time using the variable rate shading feature exposed through Direct3D12. This restriction is brought about by Direct3D12’s constraints regarding which MSAA levels are allowed with which coarse pixel size (see table under section "New model").
 
@@ -455,17 +455,17 @@ Bits of the coverage mask adhere to a well-defined order. The mask consists of t
 
 The table below shows the coverage mask format for supported combinations of coarse pixel size and MSAA level.
 
-![Coverage1x](images/Coverage1x.png "Coverage1x")
+![Coverage1x](images/Coverage1x.PNG "Coverage1x")
 
 The following table portrays 2xMSAA pixels, where each pixel has two samples of indices 0 and 1.
 
 The positioning of the labels of samples on the pixels are for illustrative purposes and do not necessarily convey the spatial {X, Y} locations of samples on that pixel; especially given sample positions can be programmatically changed. Samples are referred to by their 0-based index.
 
-![Coverage2x](images/Coverage2x.png "Coverage2x")
+![Coverage2x](images/Coverage2x.PNG "Coverage2x")
 
 The following table shows 4xMSAA pixels, where each pixel has four samples of indices 0, 1, 2, and 3.
 
-![Coverage4x](images/Coverage4x.png "Coverage4x")
+![Coverage4x](images/Coverage4x.PNG "Coverage4x")
 
 ## Discard
 When the HLSL semantic *discard* is used with coarse pixel shading, coarse pixels are discarded.
