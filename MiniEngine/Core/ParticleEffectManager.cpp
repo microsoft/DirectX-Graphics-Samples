@@ -138,7 +138,7 @@ namespace
     IndirectArgsBuffer FinalDispatchIndirectArgs;
     StructuredBuffer VisibleParticleBuffer;
     StructuredBuffer BinParticles[2];
-    StructuredBuffer BinCounters[2];
+    ByteAddressBuffer BinCounters[2];
     StructuredBuffer TileCounters;
     ByteAddressBuffer TileHitMasks;
 
