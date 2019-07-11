@@ -1859,12 +1859,12 @@ inline void MemcpySubresource(
 {
     for (UINT z = 0; z < NumSlices; ++z)
     {
-        BYTE* pDestSlice = reinterpret_cast<BYTE*>(pDest->pData) + pDest->SlicePitch * z;
-        const BYTE* pSrcSlice = reinterpret_cast<const BYTE*>(pSrc->pData) + pSrc->SlicePitch * z;
+        auto pDestSlice = reinterpret_cast<BYTE*>(pDest->pData) + pDest->SlicePitch * z;
+        auto pSrcSlice = reinterpret_cast<const BYTE*>(pSrc->pData) + pSrc->SlicePitch * LONG_PTR(z);
         for (UINT y = 0; y < NumRows; ++y)
         {
             memcpy(pDestSlice + pDest->RowPitch * y,
-                   pSrcSlice + pSrc->RowPitch * y,
+                   pSrcSlice + pSrc->RowPitch * LONG_PTR(y),
                    RowSizeInBytes);
         }
     }
