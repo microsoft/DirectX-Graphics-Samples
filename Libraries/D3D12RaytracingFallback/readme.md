@@ -38,4 +38,4 @@ We would love to hear how you're using the Fallback Layer! We're also interested
 * Are there functional issues blocking adoption of the Fallback Layer? Are the ways the interface could be less obstructive?
 * Bugs/Issues using the Fallback Layer?
 
-Please feel free to reach out on our [discord server](https://discordapp.com/invite/NVTdvTq).
+Please feel free to reach out on our [discord server](http://discord.gg/directx).

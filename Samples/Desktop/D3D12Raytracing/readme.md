@@ -52,4 +52,4 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
     - Note D3D12RaytracingProceduralGeometry sample doesn't work on AMD.
 
 ## Feedback and Questions
-We welcome all feedback, questions and discussions about DXR and the Fallback Layer on our [discord server](https://discordapp.com/invite/NVTdvTq).
+We welcome all feedback, questions and discussions about DXR and the Fallback Layer on our [discord server](http://discord.gg/directx).
