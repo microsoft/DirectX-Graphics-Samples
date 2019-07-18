@@ -13,7 +13,7 @@ Each frame render happens in the sample's OnRender() call and includes executing
 D3D12RaytracingHelloWorld.exe 
 
 Additional arguments:
-  * [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0.
+  * [-forceAdapter \<ID>] - create a D3D12 device on an adapter \<ID>. Defaults to adapter 0.
 
 ### UI
 The title bar of the sample provides runtime information:
@@ -23,4 +23,5 @@ The title bar of the sample provides runtime information:
 * GPU[ID]: name
 
 ## Requirements
-* Consult the main [D3D12 Raytracing readme](../../readme.md) for the requirements.
+* Windows 10 with the October 2018 update or higher.
+* Consult the main [D3D12 Raytracing readme](../../readme.md) for further requirements.

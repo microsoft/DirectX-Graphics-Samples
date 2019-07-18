@@ -1,11 +1,8 @@
 # D3D12 Raytracing Samples
-This collection of samples act as an introduction to DirectX Raytracing (DXR). The samples are divided into tutorials and advanced samples. Each tutorial sample introduces a few new DXR concepts. Advanced samples demonstrate more complex techniques and applications of raytracing. We will be adding more samples in the coming future, so check back. In addition, you can find more DXR samples tutorials at [Nvidia's DXR samples Github](https://github.com/NVIDIAGameWorks/DxrTutorials).
-
-The samples are implemented using both DXR and D3D12 Raytracing Fallback Layer APIs. This is purely for demonstration purposes to show API differences. Real-world applications will implement only one or the other. The Fallback Layer uses DXR if a driver and OS supports it. Otherwise, it falls back to the compute pipeline to emulate raytracing.
+This collection of samples act as an introduction to DirectX Raytracing (DXR). The samples are divided into tutorials and advanced samples. Each tutorial sample introduces a few new DXR concepts. Advanced samples demonstrate more complex techniques and applications of raytracing.
 
 ### Getting Started
-* DXR spec/documentation is available in the SDK package at [Getting Started with Raytracing](http://forums.directxtech.com/index.php?topic=5860.0) post.
-* [Raytracing Fallback Layer documentation](../../../Libraries/D3D12RaytracingFallback/readme.md).
+* DXR spec/documentation is available at [DirectX Specs site](https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html).
 
 # Tutorial Samples
 ## 1. [Hello World Sample](src/D3D12RaytracingHelloWorld/readme.md)
@@ -31,7 +28,6 @@ This sample modifies the Simple Lighting sample, and illustrates how to use libr
 
 
 # Advanced Samples
-
 ## [MiniEngine Sample](src/D3D12RaytracingMiniEngineSample/readme.md)
 This sample demonstrates integration of the Fallback Layer in the MiniEngine's Model Viewer and several sample uses of raytracing.
 
@@ -45,7 +41,8 @@ This sample demonstrates integration of the Fallback Layer in the MiniEngine's M
     * Nvidia: driver version 415 or higher.
     * Other vendors - please consult the vendor you’re working with for HW and driver availability.
 
-## Known limitations
+## Further resources
+* [Nvidia's DXR samples Github](https://github.com/NVIDIAGameWorks/DxrTutorials)
 
 ## Feedback and Questions
-We welcome all feedback, questions and discussions about DXR and the Fallback Layer on our [discord server](http://discord.gg/directx).
+We welcome all feedback, questions and discussions about DXR on our [discord server](http://discord.gg/directx).

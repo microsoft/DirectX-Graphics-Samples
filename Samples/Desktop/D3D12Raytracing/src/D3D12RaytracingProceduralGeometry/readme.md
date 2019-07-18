@@ -10,10 +10,6 @@ This sample demonstrates how to implement procedural geometry using intersection
 
 The sample assumes familiarity with Dx12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Simple Lighting sample](../D3D12RaytracingSimpleLighting/readme.md).
 
-##### Known limitations
-* The sample does not currently work on AMD due to ubershader compilation issue in the Fallback Layer compute path.
-* See any project wide limitations in the [D3D12 Raytracing readme](../../readme.md).
-
 ### Scene
 The scene consists of triangle and procedural geometry. Specifically, the geometry in the scene is:
 * **Triangle geometry** - a ground plane quad.
@@ -200,22 +196,14 @@ Given the shader table layouts, the shader table indexing parameters are set as 
 ```
 
 ## Usage
-The sample starts with Raytracing Fallback Layer API implementation being used by default. The Fallback Layer will use raytracing driver if available, otherwise it will default to the compute fallback. This default behavior can be overriden via UI controls or input arguments.
-
-D3D12RaytracingProceduralGeometry.exe [ -FL | -DXR | ...]
-* [-FL] - select Fallback Layer API with forced compute fallback path.
-* [-DXR] - select DirectX Raytracing API.
+D3D12RaytracingProceduralGeometry.exe
 
 Additional arguments:
-  * [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0.
+  * [-forceAdapter \<ID>] - create a D3D12 device on an adapter \<ID>. Defaults to adapter 0.
 
 ### UI
 The title bar of the sample provides runtime information:
 * Name of the sample
-* Raytracing API being active:
-  * FL - Fallback Layer with compute fallback being used
-  * FL-DXR - Fallback Layer with raytracing driver being used
-  * DXR - DirectX Raytracing being used
 * Frames per second
 * DispatchRays(): a GPU execution time of raytracing DispatchRays call.
 * Million Primary Rays/s: a number of dispatched rays per second calculated based of FPS.
@@ -223,12 +211,10 @@ The title bar of the sample provides runtime information:
 
 ### Controls
 * ALT+ENTER - toggles between windowed and fullscreen modes.
-* 1 - select Fallback Layer API.
-* 2 - select Fallback Layer API with forced compute fallback path.
-* 3 - select DirectX Raytracing API.
 * C - enable/disable camera animation.
 * G - enable/disable geometry animation.
 * L - enable/disable light animation.
 
 ## Requirements
-* Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.
+* Windows 10 with the October 2018 update or higher.
+* Consult the main [D3D12 Raytracing readme](../../readme.md) for further requirements.

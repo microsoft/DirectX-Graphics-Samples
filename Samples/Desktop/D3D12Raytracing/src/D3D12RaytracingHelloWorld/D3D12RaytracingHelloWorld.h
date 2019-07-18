@@ -32,11 +32,6 @@ namespace LocalRootSignatureParams {
 
 class D3D12RaytracingHelloWorld : public DXSample
 {
-    enum class RaytracingAPI {
-        FallbackLayer,
-        DirectXRaytracing,
-    };
-
 public:
     D3D12RaytracingHelloWorld(UINT width, UINT height, std::wstring name);
 
@@ -99,7 +94,6 @@ private:
     ComPtr<ID3D12Resource> m_rayGenShaderTable;
     
     // Application state
-    RaytracingAPI m_raytracingAPI;
     StepTimer m_timer;
 
     void RecreateD3D();
