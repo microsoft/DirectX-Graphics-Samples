@@ -29,7 +29,7 @@ This sample modifies the Simple Lighting sample, and illustrates how to use libr
 
 # Advanced Samples
 ## [MiniEngine Sample](src/D3D12RaytracingMiniEngineSample/readme.md)
-This sample demonstrates integration of the Fallback Layer in the MiniEngine's Model Viewer and several sample uses of raytracing.
+This sample demonstrates integration of the DirectX Raytracing in the MiniEngine's Model Viewer and several sample uses of raytracing.
 
 ![D3D12 Raytracing Mini Engine](src/D3D12RaytracingMiniEngineSample/Screenshot_small.png)
 

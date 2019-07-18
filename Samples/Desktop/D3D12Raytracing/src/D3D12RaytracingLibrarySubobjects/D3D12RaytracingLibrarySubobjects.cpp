@@ -775,7 +775,7 @@ void D3D12RaytracingLibrarySubobjects::CalculateFrameStats()
 
         wstringstream windowText;
 
-        windowText << L"(DXR)" << setprecision(2) << fixed
+        windowText << setprecision(2) << fixed
             << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
             << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
         SetCustomWindowText(windowText.str().c_str());

@@ -558,8 +558,7 @@ void D3D12RaytracingProceduralGeometry::CreateDescriptorHeap()
     // Allocate a heap for 6 descriptors:
     // 2 - vertex and index  buffer SRVs
     // 1 - raytracing output texture SRV
-    // 3 - 2x bottom and a top level acceleration structure fallback wrapped pointer UAVs
-    descriptorHeapDesc.NumDescriptors = 6;
+    descriptorHeapDesc.NumDescriptors = 3;
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
