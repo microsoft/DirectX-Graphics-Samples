@@ -1,4 +1,9 @@
 # D3D12 Raytracing Samples
+
+## Windows 10 May (1903) compatibility notice
+DirectX Raytracing samples from "master" branch are not yet compatible with Windows 10 May 2019 update (v1903). Use the DirectX Raytracing samples from ["develop"](https://github.com/microsoft/DirectX-Graphics-Samples/tree/develop) branch, which already supports Windows 10 May 2019 update, instead for now.
+
+### Getting Started
 This collection of samples act as an introduction to DirectX Raytracing (DXR). The samples are divided into tutorials and advanced samples. Each tutorial sample introduces a few new DXR concepts. Advanced samples demonstrate more complex techniques and applications of raytracing. We will be adding more samples in the coming future, so check back. In addition, you can find more DXR samples tutorials at [Nvidia's DXR samples Github](https://github.com/NVIDIAGameWorks/DxrTutorials).
 
 The samples are implemented using both DXR and D3D12 Raytracing Fallback Layer APIs. This is purely for demonstration purposes to show API differences. Real-world applications will implement only one or the other. The Fallback Layer uses DXR if a driver and OS supports it. Otherwise, it falls back to the compute pipeline to emulate raytracing.
