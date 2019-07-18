@@ -75,9 +75,12 @@ RaytracingPipelineConfig MyPipelineConfig =
 
 
 
+## Usage
+D3D12RaytracingLibrarySuobjects.exe
 
 Additional arguments:
-  * [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0.
+  * [-forceAdapter \<ID>] - create a D3D12 device on an adapter \<ID>. Defaults to adapter 0.
+
 
 ### UI
 The title bar of the sample provides runtime information:
@@ -87,5 +90,5 @@ The title bar of the sample provides runtime information:
 * GPU[ID]: name
 
 ## Requirements
-* Windows SDK version 18343 or higher is required for update compiler (dxc), OS version 18343 or higher (19H1) is needed for runtime and debug layer binaries. 
-* Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.
+* Windows 10 with the May 2019 update or higher.
+* Consult the main [D3D12 Raytracing readme](../../readme.md) for further requirements.
