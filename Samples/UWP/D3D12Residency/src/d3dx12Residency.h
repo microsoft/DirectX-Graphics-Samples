@@ -25,6 +25,7 @@ namespace D3DX12Residency
 #define RESIDENCY_CHECK_RESULT(x) x
 #endif
 
+// Note: This library automatically runs in a single-threaded mode if ID3D12Device3 is supported.
 #define RESIDENCY_SINGLE_THREADED 0
 
 #define RESIDENCY_MIN(x,y) ((x) < (y) ? (x) : (y))
@@ -648,7 +649,11 @@ namespace D3DX12Residency
         public:
             ResidencyManagerInternal(SyncManager* pSyncManagerIn) :
                 Device(nullptr),
-                AsyncThreadFence(1),
+                Device3(nullptr),
+#ifdef __ID3D12DeviceDownlevel_INTERFACE_DEFINED__
+                DeviceDownlevel(nullptr),
+#endif
+                AsyncThreadFence(0),
                 CompletionEvent(INVALID_HANDLE_VALUE),
                 AsyncThreadWorkCompletionEvent(INVALID_HANDLE_VALUE),
                 Adapter(nullptr),
@@ -676,12 +681,27 @@ namespace D3DX12Residency
             };
 
             // NOTE: DeviceNodeIndex is an index not a mask. The majority of D3D12 uses bit masks to identify a GPU node whereas DXGI uses 0 based indices.
-            HRESULT Initialize(ID3D12Device* ParentDevice, UINT DeviceNodeIndex, IDXGIAdapter3* ParentAdapter, UINT32 MaxLatency)
+            HRESULT Initialize(ID3D12Device* ParentDevice, UINT DeviceNodeIndex, IDXGIAdapter* ParentAdapter, UINT32 MaxLatency)
             {
                 Device = ParentDevice;
                 NodeIndex = DeviceNodeIndex;
-                Adapter = ParentAdapter;
                 MaxSoftwareQueueLatency = MaxLatency;
+
+                // Try to query for the device interface with a queued MakeResident API.
+                if (FAILED(Device->QueryInterface(&Device3)))
+                {
+                    // The queued MakeResident API is not available. Start the paging fence at 1.
+                    AsyncThreadFence.Increment();
+                }
+
+#ifdef __ID3D12DeviceDownlevel_INTERFACE_DEFINED__
+                Device->QueryInterface(&DeviceDownlevel);
+#endif
+
+                if (ParentAdapter)
+                {
+                    ParentAdapter->QueryInterface(&Adapter);
+                }
 
                 AsyncWorkQueueSize = MaxLatency + 1;
                 AsyncWorkQueue = new AsyncWorkload[AsyncWorkQueueSize];
@@ -729,7 +749,7 @@ namespace D3DX12Residency
                 }
 
 #if !RESIDENCY_SINGLE_THREADED
-                if (SUCCEEDED(hr))
+                if (SUCCEEDED(hr) && !Device3)
                 {
                     AsyncWorkThread = CreateThread(nullptr, 0, AsyncThreadStart, (void*) this, 0, nullptr);
 
@@ -769,9 +789,9 @@ namespace D3DX12Residency
 
                 // Make sure the async worker thread is finished to prevent dereferencing
                 // dangling pointers to ResidencyManagerInternal
-                WaitForSingleObject(AsyncWorkThread, INFINITE);
                 if (AsyncWorkThread != INVALID_HANDLE_VALUE)
                 {
+                    WaitForSingleObject(AsyncWorkThread, INFINITE);
                     CloseHandle(AsyncWorkThread);
                     AsyncWorkThread = INVALID_HANDLE_VALUE;
                 }
@@ -797,6 +817,26 @@ namespace D3DX12Residency
                     pObject->Destroy();
                     Internal::RemoveHeadList(&QueueFencesListHead);
                     delete(pObject);
+                }
+
+                if (Device3)
+                {
+                    Device3->Release();
+                    Device3 = nullptr;
+                }
+
+#ifdef __ID3D12DeviceDownlevel_INTERFACE_DEFINED__
+                if (DeviceDownlevel)
+                {
+                    DeviceDownlevel->Release();
+                    DeviceDownlevel = nullptr;
+                }
+#endif
+
+                if (Adapter)
+                {
+                    Adapter->Release();
+                    Adapter = nullptr;
                 }
             }
 
@@ -994,18 +1034,29 @@ namespace D3DX12Residency
                     Internal::ScopedLock Lock(&ExecutionCS);
                     // Evict or make resident all of the objects we identified above.
                     // This will run on an async thread, allowing the current to continue while still blocking the GPU if required
+                    // If a native async MakeResident is supported, this will run on this thread - it will only block until work referencing
+                    // resources which need to be evicted is completed, and does not need to wait for MakeResident to complete.
                     hr = EnqueueAsyncWork(pMasterSet, AsyncThreadFence.FenceValue, CurrentSyncPointGeneration);
-#if RESIDENCY_SINGLE_THREADED
-                    AsyncWorkload* pWorkload = DequeueAsyncWork();
-                    ProcessPagingWork(pWorkload);
+#if !RESIDENCY_SINGLE_THREADED
+                    if (Device3)
 #endif
+                    {
+                        AsyncWorkload* pWorkload = DequeueAsyncWork();
+                        ProcessPagingWork(pWorkload);
+                    }
 
                     // If there are some things that need to be made resident we need to make sure that the GPU
                     // doesn't execute until the async thread signals that the MakeResident call has returned.
                     if (SUCCEEDED(hr))
                     {
                         hr = AsyncThreadFence.GPUWait(Queue);
-                        AsyncThreadFence.Increment();
+
+                        // If we're using a queued MakeResident, then ProcessPagingWork may increment the fence multiple times instead of
+                        // signaling a pre-defined value.
+                        if (!Device3)
+                        {
+                            AsyncThreadFence.Increment();
+                        }
                     }
 
                     Queue->ExecuteCommandLists(Count, CommandLists);
@@ -1191,7 +1242,22 @@ namespace D3DX12Residency
                                     }
                                 }
 
-                                hr = Device->MakeResident(NumObjectsInBatch, &pMakeResidentList[BatchStart].pUnderlying);
+                                if (Device3)
+                                {
+                                    hr = Device3->EnqueueMakeResident(D3D12_RESIDENCY_FLAG_NONE,
+                                                                      NumObjectsInBatch,
+                                                                      &pMakeResidentList[BatchStart].pUnderlying,
+                                                                      AsyncThreadFence.pFence,
+                                                                      AsyncThreadFence.FenceValue + 1);
+                                    if (SUCCEEDED(hr))
+                                    {
+                                        AsyncThreadFence.Increment();
+                                    }
+                                }
+                                else
+                                {
+                                    hr = Device->MakeResident(NumObjectsInBatch, &pMakeResidentList[BatchStart].pUnderlying);
+                                }
                                 if (SUCCEEDED(hr))
                                 {
                                     SizeToMakeResident -= BatchSize;
@@ -1219,7 +1285,22 @@ namespace D3DX12Residency
                                         pMakeResidentList[i].pUnderlying = pMakeResidentList[i].pManagedObject->pUnderlying;
                                     }
 
-                                    hr = Device->MakeResident(NumObjects, &pMakeResidentList[MakeResidentIndex].pUnderlying);
+                                    if (Device3)
+                                    {
+                                        hr = Device3->EnqueueMakeResident(D3D12_RESIDENCY_FLAG_NONE,
+                                                                          NumObjectsInBatch,
+                                                                          &pMakeResidentList[BatchStart].pUnderlying,
+                                                                          AsyncThreadFence.pFence,
+                                                                          AsyncThreadFence.FenceValue + 1);
+                                        if (SUCCEEDED(hr))
+                                        {
+                                            AsyncThreadFence.Increment();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        hr = Device->MakeResident(NumObjects, &pMakeResidentList[MakeResidentIndex].pUnderlying);
+                                    }
                                     if (FAILED(hr))
                                     {
                                         // TODO: What should we do if this fails? This is a catastrophic failure in which the app is trying to use more memory
@@ -1256,8 +1337,11 @@ namespace D3DX12Residency
                     delete[](pEvictionList);
                 }
 
-                // Tell the GPU that it's safe to execute since we made things resident
-                RESIDENCY_CHECK_RESULT(AsyncThreadFence.pFence->Signal(pWork->FenceValueToSignal));
+                if (!Device3)
+                {
+                    // Tell the GPU that it's safe to execute since we made things resident
+                    RESIDENCY_CHECK_RESULT(AsyncThreadFence.pFence->Signal(pWork->FenceValueToSignal));
+                }
 
                 delete(pWork->pMasterSet);
                 pWork->pMasterSet = nullptr;
@@ -1304,7 +1388,16 @@ namespace D3DX12Residency
 
             void GetCurrentBudget(DXGI_QUERY_VIDEO_MEMORY_INFO* InfoOut, DXGI_MEMORY_SEGMENT_GROUP Segment)
             {
-                RESIDENCY_CHECK_RESULT(Adapter->QueryVideoMemoryInfo(NodeIndex, Segment, InfoOut));
+                if (Adapter)
+                {
+                    RESIDENCY_CHECK_RESULT(Adapter->QueryVideoMemoryInfo(NodeIndex, Segment, InfoOut));
+                }
+#ifdef __ID3D12DeviceDownlevel_INTERFACE_DEFINED__
+                else if (DeviceDownlevel)
+                {
+                    RESIDENCY_CHECK_RESULT(DeviceDownlevel->QueryVideoMemoryInfo(NodeIndex, Segment, InfoOut));
+                }
+#endif
             }
 
             HRESULT EnqueueSyncPoint()
@@ -1426,6 +1519,10 @@ namespace D3DX12Residency
             HANDLE AsyncThreadWorkCompletionEvent;
 
             ID3D12Device* Device;
+            ID3D12Device3* Device3;
+#ifdef __ID3D12DeviceDownlevel_INTERFACE_DEFINED__
+            ID3D12DeviceDownlevel* DeviceDownlevel;
+#endif
             // NOTE: This is an index not a mask. The majority of D3D12 uses bit masks to identify a GPU node whereas DXGI uses 0 based indices.
             UINT NodeIndex;
             IDXGIAdapter3* Adapter;
@@ -1461,7 +1558,7 @@ namespace D3DX12Residency
         }
 
         // NOTE: DeviceNodeIndex is an index not a mask. The majority of D3D12 uses bit masks to identify a GPU node whereas DXGI uses 0 based indices.
-        FORCEINLINE HRESULT Initialize(ID3D12Device* ParentDevice, UINT DeviceNodeIndex, IDXGIAdapter3* ParentAdapter, UINT32 MaxLatency)
+        FORCEINLINE HRESULT Initialize(ID3D12Device* ParentDevice, UINT DeviceNodeIndex, IDXGIAdapter* ParentAdapter, UINT32 MaxLatency)
         {
             return Manager.Initialize(ParentDevice, DeviceNodeIndex, ParentAdapter, MaxLatency);
         }
