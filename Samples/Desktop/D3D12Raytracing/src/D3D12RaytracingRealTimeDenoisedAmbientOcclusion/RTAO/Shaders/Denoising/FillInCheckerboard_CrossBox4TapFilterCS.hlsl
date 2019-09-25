@@ -9,7 +9,7 @@
 //
 //*********************************************************
 
-// Desc: Filters invalid values for a checkerboard filled input from neighborhood.
+// Desc: Filters/fills-in invalid values for a checkerboard filled input from neighborhood.
 // The compute shader is to be run with (width, height / 2) dimensions as 
 // it scales Y coordinate by 2 to process only the inactive pixels in the checkerboard filled input.
 

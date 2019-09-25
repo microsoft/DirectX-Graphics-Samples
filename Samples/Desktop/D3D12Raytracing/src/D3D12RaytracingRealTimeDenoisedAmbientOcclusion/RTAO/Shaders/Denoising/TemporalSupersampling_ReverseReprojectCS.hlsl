@@ -9,7 +9,7 @@
 //
 //*********************************************************
 
-// Desc: Sample temporal cache via reverse reprojection.
+// Desc: Stage 1 of Temporal Supersampling. Samples temporal cache via motion vectors/reverse reprojection.
 // If no valid values have been retrieved from the cache, the tspp is set to 0.
 
 #define HLSL

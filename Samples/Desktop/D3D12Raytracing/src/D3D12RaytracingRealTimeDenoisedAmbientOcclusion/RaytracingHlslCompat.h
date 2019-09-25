@@ -12,36 +12,6 @@
 #ifndef RAYTRACINGHLSLCOMPAT_H
 #define RAYTRACINGHLSLCOMPAT_H
 
-/*
-//ToDoF
-- Cleanup UI paths. 
-  
-  Glithces:
-  - support neighbor sample generation for 2+ spp
-  - Temporal
-    On full re depth test fails on sharp angles on the ground
-    
-    Checkerboard - document
-    - no perf difference on checkerboard. Add checkerboard support when not using ray sorting.
-    - support checkerboard + 2+ spp
-
-Optimizaiton
--  test not using perspective correct deepth interpolation
-
-- Cleanup:
-    FlushResourceBarriers before GpuKernel calls
-    - Add/revise comments. Incl file decs
-    - Move global defines in RaytracingSceneDefines.h locally for RTAO and Denoiser.
-    Test all UI parameters, finetune and set best limits. Remove unneccasary vars.
-
-Documentation
-    Review all comments
-    Add descs to GPU kernels
-    Add descs to GPU kernel resources next to enums
-    readme
-
-*/
-
 //**********************************************************************************************
 //
 // RaytracingHLSLCompat.h

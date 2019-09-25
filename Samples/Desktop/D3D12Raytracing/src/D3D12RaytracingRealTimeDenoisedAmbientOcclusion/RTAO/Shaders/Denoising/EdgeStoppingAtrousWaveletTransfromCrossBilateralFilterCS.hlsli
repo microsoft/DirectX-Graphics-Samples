@@ -9,7 +9,8 @@
 //
 //*********************************************************
 
-// Atrous Wavelet Transform Cross Bilateral Filter
+// Atrous Wavelet Transform Cross Bilateral Filter.
+// Based on a 1st pass of [SVGF] filter.
 // Ref: [Dammertz2010], Edge-Avoiding A-Trous Wavelet Transform for Fast Global Illumination Filtering
 // Ref: [SVGF], Spatiotemporal Variance-Guided Filtering
 // Ref: [RTGCH19] Ray Tracing Gems (Ch 19)

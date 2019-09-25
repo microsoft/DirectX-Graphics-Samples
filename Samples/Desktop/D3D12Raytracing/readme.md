@@ -28,6 +28,11 @@ This sample modifies the Simple Lighting sample, and illustrates how to use libr
 
 
 # Advanced Samples
+## [Real-Time Denoised Ambient Occlusion](src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/readme.md)
+This sample implements a real-time denoiser for 1spp raytraced Ambient Occlusion. It also demonstrates a physically-based specular pathtracer implementation and dynamic geometry support.
+
+![D3D12 Raytracing Real-Time Denoised Ambient Occlusion](src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/Screenshot_small.png)
+
 ## [MiniEngine Sample](src/D3D12RaytracingMiniEngineSample/readme.md)
 This sample demonstrates integration of the DirectX Raytracing in the MiniEngine's Model Viewer and several sample uses of raytracing.
 

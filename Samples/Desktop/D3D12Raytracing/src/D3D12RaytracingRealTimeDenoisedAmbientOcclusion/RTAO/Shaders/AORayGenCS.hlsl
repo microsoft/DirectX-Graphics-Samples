@@ -9,7 +9,7 @@
 //
 //*********************************************************
 
-// Desc: Generates AO rays for each pixel
+// Desc: Generates AO rays for each pixel and stores them in a texture.
 // Supports 1 rays per pixel (spp) and 0.5 spp (via checkerboard distribution).
 // 0.5 spp:
 //  - generates 1 spp for every other pixel in a checkerboard distribution.
@@ -28,7 +28,6 @@ RWTexture2D<NormalDepthTexFormat> g_rtRaysDirectionOriginDepth : register(u0);
 
 ConstantBuffer<RayGenConstantBuffer> cb: register(b0);
 StructuredBuffer<AlignedHemisphereSample3D> g_sampleSets : register(t3);
-
 
 // Delay the include so that resource references resolve.
 #include "RayGen.hlsli"

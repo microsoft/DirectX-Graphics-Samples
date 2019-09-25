@@ -9,16 +9,16 @@
 //
 //*********************************************************
 
-// Desc: Calculate Variance and Mean via a separable kernel.
-// Active pixel is a pixel on the checkerboard pattern and has a valid/generated value for it.
-// The kernel is stretched in y direction to sample only from active pixels. 
-// The variance is calculated for all pixels, regardless if theyre input is active or not.
+// Desc: Calculate Local Mean and Variance via a separable kernel and using wave intrinsics.
 // Requirements:
 //  - Wave lane size 16 or higher.
 //  - WaveReadLaneAt() with any to any to wave read lane support.
 // Supports:
 //  - up to 9x9 kernels.
-//  - checkerboard ON/OFF input.
+//  - checkerboard ON/OFF input. If enabled, outputs only for active pixels.
+//     Active pixel is a pixel on the checkerboard pattern and has a valid / 
+//     generated value for it. The kernel is stretched in y direction 
+//    to sample only from active pixels. 
 // Performance:
 // - 4K, 2080Ti, 9x9 kernel: 0.37ms (separable) -> 0.305 ms (separable + wave intrinsics)
 

@@ -19,10 +19,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
     // Initialization For WICTextureLoader.
     ThrowIfFailed(CoInitializeEx(nullptr, COINITBASE_MULTITHREADED), L"Failed to initialize WIC component");
 
-    // ToDoF default 1080p full res
-    D3D12RaytracingRealTimeDenoisedAmbientOcclusion sample(3840, 2160, L"D3D12 Raytracing - Real-Time Denoised Raytraced Ambient Occlusion");
-    //D3D12RaytracingRealTimeDenoisedAmbientOcclusion sample(1920, 2160, L"D3D12 Raytracing - Real-Time Denoised Raytraced Ambient Occlusion");
-    //D3D12RaytracingRealTimeDenoisedAmbientOcclusion sample(1280, 720, L"D3D12 Raytracing - Real-Time Denoised Raytraced Ambient Occlusion");
-    //D3D12RaytracingRealTimeDenoisedAmbientOcclusion sample(1280, 720, L"D3D12 Raytracing - Real-Time Denoised Raytraced Ambient Occlusion");
+    D3D12RaytracingRealTimeDenoisedAmbientOcclusion sample(1920, 1080, L"D3D12 Raytracing - Real-Time Denoised Raytraced Ambient Occlusion");
     return Win32Application::Run(&sample, hInstance, nCmdShow);
 }

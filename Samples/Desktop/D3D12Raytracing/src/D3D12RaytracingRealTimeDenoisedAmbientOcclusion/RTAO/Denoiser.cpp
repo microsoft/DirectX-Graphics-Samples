@@ -123,7 +123,7 @@ void Denoiser::CreateAuxilaryDeviceResources()
     m_temporalCacheBlendWithCurrentFrameKernel.Initialize(device, Sample::FrameCount);
     m_atrousWaveletTransformFilter.Initialize(device, Sample::FrameCount);
     m_calculateMeanVarianceKernel.Initialize(device, Sample::FrameCount); 
-    m_bilateralFilterKernel.Initialize(device, Sample::FrameCount, c_MaxNumDisocllusionBlurPasses);
+    m_disocclusionBlurKernel.Initialize(device, Sample::FrameCount, c_MaxNumDisocllusionBlurPasses);
 }
 
 
@@ -234,8 +234,8 @@ void Denoiser::TemporalSupersamplingReverseReproject(Pathtracer& pathtracer)
     GpuResource (&GBufferResources)[GBufferResource::Count] = pathtracer.GBufferResources(RTAO_Args::QuarterResAO);
 
     UINT maxTspp = static_cast<UINT>(1 / Denoiser_Args::TemporalSupersampling_MinSmoothingFactor);
-    resourceStateTracker->FlushResourceBarriers();
 
+    resourceStateTracker->FlushResourceBarriers();
     m_temporalCacheReverseReprojectKernel.Run(
         commandList,
         m_denoisingWidth,
@@ -434,7 +434,7 @@ void Denoiser::BlurDisocclusions(Pathtracer& pathtracer)
         resourceStateTracker->InsertUAVBarrier(inOutResource);
 
         resourceStateTracker->FlushResourceBarriers();
-        m_bilateralFilterKernel.Run(
+        m_disocclusionBlurKernel.Run(
             commandList,
             filterStep,
             m_cbvSrvUavHeap->GetHeap(),

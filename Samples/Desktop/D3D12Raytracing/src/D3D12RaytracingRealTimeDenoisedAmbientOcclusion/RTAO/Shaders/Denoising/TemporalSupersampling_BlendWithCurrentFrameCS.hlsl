@@ -9,6 +9,9 @@
 //
 //*********************************************************
 
+// 2nd stage of temporal supersampling. Blends current frame values
+// with values reprojected from previous frame in stage 1.
+
 #define HLSL
 #include "RaytracingHlslCompat.h"
 #include "RaytracingShaderHelper.hlsli"

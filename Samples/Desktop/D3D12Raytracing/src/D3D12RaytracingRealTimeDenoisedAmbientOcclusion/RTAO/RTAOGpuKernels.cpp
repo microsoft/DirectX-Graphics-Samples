@@ -130,7 +130,7 @@ namespace RTAOGpuKernels
     }
 
     namespace RootSignature {
-        namespace BilateralFilter {
+        namespace DisocclusionBilateralFilter {
             namespace Slot {
                 enum Enum {
                     InputOutput = 0,
@@ -145,11 +145,11 @@ namespace RTAOGpuKernels
         }
     }
 
-    void BilateralFilter::Initialize(ID3D12Device5* device, UINT frameCount, UINT numCallsPerFrame)
+    void DisocclusionBilateralFilter::Initialize(ID3D12Device5* device, UINT frameCount, UINT numCallsPerFrame)
     {
         // Create root signature.
         {
-            using namespace RootSignature::BilateralFilter;
+            using namespace RootSignature::DisocclusionBilateralFilter;
 
             CD3DX12_DESCRIPTOR_RANGE ranges[Slot::Count];
             ranges[Slot::Depth].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
@@ -167,7 +167,7 @@ namespace RTAOGpuKernels
             rootParameters[Slot::Debug2].InitAsDescriptorTable(1, &ranges[Slot::Debug2]);
 
             CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
-            SerializeAndCreateRootSignature(device, rootSignatureDesc, &m_rootSignature, L"Compute root signature: BilateralFilter");
+            SerializeAndCreateRootSignature(device, rootSignatureDesc, &m_rootSignature, L"Compute root signature: DisocclusionBilateralFilter");
         }
 
         // Create compute pipeline state.
@@ -177,18 +177,18 @@ namespace RTAOGpuKernels
             descComputePSO.CS = CD3DX12_SHADER_BYTECODE(static_cast<const void*>(g_pDisocclusionBlur_DepthAwareSeparableGaussianFilter3x3CS_AnyToAnyWaveReadLaneAt), ARRAYSIZE(g_pDisocclusionBlur_DepthAwareSeparableGaussianFilter3x3CS_AnyToAnyWaveReadLaneAt));
 
             ThrowIfFailed(device->CreateComputePipelineState(&descComputePSO, IID_PPV_ARGS(&m_pipelineStateObject)));
-            m_pipelineStateObject->SetName(L"Pipeline state object: BilateralFilter");
+            m_pipelineStateObject->SetName(L"Pipeline state object: DisocclusionBilateralFilter");
         }
 
         // Create shader resources
         {
-            m_CB.Create(device, frameCount * numCallsPerFrame, L"Constant Buffer: BilateralFilter");
+            m_CB.Create(device, frameCount * numCallsPerFrame, L"Constant Buffer: DisocclusionBilateralFilter");
         }
     }
 
 
     // width, height - dimensions of the input resource.
-    void BilateralFilter::Run(
+    void DisocclusionBilateralFilter::Run(
         ID3D12GraphicsCommandList4* commandList,
         UINT filterStep,
         ID3D12DescriptorHeap* descriptorHeap,
@@ -196,10 +196,10 @@ namespace RTAOGpuKernels
         D3D12_GPU_DESCRIPTOR_HANDLE inputBlurStrengthResourceHandle,
         GpuResource* inputOutputResource)
     {
-        using namespace RootSignature::BilateralFilter;
+        using namespace RootSignature::DisocclusionBilateralFilter;
         using namespace DefaultComputeShaderParams;
 
-        ScopedTimer _prof(L"BilateralFilter", commandList);
+        ScopedTimer _prof(L"DisocclusionBilateralFilter", commandList);
 
         auto resourceDesc = inputOutputResource->resource.Get()->GetDesc();
         XMUINT2 resourceDim(static_cast<UINT>(resourceDesc.Width), static_cast<UINT>(resourceDesc.Height));

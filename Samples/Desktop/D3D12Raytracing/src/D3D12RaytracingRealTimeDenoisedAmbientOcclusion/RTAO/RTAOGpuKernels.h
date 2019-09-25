@@ -73,7 +73,8 @@ namespace RTAOGpuKernels
         UINT                                m_CBinstanceID = 0;
     };
 
-    class BilateralFilter
+    // Filters values via a depth aware separable gaussian filter based on per - pixel blur strength input.
+    class DisocclusionBilateralFilter
     {
     public:
         void Initialize(ID3D12Device5* device, UINT frameCount, UINT numCallsPerFrame = 1);
@@ -93,6 +94,7 @@ namespace RTAOGpuKernels
         UINT                                m_CBinstanceID = 0;
     };
 
+    // Atrous Wavelet Transform Cross Bilateral Filter.
     class AtrousWaveletTransformCrossBilateralFilter
     {
     public:
@@ -135,6 +137,7 @@ namespace RTAOGpuKernels
         UINT                                m_CBinstanceID = 0;
     };
 
+    // Filters / fills - in invalid values for a checkerboard filled input from neighborhood.
     class FillInCheckerboard
     {
     public:
@@ -154,6 +157,7 @@ namespace RTAOGpuKernels
         UINT                                m_CBinstanceID = 0;
     };
 
+    // Calculate Local Mean and Variance.
     class CalculateMeanVariance
     {
     public:
@@ -176,6 +180,7 @@ namespace RTAOGpuKernels
         UINT                                m_CBinstanceID = 0;
     };
 
+    // Stage 1 of Temporal Supersampling.Samples temporal cache via motion vectors / reverse reprojection.
     class TemporalSupersampling_ReverseReproject
     {
     public:
@@ -206,7 +211,8 @@ namespace RTAOGpuKernels
         UINT                                m_CBinstanceID = 0;
     };
 
-
+    // 2nd stage of temporal supersampling. Blends current frame values
+    // with values reprojected from previous frame in stage 1.
     class TemporalSupersampling_BlendWithCurrentFrame
     {
     public:
@@ -267,6 +273,7 @@ namespace RTAOGpuKernels
         UINT                                m_CBinstanceID = 0;
     };
 
+    // Generates AO rays for each pixel and stores them in a texture.
     class AORayGenerator
     {
     public:

@@ -133,7 +133,7 @@ namespace RTAO_Args
     NumVar ExponentialFalloff_DecayConstant(L"Render/AO/RTAO/Exponential Falloff/Decay Constant", 2.f, 0.0f, 20.f, 0.25f);
     NumVar ExponentialFalloff_MinOcclusionCutoff(L"Render/AO/RTAO/Exponential Falloff/Min Occlusion Cutoff", 0.4f, 0.0f, 1.f, 0.05f);
     
-    BoolVar QuarterResAO(L"Render/AO/RTAO/Quarter res", true, Sample::OnRecreateRaytracingResources, nullptr);
+    BoolVar QuarterResAO(L"Render/AO/RTAO/Quarter res", false, Sample::OnRecreateRaytracingResources, nullptr);
 }
 
 
@@ -567,6 +567,7 @@ void RTAO::Run(
             doCheckerboardRayGeneration
             ? CeilDivide(m_raytracingWidth, 2)
             : m_raytracingWidth;
+
         resourceStateTracker->FlushResourceBarriers();
         m_rayGen.Run(
             commandList,
@@ -588,6 +589,7 @@ void RTAO::Run(
         resourceStateTracker->InsertUAVBarrier(&m_AORayDirectionOriginDepth);
 
         float rayBinDepthSize = RTAO_Args::RaySorting_DepthBinSizeMultiplier * RTAO_Args::MaxRayHitTime;
+
         resourceStateTracker->FlushResourceBarriers();
         m_raySorter.Run(
             commandList,

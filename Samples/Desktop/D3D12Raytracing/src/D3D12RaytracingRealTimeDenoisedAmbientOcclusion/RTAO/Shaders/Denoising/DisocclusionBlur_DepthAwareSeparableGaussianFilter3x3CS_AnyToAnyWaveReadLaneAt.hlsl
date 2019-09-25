@@ -9,8 +9,7 @@
 //
 //*********************************************************
 
-
-// Desc: Filters values via a depth aware separable gaussian filter and input blur strength input.
+// Desc: Filters values via a depth aware separable gaussian filter based on per-pixel blur strength input.
 // The input pixels are interleaved such that kernel cells are at cb.step offsets
 // and the results are scatter wrote to memory. The interleaved layout
 // allows for a separable filtering via shared memory.

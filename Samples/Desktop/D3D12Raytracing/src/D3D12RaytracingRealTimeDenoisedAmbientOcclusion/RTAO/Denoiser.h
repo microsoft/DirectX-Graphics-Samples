@@ -90,7 +90,7 @@ private:
     RTAOGpuKernels::TemporalSupersampling_BlendWithCurrentFrame m_temporalCacheBlendWithCurrentFrameKernel;
     RTAOGpuKernels::AtrousWaveletTransformCrossBilateralFilter m_atrousWaveletTransformFilter;
     RTAOGpuKernels::CalculateMeanVariance   m_calculateMeanVarianceKernel;
-    RTAOGpuKernels::BilateralFilter m_bilateralFilterKernel;
+    RTAOGpuKernels::DisocclusionBilateralFilter m_disocclusionBlurKernel;
 
     friend class Composition;
 public:
