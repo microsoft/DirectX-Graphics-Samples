@@ -17,7 +17,7 @@
 #include "GpuTimeManager.h"
 #include "Composition.h"
 #include "CompiledShaders\CompositionCS.hlsl.h"
-#include "D3D12RaytracingAmbientOcclusion.h"
+#include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 
 using namespace std;
 using namespace DX;

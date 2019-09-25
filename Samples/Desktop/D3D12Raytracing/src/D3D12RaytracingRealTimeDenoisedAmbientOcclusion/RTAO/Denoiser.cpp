@@ -16,7 +16,7 @@
 #include "EngineProfiling.h"
 #include "GpuTimeManager.h"
 #include "Denoiser.h"
-#include "D3D12RaytracingAmbientOcclusion.h"
+#include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 #include "Composition.h"
 
 using namespace std;

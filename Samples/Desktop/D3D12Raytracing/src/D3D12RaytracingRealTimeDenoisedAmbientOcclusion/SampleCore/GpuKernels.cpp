@@ -13,7 +13,7 @@
 #include "EngineProfiling.h"
 #include "GpuKernels.h"
 #include "DirectXRaytracingHelper.h"
-#include "D3D12RaytracingAmbientOcclusion.h"
+#include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 #include "CompiledShaders\ReduceSumUintCS.hlsl.h"
 #include "CompiledShaders\ReduceSumFloatCS.hlsl.h"
 #include "CompiledShaders\CalculatePartialDerivativesViaCentralDifferencesCS.hlsl.h"

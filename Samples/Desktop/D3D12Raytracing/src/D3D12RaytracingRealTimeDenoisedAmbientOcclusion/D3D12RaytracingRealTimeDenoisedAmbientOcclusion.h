@@ -41,8 +41,8 @@ namespace Sample_GPUTime {
 
 namespace Sample
 {
-    class D3D12RaytracingAmbientOcclusion;
-    D3D12RaytracingAmbientOcclusion& instance();
+    class D3D12RaytracingRealTimeDenoisedAmbientOcclusion;
+    D3D12RaytracingRealTimeDenoisedAmbientOcclusion& instance();
 
     extern void OnRecreateRaytracingResources(void*);
 
@@ -50,12 +50,12 @@ namespace Sample
 
     extern GpuResource g_debugOutput[2];
 
-    class D3D12RaytracingAmbientOcclusion : public DXSample
+    class D3D12RaytracingRealTimeDenoisedAmbientOcclusion : public DXSample
     {
 
     public:
-        D3D12RaytracingAmbientOcclusion(UINT width, UINT height, std::wstring name);
-        ~D3D12RaytracingAmbientOcclusion();
+        D3D12RaytracingRealTimeDenoisedAmbientOcclusion(UINT width, UINT height, std::wstring name);
+        ~D3D12RaytracingRealTimeDenoisedAmbientOcclusion();
 
 
         // IDeviceNotify

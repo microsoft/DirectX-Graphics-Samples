@@ -114,9 +114,6 @@
     <ClInclude Include="SampleCore\util\GameInput.h">
       <Filter>Source Files\SampleCore\Util</Filter>
     </ClInclude>
-    <ClInclude Include="D3D12RaytracingAmbientOcclusion.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="RaytracingHlslCompat.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -144,15 +141,15 @@
     <ClInclude Include="SampleCore\GpuKernels.h">
       <Filter>Source Files\SampleCore</Filter>
     </ClInclude>
+    <ClInclude Include="D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="D3D12RaytracingAmbientOcclusion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SampleCore\util\DeviceResources.cpp">
@@ -226,6 +223,9 @@
     </ClCompile>
     <ClCompile Include="SampleCore\GpuKernels.cpp">
       <Filter>Source Files\SampleCore</Filter>
+    </ClCompile>
+    <ClCompile Include="D3D12RaytracingRealTimeDenoisedAmbientOcclusion.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -18,7 +18,7 @@
     <ProjectGuid>{19585C81-FB12-4A4B-B700-CCE253BDBA02}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>D3D12Raytracing</RootNamespace>
-    <ProjectName>D3D12RaytracingAmbientOcclusion</ProjectName>
+    <ProjectName>D3D12RaytracingRealTimeDenoisedAmbientOcclusion</ProjectName>
     <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -266,7 +266,7 @@
     <ClInclude Include="SampleCore\RaytracingAccelerationStructure.h" />
     <ClInclude Include="SampleCore\RaytracingSceneDefines.h" />
     <ClInclude Include="RaytracingHlslCompat.h" />
-    <ClInclude Include="D3D12RaytracingAmbientOcclusion.h" />
+    <ClInclude Include="D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h" />
     <ClInclude Include="RTAO\Denoiser.h" />
     <ClInclude Include="RTAO\RTAO.h" />
     <ClInclude Include="RTAO\Sampler.h" />
@@ -296,7 +296,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SampleCore\Composition.cpp" />
-    <ClCompile Include="D3D12RaytracingAmbientOcclusion.cpp" />
+    <ClCompile Include="D3D12RaytracingRealTimeDenoisedAmbientOcclusion.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="SampleCore\GpuKernels.cpp" />
     <ClCompile Include="SampleCore\Pathtracer.cpp" />

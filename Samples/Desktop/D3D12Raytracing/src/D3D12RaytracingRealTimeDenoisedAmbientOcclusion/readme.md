@@ -21,7 +21,7 @@ ToDo...
 ## Usage
 ToDo
 
-D3D12RaytracingAmbientOcclusion.exe [...]
+D3D12RaytracingRealTimeDenoisedAmbientOcclusion.exe [...]
   * [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0.
   * [-vsync] - renders with VSync enabled.
  

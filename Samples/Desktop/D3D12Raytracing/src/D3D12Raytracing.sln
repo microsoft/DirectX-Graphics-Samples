@@ -26,7 +26,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Advanced", "Advanced", "{02
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingProceduralGeometry", "D3D12RaytracingProceduralGeometry\D3D12RaytracingProceduralGeometry.vcxproj", "{0C266269-AC0C-41B0-9D25-0117DC23CFC7}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingAmbientOcclusion", "D3D12RaytracingAmbientOcclusion\D3D12RaytracingAmbientOcclusion.vcxproj", "{19585C81-FB12-4A4B-B700-CCE253BDBA02}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingRealTimeDenoisedAmbientOcclusion", "D3D12RaytracingRealTimeDenoisedAmbientOcclusion\D3D12RaytracingRealTimeDenoisedAmbientOcclusion.vcxproj", "{19585C81-FB12-4A4B-B700-CCE253BDBA02}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingLibrarySubobjects", "D3D12RaytracingLibrarySubobjects\D3D12RaytracingLibrarySubobjects.vcxproj", "{0AF699F0-99A8-4493-9FF7-1FFDE2900100}"
 EndProject

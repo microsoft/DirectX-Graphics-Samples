@@ -11,7 +11,7 @@
 
 #include "stdafx.h"
 #include "RaytracingAccelerationStructure.h"
-#include "D3D12RaytracingAmbientOcclusion.h"
+#include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 #include "EngineProfiling.h"
 
 using namespace std;

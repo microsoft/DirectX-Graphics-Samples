@@ -15,7 +15,7 @@
 #include "EngineTuning.h"
 #include "EngineProfiling.h"
 #include "GpuTimeManager.h"
-#include "D3D12RaytracingAmbientOcclusion.h"
+#include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 #include "CompiledShaders\RTAO.hlsl.h"
 
 using namespace std;

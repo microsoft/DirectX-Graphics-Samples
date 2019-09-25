@@ -47,9 +47,6 @@ public:
     StructuredBuffer<PrimitiveMaterialBuffer>& MaterialBuffer() { return m_materialBuffer; }
     StructuredBuffer<XMFLOAT3X4>& PrevFrameBottomLevelASInstanceTransforms() { return m_prevFrameBottomLevelASInstanceTransforms; }
     
-    void ToggleAnimateLight() { m_animateLight = !m_animateLight; }
-    void ToggleAnimateCamera() { m_animateCamera = !m_animateCamera; }
-    void ToggleAnimateScene() { m_animateScene = !m_animateScene; }
 private:
     void CreateDeviceDependentResources();
     void CreateAuxilaryDeviceResources();

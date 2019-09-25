@@ -16,7 +16,7 @@
 #include "EngineProfiling.h"
 #include "GpuTimeManager.h"
 #include "Scene.h"
-#include "D3D12RaytracingAmbientOcclusion.h"
+#include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 #include "RaytracingSceneDefines.h"
 
 using namespace std;
@@ -124,6 +124,15 @@ void Scene::OnKeyDown(UINT8 key)
         break;
     case 'K':
         m_spaceshipRotationAngleY -= XMConvertToRadians(45);
+        break;
+    case 'L':
+        m_animateLight = !m_animateLight;
+        break;
+    case 'C':
+        m_animateCamera = !m_animateCamera;
+        break;
+    case 'T':
+        m_animateScene = !m_animateScene;
         break;
     default:
         break;

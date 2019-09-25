@@ -10,7 +10,7 @@
 //*********************************************************
 
 #include "stdafx.h"
-#include "D3D12RaytracingAmbientOcclusion.h"
+#include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 #include "GameInput.h"
 #include "EngineTuning.h"
 #include "EngineProfiling.h"
@@ -26,8 +26,8 @@ HWND g_hWnd = 0;
 
 namespace Sample
 {
-    D3D12RaytracingAmbientOcclusion* g_pSample = nullptr;
-    D3D12RaytracingAmbientOcclusion& instance()
+    D3D12RaytracingRealTimeDenoisedAmbientOcclusion* g_pSample = nullptr;
+    D3D12RaytracingRealTimeDenoisedAmbientOcclusion& instance()
     {
         return *g_pSample;
     }
@@ -39,7 +39,7 @@ namespace Sample
         g_pSample->RequestRecreateRaytracingResources();
     }
 
-    D3D12RaytracingAmbientOcclusion::D3D12RaytracingAmbientOcclusion(UINT width, UINT height, wstring name) :
+    D3D12RaytracingRealTimeDenoisedAmbientOcclusion::D3D12RaytracingRealTimeDenoisedAmbientOcclusion(UINT width, UINT height, wstring name) :
         DXSample(width, height, name),
         m_isSceneInitializationRequested(false),
         m_isRecreateRaytracingResourcesRequested(false)
@@ -50,7 +50,7 @@ namespace Sample
         m_generatorURNG.seed(1729);
     }
 
-    void D3D12RaytracingAmbientOcclusion::OnInit()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnInit()
     {
         UINT flags =
             m_syncInterval > 0
@@ -84,12 +84,12 @@ namespace Sample
         m_deviceResources->CreateWindowSizeDependentResources();
     }
 
-    D3D12RaytracingAmbientOcclusion::~D3D12RaytracingAmbientOcclusion()
+    D3D12RaytracingRealTimeDenoisedAmbientOcclusion::~D3D12RaytracingRealTimeDenoisedAmbientOcclusion()
     {
         GameInput::Shutdown();
     }
 
-    void D3D12RaytracingAmbientOcclusion::WriteProfilingResultsToFile()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::WriteProfilingResultsToFile()
     {
         std::wofstream outputFile(L"Profile.csv", std::ofstream::trunc);
 
@@ -120,7 +120,7 @@ namespace Sample
     }
 
     // Create resources that depend on the device.
-    void D3D12RaytracingAmbientOcclusion::CreateDeviceDependentResources()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::CreateDeviceDependentResources()
     {
         auto device = m_deviceResources->GetD3DDevice();
 
@@ -142,7 +142,7 @@ namespace Sample
     }
 
     // Create a 2D output texture for raytracing.
-    void D3D12RaytracingAmbientOcclusion::CreateRaytracingOutputResource()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::CreateRaytracingOutputResource()
     {
         auto device = m_deviceResources->GetD3DDevice();
         auto backbufferFormat = m_deviceResources->GetBackBufferFormat();
@@ -150,7 +150,7 @@ namespace Sample
         CreateRenderTargetResource(device, backbufferFormat, m_width, m_height, m_cbvSrvUavHeap.get(), &m_raytracingOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     }
 
-    void D3D12RaytracingAmbientOcclusion::CreateDebugResources()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::CreateDebugResources()
     {
         auto device = m_deviceResources->GetD3DDevice();
         auto backbufferFormat = m_deviceResources->GetBackBufferFormat();
@@ -171,7 +171,7 @@ namespace Sample
         }
     }
 
-    void D3D12RaytracingAmbientOcclusion::CreateAuxilaryDeviceResources()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::CreateAuxilaryDeviceResources()
     {
         auto device = m_deviceResources->GetD3DDevice();
         auto commandQueue = m_deviceResources->GetCommandQueue();
@@ -186,34 +186,25 @@ namespace Sample
         }
     }
 
-    void D3D12RaytracingAmbientOcclusion::CreateDescriptorHeaps()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::CreateDescriptorHeaps()
     {
         auto device = m_deviceResources->GetD3DDevice();
 
-        // Allocate large enough number of descriptors.
+        // Allocate large enough descriptor pool.
         UINT NumDescriptors = 10000;
         m_cbvSrvUavHeap = make_shared<DX::DescriptorHeap>(device, NumDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
     
-    void D3D12RaytracingAmbientOcclusion::OnKeyDown(UINT8 key)
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnKeyDown(UINT8 key)
     {
         m_scene.OnKeyDown(key);
 
         float fValue;
-        // ToDoF call componanet's handlers5
         switch (key)
         {
         case VK_ESCAPE:
             throw HrException(E_APPLICATION_EXITING);
-        case 'L':
-            m_scene.ToggleAnimateLight();
-            break;
-        case 'C':
-            m_scene.ToggleAnimateCamera();
-            break;
-        case 'T':
-            m_scene.ToggleAnimateScene();
-            break;
+
         case VK_NUMPAD0:
             RTAO_Args::Spp_useGroundTruthSpp.Bang();
             break;
@@ -248,7 +239,7 @@ namespace Sample
     }
 
     // Update frame-based values.
-    void D3D12RaytracingAmbientOcclusion::OnUpdate()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnUpdate()
     {
 #if ENABLE_PROFILING
         if (m_isProfiling)
@@ -304,13 +295,13 @@ namespace Sample
 
     // ToDoF extend or remove
     // Parse supplied command line args.
-    void D3D12RaytracingAmbientOcclusion::ParseCommandLineArgs(WCHAR* argv[], int argc)
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::ParseCommandLineArgs(WCHAR* argv[], int argc)
     {
         DXSample::ParseCommandLineArgs(argv, argc);
     }
 
     // Copy the raytracing output to the backbuffer.
-    void D3D12RaytracingAmbientOcclusion::CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState)
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState)
     {
         auto commandList = m_deviceResources->GetCommandList();
         auto resourceStateTracker = m_deviceResources->GetGpuResourceStateTracker();
@@ -329,7 +320,7 @@ namespace Sample
             outRenderTargetState);
     }
 
-    void D3D12RaytracingAmbientOcclusion::UpdateUI()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::UpdateUI()
     {
         vector<wstring> labels;
 
@@ -401,7 +392,7 @@ namespace Sample
     }
 
     // Create resources that are dependent on the size of the main window.
-    void D3D12RaytracingAmbientOcclusion::CreateWindowSizeDependentResources()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::CreateWindowSizeDependentResources()
     {
         auto device = m_deviceResources->GetD3DDevice();
         auto commandQueue = m_deviceResources->GetCommandQueue();
@@ -440,7 +431,7 @@ namespace Sample
     }
 
     // Release resources that are dependent on the size of the main window.
-    void D3D12RaytracingAmbientOcclusion::ReleaseWindowSizeDependentResources()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::ReleaseWindowSizeDependentResources()
     {
         if (m_enableUI)
         {
@@ -450,12 +441,12 @@ namespace Sample
     }
 
     // Release all resources that depend on the device.
-    void D3D12RaytracingAmbientOcclusion::ReleaseDeviceDependentResources()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::ReleaseDeviceDependentResources()
     {
         EngineProfiling::ReleaseDevice();
     }
 
-    void D3D12RaytracingAmbientOcclusion::RecreateD3D()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::RecreateD3D()
     {
         // Give GPU a chance to finish its execution in progress.
         try
@@ -470,7 +461,7 @@ namespace Sample
     }
 
     // Render the scene.
-    void D3D12RaytracingAmbientOcclusion::OnRender()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnRender()
     {
         if (!m_deviceResources->IsWindowVisible())
         {
@@ -556,7 +547,7 @@ namespace Sample
     }
 
     // Compute the average frames per second and million rays per second.
-    void D3D12RaytracingAmbientOcclusion::CalculateFrameStats()
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::CalculateFrameStats()
     {
         static int frameCnt = 0;
         static double prevTime = 0.0f;
@@ -584,7 +575,7 @@ namespace Sample
     }
 
     // Handle OnSizeChanged message event.
-    void D3D12RaytracingAmbientOcclusion::OnSizeChanged(UINT width, UINT height, bool minimized)
+    void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnSizeChanged(UINT width, UINT height, bool minimized)
     {
         UpdateForSizeChange(width, height);
 
