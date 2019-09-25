@@ -195,9 +195,9 @@ void main(uint2 DTid : SV_DispatchThreadID, uint2 Gid : SV_GroupID)
             uint2 targetKernelStep = clamp(kernelStep, (cb.minKernelWidth - 1) / 2, (cb.maxKernelWidth - 1) / 2);
 
             // TODO: additional options to explore
-            // - non-uniform X, Y kernel radius cause visible streaking. Use same step across both X, Y? This may overblur are at large angles
+            // - non-uniform X, Y kernel radius cause visible streaking. Use same step across both X, Y? That may overblur one dimension at sharp angles.
             // - use larger kernel on lower tspp. 
-            // - use varying number of cycles, depending on the target kernel step. More cycles on larger kernels.
+            // - use varying number of cycles for better spatial coverage over time, depending on the target kernel step. More cycles on larger kernels.
             uint2 adjustedKernelStep = lerp(1, targetKernelStep, cb.kernelRadiusLerfCoef); 
             kernelStep = adjustedKernelStep;
         }

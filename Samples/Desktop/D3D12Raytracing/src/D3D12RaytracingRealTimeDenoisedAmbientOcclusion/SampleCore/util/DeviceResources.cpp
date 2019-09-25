@@ -535,7 +535,7 @@ void DeviceResources::Present(D3D12_RESOURCE_STATES beforeState, UINT syncInterv
 {
     if (beforeState != D3D12_RESOURCE_STATE_PRESENT)
     {
-        ThrowIfFalse(false, L"ToDo, if command list is closed before this call, the ExecuteCommandLIst gets ignored below, and thus the barrier too.");
+        ThrowIfFalse(false, L"TODO, if command list is closed before this call, the ExecuteCommandLIst gets ignored below, and thus the barrier too.");
         // Transition the render target to the state that allows it to be presented to the display.
         D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_backBufferIndex].Get(), beforeState, D3D12_RESOURCE_STATE_PRESENT);
         m_commandList->ResourceBarrier(1, &barrier);

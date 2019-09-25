@@ -14,53 +14,26 @@
 
 /*
 //ToDoF
-- finetune clamping/remove ghosting (test gliding spaceship)
-- Full res - adaptive kernel size visible horizontal lines
-- Cleanup UI paths. Remove unneccasary vars. hardcode them instead
-
-Demo
-- predefine views
-- camera rotation
-- Profiling?
-- allow to pause time
-
-Clamping
--   Fix up under car ghosting. Or add to known issues. Filter tspp and see if that helps.
-
-- Double check
-   - disocclussions on static geometry and camera around reflections
-   build all configs.
+- Cleanup UI paths. 
   
   Glithces:
   - support neighbor sample generation for 2+ spp
   - Temporal
     On full re depth test fails on sharp angles on the ground
-    some pixels here and there on mirror boundaries fail temporal reprojection even for static scene/camera
-    sharp edges fail temporal reprojection due to clamping even for static scene
-    Checkerboard
-    // - no perf difference on checkerboard. Add checkerboard support when not using ray sorting.
-    // - support checkerboard + 2+ spp
+    
+    Checkerboard - document
+    - no perf difference on checkerboard. Add checkerboard support when not using ray sorting.
+    - support checkerboard + 2+ spp
 
 Optimizaiton
 -  test not using perspective correct deepth interpolation
 
 - Cleanup:
     FlushResourceBarriers before GpuKernel calls
-    double check all CS for out of bounds.
-    clean up scoped timer names.
     - Add/revise comments. Incl file decs
     - Move global defines in RaytracingSceneDefines.h locally for RTAO and Denoiser.
-    // make sure no shaders are writing to debug resources
-    remove obsolete composition modes
-    prune redundant using namespace ...
-    Test all UI parameters, finetune and set best limits
-    Test denoising quality at 60 and 100, 200+ FPS
-    Increase averaging window for CPU times
-    move resource descriptions from root sig def, to root sig Enum and shader res in shader files
-    - Add device removal support or remove it being announced
-    use a struct to pass vars?
-    - cleanup this file. Split RTAO to a RTAO specific file.
-    rended animated car at start
+    Test all UI parameters, finetune and set best limits. Remove unneccasary vars.
+
 Documentation
     Review all comments
     Add descs to GPU kernels
@@ -77,30 +50,27 @@ Documentation
 //
 //**********************************************************************************************
 
+//************************** Global Overrides **************************************************
+#define RENDER_GRASS_GEOMETRY 1
+#define PRINT_OUT_CAMERA_CONFIG 1
 
+#ifdef _DEBUG
+#define LOAD_ONLY_ONE_PBRT_MESH 0 // Set to 1 to speed up start up on debug
+#else
+#define LOAD_ONLY_ONE_PBRT_MESH 0 
+#endif
+//**********************************************************************************************
 
 #define FOVY 45.f
 #define NEAR_PLANE 0.001f
 #define FAR_PLANE 1000.0f
-
-#define SAMPLER_FILTER D3D12_FILTER_ANISOTROPIC
-
 #define HitDistanceOnMiss 0
-#define RENDER_GRASS_GEOMETRY 1
-
-#define PRINT_OUT_CAMERA_CONFIG 1
+#define SAMPLER_FILTER D3D12_FILTER_ANISOTROPIC
 
 #ifdef HLSL
 typedef uint NormalDepthTexFormat;
 #else
 #define COMPACT_NORMAL_DEPTH_DXGI_FORMAT DXGI_FORMAT_R32_UINT
-#endif
-
-#ifdef _DEBUG
-// ToDoF Uncomment to speed up start up on debug
-#define LOAD_ONLY_ONE_PBRT_MESH 1 
-#else
-#define LOAD_ONLY_ONE_PBRT_MESH 0 
 #endif
 
 namespace ReduceSumCS {
@@ -308,7 +278,7 @@ enum CompositionType {
     PBRShading = 0,
     AmbientOcclusionOnly_Denoised,
     AmbientOcclusionOnly_RawOneFrame,
-    AmbientOcclusionAndDisocclusionMap, // ToDo quarter res support
+    AmbientOcclusionAndDisocclusionMap,
     AmbientOcclusionVariance,
     AmbientOcclusionLocalVariance,
     RTAOHitDistance,

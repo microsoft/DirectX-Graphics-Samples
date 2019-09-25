@@ -68,8 +68,7 @@ namespace RTAO_Args
 
         if (RTAO_Args::Spp > 1)
         {
-            // GetRandomRayDirection() supports sample set distribution only for 1 spp.
-            // ToDO fix that
+            // TODO GetRandomRayDirection() supports sample set distribution only for 1 spp.
             RTAO_Args::Spp_AOSampleSetDistributedAcrossPixels.SetValue(1, false);
 
             // Only non-ray sorted path supports > 1spp.
@@ -564,7 +563,6 @@ void RTAO::Run(
 
         bool doCheckerboardRayGeneration = RTAO_Args::Spp_doCheckerboard;
 
-        // Todo verify odd width resolutions when using cb
         UINT activeRaytracingWidth =
             doCheckerboardRayGeneration
             ? CeilDivide(m_raytracingWidth, 2)

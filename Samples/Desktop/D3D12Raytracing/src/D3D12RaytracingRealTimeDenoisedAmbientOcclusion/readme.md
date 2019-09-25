@@ -1,14 +1,14 @@
-# D3D12 Raytracing Ambient Occlusion sample
+# D3D12 Raytracing Real-Time Denoised Ambient Occlusion sample
 ![D3D12 Ambient Occlusion GUI](Screenshot.png)
 ToDo video link
 
-This sample implements a real-time denoising of 1 ray per pixel (spp) raytraced Ambient Occlusion. The sample assumes familiarity with Dx12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Procedural Geometry sample](../D3D12RaytracingDProceduralGeometry/readme.md). 
+This sample implements a real-time denoiser of 1 ray/sample per pixel (spp) raytraced Ambient Occlusion. The sample assumes familiarity with Dx12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Procedural Geometry sample](../D3D12RaytracingProceduralGeometry/readme.md). 
 
  ToDo give a brief overview of the readme's contents.
  The sample layout (files + project) is partitioned into RTAO (raytracing + denoising) and the rest of the sample. This makes it easy for copy&pasting RTAO code out into your projects and integrate it.
 
 Goal:
-- real-time denoised raytraced ambient occlusion at 60+ FPS. Add comment about lower FPS scenarios.
+- real-time denoised raytraced ambient occlusion at 60+ FPS. Add comment about lower/higher FPS scenarios.
 
 ToDo... 
 - Renamte to D3D12RaytracingRealTimeDenoisedRaytracedAmbientOcclusion

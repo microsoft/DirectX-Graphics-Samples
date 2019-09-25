@@ -361,7 +361,6 @@ namespace GpuKernels
             commandList->SetPipelineState(m_pipelineStateObject.Get());
         }
 
-        // ToDo handle misaligned input
         XMUINT2 groupSize(CeilDivide((width + 1) / 2 + 1, ThreadGroup::Width), CeilDivide((height + 1) / 2 + 1, ThreadGroup::Height));
 
         // Dispatch.
@@ -386,7 +385,6 @@ namespace GpuKernels
         }
     }
 
-    // ToDo test downsample, upsample on odd resolution
     void UpsampleBilateralFilter::Initialize(ID3D12Device5* device, UINT frameCount, UINT numCallsPerFrame)
     {
         // Create root signature.
@@ -495,7 +493,6 @@ namespace GpuKernels
             commandList->SetPipelineState(m_pipelineStateObjects[type].Get());
         }
 
-        // ToDo handle misaligned input
         // Start from -1,-1 pixel to account for high-res pixel border around low-res pixel border.
         XMUINT2 groupSize(CeilDivide(lowResDim.x + 1, ThreadGroup::Width), CeilDivide(lowResDim.y + 1, ThreadGroup::Height));
 
