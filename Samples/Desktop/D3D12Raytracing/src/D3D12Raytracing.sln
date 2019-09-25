@@ -26,6 +26,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Advanced", "Advanced", "{02
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingProceduralGeometry", "D3D12RaytracingProceduralGeometry\D3D12RaytracingProceduralGeometry.vcxproj", "{0C266269-AC0C-41B0-9D25-0117DC23CFC7}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingAmbientOcclusion", "D3D12RaytracingAmbientOcclusion\D3D12RaytracingAmbientOcclusion.vcxproj", "{19585C81-FB12-4A4B-B700-CCE253BDBA02}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingLibrarySubobjects", "D3D12RaytracingLibrarySubobjects\D3D12RaytracingLibrarySubobjects.vcxproj", "{0AF699F0-99A8-4493-9FF7-1FFDE2900100}"
 EndProject
 Global
@@ -77,6 +79,12 @@ Global
 		{0AF699F0-99A8-4493-9FF7-1FFDE2900100}.Profile|x64.Build.0 = Release|x64
 		{0AF699F0-99A8-4493-9FF7-1FFDE2900100}.Release|x64.ActiveCfg = Release|x64
 		{0AF699F0-99A8-4493-9FF7-1FFDE2900100}.Release|x64.Build.0 = Release|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Debug|x64.ActiveCfg = Debug|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Debug|x64.Build.0 = Debug|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Profile|x64.ActiveCfg = Profile|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Profile|x64.Build.0 = Profile|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Release|x64.ActiveCfg = Release|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -90,6 +98,7 @@ Global
 		{22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331} = {250B50F1-543D-4D9D-B4FC-A1EA4E61B9E4}
 		{024FAECC-CCE3-4B06-9F06-C83FB58877EF} = {250B50F1-543D-4D9D-B4FC-A1EA4E61B9E4}
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7} = {22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331}
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02} = {024FAECC-CCE3-4B06-9F06-C83FB58877EF}
 		{0AF699F0-99A8-4493-9FF7-1FFDE2900100} = {22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
