@@ -285,7 +285,7 @@ void Denoiser::TemporalSupersamplingBlendWithCurrentFrame(RTAO& rtao)
     auto commandList = m_deviceResources->GetCommandList();
     auto resourceStateTracker = m_deviceResources->GetGpuResourceStateTracker();
 
-    ScopedTimer _prof(L"TemporalSupersamplingBlendWithCurrentFrame", commandList);
+    ScopedTimer _prof(L"Temporal Supersampling p2 (BlendWithCurrentFrame)", commandList);
 
     GpuResource* AOResources = rtao.AOResources();
 

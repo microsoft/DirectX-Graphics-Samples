@@ -1,3 +1,4 @@
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -6,19 +7,21 @@
 // IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
-// Developed by Minigraph
-//
-// Author:  James Stanard 
-//
+//*********************************************************
 
 #pragma once
 
 #include <string>
+#include "EngineTuning.h"
 
 class CommandContext;
 
 namespace EngineProfiling
 {
+    extern BoolVar DrawFrameRate;
+    extern BoolVar DrawProfiler;
+    extern BoolVar DrawCpuTime;
+
     void RestoreDevice(ID3D12Device5* Device, ID3D12CommandQueue* CommandQueue, UINT MaxFrameCount, UINT MaxNumTimers = 100);
     void ReleaseDevice();
 

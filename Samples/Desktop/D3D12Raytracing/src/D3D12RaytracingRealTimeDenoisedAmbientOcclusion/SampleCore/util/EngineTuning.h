@@ -1,3 +1,4 @@
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -6,10 +7,7 @@
 // IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
-// Developed by Minigraph
-//
-// Author:  James Stanard 
-//
+//*********************************************************
 
 #pragma once
 
@@ -207,5 +205,6 @@ namespace EngineTuning
     void Update(float frameTime);
     void Display(std::wstringstream* renderText, bool expandAllNodes = false);
     bool IsFocused();
+    void SetIsVisible(bool isVisible);
 
 } // namespace EngineTuning

@@ -607,7 +607,7 @@ void RTAO::Run(
     }
 
     {
-        ScopedTimer _prof(L"CalculateAmbientOcclusion", commandList);
+        ScopedTimer _prof(L"AO DispatchRays", commandList);
 
         commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
 

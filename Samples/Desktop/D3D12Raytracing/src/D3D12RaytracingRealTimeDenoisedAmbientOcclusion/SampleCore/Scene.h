@@ -21,6 +21,10 @@
 #include "SceneParameters.h"
 #include "StepTimer.h"
 
+namespace Scene_Args
+{
+    extern NumVar CameraRotationDuration;
+}
 
 class Scene
 {
@@ -119,6 +123,7 @@ private:
     XMVECTOR m_lightPosition;
     XMFLOAT3 m_lightColor;
 
+    friend class D3D12RaytracingRealTimeDenoisedAmbientOcclusion;
     friend class Pathtracer;
     friend class Composition;
 };

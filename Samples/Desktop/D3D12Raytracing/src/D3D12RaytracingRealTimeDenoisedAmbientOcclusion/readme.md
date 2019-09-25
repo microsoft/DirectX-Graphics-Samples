@@ -33,12 +33,14 @@ The title bar of the sample provides runtime information:
 * GPU[ID]: name
 
 ### Controls
+ToDof
 * ALT+ENTER - toggles between windowed and fullscreen modes.
 * L - enable/disable light animation.
 * C - enable/disable camera animation.
 * ESC - terminate the application.
 * Hold left mouse key and drag - rotate camera's focus at position.
 * Hold right mouse key and drag - rotate scene.
+* F9 - does a profiling pass. Renders 1000 frames, rotates camera 360 degrees and outputs GPU times to Profile.csv.
 * 
 ## Requirements
 * "*AnyToAnyWaveReadLaneAt*" shaders require ReadLaneAt() with any to any wave read lane support. Tested on (Pascal & Turing). If your HW doesn't support it, you will need to replace those wave intrinsics.

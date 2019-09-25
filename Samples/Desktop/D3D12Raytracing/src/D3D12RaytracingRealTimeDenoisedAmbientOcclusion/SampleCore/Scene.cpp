@@ -16,8 +16,8 @@
 #include "EngineProfiling.h"
 #include "GpuTimeManager.h"
 #include "Scene.h"
-#include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 #include "RaytracingSceneDefines.h"
+#include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 
 using namespace std;
 using namespace DX;

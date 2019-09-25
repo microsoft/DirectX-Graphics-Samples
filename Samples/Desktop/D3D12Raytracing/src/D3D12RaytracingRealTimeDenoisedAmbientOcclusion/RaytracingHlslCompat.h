@@ -85,9 +85,6 @@ Documentation
 
 #define SAMPLER_FILTER D3D12_FILTER_ANISOTROPIC
 
-// ToDo
-#define ENABLE_PROFILING 0
-
 #define HitDistanceOnMiss 0
 #define RENDER_GRASS_GEOMETRY 1
 

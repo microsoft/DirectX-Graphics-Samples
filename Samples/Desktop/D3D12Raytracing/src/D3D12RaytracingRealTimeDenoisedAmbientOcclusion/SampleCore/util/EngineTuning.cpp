@@ -1,3 +1,4 @@
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -6,10 +7,7 @@
 // IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
-// Developed by Minigraph
-//
-// Author:  James Stanard 
-//
+//*********************************************************
 
 #include "../stdafx.h"
 #include "EngineTuning.h"
@@ -746,4 +744,9 @@ void EngineTuning::RegisterVariable(const wstring& path, EngineVar& var)
 bool EngineTuning::IsFocused(void)
 {
     return sm_IsVisible;
+}
+
+void EngineTuning::SetIsVisible(bool isVisible)
+{
+    sm_IsVisible = isVisible;
 }
