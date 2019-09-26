@@ -123,7 +123,7 @@ struct AtrousWaveletTransformFilterConstantBuffer
 
     float rayHitDistanceToKernelWidthScale;
     float rayHitDistanceToKernelSizeScaleExponent;
-    BOOL perspectiveCorrectDepthInterpolation;  // ToDO turn on/off globally
+    BOOL perspectiveCorrectDepthInterpolation;
     float minVarianceToDenoise;
 
     float valueSigma;

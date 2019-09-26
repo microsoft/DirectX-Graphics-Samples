@@ -112,10 +112,10 @@ namespace RTAO_Args
     BoolVar RaySorting_Enabled(L"Render/AO/RTAO/Ray Sorting/Enabled", false);
     NumVar RaySorting_DepthBinSizeMultiplier(L"Render/AO/RTAO/Ray Sorting/Ray bin depth size (multiplier of MaxRayHitTime)", 0.1f, 0.01f, 10.f, 0.01f);
 
-    IntVar Spp(L"Render/AO/RTAO/Spp/Rays per pixel", 1, 1, 1024, 1, OnSppSampleSetChange);
-    IntVar Spp_AOSampleSetDistributedAcrossPixels(L"Render/AO/RTAO/Sample set distribution across NxN pixels ", RPP_SAMPLSETDISTRIBUTIONACROSSPIXELS1D, 1, 8, 1, OnSppSampleSetChange);
-    BoolVar Spp_doCheckerboard(L"Render/AO/RTAO/Spp/Overrides/Do checkerboard 0.5 spp", false, OnToggleSppCheckerboard);
-    BoolVar Spp_useGroundTruthSpp(L"Render/AO/RTAO/Spp/Overrides/Do ground truth spp: " STRINGIZE(GROUND_TRUTH_RPP), false, OnToggleSppGroundTruth);
+    IntVar Spp(L"Render/AO/RTAO/Sampling/Rays per pixel", 1, 1, 1024, 1, OnSppSampleSetChange);
+    IntVar Spp_AOSampleSetDistributedAcrossPixels(L"Render/AO/RTAO/Sampling/Sample set distribution across NxN pixels ", RPP_SAMPLSETDISTRIBUTIONACROSSPIXELS1D, 1, 8, 1, OnSppSampleSetChange);
+    BoolVar Spp_doCheckerboard(L"Render/AO/RTAO/Sampling/Overrides/Do checkerboard 0.5 spp", false, OnToggleSppCheckerboard);
+    BoolVar Spp_useGroundTruthSpp(L"Render/AO/RTAO/Sampling/Overrides/Do ground truth spp (no denoising): " STRINGIZE(GROUND_TRUTH_RPP), false, OnToggleSppGroundTruth);
 
     BoolVar RayGen_RandomFrameSeed(L"Render/AO/RTAO/Random per-frame seed", true);
 
@@ -133,7 +133,7 @@ namespace RTAO_Args
     NumVar ExponentialFalloff_DecayConstant(L"Render/AO/RTAO/Exponential Falloff/Decay Constant", 2.f, 0.0f, 20.f, 0.25f);
     NumVar ExponentialFalloff_MinOcclusionCutoff(L"Render/AO/RTAO/Exponential Falloff/Min Occlusion Cutoff", 0.4f, 0.0f, 1.f, 0.05f);
     
-    BoolVar QuarterResAO(L"Render/AO/RTAO/Quarter res", false, Sample::OnRecreateRaytracingResources, nullptr);
+    BoolVar QuarterResAO(L"Render/AO/Quarter resolution", false, Sample::OnRecreateRaytracingResources, nullptr);
 }
 
 

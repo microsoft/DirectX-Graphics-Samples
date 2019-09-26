@@ -28,64 +28,45 @@ using namespace SceneEnums;
 namespace Denoiser_Args
 {
     // Temporal Cache.
-    BoolVar TemporalSupersampling_Enabled(L"Render/AO/RTAO/Temporal Cache/Enabled", true);
-    BoolVar TemporalSupersampling_CacheRawAOValue(L"Render/AO/RTAO/Temporal Cache/Cache Raw AO Value", true);
-    NumVar TemporalSupersampling_MinSmoothingFactor(L"Render/AO/RTAO/Temporal Cache/Min Smoothing Factor", 0.03f, 0, 1.f, 0.01f);
-    NumVar TemporalSupersampling_DepthTolerance(L"Render/AO/RTAO/Temporal Cache/Depth tolerance [%%]", 0.05f, 0, 1.f, 0.001f);
-    BoolVar TemporalSupersampling_PerspectiveCorrectDepthInterpolation(L"Render/AO/RTAO/Temporal Cache/Depth testing/Use perspective correct depth interpolation", false);
-    BoolVar TemporalSupersampling_UseDepthWeights(L"Render/AO/RTAO/Temporal Cache/Use depth weights", true);
-    BoolVar TemporalSupersampling_UseNormalWeights(L"Render/AO/RTAO/Temporal Cache/Use normal weights", true);
-    BoolVar TemporalSupersampling_ForceUseMinSmoothingFactor(L"Render/AO/RTAO/Temporal Cache/Force min smoothing factor", false);
-    BoolVar TemporalSupersampling_CacheDenoisedOutput(L"Render/AO/RTAO/Temporal Cache/Cache denoised output", true);
-    BoolVar TemporalSupersampling_ClampCachedValues_UseClamping(L"Render/AO/RTAO/Temporal Cache/Clamping/Enabled", true);
-
+    BoolVar TemporalSupersampling_Enabled(L"Render/AO/Denoising/Temporal cache/Enabled", true);
+    IntVar TemporalSupersampling_MaxTspp(L"Render/AO/Denoising/Temporal cache/Max tspp", 33, 1, 100, 1);
+    BoolVar TemporalSupersampling_ClampCachedValues_UseClamping(L"Render/AO/Denoising/Temporal cache/Clamping/Enabled", true);
     // Std dev gamma - scales std dev on clamping. Larger values give more clamp tolerance, lower values give less tolerance (i.e. clamp quicker, better for motion).
-    NumVar TemporalSupersampling_ClampCachedValues_StdDevGamma(L"Render/AO/RTAO/Temporal Cache/Clamping/Std.dev gamma", 0.6f, 0.1f, 10.f, 0.1f);
-
+    NumVar TemporalSupersampling_ClampCachedValues_StdDevGamma(L"Render/AO/Denoising/Temporal cache/Clamping/Std.dev gamma", 0.6f, 0.1f, 10.f, 0.1f);
     // Minimum std.dev used in clamping
     // - higher values helps prevent clamping. 
-    //   Especially on checkerboard 1spp sampling values of ~0.10 prevent random clamping.
-    // - higher values limit clamping due to true change and increases ghosting.
-    NumVar TemporalSupersampling_ClampCachedValues_MinStdDevTolerance(L"Render/AO/RTAO/Temporal Cache/Clamping/Minimum std.dev", 0.05f, 0.f, 1.f, 0.01f);
-    NumVar TemporalSupersampling_ClampDifferenceToTsppScale(L"Render/AO/RTAO/Temporal Cache/Clamping/Tspp scale", 4.f, 0.f, 10.f, 0.05f);
-    NumVar TemporalSupersampling_ClampCachedValues_AbsoluteDepthTolerance(L"Render/AO/RTAO/Temporal Cache/Depth threshold/Absolute depth tolerance", 1.0f, 0.0f, 100.f, 1.f);
-    NumVar TemporalSupersampling_ClampCachedValues_DepthBasedDepthTolerance(L"Render/AO/RTAO/Temporal Cache/Depth threshold/Depth based depth tolerance", 1.0f, 0.0f, 100.f, 1.f);
-    NumVar TemporalSupersampling_ClampCachedValues_DepthSigma(L"Render/AO/RTAO/Temporal Cache/Depth threshold/Depth sigma", 1.0f, 0.0f, 10.f, 0.01f);
+    //   Especially on checkerboard 1spp sampling values of ~0.1 prevent random clamping.
+    // - higher values limit clamping due to true change and increase ghosting.
+    NumVar TemporalSupersampling_ClampCachedValues_MinStdDevTolerance(L"Render/AO/Denoising/Temporal cache/Clamping/Minimum std.dev", 0.05f, 0.f, 1.f, 0.01f);
+    NumVar TemporalSupersampling_ClampDifferenceToTsppScale(L"Render/AO/Denoising/Temporal cache/Clamping/Clamp difference to Tspp scale", 4.f, 0.f, 10.f, 0.05f);
+    NumVar TemporalSupersampling_ClampCachedValues_DepthSigma(L"Render/AO/Denoising/Temporal cache/Depth threshold/Depth sigma", 1.0f, 0.0f, 10.f, 0.01f);
+    BoolVar PerspectiveCorrectDepthInterpolation(L"Render/AO/Denoising/Fullscreen blur/Pespective Correct Depth Interpolation", true);
 
-    IntVar VarianceBilateralFilterKernelWidth(L"Render/RTAO/GpuKernels/CalculateVariance/Kernel width", 9, 3, 9, 2);
+    BoolVar UseAdaptiveKernelSize(L"Render/AO/Denoising/Fullscreen blur/Adaptive Kernel Size/Enabled", true);
+    BoolVar KernelRadius_RotateKernel_Enabled(L"Render/AO/Denoising/Fullscreen blur/Adaptive Kernel Size/Rotate kernel radius/Enabled", true);
+    IntVar KernelRadius_RotateKernel_NumCycles(L"Render/AO/Denoising/Fullscreen blur/Adaptive Kernel Size/Rotate kernel radius/Num cycles", 3, 1, 10, 1);
+    IntVar FilterMinKernelWidth(L"Render/AO/Denoising/Fullscreen blur/Adaptive Kernel Size/Min kernel width", 3, 3, 101);
+    NumVar FilterMaxKernelWidthPercentage(L"Render/AO/Denoising/Fullscreen blur/Adaptive Kernel Size/Max kernel width [%% of screen width]", 1.5f, 0, 100, 0.1f);
+    NumVar AdaptiveKernelSize_RayHitDistanceScaleFactor(L"Render/AO/Denoising/Fullscreen blur/Adaptive Kernel Size/Hit distance scale factor", 0.02f, 0.001f, 0.1f, 0.001f);
+    NumVar AdaptiveKernelSize_RayHitDistanceScaleExponent(L"Render/AO/Denoising/Fullscreen blur/Adaptive Kernel Size/Hit distance scale exponent", 2.0f, 1.0f, 5.0f, 0.1f);
+    NumVar AODenoiseValueSigma(L"Render/AO/Denoising/Fullscreen blur/Value Sigma", 1.0f, 0.0f, 30.0f, 0.1f);
+    NumVar AODenoiseDepthSigma(L"Render/AO/Denoising/Fullscreen blur/Depth Sigma", 1.0f, 0.0f, 10.0f, 0.02f);
+    NumVar AODenoiseDepthWeightCutoff(L"Render/AO/Denoising/Fullscreen blur/Depth Weight Cutoff", 0.2f, 0.0f, 2.0f, 0.01f);
+    NumVar AODenoiseNormalSigma(L"Render/AO/Denoising/Fullscreen blur/Normal Sigma", 64, 0, 256, 4);
+    NumVar MinVarianceToDenoise(L"Render/AO/Denoising/Fullscreen blur/Min Variance to denoise", 0.0f, 0.0f, 1.f, 0.01f);
+    BoolVar UseSmoothedVariance(L"Render/AO/Denoising/Fullscreen blur/Use smoothed variance", false);
 
-    // ToDoF test perf impact / visual quality gain at the end. Document.
-    BoolVar PerspectiveCorrectDepthInterpolation(L"Render/AO/RTAO/Denoising/Pespective Correct Depth Interpolation", true);
+    IntVar Variance_BilateralFilterKernelWidth(L"Render/AO/Denoising/Variance/Local variance kernel width", 9, 3, 9, 2);
+    IntVar MinTsppToUseTemporalVariance(L"Render/AO/Denoising/Variance/Min tssp for temporal variance", 4, 1, 40);
 
-    BoolVar UseAdaptiveKernelSize(L"Render/AO/RTAO/Denoising/AdaptiveKernelSize/Enabled", true);
-    BoolVar KernelRadius_RotateKernel_Enabled(L"Render/AO/RTAO/Denoising/AdaptiveKernelSize/Rotate kernel radius/Enabled", true);
-    IntVar KernelRadius_RotateKernel_NumCycles(L"Render/AO/RTAO/Denoising/AdaptiveKernelSize/Rotate kernel radius/Num cycles", 3, 0, 10, 1);
-    IntVar FilterMinKernelWidth(L"Render/AO/RTAO/Denoising/AdaptiveKernelSize/Min kernel width", 3, 3, 101);
-    NumVar FilterMaxKernelWidthPercentage(L"Render/AO/RTAO/Denoising/AdaptiveKernelSize/Max kernel width [%% of screen width]", 1.5f, 0, 100, 0.1f);
-    NumVar AdaptiveKernelSize_RayHitDistanceScaleFactor(L"Render/AO/RTAO/Denoising/AdaptiveKernelSize/Hit distance scale factor", 0.02f, 0.001f, 0.1f, 0.001f);
-    NumVar AdaptiveKernelSize_RayHitDistanceScaleExponent(L"Render/AO/RTAO/Denoising/AdaptiveKernelSize/Hit distance scale exponent", 2.0f, 1.0f, 5.0f, 0.1f);
-    BoolVar Variance_UseDepthWeights(L"Render/AO/RTAO/Denoising/Variance/Use normal weights", true);
-    BoolVar Variance_UseNormalWeights(L"Render/AO/RTAO/Denoising/Variance/Use normal weights", true);
-    IntVar MinTsppToUseTemporalVariance(L"Render/AO/RTAO/Denoising/Min Temporal Variance Tspp", 4, 1, 40);
-    NumVar MinVarianceToDenoise(L"Render/AO/RTAO/Denoising/Min Variance to denoise", 0.0f, 0.0f, 1.f, 0.01f);
-    BoolVar UseSmoothedVariance(L"Render/AO/RTAO/Denoising/Use smoothed variance", false);
-
-    BoolVar Checkerboard_LowerWeightForStaleSamples(L"Render/AO/RTAO/Denoising/Checkerboard support/Scale down stale samples weight", false);
-
-
-    BoolVar LowTspp(L"Render/AO/RTAO/Denoising/Low tspp filter/enabled", true);
-    IntVar LowTsppMaxTspp(L"Render/AO/RTAO/Denoising/Low tspp filter/Max tspp", 12, 0, 33);
-    IntVar LowTspBlurPasses(L"Render/AO/RTAO/Denoising/Low tspp filter/Num blur passes", 3, 0, Denoiser::c_MaxNumDisocllusionBlurPasses);
-    NumVar LowTsppDecayConstant(L"Render/AO/RTAO/Denoising/Low tspp filter/Decay constant", 1.0f, 0.1f, 32.f, 0.1f);
-    BoolVar LowTsppFillMissingValues(L"Render/AO/RTAO/Denoising/Low tspp filter/Post-Temporal fill in missing values", true);
+    BoolVar LowTspp(L"Render/AO/Denoising/Disocclusion blur/enabled", true);
+    IntVar LowTsppMaxTspp(L"Render/AO/Denoising/Disocclusion blur/Max tspp", 12, 0, 100);
+    IntVar LowTspBlurPasses(L"Render/AO/Denoising/Disocclusion blur/Num blur passes", 3, 0, Denoiser::c_MaxNumDisocllusionBlurPasses);
+    NumVar LowTsppDecayConstant(L"Render/AO/Denoising/Disocclusion blur/Decay constant", 1.0f, 0.1f, 32.f, 0.1f);
   
-    const WCHAR* Modes[RTAOGpuKernels::AtrousWaveletTransformCrossBilateralFilter::FilterType::Count] = { L"EdgeStoppingGaussian3x3", L"EdgeStoppingGaussian5x5" };
-    EnumVar Mode(L"Render/AO/RTAO/Denoising/Mode", RTAOGpuKernels::AtrousWaveletTransformCrossBilateralFilter::FilterType::EdgeStoppingGaussian3x3, RTAOGpuKernels::AtrousWaveletTransformCrossBilateralFilter::FilterType::Count, Modes);
-    NumVar AODenoiseValueSigma(L"Render/AO/RTAO/Denoising/Value Sigma", 1.0f, 0.0f, 30.0f, 0.1f);
+    const WCHAR* Modes[RTAOGpuKernels::AtrousWaveletTransformCrossBilateralFilter::FilterType::Count] = { L"3x3", L"5x5" };
+    EnumVar Mode(L"Render/AO/Denoising/Fullscreen blur/Kernel", RTAOGpuKernels::AtrousWaveletTransformCrossBilateralFilter::FilterType::EdgeStoppingGaussian3x3, RTAOGpuKernels::AtrousWaveletTransformCrossBilateralFilter::FilterType::Count, Modes);
 
-    NumVar AODenoiseDepthSigma(L"Render/AO/RTAO/Denoising/Depth Sigma", 1.0f, 0.0f, 10.0f, 0.02f); 
-    NumVar AODenoiseDepthWeightCutoff(L"Render/AO/RTAO/Denoising/Depth Weight Cutoff", 0.2f, 0.0f, 2.0f, 0.01f);
-    NumVar AODenoiseNormalSigma(L"Render/AO/RTAO/Denoising/Normal Sigma", 64, 0, 256, 4);
 }
 
 
@@ -233,8 +214,6 @@ void Denoiser::TemporalSupersamplingReverseReproject(Pathtracer& pathtracer)
 
     GpuResource (&GBufferResources)[GBufferResource::Count] = pathtracer.GBufferResources(RTAO_Args::QuarterResAO);
 
-    UINT maxTspp = static_cast<UINT>(1 / Denoiser_Args::TemporalSupersampling_MinSmoothingFactor);
-
     resourceStateTracker->FlushResourceBarriers();
     m_temporalCacheReverseReprojectKernel.Run(
         commandList,
@@ -310,7 +289,7 @@ void Denoiser::TemporalSupersamplingBlendWithCurrentFrame(RTAO& rtao)
             m_denoisingHeight,
             AOResources[AOResource::AmbientCoefficient].gpuDescriptorReadAccess,
             m_localMeanVarianceResources[AOVarianceResource::Raw].gpuDescriptorWriteAccess,
-            Denoiser_Args::VarianceBilateralFilterKernelWidth,
+            Denoiser_Args::Variance_BilateralFilterKernelWidth,
             isCheckerboardSamplingEnabled,
             checkerboardLoadEvenPixels);
 
@@ -349,6 +328,8 @@ void Denoiser::TemporalSupersamplingBlendWithCurrentFrame(RTAO& rtao)
         resourceStateTracker->InsertUAVBarrier(&m_cachedTsppValueSquaredValueRayHitDistance);
     }
 
+    float minSmoothingFactor = 1.f / Denoiser_Args::TemporalSupersampling_MaxTspp;
+    float forceUseMinSmoothingFactor = false;
     resourceStateTracker->FlushResourceBarriers();
     m_temporalCacheBlendWithCurrentFrameKernel.Run(
         commandList,
@@ -365,8 +346,8 @@ void Denoiser::TemporalSupersamplingBlendWithCurrentFrame(RTAO& rtao)
         m_cachedTsppValueSquaredValueRayHitDistance.gpuDescriptorReadAccess,
         m_varianceResources[AOVarianceResource::Raw].gpuDescriptorWriteAccess,
         m_disocclusionBlurStrength.gpuDescriptorWriteAccess,
-        Denoiser_Args::TemporalSupersampling_MinSmoothingFactor,
-        Denoiser_Args::TemporalSupersampling_ForceUseMinSmoothingFactor,
+        minSmoothingFactor,
+        forceUseMinSmoothingFactor,
         Denoiser_Args::TemporalSupersampling_ClampCachedValues_UseClamping,
         Denoiser_Args::TemporalSupersampling_ClampCachedValues_StdDevGamma,
         Denoiser_Args::TemporalSupersampling_ClampCachedValues_MinStdDevTolerance,
@@ -386,7 +367,7 @@ void Denoiser::TemporalSupersamplingBlendWithCurrentFrame(RTAO& rtao)
         resourceStateTracker->TransitionResource(&m_disocclusionBlurStrength, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     }
 
-    // Smoothen the local variance which is prone to error due to undersampled input.
+    // Smoothen the variance which is prone to error due to undersampled input.
     if (Denoiser_Args::UseSmoothedVariance)
     {
         ScopedTimer _prof(L"Mean Variance Smoothing", commandList);

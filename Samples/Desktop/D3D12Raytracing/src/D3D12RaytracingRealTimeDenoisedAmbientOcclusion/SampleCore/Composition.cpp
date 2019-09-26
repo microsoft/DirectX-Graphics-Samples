@@ -26,7 +26,6 @@ using namespace SceneEnums;
 
 namespace Composition_Args
 {
-    // ToDO remove obsolete/not working
     const WCHAR* CompositionModes[CompositionType::Count] = {
         L"Specular PBR Pathtracer",
         L"Denoised AO",

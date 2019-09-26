@@ -71,7 +71,6 @@ private:
     StepTimer m_timer;
     bool m_animateCamera = false;
     bool m_animateLight = false;
-    bool m_animateScene = true;
     bool m_isCameraFrozen = false;
     GameCore::Camera m_camera;
     GameCore::Camera m_prevFrameCamera;

@@ -258,7 +258,7 @@ GpuTimer NestedTimingTree::sm_FrameGpuTimer;
 namespace EngineProfiling
 {
     BoolVar DrawFrameRate(L"Display Frame Rate", true);
-    BoolVar DrawProfiler(L"Display Profiler", false);
+    BoolVar DrawProfiler(L"Display Profiler (on,then backspace)", false);
     BoolVar DrawCpuTime(L"Display CPU Times", false);
 
     void Update(void)

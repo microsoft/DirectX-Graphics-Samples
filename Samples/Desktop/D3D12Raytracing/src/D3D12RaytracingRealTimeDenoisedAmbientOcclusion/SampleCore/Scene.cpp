@@ -45,13 +45,10 @@ namespace Scene_Args
     {
         Sample::instance().RequestSceneInitialization();
     }
-
-    BoolVar EnableGeometryAndASBuildsAndUpdates(L"Render/Acceleration structure/Enable geometry & AS builds and updates", true);
        
-    NumVar CameraRotationDuration(L"Scene2/Camera rotation time", 48.f, 1.f, 120.f, 1.f);
-    BoolVar AnimateGrass(L"Scene2/Animate grass", true);
-
-    NumVar DebugVar(L"Render/Debug var", -20, -90, 90, 0.5f);
+    NumVar CameraRotationDuration(L"Scene/Camera rotation time", 48.f, 1.f, 120.f, 1.f);
+    BoolVar AnimateGrass(L"Scene/Animate grass", true);
+    BoolVar AnimateScene(L"Scene/Animate scene", true);
 }
 
 Scene::Scene()
@@ -132,7 +129,7 @@ void Scene::OnKeyDown(UINT8 key)
         m_animateCamera = !m_animateCamera;
         break;
     case 'T':
-        m_animateScene = !m_animateScene;
+        Scene_Args::AnimateScene.Bang();
         break;
     default:
         break;
@@ -163,7 +160,7 @@ void Scene::OnUpdate()
     {
         m_cameraController->Update(elapsedTime);
     }
-    if (m_animateScene)
+    if (Scene_Args::AnimateScene)
     {
         float animationDuration = 180.0f;
         float t = static_cast<float>(m_timer.GetTotalSeconds());
@@ -180,7 +177,7 @@ void Scene::OnUpdate()
 
             float lapSeconds = 50;
             float angleToRotateBy = 360.0f * (-t) / lapSeconds;
-            XMMATRIX mRotateSceneCenter = XMMatrixRotationY(XMConvertToRadians(Scene_Args::DebugVar));
+            XMMATRIX mRotateSceneCenter = XMMatrixRotationY(XMConvertToRadians(-20));
             XMMATRIX mRotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
             float scale = 1;
             XMMATRIX mScale = XMMatrixScaling(scale, scale, scale);
@@ -740,7 +737,7 @@ void Scene::GenerateGrassGeometry()
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto resourceStateTracker = m_deviceResources->GetGpuResourceStateTracker();
-    float totalTime = Scene_Args::AnimateGrass ? static_cast<float>(m_timer.GetTotalSeconds()) : 0;
+    float totalTime = Scene_Args::AnimateScene && Scene_Args::AnimateGrass ? static_cast<float>(m_timer.GetTotalSeconds()) : 0;
 
     m_currentGrassPatchVBIndex = (m_currentGrassPatchVBIndex + 1) % 2;
 
@@ -868,13 +865,8 @@ void Scene::UpdateAccelerationStructure()
     auto resourceStateTracker = m_deviceResources->GetGpuResourceStateTracker();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-    if (Scene_Args::EnableGeometryAndASBuildsAndUpdates)
-    {
-        bool forceBuild = false;
-
-        resourceStateTracker->FlushResourceBarriers();
-        m_accelerationStructure->Build(commandList, m_cbvSrvUavHeap->GetHeap(), frameIndex, forceBuild);
-    }
+    resourceStateTracker->FlushResourceBarriers();
+    m_accelerationStructure->Build(commandList, m_cbvSrvUavHeap->GetHeap(), frameIndex);
 
     // Copy previous frame Bottom Level AS instance transforms to GPU. 
     m_prevFrameBottomLevelASInstanceTransforms.CopyStagingToGpu(frameIndex);

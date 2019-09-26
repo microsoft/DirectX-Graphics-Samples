@@ -16,7 +16,7 @@ namespace SceneParameters
     class GrassGeometryCommon
     {
     public:
-        inline static const std::wstring RootPath = L"Scene2/Grass/";
+        inline static const std::wstring RootPath = L"Scene/Grass/";
 
         NumVar PatchWidth;
         NumVar PatchHeight;
