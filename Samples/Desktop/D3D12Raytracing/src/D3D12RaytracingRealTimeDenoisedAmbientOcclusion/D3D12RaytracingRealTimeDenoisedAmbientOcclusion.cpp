@@ -341,8 +341,6 @@ void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::UpdateUI()
     vector<wstring> labels;
 
     // Header information
-    EngineProfiling::DrawFrameRate.SetValue(false);
-    if (0)
     {
         // Prints <component name>[<resolution X>x<resolution Y>]: <GPU time>
         wstringstream wLabel;

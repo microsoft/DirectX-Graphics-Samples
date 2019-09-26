@@ -621,7 +621,7 @@ void Pathtracer::UpdateConstantBuffer(Scene& scene)
     if (Composition_Args::CompositionMode == PBRShading)
         m_CB->maxShadowRayRecursionDepth = Pathtracer_Args::MaxShadowRayRecursionDepth;
     else
-        // Casting shadow rays is expensive. Skip if it the result is not getting rendered at composition.
+        // Casting shadow rays at multiple TraceRay recursion depths is expensive. Skip if it the result is not getting rendered at composition.
         m_CB->maxShadowRayRecursionDepth = 0;
 
     m_CB->useNormalMaps = Pathtracer_Args::RTAOUseNormalMaps;

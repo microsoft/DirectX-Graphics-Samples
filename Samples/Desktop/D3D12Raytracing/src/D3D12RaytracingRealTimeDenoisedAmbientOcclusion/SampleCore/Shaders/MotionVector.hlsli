@@ -9,9 +9,11 @@
 //
 //*********************************************************
 
-// Desc: helper functions for motion vector calculation.
+// Desc: Motion vector calculation functions.
 #ifndef MOTIONVECTOR_HLSL
 #define MOTIONVECTOR_HLSL
+
+#include "RaytracingShaderHelper.hlsli"
 
 float GetPlaneConstant(in float3 planeNormal, in float3 pointOnThePlane)
 {

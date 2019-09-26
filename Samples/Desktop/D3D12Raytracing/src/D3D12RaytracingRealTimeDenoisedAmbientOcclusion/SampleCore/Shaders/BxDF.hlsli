@@ -9,7 +9,8 @@
 //
 //*********************************************************
 
-// Bidirectional transmission distribution function (BTDF).
+// A family of BRDF, BSDF and BTDF functions.
+// BRDF, BSDF, BTDF - bidirectional reflectance, scattering, transmission distribution function.
 // Ref: Ray Tracing from the Ground Up (RTG), Suffern
 // Ref: Real-Time Rendering (RTR), Fourth Edition
 // Ref: Real Shading in Unreal Engine 4 (Karis_UE4), Karis2013
@@ -19,7 +20,6 @@
 // with the omitted PI factor in the reflectance equation. Ref: eq 9.14, RTR
 
 // Parameters:
-// wi - incident ray
 // iorIn - ior of media ray is coming from
 // iorOut - ior of media ray is going to
 // eta - relative index of refraction, namely iorIn / iorOut
@@ -29,15 +29,13 @@
 // Roughness - material roughness
 // N - surface normal
 // V - direction to viewer
-// L - incoming "to-light" direction - rename to wi as L is used for radiance
+// L - incoming "to-light" direction
 // T - transmission scale factor (aka transmission color)
 // thetai - incident angle
 
 #ifndef BXDF_HLSL
 #define BXDF_HLSL
 
-// A family of BRDF, BSDF and BTDF functions.
-// BRDF, BSDF, BTDF - bidirectional reflectance, scattering, transmission distribution function.
 namespace BxDF {
 
     // This namespace implements BTDF for a perfect transmitter that uses a single index of refraction (ior)
@@ -101,7 +99,7 @@ namespace BxDF {
         // Perfect/Specular reflection.
         namespace Reflection {
         
-            // Calculates L and return BRDF value for that direction.
+            // Calculates L and returns BRDF value for that direction.
             // Assumptions: V and N are in the same hemisphere.
             // Note: to avoid unnecessary precision issues and for the sake of performance the function doesn't divide by the cos term
             // so as to nullify the cos term in the rendering equation. Therefore the caller should skip the cos term in the rendering equation.
@@ -112,15 +110,15 @@ namespace BxDF {
                 return Fresnel(Fo, cos_thetai);
             }
             
-            // Calculate whether a total reflection occurs at given wo and a normal
+            // Calculate whether a total reflection occurs at a given V and a normal
             // Ref: eq 27.5, Ray Tracing from the Ground Up
             BOOL IsTotalInternalReflection(
-                in float3 wo,
+                in float3 V,
                 in float3 normal)
             {
                 float ior = 1; 
                 float eta = ior;
-                float cos_thetai = dot(normal, wo); // Incident angle
+                float cos_thetai = dot(normal, V); // Incident angle
 
                 return 1 - 1 * (1 - cos_thetai * cos_thetai) / (eta * eta) < 0;
             }
@@ -145,7 +143,7 @@ namespace BxDF {
             }
         }
 
-        // Ref: Chapter 9.8, 
+        // Ref: Chapter 9.8, RTR
         namespace GGX {
 
             // Compute the value of BRDF
@@ -192,8 +190,8 @@ namespace BxDF {
 
     namespace DirectLighting
     {
-        // Calculate a color of the shaded surface.
-        // Returns a shaded color 
+        // Calculate a color of the shaded surface due to direct lighting.
+        // Returns a shaded color.
         float3 Shade(
             in MaterialType::Type materialType,
             in float3 Albedo,

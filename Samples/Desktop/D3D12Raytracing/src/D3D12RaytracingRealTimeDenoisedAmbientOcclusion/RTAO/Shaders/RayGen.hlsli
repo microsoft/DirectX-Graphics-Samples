@@ -11,13 +11,15 @@
 #ifndef RAYGEN_HLSLI
 #define RAYGEN_HLSLI
 
+#include "RaytracingShaderHelper.hlsli"
+
 float3 GetRandomRayDirection(in uint2 srcRayIndex, in float3 surfaceNormal, in uint2 textureDim, in uint raySampleIndexOffset)
 {
     // Calculate coordinate system for the hemisphere.
     float3 u, v, w;
     w = surfaceNormal;
 
-    // Get a vector that's not parallel to w;
+    // Get a vector that's not parallel to w.
     float3 right = 0.3f * w + float3(-0.72f, 0.56f, -0.34f);
     v = normalize(cross(w, right));
     u = cross(v, w);

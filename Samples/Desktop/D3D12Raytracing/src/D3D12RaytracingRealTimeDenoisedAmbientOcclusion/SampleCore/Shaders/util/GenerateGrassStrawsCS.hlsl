@@ -89,7 +89,7 @@ void GenerateGrassStraw(
 {
     uint RNGState = RNG::SeedThread(baseVertexID);
     float2 noiseUV = {
-        2 * RNG::Random01(RNGState) - 1,                      // [0, 1] -> [-1, 1]
+        2 * RNG::Random01(RNGState) - 1,                      // [0, 1) -> [-1, 1)
         2 * RNG::Random01(RNGState) - 1
     };
 

@@ -38,22 +38,23 @@ namespace RNG
         return state;
     }
 
-    // Generate a random float in the range [0.0f, 1.0f]
-    float Random01(inout uint state)
-    {
-        return Random(state) / float(0xffffffff);
-    }
-
     // Generate a random float in the range [0.0f, 1.0f)
-    float Random01ex(inout uint state)
+    float Random01(inout uint state)
     {
         return asfloat(0x3f800000 | Random(state) >> 9) - 1.0;
     }
 
+    // Generate a random float in the range [0.0f, 1.0f]
+    float Random01inclusive(inout uint state)
+    {
+        return Random(state) / float(0xffffffff);
+    }
+
+
     // Generate a random integer in the range [lower, upper]
     uint Random(inout uint state, uint lower, uint upper)
     {
-        return lower + uint(float(upper - lower + 1) * Random01ex(state));
+        return lower + uint(float(upper - lower + 1) * Random01(state));
     }
 }
 #endif // RANDOMNUMBERGENERATOR_H
