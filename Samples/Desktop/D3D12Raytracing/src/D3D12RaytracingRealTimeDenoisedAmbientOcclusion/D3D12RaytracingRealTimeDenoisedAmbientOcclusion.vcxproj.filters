@@ -90,9 +90,6 @@
     <ClInclude Include="SampleCore\util\Win32Application.h">
       <Filter>Source Files\SampleCore\Util</Filter>
     </ClInclude>
-    <ClInclude Include="SampleCore\util\Misc\Utility.h">
-      <Filter>Source Files\SampleCore\Util</Filter>
-    </ClInclude>
     <ClInclude Include="SampleCore\util\UILayer.h">
       <Filter>Source Files\SampleCore\Util</Filter>
     </ClInclude>
@@ -261,11 +258,13 @@
     <None Include="SampleCore\Shaders\HlslCompat.hlsli">
       <Filter>Shaders\SampleCore</Filter>
     </None>
-    <None Include="SampleCore\Shaders\util\AnalyticalTextures.hlsli" />
     <None Include="RTAO\Shaders\RaytracingShaderHelper.hlsli">
       <Filter>Shaders\RTAO</Filter>
     </None>
     <None Include="SampleCore\Shaders\MotionVector.hlsli">
+      <Filter>Shaders\SampleCore</Filter>
+    </None>
+    <None Include="SampleCore\Shaders\util\AnalyticalTextures.hlsli">
       <Filter>Shaders\SampleCore</Filter>
     </None>
   </ItemGroup>

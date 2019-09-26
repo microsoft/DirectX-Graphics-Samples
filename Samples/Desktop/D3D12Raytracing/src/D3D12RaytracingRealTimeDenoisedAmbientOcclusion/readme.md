@@ -32,20 +32,34 @@ The title bar of the sample provides runtime information:
 * GPU[ID]: name
 
 ### Controls
-ToDof
 * ALT+ENTER - toggles between windowed and fullscreen modes.
-* L - enable/disable light animation.
-* C - enable/disable camera animation.
-* ESC - terminate the application.
+* W,S - moves camera forward and back.
+* A,D - moves camera to the side.
 * Hold left mouse key and drag - rotate camera's focus at position.
 * Hold right mouse key and drag - rotate scene.
+* L - enable/disable light animation.
+* C - enable/disable camera animation.
+* T - toggles scene animation.
+* Shift - toggles camera movement amplitude.
+* 0 - Toggles Ground Truth spp vs 1 spp and switches to raw RTAO visualization.
+* 1 - Raw/single frame RTAO visualization.
+* 2 - Denoised RTAO visualization.
+* 3 - Specular PBR Pathtracer + RTAO visualization.
+* 4 - Toggles RTAO ray lengths - short | long.
 * F9 - does a profiling pass. Renders 1000 frames, rotates camera 360 degrees and outputs GPU times to Profile.csv.
+* space - pauses/resumes rendering.
+* U/Y - moves car by the house back and forth.
+* J/M - moves spaceship up and down.
+* H/K - rotates spaceship around scene's center.
+* ESC - terminate the application.
 
 ## Requirements
 * "*AnyToAnyWaveReadLaneAt*" shaders require ReadLaneAt() with any to any wave read lane support. Tested on (Pascal & Turing). If your HW doesn't support it, you will need to replace those wave intrinsics.
 * Requires DXR capable HW and SW. Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.
 
-
+## Known Issues\Limitations
+* Textures don't work/are correctly read on Debug config - the textured roof renders incorrectly. 
+* UI "Sample set distribution across NxN pixels* set to true is only compatible with 1 spp (default). The distribution UI value will get forced to 1 if you select 2+ spp.
 
 ## Acknowledgements
 * The grass straw generation is based on Emerald Engine implementation https://github.com/lragnarsson/Emerald-Engine

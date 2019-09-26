@@ -9,10 +9,6 @@
 //
 //*********************************************************
 
-//
-// GpuKernels
-//
-
 #pragma once
 
 namespace GpuKernels

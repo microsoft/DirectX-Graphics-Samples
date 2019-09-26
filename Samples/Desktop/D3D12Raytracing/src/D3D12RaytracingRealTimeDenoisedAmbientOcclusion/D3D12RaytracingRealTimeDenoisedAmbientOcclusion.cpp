@@ -227,10 +227,6 @@ void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnKeyDown(UINT8 key)
         m_renderOnce = !m_renderOnce;
         m_framesToRender = m_renderOnce ? 1 : 0;
         break;
-        break;
-    case VK_NUMPAD7:
-        Denoiser_Args::LowTspp.SetValue(true);
-        break;
     case VK_RETURN:
         Composition_Args::AOEnabled.Bang();
         break;

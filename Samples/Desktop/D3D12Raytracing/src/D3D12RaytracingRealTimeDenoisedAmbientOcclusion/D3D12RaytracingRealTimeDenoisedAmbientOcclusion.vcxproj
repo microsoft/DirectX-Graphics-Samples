@@ -285,7 +285,6 @@
     <ClInclude Include="SampleCore\util\GpuTimeManager.h" />
     <ClInclude Include="SampleCore\util\GpuResource.h" />
     <ClInclude Include="SampleCore\util\GpuResourceStateTracker.h" />
-    <ClInclude Include="SampleCore\util\Misc\Utility.h" />
     <ClInclude Include="SampleCore\PBRTParser\PBRTParser.h" />
     <ClInclude Include="SampleCore\PBRTParser\PlyParser.h" />
     <ClInclude Include="SampleCore\PBRTParser\SceneParser.h" />
