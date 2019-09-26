@@ -2,20 +2,12 @@
 ![D3D12 Raytracing Real-Time Denoised Ambient Occlusion GUI](Screenshot.png)
 **Figure** *Rendering of raytraced Ambient Occlusion via our method. The AO is ray traced at 1 ray per pixel rate (left), and then spatio-temporally denoised with an edge-aware filter (right). The reconstruction successfully maintains a lot of detail while smoothing out much of the noise even at the low sampling rate.*
 
-This sample presents a combination of established denoising techniques to bring raytraced Ambient Occlusion (AO) to within acceptable frame budget of AAA games on current and previous generation of DirectX Raytracing capable GPUs. With 60 frames-per-second being the standard for modern games, a rendering budget for effects such as AO can be as low as 1.5 ms per frame in modern game engines. The sample employs spatio-temporal accumulation and denoising of ray traced AO rays that are cast at 1 (or 0.5) sample rays per pixel (spp).
-
-It can significantly improve the realism of rendered 3D scenes. AO is a cheap approximation for global illumination that is more appropriate for real-time graphics on a budget. It approximates the amount of indirect lighting that bounces around the scene and reaches a point on a surface. The premise of AO is that any occluders in a hemisphere around a surface point lower the ambient coefficient, making it appear darker. A surface lit with such dynamic indirect lighting, provides us with more cues about it's shape and placement among to other objects and, therefore, resulting in a visually more convincing look. While indirect lighting phenomena can be physically modeled via Global Illumination (GI) models, a full fledged GI solution can be very expensive and impractical for games on today's commodity graphics processing unit hardware (GPU). Rendering games at 60 Hz or more has become the standard for appealing gaming experience leaving 16.6ms or less for a game engine to render a frame. Unlike in movie production with much higher frame GPU budget, game engines generally for simplified GI models to meet the frame budget and trading for lower fidelity or approximations. 
-
-Adding the cheaper AO to the games on top has become popular way of complementing the simpler GI models and achieving a more plausible look. Game engines have done this mostly either by prebaking it into textures, and thus, limiting it to static object layouts or via screen-space approximations, which can suffer because of limited geometry data available in screen space. Some limitations, include creating false dark halos, lack of occlusion due to geometry not being visible on screen, unstable occlusion around screen borders and generally limitation to only occlusions from objects close to the target. Raytraced AO, in contrast can avoid all these issues by simulating AO in a more natural way to solve the problem.  
-
-The physically-based approach to estimating AO is via Monte Carlo sampling of the hemisphere around a normal of a point on a surface and testing for visibility by tracing the casted rays. Rays that hit any objects increase the occlusion value, inversely lowering the ambient lighting term making surfaces appear darker. Generating AO in this way can be very noisy requiring large number of rays per pixel to be cast to reach visually pleasing results. This number could be in hundreds of rays per pixel.
-
-This sample implements a real-time denoiser of 1 sample ray per pixel (spp) raytraced Ambient Occlusion targetted at 60+ FPS apps. Denoising is a critical part to reach real-time raytraced effects on current-gen hardware. The implementation introduced here allows developers to have a starting point that they can experiment with and expand upon for their integrations. See the 2nd part of this readme for more details on the denoiser implementation. 
+This sample presents a combination of established denoising techniques to bring raytraced Ambient Occlusion (AO) to within acceptable frame budget of AAA games on current and previous generation of DirectX Raytracing capable GPUs. With 60 frames-per-second being the standard for modern games, a rendering budget for effects such as AO can be as low as 1.5 ms per frame in modern game engines. The sample employs spatio-temporal accumulation and denoising of ray traced AO rays that are cast at 1 (or 0.5) sample rays per pixel (spp). The denoiser implementation showcased here allows developers to have a starting point that they can experiment with and expand upon for their integrations. See the 2nd part of this readme below for details on the denoiser implementation. 
 
 In addition, this DXR sample shows an implementation of:
 * A specular physically-based pathtracer.
 * Support for dynamic geometries in an acceleration structure. 
- 
+
 The sample assumes familiarity with Dx12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Procedural Geometry sample](../D3D12RaytracingProceduralGeometry/readme.md). 
 
 ## Usage
@@ -73,8 +65,12 @@ The title bar of the sample provides runtime information:
 
 See the sideloaded License.txt next to each asset for further license information.
 
-
 # Sample implementation details
+## Motivation
+AO is a cheap approximation for global illumination that is more appropriate for real-time graphics on a budget. AO can significantly improve the realism of rendered 3D scenes. It approximates the amount of indirect lighting that bounces around the scene and reaches a point on a surface. The premise of AO is that any occluders in a hemisphere around a surface point lower the ambient coefficient, making it appear darker. A surface lit with such dynamic indirect lighting, provides us with more cues about it's shape and placement among to other objects and, therefore, resulting in a visually more convincing look. While indirect lighting phenomena can be physically modeled via Global Illumination (GI) models, a full fledged GI solution can be very expensive and impractical for games on today's commodity graphics processing unit hardware (GPU). Adding the cheaper AO to the games on top has become popular way of complementing the simpler GI models and achieving a more plausible look. Game engines have done this mostly either by prebaking it into textures, and thus, limiting it to static object layouts or via screen-space approximations, which can suffer because of limited geometry data available in screen space. Some limitations due to screen space approximation include creating false dark halos, lack of occlusion due to geometry not being visible on screen, unstable occlusion around screen borders and generally limitation to only occlusions from objects close to the target. Raytraced AO, in contrast can avoid all these issues by evaluating AO in a more natural way to solve the problem.  
+
+The physically-based approach to estimating AO is via Monte Carlo (random) sampling of the hemisphere around a normal of a point on a surface and testing for visibility by tracing the casted rays. Rays that hit any objects increase the occlusion value, inversely lowering the ambient lighting term making surfaces appear darker. Generating AO in this way can be very noisy requiring large number of rays per pixel to be cast to reach visually pleasing results. This number can be in hundreds of rays per pixel. In the scene used in the sample, rendering such ground truth AO at 256 spp takes 170 ms at 1080p on 2080 Ti. That is not practical. This sample instead implements a real-time denoiser of 1 sample ray per pixel (spp) raytraced Ambient Occlusion targetted at 60+ FPS apps. Denoising is a critical part to reach real-time raytraced effects on current-gen hardware. 
+ 
 ## AO raytracing
 The sample supports two modes: standard 2D Dispatch Rays for 1spp and 1D Dispatch Rays for ray-sorted AO rays.
 
@@ -95,10 +91,11 @@ The sample implements a spatio-temporal denoiser based on an implementation desc
 
 The temporal part of the denoiser suffers from two main drawbacks. 1) Using large temporal frame windows results in ghosting (invalid AO result being kept around for longer than it should). This is addressed via clamping of the cached values to a window around local values from a current frame. However, due to the nature of low spp per frame data the input to clamping is very noisy and the window is large. Therefore while the clamping technique helps, it doesn't completely get rid of ghosting, especially for regions with little AO value change from a frame to frame. There's more work and experimentation to be done to improve this. 2) Second drawback is that the cached AO values need to be discarded if the surface gets disoccluded. When disocclusion happens such pixels have very noisy AO values for a first few frames. To address that, the denoiser applies a stronger blur with weaker bilateral constraints for such pixels in three passes. Note that this filter is only applied for pixels with low temporal spp and the filter strength is decreased as number of temporal spps increase over subsequent frames. This generally works well and has an appearance of motion blur making the result visually pleasing.
 
-## Dynamic geometry
+## Other sample information
+### Dynamic geometry
 The sample supports dynamic updates both to BLAS world transforms and geometry vertices. TLAS is rebuilt every frame picking up active BLAS instances with updated world transforms. BLASes that have had their vertex geometry changed are rebuilt.
 
-### Dynamic Vertex Geometry
+#### Dynamic Vertex Geometry
 The grass patches are the only objects with dynamic vertex geometry in the scene. They are built as patches of grass blades, i.e. 100x100 grass blades, with each blade consisting of 5 triangles generated via a Compute Shader ([GenerateGrassStrawsCS.hlsl](util/GenerateGrassStrawsCS.hlsl)) based on input parameters and a wind map texture. The blade generation is based on [Emerald's engine implementation](https://github.com/lragnarsson/Emerald-Engine). The grass geometry adds high-frequency detail to the scene making it a good stress test for AO Raytracing and Denoising. Rendering of this type of geometry is very prone to aliasing. To lower the alias, the grass CS generator generates multiple grass patches, one for each LOD. Each LOD has its own vertex buffer. The LODs differ primarily in wind strength so that the patches further away move less. Each LOD is built as a separate BLAS and there can be multiple BLAS instances associated with each LOD BLAS. Every frame, the app maps a grass patch BLAS instance to a BLAS/LOD based on its distance to a camera. Therefore, a BLAS instance's LOD can change from a frame to frame.
 
 Temporal reprojection needs to be able to find vertices of a triangle that was hit in the current frame in the previous frame. Since the LOD can change, the previous frame vertex buffers that need to be sampled when calculating motion vectors change. This scenario is handled by creating shader records for all cases of LOD transitions for all LODs. Then, on geometry/instance updates, a BLAS instance updates its InstanceContributionToHitGroupIndex to point to the corresponding shader records for that LOD and the LOD transition. 
@@ -123,8 +120,8 @@ Temporal reprojection needs to be able to find vertices of a triangle that was h
                 //      Transition from higher LOD in previous frame
 
 				
-### Potential improvements
-There are multiple opportunities to improve the denoiser further both quality and performance wise
+## Potential improvements
+There are multiple opportunities to improve the denoised RTAO further both quality and performance wise
 * RTAO
   * Variable rate sampling. For example sampling could be adjusted depending on temporally accumulated spp (tspp) of a pixel. Temporal reprojection can be run before current's frame AO raytracing and thus provide the per pixel tspp information. In fact, the current denoiser already splits temporal reprojection and blending step and supports the dual stage denoising.
   * Use a better sampler:
