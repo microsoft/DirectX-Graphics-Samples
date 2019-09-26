@@ -1,6 +1,6 @@
 # D3D12 Raytracing Real-Time Denoised Ambient Occlusion sample
 ![D3D12 Raytracing Real-Time Denoised Ambient Occlusion GUI](Screenshot.png)
-**Figure** *Rendering of Raytraced Ambient Occlusion via our method. The AO is ray traced at 1 ray per pixel rate (left), and then spatio-temporally denoised with an edge-aware filter (right). The reconstruction successfully maintains a lot of detail while smoothing out much of the noise even at the low sampling rate.*
+**Figure** *Rendering of raytraced Ambient Occlusion via our method. The AO is ray traced at 1 ray per pixel rate (left), and then spatio-temporally denoised with an edge-aware filter (right). The reconstruction successfully maintains a lot of detail while smoothing out much of the noise even at the low sampling rate.*
 
 This sample presents a combination of established denoising techniques to bring raytraced Ambient Occlusion (AO) to within acceptable frame budget of AAA games on current and previous generation of DirectX Raytracing capable GPUs. With 60 frames-per-second being the standard for modern games, a rendering budget for effects such as AO can be as low as 1.5 ms per frame in modern game engines. The sample employs spatio-temporal accumulation and denoising of ray traced AO rays that are cast at 1 (or 0.5) sample rays per pixel (spp).
 

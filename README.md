@@ -6,7 +6,7 @@ This repo contains the DirectX 12 Graphics samples that demonstrate how to build
 In the Samples directory, you will find samples that attempt to break off specific features and specific usage scenarios into bite-sized chunks. For example, the ExecuteIndirect sample will show you just enough about execute indirect to get started with that feature without diving too deep into multiengine whereas the nBodyGravity sample will delve into multiengine without touching on the execute indirect feature etc. By doing this, we hope to make it easier to get started with DirectX 12.
 
 Recent API Sample Updates:
-1. [D3D12 Raytracing](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/readme.md): This sample implements a real-time denoiser for 1spp Ambient Occlusion raytraced via DirectX Raytracing. 
+1. [Real-Time Denoised Raytraced Ambient Occlusion](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/readme.md): This sample implements a real-time denoiser for 1spp Ambient Occlusion raytraced via DirectX Raytracing. 
 
 ![D3D12 Raytracing Real-Time Denoised Ambient Occlusion GUI](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/Screenshot_small.png)
 
