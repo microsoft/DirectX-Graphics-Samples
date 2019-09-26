@@ -135,7 +135,7 @@ There are multiple opportunities to improve the denoiser further both quality an
   * Consider increasing depth bit allocation to improve depth testing when filtering and upsampling. The sample uses 16b depth and 16b encoded normals to lower bandwidth requirements. However, given the high exponent (64) used for normal testing, it might be worthwhile to trade some of the bits from normals to a depth data as the depth test is more strict. For example, the allocation could be 24b for depth and 8b for encoded normal. This would be only for denoising. 8b normal encoding would likely adversely impact AO ray sampling quality if used in AO ray generation.
   * Upsampling could be improved to find better candidates from low res inputs. Either by increasing the 2x2 sampling quad and/or improving the depth test to be more strict by testing against expected depth at the source low-res sample offset instead of the current test target depth +/- threshold.
   * Disocclusion blur. Current implementation uses a 3x3 separable filter and runs three times at varying kernel steps. It might be possible to get a better quality/perf tradeoff with larger kernel, larger steps and fewer iterations.
-
+  * Calculate local variance with a depth aware filter with relaxed weights, similar to the disocclusion blur. The depth test strictness should be parametrized such that it disqualifies pixels far apart, but also provides enough samples to get a stable local variance estimate.
 There are also few areas in the sample which you should consider to improve in your implementation if porting the sample code over:
 * Acceleration Structure 
   * Use a separate scratch resource for each BLAS build to allow driver to overlap the builds.
