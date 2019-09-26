@@ -34,8 +34,8 @@ It came from a desire to quickly dive into graphics and performance experiments.
 * Easy-to-use dynamic constant buffers and descriptor tables
 
 ## Requirements
-* Windows 10
-* [Visual Studio 2017](https://www.visualstudio.com/) with the [Windows 10 October 2018 Update SDK (17763)](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
+* Windows 10 with the May 2019 Update
+* [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 May 2019 Update SDK (18362)](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
 
 ## Contributing
 We're always looking for your help to fix bugs and improve the samples.  File those pull requests and we'll be happy to take a look.
