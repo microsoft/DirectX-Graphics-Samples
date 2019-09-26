@@ -305,13 +305,6 @@ void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnUpdate()
 
 }
 
-// ToDoF extend or remove
-// Parse supplied command line args.
-void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::ParseCommandLineArgs(WCHAR* argv[], int argc)
-{
-    DXSample::ParseCommandLineArgs(argv, argc);
-}
-
 // Copy the raytracing output to the backbuffer.
 void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::CopyRaytracingOutputToBackbuffer(D3D12_RESOURCE_STATES outRenderTargetState)
 {
@@ -497,7 +490,7 @@ void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnRender()
         m_sampleGpuTimes[i].BeginFrame(commandList);
     }
 
-    // ToDoF finalize UI tree
+    // Render frame.
     {
         ScopedTimer _prof(L"Render", commandList);
 

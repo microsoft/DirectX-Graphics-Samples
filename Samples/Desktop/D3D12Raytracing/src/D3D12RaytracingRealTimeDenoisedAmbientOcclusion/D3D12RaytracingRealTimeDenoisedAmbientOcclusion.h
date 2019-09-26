@@ -113,7 +113,6 @@ private:
     std::unique_ptr<UILayer> m_uiLayer;
 
     // Utility functions
-    void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void RecreateD3D();
     void UpdateUI();
     void CreateDeviceDependentResources();
