@@ -246,6 +246,7 @@ void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnKeyDown(UINT8 key)
             m_scene.m_animateCamera = true;
             EngineTuning::SetIsVisible(false);
             EngineProfiling::DrawProfiler.SetValue(true);
+            EngineProfiling::DrawCpuTime.SetValue(false);
         }
         m_isProfiling = !m_isProfiling;
         m_scene.m_timer.SetFixedTimeStep(m_isProfiling);
@@ -340,6 +341,8 @@ void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::UpdateUI()
     vector<wstring> labels;
 
     // Header information
+    EngineProfiling::DrawFrameRate.SetValue(false);
+    if (0)
     {
         // Prints <component name>[<resolution X>x<resolution Y>]: <GPU time>
         wstringstream wLabel;

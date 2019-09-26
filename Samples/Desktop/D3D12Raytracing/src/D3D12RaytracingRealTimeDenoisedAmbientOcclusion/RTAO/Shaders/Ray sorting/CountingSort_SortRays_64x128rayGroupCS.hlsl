@@ -13,7 +13,7 @@
 // Supports:
 // - Up to 8K rays per ray group + 12 bit hash key
 // - Max Ray Group dimensions: 64x128
-// Rays can be disabled by setting their depth to less than 0. Such rays will get moved
+// Rays can be disabled by setting their depth to 0. Such rays will get moved   // ToDO double check
 // to the end of the sorted ray group and have a source index offset of [0xff, 0xff]. 
 // The ray hash is calculated from ray direction and origin depth
 // Ref: Costa2014, Ray Reordering Techniques for GPU Ray-Cast Ambient Occlusion
