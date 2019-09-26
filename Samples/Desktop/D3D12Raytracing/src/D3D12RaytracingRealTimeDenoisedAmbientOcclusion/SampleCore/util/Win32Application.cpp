@@ -12,6 +12,7 @@
 #include "../stdafx.h"
 #include "Win32Application.h"
 #include "DXSampleHelper.h"
+#include "GameInput.h"
 
 HWND Win32Application::m_hwnd = nullptr;
 bool Win32Application::m_fullscreenMode = false;
@@ -303,6 +304,18 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
         UINT x = LOWORD(lParam);
         UINT y = HIWORD(lParam);
         pSample->OnLeftButtonUp(x, y);
+    }
+    return 0;
+
+    case WM_ENTERSIZEMOVE:
+    {
+        GameInput::UnacquireMouse();
+    }
+    return 0;
+
+    case WM_EXITSIZEMOVE:
+    {
+        GameInput::AcquireMouse();
     }
     return 0;
 

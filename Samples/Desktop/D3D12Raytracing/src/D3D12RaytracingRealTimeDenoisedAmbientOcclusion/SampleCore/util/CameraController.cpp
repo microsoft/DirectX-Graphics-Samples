@@ -90,7 +90,7 @@ bool CameraController::Update(float deltaTime)
         ApplyMomentum(m_LastAscent, ascent, deltaTime);
     }
 
-    // don't apply momentum to mouse inputs
+    // Don't apply momentum to mouse inputs.
 	if (GameInput::IsPressed(GameInput::kMouse0))
 	{
 		yaw += GameInput::GetAnalogInput(GameInput::kAnalogMouseX) * m_MouseSensitivityX;

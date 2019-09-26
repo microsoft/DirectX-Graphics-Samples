@@ -502,8 +502,9 @@ void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnRender()
     }
 
     // ToDoF finalize UI tree
-    ScopedTimer _prof(L"Render", commandList);
     {
+        ScopedTimer _prof(L"Render", commandList);
+
         // Acceleration structure update.
         m_scene.OnRender();
 

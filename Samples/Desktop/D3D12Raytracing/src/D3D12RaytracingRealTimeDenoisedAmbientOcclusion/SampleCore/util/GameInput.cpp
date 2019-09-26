@@ -537,6 +537,22 @@ void GameInput::Update( float frameDelta )
 
 }
 
+void GameInput::AcquireMouse()
+{
+    if (s_Mouse)
+    {
+        s_Mouse->Acquire();
+    }
+}
+void GameInput::UnacquireMouse()
+{
+    if (s_Mouse)
+    {
+        s_Mouse->Unacquire();
+    }
+}
+
+
 bool GameInput::IsAnyPressed( void )
 {
     return s_Buttons[0] != 0;

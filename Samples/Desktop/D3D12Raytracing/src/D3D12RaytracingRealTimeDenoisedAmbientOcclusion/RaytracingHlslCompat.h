@@ -25,7 +25,7 @@
 #define PRINT_OUT_CAMERA_CONFIG 1
 
 #ifdef _DEBUG
-#define LOAD_ONLY_ONE_PBRT_MESH 0 // Set to 1 to speed up start up on debug
+#define LOAD_ONLY_ONE_PBRT_MESH 0 // Set to 1 to speed up application start on debug.
 #else
 #define LOAD_ONLY_ONE_PBRT_MESH 0 
 #endif
