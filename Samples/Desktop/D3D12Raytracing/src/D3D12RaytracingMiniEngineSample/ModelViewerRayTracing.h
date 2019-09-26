@@ -2,9 +2,6 @@
 #include "HlslCompat.h"
 #endif
 
-// Set to 1 to visualize acceleration structure. This needs to be enabled in Fallback Layer as well (see FallbackDebug.h).
-#define ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION 0
-
 #ifdef HLSL
 struct RayPayload
 {

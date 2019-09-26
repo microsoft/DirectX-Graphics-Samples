@@ -189,6 +189,18 @@
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ForwardPlusLighting.cpp" />
@@ -200,6 +212,7 @@
     <ClInclude Include="RayTracingHlslCompat.h">
       <Filter>Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="DXSampleHelper.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Textures\Models\background.DDS">

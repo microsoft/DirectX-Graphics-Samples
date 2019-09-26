@@ -62,9 +62,6 @@ void RayGen()
 
     RayPayload payload;
     payload.SkipShading = false;
-#if ENABLE_ACCELERATION_STRUCTURE_VISUALIZATION
-    payload.SkipShading = true;
-#endif
     payload.RayHitT = FLT_MAX;
     TraceRay(g_accel, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0,0,1,0, rayDesc, payload);
 }

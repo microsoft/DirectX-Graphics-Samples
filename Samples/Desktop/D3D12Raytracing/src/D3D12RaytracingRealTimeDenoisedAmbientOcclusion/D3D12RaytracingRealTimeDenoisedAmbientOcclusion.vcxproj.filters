@@ -1,0 +1,339 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{67bebf86-9539-4f7f-b9e9-a376519ec1f1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\RTAO">
+      <UniqueIdentifier>{09737061-0eea-4880-bd21-08a05295f874}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\SampleCore">
+      <UniqueIdentifier>{6296c019-1359-422b-a966-1963bbd811bf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\SampleCore\Util">
+      <UniqueIdentifier>{93d5e482-943e-4182-8023-5676929aec55}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\SampleCore\PBRTParser">
+      <UniqueIdentifier>{a353e976-b333-4508-9ef8-ee785fe93db5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{8b0cb0c9-e0d8-4107-91c8-11654fac88e7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\RTAO">
+      <UniqueIdentifier>{3e9c06c8-1987-4ed4-852d-eded31cb2030}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\RTAO\Ray Sorting">
+      <UniqueIdentifier>{5d4b03bc-b257-4e03-b514-11b7bb60d5a6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\RTAO\Denoising">
+      <UniqueIdentifier>{15d32f45-7439-4bb1-94c9-53c49f5f62dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\SampleCore">
+      <UniqueIdentifier>{b7eb076b-f9ab-46ff-8309-28873ff2af18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\SampleCore\Util">
+      <UniqueIdentifier>{f6ae1511-f58a-4af8-a167-b79e11f8c1de}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\RTAO\Denoising\Filtering">
+      <UniqueIdentifier>{d695bb7e-51db-46b1-b9a0-4a1841fa7ab8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\RTAO\Denoising\Temporal">
+      <UniqueIdentifier>{acb7aaa8-5a7d-4362-b42d-246b1bea7b4b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="RTAO\Denoiser.h">
+      <Filter>Source Files\RTAO</Filter>
+    </ClInclude>
+    <ClInclude Include="RTAO\RTAO.h">
+      <Filter>Source Files\RTAO</Filter>
+    </ClInclude>
+    <ClInclude Include="RTAO\Sampler.h">
+      <Filter>Source Files\RTAO</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\Composition.h">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\DirectXRaytracingHelper.h">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\Pathtracer.h">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\RaytracingAccelerationStructure.h">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\RaytracingSceneDefines.h">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\Scene.h">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\SceneParameters.h">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\Camera.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\CameraController.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\DeviceResources.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\DXSample.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\DXSampleHelper.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\Win32Application.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\UILayer.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\StepTimer.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\PerformanceTimers.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\GpuTimeManager.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\EngineProfiling.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\EngineTuning.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\GameInput.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="RaytracingHlslCompat.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\PBRTParser\PBRTParser.h">
+      <Filter>Source Files\SampleCore\PBRTParser</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\PBRTParser\PlyParser.h">
+      <Filter>Source Files\SampleCore\PBRTParser</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\PBRTParser\SceneParser.h">
+      <Filter>Source Files\SampleCore\PBRTParser</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\GpuResourceStateTracker.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\util\GpuResource.h">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="RTAO\RTAOGpuKernels.h">
+      <Filter>Source Files\RTAO</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleCore\GpuKernels.h">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClInclude>
+    <ClInclude Include="D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\DeviceResources.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\DXSample.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\Win32Application.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\PerformanceTimers.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\UILayer.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\EngineTuning.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\GameInput.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\Camera.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\CameraController.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\GpuTimeManager.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\EngineProfiling.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\Composition.cpp">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\Scene.cpp">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\RaytracingSceneDefines.cpp">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\Pathtracer.cpp">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\RaytracingAccelerationStructure.cpp">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClCompile>
+    <ClCompile Include="RTAO\Denoiser.cpp">
+      <Filter>Source Files\RTAO</Filter>
+    </ClCompile>
+    <ClCompile Include="RTAO\Sampler.cpp">
+      <Filter>Source Files\RTAO</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\PBRTParser\PBRTParser.cpp">
+      <Filter>Source Files\SampleCore\PBRTParser</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\PBRTParser\PlyParser.cpp">
+      <Filter>Source Files\SampleCore\PBRTParser</Filter>
+    </ClCompile>
+    <ClCompile Include="RTAO\RTAO.cpp">
+      <Filter>Source Files\RTAO</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\util\GpuResourceStateTracker.cpp">
+      <Filter>Source Files\SampleCore\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="RTAO\RTAOGpuKernels.cpp">
+      <Filter>Source Files\RTAO</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleCore\GpuKernels.cpp">
+      <Filter>Source Files\SampleCore</Filter>
+    </ClCompile>
+    <ClCompile Include="D3D12RaytracingRealTimeDenoisedAmbientOcclusion.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="readme.md" />
+    <None Include="RTAO\Shaders\RTAO.hlsli">
+      <Filter>Shaders\RTAO</Filter>
+    </None>
+    <None Include="RTAO\Shaders\Ray sorting\RaySorting.hlsli">
+      <Filter>Shaders\RTAO\Ray Sorting</Filter>
+    </None>
+    <None Include="packages.config" />
+    <None Include="RTAO\Shaders\RayGen.hlsli">
+      <Filter>Shaders\RTAO</Filter>
+    </None>
+    <None Include="SampleCore\Shaders\BxDF.hlsli">
+      <Filter>Shaders\SampleCore</Filter>
+    </None>
+    <None Include="RTAO\Shaders\Denoising\EdgeStoppingAtrousWaveletTransfromCrossBilateralFilterCS.hlsli">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </None>
+    <None Include="RTAO\Shaders\Denoising\Kernels.hlsli">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </None>
+    <None Include="RTAO\Shaders\RandomNumberGenerator.hlsli">
+      <Filter>Shaders\RTAO</Filter>
+    </None>
+    <None Include="SampleCore\Shaders\util\UpsampleBilateralFilter2x2CS.hlsli">
+      <Filter>Shaders\SampleCore\Util</Filter>
+    </None>
+    <None Include="RTAO\Shaders\Denoising\CrossBilateralWeights.hlsli">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </None>
+    <None Include="SampleCore\Shaders\HlslCompat.hlsli">
+      <Filter>Shaders\SampleCore</Filter>
+    </None>
+    <None Include="RTAO\Shaders\RaytracingShaderHelper.hlsli">
+      <Filter>Shaders\RTAO</Filter>
+    </None>
+    <None Include="SampleCore\Shaders\MotionVector.hlsli">
+      <Filter>Shaders\SampleCore</Filter>
+    </None>
+    <None Include="SampleCore\Shaders\util\AnalyticalTextures.hlsli">
+      <Filter>Shaders\SampleCore</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="RTAO\Shaders\RTAO.hlsl">
+      <Filter>Shaders\RTAO</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\AORayGenCS.hlsl">
+      <Filter>Shaders\RTAO</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\CalculateMeanVariance_SeparableFilterCS_CheckerboardSampling_AnyToAnyWaveReadLaneAt.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </FxCompile>
+    <FxCompile Include="SampleCore\Shaders\CompositionCS.hlsl">
+      <Filter>Shaders\SampleCore</Filter>
+    </FxCompile>
+    <FxCompile Include="SampleCore\Shaders\Pathtracer.hlsl">
+      <Filter>Shaders\SampleCore</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\EdgeStoppingAtrousWaveletTransfromCrossBilateralFilter_Gaussian3x3CS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\EdgeStoppingAtrousWaveletTransfromCrossBilateralFilter_Gaussian5x5CS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\FillInCheckerboard_CrossBox4TapFilterCS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\GaussianFilterRG3x3CS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </FxCompile>
+    <FxCompile Include="SampleCore\Shaders\util\GenerateGrassStrawsCS.hlsl">
+      <Filter>Shaders\SampleCore\Util</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\GaussianFilter3x3CS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\TemporalSupersampling_BlendWithCurrentFrameCS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\TemporalSupersampling_ReverseReprojectCS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Temporal</Filter>
+    </FxCompile>
+    <FxCompile Include="SampleCore\Shaders\util\UpsampleBilateralFilter2x2Float2CS.hlsl">
+      <Filter>Shaders\SampleCore\Util</Filter>
+    </FxCompile>
+    <FxCompile Include="SampleCore\Shaders\util\UpsampleBilateralFilter2x2FloatCS.hlsl">
+      <Filter>Shaders\SampleCore\Util</Filter>
+    </FxCompile>
+    <FxCompile Include="SampleCore\Shaders\util\ReduceSumFloatCS.hlsl">
+      <Filter>Shaders\SampleCore\Util</Filter>
+    </FxCompile>
+    <FxCompile Include="SampleCore\Shaders\util\ReduceSumUintCS.hlsl">
+      <Filter>Shaders\SampleCore\Util</Filter>
+    </FxCompile>
+    <FxCompile Include="SampleCore\Shaders\util\CalculatePartialDerivativesViaCentralDifferencesCS.hlsl">
+      <Filter>Shaders\SampleCore\Util</Filter>
+    </FxCompile>
+    <FxCompile Include="SampleCore\Shaders\util\DownsampleGBufferDataBilateralFilter2x2CS.hlsl">
+      <Filter>Shaders\SampleCore\Util</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Ray sorting\CountingSort_SortRays_64x128rayGroupCS.hlsl">
+      <Filter>Shaders\RTAO\Ray Sorting</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\DisocclusionBlur_DepthAwareSeparableGaussianFilter3x3CS_AnyToAnyWaveReadLaneAt.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </FxCompile>
+    <FxCompile Include="SampleCore\Shaders\util\UpsampleBilateralFilter2x2UintCS.hlsl">
+      <Filter>Shaders\SampleCore\Util</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>

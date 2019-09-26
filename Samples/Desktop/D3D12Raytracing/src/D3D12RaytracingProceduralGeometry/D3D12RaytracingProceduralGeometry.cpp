@@ -52,42 +52,14 @@ D3D12RaytracingProceduralGeometry::D3D12RaytracingProceduralGeometry(UINT width,
     m_animateCamera(false),
     m_animateGeometry(true),
     m_animateLight(false),
-    m_isDxrSupported(false),
     m_descriptorsAllocated(0),
     m_descriptorSize(0),
     m_missShaderTableStrideInBytes(UINT_MAX),
-    m_hitGroupShaderTableStrideInBytes(UINT_MAX),
-    m_forceComputeFallback(false)
+    m_hitGroupShaderTableStrideInBytes(UINT_MAX)
 {
-    m_forceComputeFallback = false;
-    SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
     UpdateForSizeChange(width, height);
 }
 
-void D3D12RaytracingProceduralGeometry::EnableDirectXRaytracing(IDXGIAdapter1* adapter)
-{
-    // Fallback Layer uses an experimental feature and needs to be enabled before creating a D3D12 device.
-    bool isFallbackSupported = EnableComputeRaytracingFallback(adapter);
-
-    if (!isFallbackSupported)
-    {
-        OutputDebugString(
-            L"Warning: Could not enable Compute Raytracing Fallback (D3D12EnableExperimentalFeatures() failed).\n" \
-            L"         Possible reasons: your OS is not in developer mode.\n\n");
-    }
-
-    m_isDxrSupported = IsDirectXRaytracingSupported(adapter);
-
-    if (!m_isDxrSupported)
-    {
-        OutputDebugString(L"Warning: DirectX Raytracing is not supported by your GPU and driver.\n\n");
-
-        ThrowIfFalse(isFallbackSupported,
-            L"Could not enable compute based fallback raytracing support (D3D12EnableExperimentalFeatures() failed).\n"\
-            L"Possible reasons: your OS is not in developer mode.\n\n");
-        m_raytracingAPI = RaytracingAPI::FallbackLayer;
-    }
-}
 
 void D3D12RaytracingProceduralGeometry::OnInit()
 {
@@ -97,15 +69,17 @@ void D3D12RaytracingProceduralGeometry::OnInit()
         FrameCount,
         D3D_FEATURE_LEVEL_11_0,
         // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since TH2.
-        // Since the Fallback Layer requires Fall Creator's update (RS3), we don't need to handle non-tearing cases.
+        // Since the sample requires build 1809 (RS5) or higher, we don't need to handle non-tearing cases.
         DeviceResources::c_RequireTearingSupport,
         m_adapterIDoverride
         );
     m_deviceResources->RegisterDeviceNotify(this);
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
     m_deviceResources->InitializeDXGIAdapter();
-    EnableDirectXRaytracing(m_deviceResources->GetAdapter());
-    
+
+    ThrowIfFalse(IsDirectXRaytracingSupported(m_deviceResources->GetAdapter()),
+        L"ERROR: DirectX Raytracing is not supported by your OS, GPU and/or driver.\n\n");
+
     m_deviceResources->CreateDeviceResources();
     m_deviceResources->CreateWindowSizeDependentResources();
 
@@ -347,16 +321,8 @@ void D3D12RaytracingProceduralGeometry::SerializeAndCreateRaytracingRootSignatur
     ComPtr<ID3DBlob> blob;
     ComPtr<ID3DBlob> error;
 
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        ThrowIfFailed(m_fallbackDevice->D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error), error ? static_cast<wchar_t*>(error->GetBufferPointer()) : nullptr);
-        ThrowIfFailed(m_fallbackDevice->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
-    }
-    else // DirectX Raytracing
-    {
-        ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error), error ? static_cast<wchar_t*>(error->GetBufferPointer()) : nullptr);
-        ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
-    }
+    ThrowIfFailed(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &error), error ? static_cast<wchar_t*>(error->GetBufferPointer()) : nullptr);
+    ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
 }
 
 void D3D12RaytracingProceduralGeometry::CreateRootSignatures()
@@ -414,27 +380,16 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingInterfaces()
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
 
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        CreateRaytracingFallbackDeviceFlags createDeviceFlags = m_forceComputeFallback ?
-            CreateRaytracingFallbackDeviceFlags::ForceComputeFallback :
-            CreateRaytracingFallbackDeviceFlags::None;
-        ThrowIfFailed(D3D12CreateRaytracingFallbackDevice(device, createDeviceFlags, 0, IID_PPV_ARGS(&m_fallbackDevice)));
-        m_fallbackDevice->QueryRaytracingCommandList(commandList, IID_PPV_ARGS(&m_fallbackCommandList));
-    }
-    else // DirectX Raytracing
-    {
-        ThrowIfFailed(device->QueryInterface(IID_PPV_ARGS(&m_dxrDevice)), L"Couldn't get DirectX Raytracing interface for the device.\n");
-        ThrowIfFailed(commandList->QueryInterface(IID_PPV_ARGS(&m_dxrCommandList)), L"Couldn't get DirectX Raytracing interface for the command list.\n");
-    }
+    ThrowIfFailed(device->QueryInterface(IID_PPV_ARGS(&m_dxrDevice)), L"Couldn't get DirectX Raytracing interface for the device.\n");
+    ThrowIfFailed(commandList->QueryInterface(IID_PPV_ARGS(&m_dxrCommandList)), L"Couldn't get DirectX Raytracing interface for the command list.\n");
 }
 
 // DXIL library
 // This contains the shaders and their entrypoints for the state object.
 // Since shaders are not considered a subobject, they need to be passed in via DXIL library subobjects.
-void D3D12RaytracingProceduralGeometry::CreateDxilLibrarySubobject(CD3D12_STATE_OBJECT_DESC* raytracingPipeline)
+void D3D12RaytracingProceduralGeometry::CreateDxilLibrarySubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
 {
-    auto lib = raytracingPipeline->CreateSubobject<CD3D12_DXIL_LIBRARY_SUBOBJECT>();
+    auto lib = raytracingPipeline->CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
     D3D12_SHADER_BYTECODE libdxil = CD3DX12_SHADER_BYTECODE((void *)g_pRaytracing, ARRAYSIZE(g_pRaytracing));
     lib->SetDXILLibrary(&libdxil);
     // Use default shader exports for a DXIL library/collection subobject ~ surface all shaders.
@@ -443,13 +398,13 @@ void D3D12RaytracingProceduralGeometry::CreateDxilLibrarySubobject(CD3D12_STATE_
 // Hit groups
 // A hit group specifies closest hit, any hit and intersection shaders 
 // to be executed when a ray intersects the geometry.
-void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline)
+void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
 {
     // Triangle geometry hit groups
     {
         for (UINT rayType = 0; rayType < RayType::Count; rayType++)
         {
-            auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
+            auto hitGroup = raytracingPipeline->CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
             if (rayType == RayType::Radiance)
             {
                 hitGroup->SetClosestHitShaderImport(c_closestHitShaderNames[GeometryType::Triangle]);
@@ -465,7 +420,7 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
         for (UINT t = 0; t < IntersectionShaderType::Count; t++)
             for (UINT rayType = 0; rayType < RayType::Count; rayType++)
             {
-                auto hitGroup = raytracingPipeline->CreateSubobject<CD3D12_HIT_GROUP_SUBOBJECT>();
+                auto hitGroup = raytracingPipeline->CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
                 hitGroup->SetIntersectionShaderImport(c_intersectionShaderNames[t]);
                 if (rayType == RayType::Radiance)
                 {
@@ -479,27 +434,27 @@ void D3D12RaytracingProceduralGeometry::CreateHitGroupSubobjects(CD3D12_STATE_OB
 
 // Local root signature and shader association
 // This is a root signature that enables a shader to have unique arguments that come from shader tables.
-void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline)
+void D3D12RaytracingProceduralGeometry::CreateLocalRootSignatureSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
 {
     // Ray gen and miss shaders in this sample are not using a local root signature and thus one is not associated with them.
 
     // Hit groups
     // Triangle geometry
     {
-        auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+        auto localRootSignature = raytracingPipeline->CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
         localRootSignature->SetRootSignature(m_raytracingLocalRootSignature[LocalRootSignature::Type::Triangle].Get());
         // Shader association
-        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         rootSignatureAssociation->AddExports(c_hitGroupNames_TriangleGeometry);
     }
 
     // AABB geometry
     {
-        auto localRootSignature = raytracingPipeline->CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+        auto localRootSignature = raytracingPipeline->CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
         localRootSignature->SetRootSignature(m_raytracingLocalRootSignature[LocalRootSignature::Type::AABB].Get());
         // Shader association
-        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+        auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         for (auto& hitGroupsForIntersectionShaderType : c_hitGroupNames_AABBGeometry)
         {
@@ -524,7 +479,7 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     // 6 - 3 x Local root signature and association
     // 1 - Global root signature
     // 1 - Pipeline config
-    CD3D12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
+    CD3DX12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
 
     // DXIL library
     CreateDxilLibrarySubobject(&raytracingPipeline);
@@ -534,7 +489,7 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
 
     // Shader config
     // Defines the maximum sizes in bytes for the ray rayPayload and attribute structure.
-    auto shaderConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
+    auto shaderConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
     UINT payloadSize = max(sizeof(RayPayload), sizeof(ShadowRayPayload));
     UINT attributeSize = sizeof(struct ProceduralPrimitiveAttributes);
     shaderConfig->Config(payloadSize, attributeSize);
@@ -545,12 +500,12 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
 
     // Global root signature
     // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
-    auto globalRootSignature = raytracingPipeline.CreateSubobject<CD3D12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
+    auto globalRootSignature = raytracingPipeline.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
     globalRootSignature->SetRootSignature(m_raytracingGlobalRootSignature.Get());
 
     // Pipeline config
     // Defines the maximum TraceRay() recursion depth.
-    auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3D12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
+    auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
     // PERFOMANCE TIP: Set max recursion depth as low as needed
     // as drivers may apply optimization strategies for low recursion depths.
     UINT maxRecursionDepth = MAX_RAY_RECURSION_DEPTH;
@@ -559,14 +514,7 @@ void D3D12RaytracingProceduralGeometry::CreateRaytracingPipelineStateObject()
     PrintStateObjectDesc(raytracingPipeline);
 
     // Create the state object.
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        ThrowIfFailed(m_fallbackDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&m_fallbackStateObject)), L"Couldn't create DirectX Raytracing state object.\n");
-    }
-    else // DirectX Raytracing
-    {
-        ThrowIfFailed(m_dxrDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&m_dxrStateObject)), L"Couldn't create DirectX Raytracing state object.\n");
-    }
+    ThrowIfFailed(m_dxrDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&m_dxrStateObject)), L"Couldn't create DirectX Raytracing state object.\n");
 }
 
 // Create a 2D output texture for raytracing.
@@ -610,8 +558,7 @@ void D3D12RaytracingProceduralGeometry::CreateDescriptorHeap()
     // Allocate a heap for 6 descriptors:
     // 2 - vertex and index  buffer SRVs
     // 1 - raytracing output texture SRV
-    // 3 - 2x bottom and a top level acceleration structure fallback wrapped pointer UAVs
-    descriptorHeapDesc.NumDescriptors = 6;
+    descriptorHeapDesc.NumDescriptors = 3;
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
@@ -783,14 +730,7 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildBottomLevel
     bottomLevelInputs.pGeometryDescs = geometryDescs.data();
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelPrebuildInfo = {};
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        m_fallbackDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &bottomLevelPrebuildInfo);
-    }
-    else // DirectX Raytracing
-    {
-        m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &bottomLevelPrebuildInfo);
-    }
+    m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &bottomLevelPrebuildInfo);
     ThrowIfFalse(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
 
     // Create a scratch buffer.
@@ -804,15 +744,7 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildBottomLevel
     //  - the system will be doing this type of access in its implementation of acceleration structure builds behind the scenes.
     //  - from the app point of view, synchronization of writes/reads to acceleration structures is accomplished using UAV barriers.
     {
-        D3D12_RESOURCE_STATES initialResourceState;
-        if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-        {
-            initialResourceState = m_fallbackDevice->GetAccelerationStructureResourceState();
-        }
-        else // DirectX Raytracing
-        {
-            initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
-        }
+        D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
         AllocateUAVBuffer(device, bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, &bottomLevelAS, initialResourceState, L"BottomLevelAccelerationStructure");
     }
 
@@ -823,18 +755,8 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildBottomLevel
     }
     
     // Build the acceleration structure.
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        // Set the descriptor heaps to be used during acceleration structure build for the Fallback Layer.
-        ID3D12DescriptorHeap *pDescriptorHeaps[] = { m_descriptorHeap.Get() };
-        m_fallbackCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
-        m_fallbackCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc, 0, nullptr);
-    }
-    else // DirectX Raytracing
-    {
-        m_dxrCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc, 0, nullptr);
-    }
-
+    m_dxrCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc, 0, nullptr);
+    
     AccelerationStructureBuffers bottomLevelASBuffers;
     bottomLevelASBuffers.accelerationStructure = bottomLevelAS;
     bottomLevelASBuffers.scratch = scratch;
@@ -913,14 +835,7 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildTopLevelAS(
     topLevelInputs.NumDescs = NUM_BLAS;
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo = {};
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        m_fallbackDevice->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &topLevelPrebuildInfo);
-    }
-    else // DirectX Raytracing
-    {
-        m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &topLevelPrebuildInfo);
-    }
+    m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &topLevelPrebuildInfo);
     ThrowIfFalse(topLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
 
     AllocateUAVBuffer(device, topLevelPrebuildInfo.ScratchDataSizeInBytes, &scratch, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
@@ -933,43 +848,12 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildTopLevelAS(
     //  - the system will be doing this type of access in its implementation of acceleration structure builds behind the scenes.
     //  - from the app point of view, synchronization of writes/reads to acceleration structures is accomplished using UAV barriers.
     {
-        D3D12_RESOURCE_STATES initialResourceState;
-        if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-        {
-            initialResourceState = m_fallbackDevice->GetAccelerationStructureResourceState();
-        }
-        else // DirectX Raytracing
-        {
-            initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
-        }
-
+        D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
         AllocateUAVBuffer(device, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &topLevelAS, initialResourceState, L"TopLevelAccelerationStructure");
     }
 
-    // Note on Emulated GPU pointers (AKA Wrapped pointers) requirement in Fallback Layer:
-    // The primary point of divergence between the DXR API and the compute-based Fallback layer is the handling of GPU pointers. 
-    // DXR fundamentally requires that GPUs be able to dynamically read from arbitrary addresses in GPU memory. 
-    // The existing Direct Compute API today is more rigid than DXR and requires apps to explicitly inform the GPU what blocks of memory it will access with SRVs/UAVs.
-    // In order to handle the requirements of DXR, the Fallback Layer uses the concept of Emulated GPU pointers, 
-    // which requires apps to create views around all memory they will access for raytracing, 
-    // but retains the DXR-like flexibility of only needing to bind the top level acceleration structure at DispatchRays.
-    //
-    // The Fallback Layer interface uses WRAPPED_GPU_POINTER to encapsulate the underlying pointer
-    // which will either be an emulated GPU pointer for the compute - based path or a GPU_VIRTUAL_ADDRESS for the DXR path.
-
     // Create instance descs for the bottom-level acceleration structures.
     ComPtr<ID3D12Resource> instanceDescsResource;
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC instanceDescs[BottomLevelASType::Count] = {};
-        WRAPPED_GPU_POINTER bottomLevelASaddresses[BottomLevelASType::Count] = 
-        {
-            CreateFallbackWrappedPointer(bottomLevelAS[0].accelerationStructure.Get(), static_cast<UINT>(bottomLevelAS[0].ResultDataMaxSizeInBytes) / sizeof(UINT32)),
-            CreateFallbackWrappedPointer(bottomLevelAS[1].accelerationStructure.Get(), static_cast<UINT>(bottomLevelAS[1].ResultDataMaxSizeInBytes) / sizeof(UINT32))
-        };
-        BuildBotomLevelASInstanceDescs<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC>(bottomLevelASaddresses, &instanceDescsResource);
-    }
-    else // DirectX Raytracing
     {
         D3D12_RAYTRACING_INSTANCE_DESC instanceDescs[BottomLevelASType::Count] = {};
         D3D12_GPU_VIRTUAL_ADDRESS bottomLevelASaddresses[BottomLevelASType::Count] =
@@ -979,14 +863,7 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildTopLevelAS(
         };
         BuildBotomLevelASInstanceDescs<D3D12_RAYTRACING_INSTANCE_DESC>(bottomLevelASaddresses, &instanceDescsResource);
     }
-
-    // Create a wrapped pointer to the acceleration structure.
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        UINT numBufferElements = static_cast<UINT>(topLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
-        m_fallbackTopLevelAccelerationStructurePointer = CreateFallbackWrappedPointer(topLevelAS.Get(), numBufferElements);
-    }
-
+    
     // Top-level AS desc
     {
         topLevelBuildDesc.DestAccelerationStructureData = topLevelAS->GetGPUVirtualAddress();
@@ -995,18 +872,8 @@ AccelerationStructureBuffers D3D12RaytracingProceduralGeometry::BuildTopLevelAS(
     }
 
     // Build acceleration structure.
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        // Set the descriptor heaps to be used during acceleration structure build for the Fallback Layer.
-        ID3D12DescriptorHeap *pDescriptorHeaps[] = { m_descriptorHeap.Get() };
-        m_fallbackCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
-        m_fallbackCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc, 0, nullptr);
-    }
-    else // DirectX Raytracing
-    {
-        m_dxrCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc, 0, nullptr);
-    }
-
+    m_dxrCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc, 0, nullptr);
+    
     AccelerationStructureBuffers topLevelASBuffers;
     topLevelASBuffers.accelerationStructure = topLevelAS;
     topLevelASBuffers.instanceDesc = instanceDescsResource;
@@ -1103,14 +970,8 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
 
     // Get shader identifiers.
     UINT shaderIDSize;
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
     {
-        GetShaderIDs(m_fallbackStateObject.Get());
-        shaderIDSize = m_fallbackDevice->GetShaderIdentifierSize();
-    }
-    else // DirectX Raytracing
-    {
-        ComPtr<ID3D12StateObjectPropertiesPrototype> stateObjectProperties;
+        ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
         ThrowIfFailed(m_dxrStateObject.As(&stateObjectProperties));
         GetShaderIDs(stateObjectProperties.Get());
         shaderIDSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
@@ -1209,47 +1070,10 @@ void D3D12RaytracingProceduralGeometry::BuildShaderTables()
     }
 }
 
-void D3D12RaytracingProceduralGeometry::SelectRaytracingAPI(RaytracingAPI type)
-{
-    if (type == RaytracingAPI::FallbackLayer)
-    {
-        m_raytracingAPI = type;
-    }
-    else // DirectX Raytracing
-    {
-        if (m_isDxrSupported)
-        {
-            m_raytracingAPI = type;
-        }
-        else
-        {
-            OutputDebugString(L"Invalid selection - DXR is not available.\n");
-        }
-    }
-}
-
 void D3D12RaytracingProceduralGeometry::OnKeyDown(UINT8 key)
 {
-    // Store previous values.
-    RaytracingAPI previousRaytracingAPI = m_raytracingAPI;
-    bool previousForceComputeFallback = m_forceComputeFallback;
-
     switch (key)
     {
-    case VK_NUMPAD1:
-    case '1': // Fallback Layer
-        m_forceComputeFallback = false;
-        SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-        break;
-    case VK_NUMPAD2:
-    case '2': // Fallback Layer + force compute path
-        m_forceComputeFallback = true;
-        SelectRaytracingAPI(RaytracingAPI::FallbackLayer);
-        break;
-    case VK_NUMPAD3:
-    case '3': // DirectX Raytracing
-        SelectRaytracingAPI(RaytracingAPI::DirectXRaytracing);
-        break;
     case 'C':
         m_animateCamera = !m_animateCamera;
         break;
@@ -1259,14 +1083,6 @@ void D3D12RaytracingProceduralGeometry::OnKeyDown(UINT8 key)
     case 'L': 
         m_animateLight = !m_animateLight;
         break;
-        break;
-    }
-
-    if (m_raytracingAPI != previousRaytracingAPI ||
-        m_forceComputeFallback != previousForceComputeFallback)
-    {
-        // Raytracing API selection changed, recreate everything.
-        RecreateD3D();
     }
 }
 
@@ -1308,26 +1124,6 @@ void D3D12RaytracingProceduralGeometry::OnUpdate()
     }
     UpdateAABBPrimitiveAttributes(m_animateGeometryTime);
     m_sceneCB->elapsedTime = m_animateGeometryTime;
-}
-
-
-// Parse supplied command line args.
-void D3D12RaytracingProceduralGeometry::ParseCommandLineArgs(WCHAR* argv[], int argc)
-{
-    DXSample::ParseCommandLineArgs(argv, argc);
-
-    if (argc > 1)
-    {
-        if (_wcsnicmp(argv[1], L"-FL", wcslen(argv[1])) == 0)
-        {
-            m_forceComputeFallback = true;
-            m_raytracingAPI = RaytracingAPI::FallbackLayer;
-        }
-        else if (_wcsnicmp(argv[1], L"-DXR", wcslen(argv[1])) == 0)
-        {
-            m_raytracingAPI = RaytracingAPI::DirectXRaytracing;
-        }
-    }
 }
 
 void D3D12RaytracingProceduralGeometry::DoRaytracing()
@@ -1376,18 +1172,9 @@ void D3D12RaytracingProceduralGeometry::DoRaytracing()
 
     // Bind the heaps, acceleration structure and dispatch rays.  
     D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
-    if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-    {
-        SetCommonPipelineState(m_fallbackCommandList.Get());
-        m_fallbackCommandList->SetTopLevelAccelerationStructure(GlobalRootSignature::Slot::AccelerationStructure, m_fallbackTopLevelAccelerationStructurePointer);
-        DispatchRays(m_fallbackCommandList.Get(), m_fallbackStateObject.Get(), &dispatchDesc);
-    }
-    else // DirectX Raytracing
-    {
-        SetCommonPipelineState(commandList);
-        commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS->GetGPUVirtualAddress());
-        DispatchRays(m_dxrCommandList.Get(), m_dxrStateObject.Get(), &dispatchDesc);
-    }
+    SetCommonPipelineState(commandList);
+    commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS->GetGPUVirtualAddress());
+    DispatchRays(m_dxrCommandList.Get(), m_dxrStateObject.Get(), &dispatchDesc);
 }
 
 // Update the application state with the new resolution.
@@ -1437,9 +1224,6 @@ void D3D12RaytracingProceduralGeometry::ReleaseDeviceDependentResources()
         gpuTimer.ReleaseDevice();
     }
 
-    m_fallbackDevice.Reset();
-    m_fallbackCommandList.Reset();
-    m_fallbackStateObject.Reset();
     m_raytracingGlobalRootSignature.Reset();
     ResetComPtrArray(&m_raytracingLocalRootSignature);
 
@@ -1554,21 +1338,6 @@ void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
         float MRaysPerSecond = NumMRaysPerSecond(m_width, m_height, raytracingTime);
         
         wstringstream windowText;
-        if (m_raytracingAPI == RaytracingAPI::FallbackLayer)
-        {
-            if (m_fallbackDevice->UsingRaytracingDriver())
-            {
-                windowText << L"(FL-DXR)";
-            }
-            else
-            {
-                windowText << L"(FL)";
-            }
-        }
-        else
-        {
-            windowText << L"(DXR)";
-        }
         windowText << setprecision(2) << fixed
             << L"    fps: " << fps 
             << L"    DispatchRays(): " << raytracingTime << "ms"
@@ -1590,29 +1359,6 @@ void D3D12RaytracingProceduralGeometry::OnSizeChanged(UINT width, UINT height, b
 
     ReleaseWindowSizeDependentResources();
     CreateWindowSizeDependentResources();
-}
-
-// Create a wrapped pointer for the Fallback Layer path.
-WRAPPED_GPU_POINTER D3D12RaytracingProceduralGeometry::CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements)
-{
-    auto device = m_deviceResources->GetD3DDevice();
-
-    D3D12_UNORDERED_ACCESS_VIEW_DESC rawBufferUavDesc = {};
-    rawBufferUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-    rawBufferUavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
-    rawBufferUavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-    rawBufferUavDesc.Buffer.NumElements = bufferNumElements;
-
-    D3D12_CPU_DESCRIPTOR_HANDLE bottomLevelDescriptor;
-
-    // Only compute fallback requires a valid descriptor index when creating a wrapped pointer.
-    UINT descriptorHeapIndex = 0;
-    if (!m_fallbackDevice->UsingRaytracingDriver())
-    {
-        descriptorHeapIndex = AllocateDescriptor(&bottomLevelDescriptor);
-        device->CreateUnorderedAccessView(resource, nullptr, &rawBufferUavDesc, bottomLevelDescriptor);
-    }
-    return m_fallbackDevice->GetWrappedPointerSimple(descriptorHeapIndex, resource->GetGPUVirtualAddress());
 }
 
 // Allocate a descriptor and return its index. 

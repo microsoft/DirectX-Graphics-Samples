@@ -1,0 +1,560 @@
+Integrator "path" "integer maxdepth" [ 65 ] 
+# Transform [ 0.738427 -0.102514 0.666496 -0 -0 0.988377 0.152022 -0 0.674334 0.112257 -0.729844 -0 6.00497 -6.83966 48.5088 1]
+LookAt -22.8679199 3.71045446 19.4894791 -22.2825279 3.68010211 18.6791267 0.0806002542 0.989834011 -0.117160015
+Sampler "sobol" "integer pixelsamples" [ 64 ] 
+PixelFilter "triangle" "float xwidth" [ 1.000000 ] "float ywidth" [ 1.000000 ] 
+Film "image" "integer xresolution" [ 1280 ] "integer yresolution" [ 720 ] "string filename" [ "house.png" ] 
+Camera "perspective" "float fov" [ 20.114292 ] 
+WorldBegin
+	Texture "Texture01" "spectrum" "imagemap" "string filename" [ "textures\Tiles.png" ] "bool trilinear" [ "true" ] 
+	Texture "Texture01.NormalMap" "spectrum" "imagemap" "string filename" [ "textures\Tiles.NormalMap.png" ] "bool trilinear" [ "true" ] 
+	MakeNamedMaterial "BlackDiffuse" "string type" [ "matte" ] "rgb Kd" [ 0.1000273 0.100273 0.100273 ] 
+	MakeNamedMaterial "Blue" "string type" [ "matte" ] "rgb Kd" [ 0.052861 0.138432 0.799103 ] 
+	MakeNamedMaterial "BlueGlossy" "string type" [ "matte" ] "rgb Kd" [ 0.205138 0.418493 0.800000 ] 
+	MakeNamedMaterial "BrassOld" "string type" [ "matte" ] "rgb Kd" [ 0.502314 0.441461 0.313963 ] 
+	MakeNamedMaterial "BrickTextureBase" "string type" [ "matte" ] "rgb Kd" [ 0.426695 0.375011 0.363006 ] 
+	MakeNamedMaterial "Brown" "string type" [ "matte" ] "rgb Kd" [ 0.334323 0.255375 0.189200 ] 
+	MakeNamedMaterial "Chrome" "string type" [ "mirror" ] "rgb Kd" [ 0.578596 0.578596 0.578596 ] "rgb Kr" [ 0.2 0.2 0.2 ] 
+	MakeNamedMaterial "Chrome2" "string type" [ "mirror" ] "rgb Kd" [ 0.575677 0.578596 0.563447 ] "rgb Kr" [ 0.2 0.2 0.2 ] 
+	MakeNamedMaterial "DarkerGrey" "string type" [ "matte" ] "rgb Kd" [ 0.079484 0.080011 0.078957 ] 
+	MakeNamedMaterial "DeckWoodBase" "string type" [ "matte" ] "rgb Kd" [ 0.419979 0.390887 0.369568 ] 
+	MakeNamedMaterial "DrivewayBase" "string type" [ "matte" ] "rgb Kd" [ 0.424737 0.424737 0.424737 ] 
+	MakeNamedMaterial "FenceWoodBase" "string type" [ "matte" ] "rgb Kd" [ 0.438 0.24 0.13 ] # [ 0.471 0.216 0.165 ]
+	MakeNamedMaterial "Floorboards" "string type" [ "matte" ] "rgb Kd" [ 0.416131 0.391048 0.383141 ] 
+	MakeNamedMaterial "Grey" "string type" [ "matte" ] "rgb Kd" [ 0.080011 0.080011 0.080011 ] 
+	MakeNamedMaterial "Ground" "string type" [ "matte" ] "rgb Kd" [ 0.661862 0.661862 0.661862 ] 
+	MakeNamedMaterial "MirrorMaterial" "string type" [ "mirror" ] 
+	MakeNamedMaterial "None" "string type" [ "matte" ] "rgb Kd" [ 0.800000 0.800000 0.800000 ] 
+	MakeNamedMaterial "PaleYellow" "string type" [ "matte" ] "rgb Kd" [ 0.273831 0.258563 0.183140 ] 
+	MakeNamedMaterial "Pink" "string type" [ "matte" ] "rgb Kd" [ 0.128991 0.128991 0.128991 ] 
+	MakeNamedMaterial "Red" "string type" [ "matte" ] "rgb Kd" [ 0.800000 0.061900 0.031334 ] 
+	MakeNamedMaterial "RoofTiles" "string type" [ "matte" ] "texture Kd" [ "Texture01" ] "texture Normal" [ "Texture01.NormalMap" ]  
+	MakeNamedMaterial "ShowerFloorBase" "string type" [ "matte" ] "rgb Kd" [ 0.416131 0.415021 0.414138 ] 
+	MakeNamedMaterial "StainlessSteel" "string type" [ "mirror" ] "rgb Kd" [ 0.426132 0.426132 0.426132 ] "rgb Kr" [ 0.2 0.2 0.2 ] 
+	MakeNamedMaterial "StepBase" "string type" [ "matte" ] "rgb Kd" [ 0.416131 0.401572 0.395541 ] 
+	MakeNamedMaterial "TileBase" "string type" [ "matte" ] "rgb Kd" [ 0.381008 0.434047 0.451620 ] 
+	MakeNamedMaterial "WallMaterial" "string type" [ "matte" ] "rgb Kd" [ 0.393113 0.295146 0.217308 ] 
+	MakeNamedMaterial "WhiteDiffuse" "string type" [ "matte" ] "rgb Kd" [ 0.688883 0.688883 0.688883 ] 
+	MakeNamedMaterial "WhitePaint" "string type" [ "matte" ] "rgb Kd" [ 0.800000 0.800000 0.800000 ] 
+	MakeNamedMaterial "YellowDiffuse" "string type" [ "matte" ] "rgb Kd" [ 0.698193 0.603565 0.426615 ] 
+	MakeNamedMaterial "Glass" "string type" [ "glass" ] 
+	MakeNamedMaterial "GarageDoorBase" "string type" [ "matte" ]  "rgb Kd" [ 0.233209 0.233209 0.233209 ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh116.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh062.ply" ] 
+	NamedMaterial "Floorboards" 
+	Shape "plymesh" "string filename" [ "models/Mesh112.ply" ] 
+	NamedMaterial "Chrome2" 
+	Shape "plymesh" "string filename" [ "models/Mesh110.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh125.ply" ] 
+	NamedMaterial "RoofTiles" 
+	Shape "plymesh" "string filename" [ "models/Mesh096.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh118.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh109.ply" ] 
+	NamedMaterial "TileBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh104.ply" ] 
+	NamedMaterial "Pink" 
+	Shape "plymesh" "string filename" [ "models/Mesh255.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh185.ply" ] 
+	NamedMaterial "BrickTextureBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh138.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh069.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh103.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh106.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh101.ply" ] 
+	NamedMaterial "BrassOld" 
+	Shape "plymesh" "string filename" [ "models/Mesh100.ply" ] 
+	NamedMaterial "YellowDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh061.ply" ] 
+	NamedMaterial "Floorboards" 
+	Shape "plymesh" "string filename" [ "models/Mesh145.ply" ] 
+	NamedMaterial "Chrome2" 
+	Shape "plymesh" "string filename" [ "models/Mesh151.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh094.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh141.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh143.ply" ] 
+	NamedMaterial "TileBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh152.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh168.ply" ] 
+	NamedMaterial "Red" 
+	Shape "plymesh" "string filename" [ "models/Mesh068.ply" ] 
+	NamedMaterial "Blue" 
+	Shape "plymesh" "string filename" [ "models/Mesh160.ply" ] 
+	NamedMaterial "WallMaterial" 
+	Shape "plymesh" "string filename" [ "models/Mesh162.ply" ] 
+	NamedMaterial "StepBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh167.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh212.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh250.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh149.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh114.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh248.ply" ] 
+	NamedMaterial "WhitePaint"
+	Shape "plymesh" "string filename" [ "models/Mesh115.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh146.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh137.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh155.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh131.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh147.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh139.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh053.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh111.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh173.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh051.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh092.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh128.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh221.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh089.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh066.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh247.ply" ] 
+	NamedMaterial "Red" 
+	Shape "plymesh" "string filename" [ "models/Mesh088.ply" ] 
+	NamedMaterial "Blue" 
+	Shape "plymesh" "string filename" [ "models/Mesh087.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh127.ply" ] 
+	NamedMaterial "Red" 
+	Shape "plymesh" "string filename" [ "models/Mesh086.ply" ] 
+	NamedMaterial "Blue" 
+	Shape "plymesh" "string filename" [ "models/Mesh085.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh211.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh191.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh081.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh079.ply" ] 
+	NamedMaterial "None" 
+	Shape "plymesh" "string filename" [ "models/Mesh264.ply" ] 
+	NamedMaterial "DrivewayBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh126.ply" ] 
+	NamedMaterial "Pink" 
+	Shape "plymesh" "string filename" [ "models/Mesh077.ply" ] 
+	NamedMaterial "MirrorMaterial" 
+	Shape "plymesh" "string filename" [ "models/Mesh074.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh049.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh073.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh142.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh133.ply" ] 
+	NamedMaterial "StainlessSteel" 
+	Shape "plymesh" "string filename" [ "models/Mesh171.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh071.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh072.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh075.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh123.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh070.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh064.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh048.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh166.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh157.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh117.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh065.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh060.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh076.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh058.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh120.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh054.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh050.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh080.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh140.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh148.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh169.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh047.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh045.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh156.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh130.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh083.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh159.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh174.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh177.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh180.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh193.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh132.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh184.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh189.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh144.ply" ] 
+	NamedMaterial "Pink" 
+	Shape "plymesh" "string filename" [ "models/Mesh194.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh046.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh129.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh195.ply" ] 
+	NamedMaterial "TileBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh196.ply" ] 
+	NamedMaterial "MirrorMaterial" 
+	Shape "plymesh" "string filename" [ "models/Mesh186.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh090.ply" ] 
+	NamedMaterial "Red" 
+	Shape "plymesh" "string filename" [ "models/Mesh198.ply" ] 
+	NamedMaterial "Blue" 
+	Shape "plymesh" "string filename" [ "models/Mesh201.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh078.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh063.ply" ] 
+	NamedMaterial "WallMaterial" 
+	Shape "plymesh" "string filename" [ "models/Mesh202.ply" ] 
+	NamedMaterial "StainlessSteel" 
+	Shape "plymesh" "string filename" [ "models/Mesh203.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh204.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh215.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh206.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh209.ply" ] 
+	NamedMaterial "BlueGlossy" 
+	Shape "plymesh" "string filename" [ "models/Mesh210.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh199.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh158.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh214.ply" ] 
+	NamedMaterial "FenceWoodBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh091.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh216.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh218.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh098.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh219.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh223.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh136.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh082.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh225.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh227.ply" ] 
+	NamedMaterial "StainlessSteel" 
+	Shape "plymesh" "string filename" [ "models/Mesh228.ply" ] 
+	NamedMaterial "ShowerFloorBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh124.ply" ] 
+	NamedMaterial "BlueGlossy" 
+	Shape "plymesh" "string filename" [ "models/Mesh153.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh208.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh229.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh270.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh182.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh230.ply" ] 
+	NamedMaterial "Floorboards" 
+	Shape "plymesh" "string filename" [ "models/Mesh231.ply" ] 
+	NamedMaterial "StainlessSteel" 
+	Shape "plymesh" "string filename" [ "models/Mesh251.ply" ] 
+	NamedMaterial "Floorboards" 
+	Shape "plymesh" "string filename" [ "models/Mesh234.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh232.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh235.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh236.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh237.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh175.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh238.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh161.ply" ] 
+	NamedMaterial "BrickTextureBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh176.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh107.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh172.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh165.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh190.ply" ] 
+	NamedMaterial "Floorboards" 
+	Shape "plymesh" "string filename" [ "models/Mesh240.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh213.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh243.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh253.ply" ] 
+	NamedMaterial "None" 
+	Shape "plymesh" "string filename" [ "models/Mesh188.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh224.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh246.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh055.ply" ] 
+	NamedMaterial "None" 
+	Shape "plymesh" "string filename" [ "models/Mesh192.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh217.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh084.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh163.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh256.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh249.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh187.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh093.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh154.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh252.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh254.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh099.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh197.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh178.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh164.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh239.ply" ] 
+	NamedMaterial "BlueGlossy" 
+	Shape "plymesh" "string filename" [ "models/Mesh257.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh170.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh244.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh258.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh259.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh260.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh226.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh261.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh265.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh266.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh108.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh220.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh222.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh267.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh271.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh105.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh242.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh044.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh043.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh042.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh040.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh057.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh200.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh039.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh038.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh037.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh052.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh036.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh035.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh241.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh034.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh033.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh179.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh263.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh032.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh031.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh030.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh122.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh028.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh026.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh205.ply" ] 
+	NamedMaterial "WallMaterial" 
+	Shape "plymesh" "string filename" [ "models/Mesh135.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh027.ply" ] 
+	NamedMaterial "DarkerGrey" 
+	Shape "plymesh" "string filename" [ "models/Mesh119.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh025.ply" ] 
+	NamedMaterial "BlueGlossy" 
+	Shape "plymesh" "string filename" [ "models/Mesh102.ply" ] 
+	NamedMaterial "StainlessSteel" 
+	Shape "plymesh" "string filename" [ "models/Mesh245.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh183.ply" ] 
+	NamedMaterial "PaleYellow" 
+	Shape "plymesh" "string filename" [ "models/Mesh024.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh023.ply" ] 
+	NamedMaterial "BlackDiffuse"
+	Shape "plymesh" "string filename" [ "models/Mesh134.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh150.ply" ] 
+	NamedMaterial "StainlessSteel" 
+	Shape "plymesh" "string filename" [ "models/Mesh022.ply" ] 
+	NamedMaterial "Grey" 
+	Shape "plymesh" "string filename" [ "models/Mesh041.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh233.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh021.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh019.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh018.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh121.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh020.ply" ] 
+	Shape "plymesh" "string filename" [ "models/Mesh017.ply" ] 
+	NamedMaterial "BrickTextureBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh016.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh015.ply" ] 
+	NamedMaterial "WallMaterial" 
+	Shape "plymesh" "string filename" [ "models/Mesh269.ply" ] 
+	NamedMaterial "Pink" 
+	Shape "plymesh" "string filename" [ "models/Mesh014.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh207.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh013.ply" ] 
+	NamedMaterial "GarageDoorBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh113.ply" ] 
+	NamedMaterial "Glass" 
+	Shape "plymesh" "string filename" [ "models/Mesh012.ply" ] 
+	NamedMaterial "DeckWoodBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh056.ply" ] 
+	NamedMaterial "Brown" 
+	Shape "plymesh" "string filename" [ "models/Mesh011.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh010.ply" ] 
+	NamedMaterial "DeckWoodBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh009.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh181.ply" ] 
+	NamedMaterial "StepBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh268.ply" ] 
+	# NamedMaterial "Ground" 
+	# Shape "plymesh" "string filename" [ "models/Mesh095.ply" ] 
+	NamedMaterial "DeckWoodBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh008.ply" ] 
+	NamedMaterial "Pink" 
+	Shape "plymesh" "string filename" [ "models/Mesh097.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh007.ply" ] 
+	NamedMaterial "StainlessSteel" 
+	Shape "plymesh" "string filename" [ "models/Mesh006.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh029.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh005.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh004.ply" ] 
+	NamedMaterial "Blue" 
+	Shape "plymesh" "string filename" [ "models/Mesh003.ply" ] 
+	NamedMaterial "Red" 
+	Shape "plymesh" "string filename" [ "models/Mesh067.ply" ] 
+	NamedMaterial "FenceWoodBase" 
+	Shape "plymesh" "string filename" [ "models/Mesh262.ply" ] 
+	NamedMaterial "WhitePaint" 
+	Shape "plymesh" "string filename" [ "models/Mesh059.ply" ] 
+	NamedMaterial "Chrome" 
+	Shape "plymesh" "string filename" [ "models/Mesh002.ply" ] 
+	NamedMaterial "StainlessSteel" 
+	Shape "plymesh" "string filename" [ "models/Mesh001.ply" ] 
+	NamedMaterial "WhiteDiffuse" 
+	Shape "plymesh" "string filename" [ "models/Mesh000.ply" ] 
+WorldEnd
