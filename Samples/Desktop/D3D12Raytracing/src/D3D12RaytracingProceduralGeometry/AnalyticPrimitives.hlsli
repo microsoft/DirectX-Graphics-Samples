@@ -61,7 +61,7 @@ bool SolveRaySphereIntersectionEquation(in Ray ray, out float tmin, out float tm
 }
 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a hollow sphere.
-bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, in ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
+bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, out ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
 {
     float t0, t1; // solutions for t if the ray intersects 
 
@@ -169,7 +169,7 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
     tmax3.z = (aabb[sign3.z].z - ray.origin.z) / ray.direction.z;
     
     tmin = max(max(tmin3.x, tmin3.y), tmin3.z);
-    tmax = min(min(tmax3.x, tmax3.z), tmax3.z);
+    tmax = min(min(tmax3.x, tmax3.y), tmax3.z);
     
     return tmax > tmin && tmax >= RayTMin() && tmin <= RayTCurrent();
 }

@@ -1,0 +1,13 @@
+Integrator "path" "integer maxdepth" [ 65 ] 
+# Transform [ 0.872027 0.135655 0.470284 -0 -0 0.960826 -0.277154 -0 0.489459 -0.241686 -0.837866 -0 0.549931 -0.876605 18.0241 1]
+LookAt -8.27754307 2.83314371 -5.52892017   -7.49467659 2.61135006 -4.94761372   -0.0170517582 0.999790549 -0.0113287326
+Sampler "sobol" "integer pixelsamples" [ 64 ] 
+PixelFilter "triangle" "float xwidth" [ 1.000000 ] "float ywidth" [ 1.000000 ] 
+Film "image" "integer xresolution" [ 1280 ] "integer yresolution" [ 720 ] "string filename" [ "car2.png" ] 
+Camera "perspective" "float fov" [ 20.114292 ] 
+WorldBegin
+	Transform [ 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1]
+	MakeNamedMaterial "GroundPlane" "string type" [ "matte"  ] "rgb Kd" [ 0.70740 0.70740 0.70740 ]
+	NamedMaterial "GroundPlane" 
+	Shape "trianglemesh" "integer indices" [ 1 0 2 1 2 3 ] "point P" [ -1 0 0 1 0 0 -1 1 0 1 1 0 ] "normal N" [ 0 0 -1 0 0 -1 0 0 -1 0 0 -1 ] "float uv" [ 0 0 1 0 0 1 1 1 ]
+WorldEnd
