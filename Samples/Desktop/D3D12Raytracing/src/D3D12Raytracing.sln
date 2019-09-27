@@ -14,11 +14,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingSimpleLighti
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MiniEngine", "MiniEngine", "{0B851798-A730-4A11-A717-668D40A26088}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\..\..\..\MiniEngine\Core\Core_VS15.vcxproj", "{86A58508-0D6A-4786-A32F-01A301FDC6F3}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\..\..\..\MiniEngine\Core\Core_VS16.vcxproj", "{86A58508-0D6A-4786-A32F-01A301FDC6F3}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Model", "..\..\..\..\MiniEngine\Model\Model_VS15.vcxproj", "{5D3AEEFB-8789-48E5-9BD9-09C667052D09}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Model", "..\..\..\..\MiniEngine\Model\Model_VS16.vcxproj", "{5D3AEEFB-8789-48E5-9BD9-09C667052D09}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingMiniEngineSample", "D3D12RaytracingMiniEngineSample\ModelViewer_VS15.vcxproj", "{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingMiniEngineSample", "D3D12RaytracingMiniEngineSample\ModelViewer_VS16.vcxproj", "{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tutorials", "Tutorials", "{22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331}"
 EndProject
