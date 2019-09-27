@@ -40,3 +40,5 @@
 /Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/obj/x64/Profile
 /Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/bin/x64/Profile
 /Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/Profile.csv
+/MiniEngine/Build_VS16/x64
+/Samples/Desktop/D3D12Raytracing/Build_VS16/x64/Release
