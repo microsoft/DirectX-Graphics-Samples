@@ -15,8 +15,8 @@ The sample assumes familiarity with Dx12 programming and DirectX Raytracing conc
 
 ## Usage
 D3D12RaytracingRealTimeDenoisedAmbientOcclusion.exe [...]
-* [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0.
-* [-vsync] - renders with VSync enabled.
+* [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0
+* [-vsync] - renders with VSync enabled
 
 The sample defaults to 1080p window size and 1080p RTAO. In practice, AO is done at quarter resolution as the 4x performance overhead generally doesn't justify the quality increase, especially on higher resolutions/dpis. Therefore, if you switch to higher window resolutions, such as 4K, also switch to quarter res RTAO via QuarterRes UI option to improve the performance.
 
@@ -26,39 +26,39 @@ The title bar of the sample provides runtime information:
 * Frames per second
 * GPU[ID]: name
 
-The GUI menu in the top left corner provides a multitude of dynamic settings for the Scene, RTAO and the Denoiser components. 
+The GUI menu in the top left corner provides a runtime information and a multitude of dynamic settings for the Scene, RTAO and the Denoiser components. 
 * UP/DOWN - navigate among the settings 
 * LEFT/RIGHT - change the setting
 * Backspace - toggles the settings menu ON/OFF. If "Display Profiler" is enabled, it toggles between settings menu and a profiler UI.
 
 ### Controls
-* ALT+ENTER - toggles between windowed and fullscreen modes.
-* W,S - moves camera forward and back.
-* A,D - moves camera to the side.
-* Hold left mouse key and drag - rotate camera's focus at position.
-* Hold right mouse key and drag - rotate scene.
-* L - enable/disable light animation.
-* C - enable/disable camera animation.
-* T - toggles scene animation.
-* Shift - toggles camera movement amplitude.
-* 0 - Toggles Ground Truth spp vs 1 spp and switches to raw RTAO visualization.
-* 1 - Raw/single frame RTAO visualization.
-* 2 - Denoised RTAO visualization.
-* 3 - Specular PBR Pathtracer + RTAO visualization.
-* 4 - Toggles RTAO ray lengths - short | long.
-* F9 - does a profiling pass. Renders 1000 frames, rotates camera 360 degrees and outputs GPU times to Profile.csv.
-* space - pauses/resumes rendering.
-* U/Y - moves car by the house back and forth.
-* J/M - moves spaceship up and down.
-* H/K - rotates spaceship around scene's center.
-* ESC - terminate the application.
+* ALT+ENTER - toggles between windowed and fullscreen modes
+* W,S - moves camera forward and back
+* A,D - moves camera to the side
+* Shift - toggles camera movement amplitude
+* Hold left mouse key and drag - rotate camera's focus at position
+* Hold right mouse key and drag - rotate scene
+* L - enable/disable light animation
+* C - enable/disable camera animation
+* T - toggles scene animation
+* 0 - Toggles Ground Truth spp vs 1 spp and switches to raw RTAO visualization
+* 1 - Raw/single frame RTAO visualization
+* 2 - Denoised RTAO visualization
+* 3 - Specular PBR Pathtracer + RTAO visualization
+* 4 - Toggles RTAO ray lengths - short | long
+* F9 - does a profiling pass. Renders 1000 frames, rotates camera 360 degrees and outputs GPU times to Profile.csv
+* space - pauses/resumes rendering
+* U/Y - moves car by the house back and forth
+* J/M - moves spaceship up and down
+* H/K - rotates spaceship around scene's center
+* ESC - terminate the application
 
 ## Requirements
 * "*AnyToAnyWaveReadLaneAt*" shaders require ReadLaneAt() with any to any wave read lane support. Tested on (Pascal & Turing). If your HW doesn't support it, you will need to replace those wave intrinsics.
 * Requires DXR capable HW and SW. Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.
 
 ## Known Issues\Limitations
-* On Debug config, Textures don't work correctly- the textured roof renders incorrectly. 
+* On Debug config, textures don't work correctly - the textured roof renders incorrectly. 
 * UI "Sample set distribution across NxN pixels* set to true is only compatible with 1 spp (default). The distribution UI value will get forced to 1 if you select 2+ spp.
 
 ## Acknowledgements
@@ -79,66 +79,66 @@ AO is a cheap approximation for global illumination that is more appropriate for
 
 While indirect lighting phenomena can be physically modeled via Global Illumination (GI) models, a full fledged GI solution can be very expensive and impractical for games on today's commodity graphics processing unit hardware (GPU). Adding the cheaper AO to the games on top has become popular way of complementing the simpler GI models and achieving a more plausible look. Game engines have done this mostly either by prebaking it into textures, and thus, limiting it to static object layouts or via screen-space approximations, which can suffer because of limited geometry data available in screen space. Some limitations due to screen-space approximation include creating false dark halos, lack of occlusion due to geometry not being visible on screen, unstable occlusion around screen borders and generally limitation to only occlusions from objects close to the target. Raytraced AO, in contrast can avoid all these issues by evaluating AO in a more natural way to solve the problem.  
 
-The physically-based approach to estimating AO is via Monte Carlo (random) sampling of the hemisphere around a normal of a point on a surface and testing for visibility by tracing the casted rays. Rays that hit any objects increase the occlusion value, inversely lowering the ambient lighting term making surfaces appear darker. Generating AO in this way can be very noisy requiring large number of rays per pixel to be cast to reach visually pleasing results. This number can be in hundreds of rays per pixel. In the scene used in the sample, rendering such ground truth AO at 256 spp takes 170 ms at 1080p on 2080 Ti. That is not practical for a game on today's HW. This sample instead implements a real-time denoiser of 1 sample ray per pixel (spp) raytraced Ambient Occlusion targeted at 60+ FPS apps. Denoising is a critical part to reach real-time raytraced effects on current-gen hardware. 
+The physically-based approach to estimating AO is via Monte Carlo (random) sampling of the hemisphere around a normal of a point on a surface and testing for visibility by tracing the casted rays. Rays that hit any objects increase the occlusion value, inversely lowering the ambient lighting term making surfaces appear darker. Generating AO in this way can be very noisy requiring large number of rays per pixel to be cast to reach visually pleasing results. This number can be in hundreds of rays per pixel. In the scene used in the sample, rendering such ground truth AO at 256 spp takes 170 ms at 1080p on 2080 Ti. Such high spp is not practical for a game on today's HW. This sample instead implements a real-time denoiser of 1 spp raytraced Ambient Occlusion targeted at 60+ FPS apps. Denoising is a critical part to reach real-time raytraced effects on current-gen hardware. 
  
-## AO raytracing
-The sample supports two AO raytracing modes: 
-* standard 2D DispatchRays() for 1 spp 
-* pre-sorting AO rays and the executing 1D DispatchRays().
+## Input to AO raytracer
+The sample implements a specular physically-based (PBR) pathtracer to calculate per-pixel color. It casts radiance and shadow rays as the rays bounce around the scene. AO rays are raytraced and denoised in a separate pass. This can improve GPU's performance by running a single type of rays at a time. It also provides an opportunity to manually pre-sort the rays. The denoiser supports a single AO value per pixel and since it depends on per-pixel normal, depth and motion vector data, it implicly requires each pixel to represent only a single surface hit point. This is not always the case as the pathracer can hit multiple surfaces for a single camera ray. To address this, the pathtracer uses a heuristic to pick a single surface hit. It selects a hit position with the highest perceived material luminance. That luminance depends on the surface's material albedo scaled by the radiance's ray radiance contribution. All other surfaces are lit with a constant ambient term when a radiance ray hits a surface. This generally works well as switching between selected surfaces across frames (i.e. due to the radiance ray incidence angle changing and thus fresnel ratio changing) is rare and is not very noticeable in the final composited image.
 
-The sample also supports checkerboard sampling. That is tracing rays for pixels in a checkerboard pattern, alternating frame to frame. For 1 spp setting, it results in 0.5 spp and improving AO raytracing performance. Tracing rays is particularly expensive on non-Turing GPUs and thus checkerboard option can help to get to acceptable raytracing performance. 
+## AO raytracing
+The sample supports two AO raytracing execution modes: 
+* standard 2D DispatchRays()
+* pre-sorting AO rays and then executing 1D DispatchRays() over an input buffer of sorted rays.
+
+### Checkerboard/0.5 spp
+The sample also supports checkerboard sampling. That is tracing rays for pixels in a checkerboard pattern, alternating frame to frame. For 1 spp setting, it results in 0.5 spp and improving AO raytracing performance. Tracing rays is particularly expensive on non-Turing GPUs and thus checkerboard option can help to get to acceptable raytracing performance. The denoiser supports a checkerboard AO input.
 #### Limitation 
-The checkerboard option is supported on the sorted raytraced AO path. Currently, standard 2D DispatchRays() path doesn't skip over inactive pixels. This is trivial to extend should you need it. The implemented denoiser supports checkerboard AO input.
+* Raysorting implemention supports 1 or lower spp only.
+* The checkerboard sampling is supported on the sorted raytraced AO path. Currently, standard 2D DispatchRays() path doesn't skip over inactive pixels. This is trivial to extend should you need it. 
 
 ### Sampling
-The random samples for sampling of a hemisphere with AO rays are generated with a cosine weighted multi-jittered sampler as per "Section 5.3.4 in book Ray Tracing from the Ground Up". Given low spp requirements of the sample, the sampling quality of a hemisphere can be poor. Since the denoiser accumulates samples from local neighborhoods by blurring the image, it thus improves per pixel spp. The sample improves this further by having the sampler generate sample sets for NxN pixels (i.e. 8x8) and R spp resulting in NxNxR samples per a set. Then each pixel from NxN pixel set randomly picks a unique sample from this set at raytrace time. This way the hemisphere sampling is improved across local neighborhoods making the local denoising even more effective at sampling the hemisphere. As long as the local neighborhoods (i.e. 8x8 pixels) are spatially close, have same surface normal and denoiser blurs among them, the sampling quality is improved. 
+Random samples for sampling of a hemisphere with AO rays are generated with a cosine weighted multi-jittered sampler (see Section 5.3.4 in book *Ray Tracing from the Ground Up*). Given low spp requirements of the sample, generating 1 sample sample sets per pixel would result in poor sampling quality of a hemisphere. Instead the sample generates sample sets for NxN pixels (i.e. 8x8). Then each pixel from NxN pixel set randomly picks a unique sample from this set at raytrace time. This way the hemisphere sampling is improved across local pixel neighborhoods making the local denoising even more effective at sampling the hemisphere. As long as the local neighborhoods (i.e. 8x8 pixels) are spatially close, have similar surface normal and denoiser blurs among them, the sampling quality is improved. 
 
 #### Limitations
-NxN sample set distribution is only supported for 1 spp. On 2+ spp settings, it will use 1x1 sample set distribution. TThis is trivial to extend should you need it.
+* NxN sample set distribution is only supported for 1 spp. On 2+ spp settings, it will use 1x1 sample set distribution. This is trivial to extend should you need it.
 
 ## Ray sorting
-AO rays generally have divergent ray directions at low spp. This severely affects the ray tracing performance, especially on Pascal architecture. We found the neighboring AO rays can be efficiently ray sorted by their ray direction to provide a boost of 10-40% of original runtime raytracing cost. The sample implements a compute based pre-sort pass for each 64x128 pixels and then dispatches the sorted rays with 1D DispatchRays(). On Turing, the ray sorted RTAO is mostly as fast as non-ray sorted AO due to the ray sorting overhead and because of the fact, the raytracing performance on Turing is better. The ray sorting is based on "Costa et al. 2014, Ray Reordering Techniques for GPU Ray-Cast Ambient Occlusion". In contrast to the approach in the paper, we found ray sorting by 8bit encoded octahedral ray direction working well and no impact for sorting by ray origin depth. But likely there can be cases where the ray origin depth would make a difference, such as in cases of cluttered geometry (looking at a dense grass field from a sharp angle).
+Calculating AO means sampling a hemisphere, and thus AO rays are divergent by design. This severely affects the ray tracing performance, especially on Pascal architecture. We found the neighboring AO rays can be efficiently ray sorted by their ray direction to provide a boost of 10-40% of original runtime raytracing cost. The sample implements a compute based pre-sort pass for each 64x128 pixels and then dispatches the sorted rays with 1D DispatchRays(). On Turing, the ray sorted RTAO path is mostly as fast as non-ray sorted RTAO path due to the ray sorting overhead and because of the fact, the raytracing performance on Turing is better. The ray sorting is done by hashing the rays and sorting them similar to *Costa et al. 2014, Ray Reordering Techniques for GPU Ray-Cast Ambient Occlusion*. In contrast to the paper, we found hashing the rays by 8bit encoded octahedral ray direction working well and no impact for extending the hash by ray origin depth. But likely there can be cases where the ray origin depth would make a difference, such as in cases of cluttered geometry (looking at a dense grass field from a sharp angle). The ray sorting shader performance directly depends on the hash bit length and, thus, using only 8 bit ray direction hash instead of a hash that also includes depth quantization speeds the ray sorting shader up. 
 
-## Checkerboard/0.5 spp
-The sample supports checkerboard pattern generated rays that rotates every frame. Currently, only the ray-sorted RTAO path takes advantage of this. The standard 2D DispatchRays just traces for all pixels. This is be trivial to extend.
 
-## Calculating ambient coefficient
-### Input to AO raytracer
-The sample implements a specular physically-based (PBR) pathtracer to calculate per-pixel color. It casts radiance and shadow rays as the rays bounce around. AO rays are raytraced and denoised in a separate pass. This allows to pre-sort the divergent rays and theoretically improve GPU's performance by running a single type of rays at a time. The denoiser supports a single AO value per pixel and since it depends on per-pixel normal, depth and motion vector data, it implicly requires each pixel to represent only a single surface hit point. This is not always the case in what the pathracer generates as it can reflect or refract/transmit hitting multiple surfaces for a single camera ray. To address this, the pathtracer uses a heuristic to pick a single surface hit. Namely, it selects a hit position with the highest perceived material luminance. That luminance depends on the surface's material albedo scaled by the radiance's ray radiance contribution. All other surfaces are lit with a constant ambient term when a radiance ray hits a surface. This generally works well and when the switching of selected surfaces across frames happen (i.e. due to the radiance ray incidence angle changing and thus fresnel ratio changing) it is usually not very noticeable in the final composited image.
 
 ### Ambient coefficient
-Sample applies a non-linear function to calculate ambient coefficient based on the AO ray's hit distance. This provides an artist control to fine tune how quickly ambient occlusion falls off with AO ray hit distance.
+Sample applies a non-linear function to calculate ambient coefficient based on the AO ray's hit distance. This provides an artistic control to fine-tune how quickly ambient occlusion falls off with AO ray hit distance.
 
 #### Approximating interreflections
-AO has tendency to overdarken the GI effect because it assumes the occluders don't emit/reflect any light. An option to solve this would be to do what a GI solution does and check for amount of light reflected by occluders. This naturally would make the AO rays more expensive to trace and essentially turning into GI itself. The sample, instead, implements an approximation to interreflections as per *Ch 11.3.3 Accounting for Interreflections, Real-Time Rendering (4th edition)*. The approximation modulates ambient coefficient based on an albedo of the surface based on a fact that lighter surfaces reflect more light and an assumption that local surfaces tend to have similar colors. The end result is that lighter surfaces will have a higher ambient coefficient and darker surfaces will have a lower ambient coefficient. 
+AO has tendency to overdarken the GI effect because it assumes the occluders don't emit/reflect any light. An option to solve this would be to do what a GI solution does and check for amount of light reflected by occluders. This naturally would make the AO rays more expensive to trace and essentially turning it into GI itself. The sample, instead, implements an approximation to interreflections as per Ch 11.3.3 Accounting for Interreflections in book *Real-Time Rendering (4th edition)*. The approximation modulates ambient coefficient based on an albedo of the surface based on a fact that lighter surfaces reflect more light and an assumption that local surfaces tend to have similar colors. The end result is that lighter surfaces will have a higher ambient coefficient and darker surfaces will have a lower ambient coefficient. 
 
 ## Real-Time AO Denoiser
-The sample implements a spatio-temporal denoiser based on an implementation of *Schied et al. 2017, Spatiotemporal Variance-Guided Filtering: Real-Time Reconstruction for Path-Traced Global Illumination* (SVGF). It uses normal, depth, motion vector and variance buffers to drive an edge-stopping filtering kernel. In contrast to the paper, our denoiser makes several adjustments and improvements to speed up the denoising. Much of the denoiser's filtering capabilities in our implementation come from temporal supersampling which immensely increase temporal spp (tspp), decrease the noise and thus require less aggressive denoising to be applied. Also similar to the paper, the denoiser accumulates the denoised value rather than the per frame raytraced value to denoise over time. This allows to trade a little denoising lag for cheaper filtering stage. The denoiser in this sample is targetted at and tuned for 60+ FPS applications and therefore it catches up fast. Applications running at lower than 60 FPS should raytrace at higher spp to achieve the same convergence. The denoising lag is generally not an issue, especially since that happens only on camera/object motion. Also the denoiser does a good job at preventing ghosting, but it should be pointed out that slight AO ghosting can often be impercievable/tolerable once it's composited with other render passes in a game. 
+The sample implements a spatio-temporal denoiser based on an implementation of *Schied et al. 2017, Spatiotemporal Variance-Guided Filtering: Real-Time Reconstruction for Path-Traced Global Illumination* (SVGF). It uses normal, depth, motion vector and variance buffers to drive an edge-stopping filtering kernel. In contrast to the paper, our denoiser makes several adjustments and improvements to speed up the denoising. Much of the denoiser's filtering capabilities in our implementation come from temporal supersampling which immensely increase temporal spp (tspp), decrease the noise and thus require less aggressive denoising to be applied. Also similar to the paper, the temporal supersampling accumulates the denoised value rather than the per frame raytraced value over time. This allows to trade a little denoising lag for cheaper filtering. The denoiser in this sample is targetted at and tuned for 60+ FPS applications and therefore it catches up fast. Applications running at lower than 60 FPS should raytrace at higher spp to achieve the same convergence rate. The denoising lag is generally not an issue, especially since that happens only on camera/object motion, which lowers our perception sensitivity to incorrect changes. Also the denoiser does a good job at preventing ghosting, but it should be pointed out that slight AO ghosting can often be impercievable/tolerable once it's composited with other render passes in a game. 
 
 ### Temporal supersampling
-The temporal supersampling accumulates per-frame samples over multiple frames providing a much higher temporally accumulated tspp. Tspp AO result is less noisy, more accurate/closer to the ground truth and easier to denoise on a budget. However, it is important to only accumulate valid AO values. Otherwise the temporally accumulated value will be incorrect and suffer from ghosting or lag, which is a typical issue in temporal techniques. The AO value can change either due to a pixel's surface hit position change or a change of the occluders around it. The implemented denoiser applies two stages to handle these cases.
+The temporal supersampling accumulates per-frame samples over multiple frames providing a much higher temporally accumulated tspp. Tspp AO result is less noisy, more accurate/closer to the ground truth and easier to denoise on a budget. However, it is important to only accumulate valid AO values. Otherwise the temporally accumulated value will be incorrect and suffer from ghosting or lag, which is a typical issue in temporal techniques. The true surface AO value can change either due to a pixel's surface hit position change or a change of the occluders around it. The implemented denoiser applies two stages to handle these cases.
 
-#### Reverse reprojection
+#### Stage 1: Reverse reprojection
 First temporal stage reprojects each pixel from the current frame into the previous frame and looks up an AO value from the cache using motion vector data. If the reprojected pixel corresponds to a pixel center it takes that AO value, otherwise it interpolates the value from a 2x2 pixel neighborhood. The AO value(s) are bilaterally weighted using depth and normal buffers to only accumulate AO values that correspond to the same point on a surface. This stage can be run before raytracing AO and, thus, provide information such as per-pixel tspp to drive spp for raytracing AO in the current frame. 
 
-#### Blending current frame value with the reprojected cached value
-The second stage blends current frame raytraced AO value with the the reprojected cached value together. The denoiser keeps a single temporal cache only and accumulate AO values via exponential weighting *a*; AO(i) = lerp(AO(new), AO(i-1), a). *a* is inversely proportional to the current tspp value *a = 1 / tspp*. The exponential weighting gives a higher weight to the current frame value on low tspp, and a lower weight on higher tspp. In practice, the tspp is capped at some value to make sure that previously accumulated values that may no longer valid are eventually replaced as scenes are often dynamic. This limits ghosting artifacts. We found a value of 33 (~ *a = 0.03*) to work well. In addition, to further supress ghosting, the blend stage clamps the interpolated value from the cache to an expected AO value based on the current frame as per *Salvi 2016, An Excursion in Temporal Supersampling*. This is simply clamping reprojected cached value to a local mean +/- std.dev for each pixel. Since the 1 spp input is very noisy the variance estimate has to be calculated from a reasonably sized kernel window. A 9x9 variance kernel works well for 1 spp. The sample defaults to clamping settings which provide a good compromise between ability to get to higher tspp and clamping strictness that invalidates obsolete cache values. This can be fine tuned for your scenario. 
+#### Stage 2: Blending current frame value with the reprojected cached value
+The second stage blends current frame raytraced AO value with the the reprojected cached value together for each pixel. The denoiser keeps a single temporal cache, which is more efficient than keeping a history of buffers and processing them every frame, and accumulates AO values via exponential weighting *a*; AO(i) = lerp(AO(new), AO(i-1), a). *a* is inversely proportional to the current tspp value *a = 1 / tspp*. The exponential weighting gives a higher weight to the current frame value on low tspp, and a lower weight on higher tspp. In practice, the tspp is capped at some value to make sure that previously accumulated values that may no longer be valid are eventually replaced as scenes are often dynamic. This limits ghosting artifacts. We found a value of 33 (~ *a = 0.03*) to work well. In addition, to further supress ghosting, the blend stage clamps the cached AO value to an expected AO value based on the current frame as per *Salvi 2016, An Excursion in Temporal Supersampling*. This is simply clamping of a cached value to a local mean +/- std.dev for each pixel. Since the 1 spp input is very noisy the variance estimate has to be calculated from a reasonably sized kernel window. We found a 9x9 variance kernel to work well for 1 spp. The sample defaults to clamping settings which provide a good compromise between ability to get to higher tspp and clamping strictness that invalidates obsolete cache values. This can be fine-tuned for your scenario. 
 
 ### Filtering
-The filtering is done in two stages. The first stage performs a fullscreen bilateral blur similar to that of SVGF denoiser. In contrast to SVGF with five passes of 5x5 filter kernel, our denoiser applies a single pass with 3x3 kernel width since it is an expensive filter and many of the input AO pixels have generally high tspp. It works well given the denoiser temporally accumulates the denoised result and thus spreads the denoising cost over multiple frames. It does, however, require a few frames for the temporal denoiser to get to a smooth result for an 1 spp per-frame input. Therefore, the second stage applies a cheaper but stronger filter to the recently disoccluded pixels with low tspp to smooth out the initial noisy result. Once the pixels accumulate high enough tspp (i.e. 12) the pixels are continuosly denoised with only the high quality filter from the first stage retaining detail while proving a high quality smoothing. This works well in 60+ Hz application.
+The filtering is done in two stages. The first stage performs a fullscreen bilateral blur similar to that of SVGF denoiser. In contrast to SVGF with five passes of 5x5 filter kernel, our denoiser applies a single pass with 3x3 kernel width since it is an expensive filter and many of the input AO pixels have generally high tspp. It works well given the denoiser temporally accumulates the denoised result and thus spreads the denoising cost over multiple frames. It does, however, require a few frames for the temporal denoiser to get to a smooth result for an 1 spp per-frame input. Therefore, the second stage applies a cheaper but stronger filter to the recently disoccluded pixels with low tspp to smooth out the initial noisy AO. Once the pixels accumulate high enough tspp (i.e. 12) the pixels are continuosly denoised with the high quality filter from the first stage only retaining more detail while proving a high quality smoothing. This dual stage approach provides a good balance between quality and speed for denoising AO for which much of the sample AO values remains valid for many subsequent frames. 
 
-#### Fullscreen blur
-The fullscreen blur applies a single pass 3x3 bilateral filter similar to SVGF. The filtering quality is improved by using an adaptive kernel size based on temporally accumulated ray hit distance and the output denoising quality as per *Chapter 19, Ray-Tracing Gems*. Furthermore, the kernel size is varied between min kernel width (i.e. 3) and target adaptive kernel width every frame for a better spatial coverage over time. This is in the vein of denoisers with varying sparse sample taps every frame. This allows for a very good denoise of AO even though it uses a small 3x3 kernel once per frame. It does, however, require a few frames to converge to a smooth result.
+#### Stage 1: Fullscreen blur
+The fullscreen blur applies a single pass 3x3 bilateral filter similar to SVGF. The filtering quality is improved by using an adaptive kernel size based on temporally accumulated ray hit distance and the output denoising quality as per *Chapter 19, Ray-Tracing Gems*. Our denoiser further varies the kernel size between min kernel width (i.e. 3) and target adaptive kernel width every frame for a better spatial coverage over time. This is in the vein of denoisers with varying sparse sample taps every frame. This allows for a very good denoise of AO even though it uses a small 3x3 kernel once per frame. It does, however, require a few frames to converge to a smooth result.
 
-#### Disocclusion blur
-The second stage addresses qrecently disoccluded pixels. It applies a stronger 3x3 multi-pass blur with more relaxed depth-aware constraints for such pixels. The more relaxed bilateral constraints allow for quicker blurring while preventing blur across significant pixel-to-pixel depth differences. This stronger blur filter is only applied to pixels with low tspp and the filter strength is decreased as tspp increases over subsequent frames. This works pretty well and has an appearance of motion blur making the result more visually pleasing while not affecting the higher denoising quality for the pixels with higher tspp.
+#### Stage 2: Disocclusion blur
+The second stage addresses recently disoccluded pixels. It applies a stronger 3x3 multi-pass blur with more relaxed depth-aware constraints for such pixels. The more relaxed bilateral constraints allow for quicker blurring while preventing blur across significant pixel-to-pixel depth differences. This stronger blur filter is only applied to pixels with low tspp and the filter strength is decreased as tspp increases over subsequent frames. This works pretty well and has an appearance of motion blur making the result more visually pleasing while not affecting the higher denoising quality for the pixels with higher tspp.
 
 ## Other sample information
 ### Pathtracer
 #### Motion vectors
-Motion vectors represent a screenspace uv difference for a surface hit from a current to a previous frame. Thus given a curent frame pixel and a motion vector we can look up cached value in the previous frame buffer. Motion vector is an input to temporal supersampling's reverse reprojection stage. Since surfaces can appear and disappear, the reprojection stage has to apply consistency checks to validata the cached value corresponds to the same/similar enough surface point.
+Motion vectors represent a screen space uv difference for a surface hit from a previous to a current frame. Thus given a curent frame pixel and a motion vector we can look up a cached value in the previous frame buffer. Motion vector is an input to temporal supersampling's reverse reprojection stage. Since surfaces can appear and disappear, the reprojection stage has to apply consistency checks to validate that the cached value corresponds to the same/similar enough surface point.
 
-This sample provides an implemention of motion vector that supports animated camera and animated objects reflected of animated planar reflectors. The motion vector for reflected objects is calculated by unwinding an objects virtual position at each reflection. A virtual position is position of an object that would render at the same screen space position and depth if it wasn't reflected. For a single reflection, a virtual position is simply a mirror reflection of the reflected position around the mirror plane. 
+This sample provides an implemention of motion vector calculation that supports animated camera and animated objects reflected of animated planar reflectors. The motion vector for reflected objects is calculated by unwinding an object's virtual position at each reflection bounce. A virtual position is a position of an object that would render at the same screen space position and depth if it wasn't reflected. For a single reflection, a virtual position is simply a mirror reflection of the reflected position around the mirror plane; i.e. ending up behind the mirror plane. 
  
 ### Dynamic geometry
 The sample supports dynamic updates both to BLAS world transforms and geometry vertices. TLAS is rebuilt every frame picking up active BLAS instances with updated world transforms. BLASes that have had their vertex geometry changed are rebuilt.
