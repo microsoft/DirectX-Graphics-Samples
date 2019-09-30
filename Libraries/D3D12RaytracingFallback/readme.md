@@ -17,10 +17,7 @@ In order to build and run the Fallback Layer you will need:
 * [Windows 10 Fall Creators Update SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk) or higher.
 * A graphics card with retail DXIL capabilities.
 * DXIL.dll should be pulled from the latest Windows SDK to accompany the compiler or enable Developer mode.
-* DXR Fallback Compiler - download [DirectXRaytracingBinariesV1.5.zip](https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.5-dxr) and copy all the contents to Samples/Desktop/D3D12Raytracing/tools/x64.
-
-## API Samples
-After cloning the project, you can open up D3D12Raytracing.sln in Samples/Desktop/D3D12Raytracing/src. There are several projects that demonstrate basic usage of the Fallback Layer/DXR API including a larger demo integrated with the MiniEngine. More details in the [readme](../../Samples/Desktop/D3D12Raytracing/readme.md)
+* DXR Fallback Compiler - download [DirectXRaytracingBinariesV1.5.zip](https://github.com/Microsoft/DirectX-Graphics-Samples/releases/tag/v1.5-dxr).
 
 ## Developing with the Fallback Layer
 For details on developing an app using the Fallback Layer, please consult the [developer guide](developerguide.md)
@@ -31,11 +28,3 @@ For details on developing an app using the Fallback Layer, please consult the [d
 
 ## Contributing
 See [contributing](contributing.md)
-
-## Feedback
-We would love to hear how you're using the Fallback Layer! We're also interested in any form of feedback you may have:
-* How many rays per sec would make the Fallback Layer usable in practice for your scenario? Real-time or offline?
-* Are there functional issues blocking adoption of the Fallback Layer? Are the ways the interface could be less obstructive?
-* Bugs/Issues using the Fallback Layer?
-
-Please feel free to reach out on our [discord server](http://discord.gg/directx).
