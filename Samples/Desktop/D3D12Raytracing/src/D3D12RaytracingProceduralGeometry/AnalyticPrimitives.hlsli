@@ -153,6 +153,7 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
 }
 
 // Test if a ray segment <RayTMin(), RayTCurrent()> intersects an AABB.
+// Limitation: this test does not take RayFlags into consideration and does not calculate a surface normal.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
 bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float tmax)
 {
