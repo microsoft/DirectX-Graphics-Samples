@@ -149,6 +149,7 @@ public:
     void PIXEndEvent(void);
     void PIXSetMarker(const wchar_t* label);
 
+    void SetPipelineState(const PSO& PSO);
     void SetDescriptorHeap( D3D12_DESCRIPTOR_HEAP_TYPE Type, ID3D12DescriptorHeap* HeapPtr );
     void SetDescriptorHeaps( UINT HeapCount, D3D12_DESCRIPTOR_HEAP_TYPE Type[], ID3D12DescriptorHeap* HeapPtrs[] );
 
@@ -163,9 +164,8 @@ protected:
     ID3D12CommandAllocator* m_CurrentAllocator;
 
     ID3D12RootSignature* m_CurGraphicsRootSignature;
-    ID3D12PipelineState* m_CurGraphicsPipelineState;
+    ID3D12PipelineState* m_CurPipelineState;
     ID3D12RootSignature* m_CurComputeRootSignature;
-    ID3D12PipelineState* m_CurComputePipelineState;
 
     DynamicDescriptorHeap m_DynamicViewDescriptorHeap;        // HEAP_TYPE_CBV_SRV_UAV
     DynamicDescriptorHeap m_DynamicSamplerDescriptorHeap;    // HEAP_TYPE_SAMPLER
@@ -222,7 +222,6 @@ public:
     void SetBlendFactor( Color BlendFactor );
     void SetPrimitiveTopology( D3D12_PRIMITIVE_TOPOLOGY Topology );
 
-    void SetPipelineState( const GraphicsPSO& PSO );
     void SetConstantArray( UINT RootIndex, UINT NumConstants, const void* pConstants );
     void SetConstant( UINT RootIndex, DWParam Val, UINT Offset = 0 );
     void SetConstants( UINT RootIndex, DWParam X );
@@ -271,7 +270,6 @@ public:
 
     void SetRootSignature( const RootSignature& RootSig );
 
-    void SetPipelineState( const ComputePSO& PSO );
     void SetConstantArray( UINT RootIndex, UINT NumConstants, const void* pConstants );
     void SetConstant( UINT RootIndex, DWParam Val, UINT Offset = 0 );
     void SetConstants( UINT RootIndex, DWParam X );
@@ -332,24 +330,14 @@ inline void ComputeContext::SetRootSignature( const RootSignature& RootSig )
     m_DynamicSamplerDescriptorHeap.ParseComputeRootSignature(RootSig);
 }
 
-inline void GraphicsContext::SetPipelineState( const GraphicsPSO& PSO )
+inline void CommandContext::SetPipelineState( const PSO& PSO )
 {
     ID3D12PipelineState* PipelineState = PSO.GetPipelineStateObject();
-    if (PipelineState == m_CurGraphicsPipelineState)
+    if (PipelineState == m_CurPipelineState)
         return;
 
     m_CommandList->SetPipelineState(PipelineState);
-    m_CurGraphicsPipelineState = PipelineState;
-}
-
-inline void ComputeContext::SetPipelineState( const ComputePSO& PSO )
-{
-    ID3D12PipelineState* PipelineState = PSO.GetPipelineStateObject();
-    if (PipelineState == m_CurComputePipelineState)
-        return;
-
-    m_CommandList->SetPipelineState(PipelineState);
-    m_CurComputePipelineState = PipelineState;
+    m_CurPipelineState = PipelineState;
 }
 
 inline void GraphicsContext::SetViewportAndScissor( UINT x, UINT y, UINT w, UINT h )
