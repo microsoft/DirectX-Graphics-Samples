@@ -112,12 +112,14 @@ uint64_t CommandContext::Flush(bool WaitForCompletion)
     if (m_CurGraphicsRootSignature)
     {
         m_CommandList->SetGraphicsRootSignature(m_CurGraphicsRootSignature);
-        m_CommandList->SetPipelineState(m_CurGraphicsPipelineState);
     }
     if (m_CurComputeRootSignature)
     {
-        m_CommandList->SetComputeRootSignature(m_CurComputeRootSignature);
-        m_CommandList->SetPipelineState(m_CurComputePipelineState);
+        m_CommandList->SetComputeRootSignature(m_CurComputeRootSignature);    
+    }
+    if (m_CurPipelineState)
+    {
+        m_CommandList->SetPipelineState(m_CurPipelineState);
     }
 
     BindDescriptorHeaps();
@@ -168,9 +170,8 @@ CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE Type) :
     ZeroMemory(m_CurrentDescriptorHeaps, sizeof(m_CurrentDescriptorHeaps));
 
     m_CurGraphicsRootSignature = nullptr;
-    m_CurGraphicsPipelineState = nullptr;
+    m_CurPipelineState = nullptr;
     m_CurComputeRootSignature = nullptr;
-    m_CurComputePipelineState = nullptr;
     m_NumBarriersToFlush = 0;
 }
 
@@ -194,9 +195,8 @@ void CommandContext::Reset( void )
     m_CommandList->Reset(m_CurrentAllocator, nullptr);
 
     m_CurGraphicsRootSignature = nullptr;
-    m_CurGraphicsPipelineState = nullptr;
+    m_CurPipelineState = nullptr;
     m_CurComputeRootSignature = nullptr;
-    m_CurComputePipelineState = nullptr;
     m_NumBarriersToFlush = 0;
 
     BindDescriptorHeaps();
