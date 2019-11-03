@@ -169,14 +169,14 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
     const float FLT_MIN = 1.175494351e-38;
     float3 invRayDirection = ray.direction != 0 ? 1 / ray.direction : FLT_MIN;
 
-    tmin3.x = (aabb[1 - sign3.x].x - ray.origin.x) / invRayDirection.x;
-    tmax3.x = (aabb[sign3.x].x - ray.origin.x) / invRayDirection.x;
+    tmin3.x = (aabb[1 - sign3.x].x - ray.origin.x) * invRayDirection.x;
+    tmax3.x = (aabb[sign3.x].x - ray.origin.x) * invRayDirection.x;
 
-    tmin3.y = (aabb[1 - sign3.y].y - ray.origin.y) / invRayDirection.y;
-    tmax3.y = (aabb[sign3.y].y - ray.origin.y) / invRayDirection.y;
+    tmin3.y = (aabb[1 - sign3.y].y - ray.origin.y) * invRayDirection.y;
+    tmax3.y = (aabb[sign3.y].y - ray.origin.y) * invRayDirection.y;
     
-    tmin3.z = (aabb[1 - sign3.z].z - ray.origin.z) / invRayDirection.z;
-    tmax3.z = (aabb[sign3.z].z - ray.origin.z) / invRayDirection.z;
+    tmin3.z = (aabb[1 - sign3.z].z - ray.origin.z) * invRayDirection.z;
+    tmax3.z = (aabb[sign3.z].z - ray.origin.z) * invRayDirection.z;
     
     tmin = max(max(tmin3.x, tmin3.y), tmin3.z);
     tmax = min(min(tmax3.x, tmax3.y), tmax3.z);
