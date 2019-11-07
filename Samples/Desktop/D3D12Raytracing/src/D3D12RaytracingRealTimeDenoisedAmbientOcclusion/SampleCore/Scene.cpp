@@ -740,6 +740,7 @@ void Scene::GenerateGrassGeometry()
     float totalTime = Scene_Args::AnimateScene && Scene_Args::AnimateGrass ? static_cast<float>(m_timer.GetTotalSeconds()) : 0;
 
     m_currentGrassPatchVBIndex = (m_currentGrassPatchVBIndex + 1) % 2;
+    ScopedTimer _prof(L"Generate Grass Geometry", commandList);
 
     // Update all LODs.
     for (UINT i = 0; i < UIParameters::NumGrassGeometryLODs; i++)

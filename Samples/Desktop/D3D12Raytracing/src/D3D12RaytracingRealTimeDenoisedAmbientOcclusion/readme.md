@@ -17,6 +17,7 @@ The sample assumes familiarity with Dx12 programming and DirectX Raytracing conc
 D3D12RaytracingRealTimeDenoisedAmbientOcclusion.exe [...]
 * [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0
 * [-vsync] - renders with VSync enabled
+* [-disableUI] - disables GUI rendering
 
 The sample defaults to 1080p window size and 1080p RTAO. In practice, AO is done at quarter resolution as the 4x performance overhead generally doesn't justify the quality increase, especially on higher resolutions/dpis. Therefore, if you switch to higher window resolutions, such as 4K, also switch to quarter res RTAO via QuarterRes UI option to improve the performance.
 
@@ -46,12 +47,16 @@ The GUI menu in the top left corner provides a runtime information and a multitu
 * 2 - Denoised RTAO visualization
 * 3 - Specular PBR Pathtracer + RTAO visualization
 * 4 - Toggles RTAO ray lengths - short | long
+* ENTER - Toggles RTAO ON/OFF in "Specular PBR Pathracer + RTAO visualization mode"
 * F9 - does a profiling pass. Renders 1000 frames, rotates camera 360 degrees and outputs GPU times to Profile.csv
 * space - pauses/resumes rendering
 * U/Y - moves car by the house back and forth
 * J/M - moves spaceship up and down
 * H/K - rotates spaceship around scene's center
 * ESC - terminate the application
+
+## PIX support
+Set API mode to "D3D12 (ignore D3D11)" from "Auto" in PIX when launching the sample from PIX to take a capture. The sample enables PIX marker instrumentation under Debug and Profile configs.
 
 ## Requirements
 * "*AnyToAnyWaveReadLaneAt*" shaders require ReadLaneAt() with any to any wave read lane support. Tested on (Pascal & Turing). If your HW doesn't support it, you will need to replace those wave intrinsics.

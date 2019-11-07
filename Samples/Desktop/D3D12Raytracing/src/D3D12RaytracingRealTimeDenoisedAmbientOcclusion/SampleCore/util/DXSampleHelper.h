@@ -871,6 +871,31 @@ inline void CreateBufferSRV(
 		firstElement);
 };
 
+inline void AllocateBuffer(
+    ID3D12Device5* device,
+    UINT numElements,
+    UINT elementByteSize,
+    DX::DescriptorHeap* descriptorHeap,
+    D3DBuffer* buffer,
+    D3D12_RESOURCE_STATES initialResourceState,
+    const wchar_t* resourceName = nullptr)
+{
+    UINT vertexDataSize = numElements * elementByteSize;
+    ThrowIfFailed(device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        D3D12_HEAP_FLAG_NONE,
+        &CD3DX12_RESOURCE_DESC::Buffer(vertexDataSize),
+        initialResourceState,
+        nullptr,
+        IID_PPV_ARGS(&buffer->resource)));
+    if (resourceName)
+    {
+        buffer->resource->SetName(resourceName);
+    }
+
+    CreateBufferSRV(device, numElements, elementByteSize, descriptorHeap, buffer);
+}
+
 // Allocates raw typeless buffer.
 inline void AllocateRawTypelessBuffer(
     ID3D12Device5* device,
@@ -903,7 +928,7 @@ inline void AllocateRawTypelessBuffer(
 }
 
 // Allocates index buffer.
-inline void AllocateIndexBuffer(
+inline void AllocateRawTypelessIndexBuffer(
     ID3D12Device5* device,
     UINT numElements,
     UINT elementByteSize,
@@ -915,30 +940,16 @@ inline void AllocateIndexBuffer(
     AllocateRawTypelessBuffer(device, numElements, elementByteSize, descriptorHeap, buffer, initialResourceState, L"Index buffer");
 }
 
-
-inline void AllocateBuffer(
+inline void AllocateIndexBuffer(
     ID3D12Device5* device,
     UINT numElements,
     UINT elementByteSize,
     DX::DescriptorHeap* descriptorHeap,
     D3DBuffer* buffer,
-    D3D12_RESOURCE_STATES initialResourceState,
-    const wchar_t* resourceName = nullptr)
+    D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_INDEX_BUFFER
+)
 {
-    UINT vertexDataSize = numElements * elementByteSize;
-    ThrowIfFailed(device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(vertexDataSize),
-        initialResourceState,
-        nullptr,
-        IID_PPV_ARGS(&buffer->resource)));
-    if (resourceName)
-    {
-        buffer->resource->SetName(resourceName);
-    }
-
-    CreateBufferSRV(device, numElements, elementByteSize, descriptorHeap, buffer);
+    AllocateBuffer(device, numElements, elementByteSize, descriptorHeap, buffer, initialResourceState, L"Index buffer");
 }
 
 // Allocates vertex buffer.
