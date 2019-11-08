@@ -192,7 +192,7 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float thit, out Proced
     float tmin, tmax;
     if (RayAABBIntersectionTest(ray, aabb, tmin, tmax))
     {
-        // Only consider intersections penetrating the surface from the outside.
+        // Only consider intersections crossing the surface from the outside.
         if (tmin < RayTMin() || tmin > RayTCurrent())
             return false;
 
