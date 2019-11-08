@@ -62,13 +62,10 @@
 #include "d3dx12.h"	
 #include <pix3.h>
 
-#include <GeometricPrimitive.h>
 #include <DirectXMath.h>
 #include <WICTextureLoader.h>
 #include <DDSTextureLoader.h>
 #include "ResourceUploadBatch.h"
-#include <Keyboard.h>
-#include <DirectXCollision.h>
 
 // UI 
 #include <d2d1_3.h>
