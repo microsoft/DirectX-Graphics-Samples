@@ -183,7 +183,7 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
     tmin = max(max(tmin3.x, tmin3.y), tmin3.z);
     tmax = min(min(tmax3.x, tmax3.y), tmax3.z);
     
-    return tmax > tmin;
+    return tmax > tmin && tmax >= RayTMin() && tmin <= RayTCurrent();
 }
 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a hollow AABB.
