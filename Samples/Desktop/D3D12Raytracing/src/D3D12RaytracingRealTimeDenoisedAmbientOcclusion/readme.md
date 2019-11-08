@@ -22,8 +22,7 @@ D3D12RaytracingRealTimeDenoisedAmbientOcclusion.exe [...]
 The sample defaults to 1080p window size and 1080p RTAO. In practice, AO is done at quarter resolution as the 4x performance overhead generally doesn't justify the quality increase, especially on higher resolutions/dpis. Therefore, if you switch to higher window resolutions, such as 4K, also switch to quarter res RTAO via QuarterRes UI option to improve the performance.
 
 ### UI
-The title bar of the sample provides runtime information:
-* Name of the sample
+The title bar of the sample provides runtime * Name of the sample
 * Frames per second
 * GPU[ID]: name
 
@@ -63,7 +62,6 @@ Set API mode to "D3D12 (ignore D3D11)" from "Auto" in PIX when launching the sam
 * Requires DXR capable HW and SW. Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.
 
 ## Known Issues\Limitations
-* On Debug config, textures don't work correctly - the textured roof renders incorrectly. 
 * UI "Sample set distribution across NxN pixels* set to true is only compatible with 1 spp (default). The distribution UI value will get forced to 1 if you select 2+ spp.
 
 ## Acknowledgements
