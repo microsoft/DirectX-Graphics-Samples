@@ -22,7 +22,8 @@ D3D12RaytracingRealTimeDenoisedAmbientOcclusion.exe [...]
 The sample defaults to 1080p window size and 1080p RTAO. In practice, AO is done at quarter resolution as the 4x performance overhead generally doesn't justify the quality increase, especially on higher resolutions/dpis. Therefore, if you switch to higher window resolutions, such as 4K, also switch to quarter res RTAO via QuarterRes UI option to improve the performance.
 
 ### UI
-The title bar of the sample provides runtime * Name of the sample
+The title bar of the sample provides runtime 
+* Name of the sample
 * Frames per second
 * GPU[ID]: name
 
