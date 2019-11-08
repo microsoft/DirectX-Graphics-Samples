@@ -63,7 +63,6 @@ Set API mode to "D3D12 (ignore D3D11)" from "Auto" in PIX when launching the sam
 * Requires DXR capable HW and SW. Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.
 
 ## Known Issues\Limitations
-* On Debug config, textures don't work correctly - the textured roof renders incorrectly. 
 * UI "Sample set distribution across NxN pixels* set to true is only compatible with 1 spp (default). The distribution UI value will get forced to 1 if you select 2+ spp.
 
 ## Acknowledgements
