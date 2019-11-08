@@ -185,7 +185,10 @@ There are multiple opportunities to improve the denoised RTAO further both quali
   * **Upsampling** could be improved to find better candidates from low res inputs. Either by increasing the 2x2 sampling quad and/or improving the depth test to be more strict by testing against expected depth at the source low-res sample offset instead of the current test target depth +/- threshold.
   * **Disocclusion blur**. Current implementation uses a 3x3 separable filter and runs three times at varying kernel steps. It might be possible to get a better quality/perf trade off with larger kernel, larger steps and fewer iterations.
   * **Local variance estimate**. Calculate local variance with a depth aware filter with relaxed weights, similar to the disocclusion blur for better variance estimates. Currently the local variance is calculated with a separable filter without any bilateral weights for performance reasons. The depth test strictness should be parametrized such that it disqualifies pixels far apart, but also provides enough samples to get a stable local variance estimate.
-There are also few areas in the sample which you should consider to improve in your implementation if porting the sample code over: 
+  * **Temporal gradients to discard stale temporal cache values**. You can recast rays from previous frame for a subset of samples (i.e. 1 ray per 3x3 pixels) and calculate temporal gradients to more directly evaluate amount of local change to detect and discard stale temporal cache values as per Schied et al. "Gradient Estimation for Real-Time Adaptive Temporal
+Filtering". Clamping of cached values works well for substantial AO changes in the scene and/or for areas where local variance is small. Temporal gradient samples, however, are much more precise at determining amount of change from frame to frame.
+
+There are also few areas in the sample which you should consider to improve in your implementation if porting/integrating the sample code over: 
 * **Acceleration Structure**
   * **Faster build**. Use a separate scratch resource for each BLAS build to avoid needing to insert a UAV barrier between builds and, thus, allow a driver to overlap the builds.
   * **Lower memory usage**. Use compaction to lower the size of static BLAS resources (by ~55%).

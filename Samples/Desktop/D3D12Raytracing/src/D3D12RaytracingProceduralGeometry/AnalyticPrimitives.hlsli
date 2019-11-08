@@ -166,8 +166,10 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
     //  which will get ignored on tmin/tmax = max/min.
     // If a ray is outside the parallel slabs, -inf/+inf will
     //  make tmax > tmin fail (i.e. no intersection).
-    const float FLT_MIN = 1.175494351e-38;
-    float3 invRayDirection = ray.direction != 0 ? 1 / ray.direction : FLT_MIN;
+    const float FLT_MAX = 3.402823466e+38;
+    float3 invRayDirection = ray.direction != 0 
+                           ? 1 / ray.direction 
+                           : (ray.direction > 0) ? FLT_MAX : -FLT_MAX;
 
     tmin3.x = (aabb[1 - sign3.x].x - ray.origin.x) * invRayDirection.x;
     tmax3.x = (aabb[sign3.x].x - ray.origin.x) * invRayDirection.x;
