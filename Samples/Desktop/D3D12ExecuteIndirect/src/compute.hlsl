@@ -17,7 +17,7 @@ struct SceneConstantBuffer
     float4 offset;
     float4 color;
     float4x4 projection;
-    float4 padding[9];
+    float4 padding[36];
 };
 
 struct IndirectCommand
