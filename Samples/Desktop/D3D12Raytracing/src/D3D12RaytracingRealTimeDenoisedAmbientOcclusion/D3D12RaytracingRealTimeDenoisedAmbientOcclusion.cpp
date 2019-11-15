@@ -206,19 +206,23 @@ void D3D12RaytracingRealTimeDenoisedAmbientOcclusion::OnKeyDown(UINT8 key)
     {
     case VK_ESCAPE:
         throw HrException(E_APPLICATION_EXITING);
-
+    case 0x30: // 0
     case VK_NUMPAD0:
         RTAO_Args::Spp_useGroundTruthSpp.Bang();
         break;
+    case 0x31: // 1
     case VK_NUMPAD1:
         Composition_Args::CompositionMode.SetValue(CompositionType::AmbientOcclusionOnly_RawOneFrame);
         break;
+    case 0x32: // 2
     case VK_NUMPAD2:
         Composition_Args::CompositionMode.SetValue(CompositionType::AmbientOcclusionOnly_Denoised);
         break;
+    case 0x33: // 3
     case VK_NUMPAD3:
         Composition_Args::CompositionMode.SetValue(CompositionType::PBRShading);
         break;
+    case 0x34: // 4
     case VK_NUMPAD4:
         fValue = IsInRange(static_cast<float>(RTAO_Args::MaxRayHitTime), 3.9f, 4.1f) ? 22.f : 4.f;
         m_RTAO.SetMaxRayHitTime(fValue);
