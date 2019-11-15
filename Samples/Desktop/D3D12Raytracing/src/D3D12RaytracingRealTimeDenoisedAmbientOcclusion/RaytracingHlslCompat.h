@@ -22,7 +22,7 @@
 
 //************************** Global Overrides **************************************************
 #define RENDER_GRASS_GEOMETRY 1
-#define PRINT_OUT_CAMERA_CONFIG 1
+#define PRINT_OUT_CAMERA_CONFIG 0
 
 #ifdef _DEBUG
 #define LOAD_ONLY_ONE_PBRT_MESH 0 // Set to 1 to speed up application start on debug.

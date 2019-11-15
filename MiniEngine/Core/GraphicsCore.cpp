@@ -226,6 +226,14 @@ void Graphics::Resize(uint32_t width, uint32_t height)
 {
     ASSERT(s_SwapChain1 != nullptr);
 
+    // Check for invalid window dimensions
+    if (width == 0 || height == 0)
+        return;
+
+    // Check for an unneeded resize
+    if (width == g_DisplayWidth && height == g_DisplayHeight)
+        return;
+
     g_CommandManager.IdleGPU();
 
     g_DisplayWidth = width;

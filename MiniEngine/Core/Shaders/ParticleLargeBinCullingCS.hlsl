@@ -19,7 +19,7 @@
 StructuredBuffer<ParticleVertex> g_VertexBuffer : register(t0);
 ByteAddressBuffer g_VertexCount : register(t1);
 RWStructuredBuffer<uint> g_LargeBinParticles : register(u0);
-RWStructuredBuffer<uint> g_LargeBinCounters : register(u1);
+RWByteAddressBuffer g_LargeBinCounters : register(u1);
 RWStructuredBuffer<ParticleScreenData> g_VisibleParticles : register( u2 );
 
 cbuffer CB0 : register(b0)
@@ -98,7 +98,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
         {
             uint LargeBinIndex = y * LargeBinsPerRow + x;
             uint AllocIdx;
-            InterlockedAdd(g_LargeBinCounters[LargeBinIndex], 1, AllocIdx);
+            g_LargeBinCounters.InterlockedAdd(LargeBinIndex * 4, 1, AllocIdx);
             AllocIdx = min(AllocIdx, MAX_PARTICLES_PER_LARGE_BIN - 1);
             g_LargeBinParticles[LargeBinIndex * MAX_PARTICLES_PER_LARGE_BIN + AllocIdx] = SortKey;
         }
