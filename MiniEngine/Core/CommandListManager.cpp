@@ -82,7 +82,7 @@ void CommandQueue::Create(ID3D12Device* pDevice)
     m_pFence->Signal((uint64_t)m_Type << 56);
 
     m_FenceEventHandle = CreateEvent(nullptr, false, false, nullptr);
-    ASSERT(m_FenceEventHandle != INVALID_HANDLE_VALUE);
+    ASSERT(m_FenceEventHandle != NULL);
 
     m_AllocatorPool.Create(pDevice);
 

@@ -17,6 +17,7 @@ The sample assumes familiarity with Dx12 programming and DirectX Raytracing conc
 D3D12RaytracingRealTimeDenoisedAmbientOcclusion.exe [...]
 * [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0
 * [-vsync] - renders with VSync enabled
+* [-disableUI] - disables GUI rendering
 
 The sample defaults to 1080p window size and 1080p RTAO. In practice, AO is done at quarter resolution as the 4x performance overhead generally doesn't justify the quality increase, especially on higher resolutions/dpis. Therefore, if you switch to higher window resolutions, such as 4K, also switch to quarter res RTAO via QuarterRes UI option to improve the performance.
 
@@ -46,6 +47,7 @@ The GUI menu in the top left corner provides a runtime information and a multitu
 * 2 - Denoised RTAO visualization
 * 3 - Specular PBR Pathtracer + RTAO visualization
 * 4 - Toggles RTAO ray lengths - short | long
+* ENTER - Toggles RTAO ON/OFF in "Specular PBR Pathracer + RTAO visualization mode"
 * F9 - does a profiling pass. Renders 1000 frames, rotates camera 360 degrees and outputs GPU times to Profile.csv
 * space - pauses/resumes rendering
 * U/Y - moves car by the house back and forth
@@ -53,12 +55,14 @@ The GUI menu in the top left corner provides a runtime information and a multitu
 * H/K - rotates spaceship around scene's center
 * ESC - terminate the application
 
+## PIX support
+Set API mode to "D3D12 (ignore D3D11)" from "Auto" in PIX when launching the sample from PIX to take a capture. The sample enables PIX marker instrumentation under Debug and Profile configs.
+
 ## Requirements
 * "*AnyToAnyWaveReadLaneAt*" shaders require ReadLaneAt() with any to any wave read lane support. Tested on (Pascal & Turing). If your HW doesn't support it, you will need to replace those wave intrinsics.
 * Requires DXR capable HW and SW. Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.
 
 ## Known Issues\Limitations
-* On Debug config, textures don't work correctly - the textured roof renders incorrectly. 
 * UI "Sample set distribution across NxN pixels* set to true is only compatible with 1 spp (default). The distribution UI value will get forced to 1 if you select 2+ spp.
 
 ## Acknowledgements
@@ -181,7 +185,10 @@ There are multiple opportunities to improve the denoised RTAO further both quali
   * **Upsampling** could be improved to find better candidates from low res inputs. Either by increasing the 2x2 sampling quad and/or improving the depth test to be more strict by testing against expected depth at the source low-res sample offset instead of the current test target depth +/- threshold.
   * **Disocclusion blur**. Current implementation uses a 3x3 separable filter and runs three times at varying kernel steps. It might be possible to get a better quality/perf trade off with larger kernel, larger steps and fewer iterations.
   * **Local variance estimate**. Calculate local variance with a depth aware filter with relaxed weights, similar to the disocclusion blur for better variance estimates. Currently the local variance is calculated with a separable filter without any bilateral weights for performance reasons. The depth test strictness should be parametrized such that it disqualifies pixels far apart, but also provides enough samples to get a stable local variance estimate.
-There are also few areas in the sample which you should consider to improve in your implementation if porting the sample code over: 
+  * **Temporal gradients to discard stale temporal cache values**. You can recast rays from previous frame for a subset of samples (i.e. 1 ray per 3x3 pixels) and calculate temporal gradients to more directly evaluate amount of local change to detect and discard stale temporal cache values as per Schied et al. "Gradient Estimation for Real-Time Adaptive Temporal
+Filtering". Clamping of cached values works well for substantial AO changes in the scene and/or for areas where local variance is small. Temporal gradient samples, however, are much more precise at determining amount of change from frame to frame.
+
+There are also few areas in the sample which you should consider to improve in your implementation if porting/integrating the sample code over: 
 * **Acceleration Structure**
   * **Faster build**. Use a separate scratch resource for each BLAS build to avoid needing to insert a UAV barrier between builds and, thus, allow a driver to overlap the builds.
   * **Lower memory usage**. Use compaction to lower the size of static BLAS resources (by ~55%).

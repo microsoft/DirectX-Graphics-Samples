@@ -134,16 +134,23 @@ void Scene::OnKeyDown(UINT8 key)
     default:
         break;
     }
-    m_carByTheHousePosition = XMVectorClamp(m_carByTheHousePosition, XMVectorSet(-9, 0, 0, 0), XMVectorZero());
-    XMMATRIX transform = XMMatrixTranslationFromVector(m_carByTheHousePosition);
-    m_accelerationStructure->GetBottomLevelASInstance(m_carByTheHouseInstanceIndex).SetTransform(transform);
 
-    m_spaceshipPosition = XMVectorClamp(m_spaceshipPosition, XMVectorZero(), XMVectorSet(0, 10, 0, 0));
-    transform = XMMatrixTranslationFromVector(m_spaceshipPosition);
-    XMMATRIX mRotate = XMMatrixRotationY(XMConvertToRadians(m_spaceshipRotationAngleY));
-    transform *= mRotate;
-    m_accelerationStructure->GetBottomLevelASInstance(m_spaceshipInstanceIndex).SetTransform(transform);
-}
+    if (m_carByTheHouseInstanceIndex != UINT_MAX)
+    {
+        m_carByTheHousePosition = XMVectorClamp(m_carByTheHousePosition, XMVectorSet(-9, 0, 0, 0), XMVectorZero());
+        XMMATRIX transform = XMMatrixTranslationFromVector(m_carByTheHousePosition);
+        m_accelerationStructure->GetBottomLevelASInstance(m_carByTheHouseInstanceIndex).SetTransform(transform);
+    }
+
+    if (m_spaceshipInstanceIndex != UINT_MAX)
+    {
+        m_spaceshipPosition = XMVectorClamp(m_spaceshipPosition, XMVectorZero(), XMVectorSet(0, 10, 0, 0));
+        XMMATRIX transform = XMMatrixTranslationFromVector(m_spaceshipPosition);
+        XMMATRIX mRotate = XMMatrixRotationY(XMConvertToRadians(m_spaceshipRotationAngleY));
+        transform *= mRotate;
+        m_accelerationStructure->GetBottomLevelASInstance(m_spaceshipInstanceIndex).SetTransform(transform);
+    }
+    }
 
 void Scene::OnUpdate()
 {
@@ -324,7 +331,7 @@ void Scene::LoadPBRTScene()
             cb.hasPerVertexTangents = true;
             cb.type = mesh.m_pMaterial->m_Type;
 
-            auto LoadPBRTTexture = [&](auto** ppOutTexture, auto& textureFilename)
+            auto LoadPBRTTexture = [&](auto* pOutTextureHandle, auto& textureFilename)
             {
                 wstring filename(textureFilename.begin(), textureFilename.end());
                 D3DTexture texture;
@@ -335,23 +342,23 @@ void Scene::LoadPBRTScene()
                 }
                 else
                 {
-                    LoadWICTexture(device, &resourceUpload, filename.c_str(), m_cbvSrvUavHeap.get(), &texture.resource, &texture.heapIndex, &texture.cpuDescriptorHandle, &texture.gpuDescriptorHandle, true);
+                    LoadWICTexture(device, &resourceUpload, filename.c_str(), m_cbvSrvUavHeap.get(), &texture.resource, &texture.heapIndex, &texture.cpuDescriptorHandle, &texture.gpuDescriptorHandle, false);
                 }
                 textures.push_back(texture);
 
-                *ppOutTexture = &textures.back();
+                *pOutTextureHandle = textures.back().gpuDescriptorHandle;
             };
 
-            D3DTexture* diffuseTexture = &m_nullTexture;
+            D3D12_GPU_DESCRIPTOR_HANDLE diffuseTextureHandle = m_nullTexture.gpuDescriptorHandle;
             if (cb.hasDiffuseTexture)
             {
-                LoadPBRTTexture(&diffuseTexture, mesh.m_pMaterial->m_DiffuseTextureFilename);
+                LoadPBRTTexture(&diffuseTextureHandle, mesh.m_pMaterial->m_DiffuseTextureFilename);
             }
 
-            D3DTexture* normalTexture = &m_nullTexture;
+            D3D12_GPU_DESCRIPTOR_HANDLE normalTextureHandle = m_nullTexture.gpuDescriptorHandle;
             if (cb.hasNormalTexture)
             {
-                LoadPBRTTexture(&normalTexture, mesh.m_pMaterial->m_NormalMapTextureFilename);
+                LoadPBRTTexture(&normalTextureHandle, mesh.m_pMaterial->m_NormalMapTextureFilename);
             }
 
             UINT materialID = static_cast<UINT>(m_materials.size());
@@ -374,7 +381,7 @@ void Scene::LoadPBRTScene()
                 geometryFlags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
             }
 
-            bottomLevelASGeometry.m_geometryInstances.push_back(GeometryInstance(geometry, materialID, diffuseTexture->gpuDescriptorHandle, normalTexture->gpuDescriptorHandle, geometryFlags, isVertexAnimated));
+            bottomLevelASGeometry.m_geometryInstances.push_back(GeometryInstance(geometry, materialID, diffuseTextureHandle, normalTextureHandle, geometryFlags, isVertexAnimated));
             numTriangles += desc.ib.count / 3;
         }
     }
@@ -635,7 +642,7 @@ void Scene::InitializeAccelerationStructures()
         L"Dragon",
         L"Car",
         L"House"
-#endif    
+#endif
     };
 
 
@@ -740,6 +747,7 @@ void Scene::GenerateGrassGeometry()
     float totalTime = Scene_Args::AnimateScene && Scene_Args::AnimateGrass ? static_cast<float>(m_timer.GetTotalSeconds()) : 0;
 
     m_currentGrassPatchVBIndex = (m_currentGrassPatchVBIndex + 1) % 2;
+    ScopedTimer _prof(L"Generate Grass Geometry", commandList);
 
     // Update all LODs.
     for (UINT i = 0; i < UIParameters::NumGrassGeometryLODs; i++)

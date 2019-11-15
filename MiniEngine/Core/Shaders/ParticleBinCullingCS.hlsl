@@ -18,9 +18,9 @@
 
 StructuredBuffer<ParticleScreenData> g_VisibleParticles : register( t0 );
 StructuredBuffer<uint> g_LargeBinParticles : register( t1 );
-StructuredBuffer<uint> g_LargeBinCounters : register( t2 );
+ByteAddressBuffer g_LargeBinCounters : register( t2 );
 RWStructuredBuffer<uint> g_BinParticles : register( u0 );
-RWStructuredBuffer<uint> g_BinCounters : register( u1 );
+RWByteAddressBuffer g_BinCounters : register( u1 );
 
 groupshared uint gs_BinCounters[16];
 
@@ -37,7 +37,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     uint ParticlesPerLargeBin = MAX_PARTICLES_PER_BIN * 16;
 
     uint LargeBinIndex = Gid.y * LargeBinsPerRow + Gid.x;
-    uint ParticleCountInLargeBin = min(g_LargeBinCounters[LargeBinIndex], ParticlesPerLargeBin);
+    uint ParticleCountInLargeBin = min(g_LargeBinCounters.Load(LargeBinIndex * 4), ParticlesPerLargeBin);
 
     // Get the start location for particles in this bin
     uint LargeBinStart = LargeBinIndex * ParticlesPerLargeBin;
@@ -78,6 +78,6 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     if (GI < 16)
     {
         uint2 OutBin = FirstBin + GTid.xy;
-        g_BinCounters[OutBin.x + OutBin.y * gBinsPerRow] = gs_BinCounters[GI];
+        g_BinCounters.Store((OutBin.x + OutBin.y * gBinsPerRow) * 4, gs_BinCounters[GI]);
     }
 }
