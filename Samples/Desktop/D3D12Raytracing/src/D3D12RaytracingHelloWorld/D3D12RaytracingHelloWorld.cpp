@@ -249,8 +249,8 @@ void D3D12RaytracingHelloWorld::CreateDescriptorHeap()
     auto device = m_deviceResources->GetD3DDevice();
 
     D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-    // Allocate a heap for 3 descriptors:
-    // 1 - raytracing output texture SRV
+    // Allocate a heap for a single descriptor:
+    // 1 - raytracing output texture UAV
     descriptorHeapDesc.NumDescriptors = 1; 
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
