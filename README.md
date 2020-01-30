@@ -12,7 +12,7 @@ Recent API Sample Updates:
 
 2. [D3D12 Variable Rate Shading](Samples/Desktop/D3D12VariableRateShading/readme.md): This sample demonstrates how shading rate can be reduced with little or no reduction in visual quality, leading to “free” performance.
 
-![Variable Rate Shading GUI](Samples/Desktop/D3D12VariableRateShading/src/Screenshot_small.PNG)
+![Variable Rate Shading GUI](Samples/Desktop/D3D12VariableRateShading/src/Screenshot_small.png)
 
 ## MiniEngine: A DirectX 12 Engine Starter Kit
 In addition to the samples, we are announcing the first DirectX 12 preview release of the MiniEngine.
