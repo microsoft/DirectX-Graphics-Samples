@@ -73,7 +73,7 @@ private:
         float time;
         UINT renderingMode;
         UINT laneSize;
-        UINT padding;
+        UINT padding[40]; // Padding so the struct is 256-byte aligned.
     };
 
     // Pipeline objects.

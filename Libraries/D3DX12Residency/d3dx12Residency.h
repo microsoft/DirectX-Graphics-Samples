@@ -12,8 +12,6 @@
 #pragma once
 namespace D3DX12Residency
 {
-    __declspec(selectany) INT64 g_ResidencyManagerUniqueID = 0;
-
 #if 0
 #define RESIDENCY_CHECK(x) \
     if((x) == false) { DebugBreak(); }
@@ -677,7 +675,9 @@ namespace D3DX12Residency
                 Internal::InitializeListHead(&QueueFencesListHead);
                 Internal::InitializeListHead(&InFlightSyncPointsHead);
 
-                ResidencyManagerUniqueID = InterlockedIncrement64(&g_ResidencyManagerUniqueID);
+                BOOL LuidSuccess = AllocateLocallyUniqueId(&ResidencyManagerUniqueID);
+                RESIDENCY_CHECK(LuidSuccess);
+                UNREFERENCED_PARAMETER(LuidSuccess);
             };
 
             // NOTE: DeviceNodeIndex is an index not a mask. The majority of D3D12 uses bit masks to identify a GPU node whereas DXGI uses 0 based indices.
@@ -819,6 +819,17 @@ namespace D3DX12Residency
                     delete(pObject);
                 }
 
+                while (Internal::IsListEmpty(&InFlightSyncPointsHead) == false)
+                {
+                    Internal::DeviceWideSyncPoint* pPoint =
+                        CONTAINING_RECORD(InFlightSyncPointsHead.Flink, Internal::DeviceWideSyncPoint, ListEntry);
+
+                    Internal::RemoveHeadList(&InFlightSyncPointsHead);
+                    delete pPoint;
+                }
+
+                delete [] AsyncWorkQueue;
+
                 if (Device3)
                 {
                     Device3->Release();
@@ -891,9 +902,7 @@ namespace D3DX12Residency
                 // We have to track each object on each queue so we know when it is safe to evict them. Therefore, for every queue that we
                 // see, associate a fence with it
                 GUID FenceGuid = { 0xf0, 0, 0xd, { 0, 0, 0, 0, 0, 0, 0, 0 } };
-
-                // Generate a GUID based on this queue
-                memcpy((void*)FenceGuid.Data4, Queue, sizeof(ID3D12CommandQueue*));
+                memcpy(&FenceGuid.Data4, &ResidencyManagerUniqueID, sizeof(ResidencyManagerUniqueID));
 
                 QueueFence = nullptr;
                 HRESULT hr = S_OK;
@@ -901,14 +910,13 @@ namespace D3DX12Residency
                 struct
                 {
                     Internal::Fence* pFence;
-                    INT64 ResidencyManagerUniqueID;
                 } CommandQueuePrivateData;
 
                 // Find or create the fence for this queue
                 {
                     UINT32 Size = sizeof(CommandQueuePrivateData);
                     hr = Queue->GetPrivateData(FenceGuid, &Size, &CommandQueuePrivateData);
-                    if (FAILED(hr) || ResidencyManagerUniqueID != CommandQueuePrivateData.ResidencyManagerUniqueID)
+                    if (FAILED(hr))
                     {
                         QueueFence = new Internal::Fence(1);
                         hr = QueueFence->Initialize(Device);
@@ -918,7 +926,7 @@ namespace D3DX12Residency
 
                         if (SUCCEEDED(hr))
                         {
-                            CommandQueuePrivateData = { QueueFence, ResidencyManagerUniqueID };
+                            CommandQueuePrivateData = { QueueFence };
                             hr = Queue->SetPrivateData(FenceGuid, UINT32(sizeof(CommandQueuePrivateData)), &CommandQueuePrivateData);
                             RESIDENCY_CHECK_RESULT(hr);
                         }
@@ -1543,7 +1551,7 @@ namespace D3DX12Residency
             const float cTrimPercentageMemoryUsageThreshold;
 
             UINT32 MaxSoftwareQueueLatency;
-            INT64 ResidencyManagerUniqueID;
+            LUID ResidencyManagerUniqueID;
 
             SyncManager* pSyncManager;
         };
