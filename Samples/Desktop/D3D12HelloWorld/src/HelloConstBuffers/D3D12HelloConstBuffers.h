@@ -46,6 +46,7 @@ private:
         XMFLOAT4 offset;
         float padding[60]; // Padding so the constant buffer is 256-byte aligned.
     };
+    static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
