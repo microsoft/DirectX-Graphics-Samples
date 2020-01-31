@@ -16,7 +16,3 @@ Hit SPACE to stop the light animating and then use the [F1-F5] keys to toggle be
 * [1-7]: Selects Shading Rate for the Refraction pass.
 * SHIFT + [1-7]: Selects the Shading Rate for the Scene pass.
 * CTRL + [1-7]: Selects the Shading Rate for the Postprocess pass.
-
-## Requirements
-* Windows 10 18312 or higher (available via [Windows Insider Program](https://insider.windows.com/en-us/))
-* [Visual Studio 2019](https://www.visualstudio.com/) with the Windows 10 18312 SDK
