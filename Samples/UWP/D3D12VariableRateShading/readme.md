@@ -19,5 +19,4 @@ Hit SPACE to stop the light animating and then use the [F1-F5] keys to toggle be
 
 ## Requirements
 * Windows 10 18312 or higher (available via [Windows Insider Program](https://insider.windows.com/en-us/))
-* [Visual Studio 2017](https://www.visualstudio.com/) with the Windows 10 18312 SDK
-* For drivers, please contact the hardware vendor you're working with. We'll update this readme with links to public drivers once they are available
+* [Visual Studio 2019](https://www.visualstudio.com/) with the Windows 10 18312 SDK
