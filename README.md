@@ -10,8 +10,6 @@ Recent API Sample Updates:
 
 ![D3D12 Meshlet Render Preview](Samples/Desktop/D3D12MeshShaders/src/meshletrender/D3D12MeshletRender.png)
 
-![D3D12 Raytracing Real-Time Denoised Ambient Occlusion GUI](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/Screenshot_small.png)
-
 2. [D3D12 Variable Rate Shading](Samples/Desktop/D3D12VariableRateShading/readme.md): This sample demonstrates how shading rate can be reduced with little or no reduction in visual quality, leading to “free” performance.
 
 ![Variable Rate Shading GUI](Samples/Desktop/D3D12VariableRateShading/src/Screenshot_small.png)
