@@ -2852,7 +2852,6 @@ private:
     bool SeenDSS;
 };
 
-
 struct CD3DX12_PIPELINE_STATE_STREAM_PARSE_HELPER : public ID3DX12PipelineParserCallbacks
 {
     CD3DX12_PIPELINE_STATE_STREAM1 PipelineStream;
@@ -3907,6 +3906,3 @@ private:
 #endif // defined( __cplusplus )
 
 #endif //__D3DX12_H__
-
-
-
