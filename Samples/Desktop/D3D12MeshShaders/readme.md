@@ -14,7 +14,7 @@ This project acts as an example of how to integrate the meshlet generator librar
 ## 3. Meshlet Viewer
 This sample demonstrates the basics of how to render a meshletized model with DirectX 12. This app loads the models exported by the Wavefront Converter Tool, providing the full picture of generating & rendering meshlets. 
 
-![D3D12 Meshlet Render Preview](src/preview.png)
+![D3D12 Meshlet Render Preview](src/meshletrender/D3D12MeshletRender.png)
 
 ## Requirements
 * [Visual Studio 2019](https://www.visualstudio.com/).
