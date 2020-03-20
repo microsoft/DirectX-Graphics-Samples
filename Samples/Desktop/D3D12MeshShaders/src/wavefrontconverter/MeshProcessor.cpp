@@ -153,7 +153,7 @@ bool MeshProcessor::Extract(const ProcessOptions& options, const WaveFrontReader
 
     for (uint32_t i = 0; i < reader.vertices.size(); ++i)
     {
-        m_positions[i] = reader.vertices[i].position;
+        XMStoreFloat3(&m_positions[i], XMLoadFloat3(&reader.vertices[i].position) * options.UnitScale);
 
         if (reader.hasNormals)
         {

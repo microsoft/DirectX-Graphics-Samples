@@ -12,7 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Export.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Main.cpp" />
     <ClCompile Include="MeshProcessor.cpp" />
     <ClCompile Include="Import.cpp" />
     <ClCompile Include="stdafx.cpp">
