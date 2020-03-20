@@ -6,15 +6,15 @@ This collection of projects act as an introduction to meshlets and rendering wit
 
 # Projects
 ## 1. Meshlet Generator Library
-This project is intended to provide a lightweight interface for generating meshlets from streams of position and index data.
+This library provides a lightweight API for generating meshlets from streams of position and index data. The public interface can be found in D3D12MeshletGenerator.h.
 
 ## 2. Wavefront Converter Command Line Tool
-This project acts as an example of how to integrate the meshlet generator library into a complete mesh conversion application. it provides a basic command line interface for loading obj files using the [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader) library, processing the mesh with the [DirectXMesh](https://github.com/microsoft/DirectXMesh) library, and exporting to a simple binary model file format.
+This project acts as an example of how to integrate the meshlet generator library into a complete mesh conversion application. The application is structured as a basic command line tool for loading and processing obj files using the [DirectXMesh](https://github.com/microsoft/DirectXMesh) library. The processed mesh is exported using a simple binary runtime file format targeted at fast loading and rendering with DirectX apps.
 
 ## 3. Meshlet Viewer
-This sample demonstrates the basics of how to render a meshletized model with DirectX 12. This app loads the models exported by the Wavefront Converter Tool, providing the full picture of generating & rendering meshlets. 
+This project demonstrates the basics of how to render a meshletized model using DirectX 12. This application loads the binary model files exported by the Wavefront Converter command line tool.
 
-![D3D12 Meshlet Render Preview](src/meshletrender/D3D12MeshletRender.png)
+![D3D12 Meshlet Render Preview](src/MeshletRender/D3D12MeshletRender.png)
 
 ## Requirements
 * [Visual Studio 2019](https://www.visualstudio.com/).

@@ -47,12 +47,16 @@ const wchar_t* D3D12MeshletRender::c_pixelShaderFilename = L"MeshletPS.cso";
 
 D3D12MeshletRender::D3D12MeshletRender(UINT width, UINT height, std::wstring name)
     : DXSample(width, height, name)
-    , m_frameIndex(0)
-    , m_frameCounter(0)
     , m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height))
     , m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height))
     , m_rtvDescriptorSize(0)
     , m_dsvDescriptorSize(0)
+    , m_constantBufferData{}
+    , m_cbvDataBegin(nullptr)
+    , m_frameIndex(0)
+    , m_frameCounter(0)
+    , m_fenceEvent{}
+    , m_fenceValues{}
 { }
 
 void D3D12MeshletRender::OnInit()

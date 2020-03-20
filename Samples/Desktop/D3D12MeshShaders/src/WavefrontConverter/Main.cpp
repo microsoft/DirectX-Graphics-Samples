@@ -39,7 +39,7 @@ namespace
         std::cout << std::endl;
 
         std::cout << "Vertex Attribute Layout IDs:" << std::endl;
-        std::cout << "\t A non-spaced list of id characters determine how output vertices are laid out." << std::endl;
+        std::cout << "A non-spaced list of id characters determine how output vertices are laid out." << std::endl;
         std::cout << "\tp - Position" << std::endl;
         std::cout << "\tn - Normal" << std::endl;
         std::cout << "\tu - TexCoord" << std::endl;
