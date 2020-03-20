@@ -8,7 +8,7 @@ In the Samples directory, you will find samples that attempt to break off specif
 Recent API Sample Updates:
 1. [D3D12 Mesh Shaders](Samples/Desktop/D3D12MeshShaders/readme.md): This sample demonstrates how Mesh shaders can be used to increase the flexibility and performance of the geometry pipeline.
 
-![D3D12 Meshlet Render Preview](Samples/Desktop/D3D12MeshShaders/src/meshletrender/D3D12MeshletRender.png)
+![D3D12 Meshlet Render Preview](Samples/Desktop/D3D12MeshShaders/src/MeshletRender/D3D12MeshletRender.png)
 
 2. [D3D12 Variable Rate Shading](Samples/Desktop/D3D12VariableRateShading/readme.md): This sample demonstrates how shading rate can be reduced with little or no reduction in visual quality, leading to “free” performance.
 
