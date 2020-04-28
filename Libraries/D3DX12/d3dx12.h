@@ -2393,7 +2393,6 @@ struct D3DX12_MESH_SHADER_PIPELINE_STATE_DESC
     UINT                          SampleMask;
     D3D12_RASTERIZER_DESC         RasterizerState;
     D3D12_DEPTH_STENCIL_DESC      DepthStencilState;
-    D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBStripCutValue;
     D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType;
     UINT                          NumRenderTargets;
     DXGI_FORMAT                   RTVFormats[ D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT ];
@@ -2438,7 +2437,6 @@ struct CD3DX12_PIPELINE_STATE_STREAM2
         : Flags(Desc.Flags)
         , NodeMask(Desc.NodeMask)
         , pRootSignature(Desc.pRootSignature)
-        , IBStripCutValue(Desc.IBStripCutValue)
         , PrimitiveTopologyType(Desc.PrimitiveTopologyType)
         , PS(Desc.PS)
         , AS(Desc.AS)
@@ -2557,7 +2555,6 @@ struct CD3DX12_PIPELINE_STATE_STREAM1
         : Flags(Desc.Flags)
         , NodeMask(Desc.NodeMask)
         , pRootSignature(Desc.pRootSignature)
-        , IBStripCutValue(Desc.IBStripCutValue)
         , PrimitiveTopologyType(Desc.PrimitiveTopologyType)
         , PS(Desc.PS)
         , BlendState(CD3DX12_BLEND_DESC(Desc.BlendState))
