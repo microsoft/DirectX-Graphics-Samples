@@ -136,8 +136,8 @@ bool Inverse2x2(float2x2 mat, out float2x2 inverse)
     float rcpDeterminant = rcp(determinant);
     inverse[0][0] = mat[1][1];
     inverse[1][1] = mat[0][0];
-    inverse[1][0] = -mat[0][1];
-    inverse[0][1] = -mat[1][0];
+    inverse[1][0] = -mat[1][0];
+    inverse[0][1] = -mat[0][1];
     inverse = rcpDeterminant * inverse;
 
     return abs(determinant) > 0.00000001;
