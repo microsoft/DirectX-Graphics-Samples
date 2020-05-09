@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2010
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29025.244
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{250B50F1-543D-4D9D-B4FC-A1EA4E61B9E4}"
 	ProjectSection(SolutionItems) = preProject
@@ -9,37 +9,26 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{250B
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingHelloWorld", "D3D12RaytracingHelloWorld\D3D12RaytracingHelloWorld.vcxproj", "{5018F6A3-6533-4744-B1FD-727D199FD2E9}"
-	ProjectSection(ProjectDependencies) = postProject
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B} = {4BE280A6-1066-41CA-ACDD-6BB7E532508B}
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingSimpleLighting", "D3D12RaytracingSimpleLighting\D3D12RaytracingSimpleLighting.vcxproj", "{A0848C98-F5AA-431C-9E76-7F1E7EFA368C}"
-	ProjectSection(ProjectDependencies) = postProject
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B} = {4BE280A6-1066-41CA-ACDD-6BB7E532508B}
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MiniEngine", "MiniEngine", "{0B851798-A730-4A11-A717-668D40A26088}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\..\..\..\MiniEngine\Core\Core_VS15.vcxproj", "{86A58508-0D6A-4786-A32F-01A301FDC6F3}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\..\..\..\MiniEngine\Core\Core_VS16.vcxproj", "{86A58508-0D6A-4786-A32F-01A301FDC6F3}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Model", "..\..\..\..\MiniEngine\Model\Model_VS15.vcxproj", "{5D3AEEFB-8789-48E5-9BD9-09C667052D09}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Model", "..\..\..\..\MiniEngine\Model\Model_VS16.vcxproj", "{5D3AEEFB-8789-48E5-9BD9-09C667052D09}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Fallback", "Fallback", "{4F686017-C76B-497E-8405-7F023968E8AF}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingMiniEngineSample", "D3D12RaytracingMiniEngineSample\ModelViewer_VS15.vcxproj", "{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FallbackLayer", "..\..\..\..\Libraries\D3D12RaytracingFallback\src\FallbackLayer.vcxproj", "{4BE280A6-1066-41CA-ACDD-6BB7E532508B}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FallbackLayerUnitTests", "..\..\..\..\Libraries\D3D12RaytracingFallback\src\FallbackLayerUnitTests\FallbackLayerUnitTests.vcxproj", "{13F1830C-EA8D-4488-89C8-70AAB15972AA}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingMiniEngineSample", "D3D12RaytracingMiniEngineSample\ModelViewer_VS16.vcxproj", "{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tutorials", "Tutorials", "{22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Advanced", "Advanced", "{024FAECC-CCE3-4B06-9F06-C83FB58877EF}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingProceduralGeometry", "D3D12RaytracingProceduralGeometry\D3D12RaytracingProceduralGeometry.vcxproj", "{0C266269-AC0C-41B0-9D25-0117DC23CFC7}"
-	ProjectSection(ProjectDependencies) = postProject
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B} = {4BE280A6-1066-41CA-ACDD-6BB7E532508B}
-	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingRealTimeDenoisedAmbientOcclusion", "D3D12RaytracingRealTimeDenoisedAmbientOcclusion\D3D12RaytracingRealTimeDenoisedAmbientOcclusion.vcxproj", "{19585C81-FB12-4A4B-B700-CCE253BDBA02}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingLibrarySubobjects", "D3D12RaytracingLibrarySubobjects\D3D12RaytracingLibrarySubobjects.vcxproj", "{0AF699F0-99A8-4493-9FF7-1FFDE2900100}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -78,25 +67,24 @@ Global
 		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Profile|x64.Build.0 = Profile|x64
 		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Release|x64.ActiveCfg = Release|x64
 		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Release|x64.Build.0 = Release|x64
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B}.Debug|x64.ActiveCfg = Debug|x64
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B}.Debug|x64.Build.0 = Debug|x64
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B}.Profile|x64.ActiveCfg = Profile|x64
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B}.Profile|x64.Build.0 = Profile|x64
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B}.Release|x64.ActiveCfg = Release|x64
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B}.Release|x64.Build.0 = Release|x64
-		{13F1830C-EA8D-4488-89C8-70AAB15972AA}.Debug|x64.ActiveCfg = Debug|x64
-		{13F1830C-EA8D-4488-89C8-70AAB15972AA}.Debug|x64.Build.0 = Debug|x64
-		{13F1830C-EA8D-4488-89C8-70AAB15972AA}.Profile|x64.ActiveCfg = Release|x64
-		{13F1830C-EA8D-4488-89C8-70AAB15972AA}.Profile|x64.Build.0 = Release|x64
-		{13F1830C-EA8D-4488-89C8-70AAB15972AA}.Release|x64.ActiveCfg = Release|x64
-		{13F1830C-EA8D-4488-89C8-70AAB15972AA}.Release|x64.Build.0 = Release|x64
-		{13F1830C-EA8D-4488-89C8-70AAB15972AA}.Release|x64.Deploy.0 = Release|x64
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Debug|x64.ActiveCfg = Debug|x64
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Debug|x64.Build.0 = Debug|x64
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Profile|x64.ActiveCfg = Release|x64
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Profile|x64.Build.0 = Release|x64
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Release|x64.ActiveCfg = Release|x64
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7}.Release|x64.Build.0 = Release|x64
+		{0AF699F0-99A8-4493-9FF7-1FFDE2900100}.Debug|x64.ActiveCfg = Debug|x64
+		{0AF699F0-99A8-4493-9FF7-1FFDE2900100}.Debug|x64.Build.0 = Debug|x64
+		{0AF699F0-99A8-4493-9FF7-1FFDE2900100}.Profile|x64.ActiveCfg = Release|x64
+		{0AF699F0-99A8-4493-9FF7-1FFDE2900100}.Profile|x64.Build.0 = Release|x64
+		{0AF699F0-99A8-4493-9FF7-1FFDE2900100}.Release|x64.ActiveCfg = Release|x64
+		{0AF699F0-99A8-4493-9FF7-1FFDE2900100}.Release|x64.Build.0 = Release|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Debug|x64.ActiveCfg = Debug|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Debug|x64.Build.0 = Debug|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Profile|x64.ActiveCfg = Profile|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Profile|x64.Build.0 = Profile|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Release|x64.ActiveCfg = Release|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -107,11 +95,11 @@ Global
 		{86A58508-0D6A-4786-A32F-01A301FDC6F3} = {0B851798-A730-4A11-A717-668D40A26088}
 		{5D3AEEFB-8789-48E5-9BD9-09C667052D09} = {0B851798-A730-4A11-A717-668D40A26088}
 		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5} = {024FAECC-CCE3-4B06-9F06-C83FB58877EF}
-		{4BE280A6-1066-41CA-ACDD-6BB7E532508B} = {4F686017-C76B-497E-8405-7F023968E8AF}
-		{13F1830C-EA8D-4488-89C8-70AAB15972AA} = {4F686017-C76B-497E-8405-7F023968E8AF}
 		{22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331} = {250B50F1-543D-4D9D-B4FC-A1EA4E61B9E4}
 		{024FAECC-CCE3-4B06-9F06-C83FB58877EF} = {250B50F1-543D-4D9D-B4FC-A1EA4E61B9E4}
 		{0C266269-AC0C-41B0-9D25-0117DC23CFC7} = {22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331}
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02} = {024FAECC-CCE3-4B06-9F06-C83FB58877EF}
+		{0AF699F0-99A8-4493-9FF7-1FFDE2900100} = {22B9FE19-4D5A-4F3F-ABEA-F9ACB1574331}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F763A25B-2115-4E87-87C4-2C6AA75C1542}

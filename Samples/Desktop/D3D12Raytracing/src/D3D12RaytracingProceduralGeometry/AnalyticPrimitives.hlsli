@@ -61,7 +61,7 @@ bool SolveRaySphereIntersectionEquation(in Ray ray, out float tmin, out float tm
 }
 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a hollow sphere.
-bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, in ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
+bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, out ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
 {
     float t0, t1; // solutions for t if the ray intersects 
 
@@ -152,24 +152,39 @@ bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimit
     return hitFound;
 }
 
-// Test if a ray segment <RayTMin(), RayTCurrent()> intersects a hollow AABB.
+// Test if a ray segment <RayTMin(), RayTCurrent()> intersects an AABB.
 // Limitation: this test does not take RayFlags into consideration and does not calculate a surface normal.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
 bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float tmax)
 {
     float3 tmin3, tmax3;
     int3 sign3 = ray.direction > 0;
-    tmin3.x = (aabb[1 - sign3.x].x - ray.origin.x) / ray.direction.x;
-    tmax3.x = (aabb[sign3.x].x - ray.origin.x) / ray.direction.x;
 
-    tmin3.y = (aabb[1 - sign3.y].y - ray.origin.y) / ray.direction.y;
-    tmax3.y = (aabb[sign3.y].y - ray.origin.y) / ray.direction.y;
+    // Handle rays parallel to any x|y|z slabs of the AABB.
+    // If a ray is within the parallel slabs, 
+    //  the tmin, tmax will get set to -inf and +inf
+    //  which will get ignored on tmin/tmax = max/min.
+    // If a ray is outside the parallel slabs, -inf/+inf will
+    //  make tmax > tmin fail (i.e. no intersection).
+    // TODO: handle cases where ray origin is within a slab 
+    //  that a ray direction is parallel to. In that case
+    //  0 * INF => NaN
+    const float FLT_INFINITY = 1.#INF;
+    float3 invRayDirection = ray.direction != 0 
+                           ? 1 / ray.direction 
+                           : (ray.direction > 0) ? FLT_INFINITY : -FLT_INFINITY;
+
+    tmin3.x = (aabb[1 - sign3.x].x - ray.origin.x) * invRayDirection.x;
+    tmax3.x = (aabb[sign3.x].x - ray.origin.x) * invRayDirection.x;
+
+    tmin3.y = (aabb[1 - sign3.y].y - ray.origin.y) * invRayDirection.y;
+    tmax3.y = (aabb[sign3.y].y - ray.origin.y) * invRayDirection.y;
     
-    tmin3.z = (aabb[1 - sign3.z].z - ray.origin.z) / ray.direction.z;
-    tmax3.z = (aabb[sign3.z].z - ray.origin.z) / ray.direction.z;
+    tmin3.z = (aabb[1 - sign3.z].z - ray.origin.z) * invRayDirection.z;
+    tmax3.z = (aabb[sign3.z].z - ray.origin.z) * invRayDirection.z;
     
     tmin = max(max(tmin3.x, tmin3.y), tmin3.z);
-    tmax = min(min(tmax3.x, tmax3.z), tmax3.z);
+    tmax = min(min(tmax3.x, tmax3.y), tmax3.z);
     
     return tmax > tmin && tmax >= RayTMin() && tmin <= RayTCurrent();
 }
@@ -180,7 +195,11 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float thit, out Proced
     float tmin, tmax;
     if (RayAABBIntersectionTest(ray, aabb, tmin, tmax))
     {
-        thit = tmin >= RayTMin() ? tmin : tmax;
+        // Only consider intersections crossing the surface from the outside.
+        if (tmin < RayTMin() || tmin > RayTCurrent())
+            return false;
+
+        thit = tmin;
 
         // Set a normal to the normal of a face the hit point lays on.
         float3 hitPosition = ray.origin + thit * ray.direction;

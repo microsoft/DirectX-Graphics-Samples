@@ -17,7 +17,6 @@
     "CBV(b1), " \
     "DescriptorTable(UAV(u0, numDescriptors = 5))," \
     "DescriptorTable(SRV(t0, numDescriptors = 5))," \
-    "SRV(t5), " \
     "StaticSampler(s0," \
         "addressU = TEXTURE_ADDRESS_CLAMP," \
         "addressV = TEXTURE_ADDRESS_CLAMP," \

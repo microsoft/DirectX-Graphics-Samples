@@ -255,6 +255,7 @@ inline UINT64 GetRequiredIntermediateSize(
     CD3DX12AffinityDevice* pDevice;
     pDestinationResource->GetDevice(&pDevice);
     pDevice->GetCopyableFootprints(&Desc, FirstSubresource, NumSubresources, 0, nullptr, nullptr, nullptr, &RequiredSize);
+    pDevice->Release();
 
     return RequiredSize;
 }
@@ -348,6 +349,7 @@ inline UINT64 UpdateSubresources(
     CD3DX12AffinityDevice* pDevice;
     pDestinationResource->GetDevice(&pDevice);
     pDevice->GetCopyableFootprints(&Desc, FirstSubresource, NumSubresources, IntermediateOffset, pLayouts, pNumRows, pRowSizesInBytes, &RequiredSize);
+    pDevice->Release();
 
     UINT64 Result = UpdateSubresources(pCmdList, pDestinationResource, pIntermediate, FirstSubresource, NumSubresources, RequiredSize, pLayouts, pNumRows, pRowSizesInBytes, pSrcData);
     HeapFree(GetProcessHeap(), 0, pMem);
