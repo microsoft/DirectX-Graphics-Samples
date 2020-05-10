@@ -240,9 +240,6 @@
     <None Include="SampleCore\Shaders\BxDF.hlsli">
       <Filter>Shaders\SampleCore</Filter>
     </None>
-    <None Include="RTAO\Shaders\Denoising\EdgeStoppingAtrousWaveletTransfromCrossBilateralFilterCS.hlsli">
-      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
-    </None>
     <None Include="RTAO\Shaders\Denoising\Kernels.hlsli">
       <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
     </None>
@@ -267,6 +264,9 @@
     <None Include="SampleCore\Shaders\util\AnalyticalTextures.hlsli">
       <Filter>Shaders\SampleCore</Filter>
     </None>
+    <None Include="RTAO\Shaders\Denoising\AtrousWaveletTransfromCrossBilateralFilterCS.hlsli">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="RTAO\Shaders\RTAO.hlsl">
@@ -275,20 +275,11 @@
     <FxCompile Include="RTAO\Shaders\AORayGenCS.hlsl">
       <Filter>Shaders\RTAO</Filter>
     </FxCompile>
-    <FxCompile Include="RTAO\Shaders\Denoising\CalculateMeanVariance_SeparableFilterCS_CheckerboardSampling_AnyToAnyWaveReadLaneAt.hlsl">
-      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
-    </FxCompile>
     <FxCompile Include="SampleCore\Shaders\CompositionCS.hlsl">
       <Filter>Shaders\SampleCore</Filter>
     </FxCompile>
     <FxCompile Include="SampleCore\Shaders\Pathtracer.hlsl">
       <Filter>Shaders\SampleCore</Filter>
-    </FxCompile>
-    <FxCompile Include="RTAO\Shaders\Denoising\EdgeStoppingAtrousWaveletTransfromCrossBilateralFilter_Gaussian3x3CS.hlsl">
-      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
-    </FxCompile>
-    <FxCompile Include="RTAO\Shaders\Denoising\EdgeStoppingAtrousWaveletTransfromCrossBilateralFilter_Gaussian5x5CS.hlsl">
-      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
     </FxCompile>
     <FxCompile Include="RTAO\Shaders\Denoising\FillInCheckerboard_CrossBox4TapFilterCS.hlsl">
       <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
@@ -329,11 +320,20 @@
     <FxCompile Include="RTAO\Shaders\Ray sorting\CountingSort_SortRays_64x128rayGroupCS.hlsl">
       <Filter>Shaders\RTAO\Ray Sorting</Filter>
     </FxCompile>
-    <FxCompile Include="RTAO\Shaders\Denoising\DisocclusionBlur_DepthAwareSeparableGaussianFilter3x3CS_AnyToAnyWaveReadLaneAt.hlsl">
-      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
-    </FxCompile>
     <FxCompile Include="SampleCore\Shaders\util\UpsampleBilateralFilter2x2UintCS.hlsl">
       <Filter>Shaders\SampleCore\Util</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\CalculateMeanVarianceCS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\DisocclusionBlur3x3CS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\EdgeStoppingFilter_Gaussian3x3CS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
+    </FxCompile>
+    <FxCompile Include="RTAO\Shaders\Denoising\EdgeStoppingFilter_Gaussian5x5CS.hlsl">
+      <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

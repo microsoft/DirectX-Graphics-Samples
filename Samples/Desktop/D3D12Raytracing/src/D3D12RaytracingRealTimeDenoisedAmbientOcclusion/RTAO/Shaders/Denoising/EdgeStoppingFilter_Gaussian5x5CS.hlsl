@@ -11,4 +11,4 @@
 
 #define HLSL
 #define GAUSSIAN_KERNEL_5X5
-#include "EdgeStoppingAtrousWaveletTransfromCrossBilateralFilterCS.hlsli"
+#include "AtrousWaveletTransfromCrossBilateralFilterCS.hlsli"
