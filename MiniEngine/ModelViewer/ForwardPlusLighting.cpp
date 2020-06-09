@@ -134,7 +134,7 @@ void Lighting::CreateRandomLights( const Vector3 minBound, const Vector3 maxBoun
                 w = x1 * x1 + x2 * x2;
             } while (w >= 1);
 
-            w = sqrt(-2 * log(w) / w);
+            w = sqrtf(-2 * logf(w) / w);
             y2 = x2 * w;
             return x1 * w;
         }
@@ -196,8 +196,8 @@ void Lighting::CreateRandomLights( const Vector3 minBound, const Vector3 maxBoun
         m_LightData[n].coneDir[0] = coneDir.GetX();
         m_LightData[n].coneDir[1] = coneDir.GetY();
         m_LightData[n].coneDir[2] = coneDir.GetZ();
-        m_LightData[n].coneAngles[0] = 1.0f / (cos(coneInner) - cos(coneOuter));
-        m_LightData[n].coneAngles[1] = cos(coneOuter);
+        m_LightData[n].coneAngles[0] = 1.0f / (cosf(coneInner) - cosf(coneOuter));
+        m_LightData[n].coneAngles[1] = cosf(coneOuter);
         std::memcpy(m_LightData[n].shadowTextureMatrix, &shadowTextureMatrix, sizeof(shadowTextureMatrix));
         //*(Matrix4*)(m_LightData[n].shadowTextureMatrix) = shadowTextureMatrix;
     }

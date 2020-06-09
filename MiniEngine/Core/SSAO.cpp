@@ -110,18 +110,18 @@ void SSAO::Initialize( void )
     CreatePSO( s_BlurUpsampleFinal[0], g_pAoBlurUpsampleCS );
     CreatePSO( s_BlurUpsampleFinal[1], g_pAoBlurUpsamplePreMinCS );
 
-    SampleThickness[ 0] = sqrt(1.0f - 0.2f * 0.2f);
-    SampleThickness[ 1] = sqrt(1.0f - 0.4f * 0.4f);
-    SampleThickness[ 2] = sqrt(1.0f - 0.6f * 0.6f);
-    SampleThickness[ 3] = sqrt(1.0f - 0.8f * 0.8f);
-    SampleThickness[ 4] = sqrt(1.0f - 0.2f * 0.2f - 0.2f * 0.2f);
-    SampleThickness[ 5] = sqrt(1.0f - 0.2f * 0.2f - 0.4f * 0.4f);
-    SampleThickness[ 6] = sqrt(1.0f - 0.2f * 0.2f - 0.6f * 0.6f);
-    SampleThickness[ 7] = sqrt(1.0f - 0.2f * 0.2f - 0.8f * 0.8f);
-    SampleThickness[ 8] = sqrt(1.0f - 0.4f * 0.4f - 0.4f * 0.4f);
-    SampleThickness[ 9] = sqrt(1.0f - 0.4f * 0.4f - 0.6f * 0.6f);
-    SampleThickness[10] = sqrt(1.0f - 0.4f * 0.4f - 0.8f * 0.8f);
-    SampleThickness[11] = sqrt(1.0f - 0.6f * 0.6f - 0.6f * 0.6f);
+    SampleThickness[ 0] = sqrtf(1.0f - 0.2f * 0.2f);
+    SampleThickness[ 1] = sqrtf(1.0f - 0.4f * 0.4f);
+    SampleThickness[ 2] = sqrtf(1.0f - 0.6f * 0.6f);
+    SampleThickness[ 3] = sqrtf(1.0f - 0.8f * 0.8f);
+    SampleThickness[ 4] = sqrtf(1.0f - 0.2f * 0.2f - 0.2f * 0.2f);
+    SampleThickness[ 5] = sqrtf(1.0f - 0.2f * 0.2f - 0.4f * 0.4f);
+    SampleThickness[ 6] = sqrtf(1.0f - 0.2f * 0.2f - 0.6f * 0.6f);
+    SampleThickness[ 7] = sqrtf(1.0f - 0.2f * 0.2f - 0.8f * 0.8f);
+    SampleThickness[ 8] = sqrtf(1.0f - 0.4f * 0.4f - 0.4f * 0.4f);
+    SampleThickness[ 9] = sqrtf(1.0f - 0.4f * 0.4f - 0.6f * 0.6f);
+    SampleThickness[10] = sqrtf(1.0f - 0.4f * 0.4f - 0.8f * 0.8f);
+    SampleThickness[11] = sqrtf(1.0f - 0.6f * 0.6f - 0.6f * 0.6f);
 }
 
 void SSAO::Shutdown(void)
