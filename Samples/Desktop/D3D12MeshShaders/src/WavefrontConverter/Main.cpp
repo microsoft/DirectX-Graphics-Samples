@@ -49,7 +49,7 @@ namespace
         std::cout << std::endl;
 
         std::cout << "Example:" << std::endl;
-        std::cout << "\tConverterApp.exe -l v|nutb -v 128 -p 128 -i -t Path/To/MyFile1.obj Path/To/MyFile2.obj " << std::endl;
+        std::cout << "\tConverterApp.exe -a v|nutb -v 128 -p 128 -i -t Path/To/MyFile1.obj Path/To/MyFile2.obj " << std::endl;
         std::cout << std::endl;
     }
 
@@ -128,7 +128,7 @@ namespace
             {
                 if (i + 1 == argc)
                 {
-                    std::cout << "Must provide a string specifying attribute layout if supplying -l switch." << std::endl;
+                    std::cout << "Must provide a string specifying attribute layout if supplying -a switch." << std::endl;
                     return 1;
                 }
 
@@ -163,6 +163,7 @@ namespace
                         options.ExportAttributes.emplace_back(std::move(stream));
                         break;
                     }
+                    ++start;
                 }
 
                 if (!stream.empty())
@@ -240,9 +241,14 @@ namespace
         {
             std::cout << "\tStream " << i << ": ";
 
-            for (auto& attr : options.ExportAttributes[i])
+            for (uint32_t j = 0; j < options.ExportAttributes[i].size(); ++j)
             {
-                std::cout << s_semanticNames[attr] << " | ";
+                const AttrStream& attrStream = options.ExportAttributes[i];
+                std::cout << s_semanticNames[attrStream[j]];
+				if (j < options.ExportAttributes[i].size() - 1)
+				{
+					std::cout << " | ";
+				}
             }
 
             std::cout << std::endl;
