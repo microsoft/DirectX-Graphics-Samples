@@ -49,7 +49,7 @@ namespace
         std::cout << std::endl;
 
         std::cout << "Example:" << std::endl;
-        std::cout << "\tConverterApp.exe -a v|nutb -v 128 -p 128 -i -t Path/To/MyFile1.obj Path/To/MyFile2.obj " << std::endl;
+        std::cout << "\tConverterApp.exe -a v|nutb -v 128 -p 128 -i Path/To/MyFile1.obj Path/To/MyFile2.obj " << std::endl;
         std::cout << std::endl;
     }
 
@@ -168,7 +168,9 @@ namespace
 
                 if (!stream.empty())
                     options.ExportAttributes.emplace_back(std::move(stream));
-            }
+
+                ++i;
+			}
             else if (std::strcmp(args[i], "-i") == 0)
             {
                 std::cout << "Forcing vertex indices to 32 bits." << std::endl;
@@ -268,9 +270,10 @@ int _cdecl main(int argc, const char* args[])
 {
     std::vector<std::string> files;
 
+    const char* arg[] = { ".", "-a", "pnutb", "C:\\Users\\simon\\Documents\\Programming\\D3D12_Research\\D3D12\\Resources\\sponza\\sponza.obj" };
     // Parse command line options
     ProcessOptions options;
-    int ret = ParseCommandLine(argc, args, files, options);
+	int ret = ParseCommandLine(ARRAYSIZE(arg), arg, files, options);
     if (ret != 0)
     {
         return ret;
