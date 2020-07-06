@@ -170,7 +170,7 @@ namespace
                     options.ExportAttributes.emplace_back(std::move(stream));
 
                 ++i;
-			}
+            }
             else if (std::strcmp(args[i], "-i") == 0)
             {
                 std::cout << "Forcing vertex indices to 32 bits." << std::endl;
@@ -272,7 +272,7 @@ int _cdecl main(int argc, const char* args[])
 
     // Parse command line options
     ProcessOptions options;
-	int ret = ParseCommandLine(argc, args, files, options);
+    int ret = ParseCommandLine(argc, args, files, options);
     if (ret != 0)
     {
         return ret;
