@@ -30,6 +30,9 @@
     <ClInclude Include="Model.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Span.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="D3D12MeshletRender.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -76,7 +79,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Dragon_LOD0.bin">
+    <None Include="..\Assets\Dragon_LOD0.bin">
       <Filter>Assets\Models</Filter>
     </None>
   </ItemGroup>

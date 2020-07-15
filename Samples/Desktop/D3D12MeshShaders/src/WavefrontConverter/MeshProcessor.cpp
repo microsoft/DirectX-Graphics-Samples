@@ -300,6 +300,7 @@ void MeshProcessor::Finalize(const ProcessOptions& options)
         m_meshlets.data(), static_cast<uint32_t>(m_meshlets.size()),
         reinterpret_cast<T*>(m_uniqueVertexIndices.data()),
         m_primitiveIndices.data(),
+        CNORM_DEFAULT,
         m_cullData.data()
     ));
 }
