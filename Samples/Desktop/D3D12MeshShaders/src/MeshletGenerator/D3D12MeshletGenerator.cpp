@@ -21,7 +21,12 @@ namespace
     {
         return (XMVectorClamp(value, g_XMNegativeOne, g_XMOne) * 0.5f + XMVectorReplicate(0.5f)) * 255.0f;
     }
-}
+
+    inline XMVECTOR QuantizeUNorm(XMVECTOR value)
+    {
+        return (XMVectorClamp(value, g_XMZero, g_XMOne)) * 255.0f;
+    }
+} 
 
 namespace internal
 {
@@ -42,6 +47,7 @@ namespace internal
         const Meshlet* meshlets, uint32_t meshletCount,
         const T* uniqueVertexIndices,
         const PackedTriangle* primitiveIndices,
+        DWORD flags,
         CullData* cullData
     );
 }
@@ -103,10 +109,11 @@ HRESULT ComputeCullData(
     const Meshlet* meshlets, uint32_t meshletCount,
     const uint16_t* uniqueVertexIndices,
     const PackedTriangle* primitiveIndices,
+    DWORD flags,
     CullData* cullData
 )
 {
-    return internal::ComputeCullData(positions, vertexCount, meshlets, meshletCount, uniqueVertexIndices, primitiveIndices, cullData);
+    return internal::ComputeCullData(positions, vertexCount, meshlets, meshletCount, uniqueVertexIndices, primitiveIndices, flags, cullData);
 }
 
 HRESULT ComputeCullData(
@@ -114,10 +121,11 @@ HRESULT ComputeCullData(
     const Meshlet* meshlets, uint32_t meshletCount,
     const uint32_t* uniqueVertexIndices,
     const PackedTriangle* primitiveIndices,
+    DWORD flags,
     CullData* cullData
 )
 {
-    return internal::ComputeCullData(positions, vertexCount, meshlets, meshletCount, uniqueVertexIndices, primitiveIndices, cullData);
+    return internal::ComputeCullData(positions, vertexCount, meshlets, meshletCount, uniqueVertexIndices, primitiveIndices, flags, cullData);
 }
 
 
@@ -156,17 +164,18 @@ HRESULT internal::ComputeMeshlets(
         uint32_t primitiveIndexCount = startPrimCount;
 
         // Resize the meshlet output array to hold the newly formed meshlets.
-        meshlets.resize(builtMeshlets.size());
+        uint32_t meshletCount = static_cast<uint32_t>(meshlets.size());
+        meshlets.resize(meshletCount + builtMeshlets.size());
 
-        for (uint32_t i = 0; i < static_cast<uint32_t>(builtMeshlets.size()); ++i)
+        for (uint32_t j = 0, dest = meshletCount; j < static_cast<uint32_t>(builtMeshlets.size()); ++j, ++dest)
         {
-            meshlets[i].VertOffset = uniqueVertexIndexCount;
-            meshlets[i].VertCount = static_cast<uint32_t>(builtMeshlets[i].UniqueVertexIndices.size());
-            uniqueVertexIndexCount += static_cast<uint32_t>(builtMeshlets[i].UniqueVertexIndices.size());
+            meshlets[dest].VertOffset = uniqueVertexIndexCount;
+            meshlets[dest].VertCount = static_cast<uint32_t>(builtMeshlets[j].UniqueVertexIndices.size());
+            uniqueVertexIndexCount += static_cast<uint32_t>(builtMeshlets[j].UniqueVertexIndices.size());
 
-            meshlets[i].PrimOffset = primitiveIndexCount;
-            meshlets[i].PrimCount = static_cast<uint32_t>(builtMeshlets[i].PrimitiveIndices.size());
-            primitiveIndexCount += static_cast<uint32_t>(builtMeshlets[i].PrimitiveIndices.size());
+            meshlets[dest].PrimOffset = primitiveIndexCount;
+            meshlets[dest].PrimCount = static_cast<uint32_t>(builtMeshlets[j].PrimitiveIndices.size());
+            primitiveIndexCount += static_cast<uint32_t>(builtMeshlets[j].PrimitiveIndices.size());
         }
 
         // Allocate space for the new data.
@@ -200,6 +209,7 @@ HRESULT internal::ComputeCullData(
     const Meshlet* meshlets, uint32_t meshletCount,
     const T* uniqueVertexIndices,
     const PackedTriangle* primitiveIndices,
+    DWORD flags,
     CullData* cullData
 )
 {
@@ -238,7 +248,7 @@ HRESULT internal::ComputeCullData(
             XMVECTOR p20 = triangle[2] - triangle[0];
             XMVECTOR n = XMVector3Normalize(XMVector3Cross(p10, p20));
 
-            XMStoreFloat3(&normals[i], n);
+            XMStoreFloat3(&normals[i], (flags & CNORM_WIND_CW) != 0 ? -n : n);
         }
 
         // Calculate spatial bounds
@@ -261,10 +271,11 @@ HRESULT internal::ComputeCullData(
 
         if (XMVector4Less(minDot, XMVectorReplicate(0.1f)))
         {
-            c.NormalCone[0] = 0;
-            c.NormalCone[1] = 0;
-            c.NormalCone[2] = 0;
-            c.NormalCone[3] = 127; // Degenerate cone -- FP32 1.0 quantizes to SNORM8 127 
+            // Degenerate cone
+            c.NormalCone[0] = 127;
+            c.NormalCone[1] = 127;
+            c.NormalCone[2] = 127;
+            c.NormalCone[3] = 255;
             continue;
         }
 
@@ -305,7 +316,7 @@ HRESULT internal::ComputeCullData(
         // cone apex should be in the negative half-space of all cluster triangles by construction
         c.ApexOffset = maxt;
 
-        // cos(a) for normal cone is mindp; we need to add 90 degrees on both sides and invert the cone
+        // cos(a) for normal cone is minDot; we need to add 90 degrees on both sides and invert the cone
         // which gives us -cos(a+90) = -(-sin(a)) = sin(a) = sqrt(1 - cos^2(a))
         XMVECTOR coneCutoff = XMVectorSqrt(g_XMOne - minDot * minDot);
 
@@ -318,7 +329,7 @@ HRESULT internal::ComputeCullData(
         XMVECTOR error = ((quantized / 255.0f) * 2.0f - g_XMOne) - axis;
         error = XMVectorSum(XMVectorAbs(error));
 
-        quantized = QuantizeSNorm(coneCutoff + error);
+        quantized = QuantizeUNorm(coneCutoff + error);
         quantized = XMVectorMin(quantized + g_XMOne, XMVectorReplicate(255.0f));
         c.NormalCone[3] = (uint8_t)XMVectorGetX(quantized);
     }

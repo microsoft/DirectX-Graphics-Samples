@@ -14,6 +14,11 @@
 #include <DirectXMath.h>
 #include <vector>
 
+enum Flags : uint32_t
+{
+    CNORM_WIND_CW = 0x4
+};
+
 struct Subset
 {
     uint32_t Offset;
@@ -92,6 +97,7 @@ HRESULT ComputeCullData(
     const Meshlet* meshlets, uint32_t nMeshlets,
     const uint16_t* uniqueVertexIndices,
     const PackedTriangle* primitiveIndices,
+    DWORD flags,
     CullData* cullData
 );
 
@@ -100,5 +106,6 @@ HRESULT ComputeCullData(
     const Meshlet* meshlets, uint32_t nMeshlets,
     const uint32_t* uniqueVertexIndices,
     const PackedTriangle* primitiveIndices,
+    DWORD flags,
     CullData* cullData
 );

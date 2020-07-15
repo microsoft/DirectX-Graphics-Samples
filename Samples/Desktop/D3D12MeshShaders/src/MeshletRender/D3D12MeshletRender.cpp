@@ -12,36 +12,8 @@
 #include "stdafx.h"
 #include "D3D12MeshletRender.h"
 
-namespace
-{
-    static const GUID D3D12ExperimentalShaderModelsID = { /* 76f5573e-f13a-40f5-b297-81ce9e18933f */
-        0x76f5573e,
-        0xf13a,
-        0x40f5,
-        { 0xb2, 0x97, 0x81, 0xce, 0x9e, 0x18, 0x93, 0x3f }
-    };
+const wchar_t* D3D12MeshletRender::c_meshFilename = L"..\\Assets\\Dragon_LOD0.bin";
 
-    // Create a pipeline state stream descriptor for the mesh shader pipeline.
-    typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_SHADER_BYTECODE, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS> CD3DX12_PIPELINE_STATE_STREAM_AS;
-    typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_SHADER_BYTECODE, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS> CD3DX12_PIPELINE_STATE_STREAM_MS;
-
-    struct MeshShaderPsoDesc
-    {
-        CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE        pRootSignature;
-        CD3DX12_PIPELINE_STATE_STREAM_AS                    AS;
-        CD3DX12_PIPELINE_STATE_STREAM_MS                    MS;
-        CD3DX12_PIPELINE_STATE_STREAM_PS                    PS;
-        CD3DX12_PIPELINE_STATE_STREAM_BLEND_DESC            BlendState;
-        CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL         DepthStencilState;
-        CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT  DepthFormat;
-        CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER            RasterizerState;
-        CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS RTFormats;
-        CD3DX12_PIPELINE_STATE_STREAM_SAMPLE_DESC           SampleDesc;
-        CD3DX12_PIPELINE_STATE_STREAM_SAMPLE_MASK           SampleMask;
-    };
-}
-
-const wchar_t* D3D12MeshletRender::c_meshFilename = L"Dragon_LOD0.bin";
 const wchar_t* D3D12MeshletRender::c_meshShaderFilename = L"MeshletMS.cso";
 const wchar_t* D3D12MeshletRender::c_pixelShaderFilename = L"MeshletPS.cso";
 
@@ -71,8 +43,6 @@ void D3D12MeshletRender::OnInit()
 // Load the rendering pipeline dependencies.
 void D3D12MeshletRender::LoadPipeline()
 {
-    D3D12EnableExperimentalFeatures(1, &D3D12ExperimentalShaderModelsID, nullptr, nullptr);
-
     UINT dxgiFactoryFlags = 0;
 
 #if defined(_DEBUG)
@@ -263,30 +233,29 @@ void D3D12MeshletRender::LoadAssets()
         } meshShader, pixelShader;
 
         ReadDataFromFile(GetAssetFullPath(c_meshShaderFilename).c_str(), &meshShader.data, &meshShader.size);
-        ReadDataFromFile(GetAssetFullPath(L"MeshletPS.cso").c_str(), &pixelShader.data, &pixelShader.size);
+        ReadDataFromFile(GetAssetFullPath(c_pixelShaderFilename).c_str(), &pixelShader.data, &pixelShader.size);
 
         // Pull root signature from the precompiled mesh shader.
         ThrowIfFailed(m_device->CreateRootSignature(0, meshShader.data, meshShader.size, IID_PPV_ARGS(&m_rootSignature)));
 
-        D3D12_RT_FORMAT_ARRAY rtvFormats = {};
-        rtvFormats.RTFormats[0] = m_renderTargets[0]->GetDesc().Format;
-        rtvFormats.NumRenderTargets = 1;
+        D3DX12_MESH_SHADER_PIPELINE_STATE_DESC psoDesc = {};
+        psoDesc.pRootSignature        = m_rootSignature.Get();
+        psoDesc.MS                    = { meshShader.data, meshShader.size };
+        psoDesc.PS                    = { pixelShader.data, pixelShader.size };
+        psoDesc.NumRenderTargets      = 1;
+        psoDesc.RTVFormats[0]         = m_renderTargets[0]->GetDesc().Format;
+        psoDesc.DSVFormat             = m_depthStencil->GetDesc().Format;
+        psoDesc.RasterizerState       = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);    // CW front; cull back
+        psoDesc.BlendState            = CD3DX12_BLEND_DESC(D3D12_DEFAULT);         // Opaque
+        psoDesc.DepthStencilState     = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT); // Less-equal depth test w/ writes; no stencil
+        psoDesc.SampleMask            = UINT_MAX;
+        psoDesc.SampleDesc            = DefaultSampleDesc();
 
-        MeshShaderPsoDesc psoDesc = {};
-        psoDesc.pRootSignature = m_rootSignature.Get();
-        psoDesc.MS = { meshShader.data, meshShader.size };
-        psoDesc.PS = { pixelShader.data, pixelShader.size };
-        psoDesc.RTFormats = rtvFormats;
-        psoDesc.DepthFormat = m_depthStencil->GetDesc().Format;
-        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);      // CW front; cull back
-        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);                // Opaque
-        psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT); // Less-equal depth test w/ writes; no stencil
-        psoDesc.SampleMask = UINT_MAX;
-        psoDesc.SampleDesc = DefaultSampleDesc();
+        auto psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(psoDesc);
 
         D3D12_PIPELINE_STATE_STREAM_DESC streamDesc;
-        streamDesc.pPipelineStateSubobjectStream = &psoDesc;
-        streamDesc.SizeInBytes = sizeof(psoDesc);
+        streamDesc.pPipelineStateSubobjectStream = &psoStream;
+        streamDesc.SizeInBytes                   = sizeof(psoStream);
 
         ThrowIfFailed(m_device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&m_pipelineState)));
     }
@@ -300,7 +269,8 @@ void D3D12MeshletRender::LoadAssets()
 
     m_model.LoadFromFile(c_meshFilename);
     m_model.UploadGpuResources(m_device.Get(), m_commandQueue.Get(), m_commandAllocators[m_frameIndex].Get(), m_commandList.Get());
-    
+
+#ifdef _DEBUG
     // Mesh shader file expects a certain vertex layout; assert our mesh conforms to that layout.
     const D3D12_INPUT_ELEMENT_DESC c_elementDescs[2] =
     {
@@ -308,7 +278,6 @@ void D3D12MeshletRender::LoadAssets()
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 1 },
     };
 
-#ifdef _DEBUG
     for (auto& mesh : m_model)
     {
         assert(mesh.LayoutDesc.NumElements == 2);
@@ -433,10 +402,10 @@ void D3D12MeshletRender::PopulateCommandList()
     for (auto& mesh : m_model)
     {
         m_commandList->SetGraphicsRoot32BitConstant(1, mesh.IndexSize, 0);
-        m_commandList->SetGraphicsRootShaderResourceView(2, mesh.VerticesVA[0]);
-        m_commandList->SetGraphicsRootShaderResourceView(3, mesh.MeshletsVA);
-        m_commandList->SetGraphicsRootShaderResourceView(4, mesh.UniqueVertexIndicesVA);
-        m_commandList->SetGraphicsRootShaderResourceView(5, mesh.PrimitiveIndicesVA);
+        m_commandList->SetGraphicsRootShaderResourceView(2, mesh.VertexResources[0]->GetGPUVirtualAddress());
+        m_commandList->SetGraphicsRootShaderResourceView(3, mesh.MeshletResource->GetGPUVirtualAddress());
+        m_commandList->SetGraphicsRootShaderResourceView(4, mesh.UniqueVertexIndexResource->GetGPUVirtualAddress());
+        m_commandList->SetGraphicsRootShaderResourceView(5, mesh.PrimitiveIndexResource->GetGPUVirtualAddress());
 
         for (auto& subset : mesh.MeshletSubsets)
         {
