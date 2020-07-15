@@ -36,8 +36,8 @@ It came from a desire to quickly dive into graphics and performance experiments.
 ## Requirements
 ### Master branch
 This branch is intended for the latest [released](https://docs.microsoft.com/en-us/windows/release-information/) Windows 10 version.
-* Windows 10 version 1909
-* [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 SDK version 1903(18362)](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
+* Windows 10 version 2004
+* [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 SDK version 2004(19041)](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
 ### Develop branch
 This branch is intented for features available in the latest Windows Insider Preview
 * [Windows 10 Insider Preview builds](https://insider.windows.com/en-us/how-to-pc/#install-windows-10-insider-preview) ([Fast ring](https://insider.windows.com/en-us/how-to-pc/#working-with-rings))
