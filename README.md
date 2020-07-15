@@ -6,9 +6,13 @@ This repo contains the DirectX 12 Graphics samples that demonstrate how to build
 In the Samples directory, you will find samples that attempt to break off specific features and specific usage scenarios into bite-sized chunks. For example, the ExecuteIndirect sample will show you just enough about execute indirect to get started with that feature without diving too deep into multiengine whereas the nBodyGravity sample will delve into multiengine without touching on the execute indirect feature etc. By doing this, we hope to make it easier to get started with DirectX 12.
 
 Recent API Sample Updates:
-1. [Real-Time Denoised Raytraced Ambient Occlusion](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/readme.md): This sample implements a real-time denoiser for 1spp Ambient Occlusion raytraced via DirectX Raytracing. 
+1. [D3D12 Mesh Shaders](Samples/Desktop/D3D12MeshShaders/readme.md): This sample demonstrates how Mesh shaders can be used to increase the flexibility and performance of the geometry pipeline.
 
-![D3D12 Raytracing Real-Time Denoised Ambient Occlusion GUI](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/Screenshot_small.png)
+![D3D12 Meshlet Render Preview](Samples/Desktop/D3D12MeshShaders/src/MeshletRender/D3D12MeshletRender.png)
+
+2. [D3D12 Variable Rate Shading](Samples/Desktop/D3D12VariableRateShading/readme.md): This sample demonstrates how shading rate can be reduced with little or no reduction in visual quality, leading to “free” performance.
+
+![Variable Rate Shading GUI](Samples/Desktop/D3D12VariableRateShading/src/Screenshot_small.png)
 
 ## MiniEngine: A DirectX 12 Engine Starter Kit
 In addition to the samples, we are announcing the first DirectX 12 preview release of the MiniEngine.
@@ -30,8 +34,14 @@ It came from a desire to quickly dive into graphics and performance experiments.
 * Easy-to-use dynamic constant buffers and descriptor tables
 
 ## Requirements
-* Windows 10 with the May 2019 Update
-* [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 May 2019 Update SDK (18362)](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
+### Master branch
+This branch is intended for the latest [released](https://docs.microsoft.com/en-us/windows/release-information/) Windows 10 version.
+* Windows 10 version 1909
+* [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 SDK version 1903(18362)](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
+### Develop branch
+This branch is intented for features available in the latest Windows Insider Preview
+* [Windows 10 Insider Preview builds](https://insider.windows.com/en-us/how-to-pc/#install-windows-10-insider-preview) ([Fast ring](https://insider.windows.com/en-us/how-to-pc/#working-with-rings))
+* [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 Insider Preview SDK](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewSDK)
 
 ## Contributing
 We're always looking for your help to fix bugs and improve the samples.  File those pull requests and we'll be happy to take a look.

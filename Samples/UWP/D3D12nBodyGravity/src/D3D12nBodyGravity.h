@@ -170,6 +170,9 @@ private:
 
     void LoadPipeline();
     void LoadAssets();
+    void RestoreD3DResources();
+    void ReleaseD3DResources();
+    void WaitForGpu();
     void CreateAsyncContexts();
     void CreateVertexBuffer();
     float RandomPercent();

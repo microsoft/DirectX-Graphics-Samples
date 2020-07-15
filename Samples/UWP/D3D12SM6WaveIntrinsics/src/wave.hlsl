@@ -14,7 +14,7 @@ cbuffer SceneConstantBuffer : register(b0)
     float time;
     uint renderMode;
     uint laneSize;
-    uint padding;
+    float4 padding[10];
 };
 
 struct PSInput

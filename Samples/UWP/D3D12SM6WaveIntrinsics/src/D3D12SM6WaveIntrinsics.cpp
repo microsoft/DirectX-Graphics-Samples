@@ -44,6 +44,7 @@ D3D12SM6WaveIntrinsics::D3D12SM6WaveIntrinsics(UINT width, UINT height, std::wst
     m_mouseLeftButtonDown(false),
     m_rendermode{ 1 }
 {
+    ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
 }
 
 void D3D12SM6WaveIntrinsics::OnInit()
@@ -69,7 +70,7 @@ void D3D12SM6WaveIntrinsics::CreateDevice(const ComPtr<IDXGIFactory4>& factory)
     else
     {
         ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+        GetHardwareAdapter(factory.Get(), &hardwareAdapter, true);
 
         ThrowIfFailed(D3D12CreateDevice(
             hardwareAdapter.Get(),
@@ -180,7 +181,7 @@ void D3D12SM6WaveIntrinsics::LoadPipeline()
         // Flags indicate that this descriptor heap can be bound to the pipeline 
         // and that descriptors contained in it can be referenced by a root table.
         D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
-        cbvHeapDesc.NumDescriptors = 3;  // 1 constant buffer and 2 SRV. 
+        cbvHeapDesc.NumDescriptors = (1 * FrameCount) + 2;  // 1 constant buffer for each frame and then 2 SRV. 
         cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         ThrowIfFailed(m_d3d12Device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbSrvHeap)));
@@ -338,10 +339,12 @@ void D3D12SM6WaveIntrinsics::LoadAssets()
 
     // Create a constant buffer.
     {
+        const UINT constantBufferSize = sizeof(SceneConstantBuffer);
+
         ThrowIfFailed(m_d3d12Device->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
             D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(1024 * 64),
+            &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize * FrameCount),
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&m_constantBuffer)));
@@ -349,9 +352,16 @@ void D3D12SM6WaveIntrinsics::LoadAssets()
         // Describe and create a constant buffer view.
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
         cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
-        cbvDesc.SizeInBytes = (sizeof(SceneConstantBuffer) + 255) & ~255;    // CB size is required to be 256-byte aligned.
+        cbvDesc.SizeInBytes = constantBufferSize;
+       
         CD3DX12_CPU_DESCRIPTOR_HANDLE cbHandle(m_cbSrvHeap->GetCPUDescriptorHandleForHeapStart());
-        m_d3d12Device->CreateConstantBufferView(&cbvDesc, cbHandle);
+        for (UINT n = 0; n < FrameCount; n++)
+        {
+            m_d3d12Device->CreateConstantBufferView(&cbvDesc, cbHandle);
+
+            cbvDesc.BufferLocation += constantBufferSize;
+            cbHandle.Offset(m_cbSrvDescriptorSize);
+        }
 
         // Map and initialize the constant buffer. We don't unmap this until the
         // app closes. Keeping things mapped for the lifetime of the resource is okay.
@@ -516,7 +526,7 @@ void D3D12SM6WaveIntrinsics::LoadSizeDependentResources()
 
             // Create SRV for the texture
             CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_cbSrvHeap->GetCPUDescriptorHandleForHeapStart());
-            srvHandle.Offset(1, m_cbSrvDescriptorSize); // First one is for constant buffer.
+            srvHandle.Offset(FrameCount, m_cbSrvDescriptorSize); // First ones are for constant buffers.
             m_d3d12Device->CreateShaderResourceView(m_renderPass1RenderTargets.Get(), nullptr, srvHandle);
         }
 
@@ -553,7 +563,7 @@ void D3D12SM6WaveIntrinsics::LoadSizeDependentResources()
 
             // Create SRV for UI layer texture
             CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_cbSrvHeap->GetCPUDescriptorHandleForHeapStart());
-            srvHandle.Offset(2, m_cbSrvDescriptorSize); // First one is for constant buffer. Senond one is for a texture in renderPass1
+            srvHandle.Offset(FrameCount + 1, m_cbSrvDescriptorSize); // First ones are for constant buffers. Next one is for a texture in renderPass1.
             m_d3d12Device->CreateShaderResourceView(m_uiRenderTarget.Get(), nullptr, srvHandle);
 
             if (!m_uiLayer)
@@ -589,7 +599,7 @@ void D3D12SM6WaveIntrinsics::OnUpdate()
     m_constantBufferData.mousePosition.y = m_mousePosition[1];
     m_constantBufferData.resolution.x = static_cast<float>(m_width);
     m_constantBufferData.resolution.y = static_cast<float>(m_height);
-    memcpy(m_pCbSrvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
+    memcpy(m_pCbSrvDataBegin + (sizeof(SceneConstantBuffer) * m_frameIndex), &m_constantBufferData, sizeof(m_constantBufferData)); // Copy to the constant buffer for the current frame.
     //time += 0.1f;
 
     m_uiLayer->UpdateLabels(m_rendermode);
@@ -598,14 +608,56 @@ void D3D12SM6WaveIntrinsics::OnUpdate()
 // Render the scene.
 void D3D12SM6WaveIntrinsics::OnRender()
 {
-    RenderUI();
-    // Record all the commands we need to render the scene into the command list.
-    RenderScene();
+    try
+    {
+        RenderUI();
+        // Record all the commands we need to render the scene into the command list.
+        RenderScene();
 
-    // Present the frame.
-    ThrowIfFailed(m_swapChain->Present(1, 0));
+        // Present the frame.
+        ThrowIfFailed(m_swapChain->Present(1, 0));
 
-    MoveToNextFrame();
+        MoveToNextFrame();
+    }
+    catch (HrException& e)
+    {
+        if (e.Error() == DXGI_ERROR_DEVICE_REMOVED || e.Error() == DXGI_ERROR_DEVICE_RESET)
+        {
+            RestoreD3DResources();
+        }
+        else
+        {
+            throw;
+        }
+    }
+}
+
+// Release sample's D3D objects.
+void D3D12SM6WaveIntrinsics::ReleaseD3DResources()
+{
+    m_fence.Reset();
+    m_renderPass1RenderTargets.Reset();
+    m_uiRenderTarget.Reset();
+    ResetComPtrArray(&m_renderPass2RenderTargets);
+    m_commandQueue.Reset();
+    m_swapChain.Reset();
+    m_d3d12Device.Reset();
+}
+
+// Tears down D3D resources and reinitializes them.
+void D3D12SM6WaveIntrinsics::RestoreD3DResources()
+{
+    // Give GPU a chance to finish its execution in progress.
+    try
+    {
+        WaitForGpu();
+    }
+    catch (HrException&)
+    {
+        // Do nothing, currently attached adapter is unresponsive.
+    }
+    ReleaseD3DResources();
+    OnInit();
 }
 
 void D3D12SM6WaveIntrinsics::OnDestroy()
@@ -658,9 +710,8 @@ void D3D12SM6WaveIntrinsics::RenderScene()
     // Render Pass 2: Merge UI layer and the intermediate texture from render pass 1 together.
     m_commandList->SetPipelineState(m_renderPass2PSO.Get());
     m_commandList->SetGraphicsRootSignature(m_renderPass2RootSignature.Get());
-    CD3DX12_GPU_DESCRIPTOR_HANDLE gpuCbvDescriptorHandle(m_cbSrvHeap->GetGPUDescriptorHandleForHeapStart());
-    CD3DX12_GPU_DESCRIPTOR_HANDLE gpuSrvDescriptorHandle(m_cbSrvHeap->GetGPUDescriptorHandleForHeapStart());
-    gpuSrvDescriptorHandle.Offset(1, m_cbSrvDescriptorSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE gpuCbvDescriptorHandle(m_cbSrvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex, m_cbSrvDescriptorSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE gpuSrvDescriptorHandle(m_cbSrvHeap->GetGPUDescriptorHandleForHeapStart(), FrameCount, m_cbSrvDescriptorSize);
     m_commandList->SetGraphicsRootDescriptorTable(0, gpuCbvDescriptorHandle);
     m_commandList->SetGraphicsRootDescriptorTable(1, gpuSrvDescriptorHandle);
     m_commandList->RSSetViewports(1, &m_viewport);

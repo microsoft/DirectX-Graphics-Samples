@@ -46,6 +46,7 @@ D3D12Fullscreen::D3D12Fullscreen(UINT width, UINT height, std::wstring name) :
     m_sceneConstantBufferData{},
     m_fenceValues{}
 {
+    ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
 }
 
 void D3D12Fullscreen::OnInit()
@@ -91,7 +92,7 @@ void D3D12Fullscreen::LoadPipeline()
     else
     {
         ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+        GetHardwareAdapter(factory.Get(), &hardwareAdapter, true);
 
         ThrowIfFailed(D3D12CreateDevice(
             hardwareAdapter.Get(),
@@ -551,28 +552,68 @@ void D3D12Fullscreen::OnRender()
 {
     if (m_windowVisible)
     {
-        PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+        try
+        {
+            PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
 
-        // Record all the commands we need to render the scene into the command lists.
-        PopulateCommandLists();
+            // Record all the commands we need to render the scene into the command lists.
+            PopulateCommandLists();
 
-        // Execute the command lists.
-        ID3D12CommandList* ppCommandLists[] = { m_sceneCommandList.Get(), m_postCommandList.Get() };
-        m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+            // Execute the command lists.
+            ID3D12CommandList* ppCommandLists[] = { m_sceneCommandList.Get(), m_postCommandList.Get() };
+            m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-        PIXEndEvent(m_commandQueue.Get());
+            PIXEndEvent(m_commandQueue.Get());
 
-        // When using sync interval 0, it is recommended to always pass the tearing
-        // flag when it is supported, even when presenting in windowed mode.
-        // However, this flag cannot be used if the app is in fullscreen mode as a
-        // result of calling SetFullscreenState.
-        UINT presentFlags = (m_tearingSupport && m_windowedMode) ? DXGI_PRESENT_ALLOW_TEARING : 0;
+            // When using sync interval 0, it is recommended to always pass the tearing
+            // flag when it is supported, even when presenting in windowed mode.
+            // However, this flag cannot be used if the app is in fullscreen mode as a
+            // result of calling SetFullscreenState.
+            UINT presentFlags = (m_tearingSupport && m_windowedMode) ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
-        // Present the frame.
-        ThrowIfFailed(m_swapChain->Present(0, presentFlags));
+            // Present the frame.
+            ThrowIfFailed(m_swapChain->Present(0, presentFlags));
 
-        MoveToNextFrame();
+            MoveToNextFrame();
+        }
+        catch (HrException& e)
+        {
+            if (e.Error() == DXGI_ERROR_DEVICE_REMOVED || e.Error() == DXGI_ERROR_DEVICE_RESET)
+            {
+                RestoreD3DResources();
+            }
+            else
+            {
+                throw;
+            }
+        }
     }
+}
+
+// Release sample's D3D objects.
+void D3D12Fullscreen::ReleaseD3DResources()
+{
+    m_fence.Reset();
+    ResetComPtrArray(&m_renderTargets);
+    m_commandQueue.Reset();
+    m_swapChain.Reset();
+    m_device.Reset();
+}
+
+// Tears down D3D resources and reinitializes them.
+void D3D12Fullscreen::RestoreD3DResources()
+{
+    // Give GPU a chance to finish its execution in progress.
+    try
+    {
+        WaitForGpu();
+    }
+    catch (HrException&)
+    {
+        // Do nothing, currently attached adapter is unresponsive.
+    }
+    ReleaseD3DResources();
+    OnInit();
 }
 
 void D3D12Fullscreen::OnSizeChanged(UINT width, UINT height, bool minimized)

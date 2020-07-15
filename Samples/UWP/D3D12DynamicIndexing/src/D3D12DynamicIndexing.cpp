@@ -509,17 +509,12 @@ void D3D12DynamicIndexing::LoadAssets()
         depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
         depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
 
-        D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
-        depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-        depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
-        depthOptimizedClearValue.DepthStencil.Stencil = 0;
-
         ThrowIfFailed(m_device->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
             D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, m_width, m_height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+            &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, m_width, m_height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE), // Performance tip: Deny shader resource access to resources that don't need shader resource views.
             D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            &depthOptimizedClearValue,
+            &CD3DX12_CLEAR_VALUE(DXGI_FORMAT_D32_FLOAT, 1.0f, 0), // Performance tip: Tell the runtime at resource creation the desired clear value.
             IID_PPV_ARGS(&m_depthStencil)
             ));
 
@@ -722,6 +717,7 @@ void D3D12DynamicIndexing::PopulateCommandList(FrameResource* pFrameResource)
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
+    PIXBeginEvent(m_commandList.Get(), 0, L"Draw cities");
     if (UseBundles)
     {
         // Execute the prebuilt bundle.
@@ -730,9 +726,10 @@ void D3D12DynamicIndexing::PopulateCommandList(FrameResource* pFrameResource)
     else
     {
         // Populate a new command list.
-        pFrameResource->PopulateCommandList(m_commandList.Get(), m_pipelineState.Get(), m_currentFrameResourceIndex, m_numIndices, &m_indexBufferView,
+        pFrameResource->PopulateCommandList(m_commandList.Get(), m_currentFrameResourceIndex, m_numIndices, &m_indexBufferView,
             &m_vertexBufferView, m_cbvSrvHeap.Get(), m_cbvSrvDescriptorSize, m_samplerHeap.Get(), m_rootSignature.Get());
     }
+    PIXEndEvent(m_commandList.Get());
 
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));

@@ -119,6 +119,8 @@ private:
 
     void LoadPipeline();
     void LoadAssets();
+    void RestoreD3DResources();
+    void ReleaseD3DResources();
     void LoadSizeDependentResources();
     void LoadSceneResolutionDependentResources();
     void PopulateCommandLists();
