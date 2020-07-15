@@ -362,19 +362,19 @@ __forceinline float exp2( float x ) { return pow(2.0f, x); }
 #endif
 
 ExpVar::ExpVar( const std::string& path, float val, float minExp, float maxExp, float expStepSize )
-    : NumVar(path, log2(val), minExp, maxExp, expStepSize)
+    : NumVar(path, log2f(val), minExp, maxExp, expStepSize)
 {
 }
 
 ExpVar& ExpVar::operator=( float val )
 {
-    m_Value = Clamp(log2(val));
+    m_Value = Clamp(log2f(val));
     return *this;
 }
 
 ExpVar::operator float() const
 {
-    return exp2(m_Value);
+    return exp2f(m_Value);
 }
 
 void ExpVar::DisplayValue( TextContext& Text ) const

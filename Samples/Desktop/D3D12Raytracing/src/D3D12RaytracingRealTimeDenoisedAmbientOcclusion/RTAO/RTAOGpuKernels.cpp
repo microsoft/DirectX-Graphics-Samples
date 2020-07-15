@@ -16,14 +16,14 @@
 #include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 #include "CompiledShaders\GaussianFilter3x3CS.hlsl.h"
 #include "CompiledShaders\GaussianFilterRG3x3CS.hlsl.h"
-#include "CompiledShaders\EdgeStoppingAtrousWaveletTransfromCrossBilateralFilter_Gaussian3x3CS.hlsl.h"
-#include "CompiledShaders\EdgeStoppingAtrousWaveletTransfromCrossBilateralFilter_Gaussian5x5CS.hlsl.h"
-#include "CompiledShaders\CalculateMeanVariance_SeparableFilterCS_CheckerboardSampling_AnyToAnyWaveReadLaneAt.hlsl.h"
+#include "CompiledShaders\EdgeStoppingFilter_Gaussian3x3CS.hlsl.h"
+#include "CompiledShaders\EdgeStoppingFilter_Gaussian5x5CS.hlsl.h"
+#include "CompiledShaders\CalculateMeanVarianceCS.hlsl.h"
 #include "CompiledShaders\TemporalSupersampling_BlendWithCurrentFrameCS.hlsl.h"
 #include "CompiledShaders\TemporalSupersampling_ReverseReprojectCS.hlsl.h"
 #include "CompiledShaders\CountingSort_SortRays_64x128rayGroupCS.hlsl.h"
 #include "CompiledShaders\AORayGenCS.hlsl.h"
-#include "CompiledShaders\DisocclusionBlur_DepthAwareSeparableGaussianFilter3x3CS_AnyToAnyWaveReadLaneAt.hlsl.h"
+#include "CompiledShaders\DisocclusionBlur3x3CS.hlsl.h"
 #include "CompiledShaders\FillInCheckerboard_CrossBox4TapFilterCS.hlsl.h"
 
 using namespace std;
@@ -174,7 +174,7 @@ namespace RTAOGpuKernels
         {
             D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO = {};
             descComputePSO.pRootSignature = m_rootSignature.Get();
-            descComputePSO.CS = CD3DX12_SHADER_BYTECODE(static_cast<const void*>(g_pDisocclusionBlur_DepthAwareSeparableGaussianFilter3x3CS_AnyToAnyWaveReadLaneAt), ARRAYSIZE(g_pDisocclusionBlur_DepthAwareSeparableGaussianFilter3x3CS_AnyToAnyWaveReadLaneAt));
+            descComputePSO.CS = CD3DX12_SHADER_BYTECODE(static_cast<const void*>(g_pDisocclusionBlur3x3CS), ARRAYSIZE(g_pDisocclusionBlur3x3CS));
 
             ThrowIfFailed(device->CreateComputePipelineState(&descComputePSO, IID_PPV_ARGS(&m_pipelineStateObject)));
             m_pipelineStateObject->SetName(L"Pipeline state object: DisocclusionBilateralFilter");
@@ -299,10 +299,10 @@ namespace RTAOGpuKernels
                 switch (i)
                 {
                 case EdgeStoppingGaussian5x5:
-                    descComputePSO.CS = CD3DX12_SHADER_BYTECODE(static_cast<const void*>(g_pEdgeStoppingAtrousWaveletTransfromCrossBilateralFilter_Gaussian5x5CS), ARRAYSIZE(g_pEdgeStoppingAtrousWaveletTransfromCrossBilateralFilter_Gaussian5x5CS));
+                    descComputePSO.CS = CD3DX12_SHADER_BYTECODE(static_cast<const void*>(g_pEdgeStoppingFilter_Gaussian5x5CS), ARRAYSIZE(g_pEdgeStoppingFilter_Gaussian5x5CS));
                     break;
                 case EdgeStoppingGaussian3x3:
-                    descComputePSO.CS = CD3DX12_SHADER_BYTECODE(static_cast<const void*>(g_pEdgeStoppingAtrousWaveletTransfromCrossBilateralFilter_Gaussian3x3CS), ARRAYSIZE(g_pEdgeStoppingAtrousWaveletTransfromCrossBilateralFilter_Gaussian3x3CS));
+                    descComputePSO.CS = CD3DX12_SHADER_BYTECODE(static_cast<const void*>(g_pEdgeStoppingFilter_Gaussian3x3CS), ARRAYSIZE(g_pEdgeStoppingFilter_Gaussian3x3CS));
                     break;
                 }
 
@@ -440,7 +440,7 @@ namespace RTAOGpuKernels
         {
             D3D12_COMPUTE_PIPELINE_STATE_DESC descComputePSO = {};
             descComputePSO.pRootSignature = m_rootSignature.Get();
-            descComputePSO.CS = CD3DX12_SHADER_BYTECODE(static_cast<const void*>(g_pCalculateMeanVariance_SeparableFilterCS_CheckerboardSampling_AnyToAnyWaveReadLaneAt), ARRAYSIZE(g_pCalculateMeanVariance_SeparableFilterCS_CheckerboardSampling_AnyToAnyWaveReadLaneAt));
+            descComputePSO.CS = CD3DX12_SHADER_BYTECODE(static_cast<const void*>(g_pCalculateMeanVarianceCS), ARRAYSIZE(g_pCalculateMeanVarianceCS));
 
 
             ThrowIfFailed(device->CreateComputePipelineState(&descComputePSO, IID_PPV_ARGS(&m_pipelineStateObject)));
