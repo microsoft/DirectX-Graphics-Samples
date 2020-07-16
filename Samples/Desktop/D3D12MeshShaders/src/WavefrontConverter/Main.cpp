@@ -30,8 +30,8 @@ namespace
         std::cout << "Switches:" << std::endl;
         std::cout << "\t-h            -- Display this help message." << std::endl;
         std::cout << "\t-a <ids>      -- Specifies the vertex attribute layout of the exported meshes - more info below. Default is vnu" << std::endl;
-        std::cout << "\t-v <int>      -- Specifies the maximum vertex count of a meshlet. Must be less than 256. Default is 126" << std::endl;
-        std::cout << "\t-p <int>      -- Specifies the maximum primitive count of a meshlet. Must be less than 256. Default is 64" << std::endl;
+        std::cout << "\t-v <int>      -- Specifies the maximum vertex count of a meshlet. Must be less than 256. Default is 64" << std::endl;
+        std::cout << "\t-p <int>      -- Specifies the maximum primitive count of a meshlet. Must be less than 256. Default is 126" << std::endl;
         std::cout << "\t-s <float>    -- Specifies a global scaling factor for scene geometry. Default is 1.0" << std::endl;
         std::cout << "\t-i            -- Forces vertex indices to be 32 bits, even if only 16 bits are required. Default is false" << std::endl;
         std::cout << "\t-f            -- Flip primitive winding order. Default is false" << std::endl;
@@ -45,11 +45,11 @@ namespace
         std::cout << "\tu - TexCoord" << std::endl;
         std::cout << "\tt - Tangent" << std::endl;
         std::cout << "\tb - Bitangent" << std::endl;
-        std::cout << "\t| - Used to separate attributes into separate buffers." << std::endl;
+        std::cout << "\t: - Used to separate attributes into separate buffers." << std::endl;
         std::cout << std::endl;
 
         std::cout << "Example:" << std::endl;
-        std::cout << "\tConverterApp.exe -l v|nutb -v 128 -p 128 -i -t Path/To/MyFile1.obj Path/To/MyFile2.obj " << std::endl;
+        std::cout << "\tConverterApp.exe -a v:nutb -v 128 -p 128 -i Path/To/MyFile1.obj Path/To/MyFile2.obj " << std::endl;
         std::cout << std::endl;
     }
 
@@ -72,7 +72,7 @@ namespace
             {
                 if (i + 1 == argc)
                 {
-                    std::cout << "Must provide an integral value for meshlet max vertex count if supplying -m switch." << std::endl;
+                    std::cout << "Must provide an integral value for meshlet max vertex count if supplying -v switch." << std::endl;
                     return 1;
                 }
 
@@ -93,7 +93,7 @@ namespace
             {
                 if (i + 1 == argc)
                 {
-                    std::cout << "Must provide an integral value for meshlet max primitive count if supplying -m switch." << std::endl;
+                    std::cout << "Must provide an integral value for meshlet max primitive count if supplying -p switch." << std::endl;
                     return 1;
                 }
 
@@ -128,16 +128,16 @@ namespace
             {
                 if (i + 1 == argc)
                 {
-                    std::cout << "Must provide a string specifying attribute layout if supplying -l switch." << std::endl;
+                    std::cout << "Must provide a string specifying attribute layout if supplying -a switch." << std::endl;
                     return 1;
                 }
 
                 AttrStream stream;
 
-                const char* start = args[i + 1];
-                while (*start != '\0')
+                const char* curr = args[i + 1];
+                while (*curr != '\0')
                 {
-                    switch (*start)
+                    switch (*curr)
                     {
                     case 'p':
                         stream.push_back(Attribute::Position);
@@ -159,11 +159,14 @@ namespace
                         stream.push_back(Attribute::Bitangent);
                         break;
 
-                    case '|':
+                    case ':':
                         options.ExportAttributes.emplace_back(std::move(stream));
                         break;
                     }
+
+                    ++curr;
                 }
+                ++i;
 
                 if (!stream.empty())
                     options.ExportAttributes.emplace_back(std::move(stream));

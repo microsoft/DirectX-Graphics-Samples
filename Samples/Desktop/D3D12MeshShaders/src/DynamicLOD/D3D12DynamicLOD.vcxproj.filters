@@ -1,0 +1,118 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D3D12DynamicLOD.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Win32Application.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="DXSample.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="SimpleCamera.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Model.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Span.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="D3D12DynamicLOD.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DXSample.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="DXSampleHelper.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="SimpleCamera.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="StepTimer.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Win32Application.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Shared.h">
+      <Filter>Assets\Shaders</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Assets">
+      <UniqueIdentifier>{8a76753c-5a8b-4ce5-90d1-158f1ad21973}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets\Shaders">
+      <UniqueIdentifier>{6a7692a9-7a68-4862-93d4-c4730735530f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{40a28c68-1d96-4583-b904-cf31765e74a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{7ea6b7d0-a924-4215-ac98-e5d89b0f9b31}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets\Models">
+      <UniqueIdentifier>{f1886065-610b-44fb-bf77-db3b7ee4ea8b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Util">
+      <UniqueIdentifier>{0a296a43-6933-49b4-9fb8-245c4ada4029}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Util">
+      <UniqueIdentifier>{730cb925-a666-46ec-9ec9-969a95925689}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Assets\Dragon_LOD0.bin">
+      <Filter>Assets\Models</Filter>
+    </None>
+    <None Include="Common.hlsli">
+      <Filter>Assets\Shaders</Filter>
+    </None>
+    <None Include="..\Assets\Dragon_LOD1.bin">
+      <Filter>Assets\Models</Filter>
+    </None>
+    <None Include="..\Assets\Dragon_LOD2.bin">
+      <Filter>Assets\Models</Filter>
+    </None>
+    <None Include="..\Assets\Dragon_LOD3.bin">
+      <Filter>Assets\Models</Filter>
+    </None>
+    <None Include="..\Assets\Dragon_LOD4.bin">
+      <Filter>Assets\Models</Filter>
+    </None>
+    <None Include="..\Assets\Dragon_LOD5.bin">
+      <Filter>Assets\Models</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="MeshletMS.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="MeshletPS.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="MeshletAS.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>
