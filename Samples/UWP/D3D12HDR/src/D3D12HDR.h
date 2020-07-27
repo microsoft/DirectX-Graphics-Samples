@@ -79,7 +79,7 @@ private:
         XMFLOAT2 uv;
     };
 
-    struct DisplayChromacities
+    struct DisplayChromaticities
     {
         float RedX;
         float RedY;
