@@ -3,7 +3,8 @@ page_type: sample
 languages:
 - cpp
 products:
-- windows-api-win32
+- windows
+- windows-uwp
 name: Bundles Sample
 urlFragment: bundles-sample
 description: Demonstrates the use of Direct3D 12 bundles.
