@@ -923,7 +923,7 @@ void D3D12HDR::SetHDRMetaData(float MaxOutputNits /*=1000.0f*/, float MinOutputN
         return;
     }
 
-    static const DisplayChromacities DisplayChromacityList[] =
+    static const DisplayChromaticities DisplayChromaticityList[] =
     {
         { 0.64000f, 0.33000f, 0.30000f, 0.60000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // Display Gamut Rec709 
         { 0.70800f, 0.29200f, 0.17000f, 0.79700f, 0.13100f, 0.04600f, 0.31270f, 0.32900f }, // Display Gamut Rec2020
@@ -947,7 +947,7 @@ void D3D12HDR::SetHDRMetaData(float MaxOutputNits /*=1000.0f*/, float MinOutputN
     }
 
     // Set HDR meta data
-    const DisplayChromacities& Chroma = DisplayChromacityList[selectedChroma];
+    const DisplayChromaticities& Chroma = DisplayChromaticityList[selectedChroma];
     DXGI_HDR_METADATA_HDR10 HDR10MetaData = {};
     HDR10MetaData.RedPrimary[0] = static_cast<UINT16>(Chroma.RedX * 50000.0f);
     HDR10MetaData.RedPrimary[1] = static_cast<UINT16>(Chroma.RedY * 50000.0f);
