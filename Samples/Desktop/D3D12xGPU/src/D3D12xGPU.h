@@ -111,6 +111,6 @@ private:
     void SelectAdapter(UINT index);
     void SelectGPUPreference(UINT index);
     void CalculateFrameStats(); 
-    void WaitForGpu();
+    void WaitForGpu(ID3D12CommandQueue* pCommandQueue);
     void MoveToNextFrame();
 };

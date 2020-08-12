@@ -60,6 +60,9 @@
     <ClCompile Include="FrameResource.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
+    <ClCompile Include="GPUTimer.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3dx12.h">
@@ -101,6 +104,9 @@
     <ClInclude Include="ShadowsFogScatteringSquidScene.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="GPUTimer.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest" />
@@ -129,10 +135,16 @@
     <CustomBuild Include="ShadowsAndScenePass.hlsl">
       <Filter>Assets\Shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="Common.hlsli">
+      <Filter>Assets\Shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="SquidRoom.bin">
       <Filter>Assets\Scene</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

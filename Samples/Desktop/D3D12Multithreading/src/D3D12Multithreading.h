@@ -139,6 +139,9 @@ private:
 
     void LoadPipeline();
     void LoadAssets();
+    void RestoreD3DResources();
+    void ReleaseD3DResources();
+    void WaitForGpu();
     void LoadContexts();
     void BeginFrame();
     void MidFrame();

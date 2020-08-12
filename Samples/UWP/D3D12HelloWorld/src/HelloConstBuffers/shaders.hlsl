@@ -12,6 +12,7 @@
 cbuffer SceneConstantBuffer : register(b0)
 {
     float4 offset;
+    float4 padding[15];
 };
 
 struct PSInput

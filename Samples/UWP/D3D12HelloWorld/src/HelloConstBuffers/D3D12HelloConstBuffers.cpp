@@ -266,10 +266,12 @@ void D3D12HelloConstBuffers::LoadAssets()
 
     // Create the constant buffer.
     {
+        const UINT constantBufferSize = sizeof(SceneConstantBuffer);    // CB size is required to be 256-byte aligned.
+
         ThrowIfFailed(m_device->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
             D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(1024 * 64),
+            &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&m_constantBuffer)));
@@ -277,7 +279,7 @@ void D3D12HelloConstBuffers::LoadAssets()
         // Describe and create a constant buffer view.
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
         cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
-        cbvDesc.SizeInBytes = (sizeof(SceneConstantBuffer) + 255) & ~255;    // CB size is required to be 256-byte aligned.
+        cbvDesc.SizeInBytes = constantBufferSize;
         m_device->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
 
         // Map and initialize the constant buffer. We don't unmap this until the

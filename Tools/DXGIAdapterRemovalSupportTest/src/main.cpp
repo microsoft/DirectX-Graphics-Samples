@@ -192,6 +192,14 @@ HANDLE GetProcessFromID(DWORD processID, std::wstring& outAppProcessName)
 #pragma endregion
 
 #pragma region DeviceHelperFunctions
+struct AdapterDeviceInfo
+{
+    std::wstring m_deviceInterface;
+    std::wstring m_deviceId;
+    LUID m_Luid = {};
+    DEVINST m_devInst = 0;
+};
+
 std::wstring GetDeviceIdFromDeviceInterface(std::wstring DeviceInterface)
 {
     std::vector<WCHAR> DeviceId;
@@ -204,8 +212,9 @@ std::wstring GetDeviceIdFromDeviceInterface(std::wstring DeviceInterface)
         if (Return != CR_BUFFER_SMALL)
         {
             ScopedOutputColor outClr(ScopedOutputColor::COLOR_RED);
-            std::wcout << L"Error: when calling CM_Get_Device_Interface_PropertyW" << std::endl;
-            return 0;
+            std::wcout << L"Error (" << (UINT)Return << L"): when calling CM_Get_Device_Interface_PropertyW for " << DeviceInterface.c_str() << std::endl;
+            DeviceId.clear();
+            break;
         }
 
         DeviceId.resize(BufferSize / sizeof(WCHAR));
@@ -216,33 +225,97 @@ std::wstring GetDeviceIdFromDeviceInterface(std::wstring DeviceInterface)
     return std::wstring(DeviceId.begin(), DeviceId.end());
 }
 
-DEVINST FindAdapterDevInst(LUID AdapterLuid, std::wstring& DeviceIdString)
+std::vector<AdapterDeviceInfo> EnumerateAdapterDeviceInfo()
 {
-    // Find the device path
-    DISPLAYCONFIG_ADAPTER_NAME AdapterName = {};
-    AdapterName.header.size = sizeof(AdapterName);
-    AdapterName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME;
-    AdapterName.header.adapterId = AdapterLuid;
-    if (DisplayConfigGetDeviceInfo(&AdapterName.header) != ERROR_SUCCESS)
+    // List out all the AdapterDevicePath of all graphics adapters, display or render
+    std::vector<WCHAR> devicesStringBuffer;
+    CONFIGRET Return;
+    do
     {
-        ScopedOutputColor outClr(ScopedOutputColor::COLOR_RED);
-        std::wcout << L"Error: when calling DisplayConfigGetDeviceInfo for DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME." << std::endl;
-        return 0;
+        // Get the buffer size
+        ULONG BufferSize = 0;
+        Return = CM_Get_Device_Interface_List_SizeW(&BufferSize, const_cast<LPGUID>(&GUID_DISPLAY_DEVICE_ARRIVAL), nullptr, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
+        if (Return != CR_SUCCESS)
+        {
+            break;
+        }
+
+        // Read the buffer
+        devicesStringBuffer.resize(BufferSize);
+        Return = CM_Get_Device_Interface_ListW(const_cast<LPGUID>(&GUID_DISPLAY_DEVICE_ARRIVAL), nullptr, devicesStringBuffer.data(), (ULONG)devicesStringBuffer.size(), CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
+    } while (Return == CR_BUFFER_SMALL);
+
+    // Parse the buffer into each adapter string
+    std::vector<AdapterDeviceInfo> adapterInfos;
+    auto startIt = devicesStringBuffer.begin();
+    for (auto it = devicesStringBuffer.begin(); it != devicesStringBuffer.end(); ++it)
+    {
+        if (*it == L'\0')
+        {
+            // Only save strings if they are not empty
+            if (it - startIt > 1)
+            {
+                adapterInfos.push_back(AdapterDeviceInfo());
+                adapterInfos.back().m_deviceInterface = std::wstring(startIt, it);
+            }
+
+            // Continue to search for next string with one-past-this-null as the start
+            startIt = it;
+            ++startIt;
+        }
     }
 
-    DeviceIdString = GetDeviceIdFromDeviceInterface(AdapterName.adapterDevicePath);
-
-    // Locate the device node by path
-    DEVINST AdapterDevInst = 0;
-    CONFIGRET Return = CM_Locate_DevNodeW(&AdapterDevInst, const_cast<DEVINSTID_W>(DeviceIdString.c_str()), CM_LOCATE_DEVNODE_NORMAL);
-    if (Return != CR_SUCCESS)
+    // Retrieve respective adapter information
+    bool bError = false;
+    for (auto& adapterInfo : adapterInfos)
     {
-        ScopedOutputColor outClr(ScopedOutputColor::COLOR_RED);
-        std::wcout << L"Error: Unable to locate device " << DeviceIdString.c_str() << std::endl;
-        return 0;
+        D3DKMT_OPENADAPTERFROMDEVICENAME OpenAdapterFromDeviceName = {};
+        OpenAdapterFromDeviceName.pDeviceName = adapterInfo.m_deviceInterface.c_str();
+        NTSTATUS Status = D3DKMTOpenAdapterFromDeviceName(&OpenAdapterFromDeviceName);
+        if (!NT_SUCCESS(Status))
+        {
+            bError = true;
+            continue;
+        }
+        adapterInfo.m_Luid = OpenAdapterFromDeviceName.AdapterLuid;
+
+        D3DKMT_CLOSEADAPTER CloseAdapter = { OpenAdapterFromDeviceName.hAdapter };
+        D3DKMTCloseAdapter(&CloseAdapter);
+
+        adapterInfo.m_deviceId = GetDeviceIdFromDeviceInterface(adapterInfo.m_deviceInterface);
+
+        // Locate the device node by path
+        CONFIGRET Return = CM_Locate_DevNodeW(&adapterInfo.m_devInst, const_cast<DEVINSTID_W>(adapterInfo.m_deviceId.c_str()), CM_LOCATE_DEVNODE_NORMAL);
+        if (Return != CR_SUCCESS)
+        {
+            bError = true;
+            continue;
+        }
     }
 
-    return AdapterDevInst;
+    if (bError)
+    {
+        ScopedOutputColor outClr(ScopedOutputColor::COLOR_YELLOW);
+        std::wcout << L"Warning: Some adapter info were unable to be enumerated." << std::endl;
+    }
+    return adapterInfos;
+}
+
+DEVINST FindAdapterDevInst(LUID AdapterLuid, std::wstring& DeviceIdString, const std::vector<AdapterDeviceInfo>& adapterInfos)
+{
+    for (const auto& adapterInfo : adapterInfos)
+    {
+        if (RtlEqualLuid(&AdapterLuid, &adapterInfo.m_Luid))
+        {
+            DeviceIdString = adapterInfo.m_deviceId;
+            return adapterInfo.m_devInst;
+        }
+    }
+
+    ScopedOutputColor outClr(ScopedOutputColor::COLOR_RED);
+    std::wcout << L"Error: Unable to locate device " << DeviceIdString.c_str() << L" from luid (" 
+        << AdapterLuid.HighPart << L"," << AdapterLuid.LowPart << L")" << std::endl;
+    return 0;
 }
 #pragma endregion
 
@@ -510,6 +583,9 @@ int _cdecl wmain(int argc, _In_reads_z_(argc) WCHAR** argv)
             return 1;
         }
 
+        // Init adapter enumeration information
+        std::vector<AdapterDeviceInfo> adapterInfos = EnumerateAdapterDeviceInfo();
+        
         bool bSupportAdapterRemoval = true; // if the app truly supports adapter removal
 
         // For each graphics adapter
@@ -518,7 +594,7 @@ int _cdecl wmain(int argc, _In_reads_z_(argc) WCHAR** argv)
             std::wcout << L"[" << i << L"], Targeting " << adapterDescs[i].Description << L" adapter." << std::endl;
 
             std::wstring DeviceId;
-            DEVINST gpuDevNode = FindAdapterDevInst(adapterDescs[i].AdapterLuid, DeviceId);
+            DEVINST gpuDevNode = FindAdapterDevInst(adapterDescs[i].AdapterLuid, DeviceId, adapterInfos);
             if (gpuDevNode == 0)
             {
                 return 1; // FindAdapterDevInst would have reported an error message

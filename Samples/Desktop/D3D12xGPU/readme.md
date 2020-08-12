@@ -14,5 +14,5 @@ As the sample is able to survive an adapter removal event, it declares that it s
 * [1-9] - adapter selection, when manual override is enabled.
 
 ## Requirements
-* Windows 10 October 2018 Update or higher
-* [Visual Studio 2017](https://www.visualstudio.com/) with the [Windows 10 October 2018 Update SDK (17763)](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
+* Windows 10 17655 or higher (available via [Windows Insider Program](https://insider.windows.com/en-us/))
+* [Visual Studio 2017](https://www.visualstudio.com/) with the Windows 10 17655 SDK
