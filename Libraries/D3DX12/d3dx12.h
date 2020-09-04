@@ -12,9 +12,32 @@
 #ifndef __D3DX12_H__
 #define __D3DX12_H__
 
-#include "d3d12.h"
-
 #if defined( __cplusplus )
+
+// d3d12_1.h is not available on early versions of the Windows 10 SDK.
+// With a C++17 compiler, the d3d12_1.h will be included by default if present
+// Otherwise, you will need to include d3dx12.h after d3d12_1.h
+#if __cplusplus >= 201703L
+    #if __has_include("d3d12_1.h")
+        #define D3DX_HAS_D3D12_1   TRUE
+        #include "d3d12_1.h"
+    #else
+        #define D3DX_HAS_D3D12_1   FALSE
+        #include "d3d12.h"
+    #endif
+#else
+    #ifdef __d3d12_1_h__
+        #define D3DX_HAS_D3D12_1 TRUE
+    #else
+        #define D3DX_HAS_D3D12_1 FALSE
+
+        #ifndef D3DX_NO_INCLUDE_WARNING
+            #pragma message("d3d12_1.h was not included, using d3d12.h instead.")
+            #pragma message("If you wish to use Direct3D 12.1 features, please include d3dx12.h after d3d12_1.h")
+            #pragma message("You can define D3DX_NO_INCLUDE_WARNING to disable this message")
+        #endif
+    #endif
+#endif
 
 struct CD3DX12_DEFAULT {};
 extern const DECLSPEC_SELECTANY CD3DX12_DEFAULT D3D12_DEFAULT;
