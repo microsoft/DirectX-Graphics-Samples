@@ -6,7 +6,7 @@ products:
 - windows
 - windows-uwp
 name: Bundles Sample
-urlFragment: bundles-sample
+urlFragment: bundles-sample-uwp
 description: Demonstrates the use of Direct3D 12 bundles.
 extendedZipContent:
 - path: LICENSE

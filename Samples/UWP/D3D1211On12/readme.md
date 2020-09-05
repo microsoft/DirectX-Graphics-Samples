@@ -6,7 +6,7 @@ products:
 - windows
 - windows-uwp
 name: 11 on 12 Sample
-urlFragment: 11-on-12-sample
+urlFragment: 11-on-12-sample-uwp
 description: Demonstrates how to use Direct3D 11-based rendering in combination with Direct3D 12.
 extendedZipContent:
 - path: LICENSE
