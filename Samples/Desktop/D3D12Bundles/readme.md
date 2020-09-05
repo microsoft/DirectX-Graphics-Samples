@@ -5,7 +5,7 @@ languages:
 products:
 - windows-api-win32
 name: Bundles Sample
-urlFragment: bundles-sample
+urlFragment: bundles-sample-win32
 description: Demonstrates the use of Direct3D 12 bundles.
 extendedZipContent:
 - path: LICENSE
