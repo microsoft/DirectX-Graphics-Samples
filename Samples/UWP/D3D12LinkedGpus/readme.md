@@ -1,9 +1,24 @@
-# Linked GPU Sample
+---
+page_type: sample
+languages:
+- cpp
+products:
+- windows
+- windows-uwp
+name: Direct3D 12 linked GPU sample
+urlFragment: d3d12-linked-gpu-sample-uwp
+description: This sample demonstrates how to use two linked homogeneous (that is, CrossFire/SLI) GPUs to achieve greater performance than possible with only one GPU.
+extendedZipContent:
+- path: LICENSE
+  target: LICENSE
+---
+
+# Direct3D 12 linked GPU sample
 ![LinkedGPus GUI](src/LinkedGpus/D3D12LinkedGpus.png)
 
-This sample demonstrates how to use two linked homogeneous (i.e. CrossFire/SLI) GPUs to achieve greater performance than possible with only one GPU.  In particular, this sample shows the usage of a technique called Alternate Frame Rendering (AFR) which essentially allows you to use each GPU to render every other frame allowing a theoretical maximum performance of 2 times that of only one GPU.  This is of course only theoretical and in practicality, there are things like inter-frame dependencies (things rendered on one GPU required by the other GPU for rendering the next frame) that add some overhead that doesn't otherwise exist in a single GPU case.  Things like this limit the maximum benefit two GPUs can provide you over one.
+This sample demonstrates how to use two linked homogeneous (that is, CrossFire/SLI) GPUs to achieve greater performance than possible with only one GPU.  In particular, this sample shows the usage of a technique called Alternate Frame Rendering (AFR) which essentially allows you to use each GPU to render every other frame allowing a theoretical maximum performance of 2 times that of only one GPU.  This is of course only theoretical and in practicality, there are things like inter-frame dependencies (things rendered on one GPU required by the other GPU for rendering the next frame) that add some overhead that doesn't otherwise exist in a single GPU case.  Things like this limit the maximum benefit two GPUs can provide you over one.
 
-Linked GPUs is what most people currently think of when someone mentions 'MultiGPU' and this sample shows how to utilize both GPUs using explicit MultiGPU.  Most importantly, it shows how the app has full explicit control over the GPU hardware through the API (eg. work submission, synchronization, memory management, etc. can be controlled explicitly for each GPU independently).
+Linked GPUs is what most people currently think of when someone mentions 'MultiGPU' and this sample shows how to utilize both GPUs using explicit MultiGPU.  Most importantly, it shows how the app has full explicit control over the GPU hardware through the API (for example, work submission, synchronization, memory management, etc. can be controlled explicitly for each GPU independently).
 
 ## Solution structure
 There are three projects in this sample's Visual Studio solution:
@@ -17,7 +32,7 @@ Beginners that want to enable MultiGPU in their apps should start by understandi
 
 # The Affinity Layer Library
 
-One important thing to note about this sample is that it also demonstrates the usage of a helper library called the affinity layer.  When working with two GPUs, the CPU will need to submit work to each GPU.  Certain objects (ie. command lists, command queues, etc) can be 'affinitized' allowing work to be submitted to a specific GPU.  The affinity layer also provides a simple way for the app to submit work to multiple GPUs at the same time.  The affinity layer adds a thin layer of abstraction to help you enable MultiGPU in your app.
+One important thing to note about this sample is that it also demonstrates the usage of a helper library called the affinity layer.  When working with two GPUs, the CPU will need to submit work to each GPU.  Certain objects (that is, command lists, command queues, etc) can be 'affinitized' allowing work to be submitted to a specific GPU.  The affinity layer also provides a simple way for the app to submit work to multiple GPUs at the same time.  The affinity layer adds a thin layer of abstraction to help you enable MultiGPU in your app.
 
 This library is intended to help apps kick start their MultiGPU implementation.  The library itself is called the affinity layer in that execution and resources can be 'affinitized' to one or more GPUs in the system.  This library should help developers quickly bring up DirectX 12 MultiGPU in their engines. 
 
@@ -32,14 +47,14 @@ Currently, this library tries to help developers implement one of the most commo
 There are many other possible techniques (other than AFR) for MultiGPU; some that are suitable candidates to be abstracted out into a library like the affinity layer, others that are not.  We are looking at other scenarios where the library can fit in as a (almost) drop in solution.
 
 ## What is Alternate Frame Rendering (AFR)?
-AFR does exactly as the name suggests.  Frames are rendered in an alternating (i.e. round-robin) manner on each of the GPUs in the system.  If there are two GPUs, the first GPU will render every even frame and the second GPU will render every odd frame.  Since both GPUs can render in parallel, the theoretical maximum rendering frequency is twice that of a single GPU system.  This is of course assuming both GPUs are identical in power, which, in linked GPU systems, they almost always are. 
+AFR does exactly as the name suggests.  Frames are rendered in an alternating (that is, round-robin) manner on each of the GPUs in the system.  If there are two GPUs, the first GPU will render every even frame and the second GPU will render every odd frame.  Since both GPUs can render in parallel, the theoretical maximum rendering frequency is twice that of a single GPU system.  This is of course assuming both GPUs are identical in power, which, in linked GPU systems, they almost always are. 
 
 ## How does the library help apps implement AFR?
 One of the most common methods of achieving dual GPU AFR is to: 
-  * Duplicate all non-system memory resources on both GPUs (i.e. textures, buffers, render targets, etc.) 
+  * Duplicate all non-system memory resources on both GPUs (that is, textures, buffers, render targets, etc.) 
   * Execute the same work on both GPUs
     * The ideal case being GPU1 starts rendering when GPU0 is 50% through it's rendering pass theoretically doubling the frame rate 
-  * Copy any inter-frame dependencies across the GPUs so that they are available when the next frame (ie. the other GPU) starts rendering 
+  * Copy any inter-frame dependencies across the GPUs so that they are available when the next frame (that is, the other GPU) starts rendering 
     * An example of this might be a temporal AA dependency from frame N-1 needed for frame N 
 
 Conceptually, it might look something like this:
