@@ -4,15 +4,15 @@ languages:
 - cpp
 products:
 - windows-api-win32
-name: 11 on 12 Sample
-urlFragment: 11-on-12-sample-win32
+name: Direct3D 12 11-on-12 sample
+urlFragment: d3d12-11-on-12-sample-win32
 description: Demonstrates how to use Direct3D 11-based rendering in combination with Direct3D 12.
 extendedZipContent:
 - path: LICENSE
   target: LICENSE
 ---
 
-# 11 on 12 Sample
+# Direct3D 12 11-on-12 sample
 
 ![11On12 GUI](src/D3D1211On12.png)
 

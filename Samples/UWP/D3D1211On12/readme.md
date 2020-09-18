@@ -5,15 +5,15 @@ languages:
 products:
 - windows
 - windows-uwp
-name: 11 on 12 Sample
-urlFragment: 11-on-12-sample-uwp
+name: Direct3D 12 11-on-12 sample
+urlFragment: d3d12-11-on-12-sample-uwp
 description: Demonstrates how to use Direct3D 11-based rendering in combination with Direct3D 12.
 extendedZipContent:
 - path: LICENSE
   target: LICENSE
 ---
 
-# 11 on 12 Sample
+# Direct3D 12 11-on-12 sample
 
 ![11On12 GUI](src/D3D1211On12.png)
 

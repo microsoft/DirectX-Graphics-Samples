@@ -1,7 +1,21 @@
-# D3D12On7 Sample
+---
+page_type: sample
+languages:
+- cpp
+products:
+- windows-api-win32
+name: Direct3D 12 12-On-7 sample
+urlFragment: d3d12-12-on-7-sample-win32
+description: Demonstrates how to write an app that supports running with Direct3D 12 both on Windows 7 and Windows 10 with the same packaging layout and executable.
+extendedZipContent:
+- path: LICENSE
+  target: LICENSE
+---
+
+# Direct3D 12 12-On-7 sample
 ![12on7 GUI](src/D3D12On7.png)
 
-This sample showcases how to use D3D12 on Windows 7, aka D3D12On7. Specifically, this sample demonstrates how to write an app that supports running with D3D12 both on Windows 7 and 10 with the same packaging layout and executable.
+This sample showcases how to use D3D12 on Windows 7, also known as D3D12On7. Specifically, this sample demonstrates how to write an app that supports running with Direct3D 12 both on Windows 7 and Windows 10 with the same packaging layout and executable.
 
 D3D12 on Windows 7 is quite different to D3D12 on Windows 10. To use D3D12 on Windows 10, all you need to do is link to D3D12.lib and you're on your way. But D3D12 doesn't exist on Windows 7 in such a way that you can do that. Instead, apps that want to use D3D12 on Windows 7 need to redistribute the D3D12.dll file, along with supporting binaries. Then, at runtime, you'll need to be explicit about which D3D12.dll you are going to use, either the one bundled with your app, or the one that comes from the OS.
 

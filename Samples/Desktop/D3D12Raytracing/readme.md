@@ -1,4 +1,18 @@
-# D3D12 Raytracing Samples
+---
+page_type: sample
+languages:
+- cpp
+products:
+- windows-api-win32
+name: Direct3D 12 raytracing samples
+urlFragment: d3d12-raytracing-samples-win32
+description: This collection of samples act as an introduction to DirectX Raytracing (DXR).
+extendedZipContent:
+- path: LICENSE
+  target: LICENSE
+---
+
+# Direct3D 12 raytracing samples
 This collection of samples act as an introduction to DirectX Raytracing (DXR). The samples are divided into tutorials and advanced samples. Each tutorial sample introduces a few new DXR concepts. Advanced samples demonstrate more complex techniques and applications of raytracing.
 
 ### Getting Started
