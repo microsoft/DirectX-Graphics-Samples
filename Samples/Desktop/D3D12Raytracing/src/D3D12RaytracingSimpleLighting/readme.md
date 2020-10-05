@@ -17,31 +17,21 @@ The shaders access all the input data from constant buffers and buffer resources
 Triangle normals are accessed from index and vertex buffers that are explicitly passed in as buffer resources to the closest hit shader. First, three hit triangle's vertex indices are loaded from a 16bit index buffer. Then, the indices are used to index into the vertex buffer and load a triangle normal that is duplicatively stored for each triangle's vertex.
 
 ## Usage
-The sample starts with Fallback Layer implementation being used by default. The Fallback Layer will use raytracing driver if available, otherwise it will default to the compute fallback. This default behavior can be overriden via UI controls or input arguments.
-
-D3D12RaytracingSimpleLighting.exe [ -FL | -DXR ]
-* [-FL] - select Fallback Layer API with forced compute fallback path.
-* [-DXR] - select DirectX Raytracing API.
+D3D12RaytracingSimpleLighting.exe
 
 Additional arguments:
-  * [-forceAdapter \<ID>] - create a D3D12 device on an adapter <ID>. Defaults to adapter 0.
+  * [-forceAdapter \<ID>] - create a D3D12 device on an adapter \<ID>. Defaults to adapter 0.
 
 ### UI
 The title bar of the sample provides runtime information:
 * Name of the sample
-* Raytracing API being active:
-  * FL - Fallback Layer with compute fallback being used
-  * FL-DXR - Fallback Layer with raytracing driver being used
-  * DXR - DirectX Raytracing being used
 * Frames per second
 * Million Primary Rays/s: a number of dispatched rays per second calculated based of FPS.
 * GPU[ID]: name
 
 ### Controls
 * ALT+ENTER - toggles between windowed and fullscreen modes.
-* 1 - select Fallback Layer API.
-* 2 - select Fallback Layer API with forced compute fallback path.
-* 3 - select DirectX Raytracing API.
 
 ## Requirements
-* Consult the main [D3D12 Raytracing readme](../../readme.md) for requirements.
+* Windows 10 with the October 2018 update or higher.
+* Consult the main [D3D12 Raytracing readme](../../readme.md) for further requirements.

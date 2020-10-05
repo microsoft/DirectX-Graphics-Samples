@@ -2,7 +2,7 @@
 ![MiniEngine Screenshot](Screenshot.png)
 ## Raytracing Modifications
 
-This is a modified version of MiniEngine that uses the D3D12 Raytracing Fallback Layer for a series of effects.
+This is a modified version of MiniEngine that uses the DirectX Raytracing for a series of effects.
 
 The keys '1'...'7' can also be used to cycle through different modes (or using Backspace to open up the MiniEngine and going to Application/Raytracing/RaytraceMode): 
 * *Off* - [1] Full rasterization.
@@ -26,13 +26,8 @@ The keys '1'...'7' can also be used to cycle through different modes (or using B
 * dpad left/right or left/right arrow key - adjust debug menu values.
 
 ## Limitations:
- * Currently only tested on the native DXR path of the Fallback Layer.
- * Compute-path Fallback Layer:
-   * The sample TDRs on newer NVIDIA drivers. Use 398.82 drivers.
-   * Barycentric visualization (option 2 and 3) doesn't render properly.
  * Shadow pass is buggy due to incorrect ray generation.
  * Mipmap calculation is incorrect and uses too low of an LOD for distant objects.
- * The sample has a few visual bugs on Intel cards.
  * An incorrect debug layer error message is outputted when run due to an issue in the debug layer on SM 6.0 drivers. This can be ignored. "D3D12 ERROR: ID3D12Device::CopyDescriptors: Source ranges and dest ranges overlap, which results in undefined behavior."
 
 ## Requirements

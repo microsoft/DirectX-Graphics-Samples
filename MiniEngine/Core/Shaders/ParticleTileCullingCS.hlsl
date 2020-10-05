@@ -15,7 +15,7 @@
 #include "ParticleUtility.hlsli"
 
 StructuredBuffer<uint> g_BinParticles : register(t0);
-StructuredBuffer<uint> g_BinCounters : register(t1);
+ByteAddressBuffer g_BinCounters : register(t1);
 Texture2D<uint> g_DepthBounds : register(t2);
 StructuredBuffer<ParticleScreenData> g_VisibleParticles : register(t3);
 
@@ -85,7 +85,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     // Each group is assigned a bin
     uint BinIndex = Gid.y * gBinsPerRow + Gid.x;
 
-    uint ParticleCountInBin = g_BinCounters[BinIndex];
+    uint ParticleCountInBin = g_BinCounters.Load(BinIndex * 4);
     if (ParticleCountInBin == 0)    
         return;
 

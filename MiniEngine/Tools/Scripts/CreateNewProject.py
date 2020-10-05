@@ -25,8 +25,8 @@ def copy_template_file(filename, project, guid):
     output_filename = os.path.join(project, filename)
     output_filename = output_filename.replace('AppTemplate', project)
     output_filename = output_filename.replace('LibTemplate', project)
-    with open(template_filename, 'r') as infile:
-        with open(output_filename, 'w') as outfile:
+    with open(template_filename, 'r', encoding='utf-8') as infile:
+        with open(output_filename, 'w', encoding='utf-8') as outfile:
             contents = infile.read()
             contents = contents.replace('TEMPLATE_NAME', project)
             contents = contents.replace('TEMPLATE_GUID', guid)

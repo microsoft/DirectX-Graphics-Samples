@@ -21,6 +21,7 @@ cbuffer SceneConstantBuffer : register(b0)
     float4x4 viewInverse;
     float4x4 projInverse;
     float4x4 viewProjInverseAtNearZ1;
+    float fogDensity;
 };
 
 struct PSInput
@@ -104,7 +105,6 @@ float4 PSMain(PSInput input) : SV_TARGET
     // Alpha blend the scattered light with the dest color from the scene render pass.
     // Apply a fog effect by attenuating dest color contribution.
     // Alpha blend operation: BLEND_ONE * BLEND_SRC_COLOR + SRC_ALPHA * BLEND_DEST_COLOR
-    float fogDensity = 0.04f;
     float destColorAttenuation = FogAttenuation(fogDensity, cameraToPixelDistance);
     return float4(color, destColorAttenuation);
 }

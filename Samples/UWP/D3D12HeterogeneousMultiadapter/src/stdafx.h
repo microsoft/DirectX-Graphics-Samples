@@ -21,7 +21,7 @@
 
 #include <windows.h>
 
-#include <dxgi1_4.h>
+#include <dxgi1_6.h>
 #include <d3d12.h>
 #include <D3Dcompiler.h>
 #include "d3dx12.h"

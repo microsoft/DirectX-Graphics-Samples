@@ -1,0 +1,41 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 16
+VisualStudioVersion = 16
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ModelViewer", "ModelViewer_VS16.vcxproj", "{1813BD6E-E2AF-4A3C-8C54-4E72119DA993}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\Core\Core_VS16.vcxproj", "{86A58508-0D6A-4786-A32F-01A301FDC6F3}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Model", "..\Model\Model_VS16.vcxproj", "{5D3AEEFB-8789-48E5-9BD9-09C667052D09}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Windows = Debug|Windows
+		Profile|Windows = Profile|Windows
+		Release|Windows = Release|Windows
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1813BD6E-E2AF-4A3C-8C54-4E72119DA993}.Debug|Windows.ActiveCfg = Debug|x64
+		{1813BD6E-E2AF-4A3C-8C54-4E72119DA993}.Debug|Windows.Build.0 = Debug|x64
+		{1813BD6E-E2AF-4A3C-8C54-4E72119DA993}.Profile|Windows.ActiveCfg = Profile|x64
+		{1813BD6E-E2AF-4A3C-8C54-4E72119DA993}.Profile|Windows.Build.0 = Profile|x64
+		{1813BD6E-E2AF-4A3C-8C54-4E72119DA993}.Release|Windows.ActiveCfg = Release|x64
+		{1813BD6E-E2AF-4A3C-8C54-4E72119DA993}.Release|Windows.Build.0 = Release|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Debug|Windows.ActiveCfg = Debug|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Debug|Windows.Build.0 = Debug|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Profile|Windows.ActiveCfg = Profile|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Profile|Windows.Build.0 = Profile|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Release|Windows.ActiveCfg = Release|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Release|Windows.Build.0 = Release|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Debug|Windows.ActiveCfg = Debug|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Debug|Windows.Build.0 = Debug|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Profile|Windows.ActiveCfg = Profile|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Profile|Windows.Build.0 = Profile|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Release|Windows.ActiveCfg = Release|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Release|Windows.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -73,7 +73,7 @@ private:
         float time;
         UINT renderingMode;
         UINT laneSize;
-        UINT padding;
+        UINT padding[40]; // Padding so the struct is 256-byte aligned.
     };
 
     // Pipeline objects.
@@ -123,6 +123,8 @@ private:
     void CreateDevice(const ComPtr<IDXGIFactory4>& factory);
     void LoadPipeline();
     void LoadAssets();
+    void RestoreD3DResources();
+    void ReleaseD3DResources();
     void LoadSizeDependentResources();
     void MoveToNextFrame();
     void WaitForGpu();

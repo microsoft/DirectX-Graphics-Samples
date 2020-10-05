@@ -19,12 +19,13 @@
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers.
 #endif
 
-//#include <nt.h>
-//#include <ntrtl.h>
-//#include <nturtl.h>
+#include <nt.h>
+#include <ntrtl.h>
+#include <nturtl.h>
 #include <windows.h>
 #include <atlbase.h>
 
+#include <d3dkmthk.h>
 #include <dxgi1_6.h>
 #include <psapi.h>
 #include <cfgmgr32.h>

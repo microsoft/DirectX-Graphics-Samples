@@ -176,7 +176,10 @@ void D3D1211on12::LoadPipeline()
     // D2D's render targets.
     float dpiX;
     float dpiY;
+#pragma warning(push)
+#pragma warning(disable : 4996) // GetDesktopDpi is deprecated.
     m_d2dFactory->GetDesktopDpi(&dpiX, &dpiY);
+#pragma warning(pop)
     D2D1_BITMAP_PROPERTIES1 bitmapProperties = D2D1::BitmapProperties1(
         D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
         D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED),

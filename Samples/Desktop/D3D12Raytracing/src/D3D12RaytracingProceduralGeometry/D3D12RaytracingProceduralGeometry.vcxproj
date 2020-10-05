@@ -15,19 +15,19 @@
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>D3D12Raytracing</RootNamespace>
     <ProjectName>D3D12RaytracingProceduralGeometry</ProjectName>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -46,18 +46,22 @@
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)</IncludePath>
-    <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
+    <PostBuildEventUseInBuild>
+    </PostBuildEventUseInBuild>
     <PreLinkEventUseInBuild>
     </PreLinkEventUseInBuild>
-    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
+    <PreBuildEventUseInBuild>
+    </PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)</IncludePath>
-    <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
-    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
+    <PostBuildEventUseInBuild>
+    </PostBuildEventUseInBuild>
+    <PreBuildEventUseInBuild>
+    </PreBuildEventUseInBuild>
     <PreLinkEventUseInBuild>
     </PreLinkEventUseInBuild>
   </PropertyGroup>
@@ -68,7 +72,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>util;..\..\..\..\..\Libraries\D3D12RaytracingFallback\Include;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>util;..\..\..\..\..\Libraries\D3DX12\;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DisableSpecificWarnings>
       </DisableSpecificWarnings>
@@ -91,9 +95,6 @@
       <EntryPointName />
     </FxCompile>
     <PostBuildEvent>
-      <Command>cd "$(SolutionDir)..\tools\x64\"
-PostbuildCopy.bat "$(SolutionDir)$(ProjectName)\bin\$(Platform)\$(Configuration)\"</Command>
-      <Message>Sideloading DXR Fallback Compiler.</Message>
     </PostBuildEvent>
     <PreLinkEvent>
       <Command>
@@ -104,8 +105,6 @@ PostbuildCopy.bat "$(SolutionDir)$(ProjectName)\bin\$(Platform)\$(Configuration)
       </Message>
     </PreLinkEvent>
     <PreBuildEvent>
-      <Command>cd "$(SolutionDir)..\tools\x64\"
-PrebuildCheck.bat</Command>
     </PreBuildEvent>
     <PreBuildEvent>
       <Message>
@@ -121,7 +120,7 @@ PrebuildCheck.bat</Command>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>util;..\..\..\..\..\Libraries\D3D12RaytracingFallback\Include;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>util;..\..\..\..\..\Libraries\D3DX12\;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
     <Link>
@@ -144,13 +143,10 @@ PrebuildCheck.bat</Command>
       <EntryPointName />
     </FxCompile>
     <PostBuildEvent>
-      <Command>cd "$(SolutionDir)..\tools\x64\"
-PostbuildCopy.bat "$(SolutionDir)$(ProjectName)\bin\$(Platform)\$(Configuration)\"</Command>
-      <Message>Sideloading DXR Fallback Compiler.</Message>
     </PostBuildEvent>
     <PreBuildEvent>
-      <Command>cd "$(SolutionDir)..\tools\x64\"
-PrebuildCheck.bat</Command>
+      <Command>
+      </Command>
       <Message>
       </Message>
     </PreBuildEvent>
@@ -212,11 +208,6 @@ PrebuildCheck.bat</Command>
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="readme.md" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\Libraries\D3D12RaytracingFallback\src\FallbackLayer.vcxproj">
-      <Project>{4be280a6-1066-41ca-acdd-6bb7e532508b}</Project>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

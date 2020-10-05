@@ -152,6 +152,8 @@ private:
 
     void LoadPipeline();
     void LoadAssets();
+    void RestoreD3DResources();
+    void ReleaseD3DResources();
     float GetRandomFloat(float min, float max);
     void PopulateCommandLists();
     void WaitForGpu();

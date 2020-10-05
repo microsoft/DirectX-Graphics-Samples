@@ -48,7 +48,11 @@ public:
     std::wstring GetAssetFullPath(LPCWSTR assetName);
 
 protected:
-    void GetHardwareAdapter(_In_ IDXGIFactory2* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter);
+    void GetHardwareAdapter(
+        _In_ IDXGIFactory2* pFactory,
+        _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter,
+        bool requestHighPerformanceAdapter = false);
+
     void SetCustomWindowText(LPCWSTR text);
     void CheckTearingSupport();
 

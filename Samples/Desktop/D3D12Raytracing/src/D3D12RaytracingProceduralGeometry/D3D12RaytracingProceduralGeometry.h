@@ -17,19 +17,8 @@
 #include "DirectXRaytracingHelper.h"
 #include "PerformanceTimers.h"
 
-// The sample supports both Raytracing Fallback Layer and DirectX Raytracing APIs. 
-// This is purely for demonstration purposes to show where the API differences are. 
-// Real-world applications will implement only one or the other. 
-// Fallback Layer uses DirectX Raytracing if a driver and OS supports it. 
-// Otherwise, it falls back to compute pipeline to emulate raytracing.
-// Developers aiming for a wider HW support should target Fallback Layer.
 class D3D12RaytracingProceduralGeometry : public DXSample
 {
-    enum class RaytracingAPI {
-        FallbackLayer,
-        DirectXRaytracing,
-    };
-
 public:
     D3D12RaytracingProceduralGeometry(UINT width, UINT height, std::wstring name);
 
@@ -53,18 +42,11 @@ private:
     const UINT NUM_BLAS = 2;          // Triangle + AABB bottom-level AS.
     const float c_aabbWidth = 2;      // AABB width.
     const float c_aabbDistance = 2;   // Distance between AABBs.
-
-    // Raytracing Fallback Layer (FL) attributes
-    ComPtr<ID3D12RaytracingFallbackDevice> m_fallbackDevice;
-    ComPtr<ID3D12RaytracingFallbackCommandList> m_fallbackCommandList;
-    ComPtr<ID3D12RaytracingFallbackStateObject> m_fallbackStateObject;
-    WRAPPED_GPU_POINTER m_fallbackTopLevelAccelerationStructurePointer;
-
+    
     // DirectX Raytracing (DXR) attributes
     ComPtr<ID3D12Device5> m_dxrDevice;
     ComPtr<ID3D12GraphicsCommandList5> m_dxrCommandList;
     ComPtr<ID3D12StateObject> m_dxrStateObject;
-    bool m_isDxrSupported;
 
     // Root signatures
     ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
@@ -114,8 +96,6 @@ private:
 
     // Application state
     DX::GPUTimer m_gpuTimers[GpuTimers::Count];
-    RaytracingAPI m_raytracingAPI;
-    bool m_forceComputeFallback;
     StepTimer m_timer;
     float m_animateGeometryTime;
     bool m_animateGeometry;
@@ -125,8 +105,6 @@ private:
     XMVECTOR m_at;
     XMVECTOR m_up;
 
-    void EnableDirectXRaytracing(IDXGIAdapter1* adapter);
-    void ParseCommandLineArgs(WCHAR* argv[], int argc);
     void UpdateCameraMatrices();
     void UpdateAABBPrimitiveAttributes(float animationTime);
     void InitializeScene();
@@ -141,9 +119,9 @@ private:
     void CreateRaytracingInterfaces();
     void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig);
     void CreateRootSignatures();
-    void CreateDxilLibrarySubobject(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
-    void CreateHitGroupSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
-    void CreateLocalRootSignatureSubobjects(CD3D12_STATE_OBJECT_DESC* raytracingPipeline);
+    void CreateDxilLibrarySubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline);
+    void CreateHitGroupSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline);
+    void CreateLocalRootSignatureSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline);
     void CreateRaytracingPipelineStateObject();
     void CreateAuxilaryDeviceResources();
     void CreateDescriptorHeap();
@@ -158,11 +136,9 @@ private:
     AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
     void BuildAccelerationStructures();
     void BuildShaderTables();
-    void SelectRaytracingAPI(RaytracingAPI type);
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
     void CopyRaytracingOutputToBackbuffer();
     void CalculateFrameStats();
     UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
     UINT CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
-    WRAPPED_GPU_POINTER CreateFallbackWrappedPointer(ID3D12Resource* resource, UINT bufferNumElements);
 };
