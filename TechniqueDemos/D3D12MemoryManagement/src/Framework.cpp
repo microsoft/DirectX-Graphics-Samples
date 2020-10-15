@@ -765,7 +765,8 @@ HRESULT DX12Framework::CreateSwapChainResources()
 
     float dpiX;
     float dpiY;
-    m_pD2DFactory->GetDesktopDpi(&dpiX, &dpiY);
+    //m_pD2DFactory->GetDesktopDpi(&dpiX, &dpiY);
+	dpiX = dpiY = static_cast<float>(GetDpiForWindow(m_Hwnd));
     D2D1_BITMAP_PROPERTIES1 bitmapProperties = D2D1::BitmapProperties1(
         D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
         D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED),
