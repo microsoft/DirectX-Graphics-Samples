@@ -128,7 +128,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Link>
-      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib</AdditionalDependencies>
+      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store; $(VCInstallDir)\lib</AdditionalLibraryDirectories>
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
@@ -151,7 +151,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
-      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib</AdditionalDependencies>
+      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store; $(VCInstallDir)\lib</AdditionalLibraryDirectories>
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
@@ -174,7 +174,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
-      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib</AdditionalDependencies>
+      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store\amd64; $(VCInstallDir)\lib\amd64</AdditionalLibraryDirectories>
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
@@ -197,7 +197,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
-      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib</AdditionalDependencies>
+      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store\amd64; $(VCInstallDir)\lib\amd64</AdditionalLibraryDirectories>
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
@@ -220,7 +220,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <Link>
-      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib</AdditionalDependencies>
+      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store\arm; $(VCInstallDir)\lib\arm</AdditionalLibraryDirectories>
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
@@ -243,7 +243,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">
     <Link>
-      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib</AdditionalDependencies>
+      <AdditionalDependencies>mincore.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories); $(VCInstallDir)\lib\store\arm; $(VCInstallDir)\lib\arm</AdditionalLibraryDirectories>
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
