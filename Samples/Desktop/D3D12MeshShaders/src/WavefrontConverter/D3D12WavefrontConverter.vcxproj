@@ -30,6 +30,12 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MeshletGenerator\D3D12MeshletGenerator.vcxproj">
+      <Project>{265611fb-24a4-4fd0-b604-cd27089fc1da}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{D4DBD8B1-49CA-4BC3-87E1-9128CF8F1126}</ProjectGuid>
