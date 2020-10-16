@@ -3,7 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# for shader generated headers
 *.hlsl.h
+# for VSCode
 .vscode/
 
 # User-specific files
