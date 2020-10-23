@@ -49,59 +49,48 @@ void DXSample::GetHardwareAdapter(
 
     ComPtr<IDXGIAdapter1> adapter;
 
-    ComPtr<IDXGIFactory6> factory6;
-    if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
-    {
-        for (
-            UINT adapterIndex = 0;
-            DXGI_ERROR_NOT_FOUND != factory6->EnumAdapterByGpuPreference(
-                adapterIndex,
-                requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
-                IID_PPV_ARGS(&adapter));
-            ++adapterIndex)
-        {
-            DXGI_ADAPTER_DESC1 desc;
-            adapter->GetDesc1(&desc);
+	ComPtr<IDXGIFactory6> factory6;
+	pFactory->QueryInterface(IID_PPV_ARGS(&factory6));
 
-            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            {
-                // Don't select the Basic Render Driver adapter.
-                // If you want a software adapter, pass in "/warp" on the command line.
-                continue;
-            }
+	UINT adapterIndex = 0;
+	while (true)
+	{
+		HRESULT enumResult = E_FAIL;
+		if (factory6)
+		{
+			enumResult = factory6->EnumAdapterByGpuPreference(
+				adapterIndex, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter));
+		}
 
-            // Check to see whether the adapter supports Direct3D 12, but don't create the
-            // actual device yet.
-            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
-            {
-                break;
-            }
-        }
-    }
-    else
-    {
-        for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != pFactory->EnumAdapters1(adapterIndex, &adapter); ++adapterIndex)
-        {
-            DXGI_ADAPTER_DESC1 desc;
-            adapter->GetDesc1(&desc);
+		// When running under PIX (Debug->Graphics->Start Graphics Debugging) the call
+		// to factory6->EnumAdapterByGpuPreference will fail so gracefully fallback to
+		// EnumAdapters1.
+		if (enumResult == E_FAIL)
+		{
+			enumResult = pFactory->EnumAdapters1(adapterIndex, &adapter);
+		}
 
-            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            {
-                // Don't select the Basic Render Driver adapter.
-                // If you want a software adapter, pass in "/warp" on the command line.
-                continue;
-            }
+		if (!adapter)
+		{
+			break;
+		}
 
-            // Check to see whether the adapter supports Direct3D 12, but don't create the
-            // actual device yet.
-            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
-            {
-                break;
-            }
-        }
-    }
-    
-    *ppAdapter = adapter.Detach();
+		DXGI_ADAPTER_DESC1 desc;
+		adapter->GetDesc1(&desc);
+		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+		{
+			continue;
+		}
+
+		if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+		{
+			break;
+		}
+
+		adapterIndex += 1;
+	}
+
+	*ppAdapter = adapter.Detach();
 }
 
 // Helper function for setting the window's title text.
