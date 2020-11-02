@@ -2008,12 +2008,12 @@ inline void MemcpySubresource(
     _In_ const D3D12_SUBRESOURCE_INFO* pSrc,
     SIZE_T RowSizeInBytes,
     UINT NumRows,
-    UINT NumSlices)
+    UINT NumSlices) noexcept
 {
     for (UINT z = 0; z < NumSlices; ++z)
     {
-        auto pDestSlice = reinterpret_cast<BYTE*>(pDest->pData) + pDest->SlicePitch * z;
-        auto pSrcSlice = (reinterpret_cast<const BYTE*>(pResourceData) + pSrc->Offset) + pSrc->DepthPitch * LONG_PTR(z);
+        auto pDestSlice = static_cast<BYTE*>(pDest->pData) + pDest->SlicePitch * z;
+        auto pSrcSlice = (static_cast<const BYTE*>(pResourceData) + pSrc->Offset) + pSrc->DepthPitch * LONG_PTR(z);
         for (UINT y = 0; y < NumRows; ++y)
         {
             memcpy(pDestSlice + pDest->RowPitch * y,
@@ -2105,14 +2105,14 @@ inline UINT64 UpdateSubresources(
     _In_ ID3D12GraphicsCommandList* pCmdList,
     _In_ ID3D12Resource* pDestinationResource,
     _In_ ID3D12Resource* pIntermediate,
-    _In_range_(0, D3D12_REQ_SUBRESOURCES) UINT FirstSubresource,
-    _In_range_(0, D3D12_REQ_SUBRESOURCES - FirstSubresource) UINT NumSubresources,
+    _In_range_(0,D3D12_REQ_SUBRESOURCES) UINT FirstSubresource,
+    _In_range_(0,D3D12_REQ_SUBRESOURCES-FirstSubresource) UINT NumSubresources,
     UINT64 RequiredSize,
     _In_reads_(NumSubresources) const D3D12_PLACED_SUBRESOURCE_FOOTPRINT* pLayouts,
     _In_reads_(NumSubresources) const UINT* pNumRows,
     _In_reads_(NumSubresources) const UINT64* pRowSizesInBytes,
     _In_ const void* pResourceData,
-    _In_reads_(NumSubresources) const D3D12_SUBRESOURCE_INFO* pSrcData)
+    _In_reads_(NumSubresources) const D3D12_SUBRESOURCE_INFO* pSrcData) noexcept
 {
     // Minor validation
     auto IntermediateDesc = pIntermediate->GetDesc();
@@ -2170,7 +2170,7 @@ inline UINT64 UpdateSubresources(
     _In_reads_(NumSubresources) const D3D12_SUBRESOURCE_DATA* pSrcData) noexcept
 {
     UINT64 RequiredSize = 0;
-    UINT64 MemToAlloc = static_cast<UINT64>(sizeof(D3D12_PLACED_SUBRESOURCE_FOOTPRINT) + sizeof(UINT) + sizeof(UINT64)) * NumSubresources;
+    auto MemToAlloc = static_cast<UINT64>(sizeof(D3D12_PLACED_SUBRESOURCE_FOOTPRINT) + sizeof(UINT) + sizeof(UINT64)) * NumSubresources;
     if (MemToAlloc > SIZE_MAX)
     {
        return 0;
@@ -2181,8 +2181,8 @@ inline UINT64 UpdateSubresources(
        return 0;
     }
     auto pLayouts = static_cast<D3D12_PLACED_SUBRESOURCE_FOOTPRINT*>(pMem);
-    UINT64* pRowSizesInBytes = reinterpret_cast<UINT64*>(pLayouts + NumSubresources);
-    UINT* pNumRows = reinterpret_cast<UINT*>(pRowSizesInBytes + NumSubresources);
+    auto pRowSizesInBytes = reinterpret_cast<UINT64*>(pLayouts + NumSubresources);
+    auto pNumRows = reinterpret_cast<UINT*>(pRowSizesInBytes + NumSubresources);
 
     auto Desc = pDestinationResource->GetDesc();
     ID3D12Device* pDevice = nullptr;
@@ -2202,13 +2202,13 @@ inline UINT64 UpdateSubresources(
     _In_ ID3D12Resource* pDestinationResource,
     _In_ ID3D12Resource* pIntermediate,
     UINT64 IntermediateOffset,
-    _In_range_(0, D3D12_REQ_SUBRESOURCES) UINT FirstSubresource,
-    _In_range_(0, D3D12_REQ_SUBRESOURCES - FirstSubresource) UINT NumSubresources,
+    _In_range_(0,D3D12_REQ_SUBRESOURCES) UINT FirstSubresource,
+    _In_range_(0,D3D12_REQ_SUBRESOURCES-FirstSubresource) UINT NumSubresources,
     _In_ const void* pResourceData,
-    _In_reads_(NumSubresources) D3D12_SUBRESOURCE_INFO* pSrcData)
+    _In_reads_(NumSubresources) D3D12_SUBRESOURCE_INFO* pSrcData) noexcept
 {
     UINT64 RequiredSize = 0;
-    UINT64 MemToAlloc = static_cast<UINT64>(sizeof(D3D12_PLACED_SUBRESOURCE_FOOTPRINT) + sizeof(UINT) + sizeof(UINT64)) * NumSubresources;
+    auto MemToAlloc = static_cast<UINT64>(sizeof(D3D12_PLACED_SUBRESOURCE_FOOTPRINT) + sizeof(UINT) + sizeof(UINT64)) * NumSubresources;
     if (MemToAlloc > SIZE_MAX)
     {
         return 0;
@@ -2219,8 +2219,8 @@ inline UINT64 UpdateSubresources(
         return 0;
     }
     auto pLayouts = reinterpret_cast<D3D12_PLACED_SUBRESOURCE_FOOTPRINT*>(pMem);
-    UINT64* pRowSizesInBytes = reinterpret_cast<UINT64*>(pLayouts + NumSubresources);
-    UINT* pNumRows = reinterpret_cast<UINT*>(pRowSizesInBytes + NumSubresources);
+    auto pRowSizesInBytes = reinterpret_cast<UINT64*>(pLayouts + NumSubresources);
+    auto pNumRows = reinterpret_cast<UINT*>(pRowSizesInBytes + NumSubresources);
 
     auto Desc = pDestinationResource->GetDesc();
     ID3D12Device* pDevice = nullptr;
@@ -2241,8 +2241,8 @@ inline UINT64 UpdateSubresources(
     _In_ ID3D12Resource* pDestinationResource,
     _In_ ID3D12Resource* pIntermediate,
     UINT64 IntermediateOffset,
-    _In_range_(0, MaxSubresources) UINT FirstSubresource,
-    _In_range_(1, MaxSubresources - FirstSubresource) UINT NumSubresources,
+    _In_range_(0,MaxSubresources) UINT FirstSubresource,
+    _In_range_(1,MaxSubresources-FirstSubresource) UINT NumSubresources,
     _In_reads_(NumSubresources) const D3D12_SUBRESOURCE_DATA* pSrcData) noexcept
 {
     UINT64 RequiredSize = 0;
@@ -2267,10 +2267,10 @@ inline UINT64 UpdateSubresources(
     _In_ ID3D12Resource* pDestinationResource,
     _In_ ID3D12Resource* pIntermediate,
     UINT64 IntermediateOffset,
-    _In_range_(0, MaxSubresources) UINT FirstSubresource,
-    _In_range_(1, MaxSubresources - FirstSubresource) UINT NumSubresources,
+    _In_range_(0,MaxSubresources) UINT FirstSubresource,
+    _In_range_(1,MaxSubresources-FirstSubresource) UINT NumSubresources,
     _In_ const void* pResourceData,
-    _In_reads_(NumSubresources) D3D12_SUBRESOURCE_INFO* pSrcData)
+    _In_reads_(NumSubresources) D3D12_SUBRESOURCE_INFO* pSrcData) noexcept
 {
     UINT64 RequiredSize = 0;
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT Layouts[MaxSubresources];
