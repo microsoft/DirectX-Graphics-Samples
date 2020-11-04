@@ -18,6 +18,13 @@ This collection of samples act as an introduction to DirectX Raytracing (DXR). T
 ### Getting Started
 * DXR spec/documentation is available at [DirectX Specs site](https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html).
 
+# Known issues
+Depending on your Visual Studio version, some samples may fail to compile with these errors:
+ * The system cannot find the path specified. *.hlsl.h
+ * error MSB6006: "dxc.exe" exited with code 1.
+
+Please see this GitHub issue for details on how to fix it: https://github.com/microsoft/DirectX-Graphics-Samples/issues/657
+
 # Tutorial Samples
 ## 1. [Hello World Sample](src/D3D12RaytracingHelloWorld/readme.md)
 This sample demonstrates how to setup a raytracing pipeline and render a triangle in screen space.
