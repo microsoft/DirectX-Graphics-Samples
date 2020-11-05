@@ -201,6 +201,12 @@
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
     <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
+    <FxCompile Include="*Lib.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ForwardPlusLighting.cpp" />
@@ -406,14 +412,14 @@
     <None Include="Shaders\LightGrid.hlsli">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Models\sponza.h3d">
-      <Filter>Resources</Filter>
-    </None>
     <None Include="Shaders\ModelViewerRS.hlsli">
       <Filter>Shaders</Filter>
     </None>
     <None Include="readme.md" />
     <None Include="packages.config" />
+    <None Include="..\..\..\..\..\MiniEngine\ModelViewer\Models\sponza.h3d">
+      <Filter>Resources</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">
