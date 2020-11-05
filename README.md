@@ -46,7 +46,7 @@ This branch is intented for features available in the latest Windows Insider Pre
 ## Contributing
 We're always looking for your help to fix bugs and improve the samples.  File those pull requests and we'll be happy to take a look.
 
-Find more information on DirectX 12 on our blog: http://blogs.msdn.com/b/directx/
+Find more information on DirectX 12 on our blog: https://devblogs.microsoft.com/directx/
 
 Troubleshooting information for this repository can be found in the site [Wiki](https://github.com/Microsoft/DirectX-Graphics-Samples/wiki).
 
