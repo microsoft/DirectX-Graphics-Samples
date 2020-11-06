@@ -36,17 +36,17 @@ It came from a desire to quickly dive into graphics and performance experiments.
 ## Requirements
 ### Master branch
 This branch is intended for the latest [released](https://docs.microsoft.com/en-us/windows/release-information/) Windows 10 version.
-* Windows 10 version 2004
+* Windows 10 version 20H2
 * [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 SDK version 2004(19041)](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
 ### Develop branch
 This branch is intented for features available in the latest Windows Insider Preview
-* [Windows 10 Insider Preview builds](https://insider.windows.com/en-us/how-to-pc/#install-windows-10-insider-preview) ([Fast ring](https://insider.windows.com/en-us/how-to-pc/#working-with-rings))
+* [Windows 10 Insider Preview builds](https://docs.microsoft.com/en-us/windows-insider/developers/get-started) ([Dev Channel](https://docs.microsoft.com/en-us/windows-insider/flighting))
 * [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 Insider Preview SDK](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewSDK)
 
 ## Contributing
 We're always looking for your help to fix bugs and improve the samples.  File those pull requests and we'll be happy to take a look.
 
-Find more information on DirectX 12 on our blog: http://blogs.msdn.com/b/directx/
+Find more information on DirectX 12 on our blog: https://devblogs.microsoft.com/directx/
 
 Troubleshooting information for this repository can be found in the site [Wiki](https://github.com/Microsoft/DirectX-Graphics-Samples/wiki).
 

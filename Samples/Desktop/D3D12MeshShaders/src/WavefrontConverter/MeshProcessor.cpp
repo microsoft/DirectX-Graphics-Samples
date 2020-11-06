@@ -168,11 +168,11 @@ bool MeshProcessor::Extract(const ProcessOptions& options, const WaveFrontReader
 
     // Determine our index properties
     m_indexCount = static_cast<uint32_t>(reader.indices.size());
-    m_indexSize = m_indexCount > 65536 ? 4 : 2;
+    m_indexSize = (m_indexCount > 65536 || options.Force32BitIndices) ? 4 : 2;
     m_indices.resize(m_indexSize * m_indexCount);
 
     // Copy our indices over to their final buffer.
-    if (m_indexSize == 4 || options.Force32BitIndices)
+    if (m_indexSize == 4)
     {
         // Already stored at 32-bits - simple copy over.
         std::memcpy(m_indices.data(), reader.indices.data(), m_indexCount * m_indexSize);

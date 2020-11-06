@@ -149,7 +149,7 @@
     <Image Include="WideLogo.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Models\sponza.h3d">
+    <None Include="..\..\..\..\..\MiniEngine\ModelViewer\Models\sponza.h3d">
       <DeploymentContent>true</DeploymentContent>
     </None>
     <None Include="packages.config" />

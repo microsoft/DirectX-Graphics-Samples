@@ -1,7 +1,22 @@
-# HDR sample
+---
+page_type: sample
+languages:
+- cpp
+products:
+- windows
+- windows-uwp
+name: Direct3D 12 HDR sample
+urlFragment: d3d12-hdr-sample-uwp
+description: Illustrates how to render HDR content, and detect whether the current display supports it.
+extendedZipContent:
+- path: LICENSE
+  target: LICENSE
+---
+
+# Direct3D 12 HDR sample
 ![HDR GUI](src/D3D12HDR.png)
 
-This sample illustrates how to render HDR content and detect whether the current display supports it.
+This sample illustrates how to render HDR content, and detect whether the current display supports it.
 
 ### Controls
 SPACE bar/ALT+ENTER - toggles between windowed and fullscreen modes.
