@@ -16,7 +16,9 @@ extendedZipContent:
 This collection of projects act as an introduction to meshlets, and rendering with DirectX mesh shaders.
 
 ### Requirements
-* GPU and driver with support for [DirectX 12 Ultimate] (https://devblogs.microsoft.com/directx/directx-12-ultimate-for-holiday-2020)
+* GPU and driver with support for [DirectX 12 Ultimate](https://devblogs.microsoft.com/directx/directx-12-ultimate-for-holiday-2020)
+
+  <img src="../../../Assets/DirectX12Ultimate_small.png" alt="DirectX 12 Ultimate" height="200">
 
 ### Getting Started
 * DirectX Mesh Shader spec/documentation is available at [DirectX Mesh Shader Specs](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html) site.
@@ -44,7 +46,6 @@ The generic functionality of amplification shaders make them a useful tool for a
 This sample presents an advanced shader technique using amplification shaders to do per-instance frustum culling and level-of-detail (LOD) selection entirely on the GPU for an arbitrary number of mesh instances.
 
 ![D3D12 Dynamic LOD Preview](src/DynamicLOD/D3D12DynamicLOD.png)
-
 
 ## Further resources
 * [DirectX Mesh Shader Spec](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html)

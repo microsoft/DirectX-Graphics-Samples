@@ -16,7 +16,9 @@ extendedZipContent:
 This collection of samples act as an introduction to DirectX Raytracing (DXR). The samples are divided into tutorials and advanced samples. Each tutorial sample introduces a few new DXR concepts. Advanced samples demonstrate more complex techniques and applications of raytracing.
 
 ### Requirements
-* GPU and driver with support for [DirectX 12 Ultimate] (https://devblogs.microsoft.com/directx/directx-12-ultimate-for-holiday-2020)
+* GPU and driver with support for [DirectX 12 Ultimate](https://devblogs.microsoft.com/directx/directx-12-ultimate-for-holiday-2020)
+
+  <img src="../../../Assets/DirectX12Ultimate_small.png" alt="DirectX 12 Ultimate" height="200">
 
 ### Getting Started
 * DXR spec/documentation is available at [DirectX Specs site](https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html).
