@@ -15,6 +15,9 @@ extendedZipContent:
 # Direct3D 12 raytracing samples
 This collection of samples act as an introduction to DirectX Raytracing (DXR). The samples are divided into tutorials and advanced samples. Each tutorial sample introduces a few new DXR concepts. Advanced samples demonstrate more complex techniques and applications of raytracing.
 
+### Requirements
+* GPU and driver with support for [DirectX 12 Ultimate] (https://devblogs.microsoft.com/directx/directx-12-ultimate-for-holiday-2020)
+
 ### Getting Started
 * DXR spec/documentation is available at [DirectX Specs site](https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html).
 
@@ -41,7 +44,6 @@ This sample demonstrates how to implement procedural geometry using intersection
 
 ![D3D12 Raytracing Procedural Geometry GUI](src/D3D12RaytracingProceduralGeometry/Screenshot_small.png)
 
-
 ## 4. [Library Subobjects Sample](src/D3D12RaytracingLibrarySubobjects/readme.md)
 This sample modifies the Simple Lighting sample, and illustrates how to use library subobjects.
 
@@ -59,13 +61,6 @@ This sample demonstrates integration of the DirectX Raytracing in the MiniEngine
 
 ![D3D12 Raytracing Mini Engine](src/D3D12RaytracingMiniEngineSample/Screenshot_small.png)
 
-## Requirements
-* [Visual Studio 2019](https://www.visualstudio.com/).
-* [Windows 10 May 2019 (18362) SDK](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk).
-  * Windows 10 with the May 2019 update. 
-  * Dx12 GPU with a compatible DirectX Raytracing driver.
-    * Nvidia: driver version 415 or higher.
-    * Other vendors - please consult the vendor you’re working with for HW and driver availability.
 
 ## Further resources
 * [Nvidia's DXR samples Github](https://github.com/NVIDIAGameWorks/DxrTutorials)

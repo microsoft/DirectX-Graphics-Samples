@@ -15,6 +15,9 @@ extendedZipContent:
 # Direct3D 12 mesh shader samples
 This collection of projects act as an introduction to meshlets, and rendering with DirectX mesh shaders.
 
+### Requirements
+* GPU and driver with support for [DirectX 12 Ultimate] (https://devblogs.microsoft.com/directx/directx-12-ultimate-for-holiday-2020)
+
 ### Getting Started
 * DirectX Mesh Shader spec/documentation is available at [DirectX Mesh Shader Specs](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html) site.
 
@@ -42,12 +45,6 @@ This sample presents an advanced shader technique using amplification shaders to
 
 ![D3D12 Dynamic LOD Preview](src/DynamicLOD/D3D12DynamicLOD.png)
 
-## Requirements
-* [Visual Studio 2019](https://www.visualstudio.com/).
-* [Windows SDK Insider Preview](https://www.microsoft.com//software-download/windowsinsiderpreviewSDK).
-  * Windows 10 Insider Preview
-  * Windows SDK 19041
-  * DirectX 12 GPU with compatible drivers - [NVIDIA RTX](https://developer.nvidia.com/directx)
 
 ## Further resources
 * [DirectX Mesh Shader Spec](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html)

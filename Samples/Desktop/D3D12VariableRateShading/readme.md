@@ -17,6 +17,9 @@ extendedZipContent:
 
 This sample illustrates how to use variable-rate shading (VRS) to improve application performance. VRS adds the concept of subsampling, where shading can be computed at a level coarser than a pixel. For example, a group of pixels can be shaded as a single unit, and the result is then broadcast to all samples in the group. This is great for areas of the image where extra detail doesn't help&mdash;such as those behind HUD elements, transparencies, blurs (depth-of-field, motion, etc.), and optical distortions due to VR optics.
 
+### Requirements
+* GPU and driver with support for [DirectX 12 Ultimate] (https://devblogs.microsoft.com/directx/directx-12-ultimate-for-holiday-2020)
+
 #### Recommended scenarios to try
 Hit SPACE to stop the light animating and then use the [F1-F5] keys to toggle between presets for Shading Rates. Can you spot the visual difference between F1 and F2? Try experimenting with the various controls to find an acceptable balance between degraded-visuals and performance.
 
