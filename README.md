@@ -1,18 +1,23 @@
 
 # DirectX-Graphics-Samples
-This repo contains the DirectX 12 Graphics samples that demonstrate how to build graphics intensive applications for Windows 10. We invite you to join us at our [discord server](http://discord.gg/directx). See our [YouTube channel](https://www.youtube.com/MicrosoftDirectX12andGraphicsEducation) for tutorials, our [spec repo](https://microsoft.github.io/DirectX-Specs/) for engineering specs of our features and [devblogs](https://devblogs.microsoft.com/directx/) for blog posts. Follow us on Twitter [@DirectX12](https://twitter.com/directx12) for the latest! See the Related Links section for our full list of DX12-related links.
+This repo contains the DirectX 12 Graphics samples that demonstrate how to build graphics intensive applications for Windows 10.
+
+![DirectX 12 Ultimate](Assets/DirectX12Ultimate_small.png)
+
+We invite you to join us at our [discord server](http://discord.gg/directx). See our [YouTube channel](https://www.youtube.com/MicrosoftDirectX12andGraphicsEducation) for tutorials, our [spec repo](https://microsoft.github.io/DirectX-Specs/) for engineering specs of our features and [devblogs](https://devblogs.microsoft.com/directx/) for blog posts. Follow us on Twitter [@DirectX12](https://twitter.com/directx12) for the latest! See the Related Links section for our full list of DX12-related links.
 
 ## API Samples
 In the Samples directory, you will find samples that attempt to break off specific features and specific usage scenarios into bite-sized chunks. For example, the ExecuteIndirect sample will show you just enough about execute indirect to get started with that feature without diving too deep into multiengine whereas the nBodyGravity sample will delve into multiengine without touching on the execute indirect feature etc. By doing this, we hope to make it easier to get started with DirectX 12.
 
-Recent API Sample Updates:
+DirectX 12 Ultimate samples:
 1. [D3D12 Mesh Shaders](Samples/Desktop/D3D12MeshShaders/readme.md): This sample demonstrates how Mesh shaders can be used to increase the flexibility and performance of the geometry pipeline.
-
 ![D3D12 Meshlet Render Preview](Samples/Desktop/D3D12MeshShaders/src/MeshletRender/D3D12MeshletRender.png)
 
 2. [D3D12 Variable Rate Shading](Samples/Desktop/D3D12VariableRateShading/readme.md): This sample demonstrates how shading rate can be reduced with little or no reduction in visual quality, leading to “free” performance.
-
 ![Variable Rate Shading GUI](Samples/Desktop/D3D12VariableRateShading/src/Screenshot_small.png)
+
+3. [D3D12 Raytracing](Samples/Desktop/D3D12Raytracing/readme.md): This sample demonstrates how DirectX Raytracing (DXR) brings a new level of graphics realism to video games, previously only achievable in the movie industry.
+![D3D12 Raytracing Real-Time Denoised Ambient Occlusion GUI](Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/Screenshot_small.png)
 
 ## MiniEngine: A DirectX 12 Engine Starter Kit
 In addition to the samples, we are announcing the first DirectX 12 preview release of the MiniEngine.
@@ -34,9 +39,10 @@ It came from a desire to quickly dive into graphics and performance experiments.
 * Easy-to-use dynamic constant buffers and descriptor tables
 
 ## Requirements
+Some samples require a DirectX 12 Ultimate capable GPU and driver.
 ### Master branch
 This branch is intended for the latest [released](https://docs.microsoft.com/en-us/windows/release-information/) Windows 10 version.
-* Windows 10 version 20H2
+* Windows 10 version 2004
 * [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 SDK version 2004(19041)](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
 ### Develop branch
 This branch is intented for features available in the latest Windows Insider Preview
@@ -46,13 +52,12 @@ This branch is intented for features available in the latest Windows Insider Pre
 ## Contributing
 We're always looking for your help to fix bugs and improve the samples.  File those pull requests and we'll be happy to take a look.
 
-Find more information on DirectX 12 on our blog: https://devblogs.microsoft.com/directx/
-
 Troubleshooting information for this repository can be found in the site [Wiki](https://github.com/Microsoft/DirectX-Graphics-Samples/wiki).
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
 ## Related links
+* [DirectX Developer Blog](https://devblogs.microsoft.com/directx)
 * [DirectX API documentation](https://docs.microsoft.com/en-us/windows/win32/directx)
 * [PIX on Windows](https://devblogs.microsoft.com/pix/documentation/)
 * [D3DX12 (the D3D12 Helper Library)](https://github.com/Microsoft/DirectX-Graphics-Samples/tree/master/Libraries/D3DX12)
