@@ -40,7 +40,7 @@ It came from a desire to quickly dive into graphics and performance experiments.
 * Easy-to-use dynamic constant buffers and descriptor tables
 
 ## Requirements
-Some samples require support for DirectX 12 Ultimate, see [this](https://devblogs.microsoft.com/directx/directx-12-ultimate-for-holiday-2020) post for details.
+Some samples require support for DirectX 12 Ultimate, see [this](http://aka.ms/DirectX12UltimateDev) post for details.
 ### Master branch
 This branch is intended for the latest [released](https://docs.microsoft.com/en-us/windows/release-information/) Windows 10 version.
 * Windows 10 version 2004 (no new features were added in version 20H2)

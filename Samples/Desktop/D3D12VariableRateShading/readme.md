@@ -18,7 +18,7 @@ This sample illustrates how to use variable-rate shading (VRS) to improve applic
 ![Variable Rate Shading GUI](src/Screenshot.PNG)
 
 ### Requirements
-* GPU and driver with support for [DirectX 12 Ultimate](https://devblogs.microsoft.com/directx/directx-12-ultimate-for-holiday-2020)
+* GPU and driver with support for [DirectX 12 Ultimate](http://aka.ms/DirectX12UltimateDev)
 
   <img src="../../../Assets/DirectX12Ultimate_small.png" alt="DirectX 12 Ultimate" height="200">
 
