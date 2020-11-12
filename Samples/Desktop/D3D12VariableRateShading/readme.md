@@ -20,7 +20,7 @@ This sample illustrates how to use variable-rate shading (VRS) to improve applic
 ### Requirements
 * GPU and driver with support for [DirectX 12 Ultimate](http://aka.ms/DirectX12UltimateDev)
 
-  <img src="../../../Assets/DirectX12Ultimate_small.png" alt="DirectX 12 Ultimate" height="200">
+  <img src="../../../Assets/DirectX12Ultimate.png" alt="DirectX 12 Ultimate" height="100">
 
 ## Controls
 * SPACE: Toggles light animation.

@@ -18,7 +18,7 @@ This collection of samples act as an introduction to DirectX Raytracing (DXR). T
 ### Requirements
 * GPU and driver with support for [DirectX 12 Ultimate](http://aka.ms/DirectX12UltimateDev)
 
-  <img src="../../../Assets/DirectX12Ultimate_small.png" alt="DirectX 12 Ultimate" height="200">
+  <img src="../../../Assets/DirectX12Ultimate.png" alt="DirectX 12 Ultimate" height="100">
 
 ### Getting Started
 * DXR spec/documentation is available at [DirectX Specs site](https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html).

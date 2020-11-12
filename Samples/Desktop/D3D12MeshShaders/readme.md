@@ -18,7 +18,7 @@ This collection of projects act as an introduction to meshlets, and rendering wi
 ### Requirements
 * GPU and driver with support for [DirectX 12 Ultimate](http://aka.ms/DirectX12UltimateDev)
 
-  <img src="../../../Assets/DirectX12Ultimate_small.png" alt="DirectX 12 Ultimate" height="200">
+  <img src="../../../Assets/DirectX12Ultimate.png" alt="DirectX 12 Ultimate" height="100">
 
 ### Getting Started
 * DirectX Mesh Shader spec/documentation is available at [DirectX Mesh Shader Specs](https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html) site.
