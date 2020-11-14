@@ -62,7 +62,6 @@ namespace SampleAssets
             const float width = 266.66f * scale;
             const float height = 150.0f * scale;
 
-            vertexData.empty();
             vertexData.resize(4);
 
             vertexData[0].position = { x, y, z };
