@@ -1826,6 +1826,7 @@ inline bool operator==( const D3D12_RESOURCE_DESC& l, const D3D12_RESOURCE_DESC&
 inline bool operator!=( const D3D12_RESOURCE_DESC& l, const D3D12_RESOURCE_DESC& r ) noexcept
 { return !( l == r ); }
 
+#if D3D12_MINOR_VERSION > 0
 //------------------------------------------------------------------------------------------------
 struct CD3DX12_RESOURCE_DESC1 : public D3D12_RESOURCE_DESC1
 {
@@ -1953,6 +1954,7 @@ inline bool operator==( const D3D12_RESOURCE_DESC1& l, const D3D12_RESOURCE_DESC
 }
 inline bool operator!=( const D3D12_RESOURCE_DESC1& l, const D3D12_RESOURCE_DESC1& r ) noexcept
 { return !( l == r ); }
+#endif
 
 //------------------------------------------------------------------------------------------------
 struct CD3DX12_VIEW_INSTANCING_DESC : public D3D12_VIEW_INSTANCING_DESC
@@ -2476,8 +2478,10 @@ typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_STREAM_OUTPUT_DESC,      
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_SHADER_BYTECODE,              D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_HS>                                CD3DX12_PIPELINE_STATE_STREAM_HS;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_SHADER_BYTECODE,              D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DS>                                CD3DX12_PIPELINE_STATE_STREAM_DS;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_SHADER_BYTECODE,              D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS>                                CD3DX12_PIPELINE_STATE_STREAM_PS;
+#if D3D12_MINOR_VERSION > 0
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_SHADER_BYTECODE,              D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS>                                CD3DX12_PIPELINE_STATE_STREAM_AS;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_SHADER_BYTECODE,              D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS>                                CD3DX12_PIPELINE_STATE_STREAM_MS;
+#endif
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< D3D12_SHADER_BYTECODE,              D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CS>                                CD3DX12_PIPELINE_STATE_STREAM_CS;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< CD3DX12_BLEND_DESC,                 D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND,          CD3DX12_DEFAULT>   CD3DX12_PIPELINE_STATE_STREAM_BLEND_DESC;
 typedef CD3DX12_PIPELINE_STATE_STREAM_SUBOBJECT< CD3DX12_DEPTH_STENCIL_DESC,         D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL,  CD3DX12_DEFAULT>   CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL;
@@ -2586,8 +2590,10 @@ struct CD3DX12_PIPELINE_STATE_STREAM2
         , pRootSignature(Desc.pRootSignature)
         , PrimitiveTopologyType(Desc.PrimitiveTopologyType)
         , PS(Desc.PS)
+#if D3D12_MINOR_VERSION > 0
         , AS(Desc.AS)
         , MS(Desc.MS)
+#endif
         , BlendState(CD3DX12_BLEND_DESC(Desc.BlendState))
         , DepthStencilState(CD3DX12_DEPTH_STENCIL_DESC1(Desc.DepthStencilState))
         , DSVFormat(Desc.DSVFormat)
@@ -2619,8 +2625,10 @@ struct CD3DX12_PIPELINE_STATE_STREAM2
     CD3DX12_PIPELINE_STATE_STREAM_HS HS;
     CD3DX12_PIPELINE_STATE_STREAM_DS DS;
     CD3DX12_PIPELINE_STATE_STREAM_PS PS;
+#if D3D12_MINOR_VERSION > 0
     CD3DX12_PIPELINE_STATE_STREAM_AS AS;
     CD3DX12_PIPELINE_STATE_STREAM_MS MS;
+#endif
     CD3DX12_PIPELINE_STATE_STREAM_CS CS;
     CD3DX12_PIPELINE_STATE_STREAM_BLEND_DESC BlendState;
     CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1 DepthStencilState;
@@ -2792,8 +2800,10 @@ struct CD3DX12_PIPELINE_MESH_STATE_STREAM
         , NodeMask(Desc.NodeMask)
         , pRootSignature(Desc.pRootSignature)
         , PS(Desc.PS)
+#if D3D12_MINOR_VERSION > 0
         , AS(Desc.AS)
         , MS(Desc.MS)
+#endif
         , BlendState(CD3DX12_BLEND_DESC(Desc.BlendState))
         , DepthStencilState(CD3DX12_DEPTH_STENCIL_DESC1(Desc.DepthStencilState))
         , DSVFormat(Desc.DSVFormat)
@@ -2808,8 +2818,10 @@ struct CD3DX12_PIPELINE_MESH_STATE_STREAM
     CD3DX12_PIPELINE_STATE_STREAM_NODE_MASK NodeMask;
     CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE pRootSignature;
     CD3DX12_PIPELINE_STATE_STREAM_PS PS;
+#if D3D12_MINOR_VERSION > 0
     CD3DX12_PIPELINE_STATE_STREAM_AS AS;
     CD3DX12_PIPELINE_STATE_STREAM_MS MS;
+#endif
     CD3DX12_PIPELINE_STATE_STREAM_BLEND_DESC BlendState;
     CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1 DepthStencilState;
     CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT DSVFormat;
@@ -2826,8 +2838,10 @@ struct CD3DX12_PIPELINE_MESH_STATE_STREAM
         D.NodeMask              = this->NodeMask;
         D.pRootSignature        = this->pRootSignature;
         D.PS                    = this->PS;
+#if D3D12_MINOR_VERSION > 0
         D.AS                    = this->AS;
         D.MS                    = this->MS;
+#endif
         D.BlendState            = this->BlendState;
         D.DepthStencilState     = CD3DX12_DEPTH_STENCIL_DESC1(D3D12_DEPTH_STENCIL_DESC1(this->DepthStencilState));
         D.DSVFormat             = this->DSVFormat;
@@ -2961,8 +2975,10 @@ struct CD3DX12_PIPELINE_STATE_STREAM2_PARSE_HELPER : public ID3DX12PipelineParse
     void DSCb(const D3D12_SHADER_BYTECODE& DS) override {PipelineStream.DS = DS;}
     void PSCb(const D3D12_SHADER_BYTECODE& PS) override {PipelineStream.PS = PS;}
     void CSCb(const D3D12_SHADER_BYTECODE& CS) override {PipelineStream.CS = CS;}
+#if D3D12_MINOR_VERSION > 0
     void ASCb(const D3D12_SHADER_BYTECODE& AS) override {PipelineStream.AS = AS;}
     void MSCb(const D3D12_SHADER_BYTECODE& MS) override {PipelineStream.MS = MS;}
+#endif
     void BlendStateCb(const D3D12_BLEND_DESC& BlendState) override {PipelineStream.BlendState = CD3DX12_BLEND_DESC(BlendState);}
     void DepthStencilStateCb(const D3D12_DEPTH_STENCIL_DESC& DepthStencilState) override
     {
@@ -3123,6 +3139,7 @@ inline HRESULT D3DX12ParsePipelineStream(const D3D12_PIPELINE_STATE_STREAM_DESC&
             pCallbacks->CSCb(*reinterpret_cast<decltype(CD3DX12_PIPELINE_STATE_STREAM::CS)*>(pStream));
             SizeOfSubobject = sizeof(CD3DX12_PIPELINE_STATE_STREAM::CS);
             break;
+#if D3D12_MINOR_VERSION > 0
         case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS:
             pCallbacks->ASCb(*reinterpret_cast<decltype(CD3DX12_PIPELINE_STATE_STREAM2::AS)*>(pStream));
             SizeOfSubobject = sizeof(CD3DX12_PIPELINE_STATE_STREAM2::AS);
@@ -3131,6 +3148,7 @@ inline HRESULT D3DX12ParsePipelineStream(const D3D12_PIPELINE_STATE_STREAM_DESC&
             pCallbacks->MSCb(*reinterpret_cast<decltype(CD3DX12_PIPELINE_STATE_STREAM2::MS)*>(pStream));
             SizeOfSubobject = sizeof(CD3DX12_PIPELINE_STATE_STREAM2::MS);
             break;
+#endif
         case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_STREAM_OUTPUT:
             pCallbacks->StreamOutputCb(*reinterpret_cast<decltype(CD3DX12_PIPELINE_STATE_STREAM::StreamOutput)*>(pStream));
             SizeOfSubobject = sizeof(CD3DX12_PIPELINE_STATE_STREAM::StreamOutput);
@@ -3869,6 +3887,7 @@ private:
     D3D12_RAYTRACING_PIPELINE_CONFIG m_Desc;
 };
 
+#if D3D12_MINOR_VERSION > 0
 //------------------------------------------------------------------------------------------------
 class CD3DX12_RAYTRACING_PIPELINE_CONFIG1_SUBOBJECT
     : public CD3DX12_STATE_OBJECT_DESC::SUBOBJECT_HELPER_BASE
@@ -3903,6 +3922,7 @@ private:
     void* Data() noexcept override { return &m_Desc; }
     D3D12_RAYTRACING_PIPELINE_CONFIG1 m_Desc;
 };
+#endif
 
 //------------------------------------------------------------------------------------------------
 class CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT
