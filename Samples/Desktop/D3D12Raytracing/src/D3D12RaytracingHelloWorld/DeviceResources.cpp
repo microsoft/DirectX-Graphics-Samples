@@ -597,14 +597,20 @@ void DeviceResources::MoveToNextFrame()
     m_fenceValues[m_backBufferIndex] = currentFenceValue + 1;
 }
 
-// This method acquires the first available hardware adapter that supports Direct3D 12.
+// This method acquires the first high-performance hardware adapter that supports Direct3D 12.
 // If no such adapter can be found, try WARP. Otherwise throw an exception.
 void DeviceResources::InitializeAdapter(IDXGIAdapter1** ppAdapter)
 {
     *ppAdapter = nullptr;
 
     ComPtr<IDXGIAdapter1> adapter;
-    for (UINT adapterID = 0; DXGI_ERROR_NOT_FOUND != m_dxgiFactory->EnumAdapters1(adapterID, &adapter); ++adapterID)
+    ComPtr<IDXGIFactory6> factory6;
+    HRESULT hr = m_dxgiFactory.As(&factory6);
+    if (FAILED(hr))
+    {
+        throw exception("DXGI 1.6 not supported");
+    }
+    for (UINT adapterID = 0; DXGI_ERROR_NOT_FOUND != factory6->EnumAdapterByGpuPreference(adapterID, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter)); ++adapterID)
     {
         if (m_adapterIDoverride != UINT_MAX && adapterID != m_adapterIDoverride)
         {
