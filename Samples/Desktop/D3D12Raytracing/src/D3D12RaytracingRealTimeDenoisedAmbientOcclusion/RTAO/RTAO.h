@@ -108,6 +108,7 @@ private:
     StructuredBuffer<AlignedHemisphereSample3D> m_hemisphereSamplesGPUBuffer;
     BOOL m_isRecreateAOSamplesRequested = true;
 
+    UINT            m_numAOSamplesUploadFrames = 0;
     UINT		    m_numAORayGeometryHits;
     bool            m_checkerboardGenerateRaysForEvenPixels = false;
 
