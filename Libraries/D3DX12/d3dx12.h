@@ -2013,11 +2013,11 @@ inline void MemcpySubresource(
     for (UINT z = 0; z < NumSlices; ++z)
     {
         auto pDestSlice = static_cast<BYTE*>(pDest->pData) + pDest->SlicePitch * z;
-        auto pSrcSlice = (static_cast<const BYTE*>(pResourceData) + pSrc->Offset) + pSrc->DepthPitch * LONG_PTR(z);
+        auto pSrcSlice = (static_cast<const BYTE*>(pResourceData) + pSrc->Offset) + pSrc->DepthPitch * ULONG_PTR(z);
         for (UINT y = 0; y < NumRows; ++y)
         {
             memcpy(pDestSlice + pDest->RowPitch * y,
-                pSrcSlice + pSrc->RowPitch * LONG_PTR(y),
+                pSrcSlice + pSrc->RowPitch * ULONG_PTR(y),
                 RowSizeInBytes);
         }
     }
