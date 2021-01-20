@@ -72,11 +72,14 @@ void FrustumVisualizer::CreateDeviceResources(ID3D12Device2* device, DXGI_FORMAT
     // Create the MS PSO
     ThrowIfFailed(device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&m_pso)));
 
+    const CD3DX12_HEAP_PROPERTIES constantBufferHeapProps(D3D12_HEAP_TYPE_UPLOAD);
+    const CD3DX12_RESOURCE_DESC constantBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(Constants) * 2);
+
     // Create the constant buffer
     ThrowIfFailed(device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+        &constantBufferHeapProps,
         D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(sizeof(Constants) * 2),
+        &constantBufferDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
         IID_PPV_ARGS(&m_constantResource)
