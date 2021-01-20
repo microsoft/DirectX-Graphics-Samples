@@ -1,5 +1,5 @@
 # The D3D12 Helper Library
 
-This library provides helper functions and structs to make certain common operations less verbose in your code.
-
-Documentation of the helper functions and structures can he found on [MSDN](https://msdn.microsoft.com/en-us/library/windows/desktop/dn708058(v=vs.85).aspx)
+The D3D12 Helper Library, d3dx12.h, has moved to the official Direct3D header repository, **microsoft/DirectX-Headers**:
+* [Repository](https://github.com/microsoft/DirectX-Headers)
+* [Header](https://github.com/microsoft/DirectX-Headers/blob/main/include/directx/d3dx12.h)
