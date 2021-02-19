@@ -1,14 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26403.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30611.23
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12LinkedGpus", "LinkedGpus\D3D12LinkedGpus.vcxproj", "{2C4064CC-ACA4-4CEA-8DC7-BD9C6F8CCE59}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12LinkedGpusAffinity", "LinkedGpusAffinity\D3D12LinkedGpusAffinity.vcxproj", "{8799E11E-7043-4449-BF24-85F966EB2C65}"
-	ProjectSection(ProjectDependencies) = postProject
-		{B2283BA1-603B-4360-AE99-7A3F5912BC42} = {B2283BA1-603B-4360-AE99-7A3F5912BC42}
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3DX12AffinityLayer", "D3DX12AffinityLayer\D3DX12AffinityLayer.vcxproj", "{B2283BA1-603B-4360-AE99-7A3F5912BC42}"
 EndProject
@@ -39,5 +36,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {524E8C6D-874E-4B85-9711-24750865F792}
 	EndGlobalSection
 EndGlobal
