@@ -194,6 +194,9 @@ void main(uint2 DTid : SV_DispatchThreadID)
     {
         VertexPositionNormalTextureTangent vertex;
         vertex.position = 0;
+        vertex.normal = 0;
+        vertex.textureCoordinate = 0;
+        vertex.tangent = 0;
         uint threadID = DTid.x + DTid.y * cb.p.maxPatchDim.x;
         uint baseVertexID = threadID * N_GRASS_VERTICES;
 

@@ -448,6 +448,7 @@ void RTAO::CreateSamplesRNG()
         m_samplesGPUBuffer[i].value = XMFLOAT2(p.x * 0.5f + 0.5f, p.y * 0.5f + 0.5f);
         m_hemisphereSamplesGPUBuffer[i].value = p;
     }
+    m_numAOSamplesUploadFrames = m_deviceResources->GetBackBufferCount();
 }
 
 void RTAO::GetRayGenParameters(bool* isCheckerboardSamplingEnabled, bool* checkerboardLoadEvenPixels)
@@ -547,8 +548,11 @@ void RTAO::Run(
     }
 
     // Copy dynamic buffers to GPU.
+    UpdateConstantBuffer(frameIndex);
+
+    if (m_numAOSamplesUploadFrames)
     {
-        UpdateConstantBuffer(frameIndex);
+        m_numAOSamplesUploadFrames--;
         m_hemisphereSamplesGPUBuffer.CopyStagingToGpu(frameIndex);
     }
 
