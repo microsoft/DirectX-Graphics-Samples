@@ -57,6 +57,6 @@ public:
     // Allocate new descriptor as needed; return handle to existing descriptor when possible
     D3D12_CPU_DESCRIPTOR_HANDLE CreateDescriptor( void );
 
-    // Create descriptor in place (no deduplication)
-    void CreateDescriptor( D3D12_CPU_DESCRIPTOR_HANDLE& Handle );
+    // Create descriptor in place (no deduplication).  Handle must be preallocated
+    void CreateDescriptor( D3D12_CPU_DESCRIPTOR_HANDLE Handle );
 };

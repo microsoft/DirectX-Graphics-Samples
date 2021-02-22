@@ -17,6 +17,7 @@
 #include "EsramAllocator.h"
 #include "CommandContext.h"
 #include "BufferManager.h"
+#include "UploadBuffer.h"
 
 using namespace Graphics;
 
@@ -39,14 +40,49 @@ void GpuBuffer::Create( const std::wstring& name, uint32_t NumElements, uint32_t
     HeapProps.CreationNodeMask = 1;
     HeapProps.VisibleNodeMask = 1;
 
-    ASSERT_SUCCEEDED( 
-        g_Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
+    ASSERT_SUCCEEDED( g_Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
         &ResourceDesc, m_UsageState, nullptr, MY_IID_PPV_ARGS(&m_pResource)) );
 
     m_GpuVirtualAddress = m_pResource->GetGPUVirtualAddress();
 
     if (initialData)
         CommandContext::InitializeBuffer(*this, initialData, m_BufferSize);
+
+#ifdef RELEASE
+    (name);
+#else
+    m_pResource->SetName(name.c_str());
+#endif
+
+    CreateDerivedViews();
+}
+
+void GpuBuffer::Create( const std::wstring& name, uint32_t NumElements, uint32_t ElementSize, const UploadBuffer& srcData, uint32_t srcOffset )
+{
+    Destroy();
+
+    m_ElementCount = NumElements;
+    m_ElementSize = ElementSize;
+    m_BufferSize = NumElements * ElementSize;
+
+    D3D12_RESOURCE_DESC ResourceDesc = DescribeBuffer();
+
+    m_UsageState = D3D12_RESOURCE_STATE_COMMON;
+
+    D3D12_HEAP_PROPERTIES HeapProps;
+    HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    HeapProps.CreationNodeMask = 1;
+    HeapProps.VisibleNodeMask = 1;
+
+    ASSERT_SUCCEEDED( 
+        g_Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
+            &ResourceDesc, m_UsageState, nullptr, MY_IID_PPV_ARGS(&m_pResource)) );
+
+    m_GpuVirtualAddress = m_pResource->GetGPUVirtualAddress();
+
+    CommandContext::InitializeBuffer(*this, srcData, srcOffset);
 
 #ifdef RELEASE
     (name);
@@ -86,9 +122,9 @@ void GpuBuffer::CreatePlaced(const std::wstring& name, ID3D12Heap* pBackingHeap,
 
 }
 
-void GpuBuffer::Create(const std::wstring& name, uint32_t NumElements, uint32_t ElementSize,
-    EsramAllocator&, const void* initialData)
+void GpuBuffer::Create(const std::wstring& name, uint32_t NumElements, uint32_t ElementSize, EsramAllocator& Allocator, const void* initialData)
 {
+    (void)Allocator;
     Create(name, NumElements, ElementSize, initialData);
 }
 
@@ -214,3 +250,4 @@ const D3D12_CPU_DESCRIPTOR_HANDLE& StructuredBuffer::GetCounterUAV(CommandContex
     Context.TransitionResource(m_CounterBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     return m_CounterBuffer.GetUAV();
 }
+

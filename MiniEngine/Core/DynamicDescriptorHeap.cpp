@@ -188,13 +188,13 @@ void DynamicDescriptorHeap::DescriptorHandleCache::CopyAndBindStaleTables(
     for (uint32_t i = 0; i < StaleParamCount; ++i)
     {
         RootIndex = RootIndices[i];
-        (CmdList->*SetFunc)(RootIndex, DestHandleStart.GetGpuHandle());
+        (CmdList->*SetFunc)(RootIndex, DestHandleStart);
 
         DescriptorTableCache& RootDescTable = m_RootDescriptorTable[RootIndex];
 
         D3D12_CPU_DESCRIPTOR_HANDLE* SrcHandles = RootDescTable.TableStart;
         uint64_t SetHandles = (uint64_t)RootDescTable.AssignedHandlesBitMap;
-        D3D12_CPU_DESCRIPTOR_HANDLE CurDest = DestHandleStart.GetCpuHandle();
+        D3D12_CPU_DESCRIPTOR_HANDLE CurDest = DestHandleStart;
         DestHandleStart += TableSize[i] * DescriptorSize;
 
         unsigned long SkipCount;
@@ -281,9 +281,9 @@ D3D12_GPU_DESCRIPTOR_HANDLE DynamicDescriptorHeap::UploadDirect( D3D12_CPU_DESCR
     DescriptorHandle DestHandle = m_FirstDescriptor + m_CurrentOffset * m_DescriptorSize;
     m_CurrentOffset += 1;
 
-    g_Device->CopyDescriptorsSimple(1, DestHandle.GetCpuHandle(), Handle, m_DescriptorType);
+    g_Device->CopyDescriptorsSimple(1, DestHandle, Handle, m_DescriptorType);
 
-    return DestHandle.GetGpuHandle();
+    return DestHandle;
 }
 
 void DynamicDescriptorHeap::DescriptorHandleCache::UnbindAllValid()

@@ -12,7 +12,6 @@
 //
 
 #include "FXAARootSignature.hlsli"
-#include "PixelPacking.hlsli"
 
 Texture2D<float> Luma : register(t0);
 ByteAddressBuffer WorkQueue : register(t1);
@@ -20,6 +19,7 @@ Buffer<float3> ColorQueue : register(t2);
 #if SUPPORT_TYPED_UAV_LOADS
 RWTexture2D<float3> DstColor : register(u0);
 #else
+#include "PixelPacking_R11G11B10.hlsli"
 RWTexture2D<uint> DstColor : register(u0);
 #endif
 SamplerState LinearSampler : register(s0);
@@ -30,13 +30,13 @@ SamplerState LinearSampler : register(s0);
 // so we don't need to load it.
 #ifdef FXAA_EXTREME_QUALITY
     #define NUM_SAMPLES 11
-    static const float s_SampleDistances[12] =    // FXAA_QUALITY__PRESET == 39
+    static const float s_SampleDistances[12] =	// FXAA_QUALITY__PRESET == 39
     {
         1.0, 2.0, 3.0, 4.0, 5.0, 6.5, 8.5, 10.5, 12.5, 14.5, 18.5, 36.5, 
     };
 #else
     #define NUM_SAMPLES 7
-    static const float s_SampleDistances[8] =    // FXAA_QUALITY__PRESET == 25
+    static const float s_SampleDistances[8] =	// FXAA_QUALITY__PRESET == 25
     {
         1.0, 2.5, 4.5, 6.5, 8.5, 10.5, 14.5, 22.5
     };
@@ -52,7 +52,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     uint ItemIdx = DTid.x;
 #endif
     uint WorkHeader = WorkQueue.Load(ItemIdx * 4);
-    uint2 ST = uint2(WorkHeader >> 8, WorkHeader >> 20) & 0xFFF;
+    uint2 ST = StartPixel + (uint2(WorkHeader >> 8, WorkHeader >> 20) & 0xFFF);
     uint GradientDir = WorkHeader & 1; // Determines which side of the pixel has the highest contrast
     float Subpix = (WorkHeader & 0xFE) / 254.0 * 0.5;      // 7-bits to encode [0, 0.5]
 

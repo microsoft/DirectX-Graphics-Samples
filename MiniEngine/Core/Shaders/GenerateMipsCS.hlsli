@@ -11,16 +11,7 @@
 // Author:  James Stanard 
 //
 
-#define RootSig \
-    "RootFlags(0), " \
-    "RootConstants(b0, num32BitConstants = 4), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 1))," \
-    "DescriptorTable(UAV(u0, numDescriptors = 4))," \
-    "StaticSampler(s0," \
-        "addressU = TEXTURE_ADDRESS_CLAMP," \
-        "addressV = TEXTURE_ADDRESS_CLAMP," \
-        "addressW = TEXTURE_ADDRESS_CLAMP," \
-        "filter = FILTER_MIN_MAG_MIP_LINEAR)"
+#include "CommonRS.hlsli"
 
 #ifndef NON_POWER_OF_TWO
 #define NON_POWER_OF_TWO 0
@@ -35,9 +26,9 @@ SamplerState BilinearClamp : register(s0);
 
 cbuffer CB0 : register(b0)
 {
-    uint SrcMipLevel;    // Texture level of source mip
-    uint NumMipLevels;    // Number of OutMips to write: [1, 4]
-    float2 TexelSize;    // 1.0 / OutMip1.Dimensions
+    uint SrcMipLevel;	// Texture level of source mip
+    uint NumMipLevels;	// Number of OutMips to write: [1, 4]
+    float2 TexelSize;	// 1.0 / OutMip1.Dimensions
 }
 
 // The reason for separating channels is to reduce bank conflicts in the
@@ -79,7 +70,7 @@ float4 PackColor(float4 Linear)
 #endif
 }
 
-[RootSignature(RootSig)]
+[RootSignature(Common_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint GI : SV_GroupIndex, uint3 DTid : SV_DispatchThreadID )
 {

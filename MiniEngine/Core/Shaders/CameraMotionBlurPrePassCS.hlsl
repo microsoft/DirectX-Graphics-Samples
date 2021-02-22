@@ -11,7 +11,7 @@
 // Author:  James Stanard 
 //
 
-#include "MotionBlurRS.hlsli"
+#include "CommonRS.hlsli"
 #include "PixelPacking_Velocity.hlsli"
 
 // We can use the original depth buffer or a linearized one.  In this case, we use linear Z because
@@ -56,7 +56,7 @@ float4 GetSampleData( uint2 st )
     return float4(ColorBuffer[st], 1.0) * saturate(length(Velocity.xy) / 4);
 }
 
-[RootSignature(MotionBlur_RootSig)]
+[RootSignature(Common_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID )
 {

@@ -63,16 +63,16 @@ namespace Math
         // Transforms homogeneous coordinates from world space to view space.  In this case, view space is defined as +X is
         // to the right, +Y is up, and -Z is forward.  This has to match what the projection matrix expects, but you might
         // also need to know what the convention is if you work in view space in a shader.
-        Matrix4 m_ViewMatrix;        // i.e. "World-to-View" matrix
+        Matrix4 m_ViewMatrix;		// i.e. "World-to-View" matrix
 
         // The projection matrix transforms view space to clip space.  Once division by W has occurred, the final coordinates
         // can be transformed by the viewport matrix to screen space.  The projection matrix is determined by the screen aspect 
         // and camera field of view.  A projection matrix can also be orthographic.  In that case, field of view would be defined
         // in linear units, not angles.
-        Matrix4 m_ProjMatrix;        // i.e. "View-to-Projection" matrix
+        Matrix4 m_ProjMatrix;		// i.e. "View-to-Projection" matrix
 
         // A concatenation of the view and projection matrices.
-        Matrix4 m_ViewProjMatrix;    // i.e.  "World-To-Projection" matrix.
+        Matrix4 m_ViewProjMatrix;	// i.e.  "World-To-Projection" matrix.
 
         // The view-projection matrix from the previous frame
         Matrix4 m_PreviousViewProjMatrix;
@@ -80,8 +80,8 @@ namespace Math
         // Projects a clip-space coordinate to the previous frame (useful for temporal effects).
         Matrix4 m_ReprojectMatrix;
 
-        Frustum m_FrustumVS;        // View-space view frustum
-        Frustum m_FrustumWS;        // World-space view frustum
+        Frustum m_FrustumVS;		// View-space view frustum
+        Frustum m_FrustumWS;		// World-space view frustum
 
     };
 
@@ -106,11 +106,12 @@ namespace Math
 
         void UpdateProjMatrix( void );
 
-        float m_VerticalFOV;            // Field of view angle in radians
+        float m_VerticalFOV;	// Field of view angle in radians
         float m_AspectRatio;
         float m_NearClip;
         float m_FarClip;
-        bool m_ReverseZ;                // Invert near and far clip distances so that Z=0 is the far plane
+        bool m_ReverseZ;		// Invert near and far clip distances so that Z=1 at the near plane
+        bool m_InfiniteZ;       // Move the far plane to infinity
     };
 
     inline void BaseCamera::SetEyeAtUp( Vector3 eye, Vector3 at, Vector3 up )
@@ -137,7 +138,7 @@ namespace Math
         m_Basis = Matrix3(m_CameraToWorld.GetRotation());
     }
 
-    inline Camera::Camera() : m_ReverseZ(true)
+    inline Camera::Camera() : m_ReverseZ(true), m_InfiniteZ(false)
     {
         SetPerspectiveMatrix( XM_PIDIV4, 9.0f / 16.0f, 1.0f, 1000.0f );
     }

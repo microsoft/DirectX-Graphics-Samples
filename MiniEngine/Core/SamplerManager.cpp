@@ -40,7 +40,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE SamplerDesc::CreateDescriptor()
     return Handle;
 }
 
-void SamplerDesc::CreateDescriptor( D3D12_CPU_DESCRIPTOR_HANDLE& Handle )
+void SamplerDesc::CreateDescriptor( D3D12_CPU_DESCRIPTOR_HANDLE Handle )
 {
+    ASSERT(Handle.ptr != 0 && Handle.ptr != -1);
     g_Device->CreateSampler(this, Handle);
 }

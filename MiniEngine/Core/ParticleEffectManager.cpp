@@ -24,7 +24,6 @@
 #include "ParticleEffectManager.h"
 #include "ParticleEffect.h"
 #include "ParticleEffectProperties.h"
-#include "TextureManager.h"
 #include <mutex>
 
 #include "CompiledShaders/ParticleSpawnCS.h"
@@ -59,7 +58,7 @@
 
 #define EFFECTS_ERROR uint32_t(0xFFFFFFFF)
 
-#define MAX_TOTAL_PARTICLES 0x40000        // 256k (18-bit indices)
+#define MAX_TOTAL_PARTICLES 0x40000		// 256k (18-bit indices)
 #define MAX_PARTICLES_PER_BIN 1024
 #define BIN_SIZE_X 128
 #define BIN_SIZE_Y 64
@@ -72,9 +71,9 @@
 
 using namespace Graphics;
 using namespace Math;
-using namespace ParticleEffects;
+using namespace ParticleEffectManager;
 
-namespace ParticleEffects
+namespace ParticleEffectManager
 {
     BoolVar Enable("Graphics/Particle Effects/Enable", true);
     BoolVar EnableSpriteSort("Graphics/Particle Effects/Sort Sprites", true);
@@ -85,9 +84,9 @@ namespace ParticleEffects
     NumVar DynamicResLevel("Graphics/Particle Effects/Dynamic Resolution Cutoff", 0.0f, -4.0f, 4.0f, 0.5f);
     NumVar MipBias("Graphics/Particle Effects/Mip Bias", 0.0f, -4.0f, 4.0f, 0.5f);
     
-    ComputePSO s_ParticleSpawnCS;
-    ComputePSO s_ParticleUpdateCS;
-    ComputePSO s_ParticleDispatchIndirectArgsCS;
+    ComputePSO s_ParticleSpawnCS(L"Particles: Particle Spawn CS");
+    ComputePSO s_ParticleUpdateCS(L"Particles: Particle Update CS");
+    ComputePSO s_ParticleDispatchIndirectArgsCS(L"Particles: Particle Dispatch Indirect Args CS");
 
     StructuredBuffer SpriteVertexBuffer;
     
@@ -118,16 +117,16 @@ struct CBChangesPerView
 
 namespace
 {
-    ComputePSO s_ParticleFinalDispatchIndirectArgsCS;
-    ComputePSO s_ParticleLargeBinCullingCS; 
-    ComputePSO s_ParticleBinCullingCS; 
-    ComputePSO s_ParticleTileCullingCS; 
-    ComputePSO s_ParticleTileRenderSlowCS[3];    // High-Res, Low-Res, Dynamic-Res
-    ComputePSO s_ParticleTileRenderFastCS[3];     // High-Res, Low-Res, Dynamic-Res (disable depth tests)
-    ComputePSO s_ParticleDepthBoundsCS;
+    ComputePSO s_ParticleFinalDispatchIndirectArgsCS(L"Particles: Particle Final Dispatch Indirect Args CS");
+    ComputePSO s_ParticleLargeBinCullingCS(L"Particles: Particle Large Bin Culling CS");
+    ComputePSO s_ParticleBinCullingCS(L"Particles: Particle Bin Culling CS");
+    ComputePSO s_ParticleTileCullingCS(L"Particles: Particle Tile Culling CS");
+    ComputePSO s_ParticleTileRenderSlowCS[3];	// High-Res, Low-Res, Dynamic-Res
+    ComputePSO s_ParticleTileRenderFastCS[3]; 	// High-Res, Low-Res, Dynamic-Res (disable depth tests)
+    ComputePSO s_ParticleDepthBoundsCS(L"Particles: Particle Depth Bounds CS");
     GraphicsPSO s_NoTileRasterizationPSO[2];
-    ComputePSO s_ParticleSortIndirectArgsCS;
-    ComputePSO s_ParticlePreSortCS;
+    ComputePSO s_ParticleSortIndirectArgsCS(L"Particles: Particle Sort Indirect Args CS");
+    ComputePSO s_ParticlePreSortCS(L"Particles: Particle Pre Sort CS");
 
     RootSignature RootSig;
 
@@ -172,33 +171,8 @@ namespace
         CompContext.Dispatch( 1, 1, 1 );
     }
 
-    void MaintainTextureList(ParticleEffectProperties& effectProperties)
-    {
-        std::wstring name = effectProperties.TexturePath;
-
-        for (uint32_t i = 0; i < TextureNameArray.size(); i++)
-        {
-            if (name.compare(TextureNameArray[i]) == 0)
-            {
-                effectProperties.EmitProperties.TextureID = i;
-                return;
-            }
-        }
-    
-        TextureNameArray.push_back(name);
-        UINT TextureID = (UINT)(TextureNameArray.size() - 1);
-        effectProperties.EmitProperties.TextureID = TextureID;
-
-        const ManagedTexture* managedTex = TextureManager::LoadDDSFromFile(name.c_str(), true);
-        managedTex->WaitForLoad();
-
-        GpuResource& ParticleTexture = *const_cast<ManagedTexture*>(managedTex);
-        CommandContext::InitializeTextureArraySlice(TextureArray, TextureID, ParticleTexture);
-    }
-
-
     void RenderTiles(ComputeContext& CompContext, ColorBuffer& ColorTarget, ColorBuffer& LinearDepth)
-    {    
+    {	
         size_t ScreenWidth = ColorTarget.GetWidth();
         size_t ScreenHeight = ColorTarget.GetHeight();
 
@@ -407,12 +381,12 @@ namespace
 
 //---------------------------------------------------------------------
 //
-//    Initialize
+//	Initialize
 //
 //---------------------------------------------------------------------
 
-void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayHeight )
-{    
+void ParticleEffectManager::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayHeight )
+{	
     D3D12_SAMPLER_DESC SamplerBilinearBorderDesc = SamplerPointBorderDesc;
     SamplerBilinearBorderDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 
@@ -480,14 +454,14 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
     s_NoTileRasterizationPSO[1].Finalize();
 
     __declspec(align(16)) UINT InitialDrawIndirectArgs[4] = { 4, 0, 0, 0 };
-    DrawIndirectArgs.Create(L"ParticleEffects::DrawIndirectArgs", 1, sizeof(D3D12_DRAW_ARGUMENTS), InitialDrawIndirectArgs);
+    DrawIndirectArgs.Create(L"ParticleEffectManager::DrawIndirectArgs", 1, sizeof(D3D12_DRAW_ARGUMENTS), InitialDrawIndirectArgs);
     __declspec(align(16)) UINT InitialDispatchIndirectArgs[6] = { 0, 1, 1, 0, 1, 1 };
-    FinalDispatchIndirectArgs.Create(L"ParticleEffects::FinalDispatchIndirectArgs", 1, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
-    SpriteVertexBuffer.Create(L"ParticleEffects::SpriteVertexBuffer", MAX_TOTAL_PARTICLES, sizeof(ParticleVertex));
-    VisibleParticleBuffer.Create(L"ParticleEffects::VisibleParticleBuffer", MAX_TOTAL_PARTICLES, sizeof(ParticleScreenData));
-    SpriteIndexBuffer.Create(L"ParticleEffects::SpriteIndexBuffer", MAX_TOTAL_PARTICLES, sizeof(UINT));    
-    SortIndirectArgs.Create(L"ParticleEffects::SortIndirectArgs", 1, sizeof(D3D12_DISPATCH_ARGUMENTS));
-    TileDrawDispatchIndirectArgs.Create(L"ParticleEffects::DrawPackets_IArgs", 2, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
+    FinalDispatchIndirectArgs.Create(L"ParticleEffectManager::FinalDispatchIndirectArgs", 1, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
+    SpriteVertexBuffer.Create(L"ParticleEffectManager::SpriteVertexBuffer", MAX_TOTAL_PARTICLES, sizeof(ParticleVertex));
+    VisibleParticleBuffer.Create(L"ParticleEffectManager::VisibleParticleBuffer", MAX_TOTAL_PARTICLES, sizeof(ParticleScreenData));
+    SpriteIndexBuffer.Create(L"ParticleEffectManager::SpriteIndexBuffer", MAX_TOTAL_PARTICLES, sizeof(UINT));	
+    SortIndirectArgs.Create(L"ParticleEffectManager::SortIndirectArgs", 1, sizeof(D3D12_DISPATCH_ARGUMENTS));
+    TileDrawDispatchIndirectArgs.Create(L"ParticleEffectManager::DrawPackets_IArgs", 2, sizeof(D3D12_DISPATCH_ARGUMENTS), InitialDispatchIndirectArgs);
 
     const uint32_t LargeBinsPerRow = DivideByMultiple(MaxDisplayWidth, 4 * BIN_SIZE_X);
     const uint32_t LargeBinsPerCol = DivideByMultiple(MaxDisplayHeight, 4 * BIN_SIZE_Y);
@@ -502,14 +476,14 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
     const uint32_t PaddedTilesPerRow = AlignUp(TilesPerRow, TILES_PER_BIN_X * 4);
     const uint32_t PaddedTilesPerCol = AlignUp(TilesPerCol, TILES_PER_BIN_Y * 4);
 
-    BinParticles[0].Create(L"ParticleEffects::BinParticles[0]", ParticleBinCapacity, sizeof(UINT));
-    BinParticles[1].Create(L"ParticleEffects::BinParticles[1]", ParticleBinCapacity, sizeof(UINT));
-    BinCounters[0].Create(L"ParticleEffects::LargeBinCounters", LargeBinsPerRow * LargeBinsPerCol, sizeof(UINT));
-    BinCounters[1].Create(L"ParticleEffects::BinCounters", BinsPerRow * BinsPerCol, sizeof(UINT));
-    TileCounters.Create(L"ParticleEffects::TileCounters", PaddedTilesPerRow * PaddedTilesPerCol, sizeof(UINT));
-    TileHitMasks.Create(L"ParticleEffects::TileHitMasks", PaddedTilesPerRow * PaddedTilesPerCol, MAX_PARTICLES_PER_BIN / 8);
-    TileDrawPackets.Create(L"ParticleEffects::DrawPackets", TilesPerRow * TilesPerCol, sizeof(UINT));
-    TileFastDrawPackets.Create(L"ParticleEffects::FastDrawPackets", TilesPerRow * TilesPerCol, sizeof(UINT));
+    BinParticles[0].Create(L"ParticleEffectManager::BinParticles[0]", ParticleBinCapacity, sizeof(UINT));
+    BinParticles[1].Create(L"ParticleEffectManager::BinParticles[1]", ParticleBinCapacity, sizeof(UINT));
+    BinCounters[0].Create(L"ParticleEffectManager::LargeBinCounters", LargeBinsPerRow * LargeBinsPerCol, sizeof(UINT));
+    BinCounters[1].Create(L"ParticleEffectManager::BinCounters", BinsPerRow * BinsPerCol, sizeof(UINT));
+    TileCounters.Create(L"ParticleEffectManager::TileCounters", PaddedTilesPerRow * PaddedTilesPerCol, sizeof(UINT));
+    TileHitMasks.Create(L"ParticleEffectManager::TileHitMasks", PaddedTilesPerRow * PaddedTilesPerCol, MAX_PARTICLES_PER_BIN / 8);
+    TileDrawPackets.Create(L"ParticleEffectManager::DrawPackets", TilesPerRow * TilesPerCol, sizeof(UINT));
+    TileFastDrawPackets.Create(L"ParticleEffectManager::FastDrawPackets", TilesPerRow * TilesPerCol, sizeof(UINT));
 
     D3D12_RESOURCE_DESC TexDesc = {};
     TexDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -552,7 +526,12 @@ void ParticleEffects::Initialize( uint32_t MaxDisplayWidth, uint32_t MaxDisplayH
     s_InitComplete = true;
 }
 
-void ParticleEffects::Shutdown( void )
+void ParticleEffectManager::RegisterTexture(uint32_t index, const Texture& texture)
+{
+    CommandContext::InitializeTextureArraySlice(TextureArray, index, (GpuResource&)texture);
+}
+
+void ParticleEffectManager::Shutdown( void )
 {
     ClearAll();
 
@@ -576,54 +555,14 @@ void ParticleEffects::Shutdown( void )
     TextureArray.Destroy();
 }
 
-//Returns index into Pool
-EffectHandle ParticleEffects::PreLoadEffectResources( ParticleEffectProperties& effectProperties )
-{
-    if (!s_InitComplete)
-        return EFFECTS_ERROR;
-
-    static std::mutex s_TextureMutex;
-    s_TextureMutex.lock();
-    MaintainTextureList(effectProperties);
-    ParticleEffectsPool.emplace_back(new ParticleEffect(effectProperties));
-    s_TextureMutex.unlock();
-
-    EffectHandle index = (EffectHandle)ParticleEffectsPool.size() - 1;
-    ParticleEffectsPool[index]->LoadDeviceResources(Graphics::g_Device);
-    return index;
-}
-
 //Returns index into Active
-EffectHandle ParticleEffects::InstantiateEffect( EffectHandle effectHandle )
-{
-    if (!s_InitComplete || effectHandle >= ParticleEffectsPool.size() || effectHandle < 0)
-        return EFFECTS_ERROR;
-    
-    ParticleEffect* effect = ParticleEffectsPool[effectHandle].get();
-    if (effect != NULL)
-    {
-        static std::mutex s_InstantiateEffectFromPoolMutex;
-        s_InstantiateEffectFromPoolMutex.lock();
-        ParticleEffectsActive.push_back(effect);
-        s_InstantiateEffectFromPoolMutex.unlock();
-    }
-    else
-        return EFFECTS_ERROR;
-
-    EffectHandle index = (EffectHandle)ParticleEffectsActive.size() - 1;
-    return index;
-    
-}
-
-//Returns index into Active
-EffectHandle ParticleEffects::InstantiateEffect( ParticleEffectProperties& effectProperties )
+EffectHandle ParticleEffectManager::InstantiateEffect( ParticleEffectProperties& effectProperties )
 {
     if (!s_InitComplete)
         return EFFECTS_ERROR;
 
     static std::mutex s_InstantiateNewEffectMutex;
     s_InstantiateNewEffectMutex.lock();
-    MaintainTextureList(effectProperties);
     ParticleEffect* newEffect = new ParticleEffect(effectProperties);
     ParticleEffectsPool.emplace_back(newEffect);
     ParticleEffectsActive.push_back(newEffect);
@@ -631,16 +570,16 @@ EffectHandle ParticleEffects::InstantiateEffect( ParticleEffectProperties& effec
 
     EffectHandle index = (EffectHandle)ParticleEffectsActive.size() - 1;
     ParticleEffectsActive[index]->LoadDeviceResources(Graphics::g_Device);
-    return index;    
+    return index;	
 }
 
 //---------------------------------------------------------------------
 //
-//    Update
+//	Update
 //
 //---------------------------------------------------------------------
 
-void ParticleEffects::Update(ComputeContext& Context, float timeDelta )
+void ParticleEffectManager::Update(ComputeContext& Context, float timeDelta )
 {
     if (!Enable || !s_InitComplete || ParticleEffectsActive.size() == 0)
         return;
@@ -664,7 +603,7 @@ void ParticleEffects::Update(ComputeContext& Context, float timeDelta )
     Context.SetDynamicDescriptor(3, 0, SpriteVertexBuffer.GetUAV());
 
     for (UINT i = 0; i < ParticleEffectsActive.size(); ++i)
-    {    
+    {	
         ParticleEffectsActive[i]->Update(Context, timeDelta);
 
         if (ParticleEffectsActive[i]->GetLifetime() <= ParticleEffectsActive[i]->GetElapsedTime())
@@ -684,11 +623,11 @@ void ParticleEffects::Update(ComputeContext& Context, float timeDelta )
 
 //---------------------------------------------------------------------
 //
-//    Render
+//	Render
 //
 //---------------------------------------------------------------------
 
-void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, ColorBuffer& ColorTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth)
+void ParticleEffectManager::Render( CommandContext& Context, const Camera& Camera, ColorBuffer& ColorTarget, DepthBuffer& DepthTarget, ColorBuffer& LinearDepth)
 {
     if (!Enable || !s_InitComplete || ParticleEffectsActive.size() == 0)
         return;
@@ -751,28 +690,26 @@ void ParticleEffects::Render( CommandContext& Context, const Camera& Camera, Col
     {
         GraphicsContext& GrContext = Context.GetGraphicsContext();
         GrContext.SetRootSignature(RootSig);
-        GrContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);    
+        GrContext.SetDynamicConstantBufferView(1, sizeof(CBChangesPerView), &s_ChangesPerView);	
         RenderSprites(GrContext, ColorTarget, DepthTarget, LinearDepth);
     }
 
 }
 
-
-
 //---------------------------------------------------------------------
 //
-//    Clean up
+//	Clean up
 //
 //---------------------------------------------------------------------
 
-void ParticleEffects::ClearAll()
+void ParticleEffectManager::ClearAll()
 {
     ParticleEffectsActive.clear();
     ParticleEffectsPool.clear();
     TextureNameArray.clear();
 }
 
-void ParticleEffects::ResetEffect(EffectHandle EffectID)
+void ParticleEffectManager::ResetEffect(EffectHandle EffectID)
 {
     if (!s_InitComplete || ParticleEffectsActive.size() == 0 || PauseSim || EffectID >= ParticleEffectsActive.size())
         return;
@@ -781,7 +718,7 @@ void ParticleEffects::ResetEffect(EffectHandle EffectID)
 }
 
 
-float ParticleEffects::GetCurrentLife(EffectHandle EffectID)
+float ParticleEffectManager::GetCurrentLife(EffectHandle EffectID)
 {
     if (!s_InitComplete || ParticleEffectsActive.size() == 0 || PauseSim || EffectID >= ParticleEffectsActive.size())
         return -1.0;

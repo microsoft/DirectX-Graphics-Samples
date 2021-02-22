@@ -22,6 +22,11 @@ RWByteAddressBuffer Histogram : register( u0 );
 
 groupshared uint g_TileHistogram[256];
 
+cbuffer CB0 : register(b0)
+{
+    uint kBufferHeight;
+}
+
 [RootSignature(PostEffects_RootSig)]
 [numthreads( 16, 16, 1 )]
 void main( uint GI : SV_GroupIndex, uint3 DTid : SV_DispatchThreadID )
@@ -30,10 +35,10 @@ void main( uint GI : SV_GroupIndex, uint3 DTid : SV_DispatchThreadID )
 
     GroupMemoryBarrierWithGroupSync();
 
-    // Loop 24 times until the entire column has been processed
-    for (uint TopY = 0; TopY < 384; TopY += 16)
+    // Loop until the entire column has been processed
+    for (uint2 ST = DTid.xy; ST.y < kBufferHeight; ST.y += 16)
     {
-        uint QuantizedLogLuma = LumaBuf[DTid.xy + uint2(0, TopY)];
+        uint QuantizedLogLuma = LumaBuf[ST];
         InterlockedAdd( g_TileHistogram[QuantizedLogLuma], 1 );
     }
 

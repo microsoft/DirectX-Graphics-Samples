@@ -15,6 +15,7 @@
 #include "TemporalEffects.h"
 #include "BufferManager.h"
 #include "GraphicsCore.h"
+#include "GraphicsCommon.h"
 #include "CommandContext.h"
 #include "SystemTime.h"
 #include "PostEffects.h"
@@ -35,13 +36,12 @@ namespace TemporalEffects
     NumVar TemporalMaxLerp("Graphics/AA/TAA/Blend Factor", 1.0f, 0.0f, 1.0f, 0.01f);
     ExpVar TemporalSpeedLimit("Graphics/AA/TAA/Speed Limit", 64.0f, 1.0f, 1024.0f, 1.0f);
     BoolVar TriggerReset("Graphics/AA/TAA/Reset", false);
+    BoolVar EnableCBR("Graphics/CBR/Enable", false);
 
-    RootSignature s_RootSignature;
-
-    ComputePSO s_TemporalBlendCS;
-    ComputePSO s_BoundNeighborhoodCS;
-    ComputePSO s_SharpenTAACS;
-    ComputePSO s_ResolveTAACS;
+    ComputePSO s_TemporalBlendCS(L"TAA: Temporal Blend CS");
+    ComputePSO s_BoundNeighborhoodCS(L"TAA: Bound Neighborhood CS");
+    ComputePSO s_SharpenTAACS(L"TAA: Sharpen TAA CS");
+    ComputePSO s_ResolveTAACS(L"TAA: Resolve TAA CS");
 
     uint32_t s_FrameIndex = 0;
     uint32_t s_FrameIndexMod2 = 0;
@@ -56,17 +56,8 @@ namespace TemporalEffects
 
 void TemporalEffects::Initialize( void )
 {
-    s_RootSignature.Reset(4, 2);
-    s_RootSignature[0].InitAsConstants(0, 4);
-    s_RootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10);
-    s_RootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 10);
-    s_RootSignature[3].InitAsConstantBuffer(1);
-    s_RootSignature.InitStaticSampler(0, SamplerLinearBorderDesc);
-    s_RootSignature.InitStaticSampler(1, SamplerPointBorderDesc);
-    s_RootSignature.Finalize(L"Temporal RS");
-
 #define CreatePSO( ObjName, ShaderByteCode ) \
-    ObjName.SetRootSignature(s_RootSignature); \
+    ObjName.SetRootSignature(g_CommonRS); \
     ObjName.SetComputeShader(ShaderByteCode, sizeof(ShaderByteCode) ); \
     ObjName.Finalize();
 
@@ -84,6 +75,9 @@ void TemporalEffects::Shutdown( void )
 
 void TemporalEffects::Update( uint64_t FrameIndex )
 {
+    // Not implemented on Desktop yet
+    EnableCBR = false;
+
     s_FrameIndex = (uint32_t)FrameIndex;
     s_FrameIndexMod2 = s_FrameIndex % 2;
 
@@ -97,7 +91,15 @@ void TemporalEffects::Update( uint64_t FrameIndex )
             { 3.0f / 8.0f, 2.0f / 9.0f }, { 7.0f / 8.0f, 5.0f / 9.0f }
         };
 
-        const float* Offset = Halton23[s_FrameIndex % 8];
+        const float* Offset = nullptr;
+
+        // With CBR, having an odd number of jitter positions is good because odd and even
+        // frames can both explore all sample positions.  (Also, the least useful sample is
+        // the first one, which is exactly centered between four pixels.)
+        if (EnableCBR)
+            Offset = Halton23[s_FrameIndex % 7 + 1];
+        else
+            Offset = Halton23[s_FrameIndex % 8];
 
         s_JitterDeltaX = s_JitterX - Offset[0];
         s_JitterDeltaY = s_JitterY - Offset[1];
@@ -145,18 +147,19 @@ void TemporalEffects::ResolveImage( CommandContext& BaseContext )
     ComputeContext& Context = BaseContext.GetComputeContext();
 
     static bool s_EnableTAA = false;
+    static bool s_EnableCBR = false;
 
-    if (EnableTAA != s_EnableTAA || TriggerReset)
+    if (EnableTAA != s_EnableTAA || EnableCBR && !s_EnableCBR || TriggerReset)
     {
         ClearHistory(Context);
         s_EnableTAA = EnableTAA;
+        s_EnableCBR = EnableCBR;
         TriggerReset = false;
     }
 
     uint32_t Src = s_FrameIndexMod2;
     uint32_t Dst = Src ^ 1;
 
-    if (EnableTAA)
     {
         ApplyTemporalAA(Context);
         SharpenImage(Context, g_TemporalColor[Dst]);
@@ -170,7 +173,7 @@ void TemporalEffects::ApplyTemporalAA(ComputeContext& Context)
     uint32_t Src = s_FrameIndexMod2;
     uint32_t Dst = Src ^ 1;
 
-    Context.SetRootSignature(s_RootSignature);
+    Context.SetRootSignature(g_CommonRS);
     Context.SetPipelineState(s_TemporalBlendCS);
 
     __declspec(align(16)) struct ConstantBuffer

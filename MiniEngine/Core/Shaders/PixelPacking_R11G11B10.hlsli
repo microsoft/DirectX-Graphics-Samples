@@ -41,9 +41,9 @@ float3 Unpack_R11G11B10_FLOAT( uint rgb )
 // time the exponent increases by whole amounts.
 uint Pack_R11G11B10_FLOAT_LOG( float3 rgb )
 {
-    float3 flat_mantissa = asfloat(asuint(rgb) & 0x7FFFFF | 0x3F800000);
+    float3 flat_mantissa = asfloat((asuint(rgb) & 0x7FFFFF) | 0x3F800000);
     float3 curved_mantissa = min(log2(flat_mantissa) + 1.0, asfloat(0x3FFFFFFF));
-    rgb = asfloat(asuint(rgb) & 0xFF800000 | asuint(curved_mantissa) & 0x7FFFFF);
+    rgb = asfloat((asuint(rgb) & 0xFF800000) | (asuint(curved_mantissa) & 0x7FFFFF));
 
     uint r = ((f32tof16(rgb.x) + 8) >>  4) & 0x000007FF;
     uint g = ((f32tof16(rgb.y) + 8) <<  7) & 0x003FF800;
@@ -54,9 +54,9 @@ uint Pack_R11G11B10_FLOAT_LOG( float3 rgb )
 float3 Unpack_R11G11B10_FLOAT_LOG( uint p )
 {
     float3 rgb = f16tof32(uint3(p << 4, p >> 7, p >> 17) & uint3(0x7FF0, 0x7FF0, 0x7FE0));
-    float3 curved_mantissa = asfloat(asuint(rgb) & 0x7FFFFF | 0x3F800000);
+    float3 curved_mantissa = asfloat((asuint(rgb) & 0x7FFFFF) | 0x3F800000);
     float3 flat_mantissa = exp2(curved_mantissa - 1.0);
-    return asfloat(asuint(rgb) & 0xFF800000 | asuint(flat_mantissa) & 0x7FFFFF);
+    return asfloat((asuint(rgb) & 0xFF800000) | (asuint(flat_mantissa) & 0x7FFFFF));
 }
 
 // As an alternative to floating point, we can store the log2 of a value in fixed point notation.

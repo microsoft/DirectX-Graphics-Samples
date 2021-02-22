@@ -94,7 +94,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex )
     [unroll]
     for (k = 2; k <= 2048; k <<= 1)
     {
-        [unroll]
+        //[unroll]
         for (uint j = k / 2; j > 0; j /= 2)
         {
             uint Index2 = InsertOneBit(GI, j);

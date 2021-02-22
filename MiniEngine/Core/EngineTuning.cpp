@@ -16,7 +16,7 @@
 #include "TextRenderer.h"
 #include "GameInput.h"
 #include "Color.h"
-#include "GraphicsCore.h"
+#include "Display.h"
 #include "CommandContext.h"
 #include "GraphRenderer.h"
 
@@ -128,7 +128,7 @@ void VariableGroup::Display( TextContext& Text, float leftMargin, EngineVar* hig
             }
             else
             {
-                Text.DrawString("+ ");                
+                Text.DrawString("+ ");				
             }
             Text.DrawString(iter->first);
             Text.DrawString("/...\n");
@@ -161,14 +161,14 @@ void VariableGroup::SaveToFile( FILE* file, int fileMargin )
 
         VariableGroup* subGroup = dynamic_cast<VariableGroup*>(iter->second);
         if (subGroup != nullptr)
-        {        
+        {		
             fprintf(file, "%*c + %s ...\r\n", fileMargin, ' ', buffer);
             subGroup->SaveToFile(file, fileMargin + 5);
         }
         else if (dynamic_cast<CallbackTrigger*>(iter->second) == nullptr)
         {
             fprintf(file, "%*c %s:  %s\r\n", fileMargin, ' ', buffer, iter->second->ToString().c_str());
-        }        
+        }		
     }
 }
 
@@ -184,7 +184,7 @@ void VariableGroup::LoadSettingsFromFile( FILE* file )
             subGroup->LoadSettingsFromFile(file);
         }
         else
-        {    
+        {	
             iter->second->SetValue(file, iter->first);
         }
     }
@@ -261,7 +261,7 @@ EngineVar::EngineVar( void ) : m_GroupPtr(nullptr)
 {
 }
 
-EngineVar::EngineVar( const std::string& path ) : m_GroupPtr(nullptr)
+EngineVar::EngineVar( const std::string& path, ActionCallback pfnCallback) : m_GroupPtr(nullptr), m_ActionCallback(pfnCallback)
 {
     EngineTuning::RegisterVariable(path, *this);
 }
@@ -292,8 +292,8 @@ EngineVar* EngineVar::PrevVar( void )
     return prev != nullptr ? prev : this;
 }
 
-BoolVar::BoolVar( const std::string& path, bool val )
-    : EngineVar(path)
+BoolVar::BoolVar( const std::string& path, bool val, ActionCallback pfnCallback )
+    : EngineVar(path, pfnCallback)
 {
     m_Flag = val;
 }
@@ -309,7 +309,7 @@ std::string BoolVar::ToString( void ) const
 } 
 
 void BoolVar::SetValue(FILE* file, const std::string& setting)
-{    
+{	
     std::string pattern = "\n " + setting + ": %s";
     char valstr[6];
 
@@ -324,8 +324,8 @@ void BoolVar::SetValue(FILE* file, const std::string& setting)
         0 == _stricmp(valstr, "true") );
 }
 
-NumVar::NumVar( const std::string& path, float val, float minVal, float maxVal, float stepSize )
-    : EngineVar(path)
+NumVar::NumVar( const std::string& path, float val, float minVal, float maxVal, float stepSize, ActionCallback pfnCallback )
+    : EngineVar(path, pfnCallback)
 {
     ASSERT(minVal <= maxVal);
     m_MinValue = minVal;
@@ -361,8 +361,8 @@ __forceinline float log2( float x ) { return log(x) / log(2.0f); }
 __forceinline float exp2( float x ) { return pow(2.0f, x); }
 #endif
 
-ExpVar::ExpVar( const std::string& path, float val, float minExp, float maxExp, float expStepSize )
-    : NumVar(path, log2f(val), minExp, maxExp, expStepSize)
+ExpVar::ExpVar( const std::string& path, float val, float minExp, float maxExp, float expStepSize, ActionCallback pfnCallback )
+    : NumVar(path, log2f(val), minExp, maxExp, expStepSize, pfnCallback)
 {
 }
 
@@ -399,8 +399,8 @@ void ExpVar::SetValue(FILE* file, const std::string& setting)
         *this = valueRead;
 }
 
-IntVar::IntVar( const std::string& path, int32_t val, int32_t minVal, int32_t maxVal, int32_t stepSize )
-    : EngineVar(path)
+IntVar::IntVar( const std::string& path, int32_t val, int32_t minVal, int32_t maxVal, int32_t stepSize, ActionCallback pfnCallback )
+    : EngineVar(path, pfnCallback)
 {
     ASSERT(minVal <= maxVal);
     m_MinValue = minVal;
@@ -431,8 +431,8 @@ void IntVar::SetValue(FILE* file, const std::string& setting)
 }
 
 
-EnumVar::EnumVar( const std::string& path, int32_t initialVal, int32_t listLength, const char** listLabels )
-    : EngineVar(path)
+EnumVar::EnumVar( const std::string& path, int32_t initialVal, int32_t listLength, const char** listLabels, ActionCallback pfnCallback )
+    : EngineVar(path, pfnCallback)
 {
     ASSERT(listLength > 0);
     m_EnumLength = listLength;
@@ -470,8 +470,49 @@ void EnumVar::SetValue(FILE* file, const std::string& setting)
             }
         }
     }
-
 }
+
+DynamicEnumVar::DynamicEnumVar( const std::string& path, ActionCallback pfnCallback )
+    : EngineVar(path, pfnCallback)
+{
+    m_EnumCount = 0;
+    m_Value = 0;
+}
+
+void DynamicEnumVar::DisplayValue( TextContext& Text ) const
+{
+    Text.DrawString(m_EnumLabels[m_Value]);
+}
+
+std::string DynamicEnumVar::ToString( void ) const
+{
+    return Utility::WideStringToUTF8(m_EnumLabels[m_Value]);
+} 
+
+void DynamicEnumVar::SetValue(FILE* file, const std::string& setting) 
+{
+    std::string scanString = "\n" + setting + ": %[^\n]";
+    char valueRead[14];
+
+    if (fscanf_s(file, scanString.c_str(), valueRead, _countof(valueRead)) == 1)
+    {
+        std::string valueReadStr = valueRead;
+        valueReadStr = valueReadStr.substr(0, valueReadStr.length() - 1);
+
+        std::wstring wvalue = Utility::UTF8ToWideString(valueReadStr);
+
+        //if we don't find the string, then leave m_EnumLabes[m_Value] as default
+        for (int32_t i = 0; i < m_EnumCount; ++i)
+        {
+            if (m_EnumLabels[i] == wvalue)
+            {
+                m_Value = i;
+                break;
+            }
+        }
+    }
+}
+
 
 CallbackTrigger::CallbackTrigger( const std::string& path, std::function<void (void*)> callback, void* args )
     : EngineVar(path)
@@ -555,14 +596,14 @@ void EngineTuning::Update( float frameTime )
 
     // Detect a DPad button press
     HandleDigitalButtonPress(GameInput::kDPadRight, frameTime, []{ sm_SelectedVariable->Increment(); } );
-    HandleDigitalButtonPress(GameInput::kDPadLeft,    frameTime, []{ sm_SelectedVariable->Decrement(); } );
-    HandleDigitalButtonPress(GameInput::kDPadDown,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
-    HandleDigitalButtonPress(GameInput::kDPadUp,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
+    HandleDigitalButtonPress(GameInput::kDPadLeft,	frameTime, []{ sm_SelectedVariable->Decrement(); } );
+    HandleDigitalButtonPress(GameInput::kDPadDown,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
+    HandleDigitalButtonPress(GameInput::kDPadUp,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
 
     HandleDigitalButtonPress(GameInput::kKey_right, frameTime, []{ sm_SelectedVariable->Increment(); } );
-    HandleDigitalButtonPress(GameInput::kKey_left,    frameTime, []{ sm_SelectedVariable->Decrement(); } );
-    HandleDigitalButtonPress(GameInput::kKey_down,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
-    HandleDigitalButtonPress(GameInput::kKey_up,    frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
+    HandleDigitalButtonPress(GameInput::kKey_left,	frameTime, []{ sm_SelectedVariable->Decrement(); } );
+    HandleDigitalButtonPress(GameInput::kKey_down,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->NextVar(); } );
+    HandleDigitalButtonPress(GameInput::kKey_up,	frameTime, []{ sm_SelectedVariable = sm_SelectedVariable->PrevVar(); } );
 
     if (GameInput::IsFirstPressed( GameInput::kAButton )
         || GameInput::IsFirstPressed( GameInput::kKey_return ))
@@ -571,6 +612,7 @@ void EngineTuning::Update( float frameTime )
     }
 }
 
+/*
 void StartSave(void*)
 {
     FILE* settingsFile;
@@ -596,7 +638,7 @@ void StartLoad(void*)
 }
 std::function<void(void*)> StartLoadFunc = StartLoad;
 static CallbackTrigger Load("Load Settings", StartLoadFunc, nullptr); 
-
+*/
 
 void EngineTuning::Display( GraphicsContext& Context, float x, float y, float w, float h )
 {

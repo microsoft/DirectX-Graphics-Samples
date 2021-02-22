@@ -13,12 +13,11 @@
 
 #include "pch.h"
 #include "ColorBuffer.h"
-#include "GraphicsCore.h"
+#include "GraphicsCommon.h"
 #include "CommandContext.h"
 #include "EsramAllocator.h"
 
 using namespace Graphics;
-
 
 void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, uint32_t ArraySize, uint32_t NumMips)
 {
@@ -168,7 +167,7 @@ void ColorBuffer::GenerateMipMaps(CommandContext& BaseContext)
 
     ComputeContext& Context = BaseContext.GetComputeContext();
 
-    Context.SetRootSignature(Graphics::g_GenerateMipsRS);
+    Context.SetRootSignature(Graphics::g_CommonRS);
 
     Context.TransitionResource(*this, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     Context.SetDynamicDescriptor(1, 0, m_SRVHandle);

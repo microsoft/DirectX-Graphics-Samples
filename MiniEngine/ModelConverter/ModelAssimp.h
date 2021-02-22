@@ -11,32 +11,35 @@
 
 #pragma once
 
-#include "Model.h"
+#include "ModelH3D.h"
 
-class AssimpModel : public Model
+class AssimpModel : public ModelH3D
 {
 public:
 
-    enum
-    {
-        format_none = 0,
-        format_h3d, // native format
+	enum
+	{
+		format_none = 0,
+		format_h3d, // native format
+        format_mini,
 
-        formats,
-    };
-    static const char *s_FormatString[];
-    static int FormatFromFilename(const char *filename);
+		formats,
+	};
+	static const char *s_FormatString[];
+	static int FormatFromFilename(const std::string& filename);
 
-    virtual bool Load(const char* filename) override;
-    bool Save(const char* filename) const;
+	bool Load(const std::string& filename);
+	bool Save(const std::string& filename) const;
+
+    void PrintModelStats();
 
 private:
 
-    bool LoadAssimp(const char *filename);
+	bool LoadAssimp(const std::string& filename);
 
-    void Optimize();
-    void OptimizeRemoveDuplicateVertices(bool depth);
-    void OptimizePostTransform(bool depth);
-    void OptimizePreTransform(bool depth);
+	void Optimize();
+	void OptimizeRemoveDuplicateVertices(bool depth);
+	void OptimizePostTransform(bool depth);
+	void OptimizePreTransform(bool depth);
 };
 

@@ -14,6 +14,9 @@
 #pragma once
 
 namespace Math { class Camera;  }
+class GraphicsContext;
+class ComputeContext;
+class BoolVar;
 
 namespace SSAO
 {
@@ -21,6 +24,7 @@ namespace SSAO
     void Shutdown( void );
     void Render(GraphicsContext& Context, const float* ProjMat, float NearClipDist, float FarClipDist );
     void Render(GraphicsContext& Context, const Math::Camera& camera );
+    void LinearizeZ(ComputeContext& Context, const Math::Camera& camera, uint32_t FrameIndex);
 
     extern BoolVar Enable;
     extern BoolVar DebugDraw;

@@ -14,8 +14,11 @@
 
 #pragma once
 
-using namespace Math;
-//Emission Properties and other particle structs
+#include "VectorMath.h"
+#include "Color.h"
+#include <cstdint>
+
+// Emission Properties and other particle structs
 
 __declspec(align(16)) struct EmissionProperties
 {
@@ -28,11 +31,11 @@ __declspec(align(16)) struct EmissionProperties
     XMFLOAT3 EmitRightW;
     float EmitterVelocitySensitivity;
     XMFLOAT3 EmitUpW;
-    UINT MaxParticles;
+    std::uint32_t MaxParticles;
     XMFLOAT3 Gravity;
-    UINT TextureID;
+    std::uint32_t TextureID;
     XMFLOAT3 EmissiveColor;
-    float pad1;    
+    float pad1;	
     XMUINT4 RandIndex[64];
 };
 
@@ -54,11 +57,11 @@ struct ParticleSpawnData
 struct ParticleMotion
 {
     XMFLOAT3 Position;
-    float Mass;    
+    float Mass;	
     XMFLOAT3 Velocity;
     float Age;
     float Rotation;
-    UINT ResetDataIndex;
+    std::uint32_t ResetDataIndex;
 };
 
 struct ParticleVertex
@@ -66,7 +69,7 @@ struct ParticleVertex
     XMFLOAT3 Position;
     XMFLOAT4 Color;
     float Size;
-    UINT TextureID;
+    std::uint32_t TextureID;
 };
 
 struct ParticleScreenData
@@ -77,7 +80,7 @@ struct ParticleScreenData
     float Depth;
     float TextureIndex;
     float TextureLevel;
-    uint32_t Bounds;
+    std::uint32_t Bounds;
 };
 
 

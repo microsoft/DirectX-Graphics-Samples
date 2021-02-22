@@ -18,11 +18,12 @@
 #include "CommandContext.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
-#include "GraphicsCore.h"
+#include "Display.h"
 #include "BufferManager.h"
 #include "MotionBlur.h"
 #include "DepthOfField.h"
 #include "FXAA.h"
+#include "Math/Random.h"
 
 #include "CompiledShaders/ToneMapCS.h"
 #include "CompiledShaders/ToneMap2CS.h"
@@ -65,6 +66,12 @@ namespace DepthOfField
     extern EnumVar DebugMode;
 }
 
+namespace Graphics
+{
+    extern NumVar g_HDRPaperWhite;
+    extern NumVar g_MaxDisplayLuminance;
+}
+
 namespace PostEffects
 {
     const float kInitialMinLog = -12.0f;
@@ -80,29 +87,29 @@ namespace PostEffects
     BoolVar DrawHistogram("Graphics/HDR/Draw Histogram", false);
 
     BoolVar BloomEnable("Graphics/Bloom/Enable", true);
-    NumVar BloomThreshold("Graphics/Bloom/Threshold", 4.0f, 0.0f, 8.0f, 0.1f);        // The threshold luminance above which a pixel will start to bloom
-    NumVar BloomStrength("Graphics/Bloom/Strength", 0.1f, 0.0f, 2.0f, 0.05f);        // A modulator controlling how much bloom is added back into the image
-    NumVar BloomUpsampleFactor("Graphics/Bloom/Scatter", 0.65f, 0.0f, 1.0f, 0.05f);    // Controls the "focus" of the blur.  High values spread out more causing a haze.
-    BoolVar HighQualityBloom("Graphics/Bloom/High Quality", true);                    // High quality blurs 5 octaves of bloom; low quality only blurs 3.
+    NumVar BloomThreshold("Graphics/Bloom/Threshold", 4.0f, 0.0f, 8.0f, 0.1f);		// The threshold luminance above which a pixel will start to bloom
+    NumVar BloomStrength("Graphics/Bloom/Strength", 0.1f, 0.0f, 2.0f, 0.05f);		// A modulator controlling how much bloom is added back into the image
+    NumVar BloomUpsampleFactor("Graphics/Bloom/Scatter", 0.65f, 0.0f, 1.0f, 0.05f);	// Controls the "focus" of the blur.  High values spread out more causing a haze.
+    BoolVar HighQualityBloom("Graphics/Bloom/High Quality", true);					// High quality blurs 5 octaves of bloom; low quality only blurs 3.
 
     RootSignature PostEffectsRS;
-    ComputePSO ToneMapCS;
-    ComputePSO ToneMapHDRCS;
-    ComputePSO ApplyBloomCS;
-    ComputePSO DebugLuminanceHdrCS;
-    ComputePSO DebugLuminanceLdrCS;
-    ComputePSO GenerateHistogramCS;
-    ComputePSO DrawHistogramCS;
-    ComputePSO AdaptExposureCS;
-    ComputePSO DownsampleBloom2CS;
-    ComputePSO DownsampleBloom4CS;
-    ComputePSO UpsampleAndBlurCS;
-    ComputePSO BlurCS;
-    ComputePSO BloomExtractAndDownsampleHdrCS;
-    ComputePSO BloomExtractAndDownsampleLdrCS;
-    ComputePSO ExtractLumaCS;
-    ComputePSO AverageLumaCS;
-    ComputePSO CopyBackPostBufferCS;
+    ComputePSO ToneMapCS(L"Post Effects: Tone Map  CS");
+    ComputePSO ToneMapHDRCS(L"Post Effects: Tone Map HDR CS");
+    ComputePSO ApplyBloomCS(L"Post Effects: Apply Bloom CS");
+    ComputePSO DebugLuminanceHdrCS(L"Post Effects: Debug Luminance HDR CS");
+    ComputePSO DebugLuminanceLdrCS(L"Post Effects: Debug Luminance LDR CS");
+    ComputePSO GenerateHistogramCS(L"Post Effects: Generate Histogram CS");
+    ComputePSO DrawHistogramCS(L"Post Effects: Draw Histogram CS");
+    ComputePSO AdaptExposureCS(L"Post Effects: Adapt Exposure CS");
+    ComputePSO DownsampleBloom2CS(L"Post Effects: Downsample Bloom 2 CS");
+    ComputePSO DownsampleBloom4CS(L"Post Effects: Downsample Bloom 4 CS");
+    ComputePSO UpsampleAndBlurCS(L"Post Effects: Upsample and Blur CS");
+    ComputePSO BlurCS(L"Post Effects: Blur CS");
+    ComputePSO BloomExtractAndDownsampleHdrCS(L"Post Effects: Bloom Extract and Downsample HDR CS");
+    ComputePSO BloomExtractAndDownsampleLdrCS(L"Post Effects: Bloom Extract and Downsample LDR CS");
+    ComputePSO ExtractLumaCS(L"Post Effects: Extract Luma CS");
+    ComputePSO AverageLumaCS(L"Post Effects: Average Luma CS");
+    ComputePSO CopyBackPostBufferCS(L"Post Effects: Copy Back Post Buffer CS");
 
     StructuredBuffer g_Exposure;
 
@@ -119,7 +126,7 @@ void PostEffects::Initialize( void )
     PostEffectsRS.Reset(4, 2);
     PostEffectsRS.InitStaticSampler(0, SamplerLinearClampDesc);
     PostEffectsRS.InitStaticSampler(1, SamplerLinearBorderDesc);
-    PostEffectsRS[0].InitAsConstants(0, 4);
+    PostEffectsRS[0].InitAsConstants(0, 5);
     PostEffectsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
     PostEffectsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
     PostEffectsRS[3].InitAsConstantBuffer(1);
@@ -340,7 +347,8 @@ void PostEffects::UpdateExposure( ComputeContext& Context )
     Context.SetDynamicDescriptor(1, 0, g_Histogram.GetUAV() );
     Context.SetDynamicDescriptor(2, 0, g_LumaLR.GetSRV() );
     Context.SetPipelineState(GenerateHistogramCS);
-    Context.Dispatch2D(g_LumaLR.GetWidth(), g_LumaLR.GetHeight(), 16, 384);
+    Context.SetConstants(0, g_LumaLR.GetHeight());
+    Context.Dispatch2D(g_LumaLR.GetWidth(), g_LumaLR.GetHeight(), 16, g_LumaLR.GetHeight());
 
     __declspec(align(16)) struct
     {
@@ -389,6 +397,8 @@ void PostEffects::ProcessHDR( ComputeContext& Context )
     // Set constants
     Context.SetConstants(0, 1.0f / g_SceneColorBuffer.GetWidth(), 1.0f / g_SceneColorBuffer.GetHeight(),
         (float)BloomStrength);
+    Context.SetConstant(0, 3, (float)g_HDRPaperWhite / (float)g_MaxDisplayLuminance);
+    Context.SetConstant(0, 4, (float)g_MaxDisplayLuminance);
 
     // Separate out SDR result from its perceived luminance
     if (g_bTypedUAVLoadSupport_R11G11B10_FLOAT)
@@ -402,7 +412,7 @@ void PostEffects::ProcessHDR( ComputeContext& Context )
 
     // Read in original HDR value and blurred bloom buffer
     Context.SetDynamicDescriptor(2, 0, g_Exposure.GetSRV());
-    Context.SetDynamicDescriptor(2, 1, BloomEnable ? g_aBloomUAV1[1].GetSRV() : TextureManager::GetBlackTex2D().GetSRV());
+    Context.SetDynamicDescriptor(2, 1, BloomEnable ? g_aBloomUAV1[1].GetSRV() : GetDefaultTexture(kBlackOpaque2D));
     
     Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());
 
@@ -445,7 +455,7 @@ void PostEffects::ProcessLDR(CommandContext& BaseContext)
         Context.SetDynamicDescriptor(1, 1, g_LumaBuffer.GetUAV());
 
         // Read in original SDR value and blurred bloom buffer
-        Context.SetDynamicDescriptor(2, 0, bGenerateBloom ? g_aBloomUAV1[1].GetSRV() : TextureManager::GetBlackTex2D().GetSRV());
+        Context.SetDynamicDescriptor(2, 0, bGenerateBloom ? g_aBloomUAV1[1].GetSRV() : GetDefaultTexture(kBlackOpaque2D));
 
         Context.SetPipelineState(FXAA::DebugDraw ? DebugLuminanceLdrCS : ApplyBloomCS);
         Context.Dispatch2D(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight());

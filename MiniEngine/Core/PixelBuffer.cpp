@@ -104,7 +104,7 @@ DXGI_FORMAT PixelBuffer::GetUAVFormat( DXGI_FORMAT defaultFormat )
     case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
     case DXGI_FORMAT_D16_UNORM:
 
-    ASSERT(false, "Requested a UAV format for a depth stencil format.");
+    ASSERT(false, "Requested a UAV Format for a depth stencil Format.");
 #endif
 
     default:
@@ -308,6 +308,7 @@ size_t PixelBuffer::BytesPerPixel( DXGI_FORMAT Format )
         return 0;
     }
 }
+
 void PixelBuffer::AssociateWithResource( ID3D12Device* Device, const std::wstring& Name, ID3D12Resource* Resource, D3D12_RESOURCE_STATES CurrentState )
 {
     (Device); // Unused until we support multiple adapters
@@ -318,7 +319,7 @@ void PixelBuffer::AssociateWithResource( ID3D12Device* Device, const std::wstrin
     m_pResource.Attach(Resource);
     m_UsageState = CurrentState;
 
-    m_Width = (uint32_t)ResourceDesc.Width;        // We don't care about large virtual textures yet
+    m_Width = (uint32_t)ResourceDesc.Width;		// We don't care about large virtual textures yet
     m_Height = ResourceDesc.Height;
     m_ArraySize = ResourceDesc.DepthOrArraySize;
     m_Format = ResourceDesc.Format;
@@ -354,13 +355,17 @@ D3D12_RESOURCE_DESC PixelBuffer::DescribeTex2D( uint32_t Width, uint32_t Height,
 }
 
 void PixelBuffer::CreateTextureResource( ID3D12Device* Device, const std::wstring& Name,
-    const D3D12_RESOURCE_DESC& ResourceDesc, D3D12_CLEAR_VALUE ClearValue, D3D12_GPU_VIRTUAL_ADDRESS /*VidMemPtr*/ )
+    const D3D12_RESOURCE_DESC& ResourceDesc, D3D12_CLEAR_VALUE ClearValue, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr )
 {
     Destroy();
 
-    CD3DX12_HEAP_PROPERTIES HeapProps(D3D12_HEAP_TYPE_DEFAULT);
-    ASSERT_SUCCEEDED( Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
-        &ResourceDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, MY_IID_PPV_ARGS(&m_pResource) ));
+    (void)VidMemPtr;
+    
+    {
+        CD3DX12_HEAP_PROPERTIES HeapProps(D3D12_HEAP_TYPE_DEFAULT);
+        ASSERT_SUCCEEDED( Device->CreateCommittedResource( &HeapProps, D3D12_HEAP_FLAG_NONE,
+            &ResourceDesc, D3D12_RESOURCE_STATE_COMMON, &ClearValue, MY_IID_PPV_ARGS(&m_pResource) ));
+    }
 
     m_UsageState = D3D12_RESOURCE_STATE_COMMON;
     m_GpuVirtualAddress = D3D12_GPU_VIRTUAL_ADDRESS_NULL;
@@ -373,18 +378,20 @@ void PixelBuffer::CreateTextureResource( ID3D12Device* Device, const std::wstrin
 }
 
 void PixelBuffer::CreateTextureResource( ID3D12Device* Device, const std::wstring& Name,
-    const D3D12_RESOURCE_DESC& ResourceDesc, D3D12_CLEAR_VALUE ClearValue, EsramAllocator& /*Allocator*/ )
+    const D3D12_RESOURCE_DESC& ResourceDesc, D3D12_CLEAR_VALUE ClearValue, EsramAllocator& Allocator )
 {
+    (Allocator);
     CreateTextureResource(Device, Name, ResourceDesc, ClearValue);
 }
 
 void PixelBuffer::ExportToFile( const std::wstring& FilePath )
 {
-    // Create the buffer.  We will release it after all is done.
+    // This very short command list only issues one API call and will be synchronized so we can immediately read
+    // the buffer contents.
     ReadbackBuffer TempBuffer;
-    TempBuffer.Create(L"Temporary Readback Buffer", m_Width * m_Height, (uint32_t)BytesPerPixel(m_Format));
-
-    CommandContext::ReadbackTexture2D(TempBuffer, *this);
+    CommandContext& Context = CommandContext::Begin(L"Copy texture to memory");
+    uint32_t RowPitch = Context.ReadbackTexture(TempBuffer, *this);
+    Context.Finish(true);
 
     // Retrieve a CPU-visible pointer to the buffer memory.  Map the whole range for reading.
     void* Memory = TempBuffer.Map();
@@ -392,7 +399,7 @@ void PixelBuffer::ExportToFile( const std::wstring& FilePath )
     // Open the file and write the header followed by the texel data.
     std::ofstream OutFile(FilePath, std::ios::out | std::ios::binary);
     OutFile.write((const char*)&m_Format, 4);
-    OutFile.write((const char*)&m_Width, 4); // Pitch
+    OutFile.write((const char*)&RowPitch, 4);
     OutFile.write((const char*)&m_Width, 4);
     OutFile.write((const char*)&m_Height, 4);
     OutFile.write((const char*)Memory, TempBuffer.GetBufferSize());

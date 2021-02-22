@@ -18,6 +18,7 @@
 
 class CommandContext;
 class EsramAllocator;
+class UploadBuffer;
 
 class GpuBuffer : public GpuResource
 {
@@ -27,6 +28,9 @@ public:
     // Create a buffer.  If initial data is provided, it will be copied into the buffer using the default command context.
     void Create( const std::wstring& name, uint32_t NumElements, uint32_t ElementSize,
         const void* initialData = nullptr );
+
+    void Create( const std::wstring& name, uint32_t NumElements, uint32_t ElementSize,
+        const UploadBuffer& srcData, uint32_t srcOffset = 0 );
 
     // Create a buffer in ESRAM.  On Windows, ESRAM is not used.
     void Create( const std::wstring& name, uint32_t NumElements, uint32_t ElementSize,

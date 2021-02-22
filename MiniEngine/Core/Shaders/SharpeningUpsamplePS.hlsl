@@ -10,14 +10,8 @@
 //
 // Author:  James Stanard 
 //
-
-//--------------------------------------------------------------------------------------
-// Simple bicubic filter
+// This is a bilinear filter coupled with a sharpening pass flattened into one pass.
 //
-// http://en.wikipedia.org/wiki/Bicubic_interpolation
-// http://http.developer.nvidia.com/GPUGems/gpugems_ch24.html
-//
-//--------------------------------------------------------------------------------------
 
 #include "ShaderUtility.hlsli"
 #include "PresentRS.hlsli"
@@ -27,9 +21,9 @@ SamplerState BilinearClamp : register(s0);
 
 cbuffer Constants : register(b0)
 {
-    float2 UVOffset0;
-    float2 UVOffset1;
-    float WA, WB;
+    float2 UVOffset0;   // Four UV offsets to determine the sharpening tap locations
+    float2 UVOffset1;   // We get two more offsets by negating these two.
+    float WA, WB;       // Sharpness strength:  WB = 1.0 + Sharpness; 4*WA + WB = 1
 }
 
 float3 GetColor(float2 UV)

@@ -1,0 +1,64 @@
+{
+    "ParticleEmitters": [
+        {
+            "TexturePath": "Sponza/sparkTex.dds",
+            "MinStartColor": [ 1, 1, 1, 0 ],
+            "MaxStartColor": [ 1, 1, 1, 0 ],
+            "MinEndColor": [ 1, 1, 1, 0 ],
+            "MaxEndColor": [ 1, 1, 1, 0 ],
+            "TotalActiveLifetime": 0.0,
+            "Size": [ 4, 8, 4, 8 ],
+            "Velocity": [ 20, 200, 50, 180 ],
+            "LifeMinMax": [ 1, 3 ],
+            "MassMinMax": [ 4.5, 15 ],
+            "EmitProperties": {
+                "Gravity": [ 0, -100, 0 ],
+                "FloorHeight": -0.5,
+                "EmitPosW": [ -1200, 185, -445 ],
+                "LastEmitPosW": [ -1200, 185, -445 ],
+                "MaxParticles": 800
+            },
+            "EmitRate": 64,
+            "Spread": [ 20, 50, 0.1 ]
+        },
+
+        {
+            "TexturePath": "Sponza/smoke.dds",
+            "TotalActiveLifetime": 0.0,
+            "EmitProperties": {
+                "MaxParticles": 25,
+                "EmitPosW": [ 1120, 185, -445 ],
+                "LastEmitPosW": [ 1120, 185, -445 ]
+            },
+            "EmitRate": 64,
+            "LifeMinMax": [ 2.5, 4 ],
+            "Size": [ 60, 108, 30, 208 ],
+            "Velocity": [ 30, 30, 10, 40 ],
+            "MassMinMax": [ 1, 3.5 ],
+            "Spread": [ 60, 70, 20 ]
+        },
+
+        {
+            "TexturePath": "Sponza/fire.dds",
+            "TotalActiveLifetime": 0.0,
+            "MinStartColor": [ 8, 8, 8, 0 ],
+            "MaxStartColor": [ 8, 8, 8, 0 ],
+            "MinEndColor": [ 8, 8, 8, 0 ],
+            "MaxEndColor": [ 8, 8, 8, 0 ],
+
+            "Size": [ 54, 68, 0.1, 0.3 ],
+            "Velocity": [ 10, 30, 50, 50 ],
+            "LifeMinMax": [ 1, 3 ],
+            "MassMinMax": [ 10.5, 14.0 ],
+            "EmitProperties": {
+                "Gravity": [ 0, 1, 0 ],
+                "EmitPosW": [ 1120, 125, 405 ],
+                "LastEmitPosW": [ 1120, 125, 405 ],
+                "MaxParticles": 25
+            },
+            "EmitRate": 64,
+            "Spread": [1, 60, 0.1]
+        }
+
+    ]
+}

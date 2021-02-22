@@ -13,7 +13,7 @@
 
 #define PostEffects_RootSig \
     "RootFlags(0), " \
-    "RootConstants(b0, num32BitConstants = 4), " \
+    "RootConstants(b0, num32BitConstants = 5), " \
     "DescriptorTable(UAV(u0, numDescriptors = 4))," \
     "DescriptorTable(SRV(t0, numDescriptors = 4))," \
     "CBV(b1)," \

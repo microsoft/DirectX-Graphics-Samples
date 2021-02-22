@@ -21,11 +21,19 @@ namespace Math
     {
     public:
         BoundingSphere() {}
+        BoundingSphere( float x, float y, float z, float r ) : m_repr(x, y, z, r) {}
+        BoundingSphere( const XMFLOAT4* unaligned_array ) : m_repr(*unaligned_array) {}
         BoundingSphere( Vector3 center, Scalar radius );
-        explicit BoundingSphere( Vector4 sphere );
+        BoundingSphere( EZeroTag ) : m_repr(kZero) {}
+        explicit BoundingSphere (const XMVECTOR& v) : m_repr(v) {}
+        explicit BoundingSphere( const XMFLOAT4& f4 ) : m_repr(f4) {}
+        explicit BoundingSphere( Vector4 sphere ) : m_repr(sphere) {}
+        explicit operator Vector4() const { return Vector4(m_repr); }
 
-        Vector3 GetCenter( void ) const;
-        Scalar GetRadius( void ) const;
+        Vector3 GetCenter( void ) const { return Vector3(m_repr); }
+        Scalar GetRadius( void ) const { return m_repr.GetW(); }
+
+        BoundingSphere Union( const BoundingSphere& rhs );
 
     private:
 
@@ -40,21 +48,6 @@ namespace Math
     {
         m_repr = Vector4(center);
         m_repr.SetW(radius);
-    }
-
-    inline BoundingSphere::BoundingSphere( Vector4 sphere )
-        : m_repr(sphere)
-    {
-    }
-
-    inline Vector3 BoundingSphere::GetCenter( void ) const
-    {
-        return Vector3(m_repr);
-    }
-
-    inline Scalar BoundingSphere::GetRadius( void ) const
-    {
-        return m_repr.GetW();
     }
 
 } // namespace Math

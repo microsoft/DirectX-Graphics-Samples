@@ -11,7 +11,7 @@
 // Author:  James Stanard 
 
 #include "ShaderUtility.hlsli"
-#include "TemporalRS.hlsli"
+#include "CommonRS.hlsli"
 
 Texture2D<float4> TemporalColor : register(t0);
 RWTexture2D<float3> OutColor : register(u0);
@@ -42,7 +42,7 @@ float3 LoadSample(uint ldsIndex)
     return float3(gs_R[ldsIndex], gs_G[ldsIndex], gs_B[ldsIndex]);
 }
 
-[RootSignature(Temporal_RootSig)]
+[RootSignature(Common_RootSig)]
 [numthreads( GROUP_SIZE_X, GROUP_SIZE_Y, 1 )]
 void main( uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID, uint GI : SV_GroupIndex )
 {

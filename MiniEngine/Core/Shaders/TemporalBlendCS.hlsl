@@ -11,7 +11,7 @@
 // Author:  James Stanard 
 //
 
-#include "TemporalRS.hlsli"
+#include "CommonRS.hlsli"
 #include "ShaderUtility.hlsli"
 #include "PixelPacking_Velocity.hlsli"
 
@@ -37,7 +37,7 @@ groupshared float ldsB[kLdsPitch * kLdsRows];
 
 cbuffer CB1 : register(b1)
 {
-    float2 RcpBufferDim;    // 1 / width, 1 / height
+    float2 RcpBufferDim;	// 1 / width, 1 / height
     float TemporalBlendFactor;
     float RcpSpeedLimiter;
     float2 ViewportJitter;
@@ -158,7 +158,7 @@ void ApplyTemporalBlend(uint2 ST, uint ldsIdx, float3 BoxMin, float3 BoxMax)
     OutTemporal[ST] = float4(TemporalColor, 1) * TemporalWeight;
 }
 
-[RootSignature(Temporal_RootSig)]
+[RootSignature(Common_RootSig)]
 [numthreads(8, 8, 1)]
 void main(uint3 DTid : SV_DispatchThreadID, uint GI : SV_GroupIndex, uint3 GTid : SV_GroupThreadID, uint3 Gid : SV_GroupID)
 {

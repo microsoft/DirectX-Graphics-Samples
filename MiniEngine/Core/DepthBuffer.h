@@ -58,7 +58,7 @@ public:
     float GetClearDepth() const { return m_ClearDepth; }
     uint8_t GetClearStencil() const { return m_ClearStencil; }
 
-private:
+protected:
 
     void CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format );
 
