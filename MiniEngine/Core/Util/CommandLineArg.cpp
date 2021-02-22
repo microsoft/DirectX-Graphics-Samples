@@ -24,9 +24,9 @@ namespace CommandLineArgs
     void GatherArgs(size_t numArgs, const GetStringFunc& pfnGet)
     {
         // the first arg is always the exe name and we are looing for key/value pairs
-        if (numArgs > 2)
+        if (numArgs > 1)
         {
-            size_t i = 1;
+            size_t i = 0;
 
             while (i <  numArgs)
             {

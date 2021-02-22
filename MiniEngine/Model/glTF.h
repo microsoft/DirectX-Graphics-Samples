@@ -19,7 +19,7 @@
 #define _WIN32
 #endif
 #pragma warning(push)
-#pragma warning(disable : 4706) // assignment within conditional expression
+#pragma warning(disable : 4100) // unreferenced formal parameter
 #include "json.hpp"
 #pragma warning(pop)
 

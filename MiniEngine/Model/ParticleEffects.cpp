@@ -14,8 +14,12 @@
 #include "ParticleEffects.h"
 #include "../Core/ParticleEffectManager.h"
 #include "TextureManager.h"
-#include "json.hpp"
 #include <fstream>
+
+#pragma warning(push)
+#pragma warning(disable : 4100) // unreferenced formal parameter
+#include "json.hpp"
+#pragma warning(pop)
 
 using namespace std;
 using namespace Graphics;

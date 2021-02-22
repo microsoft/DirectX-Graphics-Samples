@@ -20,6 +20,8 @@
 #include "CommandContext.h"
 #include "PostEffects.h"
 #include "Display.h"
+#include "Util/CommandLineArg.h"
+#include <shellapi.h>
 
 namespace GameCore
 {
@@ -29,6 +31,10 @@ namespace GameCore
 
     void InitializeApplication( IGameApp& game )
     {
+        int argc = 0;
+        LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+        CommandLineArgs::Initialize(argc, argv);
+
         Graphics::Initialize();
         SystemTime::Initialize();
         GameInput::Initialize();
