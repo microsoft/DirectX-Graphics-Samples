@@ -59,11 +59,11 @@
     <ClCompile Include="ModelViewer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Core/Core_VS16.vcxproj">
+    <ProjectReference Include="../Core/Core.vcxproj">
       <Project>{86A58508-0D6A-4786-A32F-01A301FDC6F3}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
-    <ProjectReference Include="..\Model\Model_VS16.vcxproj">
+    <ProjectReference Include="..\Model\Model.vcxproj">
       <Project>{5d3aeefb-8789-48e5-9bd9-09c667052d09}</Project>
     </ProjectReference>
   </ItemGroup>
