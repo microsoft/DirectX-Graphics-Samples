@@ -123,7 +123,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
         topLeftCacheFrameIndex + srcIndexOffsets[3] };
 
     float3 cacheNormals[4];
-    float4 vCacheDepths;
+    float4 vCacheDepths = 0;
     {
         uint4 packedEncodedNormalDepths = g_inCachedNormalDepth.GatherRed(ClampSampler, adjustedCacheFrameTexturePos).wzxy;
         [unroll]

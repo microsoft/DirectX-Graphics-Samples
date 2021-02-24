@@ -14,9 +14,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingSimpleLighti
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MiniEngine", "MiniEngine", "{0B851798-A730-4A11-A717-668D40A26088}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\..\..\..\MiniEngine\Core\Core_VS16.vcxproj", "{86A58508-0D6A-4786-A32F-01A301FDC6F3}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\..\..\..\MiniEngine\Core\Core.vcxproj", "{86A58508-0D6A-4786-A32F-01A301FDC6F3}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Model", "..\..\..\..\MiniEngine\Model\Model_VS16.vcxproj", "{5D3AEEFB-8789-48E5-9BD9-09C667052D09}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Model", "..\..\..\..\MiniEngine\Model\Model.vcxproj", "{5D3AEEFB-8789-48E5-9BD9-09C667052D09}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingMiniEngineSample", "D3D12RaytracingMiniEngineSample\ModelViewer_VS16.vcxproj", "{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}"
 EndProject
@@ -49,18 +49,18 @@ Global
 		{A0848C98-F5AA-431C-9E76-7F1E7EFA368C}.Profile|x64.Build.0 = Release|x64
 		{A0848C98-F5AA-431C-9E76-7F1E7EFA368C}.Release|x64.ActiveCfg = Release|x64
 		{A0848C98-F5AA-431C-9E76-7F1E7EFA368C}.Release|x64.Build.0 = Release|x64
-		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Debug|x64.ActiveCfg = Debug|x64
-		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Debug|x64.Build.0 = Debug|x64
-		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Profile|x64.ActiveCfg = Profile|x64
-		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Profile|x64.Build.0 = Profile|x64
-		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Release|x64.ActiveCfg = Release|x64
-		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Release|x64.Build.0 = Release|x64
-		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Debug|x64.ActiveCfg = Debug|x64
-		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Debug|x64.Build.0 = Debug|x64
-		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Profile|x64.ActiveCfg = Profile|x64
-		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Profile|x64.Build.0 = Profile|x64
-		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Release|x64.ActiveCfg = Release|x64
-		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Release|x64.Build.0 = Release|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Debug|x64.ActiveCfg = Debug|Gaming.Desktop.x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Debug|x64.Build.0 = Debug|Gaming.Desktop.x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Profile|x64.ActiveCfg = Profile|Gaming.Desktop.x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Profile|x64.Build.0 = Profile|Gaming.Desktop.x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Release|x64.ActiveCfg = Release|Gaming.Desktop.x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Release|x64.Build.0 = Release|Gaming.Desktop.x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Debug|x64.ActiveCfg = Debug|Gaming.Desktop.x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Debug|x64.Build.0 = Debug|Gaming.Desktop.x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Profile|x64.ActiveCfg = Profile|Gaming.Desktop.x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Profile|x64.Build.0 = Profile|Gaming.Desktop.x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Release|x64.ActiveCfg = Release|Gaming.Desktop.x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Release|x64.Build.0 = Release|Gaming.Desktop.x64
 		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Debug|x64.ActiveCfg = Debug|x64
 		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Debug|x64.Build.0 = Debug|x64
 		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Profile|x64.ActiveCfg = Profile|x64

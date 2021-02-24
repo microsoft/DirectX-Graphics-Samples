@@ -192,14 +192,12 @@ void main(uint2 DTid : SV_DispatchThreadID)
     }
     else // Non-active geometry ~ make degenerate triangles to disable them in the acceleration structure builds.
     {
-        VertexPositionNormalTextureTangent vertex;
-        vertex.position = 0;
         uint threadID = DTid.x + DTid.y * cb.p.maxPatchDim.x;
         uint baseVertexID = threadID * N_GRASS_VERTICES;
 
         for (uint v = 0; v < N_GRASS_VERTICES; v++)
         {
-            g_outVertexBuffer[baseVertexID + v] = vertex;
+            g_outVertexBuffer[baseVertexID + v].position = 0;
         }
     }
 }

@@ -15,19 +15,18 @@
 #include "d3d12video.h"
 #include <d3d12.h>
 #include "dxgi1_3.h"
+#include "d3dx12.h"
 #include "GameCore.h"
-#include "GraphicsCore.h"
 #include "CameraController.h"
 #include "BufferManager.h"
 #include "Camera.h"
-#include "Model.h"
-#include "GpuBuffer.h"
 #include "CommandContext.h"
-#include "SamplerManager.h"
+#include "Display.h"
 #include "TemporalEffects.h"
 #include "MotionBlur.h"
 #include "DepthOfField.h"
 #include "PostEffects.h"
+#include "ParticleEffectManager.h"
 #include "SSAO.h"
 #include "FXAA.h"
 #include "SystemTime.h"
@@ -35,16 +34,13 @@
 #include "ShadowCamera.h"
 #include "ParticleEffectManager.h"
 #include "GameInput.h"
-#include "./ForwardPlusLighting.h"
-#include <atlbase.h>
+#include "SponzaRenderer.h"
+#include "ModelH3D.h"
+#include "Renderer.h"
+
 #include <atlbase.h>
 #include "DXSampleHelper.h"
 
-#include "CompiledShaders/DepthViewerVS.h"
-#include "CompiledShaders/DepthViewerPS.h"
-#include "CompiledShaders/ModelViewerVS.h"
-#include "CompiledShaders/ModelViewerPS.h"
-#include "CompiledShaders/WaveTileCountPS.h"
 #include "CompiledShaders/RayGenerationShaderLib.h"
 #include "CompiledShaders/RayGenerationShaderSSRLib.h"
 #include "CompiledShaders/HitShaderLib.h"
@@ -61,7 +57,6 @@ using namespace Math;
 using namespace Graphics;
 
 extern ByteAddressBuffer   g_bvh_bottomLevelAccelerationStructure;
-ColorBuffer g_SceneNormalBuffer;
 
 CComPtr<ID3D12Device5> g_pRaytracingDevice;
 
@@ -81,7 +76,6 @@ ByteAddressBuffer          g_dynamicConstantBuffer;
 
 D3D12_GPU_DESCRIPTOR_HANDLE g_GpuSceneMaterialSrvs[27];
 D3D12_CPU_DESCRIPTOR_HANDLE g_SceneMeshInfo;
-D3D12_CPU_DESCRIPTOR_HANDLE g_SceneIndices;
 
 D3D12_GPU_DESCRIPTOR_HANDLE g_OutputUAV;
 D3D12_GPU_DESCRIPTOR_HANDLE g_DepthAndNormalsTable;
@@ -112,7 +106,7 @@ struct RaytracingDispatchRayInputs
 {
     RaytracingDispatchRayInputs() {}
     RaytracingDispatchRayInputs(
-        ID3D12Device5 &device,
+        ID3D12Device5& /*device*/,
         ID3D12StateObject *pPSO,
         void *pHitGroupShaderTable,
         UINT HitGroupStride,
@@ -192,40 +186,14 @@ public:
 
 private:
 
-    void RenderLightShadows(GraphicsContext& gfxContext);
-
-    enum eObjectFilter { kOpaque = 0x1, kCutout = 0x2, kTransparent = 0x4, kAll = 0xF, kNone = 0x0 };
-    void RenderObjects( GraphicsContext& Context, const Matrix4& ViewProjMat, eObjectFilter Filter = kAll );
     void RaytraceDiffuse(GraphicsContext& context, const Math::Camera& camera, ColorBuffer& colorTarget);
     void RaytraceShadows(GraphicsContext& context, const Math::Camera& camera, ColorBuffer& colorTarget, DepthBuffer& depth);
     void RaytraceReflections(GraphicsContext& context, const Math::Camera& camera, ColorBuffer& colorTarget, DepthBuffer& depth, ColorBuffer& normals);
 
     Camera m_Camera;
-    std::auto_ptr<CameraController> m_CameraController;
-    Matrix4 m_ViewProjMatrix;
+    std::unique_ptr<FlyingFPSCamera> m_CameraController;
     D3D12_VIEWPORT m_MainViewport;
     D3D12_RECT m_MainScissor;
-
-    RootSignature m_RootSig;
-    GraphicsPSO m_DepthPSO[1];
-    GraphicsPSO m_CutoutDepthPSO[1];
-    GraphicsPSO m_ModelPSO[1];
-    GraphicsPSO m_CutoutModelPSO[1];
-    GraphicsPSO m_ShadowPSO;
-    GraphicsPSO m_CutoutShadowPSO;
-    GraphicsPSO m_WaveTileCountPSO;
-
-    D3D12_CPU_DESCRIPTOR_HANDLE m_DefaultSampler;
-    D3D12_CPU_DESCRIPTOR_HANDLE m_ShadowSampler;
-    D3D12_CPU_DESCRIPTOR_HANDLE m_BiasedDefaultSampler;
-
-    D3D12_CPU_DESCRIPTOR_HANDLE m_ExtraTextures[6];
-    Model m_Model;
-    std::vector<bool> m_pMaterialIsCutout;
-    std::vector<bool> m_pMaterialIsReflective;
-
-    Vector3 m_SunDirection;
-    ShadowCamera m_SunShadow;
 
     struct CameraPosition
     {
@@ -251,7 +219,7 @@ inline bool IsDirectXRaytracingSupported(IDXGIAdapter1* adapter)
         && featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
 }
 
-int wmain(int argc, wchar_t** argv)
+int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*/, _In_ LPWSTR /*lpCmdLine*/, _In_ int nCmdShow)
 {
 #if _DEBUG
     CComPtr<ID3D12Debug> debugInterface;
@@ -278,23 +246,13 @@ int wmain(int argc, wchar_t** argv)
         pAdapter = nullptr;
     }
 
-    s_EnableVSync.Decrement();
-    TargetResolution = k720p;
-    g_DisplayWidth = 1280;
-    g_DisplayHeight = 720;
-    GameCore::RunApplication(D3D12RaytracingMiniEngineSample(), L"D3D12RaytracingMiniEngineSample"); 
+    //s_EnableVSync.Decrement();
+    //TargetResolution = k720p;
+    //g_DisplayWidth = 1280;
+    //g_DisplayHeight = 720;
+    GameCore::RunApplication(D3D12RaytracingMiniEngineSample(), L"D3D12RaytracingMiniEngineSample", hInstance, nCmdShow); 
     return 0;
 }
-
-ExpVar m_SunLightIntensity("Application/Lighting/Sun Light Intensity", 4.0f, 0.0f, 16.0f, 0.1f);
-ExpVar m_AmbientIntensity("Application/Lighting/Ambient Intensity", 0.1f, -16.0f, 16.0f, 0.1f);
-NumVar m_SunOrientation("Application/Lighting/Sun Orientation", -0.5f, -100.0f, 100.0f, 0.1f );
-NumVar m_SunInclination("Application/Lighting/Sun Inclination", 0.75f, 0.0f, 1.0f, 0.01f );
-NumVar ShadowDimX("Application/Lighting/Shadow Dim X", 5000, 1000, 10000, 100 );
-NumVar ShadowDimY("Application/Lighting/Shadow Dim Y", 3000, 1000, 10000, 100 );
-NumVar ShadowDimZ("Application/Lighting/Shadow Dim Z", 3000, 1000, 10000, 100 );
-
-BoolVar ShowWaveTileCounts("Application/Forward+/Show Wave Tile Counts", false);
 
 const char* rayTracingModes[] = {
     "Off", 
@@ -391,7 +349,7 @@ StructuredBuffer    g_hitShaderMeshInfoBuffer;
 
 static
 void InitializeSceneInfo(
-    const Model& model)
+    const ModelH3D& model)
 {
     //
     // Mesh info
@@ -400,11 +358,11 @@ void InitializeSceneInfo(
     for (UINT i=0; i < model.m_Header.meshCount; ++i)
     {
         meshInfoData[i].m_indexOffsetBytes = model.m_pMesh[i].indexDataByteOffset;
-        meshInfoData[i].m_uvAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_texcoord0].offset;
-        meshInfoData[i].m_normalAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_normal].offset;
-        meshInfoData[i].m_positionAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_position].offset;
-        meshInfoData[i].m_tangentAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_tangent].offset;
-        meshInfoData[i].m_bitangentAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[Model::attrib_bitangent].offset;
+        meshInfoData[i].m_uvAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[ModelH3D::attrib_texcoord0].offset;
+        meshInfoData[i].m_normalAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[ModelH3D::attrib_normal].offset;
+        meshInfoData[i].m_positionAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[ModelH3D::attrib_position].offset;
+        meshInfoData[i].m_tangentAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[ModelH3D::attrib_tangent].offset;
+        meshInfoData[i].m_bitangentAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[ModelH3D::attrib_bitangent].offset;
         meshInfoData[i].m_attributeStrideBytes = model.m_pMesh[i].vertexStride;
         meshInfoData[i].m_materialInstanceId = model.m_pMesh[i].materialIndex;
         ASSERT(meshInfoData[i].m_materialInstanceId < 27);
@@ -415,12 +373,11 @@ void InitializeSceneInfo(
         sizeof(meshInfoData[0]),
         meshInfoData.data());
 
-    g_SceneIndices = model.m_IndexBuffer.GetSRV();
     g_SceneMeshInfo = g_hitShaderMeshInfoBuffer.GetSRV();
 }
 
 static
-void InitializeViews(const Model& model)
+void InitializeViews(const ModelH3D& model)
 {
     D3D12_CPU_DESCRIPTOR_HANDLE uavHandle;
     UINT uavDescriptorIndex;
@@ -438,7 +395,6 @@ void InitializeViews(const Model& model)
         UINT unused;
         g_pRaytracingDescriptorHeap->AllocateDescriptor(srvHandle, unused);
         Graphics::g_Device->CopyDescriptorsSimple(1, srvHandle, g_SceneNormalBuffer.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
     }
 
     {
@@ -450,9 +406,10 @@ void InitializeViews(const Model& model)
 
         UINT unused;
         g_pRaytracingDescriptorHeap->AllocateDescriptor(srvHandle, unused);
-        Graphics::g_Device->CopyDescriptorsSimple(1, srvHandle, g_SceneIndices, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        Sponza::GetModel().CreateIndexBufferSRV(srvHandle);
 
-        g_pRaytracingDescriptorHeap->AllocateBufferSrv(*const_cast<ID3D12Resource*>(model.m_VertexBuffer.GetResource()));
+        g_pRaytracingDescriptorHeap->AllocateDescriptor(srvHandle, unused);
+        Sponza::GetModel().CreateVertexBufferSRV(srvHandle);
 
         g_pRaytracingDescriptorHeap->AllocateDescriptor(srvHandle, unused);
         Graphics::g_Device->CopyDescriptorsSimple(1, srvHandle, g_ShadowBuffer.GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -462,11 +419,13 @@ void InitializeViews(const Model& model)
 
         for (UINT i = 0; i < model.m_Header.materialCount; i++)
         {
+            const TextureRef* textures = model.GetMaterialTextures(i);
+
             UINT slot;
-            g_pRaytracingDescriptorHeap->AllocateDescriptor(srvHandle, slot);
-            Graphics::g_Device->CopyDescriptorsSimple(1, srvHandle, *model.GetSRVs(i), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            g_pRaytracingDescriptorHeap->AllocateDescriptor(srvHandle, unused);
-            Graphics::g_Device->CopyDescriptorsSimple(1, srvHandle, model.GetSRVs(i)[3], D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            g_pRaytracingDescriptorHeap->AllocateDescriptor(srvHandle, slot);       // Diffuse
+            Graphics::g_Device->CopyDescriptorsSimple(1, srvHandle, textures[0].GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            g_pRaytracingDescriptorHeap->AllocateDescriptor(srvHandle, unused);     // Normal
+            Graphics::g_Device->CopyDescriptorsSimple(1, srvHandle, textures[2].GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             
             g_GpuSceneMaterialSrvs[i] = g_pRaytracingDescriptorHeap->GetGpuHandle(slot);
         }
@@ -498,7 +457,7 @@ void SetPipelineStateStackSize(LPCWSTR raygen, LPCWSTR closestHit, LPCWSTR miss,
     stateObjectProperties->SetPipelineStackSize(totalStackSize);
 }
 
-void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
+void InitializeRaytracingStateObjects(const ModelH3D &model, UINT numMeshes)
 {
     ZeroMemory(&g_dynamicCb, sizeof(g_dynamicCb));
 
@@ -554,7 +513,9 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
     globalRootSignatureParameters[5].InitAsUnorderedAccessView(0);
     globalRootSignatureParameters[6].InitAsUnorderedAccessView(1);
     globalRootSignatureParameters[7].InitAsShaderResourceView(0);
-    auto globalRootSignatureDesc = CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(ARRAYSIZE(globalRootSignatureParameters), globalRootSignatureParameters, ARRAYSIZE(staticSamplerDescs), staticSamplerDescs);
+    auto globalRootSignatureDesc = CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(
+        ARRAYSIZE(globalRootSignatureParameters), globalRootSignatureParameters,
+        ARRAYSIZE(staticSamplerDescs), staticSamplerDescs);
 
     CComPtr<ID3DBlob> pGlobalRootSignatureBlob;
     CComPtr<ID3DBlob> pErrorBlob;
@@ -562,7 +523,11 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
     {
         OutputDebugStringA((LPCSTR)pErrorBlob->GetBufferPointer());
     }
-    g_pRaytracingDevice->CreateRootSignature(0, pGlobalRootSignatureBlob->GetBufferPointer(), pGlobalRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&g_GlobalRaytracingRootSignature));
+    ASSERT_SUCCEEDED(g_pRaytracingDevice->CreateRootSignature(
+        0,
+        pGlobalRootSignatureBlob->GetBufferPointer(),
+        pGlobalRootSignatureBlob->GetBufferSize(),
+        IID_PPV_ARGS(&g_GlobalRaytracingRootSignature)));
 
     D3D12_DESCRIPTOR_RANGE1 localTextureDescriptorRange = {};
     localTextureDescriptorRange.BaseShaderRegister = 6;
@@ -639,7 +604,7 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
     shaderConfigStateObject.pDesc = &shaderConfig;
     shaderConfigStateObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
     subObjects.push_back(shaderConfigStateObject);
-    D3D12_STATE_SUBOBJECT &shaderConfigSubobject = subObjects.back();
+    //D3D12_STATE_SUBOBJECT &shaderConfigSubobject = subObjects.back();
 
     LPCWSTR hitGroupExportName = L"HitGroup";
     D3D12_HIT_GROUP_DESC hitGroupDesc = {};
@@ -654,7 +619,7 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
     localRootSignatureSubObject.pDesc = &g_LocalRaytracingRootSignature.p;
     localRootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
     subObjects.push_back(localRootSignatureSubObject);
-    D3D12_STATE_SUBOBJECT &rootSignatureSubobject = subObjects.back();
+    //D3D12_STATE_SUBOBJECT &rootSignatureSubobject = subObjects.back();
 
     D3D12_STATE_OBJECT_DESC stateObject;
     stateObject.NumSubobjects = (UINT)subObjects.size();
@@ -668,7 +633,7 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
     const UINT shaderRecordSizeInBytes = ALIGN(D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, offsetToMaterialConstants + sizeof(MaterialRootConstant));
     
     std::vector<byte> pHitShaderTable(shaderRecordSizeInBytes * numMeshes);
-    auto GetShaderTable = [=](const Model &model, ID3D12StateObject *pPSO, byte *pShaderTable)
+    auto GetShaderTable = [=](const ModelH3D &model, ID3D12StateObject *pPSO, byte *pShaderTable)
     {
         ID3D12StateObjectProperties* stateObjectProperties = nullptr;
         ThrowIfFailed(pPSO->QueryInterface(IID_PPV_ARGS(&stateObjectProperties)));
@@ -744,140 +709,37 @@ void InitializeRaytracingStateObjects(const Model &model, UINT numMeshes)
 
 void D3D12RaytracingMiniEngineSample::Startup( void )
 {
+    MotionBlur::Enable = false;//true;
+    TemporalEffects::EnableTAA = false;//true;
+    FXAA::Enable = false;
+    PostEffects::EnableHDR = false;//true;
+    PostEffects::EnableAdaptation = false;//true;
+    SSAO::Enable = true;
+
+    Renderer::Initialize();
+
+    Sponza::Startup(m_Camera);
+
+    m_Camera.SetZRange( 1.0f, 10000.0f );
+    m_CameraController.reset(new FlyingFPSCamera(m_Camera, Vector3(kYUnitVector)));
+
+
     ThrowIfFailed(g_Device->QueryInterface(IID_PPV_ARGS(&g_pRaytracingDevice)), L"Couldn't get DirectX Raytracing interface for the device.\n");
-    g_SceneNormalBuffer.Create(L"Main Normal Buffer", g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight(), 1, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
     g_pRaytracingDescriptorHeap = std::unique_ptr<DescriptorHeapStack>(
         new DescriptorHeapStack(*g_Device, 200, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 0));
 
     D3D12_FEATURE_DATA_D3D12_OPTIONS1 options1;
-    HRESULT hr = g_Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &options1, sizeof(options1));
-
-    SamplerDesc DefaultSamplerDesc;
-    DefaultSamplerDesc.MaxAnisotropy = 8;
-
-    m_RootSig.Reset(6, 2);
-    m_RootSig.InitStaticSampler(0, DefaultSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_RootSig.InitStaticSampler(1, SamplerShadowDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_RootSig[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);
-    m_RootSig[1].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_RootSig[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_RootSig[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 6, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_RootSig[4].InitAsConstants(1, 2, D3D12_SHADER_VISIBILITY_VERTEX);
-    m_RootSig[5].InitAsConstants(1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_RootSig.Finalize(L"D3D12RaytracingMiniEngineSample", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-    DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
-    DXGI_FORMAT NormalFormat = g_SceneNormalBuffer.GetFormat();
-    DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
-    DXGI_FORMAT ShadowFormat = g_ShadowBuffer.GetFormat();
-
-    D3D12_INPUT_ELEMENT_DESC vertElem[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-    };
-
-    // Depth-only (2x rate)
-    m_DepthPSO[0].SetRootSignature(m_RootSig);
-    m_DepthPSO[0].SetRasterizerState(RasterizerDefault);
-    m_DepthPSO[0].SetBlendState(BlendNoColorWrite);
-    m_DepthPSO[0].SetDepthStencilState(DepthStateReadWrite);
-    m_DepthPSO[0].SetInputLayout(_countof(vertElem), vertElem);
-    m_DepthPSO[0].SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-    m_DepthPSO[0].SetRenderTargetFormats(0, nullptr, DepthFormat);
-    m_DepthPSO[0].SetVertexShader(g_pDepthViewerVS, sizeof(g_pDepthViewerVS));
-
-    // Make a copy of the desc before we mess with it
-    m_CutoutDepthPSO[0] = m_DepthPSO[0];
-    m_ShadowPSO = m_DepthPSO[0];
-
-    m_DepthPSO[0].Finalize();
-
-    // Depth-only shading but with alpha testing
-
-    m_CutoutDepthPSO[0].SetPixelShader(g_pDepthViewerPS, sizeof(g_pDepthViewerPS));
-    m_CutoutDepthPSO[0].SetRasterizerState(RasterizerTwoSided);
-    m_CutoutDepthPSO[0].Finalize();
-
-    // Depth-only but with a depth bias and/or render only backfaces
-
-    m_ShadowPSO.SetRasterizerState(RasterizerShadow);
-    m_ShadowPSO.SetRenderTargetFormats(0, nullptr, g_ShadowBuffer.GetFormat());
-    m_ShadowPSO.Finalize();
-
-    // Shadows with alpha testing
-    m_CutoutShadowPSO = m_ShadowPSO;
-    m_CutoutShadowPSO.SetPixelShader(g_pDepthViewerPS, sizeof(g_pDepthViewerPS));
-    m_CutoutShadowPSO.SetRasterizerState(RasterizerShadowTwoSided);
-    m_CutoutShadowPSO.Finalize();
-
-    // Full color pass
-    m_ModelPSO[0] = m_DepthPSO[0];
-    m_ModelPSO[0].SetBlendState(BlendDisable);
-    m_ModelPSO[0].SetDepthStencilState(DepthStateTestEqual);
-    DXGI_FORMAT formats[] { ColorFormat, NormalFormat };
-    m_ModelPSO[0].SetRenderTargetFormats(_countof(formats), formats, DepthFormat);
-    m_ModelPSO[0].SetVertexShader( g_pModelViewerVS, sizeof(g_pModelViewerVS) );
-    m_ModelPSO[0].SetPixelShader( g_pModelViewerPS, sizeof(g_pModelViewerPS) );
-    m_ModelPSO[0].Finalize();
-
-    m_CutoutModelPSO[0] = m_ModelPSO[0];
-    m_CutoutModelPSO[0].SetRasterizerState(RasterizerTwoSided);
-    m_CutoutModelPSO[0].Finalize();
-
-    // A debug shader for counting lights in a tile
-    m_WaveTileCountPSO = m_ModelPSO[0];
-    m_WaveTileCountPSO.SetPixelShader(g_pWaveTileCountPS, sizeof(g_pWaveTileCountPS));
-    m_WaveTileCountPSO.Finalize();
-
-    Lighting::InitializeResources();
-
-    m_ExtraTextures[0] = g_SSAOFullScreen.GetSRV();
-    m_ExtraTextures[1] = g_ShadowBuffer.GetSRV();
-
-#define ASSET_DIRECTORY "../../../../../MiniEngine/ModelViewer/"
-    TextureManager::Initialize(ASSET_DIRECTORY L"Textures/");
-    bool bModelLoadSuccess = m_Model.Load(ASSET_DIRECTORY "Models/sponza.h3d");
-    ASSERT(bModelLoadSuccess, "Failed to load model");
-    ASSERT(m_Model.m_Header.meshCount > 0, "Model contains no meshes");
-
-    // The caller of this function can override which materials are considered cutouts
-    m_pMaterialIsCutout.resize(m_Model.m_Header.materialCount);
-    m_pMaterialIsReflective.resize(m_Model.m_Header.materialCount);
-    for (uint32_t i = 0; i < m_Model.m_Header.materialCount; ++i)
-    {
-        const Model::Material& mat = m_Model.m_pMaterial[i];
-        if (std::string(mat.texDiffusePath).find("thorn") != std::string::npos ||
-            std::string(mat.texDiffusePath).find("plant") != std::string::npos ||
-            std::string(mat.texDiffusePath).find("chain") != std::string::npos)
-        {
-            m_pMaterialIsCutout[i] = true;
-        }
-        else
-        {
-            m_pMaterialIsCutout[i] = false;
-        }
-
-        if (std::string(mat.texDiffusePath).find("floor") != std::string::npos)
-        {
-            m_pMaterialIsReflective[i] = true;
-        }
-        else
-        {
-            m_pMaterialIsReflective[i] = false;
-        }
-    }
+    g_Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &options1, sizeof(options1));
 
     g_hitConstantBuffer.Create(L"Hit Constant Buffer", 1, sizeof(HitShaderConstants));
     g_dynamicConstantBuffer.Create(L"Dynamic Constant Buffer", 1, sizeof(DynamicCB));
 
-    InitializeSceneInfo(m_Model);
-    InitializeViews(m_Model);
-    UINT numMeshes = m_Model.m_Header.meshCount;
+    const ModelH3D& model = Sponza::GetModel();
+
+    InitializeSceneInfo(model);
+    InitializeViews(model);
+    UINT numMeshes = model.m_Header.meshCount;
 
     const UINT numBottomLevels = 1;
 
@@ -892,11 +754,11 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     g_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &topLevelPrebuildInfo);
     
     const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlag = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-    std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometryDescs(m_Model.m_Header.meshCount);
+    std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometryDescs(model.m_Header.meshCount);
     UINT64 scratchBufferSizeNeeded = topLevelPrebuildInfo.ScratchDataSizeInBytes;
     for (UINT i = 0; i < numMeshes; i++)
     {
-        auto &mesh = m_Model.m_pMesh[i];
+        auto &mesh = model.m_pMesh[i];
 
         D3D12_RAYTRACING_GEOMETRY_DESC &desc = geometryDescs[i];
         desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
@@ -905,8 +767,8 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
         D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC &trianglesDesc = desc.Triangles;
         trianglesDesc.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
         trianglesDesc.VertexCount = mesh.vertexCount;
-        trianglesDesc.VertexBuffer.StartAddress = m_Model.m_VertexBuffer.GetGpuVirtualAddress() + (mesh.vertexDataByteOffset + mesh.attrib[Model::attrib_position].offset);
-        trianglesDesc.IndexBuffer = m_Model.m_IndexBuffer.GetGpuVirtualAddress() + mesh.indexDataByteOffset;
+        trianglesDesc.VertexBuffer.StartAddress = model.GetVertexBuffer().BufferLocation + (mesh.vertexDataByteOffset + mesh.attrib[ModelH3D::attrib_position].offset);
+        trianglesDesc.IndexBuffer = model.GetIndexBuffer().BufferLocation + mesh.indexDataByteOffset;
         trianglesDesc.VertexBuffer.StrideInBytes = mesh.vertexStride;
         trianglesDesc.IndexCount = mesh.indexCount;
         trianglesDesc.IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -967,7 +829,7 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
         bottomLevelAccelerationStructureDescs[i].ScratchAccelerationStructureData = scratchBuffer.GetGpuVirtualAddress();
 
         D3D12_RAYTRACING_INSTANCE_DESC &instanceDesc = instanceDescs[i];
-        UINT descriptorIndex = g_pRaytracingDescriptorHeap->AllocateBufferUav(*bottomLevelStructure);
+        g_pRaytracingDescriptorHeap->AllocateBufferUav(*bottomLevelStructure);
         
         // Identity matrix
         ZeroMemory(instanceDesc.Transform, sizeof(instanceDesc.Transform));
@@ -1008,12 +870,8 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     
     gfxContext.Finish(true);
 
-    InitializeRaytracingStateObjects(m_Model, numMeshes);
+    InitializeRaytracingStateObjects(model, numMeshes);
 
-    float modelRadius = Length(m_Model.m_Header.boundingBox.max - m_Model.m_Header.boundingBox.min) * .5f;
-    const Vector3 eye = (m_Model.m_Header.boundingBox.min + m_Model.m_Header.boundingBox.max) * .5f + Vector3(modelRadius * .5f, 0.0f, 0.0f);
-    m_Camera.SetEyeAtUp( eye, Vector3(kZero), Vector3(kYUnitVector) );
-    
     m_CameraPosArrayCurrentPosition = 0;
     
     // Lion's head
@@ -1040,29 +898,12 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     m_CameraPosArray[4].position = Vector3(-1463.0f, 600.0f, 394.52f);
     m_CameraPosArray[4].heading = -1.236f;
     m_CameraPosArray[4].pitch = 0.0f;
-
-    m_Camera.SetZRange( 1.0f, 10000.0f );
-
-    m_CameraController.reset(new CameraController(m_Camera, Vector3(kYUnitVector)));
-    
-    MotionBlur::Enable = false;//true;
-    TemporalEffects::EnableTAA = false;//true;
-    FXAA::Enable = false;
-    PostEffects::EnableHDR = false;//true;
-    PostEffects::EnableAdaptation = false;//true;
-    SSAO::Enable = true;
-
-    Lighting::CreateRandomLights(m_Model.GetBoundingBox().min, m_Model.GetBoundingBox().max);
-
-    m_ExtraTextures[2] = Lighting::m_LightBuffer.GetSRV();
-    m_ExtraTextures[3] = Lighting::m_LightShadowArray.GetSRV();
-    m_ExtraTextures[4] = Lighting::m_LightGrid.GetSRV();
-    m_ExtraTextures[5] = Lighting::m_LightGridBitMask.GetSRV();
 }
 
 void D3D12RaytracingMiniEngineSample::Cleanup( void )
 {
-    m_Model.Clear();
+    Sponza::Cleanup();
+    Renderer::Shutdown();
 }
 
 namespace Graphics
@@ -1116,14 +957,6 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
         m_CameraController->Update(deltaT);
     }
 
-    m_ViewProjMatrix = m_Camera.GetViewProjMatrix();
-
-    float costheta = cosf(m_SunOrientation);
-    float sintheta = sinf(m_SunOrientation);
-    float cosphi = cosf(m_SunInclination * 3.14159f * 0.5f);
-    float sinphi = sinf(m_SunInclination * 3.14159f * 0.5f);
-    m_SunDirection = Normalize(Vector3( costheta * cosphi, sinphi, sintheta * cosphi ));
-
     // We use viewport offsets to jitter sample positions from frame to frame (for TAA.)
     // D3D has a design quirk with fractional offsets such that the implicit scissor
     // region of a viewport is floor(TopLeftXY) and floor(TopLeftXY + WidthHeight), so
@@ -1145,92 +978,15 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
     m_MainScissor.bottom = (LONG)g_SceneColorBuffer.GetHeight();
 }
 
-void D3D12RaytracingMiniEngineSample::RenderObjects( GraphicsContext& gfxContext, const Matrix4& ViewProjMat, eObjectFilter Filter )
-{
-    struct VSConstants
-    {
-        Matrix4 modelToProjection;
-        Matrix4 modelToShadow;
-        XMFLOAT3 viewerPos;
-    } vsConstants;
-    vsConstants.modelToProjection = ViewProjMat;
-    vsConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
-    XMStoreFloat3(&vsConstants.viewerPos, m_Camera.GetPosition());
-
-    gfxContext.SetDynamicConstantBufferView(0, sizeof(vsConstants), &vsConstants);
-
-    uint32_t materialIdx = 0xFFFFFFFFul;
-
-    uint32_t VertexStride = m_Model.m_VertexStride;
-
-    for (uint32_t meshIndex = 0; meshIndex < m_Model.m_Header.meshCount; meshIndex++)
-    {
-        const Model::Mesh& mesh = m_Model.m_pMesh[meshIndex];
-
-        uint32_t indexCount = mesh.indexCount;
-        uint32_t startIndex = mesh.indexDataByteOffset / sizeof(uint16_t);
-        uint32_t baseVertex = mesh.vertexDataByteOffset / VertexStride;
-
-        if (mesh.materialIndex != materialIdx)
-        {
-            if ( m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kCutout) ||
-                !m_pMaterialIsCutout[mesh.materialIndex] && !(Filter & kOpaque) )
-                continue;
-
-            materialIdx = mesh.materialIndex;
-            gfxContext.SetDynamicDescriptors(2, 0, 6, m_Model.GetSRVs(materialIdx) );
-        }
-        uint32_t areNormalsNeeded = 1;// (rayTracingMode != RTM_REFLECTIONS) || m_pMaterialIsReflective[mesh.materialIndex];
-        gfxContext.SetConstants(4, baseVertex, materialIdx);
-        gfxContext.SetConstants(5, areNormalsNeeded);
-
-        gfxContext.DrawIndexed(indexCount, startIndex, baseVertex);
-    }
-}
-
-
 void D3D12RaytracingMiniEngineSample::SetCameraToPredefinedPosition(int cameraPosition) 
 {
     if (cameraPosition < 0 || cameraPosition >= c_NumCameraPositions)
         return;
-    
-    m_CameraController->SetCurrentHeading(m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading);
-    m_CameraController->SetCurrentPitch(m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch);
 
-    Matrix3 neworientation = Matrix3(m_CameraController->GetWorldEast(), m_CameraController->GetWorldUp(), -m_CameraController->GetWorldNorth()) 
-                           * Matrix3::MakeYRotation(m_CameraController->GetCurrentHeading())
-                           * Matrix3::MakeXRotation(m_CameraController->GetCurrentPitch());
-    m_Camera.SetTransform(AffineTransform(neworientation, m_CameraPosArray[m_CameraPosArrayCurrentPosition].position));
-    m_Camera.Update();
-}
-
-void D3D12RaytracingMiniEngineSample::RenderLightShadows(GraphicsContext& gfxContext)
-{
-    using namespace Lighting;
-
-    ScopedTimer _prof(L"RenderLightShadows", gfxContext);
-
-    static uint32_t LightIndex = 0;
-    if (LightIndex >= MaxLights)
-        return;
-    
-    m_LightShadowTempBuffer.BeginRendering(gfxContext);
-    {
-        gfxContext.SetPipelineState(m_ShadowPSO);
-        RenderObjects(gfxContext, m_LightShadowMatrix[LightIndex], kOpaque);
-        gfxContext.SetPipelineState(m_CutoutShadowPSO);
-        RenderObjects(gfxContext, m_LightShadowMatrix[LightIndex], kCutout);
-    }
-    m_LightShadowTempBuffer.EndRendering(gfxContext);
-
-    gfxContext.TransitionResource(m_LightShadowTempBuffer, D3D12_RESOURCE_STATE_GENERIC_READ);
-    gfxContext.TransitionResource(m_LightShadowArray, D3D12_RESOURCE_STATE_COPY_DEST);
-
-    gfxContext.CopySubresource(m_LightShadowArray, LightIndex, m_LightShadowTempBuffer, 0);
-
-    gfxContext.TransitionResource(m_LightShadowArray, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    ++LightIndex;
+    m_CameraController->SetHeadingPitchAndPosition(
+        m_CameraPosArray[m_CameraPosArrayCurrentPosition].heading,
+        m_CameraPosArray[m_CameraPosArrayCurrentPosition].pitch,
+        m_CameraPosArray[m_CameraPosArrayCurrentPosition].position);
 }
 
 void D3D12RaytracingMiniEngineSample::RenderScene(void)
@@ -1245,190 +1001,31 @@ void D3D12RaytracingMiniEngineSample::RenderScene(void)
         rayTracingMode == RTM_TRAVERSAL ||
         rayTracingMode == RTM_SSR;
 
-    static bool s_ShowLightCounts = false;
-    if (ShowWaveTileCounts != s_ShowLightCounts)
-    {
-        static bool EnableHDR;
-        if (ShowWaveTileCounts)
-        {
-            EnableHDR = PostEffects::EnableHDR;
-            PostEffects::EnableHDR = false;
-        }
-        else
-        {
-            PostEffects::EnableHDR = EnableHDR;
-        }
-        s_ShowLightCounts = ShowWaveTileCounts;
-    }
-
     GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Render");
 
-    ParticleEffects::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
-
     uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
+    const D3D12_VIEWPORT& viewport = m_MainViewport;
+    const D3D12_RECT& scissor = m_MainScissor;
 
-    __declspec(align(16)) struct
-    {
-        Vector3 sunDirection;
-        Vector3 sunLight;
-        Vector3 ambientLight;
-        float ShadowTexelSize[4];
+    ParticleEffectManager::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
 
-        float InvTileDim[4];
-        uint32_t TileCount[4];
-        uint32_t FirstLightIndex[4];
-        uint32_t FrameIndexMod2;
-    } psConstants;
+    Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor, skipDiffusePass, skipShadowMap);
 
-    psConstants.sunDirection = m_SunDirection;
-    psConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
-    psConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
-    psConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
-    psConstants.InvTileDim[0] = 1.0f / Lighting::LightGridDim;
-    psConstants.InvTileDim[1] = 1.0f / Lighting::LightGridDim;
-    psConstants.TileCount[0] = Math::DivideByMultiple(g_SceneColorBuffer.GetWidth(), Lighting::LightGridDim);
-    psConstants.TileCount[1] = Math::DivideByMultiple(g_SceneColorBuffer.GetHeight(), Lighting::LightGridDim);
-    psConstants.FirstLightIndex[0] = Lighting::m_FirstConeLight;
-    psConstants.FirstLightIndex[1] = Lighting::m_FirstConeShadowedLight;
-    psConstants.FrameIndexMod2 = FrameIndex;
+    // Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything
+    // is static in our scene, so we generate velocity from camera motion and the depth buffer.  A velocity buffer
+    // is necessary for all temporal effects (and motion blur).
+    MotionBlur::GenerateCameraVelocityBuffer(gfxContext, m_Camera, true);
 
-    // Set the default state for command lists
-    auto& pfnSetupGraphicsState = [&](void)
-    {
-        gfxContext.SetRootSignature(m_RootSig);
-        gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        gfxContext.SetIndexBuffer(m_Model.m_IndexBuffer.IndexBufferView());
-        gfxContext.SetVertexBuffer(0, m_Model.m_VertexBuffer.VertexBufferView());
-    };
+    TemporalEffects::ResolveImage(gfxContext);
 
-    pfnSetupGraphicsState();
+    ParticleEffectManager::Render(gfxContext, m_Camera, g_SceneColorBuffer, g_SceneDepthBuffer, g_LinearDepth[FrameIndex]);
 
-        RenderLightShadows(gfxContext);
+    // Until I work out how to couple these two, it's "either-or".
+    if (DepthOfField::Enable)
+        DepthOfField::Render(gfxContext, m_Camera.GetNearClip(), m_Camera.GetFarClip());
+    else
+        MotionBlur::RenderObjectBlur(gfxContext, g_VelocityBuffer);
 
-    {
-        ScopedTimer _prof(L"Z PrePass", gfxContext);
-
-        gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
-
-        {
-            ScopedTimer _prof(L"Opaque", gfxContext);
-            {
-                gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-                gfxContext.ClearDepth(g_SceneDepthBuffer);
-
-                gfxContext.SetPipelineState(m_DepthPSO[0]);
-                gfxContext.SetDepthStencilTarget(g_SceneDepthBuffer.GetDSV());
-
-                gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
-            }
-
-            RenderObjects(gfxContext, m_ViewProjMatrix, kOpaque);
-        }
-
-        {
-            ScopedTimer _prof(L"Cutout", gfxContext);
-            {
-                gfxContext.SetPipelineState(m_CutoutDepthPSO[0]);
-            }
-            RenderObjects(gfxContext, m_ViewProjMatrix, kCutout);
-        }
-    }
-
-    SSAO::Render(gfxContext, m_Camera);
-
-    if (!skipDiffusePass)
-    {
-        Lighting::FillLightGrid(gfxContext, m_Camera);
-
-        if (!SSAO::DebugDraw)
-        {
-            ScopedTimer _prof(L"Main Render", gfxContext);
-            {
-                gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-                gfxContext.TransitionResource(g_SceneNormalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-                gfxContext.ClearColor(g_SceneColorBuffer);
-            }
-        }
-    }
-
-    if (!skipShadowMap)
-    {
-        if (!SSAO::DebugDraw)
-        {
-            pfnSetupGraphicsState();
-            {
-                ScopedTimer _prof(L"Render Shadow Map", gfxContext);
-
-                m_SunShadow.UpdateMatrix(-m_SunDirection, Vector3(0, -500.0f, 0), Vector3(ShadowDimX, ShadowDimY, ShadowDimZ),
-                    (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
-
-                g_ShadowBuffer.BeginRendering(gfxContext);
-                gfxContext.SetPipelineState(m_ShadowPSO);
-                RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), kOpaque);
-                gfxContext.SetPipelineState(m_CutoutShadowPSO);
-                RenderObjects(gfxContext, m_SunShadow.GetViewProjMatrix(), kCutout);
-                g_ShadowBuffer.EndRendering(gfxContext);
-            }
-        }
-    }
-
-    if (!skipDiffusePass)
-    {
-        if (!SSAO::DebugDraw)
-        {
-            if (SSAO::AsyncCompute)
-            {
-                gfxContext.Flush();
-                pfnSetupGraphicsState();
-
-                // Make the 3D queue wait for the Compute queue to finish SSAO
-                g_CommandManager.GetGraphicsQueue().StallForProducer(g_CommandManager.GetComputeQueue());
-            }
-
-            {
-                ScopedTimer _prof(L"Render Color", gfxContext);
-
-                gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-                gfxContext.SetDynamicDescriptors(3, 0, ARRAYSIZE(m_ExtraTextures), m_ExtraTextures);
-                gfxContext.SetDynamicConstantBufferView(1, sizeof(psConstants), &psConstants);
-
-                bool RenderIDs = !TemporalEffects::EnableTAA;
-
-                {
-                    gfxContext.SetPipelineState(ShowWaveTileCounts ? m_WaveTileCountPSO : m_ModelPSO[0]);
-                    gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-                    D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV(), g_SceneNormalBuffer.GetRTV() };
-                    gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs, g_SceneDepthBuffer.GetDSV_DepthReadOnly());
-                    gfxContext.SetViewportAndScissor(m_MainViewport, m_MainScissor);
-                }
-
-                RenderObjects(gfxContext, m_ViewProjMatrix, kOpaque);
-
-                if (!ShowWaveTileCounts)
-                {
-                    gfxContext.SetPipelineState(m_CutoutModelPSO[0]);
-                    RenderObjects(gfxContext, m_ViewProjMatrix, kCutout);
-                }
-            }
-
-        }
-
-        // Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything
-        // is static in our scene, so we generate velocity from camera motion and the depth buffer.  A velocity buffer
-        // is necessary for all temporal effects (and motion blur).
-        MotionBlur::GenerateCameraVelocityBuffer(gfxContext, m_Camera, true);
-
-        TemporalEffects::ResolveImage(gfxContext);
-
-        ParticleEffects::Render(gfxContext, m_Camera, g_SceneColorBuffer, g_SceneDepthBuffer, g_LinearDepth[FrameIndex]);
-
-        // Until I work out how to couple these two, it's "either-or".
-        if (DepthOfField::Enable)
-            DepthOfField::Render(gfxContext, m_Camera.GetNearClip(), m_Camera.GetFarClip());
-        else
-            MotionBlur::RenderObjectBlur(gfxContext, g_VelocityBuffer);
-    }
     Raytrace(gfxContext);
     gfxContext.Finish();
 }
@@ -1552,11 +1149,11 @@ void D3D12RaytracingMiniEngineSample::RaytraceShadows(
     inputs.resolution.y = (float)colorTarget.GetHeight();
 
     HitShaderConstants hitShaderConstants = {};
-    hitShaderConstants.sunDirection = m_SunDirection;
-    hitShaderConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
-    hitShaderConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
+    hitShaderConstants.sunDirection = Sponza::m_SunDirection;
+    hitShaderConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * Sponza::m_SunLightIntensity;
+    hitShaderConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * Sponza::m_AmbientIntensity;
     hitShaderConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
-    hitShaderConstants.modelToShadow = m_SunShadow.GetShadowMatrix();
+    hitShaderConstants.modelToShadow = Sponza::m_SunShadow.GetShadowMatrix();
     hitShaderConstants.IsReflection = false;
     hitShaderConstants.UseShadowRays = false;
     context.WriteBuffer(g_hitConstantBuffer, 0, &hitShaderConstants, sizeof(hitShaderConstants));
@@ -1609,11 +1206,11 @@ void D3D12RaytracingMiniEngineSample::RaytraceDiffuse(
     inputs.resolution.y = (float)colorTarget.GetHeight();
 
     HitShaderConstants hitShaderConstants = {};
-    hitShaderConstants.sunDirection = m_SunDirection;
-    hitShaderConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
-    hitShaderConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
+    hitShaderConstants.sunDirection = Sponza::m_SunDirection;
+    hitShaderConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * Sponza::m_SunLightIntensity;
+    hitShaderConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * Sponza::m_AmbientIntensity;
     hitShaderConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
-    hitShaderConstants.modelToShadow = Transpose(m_SunShadow.GetShadowMatrix());
+    hitShaderConstants.modelToShadow = Transpose(Sponza::m_SunShadow.GetShadowMatrix());
     hitShaderConstants.IsReflection = false;
     hitShaderConstants.UseShadowRays = rayTracingMode == RTM_DIFFUSE_WITH_SHADOWRAYS;
     context.WriteBuffer(g_hitConstantBuffer, 0, &hitShaderConstants, sizeof(hitShaderConstants));
@@ -1665,11 +1262,11 @@ void D3D12RaytracingMiniEngineSample::RaytraceReflections(
     inputs.resolution.y = (float)colorTarget.GetHeight();
 
     HitShaderConstants hitShaderConstants = {};
-    hitShaderConstants.sunDirection = m_SunDirection;
-    hitShaderConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * m_SunLightIntensity;
-    hitShaderConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * m_AmbientIntensity;
+    hitShaderConstants.sunDirection = Sponza::m_SunDirection;
+    hitShaderConstants.sunLight = Vector3(1.0f, 1.0f, 1.0f) * Sponza::m_SunLightIntensity;
+    hitShaderConstants.ambientLight = Vector3(1.0f, 1.0f, 1.0f) * Sponza::m_AmbientIntensity;
     hitShaderConstants.ShadowTexelSize[0] = 1.0f / g_ShadowBuffer.GetWidth();
-    hitShaderConstants.modelToShadow = Transpose(m_SunShadow.GetShadowMatrix());
+    hitShaderConstants.modelToShadow = Transpose(Sponza::m_SunShadow.GetShadowMatrix());
     hitShaderConstants.IsReflection = true;
     hitShaderConstants.UseShadowRays = false;
     context.WriteBuffer(g_hitConstantBuffer, 0, &hitShaderConstants, sizeof(hitShaderConstants));
@@ -1728,8 +1325,6 @@ void D3D12RaytracingMiniEngineSample::Raytrace(class GraphicsContext& gfxContext
     ScopedTimer _prof(L"Raytrace", gfxContext);
 
     gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-    uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
 
     switch (rayTracingMode)
     {

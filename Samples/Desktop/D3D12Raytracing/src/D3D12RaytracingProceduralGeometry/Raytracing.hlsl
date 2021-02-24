@@ -304,7 +304,7 @@ void MyIntersectionShader_AnalyticPrimitive()
     AnalyticPrimitive::Enum primitiveType = (AnalyticPrimitive::Enum) l_aabbCB.primitiveType;
 
     float thit;
-    ProceduralPrimitiveAttributes attr;
+    ProceduralPrimitiveAttributes attr = (ProceduralPrimitiveAttributes)0;
     if (RayAnalyticGeometryIntersectionTest(localRay, primitiveType, thit, attr))
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
@@ -322,7 +322,7 @@ void MyIntersectionShader_VolumetricPrimitive()
     VolumetricPrimitive::Enum primitiveType = (VolumetricPrimitive::Enum) l_aabbCB.primitiveType;
     
     float thit;
-    ProceduralPrimitiveAttributes attr;
+    ProceduralPrimitiveAttributes attr = (ProceduralPrimitiveAttributes)0;
     if (RayVolumetricGeometryIntersectionTest(localRay, primitiveType, thit, attr, g_sceneCB.elapsedTime))
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
@@ -340,7 +340,7 @@ void MyIntersectionShader_SignedDistancePrimitive()
     SignedDistancePrimitive::Enum primitiveType = (SignedDistancePrimitive::Enum) l_aabbCB.primitiveType;
 
     float thit;
-    ProceduralPrimitiveAttributes attr;
+    ProceduralPrimitiveAttributes attr = (ProceduralPrimitiveAttributes)0;
     if (RaySignedDistancePrimitiveTest(localRay, primitiveType, thit, attr, l_materialCB.stepScale))
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];

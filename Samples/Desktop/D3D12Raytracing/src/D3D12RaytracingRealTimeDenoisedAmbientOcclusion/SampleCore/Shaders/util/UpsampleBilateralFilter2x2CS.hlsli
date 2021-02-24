@@ -87,7 +87,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
         }
     }
 
-    float4 vLowResDepths;
+    float4 vLowResDepths = 0;
     float3 lowResNormals[4];
     float2 lowResTexturePos = (topLeftLowResIndex + 0.5) * cb.invLowResTextureDim;
     {

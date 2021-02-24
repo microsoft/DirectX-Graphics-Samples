@@ -35,10 +35,10 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectName>D3D12RaytracingMiniEngineSample</ProjectName>
     <RootNamespace>ModelViewer</RootNamespace>
-    <PlatformToolset>v141</PlatformToolset>
-    <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>
+    <PlatformToolset>v142</PlatformToolset>
+    <MinimumVisualStudioVersion>16.0</MinimumVisualStudioVersion>
     <TargetRuntime>Native</TargetRuntime>
-    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -48,28 +48,15 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings" />
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+  <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="PropertySheets\VS16.props" />
-    <Import Project="PropertySheets\Debug.props" />
-    <Import Project="PropertySheets\Win32.props" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="PropertySheets\VS16.props" />
-    <Import Project="PropertySheets\Release.props" />
-    <Import Project="PropertySheets\Win32.props" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="PropertySheets\VS16.props" />
-    <Import Project="PropertySheets\Profile.props" />
-    <Import Project="PropertySheets\Win32.props" />
+    <Import Project=".\Build.props" />
+    <Import Project=".\Desktop.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>..\..\..\..\..\Libraries\D3DX12\;..\..\..\..\..\MiniEngine\Core;..\..\..\..\..\MiniEngine\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\;..\..\..\..\..\MiniEngine\Core;..\..\..\..\..\MiniEngine\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link Condition="'$(Configuration)'=='Debug'">
       <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>
@@ -77,12 +64,11 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
     <Link>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;runtimeobject.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)
 	  </AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ForwardPlusLighting.cpp" />
     <ClCompile Include="ModelViewer.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -149,14 +135,11 @@
     <Image Include="WideLogo.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\..\..\MiniEngine\ModelViewer\Models\sponza.h3d">
+    <None Include="..\..\..\..\..\MiniEngine\ModelViewer\Sponza\sponza.h3d">
       <DeploymentContent>true</DeploymentContent>
     </None>
     <None Include="packages.config" />
     <None Include="readme.md" />
-    <None Include="Shaders\FillLightGridCS.hlsli" />
-    <None Include="Shaders\LightGrid.hlsli" />
-    <None Include="Shaders\ModelViewerRS.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="*Lib.hlsl">
@@ -175,101 +158,49 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'"> -HV 2017 -Zpr </AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'"> -HV 2017 -Zpr </AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Profile|x64'"> -HV 2017 -Zpr </AdditionalOptions>
-    </FxCompile>
-    <FxCompile Include="Shaders\DepthViewerPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Shaders\DepthViewerVS.hlsl">
-      <ShaderType>Vertex</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Shaders\FillLightGridCS_16.hlsl" />
-    <FxCompile Include="Shaders\FillLightGridCS_24.hlsl" />
-    <FxCompile Include="Shaders\FillLightGridCS_32.hlsl" />
-    <FxCompile Include="Shaders\FillLightGridCS_8.hlsl" />
-    <FxCompile Include="Shaders\ModelViewerPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Shaders\ModelViewerVS.hlsl">
-      <ShaderType>Vertex</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Shaders\WaveTileCountPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
+      <AdditionalOptions Condition="'$(Configuration)'=='Debug'">-Zi -Qembed_debug %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DXSampleHelper.h" />
-    <ClInclude Include="ForwardPlusLighting.h" />
     <ClInclude Include="ModelViewerRayTracing.h" />
     <ClInclude Include="RayTracingHlslCompat.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\MiniEngine\Core\Core_VS16.vcxproj">
+    <ProjectReference Include="..\..\..\..\..\MiniEngine\Core\Core.vcxproj">
       <Project>{86a58508-0d6a-4786-a32f-01a301fdc6f3}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\..\MiniEngine\Model\Model_VS16.vcxproj">
+    <ProjectReference Include="..\..\..\..\..\MiniEngine\Model\Model.vcxproj">
       <Project>{5d3aeefb-8789-48e5-9bd9-09c667052d09}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemDefinitionGroup>
     <Link>
-      <AdditionalLibraryDirectories>..\..\..\..\..\Packages\zlib-vc140-static-64.1.2.11\lib\native\libs\x64\static\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\..\..\..\Packages\zlib-msvc-x64.1.2.11.8900\build\native\lib_release;..\..\..\..\..\Packages\directxtex_desktop_win10.2019.2.7.1\lib\x64\Release;..\..\..\..\..\Packages\directxmesh_desktop_win10.2019.2.7.1\lib\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>zlibstatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/nodefaultlib:LIBCMT %(AdditionalOptions)</AdditionalOptions>
     </Link>
-    <PostBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </Message>
-    </PostBuildEvent>
-    <PostBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-      </Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-      </Message>
-    </PostBuildEvent>
-    <PostBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </Message>
-    </PostBuildEvent>
     <ProjectReference>
-      <UseLibraryDependencyInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</UseLibraryDependencyInputs>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
     </ProjectReference>
-    <ProjectReference>
-      <UseLibraryDependencyInputs Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">false</UseLibraryDependencyInputs>
-    </ProjectReference>
-    <ProjectReference>
-      <UseLibraryDependencyInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</UseLibraryDependencyInputs>
-    </ProjectReference>
-    <PreBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </Command>
-    </PreBuildEvent>
-    <PreBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-      </Command>
-    </PreBuildEvent>
-    <PreBuildEvent>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </Command>
-    </PreBuildEvent>
     <FxCompile>
-      <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</EnableDebuggingInformation>
-    </FxCompile>
-    <FxCompile>
-      <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">false</EnableDebuggingInformation>
+      <EnableDebuggingInformation Condition="'$(Configuration)'!='Release'">false</EnableDebuggingInformation>
     </FxCompile>
   </ItemDefinitionGroup>
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets" Condition="Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" />
+    <Import Project="..\..\..\..\..\Packages\zlib-msvc-x64.1.2.11.8900\build\native\zlib-msvc-x64.targets" Condition="Exists('..\..\..\..\..\Packages\zlib-msvc-x64.1.2.11.8900\build\native\zlib-msvc-x64.targets')" />
+    <Import Project="..\..\..\..\..\Packages\directxtex_desktop_win10.2021.1.10.2\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\..\..\..\..\Packages\directxtex_desktop_win10.2021.1.10.2\build\native\directxtex_desktop_win10.targets')" />
+    <Import Project="..\..\..\..\..\Packages\directxmesh_desktop_win10.2021.1.10.1\build\native\directxmesh_desktop_win10.targets" Condition="Exists('..\..\..\..\..\Packages\directxmesh_desktop_win10.2021.1.10.1\build\native\directxmesh_desktop_win10.targets')" />
+    <Import Project="..\..\..\..\..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets" Condition="Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\WinPixEventRuntime.1.0.180612001\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\zlib-msvc-x64.1.2.11.8900\build\native\zlib-msvc-x64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\zlib-msvc-x64.1.2.11.8900\build\native\zlib-msvc-x64.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\directxtex_desktop_win10.2021.1.10.2\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxtex_desktop_win10.2021.1.10.2\build\native\directxtex_desktop_win10.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\directxmesh_desktop_win10.2021.1.10.1\build\native\directxmesh_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxmesh_desktop_win10.2021.1.10.1\build\native\directxmesh_desktop_win10.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets'))" />
   </Target>
 </Project>
