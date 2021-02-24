@@ -54,6 +54,8 @@ public:
 
     void EnableMomentum( bool enable ) { m_Momentum = enable; }
 
+    void SetHeadingPitchAndPosition(float heading, float pitch, const Vector3& position);
+
 private:
 
     Vector3 m_WorldUp;

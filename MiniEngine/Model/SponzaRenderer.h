@@ -16,9 +16,14 @@
 #include <d3d12.h>
 
 class GraphicsContext;
+class ShadowCamera;
+class ModelH3D;
+class ExpVar;
+
 namespace Math
 {
     class Camera;
+    class Vector3;
 }
 
 namespace Sponza
@@ -30,5 +35,15 @@ namespace Sponza
         GraphicsContext& gfxContext,
         const Math::Camera& camera,
         const D3D12_VIEWPORT& viewport,
-        const D3D12_RECT& scissor );
+        const D3D12_RECT& scissor,
+        bool skipDiffusePass = false,
+        bool skipShadowMap = false );
+
+    const ModelH3D& GetModel();
+
+    extern Math::Vector3 m_SunDirection;
+    extern ShadowCamera m_SunShadow;
+    extern ExpVar m_AmbientIntensity;
+    extern ExpVar m_SunLightIntensity;
+
 }

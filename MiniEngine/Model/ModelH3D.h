@@ -192,12 +192,20 @@ public:
     const D3D12_VERTEX_BUFFER_VIEW& GetVertexBuffer() const { return m_VertexBuffer; }
     const D3D12_INDEX_BUFFER_VIEW& GetIndexBuffer() const { return m_IndexBuffer; }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE GetSRVs( uint32_t materialIdx ) const
+    DescriptorHandle GetSRVs(uint32_t materialIdx, uint32_t subIdx=0) const
     {
-        return m_SRVs + (materialIdx * 6 * m_SRVDescriptorSize);
+        return m_SRVs + (materialIdx * 6 + subIdx) * m_SRVDescriptorSize;
     }
 
-protected:
+    const TextureRef* GetMaterialTextures(uint32_t materialIdx) const
+    {
+        return m_TextureReferences.data() + materialIdx * 3;
+    }
+
+    void CreateVertexBufferSRV(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle) const;
+    void CreateIndexBufferSRV(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle) const;
+
+//protected:
 
 	bool LoadH3D(const std::wstring& filename);
 	bool SaveH3D(const std::wstring& filename) const;

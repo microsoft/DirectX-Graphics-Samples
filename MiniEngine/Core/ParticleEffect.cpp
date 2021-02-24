@@ -105,6 +105,8 @@ void ParticleEffect::LoadDeviceResources(ID3D12Device* device)
 
 void ParticleEffect::Update(ComputeContext& CompContext,  float timeDelta)
 {
+    if (timeDelta == 0.0f)
+        return;
 
     m_ElapsedTime += timeDelta;
     m_EffectProperties.EmitProperties.LastEmitPosW = m_EffectProperties.EmitProperties.EmitPosW;

@@ -116,6 +116,28 @@ void FlyingFPSCamera::Update( float deltaTime )
     m_TargetCamera.Update();
 }
 
+void FlyingFPSCamera::SetHeadingPitchAndPosition(float heading, float pitch, const Vector3& position)
+{
+    m_CurrentHeading = heading;
+    if (m_CurrentHeading > XM_PI)
+        m_CurrentHeading -= XM_2PI;
+    else if (m_CurrentHeading <= -XM_PI)
+        m_CurrentHeading += XM_2PI; 
+
+    m_CurrentPitch = pitch;
+    m_CurrentPitch = XMMin( XM_PIDIV2, m_CurrentPitch);
+    m_CurrentPitch = XMMax(-XM_PIDIV2, m_CurrentPitch);
+
+    Matrix3 orientation =
+        Matrix3(m_WorldEast, m_WorldUp, -m_WorldNorth) * 
+        Matrix3::MakeYRotation( m_CurrentHeading ) *
+        Matrix3::MakeXRotation( m_CurrentPitch );
+
+    m_TargetCamera.SetTransform( AffineTransform( orientation, position ) );
+    m_TargetCamera.Update();
+}
+
+
 void CameraController::ApplyMomentum( float& oldValue, float& newValue, float deltaTime )
 {
     float blendedValue;

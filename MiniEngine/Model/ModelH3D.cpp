@@ -232,6 +232,32 @@ bool ModelH3D::LoadH3D(const wstring& filename)
     return true;
 }
 
+void ModelH3D::CreateVertexBufferSRV(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle) const
+{
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    srvDesc.Buffer.FirstElement = 0;
+    srvDesc.Buffer.NumElements = (UINT)(m_VertexBuffer.SizeInBytes / sizeof(UINT32));
+    srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+    srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+    Graphics::g_Device->CreateShaderResourceView(const_cast<ID3D12Resource*>(m_GeometryBuffer.GetResource()), &srvDesc, cpuHandle);
+}
+
+void ModelH3D::CreateIndexBufferSRV(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle) const
+{
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+    srvDesc.Buffer.FirstElement = (UINT)(m_VertexBuffer.SizeInBytes / sizeof(UINT32));
+    srvDesc.Buffer.NumElements = (UINT)(m_IndexBuffer.SizeInBytes / sizeof(UINT32));
+    srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+    srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+    Graphics::g_Device->CreateShaderResourceView(const_cast<ID3D12Resource*>(m_GeometryBuffer.GetResource()), &srvDesc, cpuHandle);
+}
+
 bool ModelH3D::SaveH3D(const wstring& filename) const
 {
     std::ofstream file(filename, ios::out | ios::binary);

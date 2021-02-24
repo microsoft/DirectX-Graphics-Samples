@@ -21,13 +21,14 @@
 
 namespace Graphics
 {
-    extern DepthBuffer g_SceneDepthBuffer;    // D32_FLOAT_S8_UINT
-    extern ColorBuffer g_SceneColorBuffer;    // R11G11B10_FLOAT
-    extern ColorBuffer g_PostEffectsBuffer;    // R32_UINT (to support Read-Modify-Write with a UAV)
-    extern ColorBuffer g_OverlayBuffer;        // R8G8B8A8_UNORM
-    extern ColorBuffer g_HorizontalBuffer;    // For separable (bicubic) upsampling
+    extern DepthBuffer g_SceneDepthBuffer;  // D32_FLOAT_S8_UINT
+    extern ColorBuffer g_SceneColorBuffer;  // R11G11B10_FLOAT
+    extern ColorBuffer g_SceneNormalBuffer; // R16G16B16A16_FLOAT
+    extern ColorBuffer g_PostEffectsBuffer; // R32_UINT (to support Read-Modify-Write with a UAV)
+    extern ColorBuffer g_OverlayBuffer;     // R8G8B8A8_UNORM
+    extern ColorBuffer g_HorizontalBuffer;  // For separable (bicubic) upsampling
 
-    extern ColorBuffer g_VelocityBuffer;	// R10G10B10  (3D velocity)
+    extern ColorBuffer g_VelocityBuffer;    // R10G10B10  (3D velocity)
     extern ShadowBuffer g_ShadowBuffer;
 
     extern ColorBuffer g_SSAOFullScreen;	// R8_UNORM

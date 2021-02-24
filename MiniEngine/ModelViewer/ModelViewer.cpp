@@ -247,9 +247,6 @@ void ModelViewer::Update( float deltaT )
     m_MainScissor.top = 0;
     m_MainScissor.right = (LONG)g_SceneColorBuffer.GetWidth();
     m_MainScissor.bottom = (LONG)g_SceneColorBuffer.GetHeight();
-
-    const float PixelScaleX = 2.0f;
-    const float PixelScaleY = 1.0f;
 }
 
 void ModelViewer::RenderScene( void )

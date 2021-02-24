@@ -146,10 +146,6 @@
     <FxCompile Include="Shaders\DepthOnlyVS.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
-    <FxCompile Include="Shaders\DepthViewerCBPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-      <ExcludedFromBuild Condition="'$(Platform)'=='Gaming.Desktop.x64'">true</ExcludedFromBuild>
-    </FxCompile>
     <FxCompile Include="Shaders\DepthViewerPS.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
@@ -162,18 +158,6 @@
     <FxCompile Include="Shaders\FillLightGridCS_8.hlsl" />
     <FxCompile Include="Shaders\DefaultPS.hlsl">
       <ShaderType>Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Shaders\ModelViewerCBIDPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-      <ExcludedFromBuild Condition="'$(Platform)'=='Gaming.Desktop.x64'">true</ExcludedFromBuild>
-    </FxCompile>
-    <FxCompile Include="Shaders\ModelViewerCBPS.hlsl">
-      <ShaderType>Pixel</ShaderType>
-      <ExcludedFromBuild Condition="'$(Platform)'=='Gaming.Desktop.x64'">true</ExcludedFromBuild>
-    </FxCompile>
-    <FxCompile Include="Shaders\ModelViewerIDVS.hlsl">
-      <ShaderType>Vertex</ShaderType>
-      <ExcludedFromBuild Condition="'$(Platform)'=='Gaming.Desktop.x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="Shaders\ModelViewerPS.hlsl">
       <ShaderType>Pixel</ShaderType>

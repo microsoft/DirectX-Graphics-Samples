@@ -32,26 +32,18 @@ struct VSOutput
 	sample float3 normal : Normal;
 	sample float3 tangent : Tangent;
 	sample float3 bitangent : Bitangent;
-#if ENABLE_TRIANGLE_ID
-	uint vertexID : TexCoord3;
-#endif
 };
 
 struct MRT
 {
 	float3 Color : SV_Target0;
-#if ENABLE_TRIANGLE_ID
-	uint ID : SV_Target1;
-#endif
+	float3 Normal : SV_Target1;
 };
 
 [RootSignature(Renderer_RootSig)]
 MRT main(VSOutput vsOutput)
 {
 	MRT mrt;
-#if ENABLE_TRIANGLE_ID
-mrt.ID = HashTriangleID(vsOutput.vertexID);
-#endif
 
 	uint2 pixelPos = uint2(vsOutput.position.xy);
 # define SAMPLE_TEX(texName) texName.Sample(defaultSampler, vsOutput.uv)
@@ -87,6 +79,7 @@ mrt.ID = HashTriangleID(vsOutput.vertexID);
 		vsOutput.worldPos
 		);
 
+	mrt.Normal = normal;
 	mrt.Color = colorSum;
 	return mrt;
 }
