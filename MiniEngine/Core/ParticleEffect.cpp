@@ -22,9 +22,9 @@
 #include "Math/Random.h"
 
 using namespace Math;
-using namespace ParticleEffects;
+using namespace ParticleEffectManager;
 
-namespace ParticleEffects
+namespace ParticleEffectManager
 {
     extern ComputePSO s_ParticleSpawnCS;
     extern ComputePSO s_ParticleUpdateCS;
@@ -105,6 +105,8 @@ void ParticleEffect::LoadDeviceResources(ID3D12Device* device)
 
 void ParticleEffect::Update(ComputeContext& CompContext,  float timeDelta)
 {
+    if (timeDelta == 0.0f)
+        return;
 
     m_ElapsedTime += timeDelta;
     m_EffectProperties.EmitProperties.LastEmitPosW = m_EffectProperties.EmitProperties.EmitPosW;
@@ -121,7 +123,7 @@ void ParticleEffect::Update(ComputeContext& CompContext,  float timeDelta)
         UINT random = (UINT)s_RNG.NextInt(m_EffectProperties.EmitProperties.MaxParticles - 1);
         m_EffectProperties.EmitProperties.RandIndex[i].x = random;
     }
-    CompContext.SetDynamicConstantBufferView(2, sizeof(EmissionProperties), &m_EffectProperties.EmitProperties);    
+    CompContext.SetDynamicConstantBufferView(2, sizeof(EmissionProperties), &m_EffectProperties.EmitProperties);	
 
     CompContext.TransitionResource(m_StateBuffers[m_CurrentStateBuffer], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     CompContext.SetDynamicDescriptor(4, 0, m_RandomStateBuffer.GetSRV());
@@ -148,7 +150,7 @@ void ParticleEffect::Update(ComputeContext& CompContext,  float timeDelta)
     UINT NumSpawnThreads = (UINT)(m_EffectProperties.EmitRate * timeDelta);
     CompContext.Dispatch((NumSpawnThreads + 63) / 64, 1, 1);
 
-    // Output number of thread groups into m_DispatchIndirectArgs    
+    // Output number of thread groups into m_DispatchIndirectArgs	
     CompContext.SetPipelineState(s_ParticleDispatchIndirectArgsCS);
     CompContext.TransitionResource(m_DispatchIndirectArgs, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     CompContext.TransitionResource(m_StateBuffers[m_CurrentStateBuffer], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

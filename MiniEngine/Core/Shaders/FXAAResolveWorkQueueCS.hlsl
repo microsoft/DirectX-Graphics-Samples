@@ -30,13 +30,13 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     uint PixelCountH = PixelCounts.x;
     uint PaddedCountH = (PixelCountH + 63) & ~63;
     if (GI + PixelCountH < PaddedCountH)
-        WorkQueue.Store(PixelCountH + GI, 0xffffffff);
+        WorkQueue.Store((PixelCountH + GI) * 4, 0xffffffff);
 
     // Write out padding to the buffer
     uint PixelCountV = PixelCounts.y;
     uint PaddedCountV = (PixelCountV + 63) & ~63;
     if (GI + PixelCountV < PaddedCountV)
-        WorkQueue.Store(LastQueueIndex - PixelCountV - GI, 0xffffffff);
+        WorkQueue.Store((LastQueueIndex - PixelCountV - GI) * 4, 0xffffffff);
 
     DeviceMemoryBarrierWithGroupSync();
 

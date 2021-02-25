@@ -17,7 +17,7 @@
 
 namespace Math
 {
-    // Represents a 3x3 matrix while occuping a 4x4 memory footprint.  The unused row and column are undefined but implicitly
+    // Represents a 3x3 matrix while occuping a 3x4 memory footprint.  The unused row and column are undefined but implicitly
     // (0, 0, 0, 1).  Constructing a Matrix4 will make those values explicit.
     __declspec(align(16)) class Matrix3
     {
@@ -43,10 +43,13 @@ namespace Math
         static INLINE Matrix3 MakeZRotation( float angle ) { return Matrix3(XMMatrixRotationZ(angle)); }
         static INLINE Matrix3 MakeScale( float scale ) { return Matrix3(XMMatrixScaling(scale, scale, scale)); }
         static INLINE Matrix3 MakeScale( float sx, float sy, float sz ) { return Matrix3(XMMatrixScaling(sx, sy, sz)); }
+        static INLINE Matrix3 MakeScale( const XMFLOAT3& scale) { return Matrix3(XMMatrixScaling(scale.x, scale.y, scale.z)); }
         static INLINE Matrix3 MakeScale( Vector3 scale ) { return Matrix3(XMMatrixScalingFromVector(scale)); }
 
-        INLINE operator XMMATRIX() const { return (const XMMATRIX&)m_mat; }
+        // Useful for DirectXMath interaction.  WARNING:  Only the 3x3 elements are defined.
+        INLINE operator XMMATRIX() const { return XMMATRIX(m_mat[0], m_mat[1], m_mat[2], XMVectorZero()); }
 
+        INLINE Matrix3 operator* ( Scalar scl ) const { return Matrix3( scl * GetX(), scl * GetY(), scl * GetZ() ); }
         INLINE Vector3 operator* ( Vector3 vec ) const { return Vector3( XMVector3TransformNormal(vec, *this) ); }
         INLINE Matrix3 operator* ( const Matrix3& mat ) const { return Matrix3( *this * mat.GetX(), *this * mat.GetY(), *this * mat.GetZ() ); }
 

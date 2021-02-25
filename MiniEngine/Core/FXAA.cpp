@@ -40,14 +40,15 @@ using namespace Graphics;
 namespace FXAA
 {
     RootSignature RootSig;
-    ComputePSO Pass1HdrCS;
-    ComputePSO Pass1LdrCS;
-    ComputePSO ResolveWorkCS;
-    ComputePSO Pass2HCS;
-    ComputePSO Pass2VCS;
-    ComputePSO Pass2HDebugCS;
-    ComputePSO Pass2VDebugCS;
+    ComputePSO Pass1HdrCS(L"FXAA: Pass 1 HDR CS");
+    ComputePSO Pass1LdrCS(L"FXAA: Pass 1 LDR CS");
+    ComputePSO ResolveWorkCS(L"FXAA: Resolve Work CS");
+    ComputePSO Pass2HCS(L"FXAA: Pass 2 H CS");
+    ComputePSO Pass2VCS(L"FXAA: Pass 2 V CS");
+    ComputePSO Pass2HDebugCS(L"FXAA: Pass 2 H Debug CS");
+    ComputePSO Pass2VDebugCS(L"FXAA: Pass 2 V Debug CS");
     IndirectArgsBuffer IndirectParameters;
+    ByteAddressBuffer WorkCounters;
 
     BoolVar Enable("Graphics/AA/FXAA/Enable", true);
     BoolVar DebugDraw("Graphics/AA/FXAA/Debug", false);
@@ -100,11 +101,18 @@ void FXAA::Initialize( void )
 
     __declspec(align(16)) const uint32_t initArgs[6] = { 0, 1, 1, 0, 1, 1 };
     IndirectParameters.Create(L"FXAA Indirect Parameters", 2, sizeof(D3D12_DISPATCH_ARGUMENTS), initArgs);
+    WorkCounters.Create(L"FXAA Work Counters", 2, sizeof(uint32_t));
+
+    GraphicsContext& InitContext = GraphicsContext::Begin();
+    InitContext.TransitionResource(WorkCounters, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    InitContext.ClearUAV(WorkCounters);
+    InitContext.Finish();
 }
 
 void FXAA::Shutdown(void)
 {
     IndirectParameters.Destroy();
+    WorkCounters.Destroy();
 }
 
 void FXAA::Render( ComputeContext& Context, bool bUsePreComputedLuma )
@@ -118,19 +126,33 @@ void FXAA::Render( ComputeContext& Context, bool bUsePreComputedLuma )
 
     Context.SetRootSignature(RootSig);
     Context.SetConstants(0, 1.0f / Target.GetWidth(), 1.0f / Target.GetHeight(), (float)ContrastThreshold, (float)SubpixelRemoval);
-    Context.SetConstant(0, g_FXAAWorkQueue.GetElementCount() - 1, 4);
+    Context.SetConstant(0, 4, g_FXAAWorkQueue.GetElementCount() - 1);
 
     // Apply algorithm to each quarter of the screen separately to reduce maximum size of work buffers.
     uint32_t BlockWidth = Target.GetWidth() / 2;
     uint32_t BlockHeight = Target.GetHeight() / 2;
 
-    for (uint32_t x = 0; x < Target.GetWidth(); x += BlockWidth)
+    D3D12_CPU_DESCRIPTOR_HANDLE Pass1UAVs[] =
     {
-        for (uint32_t y = 0; y < Target.GetHeight(); y += BlockHeight)
+        WorkCounters.GetUAV(),
+        g_FXAAWorkQueue.GetUAV(),
+        g_FXAAColorQueue.GetUAV(),
+        g_LumaBuffer.GetUAV()
+    };
+
+    D3D12_CPU_DESCRIPTOR_HANDLE Pass1SRVs[] =
+    {
+        Target.GetSRV(),
+        g_LumaBuffer.GetSRV()
+    };
+
+    for (uint32_t x = 0; x < 2; x++)
+    {
+        for (uint32_t y = 0; y < 2; y++)
         {
             // Pass 1
-            Context.SetConstant(0, x, 5);
-            Context.SetConstant(0, y, 6);
+            Context.SetConstant(0, 5, x*BlockWidth);
+            Context.SetConstant(0, 6, y*BlockHeight);
 
             // Begin by analysing the luminance buffer and setting aside high-contrast pixels in
             // work queues to be processed later.  There are horizontal edge and vertical edge work
@@ -140,20 +162,6 @@ void FXAA::Render( ComputeContext& Context, bool bUsePreComputedLuma )
             Context.TransitionResource(Target, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             Context.TransitionResource(g_FXAAWorkQueue, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
             Context.TransitionResource(g_FXAAColorQueue, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-            D3D12_CPU_DESCRIPTOR_HANDLE Pass1UAVs[] =
-            {
-                g_FXAAWorkCounters.GetUAV(),
-                g_FXAAWorkQueue.GetUAV(),
-                g_FXAAColorQueue.GetUAV(),
-                g_LumaBuffer.GetUAV()
-            };
-
-            D3D12_CPU_DESCRIPTOR_HANDLE Pass1SRVs[] =
-            {
-                Target.GetSRV(),
-                g_LumaBuffer.GetSRV()
-            };
 
             if (bUsePreComputedLuma)
             {
@@ -178,19 +186,20 @@ void FXAA::Render( ComputeContext& Context, bool bUsePreComputedLuma )
             // The queues are also padded out to 64 elements to simplify the final consume logic.
             Context.SetPipelineState(ResolveWorkCS);
             Context.TransitionResource(IndirectParameters, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-            Context.InsertUAVBarrier(g_FXAAWorkCounters);
+            Context.InsertUAVBarrier(WorkCounters);
 
             Context.SetDynamicDescriptor(1, 0, IndirectParameters.GetUAV());
             Context.SetDynamicDescriptor(1, 1, g_FXAAWorkQueue.GetUAV());
-            Context.SetDynamicDescriptor(1, 2, g_FXAAWorkCounters.GetUAV());
+            Context.SetDynamicDescriptor(1, 2, WorkCounters.GetUAV());
 
             Context.Dispatch(1, 1, 1);
 
-            Context.InsertUAVBarrier(g_FXAAWorkCounters);
+            Context.InsertUAVBarrier(WorkCounters);
             Context.TransitionResource(IndirectParameters, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
             Context.TransitionResource(g_FXAAWorkQueue, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             Context.TransitionResource(g_FXAAColorQueue, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             Context.TransitionResource(Target, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            Context.TransitionResource(g_LumaBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
             Context.SetDynamicDescriptor(1, 0, Target.GetUAV());
             Context.SetDynamicDescriptor(2, 0, g_LumaBuffer.GetSRV());

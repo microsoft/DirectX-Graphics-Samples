@@ -40,43 +40,43 @@ public:
         m_RootParam.ParameterType = (D3D12_ROOT_PARAMETER_TYPE)0xFFFFFFFF;
     }
 
-    void InitAsConstants( UINT Register, UINT NumDwords, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
+    void InitAsConstants( UINT Register, UINT NumDwords, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL, UINT Space = 0 )
     {
         m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
         m_RootParam.ShaderVisibility = Visibility;
         m_RootParam.Constants.Num32BitValues = NumDwords;
         m_RootParam.Constants.ShaderRegister = Register;
-        m_RootParam.Constants.RegisterSpace = 0;
+        m_RootParam.Constants.RegisterSpace = Space;
     }
 
-    void InitAsConstantBuffer( UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
+    void InitAsConstantBuffer( UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL, UINT Space = 0 )
     {
         m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         m_RootParam.ShaderVisibility = Visibility;
         m_RootParam.Descriptor.ShaderRegister = Register;
-        m_RootParam.Descriptor.RegisterSpace = 0;
+        m_RootParam.Descriptor.RegisterSpace = Space;
     }
 
-    void InitAsBufferSRV( UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
+    void InitAsBufferSRV( UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL, UINT Space = 0 )
     {
         m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
         m_RootParam.ShaderVisibility = Visibility;
         m_RootParam.Descriptor.ShaderRegister = Register;
-        m_RootParam.Descriptor.RegisterSpace = 0;
+        m_RootParam.Descriptor.RegisterSpace = Space;
     }
 
-    void InitAsBufferUAV( UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
+    void InitAsBufferUAV( UINT Register, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL, UINT Space = 0 )
     {
         m_RootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
         m_RootParam.ShaderVisibility = Visibility;
         m_RootParam.Descriptor.ShaderRegister = Register;
-        m_RootParam.Descriptor.RegisterSpace = 0;
+        m_RootParam.Descriptor.RegisterSpace = Space;
     }
 
-    void InitAsDescriptorRange( D3D12_DESCRIPTOR_RANGE_TYPE Type, UINT Register, UINT Count, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
+    void InitAsDescriptorRange( D3D12_DESCRIPTOR_RANGE_TYPE Type, UINT Register, UINT Count, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL, UINT Space = 0 )
     {
         InitAsDescriptorTable(1, Visibility);
-        SetTableRange(0, Type, Register, Count);
+        SetTableRange(0, Type, Register, Count, Space);
     }
 
     void InitAsDescriptorTable( UINT RangeCount, D3D12_SHADER_VISIBILITY Visibility = D3D12_SHADER_VISIBILITY_ALL )
@@ -168,9 +168,9 @@ protected:
     UINT m_NumParameters;
     UINT m_NumSamplers;
     UINT m_NumInitializedStaticSamplers;
-    uint32_t m_DescriptorTableBitMap;        // One bit is set for root parameters that are non-sampler descriptor tables
-    uint32_t m_SamplerTableBitMap;            // One bit is set for root parameters that are sampler descriptor tables
-    uint32_t m_DescriptorTableSize[16];        // Non-sampler descriptor tables need to know their descriptor count
+    uint32_t m_DescriptorTableBitMap;		// One bit is set for root parameters that are non-sampler descriptor tables
+    uint32_t m_SamplerTableBitMap;			// One bit is set for root parameters that are sampler descriptor tables
+    uint32_t m_DescriptorTableSize[16];		// Non-sampler descriptor tables need to know their descriptor count
     std::unique_ptr<RootParameter[]> m_ParamArray;
     std::unique_ptr<D3D12_STATIC_SAMPLER_DESC[]> m_SamplerArray;
     ID3D12RootSignature* m_Signature;

@@ -33,13 +33,13 @@ namespace BitonicSort
     IndirectArgsBuffer s_DispatchArgs;
 
     RootSignature s_RootSignature;
-    ComputePSO s_BitonicIndirectArgsCS;
-    ComputePSO s_Bitonic32PreSortCS;
-    ComputePSO s_Bitonic32InnerSortCS;
-    ComputePSO s_Bitonic32OuterSortCS;
-    ComputePSO s_Bitonic64PreSortCS;
-    ComputePSO s_Bitonic64InnerSortCS;
-    ComputePSO s_Bitonic64OuterSortCS;
+    ComputePSO s_BitonicIndirectArgsCS(L"Bitonic Sort: Indirect Args CS");
+    ComputePSO s_Bitonic32PreSortCS(L"Bitonic Sort: 32 Pre Sort CS");
+    ComputePSO s_Bitonic32InnerSortCS(L"Bitonic Sort: 32 Inner Sort CS");
+    ComputePSO s_Bitonic32OuterSortCS(L"Bitonic Sort: 32 Outer Sort CS");
+    ComputePSO s_Bitonic64PreSortCS(L"Bitonic Sort: 64 Pre Sort CS");
+    ComputePSO s_Bitonic64InnerSortCS(L"Bitonic Sort: 64 Inner Sort CS");
+    ComputePSO s_Bitonic64OuterSortCS(L"Bitonic Sort: 64 Outer Sort CS");
 
     // Called once by Core to initialize shaders
     void Initialize(void);
@@ -47,7 +47,7 @@ namespace BitonicSort
 }
 
 void BitonicSort::Initialize( void )
-{    
+{	
     s_DispatchArgs.Create(L"Bitonic sort dispatch args", 22*23/2, 12);
 
     s_RootSignature.Reset(4, 0);

@@ -16,6 +16,22 @@
 #include "SamplerManager.h"
 #include "CommandSignature.h"
 #include "BitonicSort.h"
+#include "Texture.h"
+#include "PipelineState.h"
+#include "RootSignature.h"
+#include "BufferManager.h"
+
+#include "CompiledShaders/GenerateMipsLinearCS.h"
+#include "CompiledShaders/GenerateMipsLinearOddCS.h"
+#include "CompiledShaders/GenerateMipsLinearOddXCS.h"
+#include "CompiledShaders/GenerateMipsLinearOddYCS.h"
+#include "CompiledShaders/GenerateMipsGammaCS.h"
+#include "CompiledShaders/GenerateMipsGammaOddCS.h"
+#include "CompiledShaders/GenerateMipsGammaOddXCS.h"
+#include "CompiledShaders/GenerateMipsGammaOddYCS.h"
+
+#include "CompiledShaders/ScreenQuadCommonVS.h"
+#include "CompiledShaders/DownsampleDepthPS.h"
 
 namespace Graphics
 {
@@ -37,9 +53,16 @@ namespace Graphics
     D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointBorder;
     D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearBorder;
 
-    D3D12_RASTERIZER_DESC RasterizerDefault;    // Counter-clockwise
+    Texture DefaultTextures[kNumDefaultTextures];
+    D3D12_CPU_DESCRIPTOR_HANDLE GetDefaultTexture( eDefaultTexture texID )
+    {
+        ASSERT(texID < kNumDefaultTextures);
+        return DefaultTextures[texID].GetSRV();
+    }
+
+    D3D12_RASTERIZER_DESC RasterizerDefault;	// Counter-clockwise
     D3D12_RASTERIZER_DESC RasterizerDefaultMsaa;
-    D3D12_RASTERIZER_DESC RasterizerDefaultCw;    // Clockwise winding
+    D3D12_RASTERIZER_DESC RasterizerDefaultCw;	// Clockwise winding
     D3D12_RASTERIZER_DESC RasterizerDefaultCwMsaa;
     D3D12_RASTERIZER_DESC RasterizerTwoSided;
     D3D12_RASTERIZER_DESC RasterizerTwoSidedMsaa;
@@ -62,6 +85,25 @@ namespace Graphics
 
     CommandSignature DispatchIndirectCommandSignature(1);
     CommandSignature DrawIndirectCommandSignature(1);
+
+    RootSignature g_CommonRS;
+    ComputePSO g_GenerateMipsLinearPSO[4] =
+    {
+        {L"Generate Mips Linear CS"},
+        {L"Generate Mips Linear Odd X CS"},
+        {L"Generate Mips Linear Odd Y CS"},
+        {L"Generate Mips Linear Odd CS"},
+    };
+
+    ComputePSO g_GenerateMipsGammaPSO[4] =
+    {
+        { L"Generate Mips Gamma CS" },
+        { L"Generate Mips Gamma Odd X CS" },
+        { L"Generate Mips Gamma Odd Y CS" },
+        { L"Generate Mips Gamma Odd CS" },
+    };
+
+    GraphicsPSO g_DownsampleDepthPSO(L"DownsampleDepth PSO");
 }
 
 namespace BitonicSort
@@ -103,6 +145,21 @@ void Graphics::InitializeCommonState(void)
     SamplerPointBorderDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
     SamplerPointBorderDesc.SetBorderColor(Color(0.0f, 0.0f, 0.0f, 0.0f));
     SamplerPointBorder = SamplerPointBorderDesc.CreateDescriptor();
+
+    uint32_t MagentaPixel = 0xFFFF00FF;
+    DefaultTextures[kMagenta2D].Create2D(4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &MagentaPixel);
+    uint32_t BlackOpaqueTexel = 0xFF000000;
+    DefaultTextures[kBlackOpaque2D].Create2D(4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &BlackOpaqueTexel);
+    uint32_t BlackTransparentTexel = 0x00000000;
+    DefaultTextures[kBlackTransparent2D].Create2D(4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &BlackTransparentTexel);
+    uint32_t WhiteOpaqueTexel = 0xFFFFFFFF;
+    DefaultTextures[kWhiteOpaque2D].Create2D(4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &WhiteOpaqueTexel);
+    uint32_t WhiteTransparentTexel = 0x00FFFFFF;
+    DefaultTextures[kWhiteTransparent2D].Create2D(4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &WhiteTransparentTexel);
+    uint32_t FlatNormalTexel = 0x00FF8080;
+    DefaultTextures[kDefaultNormalMap].Create2D(4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &FlatNormalTexel);
+    uint32_t BlackCubeTexels[6] = {};
+    DefaultTextures[kBlackCubeMap].CreateCube(4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, BlackCubeTexels);
 
     // Default rasterizer states
     RasterizerDefault.FillMode = D3D12_FILL_MODE_SOLID;
@@ -204,10 +261,49 @@ void Graphics::InitializeCommonState(void)
     DrawIndirectCommandSignature.Finalize();
 
     BitonicSort::Initialize();
+
+    g_CommonRS.Reset(4, 3);
+    g_CommonRS[0].InitAsConstants(0, 4);
+    g_CommonRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 10);
+    g_CommonRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 10);
+    g_CommonRS[3].InitAsConstantBuffer(1);
+    g_CommonRS.InitStaticSampler(0, SamplerLinearClampDesc);
+    g_CommonRS.InitStaticSampler(1, SamplerPointBorderDesc);
+    g_CommonRS.InitStaticSampler(2, SamplerLinearBorderDesc);
+    g_CommonRS.Finalize(L"GraphicsCommonRS");
+
+#define CreatePSO(ObjName, ShaderByteCode ) \
+    ObjName.SetRootSignature(g_CommonRS); \
+    ObjName.SetComputeShader(ShaderByteCode, sizeof(ShaderByteCode) ); \
+    ObjName.Finalize();
+
+    CreatePSO(g_GenerateMipsLinearPSO[0], g_pGenerateMipsLinearCS);
+    CreatePSO(g_GenerateMipsLinearPSO[1], g_pGenerateMipsLinearOddXCS);
+    CreatePSO(g_GenerateMipsLinearPSO[2], g_pGenerateMipsLinearOddYCS);
+    CreatePSO(g_GenerateMipsLinearPSO[3], g_pGenerateMipsLinearOddCS);
+    CreatePSO(g_GenerateMipsGammaPSO[0], g_pGenerateMipsGammaCS);
+    CreatePSO(g_GenerateMipsGammaPSO[1], g_pGenerateMipsGammaOddXCS);
+    CreatePSO(g_GenerateMipsGammaPSO[2], g_pGenerateMipsGammaOddYCS);
+    CreatePSO(g_GenerateMipsGammaPSO[3], g_pGenerateMipsGammaOddCS);
+
+    g_DownsampleDepthPSO.SetRootSignature(g_CommonRS);
+    g_DownsampleDepthPSO.SetRasterizerState(RasterizerTwoSided);
+    g_DownsampleDepthPSO.SetBlendState(BlendDisable);
+    g_DownsampleDepthPSO.SetDepthStencilState(DepthStateReadWrite);
+    g_DownsampleDepthPSO.SetSampleMask(0xFFFFFFFF);
+    g_DownsampleDepthPSO.SetInputLayout(0, nullptr);
+    g_DownsampleDepthPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+    g_DownsampleDepthPSO.SetVertexShader(g_pScreenQuadCommonVS, sizeof(g_pScreenQuadCommonVS));
+    g_DownsampleDepthPSO.SetPixelShader(g_pDownsampleDepthPS, sizeof(g_pDownsampleDepthPS));
+    g_DownsampleDepthPSO.SetDepthTargetFormat(DXGI_FORMAT_D32_FLOAT);
+    g_DownsampleDepthPSO.Finalize();
 }
 
 void Graphics::DestroyCommonState(void)
 {
+    for (uint32_t i = 0; i < kNumDefaultTextures; ++i)
+        DefaultTextures[i].Destroy();
+
     DispatchIndirectCommandSignature.Destroy();
     DrawIndirectCommandSignature.Destroy();
     

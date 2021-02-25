@@ -26,6 +26,12 @@ namespace Math
             m_mat.r[0] = SetWToZero(x); m_mat.r[1] = SetWToZero(y);
             m_mat.r[2] = SetWToZero(z); m_mat.r[3] = SetWToOne(w);
         }
+
+        INLINE Matrix4(const float* data)
+        {
+            m_mat = XMLoadFloat4x4((XMFLOAT4X4*)data);
+        }
+
         INLINE Matrix4( Vector4 x, Vector4 y, Vector4 z, Vector4 w ) { m_mat.r[0] = x; m_mat.r[1] = y; m_mat.r[2] = z; m_mat.r[3] = w; }
         INLINE Matrix4( const Matrix4& mat ) { m_mat = mat.m_mat; }
         INLINE Matrix4( const Matrix3& mat )
@@ -49,6 +55,12 @@ namespace Math
         INLINE explicit Matrix4( EZeroTag ) { m_mat.r[0] = m_mat.r[1] = m_mat.r[2] = m_mat.r[3] = SplatZero(); }
 
         INLINE const Matrix3& Get3x3() const { return (const Matrix3&)*this; }
+        INLINE void Set3x3(const Matrix3& xyz)
+        {
+            m_mat.r[0] = SetWToZero(xyz.GetX());
+            m_mat.r[1] = SetWToZero(xyz.GetY());
+            m_mat.r[2] = SetWToZero(xyz.GetZ());
+        }
 
         INLINE Vector4 GetX() const { return Vector4(m_mat.r[0]); }
         INLINE Vector4 GetY() const { return Vector4(m_mat.r[1]); }
@@ -68,7 +80,6 @@ namespace Math
 
         static INLINE Matrix4 MakeScale( float scale ) { return Matrix4(XMMatrixScaling(scale, scale, scale)); }
         static INLINE Matrix4 MakeScale( Vector3 scale ) { return Matrix4(XMMatrixScalingFromVector(scale)); }
-
 
     private:
         XMMATRIX m_mat;

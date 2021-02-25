@@ -60,33 +60,18 @@
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)</IncludePath>
-    <PostBuildEventUseInBuild>
-    </PostBuildEventUseInBuild>
-    <PreLinkEventUseInBuild>
-    </PreLinkEventUseInBuild>
-    <PreBuildEventUseInBuild>
-    </PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)</IncludePath>
-    <PostBuildEventUseInBuild>
-    </PostBuildEventUseInBuild>
-    <PreBuildEventUseInBuild>
-    </PreBuildEventUseInBuild>
-    <PreLinkEventUseInBuild>
-    </PreLinkEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)</IncludePath>
-    <PostBuildEventUseInBuild />
-    <PreBuildEventUseInBuild />
-    <PreLinkEventUseInBuild />
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -95,7 +80,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir);util;util/Graphics;util/Misc;util/PBRTParser;$(IntDir);SampleCore;SampleCore\PBRTParser;RTAO;SampleCore\util;..\..\..\..\..\Libraries\D3DX12\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);util;util/Graphics;util/Misc;util/PBRTParser;$(IntDir);SampleCore;SampleCore\PBRTParser;RTAO;SampleCore\util;..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DisableSpecificWarnings>
       </DisableSpecificWarnings>
@@ -121,28 +106,6 @@
       <ObjectFileOutput />
       <AdditionalIncludeDirectories>$(ProjectDir);RTAO/shaders;SampleCore/shaders;SampleCore/shaders/util</AdditionalIncludeDirectories>
     </FxCompile>
-    <PostBuildEvent>
-      <Command>
-      </Command>
-      <Message>
-      </Message>
-    </PostBuildEvent>
-    <PreLinkEvent>
-      <Command>
-      </Command>
-    </PreLinkEvent>
-    <PreLinkEvent>
-      <Message>
-      </Message>
-    </PreLinkEvent>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-    </PreBuildEvent>
-    <PreBuildEvent>
-      <Message>
-      </Message>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -153,7 +116,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir);util;util/Graphics;util/Misc;util/PBRTParser;$(IntDir);SampleCore;SampleCore\PBRTParser;RTAO;SampleCore\util;..\..\..\..\..\Libraries\D3DX12\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);util;util/Graphics;util/Misc;util/PBRTParser;$(IntDir);SampleCore;SampleCore\PBRTParser;RTAO;SampleCore\util;..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -179,26 +142,6 @@
       <ObjectFileOutput />
       <AdditionalIncludeDirectories>$(ProjectDir);RTAO/shaders;SampleCore/shaders;SampleCore/shaders/util</AdditionalIncludeDirectories>
     </FxCompile>
-    <PostBuildEvent>
-      <Command>
-      </Command>
-      <Message>
-      </Message>
-    </PostBuildEvent>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-      <Message>
-      </Message>
-    </PreBuildEvent>
-    <PreLinkEvent>
-      <Command>
-      </Command>
-    </PreLinkEvent>
-    <PreLinkEvent>
-      <Message>
-      </Message>
-    </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
     <ClCompile>
@@ -209,7 +152,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;PROFILE;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir);util;util/Graphics;util/Misc;util/PBRTParser;$(IntDir);SampleCore;SampleCore\PBRTParser;RTAO;SampleCore\util;..\..\..\..\..\Libraries\D3DX12\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);util;util/Graphics;util/Misc;util/PBRTParser;$(IntDir);SampleCore;SampleCore\PBRTParser;RTAO;SampleCore\util;..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -231,32 +174,8 @@
       <TreatOutputAsContent>true</TreatOutputAsContent>
     </CustomBuild>
     <FxCompile>
-      <EntryPointName>
-      </EntryPointName>
-      <ObjectFileOutput>
-      </ObjectFileOutput>
       <AdditionalIncludeDirectories>$(ProjectDir);RTAO/shaders;SampleCore/shaders;SampleCore/shaders/util</AdditionalIncludeDirectories>
     </FxCompile>
-    <PostBuildEvent>
-      <Command>
-      </Command>
-      <Message>
-      </Message>
-    </PostBuildEvent>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-      <Message>
-      </Message>
-    </PreBuildEvent>
-    <PreLinkEvent>
-      <Command>
-      </Command>
-    </PreLinkEvent>
-    <PreLinkEvent>
-      <Message>
-      </Message>
-    </PreLinkEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="SampleCore\Composition.h" />

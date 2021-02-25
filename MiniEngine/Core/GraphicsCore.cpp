@@ -30,299 +30,200 @@
 #include "ParticleEffectManager.h"
 #include "GraphRenderer.h"
 #include "TemporalEffects.h"
+#include "Display.h"
 
-// This macro determines whether to detect if there is an HDR display and enable HDR10 output.
-// Currently, with HDR display enabled, the pixel magnfication functionality is broken.
-#define CONDITIONALLY_ENABLE_HDR_OUTPUT 1
-
-// Uncomment this to enable experimental support for the new shader compiler, DXC.exe
-//#define DXIL
-
-#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-    #include <agile.h>
-#endif
-
-#if defined(NTDDI_WIN10_RS2) && (NTDDI_VERSION >= NTDDI_WIN10_RS2)
-    #include <dxgi1_6.h>
-#else
-    #include <dxgi1_4.h>    // For WARP
-#endif
-#include <winreg.h>        // To read the registry
-
-#include "CompiledShaders/ScreenQuadVS.h"
-#include "CompiledShaders/BufferCopyPS.h"
-#include "CompiledShaders/PresentSDRPS.h"
-#include "CompiledShaders/PresentHDRPS.h"
-#include "CompiledShaders/MagnifyPixelsPS.h"
-#include "CompiledShaders/BilinearUpsamplePS.h"
-#include "CompiledShaders/BicubicHorizontalUpsamplePS.h"
-#include "CompiledShaders/BicubicVerticalUpsamplePS.h"
-#include "CompiledShaders/SharpeningUpsamplePS.h"
-#include "CompiledShaders/GenerateMipsLinearCS.h"
-#include "CompiledShaders/GenerateMipsLinearOddCS.h"
-#include "CompiledShaders/GenerateMipsLinearOddXCS.h"
-#include "CompiledShaders/GenerateMipsLinearOddYCS.h"
-#include "CompiledShaders/GenerateMipsGammaCS.h"
-#include "CompiledShaders/GenerateMipsGammaOddCS.h"
-#include "CompiledShaders/GenerateMipsGammaOddXCS.h"
-#include "CompiledShaders/GenerateMipsGammaOddYCS.h"
-
-#define SWAP_CHAIN_BUFFER_COUNT 3
-
-DXGI_FORMAT SwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
-
-#ifndef SAFE_RELEASE
-#define SAFE_RELEASE(x) if (x != nullptr) { x->Release(); x = nullptr; }
+#ifdef _GAMING_DESKTOP
+    #include <winreg.h>		// To read the registry
 #endif
 
 using namespace Math;
 
-namespace GameCore
-{
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-    extern HWND g_hWnd;
-#else
-    extern Platform::Agile<Windows::UI::Core::CoreWindow>  g_window;
-#endif
-}
-
-namespace
-{
-    float s_FrameTime = 0.0f;
-    uint64_t s_FrameIndex = 0;
-    int64_t s_FrameStartTick = 0;
-
-    BoolVar s_LimitTo30Hz("Timing/Limit To 30Hz", false);
-    BoolVar s_DropRandomFrames("Timing/Drop Random Frames", false);
-}
-
 namespace Graphics
 {
-    void PreparePresentLDR();
-    void PreparePresentHDR();
-    void CompositeOverlays( GraphicsContext& Context );
-
 #ifndef RELEASE
     const GUID WKPDID_D3DDebugObjectName = { 0x429b8c22,0x9188,0x4b0c, { 0x87,0x42,0xac,0xb0,0xbf,0x85,0xc2,0x00 }};
 #endif
 
-    const uint32_t kMaxNativeWidth = 3840;
-    const uint32_t kMaxNativeHeight = 2160;
-    const uint32_t kNumPredefinedResolutions = 6;
-
-    const char* ResolutionLabels[] = { "1280x720", "1600x900", "1920x1080", "2560x1440", "3200x1800", "3840x2160" };
-    EnumVar TargetResolution("Graphics/Display/Native Resolution", k1080p, kNumPredefinedResolutions, ResolutionLabels);
-
-    BoolVar s_EnableVSync("Timing/VSync", true);
-
     bool g_bTypedUAVLoadSupport_R11G11B10_FLOAT = false;
     bool g_bTypedUAVLoadSupport_R16G16B16A16_FLOAT = false;
-    bool g_bEnableHDROutput = false;
-    NumVar g_HDRPaperWhite("Graphics/Display/Paper White (nits)", 200.0f, 100.0f, 500.0f, 50.0f);
-    NumVar g_MaxDisplayLuminance("Graphics/Display/Peak Brightness (nits)", 1000.0f, 500.0f, 10000.0f, 100.0f);
-    const char* HDRModeLabels[] = { "HDR", "SDR", "Side-by-Side" };
-    EnumVar HDRDebugMode("Graphics/Display/HDR Debug Mode", 0, 3, HDRModeLabels);
-
-    uint32_t g_NativeWidth = 0;
-    uint32_t g_NativeHeight = 0;
-    uint32_t g_DisplayWidth = 1920;
-    uint32_t g_DisplayHeight = 1080;
-    ColorBuffer g_PreDisplayBuffer;
-
-    void SetNativeResolution(void)
-    {
-        uint32_t NativeWidth, NativeHeight;
-
-        switch (eResolution((int)TargetResolution))
-        {
-        default:
-        case k720p:
-            NativeWidth = 1280;
-            NativeHeight = 720;
-            break;
-        case k900p:
-            NativeWidth = 1600;
-            NativeHeight = 900;
-            break;
-        case k1080p:
-            NativeWidth = 1920;
-            NativeHeight = 1080;
-            break;
-        case k1440p:
-            NativeWidth = 2560;
-            NativeHeight = 1440;
-            break;
-        case k1800p:
-            NativeWidth = 3200;
-            NativeHeight = 1800;
-            break;
-        case k2160p:
-            NativeWidth = 3840;
-            NativeHeight = 2160;
-            break;
-        }
-
-        if (g_NativeWidth == NativeWidth && g_NativeHeight == NativeHeight)
-            return;
-
-        DEBUGPRINT("Changing native resolution to %ux%u", NativeWidth, NativeHeight);
-
-        g_NativeWidth = NativeWidth;
-        g_NativeHeight = NativeHeight;
-
-        g_CommandManager.IdleGPU();
-
-        InitializeRenderingBuffers(NativeWidth, NativeHeight);
-    }
 
     ID3D12Device* g_Device = nullptr;
-
     CommandListManager g_CommandManager;
     ContextManager g_ContextManager;
 
     D3D_FEATURE_LEVEL g_D3DFeatureLevel = D3D_FEATURE_LEVEL_11_0;
-
-    ColorBuffer g_DisplayPlane[SWAP_CHAIN_BUFFER_COUNT];
-    UINT g_CurrentBuffer = 0;
-
-    IDXGISwapChain1* s_SwapChain1 = nullptr;
 
     DescriptorAllocator g_DescriptorAllocator[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] =
     {
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
         D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
         D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-        D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+        D3D12_DESCRIPTOR_HEAP_TYPE_DSV
     };
 
-    RootSignature s_PresentRS;
-    GraphicsPSO s_BlendUIPSO;
-    GraphicsPSO PresentSDRPS;
-    GraphicsPSO PresentHDRPS;
-    GraphicsPSO MagnifyPixelsPS;
-    GraphicsPSO SharpeningUpsamplePS;
-    GraphicsPSO BicubicHorizontalUpsamplePS;
-    GraphicsPSO BicubicVerticalUpsamplePS;
-    GraphicsPSO BilinearUpsamplePS;
+    static const uint32_t vendorID_Nvidia = 4318;
+    static const uint32_t vendorID_AMD = 4098;
+    static const uint32_t vendorID_Intel = 8086;
 
-    RootSignature g_GenerateMipsRS;
-    ComputePSO g_GenerateMipsLinearPSO[4];
-    ComputePSO g_GenerateMipsGammaPSO[4];
-
-    enum { kBilinear, kBicubic, kSharpening, kFilterCount };
-    const char* FilterLabels[] = { "Bilinear", "Bicubic", "Sharpening" };
-    EnumVar UpsampleFilter("Graphics/Display/Upsample Filter", kFilterCount - 1, kFilterCount, FilterLabels);
-    NumVar BicubicUpsampleWeight("Graphics/Display/Bicubic Filter Weight", -0.75f, -1.0f, -0.25f, 0.25f);
-    NumVar SharpeningSpread("Graphics/Display/Sharpness Sample Spread", 1.0f, 0.7f, 2.0f, 0.1f);
-    NumVar SharpeningRotation("Graphics/Display/Sharpness Sample Rotation", 45.0f, 0.0f, 90.0f, 15.0f);
-    NumVar SharpeningStrength("Graphics/Display/Sharpness Strength", 0.10f, 0.0f, 1.0f, 0.01f);
-
-    enum DebugZoomLevel { kDebugZoomOff, kDebugZoom2x, kDebugZoom4x, kDebugZoom8x, kDebugZoom16x, kDebugZoomCount };
-    const char* DebugZoomLabels[] = { "Off", "2x Zoom", "4x Zoom", "8x Zoom", "16x Zoom" };
-    EnumVar DebugZoom("Graphics/Display/Magnify Pixels", kDebugZoomOff, kDebugZoomCount, DebugZoomLabels);
-}
-
-void Graphics::Resize(uint32_t width, uint32_t height)
-{
-    ASSERT(s_SwapChain1 != nullptr);
-
-    // Check for invalid window dimensions
-    if (width == 0 || height == 0)
-        return;
-
-    // Check for an unneeded resize
-    if (width == g_DisplayWidth && height == g_DisplayHeight)
-        return;
-
-    g_CommandManager.IdleGPU();
-
-    g_DisplayWidth = width;
-    g_DisplayHeight = height;
-
-    DEBUGPRINT("Changing display resolution to %ux%u", width, height);
-
-    g_PreDisplayBuffer.Create(L"PreDisplay Buffer", width, height, 1, SwapChainFormat);
-
-    for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
-        g_DisplayPlane[i].Destroy();
-
-    ASSERT_SUCCEEDED(s_SwapChain1->ResizeBuffers(SWAP_CHAIN_BUFFER_COUNT, width, height, SwapChainFormat, 0));
-
-    for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
+    uint32_t GetDesiredGPUVendor()
     {
-        ComPtr<ID3D12Resource> DisplayPlane;
-        ASSERT_SUCCEEDED(s_SwapChain1->GetBuffer(i, MY_IID_PPV_ARGS(&DisplayPlane)));
-        g_DisplayPlane[i].CreateFromSwapChain(L"Primary SwapChain Buffer", DisplayPlane.Detach());
+        uint32_t desiredVendor = 0;
+
+        std::wstring vendorVal;
+        if (CommandLineArgs::GetString(L"vendor", vendorVal))
+        {
+            // Convert to lower case
+            std::transform(vendorVal.begin(), vendorVal.end(), vendorVal.begin(), std::towlower);
+
+            if (vendorVal.find(L"amd") != std::wstring::npos)
+            {
+                desiredVendor = vendorID_AMD;
+            }
+            else if (vendorVal.find(L"nvidia") != std::wstring::npos || vendorVal.find(L"nvd") != std::wstring::npos ||
+                vendorVal.find(L"nvda") != std::wstring::npos || vendorVal.find(L"nv") != std::wstring::npos)
+            {
+                desiredVendor = vendorID_Nvidia;
+            }
+            else if (vendorVal.find(L"intel") != std::wstring::npos || vendorVal.find(L"intc") != std::wstring::npos)
+            {
+                desiredVendor = vendorID_Intel;
+            }
+        }
+
+        return desiredVendor;
     }
 
-    g_CurrentBuffer = 0;
-
-    g_CommandManager.IdleGPU();
-
-    ResizeDisplayDependentBuffers(g_NativeWidth, g_NativeHeight);
-}
-
-#ifdef ENABLE_EXPERIMENTAL_DXIL_SUPPORT
-// A more recent Windows SDK than currently required is needed for these.
-typedef HRESULT(WINAPI *D3D12EnableExperimentalFeaturesFn)(
-    UINT                                    NumFeatures,
-    __in_ecount(NumFeatures) const IID*     pIIDs,
-    __in_ecount_opt(NumFeatures) void*      pConfigurationStructs,
-    __in_ecount_opt(NumFeatures) UINT*      pConfigurationStructSizes);
-
-static const GUID D3D12ExperimentalShaderModelsID = // 76f5573e-f13a-40f5-b297-81ce9e18933f
-{
-    0x76f5573e, 0xf13a, 0x40f5, { 0xb2, 0x97, 0x81, 0xce, 0x9e, 0x18, 0x93, 0x3f }
-};
-
-using namespace DirectX;
-
-static HRESULT EnableExperimentalShaderModels()
-{
-    HMODULE hRuntime = LoadLibraryW(L"d3d12.dll");
-    if (!hRuntime)
-        return HRESULT_FROM_WIN32(GetLastError());
-
-    D3D12EnableExperimentalFeaturesFn pD3D12EnableExperimentalFeatures =
-        (D3D12EnableExperimentalFeaturesFn)GetProcAddress(hRuntime, "D3D12EnableExperimentalFeatures");
-
-    if (pD3D12EnableExperimentalFeatures == nullptr)
+    const wchar_t* GPUVendorToString(uint32_t vendorID)
     {
-        FreeLibrary(hRuntime);
-        return HRESULT_FROM_WIN32(GetLastError());
+        switch (vendorID)
+        {
+        case vendorID_Nvidia:
+            return L"Nvidia";
+        case vendorID_AMD:
+            return L"AMD";
+        case vendorID_Intel:
+            return L"Intel";
+        default:
+            return L"Unknown";
+            break;
+        }
     }
 
-    return pD3D12EnableExperimentalFeatures(1, &D3D12ExperimentalShaderModelsID, nullptr, nullptr);
+    uint32_t GetVendorIdFromDevice(ID3D12Device* pDevice)
+    {
+        LUID luid = pDevice->GetAdapterLuid();
+
+        // Obtain the DXGI factory
+        Microsoft::WRL::ComPtr<IDXGIFactory4> dxgiFactory;
+        ASSERT_SUCCEEDED(CreateDXGIFactory2(0, MY_IID_PPV_ARGS(&dxgiFactory)));
+
+        Microsoft::WRL::ComPtr<IDXGIAdapter1> pAdapter;
+
+        if (SUCCEEDED(dxgiFactory->EnumAdapterByLuid(luid, MY_IID_PPV_ARGS(&pAdapter))))
+        {
+            DXGI_ADAPTER_DESC1 desc;
+            if(SUCCEEDED(pAdapter->GetDesc1(&desc)))
+            {
+                return desc.VendorId;
+            }
+        }
+
+        return 0;
+    }
+
+    bool IsDeviceNvidia(ID3D12Device* pDevice)
+    {
+        return GetVendorIdFromDevice(pDevice) == vendorID_Nvidia;
+    }
+
+    bool IsDeviceAMD(ID3D12Device* pDevice)
+    {
+        return GetVendorIdFromDevice(pDevice) == vendorID_AMD;
+    }
+
+    bool IsDeviceIntel(ID3D12Device* pDevice)
+    {
+        return GetVendorIdFromDevice(pDevice) == vendorID_Intel;
+    }
 }
-#else
-static HRESULT EnableExperimentalShaderModels() { return S_OK; }
-#endif
 
 // Initialize the DirectX resources required to run.
 void Graphics::Initialize(void)
 {
-    ASSERT(s_SwapChain1 == nullptr, "Graphics has already been initialized");
-
     Microsoft::WRL::ComPtr<ID3D12Device> pDevice;
 
+    uint32_t useDebugLayers = 0;
+    CommandLineArgs::GetInteger(L"debug", useDebugLayers);
 #if _DEBUG
-    Microsoft::WRL::ComPtr<ID3D12Debug> debugInterface;
-    if (SUCCEEDED(D3D12GetDebugInterface(MY_IID_PPV_ARGS(&debugInterface))))
-        debugInterface->EnableDebugLayer();
-    else
-        Utility::Print("WARNING:  Unable to enable D3D12 debug validation layer\n");
+    // Default to true for debug builds
+    useDebugLayers = 1;
 #endif
 
-    EnableExperimentalShaderModels();
+    DWORD dxgiFactoryFlags = 0;
+
+    if (useDebugLayers)
+    {
+        Microsoft::WRL::ComPtr<ID3D12Debug> debugInterface;
+        if (SUCCEEDED(D3D12GetDebugInterface(MY_IID_PPV_ARGS(&debugInterface))))
+        {
+            debugInterface->EnableDebugLayer();
+
+            uint32_t useGPUBasedValidation = 0;
+            CommandLineArgs::GetInteger(L"gpu_debug", useGPUBasedValidation);
+            if (useGPUBasedValidation)
+            {
+                Microsoft::WRL::ComPtr<ID3D12Debug1> debugInterface1;
+                if (SUCCEEDED((debugInterface->QueryInterface(MY_IID_PPV_ARGS(&debugInterface1)))))
+                {
+                    debugInterface1->SetEnableGPUBasedValidation(true);
+                }
+            }
+        }
+        else
+        {
+            Utility::Print("WARNING:  Unable to enable D3D12 debug validation layer\n");
+        }
+
+#if _DEBUG
+        ComPtr<IDXGIInfoQueue> dxgiInfoQueue;
+        if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(dxgiInfoQueue.GetAddressOf()))))
+        {
+            dxgiFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+
+            dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
+            dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
+
+            DXGI_INFO_QUEUE_MESSAGE_ID hide[] =
+            {
+                80 /* IDXGISwapChain::GetContainingOutput: The swapchain's adapter does not control the output on which the swapchain's window resides. */,
+            };
+            DXGI_INFO_QUEUE_FILTER filter = {};
+            filter.DenyList.NumIDs = _countof(hide);
+            filter.DenyList.pIDList = hide;
+            dxgiInfoQueue->AddStorageFilterEntries(DXGI_DEBUG_DXGI, &filter);
+        }
+#endif
+    }
 
     // Obtain the DXGI factory
-    Microsoft::WRL::ComPtr<IDXGIFactory4> dxgiFactory;
-    ASSERT_SUCCEEDED(CreateDXGIFactory2(0, MY_IID_PPV_ARGS(&dxgiFactory)));
+    Microsoft::WRL::ComPtr<IDXGIFactory6> dxgiFactory;
+    ASSERT_SUCCEEDED(CreateDXGIFactory2(dxgiFactoryFlags, MY_IID_PPV_ARGS(&dxgiFactory)));
 
     // Create the D3D graphics device
     Microsoft::WRL::ComPtr<IDXGIAdapter1> pAdapter;
 
-    static const bool bUseWarpDriver = false;
+    uint32_t bUseWarpDriver = false;
+    CommandLineArgs::GetInteger(L"warp", bUseWarpDriver);
+
+    uint32_t desiredVendor = GetDesiredGPUVendor();
+
+    if (desiredVendor)
+    {
+        Utility::Printf(L"Looking for a %s GPU\n", GPUVendorToString(desiredVendor));
+    }
+
+    // Temporary workaround because SetStablePowerState() is crashing
+    D3D12EnableExperimentalFeatures(0, nullptr, nullptr, nullptr);
 
     if (!bUseWarpDriver)
     {
@@ -335,11 +236,18 @@ void Graphics::Initialize(void)
             if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
                 continue;
 
-            if (desc.DedicatedVideoMemory > MaxSize && SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice))))
+            if ((desc.DedicatedVideoMemory > MaxSize || (desc.VendorId == desiredVendor)) && 
+                SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice))))
             {
                 pAdapter->GetDesc1(&desc);
                 Utility::Printf(L"D3D12-capable hardware found:  %s (%u MB)\n", desc.Description, desc.DedicatedVideoMemory >> 20);
                 MaxSize = desc.DedicatedVideoMemory;
+
+                if (desc.VendorId == desiredVendor)
+                {
+                    Utility::Printf(L"Choosing this device based on user request\n");
+                    break;
+                }
             }
         }
 
@@ -353,7 +261,7 @@ void Graphics::Initialize(void)
             Utility::Print("WARP software adapter requested.  Initializing...\n");
         else
             Utility::Print("Failed to find a hardware adapter.  Falling back to WARP.\n");
-        ASSERT_SUCCEEDED(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pAdapter)));
+        ASSERT_SUCCEEDED(dxgiFactory->EnumWarpAdapter(MY_IID_PPV_ARGS(&pAdapter)));
         ASSERT_SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice)));
         g_Device = pDevice.Detach();
     }
@@ -380,7 +288,7 @@ void Graphics::Initialize(void)
         if (DeveloperModeEnabled)
             g_Device->SetStablePowerState(TRUE);
     }
-#endif    
+#endif	
 
 #if _DEBUG
     ID3D12InfoQueue* pInfoQueue = nullptr;
@@ -461,152 +369,27 @@ void Graphics::Initialize(void)
 
     g_CommandManager.Create(g_Device);
 
-    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-    swapChainDesc.Width = g_DisplayWidth;
-    swapChainDesc.Height = g_DisplayHeight;
-    swapChainDesc.Format = SwapChainFormat;
-    swapChainDesc.Scaling = DXGI_SCALING_NONE;
-    swapChainDesc.SampleDesc.Quality = 0;
-    swapChainDesc.SampleDesc.Count = 1;
-    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.BufferCount = SWAP_CHAIN_BUFFER_COUNT;
-    swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) // Win32
-    ASSERT_SUCCEEDED(dxgiFactory->CreateSwapChainForHwnd(g_CommandManager.GetCommandQueue(), GameCore::g_hWnd, &swapChainDesc, nullptr, nullptr, &s_SwapChain1));
-#else // UWP
-    ASSERT_SUCCEEDED(dxgiFactory->CreateSwapChainForCoreWindow(g_CommandManager.GetCommandQueue(), (IUnknown*)GameCore::g_window.Get(), &swapChainDesc, nullptr, &s_SwapChain1));
-#endif
-
-#if CONDITIONALLY_ENABLE_HDR_OUTPUT && defined(NTDDI_WIN10_RS2) && (NTDDI_VERSION >= NTDDI_WIN10_RS2)
-    {
-        IDXGISwapChain4* swapChain = (IDXGISwapChain4*)s_SwapChain1;
-        ComPtr<IDXGIOutput> output;
-        ComPtr<IDXGIOutput6> output6;
-        DXGI_OUTPUT_DESC1 outputDesc;
-        UINT colorSpaceSupport;
-
-        // Query support for ST.2084 on the display and set the color space accordingly
-        if (SUCCEEDED(swapChain->GetContainingOutput(&output)) &&
-            SUCCEEDED(output.As(&output6)) &&
-            SUCCEEDED(output6->GetDesc1(&outputDesc)) &&
-            outputDesc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 &&
-            SUCCEEDED(swapChain->CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020, &colorSpaceSupport)) &&
-            (colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) &&
-            SUCCEEDED(swapChain->SetColorSpace1(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)))
-        {
-            g_bEnableHDROutput = true;
-        }
-    }
-#endif
-
-    for (uint32_t i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
-    {
-        ComPtr<ID3D12Resource> DisplayPlane;
-        ASSERT_SUCCEEDED(s_SwapChain1->GetBuffer(i, MY_IID_PPV_ARGS(&DisplayPlane)));
-        g_DisplayPlane[i].CreateFromSwapChain(L"Primary SwapChain Buffer", DisplayPlane.Detach());
-    }
-
     // Common state was moved to GraphicsCommon.*
     InitializeCommonState();
 
-    s_PresentRS.Reset(4, 2);
-    s_PresentRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 2);
-    s_PresentRS[1].InitAsConstants(0, 6, D3D12_SHADER_VISIBILITY_ALL);
-    s_PresentRS[2].InitAsBufferSRV(2, D3D12_SHADER_VISIBILITY_PIXEL);
-    s_PresentRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
-    s_PresentRS.InitStaticSampler(0, SamplerLinearClampDesc);
-    s_PresentRS.InitStaticSampler(1, SamplerPointClampDesc);
-    s_PresentRS.Finalize(L"Present");
-
-    // Initialize PSOs
-    s_BlendUIPSO.SetRootSignature(s_PresentRS);
-    s_BlendUIPSO.SetRasterizerState( RasterizerTwoSided );
-    s_BlendUIPSO.SetBlendState( BlendPreMultiplied );
-    s_BlendUIPSO.SetDepthStencilState( DepthStateDisabled );
-    s_BlendUIPSO.SetSampleMask(0xFFFFFFFF);
-    s_BlendUIPSO.SetInputLayout(0, nullptr);
-    s_BlendUIPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-    s_BlendUIPSO.SetVertexShader( g_pScreenQuadVS, sizeof(g_pScreenQuadVS) );
-    s_BlendUIPSO.SetPixelShader( g_pBufferCopyPS, sizeof(g_pBufferCopyPS) );
-    s_BlendUIPSO.SetRenderTargetFormat(SwapChainFormat, DXGI_FORMAT_UNKNOWN);
-    s_BlendUIPSO.Finalize();
-
-#define CreatePSO( ObjName, ShaderByteCode ) \
-    ObjName = s_BlendUIPSO; \
-    ObjName.SetBlendState( BlendDisable ); \
-    ObjName.SetPixelShader(ShaderByteCode, sizeof(ShaderByteCode) ); \
-    ObjName.Finalize();
-
-    CreatePSO(PresentSDRPS, g_pPresentSDRPS);
-    CreatePSO(MagnifyPixelsPS, g_pMagnifyPixelsPS);
-    CreatePSO(BilinearUpsamplePS, g_pBilinearUpsamplePS);
-    CreatePSO(BicubicHorizontalUpsamplePS, g_pBicubicHorizontalUpsamplePS);
-    CreatePSO(BicubicVerticalUpsamplePS, g_pBicubicVerticalUpsamplePS);
-    CreatePSO(SharpeningUpsamplePS, g_pSharpeningUpsamplePS);
-
-#undef CreatePSO
-
-    BicubicHorizontalUpsamplePS = s_BlendUIPSO;
-    BicubicHorizontalUpsamplePS.SetBlendState( BlendDisable );
-    BicubicHorizontalUpsamplePS.SetPixelShader(g_pBicubicHorizontalUpsamplePS, sizeof(g_pBicubicHorizontalUpsamplePS) );
-    BicubicHorizontalUpsamplePS.SetRenderTargetFormat(DXGI_FORMAT_R11G11B10_FLOAT, DXGI_FORMAT_UNKNOWN);
-    BicubicHorizontalUpsamplePS.Finalize();
-
-    PresentHDRPS = PresentSDRPS;
-    PresentHDRPS.SetPixelShader(g_pPresentHDRPS, sizeof(g_pPresentHDRPS));
-    DXGI_FORMAT SwapChainFormats[2] = { DXGI_FORMAT_R10G10B10A2_UNORM, DXGI_FORMAT_R10G10B10A2_UNORM };
-    PresentHDRPS.SetRenderTargetFormats(2, SwapChainFormats, DXGI_FORMAT_UNKNOWN );
-    PresentHDRPS.Finalize();
-
-    g_GenerateMipsRS.Reset(3, 1);
-    g_GenerateMipsRS[0].InitAsConstants(0, 4);
-    g_GenerateMipsRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
-    g_GenerateMipsRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 4);
-    g_GenerateMipsRS.InitStaticSampler(0, SamplerLinearClampDesc);
-    g_GenerateMipsRS.Finalize(L"Generate Mips");
-    
-#define CreatePSO(ObjName, ShaderByteCode ) \
-    ObjName.SetRootSignature(g_GenerateMipsRS); \
-    ObjName.SetComputeShader(ShaderByteCode, sizeof(ShaderByteCode) ); \
-    ObjName.Finalize();
-
-    CreatePSO(g_GenerateMipsLinearPSO[0], g_pGenerateMipsLinearCS);
-    CreatePSO(g_GenerateMipsLinearPSO[1], g_pGenerateMipsLinearOddXCS);
-    CreatePSO(g_GenerateMipsLinearPSO[2], g_pGenerateMipsLinearOddYCS);
-    CreatePSO(g_GenerateMipsLinearPSO[3], g_pGenerateMipsLinearOddCS);
-    CreatePSO(g_GenerateMipsGammaPSO[0], g_pGenerateMipsGammaCS);
-    CreatePSO(g_GenerateMipsGammaPSO[1], g_pGenerateMipsGammaOddXCS);
-    CreatePSO(g_GenerateMipsGammaPSO[2], g_pGenerateMipsGammaOddYCS);
-    CreatePSO(g_GenerateMipsGammaPSO[3], g_pGenerateMipsGammaOddCS);
-
-    g_PreDisplayBuffer.Create(L"PreDisplay Buffer", g_DisplayWidth, g_DisplayHeight, 1, SwapChainFormat);
+    Display::Initialize();
 
     GpuTimeManager::Initialize(4096);
-    SetNativeResolution();
     TemporalEffects::Initialize();
     PostEffects::Initialize();
     SSAO::Initialize();
     TextRenderer::Initialize();
     GraphRenderer::Initialize();
-    ParticleEffects::Initialize(kMaxNativeWidth, kMaxNativeHeight);
-}
-
-void Graphics::Terminate( void )
-{
-    g_CommandManager.IdleGPU();
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-    s_SwapChain1->SetFullscreenState(FALSE, nullptr);
-#endif
+    ParticleEffectManager::Initialize(3840, 2160);
 }
 
 void Graphics::Shutdown( void )
 {
+    g_CommandManager.IdleGPU();
+
     CommandContext::DestroyAllContexts();
     g_CommandManager.Shutdown();
     GpuTimeManager::Shutdown();
-    s_SwapChain1->Release();
     PSO::DestroyAll();
     RootSignature::DestroyAll();
     DescriptorAllocator::DestroyAll();
@@ -618,15 +401,10 @@ void Graphics::Shutdown( void )
     SSAO::Shutdown();
     TextRenderer::Shutdown();
     GraphRenderer::Shutdown();
-    ParticleEffects::Shutdown();
-    TextureManager::Shutdown();
+    ParticleEffectManager::Shutdown();
+    Display::Shutdown();
 
-    for (UINT i = 0; i < SWAP_CHAIN_BUFFER_COUNT; ++i)
-        g_DisplayPlane[i].Destroy();
-
-    g_PreDisplayBuffer.Destroy();
-
-#if defined(_DEBUG)
+#if defined(_GAMING_DESKTOP) && defined(_DEBUG)
     ID3D12DebugDevice* debugInterface;
     if (SUCCEEDED(g_Device->QueryInterface(&debugInterface)))
     {
@@ -635,209 +413,9 @@ void Graphics::Shutdown( void )
     }
 #endif
 
-    SAFE_RELEASE(g_Device);
-}
-
-void Graphics::PreparePresentHDR(void)
-{
-    GraphicsContext& Context = GraphicsContext::Begin(L"Present");
-
-    // We're going to be reading these buffers to write to the swap chain buffer(s)
-    Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    Context.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-    Context.SetRootSignature(s_PresentRS);
-    Context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    Context.SetDynamicDescriptor(0, 0, g_SceneColorBuffer.GetSRV());
-    Context.SetDynamicDescriptor(0, 1, g_OverlayBuffer.GetSRV());
-
-    D3D12_CPU_DESCRIPTOR_HANDLE RTVs[] =
+    if (g_Device != nullptr)
     {
-        g_DisplayPlane[g_CurrentBuffer].GetRTV()
-    };
-
-    Context.SetPipelineState(PresentHDRPS);
-    Context.SetRenderTargets(_countof(RTVs), RTVs);
-    Context.SetViewportAndScissor(0, 0, g_NativeWidth, g_NativeHeight);
-    struct Constants
-    {
-        float RcpDstWidth;
-        float RcpDstHeight;
-        float PaperWhite;
-        float MaxBrightness;
-        int32_t DebugMode;
-    };
-    Constants consts = { 1.0f / g_NativeWidth, 1.0f / g_NativeHeight,
-        (float)g_HDRPaperWhite, (float)g_MaxDisplayLuminance, (int32_t)HDRDebugMode };
-    Context.SetConstantArray(1, sizeof(Constants) / 4, (float*)&consts);
-    Context.Draw(3);
-
-    Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_PRESENT);
-
-    // Close the final context to be executed before frame present.
-    Context.Finish();
-}
-
-void Graphics::CompositeOverlays( GraphicsContext& Context )
-{
-    // Blend (or write) the UI overlay
-    Context.TransitionResource(g_OverlayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    Context.SetDynamicDescriptor(0, 0, g_OverlayBuffer.GetSRV());
-    Context.SetPipelineState(s_BlendUIPSO);
-    Context.SetConstants(1, 1.0f / g_NativeWidth, 1.0f / g_NativeHeight);
-    Context.Draw(3);
-}
-
-void Graphics::PreparePresentLDR(void)
-{
-    GraphicsContext& Context = GraphicsContext::Begin(L"Present");
-
-    // We're going to be reading these buffers to write to the swap chain buffer(s)
-    Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    Context.SetRootSignature(s_PresentRS);
-    Context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    // Copy (and convert) the LDR buffer to the back buffer
-
-    Context.SetDynamicDescriptor(0, 0, g_SceneColorBuffer.GetSRV());
-
-    ColorBuffer& UpsampleDest = (DebugZoom == kDebugZoomOff ? g_DisplayPlane[g_CurrentBuffer] : g_PreDisplayBuffer);
-
-    if (g_NativeWidth == g_DisplayWidth && g_NativeHeight == g_DisplayHeight)
-    {
-        Context.SetPipelineState(PresentSDRPS);
-        Context.TransitionResource(UpsampleDest, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        Context.SetRenderTarget(UpsampleDest.GetRTV());
-        Context.SetViewportAndScissor(0, 0, g_NativeWidth, g_NativeHeight);
-        Context.Draw(3);
+        g_Device->Release();
+        g_Device = nullptr;
     }
-    else if (UpsampleFilter == kBicubic)
-    {
-        Context.TransitionResource(g_HorizontalBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        Context.SetRenderTarget(g_HorizontalBuffer.GetRTV());
-        Context.SetViewportAndScissor(0, 0, g_DisplayWidth, g_NativeHeight);
-        Context.SetPipelineState(BicubicHorizontalUpsamplePS);
-        Context.SetConstants(1, g_NativeWidth, g_NativeHeight, (float)BicubicUpsampleWeight);
-        Context.Draw(3);
-
-        Context.TransitionResource(g_HorizontalBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        Context.TransitionResource(UpsampleDest, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        Context.SetRenderTarget(UpsampleDest.GetRTV());
-        Context.SetViewportAndScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
-        Context.SetPipelineState(BicubicVerticalUpsamplePS);
-        Context.SetConstants(1, g_DisplayWidth, g_NativeHeight, (float)BicubicUpsampleWeight);
-        Context.SetDynamicDescriptor(0, 0, g_HorizontalBuffer.GetSRV());
-        Context.Draw(3);
-    }
-    else if (UpsampleFilter == kSharpening)
-    {
-        Context.SetPipelineState(SharpeningUpsamplePS);
-        Context.TransitionResource(UpsampleDest, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        Context.SetRenderTarget(UpsampleDest.GetRTV());
-        Context.SetViewportAndScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
-        float TexelWidth = 1.0f / g_NativeWidth;
-        float TexelHeight = 1.0f / g_NativeHeight;
-        float X = Math::Cos((float)SharpeningRotation / 180.0f * 3.14159f) * (float)SharpeningSpread;
-        float Y = Math::Sin((float)SharpeningRotation / 180.0f * 3.14159f) * (float)SharpeningSpread;
-        const float WA = (float)SharpeningStrength;
-        const float WB = 1.0f + 4.0f * WA;
-        float Constants[] = { X * TexelWidth, Y * TexelHeight, Y * TexelWidth, -X * TexelHeight, WA, WB };
-        Context.SetConstantArray(1, _countof(Constants), Constants);
-        Context.Draw(3);
-    }
-    else if (UpsampleFilter == kBilinear)
-    {
-        Context.SetPipelineState(BilinearUpsamplePS);
-        Context.TransitionResource(UpsampleDest, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        Context.SetRenderTarget(UpsampleDest.GetRTV());
-        Context.SetViewportAndScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
-        Context.Draw(3);
-    }
-
-    if (DebugZoom != kDebugZoomOff)
-    {
-        Context.TransitionResource(g_PreDisplayBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        Context.SetPipelineState(MagnifyPixelsPS);
-        Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_RENDER_TARGET);
-        Context.SetRenderTarget(g_DisplayPlane[g_CurrentBuffer].GetRTV());
-        Context.SetViewportAndScissor(0, 0, g_DisplayWidth, g_DisplayHeight);
-        Context.SetConstants(1, 1.0f / ((int)DebugZoom + 1.0f));
-        Context.SetDynamicDescriptor(0, 0, g_PreDisplayBuffer.GetSRV());
-        Context.Draw(3);
-    }
-
-    CompositeOverlays(Context);
-
-    Context.TransitionResource(g_DisplayPlane[g_CurrentBuffer], D3D12_RESOURCE_STATE_PRESENT);
-
-    // Close the final context to be executed before frame present.
-    Context.Finish();
-}
-
-void Graphics::Present(void)
-{
-    if (g_bEnableHDROutput)
-        PreparePresentHDR();
-    else
-        PreparePresentLDR();
-
-    g_CurrentBuffer = (g_CurrentBuffer + 1) % SWAP_CHAIN_BUFFER_COUNT;
-
-    UINT PresentInterval = s_EnableVSync ? std::min(4, (int)Round(s_FrameTime * 60.0f)) : 0;
-
-    s_SwapChain1->Present(PresentInterval, 0);
-
-    // Test robustness to handle spikes in CPU time
-    //if (s_DropRandomFrames)
-    //{
-    //    if (std::rand() % 25 == 0)
-    //        BusyLoopSleep(0.010);
-    //}
-
-    int64_t CurrentTick = SystemTime::GetCurrentTick();
-
-    if (s_EnableVSync)
-    {
-        // With VSync enabled, the time step between frames becomes a multiple of 16.666 ms.  We need
-        // to add logic to vary between 1 and 2 (or 3 fields).  This delta time also determines how
-        // long the previous frame should be displayed (i.e. the present interval.)
-        s_FrameTime = (s_LimitTo30Hz ? 2.0f : 1.0f) / 60.0f;
-        if (s_DropRandomFrames)
-        {
-            if (std::rand() % 50 == 0)
-                s_FrameTime += (1.0f / 60.0f);
-        }
-    }
-    else
-    {
-        // When running free, keep the most recent total frame time as the time step for
-        // the next frame simulation.  This is not super-accurate, but assuming a frame
-        // time varies smoothly, it should be close enough.
-        s_FrameTime = (float)SystemTime::TimeBetweenTicks(s_FrameStartTick, CurrentTick);
-    }
-
-    s_FrameStartTick = CurrentTick;
-
-    ++s_FrameIndex;
-    TemporalEffects::Update((uint32_t)s_FrameIndex);
-
-    SetNativeResolution();
-}
-
-uint64_t Graphics::GetFrameCount(void)
-{
-    return s_FrameIndex;
-}
-
-float Graphics::GetFrameTime(void)
-{
-    return s_FrameTime;
-}
-
-float Graphics::GetFrameRate(void)
-{
-    return s_FrameTime == 0.0f ? 0.0f : 1.0f / s_FrameTime;
 }

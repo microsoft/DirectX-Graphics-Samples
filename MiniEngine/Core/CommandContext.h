@@ -19,7 +19,7 @@
 #include "PipelineState.h"
 #include "RootSignature.h"
 #include "GpuBuffer.h"
-#include "TextureManager.h"
+#include "Texture.h"
 #include "PixelBuffer.h"
 #include "DynamicDescriptorHeap.h"
 #include "LinearAllocator.h"
@@ -32,6 +32,8 @@ class DepthBuffer;
 class Texture;
 class GraphicsContext;
 class ComputeContext;
+class UploadBuffer;
+class ReadbackBuffer;
 
 struct DWParam
 {
@@ -122,7 +124,12 @@ public:
     void CopyBufferRegion( GpuResource& Dest, size_t DestOffset, GpuResource& Src, size_t SrcOffset, size_t NumBytes );
     void CopySubresource(GpuResource& Dest, UINT DestSubIndex, GpuResource& Src, UINT SrcSubIndex);
     void CopyCounter(GpuResource& Dest, size_t DestOffset, StructuredBuffer& Src);
+    void CopyTextureRegion(GpuResource& Dest, UINT x, UINT y, UINT z, GpuResource& Source, RECT& rect);
     void ResetCounter(StructuredBuffer& Buf, uint32_t Value = 0);
+
+    // Creates a readback buffer of sufficient size, copies the texture into it,
+    // and returns row pitch in bytes.
+    uint32_t ReadbackTexture(ReadbackBuffer& DstBuffer, PixelBuffer& SrcBuffer);
 
     DynAlloc ReserveUploadMemory(size_t SizeInBytes)
     {
@@ -130,9 +137,9 @@ public:
     }
 
     static void InitializeTexture( GpuResource& Dest, UINT NumSubresources, D3D12_SUBRESOURCE_DATA SubData[] );
-    static void InitializeBuffer( GpuResource& Dest, const void* Data, size_t NumBytes, size_t Offset = 0);
+    static void InitializeBuffer( GpuBuffer& Dest, const void* Data, size_t NumBytes, size_t DestOffset = 0);
+    static void InitializeBuffer( GpuBuffer& Dest, const UploadBuffer& Src, size_t SrcOffset, size_t NumBytes = -1, size_t DestOffset = 0 );
     static void InitializeTextureArraySlice(GpuResource& Dest, UINT SliceIndex, GpuResource& Src);
-    static void ReadbackTexture2D(GpuResource& ReadbackBuffer, PixelBuffer& SrcBuffer);
 
     void WriteBuffer( GpuResource& Dest, size_t DestOffset, const void* Data, size_t NumBytes );
     void FillBuffer( GpuResource& Dest, size_t DestOffset, DWParam Value, size_t NumBytes );
@@ -149,9 +156,9 @@ public:
     void PIXEndEvent(void);
     void PIXSetMarker(const wchar_t* label);
 
-    void SetPipelineState(const PSO& PSO);
     void SetDescriptorHeap( D3D12_DESCRIPTOR_HEAP_TYPE Type, ID3D12DescriptorHeap* HeapPtr );
     void SetDescriptorHeaps( UINT HeapCount, D3D12_DESCRIPTOR_HEAP_TYPE Type[], ID3D12DescriptorHeap* HeapPtrs[] );
+    void SetPipelineState( const PSO& PSO );
 
     void SetPredication(ID3D12Resource* Buffer, UINT64 BufferOffset, D3D12_PREDICATION_OP Op);
 
@@ -164,11 +171,11 @@ protected:
     ID3D12CommandAllocator* m_CurrentAllocator;
 
     ID3D12RootSignature* m_CurGraphicsRootSignature;
-    ID3D12PipelineState* m_CurPipelineState;
     ID3D12RootSignature* m_CurComputeRootSignature;
+    ID3D12PipelineState* m_CurPipelineState;
 
-    DynamicDescriptorHeap m_DynamicViewDescriptorHeap;        // HEAP_TYPE_CBV_SRV_UAV
-    DynamicDescriptorHeap m_DynamicSamplerDescriptorHeap;    // HEAP_TYPE_SAMPLER
+    DynamicDescriptorHeap m_DynamicViewDescriptorHeap;		// HEAP_TYPE_CBV_SRV_UAV
+    DynamicDescriptorHeap m_DynamicSamplerDescriptorHeap;	// HEAP_TYPE_SAMPLER
 
     D3D12_RESOURCE_BARRIER m_ResourceBarrierBuffer[16];
     UINT m_NumBarriersToFlush;
@@ -195,7 +202,8 @@ public:
 
     void ClearUAV( GpuBuffer& Target );
     void ClearUAV( ColorBuffer& Target );
-    void ClearColor( ColorBuffer& Target );
+    void ClearColor( ColorBuffer& Target, D3D12_RECT* Rect = nullptr);
+    void ClearColor(ColorBuffer& Target, float Colour[4], D3D12_RECT* Rect = nullptr);
     void ClearDepth( DepthBuffer& Target );
     void ClearStencil( DepthBuffer& Target );
     void ClearDepthAndStencil( DepthBuffer& Target );
@@ -223,7 +231,7 @@ public:
     void SetPrimitiveTopology( D3D12_PRIMITIVE_TOPOLOGY Topology );
 
     void SetConstantArray( UINT RootIndex, UINT NumConstants, const void* pConstants );
-    void SetConstant( UINT RootIndex, DWParam Val, UINT Offset = 0 );
+    void SetConstant( UINT RootIndex, UINT Offset, DWParam Val );
     void SetConstants( UINT RootIndex, DWParam X );
     void SetConstants( UINT RootIndex, DWParam X, DWParam Y );
     void SetConstants( UINT RootIndex, DWParam X, DWParam Y, DWParam Z );
@@ -271,7 +279,7 @@ public:
     void SetRootSignature( const RootSignature& RootSig );
 
     void SetConstantArray( UINT RootIndex, UINT NumConstants, const void* pConstants );
-    void SetConstant( UINT RootIndex, DWParam Val, UINT Offset = 0 );
+    void SetConstant( UINT RootIndex, UINT Offset, DWParam Val );
     void SetConstants( UINT RootIndex, DWParam X );
     void SetConstants( UINT RootIndex, DWParam X, DWParam Y );
     void SetConstants( UINT RootIndex, DWParam X, DWParam Y, DWParam Z );
@@ -371,7 +379,7 @@ inline void ComputeContext::SetConstantArray( UINT RootEntry, UINT NumConstants,
     m_CommandList->SetComputeRoot32BitConstants( RootEntry, NumConstants, pConstants, 0 );
 }
 
-inline void ComputeContext::SetConstant( UINT RootEntry, DWParam Val, UINT Offset )
+inline void ComputeContext::SetConstant( UINT RootEntry, UINT Offset, DWParam Val )
 {
     m_CommandList->SetComputeRoot32BitConstant( RootEntry, Val.Uint, Offset );
 }
@@ -407,7 +415,7 @@ inline void GraphicsContext::SetConstantArray( UINT RootIndex, UINT NumConstants
     m_CommandList->SetGraphicsRoot32BitConstants( RootIndex, NumConstants, pConstants, 0 );
 }
 
-inline void GraphicsContext::SetConstant( UINT RootEntry, DWParam Val, UINT Offset )
+inline void GraphicsContext::SetConstant( UINT RootEntry, UINT Offset, DWParam Val )
 {
     m_CommandList->SetGraphicsRoot32BitConstant( RootEntry, Val.Uint, Offset );
 }
@@ -748,6 +756,25 @@ inline void CommandContext::CopyCounter(GpuResource& Dest, size_t DestOffset, St
     TransitionResource(Src.GetCounterBuffer(), D3D12_RESOURCE_STATE_COPY_SOURCE);
     FlushResourceBarriers();
     m_CommandList->CopyBufferRegion(Dest.GetResource(), DestOffset, Src.GetCounterBuffer().GetResource(), 0, 4);
+}
+
+inline void CommandContext::CopyTextureRegion(GpuResource& Dest, UINT x, UINT y, UINT z, GpuResource& Source, RECT& Rect)
+{
+    TransitionResource(Dest, D3D12_RESOURCE_STATE_COPY_DEST);
+    TransitionResource(Source, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    FlushResourceBarriers();
+
+    D3D12_TEXTURE_COPY_LOCATION destLoc = CD3DX12_TEXTURE_COPY_LOCATION(Dest.GetResource(), 0);
+    D3D12_TEXTURE_COPY_LOCATION srcLoc = CD3DX12_TEXTURE_COPY_LOCATION(Source.GetResource(), 0);
+
+    D3D12_BOX box = {};
+    box.back = 1;
+    box.left = Rect.left;
+    box.right = Rect.right;
+    box.top = Rect.top;
+    box.bottom = Rect.bottom;
+
+    m_CommandList->CopyTextureRegion(&destLoc, x, y, z, &srcLoc, &box);
 }
 
 inline void CommandContext::ResetCounter(StructuredBuffer& Buf, uint32_t Value )

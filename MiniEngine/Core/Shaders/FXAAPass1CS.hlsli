@@ -57,6 +57,7 @@ THIS SOFTWARE, EVEN IF NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGES.
 */
 
+
 #include "FXAARootSignature.hlsli"
 
 RWByteAddressBuffer WorkCount : register(u0);
@@ -66,7 +67,7 @@ RWBuffer<float3> ColorQueue : register(u2);
   Texture2D<float3> Color : register(t0);
   float3 FetchColor( int2 st ) { return Color[st]; }
 #else
-  #include "PixelPacking.hlsli"
+  #include "PixelPacking_R11G11B10.hlsli"
   Texture2D<uint> Color : register(t0);
   float3 FetchColor( int2 st ) { return Unpack_R11G11B10_FLOAT(Color[st]); }
 #endif
@@ -174,7 +175,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     uint Subpix = uint(subpixelShift * 254.0) & 0xFE;
 
     // Packet header: [ 12 bits Y | 12 bits X | 7 bit Subpix | 1 bit dir(Grad) ]
-    uint WorkHeader = PixelCoord.y << 20 | PixelCoord.x << 8 | Subpix | GradientDir;
+    uint WorkHeader = DTid.y << 20 | DTid.x << 8 | Subpix | GradientDir;
 
     if (edgeHorz >= edgeVert)
     {

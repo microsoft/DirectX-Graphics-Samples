@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 //  This is an implementation of Tom Forsyth's "Linear-Speed Vertex Cache 
 //  Optimization" algorithm as described here:
-//  http://home.comcast.net/~tom_forsyth/papers/fast_vert_cache_opt.html
+//  https://tomforsyth1000.github.io/papers/fast_vert_cache_opt.html
 //
 //  This code was authored and released into the public domain by
 //  Adrian Stone (stone@gameangst.com).

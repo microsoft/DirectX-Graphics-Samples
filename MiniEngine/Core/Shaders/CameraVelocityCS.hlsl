@@ -11,7 +11,7 @@
 // Author:  James Stanard 
 //
 
-#include "MotionBlurRS.hlsli"
+#include "CommonRS.hlsli"
 #include "PixelPacking_Velocity.hlsli"
 
 // We can use the original depth buffer or a linearized one.  In this case, we use linear Z because
@@ -28,7 +28,7 @@ cbuffer CBuffer : register(b1)
     matrix CurToPrevXForm;
 }
 
-[RootSignature(MotionBlur_RootSig)]
+[RootSignature(Common_RootSig)]
 [numthreads( 8, 8, 1 )]
 void main( uint3 DTid : SV_DispatchThreadID )
 {

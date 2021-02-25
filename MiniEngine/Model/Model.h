@@ -8,205 +8,168 @@
 //
 // Developed by Minigraph
 //
-// Author(s):   Alex Nankervis
-//              James Stanard
+// Author:   James Stanard
 //
 
 #pragma once
 
-#include "VectorMath.h"
-#include "TextureManager.h"
-#include "GpuBuffer.h"
+#include "Animation.h"
+#include "../Core/GpuBuffer.h"
+#include "../Core/VectorMath.h"
+#include "../Core/Camera.h"
+#include "../Core/CommandContext.h"
+#include "../Core/UploadBuffer.h"
+#include "../Core/TextureManager.h"
+#include "../Core/Math/BoundingBox.h"
+#include "../Core/Math/BoundingSphere.h"
+#include <cstdint>
 
-using namespace Math;
+namespace Renderer
+{
+    class MeshSorter;
+}
+
+//
+// To request a PSO index, provide flags that describe the kind of PSO
+// you need.  If one has not yet been created, it will be created.
+//
+namespace PSOFlags
+{
+    enum : uint16_t
+    { 
+        kHasPosition    = 0x001,  // Required
+        kHasNormal      = 0x002,  // Required
+        kHasTangent     = 0x004,
+        kHasUV0         = 0x008,  // Required (for now)
+        kHasUV1         = 0x010,
+        kAlphaBlend     = 0x020,
+        kAlphaTest      = 0x040,
+        kTwoSided       = 0x080,
+        kHasSkin        = 0x100,  // Implies having indices and weights
+    };
+}
+
+struct Mesh
+{
+    float    bounds[4];     // A bounding sphere
+    uint32_t vbOffset;      // BufferLocation - Buffer.GpuVirtualAddress
+    uint32_t vbSize;        // SizeInBytes
+    uint32_t vbDepthOffset; // BufferLocation - Buffer.GpuVirtualAddress
+    uint32_t vbDepthSize;   // SizeInBytes
+    uint32_t ibOffset;      // BufferLocation - Buffer.GpuVirtualAddress
+    uint32_t ibSize;        // SizeInBytes
+    uint8_t  vbStride;      // StrideInBytes
+    uint8_t  ibFormat;      // DXGI_FORMAT
+    uint16_t meshCBV;       // Index of mesh constant buffer
+    uint16_t materialCBV;   // Index of material constant buffer
+    uint16_t srvTable;      // Offset into SRV descriptor heap for textures
+    uint16_t samplerTable;  // Offset into sampler descriptor heap for samplers
+    uint16_t psoFlags;      // Flags needed to request a PSO
+    uint16_t pso;           // Index of pipeline state object
+    uint16_t numJoints;     // Number of skeleton joints when skinning
+    uint16_t startJoint;    // Flat offset to first joint index
+    uint16_t numDraws;      // Number of draw groups
+
+    struct Draw
+    {
+        uint32_t primCount;   // Number of indices = 3 * number of triangles
+        uint32_t startIndex;  // Offset to first index in index buffer 
+        uint32_t baseVertex;  // Offset to first vertex in vertex buffer
+    };
+    Draw draw[1];           // Actually 1 or more draws
+};
+
+struct GraphNode // 96 bytes
+{
+    Math::Matrix4 xform;
+    Math::Quaternion rotation;
+    Math::XMFLOAT3 scale;
+
+    uint32_t matrixIdx : 28;
+    uint32_t hasSibling : 1;
+    uint32_t hasChildren : 1;
+    uint32_t staleMatrix : 1;
+    uint32_t skeletonRoot : 1;
+};
+
+struct Joint
+{
+    Math::Matrix4 posXform;
+    Math::Matrix3 nrmXform;
+};
 
 class Model
 {
 public:
 
-    Model();
-    ~Model();
+    ~Model() { Destroy(); }
 
-    void Clear();
+    void Render(Renderer::MeshSorter& sorter,
+        const GpuBuffer& meshConstants,
+        const Math::ScaleAndTranslation sphereTransforms[],
+        const Joint* skeleton) const;
 
-    enum
-    {
-        attrib_mask_0 = (1 << 0),
-        attrib_mask_1 = (1 << 1),
-        attrib_mask_2 = (1 << 2),
-        attrib_mask_3 = (1 << 3),
-        attrib_mask_4 = (1 << 4),
-        attrib_mask_5 = (1 << 5),
-        attrib_mask_6 = (1 << 6),
-        attrib_mask_7 = (1 << 7),
-        attrib_mask_8 = (1 << 8),
-        attrib_mask_9 = (1 << 9),
-        attrib_mask_10 = (1 << 10),
-        attrib_mask_11 = (1 << 11),
-        attrib_mask_12 = (1 << 12),
-        attrib_mask_13 = (1 << 13),
-        attrib_mask_14 = (1 << 14),
-        attrib_mask_15 = (1 << 15),
-
-        // friendly name aliases
-        attrib_mask_position = attrib_mask_0,
-        attrib_mask_texcoord0 = attrib_mask_1,
-        attrib_mask_normal = attrib_mask_2,
-        attrib_mask_tangent = attrib_mask_3,
-        attrib_mask_bitangent = attrib_mask_4,
-    };
-
-    enum
-    {
-        attrib_0 = 0,
-        attrib_1 = 1,
-        attrib_2 = 2,
-        attrib_3 = 3,
-        attrib_4 = 4,
-        attrib_5 = 5,
-        attrib_6 = 6,
-        attrib_7 = 7,
-        attrib_8 = 8,
-        attrib_9 = 9,
-        attrib_10 = 10,
-        attrib_11 = 11,
-        attrib_12 = 12,
-        attrib_13 = 13,
-        attrib_14 = 14,
-        attrib_15 = 15,
-
-        // friendly name aliases
-        attrib_position = attrib_0,
-        attrib_texcoord0 = attrib_1,
-        attrib_normal = attrib_2,
-        attrib_tangent = attrib_3,
-        attrib_bitangent = attrib_4,
-
-        maxAttribs = 16
-    };
-
-    enum
-    {
-        attrib_format_none = 0,
-        attrib_format_ubyte,
-        attrib_format_byte,
-        attrib_format_ushort,
-        attrib_format_short,
-        attrib_format_float,
-
-        attrib_formats
-    };
-
-    struct BoundingBox
-    {
-        Vector3 min;
-        Vector3 max;
-    };
-
-    struct Header
-    {
-        uint32_t meshCount;
-        uint32_t materialCount;
-        uint32_t vertexDataByteSize;
-        uint32_t indexDataByteSize;
-        uint32_t vertexDataByteSizeDepth;
-        BoundingBox boundingBox;
-    };
-    Header m_Header;
-
-    struct Attrib
-    {
-        uint16_t offset; // byte offset from the start of the vertex
-        uint16_t normalized; // if true, integer formats are interpreted as [-1, 1] or [0, 1]
-        uint16_t components; // 1-4
-        uint16_t format;
-    };
-    struct Mesh
-    {
-        BoundingBox boundingBox;
-
-        unsigned int materialIndex;
-
-        unsigned int attribsEnabled;
-        unsigned int attribsEnabledDepth;
-        unsigned int vertexStride;
-        unsigned int vertexStrideDepth;
-        Attrib attrib[maxAttribs];
-        Attrib attribDepth[maxAttribs];
-
-        unsigned int vertexDataByteOffset;
-        unsigned int vertexCount;
-        unsigned int indexDataByteOffset;
-        unsigned int indexCount;
-
-        unsigned int vertexDataByteOffsetDepth;
-        unsigned int vertexCountDepth;
-    };
-    Mesh *m_pMesh;
-
-    struct Material
-    {
-        Vector3 diffuse;
-        Vector3 specular;
-        Vector3 ambient;
-        Vector3 emissive;
-        Vector3 transparent; // light passing through a transparent surface is multiplied by this filter color
-        float opacity;
-        float shininess; // specular exponent
-        float specularStrength; // multiplier on top of specular color
-
-        enum {maxTexPath = 128};
-        enum {texCount = 6};
-        char texDiffusePath[maxTexPath];
-        char texSpecularPath[maxTexPath];
-        char texEmissivePath[maxTexPath];
-        char texNormalPath[maxTexPath];
-        char texLightmapPath[maxTexPath];
-        char texReflectionPath[maxTexPath];
-
-        enum {maxMaterialName = 128};
-        char name[maxMaterialName];
-    };
-    Material *m_pMaterial;
-
-    unsigned char *m_pVertexData;
-    unsigned char *m_pIndexData;
-    StructuredBuffer m_VertexBuffer;
-    ByteAddressBuffer m_IndexBuffer;
-    uint32_t m_VertexStride;
-
-    // optimized for depth-only rendering
-    unsigned char *m_pVertexDataDepth;
-    unsigned char *m_pIndexDataDepth;
-    StructuredBuffer m_VertexBufferDepth;
-    ByteAddressBuffer m_IndexBufferDepth;
-    uint32_t m_VertexStrideDepth;
-
-    virtual bool Load(const char* filename)
-    {
-        return LoadH3D(filename);
-    }
-
-    const BoundingBox& GetBoundingBox() const
-    {
-        return m_Header.boundingBox;
-    }
-
-    D3D12_CPU_DESCRIPTOR_HANDLE* GetSRVs( uint32_t materialIdx ) const
-    {
-        return m_SRVs + materialIdx * 6;
-    }
+    Math::BoundingSphere m_BoundingSphere; // Object-space bounding sphere
+    Math::AxisAlignedBox m_BoundingBox;
+    ByteAddressBuffer m_DataBuffer;
+    ByteAddressBuffer m_MaterialConstants;
+    uint32_t m_NumNodes;
+    uint32_t m_NumMeshes;
+    uint32_t m_NumAnimations;
+    uint32_t m_NumJoints;
+    std::unique_ptr<uint8_t[]> m_MeshData;
+    std::unique_ptr<GraphNode[]> m_SceneGraph;
+    std::vector<TextureRef> textures;
+    std::unique_ptr<uint8_t[]> m_KeyFrameData;
+    std::unique_ptr<AnimationCurve[]> m_CurveData;
+    std::unique_ptr<AnimationSet[]> m_Animations;
+    std::unique_ptr<uint16_t[]> m_JointIndices;
+    std::unique_ptr<Math::Matrix4[]> m_JointIBMs;
 
 protected:
+    void Destroy();
+};
 
-    bool LoadH3D(const char *filename);
-    bool SaveH3D(const char *filename) const;
+class ModelInstance
+{
+public:
+    ModelInstance() {}
+    ~ModelInstance() {
+        m_MeshConstantsCPU.Destroy();
+        m_MeshConstantsGPU.Destroy();
+    }
+    ModelInstance( std::shared_ptr<const Model> sourceModel );
+    ModelInstance( const ModelInstance& modelInstance );
 
-    void ComputeMeshBoundingBox(unsigned int meshIndex, BoundingBox &bbox) const;
-    void ComputeGlobalBoundingBox(BoundingBox &bbox) const;
-    void ComputeAllBoundingBoxes();
+    ModelInstance& operator=( std::shared_ptr<const Model> sourceModel );
 
-    void ReleaseTextures();
-    void LoadTextures();
-    D3D12_CPU_DESCRIPTOR_HANDLE* m_SRVs;
+    bool IsNull(void) const { return m_Model == nullptr; }
+
+    void Update(GraphicsContext& gfxContext, float deltaTime);
+    void Render(Renderer::MeshSorter& sorter) const;
+
+    void Resize(float newRadius);
+    Math::Vector3 GetCenter() const;
+    Math::Scalar GetRadius() const;
+    Math::BoundingSphere GetBoundingSphere() const;
+    Math::OrientedBox GetBoundingBox() const;
+
+    size_t GetNumAnimations(void) const { return m_AnimState.size(); }
+    void PlayAnimation(uint32_t animIdx, bool loop);
+    void PauseAnimation(uint32_t animIdx);
+    void ResetAnimation(uint32_t animIdx);
+    void StopAnimation(uint32_t animIdx);
+    void UpdateAnimations(float deltaTime);
+    void LoopAllAnimations(void);
+
+private:
+    std::shared_ptr<const Model> m_Model;
+    UploadBuffer m_MeshConstantsCPU;
+    ByteAddressBuffer m_MeshConstantsGPU;
+    std::unique_ptr<__m128[]> m_BoundingSphereTransforms;
+    Math::UniformTransform m_Locator;
+
+    std::unique_ptr<GraphNode[]> m_AnimGraph;   // A copy of the scene graph when instancing animation
+    std::vector<AnimationState> m_AnimState;    // Per-animation (not per-curve)
+    std::unique_ptr<Joint[]> m_Skeleton;
 };

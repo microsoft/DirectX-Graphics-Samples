@@ -24,7 +24,7 @@ void FillSortKey( uint GroupStart, uint Offset, uint VertexCount )
 {
     if (GroupStart + Offset >= VertexCount)
     {
-        gs_SortKeys[Offset] = 0;        // Z = 0 will sort to the end of the list (back to front)
+        gs_SortKeys[Offset] = 0;		// Z = 0 will sort to the end of the list (back to front)
         return;
     }
 
@@ -80,7 +80,7 @@ void main( uint3 DTid : SV_DispatchThreadID, uint3 Gid : SV_GroupID, uint GI : S
     [unroll]
     for (k = 2; k <= 2048; k *= 2)
     {
-        [unroll]
+        //[unroll]
         for (uint j = k / 2; j > 0; j /= 2)
         {
             uint Index1 = InsertZeroBit(GI, j);

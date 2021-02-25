@@ -17,6 +17,7 @@
 #include "PipelineState.h"
 #include "CommandContext.h"
 #include "BufferManager.h"
+#include "TemporalEffects.h"
 
 #include "CompiledShaders/DoFPass1CS.h"
 #include "CompiledShaders/DoFTilePassCS.h"
@@ -59,28 +60,28 @@ namespace DepthOfField
 
     RootSignature s_RootSignature;
 
-    ComputePSO s_DoFPass1CS;                // Responsible for classifying tiles (1st pass)
-    ComputePSO s_DoFTilePassCS;                // Disperses tile info to its neighbors (3x3)
-    ComputePSO s_DoFTilePassFixupCS;        // Searches for straggler tiles to "fixup"
+    ComputePSO s_DoFPass1CS(L"DOF: Pass 1 CS");				// Responsible for classifying tiles (1st pass)
+    ComputePSO s_DoFTilePassCS(L"DOF: Tile Pass CS");				// Disperses tile info to its neighbors (3x3)
+    ComputePSO s_DoFTilePassFixupCS(L"DOF: Tile Pass Fixup CS");		// Searches for straggler tiles to "fixup"
 
-    ComputePSO s_DoFPreFilterCS;            // Full pre-filter with variable focus
-    ComputePSO s_DoFPreFilterFastCS;        // Pre-filter assuming near-constant focus
-    ComputePSO s_DoFPreFilterFixupCS;        // Pass through colors for completely in focus tile
+    ComputePSO s_DoFPreFilterCS(L"DOF: Pre-Filter CS");			// Full pre-filter with variable focus
+    ComputePSO s_DoFPreFilterFastCS(L"DOF: Pre-Filter Fast CS");		// Pre-filter assuming near-constant focus
+    ComputePSO s_DoFPreFilterFixupCS(L"DOF: Pre-Filter Fixup CS");		// Pass through colors for completely in focus tile
 
-    ComputePSO s_DoFPass2CS;                // Perform full CoC convolution pass
-    ComputePSO s_DoFPass2FastCS;            // Perform color-only convolution for near-constant focus
-    ComputePSO s_DoFPass2FixupCS;            // Pass through colors again
-    ComputePSO s_DoFPass2DebugCS;            // Full pass 2 shader with options for debugging
+    ComputePSO s_DoFPass2CS(L"DOF: Pass 2 CS");				// Perform full CoC convolution pass
+    ComputePSO s_DoFPass2FastCS(L"DOF: Pass 2 Fast CS");			// Perform color-only convolution for near-constant focus
+    ComputePSO s_DoFPass2FixupCS(L"DOF: Pass 2 Fixup CS");			// Pass through colors again
+    ComputePSO s_DoFPass2DebugCS(L"DOF: Pass 2 Debug CS");			// Full pass 2 shader with options for debugging
 
-    ComputePSO s_DoFMedianFilterCS;            // 3x3 median filter to reduce fireflies
-    ComputePSO s_DoFMedianFilterSepAlphaCS;    // 3x3 median filter to reduce fireflies (separate filter on alpha)
-    ComputePSO s_DoFMedianFilterFixupCS;    // Pass through without performing median
+    ComputePSO s_DoFMedianFilterCS(L"DOF: Median Filter CS");			// 3x3 median filter to reduce fireflies
+    ComputePSO s_DoFMedianFilterSepAlphaCS(L"DOF: Median Filter Separate Alpha CS");	// 3x3 median filter to reduce fireflies (separate filter on alpha)
+    ComputePSO s_DoFMedianFilterFixupCS(L"DOF: Median Filter Fixup CS");	// Pass through without performing median
 
-    ComputePSO s_DoFCombineCS;                // Combine DoF blurred buffer with focused color buffer
-    ComputePSO s_DoFCombineFastCS;            // Upsample DoF blurred buffer
-    ComputePSO s_DoFDebugRedCS;                // Output red to entire tile for debugging
-    ComputePSO s_DoFDebugGreenCS;            // Output green to entire tile for debugging
-    ComputePSO s_DoFDebugBlueCS;            // Output blue to entire tile for debugging
+    ComputePSO s_DoFCombineCS(L"DOF: Combine CS");				// Combine DoF blurred buffer with focused color buffer
+    ComputePSO s_DoFCombineFastCS(L"DOF: Combine Fast CS");			// Upsample DoF blurred buffer
+    ComputePSO s_DoFDebugRedCS(L"DOF: Debug Red CS");				// Output red to entire tile for debugging
+    ComputePSO s_DoFDebugGreenCS(L"DOF: Debug Green CS");			// Output green to entire tile for debugging
+    ComputePSO s_DoFDebugBlueCS(L"DOF: Debug Blue CS");			// Output blue to entire tile for debugging
 
     IndirectArgsBuffer s_IndirectParameters;
 }
@@ -153,7 +154,7 @@ void DepthOfField::Render( CommandContext& BaseContext, float /*NearClipDist*/, 
     ComputeContext& Context = BaseContext.GetComputeContext();
     Context.SetRootSignature(s_RootSignature);
 
-    ColorBuffer& LinearDepth = g_LinearDepth[ Graphics::GetFrameCount() % 2 ];
+    ColorBuffer& LinearDepth = g_LinearDepth[ TemporalEffects::GetFrameIndexMod2() ];
 
     uint32_t BufferWidth = (uint32_t)LinearDepth.GetWidth();
     uint32_t BufferHeight = (uint32_t)LinearDepth.GetHeight();

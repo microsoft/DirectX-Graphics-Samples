@@ -13,7 +13,7 @@
 
 #include "pch.h"
 #include "SystemTime.h"
-#include "GraphicsCore.h"
+#include "Display.h"
 #include "TextRenderer.h"
 #include "GraphRenderer.h"
 #include "GameInput.h"

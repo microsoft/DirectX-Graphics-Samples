@@ -27,8 +27,11 @@ public:
     uint32_t GetDepth(void) const { return m_ArraySize; }
     const DXGI_FORMAT& GetFormat(void) const { return m_Format; }
 
-    // Has no effect on Windows
-    void SetBankRotation( uint32_t RotationAmount ) { m_BankRotation = RotationAmount; }
+    // Has no effect on Desktop
+    void SetBankRotation( uint32_t RotationAmount )
+    {
+        (RotationAmount);
+    }
 
     // Write the raw pixel buffer contents to a file
     // Note that data is preceded by a 16-byte header:  { DXGI_FORMAT, Pitch (in pixels), Width (in pixels), Height }

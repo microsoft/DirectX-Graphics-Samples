@@ -73,7 +73,7 @@ namespace Math
     inline BoundingPlane::BoundingPlane( Vector3 pointOnPlane, Vector3 normalToPlane )
     {
         // Guarantee a normal.  This constructor isn't meant to be called frequently, but if it is, we can change this.
-        normalToPlane = Normalize(normalToPlane);    
+        normalToPlane = Normalize(normalToPlane);	
         m_repr = Vector4(normalToPlane, -Dot(pointOnPlane, normalToPlane));
     }
 

@@ -16,7 +16,6 @@
 #include "EngineTuning.h"
 
 class CommandContext;
-class DepthBuffer;
 
 namespace TemporalEffects
 {
@@ -32,7 +31,7 @@ namespace TemporalEffects
     // jittered sample position.
     void Update( uint64_t FrameIndex );
 
-    // Returns whether the frame is odd or even
+    // Returns whether the frame is odd or even, relevant to checkerboard rendering.
     uint32_t GetFrameIndexMod2( void );
 
     // Jitter values are neutral at 0.5 and vary from [0, 1).  Jittering only occurs when temporal antialiasing

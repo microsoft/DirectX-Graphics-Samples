@@ -39,7 +39,7 @@ using namespace GraphRenderer;
 using namespace Math;
 
 __declspec(align(16)) struct CBGraph
-{    
+{	
     float RGB[3];
     float RcpXScale;
     uint32_t NodeCount;
@@ -55,7 +55,7 @@ public:
     PerfGraph( uint32_t NodeCount, uint32_t debugVarCount, Color color = Color(1.0f, 0.0f, 0.5f), bool IsGraphed = false ) : m_IsGraphed(IsGraphed), 
         m_NodeCount(NodeCount), m_Color(color), m_DebugVarCount(debugVarCount)
     {
-        for (uint32_t i = 0; i < debugVarCount; ++i)        
+        for (uint32_t i = 0; i < debugVarCount; ++i)		
             m_PerfTimesCPUBuffer.emplace_back(new float[NodeCount]);
     }
 
@@ -72,7 +72,7 @@ public:
     {
         for(uint32_t i = 0; i < m_DebugVarCount; i++)
             m_PerfTimesCPUBuffer[i][frameID % m_NodeCount] = timeStamps[i];
-    }     
+    } 	
 
     //RenderGraph renders both graph backgrounds and line graphs 
     //
@@ -143,7 +143,7 @@ public:
     GraphHandle AddGraph(PerfGraph* graph)
     {
         GraphHandle ret = (GraphHandle)m_Graphs.size();
-        m_Graphs.emplace_back(graph);    
+        m_Graphs.emplace_back(graph);	
         return ret;
     }
 
@@ -265,8 +265,8 @@ private:
 namespace
 {
     RootSignature s_RootSignature;
-    GraphicsPSO s_RenderPerfGraphPSO;
-    GraphicsPSO s_GraphBackgroundPSO;
+    GraphicsPSO s_RenderPerfGraphPSO(L"Graph Renderer: Render Perf Graph PSO");
+    GraphicsPSO s_GraphBackgroundPSO(L"Graph Renderer: Render Graph Background PSO");
     uint32_t s_FrameID;
     GraphVector GlobalGraphs = GraphVector(2, 1);
     GraphVector ProfileGraphs = GraphVector(MAX_ACTIVE_PROFILE_GRAPHS, PROFILE_DEBUG_VAR_COUNT);
@@ -278,7 +278,7 @@ namespace
 
 //---------------------------------------------------------------------
 //
-//    GraphRenderer Methods
+//	GraphRenderer Methods
 //
 //---------------------------------------------------------------------
 
@@ -318,7 +318,7 @@ void GraphRenderer::Initialize( void )
     
     // Create global CPU and GPU graphs
     for (uint32_t i = 0; i < 2; ++i)
-    {    
+    {	
         InitGraph( GraphType::Global );
         GlobalGraphs.m_Graphs[i]->SetColor(Color((float)i, 0.5, 0.5));
     }
@@ -360,7 +360,7 @@ Color GraphRenderer::GetGraphColor( GraphHandle GraphID, GraphType Type)
     if (Type == GraphType::Profile)
         return ProfileGraphs.GetColor(GraphID);
     else // Type == GraphType::Global
-        return GlobalGraphs.GetColor(GraphID);    
+        return GlobalGraphs.GetColor(GraphID);	
 }
 
 void GraphRenderer::Update( XMFLOAT2 InputNode, GraphHandle GraphID, GraphType Type)
@@ -384,12 +384,12 @@ void GraphRenderer::Update( XMFLOAT2 InputNode, GraphHandle GraphID, GraphType T
         GlobalGraphs.m_Graphs[1]->UpdateGraph(&InputNode.y, s_FrameID);
         GlobalGraphs.ManageMax(&InputNode.x, GLOBAL_NODE_COUNT, s_FrameID);
         //GlobalGraphs.ManageMax(&InputNode.y, GLOBAL_NODE_COUNT, s_FrameID);
-    }    
+    }	
 }
 
 void DrawGraphHeaders(TextContext& Text, float leftMargin, float topMargin, float offsetY, float graphHeight, float* MinArray,
     float* MaxArray, float* PresetMaxArray, bool GlobalScale, uint32_t numDebugVar, std::string graphTitles[])
-{        
+{		
     XMFLOAT2 textSpaceY = XMFLOAT2(0.02f * graphHeight, 0.067f * graphHeight); //top and bottom text space
     textSpaceY.y = graphHeight - topMargin - textSpaceY.x * 3.0f; // make this better
     float textSpaceX = 45.f;
@@ -443,9 +443,9 @@ void GraphRenderer::RenderGraphs(GraphicsContext& Context, GraphType Type)
         viewport.TopLeftX = (float)g_OverlayBuffer.GetWidth() / 1.3525f;
         viewport.TopLeftY = 0.0f;
         viewport.Width = (float)g_OverlayBuffer.GetWidth() / 4.0f;
-        viewport.Height = (float)g_OverlayBuffer.GetHeight() / (PROFILE_DEBUG_VAR_COUNT + 1);    
+        viewport.Height = (float)g_OverlayBuffer.GetHeight() / (PROFILE_DEBUG_VAR_COUNT + 1);	
         viewport.MinDepth = 0.0;
-        viewport.MaxDepth = 1.0;    
+        viewport.MaxDepth = 1.0;	
 
         std::string graphTitles[PROFILE_DEBUG_VAR_COUNT] = {"Inclusive CPU   ", "Inclusive GPU   "};
         float blankSpace = viewport.Height / (PROFILE_DEBUG_VAR_COUNT + 1); 
@@ -517,7 +517,7 @@ void GraphRenderer::SetSelectedIndex(uint32_t selectedIndex)
 
 //---------------------------------------------------------------------
 //
-//    PerfGraph Methods
+//	PerfGraph Methods
 //
 //---------------------------------------------------------------------
 

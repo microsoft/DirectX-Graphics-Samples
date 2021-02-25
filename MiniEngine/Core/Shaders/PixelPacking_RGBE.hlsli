@@ -18,7 +18,7 @@
 
 // RGBE, aka R9G9B9E5_SHAREDEXP, is an unsigned float HDR pixel format where red, green,
 // and blue all share the same exponent.  The color channels store a 9-bit value ranging
-// from [0/512, 511/512] which multiplies by 2^Exp and Exp ranges from [-16, 15].
+// from [0/512, 511/512] which multiplies by 2^Exp and Exp ranges from [-15, 16].
 // Floating point specials are not encoded.
 uint PackRGBE(float3 rgb)
 {
@@ -43,7 +43,7 @@ uint PackRGBE(float3 rgb)
     // Shift bits into the right places
     uint3 RGB = asuint(rgb + Bias);
     uint E = (asuint(Bias) << 4) + 0x10000000;
-    return E | RGB.b << 18 | RGB.g << 9 | RGB.r & 0x1FF;
+    return E | RGB.b << 18 | RGB.g << 9 | (RGB.r & 0x1FF);
 }
 
 float3 UnpackRGBE(uint p)
@@ -68,8 +68,6 @@ uint PackRGBE_sqrt(float3 rgb)
     // Scaling the maximum channel puts it into the range [0, 1).  It does this by negating
     // and subtracting one from the max exponent.
     float Scale = asfloat((0x7EFFFFFF - asuint(MaxChannel)) & 0x7F800000);
-
-    // Shift bits into the right places
     uint3 RGB = sqrt(rgb * Scale) * 511.0 + 0.5;
     uint E = (0x47000000 - asuint(Scale)) << 4;
     return E | RGB.b << 18 | RGB.g << 9 | RGB.r;

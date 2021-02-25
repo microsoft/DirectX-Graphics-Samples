@@ -19,6 +19,7 @@
 //
 //--------------------------------------------------------------------------------------
 
+#include "BicubicFilterFunctions.hlsli"
 #include "ShaderUtility.hlsli"
 #include "PresentRS.hlsli"
 
@@ -27,22 +28,7 @@ Texture2D<float3> ColorTex : register(t0);
 cbuffer Constants : register(b0)
 {
     uint2 TextureSize;
-    float A;
-}
-
-float W1(float x)
-{
-    return x * x * ((A + 2) * x - (A + 3)) + 1.0;
-}
-
-float W2(float x)
-{
-    return A * (x * (x * (x - 5) + 8) - 4);
-}
-
-float4 GetWeights(float d1)
-{
-    return float4(W2(1.0 + d1), W1(d1), W1(1.0 - d1), W2(2.0 - d1));
+    float kA;
 }
 
 float3 GetColor(uint s, uint t)
@@ -68,7 +54,7 @@ float3 main(float4 position : SV_Position, float2 uv : TexCoord0) : SV_Target0
     uint s2 = min(st.x + 0, MaxWidth);
     uint s3 = min(st.x + 1, MaxWidth);
 
-    float4 W = GetWeights(f.x);
+    float4 W = GetBicubicFilterWeights(f.x, kA);
     float3 Color = 
         W.x * GetColor(s0, st.y) + 
         W.y * GetColor(s1, st.y) + 

@@ -23,7 +23,7 @@ namespace Math
         INLINE Quaternion() { m_vec = XMQuaternionIdentity(); }
         INLINE Quaternion( const Vector3& axis, const Scalar& angle ) { m_vec = XMQuaternionRotationAxis( axis, angle ); }
         INLINE Quaternion( float pitch, float yaw, float roll) { m_vec = XMQuaternionRotationRollPitchYaw(pitch, yaw, roll); }
-        INLINE explicit Quaternion( const XMMATRIX& matrix ) { m_vec = XMQuaternionRotationMatrix( matrix ); }    
+        INLINE explicit Quaternion( const XMMATRIX& matrix ) { m_vec = XMQuaternionRotationMatrix( matrix ); }	
         INLINE explicit Quaternion( FXMVECTOR vec ) { m_vec = vec; }
         INLINE explicit Quaternion( EIdentityTag ) { m_vec = XMQuaternionIdentity(); }
 
@@ -42,4 +42,7 @@ namespace Math
         XMVECTOR m_vec;
     };
 
+    INLINE Quaternion Normalize(Quaternion q) { return Quaternion(XMQuaternionNormalize(q)); }
+    INLINE Quaternion Slerp(Quaternion a, Quaternion b, float t) { return Normalize(Quaternion(XMQuaternionSlerp(a, b, t))); }
+    INLINE Quaternion Lerp(Quaternion a, Quaternion b, float t) { return Normalize(Quaternion(XMVectorLerp(a, b, t))); }
 }

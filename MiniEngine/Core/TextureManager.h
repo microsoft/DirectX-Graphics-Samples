@@ -9,7 +9,6 @@
 // Developed by Minigraph
 //
 // Author(s):  James Stanard
-//             Alex Nankervis
 //
 
 #pragma once
@@ -17,91 +16,64 @@
 #include "pch.h"
 #include "GpuResource.h"
 #include "Utility.h"
+#include "Texture.h"
+#include "GraphicsCommon.h"
 
-class Texture : public GpuResource
-{
-    friend class CommandContext;
+// A referenced-counted pointer to a Texture.  See methods below.
+class TextureRef;
 
-public:
-
-    Texture() { m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
-    Texture(D3D12_CPU_DESCRIPTOR_HANDLE Handle) : m_hCpuDescriptorHandle(Handle) {}
-
-    // Create a 1-level 2D texture
-    void Create(size_t Pitch, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData );
-    void Create(size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData )
-    {
-        Create(Width, Width, Height, Format, InitData);
-    }
-
-    void CreateTGAFromMemory( const void* memBuffer, size_t fileSize, bool sRGB );
-    bool CreateDDSFromMemory( const void* memBuffer, size_t fileSize, bool sRGB );
-    void CreatePIXImageFromMemory( const void* memBuffer, size_t fileSize );
-
-    virtual void Destroy() override
-    {
-        GpuResource::Destroy();
-        // This leaks descriptor handles.  We should really give it back to be reused.
-        m_hCpuDescriptorHandle.ptr = 0;
-    }
-
-    const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV() const { return m_hCpuDescriptorHandle; }
-
-    bool operator!() { return m_hCpuDescriptorHandle.ptr == 0; }
-
-protected:
-
-    D3D12_CPU_DESCRIPTOR_HANDLE m_hCpuDescriptorHandle;
-};
-
-class ManagedTexture : public Texture
-{
-public:
-    ManagedTexture( const std::wstring& FileName ) : m_MapKey(FileName), m_IsValid(true) {}
-
-    void operator= ( const Texture& Texture );
-
-    void WaitForLoad(void) const;
-    void Unload(void);
-
-    void SetToInvalidTexture(void);
-    bool IsValid(void) const { return m_IsValid; }
-
-private:
-    std::wstring m_MapKey;        // For deleting from the map later
-    bool m_IsValid;
-};
-
+//
+// Texture file loading system.
+//
+// References to textures are passed around so that a texture may be shared.  When
+// all references to a texture expire, the texture memory is reclaimed.
+//
 namespace TextureManager
 {
-    void Initialize( const std::wstring& TextureLibRoot );
+    using Graphics::eDefaultTexture;
+    using Graphics::kMagenta2D;
+
+    void Initialize( const std::wstring& RootPath );
     void Shutdown(void);
 
-    const ManagedTexture* LoadFromFile( const std::wstring& fileName, bool sRGB = false );
-    const ManagedTexture* LoadDDSFromFile( const std::wstring& fileName, bool sRGB = false );
-    const ManagedTexture* LoadTGAFromFile( const std::wstring& fileName, bool sRGB = false );
-    const ManagedTexture* LoadPIXImageFromFile( const std::wstring& fileName );
-
-    inline const ManagedTexture* LoadFromFile( const std::string& fileName, bool sRGB = false )
-    {
-        return LoadFromFile(MakeWStr(fileName), sRGB);
-    }
-
-    inline const ManagedTexture* LoadDDSFromFile( const std::string& fileName, bool sRGB = false )
-    {
-        return LoadDDSFromFile(MakeWStr(fileName), sRGB);
-    }
-
-    inline const ManagedTexture* LoadTGAFromFile( const std::string& fileName, bool sRGB = false )
-    {
-        return LoadTGAFromFile(MakeWStr(fileName), sRGB);
-    }
-
-    inline const ManagedTexture* LoadPIXImageFromFile( const std::string& fileName )
-    {
-        return LoadPIXImageFromFile(MakeWStr(fileName));
-    }
-
-    const Texture& GetBlackTex2D(void);
-    const Texture& GetWhiteTex2D(void);
+    // Load a texture from a DDS file.  Never returns null references, but if a 
+    // texture cannot be found, ref->IsValid() will return false.
+    TextureRef LoadDDSFromFile( const std::wstring& filePath, eDefaultTexture fallback = kMagenta2D, bool sRGB = false );
+    TextureRef LoadDDSFromFile( const std::string& filePath, eDefaultTexture fallback = kMagenta2D, bool sRGB = false );
 }
+
+// Forward declaration; private implementation
+class ManagedTexture;
+
+//
+// A handle to a ManagedTexture.  Constructors and destructors modify the reference
+// count.  When the last reference is destroyed, the TextureManager is informed that
+// the texture should be deleted.
+//
+class TextureRef
+{
+public:
+
+    TextureRef( const TextureRef& ref );
+    TextureRef( ManagedTexture* tex = nullptr );
+    ~TextureRef();
+
+    void operator= (std::nullptr_t);
+    void operator= (TextureRef& rhs);
+
+    // Check that this points to a valid texture (which loaded successfully)
+    bool IsValid() const;
+
+    // Gets the SRV descriptor handle.  If the reference is invalid,
+    // returns a valid descriptor handle (specified by the fallback)
+    D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const;
+
+    // Get the texture pointer.  Client is responsible to not dereference
+    // null pointers.
+    const Texture* Get( void ) const;
+
+    const Texture* operator->( void ) const;
+
+private:
+    ManagedTexture* m_ref;
+};

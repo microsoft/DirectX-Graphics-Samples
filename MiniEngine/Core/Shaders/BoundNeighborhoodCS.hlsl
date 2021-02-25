@@ -11,7 +11,7 @@
 // Author:  James Stanard 
 //
 
-#include "TemporalRS.hlsli"
+#include "CommonRS.hlsli"
 
 Texture2D<float3> InputColor : register(t0);
 RWTexture2D<float3> OutMin : register(u0);
@@ -55,7 +55,7 @@ void ConvolveV( uint Idx, uint2 st )
     OutMax[st] = float3(maxR, maxG, maxB);
 }
 
-[RootSignature(Temporal_RootSig)]
+[RootSignature(Common_RootSig)]
 [numthreads( GROUP_SIZE_X, GROUP_SIZE_Y, 1 )]
 void main( uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : SV_DispatchThreadID, uint GI : SV_GroupIndex )
 {

@@ -90,8 +90,8 @@ namespace Math
     INLINE XMVECTOR SplatOne( XMVECTOR zero = SplatZero() )
     {
         __m128i AllBits = _mm_castps_si128(_mm_cmpeq_ps(zero, zero));
-        return _mm_castsi128_ps(_mm_slli_epi32(_mm_srli_epi32(AllBits, 25), 23));    // return 0x3F800000
-        //return _mm_cvtepi32_ps(_mm_srli_epi32(SetAllBits(zero), 31));                // return (float)1;  (alternate method)
+        return _mm_castsi128_ps(_mm_slli_epi32(_mm_srli_epi32(AllBits, 25), 23));	// return 0x3F800000
+        //return _mm_cvtepi32_ps(_mm_srli_epi32(SetAllBits(zero), 31));				// return (float)1;  (alternate method)
     }
 
 #if defined(_XM_SSE4_INTRINSICS_)

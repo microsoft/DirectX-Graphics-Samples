@@ -15,12 +15,12 @@
 #pragma once
 #include "ParticleShaderStructs.h"
 #include "Color.h"
+#include <string>
 
 struct ParticleEffectProperties
-{    
+{	
     ParticleEffectProperties() 
-    { 
-        ZeroMemory(this, sizeof(*this));
+    {
         MinStartColor = Color(0.8f, 0.8f, 1.0f);
         MaxStartColor = Color(0.9f, 0.9f, 1.0f);
         MinEndColor = Color(1.0f, 1.0f, 1.0f);
@@ -29,11 +29,11 @@ struct ParticleEffectProperties
         EmitRate = 200;
         LifeMinMax = XMFLOAT2(1.0f, 2.0f);
         MassMinMax = XMFLOAT2(0.5f, 1.0f);
-        Size = Vector4(0.07f, 0.7f, 0.8f, 0.8f); // (Start size min, Start size max, End size min, End size max)         
+        Size = Math::Vector4(0.07f, 0.7f, 0.8f, 0.8f); // (Start size min, Start size max, End size min, End size max) 		
         Spread = XMFLOAT3(0.5f, 1.5f, 0.1f);
-        TexturePath = L"Resources/Textures/sparkTex.dds";     
+        TexturePath = L"Resources/Textures/sparkTex.dds"; 	
         TotalActiveLifetime = 20.0;
-        Velocity = Vector4(0.5, 3.0, -0.5, 3.0 ); // (X velocity min, X velocity max, Y velocity min, Y velocity max)
+        Velocity = Math::Vector4(0.5, 3.0, -0.5, 3.0 ); // (X velocity min, X velocity max, Y velocity min, Y velocity max)
     };
 
     
@@ -45,10 +45,10 @@ struct ParticleEffectProperties
     float EmitRate;
     XMFLOAT2 LifeMinMax;   
     XMFLOAT2 MassMinMax;
-    Vector4 Size;
+    Math::Vector4 Size;
     XMFLOAT3 Spread;
     std::wstring TexturePath;
-    float TotalActiveLifetime;     
-    Vector4 Velocity;
+    float TotalActiveLifetime;	 
+    Math::Vector4 Velocity;
 
 };

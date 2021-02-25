@@ -64,40 +64,49 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::Allocate( uint32_t Count )
 }
 
 //
-// UserDescriptorHeap implementation
+// DescriptorHeap implementation
 //
 
-void UserDescriptorHeap::Create( const std::wstring& DebugHeapName )
+void DescriptorHeap::Create( const std::wstring& Name, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t MaxCount )
 {
-    ASSERT_SUCCEEDED(Graphics::g_Device->CreateDescriptorHeap(&m_HeapDesc, MY_IID_PPV_ARGS(m_Heap.ReleaseAndGetAddressOf())));
+    m_HeapDesc.Type = Type;
+    m_HeapDesc.NumDescriptors = MaxCount;
+    m_HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    m_HeapDesc.NodeMask = 1;
+
+    ASSERT_SUCCEEDED(g_Device->CreateDescriptorHeap(&m_HeapDesc, MY_IID_PPV_ARGS(m_Heap.ReleaseAndGetAddressOf())));
+
 #ifdef RELEASE
-    (void)DebugHeapName;
+    (void)Name;
 #else
-    m_Heap->SetName(DebugHeapName.c_str());
+    m_Heap->SetName(Name.c_str());
 #endif
 
-    m_DescriptorSize = Graphics::g_Device->GetDescriptorHandleIncrementSize(m_HeapDesc.Type);
+    m_DescriptorSize = g_Device->GetDescriptorHandleIncrementSize(m_HeapDesc.Type);
     m_NumFreeDescriptors = m_HeapDesc.NumDescriptors;
-    m_FirstHandle = DescriptorHandle( m_Heap->GetCPUDescriptorHandleForHeapStart(),  m_Heap->GetGPUDescriptorHandleForHeapStart() );
+    m_FirstHandle = DescriptorHandle(
+        m_Heap->GetCPUDescriptorHandleForHeapStart(),
+        m_Heap->GetGPUDescriptorHandleForHeapStart());
     m_NextFreeHandle = m_FirstHandle;
 }
 
-DescriptorHandle UserDescriptorHeap::Alloc( uint32_t Count )
+DescriptorHandle DescriptorHeap::Alloc( uint32_t Count )
 {
     ASSERT(HasAvailableSpace(Count), "Descriptor Heap out of space.  Increase heap size.");
     DescriptorHandle ret = m_NextFreeHandle;
     m_NextFreeHandle += Count * m_DescriptorSize;
+    m_NumFreeDescriptors -= Count;
     return ret;
 }
 
-bool UserDescriptorHeap::ValidateHandle( const DescriptorHandle& DHandle ) const
+bool DescriptorHeap::ValidateHandle( const DescriptorHandle& DHandle ) const
 {
-    if (DHandle.GetCpuHandle().ptr < m_FirstHandle.GetCpuHandle().ptr ||
-        DHandle.GetCpuHandle().ptr >= m_FirstHandle.GetCpuHandle().ptr + m_HeapDesc.NumDescriptors * m_DescriptorSize)
+    if (DHandle.GetCpuPtr() < m_FirstHandle.GetCpuPtr() ||
+        DHandle.GetCpuPtr() >= m_FirstHandle.GetCpuPtr() + m_HeapDesc.NumDescriptors * m_DescriptorSize)
         return false;
 
-    if (DHandle.GetGpuHandle().ptr - m_FirstHandle.GetGpuHandle().ptr !=
-        DHandle.GetCpuHandle().ptr - m_FirstHandle.GetCpuHandle().ptr)
+    if (DHandle.GetGpuPtr() - m_FirstHandle.GetGpuPtr() !=
+        DHandle.GetCpuPtr() - m_FirstHandle.GetCpuPtr())
         return false;
 
     return true;

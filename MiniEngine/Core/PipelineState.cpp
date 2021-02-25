@@ -34,7 +34,8 @@ void PSO::DestroyAll(void)
 }
 
 
-GraphicsPSO::GraphicsPSO()
+GraphicsPSO::GraphicsPSO(const wchar_t* Name)
+    : PSO(Name)
 {
     ZeroMemory(&m_PSODesc, sizeof(m_PSODesc));
     m_PSODesc.NodeMask = 1;
@@ -74,6 +75,11 @@ void GraphicsPSO::SetPrimitiveRestart( D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBProp
     m_PSODesc.IBStripCutValue = IBProps;
 }
 
+void GraphicsPSO::SetDepthTargetFormat(DXGI_FORMAT DSVFormat, UINT MsaaCount, UINT MsaaQuality )
+{
+    SetRenderTargetFormats(0, nullptr, DSVFormat, MsaaCount, MsaaQuality );
+}
+
 void GraphicsPSO::SetRenderTargetFormat( DXGI_FORMAT RTVFormat, DXGI_FORMAT DSVFormat, UINT MsaaCount, UINT MsaaQuality )
 {
     SetRenderTargetFormats(1, &RTVFormat, DSVFormat, MsaaCount, MsaaQuality );
@@ -83,7 +89,10 @@ void GraphicsPSO::SetRenderTargetFormats( UINT NumRTVs, const DXGI_FORMAT* RTVFo
 {
     ASSERT(NumRTVs == 0 || RTVFormats != nullptr, "Null format array conflicts with non-zero length");
     for (UINT i = 0; i < NumRTVs; ++i)
+    {
+        ASSERT(RTVFormats[i] != DXGI_FORMAT_UNKNOWN);
         m_PSODesc.RTVFormats[i] = RTVFormats[i];
+    }
     for (UINT i = NumRTVs; i < m_PSODesc.NumRenderTargets; ++i)
         m_PSODesc.RTVFormats[i] = DXGI_FORMAT_UNKNOWN;
     m_PSODesc.NumRenderTargets = NumRTVs;
@@ -136,8 +145,10 @@ void GraphicsPSO::Finalize()
 
     if (firstCompile)
     {
+        ASSERT(m_PSODesc.DepthStencilState.DepthEnable != (m_PSODesc.DSVFormat == DXGI_FORMAT_UNKNOWN));
         ASSERT_SUCCEEDED( g_Device->CreateGraphicsPipelineState(&m_PSODesc, MY_IID_PPV_ARGS(&m_PSO)) );
         s_GraphicsPSOHashMap[HashCode].Attach(m_PSO);
+        m_PSO->SetName(m_Name);
     }
     else
     {
@@ -176,6 +187,7 @@ void ComputePSO::Finalize()
     {
         ASSERT_SUCCEEDED( g_Device->CreateComputePipelineState(&m_PSODesc, MY_IID_PPV_ARGS(&m_PSO)) );
         s_ComputePSOHashMap[HashCode].Attach(m_PSO);
+        m_PSO->SetName(m_Name);
     }
     else
     {
@@ -185,7 +197,8 @@ void ComputePSO::Finalize()
     }
 }
 
-ComputePSO::ComputePSO()
+ComputePSO::ComputePSO(const wchar_t* Name)
+    : PSO(Name)
 {
     ZeroMemory(&m_PSODesc, sizeof(m_PSODesc));
     m_PSODesc.NodeMask = 1;

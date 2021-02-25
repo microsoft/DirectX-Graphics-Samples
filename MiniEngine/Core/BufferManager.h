@@ -21,20 +21,21 @@
 
 namespace Graphics
 {
-    extern DepthBuffer g_SceneDepthBuffer;    // D32_FLOAT_S8_UINT
-    extern ColorBuffer g_SceneColorBuffer;    // R11G11B10_FLOAT
-    extern ColorBuffer g_PostEffectsBuffer;    // R32_UINT (to support Read-Modify-Write with a UAV)
-    extern ColorBuffer g_OverlayBuffer;        // R8G8B8A8_UNORM
-    extern ColorBuffer g_HorizontalBuffer;    // For separable (bicubic) upsampling
+    extern DepthBuffer g_SceneDepthBuffer;  // D32_FLOAT_S8_UINT
+    extern ColorBuffer g_SceneColorBuffer;  // R11G11B10_FLOAT
+    extern ColorBuffer g_SceneNormalBuffer; // R16G16B16A16_FLOAT
+    extern ColorBuffer g_PostEffectsBuffer; // R32_UINT (to support Read-Modify-Write with a UAV)
+    extern ColorBuffer g_OverlayBuffer;     // R8G8B8A8_UNORM
+    extern ColorBuffer g_HorizontalBuffer;  // For separable (bicubic) upsampling
 
     extern ColorBuffer g_VelocityBuffer;    // R10G10B10  (3D velocity)
     extern ShadowBuffer g_ShadowBuffer;
 
-    extern ColorBuffer g_SSAOFullScreen;    // R8_UNORM
-    extern ColorBuffer g_LinearDepth[2];    // Normalized planar distance (0 at eye, 1 at far plane) computed from the SceneDepthBuffer
-    extern ColorBuffer g_MinMaxDepth8;        // Min and max depth values of 8x8 tiles
-    extern ColorBuffer g_MinMaxDepth16;        // Min and max depth values of 16x16 tiles
-    extern ColorBuffer g_MinMaxDepth32;        // Min and max depth values of 16x16 tiles
+    extern ColorBuffer g_SSAOFullScreen;	// R8_UNORM
+    extern ColorBuffer g_LinearDepth[2];	// Normalized planar distance (0 at eye, 1 at far plane) computed from the SceneDepthBuffer
+    extern ColorBuffer g_MinMaxDepth8;		// Min and max depth values of 8x8 tiles
+    extern ColorBuffer g_MinMaxDepth16;		// Min and max depth values of 16x16 tiles
+    extern ColorBuffer g_MinMaxDepth32;		// Min and max depth values of 16x16 tiles
     extern ColorBuffer g_DepthDownsize1;
     extern ColorBuffer g_DepthDownsize2;
     extern ColorBuffer g_DepthDownsize3;
@@ -64,18 +65,19 @@ namespace Graphics
     extern StructuredBuffer g_DoFFastQueue;
     extern StructuredBuffer g_DoFFixupQueue;
 
-    extern ColorBuffer g_MotionPrepBuffer;        // R10G10B10A2
+    extern ColorBuffer g_MotionPrepBuffer;		// R10G10B10A2
     extern ColorBuffer g_LumaBuffer;
     extern ColorBuffer g_TemporalColor[2];
+    extern ColorBuffer g_TemporalMinBound;
+    extern ColorBuffer g_TemporalMaxBound;
 
-    extern ColorBuffer g_aBloomUAV1[2];        // 640x384 (1/3)
-    extern ColorBuffer g_aBloomUAV2[2];        // 320x192 (1/6)  
-    extern ColorBuffer g_aBloomUAV3[2];        // 160x96  (1/12)
-    extern ColorBuffer g_aBloomUAV4[2];        // 80x48   (1/24)
-    extern ColorBuffer g_aBloomUAV5[2];        // 40x24   (1/48)
+    extern ColorBuffer g_aBloomUAV1[2];		// 640x384 (1/3)
+    extern ColorBuffer g_aBloomUAV2[2];		// 320x192 (1/6)  
+    extern ColorBuffer g_aBloomUAV3[2];		// 160x96  (1/12)
+    extern ColorBuffer g_aBloomUAV4[2];		// 80x48   (1/24)
+    extern ColorBuffer g_aBloomUAV5[2];		// 40x24   (1/48)
     extern ColorBuffer g_LumaLR;
     extern ByteAddressBuffer g_Histogram;
-    extern ByteAddressBuffer g_FXAAWorkCounters;
     extern ByteAddressBuffer g_FXAAWorkQueue;
     extern TypedBuffer g_FXAAColorQueue;
 

@@ -11,22 +11,22 @@
 // Author:  James Stanard 
 //
 
-#include "MotionBlurRS.hlsli"
+#include "CommonRS.hlsli"
 #include "PixelPacking_Velocity.hlsli"
 
 #define MAX_SAMPLE_COUNT  10
 #define STEP_SIZE         3.0
 
-Texture2D<packed_velocity_t> VelocityBuffer : register(t0);    // full resolution motion vectors
-Texture2D<float4> PrepBuffer : register(t1);        // 1/4 resolution pre-weighted blurred color samples
-SamplerState LinearSampler : register(s0);
+Texture2D<packed_velocity_t> VelocityBuffer : register(t0);	// full resolution motion vectors
+Texture2D<float4> PrepBuffer : register(t1);		// 1/4 resolution pre-weighted blurred color samples
+SamplerState LinearSampler   : register(s2);        // Bilinear w/ black border
 
 cbuffer c0 : register(b0)
 {
-    float2 RcpBufferDim;    // 1 / width, 1 / height
+    float2 RcpBufferDim;	// 1 / width, 1 / height
 }
 
-[RootSignature(MotionBlur_RootSig)]
+[RootSignature(Common_RootSig)]
 float4 main( float4 position : SV_Position ) : SV_Target0
 {
     uint2 st = uint2(position.xy);

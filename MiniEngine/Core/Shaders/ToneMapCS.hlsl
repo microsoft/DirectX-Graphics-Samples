@@ -30,6 +30,8 @@ cbuffer CB0 : register(b0)
 {
     float2 g_RcpBufferDim;
     float g_BloomStrength;
+    float PaperWhiteRatio; // PaperWhite / MaxBrightness
+    float MaxBrightness;
 };
 
 [RootSignature(PostEffects_RootSig)]
@@ -50,13 +52,14 @@ void main( uint3 DTid : SV_DispatchThreadID )
 
 #if ENABLE_HDR_DISPLAY_MAPPING
 
+    hdrColor = TM_Stanard(REC709toREC2020(hdrColor) * PaperWhiteRatio) * MaxBrightness;
     // Write the HDR color as-is and defer display mapping until we composite with UI
 #if SUPPORT_TYPED_UAV_LOADS
     ColorRW[DTid.xy] = hdrColor;
 #else
     DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(hdrColor);
 #endif
-    OutLuma[DTid.xy] = LinearToLogLuminance(ToneMapLuma(RGBToLuminance(hdrColor)));
+    OutLuma[DTid.xy] = RGBToLogLuminance(hdrColor);
 
 #else
 
@@ -68,6 +71,7 @@ void main( uint3 DTid : SV_DispatchThreadID )
 #else
     DstColor[DTid.xy] = Pack_R11G11B10_FLOAT(sdrColor);
 #endif
+
     OutLuma[DTid.xy] = RGBToLogLuminance(sdrColor);
 
 #endif

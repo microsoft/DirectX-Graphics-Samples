@@ -14,11 +14,24 @@
 #pragma once
 
 #include "Matrix3.h"
+#include "BoundingSphere.h"
 
 namespace Math
 {
+    // Orthonormal basis (just rotation via quaternion) and translation
+    class OrthogonalTransform;
+
+    // A 3x4 matrix that allows for asymmetric skew and scale
+    class AffineTransform;
+
+    // Uniform scale and translation that can be compactly represented in a vec4
+    class ScaleAndTranslation;
+
+    // Uniform scale, rotation (quaternion), and translation that fits in two vec4s
+    class UniformTransform;
+
     // This transform strictly prohibits non-uniform scale.  Scale itself is barely tolerated.
-    __declspec(align(16)) class OrthogonalTransform
+    class OrthogonalTransform
     {
     public:
         INLINE OrthogonalTransform() : m_rotation(kIdentity), m_translation(kZero) {}
@@ -46,6 +59,10 @@ namespace Math
             Vector4(SetWToZero(m_rotation * Vector3((XMVECTOR)vec))) +
             Vector4(SetWToOne(m_translation)) * vec.GetW();
         }
+        INLINE BoundingSphere operator* ( BoundingSphere sphere ) const {
+            return BoundingSphere(*this * sphere.GetCenter(), sphere.GetRadius());
+        }
+
         INLINE OrthogonalTransform operator* ( const OrthogonalTransform& xform ) const {
             return OrthogonalTransform( m_rotation * xform.m_rotation, m_rotation * xform.m_translation + m_translation );
         }
@@ -60,9 +77,88 @@ namespace Math
         Vector3 m_translation;
     };
 
+    //
+    // A transform that lacks rotation and has only uniform scale.
+    //
+    class ScaleAndTranslation
+    {
+    public:
+        INLINE ScaleAndTranslation()
+        {}
+        INLINE ScaleAndTranslation( EIdentityTag )
+            : m_repr(kWUnitVector) {}
+        INLINE ScaleAndTranslation(float tx, float ty, float tz, float scale)
+            : m_repr(tx, ty, tz, scale) {}
+        INLINE ScaleAndTranslation(Vector3 translate, Scalar scale)
+        {
+            m_repr = Vector4(translate);
+            m_repr.SetW(scale);
+        }
+        INLINE explicit ScaleAndTranslation(const XMVECTOR& v)
+            : m_repr(v) {}
+
+        INLINE void SetScale(Scalar s) { m_repr.SetW(s); }
+        INLINE void SetTranslation(Vector3 t) { m_repr.SetXYZ(t); }
+
+        INLINE Scalar GetScale() const { return m_repr.GetW(); }
+        INLINE Vector3 GetTranslation() const { return (Vector3)m_repr; }
+
+        INLINE BoundingSphere operator*(const BoundingSphere& sphere) const
+        {
+            Vector4 scaledSphere = (Vector4)sphere * GetScale();
+            Vector4 translation = Vector4(SetWToZero(m_repr));
+            return BoundingSphere(scaledSphere + translation);
+        }
+
+    private:
+        Vector4 m_repr;
+    };
+
+    //
+    // This transform allows for rotation, translation, and uniform scale
+    // 
+    class UniformTransform
+    {
+    public:
+        INLINE UniformTransform()
+        {}
+        INLINE UniformTransform( EIdentityTag )
+            : m_rotation(kIdentity), m_translationScale(kIdentity) {}
+        INLINE UniformTransform(Quaternion rotation, ScaleAndTranslation transScale)
+            : m_rotation(rotation), m_translationScale(transScale)
+        {}
+        INLINE UniformTransform(Quaternion rotation, Scalar scale, Vector3 translation)
+            : m_rotation(rotation), m_translationScale(translation, scale)
+        {}
+
+        INLINE void SetRotation(Quaternion r) { m_rotation = r; }
+        INLINE void SetScale(Scalar s) { m_translationScale.SetScale(s); }
+        INLINE void SetTranslation(Vector3 t) { m_translationScale.SetTranslation(t); }
+
+
+        INLINE Quaternion GetRotation() const { return m_rotation; }
+        INLINE Scalar GetScale() const { return m_translationScale.GetScale(); }
+        INLINE Vector3 GetTranslation() const { return m_translationScale.GetTranslation(); }
+
+
+        INLINE Vector3 operator*( Vector3 vec ) const
+        {
+            return m_rotation * (vec * m_translationScale.GetScale()) + m_translationScale.GetTranslation();
+        }
+
+        INLINE BoundingSphere operator*( BoundingSphere sphere ) const
+        {
+            return BoundingSphere(*this * sphere.GetCenter(), GetScale() * sphere.GetRadius() );
+        }
+
+    private:
+        Quaternion m_rotation;
+        ScaleAndTranslation m_translationScale;
+    };
+
     // A AffineTransform is a 3x4 matrix with an implicit 4th row = [0,0,0,1].  This is used to perform a change of
     // basis on 3D points.  An affine transformation does not have to have orthonormal basis vectors.
-    __declspec(align(64)) class AffineTransform
+    class AffineTransform
     {
     public:
         INLINE AffineTransform()
@@ -77,6 +173,11 @@ namespace Math
             : m_basis(rot), m_translation(translate) {}
         INLINE AffineTransform( const OrthogonalTransform& xform )
             : m_basis(xform.GetRotation()), m_translation(xform.GetTranslation()) {}
+        INLINE AffineTransform( const UniformTransform& xform )
+        {
+            m_basis = Matrix3(xform.GetRotation()) * xform.GetScale();
+            m_translation = xform.GetTranslation();
+        }
         INLINE AffineTransform( EIdentityTag )
             : m_basis(kIdentity), m_translation(kZero) {}
         INLINE explicit AffineTransform( const XMMATRIX& mat )
@@ -88,6 +189,7 @@ namespace Math
         INLINE void SetY(Vector3 y) { m_basis.SetY(y); }
         INLINE void SetZ(Vector3 z) { m_basis.SetZ(z); }
         INLINE void SetTranslation(Vector3 w) { m_translation = w; }
+        INLINE void SetBasis(const Matrix3& basis) { m_basis = basis; }
 
         INLINE Vector3 GetX() const { return m_basis.GetX(); }
         INLINE Vector3 GetY() const { return m_basis.GetY(); }

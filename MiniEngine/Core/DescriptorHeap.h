@@ -18,14 +18,17 @@
 #include <queue>
 #include <string>
 
-
-// This is an unbounded resource descriptor allocator.  It is intended to provide space for CPU-visible resource descriptors
-// as resources are created.  For those that need to be made shader-visible, they will need to be copied to a UserDescriptorHeap
-// or a DynamicDescriptorHeap.
+// This is an unbounded resource descriptor allocator.  It is intended to provide space for CPU-visible
+// resource descriptors as resources are created.  For those that need to be made shader-visible, they
+// will need to be copied to a DescriptorHeap or a DynamicDescriptorHeap.
 class DescriptorAllocator
 {
 public:
-    DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE Type) : m_Type(Type), m_CurrentHeap(nullptr) {}
+    DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE Type) : 
+        m_Type(Type), m_CurrentHeap(nullptr), m_DescriptorSize(0)
+    {
+        m_CurrentHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+    }
 
     D3D12_CPU_DESCRIPTOR_HANDLE Allocate( uint32_t Count );
 
@@ -45,7 +48,7 @@ protected:
     uint32_t m_RemainingFreeHandles;
 };
 
-
+// This handle refers to a descriptor or a descriptor table (contiguous descriptors) that is shader visible.
 class DescriptorHandle
 {
 public:
@@ -55,11 +58,14 @@ public:
         m_GpuHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
     }
 
+    /*
+    // Should we allow constructing handles that might not be shader visible?
     DescriptorHandle( D3D12_CPU_DESCRIPTOR_HANDLE CpuHandle )
         : m_CpuHandle(CpuHandle)
     {
         m_GpuHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
     }
+    */
 
     DescriptorHandle( D3D12_CPU_DESCRIPTOR_HANDLE CpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE GpuHandle )
         : m_CpuHandle(CpuHandle), m_GpuHandle(GpuHandle)
@@ -81,10 +87,12 @@ public:
             m_GpuHandle.ptr += OffsetScaledByDescriptorSize;
     }
 
-    D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle() const { return m_CpuHandle; }
+    const D3D12_CPU_DESCRIPTOR_HANDLE* operator&() const { return &m_CpuHandle; }
+    operator D3D12_CPU_DESCRIPTOR_HANDLE() const { return m_CpuHandle; }
+    operator D3D12_GPU_DESCRIPTOR_HANDLE() const { return m_GpuHandle; }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle() const { return m_GpuHandle; }
-
+    size_t GetCpuPtr() const { return m_CpuHandle.ptr; }
+    uint64_t GetGpuPtr() const { return m_GpuHandle.ptr; }
     bool IsNull() const { return m_CpuHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
     bool IsShaderVisible() const { return m_GpuHandle.ptr != D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
 
@@ -93,28 +101,29 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE m_GpuHandle;
 };
 
-class UserDescriptorHeap
+class DescriptorHeap
 {
 public:
 
-    UserDescriptorHeap( D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t MaxCount )
-    {
-        m_HeapDesc.Type = Type;
-        m_HeapDesc.NumDescriptors = MaxCount;
-        m_HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        m_HeapDesc.NodeMask = 1;
-    }
+    DescriptorHeap(void) {}
+    ~DescriptorHeap(void) { Destroy(); }
 
-    void Create( const std::wstring& DebugHeapName );
+    void Create( const std::wstring& DebugHeapName, D3D12_DESCRIPTOR_HEAP_TYPE Type, uint32_t MaxCount );
+    void Destroy(void) { m_Heap = nullptr; }
 
     bool HasAvailableSpace( uint32_t Count ) const { return Count <= m_NumFreeDescriptors; }
     DescriptorHandle Alloc( uint32_t Count = 1 );
 
-    DescriptorHandle GetHandleAtOffset( uint32_t Offset ) const { return m_FirstHandle + Offset * m_DescriptorSize; }
+    DescriptorHandle operator[] (uint32_t arrayIdx) const { return m_FirstHandle + arrayIdx * m_DescriptorSize; }
+
+    uint32_t GetOffsetOfHandle(const DescriptorHandle& DHandle ) {
+        return (uint32_t)(DHandle.GetCpuPtr() - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize; }
 
     bool ValidateHandle( const DescriptorHandle& DHandle ) const;
 
     ID3D12DescriptorHeap* GetHeapPointer() const { return m_Heap.Get(); }
+
+    uint32_t GetDescriptorSize(void) const { return m_DescriptorSize; }
 
 private:
 

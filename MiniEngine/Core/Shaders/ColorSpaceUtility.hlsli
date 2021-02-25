@@ -150,7 +150,7 @@ float3 REC709toDCIP3( float3 RGB709 )
     return mul(ConvMat, RGB709);
 }
 
-float3 DCIP3toREC709( float3 RGB709 )
+float3 DCIP3toREC709( float3 RGBP3 )
 {
     static const float3x3 ConvMat =
     {
@@ -158,7 +158,7 @@ float3 DCIP3toREC709( float3 RGB709 )
         -0.042056, 1.042056, 0.000000,
         -0.019641, -0.078651, 1.098291
     };
-    return mul(ConvMat, RGB709);
+    return mul(ConvMat, RGBP3);
 }
 
 #endif // __COLOR_SPACE_UTILITY_HLSLI__

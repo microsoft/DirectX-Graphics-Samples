@@ -15,6 +15,7 @@
 
 #include "BoundingPlane.h"
 #include "BoundingSphere.h"
+#include "BoundingBox.h"
 
 namespace Math
 {
@@ -43,13 +44,13 @@ namespace Math
         // fully contained in the frustum, or by intersecting one or more of the planes.
         bool IntersectSphere( BoundingSphere sphere ) const;
 
-        // We don't officially have a BoundingBox class yet, but let's assume it's forthcoming.  (There is a
+        // We don't officially have a AxisAlignedBox class yet, but let's assume it's forthcoming.  (There is a
         // simple struct in the Model project.)
-        bool IntersectBoundingBox(const Vector3 minBound, const Vector3 maxBound) const;
+        bool IntersectBoundingBox(const AxisAlignedBox& aabb) const;
 
-        friend Frustum  operator* ( const OrthogonalTransform& xform, const Frustum& frustum );    // Fast
-        friend Frustum  operator* ( const AffineTransform& xform, const Frustum& frustum );        // Slow
-        friend Frustum  operator* ( const Matrix4& xform, const Frustum& frustum );                // Slowest (and most general)
+        friend Frustum  operator* ( const OrthogonalTransform& xform, const Frustum& frustum );	// Fast
+        friend Frustum  operator* ( const AffineTransform& xform, const Frustum& frustum );		// Slow
+        friend Frustum  operator* ( const Matrix4& xform, const Frustum& frustum );				// Slowest (and most general)
 
     private:
 
@@ -59,8 +60,8 @@ namespace Math
         // Orthographic frustum constructor (for box-shaped frusta)
         void ConstructOrthographicFrustum( float Left, float Right, float Top, float Bottom, float NearClip, float FarClip );
 
-        Vector3 m_FrustumCorners[8];        // the corners of the frustum
-        BoundingPlane m_FrustumPlanes[6];            // the bounding planes
+        Vector3 m_FrustumCorners[8];		// the corners of the frustum
+        BoundingPlane m_FrustumPlanes[6];			// the bounding planes
     };
 
     //=======================================================================================================
@@ -78,12 +79,12 @@ namespace Math
         return true;
     }
 
-    inline bool Frustum::IntersectBoundingBox(const Vector3 minBound, const Vector3 maxBound) const
+    inline bool Frustum::IntersectBoundingBox(const AxisAlignedBox& aabb) const
     {
         for (int i = 0; i < 6; ++i)
         {
             BoundingPlane p = m_FrustumPlanes[i];
-            Vector3 farCorner = Select(minBound, maxBound, p.GetNormal() > Vector3(kZero));
+            Vector3 farCorner = Select(aabb.GetMin(), aabb.GetMax(), p.GetNormal() > Vector3(kZero));
             if (p.DistanceFromPoint(farCorner) < 0.0f)
                 return false;
         }

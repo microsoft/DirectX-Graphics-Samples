@@ -62,13 +62,29 @@ void Camera::UpdateProjMatrix( void )
     // Some care must also be done to properly reconstruct linear W in a pixel shader from hyperbolic Z.
     if (m_ReverseZ)
     {
-        Q1 = m_NearClip / (m_FarClip - m_NearClip);
-        Q2 = Q1 * m_FarClip;
+        if (m_InfiniteZ)
+        {
+            Q1 = 0.0f;
+            Q2 = m_NearClip;
+        }
+        else
+        {
+            Q1 = m_NearClip / (m_FarClip - m_NearClip);
+            Q2 = Q1 * m_FarClip;
+        }
     }
     else
     {
-        Q1 = m_FarClip / (m_NearClip - m_FarClip);
-        Q2 = Q1 * m_NearClip;
+        if (m_InfiniteZ)
+        {
+            Q1 = -1.0f;
+            Q2 = -m_NearClip;
+        }
+        else
+        {
+            Q1 = m_FarClip / (m_NearClip - m_FarClip);
+            Q2 = Q1 * m_NearClip;
+        }
     }
 
     SetProjMatrix( Matrix4(
