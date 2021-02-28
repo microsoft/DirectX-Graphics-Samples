@@ -15,6 +15,7 @@
 
 *.hlsl.h
 **/Build_VS16
+**/Build
 
 *.vcxproj.user
 *.opendb
