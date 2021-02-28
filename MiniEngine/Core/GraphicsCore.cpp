@@ -32,6 +32,8 @@
 #include "TemporalEffects.h"
 #include "Display.h"
 
+#pragma comment(lib, "d3d12.lib") 
+
 #ifdef _GAMING_DESKTOP
     #include <winreg.h>		// To read the registry
 #endif

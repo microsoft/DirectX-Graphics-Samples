@@ -23,6 +23,8 @@
 #include "Util/CommandLineArg.h"
 #include <shellapi.h>
 
+#pragma comment(lib, "runtimeobject.lib") 
+
 namespace GameCore
 {
     using namespace Graphics;

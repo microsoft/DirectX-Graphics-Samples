@@ -22,6 +22,8 @@
 #include "ImageScaling.h"
 #include "TemporalEffects.h"
 
+#pragma comment(lib, "dxgi.lib") 
+
 // This macro determines whether to detect if there is an HDR display and enable HDR10 output.
 // Currently, with HDR display enabled, the pixel magnfication functionality is broken.
 #define CONDITIONALLY_ENABLE_HDR_OUTPUT 1
