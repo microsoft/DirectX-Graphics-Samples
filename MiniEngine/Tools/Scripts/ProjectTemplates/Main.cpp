@@ -41,7 +41,7 @@ void TEMPLATE_NAME::Cleanup( void )
     // Free up resources in an orderly fashion
 }
 
-void TEMPLATE_NAME::Update( float deltaT )
+void TEMPLATE_NAME::Update( float /*deltaT*/ )
 {
     ScopedTimer _prof(L"Update State");
 

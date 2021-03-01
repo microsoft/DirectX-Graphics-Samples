@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -20,35 +20,25 @@
     <ProjectName>TEMPLATE_NAME</ProjectName>
     <RootNamespace>TEMPLATE_NAME</RootNamespace>
     <DefaultLanguage>en-US</DefaultLanguage>
-    <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>
-    <ApplicationEnvironment>title</ApplicationEnvironment>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+    <MinimumVisualStudioVersion>16.0</MinimumVisualStudioVersion>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
+    <TargetRuntime>Native</TargetRuntime>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <EmbedManifest>false</EmbedManifest>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings" />
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
-    <Import Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" />
-    <Import Project="..\PropertySheets\VS15.props" />
-    <Import Project="..\PropertySheets\Debug.props" />
-    <Import Project="..\PropertySheets\Win32.props" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'" Label="PropertySheets">
-    <Import Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" />
-    <Import Project="..\PropertySheets\VS15.props" />
-    <Import Project="..\PropertySheets\Profile.props" />
-    <Import Project="..\PropertySheets\Win32.props" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
-    <Import Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" />
-    <Import Project="..\PropertySheets\VS15.props" />
-    <Import Project="..\PropertySheets\Release.props" />
-    <Import Project="..\PropertySheets\Win32.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\PropertySheets\Build.props" />
+    <Import Project="..\PropertySheets\Desktop.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />
@@ -58,8 +48,6 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Platform)'=='X64'">
     <Link>
       <AdditionalDependencies>d3d11.lib;dxguid.lib;winmm.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
