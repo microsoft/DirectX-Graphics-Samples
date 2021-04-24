@@ -46,7 +46,7 @@ This branch is intended for the latest [released](https://docs.microsoft.com/en-
 * Windows 10 version 2004 (no new features were added in version 20H2)
 * [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 SDK version 2004(19041)](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk)
 ### Develop branch
-This branch is intented for features available in the latest Windows Insider Preview
+This branch is intended for features available in the latest Windows Insider Preview
 * [Windows 10 Insider Preview builds](https://docs.microsoft.com/en-us/windows-insider/developers/get-started) ([Dev Channel](https://docs.microsoft.com/en-us/windows-insider/flighting))
 * [Visual Studio 2019](https://www.visualstudio.com/) with the [Windows 10 Insider Preview SDK](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewSDK)
 
