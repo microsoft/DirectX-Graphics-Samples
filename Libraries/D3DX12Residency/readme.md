@@ -7,6 +7,8 @@ It implements essentially the same memory management behavior that a D3D11 app w
 
 The library should be seen as a stepping stone for D3D12 apps to get good performance when under memory pressure while leaving the door very open for apps to make optimizations that beat D3D11-style memory management algorithms.
 
+Make sure that you visit the [DirectX Landing Page](https://devblogs.microsoft.com/directx/landing-page/) for more resources for DirectX developers.
+
 ## What happens if I don't manage memory (using this library or otherwise)?
 Without this library or any other sort of memory management, there is a real and significant GPU performance hit when your app uses more memory than is available.  This is most noticeable on low memory (1GB/2GB) boards but can easily happen on 4GB cards as well (e.g. 4k, ultra settings, etc).  The OS's Video Memory Manager (VidMM) will do its absolute best to ensure your application can always make forward progress but any contingencies that VidMM has to use to keep your app running often come with a performance hit.  It is critical that applications manage their memory instead of relying on VidMM to make general case decisions which will invariably be non-optimal.
 
