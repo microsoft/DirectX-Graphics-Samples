@@ -2,6 +2,8 @@
 
 This library is intended to help apps kick start their MultiGPU implementation.  The library itself is called the affinity layer in that execution and resources can be 'affinitized' to one or more GPUs in the system.  This library should help developers quickly bring up DirectX 12 MultiGPU in their engines. 
 
+Make sure that you visit the [DirectX Landing Page](https://devblogs.microsoft.com/directx/landing-page/) for more resources for DirectX developers.
+
 ## What do you mean by 'MultiGPU'?
 MultiGPU can take on a few meanings.  The name indicates that we are referring to the use of multiple GPUs in a user's systems but does not imply how or why.  At the core, the MultiGPU features in DirectX 12 are designed to expose multiple GPUs to the app.  The power is then in the app's hands to use those GPUs to their maximum potential. 
 
