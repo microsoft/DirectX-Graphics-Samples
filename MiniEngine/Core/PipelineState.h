@@ -28,7 +28,7 @@ class PSO
 {
 public:
 
-    PSO(const wchar_t* Name) : m_Name(Name), m_RootSignature(nullptr) {}
+    PSO(const wchar_t* Name) : m_Name(Name), m_RootSignature(nullptr), m_PSO(nullptr) {}
 
     static void DestroyAll( void );
 
