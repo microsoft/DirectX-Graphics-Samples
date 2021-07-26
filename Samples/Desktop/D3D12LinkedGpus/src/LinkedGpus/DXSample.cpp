@@ -53,7 +53,7 @@ std::wstring DXSample::GetAssetFullPath(LPCWSTR assetName)
 // If no such adapter can be found, *ppAdapter will be set to nullptr.
 _Use_decl_annotations_
 void DXSample::GetHardwareAdapter(
-    IDXGIFactory2* pFactory,
+    IDXGIFactory1* pFactory,
     IDXGIAdapter1** ppAdapter,
     bool requestHighPerformanceAdapter)
 {
@@ -66,10 +66,10 @@ void DXSample::GetHardwareAdapter(
     {
         for (
             UINT adapterIndex = 0;
-            DXGI_ERROR_NOT_FOUND != factory6->EnumAdapterByGpuPreference(
+            SUCCEEDED(factory6->EnumAdapterByGpuPreference(
                 adapterIndex,
                 requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
-                IID_PPV_ARGS(&adapter));
+                IID_PPV_ARGS(&adapter)));
             ++adapterIndex)
         {
             DXGI_ADAPTER_DESC1 desc;
@@ -90,9 +90,10 @@ void DXSample::GetHardwareAdapter(
             }
         }
     }
-    else
+
+    if (adapter.Get() == nullptr)
     {
-        for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != pFactory->EnumAdapters1(adapterIndex, &adapter); ++adapterIndex)
+        for (UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex)
         {
             DXGI_ADAPTER_DESC1 desc;
             adapter->GetDesc1(&desc);
@@ -112,6 +113,7 @@ void DXSample::GetHardwareAdapter(
             }
         }
     }
+
     *ppAdapter = adapter.Detach();
 }
 

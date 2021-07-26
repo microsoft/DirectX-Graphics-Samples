@@ -50,7 +50,7 @@ public:
 
 protected:
     void GetHardwareAdapter(
-        _In_ IDXGIFactory2* pFactory,
+        _In_ IDXGIFactory1* pFactory,
         _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter,
         bool requestHighPerformanceAdapter = false);
 

@@ -13,16 +13,14 @@ extendedZipContent:
 ---
 
 # Direct3D 12 variable-rate shading sample
-This sample illustrates how to use variable-rate shading (VRS) to improve application performance. VRS adds the concept of subsampling, where shading can be computed at a level coarser than a pixel. For example, a group of pixels can be shaded as a single unit, and the result is then broadcast to all samples in the group. This is great for areas of the image where extra detail doesn't help&mdash;such as those behind HUD elements, transparencies, blurs (depth-of-field, motion, etc.), and optical distortions due to VR optics.
-
 ![Variable Rate Shading GUI](src/Screenshot.PNG)
 
-### Requirements
-* GPU and driver with support for [DirectX 12 Ultimate](http://aka.ms/DirectX12UltimateDev)
+This sample illustrates how to use variable-rate shading (VRS) to improve application performance. VRS adds the concept of subsampling, where shading can be computed at a level coarser than a pixel. For example, a group of pixels can be shaded as a single unit, and the result is then broadcast to all samples in the group. This is great for areas of the image where extra detail doesn't help&mdash;such as those behind HUD elements, transparencies, blurs (depth-of-field, motion, etc.), and optical distortions due to VR optics.
 
-  <img src="../../../Assets/DirectX12Ultimate.png" alt="DirectX 12 Ultimate" height="100">
+#### Recommended scenarios to try
+Hit SPACE to stop the light animating and then use the [F1-F5] keys to toggle between presets for Shading Rates. Can you spot the visual difference between F1 and F2? Try experimenting with the various controls to find an acceptable balance between degraded-visuals and performance.
 
-## Controls
+### Controls
 * SPACE: Toggles light animation.
 * ALT + ENTER: Toggles between windowed and fullscreen modes.
 * [+/-]: Increments/decrements the glass refraction scale.
@@ -32,6 +30,3 @@ This sample illustrates how to use variable-rate shading (VRS) to improve applic
 * [1-7]: Selects Shading Rate for the Refraction pass.
 * SHIFT + [1-7]: Selects the Shading Rate for the Scene pass.
 * CTRL + [1-7]: Selects the Shading Rate for the Postprocess pass.
-
-## Recommended scenarios to try
-Hit SPACE to stop the light animating and then use the [F1-F5] keys to toggle between presets for Shading Rates. Can you spot the visual difference between F1 and F2? Try experimenting with the various controls to find an acceptable balance between degraded-visuals and performance.
