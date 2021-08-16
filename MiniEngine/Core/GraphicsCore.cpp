@@ -63,9 +63,9 @@ namespace Graphics
         D3D12_DESCRIPTOR_HEAP_TYPE_DSV
     };
 
-    static const uint32_t vendorID_Nvidia = 4318;
-    static const uint32_t vendorID_AMD = 4098;
-    static const uint32_t vendorID_Intel = 8086;
+    static const uint32_t vendorID_Nvidia   = 0x10DE;
+    static const uint32_t vendorID_AMD      = 0x1002;
+    static const uint32_t vendorID_Intel    = 0x8086;
 
     uint32_t GetDesiredGPUVendor()
     {
