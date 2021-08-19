@@ -37,21 +37,24 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     float TileMaxDepth = Max4(Depths);
     float TileMaxCoC = MaxCoC(Depths);
 
+    // Write and sync
+    gs_ClosestDepthSearch[GI] = TileMinDepth;
+    gs_FarthestDepthSearch[GI] = TileMaxDepth;
+    gs_MaximumCoC[GI] = TileMaxCoC;
+    GroupMemoryBarrierWithGroupSync();
+
     for (uint i = 32; i > 0; i >>= 1)
     {
-        // Write and sync
-        gs_ClosestDepthSearch[GI] = TileMinDepth;
-        gs_FarthestDepthSearch[GI] = TileMaxDepth;
-        gs_MaximumCoC[GI] = TileMaxCoC;
-        GroupMemoryBarrierWithGroupSync();
-
         // Read and sync
-        TileMinDepth = min(TileMinDepth, gs_ClosestDepthSearch[(GI + i) % 64]);
-        TileMaxDepth = max(TileMaxDepth, gs_FarthestDepthSearch[(GI + i) % 64]);
-        TileMaxCoC = max(TileMaxCoC, gs_MaximumCoC[(GI + i) % 64]);
+        if (GI < i)
+        {
+            gs_ClosestDepthSearch[i] = min(gs_ClosestDepthSearch[i], gs_ClosestDepthSearch[GI + i]);
+            gs_FarthestDepthSearch[i] = max(gs_FarthestDepthSearch[i], gs_FarthestDepthSearch[GI + i]);
+            gs_MaximumCoC[i] = max(gs_MaximumCoC[i], gs_MaximumCoC[GI + i]);
+        }
         GroupMemoryBarrierWithGroupSync();
     }
 
     if (GI == 0)
-        TileClass[Gid.xy] = float3(TileMaxCoC, TileMinDepth, TileMaxDepth);
+        TileClass[Gid.xy] = float3(gs_MaximumCoC[0], gs_FarthestDepthSearch[0], gs_FarthestDepthSearch[0]);
 }
