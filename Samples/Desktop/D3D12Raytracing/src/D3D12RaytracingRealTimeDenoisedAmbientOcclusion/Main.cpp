@@ -12,9 +12,11 @@
 #include "stdafx.h"
 #include "D3D12RaytracingRealTimeDenoisedAmbientOcclusion.h"
 #include "Sampler.h"
+//makes it so Nvidia graphics card is used by default rather than intagrated intel or amd. 
 extern "C" {
     _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 }
+
 _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
