@@ -533,7 +533,7 @@
     <ClInclude Include="EsramAllocator.h" />
     <ClInclude Include="FileUtility.h" />
     <ClInclude Include="FXAA.h" />
-    <ClInclude Include="GameInput.h" />
+    <ClInclude Include="Input.h" />
     <ClInclude Include="GpuResource.h" />
     <ClInclude Include="GpuTimeManager.h" />
     <ClInclude Include="GameCore.h" />

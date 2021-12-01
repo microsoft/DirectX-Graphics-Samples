@@ -13,6 +13,9 @@
 
 #include "GraphicsCore.h"
 
+using DirectX::XMFLOAT2;
+using DirectX::XMFLOAT4;
+
 namespace GraphRenderer
 {
     void Initialize();

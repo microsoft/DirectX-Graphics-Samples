@@ -17,6 +17,8 @@
 
 namespace Math
 {
+    using DirectX::XMFLOAT4X4;
+
     __declspec(align(16)) class Matrix4
     {
     public:
@@ -29,7 +31,7 @@ namespace Math
 
         INLINE Matrix4(const float* data)
         {
-            m_mat = XMLoadFloat4x4((XMFLOAT4X4*)data);
+            m_mat = DirectX::XMLoadFloat4x4((XMFLOAT4X4*)data);
         }
 
         INLINE Matrix4( Vector4 x, Vector4 y, Vector4 z, Vector4 w ) { m_mat.r[0] = x; m_mat.r[1] = y; m_mat.r[2] = z; m_mat.r[3] = w; }
@@ -51,7 +53,7 @@ namespace Math
         INLINE Matrix4( const AffineTransform& xform ) { *this = Matrix4( xform.GetBasis(), xform.GetTranslation()); }
         INLINE Matrix4( const OrthogonalTransform& xform ) { *this = Matrix4( Matrix3(xform.GetRotation()), xform.GetTranslation() ); }
         INLINE explicit Matrix4( const XMMATRIX& mat ) { m_mat = mat; }
-        INLINE explicit Matrix4( EIdentityTag ) { m_mat = XMMatrixIdentity(); }
+        INLINE explicit Matrix4( EIdentityTag ) { m_mat = DirectX::XMMatrixIdentity(); }
         INLINE explicit Matrix4( EZeroTag ) { m_mat.r[0] = m_mat.r[1] = m_mat.r[2] = m_mat.r[3] = SplatZero(); }
 
         INLINE const Matrix3& Get3x3() const { return (const Matrix3&)*this; }
@@ -78,8 +80,8 @@ namespace Math
         INLINE Vector4 operator* ( Vector4 vec ) const { return Vector4(XMVector4Transform(vec, m_mat)); }
         INLINE Matrix4 operator* ( const Matrix4& mat ) const { return Matrix4(XMMatrixMultiply(mat, m_mat)); }
 
-        static INLINE Matrix4 MakeScale( float scale ) { return Matrix4(XMMatrixScaling(scale, scale, scale)); }
-        static INLINE Matrix4 MakeScale( Vector3 scale ) { return Matrix4(XMMatrixScalingFromVector(scale)); }
+        static INLINE Matrix4 MakeScale( float scale ) { return Matrix4(DirectX::XMMatrixScaling(scale, scale, scale)); }
+        static INLINE Matrix4 MakeScale( Vector3 scale ) { return Matrix4(DirectX::XMMatrixScalingFromVector(scale)); }
 
     private:
         XMMATRIX m_mat;

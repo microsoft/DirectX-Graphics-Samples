@@ -17,7 +17,7 @@
 #include "PipelineState.h"
 #include "RootSignature.h"
 #include "BufferManager.h"
-#include "GameInput.h"
+#include "Input.h"
 #include "SystemTime.h"
 #include "EngineProfiling.h"
 

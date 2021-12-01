@@ -18,7 +18,7 @@
 #include "GraphicsCore.h"
 #include "BufferManager.h"
 #include "ParticleEffectManager.h"
-#include "GameInput.h"
+#include "Input.h"
 #include "Math/Random.h"
 
 using namespace Math;
@@ -73,7 +73,7 @@ void ParticleEffect::LoadDeviceResources(ID3D12Device* device)
     {
         ParticleSpawnData& SpawnData = pSpawnData[i];
         SpawnData.AgeRate = 1.0f / s_RNG.NextFloat( m_EffectProperties.LifeMinMax.x, m_EffectProperties.LifeMinMax.y );
-        float horizontalAngle = s_RNG.NextFloat(XM_2PI);
+        float horizontalAngle = s_RNG.NextFloat(DirectX::XM_2PI);
         float horizontalVelocity = s_RNG.NextFloat( m_EffectProperties.Velocity.GetX(), m_EffectProperties.Velocity.GetY() );
         SpawnData.Velocity.x = horizontalVelocity * cos(horizontalAngle);
         SpawnData.Velocity.y = s_RNG.NextFloat( m_EffectProperties.Velocity.GetZ(), m_EffectProperties.Velocity.GetW() );

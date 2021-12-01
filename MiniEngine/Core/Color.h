@@ -15,12 +15,14 @@
 
 #include <DirectXMath.h>
 
-using namespace DirectX;
+using DirectX::FXMVECTOR;
+using DirectX::XMVECTORF32;
+using DirectX::XMVECTOR;
 
 class Color
 {
 public:
-    Color( ) : m_value(g_XMOne) {}
+    Color( ) : m_value(DirectX::g_XMOne) {}
     Color( FXMVECTOR vec );
     Color( const XMVECTORF32& vec );
     Color( float r, float g, float b, float a = 1.0f );
@@ -43,7 +45,7 @@ public:
     float* GetPtr( void ) { return reinterpret_cast<float*>(this); }
     float& operator[]( int idx ) { return GetPtr()[idx]; }
 
-    void SetRGB( float r, float g, float b ) { m_value.v = XMVectorSelect( m_value, XMVectorSet(r, g, b, b), g_XMMask3 ); }
+    void SetRGB( float r, float g, float b ) { m_value.v = XMVectorSelect( m_value, DirectX::XMVectorSet(r, g, b, b), DirectX::g_XMMask3 ); }
 
     Color ToSRGB() const;
     Color FromSRGB() const;
@@ -64,9 +66,9 @@ private:
     XMVECTORF32 m_value;
 };
 
-INLINE Color Max( Color a, Color b ) { return Color(XMVectorMax(a, b)); }
-INLINE Color Min( Color a, Color b ) { return Color(XMVectorMin(a, b)); }
-INLINE Color Clamp( Color x, Color a, Color b ) { return Color(XMVectorClamp(x, a, b)); }
+INLINE Color Max( Color a, Color b ) { return Color(DirectX::XMVectorMax(a, b)); }
+INLINE Color Min( Color a, Color b ) { return Color(DirectX::XMVectorMin(a, b)); }
+INLINE Color Clamp( Color x, Color a, Color b ) { return Color(DirectX::XMVectorClamp(x, a, b)); }
 
 
 inline Color::Color( FXMVECTOR vec )
@@ -81,12 +83,12 @@ inline Color::Color( const XMVECTORF32& vec )
 
 inline Color::Color( float r, float g, float b, float a )
 {
-    m_value.v = XMVectorSet(r, g, b, a);
+    m_value.v = DirectX::XMVectorSet(r, g, b, a);
 }
 
 inline Color::Color( uint16_t r, uint16_t g, uint16_t b, uint16_t a, uint16_t bitDepth )
 {
-    m_value.v = XMVectorScale(XMVectorSet(r, g, b, a), 1.0f / ((1 << bitDepth) - 1));
+    m_value.v = DirectX::XMVectorScale(DirectX::XMVectorSet(r, g, b, a), 1.0f / ((1 << bitDepth) - 1));
 }
 
 inline Color::Color( uint32_t u32 )
@@ -95,11 +97,12 @@ inline Color::Color( uint32_t u32 )
     float g = (float)((u32 >>  8) & 0xFF);
     float b = (float)((u32 >> 16) & 0xFF);
     float a = (float)((u32 >> 24) & 0xFF);
-    m_value.v = XMVectorScale( XMVectorSet(r, g, b, a), 1.0f / 255.0f );
+    m_value.v = DirectX::XMVectorScale( DirectX::XMVectorSet(r, g, b, a), 1.0f / 255.0f );
 }
 
 inline Color Color::ToSRGB( void ) const
 {
+    using namespace DirectX;
     XMVECTOR T = XMVectorSaturate(m_value);
     XMVECTOR result = XMVectorSubtract(XMVectorScale(XMVectorPow(T, XMVectorReplicate(1.0f / 2.4f)), 1.055f), XMVectorReplicate(0.055f));
     result = XMVectorSelect(result, XMVectorScale(T, 12.92f), XMVectorLess(T, XMVectorReplicate(0.0031308f)));
@@ -108,6 +111,7 @@ inline Color Color::ToSRGB( void ) const
 
 inline Color Color::FromSRGB( void ) const
 {
+    using namespace DirectX;
     XMVECTOR T = XMVectorSaturate(m_value);
     XMVECTOR result = XMVectorPow(XMVectorScale(XMVectorAdd(T, XMVectorReplicate(0.055f)), 1.0f / 1.055f), XMVectorReplicate(2.4f));
     result = XMVectorSelect(result, XMVectorScale(T, 1.0f / 12.92f), XMVectorLess(T, XMVectorReplicate(0.0031308f)));
@@ -116,6 +120,7 @@ inline Color Color::FromSRGB( void ) const
 
 inline Color Color::ToREC709( void ) const
 {
+    using namespace DirectX;
     XMVECTOR T = XMVectorSaturate(m_value);
     XMVECTOR result = XMVectorSubtract(XMVectorScale(XMVectorPow(T, XMVectorReplicate(0.45f)), 1.099f), XMVectorReplicate(0.099f));
     result = XMVectorSelect(result, XMVectorScale(T, 4.5f), XMVectorLess(T, XMVectorReplicate(0.0018f)));
@@ -124,6 +129,7 @@ inline Color Color::ToREC709( void ) const
 
 inline Color Color::FromREC709( void ) const
 {
+    using namespace DirectX;
     XMVECTOR T = XMVectorSaturate(m_value);
     XMVECTOR result = XMVectorPow(XMVectorScale(XMVectorAdd(T, XMVectorReplicate(0.099f)), 1.0f / 1.099f), XMVectorReplicate(1.0f / 0.45f));
     result = XMVectorSelect(result, XMVectorScale(T, 1.0f / 4.5f), XMVectorLess(T, XMVectorReplicate(0.0081f)));
@@ -132,6 +138,7 @@ inline Color Color::FromREC709( void ) const
 
 inline uint32_t Color::R10G10B10A2( void ) const
 {
+    using namespace DirectX;
     XMVECTOR result = XMVectorRound(XMVectorMultiply(XMVectorSaturate(m_value), XMVectorSet(1023.0f, 1023.0f, 1023.0f, 3.0f)));
     result = _mm_castsi128_ps(_mm_cvttps_epi32(result));
     uint32_t r = XMVectorGetIntX(result);
@@ -143,6 +150,7 @@ inline uint32_t Color::R10G10B10A2( void ) const
 
 inline uint32_t Color::R8G8B8A8( void ) const
 {
+    using namespace DirectX;
     XMVECTOR result = XMVectorRound(XMVectorMultiply(XMVectorSaturate(m_value), XMVectorReplicate(255.0f)));
     result = _mm_castsi128_ps(_mm_cvttps_epi32(result));
     uint32_t r = XMVectorGetIntX(result);

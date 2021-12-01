@@ -78,11 +78,12 @@ namespace Math
         return value == 0 ? 0 : 1 << Log2(value);
     }
 
-    using namespace DirectX;
+    using DirectX::XMVECTOR;
+    using DirectX::FXMVECTOR;
 
     INLINE XMVECTOR SplatZero()
     {
-        return XMVectorZero();
+        return DirectX::XMVectorZero();
     }
 
 #if !defined(_XM_NO_INTRINSICS_) && defined(_XM_SSE_INTRINSICS_)

@@ -19,6 +19,7 @@
 
 using Math::Quaternion;
 using Math::Vector4;
+using namespace DirectX;
 
 static inline float ToFloat(const int8_t x) { return Math::Max(x / 127.0f, -1.0f); }
 static inline float ToFloat(const uint8_t x) { return x / 255.0f; }

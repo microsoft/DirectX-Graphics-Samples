@@ -19,6 +19,8 @@ namespace GameInput
     void Shutdown();
     void Update( float frameDelta );
 
+    void ProcessMessage( UINT message, WPARAM wParam, LPARAM lParam );
+
     enum DigitalInput
     {
         // keyboard

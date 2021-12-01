@@ -14,7 +14,7 @@
 
 #include "pch.h"
 #include "TextRenderer.h"
-#include "GameInput.h"
+#include "Input.h"
 #include "Color.h"
 #include "Display.h"
 #include "CommandContext.h"

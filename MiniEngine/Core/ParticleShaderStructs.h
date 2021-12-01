@@ -20,6 +20,11 @@
 
 // Emission Properties and other particle structs
 
+using DirectX::XMFLOAT2;
+using DirectX::XMFLOAT3;
+using DirectX::XMFLOAT4;
+using DirectX::XMUINT4;
+
 __declspec(align(16)) struct EmissionProperties
 {
     XMFLOAT3 LastEmitPosW;

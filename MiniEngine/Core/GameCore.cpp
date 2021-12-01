@@ -15,7 +15,7 @@
 #include "GameCore.h"
 #include "GraphicsCore.h"
 #include "SystemTime.h"
-#include "GameInput.h"
+#include "Input.h"
 #include "BufferManager.h"
 #include "CommandContext.h"
 #include "PostEffects.h"
@@ -98,7 +98,7 @@ namespace GameCore
 
     int RunApplication( IGameApp& app, const wchar_t* className, HINSTANCE hInst, int nCmdShow )
     {
-        if (!XMVerifyCPUSupport())
+        if (!DirectX::XMVerifyCPUSupport())
             return 1;
 
         Microsoft::WRL::Wrappers::RoInitializeWrapper InitializeWinRT(RO_INIT_MULTITHREADED);
@@ -172,6 +172,7 @@ namespace GameCore
             break;
 
         default:
+            GameInput::ProcessMessage(message, wParam, lParam);
             return DefWindowProc( hWnd, message, wParam, lParam );
         }
 

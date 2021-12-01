@@ -16,7 +16,7 @@
 #include "Display.h"
 #include "TextRenderer.h"
 #include "GraphRenderer.h"
-#include "GameInput.h"
+#include "Input.h"
 #include "GpuTimeManager.h"
 #include "CommandContext.h"
 #include <vector>

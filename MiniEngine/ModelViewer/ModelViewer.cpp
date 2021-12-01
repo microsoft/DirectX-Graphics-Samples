@@ -25,7 +25,7 @@
 #include "SystemTime.h"
 #include "TextRenderer.h"
 #include "ParticleEffectManager.h"
-#include "GameInput.h"
+#include "Input.h"
 #include "SponzaRenderer.h"
 #include "glTF.h"
 #include "Renderer.h"

@@ -29,34 +29,34 @@ namespace Math
 	INLINE bool operator== ( float lhs, Scalar rhs ) { return lhs == (float)rhs; }
 
 #define CREATE_SIMD_FUNCTIONS( TYPE ) \
-	INLINE TYPE Sqrt( TYPE s ) { return TYPE(XMVectorSqrt(s)); } \
-	INLINE TYPE Recip( TYPE s ) { return TYPE(XMVectorReciprocal(s)); } \
-	INLINE TYPE RecipSqrt( TYPE s ) { return TYPE(XMVectorReciprocalSqrt(s)); } \
-	INLINE TYPE Floor( TYPE s ) { return TYPE(XMVectorFloor(s)); } \
-	INLINE TYPE Ceiling( TYPE s ) { return TYPE(XMVectorCeiling(s)); } \
-	INLINE TYPE Round( TYPE s ) { return TYPE(XMVectorRound(s)); } \
-	INLINE TYPE Abs( TYPE s ) { return TYPE(XMVectorAbs(s)); } \
-	INLINE TYPE Exp( TYPE s ) { return TYPE(XMVectorExp(s)); } \
-	INLINE TYPE Pow( TYPE b, TYPE e ) { return TYPE(XMVectorPow(b, e)); } \
-	INLINE TYPE Log( TYPE s ) { return TYPE(XMVectorLog(s)); } \
-	INLINE TYPE Sin( TYPE s ) { return TYPE(XMVectorSin(s)); } \
-	INLINE TYPE Cos( TYPE s ) { return TYPE(XMVectorCos(s)); } \
-	INLINE TYPE Tan( TYPE s ) { return TYPE(XMVectorTan(s)); } \
-	INLINE TYPE ASin( TYPE s ) { return TYPE(XMVectorASin(s)); } \
-	INLINE TYPE ACos( TYPE s ) { return TYPE(XMVectorACos(s)); } \
-	INLINE TYPE ATan( TYPE s ) { return TYPE(XMVectorATan(s)); } \
-	INLINE TYPE ATan2( TYPE y, TYPE x ) { return TYPE(XMVectorATan2(y, x)); } \
-	INLINE TYPE Lerp( TYPE a, TYPE b, TYPE t ) { return TYPE(XMVectorLerpV(a, b, t)); } \
-    INLINE TYPE Lerp( TYPE a, TYPE b, float t ) { return TYPE(XMVectorLerp(a, b, t)); } \
-	INLINE TYPE Max( TYPE a, TYPE b ) { return TYPE(XMVectorMax(a, b)); } \
-	INLINE TYPE Min( TYPE a, TYPE b ) { return TYPE(XMVectorMin(a, b)); } \
+	INLINE TYPE Sqrt( TYPE s ) { return TYPE(DirectX::XMVectorSqrt(s)); } \
+	INLINE TYPE Recip( TYPE s ) { return TYPE(DirectX::XMVectorReciprocal(s)); } \
+	INLINE TYPE RecipSqrt( TYPE s ) { return TYPE(DirectX::XMVectorReciprocalSqrt(s)); } \
+	INLINE TYPE Floor( TYPE s ) { return TYPE(DirectX::XMVectorFloor(s)); } \
+	INLINE TYPE Ceiling( TYPE s ) { return TYPE(DirectX::XMVectorCeiling(s)); } \
+	INLINE TYPE Round( TYPE s ) { return TYPE(DirectX::XMVectorRound(s)); } \
+	INLINE TYPE Abs( TYPE s ) { return TYPE(DirectX::XMVectorAbs(s)); } \
+	INLINE TYPE Exp( TYPE s ) { return TYPE(DirectX::XMVectorExp(s)); } \
+	INLINE TYPE Pow( TYPE b, TYPE e ) { return TYPE(DirectX::XMVectorPow(b, e)); } \
+	INLINE TYPE Log( TYPE s ) { return TYPE(DirectX::XMVectorLog(s)); } \
+	INLINE TYPE Sin( TYPE s ) { return TYPE(DirectX::XMVectorSin(s)); } \
+	INLINE TYPE Cos( TYPE s ) { return TYPE(DirectX::XMVectorCos(s)); } \
+	INLINE TYPE Tan( TYPE s ) { return TYPE(DirectX::XMVectorTan(s)); } \
+	INLINE TYPE ASin( TYPE s ) { return TYPE(DirectX::XMVectorASin(s)); } \
+	INLINE TYPE ACos( TYPE s ) { return TYPE(DirectX::XMVectorACos(s)); } \
+	INLINE TYPE ATan( TYPE s ) { return TYPE(DirectX::XMVectorATan(s)); } \
+	INLINE TYPE ATan2( TYPE y, TYPE x ) { return TYPE(DirectX::XMVectorATan2(y, x)); } \
+	INLINE TYPE Lerp( TYPE a, TYPE b, TYPE t ) { return TYPE(DirectX::XMVectorLerpV(a, b, t)); } \
+    INLINE TYPE Lerp( TYPE a, TYPE b, float t ) { return TYPE(DirectX::XMVectorLerp(a, b, t)); } \
+	INLINE TYPE Max( TYPE a, TYPE b ) { return TYPE(DirectX::XMVectorMax(a, b)); } \
+	INLINE TYPE Min( TYPE a, TYPE b ) { return TYPE(DirectX::XMVectorMin(a, b)); } \
 	INLINE TYPE Clamp( TYPE v, TYPE a, TYPE b ) { return Min(Max(v, a), b); } \
-	INLINE BoolVector operator<  ( TYPE lhs, TYPE rhs ) { return XMVectorLess(lhs, rhs); } \
-	INLINE BoolVector operator<= ( TYPE lhs, TYPE rhs ) { return XMVectorLessOrEqual(lhs, rhs); } \
-	INLINE BoolVector operator>  ( TYPE lhs, TYPE rhs ) { return XMVectorGreater(lhs, rhs); } \
-	INLINE BoolVector operator>= ( TYPE lhs, TYPE rhs ) { return XMVectorGreaterOrEqual(lhs, rhs); } \
-	INLINE BoolVector operator== ( TYPE lhs, TYPE rhs ) { return XMVectorEqual(lhs, rhs); } \
-	INLINE TYPE Select( TYPE lhs, TYPE rhs, BoolVector mask ) { return TYPE(XMVectorSelect(lhs, rhs, mask)); }
+	INLINE BoolVector operator<  ( TYPE lhs, TYPE rhs ) { return DirectX::XMVectorLess(lhs, rhs); } \
+	INLINE BoolVector operator<= ( TYPE lhs, TYPE rhs ) { return DirectX::XMVectorLessOrEqual(lhs, rhs); } \
+	INLINE BoolVector operator>  ( TYPE lhs, TYPE rhs ) { return DirectX::XMVectorGreater(lhs, rhs); } \
+	INLINE BoolVector operator>= ( TYPE lhs, TYPE rhs ) { return DirectX::XMVectorGreaterOrEqual(lhs, rhs); } \
+	INLINE BoolVector operator== ( TYPE lhs, TYPE rhs ) { return DirectX::XMVectorEqual(lhs, rhs); } \
+	INLINE TYPE Select( TYPE lhs, TYPE rhs, BoolVector mask ) { return TYPE(DirectX::XMVectorSelect(lhs, rhs, mask)); }
 
 
 	CREATE_SIMD_FUNCTIONS(Scalar)
@@ -87,16 +87,16 @@ namespace Math
 	INLINE float Min( float a, float b ) { return a < b ? a : b; }
 	INLINE float Clamp( float v, float a, float b ) { return Min(Max(v, a), b); }
 
-	INLINE Scalar Length( Vector3 v ) { return Scalar(XMVector3Length(v)); }
-	INLINE Scalar LengthSquare( Vector3 v ) { return Scalar(XMVector3LengthSq(v)); }
-	INLINE Scalar LengthRecip( Vector3 v ) { return Scalar(XMVector3ReciprocalLength(v)); }
-	INLINE Scalar Dot( Vector3 v1, Vector3 v2 ) { return Scalar(XMVector3Dot(v1, v2)); }
-	INLINE Scalar Dot( Vector4 v1, Vector4 v2 ) { return Scalar(XMVector4Dot(v1, v2)); }
-	INLINE Vector3 Cross( Vector3 v1, Vector3 v2 ) { return Vector3(XMVector3Cross(v1, v2)); }
-	INLINE Vector3 Normalize( Vector3 v ) { return Vector3(XMVector3Normalize(v)); }
-	INLINE Vector4 Normalize( Vector4 v ) { return Vector4(XMVector4Normalize(v)); }
+	INLINE Scalar Length( Vector3 v ) { return Scalar(DirectX::XMVector3Length(v)); }
+	INLINE Scalar LengthSquare( Vector3 v ) { return Scalar(DirectX::XMVector3LengthSq(v)); }
+	INLINE Scalar LengthRecip( Vector3 v ) { return Scalar(DirectX::XMVector3ReciprocalLength(v)); }
+	INLINE Scalar Dot( Vector3 v1, Vector3 v2 ) { return Scalar(DirectX::XMVector3Dot(v1, v2)); }
+	INLINE Scalar Dot( Vector4 v1, Vector4 v2 ) { return Scalar(DirectX::XMVector4Dot(v1, v2)); }
+	INLINE Vector3 Cross( Vector3 v1, Vector3 v2 ) { return Vector3(DirectX::XMVector3Cross(v1, v2)); }
+	INLINE Vector3 Normalize( Vector3 v ) { return Vector3(DirectX::XMVector3Normalize(v)); }
+	INLINE Vector4 Normalize( Vector4 v ) { return Vector4(DirectX::XMVector4Normalize(v)); }
 
-	INLINE Matrix3 Transpose( const Matrix3& mat ) { return Matrix3(XMMatrixTranspose(mat)); }
+	INLINE Matrix3 Transpose( const Matrix3& mat ) { return Matrix3(DirectX::XMMatrixTranspose(mat)); }
     INLINE Matrix3 InverseTranspose( const Matrix3& mat )
     {
         const Vector3 x = mat.GetX();
@@ -124,8 +124,8 @@ namespace Math
 
 	INLINE OrthogonalTransform Invert( const OrthogonalTransform& xform )	 { return ~xform; }
 
-	INLINE Matrix4 Transpose( const Matrix4& mat ) { return Matrix4(XMMatrixTranspose(mat)); }
-	INLINE Matrix4 Invert( const Matrix4& mat ) { return Matrix4(XMMatrixInverse(nullptr, mat)); }
+	INLINE Matrix4 Transpose( const Matrix4& mat ) { return Matrix4(DirectX::XMMatrixTranspose(mat)); }
+	INLINE Matrix4 Invert( const Matrix4& mat ) { return Matrix4(DirectX::XMMatrixInverse(nullptr, mat)); }
 
 	INLINE Matrix4 OrthoInvert( const Matrix4& xform )
 	{

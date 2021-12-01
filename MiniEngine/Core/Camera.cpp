@@ -16,6 +16,7 @@
 #include <cmath>
 
 using namespace Math;
+using namespace DirectX;
 
 void BaseCamera::SetLookDirection( Vector3 forward, Vector3 up )
 {

@@ -14,10 +14,11 @@
 #include "pch.h"
 #include "CameraController.h"
 #include "Camera.h"
-#include "GameInput.h"
+#include "Input.h"
 
 using namespace Math;
 using namespace GameCore;
+using namespace DirectX;
 
 FlyingFPSCamera::FlyingFPSCamera( Camera& camera, Vector3 worldUp ) : CameraController( camera )
 {
