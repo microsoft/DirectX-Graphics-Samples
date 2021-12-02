@@ -42,6 +42,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
+      <AdditionalOptions>/IGNORE:4221 /IGNORE:4075 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <Link Condition="'$(Configuration)'=='Debug'">
     </Link>
@@ -54,7 +55,7 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalOptions>/IGNORE:4221 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IGNORE:4221 /IGNORE:4075 %(AdditionalOptions)</AdditionalOptions>
     </Lib>
     <FxCompile>
       <ShaderType>Compute</ShaderType>

@@ -45,9 +45,6 @@
     <ClCompile>
       <AdditionalIncludeDirectories>..\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
-    <Link Condition="'$(Configuration)'=='Debug'">
-      <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>
-    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
     <Link>
@@ -358,6 +355,7 @@
       <AdditionalLibraryDirectories>..\..\Packages\zlib-msvc-x64.1.2.11.8900\build\native\lib_release;..\..\Packages\directxtex_desktop_win10.2019.2.7.1\lib\x64\Release;..\..\Packages\directxmesh_desktop_win10.2019.2.7.1\lib\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>zlibstatic.lib;DirectXMesh.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies Condition="'$(Platform)'=='x64'">DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MSVCRT.lib</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
   <ImportGroup Label="ExtensionTargets">

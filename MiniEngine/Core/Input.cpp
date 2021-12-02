@@ -28,6 +28,9 @@
 using DirectX::Keyboard;
 using DirectX::Mouse;
 
+DirectX::Keyboard g_Keyboard;
+DirectX::Mouse g_Mouse;
+
 void GameInput::ProcessMessage(UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch( message )
@@ -410,7 +413,6 @@ void GameInput::Update( float frameDelta )
 
     for (uint32_t i = 0; i < kNumKeys; ++i)
     {
-        //s_Buttons[0][i] = (s_Keybuffer[s_DXKeyMapping[i]] & 0x80) != 0;
         s_Buttons[0][i] = kbState.IsKeyDown((Keyboard::Keys)s_DXKeyMapping[i]);
     }
 
