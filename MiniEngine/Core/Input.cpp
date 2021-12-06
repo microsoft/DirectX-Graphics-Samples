@@ -25,51 +25,18 @@
 #include <Keyboard.h>
 #include <Mouse.h>
 
+namespace GameInput
+{
+    std::unique_ptr<DirectX::Keyboard> g_Keyboard;
+    std::unique_ptr<DirectX::Mouse> g_Mouse;
+}
+
 using DirectX::Keyboard;
 using DirectX::Mouse;
 
-DirectX::Keyboard g_Keyboard;
-DirectX::Mouse g_Mouse;
-
-void GameInput::ProcessMessage(UINT message, WPARAM wParam, LPARAM lParam)
-{
-    switch( message )
-    {
-    case WM_ACTIVATEAPP:
-        Keyboard::ProcessMessage(message, wParam, lParam);
-        Mouse::ProcessMessage(message, wParam, lParam);
-        break;
-
-    case WM_KEYDOWN:
-    case WM_SYSKEYDOWN:
-    case WM_KEYUP:
-    case WM_SYSKEYUP:
-        Keyboard::ProcessMessage(message, wParam, lParam);
-        break;
-
-    case WM_MOUSEMOVE:
-    case WM_LBUTTONDOWN:
-    case WM_LBUTTONUP:
-    case WM_RBUTTONDOWN:
-    case WM_RBUTTONUP:
-    case WM_MBUTTONDOWN:
-    case WM_MBUTTONUP:
-    case WM_MOUSEWHEEL:
-    case WM_XBUTTONDOWN:
-    case WM_XBUTTONUP:
-        Mouse::ProcessMessage(message, wParam, lParam);
-        break;
-
-    default:
-        break;
-    }
-}
+namespace GameCore { extern HWND g_hWnd; }
 
 #else
-
-void GameInput::ProcessMessage(UINT message, WPARAM wParam, LPARAM lParam)
-{
-}
 
 // This is what we should use on *all* platforms, but see previous comment
 #include <GameInput.h>
@@ -85,19 +52,48 @@ namespace GameCore
     extern HWND g_hWnd;
 }
 
-namespace
+namespace GameInput
 {
+    void ProcessMessage(UINT message, WPARAM wParam, LPARAM lParam)
+    {
+#ifdef USE_KEYBOARD_MOUSE
+        switch( message )
+        {
+        case WM_ACTIVATEAPP:
+            Keyboard::ProcessMessage(message, wParam, lParam);
+            Mouse::ProcessMessage(message, wParam, lParam);
+            break;
+
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN:
+        case WM_KEYUP:
+        case WM_SYSKEYUP:
+            Keyboard::ProcessMessage(message, wParam, lParam);
+            break;
+
+        case WM_MOUSEMOVE:
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONUP:
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONUP:
+        case WM_MOUSEWHEEL:
+        case WM_XBUTTONDOWN:
+        case WM_XBUTTONUP:
+            Mouse::ProcessMessage(message, wParam, lParam);
+            break;
+
+        default:
+            break;
+        }
+#endif
+    }
+
     bool s_Buttons[2][GameInput::kNumDigitalInputs];
     float s_HoldDuration[GameInput::kNumDigitalInputs] = { 0.0f };
     float s_Analogs[GameInput::kNumAnalogInputs];
     float s_AnalogsTC[GameInput::kNumAnalogInputs];
-
-#ifdef USE_KEYBOARD_MOUSE
-
-    unsigned char s_Keybuffer[256];
-    unsigned char s_DXKeyMapping[GameInput::kNumKeys]; // map DigitalInput enum to DX key codes 
-
-#endif
 
     inline float FilterAnalogInput( int val, int deadZone )
     {
@@ -118,6 +114,8 @@ namespace
     }
 
 #ifdef USE_KEYBOARD_MOUSE
+    unsigned char s_DXKeyMapping[GameInput::kNumKeys]; // map DigitalInput enum to DX key codes 
+
     void KbmBuildKeyMapping()
     {
         s_DXKeyMapping[GameInput::kKey_escape] = Keyboard::Keys::Escape;
@@ -228,86 +226,107 @@ namespace
 
     void KbmZeroInputs()
     {
-        //memset(&s_MouseState, 0, sizeof(DIMOUSESTATE2));
-        //memset(s_Keybuffer, 0, sizeof(s_Keybuffer));
+        for (uint32_t i = 0; i < kNumKeys; ++i)
+        {
+            s_Buttons[0][i] = false;
+        }
+
+        s_Buttons[0][kMouseLeft]    = false;
+        s_Buttons[0][kMouseMiddle]  = false;
+        s_Buttons[0][kMouseRight]   = false;
+        s_Buttons[0][kMouseButton1] = false;
+        s_Buttons[0][kMouseButton2] = false;
+        s_Analogs[kAnalogMouseX] = 0.0f;
+        s_Analogs[kAnalogMouseY] = 0.0f;
+        s_Analogs[kAnalogMouseScroll] = 0.0f;
     }
 
     void KbmInitialize()
     {
         KbmBuildKeyMapping();
 
-        /*
-        if (FAILED(DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&s_DI, nullptr)))
-            ASSERT(false, "DirectInput8 initialization failed.");
+        g_Keyboard = std::make_unique<DirectX::Keyboard>();
+        g_Mouse = std::make_unique<DirectX::Mouse>();
 
-        if (FAILED(s_DI->CreateDevice(GUID_SysKeyboard, &s_Keyboard, nullptr)))
-            ASSERT(false, "Keyboard CreateDevice failed.");
-        if (FAILED(s_Keyboard->SetDataFormat(&c_dfDIKeyboard)))
-            ASSERT(false, "Keyboard SetDataFormat failed.");
-        if (FAILED(s_Keyboard->SetCooperativeLevel(GameCore::g_hWnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE)))
-            ASSERT(false, "Keyboard SetCooperativeLevel failed.");
+        g_Mouse->SetWindow(GameCore::g_hWnd);
+        g_Mouse->SetMode(DirectX::Mouse::Mode::MODE_RELATIVE);
+        ASSERT(g_Mouse->IsConnected());
+        //g_Mouse->SetMode(DirectX::Mouse::Mode::MODE_ABSOLUTE);
+        //g_Mouse->SetVisible(false);
 
-        DIPROPDWORD dipdw;
-        dipdw.diph.dwSize = sizeof(DIPROPDWORD);
-        dipdw.diph.dwHeaderSize = sizeof(DIPROPHEADER);
-        dipdw.diph.dwObj = 0;
-        dipdw.diph.dwHow = DIPH_DEVICE;
-        dipdw.dwData = 10;
-        if (FAILED(s_Keyboard->SetProperty(DIPROP_BUFFERSIZE, &dipdw.diph)))
-            ASSERT(false, "Keyboard set buffer size failed.");
-
-        if (FAILED(s_DI->CreateDevice(GUID_SysMouse, &s_Mouse, nullptr)))
-            ASSERT(false, "Mouse CreateDevice failed.");
-        if (FAILED(s_Mouse->SetDataFormat(&c_dfDIMouse2)))
-            ASSERT(false, "Mouse SetDataFormat failed.");
-        if (FAILED(s_Mouse->SetCooperativeLevel(GameCore::g_hWnd, DISCL_FOREGROUND | DISCL_EXCLUSIVE)))
-            ASSERT(false, "Mouse SetCooperativeLevel failed.");
-        */
         KbmZeroInputs();
     }
 
     void KbmShutdown()
     {
-        /*
-        if (s_Keyboard)
-        {
-            s_Keyboard->Unacquire();
-            s_Keyboard->Release();
-            s_Keyboard = nullptr;
-        }
-        if (s_Mouse)
-        {
-            s_Mouse->Unacquire();
-            s_Mouse->Release();
-            s_Mouse = nullptr;
-        }
-        if (s_DI)
-        {
-            s_DI->Release();
-            s_DI = nullptr;
-        }
-        */
+        g_Keyboard.reset();
+        g_Mouse.reset();
     }
 
     void KbmUpdate()
     {
-        /*
         HWND foreground = GetForegroundWindow();
         bool visible = IsWindowVisible(foreground) != 0;
 
-        if (foreground != GameCore::g_hWnd // wouldn't be able to acquire
-            || !visible)
+        static int mouseX = -9999;
+        static int mouseY = -9999;
+
+        if (foreground != GameCore::g_hWnd || !visible)
         {
             KbmZeroInputs();
+            mouseX = -9999;
+            mouseY = -9999;
         }
         else
         {
-            s_Mouse->Acquire();
-            s_Mouse->GetDeviceState(sizeof(DIMOUSESTATE2), &s_MouseState);
-            s_Keyboard->Acquire();
-            s_Keyboard->GetDeviceState(sizeof(s_Keybuffer), s_Keybuffer);
+            auto kbState = g_Keyboard->GetState();
+
+            for (uint32_t i = 0; i < kNumKeys; ++i)
+            {
+                s_Buttons[0][i] = kbState.IsKeyDown((Keyboard::Keys)s_DXKeyMapping[i]);
+            }
+
+            auto mState = g_Mouse->GetState();
+
+            s_Buttons[0][kMouseLeft]    = mState.leftButton;
+            s_Buttons[0][kMouseMiddle]  = mState.middleButton;
+            s_Buttons[0][kMouseRight]   = mState.rightButton;
+            s_Buttons[0][kMouseButton1] = mState.xButton1;
+            s_Buttons[0][kMouseButton2] = mState.xButton2;
+
+            if (mouseX == -9999 || mouseY == -9999)
+            {
+                mouseX = mState.x;
+                mouseY = mState.y;
+            }
+
+            if (mState.x != 0 || mState.y != 0)
+            {
+                Utility::Printf("(%d, %d)\n", mState.x, mState.y);
+            }
+
+            s_Analogs[kAnalogMouseX] = (mState.x - mouseX) / 512.0f;
+            s_Analogs[kAnalogMouseY] = (mouseY - mState.y) / 512.0f;
+            mouseX = mState.x;
+            mouseY = mState.y;
+
+            if (mState.scrollWheelValue > 0)
+            {
+                s_Analogs[kAnalogMouseScroll] = 1.0f;
+                Utility::Printf("Scroll up\n");
+            }
+            else if (mState.scrollWheelValue < 0)
+            {
+                s_Analogs[kAnalogMouseScroll] = -1.0f;
+                Utility::Printf("Scroll down\n");
+            }
+            else
+            {
+                s_Analogs[kAnalogMouseScroll] = 0.0f;
+            }
+
+            Mouse::Get().ResetScrollWheelValue();
         }
-        */
     }
 
 #endif
@@ -408,28 +427,6 @@ void GameInput::Update( float frameDelta )
 
 #ifdef USE_KEYBOARD_MOUSE
     KbmUpdate();
-
-    auto kbState = Keyboard::Get().GetState();
-
-    for (uint32_t i = 0; i < kNumKeys; ++i)
-    {
-        s_Buttons[0][i] = kbState.IsKeyDown((Keyboard::Keys)s_DXKeyMapping[i]);
-    }
-
-    /*
-    for (uint32_t i = 0; i < 8; ++i)
-    {
-        if (s_MouseState.rgbButtons[i] > 0) s_Buttons[0][kMouse0 + i] = true;
-    }
-
-    s_Analogs[kAnalogMouseX] = (float)s_MouseState.lX * .0018f;
-    s_Analogs[kAnalogMouseY] = (float)s_MouseState.lY * -.0018f;
-
-    if (s_MouseState.lZ > 0)
-        s_Analogs[kAnalogMouseScroll] = 1.0f;
-    else if (s_MouseState.lZ < 0)
-        s_Analogs[kAnalogMouseScroll] = -1.0f;
-    */
 #endif
 
     // Update time duration for buttons pressed
