@@ -363,7 +363,6 @@
     <Import Project="..\..\Packages\directxtex_desktop_win10.2021.1.10.2\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\..\Packages\directxtex_desktop_win10.2021.1.10.2\build\native\directxtex_desktop_win10.targets')" />
     <Import Project="..\..\Packages\directxmesh_desktop_win10.2021.1.10.1\build\native\directxmesh_desktop_win10.targets" Condition="Exists('..\..\Packages\directxmesh_desktop_win10.2021.1.10.1\build\native\directxmesh_desktop_win10.targets')" />
     <Import Project="..\..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets" Condition="Exists('..\..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets')" />
-    <Import Project="..\..\Packages\directxtk_desktop_win10.2021.11.8.1\build\native\directxtk_desktop_win10.targets" Condition="Exists('..\..\Packages\directxtk_desktop_win10.2021.11.8.1\build\native\directxtk_desktop_win10.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -373,6 +372,5 @@
     <Error Condition="!Exists('..\..\Packages\directxtex_desktop_win10.2021.1.10.2\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\Packages\directxtex_desktop_win10.2021.1.10.2\build\native\directxtex_desktop_win10.targets'))" />
     <Error Condition="!Exists('..\..\Packages\directxmesh_desktop_win10.2021.1.10.1\build\native\directxmesh_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\Packages\directxmesh_desktop_win10.2021.1.10.1\build\native\directxmesh_desktop_win10.targets'))" />
     <Error Condition="!Exists('..\..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets'))" />
-    <Error Condition="!Exists('..\..\Packages\directxtk_desktop_win10.2021.11.8.1\build\native\directxtk_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\Packages\directxtk_desktop_win10.2021.11.8.1\build\native\directxtk_desktop_win10.targets'))" />
   </Target>
 </Project>

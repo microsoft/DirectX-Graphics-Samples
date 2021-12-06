@@ -75,6 +75,9 @@
     <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="DepthBuffer.h" />
     <ClInclude Include="DepthOfField.h" />
+    <ClInclude Include="DirectXTK\Keyboard.h" />
+    <ClInclude Include="DirectXTK\Mouse.h" />
+    <ClInclude Include="DirectXTK\PlatformHelpers.h" />
     <ClInclude Include="DynamicDescriptorHeap.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="GpuBuffer.h" />
@@ -146,6 +149,8 @@
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="DepthBuffer.cpp" />
     <ClCompile Include="DepthOfField.cpp" />
+    <ClCompile Include="DirectXTK\Keyboard.cpp" />
+    <ClCompile Include="DirectXTK\Mouse.cpp" />
     <ClCompile Include="DynamicDescriptorHeap.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="EngineProfiling.cpp" />
@@ -443,7 +448,6 @@
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\..\Packages\zlib-msvc-x64.1.2.11.8900\build\native\zlib-msvc-x64.targets" Condition="Exists('..\Packages\zlib-msvc-x64.1.2.11.8900\build\native\zlib-msvc-x64.targets')" />
     <Import Project="..\..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets" Condition="Exists('..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets')" />
-    <Import Project="..\..\Packages\directxtk_desktop_win10.2021.11.8.1\build\native\directxtk_desktop_win10.targets" Condition="Exists('..\..\Packages\directxtk_desktop_win10.2021.11.8.1\build\native\directxtk_desktop_win10.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -451,6 +455,5 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\..\Packages\zlib-msvc-x64.1.2.11.8900\build\native\zlib-msvc-x64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\zlib-msvc-x64.1.2.11.8900\build\native\zlib-msvc-x64.targets'))" />
     <Error Condition="!Exists('..\..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Packages\WinPixEventRuntime.1.0.210209001\build\WinPixEventRuntime.targets'))" />
-    <Error Condition="!Exists('..\..\Packages\directxtk_desktop_win10.2021.11.8.1\build\native\directxtk_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\Packages\directxtk_desktop_win10.2021.11.8.1\build\native\directxtk_desktop_win10.targets'))" />
   </Target>
 </Project>

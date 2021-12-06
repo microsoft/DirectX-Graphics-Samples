@@ -22,8 +22,8 @@
 #pragma comment(lib, "xinput9_1_0.lib")
 
 #define USE_KEYBOARD_MOUSE
-#include <Keyboard.h>
-#include <Mouse.h>
+#include "DirectXTK/Keyboard.h"
+#include "DirectXTK/Mouse.h"
 
 namespace GameInput
 {
@@ -71,6 +71,7 @@ namespace GameInput
             Keyboard::ProcessMessage(message, wParam, lParam);
             break;
 
+        case WM_INPUT:
         case WM_MOUSEMOVE:
         case WM_LBUTTONDOWN:
         case WM_LBUTTONUP:
@@ -251,8 +252,6 @@ namespace GameInput
         g_Mouse->SetWindow(GameCore::g_hWnd);
         g_Mouse->SetMode(DirectX::Mouse::Mode::MODE_RELATIVE);
         ASSERT(g_Mouse->IsConnected());
-        //g_Mouse->SetMode(DirectX::Mouse::Mode::MODE_ABSOLUTE);
-        //g_Mouse->SetVisible(false);
 
         KbmZeroInputs();
     }
@@ -268,14 +267,9 @@ namespace GameInput
         HWND foreground = GetForegroundWindow();
         bool visible = IsWindowVisible(foreground) != 0;
 
-        static int mouseX = -9999;
-        static int mouseY = -9999;
-
         if (foreground != GameCore::g_hWnd || !visible)
         {
             KbmZeroInputs();
-            mouseX = -9999;
-            mouseY = -9999;
         }
         else
         {
@@ -294,21 +288,13 @@ namespace GameInput
             s_Buttons[0][kMouseButton1] = mState.xButton1;
             s_Buttons[0][kMouseButton2] = mState.xButton2;
 
-            if (mouseX == -9999 || mouseY == -9999)
-            {
-                mouseX = mState.x;
-                mouseY = mState.y;
-            }
-
             if (mState.x != 0 || mState.y != 0)
             {
                 Utility::Printf("(%d, %d)\n", mState.x, mState.y);
             }
 
-            s_Analogs[kAnalogMouseX] = (mState.x - mouseX) / 512.0f;
-            s_Analogs[kAnalogMouseY] = (mouseY - mState.y) / 512.0f;
-            mouseX = mState.x;
-            mouseY = mState.y;
+            s_Analogs[kAnalogMouseX] = mState.x / 512.0f;
+            s_Analogs[kAnalogMouseY] = -mState.y / 512.0f;
 
             if (mState.scrollWheelValue > 0)
             {
