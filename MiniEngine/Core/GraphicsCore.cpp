@@ -147,6 +147,17 @@ namespace Graphics
     {
         return GetVendorIdFromDevice(pDevice) == vendorID_Intel;
     }
+
+	// Returns bool whether the device supports DirectX Raytracing tier.
+	bool IsDirectXRaytracingSupported(IDXGIAdapter1* adapter)
+	{
+		ComPtr<ID3D12Device> testDevice;
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupportData = {};
+
+		return SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)))
+			&& SUCCEEDED(testDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData)))
+			&& featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+	}
 }
 
 // Initialize the DirectX resources required to run.
@@ -239,6 +250,7 @@ void Graphics::Initialize(void)
                 continue;
 
             if ((desc.DedicatedVideoMemory > MaxSize || (desc.VendorId == desiredVendor)) && 
+                IsDirectXRaytracingSupported(pAdapter.Get()) &&
                 SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice))))
             {
                 pAdapter->GetDesc1(&desc);
