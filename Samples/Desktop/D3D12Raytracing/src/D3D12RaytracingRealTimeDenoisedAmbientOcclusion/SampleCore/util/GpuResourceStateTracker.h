@@ -15,7 +15,7 @@
 class GpuResourceStateTracker
 {
 public:
-    void Bind(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList) { m_commandList = commandList; }
+    void Bind(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> commandList) { m_commandList = commandList; }
     void Reset();
 
     void TransitionResource(GpuResource* Resource, D3D12_RESOURCE_STATES NewState, bool FlushImmediate = false);
@@ -25,7 +25,7 @@ public:
 
 protected:
 
-    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_commandList;
+    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> m_commandList;
     static const UINT c_MaxNumBarriers = 16;
     D3D12_RESOURCE_BARRIER m_ResourceBarrierBuffer[c_MaxNumBarriers];
     UINT m_NumBarriersToFlush = 0;
