@@ -148,20 +148,20 @@ namespace Graphics
         return GetVendorIdFromDevice(pDevice) == vendorID_Intel;
     }
 
-	// Returns bool whether the device supports DirectX Raytracing tier.
-	bool IsDirectXRaytracingSupported(IDXGIAdapter1* adapter)
+	// Check adapter support for DirectX Raytracing.
+	bool IsDirectXRaytracingSupported(ID3D12Device* testDevice)
 	{
-		ComPtr<ID3D12Device> testDevice;
-		D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupportData = {};
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 featureSupport = {};
 
-		return SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)))
-			&& SUCCEEDED(testDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData)))
-			&& featureSupportData.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+        if (FAILED(testDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupport, sizeof(featureSupport))))
+            return false;
+
+        return featureSupport.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
 	}
 }
 
 // Initialize the DirectX resources required to run.
-void Graphics::Initialize(void)
+void Graphics::Initialize(bool RequireDXRSupport)
 {
     Microsoft::WRL::ComPtr<ID3D12Device> pDevice;
 
@@ -246,27 +246,42 @@ void Graphics::Initialize(void)
         {
             DXGI_ADAPTER_DESC1 desc;
             pAdapter->GetDesc1(&desc);
+
+            // Is a software adapter?
             if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
                 continue;
 
-            if ((desc.DedicatedVideoMemory > MaxSize || (desc.VendorId == desiredVendor)) && 
-                IsDirectXRaytracingSupported(pAdapter.Get()) &&
-                SUCCEEDED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice))))
-            {
-                pAdapter->GetDesc1(&desc);
-                Utility::Printf(L"D3D12-capable hardware found:  %s (%u MB)\n", desc.Description, desc.DedicatedVideoMemory >> 20);
-                MaxSize = desc.DedicatedVideoMemory;
+            // Is this the desired vendor desired?
+            if (desiredVendor != 0 && desiredVendor != desc.VendorId)
+                continue;
 
-                if (desc.VendorId == desiredVendor)
-                {
-                    Utility::Printf(L"Choosing this device based on user request\n");
-                    break;
-                }
-            }
-        }
+            // Can create a D3D12 device?
+            if (FAILED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, MY_IID_PPV_ARGS(&pDevice))))
+                continue;
 
-        if (MaxSize > 0)
+            // Does support DXR if required?
+            if (RequireDXRSupport && !IsDirectXRaytracingSupported(pDevice.Get()))
+                continue;
+
+            // By default, search for the adapter with the most memory because that's usually the dGPU.
+            if (desc.DedicatedVideoMemory < MaxSize)
+                continue;
+
+            MaxSize = desc.DedicatedVideoMemory;
+
+            if (g_Device != nullptr)
+                g_Device->Release();
+
             g_Device = pDevice.Detach();
+
+            Utility::Printf(L"Selected GPU:  %s (%u MB)\n", desc.Description, desc.DedicatedVideoMemory >> 20);
+        }
+    }
+
+    if (RequireDXRSupport && !g_Device)
+    {
+        Utility::Printf("Unable to find a DXR-capable device. Halting.\n");
+        __debugbreak();
     }
 
     if (g_Device == nullptr)
