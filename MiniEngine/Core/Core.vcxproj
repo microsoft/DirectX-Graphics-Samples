@@ -75,6 +75,7 @@
     <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="DepthBuffer.h" />
     <ClInclude Include="DepthOfField.h" />
+    <ClInclude Include="DirectXTK\GamePad.h" />
     <ClInclude Include="DirectXTK\Keyboard.h" />
     <ClInclude Include="DirectXTK\Mouse.h" />
     <ClInclude Include="DirectXTK\PlatformHelpers.h" />
@@ -149,6 +150,7 @@
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="DepthBuffer.cpp" />
     <ClCompile Include="DepthOfField.cpp" />
+    <ClCompile Include="DirectXTK\GamePad.cpp" />
     <ClCompile Include="DirectXTK\Keyboard.cpp" />
     <ClCompile Include="DirectXTK\Mouse.cpp" />
     <ClCompile Include="DynamicDescriptorHeap.cpp" />

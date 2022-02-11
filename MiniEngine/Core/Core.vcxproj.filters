@@ -510,6 +510,7 @@
     <ClCompile Include="Util\CommandLineArg.cpp" />
     <ClCompile Include="DirectXTK\Keyboard.cpp" />
     <ClCompile Include="DirectXTK\Mouse.cpp" />
+    <ClCompile Include="DirectXTK\GamePad.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BitonicSort.h" />
@@ -586,6 +587,7 @@
     <ClInclude Include="DirectXTK\Keyboard.h" />
     <ClInclude Include="DirectXTK\Mouse.h" />
     <ClInclude Include="DirectXTK\PlatformHelpers.h" />
+    <ClInclude Include="DirectXTK\GamePad.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Math\Functions.inl" />

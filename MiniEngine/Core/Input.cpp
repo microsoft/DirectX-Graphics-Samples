@@ -14,12 +14,7 @@
 #include "pch.h"
 #include "GameCore.h"
 #include "Input.h"
-
-#ifdef _GAMING_DESKTOP
-
-// I can't find the GameInput.h header in the GDK for Desktop yet
-#include <Xinput.h>
-#pragma comment(lib, "xinput9_1_0.lib")
+#include "DirectXTK/GamePad.h"
 
 #define USE_KEYBOARD_MOUSE
 #include "DirectXTK/Keyboard.h"
@@ -27,25 +22,14 @@
 
 namespace GameInput
 {
+    std::unique_ptr<DirectX::GamePad> g_GamePad;
     std::unique_ptr<DirectX::Keyboard> g_Keyboard;
     std::unique_ptr<DirectX::Mouse> g_Mouse;
 }
 
+using DirectX::GamePad;
 using DirectX::Keyboard;
 using DirectX::Mouse;
-
-namespace GameCore { extern HWND g_hWnd; }
-
-#else
-
-// This is what we should use on *all* platforms, but see previous comment
-#include <GameInput.h>
-
-// This should be handled by GameInput.h, but we'll borrow values from XINPUT.
-#define XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE  (7849.0f / 32768.0f)
-#define XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE (8689.0f / 32768.0f)
-
-#endif
 
 namespace GameCore
 {
@@ -95,24 +79,6 @@ namespace GameInput
     float s_HoldDuration[GameInput::kNumDigitalInputs] = { 0.0f };
     float s_Analogs[GameInput::kNumAnalogInputs];
     float s_AnalogsTC[GameInput::kNumAnalogInputs];
-
-    inline float FilterAnalogInput( int val, int deadZone )
-    {
-        if (val < 0)
-        {
-            if (val > -deadZone)
-                return 0.0f;
-            else
-                return (val + deadZone) / (32768.0f - deadZone);
-        }
-        else
-        {
-            if (val < deadZone)
-                return 0.0f;
-            else
-                return (val - deadZone) / (32767.0f - deadZone);
-        }
-    }
 
 #ifdef USE_KEYBOARD_MOUSE
     unsigned char s_DXKeyMapping[GameInput::kNumKeys]; // map DigitalInput enum to DX key codes 
@@ -256,12 +222,6 @@ namespace GameInput
         KbmZeroInputs();
     }
 
-    void KbmShutdown()
-    {
-        g_Keyboard.reset();
-        g_Mouse.reset();
-    }
-
     void KbmUpdate()
     {
         HWND foreground = GetForegroundWindow();
@@ -288,28 +248,15 @@ namespace GameInput
             s_Buttons[0][kMouseButton1] = mState.xButton1;
             s_Buttons[0][kMouseButton2] = mState.xButton2;
 
-            if (mState.x != 0 || mState.y != 0)
-            {
-                Utility::Printf("(%d, %d)\n", mState.x, mState.y);
-            }
-
             s_Analogs[kAnalogMouseX] = mState.x / 512.0f;
             s_Analogs[kAnalogMouseY] = -mState.y / 512.0f;
 
             if (mState.scrollWheelValue > 0)
-            {
                 s_Analogs[kAnalogMouseScroll] = 1.0f;
-                Utility::Printf("Scroll up\n");
-            }
             else if (mState.scrollWheelValue < 0)
-            {
-                s_Analogs[kAnalogMouseScroll] = -1.0f;
                 Utility::Printf("Scroll down\n");
-            }
             else
-            {
                 s_Analogs[kAnalogMouseScroll] = 0.0f;
-            }
 
             Mouse::Get().ResetScrollWheelValue();
         }
@@ -324,6 +271,8 @@ void GameInput::Initialize()
     ZeroMemory(s_Buttons, sizeof(s_Buttons) );
     ZeroMemory(s_Analogs, sizeof(s_Analogs) );
 
+    g_GamePad = std::make_unique<DirectX::GamePad>();
+
 #ifdef USE_KEYBOARD_MOUSE
     KbmInitialize();
 #endif
@@ -331,8 +280,11 @@ void GameInput::Initialize()
 
 void GameInput::Shutdown()
 {
+    g_GamePad.reset();
+
 #ifdef USE_KEYBOARD_MOUSE
-    KbmShutdown();
+    g_Keyboard.reset();
+    g_Mouse.reset();
 #endif
 }
 
@@ -342,74 +294,32 @@ void GameInput::Update( float frameDelta )
     memset(s_Buttons[0], 0, sizeof(s_Buttons[0]));
     memset(s_Analogs, 0, sizeof(s_Analogs));
 
-#ifdef _GAMING_DESKTOP
+    auto state = g_GamePad->GetState(0);
 
-#define SET_BUTTON_VALUE(InputEnum, GameInputMask) \
-        s_Buttons[0][InputEnum] = !!(newInputState.Gamepad.wButtons & GameInputMask);
-
-    XINPUT_STATE newInputState;
-    if (ERROR_SUCCESS == XInputGetState(0, &newInputState))
+    if (state.IsConnected())
     {
-        SET_BUTTON_VALUE(kDPadUp, XINPUT_GAMEPAD_DPAD_UP);
-        SET_BUTTON_VALUE(kDPadDown, XINPUT_GAMEPAD_DPAD_DOWN);
-        SET_BUTTON_VALUE(kDPadLeft, XINPUT_GAMEPAD_DPAD_LEFT);
-        SET_BUTTON_VALUE(kDPadRight, XINPUT_GAMEPAD_DPAD_RIGHT);
-        SET_BUTTON_VALUE(kStartButton, XINPUT_GAMEPAD_START);
-        SET_BUTTON_VALUE(kBackButton, XINPUT_GAMEPAD_BACK);
-        SET_BUTTON_VALUE(kLThumbClick, XINPUT_GAMEPAD_LEFT_THUMB);
-        SET_BUTTON_VALUE(kRThumbClick, XINPUT_GAMEPAD_RIGHT_THUMB);
-        SET_BUTTON_VALUE(kLShoulder, XINPUT_GAMEPAD_LEFT_SHOULDER);
-        SET_BUTTON_VALUE(kRShoulder, XINPUT_GAMEPAD_RIGHT_SHOULDER);
-        SET_BUTTON_VALUE(kAButton, XINPUT_GAMEPAD_A);
-        SET_BUTTON_VALUE(kBButton, XINPUT_GAMEPAD_B);
-        SET_BUTTON_VALUE(kXButton, XINPUT_GAMEPAD_X);
-        SET_BUTTON_VALUE(kYButton, XINPUT_GAMEPAD_Y);
+        s_Buttons[0][kDPadUp] = state.dpad.up;
+        s_Buttons[0][kDPadDown] = state.dpad.down;
+        s_Buttons[0][kDPadLeft] = state.dpad.left;
+        s_Buttons[0][kDPadRight] = state.dpad.right;
+        s_Buttons[0][kStartButton] = state.buttons.start;
+        s_Buttons[0][kBackButton] = state.buttons.back;
+        s_Buttons[0][kLThumbClick] = state.buttons.leftStick;
+        s_Buttons[0][kRThumbClick] = state.buttons.rightStick;
+        s_Buttons[0][kLShoulder] = state.buttons.leftShoulder;
+        s_Buttons[0][kRShoulder] = state.buttons.rightShoulder;
+        s_Buttons[0][kAButton] = state.buttons.a;
+        s_Buttons[0][kBButton] = state.buttons.b;
+        s_Buttons[0][kXButton] = state.buttons.x;
+        s_Buttons[0][kYButton] = state.buttons.y;
 
-        s_Analogs[kAnalogLeftTrigger]   = newInputState.Gamepad.bLeftTrigger / 255.0f;
-        s_Analogs[kAnalogRightTrigger]  = newInputState.Gamepad.bRightTrigger / 255.0f;
-        s_Analogs[kAnalogLeftStickX]    = FilterAnalogInput(newInputState.Gamepad.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE );
-        s_Analogs[kAnalogLeftStickY]    = FilterAnalogInput(newInputState.Gamepad.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE );
-        s_Analogs[kAnalogRightStickX]   = FilterAnalogInput(newInputState.Gamepad.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
-        s_Analogs[kAnalogRightStickY]   = FilterAnalogInput(newInputState.Gamepad.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE );
+        s_Analogs[kAnalogLeftTrigger]   = state.triggers.left;
+        s_Analogs[kAnalogRightTrigger]  = state.triggers.right;
+        s_Analogs[kAnalogLeftStickX]    = state.thumbSticks.leftX;
+        s_Analogs[kAnalogLeftStickY]    = state.thumbSticks.leftY;
+        s_Analogs[kAnalogRightStickX]   = state.thumbSticks.rightX;
+        s_Analogs[kAnalogRightStickY]   = state.thumbSticks.rightY;
     }
-#else
-    IGameInputReading* pGIR = nullptr;
-    if (s_pGameInput != nullptr)
-        s_pGameInput->GetCurrentReading(GameInputKindGamepad, nullptr, &pGIR);
-    bool IsGamepadPresent = (pGIR != nullptr);
-
-    if (IsGamepadPresent)
-    {
-        GameInputGamepadState newInputState;
-        pGIR->GetGamepadState(&newInputState);
-        pGIR->Release();
-
-#define SET_BUTTON_VALUE(InputEnum, GameInputMask) \
-        s_Buttons[0][InputEnum] = !!(newInputState.buttons & GameInputMask);
-
-        SET_BUTTON_VALUE(kDPadUp, GameInputGamepadDPadUp);
-        SET_BUTTON_VALUE(kDPadDown, GameInputGamepadDPadDown);
-        SET_BUTTON_VALUE(kDPadLeft, GameInputGamepadDPadLeft);
-        SET_BUTTON_VALUE(kDPadRight, GameInputGamepadDPadRight);
-        SET_BUTTON_VALUE(kStartButton, GameInputGamepadMenu);
-        SET_BUTTON_VALUE(kBackButton, GameInputGamepadView);
-        SET_BUTTON_VALUE(kLThumbClick, GameInputGamepadLeftThumbstick);
-        SET_BUTTON_VALUE(kRThumbClick, GameInputGamepadRightThumbstick);
-        SET_BUTTON_VALUE(kLShoulder, GameInputGamepadLeftShoulder);
-        SET_BUTTON_VALUE(kRShoulder, GameInputGamepadRightShoulder);
-        SET_BUTTON_VALUE(kAButton, GameInputGamepadA);
-        SET_BUTTON_VALUE(kBButton, GameInputGamepadB);
-        SET_BUTTON_VALUE(kXButton, GameInputGamepadX);
-        SET_BUTTON_VALUE(kYButton, GameInputGamepadY);
-
-        s_Analogs[kAnalogLeftTrigger]   = newInputState.leftTrigger;
-        s_Analogs[kAnalogRightTrigger]  = newInputState.rightTrigger;
-        s_Analogs[kAnalogLeftStickX]    = FilterAnalogInput(newInputState.leftThumbstickX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-        s_Analogs[kAnalogLeftStickY]    = FilterAnalogInput(newInputState.leftThumbstickY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-        s_Analogs[kAnalogRightStickX]   = FilterAnalogInput(newInputState.rightThumbstickX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
-        s_Analogs[kAnalogRightStickY]   = FilterAnalogInput(newInputState.rightThumbstickY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
-    }
-#endif
 
 #ifdef USE_KEYBOARD_MOUSE
     KbmUpdate();
