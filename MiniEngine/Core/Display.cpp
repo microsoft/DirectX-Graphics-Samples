@@ -353,6 +353,7 @@ void Graphics::PreparePresentHDR(void)
     bool NeedsScaling = g_NativeWidth != g_DisplayWidth || g_NativeHeight != g_DisplayHeight;
 
     Context.SetRootSignature(s_PresentRS);
+    Context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     Context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     Context.SetDynamicDescriptor(0, 0, g_SceneColorBuffer.GetSRV());
 
