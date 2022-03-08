@@ -29,7 +29,7 @@ namespace Graphics
 
     using namespace Microsoft::WRL;
 
-    void Initialize(void);
+    void Initialize(bool RequireDXRSupport=false);
     void Shutdown(void);
 
     bool IsDeviceNvidia(ID3D12Device* pDevice);

@@ -33,12 +33,12 @@ float3 SampleColor(float2 uv)
 
 float3 ScaleBuffer(float2 uv)
 {
-    return 1.4 * SampleColor(uv) - 0.1 * (
+    return max(1.4 * SampleColor(uv) - 0.1 * (
         SampleColor(uv + float2(+UVOffset.x, +UVOffset.y)) +
         SampleColor(uv + float2(+UVOffset.x, -UVOffset.y)) +
         SampleColor(uv + float2(-UVOffset.x, +UVOffset.y)) +
         SampleColor(uv + float2(-UVOffset.x, -UVOffset.y))
-        );
+        ), 0);
 }
 
 [RootSignature(Present_RootSig)]

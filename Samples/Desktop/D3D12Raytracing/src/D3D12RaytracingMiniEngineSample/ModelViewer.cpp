@@ -182,6 +182,8 @@ public:
     virtual void RenderUI(class GraphicsContext&) override;
     virtual void Raytrace(class GraphicsContext&);
 
+    virtual bool RequiresRaytracingSupport() const override { return true; }
+
     void SetCameraToPredefinedPosition(int cameraPosition);
 
 private:
