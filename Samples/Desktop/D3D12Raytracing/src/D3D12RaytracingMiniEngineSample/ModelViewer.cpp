@@ -548,32 +548,47 @@ void InitializeRaytracingStateObjects(const ModelH3D &model, UINT numMeshes)
     D3D12SerializeVersionedRootSignature(&localRootSignatureDesc, &pLocalRootSignatureBlob, nullptr);
     g_pRaytracingDevice->CreateRootSignature(0, pLocalRootSignatureBlob->GetBufferPointer(), pLocalRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&g_LocalRaytracingRootSignature));
 
-    std::vector<D3D12_STATE_SUBOBJECT> subObjects;
+    enum SUBOBJECTS
+    {
+        SUB_NODEMASK,
+        SUB_ROOTSIG,
+        SUB_CONFIG,
+        SUB_RASYGEN,
+        SUB_HIT,
+        SUB_MISS,
+        SUB_SHDCONFIG,
+        SUB_HITGROUP,
+        SUB_LOCALROOTSIG,
+
+        SUBOBJECTS_COUNT
+    };
+    UINT curSubObj = 0;
+    D3D12_STATE_SUBOBJECT subObjects[SUBOBJECTS_COUNT];
+
     D3D12_STATE_SUBOBJECT nodeMaskSubObject;
     UINT nodeMask = 1;
     nodeMaskSubObject.pDesc = &nodeMask;
     nodeMaskSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK;
-    subObjects.push_back(nodeMaskSubObject);
+    subObjects[curSubObj++] = nodeMaskSubObject;
 
     D3D12_STATE_SUBOBJECT rootSignatureSubObject;
     rootSignatureSubObject.pDesc = &g_GlobalRaytracingRootSignature.p;
     rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
-    subObjects.push_back(rootSignatureSubObject);
+    subObjects[curSubObj++] = rootSignatureSubObject;
 
     D3D12_STATE_SUBOBJECT configurationSubObject;
     D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
     pipelineConfig.MaxTraceRecursionDepth = MaxRayRecursion;
     configurationSubObject.pDesc = &pipelineConfig;
     configurationSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
-    subObjects.push_back(configurationSubObject);
+    subObjects[curSubObj++] = configurationSubObject;
 
     std::vector<LPCWSTR> shadersToAssociate;
 
     // Ray Gen shader stuff
     // ----------------------------------------------------------------//
     LPCWSTR rayGenShaderExportName = L"RayGen";
-    subObjects.push_back(D3D12_STATE_SUBOBJECT{});
-    D3D12_STATE_SUBOBJECT &rayGenDxilLibSubobject = subObjects.back();
+    D3D12_STATE_SUBOBJECT &rayGenDxilLibSubobject = subObjects[curSubObj++];
     D3D12_EXPORT_DESC rayGenExportDesc;
     D3D12_DXIL_LIBRARY_DESC rayGenDxilLibDesc = {};
     rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShaderLib, sizeof(g_pRayGenerationShaderLib), rayGenDxilLibDesc, rayGenExportDesc);
@@ -586,7 +601,7 @@ void InitializeRaytracingStateObjects(const ModelH3D &model, UINT numMeshes)
     D3D12_DXIL_LIBRARY_DESC hitGroupDxilLibDesc = {};
     D3D12_STATE_SUBOBJECT hitGroupLibSubobject = CreateDxilLibrary(closestHitExportName, g_phitShaderLib, sizeof(g_phitShaderLib), hitGroupDxilLibDesc, hitGroupExportDesc);
 
-    subObjects.push_back(hitGroupLibSubobject);
+    subObjects[curSubObj++] = hitGroupLibSubobject;
     shadersToAssociate.push_back(closestHitExportName);
 
     LPCWSTR missExportName = L"Miss";
@@ -594,8 +609,8 @@ void InitializeRaytracingStateObjects(const ModelH3D &model, UINT numMeshes)
     D3D12_DXIL_LIBRARY_DESC missDxilLibDesc = {};
     D3D12_STATE_SUBOBJECT missLibSubobject = CreateDxilLibrary(missExportName, g_pmissShaderLib, sizeof(g_pmissShaderLib), missDxilLibDesc, missExportDesc);
 
-    subObjects.push_back(missLibSubobject);
-    D3D12_STATE_SUBOBJECT &missDxilLibSubobject = subObjects.back();
+    subObjects[curSubObj] = missLibSubobject;
+    D3D12_STATE_SUBOBJECT &missDxilLibSubobject = subObjects[curSubObj++];
 
     shadersToAssociate.push_back(missExportName);
 
@@ -605,8 +620,8 @@ void InitializeRaytracingStateObjects(const ModelH3D &model, UINT numMeshes)
     shaderConfig.MaxPayloadSizeInBytes = 8;
     shaderConfigStateObject.pDesc = &shaderConfig;
     shaderConfigStateObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
-    subObjects.push_back(shaderConfigStateObject);
-    //D3D12_STATE_SUBOBJECT &shaderConfigSubobject = subObjects.back();
+    subObjects[curSubObj] = shaderConfigStateObject;
+    D3D12_STATE_SUBOBJECT &shaderConfigSubobject = subObjects[curSubObj++];
 
     LPCWSTR hitGroupExportName = L"HitGroup";
     D3D12_HIT_GROUP_DESC hitGroupDesc = {};
@@ -615,17 +630,17 @@ void InitializeRaytracingStateObjects(const ModelH3D &model, UINT numMeshes)
     D3D12_STATE_SUBOBJECT hitGroupSubobject = {};
     hitGroupSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
     hitGroupSubobject.pDesc = &hitGroupDesc;
-    subObjects.push_back(hitGroupSubobject);
+    subObjects[curSubObj++] = hitGroupSubobject;
 
     D3D12_STATE_SUBOBJECT localRootSignatureSubObject;
     localRootSignatureSubObject.pDesc = &g_LocalRaytracingRootSignature.p;
     localRootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-    subObjects.push_back(localRootSignatureSubObject);
-    //D3D12_STATE_SUBOBJECT &rootSignatureSubobject = subObjects.back();
+    subObjects[curSubObj++] = localRootSignatureSubObject;
 
+    assert(curSubObj == SUBOBJECTS_COUNT);
     D3D12_STATE_OBJECT_DESC stateObject;
-    stateObject.NumSubobjects = (UINT)subObjects.size();
-    stateObject.pSubobjects = subObjects.data();
+    stateObject.NumSubobjects = curSubObj;
+    stateObject.pSubobjects = subObjects;
     stateObject.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
 
     const UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
