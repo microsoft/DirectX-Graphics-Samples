@@ -136,12 +136,17 @@ namespace GameCore
         do
         {
             MSG msg = {};
+            bool done = false;
             while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
             {
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
+
+                if (msg.message == WM_QUIT)
+                    done = true;
             }
-            if (msg.message == WM_QUIT)
+
+            if (done)
                 break;
         }
         while (UpdateApplication(app));	// Returns false to quit loop
