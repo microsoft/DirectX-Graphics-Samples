@@ -434,17 +434,36 @@ void InitializeViews(const ModelH3D& model)
     }
 }
 
-D3D12_STATE_SUBOBJECT CreateDxilLibrary(LPCWSTR entrypoint, const void *pShaderByteCode, SIZE_T bytecodeLength, D3D12_DXIL_LIBRARY_DESC &dxilLibDesc, D3D12_EXPORT_DESC &exportDesc)
+template <size_t bytecodeLength>
+void SetDxilLibrary(CD3DX12_STATE_OBJECT_DESC& stateObjectDesc, const unsigned char (&pShaderByteCode)[bytecodeLength], LPCWSTR entrypoint)
 {
-    exportDesc = { entrypoint, nullptr, D3D12_EXPORT_FLAG_NONE };
-    D3D12_STATE_SUBOBJECT dxilLibSubObject = {};
-    dxilLibDesc.DXILLibrary.pShaderBytecode = pShaderByteCode;
-    dxilLibDesc.DXILLibrary.BytecodeLength = bytecodeLength;
-    dxilLibDesc.NumExports = 1;
-    dxilLibDesc.pExports = &exportDesc;
-    dxilLibSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
-    dxilLibSubObject.pDesc = &dxilLibDesc;
-    return dxilLibSubObject;
+    auto dxilLibSubobject = stateObjectDesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+
+    D3D12_SHADER_BYTECODE shader = CD3DX12_SHADER_BYTECODE(pShaderByteCode, bytecodeLength);
+    dxilLibSubobject->SetDXILLibrary(&shader);
+    dxilLibSubobject->DefineExport(entrypoint);
+}
+
+template <size_t bytecodeLength>
+void ReplaceDxilLibrary(D3D12_STATE_OBJECT_DESC* pStateObjectDesc, const unsigned char(&pShaderByteCode)[bytecodeLength], LPCWSTR entrypoint)
+{
+    for (UINT i = 0; i < pStateObjectDesc->NumSubobjects; ++i)
+    {
+        const D3D12_STATE_SUBOBJECT* pSubobject = &pStateObjectDesc->pSubobjects[i];
+
+        if (pSubobject->Type == D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY)
+        {
+            D3D12_DXIL_LIBRARY_DESC* pLibDesc = (D3D12_DXIL_LIBRARY_DESC*)pSubobject->pDesc;
+
+            for (UINT j = 0; j < pLibDesc->NumExports; ++j)
+            {
+                if (wcscmp(entrypoint, pLibDesc->pExports[j].Name) == 0)
+                {
+                    pLibDesc->DXILLibrary = CD3DX12_SHADER_BYTECODE(pShaderByteCode, bytecodeLength);
+                }
+            }
+        }
+    }
 }
 
 void SetPipelineStateStackSize(LPCWSTR raygen, LPCWSTR closestHit, LPCWSTR miss, UINT maxRecursion, ID3D12StateObject *pStateObject)
@@ -548,85 +567,36 @@ void InitializeRaytracingStateObjects(const ModelH3D &model, UINT numMeshes)
     D3D12SerializeVersionedRootSignature(&localRootSignatureDesc, &pLocalRootSignatureBlob, nullptr);
     g_pRaytracingDevice->CreateRootSignature(0, pLocalRootSignatureBlob->GetBufferPointer(), pLocalRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&g_LocalRaytracingRootSignature));
 
-    std::vector<D3D12_STATE_SUBOBJECT> subObjects;
-    D3D12_STATE_SUBOBJECT nodeMaskSubObject;
-    UINT nodeMask = 1;
-    nodeMaskSubObject.pDesc = &nodeMask;
-    nodeMaskSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK;
-    subObjects.push_back(nodeMaskSubObject);
+    CD3DX12_STATE_OBJECT_DESC stateObjectDesc(D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE);
 
-    D3D12_STATE_SUBOBJECT rootSignatureSubObject;
-    rootSignatureSubObject.pDesc = &g_GlobalRaytracingRootSignature.p;
-    rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
-    subObjects.push_back(rootSignatureSubObject);
+    auto nodeMaskSubobject = stateObjectDesc.CreateSubobject<CD3DX12_NODE_MASK_SUBOBJECT>();
+    nodeMaskSubobject->SetNodeMask(1);
 
-    D3D12_STATE_SUBOBJECT configurationSubObject;
-    D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
-    pipelineConfig.MaxTraceRecursionDepth = MaxRayRecursion;
-    configurationSubObject.pDesc = &pipelineConfig;
-    configurationSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
-    subObjects.push_back(configurationSubObject);
+    auto rootSignatureSubObject = stateObjectDesc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
+    rootSignatureSubObject->SetRootSignature(g_GlobalRaytracingRootSignature.p);
 
-    std::vector<LPCWSTR> shadersToAssociate;
+    auto configurationSubObject = stateObjectDesc.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
+    configurationSubObject->Config(MaxRayRecursion);
 
-    // Ray Gen shader stuff
-    // ----------------------------------------------------------------//
-    LPCWSTR rayGenShaderExportName = L"RayGen";
-    subObjects.push_back(D3D12_STATE_SUBOBJECT{});
-    D3D12_STATE_SUBOBJECT &rayGenDxilLibSubobject = subObjects.back();
-    D3D12_EXPORT_DESC rayGenExportDesc;
-    D3D12_DXIL_LIBRARY_DESC rayGenDxilLibDesc = {};
-    rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShaderLib, sizeof(g_pRayGenerationShaderLib), rayGenDxilLibDesc, rayGenExportDesc);
-    shadersToAssociate.push_back(rayGenShaderExportName);
+    LPCWSTR rayGenExportName = L"RayGen";
+    SetDxilLibrary(stateObjectDesc, g_pRayGenerationShaderLib, rayGenExportName);
 
-    // Hit Group shader stuff
-    // ----------------------------------------------------------------//
-    LPCWSTR closestHitExportName = L"Hit";
-    D3D12_EXPORT_DESC hitGroupExportDesc;
-    D3D12_DXIL_LIBRARY_DESC hitGroupDxilLibDesc = {};
-    D3D12_STATE_SUBOBJECT hitGroupLibSubobject = CreateDxilLibrary(closestHitExportName, g_phitShaderLib, sizeof(g_phitShaderLib), hitGroupDxilLibDesc, hitGroupExportDesc);
-
-    subObjects.push_back(hitGroupLibSubobject);
-    shadersToAssociate.push_back(closestHitExportName);
+    LPCWSTR hitExportName = L"Hit";
+    SetDxilLibrary(stateObjectDesc, g_phitShaderLib, hitExportName);
 
     LPCWSTR missExportName = L"Miss";
-    D3D12_EXPORT_DESC missExportDesc;
-    D3D12_DXIL_LIBRARY_DESC missDxilLibDesc = {};
-    D3D12_STATE_SUBOBJECT missLibSubobject = CreateDxilLibrary(missExportName, g_pmissShaderLib, sizeof(g_pmissShaderLib), missDxilLibDesc, missExportDesc);
+    SetDxilLibrary(stateObjectDesc, g_pmissShaderLib, missExportName);
 
-    subObjects.push_back(missLibSubobject);
-    D3D12_STATE_SUBOBJECT &missDxilLibSubobject = subObjects.back();
-
-    shadersToAssociate.push_back(missExportName);
-
-    D3D12_STATE_SUBOBJECT shaderConfigStateObject;
-    D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
-    shaderConfig.MaxAttributeSizeInBytes = 8;
-    shaderConfig.MaxPayloadSizeInBytes = 8;
-    shaderConfigStateObject.pDesc = &shaderConfig;
-    shaderConfigStateObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
-    subObjects.push_back(shaderConfigStateObject);
-    //D3D12_STATE_SUBOBJECT &shaderConfigSubobject = subObjects.back();
+    auto shaderConfigStateObject = stateObjectDesc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
+    shaderConfigStateObject->Config(8, 8);
 
     LPCWSTR hitGroupExportName = L"HitGroup";
-    D3D12_HIT_GROUP_DESC hitGroupDesc = {};
-    hitGroupDesc.ClosestHitShaderImport = closestHitExportName;
-    hitGroupDesc.HitGroupExport = hitGroupExportName;
-    D3D12_STATE_SUBOBJECT hitGroupSubobject = {};
-    hitGroupSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
-    hitGroupSubobject.pDesc = &hitGroupDesc;
-    subObjects.push_back(hitGroupSubobject);
+    auto hitGroupSubobject = stateObjectDesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    hitGroupSubobject->SetHitGroupExport(hitGroupExportName);
+    hitGroupSubobject->SetClosestHitShaderImport(hitExportName);
 
-    D3D12_STATE_SUBOBJECT localRootSignatureSubObject;
-    localRootSignatureSubObject.pDesc = &g_LocalRaytracingRootSignature.p;
-    localRootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-    subObjects.push_back(localRootSignatureSubObject);
-    //D3D12_STATE_SUBOBJECT &rootSignatureSubobject = subObjects.back();
-
-    D3D12_STATE_OBJECT_DESC stateObject;
-    stateObject.NumSubobjects = (UINT)subObjects.size();
-    stateObject.pSubobjects = subObjects.data();
-    stateObject.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
+    auto localRootSignatureSubObject = stateObjectDesc.CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+    localRootSignatureSubObject->SetRootSignature(g_LocalRaytracingRootSignature.p);
 
     const UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 #define ALIGN(alignment, num) ((((num) + alignment - 1) / alignment) * alignment)
@@ -654,58 +624,69 @@ void InitializeRaytracingStateObjects(const ModelH3D &model, UINT numMeshes)
         }
     };
 
+    // This causes the CD3DX12_STATE_OBJECT_DESC to generate the final D3D12_STATE_OBJECT_DESC, after which we aren't supposed to make any more changes.
+    // But we *are* going to make changes to override the shader library bytecode to make various permutations of the state object. For this reason, we
+    // must const_cast the state object description. ReplaceDxilLibrary() will not accept a const D3D12_STATE_OBJECT_DESC.
+    D3D12_STATE_OBJECT_DESC* pStateObjectDesc = const_cast<D3D12_STATE_OBJECT_DESC*>((const D3D12_STATE_OBJECT_DESC*)stateObjectDesc);
+
     {
         CComPtr<ID3D12StateObject> pbarycentricPSO;
-        g_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pbarycentricPSO));
+        g_pRaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pbarycentricPSO));
+
         GetShaderTable(model, pbarycentricPSO, pHitShaderTable.data());
-        g_RaytracingInputs[Primarybarycentric] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pbarycentricPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenShaderExportName, missExportName);
+        g_RaytracingInputs[Primarybarycentric] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pbarycentricPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
     }
 
     {
-        rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShaderSSRLib, sizeof(g_pRayGenerationShaderSSRLib), rayGenDxilLibDesc, rayGenExportDesc);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pRayGenerationShaderSSRLib, rayGenExportName);
+
         CComPtr<ID3D12StateObject> pReflectionbarycentricPSO;
-        g_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pReflectionbarycentricPSO));
+        g_pRaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pReflectionbarycentricPSO));
+
         GetShaderTable(model, pReflectionbarycentricPSO, pHitShaderTable.data());
-        g_RaytracingInputs[Reflectionbarycentric] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pReflectionbarycentricPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenShaderExportName, missExportName);
+        g_RaytracingInputs[Reflectionbarycentric] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pReflectionbarycentricPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
     }
 
     {
-        rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShadowsLib, sizeof(g_pRayGenerationShadowsLib), rayGenDxilLibDesc, rayGenExportDesc);
-        missDxilLibSubobject = CreateDxilLibrary(missExportName, g_pmissShadowsLib, sizeof(g_pmissShadowsLib), missDxilLibDesc, missExportDesc);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pRayGenerationShadowsLib, rayGenExportName);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pmissShadowsLib, missExportName);
 
         CComPtr<ID3D12StateObject> pShadowsPSO;
-        g_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pShadowsPSO));
+        g_pRaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pShadowsPSO));
+
         GetShaderTable(model, pShadowsPSO, pHitShaderTable.data());
-        g_RaytracingInputs[Shadows] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pShadowsPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenShaderExportName, missExportName);
+        g_RaytracingInputs[Shadows] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pShadowsPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
     }
 
     {
-        rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShaderLib, sizeof(g_pRayGenerationShaderLib), rayGenDxilLibDesc, rayGenExportDesc);
-        hitGroupLibSubobject = CreateDxilLibrary(closestHitExportName, g_pDiffuseHitShaderLib, sizeof(g_pDiffuseHitShaderLib), hitGroupDxilLibDesc, hitGroupExportDesc);
-        missDxilLibSubobject = CreateDxilLibrary(missExportName, g_pmissShaderLib, sizeof(g_pmissShaderLib), missDxilLibDesc, missExportDesc);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pRayGenerationShaderLib, rayGenExportName);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pDiffuseHitShaderLib, hitExportName);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pmissShaderLib, missExportName);
 
         CComPtr<ID3D12StateObject> pDiffusePSO;
-        g_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pDiffusePSO));
+        g_pRaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pDiffusePSO));
+
         GetShaderTable(model, pDiffusePSO, pHitShaderTable.data());
-        g_RaytracingInputs[DiffuseHitShader] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pDiffusePSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenShaderExportName, missExportName);
+        g_RaytracingInputs[DiffuseHitShader] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pDiffusePSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
     }
 
    {
-        rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShaderSSRLib, sizeof(g_pRayGenerationShaderSSRLib), rayGenDxilLibDesc, rayGenExportDesc);
-        hitGroupLibSubobject = CreateDxilLibrary(closestHitExportName, g_pDiffuseHitShaderLib, sizeof(g_pDiffuseHitShaderLib), hitGroupDxilLibDesc, hitGroupExportDesc);
-        missDxilLibSubobject = CreateDxilLibrary(missExportName, g_pmissShaderLib, sizeof(g_pmissShaderLib), missDxilLibDesc, missExportDesc);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pRayGenerationShaderSSRLib, rayGenExportName);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pDiffuseHitShaderLib, hitExportName);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pmissShaderLib, missExportName);
 
         CComPtr<ID3D12StateObject> pReflectionPSO;
-        g_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pReflectionPSO));
+        g_pRaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pReflectionPSO));
+
         GetShaderTable(model, pReflectionPSO, pHitShaderTable.data());
-        g_RaytracingInputs[Reflection] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pReflectionPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenShaderExportName, missExportName);
+        g_RaytracingInputs[Reflection] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pReflectionPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
     }
 
    for (auto &raytracingPipelineState : g_RaytracingInputs)
    {
         WCHAR hitGroupExportNameClosestHitType[64];
         swprintf_s(hitGroupExportNameClosestHitType, L"%s::closesthit", hitGroupExportName );
-        SetPipelineStateStackSize(rayGenShaderExportName, hitGroupExportNameClosestHitType, missExportName, MaxRayRecursion, raytracingPipelineState.m_pPSO);
+        SetPipelineStateStackSize(rayGenExportName, hitGroupExportNameClosestHitType, missExportName, MaxRayRecursion, raytracingPipelineState.m_pPSO);
    }
 }
 
