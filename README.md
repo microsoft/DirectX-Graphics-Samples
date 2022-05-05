@@ -2,7 +2,7 @@
 # DirectX-Graphics-Samples
 This repo contains the DirectX 12 Graphics samples that demonstrate how to build graphics intensive applications for Windows 10.
 
-We invite you to join us at our [discord server](http://discord.gg/directx). See our [YouTube channel](https://www.youtube.com/MicrosoftDirectX12andGraphicsEducation) for tutorials, our [spec repo](https://microsoft.github.io/DirectX-Specs/) for engineering specs of our features and [devblogs](https://devblogs.microsoft.com/directx/) for blog posts. Follow us on Twitter [@DirectX12](https://twitter.com/directx12) for the latest! See the [related links](##-Related-links) section for our full list of DX12-related links.
+We invite you to join us at our [discord server](http://discord.gg/directx). See our [YouTube channel](https://www.youtube.com/MicrosoftDirectX12andGraphicsEducation) for tutorials, our [spec repo](https://microsoft.github.io/DirectX-Specs/) for engineering specs of our features and [devblogs](https://devblogs.microsoft.com/directx/) for blog posts. Follow us on Twitter [@DirectX12](https://twitter.com/directx12) for the latest! See the [related links](#related-links) section for our full list of DX12-related links.
 
 Finally, make sure that you visit the [DirectX Landing Page](https://devblogs.microsoft.com/directx/landing-page/) for more resources for DirectX developers.
 
