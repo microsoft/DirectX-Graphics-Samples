@@ -1296,8 +1296,8 @@ namespace D3DX12Residency
                                     if (Device3)
                                     {
                                         hr = Device3->EnqueueMakeResident(D3D12_RESIDENCY_FLAG_NONE,
-                                                                          NumObjectsInBatch,
-                                                                          &pMakeResidentList[BatchStart].pUnderlying,
+                                                                          NumObjects,
+                                                                          &pMakeResidentList[MakeResidentIndex].pUnderlying,
                                                                           AsyncThreadFence.pFence,
                                                                           AsyncThreadFence.FenceValue + 1);
                                         if (SUCCEEDED(hr))
