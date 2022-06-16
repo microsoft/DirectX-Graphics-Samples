@@ -33,18 +33,18 @@ float3 SampleColor(float2 uv)
 
 float3 ScaleBuffer(float2 uv)
 {
-    return max(1.4 * SampleColor(uv) - 0.1 * (
+    return 1.4 * SampleColor(uv) - 0.1 * (
         SampleColor(uv + float2(+UVOffset.x, +UVOffset.y)) +
         SampleColor(uv + float2(+UVOffset.x, -UVOffset.y)) +
         SampleColor(uv + float2(-UVOffset.x, +UVOffset.y)) +
         SampleColor(uv + float2(-UVOffset.x, -UVOffset.y))
-        ), 0);
+        );
 }
 
 [RootSignature(Present_RootSig)]
 float3 main( float4 position : SV_Position, float2 uv : TexCoord0 ) : SV_Target0
 {
-    float3 MainColor = ApplyREC2084Curve(ScaleBuffer(uv) / 10000.0);
+    float3 MainColor = ApplyREC2084Curve( saturate(ScaleBuffer(uv) / 10000.0) );
 
     float4 OverlayColor = OverlayBuffer[(int2)position.xy];
     OverlayColor.rgb = RemoveSRGBCurve(OverlayColor.rgb);
