@@ -758,8 +758,8 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
         trianglesDesc.Transform3x4 = 0;
     }
 
-    std::vector<UINT64> bottomLevelAccelerationStructureSize(numBottomLevels);
     std::vector<D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC> bottomLevelAccelerationStructureDescs(numBottomLevels);
+    std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO> bottomLevelAccelerationStructurePrebuildInfo(numBottomLevels);
     for (UINT i = 0; i < numBottomLevels; i++)
     {
         D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC &bottomLevelAccelerationStructureDesc = bottomLevelAccelerationStructureDescs[i];
@@ -770,11 +770,8 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
         bottomLevelInputs.Flags = buildFlag;
         bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
-        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelprebuildInfo;
-        g_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &bottomLevelprebuildInfo);
-
-        bottomLevelAccelerationStructureSize[i] = bottomLevelprebuildInfo.ResultDataMaxSizeInBytes;
-        scratchBufferSizeNeeded = std::max(bottomLevelprebuildInfo.ScratchDataSizeInBytes, scratchBufferSizeNeeded);
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& bottomLevelPrebuildInfo = bottomLevelAccelerationStructurePrebuildInfo[i];
+        g_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &bottomLevelPrebuildInfo);
     }
 
     ByteAddressBuffer scratchBuffer;
@@ -795,11 +792,13 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
 
     std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDescs(numBottomLevels);
     g_bvh_bottomLevelAccelerationStructures.resize(numBottomLevels);
-    for (UINT i = 0; i < bottomLevelAccelerationStructureDescs.size(); i++)
+    std::vector<ByteAddressBuffer> blasScratchBuffers(numBottomLevels);
+    for (UINT i = 0; i < numBottomLevels; i++)
     {
         auto &bottomLevelStructure = g_bvh_bottomLevelAccelerationStructures[i];
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& bottomLevelPrebuildInfo = bottomLevelAccelerationStructurePrebuildInfo[i];
 
-        auto bottomLevelDesc = CD3DX12_RESOURCE_DESC::Buffer(bottomLevelAccelerationStructureSize[i], D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        auto bottomLevelDesc = CD3DX12_RESOURCE_DESC::Buffer(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         g_Device->CreateCommittedResource(
             &defaultHeapDesc,
             D3D12_HEAP_FLAG_NONE, 
@@ -809,7 +808,9 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
             IID_PPV_ARGS(&bottomLevelStructure));
 
         bottomLevelAccelerationStructureDescs[i].DestAccelerationStructureData = bottomLevelStructure->GetGPUVirtualAddress();
-        bottomLevelAccelerationStructureDescs[i].ScratchAccelerationStructureData = scratchBuffer.GetGpuVirtualAddress();
+
+        blasScratchBuffers[i].Create(L"BLAS build scratch buffer", (UINT)bottomLevelPrebuildInfo.ScratchDataSizeInBytes, 1);
+        bottomLevelAccelerationStructureDescs[i].ScratchAccelerationStructureData = blasScratchBuffers[i].GetGpuVirtualAddress();
 
         D3D12_RAYTRACING_INSTANCE_DESC &instanceDesc = instanceDescs[i];
         g_pRaytracingDescriptorHeap->AllocateBufferUav(*bottomLevelStructure);
@@ -847,7 +848,7 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     {
         pRaytracingCommandList->BuildRaytracingAccelerationStructure(&bottomLevelAccelerationStructureDescs[i], 0, nullptr);
     }
-    pCommandList->ResourceBarrier(1, &uavBarrier);
+    pRaytracingCommandList->ResourceBarrier(1, &uavBarrier);
 
     pRaytracingCommandList->BuildRaytracingAccelerationStructure(&topLevelAccelerationStructureDesc, 0, nullptr);
     
