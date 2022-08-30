@@ -209,8 +209,11 @@ void UILayer::Resize()
 
     // Create DWrite text format objects.
     float height = static_cast<float>(m_pSample->GetHeight());
-    const float fontSize = height / 30.0f;
-    const float smallFontSize = height / 40.0f;
+
+    // When minimize window, height / fontSize / smallFontSize will be 0.0f and
+    // this will lead call CreateTextFormat() failed, add 0.001f to avoid app crash.
+    const float fontSize = height / 30.0f + 0.001f;
+    const float smallFontSize = height / 40.0f + 0.001f;
 
     ThrowIfFailed(m_dWriteFactory->CreateTextFormat(
         L"Arial",

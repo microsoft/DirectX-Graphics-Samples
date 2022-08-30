@@ -204,8 +204,10 @@ void UILayer::Resize(ComPtr<ID3D12Resource>* ppRenderTargets, UINT width, UINT h
     ThrowIfFailed(m_d2dDeviceContext->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &m_textBrush));
 
     // Create DWrite text format objects.
-    const float fontSize = m_height / 30.0f;
-    const float smallFontSize = m_height / 40.0f;
+    // When minimize window, m_height / fontSize / smallFontSize will be 0.0f and
+    // this will lead call CreateTextFormat() failed, add 0.001f to avoid app crash.
+    const float fontSize = m_height / 30.0f + 0.001f;
+    const float smallFontSize = m_height / 40.0f + 0.001f;
 
     ThrowIfFailed(m_dwriteFactory->CreateTextFormat(
         L"Arial",
