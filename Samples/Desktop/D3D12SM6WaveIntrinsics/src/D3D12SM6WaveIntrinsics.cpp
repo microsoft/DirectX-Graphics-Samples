@@ -809,39 +809,58 @@ void D3D12SM6WaveIntrinsics::OnKeyDown(UINT8 key)
 
 void D3D12SM6WaveIntrinsics::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
-    UNREFERENCED_PARAMETER(minimized);
-    UpdateForSizeChange(width, height);
-
-    if (!m_swapChain)
+    // Determine if the swap buffers and other resources need to be resized or not.
+    if ((width != m_width || height != m_height) && !minimized)
     {
-        return;
+        UNREFERENCED_PARAMETER(minimized);
+        UpdateForSizeChange(width, height);
+
+        if (!m_swapChain)
+        {
+            return;
+        }
+
+        try
+        {
+            // Flush all current GPU commands.
+            WaitForGpu();
+
+            // Release the resources holding references to the swap chain (requirement of
+            // IDXGISwapChain::ResizeBuffers) and reset the frame fence values to the
+            // current fence value.
+            m_renderPass1RenderTargets.Reset();
+            m_uiRenderTarget.Reset();
+            for (UINT n = 0; n < FrameCount; n++)
+            {
+                m_renderPass2RenderTargets[n].Reset();
+                m_fenceValues[n] = m_fenceValues[m_frameIndex];
+            }
+            m_uiLayer->ReleaseResources();
+
+            // Resize the swap chain to the desired dimensions.
+            DXGI_SWAP_CHAIN_DESC1 desc = {};
+            m_swapChain->GetDesc1(&desc);
+            ThrowIfFailed(m_swapChain->ResizeBuffers(FrameCount, width, height, desc.Format, desc.Flags));
+
+            // Reset the frame index to the current back buffer index.
+            m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
+            LoadSizeDependentResources();
+        }
+        catch (HrException& e)
+        {
+            if ((e.Error() == DXGI_ERROR_DEVICE_REMOVED || e.Error() == DXGI_ERROR_DEVICE_RESET))
+            {
+                m_width = width;
+                m_height = height;
+                RestoreD3DResources();
+            }
+            else
+            {
+                throw;
+            }
+        }
     }
-
-    // Flush all current GPU commands.
-    WaitForGpu();
-
-    // Release the resources holding references to the swap chain (requirement of
-    // IDXGISwapChain::ResizeBuffers) and reset the frame fence values to the
-    // current fence value.
-    m_renderPass1RenderTargets.Reset();
-    m_uiRenderTarget.Reset();
-    for (UINT n = 0; n < FrameCount; n++)
-    {
-        m_renderPass2RenderTargets[n].Reset();
-        m_fenceValues[n] = m_fenceValues[m_frameIndex];
-    }
-    m_uiLayer->ReleaseResources();
-
-
-    // Resize the swap chain to the desired dimensions.
-    DXGI_SWAP_CHAIN_DESC1 desc = {};
-    m_swapChain->GetDesc1(&desc);
-    ThrowIfFailed(m_swapChain->ResizeBuffers(FrameCount, width, height, desc.Format, desc.Flags));
-
-    // Reset the frame index to the current back buffer index.
-    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
-
-    LoadSizeDependentResources();
 }
 
 void D3D12SM6WaveIntrinsics::OnMouseMove(UINT x, UINT y)
