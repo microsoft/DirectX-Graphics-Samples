@@ -750,11 +750,15 @@ void D3D12HDR::OnWindowMoved(int xPos, int yPos)
 
 void D3D12HDR::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
-    // Update the width, height, and aspect ratio member variables.
-    UpdateForSizeChange(width, height);
+    // Don't tear down or resize any resources if the window is just temporarily minimized
+    if (!minimized)
+    {
+        // Update the width, height, and aspect ratio member variables.
+        UpdateForSizeChange(width, height);
 
-    // Update the size of swapchain buffers.
-    UpdateSwapChainBuffer(width, height, GetBackBufferFormat());
+        // Update the size of swapchain buffers.
+        UpdateSwapChainBuffer(width, height, GetBackBufferFormat());
+    }
 
     m_windowVisible = !minimized;
 }

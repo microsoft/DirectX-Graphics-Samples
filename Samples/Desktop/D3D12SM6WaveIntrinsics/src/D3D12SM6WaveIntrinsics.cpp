@@ -809,7 +809,10 @@ void D3D12SM6WaveIntrinsics::OnKeyDown(UINT8 key)
 
 void D3D12SM6WaveIntrinsics::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
-    UNREFERENCED_PARAMETER(minimized);
+    // Don't tear down or resize any resources if the window is just temporarily minimized
+    if (minimized)
+        return;
+
     UpdateForSizeChange(width, height);
 
     if (!m_swapChain)
