@@ -15,6 +15,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloTexture", "HelloT
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloFrameBuffering", "HelloFrameBuffering\D3D12HelloFrameBuffering.vcxproj", "{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloVAEncode", "HelloVAEncode\D3D12HelloVAEncode.vcxproj", "{940957E3-82D6-4CD8-B39F-6FA47763973F}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloVADecode", "HelloVADecode\D3D12HelloVADecode.vcxproj", "{E16591B9-E382-431F-BE17-8C94E5F6AD5E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloVAResourceInterop", "HelloVAResourceInterop\D3D12HelloVAResourceInterop.vcxproj", "{17171787-C5D2-4014-9D1D-BC43074F36A1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -45,8 +51,23 @@ Global
 		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Debug|x64.Build.0 = Debug|x64
 		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Release|x64.ActiveCfg = Release|x64
 		{DF8A573D-FD94-45F8-AED2-0BEFC00B9591}.Release|x64.Build.0 = Release|x64
+		{940957E3-82D6-4CD8-B39F-6FA47763973F}.Debug|x64.ActiveCfg = Debug|x64
+		{940957E3-82D6-4CD8-B39F-6FA47763973F}.Debug|x64.Build.0 = Debug|x64
+		{940957E3-82D6-4CD8-B39F-6FA47763973F}.Release|x64.ActiveCfg = Release|x64
+		{940957E3-82D6-4CD8-B39F-6FA47763973F}.Release|x64.Build.0 = Release|x64
+		{E16591B9-E382-431F-BE17-8C94E5F6AD5E}.Debug|x64.ActiveCfg = Debug|x64
+		{E16591B9-E382-431F-BE17-8C94E5F6AD5E}.Debug|x64.Build.0 = Debug|x64
+		{E16591B9-E382-431F-BE17-8C94E5F6AD5E}.Release|x64.ActiveCfg = Release|x64
+		{E16591B9-E382-431F-BE17-8C94E5F6AD5E}.Release|x64.Build.0 = Release|x64
+		{17171787-C5D2-4014-9D1D-BC43074F36A1}.Debug|x64.ActiveCfg = Debug|x64
+		{17171787-C5D2-4014-9D1D-BC43074F36A1}.Debug|x64.Build.0 = Debug|x64
+		{17171787-C5D2-4014-9D1D-BC43074F36A1}.Release|x64.ActiveCfg = Release|x64
+		{17171787-C5D2-4014-9D1D-BC43074F36A1}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {797F48C2-AB2F-4F66-94B9-1BEAF96449A0}
 	EndGlobalSection
 EndGlobal

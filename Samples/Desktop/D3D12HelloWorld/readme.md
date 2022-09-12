@@ -41,5 +41,17 @@ This sample shows you how to animate a triangle using a constant buffer.
 
 This sample shows you how to use fences and multiple allocators to queue up multiple frames to the GPU.
 
+## Hello, VADecode! sample
+
+This sample shows you how to use Libva for Windows for decoding a basic H264 bitstream and rendering to screen. This sample depends on https://www.nuget.org/packages/Microsoft.Direct3D.VideoAccelerationCompatibilityPack/
+
+## Hello, VAEncode! sample
+
+This sample shows you how to use Libva for Windows to perform video processing effects and encode the D3D12 render targets presented to screen to a basic H264 encoded bitstream. This sample depends on https://www.nuget.org/packages/Microsoft.Direct3D.VideoAccelerationCompatibilityPack/
+
+## Hello, VAResourceInterop! sample
+
+This sample shows you how to use Libva for Windows for inter-operating between D3D12 resources and VA surfaces. This sample depends on https://www.nuget.org/packages/Microsoft.Direct3D.VideoAccelerationCompatibilityPack/
+
 ### Optional features
 The Texture and Constant Buffer samples have been updated to build against the Windows 10 Anniversary Update SDK. In this SDK a new revision of Root Signatures is available for Direct3D 12 apps to use. Root Signature 1.1 allows for apps to declare when descriptors in a descriptor heap won't change or the data descriptors point to won't change.  This allows the option for drivers to make optimizations that might be possible knowing that something (like a descriptor or the memory it points to) is static for some period of time.
