@@ -258,8 +258,11 @@ namespace FallbackLayer
             AccelerationStructuresEntries[entriesAdded++] = entry.second;
         }
 
-        pCommandList->SetComputeRoot32BitConstants(
-            m_patchRootSignatureParameterStart + AccelerationStructuresList, (UINT)(AccelerationStructuresEntries.size() * (SizeOfInUint32(*AccelerationStructuresEntries.data()))), AccelerationStructuresEntries.data(), 0);
+        if (!AccelerationStructuresEntries.empty())
+        {
+            pCommandList->SetComputeRoot32BitConstants(
+                m_patchRootSignatureParameterStart + AccelerationStructuresList, (UINT)(AccelerationStructuresEntries.size() * (SizeOfInUint32(*AccelerationStructuresEntries.data()))), AccelerationStructuresEntries.data(), 0);
+        }
 
 #ifdef DEBUG
         m_pPredispatchCallback(pCommandList, m_patchRootSignatureParameterStart);
