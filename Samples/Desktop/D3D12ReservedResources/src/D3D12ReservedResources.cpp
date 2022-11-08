@@ -463,12 +463,11 @@ void D3D12ReservedResources::UpdateTileMapping()
 
         // Update the tile mappings on the reserved resource.
         {
-            UINT updatedRegions = 0;
-            std::vector<D3D12_TILED_RESOURCE_COORDINATE> startCoordinates;
-            std::vector<D3D12_TILE_REGION_SIZE> regionSizes;
-            std::vector<D3D12_TILE_RANGE_FLAGS> rangeFlags;
-            std::vector<UINT> heapRangeStartOffsets;
-            std::vector<UINT> rangeTileCounts;
+            D3D12_TILED_RESOURCE_COORDINATE startCoordinates;
+            D3D12_TILE_REGION_SIZE regionSizes;
+            D3D12_TILE_RANGE_FLAGS rangeFlags;
+            UINT heapRangeStartOffsets;
+            UINT rangeTileCounts;
 
             for (UINT n = 0; n < m_heaps.size(); n++)
             {
@@ -478,13 +477,13 @@ void D3D12ReservedResources::UpdateTileMapping()
                     continue;
                 }
 
-                startCoordinates.push_back(m_mips[n].startCoordinate);
-                regionSizes.push_back(m_mips[n].regionSize);
+                startCoordinates = m_mips[n].startCoordinate;
+                regionSizes = m_mips[n].regionSize;
 
                 if (n == firstSubresource)
                 {
                     // Map the currently active mip.
-                    rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NONE);
+                    rangeFlags = D3D12_TILE_RANGE_FLAG_NONE;
                     m_mips[n].mapped = true;
                 }
                 else
@@ -492,27 +491,25 @@ void D3D12ReservedResources::UpdateTileMapping()
                     // Unmap the previously active mip.
                     assert(m_mips[n].mapped);
 
-                    rangeFlags.push_back(D3D12_TILE_RANGE_FLAG_NULL);
+                    rangeFlags = D3D12_TILE_RANGE_FLAG_NULL;
                     m_mips[n].mapped = false;
                 }
-                heapRangeStartOffsets.push_back(0);        // In this sample, each heap contains only one tile region.
-                rangeTileCounts.push_back(m_mips[n].regionSize.NumTiles);
+                heapRangeStartOffsets = 0;        // In this sample, each heap contains only one tile region.
+                rangeTileCounts = m_mips[n].regionSize.NumTiles;
 
-                updatedRegions++;
-            }
-
-            m_commandQueue->UpdateTileMappings(
-                m_reservedResource.Get(),
-                updatedRegions,
-                &startCoordinates[0],
-                &regionSizes[0],
-                m_heaps[firstSubresource].Get(),
-                updatedRegions,
-                &rangeFlags[0],
-                &heapRangeStartOffsets[0],
-                &rangeTileCounts[0],
-                D3D12_TILE_MAPPING_FLAG_NONE
+                m_commandQueue->UpdateTileMappings(
+                    m_reservedResource.Get(),
+                    1,
+                    &startCoordinates,
+                    &regionSizes,
+                    m_heaps[n].Get(),
+                    1,
+                    &rangeFlags,
+                    &heapRangeStartOffsets,
+                    &rangeTileCounts,
+                    D3D12_TILE_MAPPING_FLAG_NONE
                 );
+            }
         }
 
         // Upload the mip(s) to the GPU and copy them to the reserved resource.
