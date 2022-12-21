@@ -477,7 +477,7 @@ void D3D12DynamicLOD::OnUpdate()
         XMPlaneNormalize(XMVectorAdd(vp.r[3], vp.r[0])),      // Left
         XMPlaneNormalize(XMVectorSubtract(vp.r[3], vp.r[0])), // Right
         XMPlaneNormalize(XMVectorAdd(vp.r[3], vp.r[1])),      // Bottom
-        XMPlaneNormalize(XMVectorAdd(vp.r[3], vp.r[1])),      // Top
+        XMPlaneNormalize(XMVectorSubtract(vp.r[3], vp.r[1])), // Top
         XMPlaneNormalize(vp.r[2]),                            // Near
         XMPlaneNormalize(XMVectorSubtract(vp.r[3], vp.r[2])), // Far
     };
