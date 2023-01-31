@@ -118,6 +118,12 @@ void DXSample::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
     for (int i = 1; i < argc; ++i)
     {
+        if (_wcsnicmp(argv[i], L"--?", wcslen(argv[i])) == 0 ||
+            _wcsnicmp(argv[i], L"/?", wcslen(argv[i])) == 0)
+        {
+            MessageBoxW(0, L"D3D12HelloVADecode.exe \n\t [optional] /warp : Use WARP device.\n", L"Command line arguments usage info", MB_OK);
+            exit(0);
+        }
         if (_wcsnicmp(argv[i], L"-warp", wcslen(argv[i])) == 0 || 
             _wcsnicmp(argv[i], L"/warp", wcslen(argv[i])) == 0)
         {

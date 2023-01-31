@@ -115,7 +115,7 @@ void D3D12HelloVADecode::LoadVAPipeline()
 void D3D12HelloVADecode::InitVADisplay()
 {
     DXGI_ADAPTER_DESC desc = {};
-    m_adapter->GetDesc(&desc);
+    ThrowIfFailed(m_adapter->GetDesc(&desc));
     m_vaDisplay = vaGetDisplayWin32(&desc.AdapterLuid);
     assert(m_vaDisplay);
 
@@ -245,7 +245,6 @@ void D3D12HelloVADecode::ImportRenderTargetsToVA()
             nullptr,
             &renderTargets[i]);
         ThrowIfFailed(hr);
-        assert(renderTargets[i]);
     }
     createSurfacesAttribList[2].value.value.p = renderTargets;
 
@@ -566,7 +565,7 @@ void D3D12HelloVADecode::PerformVADecodeFrame(VASurfaceID dst_surface)
     va_status = vaEndPicture(m_vaDisplay, m_VADecContextId);
     ThrowIfFailed(va_status, "vaEndPicture");
 
-    // Flush work on GPU and finish for completion on GPU
+    // Wait for completion on GPU for the indicated VASurface
     va_status = vaSyncSurface(m_vaDisplay, dst_surface);
     ThrowIfFailed(va_status, "vaSyncSurface");
 }
@@ -628,7 +627,7 @@ void D3D12HelloVADecode::PerformVABlit(
     va_status = vaEndPicture(m_vaDisplay, context);
     ThrowIfFailed(va_status, "vaEndPicture");
 
-    // Flush work on GPU and finish for completion on GPU
+    // Wait for completion on GPU for the indicated VASurface
     va_status = vaSyncSurface(m_vaDisplay, dstSurface);
     ThrowIfFailed(va_status, "vaSyncSurface");
 }

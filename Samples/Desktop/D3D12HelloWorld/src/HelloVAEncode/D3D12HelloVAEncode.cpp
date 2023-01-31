@@ -150,7 +150,7 @@ void D3D12HelloVAEncode::LoadVAPipeline()
 void D3D12HelloVAEncode::InitVADisplay()
 {
     DXGI_ADAPTER_DESC desc = {};
-    m_adapter->GetDesc(&desc);
+    ThrowIfFailed(m_adapter->GetDesc(&desc));
     m_vaDisplay = vaGetDisplayWin32(&desc.AdapterLuid);
     assert(m_vaDisplay);
 
@@ -176,6 +176,7 @@ void D3D12HelloVAEncode::EnsureVAEncSupport() {
     }
 
     if (!supportsH264Enc) {
+        // Please check D3D12 Video Encode supported platforms: https://devblogs.microsoft.com/directx/announcing-new-directx-12-feature-video-encoding/#video-encode-api-supported-platforms
         ThrowIfFailed(VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT, "VAEntrypointEncSlice not supported for VAProfileH264Main.");
     }
 }
@@ -204,8 +205,7 @@ void D3D12HelloVAEncode::EnsureVAProcSupport() {
     ComPtr<ID3D12VideoDevice> spVideoDevice;
     ThrowIfFailed(m_device->QueryInterface(IID_PPV_ARGS(spVideoDevice.GetAddressOf())));
     spVideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_PROCESS_MAX_INPUT_STREAMS, &vpMaxInputStreams, sizeof(vpMaxInputStreams));
-    m_vpMaxInputStreams = vpMaxInputStreams.MaxInputStreams;
-    m_NumVPRegions = min(m_vpMaxInputStreams, 4);
+    m_NumVPRegions = min(vpMaxInputStreams.MaxInputStreams, 4);
 }
 
 void D3D12HelloVAEncode::InitVAProcContext()
@@ -437,7 +437,6 @@ void D3D12HelloVAEncode::ImportRenderTargetsToVA()
             nullptr,
             &renderTargets[i]);
         ThrowIfFailed(hr);
-        assert(renderTargets[i]);
     }
     createSurfacesAttribList[2].value.value.p = renderTargets;
 
@@ -503,7 +502,7 @@ void D3D12HelloVAEncode::PerformVABlit(
     va_status = vaEndPicture(m_vaDisplay, context);
     ThrowIfFailed(va_status, "vaEndPicture");
 
-    // Flush work on GPU and finish for completion on GPU
+    // Wait for completion on GPU for the indicated VASurface
     va_status = vaSyncSurface(m_vaDisplay, dstSurface);
     ThrowIfFailed(va_status, "vaSyncSurface");
 }
@@ -572,7 +571,7 @@ void D3D12HelloVAEncode::PerformVAEncodeFrame(VASurfaceID dst_surface, VABufferI
     va_status = vaEndPicture(m_vaDisplay, m_VAEncContextId);
     ThrowIfFailed(va_status, "vaEndPicture");
 
-    // Flush work on GPU and finish for completion on GPU
+    // Wait for completion on GPU for the indicated VABuffer/VASurface
     // Attempt vaSyncBuffer if VA driver implements it first
     va_status = vaSyncBuffer(m_vaDisplay, dst_compressedbit, VA_TIMEOUT_INFINITE);
     if (va_status != VA_STATUS_ERROR_UNIMPLEMENTED)
@@ -605,7 +604,7 @@ void D3D12HelloVAEncode::PerformVAWorkload()
     for (UINT i = 0; i < m_NumVPRegions; i++)
         PerformVABlit(m_vaCopyCtx, m_vaCopyBuf, &m_VARenderTargets[m_frameIndex], 1, NULL, NULL, m_vaRGBASurfaces[i], 1.0f);
     
-    // Blit the source surface m_vpMaxInputStreams times in different regions in the output surface    
+    // Blit the source surface m_NumVPRegions times in different regions in the output surface
 
     // Blend, translate and scale src_regions into dst_regions of the render target
     PerformVABlit(m_vaBlendCtx, m_vaBlendBuf, m_vaRGBASurfaces, m_NumVPRegions, m_pBlendRegions[m_CurRegionVariation], m_pBlendRegions[m_CurRegionVariation], m_VARenderTargets[m_frameIndex], m_AlphaBlend);

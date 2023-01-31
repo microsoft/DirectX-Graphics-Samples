@@ -98,7 +98,6 @@ private:
     VASurfaceID m_VASurfaceNV12 = 0;
     VAProcPipelineCaps m_ProcPipelineCaps = { };
     UINT m_NumVPRegions;
-    UINT m_vpMaxInputStreams;
     void LoadVAPipeline();
     void InitVADisplay();
     void ImportRenderTargetsToVA();

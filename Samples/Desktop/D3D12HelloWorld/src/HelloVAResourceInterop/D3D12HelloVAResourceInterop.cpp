@@ -142,7 +142,7 @@ void D3D12HelloVAResourceInterop::InitAdapter()
 void D3D12HelloVAResourceInterop::InitVADisplay()
 {
     DXGI_ADAPTER_DESC desc = {};
-    m_adapter->GetDesc(&desc);
+    ThrowIfFailed(m_adapter->GetDesc(&desc));
     m_vaDisplay = vaGetDisplayWin32(&desc.AdapterLuid);
     assert(m_vaDisplay);
 
@@ -179,6 +179,7 @@ void D3D12HelloVAResourceInterop::EnsureVAEncSupport() {
     }
 
     if (!supportsH264Enc) {
+        // Please check D3D12 Video Encode supported platforms: https://devblogs.microsoft.com/directx/announcing-new-directx-12-feature-video-encoding/#video-encode-api-supported-platforms
         ThrowIfFailed(VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT, "VAEntrypointEncSlice not supported for VAProfileH264Main.");
     }
 }
@@ -406,7 +407,7 @@ void D3D12HelloVAResourceInterop::PerformVABlit(
     va_status = vaEndPicture(m_vaDisplay, context);
     ThrowIfFailed(va_status, "vaEndPicture");
 
-    // Flush work on GPU and finish for completion on GPU
+    // Wait for completion on GPU for the indicated VASurface
     va_status = vaSyncSurface(m_vaDisplay, dstSurface);
     ThrowIfFailed(va_status, "vaSyncSurface");
 }
@@ -475,7 +476,7 @@ void D3D12HelloVAResourceInterop::PerformVAEncodeFrame(VASurfaceID dst_surface, 
     va_status = vaEndPicture(m_vaDisplay, m_VAEncContextId);
     ThrowIfFailed(va_status, "vaEndPicture");
 
-    // Flush work on GPU and finish for completion on GPU
+    // Wait for completion on GPU for the indicated VASurface
     // Attempt vaSyncBuffer if VA driver implements it first
     va_status = vaSyncBuffer(m_vaDisplay, dst_compressedbit, VA_TIMEOUT_INFINITE);
     if (va_status != VA_STATUS_ERROR_UNIMPLEMENTED)
