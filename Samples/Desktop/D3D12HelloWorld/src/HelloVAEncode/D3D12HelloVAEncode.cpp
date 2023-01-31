@@ -206,6 +206,32 @@ void D3D12HelloVAEncode::EnsureVAProcSupport() {
     ThrowIfFailed(m_device->QueryInterface(IID_PPV_ARGS(spVideoDevice.GetAddressOf())));
     spVideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_PROCESS_MAX_INPUT_STREAMS, &vpMaxInputStreams, sizeof(vpMaxInputStreams));
     m_NumVPRegions = min(vpMaxInputStreams.MaxInputStreams, 4);
+
+    // Check VPBlit support for format DXGI_FORMAT_R8G8B8A8_UNORM
+    D3D12_FEATURE_DATA_VIDEO_PROCESS_SUPPORT dx12ProcCaps =
+    {
+        0, // NodeIndex
+        { GetWidth(), GetHeight(), { DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709}},
+        D3D12_VIDEO_FIELD_TYPE_NONE,
+        D3D12_VIDEO_FRAME_STEREO_FORMAT_NONE,
+        { 30, 1 },
+        { DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 },
+        D3D12_VIDEO_FRAME_STEREO_FORMAT_NONE,
+        { 30, 1 },
+    };
+
+    ThrowIfFailed(spVideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_PROCESS_SUPPORT, &dx12ProcCaps, sizeof(dx12ProcCaps)));
+    if ((dx12ProcCaps.SupportFlags & D3D12_VIDEO_PROCESS_SUPPORT_FLAG_SUPPORTED) == 0) {
+        ThrowIfFailed(VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT, "VAEntrypointVideoProc not supported for format DXGI_FORMAT_R8G8B8A8_UNORM.");
+    }
+
+    // Check VPBlit support for format DXGI_FORMAT_R8G8B8A8_UNORM -> DXGI_FORMAT_R8G8B8A8_NV12
+    dx12ProcCaps.OutputFormat.Format = DXGI_FORMAT_NV12;
+    dx12ProcCaps.OutputFormat.ColorSpace = DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P709;
+    ThrowIfFailed(spVideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_PROCESS_SUPPORT, &dx12ProcCaps, sizeof(dx12ProcCaps)));
+    if ((dx12ProcCaps.SupportFlags & D3D12_VIDEO_PROCESS_SUPPORT_FLAG_SUPPORTED) == 0) {
+        ThrowIfFailed(VA_STATUS_ERROR_UNSUPPORTED_ENTRYPOINT, "VAEntrypointVideoProc not supported for conversion DXGI_FORMAT_R8G8B8A8_UNORM to DXGI_FORMAT_NV12.");
+    }
 }
 
 void D3D12HelloVAEncode::InitVAProcContext()
