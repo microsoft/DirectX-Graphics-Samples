@@ -612,7 +612,7 @@ namespace FallbackLayer
         {
             ThrowFailure(E_INVALIDARG, 
                 L"DispatchRays called without a Descriptor Heap for SRV/UAV/CBV's bound, "
-                L"the compute-based implementation requires D3D12RaytracingCommandList::SetDescriptorHeaps"
+                L"the compute-based implementation requires D3D12RaytracingCommandList::SetDescriptorHeaps "
                 L"be called with a valid heap. This is required for emulated pointers to properly work"
             );
         }

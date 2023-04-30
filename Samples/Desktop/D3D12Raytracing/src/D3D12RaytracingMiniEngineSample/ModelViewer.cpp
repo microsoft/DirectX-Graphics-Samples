@@ -56,8 +56,6 @@ using namespace GameCore;
 using namespace Math;
 using namespace Graphics;
 
-extern ByteAddressBuffer   g_bvh_bottomLevelAccelerationStructure;
-
 CComPtr<ID3D12Device5> g_pRaytracingDevice;
 
 __declspec(align(16)) struct HitShaderConstants
@@ -434,17 +432,36 @@ void InitializeViews(const ModelH3D& model)
     }
 }
 
-D3D12_STATE_SUBOBJECT CreateDxilLibrary(LPCWSTR entrypoint, const void *pShaderByteCode, SIZE_T bytecodeLength, D3D12_DXIL_LIBRARY_DESC &dxilLibDesc, D3D12_EXPORT_DESC &exportDesc)
+template <size_t bytecodeLength>
+void SetDxilLibrary(CD3DX12_STATE_OBJECT_DESC& stateObjectDesc, const unsigned char (&pShaderByteCode)[bytecodeLength], LPCWSTR entrypoint)
 {
-    exportDesc = { entrypoint, nullptr, D3D12_EXPORT_FLAG_NONE };
-    D3D12_STATE_SUBOBJECT dxilLibSubObject = {};
-    dxilLibDesc.DXILLibrary.pShaderBytecode = pShaderByteCode;
-    dxilLibDesc.DXILLibrary.BytecodeLength = bytecodeLength;
-    dxilLibDesc.NumExports = 1;
-    dxilLibDesc.pExports = &exportDesc;
-    dxilLibSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
-    dxilLibSubObject.pDesc = &dxilLibDesc;
-    return dxilLibSubObject;
+    auto dxilLibSubobject = stateObjectDesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+
+    D3D12_SHADER_BYTECODE shader = CD3DX12_SHADER_BYTECODE(pShaderByteCode, bytecodeLength);
+    dxilLibSubobject->SetDXILLibrary(&shader);
+    dxilLibSubobject->DefineExport(entrypoint);
+}
+
+template <size_t bytecodeLength>
+void ReplaceDxilLibrary(D3D12_STATE_OBJECT_DESC* pStateObjectDesc, const unsigned char(&pShaderByteCode)[bytecodeLength], LPCWSTR entrypoint)
+{
+    for (UINT i = 0; i < pStateObjectDesc->NumSubobjects; ++i)
+    {
+        const D3D12_STATE_SUBOBJECT* pSubobject = &pStateObjectDesc->pSubobjects[i];
+
+        if (pSubobject->Type == D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY)
+        {
+            D3D12_DXIL_LIBRARY_DESC* pLibDesc = (D3D12_DXIL_LIBRARY_DESC*)pSubobject->pDesc;
+
+            for (UINT j = 0; j < pLibDesc->NumExports; ++j)
+            {
+                if (wcscmp(entrypoint, pLibDesc->pExports[j].Name) == 0)
+                {
+                    pLibDesc->DXILLibrary = CD3DX12_SHADER_BYTECODE(pShaderByteCode, bytecodeLength);
+                }
+            }
+        }
+    }
 }
 
 void SetPipelineStateStackSize(LPCWSTR raygen, LPCWSTR closestHit, LPCWSTR miss, UINT maxRecursion, ID3D12StateObject *pStateObject)
@@ -548,85 +565,36 @@ void InitializeRaytracingStateObjects(const ModelH3D &model, UINT numMeshes)
     D3D12SerializeVersionedRootSignature(&localRootSignatureDesc, &pLocalRootSignatureBlob, nullptr);
     g_pRaytracingDevice->CreateRootSignature(0, pLocalRootSignatureBlob->GetBufferPointer(), pLocalRootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&g_LocalRaytracingRootSignature));
 
-    std::vector<D3D12_STATE_SUBOBJECT> subObjects;
-    D3D12_STATE_SUBOBJECT nodeMaskSubObject;
-    UINT nodeMask = 1;
-    nodeMaskSubObject.pDesc = &nodeMask;
-    nodeMaskSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_NODE_MASK;
-    subObjects.push_back(nodeMaskSubObject);
+    CD3DX12_STATE_OBJECT_DESC stateObjectDesc(D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE);
 
-    D3D12_STATE_SUBOBJECT rootSignatureSubObject;
-    rootSignatureSubObject.pDesc = &g_GlobalRaytracingRootSignature.p;
-    rootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
-    subObjects.push_back(rootSignatureSubObject);
+    auto nodeMaskSubobject = stateObjectDesc.CreateSubobject<CD3DX12_NODE_MASK_SUBOBJECT>();
+    nodeMaskSubobject->SetNodeMask(1);
 
-    D3D12_STATE_SUBOBJECT configurationSubObject;
-    D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig;
-    pipelineConfig.MaxTraceRecursionDepth = MaxRayRecursion;
-    configurationSubObject.pDesc = &pipelineConfig;
-    configurationSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
-    subObjects.push_back(configurationSubObject);
+    auto rootSignatureSubObject = stateObjectDesc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
+    rootSignatureSubObject->SetRootSignature(g_GlobalRaytracingRootSignature.p);
 
-    std::vector<LPCWSTR> shadersToAssociate;
+    auto configurationSubObject = stateObjectDesc.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
+    configurationSubObject->Config(MaxRayRecursion);
 
-    // Ray Gen shader stuff
-    // ----------------------------------------------------------------//
-    LPCWSTR rayGenShaderExportName = L"RayGen";
-    subObjects.push_back(D3D12_STATE_SUBOBJECT{});
-    D3D12_STATE_SUBOBJECT &rayGenDxilLibSubobject = subObjects.back();
-    D3D12_EXPORT_DESC rayGenExportDesc;
-    D3D12_DXIL_LIBRARY_DESC rayGenDxilLibDesc = {};
-    rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShaderLib, sizeof(g_pRayGenerationShaderLib), rayGenDxilLibDesc, rayGenExportDesc);
-    shadersToAssociate.push_back(rayGenShaderExportName);
+    LPCWSTR rayGenExportName = L"RayGen";
+    SetDxilLibrary(stateObjectDesc, g_pRayGenerationShaderLib, rayGenExportName);
 
-    // Hit Group shader stuff
-    // ----------------------------------------------------------------//
-    LPCWSTR closestHitExportName = L"Hit";
-    D3D12_EXPORT_DESC hitGroupExportDesc;
-    D3D12_DXIL_LIBRARY_DESC hitGroupDxilLibDesc = {};
-    D3D12_STATE_SUBOBJECT hitGroupLibSubobject = CreateDxilLibrary(closestHitExportName, g_phitShaderLib, sizeof(g_phitShaderLib), hitGroupDxilLibDesc, hitGroupExportDesc);
-
-    subObjects.push_back(hitGroupLibSubobject);
-    shadersToAssociate.push_back(closestHitExportName);
+    LPCWSTR hitExportName = L"Hit";
+    SetDxilLibrary(stateObjectDesc, g_phitShaderLib, hitExportName);
 
     LPCWSTR missExportName = L"Miss";
-    D3D12_EXPORT_DESC missExportDesc;
-    D3D12_DXIL_LIBRARY_DESC missDxilLibDesc = {};
-    D3D12_STATE_SUBOBJECT missLibSubobject = CreateDxilLibrary(missExportName, g_pmissShaderLib, sizeof(g_pmissShaderLib), missDxilLibDesc, missExportDesc);
+    SetDxilLibrary(stateObjectDesc, g_pmissShaderLib, missExportName);
 
-    subObjects.push_back(missLibSubobject);
-    D3D12_STATE_SUBOBJECT &missDxilLibSubobject = subObjects.back();
-
-    shadersToAssociate.push_back(missExportName);
-
-    D3D12_STATE_SUBOBJECT shaderConfigStateObject;
-    D3D12_RAYTRACING_SHADER_CONFIG shaderConfig;
-    shaderConfig.MaxAttributeSizeInBytes = 8;
-    shaderConfig.MaxPayloadSizeInBytes = 8;
-    shaderConfigStateObject.pDesc = &shaderConfig;
-    shaderConfigStateObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
-    subObjects.push_back(shaderConfigStateObject);
-    //D3D12_STATE_SUBOBJECT &shaderConfigSubobject = subObjects.back();
+    auto shaderConfigStateObject = stateObjectDesc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
+    shaderConfigStateObject->Config(8, 8);
 
     LPCWSTR hitGroupExportName = L"HitGroup";
-    D3D12_HIT_GROUP_DESC hitGroupDesc = {};
-    hitGroupDesc.ClosestHitShaderImport = closestHitExportName;
-    hitGroupDesc.HitGroupExport = hitGroupExportName;
-    D3D12_STATE_SUBOBJECT hitGroupSubobject = {};
-    hitGroupSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
-    hitGroupSubobject.pDesc = &hitGroupDesc;
-    subObjects.push_back(hitGroupSubobject);
+    auto hitGroupSubobject = stateObjectDesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    hitGroupSubobject->SetHitGroupExport(hitGroupExportName);
+    hitGroupSubobject->SetClosestHitShaderImport(hitExportName);
 
-    D3D12_STATE_SUBOBJECT localRootSignatureSubObject;
-    localRootSignatureSubObject.pDesc = &g_LocalRaytracingRootSignature.p;
-    localRootSignatureSubObject.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-    subObjects.push_back(localRootSignatureSubObject);
-    //D3D12_STATE_SUBOBJECT &rootSignatureSubobject = subObjects.back();
-
-    D3D12_STATE_OBJECT_DESC stateObject;
-    stateObject.NumSubobjects = (UINT)subObjects.size();
-    stateObject.pSubobjects = subObjects.data();
-    stateObject.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
+    auto localRootSignatureSubObject = stateObjectDesc.CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+    localRootSignatureSubObject->SetRootSignature(g_LocalRaytracingRootSignature.p);
 
     const UINT shaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 #define ALIGN(alignment, num) ((((num) + alignment - 1) / alignment) * alignment)
@@ -654,58 +622,69 @@ void InitializeRaytracingStateObjects(const ModelH3D &model, UINT numMeshes)
         }
     };
 
+    // This causes the CD3DX12_STATE_OBJECT_DESC to generate the final D3D12_STATE_OBJECT_DESC, after which we aren't supposed to make any more changes.
+    // But we *are* going to make changes to override the shader library bytecode to make various permutations of the state object. For this reason, we
+    // must const_cast the state object description. ReplaceDxilLibrary() will not accept a const D3D12_STATE_OBJECT_DESC.
+    D3D12_STATE_OBJECT_DESC* pStateObjectDesc = const_cast<D3D12_STATE_OBJECT_DESC*>((const D3D12_STATE_OBJECT_DESC*)stateObjectDesc);
+
     {
         CComPtr<ID3D12StateObject> pbarycentricPSO;
-        g_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pbarycentricPSO));
+        g_pRaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pbarycentricPSO));
+
         GetShaderTable(model, pbarycentricPSO, pHitShaderTable.data());
-        g_RaytracingInputs[Primarybarycentric] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pbarycentricPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenShaderExportName, missExportName);
+        g_RaytracingInputs[Primarybarycentric] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pbarycentricPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
     }
 
     {
-        rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShaderSSRLib, sizeof(g_pRayGenerationShaderSSRLib), rayGenDxilLibDesc, rayGenExportDesc);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pRayGenerationShaderSSRLib, rayGenExportName);
+
         CComPtr<ID3D12StateObject> pReflectionbarycentricPSO;
-        g_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pReflectionbarycentricPSO));
+        g_pRaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pReflectionbarycentricPSO));
+
         GetShaderTable(model, pReflectionbarycentricPSO, pHitShaderTable.data());
-        g_RaytracingInputs[Reflectionbarycentric] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pReflectionbarycentricPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenShaderExportName, missExportName);
+        g_RaytracingInputs[Reflectionbarycentric] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pReflectionbarycentricPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
     }
 
     {
-        rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShadowsLib, sizeof(g_pRayGenerationShadowsLib), rayGenDxilLibDesc, rayGenExportDesc);
-        missDxilLibSubobject = CreateDxilLibrary(missExportName, g_pmissShadowsLib, sizeof(g_pmissShadowsLib), missDxilLibDesc, missExportDesc);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pRayGenerationShadowsLib, rayGenExportName);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pmissShadowsLib, missExportName);
 
         CComPtr<ID3D12StateObject> pShadowsPSO;
-        g_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pShadowsPSO));
+        g_pRaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pShadowsPSO));
+
         GetShaderTable(model, pShadowsPSO, pHitShaderTable.data());
-        g_RaytracingInputs[Shadows] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pShadowsPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenShaderExportName, missExportName);
+        g_RaytracingInputs[Shadows] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pShadowsPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
     }
 
     {
-        rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShaderLib, sizeof(g_pRayGenerationShaderLib), rayGenDxilLibDesc, rayGenExportDesc);
-        hitGroupLibSubobject = CreateDxilLibrary(closestHitExportName, g_pDiffuseHitShaderLib, sizeof(g_pDiffuseHitShaderLib), hitGroupDxilLibDesc, hitGroupExportDesc);
-        missDxilLibSubobject = CreateDxilLibrary(missExportName, g_pmissShaderLib, sizeof(g_pmissShaderLib), missDxilLibDesc, missExportDesc);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pRayGenerationShaderLib, rayGenExportName);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pDiffuseHitShaderLib, hitExportName);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pmissShaderLib, missExportName);
 
         CComPtr<ID3D12StateObject> pDiffusePSO;
-        g_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pDiffusePSO));
+        g_pRaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pDiffusePSO));
+
         GetShaderTable(model, pDiffusePSO, pHitShaderTable.data());
-        g_RaytracingInputs[DiffuseHitShader] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pDiffusePSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenShaderExportName, missExportName);
+        g_RaytracingInputs[DiffuseHitShader] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pDiffusePSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
     }
 
    {
-        rayGenDxilLibSubobject = CreateDxilLibrary(rayGenShaderExportName, g_pRayGenerationShaderSSRLib, sizeof(g_pRayGenerationShaderSSRLib), rayGenDxilLibDesc, rayGenExportDesc);
-        hitGroupLibSubobject = CreateDxilLibrary(closestHitExportName, g_pDiffuseHitShaderLib, sizeof(g_pDiffuseHitShaderLib), hitGroupDxilLibDesc, hitGroupExportDesc);
-        missDxilLibSubobject = CreateDxilLibrary(missExportName, g_pmissShaderLib, sizeof(g_pmissShaderLib), missDxilLibDesc, missExportDesc);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pRayGenerationShaderSSRLib, rayGenExportName);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pDiffuseHitShaderLib, hitExportName);
+        ReplaceDxilLibrary(pStateObjectDesc, g_pmissShaderLib, missExportName);
 
         CComPtr<ID3D12StateObject> pReflectionPSO;
-        g_pRaytracingDevice->CreateStateObject(&stateObject, IID_PPV_ARGS(&pReflectionPSO));
+        g_pRaytracingDevice->CreateStateObject(pStateObjectDesc, IID_PPV_ARGS(&pReflectionPSO));
+
         GetShaderTable(model, pReflectionPSO, pHitShaderTable.data());
-        g_RaytracingInputs[Reflection] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pReflectionPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenShaderExportName, missExportName);
+        g_RaytracingInputs[Reflection] = RaytracingDispatchRayInputs(*g_pRaytracingDevice, pReflectionPSO, pHitShaderTable.data(), shaderRecordSizeInBytes, (UINT)pHitShaderTable.size(), rayGenExportName, missExportName);
     }
 
    for (auto &raytracingPipelineState : g_RaytracingInputs)
    {
         WCHAR hitGroupExportNameClosestHitType[64];
         swprintf_s(hitGroupExportNameClosestHitType, L"%s::closesthit", hitGroupExportName );
-        SetPipelineStateStackSize(rayGenShaderExportName, hitGroupExportNameClosestHitType, missExportName, MaxRayRecursion, raytracingPipelineState.m_pPSO);
+        SetPipelineStateStackSize(rayGenExportName, hitGroupExportNameClosestHitType, missExportName, MaxRayRecursion, raytracingPipelineState.m_pPSO);
    }
 }
 
@@ -737,19 +716,29 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     g_hitConstantBuffer.Create(L"Hit Constant Buffer", 1, sizeof(HitShaderConstants));
     g_dynamicConstantBuffer.Create(L"Dynamic Constant Buffer", 1, sizeof(DynamicCB));
 
+    //
+    // Load the model
+    //
     const ModelH3D& model = Sponza::GetModel();
 
     InitializeSceneInfo(model);
     InitializeViews(model);
-    UINT numMeshes = model.m_Header.meshCount;
 
-    const UINT numBottomLevels = 1;
+    //
+    // Define the top level acceleration structure
+    //
+    const UINT numMeshes = model.m_Header.meshCount;
+    const UINT numInstances = numMeshes;
+
+    // You can toggle between all meshes in one BLAS or one instance per mesh. Typically, to save memory, you would instance a BLAS multiple
+    // times when geometry is duplicated.
+    ASSERT(numInstances == 1 || numInstances == numMeshes);
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo;
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelAccelerationStructureDesc = {};
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &topLevelInputs = topLevelAccelerationStructureDesc.Inputs;
     topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
-    topLevelInputs.NumDescs = numBottomLevels;
+    topLevelInputs.NumDescs = numInstances;
     topLevelInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
     topLevelInputs.pGeometryDescs = nullptr;
     topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
@@ -758,6 +747,27 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
     const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlag = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
     std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometryDescs(model.m_Header.meshCount);
     UINT64 scratchBufferSizeNeeded = topLevelPrebuildInfo.ScratchDataSizeInBytes;
+
+    ByteAddressBuffer tlasScratchBuffer;
+    tlasScratchBuffer.Create(L"Acceleration Structure Scratch Buffer", (UINT)scratchBufferSizeNeeded, 1);
+
+    D3D12_HEAP_PROPERTIES defaultHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    auto tlasBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(topLevelPrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    g_Device->CreateCommittedResource(
+        &defaultHeapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &tlasBufferDesc,
+        D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+        nullptr,
+        IID_PPV_ARGS(&g_bvh_topLevelAccelerationStructure));
+
+    topLevelAccelerationStructureDesc.DestAccelerationStructureData = g_bvh_topLevelAccelerationStructure->GetGPUVirtualAddress();
+    topLevelAccelerationStructureDesc.ScratchAccelerationStructureData = tlasScratchBuffer.GetGpuVirtualAddress();
+
+    //
+    // Define the bottom level acceleration structures
+    //
+
     for (UINT i = 0; i < numMeshes; i++)
     {
         auto &mesh = model.m_pMesh[i];
@@ -769,7 +779,7 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
         D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC &trianglesDesc = desc.Triangles;
         trianglesDesc.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
         trianglesDesc.VertexCount = mesh.vertexCount;
-        trianglesDesc.VertexBuffer.StartAddress = model.GetVertexBuffer().BufferLocation + (mesh.vertexDataByteOffset + mesh.attrib[ModelH3D::attrib_position].offset);
+        trianglesDesc.VertexBuffer.StartAddress = model.GetVertexBuffer().BufferLocation + (mesh.vertexDataByteOffset + (UINT)mesh.attrib[ModelH3D::attrib_position].offset);
         trianglesDesc.IndexBuffer = model.GetIndexBuffer().BufferLocation + mesh.indexDataByteOffset;
         trianglesDesc.VertexBuffer.StrideInBytes = mesh.vertexStride;
         trianglesDesc.IndexCount = mesh.indexCount;
@@ -777,61 +787,41 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
         trianglesDesc.Transform3x4 = 0;
     }
 
-    std::vector<UINT64> bottomLevelAccelerationStructureSize(numBottomLevels);
-    std::vector<D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC> bottomLevelAccelerationStructureDescs(numBottomLevels);
-    for (UINT i = 0; i < numBottomLevels; i++)
+    g_bvh_bottomLevelAccelerationStructures.resize(numInstances);
+    std::vector<D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC> blasDescs(numInstances);
+    std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDescs(numInstances);
+    std::vector<ByteAddressBuffer> blasScratchBuffers(numInstances);
+
+    for (UINT i = 0; i < numInstances; i++)
     {
-        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC &bottomLevelAccelerationStructureDesc = bottomLevelAccelerationStructureDescs[i];
-        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS &bottomLevelInputs = bottomLevelAccelerationStructureDesc.Inputs;
-        bottomLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-        bottomLevelInputs.NumDescs = numMeshes;
-        bottomLevelInputs.pGeometryDescs = &geometryDescs[i];
-        bottomLevelInputs.Flags = buildFlag;
-        bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC& blasDesc = blasDescs[i];
+        blasDesc.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+        blasDesc.Inputs.NumDescs = (numInstances == numMeshes) ? 1 : numMeshes;
+        blasDesc.Inputs.pGeometryDescs = &geometryDescs[i];
+        blasDesc.Inputs.Flags = buildFlag;
+        blasDesc.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
-        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelprebuildInfo;
-        g_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &bottomLevelprebuildInfo);
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelPrebuildInfo;
+        g_pRaytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&blasDesc.Inputs, &bottomLevelPrebuildInfo);
 
-        bottomLevelAccelerationStructureSize[i] = bottomLevelprebuildInfo.ResultDataMaxSizeInBytes;
-        scratchBufferSizeNeeded = std::max(bottomLevelprebuildInfo.ScratchDataSizeInBytes, scratchBufferSizeNeeded);
-    }
+        auto &blas = g_bvh_bottomLevelAccelerationStructures[i];
 
-    ByteAddressBuffer scratchBuffer;
-    scratchBuffer.Create(L"Acceleration Structure Scratch Buffer", (UINT)scratchBufferSizeNeeded, 1);
-
-    D3D12_HEAP_PROPERTIES defaultHeapDesc = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    auto topLevelDesc = CD3DX12_RESOURCE_DESC::Buffer(topLevelPrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-    g_Device->CreateCommittedResource(
-        &defaultHeapDesc,
-        D3D12_HEAP_FLAG_NONE,
-        &topLevelDesc,
-        D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
-        nullptr,
-        IID_PPV_ARGS(&g_bvh_topLevelAccelerationStructure));
-
-    topLevelAccelerationStructureDesc.DestAccelerationStructureData = g_bvh_topLevelAccelerationStructure->GetGPUVirtualAddress();
-    topLevelAccelerationStructureDesc.ScratchAccelerationStructureData = scratchBuffer.GetGpuVirtualAddress();
-
-    std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDescs(numBottomLevels);
-    g_bvh_bottomLevelAccelerationStructures.resize(numBottomLevels);
-    for (UINT i = 0; i < bottomLevelAccelerationStructureDescs.size(); i++)
-    {
-        auto &bottomLevelStructure = g_bvh_bottomLevelAccelerationStructures[i];
-
-        auto bottomLevelDesc = CD3DX12_RESOURCE_DESC::Buffer(bottomLevelAccelerationStructureSize[i], D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        auto blasBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         g_Device->CreateCommittedResource(
-            &defaultHeapDesc,
+            &defaultHeapProps,
             D3D12_HEAP_FLAG_NONE, 
-            &bottomLevelDesc, 
+            &blasBufferDesc,
             D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
             nullptr, 
-            IID_PPV_ARGS(&bottomLevelStructure));
+            IID_PPV_ARGS(&blas));
 
-        bottomLevelAccelerationStructureDescs[i].DestAccelerationStructureData = bottomLevelStructure->GetGPUVirtualAddress();
-        bottomLevelAccelerationStructureDescs[i].ScratchAccelerationStructureData = scratchBuffer.GetGpuVirtualAddress();
+        blasDesc.DestAccelerationStructureData = blas->GetGPUVirtualAddress();
+
+        blasScratchBuffers[i].Create(L"BLAS build scratch buffer", (UINT)bottomLevelPrebuildInfo.ScratchDataSizeInBytes, 1);
+        blasDesc.ScratchAccelerationStructureData = blasScratchBuffers[i].GetGpuVirtualAddress();
 
         D3D12_RAYTRACING_INSTANCE_DESC &instanceDesc = instanceDescs[i];
-        g_pRaytracingDescriptorHeap->AllocateBufferUav(*bottomLevelStructure);
+        g_pRaytracingDescriptorHeap->AllocateBufferUav(*blas);
         
         // Identity matrix
         ZeroMemory(instanceDesc.Transform, sizeof(instanceDesc.Transform));
@@ -839,39 +829,50 @@ void D3D12RaytracingMiniEngineSample::Startup( void )
         instanceDesc.Transform[1][1] = 1.0f;
         instanceDesc.Transform[2][2] = 1.0f;
         
-        instanceDesc.AccelerationStructure = g_bvh_bottomLevelAccelerationStructures[i]->GetGPUVirtualAddress();
+        instanceDesc.AccelerationStructure = blas->GetGPUVirtualAddress();
         instanceDesc.Flags = 0;
         instanceDesc.InstanceID = 0;
         instanceDesc.InstanceMask = 1;
         instanceDesc.InstanceContributionToHitGroupIndex = i;
     }
 
+    //
+    // Upload the instance data
+    //
     ByteAddressBuffer instanceDataBuffer;
-    instanceDataBuffer.Create(L"Instance Data Buffer", numBottomLevels, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instanceDescs.data());
+    instanceDataBuffer.Create(L"Instance Data Buffer", numInstances, sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instanceDescs.data());
 
     topLevelInputs.InstanceDescs = instanceDataBuffer.GetGpuVirtualAddress();
     topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 
-    GraphicsContext& gfxContext = GraphicsContext::Begin(L"Create Acceleration Structure");
-    ID3D12GraphicsCommandList *pCommandList = gfxContext.GetCommandList();
+    //
+    // Build the acceleration structures
+    //
+    GraphicsContext& gfxContext = GraphicsContext::Begin(L"Build Acceleration Structures");
 
     CComPtr<ID3D12GraphicsCommandList4> pRaytracingCommandList;
-    pCommandList->QueryInterface(IID_PPV_ARGS(&pRaytracingCommandList));
+    gfxContext.GetCommandList()->QueryInterface(IID_PPV_ARGS(&pRaytracingCommandList));
 
     ID3D12DescriptorHeap *descriptorHeaps[] = { &g_pRaytracingDescriptorHeap->GetDescriptorHeap() };
     pRaytracingCommandList->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
 
     auto uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
-    for (UINT i = 0; i < bottomLevelAccelerationStructureDescs.size(); i++)
+    for (UINT i = 0; i < blasDescs.size(); i++)
     {
-        pRaytracingCommandList->BuildRaytracingAccelerationStructure(&bottomLevelAccelerationStructureDescs[i], 0, nullptr);
-    }
-    pCommandList->ResourceBarrier(1, &uavBarrier);
+        pRaytracingCommandList->BuildRaytracingAccelerationStructure(&blasDescs[i], 0, nullptr);
 
+        // If each BLAS build reuses the scratch buffer, you would need a UAV barrier between each. But without
+        // barriers, the driver may be able to batch these BLAS builds together. This maximizes GPU utilization
+        // and should execute more quickly.
+    }
+    pRaytracingCommandList->ResourceBarrier(1, &uavBarrier);
     pRaytracingCommandList->BuildRaytracingAccelerationStructure(&topLevelAccelerationStructureDesc, 0, nullptr);
     
     gfxContext.Finish(true);
 
+    //
+    // Build the RTPSO
+    //
     InitializeRaytracingStateObjects(model, numMeshes);
 
     m_CameraPosArrayCurrentPosition = 0;
