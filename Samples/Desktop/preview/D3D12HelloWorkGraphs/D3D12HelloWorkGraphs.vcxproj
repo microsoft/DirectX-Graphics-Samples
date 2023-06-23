@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="packages\Microsoft.Direct3D.DXC.1.8.2306.6-preview\build\native\Microsoft.Direct3D.DXC.props" Condition="Exists('packages\Microsoft.Direct3D.DXC.1.8.2306.6-preview\build\native\Microsoft.Direct3D.DXC.props')" />
   <Import Project="packages\Microsoft.Direct3D.D3D12.1.711.3-preview\build\native\Microsoft.Direct3D.D3D12.props" Condition="Exists('packages\Microsoft.Direct3D.D3D12.1.711.3-preview\build\native\Microsoft.Direct3D.D3D12.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -58,6 +59,7 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
     <Import Project="packages\Microsoft.Direct3D.D3D12.1.711.3-preview\build\native\Microsoft.Direct3D.D3D12.targets" Condition="Exists('packages\Microsoft.Direct3D.D3D12.1.711.3-preview\build\native\Microsoft.Direct3D.D3D12.targets')" />
+    <Import Project="packages\Microsoft.Direct3D.DXC.1.8.2306.6-preview\build\native\Microsoft.Direct3D.DXC.targets" Condition="Exists('packages\Microsoft.Direct3D.DXC.1.8.2306.6-preview\build\native\Microsoft.Direct3D.DXC.targets')" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -162,5 +164,7 @@
     </PropertyGroup>
     <Error Condition="!Exists('packages\Microsoft.Direct3D.D3D12.1.711.3-preview\build\native\Microsoft.Direct3D.D3D12.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.Direct3D.D3D12.1.711.3-preview\build\native\Microsoft.Direct3D.D3D12.props'))" />
     <Error Condition="!Exists('packages\Microsoft.Direct3D.D3D12.1.711.3-preview\build\native\Microsoft.Direct3D.D3D12.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.Direct3D.D3D12.1.711.3-preview\build\native\Microsoft.Direct3D.D3D12.targets'))" />
+    <Error Condition="!Exists('packages\Microsoft.Direct3D.DXC.1.8.2306.6-preview\build\native\Microsoft.Direct3D.DXC.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.Direct3D.DXC.1.8.2306.6-preview\build\native\Microsoft.Direct3D.DXC.props'))" />
+    <Error Condition="!Exists('packages\Microsoft.Direct3D.DXC.1.8.2306.6-preview\build\native\Microsoft.Direct3D.DXC.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.Direct3D.DXC.1.8.2306.6-preview\build\native\Microsoft.Direct3D.DXC.targets'))" />
   </Target>
 </Project>
