@@ -56,7 +56,7 @@ static const uint c_numEntryRecords = 4;
 // Each thread group sends 2 records to secondNode asking it to do some work.
 // --------------------------------------------------------------------------------------------------------------------------------
 [Shader("node")]
-[NodeLaunch("Broadcasting")]
+[NodeLaunch("broadcasting")]
 [NodeMaxDispatchGrid(16,1,1)] // Contrived value, input records from the app only top out at grid size of 4.  
                               // This declaration should be as accurate as possible, but not too small (undefined behavior).
 [NumThreads(2,1,1)]
@@ -85,7 +85,7 @@ void firstNode(
 // Logs to the UAV and then sends a task to thirdNode
 // --------------------------------------------------------------------------------------------------------------------------------
 [Shader("node")]
-[NodeLaunch("Thread")]
+[NodeLaunch("thread")]
 void secondNode(
     ThreadNodeInputRecord<secondNodeInput> inputData,
     [MaxRecords(1)] NodeOutput<thirdNodeInput> thirdNode)
@@ -109,7 +109,7 @@ groupshared uint g_sum[c_numEntryRecords];
 // The thread group size happens to match this max input array size of 32, but doesn't have to.
 // --------------------------------------------------------------------------------------------------------------------------------
 [Shader("node")]
-[NodeLaunch("Coalescing")]
+[NodeLaunch("coalescing")]
 [NumThreads(32,1,1)]
 void thirdNode(
     [MaxRecords(32)] GroupNodeInputRecords<thirdNodeInput> inputData,

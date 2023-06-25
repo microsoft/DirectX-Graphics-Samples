@@ -126,7 +126,7 @@ struct interiorRecord2 // just contriving to make it clear the same record doesn
 
 
 [Shader("node")]
-[NodeLaunch("Broadcasting")]
+[NodeLaunch("broadcasting")]
 [NodeLocalRootArgumentsTableIndex(1)] // fixed table location, others will autopopulate if not specified
 [NodeDispatchGrid(10, 10, 10)]
 [NumThreads(2,1,1)]
@@ -167,7 +167,7 @@ void firstNode(
 }
 
 [Shader("node")]
-[NodeLaunch("Thread")]
+[NodeLaunch("thread")]
 void secondNode()
 {
     // Accumulate data to UAV
@@ -217,7 +217,7 @@ void thirdNodeAnotherShader(
 
 [Shader("node")]
 [NodeIsProgramEntry] // A node can be a program entry even if it is also interior to the graph
-[NodeLaunch("Thread")]
+[NodeLaunch("thread")]
 [NodeMaxRecursionDepth(3)]
 void fourthNode(
     ThreadNodeInputRecord<interiorRecord2> inputData,
@@ -244,7 +244,7 @@ void fourthNode(
 // Here's a node that's disconnected from the others in the graph.
 // A single work graph can have disconnected subgraphs that can run in parallel.
 [Shader("node")]
-[NodeLaunch("Broadcasting")]
+[NodeLaunch("broadcasting")]
 // NodeMaxDispatchGrid means grid size is in the input record, see SV_DispatchGrid in entryRecord2
 [NodeMaxDispatchGrid(100,100,100)] // normally, make this as tightly defined as possible
 [NumThreads(1, 1, 1)]
