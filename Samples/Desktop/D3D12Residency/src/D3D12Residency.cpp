@@ -538,7 +538,7 @@ void D3D12Residency::PopulateCommandList(std::shared_ptr<ManagedCommandList> pMa
     UINT64 unused, EvictedMemoryInBytes;
     m_residencyManager.QueryResidencyStats(unused, EvictedMemoryInBytes);
     WCHAR message[200];
-    swprintf_s(message, L"Total Allocated: %llu MB | Budget: %llu MB | Using: %llu MB | Evicted: %lld MB", m_totalAllocations >> 20, memoryInfo.Budget >> 20, memoryInfo.CurrentUsage >> 20, EvictedMemoryInBytes >> 20);
+    swprintf_s(message, L"Total Allocated: %llu MB | Budget: %llu MB | Using: %llu MB | Evicted: %llu MB", m_totalAllocations >> 20, memoryInfo.Budget >> 20, memoryInfo.CurrentUsage >> 20, EvictedMemoryInBytes >> 20);
     this->SetCustomWindowText(message);
 
     auto commandList = pManagedCommandList->commandList;
