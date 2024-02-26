@@ -24,7 +24,7 @@
 #include "d3d12.h"
 #include "d3dx12.h"
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 711; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 613; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 using namespace std;
@@ -42,8 +42,8 @@ LPCWSTR g_File = L"D3D12HelloWorkGraphs.hlsl";
 class D3DContext
 {
 public:
-    CComPtr<ID3D12DeviceExperimental> spDevice;
-    CComPtr<ID3D12GraphicsCommandListExperimental> spCL;
+    CComPtr<ID3D12Device14> spDevice;
+    CComPtr<ID3D12GraphicsCommandList10> spCL;
     CComPtr<ID3D12CommandQueue> spCQ;
     CComPtr<ID3D12CommandAllocator> spCA;
     CComPtr<ID3D12Fence> spFence;
@@ -63,7 +63,17 @@ HRESULT CompileDxilLibraryFromFile(
     *ppCode = nullptr;
 
     static HMODULE s_hmod = 0;
+    static HMODULE s_hmodDxil = 0;
     static DxcCreateInstanceProc s_pDxcCreateInstanceProc = nullptr;
+    if (s_hmodDxil == 0)
+    {
+        s_hmodDxil = LoadLibrary(L"dxil.dll");
+        if (s_hmodDxil == 0)
+        {
+            PRINT("dxil.dll missing or wrong architecture");
+            return E_FAIL;
+        }
+    }
     if (s_hmod == 0)
     {
         s_hmod = LoadLibrary(L"dxcompiler.dll");
@@ -145,8 +155,11 @@ HRESULT CompileDxilLibraryFromFile(
     CComPtr<IDxcBlobEncoding> pErrors;
     if (SUCCEEDED(operationResult->GetErrorBuffer(&pErrors)))
     {
-        PRINT("For preview, ignore any signing warnings below; dxil.dll signing unsupported.");
-        PRINT((LPCSTR)pErrors->GetBufferPointer());
+        auto pText = pErrors->GetBufferPointer();
+        if (pText)
+        {
+            PRINT(pText);
+        }
     }
 
     return hr;
@@ -155,14 +168,6 @@ HRESULT CompileDxilLibraryFromFile(
 //=================================================================================================================================
 void InitDeviceAndContext(D3DContext& D3D)
 {
-    UUID Features[2] = { D3D12ExperimentalShaderModels,D3D12StateObjectsExperiment };
-    HRESULT hr = D3D12EnableExperimentalFeatures(_countof(Features), Features, nullptr, nullptr);
-    if (FAILED(hr))
-    {
-        PRINT("Failed to enable experimental features.  Is developer mode on?");
-    }
-    VERIFY_SUCCEEDED(D3D12EnableExperimentalFeatures(_countof(Features), Features, nullptr, nullptr));
-
     D3D.hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
     CComPtr<ID3D12Debug1> pDebug;
@@ -372,8 +377,8 @@ int main()
         D3DContext D3D;
         InitDeviceAndContext(D3D);
 
-        D3D12_FEATURE_DATA_D3D12_OPTIONS_EXPERIMENTAL Options;
-        VERIFY_SUCCEEDED(D3D.spDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS_EXPERIMENTAL, &Options, sizeof(Options)));
+        D3D12_FEATURE_DATA_D3D12_OPTIONS21 Options;
+        VERIFY_SUCCEEDED(D3D.spDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS21, &Options, sizeof(Options)));
         if (Options.WorkGraphsTier == D3D12_WORK_GRAPHS_TIER_NOT_SUPPORTED)
         {
             PRINT("Device does not report support for work graphs.");
