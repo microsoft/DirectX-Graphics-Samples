@@ -91,7 +91,7 @@ HRESULT CompileFromFile(
     static DxcCreateInstanceProc s_pDxcCreateInstanceProc = nullptr;
     if (s_hmodDxil == 0)
     {
-        s_hmodDxil = LoadLibrary(L"..\\..\\sdkbin\\dxil.dll");
+        s_hmodDxil = LoadLibrary(L"dxil.dll");
         if (s_hmodDxil == 0)
         {
             PRINT("dxil.dll missing or wrong architecture");
@@ -100,7 +100,7 @@ HRESULT CompileFromFile(
     }
     if (s_hmod == 0)
     {
-        s_hmod = LoadLibrary(L"..\\..\\sdkbin\\dxcompiler.dll");
+        s_hmod = LoadLibrary(L"dxcompiler.dll");
         if (s_hmod == 0)
         {
             PRINT("dxcompiler.dll missing or wrong architecture");
