@@ -9,6 +9,19 @@
 //
 //*********************************************************
 
+// This sample is the same as the D3D12HelloTriangle except it uses
+// generic programs in state objects to define pipelines (programs) instaed of
+// the previously existing PSO path. 
+// 
+// This sample also shows how to add an additional program permutation to an existing
+// state object using the AddToStateObject() API.  The addition is the program used for shading
+// a second triangle.
+// 
+// The interesting functions to compare vs D3D12HelloTriangle are:
+// LoadPipeline() - PSO equivalent shown commented out in there;
+// and PopulateCommandList() - SetProgram() is called instead of SetPipelineState()
+// 
+
 #include "stdafx.h"
 #include "D3D12HelloGenericPrograms.h"
 #include <windows.h>
@@ -320,14 +333,15 @@ void D3D12HelloGenericPrograms::LoadAssets()
         auto pVS = SODesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
         CD3DX12_SHADER_BYTECODE bcVS(vertexShader.Get());
         pVS->SetDXILLibrary(&bcVS);
-        pVS->DefineExport(L"myVS", L"*"); // take whatever the shader is and rename it to myVS.  
-                                          // Could have omitted this line, or specified just the name in the shader (one parameter),
-                                          // and the shader's name would be used without rename.
+        pVS->DefineExport(L"myRenamedVS", L"*"); // Take whatever the shader is and rename it to myVS.  Instead of "*" could have used the actual name of the shader.
+                                          // Also could have omitted this line completely, which would just import all exports in the binary (just one shader here), 
+                                          // using the name of the shader in the lib. Could also have listed the name of the shader in the lib on its own for the same effect
+                                          // (would ensure that the shader you are expecting is actually there)
 
         auto pPS = SODesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
-        pPS->DefineExport(L"myPS", L"*");
         CD3DX12_SHADER_BYTECODE bcPS(pixelShader.Get());
-        pPS->SetDXILLibrary(&bcPS);
+        pPS->SetDXILLibrary(&bcPS); // by not listing exports, just taking whatever is in the library
+
         // Don't need to add the following descs since they're all just default
         //auto pRast = SODesc.CreateSubobject<CD3DX12_RASTERIZER_SUBOBJECT>();
         //auto pBlend = SODesc.CreateSubobject<CD3DX12_BLEND_SUBOBJECT>();
@@ -345,8 +359,8 @@ void D3D12HelloGenericPrograms::LoadAssets()
 
         auto pGenericProgram = SODesc.CreateSubobject<CD3DX12_GENERIC_PROGRAM_SUBOBJECT>();
         pGenericProgram->SetProgramName(L"myGenericProgram");
-        pGenericProgram->AddExport(L"myVS");
-        pGenericProgram->AddExport(L"myPS");
+        pGenericProgram->AddExport(L"myRenamedVS");
+        pGenericProgram->AddExport(L"PSMain");
         pGenericProgram->AddSubobject(*pIL);
         pGenericProgram->AddSubobject(*pPrimitiveTopology);
         pGenericProgram->AddSubobject(*pRTFormats);
@@ -399,7 +413,6 @@ void D3D12HelloGenericPrograms::LoadAssets()
 
         CD3DX12_SHADER_BYTECODE bcPS(pixelShader2.Get());
         pPS->SetDXILLibrary(&bcPS);
-        pPS->DefineExport(L"PSMain2", L"*");// TODO: delete when newer compiler used.
 
         auto pPrimitiveTopology = SODesc.CreateSubobject<CD3DX12_PRIMITIVE_TOPOLOGY_SUBOBJECT>();
         pPrimitiveTopology->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
@@ -410,7 +423,7 @@ void D3D12HelloGenericPrograms::LoadAssets()
 
         auto pGenericProgram = SODesc.CreateSubobject<CD3DX12_GENERIC_PROGRAM_SUBOBJECT>();
         pGenericProgram->SetProgramName(L"myGenericProgram2");
-        pGenericProgram->AddExport(L"myVS");
+        pGenericProgram->AddExport(L"myRenamedVS");
         pGenericProgram->AddExport(L"PSMain2");
         pGenericProgram->AddSubobject(*pIL);
         pGenericProgram->AddSubobject(*pPrimitiveTopology);
