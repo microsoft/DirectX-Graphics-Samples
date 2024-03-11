@@ -53,5 +53,29 @@ This sample shows you how to use Libva for Windows to perform video processing e
 
 This sample shows you how to use Libva for Windows for inter-operating between D3D12 resources and VA surfaces. This sample depends on https://www.nuget.org/packages/Microsoft.Direct3D.VideoAccelerationCompatibilityPack/
 
+## Hello, Work Graphs! sample
+
+This sample acts as an introduction to work graphs.
+
+See the [D3D12 work graphs blog post](https://devblogs.microsoft.com/directx/d3d12-work-graphs/) for details.
+
+In particular, descriptions of the samples are in that post [here](https://devblogs.microsoft.com/directx/d3d12-work-graphs/#Samples).
+
+## Work Graphs Sandbox sample
+
+This sample acts as a slightly more elaborate version of the above hello work graphs sample.
+
+See the [D3D12 work graphs blog post](https://devblogs.microsoft.com/directx/d3d12-work-graphs/) for details.
+
+In particular, descriptions of the samples are in that post [here](https://devblogs.microsoft.com/directx/d3d12-work-graphs/#Samples).
+
+## Hello, Generic Programs! sample
+
+This sample shows how to use generic programs in state objects as an alternative to previous ways of making pipeline state.  It also demonstrates using AddToStateObject() to make a new program resuing an existing shader along with a new one.
+
+See the [D3D12 work graphs blog post](https://devblogs.microsoft.com/directx/d3d12-work-graphs/) for details.
+
+In particular, descriptions of the samples are in that post [here](https://devblogs.microsoft.com/directx/d3d12-work-graphs/#Samples).
+
 ### Optional features
 The Texture and Constant Buffer samples have been updated to build against the Windows 10 Anniversary Update SDK. In this SDK a new revision of Root Signatures is available for Direct3D 12 apps to use. Root Signature 1.1 allows for apps to declare when descriptors in a descriptor heap won't change or the data descriptors point to won't change.  This allows the option for drivers to make optimizations that might be possible knowing that something (like a descriptor or the memory it points to) is static for some period of time.

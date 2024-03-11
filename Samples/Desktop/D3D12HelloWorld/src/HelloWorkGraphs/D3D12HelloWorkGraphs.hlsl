@@ -129,11 +129,11 @@ void thirdNode(
 
     // New way to do barriers by parameter.
     // This instance is like GroupMemoryBarrierWithGroupSync();
-    Barrier(GROUP_SHARED_MEMORY, GROUP_VISIBLE, GROUP_SYNC);
+    Barrier(GROUP_SHARED_MEMORY, GROUP_SCOPE|GROUP_SYNC);
 
     InterlockedAdd(g_sum[inputData[threadIndex].entryRecordIndex],1);
 
-    Barrier(GROUP_SHARED_MEMORY, GROUP_VISIBLE, GROUP_SYNC);
+    Barrier(GROUP_SHARED_MEMORY, GROUP_SCOPE|GROUP_SYNC);
 
     if (threadIndex > 0)
         return;
