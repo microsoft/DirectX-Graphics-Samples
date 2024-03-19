@@ -33,14 +33,12 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
-#include <atlbase.h>
 #include <assert.h>
 #include <array>
 #include <unordered_map>
 
 #include <dxgi1_6.h>
 #include <d3d12.h>
-#include <atlbase.h>
 #include "d3dx12.h"
 
 #include <DirectXMath.h>

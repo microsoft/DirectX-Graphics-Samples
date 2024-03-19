@@ -33,12 +33,10 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
-#include <atlbase.h>
 #include <assert.h>
 
 #include <dxgi1_6.h>
 #include <d3d12.h>
-#include <atlbase.h>    // Make sure you install "C++ ATL for latest build tools" with VS Installer
 #include "d3dx12.h"
 
 #ifdef _DEBUG
