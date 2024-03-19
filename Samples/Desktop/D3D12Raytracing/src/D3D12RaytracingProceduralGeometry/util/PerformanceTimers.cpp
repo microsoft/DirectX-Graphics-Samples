@@ -138,6 +138,7 @@ double CPUTimer::GetElapsedMS(uint32_t timerid) const
 void GPUTimer::BeginFrame(_In_ ID3D12GraphicsCommandList* commandList)
 {
     UNREFERENCED_PARAMETER(commandList);
+    m_usedQueries = 0;
 }
 
 void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
@@ -145,7 +146,7 @@ void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
     // Resolve query for the current frame.
     static UINT resolveToFrameID = 0;
     UINT64 resolveToBaseAddress = resolveToFrameID * c_timerSlots * sizeof(UINT64);
-    commandList->ResolveQueryData(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, c_timerSlots, m_buffer.Get(), resolveToBaseAddress);
+    commandList->ResolveQueryData(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, m_usedQueries, m_buffer.Get(), resolveToBaseAddress);
 
     // Grab read-back data for the queries from a finished frame m_maxframeCount ago.                                                           
     UINT readBackFrameID = (resolveToFrameID + 1) % (m_maxframeCount + 1);
@@ -153,15 +154,15 @@ void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
     D3D12_RANGE dataRange =
     {
         readBackBaseOffset,
-        readBackBaseOffset + c_timerSlots * sizeof(UINT64),
+        readBackBaseOffset + m_usedQueries * sizeof(UINT64),
     };
 
     UINT64* timingData;
     ThrowIfFailed(m_buffer->Map(0, &dataRange, reinterpret_cast<void**>(&timingData)));
-    memcpy(m_timing, timingData, sizeof(UINT64) * c_timerSlots);
+    memcpy(m_timing, timingData, sizeof(UINT64) * m_usedQueries);
     m_buffer->Unmap(0, nullptr);
 
-    for (uint32_t j = 0; j < c_maxTimers; ++j)
+    for (uint32_t j = 0; j < m_usedQueries / 2; ++j)
     {
         UINT64 start = m_timing[j * 2];
         UINT64 end = m_timing[j * 2 + 1];
@@ -177,18 +178,22 @@ void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
 
 void GPUTimer::Start(_In_ ID3D12GraphicsCommandList* commandList, uint32_t timerid)
 {
+    if (timerid * 2 != m_usedQueries)
+        throw std::out_of_range("Timer ID sequence break");
     if (timerid >= c_maxTimers)
         throw std::out_of_range("Timer ID out of range");
 
-    commandList->EndQuery(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, timerid * 2);
+    commandList->EndQuery(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_usedQueries++);
 }
 
 void GPUTimer::Stop(_In_ ID3D12GraphicsCommandList* commandList, uint32_t timerid)
 {
+    if (timerid * 2 + 1 != m_usedQueries)
+        throw std::out_of_range("Timer ID sequence break");
     if (timerid >= c_maxTimers)
         throw std::out_of_range("Timer ID out of range");
 
-    commandList->EndQuery(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, timerid * 2 + 1);
+    commandList->EndQuery(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_usedQueries++);
 }
 
 void GPUTimer::Reset()

@@ -1334,7 +1334,7 @@ void D3D12RaytracingProceduralGeometry::CalculateFrameStats()
 
         frameCnt = 0;
         prevTime = totalTime;
-        float raytracingTime = static_cast<float>(m_gpuTimers[GpuTimers::Raytracing].GetElapsedMS());
+        float raytracingTime = static_cast<float>(m_gpuTimers[GpuTimers::Raytracing].GetAverageMS());
         float MRaysPerSecond = NumMRaysPerSecond(m_width, m_height, raytracingTime);
         
         wstringstream windowText;
