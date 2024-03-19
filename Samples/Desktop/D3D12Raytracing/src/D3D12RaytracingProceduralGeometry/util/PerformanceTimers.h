@@ -124,6 +124,7 @@ namespace DX
         float                                   m_avg[c_maxTimers];
         UINT64                                  m_timing[c_timerSlots];
         size_t                                  m_maxframeCount;
+        UINT                                    m_usedQueries;
 
     };
 }

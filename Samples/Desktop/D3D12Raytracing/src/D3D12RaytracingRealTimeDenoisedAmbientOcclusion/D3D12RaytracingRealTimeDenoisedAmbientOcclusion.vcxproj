@@ -102,8 +102,8 @@
       <TreatOutputAsContent>true</TreatOutputAsContent>
     </CustomBuild>
     <FxCompile>
-      <EntryPointName />
-      <ObjectFileOutput />
+      <EntryPointName></EntryPointName>
+      <ObjectFileOutput></ObjectFileOutput>
       <AdditionalIncludeDirectories>$(ProjectDir);RTAO/shaders;SampleCore/shaders;SampleCore/shaders/util</AdditionalIncludeDirectories>
     </FxCompile>
   </ItemDefinitionGroup>
@@ -138,8 +138,8 @@
       <TreatOutputAsContent>true</TreatOutputAsContent>
     </CustomBuild>
     <FxCompile>
-      <EntryPointName />
-      <ObjectFileOutput />
+      <EntryPointName></EntryPointName>
+      <ObjectFileOutput></ObjectFileOutput>
       <AdditionalIncludeDirectories>$(ProjectDir);RTAO/shaders;SampleCore/shaders;SampleCore/shaders/util</AdditionalIncludeDirectories>
     </FxCompile>
   </ItemDefinitionGroup>
@@ -331,6 +331,7 @@
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">g_p%(Filename)</VariableName>
     </FxCompile>
     <FxCompile Include="SampleCore\Shaders\Pathtracer.hlsl">
+      <EntryPointName></EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/Zpr %(AdditionalOptions)</AdditionalOptions>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.3</ShaderModel>
@@ -405,6 +406,7 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <FxCompile Include="RTAO\Shaders\RTAO.hlsl">
+      <EntryPointName></EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
