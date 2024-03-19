@@ -117,6 +117,7 @@ namespace DX
 
     private:
         static const size_t c_timerSlots = c_maxTimers * 2;
+        uint32_t m_timersThisFrame = 0;
 
         Microsoft::WRL::ComPtr<ID3D12QueryHeap> m_heap;
         Microsoft::WRL::ComPtr<ID3D12Resource>  m_buffer;

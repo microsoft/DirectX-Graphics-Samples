@@ -145,7 +145,7 @@ void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
     // Resolve query for the current frame.
     static UINT resolveToFrameID = 0;
     UINT64 resolveToBaseAddress = resolveToFrameID * c_timerSlots * sizeof(UINT64);
-    commandList->ResolveQueryData(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, c_timerSlots, m_buffer.Get(), resolveToBaseAddress);
+    commandList->ResolveQueryData(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2 * m_timersThisFrame, m_buffer.Get(), resolveToBaseAddress);
 
     // Grab read-back data for the queries from a finished frame m_maxframeCount ago.                                                           
     UINT readBackFrameID = (resolveToFrameID + 1) % (m_maxframeCount + 1);
@@ -158,7 +158,7 @@ void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
 
     UINT64* timingData;
     ThrowIfFailed(m_buffer->Map(0, &dataRange, reinterpret_cast<void**>(&timingData)));
-    memcpy(m_timing, timingData, sizeof(UINT64) * c_timerSlots);
+    memcpy(m_timing, timingData, sizeof(UINT64) * (2 * m_timersThisFrame));
     m_buffer->Unmap(0, nullptr);
 
     for (uint32_t j = 0; j < c_maxTimers; ++j)
@@ -173,6 +173,7 @@ void GPUTimer::EndFrame(_In_ ID3D12GraphicsCommandList* commandList)
     }
 
     resolveToFrameID = readBackFrameID;
+    m_timersThisFrame = 0;
 }
 
 void GPUTimer::Start(_In_ ID3D12GraphicsCommandList* commandList, uint32_t timerid)
@@ -189,6 +190,7 @@ void GPUTimer::Stop(_In_ ID3D12GraphicsCommandList* commandList, uint32_t timeri
         throw std::out_of_range("Timer ID out of range");
 
     commandList->EndQuery(m_heap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, timerid * 2 + 1);
+    m_timersThisFrame++;
 }
 
 void GPUTimer::Reset()
