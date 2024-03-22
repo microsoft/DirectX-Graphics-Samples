@@ -135,7 +135,7 @@ float4x4 RenderParticles( uint2 TileCoord, uint2 ST, uint NumParticles, uint Hit
         {
             // Get the next bit and then clear it
             uint SubIdx = firstbitlow(ParticleMask);
-            ParticleMask ^= 1 << SubIdx;
+            ParticleMask ^= 1u << SubIdx;
 
             // Get global particle index from sorted buffer and then load the particle
             uint SortKey = g_SortedParticles[BinStart + SubIdx];

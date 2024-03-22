@@ -308,7 +308,7 @@ uint64_t Ballot64(bool b)
 uint PullNextBit( inout uint bits )
 {
     uint bitIndex = firstbitlow(bits);
-    bits ^= 1 << bitIndex;
+    bits ^= 1u << bitIndex;
     return bitIndex;
 }
 

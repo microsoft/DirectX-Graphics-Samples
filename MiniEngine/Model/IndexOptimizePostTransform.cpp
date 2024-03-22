@@ -271,7 +271,7 @@ void OptimizeFaces(const SrcIndexType* indexList, size_t indexCount, DstIndexTyp
         vertexDataList[vertexRemap[i]].activeFaceListSize++;
     }
 
-    const size_t kEvictedCacheIndex = std::numeric_limits<DstIndexType>::max();
+    constexpr size_t kEvictedCacheIndex = std::numeric_limits<DstIndexType>::max();
     {
         // allocate face list per vertex
         size_t curActiveFaceListPos = 0;
@@ -319,7 +319,7 @@ void OptimizeFaces(const SrcIndexType* indexList, size_t indexCount, DstIndexTyp
     uint32_t bestFace = 0;
     float bestScore = -1.0f;
 
-    const float maxValenceScore = FindVertexScore(1, kEvictedCacheIndex, lruCacheSize) * 3.0f;
+    //const float maxValenceScore = FindVertexScore(1, kEvictedCacheIndex, lruCacheSize) * 3.0f;
 
     uint32_t nextBestFace = 0;
     for (uint32_t i = 0; i < indexCount; i += 3)

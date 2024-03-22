@@ -138,6 +138,7 @@ void ManagedTexture::CreateFromMemory(ByteArray ba, eDefaultTexture fallback, bo
         if ( SUCCEEDED( CreateDDSTextureFromMemory( g_Device, (const uint8_t*)ba->data(), ba->size(),
             0, forceSRGB, m_pResource.GetAddressOf(), m_hCpuDescriptorHandle) ) )
         {
+            m_UsageState = D3D12_RESOURCE_STATE_GENERIC_READ;
             m_IsValid = true;
             D3D12_RESOURCE_DESC desc = GetResource()->GetDesc();
             m_Width = (uint32_t)desc.Width;

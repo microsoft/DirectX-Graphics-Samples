@@ -12,10 +12,7 @@
 *.ilk
 *.log
 * - Copy*.*
-Build_VS11
-Build_VS12
-Build_VS14
-Build_VS15
+Build_VS*
 Build
 Packages
 /ModelConverter/assimp.dll

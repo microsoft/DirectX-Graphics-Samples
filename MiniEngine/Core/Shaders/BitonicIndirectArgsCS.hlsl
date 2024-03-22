@@ -22,7 +22,7 @@ cbuffer Constants : register(b0)
 
 uint NextPow2( uint Val )
 {
-    uint Mask = (1 << firstbithigh(Val)) - 1;
+    uint Mask = (1u << firstbithigh(Val)) - 1;
     return (Val + Mask) & ~Mask;
 }
 
@@ -34,7 +34,7 @@ void main( uint GI : SV_GroupIndex )
         return;
 
     uint ListCount = g_CounterBuffer.Load(CounterOffset);
-    uint k = 2048 << GI;
+    uint k = 2048u << GI;
 
     // We need one more iteration every time the number of thread groups doubles
     if (k > NextPow2((ListCount + 2047) & ~2047))

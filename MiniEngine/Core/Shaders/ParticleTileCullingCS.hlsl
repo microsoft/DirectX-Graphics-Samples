@@ -106,7 +106,7 @@ void main( uint3 Gid : SV_GroupID, uint GI : SV_GroupIndex, uint3 GTid : SV_Grou
     ParticleCountInBin = min(MAX_PARTICLES_PER_BIN, ParticleCountInBin);
 
     // Compute the next power of two for the bitonic sort
-    uint NextPow2 = countbits(ParticleCountInBin) <= 1 ? ParticleCountInBin : (2 << firstbithigh(ParticleCountInBin));
+    uint NextPow2 = countbits(ParticleCountInBin) <= 1 ? ParticleCountInBin : (2u << firstbithigh(ParticleCountInBin));
 
     // Fill in the sort key array.  Each sort key has passenger data (in the least signficant
     // bits, so that as the sort keys are moved around, they retain a pointer to the particle
