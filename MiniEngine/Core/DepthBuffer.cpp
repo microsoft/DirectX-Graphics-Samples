@@ -117,6 +117,9 @@ void DepthBuffer::CreateDerivedViews( ID3D12Device* Device, DXGI_FORMAT Format )
         if (m_hStencilSRV.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
             m_hStencilSRV = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+        // Corrected an issue from defaulting to PlaneSlice=0
+        // https://github.com/microsoft/DirectX-Graphics-Samples/issues/281
+        SRVDesc.Texture2D.PlaneSlice = GetStencilPlaneSlice(Format);
         SRVDesc.Format = stencilReadFormat;
         Device->CreateShaderResourceView( Resource, &SRVDesc, m_hStencilSRV );
     }

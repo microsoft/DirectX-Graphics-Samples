@@ -54,6 +54,7 @@ protected:
     static DXGI_FORMAT GetDSVFormat( DXGI_FORMAT Format );
     static DXGI_FORMAT GetDepthFormat( DXGI_FORMAT Format );
     static DXGI_FORMAT GetStencilFormat( DXGI_FORMAT Format );
+    static UINT GetStencilPlaneSlice( DXGI_FORMAT format );
     static size_t BytesPerPixel( DXGI_FORMAT Format );
 
     uint32_t m_Width;
