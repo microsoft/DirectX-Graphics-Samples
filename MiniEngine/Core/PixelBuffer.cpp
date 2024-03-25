@@ -205,24 +205,6 @@ DXGI_FORMAT PixelBuffer::GetStencilFormat( DXGI_FORMAT defaultFormat )
     }
 }
 
-// https://github.com/microsoft/DirectX-Graphics-Samples/issues/281
-// https://microsoft.github.io/DirectX-Specs/d3d/PlanarDepthStencilDDISpec.html
-UINT PixelBuffer::GetStencilPlaneSlice(DXGI_FORMAT format)
-{
-    switch (format)
-    {
-    // 32-bit Z w/ separate stencil plane
-    case DXGI_FORMAT_R32G8X24_TYPELESS:
-    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
-    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
-        return 1;
-
-    default:
-        return 0;
-    }
-}
-
 //--------------------------------------------------------------------------------------
 // Return the BPP for a particular format
 //--------------------------------------------------------------------------------------
