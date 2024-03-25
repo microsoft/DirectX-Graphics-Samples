@@ -35,8 +35,8 @@ LPCWSTR g_File = L"D3D12HelloWorkGraphs.hlsl";
 // Look for "Start of interesting code" further below.
 //=================================================================================================================================
 
-#define PRINT(text) cout << text << "\n" << flush; 
-#define VERIFY_SUCCEEDED(hr) {if(FAILED(hr)) {PRINT("Error at: " << __FILE__ << ", line: " << __LINE__ << hex << hr); throw E_FAIL;} }
+#define PRINT(text) cout << (char*)text << "\n" << flush; 
+#define VERIFY_SUCCEEDED(hr) {HRESULT hrLocal = hr; if(FAILED(hrLocal)) {PRINT("Error at: " << __FILE__ << ", line: " << __LINE__ << ", HRESULT: 0x" << hex << hrLocal); throw E_FAIL;} }
 
 //=================================================================================================================================
 class D3DContext
