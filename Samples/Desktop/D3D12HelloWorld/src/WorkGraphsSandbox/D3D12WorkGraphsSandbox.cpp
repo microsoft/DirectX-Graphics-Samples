@@ -42,13 +42,13 @@ bool g_useWarpDevice = false;
 
 //=================================================================================================================================
 // Print with flush to get the text out in case there's delays in app
-#define PRINT(text) cout << text << "\n" << flush; 
+#define PRINT(text) cout << (char*)text << "\n" << flush; 
 #define PRINT_NO_NEWLINE(text) cout << text << flush; 
 
 //=================================================================================================================================
 void Analyze(HRESULT hr)
 {
-    PRINT("HRESULT == ");
+    PRINT_NO_NEWLINE("HRESULT == ");
     switch (hr)
     {
     case DXGI_ERROR_DEVICE_HUNG:
@@ -58,10 +58,10 @@ void Analyze(HRESULT hr)
         PRINT("DXGI_ERROR_DEVICE_REMOVED");
         break;
     default:
-        PRINT(hex << hr);
+        PRINT("0x" << hex << hr);
     }
 }
-#define VERIFY_SUCCEEDED(hr) {if(FAILED(hr)) {PRINT("Error at: " << __FILE__ << ", line: " << __LINE__ ); Analyze(hr); throw E_FAIL;} }
+#define VERIFY_SUCCEEDED(hr) {HRESULT hrLocal = hr; if(FAILED(hrLocal)) {PRINT_NO_NEWLINE("Error at: " << __FILE__ << ", line: " << __LINE__ << ", "); Analyze(hrLocal); throw E_FAIL;} }
 
 //=================================================================================================================================
 class D3DContext
