@@ -27,6 +27,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12WorkGraphsSandbox", "W
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloGenericPrograms", "HelloGenericPrograms\D3D12HelloGenericPrograms.vcxproj", "{7db43f09-7bd6-4e69-8987-9a919a142852}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloMeshNodes", "HelloMeshNodes\D3D12HelloMeshNodes.vcxproj", "{b9680899-f009-406b-beee-d0214c1e7592}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -81,6 +83,10 @@ Global
 		{7db43f09-7bd6-4e69-8987-9a919a142852}.Debug|x64.Build.0 = Debug|x64
 		{7db43f09-7bd6-4e69-8987-9a919a142852}.Release|x64.ActiveCfg = Release|x64
 		{7db43f09-7bd6-4e69-8987-9a919a142852}.Release|x64.Build.0 = Release|x64
+		{b9680899-f009-406b-beee-d0214c1e7592}.Debug|x64.ActiveCfg = Debug|x64
+		{b9680899-f009-406b-beee-d0214c1e7592}.Debug|x64.Build.0 = Debug|x64
+		{b9680899-f009-406b-beee-d0214c1e7592}.Release|x64.ActiveCfg = Release|x64
+		{b9680899-f009-406b-beee-d0214c1e7592}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
