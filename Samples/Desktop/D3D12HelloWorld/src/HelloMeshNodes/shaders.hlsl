@@ -12,7 +12,7 @@
 struct PSInput
 {
     float4 position : SV_POSITION;
-    float  redChannel : RED;
+    nointerpolation float  redChannel : RED;
 };
 
 struct MeshNodesGlobalStruct {
@@ -49,7 +49,7 @@ struct BinningRecord
 struct MeshNodeRecord
 {
     float4 position;
-    nointerpolation float redChannel;
+    float redChannel;
 };
 
 [Shader("node")]

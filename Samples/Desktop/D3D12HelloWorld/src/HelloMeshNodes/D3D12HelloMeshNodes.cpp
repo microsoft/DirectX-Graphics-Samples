@@ -10,16 +10,23 @@
 //*********************************************************
 
 // This sample is the same as the D3D12HelloTriangle except it uses
-// a work graph with mesh nodes instead of
-// the previously existing PSO path. 
+// a work graph with mesh nodes instead of the previously existing PSO path. 
 // 
-// This sample also shows how to add an additional program permutation to an existing
-// state object using the AddToStateObject() API.  The addition is the program used for shading
-// a second triangle.
+// The graph has a root node and routes input across a small number of
+// "material" mesh nodes in an array.  The mesh nodes happen to use the 
+// same mesh node shader but vary other properties like pixel shader
+// or local root argument data.  Each work item draws a triangle with 
+// position or color varying depending on a combination of input record data,
+// "material" selection, local root argument data and global root argument data.
+// 
+// The mesh nodes are also marked as graph entry points in addition to the 
+// root node above them.  So some input records are fed directly to the leaf mesh 
+// nodes from the command list, just to illustrate that possibility. In fact
+// one could have a graph consisting of only leaf nodes, so that graph inputs
+// are basically directly selecting which mesh nodes to run.
 // 
 // The interesting functions to compare vs D3D12HelloTriangle are:
-// LoadPipeline() - PSO equivalent shown commented out in there;
-// and PopulateCommandList() - SetProgram() is called instead of SetPipelineState()
+// LoadPipeline() and PopulateCommandList().
 // 
 
 #include "stdafx.h"
