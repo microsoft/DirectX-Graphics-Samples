@@ -70,21 +70,20 @@ void Root(
 struct MeshOutVert
 {
     float4 position : SV_POSITION;
-	//float redChannel : RED;
 };
 
 struct MeshOutPrim
 {
-	float redChannel : RED;
+    float redChannel : RED;
 };
 
 [Shader("node")]
 [NodeLaunch("mesh")]
 [NumThreads(1,1,1)]
 [NodeDispatchGrid(1,1,1)]
-[NodeIsProgramEntry] // allow mesh nodes to also act as direct program entry (for fun)
+[NodeIsProgramEntry] // allow mesh node to also act as direct program entry (for fun)
 [OutputTopology("triangle")]
-void Mesh1(
+void Mesh(
     DispatchNodeInputRecord<MeshNodeRecord> input,
     out vertices MeshOutVert verts[3],
     out primitives MeshOutPrim prim[1],
@@ -96,9 +95,6 @@ void Mesh1(
     verts[0].position = center + float4(0, 0.1f, 0, 0);
     verts[1].position = center + float4(0.1f, -0.1f, 0, 0);
     verts[2].position = center + float4(-0.1f, -0.1f, 0, 0);
-//    verts[0].redChannel = input.Get().redChannel;
-//    verts[1].redChannel = input.Get().redChannel;
-//    verts[2].redChannel = input.Get().redChannel;
     prim[0].redChannel = input.Get().redChannel;
     idx[0] = uint3(0, 1, 2);
 }

@@ -52,7 +52,6 @@ private:
         ComPtr<ID3D12Resource> spLocalRootArgumentsTable;
         D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE LocalRootArgumentsTable = {};
 
-        int MaxLocalRootArgumentsTableIndex = -1;
         UINT NumEntrypoints = 0;
         UINT NumNodes = 0;
         UINT WorkGraphIndex = 0;

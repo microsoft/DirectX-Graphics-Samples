@@ -209,12 +209,11 @@ void D3D12HelloMeshNodes::LoadPipeline()
         ));
     }
 
-    D3D12_FEATURE_DATA_SHADER_MODEL shaderModel;
-    shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_9;
-    ThrowIfFailed(m_device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel)));
-    if (shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_9)
-    {
-        OutputDebugStringA("Mesh nodes require a device with shader model 6.9 experimental support.");
+    D3D12_FEATURE_DATA_D3D12_OPTIONS21 Options;
+    ThrowIfFailed(m_device->CheckFeatureSupport(
+        D3D12_FEATURE_D3D12_OPTIONS21, &Options, sizeof(Options)));
+    if (Options.WorkGraphsTier < D3D12_WORK_GRAPHS_TIER_1_1) {
+        OutputDebugStringA("Device does not report support for work graphs tier 1.1 (mesh nodes).");
         ThrowIfFailed(E_FAIL);
     }
 
@@ -291,107 +290,163 @@ void D3D12HelloMeshNodes::LoadAssets()
         ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
     }
 
-    // Create a work graph in a state object, including first compiling shaders
+    // Compile shaders and create a state object
     {
         ComPtr<ID3DBlob> pixelShader;
         ComPtr<ID3DBlob> pixelShader2;
         ComPtr<ID3DBlob> libShaders;
 
-        ThrowIfFailed(CompileDxilLibraryFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), L"PSMain", L"ps_6_0", nullptr, 0, nullptr, 0, &pixelShader));
-        ThrowIfFailed(CompileDxilLibraryFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), L"PSMain2", L"ps_6_0", nullptr, 0, nullptr, 0, &pixelShader2));
-        LPCWSTR cDefines[] = { L"-D LIB_TARGET", L"-select-validator internal", L"-enable-16bit-types"};
-        ThrowIfFailed(CompileDxilLibraryFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, L"lib_6_9", cDefines, _countof(cDefines), nullptr, 0, &libShaders));
+        // Compile shaders
+        
+        // Pixel shaders must be compiled via non-lib shader target, e.g. ps_6_0:
+        ThrowIfFailed(CompileDxilLibraryFromFile(
+            GetAssetFullPath(L"shaders.hlsl").c_str(), 
+            L"PSMain", L"ps_6_0", nullptr, 0, nullptr, 0, &pixelShader));
 
-        ThrowIfFailed(m_device->CreateRootSignatureFromSubobjectInLibrary(0, libShaders->GetBufferPointer(), libShaders->GetBufferSize(), L"MeshNodesGlobalRS", IID_PPV_ARGS(&m_globalRootSignature)));
+        ThrowIfFailed(CompileDxilLibraryFromFile(
+            GetAssetFullPath(L"shaders.hlsl").c_str(), 
+            L"PSMain2", L"ps_6_0", nullptr, 0, nullptr, 0, &pixelShader2));
+
+        LPCWSTR cDefines[] = { 
+            L"-D LIB_TARGET", 
+            L"-select-validator internal", 
+            L"-enable-16bit-types"};
+
+        // Node shaders use lib target, lib_6_9 here for mesh node support:
+        ThrowIfFailed(CompileDxilLibraryFromFile(
+            GetAssetFullPath(L"shaders.hlsl").c_str(), 
+            nullptr, L"lib_6_9", cDefines, _countof(cDefines), nullptr, 0, &libShaders));
+
+        ThrowIfFailed(m_device->CreateRootSignatureFromSubobjectInLibrary(0, 
+            libShaders->GetBufferPointer(), 
+            libShaders->GetBufferSize(), 
+            L"MeshNodesGlobalRS", 
+            IID_PPV_ARGS(&m_globalRootSignature)));
+
+        // Create state object
 
         CD3DX12_STATE_OBJECT_DESC SODesc;
         SODesc.SetStateObjectType(D3D12_STATE_OBJECT_TYPE_EXECUTABLE);
 
+        // Work graphs with mesh nodes need to use graphics global root arguments
+        // (as opposed to compute):
         auto pSOConfig = SODesc.CreateSubobject<CD3DX12_STATE_OBJECT_CONFIG_SUBOBJECT>();
-        pSOConfig->SetFlags(D3D12_STATE_OBJECT_FLAG_WORK_GRAPHS_USE_GRAPHICS_STATE_FOR_GLOBAL_ROOT_SIGNATURE);
+        pSOConfig->SetFlags(
+            D3D12_STATE_OBJECT_FLAG_WORK_GRAPHS_USE_GRAPHICS_STATE_FOR_GLOBAL_ROOT_SIGNATURE);
 
-        auto pGlobalRootSig = SODesc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
+        // Add global root signature
+        auto pGlobalRootSig = 
+            SODesc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
         pGlobalRootSig->SetRootSignature(m_globalRootSignature.Get());
 
+        // Add DXIL library with node shaders and local root signature definition
         auto pLib = SODesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
         CD3DX12_SHADER_BYTECODE bcLib(libShaders.Get());
         pLib->SetDXILLibrary(&bcLib);
         pLib->DefineExport(L"Root");
-        pLib->DefineExport(L"Mesh1");
+        pLib->DefineExport(L"Mesh");
         pLib->DefineExport(L"MeshNodesLocalRS");
 
-        auto pGlobalRSAssoc = SODesc.CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+        // Add pixel shaders
+        auto pPS = SODesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+        CD3DX12_SHADER_BYTECODE bcPS(pixelShader.Get());
+        pPS->SetDXILLibrary(&bcPS); // by not listing exports, 
+                                    // just taking whatever is in the library
+
+        auto pPS2 = SODesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+        CD3DX12_SHADER_BYTECODE bcPS2(pixelShader2.Get());
+        pPS2->SetDXILLibrary(&bcPS2);
+
+        // Associate global root signature with pixel shaders 
+        // (the only shaders that reference it)
+        auto pGlobalRSAssoc = 
+            SODesc.CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         pGlobalRSAssoc->SetSubobjectToAssociate(*pGlobalRootSig);
-        pGlobalRSAssoc->AddExport(L"Root"); // TODO unneeded
-        pGlobalRSAssoc->AddExport(L"Mesh1"); // TODO unneeded
         pGlobalRSAssoc->AddExport(L"PSMain");
         pGlobalRSAssoc->AddExport(L"PSMain2");
 
-        auto pLocalRSAssoc = SODesc.CreateSubobject<CD3DX12_DXIL_SUBOBJECT_TO_EXPORTS_ASSOCIATION>();
+        // Associate local root signature with pixel shaders 
+        // (the only shaders that reference it)
+        auto pLocalRSAssoc = 
+            SODesc.CreateSubobject<CD3DX12_DXIL_SUBOBJECT_TO_EXPORTS_ASSOCIATION>();
         pLocalRSAssoc->SetSubobjectNameToAssociate(L"MeshNodesLocalRS");
         pLocalRSAssoc->AddExport(L"PSMain");
         pLocalRSAssoc->AddExport(L"PSMain2");
 
-        auto pPS = SODesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
-        CD3DX12_SHADER_BYTECODE bcPS(pixelShader.Get());
-        pPS->SetDXILLibrary(&bcPS); // by not listing exports, just taking whatever is in the library
-
-        auto pPS2 = SODesc.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
-        CD3DX12_SHADER_BYTECODE bcPS2(pixelShader2.Get());
-        pPS2->SetDXILLibrary(&bcPS2); 
-
+        // Add necessary building block subobjects for the mesh nodes
+        auto pPrimitiveTopology = 
+            SODesc.CreateSubobject<CD3DX12_PRIMITIVE_TOPOLOGY_SUBOBJECT>();
+        pPrimitiveTopology->SetPrimitiveTopologyType(
+            D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        auto pRTFormats = 
+            SODesc.CreateSubobject<CD3DX12_RENDER_TARGET_FORMATS_SUBOBJECT>();
+        pRTFormats->SetNumRenderTargets(1);
+        pRTFormats->SetRenderTargetFormat(0, DXGI_FORMAT_R8G8B8A8_UNORM);
         // Don't need to add the following descs since they're all just default
         //auto pRast = SODesc.CreateSubobject<CD3DX12_RASTERIZER_SUBOBJECT>();
         //auto pBlend = SODesc.CreateSubobject<CD3DX12_BLEND_SUBOBJECT>();
         //auto pDepth = SODesc.CreateSubobject<CD3DX12_DEPTH_STENCIL_DESC2>();
         //auto pSampleMask = SODesc.CreateSubobject<CD3DX12_SAMPLE_MASK_SUBOBJECT>();
         //auto pSampleDesc = SODesc.CreateSubobject<CD3DX12_SAMPLE_DESC_SUBOBJECT>();
-        auto pPrimitiveTopology = SODesc.CreateSubobject<CD3DX12_PRIMITIVE_TOPOLOGY_SUBOBJECT>();
-        pPrimitiveTopology->SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-        auto pRTFormats = SODesc.CreateSubobject<CD3DX12_RENDER_TARGET_FORMATS_SUBOBJECT>();
-        pRTFormats->SetNumRenderTargets(1);
-        pRTFormats->SetRenderTargetFormat(0, DXGI_FORMAT_R8G8B8A8_UNORM);
 
-        // Define generic programs out of the building blocks:  name, list of shaders, list of subobjects:
-        // (Can define multiple generic programs in the same state object, each picking the building blocks it wants)
-
-        auto pGenericProgram = SODesc.CreateSubobject<CD3DX12_GENERIC_PROGRAM_SUBOBJECT>();
+        // Define generic programs out of the building blocks:
+        // name, list of shaders, list of subobjects:
+        // (Can define multiple generic programs in the same state object, 
+        // each picking the building blocks it wants)
+        auto pGenericProgram = 
+            SODesc.CreateSubobject<CD3DX12_GENERIC_PROGRAM_SUBOBJECT>();
         pGenericProgram->SetProgramName(L"myMeshNode0");
-        pGenericProgram->AddExport(L"Mesh1");
+        pGenericProgram->AddExport(L"Mesh");
         pGenericProgram->AddExport(L"PSMain");
         pGenericProgram->AddSubobject(*pPrimitiveTopology);
         pGenericProgram->AddSubobject(*pRTFormats);
-        // Notice the root signature isn't being added to the list here.  Root signatures are associated with
-        // shader exports directly, not programs.  The single root sig in the state object above with no associations defined automatically
-        // becomes a default root sig that applies to all exports, so myVS and myPS get it.
 
-        auto pGenericProgram2 = SODesc.CreateSubobject<CD3DX12_GENERIC_PROGRAM_SUBOBJECT>();
+        // Notice the root signature isn't added to the list here.  
+        // Root signatures are associated with shader exports directly, not programs.  
+
+        // Second mesh node definition with just a different pixel shader
+        auto pGenericProgram2 = 
+            SODesc.CreateSubobject<CD3DX12_GENERIC_PROGRAM_SUBOBJECT>();
         pGenericProgram2->SetProgramName(L"myMeshNode1");
-        pGenericProgram2->AddExport(L"Mesh1");
+        pGenericProgram2->AddExport(L"Mesh");
         pGenericProgram2->AddExport(L"PSMain2");
         pGenericProgram2->AddSubobject(*pPrimitiveTopology);
         pGenericProgram2->AddSubobject(*pRTFormats);
 
-        auto pWorkGraph = SODesc.CreateSubobject<CD3DX12_WORK_GRAPH_SUBOBJECT>();
-
+        // Define a work graph
+        auto pWorkGraph = 
+            SODesc.CreateSubobject<CD3DX12_WORK_GRAPH_SUBOBJECT>();
         pWorkGraph->SetProgramName(L"myWorkGraph");
+
+        // Add root node to work graph
         auto pRootNode = pWorkGraph->CreateShaderNode(L"Root");
 
-        auto pMeshNode0 = pWorkGraph->CreateCommonProgramNodeOverrides(L"myMeshNode0");
+        // Add array of 3 nodes: {"MaterialID",0/1/2}
+
+        auto pMeshNode0 = 
+            pWorkGraph->CreateCommonProgramNodeOverrides(L"myMeshNode0");
         pMeshNode0->NewName({ L"Materials",0 });
         pMeshNode0->LocalRootArgumentsTableIndex(0);
 
-        auto pMeshNode1 = pWorkGraph->CreateCommonProgramNodeOverrides(L"myMeshNode1");
+        // Second node uses a different program "myMeshNode1" 
+        // and different local root argument data
+        auto pMeshNode1 = 
+            pWorkGraph->CreateCommonProgramNodeOverrides(L"myMeshNode1");
         pMeshNode1->NewName({ L"Materials",1 });
         pMeshNode1->LocalRootArgumentsTableIndex(1);
 
-        // This node is the same as the previous, but will use different local root argument data
-        auto pMeshNode2 = pWorkGraph->CreateCommonProgramNodeOverrides(L"myMeshNode1");
+        // Third node uses the same program as the previous, 
+        // only difference being local root argument data
+        auto pMeshNode2 = 
+            pWorkGraph->CreateCommonProgramNodeOverrides(L"myMeshNode1");
         pMeshNode2->NewName({ L"Materials",2 });
         pMeshNode2->LocalRootArgumentsTableIndex(2);
 
-        ThrowIfFailed(m_device->CreateStateObject(SODesc, IID_PPV_ARGS(&m_stateObject)));
+        ThrowIfFailed(
+            m_device->CreateStateObject(SODesc, 
+                IID_PPV_ARGS(&m_stateObject)));
 
+        // Define local root argument data
         struct MeshNodesLocalStruct {
             float blueChannel;
         };
@@ -399,7 +454,13 @@ void D3D12HelloMeshNodes::LoadAssets()
         MeshNodesLocalStruct LocalRootArgs[3] = { 0.f, 0.5f, 1.f };
 
         UINT MaxInputRecords = 10; // max input records per DispatchGraph call
-        InitWorkGraphContext(&m_workGraphContext, m_stateObject.Get(), L"myWorkGraph", LocalRootArgs, _countof(LocalRootArgs)*sizeof(MeshNodesLocalStruct), MaxInputRecords);
+        InitWorkGraphContext(
+            &m_workGraphContext, 
+            m_stateObject.Get(), 
+            L"myWorkGraph", 
+            LocalRootArgs, 
+            _countof(LocalRootArgs)*sizeof(MeshNodesLocalStruct), 
+            MaxInputRecords);
     }
 
     // Command lists are created in the recording state, but there is nothing
@@ -454,9 +515,16 @@ void D3D12HelloMeshNodes::PopulateCommandList()
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
     // Indicate that the back buffer will be used as a render target.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    m_commandList->ResourceBarrier(
+        1, 
+        &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), 
+            D3D12_RESOURCE_STATE_PRESENT, 
+            D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(
+        m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), 
+        m_frameIndex, 
+        m_rtvDescriptorSize);
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
     // Record commands.
@@ -471,7 +539,8 @@ void D3D12HelloMeshNodes::PopulateCommandList()
     SP.WorkGraph.BackingMemory = m_workGraphContext.BackingMemory;
     SP.WorkGraph.Flags = D3D12_SET_WORK_GRAPH_FLAG_INITIALIZE;
     SP.WorkGraph.ProgramIdentifier = m_workGraphContext.hWorkGraph;
-    SP.WorkGraph.NodeLocalRootArgumentsTable = m_workGraphContext.LocalRootArgumentsTable;
+    SP.WorkGraph.NodeLocalRootArgumentsTable = 
+        m_workGraphContext.LocalRootArgumentsTable;
     m_commandList->SetProgram(&SP);
     m_commandList->RSSetViewports(1, &m_viewport);
 
@@ -499,7 +568,9 @@ void D3D12HelloMeshNodes::PopulateCommandList()
     UINT totalRecords = (UINT)rootInputRecord.size();
 
     std::vector<D3D12_NODE_CPU_INPUT> multiNodeInput(3);
-    assert(m_workGraphContext.spWGProps->GetEntrypointIndex(m_workGraphContext.WorkGraphIndex, { L"Root",0 }) == 0);
+    assert(m_workGraphContext.spWGProps->GetEntrypointIndex(
+        m_workGraphContext.WorkGraphIndex, 
+        { L"Root",0 }) == 0);
 
     multiNodeInput[0].EntrypointIndex = 0;
     multiNodeInput[0].NumRecords = (UINT)rootInputRecord.size();
@@ -522,15 +593,18 @@ void D3D12HelloMeshNodes::PopulateCommandList()
 
     for (UINT i = 0; i < 2; i++)
     {
-        assert(m_workGraphContext.spWGProps->GetEntrypointIndex(m_workGraphContext.WorkGraphIndex, { L"Materials",i+1 }) == i+2);
-		multiNodeInput[i+1].EntrypointIndex = i+2;
-		multiNodeInput[i+1].NumRecords = (UINT)meshInputRecord[i].size();
-		multiNodeInput[i+1].pRecords = meshInputRecord[i].data();
-		multiNodeInput[i+1].RecordStrideInBytes = sizeof(MeshNodeRecord);
+        assert(m_workGraphContext.spWGProps->GetEntrypointIndex(
+            m_workGraphContext.WorkGraphIndex, 
+            { L"Materials",i+1 }) == i+2);
+        multiNodeInput[i+1].EntrypointIndex = i+2;
+        multiNodeInput[i+1].NumRecords = (UINT)meshInputRecord[i].size();
+        multiNodeInput[i+1].pRecords = meshInputRecord[i].data();
+        multiNodeInput[i+1].RecordStrideInBytes = sizeof(MeshNodeRecord);
     }
 
     assert(totalRecords <= m_workGraphContext.MaxInputRecords);
 
+    // Kick off work graph
     D3D12_DISPATCH_GRAPH_DESC DG;
     DG.Mode = D3D12_DISPATCH_MODE_MULTI_NODE_CPU_INPUT;
     DG.MultiNodeCPUInput.NumNodeInputs = (UINT)multiNodeInput.size();
@@ -540,7 +614,11 @@ void D3D12HelloMeshNodes::PopulateCommandList()
     m_commandList->DispatchGraph(&DG);
 
     // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    m_commandList->ResourceBarrier(1, 
+        &CD3DX12_RESOURCE_BARRIER::Transition(
+            m_renderTargets[m_frameIndex].Get(), 
+            D3D12_RESOURCE_STATE_RENDER_TARGET, 
+            D3D12_RESOURCE_STATE_PRESENT));
 
     ThrowIfFailed(m_commandList->Close());
 }
@@ -694,33 +772,36 @@ void D3D12HelloMeshNodes::InitWorkGraphContext(
     pSO->QueryInterface(IID_PPV_ARGS(&pCtx->spWGProps));
     pCtx->WorkGraphIndex = pCtx->spWGProps->GetWorkGraphIndex(pWorkGraphName);
 
-    pCtx->spWGProps->GetWorkGraphMemoryRequirements(pCtx->WorkGraphIndex, &pCtx->MemReqs);
-    pCtx->BackingMemory.SizeInBytes = pCtx->MemReqs.MaxSizeInBytes;
-    MakeBuffer(&pCtx->spBackingMemory, pCtx->BackingMemory.SizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-    pCtx->BackingMemory.StartAddress = pCtx->spBackingMemory->GetGPUVirtualAddress();
-    pCtx->NumEntrypoints = pCtx->spWGProps->GetNumEntrypoints(pCtx->WorkGraphIndex);
-    pCtx->NumNodes = pCtx->spWGProps->GetNumNodes(pCtx->WorkGraphIndex);
-
-    pCtx->spWGProps->SetMaximumInputRecords(pCtx->WorkGraphIndex,MaxInputRecords);
+    // Work graphs with mesh nodes require the max number of input records that will 
+    // be sent to a given DispatchGraph() call to be specified before retrieving 
+    // backing memory
+    pCtx->spWGProps->SetMaximumInputRecords(pCtx->WorkGraphIndex, MaxInputRecords);
     pCtx->MaxInputRecords = MaxInputRecords;
 
-    for (UINT i = 0; i < pCtx->NumNodes; i++)
-    {
-        UINT LRATIndex = pCtx->spWGProps->GetNodeLocalRootArgumentsTableIndex(pCtx->WorkGraphIndex, i);
-        // D3D12_NODE_ID ID = pCtx->spWGProps->GetNodeID(pCtx->WorkGraphIndex, i);
-        if (LRATIndex != -1)
-        {
-            pCtx->MaxLocalRootArgumentsTableIndex = max((int)LRATIndex, pCtx->MaxLocalRootArgumentsTableIndex);
-        }
-    }
+    pCtx->spWGProps->GetWorkGraphMemoryRequirements(
+        pCtx->WorkGraphIndex, 
+        &pCtx->MemReqs);
+    pCtx->BackingMemory.SizeInBytes = pCtx->MemReqs.MaxSizeInBytes;
+    MakeBuffer(
+        &pCtx->spBackingMemory, 
+        pCtx->BackingMemory.SizeInBytes, 
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    pCtx->BackingMemory.StartAddress = 
+        pCtx->spBackingMemory->GetGPUVirtualAddress();
+    pCtx->NumEntrypoints = 
+        pCtx->spWGProps->GetNumEntrypoints(pCtx->WorkGraphIndex);
+    pCtx->NumNodes = pCtx->spWGProps->GetNumNodes(pCtx->WorkGraphIndex);
 
-    if (pLocalRootArgumentsTable && LocalRootArgumentsTableSizeInBytes)
-    {
-        pCtx->LocalRootArgumentsTable.SizeInBytes = LocalRootArgumentsTableSizeInBytes;
-        MakeBufferAndInitialize(&pCtx->spLocalRootArgumentsTable, pLocalRootArgumentsTable,
+   if (pLocalRootArgumentsTable && LocalRootArgumentsTableSizeInBytes)
+   {
+        pCtx->LocalRootArgumentsTable.SizeInBytes = 
+            LocalRootArgumentsTableSizeInBytes;
+        MakeBufferAndInitialize(
+            &pCtx->spLocalRootArgumentsTable, 
+            pLocalRootArgumentsTable,
             pCtx->LocalRootArgumentsTable.SizeInBytes);
-        pCtx->LocalRootArgumentsTable.StartAddress = pCtx->spLocalRootArgumentsTable->GetGPUVirtualAddress();
+        pCtx->LocalRootArgumentsTable.StartAddress = 
+            pCtx->spLocalRootArgumentsTable->GetGPUVirtualAddress();
         pCtx->LocalRootArgumentsTable.StrideInBytes = sizeof(UINT);
     }
-
 }
