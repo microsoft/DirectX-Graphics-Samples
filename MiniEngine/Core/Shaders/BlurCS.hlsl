@@ -34,7 +34,7 @@ float3 BlurPixels( float3 a, float3 b, float3 c, float3 d, float3 e, float3 f, f
     return Weights[0]*e + Weights[1]*(d+f) + Weights[2]*(c+g) + Weights[3]*(b+h) + Weights[4]*(a+i);
 }
 
-// 16x16 pixels with an 8x8 center that we will be blurring writing out.  Each uint is two color channels packed together
+// 16x16 pixels with an 8x8 center that we will be blurring writing out. Each uint is two color channels packed together
 groupshared uint CacheR[128];
 groupshared uint CacheG[128];
 groupshared uint CacheB[128];
@@ -67,7 +67,7 @@ void Load1Pixel( uint index, out float3 pixel )
     pixel = asfloat( uint3(CacheR[index], CacheG[index], CacheB[index]) );
 }
 
-// Blur two pixels horizontally.  This reduces LDS reads and pixel unpacking.
+// Blur two pixels horizontally. This reduces LDS reads and pixel unpacking.
 void BlurHorizontally( uint outIndex, uint leftMostIndex )
 {
     float3 s0, s1, s2, s3, s4, s5, s6, s7, s8, s9;
@@ -77,6 +77,9 @@ void BlurHorizontally( uint outIndex, uint leftMostIndex )
     Load2Pixels( leftMostIndex + 3, s6, s7 );
     Load2Pixels( leftMostIndex + 4, s8, s9 );
     
+    // Be sure to finish loading values before we rewrite them.
+    GroupMemoryBarrierWithGroupSync();
+ 
     Store1Pixel(outIndex  , BlurPixels(s0, s1, s2, s3, s4, s5, s6, s7, s8));
     Store1Pixel(outIndex+1, BlurPixels(s1, s2, s3, s4, s5, s6, s7, s8, s9));
 }
@@ -104,8 +107,8 @@ void main( uint3 Gid : SV_GroupID, uint3 GTid : SV_GroupThreadID, uint3 DTid : S
     //
     // Load 4 pixels per thread into LDS
     //
-    int2 GroupUL = (Gid.xy << 3) - 4;                // Upper-left pixel coordinate of group read location
-    int2 ThreadUL = (GTid.xy << 1) + GroupUL;        // Upper-left pixel coordinate of quad that this thread will read
+    int2 GroupUL = (Gid.xy << 3) - 4;           // Upper-left pixel coordinate of group read location
+    int2 ThreadUL = (GTid.xy << 1) + GroupUL;   // Upper-left pixel coordinate of quad that this thread will read
 
     //
     // Store 4 unblurred pixels in LDS
