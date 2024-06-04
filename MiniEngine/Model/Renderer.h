@@ -22,7 +22,7 @@
 #include <cstdint>
 #include <vector>
 
-#include <d3d12.h>
+#include "include/d3d12.h"
 
 class GraphicsPSO;
 class RootSignature;
