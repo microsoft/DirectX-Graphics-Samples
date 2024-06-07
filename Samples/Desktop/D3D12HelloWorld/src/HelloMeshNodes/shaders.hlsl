@@ -82,8 +82,10 @@ struct MeshOutPrim
 [NumThreads(1,1,1)]
 [NodeDispatchGrid(1,1,1)]
 [NodeIsProgramEntry] // allow mesh node to also act as direct program entry (for fun)
+[NodeID("Materials",0)]
+//[NodeIsProgramEntry] // allow mesh node to also act as direct program entry (for fun)
 [OutputTopology("triangle")]
-void Mesh(
+void Materials(
     DispatchNodeInputRecord<MeshNodeRecord> input,
     out vertices MeshOutVert verts[3],
     out primitives MeshOutPrim prim[1],

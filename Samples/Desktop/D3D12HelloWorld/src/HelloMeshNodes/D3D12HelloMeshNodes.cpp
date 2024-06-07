@@ -36,7 +36,7 @@
 #include <iostream>
 #include <atlbase.h>
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 714; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 715; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 HRESULT CompileDxilLibraryFromFile(
@@ -344,7 +344,7 @@ void D3D12HelloMeshNodes::LoadAssets()
         CD3DX12_SHADER_BYTECODE bcLib(libShaders.Get());
         pLib->SetDXILLibrary(&bcLib);
         pLib->DefineExport(L"Root");
-        pLib->DefineExport(L"Mesh");
+        pLib->DefineExport(L"Materials");
         pLib->DefineExport(L"MeshNodesLocalRS");
 
         // Add pixel shaders
@@ -396,7 +396,7 @@ void D3D12HelloMeshNodes::LoadAssets()
         auto pGenericProgram = 
             SODesc.CreateSubobject<CD3DX12_GENERIC_PROGRAM_SUBOBJECT>();
         pGenericProgram->SetProgramName(L"myMeshNode0");
-        pGenericProgram->AddExport(L"Mesh");
+        pGenericProgram->AddExport(L"Materials");
         pGenericProgram->AddExport(L"PSMain");
         pGenericProgram->AddSubobject(*pPrimitiveTopology);
         pGenericProgram->AddSubobject(*pRTFormats);
@@ -408,7 +408,7 @@ void D3D12HelloMeshNodes::LoadAssets()
         auto pGenericProgram2 = 
             SODesc.CreateSubobject<CD3DX12_GENERIC_PROGRAM_SUBOBJECT>();
         pGenericProgram2->SetProgramName(L"myMeshNode1");
-        pGenericProgram2->AddExport(L"Mesh");
+        pGenericProgram2->AddExport(L"Materials");
         pGenericProgram2->AddExport(L"PSMain2");
         pGenericProgram2->AddSubobject(*pPrimitiveTopology);
         pGenericProgram2->AddSubobject(*pRTFormats);
@@ -417,6 +417,7 @@ void D3D12HelloMeshNodes::LoadAssets()
         auto pWorkGraph = 
             SODesc.CreateSubobject<CD3DX12_WORK_GRAPH_SUBOBJECT>();
         pWorkGraph->SetProgramName(L"myWorkGraph");
+        pWorkGraph->IncludeAllAvailableNodes();
 
         // Add root node to work graph
         auto pRootNode = pWorkGraph->CreateShaderNode(L"Root");
@@ -424,9 +425,7 @@ void D3D12HelloMeshNodes::LoadAssets()
         // Add array of 3 nodes: {"MaterialID",0/1/2}
 
         auto pMeshNode0 = 
-            pWorkGraph->CreateCommonProgramNodeOverrides(L"myMeshNode0");
-        pMeshNode0->NewName({ L"Materials",0 });
-        pMeshNode0->LocalRootArgumentsTableIndex(0);
+            pWorkGraph->CreateProgramNode(L"myMeshNode0");
 
         // Second node uses a different program "myMeshNode1" 
         // and different local root argument data
@@ -454,13 +453,15 @@ void D3D12HelloMeshNodes::LoadAssets()
         MeshNodesLocalStruct LocalRootArgs[3] = { 0.f, 0.5f, 1.f };
 
         UINT MaxInputRecords = 10; // max input records per DispatchGraph call
+        UINT MaxNodeInputs = 3; // max node inputs per DispatchGraph call
         InitWorkGraphContext(
             &m_workGraphContext, 
             m_stateObject.Get(), 
             L"myWorkGraph", 
             LocalRootArgs, 
             _countof(LocalRootArgs)*sizeof(MeshNodesLocalStruct), 
-            MaxInputRecords);
+            MaxInputRecords,
+            MaxNodeInputs);
     }
 
     // Command lists are created in the recording state, but there is nothing
@@ -527,6 +528,8 @@ void D3D12HelloMeshNodes::PopulateCommandList()
         m_rtvDescriptorSize);
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
+    m_commandList->RSSetViewports(1, &m_viewport);
+
     // Record commands.
     const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
@@ -542,7 +545,6 @@ void D3D12HelloMeshNodes::PopulateCommandList()
     SP.WorkGraph.NodeLocalRootArgumentsTable = 
         m_workGraphContext.LocalRootArgumentsTable;
     m_commandList->SetProgram(&SP);
-    m_commandList->RSSetViewports(1, &m_viewport);
 
     struct BinningRecord
     {
@@ -603,6 +605,7 @@ void D3D12HelloMeshNodes::PopulateCommandList()
     }
 
     assert(totalRecords <= m_workGraphContext.MaxInputRecords);
+    assert((UINT)multiNodeInput.size() <= m_workGraphContext.MaxInputRecords);
 
     // Kick off work graph
     D3D12_DISPATCH_GRAPH_DESC DG;
@@ -764,7 +767,8 @@ void D3D12HelloMeshNodes::InitWorkGraphContext(
     LPCWSTR pWorkGraphName,
     void* pLocalRootArgumentsTable,
     UINT LocalRootArgumentsTableSizeInBytes,
-    UINT MaxInputRecords)
+    UINT MaxInputRecords,
+    UINT MaxNodeInputs)
 {
     ComPtr<ID3D12StateObjectProperties1> spSOProps;
     pSO->QueryInterface(IID_PPV_ARGS(&spSOProps));
@@ -775,8 +779,10 @@ void D3D12HelloMeshNodes::InitWorkGraphContext(
     // Work graphs with mesh nodes require the max number of input records that will 
     // be sent to a given DispatchGraph() call to be specified before retrieving 
     // backing memory
-    pCtx->spWGProps->SetMaximumInputRecords(pCtx->WorkGraphIndex, MaxInputRecords);
+    pCtx->spWGProps->SetMaximumInputRecords(
+        pCtx->WorkGraphIndex, MaxInputRecords, MaxNodeInputs);
     pCtx->MaxInputRecords = MaxInputRecords;
+    pCtx->MaxNodeInputs = MaxNodeInputs;
 
     pCtx->spWGProps->GetWorkGraphMemoryRequirements(
         pCtx->WorkGraphIndex, 

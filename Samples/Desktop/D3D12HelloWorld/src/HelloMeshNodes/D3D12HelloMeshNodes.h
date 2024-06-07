@@ -56,6 +56,7 @@ private:
         UINT NumNodes = 0;
         UINT WorkGraphIndex = 0;
         UINT MaxInputRecords = 0;
+        UINT MaxNodeInputs = 0;
     };
 
     // Pipeline objects.
@@ -117,7 +118,8 @@ private:
         LPCWSTR pWorkGraphName,
         void* pLocalRootArgumentsTable,
         UINT LocalRootArgumentsTableSizeInBytes,
-        UINT MaxInputRecords);
+        UINT MaxInputRecords,
+        UINT MaxNodeInputs);
 
 };
 
