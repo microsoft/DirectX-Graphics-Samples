@@ -31,113 +31,62 @@
 
 #include "stdafx.h"
 #include "D3D12HelloMeshNodes.h"
-#include <windows.h>
-#include "dxcapi.h"
-#include <iostream>
-#include <atlbase.h>
 
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 715; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
-HRESULT CompileDxilLibraryFromFile(
-    _In_ LPCWSTR pFile,
-    _In_ LPCWSTR pEntry,
-    _In_ LPCWSTR pTarget,
-    _In_reads_(cArgs) LPCWSTR args[],
-    _In_ UINT cArgs,
-    _In_reads_(cDefines) DxcDefine* pDefines,
-    _In_ UINT cDefines,
-    _Out_ ID3DBlob** ppCode)
+void D3D12HelloMeshNodes::InitWorkGraphContext(
+    WorkGraphContext* pCtx,
+    ID3D12StateObject* pSO,
+    LPCWSTR pWorkGraphName,
+    void* pLocalRootArgumentsTable,
+    UINT LocalRootArgumentsTableSizeInBytes,
+    UINT MaxInputRecords,
+    UINT MaxNodeInputs)
 {
-    HRESULT hr = S_OK;
-    *ppCode = nullptr;
+    ComPtr<ID3D12StateObjectProperties1> spSOProps;
+    pSO->QueryInterface(IID_PPV_ARGS(&spSOProps));
+    pCtx->hWorkGraph = spSOProps->GetProgramIdentifier(pWorkGraphName);
+    pSO->QueryInterface(IID_PPV_ARGS(&pCtx->spWGProps));
+    pCtx->WorkGraphIndex = pCtx->spWGProps->GetWorkGraphIndex(pWorkGraphName);
 
-    static HMODULE s_hmod = 0;
-    static DxcCreateInstanceProc s_pDxcCreateInstanceProc = nullptr;
-    if (s_hmod == 0)
-    {
-        s_hmod = LoadLibrary(L"dxcompiler.dll");
-        if (s_hmod == 0)
-        {
-            OutputDebugStringA("dxcompiler.dll missing or wrong architecture");
-            return E_FAIL;
-        }
+    // Work graphs with mesh nodes require the max number of input records that will 
+    // be sent to a given DispatchGraph() call to be specified before retrieving 
+    // backing memory.
+    // Hopefully by the end of the preview phase this annoyance will no longer be necessary.
+    pCtx->spWGProps->SetMaximumInputRecords(
+        pCtx->WorkGraphIndex, MaxInputRecords, MaxNodeInputs);
+    pCtx->MaxInputRecords = MaxInputRecords;
+    pCtx->MaxNodeInputs = MaxNodeInputs;
 
-        if (s_pDxcCreateInstanceProc == nullptr)
-        {
-            s_pDxcCreateInstanceProc = (DxcCreateInstanceProc)GetProcAddress(s_hmod, "DxcCreateInstance");
-            if (s_pDxcCreateInstanceProc == nullptr)
-            {
-                OutputDebugStringA("Unable to find dxcompiler!DxcCreateInstance");
-                return E_FAIL;
-            }
-        }
-    }
+    pCtx->spWGProps->GetWorkGraphMemoryRequirements(
+        pCtx->WorkGraphIndex,
+        &pCtx->MemReqs);
+    pCtx->BackingMemory.SizeInBytes = pCtx->MemReqs.MaxSizeInBytes;
+    MakeBuffer(
+        &pCtx->spBackingMemory,
+        pCtx->BackingMemory.SizeInBytes,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    pCtx->BackingMemory.StartAddress =
+        pCtx->spBackingMemory->GetGPUVirtualAddress();
+    pCtx->NumEntrypoints =
+        pCtx->spWGProps->GetNumEntrypoints(pCtx->WorkGraphIndex);
+    pCtx->NumNodes = pCtx->spWGProps->GetNumNodes(pCtx->WorkGraphIndex);
 
-    ComPtr<IDxcCompiler> compiler;
-    ComPtr<IDxcLibrary> library;
-    ComPtr<IDxcBlobEncoding> source;
-    ComPtr<IDxcOperationResult> operationResult;
-    ComPtr<IDxcIncludeHandler> includeHandler;
-    hr = s_pDxcCreateInstanceProc(CLSID_DxcLibrary, IID_PPV_ARGS(&library));
-    if (FAILED(hr))
+    if (pLocalRootArgumentsTable && LocalRootArgumentsTableSizeInBytes)
     {
-        OutputDebugStringA("Failed to instantiate compiler.");
-        return hr;
+        pCtx->LocalRootArgumentsTable.SizeInBytes =
+            LocalRootArgumentsTableSizeInBytes;
+        MakeBufferAndInitialize(
+            &pCtx->spLocalRootArgumentsTable,
+            pLocalRootArgumentsTable,
+            pCtx->LocalRootArgumentsTable.SizeInBytes);
+        pCtx->LocalRootArgumentsTable.StartAddress =
+            pCtx->spLocalRootArgumentsTable->GetGPUVirtualAddress();
+        pCtx->LocalRootArgumentsTable.StrideInBytes = sizeof(UINT);
     }
-
-    HRESULT createBlobHr = library->CreateBlobFromFile(pFile, nullptr, &source);
-    if (createBlobHr != S_OK)
-    {
-        OutputDebugStringA("Create Blob From File Failed - perhaps file is missing?");
-        return E_FAIL;
-    }
-
-    hr = library->CreateIncludeHandler(&includeHandler);
-    if (FAILED(hr))
-    {
-        OutputDebugStringA("Failed to create include handler.");
-        return hr;
-    }
-    hr = s_pDxcCreateInstanceProc(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler));
-    if (FAILED(hr))
-    {
-        OutputDebugStringA("Failed to instantiate compiler.");
-        return hr;
-    }
-
-    hr = compiler->Compile(
-        source.Get(),
-        nullptr,
-        pEntry,
-        pTarget,
-        args, cArgs,
-        pDefines, cDefines,
-        includeHandler.Get(),
-        &operationResult);
-    if (FAILED(hr))
-    {
-        OutputDebugStringA("Failed to compile.");
-        return hr;
-    }
-
-    operationResult->GetStatus(&hr);
-    if (SUCCEEDED(hr))
-    {
-        hr = operationResult->GetResult((IDxcBlob**)ppCode);
-        if (FAILED(hr))
-        {
-            OutputDebugStringA("Failed to retrieve compiled code.");
-        }
-    }
-    CComPtr<IDxcBlobEncoding> pErrors;
-    if (SUCCEEDED(operationResult->GetErrorBuffer(&pErrors)))
-    {
-        OutputDebugStringA((LPCSTR)pErrors->GetBufferPointer());
-    }
-
-    return hr;
 }
+
 
 D3D12HelloMeshNodes::D3D12HelloMeshNodes(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
@@ -150,12 +99,12 @@ D3D12HelloMeshNodes::D3D12HelloMeshNodes(UINT width, UINT height, std::wstring n
 
 void D3D12HelloMeshNodes::OnInit()
 {
-    LoadPipeline();
-    LoadAssets();
+    GeneralSetup();
+    CreateWorkGraph();
 }
 
 // Load the rendering pipeline dependencies.
-void D3D12HelloMeshNodes::LoadPipeline()
+void D3D12HelloMeshNodes::GeneralSetup()
 {
     UINT dxgiFactoryFlags = 0;
 
@@ -245,7 +194,9 @@ void D3D12HelloMeshNodes::LoadPipeline()
         ));
 
     // This sample does not support fullscreen transitions.
-    ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
+    ThrowIfFailed(
+        factory->MakeWindowAssociation(Win32Application::GetHwnd(), 
+            DXGI_MWA_NO_ALT_ENTER));
 
     ThrowIfFailed(swapChain.As(&m_swapChain));
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
@@ -259,12 +210,14 @@ void D3D12HelloMeshNodes::LoadPipeline()
         rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
-        m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        m_rtvDescriptorSize = 
+            m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     }
 
     // Create frame resources.
     {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(
+            m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 
         // Create a RTV for each frame.
         for (UINT n = 0; n < FrameCount; n++)
@@ -275,13 +228,19 @@ void D3D12HelloMeshNodes::LoadPipeline()
         }
     }
 
-    ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
+    ThrowIfFailed(m_device->CreateCommandAllocator(
+        D3D12_COMMAND_LIST_TYPE_DIRECT, 
+        IID_PPV_ARGS(&m_commandAllocator)));
 }
 
-// Load the sample assets.
-void D3D12HelloMeshNodes::LoadAssets()
+void D3D12HelloMeshNodes::CreateWorkGraph()
 {
-    ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
+    ThrowIfFailed(m_device->CreateCommandList(0, 
+        D3D12_COMMAND_LIST_TYPE_DIRECT, 
+        m_commandAllocator.Get(), 
+        nullptr, 
+        IID_PPV_ARGS(&m_commandList)));
+
     ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
     m_fenceValue = 1;
     m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -453,7 +412,8 @@ void D3D12HelloMeshNodes::LoadAssets()
         MeshNodesLocalStruct LocalRootArgs[3] = { 0.f, 0.5f, 1.f };
 
         UINT MaxInputRecords = 10; // max input records per DispatchGraph call
-        UINT MaxNodeInputs = 3; // max node inputs per DispatchGraph call
+        UINT MaxNodeInputs = 3; // max node inputs per DispatchGraph call 
+                                // (that the records are split across)
         InitWorkGraphContext(
             &m_workGraphContext, 
             m_stateObject.Get(), 
@@ -702,7 +662,8 @@ void D3D12HelloMeshNodes::UploadData(
     UINT64 IntermediateSize = GetRequiredIntermediateSize(pResource, 0, 1);
     if (Size != IntermediateSize)
     {
-        OutputDebugStringA("Provided Size of pData needs to account for the whole buffer (i.e. equal to GetRequiredIntermediateSize() output)");
+        OutputDebugStringA(
+            "Provided Size of pData needs to account for the whole buffer (i.e. equal to GetRequiredIntermediateSize() output)");
         throw E_FAIL;
     }
 
@@ -761,53 +722,102 @@ void D3D12HelloMeshNodes::MakeBufferAndInitialize(
     UploadData(*ppResource, pInitialData, SizeInBytes, ppStagingResource, D3D12_RESOURCE_STATE_COMMON, doFlush);
 }
 
-void D3D12HelloMeshNodes::InitWorkGraphContext(
-    WorkGraphContext* pCtx, 
-    ID3D12StateObject* pSO, 
-    LPCWSTR pWorkGraphName,
-    void* pLocalRootArgumentsTable,
-    UINT LocalRootArgumentsTableSizeInBytes,
-    UINT MaxInputRecords,
-    UINT MaxNodeInputs)
+HRESULT CompileDxilLibraryFromFile(
+    _In_ LPCWSTR pFile,
+    _In_ LPCWSTR pEntry,
+    _In_ LPCWSTR pTarget,
+    _In_reads_(cArgs) LPCWSTR args[],
+    _In_ UINT cArgs,
+    _In_reads_(cDefines) DxcDefine* pDefines,
+    _In_ UINT cDefines,
+    _Out_ ID3DBlob** ppCode)
 {
-    ComPtr<ID3D12StateObjectProperties1> spSOProps;
-    pSO->QueryInterface(IID_PPV_ARGS(&spSOProps));
-    pCtx->hWorkGraph = spSOProps->GetProgramIdentifier(pWorkGraphName);
-    pSO->QueryInterface(IID_PPV_ARGS(&pCtx->spWGProps));
-    pCtx->WorkGraphIndex = pCtx->spWGProps->GetWorkGraphIndex(pWorkGraphName);
+    HRESULT hr = S_OK;
+    *ppCode = nullptr;
 
-    // Work graphs with mesh nodes require the max number of input records that will 
-    // be sent to a given DispatchGraph() call to be specified before retrieving 
-    // backing memory
-    pCtx->spWGProps->SetMaximumInputRecords(
-        pCtx->WorkGraphIndex, MaxInputRecords, MaxNodeInputs);
-    pCtx->MaxInputRecords = MaxInputRecords;
-    pCtx->MaxNodeInputs = MaxNodeInputs;
+    static HMODULE s_hmod = 0;
+    static DxcCreateInstanceProc s_pDxcCreateInstanceProc = nullptr;
+    if (s_hmod == 0)
+    {
+        s_hmod = LoadLibrary(L"dxcompiler.dll");
+        if (s_hmod == 0)
+        {
+            OutputDebugStringA("dxcompiler.dll missing or wrong architecture");
+            return E_FAIL;
+        }
 
-    pCtx->spWGProps->GetWorkGraphMemoryRequirements(
-        pCtx->WorkGraphIndex, 
-        &pCtx->MemReqs);
-    pCtx->BackingMemory.SizeInBytes = pCtx->MemReqs.MaxSizeInBytes;
-    MakeBuffer(
-        &pCtx->spBackingMemory, 
-        pCtx->BackingMemory.SizeInBytes, 
-        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-    pCtx->BackingMemory.StartAddress = 
-        pCtx->spBackingMemory->GetGPUVirtualAddress();
-    pCtx->NumEntrypoints = 
-        pCtx->spWGProps->GetNumEntrypoints(pCtx->WorkGraphIndex);
-    pCtx->NumNodes = pCtx->spWGProps->GetNumNodes(pCtx->WorkGraphIndex);
-
-   if (pLocalRootArgumentsTable && LocalRootArgumentsTableSizeInBytes)
-   {
-        pCtx->LocalRootArgumentsTable.SizeInBytes = 
-            LocalRootArgumentsTableSizeInBytes;
-        MakeBufferAndInitialize(
-            &pCtx->spLocalRootArgumentsTable, 
-            pLocalRootArgumentsTable,
-            pCtx->LocalRootArgumentsTable.SizeInBytes);
-        pCtx->LocalRootArgumentsTable.StartAddress = 
-            pCtx->spLocalRootArgumentsTable->GetGPUVirtualAddress();
-        pCtx->LocalRootArgumentsTable.StrideInBytes = sizeof(UINT);
+        if (s_pDxcCreateInstanceProc == nullptr)
+        {
+            s_pDxcCreateInstanceProc = (DxcCreateInstanceProc)GetProcAddress(s_hmod, "DxcCreateInstance");
+            if (s_pDxcCreateInstanceProc == nullptr)
+            {
+                OutputDebugStringA("Unable to find dxcompiler!DxcCreateInstance");
+                return E_FAIL;
+            }
+        }
     }
+
+    ComPtr<IDxcCompiler> compiler;
+    ComPtr<IDxcLibrary> library;
+    ComPtr<IDxcBlobEncoding> source;
+    ComPtr<IDxcOperationResult> operationResult;
+    ComPtr<IDxcIncludeHandler> includeHandler;
+    hr = s_pDxcCreateInstanceProc(CLSID_DxcLibrary, IID_PPV_ARGS(&library));
+    if (FAILED(hr))
+    {
+        OutputDebugStringA("Failed to instantiate compiler.");
+        return hr;
+    }
+
+    HRESULT createBlobHr = library->CreateBlobFromFile(pFile, nullptr, &source);
+    if (createBlobHr != S_OK)
+    {
+        OutputDebugStringA("Create Blob From File Failed - perhaps file is missing?");
+        return E_FAIL;
+    }
+
+    hr = library->CreateIncludeHandler(&includeHandler);
+    if (FAILED(hr))
+    {
+        OutputDebugStringA("Failed to create include handler.");
+        return hr;
+    }
+    hr = s_pDxcCreateInstanceProc(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler));
+    if (FAILED(hr))
+    {
+        OutputDebugStringA("Failed to instantiate compiler.");
+        return hr;
+    }
+
+    hr = compiler->Compile(
+        source.Get(),
+        nullptr,
+        pEntry,
+        pTarget,
+        args, cArgs,
+        pDefines, cDefines,
+        includeHandler.Get(),
+        &operationResult);
+    if (FAILED(hr))
+    {
+        OutputDebugStringA("Failed to compile.");
+        return hr;
+    }
+
+    operationResult->GetStatus(&hr);
+    if (SUCCEEDED(hr))
+    {
+        hr = operationResult->GetResult((IDxcBlob**)ppCode);
+        if (FAILED(hr))
+        {
+            OutputDebugStringA("Failed to retrieve compiled code.");
+        }
+    }
+    CComPtr<IDxcBlobEncoding> pErrors;
+    if (SUCCEEDED(operationResult->GetErrorBuffer(&pErrors)))
+    {
+        OutputDebugStringA((LPCSTR)pErrors->GetBufferPointer());
+    }
+
+    return hr;
 }

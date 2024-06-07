@@ -12,6 +12,10 @@
 #pragma once
 
 #include "DXSample.h"
+#include "dxcapi.h"
+#include <windows.h>
+#include <iostream>
+#include <atlbase.h>
 
 using namespace DirectX;
 
@@ -34,12 +38,6 @@ public:
 
 private:
     static const UINT FrameCount = 2;
-
-    struct Vertex
-    {
-        XMFLOAT3 position;
-        XMFLOAT4 color;
-    };
 
     struct WorkGraphContext
     {
@@ -84,8 +82,8 @@ private:
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValue;
 
-    void LoadPipeline();
-    void LoadAssets();
+    void GeneralSetup();
+    void CreateWorkGraph();
     void PopulateCommandList();
     void WaitForPreviousFrame();
 
@@ -122,6 +120,16 @@ private:
         UINT MaxNodeInputs);
 
 };
+
+HRESULT CompileDxilLibraryFromFile(
+    _In_ LPCWSTR pFile,
+    _In_ LPCWSTR pEntry,
+    _In_ LPCWSTR pTarget,
+    _In_reads_(cArgs) LPCWSTR args[],
+    _In_ UINT cArgs,
+    _In_reads_(cDefines) DxcDefine* pDefines,
+    _In_ UINT cDefines,
+    _Out_ ID3DBlob** ppCode);
 
 
 
