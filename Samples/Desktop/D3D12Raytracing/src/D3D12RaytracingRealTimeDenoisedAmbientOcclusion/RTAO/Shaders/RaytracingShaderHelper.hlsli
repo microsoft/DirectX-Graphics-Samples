@@ -270,12 +270,12 @@ float3 FresnelReflectanceSchlick(in float3 I, in float3 N, in float3 F0)
 
 float3 RemoveSRGB(float3 x)
 {
-	return x < 0.04045 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4);
+	return select(x < 0.04045, x / 12.92, pow((x + 0.055) / 1.055, 2.4));
 }
 
 float3 ApplySRGB(float3 x)
 {
-	return x < 0.0031308 ? 12.92 * x : 1.055 * pow(abs(x), 1.0 / 2.4) - 0.055;
+	return select(x < 0.0031308, 12.92 * x, 1.055 * pow(abs(x), 1.0 / 2.4) - 0.055);
 }
 
 uint SmallestPowerOf2GreaterThan(in uint x)
@@ -303,7 +303,7 @@ float FloatPrecision(in float x, in uint NumMantissaBits)
     uint nextPowerOfTwo = SmallestPowerOf2GreaterThan(x);
     float exponentRange = nextPowerOfTwo - (nextPowerOfTwo >> 1);
 
-    float MaxMantissaValue = 1 << NumMantissaBits;
+    float MaxMantissaValue = 1u << NumMantissaBits;
 
     return exponentRange / MaxMantissaValue;
 }
@@ -329,7 +329,7 @@ float FloatPrecisionR32(in float x)
 // Ref: https://knarkowicz.wordpress.com/2014/04/16/octahedron-normal-vector-encoding/
 float2 OctWrap(float2 v)
 {
-    return (1.0 - abs(v.yx)) * (v.xy >= 0.0 ? 1.0 : -1.0);
+    return (1.0 - abs(v.yx)) * select(v.xy >= 0.0, 1.0, -1.0);
 }
 
 // Converts a 3D unit vector to a 2D vector with <0,1> range. 
@@ -348,7 +348,7 @@ float3 DecodeNormal(float2 f)
     // https://twitter.com/Stubbesaurus/status/937994790553227264
     float3 n = float3(f.x, f.y, 1.0 - abs(f.x) - abs(f.y));
     float t = saturate(-n.z);
-    n.xy += n.xy >= 0.0 ? -t : t;
+    n.xy += select(n.xy >= 0.0, -t, t);
     return normalize(n);
 }
 /***************************************************************/

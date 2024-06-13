@@ -14,18 +14,19 @@
 #include "pch.h"
 #include "FileUtility.h"
 #include <fstream>
-#include <mutex>
-#include <zlib.h> // From NuGet package 
+//#include <zlib.h> // From NuGet package 
 
 using namespace std;
 using namespace Utility;
 
-namespace Utility
-{
-    ByteArray NullFile = make_shared<vector<byte> > (vector<byte>() );
-}
+//namespace Utility
+//{
+//    ByteArray NullFile = make_shared<vector<byte> > (vector<byte>() );
+//}
 
-ByteArray DecompressZippedFile( wstring& fileName );
+#define NullFile make_shared<vector<byte> >(vector<byte>())
+
+//ByteArray DecompressZippedFile( wstring& fileName );
 
 ByteArray ReadFileHelper(const wstring& fileName)
 {
@@ -47,14 +48,15 @@ ByteArray ReadFileHelper(const wstring& fileName)
 
 ByteArray ReadFileHelperEx( shared_ptr<wstring> fileName)
 {
-    std::wstring zippedFileName = *fileName + L".gz";
-    ByteArray firstTry = DecompressZippedFile(zippedFileName);
-    if (firstTry != NullFile)
-        return firstTry;
+    //std::wstring zippedFileName = *fileName + L".gz";
+    //ByteArray firstTry = DecompressZippedFile(zippedFileName);
+    //if (firstTry != NullFile)
+    //    return firstTry;
 
     return ReadFileHelper(*fileName);
 }
 
+/*
 ByteArray Inflate(ByteArray CompressedSource, int& err, uint32_t ChunkSize = 0x100000 ) 
 {
     // Create a dynamic buffer to hold compressed blocks
@@ -123,6 +125,7 @@ ByteArray DecompressZippedFile( wstring& fileName )
 
     return DecompressedFile;
 }
+*/
 
 ByteArray Utility::ReadFileSync( const wstring& fileName)
 {
