@@ -19,12 +19,10 @@
 using namespace std;
 using namespace Utility;
 
-//namespace Utility
-//{
-//    ByteArray NullFile = make_shared<vector<byte> > (vector<byte>() );
-//}
-
-#define NullFile make_shared<vector<byte> >(vector<byte>())
+namespace Utility
+{
+    ByteArray NullFile = make_shared<vector<byte> > (vector<byte>() );
+}
 
 //ByteArray DecompressZippedFile( wstring& fileName );
 
