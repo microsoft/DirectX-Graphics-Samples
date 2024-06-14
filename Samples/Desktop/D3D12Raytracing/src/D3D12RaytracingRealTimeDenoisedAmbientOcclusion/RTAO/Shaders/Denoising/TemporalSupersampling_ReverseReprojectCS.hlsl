@@ -140,7 +140,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
     
     // Invalidate weights for invalid values in the cache.
     float4 vCacheValues = g_inCachedValue.GatherRed(ClampSampler, adjustedCacheFrameTexturePos).wzxy;
-    weights = vCacheValues != RTAO::InvalidAOCoefficientValue ? weights : 0;
+    weights = select(vCacheValues != RTAO::InvalidAOCoefficientValue, weights, 0);
     float weightSum = dot(1, weights);
     
     float cachedValue = RTAO::InvalidAOCoefficientValue;

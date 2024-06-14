@@ -29,7 +29,7 @@
 
 // Analytic geometry intersection test.
 // AABB local space dimensions: <-1,1>.
-bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum analyticPrimitive, out float thit, out ProceduralPrimitiveAttributes attr)
+bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum analyticPrimitive, inout float thit, inout ProceduralPrimitiveAttributes attr)
 {
     float3 aabb[2] = {
         float3(-1,-1,-1),
@@ -47,7 +47,7 @@ bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum 
 
 // Analytic geometry intersection test.
 // AABB local space dimensions: <-1,1>.
-bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::Enum volumetricPrimitive, out float thit, out ProceduralPrimitiveAttributes attr, in float elapsedTime)
+bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::Enum volumetricPrimitive, inout float thit, inout ProceduralPrimitiveAttributes attr, in float elapsedTime)
 {
     switch (volumetricPrimitive)
     {

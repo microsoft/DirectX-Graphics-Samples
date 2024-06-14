@@ -25,7 +25,7 @@
 
 // Solve a quadratic equation.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-bool SolveQuadraticEqn(float a, float b, float c, out float x0, out float x1)
+bool SolveQuadraticEqn(float a, float b, float c, inout float x0, inout float x1)
 {
     float discr = b * b - 4 * a * c;
     if (discr < 0) return false;
@@ -51,7 +51,7 @@ float3 CalculateNormalForARaySphereHit(in Ray ray, in float thit, float3 center)
 
 // Analytic solution of an unbounded ray sphere intersection points.
 // Ref: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
-bool SolveRaySphereIntersectionEquation(in Ray ray, out float tmin, out float tmax, in float3 center, in float radius)
+bool SolveRaySphereIntersectionEquation(in Ray ray, inout float tmin, inout float tmax, in float3 center, in float radius)
 {
     float3 L = ray.origin - center;
     float a = dot(ray.direction, ray.direction);
@@ -61,7 +61,7 @@ bool SolveRaySphereIntersectionEquation(in Ray ray, out float tmin, out float tm
 }
 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a hollow sphere.
-bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, out ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
+bool RaySphereIntersectionTest(in Ray ray, inout float thit, inout float tmax, out ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
 {
     float t0, t1; // solutions for t if the ray intersects 
 
@@ -101,7 +101,7 @@ bool RaySphereIntersectionTest(in Ray ray, out float thit, out float tmax, out P
 
 // Test if a ray segment <RayTMin(), RayTCurrent()> intersects a solid sphere.
 // Limitation: this test does not take RayFlags into consideration and does not calculate a surface normal.
-bool RaySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax, in float3 center = float3(0, 0, 0), in float radius = 1)
+bool RaySolidSphereIntersectionTest(in Ray ray, inout float thit, inout float tmax, in float3 center = float3(0, 0, 0), in float radius = 1)
 {
     float t0, t1; // solutions for t if the ray intersects 
 
@@ -170,9 +170,7 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
     //  that a ray direction is parallel to. In that case
     //  0 * INF => NaN
     const float FLT_INFINITY = 1.#INF;
-    float3 invRayDirection = ray.direction != 0 
-                           ? 1 / ray.direction 
-                           : (ray.direction > 0) ? FLT_INFINITY : -FLT_INFINITY;
+    float3 invRayDirection = select(ray.direction != 0, 1 / ray.direction, select(ray.direction > 0, FLT_INFINITY, -FLT_INFINITY));
 
     tmin3.x = (aabb[1 - sign3.x].x - ray.origin.x) * invRayDirection.x;
     tmax3.x = (aabb[sign3.x].x - ray.origin.x) * invRayDirection.x;
@@ -190,7 +188,7 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
 }
 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a hollow AABB.
-bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float thit, out ProceduralPrimitiveAttributes attr)
+bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], inout float thit, inout ProceduralPrimitiveAttributes attr)
 {
     float tmin, tmax;
     if (RayAABBIntersectionTest(ray, aabb, tmin, tmax))
