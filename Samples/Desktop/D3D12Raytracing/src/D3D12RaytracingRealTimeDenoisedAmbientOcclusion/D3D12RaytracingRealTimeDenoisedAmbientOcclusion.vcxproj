@@ -73,6 +73,17 @@
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)..\Build_VS15\$(Platform)\$(Configuration)\Output\$(ProjectName)</IncludePath>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <FxCompile>
+      <EntryPointName></EntryPointName>
+      <ObjectFileOutput></ObjectFileOutput>
+      <AdditionalIncludeDirectories>$(ProjectDir);RTAO/shaders;SampleCore/shaders;SampleCore/shaders/util</AdditionalIncludeDirectories>
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>6.3</ShaderModel>
+      <VariableName>g_p%(Filename)</VariableName>
+      <AdditionalOptions>-HV 2021 %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -102,12 +113,6 @@
       <TreatOutputAsContent>true</TreatOutputAsContent>
     </CustomBuild>
     <FxCompile>
-      <EntryPointName></EntryPointName>
-      <ObjectFileOutput></ObjectFileOutput>
-      <AdditionalIncludeDirectories>$(ProjectDir);RTAO/shaders;SampleCore/shaders;SampleCore/shaders/util</AdditionalIncludeDirectories>
-      <ShaderType>Compute</ShaderType>
-      <ShaderModel>6.3</ShaderModel>
-      <VariableName>g_p%(Filename)</VariableName>
       <DisableOptimizations>false</DisableOptimizations>
       <EnableDebuggingInformation Condition="'$(Configuration)'=='Debug'">true</EnableDebuggingInformation>
       <AdditionalOptions Condition="'$(Configuration)'=='Debug'">-Qembed_debug %(AdditionalOptions)</AdditionalOptions>
@@ -143,11 +148,6 @@
       <Outputs>$(OutDir)\%(Identity)</Outputs>
       <TreatOutputAsContent>true</TreatOutputAsContent>
     </CustomBuild>
-    <FxCompile>
-      <EntryPointName></EntryPointName>
-      <ObjectFileOutput></ObjectFileOutput>
-      <AdditionalIncludeDirectories>$(ProjectDir);RTAO/shaders;SampleCore/shaders;SampleCore/shaders/util</AdditionalIncludeDirectories>
-    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
     <ClCompile>
@@ -179,9 +179,6 @@
       <Outputs>$(OutDir)\%(Identity)</Outputs>
       <TreatOutputAsContent>true</TreatOutputAsContent>
     </CustomBuild>
-    <FxCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);RTAO/shaders;SampleCore/shaders;SampleCore/shaders/util</AdditionalIncludeDirectories>
-    </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="SampleCore\Composition.h" />
