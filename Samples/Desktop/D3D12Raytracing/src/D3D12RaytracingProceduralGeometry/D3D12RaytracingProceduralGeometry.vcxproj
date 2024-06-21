@@ -93,6 +93,7 @@
     </CustomBuild>
     <FxCompile>
       <EntryPointName />
+      <AdditionalOptions>-HV 2021 %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
     <PostBuildEvent>
     </PostBuildEvent>
@@ -141,6 +142,7 @@
     </CustomBuild>
     <FxCompile>
       <EntryPointName />
+      <AdditionalOptions>-HV 2021 %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
     <PostBuildEvent>
     </PostBuildEvent>
