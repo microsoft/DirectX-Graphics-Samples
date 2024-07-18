@@ -233,7 +233,6 @@
     <None Include="RTAO\Shaders\Ray sorting\RaySorting.hlsli">
       <Filter>Shaders\RTAO\Ray Sorting</Filter>
     </None>
-    <None Include="packages.config" />
     <None Include="RTAO\Shaders\RayGen.hlsli">
       <Filter>Shaders\RTAO</Filter>
     </None>
@@ -267,6 +266,7 @@
     <None Include="RTAO\Shaders\Denoising\AtrousWaveletTransfromCrossBilateralFilterCS.hlsli">
       <Filter>Shaders\RTAO\Denoising\Filtering</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="RTAO\Shaders\RTAO.hlsl">

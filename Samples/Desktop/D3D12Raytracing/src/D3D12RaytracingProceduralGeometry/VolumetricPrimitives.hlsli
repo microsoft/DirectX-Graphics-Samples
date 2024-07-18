@@ -148,7 +148,7 @@ void FindIntersectingMetaballs(in Ray ray, out float tmin, out float tmax, inout
 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects metaball field.
 // The test sphere traces through the metaball field until it hits a threshold isosurface. 
-bool RayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr, in float elapsedTime)
+bool RayMetaballsIntersectionTest(in Ray ray, inout float thit, inout ProceduralPrimitiveAttributes attr, in float elapsedTime)
 {
     Metaball blobs[N_METABALLS];
     InitializeAnimatedMetaballs(blobs, elapsedTime, 12.0f);
