@@ -294,6 +294,11 @@ void D3D12HelloMeshNodes::CreateWorkGraph()
             D3D12_STATE_OBJECT_FLAG_WORK_GRAPHS_USE_GRAPHICS_STATE_FOR_GLOBAL_ROOT_SIGNATURE);
 
         // Add global root signature
+        // This could also be added to the state object the same way as the 
+        // local root signature further below, referring to the DXIL subobject
+        // by name.  The alternative shown here works equivalently 
+        // since there happens to be an API version of the global root 
+        // signature created.
         auto pGlobalRootSig = 
             SODesc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
         pGlobalRootSig->SetRootSignature(m_globalRootSignature.Get());
@@ -317,18 +322,25 @@ void D3D12HelloMeshNodes::CreateWorkGraph()
         pPS2->SetDXILLibrary(&bcPS2);
 
         // Associate global root signature with pixel shaders 
-        // (the only shaders that reference it)
-        auto pGlobalRSAssoc = 
-            SODesc.CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
-        pGlobalRSAssoc->SetSubobjectToAssociate(*pGlobalRootSig);
-        pGlobalRSAssoc->AddExport(L"PSMain");
-        pGlobalRSAssoc->AddExport(L"PSMain2");
+        // (the only shaders that reference it).
+        //
+        // This is for illustration and commented out because the global root 
+        // signature added above with no associations means it gets associated 
+        // to all exports by default, which is just fine in this sample.
+        // 
+        //auto pGlobalRSAssoc = 
+        //    SODesc.CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+        //pGlobalRSAssoc->SetSubobjectToAssociate(*pGlobalRootSig);
+        //pGlobalRSAssoc->AddExport(L"PSMain");
+        //pGlobalRSAssoc->AddExport(L"PSMain2");
 
-        // Associate local root signature with pixel shaders 
+        // Associate dxil local root signature with pixel shaders 
         // (the only shaders that reference it)
         auto pLocalRSAssoc = 
             SODesc.CreateSubobject<CD3DX12_DXIL_SUBOBJECT_TO_EXPORTS_ASSOCIATION>();
         pLocalRSAssoc->SetSubobjectNameToAssociate(L"MeshNodesLocalRS");
+        // Could omit the lines below and it would associate with all exports,
+        // which would be just fine in this sample
         pLocalRSAssoc->AddExport(L"PSMain");
         pLocalRSAssoc->AddExport(L"PSMain2");
 
