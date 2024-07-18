@@ -41,7 +41,7 @@ float4 GetUpscaleFilterWeights(float offset)
     //return ComputeWeights(offset);
 
     // Precompute weights for 16 discrete offsets
-    static const float4 FilterWeights[16] =
+    const float4 FilterWeights[16] =
     {
         ComputeWeights( 0.5 / 16.0),
         ComputeWeights( 1.5 / 16.0),
