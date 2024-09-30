@@ -504,6 +504,7 @@ namespace D3DX12Residency
             LRUCache() :
                 NumResidentObjects(0),
                 NumEvictedObjects(0),
+                EvictedSize(0),
                 ResidentSize(0)
             {
                 Internal::InitializeListHead(&ResidentObjectListHead);
@@ -522,6 +523,7 @@ namespace D3DX12Residency
                 {
                     Internal::InsertHeadList(&EvictedObjectListHead, &pObject->ListEntry);
                     NumEvictedObjects++;
+                    EvictedSize += pObject->Size;
                 }
             }
 
@@ -536,6 +538,7 @@ namespace D3DX12Residency
                 else
                 {
                     NumEvictedObjects--;
+                    EvictedSize -= pObject->Size;
                 }
             }
 
@@ -561,6 +564,7 @@ namespace D3DX12Residency
                 NumEvictedObjects--;
                 NumResidentObjects++;
                 ResidentSize += pObject->Size;
+                EvictedSize -= pObject->Size;
             }
 
             void Evict(ManagedObject* pObject)
@@ -574,6 +578,7 @@ namespace D3DX12Residency
                 NumResidentObjects--;
                 ResidentSize -= pObject->Size;
                 NumEvictedObjects++;
+                EvictedSize += pObject->Size;
             }
 
             // Evict all of the resident objects used in sync points up to the specficied one (inclusive)
@@ -640,6 +645,7 @@ namespace D3DX12Residency
             UINT32 NumEvictedObjects;
 
             UINT64 ResidentSize;
+            UINT64 EvictedSize;
         };
 
         class ResidencyManagerInternal
@@ -896,6 +902,13 @@ namespace D3DX12Residency
                 return hr;
             }
 
+            UINT64 LocalMemoryBudgetLimit = ~0ull;
+
+            void QueryResidencyStats(UINT64& ResidentMemoryInBytes, UINT64& EvictedMemoryInBytes)
+            {
+                ResidentMemoryInBytes = LRU.ResidentSize;
+                EvictedMemoryInBytes = LRU.EvictedSize;
+            }
         private:
             HRESULT GetFence(ID3D12CommandQueue *Queue, Internal::Fence *&QueueFence)
             {
@@ -1198,6 +1211,10 @@ namespace D3DX12Residency
                     GetCurrentBudget(&LocalMemory, DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
 
                     UINT64 EvictionGracePeriod = GetCurrentEvictionGracePeriod(&LocalMemory);
+                    if (LocalMemoryBudgetLimit == 0)
+                    {
+                        EvictionGracePeriod = 0;
+                    }
                     LRU.TrimAgedAllocations(FirstUncompletedSyncPoint, pEvictionList, NumObjectsToEvict, CurrentTime.QuadPart, EvictionGracePeriod);
 
                     if (NumObjectsToEvict)
@@ -1296,8 +1313,8 @@ namespace D3DX12Residency
                                     if (Device3)
                                     {
                                         hr = Device3->EnqueueMakeResident(D3D12_RESIDENCY_FLAG_NONE,
-                                                                          NumObjectsInBatch,
-                                                                          &pMakeResidentList[BatchStart].pUnderlying,
+                                                                          NumObjects,
+                                                                          &pMakeResidentList[MakeResidentIndex].pUnderlying,
                                                                           AsyncThreadFence.pFence,
                                                                           AsyncThreadFence.FenceValue + 1);
                                         if (SUCCEEDED(hr))
@@ -1329,7 +1346,9 @@ namespace D3DX12Residency
                                 // Wait until the GPU is done
                                 WaitForSyncPoint(GenerationToWaitFor);
 
-                                LRU.TrimToSyncPointInclusive(TotalUsage + INT64(SizeToMakeResident), TotalBudget, pEvictionList, NumObjectsToEvict, GenerationToWaitFor);
+                                LRU.TrimToSyncPointInclusive(TotalUsage + INT64(SizeToMakeResident),
+                                    LocalMemoryBudgetLimit == 0 ? 0 : TotalBudget,
+                                    pEvictionList, NumObjectsToEvict, GenerationToWaitFor);
 
                                 RESIDENCY_CHECK_RESULT(Device->Evict(NumObjectsToEvict, pEvictionList));
                             }
@@ -1406,6 +1425,10 @@ namespace D3DX12Residency
                     RESIDENCY_CHECK_RESULT(DeviceDownlevel->QueryVideoMemoryInfo(NodeIndex, Segment, InfoOut));
                 }
 #endif
+                if (Segment == DXGI_MEMORY_SEGMENT_GROUP_LOCAL)
+                {
+                    InfoOut->Budget = RESIDENCY_MIN(LocalMemoryBudgetLimit, InfoOut->Budget);
+                }
             }
 
             HRESULT EnqueueSyncPoint()
@@ -1611,6 +1634,16 @@ namespace D3DX12Residency
         FORCEINLINE void DestroyResidencySet(ResidencySet* pSet)
         {
             delete(pSet);
+        }
+
+        FORCEINLINE void QueryResidencyStats(UINT64& ResidentMemoryInBytes, UINT64& EvictedMemoryInBytes)
+        {
+            Manager.QueryResidencyStats(ResidentMemoryInBytes, EvictedMemoryInBytes);
+        }
+
+        void SetLocalMemoryBudgetLimit(UINT64 InLocalMemoryBudgetLimit)
+        {
+            Manager.LocalMemoryBudgetLimit = InLocalMemoryBudgetLimit;
         }
 
     private:
