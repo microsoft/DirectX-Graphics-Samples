@@ -1,0 +1,235 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>
+    </LinkIncremental>
+    <PostBuildEventUseInBuild>
+    </PostBuildEventUseInBuild>
+    <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <PostBuildEventUseInBuild>
+    </PostBuildEventUseInBuild>
+    <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
+    <PostBuildEventUseInBuild>
+    </PostBuildEventUseInBuild>
+    <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Profile|x64">
+      <Configuration>Profile</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}</ProjectGuid>
+    <ApplicationEnvironment>title</ApplicationEnvironment>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectName>D3D12RaytracingMiniEngineSample</ProjectName>
+    <RootNamespace>ModelViewer</RootNamespace>
+    <PlatformToolset>v142</PlatformToolset>
+    <MinimumVisualStudioVersion>16.0</MinimumVisualStudioVersion>
+    <TargetRuntime>Native</TargetRuntime>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project=".\Build.props" />
+    <Import Project=".\Desktop.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\..\..\MiniEngine\Core;..\..\..\MiniEngine\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link Condition="'$(Configuration)'=='Debug'">
+      <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
+    <Link>
+      <AdditionalDependencies>Model.lib;Core.lib;d3d12.lib;dxgi.lib;runtimeobject.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="ModelViewer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Logo.png" />
+    <Image Include="SmallLogo.png" />
+    <Image Include="SplashScreen.png" />
+    <Image Include="StoreLogo.png" />
+    <Image Include="Textures\default.DDS" />
+    <Image Include="Textures\default_normal.DDS" />
+    <Image Include="Textures\default_specular.DDS" />
+    <Image Include="Textures\fire.dds" />
+    <Image Include="Textures\Models\background.DDS" />
+    <Image Include="Textures\Models\background_normal.DDS" />
+    <Image Include="Textures\Models\chain_texture.DDS" />
+    <Image Include="Textures\Models\chain_texture_normal.DDS" />
+    <Image Include="Textures\Models\gi_flag.DDS" />
+    <Image Include="Textures\Models\lion.DDS" />
+    <Image Include="Textures\Models\lion_normal.DDS" />
+    <Image Include="Textures\Models\spnza_bricks_a.DDS" />
+    <Image Include="Textures\Models\spnza_bricks_a_normal.DDS" />
+    <Image Include="Textures\Models\spnza_bricks_a_specular.DDS" />
+    <Image Include="Textures\Models\sponza_arch.DDS" />
+    <Image Include="Textures\Models\sponza_arch_normal.DDS" />
+    <Image Include="Textures\Models\sponza_arch_specular.DDS" />
+    <Image Include="Textures\Models\sponza_ceiling_a.DDS" />
+    <Image Include="Textures\Models\sponza_ceiling_a_specular.DDS" />
+    <Image Include="Textures\Models\sponza_column_a.DDS" />
+    <Image Include="Textures\Models\sponza_column_a_normal.DDS" />
+    <Image Include="Textures\Models\sponza_column_a_specular.DDS" />
+    <Image Include="Textures\Models\sponza_column_b.DDS" />
+    <Image Include="Textures\Models\sponza_column_b_normal.DDS" />
+    <Image Include="Textures\Models\sponza_column_b_specular.DDS" />
+    <Image Include="Textures\Models\sponza_column_c.DDS" />
+    <Image Include="Textures\Models\sponza_column_c_normal.DDS" />
+    <Image Include="Textures\Models\sponza_column_c_specular.DDS" />
+    <Image Include="Textures\Models\sponza_curtain.DDS" />
+    <Image Include="Textures\Models\sponza_curtain_blue.DDS" />
+    <Image Include="Textures\Models\sponza_curtain_green.DDS" />
+    <Image Include="Textures\Models\sponza_details.DDS" />
+    <Image Include="Textures\Models\sponza_details_specular.DDS" />
+    <Image Include="Textures\Models\sponza_fabric.DDS" />
+    <Image Include="Textures\Models\sponza_fabric_blue.DDS" />
+    <Image Include="Textures\Models\sponza_fabric_green.DDS" />
+    <Image Include="Textures\Models\sponza_fabric_specular.DDS" />
+    <Image Include="Textures\Models\sponza_flagpole.DDS" />
+    <Image Include="Textures\Models\sponza_flagpole_specular.DDS" />
+    <Image Include="Textures\Models\sponza_floor_a.DDS" />
+    <Image Include="Textures\Models\sponza_floor_a_specular.DDS" />
+    <Image Include="Textures\Models\sponza_roof.DDS" />
+    <Image Include="Textures\Models\sponza_thorn.DDS" />
+    <Image Include="Textures\Models\sponza_thorn_normal.DDS" />
+    <Image Include="Textures\Models\sponza_thorn_specular.DDS" />
+    <Image Include="Textures\Models\vase.DDS" />
+    <Image Include="Textures\Models\vase_hanging.DDS" />
+    <Image Include="Textures\Models\vase_normal.DDS" />
+    <Image Include="Textures\Models\vase_plant.DDS" />
+    <Image Include="Textures\Models\vase_plant_specular.DDS" />
+    <Image Include="Textures\Models\vase_round.DDS" />
+    <Image Include="Textures\Models\vase_round_normal.DDS" />
+    <Image Include="Textures\Models\vase_round_specular.DDS" />
+    <Image Include="Textures\Models\white.DDS" />
+    <Image Include="Textures\smoke.dds" />
+    <Image Include="Textures\sparkTex.dds" />
+    <Image Include="WideLogo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\..\MiniEngine\ModelViewer\Sponza\sponza.h3d">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="packages.config" />
+    <None Include="readme.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="DiffuseHitShaderLib.hlsl">
+      <ShaderType>Library</ShaderType>
+      <ShaderModel>6.3</ShaderModel>
+      <EntryPointName>
+      </EntryPointName>
+      <AdditionalOptions> -HV 2017 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)'=='Debug'">-Zi -Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="hitShaderLib.hlsl">
+      <ShaderType>Library</ShaderType>
+      <ShaderModel>6.3</ShaderModel>
+      <EntryPointName>
+      </EntryPointName>
+      <AdditionalOptions> -HV 2017 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)'=='Debug'">-Zi -Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="missShaderLib.hlsl">
+      <ShaderType>Library</ShaderType>
+      <ShaderModel>6.3</ShaderModel>
+      <EntryPointName>
+      </EntryPointName>
+      <AdditionalOptions> -HV 2017 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)'=='Debug'">-Zi -Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="missShadowsLib.hlsl">
+      <ShaderType>Library</ShaderType>
+      <ShaderModel>6.3</ShaderModel>
+      <EntryPointName>
+      </EntryPointName>
+      <AdditionalOptions> -HV 2017 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)'=='Debug'">-Zi -Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="RayGenerationShaderLib.hlsl">
+      <ShaderType>Library</ShaderType>
+      <ShaderModel>6.3</ShaderModel>
+      <EntryPointName>
+      </EntryPointName>
+      <AdditionalOptions> -HV 2017 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)'=='Debug'">-Zi -Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="RayGenerationShaderSSRLib.hlsl">
+      <ShaderType>Library</ShaderType>
+      <ShaderModel>6.3</ShaderModel>
+      <EntryPointName>
+      </EntryPointName>
+      <AdditionalOptions> -HV 2017 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)'=='Debug'">-Zi -Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+    <FxCompile Include="RayGenerationShadowsLib.hlsl">
+      <ShaderType>Library</ShaderType>
+      <ShaderModel>6.3</ShaderModel>
+      <EntryPointName>
+      </EntryPointName>
+      <AdditionalOptions> -HV 2017 -Zpr </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)'=='Debug'">-Zi -Qembed_debug %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DXSampleHelper.h" />
+    <ClInclude Include="ModelViewerRayTracing.h" />
+    <ClInclude Include="RayTracingHlslCompat.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalLibraryDirectories>..\..\..\Packages\directxtex_desktop_win10.2024.6.5.1\lib\x64\Release;..\..\..\Packages\directxmesh_desktop_win10.2024.6.5.1\lib\x64\Release;$(OutDir)/../Model/;$(OutDir)/../Core/;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>/nodefaultlib:LIBCMT %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <FxCompile>
+      <EnableDebuggingInformation Condition="'$(Configuration)'!='Release'">false</EnableDebuggingInformation>
+    </FxCompile>
+  </ItemDefinitionGroup>
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets" Condition="Exists('..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets')" />
+    <Import Project="..\..\..\..\..\Packages\directxtex_desktop_win10.2024.6.5.1\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\..\..\..\..\Packages\directxtex_desktop_win10.2024.6.5.1\build\native\directxtex_desktop_win10.targets')" />
+    <Import Project="..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\directxtex_desktop_win10.2024.6.5.1\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxtex_desktop_win10.2024.6.5.1\build\native\directxtex_desktop_win10.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets'))" />
+  </Target>
+</Project>

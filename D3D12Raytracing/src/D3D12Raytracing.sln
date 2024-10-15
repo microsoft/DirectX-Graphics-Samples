@@ -1,0 +1,64 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34701.34
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MiniEngine", "MiniEngine", "{0B851798-A730-4A11-A717-668D40A26088}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingMiniEngineSample", "D3D12RaytracingMiniEngineSample\ModelViewer_VS16.vcxproj", "{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingRealTimeDenoisedAmbientOcclusion", "D3D12RaytracingRealTimeDenoisedAmbientOcclusion\D3D12RaytracingRealTimeDenoisedAmbientOcclusion.vcxproj", "{19585C81-FB12-4A4B-B700-CCE253BDBA02}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09} = {5D3AEEFB-8789-48E5-9BD9-09C667052D09}
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3} = {86A58508-0D6A-4786-A32F-01A301FDC6F3}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\..\MiniEngine\Core\Core.vcxproj", "{86A58508-0D6A-4786-A32F-01A301FDC6F3}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Model", "..\..\MiniEngine\Model\Model.vcxproj", "{5D3AEEFB-8789-48E5-9BD9-09C667052D09}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AZB_Source", "AZB_Source", "{D32910F7-05FB-410A-8D74-FAA11D3AD754}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Profile|x64 = Profile|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Debug|x64.ActiveCfg = Debug|x64
+		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Debug|x64.Build.0 = Debug|x64
+		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Profile|x64.ActiveCfg = Profile|x64
+		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Profile|x64.Build.0 = Profile|x64
+		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Release|x64.ActiveCfg = Release|x64
+		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}.Release|x64.Build.0 = Release|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Debug|x64.ActiveCfg = Debug|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Debug|x64.Build.0 = Debug|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Profile|x64.ActiveCfg = Profile|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Profile|x64.Build.0 = Profile|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Release|x64.ActiveCfg = Release|x64
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02}.Release|x64.Build.0 = Release|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Debug|x64.ActiveCfg = Debug|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Debug|x64.Build.0 = Debug|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Profile|x64.ActiveCfg = Profile|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Profile|x64.Build.0 = Profile|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Release|x64.ActiveCfg = Release|x64
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3}.Release|x64.Build.0 = Release|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Debug|x64.ActiveCfg = Debug|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Debug|x64.Build.0 = Debug|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Profile|x64.ActiveCfg = Profile|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Profile|x64.Build.0 = Profile|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Release|x64.ActiveCfg = Release|x64
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3} = {0B851798-A730-4A11-A717-668D40A26088}
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09} = {0B851798-A730-4A11-A717-668D40A26088}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F763A25B-2115-4E87-87C4-2C6AA75C1542}
+	EndGlobalSection
+EndGlobal
