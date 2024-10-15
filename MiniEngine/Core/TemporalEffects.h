@@ -17,6 +17,8 @@
 
 class CommandContext;
 
+// AZB: Use this to get jitter and motion vectors for DLSS and FSR!!
+
 namespace TemporalEffects
 {
     // Temporal antialiasing involves jittering sample positions and accumulating color over time to 

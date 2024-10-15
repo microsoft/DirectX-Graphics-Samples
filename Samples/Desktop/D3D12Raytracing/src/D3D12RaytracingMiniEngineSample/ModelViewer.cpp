@@ -961,6 +961,10 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
         m_CameraController->Update(deltaT);
     }
 
+
+    // AZB: This jitter will be useful for DLSS and FSR!!
+
+
     // We use viewport offsets to jitter sample positions from frame to frame (for TAA.)
     // D3D has a design quirk with fractional offsets such that the implicit scissor
     // region of a viewport is floor(TopLeftXY) and floor(TopLeftXY + WidthHeight), so
