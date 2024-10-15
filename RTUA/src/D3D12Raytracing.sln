@@ -6,6 +6,10 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MiniEngine", "MiniEngine", "{0B851798-A730-4A11-A717-668D40A26088}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingMiniEngineSample", "D3D12RaytracingMiniEngineSample\ModelViewer_VS16.vcxproj", "{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5D3AEEFB-8789-48E5-9BD9-09C667052D09} = {5D3AEEFB-8789-48E5-9BD9-09C667052D09}
+		{86A58508-0D6A-4786-A32F-01A301FDC6F3} = {86A58508-0D6A-4786-A32F-01A301FDC6F3}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingRealTimeDenoisedAmbientOcclusion", "D3D12RaytracingRealTimeDenoisedAmbientOcclusion\D3D12RaytracingRealTimeDenoisedAmbientOcclusion.vcxproj", "{19585C81-FB12-4A4B-B700-CCE253BDBA02}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -55,6 +59,8 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{315A1E1B-3732-41FE-9B4A-6A1E103BA2F5} = {D32910F7-05FB-410A-8D74-FAA11D3AD754}
+		{19585C81-FB12-4A4B-B700-CCE253BDBA02} = {D32910F7-05FB-410A-8D74-FAA11D3AD754}
 		{86A58508-0D6A-4786-A32F-01A301FDC6F3} = {0B851798-A730-4A11-A717-668D40A26088}
 		{5D3AEEFB-8789-48E5-9BD9-09C667052D09} = {0B851798-A730-4A11-A717-668D40A26088}
 	EndGlobalSection
