@@ -33,7 +33,6 @@ void GUI::Init(void* Hwnd, ID3D12Device* pDevice, int numFramesInFlight, const D
 	descriptorHeapDescriptor.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	descriptorHeapDescriptor.NumDescriptors = 1;
 	descriptorHeapDescriptor.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	//descriptorHeapDescriptor.NodeMask = 0;
 
 	ASSERT_SUCCEEDED(pDevice->CreateDescriptorHeap(&descriptorHeapDescriptor, IID_PPV_ARGS(&m_pSrvDescriptorHeap)));
 

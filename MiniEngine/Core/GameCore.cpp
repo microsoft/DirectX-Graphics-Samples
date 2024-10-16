@@ -74,15 +74,6 @@ namespace GameCore
         game.Startup();
     }
 
-    void TerminateApplication( IGameApp& game )
-    {
-        g_CommandManager.IdleGPU();
-
-        game.Cleanup();
-
-        GameInput::Shutdown();
-    }
-
     bool UpdateApplication( IGameApp& game )
     {
         EngineProfiling::Update();
@@ -110,10 +101,19 @@ namespace GameCore
 
         UiContext.Finish();
 
+
+        // [AZB]: Start ImGui frame
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+
+        // [AZB]: Run our UI!
         AZB_GUI->Run();
         // [AZB]: Submit ImGui draw calls within engine context
         ImGui::Render();
 
+        // [AZB]: Setup ImGui buffer using the GraphicsContext API
         GraphicsContext& ImGuiContext = GraphicsContext::Begin(L"Render ImGui");
         ImGuiContext.TransitionResource(g_ImGuiBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
         ImGuiContext.ClearColor(g_ImGuiBuffer);
@@ -128,6 +128,7 @@ namespace GameCore
         // [AZB]: This will execute and then close the command list and do some other super optimal context flushing
         ImGuiContext.Finish();
 
+        // [AZB]:Present finished frame
         Display::Present();
 
         return !game.IsDone();
@@ -142,6 +143,16 @@ namespace GameCore
     HWND g_hWnd = nullptr;
 
     LRESULT CALLBACK WndProc( HWND, UINT, WPARAM, LPARAM );
+
+
+    void TerminateApplication(IGameApp& game)
+    {
+        g_CommandManager.IdleGPU();
+
+        game.Cleanup();
+
+        GameInput::Shutdown();
+    }
 
     int RunApplication( IGameApp& app, const wchar_t* className, HINSTANCE hInst, int nCmdShow )
     {
@@ -203,15 +214,6 @@ namespace GameCore
 
             if (done)
                 break;
-
-            // Start ImGui frame
-            ImGui_ImplDX12_NewFrame();
-            ImGui_ImplWin32_NewFrame();
-            ImGui::NewFrame();
-
-
-            // Run our UI!
-            AZB_GUI->Run();
         }
         while (UpdateApplication(app));	// Returns false to quit loop
 
