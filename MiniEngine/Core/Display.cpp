@@ -59,12 +59,8 @@ namespace GameCore { extern HWND g_hWnd; }
 #include "CompiledShaders/GenerateMipsGammaOddXCS.h"
 #include "CompiledShaders/GenerateMipsGammaOddYCS.h"
 
-// [AZB]: The swapchain buffer count is needed for ImGui, this was previously a defined macro, in my implementation I have made it a namespace global
-// [AZB]: The same is true of format
-#ifndef AZB_MOD
 #define SWAP_CHAIN_BUFFER_COUNT 3
 DXGI_FORMAT SwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
-#endif
 
 using namespace Math;
 using namespace ImageScaling;

@@ -54,4 +54,3 @@ void GUI::Terminate()
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 }
-

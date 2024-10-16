@@ -159,10 +159,9 @@ namespace GameCore
 #ifdef AZB_MOD
         GUI* AZB_GUI = new GUI();
  
-        AZB_GUI->Init(g_hWnd, g_Device, Display::SWAP_CHAIN_BUFFER_COUNT, Display::SwapChainFormat);
-#endif
-        GUI* AZB_GUI= new GUI();
+        AZB_GUI->Init(g_hWnd, g_Device, SWAP_CHAIN_BUFFER_COUNT, SWAP_CHAIN_FORMAT);
 
+#endif
 
         // [AZB]: Main Loop
 

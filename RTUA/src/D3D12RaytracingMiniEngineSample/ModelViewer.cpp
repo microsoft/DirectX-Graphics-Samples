@@ -66,12 +66,12 @@
 //
 
 // [AZB]: Container file for code modifications and other helper tools. Contains the global "AZB_MOD" macro.
-#include "AZB_Utils.h"
-
-// [AZB]: These will only be included if the global modificiation macro is defined
-#ifdef AZB_MOD
-#include "AZB_GUI.h"
-#endif
+//#include "AZB_Utils.h"
+//
+//// [AZB]: These will only be included if the global modificiation macro is defined
+//#ifdef AZB_MOD
+//#include "AZB_GUI.h"
+//#endif
 
 using namespace GameCore;
 using namespace Math;

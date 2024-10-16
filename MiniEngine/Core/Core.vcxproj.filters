@@ -511,6 +511,24 @@
     <ClCompile Include="AZB\src\AZB_GUI.cpp">
       <Filter>AZB_Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\backends\imgui_impl_dx12.cpp">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\backends\imgui_impl_win32.cpp">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\imgui.cpp">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\imgui_draw.cpp">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\imgui_tables.cpp">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\imgui_widgets.cpp">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BitonicSort.h" />
@@ -589,6 +607,21 @@
     </ClInclude>
     <ClInclude Include="AZB\include\AZB_Utils.h">
       <Filter>AZB_Include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\imgui\imgui.h">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\imgui\backends\imgui_impl_dx12.h">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\imgui\backends\imgui_impl_win32.h">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\imgui\imconfig.h">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\imgui\imgui_internal.h">
+      <Filter>AZB_ThirdParty</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -687,6 +720,9 @@
     </Filter>
     <Filter Include="AZB_Include">
       <UniqueIdentifier>{df1c9d13-a666-416f-bc0c-2d2e55d9c2b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AZB_ThirdParty">
+      <UniqueIdentifier>{98384118-fec8-4e39-a17f-e5fb2a8f58c9}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
