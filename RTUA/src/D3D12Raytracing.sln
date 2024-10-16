@@ -21,7 +21,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\..\MiniEngine\Co
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Model", "..\..\MiniEngine\Model\Model.vcxproj", "{5D3AEEFB-8789-48E5-9BD9-09C667052D09}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AZB_Source", "AZB_Source", "{D32910F7-05FB-410A-8D74-FAA11D3AD754}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "RTUA Apps", "RTUA Apps", "{D32910F7-05FB-410A-8D74-FAA11D3AD754}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

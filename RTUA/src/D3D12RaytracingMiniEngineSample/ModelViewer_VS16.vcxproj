@@ -59,7 +59,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>..\..\..\ThirdParty\;...\..\..\ThirdParty\imgui\;..\..\..\MiniEngine\Core;..\..\..\MiniEngine\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\ThirdParty\imgui\;..\..\..\ThirdParty\imgui\backends;..\..\..\MiniEngine\Core;..\..\..\MiniEngine\Core\AZB\include;..\..\..\MiniEngine\Core\AZB\src;..\..\..\MiniEngine\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link Condition="'$(Configuration)'=='Debug'">
       <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>

@@ -11,19 +11,41 @@
 // Author:  James Stanard 
 //
 
+//===============================================================================
+// desc: This is the core "game" application, where the game loop is contained. We can also access the Graphics Pipeline from here!
+// modified: Aliyaan Zulfiqar
+//===============================================================================
+
+/*
+   Change Log:
+   [AZB] 16/10/24: Implemented ImGui and custom UI class into main program
+*/
+
 #include "pch.h"
 #include "GameCore.h"
 #include "GraphicsCore.h"
+#include "Display.h"
 #include "SystemTime.h"
 #include "GameInput.h"
 #include "BufferManager.h"
 #include "CommandContext.h"
 #include "PostEffects.h"
-#include "Display.h"
 #include "Util/CommandLineArg.h"
 #include <shellapi.h>
 
 #pragma comment(lib, "runtimeobject.lib") 
+
+//
+// [AZB]: Custom includes
+//
+
+// [AZB]: Container file for code modifications and other helper tools. Contains the global "AZB_MOD" macro.
+#include "AZB_Utils.h"
+
+// [AZB]: These will only be included if the global modificiation macro is defined
+#ifdef AZB_MOD
+#include "AZB_GUI.h"
+#endif
 
 namespace GameCore
 {
@@ -36,7 +58,6 @@ namespace GameCore
         int argc = 0;
         LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
         CommandLineArgs::Initialize(argc, argv);
-
         Graphics::Initialize(game.RequiresRaytracingSupport());
         SystemTime::Initialize();
         GameInput::Initialize();
@@ -132,6 +153,18 @@ namespace GameCore
         InitializeApplication(app);
 
         ShowWindow( g_hWnd, nCmdShow/*SW_SHOWDEFAULT*/ );
+
+
+// [AZB]: Set up ImGui Context here, initalising our UI class
+#ifdef AZB_MOD
+        GUI* AZB_GUI = new GUI();
+ 
+        AZB_GUI->Init(g_hWnd, g_Device, Display::SWAP_CHAIN_BUFFER_COUNT, Display::SwapChainFormat);
+#endif
+        GUI* AZB_GUI= new GUI();
+
+
+        // [AZB]: Main Loop
 
         do
         {

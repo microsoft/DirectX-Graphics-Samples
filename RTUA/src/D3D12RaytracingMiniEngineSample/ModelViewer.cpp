@@ -9,6 +9,16 @@
 //
 //*********************************************************
 
+//===============================================================================
+// desc: This is the original entry point for the sample, it has been modified to now act as the base app of my educational and practical upscaling tool
+// modified: Aliyaan Zulfiqar
+//===============================================================================
+
+/*
+   Change Log:
+   [AZB] 16/10/24: Implemented ImGui and custom UI class into main program
+*/
+
 #define NOMINMAX
 
 #include "d3d12.h"
@@ -51,9 +61,17 @@
 #include "RaytracingHlslCompat.h"
 #include "ModelViewerRayTracing.h"
 
-//#include "imgui/imgui.h"
-//#include "imgui/imgui_impl_win32.h"
-//#include "imgui/imgui_impl_dx12.h"
+//
+// [AZB]: Custom includes
+//
+
+// [AZB]: Container file for code modifications and other helper tools. Contains the global "AZB_MOD" macro.
+#include "AZB_Utils.h"
+
+// [AZB]: These will only be included if the global modificiation macro is defined
+#ifdef AZB_MOD
+#include "AZB_GUI.h"
+#endif
 
 using namespace GameCore;
 using namespace Math;
@@ -255,6 +273,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance
     //TargetResolution = k720p;
     //g_DisplayWidth = 1280;
     //g_DisplayHeight = 720;
+
+    // [AZB]: Create app and begin game loop
     GameCore::RunApplication(D3D12RaytracingMiniEngineSample(), L"D3D12RaytracingMiniEngineSample", hInstance, nCmdShow); 
     return 0;
 }

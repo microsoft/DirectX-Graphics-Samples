@@ -508,6 +508,9 @@
     <ClCompile Include="UploadBuffer.cpp" />
     <ClCompile Include="Utility.cpp" />
     <ClCompile Include="Util\CommandLineArg.cpp" />
+    <ClCompile Include="AZB\src\AZB_GUI.cpp">
+      <Filter>AZB_Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BitonicSort.h" />
@@ -581,6 +584,12 @@
     <ClInclude Include="Utility.h" />
     <ClInclude Include="Util\CommandLineArg.h" />
     <ClInclude Include="VectorMath.h" />
+    <ClInclude Include="AZB\include\AZB_GUI.h">
+      <Filter>AZB_Include</Filter>
+    </ClInclude>
+    <ClInclude Include="AZB\include\AZB_Utils.h">
+      <Filter>AZB_Include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Math\Functions.inl" />
@@ -672,6 +681,12 @@
   <ItemGroup>
     <Filter Include="Shaders">
       <UniqueIdentifier>{c5df3e3a-73f5-4b5b-8688-112163941bea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AZB_Source">
+      <UniqueIdentifier>{2ee191ad-3592-446e-8d69-ef8810ee47ba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AZB_Include">
+      <UniqueIdentifier>{df1c9d13-a666-416f-bc0c-2d2e55d9c2b7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
