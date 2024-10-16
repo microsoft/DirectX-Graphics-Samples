@@ -11,6 +11,16 @@
 // Author:  James Stanard 
 //
 
+//===============================================================================
+// desc: This is a fancy manager for memory, going to try and integrate a buffer for ImGui here
+// modified: Aliyaan Zulfiqar
+//===============================================================================
+
+/*
+   Change Log:
+   [AZB] 16/10/24: Implemented ImGui and custom UI class into main program
+*/
+
 #include "pch.h"
 #include "BufferManager.h"
 #include "Display.h"
@@ -27,6 +37,9 @@ namespace Graphics
     ColorBuffer g_VelocityBuffer;
     ColorBuffer g_OverlayBuffer;
     ColorBuffer g_HorizontalBuffer;
+
+    // [AZB]: Create a buffer for ImGui
+    ColorBuffer g_ImGuiBuffer;
 
     ShadowBuffer g_ShadowBuffer;
 
@@ -229,6 +242,10 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
         g_OverlayBuffer.Create( L"UI Overlay", g_DisplayWidth, g_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM, esram );
         g_HorizontalBuffer.Create( L"Bicubic Intermediate", g_DisplayWidth, bufferHeight, 1, DefaultHdrColorFormat, esram );
 
+        // [AZB]: Create a buffer for ImGui
+        g_ImGuiBuffer.Create(L"ImGui Heap", g_DisplayWidth, g_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM, esram);
+
+
     esram.PopStack(); // End final image
 
     InitContext.Finish();
@@ -239,6 +256,8 @@ void Graphics::ResizeDisplayDependentBuffers(uint32_t NativeWidth, uint32_t Nati
     (NativeWidth);
     g_OverlayBuffer.Create( L"UI Overlay", g_DisplayWidth, g_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM );
     g_HorizontalBuffer.Create( L"Bicubic Intermediate", g_DisplayWidth, NativeHeight, 1, DefaultHdrColorFormat );
+    // [AZB]: ImGui may need resizing
+    g_ImGuiBuffer.Create(L"ImGui Heap", g_DisplayWidth, g_DisplayHeight, 1, DXGI_FORMAT_R8G8B8A8_UNORM);
 }
 
 void Graphics::DestroyRenderingBuffers()
@@ -250,6 +269,8 @@ void Graphics::DestroyRenderingBuffers()
     g_OverlayBuffer.Destroy();
     g_HorizontalBuffer.Destroy();
     g_PostEffectsBuffer.Destroy();
+    // [AZB]: Destroy ImGui
+    g_ImGuiBuffer.Destroy();
 
     g_ShadowBuffer.Destroy();
 

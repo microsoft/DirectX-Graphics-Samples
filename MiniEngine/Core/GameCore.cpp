@@ -47,6 +47,14 @@
 #include "AZB_GUI.h"
 #endif
 
+// [AZB]: Temporary global UI class
+#ifdef AZB_MOD
+GUI* AZB_GUI = new GUI();
+#endif
+
+// [AZB]: Forward declare message handler from imgui_impl_win32.cpp
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 namespace GameCore
 {
     using namespace Graphics;
@@ -102,6 +110,24 @@ namespace GameCore
 
         UiContext.Finish();
 
+        AZB_GUI->Run();
+        // [AZB]: Submit ImGui draw calls within engine context
+        ImGui::Render();
+
+        GraphicsContext& ImGuiContext = GraphicsContext::Begin(L"Render ImGui");
+        ImGuiContext.TransitionResource(g_ImGuiBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+        ImGuiContext.ClearColor(g_ImGuiBuffer);
+        // [AZB]: Using the overlay buffer render target - can't use the one from g_imGuiBuffer
+        ImGuiContext.SetRenderTarget(g_OverlayBuffer.GetRTV());
+        ImGuiContext.SetViewportAndScissor(0, 0, g_ImGuiBuffer.GetWidth(), g_ImGuiBuffer.GetHeight());
+
+        ImGuiContext.GetCommandList()->SetDescriptorHeaps(1, &AZB_GUI->m_pSrvDescriptorHeap);
+
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), ImGuiContext.GetCommandList());
+
+        // [AZB]: This will execute and then close the command list and do some other super optimal context flushing
+        ImGuiContext.Finish();
+
         Display::Present();
 
         return !game.IsDone();
@@ -156,11 +182,8 @@ namespace GameCore
 
 
 // [AZB]: Set up ImGui Context here, initalising our UI class
-#ifdef AZB_MOD
-        GUI* AZB_GUI = new GUI();
- 
+#ifdef AZB_MOD 
         AZB_GUI->Init(g_hWnd, g_Device, SWAP_CHAIN_BUFFER_COUNT, SWAP_CHAIN_FORMAT);
-
 #endif
 
         // [AZB]: Main Loop
@@ -180,6 +203,15 @@ namespace GameCore
 
             if (done)
                 break;
+
+            // Start ImGui frame
+            ImGui_ImplDX12_NewFrame();
+            ImGui_ImplWin32_NewFrame();
+            ImGui::NewFrame();
+
+
+            // Run our UI!
+            AZB_GUI->Run();
         }
         while (UpdateApplication(app));	// Returns false to quit loop
 
@@ -193,6 +225,10 @@ namespace GameCore
     //--------------------------------------------------------------------------------------
     LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
     {
+        // [AZB]: Helps ImGui deal with input
+        if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+            return true;
+
         switch( message )
         {
         case WM_SIZE:
