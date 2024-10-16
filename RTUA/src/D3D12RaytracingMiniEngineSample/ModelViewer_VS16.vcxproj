@@ -59,7 +59,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>..\..\..\MiniEngine\Core;..\..\..\MiniEngine\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\ThirdParty\;...\..\..\ThirdParty\imgui\;..\..\..\MiniEngine\Core;..\..\..\MiniEngine\Model;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link Condition="'$(Configuration)'=='Debug'">
       <AdditionalOptions>/nodefaultlib:MSVCRT %(AdditionalOptions)</AdditionalOptions>
@@ -213,7 +213,7 @@
     <ProjectReference Include="..\..\..\MiniEngine\Model\Model.vcxproj">
       <Project>{5d3aeefb-8789-48e5-9bd9-09c667052d09}</Project>
     </ProjectReference>
-  </ItemGroup>	
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemDefinitionGroup>
     <Link>
