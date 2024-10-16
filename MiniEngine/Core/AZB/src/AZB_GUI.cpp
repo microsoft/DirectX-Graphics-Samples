@@ -43,6 +43,11 @@ void GUI::Init(void* Hwnd, ID3D12Device* pDevice, int numFramesInFlight, const D
 
 void GUI::Run()
 {
+	// Start ImGui frame
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
 	// Show demo for now
 	ImGui::ShowDemoWindow();
 

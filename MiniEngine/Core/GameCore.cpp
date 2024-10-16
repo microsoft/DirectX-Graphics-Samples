@@ -36,24 +36,22 @@
 #pragma comment(lib, "runtimeobject.lib") 
 
 //
-// [AZB]: Custom includes
+// [AZB]: Custom includes and macro mods
 //
 
 // [AZB]: Container file for code modifications and other helper tools. Contains the global "AZB_MOD" macro.
 #include "AZB_Utils.h"
 
-// [AZB]: These will only be included if the global modificiation macro is defined
-#ifdef AZB_MOD
+// [AZB]: These will only be included if the global modificiation macro is defined as true (=1)
+#if AZB_MOD
 #include "AZB_GUI.h"
-#endif
 
 // [AZB]: Temporary global UI class
-#ifdef AZB_MOD
 GUI* AZB_GUI = new GUI();
-#endif
 
 // [AZB]: Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#endif
 
 namespace GameCore
 {
@@ -102,14 +100,11 @@ namespace GameCore
         UiContext.Finish();
 
 
-        // [AZB]: Start ImGui frame
-        ImGui_ImplDX12_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
-
+#if AZB_MOD
 
         // [AZB]: Run our UI!
         AZB_GUI->Run();
+
         // [AZB]: Submit ImGui draw calls within engine context
         ImGui::Render();
 
@@ -127,7 +122,7 @@ namespace GameCore
 
         // [AZB]: This will execute and then close the command list and do some other super optimal context flushing
         ImGuiContext.Finish();
-
+#endif
         // [AZB]:Present finished frame
         Display::Present();
 
@@ -193,7 +188,7 @@ namespace GameCore
 
 
 // [AZB]: Set up ImGui Context here, initalising our UI class
-#ifdef AZB_MOD 
+#if AZB_MOD 
         AZB_GUI->Init(g_hWnd, g_Device, SWAP_CHAIN_BUFFER_COUNT, SWAP_CHAIN_FORMAT);
 #endif
 
@@ -228,9 +223,10 @@ namespace GameCore
     LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
     {
         // [AZB]: Helps ImGui deal with input
+#if AZB_MOD
         if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
             return true;
-
+#endif
         switch( message )
         {
         case WM_SIZE:

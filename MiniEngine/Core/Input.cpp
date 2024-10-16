@@ -21,6 +21,7 @@
 #include <Xinput.h>
 #pragma comment(lib, "xinput9_1_0.lib")
 
+// [AZB]: When this is defined, ImGui cannot use the mouse and keyboard
 #define USE_KEYBOARD_MOUSE
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
