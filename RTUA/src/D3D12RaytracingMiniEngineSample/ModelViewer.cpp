@@ -965,7 +965,8 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
     // [AZB]: Set an input option to toggle between ImGui control and Application control
     if (GameInput::IsPressed(GameInput::kKey_p))
     {
-        //GameInput::s
+        //GameInput::GetMouseForApp()->Unacquire();
+        OutputDebugStringW(L"Toggle ImGui");
     }
     
     static bool freezeCamera = false;

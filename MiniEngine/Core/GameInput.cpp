@@ -393,6 +393,7 @@ namespace
         else
         {
             s_Mouse->Acquire();
+            s_Mouse->SetCooperativeLevel(GameCore::g_hWnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
             s_Mouse->GetDeviceState(sizeof(DIMOUSESTATE2), &s_MouseState);
             s_Keyboard->Acquire();
             s_Keyboard->GetDeviceState(sizeof(s_Keybuffer), s_Keybuffer);
@@ -579,3 +580,5 @@ float GameInput::GetTimeCorrectedAnalogInput( AnalogInput ai )
 {
     return s_AnalogsTC[ai];
 }
+
+IDirectInputDevice8A* GameInput::GetMouseForApp() { return s_Mouse; }

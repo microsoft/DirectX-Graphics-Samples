@@ -189,6 +189,9 @@ namespace GameInput
     float GetAnalogInput( AnalogInput ai );
     float GetTimeCorrectedAnalogInput( AnalogInput ai );
 
+    // [AZB]: For access to mouse in app
+    //static IDirectInputDevice8A* GetMouseForApp();
+
 #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_TV_TITLE | WINAPI_PARTITION_DESKTOP)
     void SetKeyState(Windows::System::VirtualKey key, bool IsDown);
 #endif

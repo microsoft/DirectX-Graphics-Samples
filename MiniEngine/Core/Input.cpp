@@ -461,3 +461,5 @@ float GameInput::GetTimeCorrectedAnalogInput( AnalogInput ai )
 {
     return s_AnalogsTC[ai];
 }
+
+//IDirectInputDevice8A* GameInput::GetMouseForApp() { return s_Mouse; }
