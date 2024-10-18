@@ -961,6 +961,12 @@ void D3D12RaytracingMiniEngineSample::Update( float deltaT )
       rayTracingMode = RTM_DIFFUSE_WITH_SHADOWRAYS;
     else if(GameInput::IsFirstPressed(GameInput::kKey_7))
       rayTracingMode = RTM_REFLECTIONS;
+
+    // [AZB]: Set an input option to toggle between ImGui control and Application control
+    if (GameInput::IsPressed(GameInput::kKey_p))
+    {
+        //GameInput::s
+    }
     
     static bool freezeCamera = false;
     

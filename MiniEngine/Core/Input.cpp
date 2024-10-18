@@ -11,9 +11,21 @@
 // Author:  James Stanard 
 //
 
+//===============================================================================
+// desc: This is the core input handler, but it uses exclusive input. 
+// modified: Aliyaan Zulfiqar
+//===============================================================================
+
+/*
+   Change Log:
+   [AZB] 16/10/24: Tweaked use of macro to enable swapping of input focus between ImGui and application
+*/
+
 #include "pch.h"
 #include "GameCore.h"
 #include "GameInput.h"
+
+#include "AZB_Utils.h"
 
 #ifdef _GAMING_DESKTOP
 
@@ -21,8 +33,12 @@
 #include <Xinput.h>
 #pragma comment(lib, "xinput9_1_0.lib")
 
-// [AZB]: When this is defined, ImGui cannot use the mouse and keyboard
+#if AZB_MOD
 #define USE_KEYBOARD_MOUSE
+#else
+#endif
+// [AZB]: When this is defined, ImGui cannot use the mouse and keyboard
+
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 #pragma comment(lib, "dinput8.lib")

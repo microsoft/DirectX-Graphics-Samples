@@ -78,7 +78,12 @@ namespace GameCore
 
         float DeltaTime = Graphics::GetFrameTime();
     
-        GameInput::Update(DeltaTime);
+
+        if (!ImGui::GetIO().WantCaptureMouse || !ImGui::GetIO().WantCaptureKeyboard)
+        {
+            GameInput::Update(DeltaTime);
+        }
+
         EngineTuning::Update(DeltaTime);
         
         game.Update(DeltaTime);
@@ -238,7 +243,7 @@ namespace GameCore
             break;
 
         default:
-            return DefWindowProc( hWnd, message, wParam, lParam );
+            return DefWindowProcW( hWnd, message, wParam, lParam );
         }
 
         return 0;
