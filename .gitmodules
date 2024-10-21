@@ -2,3 +2,6 @@
 	path = ThirdParty/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
+[submodule "ThirdParty/implot"]
+	path = ThirdParty/implot
+	url = https://github.com/epezent/implot.git

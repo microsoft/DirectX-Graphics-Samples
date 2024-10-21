@@ -511,26 +511,32 @@
     <ClCompile Include="AZB\src\AZB_GUI.cpp">
       <Filter>AZB_Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ThirdParty\imgui\backends\imgui_impl_dx12.cpp">
-      <Filter>AZB_ThirdParty</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ThirdParty\imgui\backends\imgui_impl_win32.cpp">
-      <Filter>AZB_ThirdParty</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\ThirdParty\imgui\imgui.cpp">
-      <Filter>AZB_ThirdParty</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ThirdParty\imgui\imgui_draw.cpp">
-      <Filter>AZB_ThirdParty</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ThirdParty\imgui\imgui_tables.cpp">
-      <Filter>AZB_ThirdParty</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ThirdParty\imgui\imgui_widgets.cpp">
-      <Filter>AZB_ThirdParty</Filter>
+      <Filter>AZB_ThirdParty\ImGui</Filter>
     </ClCompile>
     <ClCompile Include="..\..\ThirdParty\imgui\imgui_demo.cpp">
-      <Filter>AZB_ThirdParty</Filter>
+      <Filter>AZB_ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\imgui_draw.cpp">
+      <Filter>AZB_ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\backends\imgui_impl_dx12.cpp">
+      <Filter>AZB_ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\backends\imgui_impl_win32.cpp">
+      <Filter>AZB_ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\imgui_tables.cpp">
+      <Filter>AZB_ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\imgui_widgets.cpp">
+      <Filter>AZB_ThirdParty\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\implot\implot.cpp">
+      <Filter>AZB_ThirdParty\ImPlot</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\implot\implot_items.cpp">
+      <Filter>AZB_ThirdParty\ImPlot</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -611,29 +617,35 @@
     <ClInclude Include="AZB\include\AZB_Utils.h">
       <Filter>AZB_Include</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\imgui\imconfig.h">
+      <Filter>AZB_ThirdParty\ImGui</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\ThirdParty\imgui\imgui.h">
-      <Filter>AZB_ThirdParty</Filter>
+      <Filter>AZB_ThirdParty\ImGui</Filter>
     </ClInclude>
     <ClInclude Include="..\..\ThirdParty\imgui\backends\imgui_impl_dx12.h">
-      <Filter>AZB_ThirdParty</Filter>
+      <Filter>AZB_ThirdParty\ImGui</Filter>
     </ClInclude>
     <ClInclude Include="..\..\ThirdParty\imgui\backends\imgui_impl_win32.h">
-      <Filter>AZB_ThirdParty</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\ThirdParty\imgui\imconfig.h">
-      <Filter>AZB_ThirdParty</Filter>
+      <Filter>AZB_ThirdParty\ImGui</Filter>
     </ClInclude>
     <ClInclude Include="..\..\ThirdParty\imgui\imgui_internal.h">
-      <Filter>AZB_ThirdParty</Filter>
+      <Filter>AZB_ThirdParty\ImGui</Filter>
     </ClInclude>
     <ClInclude Include="..\..\ThirdParty\imgui\imstb_rectpack.h">
-      <Filter>AZB_ThirdParty</Filter>
+      <Filter>AZB_ThirdParty\ImGui</Filter>
     </ClInclude>
     <ClInclude Include="..\..\ThirdParty\imgui\imstb_textedit.h">
-      <Filter>AZB_ThirdParty</Filter>
+      <Filter>AZB_ThirdParty\ImGui</Filter>
     </ClInclude>
     <ClInclude Include="..\..\ThirdParty\imgui\imstb_truetype.h">
-      <Filter>AZB_ThirdParty</Filter>
+      <Filter>AZB_ThirdParty\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\implot\implot.h">
+      <Filter>AZB_ThirdParty\ImPlot</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\implot\implot_internal.h">
+      <Filter>AZB_ThirdParty\ImPlot</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -735,6 +747,12 @@
     </Filter>
     <Filter Include="AZB_ThirdParty">
       <UniqueIdentifier>{98384118-fec8-4e39-a17f-e5fb2a8f58c9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AZB_ThirdParty\ImGui">
+      <UniqueIdentifier>{1f3e1f6a-7224-4b6d-bfb7-382c70b33662}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AZB_ThirdParty\ImPlot">
+      <UniqueIdentifier>{ff8788d3-473a-4098-b741-621c810e4b66}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

@@ -67,6 +67,8 @@
     <ClInclude Include="..\..\ThirdParty\imgui\imstb_rectpack.h" />
     <ClInclude Include="..\..\ThirdParty\imgui\imstb_textedit.h" />
     <ClInclude Include="..\..\ThirdParty\imgui\imstb_truetype.h" />
+    <ClInclude Include="..\..\ThirdParty\implot\implot.h" />
+    <ClInclude Include="..\..\ThirdParty\implot\implot_internal.h" />
     <ClInclude Include="AZB\include\AZB_GUI.h" />
     <ClInclude Include="AZB\include\AZB_Utils.h" />
     <ClInclude Include="BitonicSort.h" />
@@ -161,6 +163,12 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\..\ThirdParty\imgui\imgui_widgets.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\implot\implot.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\implot\implot_items.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="AZB\src\AZB_GUI.cpp">
@@ -470,7 +478,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>.\AZB\include;.\AZB\src;..\..\ThirdParty\imgui;..\..\ThirdParty\imgui\backends;..\..\Packages\WinPixEventRuntime.1.0.210209001\Include\WinPixEventRuntime;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\AZB\include;.\AZB\src;..\..\ThirdParty\imgui;..\..\ThirdParty\imgui\backends;..\..\ThirdParty\implot;..\..\Packages\WinPixEventRuntime.1.0.210209001\Include\WinPixEventRuntime;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_GAMING_DESKTOP;__WRL_NO_DEFAULT_LIB__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>

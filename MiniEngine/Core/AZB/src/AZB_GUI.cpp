@@ -13,6 +13,8 @@ void GUI::Init(void* Hwnd, ID3D12Device* pDevice, int numFramesInFlight, const D
 	// Create ImGui context and get IO to set flags
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	// Setup ImPlot here too
+	ImPlot::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
 
 	// Enable keyboard & gamepad controls
@@ -48,9 +50,6 @@ void GUI::Run()
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
-	// Show demo for now
-	ImGui::ShowDemoWindow();
-
 	// Taken from sample code
 	{
 		static float f = 0.0f;
@@ -69,6 +68,19 @@ void GUI::Run()
 			counter++;
 		ImGui::SameLine();
 		ImGui::Text("counter = %d", counter);
+
+		//..\..\ThirdParty\implot;
+		
+		// Plot a sine wave!
+		if (ImPlot::BeginPlot("Example Plot")) {
+			static float x_data[1000], y_data[1000];
+			for (int i = 0; i < 1000; ++i) {
+				x_data[i] = i * 0.01f;
+				y_data[i] = sin(x_data[i]);
+			}
+			ImPlot::PlotLine("Sine Wave", x_data, y_data, 1000);
+			ImPlot::EndPlot();
+		}
 
 		ImGui::End();
 	}
@@ -89,4 +101,5 @@ void GUI::Terminate()
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+	ImPlot::DestroyContext();
 }
