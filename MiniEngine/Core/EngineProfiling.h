@@ -16,6 +16,19 @@
 #include <string>
 #include "TextRenderer.h"
 
+//===============================================================================
+// desc: This is the heart of profiling in the engine, utilising WinPix. We want to feed this to ImGui through the use of accessors
+// modified: Aliyaan Zulfiqar
+//===============================================================================
+#include "AZB_Utils.h"
+
+/*
+   Change Log:
+
+   [AZB] 21/10/24: Implemented accessors to pass performance metrics from app to ImGui 
+*/
+
+
 class CommandContext;
 
 namespace EngineProfiling
@@ -29,6 +42,13 @@ namespace EngineProfiling
     void DisplayPerfGraph(GraphicsContext& Text);
     void Display(TextContext& Text, float x, float y, float w, float h);
     bool IsPaused();
+
+// [AZB]: Acessors to performance metrics
+#if AZB_MOD
+    const float GetCPUTime();
+    const float GetGPUTime();
+    const float GetFrameRate();
+#endif
 }
 
 #ifdef RELEASE

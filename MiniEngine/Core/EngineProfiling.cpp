@@ -419,6 +419,7 @@ NestedTimingTree NestedTimingTree::sm_RootScope(L"");
 NestedTimingTree* NestedTimingTree::sm_CurrentNode = &NestedTimingTree::sm_RootScope;
 NestedTimingTree* NestedTimingTree::sm_SelectedScope = &NestedTimingTree::sm_RootScope;
 bool NestedTimingTree::sm_CursorOnGraph = false;
+
 namespace EngineProfiling
 {
     BoolVar DrawFrameRate("Display Frame Rate", true);
@@ -450,6 +451,24 @@ namespace EngineProfiling
     {
         return Paused;
     }
+
+// [AZB]: Accessors to metrics
+#if AZB_MOD
+    const float GetCPUTime()
+    {
+       return NestedTimingTree::GetTotalCpuTime();
+    }
+
+    const float GetGPUTime()
+    {
+        return NestedTimingTree::GetTotalGpuTime();
+    }
+
+    const float GetFrameRate()
+    {
+        return 1.0f / NestedTimingTree::GetFrameDelta();
+    }
+#endif
 
     void DisplayFrameRate( TextContext& Text )
     {
