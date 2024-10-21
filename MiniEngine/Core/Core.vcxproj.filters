@@ -529,6 +529,9 @@
     <ClCompile Include="..\..\ThirdParty\imgui\imgui_widgets.cpp">
       <Filter>AZB_ThirdParty</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\ThirdParty\imgui\imgui_demo.cpp">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BitonicSort.h" />
@@ -621,6 +624,15 @@
       <Filter>AZB_ThirdParty</Filter>
     </ClInclude>
     <ClInclude Include="..\..\ThirdParty\imgui\imgui_internal.h">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\imgui\imstb_rectpack.h">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\imgui\imstb_textedit.h">
+      <Filter>AZB_ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\ThirdParty\imgui\imstb_truetype.h">
       <Filter>AZB_ThirdParty</Filter>
     </ClInclude>
   </ItemGroup>

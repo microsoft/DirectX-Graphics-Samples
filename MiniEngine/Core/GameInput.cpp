@@ -11,6 +11,20 @@
 // Author:  James Stanard 
 //
 
+
+//===============================================================================
+// desc: This seems to be a clone of Input.cpp, but with the caveat of changes made here don't seem to actually affect the app?
+//       More investigation needed!
+// modified: Aliyaan Zulfiqar
+//===============================================================================
+
+/*
+   Change Log:
+   [AZB] 21/10/24: Implemented mouse accessor to enable swapping of input focus between ImGui and application
+   [AZB] 21/10/24: Removed mouse accessor and improved method by simply providing a public way to unacquire mouse access!
+*/
+
+
 #include "pch.h"
 #include "GameCore.h"
 #include "GameInput.h"
@@ -349,7 +363,8 @@ namespace
             ASSERT(false, "Mouse CreateDevice failed.");
         if (FAILED(s_Mouse->SetDataFormat(&c_dfDIMouse2)))
             ASSERT(false, "Mouse SetDataFormat failed.");
-        if (FAILED(s_Mouse->SetCooperativeLevel(GameCore::g_hWnd, DISCL_FOREGROUND | DISCL_EXCLUSIVE)))
+        // [AZB]: Setting mouse to non-exclusive to allow sharing with ImGui
+        if (FAILED(s_Mouse->SetCooperativeLevel(GameCore::g_hWnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE)))
             ASSERT(false, "Mouse SetCooperativeLevel failed.");
 #endif
 
@@ -386,7 +401,7 @@ namespace
         bool visible = IsWindowVisible(foreground) != 0;
 
         if (foreground != GameCore::g_hWnd // wouldn't be able to acquire
-            || !visible)
+            || !visible || !g_bMouseExclusive)
         {
             KbmZeroInputs();
         }
@@ -578,4 +593,10 @@ float GameInput::GetAnalogInput( AnalogInput ai )
 float GameInput::GetTimeCorrectedAnalogInput( AnalogInput ai )
 {
     return s_AnalogsTC[ai];
+}
+
+// [AZB]: Implementation for mouse unaqcuire
+void GameInput::ReleaseMouseExclusivity()
+{
+    s_Mouse->Unacquire();
 }
