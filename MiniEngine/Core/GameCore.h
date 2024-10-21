@@ -49,9 +49,6 @@ namespace GameCore
 namespace GameCore
 {
     int RunApplication( IGameApp& app, const wchar_t* className, HINSTANCE hInst, int nCmdShow );
-
-    // [AZB]: Forward declaring to allow for g_hwnd to be visible.
-    bool UpdateApplication(IGameApp& game);
 }
 
 #define CREATE_APPLICATION( app_class ) \

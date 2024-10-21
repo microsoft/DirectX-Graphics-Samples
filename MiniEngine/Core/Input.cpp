@@ -19,6 +19,7 @@
 /*
    Change Log:
    [AZB] 21/10/24: Implemented mouse accessor to enable swapping of input focus between ImGui and application
+   [AZB] 21/10/24: Removed mouse accessor and improved method by simply providing a public way to unacquire mouse access!
 */
 
 #include "pch.h"
@@ -461,5 +462,9 @@ float GameInput::GetTimeCorrectedAnalogInput( AnalogInput ai )
     return s_AnalogsTC[ai];
 }
 
-// [AZB]: Implementation for mouse getter
-IDirectInputDevice8A* GameInput::GetMouseForApp() { return s_Mouse; }
+// [AZB]: Implementation for mouse unaqcuire
+void GameInput::ReleaseMouseExclusivity()
+{
+    s_Mouse->Unacquire();
+}
+
