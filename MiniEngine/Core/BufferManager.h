@@ -19,6 +19,18 @@
 #include "GpuBuffer.h"
 #include "GraphicsCore.h"
 
+//===============================================================================
+// desc: This is a fancy manager for memory, going to try and integrate a buffer for ImGui here
+// modified: Aliyaan Zulfiqar
+//===============================================================================
+#include "AZB_Utils.h"
+
+/*
+   Change Log:
+
+   [AZB] 16/10/24: Created buffers for ImGui
+*/
+
 namespace Graphics
 {
     extern DepthBuffer g_SceneDepthBuffer;  // D32_FLOAT_S8_UINT
@@ -28,8 +40,9 @@ namespace Graphics
     extern ColorBuffer g_OverlayBuffer;     // R8G8B8A8_UNORM
     extern ColorBuffer g_HorizontalBuffer;  // For separable (bicubic) upsampling
 
+#if AZB_MOD
     extern ColorBuffer g_ImGuiBuffer;     // For ImGui R8G8B8A8_UNORM
-
+#endif
     extern ColorBuffer g_VelocityBuffer;    // R10G10B10  (3D velocity)
     extern ShadowBuffer g_ShadowBuffer;
 

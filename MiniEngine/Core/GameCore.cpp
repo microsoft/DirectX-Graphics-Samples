@@ -13,6 +13,7 @@
 
 //===============================================================================
 // desc: This is the core "game" application, where the game loop is contained. We can also access the Graphics Pipeline from here!
+//       Heavily modified at this point.
 // modified: Aliyaan Zulfiqar
 //===============================================================================
 

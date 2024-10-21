@@ -80,9 +80,9 @@ void GUI::Run()
 		frameTimes.push_back(EngineProfiling::GetFrameRate());  // Framerate
 
 		// Limit buffer size
-		if (cpuTimes.size() > 5000) cpuTimes.erase(cpuTimes.begin());
-		if (gpuTimes.size() > 5000) gpuTimes.erase(gpuTimes.begin());
-		if (frameTimes.size() > 5000) frameTimes.erase(frameTimes.begin());
+		if (cpuTimes.size() > 2000) cpuTimes.erase(cpuTimes.begin());
+		if (gpuTimes.size() > 2000) gpuTimes.erase(gpuTimes.begin());
+		if (frameTimes.size() > 2000) frameTimes.erase(frameTimes.begin());
 
 		// Plot the data
 		if (ImPlot::BeginPlot("Hardware Timings"))
