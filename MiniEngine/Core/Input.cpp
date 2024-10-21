@@ -12,13 +12,13 @@
 //
 
 //===============================================================================
-// desc: This is the core input handler, but it uses exclusive input. 
+// desc: This is the core input handler, taking precedence over GameInput.cpp
 // modified: Aliyaan Zulfiqar
 //===============================================================================
 
 /*
    Change Log:
-   [AZB] 16/10/24: Tweaked use of macro to enable swapping of input focus between ImGui and application
+   [AZB] 21/10/24: Implemented mouse accessor to enable swapping of input focus between ImGui and application
 */
 
 #include "pch.h"
@@ -33,11 +33,7 @@
 #include <Xinput.h>
 #pragma comment(lib, "xinput9_1_0.lib")
 
-#if AZB_MOD
 #define USE_KEYBOARD_MOUSE
-#else
-#endif
-// [AZB]: When this is defined, ImGui cannot use the mouse and keyboard
 
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
@@ -239,6 +235,7 @@ namespace
             ASSERT(false, "Mouse CreateDevice failed.");
         if (FAILED(s_Mouse->SetDataFormat(&c_dfDIMouse2)))
             ASSERT(false, "Mouse SetDataFormat failed.");
+        // [AZB]: Setting mouse to non-exclusive to allow sharing with ImGui
         if (FAILED(s_Mouse->SetCooperativeLevel(GameCore::g_hWnd, DISCL_FOREGROUND | DISCL_EXCLUSIVE)))
             ASSERT(false, "Mouse SetCooperativeLevel failed.");
 
@@ -271,8 +268,10 @@ namespace
         HWND foreground = GetForegroundWindow();
         bool visible = IsWindowVisible(foreground) != 0;
 
+        // [AZB]: Also add a flag for exclusive access to mouse
+        // [AZB]: Doing this requires reading input from ImGui to re-enable, as the engine no longer checks for input at all
         if (foreground != GameCore::g_hWnd // wouldn't be able to acquire
-            || !visible)
+            || !visible || !g_bMouseExclusive)
         {
             KbmZeroInputs();
         }
@@ -462,4 +461,5 @@ float GameInput::GetTimeCorrectedAnalogInput( AnalogInput ai )
     return s_AnalogsTC[ai];
 }
 
-//IDirectInputDevice8A* GameInput::GetMouseForApp() { return s_Mouse; }
+// [AZB]: Implementation for mouse getter
+IDirectInputDevice8A* GameInput::GetMouseForApp() { return s_Mouse; }

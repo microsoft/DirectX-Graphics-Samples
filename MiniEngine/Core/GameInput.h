@@ -13,6 +13,20 @@
 
 #pragma once
 
+//===============================================================================
+// desc: This is the core input handling header, which both Input.cpp files read from.
+// modified: Aliyaan Zulfiqar
+//===============================================================================
+
+/*
+   Change Log:
+   [AZB] 21/10/24: Implemented mouse accessor to enable swapping of input focus between ImGui and application
+*/
+
+
+// [AZB]: Forward declare for getter functions
+struct IDirectInputDevice8A;
+
 namespace GameInput
 {
     void Initialize();
@@ -190,7 +204,7 @@ namespace GameInput
     float GetTimeCorrectedAnalogInput( AnalogInput ai );
 
     // [AZB]: For access to mouse in app
-    //static IDirectInputDevice8A* GetMouseForApp();
+    IDirectInputDevice8A* GetMouseForApp();
 
 #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_TV_TITLE | WINAPI_PARTITION_DESKTOP)
     void SetKeyState(Windows::System::VirtualKey key, bool IsDown);
