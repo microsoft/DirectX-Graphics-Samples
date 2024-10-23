@@ -95,10 +95,12 @@ inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 directi
 // Diffuse lighting calculation.
 float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal)
 {
+    float3x3 o2w = (float3x3)ObjectToWorld3x4();
+    float3 normalWorldSpace = normalize(mul(o2w, normal));
     float3 pixelToLight = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
 
     // Diffuse contribution.
-    float fNDotL = max(0.0f, dot(pixelToLight, normal));
+    float fNDotL = max(0.0f, dot(pixelToLight, normalWorldSpace));
 
     return g_cubeCB.albedo * g_sceneCB.lightDiffuseColor * fNDotL;
 }
