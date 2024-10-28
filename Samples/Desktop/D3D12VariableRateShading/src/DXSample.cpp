@@ -147,7 +147,6 @@ void DXSample::ParseCommandLineArgs(WCHAR* argv[], int argc)
 // Determines whether tearing support is available for fullscreen borderless windows.
 void DXSample::CheckTearingSupport()
 {
-#ifndef PIXSUPPORT
     ComPtr<IDXGIFactory6> factory;
     HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
     BOOL allowTearing = FALSE;
@@ -157,9 +156,6 @@ void DXSample::CheckTearingSupport()
     }
 
     m_tearingSupport = SUCCEEDED(hr) && allowTearing;
-#else
-    m_tearingSupport = TRUE;
-#endif
 }
 
 void DXSample::SetWindowBounds(int left, int top, int right, int bottom)

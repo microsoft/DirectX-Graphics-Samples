@@ -67,12 +67,8 @@ D3D12VariableRateShading::D3D12VariableRateShading(UINT width, UINT height, wstr
     m_windowVisible(true),
     m_windowedMode(true)
 {
-#ifdef PIXSUPPORT
-    m_enableUI = false;
-#endif
-#ifndef PIXSUPPORT
     ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
-#endif
+
     if (!m_tearingSupport)
     {
         // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since Threshold II.
