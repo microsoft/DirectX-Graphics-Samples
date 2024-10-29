@@ -45,19 +45,6 @@ void VariableRateShadingScene::Initialize(ID3D12Device* pDevice, ID3D12CommandQu
         m_shadingRateTier = options.VariableShadingRateTier;
     }
 
-    // For now, disable variable rate shading when running under PIX.
-    // This is only needed until PIX supports VRS.
-    IID graphicsAnalysisID;
-    if (SUCCEEDED(IIDFromString(L"{9F251514-9D4D-4902-9D60-18988AB7D4B5}", &graphicsAnalysisID)))
-    {
-        ComPtr<IUnknown> graphicsAnalysis;
-        if (SUCCEEDED(DXGIGetDebugInterface1(0, graphicsAnalysisID, &graphicsAnalysis)))
-        {
-            // Running under PIX.
-            m_shadingRateTier = D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
-        }
-    }
-
     // Initialize the base scene.
     ShadowsFogScatteringSquidScene::Initialize(pDevice, pDirectCommandQueue, pCommandList, frameIndex);
 }
