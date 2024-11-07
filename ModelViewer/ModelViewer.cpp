@@ -237,15 +237,15 @@ void ModelViewer::Cleanup( void )
 
     g_IBLTextures.clear();
 
-    ImGui_ImplDX12_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();
-
 #ifdef LEGACY_RENDERER
     Sponza::Cleanup();
 #endif
 
     Renderer::Shutdown();
+
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
 }
 
 namespace Graphics
@@ -257,17 +257,16 @@ void ModelViewer::Update( float deltaT )
 {
     ScopedTimer _prof(L"Update State");
 
-    ImGui_ImplDX12_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-    ImGui::ShowDemoWindow();
-
     if (GameInput::IsFirstPressed(GameInput::kLShoulder))
         DebugZoom.Decrement();
     else if (GameInput::IsFirstPressed(GameInput::kRShoulder))
         DebugZoom.Increment();
 
-    m_CameraController->Update(deltaT);
+    ImGuiIO& io = ImGui::GetIO();
+    if (!io.WantCaptureMouse) {
+        // Update camera only if 
+        m_CameraController->Update(deltaT);
+    }
 
     GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Update");
 

@@ -64,8 +64,16 @@ namespace GameCore
         EngineProfiling::Update();
 
         float DeltaTime = Graphics::GetFrameTime();
+
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+        ImGui::ShowDemoWindow();
     
-        GameInput::Update(DeltaTime);
+        ImGuiIO& io = ImGui::GetIO();
+        if (!io.WantCaptureMouse)
+            GameInput::Update(DeltaTime);
+        
         EngineTuning::Update(DeltaTime);
         
         game.Update(DeltaTime);
@@ -169,6 +177,9 @@ namespace GameCore
         if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam)) {
             return true;
         }
+
+        ShowCursor(TRUE);
+
         switch( message )
         {
         case WM_SIZE:
