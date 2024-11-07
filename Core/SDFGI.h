@@ -21,6 +21,42 @@ class BoolVar;
 
 namespace SDFGI
 {
+    struct SDFGIProbe {
+      // Position of the probe in world space.
+      Vector3 position;
+      float irradiance;
+      float depth;
+    };
+
+    struct SDFGIProbeGrid {
+      // Number of probes along each axis (x, y, z).
+      Vector3u probe_count;
+      // Distance between probes in world space.
+      Vector3f probe_spacing;
+      std::vector<SDFGIProbe> probes;
+
+      SDFGIProbeGrid(Vector3u count, Vector3f spacing);
+
+      void GenerateProbes();
+    };
+
+    // A lot of "Managers" in the codebase.
+    class SDFGIManager {
+    public:
+      Texture irradianceTexture;
+      Texture depthTexture;
+      SDFGIProbeGrid probeGrid;
+      StructuredBuffer probeBuffer;
+
+      SDFGIManager(Vector3u probeCount, Vector3f probeSpacing);
+
+      void InitializeTextures();
+
+      void InitializeProbeBuffer();
+    };
+
+
+
     void Initialize(void);
     
     void Shutdown(void);
@@ -31,38 +67,4 @@ namespace SDFGI
 
     extern BoolVar Enable;
     extern BoolVar DebugDraw;
-    
-    struct SDFGIProbe {
-        // Position of the probe in world space.
-        Vector3 position;      
-        float irradiance;    
-        float depth;
-    };
-
-    struct SDFGIProbeGrid {
-        // Number of probes along each axis (x, y, z).
-        Vector3u probe_count;
-        // Distance between probes in world space.
-        Vector3f probe_spacing;
-        std::vector<SDFGIProbe> probes;
-
-        SDFGIProbeGrid(Vector3u count, Vector3f spacing);
-
-        void GenerateProbes();
-    };
-
-    // A lot of "Managers" in the codebase.
-    class SDFGIManager {
-    public:
-        Texture irradianceTexture;
-        Texture depthTexture;
-        SDFGIProbeGrid probeGrid;
-        StructuredBuffer probeBuffer;
-
-        SDFGIManager(Vector3u probeCount, Vector3f probeSpacing);
-
-        void InitializeTextures();
-
-        void InitializeProbeBuffer();
-    };
 }

@@ -36,6 +36,7 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
+#include "SDFGI.h"
 
 #define LEGACY_RENDERER
 
@@ -82,6 +83,10 @@ private:
 
     ModelInstance m_ModelInst;
     ShadowCamera m_SunShadowCamera;
+
+    SDFGI::SDFGIManager *mp_SDFGIManager;
+    Vector3u probeCount = {10, 5, 10}; 
+    Vector3f probeSpacing = {2.0f, 2.0f, 2.0f};
 };
 
 CREATE_APPLICATION( ModelViewer )
@@ -210,6 +215,8 @@ void ModelViewer::Startup( void )
         m_CameraController.reset(new OrbitCamera(m_Camera, m_ModelInst.GetBoundingSphere(), Vector3(kYUnitVector)));
 
     InitializeGUI();
+
+    mp_SDFGIManager = new SDFGI::SDFGIManager(probeCount, probeSpacing);
 }
 
 void ModelViewer::InitializeGUI() {
@@ -390,6 +397,11 @@ void ModelViewer::RenderScene( void )
             sorter.RenderMeshes(MeshSorter::kTransparent, gfxContext, globals);
         }
     }
+
+    // gfxContext.TransitionResource(mp_SDFGIManager->irradianceTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    // gfxContext.TransitionResource(mp_SDFGIManager->depthTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    SDFGI::Render(gfxContext, m_Camera, mp_SDFGIManager);
 
     // Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything
     // is static in our scene, so we generate velocity from camera motion and the depth buffer.  A velocity buffer
