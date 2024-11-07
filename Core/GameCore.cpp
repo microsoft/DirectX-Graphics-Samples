@@ -22,8 +22,13 @@
 #include "Display.h"
 #include "Util/CommandLineArg.h"
 #include <shellapi.h>
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
 
 #pragma comment(lib, "runtimeobject.lib") 
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace GameCore
 {
@@ -59,8 +64,16 @@ namespace GameCore
         EngineProfiling::Update();
 
         float DeltaTime = Graphics::GetFrameTime();
+
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+        ImGui::ShowDemoWindow();
     
-        GameInput::Update(DeltaTime);
+        ImGuiIO& io = ImGui::GetIO();
+        if (!io.WantCaptureMouse)
+            GameInput::Update(DeltaTime);
+        
         EngineTuning::Update(DeltaTime);
         
         game.Update(DeltaTime);
@@ -161,6 +174,12 @@ namespace GameCore
     //--------------------------------------------------------------------------------------
     LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
     {
+        if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam)) {
+            return true;
+        }
+
+        ShowCursor(TRUE);
+
         switch( message )
         {
         case WM_SIZE:
