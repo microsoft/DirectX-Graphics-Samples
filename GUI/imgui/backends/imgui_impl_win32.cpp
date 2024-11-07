@@ -938,3 +938,6 @@ void ImGui_ImplWin32_EnableAlphaCompositing(void* hwnd)
 #endif
 
 #endif // #ifndef IMGUI_DISABLE
+
+// "Core" project configuration requires the inclusion of this precompiled header.
+#include "pch.h"

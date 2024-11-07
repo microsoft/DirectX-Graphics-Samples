@@ -33,6 +33,9 @@
 #include "ModelLoader.h"
 #include "ShadowCamera.h"
 #include "Display.h"
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
 
 #define LEGACY_RENDERER
 
@@ -42,6 +45,16 @@ using namespace Graphics;
 using namespace std;
 
 using Renderer::MeshSorter;
+
+namespace GameCore
+{
+    extern HWND g_hWnd;
+}
+
+namespace Graphics
+{
+    extern ID3D12Device* g_Device;
+}
 
 class ModelViewer : public GameCore::IGameApp
 {
@@ -54,6 +67,10 @@ public:
 
     virtual void Update( float deltaT ) override;
     virtual void RenderScene( void ) override;
+
+    virtual void RenderUI( class GraphicsContext& ) override;
+
+    void InitializeGUI();
 
 private:
 
@@ -191,6 +208,27 @@ void ModelViewer::Startup( void )
         m_CameraController.reset(new FlyingFPSCamera(m_Camera, Vector3(kYUnitVector)));
     else
         m_CameraController.reset(new OrbitCamera(m_Camera, m_ModelInst.GetBoundingSphere(), Vector3(kYUnitVector)));
+
+    InitializeGUI();
+}
+
+void ModelViewer::InitializeGUI() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+    ImGui_ImplWin32_Init(GameCore::g_hWnd);
+    ImGui_ImplDX12_Init(
+        Graphics::g_Device,
+        // Number of frames in flight.
+        3,
+        Graphics::g_OverlayBuffer.GetFormat(), 
+        // imgui needs SRV descriptors for its font textures.
+        Renderer::s_TextureHeap.GetHeapPointer(),
+        D3D12_CPU_DESCRIPTOR_HANDLE(Renderer::s_TextureHeap[0]),
+        D3D12_GPU_DESCRIPTOR_HANDLE(Renderer::s_TextureHeap[0])
+    );
 }
 
 void ModelViewer::Cleanup( void )
@@ -198,6 +236,10 @@ void ModelViewer::Cleanup( void )
     m_ModelInst = nullptr;
 
     g_IBLTextures.clear();
+
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
 
 #ifdef LEGACY_RENDERER
     Sponza::Cleanup();
@@ -214,6 +256,11 @@ namespace Graphics
 void ModelViewer::Update( float deltaT )
 {
     ScopedTimer _prof(L"Update State");
+
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+    ImGui::ShowDemoWindow();
 
     if (GameInput::IsFirstPressed(GameInput::kLShoulder))
         DebugZoom.Decrement();
@@ -361,4 +408,9 @@ void ModelViewer::RenderScene( void )
         MotionBlur::RenderObjectBlur(gfxContext, g_VelocityBuffer);
 
     gfxContext.Finish();
+}
+
+void ModelViewer::RenderUI( class GraphicsContext& gfxContext ) {
+    ImGui::Render();
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), gfxContext.GetCommandList());
 }
