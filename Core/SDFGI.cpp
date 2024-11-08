@@ -91,30 +91,24 @@ namespace SDFGI {
 
 
 
-    SDFGIProbeGrid::SDFGIProbeGrid(Vector3u count, Vector3f spacing) {
-        // probeCount[0] = count[0];
-        // probeCount[1] = count[1];
-        // probeCount[2] = count[2];
-        // probeSpacing[0] = spacing[0];
-        // probeSpacing[1] = spacing[1];
-        // probeSpacing[2] = spacing[2];
-
-        probeCount[0] = 20;
-        probeCount[1] = 10;
-        probeCount[2] = 50;
+    SDFGIProbeGrid::SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin) {
         probeSpacing[0] = 100.0f;
         probeSpacing[1] = 100.0f;
         probeSpacing[2] = 100.0f;
 
-        GenerateProbes();
+        probeCount[0] = std::max(1u, static_cast<uint32_t>(sceneSize.GetX() / probeSpacing[0]));
+        probeCount[1] = std::max(1u, static_cast<uint32_t>(sceneSize.GetY() / probeSpacing[1]));
+        probeCount[2] = std::max(1u, static_cast<uint32_t>(sceneSize.GetZ() / probeSpacing[2]));
+
+        GenerateProbes(sceneMin);
     }
 
-    void SDFGIProbeGrid::GenerateProbes() {
+    void SDFGIProbeGrid::GenerateProbes(Vector3 &sceneMin) {
         probes.clear();
         for (uint32_t x = 0; x < probeCount[0]; ++x) {
             for (uint32_t y = 0; y < probeCount[1]; ++y) {
                 for (uint32_t z = 0; z < probeCount[2]; ++z) {
-                    Vector3 position = Vector3(
+                    Vector3 position = sceneMin + Vector3(
                         x * probeSpacing[0],
                         y * probeSpacing[1],
                         z * probeSpacing[2]
@@ -126,8 +120,8 @@ namespace SDFGI {
         }
     }
 
-    SDFGIManager::SDFGIManager(Vector3u probeCount, Vector3f probeSpacing)
-        : probeGrid(probeCount, probeSpacing) {
+    SDFGIManager::SDFGIManager(Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds)
+        : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()) {
         InitializeTextures();
         InitializeProbeBuffer();
     };

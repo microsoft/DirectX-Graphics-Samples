@@ -216,7 +216,9 @@ void ModelViewer::Startup( void )
 
     InitializeGUI();
 
-    mp_SDFGIManager = new SDFGI::SDFGIManager(probeCount, probeSpacing);
+    const Math::AxisAlignedBox &sceneBounds = Sponza::GetBoundingBox();
+
+    mp_SDFGIManager = new SDFGI::SDFGIManager(probeCount, probeSpacing, sceneBounds);
 }
 
 void ModelViewer::InitializeGUI() {

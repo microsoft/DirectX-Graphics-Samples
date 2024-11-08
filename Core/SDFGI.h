@@ -1,6 +1,7 @@
 #pragma once
 #include "Texture.h"
 #include "Math/Vector.h"
+#include "Math/BoundingBox.h"
 #include "CommandContext.h"
 #include "GpuBuffer.h"
 #include <array>
@@ -35,9 +36,9 @@ namespace SDFGI
       Vector3f probeSpacing;
       std::vector<SDFGIProbe> probes;
 
-      SDFGIProbeGrid(Vector3u count, Vector3f spacing);
+      SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin);
 
-      void GenerateProbes();
+      void GenerateProbes(Vector3 &sceneMin);
     };
 
     struct CameraData {
@@ -54,7 +55,7 @@ namespace SDFGI
       SDFGIProbeGrid probeGrid;
       StructuredBuffer probeBuffer;
 
-      SDFGIManager(Vector3u probeCount, Vector3f probeSpacing);
+      SDFGIManager(Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds);
 
       void InitializeTextures();
 
