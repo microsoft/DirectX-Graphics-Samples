@@ -11,6 +11,7 @@
 
 #include "CompiledShaders/SDFGIProbeVizVS.h"
 #include "CompiledShaders/SDFGIProbeVizPS.h"
+#include "CompiledShaders/SDFGIProbeVizGS.h"
 
 using namespace Graphics;
 
@@ -27,7 +28,8 @@ namespace SDFGI {
         s_RootSignature.Reset(2, 1);
 
         // First root parameter is a constant buffer for camera data. Register b0.
-        s_RootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);
+        // Visibility ALL because VS and GS access it.
+        s_RootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
 
         // Second root parameter is a structured buffer SRV for probe buffer. Register t0.
         s_RootSignature[1].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_VERTEX);
@@ -41,6 +43,7 @@ namespace SDFGI {
         s_ProbeVisualizationPSO.SetBlendState(BlendDisable);
         s_ProbeVisualizationPSO.SetDepthStencilState(DepthStateReadWrite);
         s_ProbeVisualizationPSO.SetVertexShader(g_pSDFGIProbeVizVS, sizeof(g_pSDFGIProbeVizVS));
+        s_ProbeVisualizationPSO.SetGeometryShader(g_pSDFGIProbeVizGS, sizeof(g_pSDFGIProbeVizGS));
         s_ProbeVisualizationPSO.SetPixelShader(g_pSDFGIProbeVizPS, sizeof(g_pSDFGIProbeVizPS));
         s_ProbeVisualizationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
         s_ProbeVisualizationPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
@@ -63,14 +66,21 @@ namespace SDFGI {
         context.SetPipelineState(s_ProbeVisualizationPSO);
         context.SetRootSignature(s_RootSignature);
 
-        Matrix4 viewProj = camera.GetViewProjMatrix();
-        context.SetDynamicConstantBufferView(0, sizeof(viewProj), &viewProj);
+        // D3D12_DESCRIPTOR_HEAP_TYPE heapTypes[] = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+        // ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeap };
+        // context.SetDescriptorHeaps(_countof(descriptorHeaps), heapTypes, descriptorHeaps);
+
+        CameraData camData = {};
+        camData.viewProjMatrix = camera.GetViewProjMatrix();
+        camData.position = camera.GetPosition();
+
+        context.SetDynamicConstantBufferView(0, sizeof(camData), &camData);
 
         context.SetBufferSRV(1, SDFGIManager->probeBuffer);
 
         context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
-        context.DrawInstanced(100, SDFGIManager->probeGrid.probes.size(), 0, 0);
+        context.DrawInstanced(SDFGIManager->probeGrid.probes.size(), 1, 0, 0);
     }
 
     void UpdateProbeData(GraphicsContext& context)
@@ -82,32 +92,32 @@ namespace SDFGI {
 
 
     SDFGIProbeGrid::SDFGIProbeGrid(Vector3u count, Vector3f spacing) {
-        // probe_count[0] = count[0];
-        // probe_count[1] = count[1];
-        // probe_count[2] = count[2];
-        // probe_spacing[0] = spacing[0];
-        // probe_spacing[1] = spacing[1];
-        // probe_spacing[2] = spacing[2];
+        // probeCount[0] = count[0];
+        // probeCount[1] = count[1];
+        // probeCount[2] = count[2];
+        // probeSpacing[0] = spacing[0];
+        // probeSpacing[1] = spacing[1];
+        // probeSpacing[2] = spacing[2];
 
-        probe_count[0] = 20;
-        probe_count[1] = 10;
-        probe_count[2] = 50;
-        probe_spacing[0] = 2.0f;
-        probe_spacing[1] = 2.0f;
-        probe_spacing[2] = 2.0f;
+        probeCount[0] = 20;
+        probeCount[1] = 10;
+        probeCount[2] = 50;
+        probeSpacing[0] = 100.0f;
+        probeSpacing[1] = 100.0f;
+        probeSpacing[2] = 100.0f;
 
         GenerateProbes();
     }
 
     void SDFGIProbeGrid::GenerateProbes() {
         probes.clear();
-        for (uint32_t x = 0; x < probe_count[0]; ++x) {
-            for (uint32_t y = 0; y < probe_count[1]; ++y) {
-                for (uint32_t z = 0; z < probe_count[2]; ++z) {
+        for (uint32_t x = 0; x < probeCount[0]; ++x) {
+            for (uint32_t y = 0; y < probeCount[1]; ++y) {
+                for (uint32_t z = 0; z < probeCount[2]; ++z) {
                     Vector3 position = Vector3(
-                        x * probe_spacing[0],
-                        y * probe_spacing[1],
-                        z * probe_spacing[2]
+                        x * probeSpacing[0],
+                        y * probeSpacing[1],
+                        z * probeSpacing[2]
                     );
                      // Initialize position, irradiance and depth.
                     probes.push_back({position, 0.0f, 1.0f});
@@ -123,9 +133,9 @@ namespace SDFGI {
     };
 
     void SDFGIManager::InitializeTextures() {
-        uint32_t width = probeGrid.probe_count[0];
-        uint32_t height = probeGrid.probe_count[1];
-        uint32_t depth = probeGrid.probe_count[2];
+        uint32_t width = probeGrid.probeCount[0];
+        uint32_t height = probeGrid.probeCount[1];
+        uint32_t depth = probeGrid.probeCount[2];
 
         size_t irradianceRowPitch = width * sizeof(float) * 4;
         size_t depthRowPitch = width * sizeof(float);

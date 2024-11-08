@@ -385,6 +385,9 @@
     <FxCompile Include="Shaders\ScreenQuadPresentVS.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeVizGS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Geometry</ShaderType>
+    </FxCompile>
     <FxCompile Include="Shaders\SDFGIProbeVizPS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
     </FxCompile>

@@ -30,14 +30,20 @@ namespace SDFGI
 
     struct SDFGIProbeGrid {
       // Number of probes along each axis (x, y, z).
-      Vector3u probe_count;
+      Vector3u probeCount;
       // Distance between probes in world space.
-      Vector3f probe_spacing;
+      Vector3f probeSpacing;
       std::vector<SDFGIProbe> probes;
 
       SDFGIProbeGrid(Vector3u count, Vector3f spacing);
 
       void GenerateProbes();
+    };
+
+    struct CameraData {
+        Matrix4 viewProjMatrix;
+        Vector3 position;
+        float pad;
     };
 
     // A lot of "Managers" in the codebase.
