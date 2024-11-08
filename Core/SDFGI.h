@@ -52,13 +52,17 @@ namespace SDFGI
     public:
       bool irradianceCaptured = false;
       Texture irradianceTexture;
+      Texture irradianceAtlas;
       Texture depthTexture;
+      Texture depthAtlas;
       SDFGIProbeGrid probeGrid;
       StructuredBuffer probeBuffer;
       ComputePSO probeUpdateComputePSO;
       RootSignature probeUpdateComputeRootSignature;
       D3D12_CPU_DESCRIPTOR_HANDLE irradianceUAV;
+      D3D12_CPU_DESCRIPTOR_HANDLE irradianceAtlasUAV;
       D3D12_CPU_DESCRIPTOR_HANDLE depthUAV;
+      D3D12_CPU_DESCRIPTOR_HANDLE depthAtlasUAV;
       const Math::AxisAlignedBox &sceneBounds;
       GraphicsPSO textureVisualizationPSO;    
       RootSignature textureVisualizationRootSignature;

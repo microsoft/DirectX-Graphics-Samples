@@ -141,9 +141,22 @@ namespace SDFGI {
         size_t irradianceRowPitch = width * sizeof(float) * 4;
         size_t depthRowPitch = width * sizeof(float);
 
+        // 4x4 pixels per probe for octahedral mapping.
+        uint32_t probeBlockSize = 4;
+        // Padding between probes
+        uint32_t gutterSize = 1; 
+
+        uint32_t atlasWidth = (width * probeBlockSize) + (width + 1) * gutterSize;
+        uint32_t atlasHeight = (height * probeBlockSize) + (height + 1) * gutterSize;
+        size_t rowPitchBytes = atlasWidth * 8;
+
         irradianceTexture.Create3D(irradianceRowPitch, width, height, depth, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr);
 
+        irradianceAtlas.Create2D(rowPitchBytes, atlasWidth, atlasHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr);
+
         depthTexture.Create3D(depthRowPitch, width, height, depth, DXGI_FORMAT_R16_FLOAT, nullptr);
+
+        depthAtlas.Create2D(rowPitchBytes / 2, atlasWidth, atlasHeight, DXGI_FORMAT_R16_FLOAT, nullptr);
     };
 
     void SDFGIManager::InitializeViews() {
@@ -160,6 +173,18 @@ namespace SDFGI {
         uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
         uavDesc.Format = DXGI_FORMAT_R16_FLOAT;
         g_Device->CreateUnorderedAccessView(depthTexture.GetResource(), nullptr, &uavDesc, depthUAV);
+
+        irradianceAtlasUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        D3D12_UNORDERED_ACCESS_VIEW_DESC atlasUavDesc = {};
+        atlasUavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+        atlasUavDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        atlasUavDesc.Texture2D.MipSlice = 0;
+        atlasUavDesc.Texture2D.PlaneSlice = 0;
+        g_Device->CreateUnorderedAccessView(irradianceAtlas.GetResource(), nullptr, &atlasUavDesc, irradianceAtlasUAV);
+
+        depthAtlasUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        atlasUavDesc.Format = DXGI_FORMAT_R16_FLOAT;
+        g_Device->CreateUnorderedAccessView(depthAtlas.GetResource(), nullptr, &atlasUavDesc, depthAtlasUAV);
     };
 
     void SDFGIManager::InitializeProbeBuffer() {
@@ -177,7 +202,7 @@ namespace SDFGI {
 
     void SDFGIManager::InitializeProbeUpdateShader()
     {
-        probeUpdateComputeRootSignature.Reset(4, 0);
+        probeUpdateComputeRootSignature.Reset(6, 0);
 
         // probeBuffer.
         probeUpdateComputeRootSignature[0].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL);
@@ -190,6 +215,12 @@ namespace SDFGI {
 
         // Probe grid info.
         probeUpdateComputeRootSignature[3].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
+
+        // Irradiance atlas.
+        probeUpdateComputeRootSignature[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 1);
+
+        // Depth atlas.
+        probeUpdateComputeRootSignature[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 3, 1);
 
         probeUpdateComputeRootSignature.Finalize(L"DDGI Compute Root Signature");
 
@@ -212,9 +243,13 @@ namespace SDFGI {
         computeContext.SetBufferSRV(0, probeBuffer);
         computeContext.SetDynamicDescriptor(1, 0, irradianceUAV);
         computeContext.SetDynamicDescriptor(2, 0, depthUAV);
+        computeContext.SetDynamicDescriptor(4, 0, irradianceAtlasUAV);
+        computeContext.SetDynamicDescriptor(5, 0, depthAtlasUAV);
 
         computeContext.TransitionResource(irradianceTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         computeContext.TransitionResource(depthTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        computeContext.TransitionResource(irradianceAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        computeContext.TransitionResource(depthAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
         struct ProbeData {
             unsigned int ProbeCount;
@@ -237,19 +272,23 @@ namespace SDFGI {
 
         computeContext.TransitionResource(irradianceTexture, D3D12_RESOURCE_STATE_GENERIC_READ);
         computeContext.TransitionResource(depthTexture, D3D12_RESOURCE_STATE_GENERIC_READ);
+        computeContext.TransitionResource(irradianceAtlas, D3D12_RESOURCE_STATE_GENERIC_READ);
+        computeContext.TransitionResource(depthAtlas, D3D12_RESOURCE_STATE_GENERIC_READ);
 
         irradianceCaptured = true;
     }
 
     void SDFGIManager::InitializeTextureVizShader()
     {
-        textureVisualizationRootSignature.Reset(3, 1);
+        textureVisualizationRootSignature.Reset(5, 1);
         // Irradiance.
         textureVisualizationRootSignature[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         // Depth.
         textureVisualizationRootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         // Probe grid info.
-        textureVisualizationRootSignature[2].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+        textureVisualizationRootSignature[2].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
+        textureVisualizationRootSignature[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        textureVisualizationRootSignature[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         textureVisualizationRootSignature.InitStaticSampler(0, SamplerLinearClampDesc);
         textureVisualizationRootSignature.Finalize(L"SDFGI Visualization Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -275,12 +314,23 @@ namespace SDFGI {
         context.SetDynamicDescriptor(0, 0, irradianceTexture.GetSRV());
         context.SetDynamicDescriptor(1, 0, depthTexture.GetSRV());
 
+        context.SetDynamicDescriptor(3, 0, irradianceAtlas.GetSRV());
+        context.SetDynamicDescriptor(4, 0, depthAtlas.GetSRV());
+
+        int totalProbes = probeGrid.probeCount[0] * probeGrid.probeCount[1] * probeGrid.probeCount[2];
+        int atlasColumns = static_cast<int>(ceil(sqrt(static_cast<float>(totalProbes))));
+        int atlasRows = (totalProbes + atlasColumns - 1) / atlasColumns;
+        float cellSize = 1.0f / static_cast<float>(std::max(atlasColumns, atlasRows));
+
+
         __declspec(align(16)) struct VisualizationData {
-            int SliceIndex;
-            int DepthDimension;
-            float MaxDepthDistance;
-            float pad;
-        } data = { sliceIndex,  probeGrid.probeCount[2], maxDepthDistance };
+            int sliceIndex;
+            int depthDimension;
+            float maxDepthDistance;
+            int atlasColumns;
+            int atlasRows;
+            float cellSize;
+        } data = { sliceIndex,  probeGrid.probeCount[2], maxDepthDistance, atlasColumns, atlasRows, cellSize };
         context.SetDynamicConstantBufferView(2, sizeof(data), &data);
 
         context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
