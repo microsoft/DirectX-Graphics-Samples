@@ -8,10 +8,14 @@
 #include "CommandContext.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
+#include "Utility.h"
 
 #include "CompiledShaders/SDFGIProbeVizVS.h"
 #include "CompiledShaders/SDFGIProbeVizPS.h"
 #include "CompiledShaders/SDFGIProbeVizGS.h"
+#include "CompiledShaders/SDFGIProbeUpdateCS.h"
+#include "CompiledShaders/SDFGIProbeIrradianceDepthVizPS.h"
+#include "CompiledShaders/SDFGIProbeIrradianceDepthVizVS.h"
 
 using namespace Graphics;
 
@@ -20,25 +24,25 @@ namespace SDFGI {
     BoolVar DebugDraw("Graphics/Debug/SDFGI Debug Draw", false);
 
     GraphicsPSO s_ProbeVisualizationPSO;    
-    RootSignature s_RootSignature;
+    RootSignature s_ProbeVisualizationRootSignature;
 
     void Initialize(void) 
     {
         // 2 parameters (camera constant buffer and probe data structured buffer) and 1 static sampler.
-        s_RootSignature.Reset(2, 1);
+        s_ProbeVisualizationRootSignature.Reset(2, 1);
 
         // First root parameter is a constant buffer for camera data. Register b0.
         // Visibility ALL because VS and GS access it.
-        s_RootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
+        s_ProbeVisualizationRootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
 
         // Second root parameter is a structured buffer SRV for probe buffer. Register t0.
-        s_RootSignature[1].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_VERTEX);
+        s_ProbeVisualizationRootSignature[1].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_VERTEX);
 
-        s_RootSignature.InitStaticSampler(0, SamplerLinearClampDesc);
+        s_ProbeVisualizationRootSignature.InitStaticSampler(0, SamplerLinearClampDesc);
 
-        s_RootSignature.Finalize(L"SDFGI Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        s_ProbeVisualizationRootSignature.Finalize(L"SDFGI Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-        s_ProbeVisualizationPSO.SetRootSignature(s_RootSignature);
+        s_ProbeVisualizationPSO.SetRootSignature(s_ProbeVisualizationRootSignature);
         s_ProbeVisualizationPSO.SetRasterizerState(RasterizerDefault);
         s_ProbeVisualizationPSO.SetBlendState(BlendDisable);
         s_ProbeVisualizationPSO.SetDepthStencilState(DepthStateReadWrite);
@@ -56,19 +60,17 @@ namespace SDFGI {
 
     }
 
-    void Render(GraphicsContext& context, const Math::Camera& camera, SDFGIManager* SDFGIManager)
+    void Render(GraphicsContext& context, const Math::Camera& camera, SDFGIManager* sdfgiManager)
     {
         if (!Enable)
             return;
 
         ScopedTimer _prof(L"SDFGI Rendering", context);
 
-        context.SetPipelineState(s_ProbeVisualizationPSO);
-        context.SetRootSignature(s_RootSignature);
+        sdfgiManager->CaptureIrradianceAndDepth(context);
 
-        // D3D12_DESCRIPTOR_HEAP_TYPE heapTypes[] = { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
-        // ID3D12DescriptorHeap* descriptorHeaps[] = { descriptorHeap };
-        // context.SetDescriptorHeaps(_countof(descriptorHeaps), heapTypes, descriptorHeaps);
+        context.SetPipelineState(s_ProbeVisualizationPSO);
+        context.SetRootSignature(s_ProbeVisualizationRootSignature);
 
         CameraData camData = {};
         camData.viewProjMatrix = camera.GetViewProjMatrix();
@@ -76,11 +78,13 @@ namespace SDFGI {
 
         context.SetDynamicConstantBufferView(0, sizeof(camData), &camData);
 
-        context.SetBufferSRV(1, SDFGIManager->probeBuffer);
+        context.SetBufferSRV(1, sdfgiManager->probeBuffer);
 
         context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
-        context.DrawInstanced(SDFGIManager->probeGrid.probes.size(), 1, 0, 0);
+        context.DrawInstanced(sdfgiManager->probeGrid.probes.size(), 1, 0, 0);
+
+        sdfgiManager->RenderIrradianceDepthViz(context, camera, 10, 50);
     }
 
     void UpdateProbeData(GraphicsContext& context)
@@ -121,9 +125,12 @@ namespace SDFGI {
     }
 
     SDFGIManager::SDFGIManager(Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds)
-        : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()) {
+        : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()), sceneBounds(sceneBounds) {
         InitializeTextures();
+        InitializeViews();
         InitializeProbeBuffer();
+        InitializeProbeUpdateShader();
+        InitializeTextureVizShader();
     };
 
     void SDFGIManager::InitializeTextures() {
@@ -139,6 +146,22 @@ namespace SDFGI {
         depthTexture.Create3D(depthRowPitch, width, height, depth, DXGI_FORMAT_R16_FLOAT, nullptr);
     };
 
+    void SDFGIManager::InitializeViews() {
+        irradianceUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+        uavDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        uavDesc.Texture3D.MipSlice = 0;
+        uavDesc.Texture3D.FirstWSlice = 0;
+        uavDesc.Texture3D.WSize = -1;   
+        g_Device->CreateUnorderedAccessView(irradianceTexture.GetResource(), nullptr, &uavDesc, irradianceUAV);
+
+        depthUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+        uavDesc.Format = DXGI_FORMAT_R16_FLOAT;
+        g_Device->CreateUnorderedAccessView(depthTexture.GetResource(), nullptr, &uavDesc, depthUAV);
+    };
+
     void SDFGIManager::InitializeProbeBuffer() {
         std::vector<float> probeData;
 
@@ -151,4 +174,117 @@ namespace SDFGI {
 
         probeBuffer.Create(L"Probe Data Buffer", probeData.size(), sizeof(float), probeData.data());
     }
+
+    void SDFGIManager::InitializeProbeUpdateShader()
+    {
+        probeUpdateComputeRootSignature.Reset(4, 0);
+
+        // probeBuffer.
+        probeUpdateComputeRootSignature[0].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL);
+
+        // Irradiance.
+        probeUpdateComputeRootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+
+        // Depth.
+        probeUpdateComputeRootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);
+
+        // Probe grid info.
+        probeUpdateComputeRootSignature[3].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
+
+        probeUpdateComputeRootSignature.Finalize(L"DDGI Compute Root Signature");
+
+        probeUpdateComputePSO.SetRootSignature(probeUpdateComputeRootSignature);
+        probeUpdateComputePSO.SetComputeShader(g_pSDFGIProbeUpdateCS, sizeof(g_pSDFGIProbeUpdateCS));
+        probeUpdateComputePSO.Finalize();
+    }
+
+
+    void SDFGIManager::CaptureIrradianceAndDepth(GraphicsContext& context) {
+        if (irradianceCaptured) return;
+
+        ComputeContext& computeContext = context.GetComputeContext();
+
+        ScopedTimer _prof(L"Capture Irradiance and Depth", context);
+
+        computeContext.SetPipelineState(probeUpdateComputePSO);
+        computeContext.SetRootSignature(probeUpdateComputeRootSignature);
+
+        computeContext.SetBufferSRV(0, probeBuffer);
+        computeContext.SetDynamicDescriptor(1, 0, irradianceUAV);
+        computeContext.SetDynamicDescriptor(2, 0, depthUAV);
+
+        computeContext.TransitionResource(irradianceTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        computeContext.TransitionResource(depthTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+        struct ProbeData {
+            unsigned int ProbeCount;
+            float ProbeMaxDistance;
+            Vector3 GridSize;
+            Vector3 ProbeSpacing;
+            Vector3 SceneMinBounds;
+        } probeData;
+
+        probeData.ProbeCount = probeGrid.probes.size();
+        probeData.ProbeMaxDistance = 50;
+        probeData.GridSize = Vector3(probeGrid.probeCount[0], probeGrid.probeCount[1], probeGrid.probeCount[2]);
+        probeData.ProbeSpacing = Vector3(probeGrid.probeSpacing[0], probeGrid.probeSpacing[1], probeGrid.probeSpacing[2]);
+        probeData.SceneMinBounds = sceneBounds.GetMin();
+
+        computeContext.SetDynamicConstantBufferView(3, sizeof(probeData), &probeData);
+
+        // One thread per probe.
+        computeContext.Dispatch(probeGrid.probeCount[0], probeGrid.probeCount[1], probeGrid.probeCount[2]);
+
+        computeContext.TransitionResource(irradianceTexture, D3D12_RESOURCE_STATE_GENERIC_READ);
+        computeContext.TransitionResource(depthTexture, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+        irradianceCaptured = true;
+    }
+
+    void SDFGIManager::InitializeTextureVizShader()
+    {
+        textureVisualizationRootSignature.Reset(3, 1);
+        // Irradiance.
+        textureVisualizationRootSignature[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        // Depth.
+        textureVisualizationRootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        // Probe grid info.
+        textureVisualizationRootSignature[2].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+        textureVisualizationRootSignature.InitStaticSampler(0, SamplerLinearClampDesc);
+        textureVisualizationRootSignature.Finalize(L"SDFGI Visualization Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+
+        textureVisualizationPSO.SetRootSignature(textureVisualizationRootSignature);
+        textureVisualizationPSO.SetVertexShader(g_pSDFGIProbeIrradianceDepthVizVS, sizeof(g_pSDFGIProbeIrradianceDepthVizVS));
+        textureVisualizationPSO.SetPixelShader(g_pSDFGIProbeIrradianceDepthVizPS, sizeof(g_pSDFGIProbeIrradianceDepthVizPS));
+        textureVisualizationPSO.SetRasterizerState(RasterizerDefault);
+        textureVisualizationPSO.SetBlendState(BlendDisable);
+        textureVisualizationPSO.SetDepthStencilState(DepthStateReadWrite);
+        textureVisualizationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        textureVisualizationPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
+        textureVisualizationPSO.Finalize();
+    }
+
+    void SDFGIManager::RenderIrradianceDepthViz(GraphicsContext& context, const Math::Camera& camera, int sliceIndex, float maxDepthDistance)
+    {
+        ScopedTimer _prof(L"Visualize SDFGI Textures", context);
+
+        context.SetPipelineState(textureVisualizationPSO);
+        context.SetRootSignature(textureVisualizationRootSignature);
+
+        context.SetDynamicDescriptor(0, 0, irradianceTexture.GetSRV());
+        context.SetDynamicDescriptor(1, 0, depthTexture.GetSRV());
+
+        __declspec(align(16)) struct VisualizationData {
+            int SliceIndex;
+            int DepthDimension;
+            float MaxDepthDistance;
+            float pad;
+        } data = { sliceIndex,  probeGrid.probeCount[2], maxDepthDistance };
+        context.SetDynamicConstantBufferView(2, sizeof(data), &data);
+
+        context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        context.Draw(4);
+    }
+
 }

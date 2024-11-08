@@ -50,16 +50,34 @@ namespace SDFGI
     // A lot of "Managers" in the codebase.
     class SDFGIManager {
     public:
+      bool irradianceCaptured = false;
       Texture irradianceTexture;
       Texture depthTexture;
       SDFGIProbeGrid probeGrid;
       StructuredBuffer probeBuffer;
+      ComputePSO probeUpdateComputePSO;
+      RootSignature probeUpdateComputeRootSignature;
+      D3D12_CPU_DESCRIPTOR_HANDLE irradianceUAV;
+      D3D12_CPU_DESCRIPTOR_HANDLE depthUAV;
+      const Math::AxisAlignedBox &sceneBounds;
+      GraphicsPSO textureVisualizationPSO;    
+      RootSignature textureVisualizationRootSignature;
 
       SDFGIManager(Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds);
 
+      void InitializeProbeUpdateShader();
+
+      void InitializeTextureVizShader();
+
       void InitializeTextures();
 
+      void InitializeViews();
+
       void InitializeProbeBuffer();
+
+      void CaptureIrradianceAndDepth(GraphicsContext& context);
+
+      void RenderIrradianceDepthViz(GraphicsContext& context, const Math::Camera& camera, int sliceIndex, float maxDepthDistance);
     };
 
 
