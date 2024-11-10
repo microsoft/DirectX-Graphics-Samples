@@ -102,6 +102,7 @@ namespace Math
         float GetFarClip() const { return m_FarClip; }
         float GetClearDepth() const { return m_ReverseZ ? 0.0f : 1.0f; }
         float GetAspectRatio() const { return m_AspectRatio; }
+        float GetReverseZ() const { return m_ReverseZ; }
 
     private:
 

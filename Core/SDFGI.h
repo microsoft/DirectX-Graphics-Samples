@@ -80,6 +80,7 @@ namespace SDFGI
       D3D12_VERTEX_BUFFER_VIEW pentagonVertexBufferView = {};
       D3D12_INDEX_BUFFER_VIEW pentagonIndexBufferView = {};
       int frameCount = 0;
+      int faceResolution = 64;
 
       SDFGIManager(
         Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds, 
@@ -107,18 +108,18 @@ namespace SDFGI
       void RenderIrradianceDepthViz(GraphicsContext& context, const Math::Camera& camera, int sliceIndex, float maxDepthDistance);
 
       void RenderToCubemapFace(
-        GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, int cubemapResolution, const Math::Camera& camera, Vector3 &probePosition, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor
+        GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, const Math::Camera& camera, Vector3 &probePosition, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor
       );
 
       Matrix4 GetViewMatrixForCubemapFace(int faceIndex, const Vector3& probePosition);
 
       void RenderCubemapsForProbes(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
 
-      void CopyCubemapFaceToIntermediate(GraphicsContext& context, int face, int cubemapResolution);
+      void CopyCubemapFaceToIntermediate(GraphicsContext& context, int face);
 
       void InitializeCubemapVisualizationShader();
 
-      void RenderCubemapViz(GraphicsContext& context, int cubemapResolution, const Math::Camera& camera);
+      void RenderCubemapViz(GraphicsContext& context, const Math::Camera& camera);
 
       void SimpleRenderFunc(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
 
