@@ -16,6 +16,10 @@
 #include "CompiledShaders/SDFGIProbeUpdateCS.h"
 #include "CompiledShaders/SDFGIProbeIrradianceDepthVizPS.h"
 #include "CompiledShaders/SDFGIProbeIrradianceDepthVizVS.h"
+#include "CompiledShaders/SDFGIProbeCubemapVizVS.h"
+#include "CompiledShaders/SDFGIProbeCubemapVizPS.h"
+#include "CompiledShaders/SDFGISimpleVS.h"
+#include "CompiledShaders/SDFGISimplePS.h"
 
 using namespace Graphics;
 
@@ -60,12 +64,14 @@ namespace SDFGI {
 
     }
 
-    void Render(GraphicsContext& context, const Math::Camera& camera, SDFGIManager* sdfgiManager)
+    void Render(GraphicsContext& context, const Math::Camera& camera, SDFGIManager* sdfgiManager, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
     {
         if (!Enable)
             return;
 
         ScopedTimer _prof(L"SDFGI Rendering", context);
+
+        sdfgiManager->RenderCubemapsForProbes(context, camera, viewport, scissor);
 
         sdfgiManager->CaptureIrradianceAndDepth(context);
 
@@ -84,7 +90,8 @@ namespace SDFGI {
 
         context.DrawInstanced(sdfgiManager->probeGrid.probes.size(), 1, 0, 0);
 
-        sdfgiManager->RenderIrradianceDepthViz(context, camera, 10, 50);
+        // sdfgiManager->RenderIrradianceDepthViz(context, camera, 10, 50);
+        sdfgiManager->RenderCubemapViz(context, 128, camera);
     }
 
     void UpdateProbeData(GraphicsContext& context)
@@ -96,9 +103,9 @@ namespace SDFGI {
 
 
     SDFGIProbeGrid::SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin) {
-        probeSpacing[0] = 100.0f;
-        probeSpacing[1] = 100.0f;
-        probeSpacing[2] = 100.0f;
+        probeSpacing[0] = 400.0f;
+        probeSpacing[1] = 400.0f;
+        probeSpacing[2] = 400.0f;
 
         probeCount[0] = std::max(1u, static_cast<uint32_t>(sceneSize.GetX() / probeSpacing[0]));
         probeCount[1] = std::max(1u, static_cast<uint32_t>(sceneSize.GetY() / probeSpacing[1]));
@@ -124,13 +131,19 @@ namespace SDFGI {
         }
     }
 
-    SDFGIManager::SDFGIManager(Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds)
-        : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()), sceneBounds(sceneBounds) {
+    SDFGIManager::SDFGIManager(
+        Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds, 
+        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc
+    )
+        : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()), sceneBounds(sceneBounds), renderFunc(renderFunc) {
+        InitializeProbeBuffer();
         InitializeTextures();
         InitializeViews();
-        InitializeProbeBuffer();
         InitializeProbeUpdateShader();
         InitializeTextureVizShader();
+        InitializeCubemapVisualizationShader();
+        InitializePentagon();
+        InitializeSimpleQuadPipelineState();
     };
 
     void SDFGIManager::InitializeTextures() {
@@ -157,6 +170,26 @@ namespace SDFGI {
         depthTexture.Create3D(depthRowPitch, width, height, depth, DXGI_FORMAT_R16_FLOAT, nullptr);
 
         depthAtlas.Create2D(rowPitchBytes / 2, atlasWidth, atlasHeight, DXGI_FORMAT_R16_FLOAT, nullptr);
+
+        size_t cubemapResolution = 128;
+        size_t cubeRowPitchBytes = cubemapResolution * sizeof(float) * 4;
+        probeIrradianceCubemap.CreateCube(cubeRowPitchBytes, cubemapResolution, cubemapResolution, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr);
+
+        probeCount = width * height * depth;
+        intermediateTextures = new Texture*[probeCount];
+        for (uint32_t probe  = 0; probe < probeCount; ++probe) {
+            intermediateTextures[probe] = new Texture[6];
+
+            for (int face = 0; face < 6; ++face)
+            {
+                intermediateTextures[probe][face].Create2D(
+                    cubemapResolution * sizeof(float) * 4,
+                    cubemapResolution, cubemapResolution,
+                    DXGI_FORMAT_R11G11B10_FLOAT,
+                    nullptr
+                );
+            }
+        }
     };
 
     void SDFGIManager::InitializeViews() {
@@ -185,6 +218,33 @@ namespace SDFGI {
         depthAtlasUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         atlasUavDesc.Format = DXGI_FORMAT_R16_FLOAT;
         g_Device->CreateUnorderedAccessView(depthAtlas.GetResource(), nullptr, &atlasUavDesc, depthAtlasUAV);
+
+        for (int face = 0; face < 6; ++face)
+        {
+            D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+            rtvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+            rtvDesc.Texture2DArray.MipSlice = 0;
+            rtvDesc.Texture2DArray.FirstArraySlice = face;
+            rtvDesc.Texture2DArray.ArraySize = 1;
+
+            cubemapRTVs[face] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+            g_Device->CreateRenderTargetView(probeIrradianceCubemap.GetResource(), &rtvDesc, cubemapRTVs[face]);
+        }
+
+        intermediateRTVs = new D3D12_CPU_DESCRIPTOR_HANDLE*[probeCount];
+        for (int probe = 0; probe < probeCount; ++probe)
+        {
+            intermediateRTVs[probe] = new D3D12_CPU_DESCRIPTOR_HANDLE[6];
+            for (int face = 0; face < 6; ++face)
+            {
+                intermediateRTVs[probe][face] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+                D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+                rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+                rtvDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
+                g_Device->CreateRenderTargetView(intermediateTextures[probe][face].GetResource(), &rtvDesc, intermediateRTVs[probe][face]);
+            }
+        }
     };
 
     void SDFGIManager::InitializeProbeBuffer() {
@@ -337,4 +397,231 @@ namespace SDFGI {
         context.Draw(4);
     }
 
+    Matrix4 SDFGIManager::GetViewMatrixForCubemapFace(int faceIndex, const Vector3& probePosition) {
+        static const Vector3 lookDirections[6] = {
+            Vector3(1.0f, 0.0f, 0.0f),  // +X
+            Vector3(-1.0f, 0.0f, 0.0f), // -X
+            Vector3(0.0f, 1.0f, 0.0f),  // +Y
+            Vector3(0.0f, -1.0f, 0.0f), // -Y
+            Vector3(0.0f, 0.0f, 1.0f),  // +Z
+            Vector3(0.0f, 0.0f, -1.0f)  // -Z
+        };
+
+        static const Vector3 upVectors[6] = {
+            Vector3(0.0f, 1.0f, 0.0f),  // +X
+            Vector3(0.0f, 1.0f, 0.0f),  // -X
+            Vector3(0.0f, 0.0f, -1.0f), // +Y
+            Vector3(0.0f, 0.0f, 1.0f),  // -Y
+            Vector3(0.0f, 1.0f, 0.0f),  // +Z
+            Vector3(0.0f, 1.0f, 0.0f)   // -Z
+        };
+
+        assert(faceIndex >= 0 && faceIndex < 6);
+
+        Vector3 forward = Normalize(lookDirections[faceIndex]);
+        Vector3 right = Normalize(Cross(upVectors[faceIndex], forward));
+        Vector3 up = Cross(forward, right);
+
+        Vector4 rowX = Vector4(right.GetX(), up.GetX(), forward.GetX(), 0.0f);
+        Vector4 rowY = Vector4(right.GetY(), up.GetY(), forward.GetY(), 0.0f);
+        Vector4 rowZ = Vector4(right.GetY(), up.GetY(), forward.GetZ(), 0.0f);
+        Vector4 rowW = Vector4(-Dot(right, probePosition), -Dot(up, probePosition), -Dot(forward, probePosition), 1.0f);
+
+        Matrix4 viewMatrix;
+        viewMatrix.SetX(rowX);
+        viewMatrix.SetY(rowY);
+        viewMatrix.SetZ(rowZ);
+        viewMatrix.SetW(rowW);
+
+        return viewMatrix;
+    }
+
+    static Matrix4 MakeLookAt(Vector3 eye, Vector3 target, Vector3 up)
+    {
+        Vector3 forward = Math::Normalize(target - eye);
+        Vector3 right = Math::Normalize(Math::Cross(up, forward));
+        Vector3 camUp = Math::Cross(forward, right);
+
+        return Matrix4(
+            Vector4(right.GetX(), camUp.GetX(), forward.GetX(), 0.0f),
+            Vector4(right.GetY(), camUp.GetY(), forward.GetY(), 0.0f),
+            Vector4(right.GetZ(), camUp.GetZ(), forward.GetZ(), 0.0f),
+            Vector4(-Math::Dot(right, eye), -Math::Dot(camUp, eye), -Math::Dot(forward, eye), 1.0f)
+        );
+    }
+
+    void SDFGIManager::InitializePentagon() {
+        
+    }
+
+    void SDFGIManager::SimpleRenderFunc(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor) {
+        context.SetPipelineState(BasicPipelineState);
+        context.SetRootSignature(BasicRootSignature);
+        context.SetVertexBuffer(0, pentagonVertexBufferView);
+        context.SetIndexBuffer(pentagonIndexBufferView);
+        context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        context.SetViewportAndScissor(viewport, scissor);
+        context.DrawIndexed(9); 
+    }
+
+
+    void SDFGIManager::InitializeSimpleQuadPipelineState()
+    {
+        // BasicRootSignature.Reset(1, 0);
+        // BasicRootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);
+        // BasicRootSignature.Finalize(L"Simple Quad Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+        // D3D12_INPUT_ELEMENT_DESC inputLayout[] =
+        // {
+        //     { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        //     { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        // };
+
+        // BasicPipelineState.SetInputLayout(_countof(inputLayout), inputLayout);
+        // BasicPipelineState.SetRootSignature(BasicRootSignature);
+        // BasicPipelineState.SetVertexShader(g_pSDFGISimpleVS, sizeof(g_pSDFGISimpleVS));
+        // BasicPipelineState.SetPixelShader(g_pSDFGISimplePS, sizeof(g_pSDFGISimplePS));
+        // BasicPipelineState.SetRasterizerState(RasterizerDefault);
+        // BasicPipelineState.SetBlendState(BlendDisable);
+        // BasicPipelineState.SetDepthStencilState(DepthStateDisabled);
+        // BasicPipelineState.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        // BasicPipelineState.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), DXGI_FORMAT_UNKNOWN);
+        // BasicPipelineState.Finalize();
+
+        BasicRootSignature.Reset(1, 0);  // Assuming one CBV in the root signature
+        BasicRootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_VERTEX);  // Register b0
+        BasicRootSignature.Finalize(L"Fullscreen Quad Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+        BasicPipelineState.SetRootSignature(BasicRootSignature);
+        BasicPipelineState.SetVertexShader(g_pSDFGISimpleVS, sizeof(g_pSDFGISimpleVS));
+        BasicPipelineState.SetPixelShader(g_pSDFGISimplePS, sizeof(g_pSDFGISimplePS));
+        BasicPipelineState.SetRasterizerState(RasterizerDefault);
+        BasicPipelineState.SetBlendState(BlendDisable);
+        BasicPipelineState.SetDepthStencilState(DepthStateDisabled);
+        BasicPipelineState.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        BasicPipelineState.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), DXGI_FORMAT_UNKNOWN);
+        BasicPipelineState.Finalize();
+
+    }
+
+    void SDFGIManager::RenderToCubemapFace(
+        GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, int cubemapResolution, const Math::Camera& camera, Vector3 &probePosition, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor
+    ) {
+        context.TransitionResource(intermediateTextures[probe][face], D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+
+        context.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+
+        context.SetRenderTarget(intermediateRTVs[probe][face], depthBuffer.GetDSV());
+
+        context.SetViewportAndScissor(0, 0, cubemapResolution, cubemapResolution);
+
+        // Matrix4 staticViewMatrix = MakeLookAt(Vector3(0, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0));
+        // camData.viewProjMatrix = projMatrix * staticViewMatrix;
+        Matrix4 viewMatrix = GetViewMatrixForCubemapFace(face, probePosition);
+        Matrix4 projMatrix = Matrix4::MakePerspectiveMatrix(camera.GetFOV(), camera.GetAspectRatio(), camera.GetNearClip(), camera.GetFarClip());
+        CameraData camData;
+        camData.viewProjMatrix = projMatrix * viewMatrix;
+        // context.SetDynamicConstantBufferView(0, sizeof(camData), &camData);
+
+        float clearColors[6][4] = {
+            {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f},
+            {1.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}
+        };
+        float black[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        context.GetCommandList()->ClearRenderTargetView(intermediateRTVs[probe][face], clearColors[face], 0, nullptr);
+        context.ClearDepth(depthBuffer);
+
+        // auto renderLambda = [&]() {
+        //     context.SetPipelineState(BasicPipelineState);
+        //     context.SetRootSignature(BasicRootSignature);
+        //     context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        //     context.SetDynamicConstantBufferView(0, sizeof(uint32_t), &face);
+        //     context.Draw(4);
+        // };
+
+        // renderLambda();
+
+        // D3D12_VIEWPORT cubemapViewport = {0.0f, 0.0f, 128.0, 128.0, 0.0f, 1.0f};
+        // D3D12_RECT cubemapScissorRect = {0, 0, 128, 128};
+        // // renderFunc(context, camera, cubemapViewport, cubemapScissorRect, &intermediateRTVs[probe][face], &intermediateTextures[probe][face]);
+        // // renderFunc(context, camera, viewport, scissor, &intermediateRTVs[probe][face]);
+        // // SimpleRenderFunc(context, camera, viewport, scissor);
+
+
+        context.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ, true);
+
+        context.TransitionResource(intermediateTextures[probe][face], D3D12_RESOURCE_STATE_GENERIC_READ, true);
+    }
+
+
+    void SDFGIManager::RenderCubemapsForProbes(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
+    {
+        if (cubeMapsRendered) return;
+        
+        D3D12_VIEWPORT cubemapViewport = {0.0f, 0.0f, 128.0, 128.0, 0.0f, 1.0f};
+        D3D12_RECT cubemapScissorRect = {0, 0, 128, 128};
+
+         for (size_t probe = 0; probe < probeGrid.probes.size(); ++probe)
+        {
+            Vector3& probePosition = probeGrid.probes[probe].position;
+            Math::Camera probeCamera;
+
+            for (int face = 0; face < 6; ++face)
+            {
+                RenderToCubemapFace(context, g_SceneDepthBuffer, probe, face, 128, camera, probePosition, cubemapViewport, cubemapScissorRect);
+            }
+        }
+
+        cubeMapsRendered = true;
+    }
+
+    void SDFGIManager::InitializeCubemapVisualizationShader() {
+        cubemapVisualizationRootSignature.Reset(2, 1);
+
+        cubemapVisualizationRootSignature[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
+        cubemapVisualizationRootSignature[1].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+        cubemapVisualizationRootSignature.InitStaticSampler(0, SamplerLinearClampDesc);
+        cubemapVisualizationRootSignature.Finalize(L"Cubemap Visualization Root Signature");
+
+        cubemapVisualizationPSO.SetRootSignature(cubemapVisualizationRootSignature);
+        cubemapVisualizationPSO.SetVertexShader(g_pSDFGIProbeCubemapVizVS, sizeof(g_pSDFGIProbeCubemapVizVS));
+        cubemapVisualizationPSO.SetPixelShader(g_pSDFGIProbeCubemapVizPS, sizeof(g_pSDFGIProbeCubemapVizPS));
+        cubemapVisualizationPSO.SetRasterizerState(RasterizerDefault);
+        cubemapVisualizationPSO.SetBlendState(BlendDisable);
+        cubemapVisualizationPSO.SetDepthStencilState(DepthStateReadWrite);
+        cubemapVisualizationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        cubemapVisualizationPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
+        cubemapVisualizationPSO.Finalize();
+    }
+
+    void SDFGIManager::RenderCubemapViz(GraphicsContext& context, int cubemapResolution, const Math::Camera& camera) {
+        ScopedTimer _prof(L"Visualize Cubemap Faces", context);
+
+        context.SetPipelineState(cubemapVisualizationPSO);
+        context.SetRootSignature(cubemapVisualizationRootSignature);
+
+        for (int face = 0; face < 6; ++face) {
+            context.SetDynamicDescriptor(0, face, intermediateTextures[8][face].GetSRV());
+        }
+
+        int GridColumns = 3;
+        int GridRows = 2;
+        float CellSize = 1.0f / std::max(GridColumns, GridRows);
+
+        __declspec(align(16)) struct GridConfig {
+            int GridColumns;
+            int GridRows;
+            float CellSize;
+            float pad;
+        } config = { GridColumns, GridRows, CellSize, 0.0f };
+        context.SetDynamicConstantBufferView(1, sizeof(config), &config);
+
+        context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        context.Draw(4);
+    }
+
+
+    void SDFGIManager::CopyCubemapFaceToIntermediate(GraphicsContext& context, int face, int cubemapResolution)
+    {
+    }
 }

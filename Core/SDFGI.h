@@ -51,6 +51,7 @@ namespace SDFGI
     class SDFGIManager {
     public:
       bool irradianceCaptured = false;
+      bool cubeMapsRendered = false;
       Texture irradianceTexture;
       Texture irradianceAtlas;
       Texture depthTexture;
@@ -66,8 +67,30 @@ namespace SDFGI
       const Math::AxisAlignedBox &sceneBounds;
       GraphicsPSO textureVisualizationPSO;    
       RootSignature textureVisualizationRootSignature;
+      Texture probeIrradianceCubemap;
+      D3D12_CPU_DESCRIPTOR_HANDLE cubemapRTVs[6];
+      std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc;
+      Texture **intermediateTextures;
+      D3D12_CPU_DESCRIPTOR_HANDLE **intermediateRTVs;
+      int probeCount;
+      GraphicsPSO cubemapVisualizationPSO;
+      RootSignature cubemapVisualizationRootSignature;
+      GraphicsPSO BasicPipelineState;
+      RootSignature BasicRootSignature;
+      D3D12_VERTEX_BUFFER_VIEW pentagonVertexBufferView = {};
+      D3D12_INDEX_BUFFER_VIEW pentagonIndexBufferView = {};
+      int frameCount = 0;
 
-      SDFGIManager(Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds);
+      SDFGIManager(
+        Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds, 
+        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc
+      );
+
+      struct Vertex
+      {
+          float x, y, z;
+          float r, g, b, a;
+      };
 
       void InitializeProbeUpdateShader();
 
@@ -82,6 +105,26 @@ namespace SDFGI
       void CaptureIrradianceAndDepth(GraphicsContext& context);
 
       void RenderIrradianceDepthViz(GraphicsContext& context, const Math::Camera& camera, int sliceIndex, float maxDepthDistance);
+
+      void RenderToCubemapFace(
+        GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, int cubemapResolution, const Math::Camera& camera, Vector3 &probePosition, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor
+      );
+
+      Matrix4 GetViewMatrixForCubemapFace(int faceIndex, const Vector3& probePosition);
+
+      void RenderCubemapsForProbes(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+
+      void CopyCubemapFaceToIntermediate(GraphicsContext& context, int face, int cubemapResolution);
+
+      void InitializeCubemapVisualizationShader();
+
+      void RenderCubemapViz(GraphicsContext& context, int cubemapResolution, const Math::Camera& camera);
+
+      void SimpleRenderFunc(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+
+      void InitializeSimpleQuadPipelineState();
+
+      void InitializePentagon();
     };
 
 
@@ -90,7 +133,7 @@ namespace SDFGI
     
     void Shutdown(void);
     
-    void Render(GraphicsContext& context, const Math::Camera& camera, SDFGIManager *SDFGIManager);
+    void Render(GraphicsContext& context, const Math::Camera& camera, SDFGIManager *SDFGIManager, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
     
     void UpdateProbeData(GraphicsContext& context);
 

@@ -218,7 +218,11 @@ void ModelViewer::Startup( void )
 
     const Math::AxisAlignedBox &sceneBounds = Sponza::GetBoundingBox();
 
-    mp_SDFGIManager = new SDFGI::SDFGIManager(probeCount, probeSpacing, sceneBounds);
+    auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc, D3D12_CPU_DESCRIPTOR_HANDLE *rtv, Texture *text) {
+        Sponza::RenderScene(ctx, cam, vp, sc, /*skipDiffusePass=*/false, /*skipShadowMap=*/false);
+    };
+
+    mp_SDFGIManager = new SDFGI::SDFGIManager(probeCount, probeSpacing, sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)>>(renderLambda));
 }
 
 void ModelViewer::InitializeGUI() {
@@ -403,7 +407,7 @@ void ModelViewer::RenderScene( void )
     // gfxContext.TransitionResource(mp_SDFGIManager->irradianceTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     // gfxContext.TransitionResource(mp_SDFGIManager->depthTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    SDFGI::Render(gfxContext, m_Camera, mp_SDFGIManager);
+    SDFGI::Render(gfxContext, m_Camera, mp_SDFGIManager, viewport, scissor);
 
     // Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything
     // is static in our scene, so we generate velocity from camera motion and the depth buffer.  A velocity buffer

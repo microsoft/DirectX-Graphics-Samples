@@ -101,6 +101,7 @@ namespace Math
         float GetNearClip() const { return m_NearClip; }
         float GetFarClip() const { return m_FarClip; }
         float GetClearDepth() const { return m_ReverseZ ? 0.0f : 1.0f; }
+        float GetAspectRatio() const { return m_AspectRatio; }
 
     private:
 
