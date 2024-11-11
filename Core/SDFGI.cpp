@@ -20,6 +20,7 @@
 #include "CompiledShaders/SDFGIProbeCubemapVizPS.h"
 #include "CompiledShaders/SDFGISimpleVS.h"
 #include "CompiledShaders/SDFGISimplePS.h"
+#include "CompiledShaders/SDFGIProbeCubemapDownsampleCS.h"
 
 using namespace Graphics;
 
@@ -144,6 +145,7 @@ namespace SDFGI {
         InitializeCubemapVisualizationShader();
         InitializePentagon();
         InitializeSimpleQuadPipelineState();
+        InitializeDownsampleShader();
     };
 
     void SDFGIManager::InitializeTextures() {
@@ -242,6 +244,21 @@ namespace SDFGI {
                 rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
                 rtvDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
                 g_Device->CreateRenderTargetView(intermediateTextures[probe][face].GetResource(), &rtvDesc, intermediateRTVs[probe][face]);
+            }
+        }
+
+        intermediateUAVs = new D3D12_CPU_DESCRIPTOR_HANDLE*[probeCount];
+        for (int probe = 0; probe < probeCount; ++probe)
+        {
+            intermediateUAVs[probe] = new D3D12_CPU_DESCRIPTOR_HANDLE[6];
+            for (int face = 0; face < 6; ++face)
+            {
+                intermediateUAVs[probe][face] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+                D3D12_UNORDERED_ACCESS_VIEW_DESC  uavDesc = {};
+                uavDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
+                uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+                uavDesc.Texture2D.MipSlice = 0;
+                g_Device->CreateUnorderedAccessView(intermediateTextures[probe][face].GetResource(), nullptr, &uavDesc, intermediateUAVs[probe][face]);
             }
         }
     };
@@ -508,6 +525,25 @@ namespace SDFGI {
         
     }
 
+    void SDFGIManager::InitializeDownsampleShader() {
+        downsampleRootSignature.Reset(3, 1);
+        
+        downsampleRootSignature[0].InitAsConstantBuffer(0);
+        
+        downsampleRootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+        
+        downsampleRootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+        
+        downsampleRootSignature.InitStaticSampler(0, SamplerBilinearClampDesc);
+        
+        downsampleRootSignature.Finalize(L"Downsample Root Signature", D3D12_ROOT_SIGNATURE_FLAG_NONE);
+
+
+        downsamplePSO.SetRootSignature(downsampleRootSignature);
+        downsamplePSO.SetComputeShader(g_pSDFGIProbeCubemapDownsampleCS, sizeof(g_pSDFGIProbeCubemapDownsampleCS)); 
+        downsamplePSO.Finalize();
+    }
+
 
     void SDFGIManager::RenderToCubemapFace(
         GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, const Math::Camera& camera, Vector3 &probePosition, const D3D12_VIEWPORT& mainViewport, const D3D12_RECT& mainScissor
@@ -579,34 +615,24 @@ namespace SDFGI {
         // // renderFunc(context, camera, viewport, scissor, &intermediateRTVs[probe][face]);
         // // SimpleRenderFunc(context, camera, viewport, scissor);
 
-        context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE);
-        context.TransitionResource(intermediateTextures[probe][face], D3D12_RESOURCE_STATE_COPY_DEST, true);
-
-        D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
-        srcLocation.pResource = g_SceneColorBuffer.GetResource();
-        srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        srcLocation.SubresourceIndex = 0;
-
-        D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
-        dstLocation.pResource = intermediateTextures[probe][face].GetResource();
-        dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        dstLocation.SubresourceIndex = 0;
-
-        D3D12_BOX srcBox = {};
-        srcBox.left = 0;
-        srcBox.top = 0;
-        srcBox.front = 0;
-        srcBox.right = faceResolution;  
-        srcBox.bottom = faceResolution;
-        srcBox.back = 1;
-        context.GetCommandList()->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, &srcBox);
-
-        context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        context.TransitionResource(intermediateTextures[probe][face], D3D12_RESOURCE_STATE_GENERIC_READ, true);
-
-        // context.TransitionResource(depthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ, true);
-
-        // context.TransitionResource(intermediateTextures[probe][face], D3D12_RESOURCE_STATE_GENERIC_READ, true);
+        ComputeContext& computeContext = context.GetComputeContext();
+        computeContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
+        computeContext.TransitionResource(intermediateTextures[probe][face], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
+        DownsampleCB downsampleCB;
+        downsampleCB.srcSize = Vector3(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight(), 0.0f);
+        downsampleCB.dstSize = Vector3(intermediateTextures[probe][face].GetWidth(), intermediateTextures[probe][face].GetHeight(), 0.0f);
+        downsampleCB.scale = Vector3(downsampleCB.srcSize.GetX() / downsampleCB.dstSize.GetX(),
+                                    downsampleCB.srcSize.GetY() / downsampleCB.dstSize.GetY(), 0.0f);
+        computeContext.SetRootSignature(downsampleRootSignature);
+        computeContext.SetPipelineState(downsamplePSO);
+        computeContext.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetSRV()); 
+        computeContext.SetDynamicDescriptor(2, 0, intermediateUAVs[probe][face]);
+        computeContext.SetDynamicConstantBufferView(0, sizeof(downsampleCB), &downsampleCB);
+        uint32_t dispatchX = (uint32_t)ceil(downsampleCB.dstSize.GetX() / 8.0f);
+        uint32_t dispatchY = (uint32_t)ceil(downsampleCB.dstSize.GetY() / 8.0f);
+        computeContext.Dispatch(dispatchX, dispatchY, 1);
+        computeContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+        computeContext.TransitionResource(intermediateTextures[probe][face], D3D12_RESOURCE_STATE_GENERIC_READ, true);
     }
 
 
@@ -657,7 +683,7 @@ namespace SDFGI {
         context.SetRootSignature(cubemapVisualizationRootSignature);
 
         for (int face = 0; face < 6; ++face) {
-            context.SetDynamicDescriptor(0, face, intermediateTextures[555][face].GetSRV());
+            context.SetDynamicDescriptor(0, face, intermediateTextures[400][face].GetSRV());
         }
 
         int GridColumns = 3;

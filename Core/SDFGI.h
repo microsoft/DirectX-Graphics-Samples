@@ -47,6 +47,13 @@ namespace SDFGI
         float pad;
     };
 
+    struct DownsampleCB {
+        Vector3 srcSize;
+        Vector3 dstSize;
+        Vector3 scale;
+    };
+
+
     // A lot of "Managers" in the codebase.
     class SDFGIManager {
     public:
@@ -72,6 +79,7 @@ namespace SDFGI
       std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc;
       Texture **intermediateTextures;
       D3D12_CPU_DESCRIPTOR_HANDLE **intermediateRTVs;
+      D3D12_CPU_DESCRIPTOR_HANDLE **intermediateUAVs;
       int probeCount;
       GraphicsPSO cubemapVisualizationPSO;
       RootSignature cubemapVisualizationRootSignature;
@@ -81,6 +89,8 @@ namespace SDFGI
       D3D12_INDEX_BUFFER_VIEW pentagonIndexBufferView = {};
       int frameCount = 0;
       int faceResolution = 64;
+      RootSignature downsampleRootSignature;
+      ComputePSO downsamplePSO;
 
       SDFGIManager(
         Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds, 
@@ -126,6 +136,8 @@ namespace SDFGI
       void InitializeSimpleQuadPipelineState();
 
       void InitializePentagon();
+
+      void InitializeDownsampleShader();
     };
 
 

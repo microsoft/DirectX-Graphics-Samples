@@ -43,6 +43,7 @@ namespace Graphics
     SamplerDesc SamplerPointClampDesc;
     SamplerDesc SamplerPointBorderDesc;
     SamplerDesc SamplerLinearBorderDesc;
+    SamplerDesc SamplerBilinearClampDesc;
 
     D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearWrap;
     D3D12_CPU_DESCRIPTOR_HANDLE SamplerAnisoWrap;
@@ -52,6 +53,7 @@ namespace Graphics
     D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointClamp;
     D3D12_CPU_DESCRIPTOR_HANDLE SamplerPointBorder;
     D3D12_CPU_DESCRIPTOR_HANDLE SamplerLinearBorder;
+    D3D12_CPU_DESCRIPTOR_HANDLE SamplerBilinearClamp;
 
     Texture DefaultTextures[kNumDefaultTextures];
     D3D12_CPU_DESCRIPTOR_HANDLE GetDefaultTexture( eDefaultTexture texID )
@@ -145,6 +147,10 @@ void Graphics::InitializeCommonState(void)
     SamplerPointBorderDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_BORDER);
     SamplerPointBorderDesc.SetBorderColor(Color(0.0f, 0.0f, 0.0f, 0.0f));
     SamplerPointBorder = SamplerPointBorderDesc.CreateDescriptor();
+
+    SamplerBilinearClampDesc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+    SamplerBilinearClampDesc.SetTextureAddressMode(D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+    SamplerBilinearClamp = SamplerBilinearClampDesc.CreateDescriptor();
 
     uint32_t MagentaPixel = 0xFFFF00FF;
     DefaultTextures[kMagenta2D].Create2D(4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &MagentaPixel);

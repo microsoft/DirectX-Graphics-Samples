@@ -481,6 +481,9 @@
     <FxCompile Include="Shaders\SDFGISimpleVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeCubemapDownsampleCS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BitonicSort.cpp" />
