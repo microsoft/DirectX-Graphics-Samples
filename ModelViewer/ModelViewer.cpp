@@ -208,8 +208,9 @@ void ModelViewer::Startup( void )
         m_CameraController.reset(new FlyingFPSCamera(m_Camera, Vector3(kYUnitVector)));
     else
         m_CameraController.reset(new OrbitCamera(m_Camera, m_ModelInst.GetBoundingSphere(), Vector3(kYUnitVector)));
-
+#if UI_ENABLE
     InitializeGUI();
+#endif
 }
 
 void ModelViewer::InitializeGUI() {
@@ -242,10 +243,11 @@ void ModelViewer::Cleanup( void )
 #endif
 
     Renderer::Shutdown();
-
+#if UI_ENABLE
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+#endif
 }
 
 namespace Graphics
@@ -262,11 +264,15 @@ void ModelViewer::Update( float deltaT )
     else if (GameInput::IsFirstPressed(GameInput::kRShoulder))
         DebugZoom.Increment();
 
+#if UI_ENABLE
     ImGuiIO& io = ImGui::GetIO();
     if (!io.WantCaptureMouse) {
-        // Update camera only if 
+        // Update camera only if imgui captures the mouse
         m_CameraController->Update(deltaT);
     }
+#else 
+    m_CameraController->Update(deltaT);
+#endif
 
     GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Update");
 
@@ -410,6 +416,8 @@ void ModelViewer::RenderScene( void )
 }
 
 void ModelViewer::RenderUI( class GraphicsContext& gfxContext ) {
+#if UI_ENABLE
     ImGui::Render();
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), gfxContext.GetCommandList());
+#endif
 }
