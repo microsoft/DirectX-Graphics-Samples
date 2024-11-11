@@ -12,6 +12,7 @@
 *.ilk
 *.log
 * - Copy*.*
+imgui.ini
 Build_VS*
 Build
 Packages

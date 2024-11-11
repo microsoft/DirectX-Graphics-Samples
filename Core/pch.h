@@ -41,6 +41,9 @@
 
 #define WIN32_LEAN_AND_MEAN
 
+// Enable imgui window
+#define UI_ENABLE 0
+
 #include <Windows.h>
 #include <wrl/client.h>
 #include <wrl/event.h>
