@@ -81,13 +81,16 @@ Frustum::Frustum( const Matrix4& ProjMat )
     // Identify if the projection is perspective or orthographic by looking at the 4th row.
     if (ProjMatF[3] == 0.0f && ProjMatF[7] == 0.0f && ProjMatF[11] == 0.0f && ProjMatF[15] == 1.0f)
     {
-        // Orthographic
-        float Left	 = (-1.0f - ProjMatF[12]) * RcpXX;
-        float Right	 = ( 1.0f - ProjMatF[12]) * RcpXX;
-        float Top	 = ( 1.0f - ProjMatF[13]) * RcpYY;
-        float Bottom = (-1.0f - ProjMatF[13]) * RcpYY;
-        float Front	 = ( 0.0f - ProjMatF[14]) * RcpZZ;
-        float Back   = ( 1.0f - ProjMatF[14]) * RcpZZ;
+        // Orthographic Frustum Extraction
+        //  In ModelViewer, we set the shadowcenter to be the origin. Thus the frustum planes are symmetrical x, y and z axis.
+        //  Also, for Top and Bottom, it is the Top that is negative due to: ProjMatF[10] = -2/(far - near), in an orthographic projmat.
+
+        float Left	 = -RcpXX;
+        float Right	 = RcpXX;
+        float Top	   = -RcpYY;
+        float Bottom = RcpYY;
+        float Front	 = 0.5f * RcpZZ;
+        float Back   = 0.5f -RcpZZ;
 
         // Check for reverse Z here.  The bounding planes need to point into the frustum.
         if (Front < Back)
