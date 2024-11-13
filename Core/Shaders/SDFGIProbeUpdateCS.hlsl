@@ -4,19 +4,21 @@ cbuffer ProbeData : register(b0) {
     float3 GridSize;
     float3 ProbeSpacing;
     float3 SceneMinBounds;
+    uint ProbeIndex;
 };
 
 StructuredBuffer<float4> ProbePositions : register(t0);
+Texture2D<float4> ProbeFaceTextures[6] : register(t1);
 RWTexture3D<float4> IrradianceTexture : register(u0);
 RWTexture3D<float> DepthTexture : register(u1);
 RWTexture2D<float4> IrradianceAtlas : register(u2);
 RWTexture2D<float> DepthAtlas : register(u3);
+SamplerState LinearSampler : register(s0);
 
 float2 signNotZero(float2 v) {
     return float2((v.x >= 0.0 ? 1.0 : -1.0), (v.y >= 0.0 ? 1.0 : -1.0));
 }
 
-// See https://github.com/RomkoSI/G3D/blob/master/data-files/shader/octahedral.glsl.
 float2 octEncode(float3 v) {
     float l1norm = abs(v.x) + abs(v.y) + abs(v.z);
     float2 result = v.xy * (1.0 / l1norm);
@@ -26,6 +28,27 @@ float2 octEncode(float3 v) {
     }
     
     return result;
+}
+
+int GetFaceIndex(float3 dir)
+{
+    float3 absDir = abs(dir);
+
+    if (absDir.x > absDir.y && absDir.x > absDir.z)
+    {
+        // X component is largest
+        return dir.x > 0 ? 0 : 1; // +X or -X
+    }
+    else if (absDir.y > absDir.x && absDir.y > absDir.z)
+    {
+        // Y component is largest
+        return dir.y > 0 ? 2 : 3; // +Y or -Y
+    }
+    else
+    {
+        // Z component is largest
+        return dir.z > 0 ? 4 : 5; // +Z or -Z
+    }
 }
 
 [numthreads(1, 1, 1)]
@@ -38,60 +61,33 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
     float3 probePosition = ProbePositions[probeIndex].xyz;
 
-    float4 accumulatedIrradiance = float4(0, 0, 0, 0);
-    float accumulatedDepth = 0;
-
-    float3 directions[6] = {
-        float3(1, 0, 0), float3(-1, 0, 0),
-        float3(0, 1, 0), float3(0, -1, 0),
-        float3(0, 0, 1), float3(0, 0, -1)
-    };
-
-    float2 octEncodedDirections[6] = {
-        octEncode(float3(1, 0, 0)), octEncode(float3(-1, 0, 0)),
-        octEncode(float3(0, 1, 0)), octEncode(float3(0, -1, 0)),
-        octEncode(float3(0, 0, 1)), octEncode(float3(0, 0, -1))
-    };
-
-    for (int i = 0; i < 6; ++i) {
-        float3 sampleDir = directions[i];
-        float3 samplePos = probePosition + sampleDir * ProbeMaxDistance;
-
-        float4 sampleIrradiance = float4(dispatchThreadID, 1.0);
-        float sampleDepth = length(samplePos - probePosition) / ProbeMaxDistance;
-
-        accumulatedIrradiance += sampleIrradiance;
-        accumulatedDepth += sampleDepth;
-    }
-
-    accumulatedIrradiance /= 6;
-    accumulatedDepth /= 6;
-
-    uint3 probeCoord = uint3(
-        probeIndex % GridSize.x,
-        (probeIndex / GridSize.x) % GridSize.y,
-        probeIndex / (GridSize.x * GridSize.y)
-    );
-
-    IrradianceTexture[probeCoord] = accumulatedIrradiance;
-    DepthTexture[probeCoord] = accumulatedDepth;
-
     uint probeBlockSize = 4;
-    uint gutterSize = 1;
-
     uint2 atlasCoord = uint2(
-        dispatchThreadID.x * (probeBlockSize + gutterSize) + gutterSize,
-        dispatchThreadID.y * (probeBlockSize + gutterSize) + gutterSize
+        (probeIndex % GridSize.x) * (probeBlockSize),
+        (probeIndex / GridSize.x) * (probeBlockSize)
     );
 
-    float4 irradianceSample = float4(dispatchThreadID, 1.0);
-    float depthSample = 0.5;
+    float3 sampleDirections[16] = {
+        normalize(float3(1,  1,  0)), normalize(float3(-1,  1,  0)), normalize(float3(1, -1,  0)), normalize(float3(-1, -1,  0)),
+        normalize(float3(1,  0,  1)), normalize(float3(-1,  0,  1)), normalize(float3(1,  0, -1)), normalize(float3(-1,  0, -1)),
+        normalize(float3(0,  1,  1)), normalize(float3(0, -1,  1)), normalize(float3(0,  1, -1)), normalize(float3(0, -1, -1)),
+        float3(1, 0, 0), float3(-1, 0, 0), float3(0, 1, 0), float3(0, 0, 1)
+    };
 
-    for (uint i = 0; i < probeBlockSize; i++) {
-        for (uint j = 0; j < probeBlockSize; j++) {
-            uint2 pixelCoord = atlasCoord + uint2(i, j);
-            IrradianceAtlas[pixelCoord] = irradianceSample;
-            DepthAtlas[pixelCoord] = depthSample;
-        }
+    for (int i = 0; i < 16; ++i) {
+        float2 encodedCoord = octEncode(sampleDirections[i]);
+
+        uint2 probeTexCoord = atlasCoord + uint2(
+            (encodedCoord.x * 0.5 + 0.5) * (probeBlockSize - 1),
+            (encodedCoord.y * 0.5 + 0.5) * (probeBlockSize - 1)
+        );
+
+        float3 dir = sampleDirections[i];
+        int faceIndex = GetFaceIndex(dir);
+
+        float4 irradianceSample = ProbeFaceTextures[faceIndex].SampleLevel(LinearSampler, encodedCoord, 0);
+        
+        IrradianceAtlas[probeTexCoord] = irradianceSample;
+        DepthAtlas[probeTexCoord] = length(probePosition - (probePosition + sampleDirections[i] * ProbeMaxDistance)) / ProbeMaxDistance;
     }
 }

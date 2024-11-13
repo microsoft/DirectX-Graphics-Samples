@@ -91,8 +91,8 @@ namespace SDFGI {
 
         context.DrawInstanced(sdfgiManager->probeGrid.probes.size(), 1, 0, 0);
 
-        // sdfgiManager->RenderIrradianceDepthViz(context, camera, 10, 50);
-        sdfgiManager->RenderCubemapViz(context, camera);
+        sdfgiManager->RenderIrradianceDepthViz(context, camera, 10, 50);
+        // sdfgiManager->RenderCubemapViz(context, camera);
     }
 
     void UpdateProbeData(GraphicsContext& context)
@@ -278,7 +278,7 @@ namespace SDFGI {
 
     void SDFGIManager::InitializeProbeUpdateShader()
     {
-        probeUpdateComputeRootSignature.Reset(6, 0);
+        probeUpdateComputeRootSignature.Reset(7, 1);
 
         // probeBuffer.
         probeUpdateComputeRootSignature[0].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL);
@@ -297,6 +297,10 @@ namespace SDFGI {
 
         // Depth atlas.
         probeUpdateComputeRootSignature[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 3, 1);
+
+        probeUpdateComputeRootSignature[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6, D3D12_SHADER_VISIBILITY_ALL); 
+
+        probeUpdateComputeRootSignature.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_ALL);
 
         probeUpdateComputeRootSignature.Finalize(L"DDGI Compute Root Signature");
 
@@ -322,6 +326,13 @@ namespace SDFGI {
         computeContext.SetDynamicDescriptor(4, 0, irradianceAtlasUAV);
         computeContext.SetDynamicDescriptor(5, 0, depthAtlasUAV);
 
+        computeContext.SetDynamicDescriptor(6, 0, intermediateTextures[388][0].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 1, intermediateTextures[388][1].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 2, intermediateTextures[388][2].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 3, intermediateTextures[388][3].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 4, intermediateTextures[388][4].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 5, intermediateTextures[388][5].GetSRV());
+
         computeContext.TransitionResource(irradianceTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         computeContext.TransitionResource(depthTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         computeContext.TransitionResource(irradianceAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -333,6 +344,7 @@ namespace SDFGI {
             Vector3 GridSize;
             Vector3 ProbeSpacing;
             Vector3 SceneMinBounds;
+            int ProbeIndex;
         } probeData;
 
         probeData.ProbeCount = probeGrid.probes.size();
