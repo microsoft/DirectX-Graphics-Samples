@@ -65,6 +65,7 @@ namespace GameCore
 
         float DeltaTime = Graphics::GetFrameTime();
 
+#if UI_ENABLE
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
@@ -73,7 +74,9 @@ namespace GameCore
         ImGuiIO& io = ImGui::GetIO();
         if (!io.WantCaptureMouse)
             GameInput::Update(DeltaTime);
-        
+#else 
+        GameInput::Update(DeltaTime);
+#endif
         EngineTuning::Update(DeltaTime);
         
         game.Update(DeltaTime);
@@ -174,9 +177,11 @@ namespace GameCore
     //--------------------------------------------------------------------------------------
     LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
     {
+#if UI_ENABLE
         if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam)) {
             return true;
         }
+#endif
 
         ShowCursor(TRUE);
 
