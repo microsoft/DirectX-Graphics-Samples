@@ -85,7 +85,6 @@ private:
     ShadowCamera m_SunShadowCamera;
 
     SDFGI::SDFGIManager *mp_SDFGIManager;
-    Vector3f probeSpacing = {2.0f, 2.0f, 2.0f};
 };
 
 CREATE_APPLICATION( ModelViewer )
@@ -226,7 +225,7 @@ void ModelViewer::Startup( void )
         Sponza::RenderScene(ctx, cam, vp, sc, /*skipDiffusePass=*/false, /*skipShadowMap=*/false);
     };
 
-    mp_SDFGIManager = new SDFGI::SDFGIManager(probeSpacing, sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)>>(renderLambda));
+    mp_SDFGIManager = new SDFGI::SDFGIManager(sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)>>(renderLambda));
 }
 
 void ModelViewer::InitializeGUI() {
