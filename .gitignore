@@ -12,6 +12,7 @@
 *.ilk
 *.log
 * - Copy*.*
+*.mini
 imgui.ini
 Build_VS*
 Build
