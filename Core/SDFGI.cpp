@@ -101,11 +101,7 @@ namespace SDFGI {
         uint32_t atlasHeight = (height * probeBlockSize) + (height + 1) * gutterSize;
         size_t rowPitchBytes = atlasWidth * 8;
 
-        irradianceTexture.Create3D(irradianceRowPitch, width, height, depth, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr);
-
         irradianceAtlas.Create2D(rowPitchBytes, atlasWidth, atlasHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-        depthTexture.Create3D(depthRowPitch, width, height, depth, DXGI_FORMAT_R16_FLOAT, nullptr);
 
         depthAtlas.Create2D(rowPitchBytes / 2, atlasWidth, atlasHeight, DXGI_FORMAT_R16_FLOAT, nullptr, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
@@ -162,20 +158,6 @@ namespace SDFGI {
     };
 
     void SDFGIManager::InitializeViews() {
-        irradianceUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
-        uavDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-        uavDesc.Texture3D.MipSlice = 0;
-        uavDesc.Texture3D.FirstWSlice = 0;
-        uavDesc.Texture3D.WSize = -1;   
-        g_Device->CreateUnorderedAccessView(irradianceTexture.GetResource(), nullptr, &uavDesc, irradianceUAV);
-
-        depthUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
-        uavDesc.Format = DXGI_FORMAT_R16_FLOAT;
-        g_Device->CreateUnorderedAccessView(depthTexture.GetResource(), nullptr, &uavDesc, depthUAV);
-
         irradianceAtlasUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         D3D12_UNORDERED_ACCESS_VIEW_DESC atlasUavDesc = {};
         atlasUavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
@@ -300,29 +282,23 @@ namespace SDFGI {
     }
 
     void SDFGIManager::InitializeProbeUpdateShader() {
-        probeUpdateRS.Reset(8, 1);
+        probeUpdateRS.Reset(6, 1);
 
         // probeBuffer.
-        probeUpdateRS[0].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL);
-
-        // Irradiance.
-        probeUpdateRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
-
-        // Depth.
-        probeUpdateRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);
-
-        // Probe grid info.
-        probeUpdateRS[3].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
+        probeUpdateRS[0].InitAsBufferSRV(/*register=t*/0, D3D12_SHADER_VISIBILITY_ALL);
 
         // Irradiance atlas.
-        probeUpdateRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 1);
+        probeUpdateRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, /*register=u*/0, 1);
 
         // Depth atlas.
-        probeUpdateRS[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 3, 1);
+        probeUpdateRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, /*register=u*/1, 1);
 
-        probeUpdateRS[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6, D3D12_SHADER_VISIBILITY_ALL); 
+        probeUpdateRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /*register=t*/1, 6, D3D12_SHADER_VISIBILITY_ALL); 
 
-        probeUpdateRS[7].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 1, D3D12_SHADER_VISIBILITY_ALL);
+        probeUpdateRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /*register=t*/7, 1, D3D12_SHADER_VISIBILITY_ALL);
+
+        // Probe grid info.
+        probeUpdateRS[5].InitAsConstantBuffer(/*register=b*/0, D3D12_SHADER_VISIBILITY_ALL);
 
         probeUpdateRS.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_ALL);
 
@@ -346,22 +322,18 @@ namespace SDFGI {
         computeContext.SetRootSignature(probeUpdateRS);
 
         computeContext.SetBufferSRV(0, probeBuffer);
-        computeContext.SetDynamicDescriptor(1, 0, irradianceUAV);
-        computeContext.SetDynamicDescriptor(2, 0, depthUAV);
-        computeContext.SetDynamicDescriptor(4, 0, irradianceAtlasUAV);
-        computeContext.SetDynamicDescriptor(5, 0, depthAtlasUAV);
+        computeContext.SetDynamicDescriptor(1, 0, irradianceAtlasUAV);
+        computeContext.SetDynamicDescriptor(2, 0, depthAtlasUAV);
 
-        computeContext.SetDynamicDescriptor(6, 0, probeCubemapTextures[32][0].GetSRV());
-        computeContext.SetDynamicDescriptor(6, 1, probeCubemapTextures[32][1].GetSRV());
-        computeContext.SetDynamicDescriptor(6, 2, probeCubemapTextures[32][2].GetSRV());
-        computeContext.SetDynamicDescriptor(6, 3, probeCubemapTextures[32][3].GetSRV());
-        computeContext.SetDynamicDescriptor(6, 4, probeCubemapTextures[32][4].GetSRV());
-        computeContext.SetDynamicDescriptor(6, 5, probeCubemapTextures[32][5].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 0, probeCubemapTextures[32][0].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 1, probeCubemapTextures[32][1].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 2, probeCubemapTextures[32][2].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 3, probeCubemapTextures[32][3].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 4, probeCubemapTextures[32][4].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 5, probeCubemapTextures[32][5].GetSRV());
 
-        computeContext.SetDynamicDescriptor(7, 0, probeCubemapArraySRV);
+        computeContext.SetDynamicDescriptor(4, 0, probeCubemapArraySRV);
 
-        computeContext.TransitionResource(irradianceTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        computeContext.TransitionResource(depthTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         computeContext.TransitionResource(irradianceAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         computeContext.TransitionResource(depthAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -387,13 +359,11 @@ namespace SDFGI {
         probeData.ProbeSpacing = Vector3(probeGrid.probeSpacing[0], probeGrid.probeSpacing[1], probeGrid.probeSpacing[2]);
         probeData.SceneMinBounds = sceneBounds.GetMin();
 
-        computeContext.SetDynamicConstantBufferView(3, sizeof(probeData), &probeData);
+        computeContext.SetDynamicConstantBufferView(5, sizeof(probeData), &probeData);
 
         // One thread per probe.
         computeContext.Dispatch(probeGrid.probeCount[0], probeGrid.probeCount[1], probeGrid.probeCount[2]);
 
-        computeContext.TransitionResource(irradianceTexture, D3D12_RESOURCE_STATE_GENERIC_READ);
-        computeContext.TransitionResource(depthTexture, D3D12_RESOURCE_STATE_GENERIC_READ);
         computeContext.TransitionResource(irradianceAtlas, D3D12_RESOURCE_STATE_GENERIC_READ);
         computeContext.TransitionResource(depthAtlas, D3D12_RESOURCE_STATE_GENERIC_READ);
 
@@ -613,7 +583,7 @@ namespace SDFGI {
         RenderProbeViz(context, camera);
 
         // Render to a fullscreen quad either the probe atlas or the cubemap of a single probe.
-        // RenderProbeAtlasViz(context, camera);
-        RenderCubemapViz(context, camera);
+        RenderProbeAtlasViz(context, camera);
+        // RenderCubemapViz(context, camera);
     }
 }
