@@ -216,7 +216,11 @@ void ModelViewer::Startup( void )
 
     InitializeGUI();
 
+    #ifdef LEGACY_RENDERER
     const Math::AxisAlignedBox &sceneBounds = Sponza::GetBoundingBox();
+    #else
+    const Math::AxisAlignedBox &sceneBounds = m_ModelInst.GetAxisAlignedBox();
+    #endif
 
     auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc, D3D12_CPU_DESCRIPTOR_HANDLE *rtv, Texture *text) {
         Sponza::RenderScene(ctx, cam, vp, sc, /*skipDiffusePass=*/false, /*skipShadowMap=*/false);
