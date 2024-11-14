@@ -77,16 +77,14 @@ namespace SDFGI
       Texture probeIrradianceCubemap;
       D3D12_CPU_DESCRIPTOR_HANDLE cubemapRTVs[6];
       std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc;
-      Texture **intermediateTextures;
-      D3D12_CPU_DESCRIPTOR_HANDLE **intermediateRTVs;
-      D3D12_CPU_DESCRIPTOR_HANDLE **intermediateUAVs;
+      Texture **probeCubemapTextures;
+      D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapRTVs;
+      D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapUAVs;
       int probeCount;
       GraphicsPSO cubemapVisualizationPSO;
       RootSignature cubemapVisualizationRootSignature;
       GraphicsPSO BasicPipelineState;
       RootSignature BasicRootSignature;
-      D3D12_VERTEX_BUFFER_VIEW pentagonVertexBufferView = {};
-      D3D12_INDEX_BUFFER_VIEW pentagonIndexBufferView = {};
       int frameCount = 0;
       int faceResolution = 64;
       RootSignature downsampleRootSignature;
@@ -96,7 +94,7 @@ namespace SDFGI
       D3D12_CPU_DESCRIPTOR_HANDLE probeCubemapArraySRV;
 
       SDFGIManager(
-        Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds, 
+        Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds, 
         std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc
       );
 
@@ -108,7 +106,7 @@ namespace SDFGI
 
       void InitializeProbeUpdateShader();
 
-      void InitializeTextureVizShader();
+      void InitializeProbeAtlasVizShader();
 
       void InitializeTextures();
 
@@ -124,21 +122,11 @@ namespace SDFGI
         GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, const Math::Camera& camera, Vector3 &probePosition, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor
       );
 
-      Matrix4 GetViewMatrixForCubemapFace(int faceIndex, const Vector3& probePosition);
-
       void RenderCubemapsForProbes(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
 
-      void CopyCubemapFaceToIntermediate(GraphicsContext& context, int face);
-
-      void InitializeCubemapVisualizationShader();
+      void InitializeCubemapVizShader();
 
       void RenderCubemapViz(GraphicsContext& context, const Math::Camera& camera);
-
-      void SimpleRenderFunc(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
-
-      void InitializeSimpleQuadPipelineState();
-
-      void InitializePentagon();
 
       void InitializeDownsampleShader();
     };

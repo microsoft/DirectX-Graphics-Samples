@@ -3,6 +3,7 @@ struct VS_OUTPUT {
     float2 texCoord : TEXCOORD0;
 };
 
+// Fullscreen quad.
 VS_OUTPUT main(uint id : SV_VertexID) {
     VS_OUTPUT output;
 
