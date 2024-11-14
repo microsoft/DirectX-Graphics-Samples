@@ -408,9 +408,6 @@ void ModelViewer::RenderScene( void )
         }
     }
 
-    // gfxContext.TransitionResource(mp_SDFGIManager->irradianceTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    // gfxContext.TransitionResource(mp_SDFGIManager->depthTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
     SDFGI::Render(gfxContext, m_Camera, mp_SDFGIManager, viewport, scissor);
 
     // Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything

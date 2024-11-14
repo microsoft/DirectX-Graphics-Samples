@@ -183,11 +183,11 @@ namespace SDFGI {
 
         irradianceTexture.Create3D(irradianceRowPitch, width, height, depth, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr);
 
-        irradianceAtlas.Create2D(rowPitchBytes, atlasWidth, atlasHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr);
+        irradianceAtlas.Create2D(rowPitchBytes, atlasWidth, atlasHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
         depthTexture.Create3D(depthRowPitch, width, height, depth, DXGI_FORMAT_R16_FLOAT, nullptr);
 
-        depthAtlas.Create2D(rowPitchBytes / 2, atlasWidth, atlasHeight, DXGI_FORMAT_R16_FLOAT, nullptr);
+        depthAtlas.Create2D(rowPitchBytes / 2, atlasWidth, atlasHeight, DXGI_FORMAT_R16_FLOAT, nullptr, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
         size_t cubeRowPitchBytes = faceResolution * sizeof(float) * 4;
         probeIrradianceCubemap.CreateCube(cubeRowPitchBytes, faceResolution, faceResolution, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr);
@@ -203,7 +203,8 @@ namespace SDFGI {
                     faceResolution * sizeof(float) * 4,
                     faceResolution, faceResolution,
                     DXGI_FORMAT_R11G11B10_FLOAT,
-                    nullptr
+                    nullptr,
+                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
                 );
             }
         }

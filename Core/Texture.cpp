@@ -33,7 +33,7 @@ static UINT BytesPerPixel( DXGI_FORMAT Format )
     return (UINT)BitsPerPixel(Format) / 8;
 };
 
-void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData )
+void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags )
 {
     Destroy();
 
@@ -53,7 +53,7 @@ void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_
     texDesc.SampleDesc.Count = 1;
     texDesc.SampleDesc.Quality = 0;
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    texDesc.Flags = flags;
 
     D3D12_HEAP_PROPERTIES HeapProps;
     HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -62,15 +62,20 @@ void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_
     HeapProps.CreationNodeMask = 1;
     HeapProps.VisibleNodeMask = 1;
 
-    D3D12_CLEAR_VALUE clearValue = {};
-    clearValue.Format = Format;
-    clearValue.Color[0] = 0.0f; 
-    clearValue.Color[1] = 0.0f; 
-    clearValue.Color[2] = 0.0f; 
-    clearValue.Color[3] = 1.0f; 
+    D3D12_CLEAR_VALUE *pClearValue = nullptr;
+    if (flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
+    {
+        D3D12_CLEAR_VALUE clearValue = {};
+        clearValue.Format = Format;
+        clearValue.Color[0] = 0.0f; 
+        clearValue.Color[1] = 0.0f; 
+        clearValue.Color[2] = 0.0f; 
+        clearValue.Color[3] = 1.0f;
+        pClearValue = &clearValue;  
+    }
 
     ASSERT_SUCCEEDED(g_Device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
-        m_UsageState, &clearValue, MY_IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
+        m_UsageState, pClearValue, MY_IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
 
     m_pResource->SetName(L"Texture");
 
