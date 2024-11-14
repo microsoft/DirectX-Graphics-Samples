@@ -1,4 +1,7 @@
+static const float PI = 3.14159265f;
+
 cbuffer ProbeData : register(b0) {
+    float4x4 randomRotation;
     uint ProbeCount;
     float ProbeMaxDistance;
     float3 GridSize;
@@ -9,6 +12,7 @@ cbuffer ProbeData : register(b0) {
 
 StructuredBuffer<float4> ProbePositions : register(t0);
 Texture2D<float4> ProbeFaceTextures[6] : register(t1);
+Texture2DArray<float4> ProbeCubemapArray : register(t7);
 RWTexture3D<float4> IrradianceTexture : register(u0);
 RWTexture3D<float> DepthTexture : register(u1);
 RWTexture2D<float4> IrradianceAtlas : register(u2);
@@ -51,6 +55,14 @@ int GetFaceIndex(float3 dir)
     }
 }
 
+float3 spherical_fibonacci(uint index, uint sample_count) {
+    const float PHI = sqrt(5.0) * 0.5 + 0.5;
+    float phi = 2.0 * PI * frac(index * (PHI - 1));
+    float cos_theta = 1.0 - (2.0 * index + 1.0) / sample_count;
+    float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+    return float3(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
+}
+
 [numthreads(1, 1, 1)]
 void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
     uint probeIndex = dispatchThreadID.x 
@@ -63,10 +75,12 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
     uint probeBlockSize = 4;
     uint2 atlasCoord = uint2(
-        (probeIndex % GridSize.x) * (probeBlockSize),
-        (probeIndex / GridSize.x) * (probeBlockSize)
+        (dispatchThreadID.x % GridSize.x) * (probeBlockSize-1) + 1,
+        (dispatchThreadID.y % GridSize.y) * (probeBlockSize-1) + 1
     );
 
+    // At each of the m active probes, we uniformly sample n spherical directions according to a stochastically-rotated Fibonacci spiral pattern.
+    // . For a in-depth discussion of irradiance and computing irradiance using light probes, we refer readers to [Akenine-Moller et al. 2018 ¨ ] (pg.268,490).
     float3 sampleDirections[16] = {
         normalize(float3(1,  1,  0)), normalize(float3(-1,  1,  0)), normalize(float3(1, -1,  0)), normalize(float3(-1, -1,  0)),
         normalize(float3(1,  0,  1)), normalize(float3(-1,  0,  1)), normalize(float3(1,  0, -1)), normalize(float3(-1,  0, -1)),
@@ -74,18 +88,23 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
         float3(1, 0, 0), float3(-1, 0, 0), float3(0, 1, 0), float3(0, 0, 1)
     };
 
-    for (int i = 0; i < 16; ++i) {
-        float2 encodedCoord = octEncode(sampleDirections[i]);
+    const uint sample_count = 16;
 
+    for (uint i = 0; i < sample_count; ++i) {
+        float3 dir = normalize(mul(randomRotation, float4(spherical_fibonacci(i, sample_count), 1.0)).xyz);
+        float2 encodedCoord = octEncode(dir);
         uint2 probeTexCoord = atlasCoord + uint2(
             (encodedCoord.x * 0.5 + 0.5) * (probeBlockSize - 1),
             (encodedCoord.y * 0.5 + 0.5) * (probeBlockSize - 1)
         );
 
-        float3 dir = sampleDirections[i];
+        // float3 dir = sampleDirections[i];
         int faceIndex = GetFaceIndex(dir);
 
-        float4 irradianceSample = ProbeFaceTextures[faceIndex].SampleLevel(LinearSampler, encodedCoord, 0);
+        uint textureIndex = probeIndex * 6 + faceIndex;
+
+        // float4 irradianceSample = ProbeFaceTextures[faceIndex].SampleLevel(LinearSampler, encodedCoord, 0);
+        float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(encodedCoord.xy, 0), textureIndex);
         
         IrradianceAtlas[probeTexCoord] = irradianceSample;
         DepthAtlas[probeTexCoord] = length(probePosition - (probePosition + sampleDirections[i] * ProbeMaxDistance)) / ProbeMaxDistance;

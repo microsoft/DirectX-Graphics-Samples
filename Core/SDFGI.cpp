@@ -9,6 +9,7 @@
 #include "RootSignature.h"
 #include "PipelineState.h"
 #include "Utility.h"
+#include <random>
 
 #include "CompiledShaders/SDFGIProbeVizVS.h"
 #include "CompiledShaders/SDFGIProbeVizPS.h"
@@ -23,6 +24,7 @@
 #include "CompiledShaders/SDFGIProbeCubemapDownsampleCS.h"
 
 using namespace Graphics;
+using namespace DirectX;
 
 namespace SDFGI {
     BoolVar Enable("Graphics/Debug/SDFGI Enable", true);
@@ -30,6 +32,20 @@ namespace SDFGI {
 
     GraphicsPSO s_ProbeVisualizationPSO;    
     RootSignature s_ProbeVisualizationRootSignature;
+
+    float get_random_value(float min, float max) {
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        std::uniform_real_distribution<float> dis(min, max);
+        return dis(gen);
+    }
+
+    XMMATRIX generate_random_rotation_matrix(float rotation_scaler) {
+        float randomX = get_random_value(-1.0f, 1.0f) * rotation_scaler;
+        float randomY = get_random_value(-1.0f, 1.0f) * rotation_scaler;
+        float randomZ = get_random_value(-1.0f, 1.0f) * rotation_scaler;
+        return XMMatrixRotationRollPitchYaw(randomX, randomY, randomZ);
+    }
 
     void Initialize(void) 
     {
@@ -104,9 +120,9 @@ namespace SDFGI {
 
 
     SDFGIProbeGrid::SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin) {
-        probeSpacing[0] = 250.0f;
-        probeSpacing[1] = 250.0f;
-        probeSpacing[2] = 250.0f;
+        probeSpacing[0] = 350.0f;
+        probeSpacing[1] = 350.0f;
+        probeSpacing[2] = 350.0f;
 
         probeCount[0] = std::max(1u, static_cast<uint32_t>(sceneSize.GetX() / probeSpacing[0]));
         probeCount[1] = std::max(1u, static_cast<uint32_t>(sceneSize.GetY() / probeSpacing[1]));
@@ -191,6 +207,37 @@ namespace SDFGI {
                 );
             }
         }
+
+
+        D3D12_RESOURCE_DESC texArrayDesc = {};
+        texArrayDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        texArrayDesc.Width = 64;
+        texArrayDesc.Height = 64;
+        texArrayDesc.DepthOrArraySize = probeCount * 6;
+        texArrayDesc.MipLevels = 1;
+        texArrayDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
+        texArrayDesc.SampleDesc.Count = 1;
+        texArrayDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        texArrayDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        D3D12_HEAP_PROPERTIES HeapProps;
+        HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+        HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        HeapProps.CreationNodeMask = 1;
+        HeapProps.VisibleNodeMask = 1;
+
+        g_Device->CreateCommittedResource(
+            &HeapProps,
+            D3D12_HEAP_FLAG_NONE,
+            &texArrayDesc,
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            nullptr,
+            IID_PPV_ARGS(&textureArrayResource)
+        );
+
+        textureArrayGpuResource = new GpuResource(textureArrayResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
+
     };
 
     void SDFGIManager::InitializeViews() {
@@ -261,6 +308,20 @@ namespace SDFGI {
                 g_Device->CreateUnorderedAccessView(intermediateTextures[probe][face].GetResource(), nullptr, &uavDesc, intermediateUAVs[probe][face]);
             }
         }
+
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+        srvDesc.Texture2DArray.MostDetailedMip = 0;
+        srvDesc.Texture2DArray.MipLevels = 1;
+        srvDesc.Texture2DArray.FirstArraySlice = 0;
+        srvDesc.Texture2DArray.ArraySize = probeCount * 6;
+        srvDesc.Texture2DArray.PlaneSlice = 0;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        probeCubemapArraySRV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        g_Device->CreateShaderResourceView(textureArrayGpuResource->GetResource(), &srvDesc, probeCubemapArraySRV);
+
     };
 
     void SDFGIManager::InitializeProbeBuffer() {
@@ -278,7 +339,7 @@ namespace SDFGI {
 
     void SDFGIManager::InitializeProbeUpdateShader()
     {
-        probeUpdateComputeRootSignature.Reset(7, 1);
+        probeUpdateComputeRootSignature.Reset(8, 1);
 
         // probeBuffer.
         probeUpdateComputeRootSignature[0].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL);
@@ -299,6 +360,8 @@ namespace SDFGI {
         probeUpdateComputeRootSignature[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 3, 1);
 
         probeUpdateComputeRootSignature[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6, D3D12_SHADER_VISIBILITY_ALL); 
+
+        probeUpdateComputeRootSignature[7].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 1, D3D12_SHADER_VISIBILITY_ALL);
 
         probeUpdateComputeRootSignature.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_ALL);
 
@@ -326,19 +389,24 @@ namespace SDFGI {
         computeContext.SetDynamicDescriptor(4, 0, irradianceAtlasUAV);
         computeContext.SetDynamicDescriptor(5, 0, depthAtlasUAV);
 
-        computeContext.SetDynamicDescriptor(6, 0, intermediateTextures[388][0].GetSRV());
-        computeContext.SetDynamicDescriptor(6, 1, intermediateTextures[388][1].GetSRV());
-        computeContext.SetDynamicDescriptor(6, 2, intermediateTextures[388][2].GetSRV());
-        computeContext.SetDynamicDescriptor(6, 3, intermediateTextures[388][3].GetSRV());
-        computeContext.SetDynamicDescriptor(6, 4, intermediateTextures[388][4].GetSRV());
-        computeContext.SetDynamicDescriptor(6, 5, intermediateTextures[388][5].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 0, intermediateTextures[32][0].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 1, intermediateTextures[32][1].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 2, intermediateTextures[32][2].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 3, intermediateTextures[32][3].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 4, intermediateTextures[32][4].GetSRV());
+        computeContext.SetDynamicDescriptor(6, 5, intermediateTextures[32][5].GetSRV());
+
+        computeContext.SetDynamicDescriptor(7, 0, probeCubemapArraySRV);
 
         computeContext.TransitionResource(irradianceTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         computeContext.TransitionResource(depthTexture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         computeContext.TransitionResource(irradianceAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         computeContext.TransitionResource(depthAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
+
+
         struct ProbeData {
+            XMFLOAT4X4 randomRotation;
             unsigned int ProbeCount;
             float ProbeMaxDistance;
             Vector3 GridSize;
@@ -346,6 +414,10 @@ namespace SDFGI {
             Vector3 SceneMinBounds;
             int ProbeIndex;
         } probeData;
+
+        float rotation_scaler = 3.14159f / 7.0f;
+        XMMATRIX randomRotation = generate_random_rotation_matrix(rotation_scaler);
+        XMStoreFloat4x4(&probeData.randomRotation, randomRotation);
 
         probeData.ProbeCount = probeGrid.probes.size();
         probeData.ProbeMaxDistance = 50;
@@ -644,7 +716,7 @@ namespace SDFGI {
         uint32_t dispatchY = (uint32_t)ceil(downsampleCB.dstSize.GetY() / 8.0f);
         computeContext.Dispatch(dispatchX, dispatchY, 1);
         computeContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-        computeContext.TransitionResource(intermediateTextures[probe][face], D3D12_RESOURCE_STATE_GENERIC_READ, true);
+        computeContext.TransitionResource(intermediateTextures[probe][face], D3D12_RESOURCE_STATE_COPY_SOURCE, true);
     }
 
 
@@ -655,7 +727,7 @@ namespace SDFGI {
         // D3D12_VIEWPORT cubemapViewport = {0.0f, 0.0f, faceResolution.0, faceResolution.0, 0.0f, 1.0f};
         // D3D12_RECT cubemapScissorRect = {0, 0, faceResolution, faceResolution};
 
-         for (size_t probe = 0; probe < probeGrid.probes.size(); ++probe)
+        for (size_t probe = 0; probe < probeGrid.probes.size(); ++probe)
         {
             Vector3& probePosition = probeGrid.probes[probe].position;
             Math::Camera probeCamera;
@@ -665,6 +737,26 @@ namespace SDFGI {
                 RenderToCubemapFace(context, g_SceneDepthBuffer, probe, face, camera, probePosition, mainViewport, mainScissor);
             }
         }
+
+        for (int probe = 0; probe < probeCount; ++probe) {
+            for (int face = 0; face < 6; ++face) {
+                D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
+                srcLocation.pResource = intermediateTextures[probe][face].GetResource();
+                srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+                srcLocation.SubresourceIndex = 0;
+
+                D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
+                dstLocation.pResource = textureArrayGpuResource->GetResource();
+                dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+                dstLocation.SubresourceIndex = probe * 6 + face;
+
+                D3D12_BOX srcBox = { 0, 0, 0, 64, 64, 1 };
+                context.GetCommandList()->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, &srcBox);
+                // context.InitializeTextureArraySlice(*textureArrayGpuResource, probe * 6 + face, (GpuResource&)intermediateTextures[probe][face]);
+            }
+        }
+
+        context.TransitionResource(*textureArrayGpuResource, D3D12_RESOURCE_STATE_GENERIC_READ);
 
         cubeMapsRendered = true;
     }
@@ -695,7 +787,7 @@ namespace SDFGI {
         context.SetRootSignature(cubemapVisualizationRootSignature);
 
         for (int face = 0; face < 6; ++face) {
-            context.SetDynamicDescriptor(0, face, intermediateTextures[400][face].GetSRV());
+            context.SetDynamicDescriptor(0, face, intermediateTextures[179][face].GetSRV());
         }
 
         int GridColumns = 3;

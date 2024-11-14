@@ -91,6 +91,9 @@ namespace SDFGI
       int faceResolution = 64;
       RootSignature downsampleRootSignature;
       ComputePSO downsamplePSO;
+      Microsoft::WRL::ComPtr<ID3D12Resource> textureArrayResource;
+      GpuResource *textureArrayGpuResource;
+      D3D12_CPU_DESCRIPTOR_HANDLE probeCubemapArraySRV;
 
       SDFGIManager(
         Vector3u probeCount, Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds, 
