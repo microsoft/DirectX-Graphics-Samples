@@ -25,8 +25,6 @@ using namespace Graphics;
 using namespace DirectX;
 
 namespace SDFGI {
-    GraphicsPSO s_ProbeVisualizationPSO;    
-    RootSignature s_ProbeVisualizationRootSignature;
 
     float GenerateRandomNumber(float min, float max) {
         static std::random_device rd;
@@ -111,8 +109,8 @@ namespace SDFGI {
 
         depthAtlas.Create2D(rowPitchBytes / 2, atlasWidth, atlasHeight, DXGI_FORMAT_R16_FLOAT, nullptr, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-        size_t cubeRowPitchBytes = faceResolution * sizeof(float) * 4;
-        probeIrradianceCubemap.CreateCube(cubeRowPitchBytes, faceResolution, faceResolution, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr);
+        size_t cubeRowPitchBytes = cubemapFaceResolution * sizeof(float) * 4;
+        probeIrradianceCubemap.CreateCube(cubeRowPitchBytes, cubemapFaceResolution, cubemapFaceResolution, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr);
 
         probeCount = width * height * depth;
         probeCubemapTextures = new Texture*[probeCount];
@@ -122,8 +120,8 @@ namespace SDFGI {
             for (int face = 0; face < 6; ++face)
             {
                 probeCubemapTextures[probe][face].Create2D(
-                    faceResolution * sizeof(float) * 4,
-                    faceResolution, faceResolution,
+                    cubemapFaceResolution * sizeof(float) * 4,
+                    cubemapFaceResolution, cubemapFaceResolution,
                     DXGI_FORMAT_R11G11B10_FLOAT,
                     nullptr,
                     D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
@@ -259,34 +257,34 @@ namespace SDFGI {
     }
 
     void SDFGIManager::InitializeProbeVizShader()  {
-        s_ProbeVisualizationRootSignature.Reset(2, 1);
+        probeVizRS.Reset(2, 1);
 
         // First root parameter is a constant buffer for camera data. Register b0.
         // Visibility ALL because VS and GS access it.
-        s_ProbeVisualizationRootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
+        probeVizRS[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
 
         // Second root parameter is a structured buffer SRV for probe buffer. Register t0.
-        s_ProbeVisualizationRootSignature[1].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_VERTEX);
+        probeVizRS[1].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_VERTEX);
 
-        s_ProbeVisualizationRootSignature.InitStaticSampler(0, SamplerLinearClampDesc);
+        probeVizRS.InitStaticSampler(0, SamplerLinearClampDesc);
 
-        s_ProbeVisualizationRootSignature.Finalize(L"SDFGI Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        probeVizRS.Finalize(L"SDFGI Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-        s_ProbeVisualizationPSO.SetRootSignature(s_ProbeVisualizationRootSignature);
-        s_ProbeVisualizationPSO.SetRasterizerState(RasterizerDefault);
-        s_ProbeVisualizationPSO.SetBlendState(BlendDisable);
-        s_ProbeVisualizationPSO.SetDepthStencilState(DepthStateReadWrite);
-        s_ProbeVisualizationPSO.SetVertexShader(g_pSDFGIProbeVizVS, sizeof(g_pSDFGIProbeVizVS));
-        s_ProbeVisualizationPSO.SetGeometryShader(g_pSDFGIProbeVizGS, sizeof(g_pSDFGIProbeVizGS));
-        s_ProbeVisualizationPSO.SetPixelShader(g_pSDFGIProbeVizPS, sizeof(g_pSDFGIProbeVizPS));
-        s_ProbeVisualizationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
-        s_ProbeVisualizationPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
-        s_ProbeVisualizationPSO.Finalize();
+        probeVizPSO.SetRootSignature(probeVizRS);
+        probeVizPSO.SetRasterizerState(RasterizerDefault);
+        probeVizPSO.SetBlendState(BlendDisable);
+        probeVizPSO.SetDepthStencilState(DepthStateReadWrite);
+        probeVizPSO.SetVertexShader(g_pSDFGIProbeVizVS, sizeof(g_pSDFGIProbeVizVS));
+        probeVizPSO.SetGeometryShader(g_pSDFGIProbeVizGS, sizeof(g_pSDFGIProbeVizGS));
+        probeVizPSO.SetPixelShader(g_pSDFGIProbeVizPS, sizeof(g_pSDFGIProbeVizPS));
+        probeVizPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
+        probeVizPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
+        probeVizPSO.Finalize();
     }
 
     void SDFGIManager::RenderProbeViz(GraphicsContext& context, const Math::Camera& camera) {
-        context.SetPipelineState(s_ProbeVisualizationPSO);
-        context.SetRootSignature(s_ProbeVisualizationRootSignature);
+        context.SetPipelineState(probeVizPSO);
+        context.SetRootSignature(probeVizRS);
 
         CameraData camData = {};
         camData.viewProjMatrix = camera.GetViewProjMatrix();
@@ -302,49 +300,50 @@ namespace SDFGI {
     }
 
     void SDFGIManager::InitializeProbeUpdateShader() {
-        probeUpdateComputeRootSignature.Reset(8, 1);
+        probeUpdateRS.Reset(8, 1);
 
         // probeBuffer.
-        probeUpdateComputeRootSignature[0].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL);
+        probeUpdateRS[0].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_ALL);
 
         // Irradiance.
-        probeUpdateComputeRootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+        probeUpdateRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
 
         // Depth.
-        probeUpdateComputeRootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);
+        probeUpdateRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);
 
         // Probe grid info.
-        probeUpdateComputeRootSignature[3].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
+        probeUpdateRS[3].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
 
         // Irradiance atlas.
-        probeUpdateComputeRootSignature[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 1);
+        probeUpdateRS[4].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 1);
 
         // Depth atlas.
-        probeUpdateComputeRootSignature[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 3, 1);
+        probeUpdateRS[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 3, 1);
 
-        probeUpdateComputeRootSignature[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6, D3D12_SHADER_VISIBILITY_ALL); 
+        probeUpdateRS[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6, D3D12_SHADER_VISIBILITY_ALL); 
 
-        probeUpdateComputeRootSignature[7].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 1, D3D12_SHADER_VISIBILITY_ALL);
+        probeUpdateRS[7].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 1, D3D12_SHADER_VISIBILITY_ALL);
 
-        probeUpdateComputeRootSignature.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_ALL);
+        probeUpdateRS.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_ALL);
 
-        probeUpdateComputeRootSignature.Finalize(L"DDGI Compute Root Signature");
+        probeUpdateRS.Finalize(L"DDGI Compute Root Signature");
 
-        probeUpdateComputePSO.SetRootSignature(probeUpdateComputeRootSignature);
-        probeUpdateComputePSO.SetComputeShader(g_pSDFGIProbeUpdateCS, sizeof(g_pSDFGIProbeUpdateCS));
-        probeUpdateComputePSO.Finalize();
+        probeUpdatePSO.SetRootSignature(probeUpdateRS);
+        probeUpdatePSO.SetComputeShader(g_pSDFGIProbeUpdateCS, sizeof(g_pSDFGIProbeUpdateCS));
+        probeUpdatePSO.Finalize();
     }
 
 
     void SDFGIManager::UpdateProbes(GraphicsContext& context) {
+        // Only capture irradiance and depth once.
         if (irradianceCaptured) return;
 
         ComputeContext& computeContext = context.GetComputeContext();
 
         ScopedTimer _prof(L"Capture Irradiance and Depth", context);
 
-        computeContext.SetPipelineState(probeUpdateComputePSO);
-        computeContext.SetRootSignature(probeUpdateComputeRootSignature);
+        computeContext.SetPipelineState(probeUpdatePSO);
+        computeContext.SetRootSignature(probeUpdateRS);
 
         computeContext.SetBufferSRV(0, probeBuffer);
         computeContext.SetDynamicDescriptor(1, 0, irradianceUAV);
@@ -402,30 +401,30 @@ namespace SDFGI {
     }
     
     void SDFGIManager::InitializeProbeAtlasVizShader() {
-        textureVisualizationRootSignature.Reset(2, 1);
+        atlasVizRS.Reset(2, 1);
         // Irradiance atlas.
-        textureVisualizationRootSignature[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        atlasVizRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         // Depth atlas.
-        textureVisualizationRootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-        textureVisualizationRootSignature.InitStaticSampler(0, SamplerLinearClampDesc);
-        textureVisualizationRootSignature.Finalize(L"SDFGI Visualization Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        atlasVizRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        atlasVizRS.InitStaticSampler(0, SamplerLinearClampDesc);
+        atlasVizRS.Finalize(L"SDFGI Visualization Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-        textureVisualizationPSO.SetRootSignature(textureVisualizationRootSignature);
-        textureVisualizationPSO.SetVertexShader(g_pSDFGIProbeIrradianceDepthVizVS, sizeof(g_pSDFGIProbeIrradianceDepthVizVS));
-        textureVisualizationPSO.SetPixelShader(g_pSDFGIProbeIrradianceDepthVizPS, sizeof(g_pSDFGIProbeIrradianceDepthVizPS));
-        textureVisualizationPSO.SetRasterizerState(RasterizerDefault);
-        textureVisualizationPSO.SetBlendState(BlendDisable);
-        textureVisualizationPSO.SetDepthStencilState(DepthStateReadWrite);
-        textureVisualizationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-        textureVisualizationPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
-        textureVisualizationPSO.Finalize();
+        atlasVizPSO.SetRootSignature(atlasVizRS);
+        atlasVizPSO.SetVertexShader(g_pSDFGIProbeIrradianceDepthVizVS, sizeof(g_pSDFGIProbeIrradianceDepthVizVS));
+        atlasVizPSO.SetPixelShader(g_pSDFGIProbeIrradianceDepthVizPS, sizeof(g_pSDFGIProbeIrradianceDepthVizPS));
+        atlasVizPSO.SetRasterizerState(RasterizerDefault);
+        atlasVizPSO.SetBlendState(BlendDisable);
+        atlasVizPSO.SetDepthStencilState(DepthStateReadWrite);
+        atlasVizPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        atlasVizPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
+        atlasVizPSO.Finalize();
     }
 
     void SDFGIManager::RenderProbeAtlasViz(GraphicsContext& context, const Math::Camera& camera) {
         ScopedTimer _prof(L"Visualize SDFGI Textures", context);
 
-        context.SetPipelineState(textureVisualizationPSO);
-        context.SetRootSignature(textureVisualizationRootSignature);
+        context.SetPipelineState(atlasVizPSO);
+        context.SetRootSignature(atlasVizRS);
 
         context.SetDynamicDescriptor(0, 0, irradianceAtlas.GetSRV());
         context.SetDynamicDescriptor(1, 0, depthAtlas.GetSRV());
@@ -435,21 +434,21 @@ namespace SDFGI {
     }
 
     void SDFGIManager::InitializeDownsampleShader() {
-        downsampleRootSignature.Reset(3, 1);
+        downsampleRS.Reset(3, 1);
         
-        downsampleRootSignature[0].InitAsConstantBuffer(0);
+        downsampleRS[0].InitAsConstantBuffer(0);
         
         // Source texture, typically g_SceneColorBuffer.
-        downsampleRootSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+        downsampleRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
         
         // Destination texture, some probe's cubemap face.
-        downsampleRootSignature[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+        downsampleRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
         
-        downsampleRootSignature.InitStaticSampler(0, SamplerBilinearClampDesc);
+        downsampleRS.InitStaticSampler(0, SamplerBilinearClampDesc);
         
-        downsampleRootSignature.Finalize(L"Downsample Root Signature", D3D12_ROOT_SIGNATURE_FLAG_NONE);
+        downsampleRS.Finalize(L"Downsample Root Signature", D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
-        downsamplePSO.SetRootSignature(downsampleRootSignature);
+        downsamplePSO.SetRootSignature(downsampleRS);
         downsamplePSO.SetComputeShader(g_pSDFGIProbeCubemapDownsampleCS, sizeof(g_pSDFGIProbeCubemapDownsampleCS)); 
         downsamplePSO.Finalize();
     }
@@ -477,7 +476,7 @@ namespace SDFGI {
             downsampleCB.srcSize.GetY() / downsampleCB.dstSize.GetY(), 0.0f
         );
 
-        computeContext.SetRootSignature(downsampleRootSignature);
+        computeContext.SetRootSignature(downsampleRS);
         computeContext.SetPipelineState(downsamplePSO);
         computeContext.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetSRV()); 
         computeContext.SetDynamicDescriptor(2, 0, probeCubemapUAVs[probe][face]);
@@ -559,30 +558,30 @@ namespace SDFGI {
 
     // This shader renders the 6 faces of the cubemap of a single probe to a fullscreen quad. See RenderCubemapViz.
     void SDFGIManager::InitializeCubemapVizShader() {
-        cubemapVisualizationRootSignature.Reset(2, 1);
+        cubemapVizRS.Reset(2, 1);
 
-        cubemapVisualizationRootSignature[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
-        cubemapVisualizationRootSignature[1].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
-        cubemapVisualizationRootSignature.InitStaticSampler(0, SamplerLinearClampDesc);
-        cubemapVisualizationRootSignature.Finalize(L"Cubemap Visualization Root Signature");
+        cubemapVizRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 6, D3D12_SHADER_VISIBILITY_PIXEL);
+        cubemapVizRS[1].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+        cubemapVizRS.InitStaticSampler(0, SamplerLinearClampDesc);
+        cubemapVizRS.Finalize(L"Cubemap Visualization Root Signature");
 
-        cubemapVisualizationPSO.SetRootSignature(cubemapVisualizationRootSignature);
-        cubemapVisualizationPSO.SetVertexShader(g_pSDFGIProbeCubemapVizVS, sizeof(g_pSDFGIProbeCubemapVizVS));
-        cubemapVisualizationPSO.SetPixelShader(g_pSDFGIProbeCubemapVizPS, sizeof(g_pSDFGIProbeCubemapVizPS));
-        cubemapVisualizationPSO.SetRasterizerState(RasterizerDefault);
-        cubemapVisualizationPSO.SetBlendState(BlendDisable);
-        cubemapVisualizationPSO.SetDepthStencilState(DepthStateReadWrite);
-        cubemapVisualizationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-        cubemapVisualizationPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
-        cubemapVisualizationPSO.Finalize();
+        cubemapVizPSO.SetRootSignature(cubemapVizRS);
+        cubemapVizPSO.SetVertexShader(g_pSDFGIProbeCubemapVizVS, sizeof(g_pSDFGIProbeCubemapVizVS));
+        cubemapVizPSO.SetPixelShader(g_pSDFGIProbeCubemapVizPS, sizeof(g_pSDFGIProbeCubemapVizPS));
+        cubemapVizPSO.SetRasterizerState(RasterizerDefault);
+        cubemapVizPSO.SetBlendState(BlendDisable);
+        cubemapVizPSO.SetDepthStencilState(DepthStateReadWrite);
+        cubemapVizPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        cubemapVizPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
+        cubemapVizPSO.Finalize();
     }
 
     // Renders the 6 faces of the cubemap of a single probe to a fullscreen quad.
     void SDFGIManager::RenderCubemapViz(GraphicsContext& context, const Math::Camera& camera) {
         ScopedTimer _prof(L"Visualize Cubemap Faces", context);
 
-        context.SetPipelineState(cubemapVisualizationPSO);
-        context.SetRootSignature(cubemapVisualizationRootSignature);
+        context.SetPipelineState(cubemapVizPSO);
+        context.SetRootSignature(cubemapVizRS);
 
         for (int face = 0; face < 6; ++face) {
             context.SetDynamicDescriptor(0, face, probeCubemapTextures[179][face].GetSRV());

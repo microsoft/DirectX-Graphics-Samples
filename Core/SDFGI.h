@@ -54,41 +54,46 @@ namespace SDFGI
   // A lot of "Managers" in the codebase.
   class SDFGIManager {
   public:
+
+    // Used to ensure that irradiance and cubemaps are only captured in the first render call.
+    // TODO: don't do this when we support dynamic lights and scenes.
     bool irradianceCaptured = false;
     bool cubeMapsRendered = false;
-    Texture irradianceTexture;
-    Texture irradianceAtlas;
-    Texture depthTexture;
-    Texture depthAtlas;
+
+    int probeCount;
     SDFGIProbeGrid probeGrid;
-    StructuredBuffer probeBuffer;
-    ComputePSO probeUpdateComputePSO;
-    RootSignature probeUpdateComputeRootSignature;
-    D3D12_CPU_DESCRIPTOR_HANDLE irradianceUAV;
-    D3D12_CPU_DESCRIPTOR_HANDLE irradianceAtlasUAV;
-    D3D12_CPU_DESCRIPTOR_HANDLE depthUAV;
-    D3D12_CPU_DESCRIPTOR_HANDLE depthAtlasUAV;
     const Math::AxisAlignedBox &sceneBounds;
-    GraphicsPSO textureVisualizationPSO;    
-    RootSignature textureVisualizationRootSignature;
+
+    // Buffer of SDFGIProbe's.
+    StructuredBuffer probeBuffer;
+
+    int cubemapFaceResolution = 64;
+
+    Texture irradianceTexture;
+    D3D12_CPU_DESCRIPTOR_HANDLE irradianceUAV;
+
+    Texture depthTexture;
+    D3D12_CPU_DESCRIPTOR_HANDLE depthUAV;
+    
+    Texture irradianceAtlas;
+    D3D12_CPU_DESCRIPTOR_HANDLE irradianceAtlasUAV;
+
+    Texture depthAtlas;
+    D3D12_CPU_DESCRIPTOR_HANDLE depthAtlasUAV;
+
     Texture probeIrradianceCubemap;
     D3D12_CPU_DESCRIPTOR_HANDLE cubemapRTVs[6];
-    std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc;
-    Texture **probeCubemapTextures;
+    D3D12_CPU_DESCRIPTOR_HANDLE probeCubemapArraySRV;
     D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapRTVs;
     D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapUAVs;
-    int probeCount;
-    GraphicsPSO cubemapVisualizationPSO;
-    RootSignature cubemapVisualizationRootSignature;
-    GraphicsPSO BasicPipelineState;
-    RootSignature BasicRootSignature;
-    int frameCount = 0;
-    int faceResolution = 64;
-    RootSignature downsampleRootSignature;
-    ComputePSO downsamplePSO;
-    Microsoft::WRL::ComPtr<ID3D12Resource> textureArrayResource;
+
+    Texture **probeCubemapTextures;
     GpuResource *textureArrayGpuResource;
-    D3D12_CPU_DESCRIPTOR_HANDLE probeCubemapArraySRV;
+    Microsoft::WRL::ComPtr<ID3D12Resource> textureArrayResource;
+    
+
+    // A function/lambda for invoking the scene's render function. Used for rendering probe cubemaps.
+    std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc;  
 
     SDFGIManager(
       Vector3f probeSpacing, 
@@ -103,19 +108,27 @@ namespace SDFGI
     void InitializeViews();
 
     // Probe positions.
+    GraphicsPSO probeVizPSO;    
+    RootSignature probeVizRS;
     void InitializeProbeBuffer();
     void InitializeProbeVizShader();
     void RenderProbeViz(GraphicsContext& context, const Math::Camera& camera);
 
     // Probe update: capture irradiance and depth.
+    ComputePSO probeUpdatePSO;
+    RootSignature probeUpdateRS;
     void InitializeProbeUpdateShader();
     void UpdateProbes(GraphicsContext& context);
 
     // Visualization: irradiance atlas (WIP: depth atlas).
+    GraphicsPSO atlasVizPSO;    
+    RootSignature atlasVizRS;
     void InitializeProbeAtlasVizShader();
     void RenderProbeAtlasViz(GraphicsContext& context, const Math::Camera& camera);
 
     // Probe cubemaps.
+    ComputePSO downsamplePSO;
+    RootSignature downsampleRS;
     void InitializeDownsampleShader();
     void RenderCubemapFace(
       GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, const Math::Camera& camera, Vector3 &probePosition, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor
@@ -123,6 +136,8 @@ namespace SDFGI
     void RenderCubemapsForProbes(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
 
     // Visualization: cubemap faces of a single probe.
+    GraphicsPSO cubemapVizPSO;
+    RootSignature cubemapVizRS;
     void InitializeCubemapVizShader();
     void RenderCubemapViz(GraphicsContext& context, const Math::Camera& camera);
 
