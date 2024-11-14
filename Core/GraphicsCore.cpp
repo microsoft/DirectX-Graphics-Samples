@@ -417,7 +417,6 @@ void Graphics::Initialize(bool RequireDXRSupport)
     TextRenderer::Initialize();
     GraphRenderer::Initialize();
     ParticleEffectManager::Initialize(3840, 2160);
-    SDFGI::Initialize();
 }
 
 void Graphics::Shutdown( void )
@@ -440,7 +439,6 @@ void Graphics::Shutdown( void )
     GraphRenderer::Shutdown();
     ParticleEffectManager::Shutdown();
     Display::Shutdown();
-    SDFGI::Shutdown();
 
 #if defined(_GAMING_DESKTOP) && defined(_DEBUG)
     ID3D12DebugDevice* debugInterface;

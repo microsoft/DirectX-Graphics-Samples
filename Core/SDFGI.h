@@ -22,122 +22,111 @@ class BoolVar;
 
 namespace SDFGI
 {
-    struct SDFGIProbe {
-      // Position of the probe in world space.
+  struct SDFGIProbe {
+    // Position of the probe in world space.
+    Vector3 position;
+  };
+
+  struct SDFGIProbeGrid {
+    // Number of probes along each axis (x, y, z). This is computed from probeSpacing.
+    Vector3u probeCount;
+    // Distance between probes in world space along each axis.
+    Vector3f probeSpacing;
+    std::vector<SDFGIProbe> probes;
+
+    SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin);
+
+    void GenerateProbes(Vector3 &sceneMin);
+  };
+
+  struct CameraData {
+      Matrix4 viewProjMatrix;
       Vector3 position;
-    };
+      float pad;
+  };
 
-    struct SDFGIProbeGrid {
-      // Number of probes along each axis (x, y, z). This is computed from probeSpacing.
-      Vector3u probeCount;
-      // Distance between probes in world space along each axis.
-      Vector3f probeSpacing;
-      std::vector<SDFGIProbe> probes;
+  struct DownsampleCB {
+    Vector3 srcSize;
+    Vector3 dstSize;
+    Vector3 scale;
+  };
 
-      SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin);
+  // A lot of "Managers" in the codebase.
+  class SDFGIManager {
+  public:
+    bool irradianceCaptured = false;
+    bool cubeMapsRendered = false;
+    Texture irradianceTexture;
+    Texture irradianceAtlas;
+    Texture depthTexture;
+    Texture depthAtlas;
+    SDFGIProbeGrid probeGrid;
+    StructuredBuffer probeBuffer;
+    ComputePSO probeUpdateComputePSO;
+    RootSignature probeUpdateComputeRootSignature;
+    D3D12_CPU_DESCRIPTOR_HANDLE irradianceUAV;
+    D3D12_CPU_DESCRIPTOR_HANDLE irradianceAtlasUAV;
+    D3D12_CPU_DESCRIPTOR_HANDLE depthUAV;
+    D3D12_CPU_DESCRIPTOR_HANDLE depthAtlasUAV;
+    const Math::AxisAlignedBox &sceneBounds;
+    GraphicsPSO textureVisualizationPSO;    
+    RootSignature textureVisualizationRootSignature;
+    Texture probeIrradianceCubemap;
+    D3D12_CPU_DESCRIPTOR_HANDLE cubemapRTVs[6];
+    std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc;
+    Texture **probeCubemapTextures;
+    D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapRTVs;
+    D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapUAVs;
+    int probeCount;
+    GraphicsPSO cubemapVisualizationPSO;
+    RootSignature cubemapVisualizationRootSignature;
+    GraphicsPSO BasicPipelineState;
+    RootSignature BasicRootSignature;
+    int frameCount = 0;
+    int faceResolution = 64;
+    RootSignature downsampleRootSignature;
+    ComputePSO downsamplePSO;
+    Microsoft::WRL::ComPtr<ID3D12Resource> textureArrayResource;
+    GpuResource *textureArrayGpuResource;
+    D3D12_CPU_DESCRIPTOR_HANDLE probeCubemapArraySRV;
 
-      void GenerateProbes(Vector3 &sceneMin);
-    };
+    SDFGIManager(
+      Vector3f probeSpacing, 
+      const Math::AxisAlignedBox &sceneBounds,
+      // A function/lambda for invoking the scene's render function. Used for rendering probe cubemaps.
+      std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc
+    );
 
-    struct CameraData {
-        Matrix4 viewProjMatrix;
-        Vector3 position;
-        float pad;
-    };
+    // Initialize all textures needed.
+    void InitializeTextures();
+    // Initialize all views needed.
+    void InitializeViews();
 
-    struct DownsampleCB {
-      Vector3 srcSize;
-      Vector3 dstSize;
-      Vector3 scale;
-    };
+    // Probe positions.
+    void InitializeProbeBuffer();
+    void InitializeProbeVizShader();
+    void RenderProbeViz(GraphicsContext& context, const Math::Camera& camera);
 
-    // A lot of "Managers" in the codebase.
-    class SDFGIManager {
-    public:
-      bool irradianceCaptured = false;
-      bool cubeMapsRendered = false;
-      Texture irradianceTexture;
-      Texture irradianceAtlas;
-      Texture depthTexture;
-      Texture depthAtlas;
-      SDFGIProbeGrid probeGrid;
-      StructuredBuffer probeBuffer;
-      ComputePSO probeUpdateComputePSO;
-      RootSignature probeUpdateComputeRootSignature;
-      D3D12_CPU_DESCRIPTOR_HANDLE irradianceUAV;
-      D3D12_CPU_DESCRIPTOR_HANDLE irradianceAtlasUAV;
-      D3D12_CPU_DESCRIPTOR_HANDLE depthUAV;
-      D3D12_CPU_DESCRIPTOR_HANDLE depthAtlasUAV;
-      const Math::AxisAlignedBox &sceneBounds;
-      GraphicsPSO textureVisualizationPSO;    
-      RootSignature textureVisualizationRootSignature;
-      Texture probeIrradianceCubemap;
-      D3D12_CPU_DESCRIPTOR_HANDLE cubemapRTVs[6];
-      std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc;
-      Texture **probeCubemapTextures;
-      D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapRTVs;
-      D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapUAVs;
-      int probeCount;
-      GraphicsPSO cubemapVisualizationPSO;
-      RootSignature cubemapVisualizationRootSignature;
-      GraphicsPSO BasicPipelineState;
-      RootSignature BasicRootSignature;
-      int frameCount = 0;
-      int faceResolution = 64;
-      RootSignature downsampleRootSignature;
-      ComputePSO downsamplePSO;
-      Microsoft::WRL::ComPtr<ID3D12Resource> textureArrayResource;
-      GpuResource *textureArrayGpuResource;
-      D3D12_CPU_DESCRIPTOR_HANDLE probeCubemapArraySRV;
+    // Probe update: capture irradiance and depth.
+    void InitializeProbeUpdateShader();
+    void UpdateProbes(GraphicsContext& context);
 
-      SDFGIManager(
-        Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds, 
-        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc
-      );
+    // Visualization: irradiance atlas (WIP: depth atlas).
+    void InitializeProbeAtlasVizShader();
+    void RenderProbeAtlasViz(GraphicsContext& context, const Math::Camera& camera);
 
-      struct Vertex
-      {
-          float x, y, z;
-          float r, g, b, a;
-      };
+    // Probe cubemaps.
+    void InitializeDownsampleShader();
+    void RenderCubemapFace(
+      GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, const Math::Camera& camera, Vector3 &probePosition, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor
+    );
+    void RenderCubemapsForProbes(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
 
-      void InitializeProbeUpdateShader();
+    // Visualization: cubemap faces of a single probe.
+    void InitializeCubemapVizShader();
+    void RenderCubemapViz(GraphicsContext& context, const Math::Camera& camera);
 
-      void InitializeProbeAtlasVizShader();
-
-      void InitializeTextures();
-
-      void InitializeViews();
-
-      void InitializeProbeBuffer();
-
-      void CaptureIrradianceAndDepth(GraphicsContext& context);
-
-      void RenderIrradianceDepthViz(GraphicsContext& context, const Math::Camera& camera, int sliceIndex, float maxDepthDistance);
-
-      void RenderToCubemapFace(
-        GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, const Math::Camera& camera, Vector3 &probePosition, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor
-      );
-
-      void RenderCubemapsForProbes(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
-
-      void InitializeCubemapVizShader();
-
-      void RenderCubemapViz(GraphicsContext& context, const Math::Camera& camera);
-
-      void InitializeDownsampleShader();
-    };
-
-
-
-    void Initialize(void);
-    
-    void Shutdown(void);
-    
-    void Render(GraphicsContext& context, const Math::Camera& camera, SDFGIManager *SDFGIManager, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
-    
-    void UpdateProbeData(GraphicsContext& context);
-
-    extern BoolVar Enable;
-    extern BoolVar DebugDraw;
+    // Entry point for updating probes and rendering visualizations.
+    void Render(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+  };
 }

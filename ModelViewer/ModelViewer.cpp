@@ -253,6 +253,8 @@ void ModelViewer::Cleanup( void )
 
     g_IBLTextures.clear();
 
+    delete mp_SDFGIManager;
+
 #ifdef LEGACY_RENDERER
     Sponza::Cleanup();
 #endif
@@ -407,7 +409,7 @@ void ModelViewer::RenderScene( void )
         }
     }
 
-    SDFGI::Render(gfxContext, m_Camera, mp_SDFGIManager, viewport, scissor);
+    mp_SDFGIManager->Render(gfxContext, m_Camera, viewport, scissor);
 
     // Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything
     // is static in our scene, so we generate velocity from camera motion and the depth buffer.  A velocity buffer

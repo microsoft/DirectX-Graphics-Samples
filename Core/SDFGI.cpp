@@ -25,9 +25,6 @@ using namespace Graphics;
 using namespace DirectX;
 
 namespace SDFGI {
-    BoolVar Enable("Graphics/Debug/SDFGI Enable", true);
-    BoolVar DebugDraw("Graphics/Debug/SDFGI Debug Draw", false);
-
     GraphicsPSO s_ProbeVisualizationPSO;    
     RootSignature s_ProbeVisualizationRootSignature;
 
@@ -44,69 +41,6 @@ namespace SDFGI {
         float randomY = GenerateRandomNumber(-1.0f, 1.0f) * rotation_scaler;
         float randomZ = GenerateRandomNumber(-1.0f, 1.0f) * rotation_scaler;
         return XMMatrixRotationRollPitchYaw(randomX, randomY, randomZ);
-    }
-
-    void Initialize(void) 
-    {
-        s_ProbeVisualizationRootSignature.Reset(2, 1);
-
-        // First root parameter is a constant buffer for camera data. Register b0.
-        // Visibility ALL because VS and GS access it.
-        s_ProbeVisualizationRootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
-
-        // Second root parameter is a structured buffer SRV for probe buffer. Register t0.
-        s_ProbeVisualizationRootSignature[1].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_VERTEX);
-
-        s_ProbeVisualizationRootSignature.InitStaticSampler(0, SamplerLinearClampDesc);
-
-        s_ProbeVisualizationRootSignature.Finalize(L"SDFGI Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-        s_ProbeVisualizationPSO.SetRootSignature(s_ProbeVisualizationRootSignature);
-        s_ProbeVisualizationPSO.SetRasterizerState(RasterizerDefault);
-        s_ProbeVisualizationPSO.SetBlendState(BlendDisable);
-        s_ProbeVisualizationPSO.SetDepthStencilState(DepthStateReadWrite);
-        s_ProbeVisualizationPSO.SetVertexShader(g_pSDFGIProbeVizVS, sizeof(g_pSDFGIProbeVizVS));
-        s_ProbeVisualizationPSO.SetGeometryShader(g_pSDFGIProbeVizGS, sizeof(g_pSDFGIProbeVizGS));
-        s_ProbeVisualizationPSO.SetPixelShader(g_pSDFGIProbeVizPS, sizeof(g_pSDFGIProbeVizPS));
-        s_ProbeVisualizationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
-        s_ProbeVisualizationPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
-        s_ProbeVisualizationPSO.Finalize();
-    }
-
-
-    void Shutdown(void)
-    {
-        // TODO.
-    }
-
-    void Render(GraphicsContext& context, const Math::Camera& camera, SDFGIManager* sdfgiManager, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
-    {
-        if (!Enable)
-            return;
-
-        ScopedTimer _prof(L"SDFGI Rendering", context);
-
-        sdfgiManager->RenderCubemapsForProbes(context, camera, viewport, scissor);
-
-        sdfgiManager->CaptureIrradianceAndDepth(context);
-
-        context.SetPipelineState(s_ProbeVisualizationPSO);
-        context.SetRootSignature(s_ProbeVisualizationRootSignature);
-
-        CameraData camData = {};
-        camData.viewProjMatrix = camera.GetViewProjMatrix();
-        camData.position = camera.GetPosition();
-
-        context.SetDynamicConstantBufferView(0, sizeof(camData), &camData);
-
-        context.SetBufferSRV(1, sdfgiManager->probeBuffer);
-
-        context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-
-        context.DrawInstanced(sdfgiManager->probeGrid.probes.size(), 1, 0, 0);
-
-        // sdfgiManager->RenderIrradianceDepthViz(context, camera, 10, 50);
-        sdfgiManager->RenderCubemapViz(context, camera);
     }
 
     SDFGIProbeGrid::SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin) {
@@ -142,9 +76,10 @@ namespace SDFGI {
         std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc
     )
         : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()), sceneBounds(sceneBounds), renderFunc(renderFunc) {
-        InitializeProbeBuffer();
         InitializeTextures();
         InitializeViews();
+        InitializeProbeBuffer();
+        InitializeProbeVizShader();
         InitializeProbeUpdateShader();
         InitializeProbeAtlasVizShader();
         InitializeCubemapVizShader();
@@ -323,8 +258,50 @@ namespace SDFGI {
         probeBuffer.Create(L"Probe Data Buffer", probeData.size(), sizeof(float), probeData.data());
     }
 
-    void SDFGIManager::InitializeProbeUpdateShader()
-    {
+    void SDFGIManager::InitializeProbeVizShader()  {
+        s_ProbeVisualizationRootSignature.Reset(2, 1);
+
+        // First root parameter is a constant buffer for camera data. Register b0.
+        // Visibility ALL because VS and GS access it.
+        s_ProbeVisualizationRootSignature[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_ALL);
+
+        // Second root parameter is a structured buffer SRV for probe buffer. Register t0.
+        s_ProbeVisualizationRootSignature[1].InitAsBufferSRV(0, D3D12_SHADER_VISIBILITY_VERTEX);
+
+        s_ProbeVisualizationRootSignature.InitStaticSampler(0, SamplerLinearClampDesc);
+
+        s_ProbeVisualizationRootSignature.Finalize(L"SDFGI Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+        s_ProbeVisualizationPSO.SetRootSignature(s_ProbeVisualizationRootSignature);
+        s_ProbeVisualizationPSO.SetRasterizerState(RasterizerDefault);
+        s_ProbeVisualizationPSO.SetBlendState(BlendDisable);
+        s_ProbeVisualizationPSO.SetDepthStencilState(DepthStateReadWrite);
+        s_ProbeVisualizationPSO.SetVertexShader(g_pSDFGIProbeVizVS, sizeof(g_pSDFGIProbeVizVS));
+        s_ProbeVisualizationPSO.SetGeometryShader(g_pSDFGIProbeVizGS, sizeof(g_pSDFGIProbeVizGS));
+        s_ProbeVisualizationPSO.SetPixelShader(g_pSDFGIProbeVizPS, sizeof(g_pSDFGIProbeVizPS));
+        s_ProbeVisualizationPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
+        s_ProbeVisualizationPSO.SetRenderTargetFormat(g_SceneColorBuffer.GetFormat(), g_SceneDepthBuffer.GetFormat());
+        s_ProbeVisualizationPSO.Finalize();
+    }
+
+    void SDFGIManager::RenderProbeViz(GraphicsContext& context, const Math::Camera& camera) {
+        context.SetPipelineState(s_ProbeVisualizationPSO);
+        context.SetRootSignature(s_ProbeVisualizationRootSignature);
+
+        CameraData camData = {};
+        camData.viewProjMatrix = camera.GetViewProjMatrix();
+        camData.position = camera.GetPosition();
+
+        context.SetDynamicConstantBufferView(0, sizeof(camData), &camData);
+
+        context.SetBufferSRV(1, probeBuffer);
+
+        context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+        context.DrawInstanced(probeGrid.probes.size(), 1, 0, 0);
+    }
+
+    void SDFGIManager::InitializeProbeUpdateShader() {
         probeUpdateComputeRootSignature.Reset(8, 1);
 
         // probeBuffer.
@@ -359,7 +336,7 @@ namespace SDFGI {
     }
 
 
-    void SDFGIManager::CaptureIrradianceAndDepth(GraphicsContext& context) {
+    void SDFGIManager::UpdateProbes(GraphicsContext& context) {
         if (irradianceCaptured) return;
 
         ComputeContext& computeContext = context.GetComputeContext();
@@ -423,7 +400,7 @@ namespace SDFGI {
 
         irradianceCaptured = true;
     }
-
+    
     void SDFGIManager::InitializeProbeAtlasVizShader() {
         textureVisualizationRootSignature.Reset(2, 1);
         // Irradiance atlas.
@@ -444,7 +421,7 @@ namespace SDFGI {
         textureVisualizationPSO.Finalize();
     }
 
-    void SDFGIManager::RenderIrradianceDepthViz(GraphicsContext& context, const Math::Camera& camera, int sliceIndex, float maxDepthDistance) {
+    void SDFGIManager::RenderProbeAtlasViz(GraphicsContext& context, const Math::Camera& camera) {
         ScopedTimer _prof(L"Visualize SDFGI Textures", context);
 
         context.SetPipelineState(textureVisualizationPSO);
@@ -477,8 +454,7 @@ namespace SDFGI {
         downsamplePSO.Finalize();
     }
 
-
-    void SDFGIManager::RenderToCubemapFace(
+    void SDFGIManager::RenderCubemapFace(
         GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, const Math::Camera& faceCamera, Vector3 &probePosition, const D3D12_VIEWPORT& mainViewport, const D3D12_RECT& mainScissor
     ) {
         // Render to g_SceneColorBuffer (the main render target) using the given cubemap face camera.
@@ -515,8 +491,7 @@ namespace SDFGI {
         computeContext.TransitionResource(probeCubemapTextures[probe][face], D3D12_RESOURCE_STATE_COPY_SOURCE, true);
     }
 
-    void SDFGIManager::RenderCubemapsForProbes(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& mainViewport, const D3D12_RECT& mainScissor)
-    {
+    void SDFGIManager::RenderCubemapsForProbes(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& mainViewport, const D3D12_RECT& mainScissor) {
         // Only render the cubemaps once.
         if (cubeMapsRendered) return;
 
@@ -553,7 +528,7 @@ namespace SDFGI {
                 faceCamera.ReverseZ(camera.GetReverseZ());
                 faceCamera.Update();
 
-                RenderToCubemapFace(context, g_SceneDepthBuffer, probe, face, faceCamera, probePosition, mainViewport, mainScissor);
+                RenderCubemapFace(context, g_SceneDepthBuffer, probe, face, faceCamera, probePosition, mainViewport, mainScissor);
             }
         }
 
@@ -627,5 +602,19 @@ namespace SDFGI {
 
         context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         context.Draw(4);
+    }
+
+    void SDFGIManager::Render(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor) {
+        ScopedTimer _prof(L"SDFGI Rendering", context);
+
+        RenderCubemapsForProbes(context, camera, viewport, scissor);
+
+        UpdateProbes(context);
+
+        RenderProbeViz(context, camera);
+
+        // Render to a fullscreen quad either the probe atlas or the cubemap of a single probe.
+        // RenderProbeAtlasViz(context, camera);
+        RenderCubemapViz(context, camera);
     }
 }
