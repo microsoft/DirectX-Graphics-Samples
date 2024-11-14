@@ -103,6 +103,8 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
         uint textureIndex = probeIndex * 6 + faceIndex;
 
+        // TODO: sample SDF for color and depth in direction 'dir'.
+
         // float4 irradianceSample = ProbeFaceTextures[faceIndex].SampleLevel(LinearSampler, encodedCoord, 0);
         float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(encodedCoord.xy, 0), textureIndex);
         

@@ -414,6 +414,7 @@ void ModelViewer::RenderScene( void )
         }
     }
 
+    // TODO: needs to be done before rendering the scene so that probes can be sampled.
     mp_SDFGIManager->Render(gfxContext, m_Camera, viewport, scissor);
 
     // Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything

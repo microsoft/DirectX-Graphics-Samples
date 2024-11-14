@@ -21,6 +21,8 @@
 #include "CompiledShaders/SDFGIProbeCubemapVizPS.h"
 #include "CompiledShaders/SDFGIProbeCubemapDownsampleCS.h"
 
+#define PROBE_IDX_VIZ 123
+
 using namespace Graphics;
 using namespace DirectX;
 
@@ -41,6 +43,7 @@ namespace SDFGI {
         return XMMatrixRotationRollPitchYaw(randomX, randomY, randomZ);
     }
 
+    // TODO: grid has to be a perfect square.
     SDFGIProbeGrid::SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin) {
         probeSpacing[0] = 350.0f;
         probeSpacing[1] = 350.0f;
@@ -53,8 +56,10 @@ namespace SDFGI {
         GenerateProbes(sceneMin);
     }
 
+    // TODO: we'll need to be able to map a probe world space position or linear index to a 3D texture coordinate.
     void SDFGIProbeGrid::GenerateProbes(Vector3 &sceneMin) {
         probes.clear();
+        // TODO: make sure that grid really covers the bounding box.
         for (uint32_t x = 0; x < probeCount[0]; ++x) {
             for (uint32_t y = 0; y < probeCount[1]; ++y) {
                 for (uint32_t z = 0; z < probeCount[2]; ++z) {
@@ -125,6 +130,7 @@ namespace SDFGI {
                     cubemapFaceResolution, cubemapFaceResolution,
                     DXGI_FORMAT_R11G11B10_FLOAT,
                     nullptr,
+                    // TODO: doesn't need render target flag.
                     D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
                 );
             }
@@ -476,6 +482,7 @@ namespace SDFGI {
         // Copy each of the textures in probeCubemapFaceTextures to a texture array.
         // TODO: can we render directly to the texture array?
         // TODO: the shader seems to see the same texture at every index in the array.
+        // TODO: look into ColorBuffer::CreateArray.
         for (int probe = 0; probe < probeCount; ++probe) {
             for (int face = 0; face < 6; ++face) {
                 D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
@@ -526,7 +533,7 @@ namespace SDFGI {
         context.SetRootSignature(cubemapVizRS);
 
         for (int face = 0; face < 6; ++face) {
-            context.SetDynamicDescriptor(0, face, probeCubemapFaceTextures[179][face].GetSRV());
+            context.SetDynamicDescriptor(0, face, probeCubemapFaceTextures[PROBE_IDX_VIZ][face].GetSRV());
         }
 
         int GridColumns = 3;
@@ -555,7 +562,7 @@ namespace SDFGI {
         RenderProbeViz(context, camera);
 
         // Render to a fullscreen quad either the probe atlas or the cubemap of a single probe.
-        RenderProbeAtlasViz(context, camera);
-        // RenderCubemapViz(context, camera);
+        //RenderProbeAtlasViz(context, camera);
+        RenderCubemapViz(context, camera);
     }
 }
