@@ -69,37 +69,25 @@ namespace SDFGI
 
     int cubemapFaceResolution = 64;
 
-    Texture irradianceTexture;
-    D3D12_CPU_DESCRIPTOR_HANDLE irradianceUAV;
-
-    Texture depthTexture;
-    D3D12_CPU_DESCRIPTOR_HANDLE depthUAV;
-    
     Texture irradianceAtlas;
     D3D12_CPU_DESCRIPTOR_HANDLE irradianceAtlasUAV;
 
     Texture depthAtlas;
     D3D12_CPU_DESCRIPTOR_HANDLE depthAtlasUAV;
 
-    Texture probeIrradianceCubemap;
-    D3D12_CPU_DESCRIPTOR_HANDLE cubemapRTVs[6];
-    D3D12_CPU_DESCRIPTOR_HANDLE probeCubemapArraySRV;
-    D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapRTVs;
-    D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapUAVs;
-
     Texture **probeCubemapTextures;
+    D3D12_CPU_DESCRIPTOR_HANDLE probeCubemapArraySRV;
+    D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapUAVs;
     GpuResource *textureArrayGpuResource;
-    Microsoft::WRL::ComPtr<ID3D12Resource> textureArrayResource;
-    
 
     // A function/lambda for invoking the scene's render function. Used for rendering probe cubemaps.
-    std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc;  
+    std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc;  
 
     SDFGIManager(
       Vector3f probeSpacing, 
       const Math::AxisAlignedBox &sceneBounds,
       // A function/lambda for invoking the scene's render function. Used for rendering probe cubemaps.
-      std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc
+      std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc
     );
 
     // Initialize all textures needed.

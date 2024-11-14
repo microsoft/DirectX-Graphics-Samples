@@ -71,7 +71,7 @@ namespace SDFGI {
 
     SDFGIManager::SDFGIManager(
         Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds, 
-        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)> renderFunc
+        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc
     )
         : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()), sceneBounds(sceneBounds), renderFunc(renderFunc) {
         InitializeTextures();
@@ -104,9 +104,6 @@ namespace SDFGI {
         irradianceAtlas.Create2D(rowPitchBytes, atlasWidth, atlasHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
         depthAtlas.Create2D(rowPitchBytes / 2, atlasWidth, atlasHeight, DXGI_FORMAT_R16_FLOAT, nullptr, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-        size_t cubeRowPitchBytes = cubemapFaceResolution * sizeof(float) * 4;
-        probeIrradianceCubemap.CreateCube(cubeRowPitchBytes, cubemapFaceResolution, cubemapFaceResolution, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr);
 
         probeCount = width * height * depth;
         probeCubemapTextures = new Texture*[probeCount];
@@ -144,6 +141,7 @@ namespace SDFGI {
         HeapProps.CreationNodeMask = 1;
         HeapProps.VisibleNodeMask = 1;
 
+        Microsoft::WRL::ComPtr<ID3D12Resource> textureArrayResource;
         g_Device->CreateCommittedResource(
             &HeapProps,
             D3D12_HEAP_FLAG_NONE,
@@ -169,33 +167,6 @@ namespace SDFGI {
         depthAtlasUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         atlasUavDesc.Format = DXGI_FORMAT_R16_FLOAT;
         g_Device->CreateUnorderedAccessView(depthAtlas.GetResource(), nullptr, &atlasUavDesc, depthAtlasUAV);
-
-        for (int face = 0; face < 6; ++face)
-        {
-            D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-            rtvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
-            rtvDesc.Texture2DArray.MipSlice = 0;
-            rtvDesc.Texture2DArray.FirstArraySlice = face;
-            rtvDesc.Texture2DArray.ArraySize = 1;
-
-            cubemapRTVs[face] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-            g_Device->CreateRenderTargetView(probeIrradianceCubemap.GetResource(), &rtvDesc, cubemapRTVs[face]);
-        }
-
-        probeCubemapRTVs = new D3D12_CPU_DESCRIPTOR_HANDLE*[probeCount];
-        for (int probe = 0; probe < probeCount; ++probe)
-        {
-            probeCubemapRTVs[probe] = new D3D12_CPU_DESCRIPTOR_HANDLE[6];
-            for (int face = 0; face < 6; ++face)
-            {
-                probeCubemapRTVs[probe][face] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-                D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-                rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-                rtvDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
-                g_Device->CreateRenderTargetView(probeCubemapTextures[probe][face].GetResource(), &rtvDesc, probeCubemapRTVs[probe][face]);
-            }
-        }
 
         probeCubemapUAVs = new D3D12_CPU_DESCRIPTOR_HANDLE*[probeCount];
         for (int probe = 0; probe < probeCount; ++probe)
@@ -427,7 +398,7 @@ namespace SDFGI {
         GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, const Math::Camera& faceCamera, Vector3 &probePosition, const D3D12_VIEWPORT& mainViewport, const D3D12_RECT& mainScissor
     ) {
         // Render to g_SceneColorBuffer (the main render target) using the given cubemap face camera.
-        renderFunc(context, faceCamera, mainViewport, mainScissor, &probeCubemapRTVs[probe][face], &probeCubemapTextures[probe][face]);
+        renderFunc(context, faceCamera, mainViewport, mainScissor);
 
         // Now copy and downsample g_SceneColorBuffer into probeCubemapTextures (which are square, typically 64x64).
         // Why not render the scene directly to probeCubemapTextures? It was hard to make renderFunc invoke the scene
@@ -583,7 +554,7 @@ namespace SDFGI {
         RenderProbeViz(context, camera);
 
         // Render to a fullscreen quad either the probe atlas or the cubemap of a single probe.
-        RenderProbeAtlasViz(context, camera);
-        // RenderCubemapViz(context, camera);
+        // RenderProbeAtlasViz(context, camera);
+        RenderCubemapViz(context, camera);
     }
 }
