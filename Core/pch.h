@@ -44,6 +44,10 @@
 // Enable imgui window
 #define UI_ENABLE 0
 
+
+// Enable Shadow Buffer VIS
+#define MAIN_SUN_SHADOW_BUFFER_VIS 0
+
 #include <Windows.h>
 #include <wrl/client.h>
 #include <wrl/event.h>

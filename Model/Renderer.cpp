@@ -42,6 +42,10 @@
 #include "CompiledShaders/SkyboxVS.h"
 #include "CompiledShaders/SkyboxPS.h"
 
+// Shadow Buffer VisDebug Rendering
+#include "../Model/CompiledShaders/FullscreenQuadVS.h"
+#include "../Model/CompiledShaders/VisShadowBufferPS.h"
+
 #pragma warning(disable:4319) // '~': zero extending 'uint32_t' to 'uint64_t' of greater size
 
 using namespace Math;
@@ -467,6 +471,85 @@ void Renderer::DrawSkybox( GraphicsContext& gfxContext, const Camera& Camera, co
     gfxContext.SetDynamicConstantBufferView(kMaterialConstants, sizeof(SkyboxPSCB), &skyPSCB);
     gfxContext.SetDescriptorTable(kCommonSRVs, m_CommonTextures);
     gfxContext.Draw(3);
+}
+
+void Renderer::DrawShadowBuffer(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
+{
+    RootSignature VisShadowBufferRS;
+    //1. Create the root signature with 1 Descriptor Table for Depth Texture and 1 SRV Sampler for Accessing Depth Texture
+    {
+        VisShadowBufferRS.Reset(1, 1);
+
+        // 1 Root Parameter: Descriptor Table
+        VisShadowBufferRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        // 1 Sampler for Pixel Shader
+        SamplerDesc DepthSamplerDesc;
+        DepthSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+        DepthSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        DepthSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        DepthSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+        DepthSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+
+        VisShadowBufferRS.InitStaticSampler(0, DepthSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        VisShadowBufferRS.Finalize(L"RootSig", D3D12_ROOT_SIGNATURE_FLAG_NONE);
+    }
+
+    GraphicsPSO DepthToQuadPSO(L"FullScreenPSO");
+    {
+        DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
+        DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
+        DXGI_FORMAT formats[1] = { ColorFormat };
+
+        DepthToQuadPSO.SetRootSignature(VisShadowBufferRS);
+        D3D12_RASTERIZER_DESC rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+        rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+        DepthToQuadPSO.SetRasterizerState(rasterizerDesc);
+        DepthToQuadPSO.SetBlendState(BlendDisable);
+
+        D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+        {
+            depthStencilDesc.DepthEnable = FALSE;        // Disable depth testing
+            depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;  // Depth writes are not needed
+            depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS; // No depth comparisons
+
+            depthStencilDesc.StencilEnable = FALSE;      // Disable stencil testing
+            depthStencilDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+            depthStencilDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+        }
+        DepthToQuadPSO.SetDepthStencilState(depthStencilDesc);
+        DepthToQuadPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        DepthToQuadPSO.SetRenderTargetFormats(1, formats, DXGI_FORMAT_UNKNOWN);
+
+        //DepthToQuadPSO.Set
+
+        DepthToQuadPSO.SetVertexShader(g_pFullScreenQuadVS, sizeof(g_pFullScreenQuadVS));
+        DepthToQuadPSO.SetPixelShader(g_pVisShadowBufferPS, sizeof(g_pVisShadowBufferPS));
+        DepthToQuadPSO.Finalize();
+    }
+
+    //Render Call
+    {
+
+        gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+        gfxContext.ClearColor(g_SceneColorBuffer);
+
+        gfxContext.SetRootSignature(VisShadowBufferRS);
+        gfxContext.SetPipelineState(DepthToQuadPSO);
+        gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
+        D3D12_GPU_DESCRIPTOR_HANDLE baseHandle = Renderer::s_TextureHeap.GetHeapPointer()->GetGPUDescriptorHandleForHeapStart();
+        D3D12_GPU_DESCRIPTOR_HANDLE shadowHandle;
+        unsigned int shadowMapIndexInHeap = 3; //This is just hardcoded by MiniEngine lol
+        shadowHandle.ptr = baseHandle.ptr + shadowMapIndexInHeap * g_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        gfxContext.SetDescriptorTable(0, shadowHandle);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV() };
+        gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs);
+        gfxContext.SetViewportAndScissor(viewport, scissor);
+
+        gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        gfxContext.DrawIndexed(6, 0, 0);
+    }
 }
 
 void MeshSorter::AddMesh( const Mesh& mesh, float distance,

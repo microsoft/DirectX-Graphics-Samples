@@ -37,7 +37,7 @@
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
 
-#define LEGACY_RENDERER
+//#define LEGACY_RENDERER
 
 using namespace GameCore;
 using namespace Math;
@@ -163,12 +163,12 @@ void LoadIBLTextures()
 
 void ModelViewer::Startup( void )
 {
-    MotionBlur::Enable = true;
-    TemporalEffects::EnableTAA = true;
+    MotionBlur::Enable = false;
+    TemporalEffects::EnableTAA = false;
     FXAA::Enable = false;
-    PostEffects::EnableHDR = true;
-    PostEffects::EnableAdaptation = true;
-    SSAO::Enable = true;
+    PostEffects::EnableHDR = false;
+    PostEffects::EnableAdaptation = false;
+    SSAO::Enable = false;
 
     Renderer::Initialize();
 
@@ -327,8 +327,12 @@ void ModelViewer::RenderScene( void )
 
         Vector3 SunDirection = Normalize(Vector3( costheta * cosphi, sinphi, sintheta * cosphi ));
         Vector3 ShadowBounds = Vector3(m_ModelInst.GetRadius());
-        //m_SunShadowCamera.UpdateMatrix(-SunDirection, m_ModelInst.GetCenter(), ShadowBounds,
-        m_SunShadowCamera.UpdateMatrix(-SunDirection, Vector3(0, -500.0f, 0), Vector3(5000, 3000, 3000),
+        Vector3 origin = Vector3(0);
+        Vector3 ShadowCenter = origin;
+
+        OrientedBox obb = m_ModelInst.GetBoundingBox();
+
+        m_SunShadowCamera.UpdateMatrix(-SunDirection, Vector3(0, -m_ModelInst.GetCenter().GetY(), 0), obb.GetDimensions() * 1.5f,
             (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
         GlobalConstants globals;
@@ -343,11 +347,11 @@ void ModelViewer::RenderScene( void )
         gfxContext.ClearDepth(g_SceneDepthBuffer);
 
         MeshSorter sorter(MeshSorter::kDefault);
-		sorter.SetCamera(m_Camera);
-		sorter.SetViewport(viewport);
-		sorter.SetScissor(scissor);
-		sorter.SetDepthStencilTarget(g_SceneDepthBuffer);
-		sorter.AddRenderTarget(g_SceneColorBuffer);
+		    sorter.SetCamera(m_Camera);
+		    sorter.SetViewport(viewport);
+		    sorter.SetScissor(scissor);
+		    sorter.SetDepthStencilTarget(g_SceneDepthBuffer);
+		    sorter.AddRenderTarget(g_SceneColorBuffer);
 
         m_ModelInst.Render(sorter);
 
@@ -368,8 +372,8 @@ void ModelViewer::RenderScene( void )
                 ScopedTimer _prof(L"Sun Shadow Map", gfxContext);
 
                 MeshSorter shadowSorter(MeshSorter::kShadows);
-				shadowSorter.SetCamera(m_SunShadowCamera);
-				shadowSorter.SetDepthStencilTarget(g_ShadowBuffer);
+				        shadowSorter.SetCamera(m_SunShadowCamera);
+				        shadowSorter.SetDepthStencilTarget(g_ShadowBuffer);
 
                 m_ModelInst.Render(shadowSorter);
 
@@ -397,20 +401,31 @@ void ModelViewer::RenderScene( void )
         }
     }
 
-    // Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything
-    // is static in our scene, so we generate velocity from camera motion and the depth buffer.  A velocity buffer
-    // is necessary for all temporal effects (and motion blur).
-    MotionBlur::GenerateCameraVelocityBuffer(gfxContext, m_Camera, true);
+#if MAIN_SUN_SHADOW_BUFFER_VIS == 1  //all main macros in pch.h
+    Renderer::DrawShadowBuffer(gfxContext, viewport, scissor);
+#endif
 
-    TemporalEffects::ResolveImage(gfxContext);
+    // Commented Out Unnecessary MiniEngine Features
+    //   E.g. MotionBlur, Particle Effects, etc.
+    /*
+    
+    {
+        // Some systems generate a per-pixel velocity buffer to better track dynamic and skinned meshes.  Everything
+        // is static in our scene, so we generate velocity from camera motion and the depth buffer.  A velocity buffer
+        // is necessary for all temporal effects (and motion blur).
+        MotionBlur::GenerateCameraVelocityBuffer(gfxContext, m_Camera, true);
 
-    ParticleEffectManager::Render(gfxContext, m_Camera, g_SceneColorBuffer, g_SceneDepthBuffer,  g_LinearDepth[FrameIndex]);
+        TemporalEffects::ResolveImage(gfxContext);
 
-    // Until I work out how to couple these two, it's "either-or".
-    if (DepthOfField::Enable)
-        DepthOfField::Render(gfxContext, m_Camera.GetNearClip(), m_Camera.GetFarClip());
-    else
-        MotionBlur::RenderObjectBlur(gfxContext, g_VelocityBuffer);
+        ParticleEffectManager::Render(gfxContext, m_Camera, g_SceneColorBuffer, g_SceneDepthBuffer,  g_LinearDepth[FrameIndex]);
+
+        // Until I work out how to couple these two, it's "either-or".
+        if (DepthOfField::Enable)
+            DepthOfField::Render(gfxContext, m_Camera.GetNearClip(), m_Camera.GetFarClip());
+        else
+            MotionBlur::RenderObjectBlur(gfxContext, g_VelocityBuffer);
+    }
+    */
 
     gfxContext.Finish();
 }

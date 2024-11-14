@@ -66,6 +66,7 @@ namespace Renderer
     void SetIBLBias(float LODBias);
     void UpdateGlobalDescriptors(void);
     void DrawSkybox( GraphicsContext& gfxContext, const Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor );
+    void DrawShadowBuffer(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
 
     class MeshSorter
     {
