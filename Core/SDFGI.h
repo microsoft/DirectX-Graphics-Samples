@@ -25,14 +25,12 @@ namespace SDFGI
     struct SDFGIProbe {
       // Position of the probe in world space.
       Vector3 position;
-      float irradiance;
-      float depth;
     };
 
     struct SDFGIProbeGrid {
-      // Number of probes along each axis (x, y, z).
+      // Number of probes along each axis (x, y, z). This is computed from probeSpacing.
       Vector3u probeCount;
-      // Distance between probes in world space.
+      // Distance between probes in world space along each axis.
       Vector3f probeSpacing;
       std::vector<SDFGIProbe> probes;
 
@@ -48,11 +46,10 @@ namespace SDFGI
     };
 
     struct DownsampleCB {
-        Vector3 srcSize;
-        Vector3 dstSize;
-        Vector3 scale;
+      Vector3 srcSize;
+      Vector3 dstSize;
+      Vector3 scale;
     };
-
 
     // A lot of "Managers" in the codebase.
     class SDFGIManager {

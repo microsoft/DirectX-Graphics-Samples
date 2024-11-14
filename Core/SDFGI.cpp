@@ -131,8 +131,7 @@ namespace SDFGI {
                         y * probeSpacing[1],
                         z * probeSpacing[2]
                     );
-                     // Initialize position, irradiance and depth.
-                    probes.push_back({position, 0.0f, 1.0f});
+                    probes.push_back({position});
                 }
             }
         }
@@ -319,7 +318,6 @@ namespace SDFGI {
             probeData.push_back(probe.position.GetX());
             probeData.push_back(probe.position.GetY());
             probeData.push_back(probe.position.GetZ());
-            probeData.push_back(probe.irradiance);
         }
 
         probeBuffer.Create(L"Probe Data Buffer", probeData.size(), sizeof(float), probeData.data());

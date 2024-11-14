@@ -6,12 +6,10 @@ cbuffer CameraData : register(b0)
 
 struct VS_OUTPUT {
     float4 pos : WORLD_POSITION;
-    float intensity : COLOR;
 };
 
 struct GS_OUTPUT {
     float4 pos : SV_POSITION;
-    float intensity : COLOR;
 };
 
 [maxvertexcount(6)]
@@ -38,15 +36,12 @@ void main(point VS_OUTPUT input[1], inout TriangleStream<GS_OUTPUT> triStream)
     // First triangle.
     // Bottom left.
     output.pos = mul(viewProjMatrix, centerPos + float4(offsets[0], 0.0f));
-    output.intensity = input[0].intensity;
     triStream.Append(output);
      // Bottom right.
     output.pos = mul(viewProjMatrix, centerPos + float4(offsets[1], 0.0f));
-    output.intensity = input[0].intensity;
     triStream.Append(output);
      // Top right.
     output.pos = mul(viewProjMatrix, centerPos + float4(offsets[2], 0.0f));
-    output.intensity = input[0].intensity;
     triStream.Append(output);
 
     triStream.RestartStrip();
@@ -54,14 +49,11 @@ void main(point VS_OUTPUT input[1], inout TriangleStream<GS_OUTPUT> triStream)
     // Second triangle.
     // Top right.
     output.pos = mul(viewProjMatrix, centerPos + float4(offsets[2], 0.0f));
-    output.intensity = input[0].intensity;
     triStream.Append(output);
     // Top left.
     output.pos = mul(viewProjMatrix, centerPos + float4(offsets[3], 0.0f));
-    output.intensity = input[0].intensity;
     triStream.Append(output);
     // Bottom left.
     output.pos = mul(viewProjMatrix, centerPos + float4(offsets[0], 0.0f));
-    output.intensity = input[0].intensity;
     triStream.Append(output);
 }
