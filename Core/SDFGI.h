@@ -87,7 +87,6 @@ namespace SDFGI
     std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc;  
 
     SDFGIManager(
-      Vector3f probeSpacing, 
       const Math::AxisAlignedBox &sceneBounds,
       // A function/lambda for invoking the scene's render function. Used for rendering probe cubemaps.
       std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc

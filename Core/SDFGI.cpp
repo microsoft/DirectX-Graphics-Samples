@@ -70,7 +70,7 @@ namespace SDFGI {
     }
 
     SDFGIManager::SDFGIManager(
-        Vector3f probeSpacing, const Math::AxisAlignedBox &sceneBounds, 
+        const Math::AxisAlignedBox &sceneBounds, 
         std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc
     )
         : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()), sceneBounds(sceneBounds), renderFunc(renderFunc) {
