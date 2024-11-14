@@ -221,11 +221,11 @@ void ModelViewer::Startup( void )
     const Math::AxisAlignedBox &sceneBounds = m_ModelInst.GetAxisAlignedBox();
     #endif
 
-    auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc, D3D12_CPU_DESCRIPTOR_HANDLE *rtv, Texture *text) {
+    auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc) {
         Sponza::RenderScene(ctx, cam, vp, sc, /*skipDiffusePass=*/false, /*skipShadowMap=*/false);
     };
 
-    mp_SDFGIManager = new SDFGI::SDFGIManager(probeSpacing, sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, D3D12_CPU_DESCRIPTOR_HANDLE*, Texture*)>>(renderLambda));
+    mp_SDFGIManager = new SDFGI::SDFGIManager(probeSpacing, sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)>>(renderLambda));
 }
 
 void ModelViewer::InitializeGUI() {

@@ -88,9 +88,7 @@ namespace SDFGI {
         uint32_t width = probeGrid.probeCount[0];
         uint32_t height = probeGrid.probeCount[1];
         uint32_t depth = probeGrid.probeCount[2];
-
-        size_t irradianceRowPitch = width * sizeof(float) * 4;
-        size_t depthRowPitch = width * sizeof(float);
+        probeCount = width * height * depth;
 
         // 4x4 pixels per probe for octahedral mapping.
         uint32_t probeBlockSize = 4;
@@ -99,20 +97,21 @@ namespace SDFGI {
 
         uint32_t atlasWidth = (width * probeBlockSize) + (width + 1) * gutterSize;
         uint32_t atlasHeight = (height * probeBlockSize) + (height + 1) * gutterSize;
-        size_t rowPitchBytes = atlasWidth * 8;
+        // Number of bytes occupied by a single row of pixels in a texture.
+        size_t rowPitchBytes = atlasWidth * sizeof(float) * 4;
 
         irradianceAtlas.Create2D(rowPitchBytes, atlasWidth, atlasHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, nullptr, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
         depthAtlas.Create2D(rowPitchBytes / 2, atlasWidth, atlasHeight, DXGI_FORMAT_R16_FLOAT, nullptr, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-        probeCount = width * height * depth;
-        probeCubemapTextures = new Texture*[probeCount];
+        // Individual cubemap faces for all probes.
+        probeCubemapFaceTextures = new Texture*[probeCount];
         for (uint32_t probe  = 0; probe < probeCount; ++probe) {
-            probeCubemapTextures[probe] = new Texture[6];
+            probeCubemapFaceTextures[probe] = new Texture[6];
 
             for (int face = 0; face < 6; ++face)
             {
-                probeCubemapTextures[probe][face].Create2D(
+                probeCubemapFaceTextures[probe][face].Create2D(
                     cubemapFaceResolution * sizeof(float) * 4,
                     cubemapFaceResolution, cubemapFaceResolution,
                     DXGI_FORMAT_R11G11B10_FLOAT,
@@ -122,25 +121,23 @@ namespace SDFGI {
             }
         }
 
-
+        // A single texture array containing all cubemap faces.
         D3D12_RESOURCE_DESC texArrayDesc = {};
         texArrayDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        texArrayDesc.Width = 64;
-        texArrayDesc.Height = 64;
+        texArrayDesc.Width = cubemapFaceResolution;
+        texArrayDesc.Height = cubemapFaceResolution;
         texArrayDesc.DepthOrArraySize = probeCount * 6;
         texArrayDesc.MipLevels = 1;
         texArrayDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
         texArrayDesc.SampleDesc.Count = 1;
         texArrayDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         texArrayDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
         D3D12_HEAP_PROPERTIES HeapProps;
         HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
         HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
         HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
         HeapProps.CreationNodeMask = 1;
         HeapProps.VisibleNodeMask = 1;
-
         Microsoft::WRL::ComPtr<ID3D12Resource> textureArrayResource;
         g_Device->CreateCommittedResource(
             &HeapProps,
@@ -150,9 +147,7 @@ namespace SDFGI {
             nullptr,
             IID_PPV_ARGS(&textureArrayResource)
         );
-
-        textureArrayGpuResource = new GpuResource(textureArrayResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
-
+        probeCubemapFaceArrayGpuResource = new GpuResource(textureArrayResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
     };
 
     void SDFGIManager::InitializeViews() {
@@ -168,18 +163,18 @@ namespace SDFGI {
         atlasUavDesc.Format = DXGI_FORMAT_R16_FLOAT;
         g_Device->CreateUnorderedAccessView(depthAtlas.GetResource(), nullptr, &atlasUavDesc, depthAtlasUAV);
 
-        probeCubemapUAVs = new D3D12_CPU_DESCRIPTOR_HANDLE*[probeCount];
+        probeCubemapFaceUAVs = new D3D12_CPU_DESCRIPTOR_HANDLE*[probeCount];
         for (int probe = 0; probe < probeCount; ++probe)
         {
-            probeCubemapUAVs[probe] = new D3D12_CPU_DESCRIPTOR_HANDLE[6];
+            probeCubemapFaceUAVs[probe] = new D3D12_CPU_DESCRIPTOR_HANDLE[6];
             for (int face = 0; face < 6; ++face)
             {
-                probeCubemapUAVs[probe][face] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+                probeCubemapFaceUAVs[probe][face] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
                 D3D12_UNORDERED_ACCESS_VIEW_DESC  uavDesc = {};
                 uavDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
                 uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
                 uavDesc.Texture2D.MipSlice = 0;
-                g_Device->CreateUnorderedAccessView(probeCubemapTextures[probe][face].GetResource(), nullptr, &uavDesc, probeCubemapUAVs[probe][face]);
+                g_Device->CreateUnorderedAccessView(probeCubemapFaceTextures[probe][face].GetResource(), nullptr, &uavDesc, probeCubemapFaceUAVs[probe][face]);
             }
         }
 
@@ -192,9 +187,8 @@ namespace SDFGI {
         srvDesc.Texture2DArray.ArraySize = probeCount * 6;
         srvDesc.Texture2DArray.PlaneSlice = 0;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        probeCubemapArraySRV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        g_Device->CreateShaderResourceView(textureArrayGpuResource->GetResource(), &srvDesc, probeCubemapArraySRV);
-
+        probeCubemapFaceArraySRV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        g_Device->CreateShaderResourceView(probeCubemapFaceArrayGpuResource->GetResource(), &srvDesc, probeCubemapFaceArraySRV);
     };
 
     void SDFGIManager::InitializeProbeBuffer() {
@@ -296,19 +290,17 @@ namespace SDFGI {
         computeContext.SetDynamicDescriptor(1, 0, irradianceAtlasUAV);
         computeContext.SetDynamicDescriptor(2, 0, depthAtlasUAV);
 
-        computeContext.SetDynamicDescriptor(3, 0, probeCubemapTextures[32][0].GetSRV());
-        computeContext.SetDynamicDescriptor(3, 1, probeCubemapTextures[32][1].GetSRV());
-        computeContext.SetDynamicDescriptor(3, 2, probeCubemapTextures[32][2].GetSRV());
-        computeContext.SetDynamicDescriptor(3, 3, probeCubemapTextures[32][3].GetSRV());
-        computeContext.SetDynamicDescriptor(3, 4, probeCubemapTextures[32][4].GetSRV());
-        computeContext.SetDynamicDescriptor(3, 5, probeCubemapTextures[32][5].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 0, probeCubemapFaceTextures[32][0].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 1, probeCubemapFaceTextures[32][1].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 2, probeCubemapFaceTextures[32][2].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 3, probeCubemapFaceTextures[32][3].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 4, probeCubemapFaceTextures[32][4].GetSRV());
+        computeContext.SetDynamicDescriptor(3, 5, probeCubemapFaceTextures[32][5].GetSRV());
 
-        computeContext.SetDynamicDescriptor(4, 0, probeCubemapArraySRV);
+        computeContext.SetDynamicDescriptor(4, 0, probeCubemapFaceArraySRV);
 
         computeContext.TransitionResource(irradianceAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         computeContext.TransitionResource(depthAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-
 
         struct ProbeData {
             XMFLOAT4X4 randomRotation;
@@ -400,18 +392,18 @@ namespace SDFGI {
         // Render to g_SceneColorBuffer (the main render target) using the given cubemap face camera.
         renderFunc(context, faceCamera, mainViewport, mainScissor);
 
-        // Now copy and downsample g_SceneColorBuffer into probeCubemapTextures (which are square, typically 64x64).
-        // Why not render the scene directly to probeCubemapTextures? It was hard to make renderFunc invoke the scene
+        // Now copy and downsample g_SceneColorBuffer into probeCubemapFaceTextures (which are square, typically 64x64).
+        // Why not render the scene directly to probeCubemapFaceTextures? It was hard to make renderFunc invoke the scene
         // rendering function with an arbitrary render target (i.e. other than g_SceneColorBuffer).
 
         ComputeContext& computeContext = context.GetComputeContext();
 
         computeContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, true);
-        computeContext.TransitionResource(probeCubemapTextures[probe][face], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
+        computeContext.TransitionResource(probeCubemapFaceTextures[probe][face], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
 
         DownsampleCB downsampleCB;
         downsampleCB.srcSize = Vector3(g_SceneColorBuffer.GetWidth(), g_SceneColorBuffer.GetHeight(), 0.0f);
-        downsampleCB.dstSize = Vector3(probeCubemapTextures[probe][face].GetWidth(), probeCubemapTextures[probe][face].GetHeight(), 0.0f);
+        downsampleCB.dstSize = Vector3(probeCubemapFaceTextures[probe][face].GetWidth(), probeCubemapFaceTextures[probe][face].GetHeight(), 0.0f);
         downsampleCB.scale = Vector3(
             downsampleCB.srcSize.GetX() / downsampleCB.dstSize.GetX(),
             downsampleCB.srcSize.GetY() / downsampleCB.dstSize.GetY(), 0.0f
@@ -420,7 +412,7 @@ namespace SDFGI {
         computeContext.SetRootSignature(downsampleRS);
         computeContext.SetPipelineState(downsamplePSO);
         computeContext.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetSRV()); 
-        computeContext.SetDynamicDescriptor(2, 0, probeCubemapUAVs[probe][face]);
+        computeContext.SetDynamicDescriptor(2, 0, probeCubemapFaceUAVs[probe][face]);
         computeContext.SetDynamicConstantBufferView(0, sizeof(downsampleCB), &downsampleCB);
         
         uint32_t dispatchX = (uint32_t)ceil(downsampleCB.dstSize.GetX() / 8.0f);
@@ -428,7 +420,7 @@ namespace SDFGI {
         computeContext.Dispatch(dispatchX, dispatchY, 1);
 
         computeContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-        computeContext.TransitionResource(probeCubemapTextures[probe][face], D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+        computeContext.TransitionResource(probeCubemapFaceTextures[probe][face], D3D12_RESOURCE_STATE_COPY_SOURCE, true);
     }
 
     void SDFGIManager::RenderCubemapsForProbes(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& mainViewport, const D3D12_RECT& mainScissor) {
@@ -455,7 +447,7 @@ namespace SDFGI {
             Vector3(0.0f, -1.0f, 0.0f) 
         };
 
-        // Render 6 views of the scene for each probe to probeCubemapTextures.
+        // Render 6 views of the scene for each probe to probeCubemapFaceTextures.
         for (size_t probe = 0; probe < probeGrid.probes.size(); ++probe) {
             Vector3& probePosition = probeGrid.probes[probe].position;
 
@@ -472,27 +464,27 @@ namespace SDFGI {
             }
         }
 
-        // Copy each of the textures in probeCubemapTextures to a texture array.
+        // Copy each of the textures in probeCubemapFaceTextures to a texture array.
         // TODO: can we render directly to the texture array?
         // TODO: the shader seems to see the same texture at every index in the array.
         for (int probe = 0; probe < probeCount; ++probe) {
             for (int face = 0; face < 6; ++face) {
                 D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
-                srcLocation.pResource = probeCubemapTextures[probe][face].GetResource();
+                srcLocation.pResource = probeCubemapFaceTextures[probe][face].GetResource();
                 srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
                 srcLocation.SubresourceIndex = 0;
 
                 D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
-                dstLocation.pResource = textureArrayGpuResource->GetResource();
+                dstLocation.pResource = probeCubemapFaceArrayGpuResource->GetResource();
                 dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
                 dstLocation.SubresourceIndex = probe * 6 + face;
 
-                D3D12_BOX srcBox = { 0, 0, 0, 64, 64, 1 };
+                D3D12_BOX srcBox = { 0, 0, 0, cubemapFaceResolution, cubemapFaceResolution, 1 };
                 context.GetCommandList()->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, &srcBox);
             }
         }
 
-        context.TransitionResource(*textureArrayGpuResource, D3D12_RESOURCE_STATE_GENERIC_READ);
+        context.TransitionResource(*probeCubemapFaceArrayGpuResource, D3D12_RESOURCE_STATE_GENERIC_READ);
 
         cubeMapsRendered = true;
     }
@@ -525,14 +517,14 @@ namespace SDFGI {
         context.SetRootSignature(cubemapVizRS);
 
         for (int face = 0; face < 6; ++face) {
-            context.SetDynamicDescriptor(0, face, probeCubemapTextures[179][face].GetSRV());
+            context.SetDynamicDescriptor(0, face, probeCubemapFaceTextures[179][face].GetSRV());
         }
 
         int GridColumns = 3;
         int GridRows = 2;
         float CellSize = 1.0f / std::max(GridColumns, GridRows);
 
-        __declspec(align(16)) struct GridConfig {
+        __declspec(align(16)) struct FaceGridConfig {
             int GridColumns;
             int GridRows;
             float CellSize;
@@ -554,7 +546,7 @@ namespace SDFGI {
         RenderProbeViz(context, camera);
 
         // Render to a fullscreen quad either the probe atlas or the cubemap of a single probe.
-        // RenderProbeAtlasViz(context, camera);
-        RenderCubemapViz(context, camera);
+        RenderProbeAtlasViz(context, camera);
+        // RenderCubemapViz(context, camera);
     }
 }
