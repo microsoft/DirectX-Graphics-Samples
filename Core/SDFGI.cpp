@@ -84,6 +84,15 @@ namespace SDFGI {
         InitializeDownsampleShader();
     };
 
+    SDFGIManager::~SDFGIManager() {
+        for (uint32_t probe = 0; probe < probeCount; ++probe) {
+            delete[] probeCubemapFaceTextures[probe];
+            delete[] probeCubemapFaceUAVs[probe];
+        }
+        delete[] probeCubemapFaceTextures;
+        delete[] probeCubemapFaceUAVs;
+    }
+
     void SDFGIManager::InitializeTextures() {
         uint32_t width = probeGrid.probeCount[0];
         uint32_t height = probeGrid.probeCount[1];

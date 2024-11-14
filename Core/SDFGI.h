@@ -93,6 +93,8 @@ namespace SDFGI
       std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc
     );
 
+    ~SDFGIManager();
+
     // Initialize all textures needed.
     void InitializeTextures();
     // Initialize all views needed.
