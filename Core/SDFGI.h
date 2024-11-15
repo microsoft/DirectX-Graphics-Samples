@@ -4,6 +4,7 @@
 #include "Math/BoundingBox.h"
 #include "CommandContext.h"
 #include "GpuBuffer.h"
+#include "ColorBuffer.h"
 #include <array>
 
 using namespace Math;
@@ -78,6 +79,7 @@ namespace SDFGI
     // Individual cubemap faces for all probes.
     Texture **probeCubemapFaceTextures;
     D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapFaceUAVs;
+    ColorBuffer probeCubemapArray;
 
     // A single texture array containing all cubemap faces.
     GpuResource *probeCubemapFaceArrayGpuResource;

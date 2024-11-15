@@ -14,8 +14,8 @@ StructuredBuffer<float4> ProbePositions : register(t0);
 Texture2D<float4> ProbeFaceTextures[6] : register(t1);
 Texture2DArray<float4> ProbeCubemapArray : register(t7);
 
-RWTexture2D<float4> IrradianceAtlas : register(u0);
-RWTexture2D<float> DepthAtlas : register(u1);
+RWTexture3D<float4> IrradianceAtlas : register(u0);
+RWTexture3D<float> DepthAtlas : register(u1);
 
 SamplerState LinearSampler : register(s0);
 
@@ -74,9 +74,10 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
     float3 probePosition = ProbePositions[probeIndex].xyz;
 
     uint probeBlockSize = 4;
-    uint2 atlasCoord = uint2(
+    uint3 atlasCoord = uint3(
         (dispatchThreadID.x % GridSize.x) * (probeBlockSize-1) + 1,
-        (dispatchThreadID.y % GridSize.y) * (probeBlockSize-1) + 1
+        (dispatchThreadID.y % GridSize.y) * (probeBlockSize-1) + 1,
+        dispatchThreadID.z
     );
 
     // At each of the m active probes, we uniformly sample n spherical directions according to a stochastically-rotated Fibonacci spiral pattern.
@@ -93,9 +94,10 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
     for (uint i = 0; i < sample_count; ++i) {
         float3 dir = normalize(mul(randomRotation, float4(spherical_fibonacci(i, sample_count), 1.0)).xyz);
         float2 encodedCoord = octEncode(dir);
-        uint2 probeTexCoord = atlasCoord + uint2(
+        uint3 probeTexCoord = atlasCoord + uint3(
             (encodedCoord.x * 0.5 + 0.5) * (probeBlockSize - 1),
-            (encodedCoord.y * 0.5 + 0.5) * (probeBlockSize - 1)
+            (encodedCoord.y * 0.5 + 0.5) * (probeBlockSize - 1),
+            0.0f
         );
 
         // float3 dir = sampleDirections[i];
@@ -106,7 +108,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
         // TODO: sample SDF for color and depth in direction 'dir'.
 
         // float4 irradianceSample = ProbeFaceTextures[faceIndex].SampleLevel(LinearSampler, encodedCoord, 0);
-        float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(encodedCoord.xy, 0), textureIndex);
+        float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(encodedCoord.xy, textureIndex), 0);
         
         IrradianceAtlas[probeTexCoord] = irradianceSample;
         DepthAtlas[probeTexCoord] = length(probePosition - (probePosition + sampleDirections[i] * ProbeMaxDistance)) / ProbeMaxDistance;
