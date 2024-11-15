@@ -228,10 +228,11 @@ void ModelViewer::Startup( void )
     #ifdef LEGACY_RENDERER
     const Math::AxisAlignedBox &sceneBounds = Sponza::GetBoundingBox();
     #else
+    // Scale the AABB to match the scaling applied by m_ModelInst.Resize(..)
     Math::AxisAlignedBox& test = m_ModelInst.GetAxisAlignedBox();
     Math::AxisAlignedBox& sceneBounds = Math::AxisAlignedBox();
-    sceneBounds.AddPoint(100.0f * Vector3(test.GetMin()));
-    sceneBounds.AddPoint(100.0f * Vector3(test.GetMax()));
+    sceneBounds.AddPoint(scaleModel * Vector3(test.GetMin()));
+    sceneBounds.AddPoint(scaleModel * Vector3(test.GetMax()));
     #endif
 
     auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc, bool renderShadows) {
