@@ -82,12 +82,12 @@ Frustum::Frustum( const Matrix4& ProjMat )
     if (ProjMatF[3] == 0.0f && ProjMatF[7] == 0.0f && ProjMatF[11] == 0.0f && ProjMatF[15] == 1.0f)
     {
         // Orthographic
-        float Left	 = (-1.0f - ProjMatF[12]) * RcpXX;
-        float Right	 = ( 1.0f - ProjMatF[12]) * RcpXX;
-        float Top	 = ( 1.0f - ProjMatF[13]) * RcpYY;
-        float Bottom = (-1.0f - ProjMatF[13]) * RcpYY;
-        float Front	 = ( 0.0f - ProjMatF[14]) * RcpZZ;
-        float Back   = ( 1.0f - ProjMatF[14]) * RcpZZ;
+        float Left   = -RcpXX;
+        float Right  = RcpXX;
+        float Top    = -RcpYY;
+        float Bottom = RcpYY;
+        float Front  = 0.5f * RcpZZ;
+        float Back   = 0.5f - RcpZZ;
 
         // Check for reverse Z here.  The bounding planes need to point into the frustum.
         if (Front < Back)
