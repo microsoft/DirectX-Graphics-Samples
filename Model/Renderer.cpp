@@ -101,7 +101,8 @@ void Renderer::Initialize(void)
     m_RootSig[kCommonCBV].InitAsConstantBuffer(1);
     m_RootSig[kSkinMatrices].InitAsBufferSRV(20, D3D12_SHADER_VISIBILITY_VERTEX);
     m_RootSig[kSDFGICommonCBV].InitAsConstantBuffer(2, D3D12_SHADER_VISIBILITY_ALL);
-    m_RootSig[kSDFGIVoxelUAVs].InitAsBufferUAV(0, D3D12_SHADER_VISIBILITY_PIXEL); 
+    // m_RootSig[kSDFGIVoxelUAVs].InitAsBufferUAV(0, D3D12_SHADER_VISIBILITY_PIXEL); 
+    m_RootSig[kSDFGIVoxelUAVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig.Finalize(L"RootSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
@@ -937,6 +938,10 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
 
     context.SetRootSignature(m_RootSig);
     context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    // This doesn't work!
+    context.SetDynamicDescriptor(kSDFGIVoxelUAVs, 0, voxelTexture.VoxelAlbedo.GetUAV());
+
     context.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, s_TextureHeap.GetHeapPointer());
     context.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, s_SamplerHeap.GetHeapPointer());
 
@@ -950,8 +955,6 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
     globals.IBLBias = s_SpecularIBLBias;
     context.SetDynamicConstantBufferView(kCommonCBV, sizeof(GlobalConstants), &globals);
     context.SetDynamicConstantBufferView(kSDFGICommonCBV, sizeof(SDFGIGlobalConstants), &SDFGIglobals);
-
-    context.SetBufferUAV(kSDFGIVoxelUAVs, voxelTexture.test); 
 
     for (; m_CurrentPass <= pass; m_CurrentPass = (DrawPass)(m_CurrentPass + 1))
     {

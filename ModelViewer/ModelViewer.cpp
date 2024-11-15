@@ -387,12 +387,14 @@ void ModelViewer::RenderScene( void )
         static bool runOnce = true; 
 
         if (runOnce) {
-            float buffer[3] = { 1.0f, 23.f, 64.f };
-            voxelTextures.test.Create(L"Test SDFGI Buffer", 3, sizeof(float), buffer);
+            uint32_t* init = new uint32_t[128 * 128 * 128]; 
+            voxelTextures.VoxelAlbedo.Create3D(
+                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             runOnce = false; 
+            delete[] init; 
         }
 
-        gfxContext.TransitionResource(voxelTextures.test, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        gfxContext.TransitionResource(voxelTextures.VoxelAlbedo, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
         MeshSorter sorter(MeshSorter::kDefault);
         sorter.SetCamera(voxelCam);

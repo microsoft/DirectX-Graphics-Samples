@@ -61,7 +61,7 @@ cbuffer SDFGIConstants : register(b2)
     float viewHeight; 
 }
 
-RWStructuredBuffer<float> SDFGIBuffer : register(u0);
+RWTexture3D<float4> SDFGIVoxelAlbedo : register(u0);
 #endif
 
 struct VSOutput
@@ -304,8 +304,6 @@ float4 main(VSOutput vsOutput) : SV_Target0
     // TODO: Shade each light using Forward+ tiles
 
 #if SDFGI_VOXEL_PASS
-    SDFGIBuffer[0] = 918213.0;
-
     float3 pos = float3(vsOutput.position.xyz); 
     colorAccum = float3(frac(pos.x), frac(pos.x), frac(pos.x));
 #endif 

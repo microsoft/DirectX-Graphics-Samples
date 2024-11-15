@@ -35,7 +35,8 @@ struct Mesh;
 struct Joint;
 
 struct SDFGIVoxelTextures {
-    StructuredBuffer test;
+    Texture VoxelAlbedo;
+    Texture VoxelVoronoiInput; 
 }; 
 
 namespace Renderer

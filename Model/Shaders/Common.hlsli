@@ -37,7 +37,7 @@
         "filter = FILTER_MIN_MAG_LINEAR_MIP_POINT)," \
     "StaticSampler(s12, maxAnisotropy = 8, visibility = SHADER_VISIBILITY_PIXEL)," \
     "CBV(b2)," \
-    "UAV(u0, visibility = SHADER_VISIBILITY_PIXEL)"
+    "DescriptorTable(UAV(u0, numDescriptors = 2), visibility = SHADER_VISIBILITY_PIXEL)"
 
 // Common (static) samplers
 SamplerState defaultSampler : register(s10);
