@@ -274,7 +274,7 @@ float4 main(VSOutput vsOutput) : SV_Target0
     Surface.c_spec *= ssao;
 
     // Old-school ambient light
-    colorAccum += Surface.c_diff * 0.0;
+    colorAccum += Surface.c_diff * 0.1;
 #else
     uint2 pixelPos = uint2(vsOutput.position.xy);
     float ssao = texSSAO[pixelPos];

@@ -15,6 +15,7 @@
 #include "CameraController.h"
 #include "BufferManager.h"
 #include "Camera.h"
+#include "VoxelCamera.h"
 #include "CommandContext.h"
 #include "TemporalEffects.h"
 #include "MotionBlur.h"
@@ -339,9 +340,57 @@ void ModelViewer::RenderScene( void )
 
         // TODO: Render Voxels
 
-#if 1
+#define VOXEL_PASS      1
+#define PERSP_CAMERA    0
 
+#if VOXEL_PASS
 
+#if PERSP_CAMERA
+        Math::BaseCamera voxelCam = m_Camera; 
+#else
+        VoxelCamera voxelCam; 
+        voxelCam.UpdateMatrix(); 
+#endif
+
+        globals.ViewProjMatrix = voxelCam.GetViewProjMatrix();
+        globals.SunShadowMatrix = m_SunShadowCamera.GetShadowMatrix();
+        globals.CameraPos = voxelCam.GetPosition();
+        globals.SunDirection = SunDirection;
+        globals.SunIntensity = Vector3(Scalar(g_SunLightIntensity));
+
+        MeshSorter sorter(MeshSorter::kDefault);
+        sorter.SetCamera(voxelCam);
+        sorter.SetViewport(viewport);
+        sorter.SetScissor(scissor);
+        sorter.SetDepthStencilTarget(g_SceneDepthBuffer);
+        sorter.AddRenderTarget(g_SceneColorBuffer);
+
+        // Begin rendering depth
+        gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+        gfxContext.ClearDepth(g_SceneDepthBuffer);
+
+        m_ModelInst.Render(sorter);
+        sorter.Sort();
+
+        {
+            ScopedTimer _prof(L"Depth Pre-Pass", gfxContext);
+            sorter.RenderMeshes(MeshSorter::kZPass, gfxContext, globals);
+        }
+
+        SSAO::Render(gfxContext, m_Camera);
+
+        // TODO: We should be rendering with the shadow pass... 
+
+        {
+            ScopedTimer _prof(L"Render Color", gfxContext);
+
+            gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+            gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV(), g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+            gfxContext.SetViewportAndScissor(viewport, scissor);
+
+            sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals);
+        }
     }
 #else 
         globals.ViewProjMatrix = m_Camera.GetViewProjMatrix();

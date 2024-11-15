@@ -194,6 +194,12 @@ void Renderer::Initialize(void)
 
     ASSERT(sm_PSOs.size() == 8);
 
+    // This is stupid, but we only do this so that sm_VoxelPSOs is the same size as sm_PSOs, 
+    // because we want to index both of these arrays the same way. 
+    for (int i = 0; i < 8; ++i) {
+        sm_VoxelPSOs.push_back(m_DefaultVoxelPSO); 
+    }
+
     // Default PSO
 
     m_DefaultPSO.SetRootSignature(m_RootSig);
@@ -328,6 +334,129 @@ void Renderer::Shutdown(void)
     s_SamplerHeap.Destroy();
 }
 
+
+void Renderer::CreateVoxelPSO(uint16_t psoFlags) {
+    using namespace PSOFlags;
+
+    GraphicsPSO ColorPSO = m_DefaultVoxelPSO;
+
+    uint16_t Requirements = kHasPosition | kHasNormal;
+    ASSERT((psoFlags & Requirements) == Requirements);
+
+    std::vector<D3D12_INPUT_ELEMENT_DESC> vertexLayout;
+    if (psoFlags & kHasPosition)
+        vertexLayout.push_back({ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT });
+    if (psoFlags & kHasNormal)
+        vertexLayout.push_back({ "NORMAL",   0, DXGI_FORMAT_R10G10B10A2_UNORM,  0, D3D12_APPEND_ALIGNED_ELEMENT });
+    if (psoFlags & kHasTangent)
+        vertexLayout.push_back({ "TANGENT",  0, DXGI_FORMAT_R10G10B10A2_UNORM,  0, D3D12_APPEND_ALIGNED_ELEMENT });
+    if (psoFlags & kHasUV0)
+        vertexLayout.push_back({ "TEXCOORD", 0, DXGI_FORMAT_R16G16_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT });
+    else
+        vertexLayout.push_back({ "TEXCOORD", 0, DXGI_FORMAT_R16G16_FLOAT,       1, D3D12_APPEND_ALIGNED_ELEMENT });
+    if (psoFlags & kHasUV1)
+        vertexLayout.push_back({ "TEXCOORD", 1, DXGI_FORMAT_R16G16_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT });
+    if (psoFlags & kHasSkin)
+    {
+        vertexLayout.push_back({ "BLENDINDICES", 0, DXGI_FORMAT_R16G16B16A16_UINT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+        vertexLayout.push_back({ "BLENDWEIGHT", 0, DXGI_FORMAT_R16G16B16A16_UNORM, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+    }
+
+    ColorPSO.SetInputLayout((uint32_t)vertexLayout.size(), vertexLayout.data());
+
+    if (psoFlags & kHasSkin)
+    {
+        if (psoFlags & kHasTangent)
+        {
+            if (psoFlags & kHasUV1)
+            {
+                ColorPSO.SetVertexShader(g_pDefaultSkinVS, sizeof(g_pDefaultSkinVS));
+                ColorPSO.SetPixelShader(g_pDefaultPS, sizeof(g_pDefaultPS));
+            }
+            else
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoUV1SkinVS, sizeof(g_pDefaultNoUV1SkinVS));
+                ColorPSO.SetPixelShader(g_pDefaultNoUV1PS, sizeof(g_pDefaultNoUV1PS));
+            }
+        }
+        else
+        {
+            if (psoFlags & kHasUV1)
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoTangentSkinVS, sizeof(g_pDefaultNoTangentSkinVS));
+                ColorPSO.SetPixelShader(g_pDefaultNoTangentPS, sizeof(g_pDefaultNoTangentPS));
+            }
+            else
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoTangentNoUV1SkinVS, sizeof(g_pDefaultNoTangentNoUV1SkinVS));
+                ColorPSO.SetPixelShader(g_pDefaultNoTangentNoUV1PS, sizeof(g_pDefaultNoTangentNoUV1PS));
+            }
+        }
+    }
+    else
+    {
+        if (psoFlags & kHasTangent)
+        {
+            if (psoFlags & kHasUV1)
+            {
+                ColorPSO.SetVertexShader(g_pDefaultVS, sizeof(g_pDefaultVS));
+                ColorPSO.SetPixelShader(g_pDefaultPS, sizeof(g_pDefaultPS));
+            }
+            else
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoUV1VS, sizeof(g_pDefaultNoUV1VS));
+                ColorPSO.SetPixelShader(g_pDefaultNoUV1PS, sizeof(g_pDefaultNoUV1PS));
+            }
+        }
+        else
+        {
+            if (psoFlags & kHasUV1)
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoTangentVS, sizeof(g_pDefaultNoTangentVS));
+                ColorPSO.SetPixelShader(g_pDefaultNoTangentPS, sizeof(g_pDefaultNoTangentPS));
+            }
+            else
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoTangentNoUV1VS, sizeof(g_pDefaultNoTangentNoUV1VS));
+                ColorPSO.SetPixelShader(g_pDefaultNoTangentNoUV1PS, sizeof(g_pDefaultNoTangentNoUV1PS));
+            }
+        }
+    }
+
+    if (psoFlags & kAlphaBlend)
+    {
+        ColorPSO.SetBlendState(BlendPreMultiplied);
+        ColorPSO.SetDepthStencilState(DepthStateReadOnly);
+    }
+    if (psoFlags & kTwoSided)
+    {
+        ColorPSO.SetRasterizerState(RasterizerTwoSided);
+    }
+    ColorPSO.Finalize();
+
+    // Look for an existing PSO
+  /*  for (uint32_t i = 0; i < sm_VoxelPSOs.size(); ++i)
+    {
+        if (ColorPSO.GetPipelineStateObject() == sm_VoxelPSOs[i].GetPipelineStateObject())
+        {
+            return;
+        }
+    }*/
+
+    // If not found, keep the new one, and return its index
+    sm_VoxelPSOs.push_back(ColorPSO);
+
+    // The returned PSO index has read-write depth.  The index+1 tests for equal depth.
+    //ColorPSO.SetDepthStencilState(DepthStateTestEqual);
+    //ColorPSO.Finalize();
+    sm_VoxelPSOs.push_back(ColorPSO);
+
+    ASSERT(sm_VoxelPSOs.size() <= 256, "Ran out of room for unique PSOs");
+
+    return;
+}
+
+
 uint8_t Renderer::GetPSO(uint16_t psoFlags)
 {
     using namespace PSOFlags;
@@ -450,6 +579,11 @@ uint8_t Renderer::GetPSO(uint16_t psoFlags)
     sm_PSOs.push_back(ColorPSO);
 
     ASSERT(sm_PSOs.size() <= 256, "Ran out of room for unique PSOs");
+
+    // Create associated voxelPSO
+    CreateVoxelPSO(psoFlags); 
+
+    ASSERT(sm_PSOs.size() == sm_VoxelPSOs.size())
 
     return (uint8_t)sm_PSOs.size() - 2;
 }
@@ -792,7 +926,9 @@ void MeshSorter::RenderMeshes(
 	}
 }
 
-void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, GraphicsPSO& pso, bool depthEnable)
+#define RENDER_VOXELS_WITH_DEPTH 0
+
+void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals)
 {
     Renderer::UpdateGlobalDescriptors();
 
@@ -821,14 +957,12 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
         {
         case kOpaque:
             context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-            if (depthEnable) {
+#if RENDER_VOXELS_WITH_DEPTH   // render with depth
                 context.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
                 context.SetRenderTarget(g_SceneColorBuffer.GetRTV(), g_SceneDepthBuffer.GetDSV());
-            }
-            else {
+#else
                 context.SetRenderTarget(g_SceneColorBuffer.GetRTV());
-            }
-
+#endif
             break;
         case kTransparent:
             context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -852,7 +986,11 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
             context.SetDescriptorTable(kMaterialSRVs, s_TextureHeap[mesh.srvTable]);
             context.SetDescriptorTable(kMaterialSamplers, s_SamplerHeap[mesh.samplerTable]);
 
-            context.SetPipelineState(pso);
+#if RENDER_VOXELS_WITH_DEPTH
+            context.SetPipelineState(sm_PSOs[key.psoIdx]); 
+#else
+            context.SetPipelineState(sm_VoxelPSOs[key.psoIdx]);
+#endif
 
             context.SetVertexBuffer(0, { object.bufferPtr + mesh.vbOffset, mesh.vbSize, mesh.vbStride });
 
