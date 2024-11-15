@@ -325,7 +325,7 @@ void ModelViewer::RenderScene( void )
         float cosphi = cosf(g_SunInclination * 3.14159f * 0.5f);
         float sinphi = sinf(g_SunInclination * 3.14159f * 0.5f);
 
-        Vector3 SunDirection = Normalize(Vector3( costheta * cosphi, sinphi, sintheta * cosphi ));
+        Vector3 SunDirection = Normalize(Vector3(costheta * cosphi, sinphi, sintheta * cosphi));
         Vector3 ShadowBounds = Vector3(m_ModelInst.GetRadius());
         Vector3 origin = Vector3(0);
         Vector3 ShadowCenter = origin;
@@ -336,6 +336,14 @@ void ModelViewer::RenderScene( void )
             (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
         GlobalConstants globals;
+
+        // TODO: Render Voxels
+
+#if 1
+
+
+    }
+#else 
         globals.ViewProjMatrix = m_Camera.GetViewProjMatrix();
         globals.SunShadowMatrix = m_SunShadowCamera.GetShadowMatrix();
         globals.CameraPos = m_Camera.GetPosition();
@@ -426,7 +434,7 @@ void ModelViewer::RenderScene( void )
             MotionBlur::RenderObjectBlur(gfxContext, g_VelocityBuffer);
     }
     */
-
+#endif
     gfxContext.Finish();
 }
 

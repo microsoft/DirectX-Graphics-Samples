@@ -263,7 +263,7 @@ float4 main(VSOutput vsOutput) : SV_Target0
     // Begin accumulating light starting with emissive
     float3 colorAccum = emissive;
 
-#if 1
+#if 1  // SDFGI Direct Lighting with shadows
     float sunShadow = texSunShadow.SampleCmpLevelZero( shadowSampler, vsOutput.sunShadowCoord.xy, vsOutput.sunShadowCoord.z );
     colorAccum += ShadeDirectionalLight(Surface, SunDirection, sunShadow * SunIntensity);
 
@@ -274,10 +274,8 @@ float4 main(VSOutput vsOutput) : SV_Target0
     Surface.c_spec *= ssao;
 
     // Old-school ambient light
-    colorAccum += Surface.c_diff * 0.1;
-
+    colorAccum += Surface.c_diff * 0.0;
 #else
-
     uint2 pixelPos = uint2(vsOutput.position.xy);
     float ssao = texSSAO[pixelPos];
 

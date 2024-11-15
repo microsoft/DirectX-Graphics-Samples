@@ -511,6 +511,7 @@
     <ClCompile Include="..\GUI\imgui\backends\imgui_impl_win32.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
+    <ClCompile Include="VoxelCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BitonicSort.h" />
@@ -587,6 +588,7 @@
     <ClInclude Include="..\GUI\imgui\backends\imgui_impl_win32.h">
       <Filter>GUI</Filter>
     </ClInclude>
+    <ClInclude Include="VoxelCamera.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Math\Functions.inl" />

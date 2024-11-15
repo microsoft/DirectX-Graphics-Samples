@@ -131,6 +131,7 @@
     <ClInclude Include="Utility.h" />
     <ClInclude Include="Util\CommandLineArg.h" />
     <ClInclude Include="VectorMath.h" />
+    <ClInclude Include="VoxelCamera.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\GUI\imgui\backends\imgui_impl_win32.cpp" />
@@ -191,6 +192,7 @@
     <ClCompile Include="UploadBuffer.cpp" />
     <ClCompile Include="Utility.cpp" />
     <ClCompile Include="Util\CommandLineArg.cpp" />
+    <ClCompile Include="VoxelCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\AdaptExposureCS.hlsl" />

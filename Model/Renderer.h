@@ -40,6 +40,7 @@ namespace Renderer
     using namespace Math;
 
     extern std::vector<GraphicsPSO> sm_PSOs;
+    extern std::vector<GraphicsPSO> sm_VoxelPSOs; 
     extern RootSignature m_RootSig;
     extern DescriptorHeap s_TextureHeap;
     extern DescriptorHeap s_SamplerHeap;
@@ -112,6 +113,7 @@ namespace Renderer
         void Sort();
 
         void RenderMeshes(DrawPass pass, GraphicsContext& context, GlobalConstants& globals);
+        void RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, GraphicsPSO& pso, bool depthEnable);
 
     private:
 
