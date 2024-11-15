@@ -19,7 +19,7 @@
 
 using namespace Graphics;
 
-void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, uint32_t ArraySize, uint32_t NumMips)
+void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, uint32_t ArraySize, uint32_t NumMips, DescriptorHeap *GpuVisibleHeap)
 {
     ASSERT(ArraySize == 1 || NumMips == 1, "We don't support auto-mips on texture arrays");
 
@@ -73,7 +73,11 @@ void ColorBuffer::CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, u
     if (m_SRVHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
     {
         m_RTVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        m_SRVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        if (GpuVisibleHeap == nullptr)
+            m_SRVHandle = Graphics::AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        else {
+            m_SRVHandle = GpuVisibleHeap->Alloc(1);
+        }
     }
 
     ID3D12Resource* Resource = m_pResource.Get();
@@ -138,7 +142,7 @@ void ColorBuffer::Create(const std::wstring& Name, uint32_t Width, uint32_t Heig
 }
 
 void ColorBuffer::CreateArray( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t ArrayCount,
-    DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMem )
+    DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMem, DescriptorHeap *GpuVisibleHeap)
 {
     D3D12_RESOURCE_FLAGS Flags = CombineResourceFlags();
     D3D12_RESOURCE_DESC ResourceDesc = DescribeTex2D(Width, Height, ArrayCount, 1, Format, Flags);
@@ -151,7 +155,7 @@ void ColorBuffer::CreateArray( const std::wstring& Name, uint32_t Width, uint32_
     ClearValue.Color[3] = m_ClearColor.A();
 
     CreateTextureResource(Graphics::g_Device, Name, ResourceDesc, ClearValue, VidMem);
-    CreateDerivedViews(Graphics::g_Device, Format, ArrayCount, 1);
+    CreateDerivedViews(Graphics::g_Device, Format, ArrayCount, 1, GpuVisibleHeap);
 }
 
 void ColorBuffer::CreateArray( const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t ArrayCount,

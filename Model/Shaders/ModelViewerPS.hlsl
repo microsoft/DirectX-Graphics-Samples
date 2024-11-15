@@ -21,6 +21,7 @@ Texture2D<float3> texNormal			: register(t3);
 //Texture2D<float4> texReflection	: register(t5);
 Texture2D<float> texSSAO			: register(t12);
 Texture2D<float> texShadow			: register(t13);
+Texture2DArray<float4> IrradianceAtlas : register(t21);
 
 struct VSOutput
 {
@@ -81,5 +82,6 @@ MRT main(VSOutput vsOutput)
 
 	mrt.Normal = normal;
 	mrt.Color = colorSum;
+	mrt.Color = IrradianceAtlas.SampleLevel(defaultSampler, float3(0.125, 0.125, 4), 0).rgb;
 	return mrt;
 }

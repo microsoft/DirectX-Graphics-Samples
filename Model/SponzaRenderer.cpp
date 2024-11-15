@@ -251,7 +251,8 @@ void Sponza::RenderScene(
     const D3D12_VIEWPORT& viewport,
     const D3D12_RECT& scissor,
     bool skipDiffusePass,
-    bool skipShadowMap)
+    bool skipShadowMap,
+    SDFGI::SDFGIManager *sdfgiManager)
 {
     Renderer::UpdateGlobalDescriptors();
 
@@ -387,6 +388,28 @@ void Sponza::RenderScene(
 
                 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
                 gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
+
+                if (sdfgiManager != nullptr) {
+                    // D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = sdfgiManager->getIrradianceAtlas().GetSRV();
+                    // D3D12_CPU_DESCRIPTOR_HANDLE dstHandle = Renderer::s_TextureHeap.Alloc();
+                    // g_Device->CopyDescriptorsSimple(1, dstHandle, srcHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+                    // gfxContext.SetDynamicDescriptor(Renderer::kSDFGISRVs, 0, dstHandle);
+
+                    // gfxContext.SetDynamicDescriptor(Renderer::kSDFGISRVs, 0, sdfgiManager->GetIrradianceAtlasGpuSRV());
+
+                    //D3D12_CPU_DESCRIPTOR_HANDLE heapStart = Renderer::s_TextureHeap.GetHeapPointer()->GetCPUDescriptorHandleForHeapStart();
+                    // ASSERT(sdfgiManager->getIrradianceAtlas().GetSRV().ptr >= heapStart.ptr && 
+                    //     sdfgiManager->getIrradianceAtlas().GetSRV().ptr < heapStart.ptr + (Renderer::s_TextureHeap.GetDescriptorSize() * Renderer::s_TextureHeap. ));
+                        
+                    D3D12_CPU_DESCRIPTOR_HANDLE heapStart = Renderer::s_TextureHeap.GetHeapPointer()->GetCPUDescriptorHandleForHeapStart();
+                    ASSERT(sdfgiManager->getIrradianceAtlas().GetSRV().ptr >= heapStart.ptr && 
+                        sdfgiManager->getIrradianceAtlas().GetSRV().ptr < heapStart.ptr + (Renderer::s_TextureHeap.GetDescriptorSize() * 4096));
+
+                    gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
+                    //gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
+                    D3D12_CPU_DESCRIPTOR_HANDLE srv = sdfgiManager->getIrradianceAtlas().GetSRV();
+                    gfxContext.SetDynamicDescriptor(Renderer::kSDFGISRVs, 0, srv);
+                }
 
                 {
                     gfxContext.SetPipelineState(m_ModelPSO);

@@ -119,6 +119,9 @@ public:
     uint32_t GetOffsetOfHandle(const DescriptorHandle& DHandle ) {
         return (uint32_t)(DHandle.GetCpuPtr() - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize; }
 
+    uint32_t GetOffsetOfHandle(const D3D12_CPU_DESCRIPTOR_HANDLE& DHandle ) {
+        return (uint32_t)(DHandle.ptr - m_FirstHandle.GetCpuPtr()) / m_DescriptorSize; }
+
     bool ValidateHandle( const DescriptorHandle& DHandle ) const;
 
     ID3D12DescriptorHeap* GetHeapPointer() const { return m_Heap.Get(); }

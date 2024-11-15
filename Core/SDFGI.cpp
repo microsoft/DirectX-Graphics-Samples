@@ -45,14 +45,14 @@ namespace SDFGI {
 
     // TODO: grid has to be a perfect square.
     SDFGIProbeGrid::SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin) {
-        float spacing = 350.0f;
+        float spacing = 395.0f;
         probeSpacing[0] = spacing;
         probeSpacing[1] = spacing;
         probeSpacing[2] = spacing;
 
-        probeCount[0] = std::max(1u, static_cast<uint32_t>(sceneSize.GetX() / probeSpacing[0]));
-        probeCount[1] = std::max(1u, static_cast<uint32_t>(sceneSize.GetY() / probeSpacing[1]));
-        probeCount[2] = std::max(1u, static_cast<uint32_t>(sceneSize.GetZ() / probeSpacing[2]));
+        probeCount[0] = std::max(1u, static_cast<uint32_t>(ceil(sceneSize.GetX() / probeSpacing[0])));
+        probeCount[1] = std::max(1u, static_cast<uint32_t>(ceil(sceneSize.GetY() / probeSpacing[1])));
+        probeCount[2] = std::max(1u, static_cast<uint32_t>(ceil(sceneSize.GetZ() / probeSpacing[2])));
 
         GenerateProbes(sceneMin);
     }
@@ -77,9 +77,10 @@ namespace SDFGI {
 
     SDFGIManager::SDFGIManager(
         const Math::AxisAlignedBox &sceneBounds, 
-        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)> renderFunc
+        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)> renderFunc,
+        DescriptorHeap *externalHeap
     )
-        : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()), sceneBounds(sceneBounds), renderFunc(renderFunc) {
+        : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()), sceneBounds(sceneBounds), renderFunc(renderFunc), externalHeap(externalHeap) {
         InitializeTextures();
         InitializeViews();
         InitializeProbeBuffer();
@@ -114,7 +115,9 @@ namespace SDFGI {
             atlasWidth,
             atlasHeight,
             atlasDepth,
-            DXGI_FORMAT_R16G16B16A16_FLOAT
+            DXGI_FORMAT_R16G16B16A16_FLOAT,
+            D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN,
+            externalHeap
         );
 
         depthAtlas.CreateArray(
@@ -163,6 +166,15 @@ namespace SDFGI {
             }
         }
     };
+
+    D3D12_GPU_DESCRIPTOR_HANDLE SDFGIManager::GetIrradianceAtlasGpuSRV() const {
+        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = externalHeap->GetHeapPointer()->GetGPUDescriptorHandleForHeapStart();
+        UINT descriptorSize = externalHeap->GetDescriptorSize();
+        UINT offset = externalHeap->GetOffsetOfHandle(irradianceAtlas.GetSRV());
+
+        gpuHandle.ptr += offset * descriptorSize;
+        return gpuHandle;
+    }
 
     void SDFGIManager::InitializeProbeBuffer() {
         std::vector<float> probeData;
@@ -496,6 +508,10 @@ namespace SDFGI {
 
         context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         context.Draw(4);
+    }
+
+    SDFGIResources SDFGIManager::GetResources() {
+        return { irradianceAtlas.GetSRV() };
     }
 
     void SDFGIManager::Update(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor) {
