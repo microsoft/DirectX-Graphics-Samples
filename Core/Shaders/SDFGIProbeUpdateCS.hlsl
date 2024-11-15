@@ -72,7 +72,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
     float3 probePosition = ProbePositions[probeIndex].xyz;
 
-    uint probeBlockSize = 4;
+    uint probeBlockSize = 8;
     uint3 atlasCoord = uint3(
         (dispatchThreadID.x % GridSize.x) * (probeBlockSize-1) + 1,
         (dispatchThreadID.y % GridSize.y) * (probeBlockSize-1) + 1,
@@ -88,7 +88,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
         float3(1, 0, 0), float3(-1, 0, 0), float3(0, 1, 0), float3(0, 0, 1)
     };
 
-    const uint sample_count = 16;
+    const uint sample_count = 64;
 
     for (uint i = 0; i < sample_count; ++i) {
         float3 dir = normalize(mul(randomRotation, float4(spherical_fibonacci(i, sample_count), 1.0)).xyz);
@@ -99,7 +99,6 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
             0.0f
         );
 
-        // float3 dir = sampleDirections[i];
         int faceIndex = GetFaceIndex(dir);
 
         uint textureIndex = probeIndex * 6 + faceIndex;
