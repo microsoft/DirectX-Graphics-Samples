@@ -45,7 +45,7 @@ namespace SDFGI {
 
     // TODO: grid has to be a perfect square.
     SDFGIProbeGrid::SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin) {
-        float spacing = 355.0f;
+        float spacing = 350.0f;
         probeSpacing[0] = spacing;
         probeSpacing[1] = spacing;
         probeSpacing[2] = spacing;

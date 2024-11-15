@@ -197,6 +197,8 @@ void ModelViewer::Startup( void )
 #else
         scaleModel = 100.0f;
         m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
+        //m_ModelInst = Renderer::LoadModel(L"Models/BoxAndPlane/BoxAndPlane.gltf", forceRebuild);
+        //m_ModelInst = Renderer::LoadModel(L"Models/CornellWithSonic/CornellWithSonic.gltf", forceRebuild);
         m_ModelInst.Resize(scaleModel * m_ModelInst.GetRadius());
         OrientedBox obb = m_ModelInst.GetBoundingBox();
         float modelRadius = Length(obb.GetDimensions()) * 0.5f;
@@ -236,7 +238,7 @@ void ModelViewer::Startup( void )
         ModelViewer::NonLegacyRenderScene(ctx, cam, vp, sc, renderShadows);
     };
 
-    mp_SDFGIManager = new SDFGI::SDFGIManager(sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)>>(renderLambda));
+    //mp_SDFGIManager = new SDFGI::SDFGIManager(sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)>>(renderLambda));
 }
 
 void ModelViewer::InitializeGUI() {
