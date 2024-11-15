@@ -79,11 +79,8 @@ namespace SDFGI
     // Individual cubemap faces for all probes.
     Texture **probeCubemapFaceTextures;
     D3D12_CPU_DESCRIPTOR_HANDLE **probeCubemapFaceUAVs;
-    ColorBuffer probeCubemapArray;
-
     // A single texture array containing all cubemap faces.
-    GpuResource *probeCubemapFaceArrayGpuResource;
-    D3D12_CPU_DESCRIPTOR_HANDLE probeCubemapFaceArraySRV;
+    ColorBuffer probeCubemapArray;
 
     // A function/lambda for invoking the scene's render function. Used for rendering probe cubemaps.
     std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc;  
