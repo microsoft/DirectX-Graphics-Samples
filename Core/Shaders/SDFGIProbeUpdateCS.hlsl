@@ -13,8 +13,8 @@ cbuffer ProbeData : register(b0) {
 StructuredBuffer<float4> ProbePositions : register(t0);
 Texture2DArray<float4> ProbeCubemapArray : register(t1);
 
-RWTexture3D<float4> IrradianceAtlas : register(u0);
-RWTexture3D<float> DepthAtlas : register(u1);
+RWTexture2DArray<float4> IrradianceAtlas : register(u0);
+RWTexture2DArray<float> DepthAtlas : register(u1);
 
 SamplerState LinearSampler : register(s0);
 

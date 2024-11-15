@@ -1,7 +1,5 @@
-Texture3D<float4> IrradianceTexture : register(t0);
-Texture3D<float> DepthTexture : register(t1);
-Texture3D<float4> IrradianceAtlas : register(t2);
-Texture3D<float> DepthAtlas : register(t3);
+Texture2DArray<float4> IrradianceAtlas : register(t0);
+Texture2DArray<float> DepthAtlas : register(t1);
 SamplerState LinearSampler : register(s0);
 
 struct VS_OUTPUT
@@ -12,5 +10,5 @@ struct VS_OUTPUT
 
 float4 main(VS_OUTPUT input) : SV_Target
 {
-    return IrradianceAtlas.Sample(LinearSampler, float3(input.texCoord, 1.0f));
+    return IrradianceAtlas.SampleLevel(LinearSampler, float3(input.texCoord, /*depth_index=*/5), 0);
 }

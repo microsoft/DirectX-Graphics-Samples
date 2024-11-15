@@ -113,26 +113,20 @@ namespace SDFGI {
         uint32_t atlasHeight = (height * probeBlockSize) + (height + 1) * gutterSize;
         uint32_t atlasDepth = depth; 
 
-        irradianceAtlas.Create3D(
-            // Number of bytes occupied by a single row of pixels in a texture.
-            atlasWidth * sizeof(float) * 4,
+        irradianceAtlas.CreateArray(
+            L"ProbeIrradianceAtlas",
             atlasWidth,
             atlasHeight,
             atlasDepth,
-            DXGI_FORMAT_R16G16B16A16_FLOAT,
-            nullptr,
-            D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+            DXGI_FORMAT_R16G16B16A16_FLOAT
         );
 
-        depthAtlas.Create3D(
-            // Number of bytes occupied by a single row of pixels in a texture.
-            atlasWidth * sizeof(float),
+        depthAtlas.CreateArray(
+            L"ProbeDepthAtlas",
             atlasWidth,
             atlasHeight,
             atlasDepth,
-            DXGI_FORMAT_R16_FLOAT,
-            nullptr,
-            D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+            DXGI_FORMAT_R16_FLOAT
         );
 
         // Individual cubemap faces for all probes.
@@ -158,20 +152,6 @@ namespace SDFGI {
     };
 
     void SDFGIManager::InitializeViews() {
-        int probeGridDepth = probeGrid.probeCount[2];
-        irradianceAtlasUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        D3D12_UNORDERED_ACCESS_VIEW_DESC atlasUavDesc = {};
-        atlasUavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
-        atlasUavDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-        atlasUavDesc.Texture3D.MipSlice = 0;
-        atlasUavDesc.Texture3D.FirstWSlice = 0;
-        atlasUavDesc.Texture3D.WSize = probeGridDepth;
-        g_Device->CreateUnorderedAccessView(irradianceAtlas.GetResource(), nullptr, &atlasUavDesc, irradianceAtlasUAV);
-
-        depthAtlasUAV = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        atlasUavDesc.Format = DXGI_FORMAT_R16_FLOAT;
-        g_Device->CreateUnorderedAccessView(depthAtlas.GetResource(), nullptr, &atlasUavDesc, depthAtlasUAV);
-
         probeCubemapFaceUAVs = new D3D12_CPU_DESCRIPTOR_HANDLE*[probeCount];
         for (int probe = 0; probe < probeCount; ++probe)
         {
@@ -255,6 +235,7 @@ namespace SDFGI {
         // Depth atlas.
         probeUpdateRS[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, /*register=u*/1, 1);
 
+        // Array of cubemap faces of all probes.
         probeUpdateRS[3].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /*register=t*/1, 1, D3D12_SHADER_VISIBILITY_ALL);
 
         // Probe grid info.
@@ -282,8 +263,8 @@ namespace SDFGI {
         computeContext.SetRootSignature(probeUpdateRS);
 
         computeContext.SetBufferSRV(0, probeBuffer);
-        computeContext.SetDynamicDescriptor(1, 0, irradianceAtlasUAV);
-        computeContext.SetDynamicDescriptor(2, 0, depthAtlasUAV);
+        computeContext.SetDynamicDescriptor(1, 0, irradianceAtlas.GetUAV());
+        computeContext.SetDynamicDescriptor(2, 0, depthAtlas.GetUAV());
         computeContext.SetDynamicDescriptor(3, 0, probeCubemapArray.GetSRV());
 
         computeContext.TransitionResource(irradianceAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -323,9 +304,9 @@ namespace SDFGI {
     void SDFGIManager::InitializeProbeAtlasVizShader() {
         atlasVizRS.Reset(2, 1);
         // Irradiance atlas.
-        atlasVizRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        atlasVizRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /*register=t*/0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         // Depth atlas.
-        atlasVizRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        atlasVizRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /*register=t*/1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         atlasVizRS.InitStaticSampler(0, SamplerLinearClampDesc);
         atlasVizRS.Finalize(L"SDFGI Visualization Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 

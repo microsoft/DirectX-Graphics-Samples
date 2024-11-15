@@ -70,11 +70,9 @@ namespace SDFGI
 
     int cubemapFaceResolution = 64;
 
-    Texture irradianceAtlas;
-    D3D12_CPU_DESCRIPTOR_HANDLE irradianceAtlasUAV;
+    ColorBuffer irradianceAtlas;
 
-    Texture depthAtlas;
-    D3D12_CPU_DESCRIPTOR_HANDLE depthAtlasUAV;
+    ColorBuffer depthAtlas;
 
     // Individual cubemap faces for all probes.
     Texture **probeCubemapFaceTextures;
