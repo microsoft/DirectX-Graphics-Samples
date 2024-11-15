@@ -454,7 +454,6 @@ void ModelViewer::RenderScene( void )
     if (m_ModelInst.IsNull())
     {
 #ifdef LEGACY_RENDERER
-
         Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor);
 #endif
     }
