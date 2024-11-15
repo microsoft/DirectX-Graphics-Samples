@@ -238,7 +238,7 @@ void ModelViewer::Startup( void )
         ModelViewer::NonLegacyRenderScene(ctx, cam, vp, sc, renderShadows);
     };
 
-    //mp_SDFGIManager = new SDFGI::SDFGIManager(sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)>>(renderLambda));
+    mp_SDFGIManager = new SDFGI::SDFGIManager(sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)>>(renderLambda));
 }
 
 void ModelViewer::InitializeGUI() {
@@ -460,7 +460,7 @@ void ModelViewer::RenderScene( void )
     }
 
     // TODO: needs to be done before rendering the scene so that probes can be sampled.
-    //mp_SDFGIManager->Render(gfxContext, m_Camera, viewport, scissor);
+    mp_SDFGIManager->Render(gfxContext, m_Camera, viewport, scissor);
 
 #if MAIN_SUN_SHADOW_BUFFER_VIS == 1  //all main macros in pch.h
     Renderer::DrawShadowBuffer(gfxContext, viewport, scissor);
