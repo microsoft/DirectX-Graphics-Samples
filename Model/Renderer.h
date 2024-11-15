@@ -34,6 +34,10 @@ struct SDFGIGlobalConstants;
 struct Mesh;
 struct Joint;
 
+struct SDFGIVoxelTextures {
+    StructuredBuffer test;
+}; 
+
 namespace Renderer
 {
     extern BoolVar SeparateZPass;
@@ -117,7 +121,8 @@ namespace Renderer
         void Sort();
 
         void RenderMeshes(DrawPass pass, GraphicsContext& context, GlobalConstants& globals);
-        void RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, SDFGIGlobalConstants& SDFGIglobals, GpuBuffer& buffer);
+        void RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, 
+            SDFGIGlobalConstants& SDFGIglobals, SDFGIVoxelTextures& textures);
 
     private:
 

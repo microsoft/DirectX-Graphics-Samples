@@ -302,7 +302,7 @@ void ModelViewer::Update( float deltaT )
     m_MainScissor.bottom = (LONG)g_SceneColorBuffer.GetHeight();
 }
 
-StructuredBuffer testbuffer;
+SDFGIVoxelTextures voxelTextures{};
 
 void ModelViewer::RenderScene( void )
 {
@@ -388,11 +388,11 @@ void ModelViewer::RenderScene( void )
 
         if (runOnce) {
             float buffer[3] = { 1.0f, 23.f, 64.f };
-            testbuffer.Create(L"Test SDFGI Buffer", 3, sizeof(float), buffer);
+            voxelTextures.test.Create(L"Test SDFGI Buffer", 3, sizeof(float), buffer);
             runOnce = false; 
         }
 
-        gfxContext.TransitionResource(testbuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        gfxContext.TransitionResource(voxelTextures.test, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
         MeshSorter sorter(MeshSorter::kDefault);
         sorter.SetCamera(voxelCam);
@@ -428,7 +428,7 @@ void ModelViewer::RenderScene( void )
             gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV());
             gfxContext.SetViewportAndScissor(viewport, scissor);
 
-            sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals, SDFGIglobals, testbuffer);
+            sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals, SDFGIglobals, voxelTextures);
         }
     }
 #else 

@@ -930,8 +930,8 @@ void MeshSorter::RenderMeshes(
 
 #define RENDER_VOXELS_WITH_DEPTH 0
 
-void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, SDFGIGlobalConstants& SDFGIglobals, 
-        GpuBuffer& voxelTexture)
+void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, 
+    SDFGIGlobalConstants& SDFGIglobals, SDFGIVoxelTextures& voxelTexture)
 {
     Renderer::UpdateGlobalDescriptors();
 
@@ -951,7 +951,7 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
     context.SetDynamicConstantBufferView(kCommonCBV, sizeof(GlobalConstants), &globals);
     context.SetDynamicConstantBufferView(kSDFGICommonCBV, sizeof(SDFGIGlobalConstants), &SDFGIglobals);
 
-    context.SetBufferUAV(kSDFGIVoxelUAVs, voxelTexture); 
+    context.SetBufferUAV(kSDFGIVoxelUAVs, voxelTexture.test); 
 
     for (; m_CurrentPass <= pass; m_CurrentPass = (DrawPass)(m_CurrentPass + 1))
     {
