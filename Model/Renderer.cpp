@@ -100,6 +100,8 @@ void Renderer::Initialize(void)
     m_RootSig[kCommonSRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 10, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig[kCommonCBV].InitAsConstantBuffer(1);
     m_RootSig[kSkinMatrices].InitAsBufferSRV(20, D3D12_SHADER_VISIBILITY_VERTEX);
+    m_RootSig[kSDFGICommonCBV].InitAsConstantBuffer(2, D3D12_SHADER_VISIBILITY_ALL);
+    m_RootSig[kSDFGIVoxelUAVs].InitAsBufferUAV(0, D3D12_SHADER_VISIBILITY_PIXEL); 
     m_RootSig.Finalize(L"RootSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
@@ -928,7 +930,8 @@ void MeshSorter::RenderMeshes(
 
 #define RENDER_VOXELS_WITH_DEPTH 0
 
-void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals)
+void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, SDFGIGlobalConstants& SDFGIglobals, 
+        GpuBuffer& voxelTexture)
 {
     Renderer::UpdateGlobalDescriptors();
 
@@ -946,6 +949,9 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
     globals.IBLRange = s_SpecularIBLRange - s_SpecularIBLBias;
     globals.IBLBias = s_SpecularIBLBias;
     context.SetDynamicConstantBufferView(kCommonCBV, sizeof(GlobalConstants), &globals);
+    context.SetDynamicConstantBufferView(kSDFGICommonCBV, sizeof(SDFGIGlobalConstants), &SDFGIglobals);
+
+    context.SetBufferUAV(kSDFGIVoxelUAVs, voxelTexture); 
 
     for (; m_CurrentPass <= pass; m_CurrentPass = (DrawPass)(m_CurrentPass + 1))
     {
@@ -970,6 +976,7 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
             break;
         }
 
+        context.SetViewportAndScissor(m_Viewport, m_Scissor);
         context.FlushResourceBarriers();
 
         const uint32_t lastDraw = m_CurrentDraw + passCount;

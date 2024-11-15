@@ -13,6 +13,9 @@
 
 #include "Common.hlsli"
 
+// TODO: Create duplicates of all DefaultXXXPS shaders with this pre-processor
+#define SDFGI_VOXEL_PASS 1
+
 Texture2D<float4> baseColorTexture          : register(t0);
 Texture2D<float3> metallicRoughnessTexture  : register(t1);
 Texture2D<float1> occlusionTexture          : register(t2);
@@ -50,6 +53,16 @@ cbuffer GlobalConstants : register(b1)
     float IBLRange;
     float IBLBias;
 }
+
+#if SDFGI_VOXEL_PASS
+cbuffer SDFGIConstants : register(b2)
+{
+    float viewWidth; 
+    float viewHeight; 
+}
+
+RWStructuredBuffer<float> SDFGIBuffer : register(u0);
+#endif
 
 struct VSOutput
 {
@@ -239,6 +252,7 @@ float3 ComputeNormal(VSOutput vsOutput)
 #endif
 }
 
+
 [RootSignature(Renderer_RootSig)]
 float4 main(VSOutput vsOutput) : SV_Target0
 {
@@ -288,6 +302,14 @@ float4 main(VSOutput vsOutput) : SV_Target0
 #endif
 
     // TODO: Shade each light using Forward+ tiles
+
+#if SDFGI_VOXEL_PASS
+    SDFGIBuffer[0] = 918213.0;
+
+
+    float3 pos = float3(vsOutput.position.xyz); 
+    colorAccum = float3(frac(pos.x), frac(pos.x), frac(pos.x));
+#endif 
 
     return float4(colorAccum, baseColor.a);
 }

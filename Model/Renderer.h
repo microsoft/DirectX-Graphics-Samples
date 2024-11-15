@@ -30,6 +30,7 @@ class DescriptorHeap;
 class ShadowCamera;
 class ShadowBuffer;
 struct GlobalConstants;
+struct SDFGIGlobalConstants; 
 struct Mesh;
 struct Joint;
 
@@ -55,6 +56,8 @@ namespace Renderer
         kCommonSRVs,
         kCommonCBV,
         kSkinMatrices,
+        kSDFGICommonCBV,
+        kSDFGIVoxelUAVs,
 
         kNumRootBindings
     };
@@ -114,7 +117,7 @@ namespace Renderer
         void Sort();
 
         void RenderMeshes(DrawPass pass, GraphicsContext& context, GlobalConstants& globals);
-        void RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals);
+        void RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, SDFGIGlobalConstants& SDFGIglobals, GpuBuffer& buffer);
 
     private:
 

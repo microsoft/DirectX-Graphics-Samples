@@ -302,11 +302,14 @@ void ModelViewer::Update( float deltaT )
     m_MainScissor.bottom = (LONG)g_SceneColorBuffer.GetHeight();
 }
 
+StructuredBuffer testbuffer;
+
 void ModelViewer::RenderScene( void )
 {
     GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Render");
 
     uint32_t FrameIndex = TemporalEffects::GetFrameIndexMod2();
+
     const D3D12_VIEWPORT& viewport = m_MainViewport;
     const D3D12_RECT& scissor = m_MainScissor;
 
@@ -340,8 +343,8 @@ void ModelViewer::RenderScene( void )
 
         // TODO: Render Voxels
 
-#define VOXEL_PASS      1
-#define PERSP_CAMERA    0
+#define VOXEL_PASS      1   // enable the voxel pass, otherwise render the scene like normal
+#define PERSP_CAMERA    0   // enable the perspective camera instead of orthographic, to sanity check the scene
 
 #if VOXEL_PASS
 
@@ -358,10 +361,43 @@ void ModelViewer::RenderScene( void )
         globals.SunDirection = SunDirection;
         globals.SunIntensity = Vector3(Scalar(g_SunLightIntensity));
 
+        // setting a custom viewport and scissor 
+        D3D12_VIEWPORT voxelViewport{};
+        D3D12_RECT voxelScissor{};
+
+        SDFGIGlobalConstants SDFGIglobals{}; 
+
+        {
+            float width = 512.f; 
+            float height = 512.f; 
+            voxelViewport.Width = width;
+            voxelViewport.Height = height;
+            voxelViewport.MinDepth = 0.0f;
+            voxelViewport.MaxDepth = 1.0f;
+
+            voxelScissor.left = 0;
+            voxelScissor.top = 0;
+            voxelScissor.right = width;
+            voxelScissor.bottom = height;
+
+            SDFGIglobals.viewWidth = width;
+            SDFGIglobals.viewHeight = height; 
+        }
+
+        static bool runOnce = true; 
+
+        if (runOnce) {
+            float buffer[3] = { 1.0f, 23.f, 64.f };
+            testbuffer.Create(L"Test SDFGI Buffer", 3, sizeof(float), buffer);
+            runOnce = false; 
+        }
+
+        gfxContext.TransitionResource(testbuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
         MeshSorter sorter(MeshSorter::kDefault);
         sorter.SetCamera(voxelCam);
-        sorter.SetViewport(viewport);
-        sorter.SetScissor(scissor);
+        sorter.SetViewport(voxelViewport);
+        sorter.SetScissor(voxelScissor);
         sorter.SetDepthStencilTarget(g_SceneDepthBuffer);
         sorter.AddRenderTarget(g_SceneColorBuffer);
 
@@ -379,17 +415,20 @@ void ModelViewer::RenderScene( void )
 
         SSAO::Render(gfxContext, m_Camera);
 
+        gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+        gfxContext.ClearColor(g_SceneColorBuffer);
+
         // TODO: We should be rendering with the shadow pass... 
 
         {
-            ScopedTimer _prof(L"Render Color", gfxContext);
+            ScopedTimer _prof(L"Render Voxel", gfxContext);
 
             gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
             gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-            gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV(), g_SceneDepthBuffer.GetDSV_DepthReadOnly());
+            gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV());
             gfxContext.SetViewportAndScissor(viewport, scissor);
 
-            sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals);
+            sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals, SDFGIglobals, testbuffer);
         }
     }
 #else 
