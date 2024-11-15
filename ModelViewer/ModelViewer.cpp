@@ -452,16 +452,17 @@ void ModelViewer::RenderScene( void )
     if (m_ModelInst.IsNull())
     {
 #ifdef LEGACY_RENDERER
+        mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
+
         Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor);
+
+        mp_SDFGIManager->Render(gfxContext, m_Camera);
 #endif
     }
     else
     {
         NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor);
     }
-
-    // TODO: needs to be done before rendering the scene so that probes can be sampled.
-    mp_SDFGIManager->Render(gfxContext, m_Camera, viewport, scissor);
 
 #if MAIN_SUN_SHADOW_BUFFER_VIS == 1  //all main macros in pch.h
     Renderer::DrawShadowBuffer(gfxContext, viewport, scissor);
