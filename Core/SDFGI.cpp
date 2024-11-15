@@ -45,9 +45,10 @@ namespace SDFGI {
 
     // TODO: grid has to be a perfect square.
     SDFGIProbeGrid::SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin) {
-        probeSpacing[0] = 350.0f;
-        probeSpacing[1] = 350.0f;
-        probeSpacing[2] = 350.0f;
+        float spacing = 350.0f;
+        probeSpacing[0] = spacing;
+        probeSpacing[1] = spacing;
+        probeSpacing[2] = spacing;
 
         probeCount[0] = std::max(1u, static_cast<uint32_t>(sceneSize.GetX() / probeSpacing[0]));
         probeCount[1] = std::max(1u, static_cast<uint32_t>(sceneSize.GetY() / probeSpacing[1]));
@@ -76,7 +77,7 @@ namespace SDFGI {
 
     SDFGIManager::SDFGIManager(
         const Math::AxisAlignedBox &sceneBounds, 
-        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc
+        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)> renderFunc
     )
         : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()), sceneBounds(sceneBounds), renderFunc(renderFunc) {
         InitializeTextures();
@@ -358,7 +359,7 @@ namespace SDFGI {
         GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, const Math::Camera& faceCamera, Vector3 &probePosition, const D3D12_VIEWPORT& mainViewport, const D3D12_RECT& mainScissor
     ) {
         // Render to g_SceneColorBuffer (the main render target) using the given cubemap face camera.
-        renderFunc(context, faceCamera, mainViewport, mainScissor);
+        renderFunc(context, faceCamera, mainViewport, mainScissor, false);
 
         // Now copy and downsample g_SceneColorBuffer into probeCubemapFaceTextures (which are square, typically 64x64).
         // Why not render the scene directly to probeCubemapFaceTextures? It was hard to make renderFunc invoke the scene
