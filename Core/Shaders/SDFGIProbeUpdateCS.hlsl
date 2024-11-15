@@ -1,13 +1,19 @@
 static const float PI = 3.14159265f;
 
 cbuffer ProbeData : register(b0) {
-    float4x4 randomRotation;
-    uint ProbeCount;
-    float ProbeMaxDistance;
-    float3 GridSize;
-    float3 ProbeSpacing;
-    float3 SceneMinBounds;
-    uint ProbeIndex;
+    float4x4 RandomRotation;         // 64 bytes
+
+    float3 GridSize;                 // 12 bytes
+    uint ProbeCount;                 // 4 bytes
+
+    float3 ProbeSpacing;             // 12 bytes
+    float ProbeMaxDistance;          // 4 bytes
+
+    float3 SceneMinBounds;           // 12 bytes
+    uint ProbeAtlasBlockResolution;  // 4 bytes
+
+    uint GutterSize;                 // 4 bytes
+    uint Padding[3];                 // 12 bytes of padding
 };
 
 StructuredBuffer<float4> ProbePositions : register(t0);
@@ -72,10 +78,13 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
     float3 probePosition = ProbePositions[probeIndex].xyz;
 
-    uint probeBlockSize = 8;
+    // Shadows the ones in the cbuffer, which are unreadable for some reason.
+    uint ProbeAtlasBlockResolution = 8;
+    uint GutterSize = 1;
+
     uint3 atlasCoord = uint3(
-        (dispatchThreadID.x % GridSize.x) * (probeBlockSize-1) + 1,
-        (dispatchThreadID.y % GridSize.y) * (probeBlockSize-1) + 1,
+        dispatchThreadID.x * (ProbeAtlasBlockResolution + GutterSize),
+        dispatchThreadID.y * (ProbeAtlasBlockResolution + GutterSize),
         dispatchThreadID.z
     );
 
@@ -91,11 +100,11 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
     const uint sample_count = 64;
 
     for (uint i = 0; i < sample_count; ++i) {
-        float3 dir = normalize(mul(randomRotation, float4(spherical_fibonacci(i, sample_count), 1.0)).xyz);
+        float3 dir = normalize(mul(RandomRotation, float4(spherical_fibonacci(i, sample_count), 1.0)).xyz);
         float2 encodedCoord = octEncode(dir);
         uint3 probeTexCoord = atlasCoord + uint3(
-            (encodedCoord.x * 0.5 + 0.5) * (probeBlockSize - 1),
-            (encodedCoord.y * 0.5 + 0.5) * (probeBlockSize - 1),
+            (encodedCoord.x * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
+            (encodedCoord.y * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
             0.0f
         );
 
