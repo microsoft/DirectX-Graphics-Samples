@@ -132,7 +132,10 @@ namespace SDFGI
     void InitializeCubemapVizShader();
     void RenderCubemapViz(GraphicsContext& context, const Math::Camera& camera);
 
-    // Entry point for updating probes and rendering visualizations.
-    void Render(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+    // Entry point for updating probes.
+    void SDFGIManager::Update(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+
+    // Entry point for rendering visualizations.
+    void Render(GraphicsContext& context, const Math::Camera& camera);
   };
 }

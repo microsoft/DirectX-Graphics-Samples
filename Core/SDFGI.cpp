@@ -498,12 +498,16 @@ namespace SDFGI {
         context.Draw(4);
     }
 
-    void SDFGIManager::Render(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor) {
-        ScopedTimer _prof(L"SDFGI Rendering", context);
+    void SDFGIManager::Update(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor) {
+        ScopedTimer _prof(L"SDFGI Update", context);
 
         RenderCubemapsForProbes(context, camera, viewport, scissor);
 
         UpdateProbes(context);
+    }
+
+    void SDFGIManager::Render(GraphicsContext& context, const Math::Camera& camera) {
+        ScopedTimer _prof(L"SDFGI Rendering", context);
 
         RenderProbeViz(context, camera);
 
