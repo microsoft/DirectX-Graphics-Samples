@@ -81,6 +81,22 @@ namespace Math
         static INLINE Matrix4 MakeScale( float scale ) { return Matrix4(XMMatrixScaling(scale, scale, scale)); }
         static INLINE Matrix4 MakeScale( Vector3 scale ) { return Matrix4(XMMatrixScalingFromVector(scale)); }
 
+        static Matrix4 MakePerspectiveMatrix(float fovY, float aspect, float nearZ, float farZ) {
+            float f = 1.0f / tanf(fovY * 0.5f);
+            
+            float m00 = f / aspect;
+            float m11 = f;
+            float m22 = farZ / (farZ - nearZ);
+            float m32 = -nearZ * m22;
+            
+            return Matrix4(
+                Vector4(m00, 0.0f, 0.0f, 0.0f),
+                Vector4(0.0f, m11, 0.0f, 0.0f),
+                Vector4(0.0f, 0.0f, m22, 1.0f),
+                Vector4(0.0f, 0.0f, m32, 0.0f)
+            );
+        }
+
     private:
         XMMATRIX m_mat;
     };

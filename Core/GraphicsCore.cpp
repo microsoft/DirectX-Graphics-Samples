@@ -31,6 +31,7 @@
 #include "GraphRenderer.h"
 #include "TemporalEffects.h"
 #include "Display.h"
+#include "SDFGI.h"
 
 #pragma comment(lib, "d3d12.lib") 
 

@@ -451,6 +451,33 @@
     <FxCompile Include="Shaders\PresentSDRPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeVizVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeVizPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeVizGS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeUpdateCS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeIrradianceDepthVizPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeIrradianceDepthVizVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeCubemapVizVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeCubemapVizPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SDFGIProbeCubemapDownsampleCS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BitonicSort.cpp" />
@@ -511,6 +538,7 @@
     <ClCompile Include="..\GUI\imgui\backends\imgui_impl_win32.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
+    <ClCompile Include="SDFGI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BitonicSort.h" />
@@ -587,6 +615,7 @@
     <ClInclude Include="..\GUI\imgui\backends\imgui_impl_win32.h">
       <Filter>GUI</Filter>
     </ClInclude>
+    <ClInclude Include="SDFGI.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Math\Functions.inl" />

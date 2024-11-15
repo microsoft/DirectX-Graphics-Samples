@@ -36,6 +36,7 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
+#include "SDFGI.h"
 
 #define LEGACY_RENDERER
 
@@ -82,6 +83,8 @@ private:
 
     ModelInstance m_ModelInst;
     ShadowCamera m_SunShadowCamera;
+
+    SDFGI::SDFGIManager *mp_SDFGIManager;
 };
 
 CREATE_APPLICATION( ModelViewer )
@@ -211,6 +214,18 @@ void ModelViewer::Startup( void )
 #if UI_ENABLE
     InitializeGUI();
 #endif
+
+    #ifdef LEGACY_RENDERER
+    const Math::AxisAlignedBox &sceneBounds = Sponza::GetBoundingBox();
+    #else
+    const Math::AxisAlignedBox &sceneBounds = m_ModelInst.GetAxisAlignedBox();
+    #endif
+
+    auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc) {
+        Sponza::RenderScene(ctx, cam, vp, sc, /*skipDiffusePass=*/false, /*skipShadowMap=*/false);
+    };
+
+    mp_SDFGIManager = new SDFGI::SDFGIManager(sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)>>(renderLambda));
 }
 
 void ModelViewer::InitializeGUI() {
@@ -237,6 +252,8 @@ void ModelViewer::Cleanup( void )
     m_ModelInst = nullptr;
 
     g_IBLTextures.clear();
+
+    delete mp_SDFGIManager;
 
 #ifdef LEGACY_RENDERER
     Sponza::Cleanup();
@@ -400,6 +417,9 @@ void ModelViewer::RenderScene( void )
             sorter.RenderMeshes(MeshSorter::kTransparent, gfxContext, globals);
         }
     }
+
+    // TODO: needs to be done before rendering the scene so that probes can be sampled.
+    mp_SDFGIManager->Render(gfxContext, m_Camera, viewport, scissor);
 
 #if MAIN_SUN_SHADOW_BUFFER_VIS == 1  //all main macros in pch.h
     Renderer::DrawShadowBuffer(gfxContext, viewport, scissor);

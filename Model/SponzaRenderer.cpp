@@ -162,6 +162,11 @@ const ModelH3D& Sponza::GetModel()
     return Sponza::m_Model;
 }
 
+const Math::AxisAlignedBox &Sponza::GetBoundingBox()
+{
+    return Sponza::m_Model.GetBoundingBox();
+}
+
 void Sponza::Cleanup( void )
 {
     m_Model.Clear();
