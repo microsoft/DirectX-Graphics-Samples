@@ -34,11 +34,6 @@ struct SDFGIGlobalConstants;
 struct Mesh;
 struct Joint;
 
-struct SDFGIVoxelTextures {
-    Texture VoxelAlbedo;
-    Texture VoxelVoronoiInput; 
-}; 
-
 namespace Renderer
 {
     extern BoolVar SeparateZPass;
@@ -51,6 +46,11 @@ namespace Renderer
     extern DescriptorHeap s_TextureHeap;
     extern DescriptorHeap s_SamplerHeap;
     extern DescriptorHandle m_CommonTextures;
+    extern DescriptorHandle m_SDFGIVoxelTextures;
+
+    // SDFGI Voxel Textures
+    extern Texture m_VoxelAlbedo;
+    extern Texture m_VoxelVoronoiInput;
 
     enum RootBindings
     {
@@ -123,7 +123,7 @@ namespace Renderer
 
         void RenderMeshes(DrawPass pass, GraphicsContext& context, GlobalConstants& globals);
         void RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, 
-            SDFGIGlobalConstants& SDFGIglobals, SDFGIVoxelTextures& textures);
+            SDFGIGlobalConstants& SDFGIglobals);
 
     private:
 

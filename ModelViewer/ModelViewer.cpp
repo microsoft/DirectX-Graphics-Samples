@@ -302,8 +302,6 @@ void ModelViewer::Update( float deltaT )
     m_MainScissor.bottom = (LONG)g_SceneColorBuffer.GetHeight();
 }
 
-SDFGIVoxelTextures voxelTextures{};
-
 void ModelViewer::RenderScene( void )
 {
     GraphicsContext& gfxContext = GraphicsContext::Begin(L"Scene Render");
@@ -384,17 +382,7 @@ void ModelViewer::RenderScene( void )
             SDFGIglobals.viewHeight = height; 
         }
 
-        static bool runOnce = true; 
-
-        if (runOnce) {
-            uint32_t* init = new uint32_t[128 * 128 * 128]; 
-            voxelTextures.VoxelAlbedo.Create3D(
-                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-            runOnce = false; 
-            delete[] init; 
-        }
-
-        gfxContext.TransitionResource(voxelTextures.VoxelAlbedo, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        // gfxContext.TransitionResource(voxelTextures.VoxelAlbedo, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
         MeshSorter sorter(MeshSorter::kDefault);
         sorter.SetCamera(voxelCam);
@@ -430,7 +418,7 @@ void ModelViewer::RenderScene( void )
             gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV());
             gfxContext.SetViewportAndScissor(viewport, scissor);
 
-            sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals, SDFGIglobals, voxelTextures);
+            sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals, SDFGIglobals);
         }
     }
 #else 

@@ -46,6 +46,8 @@
 #include "../Model/CompiledShaders/FullscreenQuadVS.h"
 #include "../Model/CompiledShaders/VisShadowBufferPS.h"
 
+#include <algorithm>
+
 #pragma warning(disable:4319) // '~': zero extending 'uint32_t' to 'uint64_t' of greater size
 
 using namespace Math;
@@ -61,7 +63,6 @@ namespace Renderer
     DescriptorHeap s_TextureHeap;
     DescriptorHeap s_SamplerHeap;
     std::vector<GraphicsPSO> sm_PSOs;
-    std::vector<GraphicsPSO> sm_VoxelPSOs; 
 
     TextureRef s_RadianceCubeMap;
     TextureRef s_IrradianceCubeMap;
@@ -76,6 +77,11 @@ namespace Renderer
     GraphicsPSO m_DefaultVoxelPSO(L"Renderer: SDFGI Default Voxel PSO"); // Not finalized. Used as a template. 
 
     DescriptorHandle m_CommonTextures;
+
+    std::vector<GraphicsPSO> sm_VoxelPSOs;
+    DescriptorHandle m_SDFGIVoxelTextures; 
+    Texture m_VoxelAlbedo;
+    Texture m_VoxelVoronoiInput;
 }
 
 void Renderer::Initialize(void)
@@ -248,22 +254,52 @@ void Renderer::Initialize(void)
     // Allocate a descriptor table for the common textures
     m_CommonTextures = s_TextureHeap.Alloc(8);
 
-    uint32_t DestCount = 8;
-    uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1 };
-
-    D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
     {
-        GetDefaultTexture(kBlackCubeMap),
-        GetDefaultTexture(kBlackCubeMap),
-        g_SSAOFullScreen.GetSRV(),
-        g_ShadowBuffer.GetSRV(),
-        Lighting::m_LightBuffer.GetSRV(),
-        Lighting::m_LightShadowArray.GetSRV(),
-        Lighting::m_LightGrid.GetSRV(),
-        Lighting::m_LightGridBitMask.GetSRV(),
-    };
+        uint32_t DestCount = 8;
+        uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1 };
 
-    g_Device->CopyDescriptors(1, &m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+        {
+            GetDefaultTexture(kBlackCubeMap),
+            GetDefaultTexture(kBlackCubeMap),
+            g_SSAOFullScreen.GetSRV(),
+            g_ShadowBuffer.GetSRV(),
+            Lighting::m_LightBuffer.GetSRV(),
+            Lighting::m_LightShadowArray.GetSRV(),
+            Lighting::m_LightGrid.GetSRV(),
+            Lighting::m_LightGridBitMask.GetSRV(),
+        };
+
+        g_Device->CopyDescriptors(1, &m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    }
+
+    // SDFGI: Create Voxel UAV Textures
+    constexpr size_t size = 128 * 128 * 128; 
+    uint32_t* init = new uint32_t[size];
+    std::fill(init, init + size, 0xFFFFFFFF); 
+    m_VoxelAlbedo.Create3D(
+        4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+    );
+    m_VoxelVoronoiInput.Create3D(
+        4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+    );
+    delete[] init;
+
+    // SDFGI: Allocate a descriptor table for the Voxel 3D Texture UAVs
+    m_SDFGIVoxelTextures = s_TextureHeap.Alloc(2); 
+
+    {
+        uint32_t DestCount = 2;
+        uint32_t SourceCounts[] = { 1, 1 };
+
+        D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+        {
+            m_VoxelAlbedo.GetUAV(),
+            m_VoxelVoronoiInput.GetUAV() 
+        };
+
+        g_Device->CopyDescriptors(1, &m_SDFGIVoxelTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    }
 
     g_SSAOFullScreenID = g_SSAOFullScreen.GetVersionID();
     g_ShadowBufferID = g_ShadowBuffer.GetVersionID();
@@ -932,7 +968,7 @@ void MeshSorter::RenderMeshes(
 #define RENDER_VOXELS_WITH_DEPTH 0
 
 void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, 
-    SDFGIGlobalConstants& SDFGIglobals, SDFGIVoxelTextures& voxelTexture)
+    SDFGIGlobalConstants& SDFGIglobals)
 {
     Renderer::UpdateGlobalDescriptors();
 
@@ -940,13 +976,16 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
     context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     // This doesn't work!
-    context.SetDynamicDescriptor(kSDFGIVoxelUAVs, 0, voxelTexture.VoxelAlbedo.GetUAV());
+    // context.SetDynamicDescriptor(kSDFGIVoxelUAVs, 0, voxelTexture.VoxelAlbedo.GetUAV());
 
     context.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, s_TextureHeap.GetHeapPointer());
     context.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, s_SamplerHeap.GetHeapPointer());
 
     // Set common textures
     context.SetDescriptorTable(kCommonSRVs, m_CommonTextures);
+
+    // SDFGI: Set Voxel UAVS 
+    context.SetDescriptorTable(kSDFGIVoxelUAVs, m_SDFGIVoxelTextures); 
 
     // Set common shader constants
     globals.ViewProjMatrix = m_Camera->GetViewProjMatrix();
