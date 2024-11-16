@@ -38,7 +38,7 @@
 #include "imgui_impl_dx12.h"
 #include "SDFGI.h"
 
-//#define LEGACY_RENDERER
+// #define LEGACY_RENDERER
 
 using namespace GameCore;
 using namespace Math;
@@ -449,20 +449,21 @@ void ModelViewer::RenderScene( void )
 
     ParticleEffectManager::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
 
+    mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
+
     if (m_ModelInst.IsNull())
     {
 #ifdef LEGACY_RENDERER
-        mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
 
         Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor);
-
-        mp_SDFGIManager->Render(gfxContext, m_Camera);
 #endif
     }
     else
     {
         NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor);
     }
+
+    mp_SDFGIManager->Render(gfxContext, m_Camera);
 
 #if MAIN_SUN_SHADOW_BUFFER_VIS == 1  //all main macros in pch.h
     Renderer::DrawShadowBuffer(gfxContext, viewport, scissor);
