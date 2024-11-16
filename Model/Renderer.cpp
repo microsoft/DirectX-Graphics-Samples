@@ -98,7 +98,15 @@ void Renderer::Initialize(void)
     m_RootSig[kCommonSRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 10, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig[kCommonCBV].InitAsConstantBuffer(1);
     m_RootSig[kSkinMatrices].InitAsBufferSRV(20, D3D12_SHADER_VISIBILITY_VERTEX);
-    m_RootSig[kSDFGISRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 21, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+    D3D12_DESCRIPTOR_RANGE srvRange;
+    srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    srvRange.NumDescriptors = 1;
+    srvRange.BaseShaderRegister = 21;
+    srvRange.RegisterSpace = 0;
+    srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    m_RootSig[kSDFGISRVs].InitAsDescriptorTable(1, D3D12_SHADER_VISIBILITY_PIXEL);
+    m_RootSig[kSDFGISRVs].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 21, 1);
+    m_RootSig[kSDFGICBV].InitAsConstantBuffer(2, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig.Finalize(L"RootSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();

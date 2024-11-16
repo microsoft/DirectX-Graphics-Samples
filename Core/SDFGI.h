@@ -81,6 +81,8 @@ namespace SDFGI
     ColorBuffer irradianceAtlas;
     ColorBuffer &getIrradianceAtlas() { return irradianceAtlas; }
     D3D12_GPU_DESCRIPTOR_HANDLE GetIrradianceAtlasGpuSRV() const;
+    DescriptorHandle irradianceAtlasSRVHandle;
+    DescriptorHandle &GetIrradianceAtlasDescriptorHandle() { return irradianceAtlasSRVHandle; }
 
     ColorBuffer depthAtlas;
 

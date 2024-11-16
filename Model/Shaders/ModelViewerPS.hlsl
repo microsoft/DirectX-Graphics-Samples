@@ -35,6 +35,11 @@ struct VSOutput
 	sample float3 bitangent : Bitangent;
 };
 
+cbuffer SDFGIConstants : register(b2) {
+    bool UseAtlas;
+    uint Padding[3];
+};
+
 struct MRT
 {
 	float3 Color : SV_Target0;
@@ -81,7 +86,9 @@ MRT main(VSOutput vsOutput)
 		);
 
 	mrt.Normal = normal;
-	mrt.Color = colorSum;
-	mrt.Color = IrradianceAtlas.SampleLevel(defaultSampler, float3(0.125, 0.125, 4), 0).rgb;
+	if (UseAtlas)
+		mrt.Color = IrradianceAtlas.SampleLevel(defaultSampler, float3(0.75, 0.23, 5), 0).rgb;
+	else
+		mrt.Color = colorSum;
 	return mrt;
 }
