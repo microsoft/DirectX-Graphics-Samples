@@ -306,8 +306,8 @@ float4 main(VSOutput vsOutput) : SV_Target0
 
 #if SDFGI_VOXEL_PASS
     SDFGIVoxelAlbedo[uint3(20, 20, 20)] = float4(0., 1., 0., 1.);
-    float3 pos = float3(vsOutput.position.xyz); 
-    colorAccum = float3(frac(pos.x), frac(pos.x), frac(pos.x));
+    //float3 pos = float3(vsOutput.position.xyz); 
+    //colorAccum = float3(frac(pos.x), frac(pos.x), frac(pos.x));
 #endif 
 
     return float4(colorAccum, baseColor.a);

@@ -276,7 +276,7 @@ void Renderer::Initialize(void)
     // SDFGI: Create Voxel UAV Textures
     constexpr size_t size = 128 * 128 * 128; 
     uint32_t* init = new uint32_t[size];
-    std::fill(init, init + size, 0xFFFFFFFF); 
+    std::fill(init, init + size, 0x0); 
     m_VoxelAlbedo.Create3D(
         4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
     );
@@ -975,17 +975,13 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
     context.SetRootSignature(m_RootSig);
     context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    // This doesn't work!
-    // context.SetDynamicDescriptor(kSDFGIVoxelUAVs, 0, voxelTexture.VoxelAlbedo.GetUAV());
-
     context.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, s_TextureHeap.GetHeapPointer());
     context.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, s_SamplerHeap.GetHeapPointer());
 
     // Set common textures
     context.SetDescriptorTable(kCommonSRVs, m_CommonTextures);
-
     // SDFGI: Set Voxel UAVS 
-    context.SetDescriptorTable(kSDFGIVoxelUAVs, m_SDFGIVoxelTextures); 
+    context.SetDescriptorTable(kSDFGIVoxelUAVs, m_SDFGIVoxelTextures);
 
     // Set common shader constants
     globals.ViewProjMatrix = m_Camera->GetViewProjMatrix();
