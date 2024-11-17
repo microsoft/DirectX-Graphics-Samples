@@ -106,6 +106,7 @@ void Renderer::Initialize(void)
     srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
     m_RootSig[kSDFGISRVs].InitAsDescriptorTable(1, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig[kSDFGISRVs].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 21, 1);
+    // m_RootSig[kSDFGISRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 21, 1, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig[kSDFGICBV].InitAsConstantBuffer(2, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig.Finalize(L"RootSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 

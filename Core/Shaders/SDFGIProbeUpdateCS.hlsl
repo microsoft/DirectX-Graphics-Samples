@@ -1,19 +1,19 @@
 static const float PI = 3.14159265f;
 
 cbuffer ProbeData : register(b0) {
-    float4x4 RandomRotation;         // 64 bytes
+    float4x4 RandomRotation;         
 
-    float3 GridSize;                 // 12 bytes
-    uint ProbeCount;                 // 4 bytes
+    float3 GridSize;                 
+    uint ProbeCount;                 
 
-    float3 ProbeSpacing;             // 12 bytes
-    float ProbeMaxDistance;          // 4 bytes
+    float3 ProbeSpacing;             
+    float ProbeMaxDistance;          
 
-    float3 SceneMinBounds;           // 12 bytes
-    uint ProbeAtlasBlockResolution;  // 4 bytes
+    float3 SceneMinBounds;           
+    uint ProbeAtlasBlockResolution;  
 
-    uint GutterSize;                 // 4 bytes
-    uint Padding[3];                 // 12 bytes of padding
+    uint GutterSize;                 
+    uint Padding[3];                 
 };
 
 StructuredBuffer<float4> ProbePositions : register(t0);
@@ -90,12 +90,12 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
     // At each of the m active probes, we uniformly sample n spherical directions according to a stochastically-rotated Fibonacci spiral pattern.
     // . For a in-depth discussion of irradiance and computing irradiance using light probes, we refer readers to [Akenine-Moller et al. 2018 ¨ ] (pg.268,490).
-    float3 sampleDirections[16] = {
-        normalize(float3(1,  1,  0)), normalize(float3(-1,  1,  0)), normalize(float3(1, -1,  0)), normalize(float3(-1, -1,  0)),
-        normalize(float3(1,  0,  1)), normalize(float3(-1,  0,  1)), normalize(float3(1,  0, -1)), normalize(float3(-1,  0, -1)),
-        normalize(float3(0,  1,  1)), normalize(float3(0, -1,  1)), normalize(float3(0,  1, -1)), normalize(float3(0, -1, -1)),
-        float3(1, 0, 0), float3(-1, 0, 0), float3(0, 1, 0), float3(0, 0, 1)
-    };
+    // float3 sampleDirections[16] = {
+    //     normalize(float3(1,  1,  0)), normalize(float3(-1,  1,  0)), normalize(float3(1, -1,  0)), normalize(float3(-1, -1,  0)),
+    //     normalize(float3(1,  0,  1)), normalize(float3(-1,  0,  1)), normalize(float3(1,  0, -1)), normalize(float3(-1,  0, -1)),
+    //     normalize(float3(0,  1,  1)), normalize(float3(0, -1,  1)), normalize(float3(0,  1, -1)), normalize(float3(0, -1, -1)),
+    //     float3(1, 0, 0), float3(-1, 0, 0), float3(0, 1, 0), float3(0, 0, 1)
+    // };
 
     const uint sample_count = 64;
 
@@ -115,9 +115,9 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
         // TODO: sample SDF for color and depth in direction 'dir'.
 
         // float4 irradianceSample = ProbeFaceTextures[faceIndex].SampleLevel(LinearSampler, encodedCoord, 0);
-        float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(encodedCoord.xy, textureIndex), 0);
+        float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(encodedCoord.xy * 0.5 + 0.5, textureIndex), 0);
         
         IrradianceAtlas[probeTexCoord] = irradianceSample;
-        DepthAtlas[probeTexCoord] = length(probePosition - (probePosition + sampleDirections[i] * ProbeMaxDistance)) / ProbeMaxDistance;
+        // DepthAtlas[probeTexCoord] = length(probePosition - (probePosition + sampleDirections[i] * ProbeMaxDistance)) / ProbeMaxDistance;
     }
 }

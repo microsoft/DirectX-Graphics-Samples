@@ -295,7 +295,7 @@ namespace SDFGI {
         } probeData;
 
         float rotation_scaler = 3.14159f / 7.0f;
-        XMMATRIX randomRotation = GenerateRandomRotationMatrix(rotation_scaler);
+        randomRotation = GenerateRandomRotationMatrix(rotation_scaler);
         XMStoreFloat4x4(&probeData.RandomRotation, randomRotation);
 
         probeData.ProbeCount = probeGrid.probes.size();
@@ -521,6 +521,17 @@ namespace SDFGI {
 
     SDFGIResources SDFGIManager::GetResources() {
         return { irradianceAtlas.GetSRV() };
+    }
+
+    SDFGIProbeData SDFGIManager::GetProbeData() {
+      return {
+        randomRotation,
+        Vector3(probeGrid.probeCount[0], probeGrid.probeCount[1], probeGrid.probeCount[2]),
+        Vector3(probeGrid.probeSpacing[0], probeGrid.probeSpacing[1], probeGrid.probeSpacing[2]),
+        probeAtlasBlockResolution,
+        sceneBounds.GetMin(),
+        gutterSize
+      };
     }
 
     void SDFGIManager::Update(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor) {

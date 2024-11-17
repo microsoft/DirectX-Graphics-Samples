@@ -392,10 +392,27 @@ void Sponza::RenderScene(
 
                 if (sdfgiManager != nullptr) {
                     gfxContext.SetDescriptorTable(Renderer::kSDFGISRVs, sdfgiManager->GetIrradianceAtlasDescriptorHandle());
+                    SDFGI::SDFGIProbeData sdfgiProbeData = sdfgiManager->GetProbeData();
                     __declspec(align(16)) struct SDFGIConstants {
+                        XMFLOAT4X4 RandomRotation;
+
+                        Vector3 GridSize;
                         bool useAtlas;
-                        float Pad[3];
-                    } sdfgiConstants = { useAtlas, 0.0f };
+
+                        Vector3 ProbeSpacing;
+                        unsigned int ProbeAtlasBlockResolution;
+
+                        Vector3 SceneMinBounds;
+                        unsigned int GutterSize;
+                        
+                    } sdfgiConstants;
+                    XMStoreFloat4x4(&sdfgiConstants.RandomRotation, sdfgiProbeData.RandomRotation);
+                    sdfgiConstants.GridSize = sdfgiProbeData.GridSize;
+                    sdfgiConstants.useAtlas = useAtlas;
+                    sdfgiConstants.ProbeSpacing = sdfgiProbeData.ProbeSpacing;
+                    sdfgiConstants.ProbeAtlasBlockResolution = sdfgiProbeData.ProbeAtlasBlockResolution;
+                    sdfgiConstants.SceneMinBounds = sdfgiProbeData.SceneMinBounds;
+                    sdfgiConstants.GutterSize = sdfgiProbeData.GutterSize;
                     gfxContext.SetDynamicConstantBufferView(Renderer::kSDFGICBV, sizeof(sdfgiConstants), &sdfgiConstants);
                 }
 

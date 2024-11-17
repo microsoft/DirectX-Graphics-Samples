@@ -28,6 +28,18 @@ namespace SDFGI
     Vector3 position;
   };
 
+  struct SDFGIProbeData {
+      XMMATRIX RandomRotation;
+      
+      Vector3 GridSize;
+
+      Vector3 ProbeSpacing;
+      unsigned int ProbeAtlasBlockResolution;
+
+      Vector3 SceneMinBounds;
+      unsigned int GutterSize;
+  };
+
   struct SDFGIProbeGrid {
     // Number of probes along each axis (x, y, z). This is computed from probeSpacing.
     Vector3u probeCount;
@@ -83,6 +95,7 @@ namespace SDFGI
     D3D12_GPU_DESCRIPTOR_HANDLE GetIrradianceAtlasGpuSRV() const;
     DescriptorHandle irradianceAtlasSRVHandle;
     DescriptorHandle &GetIrradianceAtlasDescriptorHandle() { return irradianceAtlasSRVHandle; }
+    XMMATRIX randomRotation;
 
     ColorBuffer depthAtlas;
 
@@ -144,6 +157,8 @@ namespace SDFGI
     void RenderCubemapViz(GraphicsContext& context, const Math::Camera& camera);
 
     SDFGIResources GetResources();
+
+    SDFGIProbeData GetProbeData();
 
     // Entry point for updating probes.
     void SDFGIManager::Update(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
