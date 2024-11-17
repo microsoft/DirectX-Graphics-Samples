@@ -356,12 +356,8 @@ void ModelViewer::RenderScene( void )
         Math::BaseCamera voxelCam = m_Camera; 
 #else
         VoxelCamera voxelCam; 
-        voxelCam.UpdateMatrix(); 
 #endif
-
-        globals.ViewProjMatrix = voxelCam.GetViewProjMatrix();
         globals.SunShadowMatrix = m_SunShadowCamera.GetShadowMatrix();
-        globals.CameraPos = voxelCam.GetPosition();
         globals.SunDirection = SunDirection;
         globals.SunIntensity = Vector3(Scalar(g_SunLightIntensity));
 
@@ -389,46 +385,57 @@ void ModelViewer::RenderScene( void )
         }
 
         // gfxContext.TransitionResource(voxelTextures.VoxelAlbedo, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        for (int i = 0; i < 3; i++)
+        {
+            {
+                voxelCam.UpdateMatrix(i);
+                globals.ViewProjMatrix = voxelCam.GetViewProjMatrix();
+                globals.CameraPos = voxelCam.GetPosition();
+            }
 
-        MeshSorter sorter(MeshSorter::kDefault);
-        sorter.SetCamera(voxelCam);
-        sorter.SetViewport(voxelViewport);
-        sorter.SetScissor(voxelScissor);
-        sorter.SetDepthStencilTarget(g_SceneDepthBuffer);
-        sorter.AddRenderTarget(g_SceneColorBuffer);
 
-        // Begin rendering depth
-        gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
-        gfxContext.ClearDepth(g_SceneDepthBuffer);
 
-        m_ModelInst.Render(sorter);
+            MeshSorter sorter(MeshSorter::kDefault);
+            sorter.SetCamera(voxelCam);
+            sorter.SetViewport(voxelViewport);
+            sorter.SetScissor(voxelScissor);
+            sorter.SetDepthStencilTarget(g_SceneDepthBuffer);
+            sorter.AddRenderTarget(g_SceneColorBuffer);
+
+            // Begin rendering depth
+            gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+            gfxContext.ClearDepth(g_SceneDepthBuffer);
+
+            m_ModelInst.Render(sorter);
+
+            sorter.Sort();
+
+            MeshSorter sorterInstance = sorter;
+
+            {
+                ScopedTimer _prof(L"Depth Pre-Pass", gfxContext);
+                sorter.RenderMeshes(MeshSorter::kZPass, gfxContext, globals);
+            }
+
+            SSAO::Render(gfxContext, m_Camera);
+
+            gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+            gfxContext.ClearColor(g_SceneColorBuffer);
+
+            // TODO: We should be rendering with the shadow pass... 
+
+            {
+                ScopedTimer _prof(L"Render Voxel", gfxContext);
+
+                gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+                gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV());
+                gfxContext.SetViewportAndScissor(viewport, scissor);
+
+                sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals, SDFGIglobals);
+            }
+        }
         
-        sorter.Sort();
-
-        MeshSorter sorterInstance = sorter;
-
-        {
-            ScopedTimer _prof(L"Depth Pre-Pass", gfxContext);
-            sorter.RenderMeshes(MeshSorter::kZPass, gfxContext, globals);
-        }
-
-        SSAO::Render(gfxContext, m_Camera);
-
-        gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-        gfxContext.ClearColor(g_SceneColorBuffer);
-
-        // TODO: We should be rendering with the shadow pass... 
-
-        {
-            ScopedTimer _prof(L"Render Voxel", gfxContext);
-
-            gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-            gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
-            gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV());
-            gfxContext.SetViewportAndScissor(viewport, scissor);
-
-            sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals, SDFGIglobals);
-        }
     }
 
     // Todo: Add code for 3D JFA:

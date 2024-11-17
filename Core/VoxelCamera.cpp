@@ -4,16 +4,42 @@
 using namespace Math;
 
 // TODO: probably need params here that change the bounds
-void VoxelCamera::UpdateMatrix()
+void VoxelCamera::UpdateMatrix(int i)
 {
 	constexpr float DUMMY = 2000;
+	float right, left, top, bottom, _near, _far = 0;
 
-	float right = DUMMY;
-	float left = -DUMMY;
-	float top = DUMMY;
-	float bottom = -DUMMY;
-	float _near = -DUMMY;
-	float _far = DUMMY;
+	if (i == 0) {
+			SetEyeAtUp(Vector3(3000, 0, 0), Vector3(0, 0, 0), Vector3(0, 1, 0));
+			//Left->Right
+			right = DUMMY;
+			left = -DUMMY;
+			top = DUMMY;
+			bottom = -DUMMY;
+			_near = -DUMMY;
+			_far = DUMMY;
+	}
+	else if (i == 1) {
+			SetEyeAtUp(Vector3(0, 3000, 0), Vector3(0, 0, 0), Vector3(0, 0, -1));
+			//Top->Down
+			right = DUMMY;
+			left = -DUMMY;
+			top = DUMMY;
+			bottom = -DUMMY;
+			_near = DUMMY;
+			_far = -DUMMY;
+	}
+	else {
+			//Front->Back
+			SetEyeAtUp(Vector3(0, 0, 3000), Vector3(0, 0, 0), Vector3(0, 1, 0));
+			right = DUMMY;
+			left = -DUMMY;
+			top = DUMMY;
+			bottom = -DUMMY;
+			_near = -DUMMY;
+			_far = DUMMY;
+	}
+
 
 	float rml = right - left;
 	float rpl = right + left;
@@ -23,7 +49,7 @@ void VoxelCamera::UpdateMatrix()
 	float fpn = _far + _near;
 
 	// looking in a positive x direction for now
-	SetEyeAtUp(Vector3(3000, 0, 0), Vector3(0, 0, 0), Vector3(0, 1, 0));
+	
 
 	// create an orthographic matrix
 	// https://wikimedia.org/api/rest_v1/media/math/render/svg/8ea4e438d7439b8fa504fb53fd7fafd678007243

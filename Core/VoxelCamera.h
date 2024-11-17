@@ -8,5 +8,5 @@ public:
 
 	VoxelCamera() {}
 
-	void UpdateMatrix();
+	void UpdateMatrix(int i);
 };
