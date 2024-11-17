@@ -73,3 +73,9 @@ __declspec(align(256)) struct SDFGIGlobalConstants
     float viewWidth; 
     float viewHeight; 
 };
+
+__declspec(align(256)) struct JFAGlobalConstants
+{
+    Math::Vector3 gridResolution;
+    unsigned int stepSize;
+};

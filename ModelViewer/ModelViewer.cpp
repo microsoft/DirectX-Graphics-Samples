@@ -40,6 +40,8 @@
 
 //#define LEGACY_RENDERER
 
+
+
 using namespace GameCore;
 using namespace Math;
 using namespace Graphics;
@@ -83,6 +85,8 @@ private:
 
     ModelInstance m_ModelInst;
     ShadowCamera m_SunShadowCamera;
+
+
 };
 
 CREATE_APPLICATION( ModelViewer )
@@ -212,6 +216,8 @@ void ModelViewer::Startup( void )
 #if UI_ENABLE
     InitializeGUI();
 #endif
+
+    
 }
 
 void ModelViewer::InitializeGUI() {
@@ -396,7 +402,10 @@ void ModelViewer::RenderScene( void )
         gfxContext.ClearDepth(g_SceneDepthBuffer);
 
         m_ModelInst.Render(sorter);
+        
         sorter.Sort();
+
+        MeshSorter sorterInstance = sorter;
 
         {
             ScopedTimer _prof(L"Depth Pre-Pass", gfxContext);
@@ -419,6 +428,20 @@ void ModelViewer::RenderScene( void )
             gfxContext.SetViewportAndScissor(viewport, scissor);
 
             sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals, SDFGIglobals);
+        }
+    }
+
+    // Todo: Add code for 3D JFA:
+    // 1. Root Signature
+    // 2. PSO
+    // 3. Dispatch Call(s)
+    {
+        ComputeContext& context = gfxContext.GetComputeContext();
+
+        {
+            ScopedTimer _prof(L"Run 3D JFA to generate the SDF", context);
+
+            Renderer::ComputeSDF(context);
         }
     }
 #else 
