@@ -195,14 +195,6 @@
     <ClCompile Include="VoxelCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="JFA3DCS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.2</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">6.2</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.2</ShaderModel>
-    </FxCompile>
     <FxCompile Include="Shaders\AdaptExposureCS.hlsl" />
     <FxCompile Include="Shaders\AoBlurUpsampleBlendOutCS.hlsl" />
     <FxCompile Include="Shaders\AoBlurUpsampleCS.hlsl" />

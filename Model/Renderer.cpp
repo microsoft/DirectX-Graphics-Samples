@@ -47,7 +47,7 @@
 #include "../Model/CompiledShaders/VisShadowBufferPS.h"
 
 // JFA
-#include "../Core/CompiledShaders/JFA3DCS.h"
+#include "../Model/CompiledShaders/JFA3DCS.h"
 
 #include <algorithm>
 
@@ -81,14 +81,13 @@ namespace Renderer
 
     DescriptorHandle m_CommonTextures;
 
+    // SDFGI: Voxel
     std::vector<GraphicsPSO> sm_VoxelPSOs;
     DescriptorHandle m_SDFGIVoxelTextures; 
     Texture m_VoxelAlbedo;
     Texture m_VoxelVoronoiInput;
 
-
-
-    // 3DJFA
+    // SDFGI: 3D JFA
     RootSignature m_JFA3DRS;
     ComputePSO m_JFA3DPSO;
 
@@ -123,9 +122,11 @@ void Renderer::Initialize(void)
     m_RootSig[kCommonSRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 10, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig[kCommonCBV].InitAsConstantBuffer(1);
     m_RootSig[kSkinMatrices].InitAsBufferSRV(20, D3D12_SHADER_VISIBILITY_VERTEX);
+
+    // For Voxel PSO's
     m_RootSig[kSDFGICommonCBV].InitAsConstantBuffer(2, D3D12_SHADER_VISIBILITY_ALL);
-    // m_RootSig[kSDFGIVoxelUAVs].InitAsBufferUAV(0, D3D12_SHADER_VISIBILITY_PIXEL); 
     m_RootSig[kSDFGIVoxelUAVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
+
     m_RootSig.Finalize(L"RootSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
@@ -220,12 +221,6 @@ void Renderer::Initialize(void)
 
     ASSERT(sm_PSOs.size() == 8);
 
-    // This is stupid, but we only do this so that sm_VoxelPSOs is the same size as sm_PSOs, 
-    // because we want to index both of these arrays the same way. 
-    for (int i = 0; i < 8; ++i) {
-        sm_VoxelPSOs.push_back(m_DefaultVoxelPSO); 
-    }
-
     // Default PSO
 
     m_DefaultPSO.SetRootSignature(m_RootSig);
@@ -237,18 +232,6 @@ void Renderer::Initialize(void)
     m_DefaultPSO.SetRenderTargetFormats(1, &ColorFormat, DepthFormat);
     m_DefaultPSO.SetVertexShader(g_pDefaultVS, sizeof(g_pDefaultVS));
     m_DefaultPSO.SetPixelShader(g_pDefaultPS, sizeof(g_pDefaultPS));
-
-    // SDFGI Voxel PSO
-
-    // Render without depth or any culling
-
-    m_DefaultVoxelPSO = m_DefaultPSO; 
-    D3D12_RASTERIZER_DESC rasterizerDesc = Graphics::RasterizerDefault;
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
-    m_DefaultVoxelPSO.SetRasterizerState(rasterizerDesc); 
-    m_DefaultVoxelPSO.SetBlendState(BlendDisable); 
-    m_DefaultVoxelPSO.SetDepthStencilState(DepthStateDisabled); 
-    m_DefaultVoxelPSO.SetRenderTargetFormats(1, &ColorFormat, DXGI_FORMAT_UNKNOWN);
 
     // Skybox PSO
 
@@ -290,10 +273,40 @@ void Renderer::Initialize(void)
         g_Device->CopyDescriptors(1, &m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 
+    g_SSAOFullScreenID = g_SSAOFullScreen.GetVersionID();
+    g_ShadowBufferID = g_ShadowBuffer.GetVersionID();
+
+    // SDFGI Initialization
+    InitializeVoxel(); 
+    InitializeJFA();
+
+    s_Initialized = true;
+}
+
+
+void Renderer::InitializeVoxel(void)
+{
+    // This is stupid, but we only do this so that sm_VoxelPSOs is the same size as sm_PSOs, 
+    // because we want to index both of these arrays the same way. 
+    for (int i = 0; i < 8; ++i) {
+        sm_VoxelPSOs.push_back(m_DefaultVoxelPSO);
+    }
+
+    // SDFGI Voxel PSO, default PSO but we remove depth culling
+    m_DefaultVoxelPSO = m_DefaultPSO;
+
+    D3D12_RASTERIZER_DESC rasterizerDesc = Graphics::RasterizerDefault;
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+    m_DefaultVoxelPSO.SetRasterizerState(rasterizerDesc);
+
+    m_DefaultVoxelPSO.SetBlendState(BlendDisable);
+    m_DefaultVoxelPSO.SetDepthStencilState(DepthStateDisabled);
+    m_DefaultVoxelPSO.SetRenderTargetFormats(1, &g_SceneColorBuffer.GetFormat(), DXGI_FORMAT_UNKNOWN);
+
     // SDFGI: Create Voxel UAV Textures
-    constexpr size_t size = 128 * 128 * 128; 
+    constexpr size_t size = 128 * 128 * 128;
     uint32_t* init = new uint32_t[size];
-    std::fill(init, init + size, 0x0); 
+    std::fill(init, init + size, 0x0);
     m_VoxelAlbedo.Create3D(
         4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
     );
@@ -303,7 +316,7 @@ void Renderer::Initialize(void)
     delete[] init;
 
     // SDFGI: Allocate a descriptor table for the Voxel 3D Texture UAVs
-    m_SDFGIVoxelTextures = s_TextureHeap.Alloc(2); 
+    m_SDFGIVoxelTextures = s_TextureHeap.Alloc(2);
 
     {
         uint32_t DestCount = 2;
@@ -312,18 +325,11 @@ void Renderer::Initialize(void)
         D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
         {
             m_VoxelAlbedo.GetUAV(),
-            m_VoxelVoronoiInput.GetUAV() 
+            m_VoxelVoronoiInput.GetUAV()
         };
 
         g_Device->CopyDescriptors(1, &m_SDFGIVoxelTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
-
-    g_SSAOFullScreenID = g_SSAOFullScreen.GetVersionID();
-    g_ShadowBufferID = g_ShadowBuffer.GetVersionID();
-
-    InitializeJFA();
-
-    s_Initialized = true;
 }
 
 void Renderer::InitializeJFA(void)
@@ -358,7 +364,7 @@ void Renderer::InitializeJFA(void)
                 4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
             );
             m_IntermediateSDFOutput.Create3D(
-                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
             );
             delete[] init;
         }

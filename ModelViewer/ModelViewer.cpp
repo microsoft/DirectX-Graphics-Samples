@@ -42,8 +42,6 @@
 
 //#define LEGACY_RENDERER
 
-
-
 using namespace GameCore;
 using namespace Math;
 using namespace Graphics;
@@ -448,17 +446,15 @@ void ModelViewer::RenderScene( void )
     // 1. Root Signature
     // 2. PSO
     // 3. Dispatch Call(s)
-#if 1 
     {
         ComputeContext& context = gfxContext.GetComputeContext();
 
         {
-            ScopedTimer _prof(L"Run 3D JFA to generate the SDF", context);
+            ScopedTimer _prof(L"SDF Generation", context);
 
             Renderer::ComputeSDF(context);
         }
     }
-#endif
 #else 
         globals.ViewProjMatrix = m_Camera.GetViewProjMatrix();
         globals.SunShadowMatrix = m_SunShadowCamera.GetShadowMatrix();

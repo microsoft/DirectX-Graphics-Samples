@@ -78,6 +78,7 @@ namespace Renderer
     void Initialize(void);
     void Shutdown(void);
 
+    void InitializeVoxel(void); 
     void InitializeJFA(void);
     void CreateVoxelPSO(uint16_t psoFlags);
     uint8_t GetPSO(uint16_t psoFlags);
