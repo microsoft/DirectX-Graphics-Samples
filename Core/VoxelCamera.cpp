@@ -8,8 +8,7 @@ using namespace Math;
 // TODO: probably need params here that change the bounds
 void VoxelCamera::UpdateMatrix(int i)
 {
-	constexpr float DUMMY = 2000;
-	float right, left, top, bottom, _near, _far = 0;
+	constexpr float DUMMY = 4000;
 
 	if (i == 0) {
 			SetEyeAtUp(Vector3(0, 0, 0), Vector3(-1, 0, 0), Vector3(0, 1, 0));
@@ -23,7 +22,7 @@ void VoxelCamera::UpdateMatrix(int i)
 			SetEyeAtUp(Vector3(0, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0));
 	}
 
-	Matrix4 ortho(XMMatrixOrthographicRH(4000, 4000, -2000, 2000));
+	Matrix4 ortho(XMMatrixOrthographicRH(DUMMY, DUMMY, -(DUMMY / 2), DUMMY / 2));
 
 	SetProjMatrix(ortho);
 	Update();

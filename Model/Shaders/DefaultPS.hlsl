@@ -335,9 +335,12 @@ float4 main(VSOutput vsOutput) : SV_Target0
     // TODO: Shade each light using Forward+ tiles
 
 #if SDFGI_VOXEL_PASS
+    // TODO: These are hardcoded values. It's assumed that the viewport size is 
+    //       512 * 512, and that the 3D texture is 128 * 128 * 128. We could 
+    //       make these CBV's if we want. 
     float screenResolution = 512.0;
     float textureResolution = 128.0;
-    float2 uv = vsOutput.position.xy / screenResolution;
+    float2 uv = vsOutput.position.xy / screenResolution;  // normalized UV coords
 
     uint3 voxelCoords = GetVoxelCoords(vsOutput.position.xyz, uv, textureResolution, axis);
 
@@ -347,6 +350,7 @@ float4 main(VSOutput vsOutput) : SV_Target0
     }
 
     SDFGIVoxelAlbedo[voxelCoords] = float4(baseColor.xyz, 1.0);
+    SDFGIVoxelVoronoi[voxelCoords] = float4(voxelCoords / textureResolution, 1.0);
 
     // SDFGIVoxelAlbedo[uint3(20, 20, 20)] = float4(0., 1., 0., 1.);
     // SDFGIVoxelVoronoi[uint3(25, 25, 25)] = float4(1., 0., 0., 1.); 
