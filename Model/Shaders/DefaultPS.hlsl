@@ -58,11 +58,41 @@ cbuffer GlobalConstants : register(b1)
 cbuffer SDFGIConstants : register(b2)
 {
     float viewWidth; 
-    float viewHeight; 
+    float viewHeight;
+    int axis;
 }
 
 RWTexture3D<float4> SDFGIVoxelAlbedo : register(u0);
 RWTexture3D<float4> SDFGIVoxelVoronoi : register(u1);
+
+uint3 GetVoxelCoords(float3 position, float2 uv, float textureResolution, int axis)
+{
+    uint x, y, z;
+
+    switch (axis) {
+    case 0: // X-axis pass
+        x = saturate(position.z) * textureResolution;
+        y = uv.y * textureResolution;
+        z = uv.x * textureResolution;
+        break;
+    case 1: // Y-axis pass
+        x = uv.x * textureResolution;
+        y = saturate(position.z) * textureResolution;
+        z = uv.y * textureResolution;
+        break;
+    case 2: // Z-axis pass
+        x = uv.x * textureResolution;
+        y = uv.y * textureResolution;
+        z = saturate(position.z) * textureResolution;
+        break;
+    default:
+        return uint3(0, 0, 0); // Invalid axis
+    }
+
+    return uint3(clamp(x, 0, textureResolution - 1),
+        clamp(y, 0, textureResolution - 1),
+        clamp(z, 0, textureResolution - 1));
+}
 #endif
 
 struct VSOutput
@@ -305,10 +335,27 @@ float4 main(VSOutput vsOutput) : SV_Target0
     // TODO: Shade each light using Forward+ tiles
 
 #if SDFGI_VOXEL_PASS
-    SDFGIVoxelAlbedo[uint3(20, 20, 20)] = float4(0., 1., 0., 1.);
+    float screenResolution = 512.0;
+    float textureResolution = 128.0;
+    float2 uv = vsOutput.position.xy / screenResolution;
+
+    uint3 voxelCoords = GetVoxelCoords(vsOutput.position.xyz, uv, textureResolution, axis);
+
+    if (voxelCoords.x == 0 && voxelCoords.y == 0 && voxelCoords.z == 0)
+    {
+        return baseColor; // Early exit or skip further processing
+    }
+
+    SDFGIVoxelAlbedo[voxelCoords] = float4(baseColor.xyz, 1.0);
+
+    // SDFGIVoxelAlbedo[uint3(20, 20, 20)] = float4(0., 1., 0., 1.);
+    // SDFGIVoxelVoronoi[uint3(25, 25, 25)] = float4(1., 0., 0., 1.); 
     //float3 pos = float3(vsOutput.position.xyz); 
     //colorAccum = float3(frac(pos.x), frac(pos.x), frac(pos.x));
-#endif 
 
+    // we don't really care about the output. This is for debug purposes. 
+    return baseColor;
+#else 
     return float4(colorAccum, baseColor.a);
+#endif 
 }

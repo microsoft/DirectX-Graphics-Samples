@@ -38,6 +38,8 @@
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
 
+#include <string>
+
 //#define LEGACY_RENDERER
 
 
@@ -191,7 +193,9 @@ void ModelViewer::Startup( void )
 #ifdef LEGACY_RENDERER
         Sponza::Startup(m_Camera);
 #else
-        m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
+        // m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", true);
+        // m_ModelInst = Renderer::LoadModel(L"Models/BoxAndPlane/BoxAndPlane.gltf", true); 
+        m_ModelInst = Renderer::LoadModel(L"Models/CornellWithSonic/CornellWithSonic.gltf", true); 
         m_ModelInst.Resize(100.0f * m_ModelInst.GetRadius());
         OrientedBox obb = m_ModelInst.GetBoundingBox();
         float modelRadius = Length(obb.GetDimensions()) * 0.5f;
@@ -385,15 +389,16 @@ void ModelViewer::RenderScene( void )
         }
 
         // gfxContext.TransitionResource(voxelTextures.VoxelAlbedo, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 3; ++i)
         {
             {
+#if PERSP_CAMERA
+#else
                 voxelCam.UpdateMatrix(i);
+#endif
                 globals.ViewProjMatrix = voxelCam.GetViewProjMatrix();
                 globals.CameraPos = voxelCam.GetPosition();
             }
-
-
 
             MeshSorter sorter(MeshSorter::kDefault);
             sorter.SetCamera(voxelCam);
@@ -425,17 +430,18 @@ void ModelViewer::RenderScene( void )
             // TODO: We should be rendering with the shadow pass... 
 
             {
-                ScopedTimer _prof(L"Render Voxel", gfxContext);
+                ScopedTimer _prof(i == 0 ? L"Render Voxel X" : i == 1 ? L"Render Voxel Y" : L"Render Voxel Z", gfxContext);
 
                 gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
                 gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
                 gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV());
                 gfxContext.SetViewportAndScissor(viewport, scissor);
 
+                SDFGIglobals.axis = i; 
+
                 sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals, SDFGIglobals);
             }
         }
-        
     }
 
     // Todo: Add code for 3D JFA:
