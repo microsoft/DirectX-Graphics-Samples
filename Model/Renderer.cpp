@@ -406,9 +406,9 @@ void Renderer::InitializeJFA(void)
     }
     //JFA3D Initialization
 
-
-   
-    m_jfaGlobals.gridResolution = { 128, 128, 128 };
+    m_jfaGlobals.gridResolution[0] = 128.f;
+    m_jfaGlobals.gridResolution[1] = 128.f;
+    m_jfaGlobals.gridResolution[2] = 128.f;
 }
 
 void Renderer::UpdateGlobalDescriptors(void)
@@ -477,7 +477,7 @@ void Renderer::Shutdown(void)
     s_SamplerHeap.Destroy();
 }
 
-
+// TODO: Create duplicates of all hlsl shaders with the "Default" Prefix with the added `#define SDFGI_VOXEL_PASS 1` preprocessor
 void Renderer::CreateVoxelPSO(uint16_t psoFlags) {
     using namespace PSOFlags;
 
@@ -577,7 +577,7 @@ void Renderer::CreateVoxelPSO(uint16_t psoFlags) {
     }
     ColorPSO.Finalize();
 
-    // Look for an existing PSO
+  // Look for an existing PSO
   /*  for (uint32_t i = 0; i < sm_VoxelPSOs.size(); ++i)
     {
         if (ColorPSO.GetPipelineStateObject() == sm_VoxelPSOs[i].GetPipelineStateObject())
@@ -777,11 +777,11 @@ void Renderer::ComputeSDF(ComputeContext& context)
         context.TransitionResource(m_IntermediateSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
         bool swap = false;
-        for (int i = 64; i >= 1; i /= 2) {
+        for (uint32_t i = 64; i >= 1; i /= 2) {
             //0. Globals CBV
             {
                 m_jfaGlobals.stepSize = i;
-                context.SetDynamicConstantBufferView(kJFACBV, sizeof(m_jfaGlobals), &m_jfaGlobals);
+                context.SetDynamicConstantBufferView(kJFACBV, sizeof(JFAGlobalConstants), &m_jfaGlobals);
             }
             //1. Descriptor Table with UAVs!
             {
