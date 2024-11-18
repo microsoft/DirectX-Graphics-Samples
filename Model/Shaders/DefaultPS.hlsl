@@ -63,7 +63,7 @@ cbuffer SDFGIConstants : register(b2)
 }
 
 RWTexture3D<float4> SDFGIVoxelAlbedo : register(u0);
-RWTexture3D<float4> SDFGIVoxelVoronoi : register(u1);
+RWTexture3D<uint4> SDFGIVoxelVoronoi : register(u1);
 
 uint3 GetVoxelCoords(float3 position, float2 uv, float textureResolution, int axis)
 {
@@ -350,7 +350,7 @@ float4 main(VSOutput vsOutput) : SV_Target0
     }
 
     SDFGIVoxelAlbedo[voxelCoords] = float4(baseColor.xyz, 1.0);
-    SDFGIVoxelVoronoi[voxelCoords] = float4(voxelCoords / textureResolution, 1.0);
+    SDFGIVoxelVoronoi[voxelCoords] = uint4(voxelCoords, 255);
 
     // SDFGIVoxelAlbedo[uint3(20, 20, 20)] = float4(0., 1., 0., 1.);
     // SDFGIVoxelVoronoi[uint3(25, 25, 25)] = float4(1., 0., 0., 1.); 

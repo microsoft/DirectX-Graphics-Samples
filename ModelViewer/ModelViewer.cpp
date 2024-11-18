@@ -448,6 +448,7 @@ void ModelViewer::RenderScene( void )
     // 1. Root Signature
     // 2. PSO
     // 3. Dispatch Call(s)
+#if 1 
     {
         ComputeContext& context = gfxContext.GetComputeContext();
 
@@ -457,6 +458,7 @@ void ModelViewer::RenderScene( void )
             Renderer::ComputeSDF(context);
         }
     }
+#endif
 #else 
         globals.ViewProjMatrix = m_Camera.GetViewProjMatrix();
         globals.SunShadowMatrix = m_SunShadowCamera.GetShadowMatrix();
