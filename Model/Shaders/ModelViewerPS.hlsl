@@ -104,7 +104,8 @@ float3 ShadeFragmentWithProbes(
     float4 irradiance[8];
     for (int i = 0; i < 8; ++i) {
 		// float2 encodedDir = octEncode(normalize(mul(RandomRotation, float4(probeIndices[i] - localPos, 1.0)).xyz));
-		float2 encodedDir = octEncode(normalize(mul(RandomRotation, float4(-normal, 1.0)).xyz));
+		// float2 encodedDir = octEncode(normalize(mul(RandomRotation, float4(-normal, 1.0)).xyz));
+        float2 encodedDir = octEncode(-normal);
 		// float2 encodedDir = octEncode(normalize(float3(0.1, -0.7, -0.43)));
 		// float2 mappedDir = encodedDir * 0.5 + 0.5;
 		// return float3(mappedDir, 0);
