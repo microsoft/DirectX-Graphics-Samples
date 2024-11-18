@@ -71,12 +71,12 @@ uint3 GetVoxelCoords(float3 position, float2 uv, float textureResolution, int ax
 
     switch (axis) {
     case 0: // X-axis pass
-        x = saturate(position.z) * textureResolution;
+        x = (1. - saturate(position.z)) * textureResolution;
         y = uv.y * textureResolution;
         z = uv.x * textureResolution;
         break;
     case 1: // Y-axis pass
-        x = uv.x * textureResolution;
+        x = (1. - uv.x) * textureResolution;
         y = saturate(position.z) * textureResolution;
         z = uv.y * textureResolution;
         break;

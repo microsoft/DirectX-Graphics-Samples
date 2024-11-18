@@ -193,9 +193,9 @@ void ModelViewer::Startup( void )
 #ifdef LEGACY_RENDERER
         Sponza::Startup(m_Camera);
 #else
-        // m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", true);
+        m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", true);
         // m_ModelInst = Renderer::LoadModel(L"Models/BoxAndPlane/BoxAndPlane.gltf", true); 
-        m_ModelInst = Renderer::LoadModel(L"Models/CornellWithSonic/CornellWithSonic.gltf", true); 
+        // m_ModelInst = Renderer::LoadModel(L"Models/CornellWithSonic/CornellWithSonic.gltf", true); 
         m_ModelInst.Resize(100.0f * m_ModelInst.GetRadius());
         OrientedBox obb = m_ModelInst.GetBoundingBox();
         float modelRadius = Length(obb.GetDimensions()) * 0.5f;
