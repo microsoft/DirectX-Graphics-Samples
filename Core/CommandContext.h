@@ -200,6 +200,7 @@ public:
         return CommandContext::Begin(ID).GetGraphicsContext();
     }
 
+    void ClearUAV(Texture& Target);
     void ClearUAV( GpuBuffer& Target );
     void ClearUAV( ColorBuffer& Target );
     void ClearColor( ColorBuffer& Target, D3D12_RECT* Rect = nullptr);

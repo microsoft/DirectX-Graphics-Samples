@@ -51,6 +51,8 @@ namespace Renderer
     // SDFGI Voxel Textures
     extern Texture m_VoxelAlbedo;
     extern Texture m_VoxelVoronoiInput;
+    extern Texture m_FinalSDFOutput;
+    extern Texture m_IntermediateSDFOutput;
 
     enum RootBindings
     {
@@ -78,6 +80,7 @@ namespace Renderer
     void Initialize(void);
     void Shutdown(void);
 
+    void ClearSDFGITextures(GraphicsContext& gfxContext); 
     void InitializeVoxel(void); 
     void InitializeJFA(void);
     void CreateVoxelPSO(uint16_t psoFlags);

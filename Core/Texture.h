@@ -32,7 +32,7 @@ public:
 
     // Create a 1-level textures
     void Create2D(size_t RowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData );
-    void Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
+    void Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE, const std::wstring name = L"3D Texture");
     void CreateCube(size_t RowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData);
 
     void CreateTGAFromMemory( const void* memBuffer, size_t fileSize, bool sRGB );

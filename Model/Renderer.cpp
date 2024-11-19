@@ -284,6 +284,28 @@ void Renderer::Initialize(void)
 }
 
 
+void Renderer::ClearSDFGITextures(GraphicsContext& gfxContext)
+{
+    gfxContext.TransitionResource(m_VoxelAlbedo, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    gfxContext.TransitionResource(m_VoxelVoronoiInput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    gfxContext.TransitionResource(m_FinalSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    gfxContext.TransitionResource(m_IntermediateSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+    gfxContext.FlushResourceBarriers();
+
+    gfxContext.ClearUAV(m_VoxelAlbedo); 
+    gfxContext.ClearUAV(m_VoxelVoronoiInput);
+    gfxContext.ClearUAV(m_FinalSDFOutput); 
+    gfxContext.ClearUAV(m_IntermediateSDFOutput);
+
+    gfxContext.TransitionResource(m_VoxelAlbedo, D3D12_RESOURCE_STATE_GENERIC_READ);
+    gfxContext.TransitionResource(m_VoxelVoronoiInput, D3D12_RESOURCE_STATE_GENERIC_READ);
+    gfxContext.TransitionResource(m_FinalSDFOutput, D3D12_RESOURCE_STATE_GENERIC_READ);
+    gfxContext.TransitionResource(m_IntermediateSDFOutput, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+    gfxContext.FlushResourceBarriers();
+}
+
 void Renderer::InitializeVoxel(void)
 {
     // This is stupid, but we only do this so that sm_VoxelPSOs is the same size as sm_PSOs, 
@@ -308,10 +330,10 @@ void Renderer::InitializeVoxel(void)
     uint32_t* init = new uint32_t[size];
     std::fill(init, init + size, 0x0);
     m_VoxelAlbedo.Create3D(
-        4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+        4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Voxel Albedo"
     );
     m_VoxelVoronoiInput.Create3D(
-        4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+        4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Voxel Voronoi Input"
     );
     delete[] init;
 
@@ -361,10 +383,10 @@ void Renderer::InitializeJFA(void)
             uint32_t* init = new uint32_t[size];
             std::fill(init, init + size, 0x0);
             m_FinalSDFOutput.Create3D(
-                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"SDF Output"
             );
             m_IntermediateSDFOutput.Create3D(
-                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Intermediate JFA Output"
             );
             delete[] init;
         }
@@ -775,6 +797,8 @@ void Renderer::ComputeSDF(ComputeContext& context)
         context.TransitionResource(m_VoxelVoronoiInput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         context.TransitionResource(m_FinalSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         context.TransitionResource(m_IntermediateSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+        context.FlushResourceBarriers(); 
 
         bool swap = false;
         for (uint32_t i = 64; i >= 1; i /= 2) {

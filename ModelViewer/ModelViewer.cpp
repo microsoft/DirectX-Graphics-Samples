@@ -349,8 +349,8 @@ void ModelViewer::RenderScene( void )
 
         // TODO: Render Voxels
 
-#define VOXEL_PASS      1   // enable the voxel pass, otherwise render the scene like normal
-#define PERSP_CAMERA    0   // enable the perspective camera instead of orthographic, to sanity check the scene
+#define VOXEL_PASS           1   // enable the voxel pass, otherwise render the scene like normal
+#define PERSP_CAMERA         0   // enable the perspective camera instead of orthographic, to sanity check the scene
 
 #if VOXEL_PASS
 
@@ -359,6 +359,7 @@ void ModelViewer::RenderScene( void )
 #else
         VoxelCamera voxelCam; 
 #endif
+        Renderer::ClearSDFGITextures(gfxContext); 
         globals.SunShadowMatrix = m_SunShadowCamera.GetShadowMatrix();
         globals.SunDirection = SunDirection;
         globals.SunIntensity = Vector3(Scalar(g_SunLightIntensity));
@@ -446,6 +447,7 @@ void ModelViewer::RenderScene( void )
     // 1. Root Signature
     // 2. PSO
     // 3. Dispatch Call(s)
+
     {
         ComputeContext& context = gfxContext.GetComputeContext();
 

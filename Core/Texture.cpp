@@ -79,7 +79,7 @@ void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_
     g_Device->CreateShaderResourceView(m_pResource.Get(), nullptr, m_hCpuDescriptorHandle);
 }
 
-void Texture::Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags)
+void Texture::Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags, const std::wstring name)
 {
     Destroy();
 
@@ -112,7 +112,7 @@ void Texture::Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t
         &HeapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
         m_UsageState, nullptr, MY_IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
 
-    m_pResource->SetName(L"3D Texture");
+    m_pResource->SetName(name.c_str());
 
     D3D12_SUBRESOURCE_DATA texResource;
     texResource.pData = InitialData;
