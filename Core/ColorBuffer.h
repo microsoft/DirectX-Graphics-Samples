@@ -16,6 +16,7 @@
 #include "PixelBuffer.h"
 #include "Color.h"
 #include "GpuBuffer.h"
+#include "DescriptorHeap.h"
 
 class EsramAllocator;
 
@@ -49,7 +50,7 @@ public:
     // The vmem address allows you to alias buffers (which can be especially useful for
     // reusing ESRAM across a frame.)
     void CreateArray(const std::wstring& Name, uint32_t Width, uint32_t Height, uint32_t ArrayCount,
-        DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN);
+        DXGI_FORMAT Format, D3D12_GPU_VIRTUAL_ADDRESS VidMemPtr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN, DescriptorHeap *GpuVisibleHeap = nullptr);
     
     // Create a color buffer.  Memory will be allocated in ESRAM (on Xbox One).  On Windows,
     // this functions the same as Create() without a video address.
@@ -100,7 +101,7 @@ protected:
         return HighBit + 1;
     }
 
-    void CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, uint32_t ArraySize, uint32_t NumMips = 1);
+    void CreateDerivedViews(ID3D12Device* Device, DXGI_FORMAT Format, uint32_t ArraySize, uint32_t NumMips = 1, DescriptorHeap *GpuVisibleHeap = nullptr);
 
     Color m_ClearColor;
     D3D12_CPU_DESCRIPTOR_HANDLE m_SRVHandle;

@@ -14,6 +14,7 @@
 #pragma once
 
 #include <d3d12.h>
+#include "SDFGI.h"
 
 class GraphicsContext;
 class ShadowCamera;
@@ -37,7 +38,10 @@ namespace Sponza
         const D3D12_VIEWPORT& viewport,
         const D3D12_RECT& scissor,
         bool skipDiffusePass = false,
-        bool skipShadowMap = false );
+        bool skipShadowMap = false,
+        SDFGI::SDFGIManager *sdfgiManager = nullptr,
+        bool useAtlas = false
+    );
 
     const ModelH3D& GetModel();
 

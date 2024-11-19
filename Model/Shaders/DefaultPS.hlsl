@@ -29,6 +29,7 @@ TextureCube<float3> radianceIBLTexture      : register(t10);
 TextureCube<float3> irradianceIBLTexture    : register(t11);
 Texture2D<float> texSSAO			        : register(t12);
 Texture2D<float> texSunShadow			    : register(t13);
+Texture2DArray<float4> IrradianceAtlas : register(t21);
 
 cbuffer MaterialConstants : register(b0)
 {
@@ -50,6 +51,27 @@ cbuffer GlobalConstants : register(b1)
     float IBLRange;
     float IBLBias;
 }
+
+cbuffer SDFGIConstants : register(b2) {
+    float3 GridSize;
+    float Pad0;
+
+    float3 ProbeSpacing;
+    float Pad1;
+
+    float3 SceneMinBounds;
+    float Pad2;
+
+    uint ProbeAtlasBlockResolution;	
+    uint GutterSize;
+    float AtlasWidth;
+    float AtlasHeight;
+
+    bool UseAtlas;
+    float Pad3;
+    float Pad4;
+    float Pad5;
+};
 
 struct VSOutput
 {
@@ -239,6 +261,85 @@ float3 ComputeNormal(VSOutput vsOutput)
 #endif
 }
 
+float2 signNotZero(float2 v) {
+    return float2((v.x >= 0.0 ? 1.0 : -1.0), (v.y >= 0.0 ? 1.0 : -1.0));
+}
+
+float2 octEncode(float3 v) {
+    float l1norm = abs(v.x) + abs(v.y) + abs(v.z);
+    float2 result = v.xy * (1.0 / l1norm);
+    
+    if (v.z < 0.0) {
+        result = (1.0 - abs(result.yx)) * signNotZero(result.xy);
+    }
+    
+    return result;
+}
+
+float3 ShadeFragmentWithProbes(
+    float3 fragmentWorldPos,       
+    float3 normal                 
+) {
+    float3 localPos = (fragmentWorldPos - SceneMinBounds) / ProbeSpacing;
+    float3 probeCoord = floor(localPos); 
+
+    float3 interpWeight = frac(localPos);
+
+    uint3 probeIndices[8] = {
+        uint3(probeCoord),
+        uint3(probeCoord + float3(1, 0, 0)),
+        uint3(probeCoord + float3(0, 1, 0)),
+        uint3(probeCoord + float3(1, 1, 0)),
+        uint3(probeCoord + float3(0, 0, 1)),
+        uint3(probeCoord + float3(1, 0, 1)),
+        uint3(probeCoord + float3(0, 1, 1)),
+        uint3(probeCoord + float3(1, 1, 1))
+    };
+
+    for (int i = 0; i < 8; ++i) {
+        probeIndices[i] = clamp(probeIndices[i], uint3(0, 0, 0), uint3(GridSize) - 1);
+    }
+
+    float4 irradiance[8];
+    for (int i = 0; i < 8; ++i) {
+        // float2 encodedDir = octEncode(normalize(mul(RandomRotation, float4(probeIndices[i] - localPos, 1.0)).xyz));
+        // float2 encodedDir = octEncode(normalize(mul(RandomRotation, float4(-normal, 1.0)).xyz));
+        float2 encodedDir = octEncode(normal);
+        // float2 encodedDir = octEncode(normalize(float3(0.1, -0.7, -0.43)));
+        // float2 mappedDir = encodedDir * 0.5 + 0.5;
+        // return float3(mappedDir, 0);
+        encodedDir = clamp(encodedDir, -1.0, 1.0);
+        uint3 atlasCoord = probeIndices[i] * uint3(ProbeAtlasBlockResolution + GutterSize, ProbeAtlasBlockResolution + GutterSize, 1);
+        float2 texCoord = atlasCoord.xy + uint2(
+            (encodedDir.x * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
+            (encodedDir.y * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize)
+        );
+        texCoord = texCoord / float2(AtlasWidth, AtlasHeight);
+
+        irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
+        // irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, 5), 0);
+    }
+
+    float4 resultIrradiance = lerp(
+        lerp(lerp(irradiance[0], irradiance[1], interpWeight.x),
+             lerp(irradiance[2], irradiance[3], interpWeight.x), interpWeight.y),
+        lerp(lerp(irradiance[4], irradiance[5], interpWeight.x),
+             lerp(irradiance[6], irradiance[7], interpWeight.x), interpWeight.y),
+        interpWeight.z
+    );
+
+    return resultIrradiance.rgb;
+    // return float3(1, 0, 0);
+    // return IrradianceAtlas.SampleLevel(defaultSampler, float3(0.5, 0.5, 2), 0).rgb;
+    // return probeIndices[5].xyz / GridSize;
+    // return SceneMinBounds;
+    // return interpWeight;
+    // return fragmentWorldPos - SceneMinBounds;
+    // return localPos;
+    // return RandomRotation[2].xyz;
+    // return probeCoord / GridSize;
+}
+
 [RootSignature(Renderer_RootSig)]
 float4 main(VSOutput vsOutput) : SV_Target0
 {
@@ -263,7 +364,7 @@ float4 main(VSOutput vsOutput) : SV_Target0
     // Begin accumulating light starting with emissive
     float3 colorAccum = emissive;
 
-#if 1
+if (!UseAtlas) {
     float sunShadow = texSunShadow.SampleCmpLevelZero( shadowSampler, vsOutput.sunShadowCoord.xy, vsOutput.sunShadowCoord.z );
     colorAccum += ShadeDirectionalLight(Surface, SunDirection, sunShadow * SunIntensity);
 
@@ -276,7 +377,7 @@ float4 main(VSOutput vsOutput) : SV_Target0
     // Old-school ambient light
     colorAccum += Surface.c_diff * 0.1;
 
-#else
+} else {
 
     uint2 pixelPos = uint2(vsOutput.position.xy);
     float ssao = texSSAO[pixelPos];
@@ -285,11 +386,15 @@ float4 main(VSOutput vsOutput) : SV_Target0
     Surface.c_spec *= ssao;
 
     // Add IBL
-    colorAccum += Diffuse_IBL(Surface);
-    colorAccum += Specular_IBL(Surface);
-#endif
+    // colorAccum += Diffuse_IBL(Surface);
+    // colorAccum += Specular_IBL(Surface);
+}
 
     // TODO: Shade each light using Forward+ tiles
 
-    return float4(colorAccum, baseColor.a);
+    if (UseAtlas) {
+        return float4(ShadeFragmentWithProbes(vsOutput.worldPos, normalize(vsOutput.normal)), 1.0f);
+    } else {
+        return float4(colorAccum, baseColor.a);
+    }
 }

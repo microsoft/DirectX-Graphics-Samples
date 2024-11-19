@@ -54,6 +54,8 @@ namespace Renderer
         kCommonSRVs,
         kCommonCBV,
         kSkinMatrices,
+        kSDFGISRVs,
+        kSDFGICBV,
 
         kNumRootBindings
     };

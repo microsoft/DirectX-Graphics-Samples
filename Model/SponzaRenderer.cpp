@@ -251,7 +251,9 @@ void Sponza::RenderScene(
     const D3D12_VIEWPORT& viewport,
     const D3D12_RECT& scissor,
     bool skipDiffusePass,
-    bool skipShadowMap)
+    bool skipShadowMap,
+    SDFGI::SDFGIManager *sdfgiManager,
+    bool useAtlas)
 {
     Renderer::UpdateGlobalDescriptors();
 
@@ -387,6 +389,37 @@ void Sponza::RenderScene(
 
                 gfxContext.SetDescriptorTable(Renderer::kCommonSRVs, Renderer::m_CommonTextures);
                 gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
+
+                if (sdfgiManager != nullptr) {
+                    gfxContext.SetDescriptorTable(Renderer::kSDFGISRVs, sdfgiManager->GetIrradianceAtlasDescriptorHandle());
+                    SDFGI::SDFGIProbeData sdfgiProbeData = sdfgiManager->GetProbeData();
+                    __declspec(align(16)) struct SDFGIConstants {
+                        Vector3 GridSize;                       // 16
+
+                        Vector3 ProbeSpacing;                   // 16
+
+                        Vector3 SceneMinBounds;                 // 16
+
+                        unsigned int ProbeAtlasBlockResolution; // 4
+                        unsigned int GutterSize;                // 4
+                        float AtlasWidth;                       // 4
+                        float AtlasHeight;                      // 4
+
+                        bool UseAtlas;                          // 4
+                        float Pad0;                             // 4
+                        float Pad1;                             // 4
+                        float Pad2;                             // 4
+                    } sdfgiConstants;
+                    sdfgiConstants.GridSize = sdfgiProbeData.GridSize;
+                    sdfgiConstants.ProbeSpacing = sdfgiProbeData.ProbeSpacing;
+                    sdfgiConstants.SceneMinBounds = sdfgiProbeData.SceneMinBounds;
+                    sdfgiConstants.ProbeAtlasBlockResolution = sdfgiProbeData.ProbeAtlasBlockResolution;
+                    sdfgiConstants.GutterSize = sdfgiProbeData.GutterSize;
+                    sdfgiConstants.AtlasWidth = sdfgiProbeData.AtlasWidth;
+                    sdfgiConstants.AtlasHeight = sdfgiProbeData.AtlasHeight;
+                    sdfgiConstants.UseAtlas = useAtlas;
+                    gfxContext.SetDynamicConstantBufferView(Renderer::kSDFGICBV, sizeof(sdfgiConstants), &sdfgiConstants);
+                }
 
                 {
                     gfxContext.SetPipelineState(m_ModelPSO);
