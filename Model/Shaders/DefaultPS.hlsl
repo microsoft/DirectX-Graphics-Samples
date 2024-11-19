@@ -14,7 +14,7 @@
 #include "Common.hlsli"
 
 // TODO: Create duplicates of all DefaultXXXPS shaders with this pre-processor
-#define SDFGI_VOXEL_PASS 1
+#define SDFGI_VOXEL_PASS 0
 
 Texture2D<float4> baseColorTexture          : register(t0);
 Texture2D<float3> metallicRoughnessTexture  : register(t1);

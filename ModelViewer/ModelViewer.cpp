@@ -491,7 +491,6 @@ void ModelViewer::RenderScene( void )
             MotionBlur::RenderObjectBlur(gfxContext, g_VelocityBuffer);
     }
     */
-#endif
     gfxContext.Finish();
 }
 
