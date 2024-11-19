@@ -417,6 +417,7 @@ if (!UseAtlas) {
 
     Surface.c_diff *= ssao;
     Surface.c_spec *= ssao;
+
 }
 
     // TODO: Shade each light using Forward+ tiles
