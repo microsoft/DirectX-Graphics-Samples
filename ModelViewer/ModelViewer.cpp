@@ -77,8 +77,9 @@ public:
 
     void InitializeGUI();
 
-    GlobalConstants UpdateGlobalConstants(const Math::Camera& cam);
-    void NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, bool renderShadows = true);
+    GlobalConstants UpdateGlobalConstants(const Math::Camera& cam, bool renderShadows = false);
+    void NonLegacyRenderShadowMap(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+    void NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
 
 private:
 
@@ -238,11 +239,11 @@ void ModelViewer::Startup( void )
     sceneBounds.AddPoint(scaleModel * Vector3(test.GetMax()));
     #endif
 
-    auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc, bool renderShadows) {
-        ModelViewer::NonLegacyRenderScene(ctx, cam, vp, sc, renderShadows);
+    auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc) {
+        ModelViewer::NonLegacyRenderScene(ctx, cam, vp, sc);
     };
 
-    mp_SDFGIManager = new SDFGI::SDFGIManager(sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)>>(renderLambda));
+    mp_SDFGIManager = new SDFGI::SDFGIManager(sceneBounds, static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)>>(renderLambda));
 }
 
 void ModelViewer::InitializeGUI() {
@@ -335,7 +336,7 @@ void ModelViewer::Update( float deltaT )
     m_MainScissor.bottom = (LONG)g_SceneColorBuffer.GetHeight();
 }
 
-GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::Camera& cam)
+GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::Camera& cam, bool renderShadows)
 {
     GlobalConstants globals;
     globals.ViewProjMatrix = cam.GetViewProjMatrix();
@@ -363,7 +364,6 @@ GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::Camera& cam)
         m_SunShadowCamera.UpdateMatrix(-SunDirection, Vector3(0, -m_ModelInst.GetCenter().GetY(), 0), obb.GetDimensions() * 1.5f,
             (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
-
         // Update sun/shadow global constants
         globals.SunShadowMatrix = m_SunShadowCamera.GetShadowMatrix();
         globals.SunDirection = SunDirection;
@@ -372,11 +372,25 @@ GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::Camera& cam)
     return globals;
 }
 
-void ModelViewer::NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, 
-    const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, bool renderShadows)
+void ModelViewer::NonLegacyRenderShadowMap(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
 {
-    GlobalConstants globals = UpdateGlobalConstants(cam);
+    GlobalConstants globals = UpdateGlobalConstants(cam, true);
+    ScopedTimer _prof(L"Sun Shadow Map", gfxContext);
 
+    MeshSorter shadowSorter(MeshSorter::kShadows);
+    shadowSorter.SetCamera(m_SunShadowCamera);
+    shadowSorter.SetDepthStencilTarget(g_ShadowBuffer);
+
+    m_ModelInst.Render(shadowSorter);
+
+    shadowSorter.Sort();
+    shadowSorter.RenderMeshes(MeshSorter::kZPass, gfxContext, globals);
+}
+
+void ModelViewer::NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, 
+    const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
+{
+    GlobalConstants globals = UpdateGlobalConstants(cam, false);
     // Begin rendering depth
     gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
     gfxContext.ClearDepth(g_SceneDepthBuffer);
@@ -405,22 +419,7 @@ void ModelViewer::NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::
 
     if (!SSAO::DebugDraw)
     {
-        if (renderShadows) {
-            ScopedTimer _outerprof(L"Main Render", gfxContext);
-
-            {
-                ScopedTimer _prof(L"Sun Shadow Map", gfxContext);
-
-                MeshSorter shadowSorter(MeshSorter::kShadows);
-                shadowSorter.SetCamera(m_SunShadowCamera);
-                shadowSorter.SetDepthStencilTarget(g_ShadowBuffer);
-
-                m_ModelInst.Render(shadowSorter);
-
-                shadowSorter.Sort();
-                shadowSorter.RenderMeshes(MeshSorter::kZPass, gfxContext, globals);
-            }
-        }
+        ScopedTimer _outerprof(L"Main Render", gfxContext);
 
         gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
         gfxContext.ClearColor(g_SceneColorBuffer);
@@ -460,6 +459,8 @@ void ModelViewer::RenderScene( void )
     }
     else
     {
+        NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
+        // TODO: Add back Voxel Pass here in between shadow map and final color pass
         NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor);
     }
 
