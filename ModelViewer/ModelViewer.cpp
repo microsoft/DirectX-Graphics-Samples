@@ -236,7 +236,11 @@ void ModelViewer::Startup( void )
     #endif
 
     auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc, bool renderShadows) {
+#ifdef LEGACY_RENDERER
+        Sponza::RenderScene(ctx, cam, vp, sc, /*skipDiffusePass=*/false, /*skipShadowMap=*/false);
+#else
         ModelViewer::NonLegacyRenderScene(ctx, cam, vp, sc, renderShadows);
+#endif
     };
 
     mp_SDFGIManager = new SDFGI::SDFGIManager(
