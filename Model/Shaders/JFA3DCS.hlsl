@@ -11,10 +11,6 @@ cbuffer JFAConstants : register(b0) {
 [numthreads(1, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	// InputTex[DTid] = uint4(0, 0, 0, 255);
-	// OutputTex[DTid] = uint4(0, 0, 0, 255); 
-	// SDFTex[DTid] = float4(0, 0, 1, 1); 
-
 	uint4 currentPixel = InputTex[DTid];
 
 	float bestDistance = 999999999999.;
@@ -30,7 +26,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 				}
 
 				uint4 seed = InputTex[neighbourCoord];
-				uint dist = distance(seed.xyz, DTid);
+				float dist = distance(seed.xyz, DTid);
 
 				if ((seed.a != 0) && (dist < bestDistance)) {
 					bestDistance = dist; 
