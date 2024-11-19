@@ -50,7 +50,7 @@ namespace SDFGI {
         probeSpacing[1] = spacing;
         probeSpacing[2] = spacing;
 
-        probeCount[0] = std::max(1u, static_cast<uint32_t>(ceil(sceneSize.GetX() / probeSpacing[0])));
+        probeCount[0] = std::max(1u, static_cast<uint32_t>(ceil(sceneSize.GetX() / probeSpacing[0]))) + 1;
         probeCount[1] = std::max(1u, static_cast<uint32_t>(ceil(sceneSize.GetY() / probeSpacing[1])));
         probeCount[2] = std::max(1u, static_cast<uint32_t>(ceil(sceneSize.GetZ() / probeSpacing[2])));
 
