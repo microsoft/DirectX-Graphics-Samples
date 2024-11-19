@@ -196,9 +196,9 @@ void ModelViewer::Startup( void )
         Sponza::Startup(m_Camera);
 #else
         scaleModel = 100.0f;
-        m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
+        //m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
         //m_ModelInst = Renderer::LoadModel(L"Models/BoxAndPlane/BoxAndPlane.gltf", forceRebuild);
-        //m_ModelInst = Renderer::LoadModel(L"Models/CornellWithSonic/CornellWithSonic.gltf", forceRebuild);
+        m_ModelInst = Renderer::LoadModel(L"Models/CornellWithSonicThickWalls/CornellWithSonicThickWalls.gltf", forceRebuild);
         m_ModelInst.Resize(scaleModel * m_ModelInst.GetRadius());
         OrientedBox obb = m_ModelInst.GetBoundingBox();
         float modelRadius = Length(obb.GetDimensions()) * 0.5f;
@@ -357,9 +357,9 @@ GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::Camera& cam)
         float y = obb.GetDimensions().GetY();
         float z = obb.GetDimensions().GetZ();
 
-        m_SunShadowCamera.UpdateMatrix(-SunDirection, Vector3(0, -m_ModelInst.GetCenter().GetY(), 0), obb.GetDimensions() * 1.5f,
-            (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
+        m_SunShadowCamera.UpdateMatrix(-SunDirection, Vector3(0, (obb.GetCenter().GetY() - obb.GetDimensions().GetY() * 0.5f), 0), obb.GetDimensions() * 1.5f,
+            (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
         // Update sun/shadow global constants
         globals.SunShadowMatrix = m_SunShadowCamera.GetShadowMatrix();
