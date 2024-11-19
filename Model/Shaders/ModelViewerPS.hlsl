@@ -36,16 +36,24 @@ struct VSOutput
 };
 
 cbuffer SDFGIConstants : register(b2) {
-	float4x4 RandomRotation;
-
 	float3 GridSize;
-    bool UseAtlas;
+    float Pad0;
 
-	float3 ProbeSpacing;
-	uint ProbeAtlasBlockResolution;
+    float3 ProbeSpacing;
+    float Pad1;
 
-	float3 SceneMinBounds;
+    float3 SceneMinBounds;
+    float Pad2;
+
+	uint ProbeAtlasBlockResolution;	
 	uint GutterSize;
+    float AtlasWidth;
+    float AtlasHeight;
+
+    bool UseAtlas;
+    float Pad3;
+    float Pad4;
+    float Pad5;
 };
 
 struct MRT
@@ -73,14 +81,6 @@ float3 ShadeFragmentWithProbes(
     float3 fragmentWorldPos,       
     float3 normal                 
 ) {
-	uint ProbeAtlasBlockResolution = 8;
-    uint GutterSize = 1;
-	float3 ProbeSpacing = float3(395, 395, 395);
-	float3 GridSize = float3(10, 4, 6);
-	float3 SceneMinBounds = float3(-1920.94592, -126.442497, -1182.80713);
-	uint atlasWidth = 91;
-	uint atlasHeight = 37;
-
     float3 localPos = (fragmentWorldPos - SceneMinBounds) / ProbeSpacing;
     float3 probeCoord = floor(localPos); 
 
@@ -115,7 +115,7 @@ float3 ShadeFragmentWithProbes(
             (encodedDir.x * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
             (encodedDir.y * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize)
         );
-		texCoord = texCoord / float2(atlasWidth, atlasHeight);
+		texCoord = texCoord / float2(AtlasWidth, AtlasHeight);
 
 		irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
 		// irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, 5), 0);

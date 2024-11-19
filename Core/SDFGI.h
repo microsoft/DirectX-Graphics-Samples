@@ -28,16 +28,14 @@ namespace SDFGI
     Vector3 position;
   };
 
-  struct SDFGIProbeData {
-      XMMATRIX RandomRotation;
-      
+  struct SDFGIProbeData {      
       Vector3 GridSize;
-
       Vector3 ProbeSpacing;
       unsigned int ProbeAtlasBlockResolution;
-
       Vector3 SceneMinBounds;
       unsigned int GutterSize;
+      unsigned int AtlasWidth;
+      unsigned int AtlasHeight;
   };
 
   struct SDFGIProbeGrid {
@@ -95,7 +93,7 @@ namespace SDFGI
     D3D12_GPU_DESCRIPTOR_HANDLE GetIrradianceAtlasGpuSRV() const;
     DescriptorHandle irradianceAtlasSRVHandle;
     DescriptorHandle &GetIrradianceAtlasDescriptorHandle() { return irradianceAtlasSRVHandle; }
-    XMMATRIX randomRotation;
+    Vector3 GetIrradianceAtlasDimensions() const { return Vector3(irradianceAtlas.GetWidth(), irradianceAtlas.GetHeight(), irradianceAtlas.GetDepth()); }
 
     ColorBuffer depthAtlas;
 

@@ -279,27 +279,24 @@ namespace SDFGI {
         computeContext.TransitionResource(depthAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
         __declspec(align(16)) struct ProbeData {
-            XMFLOAT4X4 RandomRotation;       
+            XMFLOAT4X4 RandomRotation;                  // 64
 
-            Vector3 GridSize;                
-            unsigned int ProbeCount;         
+            Vector3 GridSize;                           // 16
 
-            Vector3 ProbeSpacing;            
-            float ProbeMaxDistance;          
+            Vector3 ProbeSpacing;                       // 16
 
-            Vector3 SceneMinBounds;          
-            unsigned int ProbeAtlasBlockResolution;
+            Vector3 SceneMinBounds;                     // 16
 
-            unsigned int GutterSize;         
-            unsigned int Padding[3]; 
+            unsigned int ProbeCount;                    // 4
+            unsigned int ProbeAtlasBlockResolution;     // 4
+            unsigned int GutterSize;                    // 4 
+            float pad0;                                 // 4
         } probeData;
 
         float rotation_scaler = 3.14159f / 7.0f;
-        randomRotation = GenerateRandomRotationMatrix(rotation_scaler);
+        XMMATRIX randomRotation = GenerateRandomRotationMatrix(rotation_scaler);
         XMStoreFloat4x4(&probeData.RandomRotation, randomRotation);
-
         probeData.ProbeCount = probeGrid.probes.size();
-        probeData.ProbeMaxDistance = 50;
         probeData.GridSize = Vector3(probeGrid.probeCount[0], probeGrid.probeCount[1], probeGrid.probeCount[2]);
         probeData.ProbeSpacing = Vector3(probeGrid.probeSpacing[0], probeGrid.probeSpacing[1], probeGrid.probeSpacing[2]);
         probeData.SceneMinBounds = sceneBounds.GetMin();
@@ -525,12 +522,13 @@ namespace SDFGI {
 
     SDFGIProbeData SDFGIManager::GetProbeData() {
       return {
-        randomRotation,
         Vector3(probeGrid.probeCount[0], probeGrid.probeCount[1], probeGrid.probeCount[2]),
         Vector3(probeGrid.probeSpacing[0], probeGrid.probeSpacing[1], probeGrid.probeSpacing[2]),
         probeAtlasBlockResolution,
         sceneBounds.GetMin(),
-        gutterSize
+        gutterSize,
+        irradianceAtlas.GetWidth(),
+        irradianceAtlas.GetHeight()
       };
     }
 

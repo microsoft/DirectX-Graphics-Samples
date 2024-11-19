@@ -394,25 +394,30 @@ void Sponza::RenderScene(
                     gfxContext.SetDescriptorTable(Renderer::kSDFGISRVs, sdfgiManager->GetIrradianceAtlasDescriptorHandle());
                     SDFGI::SDFGIProbeData sdfgiProbeData = sdfgiManager->GetProbeData();
                     __declspec(align(16)) struct SDFGIConstants {
-                        XMFLOAT4X4 RandomRotation;
+                        Vector3 GridSize;                       // 16
 
-                        Vector3 GridSize;
-                        bool useAtlas;
+                        Vector3 ProbeSpacing;                   // 16
 
-                        Vector3 ProbeSpacing;
-                        unsigned int ProbeAtlasBlockResolution;
+                        Vector3 SceneMinBounds;                 // 16
 
-                        Vector3 SceneMinBounds;
-                        unsigned int GutterSize;
-                        
+                        unsigned int ProbeAtlasBlockResolution; // 4
+                        unsigned int GutterSize;                // 4
+                        float AtlasWidth;                       // 4
+                        float AtlasHeight;                      // 4
+
+                        bool UseAtlas;                          // 4
+                        float Pad0;                             // 4
+                        float Pad1;                             // 4
+                        float Pad2;                             // 4
                     } sdfgiConstants;
-                    XMStoreFloat4x4(&sdfgiConstants.RandomRotation, sdfgiProbeData.RandomRotation);
                     sdfgiConstants.GridSize = sdfgiProbeData.GridSize;
-                    sdfgiConstants.useAtlas = useAtlas;
                     sdfgiConstants.ProbeSpacing = sdfgiProbeData.ProbeSpacing;
-                    sdfgiConstants.ProbeAtlasBlockResolution = sdfgiProbeData.ProbeAtlasBlockResolution;
                     sdfgiConstants.SceneMinBounds = sdfgiProbeData.SceneMinBounds;
+                    sdfgiConstants.ProbeAtlasBlockResolution = sdfgiProbeData.ProbeAtlasBlockResolution;
                     sdfgiConstants.GutterSize = sdfgiProbeData.GutterSize;
+                    sdfgiConstants.AtlasWidth = sdfgiProbeData.AtlasWidth;
+                    sdfgiConstants.AtlasHeight = sdfgiProbeData.AtlasHeight;
+                    sdfgiConstants.UseAtlas = useAtlas;
                     gfxContext.SetDynamicConstantBufferView(Renderer::kSDFGICBV, sizeof(sdfgiConstants), &sdfgiConstants);
                 }
 
