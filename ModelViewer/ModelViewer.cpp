@@ -357,8 +357,20 @@ GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::Camera& cam)
         float y = obb.GetDimensions().GetY();
         float z = obb.GetDimensions().GetZ();
 
+        Utility::Print("Obb: ");
+        Utility::Print(std::to_string(obb.GetDimensions().GetX()).c_str());
+        Utility::Print(", ");
+        Utility::Print(std::to_string(obb.GetDimensions().GetY()).c_str());
+        Utility::Print(", ");
+        Utility::Print(std::to_string(obb.GetDimensions().GetZ()).c_str());
+        Utility::Print("\n");
+        //We should evaluate the correct center position based on the camera angle!
+        //This is similar to your 3D Pixel art project!
+        float maxLength = Length(obb.GetDimensions());
+        //m_SunShadowCamera.UpdateMatrixImproved(-SunDirection, Vector3(0, 0, 0), Vector4(maxLength, maxLength, -maxLength, maxLength),
+        //    (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
-        m_SunShadowCamera.UpdateMatrix(-SunDirection, Vector3(0, (obb.GetCenter().GetY() - obb.GetDimensions().GetY() * 0.5f), 0), obb.GetDimensions() * 3.0f,
+        m_SunShadowCamera.UpdateMatrixImproved(-SunDirection, obb.GetCenter(), Vector3(maxLength, maxLength, maxLength),
             (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
         // Update sun/shadow global constants

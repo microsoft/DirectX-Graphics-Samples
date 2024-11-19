@@ -13,6 +13,7 @@
 
 #include "pch.h"
 #include "ShadowCamera.h"
+#include "DirectXMath.h"
 
 using namespace Math;
 
@@ -39,10 +40,30 @@ void ShadowCamera::UpdateMatrix(
 
     SetPosition( ShadowCenter );
 
-    SetProjMatrix( Matrix4::MakeScale(Vector3(2.0f, 2.0f, 1.0f) * RcpDimensions) );
+
+    SetProjMatrix(Matrix4::MakeScale(Vector3(2.0f, 2.0f, 1.0f) * RcpDimensions));
 
     Update();
 
     // Transform from clip space to texture space
     m_ShadowMatrix = Matrix4( AffineTransform( Matrix3::MakeScale( 0.5f, -0.5f, 1.0f ), Vector3(0.5f, 0.5f, 0.0f) ) ) * m_ViewProjMatrix;
+}
+
+
+void ShadowCamera::UpdateMatrixImproved(
+    Vector3 LightDirection, Vector3 ShadowCenter, Vector3 ViewSpaceInfo,
+    uint32_t BufferWidth, uint32_t BufferHeight, uint32_t BufferPrecision)
+{
+    SetLookDirection(LightDirection, Vector3(kZUnitVector));
+
+    SetPosition(ShadowCenter);
+
+    Matrix4 ortho(XMMatrixOrthographicRH((float)ViewSpaceInfo.GetX(), (float)ViewSpaceInfo.GetY(), 0.5f * (float)ViewSpaceInfo.GetZ(), 0.5f * (float) -ViewSpaceInfo.GetZ()));
+
+    SetProjMatrix(ortho);
+
+    Update();
+
+    // Transform from clip space to texture space
+    m_ShadowMatrix = Matrix4(AffineTransform(Matrix3::MakeScale(0.5f, -0.5f, 1.0f), Vector3(0.5f, 0.5f, 0.0f))) * m_ViewProjMatrix;
 }

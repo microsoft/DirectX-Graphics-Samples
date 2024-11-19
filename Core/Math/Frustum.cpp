@@ -65,8 +65,8 @@ void Frustum::ConstructOrthographicFrustum( float Left, float Right, float Top, 
     m_FrustumPlanes[kFarPlane]		= BoundingPlane(  0.0f,  0.0f,  1.0f,   Back );
     m_FrustumPlanes[kLeftPlane]		= BoundingPlane(  1.0f,  0.0f,  0.0f,  -Left );
     m_FrustumPlanes[kRightPlane]	= BoundingPlane( -1.0f,  0.0f,  0.0f,  Right );
-    m_FrustumPlanes[kTopPlane]		= BoundingPlane(  0.0f, -1.0f,  0.0f, Bottom );
-    m_FrustumPlanes[kBottomPlane]	= BoundingPlane(  0.0f,  1.0f,  0.0f,   -Top );
+    m_FrustumPlanes[kBottomPlane] = BoundingPlane(0.0f, 1.0f, 0.0f, -Bottom);
+    m_FrustumPlanes[kTopPlane] = BoundingPlane(0.0f, -1.0f, 0.0f, Top);
 }
 
 
@@ -82,12 +82,12 @@ Frustum::Frustum( const Matrix4& ProjMat )
     if (ProjMatF[3] == 0.0f && ProjMatF[7] == 0.0f && ProjMatF[11] == 0.0f && ProjMatF[15] == 1.0f)
     {
         // Orthographic
-        float Left   = -RcpXX;
-        float Right  = RcpXX;
-        float Top    = -RcpYY;
-        float Bottom = RcpYY;
-        float Front  = 0.5f * RcpZZ;
-        float Back   = 0.5f - RcpZZ;
+        float Left   = (-1.0f - ProjMatF[12]) * RcpXX;
+        float Right  = (1.0f - ProjMatF[12]) * RcpXX;
+        float Top    = (1.0f - ProjMatF[13]) * RcpYY;
+        float Bottom = (-1.0f - ProjMatF[13]) * RcpYY;
+        float Front  = (0.0f - ProjMatF[14]) * RcpZZ;
+        float Back   = (1.0f - ProjMatF[14]) * RcpZZ;
 
         // Check for reverse Z here.  The bounding planes need to point into the frustum.
         if (Front < Back)

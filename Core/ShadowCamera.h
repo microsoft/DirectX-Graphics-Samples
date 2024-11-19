@@ -31,6 +31,14 @@ public:
         uint32_t BufferPrecision	// Bit depth of shadow buffer--usually 16 or 24
         );
 
+    void UpdateMatrixImproved(
+        Math::Vector3 LightDirection,		// Direction parallel to light, in direction of travel
+        Math::Vector3 ShadowCenter,		// Center location on far bounding plane of shadowed region
+        Math::Vector3 ViewSpaceInfo,		// View Width, View height, near Z and far Z depth in view space
+        uint32_t BufferWidth,		// Shadow buffer width
+        uint32_t BufferHeight,		// Shadow buffer height--usually same as width
+        uint32_t BufferPrecision	// Bit depth of shadow buffer--usually 16 or 24
+    );
     // Used to transform world space to texture space for shadow sampling
     const Math::Matrix4& GetShadowMatrix() const { return m_ShadowMatrix; }
 
