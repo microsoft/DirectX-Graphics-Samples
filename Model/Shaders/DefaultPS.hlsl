@@ -417,19 +417,6 @@ if (!UseAtlas) {
 
     Surface.c_diff *= ssao;
     Surface.c_spec *= ssao;
-
-    // Old-school ambient light
-    colorAccum += Surface.c_diff * 0.1;
-} else {
-    uint2 pixelPos = uint2(vsOutput.position.xy);
-    float ssao = texSSAO[pixelPos];
-
-    Surface.c_diff *= ssao;
-    Surface.c_spec *= ssao;
-
-    // Add IBL
-    // colorAccum += Diffuse_IBL(Surface);
-    // colorAccum += Specular_IBL(Surface);
 }
 
     // TODO: Shade each light using Forward+ tiles

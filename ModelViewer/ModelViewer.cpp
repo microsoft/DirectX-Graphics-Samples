@@ -201,9 +201,9 @@ void ModelViewer::Startup( void )
         Sponza::Startup(m_Camera);
 #else
         scaleModel = 100.0f;
-        //m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
+        m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
         //m_ModelInst = Renderer::LoadModel(L"Models/BoxAndPlane/BoxAndPlane.gltf", forceRebuild);
-        m_ModelInst = Renderer::LoadModel(L"Models/CornellWithSonicThickWalls/CornellWithSonicThickWalls.gltf", forceRebuild);
+        //m_ModelInst = Renderer::LoadModel(L"Models/CornellWithSonicThickWalls/CornellWithSonicThickWalls.gltf", forceRebuild);
         m_ModelInst.Resize(scaleModel * m_ModelInst.GetRadius());
         OrientedBox obb = m_ModelInst.GetBoundingBox();
         float modelRadius = Length(obb.GetDimensions()) * 0.5f;
@@ -442,33 +442,39 @@ void ModelViewer::NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::
     if (!SSAO::DebugDraw)
     {
         ScopedTimer _outerprof(L"Main Render", gfxContext);
+        gfxContext.SetRootSignature(Renderer::m_RootSig); // required for the .set... calls
+
 
         gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
         gfxContext.ClearColor(g_SceneColorBuffer);
 
         {
+
             ScopedTimer _prof(L"Render Color", gfxContext);
 
+            __declspec(align(16)) struct SDFGIConstants {
+                Vector3 GridSize;                       // 16
+
+                Vector3 ProbeSpacing;                   // 16
+
+                Vector3 SceneMinBounds;                 // 16
+
+                unsigned int ProbeAtlasBlockResolution; // 4
+                unsigned int GutterSize;                // 4
+                float AtlasWidth;                       // 4
+                float AtlasHeight;                      // 4
+
+                bool UseAtlas;                          // 4
+                float Pad0;                             // 4
+                float Pad1;                             // 4
+                float Pad2;                             // 4
+            } sdfgiConstants;
+            
             if (useSDFGI) {
+                
                 gfxContext.SetDescriptorTable(Renderer::kSDFGISRVs, mp_SDFGIManager->GetIrradianceAtlasDescriptorHandle());
                 SDFGI::SDFGIProbeData sdfgiProbeData = mp_SDFGIManager->GetProbeData();
-                __declspec(align(16)) struct SDFGIConstants {
-                    Vector3 GridSize;                       // 16
-
-                    Vector3 ProbeSpacing;                   // 16
-
-                    Vector3 SceneMinBounds;                 // 16
-
-                    unsigned int ProbeAtlasBlockResolution; // 4
-                    unsigned int GutterSize;                // 4
-                    float AtlasWidth;                       // 4
-                    float AtlasHeight;                      // 4
-
-                    bool UseAtlas;                          // 4
-                    float Pad0;                             // 4
-                    float Pad1;                             // 4
-                    float Pad2;                             // 4
-                } sdfgiConstants;
+                
                 sdfgiConstants.GridSize = sdfgiProbeData.GridSize;
                 sdfgiConstants.ProbeSpacing = sdfgiProbeData.ProbeSpacing;
                 sdfgiConstants.SceneMinBounds = sdfgiProbeData.SceneMinBounds;
@@ -477,9 +483,12 @@ void ModelViewer::NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::
                 sdfgiConstants.AtlasWidth = sdfgiProbeData.AtlasWidth;
                 sdfgiConstants.AtlasHeight = sdfgiProbeData.AtlasHeight;
                 sdfgiConstants.UseAtlas = true;
-                gfxContext.SetDynamicConstantBufferView(Renderer::kSDFGICBV, sizeof(sdfgiConstants), &sdfgiConstants);
+            }
+            else {
+                sdfgiConstants.UseAtlas = false;
             }
 
+            gfxContext.SetDynamicConstantBufferView(Renderer::kSDFGICBV, sizeof(sdfgiConstants), &sdfgiConstants);
             gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
             gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
             gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV(), g_SceneDepthBuffer.GetDSV_DepthReadOnly());
