@@ -358,7 +358,7 @@ GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::Camera& cam)
         float z = obb.GetDimensions().GetZ();
 
 
-        m_SunShadowCamera.UpdateMatrix(-SunDirection, Vector3(0, (obb.GetCenter().GetY() - obb.GetDimensions().GetY() * 0.5f), 0), obb.GetDimensions() * 1.5f,
+        m_SunShadowCamera.UpdateMatrix(-SunDirection, Vector3(0, (obb.GetCenter().GetY() - obb.GetDimensions().GetY() * 0.5f), 0), obb.GetDimensions() * 3.0f,
             (uint32_t)g_ShadowBuffer.GetWidth(), (uint32_t)g_ShadowBuffer.GetHeight(), 16);
 
         // Update sun/shadow global constants
