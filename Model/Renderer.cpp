@@ -134,7 +134,7 @@ void Renderer::Initialize(void)
     m_RootSig[kSDFGICBV].InitAsConstantBuffer(2, D3D12_SHADER_VISIBILITY_PIXEL);
 
     // For Voxel PSO's
-    m_RootSig[kSDFGICommonCBV].InitAsConstantBuffer(2, D3D12_SHADER_VISIBILITY_ALL);
+    m_RootSig[kSDFGICommonCBV].InitAsConstantBuffer(3, D3D12_SHADER_VISIBILITY_ALL);
     m_RootSig[kSDFGIVoxelUAVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig.Finalize(L"RootSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 

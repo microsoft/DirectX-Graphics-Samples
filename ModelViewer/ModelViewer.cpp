@@ -77,7 +77,7 @@ public:
 
     void InitializeGUI();
 
-    GlobalConstants UpdateGlobalConstants(const Math::Camera& cam);
+    GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::Camera& cam, bool renderShadows);
     void NonLegacyRenderShadowMap(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
     void NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, bool renderShadows = true, bool useSDFGI = false);
 
@@ -240,17 +240,17 @@ void ModelViewer::Startup( void )
     sceneBounds.AddPoint(scaleModel * Vector3(test.GetMax()));
     #endif
 
-    auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc, bool renderShadows) {
+    auto renderLambda = [&](GraphicsContext& ctx, const Math::Camera& cam, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc) {
 #ifdef LEGACY_RENDERER
         Sponza::RenderScene(ctx, cam, vp, sc, /*skipDiffusePass=*/false, /*skipShadowMap=*/false);
 #else
-        ModelViewer::NonLegacyRenderScene(ctx, cam, vp, sc, renderShadows);
+        ModelViewer::NonLegacyRenderScene(ctx, cam, vp, sc);
 #endif
     };
 
     mp_SDFGIManager = new SDFGI::SDFGIManager(
         sceneBounds,
-        static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)>>(renderLambda),
+        static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)>>(renderLambda),
         &Renderer::s_TextureHeap
     );
 }

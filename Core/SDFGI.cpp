@@ -77,7 +77,7 @@ namespace SDFGI {
 
     SDFGIManager::SDFGIManager(
         const Math::AxisAlignedBox &sceneBounds, 
-        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)> renderFunc,
+        std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc,
         DescriptorHeap *externalHeap
     )
         : probeGrid(sceneBounds.GetDimensions(), sceneBounds.GetMin()), sceneBounds(sceneBounds), renderFunc(renderFunc), externalHeap(externalHeap) {
