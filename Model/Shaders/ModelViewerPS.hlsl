@@ -25,18 +25,18 @@ Texture2DArray<float4> IrradianceAtlas : register(t21);
 
 struct VSOutput
 {
-	sample float4 position : SV_Position;
-	sample float3 worldPos : WorldPos;
-	sample float2 uv : TexCoord0;
-	sample float3 viewDir : TexCoord1;
-	sample float3 shadowCoord : TexCoord2;
-	sample float3 normal : Normal;
-	sample float3 tangent : Tangent;
-	sample float3 bitangent : Bitangent;
+    sample float4 position : SV_Position;
+    sample float3 worldPos : WorldPos;
+    sample float2 uv : TexCoord0;
+    sample float3 viewDir : TexCoord1;
+    sample float3 shadowCoord : TexCoord2;
+    sample float3 normal : Normal;
+    sample float3 tangent : Tangent;
+    sample float3 bitangent : Bitangent;
 };
 
 cbuffer SDFGIConstants : register(b2) {
-	float3 GridSize;
+    float3 GridSize;
     float Pad0;
 
     float3 ProbeSpacing;
@@ -45,8 +45,8 @@ cbuffer SDFGIConstants : register(b2) {
     float3 SceneMinBounds;
     float Pad2;
 
-	uint ProbeAtlasBlockResolution;	
-	uint GutterSize;
+    uint ProbeAtlasBlockResolution;	
+    uint GutterSize;
     float AtlasWidth;
     float AtlasHeight;
 
@@ -58,8 +58,8 @@ cbuffer SDFGIConstants : register(b2) {
 
 struct MRT
 {
-	float3 Color : SV_Target0;
-	float3 Normal : SV_Target1;
+    float3 Color : SV_Target0;
+    float3 Normal : SV_Target1;
 };
 
 float2 signNotZero(float2 v) {
@@ -103,22 +103,22 @@ float3 ShadeFragmentWithProbes(
 
     float4 irradiance[8];
     for (int i = 0; i < 8; ++i) {
-		// float2 encodedDir = octEncode(normalize(mul(RandomRotation, float4(probeIndices[i] - localPos, 1.0)).xyz));
-		// float2 encodedDir = octEncode(normalize(mul(RandomRotation, float4(-normal, 1.0)).xyz));
+        // float2 encodedDir = octEncode(normalize(mul(RandomRotation, float4(probeIndices[i] - localPos, 1.0)).xyz));
+        // float2 encodedDir = octEncode(normalize(mul(RandomRotation, float4(-normal, 1.0)).xyz));
         float2 encodedDir = octEncode(-normal);
-		// float2 encodedDir = octEncode(normalize(float3(0.1, -0.7, -0.43)));
-		// float2 mappedDir = encodedDir * 0.5 + 0.5;
-		// return float3(mappedDir, 0);
-		encodedDir = clamp(encodedDir, -1.0, 1.0);
+        // float2 encodedDir = octEncode(normalize(float3(0.1, -0.7, -0.43)));
+        // float2 mappedDir = encodedDir * 0.5 + 0.5;
+        // return float3(mappedDir, 0);
+        encodedDir = clamp(encodedDir, -1.0, 1.0);
         uint3 atlasCoord = probeIndices[i] * uint3(ProbeAtlasBlockResolution + GutterSize, ProbeAtlasBlockResolution + GutterSize, 1);
         float2 texCoord = atlasCoord.xy + uint2(
             (encodedDir.x * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
             (encodedDir.y * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize)
         );
-		texCoord = texCoord / float2(AtlasWidth, AtlasHeight);
+        texCoord = texCoord / float2(AtlasWidth, AtlasHeight);
 
-		irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
-		// irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, 5), 0);
+        irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
+        // irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, 5), 0);
     }
 
     float4 resultIrradiance = lerp(
@@ -130,23 +130,23 @@ float3 ShadeFragmentWithProbes(
     );
 
     return resultIrradiance.rgb;
-	// return float3(1, 0, 0);
-	// return IrradianceAtlas.SampleLevel(defaultSampler, float3(0.5, 0.5, 2), 0).rgb;
-	// return probeIndices[5].xyz / GridSize;
-	// return SceneMinBounds;
-	// return interpWeight;
-	// return fragmentWorldPos - SceneMinBounds;
-	// return localPos;
-	// return RandomRotation[2].xyz;
-	// return probeCoord / GridSize;
+    // return float3(1, 0, 0);
+    // return IrradianceAtlas.SampleLevel(defaultSampler, float3(0.5, 0.5, 2), 0).rgb;
+    // return probeIndices[5].xyz / GridSize;
+    // return SceneMinBounds;
+    // return interpWeight;
+    // return fragmentWorldPos - SceneMinBounds;
+    // return localPos;
+    // return RandomRotation[2].xyz;
+    // return probeCoord / GridSize;
 }
 
 [RootSignature(Renderer_RootSig)]
 MRT main(VSOutput vsOutput)
 {
-	MRT mrt;
+    MRT mrt;
 
-	uint2 pixelPos = uint2(vsOutput.position.xy);
+    uint2 pixelPos = uint2(vsOutput.position.xy);
 # define SAMPLE_TEX(texName) texName.Sample(defaultSampler, vsOutput.uv)
 
     float3 diffuseAlbedo = SAMPLE_TEX(texDiffuse);
@@ -169,23 +169,23 @@ MRT main(VSOutput vsOutput)
     float specularMask = SAMPLE_TEX(texSpecular).g;
     float3 viewDir = normalize(vsOutput.viewDir);
 
-	colorSum += ApplyDirectionalLight( diffuseAlbedo, specularAlbedo, specularMask, gloss, normal, viewDir, SunDirection, SunColor, vsOutput.shadowCoord, texShadow );
+    colorSum += ApplyDirectionalLight( diffuseAlbedo, specularAlbedo, specularMask, gloss, normal, viewDir, SunDirection, SunColor, vsOutput.shadowCoord, texShadow );
 
-	ShadeLights(colorSum, pixelPos,
-		diffuseAlbedo,
-		specularAlbedo,
-		specularMask,
-		gloss,
-		normal,
-		viewDir,
-		vsOutput.worldPos
-	);
+    ShadeLights(colorSum, pixelPos,
+        diffuseAlbedo,
+        specularAlbedo,
+        specularMask,
+        gloss,
+        normal,
+        viewDir,
+        vsOutput.worldPos
+    );
 
-	mrt.Normal = normal;
-	if (UseAtlas) {
-		mrt.Color = ShadeFragmentWithProbes(vsOutput.worldPos, normalize(vsOutput.normal));
-	} else {
-		mrt.Color = colorSum;
-	}
-	return mrt;
+    mrt.Normal = normal;
+    if (UseAtlas) {
+        mrt.Color = ShadeFragmentWithProbes(vsOutput.worldPos, normalize(vsOutput.normal));
+    } else {
+        mrt.Color = colorSum;
+    }
+    return mrt;
 }
