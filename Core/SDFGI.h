@@ -104,7 +104,7 @@ namespace SDFGI
     ColorBuffer probeCubemapArray;
 
     // A function/lambda for invoking the scene's render function. Used for rendering probe cubemaps.
-    std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&, bool)> renderFunc;  
+    std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc;
 
     SDFGIManager(
       const Math::AxisAlignedBox &sceneBounds,

@@ -380,7 +380,7 @@ namespace SDFGI {
         GraphicsContext& context, DepthBuffer& depthBuffer, int probe, int face, const Math::Camera& faceCamera, Vector3 &probePosition, const D3D12_VIEWPORT& mainViewport, const D3D12_RECT& mainScissor
     ) {
         // Render to g_SceneColorBuffer (the main render target) using the given cubemap face camera.
-        renderFunc(context, faceCamera, mainViewport, mainScissor, false);
+        renderFunc(context, faceCamera, mainViewport, mainScissor);
 
         // Now copy and downsample g_SceneColorBuffer into probeCubemapFaceTextures (which are square, typically 64x64).
         // Why not render the scene directly to probeCubemapFaceTextures? It was hard to make renderFunc invoke the scene

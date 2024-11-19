@@ -43,7 +43,7 @@
 
 // Enable imgui window
 #define UI_ENABLE 0
-
+#define DISABLE_FRUSTUM_CULL 1
 
 // Enable Shadow Buffer VIS
 #define MAIN_SUN_SHADOW_BUFFER_VIS 0

@@ -49,8 +49,11 @@ void Model::Render(
         BoundingSphere sphereLS((const XMFLOAT4*)mesh.bounds);
         BoundingSphere sphereWS = sphereXform * sphereLS;
         BoundingSphere sphereVS = BoundingSphere(viewMat * sphereWS.GetCenter(), sphereWS.GetRadius());
-
+#if DISABLE_FRUSTUM_CULL
+        if (true)
+#else
         if (frustum.IntersectSphere(sphereVS))
+#endif
         {
             float distance = -sphereVS.GetCenter().GetZ() - sphereVS.GetRadius();
             sorter.AddMesh(mesh, distance,

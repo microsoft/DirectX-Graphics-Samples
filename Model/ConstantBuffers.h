@@ -67,3 +67,17 @@ __declspec(align(256)) struct GlobalConstants
     float IBLRange;
     float IBLBias;
 };
+
+__declspec(align(256)) struct SDFGIGlobalConstants
+{
+    float viewWidth; 
+    float viewHeight; 
+    int axis;
+    float pad;
+};
+
+__declspec(align(256)) struct JFAGlobalConstants
+{
+    float gridResolution[3]; 
+    uint32_t stepSize;
+};
