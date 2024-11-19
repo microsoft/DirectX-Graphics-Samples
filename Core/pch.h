@@ -48,6 +48,9 @@
 // Enable Shadow Buffer VIS
 #define MAIN_SUN_SHADOW_BUFFER_VIS 0
 
+// Depth Prepass for Forward+
+#define ENABLE_DEPTH_PREPASS 0
+
 #include <Windows.h>
 #include <wrl/client.h>
 #include <wrl/event.h>

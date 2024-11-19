@@ -41,6 +41,8 @@ namespace Sponza
 
     const ModelH3D& GetModel();
 
+    const Math::AxisAlignedBox & GetBoundingBox();
+
     extern Math::Vector3 m_SunDirection;
     extern ShadowCamera m_SunShadow;
     extern ExpVar m_AmbientIntensity;

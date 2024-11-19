@@ -282,3 +282,11 @@ Math::OrientedBox ModelInstance::GetBoundingBox() const
 
     return m_Locator * m_Model->m_BoundingBox;
 }
+
+Math::AxisAlignedBox ModelInstance::GetAxisAlignedBox() const
+{
+    if (m_Model == nullptr)
+        return AxisAlignedBox(Vector3(kZero), Vector3(kZero));
+
+    return m_Model->m_BoundingBox;
+}

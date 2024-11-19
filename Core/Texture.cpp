@@ -33,7 +33,7 @@ static UINT BytesPerPixel( DXGI_FORMAT Format )
     return (UINT)BitsPerPixel(Format) / 8;
 };
 
-void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData )
+void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags )
 {
     Destroy();
 
@@ -53,7 +53,7 @@ void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_
     texDesc.SampleDesc.Count = 1;
     texDesc.SampleDesc.Quality = 0;
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    texDesc.Flags = flags;
 
     D3D12_HEAP_PROPERTIES HeapProps;
     HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -62,8 +62,20 @@ void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_
     HeapProps.CreationNodeMask = 1;
     HeapProps.VisibleNodeMask = 1;
 
+    D3D12_CLEAR_VALUE *pClearValue = nullptr;
+    if (flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
+    {
+        D3D12_CLEAR_VALUE clearValue = {};
+        clearValue.Format = Format;
+        clearValue.Color[0] = 0.0f; 
+        clearValue.Color[1] = 0.0f; 
+        clearValue.Color[2] = 0.0f; 
+        clearValue.Color[3] = 1.0f;
+        pClearValue = &clearValue;  
+    }
+
     ASSERT_SUCCEEDED(g_Device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
-        m_UsageState, nullptr, MY_IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
+        m_UsageState, pClearValue, MY_IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
 
     m_pResource->SetName(L"Texture");
 
@@ -72,12 +84,71 @@ void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_
     texResource.RowPitch = RowPitchBytes;
     texResource.SlicePitch = RowPitchBytes * Height;
 
+    if (InitialData == nullptr) {
+        // Allocate a temporary buffer filled with zeros.
+        size_t bufferSize = RowPitchBytes * Height;
+        std::vector<uint8_t> zeroData(bufferSize, 0);
+        texResource.pData = zeroData.data();
+    } else {
+        texResource.pData = InitialData;
+    }
+
     CommandContext::InitializeTexture(*this, 1, &texResource);
 
     if (m_hCpuDescriptorHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
         m_hCpuDescriptorHandle = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     g_Device->CreateShaderResourceView(m_pResource.Get(), nullptr, m_hCpuDescriptorHandle);
 }
+
+void Texture::Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags)
+{
+    Destroy();
+
+    m_UsageState = D3D12_RESOURCE_STATE_COPY_DEST;
+
+    m_Width = (uint32_t)Width;
+    m_Height = (uint32_t)Height;
+    m_Depth = (uint32_t)Depth;
+
+    D3D12_RESOURCE_DESC texDesc = {};
+    texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+    texDesc.Width = Width;
+    texDesc.Height = (UINT)Height;
+    texDesc.DepthOrArraySize = (UINT16)Depth;
+    texDesc.MipLevels = 1;
+    texDesc.Format = Format;
+    texDesc.SampleDesc.Count = 1;
+    texDesc.SampleDesc.Quality = 0;
+    texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    texDesc.Flags = flags;
+
+    D3D12_HEAP_PROPERTIES HeapProps;
+    HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    HeapProps.CreationNodeMask = 1;
+    HeapProps.VisibleNodeMask = 1;
+
+    ASSERT_SUCCEEDED(g_Device->CreateCommittedResource(
+        &HeapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
+        m_UsageState, nullptr, MY_IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
+
+    m_pResource->SetName(L"3D Texture");
+
+    D3D12_SUBRESOURCE_DATA texResource;
+    texResource.pData = InitialData;
+    texResource.RowPitch = RowPitchBytes;
+    // SlicePitch is for each depth slice.
+    texResource.SlicePitch = RowPitchBytes * Height;
+
+    if (InitialData == nullptr) {
+        // Allocate a temporary buffer filled with zeros.
+        size_t bufferSize = RowPitchBytes * Height * Depth;
+        std::vector<uint8_t> zeroData(bufferSize, 0);
+        texResource.pData = zeroData.data();
+    } else {
+        texResource.pData = InitialData;
+    }
 
 void Texture::Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags, const std::wstring name)
 {
@@ -178,7 +249,12 @@ void Texture::CreateCube( size_t RowPitchBytes, size_t Width, size_t Height, DXG
     texDesc.SampleDesc.Count = 1;
     texDesc.SampleDesc.Quality = 0;
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+    D3D12_CLEAR_VALUE clearValue = {};
+    clearValue.Format = Format;
+    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    memcpy(clearValue.Color, clearColor, sizeof(clearValue.Color));
 
     D3D12_HEAP_PROPERTIES HeapProps;
     HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -188,7 +264,7 @@ void Texture::CreateCube( size_t RowPitchBytes, size_t Width, size_t Height, DXG
     HeapProps.VisibleNodeMask = 1;
 
     ASSERT_SUCCEEDED(g_Device->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
-        m_UsageState, nullptr, MY_IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
+        m_UsageState, &clearValue, MY_IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
 
     m_pResource->SetName(L"Texture");
 
@@ -197,7 +273,15 @@ void Texture::CreateCube( size_t RowPitchBytes, size_t Width, size_t Height, DXG
     texResource.RowPitch = RowPitchBytes;
     texResource.SlicePitch = texResource.RowPitch * Height;
 
-    CommandContext::InitializeTexture(*this, 1, &texResource);
+    if (InitialData != nullptr) 
+    {
+        D3D12_SUBRESOURCE_DATA texResource;
+        texResource.pData = InitialData;
+        texResource.RowPitch = RowPitchBytes;
+        texResource.SlicePitch = texResource.RowPitch * Height;
+
+        CommandContext::InitializeTexture(*this, 1, &texResource);
+    }
 
     if (m_hCpuDescriptorHandle.ptr == D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
         m_hCpuDescriptorHandle = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
