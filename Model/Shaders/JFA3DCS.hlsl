@@ -1,5 +1,5 @@
 RWTexture3D<uint4> InputTex : register(u0);
-RWTexture3D<float4> SDFTex : register(u1);
+RWTexture3D<float> SDFTex : register(u1);
 RWTexture3D<uint4> OutputTex : register(u2);
 
 cbuffer JFAConstants : register(b0) {
@@ -37,6 +37,6 @@ void main(uint3 DTid : SV_DispatchThreadID)
 	}
 
 	GroupMemoryBarrierWithGroupSync();
-	SDFTex[DTid] = float4(bestDistance / gridResolution.x, bestDistance / gridResolution.y, bestDistance / gridResolution.z, 1.);
+	SDFTex[DTid] = bestDistance;
 	OutputTex[DTid] = bestColor; 
 }

@@ -395,7 +395,7 @@ void Renderer::InitializeJFA(void)
             uint32_t* init = new uint32_t[size];
             std::fill(init, init + size, 0x0);
             m_FinalSDFOutput.Create3D(
-                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"SDF Output"
+                4, 128, 128, 128, DXGI_FORMAT_R32_FLOAT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"SDF Output"
             );
             m_IntermediateSDFOutput.Create3D(
                 4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Intermediate JFA Output"
