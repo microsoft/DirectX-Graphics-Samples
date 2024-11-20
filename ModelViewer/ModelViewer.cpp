@@ -77,7 +77,8 @@ public:
 
     void InitializeGUI();
 
-    GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::Camera& cam, bool renderShadows);
+    GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::BaseCamera& cam, bool renderShadows);
+    void NonLegacyRenderSDF(GraphicsContext& gfxContext);
     void NonLegacyRenderShadowMap(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
     void NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, bool renderShadows = true, bool useSDFGI = false);
 
@@ -345,7 +346,7 @@ void ModelViewer::Update( float deltaT )
     m_MainScissor.bottom = (LONG)g_SceneColorBuffer.GetHeight();
 }
 
-GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::Camera& cam, bool renderShadows)
+GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::BaseCamera& cam, bool renderShadows)
 {
     GlobalConstants globals;
     globals.ViewProjMatrix = cam.GetViewProjMatrix();
@@ -407,6 +408,87 @@ void ModelViewer::NonLegacyRenderShadowMap(GraphicsContext& gfxContext, const Ma
 
     shadowSorter.Sort();
     shadowSorter.RenderMeshes(MeshSorter::kZPass, gfxContext, globals);
+}
+
+void ModelViewer::NonLegacyRenderSDF(GraphicsContext& gfxContext) {
+    VoxelCamera cam; 
+    SDFGIGlobalConstants SDFGIglobals{};
+    D3D12_VIEWPORT voxelViewport{};
+    D3D12_RECT voxelScissor{};
+
+    {
+        float width = 512.f;
+        float height = 512.f;
+        voxelViewport.Width = width;
+        voxelViewport.Height = height;
+        voxelViewport.MinDepth = 0.0f;
+        voxelViewport.MaxDepth = 1.0f;
+
+        voxelScissor.left = 0;
+        voxelScissor.top = 0;
+        voxelScissor.right = width;
+        voxelScissor.bottom = height;
+
+        SDFGIglobals.viewWidth = width;
+        SDFGIglobals.viewHeight = height;
+        SDFGIglobals.voxelPass = 1;
+    }
+
+    Renderer::ClearSDFGITextures(gfxContext);
+
+    for (int i = 0; i < 3; ++i) {
+        cam.UpdateMatrix(i); 
+        GlobalConstants globals = UpdateGlobalConstants(cam, true);
+
+        MeshSorter sorter(MeshSorter::kDefault);
+        sorter.SetCamera(cam);
+        sorter.SetViewport(voxelViewport);
+        sorter.SetScissor(voxelScissor);
+        sorter.SetDepthStencilTarget(g_SceneDepthBuffer);
+        sorter.AddRenderTarget(g_SceneColorBuffer);
+
+        // Begin rendering depth
+        gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+        gfxContext.ClearDepth(g_SceneDepthBuffer);
+
+        m_ModelInst.Render(sorter);
+
+        sorter.Sort();
+
+        MeshSorter sorterInstance = sorter;
+
+        {
+            ScopedTimer _prof(L"Depth Pre-Pass", gfxContext);
+            sorter.RenderMeshes(MeshSorter::kZPass, gfxContext, globals);
+        }
+
+        SSAO::Render(gfxContext, m_Camera);
+
+        gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+        gfxContext.ClearColor(g_SceneColorBuffer);
+
+        {
+            ScopedTimer _prof(i == 0 ? L"Render Voxel X" : i == 1 ? L"Render Voxel Y" : L"Render Voxel Z", gfxContext);
+
+            gfxContext.TransitionResource(g_SSAOFullScreen, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_READ);
+            gfxContext.SetRenderTarget(g_SceneColorBuffer.GetRTV());
+
+            SDFGIglobals.axis = i;
+
+            sorter.RenderVoxels(MeshSorter::kOpaque, gfxContext, globals, SDFGIglobals);
+        }
+    }
+
+    {
+        ComputeContext& context = gfxContext.GetComputeContext();
+        {
+            ScopedTimer _prof(L"SDF Jump Flood Compute", context);
+            Renderer::ComputeSDF(context);
+        }
+    }
+
+    return; 
 }
 
 void ModelViewer::NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, 
@@ -515,8 +597,8 @@ void ModelViewer::RenderScene( void )
     else
     {
         NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
-        // TODO: Add back Voxel Pass here in between shadow map and final color pass
-        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/true);
+        NonLegacyRenderSDF(gfxContext); 
+        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/false);
     }
 
     mp_SDFGIManager->Render(gfxContext, m_Camera);

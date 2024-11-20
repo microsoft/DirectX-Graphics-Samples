@@ -757,7 +757,7 @@ uint8_t Renderer::GetPSO(uint16_t psoFlags)
     // Create associated voxelPSO
     CreateVoxelPSO(psoFlags); 
 
-    ASSERT(sm_PSOs.size() == sm_VoxelPSOs.size())
+    ASSERT(sm_PSOs.size() == sm_VoxelPSOs.size());
 
     return (uint8_t)sm_PSOs.size() - 2;
 }
@@ -826,7 +826,7 @@ void Renderer::ComputeSDF(ComputeContext& context)
                 }
             }
             //2. Dispatch
-            context.Dispatch(128, 128, 128);
+            context.Dispatch(16, 16, 16);
             //3. Update swap bool
             swap = !swap;
         }
@@ -1006,6 +1006,11 @@ void MeshSorter::RenderMeshes(
     globals.IBLBias = s_SpecularIBLBias;
 	context.SetDynamicConstantBufferView(kCommonCBV, sizeof(GlobalConstants), &globals);
 
+    static SDFGIGlobalConstants voxelPassOff{};
+    voxelPassOff.voxelPass = 0; 
+
+    context.SetDynamicConstantBufferView(kSDFGICommonCBV, sizeof(SDFGIGlobalConstants), &voxelPassOff);
+
 	if (m_BatchType == kShadows)
 	{
 		context.TransitionResource(*m_DSV, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
@@ -1139,8 +1144,6 @@ void MeshSorter::RenderMeshes(
 	}
 }
 
-#define RENDER_VOXELS_WITH_DEPTH 0
-
 void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, 
     SDFGIGlobalConstants& SDFGIglobals)
 {
@@ -1175,12 +1178,7 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
         {
         case kOpaque:
             context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
-#if RENDER_VOXELS_WITH_DEPTH   // render with depth
-                context.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-                context.SetRenderTarget(g_SceneColorBuffer.GetRTV(), g_SceneDepthBuffer.GetDSV());
-#else
-                context.SetRenderTarget(g_SceneColorBuffer.GetRTV());
-#endif
+            context.SetRenderTarget(g_SceneColorBuffer.GetRTV());
             break;
         case kTransparent:
             context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -1204,12 +1202,7 @@ void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalCon
             context.SetConstantBuffer(kMaterialConstants, object.materialCBV);
             context.SetDescriptorTable(kMaterialSRVs, s_TextureHeap[mesh.srvTable]);
             context.SetDescriptorTable(kMaterialSamplers, s_SamplerHeap[mesh.samplerTable]);
-
-#if RENDER_VOXELS_WITH_DEPTH
-            context.SetPipelineState(sm_PSOs[key.psoIdx]); 
-#else
             context.SetPipelineState(sm_VoxelPSOs[key.psoIdx]);
-#endif
 
             context.SetVertexBuffer(0, { object.bufferPtr + mesh.vbOffset, mesh.vbSize, mesh.vbStride });
 
