@@ -106,7 +106,7 @@ public:
 
     void Render(Renderer::MeshSorter& sorter,
         const GpuBuffer& meshConstants,
-        const Math::ScaleAndTranslation sphereTransforms[],
+        const Math::AffineTransform sphereTransforms[],
         const Joint* skeleton) const;
 
     Math::BoundingSphere m_BoundingSphere; // Object-space bounding sphere
@@ -166,7 +166,7 @@ private:
     std::shared_ptr<const Model> m_Model;
     UploadBuffer m_MeshConstantsCPU;
     ByteAddressBuffer m_MeshConstantsGPU;
-    std::unique_ptr<__m128[]> m_BoundingSphereTransforms;
+    std::unique_ptr<Math::AffineTransform[]> m_BoundingSphereTransforms;
     Math::UniformTransform m_Locator;
 
     std::unique_ptr<GraphNode[]> m_AnimGraph;   // A copy of the scene graph when instancing animation

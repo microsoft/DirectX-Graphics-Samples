@@ -32,7 +32,7 @@ void Model::Destroy()
 void Model::Render(
     MeshSorter& sorter,
     const GpuBuffer& meshConstants,
-    const ScaleAndTranslation sphereTransforms[],
+    const AffineTransform sphereTransforms[],
     const Joint* skeleton ) const
 {
     // Pointer to current mesh
@@ -45,9 +45,14 @@ void Model::Render(
     {
         const Mesh& mesh = *(const Mesh*)pMesh;
 
-        const ScaleAndTranslation& sphereXform = sphereTransforms[mesh.meshCBV];
-        BoundingSphere sphereLS((const XMFLOAT4*)mesh.bounds);
-        BoundingSphere sphereWS = sphereXform * sphereLS;
+        const AffineTransform& sphereXform = sphereTransforms[mesh.meshCBV];
+        Scalar scaleXSqr = LengthSquare((Vector3)sphereXform.GetX());
+        Scalar scaleYSqr = LengthSquare((Vector3)sphereXform.GetY());
+        Scalar scaleZSqr = LengthSquare((Vector3)sphereXform.GetZ());
+        Scalar sphereScale = Sqrt(Max(Max(scaleXSqr, scaleYSqr), scaleZSqr));
+
+		BoundingSphere sphereLS((const XMFLOAT4*)mesh.bounds);
+		BoundingSphere sphereWS = BoundingSphere(sphereXform * sphereLS.GetCenter(), sphereScale * sphereLS.GetRadius());
         BoundingSphere sphereVS = BoundingSphere(viewMat * sphereWS.GetCenter(), sphereWS.GetRadius());
 
         if (frustum.IntersectSphere(sphereVS))
@@ -68,7 +73,7 @@ void ModelInstance::Render(MeshSorter& sorter) const
     if (m_Model != nullptr)
     {
         //const Frustum& frustum = sorter.GetWorldFrustum();
-        m_Model->Render(sorter, m_MeshConstantsGPU, (const ScaleAndTranslation*)m_BoundingSphereTransforms.get(),
+        m_Model->Render(sorter, m_MeshConstantsGPU, m_BoundingSphereTransforms.get(),
             m_Skeleton.get());
     }
 }
@@ -90,7 +95,8 @@ ModelInstance::ModelInstance( std::shared_ptr<const Model> sourceModel )
     {
         m_MeshConstantsCPU.Create(L"Mesh Constant Upload Buffer", sourceModel->m_NumNodes * sizeof(MeshConstants));
         m_MeshConstantsGPU.Create(L"Mesh Constant GPU Buffer", sourceModel->m_NumNodes, sizeof(MeshConstants));
-        m_BoundingSphereTransforms.reset(new __m128[sourceModel->m_NumNodes]);
+
+        m_BoundingSphereTransforms.reset(new AffineTransform[sourceModel->m_NumNodes]);
         m_Skeleton.reset(new Joint[sourceModel->m_NumJoints]);
 
         if (sourceModel->m_NumAnimations > 0)
@@ -129,7 +135,8 @@ ModelInstance& ModelInstance::operator=( std::shared_ptr<const Model> sourceMode
     {
         m_MeshConstantsCPU.Create(L"Mesh Constant Upload Buffer", sourceModel->m_NumNodes * sizeof(MeshConstants));
         m_MeshConstantsGPU.Create(L"Mesh Constant GPU Buffer", sourceModel->m_NumNodes, sizeof(MeshConstants));
-        m_BoundingSphereTransforms.reset(new __m128[sourceModel->m_NumNodes]);
+
+        m_BoundingSphereTransforms.reset(new AffineTransform[sourceModel->m_NumNodes]);
         m_Skeleton.reset(new Joint[sourceModel->m_NumJoints]);
 
         if (sourceModel->m_NumAnimations > 0)
@@ -158,7 +165,6 @@ void ModelInstance::Update(GraphicsContext& gfxContext, float deltaTime)
     Matrix4 matrixStack[kMaxStackDepth];
     Matrix4 ParentMatrix = Matrix4((AffineTransform)m_Locator);
 
-    ScaleAndTranslation* boundingSphereTransforms = (ScaleAndTranslation*)m_BoundingSphereTransforms.get();
     MeshConstants* cb = (MeshConstants*)m_MeshConstantsCPU.Map();
 
     if (m_AnimGraph)
@@ -196,12 +202,12 @@ void ModelInstance::Update(GraphicsContext& gfxContext, float deltaTime)
             cbv.World = xform;
             cbv.WorldIT = InverseTranspose(xform.Get3x3());
 
-            Scalar scaleXSqr = LengthSquare((Vector3)xform.GetX());
-            Scalar scaleYSqr = LengthSquare((Vector3)xform.GetY());
-            Scalar scaleZSqr = LengthSquare((Vector3)xform.GetZ());
-            Scalar sphereScale = Sqrt(Max(Max(scaleXSqr, scaleYSqr), scaleZSqr));
-            boundingSphereTransforms[Node->matrixIdx] = ScaleAndTranslation((Vector3)xform.GetW(), sphereScale);
-        }
+            m_BoundingSphereTransforms[Node->matrixIdx] = AffineTransform(
+                (Vector3)xform.GetX(),
+                (Vector3)xform.GetY(),
+                (Vector3)xform.GetZ(),
+                (Vector3)xform.GetW());
+       }
 
         // If the next node will be a descendent, replace the parent matrix with our new matrix
         if (Node->hasChildren)
