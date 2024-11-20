@@ -985,7 +985,9 @@ void MeshSorter::Sort()
 void MeshSorter::RenderMeshes(
     DrawPass pass,
     GraphicsContext& context,
-    GlobalConstants& globals)
+    GlobalConstants& globals,
+    bool UseSDFGI,
+    SDFGI::SDFGIManager* mp_SDFGIManager)
 {
 	ASSERT(m_DSV != nullptr);
 
@@ -1000,16 +1002,48 @@ void MeshSorter::RenderMeshes(
     context.SetDescriptorTable(kCommonSRVs, m_CommonTextures);
 
     // Set common shader constants
-	globals.ViewProjMatrix = m_Camera->GetViewProjMatrix();
-	globals.CameraPos = m_Camera->GetPosition();
+	  globals.ViewProjMatrix = m_Camera->GetViewProjMatrix();
+	  globals.CameraPos = m_Camera->GetPosition();
     globals.IBLRange = s_SpecularIBLRange - s_SpecularIBLBias;
     globals.IBLBias = s_SpecularIBLBias;
 	context.SetDynamicConstantBufferView(kCommonCBV, sizeof(GlobalConstants), &globals);
 
     static SDFGIGlobalConstants voxelPassOff{};
     voxelPassOff.voxelPass = 0; 
-
     context.SetDynamicConstantBufferView(kSDFGICommonCBV, sizeof(SDFGIGlobalConstants), &voxelPassOff);
+
+
+  if (UseSDFGI) {
+      __declspec(align(16)) struct SDFGIConstants {
+          Vector3 GridSize;                       // 16
+
+          Vector3 ProbeSpacing;                   // 16
+
+          Vector3 SceneMinBounds;                 // 16
+
+          unsigned int ProbeAtlasBlockResolution; // 4
+          unsigned int GutterSize;                // 4
+          float AtlasWidth;                       // 4
+          float AtlasHeight;                      // 4
+
+          bool UseAtlas;                          // 4
+          float Pad0;                             // 4
+          float Pad1;                             // 4
+          float Pad2;                             // 4
+      } sdfgiConstants;
+
+      context.SetDescriptorTable(Renderer::kSDFGISRVs, mp_SDFGIManager->GetIrradianceAtlasDescriptorHandle());
+      SDFGI::SDFGIProbeData sdfgiProbeData = mp_SDFGIManager->GetProbeData();
+      sdfgiConstants.GridSize = sdfgiProbeData.GridSize;
+      sdfgiConstants.ProbeSpacing = sdfgiProbeData.ProbeSpacing;
+      sdfgiConstants.SceneMinBounds = sdfgiProbeData.SceneMinBounds;
+      sdfgiConstants.ProbeAtlasBlockResolution = sdfgiProbeData.ProbeAtlasBlockResolution;
+      sdfgiConstants.GutterSize = sdfgiProbeData.GutterSize;
+      sdfgiConstants.AtlasWidth = sdfgiProbeData.AtlasWidth;
+      sdfgiConstants.AtlasHeight = sdfgiProbeData.AtlasHeight;
+      sdfgiConstants.UseAtlas = true;
+      context.SetDynamicConstantBufferView(Renderer::kSDFGICBV, sizeof(sdfgiConstants), &sdfgiConstants);
+  }
 
 	if (m_BatchType == kShadows)
 	{
