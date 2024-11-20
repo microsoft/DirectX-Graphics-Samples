@@ -37,6 +37,61 @@ float boxSDF(float3 p, float3 b)
     return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
 }
 
+// assuming that the 3D texture covers a box (in world space) that:
+//      * is centered at the origin
+//      * Xbounds = [-2000, 2000]
+//      * Ybounds = [-2000, 2000]
+//      * Zbounds = [-2000, 2000]
+float3 worldToTex(float3 worldPos) {
+    // todo: put this in a matrix? in some vectors?
+    float xmin = -2000; 
+    float xmax = 2000; 
+    float ymin = -2000; 
+    float ymax = 2000; 
+    float zmin = -2000; 
+    float zmax = 2000; 
+
+    float3 texCoord = float3(0, 0, 0); 
+
+    // world coord to [0, 1] coords
+    texCoord.x = (worldPos.x - xmin) / (xmax - xmin);
+    texCoord.y = (worldPos.y - ymin) / (ymax - ymin);
+    texCoord.z = (worldPos.z - zmin) / (zmax - zmin);
+
+    // assuming a 128 * 128 * 128 texture, but this can be changed
+    // u' = u * (tmax - tmin) + tmin
+    // where tmax == 127 and tmin == 0
+    return texCoord * 127.0;
+}
+
+// hm I'm not actually sure if I need texToWorld
+float3 texToWorld(uint3 texPos) {
+    // normalize texPos
+    uint tmin = 0; 
+    uint tmax = 127; 
+    float3 range = tmax - tmin; 
+    float3 uvw = float3(0, 0, 0);
+    uvw.x = (texPos.x - tmin) / range; 
+    uvw.y = (texPos.y - tmin) / range; 
+    uvw.z = (texPos.z - tmin) / range; 
+
+    // uvw space to world space
+    float xmin = -2000;
+    float xmax = 2000;
+    float ymin = -2000;
+    float ymax = 2000;
+    float zmin = -2000;
+    float zmax = 2000;
+
+    float3 worldPos = float3(0, 0, 0); 
+
+    worldPos.x = uvw.x * (xmax - xmin) + xmin; 
+    worldPos.y = uvw.y * (ymax - ymin) + ymin; 
+    worldPos.z = uvw.z * (zmax - zmin) + zmin; 
+
+    return worldPos;
+}
+
 /**
  * Signed distance function describing the scene.
  *
@@ -94,6 +149,24 @@ float shortestDistanceToSurface(float3 eye, float3 marchingDirection, float star
     return end;
 }
 
+int3 shortestDistanceToSurfaceTexSpace(float3 eye, float3 marchingDirection) {
+    float start = 0; 
+    float depth = start;
+    for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
+        int3 hit = (eye + depth * marchingDirection);
+        if (any(hit > int3(127, 127, 127)) || any(hit < int3(0, 0, 0))) {
+            return int3(-1, -1, -1);
+        }
+        hit.y = 128 - hit.y; 
+        float dist = SDFTex[hit];
+        if (dist == 0.f) {
+            return hit;
+        }
+        depth += dist;
+    }
+    return int3(-1, -1, -1);
+}
+
 float4 main(VSOutput input) : SV_TARGET{
     // calculate eye and direction using hard-coded values
     // float3 dir = rayDirection(45.0, input.uv);
@@ -103,23 +176,23 @@ float4 main(VSOutput input) : SV_TARGET{
     float3 dir = rayDirectionFromCamera(input.uv, invViewProjection);
     float3 eye = cameraPosition;
 
-    float dist = shortestDistanceToSurface(eye, dir, MIN_DIST, MAX_DIST);
+    int3 hit = shortestDistanceToSurfaceTexSpace(worldToTex(eye), dir);
 
-    if (dist > MAX_DIST - EPSILON) {
+    if (hit.x == -1) {
         // Didn't hit anything
-        return float4(0.0, 0.0, 0.0, 0.0);
+        return float4(0.1, 0.1, 0.1, 1.0);
     }
 
-    //return float4(1, 0, 0, 1);  // outputs a red sdf
-
-    float testDistance = SDFTex[uint3(0, 0, 0)]; 
+    // -- test that we're getting UAV's --
+    /*float testDistance = SDFTex[uint3(0, 0, 0)]; 
     float4 testColor = AlbedoTex[uint3(56, 30, 42)]; 
-
     testColor.z = testDistance; 
+    return testColor; */
 
-    return testColor; 
+    // -- outputs sdf as red color --
+    return AlbedoTex[hit];
 
-    // output depth
-    float intensity = saturate(dist / MAX_DIST);
-    return float4(intensity, intensity, intensity, 1.0);
+    // -- output depth --
+    // float intensity = saturate(dist / MAX_DIST);
+    // return float4(intensity, intensity, intensity, 1.0);
 }
