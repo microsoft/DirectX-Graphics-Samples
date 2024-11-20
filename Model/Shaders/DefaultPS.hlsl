@@ -13,9 +13,6 @@
 
 #include "Common.hlsli"
 
-// TODO: Create duplicates of all DefaultXXXPS shaders with this pre-processor
-#define SDFGI_VOXEL_PASS 1
-
 Texture2D<float4> baseColorTexture          : register(t0);
 Texture2D<float3> metallicRoughnessTexture  : register(t1);
 Texture2D<float1> occlusionTexture          : register(t2);
@@ -75,7 +72,6 @@ cbuffer SDFGIConstants : register(b2) {
     float Pad4;
     float Pad5;
 };
-
 
 cbuffer VoxelConsts : register(b3)
 {
@@ -433,13 +429,14 @@ float4 main(VSOutput vsOutput) : SV_Target0
 
         if (voxelCoords.x == 0 && voxelCoords.y == 0 && voxelCoords.z == 0)
         {
-            return baseColor; // Early exit or skip further processing
+            return baseColor; // Early exit
         }
 
+        // TODO: using baseColor for debug purposes
         SDFGIVoxelAlbedo[voxelCoords] = float4(baseColor.xyz, 1.0);
         SDFGIVoxelVoronoi[voxelCoords] = uint4(voxelCoords, 255);
 
-        // we don't really care about the output. This is for debug purposes. 
+        // we don't really care about the output. how to write into an empty framebuffer? 
         return baseColor;
     }
     

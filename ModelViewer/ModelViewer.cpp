@@ -79,6 +79,7 @@ public:
 
     GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::BaseCamera& cam, bool renderShadows);
     void NonLegacyRenderSDF(GraphicsContext& gfxContext);
+    void RayMarcherDebug(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
     void NonLegacyRenderShadowMap(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
     void NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, bool renderShadows = true, bool useSDFGI = false);
 
@@ -486,9 +487,40 @@ void ModelViewer::NonLegacyRenderSDF(GraphicsContext& gfxContext) {
             ScopedTimer _prof(L"SDF Jump Flood Compute", context);
             Renderer::ComputeSDF(context);
         }
+
     }
 
     return; 
+}
+
+void ModelViewer::RayMarcherDebug(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
+{
+    MeshSorter sorter(MeshSorter::kDefault);
+    sorter.SetCamera(cam);
+    sorter.SetViewport(viewport);
+    sorter.SetScissor(scissor);
+    sorter.SetDepthStencilTarget(g_SceneDepthBuffer);
+    sorter.AddRenderTarget(g_SceneColorBuffer);
+
+    // Begin rendering depth
+    gfxContext.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE, true);
+    gfxContext.ClearDepth(g_SceneDepthBuffer);
+
+    m_ModelInst.Render(sorter);
+
+    sorter.Sort();
+
+    MeshSorter sorterInstance = sorter;
+
+    {
+        ScopedTimer _prof(L"Depth Pre-Pass", gfxContext);
+        sorter.RenderMeshes(MeshSorter::kZPass, gfxContext, UpdateGlobalConstants(cam, false));
+    }
+
+    gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+    gfxContext.ClearColor(g_SceneColorBuffer);
+
+    Renderer::RayMarchSDF(gfxContext, viewport, scissor); 
 }
 
 void ModelViewer::NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, 
@@ -591,7 +623,15 @@ void ModelViewer::RenderScene( void )
     const D3D12_RECT& scissor = m_MainScissor;
 
     ParticleEffectManager::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
-
+#if RAYMARCH_TEST
+    static bool run = true; 
+    if (run) {
+        NonLegacyRenderSDF(gfxContext);
+        run = false; 
+    }
+    
+    RayMarcherDebug(gfxContext, m_Camera, viewport, scissor);
+#else
     mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
 
     if (m_ModelInst.IsNull())
@@ -604,10 +644,11 @@ void ModelViewer::RenderScene( void )
     {
         NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
         NonLegacyRenderSDF(gfxContext); 
-        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/true);
+        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/false);
     }
 
     mp_SDFGIManager->Render(gfxContext, m_Camera);
+#endif
 
 #if MAIN_SUN_SHADOW_BUFFER_VIS == 1  //all main macros in pch.h
     Renderer::DrawShadowBuffer(gfxContext, viewport, scissor);

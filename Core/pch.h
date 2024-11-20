@@ -51,6 +51,9 @@
 // Depth Prepass for Forward+
 #define ENABLE_DEPTH_PREPASS 0
 
+// Enable SDF Ray-marching test
+#define RAYMARCH_TEST 0
+
 #include <Windows.h>
 #include <wrl/client.h>
 #include <wrl/event.h>
