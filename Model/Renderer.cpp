@@ -101,6 +101,10 @@ namespace Renderer
     Texture m_IntermediateSDFOutput;
 
     JFAGlobalConstants m_jfaGlobals;
+
+    // SDFGI: SDF Ray March Debug
+    DescriptorHeap m_SDFRayMarchTextureHeap; 
+    DescriptorHandle m_SDFTextures;
 }
 
 void Renderer::Initialize(void)
@@ -291,6 +295,7 @@ void Renderer::Initialize(void)
     // SDFGI Initialization
     InitializeVoxel(); 
     InitializeJFA();
+    InitializeRayMarchDebug(); 
 
     s_Initialized = true;
 }
@@ -443,6 +448,25 @@ void Renderer::InitializeJFA(void)
     m_jfaGlobals.gridResolution[0] = 128.f;
     m_jfaGlobals.gridResolution[1] = 128.f;
     m_jfaGlobals.gridResolution[2] = 128.f;
+}
+
+void Renderer::InitializeRayMarchDebug() {
+    m_SDFRayMarchTextureHeap.Create(L"SDF Ray March 3D Tex Descriptors", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+
+    // SRV: m_VoxelVoronoiInput
+    m_SDFTextures = m_SDFRayMarchTextureHeap.Alloc(2);
+    {
+        uint32_t DestCount = 2;
+        uint32_t SourceCounts[] = { 1, 1 };
+
+        D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+        {
+            m_VoxelAlbedo.GetUAV(),
+            m_FinalSDFOutput.GetUAV()
+        };
+
+        g_Device->CopyDescriptors(1, &m_SDFTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    }
 }
 
 void Renderer::UpdateGlobalDescriptors(void)
@@ -837,24 +861,24 @@ void Renderer::ComputeSDF(ComputeContext& context)
     }
 }
 
-void Renderer::RayMarchSDF(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
+void Renderer::RayMarchSDF(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
 {
+    // Init Constant Buffer
+    static RayMarchGlobalConstants constants{}; 
+    constants.InvViewProjMatrix = Math::Invert(cam.GetViewProjMatrix()); 
+    constants.CameraPos = cam.GetPosition();
+
+    Math::Vector4 test = cam.GetViewMatrix() * Math::Vector4(0, 0, 0, 1);
+    test = Math::Vector4(test.GetX() / test.GetW(), test.GetY() / test.GetW(), test.GetZ() / test.GetW(), test.GetW() / test.GetW());
+
+    // Init Root Sig
     RootSignature RayMarchRS;
     {
-        RayMarchRS.Reset(1, 1);
+        RayMarchRS.Reset(2, 0);
 
-        // 1 Root Parameter: Descriptor Table
-        RayMarchRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-        // 1 Sampler for Pixel Shader
-        SamplerDesc DepthSamplerDesc;
-        DepthSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-        DepthSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-        DepthSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-        DepthSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-        DepthSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-
-        RayMarchRS.InitStaticSampler(0, DepthSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
-
+        // Root Parameters
+        RayMarchRS[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+        RayMarchRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
         RayMarchRS.Finalize(L"Ray March Root Sig", D3D12_ROOT_SIGNATURE_FLAG_NONE);
     }
 
@@ -875,7 +899,6 @@ void Renderer::RayMarchSDF(GraphicsContext& gfxContext, const D3D12_VIEWPORT& vi
             depthStencilDesc.DepthEnable = FALSE;        // Disable depth testing
             depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;  // Depth writes are not needed
             depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS; // No depth comparisons
-
             depthStencilDesc.StencilEnable = FALSE;      // Disable stencil testing
             depthStencilDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
             depthStencilDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
@@ -895,12 +918,11 @@ void Renderer::RayMarchSDF(GraphicsContext& gfxContext, const D3D12_VIEWPORT& vi
 
         gfxContext.SetRootSignature(RayMarchRS);
         gfxContext.SetPipelineState(SDFRayMarchPSO);
-        gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
-        D3D12_GPU_DESCRIPTOR_HANDLE baseHandle = Renderer::s_TextureHeap.GetHeapPointer()->GetGPUDescriptorHandleForHeapStart();
-        D3D12_GPU_DESCRIPTOR_HANDLE shadowHandle;
-        unsigned int shadowMapIndexInHeap = 3; //This is just hardcoded by MiniEngine lol
-        shadowHandle.ptr = baseHandle.ptr + shadowMapIndexInHeap * g_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        gfxContext.SetDescriptorTable(0, shadowHandle);
+
+        gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SDFRayMarchTextureHeap.GetHeapPointer());
+
+        gfxContext.SetDynamicConstantBufferView(0, sizeof(RayMarchGlobalConstants), &constants);
+        gfxContext.SetDescriptorTable(1, m_SDFTextures);
 
         D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV() };
         gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs);

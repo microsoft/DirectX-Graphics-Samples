@@ -372,6 +372,9 @@ GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::BaseCamera& cam, 
         float y = obb.GetDimensions().GetY();
         float z = obb.GetDimensions().GetZ();
 
+        // Debug spam >:( -- Mikey
+
+        /*  
         Utility::Print("Obb: ");
         Utility::Print(std::to_string(obb.GetDimensions().GetX()).c_str());
         Utility::Print(", ");
@@ -379,6 +382,8 @@ GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::BaseCamera& cam, 
         Utility::Print(", ");
         Utility::Print(std::to_string(obb.GetDimensions().GetZ()).c_str());
         Utility::Print("\n");
+        */
+
         //We should evaluate the correct center position based on the camera angle!
         //This is similar to your 3D Pixel art project!
         float maxLength = Length(obb.GetDimensions());
@@ -520,7 +525,10 @@ void ModelViewer::RayMarcherDebug(GraphicsContext& gfxContext, const Math::Camer
     gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
     gfxContext.ClearColor(g_SceneColorBuffer);
 
-    Renderer::RayMarchSDF(gfxContext, viewport, scissor); 
+    {
+        ScopedTimer _prof(L"Ray March Debug", gfxContext);
+        Renderer::RayMarchSDF(gfxContext, cam, viewport, scissor);
+    }
 }
 
 void ModelViewer::NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, 

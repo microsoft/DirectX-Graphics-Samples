@@ -86,6 +86,7 @@ namespace Renderer
     void ClearSDFGITextures(GraphicsContext& gfxContext); 
     void InitializeVoxel(void); 
     void InitializeJFA(void);
+    void InitializeRayMarchDebug(void);
     void CreateVoxelPSO(uint16_t psoFlags);
     uint8_t GetPSO(uint16_t psoFlags);
     void SetIBLTextures(TextureRef diffuseIBL, TextureRef specularIBL);
@@ -93,7 +94,7 @@ namespace Renderer
     void UpdateGlobalDescriptors(void);
     void DrawSkybox( GraphicsContext& gfxContext, const Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor );
     void DrawShadowBuffer(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
-    void RayMarchSDF(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+    void RayMarchSDF(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
     void ComputeSDF(ComputeContext& context);
 
     class MeshSorter

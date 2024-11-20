@@ -68,6 +68,12 @@ __declspec(align(256)) struct GlobalConstants
     float IBLBias;
 };
 
+__declspec(align(256)) struct RayMarchGlobalConstants
+{
+    Math::Matrix4 InvViewProjMatrix;
+    Math::Vector3 CameraPos;            
+};
+
 __declspec(align(256)) struct SDFGIGlobalConstants
 {
     float viewWidth; 
