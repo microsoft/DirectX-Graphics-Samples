@@ -433,7 +433,8 @@ float4 main(VSOutput vsOutput) : SV_Target0
         }
 
         // TODO: using baseColor for debug purposes
-        SDFGIVoxelAlbedo[voxelCoords] = float4(baseColor.xyz, 1.0);
+        SDFGIVoxelAlbedo[voxelCoords] = float4(colorAccum.xyz, 1.0);
+        //SDFGIVoxelAlbedo[voxelCoords] = float4(baseColor.xyz, 1.0);
         SDFGIVoxelVoronoi[voxelCoords] = uint4(voxelCoords, 255);
 
         // we don't really care about the output. how to write into an empty framebuffer? 
