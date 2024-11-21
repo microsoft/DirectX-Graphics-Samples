@@ -539,6 +539,7 @@
       <Filter>GUI</Filter>
     </ClCompile>
     <ClCompile Include="SDFGI.cpp" />
+    <ClCompile Include="VoxelCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BitonicSort.h" />
@@ -616,6 +617,7 @@
       <Filter>GUI</Filter>
     </ClInclude>
     <ClInclude Include="SDFGI.h" />
+    <ClInclude Include="VoxelCamera.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Math\Functions.inl" />

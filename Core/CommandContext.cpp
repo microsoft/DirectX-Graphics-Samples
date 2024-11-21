@@ -244,6 +244,13 @@ void GraphicsContext::ResolveQueryData(ID3D12QueryHeap* QueryHeap, D3D12_QUERY_T
     m_CommandList->ResolveQueryData(QueryHeap, Type, StartIndex, NumQueries, DestinationBuffer, DestinationBufferOffset);
 }
 
+void GraphicsContext::ClearUAV(Texture& Target)
+{
+    D3D12_GPU_DESCRIPTOR_HANDLE GpuVisibleHandle = m_DynamicViewDescriptorHeap.UploadDirect(Target.GetUAV());
+    const UINT ClearColor[4] = {};
+    m_CommandList->ClearUnorderedAccessViewUint(GpuVisibleHandle, Target.GetUAV(), Target.GetResource(), ClearColor, 0, nullptr);
+}
+
 void GraphicsContext::ClearUAV( GpuBuffer& Target )
 {
     FlushResourceBarriers();

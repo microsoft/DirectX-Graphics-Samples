@@ -100,7 +100,7 @@ void Texture::Create2D( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_
     g_Device->CreateShaderResourceView(m_pResource.Get(), nullptr, m_hCpuDescriptorHandle);
 }
 
-void Texture::Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags)
+void Texture::Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags, const std::wstring name)
 {
     Destroy();
 
@@ -133,7 +133,7 @@ void Texture::Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t
         &HeapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
         m_UsageState, nullptr, MY_IID_PPV_ARGS(m_pResource.ReleaseAndGetAddressOf())));
 
-    m_pResource->SetName(L"3D Texture");
+    m_pResource->SetName(name.c_str());
 
     D3D12_SUBRESOURCE_DATA texResource;
     texResource.pData = InitialData;
@@ -146,7 +146,8 @@ void Texture::Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t
         size_t bufferSize = RowPitchBytes * Height * Depth;
         std::vector<uint8_t> zeroData(bufferSize, 0);
         texResource.pData = zeroData.data();
-    } else {
+    }
+    else {
         texResource.pData = InitialData;
     }
 
@@ -164,7 +165,19 @@ void Texture::Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t
     srvDesc.Texture3D.ResourceMinLODClamp = 0.0f;
 
     g_Device->CreateShaderResourceView(m_pResource.Get(), &srvDesc, m_hCpuDescriptorHandle);
+
+    if (m_UAVHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN)
+        m_UAVHandle = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+    uavDesc.Format = Format;
+    uavDesc.Texture3D.WSize = -1; // Full depth (WSize of -1 implies all depth slices)
+    uavDesc.Texture3D.FirstWSlice = 0;
+
+    g_Device->CreateUnorderedAccessView(m_pResource.Get(), nullptr, &uavDesc, m_UAVHandle);
 }
+
 
 void Texture::CreateCube( size_t RowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData )
 {

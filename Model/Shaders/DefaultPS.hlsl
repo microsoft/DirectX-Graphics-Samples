@@ -73,6 +73,46 @@ cbuffer SDFGIConstants : register(b2) {
     float Pad5;
 };
 
+cbuffer VoxelConsts : register(b3)
+{
+    float viewWidth; 
+    float viewHeight;
+    int axis;
+    bool voxelPass; 
+}
+
+RWTexture3D<float4> SDFGIVoxelAlbedo : register(u0);
+RWTexture3D<uint4> SDFGIVoxelVoronoi : register(u1);
+
+uint3 GetVoxelCoords(float3 position, float2 uv, float textureResolution, int axis)
+{
+    uint x, y, z;
+
+    switch (axis) {
+    case 0: // X-axis pass
+        x = (1. - saturate(position.z)) * textureResolution;
+        y = uv.y * textureResolution;
+        z = uv.x * textureResolution;
+        break;
+    case 1: // Y-axis pass
+        x = (1. - uv.x) * textureResolution;
+        y = saturate(position.z) * textureResolution;
+        z = uv.y * textureResolution;
+        break;
+    case 2: // Z-axis pass
+        x = uv.x * textureResolution;
+        y = uv.y * textureResolution;
+        z = saturate(position.z) * textureResolution;
+        break;
+    default:
+        return uint3(0, 0, 0); // Invalid axis
+    }
+
+    return uint3(clamp(x, 0, textureResolution - 1),
+        clamp(y, 0, textureResolution - 1),
+        clamp(z, 0, textureResolution - 1));
+}
+
 struct VSOutput
 {
     float4 position : SV_POSITION;
@@ -364,37 +404,46 @@ float4 main(VSOutput vsOutput) : SV_Target0
     // Begin accumulating light starting with emissive
     float3 colorAccum = emissive;
 
-if (!UseAtlas) {
-    float sunShadow = texSunShadow.SampleCmpLevelZero( shadowSampler, vsOutput.sunShadowCoord.xy, vsOutput.sunShadowCoord.z );
-    colorAccum += ShadeDirectionalLight(Surface, SunDirection, sunShadow * SunIntensity);
+    if (!UseAtlas) {
+        float sunShadow = texSunShadow.SampleCmpLevelZero( shadowSampler, vsOutput.sunShadowCoord.xy, vsOutput.sunShadowCoord.z );
+        colorAccum += ShadeDirectionalLight(Surface, SunDirection, sunShadow * SunIntensity);
 
-    uint2 pixelPos = uint2(vsOutput.position.xy);
-    float ssao = texSSAO[pixelPos];
+        uint2 pixelPos = uint2(vsOutput.position.xy);
+        float ssao = texSSAO[pixelPos];
 
-    Surface.c_diff *= ssao;
-    Surface.c_spec *= ssao;
-
-    // Old-school ambient light
-    colorAccum += Surface.c_diff * 0.1;
-
-} else {
-
-    uint2 pixelPos = uint2(vsOutput.position.xy);
-    float ssao = texSSAO[pixelPos];
-
-    Surface.c_diff *= ssao;
-    Surface.c_spec *= ssao;
-
-    // Add IBL
-    // colorAccum += Diffuse_IBL(Surface);
-    // colorAccum += Specular_IBL(Surface);
-}
+        Surface.c_diff *= ssao;
+        Surface.c_spec *= ssao;
+    }
 
     // TODO: Shade each light using Forward+ tiles
+    
+    if (voxelPass) {
+        // TODO: These are hardcoded values. It's assumed that the viewport size is 
+        //       512 * 512, and that the 3D texture is 128 * 128 * 128. We could 
+        //       make these CBV's if we want. 
+        float screenResolution = 512.0;
+        float textureResolution = 128.0;
+        float2 uv = vsOutput.position.xy / screenResolution;  // normalized UV coords
 
+        uint3 voxelCoords = GetVoxelCoords(vsOutput.position.xyz, uv, textureResolution, axis);
+
+        if (voxelCoords.x == 0 && voxelCoords.y == 0 && voxelCoords.z == 0)
+        {
+            return baseColor; // Early exit
+        }
+
+        // TODO: using baseColor for debug purposes
+        SDFGIVoxelAlbedo[voxelCoords] = float4(baseColor.xyz, 1.0);
+        SDFGIVoxelVoronoi[voxelCoords] = uint4(voxelCoords, 255);
+
+        // we don't really care about the output. how to write into an empty framebuffer? 
+        return baseColor;
+    }
+    
     if (UseAtlas) {
         return float4(ShadeFragmentWithProbes(vsOutput.worldPos, normalize(vsOutput.normal)), 1.0f);
     } else {
         return float4(colorAccum, baseColor.a);
     }
+
 }

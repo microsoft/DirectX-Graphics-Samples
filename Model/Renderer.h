@@ -21,6 +21,7 @@
 #include "../Core/TextureManager.h"
 #include <cstdint>
 #include <vector>
+#include "SDFGI.h"
 
 #include <d3d12.h>
 
@@ -30,6 +31,7 @@ class DescriptorHeap;
 class ShadowCamera;
 class ShadowBuffer;
 struct GlobalConstants;
+struct SDFGIGlobalConstants; 
 struct Mesh;
 struct Joint;
 
@@ -40,10 +42,18 @@ namespace Renderer
     using namespace Math;
 
     extern std::vector<GraphicsPSO> sm_PSOs;
+    extern std::vector<GraphicsPSO> sm_VoxelPSOs; 
     extern RootSignature m_RootSig;
     extern DescriptorHeap s_TextureHeap;
     extern DescriptorHeap s_SamplerHeap;
     extern DescriptorHandle m_CommonTextures;
+    extern DescriptorHandle m_SDFGIVoxelTextures;
+
+    // SDFGI Voxel Textures
+    extern Texture m_VoxelAlbedo;
+    extern Texture m_VoxelVoronoiInput;
+    extern Texture m_FinalSDFOutput;
+    extern Texture m_IntermediateSDFOutput;
 
     enum RootBindings
     {
@@ -56,19 +66,36 @@ namespace Renderer
         kSkinMatrices,
         kSDFGISRVs,
         kSDFGICBV,
+        kSDFGICommonCBV,
+        kSDFGIVoxelUAVs,
 
         kNumRootBindings
+    };
+
+    enum JFARootBindings
+    {
+        //kInput
+        kJFATextures,
+        kJFACBV,
+        kNumJFARootBindings
     };
 
     void Initialize(void);
     void Shutdown(void);
 
+    void ClearSDFGITextures(GraphicsContext& gfxContext); 
+    void InitializeVoxel(void); 
+    void InitializeJFA(void);
+    void InitializeRayMarchDebug(void);
+    void CreateVoxelPSO(uint16_t psoFlags);
     uint8_t GetPSO(uint16_t psoFlags);
     void SetIBLTextures(TextureRef diffuseIBL, TextureRef specularIBL);
     void SetIBLBias(float LODBias);
     void UpdateGlobalDescriptors(void);
     void DrawSkybox( GraphicsContext& gfxContext, const Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor );
     void DrawShadowBuffer(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+    void RayMarchSDF(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
+    void ComputeSDF(ComputeContext& context);
 
     class MeshSorter
     {
@@ -113,7 +140,9 @@ namespace Renderer
 
         void Sort();
 
-        void RenderMeshes(DrawPass pass, GraphicsContext& context, GlobalConstants& globals);
+        void RenderMeshes(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, bool UseSDFGI = false, SDFGI::SDFGIManager* mp_SDFGIManager = nullptr);
+        void RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, 
+            SDFGIGlobalConstants& SDFGIglobals);
 
     private:
 

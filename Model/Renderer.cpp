@@ -46,6 +46,14 @@
 #include "../Model/CompiledShaders/FullscreenQuadVS.h"
 #include "../Model/CompiledShaders/VisShadowBufferPS.h"
 
+// SDF Debug Rendering
+#include "../Model/CompiledShaders/SDFDebugRayMarchPS.h"
+
+// JFA
+#include "../Model/CompiledShaders/JFA3DCS.h"
+
+#include <algorithm>
+
 #pragma warning(disable:4319) // '~': zero extending 'uint32_t' to 'uint64_t' of greater size
 
 using namespace Math;
@@ -72,8 +80,31 @@ namespace Renderer
     RootSignature m_RootSig;
     GraphicsPSO m_SkyboxPSO(L"Renderer: Skybox PSO");
     GraphicsPSO m_DefaultPSO(L"Renderer: Default PSO"); // Not finalized.  Used as a template.
+    GraphicsPSO m_DefaultVoxelPSO(L"Renderer: SDFGI Default Voxel PSO"); // Not finalized. Used as a template. 
 
     DescriptorHandle m_CommonTextures;
+
+    // SDFGI: Voxel
+    std::vector<GraphicsPSO> sm_VoxelPSOs;
+    DescriptorHandle m_SDFGIVoxelTextures; 
+    Texture m_VoxelAlbedo;
+    Texture m_VoxelVoronoiInput;
+
+    // SDFGI: 3D JFA
+    RootSignature m_JFA3DRS;
+    ComputePSO m_JFA3DPSO;
+
+    DescriptorHeap m_JFA3DTextureHeap;
+    DescriptorHandle m_JFA3DRWTextures_0;
+    DescriptorHandle m_JFA3DRWTextures_1;
+    Texture m_FinalSDFOutput;
+    Texture m_IntermediateSDFOutput;
+
+    JFAGlobalConstants m_jfaGlobals;
+
+    // SDFGI: SDF Ray March Debug
+    DescriptorHeap m_SDFRayMarchTextureHeap; 
+    DescriptorHandle m_SDFTextures;
 }
 
 void Renderer::Initialize(void)
@@ -108,6 +139,10 @@ void Renderer::Initialize(void)
     m_RootSig[kSDFGISRVs].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 21, 1);
     // m_RootSig[kSDFGISRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 21, 1, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig[kSDFGICBV].InitAsConstantBuffer(2, D3D12_SHADER_VISIBILITY_PIXEL);
+
+    // For Voxel PSO's
+    m_RootSig[kSDFGICommonCBV].InitAsConstantBuffer(3, D3D12_SHADER_VISIBILITY_ALL);
+    m_RootSig[kSDFGIVoxelUAVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
     m_RootSig.Finalize(L"RootSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
@@ -235,27 +270,203 @@ void Renderer::Initialize(void)
     // Allocate a descriptor table for the common textures
     m_CommonTextures = s_TextureHeap.Alloc(8);
 
-    uint32_t DestCount = 8;
-    uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1 };
-
-    D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
     {
-        GetDefaultTexture(kBlackCubeMap),
-        GetDefaultTexture(kBlackCubeMap),
-        g_SSAOFullScreen.GetSRV(),
-        g_ShadowBuffer.GetSRV(),
-        Lighting::m_LightBuffer.GetSRV(),
-        Lighting::m_LightShadowArray.GetSRV(),
-        Lighting::m_LightGrid.GetSRV(),
-        Lighting::m_LightGridBitMask.GetSRV(),
-    };
+        uint32_t DestCount = 8;
+        uint32_t SourceCounts[] = { 1, 1, 1, 1, 1, 1, 1, 1 };
 
-    g_Device->CopyDescriptors(1, &m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+        {
+            GetDefaultTexture(kBlackCubeMap),
+            GetDefaultTexture(kBlackCubeMap),
+            g_SSAOFullScreen.GetSRV(),
+            g_ShadowBuffer.GetSRV(),
+            Lighting::m_LightBuffer.GetSRV(),
+            Lighting::m_LightShadowArray.GetSRV(),
+            Lighting::m_LightGrid.GetSRV(),
+            Lighting::m_LightGridBitMask.GetSRV(),
+        };
+
+        g_Device->CopyDescriptors(1, &m_CommonTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    }
 
     g_SSAOFullScreenID = g_SSAOFullScreen.GetVersionID();
     g_ShadowBufferID = g_ShadowBuffer.GetVersionID();
 
+    // SDFGI Initialization
+    InitializeVoxel(); 
+    InitializeJFA();
+    InitializeRayMarchDebug(); 
+
     s_Initialized = true;
+}
+
+
+void Renderer::ClearSDFGITextures(GraphicsContext& gfxContext)
+{
+    gfxContext.TransitionResource(m_VoxelAlbedo, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    gfxContext.TransitionResource(m_VoxelVoronoiInput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    gfxContext.TransitionResource(m_FinalSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    gfxContext.TransitionResource(m_IntermediateSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+    gfxContext.FlushResourceBarriers();
+
+    gfxContext.ClearUAV(m_VoxelAlbedo); 
+    gfxContext.ClearUAV(m_VoxelVoronoiInput);
+    gfxContext.ClearUAV(m_FinalSDFOutput); 
+    gfxContext.ClearUAV(m_IntermediateSDFOutput);
+
+    gfxContext.TransitionResource(m_VoxelAlbedo, D3D12_RESOURCE_STATE_GENERIC_READ);
+    gfxContext.TransitionResource(m_VoxelVoronoiInput, D3D12_RESOURCE_STATE_GENERIC_READ);
+    gfxContext.TransitionResource(m_FinalSDFOutput, D3D12_RESOURCE_STATE_GENERIC_READ);
+    gfxContext.TransitionResource(m_IntermediateSDFOutput, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+    gfxContext.FlushResourceBarriers();
+}
+
+void Renderer::InitializeVoxel(void)
+{
+    // This is stupid, but we only do this so that sm_VoxelPSOs is the same size as sm_PSOs, 
+    // because we want to index both of these arrays the same way. 
+    for (int i = 0; i < 8; ++i) {
+        sm_VoxelPSOs.push_back(m_DefaultVoxelPSO);
+    }
+
+    // SDFGI Voxel PSO, default PSO but we remove depth culling
+    m_DefaultVoxelPSO = m_DefaultPSO;
+
+    D3D12_RASTERIZER_DESC rasterizerDesc = Graphics::RasterizerDefault;
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+    m_DefaultVoxelPSO.SetRasterizerState(rasterizerDesc);
+
+    m_DefaultVoxelPSO.SetBlendState(BlendDisable);
+    m_DefaultVoxelPSO.SetDepthStencilState(DepthStateDisabled);
+    m_DefaultVoxelPSO.SetRenderTargetFormats(1, &g_SceneColorBuffer.GetFormat(), DXGI_FORMAT_UNKNOWN);
+
+    // SDFGI: Create Voxel UAV Textures
+    constexpr size_t size = 128 * 128 * 128;
+    uint32_t* init = new uint32_t[size];
+    std::fill(init, init + size, 0x0);
+    m_VoxelAlbedo.Create3D(
+        4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Voxel Albedo"
+    );
+    m_VoxelVoronoiInput.Create3D(
+        4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Voxel Voronoi Input"
+    );
+    delete[] init;
+
+    // SDFGI: Allocate a descriptor table for the Voxel 3D Texture UAVs
+    m_SDFGIVoxelTextures = s_TextureHeap.Alloc(2);
+
+    {
+        uint32_t DestCount = 2;
+        uint32_t SourceCounts[] = { 1, 1 };
+
+        D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+        {
+            m_VoxelAlbedo.GetUAV(),
+            m_VoxelVoronoiInput.GetUAV()
+        };
+
+        g_Device->CopyDescriptors(1, &m_SDFGIVoxelTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    }
+}
+
+void Renderer::InitializeJFA(void)
+{
+    //JFA3D Initialization
+    {
+        //RS
+        {
+            m_JFA3DRS.Reset(2, 1);
+            //2 (root params)
+            // 0: 3 UAVS (input texture, final sdf texture, intermediate texture)
+            m_JFA3DRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, /*register*/ 0, /*count*/ 3);
+            // 2: CBV for extra info: ivec2 uResolution and uint uStepSize
+            m_JFA3DRS[1].InitAsConstantBuffer(0);
+
+            //1 (texture sampler(s)) (only 1 in this case)
+            m_JFA3DRS.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_ALL);
+            m_JFA3DRS.Finalize(L"JFA3DRootSig", D3D12_ROOT_SIGNATURE_FLAG_NONE); // No flags required for CS
+        }
+        //PSO
+        {
+            m_JFA3DPSO.SetRootSignature(m_JFA3DRS);
+            m_JFA3DPSO.SetComputeShader(g_pJFA3DCS, sizeof(g_pJFA3DCS));
+            m_JFA3DPSO.Finalize();
+        }
+        //Resource Initialization
+        {
+            constexpr size_t size = 128 * 128 * 128;
+            uint32_t* init = new uint32_t[size];
+            std::fill(init, init + size, 0x0);
+            m_FinalSDFOutput.Create3D(
+                4, 128, 128, 128, DXGI_FORMAT_R32_FLOAT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"SDF Output"
+            );
+            m_IntermediateSDFOutput.Create3D(
+                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Intermediate JFA Output"
+            );
+            delete[] init;
+        }
+        {
+            m_JFA3DTextureHeap.Create(L"3D JFA Descriptors", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 16);
+
+            // SRV: m_VoxelVoronoiInput
+            m_JFA3DRWTextures_0 = m_JFA3DTextureHeap.Alloc(3);
+            {
+                uint32_t DestCount = 3;
+                uint32_t SourceCounts[] = { 1, 1, 1 };
+
+                D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+                {
+                    m_VoxelVoronoiInput.GetUAV(),
+                    m_FinalSDFOutput.GetUAV(),
+                    m_IntermediateSDFOutput.GetUAV()
+                };
+
+                g_Device->CopyDescriptors(1, &m_JFA3DRWTextures_0, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            }
+
+            m_JFA3DRWTextures_1 = m_JFA3DTextureHeap.Alloc(3);
+            {
+                uint32_t DestCount = 3;
+                uint32_t SourceCounts[] = { 1, 1, 1 };
+
+                D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+                {
+                    m_IntermediateSDFOutput.GetUAV(),
+                    m_FinalSDFOutput.GetUAV(),
+                    m_VoxelVoronoiInput.GetUAV()
+                };
+
+                g_Device->CopyDescriptors(1, &m_JFA3DRWTextures_1, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            }
+        }
+        //Resource Initialization
+    }
+    //JFA3D Initialization
+
+    m_jfaGlobals.gridResolution[0] = 128.f;
+    m_jfaGlobals.gridResolution[1] = 128.f;
+    m_jfaGlobals.gridResolution[2] = 128.f;
+}
+
+void Renderer::InitializeRayMarchDebug() {
+    m_SDFRayMarchTextureHeap.Create(L"SDF Ray March 3D Tex Descriptors", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+
+    // SRV: m_VoxelVoronoiInput
+    m_SDFTextures = m_SDFRayMarchTextureHeap.Alloc(2);
+    {
+        uint32_t DestCount = 2;
+        uint32_t SourceCounts[] = { 1, 1 };
+
+        D3D12_CPU_DESCRIPTOR_HANDLE SourceTextures[] =
+        {
+            m_VoxelAlbedo.GetUAV(),
+            m_FinalSDFOutput.GetUAV()
+        };
+
+        g_Device->CopyDescriptors(1, &m_SDFTextures, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    }
 }
 
 void Renderer::UpdateGlobalDescriptors(void)
@@ -323,6 +534,129 @@ void Renderer::Shutdown(void)
     s_TextureHeap.Destroy();
     s_SamplerHeap.Destroy();
 }
+
+// TODO: Create duplicates of all hlsl shaders with the "Default" Prefix with the added `#define SDFGI_VOXEL_PASS 1` preprocessor
+void Renderer::CreateVoxelPSO(uint16_t psoFlags) {
+    using namespace PSOFlags;
+
+    GraphicsPSO ColorPSO = m_DefaultVoxelPSO;
+
+    uint16_t Requirements = kHasPosition | kHasNormal;
+    ASSERT((psoFlags & Requirements) == Requirements);
+
+    std::vector<D3D12_INPUT_ELEMENT_DESC> vertexLayout;
+    if (psoFlags & kHasPosition)
+        vertexLayout.push_back({ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT });
+    if (psoFlags & kHasNormal)
+        vertexLayout.push_back({ "NORMAL",   0, DXGI_FORMAT_R10G10B10A2_UNORM,  0, D3D12_APPEND_ALIGNED_ELEMENT });
+    if (psoFlags & kHasTangent)
+        vertexLayout.push_back({ "TANGENT",  0, DXGI_FORMAT_R10G10B10A2_UNORM,  0, D3D12_APPEND_ALIGNED_ELEMENT });
+    if (psoFlags & kHasUV0)
+        vertexLayout.push_back({ "TEXCOORD", 0, DXGI_FORMAT_R16G16_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT });
+    else
+        vertexLayout.push_back({ "TEXCOORD", 0, DXGI_FORMAT_R16G16_FLOAT,       1, D3D12_APPEND_ALIGNED_ELEMENT });
+    if (psoFlags & kHasUV1)
+        vertexLayout.push_back({ "TEXCOORD", 1, DXGI_FORMAT_R16G16_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT });
+    if (psoFlags & kHasSkin)
+    {
+        vertexLayout.push_back({ "BLENDINDICES", 0, DXGI_FORMAT_R16G16B16A16_UINT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+        vertexLayout.push_back({ "BLENDWEIGHT", 0, DXGI_FORMAT_R16G16B16A16_UNORM, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+    }
+
+    ColorPSO.SetInputLayout((uint32_t)vertexLayout.size(), vertexLayout.data());
+
+    if (psoFlags & kHasSkin)
+    {
+        if (psoFlags & kHasTangent)
+        {
+            if (psoFlags & kHasUV1)
+            {
+                ColorPSO.SetVertexShader(g_pDefaultSkinVS, sizeof(g_pDefaultSkinVS));
+                ColorPSO.SetPixelShader(g_pDefaultPS, sizeof(g_pDefaultPS));
+            }
+            else
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoUV1SkinVS, sizeof(g_pDefaultNoUV1SkinVS));
+                ColorPSO.SetPixelShader(g_pDefaultNoUV1PS, sizeof(g_pDefaultNoUV1PS));
+            }
+        }
+        else
+        {
+            if (psoFlags & kHasUV1)
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoTangentSkinVS, sizeof(g_pDefaultNoTangentSkinVS));
+                ColorPSO.SetPixelShader(g_pDefaultNoTangentPS, sizeof(g_pDefaultNoTangentPS));
+            }
+            else
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoTangentNoUV1SkinVS, sizeof(g_pDefaultNoTangentNoUV1SkinVS));
+                ColorPSO.SetPixelShader(g_pDefaultNoTangentNoUV1PS, sizeof(g_pDefaultNoTangentNoUV1PS));
+            }
+        }
+    }
+    else
+    {
+        if (psoFlags & kHasTangent)
+        {
+            if (psoFlags & kHasUV1)
+            {
+                ColorPSO.SetVertexShader(g_pDefaultVS, sizeof(g_pDefaultVS));
+                ColorPSO.SetPixelShader(g_pDefaultPS, sizeof(g_pDefaultPS));
+            }
+            else
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoUV1VS, sizeof(g_pDefaultNoUV1VS));
+                ColorPSO.SetPixelShader(g_pDefaultNoUV1PS, sizeof(g_pDefaultNoUV1PS));
+            }
+        }
+        else
+        {
+            if (psoFlags & kHasUV1)
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoTangentVS, sizeof(g_pDefaultNoTangentVS));
+                ColorPSO.SetPixelShader(g_pDefaultNoTangentPS, sizeof(g_pDefaultNoTangentPS));
+            }
+            else
+            {
+                ColorPSO.SetVertexShader(g_pDefaultNoTangentNoUV1VS, sizeof(g_pDefaultNoTangentNoUV1VS));
+                ColorPSO.SetPixelShader(g_pDefaultNoTangentNoUV1PS, sizeof(g_pDefaultNoTangentNoUV1PS));
+            }
+        }
+    }
+
+    if (psoFlags & kAlphaBlend)
+    {
+        ColorPSO.SetBlendState(BlendPreMultiplied);
+        ColorPSO.SetDepthStencilState(DepthStateReadOnly);
+    }
+    if (psoFlags & kTwoSided)
+    {
+        ColorPSO.SetRasterizerState(RasterizerTwoSided);
+    }
+    ColorPSO.Finalize();
+
+  // Look for an existing PSO
+  /*  for (uint32_t i = 0; i < sm_VoxelPSOs.size(); ++i)
+    {
+        if (ColorPSO.GetPipelineStateObject() == sm_VoxelPSOs[i].GetPipelineStateObject())
+        {
+            return;
+        }
+    }*/
+
+    // If not found, keep the new one, and return its index
+    sm_VoxelPSOs.push_back(ColorPSO);
+
+    // The returned PSO index has read-write depth.  The index+1 tests for equal depth.
+    //ColorPSO.SetDepthStencilState(DepthStateTestEqual);
+    //ColorPSO.Finalize();
+    sm_VoxelPSOs.push_back(ColorPSO);
+
+    ASSERT(sm_VoxelPSOs.size() <= 256, "Ran out of room for unique PSOs");
+
+    return;
+}
+
 
 uint8_t Renderer::GetPSO(uint16_t psoFlags)
 {
@@ -447,6 +781,11 @@ uint8_t Renderer::GetPSO(uint16_t psoFlags)
 
     ASSERT(sm_PSOs.size() <= 256, "Ran out of room for unique PSOs");
 
+    // Create associated voxelPSO
+    CreateVoxelPSO(psoFlags); 
+
+    ASSERT(sm_PSOs.size() == sm_VoxelPSOs.size());
+
     return (uint8_t)sm_PSOs.size() - 2;
 }
 
@@ -481,6 +820,117 @@ void Renderer::DrawSkybox( GraphicsContext& gfxContext, const Camera& Camera, co
     gfxContext.SetDynamicConstantBufferView(kMaterialConstants, sizeof(SkyboxPSCB), &skyPSCB);
     gfxContext.SetDescriptorTable(kCommonSRVs, m_CommonTextures);
     gfxContext.Draw(3);
+}
+
+void Renderer::ComputeSDF(ComputeContext& context)
+{
+    //1. Set up context
+    {
+        context.SetPipelineState(m_JFA3DPSO);
+        context.SetRootSignature(m_JFA3DRS);
+        context.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_JFA3DTextureHeap.GetHeapPointer());
+
+        context.TransitionResource(m_VoxelVoronoiInput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        context.TransitionResource(m_FinalSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        context.TransitionResource(m_IntermediateSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+        context.FlushResourceBarriers(); 
+
+        bool swap = false;
+        for (uint32_t i = 64; i >= 1; i /= 2) {
+            //0. Globals CBV
+            {
+                m_jfaGlobals.stepSize = i;
+                context.SetDynamicConstantBufferView(kJFACBV, sizeof(JFAGlobalConstants), &m_jfaGlobals);
+            }
+            //1. Descriptor Table with UAVs!
+            {
+                if (!swap) {
+                    context.SetDescriptorTable(kJFATextures, m_JFA3DRWTextures_0); //original order
+                }
+                else {
+                    context.SetDescriptorTable(kJFATextures, m_JFA3DRWTextures_1); //swapped order
+                }
+            }
+            //2. Dispatch
+            context.Dispatch(16, 16, 16);
+            //3. Update swap bool
+            swap = !swap;
+        }
+        context.TransitionResource(m_FinalSDFOutput, D3D12_RESOURCE_STATE_GENERIC_READ);
+    }
+}
+
+void Renderer::RayMarchSDF(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
+{
+    // Init Constant Buffer
+    static RayMarchGlobalConstants constants{}; 
+    constants.InvViewProjMatrix = Math::Invert(cam.GetViewProjMatrix()); 
+    constants.CameraPos = cam.GetPosition();
+
+    Math::Vector4 test = cam.GetViewMatrix() * Math::Vector4(0, 0, 0, 1);
+    test = Math::Vector4(test.GetX() / test.GetW(), test.GetY() / test.GetW(), test.GetZ() / test.GetW(), test.GetW() / test.GetW());
+
+    // Init Root Sig
+    RootSignature RayMarchRS;
+    {
+        RayMarchRS.Reset(2, 0);
+
+        // Root Parameters
+        RayMarchRS[0].InitAsConstantBuffer(0, D3D12_SHADER_VISIBILITY_PIXEL);
+        RayMarchRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2, D3D12_SHADER_VISIBILITY_PIXEL);
+        RayMarchRS.Finalize(L"Ray March Root Sig", D3D12_ROOT_SIGNATURE_FLAG_NONE);
+    }
+
+    GraphicsPSO SDFRayMarchPSO(L"Ray March FullScreen PSO");
+    {
+        DXGI_FORMAT ColorFormat = g_SceneColorBuffer.GetFormat();
+        DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
+        DXGI_FORMAT formats[1] = { ColorFormat };
+
+        SDFRayMarchPSO.SetRootSignature(RayMarchRS);
+        D3D12_RASTERIZER_DESC rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+        rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+        SDFRayMarchPSO.SetRasterizerState(rasterizerDesc);
+        SDFRayMarchPSO.SetBlendState(BlendDisable);
+
+        D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+        {
+            depthStencilDesc.DepthEnable = FALSE;        // Disable depth testing
+            depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;  // Depth writes are not needed
+            depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS; // No depth comparisons
+            depthStencilDesc.StencilEnable = FALSE;      // Disable stencil testing
+            depthStencilDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+            depthStencilDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+        }
+        SDFRayMarchPSO.SetDepthStencilState(depthStencilDesc);
+        SDFRayMarchPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        SDFRayMarchPSO.SetRenderTargetFormats(1, formats, DXGI_FORMAT_UNKNOWN);
+        SDFRayMarchPSO.SetVertexShader(g_pFullScreenQuadVS, sizeof(g_pFullScreenQuadVS));
+        SDFRayMarchPSO.SetPixelShader(g_pSDFDebugRayMarchPS, sizeof(g_pSDFDebugRayMarchPS));
+        SDFRayMarchPSO.Finalize();
+    }
+
+    // Render Call
+    {
+        gfxContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+        gfxContext.ClearColor(g_SceneColorBuffer);
+
+        gfxContext.SetRootSignature(RayMarchRS);
+        gfxContext.SetPipelineState(SDFRayMarchPSO);
+
+        gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_SDFRayMarchTextureHeap.GetHeapPointer());
+
+        gfxContext.SetDynamicConstantBufferView(0, sizeof(RayMarchGlobalConstants), &constants);
+        gfxContext.SetDescriptorTable(1, m_SDFTextures);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ g_SceneColorBuffer.GetRTV() };
+        gfxContext.SetRenderTargets(ARRAYSIZE(rtvs), rtvs);
+        gfxContext.SetViewportAndScissor(viewport, scissor);
+
+        gfxContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        gfxContext.DrawIndexed(6, 0, 0);
+    }
 }
 
 void Renderer::DrawShadowBuffer(GraphicsContext& gfxContext, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor)
@@ -634,7 +1084,9 @@ void MeshSorter::Sort()
 void MeshSorter::RenderMeshes(
     DrawPass pass,
     GraphicsContext& context,
-    GlobalConstants& globals)
+    GlobalConstants& globals,
+    bool UseSDFGI,
+    SDFGI::SDFGIManager* mp_SDFGIManager)
 {
 	ASSERT(m_DSV != nullptr);
 
@@ -649,11 +1101,48 @@ void MeshSorter::RenderMeshes(
     context.SetDescriptorTable(kCommonSRVs, m_CommonTextures);
 
     // Set common shader constants
-	globals.ViewProjMatrix = m_Camera->GetViewProjMatrix();
-	globals.CameraPos = m_Camera->GetPosition();
+	  globals.ViewProjMatrix = m_Camera->GetViewProjMatrix();
+	  globals.CameraPos = m_Camera->GetPosition();
     globals.IBLRange = s_SpecularIBLRange - s_SpecularIBLBias;
     globals.IBLBias = s_SpecularIBLBias;
 	context.SetDynamicConstantBufferView(kCommonCBV, sizeof(GlobalConstants), &globals);
+
+    static SDFGIGlobalConstants voxelPassOff{};
+    voxelPassOff.voxelPass = 0; 
+    context.SetDynamicConstantBufferView(kSDFGICommonCBV, sizeof(SDFGIGlobalConstants), &voxelPassOff);
+
+
+  if (UseSDFGI) {
+      __declspec(align(16)) struct SDFGIConstants {
+          Vector3 GridSize;                       // 16
+
+          Vector3 ProbeSpacing;                   // 16
+
+          Vector3 SceneMinBounds;                 // 16
+
+          unsigned int ProbeAtlasBlockResolution; // 4
+          unsigned int GutterSize;                // 4
+          float AtlasWidth;                       // 4
+          float AtlasHeight;                      // 4
+
+          bool UseAtlas;                          // 4
+          float Pad0;                             // 4
+          float Pad1;                             // 4
+          float Pad2;                             // 4
+      } sdfgiConstants;
+
+      context.SetDescriptorTable(Renderer::kSDFGISRVs, mp_SDFGIManager->GetIrradianceAtlasDescriptorHandle());
+      SDFGI::SDFGIProbeData sdfgiProbeData = mp_SDFGIManager->GetProbeData();
+      sdfgiConstants.GridSize = sdfgiProbeData.GridSize;
+      sdfgiConstants.ProbeSpacing = sdfgiProbeData.ProbeSpacing;
+      sdfgiConstants.SceneMinBounds = sdfgiProbeData.SceneMinBounds;
+      sdfgiConstants.ProbeAtlasBlockResolution = sdfgiProbeData.ProbeAtlasBlockResolution;
+      sdfgiConstants.GutterSize = sdfgiProbeData.GutterSize;
+      sdfgiConstants.AtlasWidth = sdfgiProbeData.AtlasWidth;
+      sdfgiConstants.AtlasHeight = sdfgiProbeData.AtlasHeight;
+      sdfgiConstants.UseAtlas = true;
+      context.SetDynamicConstantBufferView(Renderer::kSDFGICBV, sizeof(sdfgiConstants), &sdfgiConstants);
+  }
 
 	if (m_BatchType == kShadows)
 	{
@@ -786,4 +1275,76 @@ void MeshSorter::RenderMeshes(
 	{
 		context.TransitionResource(*m_DSV, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
+}
+
+void MeshSorter::RenderVoxels(DrawPass pass, GraphicsContext& context, GlobalConstants& globals, 
+    SDFGIGlobalConstants& SDFGIglobals)
+{
+    Renderer::UpdateGlobalDescriptors();
+
+    context.SetRootSignature(m_RootSig);
+    context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    context.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, s_TextureHeap.GetHeapPointer());
+    context.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, s_SamplerHeap.GetHeapPointer());
+
+    // Set common textures
+    context.SetDescriptorTable(kCommonSRVs, m_CommonTextures);
+    // SDFGI: Set Voxel UAVS 
+    context.SetDescriptorTable(kSDFGIVoxelUAVs, m_SDFGIVoxelTextures);
+
+    // Set common shader constants
+    globals.ViewProjMatrix = m_Camera->GetViewProjMatrix();
+    globals.CameraPos = m_Camera->GetPosition();
+    globals.IBLRange = s_SpecularIBLRange - s_SpecularIBLBias;
+    globals.IBLBias = s_SpecularIBLBias;
+    context.SetDynamicConstantBufferView(kCommonCBV, sizeof(GlobalConstants), &globals);
+    context.SetDynamicConstantBufferView(kSDFGICommonCBV, sizeof(SDFGIGlobalConstants), &SDFGIglobals);
+
+    for (; m_CurrentPass <= pass; m_CurrentPass = (DrawPass)(m_CurrentPass + 1))
+    {
+        const uint32_t passCount = m_PassCounts[m_CurrentPass];
+        if (passCount == 0)
+            continue;
+
+        switch (m_CurrentPass)
+        {
+        case kOpaque:
+            context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            context.SetRenderTarget(g_SceneColorBuffer.GetRTV());
+            break;
+        case kTransparent:
+            context.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            context.SetRenderTarget(g_SceneColorBuffer.GetRTV());
+            break;
+        }
+
+        context.SetViewportAndScissor(m_Viewport, m_Scissor);
+        context.FlushResourceBarriers();
+
+        const uint32_t lastDraw = m_CurrentDraw + passCount;
+
+        while (m_CurrentDraw < lastDraw)
+        {
+            SortKey key;
+            key.value = m_SortKeys[m_CurrentDraw];
+            const SortObject& object = m_SortObjects[key.objectIdx];
+            const Mesh& mesh = *object.mesh;
+
+            context.SetConstantBuffer(kMeshConstants, object.meshCBV);
+            context.SetConstantBuffer(kMaterialConstants, object.materialCBV);
+            context.SetDescriptorTable(kMaterialSRVs, s_TextureHeap[mesh.srvTable]);
+            context.SetDescriptorTable(kMaterialSamplers, s_SamplerHeap[mesh.samplerTable]);
+            context.SetPipelineState(sm_VoxelPSOs[key.psoIdx]);
+
+            context.SetVertexBuffer(0, { object.bufferPtr + mesh.vbOffset, mesh.vbSize, mesh.vbStride });
+
+            context.SetIndexBuffer({ object.bufferPtr + mesh.ibOffset, mesh.ibSize, (DXGI_FORMAT)mesh.ibFormat });
+
+            for (uint32_t i = 0; i < mesh.numDraws; ++i)
+                context.DrawIndexed(mesh.draw[i].primCount, mesh.draw[i].startIndex, mesh.draw[i].baseVertex);
+
+            ++m_CurrentDraw;
+        }
+    }
 }

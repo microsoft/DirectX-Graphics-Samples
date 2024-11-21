@@ -43,13 +43,16 @@
 
 // Enable imgui window
 #define UI_ENABLE 0
-
+#define DISABLE_FRUSTUM_CULL 1
 
 // Enable Shadow Buffer VIS
 #define MAIN_SUN_SHADOW_BUFFER_VIS 0
 
 // Depth Prepass for Forward+
 #define ENABLE_DEPTH_PREPASS 0
+
+// Enable SDF Ray-marching test
+#define RAYMARCH_TEST 0
 
 #include <Windows.h>
 #include <wrl/client.h>

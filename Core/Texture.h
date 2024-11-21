@@ -22,12 +22,17 @@ class Texture : public GpuResource
 
 public:
 
-    Texture() { m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; }
-    Texture(D3D12_CPU_DESCRIPTOR_HANDLE Handle) : m_hCpuDescriptorHandle(Handle) {}
+    Texture() { 
+        m_hCpuDescriptorHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; 
+        m_UAVHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN; 
+    }
+    Texture(D3D12_CPU_DESCRIPTOR_HANDLE Handle) : m_hCpuDescriptorHandle(Handle), m_UAVHandle() {
+        m_UAVHandle.ptr = D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN;
+    }
 
     // Create a 1-level textures
     void Create2D(size_t RowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitData, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
-    void Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
+    void Create3D(size_t RowPitchBytes, size_t Width, size_t Height, size_t Depth, DXGI_FORMAT Format, const void* InitialData, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE, const std::wstring name = L"3D Texture");
     void CreateCube(size_t RowPitchBytes, size_t Width, size_t Height, DXGI_FORMAT Format, const void* InitialData);
 
     void CreateTGAFromMemory( const void* memBuffer, size_t fileSize, bool sRGB );
@@ -41,6 +46,7 @@ public:
     }
 
     const D3D12_CPU_DESCRIPTOR_HANDLE& GetSRV() const { return m_hCpuDescriptorHandle; }
+    const D3D12_CPU_DESCRIPTOR_HANDLE& GetUAV() const { return m_UAVHandle; }
 
     uint32_t GetWidth() const { return m_Width; }
     uint32_t GetHeight() const { return m_Height; }
@@ -53,4 +59,5 @@ protected:
     uint32_t m_Depth;
 
     D3D12_CPU_DESCRIPTOR_HANDLE m_hCpuDescriptorHandle;
+    D3D12_CPU_DESCRIPTOR_HANDLE m_UAVHandle; 
 };
