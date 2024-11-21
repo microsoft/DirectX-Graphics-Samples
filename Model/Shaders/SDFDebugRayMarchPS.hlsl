@@ -149,9 +149,9 @@ float shortestDistanceToSurface(float3 eye, float3 marchingDirection, float star
     return end;
 }
 
-int3 shortestDistanceToSurfaceTexSpace(float3 eye, float3 marchingDirection) {
+int3 shortestDistanceToSurfaceTexSpace(float3 eye, float3 marchingDirection, out float depth) {
     float start = 0; 
-    float depth = start;
+    depth = start;
     for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
         int3 hit = (eye + depth * marchingDirection);
         if (any(hit > int3(127, 127, 127)) || any(hit < int3(0, 0, 0))) {
@@ -175,12 +175,13 @@ float4 main(VSOutput input) : SV_TARGET{
     // Computing eye and direction using camera matrix
     float3 dir = rayDirectionFromCamera(input.uv, invViewProjection);
     float3 eye = cameraPosition;
+    float dist = 0.f; 
 
-    int3 hit = shortestDistanceToSurfaceTexSpace(worldToTex(eye), dir);
+    int3 hit = shortestDistanceToSurfaceTexSpace(worldToTex(eye), dir, dist);
 
     if (hit.x == -1) {
         // Didn't hit anything
-        return float4(0.1, 0.1, 0.1, 1.0);
+        return float4(0.1, 0.1, 0.7, 1.0);
     }
 
     // -- test that we're getting UAV's --
@@ -188,6 +189,8 @@ float4 main(VSOutput input) : SV_TARGET{
     float4 testColor = AlbedoTex[uint3(56, 30, 42)]; 
     testColor.z = testDistance; 
     return testColor; */
+
+    // return float4(dist / 128, dist / 128, dist / 128, 1.);
 
     // -- outputs sdf as red color --
     return AlbedoTex[hit];
