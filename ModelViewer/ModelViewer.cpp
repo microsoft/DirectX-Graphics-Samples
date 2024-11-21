@@ -632,11 +632,12 @@ void ModelViewer::RenderScene( void )
 
     ParticleEffectManager::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
 #if RAYMARCH_TEST
-    static bool run = true;
+    static bool runOnce = true;
     static bool rayMarchDebug = true;
-    if (run) {
+    if (runOnce) {
+        NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
         NonLegacyRenderSDF(gfxContext);
-        run = false; 
+        runOnce = false; 
     }
     
     if (GameInput::IsFirstPressed(GameInput::kKey_0)) 
@@ -648,7 +649,7 @@ void ModelViewer::RenderScene( void )
     else {
         NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
         NonLegacyRenderSDF(gfxContext);
-        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/false, /*useSDFGI=*/false);
+        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/false);
     }
 #else
     mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
@@ -663,7 +664,7 @@ void ModelViewer::RenderScene( void )
     {
         NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
         NonLegacyRenderSDF(gfxContext); 
-        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/false);
+        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/true);
     }
 
     mp_SDFGIManager->Render(gfxContext, m_Camera);
