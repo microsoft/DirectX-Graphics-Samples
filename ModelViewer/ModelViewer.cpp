@@ -632,13 +632,24 @@ void ModelViewer::RenderScene( void )
 
     ParticleEffectManager::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
 #if RAYMARCH_TEST
-    static bool run = true; 
+    static bool run = true;
+    static bool rayMarchDebug = true;
     if (run) {
         NonLegacyRenderSDF(gfxContext);
         run = false; 
     }
     
-    RayMarcherDebug(gfxContext, m_Camera, viewport, scissor);
+    if (GameInput::IsFirstPressed(GameInput::kKey_0)) 
+        rayMarchDebug = !rayMarchDebug;
+
+    if (rayMarchDebug) {
+        RayMarcherDebug(gfxContext, m_Camera, viewport, scissor);
+    } 
+    else {
+        NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
+        NonLegacyRenderSDF(gfxContext);
+        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/false, /*useSDFGI=*/false);
+    }
 #else
     mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
 

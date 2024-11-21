@@ -157,7 +157,8 @@ int3 shortestDistanceToSurfaceTexSpace(float3 eye, float3 marchingDirection, out
         if (any(hit > int3(127, 127, 127)) || any(hit < int3(0, 0, 0))) {
             return int3(-1, -1, -1);
         }
-        hit.y = 128 - hit.y; 
+        hit.y = 127 - hit.y; 
+        hit.z = 127 - hit.z; 
         float dist = SDFTex[hit];
         if (dist == 0.f) {
             return hit;
@@ -181,7 +182,7 @@ float4 main(VSOutput input) : SV_TARGET{
 
     if (hit.x == -1) {
         // Didn't hit anything
-        return float4(0.1, 0.1, 0.7, 1.0);
+        return float4(0.0, 0.0, 0.0, 0.0);
     }
 
     // -- test that we're getting UAV's --
