@@ -1,4 +1,4 @@
-#define SAMPLE_SDF 0
+#define SAMPLE_SDF 1
 
 static const float PI = 3.14159265f;
 static int MAX_MARCHING_STEPS = 512;
