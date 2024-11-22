@@ -1,4 +1,7 @@
+#define SAMPLE_SDF 0
+
 static const float PI = 3.14159265f;
+static int MAX_MARCHING_STEPS = 512;
 
 cbuffer ProbeData : register(b0) {
     float4x4 RandomRotation;         
@@ -24,7 +27,63 @@ Texture2DArray<float4> ProbeCubemapArray : register(t1);
 RWTexture2DArray<float4> IrradianceAtlas : register(u0);
 RWTexture2DArray<float> DepthAtlas : register(u1);
 
+RWTexture3D<float4> AlbedoTex : register(u2);
+RWTexture3D<float> SDFTex : register(u3);
+
 SamplerState LinearSampler : register(s0);
+
+// --- SDF Helper Functions ---
+
+// assuming that the 3D texture covers a box (in world space) that:
+//      * is centered at the origin
+//      * Xbounds = [-2000, 2000]
+//      * Ybounds = [-2000, 2000]
+//      * Zbounds = [-2000, 2000]
+float3 WorldSpaceToTextureSpace(float3 worldPos) {
+    // todo: put this in a matrix? in some vectors?
+    float xmin = -2000;
+    float xmax = 2000;
+    float ymin = -2000;
+    float ymax = 2000;
+    float zmin = -2000;
+    float zmax = 2000;
+
+    float3 texCoord = float3(0, 0, 0);
+
+    // world coord to [0, 1] coords
+    texCoord.x = (worldPos.x - xmin) / (xmax - xmin);
+    texCoord.y = (worldPos.y - ymin) / (ymax - ymin);
+    texCoord.z = (worldPos.z - zmin) / (zmax - zmin);
+
+    // assuming a 128 * 128 * 128 texture, but we could make this dynamic
+    // u' = u * (tmax - tmin) + tmin
+    // where tmax == 127 and tmin == 0
+    return texCoord * 127.0;
+}
+
+float4 SampleSDFAlbedo(float3 worldPos, float3 marchingDirection) {
+    float3 eye = WorldSpaceToTextureSpace(worldPos); 
+
+    // Ray March Code
+    float start = 0;
+    float depth = start;
+    for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
+        int3 hit = (eye + depth * marchingDirection);
+        if (any(hit > int3(127, 127, 127)) || any(hit < int3(0, 0, 0))) {
+            return float4(0., 0., 0., 1.);
+        }
+        hit.y = 127 - hit.y;
+        hit.z = 127 - hit.z;
+        float dist = SDFTex[hit];
+        if (dist == 0.f) {
+            return AlbedoTex[hit];
+        }
+        depth += dist;
+    }
+    return float4(0., 0., 0., 1.);
+}
+
+// --- Atlas Helper Functions ---
 
 float2 signNotZero(float2 v) {
     return float2((v.x >= 0.0 ? 1.0 : -1.0), (v.y >= 0.0 ? 1.0 : -1.0));
@@ -70,11 +129,13 @@ float3 spherical_fibonacci(uint index, uint sample_count) {
     return float3(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
 }
 
+// --- Shader Start ---
+
 [numthreads(1, 1, 1)]
 void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
-    uint probeIndex = dispatchThreadID.x 
-                + dispatchThreadID.y * GridSize.x 
-                + dispatchThreadID.z * GridSize.x * GridSize.y;
+    uint probeIndex = dispatchThreadID.x
+        + dispatchThreadID.y * GridSize.x
+        + dispatchThreadID.z * GridSize.x * GridSize.y;
 
     if (probeIndex >= ProbeCount) return;
 
@@ -97,15 +158,17 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
             0.0f
         );
 
-        int faceIndex = GetFaceIndex(dir);
-
-        uint textureIndex = probeIndex * 6 + faceIndex;
-
-        // TODO: sample SDF for color and depth in direction 'dir'.
-
-        float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(encodedCoord.xy * 0.5 + 0.5, textureIndex), 0);
-        
+#if SAMPLE_SDF
+        float4 irradianceSample = SampleSDFAlbedo(probePosition, dir);
         IrradianceAtlas[probeTexCoord] = irradianceSample;
-        // DepthAtlas[probeTexCoord] = ...;
+        // TODO: 
+        // float depthSample = SampleSDFDepth(WorldSpaceToTextureSpace(probePosition), dir);
+        // DepthAtlas[probeTexCoord] = depthSample;
+#else
+        int faceIndex = GetFaceIndex(dir);
+        uint textureIndex = probeIndex * 6 + faceIndex;
+        float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(encodedCoord.xy * 0.5 + 0.5, textureIndex), 0);
+        IrradianceAtlas[probeTexCoord] = irradianceSample;
+#endif
     }
 }
