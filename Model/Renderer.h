@@ -64,10 +64,11 @@ namespace Renderer
         kCommonSRVs,
         kCommonCBV,
         kSkinMatrices,
-        kSDFGISRVs,
+        kSDFGIIrradianceAtlasSRV,
         kSDFGICBV,
         kSDFGICommonCBV,
         kSDFGIVoxelUAVs,
+        kSDFGIDepthAtlasSRV,
 
         kNumRootBindings
     };

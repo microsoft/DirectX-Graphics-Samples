@@ -29,7 +29,8 @@ TextureCube<float3> radianceIBLTexture      : register(t10);
 TextureCube<float3> irradianceIBLTexture    : register(t11);
 Texture2D<float> texSSAO			        : register(t12);
 Texture2D<float> texSunShadow			    : register(t13);
-Texture2DArray<float4> IrradianceAtlas : register(t21);
+Texture2DArray<float4> IrradianceAtlas      : register(t21);
+Texture2DArray<float> DepthAtlas            : register(t22);
 
 cbuffer MaterialConstants : register(b0)
 {
@@ -381,6 +382,9 @@ float3 SampleIrradiance(
         texCoord = texCoord / float2(AtlasWidth, AtlasHeight);
 
         irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
+
+        float depth = DepthAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
+        // irradiance[i] = float4(0, depth, 0, 1.0);
 
         resultIrradiance += weights[i] * irradiance[i];
     }

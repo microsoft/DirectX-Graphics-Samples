@@ -391,7 +391,7 @@ void Sponza::RenderScene(
                 gfxContext.SetDynamicConstantBufferView(Renderer::kMaterialConstants, sizeof(psConstants), &psConstants);
 
                 if (sdfgiManager != nullptr) {
-                    gfxContext.SetDescriptorTable(Renderer::kSDFGISRVs, sdfgiManager->GetIrradianceAtlasDescriptorHandle());
+                    gfxContext.SetDescriptorTable(Renderer::kSDFGIIrradianceAtlasSRV, sdfgiManager->GetIrradianceAtlasDescriptorHandle());
                     SDFGI::SDFGIProbeData sdfgiProbeData = sdfgiManager->GetProbeData();
                     __declspec(align(16)) struct SDFGIConstants {
                         Vector3 GridSize;                       // 16

@@ -29,6 +29,7 @@
     "CBV(b1), " \
     "SRV(t20, visibility = SHADER_VISIBILITY_VERTEX), " \
     "DescriptorTable(SRV(t21, numDescriptors = 1), visibility = SHADER_VISIBILITY_PIXEL)," \
+    "DescriptorTable(SRV(t22, numDescriptors = 1), visibility = SHADER_VISIBILITY_PIXEL)," \
     "CBV(b2), " \
     "StaticSampler(s10, maxAnisotropy = 8, visibility = SHADER_VISIBILITY_PIXEL)," \
     "StaticSampler(s11, visibility = SHADER_VISIBILITY_PIXEL," \

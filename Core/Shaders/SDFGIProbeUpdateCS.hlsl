@@ -164,11 +164,13 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
         // TODO: 
         // float depthSample = SampleSDFDepth(WorldSpaceToTextureSpace(probePosition), dir);
         // DepthAtlas[probeTexCoord] = depthSample;
+        DepthAtlas[probeTexCoord] = 1;
 #else
         int faceIndex = GetFaceIndex(dir);
         uint textureIndex = probeIndex * 6 + faceIndex;
         float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(encodedCoord.xy * 0.5 + 0.5, textureIndex), 0);
         IrradianceAtlas[probeTexCoord] = irradianceSample;
+        DepthAtlas[probeTexCoord] = 1;
 #endif
     }
 }

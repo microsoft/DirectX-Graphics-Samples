@@ -135,9 +135,11 @@ void Renderer::Initialize(void)
     srvRange.BaseShaderRegister = 21;
     srvRange.RegisterSpace = 0;
     srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-    m_RootSig[kSDFGISRVs].InitAsDescriptorTable(1, D3D12_SHADER_VISIBILITY_PIXEL);
-    m_RootSig[kSDFGISRVs].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 21, 1);
-    // m_RootSig[kSDFGISRVs].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 21, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+    m_RootSig[kSDFGIIrradianceAtlasSRV].InitAsDescriptorTable(1, D3D12_SHADER_VISIBILITY_PIXEL);
+    m_RootSig[kSDFGIIrradianceAtlasSRV].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 21, 1);
+    // m_RootSig[kSDFGIIrradianceAtlasSRV].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 21, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+    m_RootSig[kSDFGIDepthAtlasSRV].InitAsDescriptorTable(1, D3D12_SHADER_VISIBILITY_PIXEL);
+    m_RootSig[kSDFGIDepthAtlasSRV].SetTableRange(0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 22, 1);
     m_RootSig[kSDFGICBV].InitAsConstantBuffer(2, D3D12_SHADER_VISIBILITY_PIXEL);
 
     // For Voxel PSO's
@@ -1131,7 +1133,8 @@ void MeshSorter::RenderMeshes(
           float Pad2;                             // 4
       } sdfgiConstants;
 
-      context.SetDescriptorTable(Renderer::kSDFGISRVs, mp_SDFGIManager->GetIrradianceAtlasDescriptorHandle());
+      context.SetDescriptorTable(Renderer::kSDFGIIrradianceAtlasSRV, mp_SDFGIManager->GetIrradianceAtlasDescriptorHandle());
+      context.SetDescriptorTable(Renderer::kSDFGIDepthAtlasSRV, mp_SDFGIManager->GetDepthAtlasDescriptorHandle());
       SDFGI::SDFGIProbeData sdfgiProbeData = mp_SDFGIManager->GetProbeData();
       sdfgiConstants.GridSize = sdfgiProbeData.GridSize;
       sdfgiConstants.ProbeSpacing = sdfgiProbeData.ProbeSpacing;

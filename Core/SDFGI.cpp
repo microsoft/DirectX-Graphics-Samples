@@ -140,7 +140,9 @@ namespace SDFGI {
             atlasWidth,
             atlasHeight,
             atlasDepth,
-            DXGI_FORMAT_R16_FLOAT
+            DXGI_FORMAT_R32_FLOAT,
+            D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN,
+            externalHeap
         );
 
         // Individual cubemap faces for all probes.
@@ -342,6 +344,13 @@ namespace SDFGI {
             irradianceAtlas.GetSRV() 
         };
         g_Device->CopyDescriptors(1, &irradianceAtlasSRVHandle, &DestCount, DestCount, SourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+        depthAtlasSRVHandle = externalHeap->Alloc(1);
+        D3D12_CPU_DESCRIPTOR_HANDLE DepthSourceTextures[] =
+        {
+             depthAtlas.GetSRV()
+        };
+        g_Device->CopyDescriptors(1, &depthAtlasSRVHandle, &DestCount, DestCount, DepthSourceTextures, SourceCounts, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
         irradianceCaptured = true;
     }

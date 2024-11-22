@@ -97,6 +97,8 @@ namespace SDFGI
     Vector3 GetIrradianceAtlasDimensions() const { return Vector3(irradianceAtlas.GetWidth(), irradianceAtlas.GetHeight(), irradianceAtlas.GetDepth()); }
 
     ColorBuffer depthAtlas;
+    DescriptorHandle depthAtlasSRVHandle;
+    DescriptorHandle &GetDepthAtlasDescriptorHandle() { return depthAtlasSRVHandle; }
 
     // Individual cubemap faces for all probes.
     Texture **probeCubemapFaceTextures;

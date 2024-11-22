@@ -591,7 +591,7 @@ void ModelViewer::NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::
             //} sdfgiConstants;
             //if (useSDFGI) {
             //    //gfxContext.SetRootSignature(Renderer::m_RootSig);
-            //    gfxContext.SetDescriptorTable(Renderer::kSDFGISRVs, mp_SDFGIManager->GetIrradianceAtlasDescriptorHandle());
+            //    gfxContext.SetDescriptorTable(Renderer::kSDFGIIrradianceAtlasSRV, mp_SDFGIManager->GetIrradianceAtlasDescriptorHandle());
             //    SDFGI::SDFGIProbeData sdfgiProbeData = mp_SDFGIManager->GetProbeData();
             //    sdfgiConstants.GridSize = sdfgiProbeData.GridSize;
             //    sdfgiConstants.ProbeSpacing = sdfgiProbeData.ProbeSpacing;
