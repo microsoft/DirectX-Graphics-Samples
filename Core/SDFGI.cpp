@@ -9,6 +9,7 @@
 #include "RootSignature.h"
 #include "PipelineState.h"
 #include "Utility.h"
+#include "../Model/Renderer.h"
 #include <random>
 
 #include "CompiledShaders/SDFGIProbeVizVS.h"
@@ -232,7 +233,7 @@ namespace SDFGI {
     }
 
     void SDFGIManager::InitializeProbeUpdateShader() {
-        probeUpdateRS.Reset(5, 1);
+        probeUpdateRS.Reset(7, 1);
 
         // probeBuffer.
         probeUpdateRS[0].InitAsBufferSRV(/*register=t*/0, D3D12_SHADER_VISIBILITY_ALL);
@@ -248,6 +249,12 @@ namespace SDFGI {
 
         // Probe grid info.
         probeUpdateRS[4].InitAsConstantBuffer(/*register=b*/0, D3D12_SHADER_VISIBILITY_ALL);
+
+        // Albedo voxel texture.
+        probeUpdateRS[5].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, /*register=u*/2, 1);
+
+        // SDF voxel texture.
+        probeUpdateRS[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, /*register=u*/3, 1);
 
         probeUpdateRS.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_ALL);
 
@@ -274,6 +281,8 @@ namespace SDFGI {
         computeContext.SetDynamicDescriptor(1, 0, irradianceAtlas.GetUAV());
         computeContext.SetDynamicDescriptor(2, 0, depthAtlas.GetUAV());
         computeContext.SetDynamicDescriptor(3, 0, probeCubemapArray.GetSRV());
+        computeContext.SetDynamicDescriptor(5, 0, Renderer::m_VoxelAlbedo.GetUAV()); 
+        computeContext.SetDynamicDescriptor(6, 0, Renderer::m_FinalSDFOutput.GetUAV()); 
 
         computeContext.TransitionResource(irradianceAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         computeContext.TransitionResource(depthAtlas, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

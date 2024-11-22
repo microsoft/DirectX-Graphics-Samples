@@ -203,9 +203,9 @@ void ModelViewer::Startup( void )
         Sponza::Startup(m_Camera);
 #else
         scaleModel = 100.0f;
-        m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
+        //m_ModelInst = Renderer::LoadModel(L"Sponza/PBR/sponza2.gltf", forceRebuild);
         //m_ModelInst = Renderer::LoadModel(L"Models/BoxAndPlane/BoxAndPlane.gltf", forceRebuild);
-        //m_ModelInst = Renderer::LoadModel(L"Models/CornellWithSonicThickWalls/CornellWithSonicThickWalls.gltf", forceRebuild);
+        m_ModelInst = Renderer::LoadModel(L"Models/CornellWithSonicThickWalls/CornellWithSonicThickWalls.gltf", forceRebuild);
         m_ModelInst.Resize(scaleModel * m_ModelInst.GetRadius());
         OrientedBox obb = m_ModelInst.GetBoundingBox();
         float modelRadius = Length(obb.GetDimensions()) * 0.5f;
@@ -652,18 +652,18 @@ void ModelViewer::RenderScene( void )
         NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/false);
     }
 #else
-    mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
-
     if (m_ModelInst.IsNull())
     {
 #ifdef LEGACY_RENDERER
+        mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
         Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor, false, false, mp_SDFGIManager, /*useAtlas=*/true);
 #endif
     }
     else
     {
         NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
-        NonLegacyRenderSDF(gfxContext); 
+        NonLegacyRenderSDF(gfxContext);
+        mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
         NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/true);
     }
 
