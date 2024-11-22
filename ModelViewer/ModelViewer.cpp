@@ -652,20 +652,18 @@ void ModelViewer::RenderScene( void )
         NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/false);
     }
 #else
-    NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
-    NonLegacyRenderSDF(gfxContext);
-    mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
-
     if (m_ModelInst.IsNull())
     {
 #ifdef LEGACY_RENDERER
+        mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
         Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor, false, false, mp_SDFGIManager, /*useAtlas=*/true);
 #endif
     }
     else
     {
-        // NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
-        // NonLegacyRenderSDF(gfxContext); 
+        NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
+        NonLegacyRenderSDF(gfxContext);
+        mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
         NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/true);
     }
 
