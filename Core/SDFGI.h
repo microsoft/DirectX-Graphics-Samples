@@ -43,11 +43,11 @@ namespace SDFGI
     Vector3u probeCount;
     // Distance between probes in world space along each axis.
     Vector3f probeSpacing;
+    Math::AxisAlignedBox sceneBounds;
     std::vector<SDFGIProbe> probes;
+    SDFGIProbeGrid(Math::AxisAlignedBox sceneBounds);
 
-    SDFGIProbeGrid(Vector3 &sceneSize, Vector3 &sceneMin);
-
-    void GenerateProbes(Vector3 &sceneMin);
+    void GenerateProbes();
   };
 
   struct CameraData {
@@ -58,7 +58,9 @@ namespace SDFGI
 
   struct DownsampleCB {
     Vector3 srcSize;
+
     Vector3 dstSize;
+    
     Vector3 scale;
   };
 
@@ -77,7 +79,6 @@ namespace SDFGI
 
     int probeCount;
     SDFGIProbeGrid probeGrid;
-    const Math::AxisAlignedBox &sceneBounds;
 
     // Buffer of SDFGIProbe's.
     StructuredBuffer probeBuffer;
@@ -86,8 +87,8 @@ namespace SDFGI
 
     DescriptorHeap *externalHeap;
 
-    uint32_t probeAtlasBlockResolution = 8;
-    uint32_t gutterSize = 1;
+    uint32_t probeAtlasBlockResolution = 16;
+    uint32_t gutterSize = 2;
     ColorBuffer irradianceAtlas;
     ColorBuffer &getIrradianceAtlas() { return irradianceAtlas; }
     D3D12_GPU_DESCRIPTOR_HANDLE GetIrradianceAtlasGpuSRV() const;

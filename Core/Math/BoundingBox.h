@@ -47,6 +47,8 @@ namespace Math
         Vector3 GetCenter() const { return (m_min + m_max) * 0.5f; }
         Vector3 GetDimensions() const { return Max(m_max - m_min, Vector3(kZero)); }
 
+        void SetMin( Vector3 min ) { m_min.SetX(min.GetX()); m_min.SetY(min.GetY()); m_min.SetZ(min.GetZ()); }
+
     private:
 
         Vector3 m_min;

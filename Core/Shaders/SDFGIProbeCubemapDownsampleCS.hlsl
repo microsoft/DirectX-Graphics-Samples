@@ -5,8 +5,11 @@ SamplerState samplerBilinear : register(s0);
 
 cbuffer DownsampleCB : register(b0) {
     float3 srcSize;  
-    float3 dstSize;  
-    float2 scale;    
+    float pad0;
+    float3 dstSize;
+    float pad1;  
+    float3 scale;
+    float pad2;    
 };
 
 [numthreads(8, 8, 1)]
@@ -15,7 +18,9 @@ void main(uint3 DTid : SV_DispatchThreadID) {
 
     if (dstCoord.x >= dstSize.x || dstCoord.y >= dstSize.y) return;
 
-    float2 uv = (dstCoord + 0.5) * scale / srcSize;
+    // Cropped square in the middle of the source texture.
+    float2 srcCoord = (0.5*srcSize - 0.5*dstSize).xy + dstCoord;
+    float2 uv = srcCoord / srcSize.xy;
 
     float4 color = srcTexture.SampleLevel(samplerBilinear, uv, 0);
 

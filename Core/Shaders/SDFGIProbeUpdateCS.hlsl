@@ -147,7 +147,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
         dispatchThreadID.z
     );
 
-    const uint sample_count = 64;
+    const uint sample_count = ProbeAtlasBlockResolution*ProbeAtlasBlockResolution;
 
     for (uint i = 0; i < sample_count; ++i) {
         float3 dir = normalize(mul(RandomRotation, float4(spherical_fibonacci(i, sample_count), 1.0)).xyz);
