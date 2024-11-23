@@ -30,7 +30,7 @@ TextureCube<float3> irradianceIBLTexture    : register(t11);
 Texture2D<float> texSSAO			        : register(t12);
 Texture2D<float> texSunShadow			    : register(t13);
 Texture2DArray<float4> IrradianceAtlas      : register(t21);
-Texture2DArray<float> DepthAtlas            : register(t22);
+Texture2DArray<float2> DepthAtlas            : register(t22);
 
 cbuffer MaterialConstants : register(b0)
 {
@@ -357,6 +357,16 @@ float3 SampleIrradiance(
     float4 resultIrradiance = float4(0.0, 0.0, 0.0, 0.0);
 
     for (int i = 0; i < 8; ++i) {
+        float2 encodedDir = octEncode(normal);
+        uint3 atlasCoord = probeIndices[i] * uint3(ProbeAtlasBlockResolution + GutterSize, ProbeAtlasBlockResolution + GutterSize, 1);
+        float2 texCoord = atlasCoord.xy + uint2(
+            (encodedDir.x * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
+            (encodedDir.y * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize)
+        );
+        texCoord = texCoord / float2(AtlasWidth, AtlasHeight);
+
+        irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
+
         float3 probeWorldPos = SceneMinBounds + float3(probeIndices[i]) * ProbeSpacing;
         float3 dirToProbe = normalize(probeWorldPos - fragmentWorldPos);
 
@@ -371,17 +381,27 @@ float3 SampleIrradiance(
          // Prevent near-zero distances.
         float distanceWeight = 1.0 / (distance * distance + 1.0e-4f);
         weights[i] = normalDotDir * distanceWeight;
+
+        float2 visibility = DepthAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
+
+        float meanDistanceToOccluder = visibility.x;
+        float chebyshevWeight = 1.0;
+        if (distance > meanDistanceToOccluder) {
+            // In shadow.
+            float variance = abs((visibility.x * visibility.x) - visibility.y);
+            const float distanceDiff = distance - meanDistanceToOccluder;
+            chebyshevWeight = variance / (variance + (distanceDiff * distanceDiff));
+            
+            // Increase contrast in the weight.
+            chebyshevWeight = max((chebyshevWeight * chebyshevWeight * chebyshevWeight), 0.0f);
+        }
+
+        // From Vulkan: Avoid visibility weights ever going all of the way to zero because when
+        // *no* probe has visibility we need some fallback value.
+        chebyshevWeight = max(0.05f, chebyshevWeight);
+        weights[i] *= chebyshevWeight;
+
         weightSum += weights[i];
-
-        float2 encodedDir = octEncode(normal);
-        uint3 atlasCoord = probeIndices[i] * uint3(ProbeAtlasBlockResolution + GutterSize, ProbeAtlasBlockResolution + GutterSize, 1);
-        float2 texCoord = atlasCoord.xy + uint2(
-            (encodedDir.x * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
-            (encodedDir.y * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize)
-        );
-        texCoord = texCoord / float2(AtlasWidth, AtlasHeight);
-
-        irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
 
         float depth = DepthAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
         // irradiance[i] = float4(0, depth, 0, 1.0);

@@ -52,7 +52,7 @@ namespace SDFGI {
 
         float spacing = 800.0f;
 #else
-        float spacing = 2000.0f;
+        float spacing = 400.0f;
 #endif
         probeSpacing[0] = spacing;
         probeSpacing[1] = spacing;
@@ -140,7 +140,7 @@ namespace SDFGI {
             atlasWidth,
             atlasHeight,
             atlasDepth,
-            DXGI_FORMAT_R32_FLOAT,
+            DXGI_FORMAT_R16G16_FLOAT,
             D3D12_GPU_VIRTUAL_ADDRESS_UNKNOWN,
             externalHeap
         );
@@ -315,7 +315,7 @@ namespace SDFGI {
             unsigned int ProbeCount;                    // 4
             unsigned int ProbeAtlasBlockResolution;     // 4
             unsigned int GutterSize;                    // 4 
-            float pad0;                                 // 4
+            float MaxWorldDepth;                        // 4
         } probeData;
 
         float rotation_scaler = 0.001f;
@@ -327,6 +327,7 @@ namespace SDFGI {
         probeData.SceneMinBounds = probeGrid.sceneBounds.GetMin();
         probeData.ProbeAtlasBlockResolution = probeAtlasBlockResolution;
         probeData.GutterSize = gutterSize;
+        probeData.MaxWorldDepth = probeGrid.sceneBounds.GetMaxDistance();
 
         computeContext.SetDynamicConstantBufferView(4, sizeof(ProbeData), &probeData);
 
@@ -356,11 +357,12 @@ namespace SDFGI {
     }
     
     void SDFGIManager::InitializeProbeAtlasVizShader() {
-        atlasVizRS.Reset(2, 1);
+        atlasVizRS.Reset(3, 1);
         // Irradiance atlas.
         atlasVizRS[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /*register=t*/0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         // Depth atlas.
         atlasVizRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /*register=t*/1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        atlasVizRS[2].InitAsConstantBuffer(0);
         atlasVizRS.InitStaticSampler(0, SamplerLinearClampDesc);
         atlasVizRS.Finalize(L"SDFGI Visualization Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -383,6 +385,8 @@ namespace SDFGI {
 
         context.SetDynamicDescriptor(0, 0, irradianceAtlas.GetSRV());
         context.SetDynamicDescriptor(1, 0, depthAtlas.GetSRV());
+        float maxWorldDepth = probeGrid.sceneBounds.GetMaxDistance();
+        context.SetDynamicConstantBufferView(2, sizeof(float), &maxWorldDepth);
 
         context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         context.Draw(4);
@@ -579,7 +583,7 @@ namespace SDFGI {
         RenderProbeViz(context, camera);
 
         // Render to a fullscreen quad either the probe atlas or the cubemap of a single probe.
-        // RenderProbeAtlasViz(context, camera);
+        RenderProbeAtlasViz(context, camera);
         // RenderCubemapViz(context, camera);
     }
 }

@@ -18,14 +18,14 @@ cbuffer ProbeData : register(b0) {
     uint ProbeCount;
     uint ProbeAtlasBlockResolution;
     uint GutterSize;
-    float pad3;
+    float MaxWorldDepth;
 };
 
 StructuredBuffer<float4> ProbePositions : register(t0);
 Texture2DArray<float4> ProbeCubemapArray : register(t1);
 
 RWTexture2DArray<float4> IrradianceAtlas : register(u0);
-RWTexture2DArray<float> DepthAtlas : register(u1);
+RWTexture2DArray<float2> DepthAtlas : register(u1);
 
 RWTexture3D<float4> AlbedoTex : register(u2);
 RWTexture3D<float> SDFTex : register(u3);
@@ -61,7 +61,32 @@ float3 WorldSpaceToTextureSpace(float3 worldPos) {
     return texCoord * 127.0;
 }
 
-float4 SampleSDFAlbedo(float3 worldPos, float3 marchingDirection) {
+float3 TextureSpaceToWorldSpace(float3 texCoord) {
+    // World space bounds.
+    float xmin = -2000;
+    float xmax = 2000;
+    float ymin = -2000;
+    float ymax = 2000;
+    float zmin = -2000;
+    float zmax = 2000;
+
+    // Texture space bounds.
+    float tmin = 0.0;
+    float tmax = 127.0;
+
+    // Normalize texture coordinates to [0, 1].
+    float3 normCoord = texCoord / tmax;
+
+    // Map normalized coordinates back to world space.
+    float3 worldPos;
+    worldPos.x = normCoord.x * (xmax - xmin) + xmin;
+    worldPos.y = normCoord.y * (ymax - ymin) + ymin;
+    worldPos.z = normCoord.z * (zmax - zmin) + zmin;
+
+    return worldPos;
+}
+
+float4 SampleSDFAlbedo(float3 worldPos, float3 marchingDirection, out float3 worldHitPos) {
     float3 eye = WorldSpaceToTextureSpace(worldPos); 
 
     // Ray March Code
@@ -76,6 +101,7 @@ float4 SampleSDFAlbedo(float3 worldPos, float3 marchingDirection) {
         hit.z = 127 - hit.z;
         float dist = SDFTex[hit];
         if (dist == 0.f) {
+            worldHitPos = TextureSpaceToWorldSpace(eye + depth * marchingDirection);
             return AlbedoTex[hit];
         }
         depth += dist;
@@ -159,12 +185,11 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
         );
 
 #if SAMPLE_SDF
-        float4 irradianceSample = SampleSDFAlbedo(probePosition, dir);
+        float3 worldHitPos;
+        float4 irradianceSample = SampleSDFAlbedo(probePosition, dir, worldHitPos);
         IrradianceAtlas[probeTexCoord] = irradianceSample;
-        // TODO: 
-        // float depthSample = SampleSDFDepth(WorldSpaceToTextureSpace(probePosition), dir);
-        // DepthAtlas[probeTexCoord] = depthSample;
-        DepthAtlas[probeTexCoord] = 1;
+        float worldDepth = min(length(worldHitPos - probePosition), MaxWorldDepth);
+        DepthAtlas[probeTexCoord] = float2(worldDepth, worldDepth*worldDepth);
 #else
         int faceIndex = GetFaceIndex(dir);
         uint textureIndex = probeIndex * 6 + faceIndex;
