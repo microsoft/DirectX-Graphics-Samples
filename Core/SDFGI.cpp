@@ -363,7 +363,7 @@ namespace SDFGI {
         // Depth atlas.
         atlasVizRS[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, /*register=t*/1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         atlasVizRS[2].InitAsConstantBuffer(0);
-        atlasVizRS.InitStaticSampler(0, SamplerLinearClampDesc);
+        atlasVizRS.InitStaticSampler(0, SamplerPointClampDesc);
         atlasVizRS.Finalize(L"SDFGI Visualization Root Signature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
         atlasVizPSO.SetRootSignature(atlasVizRS);

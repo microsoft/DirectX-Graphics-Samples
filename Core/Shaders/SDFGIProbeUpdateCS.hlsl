@@ -155,6 +155,35 @@ float3 spherical_fibonacci(uint index, uint sample_count) {
     return float3(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
 }
 
+float2 normalized_oct_coord(int2 fragCoord, int probe_side_length) {
+
+    int probe_with_border_side = probe_side_length + 2;
+    float2 octahedral_texel_coordinates = int2((fragCoord.x - 1) % probe_with_border_side, (fragCoord.y - 1) % probe_with_border_side);
+
+    octahedral_texel_coordinates += float2(0.5f, 0.5f);
+    octahedral_texel_coordinates *= (2.0f / float(probe_side_length));
+    octahedral_texel_coordinates -= float2(1.0f, 1.0f);
+
+    return octahedral_texel_coordinates;
+}
+
+float sign_not_zero(in float k) {
+    return (k >= 0.0) ? 1.0 : -1.0;
+}
+
+float2 sign_not_zero2(in float2 v) {
+    return float2(sign_not_zero(v.x), sign_not_zero(v.y));
+}
+
+
+float3 oct_decode(float2 o) {
+    float3 v = float3(o.x, o.y, 1.0 - abs(o.x) - abs(o.y));
+    if (v.z < 0.0) {
+        v.xy = (1.0 - abs(v.yx)) * sign_not_zero2(v.xy);
+    }
+    return normalize(v);
+}
+
 // --- Shader Start ---
 
 [numthreads(1, 1, 1)]
@@ -167,7 +196,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
     float3 probePosition = ProbePositions[probeIndex].xyz;
 
-    uint3 atlasCoord = uint3(
+    uint3 atlasCoord = uint3(GutterSize, GutterSize, 0) + uint3(
         dispatchThreadID.x * (ProbeAtlasBlockResolution + GutterSize),
         dispatchThreadID.y * (ProbeAtlasBlockResolution + GutterSize),
         dispatchThreadID.z
@@ -175,27 +204,32 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
     const uint sample_count = ProbeAtlasBlockResolution*ProbeAtlasBlockResolution;
 
-    for (uint i = 0; i < sample_count; ++i) {
-        float3 dir = normalize(mul(RandomRotation, float4(spherical_fibonacci(i, sample_count), 1.0)).xyz);
-        float2 encodedCoord = octEncode(dir);
-        uint3 probeTexCoord = atlasCoord + uint3(
-            (encodedCoord.x * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
-            (encodedCoord.y * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
-            0.0f
-        );
+    for (uint x = 0; x < ProbeAtlasBlockResolution; ++x) {
+        for (uint y = 0; y < ProbeAtlasBlockResolution; ++y) {
 
-#if SAMPLE_SDF
-        float3 worldHitPos;
-        float4 irradianceSample = SampleSDFAlbedo(probePosition, dir, worldHitPos);
-        IrradianceAtlas[probeTexCoord] = irradianceSample;
-        float worldDepth = min(length(worldHitPos - probePosition), MaxWorldDepth);
-        DepthAtlas[probeTexCoord] = float2(worldDepth, worldDepth*worldDepth);
-#else
-        int faceIndex = GetFaceIndex(dir);
-        uint textureIndex = probeIndex * 6 + faceIndex;
-        float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(encodedCoord.xy * 0.5 + 0.5, textureIndex), 0);
-        IrradianceAtlas[probeTexCoord] = irradianceSample;
-        DepthAtlas[probeTexCoord] = 1;
-#endif
+            uint i = x + y * ProbeAtlasBlockResolution;
+
+            float3 dir = normalize(mul(RandomRotation, float4(spherical_fibonacci(i, sample_count), 1.0)).xyz);
+
+            int2 coord = int2(x, y);
+            float3 texel_direction = oct_decode(normalized_oct_coord(coord, ProbeAtlasBlockResolution));
+            float weight = max(0.0, dot(texel_direction, dir));
+
+            uint3 probeTexCoord = atlasCoord + uint3(coord, 0.0f);
+
+    #if SAMPLE_SDF
+            float3 worldHitPos;
+            float4 irradianceSample = SampleSDFAlbedo(probePosition, texel_direction, worldHitPos);
+            IrradianceAtlas[probeTexCoord] = weight * irradianceSample;
+            float worldDepth = min(length(worldHitPos - probePosition), MaxWorldDepth);
+            DepthAtlas[probeTexCoord] = float2(worldDepth, worldDepth*worldDepth);
+    #else
+            int faceIndex = GetFaceIndex(dir);
+            uint textureIndex = probeIndex * 6 + faceIndex;
+            float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(coord.xy * 0.5 + 0.5, textureIndex), 0);
+            IrradianceAtlas[probeTexCoord] = weight * irradianceSample;
+            DepthAtlas[probeTexCoord] = 1;
+    #endif
+        }
     }
 }

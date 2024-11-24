@@ -358,7 +358,7 @@ float3 SampleIrradiance(
 
     for (int i = 0; i < 8; ++i) {
         float2 encodedDir = octEncode(normal);
-        uint3 atlasCoord = probeIndices[i] * uint3(ProbeAtlasBlockResolution + GutterSize, ProbeAtlasBlockResolution + GutterSize, 1);
+        uint3 atlasCoord = uint3(GutterSize, GutterSize, 0) + probeIndices[i] * uint3(ProbeAtlasBlockResolution + GutterSize, ProbeAtlasBlockResolution + GutterSize, 1);
         float2 texCoord = atlasCoord.xy + uint2(
             (encodedDir.x * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
             (encodedDir.y * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize)
@@ -382,7 +382,7 @@ float3 SampleIrradiance(
         float distanceWeight = 1.0 / (distance * distance + 1.0e-4f);
         weights[i] = normalDotDir * distanceWeight;
 
-        float2 visibility = DepthAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
+        float2 visibility = DepthAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0).r;
 
         float meanDistanceToOccluder = visibility.x;
         float chebyshevWeight = 1.0;
@@ -402,9 +402,6 @@ float3 SampleIrradiance(
         weights[i] *= chebyshevWeight;
 
         weightSum += weights[i];
-
-        float depth = DepthAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
-        // irradiance[i] = float4(0, depth, 0, 1.0);
 
         resultIrradiance += weights[i] * irradiance[i];
     }
