@@ -220,7 +220,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
     #if SAMPLE_SDF
             float3 worldHitPos;
-            float4 irradianceSample = SampleSDFAlbedo(probePosition, texelDirection, worldHitPos);
+            float4 irradianceSample = SampleSDFAlbedo(probePosition, normalize(texelDirection+dir), worldHitPos);
             IrradianceAtlas[probeTexCoord] = weight * irradianceSample;
             float worldDepth = min(length(worldHitPos - probePosition), MaxWorldDepth);
             DepthAtlas[probeTexCoord] = float2(worldDepth, worldDepth*worldDepth);
