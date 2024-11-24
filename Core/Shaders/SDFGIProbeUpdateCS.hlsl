@@ -212,14 +212,15 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
             float3 dir = normalize(mul(RandomRotation, float4(spherical_fibonacci(i, sample_count), 1.0)).xyz);
 
             int2 coord = int2(x, y);
-            float3 texel_direction = oct_decode(normalized_oct_coord(coord, ProbeAtlasBlockResolution));
-            float weight = max(0.0, dot(texel_direction, dir));
+            float3 texelDirection = oct_decode(normalized_oct_coord(coord, ProbeAtlasBlockResolution));
+            float weight = max(0.0, dot(texelDirection, dir));
+            weight = 1.0f;
 
             uint3 probeTexCoord = atlasCoord + uint3(coord, 0.0f);
 
     #if SAMPLE_SDF
             float3 worldHitPos;
-            float4 irradianceSample = SampleSDFAlbedo(probePosition, texel_direction, worldHitPos);
+            float4 irradianceSample = SampleSDFAlbedo(probePosition, texelDirection, worldHitPos);
             IrradianceAtlas[probeTexCoord] = weight * irradianceSample;
             float worldDepth = min(length(worldHitPos - probePosition), MaxWorldDepth);
             DepthAtlas[probeTexCoord] = float2(worldDepth, worldDepth*worldDepth);

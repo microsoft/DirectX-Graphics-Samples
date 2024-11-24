@@ -331,6 +331,20 @@ float3 GammaCorrection(float3 color, float gamma)
     return pow(color, float3(1.f / gamma, 1.f / gamma, 1.f / gamma));
 }
 
+float2 GetUV(float3 direction, uint3 probeIndex) {
+    float2 encodedDir = octEncode(direction);
+
+    uint3 atlasCoord = 
+        uint3(GutterSize, GutterSize, 0) 
+        + probeIndex * uint3(ProbeAtlasBlockResolution + GutterSize, ProbeAtlasBlockResolution + GutterSize, 1);
+    float2 texCoord = atlasCoord.xy;
+    texCoord += float2(ProbeAtlasBlockResolution * 0.5f, ProbeAtlasBlockResolution * 0.5f);
+    texCoord += encodedDir * (ProbeAtlasBlockResolution * 0.5f);
+    texCoord = texCoord / float2(AtlasWidth, AtlasHeight);
+
+    return texCoord;
+}
+
 float3 SampleIrradiance(
     float3 fragmentWorldPos,       
     float3 normal
@@ -357,15 +371,9 @@ float3 SampleIrradiance(
     float4 resultIrradiance = float4(0.0, 0.0, 0.0, 0.0);
 
     for (int i = 0; i < 8; ++i) {
-        float2 encodedDir = octEncode(normal);
-        uint3 atlasCoord = uint3(GutterSize, GutterSize, 0) + probeIndices[i] * uint3(ProbeAtlasBlockResolution + GutterSize, ProbeAtlasBlockResolution + GutterSize, 1);
-        float2 texCoord = atlasCoord.xy + uint2(
-            (encodedDir.x * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize),
-            (encodedDir.y * 0.5 + 0.5) * (ProbeAtlasBlockResolution - GutterSize)
-        );
-        texCoord = texCoord / float2(AtlasWidth, AtlasHeight);
 
-        irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0);
+        float2 irradianceUV = GetUV(normal, probeIndices[i]);
+        irradiance[i] = IrradianceAtlas.SampleLevel(defaultSampler, float3(irradianceUV, probeIndices[i].z), 0);
 
         float3 probeWorldPos = SceneMinBounds + float3(probeIndices[i]) * ProbeSpacing;
         float3 dirToProbe = normalize(probeWorldPos - fragmentWorldPos);
@@ -382,7 +390,8 @@ float3 SampleIrradiance(
         float distanceWeight = 1.0 / (distance * distance + 1.0e-4f);
         weights[i] = normalDotDir * distanceWeight;
 
-        float2 visibility = DepthAtlas.SampleLevel(defaultSampler, float3(texCoord, probeIndices[i].z), 0).r;
+        float2 depthUV = GetUV(dirToProbe, probeIndices[i]);
+        float2 visibility = DepthAtlas.SampleLevel(defaultSampler, float3(depthUV, probeIndices[i].z), 0).r;
 
         float meanDistanceToOccluder = visibility.x;
         float chebyshevWeight = 1.0;
