@@ -78,6 +78,7 @@ cbuffer VoxelConsts : register(b3)
 {
     float viewWidth; 
     float viewHeight;
+    float voxelTextureResolution; 
     int axis;
     bool voxelPass; 
 }
@@ -466,11 +467,9 @@ float4 main(VSOutput vsOutput) : SV_Target0
         // TODO: These are hardcoded values. It's assumed that the viewport size is 
         //       512 * 512, and that the 3D texture is 128 * 128 * 128. We could 
         //       make these CBV's if we want. 
-        float screenResolution = 512.0;
-        float textureResolution = 128.0;
-        float2 uv = vsOutput.position.xy / screenResolution;  // normalized UV coords
+        float2 uv = vsOutput.position.xy / viewWidth;  // normalized UV coords
 
-        uint3 voxelCoords = GetVoxelCoords(vsOutput.position.xyz, uv, textureResolution, axis);
+        uint3 voxelCoords = GetVoxelCoords(vsOutput.position.xyz, uv, voxelTextureResolution, axis);
 
         if (voxelCoords.x == 0 && voxelCoords.y == 0 && voxelCoords.z == 0)
         {

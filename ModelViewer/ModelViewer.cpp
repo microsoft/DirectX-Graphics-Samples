@@ -78,7 +78,7 @@ public:
     void InitializeGUI();
 
     GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::BaseCamera& cam, bool renderShadows);
-    void NonLegacyRenderSDF(GraphicsContext& gfxContext);
+    void NonLegacyRenderSDF(GraphicsContext& gfxContext, bool runOnce);
     void RayMarcherDebug(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
     void NonLegacyRenderShadowMap(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
     void NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, bool renderShadows = true, bool useSDFGI = false);
@@ -422,7 +422,15 @@ void ModelViewer::NonLegacyRenderShadowMap(GraphicsContext& gfxContext, const Ma
     shadowSorter.RenderMeshes(MeshSorter::kZPass, gfxContext, globals);
 }
 
-void ModelViewer::NonLegacyRenderSDF(GraphicsContext& gfxContext) {
+void ModelViewer::NonLegacyRenderSDF(GraphicsContext& gfxContext, bool runOnce) {
+    static bool run = true; 
+
+    if (runOnce && !run) {
+        return; 
+    }
+
+    run = false; 
+
     VoxelCamera cam; 
     SDFGIGlobalConstants SDFGIglobals{};
     D3D12_VIEWPORT voxelViewport{};
@@ -443,6 +451,7 @@ void ModelViewer::NonLegacyRenderSDF(GraphicsContext& gfxContext) {
 
         SDFGIglobals.viewWidth = width;
         SDFGIglobals.viewHeight = height;
+        SDFGIglobals.voxelTextureResolution = SDF_TEXTURE_RESOLUTION;
         SDFGIglobals.voxelPass = 1;
     }
 
@@ -668,7 +677,7 @@ void ModelViewer::RenderScene( void )
     else
     {
         NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
-        NonLegacyRenderSDF(gfxContext);
+        NonLegacyRenderSDF(gfxContext, /*runOnce*/true);
         mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
         NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/true);
     }

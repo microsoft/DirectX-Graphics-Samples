@@ -71,13 +71,21 @@ __declspec(align(256)) struct GlobalConstants
 __declspec(align(256)) struct RayMarchGlobalConstants
 {
     Math::Matrix4 InvViewProjMatrix;
-    Math::Vector3 CameraPos;            
+    Math::Vector3 CameraPos;
+    float xmin;
+    float xmax;
+    float ymin;
+    float ymax;
+    float zmin;
+    float zmax;
+    float sdfResolution;
 };
 
 __declspec(align(256)) struct SDFGIGlobalConstants
 {
     float viewWidth; 
     float viewHeight; 
+    float voxelTextureResolution; 
     int axis;
     BOOL voxelPass; 
 };

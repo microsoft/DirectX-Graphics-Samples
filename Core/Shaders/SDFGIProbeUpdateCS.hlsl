@@ -21,6 +21,18 @@ cbuffer ProbeData : register(b0) {
     float MaxWorldDepth;
 };
 
+cbuffer SDFData : register(b1) {
+    // world space texture bounds
+    float xmin;
+    float xmax;
+    float ymin;
+    float ymax;
+    float zmin;
+    float zmax;
+    // texture resolution
+    float sdfResolution;
+};
+
 StructuredBuffer<float4> ProbePositions : register(t0);
 Texture2DArray<float4> ProbeCubemapArray : register(t1);
 
@@ -40,14 +52,6 @@ SamplerState LinearSampler : register(s0);
 //      * Ybounds = [-2000, 2000]
 //      * Zbounds = [-2000, 2000]
 float3 WorldSpaceToTextureSpace(float3 worldPos) {
-    // todo: put this in a matrix? in some vectors?
-    float xmin = -2000;
-    float xmax = 2000;
-    float ymin = -2000;
-    float ymax = 2000;
-    float zmin = -2000;
-    float zmax = 2000;
-
     float3 texCoord = float3(0, 0, 0);
 
     // world coord to [0, 1] coords
@@ -58,21 +62,13 @@ float3 WorldSpaceToTextureSpace(float3 worldPos) {
     // assuming a 128 * 128 * 128 texture, but we could make this dynamic
     // u' = u * (tmax - tmin) + tmin
     // where tmax == 127 and tmin == 0
-    return texCoord * 127.0;
+    return texCoord * (sdfResolution - 1);
 }
 
 float3 TextureSpaceToWorldSpace(float3 texCoord) {
-    // World space bounds.
-    float xmin = -2000;
-    float xmax = 2000;
-    float ymin = -2000;
-    float ymax = 2000;
-    float zmin = -2000;
-    float zmax = 2000;
-
     // Texture space bounds.
     float tmin = 0.0;
-    float tmax = 127.0;
+    float tmax = sdfResolution - 1;
 
     // Normalize texture coordinates to [0, 1].
     float3 normCoord = texCoord / tmax;
@@ -94,11 +90,11 @@ float4 SampleSDFAlbedo(float3 worldPos, float3 marchingDirection, out float3 wor
     float depth = start;
     for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
         int3 hit = (eye + depth * marchingDirection);
-        if (any(hit > int3(127, 127, 127)) || any(hit < int3(0, 0, 0))) {
+        if (any(hit > int3(sdfResolution - 1, sdfResolution - 1, sdfResolution - 1)) || any(hit < int3(0, 0, 0))) {
             return float4(0., 0., 0., 1.);
         }
-        hit.y = 127 - hit.y;
-        hit.z = 127 - hit.z;
+        hit.y = sdfResolution - 1 - hit.y;
+        hit.z = sdfResolution - 1 - hit.z;
         float dist = SDFTex[hit];
         if (dist == 0.f) {
             worldHitPos = TextureSpaceToWorldSpace(eye + depth * marchingDirection);

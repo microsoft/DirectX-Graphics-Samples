@@ -345,14 +345,14 @@ void Renderer::InitializeVoxel(void)
     m_DefaultVoxelPSO.SetRenderTargetFormats(1, &g_SceneColorBuffer.GetFormat(), DXGI_FORMAT_UNKNOWN);
 
     // SDFGI: Create Voxel UAV Textures
-    constexpr size_t size = 128 * 128 * 128;
+    constexpr size_t size = SDF_TEXTURE_RESOLUTION * SDF_TEXTURE_RESOLUTION * SDF_TEXTURE_RESOLUTION;
     uint32_t* init = new uint32_t[size];
     std::fill(init, init + size, 0x0);
     m_VoxelAlbedo.Create3D(
-        4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Voxel Albedo"
+        4, SDF_TEXTURE_RESOLUTION, SDF_TEXTURE_RESOLUTION, SDF_TEXTURE_RESOLUTION, DXGI_FORMAT_R8G8B8A8_UNORM, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Voxel Albedo"
     );
     m_VoxelVoronoiInput.Create3D(
-        4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Voxel Voronoi Input"
+        4, SDF_TEXTURE_RESOLUTION, SDF_TEXTURE_RESOLUTION, SDF_TEXTURE_RESOLUTION, DXGI_FORMAT_R16G16B16A16_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Voxel Voronoi Input"
     );
     delete[] init;
 
@@ -398,14 +398,14 @@ void Renderer::InitializeJFA(void)
         }
         //Resource Initialization
         {
-            constexpr size_t size = 128 * 128 * 128;
+            constexpr size_t size = SDF_TEXTURE_RESOLUTION * SDF_TEXTURE_RESOLUTION * SDF_TEXTURE_RESOLUTION;
             uint32_t* init = new uint32_t[size];
             std::fill(init, init + size, 0x0);
             m_FinalSDFOutput.Create3D(
-                4, 128, 128, 128, DXGI_FORMAT_R32_FLOAT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"SDF Output"
+                4, SDF_TEXTURE_RESOLUTION, SDF_TEXTURE_RESOLUTION, SDF_TEXTURE_RESOLUTION, DXGI_FORMAT_R32_FLOAT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"SDF Output"
             );
             m_IntermediateSDFOutput.Create3D(
-                4, 128, 128, 128, DXGI_FORMAT_R8G8B8A8_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Intermediate JFA Output"
+                4, SDF_TEXTURE_RESOLUTION, SDF_TEXTURE_RESOLUTION, SDF_TEXTURE_RESOLUTION, DXGI_FORMAT_R16G16B16A16_UINT, init, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, L"Intermediate JFA Output"
             );
             delete[] init;
         }
@@ -447,9 +447,9 @@ void Renderer::InitializeJFA(void)
     }
     //JFA3D Initialization
 
-    m_jfaGlobals.gridResolution[0] = 128.f;
-    m_jfaGlobals.gridResolution[1] = 128.f;
-    m_jfaGlobals.gridResolution[2] = 128.f;
+    m_jfaGlobals.gridResolution[0] = (float)SDF_TEXTURE_RESOLUTION;
+    m_jfaGlobals.gridResolution[1] = (float)SDF_TEXTURE_RESOLUTION;
+    m_jfaGlobals.gridResolution[2] = (float)SDF_TEXTURE_RESOLUTION;
 }
 
 void Renderer::InitializeRayMarchDebug() {
@@ -839,7 +839,9 @@ void Renderer::ComputeSDF(ComputeContext& context)
         context.FlushResourceBarriers(); 
 
         bool swap = false;
-        for (uint32_t i = 64; i >= 1; i /= 2) {
+        constexpr uint32_t stepSizeInit = SDF_TEXTURE_RESOLUTION / 2; 
+        constexpr uint32_t dispatchSize = SDF_TEXTURE_RESOLUTION / 8; 
+        for (uint32_t i = stepSizeInit; i >= 1; i /= 2) {
             //0. Globals CBV
             {
                 m_jfaGlobals.stepSize = i;
@@ -855,7 +857,7 @@ void Renderer::ComputeSDF(ComputeContext& context)
                 }
             }
             //2. Dispatch
-            context.Dispatch(16, 16, 16);
+            context.Dispatch(dispatchSize, dispatchSize, dispatchSize);
             //3. Update swap bool
             swap = !swap;
         }
@@ -869,9 +871,13 @@ void Renderer::RayMarchSDF(GraphicsContext& gfxContext, const Math::Camera& cam,
     static RayMarchGlobalConstants constants{}; 
     constants.InvViewProjMatrix = Math::Invert(cam.GetViewProjMatrix()); 
     constants.CameraPos = cam.GetPosition();
-
-    Math::Vector4 test = cam.GetViewMatrix() * Math::Vector4(0, 0, 0, 1);
-    test = Math::Vector4(test.GetX() / test.GetW(), test.GetY() / test.GetW(), test.GetZ() / test.GetW(), test.GetW() / test.GetW());
+    constants.xmin = -2000;
+    constants.xmax = 2000;
+    constants.ymin = -2000;
+    constants.ymax = 2000;
+    constants.zmin = -2000;
+    constants.zmax = 2000;
+    constants.sdfResolution = SDF_TEXTURE_RESOLUTION;
 
     // Init Root Sig
     RootSignature RayMarchRS;

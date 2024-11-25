@@ -249,7 +249,7 @@ namespace SDFGI {
     }
 
     void SDFGIManager::InitializeProbeUpdateShader() {
-        probeUpdateRS.Reset(7, 1);
+        probeUpdateRS.Reset(8, 1);
 
         // probeBuffer.
         probeUpdateRS[0].InitAsBufferSRV(/*register=t*/0, D3D12_SHADER_VISIBILITY_ALL);
@@ -271,6 +271,9 @@ namespace SDFGI {
 
         // SDF voxel texture.
         probeUpdateRS[6].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, /*register=u*/3, 1);
+
+        // SDF texture info
+        probeUpdateRS[7].InitAsConstantBuffer(1, D3D12_SHADER_VISIBILITY_ALL);
 
         probeUpdateRS.InitStaticSampler(0, SamplerLinearClampDesc, D3D12_SHADER_VISIBILITY_ALL);
 
@@ -318,6 +321,18 @@ namespace SDFGI {
             float MaxWorldDepth;                        // 4
         } probeData;
 
+        __declspec(align(16)) struct SDFData {
+            // world space texture bounds
+            float xmin;
+            float xmax;
+            float ymin;
+            float ymax;
+            float zmin;
+            float zmax;
+            // texture resolution
+            float sdfResolution;
+        } sdfData;
+
         float rotation_scaler = 0.001f;
         XMMATRIX randomRotation = GenerateRandomRotationMatrix(rotation_scaler);
         XMStoreFloat4x4(&probeData.RandomRotation, randomRotation);
@@ -329,7 +344,16 @@ namespace SDFGI {
         probeData.GutterSize = gutterSize;
         probeData.MaxWorldDepth = probeGrid.sceneBounds.GetMaxDistance();
 
+        sdfData.xmin = -2000; 
+        sdfData.xmax = 2000;
+        sdfData.ymin = -2000;
+        sdfData.ymax = 2000;
+        sdfData.zmin = -2000;
+        sdfData.zmax = 2000;
+        sdfData.sdfResolution = SDF_TEXTURE_RESOLUTION; 
+
         computeContext.SetDynamicConstantBufferView(4, sizeof(ProbeData), &probeData);
+        computeContext.SetDynamicConstantBufferView(7, sizeof(SDFData), &sdfData); 
 
         // One thread per probe.
         computeContext.Dispatch(probeGrid.probeCount[0], probeGrid.probeCount[1], probeGrid.probeCount[2]);

@@ -8,7 +8,7 @@ cbuffer JFAConstants : register(b0) {
 }
 
 
-[numthreads(8, 8, 8)]
+[numthreads(8, 8, 8)]  // Doesn't work!
 void main(uint3 DTid : SV_DispatchThreadID)
 {
 	uint4 currentPixel = InputTex[DTid];

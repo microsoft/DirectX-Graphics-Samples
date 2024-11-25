@@ -2,8 +2,16 @@
 
 cbuffer CameraCB : register(b0) {
     float4x4 invViewProjection; 
-    float3 cameraPosition;     
-    float padding;              
+    float3 cameraPosition;    
+    float padding; 
+    float xmin;
+    float xmax;
+    float ymin;
+    float ymax;
+    float zmin;
+    float zmax;
+    // texture resolution
+    float sdfResolution;
 };
 
 RWTexture3D<float4> AlbedoTex : register(u0);
@@ -43,14 +51,6 @@ float boxSDF(float3 p, float3 b)
 //      * Ybounds = [-2000, 2000]
 //      * Zbounds = [-2000, 2000]
 float3 worldToTex(float3 worldPos) {
-    // todo: put this in a matrix? in some vectors?
-    float xmin = -2000; 
-    float xmax = 2000; 
-    float ymin = -2000; 
-    float ymax = 2000; 
-    float zmin = -2000; 
-    float zmax = 2000; 
-
     float3 texCoord = float3(0, 0, 0); 
 
     // world coord to [0, 1] coords
@@ -61,14 +61,14 @@ float3 worldToTex(float3 worldPos) {
     // assuming a 128 * 128 * 128 texture, but this can be changed
     // u' = u * (tmax - tmin) + tmin
     // where tmax == 127 and tmin == 0
-    return texCoord * 127.0;
+    return texCoord * (sdfResolution - 1);
 }
 
 // hm I'm not actually sure if I need texToWorld
 float3 texToWorld(uint3 texPos) {
     // normalize texPos
     uint tmin = 0; 
-    uint tmax = 127; 
+    uint tmax = sdfResolution - 1;
     float3 range = tmax - tmin; 
     float3 uvw = float3(0, 0, 0);
     uvw.x = (texPos.x - tmin) / range; 
@@ -76,12 +76,6 @@ float3 texToWorld(uint3 texPos) {
     uvw.z = (texPos.z - tmin) / range; 
 
     // uvw space to world space
-    float xmin = -2000;
-    float xmax = 2000;
-    float ymin = -2000;
-    float ymax = 2000;
-    float zmin = -2000;
-    float zmax = 2000;
 
     float3 worldPos = float3(0, 0, 0); 
 
@@ -154,11 +148,11 @@ int3 shortestDistanceToSurfaceTexSpace(float3 eye, float3 marchingDirection, out
     depth = start;
     for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
         int3 hit = (eye + depth * marchingDirection);
-        if (any(hit > int3(127, 127, 127)) || any(hit < int3(0, 0, 0))) {
+        if (any(hit > int3(sdfResolution - 1, sdfResolution - 1, sdfResolution - 1)) || any(hit < int3(0, 0, 0))) {
             return int3(-1, -1, -1);
         }
-        hit.y = 127 - hit.y; 
-        hit.z = 127 - hit.z; 
+        hit.y = sdfResolution - 1 - hit.y;
+        hit.z = sdfResolution - 1 - hit.z;
         float dist = SDFTex[hit];
         if (dist == 0.f) {
             return hit;
@@ -185,18 +179,5 @@ float4 main(VSOutput input) : SV_TARGET{
         return float4(0.0, 0.0, 0.0, 0.0);
     }
 
-    // -- test that we're getting UAV's --
-    /*float testDistance = SDFTex[uint3(0, 0, 0)]; 
-    float4 testColor = AlbedoTex[uint3(56, 30, 42)]; 
-    testColor.z = testDistance; 
-    return testColor; */
-
-    // return float4(dist / 128, dist / 128, dist / 128, 1.);
-
-    // -- outputs sdf as red color --
     return AlbedoTex[hit];
-
-    // -- output depth --
-    // float intensity = saturate(dist / MAX_DIST);
-    // return float4(intensity, intensity, intensity, 1.0);
 }
