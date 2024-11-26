@@ -42,7 +42,7 @@
 #define WIN32_LEAN_AND_MEAN
 
 // Enable imgui window
-#define UI_ENABLE 0
+#define UI_ENABLE 1
 #define DISABLE_FRUSTUM_CULL 1
 
 // Enable Shadow Buffer VIS

@@ -272,6 +272,14 @@ namespace
 
 }
 
+void GameInput::ReleaseInput() {
+    ZeroMemory(s_Buttons, sizeof(s_Buttons));
+    ZeroMemory(s_Analogs, sizeof(s_Analogs));
+    KbmZeroInputs();
+    s_Keyboard->Unacquire();
+    s_Mouse->Unacquire();
+}
+
 void GameInput::Initialize()
 {
     ZeroMemory(s_Buttons, sizeof(s_Buttons) );

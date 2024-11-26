@@ -15,6 +15,7 @@
 
 namespace GameInput
 {
+    void ReleaseInput();
     void Initialize();
     void Shutdown();
     void Update( float frameDelta );

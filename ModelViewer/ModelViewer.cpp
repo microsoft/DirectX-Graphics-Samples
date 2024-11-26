@@ -269,6 +269,10 @@ void ModelViewer::InitializeGUI() {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+    // ImGUI needs a descriptor handle for it's fonts
+    DescriptorHandle guiFontHeap = Renderer::s_TextureHeap.Alloc(1); 
+
     ImGui_ImplWin32_Init(GameCore::g_hWnd);
     ImGui_ImplDX12_Init(
         Graphics::g_Device,
@@ -277,8 +281,8 @@ void ModelViewer::InitializeGUI() {
         Graphics::g_OverlayBuffer.GetFormat(), 
         // imgui needs SRV descriptors for its font textures.
         Renderer::s_TextureHeap.GetHeapPointer(),
-        D3D12_CPU_DESCRIPTOR_HANDLE(Renderer::s_TextureHeap[0]),
-        D3D12_GPU_DESCRIPTOR_HANDLE(Renderer::s_TextureHeap[0])
+        D3D12_CPU_DESCRIPTOR_HANDLE(guiFontHeap),
+        D3D12_GPU_DESCRIPTOR_HANDLE(guiFontHeap)
     );
 }
 
@@ -293,7 +297,6 @@ void ModelViewer::Cleanup( void )
 #ifdef LEGACY_RENDERER
     Sponza::Cleanup();
 #endif
-
     Renderer::Shutdown();
 #if UI_ENABLE
     ImGui_ImplDX12_Shutdown();
@@ -716,6 +719,7 @@ void ModelViewer::RenderScene( void )
 void ModelViewer::RenderUI( class GraphicsContext& gfxContext ) {
 #if UI_ENABLE
     ImGui::Render();
+    gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer()); 
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), gfxContext.GetCommandList());
 #endif
 }
