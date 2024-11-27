@@ -86,7 +86,7 @@ namespace GameCore
         // Example code from the imgui repo
         {
             auto& io = ImGui::GetIO();
-            // ImGui::ShowDemoWindow();
+            ImGui::ShowDemoWindow();
             static float f = 0.0f;
             static int counter = 0;
             static bool show_demo_window = true;
@@ -219,7 +219,7 @@ namespace GameCore
         }
 #endif
 
-        ShowCursor(TRUE);
+        // ShowCursor(FALSE);
 
         switch( message )
         {
