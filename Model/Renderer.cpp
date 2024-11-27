@@ -303,22 +303,31 @@ void Renderer::Initialize(void)
 }
 
 
-void Renderer::ClearSDFGITextures(GraphicsContext& gfxContext)
+void Renderer::ClearVoxelTextures(GraphicsContext& gfxContext)
 {
     gfxContext.TransitionResource(m_VoxelAlbedo, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     gfxContext.TransitionResource(m_VoxelVoronoiInput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    gfxContext.TransitionResource(m_FinalSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    gfxContext.TransitionResource(m_IntermediateSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     gfxContext.FlushResourceBarriers();
 
     gfxContext.ClearUAV(m_VoxelAlbedo); 
     gfxContext.ClearUAV(m_VoxelVoronoiInput);
-    gfxContext.ClearUAV(m_FinalSDFOutput); 
-    gfxContext.ClearUAV(m_IntermediateSDFOutput);
 
     gfxContext.TransitionResource(m_VoxelAlbedo, D3D12_RESOURCE_STATE_GENERIC_READ);
     gfxContext.TransitionResource(m_VoxelVoronoiInput, D3D12_RESOURCE_STATE_GENERIC_READ);
+
+    gfxContext.FlushResourceBarriers();
+}
+
+void Renderer::ClearSDFTextures(GraphicsContext& gfxContext) {
+    gfxContext.TransitionResource(m_FinalSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    gfxContext.TransitionResource(m_IntermediateSDFOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+    gfxContext.FlushResourceBarriers();
+
+    gfxContext.ClearUAV(m_FinalSDFOutput);
+    gfxContext.ClearUAV(m_IntermediateSDFOutput);
+
     gfxContext.TransitionResource(m_FinalSDFOutput, D3D12_RESOURCE_STATE_GENERIC_READ);
     gfxContext.TransitionResource(m_IntermediateSDFOutput, D3D12_RESOURCE_STATE_GENERIC_READ);
 

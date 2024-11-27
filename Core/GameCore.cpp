@@ -70,14 +70,10 @@ namespace GameCore
 
         if (GameInput::IsFirstPressed(GameInput::kKey_space) || ImGui::IsKeyPressed(ImGuiKey_Space)) {
             toggleUI = !toggleUI; 
+            if (toggleUI) GameInput::ReleaseInput();   
         }
 
-        if (!toggleUI) {
-            GameInput::Update(DeltaTime);
-        }
-        else {
-            GameInput::ReleaseInput(); 
-        }
+        if (!toggleUI) GameInput::Update(DeltaTime);
 
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
