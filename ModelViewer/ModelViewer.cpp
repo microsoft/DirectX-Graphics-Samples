@@ -425,15 +425,10 @@ void ModelViewer::NonLegacyRenderShadowMap(GraphicsContext& gfxContext, const Ma
     shadowSorter.RenderMeshes(MeshSorter::kZPass, gfxContext, globals);
 }
 
-void ModelViewer::NonLegacyRenderSDF(GraphicsContext& gfxContext, bool runOnce) {
-    static bool run = true; 
-
-    if (runOnce && !run) {
-        return; 
-    }
-
-    run = false; 
-
+// Generates the Voxel and SDF 3D Textures from the scene. If sdfRunOnce
+// is true, then the SDF texture will only update once, at the beginning of the app. 
+// Voxelization will continue to update every frame. 
+void ModelViewer::NonLegacyRenderSDF(GraphicsContext& gfxContext, bool sdfRunOnce) {
     VoxelCamera cam; 
     SDFGIGlobalConstants SDFGIglobals{};
     D3D12_VIEWPORT voxelViewport{};
@@ -458,7 +453,7 @@ void ModelViewer::NonLegacyRenderSDF(GraphicsContext& gfxContext, bool runOnce) 
         SDFGIglobals.voxelPass = 1;
     }
 
-    Renderer::ClearSDFGITextures(gfxContext);
+    Renderer::ClearVoxelTextures(gfxContext);
 
     for (int i = 0; i < 3; ++i) {
         cam.UpdateMatrix(i); 
@@ -504,13 +499,18 @@ void ModelViewer::NonLegacyRenderSDF(GraphicsContext& gfxContext, bool runOnce) 
         }
     }
 
+    bool static run = true; 
+
+    // if runOnce is false, SDF generation runs every time
+    if (run || !sdfRunOnce)
     {
+        Renderer::ClearSDFTextures(gfxContext); 
         ComputeContext& context = gfxContext.GetComputeContext();
         {
             ScopedTimer _prof(L"SDF Jump Flood Compute", context);
             Renderer::ComputeSDF(context);
         }
-
+        run = false; 
     }
 
     return; 
@@ -650,23 +650,18 @@ void ModelViewer::RenderScene( void )
 
     ParticleEffectManager::Update(gfxContext.GetComputeContext(), Graphics::GetFrameTime());
 #if RAYMARCH_TEST
-    static bool runOnce = true;
     static bool rayMarchDebug = true;
-    if (runOnce) {
-        NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
-        NonLegacyRenderSDF(gfxContext);
-        runOnce = false; 
-    }
     
     if (GameInput::IsFirstPressed(GameInput::kKey_0)) 
         rayMarchDebug = !rayMarchDebug;
+
+    NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
+    NonLegacyRenderSDF(gfxContext, true);
 
     if (rayMarchDebug) {
         RayMarcherDebug(gfxContext, m_Camera, viewport, scissor);
     } 
     else {
-        NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
-        NonLegacyRenderSDF(gfxContext);
         NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/false);
     }
 #else
@@ -680,7 +675,7 @@ void ModelViewer::RenderScene( void )
     else
     {
         NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
-        NonLegacyRenderSDF(gfxContext, /*runOnce*/true);
+        NonLegacyRenderSDF(gfxContext, /*runSDFOnce=*/true);
         mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
         NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/true);
     }

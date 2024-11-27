@@ -84,7 +84,8 @@ namespace Renderer
     void Initialize(void);
     void Shutdown(void);
 
-    void ClearSDFGITextures(GraphicsContext& gfxContext); 
+    void ClearVoxelTextures(GraphicsContext& gfxContext); 
+    void ClearSDFTextures(GraphicsContext& gfxContext); 
     void InitializeVoxel(void); 
     void InitializeJFA(void);
     void InitializeRayMarchDebug(void);
