@@ -681,7 +681,7 @@ void ModelViewer::RenderScene( void )
         NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
         NonLegacyRenderSDF(gfxContext, /*runSDFOnce=*/true);
         mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
-        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/false);
+        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/true);
     }
 
     mp_SDFGIManager->Render(gfxContext, m_Camera);
