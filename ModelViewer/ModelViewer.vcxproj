@@ -65,6 +65,8 @@
     <ClCompile Include="..\GUI\imgui\imgui_widgets.cpp" />
     <ClCompile Include="..\GUI\imgui\misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="ModelViewer.cpp" />
+    <ClCompile Include="Settings.cpp" />
+    <ClCompile Include="SF12_Math.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Core/Core.vcxproj">
@@ -371,6 +373,10 @@
     <ClInclude Include="..\GUI\imgui\imstb_textedit.h" />
     <ClInclude Include="..\GUI\imgui\imstb_truetype.h" />
     <ClInclude Include="..\GUI\imgui\misc\cpp\imgui_stdlib.h" />
+    <ClInclude Include="ImGuiHelper.h" />
+    <ClInclude Include="Settings.h" />
+    <ClInclude Include="Setttings.h" />
+    <ClInclude Include="SF12_Math.h" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="..\GUI\imgui\misc\debuggers\imgui.natvis" />

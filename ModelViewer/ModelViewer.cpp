@@ -38,6 +38,7 @@
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
 #include "SDFGI.h"
+#include "Settings.h"
 
 // #define LEGACY_RENDERER
 #include <string>
@@ -49,6 +50,7 @@ using namespace Graphics;
 using namespace std;
 
 using Renderer::MeshSorter;
+using namespace SampleFramework12;
 
 namespace GameCore
 {
@@ -83,7 +85,7 @@ public:
     void NonLegacyRenderShadowMap(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor);
     void NonLegacyRenderScene(GraphicsContext& gfxContext, const Math::Camera& cam, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor, bool renderShadows = true, bool useSDFGI = false);
 
-
+    DirectionSetting SunDirection;
 private:
 
     Camera m_Camera;
@@ -104,8 +106,9 @@ ExpVar g_SunLightIntensity("Viewer/Lighting/Sun Light Intensity", 4.0f, 0.0f, 16
 // For sphere scene.
 // NumVar g_SunOrientation("Viewer/Lighting/Sun Orientation", -1.5f, -100.0f, 100.0f, 0.1f );
 // For Sonic scene.
-NumVar g_SunOrientation("Viewer/Lighting/Sun Orientation", -0.0f, -0.0f, 0.0f, 0.1f );
-NumVar g_SunInclination("Viewer/Lighting/Sun Inclination", 0.0f, 0.0f, 1.0f, 0.01f );
+// NumVar g_SunOrientation("Viewer/Lighting/Sun Orientation", -0.0f, -100.0f, 100.0f, 0.1f );
+// NumVar g_SunInclination("Viewer/Lighting/Sun Inclination", 0.0f, 0.0f, 1.0f, 0.01f );
+// See SunDirection.Initialize in Startup for settting initial sun direction.
 
 void ChangeIBLSet(EngineVar::ActionType);
 void ChangeIBLBias(EngineVar::ActionType);
@@ -234,6 +237,9 @@ void ModelViewer::Startup( void )
         m_CameraController.reset(new FlyingFPSCamera(m_Camera, Vector3(kYUnitVector)));
     else
         m_CameraController.reset(new OrbitCamera(m_Camera, m_ModelInst.GetBoundingSphere(), Vector3(kYUnitVector)));
+
+    SunDirection.Initialize("SunDirection", "Sun", "Sun Direction", "Direction of the sun", Float3(1.0f, 0.0f, 0.0f), true);
+
 #if UI_ENABLE
     InitializeGUI();
 #endif
@@ -365,13 +371,8 @@ GlobalConstants ModelViewer::UpdateGlobalConstants(const Math::BaseCamera& cam, 
 
     // Handle shadow-related global constants
     {
-        // Calculate sun direction and shadow matrix
-        float costheta = cosf(g_SunOrientation);
-        float sintheta = sinf(g_SunOrientation);
-        float cosphi = cosf(g_SunInclination * 3.14159f * 0.5f);
-        float sinphi = sinf(g_SunInclination * 3.14159f * 0.5f);
-
-        Vector3 SunDirection = Normalize(Vector3(costheta * cosphi, sinphi, sintheta * cosphi));
+        Float3 dirInCartesian = SunDirection.Value();
+        Vector3 SunDirection = Normalize(Vector3(dirInCartesian.x, dirInCartesian.y, dirInCartesian.z));
         Vector3 ShadowBounds = Vector3(m_ModelInst.GetRadius());
         Vector3 origin = Vector3(0);
         Vector3 ShadowCenter = origin;
@@ -677,7 +678,7 @@ void ModelViewer::RenderScene( void )
         NonLegacyRenderShadowMap(gfxContext, m_Camera, viewport, scissor);
         NonLegacyRenderSDF(gfxContext, /*runSDFOnce=*/true);
         mp_SDFGIManager->Update(gfxContext, m_Camera, viewport, scissor);
-        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/true);
+        NonLegacyRenderScene(gfxContext, m_Camera, viewport, scissor, /*renderShadows=*/true, /*useSDFGI=*/false);
     }
 
     mp_SDFGIManager->Render(gfxContext, m_Camera);
@@ -713,6 +714,13 @@ void ModelViewer::RenderScene( void )
 
 void ModelViewer::RenderUI( class GraphicsContext& gfxContext ) {
 #if UI_ENABLE
+    Matrix4 viewMat = m_Camera.GetViewMatrix();
+    Float4 r0(viewMat.GetX().GetX(), viewMat.GetX().GetY(), viewMat.GetX().GetZ(), viewMat.GetX().GetW());
+    Float4 r1(viewMat.GetY().GetX(), viewMat.GetY().GetY(), viewMat.GetY().GetZ(), viewMat.GetY().GetW());
+    Float4 r2(viewMat.GetZ().GetX(), viewMat.GetZ().GetY(), viewMat.GetZ().GetZ(), viewMat.GetZ().GetW());
+    Float4 r3(viewMat.GetW().GetX(), viewMat.GetW().GetY(), viewMat.GetW().GetZ(), viewMat.GetW().GetW());
+    Float4x4 viewMatrix(r0, r1, r2, r3);
+    SunDirection.Update(viewMatrix);
     ImGui::Render();
     gfxContext.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer()); 
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), gfxContext.GetCommandList());
