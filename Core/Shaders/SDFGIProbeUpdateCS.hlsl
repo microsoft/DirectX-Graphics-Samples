@@ -1,5 +1,3 @@
-#define SAMPLE_SDF 1
-
 static const float PI = 3.14159265f;
 static int MAX_MARCHING_STEPS = 512;
 
@@ -19,6 +17,8 @@ cbuffer ProbeData : register(b0) {
     uint ProbeAtlasBlockResolution;
     uint GutterSize;
     float MaxWorldDepth;
+
+    bool SampleSDF;
 };
 
 cbuffer SDFData : register(b1) {
@@ -214,19 +214,19 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
             uint3 probeTexCoord = atlasCoord + uint3(coord, 0.0f);
 
-    #if SAMPLE_SDF
-            float3 worldHitPos;
-            float4 irradianceSample = SampleSDFAlbedo(probePosition, normalize(texelDirection+dir), worldHitPos);
-            IrradianceAtlas[probeTexCoord] = weight * irradianceSample;
-            float worldDepth = min(length(worldHitPos - probePosition), MaxWorldDepth);
-            DepthAtlas[probeTexCoord] = float2(worldDepth, worldDepth*worldDepth);
-    #else
-            int faceIndex = GetFaceIndex(dir);
-            uint textureIndex = probeIndex * 6 + faceIndex;
-            float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(coord.xy * 0.5 + 0.5, textureIndex), 0);
-            IrradianceAtlas[probeTexCoord] = weight * irradianceSample;
-            DepthAtlas[probeTexCoord] = 1;
-    #endif
+            if (SampleSDF) {
+                float3 worldHitPos;
+                float4 irradianceSample = SampleSDFAlbedo(probePosition, normalize(texelDirection+dir), worldHitPos);
+                IrradianceAtlas[probeTexCoord] = weight * irradianceSample;
+                float worldDepth = min(length(worldHitPos - probePosition), MaxWorldDepth);
+                DepthAtlas[probeTexCoord] = float2(worldDepth, worldDepth*worldDepth);
+            } else {
+                int faceIndex = GetFaceIndex(dir);
+                uint textureIndex = probeIndex * 6 + faceIndex;
+                float4 irradianceSample = ProbeCubemapArray.SampleLevel(LinearSampler, float3(coord.xy * 0.5 + 0.5, textureIndex), 0);
+                IrradianceAtlas[probeTexCoord] = weight * irradianceSample;
+                DepthAtlas[probeTexCoord] = 1;
+            }
         }
     }
 }

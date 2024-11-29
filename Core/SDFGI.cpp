@@ -23,7 +23,7 @@
 #include "CompiledShaders/SDFGIProbeCubemapDownsampleCS.h"
 
 #define PROBE_IDX_VIZ 1
-#define SCENE_IS_CORNELL_BOX 1
+#define SCENE_IS_CORNELL_BOX 0
 
 using namespace Graphics;
 using namespace DirectX;
@@ -52,7 +52,7 @@ namespace SDFGI {
 
         float spacing = 800.0f;
 #else
-        float spacing = 400.0f;
+        float spacing = 100.0f;
 #endif
         probeSpacing[0] = spacing;
         probeSpacing[1] = spacing;
@@ -71,7 +71,6 @@ namespace SDFGI {
         GenerateProbes();
     }
 
-    // TODO: we'll need to be able to map a probe world space position or linear index to a 3D texture coordinate.
     void SDFGIProbeGrid::GenerateProbes() {
         probes.clear();
 
@@ -93,9 +92,10 @@ namespace SDFGI {
     SDFGIManager::SDFGIManager(
         const Math::AxisAlignedBox &sceneBounds, 
         std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc,
-        DescriptorHeap *externalHeap
+        DescriptorHeap *externalHeap,
+        BOOL useCubemaps
     )
-        : probeGrid(sceneBounds), renderFunc(renderFunc), externalHeap(externalHeap) {
+        : probeGrid(sceneBounds), renderFunc(renderFunc), externalHeap(externalHeap), useCubemaps(useCubemaps) {
         InitializeTextures();
         InitializeViews();
         InitializeProbeBuffer();
@@ -107,12 +107,14 @@ namespace SDFGI {
     };
 
     SDFGIManager::~SDFGIManager() {
-        for (uint32_t probe = 0; probe < probeCount; ++probe) {
-            delete[] probeCubemapFaceTextures[probe];
-            delete[] probeCubemapFaceUAVs[probe];
+        if (useCubemaps) {
+            for (uint32_t probe = 0; probe < probeCount; ++probe) {
+                delete[] probeCubemapFaceTextures[probe];
+                delete[] probeCubemapFaceUAVs[probe];
+            }
+            delete[] probeCubemapFaceTextures;
+            delete[] probeCubemapFaceUAVs;
         }
-        delete[] probeCubemapFaceTextures;
-        delete[] probeCubemapFaceUAVs;
     }
 
     void SDFGIManager::InitializeTextures() {
@@ -145,41 +147,47 @@ namespace SDFGI {
             externalHeap
         );
 
-        // Individual cubemap faces for all probes.
-        probeCubemapFaceTextures = new Texture*[probeCount];
-        for (uint32_t probe  = 0; probe < probeCount; ++probe) {
-            probeCubemapFaceTextures[probe] = new Texture[6];
+        if (probeCount > 330) useCubemaps = false;
 
-            for (int face = 0; face < 6; ++face)
-            {
-                probeCubemapFaceTextures[probe][face].Create2D(
-                    cubemapFaceResolution * sizeof(float) * 4,
-                    cubemapFaceResolution, cubemapFaceResolution,
-                    DXGI_FORMAT_R11G11B10_FLOAT,
-                    nullptr,
-                    // TODO: doesn't need render target flag.
-                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
-                );
+        if (useCubemaps) {
+            // Individual cubemap faces for all probes.
+            probeCubemapFaceTextures = new Texture*[probeCount];
+            for (uint32_t probe  = 0; probe < probeCount; ++probe) {
+                probeCubemapFaceTextures[probe] = new Texture[6];
+
+                for (int face = 0; face < 6; ++face)
+                {
+                    probeCubemapFaceTextures[probe][face].Create2D(
+                        cubemapFaceResolution * sizeof(float) * 4,
+                        cubemapFaceResolution, cubemapFaceResolution,
+                        DXGI_FORMAT_R11G11B10_FLOAT,
+                        nullptr,
+                        // TODO: doesn't need render target flag.
+                        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+                    );
+                }
             }
-        }
 
-        // A single texture array containing all cubemap faces.
-        probeCubemapArray.CreateArray(L"ProbeCubemapArray", cubemapFaceResolution, cubemapFaceResolution, 6*probeCount, DXGI_FORMAT_R11G11B10_FLOAT);
+            // A single texture array containing all cubemap faces.
+            probeCubemapArray.CreateArray(L"ProbeCubemapArray", cubemapFaceResolution, cubemapFaceResolution, 6*probeCount, DXGI_FORMAT_R11G11B10_FLOAT);
+        }
     };
 
     void SDFGIManager::InitializeViews() {
-        probeCubemapFaceUAVs = new D3D12_CPU_DESCRIPTOR_HANDLE*[probeCount];
-        for (int probe = 0; probe < probeCount; ++probe)
-        {
-            probeCubemapFaceUAVs[probe] = new D3D12_CPU_DESCRIPTOR_HANDLE[6];
-            for (int face = 0; face < 6; ++face)
+        if (useCubemaps) {
+            probeCubemapFaceUAVs = new D3D12_CPU_DESCRIPTOR_HANDLE*[probeCount];
+            for (int probe = 0; probe < probeCount; ++probe)
             {
-                probeCubemapFaceUAVs[probe][face] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-                D3D12_UNORDERED_ACCESS_VIEW_DESC  uavDesc = {};
-                uavDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
-                uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-                uavDesc.Texture2D.MipSlice = 0;
-                g_Device->CreateUnorderedAccessView(probeCubemapFaceTextures[probe][face].GetResource(), nullptr, &uavDesc, probeCubemapFaceUAVs[probe][face]);
+                probeCubemapFaceUAVs[probe] = new D3D12_CPU_DESCRIPTOR_HANDLE[6];
+                for (int face = 0; face < 6; ++face)
+                {
+                    probeCubemapFaceUAVs[probe][face] = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+                    D3D12_UNORDERED_ACCESS_VIEW_DESC  uavDesc = {};
+                    uavDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT;
+                    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+                    uavDesc.Texture2D.MipSlice = 0;
+                    g_Device->CreateUnorderedAccessView(probeCubemapFaceTextures[probe][face].GetResource(), nullptr, &uavDesc, probeCubemapFaceUAVs[probe][face]);
+                }
             }
         }
     };
@@ -299,7 +307,7 @@ namespace SDFGI {
         computeContext.SetBufferSRV(0, probeBuffer);
         computeContext.SetDynamicDescriptor(1, 0, irradianceAtlas.GetUAV());
         computeContext.SetDynamicDescriptor(2, 0, depthAtlas.GetUAV());
-        computeContext.SetDynamicDescriptor(3, 0, probeCubemapArray.GetSRV());
+        if (useCubemaps) computeContext.SetDynamicDescriptor(3, 0, probeCubemapArray.GetSRV());
         computeContext.SetDynamicDescriptor(5, 0, Renderer::m_VoxelAlbedo.GetUAV()); 
         computeContext.SetDynamicDescriptor(6, 0, Renderer::m_FinalSDFOutput.GetUAV()); 
 
@@ -319,6 +327,8 @@ namespace SDFGI {
             unsigned int ProbeAtlasBlockResolution;     // 4
             unsigned int GutterSize;                    // 4 
             float MaxWorldDepth;                        // 4
+
+            BOOL SampleSDF;
         } probeData;
 
         __declspec(align(16)) struct SDFData {
@@ -343,6 +353,7 @@ namespace SDFGI {
         probeData.ProbeAtlasBlockResolution = probeAtlasBlockResolution;
         probeData.GutterSize = gutterSize;
         probeData.MaxWorldDepth = probeGrid.sceneBounds.GetMaxDistance();
+        probeData.SampleSDF = !useCubemaps;
 
         sdfData.xmin = -2000; 
         sdfData.xmax = 2000;
@@ -596,7 +607,9 @@ namespace SDFGI {
     void SDFGIManager::Update(GraphicsContext& context, const Math::Camera& camera, const D3D12_VIEWPORT& viewport, const D3D12_RECT& scissor) {
         ScopedTimer _prof(L"SDFGI Update", context);
 
-        RenderCubemapsForProbes(context, camera, viewport, scissor);
+        if (useCubemaps) {
+            RenderCubemapsForProbes(context, camera, viewport, scissor);
+        }
 
         UpdateProbes(context);
     }
@@ -608,6 +621,8 @@ namespace SDFGI {
 
         // Render to a fullscreen quad either the probe atlas or the cubemap of a single probe.
         RenderProbeAtlasViz(context, camera);
-        // RenderCubemapViz(context, camera);
+        if (useCubemaps) {
+            // RenderCubemapViz(context, camera);
+        }
     }
 }

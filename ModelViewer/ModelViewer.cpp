@@ -239,9 +239,9 @@ void ModelViewer::Startup( void )
         m_CameraController.reset(new OrbitCamera(m_Camera, m_ModelInst.GetBoundingSphere(), Vector3(kYUnitVector)));
 
     // For Sonic scene.
-    SunDirection.Initialize("SunDirection", "Sun", "Sun Direction", "Direction of the sun", Float3(1.0f, 0.0f, 0.0f), true);
+    // SunDirection.Initialize("SunDirection", "Sun", "Sun Direction", "Direction of the sun", Float3(1.0f, 0.0f, 0.0f), true);
     // For Sponza scene.
-    // SunDirection.Initialize("SunDirection", "Sun", "Sun Direction", "Direction of the sun", Float3(-0.3f, 0.95f, 0.1f), true);
+    SunDirection.Initialize("SunDirection", "Sun", "Sun Direction", "Direction of the sun", Float3(-0.3f, 0.95f, 0.1f), true);
 
 #if UI_ENABLE
     InitializeGUI();
@@ -268,7 +268,8 @@ void ModelViewer::Startup( void )
     mp_SDFGIManager = new SDFGI::SDFGIManager(
         sceneBounds,
         static_cast<std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)>>(renderLambda),
-        &Renderer::s_TextureHeap
+        &Renderer::s_TextureHeap,
+        /*useCubemaps=*/false
     );
 }
 

@@ -72,6 +72,8 @@ namespace SDFGI
   class SDFGIManager {
   public:
 
+    BOOL useCubemaps;
+
     // Used to ensure that irradiance and cubemaps are only captured in the first render call.
     // TODO: don't do this when we support dynamic lights and scenes.
     bool irradianceCaptured = false;
@@ -113,7 +115,8 @@ namespace SDFGI
       const Math::AxisAlignedBox &sceneBounds,
       // A function/lambda for invoking the scene's render function. Used for rendering probe cubemaps.
       std::function<void(GraphicsContext&, const Math::Camera&, const D3D12_VIEWPORT&, const D3D12_RECT&)> renderFunc,
-      DescriptorHeap *externalHeap
+      DescriptorHeap *externalHeap,
+      BOOL useCubemaps = false
     );
 
     ~SDFGIManager();
