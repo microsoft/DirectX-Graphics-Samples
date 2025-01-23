@@ -229,16 +229,16 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets" Condition="Exists('..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets')" />
-    <Import Project="..\..\..\..\..\Packages\directxtex_desktop_win10.2024.6.5.1\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\..\..\..\..\Packages\directxtex_desktop_win10.2024.6.5.1\build\native\directxtex_desktop_win10.targets')" />
     <Import Project="..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
+    <Import Project="..\..\..\..\..\Packages\directxtex_desktop_win10.2024.10.29.1\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\..\..\..\..\Packages\directxtex_desktop_win10.2024.10.29.1\build\native\directxtex_desktop_win10.targets')" />
+    <Import Project="..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.10.29.1\build\native\directxmesh_desktop_win10.targets" Condition="Exists('..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.10.29.1\build\native\directxmesh_desktop_win10.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.6.5.1\build\native\directxmesh_desktop_win10.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\Packages\directxtex_desktop_win10.2024.6.5.1\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxtex_desktop_win10.2024.6.5.1\build\native\directxtex_desktop_win10.targets'))" />
     <Error Condition="!Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\directxtex_desktop_win10.2024.10.29.1\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxtex_desktop_win10.2024.10.29.1\build\native\directxtex_desktop_win10.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.10.29.1\build\native\directxmesh_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.10.29.1\build\native\directxmesh_desktop_win10.targets'))" />
   </Target>
 </Project>
