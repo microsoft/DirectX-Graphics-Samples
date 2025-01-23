@@ -19,6 +19,8 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#pragma warning(disable:4244) // conversion from 'uint32_t' to 'uint16_t', possible loss of data
+
 using namespace std;
 
 const char* AssimpModel::s_FormatString[] =
@@ -182,7 +184,7 @@ bool AssimpModel::LoadAssimp(const string& filename)
         dstMat->shininess = shininess;
         dstMat->specularStrength = specularStrength;
 
-        char *pRem = nullptr;
+        //char *pRem = nullptr;
 
         strncpy_s(dstMat->texDiffusePath, texDiffusePath.C_Str(), Material::maxTexPath - 1);
         strncpy_s(dstMat->texSpecularPath, texSpecularPath.C_Str(), Material::maxTexPath - 1);

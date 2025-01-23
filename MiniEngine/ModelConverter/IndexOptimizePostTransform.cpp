@@ -252,7 +252,7 @@ void OptimizeFaces(const IndexType* indexList, uint32_t indexCount, IndexType* n
                 || sortFunc(indexSorted[i - 1], indexSorted[i]))
             {
                 // it's not a duplicate
-                vertexRemap[indexSorted[i]] = uniqueVertexCount;
+                vertexRemap[indexSorted[i]] = (IndexType)uniqueVertexCount;
                 uniqueVertexCount++;
             }
             else
@@ -319,7 +319,7 @@ void OptimizeFaces(const IndexType* indexList, uint32_t indexCount, IndexType* n
     uint32_t bestFace = 0;
     float bestScore = -1.f;
 
-    const float maxValenceScore = FindVertexScore(1, kEvictedCacheIndex, lruCacheSize) * 3.f;
+    //const float maxValenceScore = FindVertexScore(1, kEvictedCacheIndex, lruCacheSize) * 3.f;
 
     unsigned int nextBestFace = 0;
     for (uint32_t i = 0; i < indexCount; i += 3)

@@ -16,6 +16,9 @@
 
 #include <string.h>
 
+#pragma warning(disable:4244) // conversion from 'uint32_t' to 'uint16_t', possible loss of data
+
+
 void AssimpModel::OptimizeRemoveDuplicateVertices(bool depth)
 {
     unsigned char *deduplicatedVertexData = new unsigned char [depth ? m_Header.vertexDataByteSizeDepth : m_Header.vertexDataByteSize];
