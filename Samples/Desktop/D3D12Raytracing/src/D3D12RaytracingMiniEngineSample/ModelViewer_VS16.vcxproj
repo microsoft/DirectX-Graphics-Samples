@@ -218,7 +218,6 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemDefinitionGroup>
     <Link>
-      <AdditionalLibraryDirectories>..\..\..\..\..\Packages\directxtex_desktop_win10.2024.6.5.1\lib\x64\Release;..\..\..\..\..\Packages\directxmesh_desktop_win10.2024.6.5.1\lib\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>/nodefaultlib:LIBCMT %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
