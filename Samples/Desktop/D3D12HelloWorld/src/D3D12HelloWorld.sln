@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30621.155.26403.0
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35707.178 d17.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloTriangle", "HelloTriangle\D3D12HelloTriangle.vcxproj", "{5018F6A3-6533-4744-B1FD-727D199FD2E9}"
 EndProject
@@ -21,13 +21,15 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloVADecode", "Hello
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloVAResourceInterop", "HelloVAResourceInterop\D3D12HelloVAResourceInterop.vcxproj", "{17171787-C5D2-4014-9D1D-BC43074F36A1}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloWorkGraphs", "HelloWorkGraphs\D3D12HelloWorkGraphs.vcxproj", "{05080adc-d456-4058-8064-4791865f796b}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloWorkGraphs", "HelloWorkGraphs\D3D12HelloWorkGraphs.vcxproj", "{05080ADC-D456-4058-8064-4791865F796B}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12WorkGraphsSandbox", "WorkGraphsSandbox\D3D12WorkGraphsSandbox.vcxproj", "{2725e8ec-0892-499b-acd5-0ea18157682a}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12WorkGraphsSandbox", "WorkGraphsSandbox\D3D12WorkGraphsSandbox.vcxproj", "{2725E8EC-0892-499B-ACD5-0EA18157682A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloGenericPrograms", "HelloGenericPrograms\D3D12HelloGenericPrograms.vcxproj", "{7db43f09-7bd6-4e69-8987-9a919a142852}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloGenericPrograms", "HelloGenericPrograms\D3D12HelloGenericPrograms.vcxproj", "{7DB43F09-7BD6-4E69-8987-9A919A142852}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloMeshNodes", "HelloMeshNodes\D3D12HelloMeshNodes.vcxproj", "{b9680899-f009-406b-beee-d0214c1e7592}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloMeshNodes", "HelloMeshNodes\D3D12HelloMeshNodes.vcxproj", "{B9680899-F009-406B-BEEE-D0214C1E7592}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloTightAlignment", "HelloTightAlignment\D3D12HelloTightAlignment.vcxproj", "{69B1A348-DF87-4335-BC68-FE8C060C7A60}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -71,22 +73,26 @@ Global
 		{17171787-C5D2-4014-9D1D-BC43074F36A1}.Debug|x64.Build.0 = Debug|x64
 		{17171787-C5D2-4014-9D1D-BC43074F36A1}.Release|x64.ActiveCfg = Release|x64
 		{17171787-C5D2-4014-9D1D-BC43074F36A1}.Release|x64.Build.0 = Release|x64
-		{05080adc-d456-4058-8064-4791865f796b}.Debug|x64.ActiveCfg = Debug|x64
-		{05080adc-d456-4058-8064-4791865f796b}.Debug|x64.Build.0 = Debug|x64
-		{05080adc-d456-4058-8064-4791865f796b}.Release|x64.ActiveCfg = Release|x64
-		{05080adc-d456-4058-8064-4791865f796b}.Release|x64.Build.0 = Release|x64
-		{2725e8ec-0892-499b-acd5-0ea18157682a}.Debug|x64.ActiveCfg = Debug|x64
-		{2725e8ec-0892-499b-acd5-0ea18157682a}.Debug|x64.Build.0 = Debug|x64
-		{2725e8ec-0892-499b-acd5-0ea18157682a}.Release|x64.ActiveCfg = Release|x64
-		{2725e8ec-0892-499b-acd5-0ea18157682a}.Release|x64.Build.0 = Release|x64
-		{7db43f09-7bd6-4e69-8987-9a919a142852}.Debug|x64.ActiveCfg = Debug|x64
-		{7db43f09-7bd6-4e69-8987-9a919a142852}.Debug|x64.Build.0 = Debug|x64
-		{7db43f09-7bd6-4e69-8987-9a919a142852}.Release|x64.ActiveCfg = Release|x64
-		{7db43f09-7bd6-4e69-8987-9a919a142852}.Release|x64.Build.0 = Release|x64
-		{b9680899-f009-406b-beee-d0214c1e7592}.Debug|x64.ActiveCfg = Debug|x64
-		{b9680899-f009-406b-beee-d0214c1e7592}.Debug|x64.Build.0 = Debug|x64
-		{b9680899-f009-406b-beee-d0214c1e7592}.Release|x64.ActiveCfg = Release|x64
-		{b9680899-f009-406b-beee-d0214c1e7592}.Release|x64.Build.0 = Release|x64
+		{05080ADC-D456-4058-8064-4791865F796B}.Debug|x64.ActiveCfg = Debug|x64
+		{05080ADC-D456-4058-8064-4791865F796B}.Debug|x64.Build.0 = Debug|x64
+		{05080ADC-D456-4058-8064-4791865F796B}.Release|x64.ActiveCfg = Release|x64
+		{05080ADC-D456-4058-8064-4791865F796B}.Release|x64.Build.0 = Release|x64
+		{2725E8EC-0892-499B-ACD5-0EA18157682A}.Debug|x64.ActiveCfg = Debug|x64
+		{2725E8EC-0892-499B-ACD5-0EA18157682A}.Debug|x64.Build.0 = Debug|x64
+		{2725E8EC-0892-499B-ACD5-0EA18157682A}.Release|x64.ActiveCfg = Release|x64
+		{2725E8EC-0892-499B-ACD5-0EA18157682A}.Release|x64.Build.0 = Release|x64
+		{7DB43F09-7BD6-4E69-8987-9A919A142852}.Debug|x64.ActiveCfg = Debug|x64
+		{7DB43F09-7BD6-4E69-8987-9A919A142852}.Debug|x64.Build.0 = Debug|x64
+		{7DB43F09-7BD6-4E69-8987-9A919A142852}.Release|x64.ActiveCfg = Release|x64
+		{7DB43F09-7BD6-4E69-8987-9A919A142852}.Release|x64.Build.0 = Release|x64
+		{B9680899-F009-406B-BEEE-D0214C1E7592}.Debug|x64.ActiveCfg = Debug|x64
+		{B9680899-F009-406B-BEEE-D0214C1E7592}.Debug|x64.Build.0 = Debug|x64
+		{B9680899-F009-406B-BEEE-D0214C1E7592}.Release|x64.ActiveCfg = Release|x64
+		{B9680899-F009-406B-BEEE-D0214C1E7592}.Release|x64.Build.0 = Release|x64
+		{69B1A348-DF87-4335-BC68-FE8C060C7A60}.Debug|x64.ActiveCfg = Debug|x64
+		{69B1A348-DF87-4335-BC68-FE8C060C7A60}.Debug|x64.Build.0 = Debug|x64
+		{69B1A348-DF87-4335-BC68-FE8C060C7A60}.Release|x64.ActiveCfg = Release|x64
+		{69B1A348-DF87-4335-BC68-FE8C060C7A60}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
