@@ -145,7 +145,7 @@ struct RaytracingDispatchRayInputs
         dispatchRaysDesc.HitGroupTable.StrideInBytes = m_HitGroupStride;
         dispatchRaysDesc.MissShaderTable.StartAddress = m_MissShaderTable.GetGpuVirtualAddress();
         dispatchRaysDesc.MissShaderTable.SizeInBytes = m_MissShaderTable.GetBufferSize();
-        dispatchRaysDesc.MissShaderTable.StrideInBytes = dispatchRaysDesc.MissShaderTable.SizeInBytes; // Only one entry
+        dispatchRaysDesc.MissShaderTable.StrideInBytes = dispatchRaysDesc.MissShaderTable.StrideInBytes;
         dispatchRaysDesc.Width = DispatchWidth;
         dispatchRaysDesc.Height = DispatchHeight;
         dispatchRaysDesc.Depth = 1;
