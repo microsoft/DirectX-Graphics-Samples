@@ -535,8 +535,10 @@ void D3D12Residency::PopulateCommandList(std::shared_ptr<ManagedCommandList> pMa
     DXGI_QUERY_VIDEO_MEMORY_INFO memoryInfo = {};
     ThrowIfFailed(m_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &memoryInfo));
 
+    UINT64 unused, EvictedMemoryInBytes;
+    m_residencyManager.QueryResidencyStats(unused, EvictedMemoryInBytes);
     WCHAR message[200];
-    swprintf_s(message, L"Total Allocated: %llu MB | Budget: %llu MB | Using: %llu MB", m_totalAllocations >> 20, memoryInfo.Budget >> 20, memoryInfo.CurrentUsage >> 20);
+    swprintf_s(message, L"Total Allocated: %llu MB | Budget: %llu MB | Using: %llu MB | Evicted: %llu MB", m_totalAllocations >> 20, memoryInfo.Budget >> 20, memoryInfo.CurrentUsage >> 20, EvictedMemoryInBytes >> 20);
     this->SetCustomWindowText(message);
 
     auto commandList = pManagedCommandList->commandList;
