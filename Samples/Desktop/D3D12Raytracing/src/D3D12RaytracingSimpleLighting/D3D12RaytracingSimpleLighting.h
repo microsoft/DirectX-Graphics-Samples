@@ -15,6 +15,9 @@
 #include "StepTimer.h"
 #include "RaytracingHlslCompat.h"
 
+
+#define USE_OMMS
+
 namespace GlobalRootSignatureParams {
     enum Value {
         OutputViewSlot = 0,
@@ -91,9 +94,21 @@ private:
     D3DBuffer m_indexBuffer;
     D3DBuffer m_vertexBuffer;
 
+#if defined(USE_OMMS)
+    //D3D12_RAYTRACING_OPACITY_MICROMAP_DESC m_ommDesc;
+    D3DBuffer m_ommArrayInputBuffer;
+    D3DBuffer m_ommIndexBuffer;
+    D3DBuffer m_ommDescBuffer;
+#endif
+
     // Acceleration structure
+    ComPtr<ID3D12Resource> m_scratchResource;
+    ComPtr<ID3D12Resource> m_instanceDescs;
     ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
     ComPtr<ID3D12Resource> m_topLevelAccelerationStructure;
+#if defined(USE_OMMS)
+    ComPtr<ID3D12Resource> m_ommAccelerationStructure;
+#endif
 
     // Raytracing output
     ComPtr<ID3D12Resource> m_raytracingOutput;
