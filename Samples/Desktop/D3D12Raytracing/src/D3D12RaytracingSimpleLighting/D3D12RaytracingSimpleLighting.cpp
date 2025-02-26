@@ -437,14 +437,13 @@ void D3D12RaytracingSimpleLighting::BuildGeometry()
     AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_vertexBuffer.resource);
 
 #if defined(USE_OMMS)
-    UINT8 indicesOMM[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-    for (int i = 0; i < 12; i++)
-        indicesOMM[i] = (i % 2) ? D3D12_RAYTRACING_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_TRANSPARENT : D3D12_RAYTRACING_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_OPAQUE;
+    
+    const int NUM_TRIANGLES = 12;
+    UINT8 indicesOMM[NUM_TRIANGLES] = { D3D12_RAYTRACING_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_OPAQUE, D3D12_RAYTRACING_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_OPAQUE, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
 
     AllocateUploadBuffer(device, indicesOMM, sizeof(indicesOMM), &m_ommIndexBuffer.resource);
 
-    D3D12_RAYTRACING_OPACITY_MICROMAP_DESC ommDescs[12] = {};
+    D3D12_RAYTRACING_OPACITY_MICROMAP_DESC ommDescs[NUM_OMMS] = {};
 
     const bool use2StateOMM = true;
     const UINT subdivLevel = 3;
@@ -453,33 +452,42 @@ void D3D12RaytracingSimpleLighting::BuildGeometry()
     const UINT trisPerSubdivision = pow(4, subdivLevel);
     UINT numBitsRequiredForOMMState = use2StateOMM ? 1 : 2;
     UINT numBitsRequiredPerOMM = numBitsRequiredForOMMState * trisPerSubdivision;
-    UINT numDwordsRequiredPerOMM = (numBitsRequiredPerOMM + 31) / 32;
-    UINT numDwordsTotal = numDwordsRequiredPerOMM * ARRAYSIZE(ommDescs);
+    UINT numBytesRequiredPerOMM = (numBitsRequiredPerOMM + 7) / 8;
+    UINT numBytesTotal = numBytesRequiredPerOMM * ARRAYSIZE(ommDescs);
 
-    UINT* ommData = new UINT[numDwordsTotal];
-    memset(ommData, 0xFF, numDwordsTotal * sizeof(UINT));
+    UINT8* ommData = new UINT8[numBytesTotal];
+    ZeroMemory(ommData, numBytesTotal);
+    ZeroMemory(&m_ommHistogram, sizeof(m_ommHistogram));
+
+    m_ommHistogram.SubdivisionLevel = subdivLevel;
+    m_ommHistogram.Format = use2StateOMM ? D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT_OC1_2_STATE : D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT_OC1_4_STATE;
 
     for (int i = 0; i < ARRAYSIZE(ommDescs); i++)
     {
         D3D12_RAYTRACING_OPACITY_MICROMAP_DESC& ommDesc = ommDescs[i];
 
         ommDesc.ByteOffset = byteOffset;
-        ommDesc.Format = use2StateOMM ? D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT_OC1_2_STATE : D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT_OC1_4_STATE;
+        ommDesc.Format = m_ommHistogram.Format;
         ommDesc.SubdivisionLevel = subdivLevel;
+
+        UINT8* perOmmDataStart = ommData + byteOffset;
 
         for (UINT subD = 0; subD < trisPerSubdivision; subD++)
         {
-            //UINT& dword = ommData[subD / 32];
-            //UINT opaqueOrTransparent = 1;// (subD % 2) ? 0 : 1;
-            //dword |= (opaqueOrTransparent << (subD % 32));
+            UINT8& byte = perOmmDataStart[subD / 8];
+            UINT8 opaqueOrTransparent = (subD % 2) ? 0 : 1;
+            byte |= (opaqueOrTransparent << (subD % 8));
         }
 
-        byteOffset += numDwordsRequiredPerOMM * sizeof(UINT);
+        byteOffset += numBytesRequiredPerOMM;
+
+        m_ommHistogram.Count++;
     }
 
-    AllocateUploadBuffer(device, ommData, numDwordsTotal * sizeof(UINT), &m_ommArrayInputBuffer.resource);
-
+    AllocateUploadBuffer(device, ommData, numBytesTotal, &m_ommArrayInputBuffer.resource);
     AllocateUploadBuffer(device, ommDescs, sizeof(ommDescs), &m_ommDescBuffer.resource);
+    
+    delete[] ommData;
 #endif
 
     // Vertex buffer is passed to the shader along with index buffer as a descriptor table.
@@ -517,15 +525,13 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
 
     D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_DESC ommArrayDesc = {};
     ommArrayDesc.InputBuffer = m_ommArrayInputBuffer.resource->GetGPUVirtualAddress();
-    ommArrayDesc.NumOmmHistogramEntries = 0;
-    ommArrayDesc.pOmmHistogram = nullptr;
+    ommArrayDesc.NumOmmHistogramEntries = 1;
+    ommArrayDesc.pOmmHistogram = &m_ommHistogram;
     ommArrayDesc.PerOmmDescs = { m_ommDescBuffer.resource->GetGPUVirtualAddress(), sizeof(D3D12_RAYTRACING_OPACITY_MICROMAP_DESC) };
 
     D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC linkageDesc = {};
     linkageDesc.OpacityMicromapIndexBuffer = { m_ommIndexBuffer.resource->GetGPUVirtualAddress(), sizeof(UINT8) };
-    //linkageDesc.OpacityMicromapIndexBuffer = { 0, 0 };
     linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_R8_UINT;
-    //linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_UNKNOWN;
     linkageDesc.OpacityMicromapBaseLocation = 0;
     
 
