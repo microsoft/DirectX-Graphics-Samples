@@ -166,7 +166,6 @@ protected:
 
     void BindDescriptorHeaps( void );
 
-    CommandListManager* m_OwningManager;
     ID3D12GraphicsCommandList* m_CommandList;
     ID3D12CommandAllocator* m_CurrentAllocator;
 
