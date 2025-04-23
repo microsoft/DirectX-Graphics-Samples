@@ -745,7 +745,7 @@ void D3D12RaytracingTree::DoRaytracing()
     if(!done)
         BuildAccelerationStructures();
 
-    //done = true;
+    done = true;
     
     auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
     {

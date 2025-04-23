@@ -18,6 +18,6 @@ extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12
 _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-    D3D12RaytracingTree sample(1920, 1080, L"D3D12 Raytracing - Tree");
+    D3D12RaytracingTree sample(640, 480, L"D3D12 Raytracing - Tree");
     return Win32Application::Run(&sample, hInstance, nCmdShow);
 }
