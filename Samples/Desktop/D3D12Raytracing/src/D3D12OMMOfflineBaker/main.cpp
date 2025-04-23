@@ -6,9 +6,9 @@
 #include <dxgi.h>
 #include "DDS.h"
 #include "fast_obj.h"
-#include <J:\\Opacity-MicroMap-SDK\\libraries\\omm-lib\\include\\omm.hpp>
+#include <E:\\Code\OMMSDK\\libraries\\omm-lib\\include\\omm.hpp>
 
-#pragma comment(lib, "J:\\Opacity-MicroMap-SDK\\build\\libraries\\omm-lib\\Debug\\omm-lib.lib")
+#pragma comment(lib, "E:\\Code\\OMMSDK\\build\\libraries\\omm-lib\\Debug\\omm-lib.lib")
 
 void OMM_ABORT_ON_ERROR(omm::Result res)
 {

@@ -211,10 +211,12 @@ void D3D12RaytracingTree::LoadModel(const char* modelPath, const char* ommPath)
     AllocateUploadableBuffer(device, nullptr, ommIndexBufferSize,
         &m_ommIndexBuffer.uploadResource, &m_ommIndexBuffer.defaultResource, L"OMM Index Buffer");
 
-    void* descArrayPtr, *ommArrayPtr, *ommIndexBufferPtr;
-    m_ommDescBuffer.uploadResource->Map(0, nullptr, &descArrayPtr);
+    D3D12_RAYTRACING_OPACITY_MICROMAP_DESC* descArrayPtr;
+    void* ommArrayPtr;
+    UINT* ommIndexBufferPtr;
+    m_ommDescBuffer.uploadResource->Map(0, nullptr, (void**)&descArrayPtr);
     m_ommArrayBuffer.uploadResource->Map(0, nullptr, &ommArrayPtr);
-    m_ommIndexBuffer.uploadResource->Map(0, nullptr, &ommIndexBufferPtr);
+    m_ommIndexBuffer.uploadResource->Map(0, nullptr, (void**)&ommIndexBufferPtr);
 
     size_t histogramSize = m_numHistogramEntries * sizeof(D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY);
     m_ommHistogramBuffer = new D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY[m_numHistogramEntries];
@@ -223,6 +225,13 @@ void D3D12RaytracingTree::LoadModel(const char* modelPath, const char* ommPath)
     ReadFile(fhOMM, ommArrayPtr, arrayDataSize, &bytesRead, NULL);
     ReadFile(fhOMM, m_ommHistogramBuffer, histogramSize, &bytesRead, NULL);
     ReadFile(fhOMM, ommIndexBufferPtr, ommIndexBufferSize, &bytesRead, NULL);
+
+    UINT numOMMIndices = indexCount;
+
+	for (UINT i = 0; i < numOMMIndices; i++)
+	{
+        ommIndexBufferPtr[i] = D3D12_RAYTRACING_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_OPAQUE;
+	}
 
     CloseHandle(fhOMM);
 
@@ -326,14 +335,20 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
     // Build a BLAS
     UINT vertexCount = m_positionBuffer.defaultResource->GetDesc().Width / sizeof(XMFLOAT3);
 
-    D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC linkageDesc = {};
-    linkageDesc.OpacityMicromapIndexBuffer = { m_ommIndexBuffer.defaultResource->GetGPUVirtualAddress(), sizeof(UINT) };
-    linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_R32_UINT;
+    //D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC linkageDesc = {};
+    //linkageDesc.OpacityMicromapIndexBuffer = { m_ommIndexBuffer.defaultResource->GetGPUVirtualAddress(), sizeof(UINT) };
+    //linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_R32_UINT;
     
+	auto linkageDescs = (D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC));
     auto geomDescs = (D3D12_RAYTRACING_GEOMETRY_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
     auto triDescs = (D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC));
 
+	ZeroMemory(linkageDescs, m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC));
+	ZeroMemory(geomDescs, m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
+	ZeroMemory(triDescs, m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC));
+
     UINT indexOffset = 0;
+	UINT ommIndexOffset = 0;
 
     for (UINT i = 0; i < m_numGeoms; i++)
     {
@@ -342,13 +357,20 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
 
         geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 
-        if (i == 100)
+        if (i >= 1 && i <= 5)//i == 100)
         {
             geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES;
             geomDesc.OmmTriangles.pTriangles = &triDescs[i];
-            geomDesc.OmmTriangles.pOmmLinkage = &linkageDesc;
+            geomDesc.OmmTriangles.pOmmLinkage = &linkageDescs[i];
+
+			D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC& linkageDesc = linkageDescs[i];
+
+            linkageDesc.OpacityMicromapIndexBuffer = { m_ommIndexBuffer.defaultResource->GetGPUVirtualAddress(), sizeof(UINT) };
+			linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_R32_UINT;
+            linkageDesc.OpacityMicromapBaseLocation = ommIndexOffset / 3;
 
             triDesc = &triDescs[i];
+            ommIndexOffset += m_indicesPerGeom[i];
         }
         else
         {
@@ -368,8 +390,17 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
         triDesc->VertexBuffer.StartAddress = m_positionBuffer.defaultResource->GetGPUVirtualAddress();
         triDesc->VertexBuffer.StrideInBytes = sizeof(XMFLOAT3);
 
-        if (i != 1)
+        //if (i != 1)
+        //    triDesc->IndexCount = 3;
+
+        if (true)//i == 1)//i == 100)
+        {
+
+        }
+        else
+        {
             triDesc->IndexCount = 3;
+        }
 
         indexOffset += m_indicesPerGeom[i];
     }
@@ -444,7 +475,13 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
     if (m_instanceDescs.Get() == nullptr)
         AllocateUploadBuffer(device, &instanceDesc, sizeof(instanceDesc), &m_instanceDescs, L"InstanceDescs");
 
-    linkageDesc.OpacityMicromapArray = m_ommAccelerationStructure->GetGPUVirtualAddress();
+    for (int i = 0; i < m_numGeoms; i++)
+    {
+		linkageDescs[i].OpacityMicromapArray = m_ommAccelerationStructure->GetGPUVirtualAddress();
+    }
+
+    blasBuildDesc.Inputs.NumDescs = 2;
+
     ommBuildDesc.ScratchAccelerationStructureData = m_scratchResource->GetGPUVirtualAddress();
     ommBuildDesc.DestAccelerationStructureData = m_ommAccelerationStructure->GetGPUVirtualAddress();
 
@@ -572,8 +609,8 @@ void D3D12RaytracingTree::CreateRaytracingPipelineStateObject()
     // as drivers may apply optimization strategies for low recursion depths.
     UINT maxRecursionDepth = 1; // ~ primary rays only. 
 
-    //pipelineConfig->Config(maxRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAG_ALLOW_OPACITY_MICROMAPS);
-    pipelineConfig->Config(maxRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAG_NONE);
+    pipelineConfig->Config(maxRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAG_ALLOW_OPACITY_MICROMAPS);
+    //pipelineConfig->Config(maxRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAG_NONE);
 
 #if _DEBUG
     PrintStateObjectDesc(raytracingPipeline);
@@ -682,14 +719,14 @@ void D3D12RaytracingTree::OnUpdate()
 {
     m_timer.Tick();
     CalculateFrameStats();
-    float elapsedTime = 0;// static_cast<float>(m_timer.GetElapsedSeconds());
+    float elapsedTime = static_cast<float>(m_timer.GetElapsedSeconds());
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
     auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
 
     // Rotate the camera around Y axis.
     {
         float secondsToRotateAround = 240.0f;
-        float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
+        float angleToRotateBy = 0;// 360.0f * (elapsedTime / secondsToRotateAround);
         XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
         m_eye = XMVector3Transform(m_eye, rotate);
         m_up = XMVector3Transform(m_up, rotate);
@@ -708,7 +745,7 @@ void D3D12RaytracingTree::DoRaytracing()
     if(!done)
         BuildAccelerationStructures();
 
-    done = true;
+    //done = true;
     
     auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
     {
