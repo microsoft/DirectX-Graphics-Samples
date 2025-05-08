@@ -13,6 +13,7 @@
 #include "D3D12RaytracingTree.h"
 #include "DirectXRaytracingHelper.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
+#include "DDSTextureLoader.h"
 
 #include "SharedCode.h"
 
@@ -23,6 +24,7 @@ using namespace DX;
 const wchar_t* D3D12RaytracingTree::c_hitGroupName = L"MyHitGroup";
 const wchar_t* D3D12RaytracingTree::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingTree::c_closestHitShaderName = L"MyClosestHitShader";
+const wchar_t* D3D12RaytracingTree::c_anyHitShaderName = L"MyAnyHitShader";
 const wchar_t* D3D12RaytracingTree::c_missShaderName = L"MyMissShader";
 
 D3D12RaytracingTree::D3D12RaytracingTree(UINT width, UINT height, std::wstring name) :
@@ -65,9 +67,9 @@ void D3D12RaytracingTree::UpdateCameraMatrices()
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
     m_sceneCB[frameIndex].cameraPosition = m_eye;
-    float fovAngleY = 15.0f;
+    float fovAngleY = 40.0f;
     XMMATRIX view = XMMatrixLookAtLH(m_eye, m_at, m_up);
-    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 1.0f, 125.0f);
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 1.0f, 1000.0f);
     XMMATRIX viewProj = view * proj;
 
     m_sceneCB[frameIndex].projectionToWorld = XMMatrixInverse(nullptr, viewProj);
@@ -86,8 +88,8 @@ void D3D12RaytracingTree::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 0.0f, 12.0f, -25.0f, 1.0f };
-        m_at = { 0.0f, 10.0f, 0.0f, 1.0f };
+        m_eye = { 0.0f, 7.0f, -24.0f, 1.0f };
+        m_at = { 0.0f, 8.7f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
@@ -177,6 +179,58 @@ void D3D12RaytracingTree::CreateDeviceDependentResources()
     CreateRaytracingOutputResource();
 }
 
+void D3D12RaytracingTree::LoadTexture(const wchar_t* path, ID3D12Resource** resource, ID3D12Resource** uploadResource)
+{
+    auto device = m_deviceResources->GetD3DDevice();
+    auto commandList = m_deviceResources->GetCommandList();
+
+    std::unique_ptr<uint8_t[]> ddsData;
+    std::vector<D3D12_SUBRESOURCE_DATA> subresouceData;
+    HRESULT hr = LoadDDSTextureFromFile(device, path, resource, ddsData, subresouceData);
+	if (FAILED(hr))
+	{
+		printf("Failed to load texture %ls\n", path);
+		exit(1);
+	}
+
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(*resource, 0, static_cast<UINT>(subresouceData.size()));
+
+	D3D12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
+	ThrowIfFailed(device->CreateCommittedResource(
+		&heapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(uploadResource)));
+
+	UpdateSubresources(commandList, *resource, *uploadResource, 0, 0, static_cast<UINT>(subresouceData.size()), subresouceData.data());
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(*resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+}
+
+void D3D12RaytracingTree::LoadTextures()
+{
+    auto device = m_deviceResources->GetD3DDevice();
+
+    const wchar_t* texturesToLoad[3] =
+    {
+        L"jacaranda_tree_leaves_alpha_4k.dds",
+        L"jacaranda_tree_leaves_diff_4k.dds",
+        L"jacaranda_tree_trunk_diff_4k.dds"
+    };
+
+    for (int i = 0; i < ARRAYSIZE(texturesToLoad); i++)
+    {
+        LoadTexture(texturesToLoad[i], &m_textureDefault[i], &m_textureUpload[i]);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+        srvHandle.ptr += ((Descriptors::MODEL_TEXTURES_START + i) * m_descriptorSize);
+
+        device->CreateShaderResourceView(m_textureDefault[i].Get(), nullptr, srvHandle);
+    }
+}
+
 void D3D12RaytracingTree::LoadModel(const char* modelPath, const char* ommPath)
 {
     HANDLE fh = CreateFileA(modelPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -226,15 +280,7 @@ void D3D12RaytracingTree::LoadModel(const char* modelPath, const char* ommPath)
     ReadFile(fhOMM, m_ommHistogramBuffer, histogramSize, &bytesRead, NULL);
     ReadFile(fhOMM, ommIndexBufferPtr, ommIndexBufferSize, &bytesRead, NULL);
 
-    UINT numOMMIndices = indexCount;
-
-	for (UINT i = 0; i < numOMMIndices; i++)
-	{
-        ommIndexBufferPtr[i] = D3D12_RAYTRACING_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_OPAQUE;
-	}
-
     CloseHandle(fhOMM);
-
 
 
     UINT counts[3];
@@ -292,6 +338,85 @@ void D3D12RaytracingTree::LoadModel(const char* modelPath, const char* ommPath)
     ReadFile(fh, texCoordIndexData, indexBufferSize, &bytesRead, NULL);
 
     CloseHandle(fh);
+
+	// Create a buffer to hold each geometry's offset in the index buffer
+    {
+		D3D12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+		D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(m_numGeoms * sizeof(GeometryInfo));
+		ThrowIfFailed(device->CreateCommittedResource(
+			&heapProperties,
+			D3D12_HEAP_FLAG_NONE,
+			&bufferDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&m_geometryOffsetBuffer)));
+
+        GeometryInfo* geomInfos = nullptr;
+		m_geometryOffsetBuffer->Map(0, nullptr, (void**)&geomInfos);
+		
+        UINT primOffset = 0;
+
+		for (UINT i = 0; i < m_numGeoms; i++)
+		{
+            // TODO. the indices, do it properly
+            geomInfos[i].primitiveOffset = primOffset;
+			geomInfos[i].diffuseTextureIndex = (i == 0 || i == 6) ? 2 : 1;
+			geomInfos[i].alphaTextureIndex = (i == 0 || i == 6) ? 0xFFFFFFFF : 0;
+
+            primOffset += (m_indicesPerGeom[i] / 3);
+		}
+
+		D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+        srvHandle.ptr += (Descriptors::GEOMETRY_INFO_BUFFER) * m_descriptorSize;
+		
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.Buffer.NumElements = m_numGeoms;
+		srvDesc.Buffer.StructureByteStride = sizeof(GeometryInfo);
+
+		device->CreateShaderResourceView(m_geometryOffsetBuffer.Get(), &srvDesc, srvHandle);
+    }
+
+    {
+        // Create an SRV for the 6 buffers
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+
+        ID3D12Resource* bufferResources[] = {
+            m_positionBuffer.defaultResource.Get(),
+            m_normalBuffer.defaultResource.Get(),
+            m_texCoordBuffer.defaultResource.Get(),
+            m_positionIndexBuffer.defaultResource.Get(),
+            m_normalIndexBuffer.defaultResource.Get(),
+            m_texCoordIndexBuffer.defaultResource.Get()
+        };
+
+		UINT bufferSizes[] = {
+			positionCount * sizeof(XMFLOAT3),
+			normalCount * sizeof(XMFLOAT3),
+			texcoordCount * sizeof(XMFLOAT2),
+			totalIndices * sizeof(UINT),
+			totalIndices * sizeof(UINT),
+			totalIndices * sizeof(UINT)
+		};
+
+		for (UINT i = 0; i < ARRAYSIZE(bufferResources); i++)
+		{
+			D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+			srvHandle.ptr += (Descriptors::POSITION_BUFFER + i) * m_descriptorSize;
+
+			srvDesc.Buffer.NumElements = bufferSizes[i] / 4;
+			srvDesc.Buffer.StructureByteStride = 0;
+			srvDesc.Buffer.FirstElement = 0;
+
+			device->CreateShaderResourceView(bufferResources[i], &srvDesc, srvHandle);
+		}
+    }
 }
 
 void D3D12RaytracingTree::BuildAccelerationStructures()
@@ -335,10 +460,6 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
     // Build a BLAS
     UINT vertexCount = m_positionBuffer.defaultResource->GetDesc().Width / sizeof(XMFLOAT3);
 
-    //D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC linkageDesc = {};
-    //linkageDesc.OpacityMicromapIndexBuffer = { m_ommIndexBuffer.defaultResource->GetGPUVirtualAddress(), sizeof(UINT) };
-    //linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_R32_UINT;
-    
 	auto linkageDescs = (D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC));
     auto geomDescs = (D3D12_RAYTRACING_GEOMETRY_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
     auto triDescs = (D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC));
@@ -348,7 +469,7 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
 	ZeroMemory(triDescs, m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC));
 
     UINT indexOffset = 0;
-	UINT ommIndexOffset = 0;
+	UINT ommOffset = 0;
 
     for (UINT i = 0; i < m_numGeoms; i++)
     {
@@ -357,7 +478,10 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
 
         geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 
-        if (i >= 1 && i <= 5)//i == 100)
+        bool isLeaves = (i >= 1 && i <= 5);
+
+		// TODO, per geometry buffers, or a single buffer with offsets
+        if (isLeaves)
         {
             geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES;
             geomDesc.OmmTriangles.pTriangles = &triDescs[i];
@@ -365,22 +489,23 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
 
 			D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC& linkageDesc = linkageDescs[i];
 
-            linkageDesc.OpacityMicromapIndexBuffer = { m_ommIndexBuffer.defaultResource->GetGPUVirtualAddress(), sizeof(UINT) };
+            linkageDesc.OpacityMicromapIndexBuffer = { m_ommIndexBuffer.defaultResource->GetGPUVirtualAddress() + (ommOffset * sizeof(UINT)), sizeof(UINT)};
 			linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_R32_UINT;
-            linkageDesc.OpacityMicromapBaseLocation = ommIndexOffset / 3;
+            linkageDesc.OpacityMicromapBaseLocation = 0;
 
             triDesc = &triDescs[i];
-            ommIndexOffset += m_indicesPerGeom[i];
+            ommOffset += (m_indicesPerGeom[i] / 3);
         }
         else
         {
             geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+
             triDesc = &geomDesc.Triangles;
         }
 
-        geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+        geomDesc.Flags = isLeaves ? D3D12_RAYTRACING_GEOMETRY_FLAG_NONE : D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
         
-
+                
         triDesc->Transform3x4 = 0;
         triDesc->IndexFormat = DXGI_FORMAT_R32_UINT;
         triDesc->VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
@@ -389,18 +514,6 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
         triDesc->IndexBuffer = m_positionIndexBuffer.defaultResource->GetGPUVirtualAddress() + indexOffset * sizeof(UINT);
         triDesc->VertexBuffer.StartAddress = m_positionBuffer.defaultResource->GetGPUVirtualAddress();
         triDesc->VertexBuffer.StrideInBytes = sizeof(XMFLOAT3);
-
-        //if (i != 1)
-        //    triDesc->IndexCount = 3;
-
-        if (true)//i == 1)//i == 100)
-        {
-
-        }
-        else
-        {
-            triDesc->IndexCount = 3;
-        }
 
         indexOffset += m_indicesPerGeom[i];
     }
@@ -480,7 +593,7 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
 		linkageDescs[i].OpacityMicromapArray = m_ommAccelerationStructure->GetGPUVirtualAddress();
     }
 
-    blasBuildDesc.Inputs.NumDescs = 2;
+    //blasBuildDesc.Inputs.NumDescs = 2;
 
     ommBuildDesc.ScratchAccelerationStructureData = m_scratchResource->GetGPUVirtualAddress();
     ommBuildDesc.DestAccelerationStructureData = m_ommAccelerationStructure->GetGPUVirtualAddress();
@@ -505,7 +618,7 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
 void D3D12RaytracingTree::LoadAndBuildAccelerationStructures()
 {
     const char* modelPath = "treeModel.bin";
-    const char* ommPath = "treeOMM.bin";
+    const char* ommPath = "treeOMM_SubD8_2State.bin";
 
     // Load the model.
     LoadModel(modelPath, ommPath);
@@ -535,6 +648,10 @@ void D3D12RaytracingTree::CreateRootSignatures()
         globalRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
         globalRootSignatureDesc.NumParameters = ARRAYSIZE(rootParameters);
         globalRootSignatureDesc.pParameters = rootParameters;
+
+		D3D12_STATIC_SAMPLER_DESC staticSampler = CD3DX12_STATIC_SAMPLER_DESC(0);
+        globalRootSignatureDesc.NumStaticSamplers = 1;
+		globalRootSignatureDesc.pStaticSamplers = &staticSampler;
 
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
     }
@@ -579,6 +696,7 @@ void D3D12RaytracingTree::CreateRaytracingPipelineStateObject()
     {
         lib->DefineExport(c_raygenShaderName);
         lib->DefineExport(c_closestHitShaderName);
+        lib->DefineExport(c_anyHitShaderName);
         lib->DefineExport(c_missShaderName);
     }
     
@@ -588,12 +706,13 @@ void D3D12RaytracingTree::CreateRaytracingPipelineStateObject()
     auto hitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
     hitGroup->SetClosestHitShaderImport(c_closestHitShaderName);
     hitGroup->SetHitGroupExport(c_hitGroupName);
+	hitGroup->SetAnyHitShaderImport(c_anyHitShaderName);
     hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
     
     // Shader config
     // Defines the maximum sizes in bytes for the ray payload and attribute structure.
     auto shaderConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
-    UINT payloadSize = sizeof(XMFLOAT4);    // float4 pixelColor
+    UINT payloadSize = sizeof(XMFLOAT4) + sizeof(UINT);    // float4 pixelColor
     UINT attributeSize = sizeof(XMFLOAT2);  // float2 barycentrics
     shaderConfig->Config(payloadSize, attributeSize);
 
@@ -607,7 +726,7 @@ void D3D12RaytracingTree::CreateRaytracingPipelineStateObject()
     auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG1_SUBOBJECT>();
     // PERFOMANCE TIP: Set max recursion depth as low as needed 
     // as drivers may apply optimization strategies for low recursion depths.
-    UINT maxRecursionDepth = 1; // ~ primary rays only. 
+    UINT maxRecursionDepth = 2; // primary rays + shadow ray 
 
     pipelineConfig->Config(maxRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAG_ALLOW_OPACITY_MICROMAPS);
     //pipelineConfig->Config(maxRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAG_NONE);
@@ -725,7 +844,7 @@ void D3D12RaytracingTree::OnUpdate()
 
     // Rotate the camera around Y axis.
     {
-        float secondsToRotateAround = 240.0f;
+        float secondsToRotateAround = 120.0f;
         float angleToRotateBy = 0;// 360.0f * (elapsedTime / secondsToRotateAround);
         XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
         m_eye = XMVector3Transform(m_eye, rotate);
@@ -742,8 +861,11 @@ void D3D12RaytracingTree::DoRaytracing()
 
     static bool done = false;
 
-    if(!done)
+    if (!done)
+    {
+        LoadTextures(); // TODO, put this somewhere sensible
         BuildAccelerationStructures();
+    }
 
     done = true;
     

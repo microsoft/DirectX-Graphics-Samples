@@ -83,8 +83,6 @@ private:
     struct D3DBuffer
     {
         ComPtr<ID3D12Resource> uploadResource, defaultResource;
-        //D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle;
-        //D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
     };
 
     // Acceleration structure
@@ -98,6 +96,13 @@ private:
     D3DBuffer m_positionBuffer, m_normalBuffer, m_texCoordBuffer;
     D3DBuffer m_positionIndexBuffer, m_normalIndexBuffer, m_texCoordIndexBuffer;
     D3DBuffer m_indexBuffer;
+
+    static const UINT NUM_TEXTURES = 3;
+
+	ComPtr<ID3D12Resource> m_textureDefault[NUM_TEXTURES];
+	ComPtr<ID3D12Resource> m_textureUpload[NUM_TEXTURES];
+
+    ComPtr<ID3D12Resource> m_geometryOffsetBuffer;
 
     D3DBuffer m_ommDescBuffer, m_ommArrayBuffer, m_ommIndexBuffer;
 
@@ -114,6 +119,7 @@ private:
     static const wchar_t* c_hitGroupName;
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_closestHitShaderName;
+    static const wchar_t* c_anyHitShaderName;
     static const wchar_t* c_missShaderName;
     ComPtr<ID3D12Resource> m_missShaderTable;
     ComPtr<ID3D12Resource> m_hitGroupShaderTable;
@@ -142,6 +148,8 @@ private:
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
     void LoadAndBuildAccelerationStructures();
+	void LoadTexture(const wchar_t* texturePath, ID3D12Resource** resource, ID3D12Resource** uploadResource);
+    void LoadTextures();
     void LoadModel(const char* modelPath, const char* ommPath);
     void BuildAccelerationStructures();
     void BuildShaderTables();

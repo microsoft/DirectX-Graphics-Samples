@@ -30,7 +30,7 @@ public:
         QueryPerformanceCounter(&m_qpcLastTime);
 
         // Initialize max delta to 1/10 of a second.
-        m_qpcMaxDelta = m_qpcFrequency.QuadPart / 10;
+        //m_qpcMaxDelta = m_qpcFrequency.QuadPart / 10;
     }
 
     // Get elapsed time since the previous Update call.
@@ -92,7 +92,7 @@ public:
         // Clamp excessively large time deltas (e.g. after paused in the debugger).
         if (timeDelta > m_qpcMaxDelta)
         {
-            timeDelta = m_qpcMaxDelta;
+            //timeDelta = m_qpcMaxDelta;
         }
 
         // Convert QPC units into a canonical tick format. This cannot overflow due to the previous clamp.

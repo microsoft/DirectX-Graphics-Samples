@@ -40,6 +40,7 @@
 #include "d3dx12.h"
 
 #include <DirectXMath.h>
+#include <DDSTextureLoader.h>
 
 #ifdef _DEBUG
 #include <dxgidebug.h>

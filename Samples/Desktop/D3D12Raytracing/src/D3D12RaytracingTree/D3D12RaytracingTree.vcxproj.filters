@@ -85,11 +85,25 @@
     <None Include="treeModel.bin">
       <Filter>Assets</Filter>
     </None>
-    <None Include="treeOMM.bin">
+    <None Include="treeOMM_SubD8_2State.bin">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="treeOMM_SubD8_4State.bin">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="treeOMM_SubD4_2State.bin">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="treeOMM_SubD4_4State.bin">
       <Filter>Assets</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Raytracing.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="jacaranda_tree_leaves_alpha_4k.dds">
+      <Filter>Assets</Filter>
+    </Image>
   </ItemGroup>
 </Project>
