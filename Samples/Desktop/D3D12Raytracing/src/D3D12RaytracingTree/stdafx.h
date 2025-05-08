@@ -49,3 +49,8 @@
 #include "DXSampleHelper.h"
 #include "DeviceResources.h"
 
+#include "ResourceUploadBatch.h"
+#include "SpriteBatch.h"
+#include "SpriteFont.h"
+#include "Keyboard.h"
+

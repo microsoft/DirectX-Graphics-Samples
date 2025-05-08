@@ -32,6 +32,11 @@ namespace LocalRootSignatureParams {
     };
 }
 
+enum OpacityMicromapOption
+{
+    SUBDIVISION_2_
+};
+
 class D3D12RaytracingTree : public DXSample
 {
 public:
@@ -132,10 +137,40 @@ private:
     XMVECTOR m_at;
     XMVECTOR m_up;
 
+    // DirectXTK objects.
+    std::unique_ptr<DirectX::GraphicsMemory>    m_graphicsMemory;
+
+    // UI
+    std::unique_ptr<DirectX::SpriteBatch> m_spriteBatch;
+    std::unique_ptr<DirectX::SpriteFont> m_smallFont;
+
+    std::unique_ptr<DirectX::Keyboard>      m_keyboard;
+    DirectX::Keyboard::KeyboardStateTracker m_keyboardButtons;
+
+    // User toggles
+    bool m_ommEnabled;
+    bool m_rotateCamera;
+    bool m_use4State;
+    bool m_useSubD8;
+    float m_fov;
+
+    bool m_haveLoadedTextures;
+    bool m_rebuildASEveryFrame;
+    bool m_rebuildASNextFrame;
+    bool m_haveBuiltAccelerationStructuresOnce;
+
+    UINT m_configFlags;
+    UINT m_extraPrimaryRayFlags;
+    UINT m_extraShadowRayFlags;
+
+    float m_cameraRotationAngle;
+    bool m_waitForGPUNextFrame;
+
     void UpdateCameraMatrices();
     void InitializeScene();
     void RecreateD3D();
     void DoRaytracing();
+    void RenderUI();
     void CreateConstantBuffers();
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
@@ -151,10 +186,11 @@ private:
 	void LoadTexture(const wchar_t* texturePath, ID3D12Resource** resource, ID3D12Resource** uploadResource);
     void LoadTextures();
     void LoadModel(const char* modelPath, const char* ommPath);
-    void BuildAccelerationStructures();
+    void BuildAccelerationStructures(bool updateUploadBuffers);
     void BuildShaderTables();
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
     void CopyRaytracingOutputToBackbuffer();
     void CalculateFrameStats();
     UINT CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
+    void CreateUIFont();
 };

@@ -1,4 +1,4 @@
-//*********************************************************
+﻿//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -29,7 +29,18 @@ const wchar_t* D3D12RaytracingTree::c_missShaderName = L"MyMissShader";
 
 D3D12RaytracingTree::D3D12RaytracingTree(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
-    m_curRotationAngleRad(0.0f)
+    m_curRotationAngleRad(0.0f),
+    m_rotateCamera(true),
+    m_ommEnabled(true),
+    m_use4State(false),
+    m_useSubD8(false),
+    m_configFlags(0),
+    m_extraPrimaryRayFlags(0),
+	m_extraShadowRayFlags(0),
+    m_haveLoadedTextures(false),
+    m_rebuildASNextFrame(true),
+	m_rebuildASEveryFrame(false),
+    m_fov(45.0f)
 {
     UpdateForSizeChange(width, height);
 }
@@ -59,6 +70,8 @@ void D3D12RaytracingTree::OnInit()
 
     CreateDeviceDependentResources();
     CreateWindowSizeDependentResources();
+
+    m_keyboard = std::make_unique<Keyboard>();
 }
 
 // Update camera matrices passed into the shader.
@@ -67,9 +80,9 @@ void D3D12RaytracingTree::UpdateCameraMatrices()
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
     m_sceneCB[frameIndex].cameraPosition = m_eye;
-    float fovAngleY = 40.0f;
+
     XMMATRIX view = XMMatrixLookAtLH(m_eye, m_at, m_up);
-    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 1.0f, 1000.0f);
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(m_fov), m_aspectRatio, 1.0f, 1000.0f);
     XMMATRIX viewProj = view * proj;
 
     m_sceneCB[frameIndex].projectionToWorld = XMMatrixInverse(nullptr, viewProj);
@@ -177,6 +190,51 @@ void D3D12RaytracingTree::CreateDeviceDependentResources()
 
     // Create an output 2D texture to store the raytracing result to.
     CreateRaytracingOutputResource();
+
+    // Load fonts
+    CreateUIFont();
+}
+
+void D3D12RaytracingTree::CreateUIFont()
+{
+	auto device = m_deviceResources->GetD3DDevice();
+	auto size = m_deviceResources->GetOutputSize();
+
+    m_graphicsMemory = std::make_unique<GraphicsMemory>(device);
+
+    ResourceUploadBatch resourceUpload(device);
+
+    resourceUpload.Begin();
+
+    {
+        RenderTargetState rtState(m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat());
+        SpriteBatchPipelineStateDescription pd(rtState);
+        m_spriteBatch = std::make_unique<SpriteBatch>(device, resourceUpload, pd);
+    }
+
+    auto uploadResourcesFinished = resourceUpload.End(m_deviceResources->GetCommandQueue());
+    uploadResourcesFinished.wait();
+
+	D3D12_CPU_DESCRIPTOR_HANDLE fontHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	fontHandle.ptr += (Descriptors::FONT * m_descriptorSize);
+
+	D3D12_GPU_DESCRIPTOR_HANDLE fontGpuHandle = m_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	fontGpuHandle.ptr += (Descriptors::FONT * m_descriptorSize);
+
+
+    // Begin uploading texture resources
+    {
+        ResourceUploadBatch resourceUpload(device);
+        resourceUpload.Begin();
+
+        m_smallFont = std::make_unique<SpriteFont>(device, resourceUpload,
+            L"SegoeUI_18.spritefont",
+            fontHandle,
+            fontGpuHandle);
+
+        auto finished = resourceUpload.End(m_deviceResources->GetCommandQueue());
+        finished.wait();
+    }
 }
 
 void D3D12RaytracingTree::LoadTexture(const wchar_t* path, ID3D12Resource** resource, ID3D12Resource** uploadResource)
@@ -419,7 +477,7 @@ void D3D12RaytracingTree::LoadModel(const char* modelPath, const char* ommPath)
     }
 }
 
-void D3D12RaytracingTree::BuildAccelerationStructures()
+void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -457,7 +515,6 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
         uploadedUploadableBuffers = true;
     }
 
-    // Build a BLAS
     UINT vertexCount = m_positionBuffer.defaultResource->GetDesc().Width / sizeof(XMFLOAT3);
 
 	auto linkageDescs = (D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC));
@@ -480,7 +537,6 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
 
         bool isLeaves = (i >= 1 && i <= 5);
 
-		// TODO, per geometry buffers, or a single buffer with offsets
         if (isLeaves)
         {
             geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES;
@@ -499,13 +555,11 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
         else
         {
             geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-
             triDesc = &geomDesc.Triangles;
         }
 
         geomDesc.Flags = isLeaves ? D3D12_RAYTRACING_GEOMETRY_FLAG_NONE : D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
-        
-                
+                        
         triDesc->Transform3x4 = 0;
         triDesc->IndexFormat = DXGI_FORMAT_R32_UINT;
         triDesc->VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
@@ -584,16 +638,22 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
     instanceDesc.Transform[0][0] = instanceDesc.Transform[1][1] = instanceDesc.Transform[2][2] = 1;
     instanceDesc.InstanceMask = 1;
     instanceDesc.AccelerationStructure = m_bottomLevelAccelerationStructure->GetGPUVirtualAddress();
+    instanceDesc.Flags = (m_ommEnabled ? D3D12_RAYTRACING_INSTANCE_FLAG_NONE : D3D12_RAYTRACING_INSTANCE_FLAG_DISABLE_OMMS);
 
     if (m_instanceDescs.Get() == nullptr)
         AllocateUploadBuffer(device, &instanceDesc, sizeof(instanceDesc), &m_instanceDescs, L"InstanceDescs");
+    else if(updateUploadBuffers)
+    {
+        // Just update the upload buffer
+		void* instanceDescPtr = nullptr;
+		m_instanceDescs->Map(0, nullptr, &instanceDescPtr);
+		memcpy(instanceDescPtr, &instanceDesc, sizeof(instanceDesc));
+    }
 
     for (int i = 0; i < m_numGeoms; i++)
     {
 		linkageDescs[i].OpacityMicromapArray = m_ommAccelerationStructure->GetGPUVirtualAddress();
     }
-
-    //blasBuildDesc.Inputs.NumDescs = 2;
 
     ommBuildDesc.ScratchAccelerationStructureData = m_scratchResource->GetGPUVirtualAddress();
     ommBuildDesc.DestAccelerationStructureData = m_ommAccelerationStructure->GetGPUVirtualAddress();
@@ -609,8 +669,10 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
     
     m_dxrCommandList->BuildRaytracingAccelerationStructure(&ommBuildDesc, 0, nullptr);
     commandList->ResourceBarrier(1, &uavBarrier);
+    
     m_dxrCommandList->BuildRaytracingAccelerationStructure(&blasBuildDesc, 0, nullptr);
     commandList->ResourceBarrier(1, &uavBarrier);
+
     m_dxrCommandList->BuildRaytracingAccelerationStructure(&tlasBuildDesc, 0, nullptr);
     commandList->ResourceBarrier(1, &uavBarrier);
 }
@@ -618,7 +680,7 @@ void D3D12RaytracingTree::BuildAccelerationStructures()
 void D3D12RaytracingTree::LoadAndBuildAccelerationStructures()
 {
     const char* modelPath = "treeModel.bin";
-    const char* ommPath = "treeOMM_SubD8_2State.bin";
+    const char* ommPath = "treeOMM_SubD8_4State.bin";
 
     // Load the model.
     LoadModel(modelPath, ommPath);
@@ -642,7 +704,7 @@ void D3D12RaytracingTree::CreateRootSignatures()
     // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
     {
         CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count] = {};
-        rootParameters[0].InitAsConstants(1, 0);
+        rootParameters[0].InitAsConstants(4, 0);
 
         CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc = {};
         globalRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
@@ -842,14 +904,68 @@ void D3D12RaytracingTree::OnUpdate()
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
     auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
 
+    auto kb = m_keyboard->GetState();
+    m_keyboardButtons.Update(kb);
+
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::O))
+    {
+        m_ommEnabled = !m_ommEnabled;
+		m_rebuildASNextFrame = true;
+    }
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::R))
+    {
+        m_rotateCamera = !m_rotateCamera;
+    }
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::F))
+    {
+        m_use4State = !m_use4State;
+    }
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::S))
+    {
+        m_useSubD8 = !m_useSubD8;
+    }
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::H))
+    {
+        m_configFlags ^= ConfigFlags::SHOW_AHS;
+    }
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::A))
+    {
+        m_extraPrimaryRayFlags ^= D3D12_RAY_FLAG_FORCE_OPAQUE;
+		m_extraShadowRayFlags ^= D3D12_RAY_FLAG_FORCE_OPAQUE;
+    }
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::B))
+    {
+        m_rebuildASEveryFrame = !m_rebuildASEveryFrame;
+    }
+
+    const float FOV_ZOOM_SPEED = 10.0f;
+	if (kb.IsKeyDown(Keyboard::Keys::Z))
+	{
+		m_fov -= FOV_ZOOM_SPEED * elapsedTime;
+	}
+    if (kb.IsKeyDown(Keyboard::Keys::X))
+    {
+        m_fov += FOV_ZOOM_SPEED * elapsedTime;
+    }
+
+	if (m_fov < 2.0f)
+		m_fov = 2.0f;
+	if (m_fov > 60.0f)
+		m_fov = 60.0f;
+
     // Rotate the camera around Y axis.
     {
-        float secondsToRotateAround = 120.0f;
-        float angleToRotateBy = 0;// 360.0f * (elapsedTime / secondsToRotateAround);
-        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
-        m_eye = XMVector3Transform(m_eye, rotate);
-        m_up = XMVector3Transform(m_up, rotate);
-        m_at = XMVector3Transform(m_at, rotate);
+        float secondsToRotateAround = 60.0f;
+
+        if (m_rotateCamera)
+        {
+            float deltaAngle = (360.0f * (elapsedTime / secondsToRotateAround));
+
+            XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(deltaAngle));
+            m_eye = XMVector3Transform(m_eye, rotate);
+            m_up = XMVector3Transform(m_up, rotate);
+            m_at = XMVector3Transform(m_at, rotate);
+        }
         UpdateCameraMatrices();
     }
 }
@@ -859,15 +975,21 @@ void D3D12RaytracingTree::DoRaytracing()
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-    static bool done = false;
-
-    if (!done)
+    if (!m_haveLoadedTextures)
     {
-        LoadTextures(); // TODO, put this somewhere sensible
-        BuildAccelerationStructures();
+		LoadTextures();
+		m_haveLoadedTextures = true;
     }
 
-    done = true;
+    if (m_rebuildASEveryFrame || m_rebuildASNextFrame)
+    {
+        // If we're building the AS every frame (in order to PIX/profile it)
+        // but aren't updating the upload buffers, we can skip the upload and
+        // avoid a data hazard.
+        BuildAccelerationStructures(m_rebuildASNextFrame);
+
+        m_rebuildASNextFrame = false;
+    }
     
     auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
     {
@@ -890,12 +1012,7 @@ void D3D12RaytracingTree::DoRaytracing()
     auto SetCommonPipelineState = [&](auto* descriptorSetCommandList)
     {
         descriptorSetCommandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
-        // Set index and successive vertex buffer decriptor tables
-        //commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::VertexBuffersSlot, m_indexBuffer.gpuDescriptorHandle);
-        //commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::OutputViewSlot, m_raytracingOutputResourceUAVGpuDescriptor);
     };
-
-    
 
     // Copy the updated scene constant buffer to GPU.
     memcpy(&m_mappedConstantData[frameIndex].constants, &m_sceneCB[frameIndex], sizeof(m_sceneCB[frameIndex]));
@@ -905,7 +1022,14 @@ void D3D12RaytracingTree::DoRaytracing()
     SetCommonPipelineState(commandList);
 
     commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
-    commandList->SetComputeRoot32BitConstant(GlobalRootSignatureParams::FrameParams, frameIndex, 0);
+
+    UINT rootConstants[4] = {};
+    rootConstants[0] = frameIndex;
+    rootConstants[1] = m_configFlags;
+    rootConstants[2] = m_extraPrimaryRayFlags;
+    rootConstants[3] = m_extraShadowRayFlags;
+
+    commandList->SetComputeRoot32BitConstants(GlobalRootSignatureParams::FrameParams, ARRAYSIZE(rootConstants), rootConstants, 0);
 
     DispatchRays(m_dxrCommandList.Get(), m_dxrStateObject.Get(), &dispatchDesc);
 }
@@ -914,6 +1038,65 @@ void D3D12RaytracingTree::DoRaytracing()
 void D3D12RaytracingTree::UpdateForSizeChange(UINT width, UINT height)
 {
     DXSample::UpdateForSizeChange(width, height);
+}
+
+// Render the UI
+void D3D12RaytracingTree::RenderUI()
+{
+	auto commandList = m_deviceResources->GetCommandList();
+    auto viewport = m_deviceResources->GetScreenViewport();
+    auto scissorRect = m_deviceResources->GetScissorRect();
+    auto rtvDescriptor = m_deviceResources->GetRenderTargetView();
+
+    // Set the render target
+	commandList->OMSetRenderTargets(1, &rtvDescriptor, FALSE, nullptr);
+    commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissorRect);
+
+    m_spriteBatch->SetViewport(viewport);
+    m_spriteBatch->Begin(commandList);
+
+    XMFLOAT2 textPos = XMFLOAT2(30, 30);
+    XMVECTOR textColor = XMVectorSet(1, 1, 1, 1);
+
+	wchar_t buffer[256];
+
+    m_smallFont->DrawString(m_spriteBatch.get(), L"D3D12: Opacity Micromaps", textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing() * 2;
+
+	swprintf_s(buffer, ARRAYSIZE(buffer), L"OMM: %s - Press 'O'", m_ommEnabled ? L"Enabled" : L"Disabled");
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing();
+
+	swprintf_s(buffer, ARRAYSIZE(buffer), L"OMM: Subdivision Level (%d)- Press 'S'", m_useSubD8 ? 8 : 4);
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing();
+
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"OMM: %s State - Press 'F'", m_use4State ? L"4" : L"2");
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing();
+
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Rotate Camera (%s) - Press 'R'", m_rotateCamera ? L"On" : L"Off");
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing();
+
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Zoom (%0.1f deg) - Hold 'Z/X'", m_fov);
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing();
+
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"AHS (%s) - Press 'A'", (m_extraPrimaryRayFlags & D3D12_RAY_FLAG_FORCE_OPAQUE) ? L"Off" : L"On");
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing();
+
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Show AHS Invocations (%s) - Press 'H'", (m_configFlags & ConfigFlags::SHOW_AHS) ? L"On" : L"Off");
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+	textPos.y += m_smallFont->GetLineSpacing();
+
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Build OMM/BLAS/TLAS every frame (%s) - Press 'B'", m_rebuildASEveryFrame ? L"On" : L"Off");
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing();
+
+    m_spriteBatch->End();
 }
 
 // Copy the raytracing output to the backbuffer.
@@ -930,7 +1113,7 @@ void D3D12RaytracingTree::CopyRaytracingOutputToBackbuffer()
     commandList->CopyResource(renderTarget, m_raytracingOutput.Get());
 
     D3D12_RESOURCE_BARRIER postCopyBarriers[2];
-    postCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(renderTarget, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+    postCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(renderTarget, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
     postCopyBarriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(m_raytracingOutput.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     commandList->ResourceBarrier(ARRAYSIZE(postCopyBarriers), postCopyBarriers);
@@ -991,11 +1174,19 @@ void D3D12RaytracingTree::OnRender()
         return;
     }
 
-    m_deviceResources->Prepare();
-    DoRaytracing();
-    CopyRaytracingOutputToBackbuffer();
+    if(m_rebuildASNextFrame)
+    {
+        // Needed in cases where we intend to update an upload buffer from the CPU.
+		m_deviceResources->WaitForGpu();
+    }
 
-    m_deviceResources->Present(D3D12_RESOURCE_STATE_PRESENT);
+    m_deviceResources->Prepare();
+    DoRaytracing();    
+    CopyRaytracingOutputToBackbuffer();
+    RenderUI();
+
+    m_deviceResources->Present();
+    m_graphicsMemory->Commit(m_deviceResources->GetCommandQueue());
 }
 
 void D3D12RaytracingTree::OnDestroy()

@@ -197,30 +197,10 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
     return 0;
 
     case WM_KEYDOWN:
-        if (pSample)
-        {
-            pSample->OnKeyDown(static_cast<UINT8>(wParam));
-        }
-        return 0;
-
     case WM_KEYUP:
-        if (pSample)
-        {
-            pSample->OnKeyUp(static_cast<UINT8>(wParam));
-        }
-        return 0;
-
+    case WM_SYSKEYUP:
     case WM_SYSKEYDOWN:
-        // Handle ALT+ENTER:
-        if ((wParam == VK_RETURN) && (lParam & (1 << 29)))
-        {
-            if (pSample && pSample->GetDeviceResources()->IsTearingSupported())
-            {
-                ToggleFullscreenWindow(pSample->GetSwapchain());
-                return 0;
-            }
-        }
-        // Send all other WM_SYSKEYDOWN messages to the default WndProc.
+        DirectX::Keyboard::ProcessMessage(message, wParam, lParam);
         break;
 
     case WM_PAINT:

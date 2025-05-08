@@ -27,6 +27,9 @@ SamplerState bilinearSampler : register(s0);
 cbuffer Params : register(b0)
 {
     uint frameIndex;
+    uint configFlags;
+    uint extraPrimaryRayFlags;
+    uint extraShadowRayFlags;
 };
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
@@ -74,8 +77,10 @@ void MyRaygenShader()
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
 
+    uint rayFlags = extraPrimaryRayFlags;
+
     RayPayload payload = { float3(0, 0, 0), EMPTY_FLAG };
-    TraceRay(Scene, 0, ~0, 0, 0, 0, ray, payload);
+    TraceRay(Scene, rayFlags, ~0, 0, 0, 0, ray, payload);
 
     // Write the raytraced color to the output texture.
     RenderTarget[DispatchRaysIndex().xy] = payload.colorRGB;
@@ -170,7 +175,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 	shadowRay.TMin = 0.001;
 	shadowRay.TMax = 10000.0;
 
-    uint shadowRayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+    uint shadowRayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extraShadowRayFlags;
 
     RaytracingAccelerationStructure Scene = ResourceDescriptorHeap[TLAS];
 	
@@ -181,6 +186,11 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float lightAmount = (ndotl * 0.8f * shadowTerm) + 0.2f;
 
     payload.colorRGB = float4(lightAmount.xxx * diffuse, 1);
+
+    if ((configFlags & ConfigFlags::SHOW_AHS) && (payload.flags & RAN_AHS_FLAG))
+    {
+		payload.colorRGB = float3(1,0,1);
+    }
 }
 
 
@@ -197,7 +207,7 @@ void MyAnyHitShader(inout RayPayload payload, in MyAttributes attr)
     Texture2D<float> alphaTexture = ResourceDescriptorHeap[MODEL_TEXTURES_START + geomInfo.alphaTextureIndex];
     float alpha = alphaTexture.SampleLevel(bilinearSampler, texCoord, 2).r;
 
-    if (alpha < 0.5f)
+    if (alpha < 0.5f && ((configFlags & ConfigFlags::SHOW_AHS) == 0))
         IgnoreHit();
 }
 

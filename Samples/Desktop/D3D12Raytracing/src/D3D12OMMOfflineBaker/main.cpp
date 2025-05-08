@@ -155,10 +155,8 @@ int main()
     // Load the model
     std::vector<unsigned int> indices;
     fastObjMesh* obj = LoadOBJFile("tree_merged.obj", input, indices);
-    //fastObjMesh* obj = LoadOBJFile("leavesa.obj", input, indices);
 
-    // Configuration
-    
+    // Configuration    
     input.subdivisionLevels = nullptr;  // Use maxSubdivisionLevel globally
     input.runtimeSamplerDesc.addressingMode = omm::TextureAddressMode::Clamp;
     input.runtimeSamplerDesc.filter = omm::TextureFilterMode::Linear;
@@ -220,7 +218,6 @@ int main()
                         WriteFile(fh, &Format, sizeof(Format), nullptr, nullptr);
                     }
 
-                    //WriteFile(fh, resultDesc->descArrayHistogram, sizeof(resultDesc->descArrayHistogram[0]) * resultDesc->descArrayHistogramCount, nullptr, nullptr);
                     WriteFile(fh, resultDesc->indexBuffer, resultDesc->indexCount * (resultDesc->indexFormat == omm::IndexFormat::UINT_32 ? 4 : 2), nullptr, nullptr);
 
                     CloseHandle(fh);
@@ -299,9 +296,7 @@ int main()
 
                     CloseHandle(fh);
                 }
-            }
-
-            
+            }            
         }
     }
 

@@ -4,10 +4,16 @@
 typedef unsigned int uint;
 #endif
 
+enum ConfigFlags
+{
+	SHOW_AHS = 0x1,
+};
+
 enum Descriptors
 {
     RENDER_TARGET,
     TLAS,
+    FONT,
 
 	MODEL_TEXTURES_START,
 	MODEL_TEXTURES_END = MODEL_TEXTURES_START + 16,
