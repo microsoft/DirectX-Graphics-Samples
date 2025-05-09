@@ -10,7 +10,7 @@
 //*********************************************************
 
 #include "stdafx.h"
-#include "D3D12RaytracingTree.h"
+#include "D3D12RaytracingOpacityMicromaps.h"
 #include "DirectXRaytracingHelper.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 #include "DDSTextureLoader.h"
@@ -21,13 +21,13 @@
 using namespace std;
 using namespace DX;
 
-const wchar_t* D3D12RaytracingTree::c_hitGroupName = L"MyHitGroup";
-const wchar_t* D3D12RaytracingTree::c_raygenShaderName = L"MyRaygenShader";
-const wchar_t* D3D12RaytracingTree::c_closestHitShaderName = L"MyClosestHitShader";
-const wchar_t* D3D12RaytracingTree::c_anyHitShaderName = L"MyAnyHitShader";
-const wchar_t* D3D12RaytracingTree::c_missShaderName = L"MyMissShader";
+const wchar_t* D3D12RaytracingOpacityMicromaps::c_hitGroupName = L"MyHitGroup";
+const wchar_t* D3D12RaytracingOpacityMicromaps::c_raygenShaderName = L"MyRaygenShader";
+const wchar_t* D3D12RaytracingOpacityMicromaps::c_closestHitShaderName = L"MyClosestHitShader";
+const wchar_t* D3D12RaytracingOpacityMicromaps::c_anyHitShaderName = L"MyAnyHitShader";
+const wchar_t* D3D12RaytracingOpacityMicromaps::c_missShaderName = L"MyMissShader";
 
-D3D12RaytracingTree::D3D12RaytracingTree(UINT width, UINT height, std::wstring name) :
+D3D12RaytracingOpacityMicromaps::D3D12RaytracingOpacityMicromaps(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_curRotationAngleRad(0.0f),
     m_rotateCamera(true),
@@ -45,7 +45,7 @@ D3D12RaytracingTree::D3D12RaytracingTree(UINT width, UINT height, std::wstring n
     UpdateForSizeChange(width, height);
 }
 
-void D3D12RaytracingTree::OnInit()
+void D3D12RaytracingOpacityMicromaps::OnInit()
 {
     m_deviceResources = std::make_unique<DeviceResources>(
         DXGI_FORMAT_R10G10B10A2_UNORM,
@@ -77,7 +77,7 @@ void D3D12RaytracingTree::OnInit()
 }
 
 // Update camera matrices passed into the shader.
-void D3D12RaytracingTree::UpdateCameraMatrices()
+void D3D12RaytracingOpacityMicromaps::UpdateCameraMatrices()
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
@@ -91,7 +91,7 @@ void D3D12RaytracingTree::UpdateCameraMatrices()
 }
 
 // Initialize scene rendering parameters.
-void D3D12RaytracingTree::InitializeScene()
+void D3D12RaytracingOpacityMicromaps::InitializeScene()
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
@@ -126,7 +126,7 @@ void D3D12RaytracingTree::InitializeScene()
 }
 
 // Create constant buffers.
-void D3D12RaytracingTree::CreateConstantBuffers()
+void D3D12RaytracingOpacityMicromaps::CreateConstantBuffers()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto frameCount = m_deviceResources->GetBackBufferCount();
@@ -165,7 +165,7 @@ void D3D12RaytracingTree::CreateConstantBuffers()
 }
 
 // Create resources that depend on the device.
-void D3D12RaytracingTree::CreateDeviceDependentResources()
+void D3D12RaytracingOpacityMicromaps::CreateDeviceDependentResources()
 {
     // Initialize raytracing pipeline.
 
@@ -197,7 +197,7 @@ void D3D12RaytracingTree::CreateDeviceDependentResources()
     CreateUIFont();
 }
 
-void D3D12RaytracingTree::CreateUIFont()
+void D3D12RaytracingOpacityMicromaps::CreateUIFont()
 {
 	auto device = m_deviceResources->GetD3DDevice();
 	auto size = m_deviceResources->GetOutputSize();
@@ -239,7 +239,7 @@ void D3D12RaytracingTree::CreateUIFont()
     }
 }
 
-void D3D12RaytracingTree::LoadTexture(const wchar_t* path, ID3D12Resource** resource, ID3D12Resource** uploadResource)
+void D3D12RaytracingOpacityMicromaps::LoadTexture(const wchar_t* path, ID3D12Resource** resource, ID3D12Resource** uploadResource)
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -269,7 +269,7 @@ void D3D12RaytracingTree::LoadTexture(const wchar_t* path, ID3D12Resource** reso
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(*resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 }
 
-void D3D12RaytracingTree::LoadTextures()
+void D3D12RaytracingOpacityMicromaps::LoadTextures()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -291,7 +291,7 @@ void D3D12RaytracingTree::LoadTextures()
     }
 }
 
-void D3D12RaytracingTree::LoadOMM(const char* ommPath, OMMSet& buffers)
+void D3D12RaytracingOpacityMicromaps::LoadOMM(const char* ommPath, OMMSet& buffers)
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -333,15 +333,15 @@ void D3D12RaytracingTree::LoadOMM(const char* ommPath, OMMSet& buffers)
     size_t histogramSize = buffers.numHistogramEntries * sizeof(D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY);
     buffers.histogramBuffer = new D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY[buffers.numHistogramEntries];
 
-    ReadFile(fhOMM, descArrayPtr, descArraySize, &bytesRead, NULL);
-    ReadFile(fhOMM, ommArrayPtr, arrayDataSize, &bytesRead, NULL);
-    ReadFile(fhOMM, buffers.histogramBuffer, histogramSize, &bytesRead, NULL);
-    ReadFile(fhOMM, ommIndexBufferPtr, ommIndexBufferSize, &bytesRead, NULL);
+    ReadFile(fhOMM, descArrayPtr, (DWORD)descArraySize, &bytesRead, NULL);
+    ReadFile(fhOMM, ommArrayPtr, (DWORD)arrayDataSize, &bytesRead, NULL);
+    ReadFile(fhOMM, buffers.histogramBuffer, (DWORD)histogramSize, &bytesRead, NULL);
+    ReadFile(fhOMM, ommIndexBufferPtr, (DWORD)ommIndexBufferSize, &bytesRead, NULL);
 
     CloseHandle(fhOMM);
 }
 
-void D3D12RaytracingTree::LoadModel(const char* modelPath)
+void D3D12RaytracingOpacityMicromaps::LoadModel(const char* modelPath)
 {
     HANDLE fh = CreateFileA(modelPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
    
@@ -406,9 +406,9 @@ void D3D12RaytracingTree::LoadModel(const char* modelPath)
     m_normalIndexBuffer.uploadResource->Map(0, nullptr, &normalIndexData);
     m_texCoordIndexBuffer.uploadResource->Map(0, nullptr, &texCoordIndexData);
 
-    ReadFile(fh, positionIndexData, indexBufferSize, &bytesRead, NULL);
-    ReadFile(fh, normalIndexData, indexBufferSize, &bytesRead, NULL);
-    ReadFile(fh, texCoordIndexData, indexBufferSize, &bytesRead, NULL);
+    ReadFile(fh, positionIndexData, (DWORD)indexBufferSize, &bytesRead, NULL);
+    ReadFile(fh, normalIndexData, (DWORD)indexBufferSize, &bytesRead, NULL);
+    ReadFile(fh, texCoordIndexData, (DWORD)indexBufferSize, &bytesRead, NULL);
 
     CloseHandle(fh);
 
@@ -492,7 +492,7 @@ void D3D12RaytracingTree::LoadModel(const char* modelPath)
     }
 }
 
-void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
+void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUploadBuffers)
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -541,7 +541,7 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
         uploadedUploadableBuffers = true;
     }
 
-    UINT vertexCount = m_positionBuffer.defaultResource->GetDesc().Width / sizeof(XMFLOAT3);
+    UINT vertexCount = (UINT)m_positionBuffer.defaultResource->GetDesc().Width / sizeof(XMFLOAT3);
 
 	auto linkageDescs = (D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC));
     auto geomDescs = (D3D12_RAYTRACING_GEOMETRY_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
@@ -684,7 +684,7 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
 		memcpy(instanceDescPtr, &instanceDesc, sizeof(instanceDesc));
     }
 
-    for (int i = 0; i < m_numGeoms; i++)
+    for (UINT i = 0; i < m_numGeoms; i++)
     {
 		linkageDescs[i].OpacityMicromapArray = m_ommAccelerationStructure->GetGPUVirtualAddress();
     }
@@ -711,7 +711,7 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
     commandList->ResourceBarrier(1, &uavBarrier);
 }
 
-void D3D12RaytracingTree::LoadAndBuildAccelerationStructures()
+void D3D12RaytracingOpacityMicromaps::LoadAndBuildAccelerationStructures()
 {
     // Load the model.
     LoadModel("treeModel.bin");
@@ -729,7 +729,7 @@ void D3D12RaytracingTree::LoadAndBuildAccelerationStructures()
     }
 }
 
-void D3D12RaytracingTree::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
+void D3D12RaytracingOpacityMicromaps::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
 {
     auto device = m_deviceResources->GetD3DDevice();
     ComPtr<ID3DBlob> blob;
@@ -739,7 +739,7 @@ void D3D12RaytracingTree::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_S
     ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
 }
 
-void D3D12RaytracingTree::CreateRootSignatures()
+void D3D12RaytracingOpacityMicromaps::CreateRootSignatures()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -763,7 +763,7 @@ void D3D12RaytracingTree::CreateRootSignatures()
 }
 
 // Create raytracing device and command list.
-void D3D12RaytracingTree::CreateRaytracingInterfaces()
+void D3D12RaytracingOpacityMicromaps::CreateRaytracingInterfaces()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -775,7 +775,7 @@ void D3D12RaytracingTree::CreateRaytracingInterfaces()
 // Create a raytracing pipeline state object (RTPSO).
 // An RTPSO represents a full set of shaders reachable by a DispatchRays() call,
 // with all configuration options resolved, such as local signatures and other state.
-void D3D12RaytracingTree::CreateRaytracingPipelineStateObject()
+void D3D12RaytracingOpacityMicromaps::CreateRaytracingPipelineStateObject()
 {
     // Create 7 subobjects that combine into a RTPSO:
     // Subobjects need to be associated with DXIL exports (i.e. shaders) either by way of default or explicit associations.
@@ -845,7 +845,7 @@ void D3D12RaytracingTree::CreateRaytracingPipelineStateObject()
 }
 
 // Create 2D output texture for raytracing.
-void D3D12RaytracingTree::CreateRaytracingOutputResource()
+void D3D12RaytracingOpacityMicromaps::CreateRaytracingOutputResource()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto backbufferFormat = m_deviceResources->GetBackBufferFormat();
@@ -864,7 +864,7 @@ void D3D12RaytracingTree::CreateRaytracingOutputResource()
     device->CreateUnorderedAccessView(m_raytracingOutput.Get(), nullptr, nullptr, uavDescriptorHandle);
 }
 
-void D3D12RaytracingTree::CreateDescriptorHeap()
+void D3D12RaytracingOpacityMicromaps::CreateDescriptorHeap()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -881,7 +881,7 @@ void D3D12RaytracingTree::CreateDescriptorHeap()
 
 // Build shader tables.
 // This encapsulates all shader records - shaders and the arguments for their local root signatures.
-void D3D12RaytracingTree::BuildShaderTables()
+void D3D12RaytracingOpacityMicromaps::BuildShaderTables()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -939,7 +939,7 @@ void D3D12RaytracingTree::BuildShaderTables()
 }
 
 // Update frame-based values.
-void D3D12RaytracingTree::OnUpdate()
+void D3D12RaytracingOpacityMicromaps::OnUpdate()
 {
     m_timer.Tick();
     CalculateFrameStats();
@@ -1023,7 +1023,7 @@ void D3D12RaytracingTree::OnUpdate()
     }
 }
 
-void D3D12RaytracingTree::DoRaytracing()
+void D3D12RaytracingOpacityMicromaps::DoRaytracing()
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
@@ -1088,13 +1088,13 @@ void D3D12RaytracingTree::DoRaytracing()
 }
 
 // Update the application state with the new resolution.
-void D3D12RaytracingTree::UpdateForSizeChange(UINT width, UINT height)
+void D3D12RaytracingOpacityMicromaps::UpdateForSizeChange(UINT width, UINT height)
 {
     DXSample::UpdateForSizeChange(width, height);
 }
 
 // Render the UI
-void D3D12RaytracingTree::RenderUI()
+void D3D12RaytracingOpacityMicromaps::RenderUI()
 {
 	auto commandList = m_deviceResources->GetCommandList();
     auto viewport = m_deviceResources->GetScreenViewport();
@@ -1153,7 +1153,7 @@ void D3D12RaytracingTree::RenderUI()
 }
 
 // Copy the raytracing output to the backbuffer.
-void D3D12RaytracingTree::CopyRaytracingOutputToBackbuffer()
+void D3D12RaytracingOpacityMicromaps::CopyRaytracingOutputToBackbuffer()
 {
     auto commandList= m_deviceResources->GetCommandList();
     auto renderTarget = m_deviceResources->GetRenderTarget();
@@ -1173,20 +1173,20 @@ void D3D12RaytracingTree::CopyRaytracingOutputToBackbuffer()
 }
 
 // Create resources that are dependent on the size of the main window.
-void D3D12RaytracingTree::CreateWindowSizeDependentResources()
+void D3D12RaytracingOpacityMicromaps::CreateWindowSizeDependentResources()
 {
     CreateRaytracingOutputResource(); 
     UpdateCameraMatrices();
 }
 
 // Release resources that are dependent on the size of the main window.
-void D3D12RaytracingTree::ReleaseWindowSizeDependentResources()
+void D3D12RaytracingOpacityMicromaps::ReleaseWindowSizeDependentResources()
 {
     m_raytracingOutput.Reset();
 }
 
 // Release all resources that depend on the device.
-void D3D12RaytracingTree::ReleaseDeviceDependentResources()
+void D3D12RaytracingOpacityMicromaps::ReleaseDeviceDependentResources()
 {
     m_raytracingGlobalRootSignature.Reset();
 
@@ -1205,7 +1205,7 @@ void D3D12RaytracingTree::ReleaseDeviceDependentResources()
 
 }
 
-void D3D12RaytracingTree::RecreateD3D()
+void D3D12RaytracingOpacityMicromaps::RecreateD3D()
 {
     // Give GPU a chance to finish its execution in progress.
     try
@@ -1220,7 +1220,7 @@ void D3D12RaytracingTree::RecreateD3D()
 }
 
 // Render the scene.
-void D3D12RaytracingTree::OnRender()
+void D3D12RaytracingOpacityMicromaps::OnRender()
 {
     if (!m_deviceResources->IsWindowVisible())
     {
@@ -1242,7 +1242,7 @@ void D3D12RaytracingTree::OnRender()
     m_graphicsMemory->Commit(m_deviceResources->GetCommandQueue());
 }
 
-void D3D12RaytracingTree::OnDestroy()
+void D3D12RaytracingOpacityMicromaps::OnDestroy()
 {
     // Let GPU finish before releasing D3D resources.
     m_deviceResources->WaitForGpu();
@@ -1250,21 +1250,21 @@ void D3D12RaytracingTree::OnDestroy()
 }
 
 // Release all device dependent resouces when a device is lost.
-void D3D12RaytracingTree::OnDeviceLost()
+void D3D12RaytracingOpacityMicromaps::OnDeviceLost()
 {
     ReleaseWindowSizeDependentResources();
     ReleaseDeviceDependentResources();
 }
 
 // Create all device dependent resources when a device is restored.
-void D3D12RaytracingTree::OnDeviceRestored()
+void D3D12RaytracingOpacityMicromaps::OnDeviceRestored()
 {
     CreateDeviceDependentResources();
     CreateWindowSizeDependentResources();
 }
 
 // Compute the average frames per second and million rays per second.
-void D3D12RaytracingTree::CalculateFrameStats()
+void D3D12RaytracingOpacityMicromaps::CalculateFrameStats()
 {
     static int frameCnt = 0;
     static double elapsedTime = 0.0f;
@@ -1291,7 +1291,7 @@ void D3D12RaytracingTree::CalculateFrameStats()
 }
 
 // Handle OnSizeChanged message event.
-void D3D12RaytracingTree::OnSizeChanged(UINT width, UINT height, bool minimized)
+void D3D12RaytracingOpacityMicromaps::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
     if (!m_deviceResources->WindowSizeChanged(width, height, minimized))
     {
@@ -1305,7 +1305,7 @@ void D3D12RaytracingTree::OnSizeChanged(UINT width, UINT height, bool minimized)
 }
 
 // Create SRV for a buffer.
-UINT D3D12RaytracingTree::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
+UINT D3D12RaytracingOpacityMicromaps::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
 {
     auto device = m_deviceResources->GetD3DDevice();
 

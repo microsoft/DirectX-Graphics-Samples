@@ -37,10 +37,10 @@ enum OpacityMicromapOption
     SUBDIVISION_2_
 };
 
-class D3D12RaytracingTree : public DXSample
+class D3D12RaytracingOpacityMicromaps : public DXSample
 {
 public:
-    D3D12RaytracingTree(UINT width, UINT height, std::wstring name);
+    D3D12RaytracingOpacityMicromaps(UINT width, UINT height, std::wstring name);
 
     // IDeviceNotify
     virtual void OnDeviceLost() override;

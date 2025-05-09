@@ -15,7 +15,7 @@
     <ProjectGuid>{A62C42DA-DAFA-47DB-B370-D2EC5DAB762D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>D3D12Raytracing</RootNamespace>
-    <ProjectName>D3D12RaytracingTree</ProjectName>
+    <ProjectName>D3D12RaytracingOpacityMicromaps</ProjectName>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <PropertyGroup Label="Globals" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -169,7 +169,7 @@
     <ClInclude Include="SharedCode.h" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="Win32Application.h" />
-    <ClInclude Include="D3D12RaytracingTree.h" />
+    <ClInclude Include="D3D12RaytracingOpacityMicromaps.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXSample.h" />
     <ClInclude Include="DXSampleHelper.h" />
@@ -178,7 +178,7 @@
   <ItemGroup>
     <ClCompile Include="DeviceResources.cpp" />
     <ClCompile Include="Win32Application.cpp" />
-    <ClCompile Include="D3D12RaytracingTree.cpp" />
+    <ClCompile Include="D3D12RaytracingOpacityMicromaps.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -216,6 +216,7 @@
     <Import Project="..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
     <Import Project="..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets" Condition="Exists('..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets')" />
     <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0-121184234-preview\build\native\Microsoft.Direct3D.D3D12.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0-121184234-preview\build\native\Microsoft.Direct3D.D3D12.targets')" />
+    <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.14.1\build\native\Microsoft.Direct3D.WARP.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.14.1\build\native\Microsoft.Direct3D.WARP.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -224,5 +225,6 @@
     <Error Condition="!Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets'))" />
     <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0-121184234-preview\build\native\Microsoft.Direct3D.D3D12.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0-121184234-preview\build\native\Microsoft.Direct3D.D3D12.props'))" />
     <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0-121184234-preview\build\native\Microsoft.Direct3D.D3D12.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0-121184234-preview\build\native\Microsoft.Direct3D.D3D12.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.14.1\build\native\Microsoft.Direct3D.WARP.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.14.1\build\native\Microsoft.Direct3D.WARP.targets'))" />
   </Target>
 </Project>
