@@ -95,8 +95,7 @@ private:
     D3DBuffer m_vertexBuffer;
 
 #if defined(USE_OMMS)
-    static const int NUM_OMMS = 12;
-    D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY m_ommHistogram;
+    //D3D12_RAYTRACING_OPACITY_MICROMAP_DESC m_ommDesc;
     D3DBuffer m_ommArrayInputBuffer;
     D3DBuffer m_ommIndexBuffer;
     D3DBuffer m_ommDescBuffer;
