@@ -6,9 +6,12 @@
 #include <dxgi.h>
 #include "DDS.h"
 #include "fast_obj.h"
-#include <E:\\Code\OMMSDK\\libraries\\omm-lib\\include\\omm.hpp>
 
-#pragma comment(lib, "E:\\Code\\OMMSDK\\build\\libraries\\omm-lib\\Debug\\omm-lib.lib")
+// The NVIDIA OMM SDK needs to be installed / pulled from Github and the
+// Include and Library paths for this project must be setup correctly
+// in order for the compiler/linker to build this project.
+#include <omm.hpp>
+#pragma comment(lib, "omm-lib.lib")
 
 void OMM_ABORT_ON_ERROR(omm::Result res)
 {
