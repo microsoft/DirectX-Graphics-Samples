@@ -299,8 +299,7 @@ void D3D12RaytracingTree::LoadOMM(const char* ommPath, OMMSet& buffers)
 
     if (fhOMM == INVALID_HANDLE_VALUE)
     {
-        printf("Failed to open OMM file(s)\n");
-        exit(1);
+        return;
     }
 
     DWORD bytesRead;
@@ -517,13 +516,16 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
         {
             for (int i = 0; i < 2; i++)
             {
-				commandList->CopyResource(m_ommSets[subD][i].descBuffer.defaultResource.Get(), m_ommSets[subD][i].descBuffer.uploadResource.Get());
-				commandList->CopyResource(m_ommSets[subD][i].arrayBuffer.defaultResource.Get(), m_ommSets[subD][i].arrayBuffer.uploadResource.Get());
-				commandList->CopyResource(m_ommSets[subD][i].indexBuffer.defaultResource.Get(), m_ommSets[subD][i].indexBuffer.uploadResource.Get());
+                if (m_ommSets[subD][i].descBuffer.defaultResource.Get() != nullptr)
+                {
+                    commandList->CopyResource(m_ommSets[subD][i].descBuffer.defaultResource.Get(), m_ommSets[subD][i].descBuffer.uploadResource.Get());
+                    commandList->CopyResource(m_ommSets[subD][i].arrayBuffer.defaultResource.Get(), m_ommSets[subD][i].arrayBuffer.uploadResource.Get());
+                    commandList->CopyResource(m_ommSets[subD][i].indexBuffer.defaultResource.Get(), m_ommSets[subD][i].indexBuffer.uploadResource.Get());
 
-                barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommSets[subD][i].descBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-                barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommSets[subD][i].arrayBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-                barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommSets[subD][i].indexBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+                    barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommSets[subD][i].descBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+                    barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommSets[subD][i].arrayBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+                    barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommSets[subD][i].indexBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+                }
             }
         }
 
