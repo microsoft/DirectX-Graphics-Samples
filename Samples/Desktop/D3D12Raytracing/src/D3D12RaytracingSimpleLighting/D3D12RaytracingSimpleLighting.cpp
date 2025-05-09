@@ -14,7 +14,6 @@
 #include "DirectXRaytracingHelper.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 
-
 using namespace std;
 using namespace DX;
 
@@ -173,7 +172,7 @@ void D3D12RaytracingSimpleLighting::CreateDeviceDependentResources()
     BuildGeometry();
 
     // Build raytracing acceleration structures from the generated geometry.
-    //BuildAccelerationStructures();
+    BuildAccelerationStructures();
 
     // Create constant buffers for the geometry and the scene.
     CreateConstantBuffers();
@@ -270,7 +269,8 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
     // 1 - Global root signature
     // 1 - Pipeline config
     CD3DX12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
-    
+
+
     // DXIL library
     // This contains the shaders and their entrypoints for the state object.
     // Since shaders are not considered a subobject, they need to be passed in via DXIL library subobjects.
@@ -312,17 +312,11 @@ void D3D12RaytracingSimpleLighting::CreateRaytracingPipelineStateObject()
 
     // Pipeline config
     // Defines the maximum TraceRay() recursion depth.
-    auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG1_SUBOBJECT>();
+    auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
     // PERFOMANCE TIP: Set max recursion depth as low as needed 
     // as drivers may apply optimization strategies for low recursion depths.
     UINT maxRecursionDepth = 1; // ~ primary rays only. 
-
-#if defined(USE_OMMS)
-    pipelineConfig->Config(maxRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAG_ALLOW_OPACITY_MICROMAPS);
-#else
-    pipelineConfig->Config(maxRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAG_NONE);
-#endif
-
+    pipelineConfig->Config(maxRecursionDepth);
 
 #if _DEBUG
     PrintStateObjectDesc(raytracingPipeline);
@@ -436,52 +430,6 @@ void D3D12RaytracingSimpleLighting::BuildGeometry()
     AllocateUploadBuffer(device, indices, sizeof(indices), &m_indexBuffer.resource);
     AllocateUploadBuffer(device, vertices, sizeof(vertices), &m_vertexBuffer.resource);
 
-#if defined(USE_OMMS)
-    UINT8 indicesOMM[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-    for (int i = 0; i < 12; i++)
-        indicesOMM[i] = (i % 2) ? D3D12_RAYTRACING_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_TRANSPARENT : D3D12_RAYTRACING_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_OPAQUE;
-
-    AllocateUploadBuffer(device, indicesOMM, sizeof(indicesOMM), &m_ommIndexBuffer.resource);
-
-    D3D12_RAYTRACING_OPACITY_MICROMAP_DESC ommDescs[12] = {};
-
-    const bool use2StateOMM = true;
-    const UINT subdivLevel = 3;
-    UINT byteOffset = 0;
-
-    const UINT trisPerSubdivision = pow(4, subdivLevel);
-    UINT numBitsRequiredForOMMState = use2StateOMM ? 1 : 2;
-    UINT numBitsRequiredPerOMM = numBitsRequiredForOMMState * trisPerSubdivision;
-    UINT numDwordsRequiredPerOMM = (numBitsRequiredPerOMM + 31) / 32;
-    UINT numDwordsTotal = numDwordsRequiredPerOMM * ARRAYSIZE(ommDescs);
-
-    UINT* ommData = new UINT[numDwordsTotal];
-    memset(ommData, 0xFF, numDwordsTotal * sizeof(UINT));
-
-    for (int i = 0; i < ARRAYSIZE(ommDescs); i++)
-    {
-        D3D12_RAYTRACING_OPACITY_MICROMAP_DESC& ommDesc = ommDescs[i];
-
-        ommDesc.ByteOffset = byteOffset;
-        ommDesc.Format = use2StateOMM ? D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT_OC1_2_STATE : D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT_OC1_4_STATE;
-        ommDesc.SubdivisionLevel = subdivLevel;
-
-        for (UINT subD = 0; subD < trisPerSubdivision; subD++)
-        {
-            //UINT& dword = ommData[subD / 32];
-            //UINT opaqueOrTransparent = 1;// (subD % 2) ? 0 : 1;
-            //dword |= (opaqueOrTransparent << (subD % 32));
-        }
-
-        byteOffset += numDwordsRequiredPerOMM * sizeof(UINT);
-    }
-
-    AllocateUploadBuffer(device, ommData, numDwordsTotal * sizeof(UINT), &m_ommArrayInputBuffer.resource);
-
-    AllocateUploadBuffer(device, ommDescs, sizeof(ommDescs), &m_ommDescBuffer.resource);
-#endif
-
     // Vertex buffer is passed to the shader along with index buffer as a descriptor table.
     // Vertex buffer descriptor must follow index buffer descriptor in the descriptor heap.
     UINT descriptorIndexIB = CreateBufferSRV(&m_indexBuffer, sizeof(indices)/4, 0);
@@ -498,47 +446,22 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     auto commandAllocator = m_deviceResources->GetCommandAllocator();
 
     // Reset the command list for the acceleration structure construction.
-    //commandList->Reset(commandAllocator, nullptr);
-
-    D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC trianglesDesc = {};
-    trianglesDesc.IndexBuffer = m_indexBuffer.resource->GetGPUVirtualAddress();
-    trianglesDesc.IndexCount = static_cast<UINT>(m_indexBuffer.resource->GetDesc().Width) / sizeof(Index);
-    trianglesDesc.IndexFormat = DXGI_FORMAT_R16_UINT;
-    trianglesDesc.Transform3x4 = 0;
-    trianglesDesc.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-    trianglesDesc.VertexCount = static_cast<UINT>(m_vertexBuffer.resource->GetDesc().Width) / sizeof(Vertex);
-    trianglesDesc.VertexBuffer.StartAddress = m_vertexBuffer.resource->GetGPUVirtualAddress();
-    trianglesDesc.VertexBuffer.StrideInBytes = sizeof(Vertex);
+    commandList->Reset(commandAllocator, nullptr);
 
     D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
-#if defined(USE_OMMS)
-    geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES;
-    geometryDesc.OmmTriangles.pTriangles = &trianglesDesc;
-
-    D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_DESC ommArrayDesc = {};
-    ommArrayDesc.InputBuffer = m_ommArrayInputBuffer.resource->GetGPUVirtualAddress();
-    ommArrayDesc.NumOmmHistogramEntries = 0;
-    ommArrayDesc.pOmmHistogram = nullptr;
-    ommArrayDesc.PerOmmDescs = { m_ommDescBuffer.resource->GetGPUVirtualAddress(), sizeof(D3D12_RAYTRACING_OPACITY_MICROMAP_DESC) };
-
-    D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC linkageDesc = {};
-    linkageDesc.OpacityMicromapIndexBuffer = { m_ommIndexBuffer.resource->GetGPUVirtualAddress(), sizeof(UINT8) };
-    //linkageDesc.OpacityMicromapIndexBuffer = { 0, 0 };
-    linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_R8_UINT;
-    //linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_UNKNOWN;
-    linkageDesc.OpacityMicromapBaseLocation = 0;
-    
-
-    geometryDesc.OmmTriangles.pOmmLinkage = &linkageDesc;
-#else
     geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-    geometryDesc.Triangles = &trianglesDesc;
-#endif
-   
+    geometryDesc.Triangles.IndexBuffer = m_indexBuffer.resource->GetGPUVirtualAddress();
+    geometryDesc.Triangles.IndexCount = static_cast<UINT>(m_indexBuffer.resource->GetDesc().Width) / sizeof(Index);
+    geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
+    geometryDesc.Triangles.Transform3x4 = 0;
+    geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+    geometryDesc.Triangles.VertexCount = static_cast<UINT>(m_vertexBuffer.resource->GetDesc().Width) / sizeof(Vertex);
+    geometryDesc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer.resource->GetGPUVirtualAddress();
+    geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
+
     // Mark the geometry as opaque. 
     // PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
     // Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
-    
     geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
     // Get required sizes for an acceleration structure.
@@ -568,25 +491,8 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &bottomLevelPrebuildInfo);
     ThrowIfFalse(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
 
-#if defined(USE_OMMS)
-    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC ommBuildDesc = {};
-    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& ommInputs = ommBuildDesc.Inputs;
-    ommInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    ommInputs.NumDescs = 1;
-    ommInputs.pOpacityMicromapArrayDesc = &ommArrayDesc;
-    ommInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_OPACITY_MICROMAP_ARRAY;
-
-    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO ommPrebuildInfo = {};
-    m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&ommInputs, &ommPrebuildInfo);
-    ThrowIfFalse(ommPrebuildInfo.ResultDataMaxSizeInBytes > 0);
-#endif
-
-    
-
-    UINT64 scratchSize = max(max(topLevelPrebuildInfo.ScratchDataSizeInBytes, bottomLevelPrebuildInfo.ScratchDataSizeInBytes), ommPrebuildInfo.ScratchDataSizeInBytes);
-    
-    if(m_scratchResource.Get() == nullptr)
-        AllocateUAVBuffer(device, scratchSize, &m_scratchResource, D3D12_RESOURCE_STATE_COMMON, L"ScratchResource");
+    ComPtr<ID3D12Resource> scratchResource;
+    AllocateUAVBuffer(device, max(topLevelPrebuildInfo.ScratchDataSizeInBytes, bottomLevelPrebuildInfo.ScratchDataSizeInBytes), &scratchResource, D3D12_RESOURCE_STATE_COMMON, L"ScratchResource");
 
     // Allocate resources for acceleration structures.
     // Acceleration structures can only be placed in resources that are created in the default heap (or custom heap equivalent). 
@@ -598,58 +504,33 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     {
         D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
         
-        if (m_bottomLevelAccelerationStructure.Get() == nullptr)
-            AllocateUAVBuffer(device, bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructure, initialResourceState, L"BottomLevelAccelerationStructure");
-
-        if (m_topLevelAccelerationStructure.Get() == nullptr)
-            AllocateUAVBuffer(device, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_topLevelAccelerationStructure, initialResourceState, L"TopLevelAccelerationStructure");
-
-#if defined(USE_OMMS)
-        if (m_ommAccelerationStructure.Get() == nullptr)
-            AllocateUAVBuffer(device, ommPrebuildInfo.ResultDataMaxSizeInBytes, &m_ommAccelerationStructure, initialResourceState, L"OMMArray");
-
-        linkageDesc.OpacityMicromapArray = m_ommAccelerationStructure->GetGPUVirtualAddress();
-#endif
+        AllocateUAVBuffer(device, bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructure, initialResourceState, L"BottomLevelAccelerationStructure");
+        AllocateUAVBuffer(device, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_topLevelAccelerationStructure, initialResourceState, L"TopLevelAccelerationStructure");
     }
     
     // Create an instance desc for the bottom-level acceleration structure.
-       
+    ComPtr<ID3D12Resource> instanceDescs;   
     D3D12_RAYTRACING_INSTANCE_DESC instanceDesc = {};
     instanceDesc.Transform[0][0] = instanceDesc.Transform[1][1] = instanceDesc.Transform[2][2] = 1;
     instanceDesc.InstanceMask = 1;
     instanceDesc.AccelerationStructure = m_bottomLevelAccelerationStructure->GetGPUVirtualAddress();
-
-    if (m_instanceDescs.Get() == nullptr)
-        AllocateUploadBuffer(device, &instanceDesc, sizeof(instanceDesc), &m_instanceDescs, L"InstanceDescs");
+    AllocateUploadBuffer(device, &instanceDesc, sizeof(instanceDesc), &instanceDescs, L"InstanceDescs");
 
     // Bottom Level Acceleration Structure desc
     {
-        bottomLevelBuildDesc.ScratchAccelerationStructureData = m_scratchResource->GetGPUVirtualAddress();
+        bottomLevelBuildDesc.ScratchAccelerationStructureData = scratchResource->GetGPUVirtualAddress();
         bottomLevelBuildDesc.DestAccelerationStructureData = m_bottomLevelAccelerationStructure->GetGPUVirtualAddress();
     }
 
     // Top Level Acceleration Structure desc
     {
         topLevelBuildDesc.DestAccelerationStructureData = m_topLevelAccelerationStructure->GetGPUVirtualAddress();
-        topLevelBuildDesc.ScratchAccelerationStructureData = m_scratchResource->GetGPUVirtualAddress();
-        topLevelBuildDesc.Inputs.InstanceDescs = m_instanceDescs->GetGPUVirtualAddress();
+        topLevelBuildDesc.ScratchAccelerationStructureData = scratchResource->GetGPUVirtualAddress();
+        topLevelBuildDesc.Inputs.InstanceDescs = instanceDescs->GetGPUVirtualAddress();
     }
-
-#if defined(USE_OMMS)
-    // OMM Array desc
-    {
-        ommBuildDesc.DestAccelerationStructureData = m_ommAccelerationStructure->GetGPUVirtualAddress();
-        ommBuildDesc.ScratchAccelerationStructureData = m_scratchResource->GetGPUVirtualAddress();
-    }
-#endif
 
     auto BuildAccelerationStructure = [&](auto* raytracingCommandList)
     {
-#if defined(USE_OMMS)
-        raytracingCommandList->BuildRaytracingAccelerationStructure(&ommBuildDesc, 0, nullptr);
-        commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(nullptr));
-#endif
-
         raytracingCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc, 0, nullptr);
         commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(m_bottomLevelAccelerationStructure.Get()));
         raytracingCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc, 0, nullptr);
@@ -659,7 +540,7 @@ void D3D12RaytracingSimpleLighting::BuildAccelerationStructures()
     BuildAccelerationStructure(m_dxrCommandList.Get());
     
     // Kick off acceleration structure construction.
-    //m_deviceResources->ExecuteCommandList();
+    m_deviceResources->ExecuteCommandList();
 
     // Wait for GPU to finish as the locally created temporary GPU resources will get released once we go out of scope.
     m_deviceResources->WaitForGpu();
@@ -758,13 +639,6 @@ void D3D12RaytracingSimpleLighting::DoRaytracing()
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
-
-    static bool done = false;
-
-    if(!done)
-        BuildAccelerationStructures();
-
-    done = true;
     
     auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
     {
