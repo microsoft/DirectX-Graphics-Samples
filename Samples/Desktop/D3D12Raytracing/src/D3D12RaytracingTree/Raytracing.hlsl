@@ -185,7 +185,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 	float shadowTerm = (shadowPayload.flags & MISSED_FLAG) ? 1 : 0;
     float lightAmount = (ndotl * 0.8f * shadowTerm) + 0.2f;
 
-    payload.colorRGB = float4(lightAmount.xxx * diffuse, 1);
+    payload.colorRGB = lightAmount.xxx * diffuse;
 
     if ((configFlags & ConfigFlags::SHOW_AHS) && (payload.flags & RAN_AHS_FLAG))
     {
