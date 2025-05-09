@@ -90,6 +90,16 @@ private:
         ComPtr<ID3D12Resource> uploadResource, defaultResource;
     };
 
+    struct OMMSet
+    {
+        D3DBuffer descBuffer;
+        D3DBuffer arrayBuffer;
+        D3DBuffer indexBuffer;
+
+        D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY* histogramBuffer;
+        UINT numHistogramEntries;
+    };
+
     // Acceleration structure
     ComPtr<ID3D12Resource> m_scratchResource;
     ComPtr<ID3D12Resource> m_instanceDescs;
@@ -109,10 +119,10 @@ private:
 
     ComPtr<ID3D12Resource> m_geometryOffsetBuffer;
 
-    D3DBuffer m_ommDescBuffer, m_ommArrayBuffer, m_ommIndexBuffer;
+    static const UINT MAX_SUBDIVISION_LEVELS = 12;
+    OMMSet m_ommSets[MAX_SUBDIVISION_LEVELS][2];
 
-    D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY* m_ommHistogramBuffer;
-    UINT m_numHistogramEntries;
+    
 
     UINT m_numGeoms;
     UINT* m_indicesPerGeom;
@@ -151,7 +161,7 @@ private:
     bool m_ommEnabled;
     bool m_rotateCamera;
     bool m_use4State;
-    bool m_useSubD8;
+    UINT m_currentSubDLevel;
     float m_fov;
 
     bool m_haveLoadedTextures;
@@ -185,7 +195,8 @@ private:
     void LoadAndBuildAccelerationStructures();
 	void LoadTexture(const wchar_t* texturePath, ID3D12Resource** resource, ID3D12Resource** uploadResource);
     void LoadTextures();
-    void LoadModel(const char* modelPath, const char* ommPath);
+    void LoadModel(const char* modelPath);
+	void LoadOMM(const char* ommPath, OMMSet& buffers);
     void BuildAccelerationStructures(bool updateUploadBuffers);
     void BuildShaderTables();
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);

@@ -32,8 +32,8 @@ D3D12RaytracingTree::D3D12RaytracingTree(UINT width, UINT height, std::wstring n
     m_curRotationAngleRad(0.0f),
     m_rotateCamera(true),
     m_ommEnabled(true),
-    m_use4State(false),
-    m_useSubD8(false),
+    m_use4State(true),
+    m_currentSubDLevel(3),
     m_configFlags(0),
     m_extraPrimaryRayFlags(0),
 	m_extraShadowRayFlags(0),
@@ -59,6 +59,8 @@ void D3D12RaytracingTree::OnInit()
     m_deviceResources->RegisterDeviceNotify(this);
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
     m_deviceResources->InitializeDXGIAdapter();
+
+    ZeroMemory(m_ommSets, sizeof(m_ommSets));
 
     ThrowIfFalse(IsDirectXRaytracingSupported(m_deviceResources->GetAdapter(), D3D12_RAYTRACING_TIER_1_2),
         L"ERROR: DirectX Raytracing Tier 1.2 is not supported by your OS, GPU and/or driver.\n\n");
@@ -289,18 +291,17 @@ void D3D12RaytracingTree::LoadTextures()
     }
 }
 
-void D3D12RaytracingTree::LoadModel(const char* modelPath, const char* ommPath)
+void D3D12RaytracingTree::LoadOMM(const char* ommPath, OMMSet& buffers)
 {
-    HANDLE fh = CreateFileA(modelPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    auto device = m_deviceResources->GetD3DDevice();
+
     HANDLE fhOMM = CreateFileA(ommPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    
-    if (fh == INVALID_HANDLE_VALUE || fhOMM == INVALID_HANDLE_VALUE)
+
+    if (fhOMM == INVALID_HANDLE_VALUE)
     {
-        printf("Failed to open model file(s)\n");
+        printf("Failed to open OMM file(s)\n");
         exit(1);
     }
-
-    auto device = m_deviceResources->GetD3DDevice();
 
     DWORD bytesRead;
 
@@ -309,7 +310,7 @@ void D3D12RaytracingTree::LoadModel(const char* modelPath, const char* ommPath)
 
     UINT arrayDataSize = ommCounts[0];
     UINT descArrayCount = ommCounts[1];
-    m_numHistogramEntries = ommCounts[2];
+    buffers.numHistogramEntries = ommCounts[2];
     UINT indexFormat = ommCounts[3];
     UINT indexCount = ommCounts[4];
 
@@ -317,29 +318,44 @@ void D3D12RaytracingTree::LoadModel(const char* modelPath, const char* ommPath)
     size_t ommIndexBufferSize = indexCount * (indexFormat == 0 ? 2 : 4);
 
     AllocateUploadableBuffer(device, nullptr, descArraySize,
-        &m_ommDescBuffer.uploadResource, &m_ommDescBuffer.defaultResource, L"OMM Desc Buffer");
+        &buffers.descBuffer.uploadResource, &buffers.descBuffer.defaultResource, L"OMM Desc Buffer");
     AllocateUploadableBuffer(device, nullptr, arrayDataSize,
-        &m_ommArrayBuffer.uploadResource, &m_ommArrayBuffer.defaultResource, L"OMM Array Buffer");
+        &buffers.arrayBuffer.uploadResource, &buffers.arrayBuffer.defaultResource, L"OMM Array Buffer");
     AllocateUploadableBuffer(device, nullptr, ommIndexBufferSize,
-        &m_ommIndexBuffer.uploadResource, &m_ommIndexBuffer.defaultResource, L"OMM Index Buffer");
+        &buffers.indexBuffer.uploadResource, &buffers.indexBuffer.defaultResource, L"OMM Index Buffer");
 
     D3D12_RAYTRACING_OPACITY_MICROMAP_DESC* descArrayPtr;
     void* ommArrayPtr;
     UINT* ommIndexBufferPtr;
-    m_ommDescBuffer.uploadResource->Map(0, nullptr, (void**)&descArrayPtr);
-    m_ommArrayBuffer.uploadResource->Map(0, nullptr, &ommArrayPtr);
-    m_ommIndexBuffer.uploadResource->Map(0, nullptr, (void**)&ommIndexBufferPtr);
+    buffers.descBuffer.uploadResource->Map(0, nullptr, (void**)&descArrayPtr);
+    buffers.arrayBuffer.uploadResource->Map(0, nullptr, &ommArrayPtr);
+    buffers.indexBuffer.uploadResource->Map(0, nullptr, (void**)&ommIndexBufferPtr);
 
-    size_t histogramSize = m_numHistogramEntries * sizeof(D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY);
-    m_ommHistogramBuffer = new D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY[m_numHistogramEntries];
+    size_t histogramSize = buffers.numHistogramEntries * sizeof(D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY);
+    buffers.histogramBuffer = new D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY[buffers.numHistogramEntries];
 
     ReadFile(fhOMM, descArrayPtr, descArraySize, &bytesRead, NULL);
     ReadFile(fhOMM, ommArrayPtr, arrayDataSize, &bytesRead, NULL);
-    ReadFile(fhOMM, m_ommHistogramBuffer, histogramSize, &bytesRead, NULL);
+    ReadFile(fhOMM, buffers.histogramBuffer, histogramSize, &bytesRead, NULL);
     ReadFile(fhOMM, ommIndexBufferPtr, ommIndexBufferSize, &bytesRead, NULL);
 
     CloseHandle(fhOMM);
+}
 
+void D3D12RaytracingTree::LoadModel(const char* modelPath)
+{
+    HANDLE fh = CreateFileA(modelPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+   
+    
+    if (fh == INVALID_HANDLE_VALUE)
+    {
+        printf("Failed to open model file(s)\n");
+        exit(1);
+    }
+
+    auto device = m_deviceResources->GetD3DDevice();
+
+    DWORD bytesRead;
 
     UINT counts[3];
     ReadFile(fh, counts, sizeof(counts), &bytesRead, NULL);
@@ -494,23 +510,31 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
         commandList->CopyResource(m_normalIndexBuffer.defaultResource.Get(), m_normalIndexBuffer.uploadResource.Get());
         commandList->CopyResource(m_texCoordIndexBuffer.defaultResource.Get(), m_texCoordIndexBuffer.uploadResource.Get());
 
-        commandList->CopyResource(m_ommDescBuffer.defaultResource.Get(), m_ommDescBuffer.uploadResource.Get());
-        commandList->CopyResource(m_ommArrayBuffer.defaultResource.Get(), m_ommArrayBuffer.uploadResource.Get());
-        commandList->CopyResource(m_ommIndexBuffer.defaultResource.Get(), m_ommIndexBuffer.uploadResource.Get());
+        D3D12_RESOURCE_BARRIER barriers[6 + (MAX_SUBDIVISION_LEVELS * 2 * 3)];
+        int numBarriers = 0;
 
-        // Transition all default resources from COPY_DEST to GENERIC_READ
-        D3D12_RESOURCE_BARRIER barrier[9];
-        barrier[0] = CD3DX12_RESOURCE_BARRIER::Transition(m_positionBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-        barrier[1] = CD3DX12_RESOURCE_BARRIER::Transition(m_normalBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-        barrier[2] = CD3DX12_RESOURCE_BARRIER::Transition(m_texCoordBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-        barrier[3] = CD3DX12_RESOURCE_BARRIER::Transition(m_positionIndexBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-        barrier[4] = CD3DX12_RESOURCE_BARRIER::Transition(m_normalIndexBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-        barrier[5] = CD3DX12_RESOURCE_BARRIER::Transition(m_texCoordIndexBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-        barrier[6] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommDescBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-        barrier[7] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommArrayBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-        barrier[8] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommIndexBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+        for (int subD = 0; subD < MAX_SUBDIVISION_LEVELS; subD++)
+        {
+            for (int i = 0; i < 2; i++)
+            {
+				commandList->CopyResource(m_ommSets[subD][i].descBuffer.defaultResource.Get(), m_ommSets[subD][i].descBuffer.uploadResource.Get());
+				commandList->CopyResource(m_ommSets[subD][i].arrayBuffer.defaultResource.Get(), m_ommSets[subD][i].arrayBuffer.uploadResource.Get());
+				commandList->CopyResource(m_ommSets[subD][i].indexBuffer.defaultResource.Get(), m_ommSets[subD][i].indexBuffer.uploadResource.Get());
 
-        commandList->ResourceBarrier(ARRAYSIZE(barrier), barrier);
+                barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommSets[subD][i].descBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+                barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommSets[subD][i].arrayBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+                barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_ommSets[subD][i].indexBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+            }
+        }
+
+        barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_positionBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+        barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_normalBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+        barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_texCoordBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+        barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_positionIndexBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+        barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_normalIndexBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+        barriers[numBarriers++] = CD3DX12_RESOURCE_BARRIER::Transition(m_texCoordIndexBuffer.defaultResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+        
+        commandList->ResourceBarrier(numBarriers, barriers);
 
         uploadedUploadableBuffers = true;
     }
@@ -527,6 +551,8 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
 
     UINT indexOffset = 0;
 	UINT ommOffset = 0;
+
+	OMMSet& ommSet = m_ommSets[m_currentSubDLevel][m_use4State ? 1 : 0];
 
     for (UINT i = 0; i < m_numGeoms; i++)
     {
@@ -545,7 +571,7 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
 
 			D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC& linkageDesc = linkageDescs[i];
 
-            linkageDesc.OpacityMicromapIndexBuffer = { m_ommIndexBuffer.defaultResource->GetGPUVirtualAddress() + (ommOffset * sizeof(UINT)), sizeof(UINT)};
+            linkageDesc.OpacityMicromapIndexBuffer = { ommSet.indexBuffer.defaultResource->GetGPUVirtualAddress() + (ommOffset * sizeof(UINT)), sizeof(UINT)};
 			linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_R32_UINT;
             linkageDesc.OpacityMicromapBaseLocation = 0;
 
@@ -575,10 +601,10 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 
     D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_DESC ommArrayDesc = {};
-    ommArrayDesc.InputBuffer = m_ommArrayBuffer.defaultResource->GetGPUVirtualAddress();
-    ommArrayDesc.NumOmmHistogramEntries = m_numHistogramEntries;
-    ommArrayDesc.pOmmHistogram = (D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY*)m_ommHistogramBuffer;
-    ommArrayDesc.PerOmmDescs = { m_ommDescBuffer.defaultResource->GetGPUVirtualAddress(), sizeof(D3D12_RAYTRACING_OPACITY_MICROMAP_DESC) };
+    ommArrayDesc.InputBuffer = ommSet.arrayBuffer.defaultResource->GetGPUVirtualAddress();
+    ommArrayDesc.NumOmmHistogramEntries = ommSet.numHistogramEntries;
+    ommArrayDesc.pOmmHistogram = (D3D12_RAYTRACING_OPACITY_MICROMAP_HISTOGRAM_ENTRY*)ommSet.histogramBuffer;
+    ommArrayDesc.PerOmmDescs = { ommSet.descBuffer.defaultResource->GetGPUVirtualAddress(), sizeof(D3D12_RAYTRACING_OPACITY_MICROMAP_DESC) };
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC ommBuildDesc = {};
     ommBuildDesc.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_OPACITY_MICROMAP_ARRAY;
@@ -610,16 +636,20 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
 
     size_t scratchSize = max(max(blasPrebuildInfo.ScratchDataSizeInBytes, tlasPrebuildInfo.ScratchDataSizeInBytes), ommPrebuildInfo.ScratchDataSizeInBytes);
 
-    if (m_scratchResource.Get() == nullptr)
+	if (m_scratchResource.Get() == nullptr || 
+        m_scratchResource->GetDesc().Width < scratchSize)
         AllocateUAVBuffer(device, scratchSize, &m_scratchResource, D3D12_RESOURCE_STATE_COMMON, L"ScratchResource");
 
-    if (m_ommAccelerationStructure.Get() == nullptr)
+    if (m_ommAccelerationStructure.Get() == nullptr || 
+        m_ommAccelerationStructure->GetDesc().Width < ommPrebuildInfo.ResultDataMaxSizeInBytes)
         AllocateUAVBuffer(device, ommPrebuildInfo.ResultDataMaxSizeInBytes, &m_ommAccelerationStructure, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, L"OMMAccelerationStructure");
 
-    if (m_bottomLevelAccelerationStructure.Get() == nullptr)
+    if (m_bottomLevelAccelerationStructure.Get() == nullptr || 
+        m_bottomLevelAccelerationStructure->GetDesc().Width < blasPrebuildInfo.ResultDataMaxSizeInBytes)
         AllocateUAVBuffer(device, blasPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructure, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, L"BottomLevelAccelerationStructure");
 
-    if (m_topLevelAccelerationStructure.Get() == nullptr)
+    if (m_topLevelAccelerationStructure.Get() == nullptr || 
+        m_topLevelAccelerationStructure->GetDesc().Width < tlasPrebuildInfo.ResultDataMaxSizeInBytes)
     {
         AllocateUAVBuffer(device, tlasPrebuildInfo.ResultDataMaxSizeInBytes, &m_topLevelAccelerationStructure, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, L"TopLevelAccelerationStructure");
 
@@ -641,7 +671,9 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
     instanceDesc.Flags = (m_ommEnabled ? D3D12_RAYTRACING_INSTANCE_FLAG_NONE : D3D12_RAYTRACING_INSTANCE_FLAG_DISABLE_OMMS);
 
     if (m_instanceDescs.Get() == nullptr)
+    {
         AllocateUploadBuffer(device, &instanceDesc, sizeof(instanceDesc), &m_instanceDescs, L"InstanceDescs");
+    }
     else if(updateUploadBuffers)
     {
         // Just update the upload buffer
@@ -679,11 +711,20 @@ void D3D12RaytracingTree::BuildAccelerationStructures(bool updateUploadBuffers)
 
 void D3D12RaytracingTree::LoadAndBuildAccelerationStructures()
 {
-    const char* modelPath = "treeModel.bin";
-    const char* ommPath = "treeOMM_SubD8_4State.bin";
-
     // Load the model.
-    LoadModel(modelPath, ommPath);
+    LoadModel("treeModel.bin");
+
+    const char* ommPath = "treeOMM_SubD%d_%dState.bin";
+
+    for (int subD = 0; subD < MAX_SUBDIVISION_LEVELS; subD++)
+    {
+        for (int state = 0; state <= 1; state++)
+        {
+			char ommPathBuffer[256];
+			sprintf_s(ommPathBuffer, ommPath, subD + 1, (state == 0) ? 2 : 4);
+            LoadOMM(ommPathBuffer, m_ommSets[subD][state]);
+        }
+    }
 }
 
 void D3D12RaytracingTree::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
@@ -919,10 +960,20 @@ void D3D12RaytracingTree::OnUpdate()
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::F))
     {
         m_use4State = !m_use4State;
+        m_rebuildASNextFrame = true;
     }
-    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::S))
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::Q) || m_keyboardButtons.IsKeyPressed(Keyboard::Keys::W))
     {
-        m_useSubD8 = !m_useSubD8;
+		int sign = (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::Q)) ? -1 : 1;
+
+		UINT ommState = m_use4State ? 1 : 0;
+
+        do
+        {
+			m_currentSubDLevel = ((m_currentSubDLevel + (1 * sign)) + MAX_SUBDIVISION_LEVELS) % MAX_SUBDIVISION_LEVELS;
+		} while (m_ommSets[m_currentSubDLevel][ommState].histogramBuffer == nullptr);
+
+        m_rebuildASNextFrame = true;
     }
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::H))
     {
@@ -1068,7 +1119,7 @@ void D3D12RaytracingTree::RenderUI()
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
-	swprintf_s(buffer, ARRAYSIZE(buffer), L"OMM: Subdivision Level (%d)- Press 'S'", m_useSubD8 ? 8 : 4);
+	swprintf_s(buffer, ARRAYSIZE(buffer), L"OMM: Subdivision Level (%d) - Press 'Q/W'", m_currentSubDLevel + 1);
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
