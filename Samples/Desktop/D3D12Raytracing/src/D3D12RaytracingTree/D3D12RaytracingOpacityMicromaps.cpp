@@ -273,9 +273,10 @@ void D3D12RaytracingOpacityMicromaps::LoadTextures()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
-    const wchar_t* texturesToLoad[3] =
+    const wchar_t* texturesToLoad[NUM_TEXTURES] =
     {
         L"jacaranda_tree_leaves_alpha_4k.dds",
+        L"jacaranda_tree_branches_diff_4k.dds",
         L"jacaranda_tree_leaves_diff_4k.dds",
         L"jacaranda_tree_trunk_diff_4k.dds"
     };
@@ -433,8 +434,8 @@ void D3D12RaytracingOpacityMicromaps::LoadModel(const char* modelPath)
 		{
             // TODO. the indices, do it properly
             geomInfos[i].primitiveOffset = primOffset;
-			geomInfos[i].diffuseTextureIndex = (i == 0 || i == 6) ? 2 : 1;
-			geomInfos[i].alphaTextureIndex = (i == 0 || i == 6) ? 0xFFFFFFFF : 0;
+            geomInfos[i].diffuseTextureIndex = 1 + i;// (i == 0 || i == 6) ? 2 : 1;
+            geomInfos[i].alphaTextureIndex = (i == 1) ? 0 : -1;
 
             primOffset += (m_indicesPerGeom[i] / 3);
 		}
@@ -563,7 +564,7 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
 
         geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 
-        bool isLeaves = (i >= 1 && i <= 5);
+        bool isLeaves = (i == 1); // TODO
 
         if (isLeaves)
         {

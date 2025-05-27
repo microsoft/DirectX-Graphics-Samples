@@ -112,7 +112,7 @@ private:
     D3DBuffer m_positionIndexBuffer, m_normalIndexBuffer, m_texCoordIndexBuffer;
     D3DBuffer m_indexBuffer;
 
-    static const UINT NUM_TEXTURES = 3;
+    static const UINT NUM_TEXTURES = 4;
 
 	ComPtr<ID3D12Resource> m_textureDefault[NUM_TEXTURES];
 	ComPtr<ID3D12Resource> m_textureUpload[NUM_TEXTURES];
