@@ -18,7 +18,7 @@
 //*********************************************************
 
 // TraceRay the old fashioned way
-#define USE_ORIGINAL_TRACERAY_NO_SER
+//#define USE_ORIGINAL_TRACERAY_NO_SER
 
 // Call MaybeReorderThread(sortKey,1), sortKey is 1 bit 
 // indicating if the thread has dummy work
