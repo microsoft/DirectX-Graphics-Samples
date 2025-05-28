@@ -28,8 +28,9 @@
 // properties in RayGen to shade
 //#define SKIP_INVOKE_INSTEAD_SHADE_IN_RAYGEN
 
-// Make rays do loop of artificial work in the 
-// Closest Hit shader, some rays looping more than others.
+// Rays do loop a of artificial work in the 
+// Closest Hit shader.  This setting makes 
+// some rays looping more than others (a sort candidate):
 #define USE_VARYING_ARTIFICIAL_WORK
 
 // Number of iterations in the heavy artificial work loop
