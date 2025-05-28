@@ -10,6 +10,14 @@
 // The NVIDIA OMM SDK needs to be installed / pulled from Github and the
 // Include and Library paths for this project must be setup correctly
 // in order for the compiler/linker to build this project.
+// 
+// We're choosing not to include the OMM SDK in this repository as a submodule as
+// the code in this project is not intended to demonstrate the use of NVIDIA's OMM SDK or best practices.
+// 
+// However, the D3D12OMMOfflineBaker project is required to rebuild the OMMs themselves incase we need
+// to in the future and we don't want this code to be lost. 
+// The OMMs have been built and shipped as part of the D3D12RaytracingOpacityMicromaps
+// project and therefore running this project is NOT a prerequisite to run the D3D12RaytracingOpacityMicromaps sample.
 #include <omm.hpp>
 #pragma comment(lib, "omm-lib.lib")
 
@@ -152,6 +160,25 @@ fastObjMesh* LoadOBJFile(const char* filename, std::vector<GeometryData>& geomet
     return obj;
 }
 
+void CheckForPresenceOfAssets(const char* alphaTextureName, const char* objName)
+{
+    HANDLE alphaTextureFile = CreateFileA(alphaTextureName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE objFile = CreateFileA(objName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    if (alphaTextureFile == INVALID_HANDLE_VALUE || objFile == INVALID_HANDLE_VALUE)
+    {
+        // Open a message box to inform the user that the assets are missing
+        MessageBoxA(NULL, "Please ensure that the assets (jacaranda_tree_leaves_alpha_4k.dds and jacaranda_tree_4k_export.obj) are present in the same directory as the .sln/.vcxproj."
+            "\n\nThe model and textures can be downloaded from https://polyhaven.com/a/jacaranda_tree - (CC0 licence)"
+            "\n\nUse Blender to convert the .blend file to Export an OBJ called jacaranda_tree_4k_export.obj"
+            "\n\nConvert jacaranda_tree_leaves_alpha_4k.png to an R8_UNORM DDS file using a tool such as Paint.net and name it jacaranda_tree_leaves_alpha_4k.dds", "Assets Missing", MB_OK | MB_ICONERROR);
+        exit(1);
+    }
+
+    CloseHandle(alphaTextureFile);
+    CloseHandle(objFile);
+}
+
 int main()
 {
     omm::BakerCreationDesc desc;
@@ -166,16 +193,21 @@ int main()
     omm::Baker baker;
     OMM_ABORT_ON_ERROR(omm::CreateBaker(desc, &baker));
 
+    const char* alphaTextureName = "jacaranda_tree_leaves_alpha_4k.dds";
+    const char* objName = "jacaranda_tree_4k_export.obj";
+
+    CheckForPresenceOfAssets(alphaTextureName, objName);
+
     // Create a texture
     omm::Cpu::TextureMipDesc mipDescs[16];
     omm::Cpu::TextureDesc texDesc;
-    char* textureData = LoadDDSFile("jacaranda_tree_leaves_alpha_4k.dds", texDesc, mipDescs);
+    char* textureData = LoadDDSFile(alphaTextureName, texDesc, mipDescs);
 
     OMM_ABORT_ON_ERROR(omm::Cpu::CreateTexture(baker, texDesc, &input.texture));    
 
     // Load the model
     std::vector<GeometryData> geometryData;
-    fastObjMesh* obj = LoadOBJFile("jacaranda_tree_4k_export.obj", geometryData);
+    fastObjMesh* obj = LoadOBJFile(objName, geometryData);
 
     unsigned int alphaTestedGeometryIndex = -1;
 
