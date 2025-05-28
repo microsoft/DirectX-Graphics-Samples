@@ -623,8 +623,6 @@ void DeviceResources::InitializeAdapter(IDXGIAdapter1** ppAdapter)
             continue;
         }
 
-        continue;
-
         DXGI_ADAPTER_DESC1 desc;
         ThrowIfFailed(adapter->GetDesc1(&desc));
 
