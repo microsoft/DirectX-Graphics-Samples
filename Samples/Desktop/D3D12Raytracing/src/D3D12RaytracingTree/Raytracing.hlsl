@@ -124,10 +124,7 @@ float2 GetTextureCoordinates(float2 barycentrics, uint primitiveIndex, uint geom
     triTexCoords[1] = texCoordBuffer.Load<float2>(texCoordIndices.y * 8);
     triTexCoords[2] = texCoordBuffer.Load<float2>(texCoordIndices.z * 8);
 
-    float2 texCoord = InterpolateAttribute(triTexCoords, barycentrics);
-    texCoord.y = 1 - texCoord.y; // flip y coordinate from obj file (GL -> DX)
-
-    return texCoord;
+    return InterpolateAttribute(triTexCoords, barycentrics);
 }
 
 float3 GetNormal(float2 barycentrics, uint primitiveIndex, uint geometryIndex)

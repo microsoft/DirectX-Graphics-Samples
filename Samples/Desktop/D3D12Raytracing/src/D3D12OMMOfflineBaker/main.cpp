@@ -10,9 +10,8 @@
 // The NVIDIA OMM SDK needs to be installed / pulled from Github and the
 // Include and Library paths for this project must be setup correctly
 // in order for the compiler/linker to build this project.
-#include <J:\\Opacity-MicroMap-SDK\\libraries\\omm-lib\\include\\omm.hpp>
-
-#pragma comment(lib, "J:\\Opacity-MicroMap-SDK\\build\\libraries\\omm-lib\\Debug\\omm-lib.lib")
+#include <omm.hpp>
+#pragma comment(lib, "omm-lib.lib")
 
 void OMM_ABORT_ON_ERROR(omm::Result res)
 {
@@ -83,6 +82,12 @@ fastObjMesh* LoadOBJFile(const char* filename, std::vector<GeometryData>& geomet
 {
     // Load the OBJ file
     fastObjMesh* obj = fast_obj_read(filename);
+
+	// Flip the V coordinate of the texture coordinates
+	for (int i = 0; i < obj->texcoord_count; i++)
+	{
+		obj->texcoords[i * 2 + 1] = 1.0f - obj->texcoords[i * 2 + 1];
+	}
 
     // We only want to build OMMs for the leaves, not the trunk or branches as these are opaque.
     // Treat each object as a 'geometry' in DXR terms
