@@ -329,6 +329,6 @@ inline bool IsDirectXRaytracingSupported(IDXGIAdapter1* adapter, D3D12_RAYTRACIN
     HRESULT hr = SUCCEEDED(testDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &featureSupportData, sizeof(featureSupportData)));
 
     return hrDevice
-        && hr;
-        //&& featureSupportData.RaytracingTier >= requiredTier;
+        && hr
+        && featureSupportData.RaytracingTier >= requiredTier;
 }
