@@ -18,7 +18,7 @@
 //*********************************************************
 
 // TraceRay the old fashioned way
-//#define USE_ORIGINAL_TRACERAY_NO_SER
+#define USE_ORIGINAL_TRACERAY_NO_SER
 
 // Call MaybeReorderThread(sortKey,1), sortKey is 1 bit 
 // indicating if the thread has dummy work
@@ -28,9 +28,9 @@
 // properties in RayGen to shade
 //#define SKIP_INVOKE_INSTEAD_SHADE_IN_RAYGEN
 
-// Make some rays do a loop of artificial work in the 
-// Closest Hit shader
-#define USE_ARTIFICIAL_WORK
+// Make rays do loop of artificial work in the 
+// Closest Hit shader, some rays looping more than others.
+#define USE_VARYING_ARTIFICIAL_WORK
 
 // Number of iterations in the heavy artificial work loop
 #define WORK_LOOP_ITERATIONS_HEAVY 5000
@@ -68,7 +68,7 @@ struct [raypayload] RayPayload
 float4 ClosestHitWorker(MyAttributes attr, uint iterations)
 {
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-#ifdef USE_ARTIFICIAL_WORK
+#ifdef USE_VARYING_ARTIFICIAL_WORK
     for(uint i = 0; i < iterations; i++)
     {
         if(i%2) barycentrics += 1.175494e-38; // FLT_MIN
@@ -114,7 +114,7 @@ void MyRaygenShader()
 
     uint iterations = WORK_LOOP_ITERATIONS_LIGHT;
 
-    #ifdef USE_ARTIFICIAL_WORK
+    #ifdef USE_VARYING_ARTIFICIAL_WORK
 
         #ifdef SPATIALLY_SORTED
             // Extra work is all on left side of screen
