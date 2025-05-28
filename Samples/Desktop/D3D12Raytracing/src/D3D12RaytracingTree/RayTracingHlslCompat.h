@@ -27,11 +27,6 @@ struct SceneConstantBuffer
     XMVECTOR cameraPosition;
 };
 
-struct TreeConstantBuffer
-{
-    XMFLOAT4 albedo;
-};
-
 struct Vertex
 {
     XMFLOAT3 position;

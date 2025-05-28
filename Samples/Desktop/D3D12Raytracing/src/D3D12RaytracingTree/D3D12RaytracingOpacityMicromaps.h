@@ -15,27 +15,12 @@
 #include "StepTimer.h"
 #include "RaytracingHlslCompat.h"
 
-
-#define USE_OMMS
-
 namespace GlobalRootSignatureParams {
     enum Value {
         FrameParams = 0,
         Count 
     };
 }
-
-namespace LocalRootSignatureParams {
-    enum Value {
-        CubeConstantSlot = 0,
-        Count 
-    };
-}
-
-enum OpacityMicromapOption
-{
-    SUBDIVISION_2_
-};
 
 class D3D12RaytracingOpacityMicromaps : public DXSample
 {
@@ -82,7 +67,6 @@ private:
     
     // Raytracing scene
     SceneConstantBuffer m_sceneCB[FrameCount];
-    TreeConstantBuffer m_treeCB;
 
     // Geometry
     struct D3DBuffer
@@ -114,15 +98,13 @@ private:
 
     static const UINT NUM_TEXTURES = 4;
 
-	ComPtr<ID3D12Resource> m_textureDefault[NUM_TEXTURES];
-	ComPtr<ID3D12Resource> m_textureUpload[NUM_TEXTURES];
+    ComPtr<ID3D12Resource> m_textureDefault[NUM_TEXTURES];
+    ComPtr<ID3D12Resource> m_textureUpload[NUM_TEXTURES];
 
     ComPtr<ID3D12Resource> m_geometryOffsetBuffer;
 
     static const UINT MAX_SUBDIVISION_LEVELS = 12;
     OMMSet m_ommSets[MAX_SUBDIVISION_LEVELS][2];
-
-    
 
     UINT m_numGeoms;
     UINT* m_indicesPerGeom;
@@ -193,15 +175,14 @@ private:
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
     void LoadAndBuildAccelerationStructures();
-	void LoadTexture(const wchar_t* texturePath, ID3D12Resource** resource, ID3D12Resource** uploadResource);
+    void LoadTexture(const wchar_t* texturePath, ID3D12Resource** resource, ID3D12Resource** uploadResource);
     void LoadTextures();
     void LoadModel(const char* modelPath);
-	void LoadOMM(const char* ommPath, OMMSet& buffers);
+    void LoadOMM(const char* ommPath, OMMSet& buffers);
     void BuildAccelerationStructures(bool updateUploadBuffers);
     void BuildShaderTables();
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
     void CopyRaytracingOutputToBackbuffer();
     void CalculateFrameStats();
-    UINT CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
     void CreateUIFont();
 };

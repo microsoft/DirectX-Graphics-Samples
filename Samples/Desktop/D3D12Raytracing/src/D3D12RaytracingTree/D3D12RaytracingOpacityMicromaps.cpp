@@ -36,10 +36,10 @@ D3D12RaytracingOpacityMicromaps::D3D12RaytracingOpacityMicromaps(UINT width, UIN
     m_currentSubDLevel(3),
     m_configFlags(0),
     m_extraPrimaryRayFlags(0),
-	m_extraShadowRayFlags(0),
+    m_extraShadowRayFlags(0),
     m_haveLoadedTextures(false),
     m_rebuildASNextFrame(true),
-	m_rebuildASEveryFrame(false),
+    m_rebuildASEveryFrame(false),
     m_fov(45.0f)
 {
     UpdateForSizeChange(width, height);
@@ -95,11 +95,6 @@ void D3D12RaytracingOpacityMicromaps::InitializeScene()
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
-    // Setup materials.
-    {
-        m_treeCB.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-    }
-
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
@@ -148,7 +143,6 @@ void D3D12RaytracingOpacityMicromaps::CreateConstantBuffers()
 
     // Map the constant buffer and cache its heap pointers.
     // We don't unmap this until the app closes. Keeping buffer mapped for the lifetime of the resource is okay.
-    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
     ThrowIfFailed(m_perFrameConstants->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedConstantData)));
 
     // Create two SRVs, one for each frame at the respective offsets
@@ -158,7 +152,7 @@ void D3D12RaytracingOpacityMicromaps::CreateConstantBuffers()
         cbvSrvHandle.ptr += (Descriptors::SCENE_CBV_0 + n) * m_descriptorSize;
 
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-        cbvDesc.BufferLocation = m_perFrameConstants->GetGPUVirtualAddress() + n * sizeof(AlignedSceneConstantBuffer);
+        cbvDesc.BufferLocation = m_perFrameConstants->GetGPUVirtualAddress() + (n * sizeof(AlignedSceneConstantBuffer));
         cbvDesc.SizeInBytes = sizeof(AlignedSceneConstantBuffer);
         device->CreateConstantBufferView(&cbvDesc, cbvSrvHandle);
     }
@@ -167,9 +161,7 @@ void D3D12RaytracingOpacityMicromaps::CreateConstantBuffers()
 // Create resources that depend on the device.
 void D3D12RaytracingOpacityMicromaps::CreateDeviceDependentResources()
 {
-    // Initialize raytracing pipeline.
-
-    // Create raytracing interfaces: raytracing device and commandlist.
+    // Create raytracing interfaces: raytracing device and command list.
     CreateRaytracingInterfaces();
 
     // Create root signatures for the shaders.
@@ -199,8 +191,8 @@ void D3D12RaytracingOpacityMicromaps::CreateDeviceDependentResources()
 
 void D3D12RaytracingOpacityMicromaps::CreateUIFont()
 {
-	auto device = m_deviceResources->GetD3DDevice();
-	auto size = m_deviceResources->GetOutputSize();
+    auto device = m_deviceResources->GetD3DDevice();
+    auto size = m_deviceResources->GetOutputSize();
 
     m_graphicsMemory = std::make_unique<GraphicsMemory>(device);
 
@@ -217,11 +209,11 @@ void D3D12RaytracingOpacityMicromaps::CreateUIFont()
     auto uploadResourcesFinished = resourceUpload.End(m_deviceResources->GetCommandQueue());
     uploadResourcesFinished.wait();
 
-	D3D12_CPU_DESCRIPTOR_HANDLE fontHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	fontHandle.ptr += (Descriptors::FONT * m_descriptorSize);
+    D3D12_CPU_DESCRIPTOR_HANDLE fontHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    fontHandle.ptr += (Descriptors::FONT * m_descriptorSize);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE fontGpuHandle = m_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
-	fontGpuHandle.ptr += (Descriptors::FONT * m_descriptorSize);
+    D3D12_GPU_DESCRIPTOR_HANDLE fontGpuHandle = m_descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+    fontGpuHandle.ptr += (Descriptors::FONT * m_descriptorSize);
 
 
     // Begin uploading texture resources
@@ -246,27 +238,28 @@ void D3D12RaytracingOpacityMicromaps::LoadTexture(const wchar_t* path, ID3D12Res
 
     std::unique_ptr<uint8_t[]> ddsData;
     std::vector<D3D12_SUBRESOURCE_DATA> subresouceData;
+
     HRESULT hr = LoadDDSTextureFromFile(device, path, resource, ddsData, subresouceData);
-	if (FAILED(hr))
-	{
-		printf("Failed to load texture %ls\n", path);
-		exit(1);
-	}
+    if (FAILED(hr))
+    {
+        printf("Failed to load texture %ls\n", path);
+        exit(1);
+    }
 
     const UINT64 uploadBufferSize = GetRequiredIntermediateSize(*resource, 0, static_cast<UINT>(subresouceData.size()));
 
-	D3D12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-	D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
-	ThrowIfFailed(device->CreateCommittedResource(
-		&heapProperties,
-		D3D12_HEAP_FLAG_NONE,
-		&bufferDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(uploadResource)));
+    D3D12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
+    ThrowIfFailed(device->CreateCommittedResource(
+        &heapProperties,
+        D3D12_HEAP_FLAG_NONE,
+        &bufferDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(uploadResource)));
 
-	UpdateSubresources(commandList, *resource, *uploadResource, 0, 0, static_cast<UINT>(subresouceData.size()), subresouceData.data());
-	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(*resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+    UpdateSubresources(commandList, *resource, *uploadResource, 0, 0, static_cast<UINT>(subresouceData.size()), subresouceData.data());
+    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(*resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 }
 
 void D3D12RaytracingOpacityMicromaps::LoadTextures()
@@ -413,44 +406,43 @@ void D3D12RaytracingOpacityMicromaps::LoadModel(const char* modelPath)
 
     CloseHandle(fh);
 
-	// Create a buffer to hold each geometry's offset in the index buffer
+    // Create a buffer to hold each geometry's offset in the index buffer
     {
-		D3D12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-		D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(m_numGeoms * sizeof(GeometryInfo));
-		ThrowIfFailed(device->CreateCommittedResource(
-			&heapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&bufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_geometryOffsetBuffer)));
+        D3D12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(m_numGeoms * sizeof(GeometryInfo));
+        ThrowIfFailed(device->CreateCommittedResource(
+            &heapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &bufferDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_geometryOffsetBuffer)));
 
         GeometryInfo* geomInfos = nullptr;
-		m_geometryOffsetBuffer->Map(0, nullptr, (void**)&geomInfos);
-		
+        m_geometryOffsetBuffer->Map(0, nullptr, (void**)&geomInfos);
+        
         UINT primOffset = 0;
 
-		for (UINT i = 0; i < m_numGeoms; i++)
-		{
-            // TODO. the indices, do it properly
+        for (UINT i = 0; i < m_numGeoms; i++)
+        {
             geomInfos[i].primitiveOffset = primOffset;
-            geomInfos[i].diffuseTextureIndex = 1 + i;// (i == 0 || i == 6) ? 2 : 1;
-            geomInfos[i].alphaTextureIndex = (i == 2) ? 0 : -1;
+            geomInfos[i].diffuseTextureIndex = i + 1;
+            geomInfos[i].alphaTextureIndex = (i == 2) ? 0 : -1; // Only the leaves geometry has an alpha texture
 
             primOffset += (m_indicesPerGeom[i] / 3);
-		}
+        }
 
-		D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+        D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
         srvHandle.ptr += (Descriptors::GEOMETRY_INFO_BUFFER) * m_descriptorSize;
-		
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-		srvDesc.Buffer.NumElements = m_numGeoms;
-		srvDesc.Buffer.StructureByteStride = sizeof(GeometryInfo);
+        
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.Buffer.NumElements = m_numGeoms;
+        srvDesc.Buffer.StructureByteStride = sizeof(GeometryInfo);
 
-		device->CreateShaderResourceView(m_geometryOffsetBuffer.Get(), &srvDesc, srvHandle);
+        device->CreateShaderResourceView(m_geometryOffsetBuffer.Get(), &srvDesc, srvHandle);
     }
 
     {
@@ -470,26 +462,23 @@ void D3D12RaytracingOpacityMicromaps::LoadModel(const char* modelPath)
             m_texCoordIndexBuffer.defaultResource.Get()
         };
 
-		UINT bufferSizes[] = {
-			positionCount * sizeof(XMFLOAT3),
-			normalCount * sizeof(XMFLOAT3),
-			texcoordCount * sizeof(XMFLOAT2),
-			totalIndices * sizeof(UINT),
-			totalIndices * sizeof(UINT),
-			totalIndices * sizeof(UINT)
-		};
+        UINT bufferSizes[] = {
+            positionCount * sizeof(XMFLOAT3),
+            normalCount * sizeof(XMFLOAT3),
+            texcoordCount * sizeof(XMFLOAT2),
+            totalIndices * sizeof(UINT),
+            totalIndices * sizeof(UINT),
+            totalIndices * sizeof(UINT)
+        };
 
-		for (UINT i = 0; i < ARRAYSIZE(bufferResources); i++)
-		{
-			D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-			srvHandle.ptr += (Descriptors::POSITION_BUFFER + i) * m_descriptorSize;
+        for (UINT i = 0; i < ARRAYSIZE(bufferResources); i++)
+        {
+            D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+            srvHandle.ptr += (Descriptors::POSITION_BUFFER + i) * m_descriptorSize;
 
-			srvDesc.Buffer.NumElements = bufferSizes[i] / 4;
-			srvDesc.Buffer.StructureByteStride = 0;
-			srvDesc.Buffer.FirstElement = 0;
-
-			device->CreateShaderResourceView(bufferResources[i], &srvDesc, srvHandle);
-		}
+            srvDesc.Buffer.NumElements = bufferSizes[i] / sizeof(UINT);
+            device->CreateShaderResourceView(bufferResources[i], &srvDesc, srvHandle);
+        }
     }
 }
 
@@ -503,6 +492,7 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
 
     if (!uploadedUploadableBuffers)
     {
+        // Model data: positions, normals, texcoords, indices
         commandList->CopyResource(m_positionBuffer.defaultResource.Get(), m_positionBuffer.uploadResource.Get());
         commandList->CopyResource(m_normalBuffer.defaultResource.Get(), m_normalBuffer.uploadResource.Get());
         commandList->CopyResource(m_texCoordBuffer.defaultResource.Get(), m_texCoordBuffer.uploadResource.Get());
@@ -519,6 +509,7 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
             {
                 if (m_ommSets[subD][i].descBuffer.defaultResource.Get() != nullptr)
                 {
+                    // Copy the OMM buffers to default memory
                     commandList->CopyResource(m_ommSets[subD][i].descBuffer.defaultResource.Get(), m_ommSets[subD][i].descBuffer.uploadResource.Get());
                     commandList->CopyResource(m_ommSets[subD][i].arrayBuffer.defaultResource.Get(), m_ommSets[subD][i].arrayBuffer.uploadResource.Get());
                     commandList->CopyResource(m_ommSets[subD][i].indexBuffer.defaultResource.Get(), m_ommSets[subD][i].indexBuffer.uploadResource.Get());
@@ -544,18 +535,18 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
 
     UINT vertexCount = (UINT)m_positionBuffer.defaultResource->GetDesc().Width / sizeof(XMFLOAT3);
 
-	auto linkageDescs = (D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC));
+    auto linkageDescs = (D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC));
     auto geomDescs = (D3D12_RAYTRACING_GEOMETRY_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
     auto triDescs = (D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC*)alloca(m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC));
 
-	ZeroMemory(linkageDescs, m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC));
-	ZeroMemory(geomDescs, m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
-	ZeroMemory(triDescs, m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC));
+    ZeroMemory(linkageDescs, m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC));
+    ZeroMemory(geomDescs, m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
+    ZeroMemory(triDescs, m_numGeoms * sizeof(D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC));
 
     UINT indexOffset = 0;
-	UINT ommOffset = 0;
+    UINT ommOffset = 0;
 
-	OMMSet& ommSet = m_ommSets[m_currentSubDLevel][m_use4State ? 1 : 0];
+    OMMSet& ommSet = m_ommSets[m_currentSubDLevel][m_use4State ? 1 : 0];
 
     for (UINT i = 0; i < m_numGeoms; i++)
     {
@@ -564,7 +555,7 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
 
         geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 
-        bool isLeaves = (i == 2); // TODO
+        bool isLeaves = (i == 2);   // In this model, the leaves are always at index 2
 
         if (isLeaves)
         {
@@ -572,10 +563,10 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
             geomDesc.OmmTriangles.pTriangles = &triDescs[i];
             geomDesc.OmmTriangles.pOmmLinkage = &linkageDescs[i];
 
-			D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC& linkageDesc = linkageDescs[i];
+            D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC& linkageDesc = linkageDescs[i];
 
             linkageDesc.OpacityMicromapIndexBuffer = { ommSet.indexBuffer.defaultResource->GetGPUVirtualAddress() + (ommOffset * sizeof(UINT)), sizeof(UINT)};
-			linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_R32_UINT;
+            linkageDesc.OpacityMicromapIndexFormat = DXGI_FORMAT_R32_UINT;
             linkageDesc.OpacityMicromapBaseLocation = 0;
 
             triDesc = &triDescs[i];
@@ -639,7 +630,7 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
 
     size_t scratchSize = max(max(blasPrebuildInfo.ScratchDataSizeInBytes, tlasPrebuildInfo.ScratchDataSizeInBytes), ommPrebuildInfo.ScratchDataSizeInBytes);
 
-	if (m_scratchResource.Get() == nullptr || 
+    if (m_scratchResource.Get() == nullptr || 
         m_scratchResource->GetDesc().Width < scratchSize)
         AllocateUAVBuffer(device, scratchSize, &m_scratchResource, D3D12_RESOURCE_STATE_COMMON, L"ScratchResource");
 
@@ -664,11 +655,12 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
 
         D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
         srvHandle.ptr += (Descriptors::TLAS * m_descriptorSize);
+
         device->CreateShaderResourceView(nullptr, &srvDesc, srvHandle);
     }
 
     D3D12_RAYTRACING_INSTANCE_DESC instanceDesc = {};
-    instanceDesc.Transform[0][0] = instanceDesc.Transform[1][1] = instanceDesc.Transform[2][2] = 1;
+    instanceDesc.Transform[0][0] = instanceDesc.Transform[1][1] = instanceDesc.Transform[2][2] = 1; // Identity transform
     instanceDesc.InstanceMask = 1;
     instanceDesc.AccelerationStructure = m_bottomLevelAccelerationStructure->GetGPUVirtualAddress();
     instanceDesc.Flags = (m_ommEnabled ? D3D12_RAYTRACING_INSTANCE_FLAG_NONE : D3D12_RAYTRACING_INSTANCE_FLAG_DISABLE_OMMS);
@@ -680,14 +672,14 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
     else if(updateUploadBuffers)
     {
         // Just update the upload buffer
-		void* instanceDescPtr = nullptr;
-		m_instanceDescs->Map(0, nullptr, &instanceDescPtr);
-		memcpy(instanceDescPtr, &instanceDesc, sizeof(instanceDesc));
+        void* instanceDescPtr = nullptr;
+        m_instanceDescs->Map(0, nullptr, &instanceDescPtr);
+        memcpy(instanceDescPtr, &instanceDesc, sizeof(instanceDesc));
     }
 
     for (UINT i = 0; i < m_numGeoms; i++)
     {
-		linkageDescs[i].OpacityMicromapArray = m_ommAccelerationStructure->GetGPUVirtualAddress();
+        linkageDescs[i].OpacityMicromapArray = m_ommAccelerationStructure->GetGPUVirtualAddress();
     }
 
     ommBuildDesc.ScratchAccelerationStructureData = m_scratchResource->GetGPUVirtualAddress();
@@ -702,12 +694,15 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
 
     D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
     
+    // Build the OMM first
     m_dxrCommandList->BuildRaytracingAccelerationStructure(&ommBuildDesc, 0, nullptr);
     commandList->ResourceBarrier(1, &uavBarrier);
     
+    // Followed by the BLAS, which references the OMM
     m_dxrCommandList->BuildRaytracingAccelerationStructure(&blasBuildDesc, 0, nullptr);
     commandList->ResourceBarrier(1, &uavBarrier);
 
+    // Followed by the TLAS, which references the BLAS
     m_dxrCommandList->BuildRaytracingAccelerationStructure(&tlasBuildDesc, 0, nullptr);
     commandList->ResourceBarrier(1, &uavBarrier);
 }
@@ -723,8 +718,8 @@ void D3D12RaytracingOpacityMicromaps::LoadAndBuildAccelerationStructures()
     {
         for (int state = 0; state <= 1; state++)
         {
-			char ommPathBuffer[256];
-			sprintf_s(ommPathBuffer, ommPath, subD + 1, (state == 0) ? 2 : 4);
+            char ommPathBuffer[256];
+            sprintf_s(ommPathBuffer, ommPath, subD + 1, (state == 0) ? 2 : 4);
             LoadOMM(ommPathBuffer, m_ommSets[subD][state]);
         }
     }
@@ -745,7 +740,6 @@ void D3D12RaytracingOpacityMicromaps::CreateRootSignatures()
     auto device = m_deviceResources->GetD3DDevice();
 
     // Global Root Signature
-    // This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
     {
         CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count] = {};
         rootParameters[0].InitAsConstants(4, 0);
@@ -755,9 +749,9 @@ void D3D12RaytracingOpacityMicromaps::CreateRootSignatures()
         globalRootSignatureDesc.NumParameters = ARRAYSIZE(rootParameters);
         globalRootSignatureDesc.pParameters = rootParameters;
 
-		D3D12_STATIC_SAMPLER_DESC staticSampler = CD3DX12_STATIC_SAMPLER_DESC(0);
+        D3D12_STATIC_SAMPLER_DESC staticSampler = CD3DX12_STATIC_SAMPLER_DESC(0);
         globalRootSignatureDesc.NumStaticSamplers = 1;
-		globalRootSignatureDesc.pStaticSamplers = &staticSampler;
+        globalRootSignatureDesc.pStaticSamplers = &staticSampler;
 
         SerializeAndCreateRaytracingRootSignature(globalRootSignatureDesc, &m_raytracingGlobalRootSignature);
     }
@@ -812,7 +806,7 @@ void D3D12RaytracingOpacityMicromaps::CreateRaytracingPipelineStateObject()
     auto hitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
     hitGroup->SetClosestHitShaderImport(c_closestHitShaderName);
     hitGroup->SetHitGroupExport(c_hitGroupName);
-	hitGroup->SetAnyHitShaderImport(c_anyHitShaderName);
+    hitGroup->SetAnyHitShaderImport(c_anyHitShaderName);
     hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
     
     // Shader config
@@ -830,12 +824,13 @@ void D3D12RaytracingOpacityMicromaps::CreateRaytracingPipelineStateObject()
     // Pipeline config
     // Defines the maximum TraceRay() recursion depth.
     auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG1_SUBOBJECT>();
+
     // PERFOMANCE TIP: Set max recursion depth as low as needed 
     // as drivers may apply optimization strategies for low recursion depths.
     UINT maxRecursionDepth = 2; // primary rays + shadow ray 
 
+    // Without D3D12_RAYTRACING_PIPELINE_FLAG_ALLOW_OPACITY_MICROMAPS OMMs are disabled for this PSO.
     pipelineConfig->Config(maxRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAG_ALLOW_OPACITY_MICROMAPS);
-    //pipelineConfig->Config(maxRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAG_NONE);
 
 #if _DEBUG
     PrintStateObjectDesc(raytracingPipeline);
@@ -874,6 +869,7 @@ void D3D12RaytracingOpacityMicromaps::CreateDescriptorHeap()
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
+
     device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_descriptorHeap));
     NAME_D3D12_OBJECT(m_descriptorHeap);
 
@@ -881,7 +877,7 @@ void D3D12RaytracingOpacityMicromaps::CreateDescriptorHeap()
 }
 
 // Build shader tables.
-// This encapsulates all shader records - shaders and the arguments for their local root signatures.
+// This encapsulates all shader records
 void D3D12RaytracingOpacityMicromaps::BuildShaderTables()
 {
     auto device = m_deviceResources->GetD3DDevice();
@@ -926,15 +922,10 @@ void D3D12RaytracingOpacityMicromaps::BuildShaderTables()
 
     // Hit group shader table
     {
-        struct RootArguments {
-            TreeConstantBuffer cb;
-        } rootArguments;
-        rootArguments.cb = m_treeCB;
-
         UINT numShaderRecords = 1;
-        UINT shaderRecordSize = shaderIdentifierSize + sizeof(rootArguments);
+        UINT shaderRecordSize = shaderIdentifierSize;
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
-        hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, sizeof(rootArguments)));
+        hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize));
         m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
     }
 }
@@ -944,6 +935,7 @@ void D3D12RaytracingOpacityMicromaps::OnUpdate()
 {
     m_timer.Tick();
     CalculateFrameStats();
+
     float elapsedTime = static_cast<float>(m_timer.GetElapsedSeconds());
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
     auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
@@ -954,7 +946,7 @@ void D3D12RaytracingOpacityMicromaps::OnUpdate()
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::O))
     {
         m_ommEnabled = !m_ommEnabled;
-		m_rebuildASNextFrame = true;
+        m_rebuildASNextFrame = true;
     }
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::R))
     {
@@ -967,14 +959,14 @@ void D3D12RaytracingOpacityMicromaps::OnUpdate()
     }
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::Q) || m_keyboardButtons.IsKeyPressed(Keyboard::Keys::W))
     {
-		int sign = (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::Q)) ? -1 : 1;
+        int sign = (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::Q)) ? -1 : 1;
 
-		UINT ommState = m_use4State ? 1 : 0;
+        UINT ommState = m_use4State ? 1 : 0;
 
         do
         {
-			m_currentSubDLevel = ((m_currentSubDLevel + (1 * sign)) + MAX_SUBDIVISION_LEVELS) % MAX_SUBDIVISION_LEVELS;
-		} while (m_ommSets[m_currentSubDLevel][ommState].histogramBuffer == nullptr);
+            m_currentSubDLevel = ((m_currentSubDLevel + (1 * sign)) + MAX_SUBDIVISION_LEVELS) % MAX_SUBDIVISION_LEVELS;
+        } while (m_ommSets[m_currentSubDLevel][ommState].histogramBuffer == nullptr);
 
         m_rebuildASNextFrame = true;
     }
@@ -985,7 +977,7 @@ void D3D12RaytracingOpacityMicromaps::OnUpdate()
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::A))
     {
         m_extraPrimaryRayFlags ^= D3D12_RAY_FLAG_FORCE_OPAQUE;
-		m_extraShadowRayFlags ^= D3D12_RAY_FLAG_FORCE_OPAQUE;
+        m_extraShadowRayFlags ^= D3D12_RAY_FLAG_FORCE_OPAQUE;
     }
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::B))
     {
@@ -993,19 +985,17 @@ void D3D12RaytracingOpacityMicromaps::OnUpdate()
     }
 
     const float FOV_ZOOM_SPEED = 10.0f;
-	if (kb.IsKeyDown(Keyboard::Keys::Z))
-	{
-		m_fov -= FOV_ZOOM_SPEED * elapsedTime;
-	}
+    if (kb.IsKeyDown(Keyboard::Keys::Z))
+    {
+        m_fov -= FOV_ZOOM_SPEED * elapsedTime;
+    }
     if (kb.IsKeyDown(Keyboard::Keys::X))
     {
         m_fov += FOV_ZOOM_SPEED * elapsedTime;
     }
 
-	if (m_fov < 2.0f)
-		m_fov = 2.0f;
-	if (m_fov > 60.0f)
-		m_fov = 60.0f;
+    m_fov = std::max(m_fov, 2.0f);
+    m_fov = std::min(m_fov, 60.0f);
 
     // Rotate the camera around Y axis.
     {
@@ -1020,6 +1010,7 @@ void D3D12RaytracingOpacityMicromaps::OnUpdate()
             m_up = XMVector3Transform(m_up, rotate);
             m_at = XMVector3Transform(m_at, rotate);
         }
+
         UpdateCameraMatrices();
     }
 }
@@ -1031,8 +1022,8 @@ void D3D12RaytracingOpacityMicromaps::DoRaytracing()
 
     if (!m_haveLoadedTextures)
     {
-		LoadTextures();
-		m_haveLoadedTextures = true;
+        LoadTextures();
+        m_haveLoadedTextures = true;
     }
 
     if (m_rebuildASEveryFrame || m_rebuildASNextFrame)
@@ -1059,6 +1050,7 @@ void D3D12RaytracingOpacityMicromaps::DoRaytracing()
         dispatchDesc->Width = m_width;
         dispatchDesc->Height = m_height;
         dispatchDesc->Depth = 1;
+
         commandList->SetPipelineState1(stateObject);
         commandList->DispatchRays(dispatchDesc);
     };
@@ -1097,15 +1089,15 @@ void D3D12RaytracingOpacityMicromaps::UpdateForSizeChange(UINT width, UINT heigh
 // Render the UI
 void D3D12RaytracingOpacityMicromaps::RenderUI()
 {
-	auto commandList = m_deviceResources->GetCommandList();
+    auto commandList = m_deviceResources->GetCommandList();
     auto viewport = m_deviceResources->GetScreenViewport();
     auto scissorRect = m_deviceResources->GetScissorRect();
     auto rtvDescriptor = m_deviceResources->GetRenderTargetView();
 
     // Set the render target
-	commandList->OMSetRenderTargets(1, &rtvDescriptor, FALSE, nullptr);
+    commandList->OMSetRenderTargets(1, &rtvDescriptor, FALSE, nullptr);
     commandList->RSSetViewports(1, &viewport);
-	commandList->RSSetScissorRects(1, &scissorRect);
+    commandList->RSSetScissorRects(1, &scissorRect);
 
     m_spriteBatch->SetViewport(viewport);
     m_spriteBatch->Begin(commandList);
@@ -1113,16 +1105,16 @@ void D3D12RaytracingOpacityMicromaps::RenderUI()
     XMFLOAT2 textPos = XMFLOAT2(30, 30);
     XMVECTOR textColor = XMVectorSet(1, 1, 1, 1);
 
-	wchar_t buffer[256];
+    wchar_t buffer[256];
 
     m_smallFont->DrawString(m_spriteBatch.get(), L"D3D12: Opacity Micromaps", textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing() * 2;
 
-	swprintf_s(buffer, ARRAYSIZE(buffer), L"OMM: %s - Press 'O'", m_ommEnabled ? L"Enabled" : L"Disabled");
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"OMM: %s - Press 'O'", m_ommEnabled ? L"Enabled" : L"Disabled");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
-	swprintf_s(buffer, ARRAYSIZE(buffer), L"OMM: Subdivision Level (%d) - Press 'Q/W'", m_currentSubDLevel + 1);
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"OMM: Subdivision Level (%d) - Press 'Q/W'", m_currentSubDLevel + 1);
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
@@ -1144,7 +1136,7 @@ void D3D12RaytracingOpacityMicromaps::RenderUI()
 
     swprintf_s(buffer, ARRAYSIZE(buffer), L"Show AHS Invocations (%s) - Press 'H'", (m_configFlags & ConfigFlags::SHOW_AHS) ? L"On" : L"Off");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
-	textPos.y += m_smallFont->GetLineSpacing();
+    textPos.y += m_smallFont->GetLineSpacing();
 
     swprintf_s(buffer, ARRAYSIZE(buffer), L"Build OMM/BLAS/TLAS every frame (%s) - Press 'B'", m_rebuildASEveryFrame ? L"On" : L"Off");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
@@ -1203,7 +1195,6 @@ void D3D12RaytracingOpacityMicromaps::ReleaseDeviceDependentResources()
 
     m_bottomLevelAccelerationStructure.Reset();
     m_topLevelAccelerationStructure.Reset();
-
 }
 
 void D3D12RaytracingOpacityMicromaps::RecreateD3D()
@@ -1217,6 +1208,7 @@ void D3D12RaytracingOpacityMicromaps::RecreateD3D()
     {
         // Do nothing, currently attached adapter is unresponsive.
     }
+
     m_deviceResources->HandleDeviceLost();
 }
 
@@ -1231,11 +1223,12 @@ void D3D12RaytracingOpacityMicromaps::OnRender()
     if(m_rebuildASNextFrame)
     {
         // Needed in cases where we intend to update an upload buffer from the CPU.
-		m_deviceResources->WaitForGpu();
+        m_deviceResources->WaitForGpu();
     }
 
     m_deviceResources->Prepare();
-    DoRaytracing();    
+
+    DoRaytracing();
     CopyRaytracingOutputToBackbuffer();
     RenderUI();
 
@@ -1303,33 +1296,4 @@ void D3D12RaytracingOpacityMicromaps::OnSizeChanged(UINT width, UINT height, boo
 
     ReleaseWindowSizeDependentResources();
     CreateWindowSizeDependentResources();
-}
-
-// Create SRV for a buffer.
-UINT D3D12RaytracingOpacityMicromaps::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
-{
-    auto device = m_deviceResources->GetD3DDevice();
-
-    // SRV
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Buffer.NumElements = numElements;
-    if (elementSize == 0)
-    {
-        srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
-        srvDesc.Buffer.StructureByteStride = 0;
-    }
-    else
-    {
-        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-        srvDesc.Buffer.StructureByteStride = elementSize;
-    }
-    __debugbreak();
-    UINT descriptorIndex = 0;// AllocateDescriptor(&buffer->cpuDescriptorHandle);
-    //device->CreateShaderResourceView(buffer->defaultResource.Get(), &srvDesc, buffer->cpuDescriptorHandle);
-    //buffer->gpuDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), descriptorIndex, m_descriptorSize);
-    return descriptorIndex;
 }

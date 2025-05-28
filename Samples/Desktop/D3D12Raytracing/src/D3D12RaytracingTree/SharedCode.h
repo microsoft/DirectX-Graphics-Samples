@@ -6,7 +6,7 @@ typedef unsigned int uint;
 
 enum ConfigFlags
 {
-	SHOW_AHS = 0x1,
+    SHOW_AHS = 0x1,
 };
 
 enum Descriptors
@@ -15,16 +15,16 @@ enum Descriptors
     TLAS,
     FONT,
 
-	MODEL_TEXTURES_START,
-	MODEL_TEXTURES_END = MODEL_TEXTURES_START + 16,
+    MODEL_TEXTURES_START,
+    MODEL_TEXTURES_END = MODEL_TEXTURES_START + 16,
 
     POSITION_BUFFER,
-	NORMAL_BUFFER,
-	TEXCOORD_BUFFER,
+    NORMAL_BUFFER,
+    TEXCOORD_BUFFER,
 
     POSITION_INDEX_BUFFER,
-	NORMAL_INDEX_BUFFER,
-	TEXCOORD_INDEX_BUFFER,
+    NORMAL_INDEX_BUFFER,
+    TEXCOORD_INDEX_BUFFER,
 
     GEOMETRY_INFO_BUFFER,
 
@@ -41,5 +41,5 @@ struct GeometryInfo
 {
     uint primitiveOffset;
     uint diffuseTextureIndex;
-	uint alphaTextureIndex;
+    uint alphaTextureIndex;
 };

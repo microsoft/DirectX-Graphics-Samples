@@ -92,9 +92,9 @@ static const float4 colors[7] =
     float4(0, 1, 0, 1),
     float4(0, 0, 1, 1),
     float4(1, 1, 0, 1),
-	float4(1, 0, 1, 1),
-	float4(0, 1, 1, 1),
-	float4(1, 1, 1, 1)
+    float4(1, 0, 1, 1),
+    float4(0, 1, 1, 1),
+    float4(1, 1, 1, 1)
 };
 
 
@@ -129,64 +129,64 @@ float2 GetTextureCoordinates(float2 barycentrics, uint primitiveIndex, uint geom
 
 float3 GetNormal(float2 barycentrics, uint primitiveIndex, uint geometryIndex)
 {
-	StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
-	GeometryInfo geomInfo = geometryInfoBuffer[geometryIndex];
+    StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
+    GeometryInfo geomInfo = geometryInfoBuffer[geometryIndex];
 
-	primitiveIndex += geomInfo.primitiveOffset;
+    primitiveIndex += geomInfo.primitiveOffset;
 
-	ByteAddressBuffer normalIndexBuffer = ResourceDescriptorHeap[NORMAL_INDEX_BUFFER];
+    ByteAddressBuffer normalIndexBuffer = ResourceDescriptorHeap[NORMAL_INDEX_BUFFER];
 
-	uint3 normalIndices = normalIndexBuffer.Load<uint3>(primitiveIndex * 12);
+    uint3 normalIndices = normalIndexBuffer.Load<uint3>(primitiveIndex * 12);
 
-	ByteAddressBuffer normalBuffer = ResourceDescriptorHeap[NORMAL_BUFFER];
+    ByteAddressBuffer normalBuffer = ResourceDescriptorHeap[NORMAL_BUFFER];
 
-	float3 triNormals[3];
-	triNormals[0] = normalBuffer.Load<float3>(normalIndices.x * 12);
-	triNormals[1] = normalBuffer.Load<float3>(normalIndices.y * 12);
-	triNormals[2] = normalBuffer.Load<float3>(normalIndices.z * 12);
+    float3 triNormals[3];
+    triNormals[0] = normalBuffer.Load<float3>(normalIndices.x * 12);
+    triNormals[1] = normalBuffer.Load<float3>(normalIndices.y * 12);
+    triNormals[2] = normalBuffer.Load<float3>(normalIndices.z * 12);
 
-	return normalize(InterpolateAttribute(triNormals, barycentrics));
+    return normalize(InterpolateAttribute(triNormals, barycentrics));
 }
 
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
-	StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
-	GeometryInfo geomInfo = geometryInfoBuffer[GeometryIndex()];
+    StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
+    GeometryInfo geomInfo = geometryInfoBuffer[GeometryIndex()];
 
-	//float3 worldPosition = WorldRayOrigin() + WorldRayDirection() * RayTMin();
-	float2 texCoord = GetTextureCoordinates(attr.barycentrics, PrimitiveIndex(), GeometryIndex());
-	float3 normal = GetNormal(attr.barycentrics, PrimitiveIndex(), GeometryIndex());
+    //float3 worldPosition = WorldRayOrigin() + WorldRayDirection() * RayTMin();
+    float2 texCoord = GetTextureCoordinates(attr.barycentrics, PrimitiveIndex(), GeometryIndex());
+    float3 normal = GetNormal(attr.barycentrics, PrimitiveIndex(), GeometryIndex());
 
-	float ndotl = max(0, dot(normal, -LIGHT_DIRECTION));
+    float ndotl = max(0, dot(normal, -LIGHT_DIRECTION));
     
 
-	Texture2D<float3> diffuseTexture = ResourceDescriptorHeap[MODEL_TEXTURES_START + geomInfo.diffuseTextureIndex];
+    Texture2D<float3> diffuseTexture = ResourceDescriptorHeap[MODEL_TEXTURES_START + geomInfo.diffuseTextureIndex];
 
-	float3 diffuse = diffuseTexture.SampleLevel(bilinearSampler, texCoord, 2);
+    float3 diffuse = diffuseTexture.SampleLevel(bilinearSampler, texCoord, 2);
 
     // Spawn a shadow ray
-	RayDesc shadowRay;
+    RayDesc shadowRay;
     shadowRay.Origin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
-	shadowRay.Direction = -LIGHT_DIRECTION;
-	shadowRay.TMin = 0.001;
-	shadowRay.TMax = 10000.0;
+    shadowRay.Direction = -LIGHT_DIRECTION;
+    shadowRay.TMin = 0.001;
+    shadowRay.TMax = 10000.0;
 
     uint shadowRayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | extraShadowRayFlags;
 
     RaytracingAccelerationStructure Scene = ResourceDescriptorHeap[TLAS];
-	
+    
     RayPayload shadowPayload = { float3(0,0,0), EMPTY_FLAG };
     TraceRay(Scene, shadowRayFlags, ~0, 0, 0, 0, shadowRay, shadowPayload);
-	
-	float shadowTerm = (shadowPayload.flags & MISSED_FLAG) ? 1 : 0;
+    
+    float shadowTerm = (shadowPayload.flags & MISSED_FLAG) ? 1 : 0;
     float lightAmount = (ndotl * 0.8f * shadowTerm) + 0.2f;
 
     payload.colorRGB = lightAmount.xxx * diffuse;
 
     if ((configFlags & ConfigFlags::SHOW_AHS) && (payload.flags & RAN_AHS_FLAG))
     {
-		payload.colorRGB = float3(1,0,1);
+        payload.colorRGB = float3(1,0,1);
     }
 }
 
@@ -194,7 +194,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 [shader("anyhit")]
 void MyAnyHitShader(inout RayPayload payload, in MyAttributes attr)
 {
-	payload.flags |= RAN_AHS_FLAG;
+    payload.flags |= RAN_AHS_FLAG;
     
     StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
     GeometryInfo geomInfo = geometryInfoBuffer[GeometryIndex()];
@@ -214,7 +214,7 @@ void MyMissShader(inout RayPayload payload)
     float3 background = float3(0.0f, 0.2f, 0.4f);
     
     payload.colorRGB = background;
-	payload.flags |= MISSED_FLAG;
+    payload.flags |= MISSED_FLAG;
 }
 
 #endif // RAYTRACING_HLSL
