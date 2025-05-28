@@ -237,16 +237,16 @@ void D3D12RaytracingOpacityMicromaps::LoadTexture(const wchar_t* path, ID3D12Res
     auto commandList = m_deviceResources->GetCommandList();
 
     std::unique_ptr<uint8_t[]> ddsData;
-    std::vector<D3D12_SUBRESOURCE_DATA> subresouceData;
+    std::vector<D3D12_SUBRESOURCE_DATA> subresourceData;
 
-    HRESULT hr = LoadDDSTextureFromFile(device, path, resource, ddsData, subresouceData);
+    HRESULT hr = LoadDDSTextureFromFile(device, path, resource, ddsData, subresourceData);
     if (FAILED(hr))
     {
         printf("Failed to load texture %ls\n", path);
         exit(1);
     }
 
-    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(*resource, 0, static_cast<UINT>(subresouceData.size()));
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(*resource, 0, static_cast<UINT>(subresourceData.size()));
 
     D3D12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
@@ -258,7 +258,7 @@ void D3D12RaytracingOpacityMicromaps::LoadTexture(const wchar_t* path, ID3D12Res
         nullptr,
         IID_PPV_ARGS(uploadResource)));
 
-    UpdateSubresources(commandList, *resource, *uploadResource, 0, 0, static_cast<UINT>(subresouceData.size()), subresouceData.data());
+    UpdateSubresources(commandList, *resource, *uploadResource, 0, 0, static_cast<UINT>(subresourceData.size()), subresourceData.data());
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(*resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 }
 
@@ -271,7 +271,7 @@ void D3D12RaytracingOpacityMicromaps::LoadTextures()
         L"jacaranda_tree_leaves_alpha_4k.dds",
         L"jacaranda_tree_trunk_diff_4k.dds",
         L"jacaranda_tree_branches_diff_4k.dds",
-        L"jacaranda_tree_leaves_diff_4k.dds",        
+        L"jacaranda_tree_leaves_diff_4k.dds",
     };
 
     for (int i = 0; i < ARRAYSIZE(texturesToLoad); i++)
