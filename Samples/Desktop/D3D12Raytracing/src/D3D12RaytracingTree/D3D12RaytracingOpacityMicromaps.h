@@ -40,7 +40,7 @@ public:
     virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
 
 private:
-    static const UINT FrameCount = 3;
+    static const UINT FrameCount = 2;
 
     // We'll allocate space for several of these and they will need to be padded for alignment.
     static_assert(sizeof(SceneConstantBuffer) < D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, "Checking the size here.");

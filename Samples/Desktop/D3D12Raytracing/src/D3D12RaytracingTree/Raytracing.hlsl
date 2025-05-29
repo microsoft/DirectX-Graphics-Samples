@@ -107,7 +107,49 @@ T InterpolateAttribute(T vertexAttribute[3], float2 barycentrics)
         barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
 }
 
-float2 GetTextureCoordinates(float2 barycentrics, uint primitiveIndex, uint geometryIndex)
+float3 RayPlaneIntersection(float3 planeOrigin, float3 planeNormal, float3 rayOrigin, float3 rayDirection)
+{
+    float t = dot(-planeNormal, rayOrigin - planeOrigin) / dot(planeNormal, rayDirection);
+    return rayOrigin + rayDirection * t;
+}
+
+/*
+    REF: https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
+    From "Real-Time Collision Detection" by Christer Ericson
+*/
+float3 BarycentricCoordinates(float3 pt, float3 v0, float3 v1, float3 v2)
+{
+    float3 e0 = v1 - v0;
+    float3 e1 = v2 - v0;
+    float3 e2 = pt - v0;
+    float d00 = dot(e0, e0);
+    float d01 = dot(e0, e1);
+    float d11 = dot(e1, e1);
+    float d20 = dot(e2, e0);
+    float d21 = dot(e2, e1);
+    float denom = 1.0 / (d00 * d11 - d01 * d01);
+    float v = (d11 * d20 - d01 * d21) * denom;
+    float w = (d00 * d21 - d01 * d20) * denom;
+    float u = 1.0 - v - w;
+    return float3(u, v, w);
+}
+
+void GetVertexPositions(uint primitiveIndex, uint geometryIndex, out float3 p0, out float3 p1, out float3 p2)
+{
+    StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
+    GeometryInfo geomInfo = geometryInfoBuffer[geometryIndex];
+
+    ByteAddressBuffer positionIndexBuffer = ResourceDescriptorHeap[POSITION_INDEX_BUFFER];
+    uint3 positionIndices = positionIndexBuffer.Load<uint3>(primitiveIndex * 12);
+
+    ByteAddressBuffer positionBuffer = ResourceDescriptorHeap[POSITION_BUFFER];
+
+    p0 = positionBuffer.Load<float3>(positionIndices.x * 12);
+    p1 = positionBuffer.Load<float3>(positionIndices.y * 12);
+    p2 = positionBuffer.Load<float3>(positionIndices.z * 12);
+}
+
+float2 GetTextureCoordinates(float2 barycentrics, uint primitiveIndex, uint geometryIndex, out float2 t0, out float2 t1, out float2 t2)
 {
     StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
     GeometryInfo geomInfo = geometryInfoBuffer[geometryIndex];
@@ -119,12 +161,58 @@ float2 GetTextureCoordinates(float2 barycentrics, uint primitiveIndex, uint geom
 
     ByteAddressBuffer texCoordBuffer = ResourceDescriptorHeap[TEXCOORD_BUFFER];
 
-    float2 triTexCoords[3];
-    triTexCoords[0] = texCoordBuffer.Load<float2>(texCoordIndices.x * 8);
-    triTexCoords[1] = texCoordBuffer.Load<float2>(texCoordIndices.y * 8);
-    triTexCoords[2] = texCoordBuffer.Load<float2>(texCoordIndices.z * 8);
+    t0 = texCoordBuffer.Load<float2>(texCoordIndices.x * 8);
+    t1 = texCoordBuffer.Load<float2>(texCoordIndices.y * 8);
+    t2 = texCoordBuffer.Load<float2>(texCoordIndices.z * 8);
 
+    float2 triTexCoords[3] = { t0, t1, t2 };
     return InterpolateAttribute(triTexCoords, barycentrics);
+}
+
+void FetchUVAndCalculateUVDerivatives(float2 barycentrics, uint primitiveIndex, uint geometryIndex, out float2 uv, out float2 ddxUV, out float2 ddyUV, out float4 debug)
+{
+    float2 uv0, uv1, uv2;
+    uv = GetTextureCoordinates(barycentrics, primitiveIndex, geometryIndex, uv0, uv1, uv2);
+
+    uv = uv2;
+
+    float3 p0, p1, p2;
+    GetVertexPositions(primitiveIndex, geometryIndex, p0, p1, p2);
+
+    float3 worldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+
+    //---------------------------------------------------------------------------------------------
+    // Compute partial derivatives of UV coordinates:
+    //
+    //  1) Construct a plane from the hit triangle
+    //  2) Intersect two helper rays with the plane:  one to the right and one down
+    //  3) Compute barycentric coordinates of the two hit points
+    //  4) Reconstruct the UV coordinates at the hit points
+    //  5) Take the difference in UV coordinates as the partial derivatives X and Y
+
+    // Normal for plane
+    float3 triangleNormal = normalize(cross(p2 - p0, p1 - p0));
+
+    // Helper rays
+    uint2 threadID = DispatchRaysIndex().xy;
+    float3 ddxOrigin, ddxDir, ddyOrigin, ddyDir;
+    GenerateCameraRay(uint2(threadID.x + 1, threadID.y), ddxOrigin, ddxDir);
+    GenerateCameraRay(uint2(threadID.x, threadID.y + 1), ddyOrigin, ddyDir);
+
+    // Intersect helper rays
+    float3 xOffsetPoint = RayPlaneIntersection(worldPosition, triangleNormal, ddxOrigin, ddxDir);
+    float3 yOffsetPoint = RayPlaneIntersection(worldPosition, triangleNormal, ddyOrigin, ddyDir);
+
+    // Compute barycentrics 
+    float3 baryX = BarycentricCoordinates(xOffsetPoint, p0, p1, p2);
+    float3 baryY = BarycentricCoordinates(yOffsetPoint, p0, p1, p2);
+
+    // Compute UVs and take the difference
+    float3x2 uvMat = float3x2(uv0, uv1, uv2);
+    ddxUV = mul(baryX, uvMat) - uv;
+    ddyUV = mul(baryY, uvMat) - uv;
+
+    debug = float4(ddxUV * 100, 0, 1);
 }
 
 float3 GetNormal(float2 barycentrics, uint primitiveIndex, uint geometryIndex)
@@ -154,16 +242,20 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
     GeometryInfo geomInfo = geometryInfoBuffer[GeometryIndex()];
 
-    //float3 worldPosition = WorldRayOrigin() + WorldRayDirection() * RayTMin();
-    float2 texCoord = GetTextureCoordinates(attr.barycentrics, PrimitiveIndex(), GeometryIndex());
+    float2 uv, ddxUV, ddyUV;
+    float4 debug;
+    FetchUVAndCalculateUVDerivatives(attr.barycentrics, PrimitiveIndex(), GeometryIndex(), uv, ddxUV, ddyUV, debug);
+
     float3 normal = GetNormal(attr.barycentrics, PrimitiveIndex(), GeometryIndex());
 
     float ndotl = max(0, dot(normal, -LIGHT_DIRECTION));
-    
 
     Texture2D<float3> diffuseTexture = ResourceDescriptorHeap[MODEL_TEXTURES_START + geomInfo.diffuseTextureIndex];
+    float3 diffuse = diffuseTexture.SampleGrad(bilinearSampler, uv, ddxUV, ddyUV);
 
-    float3 diffuse = diffuseTexture.SampleLevel(bilinearSampler, texCoord, 2);
+
+    payload.colorRGB = debug.rgb;//float3(uv.xy, 0);
+    return;
 
     // Spawn a shadow ray
     RayDesc shadowRay;
@@ -180,7 +272,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     TraceRay(Scene, shadowRayFlags, ~0, 0, 0, 0, shadowRay, shadowPayload);
     
     float shadowTerm = (shadowPayload.flags & MISSED_FLAG) ? 1 : 0;
-    float lightAmount = (ndotl * 0.8f * shadowTerm) + 0.2f;
+    float lightAmount = 1;//(ndotl * 0.8f * shadowTerm) + 0.2f;
 
     payload.colorRGB = lightAmount.xxx * diffuse;
 
@@ -199,10 +291,12 @@ void MyAnyHitShader(inout RayPayload payload, in MyAttributes attr)
     StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
     GeometryInfo geomInfo = geometryInfoBuffer[GeometryIndex()];
 
-    float2 texCoord = GetTextureCoordinates(attr.barycentrics, PrimitiveIndex(), GeometryIndex());
+    float2 uv, ddxUV, ddyUV;
+    float4 debug;
+    FetchUVAndCalculateUVDerivatives(attr.barycentrics, PrimitiveIndex(), GeometryIndex(), uv, ddxUV, ddyUV, debug);
 
     Texture2D<float> alphaTexture = ResourceDescriptorHeap[MODEL_TEXTURES_START + geomInfo.alphaTextureIndex];
-    float alpha = alphaTexture.SampleLevel(bilinearSampler, texCoord, 2).r;
+    float alpha = alphaTexture.SampleGrad(bilinearSampler, uv, ddxUV, ddyUV).r;
 
     if (alpha < 0.5f && ((configFlags & ConfigFlags::SHOW_AHS) == 0))
         IgnoreHit();

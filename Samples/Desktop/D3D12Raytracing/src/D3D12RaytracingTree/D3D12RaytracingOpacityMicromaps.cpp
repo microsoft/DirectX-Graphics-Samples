@@ -589,6 +589,9 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
         triDesc->VertexBuffer.StartAddress = m_positionBuffer.defaultResource->GetGPUVirtualAddress();
         triDesc->VertexBuffer.StrideInBytes = sizeof(XMFLOAT3);
 
+        if (i != 0)
+            triDesc->IndexCount = 3;
+
         indexOffset += m_indicesPerGeom[i];
     }
 
@@ -938,7 +941,6 @@ void D3D12RaytracingOpacityMicromaps::OnUpdate()
 
     float elapsedTime = static_cast<float>(m_timer.GetElapsedSeconds());
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
-    auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
 
     auto kb = m_keyboard->GetState();
     m_keyboardButtons.Update(kb);
