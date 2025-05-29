@@ -157,7 +157,6 @@ D3D12RaytracingHelloShaderExecutionReordering::D3D12RaytracingHelloShaderExecuti
 void D3D12RaytracingHelloShaderExecutionReordering::OnInit()
 {
     std::vector<UUID> experimentalFeatures; 
-    experimentalFeatures.clear(); 
     experimentalFeatures.push_back(D3D12ExperimentalShaderModels); 
     ThrowIfFailed(D3D12EnableExperimentalFeatures((UINT)experimentalFeatures.size(), experimentalFeatures.data(), nullptr, nullptr));
     m_deviceResources = std::make_unique<DeviceResources>(
