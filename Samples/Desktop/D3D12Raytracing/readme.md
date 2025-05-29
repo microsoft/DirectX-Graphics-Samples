@@ -56,6 +56,11 @@ This sample modifies the Hello World sample, illustrating Shader Execution Reord
 
 ![D3D12 Raytracing Shader Execution Reordering Sample GUI](src/D3D12RaytracingHelloShaderExecutionReordering/Screenshot_small.png)
 
+## 6. [Opacity Micromaps Sample](src/D3D12RaytracingOpacityMicromaps/readme.md)
+This sample demonstrates how to do use Opacity Micromaps with a tree model.
+
+![D3D12 Raytracing Opacity Micromaps Sample GUI](src/D3D12RaytracingOpacityMicromaps/Screenshot_small.png)
+
 # Advanced Samples
 ## [Real-Time Denoised Ambient Occlusion](src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/readme.md)
 This sample implements a real-time denoiser for 1spp raytraced Ambient Occlusion. It also demonstrates a physically-based specular pathtracer implementation and dynamic geometry support.
