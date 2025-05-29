@@ -1,8 +1,7 @@
 # D3D12 Raytracing Hello World sample
 ![D3D12 Raytracing Hello Shader Execution Reordering GUI](Screenshot.png)
 
-This sample is a minor tweak of the D3D12RaytracingHelloWorld sample demonstrating Shader Execution Reordering. This is accomplished in a simple way by raytracing a full screen quad with some portion of rays doing an artificial work loop.  The rays doing artificial work render white.  Shader Execution reordering is used to attempt to reorder threads based on the workload.  There are a bunch of #defines that can be tweaked in Raytracing.hlsl to experiment with different behaviors. The sample compiles on the fly, so shader tweaks can be done between runs of the app without recompiling the app.
-
+This sample is a minor tweak of the D3D12RaytracingHelloWorld sample demonstrating Shader Execution Reordering. This is accomplished in a simple way by raytracing a full screen quad with rays doing artificial work (a loop), with some rays doing a more expensive loop than others.  The rays doing extra artificial work render white.  Shader Execution reordering is used to attempt to reorder threads based on the cost of workload.  There are a bunch of #defines that can be tweaked in Raytracing.hlsl to experiment with different behaviors. The sample compiles on the fly, so shader tweaks can be done between runs of the app without recompiling the app.
 
 ## Usage
 D3D12RaytracingHelloShaderExecutionReordering.exe 
