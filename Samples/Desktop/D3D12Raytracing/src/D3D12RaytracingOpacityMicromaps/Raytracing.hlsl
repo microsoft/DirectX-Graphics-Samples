@@ -252,6 +252,11 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     Texture2D<float3> diffuseTexture = ResourceDescriptorHeap[MODEL_TEXTURES_START + geomInfo.diffuseTextureIndex];
     float3 diffuse = diffuseTexture.SampleGrad(bilinearSampler, uv, ddxUV, ddyUV);
 
+    if ((configFlags & ConfigFlags::SHOW_AHS) && (payload.flags & RAN_AHS_FLAG))
+    {
+        diffuse *= float3(1,0,1);
+    }
+
     // Spawn a shadow ray
     RayDesc shadowRay;
     shadowRay.Origin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
@@ -270,11 +275,6 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float lightAmount = (ndotl * 0.8f * shadowTerm) + 0.2f;
 
     payload.colorRGB = lightAmount.xxx * diffuse;
-
-    if ((configFlags & ConfigFlags::SHOW_AHS) && (payload.flags & RAN_AHS_FLAG))
-    {
-        payload.colorRGB = float3(1,0,1);
-    }
 }
 
 
