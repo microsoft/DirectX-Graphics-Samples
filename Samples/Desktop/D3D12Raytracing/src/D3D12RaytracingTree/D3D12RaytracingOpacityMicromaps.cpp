@@ -555,9 +555,9 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
 
         geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 
-        bool isLeaves = (i == 2);   // In this model, the leaves are always at index 2
+        bool isAlphaTestedGeometry = (i == 2);   // In this model, the leaves are always at geometry index 2
 
-        if (isLeaves)
+        if (isAlphaTestedGeometry)
         {
             geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES;
             geomDesc.OmmTriangles.pTriangles = &triDescs[i];
@@ -578,7 +578,7 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
             triDesc = &geomDesc.Triangles;
         }
 
-        geomDesc.Flags = isLeaves ? D3D12_RAYTRACING_GEOMETRY_FLAG_NONE : D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+        geomDesc.Flags = isAlphaTestedGeometry ? D3D12_RAYTRACING_GEOMETRY_FLAG_NONE : D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
                         
         triDesc->Transform3x4 = 0;
         triDesc->IndexFormat = DXGI_FORMAT_R32_UINT;
