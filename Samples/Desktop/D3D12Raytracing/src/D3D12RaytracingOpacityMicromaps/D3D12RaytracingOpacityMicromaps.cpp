@@ -1136,6 +1136,21 @@ void D3D12RaytracingOpacityMicromaps::RenderUI()
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
+    if (m_configFlags & ConfigFlags::SHOW_AHS)
+    {
+        textPos.x += 30;
+
+        XMVECTOR legendColour = XMVectorSet(1, 1, 1, 1);
+        m_smallFont->DrawString(m_spriteBatch.get(), "Hits not needing AHS: Normal material colour", textPos, XMVectorSet(0.25, 0.75, 0.25, 1));
+        textPos.y += m_smallFont->GetLineSpacing();
+        m_smallFont->DrawString(m_spriteBatch.get(), "Hits needing AHS: Magenta-tinted material colour", textPos, XMVectorSet(0.65, 0.25, 0.65, 1));
+        textPos.y += m_smallFont->GetLineSpacing();
+        m_smallFont->DrawString(m_spriteBatch.get(), "Misses needing AHS: Magenta", textPos, XMVectorSet(1,0,1,1));
+        textPos.y += m_smallFont->GetLineSpacing();
+
+        textPos.x -= 30;
+    }
+
     swprintf_s(buffer, ARRAYSIZE(buffer), L"Build OMM/BLAS/TLAS every frame (%s) - Press 'B'", m_rebuildASEveryFrame ? L"On" : L"Off");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
