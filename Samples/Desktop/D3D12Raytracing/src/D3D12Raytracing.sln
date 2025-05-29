@@ -12,7 +12,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingHelloWorld",
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingSimpleLighting", "D3D12RaytracingSimpleLighting\D3D12RaytracingSimpleLighting.vcxproj", "{A0848C98-F5AA-431C-9E76-7F1E7EFA368C}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingOpacityMicromaps", "D3D12RaytracingTree\D3D12RaytracingTree.vcxproj", "{A62C42DA-DAFA-47DB-B370-D2EC5DAB762D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingOpacityMicromaps", "D3D12RaytracingOpacityMicromaps\D3D12RaytracingOpacityMicromaps.vcxproj", "{A62C42DA-DAFA-47DB-B370-D2EC5DAB762D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MiniEngine", "MiniEngine", "{0B851798-A730-4A11-A717-668D40A26088}"
 EndProject
