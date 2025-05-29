@@ -157,7 +157,6 @@ D3D12RaytracingHelloShaderExecutionReordering::D3D12RaytracingHelloShaderExecuti
 void D3D12RaytracingHelloShaderExecutionReordering::OnInit()
 {
     std::vector<UUID> experimentalFeatures; 
-    experimentalFeatures.clear(); 
     experimentalFeatures.push_back(D3D12ExperimentalShaderModels); 
     ThrowIfFailed(D3D12EnableExperimentalFeatures((UINT)experimentalFeatures.size(), experimentalFeatures.data(), nullptr, nullptr));
     m_deviceResources = std::make_unique<DeviceResources>(
@@ -407,7 +406,7 @@ void D3D12RaytracingHelloShaderExecutionReordering::BuildGeometry()
     auto device = m_deviceResources->GetD3DDevice();
     Index indices[] =
     {
-        0, 1, 2, 2, 3, 0
+        0, 1, 2, 0, 3, 2
     };
 
     float depthValue = 1.0;
@@ -478,7 +477,7 @@ void D3D12RaytracingHelloShaderExecutionReordering::BuildAccelerationStructures(
 
     // Allocate resources for acceleration structures.
     // Acceleration structures can only be placed in resources that are created in the default heap (or custom heap equivalent). 
-    // Default heap is OK since the application doesn’t need CPU read/write access to them. 
+    // Default heap is OK since the application doesnï¿½t need CPU read/write access to them. 
     // The resources that will contain acceleration structures must be created in the state D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, 
     // and must have resource flag D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS. The ALLOW_UNORDERED_ACCESS requirement simply acknowledges both: 
     //  - the system will be doing this type of access in its implementation of acceleration structure builds behind the scenes.

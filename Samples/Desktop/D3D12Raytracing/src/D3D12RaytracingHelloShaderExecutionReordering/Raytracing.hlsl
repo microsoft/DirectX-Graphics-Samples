@@ -9,9 +9,8 @@
 //
 //*********************************************************
 
-#ifndef RAYTRACING_HLSL
-#define RAYTRACING_HLSL
 #include "RaytracingHlslCompat.h"
+using namespace dx; // dx::HitObject and dx::MaybeReorderThread
 
 //*********************************************************
 // Configuration options
@@ -28,9 +27,10 @@
 // properties in RayGen to shade
 //#define SKIP_INVOKE_INSTEAD_SHADE_IN_RAYGEN
 
-// Make some rays do a loop of artificial work in the 
-// Closest Hit shader
-#define USE_ARTIFICIAL_WORK
+// Rays do loop a of artificial work in the 
+// Closest Hit shader.  This setting makes 
+// some rays looping more than others (a sort candidate):
+#define USE_VARYING_ARTIFICIAL_WORK
 
 // Number of iterations in the heavy artificial work loop
 #define WORK_LOOP_ITERATIONS_HEAVY 5000
@@ -52,12 +52,6 @@ RWTexture2D<float4> RenderTarget : register(u0);
 ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0);
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
-// Above currently hits a compiler bug when used with hit.GetAttributes<MyAttributes>.
-// Workaround is to not use the builtin type:
-//struct MyAttributes
-//{
-//    float2 barycentrics;
-//};
 
 struct [raypayload] RayPayload
 {
@@ -67,15 +61,20 @@ struct [raypayload] RayPayload
 
 float4 ClosestHitWorker(MyAttributes attr, uint iterations)
 {
-    float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-#ifdef USE_ARTIFICIAL_WORK
-    for(uint i = 0; i < iterations; i++)
-    {
-        if(i%2) barycentrics += 1.175494e-38; // FLT_MIN
-        else barycentrics -= 1.175494e-38; // FLT_MIN
-    }
-    if(iterations != WORK_LOOP_ITERATIONS_LIGHT) barycentrics += 1; // make artificial work pixels white
-#endif
+    float3 barycentrics = float3(
+        1 - attr.barycentrics.x - attr.barycentrics.y, 
+        attr.barycentrics.x, 
+        attr.barycentrics.y);
+
+    #ifdef USE_VARYING_ARTIFICIAL_WORK
+        for(uint i = 0; i < iterations; i++)
+        {
+            if(i%2) barycentrics += 1.175494e-38; // FLT_MIN
+            else barycentrics -= 1.175494e-38; // FLT_MIN
+        }
+        if(iterations != WORK_LOOP_ITERATIONS_LIGHT) barycentrics += 1; // make artificial work pixels white
+    #endif
+
     return float4(barycentrics, 1);
 }
 
@@ -114,7 +113,7 @@ void MyRaygenShader()
 
     uint iterations = WORK_LOOP_ITERATIONS_LIGHT;
 
-    #ifdef USE_ARTIFICIAL_WORK
+    #ifdef USE_VARYING_ARTIFICIAL_WORK
 
         #ifdef SPATIALLY_SORTED
             // Extra work is all on left side of screen
@@ -140,13 +139,19 @@ void MyRaygenShader()
         color = payload.color;
     #else
 
-        dx::HitObject hit = 
-            dx::HitObject::TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, 
+        // Trace without closest hit or miss
+        HitObject hit = 
+            HitObject::TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, 
                                 ray, payload);
 
         #ifdef REQUEST_REORDER
             int sortKey = iterations != WORK_LOOP_ITERATIONS_LIGHT ? 1:0;
             dx::MaybeReorderThread(sortKey, 1);
+
+            // There's currently a DXC bug that causes "using namespace dx;" 
+            // (see further above) to generate bad DXIL for MaybeReorderThread, 
+            // so it's explicitly scoped here. The namespace works fine for 
+            // HitObject
         #endif
 
         #ifdef SKIP_INVOKE_INSTEAD_SHADE_IN_RAYGEN
@@ -161,7 +166,8 @@ void MyRaygenShader()
             }
 
         #else
-            dx::HitObject::Invoke(hit, payload);
+            // Run closest hit / miss
+            HitObject::Invoke(hit, payload);
             color = payload.color;
         #endif
 
@@ -182,5 +188,3 @@ void MyMissShader(inout RayPayload payload)
 {
     payload.color = MissWorker();
 }
-
-#endif // RAYTRACING_HLSL
