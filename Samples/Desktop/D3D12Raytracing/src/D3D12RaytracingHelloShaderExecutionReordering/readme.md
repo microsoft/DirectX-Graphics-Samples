@@ -18,5 +18,5 @@ The title bar of the sample provides runtime information:
 * GPU[ID]: name
 
 ## Requirements
-* Windows 10 with the October 2018 update or higher.
+* Windows 10 with the October 2019 update or higher.
 * Consult the main [D3D12 Raytracing readme](../../readme.md) for further requirements.
