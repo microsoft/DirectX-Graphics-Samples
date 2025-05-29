@@ -407,7 +407,7 @@ void D3D12RaytracingHelloShaderExecutionReordering::BuildGeometry()
     auto device = m_deviceResources->GetD3DDevice();
     Index indices[] =
     {
-        0, 1, 2, 2, 3, 0
+        0, 1, 2, 0, 3, 2
     };
 
     float depthValue = 1.0;

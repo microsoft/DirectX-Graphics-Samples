@@ -9,8 +9,6 @@
 //
 //*********************************************************
 
-#ifndef RAYTRACING_HLSL
-#define RAYTRACING_HLSL
 #include "RaytracingHlslCompat.h"
 using namespace dx; // dx::HitObject and dx::MaybeReorderThread
 
@@ -63,24 +61,20 @@ struct [raypayload] RayPayload
 
 float4 ClosestHitWorker(MyAttributes attr, uint iterations)
 {
-    float3 barycentrics;
-    if(PrimitiveIndex() %2 )
-    {
-        barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-    }
-    else
-    {
-        barycentrics = float3(attr.barycentrics.y, attr.barycentrics.x, 1 - attr.barycentrics.x - attr.barycentrics.y );
-    }
+    float3 barycentrics = float3(
+        1 - attr.barycentrics.x - attr.barycentrics.y, 
+        attr.barycentrics.x, 
+        attr.barycentrics.y);
 
-#ifdef USE_VARYING_ARTIFICIAL_WORK
-    for(uint i = 0; i < iterations; i++)
-    {
-        if(i%2) barycentrics += 1.175494e-38; // FLT_MIN
-        else barycentrics -= 1.175494e-38; // FLT_MIN
-    }
-    if(iterations != WORK_LOOP_ITERATIONS_LIGHT) barycentrics += 1; // make artificial work pixels white
-#endif
+    #ifdef USE_VARYING_ARTIFICIAL_WORK
+        for(uint i = 0; i < iterations; i++)
+        {
+            if(i%2) barycentrics += 1.175494e-38; // FLT_MIN
+            else barycentrics -= 1.175494e-38; // FLT_MIN
+        }
+        if(iterations != WORK_LOOP_ITERATIONS_LIGHT) barycentrics += 1; // make artificial work pixels white
+    #endif
+
     return float4(barycentrics, 1);
 }
 
@@ -145,6 +139,7 @@ void MyRaygenShader()
         color = payload.color;
     #else
 
+        // Trace without closest hit or miss
         HitObject hit = 
             HitObject::TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, 
                                 ray, payload);
@@ -171,6 +166,7 @@ void MyRaygenShader()
             }
 
         #else
+            // Run closest hit / miss
             HitObject::Invoke(hit, payload);
             color = payload.color;
         #endif
@@ -192,5 +188,3 @@ void MyMissShader(inout RayPayload payload)
 {
     payload.color = MissWorker();
 }
-
-#endif // RAYTRACING_HLSL
