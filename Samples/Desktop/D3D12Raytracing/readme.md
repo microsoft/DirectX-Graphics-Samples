@@ -52,7 +52,7 @@ This sample modifies the Simple Lighting sample, and illustrates how to use libr
 ![D3D12 Raytracing Library Subobjects GUI](src/D3D12RaytracingLibrarySubobjects/Screenshot_small.png)
 
 ## 5. [Hello Shader Execution Reordering Sample](src/D3D12RaytracingLibrarySubobjects/readme.md)
-This sample modifies the Simple Lighting sample, and illustrates how to use library subobjects.
+This sample modifies the Hello World sample, illustrating Shader Execution Reording in a minimalist way.
 
 ![D3D12 Raytracing Shader Execution Reordering Sample GUI](src/D3D12RaytracingHelloShaderExecutionReordering/Screenshot_small.png)
 
