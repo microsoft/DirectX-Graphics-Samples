@@ -1,7 +1,7 @@
 # D3D12 Raytracing Opacity Micromaps Sample
 ![D3D12 Raytracing Opacity Micromaps GUI](Screenshot.png)
 
-This sample demonstrates how to do use Opacity Micromaps in D3D12. The sample assumes familiarity with D3D12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Hello World sample](../D3D12RaytracingHelloWorld/readme.md).
+This sample demonstrates how to use Opacity Micromaps in D3D12. The sample assumes familiarity with D3D12 programming and DirectX Raytracing concepts introduced in the [D3D12 Raytracing Hello World sample](../D3D12RaytracingHelloWorld/readme.md).
 
 ### Rendering
 

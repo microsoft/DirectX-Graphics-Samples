@@ -57,7 +57,7 @@ This sample modifies the Hello World sample, illustrating Shader Execution Reord
 ![D3D12 Raytracing Shader Execution Reordering Sample GUI](src/D3D12RaytracingHelloShaderExecutionReordering/Screenshot_small.png)
 
 ## 6. [Opacity Micromaps Sample](src/D3D12RaytracingOpacityMicromaps/readme.md)
-This sample demonstrates how to do use Opacity Micromaps with a tree model.
+This sample demonstrates how to use Opacity Micromaps with a tree model.
 
 ![D3D12 Raytracing Opacity Micromaps Sample GUI](src/D3D12RaytracingOpacityMicromaps/Screenshot_small.png)
 
