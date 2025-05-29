@@ -139,6 +139,8 @@ void GetVertexPositions(uint primitiveIndex, uint geometryIndex, out float3 p0, 
     StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
     GeometryInfo geomInfo = geometryInfoBuffer[geometryIndex];
 
+    primitiveIndex += geomInfo.primitiveOffset;
+
     ByteAddressBuffer positionIndexBuffer = ResourceDescriptorHeap[POSITION_INDEX_BUFFER];
     uint3 positionIndices = positionIndexBuffer.Load<uint3>(primitiveIndex * 12);
 
@@ -149,7 +151,7 @@ void GetVertexPositions(uint primitiveIndex, uint geometryIndex, out float3 p0, 
     p2 = positionBuffer.Load<float3>(positionIndices.z * 12);
 }
 
-float2 GetTextureCoordinates(float2 barycentrics, uint primitiveIndex, uint geometryIndex, out float2 t0, out float2 t1, out float2 t2)
+float2 GetTextureCoordinates(float2 barycentrics, uint primitiveIndex, uint geometryIndex)
 {
     StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
     GeometryInfo geomInfo = geometryInfoBuffer[geometryIndex];
@@ -161,20 +163,17 @@ float2 GetTextureCoordinates(float2 barycentrics, uint primitiveIndex, uint geom
 
     ByteAddressBuffer texCoordBuffer = ResourceDescriptorHeap[TEXCOORD_BUFFER];
 
-    t0 = texCoordBuffer.Load<float2>(texCoordIndices.x * 8);
-    t1 = texCoordBuffer.Load<float2>(texCoordIndices.y * 8);
-    t2 = texCoordBuffer.Load<float2>(texCoordIndices.z * 8);
+    float2 t0 = texCoordBuffer.Load<float2>(texCoordIndices.x * 8);
+    float2 t1 = texCoordBuffer.Load<float2>(texCoordIndices.y * 8);
+    float2 t2 = texCoordBuffer.Load<float2>(texCoordIndices.z * 8);
 
     float2 triTexCoords[3] = { t0, t1, t2 };
     return InterpolateAttribute(triTexCoords, barycentrics);
 }
 
-void FetchUVAndCalculateUVDerivatives(float2 barycentrics, uint primitiveIndex, uint geometryIndex, out float2 uv, out float2 ddxUV, out float2 ddyUV, out float4 debug)
+void FetchUVAndCalculateUVDerivatives(float2 barycentrics, uint primitiveIndex, uint geometryIndex, out float2 uv, out float2 ddxUV, out float2 ddyUV)
 {
-    float2 uv0, uv1, uv2;
-    uv = GetTextureCoordinates(barycentrics, primitiveIndex, geometryIndex, uv0, uv1, uv2);
-
-    uv = uv2;
+    float2 uvCenter = GetTextureCoordinates(barycentrics, primitiveIndex, geometryIndex);
 
     float3 p0, p1, p2;
     GetVertexPositions(primitiveIndex, geometryIndex, p0, p1, p2);
@@ -207,12 +206,13 @@ void FetchUVAndCalculateUVDerivatives(float2 barycentrics, uint primitiveIndex, 
     float3 baryX = BarycentricCoordinates(xOffsetPoint, p0, p1, p2);
     float3 baryY = BarycentricCoordinates(yOffsetPoint, p0, p1, p2);
 
-    // Compute UVs and take the difference
-    float3x2 uvMat = float3x2(uv0, uv1, uv2);
-    ddxUV = mul(baryX, uvMat) - uv;
-    ddyUV = mul(baryY, uvMat) - uv;
+	float2 uvRight = GetTextureCoordinates(baryX.yz, primitiveIndex, geometryIndex);
+	float2 uvDown = GetTextureCoordinates(baryY.yz, primitiveIndex, geometryIndex);
 
-    debug = float4(ddxUV * 100, 0, 1);
+	// Compute derivatives
+	uv = uvCenter;
+	ddxUV = uvRight.xy - uvCenter.xy;
+	ddyUV = uvDown.xy - uvCenter.xy;
 }
 
 float3 GetNormal(float2 barycentrics, uint primitiveIndex, uint geometryIndex)
@@ -243,8 +243,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     GeometryInfo geomInfo = geometryInfoBuffer[GeometryIndex()];
 
     float2 uv, ddxUV, ddyUV;
-    float4 debug;
-    FetchUVAndCalculateUVDerivatives(attr.barycentrics, PrimitiveIndex(), GeometryIndex(), uv, ddxUV, ddyUV, debug);
+    FetchUVAndCalculateUVDerivatives(attr.barycentrics, PrimitiveIndex(), GeometryIndex(), uv, ddxUV, ddyUV);
 
     float3 normal = GetNormal(attr.barycentrics, PrimitiveIndex(), GeometryIndex());
 
@@ -252,10 +251,6 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     Texture2D<float3> diffuseTexture = ResourceDescriptorHeap[MODEL_TEXTURES_START + geomInfo.diffuseTextureIndex];
     float3 diffuse = diffuseTexture.SampleGrad(bilinearSampler, uv, ddxUV, ddyUV);
-
-
-    payload.colorRGB = debug.rgb;//float3(uv.xy, 0);
-    return;
 
     // Spawn a shadow ray
     RayDesc shadowRay;
@@ -272,7 +267,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     TraceRay(Scene, shadowRayFlags, ~0, 0, 0, 0, shadowRay, shadowPayload);
     
     float shadowTerm = (shadowPayload.flags & MISSED_FLAG) ? 1 : 0;
-    float lightAmount = 1;//(ndotl * 0.8f * shadowTerm) + 0.2f;
+    float lightAmount = (ndotl * 0.8f * shadowTerm) + 0.2f;
 
     payload.colorRGB = lightAmount.xxx * diffuse;
 
@@ -291,12 +286,10 @@ void MyAnyHitShader(inout RayPayload payload, in MyAttributes attr)
     StructuredBuffer<GeometryInfo> geometryInfoBuffer = ResourceDescriptorHeap[GEOMETRY_INFO_BUFFER];
     GeometryInfo geomInfo = geometryInfoBuffer[GeometryIndex()];
 
-    float2 uv, ddxUV, ddyUV;
-    float4 debug;
-    FetchUVAndCalculateUVDerivatives(attr.barycentrics, PrimitiveIndex(), GeometryIndex(), uv, ddxUV, ddyUV, debug);
+	float2 uv = GetTextureCoordinates(attr.barycentrics, PrimitiveIndex(), GeometryIndex());
 
     Texture2D<float> alphaTexture = ResourceDescriptorHeap[MODEL_TEXTURES_START + geomInfo.alphaTextureIndex];
-    float alpha = alphaTexture.SampleGrad(bilinearSampler, uv, ddxUV, ddyUV).r;
+    float alpha = alphaTexture.SampleLevel(bilinearSampler, uv, 0).r;
 
     if (alpha < 0.5f && ((configFlags & ConfigFlags::SHOW_AHS) == 0))
         IgnoreHit();

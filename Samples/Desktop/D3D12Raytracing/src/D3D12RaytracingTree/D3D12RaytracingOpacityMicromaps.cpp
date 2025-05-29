@@ -589,9 +589,6 @@ void D3D12RaytracingOpacityMicromaps::BuildAccelerationStructures(bool updateUpl
         triDesc->VertexBuffer.StartAddress = m_positionBuffer.defaultResource->GetGPUVirtualAddress();
         triDesc->VertexBuffer.StrideInBytes = sizeof(XMFLOAT3);
 
-        if (i != 0)
-            triDesc->IndexCount = 3;
-
         indexOffset += m_indicesPerGeom[i];
     }
 
@@ -996,8 +993,8 @@ void D3D12RaytracingOpacityMicromaps::OnUpdate()
         m_fov += FOV_ZOOM_SPEED * elapsedTime;
     }
 
-    m_fov = std::max(m_fov, 2.0f);
-    m_fov = std::min(m_fov, 60.0f);
+    m_fov = std::max(m_fov, 1.0f);
+    m_fov = std::min(m_fov, 75.0f);
 
     // Rotate the camera around Y axis.
     {
@@ -1143,6 +1140,13 @@ void D3D12RaytracingOpacityMicromaps::RenderUI()
     swprintf_s(buffer, ARRAYSIZE(buffer), L"Build OMM/BLAS/TLAS every frame (%s) - Press 'B'", m_rebuildASEveryFrame ? L"On" : L"Off");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
+
+    if (m_currentSubDLevel + 1 > 8)
+    {
+        textPos.y += m_smallFont->GetLineSpacing();
+		m_smallFont->DrawString(m_spriteBatch.get(), L"Warning: Subdivision levels > 8 shows little/no change on this model!", textPos, XMVectorSet(1, 1, 0, 1));
+		textPos.y += m_smallFont->GetLineSpacing();
+    }
 
     m_spriteBatch->End();
 }
