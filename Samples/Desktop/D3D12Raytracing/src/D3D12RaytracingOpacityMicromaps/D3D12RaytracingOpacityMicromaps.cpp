@@ -338,8 +338,7 @@ void D3D12RaytracingOpacityMicromaps::LoadOMM(const char* ommPath, OMMSet& buffe
 void D3D12RaytracingOpacityMicromaps::LoadModel(const char* modelPath)
 {
     HANDLE fh = CreateFileA(modelPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-   
-    
+       
     if (fh == INVALID_HANDLE_VALUE)
     {
         printf("Failed to open model file(s)\n");

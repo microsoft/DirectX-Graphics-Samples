@@ -291,16 +291,23 @@ void MyAnyHitShader(inout RayPayload payload, in MyAttributes attr)
     Texture2D<float> alphaTexture = ResourceDescriptorHeap[MODEL_TEXTURES_START + geomInfo.alphaTextureIndex];
     float alpha = alphaTexture.SampleLevel(bilinearSampler, uv, 0).r;
 
-    if (alpha < 0.5f && ((configFlags & ConfigFlags::SHOW_AHS) == 0))
+    if (alpha < 0.5f)
         IgnoreHit();
 }
 
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
-    float3 background = float3(0.0f, 0.2f, 0.4f);
-    
-    payload.colorRGB = background;
+    if((payload.flags & RAN_AHS_FLAG) && (configFlags & ConfigFlags::SHOW_AHS))
+    {
+        payload.colorRGB = float3(1,0,1);
+    }
+    else
+    {
+        float3 background = float3(0.0f, 0.2f, 0.4f);    
+        payload.colorRGB = background;
+    }
+
     payload.flags |= MISSED_FLAG;
 }
 
