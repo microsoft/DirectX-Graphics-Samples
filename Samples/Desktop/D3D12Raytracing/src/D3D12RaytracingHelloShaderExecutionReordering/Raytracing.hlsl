@@ -12,6 +12,7 @@
 #ifndef RAYTRACING_HLSL
 #define RAYTRACING_HLSL
 #include "RaytracingHlslCompat.h"
+using namespace dx; // dx::HitObject and dx::MaybeReorderThread
 
 //*********************************************************
 // Configuration options
@@ -53,12 +54,6 @@ RWTexture2D<float4> RenderTarget : register(u0);
 ConstantBuffer<RayGenConstantBuffer> g_rayGenCB : register(b0);
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
-// Above currently hits a compiler bug when used with hit.GetAttributes<MyAttributes>.
-// Workaround is to not use the builtin type:
-//struct MyAttributes
-//{
-//    float2 barycentrics;
-//};
 
 struct [raypayload] RayPayload
 {
@@ -68,7 +63,16 @@ struct [raypayload] RayPayload
 
 float4 ClosestHitWorker(MyAttributes attr, uint iterations)
 {
-    float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
+    float3 barycentrics;
+    if(PrimitiveIndex() %2 )
+    {
+        barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
+    }
+    else
+    {
+        barycentrics = float3(attr.barycentrics.y, attr.barycentrics.x, 1 - attr.barycentrics.x - attr.barycentrics.y );
+    }
+
 #ifdef USE_VARYING_ARTIFICIAL_WORK
     for(uint i = 0; i < iterations; i++)
     {
@@ -141,13 +145,18 @@ void MyRaygenShader()
         color = payload.color;
     #else
 
-        dx::HitObject hit = 
-            dx::HitObject::TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, 
+        HitObject hit = 
+            HitObject::TraceRay(Scene, RAY_FLAG_NONE, ~0, 0, 1, 0, 
                                 ray, payload);
 
         #ifdef REQUEST_REORDER
             int sortKey = iterations != WORK_LOOP_ITERATIONS_LIGHT ? 1:0;
             dx::MaybeReorderThread(sortKey, 1);
+
+            // There's currently a DXC bug that causes "using namespace dx;" 
+            // (see further above) to generate bad DXIL for MaybeReorderThread, 
+            // so it's explicitly scoped here. The namespace works fine for 
+            // HitObject
         #endif
 
         #ifdef SKIP_INVOKE_INSTEAD_SHADE_IN_RAYGEN
@@ -162,7 +171,7 @@ void MyRaygenShader()
             }
 
         #else
-            dx::HitObject::Invoke(hit, payload);
+            HitObject::Invoke(hit, payload);
             color = payload.color;
         #endif
 
