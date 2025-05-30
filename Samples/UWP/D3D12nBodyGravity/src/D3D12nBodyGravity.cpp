@@ -694,14 +694,14 @@ void D3D12nBodyGravity::RestoreD3DResources()
 void D3D12nBodyGravity::WaitForGpu()
 {
     // Schedule a Signal command in the queue.
-    ThrowIfFailed(m_commandQueue->Signal(m_renderContextFence.Get(), m_renderContextFenceValues[m_frameIndex]));
+    ThrowIfFailed(m_commandQueue->Signal(m_renderContextFence.Get(), m_renderContextFenceValue));
 
     // Wait until the fence has been processed.
-    ThrowIfFailed(m_renderContextFence->SetEventOnCompletion(m_renderContextFenceValues[m_frameIndex], m_renderContextFenceEvent));
+    ThrowIfFailed(m_renderContextFence->SetEventOnCompletion(m_renderContextFenceValue, m_renderContextFenceEvent));
     WaitForSingleObjectEx(m_renderContextFenceEvent, INFINITE, FALSE);
 
     // Increment the fence value for the current frame.
-    m_renderContextFenceValues[m_frameIndex]++;
+    m_renderContextFenceValue++;
 }
 
 // Fill the command list with all the render commands and dependent state.
