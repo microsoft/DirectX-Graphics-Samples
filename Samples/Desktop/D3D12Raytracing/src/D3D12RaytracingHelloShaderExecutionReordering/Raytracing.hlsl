@@ -25,7 +25,7 @@ using namespace dx; // dx::HitObject and dx::MaybeReorderThread
 
 // Don't invoke ClosestHit or Miss shaders, use hitObject 
 // properties in RayGen to shade
-//#define SKIP_INVOKE_INSTEAD_SHADE_IN_RAYGEN
+// #define SKIP_INVOKE_INSTEAD_SHADE_IN_RAYGEN
 
 // Rays do loop a of artificial work in the 
 // Closest Hit shader.  This setting makes 
@@ -117,7 +117,7 @@ void MyRaygenShader()
 
         #ifdef SPATIALLY_SORTED
             // Extra work is all on left side of screen
-            if((origin.x + 1)/2.f <= 1.f/RAYS_WITH_HEAVY_WORK_FRACTION)
+            if((ray.Origin.x + 1)/2.f <= 1.f/RAYS_WITH_HEAVY_WORK_FRACTION)
             {
                 iterations = WORK_LOOP_ITERATIONS_HEAVY; 
             }
