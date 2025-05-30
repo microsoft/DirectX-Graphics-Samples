@@ -51,6 +51,15 @@ This sample modifies the Simple Lighting sample, and illustrates how to use libr
 
 ![D3D12 Raytracing Library Subobjects GUI](src/D3D12RaytracingLibrarySubobjects/Screenshot_small.png)
 
+## 5. [Hello Shader Execution Reordering Sample](src/D3D12RaytracingShaderExecutionReordering/readme.md)
+This sample modifies the Hello World sample, illustrating Shader Execution Reordering in a minimalist way.
+
+![D3D12 Raytracing Shader Execution Reordering Sample GUI](src/D3D12RaytracingHelloShaderExecutionReordering/Screenshot_small.png)
+
+## 6. [Opacity Micromaps Sample](src/D3D12RaytracingOpacityMicromaps/readme.md)
+This sample demonstrates how to use Opacity Micromaps with a tree model.
+
+![D3D12 Raytracing Opacity Micromaps Sample GUI](src/D3D12RaytracingOpacityMicromaps/Screenshot_small.png)
 
 # Advanced Samples
 ## [Real-Time Denoised Ambient Occlusion](src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/readme.md)

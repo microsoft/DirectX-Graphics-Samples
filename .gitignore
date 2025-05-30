@@ -21,3 +21,9 @@
 *.opendb
 Samples/Desktop/D3D12HelloWorld/src/HelloVAResourceInterop/*.h264
 Samples/Desktop/D3D12HelloWorld/src/HelloVAEncode/*.h264
+/Samples/Desktop/D3D12Raytracing/src/D3D12OMMOfflineBaker/x64
+/Samples/Desktop/D3D12Raytracing/src/x64
+/Samples/Desktop/D3D12Raytracing/src/D3D12OMMOfflineBaker/leavesOMM.bin
+/Samples/Desktop/D3D12Raytracing/src/D3D12OMMOfflineBaker/treeModel.bin
+/Samples/Desktop/D3D12Raytracing/src/D3D12OMMOfflineBaker/treeOMM.bin
+/Samples/Desktop/D3D12Raytracing/src/D3D12OMMOfflineBaker/jacaranda_tree_4k.obj
