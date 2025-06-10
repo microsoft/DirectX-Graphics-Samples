@@ -181,12 +181,6 @@ void D3D12RaytracingHelloShaderExecutionReordering::OnInit()
 
     CreateDeviceDependentResources();
 
-    D3D12_FEATURE_DATA_SHADER_MODEL SM;
-    SM.HighestShaderModel = D3D_SHADER_MODEL_6_9;
-    m_dxrDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &SM, sizeof(SM));
-    ThrowIfFalse(SM.HighestShaderModel >= D3D_SHADER_MODEL_6_9,
-        L"ERROR: Device doesn't support Shader Model 6.9.\n\n");
-
     CreateWindowSizeDependentResources();
 }
 
@@ -287,6 +281,12 @@ void D3D12RaytracingHelloShaderExecutionReordering::CreateLocalRootSignatureSubo
 // with all configuration options resolved, such as local signatures and other state.
 void D3D12RaytracingHelloShaderExecutionReordering::CreateRaytracingPipelineStateObject()
 {
+    D3D12_FEATURE_DATA_SHADER_MODEL SM;
+    SM.HighestShaderModel = D3D_SHADER_MODEL_6_9;
+    m_dxrDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &SM, sizeof(SM));
+    ThrowIfFalse(SM.HighestShaderModel >= D3D_SHADER_MODEL_6_9,
+        L"ERROR: Device doesn't support Shader Model 6.9.\n\n");
+
     // Create 7 subobjects that combine into a RTPSO:
     // Subobjects need to be associated with DXIL exports (i.e. shaders) either by way of default or explicit associations.
     // Default association applies to every exported shader entrypoint that doesn't have any of the same type of subobject associated with it.
