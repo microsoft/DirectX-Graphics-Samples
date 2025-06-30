@@ -138,8 +138,12 @@ void MyRaygenShader()
         uint materialID = hit.LoadLocalRootTableConstant(16);
         uint numHintBits = 1;
         
-        // Reorder threads based on the hit object and material ID (0 - cube, 1 - complex).
+        // Reorder threads based on material ID (0 - cube, 1 - complex).
         dx::MaybeReorderThread(materialID, numHintBits);
+            
+        // Reorder threads based on hitobject and material ID (0 - cube, 1 - complex).
+        // dx::MaybeReorderThread(hit, materialID, numHintBits);
+            
         HitObject::Invoke(hit, payload);
     }
     else
