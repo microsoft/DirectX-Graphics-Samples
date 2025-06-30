@@ -139,7 +139,7 @@ void MyRaygenShader()
         uint numHintBits = 1;
         
         // Reorder threads based on the hit object and material ID (0 - cube, 1 - complex).
-        dx::MaybeReorderThread(hit, materialID, numHintBits);
+        dx::MaybeReorderThread(materialID, numHintBits);
         HitObject::Invoke(hit, payload);
     }
     else
@@ -203,8 +203,16 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         frac(hitPosition.z * 0.5 + 0.5)
         );
 
-        // Sample the texture using the procedural UVs
-        sampled = MaterialTexture.SampleLevel(TextureSampler, uv, 0);
+        // Sample the texture
+        float3 colorSum = float3(0, 0, 0);
+        [unroll]
+        for (int i = 0; i < 18; ++i)
+        {
+            float2 offset = float2(i * 0.01, i * 0.01);
+            colorSum += MaterialTexture.SampleLevel(TextureSampler, uv + offset, 0).rgb;
+        }
+        sampled.rgb = colorSum / 18.0;
+
     }
 
     // Calculate diffuse lighting
