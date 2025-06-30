@@ -147,7 +147,6 @@ void MyRaygenShader()
         // Reorder threads based on hitobject and material ID (0 - cube, 1 - complex).
         //dx::MaybeReorderThread(hit, materialID, numHintBits);
            
-            
         HitObject::Invoke(hit, payload);
     }
     else
@@ -215,7 +214,8 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float3 colorSum = float3(0, 0, 0);
         for (uint i = 0; i < 10; ++i)
         {
-            colorSum += MaterialTexture.SampleLevel(TextureSampler, uv, 0).rgb;
+            float2 offset = float2(i * 0.01, i * 0.01);
+            colorSum += MaterialTexture.SampleLevel(TextureSampler, uv + offset, 0).rgb;
             colorSum.r = sin(colorSum.r) + cos(colorSum.r);
             colorSum.g = sin(colorSum.g) + cos(colorSum.g);
             colorSum.b = sin(colorSum.b) + cos(colorSum.b);
