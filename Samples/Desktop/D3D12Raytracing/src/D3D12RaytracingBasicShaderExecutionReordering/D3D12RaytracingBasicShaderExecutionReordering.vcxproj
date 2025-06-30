@@ -199,6 +199,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include=".gitignore" />
     <None Include="packages.config" />
     <None Include="readme.md" />
   </ItemGroup>

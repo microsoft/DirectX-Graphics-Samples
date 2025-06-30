@@ -1,0 +1,5 @@
+# Ignore binaries and debug files
+dx*.dll
+dx*.pdb
+dx*.exe
+

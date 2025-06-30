@@ -12,7 +12,6 @@
 #include "stdafx.h"
 #include "D3D12RaytracingBasicShaderExecutionReordering.h"
 #include "DirectXRaytracingHelper.h"
-#include "CompiledShaders\Raytracing.hlsl.h"
 #include "dxcapi.h"
 #include <atlbase.h>
 #include <vector>

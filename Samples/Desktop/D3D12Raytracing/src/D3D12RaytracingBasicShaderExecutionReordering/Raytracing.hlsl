@@ -136,10 +136,10 @@ void MyRaygenShader()
     {
         HitObject hit = HitObject::TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
         uint materialID = hit.LoadLocalRootTableConstant(16);
-        uint hintBits = 1;
+        uint numHintBits = 1;
         
         // Reorder threads based on the hit object and material ID (0 - cube, 1 - complex).
-        dx::MaybeReorderThread(hit, materialID, hintBits);
+        dx::MaybeReorderThread(hit, materialID, numHintBits);
         HitObject::Invoke(hit, payload);
     }
     else
