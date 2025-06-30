@@ -139,13 +139,13 @@ void MyRaygenShader()
         uint numHintBits = 1;
             
         // Reorder threads based on hitobject
-        //dx::MaybeReorderThread(hit);
+        dx::MaybeReorderThread(hit);
         
         // Reorder threads based on material ID (0 - cube, 1 - complex).
         //dx::MaybeReorderThread(materialID, numHintBits);
             
         // Reorder threads based on hitobject and material ID (0 - cube, 1 - complex).
-        dx::MaybeReorderThread(hit, materialID, numHintBits);
+        //dx::MaybeReorderThread(hit, materialID, numHintBits);
            
             
         HitObject::Invoke(hit, payload);
@@ -213,10 +213,12 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
         // Sample the texture
         float3 colorSum = float3(0, 0, 0);
-        for (uint i = 0; i < 1000; ++i)
+        for (uint i = 0; i < 10; ++i)
         {
             colorSum += MaterialTexture.SampleLevel(TextureSampler, uv, 0).rgb;
-            colorSum = sin(colorSum) + cos(colorSum);
+            colorSum.r = sin(colorSum.r) + cos(colorSum.r);
+            colorSum.g = sin(colorSum.g) + cos(colorSum.g);
+            colorSum.b = sin(colorSum.b) + cos(colorSum.b);
         }
         sampled.rgb = colorSum;
     }
