@@ -922,7 +922,7 @@ void D3D12RaytracingBasicShaderExecutionReordering::BuildAccelerationStructures(
 
 
     float complexShapeZ = -15.0f;
-    float complexShapeSpacing = 1.7f;
+    float complexShapeSpacing = 1.6f;
     for (int x = -cubesPerRow / 2; x <= cubesPerRow / 2; ++x) {
         for (int z = -cubesPerRow / 2; z <= cubesPerRow / 2; ++z) {
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};

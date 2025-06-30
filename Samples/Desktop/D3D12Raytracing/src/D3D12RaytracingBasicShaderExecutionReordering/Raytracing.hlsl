@@ -137,12 +137,16 @@ void MyRaygenShader()
         HitObject hit = HitObject::TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
         uint materialID = hit.LoadLocalRootTableConstant(16);
         uint numHintBits = 1;
+            
+        // Reorder threads based on hitobject
+        //dx::MaybeReorderThread(hit);
         
         // Reorder threads based on material ID (0 - cube, 1 - complex).
-        dx::MaybeReorderThread(materialID, numHintBits);
+        //dx::MaybeReorderThread(materialID, numHintBits);
             
         // Reorder threads based on hitobject and material ID (0 - cube, 1 - complex).
-        // dx::MaybeReorderThread(hit, materialID, numHintBits);
+        dx::MaybeReorderThread(hit, materialID, numHintBits);
+           
             
         HitObject::Invoke(hit, payload);
     }
@@ -200,7 +204,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 triangleNormal = HitAttribute(vertexNormals, attr);
     
     // If material ID is 0, use the checker texture (to illustrate differing workloads that is used as sortKey in raygeneration)
-    if (g_objectCB.materialID == 1)
+    if(g_objectCB.materialID == 1)
     {
         float2 uv = float2(
         frac(hitPosition.x * 0.5 + 0.5),
@@ -209,14 +213,12 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
         // Sample the texture
         float3 colorSum = float3(0, 0, 0);
-        [unroll]
-        for (int i = 0; i < 18; ++i)
+        for (uint i = 0; i < 1000; ++i)
         {
-            float2 offset = float2(i * 0.01, i * 0.01);
-            colorSum += MaterialTexture.SampleLevel(TextureSampler, uv + offset, 0).rgb;
+            colorSum += MaterialTexture.SampleLevel(TextureSampler, uv, 0).rgb;
+            colorSum = sin(colorSum) + cos(colorSum);
         }
-        sampled.rgb = colorSum / 18.0;
-
+        sampled.rgb = colorSum;
     }
 
     // Calculate diffuse lighting
