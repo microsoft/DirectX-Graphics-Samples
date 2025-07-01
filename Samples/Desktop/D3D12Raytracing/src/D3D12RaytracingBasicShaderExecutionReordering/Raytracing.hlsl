@@ -160,10 +160,10 @@ void MyRaygenShader()
     RenderTarget[DispatchRaysIndex().xy] = color;
 }
 
-    
+
 [shader("closesthit")]
-void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
-{
+void ClosestHit_Complex(inout RayPayload payload, in MyAttributes attr)
+    {
     bool isComplex = InstanceID() >= CUBE_INSTANCE_COUNT;
     float3 hitPosition = HitWorldPosition();
 
@@ -198,34 +198,66 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     // Albedo is defined per  material
     float3 albedo = g_objectCB.albedo; 
     float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
-
-    // Compute the triangle's normal
     float3 triangleNormal = HitAttribute(vertexNormals, attr);
     
-    // If material ID is 0, use the checker texture (to illustrate differing workloads that is used as sortKey in raygeneration)
-    if(g_objectCB.materialID == 1)
-    {
-        float2 uv = float2(
-        frac(hitPosition.x * 0.5 + 0.5),
-        frac(hitPosition.z * 0.5 + 0.5)
-        );
+    float2 uv = float2(
+    frac(hitPosition.x * 0.5 + 0.5),
+    frac(hitPosition.z * 0.5 + 0.5)
+    );
 
-        // Sample the texture
-        float3 colorSum = float3(0, 0, 0);
-        for (uint i = 0; i < 10; ++i)
-        {
-            float2 offset = float2(i * 0.01, i * 0.01);
-            colorSum += MaterialTexture.SampleLevel(TextureSampler, uv + offset, 0).rgb;
-            colorSum.r = sin(colorSum.r) + cos(colorSum.r);
-            colorSum.g = sin(colorSum.g) + cos(colorSum.g);
-            colorSum.b = sin(colorSum.b) + cos(colorSum.b);
-        }
-        sampled.rgb = colorSum;
+    // Sample the texture
+    sampled.rgb = MaterialTexture.SampleLevel(TextureSampler, uv, 0).rgb;
+    
+    // Calculate diffuse lighting
+    float3 baseColor = albedo * sampled.rgb;
+    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+    float NdotL = saturate(dot(triangleNormal, lightDir));
+    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+    payload.color = float4(finalColor, 1.0f);
+}
+    
+    
+[shader("closesthit")]
+void ClosestHit_Simple(inout RayPayload payload, in MyAttributes attr)
+    {
+    bool isComplex = InstanceID() >= CUBE_INSTANCE_COUNT;
+    float3 hitPosition = HitWorldPosition();
+
+    // Get the base index of the triangle's first 16 bit index.
+    uint indexSizeInBytes = 2;
+    uint indicesPerTriangle = 3;
+    uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
+    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
+    
+    // Load up 3 16 bit indices for the triangle.
+    uint3 indices = isComplex ? Load3x16BitIndices(PrimitiveIndex() * 3 * 2, IndicesComplex) : Load3x16BitIndices(PrimitiveIndex() * 3 * 2, IndicesCube);
+        
+    // Retrieve corresponding vertex normals for the triangle vertices.
+    float3 vertexNormals[3];
+    if (isComplex)
+    {
+        vertexNormals[0] = VerticesComplex[indices.x].normal;
+        vertexNormals[1] = VerticesComplex[indices.y].normal;
+        vertexNormals[2] = VerticesComplex[indices.z].normal;
     }
+    else
+    {
+        vertexNormals[0] = VerticesCube[indices.x].normal;
+        vertexNormals[1] = VerticesCube[indices.y].normal;
+        vertexNormals[2] = VerticesCube[indices.z].normal;
+    }
+
+    // Compute the triangle's normal.
+    // This is redundant and done for illustration purposes 
+    // as all the per-vertex normals are the same and match triangle's normal in this sample. 
+    
+    // Albedo is defined per shape or material
+    float3 albedo = g_objectCB.albedo;
+    float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
+    float3 triangleNormal = HitAttribute(vertexNormals, attr);
 
     // Calculate diffuse lighting
     float3 baseColor = albedo * sampled.rgb;
-
     float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
     float NdotL = saturate(dot(triangleNormal, lightDir));
     float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;

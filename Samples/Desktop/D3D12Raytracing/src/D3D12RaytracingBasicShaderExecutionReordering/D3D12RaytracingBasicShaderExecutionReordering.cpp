@@ -26,7 +26,6 @@ using namespace DX;
 
 const wchar_t* D3D12RaytracingBasicShaderExecutionReordering::c_hitGroupName = L"MyHitGroup";
 const wchar_t* D3D12RaytracingBasicShaderExecutionReordering::c_raygenShaderName = L"MyRaygenShader";
-const wchar_t* D3D12RaytracingBasicShaderExecutionReordering::c_closestHitShaderName = L"MyClosestHitShader";
 const wchar_t* D3D12RaytracingBasicShaderExecutionReordering::c_missShaderName = L"MyMissShader";
 
 #define PRINT(text) OutputDebugStringA(text);
@@ -524,8 +523,11 @@ void D3D12RaytracingBasicShaderExecutionReordering::CreateLocalRootSignatureSubo
     {
         auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
-        rootSignatureAssociation->AddExport(c_hitGroupName);
+        //rootSignatureAssociation->AddExport(c_hitGroupName);
         rootSignatureAssociation->AddExport(c_raygenShaderName);
+        rootSignatureAssociation->AddExport(L"HitGroup_Simple");
+        rootSignatureAssociation->AddExport(L"HitGroup_Complex");
+
     }
 }
 
@@ -561,17 +563,27 @@ void D3D12RaytracingBasicShaderExecutionReordering::CreateRaytracingPipelineStat
     lib->SetDXILLibrary(&libCode);
     {
         lib->DefineExport(c_raygenShaderName);
-        lib->DefineExport(c_closestHitShaderName);
+        lib->DefineExport(L"ClosestHit_Simple");
+        lib->DefineExport(L"ClosestHit_Complex");
+
         lib->DefineExport(c_missShaderName);
     }
 
     // Triangle hit group
     // A hit group specifies closest hit, any hit and intersection shaders to be executed when a ray intersects the geometry's triangle/AABB.
     // In this sample, we only use triangle geometry with a closest hit shader, so others are not set.
-    auto hitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
-    hitGroup->SetClosestHitShaderImport(c_closestHitShaderName);
-    hitGroup->SetHitGroupExport(c_hitGroupName);
-    hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+    //auto hitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+
+    auto hitGroupSimple = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    hitGroupSimple->SetClosestHitShaderImport(L"ClosestHit_Simple");
+    hitGroupSimple->SetHitGroupExport(L"HitGroup_Simple");
+    hitGroupSimple->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+    auto hitGroupComplex = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    hitGroupComplex->SetClosestHitShaderImport(L"ClosestHit_Complex");
+    hitGroupComplex->SetHitGroupExport(L"HitGroup_Complex");
+    hitGroupComplex->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
 
     // Shader config
    //  Defines the maximum sizes in bytes for the ray payload and attribute structure.
@@ -922,7 +934,7 @@ void D3D12RaytracingBasicShaderExecutionReordering::BuildAccelerationStructures(
 
 
     float complexShapeZ = -15.0f;
-    float complexShapeSpacing = 1.6f;
+    float complexShapeSpacing = 1.7f;
     for (int x = -cubesPerRow / 2; x <= cubesPerRow / 2; ++x) {
         for (int z = -cubesPerRow / 2; z <= cubesPerRow / 2; ++z) {
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
@@ -988,13 +1000,16 @@ void D3D12RaytracingBasicShaderExecutionReordering::BuildShaderTables()
 
     void* rayGenShaderIdentifier;
     void* missShaderIdentifier;
-    void* hitGroupShaderIdentifier;
+    void* hitGroupSimpleShaderIdentifier;
+    void* hitGroupComplexShaderIdentifier;
 
     auto GetShaderIdentifiers = [&](auto* stateObjectProperties)
         {
             rayGenShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_raygenShaderName);
             missShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_missShaderName);
-            hitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_hitGroupName);
+            hitGroupSimpleShaderIdentifier = stateObjectProperties->GetShaderIdentifier(L"HitGroup_Simple");
+            hitGroupComplexShaderIdentifier = stateObjectProperties->GetShaderIdentifier(L"HitGroup_Complex");
+
         };
 
     // Get shader identifiers.
@@ -1040,14 +1055,13 @@ void D3D12RaytracingBasicShaderExecutionReordering::BuildShaderTables()
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
 
+
         for (int i = 0; i < 5041; ++i) {
             RootArguments argument;
             argument.cb = m_cubeCB;
             argument.cb.albedo = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f); // 16 bytes (4 floats × 4 bytes)
             argument.cb.materialID = 0;
-            hitGroupShaderTable.push_back(ShaderRecord(
-
-            hitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            hitGroupShaderTable.push_back(ShaderRecord(hitGroupSimpleShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
         for (int i = 0; i < 5041; ++i) {
@@ -1055,9 +1069,7 @@ void D3D12RaytracingBasicShaderExecutionReordering::BuildShaderTables()
             argument.cb = m_complexShapeCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes (4 floats × 4 bytes)
             argument.cb.materialID = 1;
-            hitGroupShaderTable.push_back(ShaderRecord(
-
-            hitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            hitGroupShaderTable.push_back(ShaderRecord(hitGroupComplexShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
         // Add this line to fix the null pointer issue:
