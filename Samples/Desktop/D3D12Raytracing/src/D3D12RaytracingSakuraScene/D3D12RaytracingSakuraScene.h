@@ -95,6 +95,7 @@ private:
     bool m_sortByMaterial;
     bool m_sortByBoth;
     bool m_rebuildASNextFrame;
+    bool rotateCamera;
 
     // Texture resources
     ComPtr<ID3D12Resource> m_texture1;
@@ -146,8 +147,14 @@ private:
 
     // Shader tables
     static const wchar_t* c_hitGroupName;
+    static const wchar_t* c_trunkHitGroupName;
+    static const wchar_t* c_leavesHitGroupName;
+    static const wchar_t* c_transparentCubeHitGroupName;
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_closestHitShaderName;
+    static const wchar_t* c_trunkClosestHitShaderName;
+    static const wchar_t* c_leavesClosestHitShaderName;
+    static const wchar_t* c_tcubeClosestHitShaderName;
     static const wchar_t* c_missShaderName;
     ComPtr<ID3D12Resource> m_missShaderTable;
     ComPtr<ID3D12Resource> m_hitGroupShaderTable;

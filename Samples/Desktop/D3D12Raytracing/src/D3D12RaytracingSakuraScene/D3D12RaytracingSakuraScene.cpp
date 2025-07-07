@@ -29,8 +29,14 @@ using namespace std;
 using namespace DX;
 
 const wchar_t* D3D12RaytracingSakuraScene::c_hitGroupName = L"MyHitGroup";
+const wchar_t* D3D12RaytracingSakuraScene::c_trunkHitGroupName = L"TrunkHitGroup";
+const wchar_t* D3D12RaytracingSakuraScene::c_leavesHitGroupName = L"LeavesHitGroup";
+const wchar_t* D3D12RaytracingSakuraScene::c_transparentCubeHitGroupName = L"TCubeHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_closestHitShaderName = L"MyClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraScene::c_trunkClosestHitShaderName = L"TrunkClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraScene::c_leavesClosestHitShaderName = L"LeavesClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraScene::c_tcubeClosestHitShaderName = L"TCubeClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_missShaderName = L"MyMissShader";
 
 #define PRINT(text) OutputDebugStringA(text);
@@ -156,7 +162,8 @@ D3D12RaytracingSakuraScene::D3D12RaytracingSakuraScene(UINT width, UINT height, 
     m_serEnabled(true), 
     m_sortByHit(true),
     m_sortByMaterial(false),
-    m_sortByBoth(false)
+    m_sortByBoth(false),
+	rotateCamera(true)
 {
     UpdateForSizeChange(width, height);
 }
@@ -543,6 +550,9 @@ void D3D12RaytracingSakuraScene::CreateLocalRootSignatureSubobjects(CD3DX12_STAT
         auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
         rootSignatureAssociation->AddExport(c_hitGroupName);
+        rootSignatureAssociation->AddExport(c_trunkHitGroupName);
+        rootSignatureAssociation->AddExport(c_leavesHitGroupName);
+        rootSignatureAssociation->AddExport(c_transparentCubeHitGroupName);
         rootSignatureAssociation->AddExport(c_raygenShaderName);
     }
 }
@@ -580,6 +590,9 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     {
         lib->DefineExport(c_raygenShaderName);
         lib->DefineExport(c_closestHitShaderName);
+        lib->DefineExport(c_trunkClosestHitShaderName);
+        lib->DefineExport(c_leavesClosestHitShaderName);
+        lib->DefineExport(c_tcubeClosestHitShaderName);
         lib->DefineExport(c_missShaderName);
     }
 
@@ -590,6 +603,22 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     hitGroup->SetClosestHitShaderImport(c_closestHitShaderName);
     hitGroup->SetHitGroupExport(c_hitGroupName);
     hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+
+    auto trunkHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    trunkHitGroup->SetClosestHitShaderImport(c_trunkClosestHitShaderName);
+    trunkHitGroup->SetHitGroupExport(c_trunkHitGroupName);
+    trunkHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+    auto leavesHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    leavesHitGroup->SetClosestHitShaderImport(c_leavesClosestHitShaderName);
+    leavesHitGroup->SetHitGroupExport(c_leavesHitGroupName);
+    leavesHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+    auto tcubeHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    tcubeHitGroup->SetClosestHitShaderImport(c_tcubeClosestHitShaderName);
+    tcubeHitGroup->SetHitGroupExport(c_transparentCubeHitGroupName);
+    tcubeHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
     // Shader config
    //  Defines the maximum sizes in bytes for the ray payload and attribute structure.
@@ -929,7 +958,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 	float randomCubeSpacing = 1.0f; // Spacing between random smaller cubes
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> randomOffset(-5.0f, 5.0f);
+    std::uniform_real_distribution<float> randomOffset(-2.5f, 2.5f);
 
     // Larger cubes for the floor
     for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
@@ -970,7 +999,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 
             // Position the smaller cubes in the XZ plane
             desc.Transform[0][3] = x * randomCubeSpacing; // Position along X axis
-            desc.Transform[1][3] = 2.0f;                 // Y remains at 0
+            desc.Transform[1][3] = 2.0f+ randomZOffset + randomZOffset;           // Y remains at 0
             desc.Transform[2][3] = z * randomCubeSpacing + randomZOffset;// Position along Z axis
 
             desc.InstanceMask = 1;
@@ -992,7 +1021,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z) {
             // Generate random offsets for this position
             float randomXOffset = randomOffset(gen);
-            float randomYOffset = 0;
+            float randomYOffset = randomOffset(gen);
             float randomZOffset = randomOffset(gen);
 
             // Store the random position for later use by leaves
@@ -1099,12 +1128,18 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
     void* rayGenShaderIdentifier;
     void* missShaderIdentifier;
     void* hitGroupShaderIdentifier;
-
+    void* trunkHitGroupShaderIdentifier;
+    void* leavesHitGroupShaderIdentifier;
+    void* tcubeHitGroupShaderIdentifier;
+    
     auto GetShaderIdentifiers = [&](auto* stateObjectProperties)
         {
             rayGenShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_raygenShaderName);
             missShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_missShaderName);
             hitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_hitGroupName);
+            trunkHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_trunkHitGroupName);
+            leavesHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesHitGroupName);
+            tcubeHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_transparentCubeHitGroupName);
         };
 
     // Get shader identifiers.
@@ -1164,7 +1199,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
 			argument.cb = m_transparentCubeCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // White color 
             argument.cb.materialID = 1;
-            hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
 		// Tree trunk shader records
@@ -1173,7 +1208,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             argument.cb = m_trunkCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
             argument.cb.materialID = 2;
-            hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            hitGroupShaderTable.push_back(ShaderRecord(trunkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
 		// Tree leaves shader records
@@ -1182,7 +1217,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             argument.cb = m_leavesCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
             argument.cb.materialID = 3;
-            hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
         // Add this line to fix the null pointer issue:
@@ -1201,6 +1236,11 @@ void D3D12RaytracingSakuraScene::OnUpdate()
 
     auto kb = m_keyboard->GetState();
     m_keyboardButtons.Update(kb);
+
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::R))
+    {
+		rotateCamera = !rotateCamera;
+	}
 
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::S))
     {
@@ -1253,15 +1293,16 @@ void D3D12RaytracingSakuraScene::OnUpdate()
     }
 
     // Rotate the camera around Y axis.
+     if (rotateCamera)
     {
-        float secondsToRotateAround = 52.0f;
+        float secondsToRotateAround = 82.0f;
         float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
         XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
         m_eye = XMVector3Transform(m_eye, rotate);
         m_up = XMVector3Transform(m_up, rotate);
         m_at = XMVector3Transform(m_at, rotate);
-        UpdateCameraMatrices();
     }
+     UpdateCameraMatrices();
 
     // Rotate the second light around Y axis.
     //{
@@ -1363,6 +1404,10 @@ void D3D12RaytracingSakuraScene::RenderUI()
 
     m_smallFont->DrawString(m_spriteBatch.get(), L"D3D12: Shader Execution Reordering", textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing() * 2;
+
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Rotate Camera: %s - Press 'R'", rotateCamera ? L"Rotating" : L"Disabled");
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing();
 
     swprintf_s(buffer, ARRAYSIZE(buffer), L"Toggle SER: %s - Press 'S'", m_serEnabled ? L"Enabled" : L"Disabled");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
