@@ -75,10 +75,9 @@ uint3 Load3x16BitIndices(uint offsetBytes, ByteAddressBuffer baf)
 
     return indices;
 }
-
     
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
-
+    
     
 // Struct defines the payload used during ray tracing 
 struct [raypayload] RayPayload
@@ -94,6 +93,7 @@ float3 HitWorldPosition()
     return WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
 }
 
+    
 // Retrieve attribute at a hit position interpolated from vertex attributes using the hit's barycentrics.
 float3 HitAttribute(float3 vertexAttribute[3], BuiltInTriangleIntersectionAttributes attr)
 {
@@ -232,63 +232,51 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {  
-    float3 hitPosition = HitWorldPosition();
-        
-    // Get the base index of the triangle's first 16 bit index.
-    uint indexSizeInBytes = 2;
-    uint indicesPerTriangle = 3;
-    uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
-    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-    
-    // Load up 3 16 bit indices for the triangle.
-    uint3 indices;
+    float3 hitPosition = HitWorldPosition(); 
+    uint baseIndex = PrimitiveIndex() * 3;
+    uint offset = baseIndex * 4;
+    uint3 indices = IndicesCube.Load3(offset);
 
-    // Retrieve corresponding vertex normals for the triangle vertices.
-    float3 vertexNormals[3];
 
     // Albedo is defined per shape or material
     float3 albedo = g_cubeCB.albedo;
     float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
     float3 triangleNormal;
-       
-    indices = Load3x16BitIndices(baseIndex, IndicesCube);
+        
+    float2 baseUV = float2(
+    frac(hitPosition.x * 0.5 + 0.5),
+    frac(hitPosition.z * 0.5 + 0.5)
+    );
+        
+    sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, baseUV, 0).rgb;
+    
+    // Retrieve corresponding vertex normals for the triangle vertices.
+    float3 vertexNormals[3];
     vertexNormals[0] = VerticesCube[indices.x].normal;
     vertexNormals[1] = VerticesCube[indices.y].normal;
     vertexNormals[2] = VerticesCube[indices.z].normal;
     triangleNormal = HitAttribute(vertexNormals, attr);
             
-    float3 baseColor = albedo * sampled.rgb;
-    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-    float NdotL = saturate(dot(triangleNormal, lightDir));
-    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+    float3 finalColor = albedo * sampled.rgb;
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
-
-    
+ 
     
 [shader("closesthit")]
 void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
     float3 hitPosition = HitWorldPosition();
-        
-    // Get the base index of the triangle's first 16 bit index.
-    uint indexSizeInBytes = 2;
-    uint indicesPerTriangle = 3;
-    uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
-    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-    
-    // Load up 3 16 bit indices for the triangle.
-    uint3 indices;
-
-    // Retrieve corresponding vertex normals for the triangle vertices.
-    float3 vertexNormals[3];
+    uint baseIndex = PrimitiveIndex() * 3;
+    uint offset = baseIndex * 4;
+    uint3 indices = IndicesTrunk.Load3(offset);
 
     // Albedo is defined per shape or material
     float3 albedo = g_cubeCB.albedo;
     float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
     float3 triangleNormal;
         
-    indices = Load3x16BitIndices(baseIndex, IndicesTrunk);
+    // Retrieve corresponding vertex normals for the triangle vertices.
+    float3 vertexNormals[3];
     vertexNormals[0] = VerticesTrunk[indices.x].normal;
     vertexNormals[1] = VerticesTrunk[indices.y].normal;
     vertexNormals[2] = VerticesTrunk[indices.z].normal;
@@ -302,11 +290,8 @@ void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, interpolatedTexCoord, 0).rgb;
         
-    float3 baseColor = albedo * sampled.rgb;
-    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-    float NdotL = saturate(dot(triangleNormal, lightDir));
-    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
-    payload.color = float4(finalColor, g_cubeCB.albedo.w);    
+    float3 finalColor = albedo * sampled.rgb;
+    payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
     
     
@@ -314,25 +299,17 @@ void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
     float3 hitPosition = HitWorldPosition();
-        
-    // Get the base index of the triangle's first 16 bit index.
-    uint indexSizeInBytes = 2;
-    uint indicesPerTriangle = 3;
-    uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
-    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-    
-    // Load up 3 16 bit indices for the triangle.
-    uint3 indices;
-
-    // Retrieve corresponding vertex normals for the triangle vertices.
-    float3 vertexNormals[3];
+    uint baseIndex = PrimitiveIndex() * 3;
+    uint offset = baseIndex * 4;
+    uint3 indices = IndicesLeaves.Load3(offset);
 
     // Albedo is defined per shape or material
     float3 albedo = g_cubeCB.albedo;
     float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
     float3 triangleNormal;
 
-    indices = Load3x16BitIndices(baseIndex, IndicesLeaves);
+    // Retrieve corresponding vertex normals for the triangle vertices.
+    float3 vertexNormals[3];
     vertexNormals[0] = VerticesLeaves[indices.x].normal;
     vertexNormals[1] = VerticesLeaves[indices.y].normal;
     vertexNormals[2] = VerticesLeaves[indices.z].normal;
@@ -359,25 +336,17 @@ void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 void TCubeClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
     float3 hitPosition = HitWorldPosition();
-        
-    // Get the base index of the triangle's first 16 bit index.
-    uint indexSizeInBytes = 2;
-    uint indicesPerTriangle = 3;
-    uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
-    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
-    
-    // Load up 3 16 bit indices for the triangle.
-    uint3 indices;
-
-    // Retrieve corresponding vertex normals for the triangle vertices.
-    float3 vertexNormals[3];
+    uint baseIndex = PrimitiveIndex() * 3;
+    uint offset = baseIndex * 4;
+    uint3 indices = IndicesCube.Load3(offset);
 
     // Albedo is defined per shape or material
     float3 albedo = g_cubeCB.albedo;
     float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
     float3 triangleNormal;
 
-    indices = Load3x16BitIndices(baseIndex, IndicesCube);
+    // Retrieve corresponding vertex normals for the triangle vertices.
+    float3 vertexNormals[3];
     vertexNormals[0] = VerticesCube[indices.x].normal;
     vertexNormals[1] = VerticesCube[indices.y].normal;
     vertexNormals[2] = VerticesCube[indices.z].normal;
