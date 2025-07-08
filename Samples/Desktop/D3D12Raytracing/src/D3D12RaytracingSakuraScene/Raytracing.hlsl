@@ -368,7 +368,9 @@ void TCubeClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
-    float4 background = float4(0.0f, 0.2f, 0.4f, 1.0f);
+        float4 background = float4(0.9020f, 0.9373f, 0.8353f, 1.0f);
+
+
     payload.color = background;
 }
 

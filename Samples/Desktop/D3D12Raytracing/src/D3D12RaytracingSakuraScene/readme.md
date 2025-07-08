@@ -23,6 +23,8 @@ The title bar of the sample provides runtime information:
 * H - MaybeReorderThread() based on HitObject
 * M - MaybeReorderThread() based on materialID
 * B - MaybeReorderThread() based on both HitObject and materialID
+* WASD - move the camera around the scene. (W - forward, A - left, S - backward, D - right))
+* Up/Down - move the camera up/down.
 
 ## Requirements
 * Windows 10 with the October 2018 update or higher.

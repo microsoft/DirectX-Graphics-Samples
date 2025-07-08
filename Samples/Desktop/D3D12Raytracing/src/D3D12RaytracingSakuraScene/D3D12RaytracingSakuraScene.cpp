@@ -223,8 +223,8 @@ void D3D12RaytracingSakuraScene::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 0.0f, 6.0f, -12.0f, 1.0f };
-        m_at = { 0.0f, 3.0f, 0.0f, 1.0f };
+        m_eye = { 11.0f, 2.5f, -6.0f, 1.0f };
+        m_at = { 1.0f, 3.5f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
@@ -233,7 +233,10 @@ void D3D12RaytracingSakuraScene::InitializeScene()
         // Rotate camera around Y axis.
         XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
         m_eye = XMVector3Transform(m_eye, rotate);
-        m_up = XMVector3Transform(m_up, rotate);
+
+        // Keep the camera upright
+        m_up = { 0.0f, 1.0f, 0.0f, 0.0f };
+
 
         UpdateCameraMatrices();
     }
@@ -954,27 +957,31 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     ComPtr<ID3D12Resource> instanceDescsResource;
     std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDesc;
     int objectsPerRow = 20; //Object per row along Z and X axis
-    float largerCubeSpacing = 2.0f; // Spacing between larger cubes
+    float largerCubeSpacing = 4.0f; // Spacing between larger cubes
 	float randomCubeSpacing = 1.0f; // Spacing between random smaller cubes
+    float spacingGap = 5.0f;
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> randomOffset(-2.5f, 2.5f);
+    std::uniform_real_distribution<float> randomOffset(0.2f, 1.7f);
 
     // Larger cubes for the floor
     for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
     {
         for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z)
         {
+            float posX = x * largerCubeSpacing;
+            float posY = 0.0f;
+            float posZ = z * largerCubeSpacing;
+
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
             float scale = 2.0f; // Larger cube scale
-            desc.Transform[0][0] = scale; // Scale X
-            desc.Transform[1][1] = scale; // Scale Y
-            desc.Transform[2][2] = scale; // Scale Z
+            desc.Transform[0][0] = scale; 
+            desc.Transform[1][1] = scale; 
+            desc.Transform[2][2] = scale; 
 
-            // Position the larger cubes in the XZ plane
-            desc.Transform[0][3] = x * largerCubeSpacing; // Position along X axis
-            desc.Transform[1][3] = 0.0f;                 // Y remains at 0
-            desc.Transform[2][3] = z * largerCubeSpacing; // Position along Z axis
+            desc.Transform[0][3] = posX;
+            desc.Transform[1][3] = posY;
+            desc.Transform[2][3] = posZ;
 
             desc.InstanceMask = 1;
             desc.AccelerationStructure = m_bottomLevelAccelerationStructureCube->GetGPUVirtualAddress();
@@ -989,22 +996,26 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     {
         for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z)
         {
-            float randomZOffset = randomOffset(gen); // Random Z offset for the smaller cubes
+            float randomYOffset = randomOffset(gen);
+
+            float posX = x * randomCubeSpacing;
+            if (x >= 0) posX += spacingGap; // Shift the second group to the right
+            float posY = 2.0f + randomYOffset;
+			float posZ = z * randomCubeSpacing;
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
-            float scale = 0.5f; // Smaller cube scale
-            desc.Transform[0][0] = scale; // Scale X
-            desc.Transform[1][1] = scale; // Scale Y
-            desc.Transform[2][2] = scale; // Scale Z
+            float scale = 0.1f; // Smaller cube scale
+            desc.Transform[0][0] = scale;
+            desc.Transform[1][1] = scale;
+            desc.Transform[2][2] = scale;
 
-            // Position the smaller cubes in the XZ plane
-            desc.Transform[0][3] = x * randomCubeSpacing; // Position along X axis
-            desc.Transform[1][3] = 2.0f+ randomZOffset + randomZOffset;           // Y remains at 0
-            desc.Transform[2][3] = z * randomCubeSpacing + randomZOffset;// Position along Z axis
+            desc.Transform[0][3] = 0.5f + posX; // X position with offset
+            desc.Transform[1][3] = posY; // Y position with offset
+            desc.Transform[2][3] = posZ; // Z position
 
             desc.InstanceMask = 1;
             desc.AccelerationStructure = m_bottomLevelAccelerationStructureCube->GetGPUVirtualAddress();
-            desc.InstanceID = instanceDesc.size();
+            desc.InstanceID = static_cast<UINT>(instanceDesc.size());
             desc.InstanceContributionToHitGroupIndex = static_cast<UINT>(instanceDesc.size());
             instanceDesc.push_back(desc);
         }
@@ -1012,53 +1023,52 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 
 
 	// Trunk and leaves
-    float trunkShapeSpacing = 1.5f;
     // Store random positions for trunks
     std::vector<std::tuple<float, float, float>> trunkPositions;
 
     // First loop: Initialize trunks
-    for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x) {
-        for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z) {
-            // Generate random offsets for this position
-            float randomXOffset = randomOffset(gen);
-            float randomYOffset = randomOffset(gen);
+    for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x) 
+    {
+        for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z) 
+        {
+            float spacingBetweenTrees = (x < 0) ? 1.0f : 2.0f;
+			float randomXOffset = randomOffset(gen);
             float randomZOffset = randomOffset(gen);
 
-            // Store the random position for later use by leaves
-            trunkPositions.emplace_back(
-                x * trunkShapeSpacing + randomXOffset,
-                2.0f + randomYOffset,
-                z * trunkShapeSpacing + randomZOffset
-            );
+            float posX = x * spacingBetweenTrees + randomXOffset;
+            if (x >= 0) posX += spacingGap; // Shift the second group to the right
+            float posY = 2.0f;
+            float posZ = z * spacingBetweenTrees + randomZOffset;
+            trunkPositions.emplace_back(posX, posY, posZ);
 
             // Trunk instance
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
-            float scale = 55.0f;
-            desc.Transform[0][0] = scale; // Scale X
-            desc.Transform[1][1] = scale; // Scale Y
-            desc.Transform[2][2] = scale; // Scale Z
+            float scale = 35.0f;
+            desc.Transform[0][0] = scale;
+            desc.Transform[1][1] = scale;
+            desc.Transform[2][2] = scale;
 
-            // Apply random offsets to the trunk position
-            desc.Transform[0][3] = std::get<0>(trunkPositions.back()); // X position
-            desc.Transform[1][3] = std::get<1>(trunkPositions.back()); // Y position
-            desc.Transform[2][3] = std::get<2>(trunkPositions.back()); // Z position
-
+            desc.Transform[0][3] = posX;
+            desc.Transform[1][3] = posY;
+            desc.Transform[2][3] = posZ;
             desc.InstanceMask = 1;
             desc.AccelerationStructure = m_bottomLevelAccelerationStructureTrunk->GetGPUVirtualAddress();
-            desc.InstanceID = instanceDesc.size();
+            desc.InstanceID = static_cast<UINT>(instanceDesc.size());
             desc.InstanceContributionToHitGroupIndex = static_cast<UINT>(instanceDesc.size());
             instanceDesc.push_back(desc);
         }
     }
 
+
     // Second loop: Initialize leaves
-    for (size_t i = 0; i < trunkPositions.size(); ++i) {
+    for (size_t i = 0; i < trunkPositions.size(); ++i) 
+    {
         // Leaves instance
         D3D12_RAYTRACING_INSTANCE_DESC desc = {};
-        float scale = 55.0f;
-        desc.Transform[0][0] = scale; // Scale X
-        desc.Transform[1][1] = scale; // Scale Y
-        desc.Transform[2][2] = scale; // Scale Z
+        float scale = 35.0f;
+        desc.Transform[0][0] = scale; 
+        desc.Transform[1][1] = scale; 
+        desc.Transform[2][2] = scale; 
 
         // Use the same position as the corresponding trunk
         desc.Transform[0][3] = std::get<0>(trunkPositions[i]); // X position
@@ -1197,7 +1207,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         // Transparant cube shader records
         for (int i = 0; i < 441; ++i) {
             RootArguments argument;
-			argument.cb = m_transparentCubeCB;
+            argument.cb = m_transparentCubeCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // White color 
             argument.cb.materialID = 1;
             hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
@@ -1243,9 +1253,9 @@ void D3D12RaytracingSakuraScene::OnUpdate()
 		rotateCamera = !rotateCamera;
 	}
 
-    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::S))
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::E))
     {
-        OutputDebugStringA("S key pressed!\n");
+        OutputDebugStringA("E key pressed!\n");
         m_serEnabled = !m_serEnabled;
 
 
@@ -1293,16 +1303,61 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_sortByBoth = true;
     }
 
-    // Rotate the camera around Y axis.
-     if (rotateCamera)
+    // Camera movement speed
+    float movementSpeed = 5.0f * elapsedTime;
+
+    // Forward and backward movement (W/S)
+    if (kb.W)
     {
-        float secondsToRotateAround = 82.0f;
-        float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
-        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
-        m_eye = XMVector3Transform(m_eye, rotate);
-        m_up = XMVector3Transform(m_up, rotate);
-        m_at = XMVector3Transform(m_at, rotate);
+        XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
+        m_eye += forward * movementSpeed;
+        m_at += forward * movementSpeed;
     }
+    if (kb.S)
+    {
+        XMVECTOR backward = XMVector3Normalize(m_eye - m_at);
+        m_eye += backward * movementSpeed;
+        m_at += backward * movementSpeed;
+    }
+
+    // Left and right strafing (A/D)
+    if (kb.A || kb.Left)
+    {
+        XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
+        XMVECTOR left = XMVector3Normalize(XMVector3Cross(forward, m_up));
+        m_eye += left * movementSpeed;
+        m_at += left * movementSpeed;
+    }
+    if (kb.D || kb.Right)
+    {
+        XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
+        XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_up, forward));
+        m_eye += right * movementSpeed;
+        m_at += right * movementSpeed;
+    }
+
+    // Up and down movement 
+    if (kb.Up)
+    {
+        m_eye += m_up * movementSpeed;
+        m_at += m_up * movementSpeed;
+    }
+    if (kb.Down)
+    {
+        m_eye -= m_up * movementSpeed;
+        m_at -= m_up * movementSpeed;
+    }
+
+    // Rotate the camera around Y axis.
+    // if (rotateCamera)
+    //{
+    //    float secondsToRotateAround = 52.0f;
+    //    float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
+    //    XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
+    //    m_eye = XMVector3Transform(m_eye, rotate);
+    //    m_up = XMVector3Transform(m_up, rotate);
+    //    m_at = XMVector3Transform(m_at, rotate);
+    //}
      UpdateCameraMatrices();
 
     // Rotate the second light around Y axis.
@@ -1406,11 +1461,11 @@ void D3D12RaytracingSakuraScene::RenderUI()
     m_smallFont->DrawString(m_spriteBatch.get(), L"D3D12: Shader Execution Reordering", textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing() * 2;
 
-    swprintf_s(buffer, ARRAYSIZE(buffer), L"Rotate Camera: %s - Press 'R'", rotateCamera ? L"Rotating" : L"Disabled");
-    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
-    textPos.y += m_smallFont->GetLineSpacing();
+    //swprintf_s(buffer, ARRAYSIZE(buffer), L"Rotate Camera: %s - Press 'R'", rotateCamera ? L"Rotating" : L"Disabled");
+    //m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    //textPos.y += m_smallFont->GetLineSpacing();
 
-    swprintf_s(buffer, ARRAYSIZE(buffer), L"Toggle SER: %s - Press 'S'", m_serEnabled ? L"Enabled" : L"Disabled");
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Toggle SER: %s - Press 'E'", m_serEnabled ? L"Enabled" : L"Disabled");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
