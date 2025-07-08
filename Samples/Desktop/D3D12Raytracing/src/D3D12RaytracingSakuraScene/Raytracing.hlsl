@@ -268,7 +268,7 @@ void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 hitPosition = HitWorldPosition();
     uint baseIndex = PrimitiveIndex() * 3;
     uint offset = baseIndex * 4;
-    uint3 indices = IndicesTrunk.Load3(offset);
+    uint3 indices = IndicesLeaves.Load3(offset);
 
     // Albedo is defined per shape or material
     float3 albedo = g_cubeCB.albedo;
@@ -287,10 +287,12 @@ void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     vertexTexCoords[1] = VerticesTrunk[indices.y].uv;
     vertexTexCoords[2] = VerticesTrunk[indices.z].uv;
     float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr);
-
     sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, interpolatedTexCoord, 0).rgb;
         
-    float3 finalColor = albedo * sampled.rgb;
+    float3 baseColor = albedo * sampled.rgb;
+    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+    float NdotL = saturate(dot(triangleNormal, lightDir));
+    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
     

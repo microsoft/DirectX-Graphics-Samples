@@ -223,8 +223,8 @@ void D3D12RaytracingSakuraScene::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 0.0f, 3.0f, -12.0f, 1.0f };
-        m_at = { 0.0f, 5.0f, 0.0f, 1.0f };
+        m_eye = { 0.0f, 6.0f, -12.0f, 1.0f };
+        m_at = { 0.0f, 4.0f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
@@ -245,7 +245,7 @@ void D3D12RaytracingSakuraScene::InitializeScene()
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
 
-        lightPosition = XMFLOAT4(0.0f, 15.8f,-233.0f, 0.0f);
+        lightPosition = XMFLOAT4(0.0f, 15.8f,233.0f, 0.0f);
         m_sceneCB[frameIndex].lightPosition = XMLoadFloat4(&lightPosition);
 
         lightAmbientColor = XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f); // Brighter ambient light
@@ -308,7 +308,7 @@ void D3D12RaytracingSakuraScene::CreateDeviceDependentResources()
     CreateDescriptorHeap();
 
 	// Load gometry from OBJ files.
-    m_ObjModelLoader.Load(L"trunk.obj");
+    m_ObjModelLoader.Load(L"trunk5.obj");
     m_ObjModelLoader.Load(L"leaves.obj");
 
     // Build geometry to be used in the sample.
@@ -992,7 +992,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
             float randomZOffset = randomOffset(gen); // Random Z offset for the smaller cubes
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
-            float scale = 0.3f; // Smaller cube scale
+            float scale = 0.5f; // Smaller cube scale
             desc.Transform[0][0] = scale; // Scale X
             desc.Transform[1][1] = scale; // Scale Y
             desc.Transform[2][2] = scale; // Scale Z
@@ -1066,6 +1066,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         desc.Transform[2][3] = std::get<2>(trunkPositions[i]); // Z position
 
         desc.InstanceMask = 1;
+        desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
         desc.AccelerationStructure = m_bottomLevelAccelerationStructureLeaves->GetGPUVirtualAddress();
         desc.InstanceID = instanceDesc.size();
         desc.InstanceContributionToHitGroupIndex = static_cast<UINT>(instanceDesc.size());
