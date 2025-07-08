@@ -224,7 +224,7 @@ void D3D12RaytracingSakuraScene::InitializeScene()
     {
         // Initialize the view and projection inverse matrices.
         m_eye = { 0.0f, 6.0f, -12.0f, 1.0f };
-        m_at = { 0.0f, 4.0f, 0.0f, 1.0f };
+        m_at = { 0.0f, 3.0f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
