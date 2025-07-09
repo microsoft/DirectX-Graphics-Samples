@@ -225,7 +225,7 @@ void D3D12RaytracingSakuraScene::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 11.0f, 2.5f, -6.0f, 1.0f };
+        m_eye = { 8.5f, 2.5f, -6.0f, 1.0f };
         m_at = { 2.5f, 3.5f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
@@ -517,7 +517,7 @@ void D3D12RaytracingSakuraScene::CreateRootSignatures()
     {
         CD3DX12_DESCRIPTOR_RANGE ranges[2]; // Perfomance TIP: Order from most frequent to least frequent.
         ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output texture
-        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 11, 1);  // 2 static index and 2 vertex buffers + 2 texture 
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 11, 1);  // 4 static index and 4 vertex buffers + 3 texture 
 
         CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
         rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &ranges[0]);
@@ -1052,9 +1052,9 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     // Create an instance desc for the bottom-level acceleration structure.
     ComPtr<ID3D12Resource> instanceDescsResource;
     std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDesc;
-    int objectsPerRow = 20; //Object per row along Z and X axis
+    int objectsPerRow = 20; // Object per row along Z and X axis
     float largerCubeSpacing = 4.0f; // Spacing between larger cubes
-	float randomCubeSpacing = 1.0f; // Spacing between random smaller cubes
+	float randomCubeSpacing = 0.7f; // Spacing between random smaller cubes
     float spacingGap = 5.0f;
     std::random_device rd;
     std::mt19937 gen(rd());
