@@ -31,11 +31,13 @@ using namespace DX;
 const wchar_t* D3D12RaytracingSakuraScene::c_hitGroupName = L"MyHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_trunkHitGroupName = L"TrunkHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesHitGroupName = L"LeavesHitGroup";
+const wchar_t* D3D12RaytracingSakuraScene::c_bushHitGroupName = L"BushHitGroup"; 
 const wchar_t* D3D12RaytracingSakuraScene::c_transparentCubeHitGroupName = L"TCubeHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_closestHitShaderName = L"MyClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_trunkClosestHitShaderName = L"TrunkClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesClosestHitShaderName = L"LeavesClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraScene::c_bushClosestHitShaderName = L"BushClosestHitShader"; 
 const wchar_t* D3D12RaytracingSakuraScene::c_tcubeClosestHitShaderName = L"TCubeClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_missShaderName = L"MyMissShader";
 
@@ -224,7 +226,7 @@ void D3D12RaytracingSakuraScene::InitializeScene()
     {
         // Initialize the view and projection inverse matrices.
         m_eye = { 11.0f, 2.5f, -6.0f, 1.0f };
-        m_at = { 1.0f, 3.5f, 0.0f, 1.0f };
+        m_at = { 2.5f, 3.5f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
@@ -311,8 +313,9 @@ void D3D12RaytracingSakuraScene::CreateDeviceDependentResources()
     CreateDescriptorHeap();
 
 	// Load gometry from OBJ files.
-    m_ObjModelLoader.Load(L"trunk5.obj");
+    m_ObjModelLoader.Load(L"trunk.obj");
     m_ObjModelLoader.Load(L"leaves.obj");
+	m_ObjModelLoader.Load(L"bush.obj");
 
     // Build geometry to be used in the sample.
     BuildGeometry();
@@ -380,12 +383,29 @@ void D3D12RaytracingSakuraScene::CreateTexture()
         return;
     }
 
+    // Load texture from file using DirectXTK
+    ComPtr<ID3D12Resource> texture3;
+
+    hr = DirectX::CreateWICTextureFromFile(
+        device,
+        resourceUpload,
+        L"bush-texture.jpg", 
+        texture3.GetAddressOf()
+    );
+
+    if (FAILED(hr))
+    {
+        OutputDebugStringA("Failed to load texture using CreateWICTextureFromFile.\n");
+        return;
+    }
+
     // Schedule the upload and wait for it to complete
     auto uploadResourcesFinished = resourceUpload.End(commandQueue);
     uploadResourcesFinished.wait();
 
     m_texture1 = texture1;
     m_texture2 = texture2;
+    m_texture3 = texture3;
 
     // Create SRV for the texture
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc1 = {};
@@ -410,13 +430,29 @@ void D3D12RaytracingSakuraScene::CreateTexture()
     srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc2.Texture2D.MipLevels = 1;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle;
-    UINT descriptorIndex2 = AllocateDescriptor(&srvHandle);
-    device->CreateShaderResourceView(m_texture2.Get(), &srvDesc2, srvHandle);
+    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle2;
+    UINT descriptorIndex2 = AllocateDescriptor(&srvHandle2);
+    device->CreateShaderResourceView(m_texture2.Get(), &srvDesc2, srvHandle2);
 
     m_textureSrvGpuDescriptor2 = CD3DX12_GPU_DESCRIPTOR_HANDLE(
         m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(),
         descriptorIndex2,
+        m_descriptorSize);
+
+    // Create SRV for the texture
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc3 = {};
+    srvDesc3.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc3.Format = m_texture3->GetDesc().Format;
+    srvDesc3.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc3.Texture2D.MipLevels = 1;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle3;
+    UINT descriptorIndex3 = AllocateDescriptor(&srvHandle3);
+    device->CreateShaderResourceView(m_texture3.Get(), &srvDesc3, srvHandle3);
+
+    m_textureSrvGpuDescriptor3 = CD3DX12_GPU_DESCRIPTOR_HANDLE(
+        m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(),
+        descriptorIndex3,
         m_descriptorSize);
 }
 
@@ -481,7 +517,7 @@ void D3D12RaytracingSakuraScene::CreateRootSignatures()
     {
         CD3DX12_DESCRIPTOR_RANGE ranges[2]; // Perfomance TIP: Order from most frequent to least frequent.
         ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);  // 1 output texture
-        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 1);  // 2 static index and 2 vertex buffers + 2 texture
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 11, 1);  // 2 static index and 2 vertex buffers + 2 texture 
 
         CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
         rootParameters[GlobalRootSignatureParams::OutputViewSlot].InitAsDescriptorTable(1, &ranges[0]);
@@ -490,7 +526,7 @@ void D3D12RaytracingSakuraScene::CreateRootSignatures()
         rootParameters[GlobalRootSignatureParams::VertexBuffersSlot].InitAsDescriptorTable(1, &ranges[1]);
 
         // Static sampler
-        D3D12_STATIC_SAMPLER_DESC samplers[2] = {};
+        D3D12_STATIC_SAMPLER_DESC samplers[3] = {};
 
         // Sampler for s0
         samplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -510,6 +546,10 @@ void D3D12RaytracingSakuraScene::CreateRootSignatures()
         // Sampler for s1
         samplers[1] = samplers[0]; // Copy settings
         samplers[1].ShaderRegister = 1;
+
+        // Sampler for s1
+        samplers[2] = samplers[0]; // Copy settings
+        samplers[2].ShaderRegister = 2;
 
         CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(
             ARRAYSIZE(rootParameters), rootParameters,
@@ -555,6 +595,7 @@ void D3D12RaytracingSakuraScene::CreateLocalRootSignatureSubobjects(CD3DX12_STAT
         rootSignatureAssociation->AddExport(c_hitGroupName);
         rootSignatureAssociation->AddExport(c_trunkHitGroupName);
         rootSignatureAssociation->AddExport(c_leavesHitGroupName);
+        rootSignatureAssociation->AddExport(c_bushHitGroupName);
         rootSignatureAssociation->AddExport(c_transparentCubeHitGroupName);
         rootSignatureAssociation->AddExport(c_raygenShaderName);
     }
@@ -595,6 +636,7 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
         lib->DefineExport(c_closestHitShaderName);
         lib->DefineExport(c_trunkClosestHitShaderName);
         lib->DefineExport(c_leavesClosestHitShaderName);
+        lib->DefineExport(c_bushClosestHitShaderName);
         lib->DefineExport(c_tcubeClosestHitShaderName);
         lib->DefineExport(c_missShaderName);
     }
@@ -617,6 +659,11 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     leavesHitGroup->SetClosestHitShaderImport(c_leavesClosestHitShaderName);
     leavesHitGroup->SetHitGroupExport(c_leavesHitGroupName);
     leavesHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+    auto bushHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    bushHitGroup->SetClosestHitShaderImport(c_bushClosestHitShaderName);
+    bushHitGroup->SetHitGroupExport(c_bushHitGroupName);
+    bushHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
     auto tcubeHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
     tcubeHitGroup->SetClosestHitShaderImport(c_tcubeClosestHitShaderName);
@@ -688,7 +735,7 @@ void D3D12RaytracingSakuraScene::CreateDescriptorHeap()
     // 1 - raytracing output texture UAV
     // 1 - texture SRV
 
-    descriptorHeapDesc.NumDescriptors = 9;
+    descriptorHeapDesc.NumDescriptors = 12;
     descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     descriptorHeapDesc.NodeMask = 0;
@@ -778,6 +825,8 @@ void D3D12RaytracingSakuraScene::BuildTreeGeometry()
     std::vector<Index> trunkIndices;
     std::vector<Vertex> leavesVertices;
     std::vector<Index> leavesIndices;
+    std::vector<Vertex> bushVertices;
+    std::vector<Index> bushIndices;
 
     {
         XMVECTOR xAxis = { 1, 0, 0 };
@@ -789,12 +838,16 @@ void D3D12RaytracingSakuraScene::BuildTreeGeometry()
             0.007f,
             &trunkVertices,
             &trunkIndices);
-
         m_ObjModelLoader.GetObjectVerticesAndIndices(
             "leaves",
             0.007f,
             &leavesVertices,
             &leavesIndices);
+        m_ObjModelLoader.GetObjectVerticesAndIndices(
+            "bush",
+            0.007f,
+            &bushVertices, 
+            &bushIndices);
     }
 
     size_t trunkIndexBufferSize = trunkIndices.size() * sizeof(Index);
@@ -804,6 +857,10 @@ void D3D12RaytracingSakuraScene::BuildTreeGeometry()
     size_t leavesIndexBufferSize = leavesIndices.size() * sizeof(Index);
     AllocateUploadBuffer(device, leavesIndices.data(), leavesIndexBufferSize, &m_leavesIndexBuffer.resource);
     AllocateUploadBuffer(device, leavesVertices.data(), leavesVertices.size() * sizeof(leavesVertices[0]), &m_leavesVertexBuffer.resource);
+
+    size_t bushIndexBufferSize = bushIndices.size() * sizeof(Index);
+    AllocateUploadBuffer(device, bushIndices.data(), bushIndexBufferSize, &m_bushIndexBuffer.resource);
+    AllocateUploadBuffer(device, bushVertices.data(), bushVertices.size() * sizeof(bushVertices[0]), &m_bushVertexBuffer.resource);
 
 
     m_totalTrunkVertexCount = trunkVertices.size();
@@ -825,6 +882,15 @@ void D3D12RaytracingSakuraScene::BuildTreeGeometry()
     );
     UINT leavesDescriptorIndexVB = CreateBufferSRV(&m_leavesVertexBuffer, leavesVertices.size(), sizeof(leavesVertices[0]));
     ThrowIfFalse(leavesDescriptorIndexVB == leavesDescriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index!");
+
+    m_totalBushVertexCount = bushVertices.size();
+    UINT bushDescriptorIndexIB = CreateBufferSRV(
+        &m_bushIndexBuffer,
+        static_cast<UINT>(bushIndices.size() * sizeof(Index) / 4),
+        0
+    );
+    UINT bushDescriptorIndexVB = CreateBufferSRV(&m_bushVertexBuffer, bushVertices.size(), sizeof(bushVertices[0]));
+    ThrowIfFalse(bushDescriptorIndexVB == bushDescriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index!");
 }
 
 
@@ -882,6 +948,19 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     leavesGeometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
     leavesGeometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
+    // Setup bush shape geometry desc 
+    D3D12_RAYTRACING_GEOMETRY_DESC bushGeometryDesc = {};
+    bushGeometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+    bushGeometryDesc.Triangles.IndexBuffer = m_bushIndexBuffer.resource->GetGPUVirtualAddress();
+    bushGeometryDesc.Triangles.IndexCount = static_cast<UINT>(m_bushIndexBuffer.resource->GetDesc().Width) / sizeof(Index);
+    bushGeometryDesc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+    bushGeometryDesc.Triangles.Transform3x4 = 0;
+    bushGeometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+    bushGeometryDesc.Triangles.VertexCount = static_cast<UINT>(m_bushVertexBuffer.resource->GetDesc().Width) / sizeof(Vertex);
+    bushGeometryDesc.Triangles.VertexBuffer.StartAddress = m_bushVertexBuffer.resource->GetGPUVirtualAddress();
+    bushGeometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
+    bushGeometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+
     // Get required sizes for an acceleration structure.
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 
@@ -902,24 +981,33 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS leavesBLASInputs = {};
     leavesBLASInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    leavesBLASInputs.Flags = buildFlags;
+    leavesBLASInputs.Flags = buildFlags; 
     leavesBLASInputs.NumDescs = 1; // 1 geometry desc
     leavesBLASInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
     leavesBLASInputs.pGeometryDescs = &leavesGeometryDesc;
 
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS bushBLASInputs = {};
+    bushBLASInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+    bushBLASInputs.Flags = buildFlags;
+    bushBLASInputs.NumDescs = 1; // 1 geometry desc
+    bushBLASInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+    bushBLASInputs.pGeometryDescs = &bushGeometryDesc;
+
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO cubeBLASPrebuildInfo = {};
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO trunkBLASPrebuildInfo = {};
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO leavesBLASPrebuildInfo = {};
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bushBLASPrebuildInfo = {};
 
     m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&cubeBLASInputs, &cubeBLASPrebuildInfo);
     m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&trunkBLASInputs, &trunkBLASPrebuildInfo);
     m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&leavesBLASInputs, &leavesBLASPrebuildInfo);
+    m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bushBLASInputs, &bushBLASPrebuildInfo);
 
     // Tp-level acceleration structure - 3 instances (two cubes, one trunk).
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS topLevelInputs = {};
     topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     topLevelInputs.Flags = buildFlags;
-    topLevelInputs.NumDescs = 1764;
+    topLevelInputs.NumDescs = 2205;
     topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo = {};
@@ -931,9 +1019,16 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         leavesBLASPrebuildInfo.ScratchDataSizeInBytes,
         max(
             cubeBLASPrebuildInfo.ScratchDataSizeInBytes,
-            max(trunkBLASPrebuildInfo.ScratchDataSizeInBytes, topLevelPrebuildInfo.ScratchDataSizeInBytes)
+            max(
+                trunkBLASPrebuildInfo.ScratchDataSizeInBytes,
+                max(
+                    topLevelPrebuildInfo.ScratchDataSizeInBytes,
+                    bushBLASPrebuildInfo.ScratchDataSizeInBytes
+                )
+            )
         )
     );
+
 
     AllocateUAVBuffer(device, scratchSize, &scratchResource, D3D12_RESOURCE_STATE_COMMON, L"ScratchResource");
 
@@ -950,7 +1045,8 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         AllocateUAVBuffer(device, cubeBLASPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructureCube, initialResourceState, L"BottomLevelAccelerationStructureCube");
         AllocateUAVBuffer(device, trunkBLASPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructureTrunk, initialResourceState, L"BottomLevelAccelerationStructureTrunk");
         AllocateUAVBuffer(device, leavesBLASPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructureLeaves, initialResourceState, L"BottomLevelAccelerationStructureLeaves");
-        AllocateUAVBuffer(device, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_topLevelAccelerationStructure, initialResourceState, L"TopLevelAccelerationStructure");
+        AllocateUAVBuffer(device, bushBLASPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructureBushes, initialResourceState, L"BottomLevelAccelerationStructureBush");
+        AllocateUAVBuffer(device, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_topLevelAccelerationStructure, initialResourceState, L"TopLevelAccelerationStructure"); 
     }
 
     // Create an instance desc for the bottom-level acceleration structure.
@@ -1004,7 +1100,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 			float posZ = z * randomCubeSpacing;
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
-            float scale = 0.1f; // Smaller cube scale
+            float scale = 0.05f; // Smaller cube scale 
             desc.Transform[0][0] = scale;
             desc.Transform[1][1] = scale;
             desc.Transform[2][2] = scale;
@@ -1031,7 +1127,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     {
         for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z) 
         {
-            float spacingBetweenTrees = (x < 0) ? 1.0f : 2.0f;
+            float spacingBetweenTrees = (x < 0) ? 1.0f : 1.5f;
 			float randomXOffset = randomOffset(gen);
             float randomZOffset = randomOffset(gen);
 
@@ -1083,6 +1179,31 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         instanceDesc.push_back(desc);
     }
 
+    // Third loop: Initialize bushes 
+    for (size_t i = 0; i < trunkPositions.size(); ++i) 
+    {
+        float randomXOffset = randomOffset(gen);
+
+        // Leaves instance
+        D3D12_RAYTRACING_INSTANCE_DESC desc = {};
+        float scale = 17.0f;
+        desc.Transform[0][0] = scale;
+        desc.Transform[1][1] = scale;
+        desc.Transform[2][2] = scale;
+
+        // Use the same position as the corresponding trunk
+		desc.Transform[0][3] = std::get<0>(trunkPositions[i]) + randomXOffset; // X position with random offset
+        desc.Transform[1][3] = std::get<1>(trunkPositions[i]) - 0.5f;
+        desc.Transform[2][3] = std::get<2>(trunkPositions[i]); // Z position
+
+        desc.InstanceMask = 1;
+        desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
+        desc.AccelerationStructure = m_bottomLevelAccelerationStructureBushes->GetGPUVirtualAddress();
+        desc.InstanceID = instanceDesc.size();
+        desc.InstanceContributionToHitGroupIndex = static_cast<UINT>(instanceDesc.size());
+        instanceDesc.push_back(desc);
+    }
+
     AllocateUploadBuffer(device, instanceDesc.data(), instanceDesc.size() * sizeof(D3D12_RAYTRACING_INSTANCE_DESC), &instanceDescsResource, L"InstanceDesc");
 
     // Build bottom-level acceleration structures for cube
@@ -1103,6 +1224,12 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     leavesBLASDesc.ScratchAccelerationStructureData = scratchResource->GetGPUVirtualAddress();
     leavesBLASDesc.DestAccelerationStructureData = m_bottomLevelAccelerationStructureLeaves->GetGPUVirtualAddress();
 
+    // Build bottom-level acceleration structures for bushes 
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bushBLASDesc = {};
+    bushBLASDesc.Inputs = bushBLASInputs;
+    bushBLASDesc.ScratchAccelerationStructureData = scratchResource->GetGPUVirtualAddress();
+    bushBLASDesc.DestAccelerationStructureData = m_bottomLevelAccelerationStructureBushes->GetGPUVirtualAddress();
+
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelBuildDesc = {};
     topLevelBuildDesc.Inputs = topLevelInputs;
     topLevelBuildDesc.Inputs.InstanceDescs = instanceDescsResource->GetGPUVirtualAddress();
@@ -1117,6 +1244,8 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
             commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(m_bottomLevelAccelerationStructureTrunk.Get()));
             raytracingCommandList->BuildRaytracingAccelerationStructure(&leavesBLASDesc, 0, nullptr);
             commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(m_bottomLevelAccelerationStructureLeaves.Get()));
+            raytracingCommandList->BuildRaytracingAccelerationStructure(&bushBLASDesc, 0, nullptr);
+            commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(m_bottomLevelAccelerationStructureBushes.Get()));
             raytracingCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc, 0, nullptr);
         };
 
@@ -1141,6 +1270,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
     void* hitGroupShaderIdentifier;
     void* trunkHitGroupShaderIdentifier;
     void* leavesHitGroupShaderIdentifier;
+    void* bushHitGroupShaderIdentifier;
     void* tcubeHitGroupShaderIdentifier;
     
     auto GetShaderIdentifiers = [&](auto* stateObjectProperties)
@@ -1150,6 +1280,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             hitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_hitGroupName);
             trunkHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_trunkHitGroupName);
             leavesHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesHitGroupName);
+            bushHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_bushHitGroupName);
             tcubeHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_transparentCubeHitGroupName);
         };
 
@@ -1191,7 +1322,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             ObjectConstantBuffer cb;
         };
 
-        UINT numShaderRecords = 1764;
+        UINT numShaderRecords = 2205;
         UINT shaderRecordSize = shaderIdentifierSize + sizeof(RootArguments);
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
@@ -1229,6 +1360,15 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
             argument.cb.materialID = 3;
             hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+        }
+
+        // Bush shader records 
+        for (int i = 0; i < 441; ++i) {
+            RootArguments argument;
+            argument.cb = m_bushCB;
+            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            argument.cb.materialID = 4;
+            hitGroupShaderTable.push_back(ShaderRecord(bushHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
         // Add this line to fix the null pointer issue:
@@ -1384,7 +1524,7 @@ void D3D12RaytracingSakuraScene::DoRaytracing()
             // Since each shader table has only one shader record, the stride is same as the size.
             dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
             dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
-            dispatchDesc->HitGroupTable.StrideInBytes = m_hitGroupShaderTable->GetDesc().Width / 1764;
+            dispatchDesc->HitGroupTable.StrideInBytes = m_hitGroupShaderTable->GetDesc().Width / 2205;
             dispatchDesc->MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
             dispatchDesc->MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
             dispatchDesc->MissShaderTable.StrideInBytes = dispatchDesc->MissShaderTable.SizeInBytes;
@@ -1478,6 +1618,10 @@ void D3D12RaytracingSakuraScene::RenderUI()
     textPos.y += m_smallFont->GetLineSpacing();
 
     swprintf_s(buffer, ARRAYSIZE(buffer), L"Sort by both: %s - Press 'B'", m_sortByBoth ? L"Enabled" : L"Disabled");
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing();
+
+	swprintf_s(buffer, ARRAYSIZE(buffer), L"Use WASD to move around the scene.");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 

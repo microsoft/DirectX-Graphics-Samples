@@ -33,15 +33,21 @@ StructuredBuffer<Vertex> VerticesTrunk : register(t4, space0);
     
 ByteAddressBuffer IndicesLeaves : register(t5, space0);
 StructuredBuffer<Vertex> VerticesLeaves : register(t6, space0);
+    
+ByteAddressBuffer IndicesBush : register(t7, space0);
+StructuredBuffer<Vertex> VerticesBush : register(t8, space0);
 
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 ConstantBuffer<ObjectConstantBuffer> g_cubeCB : register(b1);
     
-Texture2D<float4> TrunkTexture : register(t7, space0);
+Texture2D<float4> TrunkTexture : register(t9, space0);
 SamplerState TrunkSampler : register(s0);
     
-Texture2D<float4> SakuraTexture : register(t8, space0);
+Texture2D<float4> SakuraTexture : register(t10, space0);
 SamplerState SakuraSampler : register(s1);
+    
+Texture2D<float4> BushTexture : register(t11, space0);
+SamplerState BushSampler : register(s2);
 
     
 // Load three 16 bit indices from a byte addressed buffer. 
@@ -332,6 +338,42 @@ void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
+    
+[shader("closesthit")]
+void BushClosestHitShader(inout RayPayload payload, in MyAttributes attr)
+    {
+    float3 hitPosition = HitWorldPosition();
+    uint baseIndex = PrimitiveIndex() * 3;
+    uint offset = baseIndex * 4;
+        uint3 indices = IndicesBush.Load3(offset);
+
+// Albedo is defined per shape or material
+    float3 albedo = g_cubeCB.albedo;
+    float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
+    float3 triangleNormal;
+
+// Retrieve corresponding vertex normals for the triangle vertices.
+    float3 vertexNormals[3];
+    vertexNormals[0] = VerticesBush[indices.x].normal;
+    vertexNormals[1] = VerticesBush[indices.y].normal;
+    vertexNormals[2] = VerticesBush[indices.z].normal;
+    triangleNormal = HitAttribute(vertexNormals, attr);
+            
+    float2 vertexTexCoords[3];
+    vertexTexCoords[0] = VerticesBush[indices.x].uv;
+    vertexTexCoords[1] = VerticesBush[indices.y].uv;
+    vertexTexCoords[2] = VerticesBush[indices.z].uv;
+    float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr);
+
+// Sample the texture with the modified coordinates
+        sampled.rgb = BushTexture.SampleLevel(BushSampler, interpolatedTexCoord, 0).rgb;
+        
+    float3 baseColor = albedo * sampled.rgb;
+    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+    float NdotL = saturate(dot(triangleNormal, lightDir));
+    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+    payload.color = float4(finalColor, g_cubeCB.albedo.w);
+}
 
 
 [shader("closesthit")]
@@ -368,9 +410,7 @@ void TCubeClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
-        float4 background = float4(0.9020f, 0.9373f, 0.8353f, 1.0f);
-
-
+    float4 background = float4(1.0000f, 0.9216f, 0.9373f, 1.0f);
     payload.color = background;
 }
 

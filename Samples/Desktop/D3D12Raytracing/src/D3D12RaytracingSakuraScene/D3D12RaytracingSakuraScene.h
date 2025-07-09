@@ -100,8 +100,10 @@ private:
     // Texture resources
     ComPtr<ID3D12Resource> m_texture1;
     ComPtr<ID3D12Resource> m_texture2;
+    ComPtr<ID3D12Resource> m_texture3;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptor1;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptor2;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptor3;
 
     // Raytracing scene
     SceneConstantBuffer m_sceneCB[FrameCount];
@@ -110,6 +112,7 @@ private:
 	ObjectConstantBuffer m_transparentCubeCB;
     ObjectConstantBuffer m_trunkCB;
     ObjectConstantBuffer m_leavesCB;
+	ObjectConstantBuffer m_bushCB;
 
     // Asset loader
     ObjModelLoader m_ObjModelLoader;
@@ -127,14 +130,18 @@ private:
     D3DBuffer m_trunkVertexBuffer;
     D3DBuffer m_leavesIndexBuffer;
     D3DBuffer m_leavesVertexBuffer;
+    D3DBuffer m_bushIndexBuffer;
+    D3DBuffer m_bushVertexBuffer;
     int m_totalTrunkVertexCount;
     int m_totalLeavesVertexCount;
+    int m_totalBushVertexCount;
     
     // Acceleration structure
     ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
     ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructureCube;
     ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructureTrunk;
     ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructureLeaves;
+    ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructureBushes;
 
     ComPtr<ID3D12Resource> m_topLevelAccelerationStructuretrunk;
     ComPtr<ID3D12Resource> m_topLevelAccelerationStructureLeaves;
@@ -149,6 +156,7 @@ private:
     static const wchar_t* c_hitGroupName;
     static const wchar_t* c_trunkHitGroupName;
     static const wchar_t* c_leavesHitGroupName;
+    static const wchar_t* c_bushHitGroupName;
     static const wchar_t* c_transparentCubeHitGroupName;
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_closestHitShaderName;
@@ -156,6 +164,7 @@ private:
     static const wchar_t* c_leavesClosestHitShaderName;
     static const wchar_t* c_tcubeClosestHitShaderName;
     static const wchar_t* c_missShaderName;
+    static const wchar_t* c_bushClosestHitShaderName;
     ComPtr<ID3D12Resource> m_missShaderTable;
     ComPtr<ID3D12Resource> m_hitGroupShaderTable;
     ComPtr<ID3D12Resource> m_rayGenShaderTable;
