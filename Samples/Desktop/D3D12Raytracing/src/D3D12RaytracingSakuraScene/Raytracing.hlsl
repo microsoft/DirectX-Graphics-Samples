@@ -487,7 +487,6 @@ void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes a
     sampled.rgb = accumulatedColor / loopCount;
 
     // Blend the sampled color toward dark purple
-    sampled.rgb = lerp(sampled.rgb, float3(0.75, 0.6, 0.85), 0.2);
     float3 baseColor = albedo * sampled.rgb;
     float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
     float NdotL = saturate(dot(triangleNormal, lightDir));
