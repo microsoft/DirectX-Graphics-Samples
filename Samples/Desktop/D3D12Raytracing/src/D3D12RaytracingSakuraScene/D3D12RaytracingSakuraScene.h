@@ -109,9 +109,14 @@ private:
     SceneConstantBuffer m_sceneCB[FrameCount];
     ObjectConstantBuffer m_objectCB;
     ObjectConstantBuffer m_cubeCB;
+    ObjectConstantBuffer m_tcubeCB;
 	ObjectConstantBuffer m_transparentCubeCB;
     ObjectConstantBuffer m_trunkCB;
     ObjectConstantBuffer m_leavesCB;
+    ObjectConstantBuffer m_leavesLightCB;
+    ObjectConstantBuffer m_leavesDarkCB;
+    ObjectConstantBuffer m_leavesExtraDarkCB;
+    ObjectConstantBuffer m_transparentLeavesCB;
 	ObjectConstantBuffer m_bushCB;
 
     // Asset loader
@@ -156,12 +161,18 @@ private:
     static const wchar_t* c_hitGroupName;
     static const wchar_t* c_trunkHitGroupName;
     static const wchar_t* c_leavesHitGroupName;
+    static const wchar_t* c_leavesLightHitGroupName;
+    static const wchar_t* c_leavesDarkHitGroupName;
+    static const wchar_t* c_leavesExtraDarkHitGroupName;
     static const wchar_t* c_bushHitGroupName;
     static const wchar_t* c_transparentCubeHitGroupName;
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_closestHitShaderName;
     static const wchar_t* c_trunkClosestHitShaderName;
     static const wchar_t* c_leavesClosestHitShaderName;
+    static const wchar_t* c_leavesLightClosestHitShaderName;
+    static const wchar_t* c_leavesDarkClosestHitShaderName;
+    static const wchar_t* c_leavesExtraDarkClosestHitShaderName;
     static const wchar_t* c_tcubeClosestHitShaderName;
     static const wchar_t* c_missShaderName;
     static const wchar_t* c_bushClosestHitShaderName;

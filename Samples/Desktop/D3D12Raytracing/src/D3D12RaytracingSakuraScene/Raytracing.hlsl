@@ -340,6 +340,164 @@ void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 }
     
 [shader("closesthit")]
+void LeavesLightClosestHitShader(inout RayPayload payload, in MyAttributes attr)
+{
+    float3 hitPosition = HitWorldPosition();
+    uint baseIndex = PrimitiveIndex() * 3;
+    uint offset = baseIndex * 4;
+    uint3 indices = IndicesLeaves.Load3(offset);
+
+    float3 albedo = g_cubeCB.albedo;
+    float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
+    float3 triangleNormal;
+
+    float3 vertexNormals[3];
+    vertexNormals[0] = VerticesLeaves[indices.x].normal;
+    vertexNormals[1] = VerticesLeaves[indices.y].normal;
+    vertexNormals[2] = VerticesLeaves[indices.z].normal;
+    triangleNormal = HitAttribute(vertexNormals, attr);
+            
+    float2 vertexTexCoords[3];
+    vertexTexCoords[0] = VerticesLeaves[indices.x].uv;
+    vertexTexCoords[1] = VerticesLeaves[indices.y].uv;
+    vertexTexCoords[2] = VerticesLeaves[indices.z].uv;
+    float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr);
+
+    // Heavier workload: multiple dependent texture samples
+    float3 accumulatedColor = float3(0.0, 0.0, 0.0);
+    const int loopCount = 1; // Increase for more load, but test performance
+
+    for (int i = 1; i <= loopCount; ++i)
+    {
+        float factor = float(i);
+        float2 offset = float2(
+        sin(interpolatedTexCoord.y * 20.0 * factor),
+        cos(interpolatedTexCoord.x * 20.0 * factor)) * (0.002 / factor); // small offset per iteration
+
+        float2 uv = interpolatedTexCoord + offset;
+        accumulatedColor += SakuraTexture.SampleLevel(SakuraSampler, uv, 0).rgb;
+    }
+
+    // Average the accumulated samples
+    sampled.rgb = accumulatedColor / loopCount;
+
+    // Lighten the sampled color by blending toward white
+    sampled.rgb = lerp(sampled.rgb, float3(1.0, 1.0, 1.0), 0.2);
+    float3 baseColor = albedo * sampled.rgb;
+    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+    float NdotL = saturate(dot(triangleNormal, lightDir));
+    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+    payload.color = float4(finalColor, g_cubeCB.albedo.w);
+    
+}
+
+    
+[shader("closesthit")]
+void LeavesDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
+{
+    float3 hitPosition = HitWorldPosition();
+    uint baseIndex = PrimitiveIndex() * 3;
+    uint offset = baseIndex * 4;
+    uint3 indices = IndicesLeaves.Load3(offset);
+
+    float3 albedo = g_cubeCB.albedo;
+    float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
+    float3 triangleNormal;
+
+    float3 vertexNormals[3];
+    vertexNormals[0] = VerticesLeaves[indices.x].normal;
+    vertexNormals[1] = VerticesLeaves[indices.y].normal;
+    vertexNormals[2] = VerticesLeaves[indices.z].normal;
+    triangleNormal = HitAttribute(vertexNormals, attr);
+            
+    float2 vertexTexCoords[3];
+    vertexTexCoords[0] = VerticesLeaves[indices.x].uv;
+    vertexTexCoords[1] = VerticesLeaves[indices.y].uv;
+    vertexTexCoords[2] = VerticesLeaves[indices.z].uv;
+    float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr);
+
+    // Heavier workload: multiple dependent texture samples
+    float3 accumulatedColor = float3(0.0, 0.0, 0.0);
+    const int loopCount = 100; // Increase for more load, but test performance
+
+    for (int i = 1; i <= loopCount; ++i)
+    {
+        float factor = float(i);
+        float2 offset = float2(
+        sin(interpolatedTexCoord.y * 20.0 * factor),
+        cos(interpolatedTexCoord.x * 20.0 * factor)) * (0.002 / factor); // small offset per iteration
+
+        float2 uv = interpolatedTexCoord + offset;
+        accumulatedColor += SakuraTexture.SampleLevel(SakuraSampler, uv, 0).rgb;
+    }
+
+    // Average the accumulated samples
+    sampled.rgb = accumulatedColor / loopCount;
+
+    // Darken the sampled color by blending toward purple
+    sampled.rgb = lerp(sampled.rgb, float3(0.5, 0.0, 0.5), 0.2);
+    float3 baseColor = albedo * sampled.rgb;
+    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+    float NdotL = saturate(dot(triangleNormal, lightDir));
+    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+    payload.color = float4(finalColor, g_cubeCB.albedo.w);
+}
+
+    
+[shader("closesthit")]
+void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
+{
+    float3 hitPosition = HitWorldPosition();
+    uint baseIndex = PrimitiveIndex() * 3;
+    uint offset = baseIndex * 4;
+    uint3 indices = IndicesLeaves.Load3(offset);
+
+    float3 albedo = g_cubeCB.albedo;
+    float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
+    float3 triangleNormal;
+
+    float3 vertexNormals[3];
+    vertexNormals[0] = VerticesLeaves[indices.x].normal;
+    vertexNormals[1] = VerticesLeaves[indices.y].normal;
+    vertexNormals[2] = VerticesLeaves[indices.z].normal;
+    triangleNormal = HitAttribute(vertexNormals, attr);
+            
+    float2 vertexTexCoords[3];
+    vertexTexCoords[0] = VerticesLeaves[indices.x].uv;
+    vertexTexCoords[1] = VerticesLeaves[indices.y].uv;
+    vertexTexCoords[2] = VerticesLeaves[indices.z].uv;
+    float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr);
+
+    // Heavier workload: multiple dependent texture samples
+    float3 accumulatedColor = float3(0.0, 0.0, 0.0);
+    const int loopCount = 1000; // Increase for more load, but test performance
+
+    for (int i = 1; i <= loopCount; ++i)
+    {
+        float factor = float(i);
+        float2 offset = float2(
+        sin(interpolatedTexCoord.y * 20.0 * factor),
+        cos(interpolatedTexCoord.x * 20.0 * factor)) * (0.002 / factor); // small offset per iteration
+
+    float2 uv = interpolatedTexCoord + offset;
+    accumulatedColor += SakuraTexture.SampleLevel(SakuraSampler, uv, 0).rgb;
+    }
+
+    // Average the accumulated samples
+    sampled.rgb = accumulatedColor / loopCount;
+
+    // Blend the sampled color toward dark purple
+    sampled.rgb = lerp(sampled.rgb, float3(0.75, 0.6, 0.85), 0.2);
+    float3 baseColor = albedo * sampled.rgb;
+    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+    float NdotL = saturate(dot(triangleNormal, lightDir));
+    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+    finalColor = lerp(finalColor, float3(0.35, 0.0, 0.5), 0.3); // apply purple tint after lighting
+    payload.color = float4(finalColor, g_cubeCB.albedo.w);
+}
+
+    
+[shader("closesthit")]
 void BushClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     {
     float3 hitPosition = HitWorldPosition();
@@ -347,12 +505,12 @@ void BushClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     uint offset = baseIndex * 4;
         uint3 indices = IndicesBush.Load3(offset);
 
-// Albedo is defined per shape or material
+    // Albedo is defined per shape or material
     float3 albedo = g_cubeCB.albedo;
     float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
     float3 triangleNormal;
 
-// Retrieve corresponding vertex normals for the triangle vertices.
+    // Retrieve corresponding vertex normals for the triangle vertices.
     float3 vertexNormals[3];
     vertexNormals[0] = VerticesBush[indices.x].normal;
     vertexNormals[1] = VerticesBush[indices.y].normal;
@@ -365,8 +523,8 @@ void BushClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     vertexTexCoords[2] = VerticesBush[indices.z].uv;
     float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr);
 
-// Sample the texture with the modified coordinates
-        sampled.rgb = BushTexture.SampleLevel(BushSampler, interpolatedTexCoord, 0).rgb;
+    // Sample the texture with the modified coordinates
+    sampled.rgb = BushTexture.SampleLevel(BushSampler, interpolatedTexCoord, 0).rgb;
         
     float3 baseColor = albedo * sampled.rgb;
     float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);

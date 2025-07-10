@@ -31,12 +31,18 @@ using namespace DX;
 const wchar_t* D3D12RaytracingSakuraScene::c_hitGroupName = L"MyHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_trunkHitGroupName = L"TrunkHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesHitGroupName = L"LeavesHitGroup";
+const wchar_t* D3D12RaytracingSakuraScene::c_leavesLightHitGroupName = L"LeavesHitGroupLight";
+const wchar_t* D3D12RaytracingSakuraScene::c_leavesDarkHitGroupName = L"LeavesHitGroupDark";
+const wchar_t* D3D12RaytracingSakuraScene::c_leavesExtraDarkHitGroupName = L"LeavesHitGroupExtraDark";
 const wchar_t* D3D12RaytracingSakuraScene::c_bushHitGroupName = L"BushHitGroup"; 
 const wchar_t* D3D12RaytracingSakuraScene::c_transparentCubeHitGroupName = L"TCubeHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_closestHitShaderName = L"MyClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_trunkClosestHitShaderName = L"TrunkClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesClosestHitShaderName = L"LeavesClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraScene::c_leavesLightClosestHitShaderName = L"LeavesLightClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraScene::c_leavesDarkClosestHitShaderName = L"LeavesDarkClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraScene::c_leavesExtraDarkClosestHitShaderName = L"LeavesExtraDarkClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_bushClosestHitShaderName = L"BushClosestHitShader"; 
 const wchar_t* D3D12RaytracingSakuraScene::c_tcubeClosestHitShaderName = L"TCubeClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_missShaderName = L"MyMissShader";
@@ -225,8 +231,9 @@ void D3D12RaytracingSakuraScene::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 8.5f, 2.5f, -6.0f, 1.0f };
-        m_at = { 2.5f, 3.5f, 0.0f, 1.0f };
+        m_eye = { 8.5f, 5.5f, -6.0f, 1.0f };
+        // m_at = { 0.5f, 0.5f, -6.0f, 1.0f };
+        m_at = { 2.5f, 0.5f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
@@ -595,6 +602,9 @@ void D3D12RaytracingSakuraScene::CreateLocalRootSignatureSubobjects(CD3DX12_STAT
         rootSignatureAssociation->AddExport(c_hitGroupName);
         rootSignatureAssociation->AddExport(c_trunkHitGroupName);
         rootSignatureAssociation->AddExport(c_leavesHitGroupName);
+        rootSignatureAssociation->AddExport(c_leavesLightHitGroupName);
+        rootSignatureAssociation->AddExport(c_leavesDarkHitGroupName);
+        rootSignatureAssociation->AddExport(c_leavesExtraDarkHitGroupName);
         rootSignatureAssociation->AddExport(c_bushHitGroupName);
         rootSignatureAssociation->AddExport(c_transparentCubeHitGroupName);
         rootSignatureAssociation->AddExport(c_raygenShaderName);
@@ -636,6 +646,9 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
         lib->DefineExport(c_closestHitShaderName);
         lib->DefineExport(c_trunkClosestHitShaderName);
         lib->DefineExport(c_leavesClosestHitShaderName);
+        lib->DefineExport(c_leavesLightClosestHitShaderName);
+        lib->DefineExport(c_leavesDarkClosestHitShaderName);
+        lib->DefineExport(c_leavesExtraDarkClosestHitShaderName);
         lib->DefineExport(c_bushClosestHitShaderName);
         lib->DefineExport(c_tcubeClosestHitShaderName);
         lib->DefineExport(c_missShaderName);
@@ -659,6 +672,23 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     leavesHitGroup->SetClosestHitShaderImport(c_leavesClosestHitShaderName);
     leavesHitGroup->SetHitGroupExport(c_leavesHitGroupName);
     leavesHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+    auto leavesLightHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    leavesLightHitGroup->SetClosestHitShaderImport(c_leavesLightClosestHitShaderName);
+    leavesLightHitGroup->SetHitGroupExport(c_leavesLightHitGroupName);
+    leavesLightHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+    auto leavesDarkHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    leavesDarkHitGroup->SetClosestHitShaderImport(c_leavesDarkClosestHitShaderName);
+    leavesDarkHitGroup->SetHitGroupExport(c_leavesDarkHitGroupName);
+    leavesDarkHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+
+    auto leavesExtraDarkHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    leavesExtraDarkHitGroup->SetClosestHitShaderImport(c_leavesExtraDarkClosestHitShaderName);
+    leavesExtraDarkHitGroup->SetHitGroupExport(c_leavesExtraDarkHitGroupName);
+    leavesExtraDarkHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
 
     auto bushHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
     bushHitGroup->SetClosestHitShaderImport(c_bushClosestHitShaderName);
@@ -1129,11 +1159,12 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         {
             float spacingBetweenTrees = (x < 0) ? 1.0f : 1.5f;
 			float randomXOffset = randomOffset(gen);
+            float randomYOffset = randomOffset(gen);
             float randomZOffset = randomOffset(gen);
 
             float posX = x * spacingBetweenTrees + randomXOffset;
             if (x >= 0) posX += spacingGap; // Shift the second group to the right
-            float posY = 2.0f;
+            float posY = 2.0f - (randomYOffset / 8);
             float posZ = z * spacingBetweenTrees + randomZOffset;
             trunkPositions.emplace_back(posX, posY, posZ);
 
@@ -1270,6 +1301,9 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
     void* hitGroupShaderIdentifier;
     void* trunkHitGroupShaderIdentifier;
     void* leavesHitGroupShaderIdentifier;
+    void* leavesLightHitGroupShaderIdentifier;
+    void* leavesDarkHitGroupShaderIdentifier;
+    void* leavesExtraDarkHitGroupShaderIdentifier;
     void* bushHitGroupShaderIdentifier;
     void* tcubeHitGroupShaderIdentifier;
     
@@ -1280,6 +1314,9 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             hitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_hitGroupName);
             trunkHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_trunkHitGroupName);
             leavesHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesHitGroupName);
+            leavesLightHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesLightHitGroupName);
+            leavesDarkHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesDarkHitGroupName);
+            leavesExtraDarkHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesExtraDarkHitGroupName);
             bushHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_bushHitGroupName);
             tcubeHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_transparentCubeHitGroupName);
         };
@@ -1326,7 +1363,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         UINT shaderRecordSize = shaderIdentifierSize + sizeof(RootArguments);
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
-		// Larger cube shader records
+		//// Larger cube shader records
         for (int i = 0; i < 441; ++i) {
             RootArguments argument;
             argument.cb = m_cubeCB;
@@ -1344,23 +1381,78 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
+        // Create a random number generator for trunks
+        std::random_device rdTrunk;
+        std::mt19937 genTrunk(rdTrunk());
+        std::uniform_int_distribution<> distribTrunk(0, 1); // 2 hit groups: 0 and 1
+
 		// Tree trunk shader records
         for (int i = 0; i < 441; ++i) {
             RootArguments argument;
-            argument.cb = m_trunkCB;
-            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-            argument.cb.materialID = 2;
-            hitGroupShaderTable.push_back(ShaderRecord(trunkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            const void* shaderIdentifier = nullptr;
+            int randomIndex = distribTrunk(genTrunk); // Random number between 0 and 1
+            switch (randomIndex) {
+
+            case 0:
+                argument.cb = m_leavesCB;
+                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+                argument.cb.materialID = 2;
+                hitGroupShaderTable.push_back(ShaderRecord(trunkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                break;
+            case 1:
+                argument.cb = m_leavesLightCB;
+                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+                argument.cb.materialID = 8;
+                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                break;
+            }
         }
+
+        // Create a random number generator for leaves
+        std::random_device rdLeaves;
+        std::mt19937 genLeaves(rdLeaves());
+        std::uniform_int_distribution<> distribLeaves(0, 4); // 4 hit groups: 0, 1, 2, 3, and 4
 
 		// Tree leaves shader records
         for (int i = 0; i < 441; ++i) {
             RootArguments argument;
-            argument.cb = m_leavesCB;
-            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-            argument.cb.materialID = 3;
-            hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            const void* shaderIdentifier = nullptr;
+            int randomIndex = distribLeaves(genLeaves); // Random number between 0 and 3
+            switch (randomIndex) {
+
+            case 0:
+                argument.cb = m_leavesCB;
+                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+                argument.cb.materialID = 3;
+                hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                break;
+            case 1:
+                argument.cb = m_leavesLightCB;
+                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+                argument.cb.materialID = 5;
+                hitGroupShaderTable.push_back(ShaderRecord(leavesLightHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                break;
+            case 2:
+                argument.cb = m_leavesDarkCB;
+                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+                argument.cb.materialID = 6;
+                hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                break;
+            case 3:
+                argument.cb = m_leavesExtraDarkCB;
+                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+                argument.cb.materialID = 7;
+                hitGroupShaderTable.push_back(ShaderRecord(leavesExtraDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                break;
+            case 4:
+                argument.cb = m_transparentLeavesCB;
+                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+                argument.cb.materialID = 9;
+                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                break;
+            }
         }
+
 
         // Bush shader records 
         for (int i = 0; i < 441; ++i) {
@@ -1368,7 +1460,15 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             argument.cb = m_bushCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
             argument.cb.materialID = 4;
-            hitGroupShaderTable.push_back(ShaderRecord(bushHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            const void* shaderIdentifier = nullptr;
+            switch (i % 2) {
+            case 0:
+                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                break;
+            case 1:
+                hitGroupShaderTable.push_back(ShaderRecord(bushHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                break;
+            }
         }
 
         // Add this line to fix the null pointer issue:
@@ -1393,9 +1493,9 @@ void D3D12RaytracingSakuraScene::OnUpdate()
 		rotateCamera = !rotateCamera;
 	}
 
-    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::E))
+    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::P))
     {
-        OutputDebugStringA("E key pressed!\n");
+        OutputDebugStringA("P key pressed!\n");
         m_serEnabled = !m_serEnabled;
 
 
@@ -1487,6 +1587,36 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_eye -= m_up * movementSpeed;
         m_at -= m_up * movementSpeed;
     }
+
+    if (kb.Q) // Look down
+    {
+        XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
+        XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_up, forward));
+
+        float pitchSpeed = XMConvertToRadians(30.0f) * elapsedTime; // degrees/sec
+
+        XMMATRIX pitchMatrix = XMMatrixRotationAxis(right, pitchSpeed);
+        XMVECTOR newForward = XMVector3TransformNormal(forward, pitchMatrix);
+
+        m_at = m_eye + newForward;
+    }
+
+    if (kb.E) // Look up
+    {
+        XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
+        XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_up, forward));
+
+        float pitchSpeed = XMConvertToRadians(-30.0f) * elapsedTime;
+
+        XMMATRIX pitchMatrix = XMMatrixRotationAxis(right, pitchSpeed);
+        XMVECTOR newForward = XMVector3TransformNormal(forward, pitchMatrix);
+
+        m_at = m_eye + newForward;
+    }
+
+
+
+
 
     // Rotate the camera around Y axis.
     // if (rotateCamera)
@@ -1605,7 +1735,7 @@ void D3D12RaytracingSakuraScene::RenderUI()
     //m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     //textPos.y += m_smallFont->GetLineSpacing();
 
-    swprintf_s(buffer, ARRAYSIZE(buffer), L"Toggle SER: %s - Press 'E'", m_serEnabled ? L"Enabled" : L"Disabled");
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Toggle SER: %s - Press 'P'", m_serEnabled ? L"Enabled" : L"Disabled");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
