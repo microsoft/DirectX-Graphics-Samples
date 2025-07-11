@@ -170,6 +170,7 @@ void MyRaygenShader()
         HitObject hit = HitObject::TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
         uint materialID = hit.LoadLocalRootTableConstant(16);
         bool isGround = (materialID == 0);
+            bool isFlower = (materialID ==4);
             
         if (isGround)
         {
@@ -186,6 +187,22 @@ void MyRaygenShader()
                payload.reflectHint = 1;
             }
         }
+            
+            if (isFlower)
+            {
+            // Estimate hit point on ground plane (y = 0)
+                float t = -origin.y / rayDir.y;
+                float3 estimatedHit = origin + t * rayDir;
+
+            // Generate procedural UVs from XZ
+                float2 uv = frac(estimatedHit.xz * 0.5); // adjust scale as needed
+                float4 texColor = SakuraTexture.SampleLevel(SakuraSampler, uv, 0);
+
+                if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
+                {
+                    payload.reflectHint = 1;
+                }
+            }
         uint numHintBits = 1;
         if (g_sceneCB.enableSortByHit == 1)
         {
@@ -293,7 +310,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float3 modulated = reflectionColor.rgb;
         float weight = 1.0f;
 
-        for (int i = 1; i <= 3000; ++i)
+        for (int i = 1; i <= 1; ++i)
         {
             float angle = dot(rayDir, triangleNormal) * i;
             float trig = sin(angle) * cos(angle * 0.5f);
@@ -374,13 +391,39 @@ void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     // Sample the texture with the modified coordinates
     sampled.rgb = SakuraTexture.SampleLevel(SakuraSampler, interpolatedTexCoord, 0).rgb;
+        float3 baseColor = albedo * sampled.rgb;
         
-    float3 baseColor = albedo * sampled.rgb;
-    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-    float NdotL = saturate(dot(triangleNormal, lightDir));
-    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
-    payload.color = float4(finalColor, g_cubeCB.albedo.w);
-}
+        float3 finalColor;
+
+    // Only trace reflection ray if the surface is dark 
+        if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
+        {
+            Ray reflectionRay;
+            reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
+            reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
+
+            float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
+            float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
+            float3 rayDir = normalize(WorldRayDirection());
+            float3 modulated = reflectionColor.rgb;
+            float weight = 1.0f;
+
+            for (int i = 1; i <= 1; ++i)
+            {
+                float angle = dot(rayDir, triangleNormal) * i;
+                float trig = sin(angle) * cos(angle * 0.5f);
+                weight *= 0.9f; // decay factor
+                modulated += trig * baseColor * weight;
+            }
+
+            finalColor = lerp(baseColor, modulated, fresnel);
+        }
+        else
+        {
+            finalColor = albedo * sampled.rgb;
+        }
+        payload.color = float4(finalColor, g_cubeCB.albedo.w);
+    }
     
     
 [shader("closesthit")]
@@ -407,12 +450,29 @@ void LeavesLightClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     vertexTexCoords[2] = VerticesLeaves[indices.z].uv;
     float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr).xy;
     
-    // Lighten the sampled color by blending toward white
-    sampled.rgb = lerp(sampled.rgb, float3(1.0, 1.0, 1.0), 0.2);
+    float3 finalColor;
     float3 baseColor = albedo * sampled.rgb;
     float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
     float NdotL = saturate(dot(triangleNormal, lightDir));
-    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+
+    // Only trace reflection ray if the surface is dark 
+    if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
+    {
+        Ray reflectionRay;
+        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
+        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
+
+        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
+        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
+        float3 rayDir = normalize(WorldRayDirection());
+        float3 modulated = reflectionColor.rgb;
+        float weight = 1.0f;
+        finalColor = lerp(baseColor, modulated, fresnel);
+    }
+    else
+    {
+        finalColor = albedo * sampled.rgb * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+    }
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
 
@@ -441,12 +501,28 @@ void LeavesDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     vertexTexCoords[2] = VerticesLeaves[indices.z].uv;
     float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr).xy;
 
-    // Darken the sampled color by blending toward purple
-    sampled.rgb = lerp(sampled.rgb, float3(0.5, 0.0, 0.5), 0.2);
+    float3 finalColor;
     float3 baseColor = albedo * sampled.rgb;
-    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-    float NdotL = saturate(dot(triangleNormal, lightDir));
-    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+
+    // Only trace reflection ray if the surface is dark 
+    if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
+    {
+        Ray reflectionRay;
+        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
+        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
+
+        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
+        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
+        float3 rayDir = normalize(WorldRayDirection());
+        float3 modulated = reflectionColor.rgb;
+        float weight = 1.0f;
+
+        finalColor = lerp(baseColor, modulated, fresnel);
+    }
+    else
+    {
+        finalColor = albedo * sampled.rgb;
+    }
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
 
@@ -476,12 +552,27 @@ void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes a
     float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr).xy;
 
 
-    // Blend the sampled color toward dark purple
-    sampled.rgb = lerp(sampled.rgb, float3(0.35, 0.0, 0.5), 0.6);
+    float3 finalColor;
     float3 baseColor = albedo * sampled.rgb;
-    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-    float NdotL = saturate(dot(triangleNormal, lightDir));
-    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+
+    // Only trace reflection ray if the surface is dark 
+    if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
+    {
+        Ray reflectionRay;
+        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
+        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
+
+        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
+        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
+        float3 rayDir = normalize(WorldRayDirection());
+        float3 modulated = reflectionColor.rgb;
+        float weight = 1.0f;
+        finalColor = lerp(baseColor, modulated, fresnel);
+    }
+    else
+    {
+        finalColor = albedo * sampled.rgb;
+    }
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
 
