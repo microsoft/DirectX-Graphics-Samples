@@ -231,9 +231,9 @@ void D3D12RaytracingSakuraScene::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 8.5f, 5.5f, -6.0f, 1.0f };
+        m_eye = { 8.5f, 5.0f, -6.0f, 1.0f };
         // m_at = { 0.5f, 0.5f, -6.0f, 1.0f };
-        m_at = { 2.5f, 0.5f, 0.0f, 1.0f };
+        m_at = { 1.0f, 0.0f, 0.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
@@ -1448,7 +1448,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
                 argument.cb = m_transparentLeavesCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 9;
-                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             }
         }
