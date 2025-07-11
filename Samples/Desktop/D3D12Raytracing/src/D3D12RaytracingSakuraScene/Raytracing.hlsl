@@ -339,6 +339,7 @@ void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
     
+    
 [shader("closesthit")]
 void LeavesLightClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
@@ -388,7 +389,6 @@ void LeavesLightClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float NdotL = saturate(dot(triangleNormal, lightDir));
     float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
-    
 }
 
     
@@ -418,7 +418,7 @@ void LeavesDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     // Heavier workload: multiple dependent texture samples
     float3 accumulatedColor = float3(0.0, 0.0, 0.0);
-    const int loopCount = 100; // Increase for more load, but test performance
+    const int loopCount = 10; // Increase for more load, but test performance
 
     for (int i = 1; i <= loopCount; ++i)
     {
@@ -470,7 +470,7 @@ void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes a
 
     // Heavier workload: multiple dependent texture samples
     float3 accumulatedColor = float3(0.0, 0.0, 0.0);
-    const int loopCount = 1000; // Increase for more load, but test performance
+    const int loopCount = 5000; // Increase for more load, but test performance
 
     for (int i = 1; i <= loopCount; ++i)
     {
@@ -479,8 +479,8 @@ void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes a
         sin(interpolatedTexCoord.y * 20.0 * factor),
         cos(interpolatedTexCoord.x * 20.0 * factor)) * (0.002 / factor); // small offset per iteration
 
-    float2 uv = interpolatedTexCoord + offset;
-    accumulatedColor += SakuraTexture.SampleLevel(SakuraSampler, uv, 0).rgb;
+        float2 uv = interpolatedTexCoord + offset;
+        accumulatedColor += SakuraTexture.SampleLevel(SakuraSampler, uv, 0).rgb;
     }
 
     // Average the accumulated samples
@@ -502,7 +502,7 @@ void BushClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 hitPosition = HitWorldPosition();
     uint baseIndex = PrimitiveIndex() * 3;
     uint offset = baseIndex * 4;
-        uint3 indices = IndicesBush.Load3(offset);
+    uint3 indices = IndicesBush.Load3(offset);
 
     // Albedo is defined per shape or material
     float3 albedo = g_cubeCB.albedo;
@@ -559,7 +559,6 @@ void TCubeClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     float3 fresnelR = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, g_cubeCB.albedo.xyz);
     float4 reflectedColor = 0.5 * float4(fresnelR, 1) * reflectionColor;
-
     payload.color = reflectedColor;
 }
         
