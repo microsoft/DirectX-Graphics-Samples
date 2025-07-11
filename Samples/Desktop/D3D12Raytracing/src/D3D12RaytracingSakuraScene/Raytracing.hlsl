@@ -184,34 +184,29 @@ void MyRaygenShader()
             if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
             {
                payload.reflectHint = 1;
-           }
+            }
         }
-
         uint numHintBits = 1;
-        
-       if (g_sceneCB.enableSortByHit == 1)
-       {
-            dx::MaybeReorderThread(hit);
-       }
-       else if (g_sceneCB.enableSortByMaterial == 1)
+        if (g_sceneCB.enableSortByHit == 1)
         {
-            //dx::MaybeReorderThread(materialID, numHintBits);
+            dx::MaybeReorderThread(hit);
+        }
+        else if (g_sceneCB.enableSortByMaterial == 1)
+        {
             uint sortKey = payload.reflectHint;
             dx::MaybeReorderThread(sortKey, numHintBits);
-
-        }
-            
+        }   
         else if (g_sceneCB.enableSortByBoth == 1)
         {
-            uint sortKey = (materialID << 1) | payload.reflectHint;
+            uint sortKey = payload.reflectHint;
             dx::MaybeReorderThread(hit, sortKey, numHintBits);
         }
-
         HitObject::Invoke(hit, payload);
     }
     else
     {
         TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
+        //uint hint = payload.reflectHint;
     }
         
     float4 color = payload.color;
@@ -260,7 +255,7 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     
 
 [shader("closesthit")]
-void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
+void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
     float3 hitPosition = HitWorldPosition();
     uint baseIndex = PrimitiveIndex() * 3;
@@ -283,6 +278,7 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     triangleNormal = HitAttribute(vertexNormals, attr);
 
     float3 baseColor = albedo * sampled.rgb;
+    float3 finalColor;
 
     // Only trace reflection ray if the surface is dark 
     if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
@@ -290,16 +286,28 @@ void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         Ray reflectionRay;
         reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
         reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
+
         float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
         float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
-        float3 finalColor = lerp(baseColor, reflectionColor.rgb, fresnel);
-        payload.color = float4(finalColor, g_cubeCB.albedo.w);
+        float3 rayDir = normalize(WorldRayDirection());
+        float3 modulated = reflectionColor.rgb;
+        float weight = 1.0f;
+
+        for (int i = 1; i <= 3000; ++i)
+        {
+            float angle = dot(rayDir, triangleNormal) * i;
+            float trig = sin(angle) * cos(angle * 0.5f);
+            weight *= 0.9f; // decay factor
+            modulated += trig * baseColor * weight;
+        }
+
+        finalColor = lerp(baseColor, modulated, fresnel);
     }
     else
     {
-        float3 finalColor = albedo * sampled.rgb;
-        payload.color = float4(finalColor, g_cubeCB.albedo.w);
+        finalColor = albedo * sampled.rgb;
     }
+    payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
 
     
