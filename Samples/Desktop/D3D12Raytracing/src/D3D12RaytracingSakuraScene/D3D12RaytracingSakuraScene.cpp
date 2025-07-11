@@ -1625,7 +1625,6 @@ void D3D12RaytracingSakuraScene::OnUpdate()
     }
 
 
-
     // Rotate the camera around Y axis.
     // if (rotateCamera)
     //{
@@ -1759,7 +1758,11 @@ void D3D12RaytracingSakuraScene::RenderUI()
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
-    swprintf_s(buffer, ARRAYSIZE(buffer), L"Use WASD to move around the scene.");
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Use WASD to move around");
+    m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
+    textPos.y += m_smallFont->GetLineSpacing();
+
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Use Arrow keys to look around");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
