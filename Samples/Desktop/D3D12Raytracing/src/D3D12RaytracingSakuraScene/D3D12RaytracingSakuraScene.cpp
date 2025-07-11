@@ -1553,14 +1553,14 @@ void D3D12RaytracingSakuraScene::OnUpdate()
     }
 
     // Left and right strafing (A/D)
-    if (kb.A || kb.Left)
+    if (kb.A)
     {
         XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
         XMVECTOR left = XMVector3Normalize(XMVector3Cross(forward, m_up));
         m_eye += left * movementSpeed;
         m_at += left * movementSpeed;
     }
-    if (kb.D || kb.Right)
+    if (kb.D)
     {
         XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
         XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_up, forward));
@@ -1569,18 +1569,18 @@ void D3D12RaytracingSakuraScene::OnUpdate()
     }
 
     // Up and down movement 
-    if (kb.Up)
+    if (kb.Q)
     {
         m_eye += m_up * movementSpeed;
         m_at += m_up * movementSpeed;
     }
-    if (kb.Down)
+    if (kb.E)
     {
         m_eye -= m_up * movementSpeed;
         m_at -= m_up * movementSpeed;
     }
 
-    if (kb.Q) // Look down
+    if (kb.Down) // Look down
     {
         XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
         XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_up, forward));
@@ -1593,7 +1593,7 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_at = m_eye + newForward;
     }
 
-    if (kb.E) // Look up
+    if (kb.Up) // Look up
     {
         XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
         XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_up, forward));
@@ -1606,7 +1606,23 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_at = m_eye + newForward;
     }
 
+    if (kb.Left) // Look left
+    {
+        XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
+        float yawSpeed = XMConvertToRadians(-30.0f) * elapsedTime; // negative = left
+        XMMATRIX yawMatrix = XMMatrixRotationAxis(m_up, yawSpeed);
+        XMVECTOR newForward = XMVector3TransformNormal(forward, yawMatrix);
+        m_at = m_eye + newForward;
+    }
 
+    if (kb.Right) // Look right
+    {
+        XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
+        float yawSpeed = XMConvertToRadians(30.0f) * elapsedTime; // positive = right
+        XMMATRIX yawMatrix = XMMatrixRotationAxis(m_up, yawSpeed);
+        XMVECTOR newForward = XMVector3TransformNormal(forward, yawMatrix);
+        m_at = m_eye + newForward;
+    }
 
 
 
@@ -1623,13 +1639,13 @@ void D3D12RaytracingSakuraScene::OnUpdate()
     UpdateCameraMatrices();
 
     // Rotate the second light around Y axis.
-    //{
-    //    float secondsToRotateAround = 8.0f;
-    //    float angleToRotateBy = -360.0f * (elapsedTime / secondsToRotateAround);
-    //    XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
-    //    const XMVECTOR& prevLightPosition = m_sceneCB[prevFrameIndex].lightPosition;
-    //    m_sceneCB[frameIndex].lightPosition = XMVector3Transform(prevLightPosition, rotate);
-    //}
+    {
+        float secondsToRotateAround = 8.0f;
+        float angleToRotateBy = -360.0f * (elapsedTime / secondsToRotateAround);
+        XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
+        const XMVECTOR& prevLightPosition = m_sceneCB[prevFrameIndex].lightPosition;
+        m_sceneCB[frameIndex].lightPosition = XMVector3Transform(prevLightPosition, rotate);
+    }
     m_sceneCB[frameIndex].enableSER = m_serEnabled ? 1 : 0;
     m_sceneCB[frameIndex].enableSortByHit = m_sortByHit ? 1 : 0;
     m_sceneCB[frameIndex].enableSortByMaterial = m_sortByMaterial ? 1 : 0;
