@@ -112,6 +112,7 @@ private:
     ObjectConstantBuffer m_tcubeCB;
 	ObjectConstantBuffer m_transparentCubeCB;
     ObjectConstantBuffer m_trunkCB;
+    ObjectConstantBuffer m_trunkTransparentCB;
     ObjectConstantBuffer m_leavesCB;
     ObjectConstantBuffer m_leavesLightCB;
     ObjectConstantBuffer m_leavesDarkCB;

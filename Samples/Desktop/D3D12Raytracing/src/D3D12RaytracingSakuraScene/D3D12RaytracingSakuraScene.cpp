@@ -1157,7 +1157,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     {
         for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z) 
         {
-            float spacingBetweenTrees = (x < 0) ? 1.0f : 1.5f;
+            float spacingBetweenTrees = (x < 0) ? 1.3f : 1.7f;
 			float randomXOffset = randomOffset(gen);
             float randomYOffset = randomOffset(gen);
             float randomZOffset = randomOffset(gen);
@@ -1394,13 +1394,13 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             switch (randomIndex) {
 
             case 0:
-                argument.cb = m_leavesCB;
+                argument.cb = m_trunkCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 2;
                 hitGroupShaderTable.push_back(ShaderRecord(trunkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 1:
-                argument.cb = m_leavesLightCB;
+                argument.cb = m_trunkTransparentCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 8;
                 hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
@@ -1411,7 +1411,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         // Create a random number generator for leaves
         std::random_device rdLeaves;
         std::mt19937 genLeaves(rdLeaves());
-        std::uniform_int_distribution<> distribLeaves(0, 4); // 4 hit groups: 0, 1, 2, 3, and 4
+        std::uniform_int_distribution<> distribLeaves(0, 4); // 5 hit groups: 0, 1, 2, 3, and 4
 
 		// Tree leaves shader records
         for (int i = 0; i < 441; ++i) {

@@ -366,7 +366,7 @@ void LeavesLightClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     // Heavier workload: multiple dependent texture samples
     float3 accumulatedColor = float3(0.0, 0.0, 0.0);
-    const int loopCount = 1; // Increase for more load, but test performance
+    const int loopCount = 500; // Increase for more load, but test performance
 
     for (int i = 1; i <= loopCount; ++i)
     {
@@ -470,7 +470,7 @@ void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes a
 
     // Heavier workload: multiple dependent texture samples
     float3 accumulatedColor = float3(0.0, 0.0, 0.0);
-    const int loopCount = 5000; // Increase for more load, but test performance
+    const int loopCount = 500; // Increase for more load, but test performance
 
     for (int i = 1; i <= loopCount; ++i)
     {
