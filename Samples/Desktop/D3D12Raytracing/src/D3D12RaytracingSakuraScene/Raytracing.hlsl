@@ -90,6 +90,7 @@ struct [raypayload] RayPayload
 {
     float4 color : write(caller, closesthit, miss) : read(caller);
     uint recursionDepth : write(caller) : read(closesthit);
+    uint reflectHint : write(caller) : read(closesthit, caller);
 };
    
 
@@ -159,6 +160,7 @@ void MyRaygenShader()
     RayPayload payload =
     {
         float4(0, 0, 0, 0),
+        0,
         0
     };
 
@@ -167,20 +169,42 @@ void MyRaygenShader()
     {
         HitObject hit = HitObject::TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
         uint materialID = hit.LoadLocalRootTableConstant(16);
+        bool isGround = (materialID == 0);
+            
+        if (isGround)
+        {
+            // Estimate hit point on ground plane (y = 0)
+            float t = -origin.y / rayDir.y;
+            float3 estimatedHit = origin + t * rayDir;
+
+            // Generate procedural UVs from XZ
+            float2 uv = frac(estimatedHit.xz * 0.5); // adjust scale as needed
+            float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
+
+            if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
+            {
+               payload.reflectHint = 1;
+           }
+        }
+
         uint numHintBits = 1;
         
        if (g_sceneCB.enableSortByHit == 1)
-        {
+       {
             dx::MaybeReorderThread(hit);
-        }
+       }
        else if (g_sceneCB.enableSortByMaterial == 1)
         {
-            dx::MaybeReorderThread(materialID, numHintBits);
+            //dx::MaybeReorderThread(materialID, numHintBits);
+            uint sortKey = payload.reflectHint;
+            dx::MaybeReorderThread(sortKey, numHintBits);
+
         }
             
         else if (g_sceneCB.enableSortByBoth == 1)
         {
-            dx::MaybeReorderThread(hit, materialID, numHintBits);
+            uint sortKey = (materialID << 1) | payload.reflectHint;
+            dx::MaybeReorderThread(hit, sortKey, numHintBits);
         }
 
         HitObject::Invoke(hit, payload);
@@ -228,7 +252,7 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     // Note: make sure to enable face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0.001;
     rayDesc.TMax = 10000;
-    RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
+    RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1, 0 };
     TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, rayDesc, rayPayload);
 
     return rayPayload.color;
@@ -237,36 +261,47 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
 
 [shader("closesthit")]
 void MyClosestHitShader(inout RayPayload payload, in MyAttributes attr)
-{  
-    float3 hitPosition = HitWorldPosition(); 
+{
+    float3 hitPosition = HitWorldPosition();
     uint baseIndex = PrimitiveIndex() * 3;
     uint offset = baseIndex * 4;
     uint3 indices = IndicesCube.Load3(offset);
 
-
-    // Albedo is defined per shape or material
     float3 albedo = g_cubeCB.albedo;
     float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
     float3 triangleNormal;
-        
-    float2 baseUV = float2(
-    frac(hitPosition.x * 0.5 + 0.5),
-    frac(hitPosition.z * 0.5 + 0.5)
-    );
-        
+
+    // Procedural UVs (since cube may not have real UVs)
+    float2 baseUV = frac(hitPosition.xz * 0.5);
     sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, baseUV, 0).rgb;
-    
-    // Retrieve corresponding vertex normals for the triangle vertices.
+
+    // Interpolate normals
     float3 vertexNormals[3];
     vertexNormals[0] = VerticesCube[indices.x].normal;
     vertexNormals[1] = VerticesCube[indices.y].normal;
     vertexNormals[2] = VerticesCube[indices.z].normal;
     triangleNormal = HitAttribute(vertexNormals, attr);
-            
-    float3 finalColor = albedo * sampled.rgb;
-    payload.color = float4(finalColor, g_cubeCB.albedo.w);
+
+    float3 baseColor = albedo * sampled.rgb;
+
+    // Only trace reflection ray if the surface is dark 
+    if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
+    {
+        Ray reflectionRay;
+        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
+        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
+        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
+        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
+        float3 finalColor = lerp(baseColor, reflectionColor.rgb, fresnel);
+        payload.color = float4(finalColor, g_cubeCB.albedo.w);
+    }
+    else
+    {
+        float3 finalColor = albedo * sampled.rgb;
+        payload.color = float4(finalColor, g_cubeCB.albedo.w);
+    }
 }
- 
+
     
 [shader("closesthit")]
 void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
@@ -366,7 +401,7 @@ void LeavesLightClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     // Heavier workload: multiple dependent texture samples
     float3 accumulatedColor = float3(0.0, 0.0, 0.0);
-    const int loopCount = 500; // Increase for more load, but test performance
+    const int loopCount = 1; // Increase for more load, but test performance
 
     for (int i = 1; i <= loopCount; ++i)
     {
@@ -418,7 +453,7 @@ void LeavesDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     // Heavier workload: multiple dependent texture samples
     float3 accumulatedColor = float3(0.0, 0.0, 0.0);
-    const int loopCount = 10; // Increase for more load, but test performance
+    const int loopCount = 1; // Increase for more load, but test performance
 
     for (int i = 1; i <= loopCount; ++i)
     {
@@ -470,7 +505,7 @@ void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes a
 
     // Heavier workload: multiple dependent texture samples
     float3 accumulatedColor = float3(0.0, 0.0, 0.0);
-    const int loopCount = 500; // Increase for more load, but test performance
+    const int loopCount = 1; // Increase for more load, but test performance
 
     for (int i = 1; i <= loopCount; ++i)
     {

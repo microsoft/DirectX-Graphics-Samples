@@ -34,7 +34,7 @@ const wchar_t* D3D12RaytracingSakuraScene::c_leavesHitGroupName = L"LeavesHitGro
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesLightHitGroupName = L"LeavesHitGroupLight";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesDarkHitGroupName = L"LeavesHitGroupDark";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesExtraDarkHitGroupName = L"LeavesHitGroupExtraDark";
-const wchar_t* D3D12RaytracingSakuraScene::c_bushHitGroupName = L"BushHitGroup"; 
+const wchar_t* D3D12RaytracingSakuraScene::c_bushHitGroupName = L"BushHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_transparentCubeHitGroupName = L"TCubeHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_closestHitShaderName = L"MyClosestHitShader";
@@ -43,7 +43,7 @@ const wchar_t* D3D12RaytracingSakuraScene::c_leavesClosestHitShaderName = L"Leav
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesLightClosestHitShaderName = L"LeavesLightClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesDarkClosestHitShaderName = L"LeavesDarkClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesExtraDarkClosestHitShaderName = L"LeavesExtraDarkClosestHitShader";
-const wchar_t* D3D12RaytracingSakuraScene::c_bushClosestHitShaderName = L"BushClosestHitShader"; 
+const wchar_t* D3D12RaytracingSakuraScene::c_bushClosestHitShaderName = L"BushClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_tcubeClosestHitShaderName = L"TCubeClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_missShaderName = L"MyMissShader";
 
@@ -167,11 +167,11 @@ D3D12RaytracingSakuraScene::D3D12RaytracingSakuraScene(UINT width, UINT height, 
     DXSample(width, height, name),
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
     m_curRotationAngleRad(0.0f),
-    m_serEnabled(true), 
+    m_serEnabled(true),
     m_sortByHit(true),
     m_sortByMaterial(false),
     m_sortByBoth(false),
-	rotateCamera(true)
+    rotateCamera(true)
 {
     UpdateForSizeChange(width, height);
 }
@@ -257,7 +257,7 @@ void D3D12RaytracingSakuraScene::InitializeScene()
         XMFLOAT4 lightAmbientColor;
         XMFLOAT4 lightDiffuseColor;
 
-        lightPosition = XMFLOAT4(0.0f, 15.8f,233.0f, 0.0f);
+        lightPosition = XMFLOAT4(0.0f, 15.8f, 233.0f, 0.0f);
         m_sceneCB[frameIndex].lightPosition = XMLoadFloat4(&lightPosition);
 
         lightAmbientColor = XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f); // Brighter ambient light
@@ -319,15 +319,15 @@ void D3D12RaytracingSakuraScene::CreateDeviceDependentResources()
     // Create a heap for descriptors.
     CreateDescriptorHeap();
 
-	// Load gometry from OBJ files.
+    // Load gometry from OBJ files.
     m_ObjModelLoader.Load(L"trunk.obj");
     m_ObjModelLoader.Load(L"leaves.obj");
-	m_ObjModelLoader.Load(L"bush.obj");
+    m_ObjModelLoader.Load(L"bush.obj");
 
     // Build geometry to be used in the sample.
     BuildGeometry();
 
-	// Build trunk geometry (the torus knot to illustrate the use of multiple geometries in the scene)
+    // Build trunk geometry (the torus knot to illustrate the use of multiple geometries in the scene)
     BuildTreeGeometry();
 
     // Create texture
@@ -396,7 +396,7 @@ void D3D12RaytracingSakuraScene::CreateTexture()
     hr = DirectX::CreateWICTextureFromFile(
         device,
         resourceUpload,
-        L"bush-texture.jpg", 
+        L"bush-texture.jpg",
         texture3.GetAddressOf()
     );
 
@@ -703,7 +703,7 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     // Shader config
    //  Defines the maximum sizes in bytes for the ray payload and attribute structure.
     auto shaderConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
-    UINT payloadSize = sizeof(XMFLOAT4) + sizeof(UINT);
+    UINT payloadSize = sizeof(XMFLOAT4) + sizeof(UINT) + sizeof(UINT);
     UINT attributeSize = sizeof(XMFLOAT2);  // float2 barycentrics
     shaderConfig->Config(payloadSize, attributeSize);
 
@@ -876,7 +876,7 @@ void D3D12RaytracingSakuraScene::BuildTreeGeometry()
         m_ObjModelLoader.GetObjectVerticesAndIndices(
             "bush",
             0.007f,
-            &bushVertices, 
+            &bushVertices,
             &bushIndices);
     }
 
@@ -1011,7 +1011,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS leavesBLASInputs = {};
     leavesBLASInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-    leavesBLASInputs.Flags = buildFlags; 
+    leavesBLASInputs.Flags = buildFlags;
     leavesBLASInputs.NumDescs = 1; // 1 geometry desc
     leavesBLASInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
     leavesBLASInputs.pGeometryDescs = &leavesGeometryDesc;
@@ -1076,7 +1076,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         AllocateUAVBuffer(device, trunkBLASPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructureTrunk, initialResourceState, L"BottomLevelAccelerationStructureTrunk");
         AllocateUAVBuffer(device, leavesBLASPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructureLeaves, initialResourceState, L"BottomLevelAccelerationStructureLeaves");
         AllocateUAVBuffer(device, bushBLASPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructureBushes, initialResourceState, L"BottomLevelAccelerationStructureBush");
-        AllocateUAVBuffer(device, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_topLevelAccelerationStructure, initialResourceState, L"TopLevelAccelerationStructure"); 
+        AllocateUAVBuffer(device, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_topLevelAccelerationStructure, initialResourceState, L"TopLevelAccelerationStructure");
     }
 
     // Create an instance desc for the bottom-level acceleration structure.
@@ -1084,7 +1084,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDesc;
     int objectsPerRow = 20; // Object per row along Z and X axis
     float largerCubeSpacing = 4.0f; // Spacing between larger cubes
-	float randomCubeSpacing = 0.7f; // Spacing between random smaller cubes
+    float randomCubeSpacing = 0.7f; // Spacing between random smaller cubes
     float spacingGap = 5.0f;
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -1101,9 +1101,9 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
             float scale = 2.0f; // Larger cube scale
-            desc.Transform[0][0] = scale; 
-            desc.Transform[1][1] = scale; 
-            desc.Transform[2][2] = scale; 
+            desc.Transform[0][0] = scale;
+            desc.Transform[1][1] = scale;
+            desc.Transform[2][2] = scale;
 
             desc.Transform[0][3] = posX;
             desc.Transform[1][3] = posY;
@@ -1117,7 +1117,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         }
     }
 
-	// Smaller transparent cubes that are placed randomly on the floor
+    // Smaller transparent cubes that are placed randomly on the floor
     for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
     {
         for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z)
@@ -1127,7 +1127,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
             float posX = x * randomCubeSpacing;
             if (x >= 0) posX += spacingGap; // Shift the second group to the right
             float posY = 2.0f + randomYOffset;
-			float posZ = z * randomCubeSpacing;
+            float posZ = z * randomCubeSpacing;
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
             float scale = 0.05f; // Smaller cube scale 
@@ -1148,17 +1148,17 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     }
 
 
-	// Trunk and leaves
+    // Trunk and leaves
     // Store random positions for trunks
     std::vector<std::tuple<float, float, float>> trunkPositions;
 
     // First loop: Initialize trunks
-    for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x) 
+    for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
     {
-        for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z) 
+        for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z)
         {
             float spacingBetweenTrees = (x < 0) ? 1.3f : 1.7f;
-			float randomXOffset = randomOffset(gen);
+            float randomXOffset = randomOffset(gen);
             float randomYOffset = randomOffset(gen);
             float randomZOffset = randomOffset(gen);
 
@@ -1188,14 +1188,14 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 
 
     // Second loop: Initialize leaves
-    for (size_t i = 0; i < trunkPositions.size(); ++i) 
+    for (size_t i = 0; i < trunkPositions.size(); ++i)
     {
         // Leaves instance
         D3D12_RAYTRACING_INSTANCE_DESC desc = {};
         float scale = 35.0f;
-        desc.Transform[0][0] = scale; 
-        desc.Transform[1][1] = scale; 
-        desc.Transform[2][2] = scale; 
+        desc.Transform[0][0] = scale;
+        desc.Transform[1][1] = scale;
+        desc.Transform[2][2] = scale;
 
         // Use the same position as the corresponding trunk
         desc.Transform[0][3] = std::get<0>(trunkPositions[i]); // X position
@@ -1211,7 +1211,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     }
 
     // Third loop: Initialize bushes 
-    for (size_t i = 0; i < trunkPositions.size(); ++i) 
+    for (size_t i = 0; i < trunkPositions.size(); ++i)
     {
         float randomXOffset = randomOffset(gen);
 
@@ -1223,7 +1223,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         desc.Transform[2][2] = scale;
 
         // Use the same position as the corresponding trunk
-		desc.Transform[0][3] = std::get<0>(trunkPositions[i]) + randomXOffset; // X position with random offset
+        desc.Transform[0][3] = std::get<0>(trunkPositions[i]) + randomXOffset; // X position with random offset
         desc.Transform[1][3] = std::get<1>(trunkPositions[i]) - 0.5f;
         desc.Transform[2][3] = std::get<2>(trunkPositions[i]); // Z position
 
@@ -1306,7 +1306,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
     void* leavesExtraDarkHitGroupShaderIdentifier;
     void* bushHitGroupShaderIdentifier;
     void* tcubeHitGroupShaderIdentifier;
-    
+
     auto GetShaderIdentifiers = [&](auto* stateObjectProperties)
         {
             rayGenShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_raygenShaderName);
@@ -1363,7 +1363,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         UINT shaderRecordSize = shaderIdentifierSize + sizeof(RootArguments);
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
-		//// Larger cube shader records
+        //// Larger cube shader records
         for (int i = 0; i < 441; ++i) {
             RootArguments argument;
             argument.cb = m_cubeCB;
@@ -1386,7 +1386,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         std::mt19937 genTrunk(rdTrunk());
         std::uniform_int_distribution<> distribTrunk(0, 1); // 2 hit groups: 0 and 1
 
-		// Tree trunk shader records
+        // Tree trunk shader records
         for (int i = 0; i < 441; ++i) {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
@@ -1402,7 +1402,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             case 1:
                 argument.cb = m_trunkTransparentCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 8;
+                argument.cb.materialID = 2;
                 hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             }
@@ -1413,7 +1413,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         std::mt19937 genLeaves(rdLeaves());
         std::uniform_int_distribution<> distribLeaves(0, 4); // 5 hit groups: 0, 1, 2, 3, and 4
 
-		// Tree leaves shader records
+        // Tree leaves shader records
         for (int i = 0; i < 441; ++i) {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
@@ -1429,25 +1429,25 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             case 1:
                 argument.cb = m_leavesLightCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 5;
+                argument.cb.materialID = 3;
                 hitGroupShaderTable.push_back(ShaderRecord(leavesLightHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 2:
                 argument.cb = m_leavesDarkCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 6;
+                argument.cb.materialID = 3;
                 hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 3:
                 argument.cb = m_leavesExtraDarkCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 7;
+                argument.cb.materialID = 3;
                 hitGroupShaderTable.push_back(ShaderRecord(leavesExtraDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 4:
                 argument.cb = m_transparentLeavesCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 9;
+                argument.cb.materialID = 3;
                 hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             }
@@ -1460,15 +1460,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             argument.cb = m_bushCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
             argument.cb.materialID = 4;
-            const void* shaderIdentifier = nullptr;
-            switch (i % 2) {
-            case 0:
-                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-                break;
-            case 1:
-                hitGroupShaderTable.push_back(ShaderRecord(bushHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-                break;
-            }
+            hitGroupShaderTable.push_back(ShaderRecord(bushHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
         // Add this line to fix the null pointer issue:
@@ -1490,8 +1482,8 @@ void D3D12RaytracingSakuraScene::OnUpdate()
 
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::R))
     {
-		rotateCamera = !rotateCamera;
-	}
+        rotateCamera = !rotateCamera;
+    }
 
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::P))
     {
@@ -1628,7 +1620,7 @@ void D3D12RaytracingSakuraScene::OnUpdate()
     //    m_up = XMVector3Transform(m_up, rotate);
     //    m_at = XMVector3Transform(m_at, rotate);
     //}
-     UpdateCameraMatrices();
+    UpdateCameraMatrices();
 
     // Rotate the second light around Y axis.
     //{
@@ -1708,7 +1700,7 @@ void D3D12RaytracingSakuraScene::RenderUI()
     // Transition render target to RENDER_TARGET state
     D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
         renderTarget,
-        D3D12_RESOURCE_STATE_PRESENT, 
+        D3D12_RESOURCE_STATE_PRESENT,
         D3D12_RESOURCE_STATE_RENDER_TARGET
     );
     commandList->ResourceBarrier(1, &barrier);
@@ -1751,7 +1743,7 @@ void D3D12RaytracingSakuraScene::RenderUI()
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
-	swprintf_s(buffer, ARRAYSIZE(buffer), L"Use WASD to move around the scene.");
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Use WASD to move around the scene.");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
