@@ -170,8 +170,9 @@ void MyRaygenShader()
         HitObject hit = HitObject::TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
         uint materialID = hit.LoadLocalRootTableConstant(16);
         bool isGround = (materialID == 0);
-            bool isFlower = (materialID ==4);
+        bool isFlower = (materialID == 3);
             
+        // If material is ground or flower, sample the texture to determine if it is dark enough to reflect.
         if (isGround)
         {
             // Estimate hit point on ground plane (y = 0)
@@ -188,31 +189,41 @@ void MyRaygenShader()
             }
         }
             
-            if (isFlower)
+        if (isFlower)
+        {
+        // Estimate hit point on ground plane (y = 0)
+            float t = -origin.y / rayDir.y;
+            float3 estimatedHit = origin + t * rayDir;
+
+        // Generate procedural UVs from XZ
+            float2 uv = frac(estimatedHit.xz * 0.5); // adjust scale as needed
+            float4 texColor = SakuraTexture.SampleLevel(SakuraSampler, uv, 0);
+
+            if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
             {
-            // Estimate hit point on ground plane (y = 0)
-                float t = -origin.y / rayDir.y;
-                float3 estimatedHit = origin + t * rayDir;
-
-            // Generate procedural UVs from XZ
-                float2 uv = frac(estimatedHit.xz * 0.5); // adjust scale as needed
-                float4 texColor = SakuraTexture.SampleLevel(SakuraSampler, uv, 0);
-
-                if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
-                {
-                    payload.reflectHint = 1;
-                }
+                payload.reflectHint = 1;
             }
+        }
+        
+        // If material is trunk or transparent cubes, set reflectHint to 1
+        if (materialID == 2 || materialID == 1)
+        {
+            payload.reflectHint = 1;
+        }
+            
         uint numHintBits = 1;
         if (g_sceneCB.enableSortByHit == 1)
         {
             dx::MaybeReorderThread(hit);
         }
-        else if (g_sceneCB.enableSortByMaterial == 1)
-        {
-            uint sortKey = payload.reflectHint;
-            dx::MaybeReorderThread(sortKey, numHintBits);
-        }   
+            else if (g_sceneCB.enableSortByBoth == 1)
+            {
+            // Assume materialID and reflectHint are both small enough to fit in 32 bits together
+            // For example: 16 bits for each
+                uint sortKey = payload.reflectHint;
+                dx::MaybeReorderThread(hit, sortKey, numHintBits);
+            }
+ 
         else if (g_sceneCB.enableSortByBoth == 1)
         {
             uint sortKey = payload.reflectHint;
@@ -391,12 +402,13 @@ void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     // Sample the texture with the modified coordinates
     sampled.rgb = SakuraTexture.SampleLevel(SakuraSampler, interpolatedTexCoord, 0).rgb;
-        float3 baseColor = albedo * sampled.rgb;
-        
         float3 finalColor;
+        float3 baseColor = albedo * sampled.rgb;
+        float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+        float NdotL = saturate(dot(triangleNormal, lightDir));
 
-    // Only trace reflection ray if the surface is dark 
-        if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
+        // Only trace reflection ray if the surface is dark 
+        if (sampled.r < 0.5 && sampled.g < 0.5 && sampled.b < 0.5 && payload.recursionDepth < 4)
         {
             Ray reflectionRay;
             reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
@@ -455,24 +467,8 @@ void LeavesLightClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
     float NdotL = saturate(dot(triangleNormal, lightDir));
 
-    // Only trace reflection ray if the surface is dark 
-    if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
-    {
-        Ray reflectionRay;
-        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
-        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
 
-        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
-        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
-        float3 rayDir = normalize(WorldRayDirection());
-        float3 modulated = reflectionColor.rgb;
-        float weight = 1.0f;
-        finalColor = lerp(baseColor, modulated, fresnel);
-    }
-    else
-    {
-        finalColor = albedo * sampled.rgb * g_sceneCB.lightDiffuseColor.rgb * NdotL;
-    }
+    finalColor = albedo * sampled.rgb * g_sceneCB.lightDiffuseColor.rgb * NdotL;
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
 
@@ -486,7 +482,8 @@ void LeavesDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     uint3 indices = IndicesLeaves.Load3(offset);
 
     float3 albedo = g_cubeCB.albedo.rgb;
-    float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
+    float4 sampled = float4(0.8, 0.7, 0.9, 1.0);
+
     float3 triangleNormal;
 
     float3 vertexNormals[3];
@@ -503,26 +500,10 @@ void LeavesDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     float3 finalColor;
     float3 baseColor = albedo * sampled.rgb;
+    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+    float NdotL = saturate(dot(triangleNormal, lightDir));
 
-    // Only trace reflection ray if the surface is dark 
-    if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
-    {
-        Ray reflectionRay;
-        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
-        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
-
-        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
-        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
-        float3 rayDir = normalize(WorldRayDirection());
-        float3 modulated = reflectionColor.rgb;
-        float weight = 1.0f;
-
-        finalColor = lerp(baseColor, modulated, fresnel);
-    }
-    else
-    {
-        finalColor = albedo * sampled.rgb;
-    }
+    finalColor = albedo * sampled.rgb * g_sceneCB.lightDiffuseColor.rgb * NdotL;
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
 
@@ -550,29 +531,12 @@ void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes a
     vertexTexCoords[1] = VerticesLeaves[indices.y].uv;
     vertexTexCoords[2] = VerticesLeaves[indices.z].uv;
     float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr).xy;
-
-
     float3 finalColor;
     float3 baseColor = albedo * sampled.rgb;
+    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+    float NdotL = saturate(dot(triangleNormal, lightDir));
 
-    // Only trace reflection ray if the surface is dark 
-    if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
-    {
-        Ray reflectionRay;
-        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
-        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
-
-        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
-        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
-        float3 rayDir = normalize(WorldRayDirection());
-        float3 modulated = reflectionColor.rgb;
-        float weight = 1.0f;
-        finalColor = lerp(baseColor, modulated, fresnel);
-    }
-    else
-    {
-        finalColor = albedo * sampled.rgb;
-    }
+    finalColor = albedo * sampled.rgb * g_sceneCB.lightDiffuseColor.rgb * NdotL;
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
 

@@ -1397,12 +1397,12 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
                 argument.cb = m_trunkCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 2;
-                hitGroupShaderTable.push_back(ShaderRecord(trunkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 1:
                 argument.cb = m_trunkTransparentCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 3;
+                argument.cb.materialID = 2;
                 hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             }
@@ -1423,31 +1423,31 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             case 0:
                 argument.cb = m_leavesCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 4;
+                argument.cb.materialID = 3;
                 hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 1:
                 argument.cb = m_leavesLightCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 4;
+                argument.cb.materialID = 3;
                 hitGroupShaderTable.push_back(ShaderRecord(leavesLightHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 2:
                 argument.cb = m_leavesDarkCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 4;
+                argument.cb.materialID = 3;
                 hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 3:
                 argument.cb = m_leavesExtraDarkCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 4;
+                argument.cb.materialID = 3;
                 hitGroupShaderTable.push_back(ShaderRecord(leavesExtraDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 4:
                 argument.cb = m_transparentLeavesCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 4;
+                argument.cb.materialID = 3;
                 hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             }
@@ -1459,7 +1459,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             RootArguments argument;
             argument.cb = m_bushCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-            argument.cb.materialID = 9;
+            argument.cb.materialID = 4;
             hitGroupShaderTable.push_back(ShaderRecord(bushHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
