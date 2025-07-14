@@ -703,7 +703,9 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     // Shader config
    //  Defines the maximum sizes in bytes for the ray payload and attribute structure.
     auto shaderConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
-    UINT payloadSize = sizeof(XMFLOAT4) + sizeof(UINT) + sizeof(UINT);
+    UINT payloadSize = 32;
+
+
     UINT attributeSize = sizeof(XMFLOAT2);  // float2 barycentrics
     shaderConfig->Config(payloadSize, attributeSize);
 
@@ -721,7 +723,7 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
     // PERFOMANCE TIP: Set max recursion depth as low as needed 
     // as drivers may apply optimization strategies for low recursion depths.
-    UINT maxRecursionDepth = 4;// ~ primary rays only. 
+    UINT maxRecursionDepth = 9;// ~ primary rays only. 
     pipelineConfig->Config(maxRecursionDepth);
 
 #if _DEBUG
@@ -1369,7 +1371,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             argument.cb = m_cubeCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // White color
             argument.cb.materialID = 0;
-            hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
         // Transparant cube shader records
@@ -1397,13 +1399,13 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
                 argument.cb = m_trunkCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 2;
-                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 1:
                 argument.cb = m_trunkTransparentCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 2;
-                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             }
         }
@@ -1424,13 +1426,13 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
                 argument.cb = m_leavesCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 3;
-                hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 1:
                 argument.cb = m_leavesLightCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 3;
-                hitGroupShaderTable.push_back(ShaderRecord(leavesLightHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 2:
                 argument.cb = m_leavesDarkCB;
@@ -1442,7 +1444,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
                 argument.cb = m_leavesExtraDarkCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 3;
-                hitGroupShaderTable.push_back(ShaderRecord(leavesExtraDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 4:
                 argument.cb = m_transparentLeavesCB;
