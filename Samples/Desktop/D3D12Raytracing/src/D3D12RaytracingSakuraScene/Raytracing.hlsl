@@ -174,8 +174,7 @@ void MyRaygenShader()
     {
         HitObject hit = HitObject::TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
         uint materialID = hit.LoadLocalRootTableConstant(16);
-        bool isGround = (materialID == 0);
-        bool isFlower = (materialID == 3);
+        bool isGround = (materialID == 0 || materialID == 2);
             
         // If material is ground or flower, sample the texture to decide if it is reflective or not.
         if (isGround)
@@ -193,25 +192,9 @@ void MyRaygenShader()
                payload.reflectHint = 1;
             }
         }
-            
-        if (isFlower)
-        {
-        // Estimate hit point on ground plane (y = 0)
-            float t = -origin.y / rayDir.y;
-            float3 estimatedHit = origin + t * rayDir;
-
-        // Generate procedural UVs from XZ
-            float2 uv = frac(estimatedHit.xz * 0.5); // adjust scale as needed
-            float4 texColor = SakuraTexture.SampleLevel(SakuraSampler, uv, 0);
-
-            if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
-            {
-                payload.reflectHint = 1;
-            }
-        }
         
         // If material is trunk or transparent cubes, set reflectHint to 1
-        if (materialID == 1 || materialID == 2)
+        if (materialID == 1)
         {
             payload.reflectHint = 1;
         }
@@ -323,8 +306,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
             float3 modulated = reflectionColor.rgb;
             float weight = 1.0f;
 
-            // Crazy loop: layered modulation with trigonometric chaos
-            for (int i = 1; i <= 799; ++i)
+            for (int i = 1; i <= 500; ++i)
             {
                 float angle = dot(rayDir, triangleNormal) * i;
                 float trig = sin(angle * 3.1415 * 0.5f) * cos(angle * 1.618f);
@@ -334,9 +316,9 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
             }
 
             finalColor = lerp(baseColor, modulated, fresnel);
-    }
-    else
-    {
+        }
+        else
+        {
         finalColor = albedo * sampled.rgb;
     }
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
@@ -371,9 +353,36 @@ void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, interpolatedTexCoord, 0).rgb;
         
     float3 baseColor = albedo * sampled.rgb;
-    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-    float NdotL = saturate(dot(triangleNormal, lightDir));
-    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+    float3 finalColor;
+
+    // Only trace reflection ray if the surface is dark 
+    if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
+    {
+        Ray reflectionRay;
+        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
+        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
+
+        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
+        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
+        float3 rayDir = normalize(WorldRayDirection());
+        float3 modulated = reflectionColor.rgb;
+        float weight = 1.0f;
+
+        for (int i = 1; i <= 500; ++i)
+        {
+            float angle = dot(rayDir, triangleNormal) * i;
+            float trig = sin(angle * 3.1415 * 0.5f) * cos(angle * 1.618f);
+            float3 swirl = float3(sin(angle * 0.7f), cos(angle * 1.3f), sin(angle * 2.1f));
+            weight *= 0.85f; // decay factor
+            modulated += trig * swirl * baseColor * weight;
+        }
+
+        finalColor = lerp(baseColor, modulated, fresnel);
+    }
+    else
+    {
+        finalColor = albedo * sampled.rgb;
+    }
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
     

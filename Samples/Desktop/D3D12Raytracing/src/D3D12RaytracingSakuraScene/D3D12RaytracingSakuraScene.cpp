@@ -1393,21 +1393,10 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
             int randomIndex = distribTrunk(genTrunk); // Random number between 0 and 1
-            switch (randomIndex) {
-
-            case 0:
-                argument.cb = m_trunkCB;
-                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 2;
-                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-                break;
-            case 1:
-                argument.cb = m_trunkTransparentCB;
-                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 2;
-                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-                break;
-            }
+            argument.cb = m_trunkCB;
+            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            argument.cb.materialID = 2;
+            hitGroupShaderTable.push_back(ShaderRecord(trunkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
         // Create a random number generator for leaves
