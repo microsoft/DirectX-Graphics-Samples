@@ -279,50 +279,47 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
     float3 triangleNormal;
 
-    // Procedural UVs (since cube may not have real UVs)
+    // Procedural UVs
     float2 baseUV = frac(hitPosition.xz * 0.5);
     sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, baseUV, 0).rgb;
-
+    
     // Interpolate normals
-    float3 vertexNormals[3];
-    vertexNormals[0] = VerticesCube[indices.x].normal;
-    vertexNormals[1] = VerticesCube[indices.y].normal;
-    vertexNormals[2] = VerticesCube[indices.z].normal;
+    float3 vertexNormals[3] =
+    {
+        VerticesCube[indices.x].normal,
+        VerticesCube[indices.y].normal,
+        VerticesCube[indices.z].normal
+    };
     triangleNormal = HitAttribute(vertexNormals, attr);
 
     float3 baseColor = albedo * sampled.rgb;
     float3 finalColor;
 
-    // Only trace reflection ray if the surface is dark 
-        if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
-        {
-            Ray reflectionRay;
-            reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
-            reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
+    // Trace reflection ray if surface is dark
+    if (all(sampled.rgb < 0.05) && payload.recursionDepth < 8)
+    {
+        Ray reflectionRay;
+        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
+        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
 
-            float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
-            float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
-            float3 rayDir = normalize(WorldRayDirection());
-            float3 modulated = reflectionColor.rgb;
-            float weight = 1.0f;
+        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
+        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
 
-            for (int i = 1; i <= 500; ++i)
-            {
-                float angle = dot(rayDir, triangleNormal) * i;
-                float trig = sin(angle * 3.1415 * 0.5f) * cos(angle * 1.618f);
-                float3 swirl = float3(sin(angle * 0.7f), cos(angle * 1.3f), sin(angle * 2.1f));
-                weight *= 0.85f; // decay factor
-                modulated += trig * swirl * baseColor * weight;
-            }
+        float angle = dot(normalize(WorldRayDirection()), triangleNormal);
+        float trig = sin(angle * 3.1415 * 0.5f) * cos(angle * 1.618f);
+        float3 swirl = float3(sin(angle * 0.7f), cos(angle * 1.3f), sin(angle * 2.1f));
+        float3 modulated = reflectionColor.rgb + 0.5f * trig * swirl * baseColor;
 
-            finalColor = lerp(baseColor, modulated, fresnel);
-        }
-        else
-        {
-        finalColor = albedo * sampled.rgb;
+        finalColor = lerp(baseColor, modulated, fresnel) * 1.7f;
     }
+    else
+    {
+        finalColor = baseColor * 1.7f;
+    }
+
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
+
 
     
 [shader("closesthit")]
@@ -355,34 +352,7 @@ void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 baseColor = albedo * sampled.rgb;
     float3 finalColor;
 
-    // Only trace reflection ray if the surface is dark 
-    if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
-    {
-        Ray reflectionRay;
-        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
-        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
-
-        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
-        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
-        float3 rayDir = normalize(WorldRayDirection());
-        float3 modulated = reflectionColor.rgb;
-        float weight = 1.0f;
-
-        for (int i = 1; i <= 500; ++i)
-        {
-            float angle = dot(rayDir, triangleNormal) * i;
-            float trig = sin(angle * 3.1415 * 0.5f) * cos(angle * 1.618f);
-            float3 swirl = float3(sin(angle * 0.7f), cos(angle * 1.3f), sin(angle * 2.1f));
-            weight *= 0.85f; // decay factor
-            modulated += trig * swirl * baseColor * weight;
-        }
-
-        finalColor = lerp(baseColor, modulated, fresnel);
-    }
-    else
-    {
-        finalColor = albedo * sampled.rgb;
-    }
+    finalColor = albedo * sampled.rgb * 1.3f; 
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
     
@@ -494,10 +464,17 @@ void LeavesDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     uint3 indices = IndicesLeaves.Load3(offset);
 
     float3 albedo = g_cubeCB.albedo.rgb;
-    float4 sampled = float4(0.8, 0.7, 0.9, 1.0);
+    float3 pastelPurple = float3(0.8, 0.7, 0.9); 
+    float3 pastelPink = float3(1.0, 0.8, 0.9);
+    float3 darkPink = float3(0.85, 0.4, 0.6); 
+
+    // Simple hash to pick one of the three colors
+    uint hash = PrimitiveIndex() % 3;
+    float3 sampled = (hash == 0) ? pastelPurple :
+                    (hash == 1) ? pastelPink :
+                                darkPink;
 
     float3 triangleNormal;
-
     float3 vertexNormals[3];
     vertexNormals[0] = VerticesLeaves[indices.x].normal;
     vertexNormals[1] = VerticesLeaves[indices.y].normal;

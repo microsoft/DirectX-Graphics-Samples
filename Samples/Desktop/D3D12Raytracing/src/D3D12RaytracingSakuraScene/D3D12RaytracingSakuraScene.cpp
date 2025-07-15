@@ -1039,7 +1039,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS topLevelInputs = {};
     topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     topLevelInputs.Flags = buildFlags;
-    topLevelInputs.NumDescs = 2205;
+    topLevelInputs.NumDescs = 4285;
     topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo = {};
@@ -1097,7 +1097,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     {
         for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z)
         {
-            float posX = x * largerCubeSpacing;
+            float posX = x * largerCubeSpacing + 10.0f;
             float posY = 0.0f;
             float posZ = z * largerCubeSpacing;
 
@@ -1120,9 +1120,10 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     }
 
     // Smaller transparent cubes that are placed randomly on the floor
-    for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
+	int transparentCubesPerRow = 30;
+    for (int x = -transparentCubesPerRow / 2; x <= transparentCubesPerRow / 2; ++x)
     {
-        for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z)
+        for (int z = -transparentCubesPerRow / 2; z <= transparentCubesPerRow / 2; ++z)
         {
             float randomYOffset = randomOffset(gen);
 
@@ -1149,15 +1150,16 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         }
     }
 
+    int treesPerRow = 30;
 
     // Trunk and leaves
     // Store random positions for trunks
     std::vector<std::tuple<float, float, float>> trunkPositions;
 
     // First loop: Initialize trunks
-    for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
+    for (int x = -treesPerRow / 2; x <= treesPerRow / 2; ++x)
     {
-        for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z)
+        for (int z = -treesPerRow / 2; z <= treesPerRow / 2; ++z)
         {
             float spacingBetweenTrees = (x < 0) ? 1.7f : 2.5f;
             float randomXOffset = randomOffset(gen);
@@ -1361,7 +1363,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             ObjectConstantBuffer cb;
         };
 
-        UINT numShaderRecords = 2205;
+        UINT numShaderRecords = 4285;
         UINT shaderRecordSize = shaderIdentifierSize + sizeof(RootArguments);
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
@@ -1375,7 +1377,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         }
 
         // Transparant cube shader records
-        for (int i = 0; i < 441; ++i) {
+        for (int i = 0; i < 961; ++i) {
             RootArguments argument;
             argument.cb = m_transparentCubeCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // White color 
@@ -1389,7 +1391,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         std::uniform_int_distribution<> distribTrunk(0, 1); // 2 hit groups: 0 and 1
 
         // Tree trunk shader records
-        for (int i = 0; i < 441; ++i) {
+        for (int i = 0; i < 961; ++i) {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
             int randomIndex = distribTrunk(genTrunk); // Random number between 0 and 1
@@ -1399,59 +1401,19 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             hitGroupShaderTable.push_back(ShaderRecord(trunkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
-        // Create a random number generator for leaves
-        std::random_device rdLeaves;
-        std::mt19937 genLeaves(rdLeaves());
-        std::uniform_int_distribution<> distribLeaves(0, 4); // 5 hit groups: 0, 1, 2, 3, and 4
-
         // Tree leaves shader records
-        for (int i = 0; i < 441; ++i) {
+        for (int i = 0; i < 961; ++i) {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
-            int randomIndex = distribLeaves(genLeaves); // Random number between 0 and 3
             argument.cb = m_leavesLightCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
             argument.cb.materialID = 3;
             hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-
-            //switch (randomIndex) {
-
-            //case 0:
-            //    argument.cb = m_leavesCB;
-            //    argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-            //    argument.cb.materialID = 3;
-            //    hitGroupShaderTable.push_back(ShaderRecord(leavesLightHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-            //    break;
-            //case 1:
-            //    argument.cb = m_leavesLightCB;
-            //    argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-            //    argument.cb.materialID = 3;
-            //    hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-            //    break;
-            //case 2:
-            //    argument.cb = m_leavesDarkCB;
-            //    argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-            //    argument.cb.materialID = 3;
-            //    hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-            //    break;
-            //case 3:
-            //    argument.cb = m_leavesExtraDarkCB;
-            //    argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-            //    argument.cb.materialID = 3;
-            //    hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-            //    break;
-            //case 4:
-            //    argument.cb = m_transparentLeavesCB;
-            //    argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-            //    argument.cb.materialID = 3;
-            //    hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-            //    break;
-            //}
         }
 
 
         // Bush shader records 
-        for (int i = 0; i < 441; ++i) {
+        for (int i = 0; i < 961; ++i) {
             RootArguments argument;
             argument.cb = m_bushCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
@@ -1459,7 +1421,6 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             hitGroupShaderTable.push_back(ShaderRecord(bushHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
-        // Add this line to fix the null pointer issue:
         m_hitGroupShaderTable = hitGroupShaderTable.GetResource();
     }
 }
@@ -1657,7 +1618,7 @@ void D3D12RaytracingSakuraScene::DoRaytracing()
             // Since each shader table has only one shader record, the stride is same as the size.
             dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
             dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
-            dispatchDesc->HitGroupTable.StrideInBytes = m_hitGroupShaderTable->GetDesc().Width / 2205;
+            dispatchDesc->HitGroupTable.StrideInBytes = m_hitGroupShaderTable->GetDesc().Width / 4285;
             dispatchDesc->MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
             dispatchDesc->MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
             dispatchDesc->MissShaderTable.StrideInBytes = dispatchDesc->MissShaderTable.SizeInBytes;
@@ -1746,7 +1707,7 @@ void D3D12RaytracingSakuraScene::RenderUI()
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
-    swprintf_s(buffer, ARRAYSIZE(buffer), L"Sort by reflectHint: %s - Press 'M'", m_sortByMaterial ? L"Enabled" : L"Disabled"); 
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Sort by reflectHint: %s - Press 'M'", m_sortByMaterial ? L"Enabled" : L"Disabled");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
