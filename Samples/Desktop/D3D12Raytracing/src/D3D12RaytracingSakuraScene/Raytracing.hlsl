@@ -221,12 +221,11 @@ void MyRaygenShader()
         {
             dx::MaybeReorderThread(hit);
         }
-            else if (g_sceneCB.enableSortByBoth == 1)
-            {
-                uint sortKey = payload.reflectHint;
-                dx::MaybeReorderThread(payload.reflectHint, numHintBits);
-            }
- 
+        else if (g_sceneCB.enableSortByMaterial == 1)
+        {
+            uint sortKey = payload.reflectHint;
+            dx::MaybeReorderThread(payload.reflectHint, numHintBits);
+        }
         else if (g_sceneCB.enableSortByBoth == 1)
         {
             uint sortKey = payload.reflectHint;
@@ -312,27 +311,29 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 finalColor;
 
     // Only trace reflection ray if the surface is dark 
-    if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
-    {
-        Ray reflectionRay;
-        reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
-        reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
-
-        float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
-        float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
-        float3 rayDir = normalize(WorldRayDirection());
-        float3 modulated = reflectionColor.rgb;
-        float weight = 1.0f;
-
-        for (int i = 1; i <= 1; ++i)
+        if (sampled.r < 0.05 && sampled.g < 0.05 && sampled.b < 0.05 && payload.recursionDepth < 4)
         {
-            float angle = dot(rayDir, triangleNormal) * i;
-            float trig = sin(angle) * cos(angle * 0.5f);
-            weight *= 0.9f; // decay factor
-            modulated += trig * baseColor * weight;
-        }
+            Ray reflectionRay;
+            reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
+            reflectionRay.Direction = reflect(WorldRayDirection(), triangleNormal);
 
-        finalColor = lerp(baseColor, modulated, fresnel);
+            float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
+            float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
+            float3 rayDir = normalize(WorldRayDirection());
+            float3 modulated = reflectionColor.rgb;
+            float weight = 1.0f;
+
+            // Crazy loop: layered modulation with trigonometric chaos
+            for (int i = 1; i <= 799; ++i)
+            {
+                float angle = dot(rayDir, triangleNormal) * i;
+                float trig = sin(angle * 3.1415 * 0.5f) * cos(angle * 1.618f);
+                float3 swirl = float3(sin(angle * 0.7f), cos(angle * 1.3f), sin(angle * 2.1f));
+                weight *= 0.85f; // decay factor
+                modulated += trig * swirl * baseColor * weight;
+            }
+
+            finalColor = lerp(baseColor, modulated, fresnel);
     }
     else
     {

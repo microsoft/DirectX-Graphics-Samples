@@ -1757,7 +1757,7 @@ void D3D12RaytracingSakuraScene::RenderUI()
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
-    swprintf_s(buffer, ARRAYSIZE(buffer), L"Sort by MaterialID: %s - Press 'M'", m_sortByMaterial ? L"Enabled" : L"Disabled");
+    swprintf_s(buffer, ARRAYSIZE(buffer), L"Sort by reflectHint: %s - Press 'M'", m_sortByMaterial ? L"Enabled" : L"Disabled"); 
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing();
 
