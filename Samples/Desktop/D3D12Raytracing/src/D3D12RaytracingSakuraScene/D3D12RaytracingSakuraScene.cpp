@@ -28,7 +28,7 @@ extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12
 using namespace std;
 using namespace DX;
 
-const wchar_t* D3D12RaytracingSakuraScene::c_hitGroupName = L"MyHitGroup";
+const wchar_t* D3D12RaytracingSakuraScene::c_floorHitGroupName = L"MyHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_trunkHitGroupName = L"TrunkHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesHitGroupName = L"LeavesHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesLightHitGroupName = L"LeavesHitGroupLight";
@@ -37,7 +37,7 @@ const wchar_t* D3D12RaytracingSakuraScene::c_leavesExtraDarkHitGroupName = L"Lea
 const wchar_t* D3D12RaytracingSakuraScene::c_bushHitGroupName = L"BushHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_transparentCubeHitGroupName = L"TCubeHitGroup";
 const wchar_t* D3D12RaytracingSakuraScene::c_raygenShaderName = L"MyRaygenShader";
-const wchar_t* D3D12RaytracingSakuraScene::c_closestHitShaderName = L"FloorClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraScene::c_floorClosestHitShaderName = L"FloorClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_trunkClosestHitShaderName = L"TrunkClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesClosestHitShaderName = L"LeavesClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraScene::c_leavesLightClosestHitShaderName = L"LeavesLightClosestHitShader";
@@ -599,7 +599,7 @@ void D3D12RaytracingSakuraScene::CreateLocalRootSignatureSubobjects(CD3DX12_STAT
     {
         auto rootSignatureAssociation = raytracingPipeline->CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
         rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
-        rootSignatureAssociation->AddExport(c_hitGroupName);
+        rootSignatureAssociation->AddExport(c_floorHitGroupName);
         rootSignatureAssociation->AddExport(c_trunkHitGroupName);
         rootSignatureAssociation->AddExport(c_leavesHitGroupName);
         rootSignatureAssociation->AddExport(c_leavesLightHitGroupName);
@@ -643,7 +643,7 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     lib->SetDXILLibrary(&libCode);
     {
         lib->DefineExport(c_raygenShaderName);
-        lib->DefineExport(c_closestHitShaderName);
+        lib->DefineExport(c_floorClosestHitShaderName);
         lib->DefineExport(c_trunkClosestHitShaderName);
         lib->DefineExport(c_leavesClosestHitShaderName);
         lib->DefineExport(c_leavesLightClosestHitShaderName);
@@ -658,8 +658,8 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     // A hit group specifies closest hit, any hit and intersection shaders to be executed when a ray intersects the geometry's triangle/AABB.
     // In this sample, we only use triangle geometry with a closest hit shader, so others are not set.
     auto hitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
-    hitGroup->SetClosestHitShaderImport(c_closestHitShaderName);
-    hitGroup->SetHitGroupExport(c_hitGroupName);
+    hitGroup->SetClosestHitShaderImport(c_floorClosestHitShaderName);
+    hitGroup->SetHitGroupExport(c_floorHitGroupName);
     hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
 
@@ -1315,7 +1315,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         {
             rayGenShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_raygenShaderName);
             missShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_missShaderName);
-            hitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_hitGroupName);
+            hitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_floorHitGroupName);
             trunkHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_trunkHitGroupName);
             leavesHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesHitGroupName);
             leavesLightHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesLightHitGroupName);

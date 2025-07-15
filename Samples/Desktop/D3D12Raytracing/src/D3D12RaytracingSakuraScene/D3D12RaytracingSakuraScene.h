@@ -159,7 +159,7 @@ private:
     UINT m_raytracingOutputResourceUAVDescriptorHeapIndex;
 
     // Shader tables
-    static const wchar_t* c_hitGroupName;
+    static const wchar_t* c_floorHitGroupName;
     static const wchar_t* c_trunkHitGroupName;
     static const wchar_t* c_leavesHitGroupName;
     static const wchar_t* c_leavesLightHitGroupName;
@@ -168,7 +168,7 @@ private:
     static const wchar_t* c_bushHitGroupName;
     static const wchar_t* c_transparentCubeHitGroupName;
     static const wchar_t* c_raygenShaderName;
-    static const wchar_t* c_closestHitShaderName;
+    static const wchar_t* c_floorClosestHitShaderName;
     static const wchar_t* c_trunkClosestHitShaderName;
     static const wchar_t* c_leavesClosestHitShaderName;
     static const wchar_t* c_leavesLightClosestHitShaderName;
