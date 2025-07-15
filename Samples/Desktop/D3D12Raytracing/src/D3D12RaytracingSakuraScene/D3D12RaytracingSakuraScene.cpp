@@ -1371,7 +1371,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             argument.cb = m_cubeCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // White color
             argument.cb.materialID = 0;
-            hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
         // Transparant cube shader records
@@ -1399,13 +1399,13 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
                 argument.cb = m_trunkCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 2;
-                hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             case 1:
                 argument.cb = m_trunkTransparentCB;
                 argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
                 argument.cb.materialID = 2;
-                hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+                hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
                 break;
             }
         }
@@ -1420,39 +1420,44 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
             int randomIndex = distribLeaves(genLeaves); // Random number between 0 and 3
-            switch (randomIndex) {
+            argument.cb = m_leavesLightCB;
+            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            argument.cb.materialID = 3;
+            hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
 
-            case 0:
-                argument.cb = m_leavesCB;
-                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 3;
-                hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-                break;
-            case 1:
-                argument.cb = m_leavesLightCB;
-                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 3;
-                hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-                break;
-            case 2:
-                argument.cb = m_leavesDarkCB;
-                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 3;
-                hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-                break;
-            case 3:
-                argument.cb = m_leavesExtraDarkCB;
-                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 3;
-                hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-                break;
-            case 4:
-                argument.cb = m_transparentLeavesCB;
-                argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
-                argument.cb.materialID = 3;
-                hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
-                break;
-            }
+            //switch (randomIndex) {
+
+            //case 0:
+            //    argument.cb = m_leavesCB;
+            //    argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            //    argument.cb.materialID = 3;
+            //    hitGroupShaderTable.push_back(ShaderRecord(leavesLightHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            //    break;
+            //case 1:
+            //    argument.cb = m_leavesLightCB;
+            //    argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            //    argument.cb.materialID = 3;
+            //    hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            //    break;
+            //case 2:
+            //    argument.cb = m_leavesDarkCB;
+            //    argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            //    argument.cb.materialID = 3;
+            //    hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            //    break;
+            //case 3:
+            //    argument.cb = m_leavesExtraDarkCB;
+            //    argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            //    argument.cb.materialID = 3;
+            //    hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            //    break;
+            //case 4:
+            //    argument.cb = m_transparentLeavesCB;
+            //    argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            //    argument.cb.materialID = 3;
+            //    hitGroupShaderTable.push_back(ShaderRecord(leavesDarkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            //    break;
+            //}
         }
 
 

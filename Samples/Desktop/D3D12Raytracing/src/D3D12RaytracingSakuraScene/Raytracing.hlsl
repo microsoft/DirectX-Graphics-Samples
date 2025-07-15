@@ -158,16 +158,15 @@ void MyRaygenShader()
     // TMin should be kept small to prevent missing geometry at close contact areas.
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
-   
 
-        RayPayload payload =
-        {
-            float4(0, 0, 0, 0),
-            0,
-            0,
-            1.0f, // currentIOR (air)
-            false // insideDielectric
-        };
+    RayPayload payload =
+    {
+        float4(0, 0, 0, 0),
+        0,
+        0,
+        1.0f, // currentIOR (air)
+        false // insideDielectric
+    };
 
 
     // If toggled 'S', enable SER  
@@ -224,16 +223,14 @@ void MyRaygenShader()
         }
             else if (g_sceneCB.enableSortByBoth == 1)
             {
-            // Assume materialID and reflectHint are both small enough to fit in 32 bits together
-            // For example: 16 bits for each
                 uint sortKey = payload.reflectHint;
-                dx::MaybeReorderThread(materialID, numHintBits);
+                dx::MaybeReorderThread(payload.reflectHint, numHintBits);
             }
  
         else if (g_sceneCB.enableSortByBoth == 1)
         {
             uint sortKey = payload.reflectHint;
-            dx::MaybeReorderThread(hit, materialID, numHintBits);
+            dx::MaybeReorderThread(hit, payload.reflectHint, numHintBits);
         }
         HitObject::Invoke(hit, payload);
     }
@@ -380,73 +377,67 @@ void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 }
     
     
-    [shader("closesthit")]
+[shader("closesthit")]
 void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
-    {
-        float3 hitPosition = HitWorldPosition();
-        uint baseIndex = PrimitiveIndex() * 3;
-        uint offset = baseIndex * 4;
-        uint3 indices = IndicesLeaves.Load3(offset);
+{
+    float3 hitPosition = HitWorldPosition();
+    uint baseIndex = PrimitiveIndex() * 3;
+    uint offset = baseIndex * 4;
+    uint3 indices = IndicesLeaves.Load3(offset);
 
-        float3 albedo = g_cubeCB.albedo.rgb;
-        float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
-        float3 triangleNormal;
+    float3 albedo = g_cubeCB.albedo.rgb;
+    float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
+    float3 triangleNormal;
 
-        float3 vertexNormals[3];
-        vertexNormals[0] = VerticesLeaves[indices.x].normal;
-        vertexNormals[1] = VerticesLeaves[indices.y].normal;
-        vertexNormals[2] = VerticesLeaves[indices.z].normal;
-        triangleNormal = HitAttribute(vertexNormals, attr);
+    float3 vertexNormals[3];
+    vertexNormals[0] = VerticesCube[indices.x].normal;
+    vertexNormals[1] = VerticesCube[indices.y].normal;
+    vertexNormals[2] = VerticesCube[indices.z].normal;
+    triangleNormal = HitAttribute(vertexNormals, attr);
 
-        float3 vertexTexCoords[3];
-        vertexTexCoords[0] = VerticesLeaves[indices.x].uv;
-        vertexTexCoords[1] = VerticesLeaves[indices.y].uv;
-        vertexTexCoords[2] = VerticesLeaves[indices.z].uv;
-        float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr).xy;
-
-        sampled.rgb = SakuraTexture.SampleLevel(SakuraSampler, interpolatedTexCoord, 0).rgb;
-        float3 baseColor = albedo * sampled.rgb;
+    // Procedural UVs (since cube may not have real UVs)
+    float2 baseUV = frac(hitPosition.xz * 0.5);
+    sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, baseUV, 0).rgb;
+    float3 baseColor = albedo * sampled.rgb;
 
     // Volumetric absorption using Beer-Lambert law
-        float3 absorptionCoeff = float3(0.2, 0.1, 0.05); // tweak per material
-        float distance = RayTCurrent();
-        float3 transmittance = exp(-absorptionCoeff * distance);
-        baseColor *= transmittance;
+    float3 absorptionCoeff = float3(0.2, 0.1, 0.05); // tweak per material
+    float distance = RayTCurrent();
+    float3 transmittance = exp(-absorptionCoeff * distance);
+    baseColor *= transmittance;
 
     // Determine if we are entering or exiting the dielectric
-        float3 incident = WorldRayDirection();
-        bool entering = dot(incident, triangleNormal) < 0;
-        float3 N = entering ? triangleNormal : -triangleNormal;
+    float3 incident = WorldRayDirection();
+    bool entering = dot(incident, triangleNormal) < 0;
+    float3 N = entering ? triangleNormal : -triangleNormal;
 
-        float iorOutside = payload.insideDielectric ? 1.5f : 1.0f;
-        float iorInside = payload.insideDielectric ? 1.0f : 1.5f;
-        float eta = iorOutside / iorInside;
+    float iorOutside = payload.insideDielectric ? 1.5f : 1.0f;
+    float iorInside = payload.insideDielectric ? 1.0f : 1.5f;
+    float eta = iorOutside / iorInside;
 
-        float3 refractedDir = refract(incident, N, eta);
-        bool validRefraction = length(refractedDir) > 0.001f;
+    float3 refractedDir = refract(incident, N, eta);
+    bool validRefraction = length(refractedDir) > 0.001f;
 
-        if (validRefraction && payload.recursionDepth < 8)
-        {
-            Ray refractedRay;
-            refractedRay.Origin = hitPosition + refractedDir * 0.001f;
-            refractedRay.Direction = refractedDir;
+    if (validRefraction && payload.recursionDepth < 8)
+    {
+        Ray refractedRay;
+        refractedRay.Origin = hitPosition + refractedDir * 0.001f;
+        refractedRay.Direction = refractedDir;
 
-            RayPayload refractedPayload = payload;
-            refractedPayload.recursionDepth += 1;
-            refractedPayload.insideDielectric = !payload.insideDielectric;
+        RayPayload refractedPayload = payload;
+        refractedPayload.recursionDepth += 1;
+        refractedPayload.insideDielectric = !payload.insideDielectric;
 
-            float4 refractedColor = TraceRadianceRay(refractedRay, refractedPayload.recursionDepth);
-            payload.color.rgb += refractedColor.rgb * baseColor;
-        }
+        float4 refractedColor = TraceRadianceRay(refractedRay, refractedPayload.recursionDepth);
+        payload.color.rgb += refractedColor.rgb * baseColor;
+    }
 
     // Also compute direct lighting
-        float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-        float NdotL = saturate(dot(triangleNormal, lightDir));
-        float3 directLight = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
-
-        payload.color.rgb += directLight;
-        payload.color.a = g_cubeCB.albedo.w;
-    }
+    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+    float NdotL = saturate(dot(triangleNormal, lightDir));
+    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
+    payload.color = float4(finalColor, g_cubeCB.albedo.w);
+}
     
     
 [shader("closesthit")]
@@ -548,7 +539,6 @@ void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes a
     float NdotL = saturate(dot(triangleNormal, lightDir));
 
     finalColor = albedo * sampled.rgb * g_sceneCB.lightDiffuseColor.rgb * NdotL;
-    payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
 
     
@@ -604,9 +594,9 @@ void TCubeClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 vertexNormals[3];
-    vertexNormals[0] = VerticesCube[indices.x].normal;
-    vertexNormals[1] = VerticesCube[indices.y].normal;
-    vertexNormals[2] = VerticesCube[indices.z].normal;
+    vertexNormals[0] = VerticesTrunk[indices.x].normal;
+    vertexNormals[1] = VerticesTrunk[indices.y].normal;
+    vertexNormals[2] = VerticesTrunk[indices.z].normal;
     triangleNormal = HitAttribute(vertexNormals, attr);
         
     // Trace a reflection ray
