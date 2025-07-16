@@ -176,7 +176,7 @@ void MyRaygenShader()
         uint materialID = hit.LoadLocalRootTableConstant(16);
         bool isGround = (materialID == 0 || materialID == 2);
             
-        // If material is ground or flower, sample the texture to decide if it is reflective or not.
+        // If material is the ground, sample the texture to decide if it is reflective or not.
         if (isGround)
         {
             // Estimate hit point on ground plane (y = 0)
@@ -184,7 +184,7 @@ void MyRaygenShader()
             float3 estimatedHit = origin + t * rayDir;
 
             // Generate procedural UVs from XZ
-            float2 uv = frac(estimatedHit.xz * 0.5); // adjust scale as needed
+            float2 uv = frac(estimatedHit.xz * 0.5); 
             float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
 
             if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
@@ -193,7 +193,7 @@ void MyRaygenShader()
             }
         }
         
-        // If material is trunk or transparent cubes, set reflectHint to 1
+        // If material is transparent cube, set reflectHint to 1
         if (materialID == 1)
         {
             payload.reflectHint = 1;
@@ -265,8 +265,9 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
 
     return rayPayload.color;
 }
-    
 
+    
+// Star Nest by Pablo Roman Andrioli
 [shader("closesthit")]
 void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
@@ -304,13 +305,52 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
         float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
         float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
+        float3 refColor = lerp(baseColor, reflectionColor.rgb, fresnel) * 1.7f;
 
-        float angle = dot(normalize(WorldRayDirection()), triangleNormal);
-        float trig = sin(angle * 3.1415 * 0.5f) * cos(angle * 1.618f);
-        float3 swirl = float3(sin(angle * 0.7f), cos(angle * 1.3f), sin(angle * 2.1f));
-        float3 modulated = reflectionColor.rgb + 0.5f * trig * swirl * baseColor;
+        // Volumetric fractal clouds effect
+        const int FractalSampleSteps = 260;
+        const int FractalIterations = 20;
+        const float SampleSpacing = 0.15;
+        const float FractalOffset = 0.53;
 
-        finalColor = lerp(baseColor, modulated, fresnel) * 1.7f;
+        float fractalDensity = 0;
+        float fadeFactor = 1.0;
+
+        for (int s = 0; s < FractalSampleSteps; ++s)
+        {
+            float3 p = hitPosition + triangleNormal * (s * SampleSpacing);
+            p = abs(fmod(p, 2.0) - 1.0);
+
+            float pa = 0;
+            float a = 0;
+            for (int i = 0; i < FractalIterations; ++i)
+            {
+                float invLen2 = 1.0 / dot(p, p);
+                p = abs(p) * invLen2 - FractalOffset;
+                float lenP = length(p);
+                a += abs(lenP - pa);
+                pa = lenP;
+            }
+
+            fractalDensity += a * fadeFactor;
+            fadeFactor *= 0.9;
+        }
+
+        // Normalize & smooth fractal density
+        fractalDensity = saturate(fractalDensity / (FractalSampleSteps * FractalIterations * 0.12));
+        float d = smoothstep(0.1, 0.9, fractalDensity);
+
+        // Cloud color ramp & light glow
+        float3 blue = float3(0.4, 0.6, 1.0);  // Soft blue
+        float3 pink = float3(1.0, 0.6, 0.8);  // Soft pink
+        float3 cloud = lerp(blue, pink, d);
+
+        float3 L = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
+        float lightD = saturate(dot(triangleNormal, L));
+        cloud *= lerp(0.8 + 0.2 * lightD, 4.0, d); // lightD ranges [0.8,1.0]
+
+        // Composite reflection with clouds
+        finalColor = lerp(refColor, cloud, d * 0.7);
     }
     else
     {
@@ -319,8 +359,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
-
-
+    
     
 [shader("closesthit")]
 void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)

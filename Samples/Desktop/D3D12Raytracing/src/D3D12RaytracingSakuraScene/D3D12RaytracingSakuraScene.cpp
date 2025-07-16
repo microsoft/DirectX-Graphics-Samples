@@ -1367,7 +1367,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         UINT shaderRecordSize = shaderIdentifierSize + sizeof(RootArguments);
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
-        //// Larger cube shader records
+        //// Larger cube shader records as the ground
         for (int i = 0; i < 441; ++i) {
             RootArguments argument;
             argument.cb = m_cubeCB;
@@ -1376,7 +1376,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
-        // Transparant cube shader records
+		// Transparant cube shader records randomly placed around the scene
         for (int i = 0; i < 961; ++i) {
             RootArguments argument;
             argument.cb = m_transparentCubeCB;
