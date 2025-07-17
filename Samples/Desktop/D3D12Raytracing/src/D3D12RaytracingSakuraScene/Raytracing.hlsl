@@ -268,52 +268,81 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     
 
 // Simple hash function for pseudo-randomness
-float2 Hash2D(int x, int y)
+float Hash1D(float n)
 {
-    float2 seed = float2(x * 127.1, y * 311.7);
-    float2 sinVal = sin(seed);
-    return frac(sinVal * 43758.5453);
+    return frac(sin(n) * 43758.5453);
+}
+
+float2 Hash2D(int seed, int index)
+{
+    float x = Hash1D(seed * 0.123 + index * 0.456);
+    float y = Hash1D(seed * 0.789 + index * 0.321);
+    return float2(x, y);
 }
 
 void MakeStarField(float3 position, out float3 starColor)
 {
     starColor = float3(0.0, 0.0, 0.0);
-    const int numClustersX = 40;
-    const int numClustersY = 35;
-    const int starsPerCluster = 4;
-    const float clusterSpacing = 3.0;
+    const int numClustersX = 30;
+    const int numClustersY = 20;
+    const int starsPerCluster = 3;
+    const float clusterSpacing = 2.0;
     const float clusterRadius = 4.5;
-    const float starSize = 0.20;
+    const float baseStarSize = 0.20;
 
     int halfX = numClustersX / 2;
     int halfY = numClustersY / 2;
 
-    // Star positions
     for (int cx = -halfX; cx < halfX; ++cx)
     {
         for (int cy = -halfY; cy < halfY; ++cy)
         {
-            // Randomize stars within each cluster
             float2 clusterCenter = float2(cx, cy) * clusterSpacing;
+
             for (int s = 0; s < starsPerCluster; ++s)
             {
-                float2 randOffset = (Hash2D(cx * 100 + cy, s) - 0.5f) * clusterRadius; // [-0.5, 0.5] * clusterRadius
+                float2 randOffset = (Hash2D(cx * 100 + cy, s) - 0.5f) * clusterRadius;
                 float2 starPos = clusterCenter + randOffset;
 
                 float2 diff = position.xz - starPos;
                 float dist = length(diff);
 
+                // Size variation
+                float sizeVariation = 0.5 + 0.5 * Hash1D(cx * 1000 + cy * 100 + s);
+                float starSize = baseStarSize * sizeVariation;
+
                 if (dist < starSize)
                 {
-                    float brightness = 1.0 - smoothstep(0.0, starSize, dist);
-                    float3 pastelPurple = float3(0.8, 0.6, 1.0);
-                    starColor += pastelPurple * brightness;
+                    // Pseudo-twinkle using spatial hash
+                    float twinkle = 0.5 + 0.5 * sin(dot(position.xz, float2(12.9898, 78.233)) + s * 10.0);
+                        
+                    // Color variation
+                    float3 starColors[3] =
+                    {
+                        float3(1.0, 0.9, 0.8),
+                        float3(0.8, 0.8, 1.0),
+                        float3(1.0, 0.8, 0.9)
+                    };
+                    int colorIndex = (cx + cy + s) % 3;
+                    float3 starColorBase = starColors[colorIndex];
+
+                    float brightness = (1.0 - smoothstep(0.0, starSize, dist)) * twinkle;
+                    
+                    // Core brightness
+                    starColor += starColorBase * brightness;
+                        
+                    // Soft glow
+                    float glow = exp(-dist * 10.0);
+                    starColor += starColorBase * glow * 0.7;
                 }
             }
         }
     }
+
     starColor = saturate(starColor);
 }
+
+
 
 
     
@@ -358,7 +387,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         // Simple star field
         float3 starCol;
         MakeStarField(hitPosition, starCol);
-        finalColor = lerp(refColor, starCol, 0.4f);
+        finalColor = lerp(refColor, starCol, 0.9f);
     }
     else
     {
