@@ -265,9 +265,59 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
 
     return rayPayload.color;
 }
+    
+
+
+// Simple hash function for pseudo-randomness
+float2 Hash2D(int x, int y)
+{
+    float2 seed = float2(x * 127.1, y * 311.7);
+    float2 sinVal = sin(seed);
+    return frac(sinVal * 43758.5453);
+}
+
+void MakeStarField(float3 position, out float3 starColor)
+{
+    starColor = float3(0.0, 0.0, 0.0);
+    const int numClustersX = 40;
+    const int numClustersY = 35;
+    const int starsPerCluster = 4;
+    const float clusterSpacing = 3.0;
+    const float clusterRadius = 4.5;
+    const float starSize = 0.20;
+
+    int halfX = numClustersX / 2;
+    int halfY = numClustersY / 2;
+
+    // Star positions
+    for (int cx = -halfX; cx < halfX; ++cx)
+    {
+        for (int cy = -halfY; cy < halfY; ++cy)
+        {
+            // Randomize stars within each cluster
+            float2 clusterCenter = float2(cx, cy) * clusterSpacing;
+            for (int s = 0; s < starsPerCluster; ++s)
+            {
+                float2 randOffset = (Hash2D(cx * 100 + cy, s) - 0.5f) * clusterRadius; // [-0.5, 0.5] * clusterRadius
+                float2 starPos = clusterCenter + randOffset;
+
+                float2 diff = position.xz - starPos;
+                float dist = length(diff);
+
+                if (dist < starSize)
+                {
+                    float brightness = 1.0 - smoothstep(0.0, starSize, dist);
+                    float3 pastelPurple = float3(0.8, 0.6, 1.0);
+                    starColor += pastelPurple * brightness;
+                }
+            }
+        }
+    }
+    starColor = saturate(starColor);
+}
+
 
     
-// Star Nest by Pablo Roman Andrioli
 [shader("closesthit")]
 void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
@@ -284,7 +334,6 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float2 baseUV = frac(hitPosition.xz * 0.5);
     sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, baseUV, 0).rgb;
     
-    // Interpolate normals
     float3 vertexNormals[3] =
     {
         VerticesCube[indices.x].normal,
@@ -307,50 +356,10 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
         float3 refColor = lerp(baseColor, reflectionColor.rgb, fresnel) * 1.7f;
 
-        // Volumetric fractal clouds effect
-        const int FractalSampleSteps = 260;
-        const int FractalIterations = 20;
-        const float SampleSpacing = 0.15;
-        const float FractalOffset = 0.53;
-
-        float fractalDensity = 0;
-        float fadeFactor = 1.0;
-
-        for (int s = 0; s < FractalSampleSteps; ++s)
-        {
-            float3 p = hitPosition + triangleNormal * (s * SampleSpacing);
-            p = abs(fmod(p, 2.0) - 1.0);
-
-            float pa = 0;
-            float a = 0;
-            for (int i = 0; i < FractalIterations; ++i)
-            {
-                float invLen2 = 1.0 / dot(p, p);
-                p = abs(p) * invLen2 - FractalOffset;
-                float lenP = length(p);
-                a += abs(lenP - pa);
-                pa = lenP;
-            }
-
-            fractalDensity += a * fadeFactor;
-            fadeFactor *= 0.9;
-        }
-
-        // Normalize & smooth fractal density
-        fractalDensity = saturate(fractalDensity / (FractalSampleSteps * FractalIterations * 0.12));
-        float d = smoothstep(0.1, 0.9, fractalDensity);
-
-        // Cloud color ramp & light glow
-        float3 blue = float3(0.4, 0.6, 1.0);  // Soft blue
-        float3 pink = float3(1.0, 0.6, 0.8);  // Soft pink
-        float3 cloud = lerp(blue, pink, d);
-
-        float3 L = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-        float lightD = saturate(dot(triangleNormal, L));
-        cloud *= lerp(0.8 + 0.2 * lightD, 4.0, d); // lightD ranges [0.8,1.0]
-
-        // Composite reflection with clouds
-        finalColor = lerp(refColor, cloud, d * 0.7);
+        // Simple star field
+        float3 starCol;
+        MakeStarField(hitPosition, starCol);
+        finalColor = lerp(refColor, starCol, 0.4f);
     }
     else
     {
