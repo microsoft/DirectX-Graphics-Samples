@@ -267,7 +267,6 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
 }
     
 
-
 // Simple hash function for pseudo-randomness
 float2 Hash2D(int x, int y)
 {
