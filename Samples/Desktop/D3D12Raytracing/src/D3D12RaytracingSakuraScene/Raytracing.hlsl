@@ -276,15 +276,16 @@ float2 Hash2D(int seed, int index)
     return float2(x, y);
 }
 
-void MakeStarField(float3 position, out float3 starColor)
+void MakeStarField(float3 position, out float3 starColor, bool sky)
 {
     starColor = float3(0.0, 0.0, 0.0);
-    const int numClustersX = 19;
-    const int numClustersY = 19;
+    const int numClustersX = 20;
+    const int numClustersY = 20;
     const int starsPerCluster = 3;
-    const float clusterSpacing = 0.08; // Tighter for direction
-    const float clusterRadius = 0.15;
-    const float baseStarSize = 0.002;
+    const float clusterSpacing = sky ? 0.08 : 1.0;
+    const float clusterRadius = sky ? 0.15 : 0.5;
+    const float baseStarSize = sky ? 0.001 : 0.15;
+        
 
     int halfX = numClustersX / 2;
     int halfY = numClustersY / 2;
@@ -379,8 +380,8 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
         // Simple star field
         float3 starCol;
-        MakeStarField(hitPosition, starCol);
-        finalColor = lerp(refColor, starCol, 0.2f);
+        MakeStarField(hitPosition, starCol, false);
+        finalColor = lerp(refColor, starCol, 0.5f);
     }
     else
     {
@@ -568,7 +569,7 @@ void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes a
     
 [shader("closesthit")]
 void BushClosestHitShader(inout RayPayload payload, in MyAttributes attr)
-{
+    {
     float3 hitPosition = HitWorldPosition();
     uint baseIndex = PrimitiveIndex() * 3;
     uint offset = baseIndex * 4;
@@ -631,19 +632,19 @@ void TCubeClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float4 reflectedColor = 0.5 * float4(fresnelR, 1) * reflectionColor;
     payload.color = reflectedColor;
 }
-
+        
 
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
     float3 dir = normalize(WorldRayDirection());
 
-    float lowerFactor =9.5; 
+    float lowerFactor = 9.5;
     dir.y *= lowerFactor;
     dir = normalize(dir);
 
     float3 starColor;
-    MakeStarField(dir, starColor);
+    MakeStarField(dir, starColor, true);
 
     float3 baseSky = float3(0.12, 0.05, 0.48); // dark purple
     float3 finalColor = lerp(baseSky, starColor, 0.7);
