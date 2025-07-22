@@ -364,7 +364,7 @@ void D3D12RaytracingSakuraScene::CreateTexture()
     HRESULT hr = DirectX::CreateWICTextureFromFile(
         device,
         resourceUpload,
-        L"tree-trunk.png",
+        L"tree-trunk.jpg",
         texture1.GetAddressOf()
     );
 

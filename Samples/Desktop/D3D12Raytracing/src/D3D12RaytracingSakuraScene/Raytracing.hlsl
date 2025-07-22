@@ -91,8 +91,6 @@ typedef BuiltInTriangleIntersectionAttributes MyAttributes;
     float4 color : write(caller, closesthit, miss) : read(caller);
     uint recursionDepth : write(caller) : read(closesthit);
     uint reflectHint : write(caller) : read(closesthit, caller);
-    float currentIOR : write(caller, closesthit) : read(caller); // NEW
-    bool insideDielectric : write(caller, closesthit) : read(caller); // NEW
 };
 
    
@@ -164,8 +162,6 @@ void MyRaygenShader()
         float4(0, 0, 0, 0),
         0,
         0,
-        1.0f, // currentIOR (air)
-        false // insideDielectric
     };
 
 
@@ -260,7 +256,7 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     // Note: make sure to enable face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0.001;
     rayDesc.TMax = 10000;
-    RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1, 0, 1.0f, false };
+    RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1, 0 };
     TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, rayDesc, rayPayload);
 
     return rayPayload.color;
@@ -342,9 +338,6 @@ void MakeStarField(float3 position, out float3 starColor)
     starColor = saturate(starColor);
 }
 
-
-
-
     
 [shader("closesthit")]
 void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
@@ -387,11 +380,11 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         // Simple star field
         float3 starCol;
         MakeStarField(hitPosition, starCol);
-        finalColor = lerp(refColor, starCol, 0.9f);
+        finalColor = lerp(refColor, starCol, 0.3f);
     }
     else
     {
-        finalColor = baseColor * 1.7f;
+        finalColor = baseColor * 0.4f;
     }
 
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
@@ -428,7 +421,7 @@ void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 baseColor = albedo * sampled.rgb;
     float3 finalColor;
 
-    finalColor = albedo * sampled.rgb * 1.3f; 
+    finalColor = albedo * sampled.rgb * 0.4f; 
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
     
@@ -455,39 +448,7 @@ void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float2 baseUV = frac(hitPosition.xz * 0.5);
     sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, baseUV, 0).rgb;
     float3 baseColor = albedo * sampled.rgb;
-
-    // Volumetric absorption using Beer-Lambert law
-    float3 absorptionCoeff = float3(0.2, 0.1, 0.05); // tweak per material
-    float distance = RayTCurrent();
-    float3 transmittance = exp(-absorptionCoeff * distance);
-    baseColor *= transmittance;
-
-    // Determine if we are entering or exiting the dielectric
-    float3 incident = WorldRayDirection();
-    bool entering = dot(incident, triangleNormal) < 0;
-    float3 N = entering ? triangleNormal : -triangleNormal;
-
-    float iorOutside = payload.insideDielectric ? 1.5f : 1.0f;
-    float iorInside = payload.insideDielectric ? 1.0f : 1.5f;
-    float eta = iorOutside / iorInside;
-
-    float3 refractedDir = refract(incident, N, eta);
-    bool validRefraction = length(refractedDir) > 0.001f;
-
-    if (validRefraction && payload.recursionDepth < 8)
-    {
-        Ray refractedRay;
-        refractedRay.Origin = hitPosition + refractedDir * 0.001f;
-        refractedRay.Direction = refractedDir;
-
-        RayPayload refractedPayload = payload;
-        refractedPayload.recursionDepth += 1;
-        refractedPayload.insideDielectric = !payload.insideDielectric;
-
-        float4 refractedColor = TraceRadianceRay(refractedRay, refractedPayload.recursionDepth);
-        payload.color.rgb += refractedColor.rgb * baseColor;
-    }
-
+    
     // Also compute direct lighting
     float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
     float NdotL = saturate(dot(triangleNormal, lightDir));
