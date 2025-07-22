@@ -51,15 +51,14 @@
     <ClInclude Include="DirectXRaytracingHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="HlslCompat.h">
-      <Filter>Assets\Shaders\Util</Filter>
-    </ClInclude>
     <ClInclude Include="RaytracingHlslCompat.h">
       <Filter>Assets\Shaders</Filter>
     </ClInclude>
     <ClInclude Include="SharedCode.h" />
     <ClInclude Include="ObjModelLoader.h" />
-    <ClInclude Include="CheckCast.h" />
+    <ClInclude Include="HlslCompat.h">
+      <Filter>Assets\Shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

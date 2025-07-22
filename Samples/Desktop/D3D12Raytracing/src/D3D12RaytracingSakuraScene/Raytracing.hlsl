@@ -378,9 +378,8 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
         float3 refColor = lerp(baseColor, reflectionColor.rgb, fresnel) * 1.7f;
 
-        // Simple star field
         float3 starCol = float4(1.0, 1.0, 1.0, 1.0);
-     // MakeStarField(hitPosition, starCol, false);
+        //MakeStarField(hitPosition, starCol, false);
         finalColor = lerp(refColor, starCol, 0.1f);
     }
     else
