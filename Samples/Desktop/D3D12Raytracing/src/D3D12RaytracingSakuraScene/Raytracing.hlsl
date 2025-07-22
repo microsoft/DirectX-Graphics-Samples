@@ -279,12 +279,12 @@ float2 Hash2D(int seed, int index)
 void MakeStarField(float3 position, out float3 starColor)
 {
     starColor = float3(0.0, 0.0, 0.0);
-    const int numClustersX = 30;
-    const int numClustersY = 20;
+    const int numClustersX = 19;
+    const int numClustersY = 19;
     const int starsPerCluster = 3;
-    const float clusterSpacing = 2.0;
-    const float clusterRadius = 4.5;
-    const float baseStarSize = 0.20;
+    const float clusterSpacing = 0.08; // Tighter for direction
+    const float clusterRadius = 0.15;
+    const float baseStarSize = 0.002;
 
     int halfX = numClustersX / 2;
     int halfY = numClustersY / 2;
@@ -380,7 +380,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         // Simple star field
         float3 starCol;
         MakeStarField(hitPosition, starCol);
-        finalColor = lerp(refColor, starCol, 0.3f);
+        finalColor = lerp(refColor, starCol, 0.2f);
     }
     else
     {
@@ -568,7 +568,7 @@ void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes a
     
 [shader("closesthit")]
 void BushClosestHitShader(inout RayPayload payload, in MyAttributes attr)
-    {
+{
     float3 hitPosition = HitWorldPosition();
     uint baseIndex = PrimitiveIndex() * 3;
     uint offset = baseIndex * 4;
@@ -631,13 +631,24 @@ void TCubeClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float4 reflectedColor = 0.5 * float4(fresnelR, 1) * reflectionColor;
     payload.color = reflectedColor;
 }
-        
-  
+
+
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
-    float4 background = float4(1.0000f, 0.9216f, 0.9373f, 1.0f);
-    payload.color = background;
+    float3 dir = normalize(WorldRayDirection());
+
+    float lowerFactor =9.5; 
+    dir.y *= lowerFactor;
+    dir = normalize(dir);
+
+    float3 starColor;
+    MakeStarField(dir, starColor);
+
+    float3 baseSky = float3(0.12, 0.05, 0.48); // dark purple
+    float3 finalColor = lerp(baseSky, starColor, 0.7);
+
+    payload.color = float4(finalColor, 1.0f);
 }
 
 #endif // RAYTRACING_HLSL
