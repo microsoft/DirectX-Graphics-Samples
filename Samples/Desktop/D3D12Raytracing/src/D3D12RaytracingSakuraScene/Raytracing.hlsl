@@ -279,10 +279,10 @@ float2 Hash2D(int seed, int index)
 void MakeStarField(float3 position, out float3 starColor, bool sky)
 {
     starColor = float3(0.0, 0.0, 0.0);
-    const int numClustersX = 20;
+    const int numClustersX = 22;
     const int numClustersY = 20;
     const int starsPerCluster = 3;
-    const float clusterSpacing = sky ? 0.08 : 1.0;
+    const float clusterSpacing = sky ? 0.08 : 0.5;
     const float clusterRadius = sky ? 0.15 : 0.5;
     const float baseStarSize = sky ? 0.001 : 0.15;
         
@@ -379,13 +379,13 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float3 refColor = lerp(baseColor, reflectionColor.rgb, fresnel) * 1.7f;
 
         // Simple star field
-        float3 starCol;
-        MakeStarField(hitPosition, starCol, false);
-        finalColor = lerp(refColor, starCol, 0.5f);
+        float3 starCol = float4(1.0, 1.0, 1.0, 1.0);
+     // MakeStarField(hitPosition, starCol, false);
+        finalColor = lerp(refColor, starCol, 0.1f);
     }
     else
     {
-        finalColor = baseColor * 0.4f;
+        finalColor = baseColor * 0.5f;
     }
 
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
@@ -422,7 +422,7 @@ void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 baseColor = albedo * sampled.rgb;
     float3 finalColor;
 
-    finalColor = albedo * sampled.rgb * 0.4f; 
+    finalColor = albedo * sampled.rgb * 0.7f; 
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
     
