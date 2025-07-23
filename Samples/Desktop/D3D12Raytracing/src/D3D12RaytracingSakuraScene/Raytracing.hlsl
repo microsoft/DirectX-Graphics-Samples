@@ -43,11 +43,8 @@ ConstantBuffer<ObjectConstantBuffer> g_cubeCB : register(b1);
 Texture2D<float4> TrunkTexture : register(t9, space0);
 SamplerState TrunkSampler : register(s0);
     
-Texture2D<float4> SakuraTexture : register(t10, space0);
-SamplerState SakuraSampler : register(s1);
-    
-Texture2D<float4> BushTexture : register(t11, space0);
-SamplerState BushSampler : register(s2);
+Texture2D<float4> BushTexture : register(t10, space0);
+SamplerState BushSampler : register(s1);
 
     
 // Load three 16 bit indices from a byte addressed buffer. 
@@ -180,7 +177,7 @@ void MyRaygenShader()
             float3 estimatedHit = origin + t * rayDir;
 
             // Generate procedural UVs from XZ
-            float2 uv = frac(estimatedHit.xz * 1.5); 
+            float2 uv = frac(estimatedHit.xz * 1.0); 
             float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
 
             if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
@@ -241,7 +238,7 @@ struct Ray
     
     
 // Trace a radiance ray into the scene and returns a shaded color.
-float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
+float4 TraceRadianceRay(in Ray ray, in int currentRayRecursionDepth)
 {
     if (currentRayRecursionDepth >= 8)
     {
@@ -276,68 +273,6 @@ float2 Hash2D(int seed, int index)
     return float2(x, y);
 }
 
-void MakeStarField(float3 position, out float3 starColor, bool sky)
-{
-    starColor = float3(0.0, 0.0, 0.0);
-    const int numClustersX = 12;
-    const int numClustersY = 10;
-    const int starsPerCluster = 3;
-    const float clusterSpacing = sky ? 0.08 : 0.5;
-    const float clusterRadius = sky ? 0.15 : 0.5;
-    const float baseStarSize = sky ? 0.001 : 0.15;
-        
-
-    int halfX = numClustersX / 2;
-    int halfY = numClustersY / 2;
-
-    for (int cx = -halfX; cx < halfX; ++cx)
-    {
-        for (int cy = -halfY; cy < halfY; ++cy)
-        {
-            float2 clusterCenter = float2(cx, cy) * clusterSpacing;
-
-            for (int s = 0; s < starsPerCluster; ++s)
-            {
-                float2 randOffset = (Hash2D(cx * 100 + cy, s) - 0.5f) * clusterRadius;
-                float2 starPos = clusterCenter + randOffset;
-
-                float2 diff = position.xz - starPos;
-                float dist = length(diff);
-
-                // Size variation
-                float sizeVariation = 0.5 + 0.5 * Hash1D(cx * 1000 + cy * 100 + s);
-                float starSize = baseStarSize * sizeVariation;
-
-                if (dist < starSize)
-                {
-                    // Pseudo-twinkle using spatial hash
-                    float twinkle = 0.5 + 0.5 * sin(dot(position.xz, float2(12.9898, 78.233)) + s * 10.0);
-                        
-                    // Color variation
-                    float3 starColors[3] =
-                    {
-                        float3(1.0, 0.9, 0.8),
-                        float3(0.8, 0.8, 1.0),
-                        float3(1.0, 0.8, 0.9)
-                    };
-                    int colorIndex = (cx + cy + s) % 3;
-                    float3 starColorBase = starColors[colorIndex];
-
-                    float brightness = (1.0 - smoothstep(0.0, starSize, dist)) * twinkle;
-                    
-                    // Core brightness
-                    starColor += starColorBase * brightness;
-                        
-                    // Soft glow
-                    float glow = exp(-dist * 10.0);
-                    starColor += starColorBase * glow * 0.7;
-                }
-            }
-        }
-    }
-    //starColor = saturate(starColor);
-}
-
     
 [shader("closesthit")]
 void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
@@ -352,7 +287,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 triangleNormal;
 
     // Procedural UVs
-    float2 baseUV = frac(hitPosition.xz * 1.5);
+    float2 baseUV = frac(hitPosition.xz * 1.0);
     sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, baseUV, 0).rgb;
     
     float3 vertexNormals[3] =
@@ -378,7 +313,6 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float3 refColor = lerp(baseColor, reflectionColor.rgb, fresnel) * 1.7f;
 
         float3 starCol = float4(1.0, 1.0, 1.0, 1.0);
-        //MakeStarField(hitPosition, starCol, false);
         finalColor = lerp(refColor, starCol, 0.1f);
     }
     else
@@ -434,72 +368,6 @@ void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     uint3 indices = IndicesLeaves.Load3(offset);
 
     float3 albedo = g_cubeCB.albedo.rgb;
-    float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
-    float3 triangleNormal;
-
-    float3 vertexNormals[3];
-    vertexNormals[0] = VerticesCube[indices.x].normal;
-    vertexNormals[1] = VerticesCube[indices.y].normal;
-    vertexNormals[2] = VerticesCube[indices.z].normal;
-    triangleNormal = HitAttribute(vertexNormals, attr);
-
-    // Procedural UVs (since cube may not have real UVs)
-    float2 baseUV = frac(hitPosition.xz * 0.5);
-    sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, baseUV, 0).rgb;
-    float3 baseColor = albedo * sampled.rgb;
-    
-    // Also compute direct lighting
-    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-    float NdotL = saturate(dot(triangleNormal, lightDir));
-    float3 finalColor = baseColor * g_sceneCB.lightDiffuseColor.rgb * NdotL;
-    payload.color = float4(finalColor, g_cubeCB.albedo.w);
-}
-    
-    
-[shader("closesthit")]
-void LeavesLightClosestHitShader(inout RayPayload payload, in MyAttributes attr)
-{
-    float3 hitPosition = HitWorldPosition();
-    uint baseIndex = PrimitiveIndex() * 3;
-    uint offset = baseIndex * 4;
-    uint3 indices = IndicesLeaves.Load3(offset);
-
-    float3 albedo = g_cubeCB.albedo.rgb;
-    float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
-    float3 triangleNormal;
-
-    float3 vertexNormals[3];
-    vertexNormals[0] = VerticesLeaves[indices.x].normal;
-    vertexNormals[1] = VerticesLeaves[indices.y].normal;
-    vertexNormals[2] = VerticesLeaves[indices.z].normal;
-    triangleNormal = HitAttribute(vertexNormals, attr);
-            
-    float3 vertexTexCoords[3];
-    vertexTexCoords[0] = VerticesLeaves[indices.x].uv;
-    vertexTexCoords[1] = VerticesLeaves[indices.y].uv;
-    vertexTexCoords[2] = VerticesLeaves[indices.z].uv;
-    float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr).xy;
-    
-    float3 finalColor;
-    float3 baseColor = albedo * sampled.rgb;
-    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-    float NdotL = saturate(dot(triangleNormal, lightDir));
-
-
-    finalColor = albedo * sampled.rgb * g_sceneCB.lightDiffuseColor.rgb * NdotL;
-    payload.color = float4(finalColor, g_cubeCB.albedo.w);
-}
-
-    
-[shader("closesthit")]
-void LeavesDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
-{
-    float3 hitPosition = HitWorldPosition();
-    uint baseIndex = PrimitiveIndex() * 3;
-    uint offset = baseIndex * 4;
-    uint3 indices = IndicesLeaves.Load3(offset);
-
-    float3 albedo = g_cubeCB.albedo.rgb;
     float3 pastelPurple = float3(0.8, 0.7, 0.9); 
     float3 pastelPink = float3(1.0, 0.8, 0.9);
     float3 darkPink = float3(0.85, 0.4, 0.6); 
@@ -530,38 +398,6 @@ void LeavesDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     finalColor = albedo * sampled.rgb * g_sceneCB.lightDiffuseColor.rgb * NdotL;
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
-}
-
-    
-[shader("closesthit")]
-void LeavesExtraDarkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
-{
-    float3 hitPosition = HitWorldPosition();
-    uint baseIndex = PrimitiveIndex() * 3;
-    uint offset = baseIndex * 4;
-    uint3 indices = IndicesLeaves.Load3(offset);
-
-    float3 albedo = g_cubeCB.albedo.rgb;
-    float4 sampled = float4(1.0, 1.0, 1.0, 1.0);
-    float3 triangleNormal;
-
-    float3 vertexNormals[3];
-    vertexNormals[0] = VerticesLeaves[indices.x].normal;
-    vertexNormals[1] = VerticesLeaves[indices.y].normal;
-    vertexNormals[2] = VerticesLeaves[indices.z].normal;
-    triangleNormal = HitAttribute(vertexNormals, attr);
-            
-    float3 vertexTexCoords[3];
-    vertexTexCoords[0] = VerticesLeaves[indices.x].uv;
-    vertexTexCoords[1] = VerticesLeaves[indices.y].uv;
-    vertexTexCoords[2] = VerticesLeaves[indices.z].uv;
-    float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr).xy;
-    float3 finalColor;
-    float3 baseColor = albedo * sampled.rgb;
-    float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-    float NdotL = saturate(dot(triangleNormal, lightDir));
-
-    finalColor = albedo * sampled.rgb * g_sceneCB.lightDiffuseColor.rgb * NdotL;
 }
 
     
@@ -635,19 +471,8 @@ void TCubeClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
-    float3 dir = normalize(WorldRayDirection());
-
-    float lowerFactor = 9.5;
-    dir.y *= lowerFactor;
-    dir = normalize(dir);
-
-    float3 starColor = float3(0.0, 0.0, 0.0);
-    //MakeStarField(dir, starColor, true);
-
-    float3 baseSky = float3(0.12, 0.05, 0.48); // dark purple
-    float3 finalColor = lerp(baseSky, starColor, 0.7);
-
-    payload.color = float4(finalColor, 1.0f);
+    float4 background = float4(1.0000f, 0.9216f, 0.9373f, 1.0f);
+    payload.color = background;
 }
 
 #endif // RAYTRACING_HLSL

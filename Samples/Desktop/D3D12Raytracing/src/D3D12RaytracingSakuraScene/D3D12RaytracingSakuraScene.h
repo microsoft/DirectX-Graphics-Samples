@@ -98,9 +98,9 @@ private:
     bool rotateCamera;
 
     // Texture resources
-    ComPtr<ID3D12Resource> m_texture1;
+    ComPtr<ID3D12Resource> m_trunkTexture;
     ComPtr<ID3D12Resource> m_texture2;
-    ComPtr<ID3D12Resource> m_texture3;
+    ComPtr<ID3D12Resource> m_bushTexture;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptor1;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptor2;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptor3;
@@ -162,18 +162,12 @@ private:
     static const wchar_t* c_floorHitGroupName;
     static const wchar_t* c_trunkHitGroupName;
     static const wchar_t* c_leavesHitGroupName;
-    static const wchar_t* c_leavesLightHitGroupName;
-    static const wchar_t* c_leavesDarkHitGroupName;
-    static const wchar_t* c_leavesExtraDarkHitGroupName;
     static const wchar_t* c_bushHitGroupName;
     static const wchar_t* c_transparentCubeHitGroupName;
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_floorClosestHitShaderName;
     static const wchar_t* c_trunkClosestHitShaderName;
     static const wchar_t* c_leavesClosestHitShaderName;
-    static const wchar_t* c_leavesLightClosestHitShaderName;
-    static const wchar_t* c_leavesDarkClosestHitShaderName;
-    static const wchar_t* c_leavesExtraDarkClosestHitShaderName;
     static const wchar_t* c_tcubeClosestHitShaderName;
     static const wchar_t* c_missShaderName;
     static const wchar_t* c_bushClosestHitShaderName;
