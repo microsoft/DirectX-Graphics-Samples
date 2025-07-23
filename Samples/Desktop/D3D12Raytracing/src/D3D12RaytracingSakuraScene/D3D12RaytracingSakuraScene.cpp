@@ -225,9 +225,9 @@ void D3D12RaytracingSakuraScene::InitializeScene()
     // Setup camera.
     {
         // Initialize the view and projection inverse matrices.
-        m_eye = { 8.5f, 5.0f, -6.0f, 1.0f };
-        // m_at = { 0.5f, 0.5f, -6.0f, 1.0f };
-        m_at = { 1.0f, 0.0f, 0.0f, 1.0f };
+        // m_eye currently at the middle of the forest
+        m_eye = { 8.5f, 2.2f, -16.0f, 1.0f };
+        m_at = { 1.0f, 2.2f, -6.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
