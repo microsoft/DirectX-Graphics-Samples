@@ -279,8 +279,8 @@ float2 Hash2D(int seed, int index)
 void MakeStarField(float3 position, out float3 starColor, bool sky)
 {
     starColor = float3(0.0, 0.0, 0.0);
-    const int numClustersX = 22;
-    const int numClustersY = 20;
+    const int numClustersX = 12;
+    const int numClustersY = 10;
     const int starsPerCluster = 3;
     const float clusterSpacing = sky ? 0.08 : 0.5;
     const float clusterRadius = sky ? 0.15 : 0.5;
@@ -642,8 +642,8 @@ void MyMissShader(inout RayPayload payload)
     dir.y *= lowerFactor;
     dir = normalize(dir);
 
-    float3 starColor;
-    MakeStarField(dir, starColor, true);
+    float3 starColor = float3(0.0, 0.0, 0.0);
+    //MakeStarField(dir, starColor, true);
 
     float3 baseSky = float3(0.12, 0.05, 0.48); // dark purple
     float3 finalColor = lerp(baseSky, starColor, 0.7);

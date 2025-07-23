@@ -703,8 +703,7 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     // Shader config
    //  Defines the maximum sizes in bytes for the ray payload and attribute structure.
     auto shaderConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
-    UINT payloadSize = 32;
-
+    UINT payloadSize = sizeof(XMFLOAT4) + sizeof(UINT) + sizeof(UINT);
 
     UINT attributeSize = sizeof(XMFLOAT2);  // float2 barycentrics
     shaderConfig->Config(payloadSize, attributeSize);
