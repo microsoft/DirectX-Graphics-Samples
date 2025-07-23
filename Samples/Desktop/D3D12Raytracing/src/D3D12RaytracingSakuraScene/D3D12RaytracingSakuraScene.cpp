@@ -1295,7 +1295,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         for (int i = 0; i < 441; ++i) {
             RootArguments argument;
             argument.cb = m_cubeCB;
-            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // White color
+            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
             argument.cb.materialID = 0;
             hitGroupShaderTable.push_back(ShaderRecord(floorHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
@@ -1304,23 +1304,17 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         for (int i = 0; i < 961; ++i) {
             RootArguments argument;
             argument.cb = m_transparentCubeCB;
-            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // White color 
+            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); 
             argument.cb.materialID = 1;
             hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
-
-        // Create a random number generator for trunks
-        std::random_device rdTrunk;
-        std::mt19937 genTrunk(rdTrunk());
-        std::uniform_int_distribution<> distribTrunk(0, 1); // 2 hit groups: 0 and 1
 
         // Tree trunk shader records
         for (int i = 0; i < 961; ++i) {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
-            int randomIndex = distribTrunk(genTrunk); // Random number between 0 and 1
             argument.cb = m_trunkCB;
-            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); 
             argument.cb.materialID = 2;
             hitGroupShaderTable.push_back(ShaderRecord(trunkHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
@@ -1330,7 +1324,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
             argument.cb = m_leavesLightCB;
-            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); 
             argument.cb.materialID = 3;
             hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
@@ -1340,7 +1334,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         for (int i = 0; i < 961; ++i) {
             RootArguments argument;
             argument.cb = m_bushCB;
-            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); // 16 bytes 
+            argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
             argument.cb.materialID = 4;
             hitGroupShaderTable.push_back(ShaderRecord(bushHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }

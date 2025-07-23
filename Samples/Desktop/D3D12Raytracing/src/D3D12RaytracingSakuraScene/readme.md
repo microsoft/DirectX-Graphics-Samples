@@ -1,8 +1,14 @@
 # D3D12 Raytracing Shader Execution Reordering Sample - Sakura Scene
 ![D3D12 Raytracing SER](Screenshot.png)
 
-The scene features multiple geometry instances, each assigned a distinct materialID via the shader table. Shader Execution Reordering (SER) is demonstrated using three modes: sorting by HitObject, sorting by a materialID key derived from the shader table, and a combined mode that uses both. This sample is built on the D3D12RaytracingSimpleLighting sample.
+This sample demonstrates the use of **Shader Execution Reordering (SER)** in a raytraced scene rendered with Direct3D 12. The scene features a stylized **sakura (cherry blossom) forest**, composed of multiple geometry types including tree trunks, blossoms, bushes, and cubes for the floor.
 
+SER is showcased through three distinct modes:
+- **Sort by HitObject**
+- **Sort by reflectHint**: A custom key derived from texture sampling on the floor, used to identify reflective regions such as dark crevices resembling water.
+- **Sort by Both**: Combines HitObject and reflectHint .
+
+The `reflectHint` is computed by sampling the floor texture at the estimated hit location. If the sampled color is sufficiently dark, the surface is treated as reflective, triggering additional shading logic such as Fresnel-based reflections. This technique mimics subtle water pooling effects in shaded areas.
 ## Usage
 D3D12RaytracingBasicShaderExecutionReordering.exe
 
@@ -19,12 +25,13 @@ The title bar of the sample provides runtime information:
 
 ### Controls
 * ALT+ENTER - toggles between windowed and fullscreen modes.
-* S - toggles shader execution reordering on/off.
+* P - toggles shader execution reordering on/off.
 * H - MaybeReorderThread() based on HitObject
-* M - MaybeReorderThread() based on materialID
-* B - MaybeReorderThread() based on both HitObject and materialID
-* WASD - move the camera around the scene. (W - forward, A - left, S - backward, D - right))
-* Up/Down - move the camera up/down.
+* M - MaybeReorderThread() based on reflectHint
+* B - MaybeReorderThread() based on both HitObject and reflectHint
+* WASD - Move through the scene (W: forward, A: left, S: backward, D: right)
+* Q/E - Shift the camera vertically (Q: down, E: up)
+* Arrow Keys - Look around (Up/Down: look up/down, Left/Right: look left/right)
 
 ## Requirements
 * Windows 10 with the October 2018 update or higher.
