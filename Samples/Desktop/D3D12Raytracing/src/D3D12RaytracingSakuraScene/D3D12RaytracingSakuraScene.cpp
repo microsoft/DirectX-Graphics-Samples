@@ -1361,11 +1361,12 @@ void D3D12RaytracingSakuraScene::OnUpdate()
     auto kb = m_keyboard->GetState();
     m_keyboardButtons.Update(kb);
 
-    if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::R))
-    {
-        rotateCamera = !rotateCamera;
-    }
+    //if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::R))
+    //{
+    //    rotateCamera = !rotateCamera;
+    //}
 
+	// If press P, we toggle SER 
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::P))
     {
         OutputDebugStringA("P key pressed!\n");
@@ -1433,7 +1434,7 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_at += backward * movementSpeed;
     }
 
-    // Moving left and right strafing (A/D)
+    // Moving left and right (A/D)
     if (kb.A)
     {
         XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
@@ -1449,7 +1450,7 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_at += right * movementSpeed;
     }
 
-    // Moving up and down movement 
+    // Moving up and down 
     if (kb.Q)
     {
         m_eye += m_up * movementSpeed;
@@ -1461,7 +1462,8 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_at -= m_up * movementSpeed;
     }
 
-    if (kb.Down) // Look down
+    // Looking down and up
+    if (kb.Down)
     {
         XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
         XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_up, forward));
@@ -1473,8 +1475,7 @@ void D3D12RaytracingSakuraScene::OnUpdate()
 
         m_at = m_eye + newForward;
     }
-
-    if (kb.Up) // Look up
+    if (kb.Up)
     {
         XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
         XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_up, forward));
@@ -1487,7 +1488,8 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_at = m_eye + newForward;
     }
 
-    if (kb.Left) // Look left
+	// Looking left and right
+    if (kb.Left)
     {
         XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
         float yawSpeed = XMConvertToRadians(-30.0f) * elapsedTime; // negative = left
@@ -1495,8 +1497,7 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         XMVECTOR newForward = XMVector3TransformNormal(forward, yawMatrix);
         m_at = m_eye + newForward;
     }
-
-    if (kb.Right) // Look right
+    if (kb.Right)
     {
         XMVECTOR forward = XMVector3Normalize(m_at - m_eye);
         float yawSpeed = XMConvertToRadians(30.0f) * elapsedTime; // positive = right
