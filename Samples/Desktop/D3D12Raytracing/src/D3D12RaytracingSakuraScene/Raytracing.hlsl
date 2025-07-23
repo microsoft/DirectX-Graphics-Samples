@@ -180,7 +180,7 @@ void MyRaygenShader()
             float3 estimatedHit = origin + t * rayDir;
 
             // Generate procedural UVs from XZ
-            float2 uv = frac(estimatedHit.xz * 0.5); 
+            float2 uv = frac(estimatedHit.xz * 1.5); 
             float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
 
             if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
@@ -335,8 +335,7 @@ void MakeStarField(float3 position, out float3 starColor, bool sky)
             }
         }
     }
-
-    starColor = saturate(starColor);
+    //starColor = saturate(starColor);
 }
 
     
@@ -353,7 +352,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 triangleNormal;
 
     // Procedural UVs
-    float2 baseUV = frac(hitPosition.xz * 0.5);
+    float2 baseUV = frac(hitPosition.xz * 1.5);
     sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, baseUV, 0).rgb;
     
     float3 vertexNormals[3] =
