@@ -811,20 +811,19 @@ void D3D12RaytracingSakuraScene::BuildTreeGeometry()
             &bushIndices);
     }
 
-    size_t trunkIndexBufferSize = trunkIndices.size() * sizeof(Index);
+    int trunkIndexBufferSize = static_cast<int>(trunkIndices.size()) * sizeof(Index);
     AllocateUploadBuffer(device, trunkIndices.data(), trunkIndexBufferSize, &m_trunkIndexBuffer.resource);
     AllocateUploadBuffer(device, trunkVertices.data(), trunkVertices.size() * sizeof(trunkVertices[0]), &m_trunkVertexBuffer.resource);
 
-    size_t leavesIndexBufferSize = leavesIndices.size() * sizeof(Index);
+    int leavesIndexBufferSize = static_cast<int>(leavesIndices.size()) * sizeof(Index);
     AllocateUploadBuffer(device, leavesIndices.data(), leavesIndexBufferSize, &m_leavesIndexBuffer.resource);
     AllocateUploadBuffer(device, leavesVertices.data(), leavesVertices.size() * sizeof(leavesVertices[0]), &m_leavesVertexBuffer.resource);
 
-    size_t bushIndexBufferSize = bushIndices.size() * sizeof(Index);
+    int bushIndexBufferSize = static_cast<int>(bushIndices.size()) * sizeof(Index);
     AllocateUploadBuffer(device, bushIndices.data(), bushIndexBufferSize, &m_bushIndexBuffer.resource);
     AllocateUploadBuffer(device, bushVertices.data(), bushVertices.size() * sizeof(bushVertices[0]), &m_bushVertexBuffer.resource);
 
-
-    m_totalTrunkVertexCount = trunkVertices.size();
+    m_totalTrunkVertexCount = static_cast<int>(trunkVertices.size());
     // Vertex buffer is passed to the shader along with index buffer as a descriptor table.
     // Vertex buffer descriptor must follow index buffer descriptor in the descriptor heap.
     UINT trunkDescriptorIndexIB = CreateBufferSRV(
@@ -832,25 +831,40 @@ void D3D12RaytracingSakuraScene::BuildTreeGeometry()
         static_cast<UINT>(trunkIndices.size() * sizeof(Index) / 4),
         0
     );
-    UINT trunkDescriptorIndexVB = CreateBufferSRV(&m_trunkVertexBuffer, trunkVertices.size(), sizeof(trunkVertices[0]));
+
+    UINT trunkDescriptorIndexVB = CreateBufferSRV(
+        &m_trunkVertexBuffer, 
+        static_cast<UINT>(trunkVertices.size()), 
+        sizeof(trunkVertices[0])
+    );
     ThrowIfFalse(trunkDescriptorIndexVB == trunkDescriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index!");
 
-    m_totalLeavesVertexCount = leavesVertices.size();
+    m_totalLeavesVertexCount = static_cast<int>(leavesVertices.size());
     UINT leavesDescriptorIndexIB = CreateBufferSRV(
         &m_leavesIndexBuffer,
         static_cast<UINT>(leavesIndices.size() * sizeof(Index) / 4),
         0
     );
-    UINT leavesDescriptorIndexVB = CreateBufferSRV(&m_leavesVertexBuffer, leavesVertices.size(), sizeof(leavesVertices[0]));
+
+    UINT leavesDescriptorIndexVB = CreateBufferSRV(
+        &m_leavesVertexBuffer, 
+        static_cast<UINT>(leavesVertices.size()), 
+        sizeof(leavesVertices[0])
+    );
     ThrowIfFalse(leavesDescriptorIndexVB == leavesDescriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index!");
 
-    m_totalBushVertexCount = bushVertices.size();
+    m_totalBushVertexCount = static_cast<int>(bushVertices.size());
     UINT bushDescriptorIndexIB = CreateBufferSRV(
         &m_bushIndexBuffer,
         static_cast<UINT>(bushIndices.size() * sizeof(Index) / 4),
         0
     );
-    UINT bushDescriptorIndexVB = CreateBufferSRV(&m_bushVertexBuffer, bushVertices.size(), sizeof(bushVertices[0]));
+
+    UINT bushDescriptorIndexVB = CreateBufferSRV(
+        &m_bushVertexBuffer, 
+        static_cast<UINT>(bushVertices.size()), 
+        sizeof(bushVertices[0])
+    );
     ThrowIfFalse(bushDescriptorIndexVB == bushDescriptorIndexIB + 1, L"Vertex Buffer descriptor index must follow that of Index Buffer descriptor index!");
 }
 
