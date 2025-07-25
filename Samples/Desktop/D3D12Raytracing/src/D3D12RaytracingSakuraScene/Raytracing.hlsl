@@ -47,38 +47,6 @@ Texture2D<float4> BushTexture : register(t10, space0);
 SamplerState BushSampler : register(s1);
 
     
-// Load three 16 bit indices from a byte addressed buffer. 
-uint3 Load3x16BitIndices(uint offsetBytes, ByteAddressBuffer baf)
-{
-    uint3 indices;
-
-    // ByteAdressBuffer loads must be aligned at a 4 byte boundary.
-    // Since we need to read three 16 bit indices: { 0, 1, 2 } 
-    // aligned at a 4 byte boundary as: { 0 1 } { 2 0 } { 1 2 } { 0 1 } ...
-    // we will load 8 bytes (~ 4 indices { a b | c d }) to handle two possible index triplet layouts,
-    // based on first index's offsetBytes being aligned at the 4 byte boundary or not:
-    //  Aligned:     { 0 1 | 2 - }
-    //  Not aligned: { - 0 | 1 2 }
-    const uint dwordAlignedOffset = offsetBytes & ~3;
-    const uint2 four16BitIndices = baf.Load2(dwordAlignedOffset);
- 
-    // Aligned: { 0 1 | 2 - } => retrieve first three 16bit indices
-    if (dwordAlignedOffset == offsetBytes)
-    {
-        indices.x = four16BitIndices.x & 0xffff;
-        indices.y = (four16BitIndices.x >> 16) & 0xffff;
-        indices.z = four16BitIndices.y & 0xffff;
-    }
-    else // Not aligned: { - 0 | 1 2 } => retrieve last three 16bit indices
-    {
-        indices.x = (four16BitIndices.x >> 16) & 0xffff;
-        indices.y = four16BitIndices.y & 0xffff;
-        indices.z = (four16BitIndices.y >> 16) & 0xffff;
-    }
-
-    return indices;
-}
-    
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
     
     
@@ -90,7 +58,6 @@ typedef BuiltInTriangleIntersectionAttributes MyAttributes;
     uint reflectHint : write(caller) : read(closesthit, caller);
 };
 
-   
 
 // Retrieve hit world position.
 float3 HitWorldPosition()
@@ -167,10 +134,12 @@ void MyRaygenShader()
     {
         HitObject hit = HitObject::TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
         uint materialID = hit.LoadLocalRootTableConstant(16);
-        bool isGround = (materialID == 0 || materialID == 2);
-            
-        // If material is the ground, sample the texture to decide if it is reflective or not.
-        if (isGround)
+        bool isFloor = (materialID == 0);
+        bool isTransparentCube = (materialID == 1);
+        uint numHintBits = 1;
+
+        // If material is the floor, sample the texture to decide if it is reflective or not. This mimics subtle water pooling effects in shaded areas.
+        if (isFloor)
         {
             // Estimate hit point on ground plane (y = 0)
             float t = -origin.y / rayDir.y;
@@ -180,6 +149,7 @@ void MyRaygenShader()
             float2 uv = frac(estimatedHit.xz * 1.0); 
             float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
 
+            // If the texture color is dark enough, set reflectHint to 1
             if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
             {
                payload.reflectHint = 1;
@@ -187,12 +157,11 @@ void MyRaygenShader()
         }
         
         // If material is transparent cube, set reflectHint to 1
-        if (materialID == 1)
+        if (isTransparentCube)
         {
             payload.reflectHint = 1;
         }
             
-        uint numHintBits = 1;
         if (g_sceneCB.enableSortByHit == 1)
         {
             dx::MaybeReorderThread(hit);
@@ -258,20 +227,6 @@ float4 TraceRadianceRay(in Ray ray, in int currentRayRecursionDepth)
 
     return rayPayload.color;
 }
-    
-
-// Simple hash function for pseudo-randomness
-float Hash1D(float n)
-{
-    return frac(sin(n) * 43758.5453);
-}
-
-float2 Hash2D(int seed, int index)
-{
-    float x = Hash1D(seed * 0.123 + index * 0.456);
-    float y = Hash1D(seed * 0.789 + index * 0.321);
-    return float2(x, y);
-}
 
     
 [shader("closesthit")]
@@ -296,8 +251,8 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         VerticesCube[indices.y].normal,
         VerticesCube[indices.z].normal
     };
+        
     triangleNormal = HitAttribute(vertexNormals, attr);
-
     float3 baseColor = albedo * sampled.rgb;
     float3 finalColor;
 
@@ -311,15 +266,12 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
         float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
         float3 refColor = lerp(baseColor, reflectionColor.rgb, fresnel) * 1.7f;
-
-        float3 starCol = float4(1.0, 1.0, 1.0, 1.0);
-        finalColor = lerp(refColor, starCol, 0.1f);
+        finalColor = refColor;
     }
     else
     {
         finalColor = baseColor * 0.5f;
     }
-
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
     
@@ -372,27 +324,19 @@ void LeavesClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 pastelPink = float3(1.0, 0.8, 0.9);
     float3 darkPink = float3(0.85, 0.4, 0.6); 
 
-    // Simple hash to pick one of the three colors
+    // Simple hash to pick one of the three colors for sakura petals.
     uint hash = PrimitiveIndex() % 3;
-    float3 sampled = (hash == 0) ? pastelPurple :
-                    (hash == 1) ? pastelPink :
-                                darkPink;
-
+    float3 sampled = (hash == 0) ? pastelPurple : (hash == 1) ? pastelPink :darkPink;
     float3 triangleNormal;
     float3 vertexNormals[3];
+        
     vertexNormals[0] = VerticesLeaves[indices.x].normal;
     vertexNormals[1] = VerticesLeaves[indices.y].normal;
     vertexNormals[2] = VerticesLeaves[indices.z].normal;
+   
     triangleNormal = HitAttribute(vertexNormals, attr);
 
-    float3 vertexTexCoords[3];
-    vertexTexCoords[0] = VerticesLeaves[indices.x].uv;
-    vertexTexCoords[1] = VerticesLeaves[indices.y].uv;
-    vertexTexCoords[2] = VerticesLeaves[indices.z].uv;
-    float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr).xy;
-
     float3 finalColor;
-    float3 baseColor = albedo * sampled.rgb;
     float3 lightDir = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
     float NdotL = saturate(dot(triangleNormal, lightDir));
 
@@ -416,15 +360,19 @@ void BushClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 vertexNormals[3];
+        
     vertexNormals[0] = VerticesBush[indices.x].normal;
     vertexNormals[1] = VerticesBush[indices.y].normal;
     vertexNormals[2] = VerticesBush[indices.z].normal;
+        
     triangleNormal = HitAttribute(vertexNormals, attr);
 
     float3 vertexTexCoords[3];
+        
     vertexTexCoords[0] = VerticesBush[indices.x].uv;
     vertexTexCoords[1] = VerticesBush[indices.y].uv;
     vertexTexCoords[2] = VerticesBush[indices.z].uv;
+        
     float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr).xy;
 
     // Sample the texture with the modified coordinates
@@ -453,15 +401,16 @@ void TCubeClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 vertexNormals[3];
+        
     vertexNormals[0] = VerticesTrunk[indices.x].normal;
     vertexNormals[1] = VerticesTrunk[indices.y].normal;
     vertexNormals[2] = VerticesTrunk[indices.z].normal;
+        
     triangleNormal = HitAttribute(vertexNormals, attr);
         
     // Trace a reflection ray
     Ray reflectionRay = { hitPosition + triangleNormal * 0.5f, reflect(WorldRayDirection(), triangleNormal) };
     float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
-
     float3 fresnelR = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, g_cubeCB.albedo.xyz);
     float4 reflectedColor = 0.5 * float4(fresnelR, 1) * reflectionColor;
     payload.color = reflectedColor;

@@ -349,7 +349,7 @@ void D3D12RaytracingSakuraScene::CreateTexture()
     DirectX::ResourceUploadBatch resourceUpload(device);
     resourceUpload.Begin();
 
-    // Load texture from file using DirectXTK
+    // Load trunk texture from file using DirectXTK
     ComPtr<ID3D12Resource> trunkTexture;
 
     HRESULT hr = DirectX::CreateWICTextureFromFile(
@@ -365,7 +365,7 @@ void D3D12RaytracingSakuraScene::CreateTexture()
         return;
     }
 
-    // Load texture from file using DirectXTK
+    // Load bush texture from file using DirectXTK
     ComPtr<ID3D12Resource> bushTexture;
 
     hr = DirectX::CreateWICTextureFromFile(
@@ -388,7 +388,7 @@ void D3D12RaytracingSakuraScene::CreateTexture()
     m_trunkTexture = trunkTexture;
     m_bushTexture = bushTexture;
 
-    // Create SRV for the texture
+    // Create SRV for the trunk texture
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDescTrunk = {};
     srvDescTrunk.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDescTrunk.Format = m_trunkTexture->GetDesc().Format;
@@ -404,7 +404,7 @@ void D3D12RaytracingSakuraScene::CreateTexture()
         descriptorIndex1,
         m_descriptorSize);
 
-    // Create SRV for the texture
+    // Create SRV for the bush texture
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDescBush = {};
     srvDescBush.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDescBush.Format = m_bushTexture->GetDesc().Format;
@@ -823,9 +823,9 @@ void D3D12RaytracingSakuraScene::BuildTreeGeometry()
     AllocateUploadBuffer(device, bushIndices.data(), bushIndexBufferSize, &m_bushIndexBuffer.resource);
     AllocateUploadBuffer(device, bushVertices.data(), bushVertices.size() * sizeof(bushVertices[0]), &m_bushVertexBuffer.resource);
 
-    m_totalTrunkVertexCount = static_cast<int>(trunkVertices.size());
     // Vertex buffer is passed to the shader along with index buffer as a descriptor table.
     // Vertex buffer descriptor must follow index buffer descriptor in the descriptor heap.
+    m_totalTrunkVertexCount = static_cast<int>(trunkVertices.size());
     UINT trunkDescriptorIndexIB = CreateBufferSRV(
         &m_trunkIndexBuffer,
         static_cast<UINT>(trunkIndices.size() * sizeof(Index) / 4),
@@ -1027,10 +1027,13 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     // Create an instance desc for the bottom-level acceleration structure.
     ComPtr<ID3D12Resource> instanceDescsResource;
     std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDesc;
+
     int objectsPerRow = 20; // Object per row along Z and X axis
     float largerCubeSpacing = 4.0f; // Spacing between larger cubes
     float randomCubeSpacing = 0.7f; // Spacing between random smaller cubes
-    float spacingGap = 5.0f;
+	float spacingGap = 5.0f; // Gap between two groups of forests
+
+	// Create random number generator for random offsets
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> randomOffset(0.2f, 1.7f);
@@ -1252,15 +1255,15 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
     void* tcubeHitGroupShaderIdentifier;
 
     auto GetShaderIdentifiers = [&](auto* stateObjectProperties)
-        {
-            rayGenShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_raygenShaderName);
-            missShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_missShaderName);
-            floorHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_floorHitGroupName);
-            trunkHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_trunkHitGroupName);
-            leavesHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesHitGroupName);
-            bushHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_bushHitGroupName);
-            tcubeHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_transparentCubeHitGroupName);
-        };
+    {
+        rayGenShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_raygenShaderName);
+        missShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_missShaderName);
+        floorHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_floorHitGroupName);
+        trunkHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_trunkHitGroupName);
+        leavesHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesHitGroupName);
+        bushHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_bushHitGroupName);
+        tcubeHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_transparentCubeHitGroupName);
+    };
 
     // Get shader identifiers.
     UINT shaderIdentifierSize;
@@ -1273,7 +1276,8 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
 
     // Ray gen shader table
     {
-        struct RootArguments {
+        struct RootArguments 
+        {
             ObjectConstantBuffer cb;
         } rootArguments;
         rootArguments.cb = m_objectCB;
@@ -1296,7 +1300,8 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
 
     // Hit group shader table
     {
-        struct RootArguments {
+        struct RootArguments 
+        {
             ObjectConstantBuffer cb;
         };
 
@@ -1306,7 +1311,8 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
         //// Larger cube shader records as the ground
-        for (int i = 0; i < 441; ++i) {
+        for (int i = 0; i < 441; ++i) 
+        {
             RootArguments argument;
             argument.cb = m_cubeCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1315,7 +1321,8 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         }
 
 		// Transparant cube shader records randomly placed around the scene
-        for (int i = 0; i < 961; ++i) {
+        for (int i = 0; i < 961; ++i) 
+        {
             RootArguments argument;
             argument.cb = m_transparentCubeCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); 
@@ -1324,7 +1331,8 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         }
 
         // Tree trunk shader records
-        for (int i = 0; i < 961; ++i) {
+        for (int i = 0; i < 961; ++i) 
+        {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
             argument.cb = m_trunkCB;
@@ -1334,7 +1342,8 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         }
 
         // Tree leaves shader records
-        for (int i = 0; i < 961; ++i) {
+        for (int i = 0; i < 961; ++i) 
+        {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
             argument.cb = m_leavesLightCB;
@@ -1345,7 +1354,8 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
 
 
         // Bush shader records 
-        for (int i = 0; i < 961; ++i) {
+        for (int i = 0; i < 961; ++i) 
+        {
             RootArguments argument;
             argument.cb = m_bushCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1368,11 +1378,6 @@ void D3D12RaytracingSakuraScene::OnUpdate()
 
     auto kb = m_keyboard->GetState();
     m_keyboardButtons.Update(kb);
-
-    //if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::R))
-    //{
-    //    rotateCamera = !rotateCamera;
-    //}
 
 	// If press P, we toggle SER 
     if (m_keyboardButtons.IsKeyPressed(Keyboard::Keys::P))
@@ -1514,17 +1519,6 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_at = m_eye + newForward;
     }
 
-
-    // Rotate the camera around Y axis.
-    // if (rotateCamera)
-    //{
-    //    float secondsToRotateAround = 52.0f;
-    //    float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
-    //    XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
-    //    m_eye = XMVector3Transform(m_eye, rotate);
-    //    m_up = XMVector3Transform(m_up, rotate);
-    //    m_at = XMVector3Transform(m_at, rotate);
-    //}
     UpdateCameraMatrices();
 
     // Rotate the second light around Y axis.
@@ -1547,30 +1541,30 @@ void D3D12RaytracingSakuraScene::DoRaytracing()
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
     auto DispatchRays = [&](auto* commandList, auto* stateObject, auto* dispatchDesc)
-        {
-            // Since each shader table has only one shader record, the stride is same as the size.
-            dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
-            dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
-            dispatchDesc->HitGroupTable.StrideInBytes = m_hitGroupShaderTable->GetDesc().Width / 4285;
-            dispatchDesc->MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
-            dispatchDesc->MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
-            dispatchDesc->MissShaderTable.StrideInBytes = dispatchDesc->MissShaderTable.SizeInBytes;
-            dispatchDesc->RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable->GetGPUVirtualAddress();
-            dispatchDesc->RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable->GetDesc().Width;
-            dispatchDesc->Width = m_width;
-            dispatchDesc->Height = m_height;
-            dispatchDesc->Depth = 1;
-            commandList->SetPipelineState1(stateObject);
-            commandList->DispatchRays(dispatchDesc);
-        };
+    {
+        // Since each shader table has only one shader record, the stride is same as the size.
+        dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
+        dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
+        dispatchDesc->HitGroupTable.StrideInBytes = m_hitGroupShaderTable->GetDesc().Width / 4285;
+        dispatchDesc->MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
+        dispatchDesc->MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
+        dispatchDesc->MissShaderTable.StrideInBytes = dispatchDesc->MissShaderTable.SizeInBytes;
+        dispatchDesc->RayGenerationShaderRecord.StartAddress = m_rayGenShaderTable->GetGPUVirtualAddress();
+        dispatchDesc->RayGenerationShaderRecord.SizeInBytes = m_rayGenShaderTable->GetDesc().Width;
+        dispatchDesc->Width = m_width;
+        dispatchDesc->Height = m_height;
+        dispatchDesc->Depth = 1;
+        commandList->SetPipelineState1(stateObject);
+        commandList->DispatchRays(dispatchDesc);
+    };
 
     auto SetCommonPipelineState = [&](auto* descriptorSetCommandList)
-        {
-            descriptorSetCommandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
-            // Set index and successive vertex buffer decriptor tables
-            commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::VertexBuffersSlot, m_indexBuffer.gpuDescriptorHandle);
-            commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::OutputViewSlot, m_raytracingOutputResourceUAVGpuDescriptor);
-        };
+    {
+        descriptorSetCommandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
+        // Set index and successive vertex buffer decriptor tables
+        commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::VertexBuffersSlot, m_indexBuffer.gpuDescriptorHandle);
+        commandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::OutputViewSlot, m_raytracingOutputResourceUAVGpuDescriptor);
+    };
 
     commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
 
@@ -1627,10 +1621,6 @@ void D3D12RaytracingSakuraScene::RenderUI()
     // Draw the titles of UI
     m_smallFont->DrawString(m_spriteBatch.get(), L"D3D12: Shader Execution Reordering", textPos, textColor);
     textPos.y += m_smallFont->GetLineSpacing() * 2;
-
-    //swprintf_s(buffer, ARRAYSIZE(buffer), L"Rotate Camera: %s - Press 'R'", rotateCamera ? L"Rotating" : L"Disabled");
-    //m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
-    //textPos.y += m_smallFont->GetLineSpacing();
 
     swprintf_s(buffer, ARRAYSIZE(buffer), L"Toggle SER: %s - Press 'P'", m_serEnabled ? L"Enabled" : L"Disabled");
     m_smallFont->DrawString(m_spriteBatch.get(), buffer, textPos, textColor);
