@@ -21,6 +21,15 @@ using namespace DirectX;
 typedef UINT32 Index;
 #endif
 class ObjModelLoader;
+
+enum SortMode
+{
+    SORTMODE_OFF = 0,
+    SORTMODE_BY_HIT = 1,
+    SORTMODE_BY_MATERIAL = 2,
+    SORTMODE_BY_BOTH = 3
+};
+
 struct SceneConstantBuffer
 {
     XMMATRIX projectionToWorld;
@@ -29,9 +38,7 @@ struct SceneConstantBuffer
     XMVECTOR lightAmbientColor;
     XMVECTOR lightDiffuseColor;
     uint32_t enableSER;
-    uint32_t enableSortByHit;
-    uint32_t enableSortByMaterial;
-    uint32_t enableSortByBoth;
+    uint32_t sortMode;
 };
 
 struct Vertex
@@ -47,17 +54,4 @@ struct ObjectConstantBuffer
     uint32_t materialID;
 };
 
-
-#define CHECKERBOARD_FLOOR_MATERIAL 1
-#define TREE_MATERIAL 2
-
-enum TextureIdentifier
-{
-    TextureID_None = -1,
-
-    // During raytracing
-    TextureID_Checkerboard = 0,
-
-    TextureCount
-};
 #endif // RAYTRACINGHLSLCOMPAT_H
