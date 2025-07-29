@@ -32,6 +32,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
     }
 #endif
 
-    D3D12RaytracingSakuraScene sample(1280, 720, L"D3D12 Raytracing - Simple Lighting");
+    D3D12RaytracingSakuraScene sample(1280, 720, L"D3D12 Raytracing - Sakura Scene");
     return Win32Application::Run(&sample, hInstance, nCmdShow);
 }

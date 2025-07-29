@@ -15,7 +15,6 @@
 #include "StepTimer.h"
 #include "RaytracingHlslCompat.h"
 #include "ObjModelLoader.h"
-//#include "ObjectConstantBuffer.h"
 
 namespace GlobalRootSignatureParams {
     enum Value {
@@ -56,6 +55,8 @@ private:
     static const UINT TextureWidth = 256;
     static const UINT TextureHeight = 256;
     static const UINT TexturePixelSize = 4;
+    UINT numTopLevelInstances = 4285;
+
 
     // We'll allocate space for several of these and they will need to be padded for alignment.
     static_assert(sizeof(SceneConstantBuffer) < D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, "Checking the size here.");

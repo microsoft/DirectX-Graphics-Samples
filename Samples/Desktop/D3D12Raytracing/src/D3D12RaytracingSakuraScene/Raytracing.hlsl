@@ -13,12 +13,6 @@
 #ifndef RAYTRACING_HLSL
 #define RAYTRACING_HLSL
 #define HLSL
-// Constants for cube counts
-
-#define NUM_CUBES 882
-#define NUM_TRUNKS 441
-#define NUM_LEAVES 441
-
 #include "RaytracingHlslCompat.h"
 
 using namespace dx;
@@ -51,7 +45,7 @@ typedef BuiltInTriangleIntersectionAttributes MyAttributes;
     
     
 // Struct defines the payload used during ray tracing 
-    struct [raypayload] RayPayload
+struct [raypayload] RayPayload
 {
     float4 color : write(caller, closesthit, miss) : read(caller);
     uint recursionDepth : write(caller) : read(closesthit);
@@ -107,86 +101,72 @@ void MyRaygenShader()
 {
     float3 rayDir;
     float3 origin;
-    
-    // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
     GenerateCameraRay(DispatchRaysIndex().xy, origin, rayDir);
 
-    // Trace the ray.
-    // Set the ray's extents.
     RayDesc ray;
     ray.Origin = origin;
     ray.Direction = rayDir;
-    // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
-    // TMin should be kept small to prevent missing geometry at close contact areas.
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
 
-    RayPayload payload =
+    RayPayload payload = { float4(0, 0, 0, 0), 0, 0 };
+
+    if (g_sceneCB.sortMode == SORTMODE_OFF)
     {
-        float4(0, 0, 0, 0),
-        0,
-        0,
-    };
-
-
-    // If toggled 'S', enable SER  
-    if (g_sceneCB.enableSER == 1)
-    {
-        HitObject hit = HitObject::TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
-        uint materialID = hit.LoadLocalRootTableConstant(16);
-        bool isFloor = (materialID == 0);
-        bool isTransparentCube = (materialID == 1);
-        uint numHintBits = 1;
-
-        // If material is the floor, sample the texture to decide if it is reflective or not. This mimics subtle water pooling effects in shaded areas.
-        if (isFloor)
-        {
-            // Estimate hit point on ground plane (y = 0)
-            float t = -origin.y / rayDir.y;
-            float3 estimatedHit = origin + t * rayDir;
-
-            // Generate procedural UVs from XZ
-            float2 uv = frac(estimatedHit.xz * 1.0); 
-            float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
-
-            // If the texture color is dark enough, set reflectHint to 1
-            if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
-            {
-               payload.reflectHint = 1;
-            }
-        }
-        
-        // If material is transparent cube, set reflectHint to 1
-        if (isTransparentCube)
-        {
-            payload.reflectHint = 1;
-        }
-            
-        if (g_sceneCB.enableSortByHit == 1)
-        {
-            dx::MaybeReorderThread(hit);
-        }
-        else if (g_sceneCB.enableSortByMaterial == 1)
-        {
-            uint sortKey = payload.reflectHint;
-            dx::MaybeReorderThread(payload.reflectHint, numHintBits);
-        }
-        else if (g_sceneCB.enableSortByBoth == 1)
-        {
-            uint sortKey = payload.reflectHint;
-            dx::MaybeReorderThread(hit, payload.reflectHint, numHintBits);
-        }
-        HitObject::Invoke(hit, payload);
+        // SER is off
+        TraceRay(Scene, 0, ~0, 0, 1, 0, ray, payload);
     }
     else
     {
-        TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
-        //uint hint = payload.reflectHint;
-    }
-        
-    float4 color = payload.color;
+        // SER is on
+        HitObject hit = HitObject::TraceRay(Scene, 0, ~0, 0, 1, 0, ray, payload);
+            
+        // Only do reflectHint/material logic when sorting by material or sort by both
+        if (g_sceneCB.sortMode == SORTMODE_BY_MATERIAL || g_sceneCB.sortMode == SORTMODE_BY_BOTH)
+        {
+            uint materialID = hit.LoadLocalRootTableConstant(16);
+            bool isFloor = (materialID == 0);
+            bool isTransparentCube = (materialID == 1);
 
-    // Write the raytraced color to the output texture.
+            if (isFloor)
+            {
+                float t = -origin.y / rayDir.y;
+                float3 estimatedHit = origin + t * rayDir;
+                float2 uv = frac(estimatedHit.xz * 1.0);
+                float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
+                if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
+                {
+                    payload.reflectHint = 1;
+                }
+            }
+
+            if (isTransparentCube)
+            {
+                payload.reflectHint = 1;
+            }
+        }
+            
+        uint numHintBits = 1;
+
+        switch (g_sceneCB.sortMode)
+        {
+            case SORTMODE_BY_HIT:
+                dx::MaybeReorderThread(hit);
+                break;
+            case SORTMODE_BY_MATERIAL:
+                dx::MaybeReorderThread(payload.reflectHint, numHintBits);
+                break;
+            case SORTMODE_BY_BOTH:
+                dx::MaybeReorderThread(hit, payload.reflectHint, numHintBits);
+                break;
+            default:
+                break;
+        }
+
+        HitObject::Invoke(hit, payload);
+    }
+
+    float4 color = payload.color;
     RenderTarget[DispatchRaysIndex().xy] = color;
 }
 
@@ -209,7 +189,7 @@ struct Ray
 // Trace a radiance ray into the scene and returns a shaded color.
 float4 TraceRadianceRay(in Ray ray, in int currentRayRecursionDepth)
 {
-    if (currentRayRecursionDepth >= 8)
+    if (currentRayRecursionDepth >= 1)
     {
         return float4(0, 0, 0, 0);
     }
@@ -223,7 +203,7 @@ float4 TraceRadianceRay(in Ray ray, in int currentRayRecursionDepth)
     rayDesc.TMin = 0.001;
     rayDesc.TMax = 10000;
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1, 0 };
-    TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, rayDesc, rayPayload);
+    TraceRay(Scene, 0, ~0, 0, 1, 0, rayDesc, rayPayload);
 
     return rayPayload.color;
 }

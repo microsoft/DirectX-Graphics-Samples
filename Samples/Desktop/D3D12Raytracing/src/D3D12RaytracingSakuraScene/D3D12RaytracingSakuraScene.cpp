@@ -650,7 +650,7 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
     // Pipeline config
     // Defines the maximum TraceRay() recursion depth.
     auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
-    UINT maxRecursionDepth = 9;
+    UINT maxRecursionDepth = 2;
     pipelineConfig->Config(maxRecursionDepth);
 
 #if _DEBUG
@@ -982,7 +982,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS topLevelInputs = {};
     topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
     topLevelInputs.Flags = buildFlags;
-    topLevelInputs.NumDescs = 4285;
+    topLevelInputs.NumDescs = numTopLevelInstances;
     topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo = {};
@@ -1306,12 +1306,17 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         };
 
 		// Total number of shader records in the hit group shader table
-        UINT numShaderRecords = 4285;
+        UINT numShaderRecords = numTopLevelInstances;
+		UINT CUBE_NUMER_RECORDS = 441; // Number of larger cubes
+		UINT TRANSPARENT_CUBE_NUMER_RECORDS = 961; // Number of smaller transparent cubes
+		UINT TRUNK_NUMER_RECORDS = 961; // Number of tree trunks
+		UINT LEAVES_NUMER_RECORDS = 961; // Number of tree leaves
+		UINT BUSH_NUMER_RECORDS = 961; // Number of bushes
         UINT shaderRecordSize = shaderIdentifierSize + sizeof(RootArguments);
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
-        //// Larger cube shader records as the ground
-        for (int i = 0; i < 441; ++i) 
+        // Larger cube shader records as the ground
+        for (int i = 0; i < CUBE_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
             argument.cb = m_cubeCB;
@@ -1321,7 +1326,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         }
 
 		// Transparant cube shader records randomly placed around the scene
-        for (int i = 0; i < 961; ++i) 
+        for (int i = 0; i < TRANSPARENT_CUBE_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
             argument.cb = m_transparentCubeCB;
@@ -1331,7 +1336,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         }
 
         // Tree trunk shader records
-        for (int i = 0; i < 961; ++i) 
+        for (int i = 0; i < TRUNK_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
@@ -1342,7 +1347,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         }
 
         // Tree leaves shader records
-        for (int i = 0; i < 961; ++i) 
+        for (int i = 0; i < LEAVES_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
@@ -1354,7 +1359,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
 
 
         // Bush shader records 
-        for (int i = 0; i < 961; ++i) 
+        for (int i = 0; i < BUSH_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
             argument.cb = m_bushCB;
@@ -1530,9 +1535,14 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_sceneCB[frameIndex].lightPosition = XMVector3Transform(prevLightPosition, rotate);
     }
     m_sceneCB[frameIndex].enableSER = m_serEnabled ? 1 : 0;
-    m_sceneCB[frameIndex].enableSortByHit = m_sortByHit ? 1 : 0;
-    m_sceneCB[frameIndex].enableSortByMaterial = m_sortByMaterial ? 1 : 0;
-    m_sceneCB[frameIndex].enableSortByBoth = m_sortByBoth ? 1 : 0;
+    if (m_sortByHit)
+        m_sceneCB[frameIndex].sortMode = SORTMODE_BY_HIT;
+    else if (m_sortByMaterial)
+        m_sceneCB[frameIndex].sortMode = SORTMODE_BY_MATERIAL;
+    else if (m_sortByBoth)
+        m_sceneCB[frameIndex].sortMode = SORTMODE_BY_BOTH;
+    else
+        m_sceneCB[frameIndex].sortMode = SORTMODE_OFF;
 }
 
 void D3D12RaytracingSakuraScene::DoRaytracing()
@@ -1545,7 +1555,7 @@ void D3D12RaytracingSakuraScene::DoRaytracing()
         // Since each shader table has only one shader record, the stride is same as the size.
         dispatchDesc->HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress();
         dispatchDesc->HitGroupTable.SizeInBytes = m_hitGroupShaderTable->GetDesc().Width;
-        dispatchDesc->HitGroupTable.StrideInBytes = m_hitGroupShaderTable->GetDesc().Width / 4285;
+        dispatchDesc->HitGroupTable.StrideInBytes = m_hitGroupShaderTable->GetDesc().Width / numTopLevelInstances;
         dispatchDesc->MissShaderTable.StartAddress = m_missShaderTable->GetGPUVirtualAddress();
         dispatchDesc->MissShaderTable.SizeInBytes = m_missShaderTable->GetDesc().Width;
         dispatchDesc->MissShaderTable.StrideInBytes = dispatchDesc->MissShaderTable.SizeInBytes;
@@ -1614,7 +1624,7 @@ void D3D12RaytracingSakuraScene::RenderUI()
     m_spriteBatch->Begin(commandList);
 
     XMFLOAT2 textPos = XMFLOAT2(30, 30);
-    XMVECTOR textColor = XMVectorSet(1, 1, 1, 1);
+    XMVECTOR textColor = XMVectorSet(1, 1, 0, 1);
 
     wchar_t buffer[256];
 
