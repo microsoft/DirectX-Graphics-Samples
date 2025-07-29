@@ -111,7 +111,7 @@ private:
     ObjectConstantBuffer m_objectCB;
     ObjectConstantBuffer m_cubeCB;
     ObjectConstantBuffer m_tcubeCB;
-	ObjectConstantBuffer m_transparentCubeCB;
+    ObjectConstantBuffer m_transparentCubeCB;
     ObjectConstantBuffer m_trunkCB;
     ObjectConstantBuffer m_trunkTransparentCB;
     ObjectConstantBuffer m_leavesCB;
@@ -119,7 +119,7 @@ private:
     ObjectConstantBuffer m_leavesDarkCB;
     ObjectConstantBuffer m_leavesExtraDarkCB;
     ObjectConstantBuffer m_transparentLeavesCB;
-	ObjectConstantBuffer m_bushCB;
+    ObjectConstantBuffer m_bushCB;
 
     // Asset loader
     ObjModelLoader m_ObjModelLoader;
