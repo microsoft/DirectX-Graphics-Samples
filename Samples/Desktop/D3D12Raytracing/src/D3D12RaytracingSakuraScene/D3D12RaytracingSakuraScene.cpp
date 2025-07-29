@@ -395,13 +395,13 @@ void D3D12RaytracingSakuraScene::CreateTexture()
     srvDescTrunk.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDescTrunk.Texture2D.MipLevels = 1;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle1;
-    UINT descriptorIndex1 = AllocateDescriptor(&srvHandle1);
-    device->CreateShaderResourceView(m_trunkTexture.Get(), &srvDescTrunk, srvHandle1);
+    D3D12_CPU_DESCRIPTOR_HANDLE srvHandleTrunk;
+    UINT descriptorIndexTrunk = AllocateDescriptor(&srvHandleTrunk);
+    device->CreateShaderResourceView(m_trunkTexture.Get(), &srvDescTrunk, srvHandleTrunk);
 
-    m_textureSrvGpuDescriptor1 = CD3DX12_GPU_DESCRIPTOR_HANDLE(
+    m_textureSrvGpuDescriptorTrunk = CD3DX12_GPU_DESCRIPTOR_HANDLE(
         m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(),
-        descriptorIndex1,
+        descriptorIndexTrunk,
         m_descriptorSize);
 
     // Create SRV for the bush texture
@@ -411,13 +411,13 @@ void D3D12RaytracingSakuraScene::CreateTexture()
     srvDescBush.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDescBush.Texture2D.MipLevels = 1;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE srvHandle3;
-    UINT descriptorIndex3 = AllocateDescriptor(&srvHandle3);
-    device->CreateShaderResourceView(m_bushTexture.Get(), &srvDescBush, srvHandle3);
+    D3D12_CPU_DESCRIPTOR_HANDLE srvHandleBush;
+    UINT descriptorIndexBush = AllocateDescriptor(&srvHandleBush);
+    device->CreateShaderResourceView(m_bushTexture.Get(), &srvDescBush, srvHandleBush);
 
-    m_textureSrvGpuDescriptor3 = CD3DX12_GPU_DESCRIPTOR_HANDLE(
+    m_textureSrvGpuDescriptorBush = CD3DX12_GPU_DESCRIPTOR_HANDLE(
         m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(),
-        descriptorIndex3,
+        descriptorIndexBush,
         m_descriptorSize);
 }
 
@@ -1351,7 +1351,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
         {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
-            argument.cb = m_leavesLightCB;
+            argument.cb = m_leavesCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); 
             argument.cb.materialID = 3;
             hitGroupShaderTable.push_back(ShaderRecord(leavesHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));

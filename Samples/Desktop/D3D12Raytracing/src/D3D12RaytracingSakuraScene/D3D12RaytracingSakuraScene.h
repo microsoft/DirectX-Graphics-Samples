@@ -52,9 +52,6 @@ public:
 
 private:
     static const UINT FrameCount = 3;
-    static const UINT TextureWidth = 256;
-    static const UINT TextureHeight = 256;
-    static const UINT TexturePixelSize = 4;
     UINT numTopLevelInstances = 4285;
 
 
@@ -87,7 +84,7 @@ private:
     std::unique_ptr<DirectX::SpriteBatch> m_spriteBatch;
     std::unique_ptr<DirectX::SpriteFont> m_smallFont;
 
-    std::unique_ptr<DirectX::Keyboard>      m_keyboard;
+    std::unique_ptr<DirectX::Keyboard> m_keyboard;
     DirectX::Keyboard::KeyboardStateTracker m_keyboardButtons;
 
     // User toggle
@@ -100,25 +97,17 @@ private:
 
     // Texture resources
     ComPtr<ID3D12Resource> m_trunkTexture;
-    ComPtr<ID3D12Resource> m_texture2;
     ComPtr<ID3D12Resource> m_bushTexture;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptor1;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptor2;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptor3;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptorTrunk;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_textureSrvGpuDescriptorBush;
 
     // Raytracing scene
     SceneConstantBuffer m_sceneCB[FrameCount];
     ObjectConstantBuffer m_objectCB;
     ObjectConstantBuffer m_cubeCB;
-    ObjectConstantBuffer m_tcubeCB;
     ObjectConstantBuffer m_transparentCubeCB;
     ObjectConstantBuffer m_trunkCB;
-    ObjectConstantBuffer m_trunkTransparentCB;
     ObjectConstantBuffer m_leavesCB;
-    ObjectConstantBuffer m_leavesLightCB;
-    ObjectConstantBuffer m_leavesDarkCB;
-    ObjectConstantBuffer m_leavesExtraDarkCB;
-    ObjectConstantBuffer m_transparentLeavesCB;
     ObjectConstantBuffer m_bushCB;
 
     // Asset loader
@@ -191,7 +180,6 @@ private:
     void RecreateD3D();
     void DoRaytracing();
     void CreateConstantBuffers();
-    std::vector<UINT8> GenerateTextureData();
     void CreateDeviceDependentResources();
     void CreateUIFont();
     void CreateWindowSizeDependentResources();
