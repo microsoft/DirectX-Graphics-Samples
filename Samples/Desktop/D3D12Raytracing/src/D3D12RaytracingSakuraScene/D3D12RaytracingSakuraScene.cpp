@@ -1532,6 +1532,17 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_at = m_eye + newForward;
     }
 
+    const float minCameraHeight = 2.02f; // Minimum height above ground
+    float currentHeight = XMVectorGetY(m_eye);
+    if (currentHeight < minCameraHeight)
+    {
+        // Clamp the camera height
+        m_eye = XMVectorSetY(m_eye, minCameraHeight);
+
+        // Adjust the look-at point to maintain the same viewing angle
+
+    }
+
     UpdateCameraMatrices();
 
     // Rotate the second light around Y axis.
