@@ -226,8 +226,8 @@ void D3D12RaytracingSakuraScene::InitializeScene()
     {
         // Initialize the view and projection inverse matrices.
         // m_eye currently at the middle of the forest
-        m_eye = { 8.5f, 2.2f, -16.0f, 1.0f };
-        m_at = { 1.0f, 2.2f, -6.0f, 1.0f };
+        m_eye = { 0.0f, 2.2f, -2.0f, 1.0f };
+        m_at = { 1.0f, 1.65f, -6.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
@@ -1031,12 +1031,16 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     int objectsPerRow = 20; // Object per row along Z and X axis
     float largerCubeSpacing = 4.0f; // Spacing between larger cubes
     float randomCubeSpacing = 0.7f; // Spacing between random smaller cubes
-	float spacingGap = 5.0f; // Gap between two groups of forests
+	float spacingGap = 0.0f; // Gap between two groups of forests
 
 	// Create random number generator for random offsets
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> randomOffset(0.2f, 1.7f);
+    std::uniform_real_distribution<float> randomOffset(-0.1f, 0.7f);
+
+    std::random_device rdBush;
+    std::mt19937 genBush(rdBush());
+    std::uniform_real_distribution<float> randomOffsetBush(0.2f, 0.5f);
 
     // Larger cubes for the floor
     for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
@@ -1074,7 +1078,6 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
             float randomYOffset = randomOffset(gen);
 
             float posX = x * randomCubeSpacing;
-            if (x >= 0) posX += spacingGap; // Shift the second group to the right
             float posY = 2.0f + randomYOffset;
             float posZ = z * randomCubeSpacing;
 
@@ -1097,6 +1100,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     }
 
     int treesPerRow = 30;
+    float spacingBetweenTrees = 1.5f;
 
     // Trunk and leaves
     // Store random positions for trunks
@@ -1107,13 +1111,11 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
     {
         for (int z = -treesPerRow / 2; z <= treesPerRow / 2; ++z)
         {
-            float spacingBetweenTrees = (x < 0) ? 1.7f : 2.5f;
             float randomXOffset = randomOffset(gen);
             float randomYOffset = randomOffset(gen);
             float randomZOffset = randomOffset(gen);
 
             float posX = x * spacingBetweenTrees + randomXOffset;
-            if (x >= 0) posX += spacingGap; // Shift the second group to the right
             float posY = 2.0f - (randomYOffset / 8);
             float posZ = z * spacingBetweenTrees + randomZOffset;
             trunkPositions.emplace_back(posX, posY, posZ);
@@ -1160,30 +1162,36 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         instanceDesc.push_back(desc);
     }
 
-    // Third loop: Initialize bushes 
-    for (size_t i = 0; i < trunkPositions.size(); ++i)
+    // Bushes placed randomly on the floor
+    int bushesPerRow = 100;
+    for (int x = -bushesPerRow / 2; x <= bushesPerRow / 2; ++x)
     {
-        float randomXOffset = randomOffset(gen);
+        for (int z = -bushesPerRow / 2; z <= bushesPerRow / 2; ++z)
+        {
+            float randomYOffset = randomOffsetBush(genBush);
 
-        // Leaves instance
-        D3D12_RAYTRACING_INSTANCE_DESC desc = {};
-        float scale = 17.0f;
-        desc.Transform[0][0] = scale;
-        desc.Transform[1][1] = scale;
-        desc.Transform[2][2] = scale;
+            float posX = x * 0.08;
+            float posY = 0.45f + randomYOffset;
+            float posZ = z * 0.08;
 
-        // Use the same position as the corresponding trunk
-        desc.Transform[0][3] = std::get<0>(trunkPositions[i]) + randomXOffset; // X position with random offset
-        desc.Transform[1][3] = std::get<1>(trunkPositions[i]) - 0.5f;
-        desc.Transform[2][3] = std::get<2>(trunkPositions[i]); // Z position
+            D3D12_RAYTRACING_INSTANCE_DESC desc = {};
+            float scale = 7.0f; // Bush scale 
+            desc.Transform[0][0] = scale;
+            desc.Transform[1][1] = scale;
+            desc.Transform[2][2] = scale;
 
-        desc.InstanceMask = 1;
-        desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
-        desc.AccelerationStructure = m_bottomLevelAccelerationStructureBushes->GetGPUVirtualAddress();
-        desc.InstanceID = instanceDesc.size();
-        desc.InstanceContributionToHitGroupIndex = static_cast<UINT>(instanceDesc.size());
-        instanceDesc.push_back(desc);
+            desc.Transform[0][3] = posX; // X position with offset
+            desc.Transform[1][3] = posY + 0.8f; // Y position with offset
+            desc.Transform[2][3] = posZ; // Z position
+
+            desc.InstanceMask = 1;
+            desc.AccelerationStructure = m_bottomLevelAccelerationStructureBushes->GetGPUVirtualAddress();
+            desc.InstanceID = static_cast<UINT>(instanceDesc.size());
+            desc.InstanceContributionToHitGroupIndex = static_cast<UINT>(instanceDesc.size());
+            instanceDesc.push_back(desc);
+        }
     }
+
 
     AllocateUploadBuffer(device, instanceDesc.data(), instanceDesc.size() * sizeof(D3D12_RAYTRACING_INSTANCE_DESC), &instanceDescsResource, L"InstanceDesc");
 
@@ -1311,7 +1319,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
 		UINT TRANSPARENT_CUBE_NUMER_RECORDS = 961; // Number of smaller transparent cubes
 		UINT TRUNK_NUMER_RECORDS = 961; // Number of tree trunks
 		UINT LEAVES_NUMER_RECORDS = 961; // Number of tree leaves
-		UINT BUSH_NUMER_RECORDS = 961; // Number of bushes
+		UINT BUSH_NUMER_RECORDS = 10201; // Number of bushes
         UINT shaderRecordSize = shaderIdentifierSize + sizeof(RootArguments);
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 

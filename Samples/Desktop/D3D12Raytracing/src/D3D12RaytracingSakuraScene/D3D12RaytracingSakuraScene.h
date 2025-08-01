@@ -52,7 +52,7 @@ public:
 
 private:
     static const UINT FrameCount = 3;
-    UINT numTopLevelInstances = 4285;
+    UINT numTopLevelInstances = 13525;
 
 
     // We'll allocate space for several of these and they will need to be padded for alignment.
