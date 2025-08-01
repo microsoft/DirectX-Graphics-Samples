@@ -1040,7 +1040,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 
     std::random_device rdBush;
     std::mt19937 genBush(rdBush());
-    std::uniform_real_distribution<float> randomOffsetBush(0.1f, 0.5f);
+    std::uniform_real_distribution<float> randomOffsetBush(0.0f, 0.4f);
 
     // Larger cubes for the floor
     for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
@@ -1175,7 +1175,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
             float posZ = z * 0.07;
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
-            float scale = 1.4; // Bush scale 
+            float scale = 2.1f; // Bush scale
             desc.Transform[0][0] = scale;
             desc.Transform[1][1] = scale;
             desc.Transform[2][2] = scale;
