@@ -1040,7 +1040,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 
     std::random_device rdBush;
     std::mt19937 genBush(rdBush());
-    std::uniform_real_distribution<float> randomOffsetBush(0.2f, 0.5f);
+    std::uniform_real_distribution<float> randomOffsetBush(0.1f, 0.5f);
 
     // Larger cubes for the floor
     for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
@@ -1170,12 +1170,12 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
         {
             float randomYOffset = randomOffsetBush(genBush);
 
-            float posX = x * 0.08;
-            float posY = 0.45f + randomYOffset;
-            float posZ = z * 0.08;
+            float posX = x * 0.07;
+            float posY = 0.80f + randomYOffset;
+            float posZ = z * 0.07;
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
-            float scale = 7.0f; // Bush scale 
+            float scale = 1.4; // Bush scale 
             desc.Transform[0][0] = scale;
             desc.Transform[1][1] = scale;
             desc.Transform[2][2] = scale;
@@ -1540,7 +1540,9 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_eye = XMVectorSetY(m_eye, minCameraHeight);
 
         // Adjust the look-at point to maintain the same viewing angle
-
+        float atHeight = XMVectorGetY(m_at);
+        float heightDifference = minCameraHeight - currentHeight;
+        m_at = XMVectorSetY(m_at, atHeight + heightDifference);
     }
 
     UpdateCameraMatrices();
