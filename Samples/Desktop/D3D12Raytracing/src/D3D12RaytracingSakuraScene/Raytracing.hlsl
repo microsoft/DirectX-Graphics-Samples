@@ -134,7 +134,7 @@ void MyRaygenShader()
                 float3 estimatedHit = origin + t * rayDir;
                 float2 uv = frac(estimatedHit.xz * 1.0);
                 float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
-                if (texColor.r < 0.05 && texColor.g < 0.05 && texColor.b < 0.05)
+                if (texColor.r < 0.1 && texColor.g < 0.1 && texColor.b < 0.1)
                 {
                     payload.reflectHint = 1;
                 }
@@ -237,7 +237,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 finalColor;
 
     // Trace reflection ray if surface is dark
-    if (all(sampled.rgb < 0.05) && payload.recursionDepth < 8)
+    if (all(sampled.rgb < 0.1) && payload.recursionDepth < 8)
     {
         Ray reflectionRay;
         reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
