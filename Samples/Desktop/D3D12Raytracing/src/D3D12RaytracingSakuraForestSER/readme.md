@@ -1,11 +1,11 @@
 # D3D12 Raytracing Shader Execution Reordering Sample - Sakura Scene
 ![D3D12 Raytracing SER](Screenshot.png)
 
-This sample demonstrates the use of **Shader Execution Reordering (SER)** in a raytraced scene rendered with Direct3D 12. The scene features a stylized **sakura (cherry blossom) forest**, composed of multiple geometry types including tree trunks, blossoms, bushes, and cubes for the floor.
-
-SER is showcased through three distinct modes:
+This sample demonstrates the use of **Shader Execution Reordering (SER)** in a stylized **sakura (cherry blossom) forest** scene, composed of multiple geometry types including tree trunks, blossoms, bushes, and cubes for the floor.
+ 
+SER is used to give hints to the GPU for grouping threads for better execution efficiency, based on three modes:
 - **Sort by HitObject**
-- **Sort by reflectHint**: A custom key derived from texture sampling on the floor, used to identify reflective regions such as dark crevices resembling water.
+- **Sort by reflectHint**: A custom key derived from texture sampling on the floor, used to identify reflective regions such as dark crevices resembling water and cubes randomly in the space.
 - **Sort by Both**: Combines HitObject and reflectHint .
 
 The `reflectHint` is computed by sampling the floor texture at the estimated hit location. If the sampled color is sufficiently dark, the surface is treated as reflective, triggering additional shading logic such as Fresnel-based reflections. This technique mimics subtle water pooling effects in shaded areas.
