@@ -10,7 +10,7 @@
 //*********************************************************
 
 #include "stdafx.h"
-#include "D3D12RaytracingSakuraScene.h"
+#include "D3D12RaytracingSakuraForestSER.h"
 #include "DirectXRaytracingHelper.h"
 #include "dxcapi.h"
 #include <atlbase.h>
@@ -28,18 +28,18 @@ extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12
 using namespace std;
 using namespace DX;
 
-const wchar_t* D3D12RaytracingSakuraScene::c_floorHitGroupName = L"MyHitGroup";
-const wchar_t* D3D12RaytracingSakuraScene::c_trunkHitGroupName = L"TrunkHitGroup";
-const wchar_t* D3D12RaytracingSakuraScene::c_leavesHitGroupName = L"LeavesHitGroup";
-const wchar_t* D3D12RaytracingSakuraScene::c_bushHitGroupName = L"BushHitGroup";
-const wchar_t* D3D12RaytracingSakuraScene::c_transparentCubeHitGroupName = L"TCubeHitGroup";
-const wchar_t* D3D12RaytracingSakuraScene::c_raygenShaderName = L"MyRaygenShader";
-const wchar_t* D3D12RaytracingSakuraScene::c_floorClosestHitShaderName = L"FloorClosestHitShader";
-const wchar_t* D3D12RaytracingSakuraScene::c_trunkClosestHitShaderName = L"TrunkClosestHitShader";
-const wchar_t* D3D12RaytracingSakuraScene::c_leavesClosestHitShaderName = L"LeavesClosestHitShader";
-const wchar_t* D3D12RaytracingSakuraScene::c_bushClosestHitShaderName = L"BushClosestHitShader";
-const wchar_t* D3D12RaytracingSakuraScene::c_tcubeClosestHitShaderName = L"TCubeClosestHitShader";
-const wchar_t* D3D12RaytracingSakuraScene::c_missShaderName = L"MyMissShader";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_floorHitGroupName = L"MyHitGroup";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_trunkHitGroupName = L"TrunkHitGroup";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_leavesHitGroupName = L"LeavesHitGroup";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_bushHitGroupName = L"BushHitGroup";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_transparentCubeHitGroupName = L"TCubeHitGroup";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_raygenShaderName = L"MyRaygenShader";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_floorClosestHitShaderName = L"FloorClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_trunkClosestHitShaderName = L"TrunkClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_leavesClosestHitShaderName = L"LeavesClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_bushClosestHitShaderName = L"BushClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_tcubeClosestHitShaderName = L"TCubeClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_missShaderName = L"MyMissShader";
 
 #define PRINT(text) OutputDebugStringA(text);
 
@@ -157,7 +157,7 @@ HRESULT CompileDxilLibraryFromFile(
     return hr;
 }
 
-D3D12RaytracingSakuraScene::D3D12RaytracingSakuraScene(UINT width, UINT height, std::wstring name) :
+D3D12RaytracingSakuraForestSER::D3D12RaytracingSakuraForestSER(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
     m_curRotationAngleRad(0.0f),
@@ -170,7 +170,7 @@ D3D12RaytracingSakuraScene::D3D12RaytracingSakuraScene(UINT width, UINT height, 
     UpdateForSizeChange(width, height);
 }
 
-void D3D12RaytracingSakuraScene::OnInit()
+void D3D12RaytracingSakuraForestSER::OnInit()
 {
     UUID Features[] = { D3D12ExperimentalShaderModels };
     ThrowIfFailed(D3D12EnableExperimentalFeatures(_countof(Features), Features, nullptr, nullptr));
@@ -205,7 +205,7 @@ void D3D12RaytracingSakuraScene::OnInit()
 }
 
 // Update camera matrices passed into the shader.
-void D3D12RaytracingSakuraScene::UpdateCameraMatrices()
+void D3D12RaytracingSakuraForestSER::UpdateCameraMatrices()
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
@@ -219,7 +219,7 @@ void D3D12RaytracingSakuraScene::UpdateCameraMatrices()
 }
 
 // Initialize scene rendering parameters.
-void D3D12RaytracingSakuraScene::InitializeScene()
+void D3D12RaytracingSakuraForestSER::InitializeScene()
 {
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
     // Setup camera.
@@ -267,7 +267,7 @@ void D3D12RaytracingSakuraScene::InitializeScene()
 }
 
 // Create constant buffers.
-void D3D12RaytracingSakuraScene::CreateConstantBuffers()
+void D3D12RaytracingSakuraForestSER::CreateConstantBuffers()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto frameCount = m_deviceResources->GetBackBufferCount();
@@ -294,7 +294,7 @@ void D3D12RaytracingSakuraScene::CreateConstantBuffers()
 }
 
 // Create resources that depend on the device.
-void D3D12RaytracingSakuraScene::CreateDeviceDependentResources()
+void D3D12RaytracingSakuraForestSER::CreateDeviceDependentResources()
 {
     // Initialize raytracing pipeline.
 
@@ -340,7 +340,7 @@ void D3D12RaytracingSakuraScene::CreateDeviceDependentResources()
     CreateUIFont();
 }
 
-void D3D12RaytracingSakuraScene::CreateTexture()
+void D3D12RaytracingSakuraForestSER::CreateTexture()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandQueue = m_deviceResources->GetCommandQueue();
@@ -421,7 +421,7 @@ void D3D12RaytracingSakuraScene::CreateTexture()
         m_descriptorSize);
 }
 
-void D3D12RaytracingSakuraScene::CreateUIFont()
+void D3D12RaytracingSakuraForestSER::CreateUIFont()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto size = m_deviceResources->GetOutputSize();
@@ -463,7 +463,7 @@ void D3D12RaytracingSakuraScene::CreateUIFont()
     }
 }
 
-void D3D12RaytracingSakuraScene::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
+void D3D12RaytracingSakuraForestSER::SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, ComPtr<ID3D12RootSignature>* rootSig)
 {
     auto device = m_deviceResources->GetD3DDevice();
     ComPtr<ID3DBlob> blob;
@@ -473,7 +473,7 @@ void D3D12RaytracingSakuraScene::SerializeAndCreateRaytracingRootSignature(D3D12
     ThrowIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
 }
 
-void D3D12RaytracingSakuraScene::CreateRootSignatures()
+void D3D12RaytracingSakuraForestSER::CreateRootSignatures()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -531,7 +531,7 @@ void D3D12RaytracingSakuraScene::CreateRootSignatures()
 }
 
 // Create raytracing device and command list.
-void D3D12RaytracingSakuraScene::CreateRaytracingInterfaces()
+void D3D12RaytracingSakuraForestSER::CreateRaytracingInterfaces()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -542,7 +542,7 @@ void D3D12RaytracingSakuraScene::CreateRaytracingInterfaces()
 
 // Local root signature and shader association
 // This is a root signature that enables a shader to have unique arguments that come from shader tables.
-void D3D12RaytracingSakuraScene::CreateLocalRootSignatureSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
+void D3D12RaytracingSakuraForestSER::CreateLocalRootSignatureSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
 {
     // Ray gen and miss shaders in this sample are not using a local root signature and thus one is not associated with them.
 
@@ -565,7 +565,7 @@ void D3D12RaytracingSakuraScene::CreateLocalRootSignatureSubobjects(CD3DX12_STAT
 // Create a raytracing pipeline state object (RTPSO).
 // An RTPSO represents a full set of shaders reachable by a DispatchRays() call,
 // with all configuration options resolved, such as local signatures and other state.
-void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
+void D3D12RaytracingSakuraForestSER::CreateRaytracingPipelineStateObject()
 {
     D3D12_FEATURE_DATA_SHADER_MODEL SM;
     SM.HighestShaderModel = D3D_SHADER_MODEL_6_9;
@@ -662,7 +662,7 @@ void D3D12RaytracingSakuraScene::CreateRaytracingPipelineStateObject()
 }
 
 // Create 2D output texture for raytracing.
-void D3D12RaytracingSakuraScene::CreateRaytracingOutputResource()
+void D3D12RaytracingSakuraForestSER::CreateRaytracingOutputResource()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto backbufferFormat = m_deviceResources->GetBackBufferFormat();
@@ -683,7 +683,7 @@ void D3D12RaytracingSakuraScene::CreateRaytracingOutputResource()
     m_raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
 }
 
-void D3D12RaytracingSakuraScene::CreateDescriptorHeap()
+void D3D12RaytracingSakuraForestSER::CreateDescriptorHeap()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -707,7 +707,7 @@ void D3D12RaytracingSakuraScene::CreateDescriptorHeap()
 }
 
 // Build geometry used in the sample.
-void D3D12RaytracingSakuraScene::BuildGeometry()
+void D3D12RaytracingSakuraForestSER::BuildGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -779,7 +779,7 @@ void D3D12RaytracingSakuraScene::BuildGeometry()
 
 
 // Build geometry for a trunk torus knot shape
-void D3D12RaytracingSakuraScene::BuildTreeGeometry()
+void D3D12RaytracingSakuraForestSER::BuildTreeGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
     std::vector<Vertex> trunkVertices;
@@ -870,7 +870,7 @@ void D3D12RaytracingSakuraScene::BuildTreeGeometry()
 
 
 // Build acceleration structures needed for raytracing.
-void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
+void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
 {
     auto device = m_deviceResources->GetD3DDevice();
     auto commandList = m_deviceResources->GetCommandList();
@@ -1250,7 +1250,7 @@ void D3D12RaytracingSakuraScene::BuildAccelerationStructures()
 
 // Build shader tables.
 // This encapsulates all shader records - shaders and the arguments for their local root signatures.
-void D3D12RaytracingSakuraScene::BuildShaderTables()
+void D3D12RaytracingSakuraForestSER::BuildShaderTables()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -1381,7 +1381,7 @@ void D3D12RaytracingSakuraScene::BuildShaderTables()
 }
 
 // Update frame-based values.
-void D3D12RaytracingSakuraScene::OnUpdate()
+void D3D12RaytracingSakuraForestSER::OnUpdate()
 {
     m_timer.Tick();
     CalculateFrameStats();
@@ -1566,7 +1566,7 @@ void D3D12RaytracingSakuraScene::OnUpdate()
         m_sceneCB[frameIndex].sortMode = SORTMODE_OFF;
 }
 
-void D3D12RaytracingSakuraScene::DoRaytracing()
+void D3D12RaytracingSakuraForestSER::DoRaytracing()
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
@@ -1612,13 +1612,13 @@ void D3D12RaytracingSakuraScene::DoRaytracing()
 }
 
 // Update the application state with the new resolution.
-void D3D12RaytracingSakuraScene::UpdateForSizeChange(UINT width, UINT height)
+void D3D12RaytracingSakuraForestSER::UpdateForSizeChange(UINT width, UINT height)
 {
     DXSample::UpdateForSizeChange(width, height);
 }
 
 // Render the UI
-void D3D12RaytracingSakuraScene::RenderUI()
+void D3D12RaytracingSakuraForestSER::RenderUI()
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto renderTarget = m_deviceResources->GetRenderTarget();
@@ -1691,7 +1691,7 @@ void D3D12RaytracingSakuraScene::RenderUI()
 
 
 // Copy the raytracing output to the backbuffer.
-void D3D12RaytracingSakuraScene::CopyRaytracingOutputToBackbuffer()
+void D3D12RaytracingSakuraForestSER::CopyRaytracingOutputToBackbuffer()
 {
     auto commandList = m_deviceResources->GetCommandList();
     auto renderTarget = m_deviceResources->GetRenderTarget();
@@ -1711,20 +1711,20 @@ void D3D12RaytracingSakuraScene::CopyRaytracingOutputToBackbuffer()
 }
 
 // Create resources that are dependent on the size of the main window.
-void D3D12RaytracingSakuraScene::CreateWindowSizeDependentResources()
+void D3D12RaytracingSakuraForestSER::CreateWindowSizeDependentResources()
 {
     CreateRaytracingOutputResource();
     UpdateCameraMatrices();
 }
 
 // Release resources that are dependent on the size of the main window.
-void D3D12RaytracingSakuraScene::ReleaseWindowSizeDependentResources()
+void D3D12RaytracingSakuraForestSER::ReleaseWindowSizeDependentResources()
 {
     m_raytracingOutput.Reset();
 }
 
 // Release all resources that depend on the device.
-void D3D12RaytracingSakuraScene::ReleaseDeviceDependentResources()
+void D3D12RaytracingSakuraForestSER::ReleaseDeviceDependentResources()
 {
     m_raytracingGlobalRootSignature.Reset();
     m_raytracingLocalRootSignature.Reset();
@@ -1749,7 +1749,7 @@ void D3D12RaytracingSakuraScene::ReleaseDeviceDependentResources()
 
 }
 
-void D3D12RaytracingSakuraScene::RecreateD3D()
+void D3D12RaytracingSakuraForestSER::RecreateD3D()
 {
     // Give GPU a chance to finish its execution in progress.
     try
@@ -1764,7 +1764,7 @@ void D3D12RaytracingSakuraScene::RecreateD3D()
 }
 
 // Render the scene.
-void D3D12RaytracingSakuraScene::OnRender()
+void D3D12RaytracingSakuraForestSER::OnRender()
 {
     if (!m_deviceResources->IsWindowVisible())
     {
@@ -1780,7 +1780,7 @@ void D3D12RaytracingSakuraScene::OnRender()
     m_graphicsMemory->Commit(m_deviceResources->GetCommandQueue());
 }
 
-void D3D12RaytracingSakuraScene::OnDestroy()
+void D3D12RaytracingSakuraForestSER::OnDestroy()
 {
     // Let GPU finish before releasing D3D resources.
     m_deviceResources->WaitForGpu();
@@ -1788,21 +1788,21 @@ void D3D12RaytracingSakuraScene::OnDestroy()
 }
 
 // Release all device dependent resouces when a device is lost.
-void D3D12RaytracingSakuraScene::OnDeviceLost()
+void D3D12RaytracingSakuraForestSER::OnDeviceLost()
 {
     ReleaseWindowSizeDependentResources();
     ReleaseDeviceDependentResources();
 }
 
 // Create all device dependent resources when a device is restored.
-void D3D12RaytracingSakuraScene::OnDeviceRestored()
+void D3D12RaytracingSakuraForestSER::OnDeviceRestored()
 {
     CreateDeviceDependentResources();
     CreateWindowSizeDependentResources();
 }
 
 // Compute the average frames per second and million rays per second.
-void D3D12RaytracingSakuraScene::CalculateFrameStats()
+void D3D12RaytracingSakuraForestSER::CalculateFrameStats()
 {
     static int frameCnt = 0;
     static double elapsedTime = 0.0f;
@@ -1830,7 +1830,7 @@ void D3D12RaytracingSakuraScene::CalculateFrameStats()
 }
 
 // Handle OnSizeChanged message event.
-void D3D12RaytracingSakuraScene::OnSizeChanged(UINT width, UINT height, bool minimized)
+void D3D12RaytracingSakuraForestSER::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
     if (!m_deviceResources->WindowSizeChanged(width, height, minimized))
     {
@@ -1845,7 +1845,7 @@ void D3D12RaytracingSakuraScene::OnSizeChanged(UINT width, UINT height, bool min
 
 // Allocate a descriptor and return its index. 
 // If the passed descriptorIndexToUse is valid, it will be used instead of allocating a new one.
-UINT D3D12RaytracingSakuraScene::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse)
+UINT D3D12RaytracingSakuraForestSER::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse)
 {
     auto descriptorHeapCpuBase = m_descriptorHeap->GetCPUDescriptorHandleForHeapStart();
     if (descriptorIndexToUse >= m_descriptorHeap->GetDesc().NumDescriptors)
@@ -1857,7 +1857,7 @@ UINT D3D12RaytracingSakuraScene::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE*
 }
 
 // Create SRV for a buffer.
-UINT D3D12RaytracingSakuraScene::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
+UINT D3D12RaytracingSakuraForestSER::CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize)
 {
     auto device = m_deviceResources->GetD3DDevice();
 

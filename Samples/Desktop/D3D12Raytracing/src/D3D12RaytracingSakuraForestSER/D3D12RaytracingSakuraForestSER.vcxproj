@@ -13,10 +13,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{B102F64F-EC2F-4F01-97A8-72B6D3CA7017}</ProjectGuid>
+    <ProjectGuid>{8A6F63FD-E766-476B-9748-9C14737297B7}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>D3D12Raytracing</RootNamespace>
-    <ProjectName>D3D12RaytracingSakuraScene</ProjectName>
+    <ProjectName>D3D12RaytracingSakuraForestSER</ProjectName>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -170,7 +170,7 @@
     <ClInclude Include="SharedCode.h" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="Win32Application.h" />
-    <ClInclude Include="D3D12RaytracingSakuraScene.h" />
+    <ClInclude Include="D3D12RaytracingSakuraForestSER.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXSample.h" />
     <ClInclude Include="DXSampleHelper.h" />
@@ -180,7 +180,7 @@
     <ClCompile Include="DeviceResources.cpp" />
     <ClCompile Include="ObjModelLoader.cpp" />
     <ClCompile Include="Win32Application.cpp" />
-    <ClCompile Include="D3D12RaytracingSakuraScene.cpp" />
+    <ClCompile Include="D3D12RaytracingSakuraForestSER.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="stdafx.cpp">

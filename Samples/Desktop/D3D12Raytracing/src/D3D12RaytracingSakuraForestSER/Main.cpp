@@ -10,7 +10,7 @@
 //*********************************************************
 
 #include "stdafx.h"
-#include "D3D12RaytracingSakuraScene.h"
+#include "D3D12RaytracingSakuraForestSER.h"
 #pragma comment(lib, "runtimeobject.lib")
 
 _Use_decl_annotations_
@@ -32,6 +32,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
     }
 #endif
 
-    D3D12RaytracingSakuraScene sample(1280, 720, L"D3D12 Raytracing - Sakura Scene");
+    D3D12RaytracingSakuraForestSER sample(1280, 720, L"D3D12 Raytracing - Sakura Scene");
     return Win32Application::Run(&sample, hInstance, nCmdShow);
 }

@@ -33,10 +33,10 @@ namespace LocalRootSignatureParams {
     };
 }
 
-class D3D12RaytracingSakuraScene : public DXSample
+class D3D12RaytracingSakuraForestSER : public DXSample
 {
 public:
-    D3D12RaytracingSakuraScene(UINT width, UINT height, std::wstring name);
+    D3D12RaytracingSakuraForestSER(UINT width, UINT height, std::wstring name);
 
     // IDeviceNotify
     virtual void OnDeviceLost() override;

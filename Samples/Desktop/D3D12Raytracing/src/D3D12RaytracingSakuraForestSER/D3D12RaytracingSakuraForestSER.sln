@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36203.30 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingSakuraScene", "D3D12RaytracingSakuraScene.vcxproj", "{B102F64F-EC2F-4F01-97A8-72B6D3CA7017}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12RaytracingSakuraForestSER", "D3D12RaytracingSakuraForestSER.vcxproj", "{B102F64F-EC2F-4F01-97A8-72B6D3CA7017}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
