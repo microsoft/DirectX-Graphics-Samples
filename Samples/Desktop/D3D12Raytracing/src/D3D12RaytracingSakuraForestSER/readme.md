@@ -34,5 +34,5 @@ The title bar of the sample provides runtime information:
 * Arrow Keys - Look around (Up/Down: look up/down, Left/Right: look left/right)
 
 ## Requirements
-* Windows 10 with the October 2018 update or higher.
+* Windows 10 with the October 2019 update or higher.
 * Consult the main [D3D12 Raytracing readme](../../readme.md) for further requirements.
