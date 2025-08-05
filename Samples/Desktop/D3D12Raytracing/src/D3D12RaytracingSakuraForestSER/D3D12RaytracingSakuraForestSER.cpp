@@ -1098,7 +1098,7 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
     }
 
     int treesPerRow = 30;
-    float spacingBetweenTrees = 1.5f;
+    float spacingBetweenTrees = 1.7f;
 
     // Trunk and leaves
     // Store random positions for trunks
