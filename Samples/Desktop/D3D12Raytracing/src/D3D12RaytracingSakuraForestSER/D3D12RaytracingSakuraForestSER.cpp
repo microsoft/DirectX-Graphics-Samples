@@ -32,7 +32,7 @@ const wchar_t* D3D12RaytracingSakuraForestSER::c_floorHitGroupName = L"MyHitGrou
 const wchar_t* D3D12RaytracingSakuraForestSER::c_trunkHitGroupName = L"TrunkHitGroup";
 const wchar_t* D3D12RaytracingSakuraForestSER::c_leavesHitGroupName = L"LeavesHitGroup";
 const wchar_t* D3D12RaytracingSakuraForestSER::c_bushHitGroupName = L"BushHitGroup";
-const wchar_t* D3D12RaytracingSakuraForestSER::c_transparentCubeHitGroupName = L"TCubeHitGroup";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_reflectiveCubeHitGroupName = L"TCubeHitGroup";
 const wchar_t* D3D12RaytracingSakuraForestSER::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingSakuraForestSER::c_floorClosestHitShaderName = L"FloorClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraForestSER::c_trunkClosestHitShaderName = L"TrunkClosestHitShader";
@@ -315,10 +315,10 @@ void D3D12RaytracingSakuraForestSER::CreateDeviceDependentResources()
     m_ObjModelLoader.Load(L"leaves.obj");
     m_ObjModelLoader.Load(L"bush.obj");
 
-    // Build geometry to be used in the sample.
-    BuildGeometry();
+    // Build geometry for cubes (that will make the reflective cubes & the floor)
+    BuildCubeGeometry();
 
-    // Build trunk geometry (the torus knot to illustrate the use of multiple geometries in the scene)
+    // Build geometry for trees, trunks, and bushes
     BuildTreeGeometry();
 
     // Create texture
@@ -544,8 +544,6 @@ void D3D12RaytracingSakuraForestSER::CreateRaytracingInterfaces()
 // This is a root signature that enables a shader to have unique arguments that come from shader tables.
 void D3D12RaytracingSakuraForestSER::CreateLocalRootSignatureSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline)
 {
-    // Ray gen and miss shaders in this sample are not using a local root signature and thus one is not associated with them.
-
     // Local root signature to be used in a hit group.
     auto localRootSignature = raytracingPipeline->CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
     localRootSignature->SetRootSignature(m_raytracingLocalRootSignature.Get());
@@ -557,7 +555,7 @@ void D3D12RaytracingSakuraForestSER::CreateLocalRootSignatureSubobjects(CD3DX12_
         rootSignatureAssociation->AddExport(c_trunkHitGroupName);
         rootSignatureAssociation->AddExport(c_leavesHitGroupName);
         rootSignatureAssociation->AddExport(c_bushHitGroupName);
-        rootSignatureAssociation->AddExport(c_transparentCubeHitGroupName);
+        rootSignatureAssociation->AddExport(c_reflectiveCubeHitGroupName);
         rootSignatureAssociation->AddExport(c_raygenShaderName);
     }
 }
@@ -627,7 +625,7 @@ void D3D12RaytracingSakuraForestSER::CreateRaytracingPipelineStateObject()
 
     auto tcubeHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
     tcubeHitGroup->SetClosestHitShaderImport(c_tcubeClosestHitShaderName);
-    tcubeHitGroup->SetHitGroupExport(c_transparentCubeHitGroupName);
+    tcubeHitGroup->SetHitGroupExport(c_reflectiveCubeHitGroupName);
     tcubeHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
     // Shader config
@@ -707,7 +705,7 @@ void D3D12RaytracingSakuraForestSER::CreateDescriptorHeap()
 }
 
 // Build geometry used in the sample.
-void D3D12RaytracingSakuraForestSER::BuildGeometry()
+void D3D12RaytracingSakuraForestSER::BuildCubeGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
 
@@ -778,7 +776,7 @@ void D3D12RaytracingSakuraForestSER::BuildGeometry()
 }
 
 
-// Build geometry for a trunk torus knot shape
+// Build geometry for trees, trunks, and bushes
 void D3D12RaytracingSakuraForestSER::BuildTreeGeometry()
 {
     auto device = m_deviceResources->GetD3DDevice();
@@ -1030,7 +1028,7 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
 
     int objectsPerRow = 20; // Object per row along Z and X axis
     float largerCubeSpacing = 4.0f; // Spacing between larger cubes
-    float randomCubeSpacing = 0.7f; // Spacing between random smaller cubes
+    float randomCubeSpacing = 0.1f; // Spacing between random smaller cubes
 	float spacingGap = 0.0f; // Gap between two groups of forests
 
 	// Create random number generator for random offsets
@@ -1069,20 +1067,20 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
         }
     }
 
-    // Smaller transparent cubes that are placed randomly on the floor
-	int transparentCubesPerRow = 30;
-    for (int x = -transparentCubesPerRow / 2; x <= transparentCubesPerRow / 2; ++x)
+    // Smaller reflective cubes that are placed randomly on the floor
+	int reflectiveCubesPerRow = 30;
+    for (int x = -reflectiveCubesPerRow / 2; x <= reflectiveCubesPerRow / 2; ++x)
     {
-        for (int z = -transparentCubesPerRow / 2; z <= transparentCubesPerRow / 2; ++z)
+        for (int z = -reflectiveCubesPerRow / 2; z <= reflectiveCubesPerRow / 2; ++z)
         {
             float randomYOffset = randomOffset(gen);
 
             float posX = x * randomCubeSpacing;
-            float posY = 2.0f + randomYOffset;
+            float posY = 1.7f + randomYOffset;
             float posZ = z * randomCubeSpacing;
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
-            float scale = 0.05f; // Smaller cube scale 
+            float scale = 0.01f; // Smaller cube scale 
             desc.Transform[0][0] = scale;
             desc.Transform[1][1] = scale;
             desc.Transform[2][2] = scale;
@@ -1270,7 +1268,7 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
         trunkHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_trunkHitGroupName);
         leavesHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesHitGroupName);
         bushHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_bushHitGroupName);
-        tcubeHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_transparentCubeHitGroupName);
+        tcubeHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_reflectiveCubeHitGroupName);
     };
 
     // Get shader identifiers.
@@ -1316,7 +1314,7 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
 		// Total number of shader records in the hit group shader table
         UINT numShaderRecords = numTopLevelInstances;
 		UINT CUBE_NUMER_RECORDS = 441; // Number of larger cubes
-		UINT TRANSPARENT_CUBE_NUMER_RECORDS = 961; // Number of smaller transparent cubes
+		UINT REFLECTIVE_CUBE_NUMER_RECORDS = 961; // Number of smaller reflective cubes
 		UINT TRUNK_NUMER_RECORDS = 961; // Number of tree trunks
 		UINT LEAVES_NUMER_RECORDS = 961; // Number of tree leaves
 		UINT BUSH_NUMER_RECORDS = 10201; // Number of bushes
@@ -1333,11 +1331,11 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
             hitGroupShaderTable.push_back(ShaderRecord(floorHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
-		// Transparant cube shader records randomly placed around the scene
-        for (int i = 0; i < TRANSPARENT_CUBE_NUMER_RECORDS; ++i)
+		// Reflective cube shader records randomly placed around the scene
+        for (int i = 0; i < REFLECTIVE_CUBE_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
-            argument.cb = m_transparentCubeCB;
+            argument.cb = m_reflectiveCubeCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); 
             argument.cb.materialID = 1;
             hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));

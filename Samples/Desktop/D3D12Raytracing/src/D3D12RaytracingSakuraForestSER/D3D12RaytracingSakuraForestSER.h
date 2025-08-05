@@ -105,7 +105,7 @@ private:
     SceneConstantBuffer m_sceneCB[FrameCount];
     ObjectConstantBuffer m_objectCB;
     ObjectConstantBuffer m_cubeCB;
-    ObjectConstantBuffer m_transparentCubeCB;
+    ObjectConstantBuffer m_reflectiveCubeCB;
     ObjectConstantBuffer m_trunkCB;
     ObjectConstantBuffer m_leavesCB;
     ObjectConstantBuffer m_bushCB;
@@ -153,7 +153,7 @@ private:
     static const wchar_t* c_trunkHitGroupName;
     static const wchar_t* c_leavesHitGroupName;
     static const wchar_t* c_bushHitGroupName;
-    static const wchar_t* c_transparentCubeHitGroupName;
+    static const wchar_t* c_reflectiveCubeHitGroupName;
     static const wchar_t* c_raygenShaderName;
     static const wchar_t* c_floorClosestHitShaderName;
     static const wchar_t* c_trunkClosestHitShaderName;
@@ -192,7 +192,7 @@ private:
     void CreateRaytracingPipelineStateObject();
     void CreateDescriptorHeap();
     void CreateRaytracingOutputResource();
-    void BuildGeometry();
+    void BuildCubeGeometry();
     void CreateTexture();
     void BuildTreeGeometry();
     void BuildAccelerationStructures();
