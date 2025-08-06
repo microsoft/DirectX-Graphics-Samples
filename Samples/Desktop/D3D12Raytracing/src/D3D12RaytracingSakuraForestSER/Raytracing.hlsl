@@ -299,7 +299,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
         float3 refColor = lerp(baseColor, reflectionColor.rgb, fresnel) * 1.7f;
 
-        // Star Nest by Pablo Roman Andrioli
+          // Star Nest by Pablo Roman Andrioli
         // Volumetric fractal clouds effect
         const int FractalSampleSteps = 270;
         const int FractalIterations = 50;
