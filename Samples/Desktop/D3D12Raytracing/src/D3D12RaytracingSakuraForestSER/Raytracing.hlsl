@@ -14,6 +14,7 @@
 #define RAYTRACING_HLSL
 #define HLSL
 #include "RaytracingHlslCompat.h"
+#include "Star.hlsli"
 
 using namespace dx;
 RaytracingAccelerationStructure Scene : register(t0, space0);
@@ -42,8 +43,7 @@ SamplerState BushSampler : register(s1);
 
     
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
-    
-
+  
     
 // Struct defines the payload used during ray tracing 
 struct [raypayload] RayPayload
@@ -52,14 +52,6 @@ struct [raypayload] RayPayload
     uint recursionDepth : write(caller) : read(closesthit);
     uint reflectHint : write(caller) : read(closesthit, caller);
 };
-    
-struct [raypayload] ShadowRayPayload
-{
-        bool hit : write(closesthit, miss) : read(caller);
-    };
-
-    
-
     
 
 // Retrieve hit world position.
@@ -216,55 +208,12 @@ float4 TraceRadianceRay(in Ray ray, in int currentRayRecursionDepth)
 
     return rayPayload.color;
 }
-    
-// Trace a shadow ray and return true if it hits any geometry.
-bool TraceShadowRayAndReportIfHit(in Ray ray, in int currentRayRecursionDepth)
-{
-    if (currentRayRecursionDepth >= 1)
-    {
-        return false;
-    }
-
-    // Set the ray's extents.
-    RayDesc rayDesc;
-    rayDesc.Origin = ray.Origin;
-    rayDesc.Direction = ray.Direction;
-    // Set TMin to a zero value to avoid aliasing artifcats along contact areas.
-    // Note: make sure to enable back-face culling so as to avoid surface face fighting.
-    rayDesc.TMin = 0;
-    rayDesc.TMax = 10000;
-
-    // Initialize shadow ray payload.
-    // Set the initial value to true since closest and any hit shaders are skipped. 
-    // Shadow miss shader, if called, will set it to false.
-    ShadowRayPayload shadowPayload = { true };
-    TraceRay(Scene,
-    RAY_FLAG_CULL_BACK_FACING_TRIANGLES
-    | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH
-    | RAY_FLAG_FORCE_OPAQUE // ~skip any hit shaders
-    | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, // ~skip closest hit shaders,
-    ~0, // InstanceInclusionMask
-    1, // RayContributionToHitGroupIndex for shadow rays
-    2, // MultiplierForGeometryContributionToHitGroupIndex
-    1, // MissShaderIndex for shadow rays
-    rayDesc, shadowPayload);
-
-    return shadowPayload.hit;
-}
 
     
 [shader("closesthit")]
 void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 {
     float3 hitPosition = HitWorldPosition();
-    
-    // Shadow component - trace for all floor pixels, not just reflective ones
-    // Ray shadowRay = { hitPosition + float3(0, 0.001f, 0), normalize(g_sceneCB.lightPosition.xyz - hitPosition) };
-    // bool shadowRayHit = TraceShadowRayAndReportIfHit(shadowRay, payload.recursionDepth);
-    
-    // Calculate shadow factor
-    // float shadowFactor = shadowRayHit ? 0.3f : 1.0f; // 0.3 for ambient when in shadow
-    
     uint baseIndex = PrimitiveIndex() * 3;
     uint offset = baseIndex * 4;
     uint3 indices = IndicesCube.Load3(offset);
@@ -280,8 +229,8 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 vertexNormals[3] =
     {
         VerticesCube[indices.x].normal,
-    VerticesCube[indices.y].normal,
-    VerticesCube[indices.z].normal
+        VerticesCube[indices.y].normal,
+        VerticesCube[indices.z].normal
     };
         
     triangleNormal = HitAttribute(vertexNormals, attr);
@@ -298,52 +247,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
         float4 reflectionColor = TraceRadianceRay(reflectionRay, payload.recursionDepth);
         float3 fresnel = FresnelReflectanceSchlick(WorldRayDirection(), triangleNormal, baseColor);
         float3 refColor = lerp(baseColor, reflectionColor.rgb, fresnel) * 1.7f;
-
-          // Star Nest by Pablo Roman Andrioli
-        // Volumetric fractal clouds effect
-        const int FractalSampleSteps = 270;
-        const int FractalIterations = 50;
-        const float SampleSpacing = 0.05;
-        const float FractalOffset = 0.53;
-
-        float fractalDensity = 0;
-        float fadeFactor = 1.0;
-
-        for (int s = 0; s < FractalSampleSteps; ++s)
-        {
-            float3 p = hitPosition + triangleNormal * (s * SampleSpacing);
-            p = abs(fmod(p, 2.0) - 1.0);
-
-            float pa = 0;
-            float a = 0;
-            for (int i = 0; i < FractalIterations; ++i)
-            {
-                float invLen2 = 1.0 / dot(p, p);
-                p = abs(p) * invLen2 - FractalOffset;
-                float lenP = length(p);
-                a += abs(lenP - pa);
-                pa = lenP;
-            }
-
-            fractalDensity += a * fadeFactor;
-            fadeFactor *= 0.9;
-        }
-
-        // Normalize & smooth fractal density
-        fractalDensity = saturate(fractalDensity / (FractalSampleSteps * FractalIterations * 0.12));
-        float d = smoothstep(0.1, 0.9, fractalDensity);
-
-        // Cloud color ramp & light glow
-        float3 blue = float3(0.4, 0.6, 1.0); // Soft blue
-        float3 pink = float3(1.0, 0.6, 0.8); // Soft pink
-        float3 cloud = lerp(blue, pink, d);
-
-        float3 L = normalize(g_sceneCB.lightPosition.xyz - hitPosition);
-        float lightD = saturate(dot(triangleNormal, L));
-        cloud *= lerp(0.8 + 0.2 * lightD, 4.0, d); // lightD ranges [0.8,1.0]
-    
-        // Composite reflection with clouds
-        finalColor = lerp(refColor, cloud, d * 1.3);
+        finalColor = refColor;
     }
     else
     {
@@ -504,52 +408,19 @@ void MyMissShader(inout RayPayload payload)
     float3 rayOrigin = WorldRayOrigin();
     float3 rayDir = normalize(WorldRayDirection());
     float3 skyPosition = rayDir * 10.0f;
-    
-    // Star Nest by Pablo Roman Andrioli
-    // Volumetric fractal clouds effect
-    const int FractalSampleSteps = 200;
-    const int FractalIterations = 50;
-    const float SampleSpacing = 0.05;
-    const float FractalOffset = 0.53;
+    float fractalDensity = CalculateStarNest(skyPosition, rayDir);
 
-    float fractalDensity = 0;
-    float fadeFactor = 1.0;
-
-    for (int s = 0; s < FractalSampleSteps; ++s)
-    {
-        float3 p = skyPosition + rayDir * (s * SampleSpacing);
-        p = abs(fmod(p, 2.0) - 1.0);
-
-        float pa = 0;
-        float a = 0;
-        for (int i = 0; i < FractalIterations; ++i)
-        {
-            float invLen2 = 1.0 / dot(p, p);
-            p = abs(p) * invLen2 - FractalOffset;
-            float lenP = length(p);
-            a += abs(lenP - pa);
-            pa = lenP;
-        }
-
-        fractalDensity += a * fadeFactor;
-        fadeFactor *= 0.9;
-    }
-
-    // Normalize & smooth fractal density
-    fractalDensity = saturate(fractalDensity / (FractalSampleSteps * FractalIterations * 0.12));
-    float d = smoothstep(0.1, 0.9, fractalDensity);
-
-    // Cloud color ramp & light glow
+    // Create soft purple light glow
     float3 blue = float3(0.4, 0.6, 1.0); // Soft blue
     float3 pink = float3(1.0, 0.6, 0.8); // Soft pink
-    float3 cloud = lerp(blue, pink, d);
+    float3 cloud = lerp(blue, pink, fractalDensity);
 
     float3 L = normalize(g_sceneCB.lightPosition.xyz - skyPosition);
-    float lightD = saturate(dot(rayDir, L)); // Use ray direction as "normal" for sky
-    cloud *= lerp(0.8 + 0.2 * lightD, 4.0, d);
+    float lightD = saturate(dot(rayDir, L)); 
+    cloud *= lerp(0.8 + 0.2 * lightD, 4.0, fractalDensity);
     
     // Composite background with clouds
-    float3 finalColor = lerp(background.rgb, cloud, d * 1.3);
+    float3 finalColor = lerp(background.rgb, cloud, fractalDensity * 1.3);
     payload.color = float4(finalColor, 1.0f);
 }
 

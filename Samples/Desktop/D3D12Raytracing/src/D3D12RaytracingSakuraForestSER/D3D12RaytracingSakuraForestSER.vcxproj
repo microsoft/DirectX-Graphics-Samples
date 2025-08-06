@@ -168,6 +168,7 @@
     <ClInclude Include="ObjModelLoader.h" />
     <ClInclude Include="RaytracingHlslCompat.h" />
     <ClInclude Include="SharedCode.h" />
+    <ClInclude Include="Star.hlsli" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12RaytracingSakuraForestSER.h" />

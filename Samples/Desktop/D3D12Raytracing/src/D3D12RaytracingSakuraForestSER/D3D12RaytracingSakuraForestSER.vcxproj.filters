@@ -45,9 +45,6 @@
     <ClInclude Include="DeviceResources.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="D3D12RaytracingSakuraScene.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="DirectXRaytracingHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -59,6 +56,7 @@
     <ClInclude Include="HlslCompat.h">
       <Filter>Assets\Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="D3D12RaytracingSakuraForestSER.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -76,10 +74,8 @@
     <ClCompile Include="DeviceResources.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
-    <ClCompile Include="D3D12RaytracingSakuraScene.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ObjModelLoader.cpp" />
+    <ClCompile Include="D3D12RaytracingSakuraForestSER.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.md" />
@@ -87,5 +83,6 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Raytracing.hlsl" />
+    <FxCompile Include="Star.hlsl" />
   </ItemGroup>
 </Project>
