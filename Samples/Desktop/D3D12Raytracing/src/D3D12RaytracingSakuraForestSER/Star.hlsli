@@ -7,9 +7,9 @@
 // IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
-// Portions of this code are based on work by Pablo Roman Andrioli.
-// Star Nest.
-// Licensed under the MIT License.
+// Portions of this file incorporate work by Pablo Roman Andrioli,
+// specifically the Star Nest volumetric fractal clouds effect formula,
+// which is licensed under the MIT License.
 // 
 //*********************************************************
 
@@ -50,9 +50,7 @@ float3 CalculateStarNest(float3 skyPosition, float3 rayDir)
 	// Normalize & smooth fractal density
 	fractalDensity = saturate(fractalDensity / (FractalSampleSteps * FractalIterations * 0.12));
 	float smoothedDensity = smoothstep(0.1, 0.9, fractalDensity);
-
 	return smoothedDensity;
 }
-
 
 #endif // STAR_NEST_H
