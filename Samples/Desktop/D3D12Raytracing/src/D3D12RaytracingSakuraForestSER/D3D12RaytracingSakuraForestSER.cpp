@@ -1029,7 +1029,6 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
     int objectsPerRow = 20; // Object per row along Z and X axis
     float largerCubeSpacing = 4.0f; // Spacing between larger cubes
     float randomCubeSpacing = 0.1f; // Spacing between random smaller cubes
-	float spacingGap = 0.0f; // Gap between two groups of forests
 
 	// Create random number generator for random offsets
     std::random_device rd;
@@ -1038,7 +1037,7 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
 
     std::random_device rdBush;
     std::mt19937 genBush(rdBush());
-    std::uniform_real_distribution<float> randomOffsetBush(0.0f, 0.4f);
+    std::uniform_real_distribution<float> randomOffsetBush(0.7f, 0.75f);
 
     // Larger cubes for the floor
     for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
@@ -1098,7 +1097,7 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
     }
 
     int treesPerRow = 30;
-    float spacingBetweenTrees = 1.7f;
+    float spacingBetweenTrees = 1.9f;
 
     // Trunk and leaves
     // Store random positions for trunks
@@ -1166,11 +1165,12 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
     {
         for (int z = -bushesPerRow / 2; z <= bushesPerRow / 2; ++z)
         {
+            float randomXOffset = randomOffset(gen);
             float randomYOffset = randomOffsetBush(genBush);
 
-            float posX = x * 0.07;
-            float posY = 0.80f + randomYOffset;
-            float posZ = z * 0.07;
+            float posX = x * 0.2 + randomXOffset;
+            float posY = 1.2f + randomYOffset;
+            float posZ = z * 0.2;
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
             float scale = 2.1f; // Bush scale
@@ -1179,7 +1179,7 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
             desc.Transform[2][2] = scale;
 
             desc.Transform[0][3] = posX; // X position with offset
-            desc.Transform[1][3] = posY + 0.8f; // Y position with offset
+            desc.Transform[1][3] = posY; // Y position with offset
             desc.Transform[2][3] = posZ; // Z position
 
             desc.InstanceMask = 1;

@@ -277,17 +277,21 @@ void TrunkClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     vertexNormals[2] = VerticesTrunk[indices.z].normal;
     triangleNormal = HitAttribute(vertexNormals, attr);
             
-    float3 vertexTexCoords[3];
-    vertexTexCoords[0] = VerticesTrunk[indices.x].uv;
-    vertexTexCoords[1] = VerticesTrunk[indices.y].uv;
-    vertexTexCoords[2] = VerticesTrunk[indices.z].uv;
-    float2 interpolatedTexCoord = HitAttribute(vertexTexCoords, attr).xy;
-    sampled.rgb = TrunkTexture.SampleLevel(TrunkSampler, interpolatedTexCoord, 0).rgb;
-        
-    float3 baseColor = albedo * sampled.rgb;
-    float3 finalColor;
+    // Sample texture from 3 planes (triplanar mapping)
+    float2 uvX = hitPosition.yz * 0.5;
+    float2 uvY = hitPosition.xz * 0.5;
+    float2 uvZ = hitPosition.xy * 0.5;
+    
+    float3 texX = TrunkTexture.SampleLevel(TrunkSampler, uvX, 0).rgb;
+    float3 texY = TrunkTexture.SampleLevel(TrunkSampler, uvY, 0).rgb;
+    float3 texZ = TrunkTexture.SampleLevel(TrunkSampler, uvZ, 0).rgb;
+    
+    // Blend based on normal
+    float3 blendWeights = abs(triangleNormal);
+    blendWeights = normalize(max(blendWeights, 0.00001));
+    sampled.rgb = texX * blendWeights.x + texY * blendWeights.y + texZ * blendWeights.z;
 
-    finalColor = albedo * sampled.rgb * 0.7f; 
+    float3 finalColor = albedo * sampled.rgb * 0.5f;
     payload.color = float4(finalColor, g_cubeCB.albedo.w);
 }
     
