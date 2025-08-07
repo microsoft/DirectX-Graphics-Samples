@@ -1554,15 +1554,22 @@ void D3D12RaytracingSakuraForestSER::OnUpdate()
         const XMVECTOR& prevLightPosition = m_sceneCB[prevFrameIndex].lightPosition;
         m_sceneCB[frameIndex].lightPosition = XMVector3Transform(prevLightPosition, rotate);
     }
-    m_sceneCB[frameIndex].enableSER = m_serEnabled ? 1 : 0;
-    if (m_sortByHit)
-        m_sceneCB[frameIndex].sortMode = SORTMODE_BY_HIT;
-    else if (m_sortByMaterial)
-        m_sceneCB[frameIndex].sortMode = SORTMODE_BY_MATERIAL;
-    else if (m_sortByBoth)
-        m_sceneCB[frameIndex].sortMode = SORTMODE_BY_BOTH;
-    else
+    if (!m_serEnabled)
+    {
         m_sceneCB[frameIndex].sortMode = SORTMODE_OFF;
+    }
+    else if (m_sortByHit)
+    {
+        m_sceneCB[frameIndex].sortMode = SORTMODE_BY_HIT;
+    }
+    else if (m_sortByMaterial)
+    {
+        m_sceneCB[frameIndex].sortMode = SORTMODE_BY_MATERIAL;
+    }
+    else if (m_sortByBoth)
+    {
+        m_sceneCB[frameIndex].sortMode = SORTMODE_BY_BOTH;
+    }
 }
 
 void D3D12RaytracingSakuraForestSER::DoRaytracing()

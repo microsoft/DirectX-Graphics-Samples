@@ -37,7 +37,6 @@ struct SceneConstantBuffer
     XMVECTOR lightPosition;
     XMVECTOR lightAmbientColor;
     XMVECTOR lightDiffuseColor;
-    uint32_t enableSER;
     uint32_t sortMode;
 };
 
