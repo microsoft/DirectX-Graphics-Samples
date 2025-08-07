@@ -96,20 +96,76 @@ inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 directi
     direction = normalize(world.xyz - origin);
 }
     
+    
+// Helper function to configure reflection hints based on material properties
+void ConfigureReflectionHints(in HitObject hit, in float3 origin, in float3 rayDir, inout RayPayload payload)
+{
+    // Only process hints for material-based sorting modes
+    if (g_sceneCB.sortMode != SORTMODE_BY_MATERIAL && g_sceneCB.sortMode != SORTMODE_BY_BOTH)
+        return;
+    
+    uint materialID = hit.LoadLocalRootTableConstant(16);
+    
+    // Check for reflective floor material
+    if (materialID == 0) // Floor
+    {
+        // Calculate floor intersection point
+        float t = -origin.y / rayDir.y;
+        float3 estimatedHit = origin + t * rayDir;
+        float2 uv = frac(estimatedHit.xz);
+        
+        // Sample texture to determine if area is reflective (dark areas)
+        float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
+        if (all(texColor.rgb < 0.1))
+        {
+            payload.reflectHint = 1;
+        }
+    }
+    // Check for reflective cube
+    else if (materialID == 1) // Reflective cube
+    {
+        payload.reflectHint = 1;
+    }
+}
+    
+
+// Helper function to apply thread reordering based on sort mode
+void ApplyThreadReordering(in HitObject hit, in RayPayload payload)
+{
+    const uint numHintBits = 1;
+    switch (g_sceneCB.sortMode)
+    {
+        case SORTMODE_BY_HIT:
+            dx::MaybeReorderThread(hit);
+            break;
+            
+        case SORTMODE_BY_MATERIAL:
+            dx::MaybeReorderThread(payload.reflectHint, numHintBits);
+            break;
+            
+        case SORTMODE_BY_BOTH:
+            dx::MaybeReorderThread(hit, payload.reflectHint, numHintBits);
+            break;
+    }
+}
+    
 
 [shader("raygeneration")]
 void MyRaygenShader()
 {
+    // Generate primary ray from camera
     float3 rayDir;
     float3 origin;
     GenerateCameraRay(DispatchRaysIndex().xy, origin, rayDir);
 
+    // Initialize ray descriptor
     RayDesc ray;
     ray.Origin = origin;
     ray.Direction = rayDir;
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
 
+    // Initialize payload
     RayPayload payload = { float4(0, 0, 0, 0), 0, 0 };
 
     if (g_sceneCB.sortMode == SORTMODE_OFF)
@@ -121,55 +177,20 @@ void MyRaygenShader()
     {
         // SER is on
         HitObject hit = HitObject::TraceRay(Scene, 0, ~0, 0, 1, 0, ray, payload);
-            
-        // Only do reflectHint/material logic when sorting by material or sort by both
-        if (g_sceneCB.sortMode == SORTMODE_BY_MATERIAL || g_sceneCB.sortMode == SORTMODE_BY_BOTH)
-        {
-            uint materialID = hit.LoadLocalRootTableConstant(16);
-            bool isFloor = (materialID == 0);
-            bool isTransparentCube = (materialID == 1);
-
-            if (isFloor)
-            {
-                float t = -origin.y / rayDir.y;
-                float3 estimatedHit = origin + t * rayDir;
-                float2 uv = frac(estimatedHit.xz * 1.0);
-                float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
-                if (texColor.r < 0.1 && texColor.g < 0.1 && texColor.b < 0.1)
-                {
-                    payload.reflectHint = 1;
-                }
-            }
-
-            if (isTransparentCube)
-            {
-                payload.reflectHint = 1;
-            }
-        }
-            
-        uint numHintBits = 1;
-
-        switch (g_sceneCB.sortMode)
-        {
-            case SORTMODE_BY_HIT:
-                dx::MaybeReorderThread(hit);
-                break;
-            case SORTMODE_BY_MATERIAL:
-                dx::MaybeReorderThread(payload.reflectHint, numHintBits);
-                break;
-            case SORTMODE_BY_BOTH:
-                dx::MaybeReorderThread(hit, payload.reflectHint, numHintBits);
-                break;
-            default:
-                break;
-        }
-
+        
+        // Configure reflection hints for material-based sorting
+        ConfigureReflectionHints(hit, origin, rayDir, payload);
+        
+        // Apply thread reordering based on sort mode
+        ApplyThreadReordering(hit, payload);
+        
+        // Execute the hit shader
         HitObject::Invoke(hit, payload);
     }
-
-    float4 color = payload.color;
-    RenderTarget[DispatchRaysIndex().xy] = color;
+    RenderTarget[DispatchRaysIndex().xy] = payload.color;
 }
+
+
 
     
 // Fresnel reflectance - schlick approximation.
