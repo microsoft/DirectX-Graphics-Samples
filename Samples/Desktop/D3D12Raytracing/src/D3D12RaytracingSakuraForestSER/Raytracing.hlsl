@@ -211,7 +211,7 @@ struct Ray
 // Trace a radiance ray into the scene and returns a shaded color.
 float4 TraceRadianceRay(in Ray ray, in int currentRayRecursionDepth)
 {
-    if (currentRayRecursionDepth >= 1)
+    if (currentRayRecursionDepth >= 2)
     {
         return float4(0, 0, 0, 0);
     }
