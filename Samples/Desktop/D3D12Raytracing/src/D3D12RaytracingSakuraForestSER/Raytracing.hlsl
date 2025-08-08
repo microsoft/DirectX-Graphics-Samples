@@ -15,7 +15,6 @@
 #define HLSL
 #include "RaytracingHlslCompat.h"
 #include "Star.hlsli"
-#define MAX_RECURSION_DEPTH 2
 
 using namespace dx;
 RaytracingAccelerationStructure Scene : register(t0, space0);

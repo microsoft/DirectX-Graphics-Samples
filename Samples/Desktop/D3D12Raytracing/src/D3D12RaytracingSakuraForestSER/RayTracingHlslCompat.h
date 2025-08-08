@@ -11,6 +11,7 @@
 
 #ifndef RAYTRACINGHLSLCOMPAT_H
 #define RAYTRACINGHLSLCOMPAT_H
+#define MAX_RECURSION_DEPTH 2
 
 #ifdef HLSL
 #include "HlslCompat.h"

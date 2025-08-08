@@ -648,7 +648,7 @@ void D3D12RaytracingSakuraForestSER::CreateRaytracingPipelineStateObject()
     // Pipeline config
     // Defines the maximum TraceRay() recursion depth.
     auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
-    UINT maxRecursionDepth = 2;
+    UINT maxRecursionDepth = MAX_RECURSION_DEPTH;
     pipelineConfig->Config(maxRecursionDepth);
 
 #if _DEBUG
