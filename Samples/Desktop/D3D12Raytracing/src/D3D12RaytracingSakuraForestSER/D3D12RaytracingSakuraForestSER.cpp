@@ -38,7 +38,7 @@ const wchar_t* D3D12RaytracingSakuraForestSER::c_floorClosestHitShaderName = L"F
 const wchar_t* D3D12RaytracingSakuraForestSER::c_trunkClosestHitShaderName = L"TrunkClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraForestSER::c_leavesClosestHitShaderName = L"LeavesClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraForestSER::c_bushClosestHitShaderName = L"BushClosestHitShader";
-const wchar_t* D3D12RaytracingSakuraForestSER::c_tcubeClosestHitShaderName = L"TCubeClosestHitShader";
+const wchar_t* D3D12RaytracingSakuraForestSER::c_refCubeClosestHitShaderName = L"TCubeClosestHitShader";
 const wchar_t* D3D12RaytracingSakuraForestSER::c_missShaderName = L"MyMissShader";
 
 #define PRINT(text) OutputDebugStringA(text);
@@ -227,7 +227,7 @@ void D3D12RaytracingSakuraForestSER::InitializeScene()
         // Initialize the view and projection inverse matrices.
         // m_eye currently at the middle of the forest
         m_eye = { 0.0f, 2.2f, -2.0f, 1.0f };
-        m_at = { 1.0f, 1.65f, -6.0f, 1.0f };
+        m_at = { 1.0f, 2.5f, -6.0f, 1.0f };
         XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
@@ -596,7 +596,7 @@ void D3D12RaytracingSakuraForestSER::CreateRaytracingPipelineStateObject()
         lib->DefineExport(c_trunkClosestHitShaderName);
         lib->DefineExport(c_leavesClosestHitShaderName);
         lib->DefineExport(c_bushClosestHitShaderName);
-        lib->DefineExport(c_tcubeClosestHitShaderName);
+        lib->DefineExport(c_refCubeClosestHitShaderName);
         lib->DefineExport(c_missShaderName);
     }
 
@@ -623,10 +623,10 @@ void D3D12RaytracingSakuraForestSER::CreateRaytracingPipelineStateObject()
     bushHitGroup->SetHitGroupExport(c_bushHitGroupName);
     bushHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
-    auto tcubeHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
-    tcubeHitGroup->SetClosestHitShaderImport(c_tcubeClosestHitShaderName);
-    tcubeHitGroup->SetHitGroupExport(c_reflectiveCubeHitGroupName);
-    tcubeHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+    auto refCubeHitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    refCubeHitGroup->SetClosestHitShaderImport(c_refCubeClosestHitShaderName);
+    refCubeHitGroup->SetHitGroupExport(c_reflectiveCubeHitGroupName);
+    refCubeHitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
     // Shader config
    //  Defines the maximum sizes in bytes for the ray payload and attribute structure.
@@ -1258,7 +1258,7 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
     void* trunkHitGroupShaderIdentifier;
     void* leavesHitGroupShaderIdentifier;
     void* bushHitGroupShaderIdentifier;
-    void* tcubeHitGroupShaderIdentifier;
+    void* refCubeHitGroupShaderIdentifier;
 
     auto GetShaderIdentifiers = [&](auto* stateObjectProperties)
     {
@@ -1268,7 +1268,7 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
         trunkHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_trunkHitGroupName);
         leavesHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_leavesHitGroupName);
         bushHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_bushHitGroupName);
-        tcubeHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_reflectiveCubeHitGroupName);
+        refCubeHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(c_reflectiveCubeHitGroupName);
     };
 
     // Get shader identifiers.
@@ -1338,7 +1338,7 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
             argument.cb = m_reflectiveCubeCB;
             argument.cb.albedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f); 
             argument.cb.materialID = 1;
-            hitGroupShaderTable.push_back(ShaderRecord(tcubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
+            hitGroupShaderTable.push_back(ShaderRecord(refCubeHitGroupShaderIdentifier, shaderIdentifierSize, &argument, sizeof(argument)));
         }
 
         // Tree trunk shader records

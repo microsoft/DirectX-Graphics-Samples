@@ -158,7 +158,7 @@ private:
     static const wchar_t* c_floorClosestHitShaderName;
     static const wchar_t* c_trunkClosestHitShaderName;
     static const wchar_t* c_leavesClosestHitShaderName;
-    static const wchar_t* c_tcubeClosestHitShaderName;
+    static const wchar_t* c_refCubeClosestHitShaderName;
     static const wchar_t* c_missShaderName;
     static const wchar_t* c_bushClosestHitShaderName;
     ComPtr<ID3D12Resource> m_missShaderTable;

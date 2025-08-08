@@ -15,6 +15,7 @@
 #define HLSL
 #include "RaytracingHlslCompat.h"
 #include "Star.hlsli"
+#define MAX_RECURSION_DEPTH 2
 
 using namespace dx;
 RaytracingAccelerationStructure Scene : register(t0, space0);
@@ -41,7 +42,6 @@ SamplerState TrunkSampler : register(s0);
 Texture2D<float4> BushTexture : register(t10, space0);
 SamplerState BushSampler : register(s1);
 
-    
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
   
     
@@ -166,7 +166,7 @@ void MyRaygenShader()
     ray.TMax = 10000.0;
 
     // Initialize payload
-    RayPayload payload = { float4(0, 0, 0, 0), 0, 0 };
+    RayPayload payload = { float4(0, 0, 0, 0), 1, 0 };
 
     if (g_sceneCB.sortMode == SORTMODE_OFF)
     {
@@ -190,8 +190,6 @@ void MyRaygenShader()
     RenderTarget[DispatchRaysIndex().xy] = payload.color;
 }
 
-
-
     
 // Fresnel reflectance - schlick approximation.
 float3 FresnelReflectanceSchlick(in float3 I, in float3 N, in float3 f0)
@@ -211,7 +209,8 @@ struct Ray
 // Trace a radiance ray into the scene and returns a shaded color. 
 float4 TraceRadianceRay(in Ray ray, in int currentRayRecursionDepth)
 {
-    if (currentRayRecursionDepth >= 1)
+    // Stop tracing if maximum depth is reached.
+    if (currentRayRecursionDepth >= MAX_RECURSION_DEPTH)
     {
         return float4(0, 0, 0, 0);
     }
@@ -220,8 +219,7 @@ float4 TraceRadianceRay(in Ray ray, in int currentRayRecursionDepth)
     RayDesc rayDesc;
     rayDesc.Origin = ray.Origin;
     rayDesc.Direction = ray.Direction;
-    // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
-    // Note: make sure to enable face culling so as to avoid surface face fighting.
+    // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     rayDesc.TMin = 0.001;
     rayDesc.TMax = 10000;
     RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1, 0 };
@@ -259,7 +257,7 @@ void FloorClosestHitShader(inout RayPayload payload, in MyAttributes attr)
     float3 finalColor;
 
     // Trace reflection ray if surface is dark
-    if (all(sampled.rgb < 0.1) && payload.recursionDepth < 2)
+    if (all(sampled.rgb < 0.1) && payload.recursionDepth < MAX_RECURSION_DEPTH)
     {
         Ray reflectionRay;
         reflectionRay.Origin = hitPosition + triangleNormal * 0.001f;
@@ -426,7 +424,6 @@ void TCubeClosestHitShader(inout RayPayload payload, in MyAttributes attr)
 [shader("miss")]
 void MyMissShader(inout RayPayload payload)
 {
-    //float4 background = float4(1.0000f, 0.9216f, 0.9373f, 1.0f);
     float4 background = float4(0.05f, 0.02f, 0.08f, 1.0f);
     
     // Create sky position and ray direction
