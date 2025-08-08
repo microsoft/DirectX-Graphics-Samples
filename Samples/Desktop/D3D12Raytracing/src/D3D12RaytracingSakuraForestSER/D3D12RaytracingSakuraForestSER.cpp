@@ -1112,9 +1112,9 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
             float randomYOffset = randomOffset(gen);
             float randomZOffset = randomOffset(gen);
 
-            float posX = x * spacingBetweenTrees + randomXOffset;
-            float posY = 2.0f - (randomYOffset / 8);
-            float posZ = z * spacingBetweenTrees + randomZOffset;
+            float posX = x * spacingBetweenTrees + (randomXOffset / 6);
+            float posY = 2.0f - (randomYOffset / 3);
+            float posZ = z * spacingBetweenTrees + (randomZOffset / 6);
             trunkPositions.emplace_back(posX, posY, posZ);
 
             // Trunk instance
