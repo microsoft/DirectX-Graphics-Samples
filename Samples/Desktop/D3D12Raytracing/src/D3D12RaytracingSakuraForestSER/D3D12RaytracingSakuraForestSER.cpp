@@ -1170,7 +1170,7 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
             float randomZOffset = randomOffset(gen);
 
             float posX = x * 0.2 + randomXOffset;
-            float posY = 1.2f + randomYOffset;
+            float posY = 1.7f + (randomYOffset / 3);
             float posZ = z * 0.2 + randomZOffset;
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};

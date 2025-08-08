@@ -14,10 +14,9 @@ The `reflectHint` is computed by sampling the floor texture at the estimated hit
 
 The scene applies a heavy workload to the skybox, which makes this element more expensive than in a typical game scenario. This characteristic contributes to the performance differences observed with SER in this sample. In particular, viewpoints where the sky is visible through gaps in the tree canopy exhibit highly variable shading costs. This variability is the kind of situation where SER can provide benefits. 
 
-MaybeReorderThread() on `reflectHint` was introduced to illustrate another potential source of variability (e.g. heavy reflections) that SER could reorder on. However, on the GPUs tested, this property ended up not significantly impacting performance in most cases. 
-
-## Usage
-D3D12RaytracingBasicShaderExecutionReordering.exe
+MaybeReorderThread() on `reflectHint` was introduced to demo another potential property that causes variability (e.g. reflections are much heavier than other workloads such as simple lighting calculations) SER could reorder on. In testing for this particular sample, this property showed minimal benefit on the RTX 5070; however, it had no noticeable impact on higher-end GPUs like the RTX 4080 and 4090.
+## Usage 
+D3D12RaytracingBasicShaderExecutionReordering.exe 
 
 Additional arguments:
   * [-forceAdapter \<ID>] - create a D3D12 device on an adapter \<ID>. Defaults to adapter 0.
