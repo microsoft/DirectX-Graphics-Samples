@@ -97,7 +97,7 @@ inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 directi
 }
     
     
-// Helper function to configure reflection hints based on material properties
+// Configure reflection hints based on material properties
 void ConfigureReflectionHints(in HitObject hit, in float3 origin, in float3 rayDir, inout RayPayload payload)
 {
     // Only process hints for material-based sorting modes
@@ -129,7 +129,7 @@ void ConfigureReflectionHints(in HitObject hit, in float3 origin, in float3 rayD
 }
     
 
-// Helper function to apply thread reordering based on sort mode
+// Apply thread reordering based on sort mode
 void ApplyThreadReordering(in HitObject hit, in RayPayload payload)
 {
     const uint numHintBits = 1;
@@ -435,14 +435,13 @@ void MyMissShader(inout RayPayload payload)
     // Create soft purple light glow
     float3 blue = float3(0.4, 0.6, 1.0); // Soft blue
     float3 pink = float3(1.0, 0.6, 0.8); // Soft pink
-    float3 cloud = lerp(blue, pink, fractalDensity);
+    float3 glow = lerp(blue, pink, fractalDensity);
 
     float3 L = normalize(g_sceneCB.lightPosition.xyz - skyPosition);
     float lightD = saturate(dot(rayDir, L)); 
-    cloud *= lerp(0.8 + 0.2 * lightD, 4.0, fractalDensity);
+    glow *= lerp(0.8 + 0.2 * lightD, 4.0, fractalDensity);
     
-    // Composite background with clouds
-    float3 finalColor = lerp(background.rgb, cloud, fractalDensity * 1.3);
+    float3 finalColor = lerp(background.rgb, glow, fractalDensity * 1.3);
     payload.color = float4(finalColor, 1.0f);
 }
 
