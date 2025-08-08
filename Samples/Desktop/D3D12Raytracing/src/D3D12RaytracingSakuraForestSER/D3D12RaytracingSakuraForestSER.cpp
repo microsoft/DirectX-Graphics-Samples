@@ -1026,9 +1026,11 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
     ComPtr<ID3D12Resource> instanceDescsResource;
     std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDesc;
 
-    int objectsPerRow = 20; // Object per row along Z and X axis
+    int cubesPerRow = 20; // Number of cubes per row along Z and X axis that make up the floor
     float largerCubeSpacing = 4.0f; // Spacing between larger cubes
     float randomCubeSpacing = 0.1f; // Spacing between random smaller cubes
+	int treesPerRow = 30; // Number of trees per row along Z and X axis
+	float treeSpacing = 1.9f; // Spacing between trees
 
 	// Create random number generator for random offsets
     std::random_device rd;
@@ -1040,9 +1042,9 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
     std::uniform_real_distribution<float> randomOffsetBush(0.7f, 0.75f);
 
     // Larger cubes for the floor
-    for (int x = -objectsPerRow / 2; x <= objectsPerRow / 2; ++x)
+    for (int x = -cubesPerRow / 2; x <= cubesPerRow / 2; ++x)
     {
-        for (int z = -objectsPerRow / 2; z <= objectsPerRow / 2; ++z)
+        for (int z = -cubesPerRow / 2; z <= cubesPerRow / 2; ++z)
         {
             float posX = x * largerCubeSpacing + 10.0f;
             float posY = 0.0f;
@@ -1074,7 +1076,7 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
         {
             float randomYOffset = randomOffset(gen);
 
-            float posX = x * randomCubeSpacing;
+            float posX = 0.5f + x * randomCubeSpacing;
             float posY = 1.7f + randomYOffset;
             float posZ = z * randomCubeSpacing;
 
@@ -1084,9 +1086,9 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
             desc.Transform[1][1] = scale;
             desc.Transform[2][2] = scale;
 
-            desc.Transform[0][3] = 0.5f + posX; // X position with offset
-            desc.Transform[1][3] = posY; // Y position with offset
-            desc.Transform[2][3] = posZ; // Z position
+            desc.Transform[0][3] = posX; 
+            desc.Transform[1][3] = posY; 
+            desc.Transform[2][3] = posZ; 
 
             desc.InstanceMask = 1;
             desc.AccelerationStructure = m_bottomLevelAccelerationStructureCube->GetGPUVirtualAddress();
@@ -1095,9 +1097,6 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
             instanceDesc.push_back(desc);
         }
     }
-
-    int treesPerRow = 30;
-    float spacingBetweenTrees = 1.9f;
 
     // Trunk and leaves
     // Store random positions for trunks
@@ -1112,9 +1111,9 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
             float randomYOffset = randomOffset(gen);
             float randomZOffset = randomOffset(gen);
 
-            float posX = x * spacingBetweenTrees + (randomXOffset / 6);
+            float posX = x * treeSpacing + (randomXOffset / 6);
             float posY = 2.0f - (randomYOffset / 3);
-            float posZ = z * spacingBetweenTrees + (randomZOffset / 6);
+            float posZ = z * treeSpacing + (randomZOffset / 6);
             trunkPositions.emplace_back(posX, posY, posZ);
 
             // Trunk instance
@@ -1127,6 +1126,7 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
             desc.Transform[0][3] = posX;
             desc.Transform[1][3] = posY;
             desc.Transform[2][3] = posZ;
+
             desc.InstanceMask = 1;
             desc.AccelerationStructure = m_bottomLevelAccelerationStructureTrunk->GetGPUVirtualAddress();
             desc.InstanceID = static_cast<UINT>(instanceDesc.size());
@@ -1147,9 +1147,9 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
         desc.Transform[2][2] = scale;
 
         // Use the same position as the corresponding trunk
-        desc.Transform[0][3] = std::get<0>(trunkPositions[i]); // X position
-        desc.Transform[1][3] = std::get<1>(trunkPositions[i]); // Y position
-        desc.Transform[2][3] = std::get<2>(trunkPositions[i]); // Z position
+        desc.Transform[0][3] = std::get<0>(trunkPositions[i]); 
+        desc.Transform[1][3] = std::get<1>(trunkPositions[i]); 
+        desc.Transform[2][3] = std::get<2>(trunkPositions[i]); 
 
         desc.InstanceMask = 1;
         desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
@@ -1179,10 +1179,9 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
             desc.Transform[1][1] = scale;
             desc.Transform[2][2] = scale;
 
-            desc.Transform[0][3] = posX; // X position with offset
-            desc.Transform[1][3] = posY; // Y position with offset
-            desc.Transform[2][3] = posZ; // Z position
-
+            desc.Transform[0][3] = posX; 
+            desc.Transform[1][3] = posY; 
+            desc.Transform[2][3] = posZ; 
             desc.InstanceMask = 1;
             desc.AccelerationStructure = m_bottomLevelAccelerationStructureBushes->GetGPUVirtualAddress();
             desc.InstanceID = static_cast<UINT>(instanceDesc.size());
