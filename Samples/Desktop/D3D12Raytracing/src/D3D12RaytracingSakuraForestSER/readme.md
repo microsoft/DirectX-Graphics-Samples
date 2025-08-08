@@ -8,9 +8,14 @@ SER is used to give hints to the GPU for grouping threads for better execution e
 - **Sort by reflectHint**: A custom key derived from texture sampling on the floor, used to identify reflective regions such as dark crevices resembling water and cubes randomly in the space.
 - **Sort by Both**: Combines HitObject and reflectHint .
 
-**Note:** The scene applies a heavy workload to the skybox, which makes this element more expensive than in a typical game scenario. This characteristic contributes to the performance differences observed with Shader Execution Reordering in this sample.
-
 The `reflectHint` is computed by sampling the floor texture at the estimated hit location. If the sampled color is sufficiently dark, the surface is treated as reflective, triggering additional shading logic such as Fresnel-based reflections. This technique mimics subtle water pooling effects in shaded areas.
+
+**Note:**  
+
+The scene applies a heavy workload to the skybox, which makes this element more expensive than in a typical game scenario. This characteristic contributes to the performance differences observed with SER in this sample. In particular, viewpoints where the sky is visible through gaps in the tree canopy exhibit highly variable shading costs. This variability is the kind of situation where SER can provide benefits. 
+
+MaybeReorderThread() on `reflectHint` was introduced to illustrate another potential source of variability (e.g. heavy reflections) that SER could reorder on. However, on the GPUs tested, this property ended up not significantly impacting performance in most cases. 
+
 ## Usage
 D3D12RaytracingBasicShaderExecutionReordering.exe
 
