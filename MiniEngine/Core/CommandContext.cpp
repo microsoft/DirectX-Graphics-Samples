@@ -166,7 +166,6 @@ CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE Type) :
     m_CpuLinearAllocator(kCpuWritable), 
     m_GpuLinearAllocator(kGpuExclusive)
 {
-    m_OwningManager = nullptr;
     m_CommandList = nullptr;
     m_CurrentAllocator = nullptr;
     ZeroMemory(m_CurrentDescriptorHeaps, sizeof(m_CurrentDescriptorHeaps));
