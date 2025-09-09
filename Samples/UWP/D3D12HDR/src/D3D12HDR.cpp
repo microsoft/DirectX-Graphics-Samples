@@ -23,15 +23,6 @@
 #include "presentPS.hlsl.h"
 
 const float D3D12HDR::ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-const float D3D12HDR::HDRMetaDataPool[4][4] =
-{
-    // MaxOutputNits, MinOutputNits, MaxCLL, MaxFALL
-    // These values are made up for testing. You need to figure out those numbers for your app.
-    { 1000.0f, 0.001f, 2000.0f, 500.0f },
-    { 500.0f, 0.001f, 2000.0f, 500.0f },
-    { 500.0f, 0.100f, 500.0f, 100.0f },
-    { 2000.0f, 1.000f, 2000.0f, 1000.0f }
-};
 
 D3D12HDR::D3D12HDR(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
@@ -141,7 +132,6 @@ void D3D12HDR::LoadPipeline()
     CheckDisplayHDRSupport();
     m_enableST2084 = m_hdrSupport;
     EnsureSwapChainColorSpace(m_currentSwapChainBitDepth, m_enableST2084);
-    SetHDRMetaData(HDRMetaDataPool[m_hdrMetaDataPoolIdx][0], HDRMetaDataPool[m_hdrMetaDataPoolIdx][1], HDRMetaDataPool[m_hdrMetaDataPoolIdx][2], HDRMetaDataPool[m_hdrMetaDataPoolIdx][3]);
 
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
@@ -783,7 +773,6 @@ void D3D12HDR::OnKeyDown(UINT8 key)
             m_currentSwapChainBitDepth = static_cast<SwapChainBitDepth>((m_currentSwapChainBitDepth - 1 + SwapChainBitDepthCount) % SwapChainBitDepthCount);
             DXGI_FORMAT newFormat = m_swapChainFormats[m_currentSwapChainBitDepth];
             UpdateSwapChainBuffer(m_width, m_height, newFormat);
-            SetHDRMetaData(HDRMetaDataPool[m_hdrMetaDataPoolIdx][0], HDRMetaDataPool[m_hdrMetaDataPoolIdx][1], HDRMetaDataPool[m_hdrMetaDataPoolIdx][2], HDRMetaDataPool[m_hdrMetaDataPoolIdx][3]);
             break;
         }
 
@@ -792,7 +781,6 @@ void D3D12HDR::OnKeyDown(UINT8 key)
             m_currentSwapChainBitDepth = static_cast<SwapChainBitDepth>((m_currentSwapChainBitDepth + 1) % SwapChainBitDepthCount);
             DXGI_FORMAT newFormat = m_swapChainFormats[m_currentSwapChainBitDepth];
             UpdateSwapChainBuffer(m_width, m_height, newFormat);
-            SetHDRMetaData(HDRMetaDataPool[m_hdrMetaDataPoolIdx][0], HDRMetaDataPool[m_hdrMetaDataPoolIdx][1], HDRMetaDataPool[m_hdrMetaDataPoolIdx][2], HDRMetaDataPool[m_hdrMetaDataPoolIdx][3]);
             break;
         }
 
@@ -802,7 +790,6 @@ void D3D12HDR::OnKeyDown(UINT8 key)
             if (m_currentSwapChainBitDepth == _10)
             {
                 EnsureSwapChainColorSpace(m_currentSwapChainBitDepth, m_enableST2084);
-                SetHDRMetaData(HDRMetaDataPool[m_hdrMetaDataPoolIdx][0], HDRMetaDataPool[m_hdrMetaDataPoolIdx][1], HDRMetaDataPool[m_hdrMetaDataPoolIdx][2], HDRMetaDataPool[m_hdrMetaDataPoolIdx][3]);
             }
 
             break;
@@ -820,14 +807,6 @@ void D3D12HDR::OnKeyDown(UINT8 key)
                 m_uiLayer.reset();
             }
 
-            break;
-        }
-
-        case 'M':
-        {
-            // Switch meta data value for testing. TV should adjust the content based on the metadata we sent.
-            m_hdrMetaDataPoolIdx = (m_hdrMetaDataPoolIdx + 1) % 4;
-            SetHDRMetaData(HDRMetaDataPool[m_hdrMetaDataPoolIdx][0], HDRMetaDataPool[m_hdrMetaDataPoolIdx][1], HDRMetaDataPool[m_hdrMetaDataPoolIdx][2], HDRMetaDataPool[m_hdrMetaDataPoolIdx][3]);
             break;
         }
     }
@@ -904,66 +883,6 @@ void D3D12HDR::EnsureSwapChainColorSpace(SwapChainBitDepth swapChainBitDepth, bo
         }
     }
 }
-
-// Set HDR meta data for output display to master the content and the luminance values of the content.
-// An app should estimate and set appropriate metadata based on its contents.
-// For demo purpose, we simply made up a few set of metadata for you to experience the effect of appling meta data.
-// Please see details in https://msdn.microsoft.com/en-us/library/windows/desktop/mt732700(v=vs.85).aspx.
-void D3D12HDR::SetHDRMetaData(float MaxOutputNits /*=1000.0f*/, float MinOutputNits /*=0.001f*/, float MaxCLL /*=2000.0f*/, float MaxFALL /*=500.0f*/)
-{
-    if (!m_swapChain)
-    {
-        return;
-    }
-
-    // Clean the hdr metadata if the display doesn't support HDR
-    if (!m_hdrSupport)
-    {
-        ThrowIfFailed(m_swapChain->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_NONE, 0, nullptr));
-        return;
-    }
-
-    static const DisplayChromaticities DisplayChromaticityList[] =
-    {
-        { 0.64000f, 0.33000f, 0.30000f, 0.60000f, 0.15000f, 0.06000f, 0.31270f, 0.32900f }, // Display Gamut Rec709 
-        { 0.70800f, 0.29200f, 0.17000f, 0.79700f, 0.13100f, 0.04600f, 0.31270f, 0.32900f }, // Display Gamut Rec2020
-    };
-
-    // Select the chromaticity based on HDR format of the DWM.
-    int selectedChroma = 0;
-    if (m_currentSwapChainBitDepth == _16 && m_currentSwapChainColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709)
-    {
-        selectedChroma = 0;
-    }
-    else if (m_currentSwapChainBitDepth == _10 && m_currentSwapChainColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
-    {
-        selectedChroma = 1;
-    }
-    else
-    {
-        // Reset the metadata since this is not a supported HDR format.
-        ThrowIfFailed(m_swapChain->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_NONE, 0, nullptr));
-        return;
-    }
-
-    // Set HDR meta data
-    const DisplayChromaticities& Chroma = DisplayChromaticityList[selectedChroma];
-    DXGI_HDR_METADATA_HDR10 HDR10MetaData = {};
-    HDR10MetaData.RedPrimary[0] = static_cast<UINT16>(Chroma.RedX * 50000.0f);
-    HDR10MetaData.RedPrimary[1] = static_cast<UINT16>(Chroma.RedY * 50000.0f);
-    HDR10MetaData.GreenPrimary[0] = static_cast<UINT16>(Chroma.GreenX * 50000.0f);
-    HDR10MetaData.GreenPrimary[1] = static_cast<UINT16>(Chroma.GreenY * 50000.0f);
-    HDR10MetaData.BluePrimary[0] = static_cast<UINT16>(Chroma.BlueX * 50000.0f);
-    HDR10MetaData.BluePrimary[1] = static_cast<UINT16>(Chroma.BlueY * 50000.0f);
-    HDR10MetaData.WhitePoint[0] = static_cast<UINT16>(Chroma.WhiteX * 50000.0f);
-    HDR10MetaData.WhitePoint[1] = static_cast<UINT16>(Chroma.WhiteY * 50000.0f);
-    HDR10MetaData.MaxMasteringLuminance = static_cast<UINT>(MaxOutputNits * 10000.0f);
-    HDR10MetaData.MinMasteringLuminance = static_cast<UINT>(MinOutputNits * 10000.0f);
-    HDR10MetaData.MaxContentLightLevel = static_cast<UINT16>(MaxCLL);
-    HDR10MetaData.MaxFrameAverageLightLevel = static_cast<UINT16>(MaxFALL);
-    ThrowIfFailed(m_swapChain->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(DXGI_HDR_METADATA_HDR10), &HDR10MetaData));
-}
-
 
 void D3D12HDR::UpdateSwapChainBuffer(UINT width, UINT height, DXGI_FORMAT format)
 {

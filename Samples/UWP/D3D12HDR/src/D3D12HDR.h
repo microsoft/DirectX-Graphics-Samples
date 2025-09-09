@@ -40,9 +40,7 @@ public:
     }
     inline bool GetHDRSupport() { return m_hdrSupport; }
     inline float GetReferenceWhiteNits() { return m_referenceWhiteNits; }
-    inline UINT GetHDRMetaDataPoolIndex() { return m_hdrMetaDataPoolIdx; }
 
-    static const float HDRMetaDataPool[4][4];
     static const UINT FrameCount = 2;
 
 protected:
@@ -160,7 +158,6 @@ private:
     bool m_updateVertexBuffer;
     std::shared_ptr<UILayer> m_uiLayer;
     bool m_enableUI = true;
-    UINT m_hdrMetaDataPoolIdx = 0;
 
     // Color.
     bool m_hdrSupport = false;
@@ -188,6 +185,5 @@ private:
     void MoveToNextFrame();
     void EnsureSwapChainColorSpace(SwapChainBitDepth d, bool enableST2084);
     void CheckDisplayHDRSupport();
-    void SetHDRMetaData(float MaxOutputNits = 1000.0f, float MinOutputNits = 0.001f, float MaxCLL = 2000.0f, float MaxFALL = 500.0f);
     void UpdateSwapChainBuffer(UINT width, UINT height, DXGI_FORMAT format);
 };
