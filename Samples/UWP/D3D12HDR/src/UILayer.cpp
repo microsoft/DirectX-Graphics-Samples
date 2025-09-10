@@ -28,7 +28,6 @@ UILayer::UILayer(D3D12HDR* pSample) :
     m_labels[ChangeFormat] = L"PgUp/PgDn\tChange back buffer format";
     m_labels[ChangeCurve] = L"H\tToggle between sRGB and ST.2084 (10-bit swap chain only)";
     m_labels[HideUI] = L"U\tToggle UI Visibility";
-    m_labels[MetaData] = L"M\tToggle HDR Meta Data";
 
     Initialize();
 }
@@ -142,16 +141,6 @@ void UILayer::UpdateLabels()
     m_ui[Format].text = m_labels[Format];
     m_ui[Signal].text = m_labels[Signal];
     m_ui[HDRSupport].text = m_labels[HDRSupport];
-
-    float MaxOutputNits = D3D12HDR::HDRMetaDataPool[m_pSample->GetHDRMetaDataPoolIndex()][0];
-    float MinOutputNits = D3D12HDR::HDRMetaDataPool[m_pSample->GetHDRMetaDataPoolIndex()][1];
-    float MaxCLL = D3D12HDR::HDRMetaDataPool[m_pSample->GetHDRMetaDataPoolIndex()][2];
-    float MaxFALL = D3D12HDR::HDRMetaDataPool[m_pSample->GetHDRMetaDataPoolIndex()][3];
-
-    wchar_t buffer[256];
-    swprintf_s(buffer, 256, L"M\tToggle HDR Meta Data\t MaxOutputNits:%3.3f\t MinOutputNits:%3.3f\t MaxCLL:%3.3f\t MaxFALL:%3.3f", MaxOutputNits, MinOutputNits, MaxCLL, MaxFALL);
-
-    m_ui[MetaData].text = buffer;
 }
 
 // Render the UI.
@@ -263,5 +252,4 @@ void UILayer::Resize()
     m_ui[ChangeFormat] = { m_labels[ChangeFormat], D2D1::RectF(smallFontSize, height - fontSize * 5.0f, width, height), m_smallTextFormat.Get() };
     m_ui[ChangeCurve] = { m_labels[ChangeCurve], D2D1::RectF(smallFontSize, height - fontSize * 3.0f, width, height), m_smallTextFormat.Get() };
     m_ui[HideUI] = { m_labels[HideUI], D2D1::RectF(smallFontSize, height - fontSize * 2.0f, width, height), m_smallTextFormat.Get() };
-    m_ui[MetaData] = { m_labels[MetaData], D2D1::RectF(smallFontSize, height - fontSize * 1.0f, width, height), m_smallTextFormat.Get() };
 }
