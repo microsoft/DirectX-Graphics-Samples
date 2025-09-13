@@ -128,6 +128,7 @@
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>..\;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
