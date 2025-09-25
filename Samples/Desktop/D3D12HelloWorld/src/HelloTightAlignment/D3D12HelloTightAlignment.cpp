@@ -11,7 +11,7 @@
 #include "d3dx12.h"
 #include <dxgi1_6.h>
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 716; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; }
 
@@ -221,12 +221,14 @@ int main()
         VERIFY_SUCCEEDED(D3D.spDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options)));
         D3D.bIsHeapTier1 = options.ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_1;
 
+        // Depending on the vendor, you may actually see benefits for placed resources even with only 1 resource in the heap (smaller heap allocation).
         ComparePlacedBufferMemoryFootprint<1>(D3D);     // No benefit due to the heap allocations being made in 64KiB chuncks
         ComparePlacedBufferMemoryFootprint<8>(D3D);     // Can already see some benefit being realized
         ComparePlacedBufferMemoryFootprint<4096>(D3D);  // drastic savings in most cases
 
         PRINT("\n========================================\n========================================\n");
 
+        // Depending on the vendor, there may be no difference here since they now receive a hint that the heap is being implicitly created for a single resource.
         CompareCommittedBufferMemoryFootprint<1>(D3D);
         CompareCommittedBufferMemoryFootprint<8>(D3D);
         CompareCommittedBufferMemoryFootprint<4096>(D3D);
