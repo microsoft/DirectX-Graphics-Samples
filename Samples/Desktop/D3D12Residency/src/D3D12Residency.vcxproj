@@ -64,7 +64,7 @@
       <MinimalRebuild>false</MinimalRebuild>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\Libraries\D3DX12Residency\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -108,7 +108,6 @@ dxc.exe -nologo -Tps_6_0 -E"PSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_P
   <ItemGroup>
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12Residency.h" />
-    <ClInclude Include="d3dx12Residency.h" />
     <ClInclude Include="DXSample.h" />
     <ClInclude Include="DXSampleHelper.h" />
     <ClInclude Include="stdafx.h" />
