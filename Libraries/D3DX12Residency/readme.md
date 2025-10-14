@@ -62,6 +62,11 @@ Residency correlates to whether a heap is accessible by the GPU or not.  If it i
 
 Note that when you call ```Evict```, the heap is only marked for eviction.  VidMM will try really hard not to evict it if it doesn't need to thereby making the subsequent ```MakeResident``` call (when you call it) a no-op (ie. nothing needs to happen and your heap is ready for use almost immediately).
 
+#### Automatic Trim Notifications
+The library now automatically registers for OS trim notifications when supported. This mechanism is particularly useful for applications that do not submit command lists frequently such as image/video editors, since these apps may hold GPU resources idle for extended periods without the library's normal LRU eviction being triggered by command list execution.
+
+The implementation uses D3D12's `RegisterTrimNotificationCallback` which internally registers with the video kernel memory manager through [`D3DKMTRegisterTrimNotification`](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3dkmthk/nf-d3dkmthk-d3dkmtregistertrimnotification). The video memory manager will periodically notify the application to evict anything that hasn't been used in a given timeframe.
+
 #### What does calling ```MakeResident``` do?
 ```MakeResident``` is a blocking call which will bring your heap data and page table mappings back as they were before you called Evict.  You don't need to copy the data back in.
 

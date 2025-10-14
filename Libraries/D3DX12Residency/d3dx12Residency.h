@@ -10,6 +10,10 @@
 //*********************************************************
 
 #pragma once
+#if (D3D12_SDK_VERSION >= 619)
+#define HAVE_D3D12_TRIM_CALLBACKS 1
+#endif // (D3D12_SDK_VERSION >= 619)
+
 namespace D3DX12Residency
 {
 #if 0
@@ -118,6 +122,9 @@ namespace D3DX12Residency
             ResidencyStatus(RESIDENCY_STATUS::RESIDENT),
             LastGPUSyncPoint(0),
             LastUsedTimestamp(0)
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+            , LastUsedPeriodicTrimNotificationIndex(0)
+#endif // HAVE_D3D12_TRIM_CALLBACKS
         {
             memset(CommandListsUsedOn, 0, sizeof(CommandListsUsedOn));
         }
@@ -142,6 +149,9 @@ namespace D3DX12Residency
 
         UINT64 LastGPUSyncPoint;
         UINT64 LastUsedTimestamp;
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+        UINT64 LastUsedPeriodicTrimNotificationIndex;
+#endif // HAVE_D3D12_TRIM_CALLBACKS
 
         // This is used to track which open command lists this resource is currently used on.
         bool CommandListsUsedOn[MAX_NUM_CONCURRENT_CMD_LISTS];
@@ -630,6 +640,33 @@ namespace D3DX12Residency
                     pResourceEntry = ResidentObjectListHead.Flink;
                 }
             }
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+            void TrimUnusedAllocationsSinceLastNotificationPeriod(UINT64 CurrentPeriodicTrimNotificationIndex, DeviceWideSyncPoint* MaxSyncPoint, ID3D12Pageable** EvictionList, UINT32& NumObjectsToEvict, UINT64& BytesToEvict)
+            {
+                LIST_ENTRY* pResourceEntry = ResidentObjectListHead.Flink;
+                while (pResourceEntry != &ResidentObjectListHead)
+                {
+                    ManagedObject* pObject = CONTAINING_RECORD(pResourceEntry, ManagedObject, ListEntry);
+                    pResourceEntry = pResourceEntry->Flink;
+
+                    // Only trim allocations done on the GPU
+                    if (MaxSyncPoint && pObject->LastGPUSyncPoint >= MaxSyncPoint->GenerationID)
+                    {
+                        break;
+                    }
+
+					// Only evict things which haven't been used since the last trim notification
+                    if (pObject->LastUsedPeriodicTrimNotificationIndex < (CurrentPeriodicTrimNotificationIndex - 1))
+                    {
+                        RESIDENCY_CHECK(pObject->ResidencyStatus == ManagedObject::RESIDENCY_STATUS::RESIDENT);
+                        EvictionList[NumObjectsToEvict++] = pObject->pUnderlying;
+                        BytesToEvict += pObject->Size;
+                        Evict(pObject);
+                        pResourceEntry = ResidentObjectListHead.Flink;
+                    }
+                }
+            }
+#endif // HAVE_D3D12_TRIM_CALLBACKS
 
             ManagedObject* GetResidentListHead()
             {
@@ -655,6 +692,9 @@ namespace D3DX12Residency
             ResidencyManagerInternal(SyncManager* pSyncManagerIn) :
                 Device(nullptr),
                 Device3(nullptr),
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+                Device15(nullptr),
+#endif // HAVE_D3D12_TRIM_CALLBACKS
 #ifdef __ID3D12DeviceDownlevel_INTERFACE_DEFINED__
                 DeviceDownlevel(nullptr),
 #endif
@@ -667,6 +707,15 @@ namespace D3DX12Residency
                 FinishAsyncWork(false),
                 cStartEvicted(false),
                 CurrentSyncPointGeneration(0),
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+                // Incremented each trim notification callback invocation
+                // Start at 1 so that resources used in the first period are not immediately evicted
+                c_CurrentPeriodicTrimNotificationIndexInitialValue(1u),
+                CurrentPeriodicTrimNotificationIndex(c_CurrentPeriodicTrimNotificationIndexInitialValue),
+                // Cookie returned at trim notification callback registration. UINT32_MAX indicates no callback registered.
+                c_PeriodicTrimCallbackCookie_Unregistered(UINT32_MAX),
+                PeriodicTrimCallbackCookie(UINT32_MAX),
+#endif // HAVE_D3D12_TRIM_CALLBACKS
                 NumQueuesSeen(0),
                 NodeIndex(0),
                 CurrentAsyncWorkloadHead(0),
@@ -767,11 +816,37 @@ namespace D3DX12Residency
                 }
 #endif
 
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+                // Register for Trim Notification Callback if supported by the OS
+                // or ignore the failure and just not do periodic trims on OS that don't support it.
+                if (SUCCEEDED(Device->QueryInterface(&Device15)))
+                {
+                    D3D12_REGISTER_TRIM_NOTIFICATION registerArgs = { &PeriodicTrimNotificationCallback, this, 0 };
+                    if (SUCCEEDED(Device15->RegisterTrimNotificationCallback(&registerArgs)))
+                    {
+                        PeriodicTrimCallbackCookie = registerArgs.CallbackCookie;
+                    }
+                }
+#endif // HAVE_D3D12_TRIM_CALLBACKS
+
                 return hr;
             }
 
             void Destroy()
             {
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+                if ((PeriodicTrimCallbackCookie != c_PeriodicTrimCallbackCookie_Unregistered) &&
+                    Device15 &&
+                    SUCCEEDED(Device15->UnregisterTrimNotificationCallback(PeriodicTrimCallbackCookie)))
+                {
+                    // Exclusive access with PeriodicTrimNotificationCallback to
+                    // modify CurrentPeriodicTrimNotificationIndex
+                    Internal::ScopedLock Lock(&Mutex);
+                    PeriodicTrimCallbackCookie = c_PeriodicTrimCallbackCookie_Unregistered;
+                    CurrentPeriodicTrimNotificationIndex = c_CurrentPeriodicTrimNotificationIndexInitialValue;
+                }
+#endif // HAVE_D3D12_TRIM_CALLBACKS
+
                 AsyncThreadFence.Destroy();
 
                 if (CompletionEvent != INVALID_HANDLE_VALUE)
@@ -842,6 +917,13 @@ namespace D3DX12Residency
                     Device3->Release();
                     Device3 = nullptr;
                 }
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+                if (Device15)
+                {
+                    Device15->Release();
+                    Device15 = nullptr;
+                }
+#endif // HAVE_D3D12_TRIM_CALLBACKS
 
 #ifdef __ID3D12DeviceDownlevel_INTERFACE_DEFINED__
                 if (DeviceDownlevel)
@@ -1147,6 +1229,78 @@ namespace D3DX12Residency
 
                 return 0;
             }
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+            void static APIENTRY PeriodicTrimNotificationCallback(const D3D12_TRIM_NOTIFICATION* pData)
+            {
+                ResidencyManagerInternal* pResidencyManager = reinterpret_cast<ResidencyManagerInternal*>(pData->pContext);
+                assert(pResidencyManager != nullptr);
+
+                // A lock must be taken here as the state of the objects will be altered
+                // and this also gives us exclusive access with ProcessPagingWork and other
+                // functions that modify the residency manager state.
+                Internal::ScopedLock Lock(&pResidencyManager->Mutex);
+
+                // Always increase the index even if we don't do a trim this time
+                pResidencyManager->CurrentPeriodicTrimNotificationIndex++;
+
+                // Get the last completed GPU queue sync point
+                Internal::DeviceWideSyncPoint* FirstUncompletedSyncPoint = pResidencyManager->DequeueCompletedSyncPoints();
+
+                // Let's collect a list of objects to evict and then evict them all at once
+                ID3D12Pageable** pEvictionList = new ID3D12Pageable*[pResidencyManager->LRU.NumResidentObjects];
+                UINT32 NumObjectsToEvict = 0;
+                UINT64 BytesToEvict = 0;
+
+                if (pData->Flags & D3D12_TRIM_NOTIFICATION_FLAG_PERIODIC_TRIM)
+                {
+                    pResidencyManager->LRU.TrimUnusedAllocationsSinceLastNotificationPeriod(
+                        pResidencyManager->CurrentPeriodicTrimNotificationIndex,
+                        FirstUncompletedSyncPoint,
+                        pEvictionList,
+                        NumObjectsToEvict,
+                        BytesToEvict
+                    );
+                }
+
+                if (pData->Flags & D3D12_TRIM_NOTIFICATION_FLAG_TRIM_TO_BUDGET)
+                {
+                    // Get current memory usage
+                    DXGI_QUERY_VIDEO_MEMORY_INFO LocalMemory = {};
+                    pResidencyManager->GetCurrentBudget(&LocalMemory, DXGI_MEMORY_SEGMENT_GROUP_LOCAL);
+                    DXGI_QUERY_VIDEO_MEMORY_INFO NonLocalMemory = {};
+                    pResidencyManager->GetCurrentBudget(&NonLocalMemory, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL);
+                    UINT64 TotalUsage = LocalMemory.CurrentUsage + NonLocalMemory.CurrentUsage;
+
+                    // Adjust TotalUsage for any bytes already slated for eviction above if D3D12_TRIM_NOTIFICATION_FLAG_PERIODIC_TRIM was set
+                    TotalUsage = (TotalUsage >= BytesToEvict) ? (TotalUsage - BytesToEvict) : 0;
+
+                    UINT64 BytesToTrim = RESIDENCY_MIN(pData->NumBytesToTrim, TotalUsage);
+                    UINT64 TargetBudget = TotalUsage - BytesToTrim;
+
+                    // We want to evict all the objects in the LRU that are older than the last completed sync point
+                    // or until we reach the target budget.
+                    // But if there are no in flight sync points, we can evict everything if needed using CurrentSyncPointGeneration
+                    // as the upper bound which is the next sync point to be used.
+                    UINT64 CompletionSyncToWaitFor = FirstUncompletedSyncPoint ? FirstUncompletedSyncPoint->GenerationID : pResidencyManager->CurrentSyncPointGeneration;
+
+                    pResidencyManager->LRU.TrimToSyncPointInclusive(
+                        TotalUsage,
+                        TargetBudget,
+                        pEvictionList,
+                        NumObjectsToEvict,
+                        CompletionSyncToWaitFor);
+                }
+
+                // If there are any objects to evict, do so now
+                if (NumObjectsToEvict)
+                {
+                    [[maybe_unused]] HRESULT hrEvict = pResidencyManager->Device->Evict(NumObjectsToEvict, pEvictionList);
+                    assert(SUCCEEDED(hrEvict));
+                }
+
+                delete[](pEvictionList);
+            }
+#endif // HAVE_D3D12_TRIM_CALLBACKS
 
             // This will be run from a worker thread and will emulate a software queue for making gpu resources resident or evicted.
             // The GPU will be synchronized by this queue to ensure that it never executes using an evicted resource.
@@ -1197,6 +1351,9 @@ namespace D3DX12Residency
                         pObject->LastGPUSyncPoint = pWork->SyncPointGeneration;
 
                         pObject->LastUsedTimestamp = CurrentTime.QuadPart;
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+                        pObject->LastUsedPeriodicTrimNotificationIndex = CurrentPeriodicTrimNotificationIndex;
+#endif // HAVE_D3D12_TRIM_CALLBACKS
                         LRU.ObjectReferenced(pObject);
                     }
 
@@ -1530,12 +1687,21 @@ namespace D3DX12Residency
 
             LIST_ENTRY InFlightSyncPointsHead;
             UINT64 CurrentSyncPointGeneration;
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+            const UINT64 c_CurrentPeriodicTrimNotificationIndexInitialValue;
+            UINT64 CurrentPeriodicTrimNotificationIndex;
+            const DWORD c_PeriodicTrimCallbackCookie_Unregistered;
+            DWORD PeriodicTrimCallbackCookie;
+#endif // HAVE_D3D12_TRIM_CALLBACKS
 
             HANDLE CompletionEvent;
             HANDLE AsyncThreadWorkCompletionEvent;
 
             ID3D12Device* Device;
             ID3D12Device3* Device3;
+#ifdef HAVE_D3D12_TRIM_CALLBACKS
+            ID3D12Device15* Device15;
+#endif // HAVE_D3D12_TRIM_CALLBACKS
 #ifdef __ID3D12DeviceDownlevel_INTERFACE_DEFINED__
             ID3D12DeviceDownlevel* DeviceDownlevel;
 #endif
