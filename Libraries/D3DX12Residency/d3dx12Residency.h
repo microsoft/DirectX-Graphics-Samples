@@ -406,9 +406,16 @@ namespace D3DX12Residency
 
             HRESULT GPUWait(ID3D12CommandQueue* pQueue)
             {
-                HRESULT hr = pQueue->Wait(pFence, FenceValue);
-                RESIDENCY_CHECK_RESULT(hr);
-                return hr;
+                if (FenceValue > 0)
+                {
+                    HRESULT hr = pQueue->Wait(pFence, FenceValue);
+                    RESIDENCY_CHECK_RESULT(hr);
+                    return hr;
+                }
+                else
+                {
+                    return S_OK;
+                }
             }
 
             HRESULT GPUSignal(ID3D12CommandQueue* pQueue)
@@ -1332,6 +1339,7 @@ namespace D3DX12Residency
                                 LRU.TrimToSyncPointInclusive(TotalUsage + INT64(SizeToMakeResident), TotalBudget, pEvictionList, NumObjectsToEvict, GenerationToWaitFor);
 
                                 RESIDENCY_CHECK_RESULT(Device->Evict(NumObjectsToEvict, pEvictionList));
+                                NumObjectsToEvict = 0;
                             }
                             else
                             {
