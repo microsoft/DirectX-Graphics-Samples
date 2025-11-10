@@ -36,9 +36,6 @@
     <ClInclude Include="DXSampleHelper.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
     <ClInclude Include="Fence.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
@@ -76,6 +73,7 @@
     <None Include="Scene.hlsli">
       <Filter>Assets\Shaders</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PostVS.hlsl">
