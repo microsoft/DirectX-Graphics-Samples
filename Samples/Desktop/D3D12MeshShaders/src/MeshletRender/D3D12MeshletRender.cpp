@@ -17,6 +17,9 @@ const wchar_t* D3D12MeshletRender::c_meshFilename = L"..\\Assets\\Dragon_LOD0.bi
 const wchar_t* D3D12MeshletRender::c_meshShaderFilename = L"MeshletMS.cso";
 const wchar_t* D3D12MeshletRender::c_pixelShaderFilename = L"MeshletPS.cso";
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 D3D12MeshletRender::D3D12MeshletRender(UINT width, UINT height, std::wstring name)
     : DXSample(width, height, name)
     , m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height))
