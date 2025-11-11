@@ -57,7 +57,6 @@
       <Filter>Assets\Shaders</Filter>
     </ClInclude>
     <ClInclude Include="D3D12RaytracingSakuraForestSER.h" />
-    <ClInclude Include="Star.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -84,5 +83,6 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Raytracing.hlsl" />
+    <FxCompile Include="Star.hlsl" />
   </ItemGroup>
 </Project>
