@@ -51,9 +51,6 @@
     <ClInclude Include="Win32Application.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
     <ClInclude Include="Shared.h">
       <Filter>Assets\Shaders</Filter>
     </ClInclude>
@@ -85,6 +82,7 @@
     <None Include="..\Assets\ToyRobot.bin">
       <Filter>Assets\Models</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="MeshletMS.hlsl">

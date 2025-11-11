@@ -14,6 +14,9 @@
 
 using namespace DirectX;
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 D3D12LinkedGpus::D3D12LinkedGpus(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_nodeIndex(0),

@@ -21,12 +21,12 @@ EXIT /b 1
 ECHO DXC Path: %dxcCmd%
 ECHO Start compiling shaders...
 ECHO ON
-%dxcCmd% /Zi /E"VSMain" /Vn"g_Wave_VS" /Tvs_6_0 /Fh"wave_vs.hlsl.h" /nologo wave.hlsl
+%dxcCmd% /Zi /E"VSMain" /Vn"g_Wave_VS" /Tvs_6_0 /Fh"wave_vs.hlsl.h" /nologo -Qembed_debug wave.hlsl
 @IF %ERRORLEVEL% NEQ 0 (EXIT /b %ERRORLEVEL%)
-%dxcCmd% /D_WAVE_OP /Zi /E"PSMain" /Vn"g_Wave_PS" /Tps_6_0 /Fh"wave_ps.hlsl.h" /nologo wave.hlsl
+%dxcCmd% /D_WAVE_OP /Zi /E"PSMain" /Vn"g_Wave_PS" /Tps_6_0 /Fh"wave_ps.hlsl.h" /nologo -Qembed_debug wave.hlsl
 @IF %ERRORLEVEL% NEQ 0 (EXIT /b %ERRORLEVEL%)
-%dxcCmd% /Zi /E"VSMain" /Vn"g_Magnify_VS" /Tvs_6_0 /Fh"magnify_vs.hlsl.h" /nologo magnify.hlsl
+%dxcCmd% /Zi /E"VSMain" /Vn"g_Magnify_VS" /Tvs_6_0 /Fh"magnify_vs.hlsl.h" /nologo -Qembed_debug magnify.hlsl
 @IF %ERRORLEVEL% NEQ 0 (EXIT /b %ERRORLEVEL%)
-%dxcCmd% /D_WAVE_OP /Zi /E"PSMain" /Vn"g_Magnify_PS" /Tps_6_0 /Fh"magnify_ps.hlsl.h" /nologo magnify.hlsl
+%dxcCmd% /D_WAVE_OP /Zi /E"PSMain" /Vn"g_Magnify_PS" /Tps_6_0 /Fh"magnify_ps.hlsl.h" /nologo -Qembed_debug magnify.hlsl
 @IF %ERRORLEVEL% NEQ 0 (EXIT /b %ERRORLEVEL%)
 ECHO Done.

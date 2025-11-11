@@ -16,6 +16,9 @@ const float D3D12HeterogeneousMultiadapter::TriangleHalfWidth = 0.025f;
 const float D3D12HeterogeneousMultiadapter::TriangleDepth = 1.0f;
 const float D3D12HeterogeneousMultiadapter::ClearColor[4] = { 0.0f, 0.2f, 0.3f, 1.0f };
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 D3D12HeterogeneousMultiadapter::D3D12HeterogeneousMultiadapter(int width, int height, LPCWSTR name) :
     DXSample(width, height, name),
     m_frameIndex(0),

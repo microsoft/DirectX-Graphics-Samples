@@ -17,6 +17,9 @@
 
 using namespace std;
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 D3D12xGPU* D3D12xGPU::s_app = nullptr;
 
 D3D12xGPU::D3D12xGPU(UINT width, UINT height, wstring name) :

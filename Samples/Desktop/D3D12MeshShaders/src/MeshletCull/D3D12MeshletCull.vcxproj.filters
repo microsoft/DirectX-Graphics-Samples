@@ -57,9 +57,6 @@
     <ClInclude Include="Win32Application.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
     <ClInclude Include="CullDataVisualizer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -100,9 +97,6 @@
     <None Include="..\Assets\Dragon_LOD0.bin">
       <Filter>Assets\Models</Filter>
     </None>
-    <None Include="Camera.bin">
-      <Filter>Assets\Models</Filter>
-    </None>
     <None Include="MeshletCommon.hlsli">
       <Filter>Assets\Shaders</Filter>
     </None>
@@ -112,6 +106,8 @@
     <None Include="MeshletUtils.hlsli">
       <Filter>Assets\Shaders</Filter>
     </None>
+    <None Include="..\Assets\Camera.bin" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="MeshletMS.hlsl">
