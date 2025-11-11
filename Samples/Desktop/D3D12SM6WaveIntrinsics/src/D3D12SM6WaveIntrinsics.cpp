@@ -17,6 +17,8 @@
 #include "magnify_vs.hlsl.h"
 #include "magnify_ps.hlsl.h"
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 // Note that Windows 10 Creator Update SDK is required for enabling Shader Model 6 feature.
 static HRESULT EnableExperimentalShaderModels() {
