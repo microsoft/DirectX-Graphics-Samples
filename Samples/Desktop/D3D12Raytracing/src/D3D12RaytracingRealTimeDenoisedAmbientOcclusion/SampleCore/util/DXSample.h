@@ -71,7 +71,7 @@ protected:
     // Window bounds
     RECT m_windowBounds;
     
-    // Override to be able to start without Dx11on12 UI for PIX. PIX doesn't support 11 on 12. 
+    // Override to be able to start without UI, to avoid 11On12 usage. 
     bool m_enableUI;
 
     // D3D device resources
