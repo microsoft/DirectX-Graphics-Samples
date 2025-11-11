@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0\build\native\Microsoft.Direct3D.D3D12.props" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0\build\native\Microsoft.Direct3D.D3D12.props')" />
+  <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.props" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -170,7 +170,6 @@
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12RaytracingOpacityMicromaps.h" />
-    <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXSample.h" />
     <ClInclude Include="DXSampleHelper.h" />
     <ClInclude Include="stdafx.h" />
@@ -214,17 +213,18 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
-    <Import Project="..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets" Condition="Exists('..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets')" />
-    <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.15-preview\build\native\Microsoft.Direct3D.WARP.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.15-preview\build\native\Microsoft.Direct3D.WARP.targets')" />
-    <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0\build\native\Microsoft.Direct3D.D3D12.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0\build\native\Microsoft.Direct3D.D3D12.targets')" />
+    <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.targets')" />
+    <Import Project="..\..\..\..\..\Packages\directxtk12_desktop_2019.2025.10.28.1\build\native\directxtk12_desktop_2019.targets" Condition="Exists('..\..\..\..\..\Packages\directxtk12_desktop_2019.2025.10.28.1\build\native\directxtk12_desktop_2019.targets')" />
+    <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.16.1\build\native\Microsoft.Direct3D.WARP.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.16.1\build\native\Microsoft.Direct3D.WARP.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.15-preview\build\native\Microsoft.Direct3D.WARP.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.15-preview\build\native\Microsoft.Direct3D.WARP.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0\build\native\Microsoft.Direct3D.D3D12.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0\build\native\Microsoft.Direct3D.D3D12.props'))" />
-    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0\build\native\Microsoft.Direct3D.D3D12.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.616.0\build\native\Microsoft.Direct3D.D3D12.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.props'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\directxtk12_desktop_2019.2025.10.28.1\build\native\directxtk12_desktop_2019.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxtk12_desktop_2019.2025.10.28.1\build\native\directxtk12_desktop_2019.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.16.1\build\native\Microsoft.Direct3D.WARP.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.WARP.1.0.16.1\build\native\Microsoft.Direct3D.WARP.targets'))" />
   </Target>
 </Project>

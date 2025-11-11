@@ -1169,9 +1169,9 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
             float randomYOffset = randomOffsetBush(genBush);
             float randomZOffset = randomOffset(gen);
 
-            float posX = x * 0.2 + randomXOffset;
+            float posX = x * 0.2f + randomXOffset;
             float posY = 1.7f + (randomYOffset / 3);
-            float posZ = z * 0.2 + randomZOffset;
+            float posZ = z * 0.2f + randomZOffset;
 
             D3D12_RAYTRACING_INSTANCE_DESC desc = {};
             float scale = 2.1f; // Bush scale
@@ -1322,7 +1322,7 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
         ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
         // Larger cube shader records as the ground
-        for (int i = 0; i < CUBE_NUMER_RECORDS; ++i)
+        for (UINT i = 0; i < CUBE_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
             argument.cb = m_cubeCB;
@@ -1332,7 +1332,7 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
         }
 
 		// Reflective cube shader records randomly placed around the scene
-        for (int i = 0; i < REFLECTIVE_CUBE_NUMER_RECORDS; ++i)
+        for (UINT i = 0; i < REFLECTIVE_CUBE_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
             argument.cb = m_reflectiveCubeCB;
@@ -1342,7 +1342,7 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
         }
 
         // Tree trunk shader records
-        for (int i = 0; i < TRUNK_NUMER_RECORDS; ++i)
+        for (UINT i = 0; i < TRUNK_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
@@ -1353,7 +1353,7 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
         }
 
         // Tree leaves shader records
-        for (int i = 0; i < LEAVES_NUMER_RECORDS; ++i)
+        for (UINT i = 0; i < LEAVES_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
             const void* shaderIdentifier = nullptr;
@@ -1365,7 +1365,7 @@ void D3D12RaytracingSakuraForestSER::BuildShaderTables()
 
 
         // Bush shader records 
-        for (int i = 0; i < BUSH_NUMER_RECORDS; ++i)
+        for (UINT i = 0; i < BUSH_NUMER_RECORDS; ++i)
         {
             RootArguments argument;
             argument.cb = m_bushCB;
