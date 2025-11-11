@@ -15,6 +15,9 @@
 
 D3D12Multithreading* D3D12Multithreading::s_app = nullptr;
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 D3D12Multithreading::D3D12Multithreading(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_frameIndex(0),
@@ -698,7 +701,7 @@ void D3D12Multithreading::OnUpdate()
     {
         for (int i = 0; i < NumLights; i++)
         {
-            float direction = frameChange * pow(-1.0f, i);
+            float direction = frameChange * powf(-1.0f, static_cast<float>(i));
             XMStoreFloat4(&m_lights[i].position, XMVector4Transform(XMLoadFloat4(&m_lights[i].position), XMMatrixRotationY(direction)));
 
             XMVECTOR eye = XMLoadFloat4(&m_lights[i].position);

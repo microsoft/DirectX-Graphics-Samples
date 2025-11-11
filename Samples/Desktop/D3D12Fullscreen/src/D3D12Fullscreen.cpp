@@ -17,6 +17,9 @@ const float D3D12Fullscreen::QuadHeight = 720.0f;
 const float D3D12Fullscreen::LetterboxColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 const float D3D12Fullscreen::ClearColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 const D3D12Fullscreen::Resolution D3D12Fullscreen::m_resolutionOptions[] =
 {
     { 800u, 600u },

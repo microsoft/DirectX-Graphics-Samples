@@ -19,6 +19,9 @@
 
 const float D3D12nBodyGravity::ParticleSpread = 400.0f;
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_frameIndex(0),
@@ -38,7 +41,7 @@ D3D12nBodyGravity::D3D12nBodyGravity(UINT width, UINT height, std::wstring name)
         m_threadFenceValues[n] = 0;
     }
 
-    float sqRootNumAsyncContexts = sqrt(static_cast<float>(ThreadCount));
+    float sqRootNumAsyncContexts = sqrtf(static_cast<float>(ThreadCount));
     m_heightInstances = static_cast<UINT>(ceil(sqRootNumAsyncContexts));
     m_widthInstances = static_cast<UINT>(ceil(sqRootNumAsyncContexts));
 

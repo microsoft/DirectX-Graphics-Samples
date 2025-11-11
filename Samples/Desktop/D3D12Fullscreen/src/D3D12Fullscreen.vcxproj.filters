@@ -24,9 +24,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
     <ClInclude Include="DXSampleHelper.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>

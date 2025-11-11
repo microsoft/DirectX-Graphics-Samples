@@ -17,6 +17,9 @@
 
 using namespace std;
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 std::wstring GetShadingRateString(const D3D12_VARIABLE_SHADING_RATE_TIER& tier, const D3D12_SHADING_RATE& shadingRate)
 {
     if (tier == D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED)
