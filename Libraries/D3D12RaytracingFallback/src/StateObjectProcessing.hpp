@@ -134,14 +134,14 @@ public:
     //------------------------------------------------------------------------------------------------------------------------------
     // GetGloballyAssociatedSubobject: Retrieve subobject For subobject types that must be associated globally in the state object.
     // Returns nullptr if the subobject isn't present (e.g. for state objects where the app has opted in to allowing unresolved
-    // references), or it is a subobject type that isn't required to be globablly associated.
+    // references), or it is a subobject type that isn't required to be globally associated.
     // 
     // To see eligible state objects, see the definition of the table m_sAssociateableSubobjectData and look for entries that
     // specify MatchScope_FullStateObject.
     // If MatchRule_IfExistsMustExistAndMatchForAllExports is specified, a default subobject is returned if state object
     // didn't declare one.
     //
-    // The state object may contain multiple redundant copies of a subobject (which are valiated to all have the same contenst
+    // The state object may contain multiple redundant copies of a subobject (which are validated to all have the same contenst
     // for a valid state object if the subobject type requires it).  Note that this function just returns one of them, so 
     // the caller must only interpret the contents rather than inferring anything about the specific pointer value returned.
     //------------------------------------------------------------------------------------------------------------------------------
@@ -312,7 +312,7 @@ private:
     bool AllowLocalDependenciesOnExternalDefinitions() const;
 
     //------------------------------------------------------------------------------------------------------------------------------
-    // Whether to allow external dependencies on local defininitions - result depends on type of state object and state object configuration flags
+    // Whether to allow external dependencies on local definitions - result depends on type of state object and state object configuration flags
     //------------------------------------------------------------------------------------------------------------------------------   
     bool AllowExternalDependenciesOnLocalDefinitions() const;
 
@@ -576,7 +576,7 @@ private:
     D3D12_NODE_MASK m_NodeMask = {0x1};
     D3D12_STATE_OBJECT_CONFIG m_StateObjectConfig = {D3D12_STATE_OBJECT_FLAG_NONE};
     // m_GlobalSubobjectDefinitions only has entries with MatchScope_FullStateObject defined and if the subobect is actually present
-    // and globablly unique.  If not defined, the contained subobject pointer is null
+    // and globally unique.  If not defined, the contained subobject pointer is null
     D3D12_STATE_SUBOBJECT m_GlobalSubobjectDefinitions[NUM_ASSOCIATEABLE_SUBOBJECT_TYPES] = {};
 
 #ifndef SKIP_BINDING_VALIDATION
