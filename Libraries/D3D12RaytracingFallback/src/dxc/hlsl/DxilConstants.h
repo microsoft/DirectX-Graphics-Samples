@@ -343,9 +343,9 @@ namespace DXIL {
     Dot4 = 56, // Four-dimensional vector dot-product
   
     // Double precision
-    LegacyDoubleToFloat = 132, // legacy fuction to convert double to float
-    LegacyDoubleToSInt32 = 133, // legacy fuction to convert double to int32
-    LegacyDoubleToUInt32 = 134, // legacy fuction to convert double to uint32
+    LegacyDoubleToFloat = 132, // legacy function to convert double to float
+    LegacyDoubleToSInt32 = 133, // legacy function to convert double to int32
+    LegacyDoubleToUInt32 = 134, // legacy function to convert double to uint32
     MakeDouble = 101, // creates a double value
     SplitDouble = 102, // splits a double into low and high parts
   
@@ -371,8 +371,8 @@ namespace DXIL {
     TraceRay = 157, // returns the view index
   
     // Legacy floating-point
-    LegacyF16ToF32 = 131, // legacy fuction to convert half (f16) to float (f32) (this is not related to min-precision)
-    LegacyF32ToF16 = 130, // legacy fuction to convert float (f32) to half (f16) (this is not related to min-precision)
+    LegacyF16ToF32 = 131, // legacy function to convert half (f16) to float (f32) (this is not related to min-precision)
+    LegacyF32ToF16 = 130, // legacy function to convert float (f32) to half (f16) (this is not related to min-precision)
   
     // Library create handle from resource struct (like HL intrinsic)
     CreateHandleForLib = 160, // create resource handle from resource struct for library
@@ -431,7 +431,7 @@ namespace DXIL {
   
     // Resources - gather
     TextureGather = 73, // gathers the four texels that would be used in a bi-linear filtering operation
-    TextureGatherCmp = 74, // same as TextureGather, except this instrution performs comparison on texels, similar to SampleCmp
+    TextureGatherCmp = 74, // same as TextureGather, except this instruction performs comparison on texels, similar to SampleCmp
   
     // Resources - sample
     RenderTargetGetSampleCount = 77, // gets the number of samples for a render target
