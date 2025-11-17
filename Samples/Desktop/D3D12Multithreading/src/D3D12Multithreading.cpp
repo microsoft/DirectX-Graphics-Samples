@@ -56,6 +56,14 @@ void D3D12Multithreading::LoadPipeline()
     UINT dxgiFactoryFlags = 0;
 
 #if defined(_DEBUG)
+
+    // Check to see if a copy of WinPixGpuCapturer.dll has already been injected into the application.
+    // This may happen if the application is launched through the PIX UI. 
+    if (GetModuleHandle(L"WinPixGpuCapturer.dll") == 0)
+    {
+        LoadLibrary(L"C:\\Program Files\\Microsoft PIX\\2505.30\\WinPixGpuCapturer.dll");
+    }
+
     // Enable the debug layer (requires the Graphics Tools "optional feature").
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
     {
@@ -95,6 +103,15 @@ void D3D12Multithreading::LoadPipeline()
             IID_PPV_ARGS(&m_device)
             ));
     }
+
+#if defined(USE_ENHANCED_BARRIERS)
+    D3D12_FEATURE_DATA_D3D12_OPTIONS12 options12 = {};
+    ThrowIfFailed(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &options12, sizeof(options12)));
+    if (options12.EnhancedBarriersSupported != TRUE)
+    {
+        ThrowIfFailed(E_FAIL);
+    }
+#endif // defined(USE_ENHANCED_BARRIERS)
 
     // Describe and create the command queue.
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -270,7 +287,11 @@ void D3D12Multithreading::LoadAssets()
     }
 
     // Create temporary command list for initial GPU setup.
+#if defined(USE_ENHANCED_BARRIERS)
+    ComPtr<ID3D12GraphicsCommandList8> commandList;
+#else
     ComPtr<ID3D12GraphicsCommandList> commandList;
+#endif // defined(USE_ENHANCED_BARRIERS)
     ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&commandList)));
 
     // Create render target views (RTVs).
@@ -325,6 +346,18 @@ void D3D12Multithreading::LoadAssets()
 
     // Create the vertex buffer.
     {
+#if defined(USE_ENHANCED_BARRIERS)
+        ThrowIfFailed(m_device->CreateCommittedResource3(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC1::Buffer(SampleAssets::VertexDataSize),
+            D3D12_BARRIER_LAYOUT_UNDEFINED,
+            nullptr,
+            nullptr,
+            0,
+            nullptr,
+            IID_PPV_ARGS(&m_vertexBuffer)));
+#else
         ThrowIfFailed(m_device->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
             D3D12_HEAP_FLAG_NONE,
@@ -332,6 +365,7 @@ void D3D12Multithreading::LoadAssets()
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
             IID_PPV_ARGS(&m_vertexBuffer)));
+#endif // defined(USE_ENHANCED_BARRIERS)
 
         NAME_D3D12_OBJECT(m_vertexBuffer);
 
@@ -354,7 +388,24 @@ void D3D12Multithreading::LoadAssets()
             PIXBeginEvent(commandList.Get(), 0, L"Copy vertex buffer data to default resource...");
 
             UpdateSubresources<1>(commandList.Get(), m_vertexBuffer.Get(), m_vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
+#if defined(USE_ENHANCED_BARRIERS)
+            D3D12_BUFFER_BARRIER BufBarriers[] =
+            {
+                CD3DX12_BUFFER_BARRIER(
+                    D3D12_BARRIER_SYNC_COPY,              // SyncBefore
+                    D3D12_BARRIER_SYNC_ALL_SHADING,       // SyncAfter
+                    D3D12_BARRIER_ACCESS_COPY_DEST,          // AccessBefore
+                    D3D12_BARRIER_ACCESS_CONSTANT_BUFFER, // AccessAfter
+                    m_vertexBuffer.Get()
+                )
+            };
+
+            D3D12_BARRIER_GROUP BufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(BufBarriers), BufBarriers)};
+
+            commandList->Barrier(_countof(BufBarrierGroups), BufBarrierGroups);
+#else
             commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+#endif // defined(USE_ENHANCED_BARRIERS)
 
             PIXEndEvent(commandList.Get());
         }
@@ -367,6 +418,18 @@ void D3D12Multithreading::LoadAssets()
 
     // Create the index buffer.
     {
+#if defined(USE_ENHANCED_BARRIERS)
+        ThrowIfFailed(m_device->CreateCommittedResource3(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC1::Buffer(SampleAssets::IndexDataSize),
+            D3D12_BARRIER_LAYOUT_UNDEFINED,
+            nullptr,
+            nullptr,
+            0,
+            nullptr,
+            IID_PPV_ARGS(&m_indexBuffer)));
+#else
         ThrowIfFailed(m_device->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
             D3D12_HEAP_FLAG_NONE,
@@ -374,6 +437,7 @@ void D3D12Multithreading::LoadAssets()
             D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr,
             IID_PPV_ARGS(&m_indexBuffer)));
+#endif // defined(USE_ENHANCED_BARRIERS)
 
         NAME_D3D12_OBJECT(m_indexBuffer);
 
@@ -396,7 +460,25 @@ void D3D12Multithreading::LoadAssets()
             PIXBeginEvent(commandList.Get(), 0, L"Copy index buffer data to default resource...");
 
             UpdateSubresources<1>(commandList.Get(), m_indexBuffer.Get(), m_indexBufferUpload.Get(), 0, 0, 1, &indexData);
+            
+#if defined(USE_ENHANCED_BARRIERS)
+            D3D12_BUFFER_BARRIER BufBarriers[] =
+            {
+                CD3DX12_BUFFER_BARRIER(
+                    D3D12_BARRIER_SYNC_COPY,           // SyncBefore
+                    D3D12_BARRIER_SYNC_INDEX_INPUT,    // SyncAfter
+                    D3D12_BARRIER_ACCESS_COPY_DEST,       // AccessBefore
+                    D3D12_BARRIER_ACCESS_INDEX_BUFFER, // AccessAfter
+                    m_indexBuffer.Get()
+                )
+            };
+
+            D3D12_BARRIER_GROUP BufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(BufBarriers), BufBarriers)};
+
+            commandList->Barrier(_countof(BufBarrierGroups), BufBarrierGroups);
+#else
             commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+#endif // defined(USE_ENHANCED_BARRIERS)
 
             PIXEndEvent(commandList.Get());
         }
@@ -440,6 +522,32 @@ void D3D12Multithreading::LoadAssets()
         {
             // Describe and create a Texture2D.
             const SampleAssets::TextureResource &tex = SampleAssets::Textures[i];
+
+#if defined(USE_ENHANCED_BARRIERS)
+            CD3DX12_RESOURCE_DESC1 texDesc(
+                D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+                0,
+                tex.Width, 
+                tex.Height, 
+                1,
+                static_cast<UINT16>(tex.MipLevels),
+                tex.Format,
+                1, 
+                0,
+                D3D12_TEXTURE_LAYOUT_UNKNOWN,
+                D3D12_RESOURCE_FLAG_NONE);
+
+            ThrowIfFailed(m_device->CreateCommittedResource3(
+                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                D3D12_HEAP_FLAG_NONE,
+                &texDesc,
+                D3D12_BARRIER_LAYOUT_COPY_DEST,
+                nullptr,
+                nullptr,
+                0,
+                nullptr,
+                IID_PPV_ARGS(&m_textures[i])));
+#else
             CD3DX12_RESOURCE_DESC texDesc(
                 D3D12_RESOURCE_DIMENSION_TEXTURE2D,
                 0,
@@ -460,6 +568,7 @@ void D3D12Multithreading::LoadAssets()
                 D3D12_RESOURCE_STATE_COPY_DEST,
                 nullptr,
                 IID_PPV_ARGS(&m_textures[i])));
+#endif // defined(USE_ENHANCED_BARRIERS)
 
             NAME_D3D12_OBJECT_INDEXED(m_textures, i);
 
@@ -482,7 +591,28 @@ void D3D12Multithreading::LoadAssets()
                 textureData.SlicePitch = tex.Data->Size;
 
                 UpdateSubresources(commandList.Get(), m_textures[i].Get(), m_textureUploads[i].Get(), 0, 0, subresourceCount, &textureData);
+#if defined(USE_ENHANCED_BARRIERS)
+                D3D12_TEXTURE_BARRIER BufBarriers[] =
+                {
+                    CD3DX12_TEXTURE_BARRIER(
+                        D3D12_BARRIER_SYNC_COPY,           // SyncBefore
+                        D3D12_BARRIER_SYNC_ALL_SHADING,    // SyncAfter
+                        D3D12_BARRIER_ACCESS_COPY_DEST,       // AccessBefore
+                        D3D12_BARRIER_ACCESS_SHADER_RESOURCE, // AccessAfter
+                        D3D12_BARRIER_LAYOUT_COPY_DEST,                 // LayoutBefore
+                        D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,  // LayoutAfter
+                        m_textures[i].Get(),
+                        CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),       // All subresources
+                        D3D12_TEXTURE_BARRIER_FLAG_NONE
+                    )
+                };
+
+                D3D12_BARRIER_GROUP BufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(BufBarriers), BufBarriers) };
+
+                commandList->Barrier(_countof(BufBarrierGroups), BufBarrierGroups);
+#else
                 commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_textures[i].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+#endif // defined(USE_ENHANCED_BARRIERS)
             }
 
             // Describe and create an SRV.
@@ -914,8 +1044,29 @@ void D3D12Multithreading::BeginFrame()
 {
     m_pCurrentFrameResource->Init();
 
+#if defined(USE_ENHANCED_BARRIERS)
+    D3D12_TEXTURE_BARRIER BufBarriers[] =
+    {
+        CD3DX12_TEXTURE_BARRIER(
+            D3D12_BARRIER_SYNC_ALL,           // SyncBefore
+            D3D12_BARRIER_SYNC_RENDER_TARGET,    // SyncAfter
+            D3D12_BARRIER_ACCESS_COMMON,       // AccessBefore
+            D3D12_BARRIER_ACCESS_RENDER_TARGET, // AccessAfter
+            D3D12_BARRIER_LAYOUT_PRESENT,                 // LayoutBefore
+            D3D12_BARRIER_LAYOUT_RENDER_TARGET,  // LayoutAfter
+            m_renderTargets[m_frameIndex].Get(),
+            CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),       // All subresources
+            D3D12_TEXTURE_BARRIER_FLAG_NONE
+        )
+    };
+
+    D3D12_BARRIER_GROUP BufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(BufBarriers), BufBarriers) };
+
+    m_pCurrentFrameResource->m_commandLists[CommandListPre]->Barrier(_countof(BufBarrierGroups), BufBarrierGroups);
+#else
     // Indicate that the back buffer will be used as a render target.
     m_pCurrentFrameResource->m_commandLists[CommandListPre]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+#endif // defined(USE_ENHANCED_BARRIERS)
 
     // Clear the render target and depth stencil.
     const float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -940,8 +1091,29 @@ void D3D12Multithreading::EndFrame()
 {
     m_pCurrentFrameResource->Finish();
 
+#if defined(USE_ENHANCED_BARRIERS)
+    D3D12_TEXTURE_BARRIER BufBarriers[] =
+    {
+        CD3DX12_TEXTURE_BARRIER(
+            D3D12_BARRIER_SYNC_RENDER_TARGET,    // SyncBefore
+            D3D12_BARRIER_SYNC_ALL,           // SyncAfter
+            D3D12_BARRIER_ACCESS_RENDER_TARGET, // AccessBefore
+            D3D12_BARRIER_ACCESS_COMMON,       // AccessAfter
+            D3D12_BARRIER_LAYOUT_RENDER_TARGET,  // LayoutBefore
+            D3D12_BARRIER_LAYOUT_PRESENT,        // LayoutAfter
+            m_renderTargets[m_frameIndex].Get(),
+            CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),       // All subresources
+            D3D12_TEXTURE_BARRIER_FLAG_NONE
+        )
+    };
+
+    D3D12_BARRIER_GROUP BufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(BufBarriers), BufBarriers) };
+
+    m_pCurrentFrameResource->m_commandLists[CommandListPost]->Barrier(_countof(BufBarrierGroups), BufBarrierGroups);
+#else
     // Indicate that the back buffer will now be used to present.
     m_pCurrentFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+#endif // defined(USE_ENHANCED_BARRIERS)
 
     ThrowIfFailed(m_pCurrentFrameResource->m_commandLists[CommandListPost]->Close());
 }
