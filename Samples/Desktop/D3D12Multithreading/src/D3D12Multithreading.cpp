@@ -429,7 +429,7 @@ void D3D12Multithreading::LoadAssets()
 
             D3D12_BARRIER_GROUP VertexBufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(VertexBufBarriers), VertexBufBarriers)};
 
-            commandList->Barrier(_countof(BufBarrierGroups), BufBarrierGroups);
+            commandList->Barrier(_countof(VertexBufBarrierGroups), VertexBufBarrierGroups);
 #else
             commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 #endif // defined(USE_ENHANCED_BARRIERS)
