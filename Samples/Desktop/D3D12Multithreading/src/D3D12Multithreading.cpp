@@ -419,10 +419,10 @@ void D3D12Multithreading::LoadAssets()
             D3D12_BUFFER_BARRIER VertexBufBarriers[] =
             {
                 CD3DX12_BUFFER_BARRIER(
-                    D3D12_BARRIER_SYNC_ALL,    // SyncBefore
-                    D3D12_BARRIER_SYNC_ALL,           // SyncAfter
-                    D3D12_BARRIER_ACCESS_COMMON, // AccessBefore
-                    D3D12_BARRIER_ACCESS_COMMON,       // AccessAfter
+                    D3D12_BARRIER_SYNC_COPY,    // SyncBefore
+                    D3D12_BARRIER_SYNC_VERTEX_SHADING,           // SyncAfter
+                    D3D12_BARRIER_ACCESS_COPY_DEST, // AccessBefore
+                    D3D12_BARRIER_ACCESS_VERTEX_BUFFER,       // AccessAfter
                     m_vertexBuffer.Get()
                 )
             };
@@ -648,10 +648,10 @@ void D3D12Multithreading::LoadAssets()
                 D3D12_TEXTURE_BARRIER TexturesBarriers[] =
                 {
                     CD3DX12_TEXTURE_BARRIER(
-                        D3D12_BARRIER_SYNC_ALL,    // SyncBefore
-                        D3D12_BARRIER_SYNC_ALL,           // SyncAfter
-                        D3D12_BARRIER_ACCESS_COMMON, // AccessBefore
-                        D3D12_BARRIER_ACCESS_COMMON,       // AccessAfter
+                        D3D12_BARRIER_SYNC_COPY,    // SyncBefore
+                        D3D12_BARRIER_SYNC_PIXEL_SHADING,           // SyncAfter
+                        D3D12_BARRIER_ACCESS_COPY_DEST, // AccessBefore
+                        D3D12_BARRIER_ACCESS_SHADER_RESOURCE,       // AccessAfter
                         D3D12_BARRIER_LAYOUT_COPY_DEST,                 // LayoutBefore
                         D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,  // LayoutAfter
                         m_textures[i].Get(),
@@ -1101,10 +1101,10 @@ void D3D12Multithreading::BeginFrame()
     D3D12_TEXTURE_BARRIER BeginFrameBarriers[] =
     {
         CD3DX12_TEXTURE_BARRIER(
-            D3D12_BARRIER_SYNC_ALL,    // SyncBefore
-            D3D12_BARRIER_SYNC_ALL,           // SyncAfter
-            D3D12_BARRIER_ACCESS_COMMON, // AccessBefore
-            D3D12_BARRIER_ACCESS_COMMON,       // AccessAfter
+            D3D12_BARRIER_SYNC_NONE,    // SyncBefore
+            D3D12_BARRIER_SYNC_RENDER_TARGET,           // SyncAfter
+            D3D12_BARRIER_ACCESS_NO_ACCESS, // AccessBefore
+            D3D12_BARRIER_ACCESS_RENDER_TARGET,       // AccessAfter
             D3D12_BARRIER_LAYOUT_PRESENT,                 // LayoutBefore
             D3D12_BARRIER_LAYOUT_RENDER_TARGET,  // LayoutAfter
             m_renderTargets[m_frameIndex].Get(),
@@ -1148,10 +1148,10 @@ void D3D12Multithreading::EndFrame()
     D3D12_TEXTURE_BARRIER EndFrameBarriers[] =
     {
         CD3DX12_TEXTURE_BARRIER(
-            D3D12_BARRIER_SYNC_ALL,    // SyncBefore
-            D3D12_BARRIER_SYNC_ALL,           // SyncAfter
-            D3D12_BARRIER_ACCESS_COMMON, // AccessBefore
-            D3D12_BARRIER_ACCESS_COMMON,       // AccessAfter
+            D3D12_BARRIER_SYNC_RENDER_TARGET,    // SyncBefore
+            D3D12_BARRIER_SYNC_NONE,           // SyncAfter
+            D3D12_BARRIER_ACCESS_RENDER_TARGET, // AccessBefore
+            D3D12_BARRIER_ACCESS_NO_ACCESS,       // AccessAfter
             D3D12_BARRIER_LAYOUT_RENDER_TARGET,  // LayoutBefore
             D3D12_BARRIER_LAYOUT_PRESENT,        // LayoutAfter
             m_renderTargets[m_frameIndex].Get(),
