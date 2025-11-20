@@ -26,6 +26,7 @@ public:
 
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[CommandListCount];
     ComPtr<ID3D12GraphicsCommandList8> m_commandLists[CommandListCount];
+
     ComPtr<ID3D12CommandAllocator> m_shadowCommandAllocators[NumContexts];
     ComPtr<ID3D12GraphicsCommandList> m_shadowCommandLists[NumContexts];
 

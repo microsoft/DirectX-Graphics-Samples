@@ -309,10 +309,10 @@ void FrameResource::SwapBarriers()
     D3D12_TEXTURE_BARRIER ShadowTextureBarriers[] =
     {
         CD3DX12_TEXTURE_BARRIER(
-            D3D12_BARRIER_SYNC_DEPTH_STENCIL,    // SyncBefore
-            D3D12_BARRIER_SYNC_PIXEL_SHADING,           // SyncAfter
-            D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE, // AccessBefore
-            D3D12_BARRIER_ACCESS_SHADER_RESOURCE,       // AccessAfter
+            D3D12_BARRIER_SYNC_DEPTH_STENCIL,              // SyncBefore
+            D3D12_BARRIER_SYNC_PIXEL_SHADING,              // SyncAfter
+            D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE,      // AccessBefore
+            D3D12_BARRIER_ACCESS_SHADER_RESOURCE,          // AccessAfter
             D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,      // LayoutBefore
             D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,          // LayoutAfter
             m_shadowTexture.Get(),
@@ -336,10 +336,10 @@ void FrameResource::Finish()
     D3D12_TEXTURE_BARRIER FinishTexBarrier[] =
     {
         CD3DX12_TEXTURE_BARRIER(
-            D3D12_BARRIER_SYNC_PIXEL_SHADING,    // SyncBefore
-            D3D12_BARRIER_SYNC_DEPTH_STENCIL,           // SyncAfter
-            D3D12_BARRIER_ACCESS_SHADER_RESOURCE, // AccessBefore
-            D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE,       // AccessAfter
+            D3D12_BARRIER_SYNC_PIXEL_SHADING,              // SyncBefore
+            D3D12_BARRIER_SYNC_DEPTH_STENCIL,              // SyncAfter
+            D3D12_BARRIER_ACCESS_SHADER_RESOURCE,          // AccessBefore
+            D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE,      // AccessAfter
             D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,          // LayoutBefore
             D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,      // LayoutAfter
             m_shadowTexture.Get(),

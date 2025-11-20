@@ -56,14 +56,6 @@ void D3D12Multithreading::LoadPipeline()
     UINT dxgiFactoryFlags = 0;
 
 #if defined(_DEBUG)
-
-    // Check to see if a copy of WinPixGpuCapturer.dll has already been injected into the application.
-    // This may happen if the application is launched through the PIX UI. 
-    if (GetModuleHandle(L"WinPixGpuCapturer.dll") == 0)
-    {
-        LoadLibrary(L"C:\\Program Files\\Microsoft PIX\\2505.30\\WinPixGpuCapturer.dll");
-    }
-
     // Enable the debug layer (requires the Graphics Tools "optional feature").
     // NOTE: Enabling the debug layer after device creation will invalidate the active device.
     {
@@ -307,7 +299,6 @@ void D3D12Multithreading::LoadAssets()
         CD3DX12_RESOURCE_DESC1 shadowTextureDesc(
 #else
         CD3DX12_RESOURCE_DESC shadowTextureDesc(
-
 #endif // defined(USE_ENHANCED_BARRIERS)
             D3D12_RESOURCE_DIMENSION_TEXTURE2D,
             0,
@@ -419,10 +410,10 @@ void D3D12Multithreading::LoadAssets()
             D3D12_BUFFER_BARRIER VertexBufBarriers[] =
             {
                 CD3DX12_BUFFER_BARRIER(
-                    D3D12_BARRIER_SYNC_COPY,    // SyncBefore
-                    D3D12_BARRIER_SYNC_VERTEX_SHADING,           // SyncAfter
-                    D3D12_BARRIER_ACCESS_COPY_DEST, // AccessBefore
-                    D3D12_BARRIER_ACCESS_VERTEX_BUFFER,       // AccessAfter
+                    D3D12_BARRIER_SYNC_COPY,            // SyncBefore
+                    D3D12_BARRIER_SYNC_VERTEX_SHADING,  // SyncAfter
+                    D3D12_BARRIER_ACCESS_COPY_DEST,     // AccessBefore
+                    D3D12_BARRIER_ACCESS_VERTEX_BUFFER, // AccessAfter
                     m_vertexBuffer.Get()
                 )
             };
@@ -507,7 +498,7 @@ void D3D12Multithreading::LoadAssets()
                 CD3DX12_BUFFER_BARRIER(
                     D3D12_BARRIER_SYNC_COPY,           // SyncBefore
                     D3D12_BARRIER_SYNC_INDEX_INPUT,    // SyncAfter
-                    D3D12_BARRIER_ACCESS_COPY_DEST,       // AccessBefore
+                    D3D12_BARRIER_ACCESS_COPY_DEST,    // AccessBefore
                     D3D12_BARRIER_ACCESS_INDEX_BUFFER, // AccessAfter
                     m_indexBuffer.Get()
                 )
@@ -648,14 +639,14 @@ void D3D12Multithreading::LoadAssets()
                 D3D12_TEXTURE_BARRIER TexturesBarriers[] =
                 {
                     CD3DX12_TEXTURE_BARRIER(
-                        D3D12_BARRIER_SYNC_COPY,    // SyncBefore
-                        D3D12_BARRIER_SYNC_PIXEL_SHADING,           // SyncAfter
-                        D3D12_BARRIER_ACCESS_COPY_DEST, // AccessBefore
-                        D3D12_BARRIER_ACCESS_SHADER_RESOURCE,       // AccessAfter
-                        D3D12_BARRIER_LAYOUT_COPY_DEST,                 // LayoutBefore
-                        D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,  // LayoutAfter
+                        D3D12_BARRIER_SYNC_COPY,                       // SyncBefore
+                        D3D12_BARRIER_SYNC_PIXEL_SHADING,              // SyncAfter
+                        D3D12_BARRIER_ACCESS_COPY_DEST,                // AccessBefore
+                        D3D12_BARRIER_ACCESS_SHADER_RESOURCE,          // AccessAfter
+                        D3D12_BARRIER_LAYOUT_COPY_DEST,                // LayoutBefore
+                        D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,          // LayoutAfter
                         m_textures[i].Get(),
-                        CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),       // All subresources
+                        CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff), // All subresources
                         D3D12_TEXTURE_BARRIER_FLAG_NONE
                     )
                 };
@@ -1101,14 +1092,14 @@ void D3D12Multithreading::BeginFrame()
     D3D12_TEXTURE_BARRIER BeginFrameBarriers[] =
     {
         CD3DX12_TEXTURE_BARRIER(
-            D3D12_BARRIER_SYNC_NONE,    // SyncBefore
-            D3D12_BARRIER_SYNC_RENDER_TARGET,           // SyncAfter
-            D3D12_BARRIER_ACCESS_NO_ACCESS, // AccessBefore
-            D3D12_BARRIER_ACCESS_RENDER_TARGET,       // AccessAfter
-            D3D12_BARRIER_LAYOUT_PRESENT,                 // LayoutBefore
-            D3D12_BARRIER_LAYOUT_RENDER_TARGET,  // LayoutAfter
+            D3D12_BARRIER_SYNC_NONE,                       // SyncBefore
+            D3D12_BARRIER_SYNC_RENDER_TARGET,              // SyncAfter
+            D3D12_BARRIER_ACCESS_NO_ACCESS,                // AccessBefore
+            D3D12_BARRIER_ACCESS_RENDER_TARGET,            // AccessAfter
+            D3D12_BARRIER_LAYOUT_PRESENT,                  // LayoutBefore
+            D3D12_BARRIER_LAYOUT_RENDER_TARGET,            // LayoutAfter
             m_renderTargets[m_frameIndex].Get(),
-            CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),       // All subresources
+            CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff), // All subresources
             D3D12_TEXTURE_BARRIER_FLAG_NONE
         )
     };
@@ -1148,14 +1139,14 @@ void D3D12Multithreading::EndFrame()
     D3D12_TEXTURE_BARRIER EndFrameBarriers[] =
     {
         CD3DX12_TEXTURE_BARRIER(
-            D3D12_BARRIER_SYNC_RENDER_TARGET,    // SyncBefore
-            D3D12_BARRIER_SYNC_NONE,           // SyncAfter
-            D3D12_BARRIER_ACCESS_RENDER_TARGET, // AccessBefore
-            D3D12_BARRIER_ACCESS_NO_ACCESS,       // AccessAfter
-            D3D12_BARRIER_LAYOUT_RENDER_TARGET,  // LayoutBefore
-            D3D12_BARRIER_LAYOUT_PRESENT,        // LayoutAfter
+            D3D12_BARRIER_SYNC_RENDER_TARGET,              // SyncBefore
+            D3D12_BARRIER_SYNC_NONE,                       // SyncAfter
+            D3D12_BARRIER_ACCESS_RENDER_TARGET,            // AccessBefore
+            D3D12_BARRIER_ACCESS_NO_ACCESS,                // AccessAfter
+            D3D12_BARRIER_LAYOUT_RENDER_TARGET,            // LayoutBefore
+            D3D12_BARRIER_LAYOUT_PRESENT,                  // LayoutAfter
             m_renderTargets[m_frameIndex].Get(),
-            CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),       // All subresources
+            CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff), // All subresources
             D3D12_TEXTURE_BARRIER_FLAG_NONE
         )
     };
