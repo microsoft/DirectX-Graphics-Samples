@@ -57,6 +57,8 @@ public:
 
     static D3D12Multithreading* Get() { return s_app; }
 
+    static bool IsEnhancedBarriersEnabled() { return s_bIsEnhancedBarriersEnabled; }
+
     virtual void OnInit();
     virtual void OnUpdate();
     virtual void OnRender();
@@ -127,6 +129,8 @@ private:
     FrameResource* m_frameResources[FrameCount];
     FrameResource* m_pCurrentFrameResource;
     int m_currentFrameResourceIndex;
+
+    static bool s_bIsEnhancedBarriersEnabled;
 
     struct ThreadParameter
     {

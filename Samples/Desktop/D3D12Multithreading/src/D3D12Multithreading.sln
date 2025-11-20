@@ -7,20 +7,14 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12Multithreading", "D3D1
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug (Enhanced Barriers)|x64 = Debug (Enhanced Barriers)|x64
-		Debug (Legacy Barriers)|x64 = Debug (Legacy Barriers)|x64
-		Release (Enhanced Barriers)|x64 = Release (Enhanced Barriers)|x64
-		Release (Legacy Barriers)|x64 = Release (Legacy Barriers)|x64
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Debug (Enhanced Barriers)|x64.ActiveCfg = Debug (Enhanced Barriers)|x64
-		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Debug (Enhanced Barriers)|x64.Build.0 = Debug (Enhanced Barriers)|x64
-		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Debug (Legacy Barriers)|x64.ActiveCfg = Debug|x64
-		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Debug (Legacy Barriers)|x64.Build.0 = Debug|x64
-		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Release (Enhanced Barriers)|x64.ActiveCfg = Release (Enhanced Barriers)|x64
-		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Release (Enhanced Barriers)|x64.Build.0 = Release (Enhanced Barriers)|x64
-		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Release (Legacy Barriers)|x64.ActiveCfg = Release|x64
-		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Release (Legacy Barriers)|x64.Build.0 = Release|x64
+		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Debug|x64.ActiveCfg = Debug|x64
+		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Debug|x64.Build.0 = Debug|x64
+		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Release|x64.ActiveCfg = Release|x64
+		{3FC193D0-7E4E-4918-8431-D67391EE4145}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
