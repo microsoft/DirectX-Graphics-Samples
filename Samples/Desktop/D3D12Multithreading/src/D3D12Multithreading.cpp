@@ -1095,6 +1095,11 @@ void D3D12Multithreading::BeginFrame()
     {
         D3D12_TEXTURE_BARRIER BeginFrameBarriers[] =
         {
+            // Using SYNC_NONE and ACCESS_NO_ACCESS with Enhanced Barrier to avoid unnecessary sync/flush.
+            // Using them explicitly tells the GPU it is okay to immediately transition
+            // the layout without waiting for preceding work to complete.
+            // In this case, the legacy barrier would flush and finish any preceding work that may potentially be reading from the RT
+            // resource (in this case there is none)
             CD3DX12_TEXTURE_BARRIER(
                 D3D12_BARRIER_SYNC_NONE,                       // SyncBefore
                 D3D12_BARRIER_SYNC_RENDER_TARGET,              // SyncAfter
@@ -1145,6 +1150,8 @@ void D3D12Multithreading::EndFrame()
     {
         D3D12_TEXTURE_BARRIER EndFrameBarriers[] =
         {
+            // Using SYNC_NONE and ACCESS_NO_ACCESS with Enhanced Barrier means subsequent
+            // commands are unblocked without having to wait for the barrier to complete.
             CD3DX12_TEXTURE_BARRIER(
                 D3D12_BARRIER_SYNC_RENDER_TARGET,              // SyncBefore
                 D3D12_BARRIER_SYNC_NONE,                       // SyncAfter
