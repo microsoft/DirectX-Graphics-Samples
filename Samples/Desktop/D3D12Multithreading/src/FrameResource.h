@@ -25,7 +25,7 @@ public:
     ID3D12CommandList* m_batchSubmit[NumContexts * 2 + CommandListCount];
 
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[CommandListCount];
-    ComPtr<ID3D12GraphicsCommandList> m_commandLists[CommandListCount];
+    ComPtr<ID3D12GraphicsCommandList8> m_commandLists[CommandListCount];
 
     ComPtr<ID3D12CommandAllocator> m_shadowCommandAllocators[NumContexts];
     ComPtr<ID3D12GraphicsCommandList> m_shadowCommandLists[NumContexts];
@@ -50,7 +50,7 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE m_sceneCbvHandle;
 
 public:
-    FrameResource(ID3D12Device* pDevice, ID3D12PipelineState* pPso, ID3D12PipelineState* pShadowMapPso, ID3D12DescriptorHeap* pDsvHeap, ID3D12DescriptorHeap* pCbvSrvHeap, D3D12_VIEWPORT* pViewport, UINT frameResourceIndex);
+    FrameResource(ID3D12Device10* pDevice, ID3D12PipelineState* pPso, ID3D12PipelineState* pShadowMapPso, ID3D12DescriptorHeap* pDsvHeap, ID3D12DescriptorHeap* pCbvSrvHeap, D3D12_VIEWPORT* pViewport, UINT frameResourceIndex);
     ~FrameResource();
 
     void Bind(ID3D12GraphicsCommandList* pCommandList, BOOL scenePass, D3D12_CPU_DESCRIPTOR_HANDLE* pRtvHandle, D3D12_CPU_DESCRIPTOR_HANDLE* pDsvHandle);
