@@ -431,8 +431,6 @@ void D3D12SmallResources::CreateTextures()
 
         if (m_bIsEnhancedBarriersEnabled)
         {
-            std::vector<D3D12_TEXTURE_BARRIER> textureBarriers;
-            textureBarriers.resize(TextureCount);
             for (UINT n = 0; n < TextureCount; n++)
             {
                 ThrowIfFailed(m_device->CreatePlacedResource2(
@@ -444,36 +442,10 @@ void D3D12SmallResources::CreateTextures()
                     0,
                     nullptr,
                     IID_PPV_ARGS(&m_textures[n])));
-
-                D3D12_TEXTURE_BARRIER TexBarrier =
-                {
-                    CD3DX12_TEXTURE_BARRIER(
-                        D3D12_BARRIER_SYNC_COPY,                       // SyncBefore
-                        D3D12_BARRIER_SYNC_COPY,                       // SyncAfter
-                        D3D12_BARRIER_ACCESS_NO_ACCESS,                // AccessBefore
-                        D3D12_BARRIER_ACCESS_COPY_DEST,                // AccessAfter
-                        D3D12_BARRIER_LAYOUT_UNDEFINED,                // LayoutBefore
-                        D3D12_BARRIER_LAYOUT_COMMON,                   // LayoutAfter
-                        m_textures[n].Get(),
-                        CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff), // All subresources
-                        D3D12_TEXTURE_BARRIER_FLAG_DISCARD             // Discard and init metadata
-                    )
-                };
-
-                textureBarriers[n] = TexBarrier;
-            }
-
-            D3D12_BARRIER_GROUP TextureBarrierGroup[] =
-            {
-                CD3DX12_BARRIER_GROUP(static_cast<UINT>(textureBarriers.size()), textureBarriers.data())
-            };
-
-            m_copyCommandList->Barrier(1, TextureBarrierGroup);
+                }
         }
         else
         {
-            std::vector<D3D12_RESOURCE_BARRIER> barriers;
-            barriers.resize(TextureCount);
             for (UINT n = 0; n < TextureCount; n++)
             {
                 ThrowIfFailed(m_device->CreatePlacedResource(
@@ -483,11 +455,7 @@ void D3D12SmallResources::CreateTextures()
                     D3D12_RESOURCE_STATE_COMMON,
                     nullptr,
                     IID_PPV_ARGS(&m_textures[n])));
-
-                barriers[n] = CD3DX12_RESOURCE_BARRIER::Aliasing(nullptr, m_textures[n].Get());
             }
-
-            m_copyCommandList->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
         }
     }
     else
