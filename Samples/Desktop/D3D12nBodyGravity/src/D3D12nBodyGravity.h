@@ -81,7 +81,7 @@ private:
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;
-    ComPtr<ID3D12Device> m_device;
+    ComPtr<ID3D12Device10> m_device;
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
     UINT m_frameIndex;
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
@@ -96,7 +96,7 @@ private:
     // Asset objects.
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12PipelineState> m_computeState;
-    ComPtr<ID3D12GraphicsCommandList> m_commandList;
+    ComPtr<ID3D12GraphicsCommandList8> m_commandList;
     ComPtr<ID3D12Resource> m_vertexBuffer;
     ComPtr<ID3D12Resource> m_vertexBufferUpload;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
@@ -117,7 +117,7 @@ private:
     // Compute objects.
     ComPtr<ID3D12CommandAllocator> m_computeAllocator[ThreadCount];
     ComPtr<ID3D12CommandQueue> m_computeCommandQueue[ThreadCount];
-    ComPtr<ID3D12GraphicsCommandList> m_computeCommandList[ThreadCount];
+    ComPtr<ID3D12GraphicsCommandList8> m_computeCommandList[ThreadCount];
 
     // Synchronization objects.
     HANDLE m_swapChainEvent;
@@ -133,6 +133,8 @@ private:
     LONG volatile m_terminating;
     UINT64 volatile m_renderContextFenceValues[ThreadCount];
     UINT64 volatile m_threadFenceValues[ThreadCount];
+
+    bool m_bIsEnhancedBarriersEnabled;
 
     struct ThreadData
     {
