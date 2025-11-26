@@ -109,6 +109,10 @@ void D3D12nBodyGravity::LoadPipeline()
             ));
     }
 
+    D3D12_FEATURE_DATA_D3D12_OPTIONS12 options12 = {};
+    ThrowIfFailed(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &options12, sizeof(options12)));
+    m_bIsEnhancedBarriersEnabled = static_cast<bool>(options12.EnhancedBarriersSupported);
+
     // Describe and create the command queue.
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -324,21 +328,48 @@ void D3D12nBodyGravity::LoadAssets()
     {
         const UINT bufferSize = sizeof(ConstantBufferCS);
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr,
-            IID_PPV_ARGS(&m_constantBufferCS)));
+        if (m_bIsEnhancedBarriersEnabled)
+        {
+            ThrowIfFailed(m_device->CreateCommittedResource3(
+                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC1::Buffer(bufferSize),
+                D3D12_BARRIER_LAYOUT_UNDEFINED,
+                nullptr,
+                nullptr,
+                0,
+                nullptr,
+                IID_PPV_ARGS(&m_constantBufferCS)));
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&constantBufferCSUpload)));
+            ThrowIfFailed(m_device->CreateCommittedResource3(
+                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC1::Buffer(bufferSize),
+                D3D12_BARRIER_LAYOUT_UNDEFINED,
+                nullptr,
+                nullptr,
+                0,
+                nullptr,
+                IID_PPV_ARGS(&constantBufferCSUpload)));
+        }
+        else
+        {
+            ThrowIfFailed(m_device->CreateCommittedResource(
+                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                nullptr,
+                IID_PPV_ARGS(&m_constantBufferCS)));
+
+            ThrowIfFailed(m_device->CreateCommittedResource(
+                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(&constantBufferCSUpload)));
+        }
 
         NAME_D3D12_OBJECT(m_constantBufferCS);
 
@@ -354,21 +385,57 @@ void D3D12nBodyGravity::LoadAssets()
         computeCBData.SlicePitch = computeCBData.RowPitch;
 
         UpdateSubresources<1>(m_commandList.Get(), m_constantBufferCS.Get(), constantBufferCSUpload.Get(), 0, 0, 1, &computeCBData);
-        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_constantBufferCS.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+
+        if (m_bIsEnhancedBarriersEnabled)
+        {
+            D3D12_BUFFER_BARRIER ComputeBufBarriers[] =
+            {
+                CD3DX12_BUFFER_BARRIER(
+                    D3D12_BARRIER_SYNC_COPY,              // SyncBefore
+                    D3D12_BARRIER_SYNC_COMPUTE_SHADING,   // SyncAfter
+                    D3D12_BARRIER_ACCESS_COPY_DEST,       // AccessBefore
+                    D3D12_BARRIER_ACCESS_CONSTANT_BUFFER, // AccessAfter
+                    m_constantBufferCS.Get()
+                )
+            };
+            D3D12_BARRIER_GROUP ComputeBufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(ComputeBufBarriers), ComputeBufBarriers) };
+            m_commandList->Barrier(_countof(ComputeBufBarrierGroups), ComputeBufBarrierGroups);
+        }
+        else
+        {
+            m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_constantBufferCS.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+        }
     }
 
     // Create the geometry shader's constant buffer.
     {
         const UINT constantBufferGSSize = sizeof(ConstantBufferGS) * FrameCount;
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(constantBufferGSSize),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&m_constantBufferGS)
+        if (m_bIsEnhancedBarriersEnabled)
+        {
+            ThrowIfFailed(m_device->CreateCommittedResource3(
+                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC1::Buffer(constantBufferGSSize),
+                D3D12_BARRIER_LAYOUT_UNDEFINED,
+                nullptr,
+                nullptr,
+                0,
+                nullptr,
+                IID_PPV_ARGS(&m_constantBufferGS)
             ));
+        }
+        else
+        {
+            ThrowIfFailed(m_device->CreateCommittedResource(
+                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC::Buffer(constantBufferGSSize),
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(&m_constantBufferGS)
+            ));
+        }
 
         NAME_D3D12_OBJECT(m_constantBufferGS);
 
@@ -408,21 +475,48 @@ void D3D12nBodyGravity::CreateVertexBuffer()
     }
     const UINT bufferSize = ParticleCount * sizeof(ParticleVertex);
 
-    ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
-        D3D12_RESOURCE_STATE_COPY_DEST,
-        nullptr,
-        IID_PPV_ARGS(&m_vertexBuffer)));
+    if (m_bIsEnhancedBarriersEnabled)
+    {
+        ThrowIfFailed(m_device->CreateCommittedResource3(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC1::Buffer(bufferSize),
+            D3D12_BARRIER_LAYOUT_UNDEFINED,
+            nullptr,
+            nullptr,
+            0,
+            nullptr,
+            IID_PPV_ARGS(&m_vertexBuffer)));
 
-    ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&m_vertexBufferUpload)));
+        ThrowIfFailed(m_device->CreateCommittedResource3(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC1::Buffer(bufferSize),
+            D3D12_BARRIER_LAYOUT_UNDEFINED,
+            nullptr,
+            nullptr,
+            0,
+            nullptr,
+            IID_PPV_ARGS(&m_vertexBufferUpload)));
+    }
+    else
+    {
+        ThrowIfFailed(m_device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+            D3D12_RESOURCE_STATE_COPY_DEST,
+            nullptr,
+            IID_PPV_ARGS(&m_vertexBuffer)));
+
+        ThrowIfFailed(m_device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_vertexBufferUpload)));
+    }
 
     NAME_D3D12_OBJECT(m_vertexBuffer);
 
@@ -432,7 +526,26 @@ void D3D12nBodyGravity::CreateVertexBuffer()
     vertexData.SlicePitch = vertexData.RowPitch;
 
     UpdateSubresources<1>(m_commandList.Get(), m_vertexBuffer.Get(), m_vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+
+    if (m_bIsEnhancedBarriersEnabled)
+    {
+        D3D12_BUFFER_BARRIER VertexBufBarriers[] =
+        {
+            CD3DX12_BUFFER_BARRIER(
+                D3D12_BARRIER_SYNC_COPY,            // SyncBefore
+                D3D12_BARRIER_SYNC_VERTEX_SHADING,  // SyncAfter
+                D3D12_BARRIER_ACCESS_COPY_DEST,     // AccessBefore
+                D3D12_BARRIER_ACCESS_VERTEX_BUFFER, // AccessAfter
+                m_vertexBuffer.Get()
+            )
+        };
+        D3D12_BARRIER_GROUP VertexBufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(VertexBufBarriers), VertexBufBarriers) };
+        m_commandList->Barrier(_countof(VertexBufBarrierGroups), VertexBufBarrierGroups);
+    }
+    else
+    {
+        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+    }
 
     m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
     m_vertexBufferView.SizeInBytes = static_cast<UINT>(bufferSize);
@@ -494,37 +607,86 @@ void D3D12nBodyGravity::CreateParticleBuffers()
         // renders the other. When rendering completes, the threads will swap 
         // which buffer they work on.
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &defaultHeapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &bufferDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr,
-            IID_PPV_ARGS(&m_particleBuffer0[index])));
+        if (m_bIsEnhancedBarriersEnabled)
+        {
+            ThrowIfFailed(m_device->CreateCommittedResource3(
+                &defaultHeapProperties,
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC1(bufferDesc),
+                D3D12_BARRIER_LAYOUT_UNDEFINED,
+                nullptr,
+                nullptr,
+                0,
+                nullptr,
+                IID_PPV_ARGS(&m_particleBuffer0[index])));
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &defaultHeapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &bufferDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr,
-            IID_PPV_ARGS(&m_particleBuffer1[index])));
+            ThrowIfFailed(m_device->CreateCommittedResource3(
+                &defaultHeapProperties,
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC1(bufferDesc),
+                D3D12_BARRIER_LAYOUT_UNDEFINED,
+                nullptr,
+                nullptr,
+                0,
+                nullptr,
+                IID_PPV_ARGS(&m_particleBuffer1[index])));
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &uploadHeapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &uploadBufferDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&m_particleBuffer0Upload[index])));
+            ThrowIfFailed(m_device->CreateCommittedResource3(
+                &uploadHeapProperties,
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC1(uploadBufferDesc),
+                D3D12_BARRIER_LAYOUT_UNDEFINED,
+                nullptr,
+                nullptr,
+                0,
+                nullptr,
+                IID_PPV_ARGS(&m_particleBuffer0Upload[index])));
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &uploadHeapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &uploadBufferDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&m_particleBuffer1Upload[index])));
+            ThrowIfFailed(m_device->CreateCommittedResource3(
+                &uploadHeapProperties,
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC1(uploadBufferDesc),
+                D3D12_BARRIER_LAYOUT_UNDEFINED,
+                nullptr,
+                nullptr,
+                0,
+                nullptr,
+                IID_PPV_ARGS(&m_particleBuffer1Upload[index])));
+        }
+        else
+        {
+            ThrowIfFailed(m_device->CreateCommittedResource(
+                &defaultHeapProperties,
+                D3D12_HEAP_FLAG_NONE,
+                &bufferDesc,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                nullptr,
+                IID_PPV_ARGS(&m_particleBuffer0[index])));
+
+            ThrowIfFailed(m_device->CreateCommittedResource(
+                &defaultHeapProperties,
+                D3D12_HEAP_FLAG_NONE,
+                &bufferDesc,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                nullptr,
+                IID_PPV_ARGS(&m_particleBuffer1[index])));
+
+            ThrowIfFailed(m_device->CreateCommittedResource(
+                &uploadHeapProperties,
+                D3D12_HEAP_FLAG_NONE,
+                &uploadBufferDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(&m_particleBuffer0Upload[index])));
+
+            ThrowIfFailed(m_device->CreateCommittedResource(
+                &uploadHeapProperties,
+                D3D12_HEAP_FLAG_NONE,
+                &uploadBufferDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(&m_particleBuffer1Upload[index])));
+        }
 
         NAME_D3D12_OBJECT_INDEXED(m_particleBuffer0, index);
         NAME_D3D12_OBJECT_INDEXED(m_particleBuffer1, index);
@@ -536,8 +698,34 @@ void D3D12nBodyGravity::CreateParticleBuffers()
 
         UpdateSubresources<1>(m_commandList.Get(), m_particleBuffer0[index].Get(), m_particleBuffer0Upload[index].Get(), 0, 0, 1, &particleData);
         UpdateSubresources<1>(m_commandList.Get(), m_particleBuffer1[index].Get(), m_particleBuffer1Upload[index].Get(), 0, 0, 1, &particleData);
-        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_particleBuffer0[index].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
-        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_particleBuffer1[index].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+        
+        if (m_bIsEnhancedBarriersEnabled)
+        {
+            D3D12_BUFFER_BARRIER ParticleBufBarriers[] =
+            {
+                CD3DX12_BUFFER_BARRIER(
+                    D3D12_BARRIER_SYNC_COPY,              // SyncBefore
+                    D3D12_BARRIER_SYNC_NON_PIXEL_SHADING, // SyncAfter
+                    D3D12_BARRIER_ACCESS_COPY_DEST,       // AccessBefore
+                    D3D12_BARRIER_ACCESS_SHADER_RESOURCE, // AccessAfter
+                    m_particleBuffer0[index].Get()
+                ),
+                CD3DX12_BUFFER_BARRIER(
+                    D3D12_BARRIER_SYNC_COPY,              // SyncBefore
+                    D3D12_BARRIER_SYNC_NON_PIXEL_SHADING, // SyncAfter
+                    D3D12_BARRIER_ACCESS_COPY_DEST,       // AccessBefore
+                    D3D12_BARRIER_ACCESS_SHADER_RESOURCE, // AccessAfter
+                    m_particleBuffer1[index].Get()
+                )
+            };
+            D3D12_BARRIER_GROUP ParticleBufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(ParticleBufBarriers), ParticleBufBarriers) };
+            m_commandList->Barrier(_countof(ParticleBufBarrierGroups), ParticleBufBarrierGroups);
+        }
+        else
+        {
+            m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_particleBuffer0[index].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+            m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_particleBuffer1[index].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+        }
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -737,8 +925,36 @@ void D3D12nBodyGravity::PopulateCommandList()
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
-    // Indicate that the back buffer will be used as a render target.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    if (m_bIsEnhancedBarriersEnabled)
+    {
+        D3D12_TEXTURE_BARRIER BeginFrameBarriers[] =
+        {
+            // Using SYNC_NONE and ACCESS_NO_ACCESS with Enhanced Barrier to avoid unnecessary sync/flush.
+            // Using them explicitly tells the GPU it is okay to immediately transition
+            // the layout without waiting for preceding work to complete.
+            // In this case, the legacy barrier would flush and finish any preceding work that may potentially be reading from the RT
+            // resource (in this case there is none)
+            CD3DX12_TEXTURE_BARRIER(
+                D3D12_BARRIER_SYNC_NONE,                       // SyncBefore
+                D3D12_BARRIER_SYNC_RENDER_TARGET,              // SyncAfter
+                D3D12_BARRIER_ACCESS_NO_ACCESS,                // AccessBefore
+                D3D12_BARRIER_ACCESS_RENDER_TARGET,            // AccessAfter
+                D3D12_BARRIER_LAYOUT_PRESENT,                  // LayoutBefore
+                D3D12_BARRIER_LAYOUT_RENDER_TARGET,            // LayoutAfter
+                m_renderTargets[m_frameIndex].Get(),
+                CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff), // All subresources
+                D3D12_TEXTURE_BARRIER_FLAG_NONE
+            )
+        };
+
+        D3D12_BARRIER_GROUP BeginFrameBarriersGroups[] = { CD3DX12_BARRIER_GROUP(_countof(BeginFrameBarriers), BeginFrameBarriers) };
+        m_commandList->Barrier(_countof(BeginFrameBarriersGroups), BeginFrameBarriersGroups);
+    }
+    else
+    {
+        // Indicate that the back buffer will be used as a render target.
+        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    }
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
@@ -772,8 +988,32 @@ void D3D12nBodyGravity::PopulateCommandList()
 
     m_commandList->RSSetViewports(1, &m_viewport);
 
-    // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    if (true)
+    {
+        D3D12_TEXTURE_BARRIER EndFrameBarriers[] =
+        {
+            // Using SYNC_NONE and ACCESS_NO_ACCESS with Enhanced Barrier means subsequent
+            // commands are unblocked without having to wait for the barrier to complete.
+            CD3DX12_TEXTURE_BARRIER(
+                D3D12_BARRIER_SYNC_RENDER_TARGET,              // SyncBefore
+                D3D12_BARRIER_SYNC_NONE,                       // SyncAfter
+                D3D12_BARRIER_ACCESS_RENDER_TARGET,            // AccessBefore
+                D3D12_BARRIER_ACCESS_NO_ACCESS,                // AccessAfter
+                D3D12_BARRIER_LAYOUT_RENDER_TARGET,            // LayoutBefore
+                D3D12_BARRIER_LAYOUT_PRESENT,                  // LayoutAfter
+                m_renderTargets[m_frameIndex].Get(),
+                CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff), // All subresources
+                D3D12_TEXTURE_BARRIER_FLAG_NONE
+            )
+        };
+        D3D12_BARRIER_GROUP EndFrameBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(EndFrameBarriers), EndFrameBarriers) };
+        m_commandList->Barrier(_countof(EndFrameBarrierGroups), EndFrameBarrierGroups);
+    }
+    else
+    {
+        // Indicate that the back buffer will now be used to present.
+        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    }
 
     ThrowIfFailed(m_commandList->Close());
 }
@@ -827,7 +1067,7 @@ DWORD D3D12nBodyGravity::AsyncComputeThreadProc(int threadIndex)
 // Run the particle simulation using the compute shader.
 void D3D12nBodyGravity::Simulate(UINT threadIndex)
 {
-    ID3D12GraphicsCommandList* pCommandList = m_computeCommandList[threadIndex].Get();
+    ID3D12GraphicsCommandList8* pCommandList = m_computeCommandList[threadIndex].Get();
 
     UINT srvIndex;
     UINT uavIndex;
@@ -845,7 +1085,25 @@ void D3D12nBodyGravity::Simulate(UINT threadIndex)
         pUavResource = m_particleBuffer0[threadIndex].Get();
     }
 
-    pCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pUavResource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+    if (m_bIsEnhancedBarriersEnabled)
+    {
+        D3D12_BUFFER_BARRIER BeginUAVBufBarriers[] =
+        {
+            CD3DX12_BUFFER_BARRIER(
+                D3D12_BARRIER_SYNC_NON_PIXEL_SHADING,  // SyncBefore
+                D3D12_BARRIER_SYNC_COMPUTE_SHADING,    // SyncAfter
+                D3D12_BARRIER_ACCESS_SHADER_RESOURCE,  // AccessBefore
+                D3D12_BARRIER_ACCESS_UNORDERED_ACCESS, // AccessAfter
+                pUavResource
+            )
+        };
+        D3D12_BARRIER_GROUP BeginUAVBufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(BeginUAVBufBarriers), BeginUAVBufBarriers) };
+        pCommandList->Barrier(_countof(BeginUAVBufBarrierGroups), BeginUAVBufBarrierGroups);
+    }
+    else
+    {
+        pCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pUavResource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+    }
 
     pCommandList->SetPipelineState(m_computeState.Get());
     pCommandList->SetComputeRootSignature(m_computeRootSignature.Get());
@@ -862,7 +1120,25 @@ void D3D12nBodyGravity::Simulate(UINT threadIndex)
 
     pCommandList->Dispatch(static_cast<int>(ceil(ParticleCount / 128.0f)), 1, 1);
 
-    pCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pUavResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+    if (m_bIsEnhancedBarriersEnabled)
+    {
+        D3D12_BUFFER_BARRIER EndUAVBufBarriers[] =
+        {
+            CD3DX12_BUFFER_BARRIER(
+                D3D12_BARRIER_SYNC_COMPUTE_SHADING,    // SyncBefore
+                D3D12_BARRIER_SYNC_NON_PIXEL_SHADING,  // SyncAfter
+                D3D12_BARRIER_ACCESS_UNORDERED_ACCESS, // AccessBefore
+                D3D12_BARRIER_ACCESS_SHADER_RESOURCE,  // AccessAfter
+                pUavResource
+            )
+        };
+        D3D12_BARRIER_GROUP EndUAVBufBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(EndUAVBufBarriers), EndUAVBufBarriers) };
+        pCommandList->Barrier(_countof(EndUAVBufBarrierGroups), EndUAVBufBarrierGroups);
+    }
+    else
+    {
+        pCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pUavResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+    }
 }
 
 void D3D12nBodyGravity::OnDestroy()
