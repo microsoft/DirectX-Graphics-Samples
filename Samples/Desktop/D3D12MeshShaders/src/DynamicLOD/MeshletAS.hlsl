@@ -47,10 +47,10 @@ void main(uint dtid : SV_DispatchThreadID, uint gtid : SV_GroupThreadID, uint gi
     uint lodLevel = MAX_LOD_LEVELS; // LOD level of this thread's instance
     uint lodOffset = 0;             // Offset into its LOD-level instance list
 
-    uint instanceIndex = DrawParams.InstanceOffset + dtid;
+    uint instanceIndex = dtid;
     if (instanceIndex < DrawParams.InstanceCount)
     {
-        Instance instance = Instances[instanceIndex];
+        Instance instance = Instances[DrawParams.InstanceOffset + instanceIndex];
 
         if (IsVisible(instance.BoundingSphere))
         {

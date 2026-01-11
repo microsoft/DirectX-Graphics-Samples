@@ -606,17 +606,19 @@ void D3D12DynamicLOD::PopulateCommandList()
     m_commandList->SetGraphicsRootDescriptorTable(2, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
     m_commandList->SetGraphicsRootShaderResourceView(3, m_instanceBuffer->GetGPUVirtualAddress());
 
-    uint32_t dispatchCount = DivRoundUp(m_instanceCount, c_maxGroupDispatchCount);
+    uint32_t instancesPerDispatch = c_maxGroupDispatchCount * AS_GROUP_SIZE;
+    uint32_t dispatchCount = DivRoundUp(m_instanceCount, instancesPerDispatch);
 
     for (uint32_t i = 0; i < dispatchCount; ++i)
     {
-        uint32_t offset = dispatchCount * i;
-        uint32_t count = min(m_instanceCount - offset, c_maxGroupDispatchCount);
+        uint32_t offset = instancesPerDispatch * i;
+        uint32_t count = min(m_instanceCount - offset, instancesPerDispatch);
 
         m_commandList->SetGraphicsRoot32BitConstant(1, offset, 0);
         m_commandList->SetGraphicsRoot32BitConstant(1, count, 1);
 
-        m_commandList->DispatchMesh(count, 1, 1);
+        uint32_t groupCount = DivRoundUp(count, AS_GROUP_SIZE);
+        m_commandList->DispatchMesh(groupCount, 1, 1);
     }
 
     // Indicate that the back buffer will now be used to present.
