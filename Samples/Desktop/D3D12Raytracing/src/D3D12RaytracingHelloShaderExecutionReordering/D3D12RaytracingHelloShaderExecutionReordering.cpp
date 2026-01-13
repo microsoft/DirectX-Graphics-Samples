@@ -16,7 +16,7 @@
 #include <atlbase.h>
 #include <vector>
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 717; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 719; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 
@@ -156,9 +156,6 @@ D3D12RaytracingHelloShaderExecutionReordering::D3D12RaytracingHelloShaderExecuti
 
 void D3D12RaytracingHelloShaderExecutionReordering::OnInit()
 {
-    UUID Features[] = { D3D12ExperimentalShaderModels };
-    ThrowIfFailed(D3D12EnableExperimentalFeatures(_countof(Features), Features, nullptr, nullptr));
-
     m_deviceResources = std::make_unique<DeviceResources>(
         DXGI_FORMAT_R8G8B8A8_UNORM,
         DXGI_FORMAT_UNKNOWN,
@@ -286,6 +283,17 @@ void D3D12RaytracingHelloShaderExecutionReordering::CreateRaytracingPipelineStat
     m_dxrDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &SM, sizeof(SM));
     ThrowIfFalse(SM.HighestShaderModel >= D3D_SHADER_MODEL_6_9,
         L"ERROR: Device doesn't support Shader Model 6.9.\n\n");
+
+    D3D12_FEATURE_DATA_D3D12_OPTIONS22 Options22 = {};
+    m_dxrDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS22, &Options22, sizeof(Options22));
+    if (Options22.ShaderExecutionReorderingActuallyReorders)
+    {
+        PRINT("ShaderExecutionReorderingActuallyReorders = TRUE on this device.\n");
+    }
+    else
+    {
+        PRINT("ShaderExecutionReorderingActuallyReorders = TRUE on this device.\n");
+    }
 
     // Create 7 subobjects that combine into a RTPSO:
     // Subobjects need to be associated with DXIL exports (i.e. shaders) either by way of default or explicit associations.
