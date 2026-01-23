@@ -993,46 +993,48 @@ void D3D12HDR::CheckDisplayHDRSupport()
     // intersection with the app window bounds. Then, use the DXGI output found in previous step to determine if the 
     // app is on a HDR capable display. 
 
-    // Retrieve the current default adapter.
-    ComPtr<IDXGIAdapter1> dxgiAdapter;
-    ThrowIfFailed(m_dxgiFactory->EnumAdapters1(0, &dxgiAdapter));
-
-    // Iterate through the DXGI outputs associated with the DXGI adapter,
-    // and find the output whose bounds have the greatest overlap with the
-    // app window (i.e. the output for which the intersection area is the
-    // greatest).
-
-    UINT i = 0;
+    UINT adapterI = 0;
     ComPtr<IDXGIOutput> currentOutput;
     ComPtr<IDXGIOutput> bestOutput;
     float bestIntersectArea = -1;
 
-    while (dxgiAdapter->EnumOutputs(i, &currentOutput) != DXGI_ERROR_NOT_FOUND)
-    {
-        // Get the retangle bounds of the app window
-        int ax1 = m_windowBounds.left;
-        int ay1 = m_windowBounds.top;
-        int ax2 = m_windowBounds.right;
-        int ay2 = m_windowBounds.bottom;
+    // Iterate through all adapters
+    ComPtr<IDXGIAdapter1> dxgiAdapter;
+    while (SUCCEEDED(m_dxgiFactory->EnumAdapters1(adapterI, &dxgiAdapter))) {
+        // Iterate through the DXGI outputs associated with the DXGI adapter,
+        // and find the output whose bounds have the greatest overlap with the
+        // app window (i.e. the output for which the intersection area is the
+        // greatest).
 
-        // Get the rectangle bounds of current output
-        DXGI_OUTPUT_DESC desc;
-        ThrowIfFailed(currentOutput->GetDesc(&desc));
-        RECT r = desc.DesktopCoordinates;
-        int bx1 = r.left;
-        int by1 = r.top;
-        int bx2 = r.right;
-        int by2 = r.bottom;
-
-        // Compute the intersection
-        int intersectArea = ComputeIntersectionArea(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
-        if (intersectArea > bestIntersectArea)
+        UINT outputI = 0;
+        while (dxgiAdapter->EnumOutputs(outputI, &currentOutput) != DXGI_ERROR_NOT_FOUND)
         {
-            bestOutput = currentOutput;
-            bestIntersectArea = static_cast<float>(intersectArea);
-        }
+            // Get the retangle bounds of the app window
+            int ax1 = m_windowBounds.left;
+            int ay1 = m_windowBounds.top;
+            int ax2 = m_windowBounds.right;
+            int ay2 = m_windowBounds.bottom;
 
-        i++;
+            // Get the rectangle bounds of current output
+            DXGI_OUTPUT_DESC desc;
+            ThrowIfFailed(currentOutput->GetDesc(&desc));
+            RECT r = desc.DesktopCoordinates;
+            int bx1 = r.left;
+            int by1 = r.top;
+            int bx2 = r.right;
+            int by2 = r.bottom;
+
+            // Compute the intersection
+            int intersectArea = ComputeIntersectionArea(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
+            if (intersectArea > bestIntersectArea)
+            {
+                bestOutput = currentOutput;
+                bestIntersectArea = static_cast<float>(intersectArea);
+            }
+
+            outputI++;
+        }
+        adapterI++;
     }
 
     // Having determined the output (display) upon which the app is primarily being 
