@@ -247,23 +247,19 @@ void D3D12nBodyGravity::LoadAssets()
 
     // Create the pipeline states, which includes compiling and loading shaders.
     {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> geometryShader;
-        ComPtr<ID3DBlob> pixelShader;
-        ComPtr<ID3DBlob> computeShader;
+        UINT8* pVertexShaderData;
+        UINT8* pGeometryShaderData;
+        UINT8* pPixelShaderData;
+        UINT8* pComputeShaderData;
+        UINT vertexShaderDataLength = 0;
+        UINT geometryShaderDataLength = 0;
+        UINT pixelShaderDataLength = 0;
+        UINT computeShaderDataLength = 0;
 
-#if defined(_DEBUG)
-        // Enable better shader debugging with the graphics debugging tools.
-        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-        UINT compileFlags = 0;
-#endif
-
-        // Load and compile shaders.
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"ParticleDraw.hlsl").c_str(), nullptr, nullptr, "VSParticleDraw", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"ParticleDraw.hlsl").c_str(), nullptr, nullptr, "GSParticleDraw", "gs_5_0", compileFlags, 0, &geometryShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"ParticleDraw.hlsl").c_str(), nullptr, nullptr, "PSParticleDraw", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"NBodyGravityCS.hlsl").c_str(), nullptr, nullptr, "CSMain", "cs_5_0", compileFlags, 0, &computeShader, nullptr));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"ParticleDraw_VS.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"ParticleDraw_GS.cso").c_str(), &pGeometryShaderData, &geometryShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"ParticleDraw_PS.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"nBodyGravityCS.cso").c_str(), &pComputeShaderData, &computeShaderDataLength));
 
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
         {
@@ -286,9 +282,9 @@ void D3D12nBodyGravity::LoadAssets()
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
         psoDesc.pRootSignature = m_rootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-        psoDesc.GS = CD3DX12_SHADER_BYTECODE(geometryShader.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
+        psoDesc.GS = CD3DX12_SHADER_BYTECODE(pGeometryShaderData, geometryShaderDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength);
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = blendDesc;
         psoDesc.DepthStencilState = depthStencilDesc;
@@ -305,7 +301,7 @@ void D3D12nBodyGravity::LoadAssets()
         // Describe and create the compute pipeline state object (PSO).
         D3D12_COMPUTE_PIPELINE_STATE_DESC computePsoDesc = {};
         computePsoDesc.pRootSignature = m_computeRootSignature.Get();
-        computePsoDesc.CS = CD3DX12_SHADER_BYTECODE(computeShader.Get());
+        computePsoDesc.CS = CD3DX12_SHADER_BYTECODE(pComputeShaderData, computeShaderDataLength);
 
         ThrowIfFailed(m_device->CreateComputePipelineState(&computePsoDesc, IID_PPV_ARGS(&m_computeState)));
         NAME_D3D12_OBJECT(m_computeState);

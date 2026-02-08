@@ -47,13 +47,13 @@ float3 xyYToRec2020(float2 xy, float Y = 1.0)
 float3 LinearToSRGB(float3 color)
 {
     // Approximately pow(color, 1.0 / 2.2)
-    return color < 0.0031308 ? 12.92 * color : 1.055 * pow(abs(color), 1.0 / 2.4) - 0.055;
+    return select((color < 0.0031308), (12.92 * color), (1.055 * pow(abs(color), 1.0 / 2.4) - 0.055));
 }
 
 float3 SRGBToLinear(float3 color)
 {
     // Approximately pow(color, 2.2)
-    return color < 0.04045 ? color / 12.92 : pow(abs(color + 0.055) / 1.055, 2.4);
+    return select((color < 0.04045), (color / 12.92), (pow(abs(color + 0.055) / 1.055, 2.4)));
 }
 
 float3 Rec709ToRec2020(float3 color)

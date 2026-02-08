@@ -270,10 +270,13 @@ void ShadowsFogScatteringSquidScene::CreatePipelineStates(ID3D12Device* pDevice)
 {
     // Create the scene and shadow render pass pipeline state.
     {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-        vertexShader = CompileShader(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass.hlsl").c_str(), nullptr, "VSMain", "vs_5_0");
-        pixelShader = CompileShader(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass.hlsl").c_str(), nullptr, "PSMain", "ps_5_0");
+        UINT8* pVertexShaderData = nullptr;
+        UINT8* pPixelShaderData = nullptr;
+        UINT vertexShaderDataLength = 0;
+        UINT pixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass_PSMain.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
 
         D3D12_INPUT_LAYOUT_DESC inputLayoutDesc;
         inputLayoutDesc.pInputElementDescs = SampleAssets::StandardVertexDescription;
@@ -289,8 +292,8 @@ void ShadowsFogScatteringSquidScene::CreatePipelineStates(ID3D12Device* pDevice)
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = inputLayoutDesc;
         psoDesc.pRootSignature = m_rootSignatures[RootSignature::ScenePass].Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength);
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         psoDesc.DepthStencilState = depthStencilDesc;
@@ -318,10 +321,13 @@ void ShadowsFogScatteringSquidScene::CreatePipelineStates(ID3D12Device* pDevice)
 
     // Create the postprocess pass pipeline state.
     {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-        vertexShader = CompileShader(m_pSample->GetAssetFullPath(L"PostprocessPass.hlsl").c_str(), nullptr, "VSMain", "vs_5_0");
-        pixelShader = CompileShader(m_pSample->GetAssetFullPath(L"PostprocessPass.hlsl").c_str(), nullptr, "PSMain", "ps_5_0");
+        UINT8* pVertexShaderData = nullptr;
+        UINT8* pPixelShaderData = nullptr;
+        UINT vertexShaderDataLength = 0;
+        UINT pixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(m_pSample->GetAssetFullPath(L"PostprocessPass_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(m_pSample->GetAssetFullPath(L"PostprocessPass_PSMain.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
 
         // Define the vertex input layout.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
@@ -333,8 +339,8 @@ void ShadowsFogScatteringSquidScene::CreatePipelineStates(ID3D12Device* pDevice)
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
         psoDesc.pRootSignature = m_rootSignatures[RootSignature::PostprocessPass].Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength);
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         psoDesc.BlendState.RenderTarget[0].BlendEnable = TRUE;

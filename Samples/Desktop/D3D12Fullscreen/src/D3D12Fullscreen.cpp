@@ -263,24 +263,21 @@ void D3D12Fullscreen::LoadAssets()
 
     // Create the pipeline state, which includes compiling and loading shaders.
     {
-        ComPtr<ID3DBlob> sceneVertexShader;
-        ComPtr<ID3DBlob> scenePixelShader;
-        ComPtr<ID3DBlob> postVertexShader;
-        ComPtr<ID3DBlob> postPixelShader;
-        ComPtr<ID3DBlob> error;
+        UINT8* pSceneVertexShaderData = nullptr;
+        UINT8* pScenePixelShaderData = nullptr;
+        UINT sceneVertexShaderDataLength = 0;
+        UINT scenePixelShaderDataLength = 0;
 
-#if defined(_DEBUG)
-        // Enable better shader debugging with the graphics debugging tools.
-        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-        UINT compileFlags = 0;
-#endif
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"sceneShaders_VSMain.cso").c_str(), &pSceneVertexShaderData, &sceneVertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"sceneShaders_PSMain.cso").c_str(), &pScenePixelShaderData, &scenePixelShaderDataLength));
 
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"sceneShaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &sceneVertexShader, &error));
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"sceneShaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &scenePixelShader, &error));
+        UINT8* pPostVertexShaderData = nullptr;
+        UINT8* pPostPixelShaderData = nullptr;
+        UINT postVertexShaderDataLength = 0;
+        UINT postPixelShaderDataLength = 0;
 
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"postShaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &postVertexShader, &error));
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"postShaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &postPixelShader, &error));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"postShaders_VSMain.cso").c_str(), &pPostVertexShaderData, &postVertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"postShaders_PSMain.cso").c_str(), &pPostPixelShaderData, &postPixelShaderDataLength));
 
         // Define the vertex input layouts.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
@@ -298,8 +295,8 @@ void D3D12Fullscreen::LoadAssets()
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
         psoDesc.pRootSignature = m_sceneRootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(sceneVertexShader.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(scenePixelShader.Get());
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pSceneVertexShaderData, sceneVertexShaderDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pScenePixelShaderData, scenePixelShaderDataLength);
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         psoDesc.DepthStencilState.DepthEnable = FALSE;
@@ -315,8 +312,8 @@ void D3D12Fullscreen::LoadAssets()
 
         psoDesc.InputLayout = { scaleInputElementDescs, _countof(scaleInputElementDescs) };
         psoDesc.pRootSignature = m_postRootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(postVertexShader.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(postPixelShader.Get());
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pPostVertexShaderData, postVertexShaderDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPostPixelShaderData, postPixelShaderDataLength);
 
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_postPipelineState)));
         NAME_D3D12_OBJECT(m_postPipelineState);

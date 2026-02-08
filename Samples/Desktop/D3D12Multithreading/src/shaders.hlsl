@@ -122,13 +122,13 @@ float4 CalcUnshadowedAmountPCF2x2(int lightIndex, float4 vPosWorld)
     // 2x2 percentage closer filtering.
     float2 vTexelUnits = 1.0f / vShadowMapDims;
     float4 vShadowDepths;
-    vShadowDepths.x = shadowMap.Sample(sampleClamp, vShadowTexCoord);
-    vShadowDepths.y = shadowMap.Sample(sampleClamp, vShadowTexCoord + float2(vTexelUnits.x, 0.0f));
-    vShadowDepths.z = shadowMap.Sample(sampleClamp, vShadowTexCoord + float2(0.0f, vTexelUnits.y));
-    vShadowDepths.w = shadowMap.Sample(sampleClamp, vShadowTexCoord + vTexelUnits);
+    vShadowDepths.x = shadowMap.Sample(sampleClamp, vShadowTexCoord).x;
+    vShadowDepths.y = shadowMap.Sample(sampleClamp, vShadowTexCoord + float2(vTexelUnits.x, 0.0f)).x;
+    vShadowDepths.z = shadowMap.Sample(sampleClamp, vShadowTexCoord + float2(0.0f, vTexelUnits.y)).x;
+    vShadowDepths.w = shadowMap.Sample(sampleClamp, vShadowTexCoord + vTexelUnits).x;
 
     // What weighted fraction of the 4 samples are nearer to the light than this pixel?
-    float4 vShadowTests = (vShadowDepths >= vLightSpaceDepth) ? 1.0f : 0.0f;
+    float4 vShadowTests = select(vShadowDepths >= vLightSpaceDepth, 1.0f, 0.0f);
     return dot(vBilinearWeights, vShadowTests);
 }
 
