@@ -12,7 +12,7 @@
 #include "stdafx.h"
 #include "D3D12RaytracingOpacityMicromaps.h"
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 719 /*D3D12_SDK_VERSION*/; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 619 /*D3D12_SDK_VERSION*/; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 _Use_decl_annotations_
