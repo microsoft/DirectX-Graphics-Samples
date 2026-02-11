@@ -14,14 +14,6 @@
 #include "UILayer.h"
 #include <dxgidebug.h>
 
-// Precompiled shaders.
-#include "gradientVS.hlsl.h"
-#include "gradientPS.hlsl.h"
-#include "paletteVS.hlsl.h"
-#include "palettePS.hlsl.h"
-#include "presentVS.hlsl.h"
-#include "presentPS.hlsl.h"
-
 const float D3D12HDR::ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
@@ -216,6 +208,13 @@ void D3D12HDR::LoadAssets()
     // as well as the intermediate blend step.
     {
         // Create the pipeline state for the scene geometry.
+        UINT8* pGradientVertexShaderData = nullptr;
+        UINT8* pGradientPixelShaderData = nullptr;
+        UINT gradientVertexShaderDataLength = 0;
+        UINT gradientPixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"gradientVS.cso").c_str(), &pGradientVertexShaderData, &gradientVertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"gradientPS.cso").c_str(), &pGradientPixelShaderData, &gradientPixelShaderDataLength));
 
         D3D12_INPUT_ELEMENT_DESC gradientElementDescs[] =
         {
@@ -227,8 +226,8 @@ void D3D12HDR::LoadAssets()
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = { gradientElementDescs, _countof(gradientElementDescs) };
         psoDesc.pRootSignature = m_rootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(g_gradientVS, sizeof(g_gradientVS));
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(g_gradientPS, sizeof(g_gradientPS));
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pGradientVertexShaderData, gradientVertexShaderDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pGradientPixelShaderData, gradientPixelShaderDataLength);
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         psoDesc.DepthStencilState.DepthEnable = FALSE;
@@ -242,6 +241,13 @@ void D3D12HDR::LoadAssets()
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineStates[GradientPSO])));
 
         // Create pipeline state for the color space triangles.
+        UINT8* pPaletteVertexShaderData = nullptr;
+        UINT8* pPalettePixelShaderData = nullptr;
+        UINT paletteVertexShaderDataLength = 0;
+        UINT palettePixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"paletteVS.cso").c_str(), &pPaletteVertexShaderData, &paletteVertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"palettePS.cso").c_str(), &pPalettePixelShaderData, &palettePixelShaderDataLength));
 
         D3D12_INPUT_ELEMENT_DESC colorElementDescs[] =
         {
@@ -250,14 +256,21 @@ void D3D12HDR::LoadAssets()
         };
 
         psoDesc.InputLayout = { colorElementDescs, _countof(colorElementDescs) };
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(g_paletteVS, sizeof(g_paletteVS));
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(g_palettePS, sizeof(g_palettePS));
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pPaletteVertexShaderData, paletteVertexShaderDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPalettePixelShaderData, palettePixelShaderDataLength);
         psoDesc.RTVFormats[0] = m_intermediateRenderTargetFormat;
 
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineStates[PalettePSO])));
 
         // Create pipeline states for the final blend step.
         // There will be one for each swap chain format the sample supports.
+        UINT8* pPresentVertexShaderData = nullptr;
+        UINT8* pPresentPixelShaderData = nullptr;
+        UINT presentVertexShaderDataLength = 0;
+        UINT presentPixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"presentVS.cso").c_str(), &pPresentVertexShaderData, &presentVertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"presentPS.cso").c_str(), &pPresentPixelShaderData, &presentPixelShaderDataLength));
 
         D3D12_INPUT_ELEMENT_DESC quadElementDescs[] =
         {
@@ -266,8 +279,8 @@ void D3D12HDR::LoadAssets()
         };
 
         psoDesc.InputLayout = { quadElementDescs, _countof(quadElementDescs) };
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(g_presentVS, sizeof(g_presentVS));
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(g_presentPS, sizeof(g_presentPS));
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pPresentVertexShaderData, presentVertexShaderDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPresentPixelShaderData, presentPixelShaderDataLength);
         psoDesc.RTVFormats[0] = m_swapChainFormats[_8];
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineStates[Present8bitPSO])));
 
