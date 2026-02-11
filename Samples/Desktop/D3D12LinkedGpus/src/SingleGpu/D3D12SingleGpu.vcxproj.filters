@@ -76,17 +76,17 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="PostVS.hlsl">
+    <CustomBuild Include="PostPS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="ScenePS.hlsl">
+    </CustomBuild>
+    <CustomBuild Include="PostVS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="SceneVS.hlsl">
+    </CustomBuild>
+    <CustomBuild Include="ScenePS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="PostPS.hlsl">
+    </CustomBuild>
+    <CustomBuild Include="SceneVS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
+    </CustomBuild>
   </ItemGroup>
 </Project>

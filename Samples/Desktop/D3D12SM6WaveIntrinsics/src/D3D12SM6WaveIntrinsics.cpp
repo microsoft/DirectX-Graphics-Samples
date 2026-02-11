@@ -12,10 +12,6 @@
 #include "stdafx.h"
 #include "D3D12SM6WaveIntrinsics.h"
 #include "UILayer.h"
-#include "wave_vs.hlsl.h"
-#include "wave_ps.hlsl.h"
-#include "magnify_vs.hlsl.h"
-#include "magnify_ps.hlsl.h"
 
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
@@ -285,8 +281,21 @@ void D3D12SM6WaveIntrinsics::LoadAssets()
 
     // Create the pipeline state, which includes compiling and loading shaders.
     {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
+        UINT8* pWaveVertexShaderData = nullptr;
+        UINT8* pWavePixelShaderData = nullptr;
+        UINT waveVertexShaderDataLength = 0;
+        UINT wavePixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"wave_VSMain.cso").c_str(), &pWaveVertexShaderData, &waveVertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"wave_PSMain.cso").c_str(), &pWavePixelShaderData, &wavePixelShaderDataLength));
+
+        UINT8* pMagnifyVertexShaderData = nullptr;
+        UINT8* pMagnifyPixelShaderData = nullptr;
+        UINT magnifyVertexShaderDataLength = 0;
+        UINT magnifyPixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"magnify_VSMain.cso").c_str(), &pMagnifyVertexShaderData, &magnifyVertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"magnify_PSMain.cso").c_str(), &pMagnifyPixelShaderData, &magnifyPixelShaderDataLength));
 
         // Define the vertex input layout for render pass 1. 
         D3D12_INPUT_ELEMENT_DESC renderPass1InputElementDescs[] =
@@ -299,8 +308,8 @@ void D3D12SM6WaveIntrinsics::LoadAssets()
         D3D12_GRAPHICS_PIPELINE_STATE_DESC renderPass1PSODesc = {};
         renderPass1PSODesc.InputLayout = { renderPass1InputElementDescs, _countof(renderPass1InputElementDescs) };
         renderPass1PSODesc.pRootSignature = m_renderPass1RootSignature.Get();
-        renderPass1PSODesc.VS = { g_Wave_VS, sizeof(g_Wave_VS) };
-        renderPass1PSODesc.PS = { g_Wave_PS, sizeof(g_Wave_PS) };
+        renderPass1PSODesc.VS = { pWaveVertexShaderData, waveVertexShaderDataLength };
+        renderPass1PSODesc.PS = { pWavePixelShaderData, wavePixelShaderDataLength };
         renderPass1PSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         renderPass1PSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         renderPass1PSODesc.DepthStencilState.DepthEnable = FALSE;
@@ -324,8 +333,8 @@ void D3D12SM6WaveIntrinsics::LoadAssets()
         D3D12_GRAPHICS_PIPELINE_STATE_DESC renderPass2PSODesc = {};
         renderPass2PSODesc.InputLayout = { renderPass2InputElementDescs, _countof(renderPass2InputElementDescs) };
         renderPass2PSODesc.pRootSignature = m_renderPass2RootSignature.Get();
-        renderPass2PSODesc.VS = { g_Magnify_VS, sizeof(g_Magnify_VS) };
-        renderPass2PSODesc.PS = { g_Magnify_PS, sizeof(g_Magnify_PS) };
+        renderPass2PSODesc.VS = { pMagnifyVertexShaderData, magnifyVertexShaderDataLength };
+        renderPass2PSODesc.PS = { pMagnifyPixelShaderData, magnifyPixelShaderDataLength };
         renderPass2PSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         renderPass2PSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         renderPass2PSODesc.DepthStencilState.DepthEnable = FALSE;

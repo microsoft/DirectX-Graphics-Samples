@@ -162,18 +162,13 @@ void D3D12DepthBoundsTest::LoadAssets()
 
     // Create the pipeline state, which includes compiling and loading shaders.
     {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
+        UINT8* pVertexShaderData = nullptr;
+        UINT8* pPixelShaderData = nullptr;
+        UINT vertexShaderDataLength = 0;
+        UINT pixelShaderDataLength = 0;
 
-#if defined(_DEBUG)
-        // Enable better shader debugging with the graphics debugging tools.
-        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-        UINT compileFlags = 0;
-#endif
-
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_PSMain.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
 
         // Define the vertex input layout.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
@@ -214,8 +209,8 @@ void D3D12DepthBoundsTest::LoadAssets()
         renderWithDBTPSOStream.RootSignature = m_rootSignature.Get();
         renderWithDBTPSOStream.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
         renderWithDBTPSOStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        renderWithDBTPSOStream.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-        renderWithDBTPSOStream.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+        renderWithDBTPSOStream.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
+        renderWithDBTPSOStream.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength);
         renderWithDBTPSOStream.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         renderWithDBTPSOStream.RTVFormats = RTFormatArray;
 
@@ -248,7 +243,7 @@ void D3D12DepthBoundsTest::LoadAssets()
         depthOnlyPSOStream.RootSignature = m_rootSignature.Get();
         depthOnlyPSOStream.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
         depthOnlyPSOStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        depthOnlyPSOStream.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
+        depthOnlyPSOStream.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
         depthOnlyPSOStream.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         depthOnlyPSOStream.RTVFormats = RTFormatArray;
 

@@ -79,7 +79,7 @@ void D3D12LinkedGpus::OnInit()
     Settings::Initialize(device.Get(), m_width, m_height, m_tearingSupport);
 
     // Initialize resources for the sample.
-    m_crossNodeResources = std::make_shared<CrossNodeResources>(factory.Get(), device.Get());
+    m_crossNodeResources = std::make_shared<CrossNodeResources>(factory.Get(), device.Get(), this);
 
     for (UINT n = 0; n < Settings::NodeCount; n++)
     {

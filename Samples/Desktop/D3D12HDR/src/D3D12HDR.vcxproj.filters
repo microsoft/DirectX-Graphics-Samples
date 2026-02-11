@@ -82,23 +82,23 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="gradientPS.hlsl">
+    <CustomBuild Include="gradientPS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="gradientVS.hlsl">
+    </CustomBuild>
+    <CustomBuild Include="gradientVS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="presentPS.hlsl">
+    </CustomBuild>
+    <CustomBuild Include="palettePS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="presentVS.hlsl">
+    </CustomBuild>
+    <CustomBuild Include="paletteVS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="paletteVS.hlsl">
+    </CustomBuild>
+    <CustomBuild Include="presentPS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="palettePS.hlsl">
+    </CustomBuild>
+    <CustomBuild Include="presentVS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
+    </CustomBuild>
   </ItemGroup>
 </Project>

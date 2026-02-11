@@ -12,6 +12,7 @@
 #pragma once
 
 #include "DXSampleHelper.h"
+#include "DXSample.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -32,7 +33,7 @@ struct SceneConstantBuffer
 class CrossNodeResources
 {
 public:
-    CrossNodeResources(IDXGIFactory4* pFactory, ID3D12Device* pDevice);
+    CrossNodeResources(IDXGIFactory4* pFactory, ID3D12Device* pDevice, DXSample* pSample);
 
     void LoadPipeline();
     void LoadAssets();
@@ -71,4 +72,7 @@ private:
     // The command queues are actually tied to specific GPU nodes, but are placed here
     // for convenience since all queues are needed for swap chain creation and resizing.
     ComPtr<ID3D12CommandQueue> m_queues[Settings::MaxNodeCount];
+
+    // App resources.
+    DXSample* m_pSample;
 };

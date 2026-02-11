@@ -115,10 +115,11 @@
     <ClCompile Include="D3D12WorkGraphsSandbox.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="D3D12WorkGraphsSandbox.hlsl">
+    <None Include="D3D12WorkGraphsSandbox.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </FxCompile>
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

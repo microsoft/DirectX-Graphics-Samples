@@ -488,26 +488,24 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 
     // Create the pipeline states, which includes compiling and loading shaders.
     {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-        ComPtr<ID3DBlob> vertexShaderBlur;
-        ComPtr<ID3DBlob> pixelShaderBlurU;
-        ComPtr<ID3DBlob> pixelShaderBlurV;
-        ComPtr<ID3DBlob> error;
+        UINT8* pVertexShaderData = nullptr;
+        UINT8* pPixelShaderData = nullptr;
+        UINT vertexShaderDataLength = 0;
+        UINT pixelShaderDataLength = 0;
 
-#if defined(_DEBUG)
-        // Enable better shader debugging with the graphics debugging tools.
-        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-        UINT compileFlags = 0;
-#endif
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_VShader.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_PShader.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
 
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VShader", "vs_5_0", compileFlags, 0, &vertexShader, &error));
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PShader", "ps_5_0", compileFlags, 0, &pixelShader, &error));
+        UINT8* pVertexShaderBlurData = nullptr;
+        UINT8* pPixelShaderBlurUData = nullptr;
+        UINT8* pPixelShaderBlurVData = nullptr;
+        UINT vertexShaderBlurDataLength = 0;
+        UINT pixelShaderBlurUDataLength = 0;
+        UINT pixelShaderBlurVDataLength = 0;
 
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"blurShaders.hlsl").c_str(), nullptr, nullptr, "VSSimpleBlur", "vs_5_0", compileFlags, 0, &vertexShaderBlur, &error));
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"blurShaders.hlsl").c_str(), nullptr, nullptr, "PSSimpleBlurU", "ps_5_0", compileFlags, 0, &pixelShaderBlurU, &error));
-        ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"blurShaders.hlsl").c_str(), nullptr, nullptr, "PSSimpleBlurV", "ps_5_0", compileFlags, 0, &pixelShaderBlurV, &error));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"blurShaders_VSSimpleBlur.cso").c_str(), &pVertexShaderBlurData, &vertexShaderBlurDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"blurShaders_PSSimpleBlurU.cso").c_str(), &pPixelShaderBlurUData, &pixelShaderBlurUDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"blurShaders_PSSimpleBlurV.cso").c_str(), &pPixelShaderBlurVData, &pixelShaderBlurVDataLength));
 
         // Define the vertex input layouts.
         const D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
@@ -525,8 +523,8 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
         psoDesc.pRootSignature = m_rootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength);
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -540,13 +538,13 @@ void D3D12HeterogeneousMultiadapter::LoadAssets()
 
         psoDesc.InputLayout = { blurInputElementDescs, _countof(blurInputElementDescs) };
         psoDesc.pRootSignature = m_blurRootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShaderBlur.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShaderBlurU.Get());
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderBlurData, vertexShaderBlurDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderBlurUData, pixelShaderBlurUDataLength);
         psoDesc.DepthStencilState.DepthEnable = false;
         psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
         ThrowIfFailed(m_devices[Secondary]->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_blurPipelineStates[0])));
 
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShaderBlurV.Get());
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderBlurVData, pixelShaderBlurVDataLength);
         ThrowIfFailed(m_devices[Secondary]->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_blurPipelineStates[1])));
     }
 

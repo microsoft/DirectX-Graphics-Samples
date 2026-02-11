@@ -12,12 +12,6 @@
 #include "stdafx.h"
 #include "D3D12SingleGpu.h"
 
-// Precompiled shaders.
-#include "SceneVS.hlsl.h"
-#include "ScenePS.hlsl.h"
-#include "PostVS.hlsl.h"
-#include "PostPS.hlsl.h"
-
 using namespace DirectX;
 
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
@@ -247,6 +241,22 @@ void D3D12SingleGpu::LoadAssets()
 
     // Create the pipeline state, which includes compiling and loading shaders.
     {
+        UINT8* pSceneVertexShaderData = nullptr;
+        UINT8* pScenePixelShaderData = nullptr;
+        UINT sceneVertexShaderDataLength = 0;
+        UINT scenePixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"SceneVS.cso").c_str(), &pSceneVertexShaderData, &sceneVertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"ScenePS.cso").c_str(), &pScenePixelShaderData, &scenePixelShaderDataLength));
+
+        UINT8* pPostVertexShaderData = nullptr;
+        UINT8* pPostPixelShaderData = nullptr;
+        UINT postVertexShaderDataLength = 0;
+        UINT postPixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"PostVS.cso").c_str(), &pPostVertexShaderData, &postVertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"PostPS.cso").c_str(), &pPostPixelShaderData, &postPixelShaderDataLength));
+
         // Define the vertex input layout for the triangle scene.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
         {
@@ -257,8 +267,8 @@ void D3D12SingleGpu::LoadAssets()
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
         psoDesc.pRootSignature = m_sceneRootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(g_SceneVS, sizeof(g_SceneVS));
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(g_ScenePS, sizeof(g_ScenePS));
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pSceneVertexShaderData, sceneVertexShaderDataLength);
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pScenePixelShaderData, scenePixelShaderDataLength);
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -282,8 +292,8 @@ void D3D12SingleGpu::LoadAssets()
         D3D12_GRAPHICS_PIPELINE_STATE_DESC postPsoDesc = {};
         postPsoDesc.InputLayout = { postInputElementDescs, _countof(postInputElementDescs) };
         postPsoDesc.pRootSignature = m_postRootSignature.Get();
-        postPsoDesc.VS = CD3DX12_SHADER_BYTECODE(g_PostVS, sizeof(g_PostVS));
-        postPsoDesc.PS = CD3DX12_SHADER_BYTECODE(g_PostPS, sizeof(g_PostPS));
+        postPsoDesc.VS = CD3DX12_SHADER_BYTECODE(pPostVertexShaderData, postVertexShaderDataLength);
+        postPsoDesc.PS = CD3DX12_SHADER_BYTECODE(pPostPixelShaderData, postPixelShaderDataLength);
         postPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         postPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         postPsoDesc.DepthStencilState.DepthEnable = FALSE;

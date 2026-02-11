@@ -277,8 +277,10 @@ void VariableRateShadingScene::CreatePipelineStates(ID3D12Device* pDevice)
     // Pipeline state for rendering the glass during the shadow pass.
     // Render both 'sides' of glass (no culling).
     {
-        ComPtr<ID3DBlob> vertexShader;
-        vertexShader = CompileShader(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass.hlsl").c_str(), nullptr, "VSMain", "vs_5_0");
+        UINT8* pVertexShaderData = nullptr;
+        UINT vertexShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
 
         // Describe the PSO stream.
         struct SHADOWMAP_PIPELINE_STATE_STREAM
@@ -295,7 +297,7 @@ void VariableRateShadingScene::CreatePipelineStates(ID3D12Device* pDevice)
         stream.pRootSignature = CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE(m_rootSignatures[RootSignature::ShadowPass].Get());
         stream.InputLayout = CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT(inputLayoutDesc);
         stream.PrimitiveTopologyType = CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-        stream.VS = CD3DX12_PIPELINE_STATE_STREAM_VS(CD3DX12_SHADER_BYTECODE(vertexShader.Get()));
+        stream.VS = CD3DX12_PIPELINE_STATE_STREAM_VS(CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength));
         stream.DSVFormat = CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT(DXGI_FORMAT_D32_FLOAT);
         stream.RasterizerState = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizerCullModeNone);
         ThrowIfFailed(pDevice2->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&m_glassPipelineStates[RenderPass::Shadow])));
@@ -310,10 +312,13 @@ void VariableRateShadingScene::CreatePipelineStates(ID3D12Device* pDevice)
             nullptr, nullptr,
         };
 
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-        vertexShader = CompileShader(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass.hlsl").c_str(), macros, "VSMain", "vs_5_0");
-        pixelShader = CompileShader(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass.hlsl").c_str(), macros, "PSMain", "ps_5_0");
+        UINT8* pVertexShaderData = nullptr;
+        UINT8* pPixelShaderData = nullptr;
+        UINT vertexShaderDataLength = 0;
+        UINT pixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(m_pSample->GetAssetFullPath(L"ShadowsAndScenePass_PSMain.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
     
         // Describe the PSO stream.
         struct REFRACTIONMAP_PIPELINE_STATE_STREAM
@@ -336,8 +341,8 @@ void VariableRateShadingScene::CreatePipelineStates(ID3D12Device* pDevice)
         stream.pRootSignature = CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE(m_rootSignatures[RootSignature::ScenePass].Get());
         stream.InputLayout = CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT(inputLayoutDesc);
         stream.PrimitiveTopologyType = CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-        stream.VS = CD3DX12_PIPELINE_STATE_STREAM_VS(CD3DX12_SHADER_BYTECODE(vertexShader.Get()));
-        stream.PS = CD3DX12_PIPELINE_STATE_STREAM_PS(CD3DX12_SHADER_BYTECODE(pixelShader.Get()));
+        stream.VS = CD3DX12_PIPELINE_STATE_STREAM_VS(CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength));
+        stream.PS = CD3DX12_PIPELINE_STATE_STREAM_PS(CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength));
         stream.DSVFormat = CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT(DXGI_FORMAT_D32_FLOAT);
         stream.RasterizerState = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizerDepthBias);
         stream.RTVFormats = CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS(renderTargets);
@@ -348,10 +353,13 @@ void VariableRateShadingScene::CreatePipelineStates(ID3D12Device* pDevice)
     // Pipeline state for rendering the glass during the scene pass.
     // Render both 'sides' of glass (no culling) and samples from the refraction map.
     {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-        vertexShader = CompileShader(m_pSample->GetAssetFullPath(L"Glass.hlsl").c_str(), nullptr, "VSMain", "vs_5_0");
-        pixelShader = CompileShader(m_pSample->GetAssetFullPath(L"Glass.hlsl").c_str(), nullptr, "PSMain", "ps_5_0");
+        UINT8* pVertexShaderData = nullptr;
+        UINT8* pPixelShaderData = nullptr;
+        UINT vertexShaderDataLength = 0;
+        UINT pixelShaderDataLength = 0;
+
+        ThrowIfFailed(ReadDataFromFile(m_pSample->GetAssetFullPath(L"Glass_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(m_pSample->GetAssetFullPath(L"Glass_PSMain.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
 
         // Describe the PSO stream.
         struct SCENE_PIPELINE_STATE_STREAM
@@ -374,8 +382,8 @@ void VariableRateShadingScene::CreatePipelineStates(ID3D12Device* pDevice)
         stream.pRootSignature = CD3DX12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE(m_rootSignatures[RootSignature::ScenePass].Get());
         stream.InputLayout = CD3DX12_PIPELINE_STATE_STREAM_INPUT_LAYOUT(inputLayoutDesc);
         stream.PrimitiveTopologyType = CD3DX12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-        stream.VS = CD3DX12_PIPELINE_STATE_STREAM_VS(CD3DX12_SHADER_BYTECODE(vertexShader.Get()));
-        stream.PS = CD3DX12_PIPELINE_STATE_STREAM_PS(CD3DX12_SHADER_BYTECODE(pixelShader.Get()));
+        stream.VS = CD3DX12_PIPELINE_STATE_STREAM_VS(CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength));
+        stream.PS = CD3DX12_PIPELINE_STATE_STREAM_PS(CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength));
         stream.DSVFormat = CD3DX12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT(DXGI_FORMAT_D32_FLOAT);
         stream.RasterizerState = CD3DX12_PIPELINE_STATE_STREAM_RASTERIZER(rasterizerCullModeNone);
         stream.RTVFormats = CD3DX12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS(renderTargets);
