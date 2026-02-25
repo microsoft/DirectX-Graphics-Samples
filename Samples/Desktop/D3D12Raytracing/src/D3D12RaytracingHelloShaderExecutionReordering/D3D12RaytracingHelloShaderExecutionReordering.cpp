@@ -16,7 +16,7 @@
 #include <atlbase.h>
 #include <vector>
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 717; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 619; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 
@@ -156,9 +156,6 @@ D3D12RaytracingHelloShaderExecutionReordering::D3D12RaytracingHelloShaderExecuti
 
 void D3D12RaytracingHelloShaderExecutionReordering::OnInit()
 {
-    UUID Features[] = { D3D12ExperimentalShaderModels };
-    ThrowIfFailed(D3D12EnableExperimentalFeatures(_countof(Features), Features, nullptr, nullptr));
-
     m_deviceResources = std::make_unique<DeviceResources>(
         DXGI_FORMAT_R8G8B8A8_UNORM,
         DXGI_FORMAT_UNKNOWN,

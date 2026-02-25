@@ -111,12 +111,6 @@ void DeviceResources::InitializeDXGIAdapter()
         ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&m_dxgiFactory)));
     }
 
-
-    //std::vector<IID> experimentalFeatures;
-    //experimentalFeatures.clear();
-    //experimentalFeatures.push_back(D3D12RaytracingExperiment);
-    //HRESULT expTierHR = SUCCEEDED(D3D12EnableExperimentalFeatures((UINT)experimentalFeatures.size(), experimentalFeatures.data(), nullptr, nullptr));
-
     // Determines whether tearing support is available for fullscreen borderless windows.
     if (m_options & (c_AllowTearing | c_RequireTearingSupport))
     {
