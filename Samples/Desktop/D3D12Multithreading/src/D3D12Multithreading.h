@@ -57,6 +57,8 @@ public:
 
     static D3D12Multithreading* Get() { return s_app; }
 
+    static bool IsEnhancedBarriersEnabled() { return s_bIsEnhancedBarriersEnabled; }
+
     virtual void OnInit();
     virtual void OnUpdate();
     virtual void OnRender();
@@ -78,7 +80,7 @@ private:
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;
-    ComPtr<ID3D12Device> m_device;
+    ComPtr<ID3D12Device10> m_device;
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12CommandAllocator> m_commandAllocator;
@@ -127,6 +129,8 @@ private:
     FrameResource* m_frameResources[FrameCount];
     FrameResource* m_pCurrentFrameResource;
     int m_currentFrameResourceIndex;
+
+    static bool s_bIsEnhancedBarriersEnabled;
 
     struct ThreadParameter
     {

@@ -17,6 +17,9 @@
 
 using namespace std;
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 std::wstring GetShadingRateString(const D3D12_VARIABLE_SHADING_RATE_TIER& tier, const D3D12_SHADING_RATE& shadingRate)
 {
     if (tier == D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED)
@@ -67,12 +70,8 @@ D3D12VariableRateShading::D3D12VariableRateShading(UINT width, UINT height, wstr
     m_windowVisible(true),
     m_windowedMode(true)
 {
-#ifdef PIXSUPPORT
-    m_enableUI = false;
-#endif
-#ifndef PIXSUPPORT
     ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
-#endif
+
     if (!m_tearingSupport)
     {
         // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported since Threshold II.

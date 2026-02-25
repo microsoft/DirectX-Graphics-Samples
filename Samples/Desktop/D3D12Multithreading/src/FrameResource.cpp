@@ -13,7 +13,7 @@
 #include "FrameResource.h"
 #include "SquidRoom.h"
 
-FrameResource::FrameResource(ID3D12Device* pDevice, ID3D12PipelineState* pPso, ID3D12PipelineState* pShadowMapPso, ID3D12DescriptorHeap* pDsvHeap, ID3D12DescriptorHeap* pCbvSrvHeap, D3D12_VIEWPORT* pViewport, UINT frameResourceIndex) :
+FrameResource::FrameResource(ID3D12Device10* pDevice, ID3D12PipelineState* pPso, ID3D12PipelineState* pShadowMapPso, ID3D12DescriptorHeap* pDsvHeap, ID3D12DescriptorHeap* pCbvSrvHeap, D3D12_VIEWPORT* pViewport, UINT frameResourceIndex) :
     m_fenceValue(0),
     m_pipelineState(pPso),
     m_pipelineStateShadowMap(pShadowMapPso)
@@ -67,13 +67,29 @@ FrameResource::FrameResource(ID3D12Device* pDevice, ID3D12PipelineState* pPso, I
     clearValue.DepthStencil.Depth = 1.0f;
     clearValue.DepthStencil.Stencil = 0;
 
-    ThrowIfFailed(pDevice->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &shadowTexDesc,
-        D3D12_RESOURCE_STATE_DEPTH_WRITE,
-        &clearValue,
-        IID_PPV_ARGS(&m_shadowTexture)));
+    if (D3D12Multithreading::IsEnhancedBarriersEnabled())
+    {
+        ThrowIfFailed(pDevice->CreateCommittedResource3(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC1(shadowTexDesc),
+            D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
+            &clearValue,
+            nullptr,
+            0,
+            nullptr,
+            IID_PPV_ARGS(&m_shadowTexture)));
+    }
+    else
+    {
+        ThrowIfFailed(pDevice->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &shadowTexDesc,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            &clearValue,
+            IID_PPV_ARGS(&m_shadowTexture)));
+    }
 
     NAME_D3D12_OBJECT(m_shadowTexture);
 
@@ -121,20 +137,47 @@ FrameResource::FrameResource(ID3D12Device* pDevice, ID3D12PipelineState* pPso, I
 
     // Create the constant buffers.
     const UINT constantBufferSize = (sizeof(SceneConstantBuffer) + (D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1)) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1); // must be a multiple 256 bytes
-    ThrowIfFailed(pDevice->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&m_shadowConstantBuffer)));
-    ThrowIfFailed(pDevice->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&m_sceneConstantBuffer)));
+
+    if (D3D12Multithreading::IsEnhancedBarriersEnabled())
+    {
+        ThrowIfFailed(pDevice->CreateCommittedResource3(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC1::Buffer(constantBufferSize),
+            D3D12_BARRIER_LAYOUT_UNDEFINED,
+            nullptr,
+            nullptr,
+            0,
+            nullptr,
+            IID_PPV_ARGS(&m_shadowConstantBuffer)));
+        ThrowIfFailed(pDevice->CreateCommittedResource3(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC1::Buffer(constantBufferSize),
+            D3D12_BARRIER_LAYOUT_UNDEFINED,
+            nullptr,
+            nullptr,
+            0,
+            nullptr,
+            IID_PPV_ARGS(&m_sceneConstantBuffer)));
+    }
+    else
+    {
+        ThrowIfFailed(pDevice->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_shadowConstantBuffer)));
+        ThrowIfFailed(pDevice->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_sceneConstantBuffer)));
+    }
 
     // Map the constant buffers and cache their heap pointers.
     CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
@@ -254,13 +297,57 @@ void FrameResource::Init()
 
 void FrameResource::SwapBarriers()
 {
-    // Transition the shadow map from writeable to readable.
-    m_commandLists[CommandListMid]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowTexture.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+    if (D3D12Multithreading::IsEnhancedBarriersEnabled())
+    {
+        D3D12_TEXTURE_BARRIER ShadowTextureBarriers[] =
+        {
+            CD3DX12_TEXTURE_BARRIER(
+                D3D12_BARRIER_SYNC_DEPTH_STENCIL,              // SyncBefore
+                D3D12_BARRIER_SYNC_PIXEL_SHADING,              // SyncAfter
+                D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE,      // AccessBefore
+                D3D12_BARRIER_ACCESS_SHADER_RESOURCE,          // AccessAfter
+                D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,      // LayoutBefore
+                D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,          // LayoutAfter
+                m_shadowTexture.Get(),
+                CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff), // All subresources
+                D3D12_TEXTURE_BARRIER_FLAG_NONE
+            )
+        };
+        D3D12_BARRIER_GROUP ShadowTextureBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(ShadowTextureBarriers), ShadowTextureBarriers) };
+        m_commandLists[CommandListMid]->Barrier(_countof(ShadowTextureBarrierGroups), ShadowTextureBarrierGroups);
+    }
+    else
+    {
+        // Transition the shadow map from writeable to readable.
+        m_commandLists[CommandListMid]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowTexture.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+    }
 }
 
 void FrameResource::Finish()
 {
-    m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+    if (D3D12Multithreading::IsEnhancedBarriersEnabled())
+    {
+        D3D12_TEXTURE_BARRIER FinishTexBarrier[] =
+        {
+            CD3DX12_TEXTURE_BARRIER(
+                D3D12_BARRIER_SYNC_PIXEL_SHADING,              // SyncBefore
+                D3D12_BARRIER_SYNC_DEPTH_STENCIL,              // SyncAfter
+                D3D12_BARRIER_ACCESS_SHADER_RESOURCE,          // AccessBefore
+                D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE,      // AccessAfter
+                D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,          // LayoutBefore
+                D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,      // LayoutAfter
+                m_shadowTexture.Get(),
+                CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff), // All subresources
+                D3D12_TEXTURE_BARRIER_FLAG_NONE
+            )
+        };
+        D3D12_BARRIER_GROUP FinishTexBarrierGroups[] = { CD3DX12_BARRIER_GROUP(_countof(FinishTexBarrier), FinishTexBarrier) };
+        m_commandLists[CommandListPost]->Barrier(_countof(FinishTexBarrierGroups), FinishTexBarrierGroups);
+    }
+    else
+    {
+        m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+    }
 }
 
 // Sets up the descriptor tables for the worker command list to use 

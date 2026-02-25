@@ -27,9 +27,6 @@
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
     <ClInclude Include="DXSample.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>

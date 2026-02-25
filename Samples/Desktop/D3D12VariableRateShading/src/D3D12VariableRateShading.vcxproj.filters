@@ -27,9 +27,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
     <ClInclude Include="DXSample.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
@@ -110,15 +107,15 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="Common.hlsli">
+      <Filter>Assets\Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="PostprocessPass.hlsl">
       <Filter>Assets\Shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="ShadowsAndScenePass.hlsl">
-      <Filter>Assets\Shaders</Filter>
-    </CustomBuild>
-    <CustomBuild Include="Common.hlsli">
       <Filter>Assets\Shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="Glass.hlsl">

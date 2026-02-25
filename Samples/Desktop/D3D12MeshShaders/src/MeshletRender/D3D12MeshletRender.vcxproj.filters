@@ -51,9 +51,6 @@
     <ClInclude Include="Win32Application.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Assets">
@@ -82,13 +79,14 @@
     <None Include="..\Assets\Dragon_LOD0.bin">
       <Filter>Assets\Models</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="MeshletMS.hlsl">
+    <CustomBuild Include="MeshletPS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="MeshletPS.hlsl">
+    </CustomBuild>
+    <CustomBuild Include="MeshletMS.hlsl">
       <Filter>Assets\Shaders</Filter>
-    </FxCompile>
+    </CustomBuild>
   </ItemGroup>
 </Project>

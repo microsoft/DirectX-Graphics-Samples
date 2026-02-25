@@ -17,6 +17,9 @@
 using namespace std;
 using namespace DX;
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 const wchar_t* D3D12RaytracingLibrarySubobjects::c_hitGroupName = L"MyHitGroup";
 const wchar_t* D3D12RaytracingLibrarySubobjects::c_raygenShaderName = L"MyRaygenShader";
 const wchar_t* D3D12RaytracingLibrarySubobjects::c_closestHitShaderName = L"MyClosestHitShader";

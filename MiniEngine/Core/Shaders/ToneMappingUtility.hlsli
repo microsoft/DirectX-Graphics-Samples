@@ -30,7 +30,7 @@ float3 TM_Reinhard(float3 hdr, float k = 1.0)
 // The inverse of Reinhard
 float3 ITM_Reinhard(float3 sdr, float k = 1.0)
 {
-    return k * sdr / (k - sdr);
+    return k * sdr / (1.0 - sdr);
 }
 
 //

@@ -103,7 +103,7 @@ uint ComputeLOD(float4 boundingSphere)
     float size = Constants.RecipTanHalfFovy * r / sqrt(dot(v, v) - r * r);
     size = min(size, 1.0);
 
-    return (1.0 - size) * (Constants.LODCount - 1);
+    return round((1.0 - size) * (Constants.LODCount - 1));
 }
 
 uint DivRoundUp(uint num, uint denom)

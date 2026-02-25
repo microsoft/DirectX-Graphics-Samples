@@ -406,9 +406,16 @@ namespace D3DX12Residency
 
             HRESULT GPUWait(ID3D12CommandQueue* pQueue)
             {
-                HRESULT hr = pQueue->Wait(pFence, FenceValue);
-                RESIDENCY_CHECK_RESULT(hr);
-                return hr;
+                if (FenceValue > 0)
+                {
+                    HRESULT hr = pQueue->Wait(pFence, FenceValue);
+                    RESIDENCY_CHECK_RESULT(hr);
+                    return hr;
+                }
+                else
+                {
+                    return S_OK;
+                }
             }
 
             HRESULT GPUSignal(ID3D12CommandQueue* pQueue)
@@ -1296,8 +1303,8 @@ namespace D3DX12Residency
                                     if (Device3)
                                     {
                                         hr = Device3->EnqueueMakeResident(D3D12_RESIDENCY_FLAG_NONE,
-                                                                          NumObjectsInBatch,
-                                                                          &pMakeResidentList[BatchStart].pUnderlying,
+                                                                          NumObjects,
+                                                                          &pMakeResidentList[MakeResidentIndex].pUnderlying,
                                                                           AsyncThreadFence.pFence,
                                                                           AsyncThreadFence.FenceValue + 1);
                                         if (SUCCEEDED(hr))
@@ -1332,6 +1339,7 @@ namespace D3DX12Residency
                                 LRU.TrimToSyncPointInclusive(TotalUsage + INT64(SizeToMakeResident), TotalBudget, pEvictionList, NumObjectsToEvict, GenerationToWaitFor);
 
                                 RESIDENCY_CHECK_RESULT(Device->Evict(NumObjectsToEvict, pEvictionList));
+                                NumObjectsToEvict = 0;
                             }
                             else
                             {

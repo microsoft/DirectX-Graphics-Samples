@@ -14,6 +14,9 @@
 
 using namespace DirectX;
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
+
 D3D12LinkedGpus::D3D12LinkedGpus(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_nodeIndex(0),
@@ -76,7 +79,7 @@ void D3D12LinkedGpus::OnInit()
     Settings::Initialize(device.Get(), m_width, m_height, m_tearingSupport);
 
     // Initialize resources for the sample.
-    m_crossNodeResources = std::make_shared<CrossNodeResources>(factory.Get(), device.Get());
+    m_crossNodeResources = std::make_shared<CrossNodeResources>(factory.Get(), device.Get(), this);
 
     for (UINT n = 0; n < Settings::NodeCount; n++)
     {

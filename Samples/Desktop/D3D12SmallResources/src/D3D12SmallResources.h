@@ -56,7 +56,7 @@ private:
     CD3DX12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<IDXGIAdapter3> m_adapter;
-    ComPtr<ID3D12Device> m_device;
+    ComPtr<ID3D12Device10> m_device;
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
     ComPtr<ID3D12CommandAllocator> m_copyCommandAllocator;
@@ -76,13 +76,15 @@ private:
 
     // Asset objects.
     ComPtr<ID3D12PipelineState> m_pipelineState;
-    ComPtr<ID3D12GraphicsCommandList> m_commandList;
-    ComPtr<ID3D12GraphicsCommandList> m_copyCommandList;
+    ComPtr<ID3D12GraphicsCommandList8> m_commandList;
+    ComPtr<ID3D12GraphicsCommandList8> m_copyCommandList;
     ComPtr<ID3D12Resource> m_vertexBuffer;
     std::vector<ComPtr<ID3D12Resource>> m_textures;
     ComPtr<ID3D12Heap> m_textureHeap;        // Only used when the resources being drawn are placed resources.
     bool m_usePlacedResources;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+
+    bool m_bIsEnhancedBarriersEnabled;
 
     void LoadPipeline();
     void LoadAssets();

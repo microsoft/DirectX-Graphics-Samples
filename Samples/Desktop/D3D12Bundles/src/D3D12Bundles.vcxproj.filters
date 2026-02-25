@@ -30,9 +30,6 @@
     <ClInclude Include="D3D12Bundles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
     <ClInclude Include="DXSample.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
@@ -79,19 +76,17 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="shader_mesh_alt_pixel.hlsl">
-      <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="shader_mesh_simple_pixel.hlsl">
-      <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="shader_mesh_simple_vert.hlsl">
-      <Filter>Assets\Shaders</Filter>
-    </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
     <CustomBuild Include="occcity.bin">
       <Filter>Assets</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shader_mesh_alt_pixel.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shader_mesh_simple_pixel.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shader_mesh_simple_vert.hlsl">
+      <Filter>Assets\Shaders</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

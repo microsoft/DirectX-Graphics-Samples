@@ -65,7 +65,7 @@ Texture2D<float3> l_texNormalMap : register(t4, space1);
 #include "MotionVector.hlsli"
 
 // Trace a shadow ray and return true if it hits any geometry.
-bool TraceShadowRayAndReportIfHit(out float tHit, in Ray ray, in UINT currentRayRecursionDepth, in bool retrieveTHit = true, in float TMax = 10000)
+bool TraceShadowRayAndReportIfHit(inout float tHit, in Ray ray, in UINT currentRayRecursionDepth, in bool retrieveTHit = true, in float TMax = 10000)
 {
     if (currentRayRecursionDepth >= g_cb.maxShadowRayRecursionDepth)
     {
@@ -115,7 +115,7 @@ bool TraceShadowRayAndReportIfHit(out float tHit, in Ray ray, in UINT currentRay
     return shadowPayload.tHit > 0;
 }
 
-bool TraceShadowRayAndReportIfHit(out float tHit, in Ray ray, in float3 N, in UINT currentRayRecursionDepth, in bool retrieveTHit = true, in float TMax = 10000)
+bool TraceShadowRayAndReportIfHit(inout float tHit, in Ray ray, in float3 N, in UINT currentRayRecursionDepth, in bool retrieveTHit = true, in float TMax = 10000)
 {
     // Only trace if the surface is facing the target.
     if (dot(ray.direction, N) > 0)

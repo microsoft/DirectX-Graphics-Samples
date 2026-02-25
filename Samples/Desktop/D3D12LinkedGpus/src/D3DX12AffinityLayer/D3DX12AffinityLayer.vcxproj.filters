@@ -130,9 +130,6 @@
     <ClInclude Include="CDXGIAffinitySwapChain.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="d3dx12affinity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -145,5 +142,8 @@
     <ClInclude Include="Utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

@@ -31,7 +31,7 @@ float4 GetBicubicFilterWeights(float offset, float A)
     //return ComputeWeights(offset, A);
 
     // Precompute weights for 16 discrete offsets
-    static const float4 FilterWeights[16] =
+    const float4 FilterWeights[16] =
     {
         ComputeWeights( 0.5 / 16.0, -0.5),
         ComputeWeights( 1.5 / 16.0, -0.5),
