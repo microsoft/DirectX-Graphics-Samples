@@ -16,7 +16,7 @@
 #include <atlbase.h>
 #include <vector>
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 619; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 
@@ -283,6 +283,18 @@ void D3D12RaytracingHelloShaderExecutionReordering::CreateRaytracingPipelineStat
     m_dxrDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &SM, sizeof(SM));
     ThrowIfFalse(SM.HighestShaderModel >= D3D_SHADER_MODEL_6_9,
         L"ERROR: Device doesn't support Shader Model 6.9.\n\n");
+
+    D3D12_FEATURE_DATA_D3D12_OPTIONS22 Options22 = {};
+    m_dxrDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS22, &Options22, sizeof(Options22));
+    if (Options22.ShaderExecutionReorderingActuallyReorders)
+    {
+        PRINT("ShaderExecutionReorderingActuallyReorders = TRUE on this device.\n");
+    }
+    else
+    {
+        PRINT("ShaderExecutionReorderingActuallyReorders = TRUE on this device.\n");
+    }
+    m_shaderExecutionReorderingActuallyReorders = Options22.ShaderExecutionReorderingActuallyReorders;
 
     // Create 7 subobjects that combine into a RTPSO:
     // Subobjects need to be associated with DXIL exports (i.e. shaders) either by way of default or explicit associations.
@@ -781,8 +793,9 @@ void D3D12RaytracingHelloShaderExecutionReordering::CalculateFrameStats()
         wstringstream windowText;
 
         windowText //<< setprecision(2) << fixed
-            << L"    fps: " << fps << L"     ~Million Primary Rays/s: " << MRaysPerSecond
-            << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription();
+            << L"    fps: " << fps << L"     ~MegaRays/s: " << MRaysPerSecond
+            << L"    GPU[" << m_deviceResources->GetAdapterID() << L"]: " << m_deviceResources->GetAdapterDescription()
+            << L"    Device reports ShaderExecutionReorderingActuallyReorders=" << (m_shaderExecutionReorderingActuallyReorders ? L"TRUE" : L"FALSE");
         SetCustomWindowText(windowText.str().c_str());
     }
 }

@@ -53,6 +53,7 @@ private:
         
     // DirectX Raytracing (DXR) attributes
     ComPtr<ID3D12Device5> m_dxrDevice;
+    BOOL m_shaderExecutionReorderingActuallyReorders = FALSE;
     ComPtr<ID3D12GraphicsCommandList4> m_dxrCommandList;
     ComPtr<ID3D12StateObject> m_dxrStateObject;
 

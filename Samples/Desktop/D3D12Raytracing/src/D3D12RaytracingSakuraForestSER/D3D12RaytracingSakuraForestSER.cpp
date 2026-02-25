@@ -22,7 +22,7 @@
 #include "SharedCode.h"
 #include <random>
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 619; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 using namespace std;
