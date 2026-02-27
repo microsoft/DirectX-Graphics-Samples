@@ -12,7 +12,7 @@
 #include "stdafx.h"
 #include "D3D12Residency.h"
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 619; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 D3D12Residency::D3D12Residency(UINT width, UINT height, std::wstring name) :
