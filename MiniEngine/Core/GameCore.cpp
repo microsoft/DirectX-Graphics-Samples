@@ -164,7 +164,8 @@ namespace GameCore
         switch( message )
         {
         case WM_SIZE:
-            Display::Resize((UINT)(UINT64)lParam & 0xFFFF, (UINT)(UINT64)lParam >> 16);
+			if( wParam != SIZE_MINIMIZED )
+                Display::Resize((UINT)(UINT64)lParam & 0xFFFF, (UINT)(UINT64)lParam >> 16);
             break;
 
         case WM_DESTROY:
