@@ -16,7 +16,7 @@
 D3D12Multithreading* D3D12Multithreading::s_app = nullptr;
 bool D3D12Multithreading::s_bIsEnhancedBarriersEnabled = false;
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 619; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 D3D12Multithreading::D3D12Multithreading(UINT width, UINT height, std::wstring name) :
@@ -37,11 +37,39 @@ D3D12Multithreading::D3D12Multithreading(UINT width, UINT height, std::wstring n
     m_keyboardInput.animate = true;
 
     ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
+
+    SetApplicationIdentity();
 }
 
 D3D12Multithreading::~D3D12Multithreading()
 {
     s_app = nullptr;
+}
+
+void D3D12Multithreading::SetApplicationIdentity()
+{
+    ComPtr<ID3D12ApplicationIdentity> pApplicationIdentity;
+    HRESULT hr = D3D12GetInterface(CLSID_D3D12ApplicationIdentity, IID_PPV_ARGS(&pApplicationIdentity));
+    if (E_NOINTERFACE == hr)
+    {
+        return;
+    }
+
+    D3D12_APPLICATION_DESC appDesc;
+    appDesc.pExeFilename = L"D3D12Multithreading.exe";
+    appDesc.pName = L"D3D12 Multithreading";
+    appDesc.Version.Version = 0x0001000000000000;
+    appDesc.pEngineName = nullptr;
+    appDesc.EngineVersion.Version = 0x0000000000000000;
+
+    GUID D3D12MultithreadingAppID = { /* 8367fc8a-d739-485a-a473-12dfaa190567 */
+        0x8367fc8a,
+        0xd739,
+        0x485a,
+        { 0xa4, 0x73, 0x12, 0xdf, 0xaa, 0x19, 0x05, 0x67 }
+    };
+
+    pApplicationIdentity->SetApplicationIdentity(&appDesc, D3D12MultithreadingAppID);
 }
 
 void D3D12Multithreading::OnInit()
@@ -1282,3 +1310,4 @@ void D3D12Multithreading::SetCommonPipelineState(ID3D12GraphicsCommandList* pCom
     // SRVs are set elsewhere because they change based on the object 
     // being drawn.
 }
+

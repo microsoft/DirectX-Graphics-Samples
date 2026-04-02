@@ -150,4 +150,6 @@ private:
     void BeginFrame();
     void MidFrame();
     void EndFrame();
+
+    void SetApplicationIdentity();
 };
