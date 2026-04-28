@@ -9,6 +9,19 @@
 //
 //*********************************************************
 
+struct Material
+{
+    uint textureIndex;
+    float padding[3];    
+};
+
+cbuffer SceneConstantBuffer : register(b0)
+{
+    float4 offset;
+    Material material;
+    float4 padding[14];
+};
+
 struct PSInput
 {
     float4 position : SV_POSITION;
@@ -22,7 +35,7 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
 {
     PSInput result;
 
-    result.position = position;
+    result.position = position + offset;
     result.uv = uv;
 
     return result;
@@ -30,5 +43,5 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    return g_texture[0].Sample(g_sampler, input.uv);
+    return g_texture[material.textureIndex].Sample(g_sampler, input.uv);
 }
