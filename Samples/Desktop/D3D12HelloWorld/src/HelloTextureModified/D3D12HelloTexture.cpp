@@ -12,6 +12,33 @@
 #include "stdafx.h"
 #include "D3D12HelloTexture.h"
 
+
+#include <windows.h>
+#include <cstdarg>
+#include <cstdio>
+
+void DebugPrint(const char* fmt, ...)
+{
+    char buf[1024];
+
+    va_list args;
+    va_start(args, fmt);
+    vsprintf_s(buf, fmt, args);
+    va_end(args);
+
+    OutputDebugStringA(buf);
+}
+#define DBG_PRINT(fmt, ...) \
+ DebugPrint("[%s:%d] " fmt, __FILE__, __LINE__, __VA_ARGS__)
+
+
+#include <random>
+int rand_0_255() {
+    static std::mt19937 gen(std::random_device{}());
+    static std::uniform_int_distribution<int> dist(0, 0xFF);
+    return dist(gen);
+}
+
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
@@ -29,6 +56,7 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
 
 void D3D12HelloTexture::OnInit()
 {
+    m_prevTime = std::chrono::steady_clock::now();
     LoadPipeline();
     LoadAssets();
 }
@@ -280,7 +308,8 @@ void D3D12HelloTexture::LoadAssets()
     // the command list that references it has finished executing on the GPU.
     // We will flush the GPU at the end of this method to ensure the resource is not
     // prematurely destroyed.
-    ComPtr<ID3D12Resource> textureUploadHeap;
+    std::vector<ComPtr<ID3D12Resource>> textureUploadHeap;
+	textureUploadHeap.resize(TextureCount);
 
     // Create the texture.
     {
@@ -296,40 +325,51 @@ void D3D12HelloTexture::LoadAssets()
         textureDesc.SampleDesc.Quality = 0;
         textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-            D3D12_HEAP_FLAG_NONE,
-            &textureDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr,
-            IID_PPV_ARGS(&m_texture)));
+		m_texture.resize(TextureCount);
 
-        const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture.Get(), 0, 1);
+        for (int i = 0; i < TextureCount; i++) {
+            ThrowIfFailed(m_device->CreateCommittedResource(
+                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                D3D12_HEAP_FLAG_NONE,
+                &textureDesc,
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                nullptr,
+                IID_PPV_ARGS(&m_texture[i])));
 
-        // Create the GPU upload buffer.
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&textureUploadHeap)));
+
+            const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture[i].Get(), 0, 1);
+
+            // Create the GPU upload buffer.
+            ThrowIfFailed(m_device->CreateCommittedResource(
+                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                D3D12_HEAP_FLAG_NONE,
+                &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(&textureUploadHeap[i])));
+        }
 
         // Copy data to the intermediate upload heap and then schedule a copy 
         // from the upload heap to the Texture2D.
-        std::vector<UINT8> texture = GenerateTextureData();
+		
+        // CPUにはTextureTypesだけTextureをつくる
+        std::vector<std::vector<UINT8>> texture(TextureTypes);
+        for (int i = 0; i < TextureTypes; i++) {
+            texture[i] = GenerateTextureData();
+        }
 
-        D3D12_SUBRESOURCE_DATA textureData = {};
-        textureData.pData = &texture[0];
-        textureData.RowPitch = TextureWidth * TexturePixelSize;
-        textureData.SlicePitch = textureData.RowPitch * TextureHeight;
+        for (int i = 0; i < TextureCount; i++){
+            D3D12_SUBRESOURCE_DATA textureData = {};
+            textureData.pData = &texture[i% TextureTypes][0];
+            textureData.RowPitch = TextureWidth * TexturePixelSize;
+            textureData.SlicePitch = textureData.RowPitch * TextureHeight;
 
-        UpdateSubresources(m_commandList.Get(), m_texture.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
-        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+            UpdateSubresources(m_commandList.Get(), m_texture[i].Get(), textureUploadHeap[i].Get(), 0, 0, 1, &textureData);
+            m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture[i].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
-        // Describe and create a SRV for the texture.
-        for (int i = 0; i < TextureCount; i++) {
-            m_texIndex[i] = AllocateTextureSRV(m_texture.Get());
+            // Describe and create a SRV for the texture.
+            m_texIndex[i] = AllocateTextureSRV(m_texture[i].Get());
+			DBG_PRINT("Texture %d SRV index: %d\n", i, m_texIndex[i]);
         }
 
     }
@@ -402,7 +442,6 @@ UINT D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource* texture)
     return index; // ← これがGPUで使うID
 }
 
-
 // Generate a simple black and white checkerboard texture.
 std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
 {
@@ -414,6 +453,12 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
     std::vector<UINT8> data(textureSize);
     UINT8* pData = &data[0];
 
+	UINT8 R = rand_0_255();
+	UINT8 G = rand_0_255();
+	UINT8 B = rand_0_255();
+
+	//DBG_PRINT("R=%d G=%d B=%d\n", R, G, B);
+
     for (UINT n = 0; n < textureSize; n += TexturePixelSize)
     {
         UINT x = n % rowPitch;
@@ -423,16 +468,16 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
 
         if (i % 2 == j % 2)
         {
-            pData[n] = 0x00;        // R
+            pData[n + 0] = 0x00;    // R
             pData[n + 1] = 0x00;    // G
             pData[n + 2] = 0x00;    // B
             pData[n + 3] = 0xff;    // A
         }
         else
         {
-            pData[n] = 0xff;        // R
-            pData[n + 1] = 0xff;    // G
-            pData[n + 2] = 0xff;    // B
+            pData[n + 0] = R;       // R
+            pData[n + 1] = G;       // G
+            pData[n + 2] = B;       // B
             pData[n + 3] = 0xff;    // A
         }
     }
@@ -440,11 +485,27 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
     return data;
 }
 
+
+
 // Update frame-based values.
 void D3D12HelloTexture::OnUpdate()
 {
+    auto now = std::chrono::steady_clock::now();
+    float deltaTime = std::chrono::duration<float>(now - m_prevTime).count();
+    static float accumTime = 0.f;
+    m_prevTime = now;
+
     const float translationSpeed = 0.005f;
     const float offsetBounds = 1.25f;
+
+	// 毎フレーム、テクスチャを切り替える
+    accumTime += deltaTime;
+	if (accumTime > 1.0f) {
+        m_texIndexId = (m_texIndexId + 1) % TextureCount;
+        m_constantBufferData.material.textureIndex = m_texIndex[m_texIndexId % TextureCount];
+        DBG_PRINT("accumTime = %f m_constantBufferData.material.textureIndex=%d\n", accumTime, m_constantBufferData.material.textureIndex);
+        accumTime = 0.f;
+    }
 
     m_constantBufferData.offset.x += translationSpeed;
     if (m_constantBufferData.offset.x > offsetBounds)

@@ -10,7 +10,7 @@
 //*********************************************************
 
 #pragma once
-
+#include <chrono>
 #include "DXSample.h"
 
 using namespace DirectX;
@@ -39,6 +39,7 @@ private:
     static const UINT TexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
 
 	static const UINT TextureCount = 1023;
+    static const UINT TextureTypes = 1000; // Color Type : 0-9
 
     struct Vertex
     {
@@ -85,9 +86,12 @@ private:
     // App resources.
     ComPtr<ID3D12Resource> m_vertexBuffer;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
-    ComPtr<ID3D12Resource> m_texture;
+    std::vector<ComPtr<ID3D12Resource>> m_texture;
     ComPtr<ID3D12Resource> m_constantBuffer;
     UINT8* m_pCbvDataBegin;
+
+    std::chrono::steady_clock::time_point m_prevTime;
+    UINT m_texIndexId = 0;
 
     // Synchronization objects.
     UINT m_frameIndex;
