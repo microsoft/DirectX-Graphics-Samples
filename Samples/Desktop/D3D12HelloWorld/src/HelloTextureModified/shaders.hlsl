@@ -15,33 +15,40 @@ struct Material
     float padding[3];    
 };
 
-cbuffer SceneConstantBuffer : register(b0)
+struct InstanceData
 {
     float4 offset;
     Material material;
-    float4 padding[14];
 };
+
 
 struct PSInput
 {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD;
+    uint instanceId : SV_InstanceID;
 };
 
-Texture2D g_texture[] : register(t0);
+Texture2D g_texture[] : register(t0, space0);
 SamplerState g_sampler : register(s0);
+StructuredBuffer<InstanceData> g_instanceData : register(t0, space1);
 
-PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
+
+PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, uint instanceId : SV_InstanceID)
 {
     PSInput result;
 
-    result.position = position + offset;
+    InstanceData inst = g_instanceData[instanceId];
+    
+    result.position = position + inst.offset;
     result.uv = uv;
-
+    result.instanceId = instanceId;
+    
     return result;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    return g_texture[material.textureIndex].Sample(g_sampler, input.uv);
+    InstanceData inst = g_instanceData[input.instanceId];
+    return g_texture[inst.material.textureIndex].Sample(g_sampler, input.uv);
 }

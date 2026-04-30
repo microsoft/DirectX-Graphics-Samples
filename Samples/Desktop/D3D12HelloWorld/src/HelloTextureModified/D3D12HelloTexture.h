@@ -22,6 +22,7 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
+
 class D3D12HelloTexture : public DXSample
 {
 public:
@@ -33,13 +34,22 @@ public:
     virtual void OnDestroy();
 
 private:
-    static const UINT FrameCount = 2;
-    static const UINT TextureWidth = 256;
-    static const UINT TextureHeight = 256;
-    static const UINT TexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
+    static constexpr UINT kFrameCount = 2;
+    static constexpr UINT kTextureWidth = 256;
+    static constexpr UINT kTextureHeight = 256;
+    static constexpr UINT kTexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
 
-	static const UINT TextureCount = 1023;
-    static const UINT TextureTypes = 1000; // Color Type : 0-9
+	static constexpr UINT kTextureCount = 1023;
+    static constexpr UINT kTextureTypes = 100; // Color Type : 0-9
+
+    static constexpr float kTranslationSpeed = 0.005f;
+    static constexpr float kOffsetBounds = 1.25f;
+
+    static constexpr UINT kInstanceCount = 10;
+
+	float calculateOffsetX(int instanceId) {
+		return -kOffsetBounds + (float)instanceId / (float)kInstanceCount * kOffsetBounds * 2.0f;
+	}
 
     struct Vertex
     {
@@ -59,20 +69,20 @@ private:
 		Material material;
 	};
 
-	struct SceneConstantBuffer
-	{
-        XMFLOAT4 offset;
-        Material material;
-        float padding[64-4-4];
-	};
-	static_assert(sizeof(SceneConstantBuffer) % 256 == 0, "CB size must be 256-byte aligned.");
+//	struct SceneConstantBuffer
+//	{
+//       XMFLOAT4 offset;
+//        Material material;
+//        float padding[64-4-4];
+//	};
+//	static_assert(sizeof(SceneConstantBuffer) % 256 == 0, "CB size must be 256-byte aligned.");
 
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12Device> m_device;
-    ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
+    ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
     ComPtr<ID3D12CommandAllocator> m_commandAllocator;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12RootSignature> m_rootSignature;
@@ -84,10 +94,10 @@ private:
 	UINT m_descriptorSize;
     UINT m_nextFrameIndex = 0;
 
-    UINT m_texIndex[TextureCount] = {};
+    UINT m_texIndex[kTextureCount] = {};
     UINT m_nextFreeIndex = 0;
 
-    SceneConstantBuffer m_constantBufferData;
+//    SceneConstantBuffer m_constantBufferData;
 
     std::vector<InstanceData> m_instanceData;
 
@@ -98,6 +108,8 @@ private:
     std::vector<ComPtr<ID3D12Resource>> m_texture;
     ComPtr<ID3D12Resource> m_constantBuffer;
     UINT8* m_pCbvDataBegin;
+    ComPtr<ID3D12Resource> m_instanceBuffer;
+    InstanceData* m_pSrvDataBegin;
 
     std::chrono::steady_clock::time_point m_prevTime;
     UINT m_texIndexId = 0;
