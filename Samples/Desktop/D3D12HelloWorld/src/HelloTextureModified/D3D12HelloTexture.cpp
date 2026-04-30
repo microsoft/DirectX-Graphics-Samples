@@ -18,6 +18,8 @@
 
 #include "MyDx12Utils.h"
 
+#include <pix3.h>
+
 void DebugPrint(const char* fmt, ...)
 {
     char buf[1024];
@@ -498,9 +500,12 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
 
 
 
+
 // Update frame-based values.
 void D3D12HelloTexture::OnUpdate()
 {
+    PIXBeginEvent(0, L"OnUpdate");
+
     auto now = std::chrono::steady_clock::now();
     float deltaTime = std::chrono::duration<float>(now - m_prevTime).count();
     static float accumTime = 0.f;
@@ -525,11 +530,15 @@ void D3D12HelloTexture::OnUpdate()
     m_instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_pSrvDataBegin));
     memcpy(m_pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kInstanceCount);
     m_instanceBuffer->Unmap(0, nullptr);
+
+    PIXEndEvent();
 }
 
 // Render the scene.
 void D3D12HelloTexture::OnRender()
 {
+    PIXBeginEvent(0, L"OnRender");
+
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList();
 
@@ -541,6 +550,8 @@ void D3D12HelloTexture::OnRender()
     ThrowIfFailed(m_swapChain->Present(1, 0));
 
     WaitForPreviousFrame();
+
+    PIXEndEvent();
 }
 
 void D3D12HelloTexture::OnDestroy()
@@ -597,12 +608,16 @@ void D3D12HelloTexture::PopulateCommandList()
 	UINT vertexCountPerInstance = 3;
 	UINT instanceCount = kInstanceCount;
 
+	PIXBeginEvent(m_commandList.Get(), 0, L"DrawInstanced");
+
     m_commandList->DrawInstanced(
         vertexCountPerInstance, 
         kInstanceCount, 
         0, 
         0
     );
+
+    PIXEndEvent(m_commandList.Get());
 
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -612,6 +627,8 @@ void D3D12HelloTexture::PopulateCommandList()
 
 void D3D12HelloTexture::WaitForPreviousFrame()
 {
+    PIXBeginEvent(0, L"WaitForPreviousFrame");
+
     // WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
     // This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
     // sample illustrates how to use fences for efficient resource usage and to
@@ -630,4 +647,6 @@ void D3D12HelloTexture::WaitForPreviousFrame()
     }
 
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
+	PIXEndEvent();
 }
