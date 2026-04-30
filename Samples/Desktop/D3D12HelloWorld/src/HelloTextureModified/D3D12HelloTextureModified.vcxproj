@@ -124,6 +124,7 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="MyDx12Utils.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12HelloTexture.h" />
     <ClInclude Include="DXSample.h" />

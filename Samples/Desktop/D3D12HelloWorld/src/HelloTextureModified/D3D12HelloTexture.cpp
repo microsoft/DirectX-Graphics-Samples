@@ -12,10 +12,11 @@
 #include "stdafx.h"
 #include "D3D12HelloTexture.h"
 
-
 #include <windows.h>
 #include <cstdarg>
 #include <cstdio>
+
+#include "MyDx12Utils.h"
 
 void DebugPrint(const char* fmt, ...)
 {
@@ -283,13 +284,7 @@ void D3D12HelloTexture::LoadAssets()
         // recommended. Every time the GPU needs it, the upload heap will be marshalled 
         // over. Please read up on Default Heap usage. An upload heap is used here for 
         // code simplicity and because there are very few verts to actually transfer.
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&m_vertexBuffer)));
+		MyDx12Util::CreateUploadBuffer(m_device, vertexBufferSize, m_vertexBuffer);
 
         // Copy the triangle data to the vertex buffer.
         UINT8* pVertexDataBegin;
@@ -377,13 +372,8 @@ void D3D12HelloTexture::LoadAssets()
 	// Create the constant buffer.
 	{
 		const UINT constantBufferSize = sizeof(SceneConstantBuffer);    // CB size is required to be 256-byte aligned.
-		ThrowIfFailed(m_device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_constantBuffer)));
+
+		MyDx12Util::CreateUploadBuffer(m_device, constantBufferSize, m_constantBuffer);
 
 		// Describe and create a constant buffer view.
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
@@ -400,6 +390,7 @@ void D3D12HelloTexture::LoadAssets()
 		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
 		memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
 	}
+
 
     // Close the command list and execute it to begin the initial GPU setup.
     ThrowIfFailed(m_commandList->Close());

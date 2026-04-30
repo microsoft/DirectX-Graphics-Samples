@@ -53,10 +53,16 @@ private:
 		float padding[3]; // 16byte alignment
 	};
 
+	struct InstanceData
+	{
+		XMFLOAT4 offset;
+		Material material;
+	};
+
 	struct SceneConstantBuffer
 	{
         XMFLOAT4 offset;
-		Material material;
+        Material material;
         float padding[64-4-4];
 	};
 	static_assert(sizeof(SceneConstantBuffer) % 256 == 0, "CB size must be 256-byte aligned.");
@@ -82,6 +88,9 @@ private:
     UINT m_nextFreeIndex = 0;
 
     SceneConstantBuffer m_constantBufferData;
+
+    std::vector<InstanceData> m_instanceData;
+
 
     // App resources.
     ComPtr<ID3D12Resource> m_vertexBuffer;
