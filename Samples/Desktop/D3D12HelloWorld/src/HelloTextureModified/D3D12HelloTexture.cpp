@@ -117,7 +117,7 @@ void D3D12HelloTexture::LoadPipeline()
 
     // Describe and create the swap chain.
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-    swapChainDesc.BufferCount = FrameCount;
+    swapChainDesc.BufferCount = kFrameCount;
     swapChainDesc.Width = m_width;
     swapChainDesc.Height = m_height;
     swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -145,7 +145,7 @@ void D3D12HelloTexture::LoadPipeline()
     {
         // Describe and create a render target view (RTV) descriptor heap.
         D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-        rtvHeapDesc.NumDescriptors = FrameCount;
+        rtvHeapDesc.NumDescriptors = kFrameCount;
         rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
         rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
@@ -167,7 +167,7 @@ void D3D12HelloTexture::LoadPipeline()
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 
         // Create a RTV for each frame.
-        for (UINT n = 0; n < FrameCount; n++)
+        for (UINT n = 0; n < kFrameCount; n++)
         {
             ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
             m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
@@ -193,17 +193,22 @@ void D3D12HelloTexture::LoadAssets()
             featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
         }
 
-		// t0 - t(TextureCount-1) : Texture SRVs
+		// t0 - t(TextureCount-1) : Texture SRVs: space 0 : 0 - 1023
         CD3DX12_DESCRIPTOR_RANGE1 rangesSRV[1];
-        rangesSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, TextureCount, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
+        rangesSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, kTextureCount, 0/*base*/, 0/*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
 		// b0 : Constant buffer
-        CD3DX12_DESCRIPTOR_RANGE1 rangesCBV[1];
-        rangesCBV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        //CD3DX12_DESCRIPTOR_RANGE1 rangesCBV[1];
+        //rangesCBV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+        // t0 : SRV structured buffer: space1 : 0
+        CD3DX12_DESCRIPTOR_RANGE1 rangesSRV2[1];
+        rangesSRV2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0/*base*/, 1/*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
         CD3DX12_ROOT_PARAMETER1 rootParameters[2];
         rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[1].InitAsDescriptorTable(1, &rangesCBV[0], D3D12_SHADER_VISIBILITY_ALL);
+        //rootParameters[1].InitAsDescriptorTable(1, &rangesCBV[0], D3D12_SHADER_VISIBILITY_ALL);
+        rootParameters[1].InitAsDescriptorTable(1, &rangesSRV2[0], D3D12_SHADER_VISIBILITY_ALL);
 
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
@@ -304,7 +309,7 @@ void D3D12HelloTexture::LoadAssets()
     // We will flush the GPU at the end of this method to ensure the resource is not
     // prematurely destroyed.
     std::vector<ComPtr<ID3D12Resource>> textureUploadHeap;
-	textureUploadHeap.resize(TextureCount);
+	textureUploadHeap.resize(kTextureCount);
 
     // Create the texture.
     {
@@ -312,17 +317,17 @@ void D3D12HelloTexture::LoadAssets()
         D3D12_RESOURCE_DESC textureDesc = {};
         textureDesc.MipLevels = 1;
         textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        textureDesc.Width = TextureWidth;
-        textureDesc.Height = TextureHeight;
+        textureDesc.Width = kTextureWidth;
+        textureDesc.Height = kTextureHeight;
         textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
         textureDesc.DepthOrArraySize = 1;
         textureDesc.SampleDesc.Count = 1;
         textureDesc.SampleDesc.Quality = 0;
         textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-		m_texture.resize(TextureCount);
+		m_texture.resize(kTextureCount);
 
-        for (int i = 0; i < TextureCount; i++) {
+        for (int i = 0; i < kTextureCount; i++) {
             ThrowIfFailed(m_device->CreateCommittedResource(
                 &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                 D3D12_HEAP_FLAG_NONE,
@@ -348,16 +353,16 @@ void D3D12HelloTexture::LoadAssets()
         // from the upload heap to the Texture2D.
 		
         // CPUにはTextureTypesだけTextureをつくる
-        std::vector<std::vector<UINT8>> texture(TextureTypes);
-        for (int i = 0; i < TextureTypes; i++) {
+        std::vector<std::vector<UINT8>> texture(kTextureTypes);
+        for (int i = 0; i < kTextureTypes; i++) {
             texture[i] = GenerateTextureData();
         }
 
-        for (int i = 0; i < TextureCount; i++){
+        for (int i = 0; i < kTextureCount; i++){
             D3D12_SUBRESOURCE_DATA textureData = {};
-            textureData.pData = &texture[i% TextureTypes][0];
-            textureData.RowPitch = TextureWidth * TexturePixelSize;
-            textureData.SlicePitch = textureData.RowPitch * TextureHeight;
+            textureData.pData = &texture[i% kTextureTypes][0];
+            textureData.RowPitch = kTextureWidth * kTexturePixelSize;
+            textureData.SlicePitch = textureData.RowPitch * kTextureHeight;
 
             UpdateSubresources(m_commandList.Get(), m_texture[i].Get(), textureUploadHeap[i].Get(), 0, 0, 1, &textureData);
             m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture[i].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
@@ -369,28 +374,43 @@ void D3D12HelloTexture::LoadAssets()
 
     }
     
-	// Create the constant buffer.
-	{
-		const UINT constantBufferSize = sizeof(SceneConstantBuffer);    // CB size is required to be 256-byte aligned.
+	// Generate the instance data.
+    m_instanceData.clear();
+    for (int i = 0; i < kInstanceCount; i++)
+    {
+        InstanceData d;
+		d.material.textureIndex = m_texIndex[i % kTextureCount];
+		d.offset.x = calculateOffsetX(i);
+        d.offset.y = 0.0f;
+        d.offset.z = 0.0f;
+		d.offset.w = 0.0f;
+        m_instanceData.push_back(d);
+    }
 
-		MyDx12Util::CreateUploadBuffer(m_device, constantBufferSize, m_constantBuffer);
+	// Create the instance buffer.
+    {
+		const UINT instanceBufferSize = sizeof(InstanceData) * kInstanceCount;
 
-		// Describe and create a constant buffer view.
-        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-        cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
-        cbvDesc.SizeInBytes = constantBufferSize;
+		MyDx12Util::CreateUploadBuffer(m_device, instanceBufferSize, m_instanceBuffer);
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC  srvDesc = {};
+
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Buffer.NumElements = kInstanceCount;
+        srvDesc.Buffer.StructureByteStride = sizeof(InstanceData);
+
         UINT index = m_nextFreeIndex++;
         CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
         handle.Offset(index, m_descriptorSize);
-        m_device->CreateConstantBufferView(&cbvDesc, handle);
+        m_device->CreateShaderResourceView(m_instanceBuffer.Get(), &srvDesc, handle);
 
-		// Map and initialize the constant buffer. We don't unmap this until the
-		// app closes. Keeping things mapped for the lifetime of the resource is okay.
-		CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-		ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
-		memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
-	}
+		m_instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_pSrvDataBegin));
+		memcpy(m_pSrvDataBegin, m_instanceData.data(), instanceBufferSize);
+		m_instanceBuffer->Unmap(0, nullptr);
 
+    }
 
     // Close the command list and execute it to begin the initial GPU setup.
     ThrowIfFailed(m_commandList->Close());
@@ -436,10 +456,10 @@ UINT D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource* texture)
 // Generate a simple black and white checkerboard texture.
 std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
 {
-    const UINT rowPitch = TextureWidth * TexturePixelSize;
+    const UINT rowPitch = kTextureWidth * kTexturePixelSize;
     const UINT cellPitch = rowPitch >> 3;        // The width of a cell in the checkboard texture.
-    const UINT cellHeight = TextureWidth >> 3;    // The height of a cell in the checkerboard texture.
-    const UINT textureSize = rowPitch * TextureHeight;
+    const UINT cellHeight = kTextureWidth >> 3;    // The height of a cell in the checkerboard texture.
+    const UINT textureSize = rowPitch * kTextureHeight;
 
     std::vector<UINT8> data(textureSize);
     UINT8* pData = &data[0];
@@ -450,7 +470,7 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
 
 	//DBG_PRINT("R=%d G=%d B=%d\n", R, G, B);
 
-    for (UINT n = 0; n < textureSize; n += TexturePixelSize)
+    for (UINT n = 0; n < textureSize; n += kTexturePixelSize)
     {
         UINT x = n % rowPitch;
         UINT y = n / rowPitch;
@@ -486,24 +506,25 @@ void D3D12HelloTexture::OnUpdate()
     static float accumTime = 0.f;
     m_prevTime = now;
 
-    const float translationSpeed = 0.005f;
-    const float offsetBounds = 1.25f;
-
-	// 毎フレーム、テクスチャを切り替える
+	// InstanceBufferのmaterialのtextureIdを1秒ごと切り替える
     accumTime += deltaTime;
 	if (accumTime > 1.0f) {
-        m_texIndexId = (m_texIndexId + 1) % TextureCount;
-        m_constantBufferData.material.textureIndex = m_texIndex[m_texIndexId % TextureCount];
-        DBG_PRINT("accumTime = %f m_constantBufferData.material.textureIndex=%d\n", accumTime, m_constantBufferData.material.textureIndex);
+        for (int i = 0; i < kInstanceCount; i++) {
+            m_instanceData[i].material.textureIndex = (m_instanceData[i].material.textureIndex + 1) % kTextureCount;
+        }
         accumTime = 0.f;
     }
 
-    m_constantBufferData.offset.x += translationSpeed;
-    if (m_constantBufferData.offset.x > offsetBounds)
-    {
-        m_constantBufferData.offset.x = -offsetBounds;
-    }
-    memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
+	// InstanceBufferのオフセットを毎フレーム更新する
+	for (int i = 0; i < kInstanceCount; i++) {
+		m_instanceData[i].offset.x += kTranslationSpeed;
+		if (m_instanceData[i].offset.x > kOffsetBounds) {
+			m_instanceData[i].offset.x = -kOffsetBounds;
+		}
+	}
+    m_instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_pSrvDataBegin));
+    memcpy(m_pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kInstanceCount);
+    m_instanceBuffer->Unmap(0, nullptr);
 }
 
 // Render the scene.
@@ -572,7 +593,16 @@ void D3D12HelloTexture::PopulateCommandList()
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    m_commandList->DrawInstanced(3, 1, 0, 0);
+    
+	UINT vertexCountPerInstance = 3;
+	UINT instanceCount = kInstanceCount;
+
+    m_commandList->DrawInstanced(
+        vertexCountPerInstance, 
+        kInstanceCount, 
+        0, 
+        0
+    );
 
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
