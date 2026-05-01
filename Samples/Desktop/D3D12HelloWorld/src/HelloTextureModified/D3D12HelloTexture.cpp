@@ -51,9 +51,7 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
     m_rtvDescriptorSize(0),
-	m_descriptorSize(0),
-    //m_constantBuffer{},
-	m_pCbvDataBegin(nullptr)
+	m_descriptorSize(0)
 {
 }
 
@@ -206,10 +204,14 @@ void D3D12HelloTexture::LoadAssets()
         CD3DX12_DESCRIPTOR_RANGE1 rangesSRV2[1];
         rangesSRV2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0/*base*/, 1/*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        CD3DX12_ROOT_PARAMETER1 rootParameters[2];
-		rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL); //Texture SRVs
-		rootParameters[1].InitAsDescriptorTable(1, &rangesSRV2[0], D3D12_SHADER_VISIBILITY_ALL);  //Structured buffer SRV
+        // t0 : SRV structured buffer: space2 : 0
+        CD3DX12_DESCRIPTOR_RANGE1 rangesSRV3[1];
+        rangesSRV3[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0/*base*/, 2/*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
+        CD3DX12_ROOT_PARAMETER1 rootParameters[3];
+		rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL); //Texture SRVs
+		rootParameters[1].InitAsDescriptorTable(1, &rangesSRV2[0], D3D12_SHADER_VISIBILITY_ALL);  //Structured buffer SRV (Instance data)
+		rootParameters[2].InitAsDescriptorTable(1, &rangesSRV3[0], D3D12_SHADER_VISIBILITY_ALL);  //Structured buffer SRV (Material data)
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -380,7 +382,7 @@ void D3D12HelloTexture::LoadAssets()
     for (int i = 0; i < kInstanceCount; i++)
     {
         InstanceData d;
-		d.material.textureIndex = m_texIndex[i % kTextureCount];
+        d.materialId = i;
 		d.offset.x = calculateOffsetX(i);
         d.offset.y = 0.0f;
         d.offset.z = 0.0f;
@@ -388,8 +390,16 @@ void D3D12HelloTexture::LoadAssets()
         m_instanceData.push_back(d);
     }
 
-	// Create the instance buffer.
+	// Generate the material data.
+	m_materialData.clear();
+	for (int i = 0; i < kMaterialCount; i++)
+	{
+		Material m;
+		m.textureIndex = m_texIndex[i % kTextureCount];
+		m_materialData.push_back(m);
+	}
 
+	// Create the instance buffer.
 	for (int n = 0; n < kFrameCount; n++)
     {
 		const UINT instanceBufferSize = sizeof(InstanceData) * kInstanceCount;
@@ -412,6 +422,29 @@ void D3D12HelloTexture::LoadAssets()
         m_frameResources[n].instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_frameResources[n].pSrvDataBegin));
 		memcpy(m_frameResources[n].pSrvDataBegin, m_instanceData.data(), instanceBufferSize);
         m_frameResources[n].instanceBuffer->Unmap(0, nullptr);
+    }
+
+	// Create SRV for material buffer (StructuredBuffer)
+    {
+		const UINT materialBufferSize = sizeof(Material) * kInstanceCount;
+
+        MyDx12Util::CreateUploadBuffer(m_device, materialBufferSize, m_materialBuffer);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Buffer.NumElements = kInstanceCount;
+		srvDesc.Buffer.StructureByteStride = sizeof(Material);
+
+        UINT index = m_nextFreeIndex++;
+		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
+		handle.Offset(index, m_descriptorSize);
+
+		m_device->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, handle);
+        m_materialBuffer->Map(0, nullptr, reinterpret_cast<void**>(&pMaterialDataBegin));
+        memcpy(pMaterialDataBegin, m_materialData.data(), materialBufferSize);
+		m_materialBuffer->Unmap(0, nullptr);
     }
 
     // Close the command list and execute it to begin the initial GPU setup.
@@ -515,7 +548,7 @@ void D3D12HelloTexture::OnUpdate()
     accumTime += deltaTime;
 	if (accumTime > 1.0f) {
         for (int i = 0; i < kInstanceCount; i++) {
-            m_instanceData[i].material.textureIndex = (m_instanceData[i].material.textureIndex + 1) % kTextureCount;
+            m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % kMaterialCount;
         }
         accumTime = 0.f;
     }
@@ -590,6 +623,12 @@ void D3D12HelloTexture::PopulateCommandList()
     CD3DX12_GPU_DESCRIPTOR_HANDLE handle(m_heap->GetGPUDescriptorHandleForHeapStart());
     handle.Offset(kTextureCount + m_frameIndex, m_descriptorSize);
     m_commandList->SetGraphicsRootDescriptorTable(1, handle);
+
+	// material buffer SRV is at descriptor TextureCount + FrameCount
+    CD3DX12_GPU_DESCRIPTOR_HANDLE handle2(m_heap->GetGPUDescriptorHandleForHeapStart());
+    handle2.Offset(kTextureCount + 2, m_descriptorSize);
+    m_commandList->SetGraphicsRootDescriptorTable(2, handle2);
+
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);

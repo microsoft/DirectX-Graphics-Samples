@@ -12,15 +12,15 @@
 struct Material
 {
     uint textureIndex;
-    float padding[3];    
+    float padding[3];    //16 byte alignment
 };
 
 struct InstanceData
 {
     float4 offset;
-    Material material;
+    uint materialId;
+    float padding[3]; //16 byte alignment
 };
-
 
 struct PSInput
 {
@@ -32,7 +32,7 @@ struct PSInput
 Texture2D g_texture[] : register(t0, space0);
 SamplerState g_sampler : register(s0);
 StructuredBuffer<InstanceData> g_instanceData : register(t0, space1);
-
+StructuredBuffer<Material> g_materialData : register(t0, space2);
 
 PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, uint instanceId : SV_InstanceID)
 {
@@ -50,5 +50,6 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, uint instanceId
 float4 PSMain(PSInput input) : SV_TARGET
 {
     InstanceData inst = g_instanceData[input.instanceId];
-    return g_texture[inst.material.textureIndex].Sample(g_sampler, input.uv);
+    Material mat = g_materialData[inst.materialId];
+    return g_texture[mat.textureIndex].Sample(g_sampler, input.uv);
 }

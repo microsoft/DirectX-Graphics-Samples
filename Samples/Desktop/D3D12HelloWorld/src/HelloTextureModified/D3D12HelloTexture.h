@@ -40,13 +40,14 @@ private:
     static constexpr UINT kTexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
 
 	static constexpr UINT kHeapDescriptorCount = 1024;
-    static constexpr UINT kTextureCount = 1022;
+    static constexpr UINT kTextureCount = 1021;
     static constexpr UINT kTextureTypes = 100; // Color Type : 0-9
 
     static constexpr float kTranslationSpeed = 0.005f;
     static constexpr float kOffsetBounds = 1.25f;
 
     static constexpr UINT kInstanceCount = 10;
+	static constexpr UINT kMaterialCount = 10;
 
 	float calculateOffsetX(int instanceId) {
 		return -kOffsetBounds + (float)instanceId / (float)kInstanceCount * kOffsetBounds * 2.0f;
@@ -67,7 +68,8 @@ private:
 	struct InstanceData
 	{
 		XMFLOAT4 offset;
-		Material material;
+		UINT materialId;
+		float padding[3]; // 16byte alignment
 	};
 
     struct FrameResource
@@ -78,22 +80,12 @@ private:
         UINT64 fenceValue = 0;
     };
 
-
-//	struct SceneConstantBuffer
-//	{
-//       XMFLOAT4 offset;
-//        Material material;
-//        float padding[64-4-4];
-//	};
-//	static_assert(sizeof(SceneConstantBuffer) % 256 == 0, "CB size must be 256-byte aligned.");
-
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
-//    ComPtr<ID3D12CommandAllocator> m_commandAllocator;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
@@ -107,18 +99,16 @@ private:
     UINT m_texIndex[kTextureCount] = {};
     UINT m_nextFreeIndex = 0;
 
-//    SceneConstantBuffer m_constantBufferData;
-
     std::vector<InstanceData> m_instanceData;
+	std::vector<Material> m_materialData;
 
     // App resources.
     ComPtr<ID3D12Resource> m_vertexBuffer;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
     std::vector<ComPtr<ID3D12Resource>> m_texture;
-//    ComPtr<ID3D12Resource> m_constantBuffer;
-    UINT8* m_pCbvDataBegin;
-//    ComPtr<ID3D12Resource> m_instanceBuffer;
-//    InstanceData* m_pSrvDataBegin;
+
+    ComPtr<ID3D12Resource> m_materialBuffer;
+    Material* pMaterialDataBegin = nullptr;
 
     std::chrono::steady_clock::time_point m_prevTime;
     UINT m_texIndexId = 0;
@@ -127,7 +117,6 @@ private:
     UINT m_frameIndex;
     HANDLE m_fenceEvent;
     ComPtr<ID3D12Fence> m_fence;
-    //UINT64 m_fenceValue;
 
     FrameResource m_frameResources[kFrameCount];
 
@@ -136,7 +125,6 @@ private:
     std::vector<UINT8> GenerateTextureData();
     void PopulateCommandList();
 
-//    void WaitForPreviousFrame();
 	void WaitForGpu();
 	void MoveToNextFrame();
 
