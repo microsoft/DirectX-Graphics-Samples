@@ -52,7 +52,7 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
     m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
     m_rtvDescriptorSize(0),
 	m_descriptorSize(0),
-    m_constantBuffer{},
+    //m_constantBuffer{},
 	m_pCbvDataBegin(nullptr)
 {
 }
@@ -156,7 +156,7 @@ void D3D12HelloTexture::LoadPipeline()
 
         // Describe and create a heap for SRV/CBV/UAV
         D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-        heapDesc.NumDescriptors = 1024;
+        heapDesc.NumDescriptors = kHeapDescriptorCount;
         heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_heap)));
@@ -177,7 +177,10 @@ void D3D12HelloTexture::LoadPipeline()
         }
     }
 
-    ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
+    for (UINT n = 0; n < kFrameCount; n++)
+    {
+        ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_frameResources[n].commandAllocator)));
+    }
 }
 
 // Load the sample assets.
@@ -195,22 +198,17 @@ void D3D12HelloTexture::LoadAssets()
             featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
         }
 
-		// t0 - t(TextureCount-1) : Texture SRVs: space 0 : 0 - 1023
+		// t0 - t(TextureCount-1) : Texture SRVs: space 0 : 0 - (kTextureCount-1)
         CD3DX12_DESCRIPTOR_RANGE1 rangesSRV[1];
         rangesSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, kTextureCount, 0/*base*/, 0/*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
-
-		// b0 : Constant buffer
-        //CD3DX12_DESCRIPTOR_RANGE1 rangesCBV[1];
-        //rangesCBV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
         // t0 : SRV structured buffer: space1 : 0
         CD3DX12_DESCRIPTOR_RANGE1 rangesSRV2[1];
         rangesSRV2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0/*base*/, 1/*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
         CD3DX12_ROOT_PARAMETER1 rootParameters[2];
-        rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL);
-        //rootParameters[1].InitAsDescriptorTable(1, &rangesCBV[0], D3D12_SHADER_VISIBILITY_ALL);
-        rootParameters[1].InitAsDescriptorTable(1, &rangesSRV2[0], D3D12_SHADER_VISIBILITY_ALL);
+		rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL); //Texture SRVs
+		rootParameters[1].InitAsDescriptorTable(1, &rangesSRV2[0], D3D12_SHADER_VISIBILITY_ALL);  //Structured buffer SRV
 
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
@@ -273,7 +271,8 @@ void D3D12HelloTexture::LoadAssets()
     }
 
     // Create the command list.
-    ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+    ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, 
+        m_frameResources[m_frameIndex].commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
 
     // Create the vertex buffer.
     {
@@ -390,10 +389,12 @@ void D3D12HelloTexture::LoadAssets()
     }
 
 	// Create the instance buffer.
+
+	for (int n = 0; n < kFrameCount; n++)
     {
 		const UINT instanceBufferSize = sizeof(InstanceData) * kInstanceCount;
 
-		MyDx12Util::CreateUploadBuffer(m_device, instanceBufferSize, m_instanceBuffer);
+		MyDx12Util::CreateUploadBuffer(m_device, instanceBufferSize, m_frameResources[n].instanceBuffer);
 
         D3D12_SHADER_RESOURCE_VIEW_DESC  srvDesc = {};
 
@@ -406,12 +407,11 @@ void D3D12HelloTexture::LoadAssets()
         UINT index = m_nextFreeIndex++;
         CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
         handle.Offset(index, m_descriptorSize);
-        m_device->CreateShaderResourceView(m_instanceBuffer.Get(), &srvDesc, handle);
+        m_device->CreateShaderResourceView(m_frameResources[n].instanceBuffer.Get(), &srvDesc, handle);
 
-		m_instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_pSrvDataBegin));
-		memcpy(m_pSrvDataBegin, m_instanceData.data(), instanceBufferSize);
-		m_instanceBuffer->Unmap(0, nullptr);
-
+        m_frameResources[n].instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_frameResources[n].pSrvDataBegin));
+		memcpy(m_frameResources[n].pSrvDataBegin, m_instanceData.data(), instanceBufferSize);
+        m_frameResources[n].instanceBuffer->Unmap(0, nullptr);
     }
 
     // Close the command list and execute it to begin the initial GPU setup.
@@ -422,7 +422,7 @@ void D3D12HelloTexture::LoadAssets()
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
     {
         ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-        m_fenceValue = 1;
+        m_frameResources[m_frameIndex].fenceValue = 1;
 
         // Create an event handle to use for frame synchronization.
         m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -434,7 +434,7 @@ void D3D12HelloTexture::LoadAssets()
         // Wait for the command list to execute; we are reusing the same command 
         // list in our main loop but for now, we just want to wait for setup to 
         // complete before continuing.
-        WaitForPreviousFrame();
+        WaitForGpu();
     }
 }
 
@@ -527,9 +527,9 @@ void D3D12HelloTexture::OnUpdate()
 			m_instanceData[i].offset.x = -kOffsetBounds;
 		}
 	}
-    m_instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_pSrvDataBegin));
-    memcpy(m_pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kInstanceCount);
-    m_instanceBuffer->Unmap(0, nullptr);
+    m_frameResources[m_frameIndex].instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_frameIndex].pSrvDataBegin));
+    memcpy(m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kInstanceCount);
+    m_frameResources[m_frameIndex].instanceBuffer->Unmap(0, nullptr);
 
     PIXEndEvent();
 }
@@ -549,7 +549,7 @@ void D3D12HelloTexture::OnRender()
     // Present the frame.
     ThrowIfFailed(m_swapChain->Present(1, 0));
 
-    WaitForPreviousFrame();
+    MoveToNextFrame();
 
     PIXEndEvent();
 }
@@ -558,22 +558,24 @@ void D3D12HelloTexture::OnDestroy()
 {
     // Ensure that the GPU is no longer referencing resources that are about to be
     // cleaned up by the destructor.
-    WaitForPreviousFrame();
+    WaitForGpu();
 
     CloseHandle(m_fenceEvent);
 }
 
 void D3D12HelloTexture::PopulateCommandList()
 {
+    PIXBeginEvent(1, L"PopulateCommandList");
+
     // Command list allocators can only be reset when the associated 
     // command lists have finished execution on the GPU; apps should use 
     // fences to determine GPU execution progress.
-    ThrowIfFailed(m_commandAllocator->Reset());
+    ThrowIfFailed(m_frameResources[m_frameIndex].commandAllocator->Reset());
 
     // However, when ExecuteCommandList() is called on a particular command 
     // list, that command list can then be reset at any time and must be before 
     // re-recording.
-    ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()));
+    ThrowIfFailed(m_commandList->Reset(m_frameResources[m_frameIndex].commandAllocator.Get(), m_pipelineState.Get()));
 
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -581,14 +583,13 @@ void D3D12HelloTexture::PopulateCommandList()
     ID3D12DescriptorHeap* ppHeaps[] = { m_heap.Get() };
     m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-	// SRV is at descriptor 0 - (TextureCount-1)
+	// texture SRV is at descriptor 0 - (TextureCount-1)
     m_commandList->SetGraphicsRootDescriptorTable(0, m_heap->GetGPUDescriptorHandleForHeapStart() );
 
-    // CBV is at descriptor 1023
+	// instance buffer SRV is at descriptor TextureCount
     CD3DX12_GPU_DESCRIPTOR_HANDLE handle(m_heap->GetGPUDescriptorHandleForHeapStart());
-    handle.Offset(1023, m_descriptorSize);
+    handle.Offset(kTextureCount + m_frameIndex, m_descriptorSize);
     m_commandList->SetGraphicsRootDescriptorTable(1, handle);
-
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
@@ -623,30 +624,52 @@ void D3D12HelloTexture::PopulateCommandList()
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     ThrowIfFailed(m_commandList->Close());
+
+    PIXEndEvent();
 }
 
-void D3D12HelloTexture::WaitForPreviousFrame()
+// Wait for pending GPU work to complete.
+void D3D12HelloTexture::WaitForGpu()
 {
-    PIXBeginEvent(0, L"WaitForPreviousFrame");
+    PIXBeginEvent(3, L"MoveToNextFrame");
 
-    // WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-    // This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
-    // sample illustrates how to use fences for efficient resource usage and to
-    // maximize GPU utilization.
+    // Schedule a Signal command in the queue.
+    ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_frameResources[m_frameIndex].fenceValue));
 
-    // Signal and increment the fence value.
-    const UINT64 fence = m_fenceValue;
-    ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), fence));
-    m_fenceValue++;
+    // Wait until the fence has been processed.
+    ThrowIfFailed(m_fence->SetEventOnCompletion(m_frameResources[m_frameIndex].fenceValue, m_fenceEvent));
+    WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
 
-    // Wait until the previous frame is finished.
-    if (m_fence->GetCompletedValue() < fence)
-    {
-        ThrowIfFailed(m_fence->SetEventOnCompletion(fence, m_fenceEvent));
-        WaitForSingleObject(m_fenceEvent, INFINITE);
-    }
-
-    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+    // Increment the fence value for the current frame.
+    m_frameResources[m_frameIndex].fenceValue++;
 
 	PIXEndEvent();
 }
+
+// Prepare to render the next frame.
+void D3D12HelloTexture::MoveToNextFrame()
+{
+    PIXBeginEvent(2, L"MoveToNextFrame");
+
+    // Schedule a Signal command in the queue.
+    const UINT64 currentFenceValue = m_frameResources[m_frameIndex].fenceValue;
+    ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), currentFenceValue));
+
+    // Update the frame index.
+    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
+    // If the next frame is not ready to be rendered yet, wait until it is ready.
+    if (m_fence->GetCompletedValue() < m_frameResources[m_frameIndex].fenceValue)
+    {
+        ThrowIfFailed(m_fence->SetEventOnCompletion(m_frameResources[m_frameIndex].fenceValue, m_fenceEvent));
+        PIXBeginEvent(4, L"WaitForSingleObjectEx");
+        WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
+        PIXEndEvent();
+    }
+
+    // Set the fence value for the next frame.
+    m_frameResources[m_frameIndex].fenceValue = currentFenceValue + 1;
+
+    PIXEndEvent();
+}
+

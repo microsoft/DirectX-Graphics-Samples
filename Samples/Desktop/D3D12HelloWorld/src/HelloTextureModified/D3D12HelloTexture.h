@@ -39,7 +39,8 @@ private:
     static constexpr UINT kTextureHeight = 256;
     static constexpr UINT kTexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
 
-	static constexpr UINT kTextureCount = 1023;
+	static constexpr UINT kHeapDescriptorCount = 1024;
+    static constexpr UINT kTextureCount = 1022;
     static constexpr UINT kTextureTypes = 100; // Color Type : 0-9
 
     static constexpr float kTranslationSpeed = 0.005f;
@@ -69,6 +70,15 @@ private:
 		Material material;
 	};
 
+    struct FrameResource
+    {
+        ComPtr<ID3D12CommandAllocator> commandAllocator;
+        ComPtr<ID3D12Resource> instanceBuffer;
+        InstanceData* pSrvDataBegin = nullptr;
+        UINT64 fenceValue = 0;
+    };
+
+
 //	struct SceneConstantBuffer
 //	{
 //       XMFLOAT4 offset;
@@ -83,7 +93,7 @@ private:
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
-    ComPtr<ID3D12CommandAllocator> m_commandAllocator;
+//    ComPtr<ID3D12CommandAllocator> m_commandAllocator;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
@@ -101,15 +111,14 @@ private:
 
     std::vector<InstanceData> m_instanceData;
 
-
     // App resources.
     ComPtr<ID3D12Resource> m_vertexBuffer;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
     std::vector<ComPtr<ID3D12Resource>> m_texture;
-    ComPtr<ID3D12Resource> m_constantBuffer;
+//    ComPtr<ID3D12Resource> m_constantBuffer;
     UINT8* m_pCbvDataBegin;
-    ComPtr<ID3D12Resource> m_instanceBuffer;
-    InstanceData* m_pSrvDataBegin;
+//    ComPtr<ID3D12Resource> m_instanceBuffer;
+//    InstanceData* m_pSrvDataBegin;
 
     std::chrono::steady_clock::time_point m_prevTime;
     UINT m_texIndexId = 0;
@@ -118,13 +127,18 @@ private:
     UINT m_frameIndex;
     HANDLE m_fenceEvent;
     ComPtr<ID3D12Fence> m_fence;
-    UINT64 m_fenceValue;
+    //UINT64 m_fenceValue;
+
+    FrameResource m_frameResources[kFrameCount];
 
     void LoadPipeline();
     void LoadAssets();
     std::vector<UINT8> GenerateTextureData();
     void PopulateCommandList();
-    void WaitForPreviousFrame();
+
+//    void WaitForPreviousFrame();
+	void WaitForGpu();
+	void MoveToNextFrame();
 
 	UINT AllocateTextureSRV(ID3D12Resource* texture);
 };
