@@ -17,9 +17,14 @@ struct Material
 
 struct InstanceData
 {
-    float4 offset;
+    float4x4 world;
     uint materialId;
     float padding[3]; //16 byte alignment
+};
+
+cbuffer ConstantBuffer : register(b0)
+{
+    float4x4 viewProj;
 };
 
 struct PSInput
@@ -28,6 +33,7 @@ struct PSInput
     float2 uv : TEXCOORD;
     uint instanceId : SV_InstanceID;
 };
+
 
 Texture2D g_texture[] : register(t0, space0);
 SamplerState g_sampler : register(s0);
@@ -38,9 +44,10 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, uint instanceId
 {
     PSInput result;
 
-    InstanceData inst = g_instanceData[instanceId];
-    
-    result.position = position + inst.offset;
+    InstanceData inst = g_instanceData[instanceId];    
+
+    float4x4 worldViewProj = mul(inst.world, viewProj);    
+    result.position = mul(worldViewProj, float4(position.xyz, 1.0));    
     result.uv = uv;
     result.instanceId = instanceId;
     

@@ -208,10 +208,14 @@ void D3D12HelloTexture::LoadAssets()
         CD3DX12_DESCRIPTOR_RANGE1 rangesSRV3[1];
         rangesSRV3[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0/*base*/, 2/*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        CD3DX12_ROOT_PARAMETER1 rootParameters[3];
+		CD3DX12_DESCRIPTOR_RANGE1 rangesCVB[1];
+        rangesCVB[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+        CD3DX12_ROOT_PARAMETER1 rootParameters[4];
 		rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL); //Texture SRVs
 		rootParameters[1].InitAsDescriptorTable(1, &rangesSRV2[0], D3D12_SHADER_VISIBILITY_ALL);  //Structured buffer SRV (Instance data)
 		rootParameters[2].InitAsDescriptorTable(1, &rangesSRV3[0], D3D12_SHADER_VISIBILITY_ALL);  //Structured buffer SRV (Material data)
+        rootParameters[3].InitAsDescriptorTable(1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_VERTEX);
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -278,12 +282,13 @@ void D3D12HelloTexture::LoadAssets()
 
     // Create the vertex buffer.
     {
+        float _aspectRatio = 1.0; //m_aspectRatio
         // Define the geometry for a triangle.
         Vertex triangleVertices[] =
         {
-            { { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 0.5f, 0.0f } },
-            { { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 1.0f, 1.0f } },
-            { { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f } }
+            { { 0.0f, 0.25f * _aspectRatio, 0.0f }, { 0.5f, 0.0f } },
+            { { 0.25f, -0.25f * _aspectRatio, 0.0f }, { 1.0f, 1.0f } },
+            { { -0.25f, -0.25f * _aspectRatio, 0.0f }, { 0.0f, 1.0f } }
         };
 
         const UINT vertexBufferSize = sizeof(triangleVertices);
@@ -379,15 +384,24 @@ void D3D12HelloTexture::LoadAssets()
     
 	// Generate the instance data.
     m_instanceData.clear();
+    m_instanceDataForCPU.clear();
     for (int i = 0; i < kInstanceCount; i++)
     {
+		float x_trans = calculateOffsetX(i);
+
+        //CPU only
+        m_instanceDataForCPU.emplace_back(
+            XMFLOAT3(x_trans, 0.0f, 0.0f), 
+            XMFLOAT3(0.0f, 0.0f, 0.0f)
+        );
+        
+        //CPU and GPU
         InstanceData d;
         d.materialId = i;
-		d.offset.x = calculateOffsetX(i);
-        d.offset.y = 0.0f;
-        d.offset.z = 0.0f;
-		d.offset.w = 0.0f;
+		XMMATRIX trans = XMMatrixTranslation(x_trans, 0.0f, 0.0f);
+        XMStoreFloat4x4(&d.world, trans);
         m_instanceData.push_back(d);
+        
     }
 
 	// Generate the material data.
@@ -446,6 +460,56 @@ void D3D12HelloTexture::LoadAssets()
         memcpy(pMaterialDataBegin, m_materialData.data(), materialBufferSize);
 		m_materialBuffer->Unmap(0, nullptr);
     }
+
+    {
+        XMMATRIX view = XMMatrixLookAtLH(
+            XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f), // カメラ位置
+            XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f), // 注視点
+            XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)  // 上方向
+        );
+
+        XMMATRIX proj = XMMatrixPerspectiveFovLH(
+            XMConvertToRadians(60.0f),  // FOV
+            m_aspectRatio,                // 画面比
+            0.1f,                       // near
+            10000.0f                      // far
+        );
+        
+        XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+        XMStoreFloat4x4(&m_constantBufferData.viewProjection, viewProj);
+    }
+
+	// Create the constant buffer.
+    {
+        const UINT constantBufferSize = sizeof(ConstantBuffer);    // CB size is required to be 256-byte aligned.
+
+        ThrowIfFailed(m_device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_constantBuffer)));
+
+        // Describe and create a constant buffer view.
+        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+        cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
+        cbvDesc.SizeInBytes = constantBufferSize;
+
+
+        CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
+        // index番目に移動
+        UINT index = m_nextFreeIndex++;
+        handle.Offset(index, m_descriptorSize);
+        m_device->CreateConstantBufferView(&cbvDesc, handle);
+
+        // Map and initialize the constant buffer. We don't unmap this until the
+        // app closes. Keeping things mapped for the lifetime of the resource is okay.
+        CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+        ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
+        memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
+    }
+
 
     // Close the command list and execute it to begin the initial GPU setup.
     ThrowIfFailed(m_commandList->Close());
@@ -555,10 +619,13 @@ void D3D12HelloTexture::OnUpdate()
 
 	// InstanceBufferのオフセットを毎フレーム更新する
 	for (int i = 0; i < kInstanceCount; i++) {
-		m_instanceData[i].offset.x += kTranslationSpeed;
-		if (m_instanceData[i].offset.x > kOffsetBounds) {
-			m_instanceData[i].offset.x = -kOffsetBounds;
-		}
+		m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
+		if (m_instanceDataForCPU[i].pos.x > kOffsetBounds) {
+            m_instanceDataForCPU[i].pos.x = -kOffsetBounds;
+	    }
+        XMStoreFloat4x4(&m_instanceData[i].world, XMMatrixTranslation(
+            m_instanceDataForCPU[i].pos.x, m_instanceDataForCPU[i].pos.y, m_instanceDataForCPU[i].pos.z    
+        ));
 	}
     m_frameResources[m_frameIndex].instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_frameIndex].pSrvDataBegin));
     memcpy(m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kInstanceCount);
@@ -628,6 +695,11 @@ void D3D12HelloTexture::PopulateCommandList()
     CD3DX12_GPU_DESCRIPTOR_HANDLE handle2(m_heap->GetGPUDescriptorHandleForHeapStart());
     handle2.Offset(kTextureCount + 2, m_descriptorSize);
     m_commandList->SetGraphicsRootDescriptorTable(2, handle2);
+
+	// constant buffer is at descriptor TextureCount + FrameCount + 1
+	CD3DX12_GPU_DESCRIPTOR_HANDLE handle3(m_heap->GetGPUDescriptorHandleForHeapStart());
+	handle3.Offset(kTextureCount + 3, m_descriptorSize);
+    m_commandList->SetGraphicsRootDescriptorTable(3, handle3);
 
 
     m_commandList->RSSetViewports(1, &m_viewport);

@@ -40,7 +40,7 @@ private:
     static constexpr UINT kTexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
 
 	static constexpr UINT kHeapDescriptorCount = 1024;
-    static constexpr UINT kTextureCount = 1021;
+    static constexpr UINT kTextureCount = 1020;
     static constexpr UINT kTextureTypes = 100; // Color Type : 0-9
 
     static constexpr float kTranslationSpeed = 0.005f;
@@ -67,10 +67,22 @@ private:
 
 	struct InstanceData
 	{
-		XMFLOAT4 offset;
+        XMFLOAT4X4 world;
 		UINT materialId;
 		float padding[3]; // 16byte alignment
 	};
+
+    struct InstanceDataForCPU
+    {
+		InstanceDataForCPU(XMFLOAT3 pos, XMFLOAT3 rot) : pos(pos), rot(rot) {}
+        XMFLOAT3 pos;
+        XMFLOAT3 rot;
+    };
+
+    struct alignas(256) ConstantBuffer
+    {
+        XMFLOAT4X4 viewProjection;
+    };
 
     struct FrameResource
     {
@@ -100,6 +112,7 @@ private:
     UINT m_nextFreeIndex = 0;
 
     std::vector<InstanceData> m_instanceData;
+	std::vector<InstanceDataForCPU> m_instanceDataForCPU;
 	std::vector<Material> m_materialData;
 
     // App resources.
@@ -109,6 +122,10 @@ private:
 
     ComPtr<ID3D12Resource> m_materialBuffer;
     Material* pMaterialDataBegin = nullptr;
+
+    ComPtr<ID3D12Resource> m_constantBuffer;
+    UINT8* m_pCbvDataBegin;
+	ConstantBuffer m_constantBufferData;
 
     std::chrono::steady_clock::time_point m_prevTime;
     UINT m_texIndexId = 0;
