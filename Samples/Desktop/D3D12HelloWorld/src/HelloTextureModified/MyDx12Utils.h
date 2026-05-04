@@ -13,9 +13,5 @@ namespace MyDx12Util {
             IID_PPV_ARGS(&ppResource)));
 
 	}
-	
-
-
-
 
 }

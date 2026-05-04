@@ -44,13 +44,20 @@ private:
     static constexpr UINT kTextureTypes = 100; // Color Type : 0-9
 
     static constexpr float kTranslationSpeed = 0.005f;
+    static constexpr float kPI = 3.141592f;
+    static constexpr float kRotationSpeed = kPI / 180.f / 3.f;
     static constexpr float kOffsetBounds = 1.25f;
+	static constexpr float kCameraMoveSpeed = 0.01f;
 
-    static constexpr UINT kInstanceCount = 10;
+    static constexpr UINT kInstanceCount = 3;
 	static constexpr UINT kMaterialCount = 10;
 
+    static constexpr UINT kTriangleVertexCount = 10;
+    static constexpr UINT kCubeVertexCount = (3 * 2 * 6);
+
 	float calculateOffsetX(int instanceId) {
-		return -kOffsetBounds + (float)instanceId / (float)kInstanceCount * kOffsetBounds * 2.0f;
+        float step = (float)kOffsetBounds / (float)kInstanceCount;
+        return step * (float)instanceId;        
 	}
 
     struct Vertex
@@ -77,6 +84,49 @@ private:
 		InstanceDataForCPU(XMFLOAT3 pos, XMFLOAT3 rot) : pos(pos), rot(rot) {}
         XMFLOAT3 pos;
         XMFLOAT3 rot;
+    };
+
+    struct CameraForCPU
+    {
+		CameraForCPU(XMFLOAT3 pos, XMFLOAT3 rot, float fov, float aspect, float nearZ, float farZ)
+            : pos(pos), rot(rot), fov(fov), aspect(aspect), nearZ(nearZ), farZ(farZ) {
+        
+            updateAllMatrix();
+        }
+
+		void updateViewMatrix() {
+			XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z);
+			XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
+			view = XMMatrixInverse(nullptr, transMat * rotMat);
+		}
+		void updateProjectionMatrix() {
+			projection = XMMatrixPerspectiveFovLH(
+				XMConvertToRadians(fov),  // FOV
+				aspect,                   // aspect ratio
+				nearZ,                    // near
+				farZ                      // far
+			);
+		}
+		void updateViewProjectionMatrix() {
+			viewProjection = XMMatrixMultiply(view, projection);
+		}
+        void updateAllMatrix() {
+			updateViewMatrix();
+			updateProjectionMatrix();
+			updateViewProjectionMatrix();
+        }
+
+        XMFLOAT3 pos;
+		XMFLOAT3 rot;      
+        XMMATRIX view;
+
+        float fov;
+        float aspect;
+        float nearZ;
+        float farZ;
+        XMMATRIX projection;
+
+		XMMATRIX viewProjection;
     };
 
     struct alignas(256) ConstantBuffer
@@ -120,9 +170,12 @@ private:
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
     std::vector<ComPtr<ID3D12Resource>> m_texture;
 
+    UINT m_vertexCountPerInstance;
+
     ComPtr<ID3D12Resource> m_materialBuffer;
     Material* pMaterialDataBegin = nullptr;
 
+	std::vector<CameraForCPU> m_camerasForCPU;
     ComPtr<ID3D12Resource> m_constantBuffer;
     UINT8* m_pCbvDataBegin;
 	ConstantBuffer m_constantBufferData;

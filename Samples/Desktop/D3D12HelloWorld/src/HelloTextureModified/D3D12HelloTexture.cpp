@@ -291,7 +291,39 @@ void D3D12HelloTexture::LoadAssets()
             { { -0.25f, -0.25f * _aspectRatio, 0.0f }, { 0.0f, 1.0f } }
         };
 
-        const UINT vertexBufferSize = sizeof(triangleVertices);
+        constexpr float s = 0.5f;
+        constexpr float u = 1.f;
+        Vertex cubeVertices[] =
+        {
+            // front
+            {{-s,-s,-s},{0,u}}, {{-s,s,-s},{0,0}}, {{s,s,-s},{u,0}},
+            {{-s,-s,-s},{0,u}}, {{s,s,-s},{u,0}}, {{s,-s,-s},{u,u}},
+
+            // back
+            {{-s,-s,s},{u,u}}, {{s,s,s},{0,0}}, {{-s,s,s},{u,0}},
+            {{-s,-s,s},{u,u}}, {{s,-s,s},{0,u}}, {{s,s,s},{0,0}},
+
+            // left
+            {{-s,-s,s},{0,u}}, {{-s,s,s},{0,0}}, {{-s,s,-s},{u,0}},
+            {{-s,-s,s},{0,u}}, {{-s,s,-s},{u,0}}, {{-s,-s,-s},{u,u}},
+
+            // right
+            {{s,-s,-s},{0,u}}, {{s,s,-s},{0,0}}, {{s,s,s},{u,0}},
+            {{s,-s,-s},{0,u}}, {{s,s,s},{u,0}}, {{s,-s,s},{u,u}},
+
+            // top
+            {{-s,s,-s},{0,u}}, {{-s,s,s},{0,0}}, {{s,s,s},{u,0}},
+            {{-s,s,-s},{0,u}}, {{s,s,s},{u,0}}, {{s,s,-s},{u,u}},
+
+            // bottom
+            {{-s,-s,s},{u,0}}, {{-s,-s,-s},{u,u}}, {{s,-s,-s},{0,u}},
+            {{-s,-s,s},{u,0}}, {{s,-s,-s},{0,u}}, {{s,-s,s},{0,0}},
+        };
+
+        const UINT vertexBufferSize = sizeof(cubeVertices);
+
+        m_vertexCountPerInstance = kCubeVertexCount;
+
 
         // Note: using upload heaps to transfer static data like vert buffers is not 
         // recommended. Every time the GPU needs it, the upload heap will be marshalled 
@@ -303,7 +335,7 @@ void D3D12HelloTexture::LoadAssets()
         UINT8* pVertexDataBegin;
         CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
         ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-        memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
+        memcpy(pVertexDataBegin, cubeVertices, sizeof(cubeVertices));
         m_vertexBuffer->Unmap(0, nullptr);
 
         // Initialize the vertex buffer view.
@@ -461,22 +493,17 @@ void D3D12HelloTexture::LoadAssets()
 		m_materialBuffer->Unmap(0, nullptr);
     }
 
+	m_camerasForCPU.clear();
     {
-        XMMATRIX view = XMMatrixLookAtLH(
-            XMVectorSet(0.0f, 0.0f, -3.0f, 1.0f), // カメラ位置
-            XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f), // 注視点
-            XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)  // 上方向
-        );
-
-        XMMATRIX proj = XMMatrixPerspectiveFovLH(
-            XMConvertToRadians(60.0f),  // FOV
-            m_aspectRatio,                // 画面比
-            0.1f,                       // near
-            10000.0f                      // far
-        );
-        
-        XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-        XMStoreFloat4x4(&m_constantBufferData.viewProjection, viewProj);
+        m_camerasForCPU.emplace_back(
+			XMFLOAT3(0.0f, 0.0f, -5.0f),
+			XMFLOAT3(0.0f, 0.0f, 0.0f),
+			60.0f,
+            m_aspectRatio,
+            0.1f,
+			10000.0f
+		);
+        XMStoreFloat4x4(&m_constantBufferData.viewProjection, m_camerasForCPU[0].viewProjection);
     }
 
 	// Create the constant buffer.
@@ -618,18 +645,63 @@ void D3D12HelloTexture::OnUpdate()
     }
 
 	// InstanceBufferのオフセットを毎フレーム更新する
-	for (int i = 0; i < kInstanceCount; i++) {
-		m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
+#if 1
+    for (int i = 0; i < kInstanceCount; i++) {
+		
+        //m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
 		if (m_instanceDataForCPU[i].pos.x > kOffsetBounds) {
             m_instanceDataForCPU[i].pos.x = -kOffsetBounds;
 	    }
-        XMStoreFloat4x4(&m_instanceData[i].world, XMMatrixTranslation(
-            m_instanceDataForCPU[i].pos.x, m_instanceDataForCPU[i].pos.y, m_instanceDataForCPU[i].pos.z    
-        ));
+        //m_instanceDataForCPU[i].rot.x += kRotationSpeed;
+        if (m_instanceDataForCPU[i].rot.x >= 2.0 * kPI) {
+            m_instanceDataForCPU[i].rot.x = 0.f;
+        }
+
+        XMMATRIX transMat = XMMatrixTranslation(
+            m_instanceDataForCPU[i].pos.x, m_instanceDataForCPU[i].pos.y, m_instanceDataForCPU[i].pos.z
+        );
+        XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(
+            m_instanceDataForCPU[i].rot.x, m_instanceDataForCPU[i].rot.y, m_instanceDataForCPU[i].rot.z
+        );
+
+        XMMATRIX worldMat = transMat * rotMat;
+
+        XMStoreFloat4x4(&m_instanceData[i].world, worldMat);
 	}
     m_frameResources[m_frameIndex].instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_frameIndex].pSrvDataBegin));
     memcpy(m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kInstanceCount);
     m_frameResources[m_frameIndex].instanceBuffer->Unmap(0, nullptr);
+#endif
+
+    if (GetAsyncKeyState('A') & 0x8000)
+    {
+		m_camerasForCPU[0].pos.x -= kCameraMoveSpeed;
+    }
+    if (GetAsyncKeyState('D') & 0x8000)
+    {
+        m_camerasForCPU[0].pos.x += kCameraMoveSpeed;
+    }
+
+    if ((GetAsyncKeyState('W') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
+    {
+        m_camerasForCPU[0].pos.y -= kCameraMoveSpeed;
+    }
+    if ((GetAsyncKeyState('S') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
+    {
+        m_camerasForCPU[0].pos.y += kCameraMoveSpeed;
+    }
+    if ((GetAsyncKeyState('W') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
+    {
+        m_camerasForCPU[0].pos.z += kCameraMoveSpeed;
+    }
+    if ((GetAsyncKeyState('S') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
+    {
+        m_camerasForCPU[0].pos.z -= kCameraMoveSpeed;
+    }
+
+    m_camerasForCPU[0].updateAllMatrix();
+    XMStoreFloat4x4(&m_constantBufferData.viewProjection, m_camerasForCPU[0].viewProjection);
+	memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
 
     PIXEndEvent();
 }
@@ -717,13 +789,12 @@ void D3D12HelloTexture::PopulateCommandList()
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     
-	UINT vertexCountPerInstance = 3;
 	UINT instanceCount = kInstanceCount;
 
 	PIXBeginEvent(m_commandList.Get(), 0, L"DrawInstanced");
 
     m_commandList->DrawInstanced(
-        vertexCountPerInstance, 
+        m_vertexCountPerInstance,
         kInstanceCount, 
         0, 
         0
