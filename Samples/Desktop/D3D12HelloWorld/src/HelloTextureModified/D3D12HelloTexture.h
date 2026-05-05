@@ -46,10 +46,10 @@ private:
     static constexpr float kTranslationSpeed = 0.005f;
     static constexpr float kPI = 3.141592f;
     static constexpr float kRotationSpeed = kPI / 180.f / 3.f;
-    static constexpr float kOffsetBounds = 1.25f;
+    static constexpr float kOffsetBounds = 10.f;
 	static constexpr float kCameraMoveSpeed = 0.01f;
 
-    static constexpr UINT kInstanceCount = 3;
+    static constexpr UINT kInstanceCount = 5;
 	static constexpr UINT kMaterialCount = 10;
 
     static constexpr UINT kTriangleVertexCount = 10;
@@ -97,7 +97,7 @@ private:
 		void updateViewMatrix() {
 			XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z);
 			XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
-			view = XMMatrixInverse(nullptr, transMat * rotMat);
+			view = XMMatrixInverse(nullptr, rotMat * transMat);
 		}
 		void updateProjectionMatrix() {
 			projection = XMMatrixPerspectiveFovLH(
@@ -148,6 +148,8 @@ private:
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
+    ComPtr<ID3D12Resource> m_depthStencil;
+    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;

@@ -46,8 +46,8 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, uint instanceId
 
     InstanceData inst = g_instanceData[instanceId];    
 
-    float4x4 worldViewProj = mul(inst.world, viewProj);    
-    result.position = mul(worldViewProj, float4(position.xyz, 1.0));    
+    float4x4 worldViewProj = mul(inst.world, viewProj);
+    result.position = mul(float4(position.xyz, 1.0), worldViewProj);    
     result.uv = uv;
     result.instanceId = instanceId;
     

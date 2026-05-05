@@ -162,7 +162,7 @@ void D3D12HelloTexture::LoadPipeline()
 		m_descriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 
-    // Create frame resources.
+	// create render target views (RTVs) for the swap chain back buffers.
     {
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 
@@ -175,6 +175,49 @@ void D3D12HelloTexture::LoadPipeline()
         }
     }
 
+	// Create the depth stencil view.
+    {
+        D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+        dsvHeapDesc.NumDescriptors = 1;
+        dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+        dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+    
+        D3D12_RESOURCE_DESC depthDesc = {};
+        depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        depthDesc.Width = m_width;
+        depthDesc.Height = m_height;
+        depthDesc.DepthOrArraySize = 1;
+        depthDesc.MipLevels = 1;
+        depthDesc.Format = DXGI_FORMAT_D32_FLOAT;
+        depthDesc.SampleDesc.Count = 1;
+        depthDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+        D3D12_CLEAR_VALUE clearValue = {};
+        clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+        clearValue.DepthStencil.Depth = 1.0f;
+        clearValue.DepthStencil.Stencil = 0;
+
+        ThrowIfFailed(m_device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+            D3D12_HEAP_FLAG_NONE,
+            &depthDesc,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            &clearValue,
+            IID_PPV_ARGS(&m_depthStencil)
+        ));
+
+        m_device->CreateDepthStencilView(
+            m_depthStencil.Get(),
+            nullptr,
+            m_dsvHeap->GetCPUDescriptorHandleForHeapStart()
+		);
+
+    }
+
+	// create command allocators.
     for (UINT n = 0; n < kFrameCount; n++)
     {
         ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_frameResources[n].commandAllocator)));
@@ -266,12 +309,13 @@ void D3D12HelloTexture::LoadAssets()
         psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength);
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        psoDesc.DepthStencilState.DepthEnable = FALSE;
+		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
         psoDesc.DepthStencilState.StencilEnable = FALSE;
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         psoDesc.NumRenderTargets = 1;
         psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleDesc.Count = 1;
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
     }
@@ -431,7 +475,7 @@ void D3D12HelloTexture::LoadAssets()
         InstanceData d;
         d.materialId = i;
 		XMMATRIX trans = XMMatrixTranslation(x_trans, 0.0f, 0.0f);
-        XMStoreFloat4x4(&d.world, trans);
+        XMStoreFloat4x4(&d.world, XMMatrixTranspose(trans));
         m_instanceData.push_back(d);
         
     }
@@ -648,25 +692,36 @@ void D3D12HelloTexture::OnUpdate()
 #if 1
     for (int i = 0; i < kInstanceCount; i++) {
 		
-        //m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
+        m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
 		if (m_instanceDataForCPU[i].pos.x > kOffsetBounds) {
             m_instanceDataForCPU[i].pos.x = -kOffsetBounds;
 	    }
-        //m_instanceDataForCPU[i].rot.x += kRotationSpeed;
+        m_instanceDataForCPU[i].rot.x += kRotationSpeed;
         if (m_instanceDataForCPU[i].rot.x >= 2.0 * kPI) {
             m_instanceDataForCPU[i].rot.x = 0.f;
+        }
+        m_instanceDataForCPU[i].rot.y += kRotationSpeed;
+        if (m_instanceDataForCPU[i].rot.y >= 2.0 * kPI) {
+            m_instanceDataForCPU[i].rot.y = 0.f;
+        }
+        m_instanceDataForCPU[i].rot.z += kRotationSpeed;
+        if (m_instanceDataForCPU[i].rot.z >= 2.0 * kPI) {
+            m_instanceDataForCPU[i].rot.z = 0.f;
         }
 
         XMMATRIX transMat = XMMatrixTranslation(
             m_instanceDataForCPU[i].pos.x, m_instanceDataForCPU[i].pos.y, m_instanceDataForCPU[i].pos.z
         );
+
         XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(
             m_instanceDataForCPU[i].rot.x, m_instanceDataForCPU[i].rot.y, m_instanceDataForCPU[i].rot.z
         );
 
-        XMMATRIX worldMat = transMat * rotMat;
-
-        XMStoreFloat4x4(&m_instanceData[i].world, worldMat);
+		//XMMATRIX rotMat = XMMatrixRotationZ(m_instanceDataForCPU[i].rot.z);
+		XMMATRIX worldMat = rotMat * transMat;
+        
+        //XMStoreFloat4x4(&m_instanceData[i].world, worldMat);
+        XMStoreFloat4x4(&m_instanceData[i].world, XMMatrixTranspose(worldMat));
 	}
     m_frameResources[m_frameIndex].instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_frameIndex].pSrvDataBegin));
     memcpy(m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kInstanceCount);
@@ -700,7 +755,7 @@ void D3D12HelloTexture::OnUpdate()
     }
 
     m_camerasForCPU[0].updateAllMatrix();
-    XMStoreFloat4x4(&m_constantBufferData.viewProjection, m_camerasForCPU[0].viewProjection);
+    XMStoreFloat4x4(&m_constantBufferData.viewProjection, XMMatrixTranspose(m_camerasForCPU[0].viewProjection));
 	memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
 
     PIXEndEvent();
@@ -781,11 +836,15 @@ void D3D12HelloTexture::PopulateCommandList()
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+
 
     // Record commands.
     const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+	m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     
