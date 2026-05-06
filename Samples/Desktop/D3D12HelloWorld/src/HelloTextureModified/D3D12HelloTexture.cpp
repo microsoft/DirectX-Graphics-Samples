@@ -175,44 +175,7 @@ void D3D12HelloTexture::LoadPipeline()
 
 	// Create the depth stencil view.
     {
-        D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-        dsvHeapDesc.NumDescriptors = 1;
-        dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-        dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
-    
-        D3D12_RESOURCE_DESC depthDesc = {};
-        depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        depthDesc.Width = m_width;
-        depthDesc.Height = m_height;
-        depthDesc.DepthOrArraySize = 1;
-        depthDesc.MipLevels = 1;
-        depthDesc.Format = DXGI_FORMAT_D32_FLOAT;
-        depthDesc.SampleDesc.Count = 1;
-        depthDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-        D3D12_CLEAR_VALUE clearValue = {};
-        clearValue.Format = DXGI_FORMAT_D32_FLOAT;
-        clearValue.DepthStencil.Depth = 1.0f;
-        clearValue.DepthStencil.Stencil = 0;
-
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-            D3D12_HEAP_FLAG_NONE,
-            &depthDesc,
-            D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            &clearValue,
-            IID_PPV_ARGS(&m_depthStencil)
-        ));
-
-        m_device->CreateDepthStencilView(
-            m_depthStencil.Get(),
-            nullptr,
-            m_dsvHeap->GetCPUDescriptorHandleForHeapStart()
-		);
-
+        CreateDepthStencil(m_width, m_height);
     }
 
 	// create command allocators.
@@ -687,7 +650,52 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
     return data;
 }
 
+void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
+{
+    // Release if DS exist
+    m_depthStencil.Reset();
 
+    // Create Depth Resource
+    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+    dsvHeapDesc.NumDescriptors = 1;
+    dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+    ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+
+    D3D12_RESOURCE_DESC depthDesc = {};
+    depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    depthDesc.Width = width;
+    depthDesc.Height = height;
+    depthDesc.DepthOrArraySize = 1;
+    depthDesc.MipLevels = 1;
+    depthDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    depthDesc.SampleDesc.Count = 1;
+    depthDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    D3D12_CLEAR_VALUE clearValue = {};
+    clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+    clearValue.DepthStencil.Depth = 1.0f;
+    clearValue.DepthStencil.Stencil = 0;
+
+    ThrowIfFailed(m_device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        D3D12_HEAP_FLAG_NONE,
+        &depthDesc,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &clearValue,
+        IID_PPV_ARGS(&m_depthStencil)
+    ));
+
+    //Create DSV
+    m_device->CreateDepthStencilView(
+        m_depthStencil.Get(),
+        nullptr,
+        m_dsvHeap->GetCPUDescriptorHandleForHeapStart()
+    );
+
+}
 
 
 // Update frame-based values.
@@ -822,6 +830,84 @@ void D3D12HelloTexture::OnRender()
     PIXEndEvent();
 }
 
+void D3D12HelloTexture::OnWindowSizeChanged(UINT width, UINT height)
+{
+    m_pendingResize = true;
+    m_pendingResizeWidth = width;  
+	m_pendingResizeHeight = height;
+}
+
+void D3D12HelloTexture::OnIdle()
+{
+    if (m_pendingResize)
+    {
+        Resize(m_pendingResizeWidth, m_pendingResizeHeight);
+        m_pendingResize = false;
+    }
+
+    OnUpdate();
+    OnRender();
+}
+
+void D3D12HelloTexture::Resize(UINT width, UINT height)
+{
+    DBG_PRINT("D3D12HelloTexture::OnWindowSizeChanged() %d %d\n", width, height);
+    m_width = width;
+	m_height = height;
+
+	if (width == 0 || height == 0) {
+		return;
+	}
+
+	if (m_device.Get() == nullptr || m_swapChain.Get() == nullptr)
+	{
+		return;
+	}
+
+    FlushGpu();
+
+    // Clear RTV
+    for (UINT n = 0; n < kFrameCount; n++)
+    {
+        m_renderTargets[n].Reset();
+    }
+
+    // Resize SwapChain
+    m_swapChain->ResizeBuffers(kFrameCount, m_width, m_height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+
+    // ★重要
+    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
+
+    // Re-create render target views (RTVs) for the swap chain back buffers.
+    {
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+
+        // Create a RTV for each frame.
+        for (UINT n = 0; n < kFrameCount; n++)
+        {
+            ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
+            m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
+            rtvHandle.Offset(1, m_rtvDescriptorSize);
+        }
+    }
+
+    //Depth再生成
+	CreateDepthStencil(m_width, m_height);
+
+    //Camera
+    m_camerasForCPU[0].aspect = static_cast<float>(m_width) / static_cast<float>(m_height);
+    m_camerasForCPU[0].updateAllMatrix();
+
+    //Screen
+    m_viewport = CD3DX12_VIEWPORT( 0.0f, 0.0f, static_cast<FLOAT>(m_width), static_cast<FLOAT>(m_height), D3D12_MIN_DEPTH, D3D12_MAX_DEPTH );
+	m_scissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height));
+
+    //Imgui
+    ImGuiIO& io = ImGui::GetIO();
+    io.DisplaySize = ImVec2(static_cast<float>(m_width), static_cast<float>(m_height));
+}
+
 void D3D12HelloTexture::OnDestroy()
 {
     // Ensure that the GPU is no longer referencing resources that are about to be
@@ -938,6 +1024,30 @@ void D3D12HelloTexture::WaitForGpu()
     m_frameResources[m_frameIndex].fenceValue++;
 
 	PIXEndEvent();
+}
+
+void D3D12HelloTexture::FlushGpu()
+{
+    for (UINT n = 0; n < kFrameCount; n++)
+    {
+        const UINT64 fenceValue = ++m_frameResources[n].fenceValue;
+
+        ThrowIfFailed(
+            m_commandQueue->Signal(
+                m_fence.Get(),
+                fenceValue
+            )
+        );
+
+        ThrowIfFailed(
+            m_fence->SetEventOnCompletion(
+                fenceValue,
+                m_fenceEvent
+            )
+        );
+
+        WaitForSingleObject(m_fenceEvent, INFINITE);
+    }
 }
 
 // Prepare to render the next frame.

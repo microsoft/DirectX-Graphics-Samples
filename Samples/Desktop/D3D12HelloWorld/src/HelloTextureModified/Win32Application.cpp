@@ -14,6 +14,8 @@
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
+#include "MyDx12Utils.h"
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 HWND Win32Application::m_hwnd = nullptr;
@@ -60,14 +62,22 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 
     // Main sample loop.
     MSG msg = {};
-    while (msg.message != WM_QUIT)
+    while (true)
     {
         // Process any messages in the queue.
         if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
+			if (msg.message == WM_QUIT)
+			{
+				break;
+			}
+            //DBG_PRINT("msg = %u\n", msg.message);
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+
+        //DBG_PRINT("idle\n", msg.message);
+        pSample->OnIdle();
     }
 
     pSample->OnDestroy();
@@ -95,6 +105,19 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
         }
         return 0;
 
+    case WM_SIZE:
+		if (pSample)
+		{
+            UINT width = LOWORD(lParam);
+            UINT height = HIWORD(lParam);
+
+            if (wParam != SIZE_MINIMIZED)
+            {
+                pSample->OnWindowSizeChanged(width, height);
+            }
+		}
+		return 0;
+
     case WM_KEYDOWN:
         if (pSample)
         {
@@ -112,8 +135,10 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
     case WM_PAINT:
         if (pSample)
         {
-            pSample->OnUpdate();
-            pSample->OnRender();
+            PAINTSTRUCT ps;
+            BeginPaint(hWnd, &ps);
+            EndPaint(hWnd, &ps);
+            return 0;
         }
         return 0;
 

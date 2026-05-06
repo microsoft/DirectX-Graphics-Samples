@@ -32,6 +32,8 @@ public:
     virtual void OnUpdate();
     virtual void OnRender();
     virtual void OnDestroy();
+	virtual void OnWindowSizeChanged(UINT width, UINT height);
+    virtual void OnIdle();
 
 private:
     static constexpr UINT kFrameCount = 2;
@@ -202,15 +204,26 @@ private:
 
     FrameResource m_frameResources[kFrameCount];
 
+    bool m_pendingResize = false;
+	UINT m_pendingResizeWidth = 0;
+	UINT m_pendingResizeHeight = 0;
+
+
     void LoadPipeline();
     void LoadAssets();
     void InitImGui();
 
+    void CreateDepthStencil(UINT width, UINT height);
+
     std::vector<UINT8> GenerateTextureData();
     void PopulateCommandList();
 
+    void Resize(UINT width, UINT height);
+
+
 	void WaitForGpu();
 	void MoveToNextFrame();
+    void FlushGpu();
 
 	UINT AllocateTextureSRV(ID3D12Resource* texture);
 };
