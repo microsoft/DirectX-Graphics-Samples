@@ -10,6 +10,11 @@
 //*********************************************************
 
 #include "stdafx.h"
+
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
+
 #include "D3D12HelloTexture.h"
 
 #include <windows.h>
@@ -20,19 +25,12 @@
 
 #include <pix3.h>
 
-void DebugPrint(const char* fmt, ...)
-{
-    char buf[1024];
 
-    va_list args;
-    va_start(args, fmt);
-    vsprintf_s(buf, fmt, args);
-    va_end(args);
+//ImGui
+#define IMGUI_IMPL 0
 
-    OutputDebugStringA(buf);
-}
-#define DBG_PRINT(fmt, ...) \
- DebugPrint("[%s:%d] " fmt, __FILE__, __LINE__, __VA_ARGS__)
+
+
 
 
 #include <random>
@@ -60,6 +58,7 @@ void D3D12HelloTexture::OnInit()
     m_prevTime = std::chrono::steady_clock::now();
     LoadPipeline();
     LoadAssets();
+    InitImGui();
 }
 
 // Load the rendering pipeline dependencies.
@@ -158,6 +157,8 @@ void D3D12HelloTexture::LoadPipeline()
         heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_heap)));
+		// Create a descriptor allocator to manage the descriptors in the heap.
+        m_descriptorHeapAllocator.Create(m_device.Get(), m_heap.Get());
 
 		m_descriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
@@ -217,6 +218,18 @@ void D3D12HelloTexture::LoadPipeline()
 
     }
 
+    // ImGui
+#if IMGUI_IMPL>0
+    {
+        D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+        desc.NumDescriptors = 1024;
+		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_imguiHeap)));
+    }
+#endif
+
+
 	// create command allocators.
     for (UINT n = 0; n < kFrameCount; n++)
     {
@@ -258,7 +271,7 @@ void D3D12HelloTexture::LoadAssets()
 		rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL); //Texture SRVs
 		rootParameters[1].InitAsDescriptorTable(1, &rangesSRV2[0], D3D12_SHADER_VISIBILITY_ALL);  //Structured buffer SRV (Instance data)
 		rootParameters[2].InitAsDescriptorTable(1, &rangesSRV3[0], D3D12_SHADER_VISIBILITY_ALL);  //Structured buffer SRV (Material data)
-        rootParameters[3].InitAsDescriptorTable(1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_VERTEX);
+		rootParameters[3].InitAsDescriptorTable(1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_VERTEX); //CBV for vertex shader (Per draw data)
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -451,7 +464,7 @@ void D3D12HelloTexture::LoadAssets()
             UpdateSubresources(m_commandList.Get(), m_texture[i].Get(), textureUploadHeap[i].Get(), 0, 0, 1, &textureData);
             m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture[i].Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
-            // Describe and create a SRV for the texture.
+            // Describe and create a SRV for the texture.           
             m_texIndex[i] = AllocateTextureSRV(m_texture[i].Get());
 			DBG_PRINT("Texture %d SRV index: %d\n", i, m_texIndex[i]);
         }
@@ -504,10 +517,12 @@ void D3D12HelloTexture::LoadAssets()
         srvDesc.Buffer.NumElements = kInstanceCount;
         srvDesc.Buffer.StructureByteStride = sizeof(InstanceData);
 
-        UINT index = m_nextFreeIndex++;
-        CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
-        handle.Offset(index, m_descriptorSize);
-        m_device->CreateShaderResourceView(m_frameResources[n].instanceBuffer.Get(), &srvDesc, handle);
+//        UINT index = m_nextFreeIndex++;
+//        CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
+//        handle.Offset(index, m_descriptorSize);
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+        m_descriptorHeapAllocator.Alloc(&cpuHandle);
+        m_device->CreateShaderResourceView(m_frameResources[n].instanceBuffer.Get(), &srvDesc, cpuHandle);
 
         m_frameResources[n].instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_frameResources[n].pSrvDataBegin));
 		memcpy(m_frameResources[n].pSrvDataBegin, m_instanceData.data(), instanceBufferSize);
@@ -527,10 +542,11 @@ void D3D12HelloTexture::LoadAssets()
 		srvDesc.Buffer.NumElements = kInstanceCount;
 		srvDesc.Buffer.StructureByteStride = sizeof(Material);
 
-        UINT index = m_nextFreeIndex++;
-		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
-		handle.Offset(index, m_descriptorSize);
-
+        //UINT index = m_nextFreeIndex++;
+		//CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
+		//handle.Offset(index, m_descriptorSize);
+		D3D12_CPU_DESCRIPTOR_HANDLE handle;
+		m_descriptorHeapAllocator.Alloc(&handle);
 		m_device->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, handle);
         m_materialBuffer->Map(0, nullptr, reinterpret_cast<void**>(&pMaterialDataBegin));
         memcpy(pMaterialDataBegin, m_materialData.data(), materialBufferSize);
@@ -550,7 +566,7 @@ void D3D12HelloTexture::LoadAssets()
         XMStoreFloat4x4(&m_constantBufferData.viewProjection, m_camerasForCPU[0].viewProjection);
     }
 
-	// Create the constant buffer.
+	// Create the CBV for the constant buffer.
     {
         const UINT constantBufferSize = sizeof(ConstantBuffer);    // CB size is required to be 256-byte aligned.
 
@@ -568,10 +584,11 @@ void D3D12HelloTexture::LoadAssets()
         cbvDesc.SizeInBytes = constantBufferSize;
 
 
-        CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
-        // index番目に移動
-        UINT index = m_nextFreeIndex++;
-        handle.Offset(index, m_descriptorSize);
+//        CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
+//        UINT index = m_nextFreeIndex++;
+//        handle.Offset(index, m_descriptorSize);
+        D3D12_CPU_DESCRIPTOR_HANDLE handle;
+        m_descriptorHeapAllocator.Alloc(&handle);
         m_device->CreateConstantBufferView(&cbvDesc, handle);
 
         // Map and initialize the constant buffer. We don't unmap this until the
@@ -606,19 +623,50 @@ void D3D12HelloTexture::LoadAssets()
     }
 }
 
+
+
+
+void D3D12HelloTexture::InitImGui()
+{
+#if IMGUI_IMPL>0
+	// Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+
+	// Setup Platform/Renderer backends
+	ImGui_ImplWin32_Init(Win32Application::GetHwnd());
+
+    ImGui_ImplDX12_InitInfo init_info = {};
+    init_info.Device = m_device.Get();
+    init_info.CommandQueue = m_commandQueue.Get();
+    init_info.NumFramesInFlight = kFrameCount;
+    init_info.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
+    // Allocating SRV descriptors (for textures) is up to the application, so we provide callbacks.
+    // (current version of the backend will only allocate one descriptor, future versions will need to allocate more)
+    init_info.SrvDescriptorHeap = m_heap.Get();
+    //    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return g_pd3dSrvDescHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
+    //    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return g_pd3dSrvDescHeapAlloc.Free(cpu_handle, gpu_handle); };
+    ImGui_ImplDX12_Init(&init_info);
+#endif
+}
+
 UINT D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource* texture)
 {
-    UINT index = m_nextFreeIndex++; 
-    
-    CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
-    handle.Offset(index, m_descriptorSize);
+//    UINT index = m_nextFreeIndex++; 
+//    CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
+//    handle.Offset(index, m_descriptorSize);
+
+    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+    UINT index = m_descriptorHeapAllocator.Alloc(&cpuHandle);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {}; 
     srvDesc.Format = texture->GetDesc().Format; 
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; 
     srvDesc.Texture2D.MipLevels = 1; 
-    m_device->CreateShaderResourceView(texture, &srvDesc, handle); 
+    m_device->CreateShaderResourceView(texture, &srvDesc, cpuHandle);
     
     return index; // ← これがGPUで使うID
 }
@@ -758,6 +806,8 @@ void D3D12HelloTexture::OnUpdate()
     XMStoreFloat4x4(&m_constantBufferData.viewProjection, XMMatrixTranspose(m_camerasForCPU[0].viewProjection));
 	memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
 
+
+
     PIXEndEvent();
 }
 
@@ -765,6 +815,25 @@ void D3D12HelloTexture::OnUpdate()
 void D3D12HelloTexture::OnRender()
 {
     PIXBeginEvent(0, L"OnRender");
+
+    //ImGui frame update
+#if IMGUI_IMPL>0
+    {
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+        // UI書く
+        ImGui::Begin("Debug");
+        ImGui::Text("Hello ImGui");
+        ImGui::Text("FrameIndex: %d", m_frameIndex);
+        ImGui::End();
+        ImGui::Render();
+
+        ImGuiIO& io = ImGui::GetIO();
+        assert(io.Fonts->IsBuilt());
+    }
+#endif
 
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList();
@@ -861,6 +930,18 @@ void D3D12HelloTexture::PopulateCommandList()
 
     PIXEndEvent(m_commandList.Get());
 
+	// ImGui
+#if IMGUI_IMPL>0
+    {
+        m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+        m_commandList->RSSetViewports(1, &m_viewport);
+        m_commandList->RSSetScissorRects(1, &m_scissorRect);
+
+        ID3D12DescriptorHeap* heaps[] = { m_heap.Get() };
+        m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
+    }
+#endif
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 

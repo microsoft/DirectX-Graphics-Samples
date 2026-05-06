@@ -70,7 +70,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>./imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./imgui;./imgui/backends;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
     <Link>
@@ -100,7 +100,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>./imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./imgui;./imgui/backends;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
     <Link>
@@ -130,6 +130,7 @@
     <ClInclude Include="imgui\imgui.h" />
     <ClInclude Include="imgui\imgui_internal.h" />
     <ClInclude Include="MyDx12Utils.h" />
+    <ClInclude Include="SimpleDescriptorHeapAllocator.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12HelloTexture.h" />
     <ClInclude Include="DXSample.h" />

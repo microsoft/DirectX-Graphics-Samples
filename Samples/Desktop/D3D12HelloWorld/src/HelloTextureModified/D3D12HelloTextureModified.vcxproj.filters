@@ -4,9 +4,6 @@
     <Filter Include="Source Files">
       <UniqueIdentifier>{67bebf86-9539-4f7f-b9e9-a376519ec1f1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{954a8f61-1c3e-419b-baca-c5e2b83c689a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Assets">
       <UniqueIdentifier>{09095d68-bcd7-45c4-b007-5c8ddb5d60a4}</UniqueIdentifier>
     </Filter>
@@ -24,24 +21,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="stdafx.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="DXSample.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="DXSampleHelper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="D3D12HelloTexture.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Win32Application.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MyDx12Utils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="imgui\imconfig.h">
       <Filter>Externals\imgui</Filter>
     </ClInclude>
@@ -56,6 +35,27 @@
     </ClInclude>
     <ClInclude Include="imgui\backends\imgui_impl_win32.h">
       <Filter>Externals\imgui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="D3D12HelloTexture.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DXSample.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DXSampleHelper.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDx12Utils.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Win32Application.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SimpleDescriptorHeapAllocator.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -12,7 +12,8 @@
 #pragma once
 #include <chrono>
 #include "DXSample.h"
-
+#include "MyDx12Utils.h"
+#include "SimpleDescriptorHeapAllocator.h"
 using namespace DirectX;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
@@ -21,7 +22,6 @@ using namespace DirectX;
 // referenced by the GPU.
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
-
 
 class D3D12HelloTexture : public DXSample
 {
@@ -39,9 +39,18 @@ private:
     static constexpr UINT kTextureHeight = 256;
     static constexpr UINT kTexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
 
-	static constexpr UINT kHeapDescriptorCount = 1024;
+	static constexpr UINT kHeapDescriptorCount = 1124; 
+    //0 - 1019 : Texture
+    //1020, 1021 : instanceBuffer
+    //1022 : material buffer
+    //1023 : constant buffer
+    //1024 - 1123 : ImGui
+
     static constexpr UINT kTextureCount = 1020;
     static constexpr UINT kTextureTypes = 100; // Color Type : 0-9
+
+    static constexpr UINT kImGuiDescriptorStart = 1024;
+    static constexpr UINT kImguiDescriptorNum = 100;
 
     static constexpr float kTranslationSpeed = 0.005f;
     static constexpr float kPI = 3.141592f;
@@ -149,11 +158,12 @@ private:
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
-    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     ComPtr<ID3D12DescriptorHeap> m_heap; // CBV/SRV/UAV heap
+    SimpleDescriptorHeapAllocator m_descriptorHeapAllocator; // Allocator for CBV/SRV/UAV heap
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
@@ -194,6 +204,8 @@ private:
 
     void LoadPipeline();
     void LoadAssets();
+    void InitImGui();
+
     std::vector<UINT8> GenerateTextureData();
     void PopulateCommandList();
 
