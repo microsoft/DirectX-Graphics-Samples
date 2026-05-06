@@ -46,7 +46,6 @@ struct SimpleDescriptorHeapAllocator
         if (out_cpu_desc_handle == nullptr || out_gpu_desc_handle == nullptr) {
             assert(0 && "Both CPU and GPU descriptor handles must be provided to free a descriptor.");
         }
-
         int idx = -1;
         if (out_cpu_desc_handle) {
             idx = (int)((out_cpu_desc_handle->ptr - HeapStartCpu.ptr) / HeapHandleIncrement);

@@ -27,10 +27,7 @@
 
 
 //ImGui
-#define IMGUI_IMPL 0
-
-
-
+#define IMGUI_IMPL 1
 
 
 #include <random>
@@ -217,18 +214,6 @@ void D3D12HelloTexture::LoadPipeline()
 		);
 
     }
-
-    // ImGui
-#if IMGUI_IMPL>0
-    {
-        D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-        desc.NumDescriptors = 1024;
-		desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_imguiHeap)));
-    }
-#endif
-
 
 	// create command allocators.
     for (UINT n = 0; n < kFrameCount; n++)
@@ -517,9 +502,6 @@ void D3D12HelloTexture::LoadAssets()
         srvDesc.Buffer.NumElements = kInstanceCount;
         srvDesc.Buffer.StructureByteStride = sizeof(InstanceData);
 
-//        UINT index = m_nextFreeIndex++;
-//        CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
-//        handle.Offset(index, m_descriptorSize);
         D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
         m_descriptorHeapAllocator.Alloc(&cpuHandle);
         m_device->CreateShaderResourceView(m_frameResources[n].instanceBuffer.Get(), &srvDesc, cpuHandle);
@@ -542,9 +524,6 @@ void D3D12HelloTexture::LoadAssets()
 		srvDesc.Buffer.NumElements = kInstanceCount;
 		srvDesc.Buffer.StructureByteStride = sizeof(Material);
 
-        //UINT index = m_nextFreeIndex++;
-		//CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
-		//handle.Offset(index, m_descriptorSize);
 		D3D12_CPU_DESCRIPTOR_HANDLE handle;
 		m_descriptorHeapAllocator.Alloc(&handle);
 		m_device->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, handle);
@@ -583,10 +562,6 @@ void D3D12HelloTexture::LoadAssets()
         cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
         cbvDesc.SizeInBytes = constantBufferSize;
 
-
-//        CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
-//        UINT index = m_nextFreeIndex++;
-//        handle.Offset(index, m_descriptorSize);
         D3D12_CPU_DESCRIPTOR_HANDLE handle;
         m_descriptorHeapAllocator.Alloc(&handle);
         m_device->CreateConstantBufferView(&cbvDesc, handle);
@@ -624,11 +599,13 @@ void D3D12HelloTexture::LoadAssets()
 }
 
 
-
+static SimpleDescriptorHeapAllocator* g_allocator = nullptr;
 
 void D3D12HelloTexture::InitImGui()
 {
 #if IMGUI_IMPL>0
+    g_allocator = &m_descriptorHeapAllocator;
+
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -646,18 +623,14 @@ void D3D12HelloTexture::InitImGui()
     // Allocating SRV descriptors (for textures) is up to the application, so we provide callbacks.
     // (current version of the backend will only allocate one descriptor, future versions will need to allocate more)
     init_info.SrvDescriptorHeap = m_heap.Get();
-    //    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { return g_pd3dSrvDescHeapAlloc.Alloc(out_cpu_handle, out_gpu_handle); };
-    //    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { return g_pd3dSrvDescHeapAlloc.Free(cpu_handle, gpu_handle); };
+    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle) { g_allocator->Alloc(out_cpu_handle, out_gpu_handle); };
+    init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle) { g_allocator->Free(&cpu_handle, &gpu_handle); };
     ImGui_ImplDX12_Init(&init_info);
 #endif
 }
 
 UINT D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource* texture)
 {
-//    UINT index = m_nextFreeIndex++; 
-//    CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_heap->GetCPUDescriptorHandleForHeapStart());
-//    handle.Offset(index, m_descriptorSize);
-
     D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
     UINT index = m_descriptorHeapAllocator.Alloc(&cpuHandle);
 
@@ -822,16 +795,15 @@ void D3D12HelloTexture::OnRender()
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
-
-        // UI書く
+        ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
         ImGui::Begin("Debug");
+
         ImGui::Text("Hello ImGui");
         ImGui::Text("FrameIndex: %d", m_frameIndex);
+        ImGui::SliderFloat("Camera FovH", &m_camerasForCPU[0].fov, 20.f, 150.f);
+
         ImGui::End();
         ImGui::Render();
-
-        ImGuiIO& io = ImGui::GetIO();
-        assert(io.Fonts->IsBuilt());
     }
 #endif
 
