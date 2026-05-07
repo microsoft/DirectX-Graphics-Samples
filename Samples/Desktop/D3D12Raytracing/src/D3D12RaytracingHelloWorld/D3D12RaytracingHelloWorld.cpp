@@ -17,7 +17,7 @@
 using namespace std;
 using namespace DX;
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 const wchar_t* D3D12RaytracingHelloWorld::c_hitGroupName = L"MyHitGroup";
