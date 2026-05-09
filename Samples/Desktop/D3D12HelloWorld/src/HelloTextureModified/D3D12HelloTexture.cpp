@@ -262,7 +262,9 @@ void D3D12HelloTexture::LoadAssets()
             { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
         };
 
-        // Describe and create the graphics pipeline state object (PSO).
+        //
+        // Main Pass PSO
+        //
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
         psoDesc.pRootSignature = m_rootSignature.Get();
@@ -271,7 +273,8 @@ void D3D12HelloTexture::LoadAssets()
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-        psoDesc.DepthStencilState.StencilEnable = FALSE;
+        psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // MainPassではDepthは書かない。
+        psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; // EQUALを描画する (LESSは念のため)。
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         psoDesc.NumRenderTargets = 1;
@@ -279,6 +282,15 @@ void D3D12HelloTexture::LoadAssets()
 		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleDesc.Count = 1;
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+
+        //
+        // Depth PrePass PSO
+        //
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC depthPSODesc = psoDesc;
+        depthPSODesc.PS = {};         // Pixel Shaderなし        
+        depthPSODesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;    // Depth書き込みON
+        depthPSODesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;             // Color write禁止
+        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&depthPSODesc, IID_PPV_ARGS(&m_depthPrePassPSO)));
     }
 
     // Create the command list.
@@ -975,9 +987,33 @@ void D3D12HelloTexture::PopulateCommandList()
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     
-	UINT instanceCount = kInstanceCount;
 
-	PIXBeginEvent(m_commandList.Get(), 0, L"DrawInstanced");
+    //
+	// Depth Pre-pass
+    //
+
+    m_commandList->SetPipelineState(m_depthPrePassPSO.Get());
+	m_commandList->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle);
+
+    PIXBeginEvent(m_commandList.Get(), 0, L"DepthPrepass");
+
+    m_commandList->DrawInstanced(
+        m_vertexCountPerInstance,
+        kInstanceCount,
+        0,
+        0
+    );
+
+    PIXEndEvent(m_commandList.Get());
+
+    //
+	// Main Pass
+    //
+
+	PIXBeginEvent(m_commandList.Get(), 0, L"MainPass");
+
+    m_commandList->SetPipelineState(m_pipelineState.Get());
+    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
     m_commandList->DrawInstanced(
         m_vertexCountPerInstance,
@@ -988,7 +1024,9 @@ void D3D12HelloTexture::PopulateCommandList()
 
     PIXEndEvent(m_commandList.Get());
 
+    //
 	// ImGui
+    //
 #if IMGUI_IMPL>0
     {
         m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
