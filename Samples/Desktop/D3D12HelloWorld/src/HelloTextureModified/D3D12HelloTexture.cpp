@@ -183,6 +183,10 @@ void D3D12HelloTexture::LoadPipeline()
     {
         ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_frameResources[n].commandAllocator)));
     }
+
+	//
+	m_gpuWorkMeter.Init(m_device.Get(), kGpuWorkMeterQueryCount); // Initialize GPU work meter with a maximum of 100 timestamp queries.
+
 }
 
 // Load the sample assets.
@@ -461,7 +465,7 @@ void D3D12HelloTexture::LoadAssets()
         
         //CPU and GPU
         InstanceData d;
-        d.materialId = i;
+        d.materialId = i % kMaterialCount;
 		XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
         XMStoreFloat4x4(&d.world, XMMatrixTranspose(transMat));
         m_instanceData.push_back(d);
@@ -503,7 +507,7 @@ void D3D12HelloTexture::LoadAssets()
 
 	// Create SRV for material buffer (StructuredBuffer)
     {
-		const UINT materialBufferSize = sizeof(Material) * kInstanceCount;
+		const UINT materialBufferSize = sizeof(Material) * kMaterialCount;
 
         MyDx12Util::CreateUploadBuffer(m_device, materialBufferSize, m_materialBuffer);
 
@@ -511,7 +515,7 @@ void D3D12HelloTexture::LoadAssets()
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Buffer.NumElements = kInstanceCount;
+		srvDesc.Buffer.NumElements = kMaterialCount;
 		srvDesc.Buffer.StructureByteStride = sizeof(Material);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE handle;
@@ -735,54 +739,64 @@ void D3D12HelloTexture::OnUpdate()
     static float accumTime = 0.f;
     m_prevTime = now;
 
-	// InstanceBufferのmaterialのtextureIdを1秒ごと切り替える
-    accumTime += deltaTime;
-	if (accumTime > 1.0f) {
-        for (int i = 0; i < kInstanceCount; i++) {
-            m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % kMaterialCount;
+
+    if (m_isPlaying) {
+
+        // InstanceBufferのmaterialのtextureIdを1秒ごと切り替える
+        accumTime += deltaTime;
+        if (accumTime > 1.0f) {
+            for (int i = 0; i < kInstanceCount; i++) {
+                m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % kMaterialCount;
+            }
+            accumTime = 0.f;
         }
-        accumTime = 0.f;
+
+        // InstanceBufferのオフセットを毎フレーム更新する
+        for (int i = 0; i < kInstanceCount; i++) {
+
+            m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
+            if (m_instanceDataForCPU[i].pos.x > kOffsetBounds) {
+                m_instanceDataForCPU[i].pos.x = -kOffsetBounds;
+            }
+            m_instanceDataForCPU[i].rot.x += kRotationSpeed;
+            if (m_instanceDataForCPU[i].rot.x >= 2.0 * kPI) {
+                m_instanceDataForCPU[i].rot.x = 0.f;
+            }
+            m_instanceDataForCPU[i].rot.y += kRotationSpeed;
+            if (m_instanceDataForCPU[i].rot.y >= 2.0 * kPI) {
+                m_instanceDataForCPU[i].rot.y = 0.f;
+            }
+            m_instanceDataForCPU[i].rot.z += kRotationSpeed;
+            if (m_instanceDataForCPU[i].rot.z >= 2.0 * kPI) {
+                m_instanceDataForCPU[i].rot.z = 0.f;
+            }
+
+            XMMATRIX transMat = XMMatrixTranslation(
+                m_instanceDataForCPU[i].pos.x, m_instanceDataForCPU[i].pos.y, m_instanceDataForCPU[i].pos.z
+            );
+
+            XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(
+                m_instanceDataForCPU[i].rot.x, m_instanceDataForCPU[i].rot.y, m_instanceDataForCPU[i].rot.z
+            );
+
+            //XMMATRIX rotMat = XMMatrixRotationZ(m_instanceDataForCPU[i].rot.z);
+            XMMATRIX worldMat = rotMat * transMat;
+
+            //XMStoreFloat4x4(&m_instanceData[i].world, worldMat);
+            XMStoreFloat4x4(&m_instanceData[i].world, XMMatrixTranspose(worldMat));
+        }
     }
 
-	// InstanceBufferのオフセットを毎フレーム更新する
-#if 1
-    for (int i = 0; i < kInstanceCount; i++) {
-		
-        m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
-		if (m_instanceDataForCPU[i].pos.x > kOffsetBounds) {
-            m_instanceDataForCPU[i].pos.x = -kOffsetBounds;
-	    }
-        m_instanceDataForCPU[i].rot.x += kRotationSpeed;
-        if (m_instanceDataForCPU[i].rot.x >= 2.0 * kPI) {
-            m_instanceDataForCPU[i].rot.x = 0.f;
-        }
-        m_instanceDataForCPU[i].rot.y += kRotationSpeed;
-        if (m_instanceDataForCPU[i].rot.y >= 2.0 * kPI) {
-            m_instanceDataForCPU[i].rot.y = 0.f;
-        }
-        m_instanceDataForCPU[i].rot.z += kRotationSpeed;
-        if (m_instanceDataForCPU[i].rot.z >= 2.0 * kPI) {
-            m_instanceDataForCPU[i].rot.z = 0.f;
-        }
-
-        XMMATRIX transMat = XMMatrixTranslation(
-            m_instanceDataForCPU[i].pos.x, m_instanceDataForCPU[i].pos.y, m_instanceDataForCPU[i].pos.z
-        );
-
-        XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(
-            m_instanceDataForCPU[i].rot.x, m_instanceDataForCPU[i].rot.y, m_instanceDataForCPU[i].rot.z
-        );
-
-		//XMMATRIX rotMat = XMMatrixRotationZ(m_instanceDataForCPU[i].rot.z);
-		XMMATRIX worldMat = rotMat * transMat;
-        
-        //XMStoreFloat4x4(&m_instanceData[i].world, worldMat);
-        XMStoreFloat4x4(&m_instanceData[i].world, XMMatrixTranspose(worldMat));
-	}
     m_frameResources[m_frameIndex].instanceBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_frameIndex].pSrvDataBegin));
     memcpy(m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kInstanceCount);
     m_frameResources[m_frameIndex].instanceBuffer->Unmap(0, nullptr);
-#endif
+
+
+	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+	{
+		m_isPlaying = !m_isPlaying;
+		Sleep(200); // スペースキーのトグルが速すぎるのを防止
+	}
 
     if (GetAsyncKeyState('A') & 0x8000)
     {
@@ -837,6 +851,30 @@ void D3D12HelloTexture::OnRender()
         ImGui::Text("FrameIndex: %d", m_frameIndex);
         ImGui::SliderFloat("Camera FovH", &m_camerasForCPU[0].fov, 20.f, 150.f);
 
+
+        ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)",
+            m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
+
+        {
+            auto& gpuCeckPoints = m_frameResources[m_fremeIndexPrevious].gpuWorkMeterCheckPoints;
+			size_t gpuCheckPointCount = gpuCeckPoints.size();
+
+            if (gpuCheckPointCount >= 2) {
+
+                for (int i = 1; i < gpuCheckPointCount; i++) {
+                    auto& checkPoint = gpuCeckPoints[i];
+
+                    if (i < gpuCheckPointCount - 1) {
+                        float timeFromPrevious = checkPoint.timeStamp - gpuCeckPoints[i - 1].timeStamp;
+                        ImGui::Text("GPU[%d] %s: %f ms", i, checkPoint.name.c_str(), timeFromPrevious);
+                    }
+                    else {
+                        ImGui::Text("GPU[%d] Total: %f ms", i, checkPoint.timeStamp);
+                    }
+                }
+
+            }
+        }
         ImGui::End();
         ImGui::Render();
     }
@@ -853,6 +891,8 @@ void D3D12HelloTexture::OnRender()
     ThrowIfFailed(m_swapChain->Present(1, 0));
 
     MoveToNextFrame();
+
+	m_gpuWorkMeter.ReadbackData(m_commandQueue.Get());
 
     PIXEndEvent();
 }
@@ -872,8 +912,11 @@ void D3D12HelloTexture::OnIdle()
         m_pendingResize = false;
     }
 
+    m_workMeter.Start();
     OnUpdate();
     OnRender();
+    m_workMeter.End();
+    m_cpuFrameTime = m_workMeter.GetCpuFrameTimeMs();
 }
 
 void D3D12HelloTexture::Resize(UINT width, UINT height)
@@ -903,6 +946,7 @@ void D3D12HelloTexture::Resize(UINT width, UINT height)
     m_swapChain->ResizeBuffers(kFrameCount, m_width, m_height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
 
     // ★重要
+	m_fremeIndexPrevious = m_frameIndex;
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
 
@@ -994,6 +1038,8 @@ void D3D12HelloTexture::PopulateCommandList()
 
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
+	m_gpuWorkMeter.StartGpu(m_commandList.Get(), m_frameResources[m_frameIndex].gpuWorkMeterCheckPoints);
+
 
     // Record commands.
     const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
@@ -1002,6 +1048,7 @@ void D3D12HelloTexture::PopulateCommandList()
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     
+	m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Clear");
 
     //
 	// Depth Pre-pass
@@ -1021,6 +1068,9 @@ void D3D12HelloTexture::PopulateCommandList()
 
     PIXEndEvent(m_commandList.Get());
 #endif
+
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Depth Prepass");
+
     //
 	// Main Pass
     //
@@ -1036,6 +1086,8 @@ void D3D12HelloTexture::PopulateCommandList()
         0, 
         0
     );
+
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Main Pass");
 
     PIXEndEvent(m_commandList.Get());
 
@@ -1053,6 +1105,11 @@ void D3D12HelloTexture::PopulateCommandList()
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
     }
 #endif
+
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ImGUI");
+
+	m_gpuWorkMeter.EndGpu(m_commandList.Get());
+
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
@@ -1113,6 +1170,7 @@ void D3D12HelloTexture::MoveToNextFrame()
     ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), currentFenceValue));
 
     // Update the frame index.
+    m_fremeIndexPrevious = m_frameIndex;
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
     // If the next frame is not ready to be rendered yet, wait until it is ready.

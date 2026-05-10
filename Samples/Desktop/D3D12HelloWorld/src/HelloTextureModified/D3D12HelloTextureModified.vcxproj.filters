@@ -57,6 +57,9 @@
     <ClInclude Include="SimpleDescriptorHeapAllocator.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="WorkMeter.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -94,6 +97,9 @@
     </ClCompile>
     <ClCompile Include="imgui\backends\imgui_impl_win32.cpp">
       <Filter>Externals\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="WorkMeter.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

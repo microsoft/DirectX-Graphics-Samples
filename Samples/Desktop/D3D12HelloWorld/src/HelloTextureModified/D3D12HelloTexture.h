@@ -14,6 +14,8 @@
 #include "DXSample.h"
 #include "MyDx12Utils.h"
 #include "SimpleDescriptorHeapAllocator.h"
+#include "WorkMeter.h"
+
 using namespace DirectX;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
@@ -49,7 +51,7 @@ private:
     //1024 - 1123 : ImGui
 
     static constexpr UINT kTextureCount = 1020;
-    static constexpr UINT kTextureTypes = 100; // Color Type : 0-9
+    static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
 
     static constexpr UINT kImGuiDescriptorStart = 1024;
     static constexpr UINT kImguiDescriptorNum = 100;
@@ -61,11 +63,13 @@ private:
 	static constexpr float kCameraMoveSpeed = 0.01f;
 
     static constexpr UINT kInstanceCount = 1000;
-    static constexpr float kCubeScale = 0.2;
-	static constexpr UINT kMaterialCount = 10;
+    static constexpr float kCubeScale = 0.2f;
+	static constexpr UINT kMaterialCount = 256;
 
     static constexpr UINT kTriangleVertexCount = 10;
     static constexpr UINT kCubeVertexCount = (3 * 2 * 6);
+
+	static constexpr int kGpuWorkMeterQueryCount = 100;
 
     struct GridDim
     {
@@ -162,6 +166,7 @@ private:
         ComPtr<ID3D12Resource> instanceBuffer;
         InstanceData* pSrvDataBegin = nullptr;
         UINT64 fenceValue = 0;
+		std::vector<MyDx12Util::GpuWorkMeter::CheckPoint> gpuWorkMeterCheckPoints;
     };
 
     // Pipeline objects.
@@ -212,6 +217,7 @@ private:
     UINT m_texIndexId = 0;
 
     // Synchronization objects.
+    UINT m_fremeIndexPrevious;
     UINT m_frameIndex;
     HANDLE m_fenceEvent;
     ComPtr<ID3D12Fence> m_fence;
@@ -221,6 +227,15 @@ private:
     bool m_pendingResize = false;
 	UINT m_pendingResizeWidth = 0;
 	UINT m_pendingResizeHeight = 0;
+
+    bool m_isPlaying = false;
+
+    //CPU work meter
+    MyDx12Util::WorkMeter m_workMeter;
+    float m_cpuFrameTime = 0.f;
+    
+    //GPU work meter
+	MyDx12Util::GpuWorkMeter m_gpuWorkMeter;
 
 
     void LoadPipeline();
