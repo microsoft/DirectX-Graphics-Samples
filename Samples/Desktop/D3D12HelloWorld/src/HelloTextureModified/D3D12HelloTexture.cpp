@@ -255,11 +255,21 @@ void D3D12HelloTexture::LoadAssets()
         ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
         ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_PSMain.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
 
+        UINT8 * pDepthVS = nullptr;
+        UINT depthVSSize = 0;
+        
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_DepthOnlyVS_VSMain.cso").c_str(), &pDepthVS, &depthVSSize));
+
         // Define the vertex input layout.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
         {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        };
+
+        D3D12_INPUT_ELEMENT_DESC depthLayout[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
         };
 
         //
@@ -283,13 +293,18 @@ void D3D12HelloTexture::LoadAssets()
         psoDesc.SampleDesc.Count = 1;
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
 
+
         //
         // Depth PrePass PSO
         //
         D3D12_GRAPHICS_PIPELINE_STATE_DESC depthPSODesc = psoDesc;
+        depthPSODesc.InputLayout = { depthLayout, _countof(depthLayout) };
+        depthPSODesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+        depthPSODesc.VS = CD3DX12_SHADER_BYTECODE(pDepthVS, depthVSSize);
         depthPSODesc.PS = {};         // Pixel Shaderなし        
         depthPSODesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;    // Depth書き込みON
         depthPSODesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;             // Color write禁止
+        depthPSODesc.NumRenderTargets = 0; // 重要
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&depthPSODesc, IID_PPV_ARGS(&m_depthPrePassPSO)));
     }
 
@@ -308,7 +323,7 @@ void D3D12HelloTexture::LoadAssets()
             { { -0.25f, -0.25f * _aspectRatio, 0.0f }, { 0.0f, 1.0f } }
         };
 
-        constexpr float s = 0.5f;
+        constexpr float s = kCubeScale;
         constexpr float u = 1.f;
         Vertex cubeVertices[] =
         {
@@ -436,19 +451,19 @@ void D3D12HelloTexture::LoadAssets()
     m_instanceDataForCPU.clear();
     for (int i = 0; i < kInstanceCount; i++)
     {
-		float x_trans = calculateOffsetX(i);
+        XMFLOAT3 pos = instanceIdToXYZ(i, GridDim(10, 10, 10));
 
         //CPU only
         m_instanceDataForCPU.emplace_back(
-            XMFLOAT3(x_trans, 0.0f, 0.0f), 
+            pos,
             XMFLOAT3(0.0f, 0.0f, 0.0f)
         );
         
         //CPU and GPU
         InstanceData d;
         d.materialId = i;
-		XMMATRIX trans = XMMatrixTranslation(x_trans, 0.0f, 0.0f);
-        XMStoreFloat4x4(&d.world, XMMatrixTranspose(trans));
+		XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
+        XMStoreFloat4x4(&d.world, XMMatrixTranspose(transMat));
         m_instanceData.push_back(d);
         
     }
@@ -991,7 +1006,7 @@ void D3D12HelloTexture::PopulateCommandList()
     //
 	// Depth Pre-pass
     //
-
+#if 1
     m_commandList->SetPipelineState(m_depthPrePassPSO.Get());
 	m_commandList->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle);
 
@@ -1005,7 +1020,7 @@ void D3D12HelloTexture::PopulateCommandList()
     );
 
     PIXEndEvent(m_commandList.Get());
-
+#endif
     //
 	// Main Pass
     //

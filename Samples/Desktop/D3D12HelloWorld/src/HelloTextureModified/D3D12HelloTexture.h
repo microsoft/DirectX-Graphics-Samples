@@ -57,18 +57,29 @@ private:
     static constexpr float kTranslationSpeed = 0.005f;
     static constexpr float kPI = 3.141592f;
     static constexpr float kRotationSpeed = kPI / 180.f / 3.f;
-    static constexpr float kOffsetBounds = 10.f;
+    static constexpr float kOffsetBounds = 5.f;
 	static constexpr float kCameraMoveSpeed = 0.01f;
 
-    static constexpr UINT kInstanceCount = 5;
+    static constexpr UINT kInstanceCount = 1000;
+    static constexpr float kCubeScale = 0.2;
 	static constexpr UINT kMaterialCount = 10;
 
     static constexpr UINT kTriangleVertexCount = 10;
     static constexpr UINT kCubeVertexCount = (3 * 2 * 6);
 
-	float calculateOffsetX(int instanceId) {
-        float step = (float)kOffsetBounds / (float)kInstanceCount;
-        return step * (float)instanceId;        
+    struct GridDim
+    {
+		GridDim(int x, int y, int z) : x(x), y(y), z(z) {}
+        int x;
+        int y;
+        int z;
+    };
+
+	inline XMFLOAT3 instanceIdToXYZ(int instanceId, const GridDim& dim) {
+        int x = instanceId % dim.x - (kInstanceCount /dim.z / dim.y)/2;
+        int y = (instanceId / dim.x) % dim.y - (kInstanceCount / dim.x / dim.y) / 2;
+		int z = -instanceId / (dim.x * dim.y) + (kInstanceCount / dim.x / dim.y) / 2;
+		return XMFLOAT3((float)x, (float)y, (float)z);
 	}
 
     struct Vertex
