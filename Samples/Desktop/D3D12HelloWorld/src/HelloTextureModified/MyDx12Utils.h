@@ -2,7 +2,7 @@
 
 namespace MyDx12Util {
 
-	inline void CreateUploadBuffer(ComPtr<ID3D12Device>& device, size_t size, ComPtr<ID3D12Resource>& ppResource)
+    inline void CreateUploadBuffer(ComPtr<ID3D12Device>& device, size_t size, ComPtr<ID3D12Resource>& ppResource)
     {
         ThrowIfFailed(device->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -12,7 +12,7 @@ namespace MyDx12Util {
             nullptr,
             IID_PPV_ARGS(&ppResource)));
 
-	}
+    }
 
 }
 

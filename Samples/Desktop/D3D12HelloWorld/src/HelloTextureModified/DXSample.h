@@ -28,7 +28,7 @@ public:
     // Samples override the event handlers to handle specific messages.
     virtual void OnKeyDown(UINT8 /*key*/)   {}
     virtual void OnKeyUp(UINT8 /*key*/)     {}
-	virtual void OnWindowSizeChanged(UINT, UINT){}
+    virtual void OnWindowSizeChanged(UINT, UINT){}
     virtual void OnIdle() {}
 
     // Accessors.
