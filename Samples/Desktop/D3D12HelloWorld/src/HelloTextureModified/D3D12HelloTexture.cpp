@@ -791,37 +791,39 @@ void D3D12HelloTexture::OnUpdate()
     memcpy(m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kInstanceCount);
     m_frameResources[m_frameIndex].instanceBuffer->Unmap(0, nullptr);
 
+    if (GetForegroundWindow() == Win32Application::GetHwnd())
+    {
+        if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+        {
+            m_isPlaying = !m_isPlaying;
+            Sleep(200); // スペースキーのトグルが速すぎるのを防止
+        }
 
-	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
-	{
-		m_isPlaying = !m_isPlaying;
-		Sleep(200); // スペースキーのトグルが速すぎるのを防止
-	}
+        if (GetAsyncKeyState('A') & 0x8000)
+        {
+            m_camerasForCPU[0].pos.x -= kCameraMoveSpeed;
+        }
+        if (GetAsyncKeyState('D') & 0x8000)
+        {
+            m_camerasForCPU[0].pos.x += kCameraMoveSpeed;
+        }
 
-    if (GetAsyncKeyState('A') & 0x8000)
-    {
-		m_camerasForCPU[0].pos.x -= kCameraMoveSpeed;
-    }
-    if (GetAsyncKeyState('D') & 0x8000)
-    {
-        m_camerasForCPU[0].pos.x += kCameraMoveSpeed;
-    }
-
-    if ((GetAsyncKeyState('W') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
-    {
-        m_camerasForCPU[0].pos.y -= kCameraMoveSpeed;
-    }
-    if ((GetAsyncKeyState('S') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
-    {
-        m_camerasForCPU[0].pos.y += kCameraMoveSpeed;
-    }
-    if ((GetAsyncKeyState('W') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
-    {
-        m_camerasForCPU[0].pos.z += kCameraMoveSpeed;
-    }
-    if ((GetAsyncKeyState('S') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
-    {
-        m_camerasForCPU[0].pos.z -= kCameraMoveSpeed;
+        if ((GetAsyncKeyState('W') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
+        {
+            m_camerasForCPU[0].pos.y -= kCameraMoveSpeed;
+        }
+        if ((GetAsyncKeyState('S') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
+        {
+            m_camerasForCPU[0].pos.y += kCameraMoveSpeed;
+        }
+        if ((GetAsyncKeyState('W') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
+        {
+            m_camerasForCPU[0].pos.z += kCameraMoveSpeed;
+        }
+        if ((GetAsyncKeyState('S') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
+        {
+            m_camerasForCPU[0].pos.z -= kCameraMoveSpeed;
+        }
     }
 
     m_camerasForCPU[0].updateAllMatrix();
