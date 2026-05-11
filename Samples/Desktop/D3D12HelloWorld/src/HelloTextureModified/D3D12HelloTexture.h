@@ -242,7 +242,15 @@ class D3D12HelloTexture : public DXSample
 
     struct RenderPass
     {
+        struct ResourceUsage
+        {
+            ID3D12Resource *resource;
+            D3D12_RESOURCE_STATES state;
+        };
+
         const wchar_t *name;
+        std::vector<ResourceUsage> reads;
+        std::vector<ResourceUsage> writes;
         std::function<void()> execute;
     };
 
@@ -257,7 +265,8 @@ class D3D12HelloTexture : public DXSample
     std::vector<UINT8> GenerateTextureData();
     void PopulateCommandList();
 
-    void AddPass(const wchar_t *name, std::function<void()> execute);
+    void AddPass(const wchar_t *name, std::vector<RenderPass::ResourceUsage> reads,
+                 std::vector<RenderPass::ResourceUsage> writes, std::function<void()> execute);
     void ExecutePasses();
 
     void BeginFrame();

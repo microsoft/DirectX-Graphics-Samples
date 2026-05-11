@@ -998,8 +998,11 @@ void D3D12HelloTexture::PopulateCommandList()
     BeginFrame();
     RecordClear();
     m_renderPasses.clear();
-    AddPass(L"Depth PrePass", [this]() { RecordDepthPrePass(); });
-    AddPass(L"MainPass", [this]() { RecordMainPass(); });
+    AddPass(L"Depth PrePass", {}, {{m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}},
+            [this]() { RecordDepthPrePass(); });
+    AddPass(L"MainPass", {{m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_READ}},
+            {{m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}},
+            [this]() { RecordMainPass(); });
     ExecutePasses();
     RecordImGuiPass();
     EndFrame();
@@ -1007,9 +1010,10 @@ void D3D12HelloTexture::PopulateCommandList()
     PIXEndEvent();
 }
 
-void D3D12HelloTexture::AddPass(const wchar_t *name, std::function<void()> execute)
+void D3D12HelloTexture::AddPass(const wchar_t *name, std::vector<RenderPass::ResourceUsage> reads,
+                                std::vector<RenderPass::ResourceUsage> writes, std::function<void()> execute)
 {
-    m_renderPasses.push_back({name, execute});
+    m_renderPasses.push_back({name, reads, writes, execute});
 }
 
 void D3D12HelloTexture::ExecutePasses()
