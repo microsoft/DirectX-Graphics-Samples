@@ -997,12 +997,27 @@ void D3D12HelloTexture::PopulateCommandList()
 
     BeginFrame();
     RecordClear();
-    RecordDepthPrePass();
-    RecordMainPass();
+    m_renderPasses.clear();
+    AddPass(L"Depth PrePass", [this]() { RecordDepthPrePass(); });
+    AddPass(L"MainPass", [this]() { RecordMainPass(); });
+    ExecutePasses();
     RecordImGuiPass();
     EndFrame();
 
     PIXEndEvent();
+}
+
+void D3D12HelloTexture::AddPass(const wchar_t *name, std::function<void()> execute)
+{
+    m_renderPasses.push_back({name, execute});
+}
+
+void D3D12HelloTexture::ExecutePasses()
+{
+    for (const RenderPass &pass : m_renderPasses)
+    {
+        pass.execute();
+    }
 }
 
 void D3D12HelloTexture::BeginFrame()
