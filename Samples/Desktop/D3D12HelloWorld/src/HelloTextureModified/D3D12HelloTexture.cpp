@@ -996,15 +996,20 @@ void D3D12HelloTexture::PopulateCommandList()
     PIXBeginEvent(1, L"PopulateCommandList");
 
     BeginFrame();
-    RecordClear();
+    ResetResourceStates();
     m_renderPasses.clear();
+    AddPass(L"Clear", {},
+            {{m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET},
+             {m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}},
+            [this]() { RecordClear(); });
     AddPass(L"Depth PrePass", {}, {{m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}},
             [this]() { RecordDepthPrePass(); });
-    AddPass(L"MainPass", {{m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_READ}},
+    AddPass(L"MainPass", {{m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}},
             {{m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}},
             [this]() { RecordMainPass(); });
+    AddPass(L"ImGui", {}, {{m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}},
+            [this]() { RecordImGuiPass(); });
     ExecutePasses();
-    RecordImGuiPass();
     EndFrame();
 
     PIXEndEvent();
@@ -1020,8 +1025,68 @@ void D3D12HelloTexture::ExecutePasses()
 {
     for (const RenderPass &pass : m_renderPasses)
     {
+        TransitionPassResources(pass);
         pass.execute();
     }
+}
+
+void D3D12HelloTexture::ResetResourceStates()
+{
+    m_resourceStates.clear();
+    SetResourceState(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT);
+    SetResourceState(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+}
+
+void D3D12HelloTexture::TransitionPassResources(const RenderPass &pass)
+{
+    for (const RenderPass::ResourceUsage &read : pass.reads)
+    {
+        TransitionResource(read.resource, read.state);
+    }
+
+    for (const RenderPass::ResourceUsage &write : pass.writes)
+    {
+        TransitionResource(write.resource, write.state);
+    }
+}
+
+void D3D12HelloTexture::TransitionResource(ID3D12Resource *resource, D3D12_RESOURCE_STATES state)
+{
+    D3D12_RESOURCE_STATES currentState = GetResourceState(resource);
+    if (currentState == state)
+    {
+        return;
+    }
+
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, currentState, state));
+    SetResourceState(resource, state);
+}
+
+D3D12_RESOURCE_STATES D3D12HelloTexture::GetResourceState(ID3D12Resource *resource) const
+{
+    for (const RenderPass::ResourceUsage &resourceState : m_resourceStates)
+    {
+        if (resourceState.resource == resource)
+        {
+            return resourceState.state;
+        }
+    }
+
+    return D3D12_RESOURCE_STATE_COMMON;
+}
+
+void D3D12HelloTexture::SetResourceState(ID3D12Resource *resource, D3D12_RESOURCE_STATES state)
+{
+    for (RenderPass::ResourceUsage &resourceState : m_resourceStates)
+    {
+        if (resourceState.resource == resource)
+        {
+            resourceState.state = state;
+            return;
+        }
+    }
+
+    m_resourceStates.push_back({resource, state});
 }
 
 void D3D12HelloTexture::BeginFrame()
@@ -1063,11 +1128,6 @@ void D3D12HelloTexture::BeginFrame()
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
-
-    // Indicate that the back buffer will be used as a render target.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(),
-                                                                            D3D12_RESOURCE_STATE_PRESENT,
-                                                                            D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex,
                                             m_rtvDescriptorSize);
@@ -1159,10 +1219,7 @@ void D3D12HelloTexture::EndFrame()
 {
     m_gpuWorkMeter.EndGpu(m_commandList.Get());
 
-    // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(),
-                                                                            D3D12_RESOURCE_STATE_RENDER_TARGET,
-                                                                            D3D12_RESOURCE_STATE_PRESENT));
+    TransitionResource(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT);
 
     ThrowIfFailed(m_commandList->Close());
 }

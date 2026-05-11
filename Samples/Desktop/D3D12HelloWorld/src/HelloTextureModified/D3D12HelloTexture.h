@@ -255,6 +255,7 @@ class D3D12HelloTexture : public DXSample
     };
 
     std::vector<RenderPass> m_renderPasses;
+    std::vector<RenderPass::ResourceUsage> m_resourceStates;
 
     void LoadPipeline();
     void LoadAssets();
@@ -268,6 +269,11 @@ class D3D12HelloTexture : public DXSample
     void AddPass(const wchar_t *name, std::vector<RenderPass::ResourceUsage> reads,
                  std::vector<RenderPass::ResourceUsage> writes, std::function<void()> execute);
     void ExecutePasses();
+    void ResetResourceStates();
+    void TransitionPassResources(const RenderPass &pass);
+    void TransitionResource(ID3D12Resource *resource, D3D12_RESOURCE_STATES state);
+    D3D12_RESOURCE_STATES GetResourceState(ID3D12Resource *resource) const;
+    void SetResourceState(ID3D12Resource *resource, D3D12_RESOURCE_STATES state);
 
     void BeginFrame();
     void RecordClear();
