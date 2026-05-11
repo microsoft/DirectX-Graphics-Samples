@@ -15,6 +15,7 @@
 #include "SimpleDescriptorHeapAllocator.h"
 #include "WorkMeter.h"
 #include <chrono>
+#include <functional>
 
 using namespace DirectX;
 
@@ -239,6 +240,14 @@ class D3D12HelloTexture : public DXSample
     // GPU work meter
     MyDx12Util::GpuWorkMeter m_gpuWorkMeter;
 
+    struct RenderPass
+    {
+        const wchar_t *name;
+        std::function<void()> execute;
+    };
+
+    std::vector<RenderPass> m_renderPasses;
+
     void LoadPipeline();
     void LoadAssets();
     void InitImGui();
@@ -247,6 +256,9 @@ class D3D12HelloTexture : public DXSample
 
     std::vector<UINT8> GenerateTextureData();
     void PopulateCommandList();
+
+    void AddPass(const wchar_t *name, std::function<void()> execute);
+    void ExecutePasses();
 
     void BeginFrame();
     void RecordClear();
