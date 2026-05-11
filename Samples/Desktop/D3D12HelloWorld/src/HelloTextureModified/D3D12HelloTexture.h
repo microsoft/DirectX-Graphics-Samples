@@ -10,11 +10,11 @@
 //*********************************************************
 
 #pragma once
-#include <chrono>
 #include "DXSample.h"
 #include "MyDx12Utils.h"
 #include "SimpleDescriptorHeapAllocator.h"
 #include "WorkMeter.h"
+#include <chrono>
 
 using namespace DirectX;
 
@@ -27,28 +27,28 @@ using Microsoft::WRL::ComPtr;
 
 class D3D12HelloTexture : public DXSample
 {
-public:
+  public:
     D3D12HelloTexture(UINT width, UINT height, std::wstring name);
 
     virtual void OnInit();
     virtual void OnUpdate();
     virtual void OnRender();
     virtual void OnDestroy();
-	virtual void OnWindowSizeChanged(UINT width, UINT height);
+    virtual void OnWindowSizeChanged(UINT width, UINT height);
     virtual void OnIdle();
 
-private:
+  private:
     static constexpr UINT kFrameCount = 2;
     static constexpr UINT kTextureWidth = 256;
     static constexpr UINT kTextureHeight = 256;
-    static constexpr UINT kTexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
+    static constexpr UINT kTexturePixelSize = 4; // The number of bytes used to represent a pixel in the texture.
 
-	static constexpr UINT kHeapDescriptorCount = 1124; 
-    //0 - 1019 : Texture
-    //1020, 1021 : instanceBuffer
-    //1022 : material buffer
-    //1023 : constant buffer
-    //1024 - 1123 : ImGui
+    static constexpr UINT kHeapDescriptorCount = 1124;
+    // 0 - 1019 : Texture
+    // 1020, 1021 : instanceBuffer
+    // 1022 : material buffer
+    // 1023 : constant buffer
+    // 1024 - 1123 : ImGui
 
     static constexpr UINT kTextureCount = 1020;
     static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
@@ -60,31 +60,32 @@ private:
     static constexpr float kPI = 3.141592f;
     static constexpr float kRotationSpeed = kPI / 180.f / 3.f;
     static constexpr float kOffsetBounds = 5.f;
-	static constexpr float kCameraMoveSpeed = 0.01f;
+    static constexpr float kCameraMoveSpeed = 0.01f;
 
     static constexpr UINT kInstanceCount = 1000;
     static constexpr float kCubeScale = 0.2f;
-	static constexpr UINT kMaterialCount = 256;
+    static constexpr UINT kMaterialCount = 256;
 
     static constexpr UINT kTriangleVertexCount = 10;
     static constexpr UINT kCubeVertexCount = (3 * 2 * 6);
 
-	static constexpr int kGpuWorkMeterQueryCount = 100;
+    static constexpr int kGpuWorkMeterQueryCount = 100;
 
     struct GridDim
     {
-		GridDim(int x, int y, int z) : x(x), y(y), z(z) {}
+        GridDim(int x, int y, int z) : x(x), y(y), z(z) {}
         int x;
         int y;
         int z;
     };
 
-	inline XMFLOAT3 instanceIdToXYZ(int instanceId, const GridDim& dim) {
-        int x = instanceId % dim.x - (kInstanceCount /dim.z / dim.y)/2;
+    inline XMFLOAT3 instanceIdToXYZ(int instanceId, const GridDim &dim)
+    {
+        int x = instanceId % dim.x - (kInstanceCount / dim.z / dim.y) / 2;
         int y = (instanceId / dim.x) % dim.y - (kInstanceCount / dim.x / dim.y) / 2;
-		int z = -instanceId / (dim.x * dim.y) + (kInstanceCount / dim.x / dim.y) / 2;
-		return XMFLOAT3((float)x, (float)y, (float)z);
-	}
+        int z = -instanceId / (dim.x * dim.y) + (kInstanceCount / dim.x / dim.y) / 2;
+        return XMFLOAT3((float)x, (float)y, (float)z);
+    }
 
     struct Vertex
     {
@@ -95,55 +96,56 @@ private:
     struct Material
     {
         UINT textureIndex;
-		float padding[3]; // 16byte alignment
-	};
+        float padding[3]; // 16byte alignment
+    };
 
-	struct InstanceData
-	{
+    struct InstanceData
+    {
         XMFLOAT4X4 world;
-		UINT materialId;
-		float padding[3]; // 16byte alignment
-	};
+        UINT materialId;
+        float padding[3]; // 16byte alignment
+    };
 
     struct InstanceDataForCPU
     {
-		InstanceDataForCPU(XMFLOAT3 pos, XMFLOAT3 rot) : pos(pos), rot(rot) {}
+        InstanceDataForCPU(XMFLOAT3 pos, XMFLOAT3 rot) : pos(pos), rot(rot) {}
         XMFLOAT3 pos;
         XMFLOAT3 rot;
     };
 
     struct CameraForCPU
     {
-		CameraForCPU(XMFLOAT3 pos, XMFLOAT3 rot, float fov, float aspect, float nearZ, float farZ)
-            : pos(pos), rot(rot), fov(fov), aspect(aspect), nearZ(nearZ), farZ(farZ) {
-        
+        CameraForCPU(XMFLOAT3 pos, XMFLOAT3 rot, float fov, float aspect, float nearZ, float farZ)
+            : pos(pos), rot(rot), fov(fov), aspect(aspect), nearZ(nearZ), farZ(farZ)
+        {
+
             updateAllMatrix();
         }
 
-		void updateViewMatrix() {
-			XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z);
-			XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
-			view = XMMatrixInverse(nullptr, rotMat * transMat);
-		}
-		void updateProjectionMatrix() {
-			projection = XMMatrixPerspectiveFovLH(
-				XMConvertToRadians(fov),  // FOV
-				aspect,                   // aspect ratio
-				nearZ,                    // near
-				farZ                      // far
-			);
-		}
-		void updateViewProjectionMatrix() {
-			viewProjection = XMMatrixMultiply(view, projection);
-		}
-        void updateAllMatrix() {
-			updateViewMatrix();
-			updateProjectionMatrix();
-			updateViewProjectionMatrix();
+        void updateViewMatrix()
+        {
+            XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z);
+            XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
+            view = XMMatrixInverse(nullptr, rotMat * transMat);
+        }
+        void updateProjectionMatrix()
+        {
+            projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), // FOV
+                                                  aspect,                  // aspect ratio
+                                                  nearZ,                   // near
+                                                  farZ                     // far
+            );
+        }
+        void updateViewProjectionMatrix() { viewProjection = XMMatrixMultiply(view, projection); }
+        void updateAllMatrix()
+        {
+            updateViewMatrix();
+            updateProjectionMatrix();
+            updateViewProjectionMatrix();
         }
 
         XMFLOAT3 pos;
-		XMFLOAT3 rot;      
+        XMFLOAT3 rot;
         XMMATRIX view;
 
         float fov;
@@ -152,7 +154,7 @@ private:
         float farZ;
         XMMATRIX projection;
 
-		XMMATRIX viewProjection;
+        XMMATRIX viewProjection;
     };
 
     struct alignas(256) ConstantBuffer
@@ -164,9 +166,9 @@ private:
     {
         ComPtr<ID3D12CommandAllocator> commandAllocator;
         ComPtr<ID3D12Resource> instanceBuffer;
-        InstanceData* pSrvDataBegin = nullptr;
+        InstanceData *pSrvDataBegin = nullptr;
         UINT64 fenceValue = 0;
-		std::vector<MyDx12Util::GpuWorkMeter::CheckPoint> gpuWorkMeterCheckPoints;
+        std::vector<MyDx12Util::GpuWorkMeter::CheckPoint> gpuWorkMeterCheckPoints;
     };
 
     // Pipeline objects.
@@ -180,7 +182,7 @@ private:
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-    ComPtr<ID3D12DescriptorHeap> m_heap; // CBV/SRV/UAV heap
+    ComPtr<ID3D12DescriptorHeap> m_heap;                     // CBV/SRV/UAV heap
     SimpleDescriptorHeapAllocator m_descriptorHeapAllocator; // Allocator for CBV/SRV/UAV heap
 
     ComPtr<ID3D12PipelineState> m_pipelineState;
@@ -188,15 +190,15 @@ private:
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
-	UINT m_descriptorSize;
+    UINT m_descriptorSize;
     UINT m_nextFrameIndex = 0;
 
     UINT m_texIndex[kTextureCount] = {};
     UINT m_nextFreeIndex = 0;
 
     std::vector<InstanceData> m_instanceData;
-	std::vector<InstanceDataForCPU> m_instanceDataForCPU;
-	std::vector<Material> m_materialData;
+    std::vector<InstanceDataForCPU> m_instanceDataForCPU;
+    std::vector<Material> m_materialData;
 
     // App resources.
     ComPtr<ID3D12Resource> m_vertexBuffer;
@@ -206,12 +208,12 @@ private:
     UINT m_vertexCountPerInstance;
 
     ComPtr<ID3D12Resource> m_materialBuffer;
-    Material* pMaterialDataBegin = nullptr;
+    Material *pMaterialDataBegin = nullptr;
 
-	std::vector<CameraForCPU> m_camerasForCPU;
+    std::vector<CameraForCPU> m_camerasForCPU;
     ComPtr<ID3D12Resource> m_constantBuffer;
-    UINT8* m_pCbvDataBegin;
-	ConstantBuffer m_constantBufferData;
+    UINT8 *m_pCbvDataBegin;
+    ConstantBuffer m_constantBufferData;
 
     std::chrono::steady_clock::time_point m_prevTime;
     UINT m_texIndexId = 0;
@@ -225,18 +227,17 @@ private:
     FrameResource m_frameResources[kFrameCount];
 
     bool m_pendingResize = false;
-	UINT m_pendingResizeWidth = 0;
-	UINT m_pendingResizeHeight = 0;
+    UINT m_pendingResizeWidth = 0;
+    UINT m_pendingResizeHeight = 0;
 
     bool m_isPlaying = false;
 
-    //CPU work meter
+    // CPU work meter
     MyDx12Util::WorkMeter m_workMeter;
     float m_cpuFrameTime = 0.f;
-    
-    //GPU work meter
-	MyDx12Util::GpuWorkMeter m_gpuWorkMeter;
 
+    // GPU work meter
+    MyDx12Util::GpuWorkMeter m_gpuWorkMeter;
 
     void LoadPipeline();
     void LoadAssets();
@@ -247,12 +248,18 @@ private:
     std::vector<UINT8> GenerateTextureData();
     void PopulateCommandList();
 
+    void BeginFrame();
+    void RecordClear();
+    void RecordDepthPrePass();
+    void RecordMainPass();
+    void RecordImGuiPass();
+    void EndFrame();
+
     void Resize(UINT width, UINT height);
 
-
-	void WaitForGpu();
-	void MoveToNextFrame();
+    void WaitForGpu();
+    void MoveToNextFrame();
     void FlushGpu();
 
-	UINT AllocateTextureSRV(ID3D12Resource* texture);
+    UINT AllocateTextureSRV(ID3D12Resource *texture);
 };
