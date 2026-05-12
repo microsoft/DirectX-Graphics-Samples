@@ -16,6 +16,9 @@
 #include "WorkMeter.h"
 #include <chrono>
 #include <functional>
+#include <initializer_list>
+#include <string>
+#include <unordered_map>
 
 using namespace DirectX;
 
@@ -240,22 +243,29 @@ class D3D12HelloTexture : public DXSample
     // GPU work meter
     MyDx12Util::GpuWorkMeter m_gpuWorkMeter;
 
+    static constexpr const char *kBackBufferResourceName = "BackBuffer";
+    static constexpr const char *kDepthStencilResourceName = "DepthStencil";
+
+    struct ResourceUsage
+    {
+        std::string name;
+        ID3D12Resource *resource;
+        D3D12_RESOURCE_STATES state;
+    };
+
+    using ResourceUsageMap = std::unordered_map<std::string, ResourceUsage>;
+    using ResourceStateMap = std::unordered_map<std::string, D3D12_RESOURCE_STATES>;
+
     struct RenderPass
     {
-        struct ResourceUsage
-        {
-            ID3D12Resource *resource;
-            D3D12_RESOURCE_STATES state;
-        };
-
         const wchar_t *name;
-        std::vector<ResourceUsage> reads;
-        std::vector<ResourceUsage> writes;
+        ResourceUsageMap reads;
+        ResourceUsageMap writes;
         std::function<void()> execute;
     };
 
     std::vector<RenderPass> m_renderPasses;
-    std::vector<RenderPass::ResourceUsage> m_resourceStates;
+    ResourceStateMap m_resourceStates; // Current state per named resource.
 
     void LoadPipeline();
     void LoadAssets();
@@ -266,14 +276,14 @@ class D3D12HelloTexture : public DXSample
     std::vector<UINT8> GenerateTextureData();
     void PopulateCommandList();
 
-    void AddPass(const wchar_t *name, std::vector<RenderPass::ResourceUsage> reads,
-                 std::vector<RenderPass::ResourceUsage> writes, std::function<void()> execute);
+    void AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes, std::function<void()> execute);
+    ResourceUsageMap MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const;
     void ExecutePasses();
     void ResetResourceStates();
     void TransitionPassResources(const RenderPass &pass);
-    void TransitionResource(ID3D12Resource *resource, D3D12_RESOURCE_STATES state);
-    D3D12_RESOURCE_STATES GetResourceState(ID3D12Resource *resource) const;
-    void SetResourceState(ID3D12Resource *resource, D3D12_RESOURCE_STATES state);
+    void TransitionResource(const ResourceUsage &usage);
+    D3D12_RESOURCE_STATES GetResourceState(const std::string &name) const;
+    void SetResourceState(const std::string &name, D3D12_RESOURCE_STATES state);
 
     void BeginFrame();
     void RecordClear();
