@@ -997,6 +997,16 @@ void D3D12HelloTexture::PopulateCommandList()
 
     BeginFrame();
     ResetResourceStates();
+    BuildRenderPasses();
+    AnalyzeResourceLifetimes();
+    ExecutePasses();
+    EndFrame();
+
+    PIXEndEvent();
+}
+
+void D3D12HelloTexture::BuildRenderPasses()
+{
     m_renderPasses.clear();
     AddPass(L"Clear", {},
             MakeResourceUsageMap(
@@ -1004,12 +1014,10 @@ void D3D12HelloTexture::PopulateCommandList()
                  {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
             [this]() { RecordClear(); });
     AddPass(L"Depth PrePass", {},
-            MakeResourceUsageMap(
-                {{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
+            MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
             [this]() { RecordDepthPrePass(); });
     AddPass(L"MainPass",
-            MakeResourceUsageMap(
-                {{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
+            MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
             [this]() { RecordMainPass(); });
@@ -1017,10 +1025,6 @@ void D3D12HelloTexture::PopulateCommandList()
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
             [this]() { RecordImGuiPass(); });
-    ExecutePasses();
-    EndFrame();
-
-    PIXEndEvent();
 }
 
 void D3D12HelloTexture::AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes,
@@ -1038,6 +1042,30 @@ auto D3D12HelloTexture::MakeResourceUsageMap(std::initializer_list<ResourceUsage
     }
 
     return usageMap;
+}
+
+void D3D12HelloTexture::AnalyzeResourceLifetimes()
+{
+    m_resourceLifetimes.clear();
+
+    for (int passIndex = 0; passIndex < static_cast<int>(m_renderPasses.size()); ++passIndex)
+    {
+        const auto &pass = m_renderPasses[passIndex];
+
+        for (const auto &[name, usage] : pass.reads)
+        {
+            auto &lifetime = m_resourceLifetimes[name];
+            lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
+            lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
+        }
+
+        for (const auto &[name, usage] : pass.writes)
+        {
+            auto &lifetime = m_resourceLifetimes[name];
+            lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
+            lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
+        }
+    }
 }
 
 void D3D12HelloTexture::ExecutePasses()
@@ -1077,8 +1105,7 @@ void D3D12HelloTexture::TransitionResource(const ResourceUsage &usage)
         return;
     }
 
-    m_commandList->ResourceBarrier(
-        1, &CD3DX12_RESOURCE_BARRIER::Transition(usage.resource, currentState, usage.state));
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(usage.resource, currentState, usage.state));
     SetResourceState(usage.name, usage.state);
 }
 

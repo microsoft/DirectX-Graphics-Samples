@@ -14,6 +14,7 @@
 #include "MyDx12Utils.h"
 #include "SimpleDescriptorHeapAllocator.h"
 #include "WorkMeter.h"
+#include <algorithm>
 #include <chrono>
 #include <climits>
 #include <functional>
@@ -287,6 +288,8 @@ class D3D12HelloTexture : public DXSample
 
     void AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes, std::function<void()> execute);
     ResourceUsageMap MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const;
+    void BuildRenderPasses();
+    void AnalyzeResourceLifetimes();
     void ExecutePasses();
     void ResetResourceStates();
     void TransitionPassResources(const RenderPass &pass);
