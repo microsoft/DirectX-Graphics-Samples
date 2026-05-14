@@ -15,6 +15,7 @@
 #include "SimpleDescriptorHeapAllocator.h"
 #include "WorkMeter.h"
 #include <chrono>
+#include <climits>
 #include <functional>
 #include <initializer_list>
 #include <string>
@@ -253,8 +254,15 @@ class D3D12HelloTexture : public DXSample
         D3D12_RESOURCE_STATES state;
     };
 
+    struct ResourceLifetime
+    {
+        int firstPass = INT_MAX;
+        int lastPass = -1;
+    };
+
     using ResourceUsageMap = std::unordered_map<std::string, ResourceUsage>;
     using ResourceStateMap = std::unordered_map<std::string, D3D12_RESOURCE_STATES>;
+    using ResourceLifetimeMap = std::unordered_map<std::string, ResourceLifetime>;
 
     struct RenderPass
     {
@@ -266,6 +274,7 @@ class D3D12HelloTexture : public DXSample
 
     std::vector<RenderPass> m_renderPasses;
     ResourceStateMap m_resourceStates; // Current state per named resource.
+    ResourceLifetimeMap m_resourceLifetimes;
 
     void LoadPipeline();
     void LoadAssets();
