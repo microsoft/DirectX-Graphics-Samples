@@ -999,6 +999,7 @@ void D3D12HelloTexture::PopulateCommandList()
     ResetResourceStates();
     BuildRenderPasses();
     AnalyzeResourceLifetimes();
+    DebugPrintLifetimes();
     ExecutePasses();
     EndFrame();
 
@@ -1065,6 +1066,15 @@ void D3D12HelloTexture::AnalyzeResourceLifetimes()
             lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
             lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
         }
+    }
+}
+
+void D3D12HelloTexture::DebugPrintLifetimes()
+{
+    DBG_PRINT("Resource Lifetimes:\n");
+    for (auto &[name, lt] : m_resourceLifetimes)
+    {
+        DBG_PRINT("Resource %s: [%d - %d]\n", name.c_str(), lt.firstPass, lt.lastPass);
     }
 }
 

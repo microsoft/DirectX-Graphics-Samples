@@ -290,6 +290,7 @@ class D3D12HelloTexture : public DXSample
     ResourceUsageMap MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const;
     void BuildRenderPasses();
     void AnalyzeResourceLifetimes();
+    void DebugPrintLifetimes();
     void ExecutePasses();
     void ResetResourceStates();
     void TransitionPassResources(const RenderPass &pass);
