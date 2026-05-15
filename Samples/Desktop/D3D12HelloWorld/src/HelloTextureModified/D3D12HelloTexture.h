@@ -212,6 +212,7 @@ class D3D12HelloTexture : public DXSample
     std::vector<ComPtr<ID3D12Resource>> m_texture;
 
     UINT m_vertexCountPerInstance;
+    int m_maxVisibleCubeCount = static_cast<int>(kInstanceCount);
 
     ComPtr<ID3D12Resource> m_materialBuffer;
     Material *pMaterialDataBegin = nullptr;
@@ -334,6 +335,7 @@ class D3D12HelloTexture : public DXSample
     void CollectGarbageTransientResources();
 
     void UpdateImGui();
+    UINT GetVisibleCubeCount() const;
 
     void BeginFrame();
     void RecordClear();
