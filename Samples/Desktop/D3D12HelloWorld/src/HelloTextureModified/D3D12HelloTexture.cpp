@@ -518,9 +518,9 @@ void D3D12HelloTexture::LoadAssets()
         srvDesc.Buffer.NumElements = kInstanceCount;
         srvDesc.Buffer.StructureByteStride = sizeof(InstanceData);
 
-        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
-        m_descriptorHeapAllocator.Alloc(&cpuHandle);
-        m_device->CreateShaderResourceView(m_frameResources[n].instanceBuffer.Get(), &srvDesc, cpuHandle);
+        m_frameResources[n].instanceBufferSrv = m_descriptorHeapAllocator.AllocWithHandle();
+        m_device->CreateShaderResourceView(m_frameResources[n].instanceBuffer.Get(), &srvDesc,
+                                           m_frameResources[n].instanceBufferSrv.cpu);
 
         m_frameResources[n].instanceBuffer->Map(0, nullptr,
                                                 reinterpret_cast<void **>(&m_frameResources[n].pSrvDataBegin));
@@ -541,9 +541,9 @@ void D3D12HelloTexture::LoadAssets()
         srvDesc.Buffer.NumElements = kMaterialCount;
         srvDesc.Buffer.StructureByteStride = sizeof(Material);
 
-        D3D12_CPU_DESCRIPTOR_HANDLE handle;
-        m_descriptorHeapAllocator.Alloc(&handle);
-        m_device->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, handle);
+        m_materialBufferSrv = m_descriptorHeapAllocator.AllocWithHandle();
+        m_device->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, m_materialBufferSrv.cpu);
+        Material *pMaterialDataBegin = nullptr;
         m_materialBuffer->Map(0, nullptr, reinterpret_cast<void **>(&pMaterialDataBegin));
         memcpy(pMaterialDataBegin, m_materialData.data(), materialBufferSize);
         m_materialBuffer->Unmap(0, nullptr);
@@ -570,9 +570,8 @@ void D3D12HelloTexture::LoadAssets()
         cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
         cbvDesc.SizeInBytes = constantBufferSize;
 
-        D3D12_CPU_DESCRIPTOR_HANDLE handle;
-        m_descriptorHeapAllocator.Alloc(&handle);
-        m_device->CreateConstantBufferView(&cbvDesc, handle);
+        m_constantBufferCbv = m_descriptorHeapAllocator.AllocWithHandle();
+        m_device->CreateConstantBufferView(&cbvDesc, m_constantBufferCbv.cpu);
 
         // Map and initialize the constant buffer. We don't unmap this until the
         // app closes. Keeping things mapped for the lifetime of the resource is okay.
@@ -641,17 +640,16 @@ void D3D12HelloTexture::InitImGui()
 
 UINT D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource *texture)
 {
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
-    UINT index = m_descriptorHeapAllocator.Alloc(&cpuHandle);
+    DescriptorHeapHandle handle = m_descriptorHeapAllocator.AllocWithHandle();
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = texture->GetDesc().Format;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Texture2D.MipLevels = 1;
-    m_device->CreateShaderResourceView(texture, &srvDesc, cpuHandle);
+    m_device->CreateShaderResourceView(texture, &srvDesc, handle.cpu);
 
-    return index; // ← これがGPUで使うID
+    return handle.Index; // ← これがGPUで使うID
 }
 
 // Generate a simple black and white checkerboard texture.
@@ -927,10 +925,7 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::Render();
 }
 
-UINT D3D12HelloTexture::GetVisibleCubeCount() const
-{
-    return static_cast<UINT>(m_maxVisibleCubeCount);
-}
+UINT D3D12HelloTexture::GetVisibleCubeCount() const { return static_cast<UINT>(m_maxVisibleCubeCount); }
 
 // Render the scene.
 void D3D12HelloTexture::OnRender()
@@ -1146,13 +1141,6 @@ void D3D12HelloTexture::DebugPrintLifetimes()
 
 void D3D12HelloTexture::ExecutePasses()
 {
-#if 0
-    for (const RenderPass &pass : m_renderPasses)
-    {
-        TransitionPassResources(pass);
-        pass.execute();
-    }
-#else
     for (int passIndex = 0; passIndex < static_cast<int>(m_renderPasses.size()); ++passIndex)
     {
         CreateResourcesForPass(passIndex);
@@ -1163,7 +1151,6 @@ void D3D12HelloTexture::ExecutePasses()
 
         ReleaseResourcesAfterPass(passIndex);
     }
-#endif
 }
 
 void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
@@ -1370,29 +1357,15 @@ void D3D12HelloTexture::BeginFrame()
     m_commandList->SetGraphicsRootDescriptorTable(0, m_heap->GetGPUDescriptorHandleForHeapStart());
 
     // instance buffer SRV is at descriptor TextureCount
-    CD3DX12_GPU_DESCRIPTOR_HANDLE handle(m_heap->GetGPUDescriptorHandleForHeapStart());
-    handle.Offset(kTextureCount + m_frameIndex, m_descriptorSize);
-    m_commandList->SetGraphicsRootDescriptorTable(1, handle);
+    m_commandList->SetGraphicsRootDescriptorTable(1, m_frameResources[m_frameIndex].instanceBufferSrv.gpu);
 
-    // material buffer SRV is at descriptor TextureCount + FrameCount
-    CD3DX12_GPU_DESCRIPTOR_HANDLE handle2(m_heap->GetGPUDescriptorHandleForHeapStart());
-    handle2.Offset(kTextureCount + 2, m_descriptorSize);
-    m_commandList->SetGraphicsRootDescriptorTable(2, handle2);
+    m_commandList->SetGraphicsRootDescriptorTable(2, m_materialBufferSrv.gpu);
 
-    // constant buffer is at descriptor TextureCount + FrameCount + 1
-    CD3DX12_GPU_DESCRIPTOR_HANDLE handle3(m_heap->GetGPUDescriptorHandleForHeapStart());
-    handle3.Offset(kTextureCount + 3, m_descriptorSize);
-    m_commandList->SetGraphicsRootDescriptorTable(3, handle3);
+    m_commandList->SetGraphicsRootDescriptorTable(3, m_constantBufferCbv.gpu);
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
-#if 0
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex,
-                                            m_rtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-#endif
     m_gpuWorkMeter.StartGpu(m_commandList.Get(), m_frameResources[m_frameIndex].gpuWorkMeterCheckPoints);
 }
 

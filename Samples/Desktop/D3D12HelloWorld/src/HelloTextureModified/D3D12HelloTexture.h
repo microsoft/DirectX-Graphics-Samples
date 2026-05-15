@@ -171,6 +171,7 @@ class D3D12HelloTexture : public DXSample
     {
         ComPtr<ID3D12CommandAllocator> commandAllocator;
         ComPtr<ID3D12Resource> instanceBuffer;
+        DescriptorHeapHandle instanceBufferSrv;
         InstanceData *pSrvDataBegin = nullptr;
         UINT64 fenceValue = 0;
         std::vector<MyDx12Util::GpuWorkMeter::CheckPoint> gpuWorkMeterCheckPoints;
@@ -200,10 +201,8 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
-    UINT m_nextFrameIndex = 0;
 
     UINT m_texIndex[kTextureCount] = {};
-    UINT m_nextFreeIndex = 0;
 
     std::vector<InstanceData> m_instanceData;
     std::vector<InstanceDataForCPU> m_instanceDataForCPU;
@@ -218,15 +217,15 @@ class D3D12HelloTexture : public DXSample
     int m_maxVisibleCubeCount = static_cast<int>(kInstanceCount);
 
     ComPtr<ID3D12Resource> m_materialBuffer;
-    Material *pMaterialDataBegin = nullptr;
+    DescriptorHeapHandle m_materialBufferSrv;
 
     std::vector<CameraForCPU> m_camerasForCPU;
     ComPtr<ID3D12Resource> m_constantBuffer;
+    DescriptorHeapHandle m_constantBufferCbv;
     UINT8 *m_pCbvDataBegin;
     ConstantBuffer m_constantBufferData;
 
     std::chrono::steady_clock::time_point m_prevTime;
-    UINT m_texIndexId = 0;
 
     // Synchronization objects.
     UINT m_fremeIndexPrevious;
