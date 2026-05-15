@@ -145,7 +145,7 @@ void D3D12HelloTexture::LoadPipeline()
         heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_heap)));
         // Create a descriptor allocator to manage the descriptors in the heap.
-        m_descriptorHeapAllocator.Create(m_device.Get(), m_heap.Get());
+        m_descriptorHeapAllocator.Init(m_device.Get(), m_heap.Get());
 
         m_descriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
@@ -426,6 +426,7 @@ void D3D12HelloTexture::LoadAssets()
 
         for (int i = 0; i < kTextureCount; i++)
         {
+            // Create the GPU resource for the texture.
             ThrowIfFailed(m_device->CreateCommittedResource(
                 &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &textureDesc,
                 D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_texture[i])));
@@ -442,11 +443,11 @@ void D3D12HelloTexture::LoadAssets()
         // Copy data to the intermediate upload heap and then schedule a copy
         // from the upload heap to the Texture2D.
 
-        // CPUにはTextureTypesだけTextureをつくる
+        // CPUにはkTextureTypesの数だけTextureをつくる
         std::vector<std::vector<UINT8>> texture(kTextureTypes);
         for (int i = 0; i < kTextureTypes; i++)
         {
-            texture[i] = GenerateTextureData();
+            texture[i] = GenerateCheckerboardTextureData(); // randomな色のチェッカーボードテクスチャデータを生成
         }
 
         for (int i = 0; i < kTextureCount; i++)
@@ -647,7 +648,7 @@ UINT D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource *texture)
 }
 
 // Generate a simple black and white checkerboard texture.
-std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
+std::vector<UINT8> D3D12HelloTexture::GenerateCheckerboardTextureData()
 {
     const UINT rowPitch = kTextureWidth * kTexturePixelSize;
     const UINT cellPitch = rowPitch >> 3;       // The width of a cell in the checkboard texture.
@@ -1175,8 +1176,7 @@ void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
         if (tr.state == TransientResourceState::Created)
             continue;
 
-        if (tr.state == TransientResourceState::PendingRelease1 ||
-            tr.state == TransientResourceState::PendingRelease2)
+        if (tr.state == TransientResourceState::PendingRelease1 || tr.state == TransientResourceState::PendingRelease2)
         {
             tr.retireFenceValue = 0;
             tr.state = TransientResourceState::Created;

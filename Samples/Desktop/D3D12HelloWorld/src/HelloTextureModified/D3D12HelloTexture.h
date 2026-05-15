@@ -313,7 +313,7 @@ class D3D12HelloTexture : public DXSample
     void CreateDepthStencil(UINT width, UINT height);
     void RegisterDepthStencil(UINT width, UINT height);
 
-    std::vector<UINT8> GenerateTextureData();
+    std::vector<UINT8> GenerateCheckerboardTextureData();
     void PopulateCommandList();
 
     void AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes, std::function<void()> execute);
