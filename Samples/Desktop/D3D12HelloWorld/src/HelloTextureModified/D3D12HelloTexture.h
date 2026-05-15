@@ -49,18 +49,17 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kTextureHeight = 256;
     static constexpr UINT kTexturePixelSize = 4; // The number of bytes used to represent a pixel in the texture.
 
-    static constexpr UINT kHeapDescriptorCount = 1124;
+    static constexpr UINT kMainHeapDescriptorCount = 1024;
     // 0 - 1019 : Texture
     // 1020, 1021 : instanceBuffer
     // 1022 : material buffer
     // 1023 : constant buffer
-    // 1024 - 1123 : ImGui
+
+    static constexpr UINT kHeapDescriptorCount = 100;
+    // 0 - 99 : ImGui (new)
 
     static constexpr UINT kTextureCount = 1020;
     static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
-
-    static constexpr UINT kImGuiDescriptorStart = 1024;
-    static constexpr UINT kImguiDescriptorNum = 100;
 
     static constexpr float kTranslationSpeed = 0.005f;
     static constexpr float kPI = 3.141592f;
@@ -188,8 +187,12 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
+
     ComPtr<ID3D12DescriptorHeap> m_heap;                     // CBV/SRV/UAV heap
     SimpleDescriptorHeapAllocator m_descriptorHeapAllocator; // Allocator for CBV/SRV/UAV heap
+
+    ComPtr<ID3D12DescriptorHeap> m_imguiHeap;
+    SimpleDescriptorHeapAllocator m_ImGuiDescriptorHeapAllocator;
 
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12PipelineState> m_depthPrePassPSO;
@@ -314,7 +317,7 @@ class D3D12HelloTexture : public DXSample
     void CreateDepthStencil(UINT width, UINT height);
     void RegisterDepthStencil(UINT width, UINT height);
 
-    std::vector<UINT8> GenerateTextureData();
+    std::vector<UINT8> GenerateCheckerboardTextureData();
     void PopulateCommandList();
 
     void AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes, std::function<void()> execute);
