@@ -165,7 +165,9 @@ void D3D12HelloTexture::LoadPipeline()
 
     // Create the depth stencil view.
     {
-        CreateDepthStencil(m_width, m_height);
+        //        CreateDepthStencil(m_width, m_height);
+        CreateDsvHeap();
+        RegisterDepthStencil(m_width, m_height);
     }
 
     // create command allocators.
@@ -687,6 +689,46 @@ std::vector<UINT8> D3D12HelloTexture::GenerateTextureData()
     return data;
 }
 
+void D3D12HelloTexture::CreateDsvHeap()
+{
+    if (m_dsvHeap)
+        return;
+
+    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+    dsvHeapDesc.NumDescriptors = 1;
+    dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+    ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+}
+
+void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
+{
+    TransientResource r;
+
+    r.state = TransientResourceState::Initialized;
+    r.name = kDepthStencilResourceName;
+    r.persistent = true;
+
+    r.desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    r.desc.Width = width;
+    r.desc.Height = height;
+    r.desc.DepthOrArraySize = 1;
+    r.desc.MipLevels = 1;
+    r.desc.Format = DXGI_FORMAT_D32_FLOAT;
+    r.desc.SampleDesc.Count = 1;
+    r.desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    r.desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    r.clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+    r.clearValue.DepthStencil.Depth = 1.0f;
+    r.clearValue.DepthStencil.Stencil = 0;
+
+    r.initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+
+    m_transientResources[kDepthStencilResourceName] = std::move(r);
+}
+
 void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
 {
     // Release if DS exist
@@ -834,6 +876,47 @@ void D3D12HelloTexture::OnUpdate()
     PIXEndEvent();
 }
 
+void D3D12HelloTexture::UpdateImGui()
+{
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+    ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Debug");
+
+    ImGui::Text("Hello ImGui");
+    ImGui::Text("FrameIndex: %d", m_frameIndex);
+    ImGui::SliderFloat("Camera FovH", &m_camerasForCPU[0].fov, 20.f, 150.f);
+
+    ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
+
+    {
+        auto &gpuCeckPoints = m_frameResources[m_fremeIndexPrevious].gpuWorkMeterCheckPoints;
+        size_t gpuCheckPointCount = gpuCeckPoints.size();
+
+        if (gpuCheckPointCount >= 2)
+        {
+
+            for (int i = 1; i < gpuCheckPointCount; i++)
+            {
+                auto &checkPoint = gpuCeckPoints[i];
+
+                if (i < gpuCheckPointCount - 1)
+                {
+                    float timeFromPrevious = checkPoint.timeStamp - gpuCeckPoints[i - 1].timeStamp;
+                    ImGui::Text("GPU[%d] %s: %f ms", i, checkPoint.name.c_str(), timeFromPrevious);
+                }
+                else
+                {
+                    ImGui::Text("GPU[%d] Total: %f ms", i, checkPoint.timeStamp);
+                }
+            }
+        }
+    }
+    ImGui::End();
+    ImGui::Render();
+}
+
 // Render the scene.
 void D3D12HelloTexture::OnRender()
 {
@@ -841,45 +924,7 @@ void D3D12HelloTexture::OnRender()
 
     // ImGui frame update
 #if IMGUI_IMPL > 0
-    {
-        ImGui_ImplDX12_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
-        ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Debug");
-
-        ImGui::Text("Hello ImGui");
-        ImGui::Text("FrameIndex: %d", m_frameIndex);
-        ImGui::SliderFloat("Camera FovH", &m_camerasForCPU[0].fov, 20.f, 150.f);
-
-        ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
-
-        {
-            auto &gpuCeckPoints = m_frameResources[m_fremeIndexPrevious].gpuWorkMeterCheckPoints;
-            size_t gpuCheckPointCount = gpuCeckPoints.size();
-
-            if (gpuCheckPointCount >= 2)
-            {
-
-                for (int i = 1; i < gpuCheckPointCount; i++)
-                {
-                    auto &checkPoint = gpuCeckPoints[i];
-
-                    if (i < gpuCheckPointCount - 1)
-                    {
-                        float timeFromPrevious = checkPoint.timeStamp - gpuCeckPoints[i - 1].timeStamp;
-                        ImGui::Text("GPU[%d] %s: %f ms", i, checkPoint.name.c_str(), timeFromPrevious);
-                    }
-                    else
-                    {
-                        ImGui::Text("GPU[%d] Total: %f ms", i, checkPoint.timeStamp);
-                    }
-                }
-            }
-        }
-        ImGui::End();
-        ImGui::Render();
-    }
+    UpdateImGui();
 #endif
 
     // Record all the commands we need to render the scene into the command list.
@@ -892,7 +937,12 @@ void D3D12HelloTexture::OnRender()
     // Present the frame.
     ThrowIfFailed(m_swapChain->Present(1, 0));
 
-    MoveToNextFrame();
+    UINT64 submittedFenceValue = MoveToNextFrame();
+
+    // submittedFenceValue = 今回SubmitしたCommandListが完了したことを示すFence値
+    MarkPendingTransientResources(submittedFenceValue);
+
+    CollectGarbageTransientResources();
 
     m_gpuWorkMeter.ReadbackData(m_commandQueue.Get());
 
@@ -965,8 +1015,9 @@ void D3D12HelloTexture::Resize(UINT width, UINT height)
         }
     }
 
-    // Depth再生成
-    CreateDepthStencil(m_width, m_height);
+    m_depthStencil.Reset();
+    m_transientResources.erase(kDepthStencilResourceName);
+    RegisterDepthStencil(m_width, m_height);
 
     // Camera
     m_camerasForCPU[0].aspect = static_cast<float>(m_width) / static_cast<float>(m_height);
@@ -999,7 +1050,7 @@ void D3D12HelloTexture::PopulateCommandList()
     ResetResourceStates();
     BuildRenderPasses();
     AnalyzeResourceLifetimes();
-    DebugPrintLifetimes();
+    // DebugPrintLifetimes();
     ExecutePasses();
     EndFrame();
 
@@ -1080,10 +1131,157 @@ void D3D12HelloTexture::DebugPrintLifetimes()
 
 void D3D12HelloTexture::ExecutePasses()
 {
+#if 0
     for (const RenderPass &pass : m_renderPasses)
     {
         TransitionPassResources(pass);
         pass.execute();
+    }
+#else
+    for (int passIndex = 0; passIndex < static_cast<int>(m_renderPasses.size()); ++passIndex)
+    {
+        CreateResourcesForPass(passIndex);
+
+        const RenderPass &pass = m_renderPasses[passIndex];
+        TransitionPassResources(pass);
+        pass.execute();
+
+        ReleaseResourcesAfterPass(passIndex);
+    }
+#endif
+}
+
+void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
+{
+    for (auto &[name, lt] : m_resourceLifetimes)
+    {
+        if (lt.firstPass != passIndex)
+            continue;
+
+        if (name == kBackBufferResourceName)
+            continue;
+
+        if (!m_transientResources.contains(name))
+            continue;
+
+        auto &tr = m_transientResources.at(name);
+        if (tr.state == TransientResourceState::Uninitialized)
+        {
+            assert(false && "Transient resource must be registered before use.");
+            DBG_PRINT("Resource %s is uninitialized.\n", name.c_str());
+            continue;
+        }
+
+        if (tr.state == TransientResourceState::Created)
+            continue;
+
+        if (tr.state == TransientResourceState::PendingRelease1 ||
+            tr.state == TransientResourceState::PendingRelease2)
+        {
+            tr.retireFenceValue = 0;
+            tr.state = TransientResourceState::Created;
+            DBG_PRINT("Resource %s reused before release.\n", name.c_str());
+            continue;
+        }
+
+        if (tr.state != TransientResourceState::Initialized)
+            continue;
+
+        ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                                                        D3D12_HEAP_FLAG_NONE, &tr.desc, tr.initialState, &tr.clearValue,
+                                                        IID_PPV_ARGS(&tr.resource)));
+
+        tr.state = TransientResourceState::Created;
+
+        if (name == kDepthStencilResourceName)
+        {
+            m_depthStencil = tr.resource;
+            m_device->CreateDepthStencilView(m_depthStencil.Get(), nullptr,
+                                             m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+        }
+        else
+        {
+            assert(false && "Unsupported resource in CreateResourceForPass()");
+        }
+
+        DBG_PRINT("Resource %s created.\n", name.c_str());
+    }
+}
+
+void D3D12HelloTexture::ReleaseResourcesAfterPass(int passIndex)
+{
+    for (auto &[name, lt] : m_resourceLifetimes)
+    {
+        if (lt.lastPass != passIndex)
+            continue;
+
+        // lastPassなら解放してよい。
+        if (name == kBackBufferResourceName) // BackBufferは決して解放しない
+            continue;
+
+        if (!m_transientResources.contains(name))
+            continue;
+
+        // TransientResouceを取得できた。
+        auto &tr = m_transientResources.at(name);
+
+        if (tr.state == TransientResourceState::Uninitialized)
+        {
+            assert(false && "Transient resource must be registered before release.");
+            DBG_PRINT("Resource %s is uninitialized.\n", name.c_str());
+            continue;
+        }
+
+        if (tr.persistent)
+            continue;
+
+        if (tr.state != TransientResourceState::Created)
+            continue;
+
+        // ここではGPU fence値がまだ確定していないので、
+        // 「このフレーム終了後に解放候補」とだけ記録する。
+        tr.state = TransientResourceState::PendingRelease1;
+
+        DBG_PRINT("Resource %s endOfLife.\n", name.c_str());
+    }
+}
+
+void D3D12HelloTexture::MarkPendingTransientResources(UINT64 fenceValue)
+{
+    for (auto &[name, tr] : m_transientResources)
+    {
+        if (tr.state != TransientResourceState::PendingRelease1)
+            continue;
+
+        tr.retireFenceValue = fenceValue;
+        tr.state = TransientResourceState::PendingRelease2;
+
+        DBG_PRINT("Resource %s waitFenceValue.\n", name.c_str(), tr.retireFenceValue);
+    }
+}
+
+void D3D12HelloTexture::CollectGarbageTransientResources()
+{
+    const UINT64 completed = m_fence->GetCompletedValue();
+
+    for (auto &[name, tr] : m_transientResources)
+    {
+        if (tr.state != TransientResourceState::PendingRelease2)
+            continue;
+
+        if (completed < tr.retireFenceValue)
+            continue;
+
+        if (name == kDepthStencilResourceName)
+        {
+            m_depthStencil.Reset();
+        }
+
+        tr.resource.Reset();
+        tr.retireFenceValue = 0;
+        tr.state = TransientResourceState::Initialized;
+
+        DBG_PRINT("Resource %s released.\n", name.c_str());
     }
 }
 
@@ -1174,13 +1372,13 @@ void D3D12HelloTexture::BeginFrame()
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
-
+#if 0
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex,
                                             m_rtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-
+#endif
     m_gpuWorkMeter.StartGpu(m_commandList.Get(), m_frameResources[m_frameIndex].gpuWorkMeterCheckPoints);
 }
 
@@ -1241,14 +1439,10 @@ void D3D12HelloTexture::RecordImGuiPass()
 {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex,
                                             m_rtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
 #if IMGUI_IMPL > 0
-    //
-    // ImGui
-    //
     {
-        m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+        m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
         m_commandList->RSSetViewports(1, &m_viewport);
         m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
@@ -1273,7 +1467,7 @@ void D3D12HelloTexture::EndFrame()
 // Wait for pending GPU work to complete.
 void D3D12HelloTexture::WaitForGpu()
 {
-    PIXBeginEvent(3, L"MoveToNextFrame");
+    PIXBeginEvent(3, L"WaitForGpu");
 
     // Schedule a Signal command in the queue.
     ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_frameResources[m_frameIndex].fenceValue));
@@ -1303,7 +1497,7 @@ void D3D12HelloTexture::FlushGpu()
 }
 
 // Prepare to render the next frame.
-void D3D12HelloTexture::MoveToNextFrame()
+UINT64 D3D12HelloTexture::MoveToNextFrame()
 {
     PIXBeginEvent(2, L"MoveToNextFrame");
 
@@ -1328,4 +1522,6 @@ void D3D12HelloTexture::MoveToNextFrame()
     m_frameResources[m_frameIndex].fenceValue = currentFenceValue + 1;
 
     PIXEndEvent();
+
+    return currentFenceValue;
 }

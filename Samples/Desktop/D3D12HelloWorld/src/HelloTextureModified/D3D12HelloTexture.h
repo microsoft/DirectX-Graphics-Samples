@@ -1,4 +1,4 @@
-//*********************************************************
+﻿//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -261,9 +261,37 @@ class D3D12HelloTexture : public DXSample
         int lastPass = -1;
     };
 
+    enum class TransientResourceState
+    {
+        Uninitialized,   // Just instanced but not yet registered.
+        Initialized,     // resource is not assigned and only set descriptor and clearValue, etc.
+        Created,         // resource is assigned and being used by a pass
+        PendingRelease1, // Waiting for retireFeceValue to be set, which indicates when the GPU will finish using this
+                         // resource.
+        PendingRelease2  // GPU has reached retireFenceValue, waiting for resource to be safe to destroy
+    };
+
+    struct TransientResource
+    {
+        TransientResourceState state = TransientResourceState::Uninitialized;
+
+        std::string name;
+        D3D12_RESOURCE_DESC desc = {};
+        D3D12_CLEAR_VALUE clearValue = {};
+        D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
+
+        ComPtr<ID3D12Resource> resource;
+
+        bool persistent = false;
+        UINT64 retireFenceValue = 0;
+        bool pendingRelease = false; // false : waiting for settign retireFenceValue
+        bool retired = false;        // false : waiting for GPU fence
+    };
+
     using ResourceUsageMap = std::unordered_map<std::string, ResourceUsage>;
     using ResourceStateMap = std::unordered_map<std::string, D3D12_RESOURCE_STATES>;
     using ResourceLifetimeMap = std::unordered_map<std::string, ResourceLifetime>;
+    using TransientResourceMap = std::unordered_map<std::string, TransientResource>;
 
     struct RenderPass
     {
@@ -276,12 +304,14 @@ class D3D12HelloTexture : public DXSample
     std::vector<RenderPass> m_renderPasses;
     ResourceStateMap m_resourceStates; // Current state per named resource.
     ResourceLifetimeMap m_resourceLifetimes;
+    TransientResourceMap m_transientResources;
 
     void LoadPipeline();
     void LoadAssets();
     void InitImGui();
 
     void CreateDepthStencil(UINT width, UINT height);
+    void RegisterDepthStencil(UINT width, UINT height);
 
     std::vector<UINT8> GenerateTextureData();
     void PopulateCommandList();
@@ -292,11 +322,18 @@ class D3D12HelloTexture : public DXSample
     void AnalyzeResourceLifetimes();
     void DebugPrintLifetimes();
     void ExecutePasses();
+    void CreateResourcesForPass(int passIndex);
+    void CreateDsvHeap();
+    void ReleaseResourcesAfterPass(int passIndex);
     void ResetResourceStates();
     void TransitionPassResources(const RenderPass &pass);
     void TransitionResource(const ResourceUsage &usage);
     D3D12_RESOURCE_STATES GetResourceState(const std::string &name) const;
     void SetResourceState(const std::string &name, D3D12_RESOURCE_STATES state);
+    void MarkPendingTransientResources(UINT64 fenceValue);
+    void CollectGarbageTransientResources();
+
+    void UpdateImGui();
 
     void BeginFrame();
     void RecordClear();
@@ -308,7 +345,7 @@ class D3D12HelloTexture : public DXSample
     void Resize(UINT width, UINT height);
 
     void WaitForGpu();
-    void MoveToNextFrame();
+    UINT64 MoveToNextFrame();
     void FlushGpu();
 
     UINT AllocateTextureSRV(ID3D12Resource *texture);
