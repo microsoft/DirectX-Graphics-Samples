@@ -140,12 +140,19 @@ void D3D12HelloTexture::LoadPipeline()
 
         // Describe and create a heap for SRV/CBV/UAV
         D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-        heapDesc.NumDescriptors = kHeapDescriptorCount;
+        heapDesc.NumDescriptors = kMainHeapDescriptorCount;
         heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_heap)));
         // Create a descriptor allocator to manage the descriptors in the heap.
         m_descriptorHeapAllocator.Init(m_device.Get(), m_heap.Get());
+
+        D3D12_DESCRIPTOR_HEAP_DESC imguiHeapDesc = {};
+        imguiHeapDesc.NumDescriptors = kHeapDescriptorCount;
+        imguiHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        imguiHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&imguiHeapDesc, IID_PPV_ARGS(&m_imguiHeap)));
+        m_ImGuiDescriptorHeapAllocator.Init(m_device.Get(), m_imguiHeap.Get());
 
         m_descriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
@@ -603,7 +610,7 @@ static SimpleDescriptorHeapAllocator *g_allocator = nullptr;
 void D3D12HelloTexture::InitImGui()
 {
 #if IMGUI_IMPL > 0
-    g_allocator = &m_descriptorHeapAllocator;
+    g_allocator = &m_ImGuiDescriptorHeapAllocator;
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -621,7 +628,7 @@ void D3D12HelloTexture::InitImGui()
     init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
     // Allocating SRV descriptors (for textures) is up to the application, so we provide callbacks.
     // (current version of the backend will only allocate one descriptor, future versions will need to allocate more)
-    init_info.SrvDescriptorHeap = m_heap.Get();
+    init_info.SrvDescriptorHeap = m_imguiHeap.Get();
     init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo *, D3D12_CPU_DESCRIPTOR_HANDLE *out_cpu_handle,
                                         D3D12_GPU_DESCRIPTOR_HANDLE *out_gpu_handle)
     { g_allocator->Alloc(out_cpu_handle, out_gpu_handle); };
@@ -1446,8 +1453,8 @@ void D3D12HelloTexture::RecordImGuiPass()
         m_commandList->RSSetViewports(1, &m_viewport);
         m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
-        ID3D12DescriptorHeap *heaps[] = {m_heap.Get()};
-        m_commandList->SetDescriptorHeaps(_countof(heaps), heaps);
+        ID3D12DescriptorHeap *imguiHeaps[] = {m_imguiHeap.Get()};
+        m_commandList->SetDescriptorHeaps(1, imguiHeaps);
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
     }
 #endif
