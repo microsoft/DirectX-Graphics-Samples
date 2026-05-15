@@ -50,10 +50,11 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kTexturePixelSize = 4; // The number of bytes used to represent a pixel in the texture.
 
     static constexpr UINT kMainHeapDescriptorCount = 1024;
-    // 0 - 1019 : Texture
-    // 1020, 1021 : instanceBuffer
-    // 1022 : material buffer
-    // 1023 : constant buffer
+    // 0 ... (kTextureCount-1)   : Texture buffers
+    // kTextureCount             : instanceBuffer[0]
+    // kTextureCount+1           : instanceBuffer[1]
+    // kTextureCount+2           : material buffer
+    // kTextureCount+3           : constant buffer
 
     static constexpr UINT kHeapDescriptorCount = 100;
     // 0 - 99 : ImGui (new)
@@ -202,6 +203,7 @@ class D3D12HelloTexture : public DXSample
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
 
+    DescriptorHeapHandle m_textureTableStart;
     UINT m_texIndex[kTextureCount] = {};
 
     std::vector<InstanceData> m_instanceData;
@@ -296,11 +298,18 @@ class D3D12HelloTexture : public DXSample
     using ResourceLifetimeMap = std::unordered_map<std::string, ResourceLifetime>;
     using TransientResourceMap = std::unordered_map<std::string, TransientResource>;
 
+    struct PassDescriptorBinding
+    {
+        UINT rootParameterIndex;
+        DescriptorHeapHandle handle;
+    };
+
     struct RenderPass
     {
         const wchar_t *name;
         ResourceUsageMap reads;
         ResourceUsageMap writes;
+        std::vector<PassDescriptorBinding> descriptorBindings;
         std::function<void()> execute;
     };
 
@@ -319,7 +328,8 @@ class D3D12HelloTexture : public DXSample
     std::vector<UINT8> GenerateCheckerboardTextureData();
     void PopulateCommandList();
 
-    void AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes, std::function<void()> execute);
+    void AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes,
+                 std::vector<PassDescriptorBinding> descriptorBindings, std::function<void()> execute);
     ResourceUsageMap MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const;
     void BuildRenderPasses();
     void AnalyzeResourceLifetimes();
@@ -329,8 +339,11 @@ class D3D12HelloTexture : public DXSample
     void CreateDsvHeap();
     void ReleaseResourcesAfterPass(int passIndex);
     void ResetResourceStates();
+
+    void BindPassDescriptors(const RenderPass &pass);
     void TransitionPassResources(const RenderPass &pass);
     void TransitionResource(const ResourceUsage &usage);
+
     D3D12_RESOURCE_STATES GetResourceState(const std::string &name) const;
     void SetResourceState(const std::string &name, D3D12_RESOURCE_STATES state);
     void MarkPendingTransientResources(UINT64 fenceValue);
@@ -352,5 +365,5 @@ class D3D12HelloTexture : public DXSample
     UINT64 MoveToNextFrame();
     void FlushGpu();
 
-    UINT AllocateTextureSRV(ID3D12Resource *texture);
+    DescriptorHeapHandle AllocateTextureSRV(ID3D12Resource *texture);
 };

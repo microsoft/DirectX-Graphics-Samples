@@ -471,7 +471,13 @@ void D3D12HelloTexture::LoadAssets()
                                                          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
             // Describe and create a SRV for the texture.
-            m_texIndex[i] = AllocateTextureSRV(m_texture[i].Get());
+            DescriptorHeapHandle srv = AllocateTextureSRV(m_texture[i].Get());
+            if (i == 0)
+            {
+                m_textureTableStart = srv;
+            }
+
+            m_texIndex[i] = srv.Index - m_textureTableStart.Index;
             DBG_PRINT("Texture %d SRV index: %d\n", i, m_texIndex[i]);
         }
     }
@@ -638,7 +644,7 @@ void D3D12HelloTexture::InitImGui()
 #endif
 }
 
-UINT D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource *texture)
+DescriptorHeapHandle D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource *texture)
 {
     DescriptorHeapHandle handle = m_descriptorHeapAllocator.AllocWithHandle();
 
@@ -649,7 +655,7 @@ UINT D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource *texture)
     srvDesc.Texture2D.MipLevels = 1;
     m_device->CreateShaderResourceView(texture, &srvDesc, handle.cpu);
 
-    return handle.Index; // ← これがGPUで使うID
+    return handle;
 }
 
 // Generate a simple black and white checkerboard texture.
@@ -1074,25 +1080,30 @@ void D3D12HelloTexture::BuildRenderPasses()
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
-            [this]() { RecordClear(); });
+            {}, [this]() { RecordClear(); });
     AddPass(L"Depth PrePass", {},
             MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
-            [this]() { RecordDepthPrePass(); });
+            {}, [this]() { RecordDepthPrePass(); });
     AddPass(L"MainPass",
             MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            {{0, m_textureTableStart.gpu},
+             {1, m_frameResources[m_frameIndex].instanceBufferSrv.gpu},
+             {2, m_materialBufferSrv.gpu},
+             {3, m_constantBufferCbv.gpu}},
             [this]() { RecordMainPass(); });
     AddPass(L"ImGui", {},
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            [this]() { RecordImGuiPass(); });
+            {}, [this]() { RecordImGuiPass(); });
 }
 
 void D3D12HelloTexture::AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes,
-                                std::function<void()> execute)
+                                std::vector<PassDescriptorBinding> descriptorBindings, std::function<void()> execute)
 {
-    m_renderPasses.push_back({name, reads, writes, execute});
+    m_renderPasses.push_back(
+        {name, std::move(reads), std::move(writes), std::move(descriptorBindings), std::move(execute)});
 }
 
 auto D3D12HelloTexture::MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const -> ResourceUsageMap
@@ -1139,6 +1150,14 @@ void D3D12HelloTexture::DebugPrintLifetimes()
     }
 }
 
+void D3D12HelloTexture::BindPassDescriptors(const RenderPass &pass)
+{
+    for (const auto &binding : pass.descriptorBindings)
+    {
+        m_commandList->SetGraphicsRootDescriptorTable(binding.rootParameterIndex, binding.handle.gpu);
+    }
+}
+
 void D3D12HelloTexture::ExecutePasses()
 {
     for (int passIndex = 0; passIndex < static_cast<int>(m_renderPasses.size()); ++passIndex)
@@ -1147,6 +1166,7 @@ void D3D12HelloTexture::ExecutePasses()
 
         const RenderPass &pass = m_renderPasses[passIndex];
         TransitionPassResources(pass);
+        BindPassDescriptors(pass);
         pass.execute();
 
         ReleaseResourcesAfterPass(passIndex);
@@ -1353,14 +1373,9 @@ void D3D12HelloTexture::BeginFrame()
     ID3D12DescriptorHeap *ppHeaps[] = {m_heap.Get()};
     m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-    // texture SRV is at descriptor 0 - (TextureCount-1)
-    m_commandList->SetGraphicsRootDescriptorTable(0, m_heap->GetGPUDescriptorHandleForHeapStart());
-
-    // instance buffer SRV is at descriptor TextureCount
+    m_commandList->SetGraphicsRootDescriptorTable(0, m_textureTableStart.gpu);
     m_commandList->SetGraphicsRootDescriptorTable(1, m_frameResources[m_frameIndex].instanceBufferSrv.gpu);
-
     m_commandList->SetGraphicsRootDescriptorTable(2, m_materialBufferSrv.gpu);
-
     m_commandList->SetGraphicsRootDescriptorTable(3, m_constantBufferCbv.gpu);
 
     m_commandList->RSSetViewports(1, &m_viewport);
