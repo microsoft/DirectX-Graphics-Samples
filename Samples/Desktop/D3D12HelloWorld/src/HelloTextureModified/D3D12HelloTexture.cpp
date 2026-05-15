@@ -881,11 +881,13 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
-    ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(400, 140), ImGuiCond_FirstUseEver);
     ImGui::Begin("Debug");
 
     ImGui::Text("Hello ImGui");
     ImGui::Text("FrameIndex: %d", m_frameIndex);
+    ImGui::SliderInt("Max Visible Cubes", &m_maxVisibleCubeCount, 0, static_cast<int>(kInstanceCount));
+    m_maxVisibleCubeCount = std::clamp(m_maxVisibleCubeCount, 0, static_cast<int>(kInstanceCount));
     ImGui::SliderFloat("Camera FovH", &m_camerasForCPU[0].fov, 20.f, 150.f);
 
     ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
@@ -915,6 +917,11 @@ void D3D12HelloTexture::UpdateImGui()
     }
     ImGui::End();
     ImGui::Render();
+}
+
+UINT D3D12HelloTexture::GetVisibleCubeCount() const
+{
+    return static_cast<UINT>(m_maxVisibleCubeCount);
 }
 
 // Render the scene.
@@ -1409,7 +1416,7 @@ void D3D12HelloTexture::RecordDepthPrePass()
 
     PIXBeginEvent(m_commandList.Get(), 0, L"DepthPrepass");
 
-    m_commandList->DrawInstanced(m_vertexCountPerInstance, kInstanceCount, 0, 0);
+    m_commandList->DrawInstanced(m_vertexCountPerInstance, GetVisibleCubeCount(), 0, 0);
 
     PIXEndEvent(m_commandList.Get());
 
@@ -1430,7 +1437,7 @@ void D3D12HelloTexture::RecordMainPass()
     m_commandList->SetPipelineState(m_pipelineState.Get());
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
-    m_commandList->DrawInstanced(m_vertexCountPerInstance, kInstanceCount, 0, 0);
+    m_commandList->DrawInstanced(m_vertexCountPerInstance, GetVisibleCubeCount(), 0, 0);
     PIXEndEvent(m_commandList.Get());
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Main Pass");
 }
