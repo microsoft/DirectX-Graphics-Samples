@@ -266,6 +266,14 @@ class D3D12HelloTexture : public DXSample
         int lastPass = -1;
     };
 
+    enum RootParameterIndex
+    {
+        RootParam_TextureTable = 0,
+        RootParam_InstanceSrv,
+        RootParam_MaterialSrv,
+        RootParam_ConstantBuffer,
+    };
+
     enum class TransientResourceState
     {
         Uninitialized,   // Just instanced but not yet registered.

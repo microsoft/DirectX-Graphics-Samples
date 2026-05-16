@@ -1083,15 +1083,19 @@ void D3D12HelloTexture::BuildRenderPasses()
             {}, [this]() { RecordClear(); });
     AddPass(L"Depth PrePass", {},
             MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
-            {}, [this]() { RecordDepthPrePass(); });
+            {
+                {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
+                {RootParam_ConstantBuffer, m_constantBufferCbv},
+            },
+            [this]() { RecordDepthPrePass(); });
     AddPass(L"MainPass",
             MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            {{0, m_textureTableStart.gpu},
-             {1, m_frameResources[m_frameIndex].instanceBufferSrv.gpu},
-             {2, m_materialBufferSrv.gpu},
-             {3, m_constantBufferCbv.gpu}},
+            {{RootParam_TextureTable, m_textureTableStart},
+             {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
+             {RootParam_MaterialSrv, m_materialBufferSrv},
+             {RootParam_ConstantBuffer, m_constantBufferCbv}},
             [this]() { RecordMainPass(); });
     AddPass(L"ImGui", {},
             MakeResourceUsageMap(
@@ -1372,11 +1376,6 @@ void D3D12HelloTexture::BeginFrame()
 
     ID3D12DescriptorHeap *ppHeaps[] = {m_heap.Get()};
     m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-
-    m_commandList->SetGraphicsRootDescriptorTable(0, m_textureTableStart.gpu);
-    m_commandList->SetGraphicsRootDescriptorTable(1, m_frameResources[m_frameIndex].instanceBufferSrv.gpu);
-    m_commandList->SetGraphicsRootDescriptorTable(2, m_materialBufferSrv.gpu);
-    m_commandList->SetGraphicsRootDescriptorTable(3, m_constantBufferCbv.gpu);
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
