@@ -238,11 +238,13 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12PipelineState> m_depthPrePassPSO;
     ComPtr<ID3D12PipelineState> m_gbufferPSO;
+    ComPtr<ID3D12PipelineState> m_gbufferDebugPSO;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
+    int m_gbufferDebugTarget = GBuffer::Albedo;
 
     DescriptorHeapHandle m_textureTableStart;
     UINT m_texIndex[kTextureCount] = {};
@@ -293,6 +295,11 @@ class D3D12HelloTexture : public DXSample
 
     static constexpr const char *kBackBufferResourceName = "BackBuffer";
     static constexpr const char *kDepthStencilResourceName = "DepthStencil";
+    static constexpr const char *kGBufferResourceNames[GBuffer::kCount] = {
+        "GBuffer.Albedo",
+        "GBuffer.Normal",
+        "GBuffer.Material",
+    };
 
     struct ResourceUsage
     {
@@ -313,6 +320,7 @@ class D3D12HelloTexture : public DXSample
         RootParam_InstanceSrv,
         RootParam_MaterialSrv,
         RootParam_ConstantBuffer,
+        RootParam_GBufferSrvBase
     };
 
     enum class TransientResourceState
@@ -383,6 +391,7 @@ class D3D12HelloTexture : public DXSample
     void RegisterDepthStencil(UINT width, UINT height);
     D3D12_CPU_DESCRIPTOR_HANDLE GetBackBufferRtv() const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetDepthDsv() const;
+    D3D12_CPU_DESCRIPTOR_HANDLE GetGBufferRTV(UINT index) const;
 
     std::vector<UINT8> GenerateCheckerboardTextureData();
     void PopulateCommandList();
@@ -422,6 +431,8 @@ class D3D12HelloTexture : public DXSample
     void BeginFrame();
     void RecordClear(const PassRenderTargetBinding &renderTargets);
     void RecordDepthPrePass();
+    void RecordGBufferPass(const PassRenderTargetBinding &renderTargets);
+    void RecordGBufferDebugPass();
     void RecordMainPass();
     void RecordImGuiPass();
     void EndFrame();
