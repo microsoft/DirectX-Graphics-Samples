@@ -912,6 +912,7 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::SliderInt("Max Visible Cubes", &m_maxVisibleCubeCount, 0, static_cast<int>(kInstanceCount));
     m_maxVisibleCubeCount = std::clamp(m_maxVisibleCubeCount, 0, static_cast<int>(kInstanceCount));
     ImGui::SliderFloat("Camera FovH", &m_camerasForCPU[0].fov, 20.f, 150.f);
+    ImGui::ColorEdit4("BackBuffer Clear", m_backBufferClearColor.data());
 
     ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
 
@@ -1413,10 +1414,12 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets
     assert(renderTargets.dsv.has_value());
     assert(renderTargets.clearColor.has_value());
 
-    m_commandList->ClearRenderTargetView(renderTargets.rtvs[0], renderTargets.clearColor->data(), 0, nullptr);
+    for (auto rtv : renderTargets.rtvs)
+    {
+        m_commandList->ClearRenderTargetView(rtv, renderTargets.clearColor->data(), 0, nullptr);
+    }
+
     m_commandList->ClearDepthStencilView(renderTargets.dsv.value(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Clear");
 }
@@ -1427,7 +1430,8 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets
 void D3D12HelloTexture::RecordDepthPrePass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"DepthPrepass");
-
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     m_commandList->SetPipelineState(m_depthPrePassPSO.Get());
     m_commandList->DrawInstanced(m_vertexCountPerInstance, GetVisibleCubeCount(), 0, 0);
 
@@ -1442,7 +1446,8 @@ void D3D12HelloTexture::RecordDepthPrePass()
 void D3D12HelloTexture::RecordMainPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"MainPass");
-
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     m_commandList->SetPipelineState(m_pipelineState.Get());
     m_commandList->DrawInstanced(m_vertexCountPerInstance, GetVisibleCubeCount(), 0, 0);
 
