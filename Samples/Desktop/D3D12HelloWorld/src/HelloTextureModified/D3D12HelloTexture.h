@@ -15,10 +15,12 @@
 #include "SimpleDescriptorHeapAllocator.h"
 #include "WorkMeter.h"
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <climits>
 #include <functional>
 #include <initializer_list>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -202,6 +204,7 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
+    std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
 
     DescriptorHeapHandle m_textureTableStart;
     UINT m_texIndex[kTextureCount] = {};
@@ -312,13 +315,21 @@ class D3D12HelloTexture : public DXSample
         DescriptorHeapHandle handle;
     };
 
+    struct PassRenderTargetBinding
+    {
+        std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvs;
+        std::optional<D3D12_CPU_DESCRIPTOR_HANDLE> dsv;
+        std::optional<std::array<float, 4>> clearColor;
+    };
+
     struct RenderPass
     {
         const wchar_t *name;
         ResourceUsageMap reads;
         ResourceUsageMap writes;
         std::vector<PassDescriptorBinding> descriptorBindings;
-        std::function<void()> execute;
+        PassRenderTargetBinding renderTargets;
+        std::function<void(const RenderPass &)> execute;
     };
 
     std::vector<RenderPass> m_renderPasses;
@@ -332,12 +343,15 @@ class D3D12HelloTexture : public DXSample
 
     void CreateDepthStencil(UINT width, UINT height);
     void RegisterDepthStencil(UINT width, UINT height);
+    D3D12_CPU_DESCRIPTOR_HANDLE GetBackBufferRtv() const;
+    D3D12_CPU_DESCRIPTOR_HANDLE GetDepthDsv() const;
 
     std::vector<UINT8> GenerateCheckerboardTextureData();
     void PopulateCommandList();
 
     void AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes,
-                 std::vector<PassDescriptorBinding> descriptorBindings, std::function<void()> execute);
+                 std::vector<PassDescriptorBinding> descriptorBindings, PassRenderTargetBinding renderTargets,
+                 std::function<void(const RenderPass &)> execute);
     ResourceUsageMap MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const;
     void BuildRenderPasses();
     void AnalyzeResourceLifetimes();
@@ -348,6 +362,7 @@ class D3D12HelloTexture : public DXSample
     void ReleaseResourcesAfterPass(int passIndex);
     void ResetResourceStates();
 
+    void BindPassRenderTargets(const RenderPass &pass);
     void BindPassDescriptors(const RenderPass &pass);
     void TransitionPassResources(const RenderPass &pass);
     void TransitionResource(const ResourceUsage &usage);
@@ -361,7 +376,7 @@ class D3D12HelloTexture : public DXSample
     UINT GetVisibleCubeCount() const;
 
     void BeginFrame();
-    void RecordClear();
+    void RecordClear(const PassRenderTargetBinding &renderTargets);
     void RecordDepthPrePass();
     void RecordMainPass();
     void RecordImGuiPass();

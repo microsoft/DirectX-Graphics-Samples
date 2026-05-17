@@ -741,6 +741,17 @@ void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
     m_transientResources[kDepthStencilResourceName] = std::move(r);
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetBackBufferRtv() const
+{
+    CD3DX12_CPU_DESCRIPTOR_HANDLE h(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+    return h;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetDepthDsv() const
+{
+    return m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+}
+
 void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
 {
     // Release if DS exist
@@ -1076,18 +1087,20 @@ void D3D12HelloTexture::PopulateCommandList()
 void D3D12HelloTexture::BuildRenderPasses()
 {
     m_renderPasses.clear();
+
     AddPass(L"Clear", {},
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
-            {}, [this]() { RecordClear(); });
+            {}, {{GetBackBufferRtv()}, GetDepthDsv(), m_backBufferClearColor},
+            [this](const RenderPass &pass) { RecordClear(pass.renderTargets); });
     AddPass(L"Depth PrePass", {},
             MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
             {
                 {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
                 {RootParam_ConstantBuffer, m_constantBufferCbv},
             },
-            [this]() { RecordDepthPrePass(); });
+            {{}, GetDepthDsv()}, [this](const RenderPass &) { RecordDepthPrePass(); });
     AddPass(L"MainPass",
             MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
             MakeResourceUsageMap(
@@ -1096,18 +1109,19 @@ void D3D12HelloTexture::BuildRenderPasses()
              {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
              {RootParam_MaterialSrv, m_materialBufferSrv},
              {RootParam_ConstantBuffer, m_constantBufferCbv}},
-            [this]() { RecordMainPass(); });
+            {{GetBackBufferRtv()}, GetDepthDsv()}, [this](const RenderPass &) { RecordMainPass(); });
     AddPass(L"ImGui", {},
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            {}, [this]() { RecordImGuiPass(); });
+            {}, {{GetBackBufferRtv()}, std::nullopt}, [this](const RenderPass &) { RecordImGuiPass(); });
 }
 
 void D3D12HelloTexture::AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes,
-                                std::vector<PassDescriptorBinding> descriptorBindings, std::function<void()> execute)
+                                std::vector<PassDescriptorBinding> descriptorBindings,
+                                PassRenderTargetBinding renderTargets, std::function<void(const RenderPass &)> execute)
 {
-    m_renderPasses.push_back(
-        {name, std::move(reads), std::move(writes), std::move(descriptorBindings), std::move(execute)});
+    m_renderPasses.push_back({name, std::move(reads), std::move(writes), std::move(descriptorBindings),
+                              std::move(renderTargets), std::move(execute)});
 }
 
 auto D3D12HelloTexture::MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const -> ResourceUsageMap
@@ -1162,6 +1176,15 @@ void D3D12HelloTexture::BindPassDescriptors(const RenderPass &pass)
     }
 }
 
+void D3D12HelloTexture::BindPassRenderTargets(const RenderPass &pass)
+{
+    const D3D12_CPU_DESCRIPTOR_HANDLE *rtvs =
+        pass.renderTargets.rtvs.empty() ? nullptr : pass.renderTargets.rtvs.data();
+    const D3D12_CPU_DESCRIPTOR_HANDLE *dsv = pass.renderTargets.dsv ? &pass.renderTargets.dsv.value() : nullptr;
+
+    m_commandList->OMSetRenderTargets(static_cast<UINT>(pass.renderTargets.rtvs.size()), rtvs, FALSE, dsv);
+}
+
 void D3D12HelloTexture::ExecutePasses()
 {
     for (int passIndex = 0; passIndex < static_cast<int>(m_renderPasses.size()); ++passIndex)
@@ -1170,8 +1193,9 @@ void D3D12HelloTexture::ExecutePasses()
 
         const RenderPass &pass = m_renderPasses[passIndex];
         TransitionPassResources(pass);
+        BindPassRenderTargets(pass);
         BindPassDescriptors(pass);
-        pass.execute();
+        pass.execute(pass);
 
         ReleaseResourcesAfterPass(passIndex);
     }
@@ -1383,15 +1407,14 @@ void D3D12HelloTexture::BeginFrame()
     m_gpuWorkMeter.StartGpu(m_commandList.Get(), m_frameResources[m_frameIndex].gpuWorkMeterCheckPoints);
 }
 
-void D3D12HelloTexture::RecordClear()
+void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets)
 {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex,
-                                            m_rtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+    assert(!renderTargets.rtvs.empty());
+    assert(renderTargets.dsv.has_value());
+    assert(renderTargets.clearColor.has_value());
 
-    const float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    m_commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    m_commandList->ClearRenderTargetView(renderTargets.rtvs[0], renderTargets.clearColor->data(), 0, nullptr);
+    m_commandList->ClearDepthStencilView(renderTargets.dsv.value(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 
@@ -1403,13 +1426,9 @@ void D3D12HelloTexture::RecordClear()
 //
 void D3D12HelloTexture::RecordDepthPrePass()
 {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-
-    m_commandList->SetPipelineState(m_depthPrePassPSO.Get());
-    m_commandList->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle);
-
     PIXBeginEvent(m_commandList.Get(), 0, L"DepthPrepass");
 
+    m_commandList->SetPipelineState(m_depthPrePassPSO.Get());
     m_commandList->DrawInstanced(m_vertexCountPerInstance, GetVisibleCubeCount(), 0, 0);
 
     PIXEndEvent(m_commandList.Get());
@@ -1422,37 +1441,30 @@ void D3D12HelloTexture::RecordDepthPrePass()
 //
 void D3D12HelloTexture::RecordMainPass()
 {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex,
-                                            m_rtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-
     PIXBeginEvent(m_commandList.Get(), 0, L"MainPass");
 
     m_commandList->SetPipelineState(m_pipelineState.Get());
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-
     m_commandList->DrawInstanced(m_vertexCountPerInstance, GetVisibleCubeCount(), 0, 0);
+
     PIXEndEvent(m_commandList.Get());
+
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Main Pass");
 }
 
 void D3D12HelloTexture::RecordImGuiPass()
 {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex,
-                                            m_rtvDescriptorSize);
-
 #if IMGUI_IMPL > 0
     {
-        m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
         m_commandList->RSSetViewports(1, &m_viewport);
         m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
         ID3D12DescriptorHeap *imguiHeaps[] = {m_imguiHeap.Get()};
+
         m_commandList->SetDescriptorHeaps(1, imguiHeaps);
+
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
     }
 #endif
-
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ImGUI");
 }
 
