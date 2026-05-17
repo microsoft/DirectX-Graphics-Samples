@@ -51,18 +51,22 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kTextureHeight = 256;
     static constexpr UINT kTexturePixelSize = 4; // The number of bytes used to represent a pixel in the texture.
 
-    static constexpr UINT kMainHeapDescriptorCount = 1024;
-    // 0 ... (kTextureCount-1)   : Texture buffers
-    // kTextureCount             : instanceBuffer[0]
-    // kTextureCount+1           : instanceBuffer[1]
-    // kTextureCount+2           : material buffer
-    // kTextureCount+3           : constant buffer
+    static constexpr UINT kGBufferCount = 3;
 
     static constexpr UINT kHeapDescriptorCount = 100;
     // 0 - 99 : ImGui (new)
 
     static constexpr UINT kTextureCount = 1020;
     static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
+
+    static constexpr UINT kInstanceBufferCount = kFrameCount;
+    static constexpr UINT kMaterialBufferCount = 1;
+    static constexpr UINT kConstantBufferCount = 1;
+
+    // Descriptor allocation order is tracked by DescriptorHeapHandle.
+    // Current persistent descriptors: GBuffer SRVs, texture table, instance buffers, material buffer, constant buffer.
+    static constexpr UINT kMainHeapDescriptorCount =
+        kTextureCount + kInstanceBufferCount + kMaterialBufferCount + kConstantBufferCount + kGBufferCount;
 
     static constexpr float kTranslationSpeed = 0.005f;
     static constexpr float kPI = 3.141592f;
@@ -180,11 +184,44 @@ class D3D12HelloTexture : public DXSample
         std::vector<MyDx12Util::GpuWorkMeter::CheckPoint> gpuWorkMeterCheckPoints;
     };
 
+    struct GBuffer
+    {
+        static constexpr UINT kCount = kGBufferCount;
+
+        enum Target : UINT
+        {
+            Albedo = 0,
+            Normal = 1,
+            Material = 2,
+        };
+
+        ComPtr<ID3D12Resource> resources[kCount];
+
+        DXGI_FORMAT formats[kCount] = {
+            DXGI_FORMAT_R8G8B8A8_UNORM,     // Albedo
+            DXGI_FORMAT_R16G16B16A16_FLOAT, // Normal
+            DXGI_FORMAT_R8G8B8A8_UNORM,     // Material
+        };
+
+        D3D12_CLEAR_VALUE clearValues[kCount] = {
+            {DXGI_FORMAT_R8G8B8A8_UNORM, {0.0f, 0.0f, 0.0f, 1.0f}},
+            {DXGI_FORMAT_R16G16B16A16_FLOAT, {0.5f, 0.5f, 1.0f, 1.0f}},
+            {DXGI_FORMAT_R8G8B8A8_UNORM, {1.0f, 0.0f, 0.0f, 1.0f}},
+        };
+
+        UINT rtvIndex[kCount] = {};
+        DescriptorHeapHandle srvHandles[kCount];
+    };
+    static constexpr UINT kSwapChainRTVCount = kFrameCount;
+    static constexpr UINT kGBufferRTVBaseIndex = kSwapChainRTVCount;
+    static constexpr UINT kRTVDescriptorCount = kFrameCount + GBuffer::kCount;
+
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12Device> m_device;
+    GBuffer m_gbuffer;
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
@@ -200,6 +237,7 @@ class D3D12HelloTexture : public DXSample
 
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12PipelineState> m_depthPrePassPSO;
+    ComPtr<ID3D12PipelineState> m_gbufferPSO;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
@@ -359,6 +397,12 @@ class D3D12HelloTexture : public DXSample
     void ExecutePasses();
     void CreateResourcesForPass(int passIndex);
     void CreateDsvHeap();
+
+    void CreateGBufferResources();
+    void CreateGBufferRTVs();
+    void CreateGBufferSRVs();
+    void CreateGBuffer();
+
     void ReleaseResourcesAfterPass(int passIndex);
     void ResetResourceStates();
 

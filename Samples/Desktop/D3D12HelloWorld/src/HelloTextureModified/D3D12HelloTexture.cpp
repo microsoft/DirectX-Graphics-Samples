@@ -131,7 +131,7 @@ void D3D12HelloTexture::LoadPipeline()
     {
         // Describe and create a render target view (RTV) descriptor heap.
         D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-        rtvHeapDesc.NumDescriptors = kFrameCount;
+        rtvHeapDesc.NumDescriptors = kRTVDescriptorCount;
         rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
         rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
@@ -172,7 +172,6 @@ void D3D12HelloTexture::LoadPipeline()
 
     // Create the depth stencil view.
     {
-        //        CreateDepthStencil(m_width, m_height);
         CreateDsvHeap();
         RegisterDepthStencil(m_width, m_height);
     }
@@ -277,6 +276,16 @@ void D3D12HelloTexture::LoadAssets()
         ThrowIfFailed(
             ReadDataFromFile(GetAssetFullPath(L"shaders_DepthOnlyVS_VSMain.cso").c_str(), &pDepthVS, &depthVSSize));
 
+        UINT8 *pGBufferVS = nullptr;
+        UINT8 *pGBufferPS = nullptr;
+        UINT gbufferVSSize = 0;
+        UINT gbufferPSSize = 0;
+
+        ThrowIfFailed(
+            ReadDataFromFile(GetAssetFullPath(L"shaders_GBuffer_VSMain.cso").c_str(), &pGBufferVS, &gbufferVSSize));
+        ThrowIfFailed(
+            ReadDataFromFile(GetAssetFullPath(L"shaders_GBuffer_PSMain.cso").c_str(), &pGBufferPS, &gbufferPSSize));
+
         // Define the vertex input layout.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
             {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -307,6 +316,25 @@ void D3D12HelloTexture::LoadAssets()
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
 
         //
+        // GBuffer PSO
+        //
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferPSODesc = psoDesc;
+
+        gbufferPSODesc.VS = CD3DX12_SHADER_BYTECODE(pGBufferVS, gbufferVSSize);
+        gbufferPSODesc.PS = CD3DX12_SHADER_BYTECODE(pGBufferPS, gbufferPSSize);
+
+        gbufferPSODesc.NumRenderTargets = GBuffer::kCount;
+        for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+        {
+            gbufferPSODesc.RTVFormats[i] = DXGI_FORMAT_UNKNOWN;
+        }
+        for (UINT i = 0; i < GBuffer::kCount; ++i)
+        {
+            gbufferPSODesc.RTVFormats[i] = m_gbuffer.formats[i];
+        }
+        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&gbufferPSODesc, IID_PPV_ARGS(&m_gbufferPSO)));
+
+        //
         // Depth PrePass PSO
         //
         D3D12_GRAPHICS_PIPELINE_STATE_DESC depthPSODesc = psoDesc;
@@ -319,6 +347,9 @@ void D3D12HelloTexture::LoadAssets()
         depthPSODesc.NumRenderTargets = 0;                                          // 重要
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&depthPSODesc, IID_PPV_ARGS(&m_depthPrePassPSO)));
     }
+
+    //
+    CreateGBuffer();
 
     // Create the command list.
     ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -714,6 +745,67 @@ void D3D12HelloTexture::CreateDsvHeap()
     ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 }
 
+void D3D12HelloTexture::CreateGBuffer()
+{
+    CreateGBufferResources();
+    CreateGBufferRTVs();
+    CreateGBufferSRVs();
+}
+
+void D3D12HelloTexture::CreateGBufferResources()
+{
+    for (UINT i = 0; i < GBuffer::kCount; ++i)
+    {
+        m_gbuffer.resources[i].Reset();
+
+        D3D12_RESOURCE_DESC desc = {};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        desc.Width = m_width;
+        desc.Height = m_height;
+        desc.DepthOrArraySize = 1;
+        desc.MipLevels = 1;
+        desc.Format = m_gbuffer.formats[i];
+        desc.SampleDesc.Count = 1;
+        desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+        ThrowIfFailed(m_device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_RENDER_TARGET, &m_gbuffer.clearValues[i], IID_PPV_ARGS(&m_gbuffer.resources[i])));
+    }
+}
+
+void D3D12HelloTexture::CreateGBufferRTVs()
+{
+    for (UINT i = 0; i < GBuffer::kCount; ++i)
+    {
+        m_gbuffer.rtvIndex[i] = kGBufferRTVBaseIndex + i;
+
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_gbuffer.rtvIndex[i],
+                                                m_rtvDescriptorSize);
+        m_device->CreateRenderTargetView(m_gbuffer.resources[i].Get(), nullptr, rtvHandle);
+    }
+}
+
+void D3D12HelloTexture::CreateGBufferSRVs()
+{
+    for (UINT i = 0; i < GBuffer::kCount; ++i)
+    {
+        if (m_gbuffer.srvHandles[i].Index == UINT_MAX)
+        {
+            m_gbuffer.srvHandles[i] = m_descriptorHeapAllocator.AllocWithHandle();
+        }
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = m_gbuffer.formats[i];
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Texture2D.MipLevels = 1;
+
+        m_device->CreateShaderResourceView(m_gbuffer.resources[i].Get(), &srvDesc, m_gbuffer.srvHandles[i].cpu);
+    }
+}
+
 void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
 {
     TransientResource r;
@@ -1046,6 +1138,7 @@ void D3D12HelloTexture::Resize(UINT width, UINT height)
     m_depthStencil.Reset();
     m_transientResources.erase(kDepthStencilResourceName);
     RegisterDepthStencil(m_width, m_height);
+    CreateGBuffer();
 
     // Camera
     m_camerasForCPU[0].aspect = static_cast<float>(m_width) / static_cast<float>(m_height);
@@ -1410,6 +1503,7 @@ void D3D12HelloTexture::BeginFrame()
 
 void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets)
 {
+    PIXBeginEvent(m_commandList.Get(), 0, L"ClearPrepass");
     assert(!renderTargets.rtvs.empty());
     assert(renderTargets.dsv.has_value());
     assert(renderTargets.clearColor.has_value());
@@ -1418,9 +1512,9 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets
     {
         m_commandList->ClearRenderTargetView(rtv, renderTargets.clearColor->data(), 0, nullptr);
     }
-
     m_commandList->ClearDepthStencilView(renderTargets.dsv.value(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
+    PIXEndEvent(m_commandList.Get());
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Clear");
 }
 
