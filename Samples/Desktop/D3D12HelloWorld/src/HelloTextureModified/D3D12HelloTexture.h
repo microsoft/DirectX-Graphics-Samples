@@ -103,6 +103,7 @@ class D3D12HelloTexture : public DXSample
     {
         XMFLOAT3 position;
         XMFLOAT2 uv;
+        XMFLOAT3 normal;
     };
 
     struct Material
@@ -200,13 +201,13 @@ class D3D12HelloTexture : public DXSample
         DXGI_FORMAT formats[kCount] = {
             DXGI_FORMAT_R8G8B8A8_UNORM,     // Albedo
             DXGI_FORMAT_R16G16B16A16_FLOAT, // Normal
-            DXGI_FORMAT_R8G8B8A8_UNORM,     // Material
+            DXGI_FORMAT_R32_UINT,           // Material
         };
 
         D3D12_CLEAR_VALUE clearValues[kCount] = {
             {DXGI_FORMAT_R8G8B8A8_UNORM, {0.0f, 0.0f, 0.0f, 1.0f}},
             {DXGI_FORMAT_R16G16B16A16_FLOAT, {0.5f, 0.5f, 1.0f, 1.0f}},
-            {DXGI_FORMAT_R8G8B8A8_UNORM, {1.0f, 0.0f, 0.0f, 1.0f}},
+            {DXGI_FORMAT_R32_UINT, {0.0f, 0.0f, 0.0f, 0.0f}},
         };
 
         UINT rtvIndex[kCount] = {};
@@ -320,7 +321,8 @@ class D3D12HelloTexture : public DXSample
         RootParam_InstanceSrv,
         RootParam_MaterialSrv,
         RootParam_ConstantBuffer,
-        RootParam_GBufferSrvBase
+        RootParam_GBufferSrvBase,
+        RootParam_GBufferDebugConstants
     };
 
     enum class TransientResourceState

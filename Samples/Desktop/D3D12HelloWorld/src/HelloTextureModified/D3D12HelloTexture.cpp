@@ -219,15 +219,15 @@ void D3D12HelloTexture::LoadAssets()
         rangesSRV3[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 /*base*/, 2 /*space*/,
                            D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        // t0 : selected GBuffer SRV: space 3
+        // t0 - t(GBuffer::kCount-1) : GBuffer SRVs: space 3
         CD3DX12_DESCRIPTOR_RANGE1 rangesGBufferSRV[1];
-        rangesGBufferSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 /*base*/, 3 /*space*/,
+        rangesGBufferSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, GBuffer::kCount, 0 /*base*/, 3 /*space*/,
                                  D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
         CD3DX12_DESCRIPTOR_RANGE1 rangesCVB[1];
         rangesCVB[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        CD3DX12_ROOT_PARAMETER1 rootParameters[5];
+        CD3DX12_ROOT_PARAMETER1 rootParameters[6];
         rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL); // Texture SRVs
         rootParameters[1].InitAsDescriptorTable(1, &rangesSRV2[0],
                                                 D3D12_SHADER_VISIBILITY_ALL); // Structured buffer SRV (Instance data)
@@ -237,6 +237,7 @@ void D3D12HelloTexture::LoadAssets()
             1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_VERTEX); // CBV for vertex shader (Per draw data)
         rootParameters[4].InitAsDescriptorTable(1, &rangesGBufferSRV[0],
                                                 D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer SRVs
+        rootParameters[5].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer debug target
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -296,15 +297,16 @@ void D3D12HelloTexture::LoadAssets()
             ReadDataFromFile(GetAssetFullPath(L"shaders_GBuffer_VSMain.cso").c_str(), &pGBufferVS, &gbufferVSSize));
         ThrowIfFailed(
             ReadDataFromFile(GetAssetFullPath(L"shaders_GBuffer_PSMain.cso").c_str(), &pGBufferPS, &gbufferPSSize));
-        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_GBufferDebug_VSMain.cso").c_str(),
-                                       &pGBufferDebugVS, &gbufferDebugVSSize));
-        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_GBufferDebug_PSMain.cso").c_str(),
-                                       &pGBufferDebugPS, &gbufferDebugPSSize));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_GBufferDebug_VSMain.cso").c_str(), &pGBufferDebugVS,
+                                       &gbufferDebugVSSize));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_GBufferDebug_PSMain.cso").c_str(), &pGBufferDebugPS,
+                                       &gbufferDebugPSSize));
 
         // Define the vertex input layout.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
             {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-            {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+            {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+            {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 
         D3D12_INPUT_ELEMENT_DESC depthLayout[] = {
             {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
@@ -392,61 +394,57 @@ void D3D12HelloTexture::LoadAssets()
     // Create the vertex buffer.
     {
         float _aspectRatio = 1.0; // m_aspectRatio
-        // Define the geometry for a triangle.
-        Vertex triangleVertices[] = {{{0.0f, 0.25f * _aspectRatio, 0.0f}, {0.5f, 0.0f}},
-                                     {{0.25f, -0.25f * _aspectRatio, 0.0f}, {1.0f, 1.0f}},
-                                     {{-0.25f, -0.25f * _aspectRatio, 0.0f}, {0.0f, 1.0f}}};
 
         constexpr float s = kCubeScale;
         constexpr float u = 1.f;
         Vertex cubeVertices[] = {
             // front
-            {{-s, -s, -s}, {0, u}},
-            {{-s, s, -s}, {0, 0}},
-            {{s, s, -s}, {u, 0}},
-            {{-s, -s, -s}, {0, u}},
-            {{s, s, -s}, {u, 0}},
-            {{s, -s, -s}, {u, u}},
+            {{-s, -s, -s}, {0, u}, {0.0f, 0.0f, -1.0f}},
+            {{-s, s, -s}, {0, 0}, {0.0f, 0.0f, -1.0f}},
+            {{s, s, -s}, {u, 0}, {0.0f, 0.0f, -1.0f}},
+            {{-s, -s, -s}, {0, u}, {0.0f, 0.0f, -1.0f}},
+            {{s, s, -s}, {u, 0}, {0.0f, 0.0f, -1.0f}},
+            {{s, -s, -s}, {u, u}, {0.0f, 0.0f, -1.0f}},
 
             // back
-            {{-s, -s, s}, {u, u}},
-            {{s, s, s}, {0, 0}},
-            {{-s, s, s}, {u, 0}},
-            {{-s, -s, s}, {u, u}},
-            {{s, -s, s}, {0, u}},
-            {{s, s, s}, {0, 0}},
+            {{-s, -s, s}, {u, u}, {0.0f, 0.0f, 1.0f}},
+            {{s, s, s}, {0, 0}, {0.0f, 0.0f, 1.0f}},
+            {{-s, s, s}, {u, 0}, {0.0f, 0.0f, 1.0f}},
+            {{-s, -s, s}, {u, u}, {0.0f, 0.0f, 1.0f}},
+            {{s, -s, s}, {0, u}, {0.0f, 0.0f, 1.0f}},
+            {{s, s, s}, {0, 0}, {0.0f, 0.0f, 1.0f}},
 
             // left
-            {{-s, -s, s}, {0, u}},
-            {{-s, s, s}, {0, 0}},
-            {{-s, s, -s}, {u, 0}},
-            {{-s, -s, s}, {0, u}},
-            {{-s, s, -s}, {u, 0}},
-            {{-s, -s, -s}, {u, u}},
+            {{-s, -s, s}, {0, u}, {-1.0f, 0.0f, 0.0f}},
+            {{-s, s, s}, {0, 0}, {-1.0f, 0.0f, 0.0f}},
+            {{-s, s, -s}, {u, 0}, {-1.0f, 0.0f, 0.0f}},
+            {{-s, -s, s}, {0, u}, {-1.0f, 0.0f, 0.0f}},
+            {{-s, s, -s}, {u, 0}, {-1.0f, 0.0f, 0.0f}},
+            {{-s, -s, -s}, {u, u}, {-1.0f, 0.0f, 0.0f}},
 
             // right
-            {{s, -s, -s}, {0, u}},
-            {{s, s, -s}, {0, 0}},
-            {{s, s, s}, {u, 0}},
-            {{s, -s, -s}, {0, u}},
-            {{s, s, s}, {u, 0}},
-            {{s, -s, s}, {u, u}},
+            {{s, -s, -s}, {0, u}, {1.0f, 0.0f, 0.0f}},
+            {{s, s, -s}, {0, 0}, {1.0f, 0.0f, 0.0f}},
+            {{s, s, s}, {u, 0}, {1.0f, 0.0f, 0.0f}},
+            {{s, -s, -s}, {0, u}, {1.0f, 0.0f, 0.0f}},
+            {{s, s, s}, {u, 0}, {1.0f, 0.0f, 0.0f}},
+            {{s, -s, s}, {u, u}, {1.0f, 0.0f, 0.0f}},
 
             // top
-            {{-s, s, -s}, {0, u}},
-            {{-s, s, s}, {0, 0}},
-            {{s, s, s}, {u, 0}},
-            {{-s, s, -s}, {0, u}},
-            {{s, s, s}, {u, 0}},
-            {{s, s, -s}, {u, u}},
+            {{-s, s, -s}, {0, u}, {0.0f, 1.0f, 0.0f}},
+            {{-s, s, s}, {0, 0}, {0.0f, 1.0f, 0.0f}},
+            {{s, s, s}, {u, 0}, {0.0f, 1.0f, 0.0f}},
+            {{-s, s, -s}, {0, u}, {0.0f, 1.0f, 0.0f}},
+            {{s, s, s}, {u, 0}, {0.0f, 1.0f, 0.0f}},
+            {{s, s, -s}, {u, u}, {0.0f, 1.0f, 0.0f}},
 
             // bottom
-            {{-s, -s, s}, {u, 0}},
-            {{-s, -s, -s}, {u, u}},
-            {{s, -s, -s}, {0, u}},
-            {{-s, -s, s}, {u, 0}},
-            {{s, -s, -s}, {0, u}},
-            {{s, -s, s}, {0, 0}},
+            {{-s, -s, s}, {u, 0}, {0.0f, -1.0f, 0.0f}},
+            {{-s, -s, -s}, {u, u}, {0.0f, -1.0f, 0.0f}},
+            {{s, -s, -s}, {0, u}, {0.0f, -1.0f, 0.0f}},
+            {{-s, -s, s}, {u, 0}, {0.0f, -1.0f, 0.0f}},
+            {{s, -s, -s}, {0, u}, {0.0f, -1.0f, 0.0f}},
+            {{s, -s, s}, {0, 0}, {0.0f, -1.0f, 0.0f}},
         };
 
         const UINT vertexBufferSize = sizeof(cubeVertices);
@@ -1244,13 +1242,12 @@ void D3D12HelloTexture::BuildRenderPasses()
             {{}, GetDepthDsv()}, [this](const RenderPass &) { RecordDepthPrePass(); });
     AddPass(L"GBufferPass",
             MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
-            MakeResourceUsageMap(
-                {{kGBufferResourceNames[GBuffer::Albedo], m_gbuffer.resources[GBuffer::Albedo].Get(),
-                  D3D12_RESOURCE_STATE_RENDER_TARGET},
-                 {kGBufferResourceNames[GBuffer::Normal], m_gbuffer.resources[GBuffer::Normal].Get(),
-                  D3D12_RESOURCE_STATE_RENDER_TARGET},
-                 {kGBufferResourceNames[GBuffer::Material], m_gbuffer.resources[GBuffer::Material].Get(),
-                  D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            MakeResourceUsageMap({{kGBufferResourceNames[GBuffer::Albedo], m_gbuffer.resources[GBuffer::Albedo].Get(),
+                                   D3D12_RESOURCE_STATE_RENDER_TARGET},
+                                  {kGBufferResourceNames[GBuffer::Normal], m_gbuffer.resources[GBuffer::Normal].Get(),
+                                   D3D12_RESOURCE_STATE_RENDER_TARGET},
+                                  {kGBufferResourceNames[GBuffer::Material],
+                                   m_gbuffer.resources[GBuffer::Material].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
             {{RootParam_TextureTable, m_textureTableStart},
              {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
              {RootParam_MaterialSrv, m_materialBufferSrv},
@@ -1268,13 +1265,17 @@ void D3D12HelloTexture::BuildRenderPasses()
              {RootParam_ConstantBuffer, m_constantBufferCbv}},
             {{GetBackBufferRtv()}, GetDepthDsv()}, [this](const RenderPass &) { RecordMainPass(); });
     AddPass(L"GBufferDebugPass",
-            MakeResourceUsageMap({{kGBufferResourceNames[m_gbufferDebugTarget],
-                                   m_gbuffer.resources[m_gbufferDebugTarget].Get(),
-                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
+            MakeResourceUsageMap(
+                {{kGBufferResourceNames[GBuffer::Albedo], m_gbuffer.resources[GBuffer::Albedo].Get(),
+                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+                 {kGBufferResourceNames[GBuffer::Normal], m_gbuffer.resources[GBuffer::Normal].Get(),
+                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+                 {kGBufferResourceNames[GBuffer::Material], m_gbuffer.resources[GBuffer::Material].Get(),
+                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[m_gbufferDebugTarget]}}, {{GetBackBufferRtv()}, std::nullopt},
-            [this](const RenderPass &) { RecordGBufferDebugPass(); });
+            {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]}},
+            {{GetBackBufferRtv()}, std::nullopt}, [this](const RenderPass &) { RecordGBufferDebugPass(); });
 
     AddPass(L"ImGui", {},
             MakeResourceUsageMap(
@@ -1633,6 +1634,8 @@ void D3D12HelloTexture::RecordGBufferDebugPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"GBufferDebugPass");
 
+    const UINT debugTarget = static_cast<UINT>(m_gbufferDebugTarget);
+    m_commandList->SetGraphicsRoot32BitConstants(RootParam_GBufferDebugConstants, 1, &debugTarget, 0);
     m_commandList->SetPipelineState(m_gbufferDebugPSO.Get());
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->DrawInstanced(3, 1, 0, 0);
