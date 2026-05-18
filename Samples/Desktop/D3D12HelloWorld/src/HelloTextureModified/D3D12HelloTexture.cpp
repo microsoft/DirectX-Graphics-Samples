@@ -219,10 +219,10 @@ void D3D12HelloTexture::LoadAssets()
         rangesSRV3[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 /*base*/, 2 /*space*/,
                            D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        // t0 - t(GBuffer::kCount-1) : GBuffer SRVs: space 3
+        // t0 - t2 : GBuffer SRVs, t3 : depth SRV, space 3
         CD3DX12_DESCRIPTOR_RANGE1 rangesGBufferSRV[1];
-        rangesGBufferSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, GBuffer::kCount, 0 /*base*/, 3 /*space*/,
-                                 D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        rangesGBufferSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, GBuffer::kCount + 1, 0 /*base*/, 3 /*space*/,
+                                 D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
         CD3DX12_DESCRIPTOR_RANGE1 rangesCVB[1];
         rangesCVB[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
@@ -236,7 +236,7 @@ void D3D12HelloTexture::LoadAssets()
         rootParameters[3].InitAsDescriptorTable(
             1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_VERTEX); // CBV for vertex shader (Per draw data)
         rootParameters[4].InitAsDescriptorTable(1, &rangesGBufferSRV[0],
-                                                D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer SRVs
+                                                D3D12_SHADER_VISIBILITY_PIXEL);    // GBuffer SRVs
         rootParameters[5].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer debug target
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
@@ -835,6 +835,12 @@ void D3D12HelloTexture::CreateGBufferSRVs()
 
         m_device->CreateShaderResourceView(m_gbuffer.resources[i].Get(), &srvDesc, m_gbuffer.srvHandles[i].cpu);
     }
+
+    if (m_depthStencilSrv.Index == UINT_MAX)
+    {
+        m_depthStencilSrv = m_descriptorHeapAllocator.AllocWithHandle();
+    }
+    assert(m_depthStencilSrv.Index == m_gbuffer.srvHandles[GBuffer::Albedo].Index + GBuffer::kCount);
 }
 
 void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
@@ -850,7 +856,7 @@ void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
     r.desc.Height = height;
     r.desc.DepthOrArraySize = 1;
     r.desc.MipLevels = 1;
-    r.desc.Format = DXGI_FORMAT_D32_FLOAT;
+    r.desc.Format = DXGI_FORMAT_R32_TYPELESS;
     r.desc.SampleDesc.Count = 1;
     r.desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     r.desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
@@ -862,6 +868,24 @@ void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
     r.initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 
     m_transientResources[kDepthStencilResourceName] = std::move(r);
+}
+
+void D3D12HelloTexture::CreateDepthStencilDescriptors()
+{
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Texture2D.MipSlice = 0;
+    m_device->CreateDepthStencilView(m_depthStencil.Get(), &dsvDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+    assert(m_depthStencilSrv.Index == m_gbuffer.srvHandles[GBuffer::Albedo].Index + GBuffer::kCount);
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MipLevels = 1;
+    m_device->CreateShaderResourceView(m_depthStencil.Get(), &srvDesc, m_depthStencilSrv.cpu);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetBackBufferRtv() const
@@ -901,7 +925,7 @@ void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
     depthDesc.Height = height;
     depthDesc.DepthOrArraySize = 1;
     depthDesc.MipLevels = 1;
-    depthDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    depthDesc.Format = DXGI_FORMAT_R32_TYPELESS;
     depthDesc.SampleDesc.Count = 1;
     depthDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     depthDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
@@ -916,7 +940,7 @@ void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
                                                     &clearValue, IID_PPV_ARGS(&m_depthStencil)));
 
     // Create DSV
-    m_device->CreateDepthStencilView(m_depthStencil.Get(), nullptr, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+    CreateDepthStencilDescriptors();
 }
 
 // Update frame-based values.
@@ -1049,7 +1073,9 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::RadioButton("Normal", &m_gbufferDebugTarget, GBuffer::Normal);
     ImGui::SameLine();
     ImGui::RadioButton("Material", &m_gbufferDebugTarget, GBuffer::Material);
-    m_gbufferDebugTarget = std::clamp(m_gbufferDebugTarget, 0, static_cast<int>(GBuffer::kCount) - 1);
+    ImGui::SameLine();
+    ImGui::RadioButton("Depth", &m_gbufferDebugTarget, GBuffer::kCount);
+    m_gbufferDebugTarget = std::clamp(m_gbufferDebugTarget, 0, static_cast<int>(GBuffer::kCount));
 
     ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
 
@@ -1271,11 +1297,12 @@ void D3D12HelloTexture::BuildRenderPasses()
                  {kGBufferResourceNames[GBuffer::Normal], m_gbuffer.resources[GBuffer::Normal].Get(),
                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
                  {kGBufferResourceNames[GBuffer::Material], m_gbuffer.resources[GBuffer::Material].Get(),
-                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
+                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+                 {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]}},
-            {{GetBackBufferRtv()}, std::nullopt}, [this](const RenderPass &) { RecordGBufferDebugPass(); });
+            {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]}}, {{GetBackBufferRtv()}, std::nullopt},
+            [this](const RenderPass &) { RecordGBufferDebugPass(); });
 
     AddPass(L"ImGui", {},
             MakeResourceUsageMap(
@@ -1412,8 +1439,7 @@ void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
         if (name == kDepthStencilResourceName)
         {
             m_depthStencil = tr.resource;
-            m_device->CreateDepthStencilView(m_depthStencil.Get(), nullptr,
-                                             m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+            CreateDepthStencilDescriptors();
         }
         else
         {
@@ -1533,7 +1559,20 @@ void D3D12HelloTexture::TransitionResource(const ResourceUsage &usage)
         return;
     }
 
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(usage.resource, currentState, usage.state));
+    ID3D12Resource *resource = usage.resource;
+    if (resource == nullptr && m_transientResources.contains(usage.name))
+    {
+        resource = m_transientResources.at(usage.name).resource.Get();
+    }
+
+    assert(resource != nullptr && "Cannot transition a null resource.");
+    if (resource == nullptr)
+    {
+        DBG_PRINT("Resource %s is null. Skip transition.\n", usage.name.c_str());
+        return;
+    }
+
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, currentState, usage.state));
     SetResourceState(usage.name, usage.state);
 }
 
@@ -1687,6 +1726,7 @@ void D3D12HelloTexture::EndFrame()
         TransitionResource(
             {kGBufferResourceNames[i], m_gbuffer.resources[i].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET});
     }
+    TransitionResource({kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE});
 
     TransitionResource({kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT});
 

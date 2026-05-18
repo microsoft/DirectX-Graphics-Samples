@@ -7,6 +7,7 @@
 Texture2D<float4> g_albedo : register(t0, space3);
 Texture2D<float4> g_normal : register(t1, space3);
 Texture2D<uint> g_material : register(t2, space3);
+Texture2D<float> g_depth : register(t3, space3);
 SamplerState g_sampler : register(s0);
 
 cbuffer GBufferDebugConstants : register(b1)
@@ -45,8 +46,18 @@ float4 PSMain(VSOutput input) : SV_TARGET
         float3 normal = normalize(g_normal.Sample(g_sampler, input.uv).rgb);
         return float4(normal * 0.5 + 0.5, 1.0);
     }
+    if (g_debugTarget == 2)
+    {
+        uint materialId = g_material.Load(int3(input.position.xy, 0));
+        float value = (float) materialId / 1020.0;
+        
+        return float4(value, value, value, 1.0);        
+    }
+    if (g_debugTarget == 3)
+    {
+        float value = g_depth.Sample(g_sampler, input.uv);
+        return float4(value, value, value, 1.0);
+    }
 
-    uint materialId = g_material.Load(int3(input.position.xy, 0));
-    float value = (float)materialId / 1020.0;
-    return float4(value, value, value, 1.0);
+    return float4(1.0, 0.0, 0.0, 1.0); //erroro : アップル
 }

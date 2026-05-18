@@ -64,9 +64,10 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kConstantBufferCount = 1;
 
     // Descriptor allocation order is tracked by DescriptorHeapHandle.
-    // Current persistent descriptors: GBuffer SRVs, texture table, instance buffers, material buffer, constant buffer.
+    // Current persistent descriptors: GBuffer SRVs, depth SRV, texture table, instance buffers, material buffer,
+    // constant buffer.
     static constexpr UINT kMainHeapDescriptorCount =
-        kTextureCount + kInstanceBufferCount + kMaterialBufferCount + kConstantBufferCount + kGBufferCount;
+        kTextureCount + kInstanceBufferCount + kMaterialBufferCount + kConstantBufferCount + kGBufferCount + 1;
 
     static constexpr float kTranslationSpeed = 0.005f;
     static constexpr float kPI = 3.141592f;
@@ -225,6 +226,7 @@ class D3D12HelloTexture : public DXSample
     GBuffer m_gbuffer;
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
+    DescriptorHeapHandle m_depthStencilSrv;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
@@ -391,6 +393,7 @@ class D3D12HelloTexture : public DXSample
 
     void CreateDepthStencil(UINT width, UINT height);
     void RegisterDepthStencil(UINT width, UINT height);
+    void CreateDepthStencilDescriptors();
     D3D12_CPU_DESCRIPTOR_HANDLE GetBackBufferRtv() const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetDepthDsv() const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetGBufferRTV(UINT index) const;
