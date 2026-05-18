@@ -51,7 +51,7 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kTextureHeight = 256;
     static constexpr UINT kTexturePixelSize = 4; // The number of bytes used to represent a pixel in the texture.
 
-    static constexpr UINT kGBufferCount = 3;
+    static constexpr UINT kGBufferCount = 4;
 
     static constexpr UINT kHeapDescriptorCount = 100;
     // 0 - 99 : ImGui (new)
@@ -61,7 +61,7 @@ class D3D12HelloTexture : public DXSample
 
     static constexpr UINT kInstanceBufferCount = kFrameCount;
     static constexpr UINT kMaterialBufferCount = 1;
-    static constexpr UINT kConstantBufferCount = 1;
+    static constexpr UINT kConstantBufferCount = kFrameCount;
 
     // Descriptor allocation order is tracked by DescriptorHeapHandle.
     // Current persistent descriptors: GBuffer SRVs, depth SRV, texture table, instance buffers, material buffer,
@@ -116,6 +116,7 @@ class D3D12HelloTexture : public DXSample
     struct InstanceData
     {
         XMFLOAT4X4 world;
+        XMFLOAT4X4 prevWorld;
         UINT materialId;
         float padding[3]; // 16byte alignment
     };
@@ -174,6 +175,7 @@ class D3D12HelloTexture : public DXSample
     struct alignas(256) ConstantBuffer
     {
         XMFLOAT4X4 viewProjection;
+        XMFLOAT4X4 prevViewProjection;
     };
 
     struct FrameResource
@@ -182,6 +184,9 @@ class D3D12HelloTexture : public DXSample
         ComPtr<ID3D12Resource> instanceBuffer;
         DescriptorHeapHandle instanceBufferSrv;
         InstanceData *pSrvDataBegin = nullptr;
+        ComPtr<ID3D12Resource> constantBuffer;
+        DescriptorHeapHandle constantBufferCbv;
+        UINT8 *pCbvDataBegin = nullptr;
         UINT64 fenceValue = 0;
         std::vector<MyDx12Util::GpuWorkMeter::CheckPoint> gpuWorkMeterCheckPoints;
     };
@@ -195,6 +200,7 @@ class D3D12HelloTexture : public DXSample
             Albedo = 0,
             Normal = 1,
             Material = 2,
+            MotionVector = 3,
         };
 
         ComPtr<ID3D12Resource> resources[kCount];
@@ -203,12 +209,14 @@ class D3D12HelloTexture : public DXSample
             DXGI_FORMAT_R8G8B8A8_UNORM,     // Albedo
             DXGI_FORMAT_R16G16B16A16_FLOAT, // Normal
             DXGI_FORMAT_R32_UINT,           // Material
+            DXGI_FORMAT_R16G16_FLOAT,       // Motion Vector
         };
 
         D3D12_CLEAR_VALUE clearValues[kCount] = {
             {DXGI_FORMAT_R8G8B8A8_UNORM, {0.0f, 0.0f, 0.0f, 1.0f}},
             {DXGI_FORMAT_R16G16B16A16_FLOAT, {0.5f, 0.5f, 1.0f, 1.0f}},
             {DXGI_FORMAT_R32_UINT, {0.0f, 0.0f, 0.0f, 0.0f}},
+            {DXGI_FORMAT_R16G16_FLOAT, {0.0f, 0.0f, 0.0f, 0.0f}},
         };
 
         UINT rtvIndex[kCount] = {};
@@ -268,9 +276,6 @@ class D3D12HelloTexture : public DXSample
     DescriptorHeapHandle m_materialBufferSrv;
 
     std::vector<CameraForCPU> m_camerasForCPU;
-    ComPtr<ID3D12Resource> m_constantBuffer;
-    DescriptorHeapHandle m_constantBufferCbv;
-    UINT8 *m_pCbvDataBegin;
     ConstantBuffer m_constantBufferData;
 
     std::chrono::steady_clock::time_point m_prevTime;
@@ -298,11 +303,8 @@ class D3D12HelloTexture : public DXSample
 
     static constexpr const char *kBackBufferResourceName = "BackBuffer";
     static constexpr const char *kDepthStencilResourceName = "DepthStencil";
-    static constexpr const char *kGBufferResourceNames[GBuffer::kCount] = {
-        "GBuffer.Albedo",
-        "GBuffer.Normal",
-        "GBuffer.Material",
-    };
+    static constexpr const char *kGBufferResourceNames[GBuffer::kCount] = {"GBuffer.Albedo", "GBuffer.Normal",
+                                                                           "GBuffer.Material", "GBuffer.MotionVector"};
 
     struct ResourceUsage
     {

@@ -18,6 +18,7 @@ struct Material
 struct InstanceData
 {
     float4x4 world;
+    float4x4 prevWorld;
     uint materialId;
     float padding[3]; //16 byte alignment
 };
@@ -25,6 +26,7 @@ struct InstanceData
 cbuffer ConstantBuffer : register(b0)
 {
     float4x4 viewProj;
+    float4x4 prevViewProj;
 };
 
 struct PSInput
