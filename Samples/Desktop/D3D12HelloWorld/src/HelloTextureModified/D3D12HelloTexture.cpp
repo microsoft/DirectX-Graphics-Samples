@@ -1100,23 +1100,19 @@ void D3D12HelloTexture::UpdateImGui()
     memcpy(m_frameResources[m_frameIndex].lightCB.mappedData, &m_lightingConstantsData,
            sizeof(m_lightingConstantsData));
 
-    int debugViewMode = static_cast<int>(m_debugViewMode);
-    ImGui::RadioButton("LightPass", &debugViewMode, static_cast<int>(DebugViewMode::LightPass));
-    ImGui::Text("GBuffer Debug");
-    ImGui::RadioButton("Enable GBuffer Debug", &debugViewMode, static_cast<int>(DebugViewMode::GBufferDebug));
-    m_debugViewMode = static_cast<DebugViewMode>(debugViewMode);
-
-    ImGui::RadioButton("Albedo", &m_gbufferDebugTarget, GBuffer::Albedo);
+    int renderViewMode = static_cast<int>(m_renderViewMode);
+    ImGui::Text("Render View");
+    ImGui::RadioButton("LightPass", &renderViewMode, static_cast<int>(RenderViewMode::LightPass));
+    ImGui::RadioButton("Albedo", &renderViewMode, static_cast<int>(RenderViewMode::GBufferAlbedo));
     ImGui::SameLine();
-    ImGui::RadioButton("Normal", &m_gbufferDebugTarget, GBuffer::Normal);
+    ImGui::RadioButton("Normal", &renderViewMode, static_cast<int>(RenderViewMode::GBufferNormal));
     ImGui::SameLine();
-    ImGui::RadioButton("Material", &m_gbufferDebugTarget, GBuffer::Material);
+    ImGui::RadioButton("Material", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMaterial));
     //    ImGui::SameLine();
-    ImGui::RadioButton("MotionVector", &m_gbufferDebugTarget, GBuffer::MotionVector);
+    ImGui::RadioButton("MotionVector", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMotionVector));
     ImGui::SameLine();
-    ImGui::RadioButton("Depth", &m_gbufferDebugTarget, GBuffer::kCount);
-
-    m_gbufferDebugTarget = std::clamp(m_gbufferDebugTarget, 0, static_cast<int>(GBuffer::kCount));
+    ImGui::RadioButton("Depth", &renderViewMode, static_cast<int>(RenderViewMode::Depth));
+    m_renderViewMode = static_cast<RenderViewMode>(renderViewMode);
 
     ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
 
@@ -1346,7 +1342,7 @@ void D3D12HelloTexture::BuildRenderPasses()
             {{GetBackBufferRtv()}, std::nullopt},
             [this](const RenderPass &) { RecordLightPass(); });
 
-    if (m_debugViewMode == DebugViewMode::GBufferDebug)
+    if (IsGBufferDebugView())
     {
         AddPass(L"GBufferDebugPass",
                 MakeGBufferReadUsageMap(),
@@ -1398,6 +1394,17 @@ auto D3D12HelloTexture::MakeGBufferReadUsageMap() const -> ResourceUsageMap
 auto D3D12HelloTexture::MakeGBufferSrvBindings() const -> std::vector<PassDescriptorBinding>
 {
     return {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]}};
+}
+
+bool D3D12HelloTexture::IsGBufferDebugView() const
+{
+    return m_renderViewMode != RenderViewMode::LightPass;
+}
+
+UINT D3D12HelloTexture::GetGBufferDebugTarget() const
+{
+    assert(IsGBufferDebugView());
+    return static_cast<UINT>(m_renderViewMode) - static_cast<UINT>(RenderViewMode::GBufferAlbedo);
 }
 
 void D3D12HelloTexture::AnalyzeResourceLifetimes()
@@ -1744,7 +1751,7 @@ void D3D12HelloTexture::RecordGBufferDebugPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"GBufferDebugPass");
 
-    const UINT debugTarget = static_cast<UINT>(m_gbufferDebugTarget);
+    const UINT debugTarget = GetGBufferDebugTarget();
     m_commandList->SetGraphicsRoot32BitConstants(RootParam_GBufferDebugConstants, 1, &debugTarget, 0);
     m_commandList->SetPipelineState(m_gbufferDebugPSO.Get());
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

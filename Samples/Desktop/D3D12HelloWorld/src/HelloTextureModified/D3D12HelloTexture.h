@@ -67,9 +67,9 @@ class D3D12HelloTexture : public DXSample
     // Descriptor allocation order is tracked by DescriptorHeapHandle.
     // Current persistent descriptors: GBuffer SRVs, depth SRV, texture table, instance buffers, material buffer,
     // constant buffer, light constant buffer.
-    static constexpr UINT kMainHeapDescriptorCount =
-        kTextureCount + kInstanceBufferCount + kMaterialBufferCount + kConstantBufferCount +
-        kLightConstantBufferCount + kGBufferCount + 1;
+    static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
+                                                     kConstantBufferCount + kLightConstantBufferCount + kGBufferCount +
+                                                     1;
 
     static constexpr float kTranslationSpeed = 0.005f;
     static constexpr float kPI = 3.141592f;
@@ -183,7 +183,7 @@ class D3D12HelloTexture : public DXSample
     struct alignas(256) LightingConstants
     {
         XMFLOAT3 lightDirection = {0.4f, 0.7f, 0.6f};
-        float ambientIntensity = 0.08f;
+        float ambientIntensity = 0.25f;
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
         float diffuseIntensity = 1.0f;
         XMFLOAT4 backgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
@@ -243,10 +243,14 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kGBufferRTVBaseIndex = kSwapChainRTVCount;
     static constexpr UINT kRTVDescriptorCount = kFrameCount + GBuffer::kCount;
 
-    enum class DebugViewMode
+    enum class RenderViewMode
     {
         LightPass = 0,
-        GBufferDebug,
+        GBufferAlbedo,
+        GBufferNormal,
+        GBufferMaterial,
+        GBufferMotionVector,
+        Depth,
     };
 
     // Pipeline objects.
@@ -282,8 +286,7 @@ class D3D12HelloTexture : public DXSample
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
-    DebugViewMode m_debugViewMode = DebugViewMode::LightPass;
-    int m_gbufferDebugTarget = GBuffer::Albedo;
+    RenderViewMode m_renderViewMode = RenderViewMode::LightPass;
 
     DescriptorHeapHandle m_textureTableStart;
     UINT m_texIndex[kTextureCount] = {};
@@ -440,6 +443,8 @@ class D3D12HelloTexture : public DXSample
     ResourceUsageMap MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const;
     ResourceUsageMap MakeGBufferReadUsageMap() const;
     std::vector<PassDescriptorBinding> MakeGBufferSrvBindings() const;
+    bool IsGBufferDebugView() const;
+    UINT GetGBufferDebugTarget() const;
     void BuildRenderPasses();
     void AnalyzeResourceLifetimes();
     void DebugPrintLifetimes();
