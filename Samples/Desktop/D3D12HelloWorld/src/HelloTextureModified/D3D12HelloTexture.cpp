@@ -227,7 +227,10 @@ void D3D12HelloTexture::LoadAssets()
         CD3DX12_DESCRIPTOR_RANGE1 rangesCVB[1];
         rangesCVB[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        CD3DX12_ROOT_PARAMETER1 rootParameters[6];
+        CD3DX12_DESCRIPTOR_RANGE1 rangesLightCBV[1];
+        rangesLightCBV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+        CD3DX12_ROOT_PARAMETER1 rootParameters[7];
         rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL); // Texture SRVs
         rootParameters[1].InitAsDescriptorTable(1, &rangesSRV2[0],
                                                 D3D12_SHADER_VISIBILITY_ALL); // Structured buffer SRV (Instance data)
@@ -237,7 +240,9 @@ void D3D12HelloTexture::LoadAssets()
             1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_VERTEX); // CBV for vertex shader (Per draw data)
         rootParameters[4].InitAsDescriptorTable(1, &rangesGBufferSRV[0],
                                                 D3D12_SHADER_VISIBILITY_PIXEL);    // GBuffer SRVs
-        rootParameters[5].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer debug target
+        rootParameters[5].InitAsDescriptorTable(1, &rangesLightCBV[0],
+                                                D3D12_SHADER_VISIBILITY_PIXEL);    // Light constants
+        rootParameters[6].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer debug target
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -624,24 +629,8 @@ void D3D12HelloTexture::LoadAssets()
     // Create the per-frame constant buffers.
     for (UINT n = 0; n < kFrameCount; n++)
     {
-        const UINT constantBufferSize = sizeof(ConstantBuffer); // CB size is required to be 256-byte aligned.
-
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-            IID_PPV_ARGS(&m_frameResources[n].constantBuffer)));
-
-        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-        cbvDesc.BufferLocation = m_frameResources[n].constantBuffer->GetGPUVirtualAddress();
-        cbvDesc.SizeInBytes = constantBufferSize;
-
-        m_frameResources[n].constantBufferCbv = m_descriptorHeapAllocator.AllocWithHandle();
-        m_device->CreateConstantBufferView(&cbvDesc, m_frameResources[n].constantBufferCbv.cpu);
-
-        CD3DX12_RANGE readRange(0, 0);
-        ThrowIfFailed(m_frameResources[n].constantBuffer->Map(
-            0, &readRange, reinterpret_cast<void **>(&m_frameResources[n].pCbvDataBegin)));
-        memcpy(m_frameResources[n].pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
+        CreateConstantBuffer(m_frameResources[n].cameraCB, &m_constantBufferData, sizeof(m_constantBufferData));
+        CreateConstantBuffer(m_frameResources[n].lightCB, &m_lightingConstantsData, sizeof(m_lightingConstantsData));
     }
 
     // Close the command list and execute it to begin the initial GPU setup.
@@ -700,6 +689,28 @@ void D3D12HelloTexture::InitImGui()
     { g_allocator->Free(&cpu_handle, &gpu_handle); };
     ImGui_ImplDX12_Init(&init_info);
 #endif
+}
+
+void D3D12HelloTexture::CreateConstantBuffer(ConstantBufferResource &constantBuffer, const void *initialData,
+                                             UINT sizeInBytes)
+{
+    assert(sizeInBytes % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0);
+
+    ThrowIfFailed(m_device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
+        &CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+        IID_PPV_ARGS(&constantBuffer.buffer)));
+
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.BufferLocation = constantBuffer.buffer->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = sizeInBytes;
+
+    constantBuffer.cbv = m_descriptorHeapAllocator.AllocWithHandle();
+    m_device->CreateConstantBufferView(&cbvDesc, constantBuffer.cbv.cpu);
+
+    CD3DX12_RANGE readRange(0, 0);
+    ThrowIfFailed(constantBuffer.buffer->Map(0, &readRange, reinterpret_cast<void **>(&constantBuffer.mappedData)));
+    memcpy(constantBuffer.mappedData, initialData, sizeInBytes);
 }
 
 DescriptorHeapHandle D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource *texture)
@@ -1061,7 +1072,7 @@ void D3D12HelloTexture::OnUpdate()
     m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
     m_camerasForCPU[0].updateAllMatrix();
     XMStoreFloat4x4(&m_constantBufferData.viewProjection, XMMatrixTranspose(m_camerasForCPU[0].viewProjection));
-    memcpy(m_frameResources[m_frameIndex].pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
+    memcpy(m_frameResources[m_frameIndex].cameraCB.mappedData, &m_constantBufferData, sizeof(m_constantBufferData));
 
     PIXEndEvent();
 }
@@ -1080,6 +1091,14 @@ void D3D12HelloTexture::UpdateImGui()
     m_maxVisibleCubeCount = std::clamp(m_maxVisibleCubeCount, 0, static_cast<int>(kInstanceCount));
     ImGui::SliderFloat("Camera FovH", &m_camerasForCPU[0].fov, 20.f, 150.f);
     ImGui::ColorEdit4("BackBuffer Clear", m_backBufferClearColor.data());
+    ImGui::SliderFloat3("Light Direction", &m_lightingConstantsData.lightDirection.x, -1.0f, 1.0f);
+    ImGui::ColorEdit3("Light Color", &m_lightingConstantsData.lightColor.x);
+    ImGui::SliderFloat("Ambient", &m_lightingConstantsData.ambientIntensity, 0.0f, 1.0f);
+    ImGui::SliderFloat("Diffuse", &m_lightingConstantsData.diffuseIntensity, 0.0f, 4.0f);
+    m_lightingConstantsData.backgroundColor = {m_backBufferClearColor[0], m_backBufferClearColor[1],
+                                               m_backBufferClearColor[2], m_backBufferClearColor[3]};
+    memcpy(m_frameResources[m_frameIndex].lightCB.mappedData, &m_lightingConstantsData,
+           sizeof(m_lightingConstantsData));
 
     int debugViewMode = static_cast<int>(m_debugViewMode);
     ImGui::RadioButton("LightPass", &debugViewMode, static_cast<int>(DebugViewMode::LightPass));
@@ -1285,7 +1304,7 @@ void D3D12HelloTexture::BuildRenderPasses()
             MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
             {
                 {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
-                {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].constantBufferCbv},
+                {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv},
             },
             {{}, GetDepthDsv()}, [this](const RenderPass &) { RecordDepthPrePass(); });
     AddPass(
@@ -1302,7 +1321,7 @@ void D3D12HelloTexture::BuildRenderPasses()
         {{RootParam_TextureTable, m_textureTableStart},
          {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
          {RootParam_MaterialSrv, m_materialBufferSrv},
-         {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].constantBufferCbv}},
+         {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv}},
         {{GetGBufferRTV(GBuffer::Albedo), GetGBufferRTV(GBuffer::Normal), GetGBufferRTV(GBuffer::Material),
           GetGBufferRTV(GBuffer::MotionVector)},
          GetDepthDsv()},
@@ -1315,14 +1334,16 @@ void D3D12HelloTexture::BuildRenderPasses()
             {{RootParam_TextureTable, m_textureTableStart},
              {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
              {RootParam_MaterialSrv, m_materialBufferSrv},
-             {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].constantBufferCbv}},
+             {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv}},
             {{GetBackBufferRtv()}, GetDepthDsv()}, [this](const RenderPass &) { RecordMainPass(); });
 #endif
     AddPass(L"LightPass",
             MakeGBufferReadUsageMap(),
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            MakeGBufferSrvBindings(), {{GetBackBufferRtv()}, std::nullopt},
+            {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]},
+             {RootParam_LightConstants, m_frameResources[m_frameIndex].lightCB.cbv}},
+            {{GetBackBufferRtv()}, std::nullopt},
             [this](const RenderPass &) { RecordLightPass(); });
 
     if (m_debugViewMode == DebugViewMode::GBufferDebug)

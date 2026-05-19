@@ -62,12 +62,14 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kInstanceBufferCount = kFrameCount;
     static constexpr UINT kMaterialBufferCount = 1;
     static constexpr UINT kConstantBufferCount = kFrameCount;
+    static constexpr UINT kLightConstantBufferCount = kFrameCount;
 
     // Descriptor allocation order is tracked by DescriptorHeapHandle.
     // Current persistent descriptors: GBuffer SRVs, depth SRV, texture table, instance buffers, material buffer,
-    // constant buffer.
+    // constant buffer, light constant buffer.
     static constexpr UINT kMainHeapDescriptorCount =
-        kTextureCount + kInstanceBufferCount + kMaterialBufferCount + kConstantBufferCount + kGBufferCount + 1;
+        kTextureCount + kInstanceBufferCount + kMaterialBufferCount + kConstantBufferCount +
+        kLightConstantBufferCount + kGBufferCount + 1;
 
     static constexpr float kTranslationSpeed = 0.005f;
     static constexpr float kPI = 3.141592f;
@@ -178,15 +180,30 @@ class D3D12HelloTexture : public DXSample
         XMFLOAT4X4 prevViewProjection;
     };
 
+    struct alignas(256) LightingConstants
+    {
+        XMFLOAT3 lightDirection = {0.4f, 0.7f, 0.6f};
+        float ambientIntensity = 0.08f;
+        XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
+        float diffuseIntensity = 1.0f;
+        XMFLOAT4 backgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
+    };
+
+    struct ConstantBufferResource
+    {
+        ComPtr<ID3D12Resource> buffer;
+        DescriptorHeapHandle cbv;
+        UINT8 *mappedData = nullptr;
+    };
+
     struct FrameResource
     {
         ComPtr<ID3D12CommandAllocator> commandAllocator;
         ComPtr<ID3D12Resource> instanceBuffer;
         DescriptorHeapHandle instanceBufferSrv;
         InstanceData *pSrvDataBegin = nullptr;
-        ComPtr<ID3D12Resource> constantBuffer;
-        DescriptorHeapHandle constantBufferCbv;
-        UINT8 *pCbvDataBegin = nullptr;
+        ConstantBufferResource cameraCB;
+        ConstantBufferResource lightCB;
         UINT64 fenceValue = 0;
         std::vector<MyDx12Util::GpuWorkMeter::CheckPoint> gpuWorkMeterCheckPoints;
     };
@@ -274,6 +291,7 @@ class D3D12HelloTexture : public DXSample
     std::vector<InstanceData> m_instanceData;
     std::vector<InstanceDataForCPU> m_instanceDataForCPU;
     std::vector<Material> m_materialData;
+    LightingConstants m_lightingConstantsData;
 
     // App resources.
     ComPtr<ID3D12Resource> m_vertexBuffer;
@@ -337,6 +355,7 @@ class D3D12HelloTexture : public DXSample
         RootParam_MaterialSrv,
         RootParam_ConstantBuffer,
         RootParam_GBufferSrvBase,
+        RootParam_LightConstants,
         RootParam_GBufferDebugConstants
     };
 
@@ -403,6 +422,7 @@ class D3D12HelloTexture : public DXSample
     void LoadPipeline();
     void LoadAssets();
     void InitImGui();
+    void CreateConstantBuffer(ConstantBufferResource &constantBuffer, const void *initialData, UINT sizeInBytes);
 
     void CreateDepthStencil(UINT width, UINT height);
     void RegisterDepthStencil(UINT width, UINT height);
