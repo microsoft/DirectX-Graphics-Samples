@@ -226,6 +226,12 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kGBufferRTVBaseIndex = kSwapChainRTVCount;
     static constexpr UINT kRTVDescriptorCount = kFrameCount + GBuffer::kCount;
 
+    enum class DebugViewMode
+    {
+        LightPass = 0,
+        GBufferDebug,
+    };
+
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
@@ -236,7 +242,10 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12Resource> m_depthStencil;
     DescriptorHeapHandle m_depthStencilSrv;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
+
     ComPtr<ID3D12RootSignature> m_rootSignature;
+    ComPtr<ID3D12RootSignature> m_lightingRootSignature; // not used in this sample but created for future use
+
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 
@@ -250,11 +259,13 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12PipelineState> m_depthPrePassPSO;
     ComPtr<ID3D12PipelineState> m_gbufferPSO;
     ComPtr<ID3D12PipelineState> m_gbufferDebugPSO;
+    ComPtr<ID3D12PipelineState> m_lightPassPSO;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
+    DebugViewMode m_debugViewMode = DebugViewMode::LightPass;
     int m_gbufferDebugTarget = GBuffer::Albedo;
 
     DescriptorHeapHandle m_textureTableStart;
@@ -407,6 +418,8 @@ class D3D12HelloTexture : public DXSample
                  std::vector<PassDescriptorBinding> descriptorBindings, PassRenderTargetBinding renderTargets,
                  std::function<void(const RenderPass &)> execute);
     ResourceUsageMap MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const;
+    ResourceUsageMap MakeGBufferReadUsageMap() const;
+    std::vector<PassDescriptorBinding> MakeGBufferSrvBindings() const;
     void BuildRenderPasses();
     void AnalyzeResourceLifetimes();
     void DebugPrintLifetimes();
@@ -440,6 +453,7 @@ class D3D12HelloTexture : public DXSample
     void RecordDepthPrePass();
     void RecordGBufferPass(const PassRenderTargetBinding &renderTargets);
     void RecordGBufferDebugPass();
+    void RecordLightPass();
     void RecordMainPass();
     void RecordImGuiPass();
     void EndFrame();

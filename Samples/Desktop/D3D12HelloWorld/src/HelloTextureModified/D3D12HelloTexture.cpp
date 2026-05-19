@@ -302,6 +302,16 @@ void D3D12HelloTexture::LoadAssets()
         ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_GBufferDebug_PSMain.cso").c_str(), &pGBufferDebugPS,
                                        &gbufferDebugPSSize));
 
+        UINT8 *pLightPassVS = nullptr;
+        UINT8 *pLightPassPS = nullptr;
+        UINT lightPassVSSize = 0;
+        UINT lightPassPSSize = 0;
+
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_LightPass_VSMain.cso").c_str(), &pLightPassVS,
+                                       &lightPassVSSize));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_LightPass_PSMain.cso").c_str(), &pLightPassPS,
+                                       &lightPassPSSize));
+
         // Define the vertex input layout.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
             {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -335,38 +345,23 @@ void D3D12HelloTexture::LoadAssets()
         //
         // GBuffer PSO
         //
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferPSODesc = psoDesc;
-
-        gbufferPSODesc.VS = CD3DX12_SHADER_BYTECODE(pGBufferVS, gbufferVSSize);
-        gbufferPSODesc.PS = CD3DX12_SHADER_BYTECODE(pGBufferPS, gbufferPSSize);
-
-        gbufferPSODesc.NumRenderTargets = GBuffer::kCount;
-        for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-        {
-            gbufferPSODesc.RTVFormats[i] = DXGI_FORMAT_UNKNOWN;
-        }
-        for (UINT i = 0; i < GBuffer::kCount; ++i)
-        {
-            gbufferPSODesc.RTVFormats[i] = m_gbuffer.formats[i];
-        }
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferPSODesc = MyDx12Util::CreateGBufferPSODesc(
+            psoDesc, pGBufferVS, gbufferVSSize, pGBufferPS, gbufferPSSize, m_gbuffer.formats, GBuffer::kCount);
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&gbufferPSODesc, IID_PPV_ARGS(&m_gbufferPSO)));
+
+        //
+        // LightPass PSO
+        //
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC lightPassPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
+            psoDesc, pLightPassVS, lightPassVSSize, pLightPassPS, lightPassPSSize, DXGI_FORMAT_R8G8B8A8_UNORM);
+        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&lightPassPSODesc, IID_PPV_ARGS(&m_lightPassPSO)));
 
         //
         // GBuffer Debug PSO
         //
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferDebugPSODesc = psoDesc;
-        gbufferDebugPSODesc.InputLayout = {};
-        gbufferDebugPSODesc.VS = CD3DX12_SHADER_BYTECODE(pGBufferDebugVS, gbufferDebugVSSize);
-        gbufferDebugPSODesc.PS = CD3DX12_SHADER_BYTECODE(pGBufferDebugPS, gbufferDebugPSSize);
-        gbufferDebugPSODesc.DepthStencilState.DepthEnable = FALSE;
-        gbufferDebugPSODesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-        gbufferDebugPSODesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
-        gbufferDebugPSODesc.NumRenderTargets = 1;
-        for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-        {
-            gbufferDebugPSODesc.RTVFormats[i] = DXGI_FORMAT_UNKNOWN;
-        }
-        gbufferDebugPSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferDebugPSODesc =
+            MyDx12Util::CreateFullscreenPassPSODesc(psoDesc, pGBufferDebugVS, gbufferDebugVSSize, pGBufferDebugPS,
+                                                    gbufferDebugPSSize, DXGI_FORMAT_R8G8B8A8_UNORM);
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&gbufferDebugPSODesc, IID_PPV_ARGS(&m_gbufferDebugPSO)));
 
         //
@@ -1085,7 +1080,13 @@ void D3D12HelloTexture::UpdateImGui()
     m_maxVisibleCubeCount = std::clamp(m_maxVisibleCubeCount, 0, static_cast<int>(kInstanceCount));
     ImGui::SliderFloat("Camera FovH", &m_camerasForCPU[0].fov, 20.f, 150.f);
     ImGui::ColorEdit4("BackBuffer Clear", m_backBufferClearColor.data());
+
+    int debugViewMode = static_cast<int>(m_debugViewMode);
+    ImGui::RadioButton("LightPass", &debugViewMode, static_cast<int>(DebugViewMode::LightPass));
     ImGui::Text("GBuffer Debug");
+    ImGui::RadioButton("Enable GBuffer Debug", &debugViewMode, static_cast<int>(DebugViewMode::GBufferDebug));
+    m_debugViewMode = static_cast<DebugViewMode>(debugViewMode);
+
     ImGui::RadioButton("Albedo", &m_gbufferDebugTarget, GBuffer::Albedo);
     ImGui::SameLine();
     ImGui::RadioButton("Normal", &m_gbufferDebugTarget, GBuffer::Normal);
@@ -1306,6 +1307,7 @@ void D3D12HelloTexture::BuildRenderPasses()
           GetGBufferRTV(GBuffer::MotionVector)},
          GetDepthDsv()},
         [this](const RenderPass &pass) { RecordGBufferPass(pass.renderTargets); });
+#if 0
     AddPass(L"MainPass",
             MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
             MakeResourceUsageMap(
@@ -1315,21 +1317,23 @@ void D3D12HelloTexture::BuildRenderPasses()
              {RootParam_MaterialSrv, m_materialBufferSrv},
              {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].constantBufferCbv}},
             {{GetBackBufferRtv()}, GetDepthDsv()}, [this](const RenderPass &) { RecordMainPass(); });
-    AddPass(L"GBufferDebugPass",
-            MakeResourceUsageMap(
-                {{kGBufferResourceNames[GBuffer::Albedo], m_gbuffer.resources[GBuffer::Albedo].Get(),
-                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-                 {kGBufferResourceNames[GBuffer::Normal], m_gbuffer.resources[GBuffer::Normal].Get(),
-                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-                 {kGBufferResourceNames[GBuffer::Material], m_gbuffer.resources[GBuffer::Material].Get(),
-                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-                 {kGBufferResourceNames[GBuffer::MotionVector], m_gbuffer.resources[GBuffer::MotionVector].Get(),
-                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-                 {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
+#endif
+    AddPass(L"LightPass",
+            MakeGBufferReadUsageMap(),
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]}}, {{GetBackBufferRtv()}, std::nullopt},
-            [this](const RenderPass &) { RecordGBufferDebugPass(); });
+            MakeGBufferSrvBindings(), {{GetBackBufferRtv()}, std::nullopt},
+            [this](const RenderPass &) { RecordLightPass(); });
+
+    if (m_debugViewMode == DebugViewMode::GBufferDebug)
+    {
+        AddPass(L"GBufferDebugPass",
+                MakeGBufferReadUsageMap(),
+                MakeResourceUsageMap({{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(),
+                                       D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+                MakeGBufferSrvBindings(),
+                {{GetBackBufferRtv()}, std::nullopt}, [this](const RenderPass &) { RecordGBufferDebugPass(); });
+    }
 
     AddPass(L"ImGui", {},
             MakeResourceUsageMap(
@@ -1354,6 +1358,25 @@ auto D3D12HelloTexture::MakeResourceUsageMap(std::initializer_list<ResourceUsage
     }
 
     return usageMap;
+}
+
+auto D3D12HelloTexture::MakeGBufferReadUsageMap() const -> ResourceUsageMap
+{
+    return MakeResourceUsageMap(
+        {{kGBufferResourceNames[GBuffer::Albedo], m_gbuffer.resources[GBuffer::Albedo].Get(),
+          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[GBuffer::Normal], m_gbuffer.resources[GBuffer::Normal].Get(),
+          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[GBuffer::Material], m_gbuffer.resources[GBuffer::Material].Get(),
+          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[GBuffer::MotionVector], m_gbuffer.resources[GBuffer::MotionVector].Get(),
+          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}});
+}
+
+auto D3D12HelloTexture::MakeGBufferSrvBindings() const -> std::vector<PassDescriptorBinding>
+{
+    return {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]}};
 }
 
 void D3D12HelloTexture::AnalyzeResourceLifetimes()
@@ -1709,6 +1732,19 @@ void D3D12HelloTexture::RecordGBufferDebugPass()
     PIXEndEvent(m_commandList.Get());
 
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Debug Pass");
+}
+
+void D3D12HelloTexture::RecordLightPass()
+{
+    PIXBeginEvent(m_commandList.Get(), 0, L"LightPass");
+
+    m_commandList->SetPipelineState(m_lightPassPSO.Get());
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_commandList->DrawInstanced(3, 1, 0, 0);
+
+    PIXEndEvent(m_commandList.Get());
+
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Lighting Pass");
 }
 
 //
