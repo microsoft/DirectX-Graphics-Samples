@@ -1,0 +1,15 @@
+﻿{
+  "name": "d3d12-hello-texture-modified",
+  "version-string": "0.1.0",
+  "dependencies": [
+    {
+      "name": "imgui",
+      "features": [
+        "dx12-binding",
+        "win32-binding"
+      ]
+    },
+    "tinygltf"
+  ],
+  "builtin-baseline": "e5a4f54c0d562059e9ccc6f7e7150667da58fe41"
+}
