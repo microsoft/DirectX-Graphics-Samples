@@ -237,7 +237,7 @@ void D3D12HelloTexture::LoadAssets()
         rootParameters[2].InitAsDescriptorTable(1, &rangesSRV3[0],
                                                 D3D12_SHADER_VISIBILITY_ALL); // Structured buffer SRV (Material data)
         rootParameters[3].InitAsDescriptorTable(
-            1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_VERTEX); // CBV for vertex shader (Per draw data)
+            1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_ALL); // Camera constants
         rootParameters[4].InitAsDescriptorTable(1, &rangesGBufferSRV[0],
                                                 D3D12_SHADER_VISIBILITY_PIXEL);    // GBuffer SRVs
         rootParameters[5].InitAsDescriptorTable(1, &rangesLightCBV[0],
@@ -624,6 +624,8 @@ void D3D12HelloTexture::LoadAssets()
                                      0.1f, 10000.0f);
         XMStoreFloat4x4(&m_constantBufferData.viewProjection, XMMatrixTranspose(m_camerasForCPU[0].viewProjection));
         m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
+        XMStoreFloat4x4(&m_constantBufferData.invViewProjection,
+                        XMMatrixTranspose(XMMatrixInverse(nullptr, m_camerasForCPU[0].viewProjection)));
     }
 
     // Create the per-frame constant buffers.
@@ -1072,6 +1074,8 @@ void D3D12HelloTexture::OnUpdate()
     m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
     m_camerasForCPU[0].updateAllMatrix();
     XMStoreFloat4x4(&m_constantBufferData.viewProjection, XMMatrixTranspose(m_camerasForCPU[0].viewProjection));
+    XMStoreFloat4x4(&m_constantBufferData.invViewProjection,
+                    XMMatrixTranspose(XMMatrixInverse(nullptr, m_camerasForCPU[0].viewProjection)));
     memcpy(m_frameResources[m_frameIndex].cameraCB.mappedData, &m_constantBufferData, sizeof(m_constantBufferData));
 
     PIXEndEvent();
@@ -1338,6 +1342,7 @@ void D3D12HelloTexture::BuildRenderPasses()
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
             {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]},
+             {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv},
              {RootParam_LightConstants, m_frameResources[m_frameIndex].lightCB.cbv}},
             {{GetBackBufferRtv()}, std::nullopt},
             [this](const RenderPass &) { RecordLightPass(); });

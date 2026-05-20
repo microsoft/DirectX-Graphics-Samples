@@ -178,6 +178,7 @@ class D3D12HelloTexture : public DXSample
     {
         XMFLOAT4X4 viewProjection;
         XMFLOAT4X4 prevViewProjection;
+        XMFLOAT4X4 invViewProjection;
     };
 
     struct alignas(256) LightingConstants

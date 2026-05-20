@@ -16,6 +16,7 @@ cbuffer ConstantBuffer : register(b0)
 {
     float4x4 viewProj;
     float4x4 prevViewProj;
+    float4x4 invViewProj;
 };
 
 struct PSInput
