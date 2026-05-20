@@ -1,7 +1,9 @@
 ﻿struct Material
 {
     uint textureIndex;
-    float padding[3];
+    float roughness;
+    float metallic;
+    uint flags;
 };
 
 struct InstanceData
@@ -70,7 +72,7 @@ GBufferOutput PSMain(PSInput input)
     GBufferOutput output;
     output.albedo = g_texture[mat.textureIndex].Sample(g_sampler, input.uv);
     output.normal = float4(normalize(input.normal), 1.0);
-    output.material = mat.textureIndex;
+    output.material = inst.materialId;
     
     float2 curNdc = input.currClipPos.xy / input.currClipPos.w;
     float2 prevNdc = input.prevClipPos.xy / input.prevClipPos.w;    

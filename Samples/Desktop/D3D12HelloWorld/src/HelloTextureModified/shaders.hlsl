@@ -12,7 +12,9 @@
 struct Material
 {
     uint textureIndex;
-    float padding[3];    //16 byte alignment
+    float roughness;
+    float metallic;
+    uint flags;
 };
 
 struct InstanceData

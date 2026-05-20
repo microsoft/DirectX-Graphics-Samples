@@ -112,7 +112,9 @@ class D3D12HelloTexture : public DXSample
     struct Material
     {
         UINT textureIndex;
-        float padding[3]; // 16byte alignment
+        float roughness;
+        float metallic;
+        UINT flags;
     };
 
     struct InstanceData

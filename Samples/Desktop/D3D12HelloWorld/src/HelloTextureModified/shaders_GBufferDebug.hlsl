@@ -56,7 +56,7 @@ float4 PSMain(VSOutput input) : SV_TARGET
     if (g_debugTarget == 2)
     {
         uint materialId = g_material.Load(int3(input.position.xy, 0));
-        float value = (float) materialId / 1020.0;
+        float value = (float) materialId / 255.0;
         
         return float4(value, value, value, 1.0);        
     }

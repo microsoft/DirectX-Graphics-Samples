@@ -569,6 +569,9 @@ void D3D12HelloTexture::LoadAssets()
     {
         Material m;
         m.textureIndex = m_texIndex[i % kTextureCount];
+        m.roughness = 0.2f + 0.6f * static_cast<float>(i % 16) / 15.0f;
+        m.metallic = (i % 8 == 0) ? 1.0f : 0.0f;
+        m.flags = 0;
         m_materialData.push_back(m);
     }
 
@@ -1342,6 +1345,7 @@ void D3D12HelloTexture::BuildRenderPasses()
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
             {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]},
+             {RootParam_MaterialSrv, m_materialBufferSrv},
              {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv},
              {RootParam_LightConstants, m_frameResources[m_frameIndex].lightCB.cbv}},
             {{GetBackBufferRtv()}, std::nullopt},
