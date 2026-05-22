@@ -21,6 +21,8 @@
 #include <cstdio>
 #include <windows.h>
 
+#include "GltfLoader.h"
+
 #include "MyDx12Utils.h"
 
 #include <pix3.h>
@@ -191,6 +193,13 @@ void D3D12HelloTexture::LoadPipeline()
 // Load the sample assets.
 void D3D12HelloTexture::LoadAssets()
 {
+    // Load the mesh data from a glTF file to verify that the loader works.
+    {
+        GltfMeshData mesh;
+        bool loaded = LoadGltfMesh("Assets\\Models\\DamagedHelmet\\glTF\\DamagedHelmet.gltf", mesh);
+        assert(loaded);
+    }
+
     // Create the root signature.
     {
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -236,10 +245,9 @@ void D3D12HelloTexture::LoadAssets()
                                                 D3D12_SHADER_VISIBILITY_ALL); // Structured buffer SRV (Instance data)
         rootParameters[2].InitAsDescriptorTable(1, &rangesSRV3[0],
                                                 D3D12_SHADER_VISIBILITY_ALL); // Structured buffer SRV (Material data)
-        rootParameters[3].InitAsDescriptorTable(
-            1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_ALL); // Camera constants
+        rootParameters[3].InitAsDescriptorTable(1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_ALL); // Camera constants
         rootParameters[4].InitAsDescriptorTable(1, &rangesGBufferSRV[0],
-                                                D3D12_SHADER_VISIBILITY_PIXEL);    // GBuffer SRVs
+                                                D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer SRVs
         rootParameters[5].InitAsDescriptorTable(1, &rangesLightCBV[0],
                                                 D3D12_SHADER_VISIBILITY_PIXEL);    // Light constants
         rootParameters[6].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer debug target
@@ -701,10 +709,10 @@ void D3D12HelloTexture::CreateConstantBuffer(ConstantBufferResource &constantBuf
 {
     assert(sizeInBytes % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0);
 
-    ThrowIfFailed(m_device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-        IID_PPV_ARGS(&constantBuffer.buffer)));
+    ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                                                    D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes),
+                                                    D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+                                                    IID_PPV_ARGS(&constantBuffer.buffer)));
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = constantBuffer.buffer->GetGPUVirtualAddress();
@@ -1340,25 +1348,22 @@ void D3D12HelloTexture::BuildRenderPasses()
              {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv}},
             {{GetBackBufferRtv()}, GetDepthDsv()}, [this](const RenderPass &) { RecordMainPass(); });
 #endif
-    AddPass(L"LightPass",
-            MakeGBufferReadUsageMap(),
+    AddPass(L"LightPass", MakeGBufferReadUsageMap(),
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
             {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]},
              {RootParam_MaterialSrv, m_materialBufferSrv},
              {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv},
              {RootParam_LightConstants, m_frameResources[m_frameIndex].lightCB.cbv}},
-            {{GetBackBufferRtv()}, std::nullopt},
-            [this](const RenderPass &) { RecordLightPass(); });
+            {{GetBackBufferRtv()}, std::nullopt}, [this](const RenderPass &) { RecordLightPass(); });
 
     if (IsGBufferDebugView())
     {
-        AddPass(L"GBufferDebugPass",
-                MakeGBufferReadUsageMap(),
+        AddPass(L"GBufferDebugPass", MakeGBufferReadUsageMap(),
                 MakeResourceUsageMap({{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(),
                                        D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-                MakeGBufferSrvBindings(),
-                {{GetBackBufferRtv()}, std::nullopt}, [this](const RenderPass &) { RecordGBufferDebugPass(); });
+                MakeGBufferSrvBindings(), {{GetBackBufferRtv()}, std::nullopt},
+                [this](const RenderPass &) { RecordGBufferDebugPass(); });
     }
 
     AddPass(L"ImGui", {},
@@ -1405,10 +1410,7 @@ auto D3D12HelloTexture::MakeGBufferSrvBindings() const -> std::vector<PassDescri
     return {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]}};
 }
 
-bool D3D12HelloTexture::IsGBufferDebugView() const
-{
-    return m_renderViewMode != RenderViewMode::LightPass;
-}
+bool D3D12HelloTexture::IsGBufferDebugView() const { return m_renderViewMode != RenderViewMode::LightPass; }
 
 UINT D3D12HelloTexture::GetGBufferDebugTarget() const
 {

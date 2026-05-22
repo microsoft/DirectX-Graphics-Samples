@@ -131,6 +131,7 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="GltfLoader.h" />
     <ClInclude Include="MyDx12Utils.h" />
     <ClInclude Include="SimpleDescriptorHeapAllocator.h" />
     <ClInclude Include="Win32Application.h" />
@@ -141,6 +142,7 @@
     <ClInclude Include="WorkMeter.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="GltfLoader.cpp" />
     <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="D3D12HelloTexture.cpp" />
     <ClCompile Include="DXSample.cpp" />
@@ -149,6 +151,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="TiniGgltfImpl.cpp" />
     <ClCompile Include="WorkMeter.cpp" />
   </ItemGroup>
   <ItemGroup>

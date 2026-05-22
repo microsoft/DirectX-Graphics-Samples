@@ -36,6 +36,9 @@
     <ClInclude Include="WorkMeter.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="GltfLoader.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -53,7 +56,13 @@
     <ClCompile Include="Win32Application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TiniGgltfImpl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="WorkMeter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GltfLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
