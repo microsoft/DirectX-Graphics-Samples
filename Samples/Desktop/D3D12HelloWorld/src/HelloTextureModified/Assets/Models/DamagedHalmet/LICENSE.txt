@@ -1,0 +1,16 @@
+DamagedHelmet
+
+Source:
+https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/DamagedHelmet
+
+Original author:
+theblueturtle_
+
+Original asset:
+https://sketchfab.com/models/b81008d513954189a063ff901f7abfe4
+
+License Information:
+Battle Damaged Sci-fi Helmet - PBR by theblueturtle_,
+published under a Creative Commons Attribution-NonCommercial license.
+
+This asset is included for graphics programming and rendering tests.
