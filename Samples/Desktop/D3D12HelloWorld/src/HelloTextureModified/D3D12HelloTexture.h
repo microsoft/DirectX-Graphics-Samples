@@ -33,6 +33,9 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
+// struct GltfVertex;
+#include "GltfLoader.h"
+
 class D3D12HelloTexture : public DXSample
 {
   public:
@@ -77,14 +80,16 @@ class D3D12HelloTexture : public DXSample
     static constexpr float kOffsetBounds = 5.f;
     static constexpr float kCameraMoveSpeed = 0.01f;
 
-    static constexpr UINT kInstanceCount = 1000;
+    static constexpr UINT kInstanceCount = 100;
     static constexpr float kCubeScale = 0.2f;
     static constexpr UINT kMaterialCount = 256;
 
-    static constexpr UINT kTriangleVertexCount = 10;
     static constexpr UINT kCubeVertexCount = (3 * 2 * 6);
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
+
+    static constexpr bool kTlgffLoadingEnabled =
+        true; // glTFメッシュとCubeを切り替える true: glTFモデルを読み込む、false: Cubeを描画する
 
     struct GridDim
     {
@@ -101,14 +106,6 @@ class D3D12HelloTexture : public DXSample
         int z = -instanceId / (dim.x * dim.y) + (kInstanceCount / dim.x / dim.y) / 2;
         return XMFLOAT3((float)x, (float)y, (float)z);
     }
-
-    struct Vertex
-    {
-        XMFLOAT3 position;
-        XMFLOAT2 uv;
-        XMFLOAT3 normal;
-    };
-
     struct Material
     {
         UINT textureIndex;
@@ -299,12 +296,17 @@ class D3D12HelloTexture : public DXSample
     std::vector<Material> m_materialData;
     LightingConstants m_lightingConstantsData;
 
-    // App resources.
     ComPtr<ID3D12Resource> m_vertexBuffer;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+
+    ComPtr<ID3D12Resource> m_indexBuffer;
+    D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+
     std::vector<ComPtr<ID3D12Resource>> m_texture;
 
-    UINT m_vertexCountPerInstance;
+    UINT m_vertexCountPerInstance = kCubeVertexCount;
+    UINT m_indexCountPerInstance = 0;
+
     int m_maxVisibleCubeCount = static_cast<int>(kInstanceCount);
 
     ComPtr<ID3D12Resource> m_materialBuffer;
@@ -429,6 +431,7 @@ class D3D12HelloTexture : public DXSample
     void LoadAssets();
     void InitImGui();
     void CreateConstantBuffer(ConstantBufferResource &constantBuffer, const void *initialData, UINT sizeInBytes);
+    std::array<GltfVertex, kCubeVertexCount> CreateCubeVertices() const;
 
     void CreateDepthStencil(UINT width, UINT height);
     void RegisterDepthStencil(UINT width, UINT height);
@@ -485,6 +488,8 @@ class D3D12HelloTexture : public DXSample
     void RecordMainPass();
     void RecordImGuiPass();
     void EndFrame();
+
+    void DrawInstanceWrapper(UINT vertexOrIndexCount, UINT instanceCount);
 
     void Resize(UINT width, UINT height);
 

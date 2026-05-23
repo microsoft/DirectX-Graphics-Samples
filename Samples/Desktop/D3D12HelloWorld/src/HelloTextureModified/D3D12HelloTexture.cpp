@@ -190,16 +190,66 @@ void D3D12HelloTexture::LoadPipeline()
                         kGpuWorkMeterQueryCount); // Initialize GPU work meter with a maximum of 100 timestamp queries.
 }
 
+std::array<GltfVertex, D3D12HelloTexture::kCubeVertexCount> D3D12HelloTexture::CreateCubeVertices() const
+{
+
+    constexpr float s = kCubeScale;
+    constexpr float u = 1.f;
+
+    return {{
+        // front
+        {{-s, -s, -s}, {0, u}, {0.0f, 0.0f, -1.0f}},
+        {{-s, s, -s}, {0, 0}, {0.0f, 0.0f, -1.0f}},
+        {{s, s, -s}, {u, 0}, {0.0f, 0.0f, -1.0f}},
+        {{-s, -s, -s}, {0, u}, {0.0f, 0.0f, -1.0f}},
+        {{s, s, -s}, {u, 0}, {0.0f, 0.0f, -1.0f}},
+        {{s, -s, -s}, {u, u}, {0.0f, 0.0f, -1.0f}},
+
+        // back
+        {{-s, -s, s}, {u, u}, {0.0f, 0.0f, 1.0f}},
+        {{s, s, s}, {0, 0}, {0.0f, 0.0f, 1.0f}},
+        {{-s, s, s}, {u, 0}, {0.0f, 0.0f, 1.0f}},
+        {{-s, -s, s}, {u, u}, {0.0f, 0.0f, 1.0f}},
+        {{s, -s, s}, {0, u}, {0.0f, 0.0f, 1.0f}},
+        {{s, s, s}, {0, 0}, {0.0f, 0.0f, 1.0f}},
+
+        // left
+        {{-s, -s, s}, {0, u}, {-1.0f, 0.0f, 0.0f}},
+        {{-s, s, s}, {0, 0}, {-1.0f, 0.0f, 0.0f}},
+        {{-s, s, -s}, {u, 0}, {-1.0f, 0.0f, 0.0f}},
+        {{-s, -s, s}, {0, u}, {-1.0f, 0.0f, 0.0f}},
+        {{-s, s, -s}, {u, 0}, {-1.0f, 0.0f, 0.0f}},
+        {{-s, -s, -s}, {u, u}, {-1.0f, 0.0f, 0.0f}},
+
+        // right
+        {{s, -s, -s}, {0, u}, {1.0f, 0.0f, 0.0f}},
+        {{s, s, -s}, {0, 0}, {1.0f, 0.0f, 0.0f}},
+        {{s, s, s}, {u, 0}, {1.0f, 0.0f, 0.0f}},
+        {{s, -s, -s}, {0, u}, {1.0f, 0.0f, 0.0f}},
+        {{s, s, s}, {u, 0}, {1.0f, 0.0f, 0.0f}},
+        {{s, -s, s}, {u, u}, {1.0f, 0.0f, 0.0f}},
+
+        // top
+        {{-s, s, -s}, {0, u}, {0.0f, 1.0f, 0.0f}},
+        {{-s, s, s}, {0, 0}, {0.0f, 1.0f, 0.0f}},
+        {{s, s, s}, {u, 0}, {0.0f, 1.0f, 0.0f}},
+        {{-s, s, -s}, {0, u}, {0.0f, 1.0f, 0.0f}},
+        {{s, s, s}, {u, 0}, {0.0f, 1.0f, 0.0f}},
+        {{s, s, -s}, {u, u}, {0.0f, 1.0f, 0.0f}},
+
+        // bottom
+        {{-s, -s, s}, {u, 0}, {0.0f, -1.0f, 0.0f}},
+        {{-s, -s, -s}, {u, u}, {0.0f, -1.0f, 0.0f}},
+        {{s, -s, -s}, {0, u}, {0.0f, -1.0f, 0.0f}},
+        {{-s, -s, s}, {u, 0}, {0.0f, -1.0f, 0.0f}},
+        {{s, -s, -s}, {0, u}, {0.0f, -1.0f, 0.0f}},
+        {{s, -s, s}, {0, 0}, {0.0f, -1.0f, 0.0f}},
+    }};
+}
+
 // Load the sample assets.
 void D3D12HelloTexture::LoadAssets()
 {
-    // Load the mesh data from a glTF file to verify that the loader works.
-    {
-        GltfMeshData mesh;
-        bool loaded = LoadGltfMesh("Assets\\Models\\DamagedHelmet\\glTF\\DamagedHelmet.gltf", mesh);
-        assert(loaded);
-    }
-
     // Create the root signature.
     {
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -400,82 +450,65 @@ void D3D12HelloTexture::LoadAssets()
                                               m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
 
     // Create the vertex buffer.
+    GltfMeshData mesh;
+
+    std::vector<GltfVertex> vertices_;
+    UINT vertexBufferSize_;
+
+    if constexpr (kTlgffLoadingEnabled)
     {
-        float _aspectRatio = 1.0; // m_aspectRatio
+        bool loaded = LoadGltfMesh("Assets\\Models\\DamagedHelmet\\glTF\\DamagedHelmet.gltf", mesh);
+        assert(loaded);
 
-        constexpr float s = kCubeScale;
-        constexpr float u = 1.f;
-        Vertex cubeVertices[] = {
-            // front
-            {{-s, -s, -s}, {0, u}, {0.0f, 0.0f, -1.0f}},
-            {{-s, s, -s}, {0, 0}, {0.0f, 0.0f, -1.0f}},
-            {{s, s, -s}, {u, 0}, {0.0f, 0.0f, -1.0f}},
-            {{-s, -s, -s}, {0, u}, {0.0f, 0.0f, -1.0f}},
-            {{s, s, -s}, {u, 0}, {0.0f, 0.0f, -1.0f}},
-            {{s, -s, -s}, {u, u}, {0.0f, 0.0f, -1.0f}},
+        const UINT size = static_cast<UINT>(sizeof(GltfVertex) * mesh.vertices.size());
+        m_indexCountPerInstance = static_cast<UINT>(mesh.indices.size());
+        m_vertexCountPerInstance = static_cast<UINT>(mesh.vertices.size());
+        vertices_ = mesh.vertices;
+        vertexBufferSize_ = size;
+    }
+    else
+    {
+        auto a = CreateCubeVertices();
+        vertices_ = std::vector<GltfVertex>(a.begin(), a.end());
+        m_vertexCountPerInstance = static_cast<UINT>(vertices_.size());
+        vertexBufferSize_ = static_cast<UINT>(sizeof(GltfVertex) * vertices_.size());
+    }
 
-            // back
-            {{-s, -s, s}, {u, u}, {0.0f, 0.0f, 1.0f}},
-            {{s, s, s}, {0, 0}, {0.0f, 0.0f, 1.0f}},
-            {{-s, s, s}, {u, 0}, {0.0f, 0.0f, 1.0f}},
-            {{-s, -s, s}, {u, u}, {0.0f, 0.0f, 1.0f}},
-            {{s, -s, s}, {0, u}, {0.0f, 0.0f, 1.0f}},
-            {{s, s, s}, {0, 0}, {0.0f, 0.0f, 1.0f}},
+    const std::vector<GltfVertex> vertices = vertices_;
+    const UINT vertexBufferSize = vertexBufferSize_;
 
-            // left
-            {{-s, -s, s}, {0, u}, {-1.0f, 0.0f, 0.0f}},
-            {{-s, s, s}, {0, 0}, {-1.0f, 0.0f, 0.0f}},
-            {{-s, s, -s}, {u, 0}, {-1.0f, 0.0f, 0.0f}},
-            {{-s, -s, s}, {0, u}, {-1.0f, 0.0f, 0.0f}},
-            {{-s, s, -s}, {u, 0}, {-1.0f, 0.0f, 0.0f}},
-            {{-s, -s, -s}, {u, u}, {-1.0f, 0.0f, 0.0f}},
+    // Note: using upload heaps to transfer static data like vert buffers is not
+    // recommended. Every time the GPU needs it, the upload heap will be marshalled
+    // over. Please read up on Default Heap usage. An upload heap is used here for
+    // code simplicity and because there are very few verts to actually transfer.
+    MyDx12Util::CreateUploadBuffer(m_device, vertexBufferSize, m_vertexBuffer);
 
-            // right
-            {{s, -s, -s}, {0, u}, {1.0f, 0.0f, 0.0f}},
-            {{s, s, -s}, {0, 0}, {1.0f, 0.0f, 0.0f}},
-            {{s, s, s}, {u, 0}, {1.0f, 0.0f, 0.0f}},
-            {{s, -s, -s}, {0, u}, {1.0f, 0.0f, 0.0f}},
-            {{s, s, s}, {u, 0}, {1.0f, 0.0f, 0.0f}},
-            {{s, -s, s}, {u, u}, {1.0f, 0.0f, 0.0f}},
+    // Copy the triangle data to the vertex buffer.
+    UINT8 *pVertexDataBegin = nullptr;
+    CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+    ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void **>(&pVertexDataBegin)));
+    memcpy(pVertexDataBegin, vertices.data(), vertexBufferSize);
+    m_vertexBuffer->Unmap(0, nullptr);
 
-            // top
-            {{-s, s, -s}, {0, u}, {0.0f, 1.0f, 0.0f}},
-            {{-s, s, s}, {0, 0}, {0.0f, 1.0f, 0.0f}},
-            {{s, s, s}, {u, 0}, {0.0f, 1.0f, 0.0f}},
-            {{-s, s, -s}, {0, u}, {0.0f, 1.0f, 0.0f}},
-            {{s, s, s}, {u, 0}, {0.0f, 1.0f, 0.0f}},
-            {{s, s, -s}, {u, u}, {0.0f, 1.0f, 0.0f}},
+    // Initialize the vertex buffer view.
+    m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+    m_vertexBufferView.StrideInBytes = sizeof(GltfVertex);
+    m_vertexBufferView.SizeInBytes = vertexBufferSize;
 
-            // bottom
-            {{-s, -s, s}, {u, 0}, {0.0f, -1.0f, 0.0f}},
-            {{-s, -s, -s}, {u, u}, {0.0f, -1.0f, 0.0f}},
-            {{s, -s, -s}, {0, u}, {0.0f, -1.0f, 0.0f}},
-            {{-s, -s, s}, {u, 0}, {0.0f, -1.0f, 0.0f}},
-            {{s, -s, -s}, {0, u}, {0.0f, -1.0f, 0.0f}},
-            {{s, -s, s}, {0, 0}, {0.0f, -1.0f, 0.0f}},
-        };
+    if constexpr (kTlgffLoadingEnabled)
+    {
+        const UINT indexBufferSize = static_cast<UINT>(mesh.indices.size() * sizeof(uint32_t));
 
-        const UINT vertexBufferSize = sizeof(cubeVertices);
+        MyDx12Util::CreateUploadBuffer(m_device, indexBufferSize, m_indexBuffer);
 
-        m_vertexCountPerInstance = kCubeVertexCount;
+        UINT8 *pIndexDataBegin = nullptr;
+        ThrowIfFailed(m_indexBuffer->Map(0, &readRange, reinterpret_cast<void **>(&pIndexDataBegin)));
+        memcpy(pIndexDataBegin, mesh.indices.data(), indexBufferSize);
+        m_indexBuffer->Unmap(0, nullptr);
 
-        // Note: using upload heaps to transfer static data like vert buffers is not
-        // recommended. Every time the GPU needs it, the upload heap will be marshalled
-        // over. Please read up on Default Heap usage. An upload heap is used here for
-        // code simplicity and because there are very few verts to actually transfer.
-        MyDx12Util::CreateUploadBuffer(m_device, vertexBufferSize, m_vertexBuffer);
-
-        // Copy the triangle data to the vertex buffer.
-        UINT8 *pVertexDataBegin;
-        CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
-        ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void **>(&pVertexDataBegin)));
-        memcpy(pVertexDataBegin, cubeVertices, sizeof(cubeVertices));
-        m_vertexBuffer->Unmap(0, nullptr);
-
-        // Initialize the vertex buffer view.
-        m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-        m_vertexBufferView.StrideInBytes = sizeof(Vertex);
-        m_vertexBufferView.SizeInBytes = vertexBufferSize;
+        m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
+        m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+        m_indexBufferView.SizeInBytes = indexBufferSize;
     }
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
@@ -1723,6 +1756,19 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Clear");
 }
 
+void D3D12HelloTexture::DrawInstanceWrapper(UINT vertexOrIndexCount, UINT instanceCount)
+{
+    if (kTlgffLoadingEnabled)
+    {
+        m_commandList->IASetIndexBuffer(&m_indexBufferView);
+        m_commandList->DrawIndexedInstanced(vertexOrIndexCount, instanceCount, 0, 0, 0);
+    }
+    else
+    {
+        m_commandList->DrawInstanced(vertexOrIndexCount, instanceCount, 0, 0);
+    }
+}
+
 //
 // Depth Pre-pass
 //
@@ -1732,7 +1778,7 @@ void D3D12HelloTexture::RecordDepthPrePass()
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     m_commandList->SetPipelineState(m_depthPrePassPSO.Get());
-    m_commandList->DrawInstanced(m_vertexCountPerInstance, GetVisibleCubeCount(), 0, 0);
+    DrawInstanceWrapper(m_vertexCountPerInstance, GetVisibleCubeCount());
 
     PIXEndEvent(m_commandList.Get());
 
@@ -1751,7 +1797,7 @@ void D3D12HelloTexture::RecordGBufferPass(const PassRenderTargetBinding &renderT
     m_commandList->SetPipelineState(m_gbufferPSO.Get());
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    m_commandList->DrawInstanced(m_vertexCountPerInstance, GetVisibleCubeCount(), 0, 0);
+    DrawInstanceWrapper(m_vertexCountPerInstance, GetVisibleCubeCount());
 
     PIXEndEvent(m_commandList.Get());
 
@@ -1795,7 +1841,7 @@ void D3D12HelloTexture::RecordMainPass()
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     m_commandList->SetPipelineState(m_pipelineState.Get());
-    m_commandList->DrawInstanced(m_vertexCountPerInstance, GetVisibleCubeCount(), 0, 0);
+    DrawInstanceWrapper(m_vertexCountPerInstance, GetVisibleCubeCount());
 
     PIXEndEvent(m_commandList.Get());
 
