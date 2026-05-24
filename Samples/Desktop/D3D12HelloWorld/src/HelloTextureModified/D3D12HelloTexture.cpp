@@ -247,6 +247,47 @@ std::array<GltfVertex, D3D12HelloTexture::kCubeVertexCount> D3D12HelloTexture::C
     }};
 }
 
+DescriptorHeapHandle D3D12HelloTexture::CreateTextureFromRGBA8(const UINT8 *pixels, UINT width, UINT height,
+                                                               ComPtr<ID3D12Resource> &texture,
+                                                               ComPtr<ID3D12Resource> &uploadHeap)
+{
+    D3D12_RESOURCE_DESC textureDesc = {};
+    textureDesc.MipLevels = 1;
+    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.Width = width;
+    textureDesc.Height = height;
+    textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    textureDesc.DepthOrArraySize = 1;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.SampleDesc.Quality = 0;
+    textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+    // Create the GPU resource for the texture.
+    ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                                                    D3D12_HEAP_FLAG_NONE, &textureDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+                                                    nullptr, IID_PPV_ARGS(&texture)));
+
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(texture.Get(), 0, 1);
+
+    // Create the GPU upload buffer.
+    ThrowIfFailed(
+        m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
+                                          &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+                                          D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&uploadHeap)));
+
+    D3D12_SUBRESOURCE_DATA textureData = {};
+    textureData.pData = pixels;
+    textureData.RowPitch = width * kTexturePixelSize;
+    textureData.SlicePitch = textureData.RowPitch * kTextureHeight;
+
+    UpdateSubresources(m_commandList.Get(), texture.Get(), uploadHeap.Get(), 0, 0, 1, &textureData);
+
+    m_commandList->ResourceBarrier(1,
+                                   &CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+                                                                         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+    return AllocateTextureSRV(texture.Get());
+}
+
 // Load the sample assets.
 void D3D12HelloTexture::LoadAssets()
 {
@@ -304,9 +345,15 @@ void D3D12HelloTexture::LoadAssets()
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+#if 1
+        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+#else
         sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
         sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
         sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+#endif
         sampler.MipLODBias = 0;
         sampler.MaxAnisotropy = 0;
         sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
@@ -455,7 +502,7 @@ void D3D12HelloTexture::LoadAssets()
     std::vector<GltfVertex> vertices_;
     UINT vertexBufferSize_;
 
-    if constexpr (kTlgffLoadingEnabled)
+    if constexpr (kGltfLoadingEnabled)
     {
         bool loaded = LoadGltfMesh("Assets\\Models\\DamagedHelmet\\glTF\\DamagedHelmet.gltf", mesh);
         assert(loaded);
@@ -495,7 +542,7 @@ void D3D12HelloTexture::LoadAssets()
     m_vertexBufferView.StrideInBytes = sizeof(GltfVertex);
     m_vertexBufferView.SizeInBytes = vertexBufferSize;
 
-    if constexpr (kTlgffLoadingEnabled)
+    if constexpr (kGltfLoadingEnabled)
     {
         const UINT indexBufferSize = static_cast<UINT>(mesh.indices.size() * sizeof(uint32_t));
 
@@ -515,71 +562,78 @@ void D3D12HelloTexture::LoadAssets()
     // the command list that references it has finished executing on the GPU.
     // We will flush the GPU at the end of this method to ensure the resource is not
     // prematurely destroyed.
+
     std::vector<ComPtr<ID3D12Resource>> textureUploadHeap;
-    textureUploadHeap.resize(kTextureCount);
 
-    // Create the texture.
+    if constexpr (kGltfLoadingEnabled)
     {
-        // Describe and create a Texture2D.
-        D3D12_RESOURCE_DESC textureDesc = {};
-        textureDesc.MipLevels = 1;
-        textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        textureDesc.Width = kTextureWidth;
-        textureDesc.Height = kTextureHeight;
-        textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-        textureDesc.DepthOrArraySize = 1;
-        textureDesc.SampleDesc.Count = 1;
-        textureDesc.SampleDesc.Quality = 0;
-        textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        // randomな色のチェッカーボードテクスチャをkTextureCount毎生成
+        textureUploadHeap.resize(kTextureCount);
 
+        // glTFファイルからテクスチャを読み込む
         m_texture.resize(kTextureCount);
 
-        for (int i = 0; i < kTextureCount; i++)
-        {
-            // Create the GPU resource for the texture.
-            ThrowIfFailed(m_device->CreateCommittedResource(
-                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &textureDesc,
-                D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_texture[i])));
-
-            const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_texture[i].Get(), 0, 1);
-
-            // Create the GPU upload buffer.
-            ThrowIfFailed(m_device->CreateCommittedResource(
-                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
-                &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-                IID_PPV_ARGS(&textureUploadHeap[i])));
-        }
-
-        // Copy data to the intermediate upload heap and then schedule a copy
-        // from the upload heap to the Texture2D.
-
-        // CPUにはkTextureTypesの数だけTextureをつくる
         std::vector<std::vector<UINT8>> texture(kTextureTypes);
-        for (int i = 0; i < kTextureTypes; i++)
+
+        m_gltfTextureCount = static_cast<UINT>(mesh.textures.size());
+
+        DBG_PRINT("m_gltfTextureCount = %d\n", m_gltfTextureCount);
+
+        for (size_t i = 0; i < kTextureCount; i++)
         {
-            texture[i] = GenerateCheckerboardTextureData(); // randomな色のチェッカーボードテクスチャデータを生成
-        }
+            bool useGltfTex = i < mesh.textures.size();
+            UINT8 *pixels = nullptr;
+            UINT width, height;
 
-        for (int i = 0; i < kTextureCount; i++)
-        {
-            D3D12_SUBRESOURCE_DATA textureData = {};
-            textureData.pData = &texture[i % kTextureTypes][0];
-            textureData.RowPitch = kTextureWidth * kTexturePixelSize;
-            textureData.SlicePitch = textureData.RowPitch * kTextureHeight;
+            if (useGltfTex)
+            {
+                // Gltfファイルのテクスチャがあれば使う。
+                const auto &tex = mesh.textures[i];
+                pixels = (UINT8 *)tex.pixels.data();
+                width = tex.width;
+                height = tex.height;
+                DBG_PRINT("[%d] gltfTexture :width %d height %d\n", i, tex.width, tex.height);
+            }
+            else
+            {
+                // Gltfファイルのテクスチャが足りなければチェッカーボードテクスチャを使う。
+                texture[i] = GenerateCheckerboardTextureData();
+                pixels = &texture[i % kTextureTypes][0];
+                width = kTextureWidth;
+                height = kTextureHeight;
+                DBG_PRINT("[%d] CheckerBoardTexture :width %d height %d\n", i, kTextureWidth, kTextureHeight);
+            }
 
-            UpdateSubresources(m_commandList.Get(), m_texture[i].Get(), textureUploadHeap[i].Get(), 0, 0, 1,
-                               &textureData);
-            m_commandList->ResourceBarrier(
-                1, &CD3DX12_RESOURCE_BARRIER::Transition(m_texture[i].Get(), D3D12_RESOURCE_STATE_COPY_DEST,
-                                                         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-
-            // Describe and create a SRV for the texture.
-            DescriptorHeapHandle srv = AllocateTextureSRV(m_texture[i].Get());
+            DescriptorHeapHandle srv =
+                CreateTextureFromRGBA8(pixels, width, height, m_texture[i], textureUploadHeap[i]);
             if (i == 0)
             {
                 m_textureTableStart = srv;
             }
+            m_texIndex[i] = srv.Index - m_textureTableStart.Index;
+            DBG_PRINT("Texture %d SRV index: %d\n", i, m_texIndex[i]);
+        }
+    }
+    else
+    {
+        // randomな色のチェッカーボードテクスチャをkTextureCount毎生成
+        textureUploadHeap.resize(kTextureCount);
 
+        m_texture.resize(kTextureCount);
+
+        // CPUメモリ状にテクスチャを作る
+
+        std::vector<std::vector<UINT8>> texture(kTextureTypes);
+        for (int i = 0; i < kTextureTypes; i++)
+        {
+            texture[i] = GenerateCheckerboardTextureData();
+
+            DescriptorHeapHandle srv = CreateTextureFromRGBA8(&texture[i % kTextureTypes][0], kTextureWidth,
+                                                              kTextureHeight, m_texture[i], textureUploadHeap[i]);
+            if (i == 0)
+            {
+                m_textureTableStart = srv;
+            }
             m_texIndex[i] = srv.Index - m_textureTableStart.Index;
             DBG_PRINT("Texture %d SRV index: %d\n", i, m_texIndex[i]);
         }
@@ -597,7 +651,17 @@ void D3D12HelloTexture::LoadAssets()
 
         // CPU and GPU
         InstanceData d;
-        d.materialId = i % kMaterialCount;
+
+        if constexpr (kGltfLoadingEnabled)
+        {
+            // glTFのマテリアル数に応じてmaterialIdを割り当てる。足りない分は0番のマテリアルを使う。
+            d.materialId = i % m_gltfTextureCount;
+        }
+        else
+        {
+            d.materialId = i % kMaterialCount;
+        }
+
         XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
         XMStoreFloat4x4(&d.world, XMMatrixTranspose(transMat));
         d.prevWorld = d.world;
@@ -725,7 +789,8 @@ void D3D12HelloTexture::InitImGui()
     init_info.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
     // Allocating SRV descriptors (for textures) is up to the application, so we provide callbacks.
-    // (current version of the backend will only allocate one descriptor, future versions will need to allocate more)
+    // (current version of the backend will only allocate one descriptor, future versions will need to allocate
+    // more)
     init_info.SrvDescriptorHeap = m_imguiHeap.Get();
     init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo *, D3D12_CPU_DESCRIPTOR_HANDLE *out_cpu_handle,
                                         D3D12_GPU_DESCRIPTOR_HANDLE *out_gpu_handle)
@@ -1015,7 +1080,17 @@ void D3D12HelloTexture::OnUpdate()
         {
             for (int i = 0; i < kInstanceCount; i++)
             {
-                m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % kMaterialCount;
+                if constexpr (kGltfLoadingEnabled)
+                {
+                    m_instanceData[i].materialId = 0; // base texture only
+                    // glTFのテクスチャ数に合わせて切り替える
+                    // m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % m_gltfTextureCount;
+                }
+                else
+                {
+                    // チェッカーボードテクスチャ(kTextureCount)に合わせて切り替える
+                    m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % kTextureCount;
+                }
             }
             accumTime = 0.f;
         }
@@ -1758,7 +1833,7 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets
 
 void D3D12HelloTexture::DrawInstanceWrapper(UINT vertexOrIndexCount, UINT instanceCount)
 {
-    if (kTlgffLoadingEnabled)
+    if (kGltfLoadingEnabled)
     {
         m_commandList->IASetIndexBuffer(&m_indexBufferView);
         m_commandList->DrawIndexedInstanced(vertexOrIndexCount, instanceCount, 0, 0, 0);

@@ -2,89 +2,83 @@
 
 #include <initializer_list>
 
-namespace MyDx12Util {
+#include "DXSampleHelper.h"
 
-    inline void CreateUploadBuffer(ComPtr<ID3D12Device>& device, size_t size, ComPtr<ID3D12Resource>& ppResource)
-    {
-        ThrowIfFailed(device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(size),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&ppResource)));
+// Note that while ComPtr is used to manage the lifetime of resources on the CPU,
+// it has no understanding of the lifetime of resources on the GPU. Apps must account
+// for the GPU lifetime of resources to avoid destroying objects that may still be
+// referenced by the GPU.
+// An example of this can be found in the class method: OnDestroy().
+using Microsoft::WRL::ComPtr;
 
-    }
+namespace MyDx12Util
+{
 
-    inline void ClearRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
-    {
-        for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-        {
-            desc.RTVFormats[i] = DXGI_FORMAT_UNKNOWN;
-        }
-    }
-
-    inline void SetRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc, const DXGI_FORMAT* formats,
-        UINT formatCount)
-    {
-        ClearRenderTargetFormats(desc);
-
-        desc.NumRenderTargets = formatCount;
-        for (UINT i = 0; i < formatCount; ++i)
-        {
-            desc.RTVFormats[i] = formats[i];
-        }
-    }
-
-    inline void SetRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc,
-        std::initializer_list<DXGI_FORMAT> formats)
-    {
-        SetRenderTargetFormats(desc, formats.begin(), static_cast<UINT>(formats.size()));
-    }
-
-    inline D3D12_GRAPHICS_PIPELINE_STATE_DESC CreateGBufferPSODesc(
-        const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
-        const void* vs,
-        UINT vsSize,
-        const void* ps,
-        UINT psSize,
-        const DXGI_FORMAT* rtvFormats,
-        UINT rtvFormatCount)
-    {
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
-
-        desc.VS = CD3DX12_SHADER_BYTECODE(vs, vsSize);
-        desc.PS = CD3DX12_SHADER_BYTECODE(ps, psSize);
-        SetRenderTargetFormats(desc, rtvFormats, rtvFormatCount);
-
-        return desc;
-    }
-
-    inline D3D12_GRAPHICS_PIPELINE_STATE_DESC CreateFullscreenPassPSODesc(
-        const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
-        const void* vs,
-        UINT vsSize,
-        const void* ps,
-        UINT psSize,
-        DXGI_FORMAT rtvFormat)
-    {
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
-
-        desc.InputLayout = {};
-        desc.VS = CD3DX12_SHADER_BYTECODE(vs, vsSize);
-        desc.PS = CD3DX12_SHADER_BYTECODE(ps, psSize);
-        desc.DepthStencilState.DepthEnable = FALSE;
-        desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-        desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
-        SetRenderTargetFormats(desc, { rtvFormat });
-
-        return desc;
-    }
-
+inline void CreateUploadBuffer(ComPtr<ID3D12Device> &device, size_t size, ComPtr<ID3D12Resource> &ppResource)
+{
+    ThrowIfFailed(device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(size),
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&ppResource)));
 }
 
+inline void ClearRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc)
+{
+    for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+    {
+        desc.RTVFormats[i] = DXGI_FORMAT_UNKNOWN;
+    }
+}
 
-inline void DebugPrint(const char* fmt, ...)
+inline void SetRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, const DXGI_FORMAT *formats,
+                                   UINT formatCount)
+{
+    ClearRenderTargetFormats(desc);
+
+    desc.NumRenderTargets = formatCount;
+    for (UINT i = 0; i < formatCount; ++i)
+    {
+        desc.RTVFormats[i] = formats[i];
+    }
+}
+
+inline void SetRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, std::initializer_list<DXGI_FORMAT> formats)
+{
+    SetRenderTargetFormats(desc, formats.begin(), static_cast<UINT>(formats.size()));
+}
+
+inline D3D12_GRAPHICS_PIPELINE_STATE_DESC CreateGBufferPSODesc(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                                               const void *vs, UINT vsSize, const void *ps, UINT psSize,
+                                                               const DXGI_FORMAT *rtvFormats, UINT rtvFormatCount)
+{
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
+
+    desc.VS = CD3DX12_SHADER_BYTECODE(vs, vsSize);
+    desc.PS = CD3DX12_SHADER_BYTECODE(ps, psSize);
+    SetRenderTargetFormats(desc, rtvFormats, rtvFormatCount);
+
+    return desc;
+}
+
+inline D3D12_GRAPHICS_PIPELINE_STATE_DESC
+CreateFullscreenPassPSODesc(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc, const void *vs, UINT vsSize,
+                            const void *ps, UINT psSize, DXGI_FORMAT rtvFormat)
+{
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
+
+    desc.InputLayout = {};
+    desc.VS = CD3DX12_SHADER_BYTECODE(vs, vsSize);
+    desc.PS = CD3DX12_SHADER_BYTECODE(ps, psSize);
+    desc.DepthStencilState.DepthEnable = FALSE;
+    desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+    SetRenderTargetFormats(desc, {rtvFormat});
+
+    return desc;
+}
+
+} // namespace MyDx12Util
+
+inline void DebugPrint(const char *fmt, ...)
 {
     char buf[1024];
 
@@ -95,6 +89,4 @@ inline void DebugPrint(const char* fmt, ...)
 
     OutputDebugStringA(buf);
 }
-#define DBG_PRINT(fmt, ...) \
-DebugPrint("[%s:%d] " fmt, __FILE__, __LINE__, __VA_ARGS__)
-
+#define DBG_PRINT(fmt, ...) DebugPrint("[%s:%d] " fmt, __FILE__, __LINE__, __VA_ARGS__)

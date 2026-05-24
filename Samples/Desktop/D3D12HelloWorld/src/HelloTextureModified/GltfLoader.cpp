@@ -1,7 +1,9 @@
-// GltfLoader.cpp
+﻿// GltfLoader.cpp
 #include "stdafx.h"
 
 #include "GltfLoader.h"
+
+#include "MyDx12Utils.h"
 
 #include <cstdint>
 #include <cstring>
@@ -133,6 +135,47 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
     else
     {
         return false;
+    }
+
+    // load material
+
+    const int matIndex = prim.material;
+
+    outMesh.materialIndex = matIndex;
+
+    DBG_PRINT("Material index: %d\n", matIndex);
+
+    if (matIndex >= 0)
+    {
+        const auto &mat = model.materials[matIndex];
+        const auto &pbr = mat.pbrMetallicRoughness;
+
+        outMesh.materials.resize(model.materials.size());
+
+        auto &dst = outMesh.materials[matIndex];
+
+        dst.baseColorTextureIndex = pbr.baseColorTexture.index;
+
+        DBG_PRINT("MetaricRoughness.baseColorTextureIdnex: %d\n", dst.baseColorTextureIndex);
+
+        for (int i = 0; i < 4; ++i)
+        {
+            dst.baseColorFactor[i] = static_cast<float>(pbr.baseColorFactor[i]);
+            DBG_PRINT("MetaricRoughness.baseColorFactor[%d]: %d\n", i, dst.baseColorFactor[i]);
+        }
+    }
+
+    for (const auto &tex : model.textures)
+    {
+        const tinygltf::Image &image = model.images[tex.source];
+
+        GltfTextureData dst;
+        dst.width = image.width;
+        dst.height = image.height;
+        dst.component = image.component;
+        dst.pixels = image.image;
+
+        outMesh.textures.push_back(std::move(dst));
     }
 
     return true;

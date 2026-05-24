@@ -33,8 +33,8 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
-// struct GltfVertex;
-#include "GltfLoader.h"
+struct GltfVertex;
+// #include "GltfLoader.h"
 
 class D3D12HelloTexture : public DXSample
 {
@@ -88,7 +88,7 @@ class D3D12HelloTexture : public DXSample
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
 
-    static constexpr bool kTlgffLoadingEnabled =
+    static constexpr bool kGltfLoadingEnabled =
         true; // glTFメッシュとCubeを切り替える true: glTFモデルを読み込む、false: Cubeを描画する
 
     struct GridDim
@@ -302,6 +302,8 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12Resource> m_indexBuffer;
     D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 
+    UINT m_gltfTextureCount = 0;
+
     std::vector<ComPtr<ID3D12Resource>> m_texture;
 
     UINT m_vertexCountPerInstance = kCubeVertexCount;
@@ -462,6 +464,9 @@ class D3D12HelloTexture : public DXSample
     void CreateGBufferRTVs();
     void CreateGBufferSRVs();
     void CreateGBuffer();
+
+    DescriptorHeapHandle CreateTextureFromRGBA8(const UINT8 *pixels, UINT width, UINT height,
+                                                ComPtr<ID3D12Resource> &texture, ComPtr<ID3D12Resource> &uploadHeap);
 
     void ReleaseResourcesAfterPass(int passIndex);
     void ResetResourceStates();
