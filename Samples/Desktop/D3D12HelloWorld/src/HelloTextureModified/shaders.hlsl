@@ -11,9 +11,14 @@
 
 struct Material
 {
-    uint textureIndex;
-    float roughness;
-    float metallic;
+    uint albedoTexIndex;
+    uint metallicRoughnessTexIndex;
+    uint emissiveTexIndex;
+    uint occlusionTexIndex;
+    uint normalTexIndex;
+    float roughnessFactor;
+    float metallicFactor;
+    float occlusionStrength;
     uint flags;
 };
 
@@ -63,5 +68,5 @@ float4 PSMain(PSInput input) : SV_TARGET
 {
     InstanceData inst = g_instanceData[input.instanceId];
     Material mat = g_materialData[inst.materialId];
-    return g_texture[mat.textureIndex].Sample(g_sampler, input.uv);
+    return g_texture[mat.albedoTexIndex].Sample(g_sampler, input.uv);
 }

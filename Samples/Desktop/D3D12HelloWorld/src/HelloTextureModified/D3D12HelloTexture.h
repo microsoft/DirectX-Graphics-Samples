@@ -54,7 +54,7 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kTextureHeight = 256;
     static constexpr UINT kTexturePixelSize = 4; // The number of bytes used to represent a pixel in the texture.
 
-    static constexpr UINT kGBufferCount = 4;
+    static constexpr UINT kGBufferCount = 5;
 
     static constexpr UINT kHeapDescriptorCount = 100;
     // 0 - 99 : ImGui (new)
@@ -88,8 +88,9 @@ class D3D12HelloTexture : public DXSample
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
 
-    static constexpr bool kGltfLoadingEnabled =
-        true; // glTFメッシュとCubeを切り替える true: glTFモデルを読み込む、false: Cubeを描画する
+    // glTFメッシュとCubeを切り替える true: glTFモデルを読み込む、false: Cubeを描画する
+    static constexpr bool kGltfLoadingEnabled = true;
+    static constexpr bool kGltfMeshDisplay = false;
 
     struct GridDim
     {
@@ -108,18 +109,22 @@ class D3D12HelloTexture : public DXSample
     }
     struct Material
     {
-        UINT textureIndex;
-        float roughness;
-        float metallic;
+        UINT albedoTexIndex;
+        UINT metallicRoughnessTexIndex;
+        UINT emissiveTexIndex;
+        UINT occlusionTexIndex;
+        UINT normalTexIndex;
+        float roughnessFactor;
+        float metallicFactor;
+        float occlusionStrength;
         UINT flags;
     };
 
-    struct InstanceData
+    struct alignas(16) InstanceData
     {
         XMFLOAT4X4 world;
         XMFLOAT4X4 prevWorld;
         UINT materialId;
-        float padding[3]; // 16byte alignment
     };
 
     struct InstanceDataForCPU
@@ -218,6 +223,7 @@ class D3D12HelloTexture : public DXSample
             Normal = 1,
             Material = 2,
             MotionVector = 3,
+            PBRParams = 4,
         };
 
         ComPtr<ID3D12Resource> resources[kCount];
@@ -227,6 +233,7 @@ class D3D12HelloTexture : public DXSample
             DXGI_FORMAT_R16G16B16A16_FLOAT, // Normal
             DXGI_FORMAT_R32_UINT,           // Material
             DXGI_FORMAT_R16G16_FLOAT,       // Motion Vector
+            DXGI_FORMAT_R8G8B8A8_UNORM,     // PBR Params (Metallic, Roughness, Occlusion, Emissive)
         };
 
         D3D12_CLEAR_VALUE clearValues[kCount] = {
@@ -234,6 +241,7 @@ class D3D12HelloTexture : public DXSample
             {DXGI_FORMAT_R16G16B16A16_FLOAT, {0.5f, 0.5f, 1.0f, 1.0f}},
             {DXGI_FORMAT_R32_UINT, {0.0f, 0.0f, 0.0f, 0.0f}},
             {DXGI_FORMAT_R16G16_FLOAT, {0.0f, 0.0f, 0.0f, 0.0f}},
+            {DXGI_FORMAT_R8G8B8A8_UNORM, {0.0f, 0.0f, 0.0f, 0.0f}},
         };
 
         UINT rtvIndex[kCount] = {};
@@ -250,6 +258,7 @@ class D3D12HelloTexture : public DXSample
         GBufferNormal,
         GBufferMaterial,
         GBufferMotionVector,
+        GBufferPBRParams,
         Depth,
     };
 
@@ -342,8 +351,8 @@ class D3D12HelloTexture : public DXSample
 
     static constexpr const char *kBackBufferResourceName = "BackBuffer";
     static constexpr const char *kDepthStencilResourceName = "DepthStencil";
-    static constexpr const char *kGBufferResourceNames[GBuffer::kCount] = {"GBuffer.Albedo", "GBuffer.Normal",
-                                                                           "GBuffer.Material", "GBuffer.MotionVector"};
+    static constexpr const char *kGBufferResourceNames[GBuffer::kCount] = {
+        "GBuffer.Albedo", "GBuffer.Normal", "GBuffer.Material", "GBuffer.MotionVector", "GBuffer.PBRParams"};
 
     struct ResourceUsage
     {

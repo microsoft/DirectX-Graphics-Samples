@@ -154,15 +154,30 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
 
         auto &dst = outMesh.materials[matIndex];
 
-        dst.baseColorTextureIndex = pbr.baseColorTexture.index;
+        dst.albedoTexIndex = pbr.baseColorTexture.index;
+        dst.metallicRoughnessTexIndex = pbr.metallicRoughnessTexture.index;
+        dst.emissiveTexIndex = mat.emissiveTexture.index;
+        dst.occlusionTexIndex = mat.occlusionTexture.index;
+        dst.normalTexIndex = mat.normalTexture.index;
+        dst.roughnessFactor = static_cast<float>(pbr.roughnessFactor);
+        dst.metallicFactor = static_cast<float>(pbr.metallicFactor);
+        dst.occlusionStrength = static_cast<float>(mat.occlusionTexture.strength);
 
-        DBG_PRINT("MetaricRoughness.baseColorTextureIdnex: %d\n", dst.baseColorTextureIndex);
+        DBG_PRINT("model.materials[%d].name = %s\n", matIndex, mat.name.c_str());
+        DBG_PRINT("baseColorTexture.index: %d\n", dst.albedoTexIndex);
+        DBG_PRINT("metallicRoughnessTexture.index: %d\n", dst.metallicRoughnessTexIndex);
+        DBG_PRINT("emissiveTexture.index: %d\n", dst.emissiveTexIndex);
+        DBG_PRINT("occlusionTexture.index: %d\n", dst.occlusionTexIndex);
+        DBG_PRINT("normalTexture.index: %d\n", dst.normalTexIndex);
 
         for (int i = 0; i < 4; ++i)
         {
             dst.baseColorFactor[i] = static_cast<float>(pbr.baseColorFactor[i]);
-            DBG_PRINT("MetaricRoughness.baseColorFactor[%d]: %d\n", i, dst.baseColorFactor[i]);
+            DBG_PRINT("baseColorFactor[%d]: %f\n", i, dst.baseColorFactor[i]);
         }
+        DBG_PRINT("roughnessFactor: %f\n", dst.roughnessFactor);
+        DBG_PRINT("metallicFactor: %f\n", dst.metallicFactor);
+        DBG_PRINT("occlusionStrength: %f\n", dst.occlusionStrength);
     }
 
     for (const auto &tex : model.textures)
@@ -170,6 +185,7 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
         const tinygltf::Image &image = model.images[tex.source];
 
         GltfTextureData dst;
+        DBG_PRINT("image.name = %s\n", image.name.c_str());
         dst.width = image.width;
         dst.height = image.height;
         dst.component = image.component;

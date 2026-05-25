@@ -506,7 +506,10 @@ void D3D12HelloTexture::LoadAssets()
     {
         bool loaded = LoadGltfMesh("Assets\\Models\\DamagedHelmet\\glTF\\DamagedHelmet.gltf", mesh);
         assert(loaded);
+    }
 
+    if constexpr (kGltfLoadingEnabled && kGltfMeshDisplay)
+    {
         const UINT size = static_cast<UINT>(sizeof(GltfVertex) * mesh.vertices.size());
         m_indexCountPerInstance = static_cast<UINT>(mesh.indices.size());
         m_vertexCountPerInstance = static_cast<UINT>(mesh.vertices.size());
@@ -655,7 +658,8 @@ void D3D12HelloTexture::LoadAssets()
         if constexpr (kGltfLoadingEnabled)
         {
             // glTFのマテリアル数に応じてmaterialIdを割り当てる。足りない分は0番のマテリアルを使う。
-            d.materialId = i % m_gltfTextureCount;
+            const UINT gltfMaterialCount = static_cast<UINT>(mesh.materials.size());
+            d.materialId = gltfMaterialCount > 0 ? i % gltfMaterialCount : 0;
         }
         else
         {
@@ -670,13 +674,46 @@ void D3D12HelloTexture::LoadAssets()
 
     // Generate the material data.
     m_materialData.clear();
+    const auto resolveTextureIndex = [this](int gltfTextureIndex, UINT fallbackIndex) -> UINT
+    {
+        if (gltfTextureIndex >= 0 && gltfTextureIndex < static_cast<int>(kTextureCount))
+        {
+            return m_texIndex[gltfTextureIndex];
+        }
+        return fallbackIndex;
+    };
+
     for (int i = 0; i < kMaterialCount; i++)
     {
-        Material m;
-        m.textureIndex = m_texIndex[i % kTextureCount];
-        m.roughness = 0.2f + 0.6f * static_cast<float>(i % 16) / 15.0f;
-        m.metallic = (i % 8 == 0) ? 1.0f : 0.0f;
+        const UINT fallbackTexIndex = m_texIndex[i % kTextureCount];
+        Material m = {};
+        m.albedoTexIndex = fallbackTexIndex;
+        m.metallicRoughnessTexIndex = fallbackTexIndex;
+        m.emissiveTexIndex = fallbackTexIndex;
+        m.occlusionTexIndex = fallbackTexIndex;
+        m.normalTexIndex = fallbackTexIndex;
+        m.roughnessFactor = 0.2f + 0.6f * static_cast<float>(i % 16) / 15.0f;
+        m.metallicFactor = (i % 8 == 0) ? 1.0f : 0.0f;
+        m.occlusionStrength = 1.0f;
         m.flags = 0;
+
+        if constexpr (kGltfLoadingEnabled)
+        {
+            if (i < static_cast<int>(mesh.materials.size()))
+            {
+                const auto &gltfMaterial = mesh.materials[i];
+                m.albedoTexIndex = resolveTextureIndex(gltfMaterial.albedoTexIndex, fallbackTexIndex);
+                m.metallicRoughnessTexIndex =
+                    resolveTextureIndex(gltfMaterial.metallicRoughnessTexIndex, fallbackTexIndex);
+                m.emissiveTexIndex = resolveTextureIndex(gltfMaterial.emissiveTexIndex, fallbackTexIndex);
+                m.occlusionTexIndex = resolveTextureIndex(gltfMaterial.occlusionTexIndex, fallbackTexIndex);
+                m.normalTexIndex = resolveTextureIndex(gltfMaterial.normalTexIndex, fallbackTexIndex);
+                m.roughnessFactor = gltfMaterial.roughnessFactor;
+                m.metallicFactor = gltfMaterial.metallicFactor;
+                m.occlusionStrength = gltfMaterial.occlusionStrength;
+            }
+        }
+
         m_materialData.push_back(m);
     }
 
@@ -1083,7 +1120,7 @@ void D3D12HelloTexture::OnUpdate()
                 if constexpr (kGltfLoadingEnabled)
                 {
                     m_instanceData[i].materialId = 0; // base texture only
-                    // glTFのテクスチャ数に合わせて切り替える
+                    //  glTFのテクスチャ数に合わせて切り替える
                     // m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % m_gltfTextureCount;
                 }
                 else
@@ -1233,6 +1270,8 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::RadioButton("Material", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMaterial));
     //    ImGui::SameLine();
     ImGui::RadioButton("MotionVector", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMotionVector));
+    ImGui::SameLine();
+    ImGui::RadioButton("PBRParams", &renderViewMode, static_cast<int>(RenderViewMode::GBufferPBRParams));
     ImGui::SameLine();
     ImGui::RadioButton("Depth", &renderViewMode, static_cast<int>(RenderViewMode::Depth));
     m_renderViewMode = static_cast<RenderViewMode>(renderViewMode);
@@ -1436,13 +1475,15 @@ void D3D12HelloTexture::BuildRenderPasses()
                               {kGBufferResourceNames[GBuffer::Material], m_gbuffer.resources[GBuffer::Material].Get(),
                                D3D12_RESOURCE_STATE_RENDER_TARGET},
                               {kGBufferResourceNames[GBuffer::MotionVector],
-                               m_gbuffer.resources[GBuffer::MotionVector].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+                               m_gbuffer.resources[GBuffer::MotionVector].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET},
+                              {kGBufferResourceNames[GBuffer::PBRParams], m_gbuffer.resources[GBuffer::PBRParams].Get(),
+                               D3D12_RESOURCE_STATE_RENDER_TARGET}}),
         {{RootParam_TextureTable, m_textureTableStart},
          {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
          {RootParam_MaterialSrv, m_materialBufferSrv},
          {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv}},
         {{GetGBufferRTV(GBuffer::Albedo), GetGBufferRTV(GBuffer::Normal), GetGBufferRTV(GBuffer::Material),
-          GetGBufferRTV(GBuffer::MotionVector)},
+          GetGBufferRTV(GBuffer::MotionVector), GetGBufferRTV(GBuffer::PBRParams)},
          GetDepthDsv()},
         [this](const RenderPass &pass) { RecordGBufferPass(pass.renderTargets); });
 #if 0
@@ -1509,6 +1550,8 @@ auto D3D12HelloTexture::MakeGBufferReadUsageMap() const -> ResourceUsageMap
          {kGBufferResourceNames[GBuffer::Material], m_gbuffer.resources[GBuffer::Material].Get(),
           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
          {kGBufferResourceNames[GBuffer::MotionVector], m_gbuffer.resources[GBuffer::MotionVector].Get(),
+          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[GBuffer::PBRParams], m_gbuffer.resources[GBuffer::PBRParams].Get(),
           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
          {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}});
 }
@@ -1833,7 +1876,7 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets
 
 void D3D12HelloTexture::DrawInstanceWrapper(UINT vertexOrIndexCount, UINT instanceCount)
 {
-    if (kGltfLoadingEnabled)
+    if (kGltfLoadingEnabled && kGltfMeshDisplay)
     {
         m_commandList->IASetIndexBuffer(&m_indexBufferView);
         m_commandList->DrawIndexedInstanced(vertexOrIndexCount, instanceCount, 0, 0, 0);

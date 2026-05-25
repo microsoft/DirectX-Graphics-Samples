@@ -1,4 +1,4 @@
-// GltfLoader.h
+﻿// GltfLoader.h
 #pragma once
 
 #include <DirectXMath.h>
@@ -14,8 +14,15 @@ struct GltfVertex
 
 struct GltfMaterial
 {
-    int baseColorTextureIndex = -1;
+    int albedoTexIndex = -1;
+    int metallicRoughnessTexIndex = -1;
+    int emissiveTexIndex = -1;
+    int occlusionTexIndex = -1;
+    int normalTexIndex = -1;
     float baseColorFactor[4] = {1, 1, 1, 1};
+    float roughnessFactor = 1.0f;
+    float metallicFactor = 1.0f;
+    float occlusionStrength = 1.0f;
 };
 
 struct GltfTextureData

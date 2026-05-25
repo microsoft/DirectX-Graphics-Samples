@@ -8,7 +8,8 @@ Texture2D<float4> g_albedo : register(t0, space3);
 Texture2D<float4> g_normal : register(t1, space3);
 Texture2D<uint> g_material : register(t2, space3);
 Texture2D<float2> g_motionVector : register(t3, space3);
-Texture2D<float> g_depth : register(t4, space3);
+Texture2D<float4> g_pbrParams : register(t4, space3);
+Texture2D<float> g_depth : register(t5, space3);
 SamplerState g_sampler : register(s0);
 
 cbuffer GBufferDebugConstants : register(b1)
@@ -79,6 +80,11 @@ float4 PSMain(VSOutput input) : SV_TARGET
         return float4(HsvToRgb(float3(hue, 1.0, magnitude)), 1.0);
     }
     if (g_debugTarget == 4)
+    {
+        float3 value = g_pbrParams.Sample(g_sampler, input.uv).rgb;
+        return float4(value, 1.0);
+    }
+    if (g_debugTarget == 5)
     {
         float value = g_depth.Sample(g_sampler, input.uv);
         return float4(value, value, value, 1.0);

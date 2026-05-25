@@ -6,16 +6,22 @@
 
 struct Material
 {
-    uint textureIndex;
-    float roughness;
-    float metallic;
+    uint albedoTexIndex;
+    uint metallicRoughnessTexIndex;
+    uint emissiveTexIndex;
+    uint occlusionTexIndex;
+    uint normalTexIndex;
+    float roughnessFactor;
+    float metallicFactor;
+    float occlusionStrength;
     uint flags;
 };
 
 Texture2D<float4> g_albedo : register(t0, space3);
 Texture2D<float4> g_normal : register(t1, space3);
 Texture2D<uint> g_material : register(t2, space3);
-Texture2D<float> g_depth : register(t4, space3);
+Texture2D<float4> g_pbrParams : register(t4, space3);
+Texture2D<float> g_depth : register(t5, space3);
 SamplerState g_sampler : register(s0);
 StructuredBuffer<Material> g_materialData : register(t0, space2);
 
@@ -77,15 +83,19 @@ float4 PSMain(VSOutput input) : SV_TARGET
     float3 normal = normalize(g_normal.Sample(g_sampler, input.uv).rgb);
     uint materialId = g_material.Load(int3(input.position.xy, 0));
     Material material = g_materialData[materialId];
+    float4 pbrParams = g_pbrParams.Sample(g_sampler, input.uv);
+    float metallic = pbrParams.r;
+    float roughness = pbrParams.g;
+    float occlusion = pbrParams.b;
     float3 worldPos = ReconstructWorldPosition(input.uv, depth);
     float3 lightDir = normalize(lightDirection);
     float ndotl = saturate(dot(normal, -lightDir));
 
-    float3 ambient = albedo * ambientIntensity;
+    float3 ambient = albedo * ambientIntensity * occlusion;
     float receiveLighting = (material.flags & 1) ? 0.0 : 1.0;
-    float3 diffuse = albedo * lightColor * ndotl * diffuseIntensity * (1.0 - material.metallic) * receiveLighting;
-    float specularPower = lerp(64.0, 8.0, material.roughness);
-    float specularStrength = lerp(0.04, 1.0, material.metallic) * (1.0 - material.roughness);
+    float3 diffuse = albedo * lightColor * ndotl * diffuseIntensity * (1.0 - metallic) * receiveLighting;
+    float specularPower = lerp(64.0, 8.0, roughness);
+    float specularStrength = lerp(0.04, 1.0, metallic) * (1.0 - roughness);
     float3 specular = lightColor * pow(ndotl, specularPower) * specularStrength * receiveLighting;
     return float4(ambient + diffuse + specular, 1.0);
 }
