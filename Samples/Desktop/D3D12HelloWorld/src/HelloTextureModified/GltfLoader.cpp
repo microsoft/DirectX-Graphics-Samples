@@ -56,6 +56,7 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
     auto posIt = prim.attributes.find("POSITION");
     auto normalIt = prim.attributes.find("NORMAL");
     auto uvIt = prim.attributes.find("TEXCOORD_0");
+    auto tangentIt = prim.attributes.find("TANGENT");
 
     if (posIt == prim.attributes.end())
         return false;
@@ -75,6 +76,18 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
     {
         const auto &uvAccessor = model.accessors[uvIt->second];
         uvs = reinterpret_cast<const float *>(GetAccessorData(model, uvAccessor));
+    }
+
+    const float *tangents = nullptr;
+    if (tangentIt != prim.attributes.end())
+    {
+        const auto &tangentAccessor = model.accessors[tangentIt->second];
+        tangents = reinterpret_cast<const float *>(GetAccessorData(model, tangentAccessor));
+        DBG_PRINT("glTF TANGENT attribute found.\n");
+    }
+    else
+    {
+        DBG_PRINT("glTF TANGENT attribute not found. Shader fallback tangent frame will be used.\n");
     }
 
     outMesh.vertices.resize(posAccessor.count);
@@ -101,6 +114,11 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
         else
         {
             v.uv = {0.0f, 0.0f};
+        }
+
+        if (tangents)
+        {
+            v.tangent = {tangents[i * 4 + 0], tangents[i * 4 + 1], tangents[i * 4 + 2], tangents[i * 4 + 3]};
         }
 
         outMesh.vertices[i] = v;

@@ -50,7 +50,7 @@ SamplerState g_sampler : register(s0);
 StructuredBuffer<InstanceData> g_instanceData : register(t0, space1);
 StructuredBuffer<Material> g_materialData : register(t0, space2);
 
-PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL, uint instanceId : SV_InstanceID)
+PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL, float4 tangent : TANGENT, uint instanceId : SV_InstanceID)
 {
     PSInput result;
 
