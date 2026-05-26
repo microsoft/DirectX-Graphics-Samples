@@ -53,10 +53,14 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 
     // The sample compiles a single VS partial program and a single PS partial
-    // program, then late-links three blend permutations (opaque / additive /
-    // alpha-blend) into three generic programs that share the same shader code.
+    // program into a collection state object, then late-links three blend
+    // permutations (opaque / additive / alpha-blend) into three generic
+    // programs that share the same shader code. The first two permutations
+    // are linked into m_stateObject[0]; the third is added on top via
+    // AddToStateObject to produce m_stateObject[1].
     static const UINT NumBlendPermutations = 3;
-    ComPtr<ID3D12StateObject> m_stateObject;
+    ComPtr<ID3D12StateObject> m_collection;
+    ComPtr<ID3D12StateObject> m_stateObject[2];
     D3D12_PROGRAM_IDENTIFIER m_blendPrograms[NumBlendPermutations] = {};
 
     ComPtr<ID3D12GraphicsCommandList10> m_commandList;
