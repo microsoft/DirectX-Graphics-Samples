@@ -9,28 +9,15 @@
 //
 //*********************************************************
 
-// This sample is a template for demonstrating "partial graphics programs"
-// using state objects. It is intentionally missing the state object / PSO
-// creation code -- that section is left as a TODO so the sample can be
-// filled in to showcase whichever partial-program technique is desired.
+// This sample demonstrates "partial graphics programs": compile a vertex
+// shader and a pixel shader exactly once, then late-link three different
+// blend states to produce three pipeline programs that share the same
+// shader code. The result is three overlapping translucent triangles
+// rendered in a single frame, each drawn with a different blend mode:
 //
-// What is already wired up:
-//   - Device, swap chain, command queue / allocator / list
-//   - Render target views and an empty root signature
-//   - Vertex buffer for a single triangle
-//   - Per-frame synchronization
-//   - Shader source (shaders.hlsl) with VSMain / PSMain entry points
-//
-// What you need to add:
-//   - Compile the shaders (see CompileDxilLibraryFromFile below for a helper
-//     using dxcompiler.dll), build a CD3DX12_STATE_OBJECT_DESC describing
-//     your partial graphics program(s), and create the resulting
-//     ID3D12StateObject via m_device->CreateStateObject(...).
-//   - Query an ID3D12StateObjectProperties1 interface and look up the
-//     D3D12_PROGRAM_IDENTIFIER for each program you want to bind.
-//   - In PopulateCommandList(), call m_commandList->SetProgram(...) with a
-//     D3D12_SET_PROGRAM_DESC of type D3D12_PROGRAM_TYPE_GENERIC_PIPELINE
-//     before issuing the draw.
+//   * red   triangle (left)   -> opaque blend
+//   * green triangle (center) -> additive blend
+//   * blue  triangle (right)  -> source-alpha / inv-source-alpha blend
 
 #include "stdafx.h"
 #include "D3D12HelloPartialGraphicsPrograms.h"
@@ -39,7 +26,7 @@
 #include <iostream>
 #include <atlbase.h>
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 721; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 // Helper for compiling an HLSL file into a DXIL library blob using dxcompiler.dll.
@@ -290,30 +277,235 @@ void D3D12HelloPartialGraphicsPrograms::LoadAssets()
     }
 
     // -------------------------------------------------------------------------
-    // TODO: Create the partial graphics program(s) here.
+    // Partial graphics programs: compile VS + PS once, then late-link three
+    // blend permutations into three program identifiers that share the same
+    // shader code.
     //
-    // This template intentionally leaves out the state object / PSO creation
-    // code. Fill this section in to demonstrate the partial graphics program
-    // technique you want to showcase. A typical implementation would:
-    //
-    //   1. Compile shaders, e.g.
-    //        ComPtr<ID3DBlob> vertexShader, pixelShader;
-    //        ThrowIfFailed(CompileDxilLibraryFromFile(
-    //            GetAssetFullPath(L"shaders.hlsl").c_str(),
-    //            L"VSMain", L"vs_6_0", nullptr, 0, &vertexShader));
-    //        ThrowIfFailed(CompileDxilLibraryFromFile(
-    //            GetAssetFullPath(L"shaders.hlsl").c_str(),
-    //            L"PSMain", L"ps_6_0", nullptr, 0, &pixelShader));
-    //
-    //   2. Build a CD3DX12_STATE_OBJECT_DESC populated with the input layout,
-    //      global root signature, DXIL library subobjects, primitive topology,
-    //      render target formats, and a CD3DX12_GENERIC_PROGRAM_SUBOBJECT (or
-    //      whichever subobject(s) define your partial program).
-    //
-    //   3. Call m_device->CreateStateObject(...) to produce the state object,
-    //      then query ID3D12StateObjectProperties1 to retrieve the
-    //      D3D12_PROGRAM_IDENTIFIER(s) you'll bind in PopulateCommandList().
+    // The block below is written against the API names in
+    //   https://github.com/microsoft/DirectX-Specs/blob/master/d3d/PartialGraphicsPrograms.md
+    // (D3D12_STATE_SUBOBJECT_TYPE_PARTIAL_GRAPHICS_PROGRAM,
+    //  D3D12_PARTIAL_GRAPHICS_PROGRAM_DESC,
+    //  D3D12_PRERASTERIZATION_SHADERS_PARTIAL_PROGRAM_FIELDS,
+    //  D3D12_PIXEL_SHADER_PARTIAL_PROGRAM_FIELDS, etc.).
     // -------------------------------------------------------------------------
+    {
+        // First check device support.
+        D3D12_FEATURE_DATA_PARTIAL_GRAPHICS_PROGRAMS pgp = {};
+        ThrowIfFailed(m_device->CheckFeatureSupport(
+            D3D12_FEATURE_PARTIAL_GRAPHICS_PROGRAMS, &pgp, sizeof(pgp)));
+        if (pgp.PartialGraphicsProgramsTier < D3D12_PARTIAL_GRAPHICS_PROGRAMS_TIER_1_0)
+        {
+            OutputDebugStringA("Partial Graphics Programs Tier 1.0 is required.");
+            ThrowIfFailed(E_FAIL);
+        }
+
+        // Compile VS + PS once.
+        ComPtr<ID3DBlob> vertexShader;
+        ComPtr<ID3DBlob> pixelShader;
+        ThrowIfFailed(CompileDxilLibraryFromFile(
+            GetAssetFullPath(L"shaders.hlsl").c_str(),
+            L"VSMain", L"vs_6_0", nullptr, 0, &vertexShader));
+        ThrowIfFailed(CompileDxilLibraryFromFile(
+            GetAssetFullPath(L"shaders.hlsl").c_str(),
+            L"PSMain", L"ps_6_0", nullptr, 0, &pixelShader));
+
+        // Input layout (baked into the pre-rasterization partial program).
+        D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        };
+        D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = { inputElementDescs, _countof(inputElementDescs) };
+
+        // Primitive topology (shared by both partial programs).
+        D3D12_PRIMITIVE_TOPOLOGY_TYPE topology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+        // Render target formats (baked into the PS partial program).
+        D3D12_RT_FORMAT_ARRAY rtFormats = {};
+        rtFormats.NumRenderTargets = 1;
+        rtFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+        // Pre-rasterization shaders partial program fields: input layout is
+        // baked in (not late linked) since it doesn't vary across permutations.
+        D3D12_PRERASTERIZATION_SHADERS_PARTIAL_PROGRAM_FIELDS_DESC preRastFields = {};
+        preRastFields.ExcludePS = FALSE;
+        preRastFields.LateLinkInputLayoutSubobject = FALSE;
+
+        // Pixel shader partial program fields: blend will be late linked; all
+        // other state is baked in / defaulted.
+        D3D12_PIXEL_SHADER_PARTIAL_PROGRAM_FIELDS_DESC psFields = {};
+        psFields.LineRasterizationMode             = D3D12_LINE_RASTERIZATION_MODE_ALIASED;
+        psFields.ForcedSampleCount                 = 0;
+        psFields.AlphaToCoverageEnable             = FALSE;
+        psFields.DualSourceBlendEnable             = FALSE;
+        psFields.LateLinkRasterizerSubobject       = FALSE;
+        psFields.LateLinkBlendSubobject            = TRUE;   // <-- the whole point
+        psFields.LateLinkSampleMaskSubobject       = FALSE;
+        psFields.LateLinkSampleDescSubobject       = FALSE;
+        psFields.LateLinkDepthStencilFormatSubobject = FALSE;
+        psFields.LateLinkRenderTargetFormatSubobject = FALSE;
+        psFields.LateLinkDepthStencilSubobject     = FALSE;
+
+        // Global root signature.
+        D3D12_GLOBAL_ROOT_SIGNATURE globalRS = { m_rootSignature.Get() };
+
+        // DXIL library descs (one per shader).
+        D3D12_EXPORT_DESC vsExport = { L"VSMain", nullptr, D3D12_EXPORT_FLAG_NONE };
+        D3D12_DXIL_LIBRARY_DESC vsLib = {};
+        vsLib.DXILLibrary.pShaderBytecode = vertexShader->GetBufferPointer();
+        vsLib.DXILLibrary.BytecodeLength  = vertexShader->GetBufferSize();
+        vsLib.NumExports = 1;
+        vsLib.pExports   = &vsExport;
+
+        D3D12_EXPORT_DESC psExport = { L"PSMain", nullptr, D3D12_EXPORT_FLAG_NONE };
+        D3D12_DXIL_LIBRARY_DESC psLib = {};
+        psLib.DXILLibrary.pShaderBytecode = pixelShader->GetBufferPointer();
+        psLib.DXILLibrary.BytecodeLength  = pixelShader->GetBufferSize();
+        psLib.NumExports = 1;
+        psLib.pExports   = &psExport;
+
+        // Three blend descs (the only thing that varies between the three
+        // generic programs we'll link).
+        auto MakeBlend = [](BOOL enable, D3D12_BLEND src, D3D12_BLEND dst)
+        {
+            D3D12_BLEND_DESC b = {};
+            b.AlphaToCoverageEnable  = FALSE;
+            b.IndependentBlendEnable = FALSE;
+            b.RenderTarget[0].BlendEnable           = enable;
+            b.RenderTarget[0].LogicOpEnable         = FALSE;
+            b.RenderTarget[0].SrcBlend              = src;
+            b.RenderTarget[0].DestBlend             = dst;
+            b.RenderTarget[0].BlendOp               = D3D12_BLEND_OP_ADD;
+            b.RenderTarget[0].SrcBlendAlpha         = D3D12_BLEND_ONE;
+            b.RenderTarget[0].DestBlendAlpha        = D3D12_BLEND_ZERO;
+            b.RenderTarget[0].BlendOpAlpha          = D3D12_BLEND_OP_ADD;
+            b.RenderTarget[0].LogicOp               = D3D12_LOGIC_OP_NOOP;
+            b.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+            return b;
+        };
+        D3D12_BLEND_DESC blendDescs[NumBlendPermutations] =
+        {
+            MakeBlend(FALSE, D3D12_BLEND_ONE,       D3D12_BLEND_ZERO),         // opaque
+            MakeBlend(TRUE,  D3D12_BLEND_ONE,       D3D12_BLEND_ONE),          // additive
+            MakeBlend(TRUE,  D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA),// alpha
+        };
+
+        // Build the flat subobject list. Indices are referenced below when
+        // wiring up the partial program and generic program descs.
+        enum SubobjectIndex
+        {
+            SO_Config = 0,
+            SO_RootSig,
+            SO_VSLib,
+            SO_PSLib,
+            SO_InputLayout,
+            SO_Topology,
+            SO_RTFormats,
+            SO_PreRastFields,
+            SO_PSFields,
+            SO_PreRastProgram,
+            SO_PSProgram,
+            SO_Blend0,
+            SO_Blend1,
+            SO_Blend2,
+            SO_GenericProgram0,
+            SO_GenericProgram1,
+            SO_GenericProgram2,
+            SO_Count
+        };
+
+        D3D12_STATE_OBJECT_CONFIG soConfig = {};
+        soConfig.Flags = D3D12_STATE_OBJECT_FLAG_NONE;
+
+        D3D12_STATE_SUBOBJECT subobjects[SO_Count] = {};
+        subobjects[SO_Config]       = { D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG,   &soConfig };
+        subobjects[SO_RootSig]      = { D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, &globalRS };
+        subobjects[SO_VSLib]        = { D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY,          &vsLib };
+        subobjects[SO_PSLib]        = { D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY,          &psLib };
+        subobjects[SO_InputLayout]  = { D3D12_STATE_SUBOBJECT_TYPE_INPUT_LAYOUT,          &inputLayoutDesc };
+        subobjects[SO_Topology]     = { D3D12_STATE_SUBOBJECT_TYPE_PRIMITIVE_TOPOLOGY,    &topology };
+        subobjects[SO_RTFormats]    = { D3D12_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS, &rtFormats };
+        subobjects[SO_PreRastFields]= { D3D12_STATE_SUBOBJECT_TYPE_PRERASTERIZATION_SHADERS_PARTIAL_PROGRAM_FIELDS, &preRastFields };
+        subobjects[SO_PSFields]     = { D3D12_STATE_SUBOBJECT_TYPE_PIXEL_SHADER_PARTIAL_PROGRAM_FIELDS,             &psFields };
+
+        // Pre-rasterization partial program: references VS export and includes
+        // input layout, primitive topology, and the pre-raster fields desc.
+        LPCWSTR preRastExports[] = { L"VSMain" };
+        const D3D12_STATE_SUBOBJECT* preRastChildren[] =
+        {
+            &subobjects[SO_InputLayout],
+            &subobjects[SO_Topology],
+            &subobjects[SO_PreRastFields],
+        };
+        D3D12_PARTIAL_GRAPHICS_PROGRAM_DESC preRastDesc = {};
+        preRastDesc.ProgramName    = L"VSPartial";
+        preRastDesc.NumExports     = _countof(preRastExports);
+        preRastDesc.pExports       = preRastExports;
+        preRastDesc.NumSubobjects  = _countof(preRastChildren);
+        preRastDesc.ppSubobjects   = preRastChildren;
+        preRastDesc.ProgramType    = D3D12_PARTIAL_GRAPHICS_PROGRAM_TYPE_PRERASTERIZATION_SHADER;
+        subobjects[SO_PreRastProgram] = { D3D12_STATE_SUBOBJECT_TYPE_PARTIAL_GRAPHICS_PROGRAM, &preRastDesc };
+
+        // Pixel shader partial program: references PS export and bakes in
+        // primitive topology + RT formats; blend is late linked.
+        LPCWSTR psExports2[] = { L"PSMain" };
+        const D3D12_STATE_SUBOBJECT* psChildren[] =
+        {
+            &subobjects[SO_Topology],
+            &subobjects[SO_RTFormats],
+            &subobjects[SO_PSFields],
+        };
+        D3D12_PARTIAL_GRAPHICS_PROGRAM_DESC psDesc = {};
+        psDesc.ProgramName    = L"PSPartial";
+        psDesc.NumExports     = _countof(psExports2);
+        psDesc.pExports       = psExports2;
+        psDesc.NumSubobjects  = _countof(psChildren);
+        psDesc.ppSubobjects   = psChildren;
+        psDesc.ProgramType    = D3D12_PARTIAL_GRAPHICS_PROGRAM_TYPE_PIXEL_SHADER;
+        subobjects[SO_PSProgram] = { D3D12_STATE_SUBOBJECT_TYPE_PARTIAL_GRAPHICS_PROGRAM, &psDesc };
+
+        subobjects[SO_Blend0] = { D3D12_STATE_SUBOBJECT_TYPE_BLEND, &blendDescs[0] };
+        subobjects[SO_Blend1] = { D3D12_STATE_SUBOBJECT_TYPE_BLEND, &blendDescs[1] };
+        subobjects[SO_Blend2] = { D3D12_STATE_SUBOBJECT_TYPE_BLEND, &blendDescs[2] };
+
+        // Three generic programs, each referencing the two partial programs by
+        // name and supplying a different blend subobject.
+        LPCWSTR programExports[] = { L"VSPartial", L"PSPartial" };
+        const D3D12_STATE_SUBOBJECT* gp0Children[] = { &subobjects[SO_Blend0] };
+        const D3D12_STATE_SUBOBJECT* gp1Children[] = { &subobjects[SO_Blend1] };
+        const D3D12_STATE_SUBOBJECT* gp2Children[] = { &subobjects[SO_Blend2] };
+
+        D3D12_GENERIC_PROGRAM_DESC genericPrograms[NumBlendPermutations] = {};
+        const LPCWSTR programNames[NumBlendPermutations] = { L"OpaqueProgram", L"AdditiveProgram", L"AlphaProgram" };
+        const D3D12_STATE_SUBOBJECT* const* perProgramChildren[NumBlendPermutations] =
+        {
+            gp0Children, gp1Children, gp2Children,
+        };
+        for (UINT i = 0; i < NumBlendPermutations; ++i)
+        {
+            genericPrograms[i].ProgramName   = programNames[i];
+            genericPrograms[i].NumExports    = _countof(programExports);
+            genericPrograms[i].pExports      = programExports;
+            genericPrograms[i].NumSubobjects = 1;
+            genericPrograms[i].ppSubobjects  = perProgramChildren[i];
+        }
+        subobjects[SO_GenericProgram0] = { D3D12_STATE_SUBOBJECT_TYPE_GENERIC_PROGRAM, &genericPrograms[0] };
+        subobjects[SO_GenericProgram1] = { D3D12_STATE_SUBOBJECT_TYPE_GENERIC_PROGRAM, &genericPrograms[1] };
+        subobjects[SO_GenericProgram2] = { D3D12_STATE_SUBOBJECT_TYPE_GENERIC_PROGRAM, &genericPrograms[2] };
+
+        D3D12_STATE_OBJECT_DESC soDesc = {};
+        soDesc.Type          = D3D12_STATE_OBJECT_TYPE_EXECUTABLE;
+        soDesc.NumSubobjects = SO_Count;
+        soDesc.pSubobjects   = subobjects;
+        ThrowIfFailed(m_device->CreateStateObject(&soDesc, IID_PPV_ARGS(&m_stateObject)));
+
+        ComPtr<ID3D12StateObjectProperties1> soProps;
+        ThrowIfFailed(m_stateObject->QueryInterface(IID_PPV_ARGS(&soProps)));
+        for (UINT i = 0; i < NumBlendPermutations; ++i)
+        {
+            m_blendPrograms[i] = soProps->GetProgramIdentifier(programNames[i]);
+        }
+    }
 
     // Create the command list.
     ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
@@ -322,15 +514,29 @@ void D3D12HelloPartialGraphicsPrograms::LoadAssets()
     // to record yet. The main loop expects it to be closed, so close it now.
     ThrowIfFailed(m_commandList->Close());
 
-    // Create the vertex buffer.
+    // Create the vertex buffer with three overlapping translucent triangles.
+    // Each triangle is ~0.4 NDC tall / wide. They are offset along X so that
+    // they visibly overlap in the middle of the window, which makes the per-
+    // triangle blend modes (opaque / additive / alpha) easy to see at a glance.
     {
-        // Define the geometry for a triangle.
-        Vertex triangleVertices[] =
+        const float kAlpha = 0.7f;
+        // Per-triangle horizontal offsets in NDC.
+        const float xOffset[NumBlendPermutations] = { -0.30f, 0.0f, 0.30f };
+        const XMFLOAT4 triColor[NumBlendPermutations] =
         {
-            { { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-            { { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-            { { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+            { 1.0f, 0.0f, 0.0f, kAlpha }, // opaque (red)
+            { 0.0f, 1.0f, 0.0f, kAlpha }, // additive (green)
+            { 0.0f, 0.0f, 1.0f, kAlpha }, // alpha blend (blue)
         };
+
+        Vertex triangleVertices[NumBlendPermutations * 3];
+        for (UINT i = 0; i < NumBlendPermutations; ++i)
+        {
+            const float x = xOffset[i];
+            triangleVertices[i * 3 + 0] = { { x,           0.30f * m_aspectRatio, 0.0f }, triColor[i] };
+            triangleVertices[i * 3 + 1] = { { x + 0.25f, -0.30f * m_aspectRatio, 0.0f }, triColor[i] };
+            triangleVertices[i * 3 + 2] = { { x - 0.25f, -0.30f * m_aspectRatio, 0.0f }, triColor[i] };
+        }
 
         const UINT vertexBufferSize = sizeof(triangleVertices);
 
@@ -438,15 +644,18 @@ void D3D12HelloPartialGraphicsPrograms::PopulateCommandList()
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 
     // -------------------------------------------------------------------------
-    // TODO: Bind the partial graphics program created in LoadAssets() and issue
-    // the draw. A typical sequence looks like:
-    //
-    //   D3D12_SET_PROGRAM_DESC sp = {};
-    //   sp.Type = D3D12_PROGRAM_TYPE_GENERIC_PIPELINE;
-    //   sp.GenericPipeline.ProgramIdentifier = m_partialProgram;
-    //   m_commandList->SetProgram(&sp);
-    //   m_commandList->DrawInstanced(3, 1, 0, 0);
+    // Draw each triangle with its own blend-permutation program. The three
+    // program identifiers were produced by linking the same VS + PS partial
+    // programs with three different blend subobjects in LoadAssets().
     // -------------------------------------------------------------------------
+    for (UINT i = 0; i < NumBlendPermutations; ++i)
+    {
+        D3D12_SET_PROGRAM_DESC sp = {};
+        sp.Type = D3D12_PROGRAM_TYPE_GENERIC_PIPELINE;
+        sp.GenericPipeline.ProgramIdentifier = m_blendPrograms[i];
+        m_commandList->SetProgram(&sp);
+        m_commandList->DrawInstanced(3, 1, i * 3, 0);
+    }
 
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));

@@ -52,11 +52,12 @@ private:
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 
-    // TODO: Declare the state object(s) and program identifier(s) used to drive
-    // the partial graphics program(s) that this sample will create.
-    // e.g.:
-    //   ComPtr<ID3D12StateObject> m_stateObject;
-    //   D3D12_PROGRAM_IDENTIFIER m_partialProgram;
+    // The sample compiles a single VS partial program and a single PS partial
+    // program, then late-links three blend permutations (opaque / additive /
+    // alpha-blend) into three generic programs that share the same shader code.
+    static const UINT NumBlendPermutations = 3;
+    ComPtr<ID3D12StateObject> m_stateObject;
+    D3D12_PROGRAM_IDENTIFIER m_blendPrograms[NumBlendPermutations] = {};
 
     ComPtr<ID3D12GraphicsCommandList10> m_commandList;
     UINT m_rtvDescriptorSize;
