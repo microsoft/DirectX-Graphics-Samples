@@ -28,6 +28,9 @@ public:
     // Samples override the event handlers to handle specific messages.
     virtual void OnKeyDown(UINT8 /*key*/)   {}
     virtual void OnKeyUp(UINT8 /*key*/)     {}
+    virtual void OnMouseDown(UINT8 /*button*/, int /*x*/, int /*y*/) {}
+    virtual void OnMouseUp(UINT8 /*button*/, int /*x*/, int /*y*/) {}
+    virtual void OnMouseMove(int /*x*/, int /*y*/) {}
     virtual void OnWindowSizeChanged(UINT, UINT){}
     virtual void OnIdle() {}
 

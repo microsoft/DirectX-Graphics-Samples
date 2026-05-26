@@ -646,7 +646,7 @@ void D3D12HelloTexture::LoadAssets()
     // Generate the instance data.
     m_instanceData.clear();
     m_instanceDataForCPU.clear();
-    for (int i = 0; i < kInstanceCount; i++)
+    for (int i = 0; i < kMaxInstanceCount; i++)
     {
         XMFLOAT3 pos = instanceIdToXYZ(i, GridDim(10, 10, 10));
 
@@ -667,8 +667,10 @@ void D3D12HelloTexture::LoadAssets()
             d.materialId = i % kMaterialCount;
         }
 
+        XMMATRIX scaleMat = XMMatrixScaling(m_meshScale, m_meshScale, m_meshScale);
         XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
-        XMStoreFloat4x4(&d.world, XMMatrixTranspose(transMat));
+        XMMATRIX worldMat = scaleMat * transMat;
+        XMStoreFloat4x4(&d.world, XMMatrixTranspose(worldMat));
         d.prevWorld = d.world;
         m_instanceData.push_back(d);
     }
@@ -721,7 +723,7 @@ void D3D12HelloTexture::LoadAssets()
     // Create the instance buffer.
     for (int n = 0; n < kFrameCount; n++)
     {
-        const UINT instanceBufferSize = sizeof(InstanceData) * kInstanceCount;
+        const UINT instanceBufferSize = sizeof(InstanceData) * kMaxInstanceCount;
 
         MyDx12Util::CreateUploadBuffer(m_device, instanceBufferSize, m_frameResources[n].instanceBuffer);
 
@@ -730,7 +732,7 @@ void D3D12HelloTexture::LoadAssets()
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
         srvDesc.Format = DXGI_FORMAT_UNKNOWN;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srvDesc.Buffer.NumElements = kInstanceCount;
+        srvDesc.Buffer.NumElements = kMaxInstanceCount;
         srvDesc.Buffer.StructureByteStride = sizeof(InstanceData);
 
         m_frameResources[n].instanceBufferSrv = m_descriptorHeapAllocator.AllocWithHandle();
@@ -1109,68 +1111,81 @@ void D3D12HelloTexture::OnUpdate()
     static float accumTime = 0.f;
     m_prevTime = now;
 
-    if (m_isPlaying)
+    const bool updateInstanceTransforms = m_isPlaying || m_instanceTransformDirty;
+    if (updateInstanceTransforms)
     {
 
         // InstanceBufferのmaterialのtextureIdを1秒ごと切り替える
-        accumTime += deltaTime;
-        if (accumTime > 1.0f)
+        if (m_isPlaying)
         {
-            for (int i = 0; i < kInstanceCount; i++)
+            accumTime += deltaTime;
+            if (accumTime > 1.0f)
             {
-                if constexpr (kGltfLoadingEnabled)
+                for (int i = 0; i < kMaxInstanceCount; i++)
                 {
-                    m_instanceData[i].materialId = 0; // base texture only
-                    //  glTFのテクスチャ数に合わせて切り替える
-                    // m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % m_gltfTextureCount;
+                    if constexpr (kGltfLoadingEnabled)
+                    {
+                        m_instanceData[i].materialId = 0; // base texture only
+                        //  glTFのテクスチャ数に合わせて切り替える
+                        // m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % m_gltfTextureCount;
+                    }
+                    else
+                    {
+                        // チェッカーボードテクスチャ(kTextureCount)に合わせて切り替える
+                        m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % kTextureCount;
+                    }
                 }
-                else
-                {
-                    // チェッカーボードテクスチャ(kTextureCount)に合わせて切り替える
-                    m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % kTextureCount;
-                }
+                accumTime = 0.f;
             }
-            accumTime = 0.f;
         }
 
         // InstanceBufferのオフセットを毎フレーム更新する
-        for (int i = 0; i < kInstanceCount; i++)
+        for (int i = 0; i < kMaxInstanceCount; i++)
         {
             m_instanceData[i].prevWorld = m_instanceData[i].world;
             bool resetMotionVector = false;
 
 #if 1 // cube array auto-translation
-            m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
+            if (m_isPlaying)
+            {
+                m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
+            }
 #endif
             if (m_instanceDataForCPU[i].pos.x > kOffsetBounds)
             {
                 m_instanceDataForCPU[i].pos.x = -kOffsetBounds;
                 resetMotionVector = true;
             }
-            m_instanceDataForCPU[i].rot.x += kRotationSpeed;
-            if (m_instanceDataForCPU[i].rot.x >= 2.0 * kPI)
+            if (m_isPlaying)
             {
-                m_instanceDataForCPU[i].rot.x = 0.f;
+                m_instanceDataForCPU[i].rot.x += kRotationSpeed;
+                if (m_instanceDataForCPU[i].rot.x >= 2.0 * kPI)
+                {
+                    m_instanceDataForCPU[i].rot.x = 0.f;
+                }
+                m_instanceDataForCPU[i].rot.y += kRotationSpeed;
+                if (m_instanceDataForCPU[i].rot.y >= 2.0 * kPI)
+                {
+                    m_instanceDataForCPU[i].rot.y = 0.f;
+                }
+                m_instanceDataForCPU[i].rot.z += kRotationSpeed;
+                if (m_instanceDataForCPU[i].rot.z >= 2.0 * kPI)
+                {
+                    m_instanceDataForCPU[i].rot.z = 0.f;
+                }
             }
-            m_instanceDataForCPU[i].rot.y += kRotationSpeed;
-            if (m_instanceDataForCPU[i].rot.y >= 2.0 * kPI)
-            {
-                m_instanceDataForCPU[i].rot.y = 0.f;
-            }
-            m_instanceDataForCPU[i].rot.z += kRotationSpeed;
-            if (m_instanceDataForCPU[i].rot.z >= 2.0 * kPI)
-            {
-                m_instanceDataForCPU[i].rot.z = 0.f;
-            }
+
+            XMMATRIX scaleMat = XMMatrixScaling(m_meshScale, m_meshScale, m_meshScale);
 
             XMMATRIX transMat = XMMatrixTranslation(m_instanceDataForCPU[i].pos.x, m_instanceDataForCPU[i].pos.y,
                                                     m_instanceDataForCPU[i].pos.z);
 
             XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(m_instanceDataForCPU[i].rot.x, m_instanceDataForCPU[i].rot.y,
                                                            m_instanceDataForCPU[i].rot.z);
+            XMMATRIX dragRotMat = XMMatrixRotationRollPitchYaw(m_dragRotation.x, m_dragRotation.y, 0.0f);
 
             // XMMATRIX rotMat = XMMatrixRotationZ(m_instanceDataForCPU[i].rot.z);
-            XMMATRIX worldMat = rotMat * transMat;
+            XMMATRIX worldMat = scaleMat * rotMat * dragRotMat * transMat;
 
             // XMStoreFloat4x4(&m_instanceData[i].world, worldMat);
             XMStoreFloat4x4(&m_instanceData[i].world, XMMatrixTranspose(worldMat));
@@ -1179,10 +1194,11 @@ void D3D12HelloTexture::OnUpdate()
                 m_instanceData[i].prevWorld = m_instanceData[i].world;
             }
         }
+        m_instanceTransformDirty = false;
     }
     else
     {
-        for (int i = 0; i < kInstanceCount; i++)
+        for (int i = 0; i < kMaxInstanceCount; i++)
         {
             m_instanceData[i].prevWorld = m_instanceData[i].world;
         }
@@ -1190,7 +1206,8 @@ void D3D12HelloTexture::OnUpdate()
 
     m_frameResources[m_frameIndex].instanceBuffer->Map(
         0, nullptr, reinterpret_cast<void **>(&m_frameResources[m_frameIndex].pSrvDataBegin));
-    memcpy(m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kInstanceCount);
+    memcpy(m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(),
+           sizeof(InstanceData) * kMaxInstanceCount);
     m_frameResources[m_frameIndex].instanceBuffer->Unmap(0, nullptr);
 
     if (GetForegroundWindow() == Win32Application::GetHwnd())
@@ -1248,8 +1265,9 @@ void D3D12HelloTexture::UpdateImGui()
 
     ImGui::Text("Hello ImGui");
     ImGui::Text("FrameIndex: %d", m_frameIndex);
-    ImGui::SliderInt("Max Visible Cubes", &m_maxVisibleCubeCount, 0, static_cast<int>(kInstanceCount));
-    m_maxVisibleCubeCount = std::clamp(m_maxVisibleCubeCount, 0, static_cast<int>(kInstanceCount));
+    ImGui::SliderInt("Display Instance Count", &m_DisplayInstanceCount, 0, static_cast<int>(kMaxInstanceCount));
+    m_DisplayInstanceCount = std::clamp(m_DisplayInstanceCount, 0, static_cast<int>(kMaxInstanceCount));
+    ImGui::SliderFloat("Mesh Scale", &m_meshScale, 0.1f, 2.0f);
     ImGui::SliderFloat("Camera FovH", &m_camerasForCPU[0].fov, 20.f, 150.f);
     ImGui::ColorEdit4("BackBuffer Clear", m_backBufferClearColor.data());
     ImGui::SliderFloat3("Light Direction", &m_lightingConstantsData.lightDirection.x, -1.0f, 1.0f);
@@ -1306,7 +1324,7 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::Render();
 }
 
-UINT D3D12HelloTexture::GetVisibleCubeCount() const { return static_cast<UINT>(m_maxVisibleCubeCount); }
+UINT D3D12HelloTexture::GetVisibleCubeCount() const { return static_cast<UINT>(m_DisplayInstanceCount); }
 
 // Render the scene.
 void D3D12HelloTexture::OnRender()
@@ -1360,6 +1378,43 @@ void D3D12HelloTexture::OnIdle()
     OnRender();
     m_workMeter.End();
     m_cpuFrameTime = m_workMeter.GetCpuFrameTimeMs();
+}
+
+void D3D12HelloTexture::OnMouseDown(UINT8 button, int x, int y)
+{
+    if (button != VK_LBUTTON)
+    {
+        return;
+    }
+
+    m_isDraggingInstance = true;
+    m_lastMouseX = x;
+    m_lastMouseY = y;
+}
+
+void D3D12HelloTexture::OnMouseUp(UINT8 button, int, int)
+{
+    if (button == VK_LBUTTON)
+    {
+        m_isDraggingInstance = false;
+    }
+}
+
+void D3D12HelloTexture::OnMouseMove(int x, int y)
+{
+    if (!m_isDraggingInstance)
+    {
+        return;
+    }
+
+    const int dx = x - m_lastMouseX;
+    const int dy = y - m_lastMouseY;
+    m_lastMouseX = x;
+    m_lastMouseY = y;
+
+    m_dragRotation.y += static_cast<float>(dx) * kMouseRotationSpeed;
+    m_dragRotation.x += static_cast<float>(dy) * kMouseRotationSpeed;
+    m_instanceTransformDirty = true;
 }
 
 void D3D12HelloTexture::Resize(UINT width, UINT height)
@@ -1875,16 +1930,16 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Clear");
 }
 
-void D3D12HelloTexture::DrawInstanceWrapper(UINT vertexOrIndexCount, UINT instanceCount)
+void D3D12HelloTexture::DrawInstanceWrapper(UINT instanceCount)
 {
     if (kGltfLoadingEnabled && kGltfMeshDisplay)
     {
         m_commandList->IASetIndexBuffer(&m_indexBufferView);
-        m_commandList->DrawIndexedInstanced(vertexOrIndexCount, instanceCount, 0, 0, 0);
+        m_commandList->DrawIndexedInstanced(m_indexCountPerInstance, instanceCount, 0, 0, 0);
     }
     else
     {
-        m_commandList->DrawInstanced(vertexOrIndexCount, instanceCount, 0, 0);
+        m_commandList->DrawInstanced(m_vertexCountPerInstance, instanceCount, 0, 0);
     }
 }
 
@@ -1897,7 +1952,7 @@ void D3D12HelloTexture::RecordDepthPrePass()
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     m_commandList->SetPipelineState(m_depthPrePassPSO.Get());
-    DrawInstanceWrapper(m_vertexCountPerInstance, GetVisibleCubeCount());
+    DrawInstanceWrapper(GetVisibleCubeCount());
 
     PIXEndEvent(m_commandList.Get());
 
@@ -1916,7 +1971,7 @@ void D3D12HelloTexture::RecordGBufferPass(const PassRenderTargetBinding &renderT
     m_commandList->SetPipelineState(m_gbufferPSO.Get());
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    DrawInstanceWrapper(m_vertexCountPerInstance, GetVisibleCubeCount());
+    DrawInstanceWrapper(GetVisibleCubeCount());
 
     PIXEndEvent(m_commandList.Get());
 
@@ -1960,7 +2015,7 @@ void D3D12HelloTexture::RecordMainPass()
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     m_commandList->SetPipelineState(m_pipelineState.Get());
-    DrawInstanceWrapper(m_vertexCountPerInstance, GetVisibleCubeCount());
+    DrawInstanceWrapper(GetVisibleCubeCount());
 
     PIXEndEvent(m_commandList.Get());
 

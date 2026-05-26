@@ -15,6 +15,7 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "MyDx12Utils.h"
+#include <windowsx.h>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -135,6 +136,33 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
         if (pSample)
         {
             pSample->OnKeyUp(static_cast<UINT8>(wParam));
+        }
+        return 0;
+
+    case WM_LBUTTONDOWN:
+        if (pSample)
+        {
+            if (ImGui::GetIO().WantCaptureMouse)
+            {
+                return 0;
+            }
+            SetCapture(hWnd);
+            pSample->OnMouseDown(VK_LBUTTON, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        }
+        return 0;
+
+    case WM_LBUTTONUP:
+        if (pSample)
+        {
+            ReleaseCapture();
+            pSample->OnMouseUp(VK_LBUTTON, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        }
+        return 0;
+
+    case WM_MOUSEMOVE:
+        if (pSample)
+        {
+            pSample->OnMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         }
         return 0;
 

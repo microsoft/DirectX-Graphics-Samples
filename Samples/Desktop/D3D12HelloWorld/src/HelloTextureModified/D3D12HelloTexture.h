@@ -45,6 +45,9 @@ class D3D12HelloTexture : public DXSample
     virtual void OnUpdate();
     virtual void OnRender();
     virtual void OnDestroy();
+    virtual void OnMouseDown(UINT8 button, int x, int y);
+    virtual void OnMouseUp(UINT8 button, int x, int y);
+    virtual void OnMouseMove(int x, int y);
     virtual void OnWindowSizeChanged(UINT width, UINT height);
     virtual void OnIdle();
 
@@ -79,8 +82,9 @@ class D3D12HelloTexture : public DXSample
     static constexpr float kRotationSpeed = kPI / 180.f / 3.f;
     static constexpr float kOffsetBounds = 5.f;
     static constexpr float kCameraMoveSpeed = 0.01f;
+    static constexpr float kMouseRotationSpeed = 0.01f;
 
-    static constexpr UINT kInstanceCount = 100;
+    static constexpr UINT kMaxInstanceCount = 1000;
     static constexpr float kCubeScale = 0.2f;
     static constexpr UINT kMaterialCount = 256;
 
@@ -88,9 +92,8 @@ class D3D12HelloTexture : public DXSample
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
 
-    // glTFメッシュとCubeを切り替える true: glTFモデルを読み込む、false: Cubeを描画する
-    static constexpr bool kGltfLoadingEnabled = true;
-    static constexpr bool kGltfMeshDisplay = false;
+    static constexpr bool kGltfLoadingEnabled = true; // false: glTFモデルを読み込まずCubeを表示
+    static constexpr bool kGltfMeshDisplay = true;    // true: glTFモデルを表示、false: Cubeを表示
 
     struct GridDim
     {
@@ -102,9 +105,9 @@ class D3D12HelloTexture : public DXSample
 
     inline XMFLOAT3 instanceIdToXYZ(int instanceId, const GridDim &dim)
     {
-        int x = instanceId % dim.x - (kInstanceCount / dim.z / dim.y) / 2;
-        int y = (instanceId / dim.x) % dim.y - (kInstanceCount / dim.x / dim.y) / 2;
-        int z = -instanceId / (dim.x * dim.y) + (kInstanceCount / dim.x / dim.y) / 2;
+        int x = instanceId % dim.x - (kMaxInstanceCount / dim.z / dim.y) / 2;
+        int y = (instanceId / dim.x) % dim.y - (kMaxInstanceCount / dim.x / dim.y) / 2;
+        int z = -instanceId / (dim.x * dim.y) + (kMaxInstanceCount / dim.x / dim.y) / 2;
         return XMFLOAT3((float)x, (float)y, (float)z);
     }
     struct Material
@@ -318,7 +321,8 @@ class D3D12HelloTexture : public DXSample
     UINT m_vertexCountPerInstance = kCubeVertexCount;
     UINT m_indexCountPerInstance = 0;
 
-    int m_maxVisibleCubeCount = static_cast<int>(kInstanceCount);
+    int m_DisplayInstanceCount = static_cast<int>(kMaxInstanceCount);
+    float m_meshScale = 0.5f;
 
     ComPtr<ID3D12Resource> m_materialBuffer;
     DescriptorHeapHandle m_materialBufferSrv;
@@ -341,6 +345,11 @@ class D3D12HelloTexture : public DXSample
     UINT m_pendingResizeHeight = 0;
 
     bool m_isPlaying = false;
+    bool m_isDraggingInstance = false;
+    bool m_instanceTransformDirty = false;
+    int m_lastMouseX = 0;
+    int m_lastMouseY = 0;
+    XMFLOAT2 m_dragRotation = {0.0f, 0.0f};
 
     // CPU work meter
     MyDx12Util::WorkMeter m_workMeter;
@@ -503,7 +512,7 @@ class D3D12HelloTexture : public DXSample
     void RecordImGuiPass();
     void EndFrame();
 
-    void DrawInstanceWrapper(UINT vertexOrIndexCount, UINT instanceCount);
+    void DrawInstanceWrapper(UINT instanceCount);
 
     void Resize(UINT width, UINT height);
 
