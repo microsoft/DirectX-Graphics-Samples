@@ -176,6 +176,7 @@ void D3D12HelloTexture::LoadPipeline()
     {
         CreateDsvHeap();
         RegisterDepthStencil(m_width, m_height);
+        RegisterLightPassRenderTarget(m_width, m_height);
     }
 
     // create command allocators.
@@ -1028,6 +1029,35 @@ void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
     m_transientResources[kDepthStencilResourceName] = std::move(r);
 }
 
+void D3D12HelloTexture::RegisterLightPassRenderTarget(UINT width, UINT height)
+{
+    TransientResource r;
+
+    r.state = TransientResourceState::Initialized;
+    r.name = kLightPassRenderTargetResourceName;
+    r.persistent = true;
+
+    r.desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    r.desc.Width = width;
+    r.desc.Height = height;
+    r.desc.DepthOrArraySize = 1;
+    r.desc.MipLevels = 1;
+    r.desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    r.desc.SampleDesc.Count = 1;
+    r.desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    r.desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+    r.clearValue.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    r.clearValue.Color[0] = 0.0f;
+    r.clearValue.Color[1] = 0.0f;
+    r.clearValue.Color[2] = 0.0f;
+    r.clearValue.Color[3] = 1.0f;
+
+    r.initialState = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+    m_transientResources[kLightPassRenderTargetResourceName] = std::move(r);
+}
+
 void D3D12HelloTexture::CreateDepthStencilDescriptors()
 {
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
@@ -1462,8 +1492,11 @@ void D3D12HelloTexture::Resize(UINT width, UINT height)
     }
 
     m_depthStencil.Reset();
+    m_lightPassRenderTarget.Reset();
     m_transientResources.erase(kDepthStencilResourceName);
+    m_transientResources.erase(kLightPassRenderTargetResourceName);
     RegisterDepthStencil(m_width, m_height);
+    RegisterLightPassRenderTarget(m_width, m_height);
     CreateGBuffer();
 
     // Camera
@@ -1736,6 +1769,10 @@ void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
         {
             m_depthStencil = tr.resource;
             CreateDepthStencilDescriptors();
+        }
+        else if (name == kLightPassRenderTargetResourceName)
+        {
+            m_lightPassRenderTarget = tr.resource;
         }
         else
         {

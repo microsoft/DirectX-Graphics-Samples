@@ -273,6 +273,7 @@ class D3D12HelloTexture : public DXSample
     GBuffer m_gbuffer;
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
+    ComPtr<ID3D12Resource> m_lightPassRenderTarget;
     DescriptorHeapHandle m_depthStencilSrv;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
 
@@ -360,6 +361,7 @@ class D3D12HelloTexture : public DXSample
 
     static constexpr const char *kBackBufferResourceName = "BackBuffer";
     static constexpr const char *kDepthStencilResourceName = "DepthStencil";
+    static constexpr const char *kLightPassRenderTargetResourceName = "LightPass.RenderTarget";
     static constexpr const char *kGBufferResourceNames[GBuffer::kCount] = {
         "GBuffer.Albedo", "GBuffer.Normal", "GBuffer.Material", "GBuffer.MotionVector", "GBuffer.PBRParams"};
 
@@ -455,6 +457,7 @@ class D3D12HelloTexture : public DXSample
 
     void CreateDepthStencil(UINT width, UINT height);
     void RegisterDepthStencil(UINT width, UINT height);
+    void RegisterLightPassRenderTarget(UINT width, UINT height);
     void CreateDepthStencilDescriptors();
     D3D12_CPU_DESCRIPTOR_HANDLE GetBackBufferRtv() const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetDepthDsv() const;
