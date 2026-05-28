@@ -1,8 +1,4 @@
-﻿struct VSOutput
-{
-    float4 position : SV_POSITION;
-    float2 uv : TEXCOORD;
-};
+﻿#include "FullscreenTriangle.hlsli"
 
 Texture2D<float4> g_albedo : register(t0, space3);
 Texture2D<float4> g_normal : register(t1, space3);
@@ -23,27 +19,12 @@ float3 HsvToRgb(float3 hsv)
     return hsv.z * lerp(float3(1.0, 1.0, 1.0), saturate(p - 1.0), hsv.y);
 }
 
-VSOutput VSMain(uint vertexId : SV_VertexID)
+FullscreenVSOutput VSMain(uint vertexId : SV_VertexID)
 {
-    VSOutput output;
-
-    float2 positions[3] = {
-        float2(-1.0, -1.0),
-        float2(-1.0, 3.0),
-        float2(3.0, -1.0),
-    };
-    float2 uvs[3] = {
-        float2(0.0, 1.0),
-        float2(0.0, -1.0),
-        float2(2.0, 1.0),
-    };
-
-    output.position = float4(positions[vertexId], 0.0, 1.0);
-    output.uv = uvs[vertexId];
-    return output;
+    return FullscreenTriangleVS(vertexId);
 }
 
-float4 PSMain(VSOutput input) : SV_TARGET
+float4 PSMain(FullscreenVSOutput input) : SV_TARGET
 {
     if (g_debugTarget == 0)
     {

@@ -1,8 +1,4 @@
-﻿struct VSOutput
-{
-    float4 position : SV_POSITION;
-    float2 uv : TEXCOORD;
-};
+﻿#include "FullscreenTriangle.hlsli"
 
 struct Material
 {
@@ -41,24 +37,9 @@ cbuffer LightingConstants : register(b2)
     float4 backgroundColor;
 };
 
-VSOutput VSMain(uint vertexId : SV_VertexID)
+FullscreenVSOutput VSMain(uint vertexId : SV_VertexID)
 {
-    VSOutput output;
-
-    float2 positions[3] = {
-        float2(-1.0, -1.0),
-        float2(-1.0, 3.0),
-        float2(3.0, -1.0),
-    };
-    float2 uvs[3] = {
-        float2(0.0, 1.0),
-        float2(0.0, -1.0),
-        float2(2.0, 1.0),
-    };
-
-    output.position = float4(positions[vertexId], 0.0, 1.0);
-    output.uv = uvs[vertexId];
-    return output;
+    return FullscreenTriangleVS(vertexId);
 }
 
 float3 ReconstructWorldPosition(float2 uv, float depth)
@@ -69,7 +50,7 @@ float3 ReconstructWorldPosition(float2 uv, float depth)
     return worldPos.xyz / worldPos.w;
 }
 
-float4 PSMain(VSOutput input) : SV_TARGET
+float4 PSMain(FullscreenVSOutput input) : SV_TARGET
 {
     float depth = g_depth.Load(int3(input.position.xy, 0));
     

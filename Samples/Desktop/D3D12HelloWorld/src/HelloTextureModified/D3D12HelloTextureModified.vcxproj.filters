@@ -82,8 +82,14 @@
     <CustomBuild Include="shaders_LightPass.hlsl">
       <Filter>Assets\Shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="shaders_ToneMap.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <None Include="FullscreenTriangle.hlsli">
+      <Filter>Assets\Shaders</Filter>
+    </None>
     <None Include="packages.config" />
     <None Include="vcpkg.json" />
   </ItemGroup>
