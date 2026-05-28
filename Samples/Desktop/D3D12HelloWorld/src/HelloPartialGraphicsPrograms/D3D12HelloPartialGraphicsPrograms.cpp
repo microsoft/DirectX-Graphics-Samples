@@ -210,6 +210,17 @@ void D3D12HelloPartialGraphicsPrograms::LoadPipeline()
         ThrowIfFailed(E_FAIL);
     }
 
+
+    // Check partial graphics program support.
+    D3D12_FEATURE_DATA_PARTIAL_GRAPHICS_PROGRAMS partialGraphicsProgramTier = {};
+    ThrowIfFailed(m_device->CheckFeatureSupport(
+        D3D12_FEATURE_PARTIAL_GRAPHICS_PROGRAMS, &partialGraphicsProgramTier, sizeof(partialGraphicsProgramTier)));
+    if (partialGraphicsProgramTier.PartialGraphicsProgramsTier < D3D12_PARTIAL_GRAPHICS_PROGRAMS_TIER_1_0)
+    {
+        OutputDebugStringA("Partial Graphics Programs Tier 1.0 is required.");
+        ThrowIfFailed(E_FAIL);
+    }
+
     // Describe and create the command queue.
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -300,16 +311,6 @@ void D3D12HelloPartialGraphicsPrograms::LoadAssets()
     //   https://github.com/microsoft/DirectX-Specs/blob/master/d3d/PartialGraphicsPrograms.md
     // -------------------------------------------------------------------------
     {
-        // First check device support.
-        D3D12_FEATURE_DATA_PARTIAL_GRAPHICS_PROGRAMS pgp = {};
-        ThrowIfFailed(m_device->CheckFeatureSupport(
-            D3D12_FEATURE_PARTIAL_GRAPHICS_PROGRAMS, &pgp, sizeof(pgp)));
-        if (pgp.PartialGraphicsProgramsTier < D3D12_PARTIAL_GRAPHICS_PROGRAMS_TIER_1_0)
-        {
-            OutputDebugStringA("Partial Graphics Programs Tier 1.0 is required.");
-            ThrowIfFailed(E_FAIL);
-        }
-
         // Compile VS + PS once.
         ComPtr<ID3DBlob> vertexShader;
         ComPtr<ID3DBlob> pixelShader;
@@ -356,7 +357,7 @@ void D3D12HelloPartialGraphicsPrograms::LoadAssets()
 
         // ---------------------------------------------------------------------
         // 1. Collection state object: shaders + VSPartial + PSPartial.
-        //    Per the spec, partial programs in a collection are compiled when
+        //    Partial graphics programs in a collection are compiled when
         //    the collection is created, so the executable state object that
         //    references it only has to perform a cheap link step.
         // ---------------------------------------------------------------------
@@ -391,12 +392,6 @@ void D3D12HelloPartialGraphicsPrograms::LoadAssets()
             pRTFormats->SetNumRenderTargets(1);
             pRTFormats->SetRenderTargetFormat(0, DXGI_FORMAT_R8G8B8A8_UNORM);
 
-            // Pre-rasterization partial program fields: input layout is baked
-            // in (not late-linked) since it doesn't vary across permutations.
-            auto pPreRastFields = collectionDesc.CreateSubobject<CD3DX12_PRERASTERIZATION_SHADERS_PARTIAL_PROGRAM_FIELDS_SUBOBJECT>();
-            pPreRastFields->SetExcludePS(FALSE);
-            pPreRastFields->SetLateLinkInputLayoutSubobject(FALSE);
-
             // Pixel shader partial program fields: blend will be late linked.
             // AlphaToCoverageEnable and DualSourceBlendEnable affect PS
             // compilation, so they must be specified here (the late-linked
@@ -412,13 +407,11 @@ void D3D12HelloPartialGraphicsPrograms::LoadAssets()
             pPreRastProgram->AddExport(L"VSMain");
             pPreRastProgram->AddSubobject(*pIL);
             pPreRastProgram->AddSubobject(*pTopology);
-            pPreRastProgram->AddSubobject(*pPreRastFields);
 
             auto pPSProgram = collectionDesc.CreateSubobject<CD3DX12_PARTIAL_GRAPHICS_PROGRAM_SUBOBJECT>();
             pPSProgram->SetProgramName(L"PSPartial");
             pPSProgram->SetPartialGraphicsProgramType(D3D12_PARTIAL_GRAPHICS_PROGRAM_TYPE_PIXEL_SHADER);
             pPSProgram->AddExport(L"PSMain");
-            pPSProgram->AddSubobject(*pTopology);
             pPSProgram->AddSubobject(*pRTFormats);
             pPSProgram->AddSubobject(*pPSFields);
 
