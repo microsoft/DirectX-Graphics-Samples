@@ -465,7 +465,7 @@ void D3D12HelloTexture::LoadAssets()
         // LightPass PSO
         //
         D3D12_GRAPHICS_PIPELINE_STATE_DESC lightPassPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
-            psoDesc, pLightPassVS, lightPassVSSize, pLightPassPS, lightPassPSSize, DXGI_FORMAT_R8G8B8A8_UNORM);
+            psoDesc, pLightPassVS, lightPassVSSize, pLightPassPS, lightPassPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&lightPassPSODesc, IID_PPV_ARGS(&m_lightPassPSO)));
 
         //
@@ -1094,6 +1094,13 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetGBufferRTV(UINT index) const
     return h;
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetLightPassRTV() const
+{
+    CD3DX12_CPU_DESCRIPTOR_HANDLE h(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+    h.Offset(kLightPassRTVIndex, m_rtvDescriptorSize);
+    return h;
+}
+
 void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
 {
     // Release if DS exist
@@ -1587,13 +1594,13 @@ void D3D12HelloTexture::BuildRenderPasses()
             {{GetBackBufferRtv()}, GetDepthDsv()}, [this](const RenderPass &) { RecordMainPass(); });
 #endif
     AddPass(L"LightPass", MakeGBufferReadUsageMap(),
-            MakeResourceUsageMap(
-                {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            MakeResourceUsageMap({{kLightPassRenderTargetResourceName, m_lightPassRenderTarget.Get(),
+                                   D3D12_RESOURCE_STATE_RENDER_TARGET}}),
             {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]},
              {RootParam_MaterialSrv, m_materialBufferSrv},
              {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv},
              {RootParam_LightConstants, m_frameResources[m_frameIndex].lightCB.cbv}},
-            {{GetBackBufferRtv()}, std::nullopt}, [this](const RenderPass &) { RecordLightPass(); });
+            {{GetLightPassRTV()}, std::nullopt}, [this](const RenderPass &) { RecordLightPass(); });
 
     if (IsGBufferDebugView())
     {
@@ -1773,6 +1780,7 @@ void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
         else if (name == kLightPassRenderTargetResourceName)
         {
             m_lightPassRenderTarget = tr.resource;
+            m_device->CreateRenderTargetView(m_lightPassRenderTarget.Get(), nullptr, GetLightPassRTV());
         }
         else
         {
@@ -1865,6 +1873,7 @@ void D3D12HelloTexture::ResetResourceStates()
     m_resourceStates.clear();
     SetResourceState(kBackBufferResourceName, D3D12_RESOURCE_STATE_PRESENT);
     SetResourceState(kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    SetResourceState(kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET);
     for (UINT i = 0; i < GBuffer::kCount; ++i)
     {
         SetResourceState(kGBufferResourceNames[i], D3D12_RESOURCE_STATE_RENDER_TARGET);

@@ -252,7 +252,8 @@ class D3D12HelloTexture : public DXSample
     };
     static constexpr UINT kSwapChainRTVCount = kFrameCount;
     static constexpr UINT kGBufferRTVBaseIndex = kSwapChainRTVCount;
-    static constexpr UINT kRTVDescriptorCount = kFrameCount + GBuffer::kCount;
+    static constexpr UINT kLightPassRTVIndex = kGBufferRTVBaseIndex + GBuffer::kCount;
+    static constexpr UINT kRTVDescriptorCount = kFrameCount + GBuffer::kCount + 1;
 
     enum class RenderViewMode
     {
@@ -462,6 +463,7 @@ class D3D12HelloTexture : public DXSample
     D3D12_CPU_DESCRIPTOR_HANDLE GetBackBufferRtv() const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetDepthDsv() const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetGBufferRTV(UINT index) const;
+    D3D12_CPU_DESCRIPTOR_HANDLE GetLightPassRTV() const;
 
     std::vector<UINT8> GenerateCheckerboardTextureData();
     void PopulateCommandList();
