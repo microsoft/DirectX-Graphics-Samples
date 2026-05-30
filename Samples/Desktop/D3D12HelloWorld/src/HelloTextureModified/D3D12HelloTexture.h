@@ -214,6 +214,45 @@ class D3D12HelloTexture : public DXSample
         XMFLOAT4 backgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
     };
 
+    struct HdrOutputSettings
+    {
+        DXGI_COLOR_SPACE_TYPE currentSwapChainColorSpace = DXGI_COLOR_SPACE_CUSTOM;
+        bool hdr10Enabled = false;
+
+        DXGI_COLOR_SPACE_TYPE TargetColorSpace() const { return hdr10Enabled ? kHdr10ColorSpace : kSdrColorSpace; }
+        UINT TransferFunction() const { return hdr10Enabled ? kHdr10TransferFunction : kSdrTransferFunction; }
+    };
+
+    struct ToneMapSettings
+    {
+        struct ShaderConstants
+        {
+            UINT toneMapOperator;
+            UINT transferFunction;
+            float exposure;
+            float paperWhiteNits;
+            float maxDisplayNits;
+        };
+
+        int operatorIndex = kDefaultToneMapOperator;
+        float exposure = kDefaultExposure;
+        float paperWhiteNits = kDefaultPaperWhiteNits;
+        float maxDisplayNits = kDefaultMaxDisplayNits;
+
+        void Normalize()
+        {
+            operatorIndex = std::clamp(operatorIndex, 0, 2);
+            exposure = (std::max)(exposure, 0.0f);
+            paperWhiteNits = (std::max)(paperWhiteNits, 1.0f);
+            maxDisplayNits = (std::max)(maxDisplayNits, paperWhiteNits);
+        }
+
+        ShaderConstants MakeShaderConstants(UINT transferFunction) const
+        {
+            return {static_cast<UINT>(operatorIndex), transferFunction, exposure, paperWhiteNits, maxDisplayNits};
+        }
+    };
+
     struct ConstantBufferResource
     {
         ComPtr<ID3D12Resource> buffer;
@@ -321,12 +360,8 @@ class D3D12HelloTexture : public DXSample
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
     DXGI_FORMAT m_backBufferFormat = kBackBufferFormat;
-    DXGI_COLOR_SPACE_TYPE m_currentSwapChainColorSpace = DXGI_COLOR_SPACE_CUSTOM;
-    bool m_hdr10Enabled = false;
-    int m_toneMapOperator = kDefaultToneMapOperator;
-    float m_toneMapExposure = kDefaultExposure;
-    float m_toneMapPaperWhiteNits = kDefaultPaperWhiteNits;
-    float m_toneMapMaxDisplayNits = kDefaultMaxDisplayNits;
+    HdrOutputSettings m_hdrOutputSettings;
+    ToneMapSettings m_toneMapSettings;
     bool m_debugLightPassGradient = false;
     bool m_requestDebugDump = false;
     bool m_debugDumpPending = false;
@@ -556,6 +591,7 @@ class D3D12HelloTexture : public DXSample
     void RecordGBufferDebugPass();
     void RecordLightPass();
     void RecordToneMapPass();
+    void SetToneMapConstants();
     void RecordDebugDumpPass();
     void RecordMainPass();
     void RecordImGuiPass();
