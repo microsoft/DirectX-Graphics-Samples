@@ -6,7 +6,7 @@ SamplerState g_sampler : register(s0);
 cbuffer ToneMapConstants : register(b3)
 {
     uint toneMapOperator; // 0: None, 1: Reinhard, 2: ACES
-    uint transferFunction; // 0: Linear, 1: ST.2084 PQ, 2: HLG
+    uint transferFunction; // 0: Linear, 1: ST.2084 PQ, 2: HLG, 3: SDR Rec.709
     float exposure;
     float paperWhiteNits;
     float maxDisplayNits;
@@ -78,6 +78,24 @@ float3 LinearToSt2084Pq(float3 nits)
     return pow((c1 + c2 * n) / (1.0 + c3 * n), m2);
 }
 
+float3 Rec709ToRec2020(float3 color)
+{
+    const float3x3 rec709ToRec2020 = float3x3(
+        0.6274040, 0.3292820, 0.0433136,
+        0.0690970, 0.9195400, 0.0113612,
+        0.0163916, 0.0880132, 0.8955950);
+
+    return mul(rec709ToRec2020, color);
+}
+
+float3 LinearToSrgb(float3 color)
+{
+    color = saturate(color);
+    float3 low = 12.92 * color;
+    float3 high = 1.055 * pow(color, 1.0 / 2.4) - 0.055;
+    return lerp(high, low, color <= 0.0031308);
+}
+
 float3 LinearToHlg(float3 normalizedLinear)
 {
     const float a = 0.17883277;
@@ -110,11 +128,15 @@ float3 ApplyTransferFunction(float3 nits)
 
     if (transferFunction == 1)
     {
-        return LinearToSt2084Pq(nits);
+        return LinearToSt2084Pq(Rec709ToRec2020(nits));
     }
     if (transferFunction == 2)
     {
         return LinearToHlg(nits / outputMaxNits);
+    }
+    if (transferFunction == 3)
+    {
+        return LinearToSrgb(nits / referenceWhiteNits);
     }
 
     // Linear output keeps HDR headroom in the float render target:

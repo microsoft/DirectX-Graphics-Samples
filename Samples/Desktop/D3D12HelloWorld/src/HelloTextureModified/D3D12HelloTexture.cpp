@@ -17,6 +17,8 @@
 
 #include "D3D12HelloTexture.h"
 
+#include <DirectXPackedVector.h>
+#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <windows.h>
@@ -36,6 +38,34 @@ int rand_0_255()
     static std::mt19937 gen(std::random_device{}());
     static std::uniform_int_distribution<int> dist(0, 0xFF);
     return dist(gen);
+}
+
+int ComputeIntersectionArea(const RECT &a, const RECT &b)
+{
+    return max(0L, min(a.right, b.right) - max(a.left, b.left)) * max(0L, min(a.bottom, b.bottom) - max(a.top, b.top));
+}
+
+UINT16 Hdr10Chromaticity(float value) { return static_cast<UINT16>(value * 50000.0f + 0.5f); }
+
+float St2084PqToNits(float pq)
+{
+    const float m1 = 2610.0f / 16384.0f;
+    const float m2 = 2523.0f / 32.0f;
+    const float c1 = 3424.0f / 4096.0f;
+    const float c2 = 2413.0f / 128.0f;
+    const float c3 = 2392.0f / 128.0f;
+
+    pq = (std::max)(pq, 0.0f);
+    const float n = std::pow(pq, 1.0f / m2);
+    const float numerator = (std::max)(n - c1, 0.0f);
+    const float denominator = (std::max)(c2 - c3 * n, 0.000001f);
+    return 10000.0f * std::pow(numerator / denominator, 1.0f / m1);
+}
+
+float SrgbToLinear(float value)
+{
+    value = (std::clamp)(value, 0.0f, 1.0f);
+    return value <= 0.04045f ? value / 12.92f : std::pow((value + 0.055f) / 1.055f, 2.4f);
 }
 
 extern "C"
@@ -83,20 +113,19 @@ void D3D12HelloTexture::LoadPipeline()
     }
 #endif
 
-    ComPtr<IDXGIFactory4> factory;
-    ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
+    ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
 
     if (m_useWarpDevice)
     {
         ComPtr<IDXGIAdapter> warpAdapter;
-        ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
+        ThrowIfFailed(m_dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
 
         ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
     }
     else
     {
         ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+        GetHardwareAdapter(m_dxgiFactory.Get(), &hardwareAdapter);
 
         ThrowIfFailed(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
     }
@@ -113,20 +142,21 @@ void D3D12HelloTexture::LoadPipeline()
     swapChainDesc.BufferCount = kFrameCount;
     swapChainDesc.Width = m_width;
     swapChainDesc.Height = m_height;
-    swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapChainDesc.Format = kSwapChainFormat;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     swapChainDesc.SampleDesc.Count = 1;
 
     ComPtr<IDXGISwapChain1> swapChain;
-    ThrowIfFailed(factory->CreateSwapChainForHwnd(
+    ThrowIfFailed(m_dxgiFactory->CreateSwapChainForHwnd(
         m_commandQueue.Get(), // Swap chain needs the queue so that it can force a flush on it.
         Win32Application::GetHwnd(), &swapChainDesc, nullptr, nullptr, &swapChain));
 
     // This sample does not support fullscreen transitions.
-    ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
+    ThrowIfFailed(m_dxgiFactory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
     ThrowIfFailed(swapChain.As(&m_swapChain));
+    UpdateHdr10DisplayMode();
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
     // Create descriptor heaps.
@@ -189,6 +219,123 @@ void D3D12HelloTexture::LoadPipeline()
     //
     m_gpuWorkMeter.Init(m_device.Get(),
                         kGpuWorkMeterQueryCount); // Initialize GPU work meter with a maximum of 100 timestamp queries.
+}
+
+bool D3D12HelloTexture::CheckSwapChainColorSpaceSupport(DXGI_COLOR_SPACE_TYPE colorSpace) const
+{
+    UINT colorSpaceSupport = 0;
+    return SUCCEEDED(m_swapChain->CheckColorSpaceSupport(colorSpace, &colorSpaceSupport)) &&
+           (colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT);
+}
+
+bool D3D12HelloTexture::CheckCurrentOutputHdr10Support()
+{
+    if (!m_dxgiFactory->IsCurrent())
+    {
+        UINT dxgiFactoryFlags = 0;
+#if defined(_DEBUG)
+        dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+#endif
+        ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
+    }
+
+    RECT windowRect = {};
+    GetWindowRect(Win32Application::GetHwnd(), &windowRect);
+
+    ComPtr<IDXGIAdapter1> adapter;
+    ThrowIfFailed(m_dxgiFactory->EnumAdapters1(0, &adapter));
+
+    ComPtr<IDXGIOutput> bestOutput;
+    ComPtr<IDXGIOutput> output;
+    int bestIntersectArea = -1;
+
+    for (UINT outputIndex = 0; adapter->EnumOutputs(outputIndex, &output) != DXGI_ERROR_NOT_FOUND; ++outputIndex)
+    {
+        DXGI_OUTPUT_DESC outputDesc = {};
+        ThrowIfFailed(output->GetDesc(&outputDesc));
+
+        const int intersectArea = ComputeIntersectionArea(windowRect, outputDesc.DesktopCoordinates);
+        if (intersectArea > bestIntersectArea)
+        {
+            bestOutput = output;
+            bestIntersectArea = intersectArea;
+        }
+
+        output.Reset();
+    }
+
+    if (!bestOutput)
+    {
+        return false;
+    }
+
+    ComPtr<IDXGIOutput6> output6;
+    if (FAILED(bestOutput.As(&output6)))
+    {
+        return false;
+    }
+
+    DXGI_OUTPUT_DESC1 outputDesc = {};
+    ThrowIfFailed(output6->GetDesc1(&outputDesc));
+    return outputDesc.ColorSpace == kHdr10ColorSpace;
+}
+
+void D3D12HelloTexture::ApplySwapChainColorSpace(DXGI_COLOR_SPACE_TYPE colorSpace)
+{
+    if (m_currentSwapChainColorSpace == colorSpace)
+    {
+        return;
+    }
+
+    if (CheckSwapChainColorSpaceSupport(colorSpace))
+    {
+        ThrowIfFailed(m_swapChain->SetColorSpace1(colorSpace));
+        m_currentSwapChainColorSpace = colorSpace;
+    }
+}
+
+void D3D12HelloTexture::ApplyHdr10Metadata(bool enabled)
+{
+    ComPtr<IDXGISwapChain4> swapChain4;
+    if (FAILED(m_swapChain.As(&swapChain4)))
+    {
+        return;
+    }
+
+    if (!enabled)
+    {
+        ThrowIfFailed(swapChain4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_NONE, 0, nullptr));
+        return;
+    }
+
+    DXGI_HDR_METADATA_HDR10 metadata = {};
+    metadata.RedPrimary[0] = Hdr10Chromaticity(0.708f);
+    metadata.RedPrimary[1] = Hdr10Chromaticity(0.292f);
+    metadata.GreenPrimary[0] = Hdr10Chromaticity(0.170f);
+    metadata.GreenPrimary[1] = Hdr10Chromaticity(0.797f);
+    metadata.BluePrimary[0] = Hdr10Chromaticity(0.131f);
+    metadata.BluePrimary[1] = Hdr10Chromaticity(0.046f);
+    metadata.WhitePoint[0] = Hdr10Chromaticity(0.3127f);
+    metadata.WhitePoint[1] = Hdr10Chromaticity(0.3290f);
+    metadata.MaxMasteringLuminance = kHdr10MaxMasteringLuminance;
+    metadata.MinMasteringLuminance = kHdr10MinMasteringLuminance;
+    metadata.MaxContentLightLevel = kHdr10MaxContentLightLevel;
+    metadata.MaxFrameAverageLightLevel = kHdr10MaxFrameAverageLightLevel;
+
+    ThrowIfFailed(swapChain4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(metadata), &metadata));
+}
+
+void D3D12HelloTexture::UpdateHdr10DisplayMode()
+{
+    const bool hdr10Enabled = CheckCurrentOutputHdr10Support() && CheckSwapChainColorSpaceSupport(kHdr10ColorSpace);
+    const DXGI_COLOR_SPACE_TYPE colorSpace = hdr10Enabled ? kHdr10ColorSpace : kSdrColorSpace;
+
+    ApplySwapChainColorSpace(colorSpace);
+    if (m_hdr10Enabled != hdr10Enabled)
+    {
+        ApplyHdr10Metadata(hdr10Enabled);
+    }
+    m_hdr10Enabled = hdr10Enabled;
 }
 
 std::array<GltfVertex, D3D12HelloTexture::kCubeVertexCount> D3D12HelloTexture::CreateCubeVertices() const
@@ -425,6 +572,10 @@ void D3D12HelloTexture::LoadAssets()
         UINT8 *pLightPassPS = nullptr;
         UINT lightPassVSSize = 0;
         UINT lightPassPSSize = 0;
+        UINT8 *pLightPassDebugGradientVS = nullptr;
+        UINT8 *pLightPassDebugGradientPS = nullptr;
+        UINT lightPassDebugGradientVSSize = 0;
+        UINT lightPassDebugGradientPSSize = 0;
         UINT8 *pToneMapVS = nullptr;
         UINT8 *pToneMapPS = nullptr;
         UINT toneMapVSSize = 0;
@@ -434,6 +585,10 @@ void D3D12HelloTexture::LoadAssets()
                                        &lightPassVSSize));
         ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_LightPass_PSMain.cso").c_str(), &pLightPassPS,
                                        &lightPassPSSize));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_LightPassDebugGradient_VSMain.cso").c_str(),
+                                       &pLightPassDebugGradientVS, &lightPassDebugGradientVSSize));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_LightPassDebugGradient_PSMain.cso").c_str(),
+                                       &pLightPassDebugGradientPS, &lightPassDebugGradientPSSize));
         ThrowIfFailed(
             ReadDataFromFile(GetAssetFullPath(L"shaders_ToneMap_VSMain.cso").c_str(), &pToneMapVS, &toneMapVSSize));
         ThrowIfFailed(
@@ -465,7 +620,7 @@ void D3D12HelloTexture::LoadAssets()
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+        psoDesc.RTVFormats[0] = m_backBufferFormat;
         psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleDesc.Count = 1;
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
@@ -484,19 +639,24 @@ void D3D12HelloTexture::LoadAssets()
             psoDesc, pLightPassVS, lightPassVSSize, pLightPassPS, lightPassPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&lightPassPSODesc, IID_PPV_ARGS(&m_lightPassPSO)));
 
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC lightPassDebugGradientPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
+            psoDesc, pLightPassDebugGradientVS, lightPassDebugGradientVSSize, pLightPassDebugGradientPS,
+            lightPassDebugGradientPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
+        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&lightPassDebugGradientPSODesc,
+                                                            IID_PPV_ARGS(&m_lightPassDebugGradientPSO)));
+
         //
         // ToneMap PSO
         //
         D3D12_GRAPHICS_PIPELINE_STATE_DESC toneMapPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
-            psoDesc, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, DXGI_FORMAT_R8G8B8A8_UNORM);
+            psoDesc, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, m_backBufferFormat);
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&toneMapPSODesc, IID_PPV_ARGS(&m_toneMapPSO)));
 
         //
         // GBuffer Debug PSO
         //
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferDebugPSODesc =
-            MyDx12Util::CreateFullscreenPassPSODesc(psoDesc, pGBufferDebugVS, gbufferDebugVSSize, pGBufferDebugPS,
-                                                    gbufferDebugPSSize, DXGI_FORMAT_R8G8B8A8_UNORM);
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferDebugPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
+            psoDesc, pGBufferDebugVS, gbufferDebugVSSize, pGBufferDebugPS, gbufferDebugPSSize, m_backBufferFormat);
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&gbufferDebugPSODesc, IID_PPV_ARGS(&m_gbufferDebugPSO)));
 
         //
@@ -798,6 +958,7 @@ void D3D12HelloTexture::LoadAssets()
         m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
         XMStoreFloat4x4(&m_constantBufferData.invViewProjection,
                         XMMatrixTranspose(XMMatrixInverse(nullptr, m_camerasForCPU[0].viewProjection)));
+        m_constantBufferData.cameraPosition = m_camerasForCPU[0].pos;
     }
 
     // Create the per-frame constant buffers.
@@ -850,7 +1011,7 @@ void D3D12HelloTexture::InitImGui()
     init_info.Device = m_device.Get();
     init_info.CommandQueue = m_commandQueue.Get();
     init_info.NumFramesInFlight = kFrameCount;
-    init_info.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    init_info.RTVFormat = m_backBufferFormat;
     init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
     // Allocating SRV descriptors (for textures) is up to the application, so we provide callbacks.
     // (current version of the backend will only allocate one descriptor, future versions will need to allocate
@@ -1316,6 +1477,7 @@ void D3D12HelloTexture::OnUpdate()
     XMStoreFloat4x4(&m_constantBufferData.viewProjection, XMMatrixTranspose(m_camerasForCPU[0].viewProjection));
     XMStoreFloat4x4(&m_constantBufferData.invViewProjection,
                     XMMatrixTranspose(XMMatrixInverse(nullptr, m_camerasForCPU[0].viewProjection)));
+    m_constantBufferData.cameraPosition = m_camerasForCPU[0].pos;
     memcpy(m_frameResources[m_frameIndex].cameraCB.mappedData, &m_constantBufferData, sizeof(m_constantBufferData));
 
     PIXEndEvent();
@@ -1344,6 +1506,25 @@ void D3D12HelloTexture::UpdateImGui()
                                                m_backBufferClearColor[2], m_backBufferClearColor[3]};
     memcpy(m_frameResources[m_frameIndex].lightCB.mappedData, &m_lightingConstantsData,
            sizeof(m_lightingConstantsData));
+
+    ImGui::Text("ToneMap");
+    ImGui::RadioButton("None", &m_toneMapOperator, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Reinhard", &m_toneMapOperator, 1);
+    ImGui::SameLine();
+    ImGui::RadioButton("ACES", &m_toneMapOperator, 2);
+    ImGui::SliderFloat("Exposure", &m_toneMapExposure, 0.0f, 4.0f);
+    ImGui::SliderFloat("Paper White", &m_toneMapPaperWhiteNits, 80.0f, 500.0f, "%.0f nits");
+    ImGui::SliderFloat("Display Max", &m_toneMapMaxDisplayNits, 100.0f, 4000.0f, "%.0f nits");
+    ImGui::Checkbox("Debug LightPass Gradient", &m_debugLightPassGradient);
+    if (ImGui::Button("Dump HDR Buffers"))
+    {
+        m_requestDebugDump = true;
+    }
+    m_toneMapOperator = std::clamp(m_toneMapOperator, 0, 2);
+    m_toneMapExposure = (std::max)(m_toneMapExposure, 0.0f);
+    m_toneMapPaperWhiteNits = (std::max)(m_toneMapPaperWhiteNits, 1.0f);
+    m_toneMapMaxDisplayNits = (std::max)(m_toneMapMaxDisplayNits, m_toneMapPaperWhiteNits);
 
     int renderViewMode = static_cast<int>(m_renderViewMode);
     ImGui::Text("Render View");
@@ -1409,6 +1590,14 @@ void D3D12HelloTexture::OnRender()
     ID3D12CommandList *ppCommandLists[] = {m_commandList.Get()};
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
+    if (m_debugDumpPending)
+    {
+        WaitForGpu();
+        PrintDebugDump();
+        m_requestDebugDump = false;
+        m_debugDumpPending = false;
+    }
+
     // Present the frame.
     ThrowIfFailed(m_swapChain->Present(1, 0));
 
@@ -1438,6 +1627,8 @@ void D3D12HelloTexture::OnIdle()
         Resize(m_pendingResizeWidth, m_pendingResizeHeight);
         m_pendingResize = false;
     }
+
+    UpdateHdr10DisplayMode();
 
     m_workMeter.Start();
     OnUpdate();
@@ -1508,7 +1699,8 @@ void D3D12HelloTexture::Resize(UINT width, UINT height)
     }
 
     // Resize SwapChain
-    m_swapChain->ResizeBuffers(kFrameCount, m_width, m_height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+    m_swapChain->ResizeBuffers(kFrameCount, m_width, m_height, m_backBufferFormat, 0);
+    ApplySwapChainColorSpace(m_hdr10Enabled ? kHdr10ColorSpace : kSdrColorSpace);
 
     // ★重要
     m_fremeIndexPrevious = m_frameIndex;
@@ -1638,6 +1830,16 @@ void D3D12HelloTexture::BuildRenderPasses()
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
             {{RootParam_ToneMapSceneColor, m_lightPassRenderTargetSrv}}, {{GetBackBufferRtv()}, std::nullopt},
             [this](const RenderPass &) { RecordToneMapPass(); });
+
+    if (m_requestDebugDump)
+    {
+        AddPass(
+            L"DebugDump",
+            MakeResourceUsageMap(
+                {{kLightPassRenderTargetResourceName, m_lightPassRenderTarget.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE},
+                 {kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_COPY_SOURCE}}),
+            {}, {}, {{}, std::nullopt}, [this](const RenderPass &) { RecordDebugDumpPass(); });
+    }
 
     if (IsGBufferDebugView())
     {
@@ -2087,7 +2289,25 @@ void D3D12HelloTexture::RecordLightPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"LightPass");
 
-    m_commandList->SetPipelineState(m_lightPassPSO.Get());
+    if (m_debugLightPassGradient)
+    {
+        struct ToneMapConstants
+        {
+            UINT toneMapOperator;
+            UINT transferFunction;
+            float exposure;
+            float paperWhiteNits;
+            float maxDisplayNits;
+        };
+
+        const ToneMapConstants constants = {static_cast<UINT>(m_toneMapOperator),
+                                            m_hdr10Enabled ? kHdr10TransferFunction : kSdrTransferFunction,
+                                            m_toneMapExposure, m_toneMapPaperWhiteNits, m_toneMapMaxDisplayNits};
+        m_commandList->SetGraphicsRoot32BitConstants(RootParam_ToneMapConstants, 5, &constants, 0);
+    }
+
+    m_commandList->SetPipelineState(m_debugLightPassGradient ? m_lightPassDebugGradientPSO.Get()
+                                                             : m_lightPassPSO.Get());
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->DrawInstanced(3, 1, 0, 0);
 
@@ -2107,13 +2327,9 @@ void D3D12HelloTexture::RecordToneMapPass()
         float maxDisplayNits;
     };
 
-    const ToneMapConstants constants = {
-        0,      // None
-        0,      // Linear
-        1.0f,   // Exposure multiplier
-        300.0f, // Paper white
-        1000.0f // Display peak
-    };
+    const ToneMapConstants constants = {static_cast<UINT>(m_toneMapOperator),
+                                        m_hdr10Enabled ? kHdr10TransferFunction : kSdrTransferFunction,
+                                        m_toneMapExposure, m_toneMapPaperWhiteNits, m_toneMapMaxDisplayNits};
 
     PIXBeginEvent(m_commandList.Get(), 0, L"ToneMapPass");
 
@@ -2125,6 +2341,153 @@ void D3D12HelloTexture::RecordToneMapPass()
     PIXEndEvent(m_commandList.Get());
 
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ToneMap Pass");
+}
+
+void D3D12HelloTexture::CreateDebugDumpReadback(ID3D12Resource *source, ComPtr<ID3D12Resource> &readback,
+                                                D3D12_PLACED_SUBRESOURCE_FOOTPRINT &layout)
+{
+    D3D12_RESOURCE_DESC desc = source->GetDesc();
+    UINT numRows = 0;
+    UINT64 rowSizeInBytes = 0;
+    UINT64 totalBytes = 0;
+    m_device->GetCopyableFootprints(&desc, 0, 1, 0, &layout, &numRows, &rowSizeInBytes, &totalBytes);
+
+    ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
+                                                    D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
+                                                    D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback)));
+}
+
+void D3D12HelloTexture::RecordDebugDumpPass()
+{
+    PIXBeginEvent(m_commandList.Get(), 0, L"DebugDump");
+
+    CreateDebugDumpReadback(m_lightPassRenderTarget.Get(), m_lightPassDebugDumpReadback, m_lightPassDebugDumpLayout);
+    CreateDebugDumpReadback(m_renderTargets[m_frameIndex].Get(), m_backBufferDebugDumpReadback,
+                            m_backBufferDebugDumpLayout);
+
+    CD3DX12_TEXTURE_COPY_LOCATION lightDst(m_lightPassDebugDumpReadback.Get(), m_lightPassDebugDumpLayout);
+    CD3DX12_TEXTURE_COPY_LOCATION lightSrc(m_lightPassRenderTarget.Get(), 0);
+    m_commandList->CopyTextureRegion(&lightDst, 0, 0, 0, &lightSrc, nullptr);
+
+    CD3DX12_TEXTURE_COPY_LOCATION backBufferDst(m_backBufferDebugDumpReadback.Get(), m_backBufferDebugDumpLayout);
+    CD3DX12_TEXTURE_COPY_LOCATION backBufferSrc(m_renderTargets[m_frameIndex].Get(), 0);
+    m_commandList->CopyTextureRegion(&backBufferDst, 0, 0, 0, &backBufferSrc, nullptr);
+
+    m_debugDumpPending = true;
+
+    PIXEndEvent(m_commandList.Get());
+
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Debug Dump");
+}
+
+void D3D12HelloTexture::PrintDebugDump()
+{
+    if (!m_lightPassDebugDumpReadback || !m_backBufferDebugDumpReadback)
+    {
+        return;
+    }
+
+    UINT8 *lightData = nullptr;
+    UINT8 *backBufferData = nullptr;
+    const D3D12_RANGE lightReadRange = {0, static_cast<SIZE_T>(m_lightPassDebugDumpReadback->GetDesc().Width)};
+    const D3D12_RANGE backBufferReadRange = {0, static_cast<SIZE_T>(m_backBufferDebugDumpReadback->GetDesc().Width)};
+    ThrowIfFailed(m_lightPassDebugDumpReadback->Map(0, &lightReadRange, reinterpret_cast<void **>(&lightData)));
+    ThrowIfFailed(
+        m_backBufferDebugDumpReadback->Map(0, &backBufferReadRange, reinterpret_cast<void **>(&backBufferData)));
+
+    const UINT lightWidth = static_cast<UINT>(m_lightPassDebugDumpLayout.Footprint.Width);
+    const UINT lightHeight = m_lightPassDebugDumpLayout.Footprint.Height;
+    const UINT backBufferWidth = static_cast<UINT>(m_backBufferDebugDumpLayout.Footprint.Width);
+    const UINT backBufferHeight = m_backBufferDebugDumpLayout.Footprint.Height;
+    const UINT sampleYs[] = {lightHeight > 0 ? lightHeight / 4 : 0, lightHeight > 0 ? (lightHeight * 3) / 4 : 0};
+    const char *bandNames[] = {"SDR[0,1]", "HDR[0,9]"};
+    const UINT bandCount = m_debugLightPassGradient ? 2 : 1;
+    const UINT sampleXs[] = {0, lightWidth / 4, lightWidth / 2, lightWidth > 0 ? lightWidth - 1 : 0};
+    const char *sampleNames[] = {"left", "25%", "50%", "right"};
+
+    DebugPrint("HDR DebugDump: LightPass=%ux%u BackBuffer=%ux%u hdr10=%d gradient=%d toneMap=%d exposure=%.3f "
+               "paperWhite=%.1f maxDisplay=%.1f\n",
+               lightWidth, lightHeight, backBufferWidth, backBufferHeight, m_hdr10Enabled ? 1 : 0,
+               m_debugLightPassGradient ? 1 : 0, m_toneMapOperator, m_toneMapExposure, m_toneMapPaperWhiteNits,
+               m_toneMapMaxDisplayNits);
+    if (m_debugLightPassGradient)
+    {
+        const float displayMaxSceneLinear = m_toneMapMaxDisplayNits / (std::max)(m_toneMapPaperWhiteNits, 1.0f);
+        const float displayMaxMarkerX = std::pow((std::clamp)(displayMaxSceneLinear / 9.0f, 0.0f, 1.0f), 1.0f / 2.2f);
+        DebugPrint("  HDR[0,9] display-max marker: sceneLinear=%.4f nits=%.1f x=%.4f%s\n", displayMaxSceneLinear,
+                   m_toneMapMaxDisplayNits, displayMaxMarkerX, displayMaxSceneLinear >= 9.0f ? " (outside ramp)" : "");
+    }
+
+    for (UINT band = 0; band < bandCount; ++band)
+    {
+        const UINT sampleY = m_debugLightPassGradient ? sampleYs[band] : (lightHeight > 0 ? lightHeight / 2 : 0);
+        const char *bandName = m_debugLightPassGradient ? bandNames[band] : "Scene";
+
+        for (UINT i = 0; i < _countof(sampleXs); ++i)
+        {
+            const UINT lightX = (std::min)(sampleXs[i], lightWidth > 0 ? lightWidth - 1 : 0);
+            const UINT backBufferX = backBufferWidth > 0 ? (std::min)(lightX, backBufferWidth - 1) : 0;
+            const UINT backBufferY = backBufferHeight > 0 ? (std::min)(sampleY, backBufferHeight - 1) : 0;
+
+            const UINT8 *lightRow = lightData + m_lightPassDebugDumpLayout.Offset +
+                                    static_cast<size_t>(sampleY) * m_lightPassDebugDumpLayout.Footprint.RowPitch;
+            const UINT16 *lightHalf = reinterpret_cast<const UINT16 *>(lightRow + static_cast<size_t>(lightX) * 8);
+            const float lightR = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[0]);
+            const float lightG = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[1]);
+            const float lightB = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[2]);
+            const float lightA = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[3]);
+
+            const UINT8 *backBufferRow =
+                backBufferData + m_backBufferDebugDumpLayout.Offset +
+                static_cast<size_t>(backBufferY) * m_backBufferDebugDumpLayout.Footprint.RowPitch;
+            const UINT backBufferRaw =
+                *reinterpret_cast<const UINT *>(backBufferRow + static_cast<size_t>(backBufferX) * 4);
+            const float outR = static_cast<float>(backBufferRaw & 0x3ff) / 1023.0f;
+            const float outG = static_cast<float>((backBufferRaw >> 10) & 0x3ff) / 1023.0f;
+            const float outB = static_cast<float>((backBufferRaw >> 20) & 0x3ff) / 1023.0f;
+            const float outA = static_cast<float>((backBufferRaw >> 30) & 0x3) / 3.0f;
+
+            const float expectedU = lightWidth > 0 ? (static_cast<float>(lightX) + 0.5f) / lightWidth : 0.0f;
+            const float expectedV = lightHeight > 0 ? (static_cast<float>(sampleY) + 0.5f) / lightHeight : 0.0f;
+            DebugPrint("  %s %s x=%u y=%u LightPass RGBA=(%.4f, %.4f, %.4f, %.4f)\n", bandName, sampleNames[i], lightX,
+                       sampleY, lightR, lightG, lightB, lightA);
+
+            if (m_debugLightPassGradient)
+            {
+                const float expectedRampInput = (std::clamp)(expectedU, 0.0f, 1.0f);
+                const float expectedMaxLinear = expectedV < 0.5f ? 1.0f : 9.0f;
+                const float expectedPerceptualMax = std::pow(expectedMaxLinear, 1.0f / 2.2f);
+                const float expectedPerceptualValue = expectedRampInput * expectedPerceptualMax;
+                const float expectedSceneLinear = std::pow(expectedPerceptualValue, 2.2f);
+                DebugPrint("  %s %s expected uv=(%.4f, %.4f) perceptual=(%.4f/%.4f) sceneLinear=%.4f "
+                           "nits=%.1f\n",
+                           bandName, sampleNames[i], expectedU, expectedV, expectedPerceptualValue,
+                           expectedPerceptualMax, expectedSceneLinear, expectedSceneLinear * m_toneMapPaperWhiteNits);
+            }
+
+            if (m_hdr10Enabled)
+            {
+                DebugPrint("  %s %s x=%u y=%u BackBuffer R10G10B10A2=(%.4f, %.4f, %.4f, %.4f) raw=0x%08x "
+                           "PQ-nits=(%.1f, %.1f, %.1f)\n",
+                           bandName, sampleNames[i], backBufferX, backBufferY, outR, outG, outB, outA, backBufferRaw,
+                           St2084PqToNits(outR), St2084PqToNits(outG), St2084PqToNits(outB));
+            }
+            else
+            {
+                DebugPrint("  %s %s x=%u y=%u BackBuffer R10G10B10A2=(%.4f, %.4f, %.4f, %.4f) raw=0x%08x "
+                           "SDR-linear=(%.4f, %.4f, %.4f) SDR-nits=(%.1f, %.1f, %.1f)\n",
+                           bandName, sampleNames[i], backBufferX, backBufferY, outR, outG, outB, outA, backBufferRaw,
+                           SrgbToLinear(outR), SrgbToLinear(outG), SrgbToLinear(outB),
+                           SrgbToLinear(outR) * m_toneMapPaperWhiteNits,
+                           SrgbToLinear(outG) * m_toneMapPaperWhiteNits,
+                           SrgbToLinear(outB) * m_toneMapPaperWhiteNits);
+            }
+        }
+    }
+
+    const D3D12_RANGE writtenRange = {0, 0};
+    m_lightPassDebugDumpReadback->Unmap(0, &writtenRange);
+    m_backBufferDebugDumpReadback->Unmap(0, &writtenRange);
 }
 
 //

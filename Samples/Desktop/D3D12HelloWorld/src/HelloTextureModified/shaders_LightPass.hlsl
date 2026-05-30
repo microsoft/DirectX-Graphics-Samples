@@ -26,6 +26,8 @@ cbuffer ConstantBuffer : register(b0)
     float4x4 viewProj;
     float4x4 prevViewProj;
     float4x4 invViewProj;
+    float3 cameraPosition;
+    float constantBufferPadding;
 };
 
 cbuffer LightingConstants : register(b2)
@@ -50,6 +52,31 @@ float3 ReconstructWorldPosition(float2 uv, float depth)
     return worldPos.xyz / worldPos.w;
 }
 
+float DistributionGGX(float ndoth, float roughness)
+{
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float denom = ndoth * ndoth * (a2 - 1.0) + 1.0;
+    return a2 / max(3.14159265 * denom * denom, 0.000001);
+}
+
+float GeometrySchlickGGX(float ndotx, float roughness)
+{
+    float r = roughness + 1.0;
+    float k = (r * r) / 8.0;
+    return ndotx / max(ndotx * (1.0 - k) + k, 0.000001);
+}
+
+float GeometrySmith(float ndotv, float ndotl, float roughness)
+{
+    return GeometrySchlickGGX(ndotv, roughness) * GeometrySchlickGGX(ndotl, roughness);
+}
+
+float3 FresnelSchlick(float cosTheta, float3 f0)
+{
+    return f0 + (1.0 - f0) * pow(saturate(1.0 - cosTheta), 5.0);
+}
+
 float4 PSMain(FullscreenVSOutput input) : SV_TARGET
 {
     float depth = g_depth.Load(int3(input.position.xy, 0));
@@ -66,17 +93,25 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     Material material = g_materialData[materialId];
     float4 pbrParams = g_pbrParams.Sample(g_sampler, input.uv);
     float metallic = pbrParams.r;
-    float roughness = pbrParams.g;
+    float roughness = max(pbrParams.g, 0.04);
     float occlusion = pbrParams.b;
     float3 worldPos = ReconstructWorldPosition(input.uv, depth);
-    float3 lightDir = normalize(lightDirection);
-    float ndotl = saturate(dot(normal, -lightDir));
+    float3 lightDir = normalize(-lightDirection);
+    float3 viewDir = normalize(cameraPosition - worldPos);
+    float3 halfDir = normalize(lightDir + viewDir);
+    float ndotl = saturate(dot(normal, lightDir));
+    float ndotv = saturate(dot(normal, viewDir));
+    float ndoth = saturate(dot(normal, halfDir));
+    float vdoth = saturate(dot(viewDir, halfDir));
 
     float3 ambient = albedo * ambientIntensity * occlusion;
     float receiveLighting = (material.flags & 1) ? 0.0 : 1.0;
     float3 diffuse = albedo * lightColor * ndotl * diffuseIntensity * (1.0 - metallic) * receiveLighting;
-    float specularPower = lerp(64.0, 8.0, roughness);
-    float specularStrength = lerp(0.04, 1.0, metallic) * (1.0 - roughness);
-    float3 specular = lightColor * pow(ndotl, specularPower) * specularStrength * receiveLighting;
+    float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
+    float3 fresnel = FresnelSchlick(vdoth, f0);
+    float distribution = DistributionGGX(ndoth, roughness);
+    float geometry = GeometrySmith(ndotv, ndotl, roughness);
+    float3 specularBrdf = distribution * geometry * fresnel / max(4.0 * ndotv * ndotl, 0.0001);
+    float3 specular = lightColor * diffuseIntensity * specularBrdf * ndotl * receiveLighting;
     return float4(ambient + diffuse + specular, 1.0);
 }

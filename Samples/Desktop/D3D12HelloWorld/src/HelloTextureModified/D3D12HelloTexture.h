@@ -65,6 +65,21 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kTextureCount = 1020;
     static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
 
+    static constexpr DXGI_FORMAT kSwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
+    static constexpr DXGI_FORMAT kBackBufferFormat = kSwapChainFormat;
+    static constexpr DXGI_COLOR_SPACE_TYPE kHdr10ColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+    static constexpr DXGI_COLOR_SPACE_TYPE kSdrColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+    static constexpr UINT kDefaultToneMapOperator = 0; // 0: None, 1: Reinhard, 2: ACES
+    static constexpr UINT kHdr10TransferFunction = 1;  // 0: Linear, 1: ST.2084 PQ, 2: HLG
+    static constexpr UINT kSdrTransferFunction = 3;    // 0: Linear, 1: ST.2084 PQ, 2: HLG, 3: SDR Rec.709
+    static constexpr float kDefaultExposure = 1.0f;
+    static constexpr float kDefaultPaperWhiteNits = 300.0f;
+    static constexpr float kDefaultMaxDisplayNits = 1000.0f;
+    static constexpr UINT kHdr10MaxMasteringLuminance = 1000;
+    static constexpr UINT kHdr10MinMasteringLuminance = 10; // 0.001 nits in 0.0001 nit units.
+    static constexpr UINT16 kHdr10MaxContentLightLevel = 1000;
+    static constexpr UINT16 kHdr10MaxFrameAverageLightLevel = 400;
+
     static constexpr UINT kInstanceBufferCount = kFrameCount;
     static constexpr UINT kMaterialBufferCount = 1;
     static constexpr UINT kConstantBufferCount = kFrameCount;
@@ -186,12 +201,14 @@ class D3D12HelloTexture : public DXSample
         XMFLOAT4X4 viewProjection;
         XMFLOAT4X4 prevViewProjection;
         XMFLOAT4X4 invViewProjection;
+        XMFLOAT3 cameraPosition = {0.0f, 0.0f, 0.0f};
+        float padding = 0.0f;
     };
 
     struct alignas(256) LightingConstants
     {
         XMFLOAT3 lightDirection = {0.4f, 0.7f, 0.6f};
-        float ambientIntensity = 0.25f;
+        float ambientIntensity = 0.10f;
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
         float diffuseIntensity = 1.0f;
         XMFLOAT4 backgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
@@ -271,6 +288,7 @@ class D3D12HelloTexture : public DXSample
     CD3DX12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12Device> m_device;
+    ComPtr<IDXGIFactory4> m_dxgiFactory;
     GBuffer m_gbuffer;
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
@@ -296,11 +314,26 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12PipelineState> m_gbufferPSO;
     ComPtr<ID3D12PipelineState> m_gbufferDebugPSO;
     ComPtr<ID3D12PipelineState> m_lightPassPSO;
+    ComPtr<ID3D12PipelineState> m_lightPassDebugGradientPSO;
     ComPtr<ID3D12PipelineState> m_toneMapPSO;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
+    DXGI_FORMAT m_backBufferFormat = kBackBufferFormat;
+    DXGI_COLOR_SPACE_TYPE m_currentSwapChainColorSpace = DXGI_COLOR_SPACE_CUSTOM;
+    bool m_hdr10Enabled = false;
+    int m_toneMapOperator = kDefaultToneMapOperator;
+    float m_toneMapExposure = kDefaultExposure;
+    float m_toneMapPaperWhiteNits = kDefaultPaperWhiteNits;
+    float m_toneMapMaxDisplayNits = kDefaultMaxDisplayNits;
+    bool m_debugLightPassGradient = false;
+    bool m_requestDebugDump = false;
+    bool m_debugDumpPending = false;
+    ComPtr<ID3D12Resource> m_lightPassDebugDumpReadback;
+    ComPtr<ID3D12Resource> m_backBufferDebugDumpReadback;
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_lightPassDebugDumpLayout = {};
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_backBufferDebugDumpLayout = {};
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
     RenderViewMode m_renderViewMode = RenderViewMode::LightPass;
 
@@ -456,6 +489,11 @@ class D3D12HelloTexture : public DXSample
 
     void LoadPipeline();
     void LoadAssets();
+    bool CheckSwapChainColorSpaceSupport(DXGI_COLOR_SPACE_TYPE colorSpace) const;
+    bool CheckCurrentOutputHdr10Support();
+    void ApplySwapChainColorSpace(DXGI_COLOR_SPACE_TYPE colorSpace);
+    void ApplyHdr10Metadata(bool enabled);
+    void UpdateHdr10DisplayMode();
     void InitImGui();
     void CreateConstantBuffer(ConstantBufferResource &constantBuffer, const void *initialData, UINT sizeInBytes);
     std::array<GltfVertex, kCubeVertexCount> CreateCubeVertices() const;
@@ -518,9 +556,13 @@ class D3D12HelloTexture : public DXSample
     void RecordGBufferDebugPass();
     void RecordLightPass();
     void RecordToneMapPass();
+    void RecordDebugDumpPass();
     void RecordMainPass();
     void RecordImGuiPass();
     void EndFrame();
+    void CreateDebugDumpReadback(ID3D12Resource *source, ComPtr<ID3D12Resource> &readback,
+                                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT &layout);
+    void PrintDebugDump();
 
     void DrawInstanceWrapper(UINT instanceCount);
 
