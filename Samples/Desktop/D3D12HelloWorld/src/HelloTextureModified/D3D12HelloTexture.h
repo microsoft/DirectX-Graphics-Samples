@@ -71,11 +71,11 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kLightConstantBufferCount = kFrameCount;
 
     // Descriptor allocation order is tracked by DescriptorHeapHandle.
-    // Current persistent descriptors: GBuffer SRVs, depth SRV, texture table, instance buffers, material buffer,
-    // constant buffer, light constant buffer.
+    // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, texture table, instance buffers,
+    // material buffer, constant buffer, light constant buffer.
     static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
                                                      kConstantBufferCount + kLightConstantBufferCount + kGBufferCount +
-                                                     1;
+                                                     2;
 
     static constexpr float kTranslationSpeed = 0.005f;
     static constexpr float kPI = 3.141592f;
@@ -276,6 +276,7 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12Resource> m_lightPassRenderTarget;
     DescriptorHeapHandle m_depthStencilSrv;
+    DescriptorHeapHandle m_lightPassRenderTargetSrv;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
 
     ComPtr<ID3D12RootSignature> m_rootSignature;
@@ -295,6 +296,7 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12PipelineState> m_gbufferPSO;
     ComPtr<ID3D12PipelineState> m_gbufferDebugPSO;
     ComPtr<ID3D12PipelineState> m_lightPassPSO;
+    ComPtr<ID3D12PipelineState> m_toneMapPSO;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
@@ -387,7 +389,9 @@ class D3D12HelloTexture : public DXSample
         RootParam_ConstantBuffer,
         RootParam_GBufferSrvBase,
         RootParam_LightConstants,
-        RootParam_GBufferDebugConstants
+        RootParam_GBufferDebugConstants,
+        RootParam_ToneMapSceneColor,
+        RootParam_ToneMapConstants
     };
 
     enum class TransientResourceState
@@ -513,6 +517,7 @@ class D3D12HelloTexture : public DXSample
     void RecordGBufferPass(const PassRenderTargetBinding &renderTargets);
     void RecordGBufferDebugPass();
     void RecordLightPass();
+    void RecordToneMapPass();
     void RecordMainPass();
     void RecordImGuiPass();
     void EndFrame();

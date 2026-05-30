@@ -325,13 +325,18 @@ void D3D12HelloTexture::LoadAssets()
         rangesGBufferSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, GBuffer::kCount + 1, 0 /*base*/, 3 /*space*/,
                                  D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
+        // t0 : HDR scene color SRV, space 4
+        CD3DX12_DESCRIPTOR_RANGE1 rangesToneMapSRV[1];
+        rangesToneMapSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 /*base*/, 4 /*space*/,
+                                 D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
+
         CD3DX12_DESCRIPTOR_RANGE1 rangesCVB[1];
         rangesCVB[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
         CD3DX12_DESCRIPTOR_RANGE1 rangesLightCBV[1];
         rangesLightCBV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        CD3DX12_ROOT_PARAMETER1 rootParameters[7];
+        CD3DX12_ROOT_PARAMETER1 rootParameters[9];
         rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL); // Texture SRVs
         rootParameters[1].InitAsDescriptorTable(1, &rangesSRV2[0],
                                                 D3D12_SHADER_VISIBILITY_ALL); // Structured buffer SRV (Instance data)
@@ -343,6 +348,9 @@ void D3D12HelloTexture::LoadAssets()
         rootParameters[5].InitAsDescriptorTable(1, &rangesLightCBV[0],
                                                 D3D12_SHADER_VISIBILITY_PIXEL);    // Light constants
         rootParameters[6].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer debug target
+        rootParameters[7].InitAsDescriptorTable(1, &rangesToneMapSRV[0],
+                                                D3D12_SHADER_VISIBILITY_PIXEL);    // ToneMap HDR scene color
+        rootParameters[8].InitAsConstants(5, 3, 0, D3D12_SHADER_VISIBILITY_PIXEL); // ToneMap constants
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -417,11 +425,19 @@ void D3D12HelloTexture::LoadAssets()
         UINT8 *pLightPassPS = nullptr;
         UINT lightPassVSSize = 0;
         UINT lightPassPSSize = 0;
+        UINT8 *pToneMapVS = nullptr;
+        UINT8 *pToneMapPS = nullptr;
+        UINT toneMapVSSize = 0;
+        UINT toneMapPSSize = 0;
 
         ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_LightPass_VSMain.cso").c_str(), &pLightPassVS,
                                        &lightPassVSSize));
         ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_LightPass_PSMain.cso").c_str(), &pLightPassPS,
                                        &lightPassPSSize));
+        ThrowIfFailed(
+            ReadDataFromFile(GetAssetFullPath(L"shaders_ToneMap_VSMain.cso").c_str(), &pToneMapVS, &toneMapVSSize));
+        ThrowIfFailed(
+            ReadDataFromFile(GetAssetFullPath(L"shaders_ToneMap_PSMain.cso").c_str(), &pToneMapPS, &toneMapPSSize));
 
         // Define the vertex input layout.
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
@@ -467,6 +483,13 @@ void D3D12HelloTexture::LoadAssets()
         D3D12_GRAPHICS_PIPELINE_STATE_DESC lightPassPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
             psoDesc, pLightPassVS, lightPassVSSize, pLightPassPS, lightPassPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&lightPassPSODesc, IID_PPV_ARGS(&m_lightPassPSO)));
+
+        //
+        // ToneMap PSO
+        //
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC toneMapPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
+            psoDesc, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, DXGI_FORMAT_R8G8B8A8_UNORM);
+        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&toneMapPSODesc, IID_PPV_ARGS(&m_toneMapPSO)));
 
         //
         // GBuffer Debug PSO
@@ -1000,6 +1023,12 @@ void D3D12HelloTexture::CreateGBufferSRVs()
         m_depthStencilSrv = m_descriptorHeapAllocator.AllocWithHandle();
     }
     assert(m_depthStencilSrv.Index == m_gbuffer.srvHandles[GBuffer::Albedo].Index + GBuffer::kCount);
+
+    if (m_lightPassRenderTargetSrv.Index == UINT_MAX)
+    {
+        m_lightPassRenderTargetSrv = m_descriptorHeapAllocator.AllocWithHandle();
+    }
+    assert(m_lightPassRenderTargetSrv.Index == m_depthStencilSrv.Index + 1);
 }
 
 void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
@@ -1602,6 +1631,14 @@ void D3D12HelloTexture::BuildRenderPasses()
              {RootParam_LightConstants, m_frameResources[m_frameIndex].lightCB.cbv}},
             {{GetLightPassRTV()}, std::nullopt}, [this](const RenderPass &) { RecordLightPass(); });
 
+    AddPass(L"ToneMapPass",
+            MakeResourceUsageMap({{kLightPassRenderTargetResourceName, m_lightPassRenderTarget.Get(),
+                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
+            MakeResourceUsageMap(
+                {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            {{RootParam_ToneMapSceneColor, m_lightPassRenderTargetSrv}}, {{GetBackBufferRtv()}, std::nullopt},
+            [this](const RenderPass &) { RecordToneMapPass(); });
+
     if (IsGBufferDebugView())
     {
         AddPass(L"GBufferDebugPass", MakeGBufferReadUsageMap(),
@@ -1781,6 +1818,13 @@ void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
         {
             m_lightPassRenderTarget = tr.resource;
             m_device->CreateRenderTargetView(m_lightPassRenderTarget.Get(), nullptr, GetLightPassRTV());
+
+            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srvDesc.Texture2D.MipLevels = 1;
+            m_device->CreateShaderResourceView(m_lightPassRenderTarget.Get(), &srvDesc, m_lightPassRenderTargetSrv.cpu);
         }
         else
         {
@@ -2052,6 +2096,37 @@ void D3D12HelloTexture::RecordLightPass()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Lighting Pass");
 }
 
+void D3D12HelloTexture::RecordToneMapPass()
+{
+    struct ToneMapConstants
+    {
+        UINT toneMapOperator;
+        UINT transferFunction;
+        float exposure;
+        float paperWhiteNits;
+        float maxDisplayNits;
+    };
+
+    const ToneMapConstants constants = {
+        0,      // None
+        0,      // Linear
+        1.0f,   // Exposure multiplier
+        300.0f, // Paper white
+        1000.0f // Display peak
+    };
+
+    PIXBeginEvent(m_commandList.Get(), 0, L"ToneMapPass");
+
+    m_commandList->SetGraphicsRoot32BitConstants(RootParam_ToneMapConstants, 5, &constants, 0);
+    m_commandList->SetPipelineState(m_toneMapPSO.Get());
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_commandList->DrawInstanced(3, 1, 0, 0);
+
+    PIXEndEvent(m_commandList.Get());
+
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ToneMap Pass");
+}
+
 //
 // Main Pass
 //
@@ -2095,6 +2170,12 @@ void D3D12HelloTexture::EndFrame()
             {kGBufferResourceNames[i], m_gbuffer.resources[i].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET});
     }
     TransitionResource({kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE});
+
+    // TODO: TransientResource refactor:
+    // This manual restore keeps ResetResourceStates() consistent with the actual resource state.
+    // Move next-frame/start-state handling into the transient resource or render graph metadata.
+    TransitionResource(
+        {kLightPassRenderTargetResourceName, m_lightPassRenderTarget.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET});
 
     TransitionResource({kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT});
 
