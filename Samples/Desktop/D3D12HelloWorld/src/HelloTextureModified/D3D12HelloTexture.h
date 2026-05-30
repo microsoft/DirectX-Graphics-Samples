@@ -253,6 +253,17 @@ class D3D12HelloTexture : public DXSample
         }
     };
 
+    struct ToneMapPass
+    {
+        ComPtr<ID3D12PipelineState> pipelineState;
+        DescriptorHeapHandle sceneColorSrv;
+        ToneMapSettings settings;
+
+        ToneMapSettings::ShaderConstants MakeShaderConstants(const HdrOutputSettings &hdrOutputSettings) const;
+        void SetConstants(ID3D12GraphicsCommandList *commandList, const HdrOutputSettings &hdrOutputSettings) const;
+        void Record(ID3D12GraphicsCommandList *commandList, const HdrOutputSettings &hdrOutputSettings) const;
+    };
+
     struct ConstantBufferResource
     {
         ComPtr<ID3D12Resource> buffer;
@@ -333,7 +344,6 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12Resource> m_lightPassRenderTarget;
     DescriptorHeapHandle m_depthStencilSrv;
-    DescriptorHeapHandle m_lightPassRenderTargetSrv;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
 
     ComPtr<ID3D12RootSignature> m_rootSignature;
@@ -354,14 +364,13 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12PipelineState> m_gbufferDebugPSO;
     ComPtr<ID3D12PipelineState> m_lightPassPSO;
     ComPtr<ID3D12PipelineState> m_lightPassDebugGradientPSO;
-    ComPtr<ID3D12PipelineState> m_toneMapPSO;
+    ToneMapPass m_toneMapPass;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
     DXGI_FORMAT m_backBufferFormat = kBackBufferFormat;
     HdrOutputSettings m_hdrOutputSettings;
-    ToneMapSettings m_toneMapSettings;
     bool m_debugLightPassGradient = false;
     bool m_requestDebugDump = false;
     bool m_debugDumpPending = false;
@@ -591,7 +600,6 @@ class D3D12HelloTexture : public DXSample
     void RecordGBufferDebugPass();
     void RecordLightPass();
     void RecordToneMapPass();
-    void SetToneMapConstants();
     void RecordDebugDumpPass();
     void RecordMainPass();
     void RecordImGuiPass();

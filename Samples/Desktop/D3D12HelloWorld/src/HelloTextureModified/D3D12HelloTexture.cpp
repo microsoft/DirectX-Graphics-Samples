@@ -85,6 +85,28 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
 {
 }
 
+auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings &hdrOutputSettings) const
+    -> ToneMapSettings::ShaderConstants
+{
+    return settings.MakeShaderConstants(hdrOutputSettings.TransferFunction());
+}
+
+void D3D12HelloTexture::ToneMapPass::SetConstants(ID3D12GraphicsCommandList *commandList,
+                                                  const HdrOutputSettings &hdrOutputSettings) const
+{
+    const auto constants = MakeShaderConstants(hdrOutputSettings);
+    commandList->SetGraphicsRoot32BitConstants(RootParam_ToneMapConstants, 5, &constants, 0);
+}
+
+void D3D12HelloTexture::ToneMapPass::Record(ID3D12GraphicsCommandList *commandList,
+                                            const HdrOutputSettings &hdrOutputSettings) const
+{
+    SetConstants(commandList, hdrOutputSettings);
+    commandList->SetPipelineState(pipelineState.Get());
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    commandList->DrawInstanced(3, 1, 0, 0);
+}
+
 void D3D12HelloTexture::OnInit()
 {
     m_prevTime = std::chrono::steady_clock::now();
@@ -650,7 +672,8 @@ void D3D12HelloTexture::LoadAssets()
         //
         D3D12_GRAPHICS_PIPELINE_STATE_DESC toneMapPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
             psoDesc, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, m_backBufferFormat);
-        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&toneMapPSODesc, IID_PPV_ARGS(&m_toneMapPSO)));
+        ThrowIfFailed(
+            m_device->CreateGraphicsPipelineState(&toneMapPSODesc, IID_PPV_ARGS(&m_toneMapPass.pipelineState)));
 
         //
         // GBuffer Debug PSO
@@ -1185,11 +1208,11 @@ void D3D12HelloTexture::CreateGBufferSRVs()
     }
     assert(m_depthStencilSrv.Index == m_gbuffer.srvHandles[GBuffer::Albedo].Index + GBuffer::kCount);
 
-    if (m_lightPassRenderTargetSrv.Index == UINT_MAX)
+    if (m_toneMapPass.sceneColorSrv.Index == UINT_MAX)
     {
-        m_lightPassRenderTargetSrv = m_descriptorHeapAllocator.AllocWithHandle();
+        m_toneMapPass.sceneColorSrv = m_descriptorHeapAllocator.AllocWithHandle();
     }
-    assert(m_lightPassRenderTargetSrv.Index == m_depthStencilSrv.Index + 1);
+    assert(m_toneMapPass.sceneColorSrv.Index == m_depthStencilSrv.Index + 1);
 }
 
 void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
@@ -1508,20 +1531,20 @@ void D3D12HelloTexture::UpdateImGui()
            sizeof(m_lightingConstantsData));
 
     ImGui::Text("ToneMap");
-    ImGui::RadioButton("None", &m_toneMapSettings.operatorIndex, 0);
+    ImGui::RadioButton("None", &m_toneMapPass.settings.operatorIndex, 0);
     ImGui::SameLine();
-    ImGui::RadioButton("Reinhard", &m_toneMapSettings.operatorIndex, 1);
+    ImGui::RadioButton("Reinhard", &m_toneMapPass.settings.operatorIndex, 1);
     ImGui::SameLine();
-    ImGui::RadioButton("ACES", &m_toneMapSettings.operatorIndex, 2);
-    ImGui::SliderFloat("Exposure", &m_toneMapSettings.exposure, 0.0f, 4.0f);
-    ImGui::SliderFloat("Paper White", &m_toneMapSettings.paperWhiteNits, 80.0f, 500.0f, "%.0f nits");
-    ImGui::SliderFloat("Display Max", &m_toneMapSettings.maxDisplayNits, 100.0f, 4000.0f, "%.0f nits");
+    ImGui::RadioButton("ACES", &m_toneMapPass.settings.operatorIndex, 2);
+    ImGui::SliderFloat("Exposure", &m_toneMapPass.settings.exposure, 0.0f, 4.0f);
+    ImGui::SliderFloat("Paper White", &m_toneMapPass.settings.paperWhiteNits, 80.0f, 500.0f, "%.0f nits");
+    ImGui::SliderFloat("Display Max", &m_toneMapPass.settings.maxDisplayNits, 100.0f, 4000.0f, "%.0f nits");
     ImGui::Checkbox("Debug LightPass Gradient", &m_debugLightPassGradient);
     if (ImGui::Button("Dump HDR Buffers"))
     {
         m_requestDebugDump = true;
     }
-    m_toneMapSettings.Normalize();
+    m_toneMapPass.settings.Normalize();
 
     int renderViewMode = static_cast<int>(m_renderViewMode);
     ImGui::Text("Render View");
@@ -1825,7 +1848,7 @@ void D3D12HelloTexture::BuildRenderPasses()
                                    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
             MakeResourceUsageMap(
                 {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            {{RootParam_ToneMapSceneColor, m_lightPassRenderTargetSrv}}, {{GetBackBufferRtv()}, std::nullopt},
+            {{RootParam_ToneMapSceneColor, m_toneMapPass.sceneColorSrv}}, {{GetBackBufferRtv()}, std::nullopt},
             [this](const RenderPass &) { RecordToneMapPass(); });
 
     if (m_requestDebugDump)
@@ -2023,7 +2046,8 @@ void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             srvDesc.Texture2D.MipLevels = 1;
-            m_device->CreateShaderResourceView(m_lightPassRenderTarget.Get(), &srvDesc, m_lightPassRenderTargetSrv.cpu);
+            m_device->CreateShaderResourceView(m_lightPassRenderTarget.Get(), &srvDesc,
+                                               m_toneMapPass.sceneColorSrv.cpu);
         }
         else
         {
@@ -2288,7 +2312,7 @@ void D3D12HelloTexture::RecordLightPass()
 
     if (m_debugLightPassGradient)
     {
-        SetToneMapConstants();
+        m_toneMapPass.SetConstants(m_commandList.Get(), m_hdrOutputSettings);
     }
 
     m_commandList->SetPipelineState(m_debugLightPassGradient ? m_lightPassDebugGradientPSO.Get()
@@ -2301,20 +2325,11 @@ void D3D12HelloTexture::RecordLightPass()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Lighting Pass");
 }
 
-void D3D12HelloTexture::SetToneMapConstants()
-{
-    const auto constants = m_toneMapSettings.MakeShaderConstants(m_hdrOutputSettings.TransferFunction());
-    m_commandList->SetGraphicsRoot32BitConstants(RootParam_ToneMapConstants, 5, &constants, 0);
-}
-
 void D3D12HelloTexture::RecordToneMapPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"ToneMapPass");
 
-    SetToneMapConstants();
-    m_commandList->SetPipelineState(m_toneMapPSO.Get());
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->DrawInstanced(3, 1, 0, 0);
+    m_toneMapPass.Record(m_commandList.Get(), m_hdrOutputSettings);
 
     PIXEndEvent(m_commandList.Get());
 
@@ -2386,15 +2401,15 @@ void D3D12HelloTexture::PrintDebugDump()
     DebugPrint("HDR DebugDump: LightPass=%ux%u BackBuffer=%ux%u hdr10=%d gradient=%d toneMap=%d exposure=%.3f "
                "paperWhite=%.1f maxDisplay=%.1f\n",
                lightWidth, lightHeight, backBufferWidth, backBufferHeight, m_hdrOutputSettings.hdr10Enabled ? 1 : 0,
-               m_debugLightPassGradient ? 1 : 0, m_toneMapSettings.operatorIndex, m_toneMapSettings.exposure,
-               m_toneMapSettings.paperWhiteNits, m_toneMapSettings.maxDisplayNits);
+               m_debugLightPassGradient ? 1 : 0, m_toneMapPass.settings.operatorIndex, m_toneMapPass.settings.exposure,
+               m_toneMapPass.settings.paperWhiteNits, m_toneMapPass.settings.maxDisplayNits);
     if (m_debugLightPassGradient)
     {
         const float displayMaxSceneLinear =
-            m_toneMapSettings.maxDisplayNits / (std::max)(m_toneMapSettings.paperWhiteNits, 1.0f);
+            m_toneMapPass.settings.maxDisplayNits / (std::max)(m_toneMapPass.settings.paperWhiteNits, 1.0f);
         const float displayMaxMarkerX = std::pow((std::clamp)(displayMaxSceneLinear / 9.0f, 0.0f, 1.0f), 1.0f / 2.2f);
         DebugPrint("  HDR[0,9] display-max marker: sceneLinear=%.4f nits=%.1f x=%.4f%s\n", displayMaxSceneLinear,
-                   m_toneMapSettings.maxDisplayNits, displayMaxMarkerX,
+                   m_toneMapPass.settings.maxDisplayNits, displayMaxMarkerX,
                    displayMaxSceneLinear >= 9.0f ? " (outside ramp)" : "");
     }
 
@@ -2443,7 +2458,7 @@ void D3D12HelloTexture::PrintDebugDump()
                            "nits=%.1f\n",
                            bandName, sampleNames[i], expectedU, expectedV, expectedPerceptualValue,
                            expectedPerceptualMax, expectedSceneLinear,
-                           expectedSceneLinear * m_toneMapSettings.paperWhiteNits);
+                           expectedSceneLinear * m_toneMapPass.settings.paperWhiteNits);
             }
 
             if (m_hdrOutputSettings.hdr10Enabled)
@@ -2459,9 +2474,9 @@ void D3D12HelloTexture::PrintDebugDump()
                            "SDR-linear=(%.4f, %.4f, %.4f) SDR-nits=(%.1f, %.1f, %.1f)\n",
                            bandName, sampleNames[i], backBufferX, backBufferY, outR, outG, outB, outA, backBufferRaw,
                            SrgbToLinear(outR), SrgbToLinear(outG), SrgbToLinear(outB),
-                           SrgbToLinear(outR) * m_toneMapSettings.paperWhiteNits,
-                           SrgbToLinear(outG) * m_toneMapSettings.paperWhiteNits,
-                           SrgbToLinear(outB) * m_toneMapSettings.paperWhiteNits);
+                           SrgbToLinear(outR) * m_toneMapPass.settings.paperWhiteNits,
+                           SrgbToLinear(outG) * m_toneMapPass.settings.paperWhiteNits,
+                           SrgbToLinear(outB) * m_toneMapPass.settings.paperWhiteNits);
             }
         }
     }
