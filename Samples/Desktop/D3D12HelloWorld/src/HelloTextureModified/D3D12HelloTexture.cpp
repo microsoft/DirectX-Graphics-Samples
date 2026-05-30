@@ -107,6 +107,217 @@ void D3D12HelloTexture::ToneMapPass::Record(ID3D12GraphicsCommandList *commandLi
     commandList->DrawInstanced(3, 1, 0, 0);
 }
 
+void D3D12HelloTexture::LightingPass::Record(ID3D12GraphicsCommandList *commandList, const ToneMapPass &toneMapPass,
+                                             const HdrOutputSettings &hdrOutputSettings) const
+{
+    if (debugGradientEnabled)
+    {
+        toneMapPass.SetConstants(commandList, hdrOutputSettings);
+    }
+
+    commandList->SetPipelineState(debugGradientEnabled ? debugGradientPipelineState.Get() : pipelineState.Get());
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    commandList->DrawInstanced(3, 1, 0, 0);
+}
+
+void D3D12HelloTexture::ResourceRegistry::AnalyzeLifetimes(const std::vector<RenderPass> &renderPasses)
+{
+    lifetimes.clear();
+
+    for (int passIndex = 0; passIndex < static_cast<int>(renderPasses.size()); ++passIndex)
+    {
+        const auto &pass = renderPasses[passIndex];
+
+        for (const auto &[name, usage] : pass.reads)
+        {
+            auto &lifetime = lifetimes[name];
+            lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
+            lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
+        }
+
+        for (const auto &[name, usage] : pass.writes)
+        {
+            auto &lifetime = lifetimes[name];
+            lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
+            lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
+        }
+    }
+}
+
+void D3D12HelloTexture::ResourceRegistry::ResetStates(std::initializer_list<ResourceUsage> usages)
+{
+    states.clear();
+    for (const ResourceUsage &usage : usages)
+    {
+        SetState(usage.name, usage.state);
+    }
+}
+
+void D3D12HelloTexture::ResourceRegistry::RegisterTransientResource(TransientResource resource)
+{
+    transientResources[resource.name] = std::move(resource);
+}
+
+void D3D12HelloTexture::ResourceRegistry::UnregisterTransientResource(const std::string &name)
+{
+    transientResources.erase(name);
+}
+
+void D3D12HelloTexture::ResourceRegistry::MarkEndOfLifeResources(int passIndex, const char *backBufferName)
+{
+    for (auto &[name, lt] : lifetimes)
+    {
+        if (lt.lastPass != passIndex)
+            continue;
+
+        if (name == backBufferName)
+            continue;
+
+        if (!transientResources.contains(name))
+            continue;
+
+        auto &tr = transientResources.at(name);
+
+        if (tr.state == TransientResourceState::Uninitialized)
+        {
+            assert(false && "Transient resource must be registered before release.");
+            DBG_PRINT("Resource %s is uninitialized.\n", name.c_str());
+            continue;
+        }
+
+        if (tr.persistent)
+            continue;
+
+        if (tr.state != TransientResourceState::Created)
+            continue;
+
+        tr.state = TransientResourceState::PendingRelease1;
+
+        DBG_PRINT("Resource %s endOfLife.\n", name.c_str());
+    }
+}
+
+void D3D12HelloTexture::ResourceRegistry::MarkPendingTransientResources(UINT64 fenceValue)
+{
+    for (auto &[name, tr] : transientResources)
+    {
+        if (tr.state != TransientResourceState::PendingRelease1)
+            continue;
+
+        tr.retireFenceValue = fenceValue;
+        tr.state = TransientResourceState::PendingRelease2;
+
+        DBG_PRINT("Resource %s waitFenceValue.\n", name.c_str(), tr.retireFenceValue);
+    }
+}
+
+std::vector<std::string>
+D3D12HelloTexture::ResourceRegistry::CollectGarbageTransientResources(UINT64 completedFenceValue)
+{
+    std::vector<std::string> releasedResources;
+
+    for (auto &[name, tr] : transientResources)
+    {
+        if (tr.state != TransientResourceState::PendingRelease2)
+            continue;
+
+        if (completedFenceValue < tr.retireFenceValue)
+            continue;
+
+        tr.resource.Reset();
+        tr.retireFenceValue = 0;
+        tr.state = TransientResourceState::Initialized;
+        releasedResources.push_back(name);
+
+        DBG_PRINT("Resource %s released.\n", name.c_str());
+    }
+
+    return releasedResources;
+}
+
+std::vector<std::string>
+D3D12HelloTexture::ResourceRegistry::GetResourcesStartingAtPass(int passIndex, const char *backBufferName) const
+{
+    std::vector<std::string> resourceNames;
+
+    for (const auto &[name, lt] : lifetimes)
+    {
+        if (lt.firstPass != passIndex)
+            continue;
+
+        if (name == backBufferName)
+            continue;
+
+        if (!transientResources.contains(name))
+            continue;
+
+        resourceNames.push_back(name);
+    }
+
+    return resourceNames;
+}
+
+auto D3D12HelloTexture::ResourceRegistry::PrepareTransientResourceForCreate(const std::string &name)
+    -> TransientResource *
+{
+    auto transientResource = transientResources.find(name);
+    if (transientResource == transientResources.end())
+    {
+        return nullptr;
+    }
+
+    auto &tr = transientResource->second;
+    if (tr.state == TransientResourceState::Uninitialized)
+    {
+        assert(false && "Transient resource must be registered before use.");
+        DBG_PRINT("Resource %s is uninitialized.\n", name.c_str());
+        return nullptr;
+    }
+
+    if (tr.state == TransientResourceState::Created)
+    {
+        return nullptr;
+    }
+
+    if (tr.state == TransientResourceState::PendingRelease1 || tr.state == TransientResourceState::PendingRelease2)
+    {
+        tr.retireFenceValue = 0;
+        tr.state = TransientResourceState::Created;
+        DBG_PRINT("Resource %s reused before release.\n", name.c_str());
+        return nullptr;
+    }
+
+    if (tr.state != TransientResourceState::Initialized)
+    {
+        return nullptr;
+    }
+
+    return &tr;
+}
+
+void D3D12HelloTexture::ResourceRegistry::MarkTransientResourceCreated(const std::string &name)
+{
+    auto transientResource = transientResources.find(name);
+    if (transientResource == transientResources.end())
+    {
+        assert(false && "Transient resource must be registered before marking it created.");
+        return;
+    }
+
+    transientResource->second.state = TransientResourceState::Created;
+}
+
+ID3D12Resource *D3D12HelloTexture::ResourceRegistry::FindTransientD3DResource(const std::string &name) const
+{
+    auto transientResource = transientResources.find(name);
+    if (transientResource == transientResources.end())
+    {
+        return nullptr;
+    }
+
+    return transientResource->second.resource.Get();
+}
+
 void D3D12HelloTexture::OnInit()
 {
     m_prevTime = std::chrono::steady_clock::now();
@@ -243,29 +454,31 @@ void D3D12HelloTexture::LoadPipeline()
                         kGpuWorkMeterQueryCount); // Initialize GPU work meter with a maximum of 100 timestamp queries.
 }
 
-bool D3D12HelloTexture::CheckSwapChainColorSpaceSupport(DXGI_COLOR_SPACE_TYPE colorSpace) const
+bool D3D12HelloTexture::HdrOutputPolicy::CheckSwapChainColorSpaceSupport(IDXGISwapChain3 *swapChain,
+                                                                         DXGI_COLOR_SPACE_TYPE colorSpace) const
 {
     UINT colorSpaceSupport = 0;
-    return SUCCEEDED(m_swapChain->CheckColorSpaceSupport(colorSpace, &colorSpaceSupport)) &&
+    return SUCCEEDED(swapChain->CheckColorSpaceSupport(colorSpace, &colorSpaceSupport)) &&
            (colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT);
 }
 
-bool D3D12HelloTexture::CheckCurrentOutputHdr10Support()
+bool D3D12HelloTexture::HdrOutputPolicy::CheckCurrentOutputHdr10Support(ComPtr<IDXGIFactory4> &dxgiFactory,
+                                                                        HWND hwnd) const
 {
-    if (!m_dxgiFactory->IsCurrent())
+    if (!dxgiFactory->IsCurrent())
     {
         UINT dxgiFactoryFlags = 0;
 #if defined(_DEBUG)
         dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
-        ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
+        ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
     }
 
     RECT windowRect = {};
-    GetWindowRect(Win32Application::GetHwnd(), &windowRect);
+    GetWindowRect(hwnd, &windowRect);
 
     ComPtr<IDXGIAdapter1> adapter;
-    ThrowIfFailed(m_dxgiFactory->EnumAdapters1(0, &adapter));
+    ThrowIfFailed(dxgiFactory->EnumAdapters1(0, &adapter));
 
     ComPtr<IDXGIOutput> bestOutput;
     ComPtr<IDXGIOutput> output;
@@ -302,24 +515,25 @@ bool D3D12HelloTexture::CheckCurrentOutputHdr10Support()
     return outputDesc.ColorSpace == kHdr10ColorSpace;
 }
 
-void D3D12HelloTexture::ApplySwapChainColorSpace(DXGI_COLOR_SPACE_TYPE colorSpace)
+void D3D12HelloTexture::HdrOutputPolicy::ApplySwapChainColorSpace(IDXGISwapChain3 *swapChain,
+                                                                  DXGI_COLOR_SPACE_TYPE colorSpace)
 {
-    if (m_hdrOutputSettings.currentSwapChainColorSpace == colorSpace)
+    if (settings.currentSwapChainColorSpace == colorSpace)
     {
         return;
     }
 
-    if (CheckSwapChainColorSpaceSupport(colorSpace))
+    if (CheckSwapChainColorSpaceSupport(swapChain, colorSpace))
     {
-        ThrowIfFailed(m_swapChain->SetColorSpace1(colorSpace));
-        m_hdrOutputSettings.currentSwapChainColorSpace = colorSpace;
+        ThrowIfFailed(swapChain->SetColorSpace1(colorSpace));
+        settings.currentSwapChainColorSpace = colorSpace;
     }
 }
 
-void D3D12HelloTexture::ApplyHdr10Metadata(bool enabled)
+void D3D12HelloTexture::HdrOutputPolicy::ApplyHdr10Metadata(IDXGISwapChain3 *swapChain, bool enabled) const
 {
     ComPtr<IDXGISwapChain4> swapChain4;
-    if (FAILED(m_swapChain.As(&swapChain4)))
+    if (FAILED(swapChain->QueryInterface(IID_PPV_ARGS(&swapChain4))))
     {
         return;
     }
@@ -347,17 +561,29 @@ void D3D12HelloTexture::ApplyHdr10Metadata(bool enabled)
     ThrowIfFailed(swapChain4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(metadata), &metadata));
 }
 
-void D3D12HelloTexture::UpdateHdr10DisplayMode()
+void D3D12HelloTexture::HdrOutputPolicy::Update(ComPtr<IDXGIFactory4> &dxgiFactory, IDXGISwapChain3 *swapChain,
+                                                HWND hwnd)
 {
-    const bool hdr10Enabled = CheckCurrentOutputHdr10Support() && CheckSwapChainColorSpaceSupport(kHdr10ColorSpace);
-    const bool hdr10StateChanged = m_hdrOutputSettings.hdr10Enabled != hdr10Enabled;
-    m_hdrOutputSettings.hdr10Enabled = hdr10Enabled;
+    const bool hdr10Enabled = CheckCurrentOutputHdr10Support(dxgiFactory, hwnd) &&
+                              CheckSwapChainColorSpaceSupport(swapChain, kHdr10ColorSpace);
+    const bool hdr10StateChanged = settings.hdr10Enabled != hdr10Enabled;
+    settings.hdr10Enabled = hdr10Enabled;
 
-    ApplySwapChainColorSpace(m_hdrOutputSettings.TargetColorSpace());
+    ApplySwapChainColorSpace(swapChain, settings.TargetColorSpace());
     if (hdr10StateChanged)
     {
-        ApplyHdr10Metadata(hdr10Enabled);
+        ApplyHdr10Metadata(swapChain, hdr10Enabled);
     }
+}
+
+void D3D12HelloTexture::HdrOutputPolicy::ReapplyColorSpace(IDXGISwapChain3 *swapChain)
+{
+    ApplySwapChainColorSpace(swapChain, settings.TargetColorSpace());
+}
+
+void D3D12HelloTexture::UpdateHdr10DisplayMode()
+{
+    m_hdrOutputPolicy.Update(m_dxgiFactory, m_swapChain.Get(), Win32Application::GetHwnd());
 }
 
 std::array<GltfVertex, D3D12HelloTexture::kCubeVertexCount> D3D12HelloTexture::CreateCubeVertices() const
@@ -659,13 +885,14 @@ void D3D12HelloTexture::LoadAssets()
         //
         D3D12_GRAPHICS_PIPELINE_STATE_DESC lightPassPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
             psoDesc, pLightPassVS, lightPassVSSize, pLightPassPS, lightPassPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
-        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&lightPassPSODesc, IID_PPV_ARGS(&m_lightPassPSO)));
+        ThrowIfFailed(
+            m_device->CreateGraphicsPipelineState(&lightPassPSODesc, IID_PPV_ARGS(&m_lightingPass.pipelineState)));
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC lightPassDebugGradientPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
             psoDesc, pLightPassDebugGradientVS, lightPassDebugGradientVSSize, pLightPassDebugGradientPS,
             lightPassDebugGradientPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&lightPassDebugGradientPSODesc,
-                                                            IID_PPV_ARGS(&m_lightPassDebugGradientPSO)));
+                                                            IID_PPV_ARGS(&m_lightingPass.debugGradientPipelineState)));
 
         //
         // ToneMap PSO
@@ -1239,7 +1466,7 @@ void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
 
     r.initialState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
 
-    m_transientResources[kDepthStencilResourceName] = std::move(r);
+    m_resourceRegistry.RegisterTransientResource(std::move(r));
 }
 
 void D3D12HelloTexture::RegisterLightPassRenderTarget(UINT width, UINT height)
@@ -1268,7 +1495,7 @@ void D3D12HelloTexture::RegisterLightPassRenderTarget(UINT width, UINT height)
 
     r.initialState = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
-    m_transientResources[kLightPassRenderTargetResourceName] = std::move(r);
+    m_resourceRegistry.RegisterTransientResource(std::move(r));
 }
 
 void D3D12HelloTexture::CreateDepthStencilDescriptors()
@@ -1539,14 +1766,14 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::SliderFloat("Exposure", &m_toneMapPass.settings.exposure, 0.0f, 4.0f);
     ImGui::SliderFloat("Paper White", &m_toneMapPass.settings.paperWhiteNits, 80.0f, 500.0f, "%.0f nits");
     ImGui::SliderFloat("Display Max", &m_toneMapPass.settings.maxDisplayNits, 100.0f, 4000.0f, "%.0f nits");
-    ImGui::Checkbox("Debug LightPass Gradient", &m_debugLightPassGradient);
+    ImGui::Checkbox("Debug LightPass Gradient", &m_lightingPass.debugGradientEnabled);
     if (ImGui::Button("Dump HDR Buffers"))
     {
-        m_requestDebugDump = true;
+        m_debugViewSettings.requestHdrDump = true;
     }
     m_toneMapPass.settings.Normalize();
 
-    int renderViewMode = static_cast<int>(m_renderViewMode);
+    int renderViewMode = static_cast<int>(m_debugViewSettings.renderViewMode);
     ImGui::Text("Render View");
     ImGui::RadioButton("LightPass", &renderViewMode, static_cast<int>(RenderViewMode::LightPass));
     ImGui::RadioButton("Albedo", &renderViewMode, static_cast<int>(RenderViewMode::GBufferAlbedo));
@@ -1560,7 +1787,7 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::RadioButton("PBRParams", &renderViewMode, static_cast<int>(RenderViewMode::GBufferPBRParams));
     ImGui::SameLine();
     ImGui::RadioButton("Depth", &renderViewMode, static_cast<int>(RenderViewMode::Depth));
-    m_renderViewMode = static_cast<RenderViewMode>(renderViewMode);
+    m_debugViewSettings.renderViewMode = static_cast<RenderViewMode>(renderViewMode);
 
     ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
 
@@ -1610,12 +1837,12 @@ void D3D12HelloTexture::OnRender()
     ID3D12CommandList *ppCommandLists[] = {m_commandList.Get()};
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-    if (m_debugDumpPending)
+    if (m_debugViewSettings.hdrDumpPending)
     {
         WaitForGpu();
         PrintDebugDump();
-        m_requestDebugDump = false;
-        m_debugDumpPending = false;
+        m_debugViewSettings.requestHdrDump = false;
+        m_debugViewSettings.hdrDumpPending = false;
     }
 
     // Present the frame.
@@ -1720,7 +1947,7 @@ void D3D12HelloTexture::Resize(UINT width, UINT height)
 
     // Resize SwapChain
     m_swapChain->ResizeBuffers(kFrameCount, m_width, m_height, m_backBufferFormat, 0);
-    ApplySwapChainColorSpace(m_hdrOutputSettings.TargetColorSpace());
+    m_hdrOutputPolicy.ReapplyColorSpace(m_swapChain.Get());
 
     // ★重要
     m_fremeIndexPrevious = m_frameIndex;
@@ -1741,8 +1968,8 @@ void D3D12HelloTexture::Resize(UINT width, UINT height)
 
     m_depthStencil.Reset();
     m_lightPassRenderTarget.Reset();
-    m_transientResources.erase(kDepthStencilResourceName);
-    m_transientResources.erase(kLightPassRenderTargetResourceName);
+    m_resourceRegistry.UnregisterTransientResource(kDepthStencilResourceName);
+    m_resourceRegistry.UnregisterTransientResource(kLightPassRenderTargetResourceName);
     RegisterDepthStencil(m_width, m_height);
     RegisterLightPassRenderTarget(m_width, m_height);
     CreateGBuffer();
@@ -1851,7 +2078,7 @@ void D3D12HelloTexture::BuildRenderPasses()
             {{RootParam_ToneMapSceneColor, m_toneMapPass.sceneColorSrv}}, {{GetBackBufferRtv()}, std::nullopt},
             [this](const RenderPass &) { RecordToneMapPass(); });
 
-    if (m_requestDebugDump)
+    if (m_debugViewSettings.requestHdrDump)
     {
         AddPass(
             L"DebugDump",
@@ -1861,7 +2088,7 @@ void D3D12HelloTexture::BuildRenderPasses()
             {}, {}, {{}, std::nullopt}, [this](const RenderPass &) { RecordDebugDumpPass(); });
     }
 
-    if (IsGBufferDebugView())
+    if (m_debugViewSettings.IsGBufferDebugView())
     {
         AddPass(L"GBufferDebugPass", MakeGBufferReadUsageMap(),
                 MakeResourceUsageMap({{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(),
@@ -1916,42 +2143,12 @@ auto D3D12HelloTexture::MakeGBufferSrvBindings() const -> std::vector<PassDescri
     return {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]}};
 }
 
-bool D3D12HelloTexture::IsGBufferDebugView() const { return m_renderViewMode != RenderViewMode::LightPass; }
-
-UINT D3D12HelloTexture::GetGBufferDebugTarget() const
-{
-    assert(IsGBufferDebugView());
-    return static_cast<UINT>(m_renderViewMode) - static_cast<UINT>(RenderViewMode::GBufferAlbedo);
-}
-
-void D3D12HelloTexture::AnalyzeResourceLifetimes()
-{
-    m_resourceLifetimes.clear();
-
-    for (int passIndex = 0; passIndex < static_cast<int>(m_renderPasses.size()); ++passIndex)
-    {
-        const auto &pass = m_renderPasses[passIndex];
-
-        for (const auto &[name, usage] : pass.reads)
-        {
-            auto &lifetime = m_resourceLifetimes[name];
-            lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
-            lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
-        }
-
-        for (const auto &[name, usage] : pass.writes)
-        {
-            auto &lifetime = m_resourceLifetimes[name];
-            lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
-            lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
-        }
-    }
-}
+void D3D12HelloTexture::AnalyzeResourceLifetimes() { m_resourceRegistry.AnalyzeLifetimes(m_renderPasses); }
 
 void D3D12HelloTexture::DebugPrintLifetimes()
 {
     DBG_PRINT("Resource Lifetimes:\n");
-    for (auto &[name, lt] : m_resourceLifetimes)
+    for (auto &[name, lt] : m_resourceRegistry.lifetimes)
     {
         DBG_PRINT("Resource %s: [%d - %d]\n", name.c_str(), lt.firstPass, lt.lastPass);
     }
@@ -1978,169 +2175,111 @@ void D3D12HelloTexture::ExecutePasses()
 {
     for (int passIndex = 0; passIndex < static_cast<int>(m_renderPasses.size()); ++passIndex)
     {
-        CreateResourcesForPass(passIndex);
-
-        const RenderPass &pass = m_renderPasses[passIndex];
-        TransitionPassResources(pass);
-        BindPassRenderTargets(pass);
-        BindPassDescriptors(pass);
-        pass.execute(pass);
-
-        ReleaseResourcesAfterPass(passIndex);
+        ExecutePass(passIndex);
     }
+}
+
+void D3D12HelloTexture::ExecutePass(int passIndex)
+{
+    CreateResourcesForPass(passIndex);
+
+    const RenderPass &pass = m_renderPasses[passIndex];
+    TransitionPassResources(pass);
+    BindPassRenderTargets(pass);
+    BindPassDescriptors(pass);
+    pass.execute(pass);
+
+    ReleaseResourcesAfterPass(passIndex);
 }
 
 void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
 {
-    for (auto &[name, lt] : m_resourceLifetimes)
+    const std::vector<std::string> resourceNames =
+        m_resourceRegistry.GetResourcesStartingAtPass(passIndex, kBackBufferResourceName);
+
+    for (const std::string &name : resourceNames)
     {
-        if (lt.firstPass != passIndex)
+        TransientResource *transientResource = m_resourceRegistry.PrepareTransientResourceForCreate(name);
+        if (transientResource == nullptr)
             continue;
+        auto &tr = *transientResource;
 
-        if (name == kBackBufferResourceName)
-            continue;
-
-        if (!m_transientResources.contains(name))
-            continue;
-
-        auto &tr = m_transientResources.at(name);
-        if (tr.state == TransientResourceState::Uninitialized)
-        {
-            assert(false && "Transient resource must be registered before use.");
-            DBG_PRINT("Resource %s is uninitialized.\n", name.c_str());
-            continue;
-        }
-
-        if (tr.state == TransientResourceState::Created)
-            continue;
-
-        if (tr.state == TransientResourceState::PendingRelease1 || tr.state == TransientResourceState::PendingRelease2)
-        {
-            tr.retireFenceValue = 0;
-            tr.state = TransientResourceState::Created;
-            DBG_PRINT("Resource %s reused before release.\n", name.c_str());
-            continue;
-        }
-
-        if (tr.state != TransientResourceState::Initialized)
-            continue;
-
-        ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-                                                        D3D12_HEAP_FLAG_NONE, &tr.desc, tr.initialState, &tr.clearValue,
-                                                        IID_PPV_ARGS(&tr.resource)));
-
-        tr.state = TransientResourceState::Created;
-
-        if (name == kDepthStencilResourceName)
-        {
-            m_depthStencil = tr.resource;
-            CreateDepthStencilDescriptors();
-        }
-        else if (name == kLightPassRenderTargetResourceName)
-        {
-            m_lightPassRenderTarget = tr.resource;
-            m_device->CreateRenderTargetView(m_lightPassRenderTarget.Get(), nullptr, GetLightPassRTV());
-
-            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-            srvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-            srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-            srvDesc.Texture2D.MipLevels = 1;
-            m_device->CreateShaderResourceView(m_lightPassRenderTarget.Get(), &srvDesc,
-                                               m_toneMapPass.sceneColorSrv.cpu);
-        }
-        else
-        {
-            assert(false && "Unsupported resource in CreateResourceForPass()");
-        }
+        CreateCommittedTransientResource(tr);
+        m_resourceRegistry.MarkTransientResourceCreated(name);
+        BindCreatedTransientResource(name, tr.resource.Get());
 
         DBG_PRINT("Resource %s created.\n", name.c_str());
     }
 }
 
+void D3D12HelloTexture::CreateCommittedTransientResource(TransientResource &resource)
+{
+    ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                                                    D3D12_HEAP_FLAG_NONE, &resource.desc, resource.initialState,
+                                                    &resource.clearValue, IID_PPV_ARGS(&resource.resource)));
+}
+
+void D3D12HelloTexture::BindCreatedTransientResource(const std::string &name, ID3D12Resource *resource)
+{
+    if (name == kDepthStencilResourceName)
+    {
+        m_depthStencil = resource;
+        CreateDepthStencilDescriptors();
+        return;
+    }
+
+    if (name == kLightPassRenderTargetResourceName)
+    {
+        m_lightPassRenderTarget = resource;
+        CreateLightPassRenderTargetDescriptors();
+        return;
+    }
+
+    assert(false && "Unsupported resource in BindCreatedTransientResource()");
+}
+
+void D3D12HelloTexture::CreateLightPassRenderTargetDescriptors()
+{
+    m_device->CreateRenderTargetView(m_lightPassRenderTarget.Get(), nullptr, GetLightPassRTV());
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MipLevels = 1;
+    m_device->CreateShaderResourceView(m_lightPassRenderTarget.Get(), &srvDesc, m_toneMapPass.sceneColorSrv.cpu);
+}
+
 void D3D12HelloTexture::ReleaseResourcesAfterPass(int passIndex)
 {
-    for (auto &[name, lt] : m_resourceLifetimes)
-    {
-        if (lt.lastPass != passIndex)
-            continue;
-
-        // lastPassなら解放してよい。
-        if (name == kBackBufferResourceName) // BackBufferは決して解放しない
-            continue;
-
-        if (!m_transientResources.contains(name))
-            continue;
-
-        // TransientResouceを取得できた。
-        auto &tr = m_transientResources.at(name);
-
-        if (tr.state == TransientResourceState::Uninitialized)
-        {
-            assert(false && "Transient resource must be registered before release.");
-            DBG_PRINT("Resource %s is uninitialized.\n", name.c_str());
-            continue;
-        }
-
-        if (tr.persistent)
-            continue;
-
-        if (tr.state != TransientResourceState::Created)
-            continue;
-
-        // ここではGPU fence値がまだ確定していないので、
-        // 「このフレーム終了後に解放候補」とだけ記録する。
-        tr.state = TransientResourceState::PendingRelease1;
-
-        DBG_PRINT("Resource %s endOfLife.\n", name.c_str());
-    }
+    m_resourceRegistry.MarkEndOfLifeResources(passIndex, kBackBufferResourceName);
 }
 
 void D3D12HelloTexture::MarkPendingTransientResources(UINT64 fenceValue)
 {
-    for (auto &[name, tr] : m_transientResources)
-    {
-        if (tr.state != TransientResourceState::PendingRelease1)
-            continue;
-
-        tr.retireFenceValue = fenceValue;
-        tr.state = TransientResourceState::PendingRelease2;
-
-        DBG_PRINT("Resource %s waitFenceValue.\n", name.c_str(), tr.retireFenceValue);
-    }
+    m_resourceRegistry.MarkPendingTransientResources(fenceValue);
 }
 
 void D3D12HelloTexture::CollectGarbageTransientResources()
 {
     const UINT64 completed = m_fence->GetCompletedValue();
+    const std::vector<std::string> releasedResources = m_resourceRegistry.CollectGarbageTransientResources(completed);
 
-    for (auto &[name, tr] : m_transientResources)
+    for (const std::string &name : releasedResources)
     {
-        if (tr.state != TransientResourceState::PendingRelease2)
-            continue;
-
-        if (completed < tr.retireFenceValue)
-            continue;
-
         if (name == kDepthStencilResourceName)
         {
             m_depthStencil.Reset();
         }
-
-        tr.resource.Reset();
-        tr.retireFenceValue = 0;
-        tr.state = TransientResourceState::Initialized;
-
-        DBG_PRINT("Resource %s released.\n", name.c_str());
     }
 }
 
 void D3D12HelloTexture::ResetResourceStates()
 {
-    m_resourceStates.clear();
-    SetResourceState(kBackBufferResourceName, D3D12_RESOURCE_STATE_PRESENT);
-    SetResourceState(kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    SetResourceState(kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_resourceRegistry.ResetStates(
+        {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT},
+         {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE},
+         {kLightPassRenderTargetResourceName, m_lightPassRenderTarget.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}});
     for (UINT i = 0; i < GBuffer::kCount; ++i)
     {
         SetResourceState(kGBufferResourceNames[i], D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -2169,9 +2308,9 @@ void D3D12HelloTexture::TransitionResource(const ResourceUsage &usage)
     }
 
     ID3D12Resource *resource = usage.resource;
-    if (resource == nullptr && m_transientResources.contains(usage.name))
+    if (resource == nullptr)
     {
-        resource = m_transientResources.at(usage.name).resource.Get();
+        resource = m_resourceRegistry.FindTransientD3DResource(usage.name);
     }
 
     assert(resource != nullptr && "Cannot transition a null resource.");
@@ -2187,18 +2326,12 @@ void D3D12HelloTexture::TransitionResource(const ResourceUsage &usage)
 
 D3D12_RESOURCE_STATES D3D12HelloTexture::GetResourceState(const std::string &name) const
 {
-    auto resourceState = m_resourceStates.find(name);
-    if (resourceState != m_resourceStates.end())
-    {
-        return resourceState->second;
-    }
-
-    return D3D12_RESOURCE_STATE_COMMON;
+    return m_resourceRegistry.GetState(name);
 }
 
 void D3D12HelloTexture::SetResourceState(const std::string &name, D3D12_RESOURCE_STATES state)
 {
-    m_resourceStates[name] = state;
+    m_resourceRegistry.SetState(name, state);
 }
 
 void D3D12HelloTexture::BeginFrame()
@@ -2295,7 +2428,7 @@ void D3D12HelloTexture::RecordGBufferDebugPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"GBufferDebugPass");
 
-    const UINT debugTarget = GetGBufferDebugTarget();
+    const UINT debugTarget = m_debugViewSettings.GetGBufferDebugTarget();
     m_commandList->SetGraphicsRoot32BitConstants(RootParam_GBufferDebugConstants, 1, &debugTarget, 0);
     m_commandList->SetPipelineState(m_gbufferDebugPSO.Get());
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2310,15 +2443,7 @@ void D3D12HelloTexture::RecordLightPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"LightPass");
 
-    if (m_debugLightPassGradient)
-    {
-        m_toneMapPass.SetConstants(m_commandList.Get(), m_hdrOutputSettings);
-    }
-
-    m_commandList->SetPipelineState(m_debugLightPassGradient ? m_lightPassDebugGradientPSO.Get()
-                                                             : m_lightPassPSO.Get());
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->DrawInstanced(3, 1, 0, 0);
+    m_lightingPass.Record(m_commandList.Get(), m_toneMapPass, m_hdrOutputPolicy.settings);
 
     PIXEndEvent(m_commandList.Get());
 
@@ -2329,7 +2454,7 @@ void D3D12HelloTexture::RecordToneMapPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"ToneMapPass");
 
-    m_toneMapPass.Record(m_commandList.Get(), m_hdrOutputSettings);
+    m_toneMapPass.Record(m_commandList.Get(), m_hdrOutputPolicy.settings);
 
     PIXEndEvent(m_commandList.Get());
 
@@ -2366,7 +2491,7 @@ void D3D12HelloTexture::RecordDebugDumpPass()
     CD3DX12_TEXTURE_COPY_LOCATION backBufferSrc(m_renderTargets[m_frameIndex].Get(), 0);
     m_commandList->CopyTextureRegion(&backBufferDst, 0, 0, 0, &backBufferSrc, nullptr);
 
-    m_debugDumpPending = true;
+    m_debugViewSettings.hdrDumpPending = true;
 
     PIXEndEvent(m_commandList.Get());
 
@@ -2394,16 +2519,17 @@ void D3D12HelloTexture::PrintDebugDump()
     const UINT backBufferHeight = m_backBufferDebugDumpLayout.Footprint.Height;
     const UINT sampleYs[] = {lightHeight > 0 ? lightHeight / 4 : 0, lightHeight > 0 ? (lightHeight * 3) / 4 : 0};
     const char *bandNames[] = {"SDR[0,1]", "HDR[0,9]"};
-    const UINT bandCount = m_debugLightPassGradient ? 2 : 1;
+    const UINT bandCount = m_lightingPass.debugGradientEnabled ? 2 : 1;
     const UINT sampleXs[] = {0, lightWidth / 4, lightWidth / 2, lightWidth > 0 ? lightWidth - 1 : 0};
     const char *sampleNames[] = {"left", "25%", "50%", "right"};
 
     DebugPrint("HDR DebugDump: LightPass=%ux%u BackBuffer=%ux%u hdr10=%d gradient=%d toneMap=%d exposure=%.3f "
                "paperWhite=%.1f maxDisplay=%.1f\n",
-               lightWidth, lightHeight, backBufferWidth, backBufferHeight, m_hdrOutputSettings.hdr10Enabled ? 1 : 0,
-               m_debugLightPassGradient ? 1 : 0, m_toneMapPass.settings.operatorIndex, m_toneMapPass.settings.exposure,
+               lightWidth, lightHeight, backBufferWidth, backBufferHeight,
+               m_hdrOutputPolicy.settings.hdr10Enabled ? 1 : 0, m_lightingPass.debugGradientEnabled ? 1 : 0,
+               m_toneMapPass.settings.operatorIndex, m_toneMapPass.settings.exposure,
                m_toneMapPass.settings.paperWhiteNits, m_toneMapPass.settings.maxDisplayNits);
-    if (m_debugLightPassGradient)
+    if (m_lightingPass.debugGradientEnabled)
     {
         const float displayMaxSceneLinear =
             m_toneMapPass.settings.maxDisplayNits / (std::max)(m_toneMapPass.settings.paperWhiteNits, 1.0f);
@@ -2415,8 +2541,9 @@ void D3D12HelloTexture::PrintDebugDump()
 
     for (UINT band = 0; band < bandCount; ++band)
     {
-        const UINT sampleY = m_debugLightPassGradient ? sampleYs[band] : (lightHeight > 0 ? lightHeight / 2 : 0);
-        const char *bandName = m_debugLightPassGradient ? bandNames[band] : "Scene";
+        const UINT sampleY =
+            m_lightingPass.debugGradientEnabled ? sampleYs[band] : (lightHeight > 0 ? lightHeight / 2 : 0);
+        const char *bandName = m_lightingPass.debugGradientEnabled ? bandNames[band] : "Scene";
 
         for (UINT i = 0; i < _countof(sampleXs); ++i)
         {
@@ -2447,7 +2574,7 @@ void D3D12HelloTexture::PrintDebugDump()
             DebugPrint("  %s %s x=%u y=%u LightPass RGBA=(%.4f, %.4f, %.4f, %.4f)\n", bandName, sampleNames[i], lightX,
                        sampleY, lightR, lightG, lightB, lightA);
 
-            if (m_debugLightPassGradient)
+            if (m_lightingPass.debugGradientEnabled)
             {
                 const float expectedRampInput = (std::clamp)(expectedU, 0.0f, 1.0f);
                 const float expectedMaxLinear = expectedV < 0.5f ? 1.0f : 9.0f;
@@ -2461,7 +2588,7 @@ void D3D12HelloTexture::PrintDebugDump()
                            expectedSceneLinear * m_toneMapPass.settings.paperWhiteNits);
             }
 
-            if (m_hdrOutputSettings.hdr10Enabled)
+            if (m_hdrOutputPolicy.settings.hdr10Enabled)
             {
                 DebugPrint("  %s %s x=%u y=%u BackBuffer R10G10B10A2=(%.4f, %.4f, %.4f, %.4f) raw=0x%08x "
                            "PQ-nits=(%.1f, %.1f, %.1f)\n",

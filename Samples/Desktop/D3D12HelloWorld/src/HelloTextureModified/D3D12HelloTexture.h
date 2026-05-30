@@ -223,6 +223,18 @@ class D3D12HelloTexture : public DXSample
         UINT TransferFunction() const { return hdr10Enabled ? kHdr10TransferFunction : kSdrTransferFunction; }
     };
 
+    struct HdrOutputPolicy
+    {
+        HdrOutputSettings settings;
+
+        bool CheckSwapChainColorSpaceSupport(IDXGISwapChain3 *swapChain, DXGI_COLOR_SPACE_TYPE colorSpace) const;
+        bool CheckCurrentOutputHdr10Support(ComPtr<IDXGIFactory4> &dxgiFactory, HWND hwnd) const;
+        void ApplySwapChainColorSpace(IDXGISwapChain3 *swapChain, DXGI_COLOR_SPACE_TYPE colorSpace);
+        void ApplyHdr10Metadata(IDXGISwapChain3 *swapChain, bool enabled) const;
+        void Update(ComPtr<IDXGIFactory4> &dxgiFactory, IDXGISwapChain3 *swapChain, HWND hwnd);
+        void ReapplyColorSpace(IDXGISwapChain3 *swapChain);
+    };
+
     struct ToneMapSettings
     {
         struct ShaderConstants
@@ -262,6 +274,16 @@ class D3D12HelloTexture : public DXSample
         ToneMapSettings::ShaderConstants MakeShaderConstants(const HdrOutputSettings &hdrOutputSettings) const;
         void SetConstants(ID3D12GraphicsCommandList *commandList, const HdrOutputSettings &hdrOutputSettings) const;
         void Record(ID3D12GraphicsCommandList *commandList, const HdrOutputSettings &hdrOutputSettings) const;
+    };
+
+    struct LightingPass
+    {
+        ComPtr<ID3D12PipelineState> pipelineState;
+        ComPtr<ID3D12PipelineState> debugGradientPipelineState;
+        bool debugGradientEnabled = false;
+
+        void Record(ID3D12GraphicsCommandList *commandList, const ToneMapPass &toneMapPass,
+                    const HdrOutputSettings &hdrOutputSettings) const;
     };
 
     struct ConstantBufferResource
@@ -333,6 +355,20 @@ class D3D12HelloTexture : public DXSample
         Depth,
     };
 
+    struct DebugViewSettings
+    {
+        RenderViewMode renderViewMode = RenderViewMode::LightPass;
+        bool requestHdrDump = false;
+        bool hdrDumpPending = false;
+
+        bool IsGBufferDebugView() const { return renderViewMode != RenderViewMode::LightPass; }
+        UINT GetGBufferDebugTarget() const
+        {
+            assert(IsGBufferDebugView());
+            return static_cast<UINT>(renderViewMode) - static_cast<UINT>(RenderViewMode::GBufferAlbedo);
+        }
+    };
+
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
@@ -362,24 +398,20 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12PipelineState> m_depthPrePassPSO;
     ComPtr<ID3D12PipelineState> m_gbufferPSO;
     ComPtr<ID3D12PipelineState> m_gbufferDebugPSO;
-    ComPtr<ID3D12PipelineState> m_lightPassPSO;
-    ComPtr<ID3D12PipelineState> m_lightPassDebugGradientPSO;
+    LightingPass m_lightingPass;
     ToneMapPass m_toneMapPass;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
     DXGI_FORMAT m_backBufferFormat = kBackBufferFormat;
-    HdrOutputSettings m_hdrOutputSettings;
-    bool m_debugLightPassGradient = false;
-    bool m_requestDebugDump = false;
-    bool m_debugDumpPending = false;
+    HdrOutputPolicy m_hdrOutputPolicy;
+    DebugViewSettings m_debugViewSettings;
     ComPtr<ID3D12Resource> m_lightPassDebugDumpReadback;
     ComPtr<ID3D12Resource> m_backBufferDebugDumpReadback;
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_lightPassDebugDumpLayout = {};
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_backBufferDebugDumpLayout = {};
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
-    RenderViewMode m_renderViewMode = RenderViewMode::LightPass;
 
     DescriptorHeapHandle m_textureTableStart;
     UINT m_texIndex[kTextureCount] = {};
@@ -526,17 +558,38 @@ class D3D12HelloTexture : public DXSample
         std::function<void(const RenderPass &)> execute;
     };
 
+    struct ResourceRegistry
+    {
+        ResourceStateMap states;
+        ResourceLifetimeMap lifetimes;
+        TransientResourceMap transientResources;
+
+        void AnalyzeLifetimes(const std::vector<RenderPass> &renderPasses);
+        void ResetStates(std::initializer_list<ResourceUsage> usages);
+        void RegisterTransientResource(TransientResource resource);
+        void UnregisterTransientResource(const std::string &name);
+        void MarkEndOfLifeResources(int passIndex, const char *backBufferName);
+        void MarkPendingTransientResources(UINT64 fenceValue);
+        std::vector<std::string> CollectGarbageTransientResources(UINT64 completedFenceValue);
+        std::vector<std::string> GetResourcesStartingAtPass(int passIndex, const char *backBufferName) const;
+        TransientResource *PrepareTransientResourceForCreate(const std::string &name);
+        void MarkTransientResourceCreated(const std::string &name);
+        ID3D12Resource *FindTransientD3DResource(const std::string &name) const;
+
+        D3D12_RESOURCE_STATES GetState(const std::string &name) const
+        {
+            auto resourceState = states.find(name);
+            return resourceState != states.end() ? resourceState->second : D3D12_RESOURCE_STATE_COMMON;
+        }
+
+        void SetState(const std::string &name, D3D12_RESOURCE_STATES state) { states[name] = state; }
+    };
+
     std::vector<RenderPass> m_renderPasses;
-    ResourceStateMap m_resourceStates; // Current state per named resource.
-    ResourceLifetimeMap m_resourceLifetimes;
-    TransientResourceMap m_transientResources;
+    ResourceRegistry m_resourceRegistry;
 
     void LoadPipeline();
     void LoadAssets();
-    bool CheckSwapChainColorSpaceSupport(DXGI_COLOR_SPACE_TYPE colorSpace) const;
-    bool CheckCurrentOutputHdr10Support();
-    void ApplySwapChainColorSpace(DXGI_COLOR_SPACE_TYPE colorSpace);
-    void ApplyHdr10Metadata(bool enabled);
     void UpdateHdr10DisplayMode();
     void InitImGui();
     void CreateConstantBuffer(ConstantBufferResource &constantBuffer, const void *initialData, UINT sizeInBytes);
@@ -560,13 +613,15 @@ class D3D12HelloTexture : public DXSample
     ResourceUsageMap MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const;
     ResourceUsageMap MakeGBufferReadUsageMap() const;
     std::vector<PassDescriptorBinding> MakeGBufferSrvBindings() const;
-    bool IsGBufferDebugView() const;
-    UINT GetGBufferDebugTarget() const;
     void BuildRenderPasses();
     void AnalyzeResourceLifetimes();
     void DebugPrintLifetimes();
     void ExecutePasses();
+    void ExecutePass(int passIndex);
     void CreateResourcesForPass(int passIndex);
+    void CreateCommittedTransientResource(TransientResource &resource);
+    void BindCreatedTransientResource(const std::string &name, ID3D12Resource *resource);
+    void CreateLightPassRenderTargetDescriptors();
     void CreateDsvHeap();
 
     void CreateGBufferResources();
