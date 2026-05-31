@@ -28,7 +28,7 @@
 
 ## RenderPass の要素
 
-`RenderPass` は `RenderPassGraph.h` にあります。aggregate initialization では、必ずこのフィールド順で値を埋めます。
+`RenderPass` は `RenderPassGraph.h` にあります。pass を書く側では `RenderPassBuilder` を使い、呼び出し側が aggregate のフィールド順に依存しないようにします。最終的な `RenderPass` の内部には、以下のフィールドが入ります。
 
 ```cpp
 struct RenderPass
@@ -180,11 +180,11 @@ operation 記録前に設定する root 32-bit constants binding です。
 2. `ConstantsId(ConstName::YourConstants)` として使う。
 3. `BindPassConstants()` に packing と binding の処理を追加する。
 
-constants が不要な pass では、このフィールドを aggregate initialization から省略し、空 vector の default に任せます。
+constants が不要な pass では、`.Constants(...)` を呼びません。builder が binding list を空のままにします。
 
 ## 値を決めるおすすめ順序
 
-pass を作るときは、以下の順でデータを決めてから、最終的に `RenderPass` のフィールド順に並べます。
+pass を作るときは、以下の順でデータを決めてから、`RenderPassBuilder` の chain に入れます。builder が最終的な `RenderPass` のフィールドへ正しい内部順序で詰めます。
 
 1. operation を決める。既存の `Op::...` で command を記録できるか、新しい handler が必要か。
 2. 出力先を決める。どの RTV / DSV と resource name に書き込むか。
@@ -199,14 +199,15 @@ pass を作るときは、以下の順でデータを決めてから、最終的
 `MakeToneMapPass()` は、現在の pattern を見るための小さな例です。
 
 ```cpp
-return {L"ToneMapPass",
-        PipelineId(Pipe::ToneMap),
-        MakeResourceUsages({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
-        MakeResourceUsages({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-        {{RootParam_ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv)}},
-        {{RtvId(RtvName::BackBuffer)}, std::nullopt},
-        OperationId(Op::ToneMap),
-        {{RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap)}}};
+return RenderPassBuilder(L"ToneMapPass")
+    .Pipeline(PipelineId(Pipe::ToneMap))
+    .Reads({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}})
+    .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
+    .Descriptor(RootParam_ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv))
+    .Rtv(RtvId(RtvName::BackBuffer))
+    .Operation(OperationId(Op::ToneMap))
+    .Constants(RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap))
+    .Build();
 ```
 
 対応する実装箇所は以下です。
@@ -228,7 +229,7 @@ return {L"ToneMapPass",
 1. 必要な category だけ `PassKeyNames` に key name を追加する。
 2. `LoadAssets()` に shader loading と PSO registration を追加する。
 3. descriptor / RTV / DSV / resource の resolution を追加、または既存のものを再利用する。
-4. 完成した `RenderPass` を返す `MakeYourPass()` を追加する。
+4. `RenderPassBuilder` から完成した `RenderPass` を返す `MakeYourPass()` を追加する。
 5. 既存 operation behavior で足りなければ、pass operation handler を追加する。
 6. graph construction path に pass を挿入する。
 7. build し、`git diff --check HEAD` が clean なことを確認する。

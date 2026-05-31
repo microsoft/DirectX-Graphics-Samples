@@ -607,6 +607,7 @@ class D3D12HelloTexture : public DXSample
     using PassRenderTargetBinding = Engine::PassRenderTargetBinding;
     using PassConstantsBinding = Engine::PassConstantsBinding;
     using RenderPass = Engine::RenderPass;
+    using RenderPassBuilder = Engine::RenderPassBuilder;
     using RenderPassGraph = Engine::RenderPassGraph;
 
     struct ResourceRegistry

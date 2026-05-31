@@ -28,7 +28,7 @@ The execution flow is:
 
 ## RenderPass Fields
 
-`RenderPass` is declared in `RenderPassGraph.h`. Aggregate initialization must use this exact field order.
+`RenderPass` is declared in `RenderPassGraph.h`. Pass authoring should use `RenderPassBuilder` so the caller does not depend on aggregate field order. The final `RenderPass` still contains these fields internally.
 
 ```cpp
 struct RenderPass
@@ -180,11 +180,11 @@ When adding a new constants key:
 2. Use it through `ConstantsId(ConstName::YourConstants)`.
 3. Add packing and binding logic in `BindPassConstants()`.
 
-If the pass has no constants, omit this field from aggregate initialization and let it default to an empty vector.
+If the pass has no constants, do not call `.Constants(...)`; the builder leaves the binding list empty.
 
 ## Recommended Fill Order
 
-When authoring a pass, decide the data in this order, then place it into the aggregate initializer in the struct order above.
+When authoring a pass, decide the data in this order, then place it into a `RenderPassBuilder` chain. The builder writes the final `RenderPass` fields in the correct internal order.
 
 1. Decide the operation: can an existing `Op::...` record the commands, or do you need a new handler?
 2. Decide outputs: which RTV/DSV and resource names are written?
@@ -199,14 +199,15 @@ When authoring a pass, decide the data in this order, then place it into the agg
 `MakeToneMapPass()` is a compact example of the current pattern:
 
 ```cpp
-return {L"ToneMapPass",
-        PipelineId(Pipe::ToneMap),
-        MakeResourceUsages({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
-        MakeResourceUsages({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-        {{RootParam_ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv)}},
-        {{RtvId(RtvName::BackBuffer)}, std::nullopt},
-        OperationId(Op::ToneMap),
-        {{RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap)}}};
+return RenderPassBuilder(L"ToneMapPass")
+    .Pipeline(PipelineId(Pipe::ToneMap))
+    .Reads({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}})
+    .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
+    .Descriptor(RootParam_ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv))
+    .Rtv(RtvId(RtvName::BackBuffer))
+    .Operation(OperationId(Op::ToneMap))
+    .Constants(RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap))
+    .Build();
 ```
 
 The matching pieces are:
@@ -228,7 +229,7 @@ The matching pieces are:
 1. Add pass key names in `PassKeyNames` only for the categories you need.
 2. Add shader loading and PSO registration in `LoadAssets()`.
 3. Add or reuse descriptor/RTV/DSV/resource resolution.
-4. Add `MakeYourPass()` returning a complete `RenderPass`.
+4. Add `MakeYourPass()` returning a complete `RenderPass` from `RenderPassBuilder`.
 5. Add a pass operation handler if existing operation behavior is not enough.
 6. Insert the pass in the graph construction path.
 7. Build and verify that `git diff --check HEAD` stays clean.

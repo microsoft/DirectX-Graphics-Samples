@@ -17,6 +17,7 @@
 #include <cstddef>
 #include <d3d12.h>
 #include <functional>
+#include <initializer_list>
 #include <limits>
 #include <optional>
 #include <string>
@@ -203,6 +204,113 @@ struct RenderPass
             func(usage);
         }
     }
+};
+
+class RenderPassBuilder
+{
+  public:
+    explicit RenderPassBuilder(const wchar_t *name) { m_pass.name = name; }
+
+    RenderPassBuilder &Pipeline(PipelineKey pipeline)
+    {
+        m_pass.pipeline = pipeline;
+        return *this;
+    }
+
+    RenderPassBuilder &Reads(ResourceUsages reads)
+    {
+        m_pass.reads = std::move(reads);
+        return *this;
+    }
+
+    RenderPassBuilder &Reads(std::initializer_list<ResourceUsage> reads)
+    {
+        m_pass.reads = ResourceUsages(reads);
+        return *this;
+    }
+
+    RenderPassBuilder &Writes(ResourceUsages writes)
+    {
+        m_pass.writes = std::move(writes);
+        return *this;
+    }
+
+    RenderPassBuilder &Writes(std::initializer_list<ResourceUsage> writes)
+    {
+        m_pass.writes = ResourceUsages(writes);
+        return *this;
+    }
+
+    RenderPassBuilder &Descriptor(UINT rootParameterIndex, DescriptorKey descriptor)
+    {
+        m_pass.descriptorBindings.push_back({rootParameterIndex, descriptor});
+        return *this;
+    }
+
+    RenderPassBuilder &Descriptors(std::initializer_list<PassDescriptorBinding> descriptors)
+    {
+        m_pass.descriptorBindings = std::vector<PassDescriptorBinding>(descriptors);
+        return *this;
+    }
+
+    RenderPassBuilder &Descriptors(std::vector<PassDescriptorBinding> descriptors)
+    {
+        m_pass.descriptorBindings = std::move(descriptors);
+        return *this;
+    }
+
+    RenderPassBuilder &RenderTargets(PassRenderTargetBinding renderTargets)
+    {
+        m_pass.renderTargets = std::move(renderTargets);
+        return *this;
+    }
+
+    RenderPassBuilder &Rtv(RtvKey rtv)
+    {
+        m_pass.renderTargets.rtvs.push_back(rtv);
+        return *this;
+    }
+
+    RenderPassBuilder &Rtvs(std::initializer_list<RtvKey> rtvs)
+    {
+        m_pass.renderTargets.rtvs = std::vector<RtvKey>(rtvs);
+        return *this;
+    }
+
+    RenderPassBuilder &Dsv(DsvKey dsv)
+    {
+        m_pass.renderTargets.dsv = dsv;
+        return *this;
+    }
+
+    RenderPassBuilder &ClearColor(std::array<float, 4> clearColor)
+    {
+        m_pass.renderTargets.clearColor = clearColor;
+        return *this;
+    }
+
+    RenderPassBuilder &Operation(PassOperationKey operation)
+    {
+        m_pass.operation = operation;
+        return *this;
+    }
+
+    RenderPassBuilder &Constants(UINT rootParameterIndex, PassConstantsKey constants)
+    {
+        m_pass.constantsBindings.push_back({rootParameterIndex, constants});
+        return *this;
+    }
+
+    RenderPassBuilder &ConstantsBindings(std::initializer_list<PassConstantsBinding> constantsBindings)
+    {
+        m_pass.constantsBindings = std::vector<PassConstantsBinding>(constantsBindings);
+        return *this;
+    }
+
+    RenderPass Build() { return std::move(m_pass); }
+
+  private:
+    RenderPass m_pass = {};
 };
 
 struct RenderPassGraph
