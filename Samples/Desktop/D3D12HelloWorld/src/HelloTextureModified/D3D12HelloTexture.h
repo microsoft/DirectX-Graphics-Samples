@@ -685,6 +685,7 @@ class D3D12HelloTexture : public DXSample
     DsvKey DsvId(const std::string &name);
     PassOperationKey OperationId(const std::string &name);
     PassConstantsKey ConstantsId(const std::string &name);
+    PassOperationKey RegisterPassOperation(const std::string &name, PassOperationHandler handler);
     std::vector<PassDescriptorBinding> MakeGBufferSrvBindings();
     RenderPass MakeClearPass();
     RenderPass MakeDepthPrePass();
@@ -704,7 +705,6 @@ class D3D12HelloTexture : public DXSample
     void ExecutePasses();
     void ExecutePass(int passIndex);
     void ExecutePassOperation(const RenderPass &pass);
-    void RegisterPassOperationHandlers();
     void CreateResourcesForPass(int passIndex);
     void CreateCommittedTransientResource(TransientResource &resource);
     void BindCreatedTransientResource(const std::string &name, ID3D12Resource *resource);
