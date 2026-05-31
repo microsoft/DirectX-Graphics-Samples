@@ -700,6 +700,7 @@ class D3D12HelloTexture : public DXSample
     void BuildRenderPasses();
     void AddSceneRenderPasses();
     void AddDeferredSceneOutputPass();
+    void ValidateRenderPassGraph() const;
     void AnalyzeResourceLifetimes();
     void DebugPrintLifetimes();
     void ExecutePasses();

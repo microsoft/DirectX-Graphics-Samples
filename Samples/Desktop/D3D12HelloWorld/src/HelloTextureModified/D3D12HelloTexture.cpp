@@ -2106,6 +2106,7 @@ void D3D12HelloTexture::PopulateCommandList()
     BeginFrame();
     ResetResourceStates();
     BuildRenderPasses();
+    ValidateRenderPassGraph();
     AnalyzeResourceLifetimes();
     // DebugPrintLifetimes();
     ExecutePasses();
@@ -2162,6 +2163,57 @@ void D3D12HelloTexture::AddDeferredSceneOutputPass()
 }
 
 void D3D12HelloTexture::AddPass(RenderPass pass) { m_renderPassGraph.Add(std::move(pass)); }
+
+void D3D12HelloTexture::ValidateRenderPassGraph() const
+{
+    for (const RenderPass &pass : m_renderPassGraph.Passes())
+    {
+        assert(pass.name != nullptr && "Render pass must have a name.");
+        assert((!pass.pipeline.IsValid() || GetPipelineState(pass.pipeline) != nullptr) &&
+               "Render pass references an unregistered pipeline.");
+        assert(m_passOperationHandlers.find(pass.operation) != m_passOperationHandlers.end() &&
+               "Render pass references an unregistered operation handler.");
+
+        for (const ResourceUsage &usage : pass.reads)
+        {
+            assert(!usage.name.empty() && "Render pass read usage must have a resource name.");
+        }
+
+        for (const ResourceUsage &usage : pass.writes)
+        {
+            assert(!usage.name.empty() && "Render pass write usage must have a resource name.");
+        }
+
+        for (const PassDescriptorBinding &binding : pass.descriptorBindings)
+        {
+            (void)ResolveDescriptor(binding.descriptor);
+        }
+
+        for (RtvKey rtv : pass.renderTargets.rtvs)
+        {
+            (void)ResolveRtv(rtv);
+        }
+
+        if (pass.renderTargets.dsv)
+        {
+            (void)ResolveDsv(pass.renderTargets.dsv.value());
+        }
+
+        for (const PassConstantsBinding &binding : pass.constantsBindings)
+        {
+            bool supported = false;
+            auto toneMapConstants = m_passKeys.constants.find(ConstName::ToneMap);
+            supported = supported || (toneMapConstants != m_passKeys.constants.end() &&
+                                      binding.constants == toneMapConstants->second);
+
+            auto gbufferDebugTargetConstants = m_passKeys.constants.find(ConstName::GBufferDebugTarget);
+            supported = supported || (gbufferDebugTargetConstants != m_passKeys.constants.end() &&
+                                      binding.constants == gbufferDebugTargetConstants->second);
+
+            assert(supported && "Render pass references unsupported constants binding.");
+        }
+    }
+}
 
 auto D3D12HelloTexture::MakeResourceUsages(std::initializer_list<ResourceUsage> usages) const -> ResourceUsages
 {

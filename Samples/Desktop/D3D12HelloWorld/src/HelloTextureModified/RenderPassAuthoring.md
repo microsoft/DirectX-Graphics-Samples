@@ -15,8 +15,9 @@ For example, `PipelineId(Pipe::ToneMap)` selects the ToneMap PSO. `RegisterPassO
 The execution flow is:
 
 1. `BuildRenderPasses()` builds the ordered pass list.
-2. `AnalyzeResourceLifetimes()` derives transient resource lifetime ranges from pass reads and writes.
-3. `ExecutePass()` runs each pass:
+2. `ValidateRenderPassGraph()` checks that the graph can resolve its pipelines, operation handlers, bindings, and constants.
+3. `AnalyzeResourceLifetimes()` derives transient resource lifetime ranges from pass reads and writes.
+4. `ExecutePass()` runs each pass:
    - creates transient resources whose lifetime begins at this pass,
    - transitions resources listed in `reads` and `writes`,
    - binds render targets,

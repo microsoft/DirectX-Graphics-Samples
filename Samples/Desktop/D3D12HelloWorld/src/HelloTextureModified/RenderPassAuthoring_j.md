@@ -15,8 +15,9 @@
 実行の流れは以下です。
 
 1. `BuildRenderPasses()` が順序付きの pass list を作ります。
-2. `AnalyzeResourceLifetimes()` が pass の `reads` / `writes` から transient resource の lifetime 範囲を計算します。
-3. `ExecutePass()` が各 pass を実行します。
+2. `ValidateRenderPassGraph()` が graph の pipeline、operation handler、binding、constants を解決できるか確認します。
+3. `AnalyzeResourceLifetimes()` が pass の `reads` / `writes` から transient resource の lifetime 範囲を計算します。
+4. `ExecutePass()` が各 pass を実行します。
    - この pass で lifetime が始まる transient resource を作成する。
    - `reads` / `writes` に書かれた resource を必要な state に transition する。
    - render target を bind する。
