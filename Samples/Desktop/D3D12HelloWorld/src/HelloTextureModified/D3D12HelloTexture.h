@@ -12,6 +12,7 @@
 #pragma once
 #include "DXSample.h"
 #include "MyDx12Utils.h"
+#include "RenderPassGraph.h"
 #include "SimpleDescriptorHeapAllocator.h"
 #include "WorkMeter.h"
 #include <algorithm>
@@ -360,18 +361,6 @@ class D3D12HelloTexture : public DXSample
         }
     };
 
-    enum class PipelineKey
-    {
-        None,
-        Main,
-        DepthPrePass,
-        GBuffer,
-        Lighting,
-        LightingDebugGradient,
-        ToneMap,
-        GBufferDebug,
-    };
-
     struct PipelineRegistry
     {
         std::unordered_map<PipelineKey, ComPtr<ID3D12PipelineState>> pipelines;
@@ -488,12 +477,6 @@ class D3D12HelloTexture : public DXSample
     static constexpr const char *kGBufferResourceNames[GBuffer::kCount] = {
         "GBuffer.Albedo", "GBuffer.Normal", "GBuffer.Material", "GBuffer.MotionVector", "GBuffer.PBRParams"};
 
-    struct ResourceUsage
-    {
-        std::string name;
-        D3D12_RESOURCE_STATES state;
-    };
-
     struct ResourceLifetime
     {
         int firstPass = INT_MAX;
@@ -540,112 +523,15 @@ class D3D12HelloTexture : public DXSample
         bool retired = false;        // false : waiting for GPU fence
     };
 
-    using ResourceUsages = std::vector<ResourceUsage>;
     using ResourceStateMap = std::unordered_map<std::string, D3D12_RESOURCE_STATES>;
     using ResourceLifetimeMap = std::unordered_map<std::string, ResourceLifetime>;
     using TransientResourceMap = std::unordered_map<std::string, TransientResource>;
-
-    enum class DescriptorKey
-    {
-        TextureTable,
-        InstanceBufferSrv,
-        MaterialBufferSrv,
-        CameraCbv,
-        LightCbv,
-        GBufferAlbedoSrv,
-        ToneMapSceneColorSrv,
-    };
-
-    struct PassDescriptorBinding
-    {
-        UINT rootParameterIndex;
-        DescriptorKey descriptor;
-    };
-
-    enum class RtvKey
-    {
-        BackBuffer,
-        GBufferAlbedo,
-        GBufferNormal,
-        GBufferMaterial,
-        GBufferMotionVector,
-        GBufferPBRParams,
-        LightPass,
-    };
-
-    enum class DsvKey
-    {
-        Depth,
-    };
-
-    struct PassRenderTargetBinding
-    {
-        std::vector<RtvKey> rtvs;
-        std::optional<DsvKey> dsv;
-        std::optional<std::array<float, 4>> clearColor;
-    };
-
-    enum class PassOperation
-    {
-        Clear,
-        DepthPrePass,
-        GBuffer,
-        Main,
-        Lighting,
-        LightingDebugGradient,
-        ToneMap,
-        DebugDump,
-        GBufferDebug,
-        ImGui,
-    };
-
-    enum class PassConstantsKey
-    {
-        ToneMap,
-        GBufferDebugTarget,
-    };
-
-    struct PassConstantsBinding
-    {
-        UINT rootParameterIndex;
-        PassConstantsKey constants;
-    };
-
-    struct RenderPass
-    {
-        const wchar_t *name;
-        PipelineKey pipeline;
-        ResourceUsages reads;
-        ResourceUsages writes;
-        std::vector<PassDescriptorBinding> descriptorBindings;
-        PassRenderTargetBinding renderTargets;
-        PassOperation operation;
-        std::vector<PassConstantsBinding> constantsBindings;
-
-        template <typename Func> void ForEachResourceUsage(Func func) const
-        {
-            for (const ResourceUsage &usage : reads)
-            {
-                func(usage);
-            }
-
-            for (const ResourceUsage &usage : writes)
-            {
-                func(usage);
-            }
-        }
-    };
-
-    struct RenderPassGraph
-    {
-        std::vector<RenderPass> passes;
-
-        void Clear() { passes.clear(); }
-        void Add(RenderPass pass) { passes.push_back(std::move(pass)); }
-        const std::vector<RenderPass> &Passes() const { return passes; }
-        size_t Size() const { return passes.size(); }
-        const RenderPass &operator[](size_t index) const { return passes[index]; }
-    };
+    using ResourceUsage = Engine::ResourceUsage;
+    using ResourceUsages = Engine::ResourceUsages;
+    using PassDescriptorBinding = Engine::PassDescriptorBinding;
+    using PassRenderTargetBinding = Engine::PassRenderTargetBinding;
+    using RenderPass = Engine::RenderPass;
+    using RenderPassGraph = Engine::RenderPassGraph;
 
     struct ResourceRegistry
     {

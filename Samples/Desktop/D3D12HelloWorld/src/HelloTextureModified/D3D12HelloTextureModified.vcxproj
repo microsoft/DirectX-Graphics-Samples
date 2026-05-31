@@ -133,6 +133,7 @@
   <ItemGroup>
     <ClInclude Include="GltfLoader.h" />
     <ClInclude Include="MyDx12Utils.h" />
+    <ClInclude Include="RenderPassGraph.h" />
     <ClInclude Include="SimpleDescriptorHeapAllocator.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12HelloTexture.h" />

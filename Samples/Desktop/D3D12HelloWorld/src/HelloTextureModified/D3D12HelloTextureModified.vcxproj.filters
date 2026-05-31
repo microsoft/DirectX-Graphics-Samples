@@ -24,6 +24,9 @@
     <ClInclude Include="MyDx12Utils.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="RenderPassGraph.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
     <ClInclude Include="stdafx.h">
       <Filter>Source Files</Filter>
     </ClInclude>
