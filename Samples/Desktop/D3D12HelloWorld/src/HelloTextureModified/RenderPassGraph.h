@@ -12,6 +12,7 @@
 #pragma once
 
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <cstddef>
 #include <d3d12.h>
@@ -19,6 +20,7 @@
 #include <limits>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -75,6 +77,74 @@ class RenderPassKeyRegistry
     std::vector<std::string> m_dsvNames;
     std::vector<std::string> m_operationNames;
     std::vector<std::string> m_constantsNames;
+};
+
+struct RenderPassKeys
+{
+    std::unordered_map<std::string, PipelineKey> pipelines;
+    std::unordered_map<std::string, DescriptorKey> descriptors;
+    std::unordered_map<std::string, RtvKey> rtvs;
+    std::unordered_map<std::string, DsvKey> dsvs;
+    std::unordered_map<std::string, PassOperationKey> operations;
+    std::unordered_map<std::string, PassConstantsKey> constants;
+
+    PipelineKey RegisterPipeline(const std::string &name, RenderPassKeyRegistry &registry)
+    {
+        return Register(pipelines, name, [&registry](const std::string &keyName) { return registry.AddPipeline(keyName); });
+    }
+    DescriptorKey RegisterDescriptor(const std::string &name, RenderPassKeyRegistry &registry)
+    {
+        return Register(descriptors, name,
+                        [&registry](const std::string &keyName) { return registry.AddDescriptor(keyName); });
+    }
+    RtvKey RegisterRtv(const std::string &name, RenderPassKeyRegistry &registry)
+    {
+        return Register(rtvs, name, [&registry](const std::string &keyName) { return registry.AddRtv(keyName); });
+    }
+    DsvKey RegisterDsv(const std::string &name, RenderPassKeyRegistry &registry)
+    {
+        return Register(dsvs, name, [&registry](const std::string &keyName) { return registry.AddDsv(keyName); });
+    }
+    PassOperationKey RegisterOperation(const std::string &name, RenderPassKeyRegistry &registry)
+    {
+        return Register(operations, name,
+                        [&registry](const std::string &keyName) { return registry.AddOperation(keyName); });
+    }
+    PassConstantsKey RegisterConstants(const std::string &name, RenderPassKeyRegistry &registry)
+    {
+        return Register(constants, name, [&registry](const std::string &keyName) { return registry.AddConstants(keyName); });
+    }
+
+    PipelineKey PipelineId(const std::string &name) const { return Find(pipelines, name); }
+    DescriptorKey DescriptorId(const std::string &name) const { return Find(descriptors, name); }
+    RtvKey RtvId(const std::string &name) const { return Find(rtvs, name); }
+    DsvKey DsvId(const std::string &name) const { return Find(dsvs, name); }
+    PassOperationKey OperationId(const std::string &name) const { return Find(operations, name); }
+    PassConstantsKey ConstantsId(const std::string &name) const { return Find(constants, name); }
+
+  private:
+    template <typename KeyT, typename RegisterFunc>
+    static KeyT Register(std::unordered_map<std::string, KeyT> &keys, const std::string &name,
+                         RegisterFunc registerFunc)
+    {
+        auto key = keys.find(name);
+        if (key != keys.end())
+        {
+            return key->second;
+        }
+
+        const KeyT registeredKey = registerFunc(name);
+        keys[name] = registeredKey;
+        return registeredKey;
+    }
+
+    template <typename KeyT> static KeyT Find(const std::unordered_map<std::string, KeyT> &keys,
+                                              const std::string &name)
+    {
+        auto key = keys.find(name);
+        assert(key != keys.end() && "Missing render pass key.");
+        return key != keys.end() ? key->second : KeyT{};
+    }
 };
 
 struct ResourceUsage
