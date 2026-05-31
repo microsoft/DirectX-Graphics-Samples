@@ -640,7 +640,7 @@ class D3D12HelloTexture : public DXSample
     RenderPassGraph m_renderPassGraph;
     ResourceRegistry m_resourceRegistry;
     using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass &pass);
-    std::unordered_map<PassOperationKey, PassOperationHandler> m_passOperationHandlers;
+    Engine::PassOperationRegistry<PassOperationHandler> m_passOperationRegistry;
 
     void LoadPipeline();
     void LoadAssets();

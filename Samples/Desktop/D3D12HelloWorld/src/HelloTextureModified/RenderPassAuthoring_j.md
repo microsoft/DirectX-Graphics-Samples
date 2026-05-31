@@ -161,7 +161,7 @@ pass 構築時に、`RegisterPassOperation(...)` が operation key と member fu
 RegisterPassOperation(Op::ToneMap, &D3D12HelloTexture::ExecuteToneMapPass)
 ```
 
-実行時には、`ExecutePassOperation()` が `pass.operation` を `m_passOperationHandlers` から探し、対応する handler を呼びます。handler は pass 固有の command だけを記録するのが基本です。resource transition、descriptor binding、render target binding、pipeline binding、constant binding は shared pass execution path に残します。
+実行時には、`ExecutePassOperation()` が `pass.operation` を `PassOperationRegistry` から探し、対応する handler を呼びます。handler は pass 固有の command だけを記録するのが基本です。resource transition、descriptor binding、render target binding、pipeline binding、constant binding は shared pass execution path に残します。
 
 ### `constantsBindings`
 

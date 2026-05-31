@@ -161,7 +161,7 @@ During pass construction, `RegisterPassOperation(...)` maps the operation key to
 RegisterPassOperation(Op::ToneMap, &D3D12HelloTexture::ExecuteToneMapPass)
 ```
 
-At execution time, `ExecutePassOperation()` looks up `pass.operation` in `m_passOperationHandlers` and calls the handler. The handler should record only the pass-specific commands; resource transitions, descriptor binding, render target binding, pipeline binding, and constant binding should stay in the shared pass execution path.
+At execution time, `ExecutePassOperation()` looks up `pass.operation` in `PassOperationRegistry` and calls the handler. The handler should record only the pass-specific commands; resource transitions, descriptor binding, render target binding, pipeline binding, and constant binding should stay in the shared pass execution path.
 
 ### `constantsBindings`
 

@@ -313,6 +313,31 @@ class RenderPassBuilder
     RenderPass m_pass = {};
 };
 
+template <typename HandlerT> class PassOperationRegistry
+{
+  public:
+    void Clear() { m_handlers.clear(); }
+
+    PassOperationKey Register(PassOperationKey operation, HandlerT handler)
+    {
+        auto [registered, inserted] = m_handlers.emplace(operation, handler);
+        assert((inserted || registered->second == handler) &&
+               "Pass operation registered with a different handler.");
+        return operation;
+    }
+
+    bool Contains(PassOperationKey operation) const { return m_handlers.find(operation) != m_handlers.end(); }
+
+    const HandlerT *Find(PassOperationKey operation) const
+    {
+        auto handler = m_handlers.find(operation);
+        return handler != m_handlers.end() ? &handler->second : nullptr;
+    }
+
+  private:
+    std::unordered_map<PassOperationKey, HandlerT> m_handlers;
+};
+
 struct RenderPassGraph
 {
     std::vector<RenderPass> passes;

@@ -2118,7 +2118,7 @@ void D3D12HelloTexture::PopulateCommandList()
 void D3D12HelloTexture::BuildRenderPasses()
 {
     m_renderPassGraph.Clear();
-    m_passOperationHandlers.clear();
+    m_passOperationRegistry.Clear();
 
     AddPass(MakeClearPass());
     AddPass(MakeDepthPrePass());
@@ -2171,7 +2171,7 @@ void D3D12HelloTexture::ValidateRenderPassGraph() const
         assert(pass.name != nullptr && "Render pass must have a name.");
         assert((!pass.pipeline.IsValid() || GetPipelineState(pass.pipeline) != nullptr) &&
                "Render pass references an unregistered pipeline.");
-        assert(m_passOperationHandlers.find(pass.operation) != m_passOperationHandlers.end() &&
+        assert(m_passOperationRegistry.Contains(pass.operation) &&
                "Render pass references an unregistered operation handler.");
 
         for (const ResourceUsage &usage : pass.reads)
@@ -2264,10 +2264,7 @@ PassConstantsKey D3D12HelloTexture::ConstantsId(const std::string &name)
 PassOperationKey D3D12HelloTexture::RegisterPassOperation(const std::string &name, PassOperationHandler handler)
 {
     const PassOperationKey key = OperationId(name);
-    auto [registered, inserted] = m_passOperationHandlers.emplace(key, handler);
-    assert((inserted || registered->second == handler) && "Pass operation registered with a different handler.");
-    registered->second = handler;
-    return key;
+    return m_passOperationRegistry.Register(key, handler);
 }
 
 auto D3D12HelloTexture::MakeGBufferSrvBindings() -> std::vector<PassDescriptorBinding>
@@ -2519,11 +2516,12 @@ void D3D12HelloTexture::ExecutePass(int passIndex)
 
 void D3D12HelloTexture::ExecutePassOperation(const RenderPass &pass)
 {
-    auto handler = m_passOperationHandlers.find(pass.operation);
-    assert(handler != m_passOperationHandlers.end() && "Unsupported pass operation.");
-    if (handler != m_passOperationHandlers.end())
+    const PassOperationHandler *handler = m_passOperationRegistry.Find(pass.operation);
+    assert(handler != nullptr && "Unsupported pass operation.");
+    if (handler != nullptr)
     {
-        (this->*handler->second)(pass);
+        const PassOperationHandler handlerFunc = *handler;
+        (this->*handlerFunc)(pass);
     }
 }
 
