@@ -18,7 +18,6 @@
 #include <array>
 #include <chrono>
 #include <climits>
-#include <functional>
 #include <initializer_list>
 #include <optional>
 #include <string>
@@ -267,23 +266,9 @@ class D3D12HelloTexture : public DXSample
 
     struct ToneMapPass
     {
-        ComPtr<ID3D12PipelineState> pipelineState;
-        DescriptorHeapHandle sceneColorSrv;
         ToneMapSettings settings;
 
         ToneMapSettings::ShaderConstants MakeShaderConstants(const HdrOutputSettings &hdrOutputSettings) const;
-        void SetConstants(ID3D12GraphicsCommandList *commandList, const HdrOutputSettings &hdrOutputSettings) const;
-        void Record(ID3D12GraphicsCommandList *commandList, const HdrOutputSettings &hdrOutputSettings) const;
-    };
-
-    struct LightingPass
-    {
-        ComPtr<ID3D12PipelineState> pipelineState;
-        ComPtr<ID3D12PipelineState> debugGradientPipelineState;
-        bool debugGradientEnabled = false;
-
-        void Record(ID3D12GraphicsCommandList *commandList, const ToneMapPass &toneMapPass,
-                    const HdrOutputSettings &hdrOutputSettings) const;
     };
 
     struct ConstantBufferResource
@@ -355,6 +340,12 @@ class D3D12HelloTexture : public DXSample
         Depth,
     };
 
+    enum class RenderingPath
+    {
+        Forward = 0,
+        Deferred,
+    };
+
     struct DebugViewSettings
     {
         RenderViewMode renderViewMode = RenderViewMode::LightPass;
@@ -369,6 +360,26 @@ class D3D12HelloTexture : public DXSample
         }
     };
 
+    enum class PipelineKey
+    {
+        None,
+        Main,
+        DepthPrePass,
+        GBuffer,
+        Lighting,
+        LightingDebugGradient,
+        ToneMap,
+        GBufferDebug,
+    };
+
+    struct PipelineRegistry
+    {
+        std::unordered_map<PipelineKey, ComPtr<ID3D12PipelineState>> pipelines;
+
+        void Create(ID3D12Device *device, PipelineKey key, const D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc);
+        ID3D12PipelineState *Find(PipelineKey key) const;
+    };
+
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
@@ -380,6 +391,7 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12Resource> m_lightPassRenderTarget;
     DescriptorHeapHandle m_depthStencilSrv;
+    DescriptorHeapHandle m_lightPassColorSrv;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
 
     ComPtr<ID3D12RootSignature> m_rootSignature;
@@ -394,12 +406,11 @@ class D3D12HelloTexture : public DXSample
     ComPtr<ID3D12DescriptorHeap> m_imguiHeap;
     SimpleDescriptorHeapAllocator m_ImGuiDescriptorHeapAllocator;
 
-    ComPtr<ID3D12PipelineState> m_pipelineState;
-    ComPtr<ID3D12PipelineState> m_depthPrePassPSO;
-    ComPtr<ID3D12PipelineState> m_gbufferPSO;
-    ComPtr<ID3D12PipelineState> m_gbufferDebugPSO;
-    LightingPass m_lightingPass;
+    RenderingPath m_renderingPath = RenderingPath::Deferred;
+    bool m_lightingPassDebugGradientEnabled = false;
     ToneMapPass m_toneMapPass;
+
+    PipelineRegistry m_pipelineRegistry;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
@@ -480,7 +491,6 @@ class D3D12HelloTexture : public DXSample
     struct ResourceUsage
     {
         std::string name;
-        ID3D12Resource *resource;
         D3D12_RESOURCE_STATES state;
     };
 
@@ -530,32 +540,100 @@ class D3D12HelloTexture : public DXSample
         bool retired = false;        // false : waiting for GPU fence
     };
 
-    using ResourceUsageMap = std::unordered_map<std::string, ResourceUsage>;
+    using ResourceUsages = std::vector<ResourceUsage>;
     using ResourceStateMap = std::unordered_map<std::string, D3D12_RESOURCE_STATES>;
     using ResourceLifetimeMap = std::unordered_map<std::string, ResourceLifetime>;
     using TransientResourceMap = std::unordered_map<std::string, TransientResource>;
 
+    enum class DescriptorKey
+    {
+        TextureTable,
+        InstanceBufferSrv,
+        MaterialBufferSrv,
+        CameraCbv,
+        LightCbv,
+        GBufferAlbedoSrv,
+        ToneMapSceneColorSrv,
+    };
+
     struct PassDescriptorBinding
     {
         UINT rootParameterIndex;
-        DescriptorHeapHandle handle;
+        DescriptorKey descriptor;
+    };
+
+    enum class RtvKey
+    {
+        BackBuffer,
+        GBufferAlbedo,
+        GBufferNormal,
+        GBufferMaterial,
+        GBufferMotionVector,
+        GBufferPBRParams,
+        LightPass,
+    };
+
+    enum class DsvKey
+    {
+        Depth,
     };
 
     struct PassRenderTargetBinding
     {
-        std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvs;
-        std::optional<D3D12_CPU_DESCRIPTOR_HANDLE> dsv;
+        std::vector<RtvKey> rtvs;
+        std::optional<DsvKey> dsv;
         std::optional<std::array<float, 4>> clearColor;
+    };
+
+    enum class PassOperation
+    {
+        Clear,
+        DepthPrePass,
+        GBuffer,
+        Main,
+        Lighting,
+        LightingDebugGradient,
+        ToneMap,
+        DebugDump,
+        GBufferDebug,
+        ImGui,
+    };
+
+    enum class PassConstantsKey
+    {
+        ToneMap,
+        GBufferDebugTarget,
+    };
+
+    struct PassConstantsBinding
+    {
+        UINT rootParameterIndex;
+        PassConstantsKey constants;
     };
 
     struct RenderPass
     {
         const wchar_t *name;
-        ResourceUsageMap reads;
-        ResourceUsageMap writes;
+        PipelineKey pipeline;
+        ResourceUsages reads;
+        ResourceUsages writes;
         std::vector<PassDescriptorBinding> descriptorBindings;
         PassRenderTargetBinding renderTargets;
-        std::function<void(const RenderPass &)> execute;
+        PassOperation operation;
+        std::vector<PassConstantsBinding> constantsBindings;
+
+        template <typename Func> void ForEachResourceUsage(Func func) const
+        {
+            for (const ResourceUsage &usage : reads)
+            {
+                func(usage);
+            }
+
+            for (const ResourceUsage &usage : writes)
+            {
+                func(usage);
+            }
+        }
     };
 
     struct ResourceRegistry
@@ -587,9 +665,23 @@ class D3D12HelloTexture : public DXSample
 
     std::vector<RenderPass> m_renderPasses;
     ResourceRegistry m_resourceRegistry;
+    using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass &pass);
+    std::unordered_map<PassOperation, PassOperationHandler> m_passOperationHandlers;
 
     void LoadPipeline();
     void LoadAssets();
+    void RegisterFullscreenPipeline(PipelineKey key, const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                    const UINT8 *vertexShader, UINT vertexShaderSize, const UINT8 *pixelShader,
+                                    UINT pixelShaderSize, DXGI_FORMAT renderTargetFormat);
+    void RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                              const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
+                              const UINT8 *vertexShader, UINT vertexShaderSize, const UINT8 *pixelShader,
+                              UINT pixelShaderSize);
+    void RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc, const UINT8 *vertexShader,
+                                 UINT vertexShaderSize, const UINT8 *pixelShader, UINT pixelShaderSize);
+    void RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                      const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
+                                      const UINT8 *vertexShader, UINT vertexShaderSize);
     void UpdateHdr10DisplayMode();
     void InitImGui();
     void CreateConstantBuffer(ConstantBufferResource &constantBuffer, const void *initialData, UINT sizeInBytes);
@@ -603,21 +695,36 @@ class D3D12HelloTexture : public DXSample
     D3D12_CPU_DESCRIPTOR_HANDLE GetDepthDsv() const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetGBufferRTV(UINT index) const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetLightPassRTV() const;
+    D3D12_CPU_DESCRIPTOR_HANDLE ResolveRtv(RtvKey key) const;
+    D3D12_CPU_DESCRIPTOR_HANDLE ResolveDsv(DsvKey key) const;
+    DescriptorHeapHandle ResolveDescriptor(DescriptorKey key) const;
 
     std::vector<UINT8> GenerateCheckerboardTextureData();
     void PopulateCommandList();
 
-    void AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes,
-                 std::vector<PassDescriptorBinding> descriptorBindings, PassRenderTargetBinding renderTargets,
-                 std::function<void(const RenderPass &)> execute);
-    ResourceUsageMap MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const;
-    ResourceUsageMap MakeGBufferReadUsageMap() const;
+    void AddPass(RenderPass pass);
+    ResourceUsages MakeResourceUsages(std::initializer_list<ResourceUsage> usages) const;
+    ResourceUsages MakeGBufferReadUsages() const;
     std::vector<PassDescriptorBinding> MakeGBufferSrvBindings() const;
+    RenderPass MakeClearPass() const;
+    RenderPass MakeDepthPrePass() const;
+    RenderPass MakeGBufferPass() const;
+    RenderPass MakeMainPass() const;
+    RenderPass MakeLightingPass() const;
+    RenderPass MakeLightingDebugGradientPass() const;
+    RenderPass MakeToneMapPass() const;
+    RenderPass MakeDebugDumpPass() const;
+    RenderPass MakeGBufferDebugPass() const;
+    RenderPass MakeImGuiPass() const;
     void BuildRenderPasses();
+    void AddSceneRenderPasses();
+    void AddDeferredSceneOutputPass();
     void AnalyzeResourceLifetimes();
     void DebugPrintLifetimes();
     void ExecutePasses();
     void ExecutePass(int passIndex);
+    void ExecutePassOperation(const RenderPass &pass);
+    void RegisterPassOperationHandlers();
     void CreateResourcesForPass(int passIndex);
     void CreateCommittedTransientResource(TransientResource &resource);
     void BindCreatedTransientResource(const std::string &name, ID3D12Resource *resource);
@@ -637,8 +744,12 @@ class D3D12HelloTexture : public DXSample
 
     void BindPassRenderTargets(const RenderPass &pass);
     void BindPassDescriptors(const RenderPass &pass);
+    void BindPassPipeline(const RenderPass &pass);
+    void BindPassConstants(const RenderPass &pass);
+    ID3D12PipelineState *GetPipelineState(PipelineKey pipeline) const;
     void TransitionPassResources(const RenderPass &pass);
     void TransitionResource(const ResourceUsage &usage);
+    ID3D12Resource *ResolveResource(const std::string &name) const;
 
     D3D12_RESOURCE_STATES GetResourceState(const std::string &name) const;
     void SetResourceState(const std::string &name, D3D12_RESOURCE_STATES state);
@@ -649,14 +760,25 @@ class D3D12HelloTexture : public DXSample
     UINT GetVisibleCubeCount() const;
 
     void BeginFrame();
+    void ExecuteClearPass(const RenderPass &pass);
+    void ExecuteDepthPrePass(const RenderPass &pass);
+    void ExecuteGBufferPass(const RenderPass &pass);
+    void ExecuteMainPass(const RenderPass &pass);
+    void ExecuteLightingPass(const RenderPass &pass);
+    void ExecuteLightingDebugGradientPass(const RenderPass &pass);
+    void ExecuteToneMapPass(const RenderPass &pass);
+    void ExecuteDebugDumpPass(const RenderPass &pass);
+    void ExecuteGBufferDebugPass(const RenderPass &pass);
+    void ExecuteImGuiPass(const RenderPass &pass);
     void RecordClear(const PassRenderTargetBinding &renderTargets);
     void RecordDepthPrePass();
     void RecordGBufferPass(const PassRenderTargetBinding &renderTargets);
     void RecordGBufferDebugPass();
     void RecordLightPass();
+    void RecordLightPassDebugGradient();
     void RecordToneMapPass();
     void RecordDebugDumpPass();
-    void RecordMainPass();
+    void RecordMainPass(const PassRenderTargetBinding &renderTargets);
     void RecordImGuiPass();
     void EndFrame();
     void CreateDebugDumpReadback(ID3D12Resource *source, ComPtr<ID3D12Resource> &readback,
@@ -664,6 +786,7 @@ class D3D12HelloTexture : public DXSample
     void PrintDebugDump();
 
     void DrawInstanceWrapper(UINT instanceCount);
+    void DrawFullscreenTriangle();
 
     void Resize(UINT width, UINT height);
 

@@ -41,6 +41,7 @@ struct PSInput
 {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD;
+    float3 normal : NORMAL;
     uint instanceId : SV_InstanceID;
 };
 
@@ -49,6 +50,15 @@ Texture2D g_texture[] : register(t0, space0);
 SamplerState g_sampler : register(s0);
 StructuredBuffer<InstanceData> g_instanceData : register(t0, space1);
 StructuredBuffer<Material> g_materialData : register(t0, space2);
+
+cbuffer LightingConstants : register(b2)
+{
+    float3 lightDirection;
+    float ambientIntensity;
+    float3 lightColor;
+    float diffuseIntensity;
+    float4 backgroundColor;
+};
 
 PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL, float4 tangent : TANGENT, uint instanceId : SV_InstanceID)
 {
@@ -59,6 +69,7 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, float3 normal :
     float4x4 worldViewProj = mul(inst.world, viewProj);
     result.position = mul(float4(position.xyz, 1.0), worldViewProj);    
     result.uv = uv;
+    result.normal = normalize(mul(normal, (float3x3)inst.world));
     result.instanceId = instanceId;
     
     return result;
@@ -68,5 +79,11 @@ float4 PSMain(PSInput input) : SV_TARGET
 {
     InstanceData inst = g_instanceData[input.instanceId];
     Material mat = g_materialData[inst.materialId];
-    return g_texture[mat.albedoTexIndex].Sample(g_sampler, input.uv);
+    float4 albedo = g_texture[mat.albedoTexIndex].Sample(g_sampler, input.uv);
+    float3 normal = normalize(input.normal);
+    float3 lightDir = normalize(-lightDirection);
+    float ndotl = saturate(dot(normal, lightDir));
+    float3 ambient = albedo.rgb * ambientIntensity;
+    float3 diffuse = albedo.rgb * lightColor * ndotl * diffuseIntensity;
+    return float4(ambient + diffuse, albedo.a);
 }

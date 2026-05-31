@@ -17,10 +17,10 @@
 
 #include "D3D12HelloTexture.h"
 
-#include <DirectXPackedVector.h>
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
+#include <DirectXPackedVector.h>
 #include <windows.h>
 
 #include "GltfLoader.h"
@@ -83,6 +83,7 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
       m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)), m_rtvDescriptorSize(0),
       m_descriptorSize(0)
 {
+    RegisterPassOperationHandlers();
 }
 
 auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings &hdrOutputSettings) const
@@ -91,33 +92,23 @@ auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings
     return settings.MakeShaderConstants(hdrOutputSettings.TransferFunction());
 }
 
-void D3D12HelloTexture::ToneMapPass::SetConstants(ID3D12GraphicsCommandList *commandList,
-                                                  const HdrOutputSettings &hdrOutputSettings) const
+void D3D12HelloTexture::PipelineRegistry::Create(ID3D12Device *device, PipelineKey key,
+                                                 const D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc)
 {
-    const auto constants = MakeShaderConstants(hdrOutputSettings);
-    commandList->SetGraphicsRoot32BitConstants(RootParam_ToneMapConstants, 5, &constants, 0);
+    ComPtr<ID3D12PipelineState> pipelineState;
+    ThrowIfFailed(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState)));
+    pipelines[key] = std::move(pipelineState);
 }
 
-void D3D12HelloTexture::ToneMapPass::Record(ID3D12GraphicsCommandList *commandList,
-                                            const HdrOutputSettings &hdrOutputSettings) const
+ID3D12PipelineState *D3D12HelloTexture::PipelineRegistry::Find(PipelineKey key) const
 {
-    SetConstants(commandList, hdrOutputSettings);
-    commandList->SetPipelineState(pipelineState.Get());
-    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->DrawInstanced(3, 1, 0, 0);
-}
-
-void D3D12HelloTexture::LightingPass::Record(ID3D12GraphicsCommandList *commandList, const ToneMapPass &toneMapPass,
-                                             const HdrOutputSettings &hdrOutputSettings) const
-{
-    if (debugGradientEnabled)
+    if (key == PipelineKey::None)
     {
-        toneMapPass.SetConstants(commandList, hdrOutputSettings);
+        return nullptr;
     }
 
-    commandList->SetPipelineState(debugGradientEnabled ? debugGradientPipelineState.Get() : pipelineState.Get());
-    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->DrawInstanced(3, 1, 0, 0);
+    auto pipeline = pipelines.find(key);
+    return pipeline != pipelines.end() ? pipeline->second.Get() : nullptr;
 }
 
 void D3D12HelloTexture::ResourceRegistry::AnalyzeLifetimes(const std::vector<RenderPass> &renderPasses)
@@ -128,19 +119,13 @@ void D3D12HelloTexture::ResourceRegistry::AnalyzeLifetimes(const std::vector<Ren
     {
         const auto &pass = renderPasses[passIndex];
 
-        for (const auto &[name, usage] : pass.reads)
-        {
-            auto &lifetime = lifetimes[name];
-            lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
-            lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
-        }
-
-        for (const auto &[name, usage] : pass.writes)
-        {
-            auto &lifetime = lifetimes[name];
-            lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
-            lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
-        }
+        pass.ForEachResourceUsage(
+            [&](const ResourceUsage &usage)
+            {
+                auto &lifetime = lifetimes[usage.name];
+                lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
+                lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
+            });
     }
 }
 
@@ -856,71 +841,40 @@ void D3D12HelloTexture::LoadAssets()
         // Main Pass PSO
         //
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        psoDesc.InputLayout = {inputElementDescs, _countof(inputElementDescs)};
-        psoDesc.pRootSignature = m_rootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength);
-        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-        psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // MainPassではDepthは書かない。
-        psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; // EQUALを描画する (LESSは念のため)。
-        psoDesc.SampleMask = UINT_MAX;
-        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = m_backBufferFormat;
-        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-        psoDesc.SampleDesc.Count = 1;
-        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+        RegisterMainPipeline(psoDesc, inputElementDescs, _countof(inputElementDescs), pVertexShaderData,
+                             vertexShaderDataLength, pPixelShaderData, pixelShaderDataLength);
 
         //
         // GBuffer PSO
         //
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferPSODesc = MyDx12Util::CreateGBufferPSODesc(
-            psoDesc, pGBufferVS, gbufferVSSize, pGBufferPS, gbufferPSSize, m_gbuffer.formats, GBuffer::kCount);
-        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&gbufferPSODesc, IID_PPV_ARGS(&m_gbufferPSO)));
+        RegisterGBufferPipeline(psoDesc, pGBufferVS, gbufferVSSize, pGBufferPS, gbufferPSSize);
 
         //
         // LightPass PSO
         //
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC lightPassPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
-            psoDesc, pLightPassVS, lightPassVSSize, pLightPassPS, lightPassPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
-        ThrowIfFailed(
-            m_device->CreateGraphicsPipelineState(&lightPassPSODesc, IID_PPV_ARGS(&m_lightingPass.pipelineState)));
+        RegisterFullscreenPipeline(PipelineKey::Lighting, psoDesc, pLightPassVS, lightPassVSSize, pLightPassPS,
+                                   lightPassPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC lightPassDebugGradientPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
-            psoDesc, pLightPassDebugGradientVS, lightPassDebugGradientVSSize, pLightPassDebugGradientPS,
-            lightPassDebugGradientPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
-        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&lightPassDebugGradientPSODesc,
-                                                            IID_PPV_ARGS(&m_lightingPass.debugGradientPipelineState)));
+        RegisterFullscreenPipeline(PipelineKey::LightingDebugGradient, psoDesc, pLightPassDebugGradientVS,
+                                   lightPassDebugGradientVSSize, pLightPassDebugGradientPS,
+                                   lightPassDebugGradientPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
         //
         // ToneMap PSO
         //
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC toneMapPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
-            psoDesc, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, m_backBufferFormat);
-        ThrowIfFailed(
-            m_device->CreateGraphicsPipelineState(&toneMapPSODesc, IID_PPV_ARGS(&m_toneMapPass.pipelineState)));
+        RegisterFullscreenPipeline(PipelineKey::ToneMap, psoDesc, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize,
+                                   m_backBufferFormat);
 
         //
         // GBuffer Debug PSO
         //
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferDebugPSODesc = MyDx12Util::CreateFullscreenPassPSODesc(
-            psoDesc, pGBufferDebugVS, gbufferDebugVSSize, pGBufferDebugPS, gbufferDebugPSSize, m_backBufferFormat);
-        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&gbufferDebugPSODesc, IID_PPV_ARGS(&m_gbufferDebugPSO)));
+        RegisterFullscreenPipeline(PipelineKey::GBufferDebug, psoDesc, pGBufferDebugVS, gbufferDebugVSSize,
+                                   pGBufferDebugPS, gbufferDebugPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
         //
         // Depth PrePass PSO
         //
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC depthPSODesc = psoDesc;
-        depthPSODesc.InputLayout = {depthLayout, _countof(depthLayout)};
-        depthPSODesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
-        depthPSODesc.VS = CD3DX12_SHADER_BYTECODE(pDepthVS, depthVSSize);
-        depthPSODesc.PS = {};                                                       // Pixel Shaderなし
-        depthPSODesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL; // Depth書き込みON
-        depthPSODesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;          // Color write禁止
-        depthPSODesc.NumRenderTargets = 0;                                          // 重要
-        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&depthPSODesc, IID_PPV_ARGS(&m_depthPrePassPSO)));
+        RegisterDepthPrePassPipeline(psoDesc, depthLayout, _countof(depthLayout), pDepthVS, depthVSSize);
     }
 
     //
@@ -929,7 +883,7 @@ void D3D12HelloTexture::LoadAssets()
     // Create the command list.
     ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
                                               m_frameResources[m_frameIndex].commandAllocator.Get(),
-                                              m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+                                              GetPipelineState(PipelineKey::Main), IID_PPV_ARGS(&m_commandList)));
 
     // Create the vertex buffer.
     GltfMeshData mesh;
@@ -1435,11 +1389,11 @@ void D3D12HelloTexture::CreateGBufferSRVs()
     }
     assert(m_depthStencilSrv.Index == m_gbuffer.srvHandles[GBuffer::Albedo].Index + GBuffer::kCount);
 
-    if (m_toneMapPass.sceneColorSrv.Index == UINT_MAX)
+    if (m_lightPassColorSrv.Index == UINT_MAX)
     {
-        m_toneMapPass.sceneColorSrv = m_descriptorHeapAllocator.AllocWithHandle();
+        m_lightPassColorSrv = m_descriptorHeapAllocator.AllocWithHandle();
     }
-    assert(m_toneMapPass.sceneColorSrv.Index == m_depthStencilSrv.Index + 1);
+    assert(m_lightPassColorSrv.Index == m_depthStencilSrv.Index + 1);
 }
 
 void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
@@ -1539,6 +1493,66 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetLightPassRTV() const
     CD3DX12_CPU_DESCRIPTOR_HANDLE h(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
     h.Offset(kLightPassRTVIndex, m_rtvDescriptorSize);
     return h;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::ResolveRtv(RtvKey key) const
+{
+    switch (key)
+    {
+    case RtvKey::BackBuffer:
+        return GetBackBufferRtv();
+    case RtvKey::GBufferAlbedo:
+        return GetGBufferRTV(GBuffer::Albedo);
+    case RtvKey::GBufferNormal:
+        return GetGBufferRTV(GBuffer::Normal);
+    case RtvKey::GBufferMaterial:
+        return GetGBufferRTV(GBuffer::Material);
+    case RtvKey::GBufferMotionVector:
+        return GetGBufferRTV(GBuffer::MotionVector);
+    case RtvKey::GBufferPBRParams:
+        return GetGBufferRTV(GBuffer::PBRParams);
+    case RtvKey::LightPass:
+        return GetLightPassRTV();
+    default:
+        assert(false && "Unsupported RTV key.");
+        return {};
+    }
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::ResolveDsv(DsvKey key) const
+{
+    switch (key)
+    {
+    case DsvKey::Depth:
+        return GetDepthDsv();
+    default:
+        assert(false && "Unsupported DSV key.");
+        return {};
+    }
+}
+
+DescriptorHeapHandle D3D12HelloTexture::ResolveDescriptor(DescriptorKey key) const
+{
+    switch (key)
+    {
+    case DescriptorKey::TextureTable:
+        return m_textureTableStart;
+    case DescriptorKey::InstanceBufferSrv:
+        return m_frameResources[m_frameIndex].instanceBufferSrv;
+    case DescriptorKey::MaterialBufferSrv:
+        return m_materialBufferSrv;
+    case DescriptorKey::CameraCbv:
+        return m_frameResources[m_frameIndex].cameraCB.cbv;
+    case DescriptorKey::LightCbv:
+        return m_frameResources[m_frameIndex].lightCB.cbv;
+    case DescriptorKey::GBufferAlbedoSrv:
+        return m_gbuffer.srvHandles[GBuffer::Albedo];
+    case DescriptorKey::ToneMapSceneColorSrv:
+        return m_lightPassColorSrv;
+    default:
+        assert(false && "Unsupported descriptor key.");
+        return {};
+    }
 }
 
 void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
@@ -1766,7 +1780,19 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::SliderFloat("Exposure", &m_toneMapPass.settings.exposure, 0.0f, 4.0f);
     ImGui::SliderFloat("Paper White", &m_toneMapPass.settings.paperWhiteNits, 80.0f, 500.0f, "%.0f nits");
     ImGui::SliderFloat("Display Max", &m_toneMapPass.settings.maxDisplayNits, 100.0f, 4000.0f, "%.0f nits");
-    ImGui::Checkbox("Debug LightPass Gradient", &m_lightingPass.debugGradientEnabled);
+    int renderingPath = static_cast<int>(m_renderingPath);
+    ImGui::Text("Rendering Path");
+    ImGui::RadioButton("Forward", &renderingPath, static_cast<int>(RenderingPath::Forward));
+    ImGui::SameLine();
+    ImGui::RadioButton("Deferred", &renderingPath, static_cast<int>(RenderingPath::Deferred));
+    m_renderingPath = static_cast<RenderingPath>(renderingPath);
+
+    const bool deferredRendering = m_renderingPath == RenderingPath::Deferred;
+    if (!deferredRendering)
+    {
+        m_debugViewSettings.renderViewMode = RenderViewMode::LightPass;
+    }
+
     if (ImGui::Button("Dump HDR Buffers"))
     {
         m_debugViewSettings.requestHdrDump = true;
@@ -1775,6 +1801,7 @@ void D3D12HelloTexture::UpdateImGui()
 
     int renderViewMode = static_cast<int>(m_debugViewSettings.renderViewMode);
     ImGui::Text("Render View");
+    ImGui::BeginDisabled(!deferredRendering);
     ImGui::RadioButton("LightPass", &renderViewMode, static_cast<int>(RenderViewMode::LightPass));
     ImGui::RadioButton("Albedo", &renderViewMode, static_cast<int>(RenderViewMode::GBufferAlbedo));
     ImGui::SameLine();
@@ -1788,6 +1815,12 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::SameLine();
     ImGui::RadioButton("Depth", &renderViewMode, static_cast<int>(RenderViewMode::Depth));
     m_debugViewSettings.renderViewMode = static_cast<RenderViewMode>(renderViewMode);
+    ImGui::EndDisabled();
+
+    const bool lightPassView = deferredRendering && m_debugViewSettings.renderViewMode == RenderViewMode::LightPass;
+    ImGui::BeginDisabled(!lightPassView);
+    ImGui::Checkbox("Debug LightPass Gradient", &m_lightingPassDebugGradientEnabled);
+    ImGui::EndDisabled();
 
     ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
 
@@ -1997,6 +2030,63 @@ void D3D12HelloTexture::OnDestroy()
     CloseHandle(m_fenceEvent);
 }
 
+void D3D12HelloTexture::RegisterFullscreenPipeline(PipelineKey key, const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                                   const UINT8 *vertexShader, UINT vertexShaderSize,
+                                                   const UINT8 *pixelShader, UINT pixelShaderSize,
+                                                   DXGI_FORMAT renderTargetFormat)
+{
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MyDx12Util::CreateFullscreenPassPSODesc(
+        baseDesc, vertexShader, vertexShaderSize, pixelShader, pixelShaderSize, renderTargetFormat);
+    m_pipelineRegistry.Create(m_device.Get(), key, desc);
+}
+
+void D3D12HelloTexture::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                             const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
+                                             const UINT8 *vertexShader, UINT vertexShaderSize,
+                                             const UINT8 *pixelShader, UINT pixelShaderSize)
+{
+    baseDesc.InputLayout = {inputLayout, inputLayoutCount};
+    baseDesc.pRootSignature = m_rootSignature.Get();
+    baseDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader, vertexShaderSize);
+    baseDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader, pixelShaderSize);
+    baseDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    baseDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    baseDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    baseDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    baseDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    baseDesc.SampleMask = UINT_MAX;
+    baseDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    baseDesc.NumRenderTargets = 1;
+    baseDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    baseDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+    baseDesc.SampleDesc.Count = 1;
+    m_pipelineRegistry.Create(m_device.Get(), PipelineKey::Main, baseDesc);
+}
+
+void D3D12HelloTexture::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                                const UINT8 *vertexShader, UINT vertexShaderSize,
+                                                const UINT8 *pixelShader, UINT pixelShaderSize)
+{
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MyDx12Util::CreateGBufferPSODesc(
+        baseDesc, vertexShader, vertexShaderSize, pixelShader, pixelShaderSize, m_gbuffer.formats, GBuffer::kCount);
+    m_pipelineRegistry.Create(m_device.Get(), PipelineKey::GBuffer, desc);
+}
+
+void D3D12HelloTexture::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                                     const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
+                                                     const UINT8 *vertexShader, UINT vertexShaderSize)
+{
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
+    desc.InputLayout = {inputLayout, inputLayoutCount};
+    desc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+    desc.VS = CD3DX12_SHADER_BYTECODE(vertexShader, vertexShaderSize);
+    desc.PS = {};
+    desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+    desc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;
+    desc.NumRenderTargets = 0;
+    m_pipelineRegistry.Create(m_device.Get(), PipelineKey::DepthPrePass, desc);
+}
+
 void D3D12HelloTexture::PopulateCommandList()
 {
     PIXBeginEvent(1, L"PopulateCommandList");
@@ -2016,131 +2106,204 @@ void D3D12HelloTexture::BuildRenderPasses()
 {
     m_renderPasses.clear();
 
-    AddPass(L"Clear", {},
-            MakeResourceUsageMap(
-                {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET},
-                 {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
-            {}, {{GetBackBufferRtv()}, GetDepthDsv(), m_backBufferClearColor},
-            [this](const RenderPass &pass) { RecordClear(pass.renderTargets); });
-    AddPass(L"Depth PrePass", {},
-            MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
-            {
-                {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
-                {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv},
-            },
-            {{}, GetDepthDsv()}, [this](const RenderPass &) { RecordDepthPrePass(); });
-    AddPass(
-        L"GBufferPass",
-        MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
-        MakeResourceUsageMap({{kGBufferResourceNames[GBuffer::Albedo], m_gbuffer.resources[GBuffer::Albedo].Get(),
-                               D3D12_RESOURCE_STATE_RENDER_TARGET},
-                              {kGBufferResourceNames[GBuffer::Normal], m_gbuffer.resources[GBuffer::Normal].Get(),
-                               D3D12_RESOURCE_STATE_RENDER_TARGET},
-                              {kGBufferResourceNames[GBuffer::Material], m_gbuffer.resources[GBuffer::Material].Get(),
-                               D3D12_RESOURCE_STATE_RENDER_TARGET},
-                              {kGBufferResourceNames[GBuffer::MotionVector],
-                               m_gbuffer.resources[GBuffer::MotionVector].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET},
-                              {kGBufferResourceNames[GBuffer::PBRParams], m_gbuffer.resources[GBuffer::PBRParams].Get(),
-                               D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-        {{RootParam_TextureTable, m_textureTableStart},
-         {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
-         {RootParam_MaterialSrv, m_materialBufferSrv},
-         {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv}},
-        {{GetGBufferRTV(GBuffer::Albedo), GetGBufferRTV(GBuffer::Normal), GetGBufferRTV(GBuffer::Material),
-          GetGBufferRTV(GBuffer::MotionVector), GetGBufferRTV(GBuffer::PBRParams)},
-         GetDepthDsv()},
-        [this](const RenderPass &pass) { RecordGBufferPass(pass.renderTargets); });
-#if 0
-    AddPass(L"MainPass",
-            MakeResourceUsageMap({{kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
-            MakeResourceUsageMap(
-                {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            {{RootParam_TextureTable, m_textureTableStart},
-             {RootParam_InstanceSrv, m_frameResources[m_frameIndex].instanceBufferSrv},
-             {RootParam_MaterialSrv, m_materialBufferSrv},
-             {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv}},
-            {{GetBackBufferRtv()}, GetDepthDsv()}, [this](const RenderPass &) { RecordMainPass(); });
-#endif
-    AddPass(L"LightPass", MakeGBufferReadUsageMap(),
-            MakeResourceUsageMap({{kLightPassRenderTargetResourceName, m_lightPassRenderTarget.Get(),
-                                   D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]},
-             {RootParam_MaterialSrv, m_materialBufferSrv},
-             {RootParam_ConstantBuffer, m_frameResources[m_frameIndex].cameraCB.cbv},
-             {RootParam_LightConstants, m_frameResources[m_frameIndex].lightCB.cbv}},
-            {{GetLightPassRTV()}, std::nullopt}, [this](const RenderPass &) { RecordLightPass(); });
-
-    AddPass(L"ToneMapPass",
-            MakeResourceUsageMap({{kLightPassRenderTargetResourceName, m_lightPassRenderTarget.Get(),
-                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
-            MakeResourceUsageMap(
-                {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            {{RootParam_ToneMapSceneColor, m_toneMapPass.sceneColorSrv}}, {{GetBackBufferRtv()}, std::nullopt},
-            [this](const RenderPass &) { RecordToneMapPass(); });
+    AddPass(MakeClearPass());
+    AddPass(MakeDepthPrePass());
+    AddSceneRenderPasses();
+    AddPass(MakeToneMapPass());
 
     if (m_debugViewSettings.requestHdrDump)
     {
-        AddPass(
-            L"DebugDump",
-            MakeResourceUsageMap(
-                {{kLightPassRenderTargetResourceName, m_lightPassRenderTarget.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE},
-                 {kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_COPY_SOURCE}}),
-            {}, {}, {{}, std::nullopt}, [this](const RenderPass &) { RecordDebugDumpPass(); });
+        AddPass(MakeDebugDumpPass());
     }
 
+    AddPass(MakeImGuiPass());
+}
+
+void D3D12HelloTexture::AddSceneRenderPasses()
+{
+    if (m_renderingPath == RenderingPath::Forward)
+    {
+        AddPass(MakeMainPass());
+    }
+    else
+    {
+        AddPass(MakeGBufferPass());
+        AddDeferredSceneOutputPass();
+    }
+}
+
+void D3D12HelloTexture::AddDeferredSceneOutputPass()
+{
     if (m_debugViewSettings.IsGBufferDebugView())
     {
-        AddPass(L"GBufferDebugPass", MakeGBufferReadUsageMap(),
-                MakeResourceUsageMap({{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(),
-                                       D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-                MakeGBufferSrvBindings(), {{GetBackBufferRtv()}, std::nullopt},
-                [this](const RenderPass &) { RecordGBufferDebugPass(); });
+        AddPass(MakeGBufferDebugPass());
     }
-
-    AddPass(L"ImGui", {},
-            MakeResourceUsageMap(
-                {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}}),
-            {}, {{GetBackBufferRtv()}, std::nullopt}, [this](const RenderPass &) { RecordImGuiPass(); });
-}
-
-void D3D12HelloTexture::AddPass(const wchar_t *name, ResourceUsageMap reads, ResourceUsageMap writes,
-                                std::vector<PassDescriptorBinding> descriptorBindings,
-                                PassRenderTargetBinding renderTargets, std::function<void(const RenderPass &)> execute)
-{
-    m_renderPasses.push_back({name, std::move(reads), std::move(writes), std::move(descriptorBindings),
-                              std::move(renderTargets), std::move(execute)});
-}
-
-auto D3D12HelloTexture::MakeResourceUsageMap(std::initializer_list<ResourceUsage> usages) const -> ResourceUsageMap
-{
-    ResourceUsageMap usageMap;
-    for (const ResourceUsage &usage : usages)
+    else if (m_lightingPassDebugGradientEnabled)
     {
-        usageMap.emplace(usage.name, usage);
+        AddPass(MakeLightingDebugGradientPass());
     }
-
-    return usageMap;
+    else
+    {
+        AddPass(MakeLightingPass());
+    }
 }
 
-auto D3D12HelloTexture::MakeGBufferReadUsageMap() const -> ResourceUsageMap
+void D3D12HelloTexture::AddPass(RenderPass pass) { m_renderPasses.push_back(std::move(pass)); }
+
+auto D3D12HelloTexture::MakeResourceUsages(std::initializer_list<ResourceUsage> usages) const -> ResourceUsages
 {
-    return MakeResourceUsageMap(
-        {{kGBufferResourceNames[GBuffer::Albedo], m_gbuffer.resources[GBuffer::Albedo].Get(),
-          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-         {kGBufferResourceNames[GBuffer::Normal], m_gbuffer.resources[GBuffer::Normal].Get(),
-          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-         {kGBufferResourceNames[GBuffer::Material], m_gbuffer.resources[GBuffer::Material].Get(),
-          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-         {kGBufferResourceNames[GBuffer::MotionVector], m_gbuffer.resources[GBuffer::MotionVector].Get(),
-          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-         {kGBufferResourceNames[GBuffer::PBRParams], m_gbuffer.resources[GBuffer::PBRParams].Get(),
-          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-         {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}});
+    return ResourceUsages(usages);
+}
+
+auto D3D12HelloTexture::MakeGBufferReadUsages() const -> ResourceUsages
+{
+    return MakeResourceUsages(
+        {{kGBufferResourceNames[GBuffer::Albedo], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[GBuffer::Normal], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[GBuffer::Material], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[GBuffer::MotionVector], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[GBuffer::PBRParams], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kDepthStencilResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}});
 }
 
 auto D3D12HelloTexture::MakeGBufferSrvBindings() const -> std::vector<PassDescriptorBinding>
 {
-    return {{RootParam_GBufferSrvBase, m_gbuffer.srvHandles[GBuffer::Albedo]}};
+    return {{RootParam_GBufferSrvBase, DescriptorKey::GBufferAlbedoSrv}};
+}
+
+auto D3D12HelloTexture::MakeClearPass() const -> RenderPass
+{
+    return {L"Clear",
+            PipelineKey::None,
+            {},
+            MakeResourceUsages({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET},
+                                {kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
+            {},
+            {{RtvKey::BackBuffer}, DsvKey::Depth, m_backBufferClearColor},
+            PassOperation::Clear};
+}
+
+auto D3D12HelloTexture::MakeDepthPrePass() const -> RenderPass
+{
+    return {L"Depth PrePass",
+            PipelineKey::DepthPrePass,
+            {},
+            MakeResourceUsages({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
+            {{RootParam_InstanceSrv, DescriptorKey::InstanceBufferSrv},
+             {RootParam_ConstantBuffer, DescriptorKey::CameraCbv}},
+            {{}, DsvKey::Depth},
+            PassOperation::DepthPrePass};
+}
+
+auto D3D12HelloTexture::MakeGBufferPass() const -> RenderPass
+{
+    return {L"GBufferPass",
+            PipelineKey::GBuffer,
+            MakeResourceUsages({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
+            MakeResourceUsages({{kGBufferResourceNames[GBuffer::Albedo], D3D12_RESOURCE_STATE_RENDER_TARGET},
+                                {kGBufferResourceNames[GBuffer::Normal], D3D12_RESOURCE_STATE_RENDER_TARGET},
+                                {kGBufferResourceNames[GBuffer::Material], D3D12_RESOURCE_STATE_RENDER_TARGET},
+                                {kGBufferResourceNames[GBuffer::MotionVector], D3D12_RESOURCE_STATE_RENDER_TARGET},
+                                {kGBufferResourceNames[GBuffer::PBRParams], D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            {{RootParam_TextureTable, DescriptorKey::TextureTable},
+             {RootParam_InstanceSrv, DescriptorKey::InstanceBufferSrv},
+             {RootParam_MaterialSrv, DescriptorKey::MaterialBufferSrv},
+             {RootParam_ConstantBuffer, DescriptorKey::CameraCbv}},
+            {{RtvKey::GBufferAlbedo, RtvKey::GBufferNormal, RtvKey::GBufferMaterial, RtvKey::GBufferMotionVector,
+              RtvKey::GBufferPBRParams},
+             DsvKey::Depth},
+            PassOperation::GBuffer};
+}
+
+auto D3D12HelloTexture::MakeMainPass() const -> RenderPass
+{
+    return {L"MainPass",
+            PipelineKey::Main,
+            MakeResourceUsages({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}}),
+            MakeResourceUsages({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            {{RootParam_TextureTable, DescriptorKey::TextureTable},
+             {RootParam_InstanceSrv, DescriptorKey::InstanceBufferSrv},
+             {RootParam_MaterialSrv, DescriptorKey::MaterialBufferSrv},
+             {RootParam_ConstantBuffer, DescriptorKey::CameraCbv},
+             {RootParam_LightConstants, DescriptorKey::LightCbv}},
+            {{RtvKey::LightPass}, DsvKey::Depth, std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}},
+            PassOperation::Main};
+}
+
+auto D3D12HelloTexture::MakeLightingPass() const -> RenderPass
+{
+    return {L"LightPass",
+            PipelineKey::Lighting,
+            MakeGBufferReadUsages(),
+            MakeResourceUsages({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            {{RootParam_GBufferSrvBase, DescriptorKey::GBufferAlbedoSrv},
+             {RootParam_MaterialSrv, DescriptorKey::MaterialBufferSrv},
+             {RootParam_ConstantBuffer, DescriptorKey::CameraCbv},
+             {RootParam_LightConstants, DescriptorKey::LightCbv}},
+            {{RtvKey::LightPass}, std::nullopt},
+            PassOperation::Lighting};
+}
+
+auto D3D12HelloTexture::MakeLightingDebugGradientPass() const -> RenderPass
+{
+    return {L"LightPassDebugGradient",
+            PipelineKey::LightingDebugGradient,
+            MakeGBufferReadUsages(),
+            MakeResourceUsages({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            {{RootParam_GBufferSrvBase, DescriptorKey::GBufferAlbedoSrv},
+             {RootParam_MaterialSrv, DescriptorKey::MaterialBufferSrv},
+             {RootParam_ConstantBuffer, DescriptorKey::CameraCbv},
+             {RootParam_LightConstants, DescriptorKey::LightCbv}},
+            {{RtvKey::LightPass}, std::nullopt},
+            PassOperation::LightingDebugGradient,
+            {{RootParam_ToneMapConstants, PassConstantsKey::ToneMap}}};
+}
+
+auto D3D12HelloTexture::MakeToneMapPass() const -> RenderPass
+{
+    return {L"ToneMapPass",
+            PipelineKey::ToneMap,
+            MakeResourceUsages({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}}),
+            MakeResourceUsages({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            {{RootParam_ToneMapSceneColor, DescriptorKey::ToneMapSceneColorSrv}},
+            {{RtvKey::BackBuffer}, std::nullopt},
+            PassOperation::ToneMap,
+            {{RootParam_ToneMapConstants, PassConstantsKey::ToneMap}}};
+}
+
+auto D3D12HelloTexture::MakeDebugDumpPass() const -> RenderPass
+{
+    return {L"DebugDump",
+            PipelineKey::None,
+            MakeResourceUsages({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_COPY_SOURCE},
+                                {kBackBufferResourceName, D3D12_RESOURCE_STATE_COPY_SOURCE}}),
+            {},
+            {},
+            {{}, std::nullopt},
+            PassOperation::DebugDump};
+}
+
+auto D3D12HelloTexture::MakeGBufferDebugPass() const -> RenderPass
+{
+    return {L"GBufferDebugPass",
+            PipelineKey::GBufferDebug,
+            MakeGBufferReadUsages(),
+            MakeResourceUsages({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            MakeGBufferSrvBindings(),
+            {{RtvKey::LightPass}, std::nullopt},
+            PassOperation::GBufferDebug,
+            {{RootParam_GBufferDebugConstants, PassConstantsKey::GBufferDebugTarget}}};
+}
+
+auto D3D12HelloTexture::MakeImGuiPass() const -> RenderPass
+{
+    return {L"ImGui",
+            PipelineKey::None,
+            {},
+            MakeResourceUsages({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}}),
+            {},
+            {{RtvKey::BackBuffer}, std::nullopt},
+            PassOperation::ImGui};
 }
 
 void D3D12HelloTexture::AnalyzeResourceLifetimes() { m_resourceRegistry.AnalyzeLifetimes(m_renderPasses); }
@@ -2158,17 +2321,70 @@ void D3D12HelloTexture::BindPassDescriptors(const RenderPass &pass)
 {
     for (const auto &binding : pass.descriptorBindings)
     {
-        m_commandList->SetGraphicsRootDescriptorTable(binding.rootParameterIndex, binding.handle.gpu);
+        m_commandList->SetGraphicsRootDescriptorTable(binding.rootParameterIndex,
+                                                      ResolveDescriptor(binding.descriptor).gpu);
     }
 }
 
 void D3D12HelloTexture::BindPassRenderTargets(const RenderPass &pass)
 {
-    const D3D12_CPU_DESCRIPTOR_HANDLE *rtvs =
-        pass.renderTargets.rtvs.empty() ? nullptr : pass.renderTargets.rtvs.data();
-    const D3D12_CPU_DESCRIPTOR_HANDLE *dsv = pass.renderTargets.dsv ? &pass.renderTargets.dsv.value() : nullptr;
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvs;
+    rtvs.reserve(pass.renderTargets.rtvs.size());
+    for (RtvKey rtv : pass.renderTargets.rtvs)
+    {
+        rtvs.push_back(ResolveRtv(rtv));
+    }
 
-    m_commandList->OMSetRenderTargets(static_cast<UINT>(pass.renderTargets.rtvs.size()), rtvs, FALSE, dsv);
+    std::optional<D3D12_CPU_DESCRIPTOR_HANDLE> dsv;
+    if (pass.renderTargets.dsv)
+    {
+        dsv = ResolveDsv(pass.renderTargets.dsv.value());
+    }
+
+    const D3D12_CPU_DESCRIPTOR_HANDLE *rtvHandles = rtvs.empty() ? nullptr : rtvs.data();
+    const D3D12_CPU_DESCRIPTOR_HANDLE *dsvHandle = dsv ? &dsv.value() : nullptr;
+
+    m_commandList->OMSetRenderTargets(static_cast<UINT>(rtvs.size()), rtvHandles, FALSE, dsvHandle);
+}
+
+ID3D12PipelineState *D3D12HelloTexture::GetPipelineState(PipelineKey pipeline) const
+{
+    return m_pipelineRegistry.Find(pipeline);
+}
+
+void D3D12HelloTexture::BindPassPipeline(const RenderPass &pass)
+{
+    ID3D12PipelineState *pipelineState = GetPipelineState(pass.pipeline);
+    assert(pass.pipeline == PipelineKey::None || pipelineState != nullptr);
+    if (pipelineState != nullptr)
+    {
+        m_commandList->SetPipelineState(pipelineState);
+    }
+}
+
+void D3D12HelloTexture::BindPassConstants(const RenderPass &pass)
+{
+    for (const auto &binding : pass.constantsBindings)
+    {
+        switch (binding.constants)
+        {
+        case PassConstantsKey::ToneMap:
+        {
+            const auto constants = m_toneMapPass.MakeShaderConstants(m_hdrOutputPolicy.settings);
+            m_commandList->SetGraphicsRoot32BitConstants(binding.rootParameterIndex, 5, &constants, 0);
+            break;
+        }
+        case PassConstantsKey::GBufferDebugTarget:
+        {
+            const UINT debugTarget = m_debugViewSettings.GetGBufferDebugTarget();
+            m_commandList->SetGraphicsRoot32BitConstants(binding.rootParameterIndex, 1, &debugTarget, 0);
+            break;
+        }
+        default:
+            assert(false && "Unsupported pass constants binding.");
+            break;
+        }
+    }
 }
 
 void D3D12HelloTexture::ExecutePasses()
@@ -2187,9 +2403,37 @@ void D3D12HelloTexture::ExecutePass(int passIndex)
     TransitionPassResources(pass);
     BindPassRenderTargets(pass);
     BindPassDescriptors(pass);
-    pass.execute(pass);
+    BindPassPipeline(pass);
+    BindPassConstants(pass);
+    ExecutePassOperation(pass);
 
     ReleaseResourcesAfterPass(passIndex);
+}
+
+void D3D12HelloTexture::RegisterPassOperationHandlers()
+{
+    m_passOperationHandlers = {
+        {PassOperation::Clear, &D3D12HelloTexture::ExecuteClearPass},
+        {PassOperation::DepthPrePass, &D3D12HelloTexture::ExecuteDepthPrePass},
+        {PassOperation::GBuffer, &D3D12HelloTexture::ExecuteGBufferPass},
+        {PassOperation::Main, &D3D12HelloTexture::ExecuteMainPass},
+        {PassOperation::Lighting, &D3D12HelloTexture::ExecuteLightingPass},
+        {PassOperation::LightingDebugGradient, &D3D12HelloTexture::ExecuteLightingDebugGradientPass},
+        {PassOperation::ToneMap, &D3D12HelloTexture::ExecuteToneMapPass},
+        {PassOperation::DebugDump, &D3D12HelloTexture::ExecuteDebugDumpPass},
+        {PassOperation::GBufferDebug, &D3D12HelloTexture::ExecuteGBufferDebugPass},
+        {PassOperation::ImGui, &D3D12HelloTexture::ExecuteImGuiPass},
+    };
+}
+
+void D3D12HelloTexture::ExecutePassOperation(const RenderPass &pass)
+{
+    auto handler = m_passOperationHandlers.find(pass.operation);
+    assert(handler != m_passOperationHandlers.end() && "Unsupported pass operation.");
+    if (handler != m_passOperationHandlers.end())
+    {
+        (this->*handler->second)(pass);
+    }
 }
 
 void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
@@ -2247,7 +2491,7 @@ void D3D12HelloTexture::CreateLightPassRenderTargetDescriptors()
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Texture2D.MipLevels = 1;
-    m_device->CreateShaderResourceView(m_lightPassRenderTarget.Get(), &srvDesc, m_toneMapPass.sceneColorSrv.cpu);
+    m_device->CreateShaderResourceView(m_lightPassRenderTarget.Get(), &srvDesc, m_lightPassColorSrv.cpu);
 }
 
 void D3D12HelloTexture::ReleaseResourcesAfterPass(int passIndex)
@@ -2276,10 +2520,9 @@ void D3D12HelloTexture::CollectGarbageTransientResources()
 
 void D3D12HelloTexture::ResetResourceStates()
 {
-    m_resourceRegistry.ResetStates(
-        {{kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT},
-         {kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE},
-         {kLightPassRenderTargetResourceName, m_lightPassRenderTarget.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET}});
+    m_resourceRegistry.ResetStates({{kBackBufferResourceName, D3D12_RESOURCE_STATE_PRESENT},
+                                    {kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE},
+                                    {kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}});
     for (UINT i = 0; i < GBuffer::kCount; ++i)
     {
         SetResourceState(kGBufferResourceNames[i], D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -2288,15 +2531,7 @@ void D3D12HelloTexture::ResetResourceStates()
 
 void D3D12HelloTexture::TransitionPassResources(const RenderPass &pass)
 {
-    for (const auto &read : pass.reads)
-    {
-        TransitionResource(read.second);
-    }
-
-    for (const auto &write : pass.writes)
-    {
-        TransitionResource(write.second);
-    }
+    pass.ForEachResourceUsage([this](const ResourceUsage &usage) { TransitionResource(usage); });
 }
 
 void D3D12HelloTexture::TransitionResource(const ResourceUsage &usage)
@@ -2307,11 +2542,7 @@ void D3D12HelloTexture::TransitionResource(const ResourceUsage &usage)
         return;
     }
 
-    ID3D12Resource *resource = usage.resource;
-    if (resource == nullptr)
-    {
-        resource = m_resourceRegistry.FindTransientD3DResource(usage.name);
-    }
+    ID3D12Resource *resource = ResolveResource(usage.name);
 
     assert(resource != nullptr && "Cannot transition a null resource.");
     if (resource == nullptr)
@@ -2322,6 +2553,34 @@ void D3D12HelloTexture::TransitionResource(const ResourceUsage &usage)
 
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, currentState, usage.state));
     SetResourceState(usage.name, usage.state);
+}
+
+ID3D12Resource *D3D12HelloTexture::ResolveResource(const std::string &name) const
+{
+    if (name == kBackBufferResourceName)
+    {
+        return m_renderTargets[m_frameIndex].Get();
+    }
+
+    if (name == kDepthStencilResourceName)
+    {
+        return m_depthStencil.Get();
+    }
+
+    if (name == kLightPassRenderTargetResourceName)
+    {
+        return m_lightPassRenderTarget.Get();
+    }
+
+    for (UINT i = 0; i < GBuffer::kCount; ++i)
+    {
+        if (name == kGBufferResourceNames[i])
+        {
+            return m_gbuffer.resources[i].Get();
+        }
+    }
+
+    return m_resourceRegistry.FindTransientD3DResource(name);
 }
 
 D3D12_RESOURCE_STATES D3D12HelloTexture::GetResourceState(const std::string &name) const
@@ -2345,7 +2604,8 @@ void D3D12HelloTexture::BeginFrame()
     // However, when ExecuteCommandList() is called on a particular command
     // list, that command list can then be reset at any time and must be before
     // re-recording.
-    ThrowIfFailed(m_commandList->Reset(m_frameResources[m_frameIndex].commandAllocator.Get(), m_pipelineState.Get()));
+    ThrowIfFailed(m_commandList->Reset(m_frameResources[m_frameIndex].commandAllocator.Get(),
+                                       GetPipelineState(PipelineKey::Main)));
 
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -2359,6 +2619,26 @@ void D3D12HelloTexture::BeginFrame()
     m_gpuWorkMeter.StartGpu(m_commandList.Get(), m_frameResources[m_frameIndex].gpuWorkMeterCheckPoints);
 }
 
+void D3D12HelloTexture::ExecuteClearPass(const RenderPass &pass) { RecordClear(pass.renderTargets); }
+
+void D3D12HelloTexture::ExecuteDepthPrePass(const RenderPass &pass) { RecordDepthPrePass(); }
+
+void D3D12HelloTexture::ExecuteGBufferPass(const RenderPass &pass) { RecordGBufferPass(pass.renderTargets); }
+
+void D3D12HelloTexture::ExecuteMainPass(const RenderPass &pass) { RecordMainPass(pass.renderTargets); }
+
+void D3D12HelloTexture::ExecuteLightingPass(const RenderPass &pass) { RecordLightPass(); }
+
+void D3D12HelloTexture::ExecuteLightingDebugGradientPass(const RenderPass &pass) { RecordLightPassDebugGradient(); }
+
+void D3D12HelloTexture::ExecuteToneMapPass(const RenderPass &pass) { RecordToneMapPass(); }
+
+void D3D12HelloTexture::ExecuteDebugDumpPass(const RenderPass &pass) { RecordDebugDumpPass(); }
+
+void D3D12HelloTexture::ExecuteGBufferDebugPass(const RenderPass &pass) { RecordGBufferDebugPass(); }
+
+void D3D12HelloTexture::ExecuteImGuiPass(const RenderPass &pass) { RecordImGuiPass(); }
+
 void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets)
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"ClearPrepass");
@@ -2366,11 +2646,12 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets
     assert(renderTargets.dsv.has_value());
     assert(renderTargets.clearColor.has_value());
 
-    for (auto rtv : renderTargets.rtvs)
+    for (RtvKey rtv : renderTargets.rtvs)
     {
-        m_commandList->ClearRenderTargetView(rtv, renderTargets.clearColor->data(), 0, nullptr);
+        m_commandList->ClearRenderTargetView(ResolveRtv(rtv), renderTargets.clearColor->data(), 0, nullptr);
     }
-    m_commandList->ClearDepthStencilView(renderTargets.dsv.value(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    m_commandList->ClearDepthStencilView(ResolveDsv(renderTargets.dsv.value()), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0,
+                                         nullptr);
 
     PIXEndEvent(m_commandList.Get());
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Clear");
@@ -2389,6 +2670,12 @@ void D3D12HelloTexture::DrawInstanceWrapper(UINT instanceCount)
     }
 }
 
+void D3D12HelloTexture::DrawFullscreenTriangle()
+{
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_commandList->DrawInstanced(3, 1, 0, 0);
+}
+
 //
 // Depth Pre-pass
 //
@@ -2397,7 +2684,6 @@ void D3D12HelloTexture::RecordDepthPrePass()
     PIXBeginEvent(m_commandList.Get(), 0, L"DepthPrepass");
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    m_commandList->SetPipelineState(m_depthPrePassPSO.Get());
     DrawInstanceWrapper(GetVisibleCubeCount());
 
     PIXEndEvent(m_commandList.Get());
@@ -2411,10 +2697,10 @@ void D3D12HelloTexture::RecordGBufferPass(const PassRenderTargetBinding &renderT
 
     for (UINT i = 0; i < static_cast<UINT>(renderTargets.rtvs.size()); ++i)
     {
-        m_commandList->ClearRenderTargetView(renderTargets.rtvs[i], m_gbuffer.clearValues[i].Color, 0, nullptr);
+        m_commandList->ClearRenderTargetView(ResolveRtv(renderTargets.rtvs[i]), m_gbuffer.clearValues[i].Color, 0,
+                                             nullptr);
     }
 
-    m_commandList->SetPipelineState(m_gbufferPSO.Get());
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
     DrawInstanceWrapper(GetVisibleCubeCount());
@@ -2428,22 +2714,29 @@ void D3D12HelloTexture::RecordGBufferDebugPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"GBufferDebugPass");
 
-    const UINT debugTarget = m_debugViewSettings.GetGBufferDebugTarget();
-    m_commandList->SetGraphicsRoot32BitConstants(RootParam_GBufferDebugConstants, 1, &debugTarget, 0);
-    m_commandList->SetPipelineState(m_gbufferDebugPSO.Get());
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->DrawInstanced(3, 1, 0, 0);
+    DrawFullscreenTriangle();
 
     PIXEndEvent(m_commandList.Get());
 
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Debug Pass");
 }
 
+void D3D12HelloTexture::RecordLightPassDebugGradient()
+{
+    PIXBeginEvent(m_commandList.Get(), 0, L"RecordLightPassDebugGradient");
+
+    DrawFullscreenTriangle();
+
+    PIXEndEvent(m_commandList.Get());
+
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "LightPassDebugGradient Pass");
+}
+
 void D3D12HelloTexture::RecordLightPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"LightPass");
 
-    m_lightingPass.Record(m_commandList.Get(), m_toneMapPass, m_hdrOutputPolicy.settings);
+    DrawFullscreenTriangle();
 
     PIXEndEvent(m_commandList.Get());
 
@@ -2454,7 +2747,7 @@ void D3D12HelloTexture::RecordToneMapPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"ToneMapPass");
 
-    m_toneMapPass.Record(m_commandList.Get(), m_hdrOutputPolicy.settings);
+    DrawFullscreenTriangle();
 
     PIXEndEvent(m_commandList.Get());
 
@@ -2519,17 +2812,17 @@ void D3D12HelloTexture::PrintDebugDump()
     const UINT backBufferHeight = m_backBufferDebugDumpLayout.Footprint.Height;
     const UINT sampleYs[] = {lightHeight > 0 ? lightHeight / 4 : 0, lightHeight > 0 ? (lightHeight * 3) / 4 : 0};
     const char *bandNames[] = {"SDR[0,1]", "HDR[0,9]"};
-    const UINT bandCount = m_lightingPass.debugGradientEnabled ? 2 : 1;
+    const UINT bandCount = m_lightingPassDebugGradientEnabled ? 2 : 1;
     const UINT sampleXs[] = {0, lightWidth / 4, lightWidth / 2, lightWidth > 0 ? lightWidth - 1 : 0};
     const char *sampleNames[] = {"left", "25%", "50%", "right"};
 
     DebugPrint("HDR DebugDump: LightPass=%ux%u BackBuffer=%ux%u hdr10=%d gradient=%d toneMap=%d exposure=%.3f "
                "paperWhite=%.1f maxDisplay=%.1f\n",
                lightWidth, lightHeight, backBufferWidth, backBufferHeight,
-               m_hdrOutputPolicy.settings.hdr10Enabled ? 1 : 0, m_lightingPass.debugGradientEnabled ? 1 : 0,
+               m_hdrOutputPolicy.settings.hdr10Enabled ? 1 : 0, m_lightingPassDebugGradientEnabled ? 1 : 0,
                m_toneMapPass.settings.operatorIndex, m_toneMapPass.settings.exposure,
                m_toneMapPass.settings.paperWhiteNits, m_toneMapPass.settings.maxDisplayNits);
-    if (m_lightingPass.debugGradientEnabled)
+    if (m_lightingPassDebugGradientEnabled)
     {
         const float displayMaxSceneLinear =
             m_toneMapPass.settings.maxDisplayNits / (std::max)(m_toneMapPass.settings.paperWhiteNits, 1.0f);
@@ -2542,8 +2835,8 @@ void D3D12HelloTexture::PrintDebugDump()
     for (UINT band = 0; band < bandCount; ++band)
     {
         const UINT sampleY =
-            m_lightingPass.debugGradientEnabled ? sampleYs[band] : (lightHeight > 0 ? lightHeight / 2 : 0);
-        const char *bandName = m_lightingPass.debugGradientEnabled ? bandNames[band] : "Scene";
+            m_lightingPassDebugGradientEnabled ? sampleYs[band] : (lightHeight > 0 ? lightHeight / 2 : 0);
+        const char *bandName = m_lightingPassDebugGradientEnabled ? bandNames[band] : "Scene";
 
         for (UINT i = 0; i < _countof(sampleXs); ++i)
         {
@@ -2574,7 +2867,7 @@ void D3D12HelloTexture::PrintDebugDump()
             DebugPrint("  %s %s x=%u y=%u LightPass RGBA=(%.4f, %.4f, %.4f, %.4f)\n", bandName, sampleNames[i], lightX,
                        sampleY, lightR, lightG, lightB, lightA);
 
-            if (m_lightingPass.debugGradientEnabled)
+            if (m_lightingPassDebugGradientEnabled)
             {
                 const float expectedRampInput = (std::clamp)(expectedU, 0.0f, 1.0f);
                 const float expectedMaxLinear = expectedV < 0.5f ? 1.0f : 9.0f;
@@ -2616,12 +2909,19 @@ void D3D12HelloTexture::PrintDebugDump()
 //
 // Main Pass
 //
-void D3D12HelloTexture::RecordMainPass()
+void D3D12HelloTexture::RecordMainPass(const PassRenderTargetBinding &renderTargets)
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"MainPass");
+    if (renderTargets.clearColor)
+    {
+        for (RtvKey rtv : renderTargets.rtvs)
+        {
+            m_commandList->ClearRenderTargetView(ResolveRtv(rtv), renderTargets.clearColor->data(), 0, nullptr);
+        }
+    }
+
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    m_commandList->SetPipelineState(m_pipelineState.Get());
     DrawInstanceWrapper(GetVisibleCubeCount());
 
     PIXEndEvent(m_commandList.Get());
@@ -2652,18 +2952,16 @@ void D3D12HelloTexture::EndFrame()
 
     for (UINT i = 0; i < GBuffer::kCount; ++i)
     {
-        TransitionResource(
-            {kGBufferResourceNames[i], m_gbuffer.resources[i].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET});
+        TransitionResource({kGBufferResourceNames[i], D3D12_RESOURCE_STATE_RENDER_TARGET});
     }
-    TransitionResource({kDepthStencilResourceName, m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE});
+    TransitionResource({kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE});
 
     // TODO: TransientResource refactor:
     // This manual restore keeps ResetResourceStates() consistent with the actual resource state.
     // Move next-frame/start-state handling into the transient resource or render graph metadata.
-    TransitionResource(
-        {kLightPassRenderTargetResourceName, m_lightPassRenderTarget.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET});
+    TransitionResource({kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET});
 
-    TransitionResource({kBackBufferResourceName, m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT});
+    TransitionResource({kBackBufferResourceName, D3D12_RESOURCE_STATE_PRESENT});
 
     ThrowIfFailed(m_commandList->Close());
 }
