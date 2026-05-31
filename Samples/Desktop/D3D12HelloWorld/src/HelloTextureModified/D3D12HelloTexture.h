@@ -636,6 +636,17 @@ class D3D12HelloTexture : public DXSample
         }
     };
 
+    struct RenderPassGraph
+    {
+        std::vector<RenderPass> passes;
+
+        void Clear() { passes.clear(); }
+        void Add(RenderPass pass) { passes.push_back(std::move(pass)); }
+        const std::vector<RenderPass> &Passes() const { return passes; }
+        size_t Size() const { return passes.size(); }
+        const RenderPass &operator[](size_t index) const { return passes[index]; }
+    };
+
     struct ResourceRegistry
     {
         ResourceStateMap states;
@@ -663,7 +674,7 @@ class D3D12HelloTexture : public DXSample
         void SetState(const std::string &name, D3D12_RESOURCE_STATES state) { states[name] = state; }
     };
 
-    std::vector<RenderPass> m_renderPasses;
+    RenderPassGraph m_renderPassGraph;
     ResourceRegistry m_resourceRegistry;
     using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass &pass);
     std::unordered_map<PassOperation, PassOperationHandler> m_passOperationHandlers;

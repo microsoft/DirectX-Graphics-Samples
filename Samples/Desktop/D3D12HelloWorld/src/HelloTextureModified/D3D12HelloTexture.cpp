@@ -2104,7 +2104,7 @@ void D3D12HelloTexture::PopulateCommandList()
 
 void D3D12HelloTexture::BuildRenderPasses()
 {
-    m_renderPasses.clear();
+    m_renderPassGraph.Clear();
 
     AddPass(MakeClearPass());
     AddPass(MakeDepthPrePass());
@@ -2148,7 +2148,7 @@ void D3D12HelloTexture::AddDeferredSceneOutputPass()
     }
 }
 
-void D3D12HelloTexture::AddPass(RenderPass pass) { m_renderPasses.push_back(std::move(pass)); }
+void D3D12HelloTexture::AddPass(RenderPass pass) { m_renderPassGraph.Add(std::move(pass)); }
 
 auto D3D12HelloTexture::MakeResourceUsages(std::initializer_list<ResourceUsage> usages) const -> ResourceUsages
 {
@@ -2306,7 +2306,10 @@ auto D3D12HelloTexture::MakeImGuiPass() const -> RenderPass
             PassOperation::ImGui};
 }
 
-void D3D12HelloTexture::AnalyzeResourceLifetimes() { m_resourceRegistry.AnalyzeLifetimes(m_renderPasses); }
+void D3D12HelloTexture::AnalyzeResourceLifetimes()
+{
+    m_resourceRegistry.AnalyzeLifetimes(m_renderPassGraph.Passes());
+}
 
 void D3D12HelloTexture::DebugPrintLifetimes()
 {
@@ -2389,7 +2392,7 @@ void D3D12HelloTexture::BindPassConstants(const RenderPass &pass)
 
 void D3D12HelloTexture::ExecutePasses()
 {
-    for (int passIndex = 0; passIndex < static_cast<int>(m_renderPasses.size()); ++passIndex)
+    for (int passIndex = 0; passIndex < static_cast<int>(m_renderPassGraph.Size()); ++passIndex)
     {
         ExecutePass(passIndex);
     }
@@ -2399,7 +2402,7 @@ void D3D12HelloTexture::ExecutePass(int passIndex)
 {
     CreateResourcesForPass(passIndex);
 
-    const RenderPass &pass = m_renderPasses[passIndex];
+    const RenderPass &pass = m_renderPassGraph[passIndex];
     TransitionPassResources(pass);
     BindPassRenderTargets(pass);
     BindPassDescriptors(pass);
