@@ -113,20 +113,7 @@ ID3D12PipelineState *D3D12HelloTexture::PipelineRegistry::Find(PipelineKey key) 
 
 void D3D12HelloTexture::ResourceRegistry::AnalyzeLifetimes(const std::vector<RenderPass> &renderPasses)
 {
-    lifetimes.clear();
-
-    for (int passIndex = 0; passIndex < static_cast<int>(renderPasses.size()); ++passIndex)
-    {
-        const auto &pass = renderPasses[passIndex];
-
-        pass.ForEachResourceUsage(
-            [&](const ResourceUsage &usage)
-            {
-                auto &lifetime = lifetimes[usage.name];
-                lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
-                lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
-            });
-    }
+    lifetimes = Engine::AnalyzeResourceLifetimes(renderPasses);
 }
 
 void D3D12HelloTexture::ResourceRegistry::ResetStates(std::initializer_list<ResourceUsage> usages)

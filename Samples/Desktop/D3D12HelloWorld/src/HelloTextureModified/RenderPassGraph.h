@@ -210,6 +210,34 @@ struct RenderPassGraph
     const RenderPass &operator[](size_t index) const { return passes[index]; }
 };
 
+struct ResourceLifetime
+{
+    int firstPass = INT_MAX;
+    int lastPass = -1;
+};
+
+using ResourceLifetimeMap = std::unordered_map<std::string, ResourceLifetime>;
+
+inline ResourceLifetimeMap AnalyzeResourceLifetimes(const std::vector<RenderPass> &renderPasses)
+{
+    ResourceLifetimeMap lifetimes;
+
+    for (int passIndex = 0; passIndex < static_cast<int>(renderPasses.size()); ++passIndex)
+    {
+        const auto &pass = renderPasses[passIndex];
+
+        pass.ForEachResourceUsage(
+            [&](const ResourceUsage &usage)
+            {
+                auto &lifetime = lifetimes[usage.name];
+                lifetime.firstPass = (std::min)(lifetime.firstPass, passIndex);
+                lifetime.lastPass = (std::max)(lifetime.lastPass, passIndex);
+            });
+    }
+
+    return lifetimes;
+}
+
 } // namespace Engine
 
 namespace std

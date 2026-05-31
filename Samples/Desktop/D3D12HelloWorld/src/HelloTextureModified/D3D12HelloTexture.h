@@ -486,12 +486,6 @@ class D3D12HelloTexture : public DXSample
     static constexpr const char *kGBufferResourceNames[GBuffer::kCount] = {
         "GBuffer.Albedo", "GBuffer.Normal", "GBuffer.Material", "GBuffer.MotionVector", "GBuffer.PBRParams"};
 
-    struct ResourceLifetime
-    {
-        int firstPass = INT_MAX;
-        int lastPass = -1;
-    };
-
     enum RootParameterIndex
     {
         RootParam_TextureTable = 0,
@@ -533,7 +527,7 @@ class D3D12HelloTexture : public DXSample
     };
 
     using ResourceStateMap = std::unordered_map<std::string, D3D12_RESOURCE_STATES>;
-    using ResourceLifetimeMap = std::unordered_map<std::string, ResourceLifetime>;
+    using ResourceLifetimeMap = Engine::ResourceLifetimeMap;
     using TransientResourceMap = std::unordered_map<std::string, TransientResource>;
     using ResourceUsage = Engine::ResourceUsage;
     using ResourceUsages = Engine::ResourceUsages;
