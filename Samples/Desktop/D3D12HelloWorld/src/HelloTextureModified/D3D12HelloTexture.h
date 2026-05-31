@@ -36,6 +36,13 @@ using Microsoft::WRL::ComPtr;
 struct GltfVertex;
 // #include "GltfLoader.h"
 
+using PipelineKey = Engine::PipelineKey;
+using DescriptorKey = Engine::DescriptorKey;
+using RtvKey = Engine::RtvKey;
+using DsvKey = Engine::DsvKey;
+using PassOperationKey = Engine::PassOperationKey;
+using PassConstantsKey = Engine::PassConstantsKey;
+
 class D3D12HelloTexture : public DXSample
 {
   public:
@@ -361,6 +368,74 @@ class D3D12HelloTexture : public DXSample
         }
     };
 
+    struct PassKeys
+    {
+        std::unordered_map<std::string, PipelineKey> pipelines;
+        std::unordered_map<std::string, DescriptorKey> descriptors;
+        std::unordered_map<std::string, RtvKey> rtvs;
+        std::unordered_map<std::string, DsvKey> dsvs;
+        std::unordered_map<std::string, PassOperationKey> operations;
+        std::unordered_map<std::string, PassConstantsKey> constants;
+
+        PipelineKey RegisterPipeline(const std::string &name, Engine::RenderPassKeyRegistry &registry)
+        {
+            return Register(pipelines, name, [&registry](const std::string &keyName) { return registry.AddPipeline(keyName); });
+        }
+        DescriptorKey RegisterDescriptor(const std::string &name, Engine::RenderPassKeyRegistry &registry)
+        {
+            return Register(descriptors, name,
+                            [&registry](const std::string &keyName) { return registry.AddDescriptor(keyName); });
+        }
+        RtvKey RegisterRtv(const std::string &name, Engine::RenderPassKeyRegistry &registry)
+        {
+            return Register(rtvs, name, [&registry](const std::string &keyName) { return registry.AddRtv(keyName); });
+        }
+        DsvKey RegisterDsv(const std::string &name, Engine::RenderPassKeyRegistry &registry)
+        {
+            return Register(dsvs, name, [&registry](const std::string &keyName) { return registry.AddDsv(keyName); });
+        }
+        PassOperationKey RegisterOperation(const std::string &name, Engine::RenderPassKeyRegistry &registry)
+        {
+            return Register(operations, name,
+                            [&registry](const std::string &keyName) { return registry.AddOperation(keyName); });
+        }
+        PassConstantsKey RegisterConstants(const std::string &name, Engine::RenderPassKeyRegistry &registry)
+        {
+            return Register(constants, name, [&registry](const std::string &keyName) { return registry.AddConstants(keyName); });
+        }
+
+        PipelineKey PipelineId(const std::string &name) const { return Find(pipelines, name); }
+        DescriptorKey DescriptorId(const std::string &name) const { return Find(descriptors, name); }
+        RtvKey RtvId(const std::string &name) const { return Find(rtvs, name); }
+        DsvKey DsvId(const std::string &name) const { return Find(dsvs, name); }
+        PassOperationKey OperationId(const std::string &name) const { return Find(operations, name); }
+        PassConstantsKey ConstantsId(const std::string &name) const { return Find(constants, name); }
+
+      private:
+        template <typename KeyT, typename RegisterFunc>
+        static KeyT Register(std::unordered_map<std::string, KeyT> &keys, const std::string &name,
+                             RegisterFunc registerFunc)
+        {
+            auto key = keys.find(name);
+            if (key != keys.end())
+            {
+                return key->second;
+            }
+
+            const KeyT registeredKey = registerFunc(name);
+            keys[name] = registeredKey;
+            return registeredKey;
+        }
+
+        template <typename KeyT> static KeyT Find(const std::unordered_map<std::string, KeyT> &keys,
+                                                  const std::string &name)
+        {
+            auto key = keys.find(name);
+            assert(key != keys.end() && "Missing render pass key.");
+            return key != keys.end() ? key->second : KeyT{};
+        }
+    };
+
     struct PipelineRegistry
     {
         std::unordered_map<PipelineKey, ComPtr<ID3D12PipelineState>> pipelines;
@@ -399,6 +474,8 @@ class D3D12HelloTexture : public DXSample
     bool m_lightingPassDebugGradientEnabled = false;
     ToneMapPass m_toneMapPass;
 
+    Engine::RenderPassKeyRegistry m_passKeyRegistry;
+    PassKeys m_passKeys;
     PipelineRegistry m_pipelineRegistry;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
@@ -530,6 +607,7 @@ class D3D12HelloTexture : public DXSample
     using ResourceUsages = Engine::ResourceUsages;
     using PassDescriptorBinding = Engine::PassDescriptorBinding;
     using PassRenderTargetBinding = Engine::PassRenderTargetBinding;
+    using PassConstantsBinding = Engine::PassConstantsBinding;
     using RenderPass = Engine::RenderPass;
     using RenderPassGraph = Engine::RenderPassGraph;
 
@@ -563,11 +641,11 @@ class D3D12HelloTexture : public DXSample
     RenderPassGraph m_renderPassGraph;
     ResourceRegistry m_resourceRegistry;
     using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass &pass);
-    std::unordered_map<PassOperation, PassOperationHandler> m_passOperationHandlers;
+    std::unordered_map<PassOperationKey, PassOperationHandler> m_passOperationHandlers;
 
     void LoadPipeline();
     void LoadAssets();
-    void RegisterFullscreenPipeline(PipelineKey key, const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+    void RegisterFullscreenPipeline(const std::string &name, const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
                                     const UINT8 *vertexShader, UINT vertexShaderSize, const UINT8 *pixelShader,
                                     UINT pixelShaderSize, DXGI_FORMAT renderTargetFormat);
     void RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
@@ -602,17 +680,23 @@ class D3D12HelloTexture : public DXSample
     void AddPass(RenderPass pass);
     ResourceUsages MakeResourceUsages(std::initializer_list<ResourceUsage> usages) const;
     ResourceUsages MakeGBufferReadUsages() const;
-    std::vector<PassDescriptorBinding> MakeGBufferSrvBindings() const;
-    RenderPass MakeClearPass() const;
-    RenderPass MakeDepthPrePass() const;
-    RenderPass MakeGBufferPass() const;
-    RenderPass MakeMainPass() const;
-    RenderPass MakeLightingPass() const;
-    RenderPass MakeLightingDebugGradientPass() const;
-    RenderPass MakeToneMapPass() const;
-    RenderPass MakeDebugDumpPass() const;
-    RenderPass MakeGBufferDebugPass() const;
-    RenderPass MakeImGuiPass() const;
+    PipelineKey PipelineId(const std::string &name);
+    DescriptorKey DescriptorId(const std::string &name);
+    RtvKey RtvId(const std::string &name);
+    DsvKey DsvId(const std::string &name);
+    PassOperationKey OperationId(const std::string &name);
+    PassConstantsKey ConstantsId(const std::string &name);
+    std::vector<PassDescriptorBinding> MakeGBufferSrvBindings();
+    RenderPass MakeClearPass();
+    RenderPass MakeDepthPrePass();
+    RenderPass MakeGBufferPass();
+    RenderPass MakeMainPass();
+    RenderPass MakeLightingPass();
+    RenderPass MakeLightingDebugGradientPass();
+    RenderPass MakeToneMapPass();
+    RenderPass MakeDebugDumpPass();
+    RenderPass MakeGBufferDebugPass();
+    RenderPass MakeImGuiPass();
     void BuildRenderPasses();
     void AddSceneRenderPasses();
     void AddDeferredSceneOutputPass();
