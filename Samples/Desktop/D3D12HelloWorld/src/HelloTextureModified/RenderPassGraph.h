@@ -177,11 +177,17 @@ struct PassConstantsBinding
 struct RenderPass
 {
     const wchar_t *name;
+
+    // Pipeline selects the GPU state to bind for the pass. It is intentionally separate from operation:
+    // multiple passes may record similar commands while using different PSOs, root signatures, or shaders.
     PipelineKey pipeline;
     ResourceUsages reads;
     ResourceUsages writes;
     std::vector<PassDescriptorBinding> descriptorBindings;
     PassRenderTargetBinding renderTargets;
+
+    // Operation selects the command recording behavior for the pass. It answers "what commands are recorded",
+    // while pipeline answers "which GPU state is bound before recording them".
     PassOperationKey operation;
     std::vector<PassConstantsBinding> constantsBindings;
 

@@ -64,6 +64,78 @@ class D3D12HelloTexture : public DXSample
     static constexpr UINT kTextureHeight = 256;
     static constexpr UINT kTexturePixelSize = 4; // The number of bytes used to represent a pixel in the texture.
 
+    struct PassKeyNames
+    {
+        // Pipeline keys identify GPU pipeline state selection. These names are registered with PSO creation and
+        // later referenced by passes that need that bound state.
+        struct Pipeline
+        {
+            static constexpr const char *Main = "Main";
+            static constexpr const char *DepthPrePass = "DepthPrePass";
+            static constexpr const char *GBuffer = "GBuffer";
+            static constexpr const char *Lighting = "Lighting";
+            static constexpr const char *LightingDebugGradient = "LightingDebugGradient";
+            static constexpr const char *ToneMap = "ToneMap";
+            static constexpr const char *GBufferDebug = "GBufferDebug";
+        };
+
+        struct Descriptor
+        {
+            static constexpr const char *TextureTable = "TextureTable";
+            static constexpr const char *InstanceBufferSrv = "InstanceBufferSrv";
+            static constexpr const char *MaterialBufferSrv = "MaterialBufferSrv";
+            static constexpr const char *CameraCbv = "CameraCbv";
+            static constexpr const char *LightCbv = "LightCbv";
+            static constexpr const char *GBufferAlbedoSrv = "GBufferAlbedoSrv";
+            static constexpr const char *ToneMapSceneColorSrv = "ToneMapSceneColorSrv";
+        };
+
+        struct Rtv
+        {
+            static constexpr const char *BackBuffer = "BackBuffer";
+            static constexpr const char *GBufferAlbedo = "GBufferAlbedo";
+            static constexpr const char *GBufferNormal = "GBufferNormal";
+            static constexpr const char *GBufferMaterial = "GBufferMaterial";
+            static constexpr const char *GBufferMotionVector = "GBufferMotionVector";
+            static constexpr const char *GBufferPBRParams = "GBufferPBRParams";
+            static constexpr const char *LightPass = "LightPass";
+        };
+
+        struct Dsv
+        {
+            static constexpr const char *Depth = "Depth";
+        };
+
+        // Operation keys identify command recording behavior. Keep them conceptually separate from Pipeline:
+        // a pass may share an operation with another pass while using a different pipeline, or use no pipeline at all.
+        struct Operation
+        {
+            static constexpr const char *Clear = "Clear";
+            static constexpr const char *DepthPrePass = "DepthPrePass";
+            static constexpr const char *GBuffer = "GBuffer";
+            static constexpr const char *Main = "Main";
+            static constexpr const char *Lighting = "Lighting";
+            static constexpr const char *LightingDebugGradient = "LightingDebugGradient";
+            static constexpr const char *ToneMap = "ToneMap";
+            static constexpr const char *DebugDump = "DebugDump";
+            static constexpr const char *GBufferDebug = "GBufferDebug";
+            static constexpr const char *ImGui = "ImGui";
+        };
+
+        struct Constants
+        {
+            static constexpr const char *ToneMap = "ToneMap";
+            static constexpr const char *GBufferDebugTarget = "GBufferDebugTarget";
+        };
+    };
+
+    using Pipe = PassKeyNames::Pipeline;
+    using Desc = PassKeyNames::Descriptor;
+    using RtvName = PassKeyNames::Rtv;
+    using DsvName = PassKeyNames::Dsv;
+    using Op = PassKeyNames::Operation;
+    using ConstName = PassKeyNames::Constants;
+
     static constexpr UINT kGBufferCount = 5;
 
     static constexpr UINT kHeapDescriptorCount = 100;
