@@ -676,6 +676,57 @@ struct RenderPassGraph
     }
 };
 
+struct RenderPassExecutionContext
+{
+    ID3D12GraphicsCommandList* commandList = nullptr;
+    const RenderPassBindingResolverRegistry* bindingResolvers = nullptr;
+    const PipelineRegistry* pipelineRegistry = nullptr;
+
+    std::function<void(int)> createResourcesForPass;
+    std::function<void(const RenderPass&)> transitionPassResources;
+    std::function<void(const RenderPass&)> bindConstants;
+    std::function<void(const RenderPass&)> executeOperation;
+    std::function<void(int)> releaseResourcesAfterPass;
+};
+
+inline void ExecuteRenderPassGraph(const RenderPassGraph& graph, const RenderPassExecutionContext& context)
+{
+    assert(context.commandList != nullptr);
+    assert(context.bindingResolvers != nullptr);
+    assert(context.pipelineRegistry != nullptr);
+
+    for (int passIndex = 0; passIndex < static_cast<int>(graph.Size()); ++passIndex)
+    {
+        if (context.createResourcesForPass)
+        {
+            context.createResourcesForPass(passIndex);
+        }
+
+        const RenderPass& pass = graph[passIndex];
+        if (context.transitionPassResources)
+        {
+            context.transitionPassResources(pass);
+        }
+
+        context.bindingResolvers->BindRenderTargets(context.commandList, pass);
+        context.bindingResolvers->BindDescriptors(context.commandList, pass);
+        context.pipelineRegistry->Bind(context.commandList, pass);
+
+        if (context.bindConstants)
+        {
+            context.bindConstants(pass);
+        }
+        if (context.executeOperation)
+        {
+            context.executeOperation(pass);
+        }
+        if (context.releaseResourcesAfterPass)
+        {
+            context.releaseResourcesAfterPass(passIndex);
+        }
+    }
+}
+
 struct RenderPassGraphValidationCallbacks
 {
     std::function<bool(PipelineKey)> hasPipeline;

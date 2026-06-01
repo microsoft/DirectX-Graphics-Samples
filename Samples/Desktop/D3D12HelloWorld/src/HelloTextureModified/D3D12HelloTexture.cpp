@@ -2313,24 +2313,9 @@ void D3D12HelloTexture::DebugPrintLifetimes()
     }
 }
 
-void D3D12HelloTexture::BindPassDescriptors(const RenderPass& pass)
-{
-    m_passBindingResolvers.BindDescriptors(m_commandList.Get(), pass);
-}
-
-void D3D12HelloTexture::BindPassRenderTargets(const RenderPass& pass)
-{
-    m_passBindingResolvers.BindRenderTargets(m_commandList.Get(), pass);
-}
-
 ID3D12PipelineState* D3D12HelloTexture::GetPipelineState(PipelineKey pipeline) const
 {
     return m_pipelineRegistry.Find(pipeline);
-}
-
-void D3D12HelloTexture::BindPassPipeline(const RenderPass& pass)
-{
-    m_pipelineRegistry.Bind(m_commandList.Get(), pass);
 }
 
 void D3D12HelloTexture::BindPassConstants(const RenderPass& pass)
@@ -2356,25 +2341,15 @@ void D3D12HelloTexture::BindPassConstants(const RenderPass& pass)
 
 void D3D12HelloTexture::ExecutePasses()
 {
-    for (int passIndex = 0; passIndex < static_cast<int>(m_renderPassGraph.Size()); ++passIndex)
-    {
-        ExecutePass(passIndex);
-    }
-}
-
-void D3D12HelloTexture::ExecutePass(int passIndex)
-{
-    CreateResourcesForPass(passIndex);
-
-    const RenderPass& pass = m_renderPassGraph[passIndex];
-    TransitionPassResources(pass);
-    BindPassRenderTargets(pass);
-    BindPassDescriptors(pass);
-    BindPassPipeline(pass);
-    BindPassConstants(pass);
-    ExecutePassOperation(pass);
-
-    ReleaseResourcesAfterPass(passIndex);
+    Engine::ExecuteRenderPassGraph(
+        m_renderPassGraph, {m_commandList.Get(),
+                            &m_passBindingResolvers,
+                            &m_pipelineRegistry,
+                            [this](int passIndex) { CreateResourcesForPass(passIndex); },
+                            [this](const RenderPass& pass) { TransitionPassResources(pass); },
+                            [this](const RenderPass& pass) { BindPassConstants(pass); },
+                            [this](const RenderPass& pass) { ExecutePassOperation(pass); },
+                            [this](int passIndex) { ReleaseResourcesAfterPass(passIndex); }});
 }
 
 void D3D12HelloTexture::ExecutePassOperation(const RenderPass& pass)

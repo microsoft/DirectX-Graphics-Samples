@@ -750,7 +750,6 @@ private:
     void AnalyzeResourceLifetimes();
     void DebugPrintLifetimes();
     void ExecutePasses();
-    void ExecutePass(int passIndex);
     void ExecutePassOperation(const RenderPass& pass);
     void CreateResourcesForPass(int passIndex);
     void CreateCommittedTransientResource(TransientResource& resource);
@@ -769,9 +768,6 @@ private:
     void ReleaseResourcesAfterPass(int passIndex);
     void ResetResourceStates();
 
-    void BindPassRenderTargets(const RenderPass& pass);
-    void BindPassDescriptors(const RenderPass& pass);
-    void BindPassPipeline(const RenderPass& pass);
     void BindPassConstants(const RenderPass& pass);
     ID3D12PipelineState* GetPipelineState(PipelineKey pipeline) const;
     void TransitionPassResources(const RenderPass& pass);
