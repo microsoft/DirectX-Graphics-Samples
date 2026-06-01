@@ -422,6 +422,66 @@ struct RenderPassGraph
     }
 };
 
+struct RenderPassGraphValidationCallbacks
+{
+    std::function<bool(PipelineKey)> hasPipeline;
+    std::function<bool(PassOperationKey)> hasOperation;
+    std::function<bool(DescriptorKey)> canResolveDescriptor;
+    std::function<bool(RtvKey)> canResolveRtv;
+    std::function<bool(DsvKey)> canResolveDsv;
+    std::function<bool(PassConstantsKey)> canBindConstants;
+};
+
+inline void ValidateRenderPassGraph(const std::vector<RenderPass>& renderPasses,
+                                    const RenderPassGraphValidationCallbacks& callbacks = {})
+{
+    for (const RenderPass& pass : renderPasses)
+    {
+        if (callbacks.hasPipeline && pass.pipeline.IsValid())
+        {
+            assert(callbacks.hasPipeline(pass.pipeline) && "Render pass references an unregistered pipeline.");
+        }
+
+        if (callbacks.hasOperation)
+        {
+            assert(callbacks.hasOperation(pass.operation) &&
+                   "Render pass references an unregistered operation handler.");
+        }
+
+        if (callbacks.canResolveDescriptor)
+        {
+            for (const PassDescriptorBinding& binding : pass.descriptorBindings)
+            {
+                assert(callbacks.canResolveDescriptor(binding.descriptor) &&
+                       "Render pass references an unresolved descriptor.");
+            }
+        }
+
+        if (callbacks.canResolveRtv)
+        {
+            for (RtvKey rtv : pass.renderTargets.rtvs)
+            {
+                assert(callbacks.canResolveRtv(rtv) && "Render pass references an unresolved RTV.");
+            }
+        }
+
+        if (callbacks.canResolveDsv && pass.renderTargets.dsv)
+        {
+            assert(callbacks.canResolveDsv(pass.renderTargets.dsv.value()) &&
+                   "Render pass references an unresolved DSV.");
+        }
+
+        if (callbacks.canBindConstants)
+        {
+            for (const PassConstantsBinding& binding : pass.constantsBindings)
+            {
+                assert(callbacks.canBindConstants(binding.constants) &&
+                       "Render pass references unsupported constants binding.");
+            }
+        }
+    }
+}
+
 struct ResourceLifetime
 {
     int firstPass = INT_MAX;
