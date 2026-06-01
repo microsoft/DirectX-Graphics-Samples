@@ -771,6 +771,7 @@ private:
     void ResetResourceStates();
 
     ID3D12PipelineState* GetPipelineState(PipelineKey pipeline) const;
+    Engine::ResourceTransitionContext MakeResourceTransitionContext();
     void TransitionPassResources(const RenderPass& pass);
     void TransitionResource(const ResourceUsage& usage);
     ID3D12Resource* ResolveResource(const std::string& name) const;

@@ -2343,13 +2343,14 @@ ID3D12PipelineState* D3D12HelloTexture::GetPipelineState(PipelineKey pipeline) c
 
 void D3D12HelloTexture::ExecutePasses()
 {
+    Engine::ResourceTransitionContext resourceTransitions = MakeResourceTransitionContext();
     Engine::ExecuteRenderPassGraph(
         m_renderPassGraph, {m_commandList.Get(),
                             &m_passBindingResolvers,
                             &m_pipelineRegistry,
                             &m_passConstantsRegistry,
+                            &resourceTransitions,
                             [this](int passIndex) { CreateResourcesForPass(passIndex); },
-                            [this](const RenderPass& pass) { TransitionPassResources(pass); },
                             [this](const RenderPass& pass) { ExecutePassOperation(pass); },
                             [this](int passIndex) { ReleaseResourcesAfterPass(passIndex); }});
 }
@@ -2458,30 +2459,23 @@ void D3D12HelloTexture::ResetResourceStates()
     }
 }
 
+Engine::ResourceTransitionContext D3D12HelloTexture::MakeResourceTransitionContext()
+{
+    return {m_commandList.Get(),
+            [this](const std::string& name) { return ResolveResource(name); },
+            [this](const std::string& name) { return GetResourceState(name); },
+            [this](const std::string& name, D3D12_RESOURCE_STATES state) { SetResourceState(name, state); },
+            [](const ResourceUsage& usage) { DBG_PRINT("Resource %s is null. Skip transition.\n", usage.name.c_str()); }};
+}
+
 void D3D12HelloTexture::TransitionPassResources(const RenderPass& pass)
 {
-    pass.ForEachResourceUsage([this](const ResourceUsage& usage) { TransitionResource(usage); });
+    Engine::TransitionPassResources(MakeResourceTransitionContext(), pass);
 }
 
 void D3D12HelloTexture::TransitionResource(const ResourceUsage& usage)
 {
-    D3D12_RESOURCE_STATES currentState = GetResourceState(usage.name);
-    if (currentState == usage.state)
-    {
-        return;
-    }
-
-    ID3D12Resource* resource = ResolveResource(usage.name);
-
-    assert(resource != nullptr && "Cannot transition a null resource.");
-    if (resource == nullptr)
-    {
-        DBG_PRINT("Resource %s is null. Skip transition.\n", usage.name.c_str());
-        return;
-    }
-
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, currentState, usage.state));
-    SetResourceState(usage.name, usage.state);
+    Engine::TransitionResource(MakeResourceTransitionContext(), usage);
 }
 
 ID3D12Resource* D3D12HelloTexture::ResolveResource(const std::string& name) const

@@ -720,15 +720,58 @@ struct RenderPassGraph
     }
 };
 
+struct ResourceTransitionContext
+{
+    ID3D12GraphicsCommandList* commandList = nullptr;
+    std::function<ID3D12Resource*(const std::string& name)> resolveResource;
+    std::function<D3D12_RESOURCE_STATES(const std::string& name)> getResourceState;
+    std::function<void(const std::string& name, D3D12_RESOURCE_STATES state)> setResourceState;
+    std::function<void(const ResourceUsage& usage)> onMissingResource;
+};
+
+inline void TransitionResource(const ResourceTransitionContext& context, const ResourceUsage& usage)
+{
+    assert(context.commandList != nullptr);
+    assert(context.resolveResource);
+    assert(context.getResourceState);
+    assert(context.setResourceState);
+
+    const D3D12_RESOURCE_STATES currentState = context.getResourceState(usage.name);
+    if (currentState == usage.state)
+    {
+        return;
+    }
+
+    ID3D12Resource* resource = context.resolveResource(usage.name);
+    assert(resource != nullptr && "Cannot transition a null resource.");
+    if (resource == nullptr)
+    {
+        if (context.onMissingResource)
+        {
+            context.onMissingResource(usage);
+        }
+        return;
+    }
+
+    context.commandList->ResourceBarrier(
+        1, &CD3DX12_RESOURCE_BARRIER::Transition(resource, currentState, usage.state));
+    context.setResourceState(usage.name, usage.state);
+}
+
+inline void TransitionPassResources(const ResourceTransitionContext& context, const RenderPass& pass)
+{
+    pass.ForEachResourceUsage([&context](const ResourceUsage& usage) { TransitionResource(context, usage); });
+}
+
 struct RenderPassExecutionContext
 {
     ID3D12GraphicsCommandList* commandList = nullptr;
     const RenderPassBindingResolverRegistry* bindingResolvers = nullptr;
     const PipelineRegistry* pipelineRegistry = nullptr;
     const PassConstantsRegistry* constantsRegistry = nullptr;
+    const ResourceTransitionContext* resourceTransitions = nullptr;
 
     std::function<void(int)> createResourcesForPass;
-    std::function<void(const RenderPass&)> transitionPassResources;
     std::function<void(const RenderPass&)> executeOperation;
     std::function<void(int)> releaseResourcesAfterPass;
 };
@@ -739,6 +782,7 @@ inline void ExecuteRenderPassGraph(const RenderPassGraph& graph, const RenderPas
     assert(context.bindingResolvers != nullptr);
     assert(context.pipelineRegistry != nullptr);
     assert(context.constantsRegistry != nullptr);
+    assert(context.resourceTransitions != nullptr);
 
     for (int passIndex = 0; passIndex < static_cast<int>(graph.Size()); ++passIndex)
     {
@@ -748,9 +792,9 @@ inline void ExecuteRenderPassGraph(const RenderPassGraph& graph, const RenderPas
         }
 
         const RenderPass& pass = graph[passIndex];
-        if (context.transitionPassResources)
+        if (context.resourceTransitions)
         {
-            context.transitionPassResources(pass);
+            TransitionPassResources(*context.resourceTransitions, pass);
         }
 
         context.bindingResolvers->BindRenderTargets(context.commandList, pass);
