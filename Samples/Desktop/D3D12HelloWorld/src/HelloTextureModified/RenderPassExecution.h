@@ -281,6 +281,98 @@ private:
     std::function<ID3D12Resource*(const std::string& name)> m_fallbackResolver;
 };
 
+template <typename OperationHandlerT> class RenderGraphRuntime
+{
+public:
+    RenderGraphRuntime()
+        : m_authoring(m_keys, m_keyRegistry, m_operationRegistry)
+    {
+    }
+
+    RenderPassGraph& Graph()
+    {
+        return m_graph;
+    }
+    const RenderPassGraph& Graph() const
+    {
+        return m_graph;
+    }
+
+    RenderPassKeyRegistry& KeyRegistry()
+    {
+        return m_keyRegistry;
+    }
+    RenderPassKeys& Keys()
+    {
+        return m_keys;
+    }
+    const RenderPassKeys& Keys() const
+    {
+        return m_keys;
+    }
+
+    RenderPassBindingResolverRegistry& BindingResolvers()
+    {
+        return m_bindingResolvers;
+    }
+    const RenderPassBindingResolverRegistry& BindingResolvers() const
+    {
+        return m_bindingResolvers;
+    }
+
+    ResourceResolverRegistry& ResourceResolvers()
+    {
+        return m_resourceResolvers;
+    }
+    const ResourceResolverRegistry& ResourceResolvers() const
+    {
+        return m_resourceResolvers;
+    }
+
+    PipelineRegistry& Pipelines()
+    {
+        return m_pipelineRegistry;
+    }
+    const PipelineRegistry& Pipelines() const
+    {
+        return m_pipelineRegistry;
+    }
+
+    PassOperationRegistry<OperationHandlerT>& Operations()
+    {
+        return m_operationRegistry;
+    }
+    const PassOperationRegistry<OperationHandlerT>& Operations() const
+    {
+        return m_operationRegistry;
+    }
+
+    PassConstantsRegistry& Constants()
+    {
+        return m_constantsRegistry;
+    }
+    const PassConstantsRegistry& Constants() const
+    {
+        return m_constantsRegistry;
+    }
+
+    RenderPassAuthoringContext<OperationHandlerT>& Authoring()
+    {
+        return m_authoring;
+    }
+
+private:
+    RenderPassGraph m_graph;
+    RenderPassKeyRegistry m_keyRegistry;
+    RenderPassKeys m_keys;
+    RenderPassBindingResolverRegistry m_bindingResolvers;
+    ResourceResolverRegistry m_resourceResolvers;
+    PipelineRegistry m_pipelineRegistry;
+    PassOperationRegistry<OperationHandlerT> m_operationRegistry;
+    PassConstantsRegistry m_constantsRegistry;
+    RenderPassAuthoringContext<OperationHandlerT> m_authoring;
+};
+
 inline void TransitionResource(const ResourceTransitionContext& context, const ResourceUsage& usage)
 {
     assert(context.commandList != nullptr);

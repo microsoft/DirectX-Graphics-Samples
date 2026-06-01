@@ -484,12 +484,6 @@ private:
     bool m_lightingPassDebugGradientEnabled = false;
     ToneMapPass m_toneMapPass;
 
-    Engine::RenderPassKeyRegistry m_passKeyRegistry;
-    Engine::RenderPassKeys m_passKeys;
-    Engine::RenderPassBindingResolverRegistry m_passBindingResolvers;
-    Engine::ResourceResolverRegistry m_resourceResolvers;
-    Engine::PipelineRegistry m_pipelineRegistry;
-
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
     UINT m_descriptorSize;
@@ -607,13 +601,10 @@ private:
     using RenderPass = Engine::RenderPass;
     using RenderPassGraph = Engine::RenderPassGraph;
 
-    RenderPassGraph m_renderPassGraph;
     ResourceRegistry m_resourceRegistry;
     using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass& pass);
-    using RenderPassAuthoringContext = Engine::RenderPassAuthoringContext<PassOperationHandler>;
-    Engine::PassOperationRegistry<PassOperationHandler> m_passOperationRegistry;
-    Engine::PassConstantsRegistry m_passConstantsRegistry;
-    RenderPassAuthoringContext m_renderPassAuthoring;
+    using RenderGraphRuntime = Engine::RenderGraphRuntime<PassOperationHandler>;
+    RenderGraphRuntime m_renderGraphRuntime;
 
     struct ShaderBytecode
     {
