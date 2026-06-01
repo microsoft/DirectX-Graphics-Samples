@@ -88,6 +88,7 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
 {
     m_renderPassAuthoring.Bind(m_passKeys, m_passKeyRegistry, m_passOperationRegistry);
     RegisterPassBindingResolvers();
+    RegisterPassConstantsHandlers();
 }
 
 auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings& hdrOutputSettings) const
@@ -1516,6 +1517,25 @@ void D3D12HelloTexture::RegisterPassBindingResolvers()
         [this]() { return m_lightPassColorSrv.gpu; });
 }
 
+void D3D12HelloTexture::RegisterPassConstantsHandlers()
+{
+    m_passConstantsRegistry.Clear();
+    m_passConstantsRegistry.Register(
+        m_passKeys.RegisterConstants(ConstName::ToneMap, m_passKeyRegistry),
+        [this](UINT rootParameterIndex)
+        {
+            const auto constants = m_toneMapPass.MakeShaderConstants(m_hdrOutputPolicy.settings);
+            m_commandList->SetGraphicsRoot32BitConstants(rootParameterIndex, 5, &constants, 0);
+        });
+    m_passConstantsRegistry.Register(
+        m_passKeys.RegisterConstants(ConstName::GBufferDebugTarget, m_passKeyRegistry),
+        [this](UINT rootParameterIndex)
+        {
+            const UINT debugTarget = m_debugViewSettings.GetGBufferDebugTarget();
+            m_commandList->SetGraphicsRoot32BitConstants(rootParameterIndex, 1, &debugTarget, 0);
+        });
+}
+
 void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
 {
     // Release if DS exist
@@ -2135,12 +2155,7 @@ void D3D12HelloTexture::ValidateRenderPassGraph() const
     Engine::ValidateRenderPassGraph(
         m_renderPassGraph.Passes(),
         Engine::RenderPassGraphValidationContext<PassOperationHandler>{
-            &m_pipelineRegistry, &m_passBindingResolvers, &m_passOperationRegistry,
-            [this](PassConstantsKey constants)
-            {
-                return constants == m_passKeys.ConstantsId(ConstName::ToneMap) ||
-                       constants == m_passKeys.ConstantsId(ConstName::GBufferDebugTarget);
-            }});
+            &m_pipelineRegistry, &m_passBindingResolvers, &m_passOperationRegistry, &m_passConstantsRegistry});
 }
 
 auto D3D12HelloTexture::MakeResourceUsages(std::initializer_list<ResourceUsage> usages) const -> ResourceUsages
@@ -2326,36 +2341,15 @@ ID3D12PipelineState* D3D12HelloTexture::GetPipelineState(PipelineKey pipeline) c
     return m_pipelineRegistry.Find(pipeline);
 }
 
-void D3D12HelloTexture::BindPassConstants(const RenderPass& pass)
-{
-    for (const auto& binding : pass.constantsBindings)
-    {
-        if (binding.constants == m_passKeys.ConstantsId(ConstName::ToneMap))
-        {
-            const auto constants = m_toneMapPass.MakeShaderConstants(m_hdrOutputPolicy.settings);
-            m_commandList->SetGraphicsRoot32BitConstants(binding.rootParameterIndex, 5, &constants, 0);
-            continue;
-        }
-        if (binding.constants == m_passKeys.ConstantsId(ConstName::GBufferDebugTarget))
-        {
-            const UINT debugTarget = m_debugViewSettings.GetGBufferDebugTarget();
-            m_commandList->SetGraphicsRoot32BitConstants(binding.rootParameterIndex, 1, &debugTarget, 0);
-            continue;
-        }
-
-        assert(false && "Unsupported pass constants binding.");
-    }
-}
-
 void D3D12HelloTexture::ExecutePasses()
 {
     Engine::ExecuteRenderPassGraph(
         m_renderPassGraph, {m_commandList.Get(),
                             &m_passBindingResolvers,
                             &m_pipelineRegistry,
+                            &m_passConstantsRegistry,
                             [this](int passIndex) { CreateResourcesForPass(passIndex); },
                             [this](const RenderPass& pass) { TransitionPassResources(pass); },
-                            [this](const RenderPass& pass) { BindPassConstants(pass); },
                             [this](const RenderPass& pass) { ExecutePassOperation(pass); },
                             [this](int passIndex) { ReleaseResourcesAfterPass(passIndex); }});
 }

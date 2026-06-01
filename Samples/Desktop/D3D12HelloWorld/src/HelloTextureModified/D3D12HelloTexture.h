@@ -649,6 +649,7 @@ private:
     using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass& pass);
     using RenderPassAuthoringContext = Engine::RenderPassAuthoringContext<PassOperationHandler>;
     Engine::PassOperationRegistry<PassOperationHandler> m_passOperationRegistry;
+    Engine::PassConstantsRegistry m_passConstantsRegistry;
     RenderPassAuthoringContext m_renderPassAuthoring;
 
     struct ShaderBytecode
@@ -724,6 +725,7 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE GetGBufferRTV(UINT index) const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetLightPassRTV() const;
     void RegisterPassBindingResolvers();
+    void RegisterPassConstantsHandlers();
 
     std::vector<UINT8> GenerateCheckerboardTextureData();
     void PopulateCommandList();
@@ -768,7 +770,6 @@ private:
     void ReleaseResourcesAfterPass(int passIndex);
     void ResetResourceStates();
 
-    void BindPassConstants(const RenderPass& pass);
     ID3D12PipelineState* GetPipelineState(PipelineKey pipeline) const;
     void TransitionPassResources(const RenderPass& pass);
     void TransitionResource(const ResourceUsage& usage);

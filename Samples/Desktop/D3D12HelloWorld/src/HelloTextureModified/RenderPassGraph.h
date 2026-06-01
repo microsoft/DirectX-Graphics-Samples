@@ -655,6 +655,45 @@ private:
     std::unordered_map<PipelineKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, KeyHash<PipelineKey>> m_pipelines;
 };
 
+class PassConstantsRegistry
+{
+public:
+    using Handler = std::function<void(UINT rootParameterIndex)>;
+
+    void Clear()
+    {
+        m_handlers.clear();
+    }
+
+    PassConstantsKey Register(PassConstantsKey constants, Handler handler)
+    {
+        auto [registered, inserted] = m_handlers.emplace(constants, std::move(handler));
+        assert(inserted && "Pass constants registered more than once.");
+        return constants;
+    }
+
+    bool Contains(PassConstantsKey constants) const
+    {
+        return m_handlers.find(constants) != m_handlers.end();
+    }
+
+    void Bind(const RenderPass& pass) const
+    {
+        for (const PassConstantsBinding& binding : pass.constantsBindings)
+        {
+            auto handler = m_handlers.find(binding.constants);
+            assert(handler != m_handlers.end() && "Unsupported pass constants binding.");
+            if (handler != m_handlers.end())
+            {
+                handler->second(binding.rootParameterIndex);
+            }
+        }
+    }
+
+private:
+    std::unordered_map<PassConstantsKey, Handler, KeyHash<PassConstantsKey>> m_handlers;
+};
+
 struct RenderPassGraph
 {
     std::vector<RenderPass> passes;
@@ -686,10 +725,10 @@ struct RenderPassExecutionContext
     ID3D12GraphicsCommandList* commandList = nullptr;
     const RenderPassBindingResolverRegistry* bindingResolvers = nullptr;
     const PipelineRegistry* pipelineRegistry = nullptr;
+    const PassConstantsRegistry* constantsRegistry = nullptr;
 
     std::function<void(int)> createResourcesForPass;
     std::function<void(const RenderPass&)> transitionPassResources;
-    std::function<void(const RenderPass&)> bindConstants;
     std::function<void(const RenderPass&)> executeOperation;
     std::function<void(int)> releaseResourcesAfterPass;
 };
@@ -699,6 +738,7 @@ inline void ExecuteRenderPassGraph(const RenderPassGraph& graph, const RenderPas
     assert(context.commandList != nullptr);
     assert(context.bindingResolvers != nullptr);
     assert(context.pipelineRegistry != nullptr);
+    assert(context.constantsRegistry != nullptr);
 
     for (int passIndex = 0; passIndex < static_cast<int>(graph.Size()); ++passIndex)
     {
@@ -717,9 +757,9 @@ inline void ExecuteRenderPassGraph(const RenderPassGraph& graph, const RenderPas
         context.bindingResolvers->BindDescriptors(context.commandList, pass);
         context.pipelineRegistry->Bind(context.commandList, pass);
 
-        if (context.bindConstants)
+        if (context.constantsRegistry)
         {
-            context.bindConstants(pass);
+            context.constantsRegistry->Bind(pass);
         }
         if (context.executeOperation)
         {
@@ -747,6 +787,7 @@ template <typename OperationHandlerT> struct RenderPassGraphValidationContext
     const PipelineRegistry* pipelineRegistry = nullptr;
     const RenderPassBindingResolverRegistry* bindingResolvers = nullptr;
     const PassOperationRegistry<OperationHandlerT>* operationRegistry = nullptr;
+    const PassConstantsRegistry* constantsRegistry = nullptr;
     std::function<bool(PassConstantsKey)> canBindConstants;
 };
 
@@ -828,7 +869,10 @@ inline void ValidateRenderPassGraph(const std::vector<RenderPass>& renderPasses,
          context.bindingResolvers != nullptr
              ? [bindingResolvers = context.bindingResolvers](DsvKey dsv) { return bindingResolvers->ContainsDsv(dsv); }
              : std::function<bool(DsvKey)>(),
-         context.canBindConstants});
+         context.constantsRegistry != nullptr
+             ? [constantsRegistry = context.constantsRegistry](PassConstantsKey constants)
+               { return constantsRegistry->Contains(constants); }
+             : context.canBindConstants});
 }
 
 struct ResourceLifetime
