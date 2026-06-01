@@ -89,6 +89,7 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
     m_renderPassAuthoring.Bind(m_passKeys, m_passKeyRegistry, m_passOperationRegistry);
     RegisterPassBindingResolvers();
     RegisterPassConstantsHandlers();
+    RegisterResourceResolvers();
 }
 
 auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings& hdrOutputSettings) const
@@ -1357,6 +1358,22 @@ void D3D12HelloTexture::RegisterPassConstantsHandlers()
         });
 }
 
+void D3D12HelloTexture::RegisterResourceResolvers()
+{
+    m_resourceResolvers.Clear();
+    m_resourceResolvers.RegisterResource(kBackBufferResourceName,
+                                         [this]() { return m_renderTargets[m_frameIndex].Get(); });
+    m_resourceResolvers.RegisterResource(kDepthStencilResourceName, [this]() { return m_depthStencil.Get(); });
+    m_resourceResolvers.RegisterResource(kLightPassRenderTargetResourceName,
+                                         [this]() { return m_lightPassRenderTarget.Get(); });
+    for (UINT i = 0; i < GBuffer::kCount; ++i)
+    {
+        m_resourceResolvers.RegisterResource(kGBufferResourceNames[i],
+                                             [this, i]() { return m_gbuffer.resources[i].Get(); });
+    }
+    m_resourceResolvers.SetFallbackResolver([this](const std::string& name) { return FindTransientD3DResource(name); });
+}
+
 void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
 {
     // Release if DS exist
@@ -2290,7 +2307,7 @@ void D3D12HelloTexture::ResetResourceStates()
 Engine::ResourceTransitionContext D3D12HelloTexture::MakeResourceTransitionContext()
 {
     return {m_commandList.Get(),
-            [this](const std::string& name) { return ResolveResource(name); },
+            [this](const std::string& name) { return m_resourceResolvers.Resolve(name); },
             [this](const std::string& name) { return GetResourceState(name); },
             [this](const std::string& name, D3D12_RESOURCE_STATES state) { SetResourceState(name, state); },
             [](const ResourceUsage& usage) { DBG_PRINT("Resource %s is null. Skip transition.\n", usage.name.c_str()); }};
@@ -2304,34 +2321,6 @@ void D3D12HelloTexture::TransitionPassResources(const RenderPass& pass)
 void D3D12HelloTexture::TransitionResource(const ResourceUsage& usage)
 {
     Engine::TransitionResource(MakeResourceTransitionContext(), usage);
-}
-
-ID3D12Resource* D3D12HelloTexture::ResolveResource(const std::string& name) const
-{
-    if (name == kBackBufferResourceName)
-    {
-        return m_renderTargets[m_frameIndex].Get();
-    }
-
-    if (name == kDepthStencilResourceName)
-    {
-        return m_depthStencil.Get();
-    }
-
-    if (name == kLightPassRenderTargetResourceName)
-    {
-        return m_lightPassRenderTarget.Get();
-    }
-
-    for (UINT i = 0; i < GBuffer::kCount; ++i)
-    {
-        if (name == kGBufferResourceNames[i])
-        {
-            return m_gbuffer.resources[i].Get();
-        }
-    }
-
-    return FindTransientD3DResource(name);
 }
 
 ID3D12Resource* D3D12HelloTexture::FindTransientD3DResource(const std::string& name) const

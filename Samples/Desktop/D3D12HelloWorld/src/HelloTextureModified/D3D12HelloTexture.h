@@ -485,6 +485,7 @@ private:
     Engine::RenderPassKeyRegistry m_passKeyRegistry;
     Engine::RenderPassKeys m_passKeys;
     Engine::RenderPassBindingResolverRegistry m_passBindingResolvers;
+    Engine::ResourceResolverRegistry m_resourceResolvers;
     Engine::PipelineRegistry m_pipelineRegistry;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
@@ -686,6 +687,7 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE GetLightPassRTV() const;
     void RegisterPassBindingResolvers();
     void RegisterPassConstantsHandlers();
+    void RegisterResourceResolvers();
 
     std::vector<UINT8> GenerateCheckerboardTextureData();
     void PopulateCommandList();
@@ -734,7 +736,6 @@ private:
     Engine::ResourceTransitionContext MakeResourceTransitionContext();
     void TransitionPassResources(const RenderPass& pass);
     void TransitionResource(const ResourceUsage& usage);
-    ID3D12Resource* ResolveResource(const std::string& name) const;
     ID3D12Resource* FindTransientD3DResource(const std::string& name) const;
 
     D3D12_RESOURCE_STATES GetResourceState(const std::string& name) const;

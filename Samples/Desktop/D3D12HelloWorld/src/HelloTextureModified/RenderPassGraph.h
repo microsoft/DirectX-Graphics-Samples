@@ -730,6 +730,43 @@ struct ResourceTransitionContext
     std::function<void(const ResourceUsage& usage)> onMissingResource;
 };
 
+class ResourceResolverRegistry
+{
+public:
+    using Resolver = std::function<ID3D12Resource*()>;
+
+    void Clear()
+    {
+        m_resolvers.clear();
+        m_fallbackResolver = {};
+    }
+
+    void RegisterResource(std::string name, Resolver resolver)
+    {
+        m_resolvers[std::move(name)] = std::move(resolver);
+    }
+
+    void SetFallbackResolver(std::function<ID3D12Resource*(const std::string& name)> resolver)
+    {
+        m_fallbackResolver = std::move(resolver);
+    }
+
+    ID3D12Resource* Resolve(const std::string& name) const
+    {
+        auto resolver = m_resolvers.find(name);
+        if (resolver != m_resolvers.end())
+        {
+            return resolver->second();
+        }
+
+        return m_fallbackResolver ? m_fallbackResolver(name) : nullptr;
+    }
+
+private:
+    std::unordered_map<std::string, Resolver> m_resolvers;
+    std::function<ID3D12Resource*(const std::string& name)> m_fallbackResolver;
+};
+
 inline void TransitionResource(const ResourceTransitionContext& context, const ResourceUsage& usage)
 {
     assert(context.commandList != nullptr);
