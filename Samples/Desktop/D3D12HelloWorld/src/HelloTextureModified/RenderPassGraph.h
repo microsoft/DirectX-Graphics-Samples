@@ -253,10 +253,44 @@ struct RenderPass
     }
 };
 
-class RenderPassBuilder
+template <typename HandlerT> class PassOperationRegistry
 {
 public:
-    explicit RenderPassBuilder(const wchar_t* name)
+    void Clear()
+    {
+        m_handlers.clear();
+    }
+
+    PassOperationKey Register(PassOperationKey operation, HandlerT handler)
+    {
+        auto [registered, inserted] = m_handlers.emplace(operation, handler);
+        assert((inserted || registered->second == handler) && "Pass operation registered with a different handler.");
+        return operation;
+    }
+
+    bool Contains(PassOperationKey operation) const
+    {
+        return m_handlers.find(operation) != m_handlers.end();
+    }
+
+    const HandlerT* Find(PassOperationKey operation) const
+    {
+        auto handler = m_handlers.find(operation);
+        return handler != m_handlers.end() ? &handler->second : nullptr;
+    }
+
+private:
+    std::unordered_map<PassOperationKey, HandlerT> m_handlers;
+};
+
+template <typename OperationHandlerT> class RenderPassBuilder
+{
+public:
+    RenderPassBuilder(const wchar_t* name, RenderPassKeys& keys, RenderPassKeyRegistry& keyRegistry,
+                      PassOperationRegistry<OperationHandlerT>& operationRegistry)
+        : m_keys(&keys)
+        , m_keyRegistry(&keyRegistry)
+        , m_operationRegistry(&operationRegistry)
     {
         m_pass.name = name;
     }
@@ -265,6 +299,11 @@ public:
     {
         m_pass.pipeline = pipeline;
         return *this;
+    }
+
+    RenderPassBuilder& Pipeline(const std::string& pipeline)
+    {
+        return Pipeline(RegisterPipeline(pipeline));
     }
 
     RenderPassBuilder& Reads(ResourceUsages reads)
@@ -297,6 +336,11 @@ public:
         return *this;
     }
 
+    RenderPassBuilder& Descriptor(UINT rootParameterIndex, const std::string& descriptor)
+    {
+        return Descriptor(rootParameterIndex, RegisterDescriptor(descriptor));
+    }
+
     RenderPassBuilder& Descriptors(std::initializer_list<PassDescriptorBinding> descriptors)
     {
         m_pass.descriptorBindings = std::vector<PassDescriptorBinding>(descriptors);
@@ -321,9 +365,24 @@ public:
         return *this;
     }
 
+    RenderPassBuilder& Rtv(const std::string& rtv)
+    {
+        return Rtv(RegisterRtv(rtv));
+    }
+
     RenderPassBuilder& Rtvs(std::initializer_list<RtvKey> rtvs)
     {
         m_pass.renderTargets.rtvs = std::vector<RtvKey>(rtvs);
+        return *this;
+    }
+
+    RenderPassBuilder& Rtvs(std::initializer_list<const char*> rtvs)
+    {
+        m_pass.renderTargets.rtvs.clear();
+        for (const char* rtv : rtvs)
+        {
+            m_pass.renderTargets.rtvs.push_back(RegisterRtv(rtv));
+        }
         return *this;
     }
 
@@ -331,6 +390,11 @@ public:
     {
         m_pass.renderTargets.dsv = dsv;
         return *this;
+    }
+
+    RenderPassBuilder& Dsv(const std::string& dsv)
+    {
+        return Dsv(RegisterDsv(dsv));
     }
 
     RenderPassBuilder& ClearColor(std::array<float, 4> clearColor)
@@ -345,10 +409,21 @@ public:
         return *this;
     }
 
+    RenderPassBuilder& Operation(const std::string& operation, OperationHandlerT handler)
+    {
+        m_pass.operation = m_operationRegistry->Register(RegisterOperation(operation), handler);
+        return *this;
+    }
+
     RenderPassBuilder& Constants(UINT rootParameterIndex, PassConstantsKey constants)
     {
         m_pass.constantsBindings.push_back({rootParameterIndex, constants});
         return *this;
+    }
+
+    RenderPassBuilder& Constants(UINT rootParameterIndex, const std::string& constants)
+    {
+        return Constants(rootParameterIndex, RegisterConstants(constants));
     }
 
     RenderPassBuilder& ConstantsBindings(std::initializer_list<PassConstantsBinding> constantsBindings)
@@ -363,37 +438,35 @@ public:
     }
 
 private:
+    PipelineKey RegisterPipeline(const std::string& name)
+    {
+        return m_keys->RegisterPipeline(name, *m_keyRegistry);
+    }
+    DescriptorKey RegisterDescriptor(const std::string& name)
+    {
+        return m_keys->RegisterDescriptor(name, *m_keyRegistry);
+    }
+    RtvKey RegisterRtv(const std::string& name)
+    {
+        return m_keys->RegisterRtv(name, *m_keyRegistry);
+    }
+    DsvKey RegisterDsv(const std::string& name)
+    {
+        return m_keys->RegisterDsv(name, *m_keyRegistry);
+    }
+    PassOperationKey RegisterOperation(const std::string& name)
+    {
+        return m_keys->RegisterOperation(name, *m_keyRegistry);
+    }
+    PassConstantsKey RegisterConstants(const std::string& name)
+    {
+        return m_keys->RegisterConstants(name, *m_keyRegistry);
+    }
+
+    RenderPassKeys* m_keys = nullptr;
+    RenderPassKeyRegistry* m_keyRegistry = nullptr;
+    PassOperationRegistry<OperationHandlerT>* m_operationRegistry = nullptr;
     RenderPass m_pass = {};
-};
-
-template <typename HandlerT> class PassOperationRegistry
-{
-public:
-    void Clear()
-    {
-        m_handlers.clear();
-    }
-
-    PassOperationKey Register(PassOperationKey operation, HandlerT handler)
-    {
-        auto [registered, inserted] = m_handlers.emplace(operation, handler);
-        assert((inserted || registered->second == handler) && "Pass operation registered with a different handler.");
-        return operation;
-    }
-
-    bool Contains(PassOperationKey operation) const
-    {
-        return m_handlers.find(operation) != m_handlers.end();
-    }
-
-    const HandlerT* Find(PassOperationKey operation) const
-    {
-        auto handler = m_handlers.find(operation);
-        return handler != m_handlers.end() ? &handler->second : nullptr;
-    }
-
-private:
-    std::unordered_map<PassOperationKey, HandlerT> m_handlers;
 };
 
 struct RenderPassGraph

@@ -619,7 +619,6 @@ private:
     using PassRenderTargetBinding = Engine::PassRenderTargetBinding;
     using PassConstantsBinding = Engine::PassConstantsBinding;
     using RenderPass = Engine::RenderPass;
-    using RenderPassBuilder = Engine::RenderPassBuilder;
     using RenderPassGraph = Engine::RenderPassGraph;
 
     struct ResourceRegistry
@@ -655,6 +654,7 @@ private:
     RenderPassGraph m_renderPassGraph;
     ResourceRegistry m_resourceRegistry;
     using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass& pass);
+    using RenderPassBuilder = Engine::RenderPassBuilder<PassOperationHandler>;
     Engine::PassOperationRegistry<PassOperationHandler> m_passOperationRegistry;
 
     struct ShaderBytecode
@@ -741,12 +741,7 @@ private:
     ResourceUsages MakeGBufferReadUsages() const;
     PipelineKey PipelineId(const std::string& name);
     DescriptorKey DescriptorId(const std::string& name);
-    RtvKey RtvId(const std::string& name);
-    DsvKey DsvId(const std::string& name);
-    PassOperationKey OperationId(const std::string& name);
-    PassConstantsKey ConstantsId(const std::string& name);
-    PassOperationKey RegisterPassOperation(const std::string& name, PassOperationHandler handler);
-    std::vector<PassDescriptorBinding> MakeGBufferSrvBindings();
+    RenderPassBuilder MakeRenderPassBuilder(const wchar_t* name);
     RenderPass MakeClearPass();
     RenderPass MakeDepthPrePass();
     RenderPass MakeGBufferPass();

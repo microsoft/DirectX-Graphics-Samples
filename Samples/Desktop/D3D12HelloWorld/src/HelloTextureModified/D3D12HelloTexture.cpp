@@ -2209,173 +2209,146 @@ DescriptorKey D3D12HelloTexture::DescriptorId(const std::string& name)
     return m_passKeys.RegisterDescriptor(name, m_passKeyRegistry);
 }
 
-RtvKey D3D12HelloTexture::RtvId(const std::string& name)
+auto D3D12HelloTexture::MakeRenderPassBuilder(const wchar_t* name) -> RenderPassBuilder
 {
-    return m_passKeys.RegisterRtv(name, m_passKeyRegistry);
-}
-
-DsvKey D3D12HelloTexture::DsvId(const std::string& name)
-{
-    return m_passKeys.RegisterDsv(name, m_passKeyRegistry);
-}
-
-PassOperationKey D3D12HelloTexture::OperationId(const std::string& name)
-{
-    return m_passKeys.RegisterOperation(name, m_passKeyRegistry);
-}
-
-PassConstantsKey D3D12HelloTexture::ConstantsId(const std::string& name)
-{
-    return m_passKeys.RegisterConstants(name, m_passKeyRegistry);
-}
-
-PassOperationKey D3D12HelloTexture::RegisterPassOperation(const std::string& name, PassOperationHandler handler)
-{
-    const PassOperationKey key = OperationId(name);
-    return m_passOperationRegistry.Register(key, handler);
-}
-
-auto D3D12HelloTexture::MakeGBufferSrvBindings() -> std::vector<PassDescriptorBinding>
-{
-    return {{RootParam_GBufferSrvBase, DescriptorId(Desc::GBufferAlbedoSrv)}};
+    return RenderPassBuilder(name, m_passKeys, m_passKeyRegistry, m_passOperationRegistry);
 }
 
 auto D3D12HelloTexture::MakeClearPass() -> RenderPass
 {
-    return RenderPassBuilder(L"Clear")
+    return MakeRenderPassBuilder(L"Clear")
         .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
-        .Rtv(RtvId(RtvName::BackBuffer))
-        .Dsv(DsvId(DsvName::Depth))
+        .Rtv(RtvName::BackBuffer)
+        .Dsv(DsvName::Depth)
         .ClearColor(m_backBufferClearColor)
-        .Operation(RegisterPassOperation(Op::Clear, &D3D12HelloTexture::ExecuteClearPass))
+        .Operation(Op::Clear, &D3D12HelloTexture::ExecuteClearPass)
         .Build();
 }
 
 auto D3D12HelloTexture::MakeDepthPrePass() -> RenderPass
 {
-    return RenderPassBuilder(L"Depth PrePass")
-        .Pipeline(PipelineId(Pipe::DepthPrePass))
+    return MakeRenderPassBuilder(L"Depth PrePass")
+        .Pipeline(Pipe::DepthPrePass)
         .Writes({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
-        .Descriptor(RootParam_InstanceSrv, DescriptorId(Desc::InstanceBufferSrv))
-        .Descriptor(RootParam_ConstantBuffer, DescriptorId(Desc::CameraCbv))
-        .Dsv(DsvId(DsvName::Depth))
-        .Operation(RegisterPassOperation(Op::DepthPrePass, &D3D12HelloTexture::ExecuteDepthPrePass))
+        .Descriptor(RootParam_InstanceSrv, Desc::InstanceBufferSrv)
+        .Descriptor(RootParam_ConstantBuffer, Desc::CameraCbv)
+        .Dsv(DsvName::Depth)
+        .Operation(Op::DepthPrePass, &D3D12HelloTexture::ExecuteDepthPrePass)
         .Build();
 }
 
 auto D3D12HelloTexture::MakeGBufferPass() -> RenderPass
 {
-    return RenderPassBuilder(L"GBufferPass")
-        .Pipeline(PipelineId(Pipe::GBuffer))
+    return MakeRenderPassBuilder(L"GBufferPass")
+        .Pipeline(Pipe::GBuffer)
         .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
         .Writes({{kGBufferResourceNames[GBuffer::Albedo], D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kGBufferResourceNames[GBuffer::Normal], D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kGBufferResourceNames[GBuffer::Material], D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kGBufferResourceNames[GBuffer::MotionVector], D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kGBufferResourceNames[GBuffer::PBRParams], D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_TextureTable, DescriptorId(Desc::TextureTable))
-        .Descriptor(RootParam_InstanceSrv, DescriptorId(Desc::InstanceBufferSrv))
-        .Descriptor(RootParam_MaterialSrv, DescriptorId(Desc::MaterialBufferSrv))
-        .Descriptor(RootParam_ConstantBuffer, DescriptorId(Desc::CameraCbv))
-        .Rtvs({RtvId(RtvName::GBufferAlbedo), RtvId(RtvName::GBufferNormal), RtvId(RtvName::GBufferMaterial),
-               RtvId(RtvName::GBufferMotionVector), RtvId(RtvName::GBufferPBRParams)})
-        .Dsv(DsvId(DsvName::Depth))
-        .Operation(RegisterPassOperation(Op::GBuffer, &D3D12HelloTexture::ExecuteGBufferPass))
+        .Descriptor(RootParam_TextureTable, Desc::TextureTable)
+        .Descriptor(RootParam_InstanceSrv, Desc::InstanceBufferSrv)
+        .Descriptor(RootParam_MaterialSrv, Desc::MaterialBufferSrv)
+        .Descriptor(RootParam_ConstantBuffer, Desc::CameraCbv)
+        .Rtvs({RtvName::GBufferAlbedo, RtvName::GBufferNormal, RtvName::GBufferMaterial,
+               RtvName::GBufferMotionVector, RtvName::GBufferPBRParams})
+        .Dsv(DsvName::Depth)
+        .Operation(Op::GBuffer, &D3D12HelloTexture::ExecuteGBufferPass)
         .Build();
 }
 
 auto D3D12HelloTexture::MakeMainPass() -> RenderPass
 {
-    return RenderPassBuilder(L"MainPass")
-        .Pipeline(PipelineId(Pipe::Main))
+    return MakeRenderPassBuilder(L"MainPass")
+        .Pipeline(Pipe::Main)
         .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_TextureTable, DescriptorId(Desc::TextureTable))
-        .Descriptor(RootParam_InstanceSrv, DescriptorId(Desc::InstanceBufferSrv))
-        .Descriptor(RootParam_MaterialSrv, DescriptorId(Desc::MaterialBufferSrv))
-        .Descriptor(RootParam_ConstantBuffer, DescriptorId(Desc::CameraCbv))
-        .Descriptor(RootParam_LightConstants, DescriptorId(Desc::LightCbv))
-        .Rtv(RtvId(RtvName::LightPass))
-        .Dsv(DsvId(DsvName::Depth))
+        .Descriptor(RootParam_TextureTable, Desc::TextureTable)
+        .Descriptor(RootParam_InstanceSrv, Desc::InstanceBufferSrv)
+        .Descriptor(RootParam_MaterialSrv, Desc::MaterialBufferSrv)
+        .Descriptor(RootParam_ConstantBuffer, Desc::CameraCbv)
+        .Descriptor(RootParam_LightConstants, Desc::LightCbv)
+        .Rtv(RtvName::LightPass)
+        .Dsv(DsvName::Depth)
         .ClearColor({0.0f, 0.0f, 0.0f, 1.0f})
-        .Operation(RegisterPassOperation(Op::Main, &D3D12HelloTexture::ExecuteMainPass))
+        .Operation(Op::Main, &D3D12HelloTexture::ExecuteMainPass)
         .Build();
 }
 
 auto D3D12HelloTexture::MakeLightingPass() -> RenderPass
 {
-    return RenderPassBuilder(L"LightPass")
-        .Pipeline(PipelineId(Pipe::Lighting))
+    return MakeRenderPassBuilder(L"LightPass")
+        .Pipeline(Pipe::Lighting)
         .Reads(MakeGBufferReadUsages())
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_GBufferSrvBase, DescriptorId(Desc::GBufferAlbedoSrv))
-        .Descriptor(RootParam_MaterialSrv, DescriptorId(Desc::MaterialBufferSrv))
-        .Descriptor(RootParam_ConstantBuffer, DescriptorId(Desc::CameraCbv))
-        .Descriptor(RootParam_LightConstants, DescriptorId(Desc::LightCbv))
-        .Rtv(RtvId(RtvName::LightPass))
-        .Operation(RegisterPassOperation(Op::Lighting, &D3D12HelloTexture::ExecuteLightingPass))
+        .Descriptor(RootParam_GBufferSrvBase, Desc::GBufferAlbedoSrv)
+        .Descriptor(RootParam_MaterialSrv, Desc::MaterialBufferSrv)
+        .Descriptor(RootParam_ConstantBuffer, Desc::CameraCbv)
+        .Descriptor(RootParam_LightConstants, Desc::LightCbv)
+        .Rtv(RtvName::LightPass)
+        .Operation(Op::Lighting, &D3D12HelloTexture::ExecuteLightingPass)
         .Build();
 }
 
 auto D3D12HelloTexture::MakeLightingDebugGradientPass() -> RenderPass
 {
-    return RenderPassBuilder(L"LightPassDebugGradient")
-        .Pipeline(PipelineId(Pipe::LightingDebugGradient))
+    return MakeRenderPassBuilder(L"LightPassDebugGradient")
+        .Pipeline(Pipe::LightingDebugGradient)
         .Reads(MakeGBufferReadUsages())
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_GBufferSrvBase, DescriptorId(Desc::GBufferAlbedoSrv))
-        .Descriptor(RootParam_MaterialSrv, DescriptorId(Desc::MaterialBufferSrv))
-        .Descriptor(RootParam_ConstantBuffer, DescriptorId(Desc::CameraCbv))
-        .Descriptor(RootParam_LightConstants, DescriptorId(Desc::LightCbv))
-        .Rtv(RtvId(RtvName::LightPass))
-        .Operation(
-            RegisterPassOperation(Op::LightingDebugGradient, &D3D12HelloTexture::ExecuteLightingDebugGradientPass))
-        .Constants(RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap))
+        .Descriptor(RootParam_GBufferSrvBase, Desc::GBufferAlbedoSrv)
+        .Descriptor(RootParam_MaterialSrv, Desc::MaterialBufferSrv)
+        .Descriptor(RootParam_ConstantBuffer, Desc::CameraCbv)
+        .Descriptor(RootParam_LightConstants, Desc::LightCbv)
+        .Rtv(RtvName::LightPass)
+        .Operation(Op::LightingDebugGradient, &D3D12HelloTexture::ExecuteLightingDebugGradientPass)
+        .Constants(RootParam_ToneMapConstants, ConstName::ToneMap)
         .Build();
 }
 
 auto D3D12HelloTexture::MakeToneMapPass() -> RenderPass
 {
-    return RenderPassBuilder(L"ToneMapPass")
-        .Pipeline(PipelineId(Pipe::ToneMap))
+    return MakeRenderPassBuilder(L"ToneMapPass")
+        .Pipeline(Pipe::ToneMap)
         .Reads({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}})
         .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv))
-        .Rtv(RtvId(RtvName::BackBuffer))
-        .Operation(RegisterPassOperation(Op::ToneMap, &D3D12HelloTexture::ExecuteToneMapPass))
-        .Constants(RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap))
+        .Descriptor(RootParam_ToneMapSceneColor, Desc::ToneMapSceneColorSrv)
+        .Rtv(RtvName::BackBuffer)
+        .Operation(Op::ToneMap, &D3D12HelloTexture::ExecuteToneMapPass)
+        .Constants(RootParam_ToneMapConstants, ConstName::ToneMap)
         .Build();
 }
 
 auto D3D12HelloTexture::MakeDebugDumpPass() -> RenderPass
 {
-    return RenderPassBuilder(L"DebugDump")
+    return MakeRenderPassBuilder(L"DebugDump")
         .Reads({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_COPY_SOURCE},
                 {kBackBufferResourceName, D3D12_RESOURCE_STATE_COPY_SOURCE}})
-        .Operation(RegisterPassOperation(Op::DebugDump, &D3D12HelloTexture::ExecuteDebugDumpPass))
+        .Operation(Op::DebugDump, &D3D12HelloTexture::ExecuteDebugDumpPass)
         .Build();
 }
 
 auto D3D12HelloTexture::MakeGBufferDebugPass() -> RenderPass
 {
-    return RenderPassBuilder(L"GBufferDebugPass")
-        .Pipeline(PipelineId(Pipe::GBufferDebug))
+    return MakeRenderPassBuilder(L"GBufferDebugPass")
+        .Pipeline(Pipe::GBufferDebug)
         .Reads(MakeGBufferReadUsages())
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptors(MakeGBufferSrvBindings())
-        .Rtv(RtvId(RtvName::LightPass))
-        .Operation(RegisterPassOperation(Op::GBufferDebug, &D3D12HelloTexture::ExecuteGBufferDebugPass))
-        .Constants(RootParam_GBufferDebugConstants, ConstantsId(ConstName::GBufferDebugTarget))
+        .Descriptor(RootParam_GBufferSrvBase, Desc::GBufferAlbedoSrv)
+        .Rtv(RtvName::LightPass)
+        .Operation(Op::GBufferDebug, &D3D12HelloTexture::ExecuteGBufferDebugPass)
+        .Constants(RootParam_GBufferDebugConstants, ConstName::GBufferDebugTarget)
         .Build();
 }
 
 auto D3D12HelloTexture::MakeImGuiPass() -> RenderPass
 {
-    return RenderPassBuilder(L"ImGui")
+    return MakeRenderPassBuilder(L"ImGui")
         .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Rtv(RtvId(RtvName::BackBuffer))
-        .Operation(RegisterPassOperation(Op::ImGui, &D3D12HelloTexture::ExecuteImGuiPass))
+        .Rtv(RtvName::BackBuffer)
+        .Operation(Op::ImGui, &D3D12HelloTexture::ExecuteImGuiPass)
         .Build();
 }
 
