@@ -71,7 +71,7 @@ void D3D12HelloTexture::ValidateRenderPassGraph() const
         m_renderGraphRuntime.Graph().Passes(),
         Engine::RenderPassGraphValidationContext<PassOperationHandler>{
             &m_renderGraphRuntime.Pipelines(),
-            &m_renderGraphRuntime.BindingResolvers(),
+            &m_renderGraphRuntime.Bindings(),
             &m_renderGraphRuntime.Operations(),
             &m_renderGraphRuntime.Constants()});
 }
@@ -94,12 +94,12 @@ auto D3D12HelloTexture::MakeGBufferReadUsages() const -> ResourceUsages
 
 PipelineKey D3D12HelloTexture::PipelineId(const std::string& name)
 {
-    return m_renderGraphRuntime.Keys().RegisterPipeline(name, m_renderGraphRuntime.KeyRegistry());
+    return m_renderGraphRuntime.RegisterPipeline(name);
 }
 
 DescriptorKey D3D12HelloTexture::DescriptorId(const std::string& name)
 {
-    return m_renderGraphRuntime.Keys().RegisterDescriptor(name, m_renderGraphRuntime.KeyRegistry());
+    return m_renderGraphRuntime.RegisterDescriptor(name);
 }
 
 auto D3D12HelloTexture::MakeClearPass() -> RenderPass

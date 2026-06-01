@@ -1290,54 +1290,54 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetLightPassRTV() const
 
 void D3D12HelloTexture::RegisterPassBindingResolvers()
 {
-    m_renderGraphRuntime.BindingResolvers().Clear();
+    m_renderGraphRuntime.Bindings().Clear();
 
-    m_renderGraphRuntime.BindingResolvers().RegisterRtv(
-        m_renderGraphRuntime.Keys().RegisterRtv(RtvName::BackBuffer, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterRtv(
+        m_renderGraphRuntime.RegisterRtv(RtvName::BackBuffer),
         [this]() { return GetBackBufferRtv(); });
-    m_renderGraphRuntime.BindingResolvers().RegisterRtv(
-        m_renderGraphRuntime.Keys().RegisterRtv(RtvName::GBufferAlbedo, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterRtv(
+        m_renderGraphRuntime.RegisterRtv(RtvName::GBufferAlbedo),
         [this]() { return GetGBufferRTV(GBuffer::Albedo); });
-    m_renderGraphRuntime.BindingResolvers().RegisterRtv(
-        m_renderGraphRuntime.Keys().RegisterRtv(RtvName::GBufferNormal, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterRtv(
+        m_renderGraphRuntime.RegisterRtv(RtvName::GBufferNormal),
         [this]() { return GetGBufferRTV(GBuffer::Normal); });
-    m_renderGraphRuntime.BindingResolvers().RegisterRtv(
-        m_renderGraphRuntime.Keys().RegisterRtv(RtvName::GBufferMaterial, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterRtv(
+        m_renderGraphRuntime.RegisterRtv(RtvName::GBufferMaterial),
         [this]() { return GetGBufferRTV(GBuffer::Material); });
-    m_renderGraphRuntime.BindingResolvers().RegisterRtv(
-        m_renderGraphRuntime.Keys().RegisterRtv(RtvName::GBufferMotionVector, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterRtv(
+        m_renderGraphRuntime.RegisterRtv(RtvName::GBufferMotionVector),
         [this]() { return GetGBufferRTV(GBuffer::MotionVector); });
-    m_renderGraphRuntime.BindingResolvers().RegisterRtv(
-        m_renderGraphRuntime.Keys().RegisterRtv(RtvName::GBufferPBRParams, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterRtv(
+        m_renderGraphRuntime.RegisterRtv(RtvName::GBufferPBRParams),
         [this]() { return GetGBufferRTV(GBuffer::PBRParams); });
-    m_renderGraphRuntime.BindingResolvers().RegisterRtv(
-        m_renderGraphRuntime.Keys().RegisterRtv(RtvName::LightPass, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterRtv(
+        m_renderGraphRuntime.RegisterRtv(RtvName::LightPass),
         [this]() { return GetLightPassRTV(); });
 
-    m_renderGraphRuntime.BindingResolvers().RegisterDsv(
-        m_renderGraphRuntime.Keys().RegisterDsv(DsvName::Depth, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterDsv(
+        m_renderGraphRuntime.RegisterDsv(DsvName::Depth),
         [this]() { return GetDepthDsv(); });
 
-    m_renderGraphRuntime.BindingResolvers().RegisterDescriptor(
-        m_renderGraphRuntime.Keys().RegisterDescriptor(Desc::TextureTable, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(
+        m_renderGraphRuntime.RegisterDescriptor(Desc::TextureTable),
         [this]() { return m_textureTableStart.gpu; });
-    m_renderGraphRuntime.BindingResolvers().RegisterDescriptor(
-        m_renderGraphRuntime.Keys().RegisterDescriptor(Desc::InstanceBufferSrv, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(
+        m_renderGraphRuntime.RegisterDescriptor(Desc::InstanceBufferSrv),
         [this]() { return m_frameResources[m_frameIndex].instanceBufferSrv.gpu; });
-    m_renderGraphRuntime.BindingResolvers().RegisterDescriptor(
-        m_renderGraphRuntime.Keys().RegisterDescriptor(Desc::MaterialBufferSrv, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(
+        m_renderGraphRuntime.RegisterDescriptor(Desc::MaterialBufferSrv),
         [this]() { return m_materialBufferSrv.gpu; });
-    m_renderGraphRuntime.BindingResolvers().RegisterDescriptor(
-        m_renderGraphRuntime.Keys().RegisterDescriptor(Desc::CameraCbv, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(
+        m_renderGraphRuntime.RegisterDescriptor(Desc::CameraCbv),
         [this]() { return m_frameResources[m_frameIndex].cameraCB.cbv.gpu; });
-    m_renderGraphRuntime.BindingResolvers().RegisterDescriptor(
-        m_renderGraphRuntime.Keys().RegisterDescriptor(Desc::LightCbv, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(
+        m_renderGraphRuntime.RegisterDescriptor(Desc::LightCbv),
         [this]() { return m_frameResources[m_frameIndex].lightCB.cbv.gpu; });
-    m_renderGraphRuntime.BindingResolvers().RegisterDescriptor(
-        m_renderGraphRuntime.Keys().RegisterDescriptor(Desc::GBufferAlbedoSrv, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(
+        m_renderGraphRuntime.RegisterDescriptor(Desc::GBufferAlbedoSrv),
         [this]() { return m_gbuffer.srvHandles[GBuffer::Albedo].gpu; });
-    m_renderGraphRuntime.BindingResolvers().RegisterDescriptor(
-        m_renderGraphRuntime.Keys().RegisterDescriptor(Desc::ToneMapSceneColorSrv, m_renderGraphRuntime.KeyRegistry()),
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(
+        m_renderGraphRuntime.RegisterDescriptor(Desc::ToneMapSceneColorSrv),
         [this]() { return m_lightPassColorSrv.gpu; });
 }
 
@@ -1345,14 +1345,14 @@ void D3D12HelloTexture::RegisterPassConstantsHandlers()
 {
     m_renderGraphRuntime.Constants().Clear();
     m_renderGraphRuntime.Constants().Register(
-        m_renderGraphRuntime.Keys().RegisterConstants(ConstName::ToneMap, m_renderGraphRuntime.KeyRegistry()),
+        m_renderGraphRuntime.RegisterConstants(ConstName::ToneMap),
         [this](UINT rootParameterIndex)
         {
             const auto constants = m_toneMapPass.MakeShaderConstants(m_hdrOutputPolicy.settings);
             m_commandList->SetGraphicsRoot32BitConstants(rootParameterIndex, 5, &constants, 0);
         });
     m_renderGraphRuntime.Constants().Register(
-        m_renderGraphRuntime.Keys().RegisterConstants(ConstName::GBufferDebugTarget, m_renderGraphRuntime.KeyRegistry()),
+        m_renderGraphRuntime.RegisterConstants(ConstName::GBufferDebugTarget),
         [this](UINT rootParameterIndex)
         {
             const UINT debugTarget = m_debugViewSettings.GetGBufferDebugTarget();
@@ -1362,19 +1362,19 @@ void D3D12HelloTexture::RegisterPassConstantsHandlers()
 
 void D3D12HelloTexture::RegisterResourceResolvers()
 {
-    m_renderGraphRuntime.ResourceResolvers().Clear();
-    m_renderGraphRuntime.ResourceResolvers().RegisterResource(kBackBufferResourceName,
-                                                              [this]() { return m_renderTargets[m_frameIndex].Get(); });
-    m_renderGraphRuntime.ResourceResolvers().RegisterResource(kDepthStencilResourceName,
-                                                              [this]() { return m_depthStencil.Get(); });
-    m_renderGraphRuntime.ResourceResolvers().RegisterResource(kLightPassRenderTargetResourceName,
-                                                              [this]() { return m_lightPassRenderTarget.Get(); });
+    m_renderGraphRuntime.Resources().Clear();
+    m_renderGraphRuntime.Resources().RegisterResource(kBackBufferResourceName,
+                                                      [this]() { return m_renderTargets[m_frameIndex].Get(); });
+    m_renderGraphRuntime.Resources().RegisterResource(kDepthStencilResourceName,
+                                                      [this]() { return m_depthStencil.Get(); });
+    m_renderGraphRuntime.Resources().RegisterResource(kLightPassRenderTargetResourceName,
+                                                      [this]() { return m_lightPassRenderTarget.Get(); });
     for (UINT i = 0; i < GBuffer::kCount; ++i)
     {
-        m_renderGraphRuntime.ResourceResolvers().RegisterResource(kGBufferResourceNames[i],
-                                                                  [this, i]() { return m_gbuffer.resources[i].Get(); });
+        m_renderGraphRuntime.Resources().RegisterResource(kGBufferResourceNames[i],
+                                                          [this, i]() { return m_gbuffer.resources[i].Get(); });
     }
-    m_renderGraphRuntime.ResourceResolvers().SetFallbackResolver(
+    m_renderGraphRuntime.Resources().SetFallbackResolver(
         [this](const std::string& name) { return FindTransientD3DResource(name); });
 }
 
@@ -1965,7 +1965,7 @@ void D3D12HelloTexture::ExecutePasses()
     Engine::ExecuteRenderPassGraph(
         m_renderGraphRuntime.Graph(),
         {m_commandList.Get(),
-         &m_renderGraphRuntime.BindingResolvers(),
+         &m_renderGraphRuntime.Bindings(),
          &m_renderGraphRuntime.Pipelines(),
          &m_renderGraphRuntime.Constants(),
          &resourceTransitions,
@@ -2088,7 +2088,7 @@ void D3D12HelloTexture::ResetResourceStates()
 Engine::ResourceTransitionContext D3D12HelloTexture::MakeResourceTransitionContext()
 {
     return {m_commandList.Get(),
-            [this](const std::string& name) { return m_renderGraphRuntime.ResourceResolvers().Resolve(name); },
+            [this](const std::string& name) { return m_renderGraphRuntime.Resources().Resolve(name); },
             [this](const std::string& name) { return GetResourceState(name); },
             [this](const std::string& name, D3D12_RESOURCE_STATES state) { SetResourceState(name, state); },
             [](const ResourceUsage& usage) { DBG_PRINT("Resource %s is null. Skip transition.\n", usage.name.c_str()); }};
@@ -2210,10 +2210,10 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding& renderTargets
 
     for (RtvKey rtv : renderTargets.rtvs)
     {
-        m_commandList->ClearRenderTargetView(m_renderGraphRuntime.BindingResolvers().ResolveRtv(rtv), renderTargets.clearColor->data(),
+        m_commandList->ClearRenderTargetView(m_renderGraphRuntime.Bindings().ResolveRtv(rtv), renderTargets.clearColor->data(),
                                              0, nullptr);
     }
-    m_commandList->ClearDepthStencilView(m_renderGraphRuntime.BindingResolvers().ResolveDsv(renderTargets.dsv.value()),
+    m_commandList->ClearDepthStencilView(m_renderGraphRuntime.Bindings().ResolveDsv(renderTargets.dsv.value()),
                                          D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
     PIXEndEvent(m_commandList.Get());
@@ -2260,7 +2260,7 @@ void D3D12HelloTexture::RecordGBufferPass(const PassRenderTargetBinding& renderT
 
     for (UINT i = 0; i < static_cast<UINT>(renderTargets.rtvs.size()); ++i)
     {
-        m_commandList->ClearRenderTargetView(m_renderGraphRuntime.BindingResolvers().ResolveRtv(renderTargets.rtvs[i]),
+        m_commandList->ClearRenderTargetView(m_renderGraphRuntime.Bindings().ResolveRtv(renderTargets.rtvs[i]),
                                              m_gbuffer.clearValues[i].Color, 0, nullptr);
     }
 
@@ -2479,7 +2479,7 @@ void D3D12HelloTexture::RecordMainPass(const PassRenderTargetBinding& renderTarg
     {
         for (RtvKey rtv : renderTargets.rtvs)
         {
-            m_commandList->ClearRenderTargetView(m_renderGraphRuntime.BindingResolvers().ResolveRtv(rtv),
+            m_commandList->ClearRenderTargetView(m_renderGraphRuntime.Bindings().ResolveRtv(rtv),
                                                  renderTargets.clearColor->data(), 0, nullptr);
         }
     }

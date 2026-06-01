@@ -298,33 +298,45 @@ public:
         return m_graph;
     }
 
-    RenderPassKeyRegistry& KeyRegistry()
+    PipelineKey RegisterPipeline(const std::string& name)
     {
-        return m_keyRegistry;
+        return m_keys.RegisterPipeline(name, m_keyRegistry);
     }
-    RenderPassKeys& Keys()
+    DescriptorKey RegisterDescriptor(const std::string& name)
     {
-        return m_keys;
+        return m_keys.RegisterDescriptor(name, m_keyRegistry);
     }
-    const RenderPassKeys& Keys() const
+    RtvKey RegisterRtv(const std::string& name)
     {
-        return m_keys;
+        return m_keys.RegisterRtv(name, m_keyRegistry);
+    }
+    DsvKey RegisterDsv(const std::string& name)
+    {
+        return m_keys.RegisterDsv(name, m_keyRegistry);
+    }
+    PassOperationKey RegisterOperation(const std::string& name)
+    {
+        return m_keys.RegisterOperation(name, m_keyRegistry);
+    }
+    PassConstantsKey RegisterConstants(const std::string& name)
+    {
+        return m_keys.RegisterConstants(name, m_keyRegistry);
     }
 
-    RenderPassBindingResolverRegistry& BindingResolvers()
+    RenderPassBindingResolverRegistry& Bindings()
     {
         return m_bindingResolvers;
     }
-    const RenderPassBindingResolverRegistry& BindingResolvers() const
+    const RenderPassBindingResolverRegistry& Bindings() const
     {
         return m_bindingResolvers;
     }
 
-    ResourceResolverRegistry& ResourceResolvers()
+    ResourceResolverRegistry& Resources()
     {
         return m_resourceResolvers;
     }
-    const ResourceResolverRegistry& ResourceResolvers() const
+    const ResourceResolverRegistry& Resources() const
     {
         return m_resourceResolvers;
     }
