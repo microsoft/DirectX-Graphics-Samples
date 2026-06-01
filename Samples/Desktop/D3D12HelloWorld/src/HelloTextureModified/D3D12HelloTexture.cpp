@@ -96,25 +96,6 @@ auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings
     return settings.MakeShaderConstants(hdrOutputSettings.TransferFunction());
 }
 
-void D3D12HelloTexture::PipelineRegistry::Create(ID3D12Device* device, PipelineKey key,
-                                                 const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
-{
-    ComPtr<ID3D12PipelineState> pipelineState;
-    ThrowIfFailed(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState)));
-    pipelines[key] = std::move(pipelineState);
-}
-
-ID3D12PipelineState* D3D12HelloTexture::PipelineRegistry::Find(PipelineKey key) const
-{
-    if (!key.IsValid())
-    {
-        return nullptr;
-    }
-
-    auto pipeline = pipelines.find(key);
-    return pipeline != pipelines.end() ? pipeline->second.Get() : nullptr;
-}
-
 void D3D12HelloTexture::ResourceRegistry::AnalyzeLifetimes(const std::vector<RenderPass>& renderPasses)
 {
     lifetimes = Engine::AnalyzeResourceLifetimes(renderPasses);
@@ -2020,7 +2001,7 @@ void D3D12HelloTexture::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE
         baseDesc, definition.shaders.vertex.data, definition.shaders.vertex.size, definition.shaders.pixel.data,
         definition.shaders.pixel.size, definition.renderTargetFormat);
     const PipelineKey key = PipelineId(definition.name);
-    m_pipelineRegistry.Create(m_device.Get(), key, desc);
+    ThrowIfFailed(m_pipelineRegistry.Create(m_device.Get(), key, desc));
 }
 
 void D3D12HelloTexture::RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
@@ -2051,7 +2032,7 @@ void D3D12HelloTexture::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC&
     baseDesc.DSVFormat = definition.depthStencilFormat;
     baseDesc.SampleDesc.Count = 1;
     const PipelineKey key = PipelineId(definition.name);
-    m_pipelineRegistry.Create(m_device.Get(), key, baseDesc);
+    ThrowIfFailed(m_pipelineRegistry.Create(m_device.Get(), key, baseDesc));
 }
 
 void D3D12HelloTexture::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
@@ -2063,7 +2044,7 @@ void D3D12HelloTexture::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_ST
         gbufferBaseDesc, definition.shaders.vertex.data, definition.shaders.vertex.size, definition.shaders.pixel.data,
         definition.shaders.pixel.size, m_gbuffer.formats, GBuffer::kCount);
     const PipelineKey key = PipelineId(definition.name);
-    m_pipelineRegistry.Create(m_device.Get(), key, desc);
+    ThrowIfFailed(m_pipelineRegistry.Create(m_device.Get(), key, desc));
 }
 
 void D3D12HelloTexture::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
@@ -2078,7 +2059,7 @@ void D3D12HelloTexture::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELI
     desc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;
     desc.NumRenderTargets = 0;
     const PipelineKey key = PipelineId(definition.name);
-    m_pipelineRegistry.Create(m_device.Get(), key, desc);
+    ThrowIfFailed(m_pipelineRegistry.Create(m_device.Get(), key, desc));
 }
 
 void D3D12HelloTexture::PopulateCommandList()
@@ -2349,12 +2330,7 @@ ID3D12PipelineState* D3D12HelloTexture::GetPipelineState(PipelineKey pipeline) c
 
 void D3D12HelloTexture::BindPassPipeline(const RenderPass& pass)
 {
-    ID3D12PipelineState* pipelineState = GetPipelineState(pass.pipeline);
-    assert(!pass.pipeline.IsValid() || pipelineState != nullptr);
-    if (pipelineState != nullptr)
-    {
-        m_commandList->SetPipelineState(pipelineState);
-    }
+    m_pipelineRegistry.Bind(m_commandList.Get(), pass);
 }
 
 void D3D12HelloTexture::BindPassConstants(const RenderPass& pass)

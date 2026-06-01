@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <wrl/client.h>
 
 namespace Engine
 {
@@ -608,6 +609,45 @@ private:
     std::unordered_map<DescriptorKey, DescriptorResolver, KeyHash<DescriptorKey>> m_descriptorResolvers;
     std::unordered_map<RtvKey, RtvResolver, KeyHash<RtvKey>> m_rtvResolvers;
     std::unordered_map<DsvKey, DsvResolver, KeyHash<DsvKey>> m_dsvResolvers;
+};
+
+class PipelineRegistry
+{
+public:
+    HRESULT Create(ID3D12Device* device, PipelineKey key, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
+    {
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
+        HRESULT hr = device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState));
+        if (SUCCEEDED(hr))
+        {
+            m_pipelines[key] = std::move(pipelineState);
+        }
+        return hr;
+    }
+
+    ID3D12PipelineState* Find(PipelineKey key) const
+    {
+        if (!key.IsValid())
+        {
+            return nullptr;
+        }
+
+        auto pipeline = m_pipelines.find(key);
+        return pipeline != m_pipelines.end() ? pipeline->second.Get() : nullptr;
+    }
+
+    void Bind(ID3D12GraphicsCommandList* commandList, const RenderPass& pass) const
+    {
+        ID3D12PipelineState* pipelineState = Find(pass.pipeline);
+        assert(!pass.pipeline.IsValid() || pipelineState != nullptr);
+        if (pipelineState != nullptr)
+        {
+            commandList->SetPipelineState(pipelineState);
+        }
+    }
+
+private:
+    std::unordered_map<PipelineKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, KeyHash<PipelineKey>> m_pipelines;
 };
 
 struct RenderPassGraph

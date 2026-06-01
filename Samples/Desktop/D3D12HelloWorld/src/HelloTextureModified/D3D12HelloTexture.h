@@ -452,14 +452,6 @@ private:
         }
     };
 
-    struct PipelineRegistry
-    {
-        std::unordered_map<PipelineKey, ComPtr<ID3D12PipelineState>> pipelines;
-
-        void Create(ID3D12Device* device, PipelineKey key, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc);
-        ID3D12PipelineState* Find(PipelineKey key) const;
-    };
-
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
@@ -493,7 +485,7 @@ private:
     Engine::RenderPassKeyRegistry m_passKeyRegistry;
     Engine::RenderPassKeys m_passKeys;
     Engine::RenderPassBindingResolverRegistry m_passBindingResolvers;
-    PipelineRegistry m_pipelineRegistry;
+    Engine::PipelineRegistry m_pipelineRegistry;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
