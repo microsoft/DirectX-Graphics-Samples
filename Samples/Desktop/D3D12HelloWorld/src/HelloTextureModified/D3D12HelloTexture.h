@@ -45,7 +45,7 @@ using PassConstantsKey = Engine::PassConstantsKey;
 
 class D3D12HelloTexture : public DXSample
 {
-  public:
+public:
     D3D12HelloTexture(UINT width, UINT height, std::wstring name);
 
     virtual void OnInit();
@@ -58,7 +58,7 @@ class D3D12HelloTexture : public DXSample
     virtual void OnWindowSizeChanged(UINT width, UINT height);
     virtual void OnIdle();
 
-  private:
+private:
     static constexpr UINT kFrameCount = 2;
     static constexpr UINT kTextureWidth = 256;
     static constexpr UINT kTextureHeight = 256;
@@ -70,62 +70,62 @@ class D3D12HelloTexture : public DXSample
         // later referenced by passes that need that bound state.
         struct Pipeline
         {
-            static constexpr const char *Main = "Main";
-            static constexpr const char *DepthPrePass = "DepthPrePass";
-            static constexpr const char *GBuffer = "GBuffer";
-            static constexpr const char *Lighting = "Lighting";
-            static constexpr const char *LightingDebugGradient = "LightingDebugGradient";
-            static constexpr const char *ToneMap = "ToneMap";
-            static constexpr const char *GBufferDebug = "GBufferDebug";
+            static constexpr const char* Main = "Main";
+            static constexpr const char* DepthPrePass = "DepthPrePass";
+            static constexpr const char* GBuffer = "GBuffer";
+            static constexpr const char* Lighting = "Lighting";
+            static constexpr const char* LightingDebugGradient = "LightingDebugGradient";
+            static constexpr const char* ToneMap = "ToneMap";
+            static constexpr const char* GBufferDebug = "GBufferDebug";
         };
 
         struct Descriptor
         {
-            static constexpr const char *TextureTable = "TextureTable";
-            static constexpr const char *InstanceBufferSrv = "InstanceBufferSrv";
-            static constexpr const char *MaterialBufferSrv = "MaterialBufferSrv";
-            static constexpr const char *CameraCbv = "CameraCbv";
-            static constexpr const char *LightCbv = "LightCbv";
-            static constexpr const char *GBufferAlbedoSrv = "GBufferAlbedoSrv";
-            static constexpr const char *ToneMapSceneColorSrv = "ToneMapSceneColorSrv";
+            static constexpr const char* TextureTable = "TextureTable";
+            static constexpr const char* InstanceBufferSrv = "InstanceBufferSrv";
+            static constexpr const char* MaterialBufferSrv = "MaterialBufferSrv";
+            static constexpr const char* CameraCbv = "CameraCbv";
+            static constexpr const char* LightCbv = "LightCbv";
+            static constexpr const char* GBufferAlbedoSrv = "GBufferAlbedoSrv";
+            static constexpr const char* ToneMapSceneColorSrv = "ToneMapSceneColorSrv";
         };
 
         struct Rtv
         {
-            static constexpr const char *BackBuffer = "BackBuffer";
-            static constexpr const char *GBufferAlbedo = "GBufferAlbedo";
-            static constexpr const char *GBufferNormal = "GBufferNormal";
-            static constexpr const char *GBufferMaterial = "GBufferMaterial";
-            static constexpr const char *GBufferMotionVector = "GBufferMotionVector";
-            static constexpr const char *GBufferPBRParams = "GBufferPBRParams";
-            static constexpr const char *LightPass = "LightPass";
+            static constexpr const char* BackBuffer = "BackBuffer";
+            static constexpr const char* GBufferAlbedo = "GBufferAlbedo";
+            static constexpr const char* GBufferNormal = "GBufferNormal";
+            static constexpr const char* GBufferMaterial = "GBufferMaterial";
+            static constexpr const char* GBufferMotionVector = "GBufferMotionVector";
+            static constexpr const char* GBufferPBRParams = "GBufferPBRParams";
+            static constexpr const char* LightPass = "LightPass";
         };
 
         struct Dsv
         {
-            static constexpr const char *Depth = "Depth";
+            static constexpr const char* Depth = "Depth";
         };
 
         // Operation keys identify command recording behavior. Keep them conceptually separate from Pipeline:
         // a pass may share an operation with another pass while using a different pipeline, or use no pipeline at all.
         struct Operation
         {
-            static constexpr const char *Clear = "Clear";
-            static constexpr const char *DepthPrePass = "DepthPrePass";
-            static constexpr const char *GBuffer = "GBuffer";
-            static constexpr const char *Main = "Main";
-            static constexpr const char *Lighting = "Lighting";
-            static constexpr const char *LightingDebugGradient = "LightingDebugGradient";
-            static constexpr const char *ToneMap = "ToneMap";
-            static constexpr const char *DebugDump = "DebugDump";
-            static constexpr const char *GBufferDebug = "GBufferDebug";
-            static constexpr const char *ImGui = "ImGui";
+            static constexpr const char* Clear = "Clear";
+            static constexpr const char* DepthPrePass = "DepthPrePass";
+            static constexpr const char* GBuffer = "GBuffer";
+            static constexpr const char* Main = "Main";
+            static constexpr const char* Lighting = "Lighting";
+            static constexpr const char* LightingDebugGradient = "LightingDebugGradient";
+            static constexpr const char* ToneMap = "ToneMap";
+            static constexpr const char* DebugDump = "DebugDump";
+            static constexpr const char* GBufferDebug = "GBufferDebug";
+            static constexpr const char* ImGui = "ImGui";
         };
 
         struct Constants
         {
-            static constexpr const char *ToneMap = "ToneMap";
-            static constexpr const char *GBufferDebugTarget = "GBufferDebugTarget";
+            static constexpr const char* ToneMap = "ToneMap";
+            static constexpr const char* GBufferDebugTarget = "GBufferDebugTarget";
         };
     };
 
@@ -197,7 +197,7 @@ class D3D12HelloTexture : public DXSample
         int z;
     };
 
-    inline XMFLOAT3 instanceIdToXYZ(int instanceId, const GridDim &dim)
+    inline XMFLOAT3 instanceIdToXYZ(int instanceId, const GridDim& dim)
     {
         int x = instanceId % dim.x - (kMaxInstanceCount / dim.z / dim.y) / 2;
         int y = (instanceId / dim.x) % dim.y - (kMaxInstanceCount / dim.x / dim.y) / 2;
@@ -254,7 +254,10 @@ class D3D12HelloTexture : public DXSample
                                                   farZ                     // far
             );
         }
-        void updateViewProjectionMatrix() { viewProjection = XMMatrixMultiply(view, projection); }
+        void updateViewProjectionMatrix()
+        {
+            viewProjection = XMMatrixMultiply(view, projection);
+        }
         void updateAllMatrix()
         {
             updateViewMatrix();
@@ -298,20 +301,26 @@ class D3D12HelloTexture : public DXSample
         DXGI_COLOR_SPACE_TYPE currentSwapChainColorSpace = DXGI_COLOR_SPACE_CUSTOM;
         bool hdr10Enabled = false;
 
-        DXGI_COLOR_SPACE_TYPE TargetColorSpace() const { return hdr10Enabled ? kHdr10ColorSpace : kSdrColorSpace; }
-        UINT TransferFunction() const { return hdr10Enabled ? kHdr10TransferFunction : kSdrTransferFunction; }
+        DXGI_COLOR_SPACE_TYPE TargetColorSpace() const
+        {
+            return hdr10Enabled ? kHdr10ColorSpace : kSdrColorSpace;
+        }
+        UINT TransferFunction() const
+        {
+            return hdr10Enabled ? kHdr10TransferFunction : kSdrTransferFunction;
+        }
     };
 
     struct HdrOutputPolicy
     {
         HdrOutputSettings settings;
 
-        bool CheckSwapChainColorSpaceSupport(IDXGISwapChain3 *swapChain, DXGI_COLOR_SPACE_TYPE colorSpace) const;
-        bool CheckCurrentOutputHdr10Support(ComPtr<IDXGIFactory4> &dxgiFactory, HWND hwnd) const;
-        void ApplySwapChainColorSpace(IDXGISwapChain3 *swapChain, DXGI_COLOR_SPACE_TYPE colorSpace);
-        void ApplyHdr10Metadata(IDXGISwapChain3 *swapChain, bool enabled) const;
-        void Update(ComPtr<IDXGIFactory4> &dxgiFactory, IDXGISwapChain3 *swapChain, HWND hwnd);
-        void ReapplyColorSpace(IDXGISwapChain3 *swapChain);
+        bool CheckSwapChainColorSpaceSupport(IDXGISwapChain3* swapChain, DXGI_COLOR_SPACE_TYPE colorSpace) const;
+        bool CheckCurrentOutputHdr10Support(ComPtr<IDXGIFactory4>& dxgiFactory, HWND hwnd) const;
+        void ApplySwapChainColorSpace(IDXGISwapChain3* swapChain, DXGI_COLOR_SPACE_TYPE colorSpace);
+        void ApplyHdr10Metadata(IDXGISwapChain3* swapChain, bool enabled) const;
+        void Update(ComPtr<IDXGIFactory4>& dxgiFactory, IDXGISwapChain3* swapChain, HWND hwnd);
+        void ReapplyColorSpace(IDXGISwapChain3* swapChain);
     };
 
     struct ToneMapSettings
@@ -348,14 +357,14 @@ class D3D12HelloTexture : public DXSample
     {
         ToneMapSettings settings;
 
-        ToneMapSettings::ShaderConstants MakeShaderConstants(const HdrOutputSettings &hdrOutputSettings) const;
+        ToneMapSettings::ShaderConstants MakeShaderConstants(const HdrOutputSettings& hdrOutputSettings) const;
     };
 
     struct ConstantBufferResource
     {
         ComPtr<ID3D12Resource> buffer;
         DescriptorHeapHandle cbv;
-        UINT8 *mappedData = nullptr;
+        UINT8* mappedData = nullptr;
     };
 
     struct FrameResource
@@ -363,7 +372,7 @@ class D3D12HelloTexture : public DXSample
         ComPtr<ID3D12CommandAllocator> commandAllocator;
         ComPtr<ID3D12Resource> instanceBuffer;
         DescriptorHeapHandle instanceBufferSrv;
-        InstanceData *pSrvDataBegin = nullptr;
+        InstanceData* pSrvDataBegin = nullptr;
         ConstantBufferResource cameraCB;
         ConstantBufferResource lightCB;
         UINT64 fenceValue = 0;
@@ -432,7 +441,10 @@ class D3D12HelloTexture : public DXSample
         bool requestHdrDump = false;
         bool hdrDumpPending = false;
 
-        bool IsGBufferDebugView() const { return renderViewMode != RenderViewMode::LightPass; }
+        bool IsGBufferDebugView() const
+        {
+            return renderViewMode != RenderViewMode::LightPass;
+        }
         UINT GetGBufferDebugTarget() const
         {
             assert(IsGBufferDebugView());
@@ -444,8 +456,8 @@ class D3D12HelloTexture : public DXSample
     {
         std::unordered_map<PipelineKey, ComPtr<ID3D12PipelineState>> pipelines;
 
-        void Create(ID3D12Device *device, PipelineKey key, const D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc);
-        ID3D12PipelineState *Find(PipelineKey key) const;
+        void Create(ID3D12Device* device, PipelineKey key, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc);
+        ID3D12PipelineState* Find(PipelineKey key) const;
     };
 
     // Pipeline objects.
@@ -552,10 +564,10 @@ class D3D12HelloTexture : public DXSample
     // GPU work meter
     MyDx12Util::GpuWorkMeter m_gpuWorkMeter;
 
-    static constexpr const char *kBackBufferResourceName = "BackBuffer";
-    static constexpr const char *kDepthStencilResourceName = "DepthStencil";
-    static constexpr const char *kLightPassRenderTargetResourceName = "LightPass.RenderTarget";
-    static constexpr const char *kGBufferResourceNames[GBuffer::kCount] = {
+    static constexpr const char* kBackBufferResourceName = "BackBuffer";
+    static constexpr const char* kDepthStencilResourceName = "DepthStencil";
+    static constexpr const char* kLightPassRenderTargetResourceName = "LightPass.RenderTarget";
+    static constexpr const char* kGBufferResourceNames[GBuffer::kCount] = {
         "GBuffer.Albedo", "GBuffer.Normal", "GBuffer.Material", "GBuffer.MotionVector", "GBuffer.PBRParams"};
 
     enum RootParameterIndex
@@ -616,35 +628,38 @@ class D3D12HelloTexture : public DXSample
         ResourceLifetimeMap lifetimes;
         TransientResourceMap transientResources;
 
-        void AnalyzeLifetimes(const std::vector<RenderPass> &renderPasses);
+        void AnalyzeLifetimes(const std::vector<RenderPass>& renderPasses);
         void ResetStates(std::initializer_list<ResourceUsage> usages);
         void RegisterTransientResource(TransientResource resource);
-        void UnregisterTransientResource(const std::string &name);
-        void MarkEndOfLifeResources(int passIndex, const char *backBufferName);
+        void UnregisterTransientResource(const std::string& name);
+        void MarkEndOfLifeResources(int passIndex, const char* backBufferName);
         void MarkPendingTransientResources(UINT64 fenceValue);
         std::vector<std::string> CollectGarbageTransientResources(UINT64 completedFenceValue);
-        std::vector<std::string> GetResourcesStartingAtPass(int passIndex, const char *backBufferName) const;
-        TransientResource *PrepareTransientResourceForCreate(const std::string &name);
-        void MarkTransientResourceCreated(const std::string &name);
-        ID3D12Resource *FindTransientD3DResource(const std::string &name) const;
+        std::vector<std::string> GetResourcesStartingAtPass(int passIndex, const char* backBufferName) const;
+        TransientResource* PrepareTransientResourceForCreate(const std::string& name);
+        void MarkTransientResourceCreated(const std::string& name);
+        ID3D12Resource* FindTransientD3DResource(const std::string& name) const;
 
-        D3D12_RESOURCE_STATES GetState(const std::string &name) const
+        D3D12_RESOURCE_STATES GetState(const std::string& name) const
         {
             auto resourceState = states.find(name);
             return resourceState != states.end() ? resourceState->second : D3D12_RESOURCE_STATE_COMMON;
         }
 
-        void SetState(const std::string &name, D3D12_RESOURCE_STATES state) { states[name] = state; }
+        void SetState(const std::string& name, D3D12_RESOURCE_STATES state)
+        {
+            states[name] = state;
+        }
     };
 
     RenderPassGraph m_renderPassGraph;
     ResourceRegistry m_resourceRegistry;
-    using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass &pass);
+    using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass& pass);
     Engine::PassOperationRegistry<PassOperationHandler> m_passOperationRegistry;
 
     struct ShaderBytecode
     {
-        const UINT8 *data = nullptr;
+        const UINT8* data = nullptr;
         UINT size = 0;
     };
 
@@ -654,30 +669,56 @@ class D3D12HelloTexture : public DXSample
         ShaderBytecode pixel;
     };
 
+    struct InputLayoutDefinition
+    {
+        const D3D12_INPUT_ELEMENT_DESC* elements;
+        UINT count;
+    };
+
+    struct MainPipelineDefinition
+    {
+        const char* name;
+        InputLayoutDefinition inputLayout;
+        GraphicsPipelineShaders shaders;
+        DXGI_FORMAT renderTargetFormat;
+        DXGI_FORMAT depthStencilFormat;
+    };
+
+    struct GBufferPipelineDefinition
+    {
+        const char* name;
+        InputLayoutDefinition inputLayout;
+        GraphicsPipelineShaders shaders;
+    };
+
+    struct DepthPrePassPipelineDefinition
+    {
+        const char* name;
+        InputLayoutDefinition inputLayout;
+        GraphicsPipelineShaders shaders;
+    };
+
     struct FullscreenPipelineDefinition
     {
-        const char *name;
+        const char* name;
         GraphicsPipelineShaders shaders;
         DXGI_FORMAT renderTargetFormat;
     };
 
     void LoadPipeline();
     void LoadAssets();
-    void RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                    const FullscreenPipelineDefinition &definition);
-    void RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+    void RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                    const FullscreenPipelineDefinition& definition);
+    void RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                      std::initializer_list<FullscreenPipelineDefinition> definitions);
-    void RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                              const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
-                              GraphicsPipelineShaders shaders);
-    void RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                 GraphicsPipelineShaders shaders);
-    void RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                      const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
-                                      GraphicsPipelineShaders shaders);
+    void RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc, const MainPipelineDefinition& definition);
+    void RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                 const GBufferPipelineDefinition& definition);
+    void RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                      const DepthPrePassPipelineDefinition& definition);
     void UpdateHdr10DisplayMode();
     void InitImGui();
-    void CreateConstantBuffer(ConstantBufferResource &constantBuffer, const void *initialData, UINT sizeInBytes);
+    void CreateConstantBuffer(ConstantBufferResource& constantBuffer, const void* initialData, UINT sizeInBytes);
     std::array<GltfVertex, kCubeVertexCount> CreateCubeVertices() const;
 
     void CreateDepthStencil(UINT width, UINT height);
@@ -698,13 +739,13 @@ class D3D12HelloTexture : public DXSample
     void AddPass(RenderPass pass);
     ResourceUsages MakeResourceUsages(std::initializer_list<ResourceUsage> usages) const;
     ResourceUsages MakeGBufferReadUsages() const;
-    PipelineKey PipelineId(const std::string &name);
-    DescriptorKey DescriptorId(const std::string &name);
-    RtvKey RtvId(const std::string &name);
-    DsvKey DsvId(const std::string &name);
-    PassOperationKey OperationId(const std::string &name);
-    PassConstantsKey ConstantsId(const std::string &name);
-    PassOperationKey RegisterPassOperation(const std::string &name, PassOperationHandler handler);
+    PipelineKey PipelineId(const std::string& name);
+    DescriptorKey DescriptorId(const std::string& name);
+    RtvKey RtvId(const std::string& name);
+    DsvKey DsvId(const std::string& name);
+    PassOperationKey OperationId(const std::string& name);
+    PassConstantsKey ConstantsId(const std::string& name);
+    PassOperationKey RegisterPassOperation(const std::string& name, PassOperationHandler handler);
     std::vector<PassDescriptorBinding> MakeGBufferSrvBindings();
     RenderPass MakeClearPass();
     RenderPass MakeDepthPrePass();
@@ -724,10 +765,10 @@ class D3D12HelloTexture : public DXSample
     void DebugPrintLifetimes();
     void ExecutePasses();
     void ExecutePass(int passIndex);
-    void ExecutePassOperation(const RenderPass &pass);
+    void ExecutePassOperation(const RenderPass& pass);
     void CreateResourcesForPass(int passIndex);
-    void CreateCommittedTransientResource(TransientResource &resource);
-    void BindCreatedTransientResource(const std::string &name, ID3D12Resource *resource);
+    void CreateCommittedTransientResource(TransientResource& resource);
+    void BindCreatedTransientResource(const std::string& name, ID3D12Resource* resource);
     void CreateLightPassRenderTargetDescriptors();
     void CreateDsvHeap();
 
@@ -736,23 +777,23 @@ class D3D12HelloTexture : public DXSample
     void CreateGBufferSRVs();
     void CreateGBuffer();
 
-    DescriptorHeapHandle CreateTextureFromRGBA8(const UINT8 *pixels, UINT width, UINT height,
-                                                ComPtr<ID3D12Resource> &texture, ComPtr<ID3D12Resource> &uploadHeap);
+    DescriptorHeapHandle CreateTextureFromRGBA8(const UINT8* pixels, UINT width, UINT height,
+                                                ComPtr<ID3D12Resource>& texture, ComPtr<ID3D12Resource>& uploadHeap);
 
     void ReleaseResourcesAfterPass(int passIndex);
     void ResetResourceStates();
 
-    void BindPassRenderTargets(const RenderPass &pass);
-    void BindPassDescriptors(const RenderPass &pass);
-    void BindPassPipeline(const RenderPass &pass);
-    void BindPassConstants(const RenderPass &pass);
-    ID3D12PipelineState *GetPipelineState(PipelineKey pipeline) const;
-    void TransitionPassResources(const RenderPass &pass);
-    void TransitionResource(const ResourceUsage &usage);
-    ID3D12Resource *ResolveResource(const std::string &name) const;
+    void BindPassRenderTargets(const RenderPass& pass);
+    void BindPassDescriptors(const RenderPass& pass);
+    void BindPassPipeline(const RenderPass& pass);
+    void BindPassConstants(const RenderPass& pass);
+    ID3D12PipelineState* GetPipelineState(PipelineKey pipeline) const;
+    void TransitionPassResources(const RenderPass& pass);
+    void TransitionResource(const ResourceUsage& usage);
+    ID3D12Resource* ResolveResource(const std::string& name) const;
 
-    D3D12_RESOURCE_STATES GetResourceState(const std::string &name) const;
-    void SetResourceState(const std::string &name, D3D12_RESOURCE_STATES state);
+    D3D12_RESOURCE_STATES GetResourceState(const std::string& name) const;
+    void SetResourceState(const std::string& name, D3D12_RESOURCE_STATES state);
     void MarkPendingTransientResources(UINT64 fenceValue);
     void CollectGarbageTransientResources();
 
@@ -760,29 +801,29 @@ class D3D12HelloTexture : public DXSample
     UINT GetVisibleCubeCount() const;
 
     void BeginFrame();
-    void ExecuteClearPass(const RenderPass &pass);
-    void ExecuteDepthPrePass(const RenderPass &pass);
-    void ExecuteGBufferPass(const RenderPass &pass);
-    void ExecuteMainPass(const RenderPass &pass);
-    void ExecuteLightingPass(const RenderPass &pass);
-    void ExecuteLightingDebugGradientPass(const RenderPass &pass);
-    void ExecuteToneMapPass(const RenderPass &pass);
-    void ExecuteDebugDumpPass(const RenderPass &pass);
-    void ExecuteGBufferDebugPass(const RenderPass &pass);
-    void ExecuteImGuiPass(const RenderPass &pass);
-    void RecordClear(const PassRenderTargetBinding &renderTargets);
+    void ExecuteClearPass(const RenderPass& pass);
+    void ExecuteDepthPrePass(const RenderPass& pass);
+    void ExecuteGBufferPass(const RenderPass& pass);
+    void ExecuteMainPass(const RenderPass& pass);
+    void ExecuteLightingPass(const RenderPass& pass);
+    void ExecuteLightingDebugGradientPass(const RenderPass& pass);
+    void ExecuteToneMapPass(const RenderPass& pass);
+    void ExecuteDebugDumpPass(const RenderPass& pass);
+    void ExecuteGBufferDebugPass(const RenderPass& pass);
+    void ExecuteImGuiPass(const RenderPass& pass);
+    void RecordClear(const PassRenderTargetBinding& renderTargets);
     void RecordDepthPrePass();
-    void RecordGBufferPass(const PassRenderTargetBinding &renderTargets);
+    void RecordGBufferPass(const PassRenderTargetBinding& renderTargets);
     void RecordGBufferDebugPass();
     void RecordLightPass();
     void RecordLightPassDebugGradient();
     void RecordToneMapPass();
     void RecordDebugDumpPass();
-    void RecordMainPass(const PassRenderTargetBinding &renderTargets);
+    void RecordMainPass(const PassRenderTargetBinding& renderTargets);
     void RecordImGuiPass();
     void EndFrame();
-    void CreateDebugDumpReadback(ID3D12Resource *source, ComPtr<ID3D12Resource> &readback,
-                                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT &layout);
+    void CreateDebugDumpReadback(ID3D12Resource* source, ComPtr<ID3D12Resource>& readback,
+                                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout);
     void PrintDebugDump();
 
     void DrawInstanceWrapper(UINT instanceCount);
@@ -794,5 +835,5 @@ class D3D12HelloTexture : public DXSample
     UINT64 MoveToNextFrame();
     void FlushGpu();
 
-    DescriptorHeapHandle AllocateTextureSRV(ID3D12Resource *texture);
+    DescriptorHeapHandle AllocateTextureSRV(ID3D12Resource* texture);
 };

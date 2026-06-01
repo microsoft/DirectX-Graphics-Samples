@@ -64,6 +64,7 @@ Important: this field only selects a registered pipeline state. The concrete `D3
 ```
 
 Shader bytecode is represented consistently as `{data, size}` and grouped as `GraphicsPipelineShaders` in pipeline definitions and registration helpers.
+Scene pipelines use their own definition structs as well, so pipeline keys, input layouts, shaders, and formats are grouped before materialization.
 
 That definition is in `LoadAssets()` and is materialized by `RegisterFullscreenPipelines()`. It flows through `RegisterFullscreenPipeline(baseDesc, definition)`, which creates the fullscreen PSO desc, calls `PipelineId(definition.name)`, then stores the created PSO in `m_pipelineRegistry.Create(...)`.
 

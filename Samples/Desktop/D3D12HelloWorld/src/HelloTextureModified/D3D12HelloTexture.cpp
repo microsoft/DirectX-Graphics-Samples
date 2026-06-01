@@ -40,12 +40,15 @@ int rand_0_255()
     return dist(gen);
 }
 
-int ComputeIntersectionArea(const RECT &a, const RECT &b)
+int ComputeIntersectionArea(const RECT& a, const RECT& b)
 {
     return max(0L, min(a.right, b.right) - max(a.left, b.left)) * max(0L, min(a.bottom, b.bottom) - max(a.top, b.top));
 }
 
-UINT16 Hdr10Chromaticity(float value) { return static_cast<UINT16>(value * 50000.0f + 0.5f); }
+UINT16 Hdr10Chromaticity(float value)
+{
+    return static_cast<UINT16>(value * 50000.0f + 0.5f);
+}
 
 float St2084PqToNits(float pq)
 {
@@ -74,7 +77,7 @@ extern "C"
 }
 extern "C"
 {
-    __declspec(dllexport) extern const char *D3D12SDKPath = ".\\D3D12\\";
+    __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
 }
 
 D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
@@ -85,21 +88,21 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
 {
 }
 
-auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings &hdrOutputSettings) const
+auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings& hdrOutputSettings) const
     -> ToneMapSettings::ShaderConstants
 {
     return settings.MakeShaderConstants(hdrOutputSettings.TransferFunction());
 }
 
-void D3D12HelloTexture::PipelineRegistry::Create(ID3D12Device *device, PipelineKey key,
-                                                 const D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc)
+void D3D12HelloTexture::PipelineRegistry::Create(ID3D12Device* device, PipelineKey key,
+                                                 const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
 {
     ComPtr<ID3D12PipelineState> pipelineState;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState)));
     pipelines[key] = std::move(pipelineState);
 }
 
-ID3D12PipelineState *D3D12HelloTexture::PipelineRegistry::Find(PipelineKey key) const
+ID3D12PipelineState* D3D12HelloTexture::PipelineRegistry::Find(PipelineKey key) const
 {
     if (!key.IsValid())
     {
@@ -110,7 +113,7 @@ ID3D12PipelineState *D3D12HelloTexture::PipelineRegistry::Find(PipelineKey key) 
     return pipeline != pipelines.end() ? pipeline->second.Get() : nullptr;
 }
 
-void D3D12HelloTexture::ResourceRegistry::AnalyzeLifetimes(const std::vector<RenderPass> &renderPasses)
+void D3D12HelloTexture::ResourceRegistry::AnalyzeLifetimes(const std::vector<RenderPass>& renderPasses)
 {
     lifetimes = Engine::AnalyzeResourceLifetimes(renderPasses);
 }
@@ -118,7 +121,7 @@ void D3D12HelloTexture::ResourceRegistry::AnalyzeLifetimes(const std::vector<Ren
 void D3D12HelloTexture::ResourceRegistry::ResetStates(std::initializer_list<ResourceUsage> usages)
 {
     states.clear();
-    for (const ResourceUsage &usage : usages)
+    for (const ResourceUsage& usage : usages)
     {
         SetState(usage.name, usage.state);
     }
@@ -129,14 +132,14 @@ void D3D12HelloTexture::ResourceRegistry::RegisterTransientResource(TransientRes
     transientResources[resource.name] = std::move(resource);
 }
 
-void D3D12HelloTexture::ResourceRegistry::UnregisterTransientResource(const std::string &name)
+void D3D12HelloTexture::ResourceRegistry::UnregisterTransientResource(const std::string& name)
 {
     transientResources.erase(name);
 }
 
-void D3D12HelloTexture::ResourceRegistry::MarkEndOfLifeResources(int passIndex, const char *backBufferName)
+void D3D12HelloTexture::ResourceRegistry::MarkEndOfLifeResources(int passIndex, const char* backBufferName)
 {
-    for (auto &[name, lt] : lifetimes)
+    for (auto& [name, lt] : lifetimes)
     {
         if (lt.lastPass != passIndex)
             continue;
@@ -147,7 +150,7 @@ void D3D12HelloTexture::ResourceRegistry::MarkEndOfLifeResources(int passIndex, 
         if (!transientResources.contains(name))
             continue;
 
-        auto &tr = transientResources.at(name);
+        auto& tr = transientResources.at(name);
 
         if (tr.state == TransientResourceState::Uninitialized)
         {
@@ -170,7 +173,7 @@ void D3D12HelloTexture::ResourceRegistry::MarkEndOfLifeResources(int passIndex, 
 
 void D3D12HelloTexture::ResourceRegistry::MarkPendingTransientResources(UINT64 fenceValue)
 {
-    for (auto &[name, tr] : transientResources)
+    for (auto& [name, tr] : transientResources)
     {
         if (tr.state != TransientResourceState::PendingRelease1)
             continue;
@@ -187,7 +190,7 @@ D3D12HelloTexture::ResourceRegistry::CollectGarbageTransientResources(UINT64 com
 {
     std::vector<std::string> releasedResources;
 
-    for (auto &[name, tr] : transientResources)
+    for (auto& [name, tr] : transientResources)
     {
         if (tr.state != TransientResourceState::PendingRelease2)
             continue;
@@ -207,11 +210,11 @@ D3D12HelloTexture::ResourceRegistry::CollectGarbageTransientResources(UINT64 com
 }
 
 std::vector<std::string>
-D3D12HelloTexture::ResourceRegistry::GetResourcesStartingAtPass(int passIndex, const char *backBufferName) const
+D3D12HelloTexture::ResourceRegistry::GetResourcesStartingAtPass(int passIndex, const char* backBufferName) const
 {
     std::vector<std::string> resourceNames;
 
-    for (const auto &[name, lt] : lifetimes)
+    for (const auto& [name, lt] : lifetimes)
     {
         if (lt.firstPass != passIndex)
             continue;
@@ -228,8 +231,8 @@ D3D12HelloTexture::ResourceRegistry::GetResourcesStartingAtPass(int passIndex, c
     return resourceNames;
 }
 
-auto D3D12HelloTexture::ResourceRegistry::PrepareTransientResourceForCreate(const std::string &name)
-    -> TransientResource *
+auto D3D12HelloTexture::ResourceRegistry::PrepareTransientResourceForCreate(const std::string& name)
+    -> TransientResource*
 {
     auto transientResource = transientResources.find(name);
     if (transientResource == transientResources.end())
@@ -237,7 +240,7 @@ auto D3D12HelloTexture::ResourceRegistry::PrepareTransientResourceForCreate(cons
         return nullptr;
     }
 
-    auto &tr = transientResource->second;
+    auto& tr = transientResource->second;
     if (tr.state == TransientResourceState::Uninitialized)
     {
         assert(false && "Transient resource must be registered before use.");
@@ -266,7 +269,7 @@ auto D3D12HelloTexture::ResourceRegistry::PrepareTransientResourceForCreate(cons
     return &tr;
 }
 
-void D3D12HelloTexture::ResourceRegistry::MarkTransientResourceCreated(const std::string &name)
+void D3D12HelloTexture::ResourceRegistry::MarkTransientResourceCreated(const std::string& name)
 {
     auto transientResource = transientResources.find(name);
     if (transientResource == transientResources.end())
@@ -278,7 +281,7 @@ void D3D12HelloTexture::ResourceRegistry::MarkTransientResourceCreated(const std
     transientResource->second.state = TransientResourceState::Created;
 }
 
-ID3D12Resource *D3D12HelloTexture::ResourceRegistry::FindTransientD3DResource(const std::string &name) const
+ID3D12Resource* D3D12HelloTexture::ResourceRegistry::FindTransientD3DResource(const std::string& name) const
 {
     auto transientResource = transientResources.find(name);
     if (transientResource == transientResources.end())
@@ -425,7 +428,7 @@ void D3D12HelloTexture::LoadPipeline()
                         kGpuWorkMeterQueryCount); // Initialize GPU work meter with a maximum of 100 timestamp queries.
 }
 
-bool D3D12HelloTexture::HdrOutputPolicy::CheckSwapChainColorSpaceSupport(IDXGISwapChain3 *swapChain,
+bool D3D12HelloTexture::HdrOutputPolicy::CheckSwapChainColorSpaceSupport(IDXGISwapChain3* swapChain,
                                                                          DXGI_COLOR_SPACE_TYPE colorSpace) const
 {
     UINT colorSpaceSupport = 0;
@@ -433,7 +436,7 @@ bool D3D12HelloTexture::HdrOutputPolicy::CheckSwapChainColorSpaceSupport(IDXGISw
            (colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT);
 }
 
-bool D3D12HelloTexture::HdrOutputPolicy::CheckCurrentOutputHdr10Support(ComPtr<IDXGIFactory4> &dxgiFactory,
+bool D3D12HelloTexture::HdrOutputPolicy::CheckCurrentOutputHdr10Support(ComPtr<IDXGIFactory4>& dxgiFactory,
                                                                         HWND hwnd) const
 {
     if (!dxgiFactory->IsCurrent())
@@ -486,7 +489,7 @@ bool D3D12HelloTexture::HdrOutputPolicy::CheckCurrentOutputHdr10Support(ComPtr<I
     return outputDesc.ColorSpace == kHdr10ColorSpace;
 }
 
-void D3D12HelloTexture::HdrOutputPolicy::ApplySwapChainColorSpace(IDXGISwapChain3 *swapChain,
+void D3D12HelloTexture::HdrOutputPolicy::ApplySwapChainColorSpace(IDXGISwapChain3* swapChain,
                                                                   DXGI_COLOR_SPACE_TYPE colorSpace)
 {
     if (settings.currentSwapChainColorSpace == colorSpace)
@@ -501,7 +504,7 @@ void D3D12HelloTexture::HdrOutputPolicy::ApplySwapChainColorSpace(IDXGISwapChain
     }
 }
 
-void D3D12HelloTexture::HdrOutputPolicy::ApplyHdr10Metadata(IDXGISwapChain3 *swapChain, bool enabled) const
+void D3D12HelloTexture::HdrOutputPolicy::ApplyHdr10Metadata(IDXGISwapChain3* swapChain, bool enabled) const
 {
     ComPtr<IDXGISwapChain4> swapChain4;
     if (FAILED(swapChain->QueryInterface(IID_PPV_ARGS(&swapChain4))))
@@ -532,7 +535,7 @@ void D3D12HelloTexture::HdrOutputPolicy::ApplyHdr10Metadata(IDXGISwapChain3 *swa
     ThrowIfFailed(swapChain4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(metadata), &metadata));
 }
 
-void D3D12HelloTexture::HdrOutputPolicy::Update(ComPtr<IDXGIFactory4> &dxgiFactory, IDXGISwapChain3 *swapChain,
+void D3D12HelloTexture::HdrOutputPolicy::Update(ComPtr<IDXGIFactory4>& dxgiFactory, IDXGISwapChain3* swapChain,
                                                 HWND hwnd)
 {
     const bool hdr10Enabled = CheckCurrentOutputHdr10Support(dxgiFactory, hwnd) &&
@@ -547,7 +550,7 @@ void D3D12HelloTexture::HdrOutputPolicy::Update(ComPtr<IDXGIFactory4> &dxgiFacto
     }
 }
 
-void D3D12HelloTexture::HdrOutputPolicy::ReapplyColorSpace(IDXGISwapChain3 *swapChain)
+void D3D12HelloTexture::HdrOutputPolicy::ReapplyColorSpace(IDXGISwapChain3* swapChain)
 {
     ApplySwapChainColorSpace(swapChain, settings.TargetColorSpace());
 }
@@ -614,9 +617,9 @@ std::array<GltfVertex, D3D12HelloTexture::kCubeVertexCount> D3D12HelloTexture::C
     }};
 }
 
-DescriptorHeapHandle D3D12HelloTexture::CreateTextureFromRGBA8(const UINT8 *pixels, UINT width, UINT height,
-                                                               ComPtr<ID3D12Resource> &texture,
-                                                               ComPtr<ID3D12Resource> &uploadHeap)
+DescriptorHeapHandle D3D12HelloTexture::CreateTextureFromRGBA8(const UINT8* pixels, UINT width, UINT height,
+                                                               ComPtr<ID3D12Resource>& texture,
+                                                               ComPtr<ID3D12Resource>& uploadHeap)
 {
     D3D12_RESOURCE_DESC textureDesc = {};
     textureDesc.MipLevels = 1;
@@ -753,8 +756,8 @@ void D3D12HelloTexture::LoadAssets()
 
     // Create the pipeline state, which includes compiling and loading shaders.
     {
-        UINT8 *pVertexShaderData = nullptr;
-        UINT8 *pPixelShaderData = nullptr;
+        UINT8* pVertexShaderData = nullptr;
+        UINT8* pPixelShaderData = nullptr;
         UINT vertexShaderDataLength = 0;
         UINT pixelShaderDataLength = 0;
 
@@ -763,18 +766,18 @@ void D3D12HelloTexture::LoadAssets()
         ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_PSMain.cso").c_str(), &pPixelShaderData,
                                        &pixelShaderDataLength));
 
-        UINT8 *pDepthVS = nullptr;
+        UINT8* pDepthVS = nullptr;
         UINT depthVSSize = 0;
 
         ThrowIfFailed(
             ReadDataFromFile(GetAssetFullPath(L"shaders_DepthOnlyVS_VSMain.cso").c_str(), &pDepthVS, &depthVSSize));
 
-        UINT8 *pGBufferVS = nullptr;
-        UINT8 *pGBufferPS = nullptr;
+        UINT8* pGBufferVS = nullptr;
+        UINT8* pGBufferPS = nullptr;
         UINT gbufferVSSize = 0;
         UINT gbufferPSSize = 0;
-        UINT8 *pGBufferDebugVS = nullptr;
-        UINT8 *pGBufferDebugPS = nullptr;
+        UINT8* pGBufferDebugVS = nullptr;
+        UINT8* pGBufferDebugPS = nullptr;
         UINT gbufferDebugVSSize = 0;
         UINT gbufferDebugPSSize = 0;
 
@@ -787,16 +790,16 @@ void D3D12HelloTexture::LoadAssets()
         ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_GBufferDebug_PSMain.cso").c_str(), &pGBufferDebugPS,
                                        &gbufferDebugPSSize));
 
-        UINT8 *pLightPassVS = nullptr;
-        UINT8 *pLightPassPS = nullptr;
+        UINT8* pLightPassVS = nullptr;
+        UINT8* pLightPassPS = nullptr;
         UINT lightPassVSSize = 0;
         UINT lightPassPSSize = 0;
-        UINT8 *pLightPassDebugGradientVS = nullptr;
-        UINT8 *pLightPassDebugGradientPS = nullptr;
+        UINT8* pLightPassDebugGradientVS = nullptr;
+        UINT8* pLightPassDebugGradientPS = nullptr;
         UINT lightPassDebugGradientVSSize = 0;
         UINT lightPassDebugGradientPSSize = 0;
-        UINT8 *pToneMapVS = nullptr;
-        UINT8 *pToneMapPS = nullptr;
+        UINT8* pToneMapVS = nullptr;
+        UINT8* pToneMapPS = nullptr;
         UINT toneMapVSSize = 0;
         UINT toneMapPSSize = 0;
 
@@ -822,39 +825,44 @@ void D3D12HelloTexture::LoadAssets()
 
         D3D12_INPUT_ELEMENT_DESC depthLayout[] = {
             {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+        const InputLayoutDefinition meshInputLayout = {inputElementDescs, _countof(inputElementDescs)};
+        const InputLayoutDefinition depthInputLayout = {depthLayout, _countof(depthLayout)};
 
         //
         // Main Pass PSO
         //
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        RegisterMainPipeline(psoDesc, inputElementDescs, _countof(inputElementDescs),
-                             {{pVertexShaderData, vertexShaderDataLength},
-                              {pPixelShaderData, pixelShaderDataLength}});
+        RegisterMainPipeline(psoDesc,
+                             {Pipe::Main,
+                              meshInputLayout,
+                              {{pVertexShaderData, vertexShaderDataLength}, {pPixelShaderData, pixelShaderDataLength}},
+                              DXGI_FORMAT_R16G16B16A16_FLOAT,
+                              DXGI_FORMAT_D32_FLOAT});
 
         //
         // GBuffer PSO
         //
-        RegisterGBufferPipeline(psoDesc, {{pGBufferVS, gbufferVSSize}, {pGBufferPS, gbufferPSSize}});
+        RegisterGBufferPipeline(
+            psoDesc, {Pipe::GBuffer, meshInputLayout, {{pGBufferVS, gbufferVSSize}, {pGBufferPS, gbufferPSSize}}});
 
         // Light Pass PSO, ToneMap PSO, GBuffer Debug PSO
         RegisterFullscreenPipelines(
-            psoDesc,
-            {{Pipe::Lighting,
-              {{pLightPassVS, lightPassVSSize}, {pLightPassPS, lightPassPSSize}},
-              DXGI_FORMAT_R16G16B16A16_FLOAT},
-             {Pipe::LightingDebugGradient,
-              {{pLightPassDebugGradientVS, lightPassDebugGradientVSSize},
-               {pLightPassDebugGradientPS, lightPassDebugGradientPSSize}},
-              DXGI_FORMAT_R16G16B16A16_FLOAT},
-             {Pipe::ToneMap, {{pToneMapVS, toneMapVSSize}, {pToneMapPS, toneMapPSSize}}, m_backBufferFormat},
-             {Pipe::GBufferDebug,
-              {{pGBufferDebugVS, gbufferDebugVSSize}, {pGBufferDebugPS, gbufferDebugPSSize}},
-              DXGI_FORMAT_R16G16B16A16_FLOAT}});
+            psoDesc, {{Pipe::Lighting,
+                       {{pLightPassVS, lightPassVSSize}, {pLightPassPS, lightPassPSSize}},
+                       DXGI_FORMAT_R16G16B16A16_FLOAT},
+                      {Pipe::LightingDebugGradient,
+                       {{pLightPassDebugGradientVS, lightPassDebugGradientVSSize},
+                        {pLightPassDebugGradientPS, lightPassDebugGradientPSSize}},
+                       DXGI_FORMAT_R16G16B16A16_FLOAT},
+                      {Pipe::ToneMap, {{pToneMapVS, toneMapVSSize}, {pToneMapPS, toneMapPSSize}}, m_backBufferFormat},
+                      {Pipe::GBufferDebug,
+                       {{pGBufferDebugVS, gbufferDebugVSSize}, {pGBufferDebugPS, gbufferDebugPSSize}},
+                       DXGI_FORMAT_R16G16B16A16_FLOAT}});
 
         //
         // Depth PrePass PSO
         //
-        RegisterDepthPrePassPipeline(psoDesc, depthLayout, _countof(depthLayout), {{pDepthVS, depthVSSize}, {}});
+        RegisterDepthPrePassPipeline(psoDesc, {Pipe::DepthPrePass, depthInputLayout, {{pDepthVS, depthVSSize}, {}}});
     }
 
     //
@@ -903,9 +911,9 @@ void D3D12HelloTexture::LoadAssets()
     MyDx12Util::CreateUploadBuffer(m_device, vertexBufferSize, m_vertexBuffer);
 
     // Copy the triangle data to the vertex buffer.
-    UINT8 *pVertexDataBegin = nullptr;
+    UINT8* pVertexDataBegin = nullptr;
     CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
-    ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void **>(&pVertexDataBegin)));
+    ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
     memcpy(pVertexDataBegin, vertices.data(), vertexBufferSize);
     m_vertexBuffer->Unmap(0, nullptr);
 
@@ -920,8 +928,8 @@ void D3D12HelloTexture::LoadAssets()
 
         MyDx12Util::CreateUploadBuffer(m_device, indexBufferSize, m_indexBuffer);
 
-        UINT8 *pIndexDataBegin = nullptr;
-        ThrowIfFailed(m_indexBuffer->Map(0, &readRange, reinterpret_cast<void **>(&pIndexDataBegin)));
+        UINT8* pIndexDataBegin = nullptr;
+        ThrowIfFailed(m_indexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin)));
         memcpy(pIndexDataBegin, mesh.indices.data(), indexBufferSize);
         m_indexBuffer->Unmap(0, nullptr);
 
@@ -954,14 +962,14 @@ void D3D12HelloTexture::LoadAssets()
         for (size_t i = 0; i < kTextureCount; i++)
         {
             bool useGltfTex = i < mesh.textures.size();
-            UINT8 *pixels = nullptr;
+            UINT8* pixels = nullptr;
             UINT width, height;
 
             if (useGltfTex)
             {
                 // Gltfファイルのテクスチャがあれば使う。
-                const auto &tex = mesh.textures[i];
-                pixels = (UINT8 *)tex.pixels.data();
+                const auto& tex = mesh.textures[i];
+                pixels = (UINT8*)tex.pixels.data();
                 width = tex.width;
                 height = tex.height;
                 DBG_PRINT("[%d] gltfTexture :width %d height %d\n", i, tex.width, tex.height);
@@ -1072,7 +1080,7 @@ void D3D12HelloTexture::LoadAssets()
         {
             if (i < static_cast<int>(mesh.materials.size()))
             {
-                const auto &gltfMaterial = mesh.materials[i];
+                const auto& gltfMaterial = mesh.materials[i];
                 m.albedoTexIndex = resolveTextureIndex(gltfMaterial.albedoTexIndex, fallbackTexIndex);
                 m.metallicRoughnessTexIndex =
                     resolveTextureIndex(gltfMaterial.metallicRoughnessTexIndex, fallbackTexIndex);
@@ -1108,7 +1116,7 @@ void D3D12HelloTexture::LoadAssets()
                                            m_frameResources[n].instanceBufferSrv.cpu);
 
         m_frameResources[n].instanceBuffer->Map(0, nullptr,
-                                                reinterpret_cast<void **>(&m_frameResources[n].pSrvDataBegin));
+                                                reinterpret_cast<void**>(&m_frameResources[n].pSrvDataBegin));
         memcpy(m_frameResources[n].pSrvDataBegin, m_instanceData.data(), instanceBufferSize);
         m_frameResources[n].instanceBuffer->Unmap(0, nullptr);
     }
@@ -1128,8 +1136,8 @@ void D3D12HelloTexture::LoadAssets()
 
         m_materialBufferSrv = m_descriptorHeapAllocator.AllocWithHandle();
         m_device->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, m_materialBufferSrv.cpu);
-        Material *pMaterialDataBegin = nullptr;
-        m_materialBuffer->Map(0, nullptr, reinterpret_cast<void **>(&pMaterialDataBegin));
+        Material* pMaterialDataBegin = nullptr;
+        m_materialBuffer->Map(0, nullptr, reinterpret_cast<void**>(&pMaterialDataBegin));
         memcpy(pMaterialDataBegin, m_materialData.data(), materialBufferSize);
         m_materialBuffer->Unmap(0, nullptr);
     }
@@ -1154,7 +1162,7 @@ void D3D12HelloTexture::LoadAssets()
 
     // Close the command list and execute it to begin the initial GPU setup.
     ThrowIfFailed(m_commandList->Close());
-    ID3D12CommandList *ppCommandLists[] = {m_commandList.Get()};
+    ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
@@ -1176,7 +1184,7 @@ void D3D12HelloTexture::LoadAssets()
     }
 }
 
-static SimpleDescriptorHeapAllocator *g_allocator = nullptr;
+static SimpleDescriptorHeapAllocator* g_allocator = nullptr;
 
 void D3D12HelloTexture::InitImGui()
 {
@@ -1201,17 +1209,17 @@ void D3D12HelloTexture::InitImGui()
     // (current version of the backend will only allocate one descriptor, future versions will need to allocate
     // more)
     init_info.SrvDescriptorHeap = m_imguiHeap.Get();
-    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo *, D3D12_CPU_DESCRIPTOR_HANDLE *out_cpu_handle,
-                                        D3D12_GPU_DESCRIPTOR_HANDLE *out_gpu_handle)
+    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle,
+                                        D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
     { g_allocator->Alloc(out_cpu_handle, out_gpu_handle); };
     init_info.SrvDescriptorFreeFn =
-        [](ImGui_ImplDX12_InitInfo *, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
+        [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
     { g_allocator->Free(&cpu_handle, &gpu_handle); };
     ImGui_ImplDX12_Init(&init_info);
 #endif
 }
 
-void D3D12HelloTexture::CreateConstantBuffer(ConstantBufferResource &constantBuffer, const void *initialData,
+void D3D12HelloTexture::CreateConstantBuffer(ConstantBufferResource& constantBuffer, const void* initialData,
                                              UINT sizeInBytes)
 {
     assert(sizeInBytes % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0);
@@ -1229,11 +1237,11 @@ void D3D12HelloTexture::CreateConstantBuffer(ConstantBufferResource &constantBuf
     m_device->CreateConstantBufferView(&cbvDesc, constantBuffer.cbv.cpu);
 
     CD3DX12_RANGE readRange(0, 0);
-    ThrowIfFailed(constantBuffer.buffer->Map(0, &readRange, reinterpret_cast<void **>(&constantBuffer.mappedData)));
+    ThrowIfFailed(constantBuffer.buffer->Map(0, &readRange, reinterpret_cast<void**>(&constantBuffer.mappedData)));
     memcpy(constantBuffer.mappedData, initialData, sizeInBytes);
 }
 
-DescriptorHeapHandle D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource *texture)
+DescriptorHeapHandle D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource* texture)
 {
     DescriptorHeapHandle handle = m_descriptorHeapAllocator.AllocWithHandle();
 
@@ -1256,7 +1264,7 @@ std::vector<UINT8> D3D12HelloTexture::GenerateCheckerboardTextureData()
     const UINT textureSize = rowPitch * kTextureHeight;
 
     std::vector<UINT8> data(textureSize);
-    UINT8 *pData = &data[0];
+    UINT8* pData = &data[0];
 
     UINT8 R = rand_0_255();
     UINT8 G = rand_0_255();
@@ -1697,7 +1705,7 @@ void D3D12HelloTexture::OnUpdate()
     }
 
     m_frameResources[m_frameIndex].instanceBuffer->Map(
-        0, nullptr, reinterpret_cast<void **>(&m_frameResources[m_frameIndex].pSrvDataBegin));
+        0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_frameIndex].pSrvDataBegin));
     memcpy(m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(),
            sizeof(InstanceData) * kMaxInstanceCount);
     m_frameResources[m_frameIndex].instanceBuffer->Unmap(0, nullptr);
@@ -1826,7 +1834,7 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
 
     {
-        auto &gpuCeckPoints = m_frameResources[m_fremeIndexPrevious].gpuWorkMeterCheckPoints;
+        auto& gpuCeckPoints = m_frameResources[m_fremeIndexPrevious].gpuWorkMeterCheckPoints;
         size_t gpuCheckPointCount = gpuCeckPoints.size();
 
         if (gpuCheckPointCount >= 2)
@@ -1834,7 +1842,7 @@ void D3D12HelloTexture::UpdateImGui()
 
             for (int i = 1; i < gpuCheckPointCount; i++)
             {
-                auto &checkPoint = gpuCeckPoints[i];
+                auto& checkPoint = gpuCeckPoints[i];
 
                 if (i < gpuCheckPointCount - 1)
                 {
@@ -1852,7 +1860,10 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::Render();
 }
 
-UINT D3D12HelloTexture::GetVisibleCubeCount() const { return static_cast<UINT>(m_DisplayInstanceCount); }
+UINT D3D12HelloTexture::GetVisibleCubeCount() const
+{
+    return static_cast<UINT>(m_DisplayInstanceCount);
+}
 
 // Render the scene.
 void D3D12HelloTexture::OnRender()
@@ -1868,7 +1879,7 @@ void D3D12HelloTexture::OnRender()
     PopulateCommandList();
 
     // Execute the command list.
-    ID3D12CommandList *ppCommandLists[] = {m_commandList.Get()};
+    ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     if (m_debugViewSettings.hdrDumpPending)
@@ -2018,7 +2029,7 @@ void D3D12HelloTexture::Resize(UINT width, UINT height)
     m_scissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height));
 
     // Imgui
-    ImGuiIO &io = ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(static_cast<float>(m_width), static_cast<float>(m_height));
 }
 
@@ -2031,8 +2042,8 @@ void D3D12HelloTexture::OnDestroy()
     CloseHandle(m_fenceEvent);
 }
 
-void D3D12HelloTexture::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                                   const FullscreenPipelineDefinition &definition)
+void D3D12HelloTexture::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                                   const FullscreenPipelineDefinition& definition)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MyDx12Util::CreateFullscreenPassPSODesc(
         baseDesc, definition.shaders.vertex.data, definition.shaders.vertex.size, definition.shaders.pixel.data,
@@ -2041,24 +2052,22 @@ void D3D12HelloTexture::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE
     m_pipelineRegistry.Create(m_device.Get(), key, desc);
 }
 
-void D3D12HelloTexture::RegisterFullscreenPipelines(
-    const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-    std::initializer_list<FullscreenPipelineDefinition> definitions)
+void D3D12HelloTexture::RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                                    std::initializer_list<FullscreenPipelineDefinition> definitions)
 {
-    for (const FullscreenPipelineDefinition &definition : definitions)
+    for (const FullscreenPipelineDefinition& definition : definitions)
     {
         RegisterFullscreenPipeline(baseDesc, definition);
     }
 }
 
-void D3D12HelloTexture::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                             const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
-                                             GraphicsPipelineShaders shaders)
+void D3D12HelloTexture::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                             const MainPipelineDefinition& definition)
 {
-    baseDesc.InputLayout = {inputLayout, inputLayoutCount};
+    baseDesc.InputLayout = {definition.inputLayout.elements, definition.inputLayout.count};
     baseDesc.pRootSignature = m_rootSignature.Get();
-    baseDesc.VS = CD3DX12_SHADER_BYTECODE(shaders.vertex.data, shaders.vertex.size);
-    baseDesc.PS = CD3DX12_SHADER_BYTECODE(shaders.pixel.data, shaders.pixel.size);
+    baseDesc.VS = CD3DX12_SHADER_BYTECODE(definition.shaders.vertex.data, definition.shaders.vertex.size);
+    baseDesc.PS = CD3DX12_SHADER_BYTECODE(definition.shaders.pixel.data, definition.shaders.pixel.size);
     baseDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     baseDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     baseDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -2067,36 +2076,37 @@ void D3D12HelloTexture::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC 
     baseDesc.SampleMask = UINT_MAX;
     baseDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     baseDesc.NumRenderTargets = 1;
-    baseDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
-    baseDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+    baseDesc.RTVFormats[0] = definition.renderTargetFormat;
+    baseDesc.DSVFormat = definition.depthStencilFormat;
     baseDesc.SampleDesc.Count = 1;
-    const PipelineKey key = PipelineId(Pipe::Main);
+    const PipelineKey key = PipelineId(definition.name);
     m_pipelineRegistry.Create(m_device.Get(), key, baseDesc);
 }
 
-void D3D12HelloTexture::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                                GraphicsPipelineShaders shaders)
+void D3D12HelloTexture::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                                const GBufferPipelineDefinition& definition)
 {
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferBaseDesc = baseDesc;
+    gbufferBaseDesc.InputLayout = {definition.inputLayout.elements, definition.inputLayout.count};
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MyDx12Util::CreateGBufferPSODesc(
-        baseDesc, shaders.vertex.data, shaders.vertex.size, shaders.pixel.data, shaders.pixel.size, m_gbuffer.formats,
-        GBuffer::kCount);
-    const PipelineKey key = PipelineId(Pipe::GBuffer);
+        gbufferBaseDesc, definition.shaders.vertex.data, definition.shaders.vertex.size, definition.shaders.pixel.data,
+        definition.shaders.pixel.size, m_gbuffer.formats, GBuffer::kCount);
+    const PipelineKey key = PipelineId(definition.name);
     m_pipelineRegistry.Create(m_device.Get(), key, desc);
 }
 
-void D3D12HelloTexture::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                                     const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
-                                                     GraphicsPipelineShaders shaders)
+void D3D12HelloTexture::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                                     const DepthPrePassPipelineDefinition& definition)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
-    desc.InputLayout = {inputLayout, inputLayoutCount};
+    desc.InputLayout = {definition.inputLayout.elements, definition.inputLayout.count};
     desc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
-    desc.VS = CD3DX12_SHADER_BYTECODE(shaders.vertex.data, shaders.vertex.size);
+    desc.VS = CD3DX12_SHADER_BYTECODE(definition.shaders.vertex.data, definition.shaders.vertex.size);
     desc.PS = {};
     desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
     desc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;
     desc.NumRenderTargets = 0;
-    const PipelineKey key = PipelineId(Pipe::DepthPrePass);
+    const PipelineKey key = PipelineId(definition.name);
     m_pipelineRegistry.Create(m_device.Get(), key, desc);
 }
 
@@ -2163,11 +2173,14 @@ void D3D12HelloTexture::AddDeferredSceneOutputPass()
     }
 }
 
-void D3D12HelloTexture::AddPass(RenderPass pass) { m_renderPassGraph.Add(std::move(pass)); }
+void D3D12HelloTexture::AddPass(RenderPass pass)
+{
+    m_renderPassGraph.Add(std::move(pass));
+}
 
 void D3D12HelloTexture::ValidateRenderPassGraph() const
 {
-    for (const RenderPass &pass : m_renderPassGraph.Passes())
+    for (const RenderPass& pass : m_renderPassGraph.Passes())
     {
         assert(pass.name != nullptr && "Render pass must have a name.");
         assert((!pass.pipeline.IsValid() || GetPipelineState(pass.pipeline) != nullptr) &&
@@ -2175,17 +2188,17 @@ void D3D12HelloTexture::ValidateRenderPassGraph() const
         assert(m_passOperationRegistry.Contains(pass.operation) &&
                "Render pass references an unregistered operation handler.");
 
-        for (const ResourceUsage &usage : pass.reads)
+        for (const ResourceUsage& usage : pass.reads)
         {
             assert(!usage.name.empty() && "Render pass read usage must have a resource name.");
         }
 
-        for (const ResourceUsage &usage : pass.writes)
+        for (const ResourceUsage& usage : pass.writes)
         {
             assert(!usage.name.empty() && "Render pass write usage must have a resource name.");
         }
 
-        for (const PassDescriptorBinding &binding : pass.descriptorBindings)
+        for (const PassDescriptorBinding& binding : pass.descriptorBindings)
         {
             (void)ResolveDescriptor(binding.descriptor);
         }
@@ -2200,7 +2213,7 @@ void D3D12HelloTexture::ValidateRenderPassGraph() const
             (void)ResolveDsv(pass.renderTargets.dsv.value());
         }
 
-        for (const PassConstantsBinding &binding : pass.constantsBindings)
+        for (const PassConstantsBinding& binding : pass.constantsBindings)
         {
             bool supported = false;
             auto toneMapConstants = m_passKeys.constants.find(ConstName::ToneMap);
@@ -2232,37 +2245,37 @@ auto D3D12HelloTexture::MakeGBufferReadUsages() const -> ResourceUsages
          {kDepthStencilResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}});
 }
 
-PipelineKey D3D12HelloTexture::PipelineId(const std::string &name)
+PipelineKey D3D12HelloTexture::PipelineId(const std::string& name)
 {
     return m_passKeys.RegisterPipeline(name, m_passKeyRegistry);
 }
 
-DescriptorKey D3D12HelloTexture::DescriptorId(const std::string &name)
+DescriptorKey D3D12HelloTexture::DescriptorId(const std::string& name)
 {
     return m_passKeys.RegisterDescriptor(name, m_passKeyRegistry);
 }
 
-RtvKey D3D12HelloTexture::RtvId(const std::string &name)
+RtvKey D3D12HelloTexture::RtvId(const std::string& name)
 {
     return m_passKeys.RegisterRtv(name, m_passKeyRegistry);
 }
 
-DsvKey D3D12HelloTexture::DsvId(const std::string &name)
+DsvKey D3D12HelloTexture::DsvId(const std::string& name)
 {
     return m_passKeys.RegisterDsv(name, m_passKeyRegistry);
 }
 
-PassOperationKey D3D12HelloTexture::OperationId(const std::string &name)
+PassOperationKey D3D12HelloTexture::OperationId(const std::string& name)
 {
     return m_passKeys.RegisterOperation(name, m_passKeyRegistry);
 }
 
-PassConstantsKey D3D12HelloTexture::ConstantsId(const std::string &name)
+PassConstantsKey D3D12HelloTexture::ConstantsId(const std::string& name)
 {
     return m_passKeys.RegisterConstants(name, m_passKeyRegistry);
 }
 
-PassOperationKey D3D12HelloTexture::RegisterPassOperation(const std::string &name, PassOperationHandler handler)
+PassOperationKey D3D12HelloTexture::RegisterPassOperation(const std::string& name, PassOperationHandler handler)
 {
     const PassOperationKey key = OperationId(name);
     return m_passOperationRegistry.Register(key, handler);
@@ -2362,8 +2375,8 @@ auto D3D12HelloTexture::MakeLightingDebugGradientPass() -> RenderPass
         .Descriptor(RootParam_ConstantBuffer, DescriptorId(Desc::CameraCbv))
         .Descriptor(RootParam_LightConstants, DescriptorId(Desc::LightCbv))
         .Rtv(RtvId(RtvName::LightPass))
-        .Operation(RegisterPassOperation(Op::LightingDebugGradient,
-                                         &D3D12HelloTexture::ExecuteLightingDebugGradientPass))
+        .Operation(
+            RegisterPassOperation(Op::LightingDebugGradient, &D3D12HelloTexture::ExecuteLightingDebugGradientPass))
         .Constants(RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap))
         .Build();
 }
@@ -2420,22 +2433,22 @@ void D3D12HelloTexture::AnalyzeResourceLifetimes()
 void D3D12HelloTexture::DebugPrintLifetimes()
 {
     DBG_PRINT("Resource Lifetimes:\n");
-    for (auto &[name, lt] : m_resourceRegistry.lifetimes)
+    for (auto& [name, lt] : m_resourceRegistry.lifetimes)
     {
         DBG_PRINT("Resource %s: [%d - %d]\n", name.c_str(), lt.firstPass, lt.lastPass);
     }
 }
 
-void D3D12HelloTexture::BindPassDescriptors(const RenderPass &pass)
+void D3D12HelloTexture::BindPassDescriptors(const RenderPass& pass)
 {
-    for (const auto &binding : pass.descriptorBindings)
+    for (const auto& binding : pass.descriptorBindings)
     {
         m_commandList->SetGraphicsRootDescriptorTable(binding.rootParameterIndex,
                                                       ResolveDescriptor(binding.descriptor).gpu);
     }
 }
 
-void D3D12HelloTexture::BindPassRenderTargets(const RenderPass &pass)
+void D3D12HelloTexture::BindPassRenderTargets(const RenderPass& pass)
 {
     std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvs;
     rtvs.reserve(pass.renderTargets.rtvs.size());
@@ -2450,20 +2463,20 @@ void D3D12HelloTexture::BindPassRenderTargets(const RenderPass &pass)
         dsv = ResolveDsv(pass.renderTargets.dsv.value());
     }
 
-    const D3D12_CPU_DESCRIPTOR_HANDLE *rtvHandles = rtvs.empty() ? nullptr : rtvs.data();
-    const D3D12_CPU_DESCRIPTOR_HANDLE *dsvHandle = dsv ? &dsv.value() : nullptr;
+    const D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandles = rtvs.empty() ? nullptr : rtvs.data();
+    const D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle = dsv ? &dsv.value() : nullptr;
 
     m_commandList->OMSetRenderTargets(static_cast<UINT>(rtvs.size()), rtvHandles, FALSE, dsvHandle);
 }
 
-ID3D12PipelineState *D3D12HelloTexture::GetPipelineState(PipelineKey pipeline) const
+ID3D12PipelineState* D3D12HelloTexture::GetPipelineState(PipelineKey pipeline) const
 {
     return m_pipelineRegistry.Find(pipeline);
 }
 
-void D3D12HelloTexture::BindPassPipeline(const RenderPass &pass)
+void D3D12HelloTexture::BindPassPipeline(const RenderPass& pass)
 {
-    ID3D12PipelineState *pipelineState = GetPipelineState(pass.pipeline);
+    ID3D12PipelineState* pipelineState = GetPipelineState(pass.pipeline);
     assert(!pass.pipeline.IsValid() || pipelineState != nullptr);
     if (pipelineState != nullptr)
     {
@@ -2471,9 +2484,9 @@ void D3D12HelloTexture::BindPassPipeline(const RenderPass &pass)
     }
 }
 
-void D3D12HelloTexture::BindPassConstants(const RenderPass &pass)
+void D3D12HelloTexture::BindPassConstants(const RenderPass& pass)
 {
-    for (const auto &binding : pass.constantsBindings)
+    for (const auto& binding : pass.constantsBindings)
     {
         if (binding.constants == m_passKeys.ConstantsId(ConstName::ToneMap))
         {
@@ -2504,7 +2517,7 @@ void D3D12HelloTexture::ExecutePass(int passIndex)
 {
     CreateResourcesForPass(passIndex);
 
-    const RenderPass &pass = m_renderPassGraph[passIndex];
+    const RenderPass& pass = m_renderPassGraph[passIndex];
     TransitionPassResources(pass);
     BindPassRenderTargets(pass);
     BindPassDescriptors(pass);
@@ -2515,9 +2528,9 @@ void D3D12HelloTexture::ExecutePass(int passIndex)
     ReleaseResourcesAfterPass(passIndex);
 }
 
-void D3D12HelloTexture::ExecutePassOperation(const RenderPass &pass)
+void D3D12HelloTexture::ExecutePassOperation(const RenderPass& pass)
 {
-    const PassOperationHandler *handler = m_passOperationRegistry.Find(pass.operation);
+    const PassOperationHandler* handler = m_passOperationRegistry.Find(pass.operation);
     assert(handler != nullptr && "Unsupported pass operation.");
     if (handler != nullptr)
     {
@@ -2531,12 +2544,12 @@ void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
     const std::vector<std::string> resourceNames =
         m_resourceRegistry.GetResourcesStartingAtPass(passIndex, kBackBufferResourceName);
 
-    for (const std::string &name : resourceNames)
+    for (const std::string& name : resourceNames)
     {
-        TransientResource *transientResource = m_resourceRegistry.PrepareTransientResourceForCreate(name);
+        TransientResource* transientResource = m_resourceRegistry.PrepareTransientResourceForCreate(name);
         if (transientResource == nullptr)
             continue;
-        auto &tr = *transientResource;
+        auto& tr = *transientResource;
 
         CreateCommittedTransientResource(tr);
         m_resourceRegistry.MarkTransientResourceCreated(name);
@@ -2546,14 +2559,14 @@ void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
     }
 }
 
-void D3D12HelloTexture::CreateCommittedTransientResource(TransientResource &resource)
+void D3D12HelloTexture::CreateCommittedTransientResource(TransientResource& resource)
 {
     ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                                                     D3D12_HEAP_FLAG_NONE, &resource.desc, resource.initialState,
                                                     &resource.clearValue, IID_PPV_ARGS(&resource.resource)));
 }
 
-void D3D12HelloTexture::BindCreatedTransientResource(const std::string &name, ID3D12Resource *resource)
+void D3D12HelloTexture::BindCreatedTransientResource(const std::string& name, ID3D12Resource* resource)
 {
     if (name == kDepthStencilResourceName)
     {
@@ -2599,7 +2612,7 @@ void D3D12HelloTexture::CollectGarbageTransientResources()
     const UINT64 completed = m_fence->GetCompletedValue();
     const std::vector<std::string> releasedResources = m_resourceRegistry.CollectGarbageTransientResources(completed);
 
-    for (const std::string &name : releasedResources)
+    for (const std::string& name : releasedResources)
     {
         if (name == kDepthStencilResourceName)
         {
@@ -2619,12 +2632,12 @@ void D3D12HelloTexture::ResetResourceStates()
     }
 }
 
-void D3D12HelloTexture::TransitionPassResources(const RenderPass &pass)
+void D3D12HelloTexture::TransitionPassResources(const RenderPass& pass)
 {
-    pass.ForEachResourceUsage([this](const ResourceUsage &usage) { TransitionResource(usage); });
+    pass.ForEachResourceUsage([this](const ResourceUsage& usage) { TransitionResource(usage); });
 }
 
-void D3D12HelloTexture::TransitionResource(const ResourceUsage &usage)
+void D3D12HelloTexture::TransitionResource(const ResourceUsage& usage)
 {
     D3D12_RESOURCE_STATES currentState = GetResourceState(usage.name);
     if (currentState == usage.state)
@@ -2632,7 +2645,7 @@ void D3D12HelloTexture::TransitionResource(const ResourceUsage &usage)
         return;
     }
 
-    ID3D12Resource *resource = ResolveResource(usage.name);
+    ID3D12Resource* resource = ResolveResource(usage.name);
 
     assert(resource != nullptr && "Cannot transition a null resource.");
     if (resource == nullptr)
@@ -2645,7 +2658,7 @@ void D3D12HelloTexture::TransitionResource(const ResourceUsage &usage)
     SetResourceState(usage.name, usage.state);
 }
 
-ID3D12Resource *D3D12HelloTexture::ResolveResource(const std::string &name) const
+ID3D12Resource* D3D12HelloTexture::ResolveResource(const std::string& name) const
 {
     if (name == kBackBufferResourceName)
     {
@@ -2673,12 +2686,12 @@ ID3D12Resource *D3D12HelloTexture::ResolveResource(const std::string &name) cons
     return m_resourceRegistry.FindTransientD3DResource(name);
 }
 
-D3D12_RESOURCE_STATES D3D12HelloTexture::GetResourceState(const std::string &name) const
+D3D12_RESOURCE_STATES D3D12HelloTexture::GetResourceState(const std::string& name) const
 {
     return m_resourceRegistry.GetState(name);
 }
 
-void D3D12HelloTexture::SetResourceState(const std::string &name, D3D12_RESOURCE_STATES state)
+void D3D12HelloTexture::SetResourceState(const std::string& name, D3D12_RESOURCE_STATES state)
 {
     m_resourceRegistry.SetState(name, state);
 }
@@ -2700,7 +2713,7 @@ void D3D12HelloTexture::BeginFrame()
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
-    ID3D12DescriptorHeap *ppHeaps[] = {m_heap.Get()};
+    ID3D12DescriptorHeap* ppHeaps[] = {m_heap.Get()};
     m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
     m_commandList->RSSetViewports(1, &m_viewport);
@@ -2709,27 +2722,57 @@ void D3D12HelloTexture::BeginFrame()
     m_gpuWorkMeter.StartGpu(m_commandList.Get(), m_frameResources[m_frameIndex].gpuWorkMeterCheckPoints);
 }
 
-void D3D12HelloTexture::ExecuteClearPass(const RenderPass &pass) { RecordClear(pass.renderTargets); }
+void D3D12HelloTexture::ExecuteClearPass(const RenderPass& pass)
+{
+    RecordClear(pass.renderTargets);
+}
 
-void D3D12HelloTexture::ExecuteDepthPrePass(const RenderPass &pass) { RecordDepthPrePass(); }
+void D3D12HelloTexture::ExecuteDepthPrePass(const RenderPass& pass)
+{
+    RecordDepthPrePass();
+}
 
-void D3D12HelloTexture::ExecuteGBufferPass(const RenderPass &pass) { RecordGBufferPass(pass.renderTargets); }
+void D3D12HelloTexture::ExecuteGBufferPass(const RenderPass& pass)
+{
+    RecordGBufferPass(pass.renderTargets);
+}
 
-void D3D12HelloTexture::ExecuteMainPass(const RenderPass &pass) { RecordMainPass(pass.renderTargets); }
+void D3D12HelloTexture::ExecuteMainPass(const RenderPass& pass)
+{
+    RecordMainPass(pass.renderTargets);
+}
 
-void D3D12HelloTexture::ExecuteLightingPass(const RenderPass &pass) { RecordLightPass(); }
+void D3D12HelloTexture::ExecuteLightingPass(const RenderPass& pass)
+{
+    RecordLightPass();
+}
 
-void D3D12HelloTexture::ExecuteLightingDebugGradientPass(const RenderPass &pass) { RecordLightPassDebugGradient(); }
+void D3D12HelloTexture::ExecuteLightingDebugGradientPass(const RenderPass& pass)
+{
+    RecordLightPassDebugGradient();
+}
 
-void D3D12HelloTexture::ExecuteToneMapPass(const RenderPass &pass) { RecordToneMapPass(); }
+void D3D12HelloTexture::ExecuteToneMapPass(const RenderPass& pass)
+{
+    RecordToneMapPass();
+}
 
-void D3D12HelloTexture::ExecuteDebugDumpPass(const RenderPass &pass) { RecordDebugDumpPass(); }
+void D3D12HelloTexture::ExecuteDebugDumpPass(const RenderPass& pass)
+{
+    RecordDebugDumpPass();
+}
 
-void D3D12HelloTexture::ExecuteGBufferDebugPass(const RenderPass &pass) { RecordGBufferDebugPass(); }
+void D3D12HelloTexture::ExecuteGBufferDebugPass(const RenderPass& pass)
+{
+    RecordGBufferDebugPass();
+}
 
-void D3D12HelloTexture::ExecuteImGuiPass(const RenderPass &pass) { RecordImGuiPass(); }
+void D3D12HelloTexture::ExecuteImGuiPass(const RenderPass& pass)
+{
+    RecordImGuiPass();
+}
 
-void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding &renderTargets)
+void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding& renderTargets)
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"ClearPrepass");
     assert(!renderTargets.rtvs.empty());
@@ -2781,7 +2824,7 @@ void D3D12HelloTexture::RecordDepthPrePass()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Depth Prepass");
 }
 
-void D3D12HelloTexture::RecordGBufferPass(const PassRenderTargetBinding &renderTargets)
+void D3D12HelloTexture::RecordGBufferPass(const PassRenderTargetBinding& renderTargets)
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"GBufferPass");
 
@@ -2844,8 +2887,8 @@ void D3D12HelloTexture::RecordToneMapPass()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ToneMap Pass");
 }
 
-void D3D12HelloTexture::CreateDebugDumpReadback(ID3D12Resource *source, ComPtr<ID3D12Resource> &readback,
-                                                D3D12_PLACED_SUBRESOURCE_FOOTPRINT &layout)
+void D3D12HelloTexture::CreateDebugDumpReadback(ID3D12Resource* source, ComPtr<ID3D12Resource>& readback,
+                                                D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout)
 {
     D3D12_RESOURCE_DESC desc = source->GetDesc();
     UINT numRows = 0;
@@ -2888,23 +2931,23 @@ void D3D12HelloTexture::PrintDebugDump()
         return;
     }
 
-    UINT8 *lightData = nullptr;
-    UINT8 *backBufferData = nullptr;
+    UINT8* lightData = nullptr;
+    UINT8* backBufferData = nullptr;
     const D3D12_RANGE lightReadRange = {0, static_cast<SIZE_T>(m_lightPassDebugDumpReadback->GetDesc().Width)};
     const D3D12_RANGE backBufferReadRange = {0, static_cast<SIZE_T>(m_backBufferDebugDumpReadback->GetDesc().Width)};
-    ThrowIfFailed(m_lightPassDebugDumpReadback->Map(0, &lightReadRange, reinterpret_cast<void **>(&lightData)));
+    ThrowIfFailed(m_lightPassDebugDumpReadback->Map(0, &lightReadRange, reinterpret_cast<void**>(&lightData)));
     ThrowIfFailed(
-        m_backBufferDebugDumpReadback->Map(0, &backBufferReadRange, reinterpret_cast<void **>(&backBufferData)));
+        m_backBufferDebugDumpReadback->Map(0, &backBufferReadRange, reinterpret_cast<void**>(&backBufferData)));
 
     const UINT lightWidth = static_cast<UINT>(m_lightPassDebugDumpLayout.Footprint.Width);
     const UINT lightHeight = m_lightPassDebugDumpLayout.Footprint.Height;
     const UINT backBufferWidth = static_cast<UINT>(m_backBufferDebugDumpLayout.Footprint.Width);
     const UINT backBufferHeight = m_backBufferDebugDumpLayout.Footprint.Height;
     const UINT sampleYs[] = {lightHeight > 0 ? lightHeight / 4 : 0, lightHeight > 0 ? (lightHeight * 3) / 4 : 0};
-    const char *bandNames[] = {"SDR[0,1]", "HDR[0,9]"};
+    const char* bandNames[] = {"SDR[0,1]", "HDR[0,9]"};
     const UINT bandCount = m_lightingPassDebugGradientEnabled ? 2 : 1;
     const UINT sampleXs[] = {0, lightWidth / 4, lightWidth / 2, lightWidth > 0 ? lightWidth - 1 : 0};
-    const char *sampleNames[] = {"left", "25%", "50%", "right"};
+    const char* sampleNames[] = {"left", "25%", "50%", "right"};
 
     DebugPrint("HDR DebugDump: LightPass=%ux%u BackBuffer=%ux%u hdr10=%d gradient=%d toneMap=%d exposure=%.3f "
                "paperWhite=%.1f maxDisplay=%.1f\n",
@@ -2926,7 +2969,7 @@ void D3D12HelloTexture::PrintDebugDump()
     {
         const UINT sampleY =
             m_lightingPassDebugGradientEnabled ? sampleYs[band] : (lightHeight > 0 ? lightHeight / 2 : 0);
-        const char *bandName = m_lightingPassDebugGradientEnabled ? bandNames[band] : "Scene";
+        const char* bandName = m_lightingPassDebugGradientEnabled ? bandNames[band] : "Scene";
 
         for (UINT i = 0; i < _countof(sampleXs); ++i)
         {
@@ -2934,19 +2977,19 @@ void D3D12HelloTexture::PrintDebugDump()
             const UINT backBufferX = backBufferWidth > 0 ? (std::min)(lightX, backBufferWidth - 1) : 0;
             const UINT backBufferY = backBufferHeight > 0 ? (std::min)(sampleY, backBufferHeight - 1) : 0;
 
-            const UINT8 *lightRow = lightData + m_lightPassDebugDumpLayout.Offset +
+            const UINT8* lightRow = lightData + m_lightPassDebugDumpLayout.Offset +
                                     static_cast<size_t>(sampleY) * m_lightPassDebugDumpLayout.Footprint.RowPitch;
-            const UINT16 *lightHalf = reinterpret_cast<const UINT16 *>(lightRow + static_cast<size_t>(lightX) * 8);
+            const UINT16* lightHalf = reinterpret_cast<const UINT16*>(lightRow + static_cast<size_t>(lightX) * 8);
             const float lightR = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[0]);
             const float lightG = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[1]);
             const float lightB = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[2]);
             const float lightA = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[3]);
 
-            const UINT8 *backBufferRow =
+            const UINT8* backBufferRow =
                 backBufferData + m_backBufferDebugDumpLayout.Offset +
                 static_cast<size_t>(backBufferY) * m_backBufferDebugDumpLayout.Footprint.RowPitch;
             const UINT backBufferRaw =
-                *reinterpret_cast<const UINT *>(backBufferRow + static_cast<size_t>(backBufferX) * 4);
+                *reinterpret_cast<const UINT*>(backBufferRow + static_cast<size_t>(backBufferX) * 4);
             const float outR = static_cast<float>(backBufferRaw & 0x3ff) / 1023.0f;
             const float outG = static_cast<float>((backBufferRaw >> 10) & 0x3ff) / 1023.0f;
             const float outB = static_cast<float>((backBufferRaw >> 20) & 0x3ff) / 1023.0f;
@@ -2999,7 +3042,7 @@ void D3D12HelloTexture::PrintDebugDump()
 //
 // Main Pass
 //
-void D3D12HelloTexture::RecordMainPass(const PassRenderTargetBinding &renderTargets)
+void D3D12HelloTexture::RecordMainPass(const PassRenderTargetBinding& renderTargets)
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"MainPass");
     if (renderTargets.clearColor)
@@ -3026,7 +3069,7 @@ void D3D12HelloTexture::RecordImGuiPass()
         m_commandList->RSSetViewports(1, &m_viewport);
         m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
-        ID3D12DescriptorHeap *imguiHeaps[] = {m_imguiHeap.Get()};
+        ID3D12DescriptorHeap* imguiHeaps[] = {m_imguiHeap.Get()};
 
         m_commandList->SetDescriptorHeaps(1, imguiHeaps);
 

@@ -64,6 +64,7 @@ pass が PSO を使って draw / dispatch する場合は `PipelineId(Pipe::Some
 ```
 
 shader bytecode は、pipeline definition と登録 helper の両方で `{data, size}` として表し、`GraphicsPipelineShaders` にまとめます。
+scene pipeline も専用の definition struct を使い、pipeline key、input layout、shader、format を materialize 前にまとめます。
 
 この定義は `LoadAssets()` にあり、`RegisterFullscreenPipelines()` で materialize されます。そこから `RegisterFullscreenPipeline(baseDesc, definition)` に入り、fullscreen 用 PSO desc を作り、`PipelineId(definition.name)` で key を得て、最後に `m_pipelineRegistry.Create(...)` へ保存します。
 
