@@ -492,6 +492,7 @@ private:
 
     Engine::RenderPassKeyRegistry m_passKeyRegistry;
     Engine::RenderPassKeys m_passKeys;
+    Engine::RenderPassBindingResolverRegistry m_passBindingResolvers;
     PipelineRegistry m_pipelineRegistry;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
@@ -654,8 +655,9 @@ private:
     RenderPassGraph m_renderPassGraph;
     ResourceRegistry m_resourceRegistry;
     using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass& pass);
-    using RenderPassBuilder = Engine::RenderPassBuilder<PassOperationHandler>;
+    using RenderPassAuthoringContext = Engine::RenderPassAuthoringContext<PassOperationHandler>;
     Engine::PassOperationRegistry<PassOperationHandler> m_passOperationRegistry;
+    RenderPassAuthoringContext m_renderPassAuthoring;
 
     struct ShaderBytecode
     {
@@ -729,9 +731,7 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE GetDepthDsv() const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetGBufferRTV(UINT index) const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetLightPassRTV() const;
-    D3D12_CPU_DESCRIPTOR_HANDLE ResolveRtv(RtvKey key) const;
-    D3D12_CPU_DESCRIPTOR_HANDLE ResolveDsv(DsvKey key) const;
-    DescriptorHeapHandle ResolveDescriptor(DescriptorKey key) const;
+    void RegisterPassBindingResolvers();
 
     std::vector<UINT8> GenerateCheckerboardTextureData();
     void PopulateCommandList();
@@ -741,7 +741,6 @@ private:
     ResourceUsages MakeGBufferReadUsages() const;
     PipelineKey PipelineId(const std::string& name);
     DescriptorKey DescriptorId(const std::string& name);
-    RenderPassBuilder MakeRenderPassBuilder(const wchar_t* name);
     RenderPass MakeClearPass();
     RenderPass MakeDepthPrePass();
     RenderPass MakeGBufferPass();

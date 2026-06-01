@@ -86,6 +86,8 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
       m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)), m_rtvDescriptorSize(0),
       m_descriptorSize(0)
 {
+    m_renderPassAuthoring.Bind(m_passKeys, m_passKeyRegistry, m_passOperationRegistry);
+    RegisterPassBindingResolvers();
 }
 
 auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings& hdrOutputSettings) const
@@ -1483,85 +1485,54 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetLightPassRTV() const
     return h;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::ResolveRtv(RtvKey key) const
+void D3D12HelloTexture::RegisterPassBindingResolvers()
 {
-    if (key == m_passKeys.RtvId(RtvName::BackBuffer))
-    {
-        return GetBackBufferRtv();
-    }
-    if (key == m_passKeys.RtvId(RtvName::GBufferAlbedo))
-    {
-        return GetGBufferRTV(GBuffer::Albedo);
-    }
-    if (key == m_passKeys.RtvId(RtvName::GBufferNormal))
-    {
-        return GetGBufferRTV(GBuffer::Normal);
-    }
-    if (key == m_passKeys.RtvId(RtvName::GBufferMaterial))
-    {
-        return GetGBufferRTV(GBuffer::Material);
-    }
-    if (key == m_passKeys.RtvId(RtvName::GBufferMotionVector))
-    {
-        return GetGBufferRTV(GBuffer::MotionVector);
-    }
-    if (key == m_passKeys.RtvId(RtvName::GBufferPBRParams))
-    {
-        return GetGBufferRTV(GBuffer::PBRParams);
-    }
-    if (key == m_passKeys.RtvId(RtvName::LightPass))
-    {
-        return GetLightPassRTV();
-    }
+    m_passBindingResolvers.Clear();
 
-    assert(false && "Unsupported RTV key.");
-    return {};
-}
+    m_passBindingResolvers.RegisterRtv(
+        m_passKeys.RegisterRtv(RtvName::BackBuffer, m_passKeyRegistry), [this]() { return GetBackBufferRtv(); });
+    m_passBindingResolvers.RegisterRtv(
+        m_passKeys.RegisterRtv(RtvName::GBufferAlbedo, m_passKeyRegistry),
+        [this]() { return GetGBufferRTV(GBuffer::Albedo); });
+    m_passBindingResolvers.RegisterRtv(
+        m_passKeys.RegisterRtv(RtvName::GBufferNormal, m_passKeyRegistry),
+        [this]() { return GetGBufferRTV(GBuffer::Normal); });
+    m_passBindingResolvers.RegisterRtv(
+        m_passKeys.RegisterRtv(RtvName::GBufferMaterial, m_passKeyRegistry),
+        [this]() { return GetGBufferRTV(GBuffer::Material); });
+    m_passBindingResolvers.RegisterRtv(
+        m_passKeys.RegisterRtv(RtvName::GBufferMotionVector, m_passKeyRegistry),
+        [this]() { return GetGBufferRTV(GBuffer::MotionVector); });
+    m_passBindingResolvers.RegisterRtv(
+        m_passKeys.RegisterRtv(RtvName::GBufferPBRParams, m_passKeyRegistry),
+        [this]() { return GetGBufferRTV(GBuffer::PBRParams); });
+    m_passBindingResolvers.RegisterRtv(
+        m_passKeys.RegisterRtv(RtvName::LightPass, m_passKeyRegistry), [this]() { return GetLightPassRTV(); });
 
-D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::ResolveDsv(DsvKey key) const
-{
-    if (key == m_passKeys.DsvId(DsvName::Depth))
-    {
-        return GetDepthDsv();
-    }
+    m_passBindingResolvers.RegisterDsv(
+        m_passKeys.RegisterDsv(DsvName::Depth, m_passKeyRegistry), [this]() { return GetDepthDsv(); });
 
-    assert(false && "Unsupported DSV key.");
-    return {};
-}
-
-DescriptorHeapHandle D3D12HelloTexture::ResolveDescriptor(DescriptorKey key) const
-{
-    if (key == m_passKeys.DescriptorId(Desc::TextureTable))
-    {
-        return m_textureTableStart;
-    }
-    if (key == m_passKeys.DescriptorId(Desc::InstanceBufferSrv))
-    {
-        return m_frameResources[m_frameIndex].instanceBufferSrv;
-    }
-    if (key == m_passKeys.DescriptorId(Desc::MaterialBufferSrv))
-    {
-        return m_materialBufferSrv;
-    }
-    if (key == m_passKeys.DescriptorId(Desc::CameraCbv))
-    {
-        return m_frameResources[m_frameIndex].cameraCB.cbv;
-    }
-    if (key == m_passKeys.DescriptorId(Desc::LightCbv))
-    {
-        return m_frameResources[m_frameIndex].lightCB.cbv;
-    }
-    if (key == m_passKeys.DescriptorId(Desc::GBufferAlbedoSrv))
-    {
-        return m_gbuffer.srvHandles[GBuffer::Albedo];
-    }
-    if (key == m_passKeys.DescriptorId(Desc::ToneMapSceneColorSrv))
-    {
-        return m_lightPassColorSrv;
-    }
-
-    assert(false && "Unsupported descriptor key.");
-    return {};
+    m_passBindingResolvers.RegisterDescriptor(
+        m_passKeys.RegisterDescriptor(Desc::TextureTable, m_passKeyRegistry),
+        [this]() { return m_textureTableStart.gpu; });
+    m_passBindingResolvers.RegisterDescriptor(
+        m_passKeys.RegisterDescriptor(Desc::InstanceBufferSrv, m_passKeyRegistry),
+        [this]() { return m_frameResources[m_frameIndex].instanceBufferSrv.gpu; });
+    m_passBindingResolvers.RegisterDescriptor(
+        m_passKeys.RegisterDescriptor(Desc::MaterialBufferSrv, m_passKeyRegistry),
+        [this]() { return m_materialBufferSrv.gpu; });
+    m_passBindingResolvers.RegisterDescriptor(
+        m_passKeys.RegisterDescriptor(Desc::CameraCbv, m_passKeyRegistry),
+        [this]() { return m_frameResources[m_frameIndex].cameraCB.cbv.gpu; });
+    m_passBindingResolvers.RegisterDescriptor(
+        m_passKeys.RegisterDescriptor(Desc::LightCbv, m_passKeyRegistry),
+        [this]() { return m_frameResources[m_frameIndex].lightCB.cbv.gpu; });
+    m_passBindingResolvers.RegisterDescriptor(
+        m_passKeys.RegisterDescriptor(Desc::GBufferAlbedoSrv, m_passKeyRegistry),
+        [this]() { return m_gbuffer.srvHandles[GBuffer::Albedo].gpu; });
+    m_passBindingResolvers.RegisterDescriptor(
+        m_passKeys.RegisterDescriptor(Desc::ToneMapSceneColorSrv, m_passKeyRegistry),
+        [this]() { return m_lightPassColorSrv.gpu; });
 }
 
 void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
@@ -2209,14 +2180,9 @@ DescriptorKey D3D12HelloTexture::DescriptorId(const std::string& name)
     return m_passKeys.RegisterDescriptor(name, m_passKeyRegistry);
 }
 
-auto D3D12HelloTexture::MakeRenderPassBuilder(const wchar_t* name) -> RenderPassBuilder
-{
-    return RenderPassBuilder(name, m_passKeys, m_passKeyRegistry, m_passOperationRegistry);
-}
-
 auto D3D12HelloTexture::MakeClearPass() -> RenderPass
 {
-    return MakeRenderPassBuilder(L"Clear")
+    return m_renderPassAuthoring.CreatePass(L"Clear")
         .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
         .Rtv(RtvName::BackBuffer)
@@ -2228,7 +2194,7 @@ auto D3D12HelloTexture::MakeClearPass() -> RenderPass
 
 auto D3D12HelloTexture::MakeDepthPrePass() -> RenderPass
 {
-    return MakeRenderPassBuilder(L"Depth PrePass")
+    return m_renderPassAuthoring.CreatePass(L"Depth PrePass")
         .Pipeline(Pipe::DepthPrePass)
         .Writes({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
         .Descriptor(RootParam_InstanceSrv, Desc::InstanceBufferSrv)
@@ -2240,7 +2206,7 @@ auto D3D12HelloTexture::MakeDepthPrePass() -> RenderPass
 
 auto D3D12HelloTexture::MakeGBufferPass() -> RenderPass
 {
-    return MakeRenderPassBuilder(L"GBufferPass")
+    return m_renderPassAuthoring.CreatePass(L"GBufferPass")
         .Pipeline(Pipe::GBuffer)
         .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
         .Writes({{kGBufferResourceNames[GBuffer::Albedo], D3D12_RESOURCE_STATE_RENDER_TARGET},
@@ -2261,7 +2227,7 @@ auto D3D12HelloTexture::MakeGBufferPass() -> RenderPass
 
 auto D3D12HelloTexture::MakeMainPass() -> RenderPass
 {
-    return MakeRenderPassBuilder(L"MainPass")
+    return m_renderPassAuthoring.CreatePass(L"MainPass")
         .Pipeline(Pipe::Main)
         .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
@@ -2279,7 +2245,7 @@ auto D3D12HelloTexture::MakeMainPass() -> RenderPass
 
 auto D3D12HelloTexture::MakeLightingPass() -> RenderPass
 {
-    return MakeRenderPassBuilder(L"LightPass")
+    return m_renderPassAuthoring.CreatePass(L"LightPass")
         .Pipeline(Pipe::Lighting)
         .Reads(MakeGBufferReadUsages())
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
@@ -2294,7 +2260,7 @@ auto D3D12HelloTexture::MakeLightingPass() -> RenderPass
 
 auto D3D12HelloTexture::MakeLightingDebugGradientPass() -> RenderPass
 {
-    return MakeRenderPassBuilder(L"LightPassDebugGradient")
+    return m_renderPassAuthoring.CreatePass(L"LightPassDebugGradient")
         .Pipeline(Pipe::LightingDebugGradient)
         .Reads(MakeGBufferReadUsages())
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
@@ -2310,7 +2276,7 @@ auto D3D12HelloTexture::MakeLightingDebugGradientPass() -> RenderPass
 
 auto D3D12HelloTexture::MakeToneMapPass() -> RenderPass
 {
-    return MakeRenderPassBuilder(L"ToneMapPass")
+    return m_renderPassAuthoring.CreatePass(L"ToneMapPass")
         .Pipeline(Pipe::ToneMap)
         .Reads({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}})
         .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
@@ -2323,7 +2289,7 @@ auto D3D12HelloTexture::MakeToneMapPass() -> RenderPass
 
 auto D3D12HelloTexture::MakeDebugDumpPass() -> RenderPass
 {
-    return MakeRenderPassBuilder(L"DebugDump")
+    return m_renderPassAuthoring.CreatePass(L"DebugDump")
         .Reads({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_COPY_SOURCE},
                 {kBackBufferResourceName, D3D12_RESOURCE_STATE_COPY_SOURCE}})
         .Operation(Op::DebugDump, &D3D12HelloTexture::ExecuteDebugDumpPass)
@@ -2332,7 +2298,7 @@ auto D3D12HelloTexture::MakeDebugDumpPass() -> RenderPass
 
 auto D3D12HelloTexture::MakeGBufferDebugPass() -> RenderPass
 {
-    return MakeRenderPassBuilder(L"GBufferDebugPass")
+    return m_renderPassAuthoring.CreatePass(L"GBufferDebugPass")
         .Pipeline(Pipe::GBufferDebug)
         .Reads(MakeGBufferReadUsages())
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
@@ -2345,7 +2311,7 @@ auto D3D12HelloTexture::MakeGBufferDebugPass() -> RenderPass
 
 auto D3D12HelloTexture::MakeImGuiPass() -> RenderPass
 {
-    return MakeRenderPassBuilder(L"ImGui")
+    return m_renderPassAuthoring.CreatePass(L"ImGui")
         .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
         .Rtv(RtvName::BackBuffer)
         .Operation(Op::ImGui, &D3D12HelloTexture::ExecuteImGuiPass)
@@ -2368,32 +2334,12 @@ void D3D12HelloTexture::DebugPrintLifetimes()
 
 void D3D12HelloTexture::BindPassDescriptors(const RenderPass& pass)
 {
-    for (const auto& binding : pass.descriptorBindings)
-    {
-        m_commandList->SetGraphicsRootDescriptorTable(binding.rootParameterIndex,
-                                                      ResolveDescriptor(binding.descriptor).gpu);
-    }
+    m_passBindingResolvers.BindDescriptors(m_commandList.Get(), pass);
 }
 
 void D3D12HelloTexture::BindPassRenderTargets(const RenderPass& pass)
 {
-    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvs;
-    rtvs.reserve(pass.renderTargets.rtvs.size());
-    for (RtvKey rtv : pass.renderTargets.rtvs)
-    {
-        rtvs.push_back(ResolveRtv(rtv));
-    }
-
-    std::optional<D3D12_CPU_DESCRIPTOR_HANDLE> dsv;
-    if (pass.renderTargets.dsv)
-    {
-        dsv = ResolveDsv(pass.renderTargets.dsv.value());
-    }
-
-    const D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandles = rtvs.empty() ? nullptr : rtvs.data();
-    const D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle = dsv ? &dsv.value() : nullptr;
-
-    m_commandList->OMSetRenderTargets(static_cast<UINT>(rtvs.size()), rtvHandles, FALSE, dsvHandle);
+    m_passBindingResolvers.BindRenderTargets(m_commandList.Get(), pass);
 }
 
 ID3D12PipelineState* D3D12HelloTexture::GetPipelineState(PipelineKey pipeline) const
@@ -2708,10 +2654,11 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding& renderTargets
 
     for (RtvKey rtv : renderTargets.rtvs)
     {
-        m_commandList->ClearRenderTargetView(ResolveRtv(rtv), renderTargets.clearColor->data(), 0, nullptr);
+        m_commandList->ClearRenderTargetView(m_passBindingResolvers.ResolveRtv(rtv), renderTargets.clearColor->data(),
+                                             0, nullptr);
     }
-    m_commandList->ClearDepthStencilView(ResolveDsv(renderTargets.dsv.value()), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0,
-                                         nullptr);
+    m_commandList->ClearDepthStencilView(m_passBindingResolvers.ResolveDsv(renderTargets.dsv.value()),
+                                         D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
     PIXEndEvent(m_commandList.Get());
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Clear");
@@ -2757,8 +2704,8 @@ void D3D12HelloTexture::RecordGBufferPass(const PassRenderTargetBinding& renderT
 
     for (UINT i = 0; i < static_cast<UINT>(renderTargets.rtvs.size()); ++i)
     {
-        m_commandList->ClearRenderTargetView(ResolveRtv(renderTargets.rtvs[i]), m_gbuffer.clearValues[i].Color, 0,
-                                             nullptr);
+        m_commandList->ClearRenderTargetView(m_passBindingResolvers.ResolveRtv(renderTargets.rtvs[i]),
+                                             m_gbuffer.clearValues[i].Color, 0, nullptr);
     }
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2976,7 +2923,8 @@ void D3D12HelloTexture::RecordMainPass(const PassRenderTargetBinding& renderTarg
     {
         for (RtvKey rtv : renderTargets.rtvs)
         {
-            m_commandList->ClearRenderTargetView(ResolveRtv(rtv), renderTargets.clearColor->data(), 0, nullptr);
+            m_commandList->ClearRenderTargetView(m_passBindingResolvers.ResolveRtv(rtv),
+                                                 renderTargets.clearColor->data(), 0, nullptr);
         }
     }
 

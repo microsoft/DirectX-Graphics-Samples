@@ -49,6 +49,14 @@ template <typename Tag> struct Key
     }
 };
 
+template <typename KeyT> struct KeyHash
+{
+    size_t operator()(KeyT key) const noexcept
+    {
+        return std::hash<uint32_t>{}(key.index);
+    }
+};
+
 struct PipelineKeyTag;
 struct DescriptorKeyTag;
 struct RtvKeyTag;
@@ -467,6 +475,139 @@ private:
     RenderPassKeyRegistry* m_keyRegistry = nullptr;
     PassOperationRegistry<OperationHandlerT>* m_operationRegistry = nullptr;
     RenderPass m_pass = {};
+};
+
+template <typename OperationHandlerT> class RenderPassAuthoringContext
+{
+public:
+    using Builder = RenderPassBuilder<OperationHandlerT>;
+
+    RenderPassAuthoringContext() = default;
+
+    RenderPassAuthoringContext(RenderPassKeys& keys, RenderPassKeyRegistry& keyRegistry,
+                               PassOperationRegistry<OperationHandlerT>& operationRegistry)
+    {
+        Bind(keys, keyRegistry, operationRegistry);
+    }
+
+    void Bind(RenderPassKeys& keys, RenderPassKeyRegistry& keyRegistry,
+              PassOperationRegistry<OperationHandlerT>& operationRegistry)
+    {
+        m_keys = &keys;
+        m_keyRegistry = &keyRegistry;
+        m_operationRegistry = &operationRegistry;
+    }
+
+    Builder CreatePass(const wchar_t* name)
+    {
+        assert(m_keys != nullptr && m_keyRegistry != nullptr && m_operationRegistry != nullptr);
+        return Builder(name, *m_keys, *m_keyRegistry, *m_operationRegistry);
+    }
+
+private:
+    RenderPassKeys* m_keys = nullptr;
+    RenderPassKeyRegistry* m_keyRegistry = nullptr;
+    PassOperationRegistry<OperationHandlerT>* m_operationRegistry = nullptr;
+};
+
+class RenderPassBindingResolverRegistry
+{
+public:
+    using DescriptorResolver = std::function<D3D12_GPU_DESCRIPTOR_HANDLE()>;
+    using RtvResolver = std::function<D3D12_CPU_DESCRIPTOR_HANDLE()>;
+    using DsvResolver = std::function<D3D12_CPU_DESCRIPTOR_HANDLE()>;
+
+    void Clear()
+    {
+        m_descriptorResolvers.clear();
+        m_rtvResolvers.clear();
+        m_dsvResolvers.clear();
+    }
+
+    void RegisterDescriptor(DescriptorKey descriptor, DescriptorResolver resolver)
+    {
+        m_descriptorResolvers[descriptor] = std::move(resolver);
+    }
+
+    void RegisterRtv(RtvKey rtv, RtvResolver resolver)
+    {
+        m_rtvResolvers[rtv] = std::move(resolver);
+    }
+
+    void RegisterDsv(DsvKey dsv, DsvResolver resolver)
+    {
+        m_dsvResolvers[dsv] = std::move(resolver);
+    }
+
+    bool ContainsDescriptor(DescriptorKey descriptor) const
+    {
+        return m_descriptorResolvers.find(descriptor) != m_descriptorResolvers.end();
+    }
+
+    bool ContainsRtv(RtvKey rtv) const
+    {
+        return m_rtvResolvers.find(rtv) != m_rtvResolvers.end();
+    }
+
+    bool ContainsDsv(DsvKey dsv) const
+    {
+        return m_dsvResolvers.find(dsv) != m_dsvResolvers.end();
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE ResolveDescriptor(DescriptorKey descriptor) const
+    {
+        auto resolver = m_descriptorResolvers.find(descriptor);
+        assert(resolver != m_descriptorResolvers.end() && "Missing pass descriptor resolver.");
+        return resolver != m_descriptorResolvers.end() ? resolver->second() : D3D12_GPU_DESCRIPTOR_HANDLE{};
+    }
+
+    D3D12_CPU_DESCRIPTOR_HANDLE ResolveRtv(RtvKey rtv) const
+    {
+        auto resolver = m_rtvResolvers.find(rtv);
+        assert(resolver != m_rtvResolvers.end() && "Missing pass RTV resolver.");
+        return resolver != m_rtvResolvers.end() ? resolver->second() : D3D12_CPU_DESCRIPTOR_HANDLE{};
+    }
+
+    D3D12_CPU_DESCRIPTOR_HANDLE ResolveDsv(DsvKey dsv) const
+    {
+        auto resolver = m_dsvResolvers.find(dsv);
+        assert(resolver != m_dsvResolvers.end() && "Missing pass DSV resolver.");
+        return resolver != m_dsvResolvers.end() ? resolver->second() : D3D12_CPU_DESCRIPTOR_HANDLE{};
+    }
+
+    void BindDescriptors(ID3D12GraphicsCommandList* commandList, const RenderPass& pass) const
+    {
+        for (const PassDescriptorBinding& binding : pass.descriptorBindings)
+        {
+            commandList->SetGraphicsRootDescriptorTable(binding.rootParameterIndex,
+                                                        ResolveDescriptor(binding.descriptor));
+        }
+    }
+
+    void BindRenderTargets(ID3D12GraphicsCommandList* commandList, const RenderPass& pass) const
+    {
+        std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvs;
+        rtvs.reserve(pass.renderTargets.rtvs.size());
+        for (RtvKey rtv : pass.renderTargets.rtvs)
+        {
+            rtvs.push_back(ResolveRtv(rtv));
+        }
+
+        std::optional<D3D12_CPU_DESCRIPTOR_HANDLE> dsv;
+        if (pass.renderTargets.dsv)
+        {
+            dsv = ResolveDsv(pass.renderTargets.dsv.value());
+        }
+
+        const D3D12_CPU_DESCRIPTOR_HANDLE* rtvHandles = rtvs.empty() ? nullptr : rtvs.data();
+        const D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle = dsv ? &dsv.value() : nullptr;
+        commandList->OMSetRenderTargets(static_cast<UINT>(rtvs.size()), rtvHandles, FALSE, dsvHandle);
+    }
+
+private:
+    std::unordered_map<DescriptorKey, DescriptorResolver, KeyHash<DescriptorKey>> m_descriptorResolvers;
+    std::unordered_map<RtvKey, RtvResolver, KeyHash<RtvKey>> m_rtvResolvers;
+    std::unordered_map<DsvKey, DsvResolver, KeyHash<DsvKey>> m_dsvResolvers;
 };
 
 struct RenderPassGraph
