@@ -12,7 +12,9 @@
 #pragma once
 #include "DXSample.h"
 #include "MyDx12Utils.h"
+#include "RenderPassExecution.h"
 #include "RenderPassGraph.h"
+#include "RenderPassResources.h"
 #include "SimpleDescriptorHeapAllocator.h"
 #include "WorkMeter.h"
 #include <algorithm>
