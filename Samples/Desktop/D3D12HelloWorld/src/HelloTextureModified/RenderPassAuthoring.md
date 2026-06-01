@@ -60,8 +60,10 @@ Use `PipelineId(Pipe::SomePass)` when the pass draws or dispatches through a PSO
 Important: this field only selects a registered pipeline state. The concrete `D3D12_GRAPHICS_PIPELINE_STATE_DESC` is registered separately during asset loading. For ToneMap, that registration is:
 
 ```cpp
-{Pipe::ToneMap, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, m_backBufferFormat}
+{Pipe::ToneMap, {{pToneMapVS, toneMapVSSize}, {pToneMapPS, toneMapPSSize}}, m_backBufferFormat}
 ```
+
+Shader bytecode is represented consistently as `{data, size}` and grouped as `GraphicsPipelineShaders` in pipeline definitions and registration helpers.
 
 That definition is in `LoadAssets()` and is materialized by `RegisterFullscreenPipelines()`. It flows through `RegisterFullscreenPipeline(baseDesc, definition)`, which creates the fullscreen PSO desc, calls `PipelineId(definition.name)`, then stores the created PSO in `m_pipelineRegistry.Create(...)`.
 

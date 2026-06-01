@@ -642,13 +642,22 @@ class D3D12HelloTexture : public DXSample
     using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass &pass);
     Engine::PassOperationRegistry<PassOperationHandler> m_passOperationRegistry;
 
+    struct ShaderBytecode
+    {
+        const UINT8 *data = nullptr;
+        UINT size = 0;
+    };
+
+    struct GraphicsPipelineShaders
+    {
+        ShaderBytecode vertex;
+        ShaderBytecode pixel;
+    };
+
     struct FullscreenPipelineDefinition
     {
         const char *name;
-        const UINT8 *vertexShader;
-        UINT vertexShaderSize;
-        const UINT8 *pixelShader;
-        UINT pixelShaderSize;
+        GraphicsPipelineShaders shaders;
         DXGI_FORMAT renderTargetFormat;
     };
 
@@ -660,13 +669,12 @@ class D3D12HelloTexture : public DXSample
                                      std::initializer_list<FullscreenPipelineDefinition> definitions);
     void RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
                               const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
-                              const UINT8 *vertexShader, UINT vertexShaderSize, const UINT8 *pixelShader,
-                              UINT pixelShaderSize);
-    void RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc, const UINT8 *vertexShader,
-                                 UINT vertexShaderSize, const UINT8 *pixelShader, UINT pixelShaderSize);
+                              GraphicsPipelineShaders shaders);
+    void RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                 GraphicsPipelineShaders shaders);
     void RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
                                       const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
-                                      const UINT8 *vertexShader, UINT vertexShaderSize);
+                                      GraphicsPipelineShaders shaders);
     void UpdateHdr10DisplayMode();
     void InitImGui();
     void CreateConstantBuffer(ConstantBufferResource &constantBuffer, const void *initialData, UINT sizeInBytes);

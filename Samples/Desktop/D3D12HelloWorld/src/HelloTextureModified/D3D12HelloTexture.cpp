@@ -827,29 +827,34 @@ void D3D12HelloTexture::LoadAssets()
         // Main Pass PSO
         //
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        RegisterMainPipeline(psoDesc, inputElementDescs, _countof(inputElementDescs), pVertexShaderData,
-                             vertexShaderDataLength, pPixelShaderData, pixelShaderDataLength);
+        RegisterMainPipeline(psoDesc, inputElementDescs, _countof(inputElementDescs),
+                             {{pVertexShaderData, vertexShaderDataLength},
+                              {pPixelShaderData, pixelShaderDataLength}});
 
         //
         // GBuffer PSO
         //
-        RegisterGBufferPipeline(psoDesc, pGBufferVS, gbufferVSSize, pGBufferPS, gbufferPSSize);
+        RegisterGBufferPipeline(psoDesc, {{pGBufferVS, gbufferVSSize}, {pGBufferPS, gbufferPSSize}});
 
         // Light Pass PSO, ToneMap PSO, GBuffer Debug PSO
         RegisterFullscreenPipelines(
             psoDesc,
-            {{Pipe::Lighting, pLightPassVS, lightPassVSSize, pLightPassPS, lightPassPSSize,
+            {{Pipe::Lighting,
+              {{pLightPassVS, lightPassVSSize}, {pLightPassPS, lightPassPSSize}},
               DXGI_FORMAT_R16G16B16A16_FLOAT},
-             {Pipe::LightingDebugGradient, pLightPassDebugGradientVS, lightPassDebugGradientVSSize,
-              pLightPassDebugGradientPS, lightPassDebugGradientPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT},
-             {Pipe::ToneMap, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, m_backBufferFormat},
-             {Pipe::GBufferDebug, pGBufferDebugVS, gbufferDebugVSSize, pGBufferDebugPS, gbufferDebugPSSize,
+             {Pipe::LightingDebugGradient,
+              {{pLightPassDebugGradientVS, lightPassDebugGradientVSSize},
+               {pLightPassDebugGradientPS, lightPassDebugGradientPSSize}},
+              DXGI_FORMAT_R16G16B16A16_FLOAT},
+             {Pipe::ToneMap, {{pToneMapVS, toneMapVSSize}, {pToneMapPS, toneMapPSSize}}, m_backBufferFormat},
+             {Pipe::GBufferDebug,
+              {{pGBufferDebugVS, gbufferDebugVSSize}, {pGBufferDebugPS, gbufferDebugPSSize}},
               DXGI_FORMAT_R16G16B16A16_FLOAT}});
 
         //
         // Depth PrePass PSO
         //
-        RegisterDepthPrePassPipeline(psoDesc, depthLayout, _countof(depthLayout), pDepthVS, depthVSSize);
+        RegisterDepthPrePassPipeline(psoDesc, depthLayout, _countof(depthLayout), {{pDepthVS, depthVSSize}, {}});
     }
 
     //
@@ -2030,8 +2035,8 @@ void D3D12HelloTexture::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE
                                                    const FullscreenPipelineDefinition &definition)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MyDx12Util::CreateFullscreenPassPSODesc(
-        baseDesc, definition.vertexShader, definition.vertexShaderSize, definition.pixelShader,
-        definition.pixelShaderSize, definition.renderTargetFormat);
+        baseDesc, definition.shaders.vertex.data, definition.shaders.vertex.size, definition.shaders.pixel.data,
+        definition.shaders.pixel.size, definition.renderTargetFormat);
     const PipelineKey key = PipelineId(definition.name);
     m_pipelineRegistry.Create(m_device.Get(), key, desc);
 }
@@ -2048,13 +2053,12 @@ void D3D12HelloTexture::RegisterFullscreenPipelines(
 
 void D3D12HelloTexture::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
                                              const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
-                                             const UINT8 *vertexShader, UINT vertexShaderSize,
-                                             const UINT8 *pixelShader, UINT pixelShaderSize)
+                                             GraphicsPipelineShaders shaders)
 {
     baseDesc.InputLayout = {inputLayout, inputLayoutCount};
     baseDesc.pRootSignature = m_rootSignature.Get();
-    baseDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader, vertexShaderSize);
-    baseDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader, pixelShaderSize);
+    baseDesc.VS = CD3DX12_SHADER_BYTECODE(shaders.vertex.data, shaders.vertex.size);
+    baseDesc.PS = CD3DX12_SHADER_BYTECODE(shaders.pixel.data, shaders.pixel.size);
     baseDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     baseDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     baseDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -2071,23 +2075,23 @@ void D3D12HelloTexture::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC 
 }
 
 void D3D12HelloTexture::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                                const UINT8 *vertexShader, UINT vertexShaderSize,
-                                                const UINT8 *pixelShader, UINT pixelShaderSize)
+                                                GraphicsPipelineShaders shaders)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MyDx12Util::CreateGBufferPSODesc(
-        baseDesc, vertexShader, vertexShaderSize, pixelShader, pixelShaderSize, m_gbuffer.formats, GBuffer::kCount);
+        baseDesc, shaders.vertex.data, shaders.vertex.size, shaders.pixel.data, shaders.pixel.size, m_gbuffer.formats,
+        GBuffer::kCount);
     const PipelineKey key = PipelineId(Pipe::GBuffer);
     m_pipelineRegistry.Create(m_device.Get(), key, desc);
 }
 
 void D3D12HelloTexture::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
                                                      const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
-                                                     const UINT8 *vertexShader, UINT vertexShaderSize)
+                                                     GraphicsPipelineShaders shaders)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
     desc.InputLayout = {inputLayout, inputLayoutCount};
     desc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
-    desc.VS = CD3DX12_SHADER_BYTECODE(vertexShader, vertexShaderSize);
+    desc.VS = CD3DX12_SHADER_BYTECODE(shaders.vertex.data, shaders.vertex.size);
     desc.PS = {};
     desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
     desc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;

@@ -60,8 +60,10 @@ pass が PSO を使って draw / dispatch する場合は `PipelineId(Pipe::Some
 重要: このフィールドは、登録済みの pipeline state を選択するだけです。具体的な `D3D12_GRAPHICS_PIPELINE_STATE_DESC` は asset loading 時に別途登録します。ToneMap の場合は以下です。
 
 ```cpp
-{Pipe::ToneMap, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, m_backBufferFormat}
+{Pipe::ToneMap, {{pToneMapVS, toneMapVSSize}, {pToneMapPS, toneMapPSSize}}, m_backBufferFormat}
 ```
+
+shader bytecode は、pipeline definition と登録 helper の両方で `{data, size}` として表し、`GraphicsPipelineShaders` にまとめます。
 
 この定義は `LoadAssets()` にあり、`RegisterFullscreenPipelines()` で materialize されます。そこから `RegisterFullscreenPipeline(baseDesc, definition)` に入り、fullscreen 用 PSO desc を作り、`PipelineId(definition.name)` で key を得て、最後に `m_pipelineRegistry.Create(...)` へ保存します。
 
