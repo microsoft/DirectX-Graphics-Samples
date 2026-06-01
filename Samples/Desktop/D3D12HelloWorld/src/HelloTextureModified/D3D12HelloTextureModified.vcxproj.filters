@@ -56,6 +56,9 @@
     <ClCompile Include="D3D12HelloTexture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="D3D12HelloTexturePasses.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="Win32Application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

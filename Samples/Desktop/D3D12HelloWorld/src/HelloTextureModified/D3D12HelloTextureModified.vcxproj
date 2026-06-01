@@ -146,6 +146,7 @@
     <ClCompile Include="GltfLoader.cpp" />
     <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="D3D12HelloTexture.cpp" />
+    <ClCompile Include="D3D12HelloTexturePasses.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="stdafx.cpp">
