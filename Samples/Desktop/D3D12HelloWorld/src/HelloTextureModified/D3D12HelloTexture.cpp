@@ -105,6 +105,11 @@ void D3D12HelloTexture::OnInit()
     InitImGui();
 }
 
+void D3D12HelloTexture::SetUseWarpDevice(bool useWarpDevice)
+{
+    m_useWarpDevice = useWarpDevice;
+}
+
 // Load the rendering pipeline dependencies.
 void D3D12HelloTexture::LoadPipeline()
 {

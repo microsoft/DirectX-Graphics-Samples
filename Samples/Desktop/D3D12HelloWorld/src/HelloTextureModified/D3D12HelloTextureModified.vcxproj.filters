@@ -36,6 +36,9 @@
     <ClInclude Include="SimpleDescriptorHeapAllocator.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="SampleApp.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
     <ClInclude Include="WorkMeter.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -48,6 +51,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleApp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DXSample.cpp">

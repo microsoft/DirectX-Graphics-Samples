@@ -59,6 +59,7 @@ public:
     virtual void OnMouseMove(int x, int y);
     virtual void OnWindowSizeChanged(UINT width, UINT height);
     virtual void OnIdle();
+    void SetUseWarpDevice(bool useWarpDevice);
 
 private:
     static constexpr UINT kFrameCount = 2;
