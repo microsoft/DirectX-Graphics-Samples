@@ -80,7 +80,7 @@ extern "C"
     __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
 }
 
-D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
+HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, std::wstring name)
     : DXSample(width, height, name), m_frameIndex(0),
       m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
       m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)), m_rtvDescriptorSize(0),
@@ -91,13 +91,13 @@ D3D12HelloTexture::D3D12HelloTexture(UINT width, UINT height, std::wstring name)
     RegisterResourceResolvers();
 }
 
-auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings& hdrOutputSettings) const
+auto HelloTextureEngine::ToneMapPass::MakeShaderConstants(const HdrOutputSettings& hdrOutputSettings) const
     -> ToneMapSettings::ShaderConstants
 {
     return settings.MakeShaderConstants(hdrOutputSettings.TransferFunction());
 }
 
-void D3D12HelloTexture::OnInit()
+void HelloTextureEngine::OnInit()
 {
     m_prevTime = std::chrono::steady_clock::now();
     LoadPipeline();
@@ -105,13 +105,13 @@ void D3D12HelloTexture::OnInit()
     InitImGui();
 }
 
-void D3D12HelloTexture::SetUseWarpDevice(bool useWarpDevice)
+void HelloTextureEngine::SetUseWarpDevice(bool useWarpDevice)
 {
     m_useWarpDevice = useWarpDevice;
 }
 
 // Load the rendering pipeline dependencies.
-void D3D12HelloTexture::LoadPipeline()
+void HelloTextureEngine::LoadPipeline()
 {
     UINT dxgiFactoryFlags = 0;
 
@@ -238,7 +238,7 @@ void D3D12HelloTexture::LoadPipeline()
                         kGpuWorkMeterQueryCount); // Initialize GPU work meter with a maximum of 100 timestamp queries.
 }
 
-bool D3D12HelloTexture::HdrOutputPolicy::CheckSwapChainColorSpaceSupport(IDXGISwapChain3* swapChain,
+bool HelloTextureEngine::HdrOutputPolicy::CheckSwapChainColorSpaceSupport(IDXGISwapChain3* swapChain,
                                                                          DXGI_COLOR_SPACE_TYPE colorSpace) const
 {
     UINT colorSpaceSupport = 0;
@@ -246,7 +246,7 @@ bool D3D12HelloTexture::HdrOutputPolicy::CheckSwapChainColorSpaceSupport(IDXGISw
            (colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT);
 }
 
-bool D3D12HelloTexture::HdrOutputPolicy::CheckCurrentOutputHdr10Support(ComPtr<IDXGIFactory4>& dxgiFactory,
+bool HelloTextureEngine::HdrOutputPolicy::CheckCurrentOutputHdr10Support(ComPtr<IDXGIFactory4>& dxgiFactory,
                                                                         HWND hwnd) const
 {
     if (!dxgiFactory->IsCurrent())
@@ -299,7 +299,7 @@ bool D3D12HelloTexture::HdrOutputPolicy::CheckCurrentOutputHdr10Support(ComPtr<I
     return outputDesc.ColorSpace == kHdr10ColorSpace;
 }
 
-void D3D12HelloTexture::HdrOutputPolicy::ApplySwapChainColorSpace(IDXGISwapChain3* swapChain,
+void HelloTextureEngine::HdrOutputPolicy::ApplySwapChainColorSpace(IDXGISwapChain3* swapChain,
                                                                   DXGI_COLOR_SPACE_TYPE colorSpace)
 {
     if (settings.currentSwapChainColorSpace == colorSpace)
@@ -314,7 +314,7 @@ void D3D12HelloTexture::HdrOutputPolicy::ApplySwapChainColorSpace(IDXGISwapChain
     }
 }
 
-void D3D12HelloTexture::HdrOutputPolicy::ApplyHdr10Metadata(IDXGISwapChain3* swapChain, bool enabled) const
+void HelloTextureEngine::HdrOutputPolicy::ApplyHdr10Metadata(IDXGISwapChain3* swapChain, bool enabled) const
 {
     ComPtr<IDXGISwapChain4> swapChain4;
     if (FAILED(swapChain->QueryInterface(IID_PPV_ARGS(&swapChain4))))
@@ -345,7 +345,7 @@ void D3D12HelloTexture::HdrOutputPolicy::ApplyHdr10Metadata(IDXGISwapChain3* swa
     ThrowIfFailed(swapChain4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(metadata), &metadata));
 }
 
-void D3D12HelloTexture::HdrOutputPolicy::Update(ComPtr<IDXGIFactory4>& dxgiFactory, IDXGISwapChain3* swapChain,
+void HelloTextureEngine::HdrOutputPolicy::Update(ComPtr<IDXGIFactory4>& dxgiFactory, IDXGISwapChain3* swapChain,
                                                 HWND hwnd)
 {
     const bool hdr10Enabled = CheckCurrentOutputHdr10Support(dxgiFactory, hwnd) &&
@@ -360,17 +360,17 @@ void D3D12HelloTexture::HdrOutputPolicy::Update(ComPtr<IDXGIFactory4>& dxgiFacto
     }
 }
 
-void D3D12HelloTexture::HdrOutputPolicy::ReapplyColorSpace(IDXGISwapChain3* swapChain)
+void HelloTextureEngine::HdrOutputPolicy::ReapplyColorSpace(IDXGISwapChain3* swapChain)
 {
     ApplySwapChainColorSpace(swapChain, settings.TargetColorSpace());
 }
 
-void D3D12HelloTexture::UpdateHdr10DisplayMode()
+void HelloTextureEngine::UpdateHdr10DisplayMode()
 {
     m_hdrOutputPolicy.Update(m_dxgiFactory, m_swapChain.Get(), Win32Application::GetHwnd());
 }
 
-std::array<GltfVertex, D3D12HelloTexture::kCubeVertexCount> D3D12HelloTexture::CreateCubeVertices() const
+std::array<GltfVertex, HelloTextureEngine::kCubeVertexCount> HelloTextureEngine::CreateCubeVertices() const
 {
 
     constexpr float s = kCubeScale;
@@ -427,7 +427,7 @@ std::array<GltfVertex, D3D12HelloTexture::kCubeVertexCount> D3D12HelloTexture::C
     }};
 }
 
-DescriptorHeapHandle D3D12HelloTexture::CreateTextureFromRGBA8(const UINT8* pixels, UINT width, UINT height,
+DescriptorHeapHandle HelloTextureEngine::CreateTextureFromRGBA8(const UINT8* pixels, UINT width, UINT height,
                                                                ComPtr<ID3D12Resource>& texture,
                                                                ComPtr<ID3D12Resource>& uploadHeap)
 {
@@ -469,7 +469,7 @@ DescriptorHeapHandle D3D12HelloTexture::CreateTextureFromRGBA8(const UINT8* pixe
 }
 
 // Load the sample assets.
-void D3D12HelloTexture::LoadAssets()
+void HelloTextureEngine::LoadAssets()
 {
     // Create the root signature.
     {
@@ -996,7 +996,7 @@ void D3D12HelloTexture::LoadAssets()
 
 static SimpleDescriptorHeapAllocator* g_allocator = nullptr;
 
-void D3D12HelloTexture::InitImGui()
+void HelloTextureEngine::InitImGui()
 {
 #if IMGUI_IMPL > 0
     g_allocator = &m_ImGuiDescriptorHeapAllocator;
@@ -1029,7 +1029,7 @@ void D3D12HelloTexture::InitImGui()
 #endif
 }
 
-void D3D12HelloTexture::CreateConstantBuffer(ConstantBufferResource& constantBuffer, const void* initialData,
+void HelloTextureEngine::CreateConstantBuffer(ConstantBufferResource& constantBuffer, const void* initialData,
                                              UINT sizeInBytes)
 {
     assert(sizeInBytes % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0);
@@ -1051,7 +1051,7 @@ void D3D12HelloTexture::CreateConstantBuffer(ConstantBufferResource& constantBuf
     memcpy(constantBuffer.mappedData, initialData, sizeInBytes);
 }
 
-DescriptorHeapHandle D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource* texture)
+DescriptorHeapHandle HelloTextureEngine::AllocateTextureSRV(ID3D12Resource* texture)
 {
     DescriptorHeapHandle handle = m_descriptorHeapAllocator.AllocWithHandle();
 
@@ -1066,7 +1066,7 @@ DescriptorHeapHandle D3D12HelloTexture::AllocateTextureSRV(ID3D12Resource* textu
 }
 
 // Generate a simple black and white checkerboard texture.
-std::vector<UINT8> D3D12HelloTexture::GenerateCheckerboardTextureData()
+std::vector<UINT8> HelloTextureEngine::GenerateCheckerboardTextureData()
 {
     const UINT rowPitch = kTextureWidth * kTexturePixelSize;
     const UINT cellPitch = rowPitch >> 3;       // The width of a cell in the checkboard texture.
@@ -1108,7 +1108,7 @@ std::vector<UINT8> D3D12HelloTexture::GenerateCheckerboardTextureData()
     return data;
 }
 
-void D3D12HelloTexture::CreateDsvHeap()
+void HelloTextureEngine::CreateDsvHeap()
 {
     if (m_dsvHeap)
         return;
@@ -1121,14 +1121,14 @@ void D3D12HelloTexture::CreateDsvHeap()
     ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 }
 
-void D3D12HelloTexture::CreateGBuffer()
+void HelloTextureEngine::CreateGBuffer()
 {
     CreateGBufferResources();
     CreateGBufferRTVs();
     CreateGBufferSRVs();
 }
 
-void D3D12HelloTexture::CreateGBufferResources()
+void HelloTextureEngine::CreateGBufferResources()
 {
     for (UINT i = 0; i < GBuffer::kCount; ++i)
     {
@@ -1151,7 +1151,7 @@ void D3D12HelloTexture::CreateGBufferResources()
     }
 }
 
-void D3D12HelloTexture::CreateGBufferRTVs()
+void HelloTextureEngine::CreateGBufferRTVs()
 {
     for (UINT i = 0; i < GBuffer::kCount; ++i)
     {
@@ -1163,7 +1163,7 @@ void D3D12HelloTexture::CreateGBufferRTVs()
     }
 }
 
-void D3D12HelloTexture::CreateGBufferSRVs()
+void HelloTextureEngine::CreateGBufferSRVs()
 {
     for (UINT i = 0; i < GBuffer::kCount; ++i)
     {
@@ -1194,7 +1194,7 @@ void D3D12HelloTexture::CreateGBufferSRVs()
     assert(m_lightPassColorSrv.Index == m_depthStencilSrv.Index + 1);
 }
 
-void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
+void HelloTextureEngine::RegisterDepthStencil(UINT width, UINT height)
 {
     TransientResource r;
 
@@ -1221,7 +1221,7 @@ void D3D12HelloTexture::RegisterDepthStencil(UINT width, UINT height)
     m_resourceRegistry.RegisterTransientResource(std::move(r));
 }
 
-void D3D12HelloTexture::RegisterLightPassRenderTarget(UINT width, UINT height)
+void HelloTextureEngine::RegisterLightPassRenderTarget(UINT width, UINT height)
 {
     TransientResource r;
 
@@ -1250,7 +1250,7 @@ void D3D12HelloTexture::RegisterLightPassRenderTarget(UINT width, UINT height)
     m_resourceRegistry.RegisterTransientResource(std::move(r));
 }
 
-void D3D12HelloTexture::CreateDepthStencilDescriptors()
+void HelloTextureEngine::CreateDepthStencilDescriptors()
 {
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -1268,32 +1268,32 @@ void D3D12HelloTexture::CreateDepthStencilDescriptors()
     m_device->CreateShaderResourceView(m_depthStencil.Get(), &srvDesc, m_depthStencilSrv.cpu);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetBackBufferRtv() const
+D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetBackBufferRtv() const
 {
     CD3DX12_CPU_DESCRIPTOR_HANDLE h(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
     return h;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetDepthDsv() const
+D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetDepthDsv() const
 {
     return m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetGBufferRTV(UINT index) const
+D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetGBufferRTV(UINT index) const
 {
     CD3DX12_CPU_DESCRIPTOR_HANDLE h(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
     h.Offset(m_gbuffer.rtvIndex[index], m_rtvDescriptorSize);
     return h;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE D3D12HelloTexture::GetLightPassRTV() const
+D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetLightPassRTV() const
 {
     CD3DX12_CPU_DESCRIPTOR_HANDLE h(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
     h.Offset(kLightPassRTVIndex, m_rtvDescriptorSize);
     return h;
 }
 
-void D3D12HelloTexture::RegisterPassBindingResolvers()
+void HelloTextureEngine::RegisterPassBindingResolvers()
 {
     m_renderGraphRuntime.Bindings().Clear();
 
@@ -1346,7 +1346,7 @@ void D3D12HelloTexture::RegisterPassBindingResolvers()
         [this]() { return m_lightPassColorSrv.gpu; });
 }
 
-void D3D12HelloTexture::RegisterPassConstantsHandlers()
+void HelloTextureEngine::RegisterPassConstantsHandlers()
 {
     m_renderGraphRuntime.Constants().Clear();
     m_renderGraphRuntime.Constants().Register(
@@ -1365,7 +1365,7 @@ void D3D12HelloTexture::RegisterPassConstantsHandlers()
         });
 }
 
-void D3D12HelloTexture::RegisterResourceResolvers()
+void HelloTextureEngine::RegisterResourceResolvers()
 {
     m_renderGraphRuntime.Resources().Clear();
     m_renderGraphRuntime.Resources().RegisterResource(kBackBufferResourceName,
@@ -1383,7 +1383,7 @@ void D3D12HelloTexture::RegisterResourceResolvers()
         [this](const std::string& name) { return FindTransientD3DResource(name); });
 }
 
-void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
+void HelloTextureEngine::CreateDepthStencil(UINT width, UINT height)
 {
     // Release if DS exist
     m_depthStencil.Reset();
@@ -1421,7 +1421,7 @@ void D3D12HelloTexture::CreateDepthStencil(UINT width, UINT height)
 }
 
 // Update frame-based values.
-void D3D12HelloTexture::OnUpdate()
+void HelloTextureEngine::OnUpdate()
 {
     PIXBeginEvent(0, L"OnUpdate");
 
@@ -1575,7 +1575,7 @@ void D3D12HelloTexture::OnUpdate()
     PIXEndEvent();
 }
 
-void D3D12HelloTexture::UpdateImGui()
+void HelloTextureEngine::UpdateImGui()
 {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -1679,13 +1679,13 @@ void D3D12HelloTexture::UpdateImGui()
     ImGui::Render();
 }
 
-UINT D3D12HelloTexture::GetVisibleCubeCount() const
+UINT HelloTextureEngine::GetVisibleCubeCount() const
 {
     return static_cast<UINT>(m_DisplayInstanceCount);
 }
 
 // Render the scene.
-void D3D12HelloTexture::OnRender()
+void HelloTextureEngine::OnRender()
 {
     PIXBeginEvent(0, L"OnRender");
 
@@ -1724,14 +1724,14 @@ void D3D12HelloTexture::OnRender()
     PIXEndEvent();
 }
 
-void D3D12HelloTexture::OnWindowSizeChanged(UINT width, UINT height)
+void HelloTextureEngine::OnWindowSizeChanged(UINT width, UINT height)
 {
     m_pendingResize = true;
     m_pendingResizeWidth = width;
     m_pendingResizeHeight = height;
 }
 
-void D3D12HelloTexture::OnIdle()
+void HelloTextureEngine::OnIdle()
 {
     if (m_pendingResize)
     {
@@ -1748,7 +1748,7 @@ void D3D12HelloTexture::OnIdle()
     m_cpuFrameTime = m_workMeter.GetCpuFrameTimeMs();
 }
 
-void D3D12HelloTexture::OnMouseDown(UINT8 button, int x, int y)
+void HelloTextureEngine::OnMouseDown(UINT8 button, int x, int y)
 {
     if (button != VK_LBUTTON)
     {
@@ -1760,7 +1760,7 @@ void D3D12HelloTexture::OnMouseDown(UINT8 button, int x, int y)
     m_lastMouseY = y;
 }
 
-void D3D12HelloTexture::OnMouseUp(UINT8 button, int, int)
+void HelloTextureEngine::OnMouseUp(UINT8 button, int, int)
 {
     if (button == VK_LBUTTON)
     {
@@ -1768,7 +1768,7 @@ void D3D12HelloTexture::OnMouseUp(UINT8 button, int, int)
     }
 }
 
-void D3D12HelloTexture::OnMouseMove(int x, int y)
+void HelloTextureEngine::OnMouseMove(int x, int y)
 {
     if (!m_isDraggingInstance)
     {
@@ -1785,9 +1785,9 @@ void D3D12HelloTexture::OnMouseMove(int x, int y)
     m_instanceTransformDirty = true;
 }
 
-void D3D12HelloTexture::Resize(UINT width, UINT height)
+void HelloTextureEngine::Resize(UINT width, UINT height)
 {
-    DBG_PRINT("D3D12HelloTexture::OnWindowSizeChanged() %d %d\n", width, height);
+    DBG_PRINT("HelloTextureEngine::OnWindowSizeChanged() %d %d\n", width, height);
     m_width = width;
     m_height = height;
 
@@ -1852,7 +1852,7 @@ void D3D12HelloTexture::Resize(UINT width, UINT height)
     io.DisplaySize = ImVec2(static_cast<float>(m_width), static_cast<float>(m_height));
 }
 
-void D3D12HelloTexture::OnDestroy()
+void HelloTextureEngine::OnDestroy()
 {
     // Ensure that the GPU is no longer referencing resources that are about to be
     // cleaned up by the destructor.
@@ -1861,7 +1861,7 @@ void D3D12HelloTexture::OnDestroy()
     CloseHandle(m_fenceEvent);
 }
 
-void D3D12HelloTexture::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+void HelloTextureEngine::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                                    const FullscreenPipelineDefinition& definition)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MyDx12Util::CreateFullscreenPassPSODesc(
@@ -1871,7 +1871,7 @@ void D3D12HelloTexture::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE
     ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_device.Get(), key, desc));
 }
 
-void D3D12HelloTexture::RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+void HelloTextureEngine::RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                                     std::initializer_list<FullscreenPipelineDefinition> definitions)
 {
     for (const FullscreenPipelineDefinition& definition : definitions)
@@ -1880,7 +1880,7 @@ void D3D12HelloTexture::RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELIN
     }
 }
 
-void D3D12HelloTexture::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+void HelloTextureEngine::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                              const MainPipelineDefinition& definition)
 {
     baseDesc.InputLayout = {definition.inputLayout.elements, definition.inputLayout.count};
@@ -1902,7 +1902,7 @@ void D3D12HelloTexture::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC&
     ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_device.Get(), key, baseDesc));
 }
 
-void D3D12HelloTexture::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+void HelloTextureEngine::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                                 const GBufferPipelineDefinition& definition)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferBaseDesc = baseDesc;
@@ -1914,7 +1914,7 @@ void D3D12HelloTexture::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_ST
     ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_device.Get(), key, desc));
 }
 
-void D3D12HelloTexture::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+void HelloTextureEngine::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                                      const DepthPrePassPipelineDefinition& definition)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
@@ -1929,7 +1929,7 @@ void D3D12HelloTexture::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELI
     ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_device.Get(), key, desc));
 }
 
-void D3D12HelloTexture::PopulateCommandList()
+void HelloTextureEngine::PopulateCommandList()
 {
     PIXBeginEvent(1, L"PopulateCommandList");
 
@@ -1945,12 +1945,12 @@ void D3D12HelloTexture::PopulateCommandList()
     PIXEndEvent();
 }
 
-void D3D12HelloTexture::AnalyzeResourceLifetimes()
+void HelloTextureEngine::AnalyzeResourceLifetimes()
 {
     m_resourceRegistry.AnalyzeLifetimes(m_renderGraphRuntime.Graph().Passes());
 }
 
-void D3D12HelloTexture::DebugPrintLifetimes()
+void HelloTextureEngine::DebugPrintLifetimes()
 {
     DBG_PRINT("Resource Lifetimes:\n");
     for (auto& [name, lt] : m_resourceRegistry.lifetimes)
@@ -1959,12 +1959,12 @@ void D3D12HelloTexture::DebugPrintLifetimes()
     }
 }
 
-ID3D12PipelineState* D3D12HelloTexture::GetPipelineState(PipelineKey pipeline) const
+ID3D12PipelineState* HelloTextureEngine::GetPipelineState(PipelineKey pipeline) const
 {
     return m_renderGraphRuntime.Pipelines().Find(pipeline);
 }
 
-void D3D12HelloTexture::ExecutePasses()
+void HelloTextureEngine::ExecutePasses()
 {
     Engine::ResourceTransitionContext resourceTransitions = MakeResourceTransitionContext();
     Engine::ExecuteRenderPassGraph(
@@ -1979,7 +1979,7 @@ void D3D12HelloTexture::ExecutePasses()
          [this](int passIndex) { ReleaseResourcesAfterPass(passIndex); }});
 }
 
-void D3D12HelloTexture::ExecutePassOperation(const RenderPass& pass)
+void HelloTextureEngine::ExecutePassOperation(const RenderPass& pass)
 {
     const PassOperationHandler* handler = m_renderGraphRuntime.Operations().Find(pass.operation);
     assert(handler != nullptr && "Unsupported pass operation.");
@@ -1990,7 +1990,7 @@ void D3D12HelloTexture::ExecutePassOperation(const RenderPass& pass)
     }
 }
 
-void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
+void HelloTextureEngine::CreateResourcesForPass(int passIndex)
 {
     const std::vector<std::string> resourceNames =
         m_resourceRegistry.GetResourcesStartingAtPass(passIndex, kBackBufferResourceName);
@@ -2010,14 +2010,14 @@ void D3D12HelloTexture::CreateResourcesForPass(int passIndex)
     }
 }
 
-void D3D12HelloTexture::CreateCommittedTransientResource(TransientResource& resource)
+void HelloTextureEngine::CreateCommittedTransientResource(TransientResource& resource)
 {
     ThrowIfFailed(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                                                     D3D12_HEAP_FLAG_NONE, &resource.desc, resource.initialState,
                                                     &resource.clearValue, IID_PPV_ARGS(&resource.resource)));
 }
 
-void D3D12HelloTexture::BindCreatedTransientResource(const std::string& name, ID3D12Resource* resource)
+void HelloTextureEngine::BindCreatedTransientResource(const std::string& name, ID3D12Resource* resource)
 {
     if (name == kDepthStencilResourceName)
     {
@@ -2036,7 +2036,7 @@ void D3D12HelloTexture::BindCreatedTransientResource(const std::string& name, ID
     assert(false && "Unsupported resource in BindCreatedTransientResource()");
 }
 
-void D3D12HelloTexture::CreateLightPassRenderTargetDescriptors()
+void HelloTextureEngine::CreateLightPassRenderTargetDescriptors()
 {
     m_device->CreateRenderTargetView(m_lightPassRenderTarget.Get(), nullptr, GetLightPassRTV());
 
@@ -2048,17 +2048,17 @@ void D3D12HelloTexture::CreateLightPassRenderTargetDescriptors()
     m_device->CreateShaderResourceView(m_lightPassRenderTarget.Get(), &srvDesc, m_lightPassColorSrv.cpu);
 }
 
-void D3D12HelloTexture::ReleaseResourcesAfterPass(int passIndex)
+void HelloTextureEngine::ReleaseResourcesAfterPass(int passIndex)
 {
     m_resourceRegistry.MarkEndOfLifeResources(passIndex, kBackBufferResourceName);
 }
 
-void D3D12HelloTexture::MarkPendingTransientResources(UINT64 fenceValue)
+void HelloTextureEngine::MarkPendingTransientResources(UINT64 fenceValue)
 {
     m_resourceRegistry.MarkPendingTransientResources(fenceValue);
 }
 
-void D3D12HelloTexture::CollectGarbageTransientResources()
+void HelloTextureEngine::CollectGarbageTransientResources()
 {
     const UINT64 completed = m_fence->GetCompletedValue();
     const std::vector<std::string> releasedResources = m_resourceRegistry.CollectGarbageTransientResources(completed);
@@ -2079,7 +2079,7 @@ void D3D12HelloTexture::CollectGarbageTransientResources()
     }
 }
 
-void D3D12HelloTexture::ResetResourceStates()
+void HelloTextureEngine::ResetResourceStates()
 {
     m_resourceRegistry.ResetStates({{kBackBufferResourceName, D3D12_RESOURCE_STATE_PRESENT},
                                     {kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE},
@@ -2090,7 +2090,7 @@ void D3D12HelloTexture::ResetResourceStates()
     }
 }
 
-Engine::ResourceTransitionContext D3D12HelloTexture::MakeResourceTransitionContext()
+Engine::ResourceTransitionContext HelloTextureEngine::MakeResourceTransitionContext()
 {
     return {m_commandList.Get(),
             [this](const std::string& name) { return m_renderGraphRuntime.Resources().Resolve(name); },
@@ -2099,17 +2099,17 @@ Engine::ResourceTransitionContext D3D12HelloTexture::MakeResourceTransitionConte
             [](const ResourceUsage& usage) { DBG_PRINT("Resource %s is null. Skip transition.\n", usage.name.c_str()); }};
 }
 
-void D3D12HelloTexture::TransitionPassResources(const RenderPass& pass)
+void HelloTextureEngine::TransitionPassResources(const RenderPass& pass)
 {
     Engine::TransitionPassResources(MakeResourceTransitionContext(), pass);
 }
 
-void D3D12HelloTexture::TransitionResource(const ResourceUsage& usage)
+void HelloTextureEngine::TransitionResource(const ResourceUsage& usage)
 {
     Engine::TransitionResource(MakeResourceTransitionContext(), usage);
 }
 
-ID3D12Resource* D3D12HelloTexture::FindTransientD3DResource(const std::string& name) const
+ID3D12Resource* HelloTextureEngine::FindTransientD3DResource(const std::string& name) const
 {
     auto transientResource = m_resourceRegistry.transientResources.find(name);
     if (transientResource == m_resourceRegistry.transientResources.end())
@@ -2120,17 +2120,17 @@ ID3D12Resource* D3D12HelloTexture::FindTransientD3DResource(const std::string& n
     return transientResource->second.resource.Get();
 }
 
-D3D12_RESOURCE_STATES D3D12HelloTexture::GetResourceState(const std::string& name) const
+D3D12_RESOURCE_STATES HelloTextureEngine::GetResourceState(const std::string& name) const
 {
     return m_resourceRegistry.GetState(name);
 }
 
-void D3D12HelloTexture::SetResourceState(const std::string& name, D3D12_RESOURCE_STATES state)
+void HelloTextureEngine::SetResourceState(const std::string& name, D3D12_RESOURCE_STATES state)
 {
     m_resourceRegistry.SetState(name, state);
 }
 
-void D3D12HelloTexture::BeginFrame()
+void HelloTextureEngine::BeginFrame()
 {
 
     // Command list allocators can only be reset when the associated
@@ -2156,57 +2156,57 @@ void D3D12HelloTexture::BeginFrame()
     m_gpuWorkMeter.StartGpu(m_commandList.Get(), m_frameResources[m_frameIndex].gpuWorkMeterCheckPoints);
 }
 
-void D3D12HelloTexture::ExecuteClearPass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteClearPass(const RenderPass& pass)
 {
     RecordClear(pass.renderTargets);
 }
 
-void D3D12HelloTexture::ExecuteDepthPrePass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteDepthPrePass(const RenderPass& pass)
 {
     RecordDepthPrePass();
 }
 
-void D3D12HelloTexture::ExecuteGBufferPass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteGBufferPass(const RenderPass& pass)
 {
     RecordGBufferPass(pass.renderTargets);
 }
 
-void D3D12HelloTexture::ExecuteMainPass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteMainPass(const RenderPass& pass)
 {
     RecordMainPass(pass.renderTargets);
 }
 
-void D3D12HelloTexture::ExecuteLightingPass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteLightingPass(const RenderPass& pass)
 {
     RecordLightPass();
 }
 
-void D3D12HelloTexture::ExecuteLightingDebugGradientPass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteLightingDebugGradientPass(const RenderPass& pass)
 {
     RecordLightPassDebugGradient();
 }
 
-void D3D12HelloTexture::ExecuteToneMapPass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteToneMapPass(const RenderPass& pass)
 {
     RecordToneMapPass();
 }
 
-void D3D12HelloTexture::ExecuteDebugDumpPass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteDebugDumpPass(const RenderPass& pass)
 {
     RecordDebugDumpPass();
 }
 
-void D3D12HelloTexture::ExecuteGBufferDebugPass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteGBufferDebugPass(const RenderPass& pass)
 {
     RecordGBufferDebugPass();
 }
 
-void D3D12HelloTexture::ExecuteImGuiPass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteImGuiPass(const RenderPass& pass)
 {
     RecordImGuiPass();
 }
 
-void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding& renderTargets)
+void HelloTextureEngine::RecordClear(const PassRenderTargetBinding& renderTargets)
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"ClearPrepass");
     assert(!renderTargets.rtvs.empty());
@@ -2225,7 +2225,7 @@ void D3D12HelloTexture::RecordClear(const PassRenderTargetBinding& renderTargets
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Clear");
 }
 
-void D3D12HelloTexture::DrawInstanceWrapper(UINT instanceCount)
+void HelloTextureEngine::DrawInstanceWrapper(UINT instanceCount)
 {
     if (kGltfLoadingEnabled && kGltfMeshDisplay)
     {
@@ -2238,7 +2238,7 @@ void D3D12HelloTexture::DrawInstanceWrapper(UINT instanceCount)
     }
 }
 
-void D3D12HelloTexture::DrawFullscreenTriangle()
+void HelloTextureEngine::DrawFullscreenTriangle()
 {
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->DrawInstanced(3, 1, 0, 0);
@@ -2247,7 +2247,7 @@ void D3D12HelloTexture::DrawFullscreenTriangle()
 //
 // Depth Pre-pass
 //
-void D3D12HelloTexture::RecordDepthPrePass()
+void HelloTextureEngine::RecordDepthPrePass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"DepthPrepass");
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2259,7 +2259,7 @@ void D3D12HelloTexture::RecordDepthPrePass()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Depth Prepass");
 }
 
-void D3D12HelloTexture::RecordGBufferPass(const PassRenderTargetBinding& renderTargets)
+void HelloTextureEngine::RecordGBufferPass(const PassRenderTargetBinding& renderTargets)
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"GBufferPass");
 
@@ -2278,7 +2278,7 @@ void D3D12HelloTexture::RecordGBufferPass(const PassRenderTargetBinding& renderT
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Pass");
 }
 
-void D3D12HelloTexture::RecordGBufferDebugPass()
+void HelloTextureEngine::RecordGBufferDebugPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"GBufferDebugPass");
 
@@ -2289,7 +2289,7 @@ void D3D12HelloTexture::RecordGBufferDebugPass()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Debug Pass");
 }
 
-void D3D12HelloTexture::RecordLightPassDebugGradient()
+void HelloTextureEngine::RecordLightPassDebugGradient()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"RecordLightPassDebugGradient");
 
@@ -2300,7 +2300,7 @@ void D3D12HelloTexture::RecordLightPassDebugGradient()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "LightPassDebugGradient Pass");
 }
 
-void D3D12HelloTexture::RecordLightPass()
+void HelloTextureEngine::RecordLightPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"LightPass");
 
@@ -2311,7 +2311,7 @@ void D3D12HelloTexture::RecordLightPass()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Lighting Pass");
 }
 
-void D3D12HelloTexture::RecordToneMapPass()
+void HelloTextureEngine::RecordToneMapPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"ToneMapPass");
 
@@ -2322,7 +2322,7 @@ void D3D12HelloTexture::RecordToneMapPass()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ToneMap Pass");
 }
 
-void D3D12HelloTexture::CreateDebugDumpReadback(ID3D12Resource* source, ComPtr<ID3D12Resource>& readback,
+void HelloTextureEngine::CreateDebugDumpReadback(ID3D12Resource* source, ComPtr<ID3D12Resource>& readback,
                                                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout)
 {
     D3D12_RESOURCE_DESC desc = source->GetDesc();
@@ -2336,7 +2336,7 @@ void D3D12HelloTexture::CreateDebugDumpReadback(ID3D12Resource* source, ComPtr<I
                                                     D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback)));
 }
 
-void D3D12HelloTexture::RecordDebugDumpPass()
+void HelloTextureEngine::RecordDebugDumpPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"DebugDump");
 
@@ -2359,7 +2359,7 @@ void D3D12HelloTexture::RecordDebugDumpPass()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Debug Dump");
 }
 
-void D3D12HelloTexture::PrintDebugDump()
+void HelloTextureEngine::PrintDebugDump()
 {
     if (!m_lightPassDebugDumpReadback || !m_backBufferDebugDumpReadback)
     {
@@ -2477,7 +2477,7 @@ void D3D12HelloTexture::PrintDebugDump()
 //
 // Main Pass
 //
-void D3D12HelloTexture::RecordMainPass(const PassRenderTargetBinding& renderTargets)
+void HelloTextureEngine::RecordMainPass(const PassRenderTargetBinding& renderTargets)
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"MainPass");
     if (renderTargets.clearColor)
@@ -2498,7 +2498,7 @@ void D3D12HelloTexture::RecordMainPass(const PassRenderTargetBinding& renderTarg
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Main Pass");
 }
 
-void D3D12HelloTexture::RecordImGuiPass()
+void HelloTextureEngine::RecordImGuiPass()
 {
 #if IMGUI_IMPL > 0
     {
@@ -2515,7 +2515,7 @@ void D3D12HelloTexture::RecordImGuiPass()
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ImGUI");
 }
 
-void D3D12HelloTexture::EndFrame()
+void HelloTextureEngine::EndFrame()
 {
     m_gpuWorkMeter.EndGpu(m_commandList.Get());
 
@@ -2536,7 +2536,7 @@ void D3D12HelloTexture::EndFrame()
 }
 
 // Wait for pending GPU work to complete.
-void D3D12HelloTexture::WaitForGpu()
+void HelloTextureEngine::WaitForGpu()
 {
     PIXBeginEvent(3, L"WaitForGpu");
 
@@ -2553,7 +2553,7 @@ void D3D12HelloTexture::WaitForGpu()
     PIXEndEvent();
 }
 
-void D3D12HelloTexture::FlushGpu()
+void HelloTextureEngine::FlushGpu()
 {
     for (UINT n = 0; n < kFrameCount; n++)
     {
@@ -2568,7 +2568,7 @@ void D3D12HelloTexture::FlushGpu()
 }
 
 // Prepare to render the next frame.
-UINT64 D3D12HelloTexture::MoveToNextFrame()
+UINT64 HelloTextureEngine::MoveToNextFrame()
 {
     PIXBeginEvent(2, L"MoveToNextFrame");
 

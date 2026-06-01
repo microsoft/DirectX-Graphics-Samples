@@ -45,10 +45,10 @@ using DsvKey = Engine::DsvKey;
 using PassOperationKey = Engine::PassOperationKey;
 using PassConstantsKey = Engine::PassConstantsKey;
 
-class D3D12HelloTexture : public DXSample
+class HelloTextureEngine : public DXSample
 {
 public:
-    D3D12HelloTexture(UINT width, UINT height, std::wstring name);
+    HelloTextureEngine(UINT width, UINT height, std::wstring name);
 
     virtual void OnInit();
     virtual void OnUpdate();
@@ -603,7 +603,7 @@ private:
     using RenderPassGraph = Engine::RenderPassGraph;
 
     ResourceRegistry m_resourceRegistry;
-    using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass& pass);
+    using PassOperationHandler = void (HelloTextureEngine::*)(const RenderPass& pass);
     using RenderGraphRuntime = Engine::RenderGraphRuntime<PassOperationHandler>;
     RenderGraphRuntime m_renderGraphRuntime;
 
