@@ -576,15 +576,7 @@ private:
         RootParam_ToneMapConstants
     };
 
-    enum class TransientResourceState
-    {
-        Uninitialized,   // Just instanced but not yet registered.
-        Initialized,     // resource is not assigned and only set descriptor and clearValue, etc.
-        Created,         // resource is assigned and being used by a pass
-        PendingRelease1, // Waiting for retireFeceValue to be set, which indicates when the GPU will finish using this
-                         // resource.
-        PendingRelease2  // GPU has reached retireFenceValue, waiting for resource to be safe to destroy
-    };
+    using TransientResourceState = Engine::TransientResourceState;
 
     struct TransientResource
     {
@@ -603,9 +595,7 @@ private:
         bool retired = false;        // false : waiting for GPU fence
     };
 
-    using ResourceStateMap = std::unordered_map<std::string, D3D12_RESOURCE_STATES>;
-    using ResourceLifetimeMap = Engine::ResourceLifetimeMap;
-    using TransientResourceMap = std::unordered_map<std::string, TransientResource>;
+    using ResourceRegistry = Engine::ResourceRegistry<TransientResource>;
     using ResourceUsage = Engine::ResourceUsage;
     using ResourceUsages = Engine::ResourceUsages;
     using PassDescriptorBinding = Engine::PassDescriptorBinding;
@@ -613,36 +603,6 @@ private:
     using PassConstantsBinding = Engine::PassConstantsBinding;
     using RenderPass = Engine::RenderPass;
     using RenderPassGraph = Engine::RenderPassGraph;
-
-    struct ResourceRegistry
-    {
-        ResourceStateMap states;
-        ResourceLifetimeMap lifetimes;
-        TransientResourceMap transientResources;
-
-        void AnalyzeLifetimes(const std::vector<RenderPass>& renderPasses);
-        void ResetStates(std::initializer_list<ResourceUsage> usages);
-        void RegisterTransientResource(TransientResource resource);
-        void UnregisterTransientResource(const std::string& name);
-        void MarkEndOfLifeResources(int passIndex, const char* backBufferName);
-        void MarkPendingTransientResources(UINT64 fenceValue);
-        std::vector<std::string> CollectGarbageTransientResources(UINT64 completedFenceValue);
-        std::vector<std::string> GetResourcesStartingAtPass(int passIndex, const char* backBufferName) const;
-        TransientResource* PrepareTransientResourceForCreate(const std::string& name);
-        void MarkTransientResourceCreated(const std::string& name);
-        ID3D12Resource* FindTransientD3DResource(const std::string& name) const;
-
-        D3D12_RESOURCE_STATES GetState(const std::string& name) const
-        {
-            auto resourceState = states.find(name);
-            return resourceState != states.end() ? resourceState->second : D3D12_RESOURCE_STATE_COMMON;
-        }
-
-        void SetState(const std::string& name, D3D12_RESOURCE_STATES state)
-        {
-            states[name] = state;
-        }
-    };
 
     RenderPassGraph m_renderPassGraph;
     ResourceRegistry m_resourceRegistry;
@@ -775,6 +735,7 @@ private:
     void TransitionPassResources(const RenderPass& pass);
     void TransitionResource(const ResourceUsage& usage);
     ID3D12Resource* ResolveResource(const std::string& name) const;
+    ID3D12Resource* FindTransientD3DResource(const std::string& name) const;
 
     D3D12_RESOURCE_STATES GetResourceState(const std::string& name) const;
     void SetResourceState(const std::string& name, D3D12_RESOURCE_STATES state);

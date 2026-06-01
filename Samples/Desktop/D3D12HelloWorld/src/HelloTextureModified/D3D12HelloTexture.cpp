@@ -97,185 +97,6 @@ auto D3D12HelloTexture::ToneMapPass::MakeShaderConstants(const HdrOutputSettings
     return settings.MakeShaderConstants(hdrOutputSettings.TransferFunction());
 }
 
-void D3D12HelloTexture::ResourceRegistry::AnalyzeLifetimes(const std::vector<RenderPass>& renderPasses)
-{
-    lifetimes = Engine::AnalyzeResourceLifetimes(renderPasses);
-}
-
-void D3D12HelloTexture::ResourceRegistry::ResetStates(std::initializer_list<ResourceUsage> usages)
-{
-    states.clear();
-    for (const ResourceUsage& usage : usages)
-    {
-        SetState(usage.name, usage.state);
-    }
-}
-
-void D3D12HelloTexture::ResourceRegistry::RegisterTransientResource(TransientResource resource)
-{
-    transientResources[resource.name] = std::move(resource);
-}
-
-void D3D12HelloTexture::ResourceRegistry::UnregisterTransientResource(const std::string& name)
-{
-    transientResources.erase(name);
-}
-
-void D3D12HelloTexture::ResourceRegistry::MarkEndOfLifeResources(int passIndex, const char* backBufferName)
-{
-    for (auto& [name, lt] : lifetimes)
-    {
-        if (lt.lastPass != passIndex)
-            continue;
-
-        if (name == backBufferName)
-            continue;
-
-        if (!transientResources.contains(name))
-            continue;
-
-        auto& tr = transientResources.at(name);
-
-        if (tr.state == TransientResourceState::Uninitialized)
-        {
-            assert(false && "Transient resource must be registered before release.");
-            DBG_PRINT("Resource %s is uninitialized.\n", name.c_str());
-            continue;
-        }
-
-        if (tr.persistent)
-            continue;
-
-        if (tr.state != TransientResourceState::Created)
-            continue;
-
-        tr.state = TransientResourceState::PendingRelease1;
-
-        DBG_PRINT("Resource %s endOfLife.\n", name.c_str());
-    }
-}
-
-void D3D12HelloTexture::ResourceRegistry::MarkPendingTransientResources(UINT64 fenceValue)
-{
-    for (auto& [name, tr] : transientResources)
-    {
-        if (tr.state != TransientResourceState::PendingRelease1)
-            continue;
-
-        tr.retireFenceValue = fenceValue;
-        tr.state = TransientResourceState::PendingRelease2;
-
-        DBG_PRINT("Resource %s waitFenceValue.\n", name.c_str(), tr.retireFenceValue);
-    }
-}
-
-std::vector<std::string>
-D3D12HelloTexture::ResourceRegistry::CollectGarbageTransientResources(UINT64 completedFenceValue)
-{
-    std::vector<std::string> releasedResources;
-
-    for (auto& [name, tr] : transientResources)
-    {
-        if (tr.state != TransientResourceState::PendingRelease2)
-            continue;
-
-        if (completedFenceValue < tr.retireFenceValue)
-            continue;
-
-        tr.resource.Reset();
-        tr.retireFenceValue = 0;
-        tr.state = TransientResourceState::Initialized;
-        releasedResources.push_back(name);
-
-        DBG_PRINT("Resource %s released.\n", name.c_str());
-    }
-
-    return releasedResources;
-}
-
-std::vector<std::string>
-D3D12HelloTexture::ResourceRegistry::GetResourcesStartingAtPass(int passIndex, const char* backBufferName) const
-{
-    std::vector<std::string> resourceNames;
-
-    for (const auto& [name, lt] : lifetimes)
-    {
-        if (lt.firstPass != passIndex)
-            continue;
-
-        if (name == backBufferName)
-            continue;
-
-        if (!transientResources.contains(name))
-            continue;
-
-        resourceNames.push_back(name);
-    }
-
-    return resourceNames;
-}
-
-auto D3D12HelloTexture::ResourceRegistry::PrepareTransientResourceForCreate(const std::string& name)
-    -> TransientResource*
-{
-    auto transientResource = transientResources.find(name);
-    if (transientResource == transientResources.end())
-    {
-        return nullptr;
-    }
-
-    auto& tr = transientResource->second;
-    if (tr.state == TransientResourceState::Uninitialized)
-    {
-        assert(false && "Transient resource must be registered before use.");
-        DBG_PRINT("Resource %s is uninitialized.\n", name.c_str());
-        return nullptr;
-    }
-
-    if (tr.state == TransientResourceState::Created)
-    {
-        return nullptr;
-    }
-
-    if (tr.state == TransientResourceState::PendingRelease1 || tr.state == TransientResourceState::PendingRelease2)
-    {
-        tr.retireFenceValue = 0;
-        tr.state = TransientResourceState::Created;
-        DBG_PRINT("Resource %s reused before release.\n", name.c_str());
-        return nullptr;
-    }
-
-    if (tr.state != TransientResourceState::Initialized)
-    {
-        return nullptr;
-    }
-
-    return &tr;
-}
-
-void D3D12HelloTexture::ResourceRegistry::MarkTransientResourceCreated(const std::string& name)
-{
-    auto transientResource = transientResources.find(name);
-    if (transientResource == transientResources.end())
-    {
-        assert(false && "Transient resource must be registered before marking it created.");
-        return;
-    }
-
-    transientResource->second.state = TransientResourceState::Created;
-}
-
-ID3D12Resource* D3D12HelloTexture::ResourceRegistry::FindTransientD3DResource(const std::string& name) const
-{
-    auto transientResource = transientResources.find(name);
-    if (transientResource == transientResources.end())
-    {
-        return nullptr;
-    }
-
-    return transientResource->second.resource.Get();
-}
-
 void D3D12HelloTexture::OnInit()
 {
     m_prevTime = std::chrono::steady_clock::now();
@@ -2441,6 +2262,13 @@ void D3D12HelloTexture::CollectGarbageTransientResources()
 
     for (const std::string& name : releasedResources)
     {
+        auto transientResource = m_resourceRegistry.transientResources.find(name);
+        if (transientResource != m_resourceRegistry.transientResources.end())
+        {
+            transientResource->second.resource.Reset();
+            DBG_PRINT("Resource %s released.\n", name.c_str());
+        }
+
         if (name == kDepthStencilResourceName)
         {
             m_depthStencil.Reset();
@@ -2503,7 +2331,18 @@ ID3D12Resource* D3D12HelloTexture::ResolveResource(const std::string& name) cons
         }
     }
 
-    return m_resourceRegistry.FindTransientD3DResource(name);
+    return FindTransientD3DResource(name);
+}
+
+ID3D12Resource* D3D12HelloTexture::FindTransientD3DResource(const std::string& name) const
+{
+    auto transientResource = m_resourceRegistry.transientResources.find(name);
+    if (transientResource == m_resourceRegistry.transientResources.end())
+    {
+        return nullptr;
+    }
+
+    return transientResource->second.resource.Get();
 }
 
 D3D12_RESOURCE_STATES D3D12HelloTexture::GetResourceState(const std::string& name) const
