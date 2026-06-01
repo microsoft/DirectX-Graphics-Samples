@@ -23,8 +23,6 @@
 #include <DirectXPackedVector.h>
 #include <windows.h>
 
-#include "GltfLoader.h"
-
 #include "MyDx12Utils.h"
 
 #include <pix3.h>
@@ -108,6 +106,16 @@ void HelloTextureEngine::OnInit()
 void HelloTextureEngine::SetUseWarpDevice(bool useWarpDevice)
 {
     m_useWarpDevice = useWarpDevice;
+}
+
+void HelloTextureEngine::SetSceneMesh(const GltfMeshData* mesh)
+{
+    m_sceneMesh = mesh;
+}
+
+void HelloTextureEngine::SetDebugUiHandler(DebugUiHandler handler)
+{
+    m_debugUiHandler = std::move(handler);
 }
 
 // Load the rendering pipeline dependencies.
@@ -684,16 +692,14 @@ void HelloTextureEngine::LoadAssets()
                                               GetPipelineState(PipelineId(Pipe::Main)), IID_PPV_ARGS(&m_commandList)));
 
     // Create the vertex buffer.
-    GltfMeshData mesh;
+    if constexpr (kGltfLoadingEnabled)
+    {
+        assert(m_sceneMesh != nullptr);
+    }
+    const GltfMeshData& mesh = *m_sceneMesh;
 
     std::vector<GltfVertex> vertices_;
     UINT vertexBufferSize_;
-
-    if constexpr (kGltfLoadingEnabled)
-    {
-        bool loaded = LoadGltfMesh("Assets\\Models\\DamagedHelmet\\glTF\\DamagedHelmet.gltf", mesh);
-        assert(loaded);
-    }
 
     if constexpr (kGltfLoadingEnabled && kGltfMeshDisplay)
     {
@@ -1580,102 +1586,43 @@ void HelloTextureEngine::UpdateImGui()
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
-    ImGui::SetNextWindowSize(ImVec2(400, 140), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Debug");
+    if (m_debugUiHandler)
+    {
+        DebugUiContext context{
+            static_cast<int>(m_frameIndex),
+            m_DisplayInstanceCount,
+            static_cast<int>(kMaxInstanceCount),
+            m_meshScale,
+            m_camerasForCPU[0].fov,
+            m_backBufferClearColor,
+            m_lightingConstantsData.lightDirection,
+            m_lightingConstantsData.lightColor,
+            m_lightingConstantsData.ambientIntensity,
+            m_lightingConstantsData.diffuseIntensity,
+            m_toneMapPass.settings.operatorIndex,
+            m_toneMapPass.settings.exposure,
+            m_toneMapPass.settings.paperWhiteNits,
+            m_toneMapPass.settings.maxDisplayNits,
+            m_renderingPath,
+            m_debugViewSettings.renderViewMode,
+            m_debugViewSettings.requestHdrDump,
+            m_lightingPassDebugGradientEnabled,
+            m_cpuFrameTime,
+            m_frameResources[m_fremeIndexPrevious].gpuWorkMeterCheckPoints};
+        m_debugUiHandler(context);
+    }
 
-    ImGui::Text("Hello ImGui");
-    ImGui::Text("FrameIndex: %d", m_frameIndex);
-    ImGui::SliderInt("Display Instance Count", &m_DisplayInstanceCount, 0, static_cast<int>(kMaxInstanceCount));
     m_DisplayInstanceCount = std::clamp(m_DisplayInstanceCount, 0, static_cast<int>(kMaxInstanceCount));
-    ImGui::SliderFloat("Mesh Scale", &m_meshScale, 0.1f, 2.0f);
-    ImGui::SliderFloat("Camera FovH", &m_camerasForCPU[0].fov, 20.f, 150.f);
-    ImGui::ColorEdit4("BackBuffer Clear", m_backBufferClearColor.data());
-    ImGui::SliderFloat3("Light Direction", &m_lightingConstantsData.lightDirection.x, -1.0f, 1.0f);
-    ImGui::ColorEdit3("Light Color", &m_lightingConstantsData.lightColor.x);
-    ImGui::SliderFloat("Ambient", &m_lightingConstantsData.ambientIntensity, 0.0f, 1.0f);
-    ImGui::SliderFloat("Diffuse", &m_lightingConstantsData.diffuseIntensity, 0.0f, 4.0f);
+    if (m_renderingPath != RenderingPath::Deferred)
+    {
+        m_debugViewSettings.renderViewMode = RenderViewMode::LightPass;
+    }
+    m_toneMapPass.settings.Normalize();
     m_lightingConstantsData.backgroundColor = {m_backBufferClearColor[0], m_backBufferClearColor[1],
                                                m_backBufferClearColor[2], m_backBufferClearColor[3]};
     memcpy(m_frameResources[m_frameIndex].lightCB.mappedData, &m_lightingConstantsData,
            sizeof(m_lightingConstantsData));
 
-    ImGui::Text("ToneMap");
-    ImGui::RadioButton("None", &m_toneMapPass.settings.operatorIndex, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("Reinhard", &m_toneMapPass.settings.operatorIndex, 1);
-    ImGui::SameLine();
-    ImGui::RadioButton("ACES", &m_toneMapPass.settings.operatorIndex, 2);
-    ImGui::SliderFloat("Exposure", &m_toneMapPass.settings.exposure, 0.0f, 4.0f);
-    ImGui::SliderFloat("Paper White", &m_toneMapPass.settings.paperWhiteNits, 80.0f, 500.0f, "%.0f nits");
-    ImGui::SliderFloat("Display Max", &m_toneMapPass.settings.maxDisplayNits, 100.0f, 4000.0f, "%.0f nits");
-    int renderingPath = static_cast<int>(m_renderingPath);
-    ImGui::Text("Rendering Path");
-    ImGui::RadioButton("Forward", &renderingPath, static_cast<int>(RenderingPath::Forward));
-    ImGui::SameLine();
-    ImGui::RadioButton("Deferred", &renderingPath, static_cast<int>(RenderingPath::Deferred));
-    m_renderingPath = static_cast<RenderingPath>(renderingPath);
-
-    const bool deferredRendering = m_renderingPath == RenderingPath::Deferred;
-    if (!deferredRendering)
-    {
-        m_debugViewSettings.renderViewMode = RenderViewMode::LightPass;
-    }
-
-    if (ImGui::Button("Dump HDR Buffers"))
-    {
-        m_debugViewSettings.requestHdrDump = true;
-    }
-    m_toneMapPass.settings.Normalize();
-
-    int renderViewMode = static_cast<int>(m_debugViewSettings.renderViewMode);
-    ImGui::Text("Render View");
-    ImGui::BeginDisabled(!deferredRendering);
-    ImGui::RadioButton("LightPass", &renderViewMode, static_cast<int>(RenderViewMode::LightPass));
-    ImGui::RadioButton("Albedo", &renderViewMode, static_cast<int>(RenderViewMode::GBufferAlbedo));
-    ImGui::SameLine();
-    ImGui::RadioButton("Normal", &renderViewMode, static_cast<int>(RenderViewMode::GBufferNormal));
-    ImGui::SameLine();
-    ImGui::RadioButton("Material", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMaterial));
-    //    ImGui::SameLine();
-    ImGui::RadioButton("MotionVector", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMotionVector));
-    ImGui::SameLine();
-    ImGui::RadioButton("PBRParams", &renderViewMode, static_cast<int>(RenderViewMode::GBufferPBRParams));
-    ImGui::SameLine();
-    ImGui::RadioButton("Depth", &renderViewMode, static_cast<int>(RenderViewMode::Depth));
-    m_debugViewSettings.renderViewMode = static_cast<RenderViewMode>(renderViewMode);
-    ImGui::EndDisabled();
-
-    const bool lightPassView = deferredRendering && m_debugViewSettings.renderViewMode == RenderViewMode::LightPass;
-    ImGui::BeginDisabled(!lightPassView);
-    ImGui::Checkbox("Debug LightPass Gradient", &m_lightingPassDebugGradientEnabled);
-    ImGui::EndDisabled();
-
-    ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", m_cpuFrameTime, 1000.0f / m_cpuFrameTime);
-
-    {
-        auto& gpuCeckPoints = m_frameResources[m_fremeIndexPrevious].gpuWorkMeterCheckPoints;
-        size_t gpuCheckPointCount = gpuCeckPoints.size();
-
-        if (gpuCheckPointCount >= 2)
-        {
-
-            for (int i = 1; i < gpuCheckPointCount; i++)
-            {
-                auto& checkPoint = gpuCeckPoints[i];
-
-                if (i < gpuCheckPointCount - 1)
-                {
-                    float timeFromPrevious = checkPoint.timeStamp - gpuCeckPoints[i - 1].timeStamp;
-                    ImGui::Text("GPU[%d] %s: %f ms", i, checkPoint.name.c_str(), timeFromPrevious);
-                }
-                else
-                {
-                    ImGui::Text("GPU[%d] Total: %f ms", i, checkPoint.timeStamp);
-                }
-            }
-        }
-    }
-    ImGui::End();
     ImGui::Render();
 }
 

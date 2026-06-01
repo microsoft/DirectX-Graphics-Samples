@@ -11,6 +11,7 @@
 
 #pragma once
 #include "DXSample.h"
+#include "GltfLoader.h"
 #include "MyDx12Utils.h"
 #include "RenderPassExecution.h"
 #include "RenderPassGraph.h"
@@ -21,6 +22,7 @@
 #include <array>
 #include <chrono>
 #include <climits>
+#include <functional>
 #include <initializer_list>
 #include <optional>
 #include <string>
@@ -35,9 +37,6 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
-struct GltfVertex;
-// #include "GltfLoader.h"
-
 using PipelineKey = Engine::PipelineKey;
 using DescriptorKey = Engine::DescriptorKey;
 using RtvKey = Engine::RtvKey;
@@ -48,6 +47,49 @@ using PassConstantsKey = Engine::PassConstantsKey;
 class HelloTextureEngine : public DXSample
 {
 public:
+    enum class RenderViewMode
+    {
+        LightPass = 0,
+        GBufferAlbedo,
+        GBufferNormal,
+        GBufferMaterial,
+        GBufferMotionVector,
+        GBufferPBRParams,
+        Depth,
+    };
+
+    enum class RenderingPath
+    {
+        Forward = 0,
+        Deferred,
+    };
+
+    struct DebugUiContext
+    {
+        int frameIndex;
+        int& displayInstanceCount;
+        int maxInstanceCount;
+        float& meshScale;
+        float& cameraFov;
+        std::array<float, 4>& backBufferClearColor;
+        XMFLOAT3& lightDirection;
+        XMFLOAT3& lightColor;
+        float& ambientIntensity;
+        float& diffuseIntensity;
+        int& toneMapOperator;
+        float& exposure;
+        float& paperWhiteNits;
+        float& maxDisplayNits;
+        RenderingPath& renderingPath;
+        RenderViewMode& renderViewMode;
+        bool& requestHdrDump;
+        bool& lightingPassDebugGradientEnabled;
+        float cpuFrameTime;
+        const std::vector<MyDx12Util::GpuWorkMeter::CheckPoint>& gpuCheckPoints;
+    };
+
+    using DebugUiHandler = std::function<void(DebugUiContext&)>;
+
     HelloTextureEngine(UINT width, UINT height, std::wstring name);
 
     virtual void OnInit();
@@ -60,6 +102,8 @@ public:
     virtual void OnWindowSizeChanged(UINT width, UINT height);
     virtual void OnIdle();
     void SetUseWarpDevice(bool useWarpDevice);
+    void SetSceneMesh(const GltfMeshData* mesh);
+    void SetDebugUiHandler(DebugUiHandler handler);
 
 private:
     static constexpr UINT kFrameCount = 2;
@@ -421,23 +465,6 @@ private:
     static constexpr UINT kLightPassRTVIndex = kGBufferRTVBaseIndex + GBuffer::kCount;
     static constexpr UINT kRTVDescriptorCount = kFrameCount + GBuffer::kCount + 1;
 
-    enum class RenderViewMode
-    {
-        LightPass = 0,
-        GBufferAlbedo,
-        GBufferNormal,
-        GBufferMaterial,
-        GBufferMotionVector,
-        GBufferPBRParams,
-        Depth,
-    };
-
-    enum class RenderingPath
-    {
-        Forward = 0,
-        Deferred,
-    };
-
     struct DebugViewSettings
     {
         RenderViewMode renderViewMode = RenderViewMode::LightPass;
@@ -554,6 +581,8 @@ private:
 
     // GPU work meter
     MyDx12Util::GpuWorkMeter m_gpuWorkMeter;
+    DebugUiHandler m_debugUiHandler;
+    const GltfMeshData* m_sceneMesh = nullptr;
 
     static constexpr const char* kBackBufferResourceName = "BackBuffer";
     static constexpr const char* kDepthStencilResourceName = "DepthStencil";

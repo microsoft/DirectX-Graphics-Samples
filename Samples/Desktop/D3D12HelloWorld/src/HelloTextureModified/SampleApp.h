@@ -31,6 +31,11 @@ public:
     void OnIdle() override;
 
 private:
+    void LoadSceneAssets();
+    void DrawDebugUi(HelloTextureEngine::DebugUiContext& context);
+
+    GltfMeshData m_mesh;
+
     // Temporary bridge: the engine still owns the rendering implementation until
     // device/swapchain/resource ownership can move behind an Engine-facing API.
     HelloTextureEngine m_engine;
