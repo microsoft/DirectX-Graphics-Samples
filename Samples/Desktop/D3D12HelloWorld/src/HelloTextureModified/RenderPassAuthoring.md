@@ -60,11 +60,10 @@ Use `PipelineId(Pipe::SomePass)` when the pass draws or dispatches through a PSO
 Important: this field only selects a registered pipeline state. The concrete `D3D12_GRAPHICS_PIPELINE_STATE_DESC` is registered separately during asset loading. For ToneMap, that registration is:
 
 ```cpp
-RegisterFullscreenPipeline(Pipe::ToneMap, psoDesc, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize,
-                           m_backBufferFormat);
+{Pipe::ToneMap, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, m_backBufferFormat}
 ```
 
-That call is in `LoadAssets()`. It flows through `RegisterFullscreenPipeline()`, which creates the fullscreen PSO desc, calls `PipelineId(name)`, then stores the created PSO in `m_pipelineRegistry.Create(...)`.
+That definition is in `LoadAssets()` and is materialized by `RegisterFullscreenPipelines()`. It flows through `RegisterFullscreenPipeline(baseDesc, definition)`, which creates the fullscreen PSO desc, calls `PipelineId(definition.name)`, then stores the created PSO in `m_pipelineRegistry.Create(...)`.
 
 At execution time, `BindPassPipeline()` calls `GetPipelineState(pass.pipeline)` and then `m_commandList->SetPipelineState(...)`.
 
@@ -214,7 +213,8 @@ return RenderPassBuilder(L"ToneMapPass")
 The matching pieces are:
 
 - Pipeline name: `PassKeyNames::Pipeline::ToneMap`, referenced as `Pipe::ToneMap`.
-- Concrete PSO registration: `LoadAssets()` calls `RegisterFullscreenPipeline(Pipe::ToneMap, ...)`.
+- Concrete PSO registration: `LoadAssets()` includes a `Pipe::ToneMap` fullscreen pipeline definition.
+- PSO materialization: `RegisterFullscreenPipelines()` calls `RegisterFullscreenPipeline(baseDesc, definition)`.
 - PSO creation: `RegisterFullscreenPipeline()` builds the PSO desc and calls `m_pipelineRegistry.Create(...)`.
 - PSO binding: `BindPassPipeline()` calls `SetPipelineState(...)`.
 - Input resource transition: `reads` transitions `LightPass.RenderTarget` to `PIXEL_SHADER_RESOURCE`.

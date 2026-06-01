@@ -60,11 +60,10 @@ pass が PSO を使って draw / dispatch する場合は `PipelineId(Pipe::Some
 重要: このフィールドは、登録済みの pipeline state を選択するだけです。具体的な `D3D12_GRAPHICS_PIPELINE_STATE_DESC` は asset loading 時に別途登録します。ToneMap の場合は以下です。
 
 ```cpp
-RegisterFullscreenPipeline(Pipe::ToneMap, psoDesc, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize,
-                           m_backBufferFormat);
+{Pipe::ToneMap, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, m_backBufferFormat}
 ```
 
-この呼び出しは `LoadAssets()` にあります。そこから `RegisterFullscreenPipeline()` に入り、fullscreen 用 PSO desc を作り、`PipelineId(name)` で key を得て、最後に `m_pipelineRegistry.Create(...)` へ保存します。
+この定義は `LoadAssets()` にあり、`RegisterFullscreenPipelines()` で materialize されます。そこから `RegisterFullscreenPipeline(baseDesc, definition)` に入り、fullscreen 用 PSO desc を作り、`PipelineId(definition.name)` で key を得て、最後に `m_pipelineRegistry.Create(...)` へ保存します。
 
 実行時には、`BindPassPipeline()` が `GetPipelineState(pass.pipeline)` を呼び、その結果を `m_commandList->SetPipelineState(...)` に渡します。
 
@@ -214,7 +213,8 @@ return RenderPassBuilder(L"ToneMapPass")
 対応する実装箇所は以下です。
 
 - Pipeline name: `PassKeyNames::Pipeline::ToneMap`。コード上では `Pipe::ToneMap` として参照する。
-- 具体的な PSO 登録: `LoadAssets()` が `RegisterFullscreenPipeline(Pipe::ToneMap, ...)` を呼ぶ。
+- 具体的な PSO 登録: `LoadAssets()` に `Pipe::ToneMap` の fullscreen pipeline definition を置く。
+- PSO materialization: `RegisterFullscreenPipelines()` が `RegisterFullscreenPipeline(baseDesc, definition)` を呼ぶ。
 - PSO 作成: `RegisterFullscreenPipeline()` が PSO desc を作り、`m_pipelineRegistry.Create(...)` を呼ぶ。
 - PSO bind: `BindPassPipeline()` が `SetPipelineState(...)` を呼ぶ。
 - 入力 resource transition: `reads` が `LightPass.RenderTarget` を `PIXEL_SHADER_RESOURCE` に transition する。

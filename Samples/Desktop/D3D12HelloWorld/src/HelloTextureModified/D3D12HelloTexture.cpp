@@ -835,27 +835,16 @@ void D3D12HelloTexture::LoadAssets()
         //
         RegisterGBufferPipeline(psoDesc, pGBufferVS, gbufferVSSize, pGBufferPS, gbufferPSSize);
 
-        //
-        // LightPass PSO
-        //
-        RegisterFullscreenPipeline(Pipe::Lighting, psoDesc, pLightPassVS, lightPassVSSize, pLightPassPS, lightPassPSSize,
-                                   DXGI_FORMAT_R16G16B16A16_FLOAT);
-
-        RegisterFullscreenPipeline(Pipe::LightingDebugGradient, psoDesc, pLightPassDebugGradientVS,
-                                   lightPassDebugGradientVSSize, pLightPassDebugGradientPS,
-                                   lightPassDebugGradientPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
-
-        //
-        // ToneMap PSO
-        //
-        RegisterFullscreenPipeline(Pipe::ToneMap, psoDesc, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize,
-                                   m_backBufferFormat);
-
-        //
-        // GBuffer Debug PSO
-        //
-        RegisterFullscreenPipeline(Pipe::GBufferDebug, psoDesc, pGBufferDebugVS, gbufferDebugVSSize,
-                                   pGBufferDebugPS, gbufferDebugPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT);
+        // Light Pass PSO, ToneMap PSO, GBuffer Debug PSO
+        RegisterFullscreenPipelines(
+            psoDesc,
+            {{Pipe::Lighting, pLightPassVS, lightPassVSSize, pLightPassPS, lightPassPSSize,
+              DXGI_FORMAT_R16G16B16A16_FLOAT},
+             {Pipe::LightingDebugGradient, pLightPassDebugGradientVS, lightPassDebugGradientVSSize,
+              pLightPassDebugGradientPS, lightPassDebugGradientPSSize, DXGI_FORMAT_R16G16B16A16_FLOAT},
+             {Pipe::ToneMap, pToneMapVS, toneMapVSSize, pToneMapPS, toneMapPSSize, m_backBufferFormat},
+             {Pipe::GBufferDebug, pGBufferDebugVS, gbufferDebugVSSize, pGBufferDebugPS, gbufferDebugPSSize,
+              DXGI_FORMAT_R16G16B16A16_FLOAT}});
 
         //
         // Depth PrePass PSO
@@ -2037,16 +2026,24 @@ void D3D12HelloTexture::OnDestroy()
     CloseHandle(m_fenceEvent);
 }
 
-void D3D12HelloTexture::RegisterFullscreenPipeline(const std::string &name,
-                                                   const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                                   const UINT8 *vertexShader, UINT vertexShaderSize,
-                                                   const UINT8 *pixelShader, UINT pixelShaderSize,
-                                                   DXGI_FORMAT renderTargetFormat)
+void D3D12HelloTexture::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                                   const FullscreenPipelineDefinition &definition)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MyDx12Util::CreateFullscreenPassPSODesc(
-        baseDesc, vertexShader, vertexShaderSize, pixelShader, pixelShaderSize, renderTargetFormat);
-    const PipelineKey key = PipelineId(name);
+        baseDesc, definition.vertexShader, definition.vertexShaderSize, definition.pixelShader,
+        definition.pixelShaderSize, definition.renderTargetFormat);
+    const PipelineKey key = PipelineId(definition.name);
     m_pipelineRegistry.Create(m_device.Get(), key, desc);
+}
+
+void D3D12HelloTexture::RegisterFullscreenPipelines(
+    const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+    std::initializer_list<FullscreenPipelineDefinition> definitions)
+{
+    for (const FullscreenPipelineDefinition &definition : definitions)
+    {
+        RegisterFullscreenPipeline(baseDesc, definition);
+    }
 }
 
 void D3D12HelloTexture::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,

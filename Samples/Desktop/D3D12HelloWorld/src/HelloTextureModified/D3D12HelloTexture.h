@@ -642,11 +642,22 @@ class D3D12HelloTexture : public DXSample
     using PassOperationHandler = void (D3D12HelloTexture::*)(const RenderPass &pass);
     Engine::PassOperationRegistry<PassOperationHandler> m_passOperationRegistry;
 
+    struct FullscreenPipelineDefinition
+    {
+        const char *name;
+        const UINT8 *vertexShader;
+        UINT vertexShaderSize;
+        const UINT8 *pixelShader;
+        UINT pixelShaderSize;
+        DXGI_FORMAT renderTargetFormat;
+    };
+
     void LoadPipeline();
     void LoadAssets();
-    void RegisterFullscreenPipeline(const std::string &name, const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                    const UINT8 *vertexShader, UINT vertexShaderSize, const UINT8 *pixelShader,
-                                    UINT pixelShaderSize, DXGI_FORMAT renderTargetFormat);
+    void RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                    const FullscreenPipelineDefinition &definition);
+    void RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
+                                     std::initializer_list<FullscreenPipelineDefinition> definitions);
     void RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
                               const D3D12_INPUT_ELEMENT_DESC *inputLayout, UINT inputLayoutCount,
                               const UINT8 *vertexShader, UINT vertexShaderSize, const UINT8 *pixelShader,
