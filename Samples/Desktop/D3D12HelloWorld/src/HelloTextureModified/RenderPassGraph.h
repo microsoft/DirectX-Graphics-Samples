@@ -636,6 +636,11 @@ public:
         return pipeline != m_pipelines.end() ? pipeline->second.Get() : nullptr;
     }
 
+    bool Contains(PipelineKey key) const
+    {
+        return Find(key) != nullptr;
+    }
+
     void Bind(ID3D12GraphicsCommandList* commandList, const RenderPass& pass) const
     {
         ID3D12PipelineState* pipelineState = Find(pass.pipeline);
@@ -737,6 +742,14 @@ struct RenderPassGraphValidationCallbacks
     std::function<bool(PassConstantsKey)> canBindConstants;
 };
 
+template <typename OperationHandlerT> struct RenderPassGraphValidationContext
+{
+    const PipelineRegistry* pipelineRegistry = nullptr;
+    const RenderPassBindingResolverRegistry* bindingResolvers = nullptr;
+    const PassOperationRegistry<OperationHandlerT>* operationRegistry = nullptr;
+    std::function<bool(PassConstantsKey)> canBindConstants;
+};
+
 inline void ValidateRenderPassGraph(const std::vector<RenderPass>& renderPasses,
                                     const RenderPassGraphValidationCallbacks& callbacks = {})
 {
@@ -785,6 +798,37 @@ inline void ValidateRenderPassGraph(const std::vector<RenderPass>& renderPasses,
             }
         }
     }
+}
+
+template <typename OperationHandlerT>
+inline void ValidateRenderPassGraph(const std::vector<RenderPass>& renderPasses,
+                                    const RenderPassGraphValidationContext<OperationHandlerT>& context)
+{
+    assert(context.pipelineRegistry != nullptr);
+    assert(context.bindingResolvers != nullptr);
+    assert(context.operationRegistry != nullptr);
+
+    ValidateRenderPassGraph(
+        renderPasses,
+        {context.pipelineRegistry != nullptr
+             ? [pipelineRegistry = context.pipelineRegistry](PipelineKey pipeline)
+               { return pipelineRegistry->Contains(pipeline); }
+             : std::function<bool(PipelineKey)>(),
+         context.operationRegistry != nullptr
+             ? [operationRegistry = context.operationRegistry](PassOperationKey operation)
+               { return operationRegistry->Contains(operation); }
+             : std::function<bool(PassOperationKey)>(),
+         context.bindingResolvers != nullptr
+             ? [bindingResolvers = context.bindingResolvers](DescriptorKey descriptor)
+               { return bindingResolvers->ContainsDescriptor(descriptor); }
+             : std::function<bool(DescriptorKey)>(),
+         context.bindingResolvers != nullptr
+             ? [bindingResolvers = context.bindingResolvers](RtvKey rtv) { return bindingResolvers->ContainsRtv(rtv); }
+             : std::function<bool(RtvKey)>(),
+         context.bindingResolvers != nullptr
+             ? [bindingResolvers = context.bindingResolvers](DsvKey dsv) { return bindingResolvers->ContainsDsv(dsv); }
+             : std::function<bool(DsvKey)>(),
+         context.canBindConstants});
 }
 
 struct ResourceLifetime

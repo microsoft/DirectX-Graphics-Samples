@@ -2132,7 +2132,15 @@ void D3D12HelloTexture::AddPass(RenderPass pass)
 
 void D3D12HelloTexture::ValidateRenderPassGraph() const
 {
-    Engine::ValidateRenderPassGraph(m_renderPassGraph.Passes(), {});
+    Engine::ValidateRenderPassGraph(
+        m_renderPassGraph.Passes(),
+        Engine::RenderPassGraphValidationContext<PassOperationHandler>{
+            &m_pipelineRegistry, &m_passBindingResolvers, &m_passOperationRegistry,
+            [this](PassConstantsKey constants)
+            {
+                return constants == m_passKeys.ConstantsId(ConstName::ToneMap) ||
+                       constants == m_passKeys.ConstantsId(ConstName::GBufferDebugTarget);
+            }});
 }
 
 auto D3D12HelloTexture::MakeResourceUsages(std::initializer_list<ResourceUsage> usages) const -> ResourceUsages
