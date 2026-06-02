@@ -29,11 +29,23 @@ void SampleApp::OnInit()
     m_engine.SetRenderingPath(m_renderingPath);
     m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
     m_engine.SetBackBufferClearColor(m_backBufferClearColor);
+    m_engine.SetCameraState(m_camera);
     m_engine.OnInit();
 }
 
 void SampleApp::OnUpdate()
 {
+    static constexpr float kCameraMoveSpeed = 0.01f;
+    if (GetForegroundWindow() == Win32Application::GetHwnd())
+    {
+        if (GetAsyncKeyState('A') & 0x8000) m_camera.pos.x -= kCameraMoveSpeed;
+        if (GetAsyncKeyState('D') & 0x8000) m_camera.pos.x += kCameraMoveSpeed;
+        if ((GetAsyncKeyState('W') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))  m_camera.pos.y -= kCameraMoveSpeed;
+        if ((GetAsyncKeyState('S') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))  m_camera.pos.y += kCameraMoveSpeed;
+        if ((GetAsyncKeyState('W') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000)) m_camera.pos.z += kCameraMoveSpeed;
+        if ((GetAsyncKeyState('S') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000)) m_camera.pos.z -= kCameraMoveSpeed;
+    }
+    m_engine.SetCameraState(m_camera);
     m_engine.OnUpdate();
 }
 
@@ -100,7 +112,7 @@ void SampleApp::DrawDebugUi(HelloTextureEngine::DebugUiContext& context)
     ImGui::Text("FrameIndex: %d", context.frameIndex);
     ImGui::SliderInt("Display Instance Count", &context.displayInstanceCount, 0, context.maxInstanceCount);
     ImGui::SliderFloat("Mesh Scale", &context.meshScale, 0.1f, 2.0f);
-    ImGui::SliderFloat("Camera FovH", &context.cameraFov, 20.f, 150.f);
+    ImGui::SliderFloat("Camera FovH", &m_camera.fov, 20.f, 150.f);
     ImGui::ColorEdit4("BackBuffer Clear", m_backBufferClearColor.data());
     ImGui::SliderFloat3("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f);
     ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
@@ -180,4 +192,5 @@ void SampleApp::DrawDebugUi(HelloTextureEngine::DebugUiContext& context)
     m_engine.SetRenderingPath(m_renderingPath);
     m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
     m_engine.SetBackBufferClearColor(m_backBufferClearColor);
+    m_engine.SetCameraState(m_camera);
 }

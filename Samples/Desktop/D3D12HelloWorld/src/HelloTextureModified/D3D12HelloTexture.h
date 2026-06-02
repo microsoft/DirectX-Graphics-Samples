@@ -72,13 +72,19 @@ public:
         float diffuseIntensity = 1.0f;
     };
 
+    struct CameraState
+    {
+        XMFLOAT3 pos = {0.0f, 0.0f, -5.0f};
+        XMFLOAT3 rot = {0.0f, 0.0f, 0.0f};
+        float fov = 60.0f;
+    };
+
     struct DebugUiContext
     {
         int frameIndex;
         int& displayInstanceCount;
         int maxInstanceCount;
         float& meshScale;
-        float& cameraFov;
         int& toneMapOperator;
         float& exposure;
         float& paperWhiteNits;
@@ -109,6 +115,7 @@ public:
     void SetRenderingPath(RenderingPath renderingPath);
     void SetLightingPassDebugGradient(bool enabled);
     void SetBackBufferClearColor(const std::array<float, 4>& color);
+    void SetCameraState(const CameraState& camera);
 
 private:
     static constexpr UINT kFrameCount = 2;
@@ -281,53 +288,6 @@ private:
         InstanceDataForCPU(XMFLOAT3 pos, XMFLOAT3 rot) : pos(pos), rot(rot) {}
         XMFLOAT3 pos;
         XMFLOAT3 rot;
-    };
-
-    struct CameraForCPU
-    {
-        CameraForCPU(XMFLOAT3 pos, XMFLOAT3 rot, float fov, float aspect, float nearZ, float farZ)
-            : pos(pos), rot(rot), fov(fov), aspect(aspect), nearZ(nearZ), farZ(farZ)
-        {
-
-            updateAllMatrix();
-        }
-
-        void updateViewMatrix()
-        {
-            XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(rot.x, rot.y, rot.z);
-            XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
-            view = XMMatrixInverse(nullptr, rotMat * transMat);
-        }
-        void updateProjectionMatrix()
-        {
-            projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(fov), // FOV
-                                                  aspect,                  // aspect ratio
-                                                  nearZ,                   // near
-                                                  farZ                     // far
-            );
-        }
-        void updateViewProjectionMatrix()
-        {
-            viewProjection = XMMatrixMultiply(view, projection);
-        }
-        void updateAllMatrix()
-        {
-            updateViewMatrix();
-            updateProjectionMatrix();
-            updateViewProjectionMatrix();
-        }
-
-        XMFLOAT3 pos;
-        XMFLOAT3 rot;
-        XMMATRIX view;
-
-        float fov;
-        float aspect;
-        float nearZ;
-        float farZ;
-        XMMATRIX projection;
-
-        XMMATRIX viewProjection;
     };
 
     struct alignas(256) ConstantBuffer
@@ -558,7 +518,9 @@ private:
     ComPtr<ID3D12Resource> m_materialBuffer;
     DescriptorHeapHandle m_materialBufferSrv;
 
-    std::vector<CameraForCPU> m_camerasForCPU;
+    CameraState m_camera;
+    static constexpr float kCameraNearZ = 0.1f;
+    static constexpr float kCameraFarZ = 10000.0f;
     ConstantBuffer m_constantBufferData;
 
     std::chrono::steady_clock::time_point m_prevTime;
@@ -703,6 +665,7 @@ private:
     void RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                       const DepthPrePassPipelineDefinition& definition);
     void UpdateHdr10DisplayMode();
+    void UpdateCameraConstantBuffer();
     void InitImGui();
     void CreateConstantBuffer(ConstantBufferResource& constantBuffer, const void* initialData, UINT sizeInBytes);
     std::array<GltfVertex, kCubeVertexCount> CreateCubeVertices() const;
