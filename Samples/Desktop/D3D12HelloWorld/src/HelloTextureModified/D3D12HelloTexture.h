@@ -79,16 +79,12 @@ public:
         int maxInstanceCount;
         float& meshScale;
         float& cameraFov;
-        std::array<float, 4>& backBufferClearColor;
-        LightingParams& lightingParams;
         int& toneMapOperator;
         float& exposure;
         float& paperWhiteNits;
         float& maxDisplayNits;
-        RenderingPath& renderingPath;
         RenderViewMode& renderViewMode;
         bool& requestHdrDump;
-        bool& lightingPassDebugGradientEnabled;
         float cpuFrameTime;
         const std::vector<MyDx12Util::GpuWorkMeter::CheckPoint>& gpuCheckPoints;
     };
@@ -110,6 +106,9 @@ public:
     void SetSceneMesh(const GltfMeshData* mesh);
     void SetDebugUiHandler(DebugUiHandler handler);
     void SetLightingParams(const LightingParams& params);
+    void SetRenderingPath(RenderingPath renderingPath);
+    void SetLightingPassDebugGradient(bool enabled);
+    void SetBackBufferClearColor(const std::array<float, 4>& color);
 
 private:
     static constexpr UINT kFrameCount = 2;
