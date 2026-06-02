@@ -25,6 +25,7 @@ void SampleApp::OnInit()
     m_engine.SetSceneMesh(&m_mesh);
     m_engine.SetDebugUiHandler([this](HelloTextureEngine::DebugUiContext& context) { DrawDebugUi(context); });
     m_engine.SetUseWarpDevice(m_useWarpDevice);
+    m_engine.SetLightingParams(m_lightingParams);
     m_engine.OnInit();
 }
 
@@ -98,10 +99,10 @@ void SampleApp::DrawDebugUi(HelloTextureEngine::DebugUiContext& context)
     ImGui::SliderFloat("Mesh Scale", &context.meshScale, 0.1f, 2.0f);
     ImGui::SliderFloat("Camera FovH", &context.cameraFov, 20.f, 150.f);
     ImGui::ColorEdit4("BackBuffer Clear", context.backBufferClearColor.data());
-    ImGui::SliderFloat3("Light Direction", &context.lightDirection.x, -1.0f, 1.0f);
-    ImGui::ColorEdit3("Light Color", &context.lightColor.x);
-    ImGui::SliderFloat("Ambient", &context.ambientIntensity, 0.0f, 1.0f);
-    ImGui::SliderFloat("Diffuse", &context.diffuseIntensity, 0.0f, 4.0f);
+    ImGui::SliderFloat3("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f);
+    ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
+    ImGui::SliderFloat("Ambient", &m_lightingParams.ambientIntensity, 0.0f, 1.0f);
+    ImGui::SliderFloat("Diffuse", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f);
 
     ImGui::Text("ToneMap");
     ImGui::RadioButton("None", &context.toneMapOperator, 0);
@@ -171,4 +172,6 @@ void SampleApp::DrawDebugUi(HelloTextureEngine::DebugUiContext& context)
     }
 
     ImGui::End();
+
+    m_engine.SetLightingParams(m_lightingParams);
 }
