@@ -79,12 +79,18 @@ public:
         float fov = 60.0f;
     };
 
+    static constexpr UINT kMaxInstanceCount = 1000;
+
+    struct alignas(16) InstanceData
+    {
+        XMFLOAT4X4 world;
+        XMFLOAT4X4 prevWorld;
+        UINT materialId;
+    };
+
     struct DebugUiContext
     {
         int frameIndex;
-        int& displayInstanceCount;
-        int maxInstanceCount;
-        float& meshScale;
         int& toneMapOperator;
         float& exposure;
         float& paperWhiteNits;
@@ -116,6 +122,8 @@ public:
     void SetLightingPassDebugGradient(bool enabled);
     void SetBackBufferClearColor(const std::array<float, 4>& color);
     void SetCameraState(const CameraState& camera);
+    void SetInstanceData(const std::vector<InstanceData>& instanceData);
+    void SetDisplayInstanceCount(int count);
 
 private:
     static constexpr UINT kFrameCount = 2;
@@ -237,7 +245,6 @@ private:
     static constexpr float kCameraMoveSpeed = 0.01f;
     static constexpr float kMouseRotationSpeed = 0.01f;
 
-    static constexpr UINT kMaxInstanceCount = 1000;
     static constexpr float kCubeScale = 0.2f;
     static constexpr UINT kMaterialCount = 256;
 
@@ -248,21 +255,6 @@ private:
     static constexpr bool kGltfLoadingEnabled = true; // false: glTFモデルを読み込まずCubeを表示
     static constexpr bool kGltfMeshDisplay = true;    // true: glTFモデルを表示、false: Cubeを表示
 
-    struct GridDim
-    {
-        GridDim(int x, int y, int z) : x(x), y(y), z(z) {}
-        int x;
-        int y;
-        int z;
-    };
-
-    inline XMFLOAT3 instanceIdToXYZ(int instanceId, const GridDim& dim)
-    {
-        int x = instanceId % dim.x - (kMaxInstanceCount / dim.z / dim.y) / 2;
-        int y = (instanceId / dim.x) % dim.y - (kMaxInstanceCount / dim.x / dim.y) / 2;
-        int z = -instanceId / (dim.x * dim.y) + (kMaxInstanceCount / dim.x / dim.y) / 2;
-        return XMFLOAT3((float)x, (float)y, (float)z);
-    }
     struct Material
     {
         UINT albedoTexIndex;
@@ -274,20 +266,6 @@ private:
         float metallicFactor;
         float occlusionStrength;
         UINT flags;
-    };
-
-    struct alignas(16) InstanceData
-    {
-        XMFLOAT4X4 world;
-        XMFLOAT4X4 prevWorld;
-        UINT materialId;
-    };
-
-    struct InstanceDataForCPU
-    {
-        InstanceDataForCPU(XMFLOAT3 pos, XMFLOAT3 rot) : pos(pos), rot(rot) {}
-        XMFLOAT3 pos;
-        XMFLOAT3 rot;
     };
 
     struct alignas(256) ConstantBuffer
@@ -495,7 +473,6 @@ private:
     UINT m_texIndex[kTextureCount] = {};
 
     std::vector<InstanceData> m_instanceData;
-    std::vector<InstanceDataForCPU> m_instanceDataForCPU;
     std::vector<Material> m_materialData;
     LightingParams m_lightingParams;
 
@@ -512,8 +489,7 @@ private:
     UINT m_vertexCountPerInstance = kCubeVertexCount;
     UINT m_indexCountPerInstance = 0;
 
-    int m_DisplayInstanceCount = static_cast<int>(kMaxInstanceCount);
-    float m_meshScale = 0.5f;
+    int m_displayInstanceCount = static_cast<int>(kMaxInstanceCount);
 
     ComPtr<ID3D12Resource> m_materialBuffer;
     DescriptorHeapHandle m_materialBufferSrv;
@@ -536,13 +512,6 @@ private:
     bool m_pendingResize = false;
     UINT m_pendingResizeWidth = 0;
     UINT m_pendingResizeHeight = 0;
-
-    bool m_isPlaying = false;
-    bool m_isDraggingInstance = false;
-    bool m_instanceTransformDirty = false;
-    int m_lastMouseX = 0;
-    int m_lastMouseY = 0;
-    XMFLOAT2 m_dragRotation = {0.0f, 0.0f};
 
     // CPU work meter
     MyDx12Util::WorkMeter m_workMeter;

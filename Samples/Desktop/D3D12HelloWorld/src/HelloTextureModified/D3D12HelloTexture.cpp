@@ -154,6 +154,16 @@ void HelloTextureEngine::SetCameraState(const CameraState& camera)
     m_camera = camera;
 }
 
+void HelloTextureEngine::SetInstanceData(const std::vector<InstanceData>& instanceData)
+{
+    m_instanceData = instanceData;
+}
+
+void HelloTextureEngine::SetDisplayInstanceCount(int count)
+{
+    m_displayInstanceCount = std::clamp(count, 0, static_cast<int>(kMaxInstanceCount));
+}
+
 void HelloTextureEngine::UpdateCameraConstantBuffer()
 {
     const float aspect = static_cast<float>(m_width) / static_cast<float>(m_height);
@@ -884,36 +894,11 @@ void HelloTextureEngine::LoadAssets()
         }
     }
 
-    // Generate the instance data.
-    m_instanceData.clear();
-    m_instanceDataForCPU.clear();
-    for (int i = 0; i < kMaxInstanceCount; i++)
+    // Instance data is provided by the application via SetInstanceData().
+    // Pre-allocate the buffer for kMaxInstanceCount entries.
+    if (m_instanceData.empty())
     {
-        XMFLOAT3 pos = instanceIdToXYZ(i, GridDim(10, 10, 10));
-
-        // CPU only
-        m_instanceDataForCPU.emplace_back(pos, XMFLOAT3(0.0f, 0.0f, 0.0f));
-
-        // CPU and GPU
-        InstanceData d;
-
-        if constexpr (kGltfLoadingEnabled)
-        {
-            // glTFのマテリアル数に応じてmaterialIdを割り当てる。足りない分は0番のマテリアルを使う。
-            const UINT gltfMaterialCount = static_cast<UINT>(mesh.materials.size());
-            d.materialId = gltfMaterialCount > 0 ? i % gltfMaterialCount : 0;
-        }
-        else
-        {
-            d.materialId = i % kMaterialCount;
-        }
-
-        XMMATRIX scaleMat = XMMatrixScaling(m_meshScale, m_meshScale, m_meshScale);
-        XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
-        XMMATRIX worldMat = scaleMat * transMat;
-        XMStoreFloat4x4(&d.world, XMMatrixTranspose(worldMat));
-        d.prevWorld = d.world;
-        m_instanceData.push_back(d);
+        m_instanceData.resize(kMaxInstanceCount);
     }
 
     // Generate the material data.
@@ -1473,118 +1458,11 @@ void HelloTextureEngine::OnUpdate()
 {
     PIXBeginEvent(0, L"OnUpdate");
 
-    auto now = std::chrono::steady_clock::now();
-    float deltaTime = std::chrono::duration<float>(now - m_prevTime).count();
-    static float accumTime = 0.f;
-    m_prevTime = now;
-
-    const bool updateInstanceTransforms = m_isPlaying || m_instanceTransformDirty;
-    if (updateInstanceTransforms)
-    {
-
-        // InstanceBufferのmaterialのtextureIdを1秒ごと切り替える
-        if (m_isPlaying)
-        {
-            accumTime += deltaTime;
-            if (accumTime > 1.0f)
-            {
-                for (int i = 0; i < kMaxInstanceCount; i++)
-                {
-                    if constexpr (kGltfLoadingEnabled)
-                    {
-                        m_instanceData[i].materialId = 0; // base texture only
-                        //  glTFのテクスチャ数に合わせて切り替える
-                        // m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % m_gltfTextureCount;
-                    }
-                    else
-                    {
-                        // チェッカーボードテクスチャ(kTextureCount)に合わせて切り替える
-                        m_instanceData[i].materialId = (m_instanceData[i].materialId + 1) % kTextureCount;
-                    }
-                }
-                accumTime = 0.f;
-            }
-        }
-
-        // InstanceBufferのオフセットを毎フレーム更新する
-        for (int i = 0; i < kMaxInstanceCount; i++)
-        {
-            m_instanceData[i].prevWorld = m_instanceData[i].world;
-            bool resetMotionVector = false;
-
-#if 1 // cube array auto-translation
-            if (m_isPlaying)
-            {
-                m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
-            }
-#endif
-            if (m_instanceDataForCPU[i].pos.x > kOffsetBounds)
-            {
-                m_instanceDataForCPU[i].pos.x = -kOffsetBounds;
-                resetMotionVector = true;
-            }
-            if (m_isPlaying)
-            {
-                m_instanceDataForCPU[i].rot.x += kRotationSpeed;
-                if (m_instanceDataForCPU[i].rot.x >= 2.0 * kPI)
-                {
-                    m_instanceDataForCPU[i].rot.x = 0.f;
-                }
-                m_instanceDataForCPU[i].rot.y += kRotationSpeed;
-                if (m_instanceDataForCPU[i].rot.y >= 2.0 * kPI)
-                {
-                    m_instanceDataForCPU[i].rot.y = 0.f;
-                }
-                m_instanceDataForCPU[i].rot.z += kRotationSpeed;
-                if (m_instanceDataForCPU[i].rot.z >= 2.0 * kPI)
-                {
-                    m_instanceDataForCPU[i].rot.z = 0.f;
-                }
-            }
-
-            XMMATRIX scaleMat = XMMatrixScaling(m_meshScale, m_meshScale, m_meshScale);
-
-            XMMATRIX transMat = XMMatrixTranslation(m_instanceDataForCPU[i].pos.x, m_instanceDataForCPU[i].pos.y,
-                                                    m_instanceDataForCPU[i].pos.z);
-
-            XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(m_instanceDataForCPU[i].rot.x, m_instanceDataForCPU[i].rot.y,
-                                                           m_instanceDataForCPU[i].rot.z);
-            XMMATRIX dragRotMat = XMMatrixRotationRollPitchYaw(m_dragRotation.x, m_dragRotation.y, 0.0f);
-
-            // XMMATRIX rotMat = XMMatrixRotationZ(m_instanceDataForCPU[i].rot.z);
-            XMMATRIX worldMat = scaleMat * rotMat * dragRotMat * transMat;
-
-            // XMStoreFloat4x4(&m_instanceData[i].world, worldMat);
-            XMStoreFloat4x4(&m_instanceData[i].world, XMMatrixTranspose(worldMat));
-            if (resetMotionVector)
-            {
-                m_instanceData[i].prevWorld = m_instanceData[i].world;
-            }
-        }
-        m_instanceTransformDirty = false;
-    }
-    else
-    {
-        for (int i = 0; i < kMaxInstanceCount; i++)
-        {
-            m_instanceData[i].prevWorld = m_instanceData[i].world;
-        }
-    }
-
     m_frameResources[m_frameIndex].instanceBuffer->Map(
         0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_frameIndex].pSrvDataBegin));
     memcpy(m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(),
            sizeof(InstanceData) * kMaxInstanceCount);
     m_frameResources[m_frameIndex].instanceBuffer->Unmap(0, nullptr);
-
-    if (GetForegroundWindow() == Win32Application::GetHwnd())
-    {
-        if (GetAsyncKeyState(VK_SPACE) & 0x8000)
-        {
-            m_isPlaying = !m_isPlaying;
-            Sleep(200); // スペースキーのトグルが速すぎるのを防止
-        }
-    }
 
     m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
     UpdateCameraConstantBuffer();
@@ -1602,9 +1480,6 @@ void HelloTextureEngine::UpdateImGui()
     {
         DebugUiContext context{
             static_cast<int>(m_frameIndex),
-            m_DisplayInstanceCount,
-            static_cast<int>(kMaxInstanceCount),
-            m_meshScale,
             m_toneMapPass.settings.operatorIndex,
             m_toneMapPass.settings.exposure,
             m_toneMapPass.settings.paperWhiteNits,
@@ -1616,7 +1491,6 @@ void HelloTextureEngine::UpdateImGui()
         m_debugUiHandler(context);
     }
 
-    m_DisplayInstanceCount = std::clamp(m_DisplayInstanceCount, 0, static_cast<int>(kMaxInstanceCount));
     if (m_renderingPath != RenderingPath::Deferred)
     {
         m_debugViewSettings.renderViewMode = RenderViewMode::LightPass;
@@ -1630,7 +1504,7 @@ void HelloTextureEngine::UpdateImGui()
 
 UINT HelloTextureEngine::GetVisibleCubeCount() const
 {
-    return static_cast<UINT>(m_DisplayInstanceCount);
+    return static_cast<UINT>(m_displayInstanceCount);
 }
 
 // Render the scene.
@@ -1697,41 +1571,16 @@ void HelloTextureEngine::OnIdle()
     m_cpuFrameTime = m_workMeter.GetCpuFrameTimeMs();
 }
 
-void HelloTextureEngine::OnMouseDown(UINT8 button, int x, int y)
+void HelloTextureEngine::OnMouseDown(UINT8, int, int)
 {
-    if (button != VK_LBUTTON)
-    {
-        return;
-    }
-
-    m_isDraggingInstance = true;
-    m_lastMouseX = x;
-    m_lastMouseY = y;
 }
 
-void HelloTextureEngine::OnMouseUp(UINT8 button, int, int)
+void HelloTextureEngine::OnMouseUp(UINT8, int, int)
 {
-    if (button == VK_LBUTTON)
-    {
-        m_isDraggingInstance = false;
-    }
 }
 
-void HelloTextureEngine::OnMouseMove(int x, int y)
+void HelloTextureEngine::OnMouseMove(int, int)
 {
-    if (!m_isDraggingInstance)
-    {
-        return;
-    }
-
-    const int dx = x - m_lastMouseX;
-    const int dy = y - m_lastMouseY;
-    m_lastMouseX = x;
-    m_lastMouseY = y;
-
-    m_dragRotation.y += static_cast<float>(dx) * kMouseRotationSpeed;
-    m_dragRotation.x += static_cast<float>(dy) * kMouseRotationSpeed;
-    m_instanceTransformDirty = true;
 }
 
 void HelloTextureEngine::Resize(UINT width, UINT height)
