@@ -149,6 +149,24 @@ void HelloTextureEngine::SetBackBufferClearColor(const std::array<float, 4>& col
     m_backBufferClearColor = color;
 }
 
+void HelloTextureEngine::SetCameraState(const CameraState& camera)
+{
+    m_camera = camera;
+}
+
+void HelloTextureEngine::UpdateCameraConstantBuffer()
+{
+    const float aspect = static_cast<float>(m_width) / static_cast<float>(m_height);
+    const XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(m_camera.rot.x, m_camera.rot.y, m_camera.rot.z);
+    const XMMATRIX transMat = XMMatrixTranslation(m_camera.pos.x, m_camera.pos.y, m_camera.pos.z);
+    const XMMATRIX view = XMMatrixInverse(nullptr, rotMat * transMat);
+    const XMMATRIX projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(m_camera.fov), aspect, kCameraNearZ, kCameraFarZ);
+    const XMMATRIX viewProjection = XMMatrixMultiply(view, projection);
+    XMStoreFloat4x4(&m_constantBufferData.viewProjection, XMMatrixTranspose(viewProjection));
+    XMStoreFloat4x4(&m_constantBufferData.invViewProjection, XMMatrixTranspose(XMMatrixInverse(nullptr, viewProjection)));
+    m_constantBufferData.cameraPosition = m_camera.pos;
+}
+
 // Load the rendering pipeline dependencies.
 void HelloTextureEngine::LoadPipeline()
 {
@@ -989,16 +1007,8 @@ void HelloTextureEngine::LoadAssets()
         m_materialBuffer->Unmap(0, nullptr);
     }
 
-    m_camerasForCPU.clear();
-    {
-        m_camerasForCPU.emplace_back(XMFLOAT3(0.0f, 0.0f, -5.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), 60.0f, m_aspectRatio,
-                                     0.1f, 10000.0f);
-        XMStoreFloat4x4(&m_constantBufferData.viewProjection, XMMatrixTranspose(m_camerasForCPU[0].viewProjection));
-        m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
-        XMStoreFloat4x4(&m_constantBufferData.invViewProjection,
-                        XMMatrixTranspose(XMMatrixInverse(nullptr, m_camerasForCPU[0].viewProjection)));
-        m_constantBufferData.cameraPosition = m_camerasForCPU[0].pos;
-    }
+    UpdateCameraConstantBuffer();
+    m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
 
     // Create the per-frame constant buffers.
     for (UINT n = 0; n < kFrameCount; n++)
@@ -1574,40 +1584,10 @@ void HelloTextureEngine::OnUpdate()
             m_isPlaying = !m_isPlaying;
             Sleep(200); // スペースキーのトグルが速すぎるのを防止
         }
-
-        if (GetAsyncKeyState('A') & 0x8000)
-        {
-            m_camerasForCPU[0].pos.x -= kCameraMoveSpeed;
-        }
-        if (GetAsyncKeyState('D') & 0x8000)
-        {
-            m_camerasForCPU[0].pos.x += kCameraMoveSpeed;
-        }
-
-        if ((GetAsyncKeyState('W') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
-        {
-            m_camerasForCPU[0].pos.y -= kCameraMoveSpeed;
-        }
-        if ((GetAsyncKeyState('S') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
-        {
-            m_camerasForCPU[0].pos.y += kCameraMoveSpeed;
-        }
-        if ((GetAsyncKeyState('W') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
-        {
-            m_camerasForCPU[0].pos.z += kCameraMoveSpeed;
-        }
-        if ((GetAsyncKeyState('S') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
-        {
-            m_camerasForCPU[0].pos.z -= kCameraMoveSpeed;
-        }
     }
 
     m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
-    m_camerasForCPU[0].updateAllMatrix();
-    XMStoreFloat4x4(&m_constantBufferData.viewProjection, XMMatrixTranspose(m_camerasForCPU[0].viewProjection));
-    XMStoreFloat4x4(&m_constantBufferData.invViewProjection,
-                    XMMatrixTranspose(XMMatrixInverse(nullptr, m_camerasForCPU[0].viewProjection)));
-    m_constantBufferData.cameraPosition = m_camerasForCPU[0].pos;
+    UpdateCameraConstantBuffer();
     memcpy(m_frameResources[m_frameIndex].cameraCB.mappedData, &m_constantBufferData, sizeof(m_constantBufferData));
 
     PIXEndEvent();
@@ -1625,7 +1605,6 @@ void HelloTextureEngine::UpdateImGui()
             m_DisplayInstanceCount,
             static_cast<int>(kMaxInstanceCount),
             m_meshScale,
-            m_camerasForCPU[0].fov,
             m_toneMapPass.settings.operatorIndex,
             m_toneMapPass.settings.exposure,
             m_toneMapPass.settings.paperWhiteNits,
@@ -1809,8 +1788,7 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
     CreateGBuffer();
 
     // Camera
-    m_camerasForCPU[0].aspect = static_cast<float>(m_width) / static_cast<float>(m_height);
-    m_camerasForCPU[0].updateAllMatrix();
+    UpdateCameraConstantBuffer();
 
     // Screen
     m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<FLOAT>(m_width), static_cast<FLOAT>(m_height),
