@@ -26,6 +26,9 @@ void SampleApp::OnInit()
     m_engine.SetDebugUiHandler([this](HelloTextureEngine::DebugUiContext& context) { DrawDebugUi(context); });
     m_engine.SetUseWarpDevice(m_useWarpDevice);
     m_engine.SetLightingParams(m_lightingParams);
+    m_engine.SetRenderingPath(m_renderingPath);
+    m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
+    m_engine.SetBackBufferClearColor(m_backBufferClearColor);
     m_engine.OnInit();
 }
 
@@ -98,7 +101,7 @@ void SampleApp::DrawDebugUi(HelloTextureEngine::DebugUiContext& context)
     ImGui::SliderInt("Display Instance Count", &context.displayInstanceCount, 0, context.maxInstanceCount);
     ImGui::SliderFloat("Mesh Scale", &context.meshScale, 0.1f, 2.0f);
     ImGui::SliderFloat("Camera FovH", &context.cameraFov, 20.f, 150.f);
-    ImGui::ColorEdit4("BackBuffer Clear", context.backBufferClearColor.data());
+    ImGui::ColorEdit4("BackBuffer Clear", m_backBufferClearColor.data());
     ImGui::SliderFloat3("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f);
     ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
     ImGui::SliderFloat("Ambient", &m_lightingParams.ambientIntensity, 0.0f, 1.0f);
@@ -114,14 +117,14 @@ void SampleApp::DrawDebugUi(HelloTextureEngine::DebugUiContext& context)
     ImGui::SliderFloat("Paper White", &context.paperWhiteNits, 80.0f, 500.0f, "%.0f nits");
     ImGui::SliderFloat("Display Max", &context.maxDisplayNits, 100.0f, 4000.0f, "%.0f nits");
 
-    int renderingPath = static_cast<int>(context.renderingPath);
+    int renderingPath = static_cast<int>(m_renderingPath);
     ImGui::Text("Rendering Path");
     ImGui::RadioButton("Forward", &renderingPath, static_cast<int>(RenderingPath::Forward));
     ImGui::SameLine();
     ImGui::RadioButton("Deferred", &renderingPath, static_cast<int>(RenderingPath::Deferred));
-    context.renderingPath = static_cast<RenderingPath>(renderingPath);
+    m_renderingPath = static_cast<RenderingPath>(renderingPath);
 
-    const bool deferredRendering = context.renderingPath == RenderingPath::Deferred;
+    const bool deferredRendering = m_renderingPath == RenderingPath::Deferred;
     if (ImGui::Button("Dump HDR Buffers"))
     {
         context.requestHdrDump = true;
@@ -146,7 +149,7 @@ void SampleApp::DrawDebugUi(HelloTextureEngine::DebugUiContext& context)
 
     const bool lightPassView = deferredRendering && context.renderViewMode == RenderViewMode::LightPass;
     ImGui::BeginDisabled(!lightPassView);
-    ImGui::Checkbox("Debug LightPass Gradient", &context.lightingPassDebugGradientEnabled);
+    ImGui::Checkbox("Debug LightPass Gradient", &m_lightingPassDebugGradient);
     ImGui::EndDisabled();
 
     ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", context.cpuFrameTime, 1000.0f / context.cpuFrameTime);
@@ -174,4 +177,7 @@ void SampleApp::DrawDebugUi(HelloTextureEngine::DebugUiContext& context)
     ImGui::End();
 
     m_engine.SetLightingParams(m_lightingParams);
+    m_engine.SetRenderingPath(m_renderingPath);
+    m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
+    m_engine.SetBackBufferClearColor(m_backBufferClearColor);
 }

@@ -134,6 +134,21 @@ auto HelloTextureEngine::MakeLightingConstants() const -> LightingConstants
     };
 }
 
+void HelloTextureEngine::SetRenderingPath(RenderingPath renderingPath)
+{
+    m_renderingPath = renderingPath;
+}
+
+void HelloTextureEngine::SetLightingPassDebugGradient(bool enabled)
+{
+    m_lightingPassDebugGradientEnabled = enabled;
+}
+
+void HelloTextureEngine::SetBackBufferClearColor(const std::array<float, 4>& color)
+{
+    m_backBufferClearColor = color;
+}
+
 // Load the rendering pipeline dependencies.
 void HelloTextureEngine::LoadPipeline()
 {
@@ -1611,16 +1626,12 @@ void HelloTextureEngine::UpdateImGui()
             static_cast<int>(kMaxInstanceCount),
             m_meshScale,
             m_camerasForCPU[0].fov,
-            m_backBufferClearColor,
-            m_lightingParams,
             m_toneMapPass.settings.operatorIndex,
             m_toneMapPass.settings.exposure,
             m_toneMapPass.settings.paperWhiteNits,
             m_toneMapPass.settings.maxDisplayNits,
-            m_renderingPath,
             m_debugViewSettings.renderViewMode,
             m_debugViewSettings.requestHdrDump,
-            m_lightingPassDebugGradientEnabled,
             m_cpuFrameTime,
             m_frameResources[m_fremeIndexPrevious].gpuWorkMeterCheckPoints};
         m_debugUiHandler(context);

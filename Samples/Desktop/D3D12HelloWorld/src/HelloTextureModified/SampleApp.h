@@ -36,6 +36,9 @@ private:
 
     GltfMeshData m_mesh;
     HelloTextureEngine::LightingParams m_lightingParams;
+    HelloTextureEngine::RenderingPath m_renderingPath = HelloTextureEngine::RenderingPath::Deferred;
+    bool m_lightingPassDebugGradient = false;
+    std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
 
     // Temporary bridge: the engine still owns the rendering implementation until
     // device/swapchain/resource ownership can move behind an Engine-facing API.
