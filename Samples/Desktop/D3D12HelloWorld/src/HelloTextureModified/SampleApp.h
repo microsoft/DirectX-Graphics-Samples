@@ -35,6 +35,7 @@ private:
     void DrawDebugUi(HelloTextureEngine::DebugUiContext& context);
 
     GltfMeshData m_mesh;
+    HelloTextureEngine::LightingParams m_lightingParams;
 
     // Temporary bridge: the engine still owns the rendering implementation until
     // device/swapchain/resource ownership can move behind an Engine-facing API.

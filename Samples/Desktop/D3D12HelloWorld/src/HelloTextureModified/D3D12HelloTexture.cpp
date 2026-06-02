@@ -118,6 +118,22 @@ void HelloTextureEngine::SetDebugUiHandler(DebugUiHandler handler)
     m_debugUiHandler = std::move(handler);
 }
 
+void HelloTextureEngine::SetLightingParams(const LightingParams& params)
+{
+    m_lightingParams = params;
+}
+
+auto HelloTextureEngine::MakeLightingConstants() const -> LightingConstants
+{
+    return {
+        m_lightingParams.lightDirection,
+        m_lightingParams.ambientIntensity,
+        m_lightingParams.lightColor,
+        m_lightingParams.diffuseIntensity,
+        {m_backBufferClearColor[0], m_backBufferClearColor[1], m_backBufferClearColor[2], m_backBufferClearColor[3]},
+    };
+}
+
 // Load the rendering pipeline dependencies.
 void HelloTextureEngine::LoadPipeline()
 {
@@ -973,7 +989,8 @@ void HelloTextureEngine::LoadAssets()
     for (UINT n = 0; n < kFrameCount; n++)
     {
         CreateConstantBuffer(m_frameResources[n].cameraCB, &m_constantBufferData, sizeof(m_constantBufferData));
-        CreateConstantBuffer(m_frameResources[n].lightCB, &m_lightingConstantsData, sizeof(m_lightingConstantsData));
+        const LightingConstants initialLightingConstants = MakeLightingConstants();
+        CreateConstantBuffer(m_frameResources[n].lightCB, &initialLightingConstants, sizeof(initialLightingConstants));
     }
 
     // Close the command list and execute it to begin the initial GPU setup.
@@ -1595,10 +1612,7 @@ void HelloTextureEngine::UpdateImGui()
             m_meshScale,
             m_camerasForCPU[0].fov,
             m_backBufferClearColor,
-            m_lightingConstantsData.lightDirection,
-            m_lightingConstantsData.lightColor,
-            m_lightingConstantsData.ambientIntensity,
-            m_lightingConstantsData.diffuseIntensity,
+            m_lightingParams,
             m_toneMapPass.settings.operatorIndex,
             m_toneMapPass.settings.exposure,
             m_toneMapPass.settings.paperWhiteNits,
@@ -1618,10 +1632,8 @@ void HelloTextureEngine::UpdateImGui()
         m_debugViewSettings.renderViewMode = RenderViewMode::LightPass;
     }
     m_toneMapPass.settings.Normalize();
-    m_lightingConstantsData.backgroundColor = {m_backBufferClearColor[0], m_backBufferClearColor[1],
-                                               m_backBufferClearColor[2], m_backBufferClearColor[3]};
-    memcpy(m_frameResources[m_frameIndex].lightCB.mappedData, &m_lightingConstantsData,
-           sizeof(m_lightingConstantsData));
+    const LightingConstants lightingConstants = MakeLightingConstants();
+    memcpy(m_frameResources[m_frameIndex].lightCB.mappedData, &lightingConstants, sizeof(lightingConstants));
 
     ImGui::Render();
 }

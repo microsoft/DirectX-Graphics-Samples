@@ -64,6 +64,14 @@ public:
         Deferred,
     };
 
+    struct LightingParams
+    {
+        XMFLOAT3 lightDirection = {0.4f, 0.7f, 0.6f};
+        XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
+        float ambientIntensity = 0.10f;
+        float diffuseIntensity = 1.0f;
+    };
+
     struct DebugUiContext
     {
         int frameIndex;
@@ -72,10 +80,7 @@ public:
         float& meshScale;
         float& cameraFov;
         std::array<float, 4>& backBufferClearColor;
-        XMFLOAT3& lightDirection;
-        XMFLOAT3& lightColor;
-        float& ambientIntensity;
-        float& diffuseIntensity;
+        LightingParams& lightingParams;
         int& toneMapOperator;
         float& exposure;
         float& paperWhiteNits;
@@ -104,6 +109,7 @@ public:
     void SetUseWarpDevice(bool useWarpDevice);
     void SetSceneMesh(const GltfMeshData* mesh);
     void SetDebugUiHandler(DebugUiHandler handler);
+    void SetLightingParams(const LightingParams& params);
 
 private:
     static constexpr UINT kFrameCount = 2;
@@ -343,6 +349,8 @@ private:
         XMFLOAT4 backgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
     };
 
+    LightingConstants MakeLightingConstants() const;
+
     struct HdrOutputSettings
     {
         DXGI_COLOR_SPACE_TYPE currentSwapChainColorSpace = DXGI_COLOR_SPACE_CUSTOM;
@@ -530,7 +538,7 @@ private:
     std::vector<InstanceData> m_instanceData;
     std::vector<InstanceDataForCPU> m_instanceDataForCPU;
     std::vector<Material> m_materialData;
-    LightingConstants m_lightingConstantsData;
+    LightingParams m_lightingParams;
 
     ComPtr<ID3D12Resource> m_vertexBuffer;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
