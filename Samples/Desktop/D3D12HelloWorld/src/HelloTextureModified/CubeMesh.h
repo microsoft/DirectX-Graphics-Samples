@@ -9,11 +9,8 @@
 //
 //*********************************************************
 
-#include "stdafx.h"
-#include "SampleApp.h"
+#pragma once
 
-_Use_decl_annotations_ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
-{
-    SampleApp sample(1920, 1080, L"D3D12 Hello Texture Modified");
-    return Win32Application::Run(&sample, hInstance, nCmdShow);
-}
+#include "GltfLoader.h"
+
+GltfMeshData CreateCubeMesh();

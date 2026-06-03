@@ -12,6 +12,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CubeMesh.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
     <ClInclude Include="D3D12HelloTexture.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -24,6 +27,9 @@
     <ClInclude Include="MyDx12Utils.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="RenderPassGraph.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
     <ClInclude Include="stdafx.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -31,6 +37,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SimpleDescriptorHeapAllocator.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleApp.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="WorkMeter.h">
@@ -41,16 +50,25 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CubeMesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SampleApp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="DXSample.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="D3D12HelloTexture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D3D12HelloTexturePasses.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Win32Application.cpp">

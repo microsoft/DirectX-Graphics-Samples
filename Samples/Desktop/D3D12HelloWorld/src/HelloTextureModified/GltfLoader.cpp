@@ -9,15 +9,15 @@
 #include <cstring>
 #include <tiny_gltf.h>
 
-static const unsigned char *GetAccessorData(const tinygltf::Model &model, const tinygltf::Accessor &accessor)
+static const unsigned char* GetAccessorData(const tinygltf::Model& model, const tinygltf::Accessor& accessor)
 {
-    const auto &view = model.bufferViews[accessor.bufferView];
-    const auto &buffer = model.buffers[view.buffer];
+    const auto& view = model.bufferViews[accessor.bufferView];
+    const auto& buffer = model.buffers[view.buffer];
 
     return buffer.data.data() + view.byteOffset + accessor.byteOffset;
 }
 
-bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
+bool LoadGltfMesh(const std::string& path, GltfMeshData& outMesh)
 {
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;
@@ -46,12 +46,12 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
     if (model.meshes.empty())
         return false;
 
-    const tinygltf::Mesh &mesh = model.meshes[0];
+    const tinygltf::Mesh& mesh = model.meshes[0];
 
     if (mesh.primitives.empty())
         return false;
 
-    const tinygltf::Primitive &prim = mesh.primitives[0];
+    const tinygltf::Primitive& prim = mesh.primitives[0];
 
     auto posIt = prim.attributes.find("POSITION");
     auto normalIt = prim.attributes.find("NORMAL");
@@ -61,28 +61,28 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
     if (posIt == prim.attributes.end())
         return false;
 
-    const auto &posAccessor = model.accessors[posIt->second];
-    const float *positions = reinterpret_cast<const float *>(GetAccessorData(model, posAccessor));
+    const auto& posAccessor = model.accessors[posIt->second];
+    const float* positions = reinterpret_cast<const float*>(GetAccessorData(model, posAccessor));
 
-    const float *normals = nullptr;
+    const float* normals = nullptr;
     if (normalIt != prim.attributes.end())
     {
-        const auto &normalAccessor = model.accessors[normalIt->second];
-        normals = reinterpret_cast<const float *>(GetAccessorData(model, normalAccessor));
+        const auto& normalAccessor = model.accessors[normalIt->second];
+        normals = reinterpret_cast<const float*>(GetAccessorData(model, normalAccessor));
     }
 
-    const float *uvs = nullptr;
+    const float* uvs = nullptr;
     if (uvIt != prim.attributes.end())
     {
-        const auto &uvAccessor = model.accessors[uvIt->second];
-        uvs = reinterpret_cast<const float *>(GetAccessorData(model, uvAccessor));
+        const auto& uvAccessor = model.accessors[uvIt->second];
+        uvs = reinterpret_cast<const float*>(GetAccessorData(model, uvAccessor));
     }
 
-    const float *tangents = nullptr;
+    const float* tangents = nullptr;
     if (tangentIt != prim.attributes.end())
     {
-        const auto &tangentAccessor = model.accessors[tangentIt->second];
-        tangents = reinterpret_cast<const float *>(GetAccessorData(model, tangentAccessor));
+        const auto& tangentAccessor = model.accessors[tangentIt->second];
+        tangents = reinterpret_cast<const float*>(GetAccessorData(model, tangentAccessor));
         DBG_PRINT("glTF TANGENT attribute found.\n");
     }
     else
@@ -127,26 +127,26 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
     if (prim.indices < 0)
         return false;
 
-    const auto &indexAccessor = model.accessors[prim.indices];
-    const auto *indexData = GetAccessorData(model, indexAccessor);
+    const auto& indexAccessor = model.accessors[prim.indices];
+    const auto* indexData = GetAccessorData(model, indexAccessor);
 
     outMesh.indices.resize(indexAccessor.count);
 
     if (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
     {
-        const uint16_t *src = reinterpret_cast<const uint16_t *>(indexData);
+        const uint16_t* src = reinterpret_cast<const uint16_t*>(indexData);
         for (size_t i = 0; i < indexAccessor.count; ++i)
             outMesh.indices[i] = src[i];
     }
     else if (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
     {
-        const uint32_t *src = reinterpret_cast<const uint32_t *>(indexData);
+        const uint32_t* src = reinterpret_cast<const uint32_t*>(indexData);
         for (size_t i = 0; i < indexAccessor.count; ++i)
             outMesh.indices[i] = src[i];
     }
     else if (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
     {
-        const uint8_t *src = reinterpret_cast<const uint8_t *>(indexData);
+        const uint8_t* src = reinterpret_cast<const uint8_t*>(indexData);
         for (size_t i = 0; i < indexAccessor.count; ++i)
             outMesh.indices[i] = src[i];
     }
@@ -165,12 +165,12 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
 
     if (matIndex >= 0)
     {
-        const auto &mat = model.materials[matIndex];
-        const auto &pbr = mat.pbrMetallicRoughness;
+        const auto& mat = model.materials[matIndex];
+        const auto& pbr = mat.pbrMetallicRoughness;
 
         outMesh.materials.resize(model.materials.size());
 
-        auto &dst = outMesh.materials[matIndex];
+        auto& dst = outMesh.materials[matIndex];
 
         dst.albedoTexIndex = pbr.baseColorTexture.index;
         dst.metallicRoughnessTexIndex = pbr.metallicRoughnessTexture.index;
@@ -198,9 +198,9 @@ bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh)
         DBG_PRINT("occlusionStrength: %f\n", dst.occlusionStrength);
     }
 
-    for (const auto &tex : model.textures)
+    for (const auto& tex : model.textures)
     {
-        const tinygltf::Image &image = model.images[tex.source];
+        const tinygltf::Image& image = model.images[tex.source];
 
         GltfTextureData dst;
         DBG_PRINT("image.name = %s\n", image.name.c_str());

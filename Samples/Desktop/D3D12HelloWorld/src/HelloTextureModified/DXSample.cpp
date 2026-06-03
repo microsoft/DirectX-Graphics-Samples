@@ -14,11 +14,8 @@
 
 using namespace Microsoft::WRL;
 
-DXSample::DXSample(UINT width, UINT height, std::wstring name) :
-    m_width(width),
-    m_height(height),
-    m_title(name),
-    m_useWarpDevice(false)
+DXSample::DXSample(UINT width, UINT height, std::wstring name)
+    : m_width(width), m_height(height), m_title(name), m_useWarpDevice(false)
 {
     WCHAR assetsPath[512];
     GetAssetsPath(assetsPath, _countof(assetsPath));
@@ -27,9 +24,7 @@ DXSample::DXSample(UINT width, UINT height, std::wstring name) :
     m_aspectRatio = static_cast<float>(width) / static_cast<float>(height);
 }
 
-DXSample::~DXSample()
-{
-}
+DXSample::~DXSample() {}
 
 // Helper function for resolving the full path of assets.
 std::wstring DXSample::GetAssetFullPath(LPCWSTR assetName)
@@ -39,11 +34,8 @@ std::wstring DXSample::GetAssetFullPath(LPCWSTR assetName)
 
 // Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
 // If no such adapter can be found, *ppAdapter will be set to nullptr.
-_Use_decl_annotations_
-void DXSample::GetHardwareAdapter(
-    IDXGIFactory1* pFactory,
-    IDXGIAdapter1** ppAdapter,
-    bool requestHighPerformanceAdapter)
+_Use_decl_annotations_ void
+DXSample::GetHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter)
 {
     *ppAdapter = nullptr;
 
@@ -52,13 +44,12 @@ void DXSample::GetHardwareAdapter(
     ComPtr<IDXGIFactory6> factory6;
     if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
     {
-        for (
-            UINT adapterIndex = 0;
-            SUCCEEDED(factory6->EnumAdapterByGpuPreference(
-                adapterIndex,
-                requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
-                IID_PPV_ARGS(&adapter)));
-            ++adapterIndex)
+        for (UINT adapterIndex = 0; SUCCEEDED(factory6->EnumAdapterByGpuPreference(
+                 adapterIndex,
+                 requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE
+                                                       : DXGI_GPU_PREFERENCE_UNSPECIFIED,
+                 IID_PPV_ARGS(&adapter)));
+             ++adapterIndex)
         {
             DXGI_ADAPTER_DESC1 desc;
             adapter->GetDesc1(&desc);
@@ -79,7 +70,7 @@ void DXSample::GetHardwareAdapter(
         }
     }
 
-    if(adapter.Get() == nullptr)
+    if (adapter.Get() == nullptr)
     {
         for (UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex)
         {
@@ -101,7 +92,7 @@ void DXSample::GetHardwareAdapter(
             }
         }
     }
-    
+
     *ppAdapter = adapter.Detach();
 }
 
@@ -113,13 +104,11 @@ void DXSample::SetCustomWindowText(LPCWSTR text)
 }
 
 // Helper function for parsing any supplied command line args.
-_Use_decl_annotations_
-void DXSample::ParseCommandLineArgs(WCHAR* argv[], int argc)
+_Use_decl_annotations_ void DXSample::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
     for (int i = 1; i < argc; ++i)
     {
-        if (_wcsnicmp(argv[i], L"-warp", wcslen(argv[i])) == 0 || 
-            _wcsnicmp(argv[i], L"/warp", wcslen(argv[i])) == 0)
+        if (_wcsnicmp(argv[i], L"-warp", wcslen(argv[i])) == 0 || _wcsnicmp(argv[i], L"/warp", wcslen(argv[i])) == 0)
         {
             m_useWarpDevice = true;
             m_title = m_title + L" (WARP)";

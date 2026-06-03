@@ -45,4 +45,4 @@ struct GltfMeshData
     std::vector<GltfTextureData> textures; // interim
 };
 
-bool LoadGltfMesh(const std::string &path, GltfMeshData &outMesh);
+bool LoadGltfMesh(const std::string& path, GltfMeshData& outMesh);

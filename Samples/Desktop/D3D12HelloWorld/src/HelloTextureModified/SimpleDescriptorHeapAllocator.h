@@ -10,7 +10,7 @@ struct DescriptorHeapHandle
 // Simple free list based allocator
 struct SimpleDescriptorHeapAllocator
 {
-    ID3D12DescriptorHeap *Heap = nullptr;
+    ID3D12DescriptorHeap* Heap = nullptr;
     D3D12_DESCRIPTOR_HEAP_TYPE HeapType = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
     D3D12_CPU_DESCRIPTOR_HANDLE HeapStartCpu;
     D3D12_GPU_DESCRIPTOR_HANDLE HeapStartGpu;
@@ -19,7 +19,7 @@ struct SimpleDescriptorHeapAllocator
 
     // Initialize the allocator with a descriptor heap.
     // The heap must not have been used before and must not be used elsewhere after initialization.
-    void Init(ID3D12Device *device, ID3D12DescriptorHeap *heap)
+    void Init(ID3D12Device* device, ID3D12DescriptorHeap* heap)
     {
         assert(Heap == nullptr && FreeIndices.empty());
         Heap = heap;
@@ -41,8 +41,8 @@ struct SimpleDescriptorHeapAllocator
     }
 
     // For ImGui
-    UINT Alloc(D3D12_CPU_DESCRIPTOR_HANDLE *out_cpu_desc_handle,
-               D3D12_GPU_DESCRIPTOR_HANDLE *out_gpu_desc_handle = nullptr)
+    UINT Alloc(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle,
+               D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle = nullptr)
     {
         assert(FreeIndices.size() > 0);
         UINT idx = FreeIndices.back();
@@ -64,8 +64,8 @@ struct SimpleDescriptorHeapAllocator
     }
 
     // For ImGui
-    void Free(D3D12_CPU_DESCRIPTOR_HANDLE *out_cpu_desc_handle,
-              D3D12_GPU_DESCRIPTOR_HANDLE *out_gpu_desc_handle = nullptr)
+    void Free(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle,
+              D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle = nullptr)
     {
         if (out_cpu_desc_handle == nullptr || out_gpu_desc_handle == nullptr)
         {

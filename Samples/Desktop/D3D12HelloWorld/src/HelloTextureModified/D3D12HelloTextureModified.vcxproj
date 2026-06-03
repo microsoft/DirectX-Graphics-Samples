@@ -131,9 +131,12 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CubeMesh.h" />
     <ClInclude Include="GltfLoader.h" />
     <ClInclude Include="MyDx12Utils.h" />
+    <ClInclude Include="RenderPassGraph.h" />
     <ClInclude Include="SimpleDescriptorHeapAllocator.h" />
+    <ClInclude Include="SampleApp.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12HelloTexture.h" />
     <ClInclude Include="DXSample.h" />
@@ -142,11 +145,14 @@
     <ClInclude Include="WorkMeter.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CubeMesh.cpp" />
     <ClCompile Include="GltfLoader.cpp" />
     <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="D3D12HelloTexture.cpp" />
+    <ClCompile Include="D3D12HelloTexturePasses.cpp" />
     <ClCompile Include="DXSample.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="SampleApp.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>

@@ -14,14 +14,17 @@ using Microsoft::WRL::ComPtr;
 namespace MyDx12Util
 {
 
-inline void CreateUploadBuffer(ComPtr<ID3D12Device> &device, size_t size, ComPtr<ID3D12Resource> &ppResource)
+inline void CreateUploadBuffer(ComPtr<ID3D12Device>& device, size_t size, ComPtr<ID3D12Resource>& ppResource)
 {
-    ThrowIfFailed(device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(size),
-        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&ppResource)));
+    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                                                  D3D12_HEAP_FLAG_NONE,
+                                                  &CD3DX12_RESOURCE_DESC::Buffer(size),
+                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                  nullptr,
+                                                  IID_PPV_ARGS(&ppResource)));
 }
 
-inline void ClearRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc)
+inline void ClearRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
 {
     for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
     {
@@ -29,8 +32,8 @@ inline void ClearRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc)
     }
 }
 
-inline void SetRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, const DXGI_FORMAT *formats,
-                                   UINT formatCount)
+inline void
+SetRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc, const DXGI_FORMAT* formats, UINT formatCount)
 {
     ClearRenderTargetFormats(desc);
 
@@ -41,14 +44,18 @@ inline void SetRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, con
     }
 }
 
-inline void SetRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, std::initializer_list<DXGI_FORMAT> formats)
+inline void SetRenderTargetFormats(D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc, std::initializer_list<DXGI_FORMAT> formats)
 {
     SetRenderTargetFormats(desc, formats.begin(), static_cast<UINT>(formats.size()));
 }
 
-inline D3D12_GRAPHICS_PIPELINE_STATE_DESC CreateGBufferPSODesc(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc,
-                                                               const void *vs, UINT vsSize, const void *ps, UINT psSize,
-                                                               const DXGI_FORMAT *rtvFormats, UINT rtvFormatCount)
+inline D3D12_GRAPHICS_PIPELINE_STATE_DESC CreateGBufferPSODesc(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                                               const void* vs,
+                                                               UINT vsSize,
+                                                               const void* ps,
+                                                               UINT psSize,
+                                                               const DXGI_FORMAT* rtvFormats,
+                                                               UINT rtvFormatCount)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
 
@@ -60,8 +67,12 @@ inline D3D12_GRAPHICS_PIPELINE_STATE_DESC CreateGBufferPSODesc(const D3D12_GRAPH
 }
 
 inline D3D12_GRAPHICS_PIPELINE_STATE_DESC
-CreateFullscreenPassPSODesc(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc, const void *vs, UINT vsSize,
-                            const void *ps, UINT psSize, DXGI_FORMAT rtvFormat)
+CreateFullscreenPassPSODesc(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                            const void* vs,
+                            UINT vsSize,
+                            const void* ps,
+                            UINT psSize,
+                            DXGI_FORMAT rtvFormat)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
 
@@ -78,7 +89,7 @@ CreateFullscreenPassPSODesc(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &baseDesc, 
 
 } // namespace MyDx12Util
 
-inline void DebugPrint(const char *fmt, ...)
+inline void DebugPrint(const char* fmt, ...)
 {
     char buf[1024];
 
