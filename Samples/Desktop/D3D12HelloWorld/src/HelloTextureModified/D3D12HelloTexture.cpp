@@ -274,8 +274,6 @@ HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, GraphicsDevice& 
     GetAssetsPath(assetsPath, _countof(assetsPath));
     m_assetsPath = assetsPath;
 
-    m_graphicsDevice.width = width;
-    m_graphicsDevice.height = height;
     RegisterPassBindingResolvers();
     RegisterPassConstantsHandlers();
     RegisterResourceResolvers();
@@ -289,21 +287,19 @@ auto HelloTextureEngine::ToneMapPass::MakeShaderConstants(const HdrOutputSetting
 
 void HelloTextureEngine::OnInit()
 {
-    assert(m_graphicsDevice.hwnd != nullptr);
+    assert(m_graphicsDevice.device != nullptr);
+    assert(m_graphicsDevice.HasSwapChain());
     InitializeFrameResources();
 }
 
 void HelloTextureEngine::Initialize(const EngineInitDesc& desc)
 {
-    assert(desc.hwnd != nullptr);
+    assert(m_graphicsDevice.device != nullptr);
+    assert(m_graphicsDevice.HasSwapChain());
 
-    m_graphicsDevice.hwnd = desc.hwnd;
     m_width = desc.width;
     m_height = desc.height;
-    m_graphicsDevice.width = desc.width;
-    m_graphicsDevice.height = desc.height;
     m_aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
-    m_useWarpDevice = desc.useWarpDevice;
     m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
     m_scissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height));
 
@@ -325,11 +321,6 @@ auto HelloTextureEngine::MakeGraphicsDeviceContext() const -> GraphicsDeviceCont
         m_graphicsDevice.commandQueue.Get(),
         m_graphicsDevice.hwnd,
     };
-}
-
-void HelloTextureEngine::SetUseWarpDevice(bool useWarpDevice)
-{
-    m_useWarpDevice = useWarpDevice;
 }
 
 std::wstring HelloTextureEngine::GetAssetFullPath(LPCWSTR assetName)
@@ -434,14 +425,8 @@ void HelloTextureEngine::UpdateCameraConstantBuffer()
 // Load the rendering pipeline dependencies.
 void HelloTextureEngine::LoadPipeline()
 {
-    GraphicsDeviceDesc desc = {};
-    desc.hwnd = m_graphicsDevice.hwnd;
-    desc.width = m_width;
-    desc.height = m_height;
-    desc.bufferCount = kFrameCount;
-    desc.swapChainFormat = kSwapChainFormat;
-    desc.useWarpDevice = m_useWarpDevice;
-    m_graphicsDevice.Initialize(desc);
+    assert(m_graphicsDevice.device != nullptr);
+    assert(m_graphicsDevice.HasSwapChain());
 
     UpdateHdr10DisplayMode();
     m_currentFrameIndex = m_graphicsDevice.CurrentBackBufferIndex();

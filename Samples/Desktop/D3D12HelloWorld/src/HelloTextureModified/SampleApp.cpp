@@ -29,7 +29,6 @@ void SampleApp::OnInit()
     m_engine.SetSceneMesh(&m_mesh);
     m_engine.SetDebugUiHandler([this](const HelloTextureEngine::DebugUiContext& context) { DrawDebugUi(context); });
     m_engine.SetUpdateHandler([this]() { UpdateSampleState(); });
-    m_engine.SetUseWarpDevice(m_useWarpDevice);
     m_engine.SetLightingParams(m_lightingParams);
     m_engine.SetRenderingPath(m_renderingPath);
     m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
@@ -40,11 +39,18 @@ void SampleApp::OnInit()
     m_engine.SetToneMapParams(m_toneMapParams);
     m_engine.SetRenderViewMode(m_renderViewMode);
 
+    GraphicsDeviceDesc deviceDesc = {};
+    deviceDesc.hwnd = Win32Application::GetHwnd();
+    deviceDesc.width = GetWidth();
+    deviceDesc.height = GetHeight();
+    deviceDesc.bufferCount = HelloTextureEngine::kSwapChainBufferCount;
+    deviceDesc.swapChainFormat = HelloTextureEngine::kSwapChainFormat;
+    deviceDesc.useWarpDevice = m_useWarpDevice;
+    m_graphicsDevice.Initialize(deviceDesc);
+
     EngineInitDesc initDesc = {};
-    initDesc.hwnd = Win32Application::GetHwnd();
     initDesc.width = GetWidth();
     initDesc.height = GetHeight();
-    initDesc.useWarpDevice = m_useWarpDevice;
     m_engine.Initialize(initDesc);
 }
 

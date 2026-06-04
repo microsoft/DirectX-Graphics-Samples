@@ -46,10 +46,8 @@ using PassConstantsKey = Engine::PassConstantsKey;
 
 struct EngineInitDesc
 {
-    HWND hwnd = nullptr;
     UINT width = 0;
     UINT height = 0;
-    bool useWarpDevice = false;
 };
 
 struct GraphicsDeviceContext
@@ -157,6 +155,9 @@ public:
     using DebugUiHandler = std::function<void(const DebugUiContext&)>;
     using UpdateHandler = std::function<void()>;
 
+    static constexpr UINT kSwapChainBufferCount = 2;
+    static constexpr DXGI_FORMAT kSwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
+
     HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice);
 
     void OnInit();
@@ -169,7 +170,6 @@ public:
     void OnWindowSizeChanged(UINT width, UINT height);
     void OnIdle();
     void Initialize(const EngineInitDesc& desc);
-    void SetUseWarpDevice(bool useWarpDevice);
     void SetSceneMesh(const GltfMeshData* mesh);
     void SetDebugUiHandler(DebugUiHandler handler);
     void SetUpdateHandler(UpdateHandler handler);
@@ -185,7 +185,7 @@ public:
     void SetRequestHdrDump(bool request);
 
 private:
-    static constexpr UINT kFrameCount = 2;
+    static constexpr UINT kFrameCount = kSwapChainBufferCount;
     static constexpr UINT kTextureWidth = 256;
     static constexpr UINT kTextureHeight = 256;
     static constexpr UINT kTexturePixelSize = 4; // The number of bytes used to represent a pixel in the texture.
@@ -270,7 +270,6 @@ private:
     static constexpr UINT kTextureCount = 1020;
     static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
 
-    static constexpr DXGI_FORMAT kSwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
     static constexpr DXGI_FORMAT kBackBufferFormat = kSwapChainFormat;
     static constexpr DXGI_COLOR_SPACE_TYPE kHdr10ColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
     static constexpr DXGI_COLOR_SPACE_TYPE kSdrColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
@@ -485,7 +484,6 @@ private:
     UINT m_width = 0;
     UINT m_height = 0;
     float m_aspectRatio = 0.0f;
-    bool m_useWarpDevice = false;
     std::wstring m_assetsPath;
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
