@@ -563,8 +563,8 @@ private:
     std::chrono::steady_clock::time_point m_prevTime;
 
     // Synchronization objects.
-    UINT m_fremeIndexPrevious;
-    UINT m_frameIndex;
+    UINT m_previousFrameIndex;
+    UINT m_currentFrameIndex;
 
     FrameResource m_frameResources[kFrameCount];
 

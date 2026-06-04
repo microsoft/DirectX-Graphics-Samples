@@ -265,8 +265,8 @@ void GraphicsDevice::ResizeSwapChain(UINT bufferCount, UINT newWidth, UINT newHe
 
 HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice)
     : m_graphicsDevice(graphicsDevice), m_width(width), m_height(height),
-      m_aspectRatio(static_cast<float>(width) / static_cast<float>(height)), m_frameIndex(0),
-      m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+      m_aspectRatio(static_cast<float>(width) / static_cast<float>(height)), m_previousFrameIndex(0),
+      m_currentFrameIndex(0), m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
       m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)), m_rtvDescriptorSize(0),
       m_descriptorSize(0)
 {
@@ -448,7 +448,7 @@ void HelloTextureEngine::LoadPipeline()
     m_graphicsDevice.Initialize(desc);
 
     UpdateHdr10DisplayMode();
-    m_frameIndex = m_graphicsDevice.CurrentBackBufferIndex();
+    m_currentFrameIndex = m_graphicsDevice.CurrentBackBufferIndex();
 
     // Create descriptor heaps.
     {
@@ -920,7 +920,7 @@ void HelloTextureEngine::LoadAssets()
     // Create the command list.
     ThrowIfFailed(m_graphicsDevice.device->CreateCommandList(0,
                                               D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                              m_frameResources[m_frameIndex].commandAllocator.Get(),
+                                              m_frameResources[m_currentFrameIndex].commandAllocator.Get(),
                                               GetPipelineState(PipelineId(Pipe::Main)),
                                               IID_PPV_ARGS(&m_commandList)));
 
@@ -1134,7 +1134,7 @@ void HelloTextureEngine::LoadAssets()
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
     {
         m_graphicsDevice.CreateFence(0);
-        m_frameResources[m_frameIndex].fenceValue = 1;
+        m_frameResources[m_currentFrameIndex].fenceValue = 1;
 
         // Wait for the command list to execute; we are reusing the same command
         // list in our main loop but for now, we just want to wait for setup to
@@ -1427,7 +1427,7 @@ void HelloTextureEngine::CreateDepthStencilDescriptors()
 
 D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetBackBufferRtv() const
 {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE h(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE h(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_currentFrameIndex, m_rtvDescriptorSize);
     return h;
 }
 
@@ -1476,15 +1476,15 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
                                                        [this]() { return m_textureTableStart.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(
         m_renderGraphRuntime.RegisterDescriptor(Desc::InstanceBufferSrv),
-        [this]() { return m_frameResources[m_frameIndex].instanceBufferSrv.gpu; });
+        [this]() { return m_frameResources[m_currentFrameIndex].instanceBufferSrv.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::MaterialBufferSrv),
                                                        [this]() { return m_materialBufferSrv.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::CameraCbv),
                                                        [this]()
-                                                       { return m_frameResources[m_frameIndex].cameraCB.cbv.gpu; });
+                                                       { return m_frameResources[m_currentFrameIndex].cameraCB.cbv.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::LightCbv),
                                                        [this]()
-                                                       { return m_frameResources[m_frameIndex].lightCB.cbv.gpu; });
+                                                       { return m_frameResources[m_currentFrameIndex].lightCB.cbv.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::GBufferAlbedoSrv),
                                                        [this]() { return m_gbuffer.srvHandles[GBuffer::Albedo].gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(
@@ -1515,7 +1515,7 @@ void HelloTextureEngine::RegisterResourceResolvers()
 {
     m_renderGraphRuntime.Resources().Clear();
     m_renderGraphRuntime.Resources().RegisterResource(kBackBufferResourceName,
-                                                      [this]() { return m_renderTargets[m_frameIndex].Get(); });
+                                                      [this]() { return m_renderTargets[m_currentFrameIndex].Get(); });
     m_renderGraphRuntime.Resources().RegisterResource(kDepthStencilResourceName,
                                                       [this]() { return m_depthStencil.Get(); });
     m_renderGraphRuntime.Resources().RegisterResource(kLightPassRenderTargetResourceName,
@@ -1584,15 +1584,15 @@ void HelloTextureEngine::UpdateFrame()
         m_updateHandler();
     }
 
-    m_frameResources[m_frameIndex].instanceBuffer->Map(
-        0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_frameIndex].pSrvDataBegin));
+    m_frameResources[m_currentFrameIndex].instanceBuffer->Map(
+        0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_currentFrameIndex].pSrvDataBegin));
     memcpy(
-        m_frameResources[m_frameIndex].pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kMaxInstanceCount);
-    m_frameResources[m_frameIndex].instanceBuffer->Unmap(0, nullptr);
+        m_frameResources[m_currentFrameIndex].pSrvDataBegin, m_instanceData.data(), sizeof(InstanceData) * kMaxInstanceCount);
+    m_frameResources[m_currentFrameIndex].instanceBuffer->Unmap(0, nullptr);
 
     m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
     UpdateCameraConstantBuffer();
-    memcpy(m_frameResources[m_frameIndex].cameraCB.mappedData, &m_constantBufferData, sizeof(m_constantBufferData));
+    memcpy(m_frameResources[m_currentFrameIndex].cameraCB.mappedData, &m_constantBufferData, sizeof(m_constantBufferData));
 
     PIXEndEvent();
 }
@@ -1604,15 +1604,15 @@ void HelloTextureEngine::UpdateImGui()
     ImGui::NewFrame();
     if (m_debugUiHandler)
     {
-        DebugUiContext context{static_cast<int>(m_frameIndex),
+        DebugUiContext context{static_cast<int>(m_currentFrameIndex),
                                m_cpuFrameTime,
-                               m_frameResources[m_fremeIndexPrevious].gpuWorkMeterCheckPoints};
+                               m_frameResources[m_previousFrameIndex].gpuWorkMeterCheckPoints};
         m_debugUiHandler(context);
     }
 
     m_toneMapPass.settings.Normalize();
     const LightingConstants lightingConstants = MakeLightingConstants();
-    memcpy(m_frameResources[m_frameIndex].lightCB.mappedData, &lightingConstants, sizeof(lightingConstants));
+    memcpy(m_frameResources[m_currentFrameIndex].lightCB.mappedData, &lightingConstants, sizeof(lightingConstants));
 
     ImGui::Render();
 }
@@ -1731,8 +1731,8 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
     m_hdrOutputPolicy.ReapplyColorSpace(m_graphicsDevice.swapChain.Get());
 
     // Preserve the previous frame index before taking the resized swap chain index.
-    m_fremeIndexPrevious = m_frameIndex;
-    m_frameIndex = m_graphicsDevice.CurrentBackBufferIndex();
+    m_previousFrameIndex = m_currentFrameIndex;
+    m_currentFrameIndex = m_graphicsDevice.CurrentBackBufferIndex();
 
     // Re-create render target views (RTVs) for the swap chain back buffers.
     {
@@ -2067,12 +2067,12 @@ void HelloTextureEngine::BeginFrame()
     // Command list allocators can only be reset when the associated
     // command lists have finished execution on the GPU; apps should use
     // fences to determine GPU execution progress.
-    ThrowIfFailed(m_frameResources[m_frameIndex].commandAllocator->Reset());
+    ThrowIfFailed(m_frameResources[m_currentFrameIndex].commandAllocator->Reset());
 
     // However, when ExecuteCommandList() is called on a particular command
     // list, that command list can then be reset at any time and must be before
     // re-recording.
-    ThrowIfFailed(m_commandList->Reset(m_frameResources[m_frameIndex].commandAllocator.Get(),
+    ThrowIfFailed(m_commandList->Reset(m_frameResources[m_currentFrameIndex].commandAllocator.Get(),
                                        GetPipelineState(PipelineId(Pipe::Main))));
 
     // Set necessary state.
@@ -2084,7 +2084,7 @@ void HelloTextureEngine::BeginFrame()
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
-    m_gpuWorkMeter.StartGpu(m_commandList.Get(), m_frameResources[m_frameIndex].gpuWorkMeterCheckPoints);
+    m_gpuWorkMeter.StartGpu(m_commandList.Get(), m_frameResources[m_currentFrameIndex].gpuWorkMeterCheckPoints);
 }
 
 void HelloTextureEngine::ExecuteClearPass(const RenderPass& pass)
@@ -2283,14 +2283,14 @@ void HelloTextureEngine::RecordDebugDumpPass()
 
     CreateDebugDumpReadback(m_lightPassRenderTarget.Get(), m_lightPassDebugDumpReadback, m_lightPassDebugDumpLayout);
     CreateDebugDumpReadback(
-        m_renderTargets[m_frameIndex].Get(), m_backBufferDebugDumpReadback, m_backBufferDebugDumpLayout);
+        m_renderTargets[m_currentFrameIndex].Get(), m_backBufferDebugDumpReadback, m_backBufferDebugDumpLayout);
 
     CD3DX12_TEXTURE_COPY_LOCATION lightDst(m_lightPassDebugDumpReadback.Get(), m_lightPassDebugDumpLayout);
     CD3DX12_TEXTURE_COPY_LOCATION lightSrc(m_lightPassRenderTarget.Get(), 0);
     m_commandList->CopyTextureRegion(&lightDst, 0, 0, 0, &lightSrc, nullptr);
 
     CD3DX12_TEXTURE_COPY_LOCATION backBufferDst(m_backBufferDebugDumpReadback.Get(), m_backBufferDebugDumpLayout);
-    CD3DX12_TEXTURE_COPY_LOCATION backBufferSrc(m_renderTargets[m_frameIndex].Get(), 0);
+    CD3DX12_TEXTURE_COPY_LOCATION backBufferSrc(m_renderTargets[m_currentFrameIndex].Get(), 0);
     m_commandList->CopyTextureRegion(&backBufferDst, 0, 0, 0, &backBufferSrc, nullptr);
 
     m_debugViewSettings.hdrDumpPending = true;
@@ -2522,13 +2522,13 @@ void HelloTextureEngine::WaitForGpu()
     PIXBeginEvent(3, L"WaitForGpu");
 
     // Schedule a Signal command in the queue.
-    m_graphicsDevice.SignalFence(m_frameResources[m_frameIndex].fenceValue);
+    m_graphicsDevice.SignalFence(m_frameResources[m_currentFrameIndex].fenceValue);
 
     // Wait until the fence has been processed.
-    m_graphicsDevice.WaitForFenceValue(m_frameResources[m_frameIndex].fenceValue);
+    m_graphicsDevice.WaitForFenceValue(m_frameResources[m_currentFrameIndex].fenceValue);
 
     // Increment the fence value for the current frame.
-    m_frameResources[m_frameIndex].fenceValue++;
+    m_frameResources[m_currentFrameIndex].fenceValue++;
 
     PIXEndEvent();
 }
@@ -2550,23 +2550,23 @@ UINT64 HelloTextureEngine::MoveToNextFrame()
     PIXBeginEvent(2, L"MoveToNextFrame");
 
     // Schedule a Signal command in the queue.
-    const UINT64 currentFenceValue = m_frameResources[m_frameIndex].fenceValue;
+    const UINT64 currentFenceValue = m_frameResources[m_currentFrameIndex].fenceValue;
     m_graphicsDevice.SignalFence(currentFenceValue);
 
     // Update the frame index.
-    m_fremeIndexPrevious = m_frameIndex;
-    m_frameIndex = m_graphicsDevice.CurrentBackBufferIndex();
+    m_previousFrameIndex = m_currentFrameIndex;
+    m_currentFrameIndex = m_graphicsDevice.CurrentBackBufferIndex();
 
     // If the next frame is not ready to be rendered yet, wait until it is ready.
-    if (m_graphicsDevice.CompletedFenceValue() < m_frameResources[m_frameIndex].fenceValue)
+    if (m_graphicsDevice.CompletedFenceValue() < m_frameResources[m_currentFrameIndex].fenceValue)
     {
         PIXBeginEvent(4, L"WaitForSingleObjectEx");
-        m_graphicsDevice.WaitForFenceValue(m_frameResources[m_frameIndex].fenceValue);
+        m_graphicsDevice.WaitForFenceValue(m_frameResources[m_currentFrameIndex].fenceValue);
         PIXEndEvent();
     }
 
     // Set the fence value for the next frame.
-    m_frameResources[m_frameIndex].fenceValue = currentFenceValue + 1;
+    m_frameResources[m_currentFrameIndex].fenceValue = currentFenceValue + 1;
 
     PIXEndEvent();
 
