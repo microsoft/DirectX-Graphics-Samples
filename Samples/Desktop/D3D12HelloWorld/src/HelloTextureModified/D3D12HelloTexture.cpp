@@ -79,11 +79,15 @@ extern "C"
 }
 
 HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, std::wstring name)
-    : DXSample(width, height, name), m_frameIndex(0),
+    : DXSample(width, height, name), m_hwnd(m_graphicsDevice.hwnd), m_frameIndex(0),
       m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
-      m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)), m_rtvDescriptorSize(0),
-      m_descriptorSize(0)
+      m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
+      m_swapChain(m_graphicsDevice.swapChain), m_device(m_graphicsDevice.device),
+      m_dxgiFactory(m_graphicsDevice.dxgiFactory), m_rtvDescriptorSize(0), m_descriptorSize(0),
+      m_commandQueue(m_graphicsDevice.commandQueue)
 {
+    m_graphicsDevice.width = width;
+    m_graphicsDevice.height = height;
     RegisterPassBindingResolvers();
     RegisterPassConstantsHandlers();
     RegisterResourceResolvers();
@@ -108,6 +112,8 @@ void HelloTextureEngine::Initialize(const EngineInitDesc& desc)
     m_hwnd = desc.hwnd;
     m_width = desc.width;
     m_height = desc.height;
+    m_graphicsDevice.width = desc.width;
+    m_graphicsDevice.height = desc.height;
     m_aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
     m_useWarpDevice = desc.useWarpDevice;
     m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
@@ -132,8 +138,8 @@ auto HelloTextureEngine::GetGraphicsDeviceContext() const -> GraphicsDeviceConte
         m_swapChain.Get(),
         m_dxgiFactory.Get(),
         m_hwnd,
-        m_width,
-        m_height,
+        m_graphicsDevice.width,
+        m_graphicsDevice.height,
     };
 }
 
@@ -1571,6 +1577,8 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
     DBG_PRINT("HelloTextureEngine::OnWindowSizeChanged() %d %d\n", width, height);
     m_width = width;
     m_height = height;
+    m_graphicsDevice.width = width;
+    m_graphicsDevice.height = height;
 
     if (width == 0 || height == 0)
     {

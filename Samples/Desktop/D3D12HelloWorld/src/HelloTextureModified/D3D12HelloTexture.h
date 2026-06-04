@@ -448,20 +448,32 @@ private:
         }
     };
 
+    struct GraphicsDevice
+    {
+        HWND hwnd = nullptr;
+        UINT width = 0;
+        UINT height = 0;
+        ComPtr<IDXGISwapChain3> swapChain;
+        ComPtr<ID3D12Device> device;
+        ComPtr<IDXGIFactory4> dxgiFactory;
+        ComPtr<ID3D12CommandQueue> commandQueue;
+    };
+
     // Pipeline objects.
-    HWND m_hwnd = nullptr;
+    GraphicsDevice m_graphicsDevice;
+    HWND& m_hwnd;
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
-    ComPtr<IDXGISwapChain3> m_swapChain;
-    ComPtr<ID3D12Device> m_device;
-    ComPtr<IDXGIFactory4> m_dxgiFactory;
+    ComPtr<IDXGISwapChain3>& m_swapChain;
+    ComPtr<ID3D12Device>& m_device;
+    ComPtr<IDXGIFactory4>& m_dxgiFactory;
     GBuffer m_gbuffer;
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12Resource> m_lightPassRenderTarget;
     DescriptorHeapHandle m_depthStencilSrv;
     DescriptorHeapHandle m_lightPassColorSrv;
-    ComPtr<ID3D12CommandQueue> m_commandQueue;
+    ComPtr<ID3D12CommandQueue>& m_commandQueue;
 
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12RootSignature> m_lightingRootSignature; // not used in this sample but created for future use
