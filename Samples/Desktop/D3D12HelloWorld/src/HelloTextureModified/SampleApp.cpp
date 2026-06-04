@@ -39,7 +39,7 @@ void SampleApp::OnInit()
     m_engine.SetToneMapParams(m_toneMapParams);
     m_engine.SetRenderViewMode(m_renderViewMode);
 
-    HelloTextureEngine::EngineInitDesc initDesc = {};
+    EngineInitDesc initDesc = {};
     initDesc.hwnd = Win32Application::GetHwnd();
     initDesc.width = GetWidth();
     initDesc.height = GetHeight();

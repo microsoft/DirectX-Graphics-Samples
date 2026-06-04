@@ -44,6 +44,36 @@ using DsvKey = Engine::DsvKey;
 using PassOperationKey = Engine::PassOperationKey;
 using PassConstantsKey = Engine::PassConstantsKey;
 
+struct EngineInitDesc
+{
+    HWND hwnd = nullptr;
+    UINT width = 0;
+    UINT height = 0;
+    bool useWarpDevice = false;
+};
+
+struct GraphicsDeviceContext
+{
+    ID3D12Device* device = nullptr;
+    ID3D12CommandQueue* commandQueue = nullptr;
+    IDXGISwapChain3* swapChain = nullptr;
+    IDXGIFactory4* dxgiFactory = nullptr;
+    HWND hwnd = nullptr;
+    UINT width = 0;
+    UINT height = 0;
+};
+
+struct GraphicsDevice
+{
+    HWND hwnd = nullptr;
+    UINT width = 0;
+    UINT height = 0;
+    ComPtr<IDXGISwapChain3> swapChain;
+    ComPtr<ID3D12Device> device;
+    ComPtr<IDXGIFactory4> dxgiFactory;
+    ComPtr<ID3D12CommandQueue> commandQueue;
+};
+
 class HelloTextureEngine : public DXSample
 {
 public:
@@ -101,25 +131,6 @@ public:
         int frameIndex;
         float cpuFrameTime;
         const std::vector<MyDx12Util::GpuWorkMeter::CheckPoint>& gpuCheckPoints;
-    };
-
-    struct EngineInitDesc
-    {
-        HWND hwnd = nullptr;
-        UINT width = 0;
-        UINT height = 0;
-        bool useWarpDevice = false;
-    };
-
-    struct GraphicsDeviceContext
-    {
-        ID3D12Device* device = nullptr;
-        ID3D12CommandQueue* commandQueue = nullptr;
-        IDXGISwapChain3* swapChain = nullptr;
-        IDXGIFactory4* dxgiFactory = nullptr;
-        HWND hwnd = nullptr;
-        UINT width = 0;
-        UINT height = 0;
     };
 
     using DebugUiHandler = std::function<void(const DebugUiContext&)>;
@@ -446,17 +457,6 @@ private:
             assert(IsGBufferDebugView());
             return static_cast<UINT>(renderViewMode) - static_cast<UINT>(RenderViewMode::GBufferAlbedo);
         }
-    };
-
-    struct GraphicsDevice
-    {
-        HWND hwnd = nullptr;
-        UINT width = 0;
-        UINT height = 0;
-        ComPtr<IDXGISwapChain3> swapChain;
-        ComPtr<ID3D12Device> device;
-        ComPtr<IDXGIFactory4> dxgiFactory;
-        ComPtr<ID3D12CommandQueue> commandQueue;
     };
 
     // Pipeline objects.
