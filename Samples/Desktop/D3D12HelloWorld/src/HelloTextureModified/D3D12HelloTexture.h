@@ -10,7 +10,7 @@
 //*********************************************************
 
 #pragma once
-#include "DXSample.h"
+#include "DXSampleHelper.h"
 #include "GltfLoader.h"
 #include "MyDx12Utils.h"
 #include "RenderPassExecution.h"
@@ -74,7 +74,7 @@ struct GraphicsDevice
     ComPtr<ID3D12CommandQueue> commandQueue;
 };
 
-class HelloTextureEngine : public DXSample
+class HelloTextureEngine
 {
 public:
     enum class RenderViewMode
@@ -136,17 +136,17 @@ public:
     using DebugUiHandler = std::function<void(const DebugUiContext&)>;
     using UpdateHandler = std::function<void()>;
 
-    HelloTextureEngine(UINT width, UINT height, std::wstring name, GraphicsDevice& graphicsDevice);
+    HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice);
 
-    virtual void OnInit();
-    virtual void OnUpdate();
-    virtual void OnRender();
-    virtual void OnDestroy();
-    virtual void OnMouseDown(UINT8 button, int x, int y);
-    virtual void OnMouseUp(UINT8 button, int x, int y);
-    virtual void OnMouseMove(int x, int y);
-    virtual void OnWindowSizeChanged(UINT width, UINT height);
-    virtual void OnIdle();
+    void OnInit();
+    void OnUpdate();
+    void OnRender();
+    void OnDestroy();
+    void OnMouseDown(UINT8 button, int x, int y);
+    void OnMouseUp(UINT8 button, int x, int y);
+    void OnMouseMove(int x, int y);
+    void OnWindowSizeChanged(UINT width, UINT height);
+    void OnIdle();
     void Initialize(const EngineInitDesc& desc);
     void SetUseWarpDevice(bool useWarpDevice);
     void SetSceneMesh(const GltfMeshData* mesh);
@@ -461,6 +461,11 @@ private:
 
     // Pipeline objects.
     GraphicsDevice& m_graphicsDevice;
+    UINT m_width = 0;
+    UINT m_height = 0;
+    float m_aspectRatio = 0.0f;
+    bool m_useWarpDevice = false;
+    std::wstring m_assetsPath;
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
     GBuffer m_gbuffer;
@@ -656,6 +661,10 @@ private:
 
     void LoadPipeline();
     void LoadAssets();
+    std::wstring GetAssetFullPath(LPCWSTR assetName);
+    void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory,
+                            _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter,
+                            bool requestHighPerformanceAdapter = false);
     void InitializeFrameResources();
     void UpdateFrame();
     void RenderFrame();

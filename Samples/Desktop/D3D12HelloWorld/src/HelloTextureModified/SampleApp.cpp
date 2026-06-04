@@ -18,7 +18,7 @@
 
 SampleApp::SampleApp(UINT width, UINT height, std::wstring name)
     : DXSample(width, height, name), m_prevTime(std::chrono::steady_clock::now()),
-      m_engine(width, height, name, m_graphicsDevice)
+      m_engine(width, height, m_graphicsDevice)
 {
 }
 

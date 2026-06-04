@@ -78,12 +78,17 @@ extern "C"
     __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
 }
 
-HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, std::wstring name, GraphicsDevice& graphicsDevice)
-    : DXSample(width, height, name), m_graphicsDevice(graphicsDevice), m_frameIndex(0),
+HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice)
+    : m_graphicsDevice(graphicsDevice), m_width(width), m_height(height),
+      m_aspectRatio(static_cast<float>(width) / static_cast<float>(height)), m_frameIndex(0),
       m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
       m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)), m_rtvDescriptorSize(0),
       m_descriptorSize(0)
 {
+    WCHAR assetsPath[512];
+    GetAssetsPath(assetsPath, _countof(assetsPath));
+    m_assetsPath = assetsPath;
+
     m_graphicsDevice.width = width;
     m_graphicsDevice.height = height;
     RegisterPassBindingResolvers();
@@ -144,6 +149,67 @@ auto HelloTextureEngine::GetGraphicsDeviceContext() const -> GraphicsDeviceConte
 void HelloTextureEngine::SetUseWarpDevice(bool useWarpDevice)
 {
     m_useWarpDevice = useWarpDevice;
+}
+
+std::wstring HelloTextureEngine::GetAssetFullPath(LPCWSTR assetName)
+{
+    return m_assetsPath + assetName;
+}
+
+void HelloTextureEngine::GetHardwareAdapter(IDXGIFactory1* pFactory,
+                                            IDXGIAdapter1** ppAdapter,
+                                            bool requestHighPerformanceAdapter)
+{
+    *ppAdapter = nullptr;
+
+    ComPtr<IDXGIAdapter1> adapter;
+
+    ComPtr<IDXGIFactory6> factory6;
+    if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
+    {
+        for (UINT adapterIndex = 0;
+             SUCCEEDED(factory6->EnumAdapterByGpuPreference(
+                 adapterIndex,
+                 requestHighPerformanceAdapter ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE
+                                               : DXGI_GPU_PREFERENCE_UNSPECIFIED,
+                 IID_PPV_ARGS(&adapter)));
+             ++adapterIndex)
+        {
+            DXGI_ADAPTER_DESC1 desc = {};
+            adapter->GetDesc1(&desc);
+
+            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            {
+                continue;
+            }
+
+            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+            {
+                break;
+            }
+        }
+    }
+
+    if (adapter.Get() == nullptr)
+    {
+        for (UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex)
+        {
+            DXGI_ADAPTER_DESC1 desc = {};
+            adapter->GetDesc1(&desc);
+
+            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            {
+                continue;
+            }
+
+            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+            {
+                break;
+            }
+        }
+    }
+
+    *ppAdapter = adapter.Detach();
 }
 
 void HelloTextureEngine::SetSceneMesh(const GltfMeshData* mesh)

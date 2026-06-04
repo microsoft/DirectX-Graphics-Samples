@@ -12,6 +12,7 @@
 #pragma once
 
 #include "D3D12HelloTexture.h"
+#include "DXSample.h"
 #include <chrono>
 
 class SampleApp : public DXSample
