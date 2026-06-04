@@ -124,6 +124,19 @@ void HelloTextureEngine::InitializeFrameResources()
     InitImGui();
 }
 
+auto HelloTextureEngine::GetGraphicsDeviceContext() const -> GraphicsDeviceContext
+{
+    return {
+        m_device.Get(),
+        m_commandQueue.Get(),
+        m_swapChain.Get(),
+        m_dxgiFactory.Get(),
+        m_hwnd,
+        m_width,
+        m_height,
+    };
+}
+
 void HelloTextureEngine::SetUseWarpDevice(bool useWarpDevice)
 {
     m_useWarpDevice = useWarpDevice;
@@ -998,6 +1011,7 @@ static SimpleDescriptorHeapAllocator* g_allocator = nullptr;
 void HelloTextureEngine::InitImGui()
 {
 #if IMGUI_IMPL > 0
+    const GraphicsDeviceContext graphicsContext = GetGraphicsDeviceContext();
     g_allocator = &m_ImGuiDescriptorHeapAllocator;
 
     // Setup Dear ImGui context
@@ -1006,11 +1020,11 @@ void HelloTextureEngine::InitImGui()
     ImGui::StyleColorsDark();
 
     // Setup Platform/Renderer backends
-    ImGui_ImplWin32_Init(m_hwnd);
+    ImGui_ImplWin32_Init(graphicsContext.hwnd);
 
     ImGui_ImplDX12_InitInfo init_info = {};
-    init_info.Device = m_device.Get();
-    init_info.CommandQueue = m_commandQueue.Get();
+    init_info.Device = graphicsContext.device;
+    init_info.CommandQueue = graphicsContext.commandQueue;
     init_info.NumFramesInFlight = kFrameCount;
     init_info.RTVFormat = m_backBufferFormat;
     init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
@@ -1480,6 +1494,7 @@ void HelloTextureEngine::OnRender()
 void HelloTextureEngine::RenderFrame()
 {
     PIXBeginEvent(0, L"RenderFrame");
+    const GraphicsDeviceContext graphicsContext = GetGraphicsDeviceContext();
 
     // ImGui frame update
 #if IMGUI_IMPL > 0
@@ -1491,7 +1506,7 @@ void HelloTextureEngine::RenderFrame()
 
     // Execute the command list.
     ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    graphicsContext.commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     if (m_debugViewSettings.hdrDumpPending)
     {
@@ -1502,7 +1517,7 @@ void HelloTextureEngine::RenderFrame()
     }
 
     // Present the frame.
-    ThrowIfFailed(m_swapChain->Present(1, 0));
+    ThrowIfFailed(graphicsContext.swapChain->Present(1, 0));
 
     UINT64 submittedFenceValue = MoveToNextFrame();
 
