@@ -78,6 +78,8 @@ struct GraphicsDevice
     void Initialize(const GraphicsDeviceDesc& desc);
     bool HasSwapChain() const;
     UINT CurrentBackBufferIndex() const;
+    void GetBackBuffer(UINT index, REFIID riid, void** resource) const;
+    void ExecuteCommandLists(UINT commandListCount, ID3D12CommandList* const* commandLists);
     void Present(UINT syncInterval, UINT flags);
     void ResizeSwapChain(UINT bufferCount, UINT newWidth, UINT newHeight, DXGI_FORMAT format, UINT flags);
 

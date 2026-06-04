@@ -205,6 +205,16 @@ UINT GraphicsDevice::CurrentBackBufferIndex() const
     return swapChain->GetCurrentBackBufferIndex();
 }
 
+void GraphicsDevice::GetBackBuffer(UINT index, REFIID riid, void** resource) const
+{
+    ThrowIfFailed(swapChain->GetBuffer(index, riid, resource));
+}
+
+void GraphicsDevice::ExecuteCommandLists(UINT commandListCount, ID3D12CommandList* const* commandLists)
+{
+    commandQueue->ExecuteCommandLists(commandListCount, commandLists);
+}
+
 void GraphicsDevice::Present(UINT syncInterval, UINT flags)
 {
     ThrowIfFailed(swapChain->Present(syncInterval, flags));
@@ -441,7 +451,7 @@ void HelloTextureEngine::LoadPipeline()
         // Create a RTV for each frame.
         for (UINT n = 0; n < kFrameCount; n++)
         {
-            ThrowIfFailed(m_graphicsDevice.swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
+            m_graphicsDevice.GetBackBuffer(n, IID_PPV_ARGS(&m_renderTargets[n]));
             m_graphicsDevice.device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
             rtvHandle.Offset(1, m_rtvDescriptorSize);
         }
@@ -1083,7 +1093,7 @@ void HelloTextureEngine::LoadAssets()
     // Close the command list and execute it to begin the initial GPU setup.
     ThrowIfFailed(m_commandList->Close());
     ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
-    m_graphicsDevice.commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    m_graphicsDevice.ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
     {
@@ -1592,7 +1602,6 @@ void HelloTextureEngine::OnRender()
 void HelloTextureEngine::RenderFrame()
 {
     PIXBeginEvent(0, L"RenderFrame");
-    const GraphicsDeviceContext graphicsContext = GetGraphicsDeviceContext();
 
     // ImGui frame update
 #if IMGUI_IMPL > 0
@@ -1604,7 +1613,7 @@ void HelloTextureEngine::RenderFrame()
 
     // Execute the command list.
     ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
-    graphicsContext.commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    m_graphicsDevice.ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     if (m_debugViewSettings.hdrDumpPending)
     {
@@ -1703,7 +1712,7 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
         // Create a RTV for each frame.
         for (UINT n = 0; n < kFrameCount; n++)
         {
-            ThrowIfFailed(m_graphicsDevice.swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
+            m_graphicsDevice.GetBackBuffer(n, IID_PPV_ARGS(&m_renderTargets[n]));
             m_graphicsDevice.device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
             rtvHandle.Offset(1, m_rtvDescriptorSize);
         }
