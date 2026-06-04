@@ -195,6 +195,28 @@ void GraphicsDevice::Initialize(const GraphicsDeviceDesc& desc)
     ThrowIfFailed(swapChain1.As(&swapChain));
 }
 
+bool GraphicsDevice::HasSwapChain() const
+{
+    return device.Get() != nullptr && swapChain.Get() != nullptr;
+}
+
+UINT GraphicsDevice::CurrentBackBufferIndex() const
+{
+    return swapChain->GetCurrentBackBufferIndex();
+}
+
+void GraphicsDevice::Present(UINT syncInterval, UINT flags)
+{
+    ThrowIfFailed(swapChain->Present(syncInterval, flags));
+}
+
+void GraphicsDevice::ResizeSwapChain(UINT bufferCount, UINT newWidth, UINT newHeight, DXGI_FORMAT format, UINT flags)
+{
+    width = newWidth;
+    height = newHeight;
+    ThrowIfFailed(swapChain->ResizeBuffers(bufferCount, width, height, format, flags));
+}
+
 HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice)
     : m_graphicsDevice(graphicsDevice), m_width(width), m_height(height),
       m_aspectRatio(static_cast<float>(width) / static_cast<float>(height)), m_frameIndex(0),
@@ -380,7 +402,7 @@ void HelloTextureEngine::LoadPipeline()
     m_graphicsDevice.Initialize(desc);
 
     UpdateHdr10DisplayMode();
-    m_frameIndex = m_graphicsDevice.swapChain->GetCurrentBackBufferIndex();
+    m_frameIndex = m_graphicsDevice.CurrentBackBufferIndex();
 
     // Create descriptor heaps.
     {
@@ -1593,7 +1615,7 @@ void HelloTextureEngine::RenderFrame()
     }
 
     // Present the frame.
-    ThrowIfFailed(graphicsContext.swapChain->Present(1, 0));
+    m_graphicsDevice.Present(1, 0);
 
     UINT64 submittedFenceValue = MoveToNextFrame();
 
@@ -1647,15 +1669,13 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
     DBG_PRINT("HelloTextureEngine::OnWindowSizeChanged() %d %d\n", width, height);
     m_width = width;
     m_height = height;
-    m_graphicsDevice.width = width;
-    m_graphicsDevice.height = height;
 
     if (width == 0 || height == 0)
     {
         return;
     }
 
-    if (m_graphicsDevice.device.Get() == nullptr || m_graphicsDevice.swapChain.Get() == nullptr)
+    if (!m_graphicsDevice.HasSwapChain())
     {
         return;
     }
@@ -1669,12 +1689,12 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
     }
 
     // Resize SwapChain
-    m_graphicsDevice.swapChain->ResizeBuffers(kFrameCount, m_width, m_height, m_backBufferFormat, 0);
+    m_graphicsDevice.ResizeSwapChain(kFrameCount, m_width, m_height, m_backBufferFormat, 0);
     m_hdrOutputPolicy.ReapplyColorSpace(m_graphicsDevice.swapChain.Get());
 
     // Preserve the previous frame index before taking the resized swap chain index.
     m_fremeIndexPrevious = m_frameIndex;
-    m_frameIndex = m_graphicsDevice.swapChain->GetCurrentBackBufferIndex();
+    m_frameIndex = m_graphicsDevice.CurrentBackBufferIndex();
 
     // Re-create render target views (RTVs) for the swap chain back buffers.
     {
@@ -2501,7 +2521,7 @@ UINT64 HelloTextureEngine::MoveToNextFrame()
 
     // Update the frame index.
     m_fremeIndexPrevious = m_frameIndex;
-    m_frameIndex = m_graphicsDevice.swapChain->GetCurrentBackBufferIndex();
+    m_frameIndex = m_graphicsDevice.CurrentBackBufferIndex();
 
     // If the next frame is not ready to be rendered yet, wait until it is ready.
     if (m_fence->GetCompletedValue() < m_frameResources[m_frameIndex].fenceValue)
