@@ -69,6 +69,62 @@ float SrgbToLinear(float value)
     return value <= 0.04045f ? value / 12.92f : std::pow((value + 0.055f) / 1.055f, 2.4f);
 }
 
+static void GetHardwareAdapter(IDXGIFactory1* pFactory,
+                               IDXGIAdapter1** ppAdapter,
+                               bool requestHighPerformanceAdapter = false)
+{
+    *ppAdapter = nullptr;
+
+    ComPtr<IDXGIAdapter1> adapter;
+
+    ComPtr<IDXGIFactory6> factory6;
+    if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
+    {
+        for (UINT adapterIndex = 0;
+             SUCCEEDED(factory6->EnumAdapterByGpuPreference(
+                 adapterIndex,
+                 requestHighPerformanceAdapter ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE
+                                               : DXGI_GPU_PREFERENCE_UNSPECIFIED,
+                 IID_PPV_ARGS(&adapter)));
+             ++adapterIndex)
+        {
+            DXGI_ADAPTER_DESC1 desc = {};
+            adapter->GetDesc1(&desc);
+
+            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            {
+                continue;
+            }
+
+            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+            {
+                break;
+            }
+        }
+    }
+
+    if (adapter.Get() == nullptr)
+    {
+        for (UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex)
+        {
+            DXGI_ADAPTER_DESC1 desc = {};
+            adapter->GetDesc1(&desc);
+
+            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            {
+                continue;
+            }
+
+            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+            {
+                break;
+            }
+        }
+    }
+
+    *ppAdapter = adapter.Detach();
+}
+
 extern "C"
 {
     __declspec(dllexport) extern const UINT D3D12SDKVersion = 618;
@@ -76,6 +132,67 @@ extern "C"
 extern "C"
 {
     __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
+}
+
+void GraphicsDevice::Initialize(const GraphicsDeviceDesc& desc)
+{
+    hwnd = desc.hwnd;
+    width = desc.width;
+    height = desc.height;
+
+    UINT dxgiFactoryFlags = 0;
+
+#if defined(_DEBUG)
+    {
+        ComPtr<ID3D12Debug> debugController;
+        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+        {
+            debugController->EnableDebugLayer();
+            dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+        }
+    }
+#endif
+
+    ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
+
+    if (desc.useWarpDevice)
+    {
+        ComPtr<IDXGIAdapter> warpAdapter;
+        ThrowIfFailed(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
+        ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
+    }
+    else
+    {
+        ComPtr<IDXGIAdapter1> hardwareAdapter;
+        GetHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter);
+        ThrowIfFailed(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
+    }
+
+    D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+    queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+    queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    ThrowIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
+
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+    swapChainDesc.BufferCount = desc.bufferCount;
+    swapChainDesc.Width = width;
+    swapChainDesc.Height = height;
+    swapChainDesc.Format = desc.swapChainFormat;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.SampleDesc.Count = 1;
+
+    ComPtr<IDXGISwapChain1> swapChain1;
+    ThrowIfFailed(dxgiFactory->CreateSwapChainForHwnd(
+        commandQueue.Get(), // Swap chain needs the queue so that it can force a flush on it.
+        hwnd,
+        &swapChainDesc,
+        nullptr,
+        nullptr,
+        &swapChain1));
+
+    ThrowIfFailed(dxgiFactory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
+    ThrowIfFailed(swapChain1.As(&swapChain));
 }
 
 HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice)
@@ -154,62 +271,6 @@ void HelloTextureEngine::SetUseWarpDevice(bool useWarpDevice)
 std::wstring HelloTextureEngine::GetAssetFullPath(LPCWSTR assetName)
 {
     return m_assetsPath + assetName;
-}
-
-void HelloTextureEngine::GetHardwareAdapter(IDXGIFactory1* pFactory,
-                                            IDXGIAdapter1** ppAdapter,
-                                            bool requestHighPerformanceAdapter)
-{
-    *ppAdapter = nullptr;
-
-    ComPtr<IDXGIAdapter1> adapter;
-
-    ComPtr<IDXGIFactory6> factory6;
-    if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
-    {
-        for (UINT adapterIndex = 0;
-             SUCCEEDED(factory6->EnumAdapterByGpuPreference(
-                 adapterIndex,
-                 requestHighPerformanceAdapter ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE
-                                               : DXGI_GPU_PREFERENCE_UNSPECIFIED,
-                 IID_PPV_ARGS(&adapter)));
-             ++adapterIndex)
-        {
-            DXGI_ADAPTER_DESC1 desc = {};
-            adapter->GetDesc1(&desc);
-
-            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            {
-                continue;
-            }
-
-            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
-            {
-                break;
-            }
-        }
-    }
-
-    if (adapter.Get() == nullptr)
-    {
-        for (UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex)
-        {
-            DXGI_ADAPTER_DESC1 desc = {};
-            adapter->GetDesc1(&desc);
-
-            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            {
-                continue;
-            }
-
-            if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
-            {
-                break;
-            }
-        }
-    }
-
-    *ppAdapter = adapter.Detach();
 }
 
 void HelloTextureEngine::SetSceneMesh(const GltfMeshData* mesh)
@@ -309,70 +370,15 @@ void HelloTextureEngine::UpdateCameraConstantBuffer()
 // Load the rendering pipeline dependencies.
 void HelloTextureEngine::LoadPipeline()
 {
-    UINT dxgiFactoryFlags = 0;
+    GraphicsDeviceDesc desc = {};
+    desc.hwnd = m_graphicsDevice.hwnd;
+    desc.width = m_width;
+    desc.height = m_height;
+    desc.bufferCount = kFrameCount;
+    desc.swapChainFormat = kSwapChainFormat;
+    desc.useWarpDevice = m_useWarpDevice;
+    m_graphicsDevice.Initialize(desc);
 
-#if defined(_DEBUG)
-    // Enable the debug layer (requires the Graphics Tools "optional feature").
-    // NOTE: Enabling the debug layer after device creation will invalidate the active device.
-    {
-        ComPtr<ID3D12Debug> debugController;
-        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
-        {
-            debugController->EnableDebugLayer();
-
-            // Enable additional debug layers.
-            dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-        }
-    }
-#endif
-
-    ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_graphicsDevice.dxgiFactory)));
-
-    if (m_useWarpDevice)
-    {
-        ComPtr<IDXGIAdapter> warpAdapter;
-        ThrowIfFailed(m_graphicsDevice.dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
-
-        ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_graphicsDevice.device)));
-    }
-    else
-    {
-        ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(m_graphicsDevice.dxgiFactory.Get(), &hardwareAdapter);
-
-        ThrowIfFailed(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_graphicsDevice.device)));
-    }
-
-    // Describe and create the command queue.
-    D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-    queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-    queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
-    ThrowIfFailed(m_graphicsDevice.device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_graphicsDevice.commandQueue)));
-
-    // Describe and create the swap chain.
-    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-    swapChainDesc.BufferCount = kFrameCount;
-    swapChainDesc.Width = m_width;
-    swapChainDesc.Height = m_height;
-    swapChainDesc.Format = kSwapChainFormat;
-    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    swapChainDesc.SampleDesc.Count = 1;
-
-    ComPtr<IDXGISwapChain1> swapChain;
-    ThrowIfFailed(m_graphicsDevice.dxgiFactory->CreateSwapChainForHwnd(
-        m_graphicsDevice.commandQueue.Get(), // Swap chain needs the queue so that it can force a flush on it.
-        m_graphicsDevice.hwnd,
-        &swapChainDesc,
-        nullptr,
-        nullptr,
-        &swapChain));
-
-    // This sample does not support fullscreen transitions.
-    ThrowIfFailed(m_graphicsDevice.dxgiFactory->MakeWindowAssociation(m_graphicsDevice.hwnd, DXGI_MWA_NO_ALT_ENTER));
-
-    ThrowIfFailed(swapChain.As(&m_graphicsDevice.swapChain));
     UpdateHdr10DisplayMode();
     m_frameIndex = m_graphicsDevice.swapChain->GetCurrentBackBufferIndex();
 

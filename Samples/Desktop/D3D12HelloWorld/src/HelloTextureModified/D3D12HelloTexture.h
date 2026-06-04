@@ -63,8 +63,20 @@ struct GraphicsDeviceContext
     UINT height = 0;
 };
 
+struct GraphicsDeviceDesc
+{
+    HWND hwnd = nullptr;
+    UINT width = 0;
+    UINT height = 0;
+    UINT bufferCount = 0;
+    DXGI_FORMAT swapChainFormat = DXGI_FORMAT_UNKNOWN;
+    bool useWarpDevice = false;
+};
+
 struct GraphicsDevice
 {
+    void Initialize(const GraphicsDeviceDesc& desc);
+
     HWND hwnd = nullptr;
     UINT width = 0;
     UINT height = 0;
@@ -662,9 +674,6 @@ private:
     void LoadPipeline();
     void LoadAssets();
     std::wstring GetAssetFullPath(LPCWSTR assetName);
-    void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory,
-                            _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter,
-                            bool requestHighPerformanceAdapter = false);
     void InitializeFrameResources();
     void UpdateFrame();
     void RenderFrame();
