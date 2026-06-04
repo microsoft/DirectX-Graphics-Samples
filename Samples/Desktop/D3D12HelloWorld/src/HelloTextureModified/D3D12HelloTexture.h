@@ -80,6 +80,11 @@ struct GraphicsDevice
     UINT CurrentBackBufferIndex() const;
     void GetBackBuffer(UINT index, REFIID riid, void** resource) const;
     void ExecuteCommandLists(UINT commandListCount, ID3D12CommandList* const* commandLists);
+    void CreateFence(UINT64 initialValue);
+    void SignalFence(UINT64 value);
+    UINT64 CompletedFenceValue() const;
+    void WaitForFenceValue(UINT64 value);
+    void CloseFenceEvent();
     void Present(UINT syncInterval, UINT flags);
     void ResizeSwapChain(UINT bufferCount, UINT newWidth, UINT newHeight, DXGI_FORMAT format, UINT flags);
 
@@ -90,6 +95,8 @@ struct GraphicsDevice
     ComPtr<ID3D12Device> device;
     ComPtr<IDXGIFactory4> dxgiFactory;
     ComPtr<ID3D12CommandQueue> commandQueue;
+    ComPtr<ID3D12Fence> fence;
+    HANDLE fenceEvent = nullptr;
 };
 
 class HelloTextureEngine
@@ -558,8 +565,6 @@ private:
     // Synchronization objects.
     UINT m_fremeIndexPrevious;
     UINT m_frameIndex;
-    HANDLE m_fenceEvent;
-    ComPtr<ID3D12Fence> m_fence;
 
     FrameResource m_frameResources[kFrameCount];
 
