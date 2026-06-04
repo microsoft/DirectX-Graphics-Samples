@@ -103,6 +103,14 @@ public:
         const std::vector<MyDx12Util::GpuWorkMeter::CheckPoint>& gpuCheckPoints;
     };
 
+    struct EngineInitDesc
+    {
+        HWND hwnd = nullptr;
+        UINT width = 0;
+        UINT height = 0;
+        bool useWarpDevice = false;
+    };
+
     using DebugUiHandler = std::function<void(const DebugUiContext&)>;
     using UpdateHandler = std::function<void()>;
 
@@ -117,6 +125,7 @@ public:
     virtual void OnMouseMove(int x, int y);
     virtual void OnWindowSizeChanged(UINT width, UINT height);
     virtual void OnIdle();
+    void Initialize(const EngineInitDesc& desc);
     void SetUseWarpDevice(bool useWarpDevice);
     void SetSceneMesh(const GltfMeshData* mesh);
     void SetDebugUiHandler(DebugUiHandler handler);
@@ -429,6 +438,7 @@ private:
     };
 
     // Pipeline objects.
+    HWND m_hwnd = nullptr;
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;

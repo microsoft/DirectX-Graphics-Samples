@@ -97,6 +97,22 @@ auto HelloTextureEngine::ToneMapPass::MakeShaderConstants(const HdrOutputSetting
 
 void HelloTextureEngine::OnInit()
 {
+    assert(m_hwnd != nullptr);
+    InitializeFrameResources();
+}
+
+void HelloTextureEngine::Initialize(const EngineInitDesc& desc)
+{
+    assert(desc.hwnd != nullptr);
+
+    m_hwnd = desc.hwnd;
+    m_width = desc.width;
+    m_height = desc.height;
+    m_aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
+    m_useWarpDevice = desc.useWarpDevice;
+    m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
+    m_scissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height));
+
     InitializeFrameResources();
 }
 
@@ -264,14 +280,14 @@ void HelloTextureEngine::LoadPipeline()
     ComPtr<IDXGISwapChain1> swapChain;
     ThrowIfFailed(m_dxgiFactory->CreateSwapChainForHwnd(
         m_commandQueue.Get(), // Swap chain needs the queue so that it can force a flush on it.
-        Win32Application::GetHwnd(),
+        m_hwnd,
         &swapChainDesc,
         nullptr,
         nullptr,
         &swapChain));
 
     // This sample does not support fullscreen transitions.
-    ThrowIfFailed(m_dxgiFactory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
+    ThrowIfFailed(m_dxgiFactory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
 
     ThrowIfFailed(swapChain.As(&m_swapChain));
     UpdateHdr10DisplayMode();
@@ -469,7 +485,7 @@ void HelloTextureEngine::HdrOutputPolicy::ReapplyColorSpace(IDXGISwapChain3* swa
 
 void HelloTextureEngine::UpdateHdr10DisplayMode()
 {
-    m_hdrOutputPolicy.Update(m_dxgiFactory, m_swapChain.Get(), Win32Application::GetHwnd());
+    m_hdrOutputPolicy.Update(m_dxgiFactory, m_swapChain.Get(), m_hwnd);
 }
 
 DescriptorHeapHandle HelloTextureEngine::CreateTextureFromRGBA8(
@@ -990,7 +1006,7 @@ void HelloTextureEngine::InitImGui()
     ImGui::StyleColorsDark();
 
     // Setup Platform/Renderer backends
-    ImGui_ImplWin32_Init(Win32Application::GetHwnd());
+    ImGui_ImplWin32_Init(m_hwnd);
 
     ImGui_ImplDX12_InitInfo init_info = {};
     init_info.Device = m_device.Get();

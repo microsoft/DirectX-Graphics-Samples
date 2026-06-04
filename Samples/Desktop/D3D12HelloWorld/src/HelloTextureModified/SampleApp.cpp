@@ -38,7 +38,13 @@ void SampleApp::OnInit()
     m_engine.SetDisplayInstanceCount(m_displayInstanceCount);
     m_engine.SetToneMapParams(m_toneMapParams);
     m_engine.SetRenderViewMode(m_renderViewMode);
-    m_engine.OnInit();
+
+    HelloTextureEngine::EngineInitDesc initDesc = {};
+    initDesc.hwnd = Win32Application::GetHwnd();
+    initDesc.width = GetWidth();
+    initDesc.height = GetHeight();
+    initDesc.useWarpDevice = m_useWarpDevice;
+    m_engine.Initialize(initDesc);
 }
 
 void SampleApp::UpdateSampleState()
