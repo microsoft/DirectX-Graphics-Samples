@@ -56,11 +56,7 @@ struct GraphicsDeviceContext
 {
     ID3D12Device* device = nullptr;
     ID3D12CommandQueue* commandQueue = nullptr;
-    IDXGISwapChain3* swapChain = nullptr;
-    IDXGIFactory4* dxgiFactory = nullptr;
     HWND hwnd = nullptr;
-    UINT width = 0;
-    UINT height = 0;
 };
 
 struct GraphicsDeviceDesc
@@ -690,7 +686,7 @@ private:
     void RenderFrame();
     void IdleFrame();
     void DestroyFrameResources();
-    GraphicsDeviceContext GetGraphicsDeviceContext() const;
+    GraphicsDeviceContext MakeGraphicsDeviceContext() const;
     void RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                     const FullscreenPipelineDefinition& definition);
     void RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,

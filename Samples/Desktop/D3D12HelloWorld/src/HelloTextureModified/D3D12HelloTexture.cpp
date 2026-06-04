@@ -318,16 +318,12 @@ void HelloTextureEngine::InitializeFrameResources()
     InitImGui();
 }
 
-auto HelloTextureEngine::GetGraphicsDeviceContext() const -> GraphicsDeviceContext
+auto HelloTextureEngine::MakeGraphicsDeviceContext() const -> GraphicsDeviceContext
 {
     return {
         m_graphicsDevice.device.Get(),
         m_graphicsDevice.commandQueue.Get(),
-        m_graphicsDevice.swapChain.Get(),
-        m_graphicsDevice.dxgiFactory.Get(),
         m_graphicsDevice.hwnd,
-        m_graphicsDevice.width,
-        m_graphicsDevice.height,
     };
 }
 
@@ -1148,7 +1144,7 @@ static SimpleDescriptorHeapAllocator* g_allocator = nullptr;
 void HelloTextureEngine::InitImGui()
 {
 #if IMGUI_IMPL > 0
-    const GraphicsDeviceContext graphicsContext = GetGraphicsDeviceContext();
+    const GraphicsDeviceContext graphicsContext = MakeGraphicsDeviceContext();
     g_allocator = &m_ImGuiDescriptorHeapAllocator;
 
     // Setup Dear ImGui context
