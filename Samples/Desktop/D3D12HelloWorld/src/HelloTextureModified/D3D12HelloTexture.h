@@ -628,6 +628,11 @@ private:
 
     void LoadPipeline();
     void LoadAssets();
+    void InitializeFrameResources();
+    void UpdateFrame();
+    void RenderFrame();
+    void IdleFrame();
+    void DestroyFrameResources();
     void RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                     const FullscreenPipelineDefinition& definition);
     void RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,

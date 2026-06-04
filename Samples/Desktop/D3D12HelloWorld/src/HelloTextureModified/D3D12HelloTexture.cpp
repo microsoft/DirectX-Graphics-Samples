@@ -97,6 +97,11 @@ auto HelloTextureEngine::ToneMapPass::MakeShaderConstants(const HdrOutputSetting
 
 void HelloTextureEngine::OnInit()
 {
+    InitializeFrameResources();
+}
+
+void HelloTextureEngine::InitializeFrameResources()
+{
     m_prevTime = std::chrono::steady_clock::now();
     LoadPipeline();
     LoadAssets();
@@ -1400,7 +1405,12 @@ void HelloTextureEngine::CreateDepthStencil(UINT width, UINT height)
 // Update frame-based values.
 void HelloTextureEngine::OnUpdate()
 {
-    PIXBeginEvent(0, L"OnUpdate");
+    UpdateFrame();
+}
+
+void HelloTextureEngine::UpdateFrame()
+{
+    PIXBeginEvent(0, L"UpdateFrame");
 
     if (m_updateHandler)
     {
@@ -1448,7 +1458,12 @@ UINT HelloTextureEngine::GetVisibleCubeCount() const
 // Render the scene.
 void HelloTextureEngine::OnRender()
 {
-    PIXBeginEvent(0, L"OnRender");
+    RenderFrame();
+}
+
+void HelloTextureEngine::RenderFrame()
+{
+    PIXBeginEvent(0, L"RenderFrame");
 
     // ImGui frame update
 #if IMGUI_IMPL > 0
@@ -1494,6 +1509,11 @@ void HelloTextureEngine::OnWindowSizeChanged(UINT width, UINT height)
 
 void HelloTextureEngine::OnIdle()
 {
+    IdleFrame();
+}
+
+void HelloTextureEngine::IdleFrame()
+{
     if (m_pendingResize)
     {
         Resize(m_pendingResizeWidth, m_pendingResizeHeight);
@@ -1503,8 +1523,8 @@ void HelloTextureEngine::OnIdle()
     UpdateHdr10DisplayMode();
 
     m_workMeter.Start();
-    OnUpdate();
-    OnRender();
+    UpdateFrame();
+    RenderFrame();
     m_workMeter.End();
     m_cpuFrameTime = m_workMeter.GetCpuFrameTimeMs();
 }
@@ -1582,6 +1602,11 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
 }
 
 void HelloTextureEngine::OnDestroy()
+{
+    DestroyFrameResources();
+}
+
+void HelloTextureEngine::DestroyFrameResources()
 {
     // Ensure that the GPU is no longer referencing resources that are about to be
     // cleaned up by the destructor.
