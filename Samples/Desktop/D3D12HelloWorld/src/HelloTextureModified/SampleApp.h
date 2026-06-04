@@ -88,7 +88,8 @@ private:
 
     std::chrono::steady_clock::time_point m_prevTime;
 
-    // Temporary bridge: the engine still owns the rendering implementation until
-    // device/swapchain/resource ownership can move behind an Engine-facing API.
+    GraphicsDevice m_graphicsDevice;
+
+    // The engine receives the graphics device so DXSample ownership can stay in SampleApp.
     HelloTextureEngine m_engine;
 };

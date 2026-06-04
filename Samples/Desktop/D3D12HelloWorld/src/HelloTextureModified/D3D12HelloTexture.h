@@ -136,7 +136,7 @@ public:
     using DebugUiHandler = std::function<void(const DebugUiContext&)>;
     using UpdateHandler = std::function<void()>;
 
-    HelloTextureEngine(UINT width, UINT height, std::wstring name);
+    HelloTextureEngine(UINT width, UINT height, std::wstring name, GraphicsDevice& graphicsDevice);
 
     virtual void OnInit();
     virtual void OnUpdate();
@@ -460,7 +460,7 @@ private:
     };
 
     // Pipeline objects.
-    GraphicsDevice m_graphicsDevice;
+    GraphicsDevice& m_graphicsDevice;
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
     GBuffer m_gbuffer;
