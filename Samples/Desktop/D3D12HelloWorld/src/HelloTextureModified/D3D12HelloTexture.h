@@ -92,6 +92,9 @@ struct GraphicsDevice
     void ResizeSwapChain(UINT bufferCount, UINT newWidth, UINT newHeight, DXGI_FORMAT format, UINT flags);
 
 private:
+    void SetWindowHandle(HWND newHwnd);
+    void SetSize(UINT newWidth, UINT newHeight);
+
     HWND hwnd = nullptr;
     UINT width = 0;
     UINT height = 0;

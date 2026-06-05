@@ -179,11 +179,21 @@ ID3D12CommandQueue* GraphicsDevice::CommandQueue() const
     return commandQueue.Get();
 }
 
+void GraphicsDevice::SetWindowHandle(HWND newHwnd)
+{
+    hwnd = newHwnd;
+}
+
+void GraphicsDevice::SetSize(UINT newWidth, UINT newHeight)
+{
+    width = newWidth;
+    height = newHeight;
+}
+
 void GraphicsDevice::Initialize(const GraphicsDeviceDesc& desc)
 {
-    hwnd = desc.hwnd;
-    width = desc.width;
-    height = desc.height;
+    SetWindowHandle(desc.hwnd);
+    SetSize(desc.width, desc.height);
 
     UINT dxgiFactoryFlags = 0;
 
@@ -220,8 +230,8 @@ void GraphicsDevice::Initialize(const GraphicsDeviceDesc& desc)
 
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
     swapChainDesc.BufferCount = desc.bufferCount;
-    swapChainDesc.Width = width;
-    swapChainDesc.Height = height;
+    swapChainDesc.Width = Width();
+    swapChainDesc.Height = Height();
     swapChainDesc.Format = desc.swapChainFormat;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
@@ -303,9 +313,8 @@ void GraphicsDevice::Present(UINT syncInterval, UINT flags)
 
 void GraphicsDevice::ResizeSwapChain(UINT bufferCount, UINT newWidth, UINT newHeight, DXGI_FORMAT format, UINT flags)
 {
-    width = newWidth;
-    height = newHeight;
-    ThrowIfFailed(swapChain->ResizeBuffers(bufferCount, width, height, format, flags));
+    ThrowIfFailed(swapChain->ResizeBuffers(bufferCount, newWidth, newHeight, format, flags));
+    SetSize(newWidth, newHeight);
 }
 
 HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice)
