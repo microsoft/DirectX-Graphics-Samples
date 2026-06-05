@@ -134,6 +134,51 @@ extern "C"
     __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
 }
 
+HWND GraphicsDevice::Hwnd() const
+{
+    return hwnd;
+}
+
+UINT GraphicsDevice::Width() const
+{
+    return width;
+}
+
+UINT GraphicsDevice::Height() const
+{
+    return height;
+}
+
+ID3D12Device* GraphicsDevice::Device() const
+{
+    return device.Get();
+}
+
+ComPtr<ID3D12Device>& GraphicsDevice::DeviceComPtr()
+{
+    return device;
+}
+
+IDXGIFactory4* GraphicsDevice::DxgiFactory() const
+{
+    return dxgiFactory.Get();
+}
+
+ComPtr<IDXGIFactory4>& GraphicsDevice::DxgiFactoryComPtr()
+{
+    return dxgiFactory;
+}
+
+IDXGISwapChain3* GraphicsDevice::SwapChain() const
+{
+    return swapChain.Get();
+}
+
+ID3D12CommandQueue* GraphicsDevice::CommandQueue() const
+{
+    return commandQueue.Get();
+}
+
 void GraphicsDevice::Initialize(const GraphicsDeviceDesc& desc)
 {
     hwnd = desc.hwnd;
@@ -287,7 +332,7 @@ auto HelloTextureEngine::ToneMapPass::MakeShaderConstants(const HdrOutputSetting
 
 void HelloTextureEngine::Initialize(const EngineInitDesc& desc)
 {
-    assert(m_graphicsDevice.device != nullptr);
+    assert(m_graphicsDevice.Device() != nullptr);
     assert(m_graphicsDevice.HasSwapChain());
 
     m_width = desc.width;
@@ -310,9 +355,9 @@ void HelloTextureEngine::InitializeFrameResources()
 auto HelloTextureEngine::MakeGraphicsDeviceContext() const -> GraphicsDeviceContext
 {
     return {
-        m_graphicsDevice.device.Get(),
-        m_graphicsDevice.commandQueue.Get(),
-        m_graphicsDevice.hwnd,
+        m_graphicsDevice.Device(),
+        m_graphicsDevice.CommandQueue(),
+        m_graphicsDevice.Hwnd(),
     };
 }
 
@@ -418,7 +463,7 @@ void HelloTextureEngine::UpdateCameraConstantBuffer()
 // Load the rendering pipeline dependencies.
 void HelloTextureEngine::LoadPipeline()
 {
-    assert(m_graphicsDevice.device != nullptr);
+    assert(m_graphicsDevice.Device() != nullptr);
     assert(m_graphicsDevice.HasSwapChain());
 
     UpdateHdr10DisplayMode();
@@ -431,27 +476,27 @@ void HelloTextureEngine::LoadPipeline()
         rtvHeapDesc.NumDescriptors = kRTVDescriptorCount;
         rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
         rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-        ThrowIfFailed(m_graphicsDevice.device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
+        ThrowIfFailed(m_graphicsDevice.Device()->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
-        m_rtvDescriptorSize = m_graphicsDevice.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        m_rtvDescriptorSize = m_graphicsDevice.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
         // Describe and create a heap for SRV/CBV/UAV
         D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
         heapDesc.NumDescriptors = kMainHeapDescriptorCount;
         heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_graphicsDevice.device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_heap)));
+        ThrowIfFailed(m_graphicsDevice.Device()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_heap)));
         // Create a descriptor allocator to manage the descriptors in the heap.
-        m_descriptorHeapAllocator.Init(m_graphicsDevice.device.Get(), m_heap.Get());
+        m_descriptorHeapAllocator.Init(m_graphicsDevice.Device(), m_heap.Get());
 
         D3D12_DESCRIPTOR_HEAP_DESC imguiHeapDesc = {};
         imguiHeapDesc.NumDescriptors = kHeapDescriptorCount;
         imguiHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         imguiHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_graphicsDevice.device->CreateDescriptorHeap(&imguiHeapDesc, IID_PPV_ARGS(&m_imguiHeap)));
-        m_ImGuiDescriptorHeapAllocator.Init(m_graphicsDevice.device.Get(), m_imguiHeap.Get());
+        ThrowIfFailed(m_graphicsDevice.Device()->CreateDescriptorHeap(&imguiHeapDesc, IID_PPV_ARGS(&m_imguiHeap)));
+        m_ImGuiDescriptorHeapAllocator.Init(m_graphicsDevice.Device(), m_imguiHeap.Get());
 
-        m_descriptorSize = m_graphicsDevice.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        m_descriptorSize = m_graphicsDevice.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 
     // create render target views (RTVs) for the swap chain back buffers.
@@ -462,7 +507,7 @@ void HelloTextureEngine::LoadPipeline()
         for (UINT n = 0; n < kFrameCount; n++)
         {
             m_graphicsDevice.GetBackBuffer(n, IID_PPV_ARGS(&m_renderTargets[n]));
-            m_graphicsDevice.device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
+            m_graphicsDevice.Device()->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
             rtvHandle.Offset(1, m_rtvDescriptorSize);
         }
     }
@@ -477,12 +522,12 @@ void HelloTextureEngine::LoadPipeline()
     // create command allocators.
     for (UINT n = 0; n < kFrameCount; n++)
     {
-        ThrowIfFailed(m_graphicsDevice.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+        ThrowIfFailed(m_graphicsDevice.Device()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
                                                        IID_PPV_ARGS(&m_frameResources[n].commandAllocator)));
     }
 
     //
-    m_gpuWorkMeter.Init(m_graphicsDevice.device.Get(),
+    m_gpuWorkMeter.Init(m_graphicsDevice.Device(),
                         kGpuWorkMeterQueryCount); // Initialize GPU work meter with a maximum of 100 timestamp queries.
 }
 
@@ -616,7 +661,7 @@ void HelloTextureEngine::HdrOutputPolicy::ReapplyColorSpace(IDXGISwapChain3* swa
 
 void HelloTextureEngine::UpdateHdr10DisplayMode()
 {
-    m_hdrOutputPolicy.Update(m_graphicsDevice.dxgiFactory, m_graphicsDevice.swapChain.Get(), m_graphicsDevice.hwnd);
+    m_hdrOutputPolicy.Update(m_graphicsDevice.DxgiFactoryComPtr(), m_graphicsDevice.SwapChain(), m_graphicsDevice.Hwnd());
 }
 
 DescriptorHeapHandle HelloTextureEngine::CreateTextureFromRGBA8(
@@ -634,7 +679,7 @@ DescriptorHeapHandle HelloTextureEngine::CreateTextureFromRGBA8(
     textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
     // Create the GPU resource for the texture.
-    ThrowIfFailed(m_graphicsDevice.device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                                                     D3D12_HEAP_FLAG_NONE,
                                                     &textureDesc,
                                                     D3D12_RESOURCE_STATE_COPY_DEST,
@@ -644,7 +689,7 @@ DescriptorHeapHandle HelloTextureEngine::CreateTextureFromRGBA8(
     const UINT64 uploadBufferSize = GetRequiredIntermediateSize(texture.Get(), 0, 1);
 
     // Create the GPU upload buffer.
-    ThrowIfFailed(m_graphicsDevice.device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
                                                     D3D12_HEAP_FLAG_NONE,
                                                     &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
                                                     D3D12_RESOURCE_STATE_GENERIC_READ,
@@ -676,7 +721,7 @@ void HelloTextureEngine::LoadAssets()
         // will not be greater than this.
         featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
 
-        if (FAILED(m_graphicsDevice.device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+        if (FAILED(m_graphicsDevice.Device()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
         {
             featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
         }
@@ -770,7 +815,7 @@ void HelloTextureEngine::LoadAssets()
         ComPtr<ID3DBlob> error;
         ThrowIfFailed(
             D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
-        ThrowIfFailed(m_graphicsDevice.device->CreateRootSignature(
+        ThrowIfFailed(m_graphicsDevice.Device()->CreateRootSignature(
             0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
     }
 
@@ -892,7 +937,7 @@ void HelloTextureEngine::LoadAssets()
     CreateGBuffer();
 
     // Create the command list.
-    ThrowIfFailed(m_graphicsDevice.device->CreateCommandList(0,
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommandList(0,
                                               D3D12_COMMAND_LIST_TYPE_DIRECT,
                                               m_frameResources[m_currentFrameIndex].commandAllocator.Get(),
                                               GetPipelineState(PipelineId(Pipe::Main)),
@@ -913,7 +958,7 @@ void HelloTextureEngine::LoadAssets()
     // recommended. Every time the GPU needs it, the upload heap will be marshalled
     // over. Please read up on Default Heap usage. An upload heap is used here for
     // code simplicity and because there are very few verts to actually transfer.
-    MyDx12Util::CreateUploadBuffer(m_graphicsDevice.device, vertexBufferSize, m_vertexBuffer);
+    MyDx12Util::CreateUploadBuffer(m_graphicsDevice.DeviceComPtr(), vertexBufferSize, m_vertexBuffer);
 
     // Copy the triangle data to the vertex buffer.
     UINT8* pVertexDataBegin = nullptr;
@@ -931,7 +976,7 @@ void HelloTextureEngine::LoadAssets()
     {
         const UINT indexBufferSize = static_cast<UINT>(mesh.indices.size() * sizeof(uint32_t));
 
-        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.device, indexBufferSize, m_indexBuffer);
+        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.DeviceComPtr(), indexBufferSize, m_indexBuffer);
 
         UINT8* pIndexDataBegin = nullptr;
         ThrowIfFailed(m_indexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin)));
@@ -1048,7 +1093,7 @@ void HelloTextureEngine::LoadAssets()
     {
         const UINT instanceBufferSize = sizeof(InstanceData) * kMaxInstanceCount;
 
-        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.device, instanceBufferSize, m_frameResources[n].instanceBuffer);
+        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.DeviceComPtr(), instanceBufferSize, m_frameResources[n].instanceBuffer);
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 
@@ -1059,7 +1104,7 @@ void HelloTextureEngine::LoadAssets()
         srvDesc.Buffer.StructureByteStride = sizeof(InstanceData);
 
         m_frameResources[n].instanceBufferSrv = m_descriptorHeapAllocator.AllocWithHandle();
-        m_graphicsDevice.device->CreateShaderResourceView(
+        m_graphicsDevice.Device()->CreateShaderResourceView(
             m_frameResources[n].instanceBuffer.Get(), &srvDesc, m_frameResources[n].instanceBufferSrv.cpu);
 
         m_frameResources[n].instanceBuffer->Map(
@@ -1072,7 +1117,7 @@ void HelloTextureEngine::LoadAssets()
     {
         const UINT materialBufferSize = sizeof(Material) * kMaterialCount;
 
-        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.device, materialBufferSize, m_materialBuffer);
+        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.DeviceComPtr(), materialBufferSize, m_materialBuffer);
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
@@ -1082,7 +1127,7 @@ void HelloTextureEngine::LoadAssets()
         srvDesc.Buffer.StructureByteStride = sizeof(Material);
 
         m_materialBufferSrv = m_descriptorHeapAllocator.AllocWithHandle();
-        m_graphicsDevice.device->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, m_materialBufferSrv.cpu);
+        m_graphicsDevice.Device()->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, m_materialBufferSrv.cpu);
         Material* pMaterialDataBegin = nullptr;
         m_materialBuffer->Map(0, nullptr, reinterpret_cast<void**>(&pMaterialDataBegin));
         memcpy(pMaterialDataBegin, m_materialData.data(), materialBufferSize);
@@ -1160,7 +1205,7 @@ void HelloTextureEngine::CreateConstantBuffer(ConstantBufferResource& constantBu
 {
     assert(sizeInBytes % D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT == 0);
 
-    ThrowIfFailed(m_graphicsDevice.device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
                                                     D3D12_HEAP_FLAG_NONE,
                                                     &CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes),
                                                     D3D12_RESOURCE_STATE_GENERIC_READ,
@@ -1172,7 +1217,7 @@ void HelloTextureEngine::CreateConstantBuffer(ConstantBufferResource& constantBu
     cbvDesc.SizeInBytes = sizeInBytes;
 
     constantBuffer.cbv = m_descriptorHeapAllocator.AllocWithHandle();
-    m_graphicsDevice.device->CreateConstantBufferView(&cbvDesc, constantBuffer.cbv.cpu);
+    m_graphicsDevice.Device()->CreateConstantBufferView(&cbvDesc, constantBuffer.cbv.cpu);
 
     CD3DX12_RANGE readRange(0, 0);
     ThrowIfFailed(constantBuffer.buffer->Map(0, &readRange, reinterpret_cast<void**>(&constantBuffer.mappedData)));
@@ -1188,7 +1233,7 @@ DescriptorHeapHandle HelloTextureEngine::AllocateTextureSRV(ID3D12Resource* text
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Texture2D.MipLevels = 1;
-    m_graphicsDevice.device->CreateShaderResourceView(texture, &srvDesc, handle.cpu);
+    m_graphicsDevice.Device()->CreateShaderResourceView(texture, &srvDesc, handle.cpu);
 
     return handle;
 }
@@ -1246,7 +1291,7 @@ void HelloTextureEngine::CreateDsvHeap()
     dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-    ThrowIfFailed(m_graphicsDevice.device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 }
 
 void HelloTextureEngine::CreateGBuffer()
@@ -1273,7 +1318,7 @@ void HelloTextureEngine::CreateGBufferResources()
         desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-        ThrowIfFailed(m_graphicsDevice.device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                                                         D3D12_HEAP_FLAG_NONE,
                                                         &desc,
                                                         D3D12_RESOURCE_STATE_RENDER_TARGET,
@@ -1290,7 +1335,7 @@ void HelloTextureEngine::CreateGBufferRTVs()
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(
             m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_gbuffer.rtvIndex[i], m_rtvDescriptorSize);
-        m_graphicsDevice.device->CreateRenderTargetView(m_gbuffer.resources[i].Get(), nullptr, rtvHandle);
+        m_graphicsDevice.Device()->CreateRenderTargetView(m_gbuffer.resources[i].Get(), nullptr, rtvHandle);
     }
 }
 
@@ -1309,7 +1354,7 @@ void HelloTextureEngine::CreateGBufferSRVs()
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
         srvDesc.Texture2D.MipLevels = 1;
 
-        m_graphicsDevice.device->CreateShaderResourceView(m_gbuffer.resources[i].Get(), &srvDesc, m_gbuffer.srvHandles[i].cpu);
+        m_graphicsDevice.Device()->CreateShaderResourceView(m_gbuffer.resources[i].Get(), &srvDesc, m_gbuffer.srvHandles[i].cpu);
     }
 
     if (m_depthStencilSrv.Index == UINT_MAX)
@@ -1387,7 +1432,7 @@ void HelloTextureEngine::CreateDepthStencilDescriptors()
     dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsvDesc.Texture2D.MipSlice = 0;
-    m_graphicsDevice.device->CreateDepthStencilView(m_depthStencil.Get(), &dsvDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+    m_graphicsDevice.Device()->CreateDepthStencilView(m_depthStencil.Get(), &dsvDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     assert(m_depthStencilSrv.Index == m_gbuffer.srvHandles[GBuffer::Albedo].Index + GBuffer::kCount);
 
@@ -1396,7 +1441,7 @@ void HelloTextureEngine::CreateDepthStencilDescriptors()
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Texture2D.MipLevels = 1;
-    m_graphicsDevice.device->CreateShaderResourceView(m_depthStencil.Get(), &srvDesc, m_depthStencilSrv.cpu);
+    m_graphicsDevice.Device()->CreateShaderResourceView(m_depthStencil.Get(), &srvDesc, m_depthStencilSrv.cpu);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetBackBufferRtv() const
@@ -1514,7 +1559,7 @@ void HelloTextureEngine::CreateDepthStencil(UINT width, UINT height)
     dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-    ThrowIfFailed(m_graphicsDevice.device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 
     D3D12_RESOURCE_DESC depthDesc = {};
     depthDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -1532,7 +1577,7 @@ void HelloTextureEngine::CreateDepthStencil(UINT width, UINT height)
     clearValue.DepthStencil.Depth = 1.0f;
     clearValue.DepthStencil.Stencil = 0;
 
-    ThrowIfFailed(m_graphicsDevice.device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                                                     D3D12_HEAP_FLAG_NONE,
                                                     &depthDesc,
                                                     D3D12_RESOURCE_STATE_DEPTH_WRITE,
@@ -1626,7 +1671,7 @@ void HelloTextureEngine::RenderFrame()
 
     CollectGarbageTransientResources();
 
-    m_gpuWorkMeter.ReadbackData(m_graphicsDevice.commandQueue.Get());
+    m_gpuWorkMeter.ReadbackData(m_graphicsDevice.CommandQueue());
 
     PIXEndEvent();
 }
@@ -1687,7 +1732,7 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
 
     // Resize SwapChain
     m_graphicsDevice.ResizeSwapChain(kFrameCount, m_width, m_height, m_backBufferFormat, 0);
-    m_hdrOutputPolicy.ReapplyColorSpace(m_graphicsDevice.swapChain.Get());
+    m_hdrOutputPolicy.ReapplyColorSpace(m_graphicsDevice.SwapChain());
 
     // Preserve the previous frame index before taking the resized swap chain index.
     m_previousFrameIndex = m_currentFrameIndex;
@@ -1701,7 +1746,7 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
         for (UINT n = 0; n < kFrameCount; n++)
         {
             m_graphicsDevice.GetBackBuffer(n, IID_PPV_ARGS(&m_renderTargets[n]));
-            m_graphicsDevice.device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
+            m_graphicsDevice.Device()->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
             rtvHandle.Offset(1, m_rtvDescriptorSize);
         }
     }
@@ -1751,7 +1796,7 @@ void HelloTextureEngine::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELIN
                                                                                       definition.shaders.pixel.size,
                                                                                       definition.renderTargetFormat);
     const PipelineKey key = PipelineId(definition.name);
-    ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.device.Get(), key, desc));
+    ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.Device(), key, desc));
 }
 
 void HelloTextureEngine::RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
@@ -1782,7 +1827,7 @@ void HelloTextureEngine::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC
     baseDesc.DSVFormat = definition.depthStencilFormat;
     baseDesc.SampleDesc.Count = 1;
     const PipelineKey key = PipelineId(definition.name);
-    ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.device.Get(), key, baseDesc));
+    ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.Device(), key, baseDesc));
 }
 
 void HelloTextureEngine::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
@@ -1798,7 +1843,7 @@ void HelloTextureEngine::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_S
                                                                                m_gbuffer.formats,
                                                                                GBuffer::kCount);
     const PipelineKey key = PipelineId(definition.name);
-    ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.device.Get(), key, desc));
+    ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.Device(), key, desc));
 }
 
 void HelloTextureEngine::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
@@ -1813,7 +1858,7 @@ void HelloTextureEngine::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPEL
     desc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;
     desc.NumRenderTargets = 0;
     const PipelineKey key = PipelineId(definition.name);
-    ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.device.Get(), key, desc));
+    ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.Device(), key, desc));
 }
 
 void HelloTextureEngine::PopulateCommandList()
@@ -1898,7 +1943,7 @@ void HelloTextureEngine::CreateResourcesForPass(int passIndex)
 
 void HelloTextureEngine::CreateCommittedTransientResource(TransientResource& resource)
 {
-    ThrowIfFailed(m_graphicsDevice.device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                                                     D3D12_HEAP_FLAG_NONE,
                                                     &resource.desc,
                                                     resource.initialState,
@@ -1927,14 +1972,14 @@ void HelloTextureEngine::BindCreatedTransientResource(const std::string& name, I
 
 void HelloTextureEngine::CreateLightPassRenderTargetDescriptors()
 {
-    m_graphicsDevice.device->CreateRenderTargetView(m_lightPassRenderTarget.Get(), nullptr, GetLightPassRTV());
+    m_graphicsDevice.Device()->CreateRenderTargetView(m_lightPassRenderTarget.Get(), nullptr, GetLightPassRTV());
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Texture2D.MipLevels = 1;
-    m_graphicsDevice.device->CreateShaderResourceView(m_lightPassRenderTarget.Get(), &srvDesc, m_lightPassColorSrv.cpu);
+    m_graphicsDevice.Device()->CreateShaderResourceView(m_lightPassRenderTarget.Get(), &srvDesc, m_lightPassColorSrv.cpu);
 }
 
 void HelloTextureEngine::ReleaseResourcesAfterPass(int passIndex)
@@ -2226,9 +2271,9 @@ void HelloTextureEngine::CreateDebugDumpReadback(ID3D12Resource* source,
     UINT numRows = 0;
     UINT64 rowSizeInBytes = 0;
     UINT64 totalBytes = 0;
-    m_graphicsDevice.device->GetCopyableFootprints(&desc, 0, 1, 0, &layout, &numRows, &rowSizeInBytes, &totalBytes);
+    m_graphicsDevice.Device()->GetCopyableFootprints(&desc, 0, 1, 0, &layout, &numRows, &rowSizeInBytes, &totalBytes);
 
-    ThrowIfFailed(m_graphicsDevice.device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
                                                     D3D12_HEAP_FLAG_NONE,
                                                     &CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
                                                     D3D12_RESOURCE_STATE_COPY_DEST,

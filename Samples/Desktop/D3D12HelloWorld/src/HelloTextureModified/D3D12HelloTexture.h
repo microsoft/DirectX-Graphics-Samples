@@ -70,6 +70,15 @@ struct GraphicsDeviceDesc
 struct GraphicsDevice
 {
     void Initialize(const GraphicsDeviceDesc& desc);
+    HWND Hwnd() const;
+    UINT Width() const;
+    UINT Height() const;
+    ID3D12Device* Device() const;
+    ComPtr<ID3D12Device>& DeviceComPtr();
+    IDXGIFactory4* DxgiFactory() const;
+    ComPtr<IDXGIFactory4>& DxgiFactoryComPtr();
+    IDXGISwapChain3* SwapChain() const;
+    ID3D12CommandQueue* CommandQueue() const;
     bool HasSwapChain() const;
     UINT CurrentBackBufferIndex() const;
     void GetBackBuffer(UINT index, REFIID riid, void** resource) const;
@@ -82,6 +91,7 @@ struct GraphicsDevice
     void Present(UINT syncInterval, UINT flags);
     void ResizeSwapChain(UINT bufferCount, UINT newWidth, UINT newHeight, DXGI_FORMAT format, UINT flags);
 
+private:
     HWND hwnd = nullptr;
     UINT width = 0;
     UINT height = 0;
