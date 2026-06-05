@@ -285,13 +285,6 @@ auto HelloTextureEngine::ToneMapPass::MakeShaderConstants(const HdrOutputSetting
     return settings.MakeShaderConstants(hdrOutputSettings.TransferFunction());
 }
 
-void HelloTextureEngine::OnInit()
-{
-    assert(m_graphicsDevice.device != nullptr);
-    assert(m_graphicsDevice.HasSwapChain());
-    InitializeFrameResources();
-}
-
 void HelloTextureEngine::Initialize(const EngineInitDesc& desc)
 {
     assert(m_graphicsDevice.device != nullptr);
@@ -1551,11 +1544,6 @@ void HelloTextureEngine::CreateDepthStencil(UINT width, UINT height)
 }
 
 // Update frame-based values.
-void HelloTextureEngine::OnUpdate()
-{
-    UpdateFrame();
-}
-
 void HelloTextureEngine::UpdateFrame()
 {
     PIXBeginEvent(0, L"UpdateFrame");
@@ -1604,11 +1592,6 @@ UINT HelloTextureEngine::GetVisibleCubeCount() const
 }
 
 // Render the scene.
-void HelloTextureEngine::OnRender()
-{
-    RenderFrame();
-}
-
 void HelloTextureEngine::RenderFrame()
 {
     PIXBeginEvent(0, L"RenderFrame");
@@ -1655,12 +1638,7 @@ void HelloTextureEngine::OnWindowSizeChanged(UINT width, UINT height)
     m_pendingResizeHeight = height;
 }
 
-void HelloTextureEngine::OnIdle()
-{
-    IdleFrame();
-}
-
-void HelloTextureEngine::IdleFrame()
+void HelloTextureEngine::RunFrame()
 {
     if (m_pendingResize)
     {
@@ -1749,7 +1727,7 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
     io.DisplaySize = ImVec2(static_cast<float>(m_width), static_cast<float>(m_height));
 }
 
-void HelloTextureEngine::OnDestroy()
+void HelloTextureEngine::Shutdown()
 {
     DestroyFrameResources();
 }

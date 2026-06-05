@@ -34,7 +34,7 @@ using namespace DirectX;
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
 // for the GPU lifetime of resources to avoid destroying objects that may still be
 // referenced by the GPU.
-// An example of this can be found in the class method: OnDestroy().
+// An example of this can be found in the class method: Shutdown().
 using Microsoft::WRL::ComPtr;
 
 using PipelineKey = Engine::PipelineKey;
@@ -160,16 +160,14 @@ public:
 
     HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice);
 
-    void OnInit();
-    void OnUpdate();
-    void OnRender();
-    void OnDestroy();
     void OnMouseDown(UINT8 button, int x, int y);
     void OnMouseUp(UINT8 button, int x, int y);
     void OnMouseMove(int x, int y);
     void OnWindowSizeChanged(UINT width, UINT height);
-    void OnIdle();
     void Initialize(const EngineInitDesc& desc);
+    void RenderFrame();
+    void RunFrame();
+    void Shutdown();
     void SetSceneMesh(const GltfMeshData* mesh);
     void SetDebugUiHandler(DebugUiHandler handler);
     void SetUpdateHandler(UpdateHandler handler);
@@ -681,8 +679,6 @@ private:
     std::wstring GetAssetFullPath(LPCWSTR assetName);
     void InitializeFrameResources();
     void UpdateFrame();
-    void RenderFrame();
-    void IdleFrame();
     void DestroyFrameResources();
     GraphicsDeviceContext MakeGraphicsDeviceContext() const;
     void RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,

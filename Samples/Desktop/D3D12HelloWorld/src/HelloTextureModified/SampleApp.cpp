@@ -135,13 +135,13 @@ void SampleApp::OnWindowSizeChanged(UINT width, UINT height)
 
 void SampleApp::OnIdle()
 {
-    m_engine.OnIdle();
+    m_engine.RunFrame();
 }
 
 void SampleApp::OnUpdate()
 {
     // Win32Application does not call OnUpdate() in the current DXSample loop.
-    // It calls OnIdle(), which is delegated to HelloTextureEngine::OnIdle().
+    // It calls OnIdle(), which is delegated to HelloTextureEngine::RunFrame().
     // The engine invokes UpdateHandler at the appropriate point in its frame.
     //
     // Keep this override for the DXSample interface. If Win32Application starts
@@ -153,16 +153,16 @@ void SampleApp::OnUpdate()
 void SampleApp::OnRender()
 {
     // Win32Application does not call OnRender() in the current DXSample loop.
-    // Rendering is driven by HelloTextureEngine::OnIdle(), which calls the engine's
+    // Rendering is driven by HelloTextureEngine::RunFrame(), which calls the engine's
     // render path after its frame update.
     // Keep this override for the DXSample interface. If Win32Application starts
     // calling OnRender() in the future, delegate to the engine render path.
-    m_engine.OnRender(); // currently this is not called.
+    m_engine.RenderFrame(); // currently this is not called.
 }
 
 void SampleApp::OnDestroy()
 {
-    m_engine.OnDestroy();
+    m_engine.Shutdown();
 }
 
 void SampleApp::LoadSceneAssets()
