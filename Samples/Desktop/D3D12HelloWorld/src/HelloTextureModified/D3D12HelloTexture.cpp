@@ -154,19 +154,9 @@ ID3D12Device* GraphicsDevice::Device() const
     return device.Get();
 }
 
-ComPtr<ID3D12Device>& GraphicsDevice::DeviceComPtr()
-{
-    return device;
-}
-
 IDXGIFactory4* GraphicsDevice::DxgiFactory() const
 {
     return dxgiFactory.Get();
-}
-
-ComPtr<IDXGIFactory4>& GraphicsDevice::DxgiFactoryComPtr()
-{
-    return dxgiFactory;
 }
 
 IDXGISwapChain3* GraphicsDevice::SwapChain() const
@@ -177,6 +167,20 @@ IDXGISwapChain3* GraphicsDevice::SwapChain() const
 ID3D12CommandQueue* GraphicsDevice::CommandQueue() const
 {
     return commandQueue.Get();
+}
+
+void GraphicsDevice::RefreshDxgiFactoryIfNeeded()
+{
+    if (dxgiFactory != nullptr && dxgiFactory->IsCurrent())
+    {
+        return;
+    }
+
+    UINT dxgiFactoryFlags = 0;
+#if defined(_DEBUG)
+    dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+#endif
+    ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
 }
 
 void GraphicsDevice::SetWindowHandle(HWND newHwnd)
@@ -548,18 +552,9 @@ bool HelloTextureEngine::HdrOutputPolicy::CheckSwapChainColorSpaceSupport(IDXGIS
            (colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT);
 }
 
-bool HelloTextureEngine::HdrOutputPolicy::CheckCurrentOutputHdr10Support(ComPtr<IDXGIFactory4>& dxgiFactory,
+bool HelloTextureEngine::HdrOutputPolicy::CheckCurrentOutputHdr10Support(IDXGIFactory4* dxgiFactory,
                                                                          HWND hwnd) const
 {
-    if (!dxgiFactory->IsCurrent())
-    {
-        UINT dxgiFactoryFlags = 0;
-#if defined(_DEBUG)
-        dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-#endif
-        ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
-    }
-
     RECT windowRect = {};
     GetWindowRect(hwnd, &windowRect);
 
@@ -647,7 +642,7 @@ void HelloTextureEngine::HdrOutputPolicy::ApplyHdr10Metadata(IDXGISwapChain3* sw
     ThrowIfFailed(swapChain4->SetHDRMetaData(DXGI_HDR_METADATA_TYPE_HDR10, sizeof(metadata), &metadata));
 }
 
-void HelloTextureEngine::HdrOutputPolicy::Update(ComPtr<IDXGIFactory4>& dxgiFactory,
+void HelloTextureEngine::HdrOutputPolicy::Update(IDXGIFactory4* dxgiFactory,
                                                  IDXGISwapChain3* swapChain,
                                                  HWND hwnd)
 {
@@ -670,7 +665,8 @@ void HelloTextureEngine::HdrOutputPolicy::ReapplyColorSpace(IDXGISwapChain3* swa
 
 void HelloTextureEngine::UpdateHdr10DisplayMode()
 {
-    m_hdrOutputPolicy.Update(m_graphicsDevice.DxgiFactoryComPtr(), m_graphicsDevice.SwapChain(), m_graphicsDevice.Hwnd());
+    m_graphicsDevice.RefreshDxgiFactoryIfNeeded();
+    m_hdrOutputPolicy.Update(m_graphicsDevice.DxgiFactory(), m_graphicsDevice.SwapChain(), m_graphicsDevice.Hwnd());
 }
 
 DescriptorHeapHandle HelloTextureEngine::CreateTextureFromRGBA8(
@@ -967,7 +963,7 @@ void HelloTextureEngine::LoadAssets()
     // recommended. Every time the GPU needs it, the upload heap will be marshalled
     // over. Please read up on Default Heap usage. An upload heap is used here for
     // code simplicity and because there are very few verts to actually transfer.
-    MyDx12Util::CreateUploadBuffer(m_graphicsDevice.DeviceComPtr(), vertexBufferSize, m_vertexBuffer);
+    MyDx12Util::CreateUploadBuffer(m_graphicsDevice.Device(), vertexBufferSize, m_vertexBuffer);
 
     // Copy the triangle data to the vertex buffer.
     UINT8* pVertexDataBegin = nullptr;
@@ -985,7 +981,7 @@ void HelloTextureEngine::LoadAssets()
     {
         const UINT indexBufferSize = static_cast<UINT>(mesh.indices.size() * sizeof(uint32_t));
 
-        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.DeviceComPtr(), indexBufferSize, m_indexBuffer);
+        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.Device(), indexBufferSize, m_indexBuffer);
 
         UINT8* pIndexDataBegin = nullptr;
         ThrowIfFailed(m_indexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin)));
@@ -1102,7 +1098,7 @@ void HelloTextureEngine::LoadAssets()
     {
         const UINT instanceBufferSize = sizeof(InstanceData) * kMaxInstanceCount;
 
-        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.DeviceComPtr(), instanceBufferSize, m_frameResources[n].instanceBuffer);
+        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.Device(), instanceBufferSize, m_frameResources[n].instanceBuffer);
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 
@@ -1126,7 +1122,7 @@ void HelloTextureEngine::LoadAssets()
     {
         const UINT materialBufferSize = sizeof(Material) * kMaterialCount;
 
-        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.DeviceComPtr(), materialBufferSize, m_materialBuffer);
+        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.Device(), materialBufferSize, m_materialBuffer);
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;

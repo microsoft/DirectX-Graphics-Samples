@@ -74,11 +74,10 @@ struct GraphicsDevice
     UINT Width() const;
     UINT Height() const;
     ID3D12Device* Device() const;
-    ComPtr<ID3D12Device>& DeviceComPtr();
     IDXGIFactory4* DxgiFactory() const;
-    ComPtr<IDXGIFactory4>& DxgiFactoryComPtr();
     IDXGISwapChain3* SwapChain() const;
     ID3D12CommandQueue* CommandQueue() const;
+    void RefreshDxgiFactoryIfNeeded();
     bool HasSwapChain() const;
     UINT CurrentBackBufferIndex() const;
     void GetBackBuffer(UINT index, REFIID riid, void** resource) const;
@@ -364,10 +363,10 @@ private:
         HdrOutputSettings settings;
 
         bool CheckSwapChainColorSpaceSupport(IDXGISwapChain3* swapChain, DXGI_COLOR_SPACE_TYPE colorSpace) const;
-        bool CheckCurrentOutputHdr10Support(ComPtr<IDXGIFactory4>& dxgiFactory, HWND hwnd) const;
+        bool CheckCurrentOutputHdr10Support(IDXGIFactory4* dxgiFactory, HWND hwnd) const;
         void ApplySwapChainColorSpace(IDXGISwapChain3* swapChain, DXGI_COLOR_SPACE_TYPE colorSpace);
         void ApplyHdr10Metadata(IDXGISwapChain3* swapChain, bool enabled) const;
-        void Update(ComPtr<IDXGIFactory4>& dxgiFactory, IDXGISwapChain3* swapChain, HWND hwnd);
+        void Update(IDXGIFactory4* dxgiFactory, IDXGISwapChain3* swapChain, HWND hwnd);
         void ReapplyColorSpace(IDXGISwapChain3* swapChain);
     };
 
