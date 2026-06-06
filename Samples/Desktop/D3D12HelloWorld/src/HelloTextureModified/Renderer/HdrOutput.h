@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "../DXSampleHelper.h"
 
@@ -10,6 +10,8 @@ static constexpr UINT kHdr10MaxMasteringLuminance = 1000;
 static constexpr UINT kHdr10MinMasteringLuminance = 10; // 0.001 nits in 0.0001 nit units.
 static constexpr UINT16 kHdr10MaxContentLightLevel = 1000;
 static constexpr UINT16 kHdr10MaxFrameAverageLightLevel = 400;
+
+float St2084PqToNits(float pq);
 
 struct HdrOutputSettings
 {

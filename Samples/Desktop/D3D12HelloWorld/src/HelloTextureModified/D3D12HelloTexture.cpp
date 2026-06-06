@@ -1,4 +1,4 @@
-﻿//*********************************************************
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -36,21 +36,6 @@ int rand_0_255()
     static std::mt19937 gen(std::random_device{}());
     static std::uniform_int_distribution<int> dist(0, 0xFF);
     return dist(gen);
-}
-
-float St2084PqToNits(float pq)
-{
-    const float m1 = 2610.0f / 16384.0f;
-    const float m2 = 2523.0f / 32.0f;
-    const float c1 = 3424.0f / 4096.0f;
-    const float c2 = 2413.0f / 128.0f;
-    const float c3 = 2392.0f / 128.0f;
-
-    pq = (std::max)(pq, 0.0f);
-    const float n = std::pow(pq, 1.0f / m2);
-    const float numerator = (std::max)(n - c1, 0.0f);
-    const float denominator = (std::max)(c2 - c3 * n, 0.000001f);
-    return 10000.0f * std::pow(numerator / denominator, 1.0f / m1);
 }
 
 float SrgbToLinear(float value)
