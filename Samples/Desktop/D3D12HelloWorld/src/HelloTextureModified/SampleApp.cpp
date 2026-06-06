@@ -1,4 +1,4 @@
-﻿//*********************************************************
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -25,7 +25,7 @@ SampleApp::SampleApp(UINT width, UINT height, std::wstring name)
 void SampleApp::OnInit()
 {
     LoadSceneAssets();
-    InitInstanceData(m_gltfMesh);
+    InitInstanceData(m_sceneMesh);
     m_engine.SetDebugUiHandler([this](const HelloTextureEngine::DebugUiContext& context) { DrawDebugUi(context); });
     m_engine.SetUpdateHandler([this]() { UpdateSampleState(); });
     m_engine.SetLightingParams(m_lightingParams);
@@ -33,7 +33,7 @@ void SampleApp::OnInit()
     m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
     m_engine.SetBackBufferClearColor(m_backBufferClearColor);
 
-    m_scene.mesh = &m_gltfMesh;
+    m_scene.mesh = &m_sceneMesh;
     m_engine.SetScene(m_scene);
 
     m_engine.SetDisplayInstanceCount(m_displayInstanceCount);
@@ -172,14 +172,14 @@ void SampleApp::LoadSceneAssets()
     switch (kMeshSource)
     {
         case MeshSource::Gltf:
-            m_gltfMesh = LoadGltfScene();
+            m_sceneMesh = ConvertToSceneMesh(LoadGltfScene());
             break;
         case MeshSource::Cube:
-            m_gltfMesh = CreateCubeMesh();
+            m_sceneMesh = ConvertToSceneMesh(CreateCubeMesh());
             break;
     }
 
-    assert(!m_gltfMesh.vertices.empty());
+    assert(!m_sceneMesh.vertices.empty());
 }
 
 GltfMeshData SampleApp::LoadGltfScene() const
@@ -188,6 +188,42 @@ GltfMeshData SampleApp::LoadGltfScene() const
     const bool loaded = LoadGltfMesh("Assets\\Models\\DamagedHelmet\\glTF\\DamagedHelmet.gltf", mesh);
     assert(loaded);
     return mesh;
+}
+
+Engine::SceneMesh SampleApp::ConvertToSceneMesh(const GltfMeshData& mesh)
+{
+    Engine::SceneMesh sceneMesh = {};
+    sceneMesh.vertices = mesh.vertices;
+    sceneMesh.indices = mesh.indices;
+    sceneMesh.materialIndex = mesh.materialIndex;
+
+    sceneMesh.materials.reserve(mesh.materials.size());
+    for (const GltfMaterial& material : mesh.materials)
+    {
+        Engine::SceneMaterial sceneMaterial = {};
+        sceneMaterial.albedoTexIndex = material.albedoTexIndex;
+        sceneMaterial.metallicRoughnessTexIndex = material.metallicRoughnessTexIndex;
+        sceneMaterial.emissiveTexIndex = material.emissiveTexIndex;
+        sceneMaterial.occlusionTexIndex = material.occlusionTexIndex;
+        sceneMaterial.normalTexIndex = material.normalTexIndex;
+        sceneMaterial.roughnessFactor = material.roughnessFactor;
+        sceneMaterial.metallicFactor = material.metallicFactor;
+        sceneMaterial.occlusionStrength = material.occlusionStrength;
+        sceneMesh.materials.push_back(std::move(sceneMaterial));
+    }
+
+    sceneMesh.textures.reserve(mesh.textures.size());
+    for (const GltfTextureData& texture : mesh.textures)
+    {
+        Engine::SceneTexture sceneTexture = {};
+        sceneTexture.width = texture.width;
+        sceneTexture.height = texture.height;
+        sceneTexture.component = texture.component;
+        sceneTexture.pixels = texture.pixels;
+        sceneMesh.textures.push_back(std::move(sceneTexture));
+    }
+
+    return sceneMesh;
 }
 
 void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
@@ -302,7 +338,7 @@ XMFLOAT3 SampleApp::InstanceIdToXYZ(int instanceId)
     return XMFLOAT3(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
 }
 
-void SampleApp::InitInstanceData(const GltfMeshData& mesh)
+void SampleApp::InitInstanceData(const Engine::SceneMesh& mesh)
 {
     m_scene.instances.resize(kMaxInstanceCount);
     m_instanceDataForCPU.clear();

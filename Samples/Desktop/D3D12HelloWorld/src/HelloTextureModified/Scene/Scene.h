@@ -22,12 +22,43 @@ struct alignas(16) InstanceData
     UINT materialId;
 };
 
+using SceneVertex = GltfVertex;
+
+struct SceneTexture
+{
+    int width = 0;
+    int height = 0;
+    int component = 0;
+    std::vector<unsigned char> pixels;
+};
+
+struct SceneMaterial
+{
+    int albedoTexIndex = -1;
+    int metallicRoughnessTexIndex = -1;
+    int emissiveTexIndex = -1;
+    int occlusionTexIndex = -1;
+    int normalTexIndex = -1;
+    float roughnessFactor = 1.0f;
+    float metallicFactor = 1.0f;
+    float occlusionStrength = 1.0f;
+};
+
+struct SceneMesh
+{
+    std::vector<SceneVertex> vertices;
+    std::vector<uint32_t> indices;
+    std::vector<SceneMaterial> materials;
+    int materialIndex = 0;
+    std::vector<SceneTexture> textures;
+};
+
 class Scene
 {
 public:
     CameraState camera;
     std::vector<InstanceData> instances;
-    const GltfMeshData* mesh = nullptr;
+    const SceneMesh* mesh = nullptr;
 };
 
 } // namespace Engine

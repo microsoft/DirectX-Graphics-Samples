@@ -543,14 +543,14 @@ void HelloTextureEngine::LoadAssets()
 
     // Create the vertex buffer.
     assert(m_scene.mesh != nullptr);
-    const GltfMeshData& mesh = *m_scene.mesh;
+    const Engine::SceneMesh& mesh = *m_scene.mesh;
     assert(!mesh.vertices.empty());
 
     m_indexCountPerInstance = static_cast<UINT>(mesh.indices.size());
     m_vertexCountPerInstance = static_cast<UINT>(mesh.vertices.size());
     m_usesIndexedDraw = m_indexCountPerInstance > 0;
     m_sceneHasMaterials = !mesh.materials.empty();
-    const UINT vertexBufferSize = static_cast<UINT>(sizeof(GltfVertex) * mesh.vertices.size());
+    const UINT vertexBufferSize = static_cast<UINT>(sizeof(Engine::SceneVertex) * mesh.vertices.size());
 
     // Note: using upload heaps to transfer static data like vert buffers is not
     // recommended. Every time the GPU needs it, the upload heap will be marshalled
@@ -567,7 +567,7 @@ void HelloTextureEngine::LoadAssets()
 
     // Initialize the vertex buffer view.
     m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-    m_vertexBufferView.StrideInBytes = sizeof(GltfVertex);
+    m_vertexBufferView.StrideInBytes = sizeof(Engine::SceneVertex);
     m_vertexBufferView.SizeInBytes = vertexBufferSize;
 
     if (m_usesIndexedDraw)
@@ -634,7 +634,7 @@ void HelloTextureEngine::LoadAssets()
         DBG_PRINT("Texture %d SRV index: %d\n", i, m_texIndex[i]);
     }
 
-    // Instance data is provided by the application via SetInstanceData().
+    // Instance data is provided by the application via SetScene().
     // Pre-allocate the buffer for kMaxInstanceCount entries.
     if (m_scene.instances.empty())
     {

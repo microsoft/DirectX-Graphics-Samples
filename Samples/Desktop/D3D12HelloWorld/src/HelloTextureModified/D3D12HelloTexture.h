@@ -12,7 +12,6 @@
 #pragma once
 #include "DXSampleHelper.h"
 #include "GraphicsDevice.h"
-#include "GltfLoader.h"
 #include "MyDx12Utils.h"
 #include "Renderer/GBuffer.h"
 #include "Renderer/HdrOutput.h"

@@ -1,4 +1,4 @@
-﻿//*********************************************************
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -46,10 +46,11 @@ private:
 
     void LoadSceneAssets();
     void DrawDebugUi(const HelloTextureEngine::DebugUiContext& context);
-    void InitInstanceData(const GltfMeshData& mesh);
+    void InitInstanceData(const Engine::SceneMesh& mesh);
     void UpdateInstanceData(float deltaTime);
 
     GltfMeshData LoadGltfScene() const;
+    static Engine::SceneMesh ConvertToSceneMesh(const GltfMeshData& mesh);
 
     static constexpr UINT kMaxInstanceCount = HelloTextureEngine::kMaxInstanceCount;
     static constexpr float kTranslationSpeed = 0.005f;
@@ -68,7 +69,7 @@ private:
     static XMFLOAT3 InstanceIdToXYZ(int instanceId);
 
     Engine::Scene m_scene;
-    GltfMeshData m_gltfMesh;
+    Engine::SceneMesh m_sceneMesh;
     std::vector<InstanceDataForCPU> m_instanceDataForCPU;
 
     HelloTextureEngine::LightingParams m_lightingParams;
