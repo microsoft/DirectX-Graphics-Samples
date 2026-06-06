@@ -344,7 +344,7 @@ void HelloTextureEngine::LoadAssets()
         // t0 - t3 : GBuffer SRVs, t4 : depth SRV, space 3
         CD3DX12_DESCRIPTOR_RANGE1 rangesGBufferSRV[1];
         rangesGBufferSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-                                 GBuffer::kCount + 1,
+                                 Engine::GBuffer::kCount + 1,
                                  0 /*base*/,
                                  3 /*space*/,
                                  D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
@@ -883,7 +883,7 @@ void HelloTextureEngine::CreateGBuffer()
     {
         m_depthStencilSrv = m_descriptorHeapAllocator.AllocWithHandle();
     }
-    assert(m_depthStencilSrv.Index == m_gbuffer.srvHandles[GBuffer::Albedo].Index + GBuffer::kCount);
+    assert(m_depthStencilSrv.Index == m_gbuffer.srvHandles[Engine::GBuffer::Albedo].Index + Engine::GBuffer::kCount);
 
     if (m_lightPassColorSrv.Index == UINT_MAX)
     {
@@ -957,7 +957,7 @@ void HelloTextureEngine::CreateDepthStencilDescriptors()
     m_graphicsDevice.Device()->CreateDepthStencilView(
         m_depthStencil.Get(), &dsvDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-    assert(m_depthStencilSrv.Index == m_gbuffer.srvHandles[GBuffer::Albedo].Index + GBuffer::kCount);
+    assert(m_depthStencilSrv.Index == m_gbuffer.srvHandles[Engine::GBuffer::Albedo].Index + Engine::GBuffer::kCount);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
@@ -998,15 +998,15 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
     m_renderGraphRuntime.Bindings().RegisterRtv(m_renderGraphRuntime.RegisterRtv(RtvName::BackBuffer),
                                                 [this]() { return GetBackBufferRtv(); });
     m_renderGraphRuntime.Bindings().RegisterRtv(m_renderGraphRuntime.RegisterRtv(RtvName::GBufferAlbedo),
-                                                [this]() { return GetGBufferRTV(GBuffer::Albedo); });
+                                                [this]() { return GetGBufferRTV(Engine::GBuffer::Albedo); });
     m_renderGraphRuntime.Bindings().RegisterRtv(m_renderGraphRuntime.RegisterRtv(RtvName::GBufferNormal),
-                                                [this]() { return GetGBufferRTV(GBuffer::Normal); });
+                                                [this]() { return GetGBufferRTV(Engine::GBuffer::Normal); });
     m_renderGraphRuntime.Bindings().RegisterRtv(m_renderGraphRuntime.RegisterRtv(RtvName::GBufferMaterial),
-                                                [this]() { return GetGBufferRTV(GBuffer::Material); });
+                                                [this]() { return GetGBufferRTV(Engine::GBuffer::Material); });
     m_renderGraphRuntime.Bindings().RegisterRtv(m_renderGraphRuntime.RegisterRtv(RtvName::GBufferMotionVector),
-                                                [this]() { return GetGBufferRTV(GBuffer::MotionVector); });
+                                                [this]() { return GetGBufferRTV(Engine::GBuffer::MotionVector); });
     m_renderGraphRuntime.Bindings().RegisterRtv(m_renderGraphRuntime.RegisterRtv(RtvName::GBufferPBRParams),
-                                                [this]() { return GetGBufferRTV(GBuffer::PBRParams); });
+                                                [this]() { return GetGBufferRTV(Engine::GBuffer::PBRParams); });
     m_renderGraphRuntime.Bindings().RegisterRtv(m_renderGraphRuntime.RegisterRtv(RtvName::LightPass),
                                                 [this]() { return GetLightPassRTV(); });
 
@@ -1027,7 +1027,7 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
         m_renderGraphRuntime.RegisterDescriptor(Desc::LightCbv),
         [this]() { return m_frameResources[m_currentFrameIndex].lightCB.cbv.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::GBufferAlbedoSrv),
-                                                       [this]() { return m_gbuffer.srvHandles[GBuffer::Albedo].gpu; });
+                                                       [this]() { return m_gbuffer.srvHandles[Engine::GBuffer::Albedo].gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(
         m_renderGraphRuntime.RegisterDescriptor(Desc::ToneMapSceneColorSrv),
         [this]() { return m_lightPassColorSrv.gpu; });
@@ -1061,7 +1061,7 @@ void HelloTextureEngine::RegisterResourceResolvers()
                                                       [this]() { return m_depthStencil.Get(); });
     m_renderGraphRuntime.Resources().RegisterResource(kLightPassRenderTargetResourceName,
                                                       [this]() { return m_lightPassRenderTarget.Get(); });
-    for (UINT i = 0; i < GBuffer::kCount; ++i)
+    for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
     {
         m_renderGraphRuntime.Resources().RegisterResource(kGBufferResourceNames[i],
                                                           [this, i]() { return m_gbuffer.resources[i].Get(); });
@@ -1365,7 +1365,7 @@ void HelloTextureEngine::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_S
                                                                                definition.shaders.pixel.data,
                                                                                definition.shaders.pixel.size,
                                                                                m_gbuffer.formats,
-                                                                               GBuffer::kCount);
+                                                                               Engine::GBuffer::kCount);
     const PipelineKey key = PipelineId(definition.name);
     ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.Device(), key, desc));
 }
@@ -1543,7 +1543,7 @@ void HelloTextureEngine::ResetResourceStates()
     m_resourceRegistry.ResetStates({{kBackBufferResourceName, D3D12_RESOURCE_STATE_PRESENT},
                                     {kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE},
                                     {kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}});
-    for (UINT i = 0; i < GBuffer::kCount; ++i)
+    for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
     {
         SetResourceState(kGBufferResourceNames[i], D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
@@ -1618,37 +1618,55 @@ void HelloTextureEngine::BeginFrame()
 
 void HelloTextureEngine::ExecuteClearPass(const RenderPass& pass)
 {
-    RecordClear(pass.renderTargets);
+    Engine::RecordClearPass(m_commandList.Get(), ResolveRenderTargets(pass.renderTargets));
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Clear");
 }
 
 void HelloTextureEngine::ExecuteDepthPrePass(const RenderPass& pass)
 {
-    RecordDepthPrePass();
+    Engine::RecordDepthPrePass(m_commandList.Get(), MakeSceneGeometryDrawDesc());
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Depth Prepass");
 }
 
 void HelloTextureEngine::ExecuteGBufferPass(const RenderPass& pass)
 {
-    RecordGBufferPass(pass.renderTargets);
+    assert(pass.renderTargets.rtvs.size() == Engine::GBuffer::kCount);
+
+    Engine::GBufferPassDesc passDesc = {};
+    passDesc.renderTargets = ResolveRenderTargets(pass.renderTargets);
+    passDesc.clearValues = m_gbuffer.clearValues;
+    passDesc.geometryDraw = MakeSceneGeometryDrawDesc();
+
+    Engine::RecordGBufferPass(m_commandList.Get(), passDesc);
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Pass");
 }
 
 void HelloTextureEngine::ExecuteMainPass(const RenderPass& pass)
 {
-    RecordMainPass(pass.renderTargets);
+    Engine::MainPassDesc passDesc = {};
+    passDesc.renderTargets = ResolveRenderTargets(pass.renderTargets);
+    passDesc.geometryDraw = MakeSceneGeometryDrawDesc();
+
+    Engine::RecordMainPass(m_commandList.Get(), passDesc);
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Main Pass");
 }
 
 void HelloTextureEngine::ExecuteLightingPass(const RenderPass& pass)
 {
-    RecordLightPass();
+    Engine::RecordLightingPass(m_commandList.Get());
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Lighting Pass");
 }
 
 void HelloTextureEngine::ExecuteLightingDebugGradientPass(const RenderPass& pass)
 {
-    RecordLightPassDebugGradient();
+    Engine::RecordLightingDebugGradientPass(m_commandList.Get());
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "LightPassDebugGradient Pass");
 }
 
 void HelloTextureEngine::ExecuteToneMapPass(const RenderPass& pass)
 {
-    RecordToneMapPass();
+    Engine::RecordToneMapPass(m_commandList.Get());
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ToneMap Pass");
 }
 
 void HelloTextureEngine::ExecuteDebugDumpPass(const RenderPass& pass)
@@ -1658,134 +1676,13 @@ void HelloTextureEngine::ExecuteDebugDumpPass(const RenderPass& pass)
 
 void HelloTextureEngine::ExecuteGBufferDebugPass(const RenderPass& pass)
 {
-    RecordGBufferDebugPass();
+    Engine::RecordGBufferDebugPass(m_commandList.Get());
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Debug Pass");
 }
 
 void HelloTextureEngine::ExecuteImGuiPass(const RenderPass& pass)
 {
     RecordImGuiPass();
-}
-
-void HelloTextureEngine::RecordClear(const PassRenderTargetBinding& renderTargets)
-{
-    PIXBeginEvent(m_commandList.Get(), 0, L"ClearPrepass");
-    assert(!renderTargets.rtvs.empty());
-    assert(renderTargets.dsv.has_value());
-    assert(renderTargets.clearColor.has_value());
-
-    for (RtvKey rtv : renderTargets.rtvs)
-    {
-        m_commandList->ClearRenderTargetView(
-            m_renderGraphRuntime.Bindings().ResolveRtv(rtv), renderTargets.clearColor->data(), 0, nullptr);
-    }
-    m_commandList->ClearDepthStencilView(m_renderGraphRuntime.Bindings().ResolveDsv(renderTargets.dsv.value()),
-                                         D3D12_CLEAR_FLAG_DEPTH,
-                                         1.0f,
-                                         0,
-                                         0,
-                                         nullptr);
-
-    PIXEndEvent(m_commandList.Get());
-    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Clear");
-}
-
-void HelloTextureEngine::DrawInstanceWrapper(UINT instanceCount)
-{
-    if (m_usesIndexedDraw)
-    {
-        m_commandList->IASetIndexBuffer(&m_indexBufferView);
-        m_commandList->DrawIndexedInstanced(m_indexCountPerInstance, instanceCount, 0, 0, 0);
-    }
-    else
-    {
-        m_commandList->DrawInstanced(m_vertexCountPerInstance, instanceCount, 0, 0);
-    }
-}
-
-void HelloTextureEngine::DrawFullscreenTriangle()
-{
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->DrawInstanced(3, 1, 0, 0);
-}
-
-//
-// Depth Pre-pass
-//
-void HelloTextureEngine::RecordDepthPrePass()
-{
-    PIXBeginEvent(m_commandList.Get(), 0, L"DepthPrepass");
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    DrawInstanceWrapper(GetVisibleCubeCount());
-
-    PIXEndEvent(m_commandList.Get());
-
-    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Depth Prepass");
-}
-
-void HelloTextureEngine::RecordGBufferPass(const PassRenderTargetBinding& renderTargets)
-{
-    PIXBeginEvent(m_commandList.Get(), 0, L"GBufferPass");
-
-    for (UINT i = 0; i < static_cast<UINT>(renderTargets.rtvs.size()); ++i)
-    {
-        m_commandList->ClearRenderTargetView(m_renderGraphRuntime.Bindings().ResolveRtv(renderTargets.rtvs[i]),
-                                             m_gbuffer.clearValues[i].Color,
-                                             0,
-                                             nullptr);
-    }
-
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    DrawInstanceWrapper(GetVisibleCubeCount());
-
-    PIXEndEvent(m_commandList.Get());
-
-    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Pass");
-}
-
-void HelloTextureEngine::RecordGBufferDebugPass()
-{
-    PIXBeginEvent(m_commandList.Get(), 0, L"GBufferDebugPass");
-
-    DrawFullscreenTriangle();
-
-    PIXEndEvent(m_commandList.Get());
-
-    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Debug Pass");
-}
-
-void HelloTextureEngine::RecordLightPassDebugGradient()
-{
-    PIXBeginEvent(m_commandList.Get(), 0, L"RecordLightPassDebugGradient");
-
-    DrawFullscreenTriangle();
-
-    PIXEndEvent(m_commandList.Get());
-
-    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "LightPassDebugGradient Pass");
-}
-
-void HelloTextureEngine::RecordLightPass()
-{
-    PIXBeginEvent(m_commandList.Get(), 0, L"LightPass");
-
-    DrawFullscreenTriangle();
-
-    PIXEndEvent(m_commandList.Get());
-
-    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Lighting Pass");
-}
-
-void HelloTextureEngine::RecordToneMapPass()
-{
-    PIXBeginEvent(m_commandList.Get(), 0, L"ToneMapPass");
-
-    DrawFullscreenTriangle();
-
-    PIXEndEvent(m_commandList.Get());
-
-    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ToneMap Pass");
 }
 
 void HelloTextureEngine::CreateDebugDumpReadback(ID3D12Resource* source,
@@ -1984,28 +1881,34 @@ void HelloTextureEngine::PrintDebugDump()
     m_backBufferDebugDumpReadback->Unmap(0, &writtenRange);
 }
 
-//
-// Main Pass
-//
-void HelloTextureEngine::RecordMainPass(const PassRenderTargetBinding& renderTargets)
+auto HelloTextureEngine::MakeSceneGeometryDrawDesc() const -> Engine::SceneGeometryDrawDesc
 {
-    PIXBeginEvent(m_commandList.Get(), 0, L"MainPass");
-    if (renderTargets.clearColor)
+    return {m_vertexBufferView,
+            m_indexBufferView,
+            m_usesIndexedDraw,
+            m_vertexCountPerInstance,
+            m_indexCountPerInstance,
+            GetVisibleCubeCount()};
+}
+
+auto HelloTextureEngine::ResolveRenderTargets(const PassRenderTargetBinding& renderTargets) const
+    -> Engine::ResolvedRenderTargets
+{
+    Engine::ResolvedRenderTargets resolvedRenderTargets = {};
+    resolvedRenderTargets.rtvs.reserve(renderTargets.rtvs.size());
+
+    for (RtvKey rtv : renderTargets.rtvs)
     {
-        for (RtvKey rtv : renderTargets.rtvs)
-        {
-            m_commandList->ClearRenderTargetView(
-                m_renderGraphRuntime.Bindings().ResolveRtv(rtv), renderTargets.clearColor->data(), 0, nullptr);
-        }
+        resolvedRenderTargets.rtvs.push_back(m_renderGraphRuntime.Bindings().ResolveRtv(rtv));
     }
 
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    DrawInstanceWrapper(GetVisibleCubeCount());
+    if (renderTargets.dsv)
+    {
+        resolvedRenderTargets.dsv = m_renderGraphRuntime.Bindings().ResolveDsv(renderTargets.dsv.value());
+    }
 
-    PIXEndEvent(m_commandList.Get());
-
-    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Main Pass");
+    resolvedRenderTargets.clearColor = renderTargets.clearColor ? renderTargets.clearColor->data() : nullptr;
+    return resolvedRenderTargets;
 }
 
 void HelloTextureEngine::RecordImGuiPass()
@@ -2029,7 +1932,7 @@ void HelloTextureEngine::EndFrame()
 {
     m_gpuWorkMeter.EndGpu(m_commandList.Get());
 
-    for (UINT i = 0; i < GBuffer::kCount; ++i)
+    for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
     {
         TransitionResource({kGBufferResourceNames[i], D3D12_RESOURCE_STATE_RENDER_TARGET});
     }

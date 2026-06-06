@@ -1,7 +1,12 @@
 #pragma once
 
 #include "../DXSampleHelper.h"
+#include "ResolvedRenderTargets.h"
+#include "SceneGeometryPass.h"
 #include "SimpleDescriptorHeapAllocator.h"
+
+namespace Engine
+{
 
 struct GBuffer
 {
@@ -45,3 +50,15 @@ struct GBuffer
     void CreateSRVs(ID3D12Device* device, SimpleDescriptorHeapAllocator& descriptorHeapAllocator);
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTV(ID3D12DescriptorHeap* rtvHeap, UINT rtvDescriptorSize, UINT index) const;
 };
+
+struct GBufferPassDesc
+{
+    ResolvedRenderTargets renderTargets;
+    const D3D12_CLEAR_VALUE* clearValues = nullptr;
+    SceneGeometryDrawDesc geometryDraw = {};
+};
+
+void RecordGBufferPass(ID3D12GraphicsCommandList* commandList, const GBufferPassDesc& passDesc);
+void RecordGBufferDebugPass(ID3D12GraphicsCommandList* commandList);
+
+} // namespace Engine

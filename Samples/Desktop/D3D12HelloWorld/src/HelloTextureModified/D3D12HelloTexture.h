@@ -13,13 +13,16 @@
 #include "DXSampleHelper.h"
 #include "GraphicsDevice.h"
 #include "MyDx12Utils.h"
+#include "Renderer/ClearPass.h"
 #include "Renderer/GBuffer.h"
 #include "Renderer/HdrOutput.h"
+#include "Renderer/LightingPass.h"
 #include "Renderer/Material.h"
 #include "Renderer/MaterialBuffer.h"
 #include "Renderer/RenderPassExecution.h"
 #include "Renderer/RenderPassGraph.h"
 #include "Renderer/RenderPassResources.h"
+#include "Renderer/SceneGeometryPass.h"
 #include "Renderer/SimpleDescriptorHeapAllocator.h"
 #include "Renderer/ToneMap.h"
 #include "Scene/Scene.h"
@@ -230,7 +233,7 @@ private:
     // material buffer, constant buffer, light constant buffer.
     static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
                                                      kConstantBufferCount + kLightConstantBufferCount +
-                                                     GBuffer::kCount + 2;
+                                                     Engine::GBuffer::kCount + 2;
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
 
@@ -275,8 +278,8 @@ private:
 
     static constexpr UINT kSwapChainRTVCount = kFrameCount;
     static constexpr UINT kGBufferRTVBaseIndex = kSwapChainRTVCount;
-    static constexpr UINT kLightPassRTVIndex = kGBufferRTVBaseIndex + GBuffer::kCount;
-    static constexpr UINT kRTVDescriptorCount = kFrameCount + GBuffer::kCount + 1;
+    static constexpr UINT kLightPassRTVIndex = kGBufferRTVBaseIndex + Engine::GBuffer::kCount;
+    static constexpr UINT kRTVDescriptorCount = kFrameCount + Engine::GBuffer::kCount + 1;
 
     struct DebugViewSettings
     {
@@ -303,7 +306,7 @@ private:
     std::wstring m_assetsPath;
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
-    GBuffer m_gbuffer;
+    Engine::GBuffer m_gbuffer;
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12Resource> m_lightPassRenderTarget;
@@ -324,7 +327,7 @@ private:
 
     RenderingPath m_renderingPath = RenderingPath::Deferred;
     bool m_lightingPassDebugGradientEnabled = false;
-    ToneMapPass m_toneMapPass;
+    Engine::ToneMapPass m_toneMapPass;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
@@ -391,7 +394,7 @@ private:
     static constexpr const char* kBackBufferResourceName = "BackBuffer";
     static constexpr const char* kDepthStencilResourceName = "DepthStencil";
     static constexpr const char* kLightPassRenderTargetResourceName = "LightPass.RenderTarget";
-    static constexpr const char* kGBufferResourceNames[GBuffer::kCount] = {
+    static constexpr const char* kGBufferResourceNames[Engine::GBuffer::kCount] = {
         "GBuffer.Albedo", "GBuffer.Normal", "GBuffer.Material", "GBuffer.MotionVector", "GBuffer.PBRParams"};
 
     enum RootParameterIndex
@@ -587,15 +590,7 @@ private:
     void ExecuteDebugDumpPass(const RenderPass& pass);
     void ExecuteGBufferDebugPass(const RenderPass& pass);
     void ExecuteImGuiPass(const RenderPass& pass);
-    void RecordClear(const PassRenderTargetBinding& renderTargets);
-    void RecordDepthPrePass();
-    void RecordGBufferPass(const PassRenderTargetBinding& renderTargets);
-    void RecordGBufferDebugPass();
-    void RecordLightPass();
-    void RecordLightPassDebugGradient();
-    void RecordToneMapPass();
     void RecordDebugDumpPass();
-    void RecordMainPass(const PassRenderTargetBinding& renderTargets);
     void RecordImGuiPass();
     void EndFrame();
     void CreateDebugDumpReadback(ID3D12Resource* source,
@@ -603,8 +598,8 @@ private:
                                  D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout);
     void PrintDebugDump();
 
-    void DrawInstanceWrapper(UINT instanceCount);
-    void DrawFullscreenTriangle();
+    Engine::SceneGeometryDrawDesc MakeSceneGeometryDrawDesc() const;
+    Engine::ResolvedRenderTargets ResolveRenderTargets(const PassRenderTargetBinding& renderTargets) const;
 
     void ApplyResize(UINT width, UINT height);
 

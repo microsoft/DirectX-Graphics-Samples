@@ -5,6 +5,9 @@
 
 #include <algorithm>
 
+namespace Engine
+{
+
 static constexpr UINT kDefaultToneMapOperator = 0; // 0: None, 1: Reinhard, 2: ACES
 static constexpr float kDefaultExposure = 1.0f;
 static constexpr float kDefaultPaperWhiteNits = 300.0f;
@@ -46,3 +49,7 @@ struct ToneMapPass
 
     ToneMapSettings::ShaderConstants MakeShaderConstants(const HdrOutputSettings& hdrOutputSettings) const;
 };
+
+void RecordToneMapPass(ID3D12GraphicsCommandList* commandList);
+
+} // namespace Engine

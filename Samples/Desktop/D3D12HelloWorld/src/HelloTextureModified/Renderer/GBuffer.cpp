@@ -2,6 +2,13 @@
 
 #include "GBuffer.h"
 
+#include "FullscreenTriangle.h"
+
+#include <pix3.h>
+
+namespace Engine
+{
+
 void GBuffer::CreateResources(ID3D12Device* device, UINT width, UINT height)
 {
     for (UINT i = 0; i < GBuffer::kCount; ++i)
@@ -68,3 +75,30 @@ D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::GetRTV(ID3D12DescriptorHeap* rtvHeap, UINT 
     h.Offset(rtvIndex[index], rtvDescriptorSize);
     return h;
 }
+
+void RecordGBufferPass(ID3D12GraphicsCommandList* commandList, const GBufferPassDesc& passDesc)
+{
+    PIXBeginEvent(commandList, 0, L"GBufferPass");
+    assert(passDesc.renderTargets.rtvs.size() == GBuffer::kCount);
+    assert(passDesc.clearValues != nullptr);
+
+    for (UINT i = 0; i < GBuffer::kCount; ++i)
+    {
+        commandList->ClearRenderTargetView(passDesc.renderTargets.rtvs[i], passDesc.clearValues[i].Color, 0, nullptr);
+    }
+
+    RecordSceneGeometryDraw(commandList, passDesc.geometryDraw);
+
+    PIXEndEvent(commandList);
+}
+
+void RecordGBufferDebugPass(ID3D12GraphicsCommandList* commandList)
+{
+    PIXBeginEvent(commandList, 0, L"GBufferDebugPass");
+
+    DrawFullscreenTriangle(commandList);
+
+    PIXEndEvent(commandList);
+}
+
+} // namespace Engine

@@ -1,4 +1,4 @@
-﻿//*********************************************************
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -83,11 +83,11 @@ auto HelloTextureEngine::MakeResourceUsages(std::initializer_list<ResourceUsage>
 auto HelloTextureEngine::MakeGBufferReadUsages() const -> ResourceUsages
 {
     return MakeResourceUsages(
-        {{kGBufferResourceNames[GBuffer::Albedo], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-         {kGBufferResourceNames[GBuffer::Normal], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-         {kGBufferResourceNames[GBuffer::Material], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-         {kGBufferResourceNames[GBuffer::MotionVector], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
-         {kGBufferResourceNames[GBuffer::PBRParams], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+        {{kGBufferResourceNames[Engine::GBuffer::Albedo], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[Engine::GBuffer::Normal], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[Engine::GBuffer::Material], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[Engine::GBuffer::MotionVector], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[Engine::GBuffer::PBRParams], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
          {kDepthStencilResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}});
 }
 
@@ -133,11 +133,11 @@ auto HelloTextureEngine::MakeGBufferPass() -> RenderPass
         .CreatePass(L"GBufferPass")
         .Pipeline(Pipe::GBuffer)
         .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
-        .Writes({{kGBufferResourceNames[GBuffer::Albedo], D3D12_RESOURCE_STATE_RENDER_TARGET},
-                 {kGBufferResourceNames[GBuffer::Normal], D3D12_RESOURCE_STATE_RENDER_TARGET},
-                 {kGBufferResourceNames[GBuffer::Material], D3D12_RESOURCE_STATE_RENDER_TARGET},
-                 {kGBufferResourceNames[GBuffer::MotionVector], D3D12_RESOURCE_STATE_RENDER_TARGET},
-                 {kGBufferResourceNames[GBuffer::PBRParams], D3D12_RESOURCE_STATE_RENDER_TARGET}})
+        .Writes({{kGBufferResourceNames[Engine::GBuffer::Albedo], D3D12_RESOURCE_STATE_RENDER_TARGET},
+                 {kGBufferResourceNames[Engine::GBuffer::Normal], D3D12_RESOURCE_STATE_RENDER_TARGET},
+                 {kGBufferResourceNames[Engine::GBuffer::Material], D3D12_RESOURCE_STATE_RENDER_TARGET},
+                 {kGBufferResourceNames[Engine::GBuffer::MotionVector], D3D12_RESOURCE_STATE_RENDER_TARGET},
+                 {kGBufferResourceNames[Engine::GBuffer::PBRParams], D3D12_RESOURCE_STATE_RENDER_TARGET}})
         .Descriptor(RootParam_TextureTable, Desc::TextureTable)
         .Descriptor(RootParam_InstanceSrv, Desc::InstanceBufferSrv)
         .Descriptor(RootParam_MaterialSrv, Desc::MaterialBufferSrv)

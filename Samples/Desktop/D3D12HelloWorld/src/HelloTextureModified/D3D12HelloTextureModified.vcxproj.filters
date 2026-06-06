@@ -51,10 +51,19 @@
     <ClInclude Include="GraphicsDevice.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\ClearPass.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\FullscreenTriangle.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer\GBuffer.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Renderer\HdrOutput.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\LightingPass.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Renderer\Material.h">
@@ -73,6 +82,12 @@
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Renderer\RenderPassResources.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\ResolvedRenderTargets.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\SceneGeometryPass.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Renderer\SimpleDescriptorHeapAllocator.h">
@@ -122,13 +137,25 @@
     <ClCompile Include="GraphicsDevice.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Renderer\ClearPass.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\FullscreenTriangle.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="Renderer\GBuffer.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\HdrOutput.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="Renderer\LightingPass.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="Renderer\MaterialBuffer.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\SceneGeometryPass.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\ToneMap.cpp">
