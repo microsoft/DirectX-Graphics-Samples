@@ -1,4 +1,4 @@
-﻿//*********************************************************
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -14,10 +14,11 @@
 #include "GraphicsDevice.h"
 #include "GltfLoader.h"
 #include "MyDx12Utils.h"
-#include "RenderPassExecution.h"
-#include "RenderPassGraph.h"
-#include "RenderPassResources.h"
-#include "SimpleDescriptorHeapAllocator.h"
+#include "Renderer/HdrOutput.h"
+#include "Renderer/RenderPassExecution.h"
+#include "Renderer/RenderPassGraph.h"
+#include "Renderer/RenderPassResources.h"
+#include "Renderer/SimpleDescriptorHeapAllocator.h"
 #include "WorkMeter.h"
 #include <algorithm>
 #include <array>
@@ -227,18 +228,10 @@ private:
     static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
 
     static constexpr DXGI_FORMAT kBackBufferFormat = kSwapChainFormat;
-    static constexpr DXGI_COLOR_SPACE_TYPE kHdr10ColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
-    static constexpr DXGI_COLOR_SPACE_TYPE kSdrColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
     static constexpr UINT kDefaultToneMapOperator = 0; // 0: None, 1: Reinhard, 2: ACES
-    static constexpr UINT kHdr10TransferFunction = 1;  // 0: Linear, 1: ST.2084 PQ, 2: HLG
-    static constexpr UINT kSdrTransferFunction = 3;    // 0: Linear, 1: ST.2084 PQ, 2: HLG, 3: SDR Rec.709
     static constexpr float kDefaultExposure = 1.0f;
     static constexpr float kDefaultPaperWhiteNits = 300.0f;
     static constexpr float kDefaultMaxDisplayNits = 1000.0f;
-    static constexpr UINT kHdr10MaxMasteringLuminance = 1000;
-    static constexpr UINT kHdr10MinMasteringLuminance = 10; // 0.001 nits in 0.0001 nit units.
-    static constexpr UINT16 kHdr10MaxContentLightLevel = 1000;
-    static constexpr UINT16 kHdr10MaxFrameAverageLightLevel = 400;
 
     static constexpr UINT kInstanceBufferCount = kFrameCount;
     static constexpr UINT kMaterialBufferCount = 1;
@@ -288,34 +281,6 @@ private:
     };
 
     LightingConstants MakeLightingConstants() const;
-
-    struct HdrOutputSettings
-    {
-        DXGI_COLOR_SPACE_TYPE currentSwapChainColorSpace = DXGI_COLOR_SPACE_CUSTOM;
-        bool hdr10Enabled = false;
-
-        DXGI_COLOR_SPACE_TYPE TargetColorSpace() const
-        {
-            return hdr10Enabled ? kHdr10ColorSpace : kSdrColorSpace;
-        }
-        UINT TransferFunction() const
-        {
-            return hdr10Enabled ? kHdr10TransferFunction : kSdrTransferFunction;
-        }
-    };
-
-    struct HdrOutputPolicy
-    {
-        HdrOutputSettings settings;
-
-        // HDR output is evaluated here because it bridges swap chain state and tone map constants.
-        bool CheckSwapChainColorSpaceSupport(IDXGISwapChain3* swapChain, DXGI_COLOR_SPACE_TYPE colorSpace) const;
-        bool CheckCurrentOutputHdr10Support(IDXGIFactory4* dxgiFactory, HWND hwnd) const;
-        void ApplySwapChainColorSpace(IDXGISwapChain3* swapChain, DXGI_COLOR_SPACE_TYPE colorSpace);
-        void ApplyHdr10Metadata(IDXGISwapChain3* swapChain, bool enabled) const;
-        void Update(IDXGIFactory4* dxgiFactory, IDXGISwapChain3* swapChain, HWND hwnd);
-        void ReapplyColorSpace(IDXGISwapChain3* swapChain);
-    };
 
     struct ToneMapSettings
     {

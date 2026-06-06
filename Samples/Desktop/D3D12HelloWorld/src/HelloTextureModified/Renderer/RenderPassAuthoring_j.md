@@ -1,4 +1,4 @@
-# Render Pass Authoring Guide 日本語版
+﻿# Render Pass Authoring Guide 日本語版
 
 このメモは、`D3D12HelloTexture` に render pass を追加、または変更するときの作業手順を説明します。
 現在の pass graph は data-first の設計です。`RenderPass` は、リソース、バインディング、出力先、GPU pipeline の選択、そして実際に記録する operation をまとめて記述します。

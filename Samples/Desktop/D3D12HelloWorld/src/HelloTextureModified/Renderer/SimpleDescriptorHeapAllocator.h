@@ -1,4 +1,9 @@
-#pragma once
+﻿#pragma once
+
+#include "../DXSampleHelper.h"
+
+#include <cassert>
+#include <vector>
 
 struct DescriptorHeapHandle
 {

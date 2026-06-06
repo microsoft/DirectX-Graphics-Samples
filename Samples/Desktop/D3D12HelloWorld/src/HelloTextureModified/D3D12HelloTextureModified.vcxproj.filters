@@ -10,6 +10,9 @@
     <Filter Include="Assets\Shaders">
       <UniqueIdentifier>{8b0cb0c9-e0d8-4107-91c8-11654fac88e7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Renderer">
+      <UniqueIdentifier>{11ba6787-e9dd-4150-8840-a76a6871e786}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CubeMesh.h">
@@ -27,16 +30,10 @@
     <ClInclude Include="MyDx12Utils.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="RenderPassGraph.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="stdafx.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="Win32Application.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SimpleDescriptorHeapAllocator.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SampleApp.h">
@@ -50,6 +47,24 @@
     </ClInclude>
     <ClInclude Include="GraphicsDevice.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\HdrOutput.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\RenderPassExecution.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\RenderPassGraph.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\RenderPassKeys.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\RenderPassResources.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\SimpleDescriptorHeapAllocator.h">
+      <Filter>Source Files\Renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -88,6 +103,9 @@
     </ClCompile>
     <ClCompile Include="GraphicsDevice.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\HdrOutput.cpp">
+      <Filter>Source Files\Renderer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -1,4 +1,4 @@
-# Render Pass Authoring Guide
+﻿# Render Pass Authoring Guide
 
 This note describes how to add or modify a render pass in `D3D12HelloTexture`.
 The pass graph is intentionally data-first: a `RenderPass` describes resources, bindings, output targets, GPU pipeline selection, and the operation to record.
