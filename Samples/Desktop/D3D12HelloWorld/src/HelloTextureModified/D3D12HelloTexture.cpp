@@ -652,10 +652,10 @@ void HelloTextureEngine::LoadAssets()
         return fallbackIndex;
     };
 
-    for (int i = 0; i < kMaterialCount; i++)
+    for (int i = 0; i < Engine::kMaterialCount; i++)
     {
         const UINT fallbackTexIndex = m_texIndex[i % kTextureCount];
-        Material m = {};
+        Engine::Material m = {};
         m.albedoTexIndex = fallbackTexIndex;
         m.metallicRoughnessTexIndex = fallbackTexIndex;
         m.emissiveTexIndex = fallbackTexIndex;
@@ -712,26 +712,7 @@ void HelloTextureEngine::LoadAssets()
         m_frameResources[n].instanceBuffer->Unmap(0, nullptr);
     }
 
-    // Create SRV for material buffer (StructuredBuffer)
-    {
-        const UINT materialBufferSize = sizeof(Material) * kMaterialCount;
-
-        MyDx12Util::CreateUploadBuffer(m_graphicsDevice.Device(), materialBufferSize, m_materialBuffer);
-
-        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srvDesc.Buffer.NumElements = kMaterialCount;
-        srvDesc.Buffer.StructureByteStride = sizeof(Material);
-
-        m_materialBufferSrv = m_descriptorHeapAllocator.AllocWithHandle();
-        m_graphicsDevice.Device()->CreateShaderResourceView(m_materialBuffer.Get(), &srvDesc, m_materialBufferSrv.cpu);
-        Material* pMaterialDataBegin = nullptr;
-        m_materialBuffer->Map(0, nullptr, reinterpret_cast<void**>(&pMaterialDataBegin));
-        memcpy(pMaterialDataBegin, m_materialData.data(), materialBufferSize);
-        m_materialBuffer->Unmap(0, nullptr);
-    }
+    m_materialBuffer.Create(m_graphicsDevice.Device(), m_descriptorHeapAllocator, m_materialData);
 
     UpdateCameraConstantBuffer();
     m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
@@ -1038,7 +1019,7 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
         m_renderGraphRuntime.RegisterDescriptor(Desc::InstanceBufferSrv),
         [this]() { return m_frameResources[m_currentFrameIndex].instanceBufferSrv.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::MaterialBufferSrv),
-                                                       [this]() { return m_materialBufferSrv.gpu; });
+                                                       [this]() { return m_materialBuffer.Srv().gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(
         m_renderGraphRuntime.RegisterDescriptor(Desc::CameraCbv),
         [this]() { return m_frameResources[m_currentFrameIndex].cameraCB.cbv.gpu; });

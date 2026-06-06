@@ -16,6 +16,7 @@
 #include "Renderer/GBuffer.h"
 #include "Renderer/HdrOutput.h"
 #include "Renderer/Material.h"
+#include "Renderer/MaterialBuffer.h"
 #include "Renderer/RenderPassExecution.h"
 #include "Renderer/RenderPassGraph.h"
 #include "Renderer/RenderPassResources.h"
@@ -341,7 +342,7 @@ private:
     UINT m_texIndex[kTextureCount] = {};
 
     Engine::Scene m_scene;
-    std::vector<Material> m_materialData;
+    std::vector<Engine::Material> m_materialData;
     LightingParams m_lightingParams;
 
     ComPtr<ID3D12Resource> m_vertexBuffer;
@@ -361,8 +362,7 @@ private:
 
     int m_displayInstanceCount = static_cast<int>(kMaxInstanceCount);
 
-    ComPtr<ID3D12Resource> m_materialBuffer;
-    DescriptorHeapHandle m_materialBufferSrv;
+    Engine::MaterialBuffer m_materialBuffer;
 
     static constexpr float kCameraNearZ = 0.1f;
     static constexpr float kCameraFarZ = 10000.0f;

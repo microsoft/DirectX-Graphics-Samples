@@ -60,6 +60,9 @@
     <ClInclude Include="Renderer\Material.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\MaterialBuffer.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer\RenderPassExecution.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
@@ -123,6 +126,9 @@
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\HdrOutput.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\MaterialBuffer.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\ToneMap.cpp">

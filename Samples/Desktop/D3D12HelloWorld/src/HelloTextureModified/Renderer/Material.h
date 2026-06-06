@@ -2,6 +2,9 @@
 
 #include "../DXSampleHelper.h"
 
+namespace Engine
+{
+
 static constexpr UINT kMaterialCount = 256;
 
 struct Material
@@ -16,3 +19,5 @@ struct Material
     float occlusionStrength;
     UINT flags;
 };
+
+} // namespace Engine
