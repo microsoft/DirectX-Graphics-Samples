@@ -105,8 +105,8 @@ void HelloTextureEngine::Initialize(const EngineInitDesc& desc)
     assert(m_graphicsDevice.Device() != nullptr);
     assert(m_graphicsDevice.HasSwapChain());
 
-    m_width = desc.width;
-    m_height = desc.height;
+    m_width = desc.initialWidth;
+    m_height = desc.initialHeight;
     m_aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
     m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
     m_scissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height));
@@ -413,7 +413,7 @@ void HelloTextureEngine::HdrOutputPolicy::ReapplyColorSpace(IDXGISwapChain3* swa
 
 void HelloTextureEngine::UpdateHdr10DisplayMode()
 {
-    m_graphicsDevice.RefreshDxgiFactoryIfNeeded();
+    m_graphicsDevice.EnsureCurrentDxgiFactory();
     m_hdrOutputPolicy.Update(m_graphicsDevice.DxgiFactory(), m_graphicsDevice.SwapChain(), m_graphicsDevice.Hwnd());
 }
 
@@ -1439,7 +1439,7 @@ void HelloTextureEngine::RunFrame()
 {
     if (m_pendingResize)
     {
-        Resize(m_pendingResizeWidth, m_pendingResizeHeight);
+        ApplyResize(m_pendingResizeWidth, m_pendingResizeHeight);
         m_pendingResize = false;
     }
 
@@ -1458,9 +1458,9 @@ void HelloTextureEngine::HandleMouseUp(UINT8, int, int) {}
 
 void HelloTextureEngine::HandleMouseMove(int, int) {}
 
-void HelloTextureEngine::Resize(UINT width, UINT height)
+void HelloTextureEngine::ApplyResize(UINT width, UINT height)
 {
-    DBG_PRINT("HelloTextureEngine::Resize() %d %d\n", width, height);
+    DBG_PRINT("HelloTextureEngine::ApplyResize() %d %d\n", width, height);
     m_width = width;
     m_height = height;
 

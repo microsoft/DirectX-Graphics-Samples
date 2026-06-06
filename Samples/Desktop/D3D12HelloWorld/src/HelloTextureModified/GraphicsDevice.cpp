@@ -104,7 +104,7 @@ ID3D12CommandQueue* GraphicsDevice::CommandQueue() const
     return m_commandQueue.Get();
 }
 
-void GraphicsDevice::RefreshDxgiFactoryIfNeeded()
+void GraphicsDevice::EnsureCurrentDxgiFactory()
 {
     if (m_dxgiFactory != nullptr && m_dxgiFactory->IsCurrent())
     {
@@ -132,7 +132,7 @@ void GraphicsDevice::SetSize(UINT newWidth, UINT newHeight)
 void GraphicsDevice::Initialize(const GraphicsDeviceDesc& desc)
 {
     SetWindowHandle(desc.hwnd);
-    SetSize(desc.width, desc.height);
+    SetSize(desc.swapChainWidth, desc.swapChainHeight);
 
     UINT dxgiFactoryFlags = 0;
 

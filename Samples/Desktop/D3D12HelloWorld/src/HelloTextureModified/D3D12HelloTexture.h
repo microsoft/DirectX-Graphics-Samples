@@ -47,8 +47,8 @@ using PassConstantsKey = Engine::PassConstantsKey;
 
 struct EngineInitDesc
 {
-    UINT width = 0;
-    UINT height = 0;
+    UINT initialWidth = 0;
+    UINT initialHeight = 0;
 };
 
 class HelloTextureEngine
@@ -308,6 +308,7 @@ private:
     {
         HdrOutputSettings settings;
 
+        // HDR output is evaluated here because it bridges swap chain state and tone map constants.
         bool CheckSwapChainColorSpaceSupport(IDXGISwapChain3* swapChain, DXGI_COLOR_SPACE_TYPE colorSpace) const;
         bool CheckCurrentOutputHdr10Support(IDXGIFactory4* dxgiFactory, HWND hwnd) const;
         void ApplySwapChainColorSpace(IDXGISwapChain3* swapChain, DXGI_COLOR_SPACE_TYPE colorSpace);
@@ -746,7 +747,7 @@ private:
     void DrawInstanceWrapper(UINT instanceCount);
     void DrawFullscreenTriangle();
 
-    void Resize(UINT width, UINT height);
+    void ApplyResize(UINT width, UINT height);
 
     void WaitForGpu();
     UINT64 MoveToNextFrame();

@@ -18,8 +18,8 @@ using Microsoft::WRL::ComPtr;
 struct GraphicsDeviceDesc
 {
     HWND hwnd = nullptr;
-    UINT width = 0;
-    UINT height = 0;
+    UINT swapChainWidth = 0;
+    UINT swapChainHeight = 0;
     UINT bufferCount = 0;
     DXGI_FORMAT swapChainFormat = DXGI_FORMAT_UNKNOWN;
     bool useWarpDevice = false;
@@ -35,7 +35,7 @@ struct GraphicsDevice
     IDXGIFactory4* DxgiFactory() const;
     IDXGISwapChain3* SwapChain() const;
     ID3D12CommandQueue* CommandQueue() const;
-    void RefreshDxgiFactoryIfNeeded();
+    void EnsureCurrentDxgiFactory();
     bool HasSwapChain() const;
     UINT CurrentBackBufferIndex() const;
     void GetBackBuffer(UINT index, REFIID riid, void** resource) const;

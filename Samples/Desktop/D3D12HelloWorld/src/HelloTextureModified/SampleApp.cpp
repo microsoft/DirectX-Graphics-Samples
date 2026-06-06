@@ -41,16 +41,16 @@ void SampleApp::OnInit()
 
     GraphicsDeviceDesc deviceDesc = {};
     deviceDesc.hwnd = Win32Application::GetHwnd();
-    deviceDesc.width = GetWidth();
-    deviceDesc.height = GetHeight();
+    deviceDesc.swapChainWidth = GetWidth();
+    deviceDesc.swapChainHeight = GetHeight();
     deviceDesc.bufferCount = HelloTextureEngine::kSwapChainBufferCount;
     deviceDesc.swapChainFormat = HelloTextureEngine::kSwapChainFormat;
     deviceDesc.useWarpDevice = m_useWarpDevice;
     m_graphicsDevice.Initialize(deviceDesc);
 
     EngineInitDesc initDesc = {};
-    initDesc.width = GetWidth();
-    initDesc.height = GetHeight();
+    initDesc.initialWidth = GetWidth();
+    initDesc.initialHeight = GetHeight();
     m_engine.Initialize(initDesc);
 }
 
