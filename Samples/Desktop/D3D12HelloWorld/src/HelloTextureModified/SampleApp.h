@@ -14,6 +14,7 @@
 #include "D3D12HelloTexture.h"
 #include "DXSample.h"
 #include <chrono>
+#include "Scene/Scene.h"
 
 class SampleApp : public DXSample
 {
@@ -66,18 +67,18 @@ private:
 
     static XMFLOAT3 InstanceIdToXYZ(int instanceId);
 
-    GltfMeshData m_mesh;
+    Engine::Scene m_scene;
+    GltfMeshData m_gltfMesh;
+    std::vector<InstanceDataForCPU> m_instanceDataForCPU;
+
     HelloTextureEngine::LightingParams m_lightingParams;
     HelloTextureEngine::RenderingPath m_renderingPath = HelloTextureEngine::RenderingPath::Deferred;
     bool m_lightingPassDebugGradient = false;
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
-    HelloTextureEngine::CameraState m_camera;
     HelloTextureEngine::ToneMapParams m_toneMapParams;
     HelloTextureEngine::RenderViewMode m_renderViewMode = HelloTextureEngine::RenderViewMode::LightPass;
     bool m_requestHdrDump = false;
 
-    std::vector<HelloTextureEngine::InstanceData> m_instanceData;
-    std::vector<InstanceDataForCPU> m_instanceDataForCPU;
     int m_displayInstanceCount = static_cast<int>(kMaxInstanceCount);
     float m_meshScale = 0.5f;
     bool m_isPlaying = false;

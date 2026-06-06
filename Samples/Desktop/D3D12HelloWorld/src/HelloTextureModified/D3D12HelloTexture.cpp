@@ -96,11 +96,6 @@ std::wstring HelloTextureEngine::GetAssetFullPath(LPCWSTR assetName)
     return m_assetsPath + assetName;
 }
 
-void HelloTextureEngine::SetSceneMesh(const GltfMeshData* mesh)
-{
-    m_scene.mesh = mesh;
-}
-
 void HelloTextureEngine::SetDebugUiHandler(DebugUiHandler handler)
 {
     m_debugUiHandler = std::move(handler);
@@ -142,14 +137,9 @@ void HelloTextureEngine::SetBackBufferClearColor(const std::array<float, 4>& col
     m_backBufferClearColor = color;
 }
 
-void HelloTextureEngine::SetCameraState(const CameraState& camera)
+void HelloTextureEngine::SetScene(const Scene& scene)
 {
-    m_scene.camera = camera;
-}
-
-void HelloTextureEngine::SetInstanceData(const std::vector<InstanceData>& instanceData)
-{
-    m_scene.instances = instanceData;
+    m_scene = scene;
 }
 
 void HelloTextureEngine::SetDisplayInstanceCount(int count)
@@ -180,8 +170,7 @@ void HelloTextureEngine::UpdateCameraConstantBuffer()
     const float aspect = static_cast<float>(m_width) / static_cast<float>(m_height);
     const XMMATRIX rotMat =
         XMMatrixRotationRollPitchYaw(m_scene.camera.rot.x, m_scene.camera.rot.y, m_scene.camera.rot.z);
-    const XMMATRIX transMat =
-        XMMatrixTranslation(m_scene.camera.pos.x, m_scene.camera.pos.y, m_scene.camera.pos.z);
+    const XMMATRIX transMat = XMMatrixTranslation(m_scene.camera.pos.x, m_scene.camera.pos.y, m_scene.camera.pos.z);
     const XMMATRIX view = XMMatrixInverse(nullptr, rotMat * transMat);
     const XMMATRIX projection =
         XMMatrixPerspectiveFovLH(XMConvertToRadians(m_scene.camera.fov), aspect, kCameraNearZ, kCameraFarZ);

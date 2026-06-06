@@ -5,6 +5,9 @@
 
 #include <vector>
 
+namespace Engine
+{
+
 struct CameraState
 {
     DirectX::XMFLOAT3 pos = {0.0f, 0.0f, -5.0f};
@@ -26,3 +29,5 @@ public:
     std::vector<InstanceData> instances;
     const GltfMeshData* mesh = nullptr;
 };
+
+} // namespace Engine

@@ -25,16 +25,17 @@ SampleApp::SampleApp(UINT width, UINT height, std::wstring name)
 void SampleApp::OnInit()
 {
     LoadSceneAssets();
-    InitInstanceData(m_mesh);
-    m_engine.SetSceneMesh(&m_mesh);
+    InitInstanceData(m_gltfMesh);
     m_engine.SetDebugUiHandler([this](const HelloTextureEngine::DebugUiContext& context) { DrawDebugUi(context); });
     m_engine.SetUpdateHandler([this]() { UpdateSampleState(); });
     m_engine.SetLightingParams(m_lightingParams);
     m_engine.SetRenderingPath(m_renderingPath);
     m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
     m_engine.SetBackBufferClearColor(m_backBufferClearColor);
-    m_engine.SetCameraState(m_camera);
-    m_engine.SetInstanceData(m_instanceData);
+
+    m_scene.mesh = &m_gltfMesh;
+    m_engine.SetScene(m_scene);
+
     m_engine.SetDisplayInstanceCount(m_displayInstanceCount);
     m_engine.SetToneMapParams(m_toneMapParams);
     m_engine.SetRenderViewMode(m_renderViewMode);
@@ -63,24 +64,25 @@ void SampleApp::UpdateSampleState()
     static constexpr float kCameraMoveSpeed = 0.01f;
     if (GetForegroundWindow() == Win32Application::GetHwnd())
     {
+        auto& camera = m_scene.camera;
+
         if (GetAsyncKeyState('A') & 0x8000)
-            m_camera.pos.x -= kCameraMoveSpeed;
+            camera.pos.x -= kCameraMoveSpeed;
         if (GetAsyncKeyState('D') & 0x8000)
-            m_camera.pos.x += kCameraMoveSpeed;
+            camera.pos.x += kCameraMoveSpeed;
         if ((GetAsyncKeyState('W') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
-            m_camera.pos.y -= kCameraMoveSpeed;
+            camera.pos.y -= kCameraMoveSpeed;
         if ((GetAsyncKeyState('S') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
-            m_camera.pos.y += kCameraMoveSpeed;
+            camera.pos.y += kCameraMoveSpeed;
         if ((GetAsyncKeyState('W') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
-            m_camera.pos.z += kCameraMoveSpeed;
+            camera.pos.z += kCameraMoveSpeed;
         if ((GetAsyncKeyState('S') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
-            m_camera.pos.z -= kCameraMoveSpeed;
+            camera.pos.z -= kCameraMoveSpeed;
     }
 
     UpdateInstanceData(deltaTime);
 
-    m_engine.SetCameraState(m_camera);
-    m_engine.SetInstanceData(m_instanceData);
+    m_engine.SetScene(m_scene);
     m_engine.SetDisplayInstanceCount(m_displayInstanceCount);
 }
 
@@ -170,14 +172,14 @@ void SampleApp::LoadSceneAssets()
     switch (kMeshSource)
     {
         case MeshSource::Gltf:
-            m_mesh = LoadGltfScene();
+            m_gltfMesh = LoadGltfScene();
             break;
         case MeshSource::Cube:
-            m_mesh = CreateCubeMesh();
+            m_gltfMesh = CreateCubeMesh();
             break;
     }
 
-    assert(!m_mesh.vertices.empty());
+    assert(!m_gltfMesh.vertices.empty());
 }
 
 GltfMeshData SampleApp::LoadGltfScene() const
@@ -200,7 +202,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     ImGui::Text("FrameIndex: %d", context.frameIndex);
     ImGui::SliderInt("Display Instance Count", &m_displayInstanceCount, 0, static_cast<int>(kMaxInstanceCount));
     ImGui::SliderFloat("Mesh Scale", &m_meshScale, 0.1f, 2.0f);
-    ImGui::SliderFloat("Camera FovH", &m_camera.fov, 20.f, 150.f);
+    ImGui::SliderFloat("Camera FovH", &m_scene.camera.fov, 20.f, 150.f);
     ImGui::ColorEdit4("BackBuffer Clear", m_backBufferClearColor.data());
     ImGui::SliderFloat3("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f);
     ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
@@ -284,7 +286,6 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     m_engine.SetRenderingPath(m_renderingPath);
     m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
     m_engine.SetBackBufferClearColor(m_backBufferClearColor);
-    m_engine.SetCameraState(m_camera);
     m_engine.SetDisplayInstanceCount(m_displayInstanceCount);
     m_engine.SetToneMapParams(m_toneMapParams);
     m_engine.SetRenderViewMode(m_renderViewMode);
@@ -303,14 +304,14 @@ XMFLOAT3 SampleApp::InstanceIdToXYZ(int instanceId)
 
 void SampleApp::InitInstanceData(const GltfMeshData& mesh)
 {
-    m_instanceData.resize(kMaxInstanceCount);
+    m_scene.instances.resize(kMaxInstanceCount);
     m_instanceDataForCPU.clear();
     for (int i = 0; i < static_cast<int>(kMaxInstanceCount); i++)
     {
         const XMFLOAT3 pos = InstanceIdToXYZ(i);
         m_instanceDataForCPU.emplace_back(pos, XMFLOAT3(0.0f, 0.0f, 0.0f));
 
-        auto& d = m_instanceData[i];
+        auto& d = m_scene.instances[i];
         const UINT gltfMaterialCount = static_cast<UINT>(mesh.materials.size());
         d.materialId = gltfMaterialCount > 0 ? i % gltfMaterialCount : 0;
 
@@ -335,7 +336,7 @@ void SampleApp::UpdateInstanceData(float deltaTime)
 
     for (int i = 0; i < static_cast<int>(kMaxInstanceCount); i++)
     {
-        m_instanceData[i].prevWorld = m_instanceData[i].world;
+        m_scene.instances[i].prevWorld = m_scene.instances[i].world;
         bool resetMotionVector = false;
 
         if (m_isPlaying)
@@ -361,10 +362,10 @@ void SampleApp::UpdateInstanceData(float deltaTime)
         const XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(
             m_instanceDataForCPU[i].rot.x, m_instanceDataForCPU[i].rot.y, m_instanceDataForCPU[i].rot.z);
         const XMMATRIX dragRotMat = XMMatrixRotationRollPitchYaw(m_dragRotation.x, m_dragRotation.y, 0.0f);
-        XMStoreFloat4x4(&m_instanceData[i].world, XMMatrixTranspose(scaleMat * rotMat * dragRotMat * transMat));
+        XMStoreFloat4x4(&m_scene.instances[i].world, XMMatrixTranspose(scaleMat * rotMat * dragRotMat * transMat));
         if (resetMotionVector)
         {
-            m_instanceData[i].prevWorld = m_instanceData[i].world;
+            m_scene.instances[i].prevWorld = m_scene.instances[i].world;
         }
     }
 }

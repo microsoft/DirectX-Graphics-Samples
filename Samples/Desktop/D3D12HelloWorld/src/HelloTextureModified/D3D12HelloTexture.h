@@ -84,11 +84,12 @@ public:
         float diffuseIntensity = 1.0f;
     };
 
-    using CameraState = ::CameraState;
+    using Scene = Engine::Scene;
+    using CameraState = Engine::CameraState;
 
     static constexpr UINT kMaxInstanceCount = 1000;
 
-    using InstanceData = ::InstanceData;
+    using InstanceData = Engine::InstanceData;
 
     struct ToneMapParams
     {
@@ -121,15 +122,13 @@ public:
     void RenderFrame();
     void RunFrame();
     void Shutdown();
-    void SetSceneMesh(const GltfMeshData* mesh);
+    void SetScene(const Scene& scene);
     void SetDebugUiHandler(DebugUiHandler handler);
     void SetUpdateHandler(UpdateHandler handler);
     void SetLightingParams(const LightingParams& params);
     void SetRenderingPath(RenderingPath renderingPath);
     void SetLightingPassDebugGradient(bool enabled);
     void SetBackBufferClearColor(const std::array<float, 4>& color);
-    void SetCameraState(const CameraState& camera);
-    void SetInstanceData(const std::vector<InstanceData>& instanceData);
     void SetDisplayInstanceCount(int count);
     void SetToneMapParams(const ToneMapParams& params);
     void SetRenderViewMode(RenderViewMode mode);
@@ -230,8 +229,8 @@ private:
     // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, texture table, instance buffers,
     // material buffer, constant buffer, light constant buffer.
     static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
-                                                     kConstantBufferCount + kLightConstantBufferCount + GBuffer::kCount +
-                                                     2;
+                                                     kConstantBufferCount + kLightConstantBufferCount +
+                                                     GBuffer::kCount + 2;
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
 
@@ -342,7 +341,7 @@ private:
     DescriptorHeapHandle m_textureTableStart;
     UINT m_texIndex[kTextureCount] = {};
 
-    Scene m_scene;
+    Engine::Scene m_scene;
     std::vector<Material> m_materialData;
     LightingParams m_lightingParams;
 
