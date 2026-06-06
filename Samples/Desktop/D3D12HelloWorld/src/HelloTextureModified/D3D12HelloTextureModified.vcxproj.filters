@@ -13,6 +13,9 @@
     <Filter Include="Source Files\Renderer">
       <UniqueIdentifier>{11ba6787-e9dd-4150-8840-a76a6871e786}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Scene">
+      <UniqueIdentifier>{5b2353bf-299f-44f2-bc5d-23c109e7af58}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CubeMesh.h">
@@ -74,6 +77,9 @@
     </ClInclude>
     <ClInclude Include="Renderer\ToneMap.h">
       <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene\Scene.h">
+      <Filter>Source Files\Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

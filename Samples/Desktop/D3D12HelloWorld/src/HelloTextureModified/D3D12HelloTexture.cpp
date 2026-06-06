@@ -98,7 +98,7 @@ std::wstring HelloTextureEngine::GetAssetFullPath(LPCWSTR assetName)
 
 void HelloTextureEngine::SetSceneMesh(const GltfMeshData* mesh)
 {
-    m_sceneMesh = mesh;
+    m_scene.mesh = mesh;
 }
 
 void HelloTextureEngine::SetDebugUiHandler(DebugUiHandler handler)
@@ -144,12 +144,12 @@ void HelloTextureEngine::SetBackBufferClearColor(const std::array<float, 4>& col
 
 void HelloTextureEngine::SetCameraState(const CameraState& camera)
 {
-    m_camera = camera;
+    m_scene.camera = camera;
 }
 
 void HelloTextureEngine::SetInstanceData(const std::vector<InstanceData>& instanceData)
 {
-    m_instanceData = instanceData;
+    m_scene.instances = instanceData;
 }
 
 void HelloTextureEngine::SetDisplayInstanceCount(int count)
@@ -178,16 +178,18 @@ void HelloTextureEngine::SetRequestHdrDump(bool request)
 void HelloTextureEngine::UpdateCameraConstantBuffer()
 {
     const float aspect = static_cast<float>(m_width) / static_cast<float>(m_height);
-    const XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(m_camera.rot.x, m_camera.rot.y, m_camera.rot.z);
-    const XMMATRIX transMat = XMMatrixTranslation(m_camera.pos.x, m_camera.pos.y, m_camera.pos.z);
+    const XMMATRIX rotMat =
+        XMMatrixRotationRollPitchYaw(m_scene.camera.rot.x, m_scene.camera.rot.y, m_scene.camera.rot.z);
+    const XMMATRIX transMat =
+        XMMatrixTranslation(m_scene.camera.pos.x, m_scene.camera.pos.y, m_scene.camera.pos.z);
     const XMMATRIX view = XMMatrixInverse(nullptr, rotMat * transMat);
     const XMMATRIX projection =
-        XMMatrixPerspectiveFovLH(XMConvertToRadians(m_camera.fov), aspect, kCameraNearZ, kCameraFarZ);
+        XMMatrixPerspectiveFovLH(XMConvertToRadians(m_scene.camera.fov), aspect, kCameraNearZ, kCameraFarZ);
     const XMMATRIX viewProjection = XMMatrixMultiply(view, projection);
     XMStoreFloat4x4(&m_constantBufferData.viewProjection, XMMatrixTranspose(viewProjection));
     XMStoreFloat4x4(&m_constantBufferData.invViewProjection,
                     XMMatrixTranspose(XMMatrixInverse(nullptr, viewProjection)));
-    m_constantBufferData.cameraPosition = m_camera.pos;
+    m_constantBufferData.cameraPosition = m_scene.camera.pos;
 }
 
 // Load the rendering pipeline dependencies.
@@ -551,8 +553,8 @@ void HelloTextureEngine::LoadAssets()
                                                      IID_PPV_ARGS(&m_commandList)));
 
     // Create the vertex buffer.
-    assert(m_sceneMesh != nullptr);
-    const GltfMeshData& mesh = *m_sceneMesh;
+    assert(m_scene.mesh != nullptr);
+    const GltfMeshData& mesh = *m_scene.mesh;
     assert(!mesh.vertices.empty());
 
     m_indexCountPerInstance = static_cast<UINT>(mesh.indices.size());
@@ -645,9 +647,9 @@ void HelloTextureEngine::LoadAssets()
 
     // Instance data is provided by the application via SetInstanceData().
     // Pre-allocate the buffer for kMaxInstanceCount entries.
-    if (m_instanceData.empty())
+    if (m_scene.instances.empty())
     {
-        m_instanceData.resize(kMaxInstanceCount);
+        m_scene.instances.resize(kMaxInstanceCount);
     }
 
     // Generate the material data.
@@ -717,7 +719,7 @@ void HelloTextureEngine::LoadAssets()
 
         m_frameResources[n].instanceBuffer->Map(
             0, nullptr, reinterpret_cast<void**>(&m_frameResources[n].pSrvDataBegin));
-        memcpy(m_frameResources[n].pSrvDataBegin, m_instanceData.data(), instanceBufferSize);
+        memcpy(m_frameResources[n].pSrvDataBegin, m_scene.instances.data(), instanceBufferSize);
         m_frameResources[n].instanceBuffer->Unmap(0, nullptr);
     }
 
@@ -1151,7 +1153,7 @@ void HelloTextureEngine::UpdateFrame()
     m_frameResources[m_currentFrameIndex].instanceBuffer->Map(
         0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_currentFrameIndex].pSrvDataBegin));
     memcpy(m_frameResources[m_currentFrameIndex].pSrvDataBegin,
-           m_instanceData.data(),
+           m_scene.instances.data(),
            sizeof(InstanceData) * kMaxInstanceCount);
     m_frameResources[m_currentFrameIndex].instanceBuffer->Unmap(0, nullptr);
 

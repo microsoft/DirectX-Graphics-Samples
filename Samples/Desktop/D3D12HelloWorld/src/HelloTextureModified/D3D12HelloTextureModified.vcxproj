@@ -144,6 +144,7 @@
     <ClInclude Include="Renderer\RenderPassResources.h" />
     <ClInclude Include="Renderer\SimpleDescriptorHeapAllocator.h" />
     <ClInclude Include="Renderer\ToneMap.h" />
+    <ClInclude Include="Scene\Scene.h" />
     <ClInclude Include="SampleApp.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12HelloTexture.h" />

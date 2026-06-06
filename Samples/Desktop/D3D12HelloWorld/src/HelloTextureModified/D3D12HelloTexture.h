@@ -22,6 +22,7 @@
 #include "Renderer/RenderPassResources.h"
 #include "Renderer/SimpleDescriptorHeapAllocator.h"
 #include "Renderer/ToneMap.h"
+#include "Scene/Scene.h"
 #include "WorkMeter.h"
 #include <algorithm>
 #include <array>
@@ -83,21 +84,11 @@ public:
         float diffuseIntensity = 1.0f;
     };
 
-    struct CameraState
-    {
-        XMFLOAT3 pos = {0.0f, 0.0f, -5.0f};
-        XMFLOAT3 rot = {0.0f, 0.0f, 0.0f};
-        float fov = 60.0f;
-    };
+    using CameraState = ::CameraState;
 
     static constexpr UINT kMaxInstanceCount = 1000;
 
-    struct alignas(16) InstanceData
-    {
-        XMFLOAT4X4 world;
-        XMFLOAT4X4 prevWorld;
-        UINT materialId;
-    };
+    using InstanceData = ::InstanceData;
 
     struct ToneMapParams
     {
@@ -351,7 +342,7 @@ private:
     DescriptorHeapHandle m_textureTableStart;
     UINT m_texIndex[kTextureCount] = {};
 
-    std::vector<InstanceData> m_instanceData;
+    Scene m_scene;
     std::vector<Material> m_materialData;
     LightingParams m_lightingParams;
 
@@ -375,7 +366,6 @@ private:
     ComPtr<ID3D12Resource> m_materialBuffer;
     DescriptorHeapHandle m_materialBufferSrv;
 
-    CameraState m_camera;
     static constexpr float kCameraNearZ = 0.1f;
     static constexpr float kCameraFarZ = 10000.0f;
     ConstantBuffer m_constantBufferData;
@@ -400,8 +390,6 @@ private:
     MyDx12Util::GpuWorkMeter m_gpuWorkMeter;
     DebugUiHandler m_debugUiHandler;
     UpdateHandler m_updateHandler;
-    const GltfMeshData* m_sceneMesh = nullptr;
-
     static constexpr const char* kBackBufferResourceName = "BackBuffer";
     static constexpr const char* kDepthStencilResourceName = "DepthStencil";
     static constexpr const char* kLightPassRenderTargetResourceName = "LightPass.RenderTarget";
