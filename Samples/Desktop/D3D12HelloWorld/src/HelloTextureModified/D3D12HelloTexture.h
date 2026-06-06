@@ -307,13 +307,6 @@ private:
                                                      kConstantBufferCount + kLightConstantBufferCount + kGBufferCount +
                                                      2;
 
-    static constexpr float kTranslationSpeed = 0.005f;
-    static constexpr float kPI = 3.141592f;
-    static constexpr float kRotationSpeed = kPI / 180.f / 3.f;
-    static constexpr float kOffsetBounds = 5.f;
-    static constexpr float kCameraMoveSpeed = 0.01f;
-    static constexpr float kMouseRotationSpeed = 0.01f;
-
     static constexpr UINT kMaterialCount = 256;
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
