@@ -133,6 +133,7 @@
   <ItemGroup>
     <ClInclude Include="CubeMesh.h" />
     <ClInclude Include="GltfLoader.h" />
+    <ClInclude Include="GraphicsDevice.h" />
     <ClInclude Include="MyDx12Utils.h" />
     <ClInclude Include="RenderPassGraph.h" />
     <ClInclude Include="SimpleDescriptorHeapAllocator.h" />
@@ -147,6 +148,7 @@
   <ItemGroup>
     <ClCompile Include="CubeMesh.cpp" />
     <ClCompile Include="GltfLoader.cpp" />
+    <ClCompile Include="GraphicsDevice.cpp" />
     <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="D3D12HelloTexture.cpp" />
     <ClCompile Include="D3D12HelloTexturePasses.cpp" />

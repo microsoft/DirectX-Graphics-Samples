@@ -48,6 +48,9 @@
     <ClInclude Include="GltfLoader.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="GraphicsDevice.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CubeMesh.cpp">
@@ -81,6 +84,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GltfLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicsDevice.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

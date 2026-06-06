@@ -11,6 +11,7 @@
 
 #pragma once
 #include "DXSampleHelper.h"
+#include "GraphicsDevice.h"
 #include "GltfLoader.h"
 #include "MyDx12Utils.h"
 #include "RenderPassExecution.h"
@@ -55,54 +56,6 @@ struct GraphicsDeviceContext
     ID3D12Device* device = nullptr;
     ID3D12CommandQueue* commandQueue = nullptr;
     HWND hwnd = nullptr;
-};
-
-struct GraphicsDeviceDesc
-{
-    HWND hwnd = nullptr;
-    UINT width = 0;
-    UINT height = 0;
-    UINT bufferCount = 0;
-    DXGI_FORMAT swapChainFormat = DXGI_FORMAT_UNKNOWN;
-    bool useWarpDevice = false;
-};
-
-struct GraphicsDevice
-{
-    void Initialize(const GraphicsDeviceDesc& desc);
-    HWND Hwnd() const;
-    UINT Width() const;
-    UINT Height() const;
-    ID3D12Device* Device() const;
-    IDXGIFactory4* DxgiFactory() const;
-    IDXGISwapChain3* SwapChain() const;
-    ID3D12CommandQueue* CommandQueue() const;
-    void RefreshDxgiFactoryIfNeeded();
-    bool HasSwapChain() const;
-    UINT CurrentBackBufferIndex() const;
-    void GetBackBuffer(UINT index, REFIID riid, void** resource) const;
-    void ExecuteCommandLists(UINT commandListCount, ID3D12CommandList* const* commandLists);
-    void CreateFence(UINT64 initialValue);
-    void SignalFence(UINT64 value);
-    UINT64 CompletedFenceValue() const;
-    void WaitForFenceValue(UINT64 value);
-    void CloseFenceEvent();
-    void Present(UINT syncInterval, UINT flags);
-    void ResizeSwapChain(UINT bufferCount, UINT newWidth, UINT newHeight, DXGI_FORMAT format, UINT flags);
-
-private:
-    void SetWindowHandle(HWND newHwnd);
-    void SetSize(UINT newWidth, UINT newHeight);
-
-    HWND hwnd = nullptr;
-    UINT width = 0;
-    UINT height = 0;
-    ComPtr<IDXGISwapChain3> swapChain;
-    ComPtr<ID3D12Device> device;
-    ComPtr<IDXGIFactory4> dxgiFactory;
-    ComPtr<ID3D12CommandQueue> commandQueue;
-    ComPtr<ID3D12Fence> fence;
-    HANDLE fenceEvent = nullptr;
 };
 
 class HelloTextureEngine
