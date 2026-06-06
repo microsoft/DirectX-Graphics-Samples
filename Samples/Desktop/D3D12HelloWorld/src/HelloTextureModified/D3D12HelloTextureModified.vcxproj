@@ -137,6 +137,7 @@
     <ClInclude Include="MyDx12Utils.h" />
     <ClInclude Include="Renderer\GBuffer.h" />
     <ClInclude Include="Renderer\HdrOutput.h" />
+    <ClInclude Include="Renderer\Material.h" />
     <ClInclude Include="Renderer\RenderPassExecution.h" />
     <ClInclude Include="Renderer\RenderPassGraph.h" />
     <ClInclude Include="Renderer\RenderPassKeys.h" />

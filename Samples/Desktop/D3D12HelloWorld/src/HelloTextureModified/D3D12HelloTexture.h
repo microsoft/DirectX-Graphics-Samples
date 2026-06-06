@@ -16,6 +16,7 @@
 #include "MyDx12Utils.h"
 #include "Renderer/GBuffer.h"
 #include "Renderer/HdrOutput.h"
+#include "Renderer/Material.h"
 #include "Renderer/RenderPassExecution.h"
 #include "Renderer/RenderPassGraph.h"
 #include "Renderer/RenderPassResources.h"
@@ -241,22 +242,7 @@ private:
                                                      kConstantBufferCount + kLightConstantBufferCount + GBuffer::kCount +
                                                      2;
 
-    static constexpr UINT kMaterialCount = 256;
-
     static constexpr int kGpuWorkMeterQueryCount = 100;
-
-    struct Material
-    {
-        UINT albedoTexIndex;
-        UINT metallicRoughnessTexIndex;
-        UINT emissiveTexIndex;
-        UINT occlusionTexIndex;
-        UINT normalTexIndex;
-        float roughnessFactor;
-        float metallicFactor;
-        float occlusionStrength;
-        UINT flags;
-    };
 
     struct alignas(256) ConstantBuffer
     {

@@ -54,6 +54,9 @@
     <ClInclude Include="Renderer\HdrOutput.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\Material.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer\RenderPassExecution.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
