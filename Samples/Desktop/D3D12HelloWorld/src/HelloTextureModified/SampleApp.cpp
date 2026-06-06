@@ -102,7 +102,7 @@ void SampleApp::OnMouseDown(UINT8 button, int x, int y)
         m_lastMouseX = x;
         m_lastMouseY = y;
     }
-    m_engine.OnMouseDown(button, x, y);
+    m_engine.HandleMouseDown(button, x, y);
 }
 
 void SampleApp::OnMouseUp(UINT8 button, int x, int y)
@@ -111,7 +111,7 @@ void SampleApp::OnMouseUp(UINT8 button, int x, int y)
     {
         m_isDragging = false;
     }
-    m_engine.OnMouseUp(button, x, y);
+    m_engine.HandleMouseUp(button, x, y);
 }
 
 void SampleApp::OnMouseMove(int x, int y)
@@ -125,12 +125,12 @@ void SampleApp::OnMouseMove(int x, int y)
         m_dragRotation.y += static_cast<float>(dx) * kMouseRotationSpeed;
         m_dragRotation.x += static_cast<float>(dy) * kMouseRotationSpeed;
     }
-    m_engine.OnMouseMove(x, y);
+    m_engine.HandleMouseMove(x, y);
 }
 
 void SampleApp::OnWindowSizeChanged(UINT width, UINT height)
 {
-    m_engine.OnWindowSizeChanged(width, height);
+    m_engine.RequestResize(width, height);
 }
 
 void SampleApp::OnIdle()

@@ -51,13 +51,6 @@ struct EngineInitDesc
     UINT height = 0;
 };
 
-struct GraphicsDeviceContext
-{
-    ID3D12Device* device = nullptr;
-    ID3D12CommandQueue* commandQueue = nullptr;
-    HWND hwnd = nullptr;
-};
-
 class HelloTextureEngine
 {
 public:
@@ -125,10 +118,10 @@ public:
 
     HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice);
 
-    void OnMouseDown(UINT8 button, int x, int y);
-    void OnMouseUp(UINT8 button, int x, int y);
-    void OnMouseMove(int x, int y);
-    void OnWindowSizeChanged(UINT width, UINT height);
+    void HandleMouseDown(UINT8 button, int x, int y);
+    void HandleMouseUp(UINT8 button, int x, int y);
+    void HandleMouseMove(int x, int y);
+    void RequestResize(UINT width, UINT height);
     void Initialize(const EngineInitDesc& desc);
     void RenderFrame();
     void RunFrame();
@@ -638,7 +631,6 @@ private:
     void InitializeFrameResources();
     void UpdateFrame();
     void DestroyFrameResources();
-    GraphicsDeviceContext MakeGraphicsDeviceContext() const;
     void RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                     const FullscreenPipelineDefinition& definition);
     void RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,

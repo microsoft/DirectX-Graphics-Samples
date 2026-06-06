@@ -52,13 +52,13 @@ private:
     void SetWindowHandle(HWND newHwnd);
     void SetSize(UINT newWidth, UINT newHeight);
 
-    HWND hwnd = nullptr;
-    UINT width = 0;
-    UINT height = 0;
-    ComPtr<IDXGISwapChain3> swapChain;
-    ComPtr<ID3D12Device> device;
-    ComPtr<IDXGIFactory4> dxgiFactory;
-    ComPtr<ID3D12CommandQueue> commandQueue;
-    ComPtr<ID3D12Fence> fence;
-    HANDLE fenceEvent = nullptr;
+    HWND m_hwnd = nullptr;
+    UINT m_width = 0;
+    UINT m_height = 0;
+    ComPtr<IDXGISwapChain3> m_swapChain;
+    ComPtr<ID3D12Device> m_device;
+    ComPtr<IDXGIFactory4> m_dxgiFactory;
+    ComPtr<ID3D12CommandQueue> m_commandQueue;
+    ComPtr<ID3D12Fence> m_fence;
+    HANDLE m_fenceEvent = nullptr;
 };

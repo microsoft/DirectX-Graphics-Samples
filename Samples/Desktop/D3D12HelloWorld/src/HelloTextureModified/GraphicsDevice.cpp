@@ -71,42 +71,42 @@ static void GetHardwareAdapter(IDXGIFactory1* pFactory,
 
 HWND GraphicsDevice::Hwnd() const
 {
-    return hwnd;
+    return m_hwnd;
 }
 
 UINT GraphicsDevice::Width() const
 {
-    return width;
+    return m_width;
 }
 
 UINT GraphicsDevice::Height() const
 {
-    return height;
+    return m_height;
 }
 
 ID3D12Device* GraphicsDevice::Device() const
 {
-    return device.Get();
+    return m_device.Get();
 }
 
 IDXGIFactory4* GraphicsDevice::DxgiFactory() const
 {
-    return dxgiFactory.Get();
+    return m_dxgiFactory.Get();
 }
 
 IDXGISwapChain3* GraphicsDevice::SwapChain() const
 {
-    return swapChain.Get();
+    return m_swapChain.Get();
 }
 
 ID3D12CommandQueue* GraphicsDevice::CommandQueue() const
 {
-    return commandQueue.Get();
+    return m_commandQueue.Get();
 }
 
 void GraphicsDevice::RefreshDxgiFactoryIfNeeded()
 {
-    if (dxgiFactory != nullptr && dxgiFactory->IsCurrent())
+    if (m_dxgiFactory != nullptr && m_dxgiFactory->IsCurrent())
     {
         return;
     }
@@ -115,18 +115,18 @@ void GraphicsDevice::RefreshDxgiFactoryIfNeeded()
 #if defined(_DEBUG)
     dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
-    ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
+    ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
 }
 
 void GraphicsDevice::SetWindowHandle(HWND newHwnd)
 {
-    hwnd = newHwnd;
+    m_hwnd = newHwnd;
 }
 
 void GraphicsDevice::SetSize(UINT newWidth, UINT newHeight)
 {
-    width = newWidth;
-    height = newHeight;
+    m_width = newWidth;
+    m_height = newHeight;
 }
 
 void GraphicsDevice::Initialize(const GraphicsDeviceDesc& desc)
@@ -147,25 +147,25 @@ void GraphicsDevice::Initialize(const GraphicsDeviceDesc& desc)
     }
 #endif
 
-    ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
+    ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_dxgiFactory)));
 
     if (desc.useWarpDevice)
     {
         ComPtr<IDXGIAdapter> warpAdapter;
-        ThrowIfFailed(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
-        ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
+        ThrowIfFailed(m_dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
+        ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
     }
     else
     {
         ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter);
-        ThrowIfFailed(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
+        GetHardwareAdapter(m_dxgiFactory.Get(), &hardwareAdapter);
+        ThrowIfFailed(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
     }
 
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    ThrowIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
+    ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
 
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
     swapChainDesc.BufferCount = desc.bufferCount;
@@ -177,44 +177,44 @@ void GraphicsDevice::Initialize(const GraphicsDeviceDesc& desc)
     swapChainDesc.SampleDesc.Count = 1;
 
     ComPtr<IDXGISwapChain1> swapChain1;
-    ThrowIfFailed(dxgiFactory->CreateSwapChainForHwnd(
-        commandQueue.Get(), // Swap chain needs the queue so that it can force a flush on it.
-        hwnd,
+    ThrowIfFailed(m_dxgiFactory->CreateSwapChainForHwnd(
+        m_commandQueue.Get(), // Swap chain needs the queue so that it can force a flush on it.
+        m_hwnd,
         &swapChainDesc,
         nullptr,
         nullptr,
         &swapChain1));
 
-    ThrowIfFailed(dxgiFactory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
-    ThrowIfFailed(swapChain1.As(&swapChain));
+    ThrowIfFailed(m_dxgiFactory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
+    ThrowIfFailed(swapChain1.As(&m_swapChain));
 }
 
 bool GraphicsDevice::HasSwapChain() const
 {
-    return device.Get() != nullptr && swapChain.Get() != nullptr;
+    return m_device.Get() != nullptr && m_swapChain.Get() != nullptr;
 }
 
 UINT GraphicsDevice::CurrentBackBufferIndex() const
 {
-    return swapChain->GetCurrentBackBufferIndex();
+    return m_swapChain->GetCurrentBackBufferIndex();
 }
 
 void GraphicsDevice::GetBackBuffer(UINT index, REFIID riid, void** resource) const
 {
-    ThrowIfFailed(swapChain->GetBuffer(index, riid, resource));
+    ThrowIfFailed(m_swapChain->GetBuffer(index, riid, resource));
 }
 
 void GraphicsDevice::ExecuteCommandLists(UINT commandListCount, ID3D12CommandList* const* commandLists)
 {
-    commandQueue->ExecuteCommandLists(commandListCount, commandLists);
+    m_commandQueue->ExecuteCommandLists(commandListCount, commandLists);
 }
 
 void GraphicsDevice::CreateFence(UINT64 initialValue)
 {
-    ThrowIfFailed(device->CreateFence(initialValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+    ThrowIfFailed(m_device->CreateFence(initialValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
 
-    fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    if (fenceEvent == nullptr)
+    m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (m_fenceEvent == nullptr)
     {
         ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
     }
@@ -222,36 +222,36 @@ void GraphicsDevice::CreateFence(UINT64 initialValue)
 
 void GraphicsDevice::SignalFence(UINT64 value)
 {
-    ThrowIfFailed(commandQueue->Signal(fence.Get(), value));
+    ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), value));
 }
 
 UINT64 GraphicsDevice::CompletedFenceValue() const
 {
-    return fence->GetCompletedValue();
+    return m_fence->GetCompletedValue();
 }
 
 void GraphicsDevice::WaitForFenceValue(UINT64 value)
 {
-    ThrowIfFailed(fence->SetEventOnCompletion(value, fenceEvent));
-    WaitForSingleObjectEx(fenceEvent, INFINITE, FALSE);
+    ThrowIfFailed(m_fence->SetEventOnCompletion(value, m_fenceEvent));
+    WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
 }
 
 void GraphicsDevice::CloseFenceEvent()
 {
-    if (fenceEvent != nullptr)
+    if (m_fenceEvent != nullptr)
     {
-        CloseHandle(fenceEvent);
-        fenceEvent = nullptr;
+        CloseHandle(m_fenceEvent);
+        m_fenceEvent = nullptr;
     }
 }
 
 void GraphicsDevice::Present(UINT syncInterval, UINT flags)
 {
-    ThrowIfFailed(swapChain->Present(syncInterval, flags));
+    ThrowIfFailed(m_swapChain->Present(syncInterval, flags));
 }
 
 void GraphicsDevice::ResizeSwapChain(UINT bufferCount, UINT newWidth, UINT newHeight, DXGI_FORMAT format, UINT flags)
 {
-    ThrowIfFailed(swapChain->ResizeBuffers(bufferCount, newWidth, newHeight, format, flags));
+    ThrowIfFailed(m_swapChain->ResizeBuffers(bufferCount, newWidth, newHeight, format, flags));
     SetSize(newWidth, newHeight);
 }

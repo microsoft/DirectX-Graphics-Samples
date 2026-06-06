@@ -122,15 +122,6 @@ void HelloTextureEngine::InitializeFrameResources()
     InitImGui();
 }
 
-auto HelloTextureEngine::MakeGraphicsDeviceContext() const -> GraphicsDeviceContext
-{
-    return {
-        m_graphicsDevice.Device(),
-        m_graphicsDevice.CommandQueue(),
-        m_graphicsDevice.Hwnd(),
-    };
-}
-
 std::wstring HelloTextureEngine::GetAssetFullPath(LPCWSTR assetName)
 {
     return m_assetsPath + assetName;
@@ -929,7 +920,6 @@ static SimpleDescriptorHeapAllocator* g_allocator = nullptr;
 void HelloTextureEngine::InitImGui()
 {
 #if IMGUI_IMPL > 0
-    const GraphicsDeviceContext graphicsContext = MakeGraphicsDeviceContext();
     g_allocator = &m_ImGuiDescriptorHeapAllocator;
 
     // Setup Dear ImGui context
@@ -938,11 +928,11 @@ void HelloTextureEngine::InitImGui()
     ImGui::StyleColorsDark();
 
     // Setup Platform/Renderer backends
-    ImGui_ImplWin32_Init(graphicsContext.hwnd);
+    ImGui_ImplWin32_Init(m_graphicsDevice.Hwnd());
 
     ImGui_ImplDX12_InitInfo init_info = {};
-    init_info.Device = graphicsContext.device;
-    init_info.CommandQueue = graphicsContext.commandQueue;
+    init_info.Device = m_graphicsDevice.Device();
+    init_info.CommandQueue = m_graphicsDevice.CommandQueue();
     init_info.NumFramesInFlight = kFrameCount;
     init_info.RTVFormat = m_backBufferFormat;
     init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
@@ -1438,7 +1428,7 @@ void HelloTextureEngine::RenderFrame()
     PIXEndEvent();
 }
 
-void HelloTextureEngine::OnWindowSizeChanged(UINT width, UINT height)
+void HelloTextureEngine::RequestResize(UINT width, UINT height)
 {
     m_pendingResize = true;
     m_pendingResizeWidth = width;
@@ -1462,15 +1452,15 @@ void HelloTextureEngine::RunFrame()
     m_cpuFrameTime = m_workMeter.GetCpuFrameTimeMs();
 }
 
-void HelloTextureEngine::OnMouseDown(UINT8, int, int) {}
+void HelloTextureEngine::HandleMouseDown(UINT8, int, int) {}
 
-void HelloTextureEngine::OnMouseUp(UINT8, int, int) {}
+void HelloTextureEngine::HandleMouseUp(UINT8, int, int) {}
 
-void HelloTextureEngine::OnMouseMove(int, int) {}
+void HelloTextureEngine::HandleMouseMove(int, int) {}
 
 void HelloTextureEngine::Resize(UINT width, UINT height)
 {
-    DBG_PRINT("HelloTextureEngine::OnWindowSizeChanged() %d %d\n", width, height);
+    DBG_PRINT("HelloTextureEngine::Resize() %d %d\n", width, height);
     m_width = width;
     m_height = height;
 
@@ -1492,7 +1482,7 @@ void HelloTextureEngine::Resize(UINT width, UINT height)
         m_renderTargets[n].Reset();
     }
 
-    // Resize SwapChain
+    // GraphicsDevice owns swap chain resizing; the engine rebuilds render resources that depend on its buffers.
     m_graphicsDevice.ResizeSwapChain(kFrameCount, m_width, m_height, m_backBufferFormat, 0);
     m_hdrOutputPolicy.ReapplyColorSpace(m_graphicsDevice.SwapChain());
 
