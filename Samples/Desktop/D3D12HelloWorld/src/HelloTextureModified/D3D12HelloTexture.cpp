@@ -69,12 +69,6 @@ HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, GraphicsDevice& 
     RegisterResourceResolvers();
 }
 
-auto HelloTextureEngine::ToneMapPass::MakeShaderConstants(const HdrOutputSettings& hdrOutputSettings) const
-    -> ToneMapSettings::ShaderConstants
-{
-    return settings.MakeShaderConstants(hdrOutputSettings.TransferFunction());
-}
-
 void HelloTextureEngine::Initialize(const EngineInitDesc& desc)
 {
     assert(m_graphicsDevice.Device() != nullptr);

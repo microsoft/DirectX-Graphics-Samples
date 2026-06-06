@@ -142,6 +142,7 @@
     <ClInclude Include="Renderer\RenderPassKeys.h" />
     <ClInclude Include="Renderer\RenderPassResources.h" />
     <ClInclude Include="Renderer\SimpleDescriptorHeapAllocator.h" />
+    <ClInclude Include="Renderer\ToneMap.h" />
     <ClInclude Include="SampleApp.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12HelloTexture.h" />
@@ -156,6 +157,7 @@
     <ClCompile Include="GraphicsDevice.cpp" />
     <ClCompile Include="Renderer\GBuffer.cpp" />
     <ClCompile Include="Renderer\HdrOutput.cpp" />
+    <ClCompile Include="Renderer\ToneMap.cpp" />
     <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="D3D12HelloTexture.cpp" />
     <ClCompile Include="D3D12HelloTexturePasses.cpp" />

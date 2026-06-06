@@ -20,6 +20,7 @@
 #include "Renderer/RenderPassGraph.h"
 #include "Renderer/RenderPassResources.h"
 #include "Renderer/SimpleDescriptorHeapAllocator.h"
+#include "Renderer/ToneMap.h"
 #include "WorkMeter.h"
 #include <algorithm>
 #include <array>
@@ -227,10 +228,6 @@ private:
     static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
 
     static constexpr DXGI_FORMAT kBackBufferFormat = kSwapChainFormat;
-    static constexpr UINT kDefaultToneMapOperator = 0; // 0: None, 1: Reinhard, 2: ACES
-    static constexpr float kDefaultExposure = 1.0f;
-    static constexpr float kDefaultPaperWhiteNits = 300.0f;
-    static constexpr float kDefaultMaxDisplayNits = 1000.0f;
 
     static constexpr UINT kInstanceBufferCount = kFrameCount;
     static constexpr UINT kMaterialBufferCount = 1;
@@ -280,43 +277,6 @@ private:
     };
 
     LightingConstants MakeLightingConstants() const;
-
-    struct ToneMapSettings
-    {
-        struct ShaderConstants
-        {
-            UINT toneMapOperator;
-            UINT transferFunction;
-            float exposure;
-            float paperWhiteNits;
-            float maxDisplayNits;
-        };
-
-        int operatorIndex = kDefaultToneMapOperator;
-        float exposure = kDefaultExposure;
-        float paperWhiteNits = kDefaultPaperWhiteNits;
-        float maxDisplayNits = kDefaultMaxDisplayNits;
-
-        void Normalize()
-        {
-            operatorIndex = std::clamp(operatorIndex, 0, 2);
-            exposure = (std::max)(exposure, 0.0f);
-            paperWhiteNits = (std::max)(paperWhiteNits, 1.0f);
-            maxDisplayNits = (std::max)(maxDisplayNits, paperWhiteNits);
-        }
-
-        ShaderConstants MakeShaderConstants(UINT transferFunction) const
-        {
-            return {static_cast<UINT>(operatorIndex), transferFunction, exposure, paperWhiteNits, maxDisplayNits};
-        }
-    };
-
-    struct ToneMapPass
-    {
-        ToneMapSettings settings;
-
-        ToneMapSettings::ShaderConstants MakeShaderConstants(const HdrOutputSettings& hdrOutputSettings) const;
-    };
 
     struct ConstantBufferResource
     {
