@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\Microsoft.Direct3D.DXC.1.8.2505.32\build\native\Microsoft.Direct3D.DXC.props" Condition="Exists('..\packages\Microsoft.Direct3D.DXC.1.8.2505.32\build\native\Microsoft.Direct3D.DXC.props')" />
   <Import Project="..\packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.props" Condition="Exists('..\packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.props')" />
@@ -135,6 +135,7 @@
     <ClInclude Include="GltfLoader.h" />
     <ClInclude Include="GraphicsDevice.h" />
     <ClInclude Include="MyDx12Utils.h" />
+    <ClInclude Include="Renderer\GBuffer.h" />
     <ClInclude Include="Renderer\HdrOutput.h" />
     <ClInclude Include="Renderer\RenderPassExecution.h" />
     <ClInclude Include="Renderer\RenderPassGraph.h" />
@@ -153,6 +154,7 @@
     <ClCompile Include="CubeMesh.cpp" />
     <ClCompile Include="GltfLoader.cpp" />
     <ClCompile Include="GraphicsDevice.cpp" />
+    <ClCompile Include="Renderer\GBuffer.cpp" />
     <ClCompile Include="Renderer\HdrOutput.cpp" />
     <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="D3D12HelloTexture.cpp" />

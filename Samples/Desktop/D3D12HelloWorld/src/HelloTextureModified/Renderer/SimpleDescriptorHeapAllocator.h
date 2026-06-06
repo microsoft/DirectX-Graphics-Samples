@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "../DXSampleHelper.h"
+#include "../MyDx12Utils.h"
 
 #include <cassert>
 #include <vector>

@@ -909,68 +909,9 @@ void HelloTextureEngine::CreateDsvHeap()
 
 void HelloTextureEngine::CreateGBuffer()
 {
-    CreateGBufferResources();
-    CreateGBufferRTVs();
-    CreateGBufferSRVs();
-}
-
-void HelloTextureEngine::CreateGBufferResources()
-{
-    for (UINT i = 0; i < GBuffer::kCount; ++i)
-    {
-        m_gbuffer.resources[i].Reset();
-
-        D3D12_RESOURCE_DESC desc = {};
-        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        desc.Width = m_width;
-        desc.Height = m_height;
-        desc.DepthOrArraySize = 1;
-        desc.MipLevels = 1;
-        desc.Format = m_gbuffer.formats[i];
-        desc.SampleDesc.Count = 1;
-        desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-
-        ThrowIfFailed(
-            m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-                                                               D3D12_HEAP_FLAG_NONE,
-                                                               &desc,
-                                                               D3D12_RESOURCE_STATE_RENDER_TARGET,
-                                                               &m_gbuffer.clearValues[i],
-                                                               IID_PPV_ARGS(&m_gbuffer.resources[i])));
-    }
-}
-
-void HelloTextureEngine::CreateGBufferRTVs()
-{
-    for (UINT i = 0; i < GBuffer::kCount; ++i)
-    {
-        m_gbuffer.rtvIndex[i] = kGBufferRTVBaseIndex + i;
-
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(
-            m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_gbuffer.rtvIndex[i], m_rtvDescriptorSize);
-        m_graphicsDevice.Device()->CreateRenderTargetView(m_gbuffer.resources[i].Get(), nullptr, rtvHandle);
-    }
-}
-
-void HelloTextureEngine::CreateGBufferSRVs()
-{
-    for (UINT i = 0; i < GBuffer::kCount; ++i)
-    {
-        if (m_gbuffer.srvHandles[i].Index == UINT_MAX)
-        {
-            m_gbuffer.srvHandles[i] = m_descriptorHeapAllocator.AllocWithHandle();
-        }
-
-        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Format = m_gbuffer.formats[i];
-        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srvDesc.Texture2D.MipLevels = 1;
-
-        m_graphicsDevice.Device()->CreateShaderResourceView(
-            m_gbuffer.resources[i].Get(), &srvDesc, m_gbuffer.srvHandles[i].cpu);
-    }
+    m_gbuffer.CreateResources(m_graphicsDevice.Device(), m_width, m_height);
+    m_gbuffer.CreateRTVs(m_graphicsDevice.Device(), m_rtvHeap.Get(), kGBufferRTVBaseIndex, m_rtvDescriptorSize);
+    m_gbuffer.CreateSRVs(m_graphicsDevice.Device(), m_descriptorHeapAllocator);
 
     if (m_depthStencilSrv.Index == UINT_MAX)
     {
@@ -1074,9 +1015,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetDepthDsv() const
 
 D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetGBufferRTV(UINT index) const
 {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE h(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-    h.Offset(m_gbuffer.rtvIndex[index], m_rtvDescriptorSize);
-    return h;
+    return m_gbuffer.GetRTV(m_rtvHeap.Get(), m_rtvDescriptorSize, index);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetLightPassRTV() const

@@ -14,6 +14,7 @@
 #include "GraphicsDevice.h"
 #include "GltfLoader.h"
 #include "MyDx12Utils.h"
+#include "Renderer/GBuffer.h"
 #include "Renderer/HdrOutput.h"
 #include "Renderer/RenderPassExecution.h"
 #include "Renderer/RenderPassGraph.h"
@@ -219,8 +220,6 @@ private:
     using Op = PassKeyNames::Operation;
     using ConstName = PassKeyNames::Constants;
 
-    static constexpr UINT kGBufferCount = 5;
-
     static constexpr UINT kHeapDescriptorCount = 100;
     // 0 - 99 : ImGui (new)
 
@@ -242,7 +241,7 @@ private:
     // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, texture table, instance buffers,
     // material buffer, constant buffer, light constant buffer.
     static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
-                                                     kConstantBufferCount + kLightConstantBufferCount + kGBufferCount +
+                                                     kConstantBufferCount + kLightConstantBufferCount + GBuffer::kCount +
                                                      2;
 
     static constexpr UINT kMaterialCount = 256;
@@ -338,40 +337,6 @@ private:
         std::vector<MyDx12Util::GpuWorkMeter::CheckPoint> gpuWorkMeterCheckPoints;
     };
 
-    struct GBuffer
-    {
-        static constexpr UINT kCount = kGBufferCount;
-
-        enum Target : UINT
-        {
-            Albedo = 0,
-            Normal = 1,
-            Material = 2,
-            MotionVector = 3,
-            PBRParams = 4,
-        };
-
-        ComPtr<ID3D12Resource> resources[kCount];
-
-        DXGI_FORMAT formats[kCount] = {
-            DXGI_FORMAT_R8G8B8A8_UNORM,     // Albedo
-            DXGI_FORMAT_R16G16B16A16_FLOAT, // Normal
-            DXGI_FORMAT_R32_UINT,           // Material
-            DXGI_FORMAT_R16G16_FLOAT,       // Motion Vector
-            DXGI_FORMAT_R8G8B8A8_UNORM,     // PBR Params (Metallic, Roughness, Occlusion, Emissive)
-        };
-
-        D3D12_CLEAR_VALUE clearValues[kCount] = {
-            {DXGI_FORMAT_R8G8B8A8_UNORM, {0.0f, 0.0f, 0.0f, 1.0f}},
-            {DXGI_FORMAT_R16G16B16A16_FLOAT, {0.5f, 0.5f, 1.0f, 1.0f}},
-            {DXGI_FORMAT_R32_UINT, {0.0f, 0.0f, 0.0f, 0.0f}},
-            {DXGI_FORMAT_R16G16_FLOAT, {0.0f, 0.0f, 0.0f, 0.0f}},
-            {DXGI_FORMAT_R8G8B8A8_UNORM, {0.0f, 0.0f, 0.0f, 0.0f}},
-        };
-
-        UINT rtvIndex[kCount] = {};
-        DescriptorHeapHandle srvHandles[kCount];
-    };
     static constexpr UINT kSwapChainRTVCount = kFrameCount;
     static constexpr UINT kGBufferRTVBaseIndex = kSwapChainRTVCount;
     static constexpr UINT kLightPassRTVIndex = kGBufferRTVBaseIndex + GBuffer::kCount;
@@ -654,9 +619,6 @@ private:
     void CreateLightPassRenderTargetDescriptors();
     void CreateDsvHeap();
 
-    void CreateGBufferResources();
-    void CreateGBufferRTVs();
-    void CreateGBufferSRVs();
     void CreateGBuffer();
 
     DescriptorHeapHandle CreateTextureFromRGBA8(const UINT8* pixels,
