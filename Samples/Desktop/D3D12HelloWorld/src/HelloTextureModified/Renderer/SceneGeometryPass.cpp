@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 #include "SceneGeometryPass.h"
 
@@ -32,9 +32,9 @@ void RecordDepthPrePass(ID3D12GraphicsCommandList* commandList, const SceneGeome
     PIXEndEvent(commandList);
 }
 
-void RecordMainPass(ID3D12GraphicsCommandList* commandList, const MainPassDesc& passDesc)
+void RecordForwardPass(ID3D12GraphicsCommandList* commandList, const ForwardPassDesc& passDesc)
 {
-    PIXBeginEvent(commandList, 0, L"MainPass");
+    PIXBeginEvent(commandList, 0, L"ForwardPass");
 
     if (passDesc.renderTargets.clearColor != nullptr)
     {

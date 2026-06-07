@@ -20,6 +20,7 @@
 #include "Renderer/LightingPass.h"
 #include "Renderer/Material.h"
 #include "Renderer/MaterialBuffer.h"
+#include "Renderer/PipelineFactory.h"
 #include "Renderer/RenderPassExecution.h"
 #include "Renderer/RenderPassGraph.h"
 #include "Renderer/RenderPassResources.h"
@@ -53,6 +54,13 @@ using RtvKey = Engine::RtvKey;
 using DsvKey = Engine::DsvKey;
 using PassOperationKey = Engine::PassOperationKey;
 using PassConstantsKey = Engine::PassConstantsKey;
+using ShaderBytecode = Engine::ShaderBytecode;
+using GraphicsPipelineShaderSet = Engine::GraphicsPipelineShaderSet;
+using InputLayoutDefinition = Engine::InputLayoutDefinition;
+using ForwardPipelineDefinition = Engine::ForwardPipelineDefinition;
+using GBufferPipelineDefinition = Engine::GBufferPipelineDefinition;
+using DepthPrePassPipelineDefinition = Engine::DepthPrePassPipelineDefinition;
+using FullscreenPipelineDefinition = Engine::FullscreenPipelineDefinition;
 
 struct EngineInitDesc
 {
@@ -150,7 +158,7 @@ private:
         // later referenced by passes that need that bound state.
         struct Pipeline
         {
-            static constexpr const char* Main = "Main";
+            static constexpr const char* Forward = "Forward";
             static constexpr const char* DepthPrePass = "DepthPrePass";
             static constexpr const char* GBuffer = "GBuffer";
             static constexpr const char* Lighting = "Lighting";
@@ -193,7 +201,7 @@ private:
             static constexpr const char* Clear = "Clear";
             static constexpr const char* DepthPrePass = "DepthPrePass";
             static constexpr const char* GBuffer = "GBuffer";
-            static constexpr const char* Main = "Main";
+            static constexpr const char* Forward = "Forward";
             static constexpr const char* Lighting = "Lighting";
             static constexpr const char* LightingDebugGradient = "LightingDebugGradient";
             static constexpr const char* ToneMap = "ToneMap";
@@ -441,56 +449,32 @@ private:
     using RenderGraphRuntime = Engine::RenderGraphRuntime<PassOperationHandler>;
     RenderGraphRuntime m_renderGraphRuntime;
 
-    struct ShaderBytecode
+    struct PipelineShaderBytecode
     {
-        const UINT8* data = nullptr;
-        UINT size = 0;
-    };
-
-    struct GraphicsPipelineShaders
-    {
-        ShaderBytecode vertex;
-        ShaderBytecode pixel;
-    };
-
-    struct InputLayoutDefinition
-    {
-        const D3D12_INPUT_ELEMENT_DESC* elements;
-        UINT count;
-    };
-
-    struct MainPipelineDefinition
-    {
-        const char* name;
-        InputLayoutDefinition inputLayout;
-        GraphicsPipelineShaders shaders;
-        DXGI_FORMAT renderTargetFormat;
-        DXGI_FORMAT depthStencilFormat;
-    };
-
-    struct GBufferPipelineDefinition
-    {
-        const char* name;
-        InputLayoutDefinition inputLayout;
-        GraphicsPipelineShaders shaders;
-    };
-
-    struct DepthPrePassPipelineDefinition
-    {
-        const char* name;
-        InputLayoutDefinition inputLayout;
-        GraphicsPipelineShaders shaders;
-    };
-
-    struct FullscreenPipelineDefinition
-    {
-        const char* name;
-        GraphicsPipelineShaders shaders;
-        DXGI_FORMAT renderTargetFormat;
+        GraphicsPipelineShaderSet forward;
+        GraphicsPipelineShaderSet depthPrePass;
+        GraphicsPipelineShaderSet gbuffer;
+        GraphicsPipelineShaderSet gbufferDebug;
+        GraphicsPipelineShaderSet lighting;
+        GraphicsPipelineShaderSet lightingDebugGradient;
+        GraphicsPipelineShaderSet toneMap;
     };
 
     void LoadPipeline();
     void LoadAssets();
+    void CreateRootSignature();
+    void CreatePipelineStates();
+    ShaderBytecode LoadShaderBytecode(LPCWSTR assetName);
+    PipelineShaderBytecode LoadPipelineShaderBytecode();
+    void RegisterPipelineStates(const PipelineShaderBytecode& shaders);
+    void CreateInitialCommandList();
+    void CreateSceneGeometryBuffers();
+    void CreateSceneTextureResources(std::vector<ComPtr<ID3D12Resource>>& textureUploadHeap);
+    void PrepareSceneInstanceData();
+    void CreateSceneMaterialResources();
+    void CreateInstanceBuffers();
+    void CreateFrameConstantBuffers();
+    void ExecuteInitialGpuSetup();
     std::wstring GetAssetFullPath(LPCWSTR assetName);
     void InitializeFrameResources();
     void UpdateFrame();
@@ -499,7 +483,8 @@ private:
                                     const FullscreenPipelineDefinition& definition);
     void RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                      std::initializer_list<FullscreenPipelineDefinition> definitions);
-    void RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc, const MainPipelineDefinition& definition);
+    void RegisterForwardPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                 const ForwardPipelineDefinition& definition);
     void RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                  const GBufferPipelineDefinition& definition);
     void RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
@@ -531,7 +516,7 @@ private:
     RenderPass MakeClearPass();
     RenderPass MakeDepthPrePass();
     RenderPass MakeGBufferPass();
-    RenderPass MakeMainPass();
+    RenderPass MakeForwardPass();
     RenderPass MakeLightingPass();
     RenderPass MakeLightingDebugGradientPass();
     RenderPass MakeToneMapPass();
@@ -581,7 +566,7 @@ private:
     void ExecuteClearPass(const RenderPass& pass);
     void ExecuteDepthPrePass(const RenderPass& pass);
     void ExecuteGBufferPass(const RenderPass& pass);
-    void ExecuteMainPass(const RenderPass& pass);
+    void ExecuteForwardPass(const RenderPass& pass);
     void ExecuteLightingPass(const RenderPass& pass);
     void ExecuteLightingDebugGradientPass(const RenderPass& pass);
     void ExecuteToneMapPass(const RenderPass& pass);

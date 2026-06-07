@@ -1,4 +1,4 @@
-//*********************************************************
+﻿//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -35,7 +35,7 @@ void HelloTextureEngine::AddSceneRenderPasses()
 {
     if (m_renderingPath == RenderingPath::Forward)
     {
-        AddPass(MakeMainPass());
+        AddPass(MakeForwardPass());
     }
     else
     {
@@ -152,11 +152,11 @@ auto HelloTextureEngine::MakeGBufferPass() -> RenderPass
         .Build();
 }
 
-auto HelloTextureEngine::MakeMainPass() -> RenderPass
+auto HelloTextureEngine::MakeForwardPass() -> RenderPass
 {
     return m_renderGraphRuntime.Authoring()
-        .CreatePass(L"MainPass")
-        .Pipeline(Pipe::Main)
+        .CreatePass(L"ForwardPass")
+        .Pipeline(Pipe::Forward)
         .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
         .Descriptor(RootParam_TextureTable, Desc::TextureTable)
@@ -167,7 +167,7 @@ auto HelloTextureEngine::MakeMainPass() -> RenderPass
         .Rtv(RtvName::LightPass)
         .Dsv(DsvName::Depth)
         .ClearColor({0.0f, 0.0f, 0.0f, 1.0f})
-        .Operation(Op::Main, &HelloTextureEngine::ExecuteMainPass)
+        .Operation(Op::Forward, &HelloTextureEngine::ExecuteForwardPass)
         .Build();
 }
 

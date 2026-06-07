@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "../DXSampleHelper.h"
 #include "ResolvedRenderTargets.h"
@@ -16,7 +16,7 @@ struct SceneGeometryDrawDesc
     UINT instanceCount = 0;
 };
 
-struct MainPassDesc
+struct ForwardPassDesc
 {
     ResolvedRenderTargets renderTargets;
     SceneGeometryDrawDesc geometryDraw = {};
@@ -24,6 +24,6 @@ struct MainPassDesc
 
 void RecordSceneGeometryDraw(ID3D12GraphicsCommandList* commandList, const SceneGeometryDrawDesc& drawDesc);
 void RecordDepthPrePass(ID3D12GraphicsCommandList* commandList, const SceneGeometryDrawDesc& drawDesc);
-void RecordMainPass(ID3D12GraphicsCommandList* commandList, const MainPassDesc& passDesc);
+void RecordForwardPass(ID3D12GraphicsCommandList* commandList, const ForwardPassDesc& passDesc);
 
 } // namespace Engine

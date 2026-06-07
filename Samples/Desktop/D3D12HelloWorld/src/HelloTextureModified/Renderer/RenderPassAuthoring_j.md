@@ -143,7 +143,7 @@ struct PassRenderTargetBinding
 
 実行時には、`BindPassRenderTargets()` が `ResolveRtv()` / `ResolveDsv()` で handle に解決し、`OMSetRenderTargets(...)` を呼びます。
 
-`clearColor` は自動で clear されません。operation implementation に渡すデータです。たとえば `RecordClear()` はこれを必須とし、`RecordMainPass()` は存在する場合に使います。
+`clearColor` は自動で clear されません。operation implementation に渡すデータです。たとえば `RecordClear()` はこれを必須とし、`RecordForwardPass()` は存在する場合に使います。
 
 新しい target key を追加する場合:
 

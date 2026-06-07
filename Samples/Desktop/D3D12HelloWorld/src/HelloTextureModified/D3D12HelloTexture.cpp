@@ -303,239 +303,212 @@ DescriptorHeapHandle HelloTextureEngine::CreateTextureFromRGBA8(
 // Load the sample assets.
 void HelloTextureEngine::LoadAssets()
 {
-    // Create the root signature.
+    CreateRootSignature();
+    CreatePipelineStates();
+    CreateGBuffer();
+    CreateInitialCommandList();
+    CreateSceneGeometryBuffers();
+
+    std::vector<ComPtr<ID3D12Resource>> textureUploadHeap;
+    CreateSceneTextureResources(textureUploadHeap);
+    PrepareSceneInstanceData();
+    CreateSceneMaterialResources();
+    CreateInstanceBuffers();
+    CreateFrameConstantBuffers();
+    ExecuteInitialGpuSetup();
+}
+
+void HelloTextureEngine::CreateRootSignature()
+{
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+
+    // This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned
+    // will not be greater than this.
+    featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+    if (FAILED(m_graphicsDevice.Device()->CheckFeatureSupport(
+            D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
     {
-        D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+    }
 
-        // This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned
-        // will not be greater than this.
-        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+    // t0 - t(TextureCount-1) : Texture SRVs: space 0 : 0 - (kTextureCount-1)
+    CD3DX12_DESCRIPTOR_RANGE1 rangesSRV[1];
+    rangesSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                      kTextureCount,
+                      0 /*base*/,
+                      0 /*space*/,
+                      D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
-        if (FAILED(m_graphicsDevice.Device()->CheckFeatureSupport(
-                D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
-        {
-            featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-        }
+    // t0 : SRV structured buffer: space1 : 0
+    CD3DX12_DESCRIPTOR_RANGE1 rangesSRV2[1];
+    rangesSRV2[0].Init(
+        D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 /*base*/, 1 /*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        // t0 - t(TextureCount-1) : Texture SRVs: space 0 : 0 - (kTextureCount-1)
-        CD3DX12_DESCRIPTOR_RANGE1 rangesSRV[1];
-        rangesSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-                          kTextureCount,
-                          0 /*base*/,
-                          0 /*space*/,
-                          D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
+    // t0 : SRV structured buffer: space2 : 0
+    CD3DX12_DESCRIPTOR_RANGE1 rangesSRV3[1];
+    rangesSRV3[0].Init(
+        D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 /*base*/, 2 /*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        // t0 : SRV structured buffer: space1 : 0
-        CD3DX12_DESCRIPTOR_RANGE1 rangesSRV2[1];
-        rangesSRV2[0].Init(
-            D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 /*base*/, 1 /*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+    // t0 - t3 : GBuffer SRVs, t4 : depth SRV, space 3
+    CD3DX12_DESCRIPTOR_RANGE1 rangesGBufferSRV[1];
+    rangesGBufferSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                             Engine::GBuffer::kCount + 1,
+                             0 /*base*/,
+                             3 /*space*/,
+                             D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
-        // t0 : SRV structured buffer: space2 : 0
-        CD3DX12_DESCRIPTOR_RANGE1 rangesSRV3[1];
-        rangesSRV3[0].Init(
-            D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 /*base*/, 2 /*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+    // t0 : HDR scene color SRV, space 4
+    CD3DX12_DESCRIPTOR_RANGE1 rangesToneMapSRV[1];
+    rangesToneMapSRV[0].Init(
+        D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 /*base*/, 4 /*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
-        // t0 - t3 : GBuffer SRVs, t4 : depth SRV, space 3
-        CD3DX12_DESCRIPTOR_RANGE1 rangesGBufferSRV[1];
-        rangesGBufferSRV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-                                 Engine::GBuffer::kCount + 1,
-                                 0 /*base*/,
-                                 3 /*space*/,
-                                 D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
+    CD3DX12_DESCRIPTOR_RANGE1 rangesCVB[1];
+    rangesCVB[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        // t0 : HDR scene color SRV, space 4
-        CD3DX12_DESCRIPTOR_RANGE1 rangesToneMapSRV[1];
-        rangesToneMapSRV[0].Init(
-            D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0 /*base*/, 4 /*space*/, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
+    CD3DX12_DESCRIPTOR_RANGE1 rangesLightCBV[1];
+    rangesLightCBV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-        CD3DX12_DESCRIPTOR_RANGE1 rangesCVB[1];
-        rangesCVB[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+    CD3DX12_ROOT_PARAMETER1 rootParameters[9];
+    rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL); // Texture SRVs
+    rootParameters[1].InitAsDescriptorTable(1,
+                                            &rangesSRV2[0],
+                                            D3D12_SHADER_VISIBILITY_ALL); // Structured buffer SRV (Instance data)
+    rootParameters[2].InitAsDescriptorTable(1,
+                                            &rangesSRV3[0],
+                                            D3D12_SHADER_VISIBILITY_ALL); // Structured buffer SRV (Material data)
+    rootParameters[3].InitAsDescriptorTable(1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_ALL); // Camera constants
+    rootParameters[4].InitAsDescriptorTable(1, &rangesGBufferSRV[0],
+                                            D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer SRVs
+    rootParameters[5].InitAsDescriptorTable(1, &rangesLightCBV[0],
+                                            D3D12_SHADER_VISIBILITY_PIXEL);    // Light constants
+    rootParameters[6].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer debug target
+    rootParameters[7].InitAsDescriptorTable(1,
+                                            &rangesToneMapSRV[0],
+                                            D3D12_SHADER_VISIBILITY_PIXEL);    // ToneMap HDR scene color
+    rootParameters[8].InitAsConstants(5, 3, 0, D3D12_SHADER_VISIBILITY_PIXEL); // ToneMap constants
 
-        CD3DX12_DESCRIPTOR_RANGE1 rangesLightCBV[1];
-        rangesLightCBV[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-
-        CD3DX12_ROOT_PARAMETER1 rootParameters[9];
-        rootParameters[0].InitAsDescriptorTable(1, &rangesSRV[0], D3D12_SHADER_VISIBILITY_PIXEL); // Texture SRVs
-        rootParameters[1].InitAsDescriptorTable(1,
-                                                &rangesSRV2[0],
-                                                D3D12_SHADER_VISIBILITY_ALL); // Structured buffer SRV (Instance data)
-        rootParameters[2].InitAsDescriptorTable(1,
-                                                &rangesSRV3[0],
-                                                D3D12_SHADER_VISIBILITY_ALL); // Structured buffer SRV (Material data)
-        rootParameters[3].InitAsDescriptorTable(1, &rangesCVB[0], D3D12_SHADER_VISIBILITY_ALL); // Camera constants
-        rootParameters[4].InitAsDescriptorTable(1, &rangesGBufferSRV[0],
-                                                D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer SRVs
-        rootParameters[5].InitAsDescriptorTable(1,
-                                                &rangesLightCBV[0],
-                                                D3D12_SHADER_VISIBILITY_PIXEL);    // Light constants
-        rootParameters[6].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer debug target
-        rootParameters[7].InitAsDescriptorTable(1,
-                                                &rangesToneMapSRV[0],
-                                                D3D12_SHADER_VISIBILITY_PIXEL);    // ToneMap HDR scene color
-        rootParameters[8].InitAsConstants(5, 3, 0, D3D12_SHADER_VISIBILITY_PIXEL); // ToneMap constants
-
-        D3D12_STATIC_SAMPLER_DESC sampler = {};
-        sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+    D3D12_STATIC_SAMPLER_DESC sampler = {};
+    sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 #if 1
-        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 #else
-        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 #endif
-        sampler.MipLODBias = 0;
-        sampler.MaxAnisotropy = 0;
-        sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-        sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-        sampler.MinLOD = 0.0f;
-        sampler.MaxLOD = D3D12_FLOAT32_MAX;
-        sampler.ShaderRegister = 0;
-        sampler.RegisterSpace = 0;
-        sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    sampler.MipLODBias = 0;
+    sampler.MaxAnisotropy = 0;
+    sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+    sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    sampler.MinLOD = 0.0f;
+    sampler.MaxLOD = D3D12_FLOAT32_MAX;
+    sampler.ShaderRegister = 0;
+    sampler.RegisterSpace = 0;
+    sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init_1_1(_countof(rootParameters),
-                                   rootParameters,
-                                   1,
-                                   &sampler,
-                                   D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init_1_1(_countof(rootParameters),
+                               rootParameters,
+                               1,
+                               &sampler,
+                               D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-        ComPtr<ID3DBlob> signature;
-        ComPtr<ID3DBlob> error;
-        ThrowIfFailed(
-            D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
-        ThrowIfFailed(m_graphicsDevice.Device()->CreateRootSignature(
-            0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
-    }
+    ComPtr<ID3DBlob> signature;
+    ComPtr<ID3DBlob> error;
+    ThrowIfFailed(
+        D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateRootSignature(
+        0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+}
 
-    // Create the pipeline state, which includes compiling and loading shaders.
-    {
-        UINT8* pVertexShaderData = nullptr;
-        UINT8* pPixelShaderData = nullptr;
-        UINT vertexShaderDataLength = 0;
-        UINT pixelShaderDataLength = 0;
+auto HelloTextureEngine::LoadShaderBytecode(LPCWSTR assetName) -> ShaderBytecode
+{
+    UINT8* data = nullptr;
+    UINT size = 0;
+    ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(assetName).c_str(), &data, &size));
+    return {data, size};
+}
 
-        ThrowIfFailed(ReadDataFromFile(
-            GetAssetFullPath(L"shaders_VSMain.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
-        ThrowIfFailed(ReadDataFromFile(
-            GetAssetFullPath(L"shaders_PSMain.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
+auto HelloTextureEngine::LoadPipelineShaderBytecode() -> PipelineShaderBytecode
+{
+    PipelineShaderBytecode shaders = {};
+    shaders.forward = {LoadShaderBytecode(L"shaders_VSMain.cso"), LoadShaderBytecode(L"shaders_PSMain.cso")};
+    shaders.depthPrePass = {LoadShaderBytecode(L"shaders_DepthOnlyVS_VSMain.cso"), {}};
+    shaders.gbuffer = {LoadShaderBytecode(L"shaders_GBuffer_VSMain.cso"),
+                       LoadShaderBytecode(L"shaders_GBuffer_PSMain.cso")};
+    shaders.gbufferDebug = {LoadShaderBytecode(L"shaders_GBufferDebug_VSMain.cso"),
+                            LoadShaderBytecode(L"shaders_GBufferDebug_PSMain.cso")};
+    shaders.lighting = {LoadShaderBytecode(L"shaders_LightPass_VSMain.cso"),
+                        LoadShaderBytecode(L"shaders_LightPass_PSMain.cso")};
+    shaders.lightingDebugGradient = {LoadShaderBytecode(L"shaders_LightPassDebugGradient_VSMain.cso"),
+                                     LoadShaderBytecode(L"shaders_LightPassDebugGradient_PSMain.cso")};
+    shaders.toneMap = {LoadShaderBytecode(L"shaders_ToneMap_VSMain.cso"),
+                       LoadShaderBytecode(L"shaders_ToneMap_PSMain.cso")};
+    return shaders;
+}
 
-        UINT8* pDepthVS = nullptr;
-        UINT depthVSSize = 0;
+void HelloTextureEngine::CreatePipelineStates()
+{
+    const PipelineShaderBytecode shaders = LoadPipelineShaderBytecode();
+    RegisterPipelineStates(shaders);
+}
 
-        ThrowIfFailed(
-            ReadDataFromFile(GetAssetFullPath(L"shaders_DepthOnlyVS_VSMain.cso").c_str(), &pDepthVS, &depthVSSize));
+void HelloTextureEngine::RegisterPipelineStates(const PipelineShaderBytecode& shaders)
+{
+    // Define the vertex input layout.
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 
-        UINT8* pGBufferVS = nullptr;
-        UINT8* pGBufferPS = nullptr;
-        UINT gbufferVSSize = 0;
-        UINT gbufferPSSize = 0;
-        UINT8* pGBufferDebugVS = nullptr;
-        UINT8* pGBufferDebugPS = nullptr;
-        UINT gbufferDebugVSSize = 0;
-        UINT gbufferDebugPSSize = 0;
-
-        ThrowIfFailed(
-            ReadDataFromFile(GetAssetFullPath(L"shaders_GBuffer_VSMain.cso").c_str(), &pGBufferVS, &gbufferVSSize));
-        ThrowIfFailed(
-            ReadDataFromFile(GetAssetFullPath(L"shaders_GBuffer_PSMain.cso").c_str(), &pGBufferPS, &gbufferPSSize));
-        ThrowIfFailed(ReadDataFromFile(
-            GetAssetFullPath(L"shaders_GBufferDebug_VSMain.cso").c_str(), &pGBufferDebugVS, &gbufferDebugVSSize));
-        ThrowIfFailed(ReadDataFromFile(
-            GetAssetFullPath(L"shaders_GBufferDebug_PSMain.cso").c_str(), &pGBufferDebugPS, &gbufferDebugPSSize));
-
-        UINT8* pLightPassVS = nullptr;
-        UINT8* pLightPassPS = nullptr;
-        UINT lightPassVSSize = 0;
-        UINT lightPassPSSize = 0;
-        UINT8* pLightPassDebugGradientVS = nullptr;
-        UINT8* pLightPassDebugGradientPS = nullptr;
-        UINT lightPassDebugGradientVSSize = 0;
-        UINT lightPassDebugGradientPSSize = 0;
-        UINT8* pToneMapVS = nullptr;
-        UINT8* pToneMapPS = nullptr;
-        UINT toneMapVSSize = 0;
-        UINT toneMapPSSize = 0;
-
-        ThrowIfFailed(ReadDataFromFile(
-            GetAssetFullPath(L"shaders_LightPass_VSMain.cso").c_str(), &pLightPassVS, &lightPassVSSize));
-        ThrowIfFailed(ReadDataFromFile(
-            GetAssetFullPath(L"shaders_LightPass_PSMain.cso").c_str(), &pLightPassPS, &lightPassPSSize));
-        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_LightPassDebugGradient_VSMain.cso").c_str(),
-                                       &pLightPassDebugGradientVS,
-                                       &lightPassDebugGradientVSSize));
-        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shaders_LightPassDebugGradient_PSMain.cso").c_str(),
-                                       &pLightPassDebugGradientPS,
-                                       &lightPassDebugGradientPSSize));
-        ThrowIfFailed(
-            ReadDataFromFile(GetAssetFullPath(L"shaders_ToneMap_VSMain.cso").c_str(), &pToneMapVS, &toneMapVSSize));
-        ThrowIfFailed(
-            ReadDataFromFile(GetAssetFullPath(L"shaders_ToneMap_PSMain.cso").c_str(), &pToneMapPS, &toneMapPSSize));
-
-        // Define the vertex input layout.
-        D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-            {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-            {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-            {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-            {"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
-
-        D3D12_INPUT_ELEMENT_DESC depthLayout[] = {
-            {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
-        const InputLayoutDefinition meshInputLayout = {inputElementDescs, _countof(inputElementDescs)};
-        const InputLayoutDefinition depthInputLayout = {depthLayout, _countof(depthLayout)};
-
-        //
-        // Main Pass PSO
-        //
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        RegisterMainPipeline(psoDesc,
-                             {Pipe::Main,
-                              meshInputLayout,
-                              {{pVertexShaderData, vertexShaderDataLength}, {pPixelShaderData, pixelShaderDataLength}},
-                              DXGI_FORMAT_R16G16B16A16_FLOAT,
-                              DXGI_FORMAT_D32_FLOAT});
-
-        //
-        // GBuffer PSO
-        //
-        RegisterGBufferPipeline(
-            psoDesc, {Pipe::GBuffer, meshInputLayout, {{pGBufferVS, gbufferVSSize}, {pGBufferPS, gbufferPSSize}}});
-
-        // Light Pass PSO, ToneMap PSO, GBuffer Debug PSO
-        RegisterFullscreenPipelines(
-            psoDesc,
-            {{Pipe::Lighting,
-              {{pLightPassVS, lightPassVSSize}, {pLightPassPS, lightPassPSSize}},
-              DXGI_FORMAT_R16G16B16A16_FLOAT},
-             {Pipe::LightingDebugGradient,
-              {{pLightPassDebugGradientVS, lightPassDebugGradientVSSize},
-               {pLightPassDebugGradientPS, lightPassDebugGradientPSSize}},
-              DXGI_FORMAT_R16G16B16A16_FLOAT},
-             {Pipe::ToneMap, {{pToneMapVS, toneMapVSSize}, {pToneMapPS, toneMapPSSize}}, m_backBufferFormat},
-             {Pipe::GBufferDebug,
-              {{pGBufferDebugVS, gbufferDebugVSSize}, {pGBufferDebugPS, gbufferDebugPSSize}},
-              DXGI_FORMAT_R16G16B16A16_FLOAT}});
-
-        //
-        // Depth PrePass PSO
-        //
-        RegisterDepthPrePassPipeline(psoDesc, {Pipe::DepthPrePass, depthInputLayout, {{pDepthVS, depthVSSize}, {}}});
-    }
+    D3D12_INPUT_ELEMENT_DESC depthLayout[] = {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+    const InputLayoutDefinition meshInputLayout = {inputElementDescs, _countof(inputElementDescs)};
+    const InputLayoutDefinition depthInputLayout = {depthLayout, _countof(depthLayout)};
 
     //
-    CreateGBuffer();
+    // Forward Pass PSO
+    //
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    RegisterForwardPipeline(
+        psoDesc,
+        {Pipe::Forward, meshInputLayout, shaders.forward, DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_D32_FLOAT});
 
-    // Create the command list.
+    //
+    // GBuffer PSO
+    //
+    RegisterGBufferPipeline(psoDesc, {Pipe::GBuffer, meshInputLayout, shaders.gbuffer});
+
+    // Light Pass PSO, ToneMap PSO, GBuffer Debug PSO
+    RegisterFullscreenPipelines(
+        psoDesc,
+        {{Pipe::Lighting, shaders.lighting, DXGI_FORMAT_R16G16B16A16_FLOAT},
+         {Pipe::LightingDebugGradient, shaders.lightingDebugGradient, DXGI_FORMAT_R16G16B16A16_FLOAT},
+         {Pipe::ToneMap, shaders.toneMap, m_backBufferFormat},
+         {Pipe::GBufferDebug, shaders.gbufferDebug, DXGI_FORMAT_R16G16B16A16_FLOAT}});
+
+    //
+    // Depth PrePass PSO
+    //
+    RegisterDepthPrePassPipeline(psoDesc, {Pipe::DepthPrePass, depthInputLayout, shaders.depthPrePass});
+}
+
+void HelloTextureEngine::CreateInitialCommandList()
+{
     ThrowIfFailed(
         m_graphicsDevice.Device()->CreateCommandList(0,
                                                      D3D12_COMMAND_LIST_TYPE_DIRECT,
                                                      m_frameResources[m_currentFrameIndex].commandAllocator.Get(),
-                                                     GetPipelineState(PipelineId(Pipe::Main)),
+                                                     GetPipelineState(PipelineId(Pipe::Forward)),
                                                      IID_PPV_ARGS(&m_commandList)));
+}
 
-    // Create the vertex buffer.
+void HelloTextureEngine::CreateSceneGeometryBuffers()
+{
     assert(m_scene.mesh != nullptr);
     const Engine::SceneMesh& mesh = *m_scene.mesh;
     assert(!mesh.vertices.empty());
@@ -579,13 +552,18 @@ void HelloTextureEngine::LoadAssets()
         m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
         m_indexBufferView.SizeInBytes = indexBufferSize;
     }
+}
+
+void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Resource>>& textureUploadHeap)
+{
+    assert(m_scene.mesh != nullptr);
+    const Engine::SceneMesh& mesh = *m_scene.mesh;
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
     // the command list that references it has finished executing on the GPU.
     // We will flush the GPU at the end of this method to ensure the resource is not
     // prematurely destroyed.
 
-    std::vector<ComPtr<ID3D12Resource>> textureUploadHeap;
     textureUploadHeap.resize(kTextureCount);
 
     m_texture.resize(kTextureCount);
@@ -627,13 +605,22 @@ void HelloTextureEngine::LoadAssets()
         m_texIndex[i] = srv.Index - m_textureTableStart.Index;
         DBG_PRINT("Texture %d SRV index: %d\n", i, m_texIndex[i]);
     }
+}
 
+void HelloTextureEngine::PrepareSceneInstanceData()
+{
     // Instance data is provided by the application via SetScene().
     // Pre-allocate the buffer for kMaxInstanceCount entries.
     if (m_scene.instances.empty())
     {
         m_scene.instances.resize(kMaxInstanceCount);
     }
+}
+
+void HelloTextureEngine::CreateSceneMaterialResources()
+{
+    assert(m_scene.mesh != nullptr);
+    const Engine::SceneMesh& mesh = *m_scene.mesh;
 
     // Generate the material data.
     m_materialData.clear();
@@ -680,6 +667,11 @@ void HelloTextureEngine::LoadAssets()
         m_materialData.push_back(m);
     }
 
+    m_materialBuffer.Create(m_graphicsDevice.Device(), m_descriptorHeapAllocator, m_materialData);
+}
+
+void HelloTextureEngine::CreateInstanceBuffers()
+{
     // Create the instance buffer.
     for (int n = 0; n < kFrameCount; n++)
     {
@@ -705,9 +697,10 @@ void HelloTextureEngine::LoadAssets()
         memcpy(m_frameResources[n].pSrvDataBegin, m_scene.instances.data(), instanceBufferSize);
         m_frameResources[n].instanceBuffer->Unmap(0, nullptr);
     }
+}
 
-    m_materialBuffer.Create(m_graphicsDevice.Device(), m_descriptorHeapAllocator, m_materialData);
-
+void HelloTextureEngine::CreateFrameConstantBuffers()
+{
     UpdateCameraConstantBuffer();
     m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
 
@@ -718,7 +711,10 @@ void HelloTextureEngine::LoadAssets()
         const LightingConstants initialLightingConstants = MakeLightingConstants();
         CreateConstantBuffer(m_frameResources[n].lightCB, &initialLightingConstants, sizeof(initialLightingConstants));
     }
+}
 
+void HelloTextureEngine::ExecuteInitialGpuSetup()
+{
     // Close the command list and execute it to begin the initial GPU setup.
     ThrowIfFailed(m_commandList->Close());
     ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
@@ -1021,7 +1017,8 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
         m_renderGraphRuntime.RegisterDescriptor(Desc::LightCbv),
         [this]() { return m_frameResources[m_currentFrameIndex].lightCB.cbv.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::GBufferAlbedoSrv),
-                                                       [this]() { return m_gbuffer.srvHandles[Engine::GBuffer::Albedo].gpu; });
+                                                       [this]()
+                                                       { return m_gbuffer.srvHandles[Engine::GBuffer::Albedo].gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(
         m_renderGraphRuntime.RegisterDescriptor(Desc::ToneMapSceneColorSrv),
         [this]() { return m_lightPassColorSrv.gpu; });
@@ -1307,12 +1304,7 @@ void HelloTextureEngine::DestroyFrameResources()
 void HelloTextureEngine::RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                                     const FullscreenPipelineDefinition& definition)
 {
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MyDx12Util::CreateFullscreenPassPSODesc(baseDesc,
-                                                                                      definition.shaders.vertex.data,
-                                                                                      definition.shaders.vertex.size,
-                                                                                      definition.shaders.pixel.data,
-                                                                                      definition.shaders.pixel.size,
-                                                                                      definition.renderTargetFormat);
+    const D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = Engine::CreateFullscreenPipelineDesc(baseDesc, definition);
     const PipelineKey key = PipelineId(definition.name);
     ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.Device(), key, desc));
 }
@@ -1326,24 +1318,10 @@ void HelloTextureEngine::RegisterFullscreenPipelines(const D3D12_GRAPHICS_PIPELI
     }
 }
 
-void HelloTextureEngine::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
-                                              const MainPipelineDefinition& definition)
+void HelloTextureEngine::RegisterForwardPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
+                                                 const ForwardPipelineDefinition& definition)
 {
-    baseDesc.InputLayout = {definition.inputLayout.elements, definition.inputLayout.count};
-    baseDesc.pRootSignature = m_rootSignature.Get();
-    baseDesc.VS = CD3DX12_SHADER_BYTECODE(definition.shaders.vertex.data, definition.shaders.vertex.size);
-    baseDesc.PS = CD3DX12_SHADER_BYTECODE(definition.shaders.pixel.data, definition.shaders.pixel.size);
-    baseDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    baseDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-    baseDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-    baseDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-    baseDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-    baseDesc.SampleMask = UINT_MAX;
-    baseDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    baseDesc.NumRenderTargets = 1;
-    baseDesc.RTVFormats[0] = definition.renderTargetFormat;
-    baseDesc.DSVFormat = definition.depthStencilFormat;
-    baseDesc.SampleDesc.Count = 1;
+    baseDesc = Engine::CreateForwardPipelineDesc(baseDesc, m_rootSignature.Get(), definition);
     const PipelineKey key = PipelineId(definition.name);
     ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.Device(), key, baseDesc));
 }
@@ -1351,15 +1329,8 @@ void HelloTextureEngine::RegisterMainPipeline(D3D12_GRAPHICS_PIPELINE_STATE_DESC
 void HelloTextureEngine::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                                  const GBufferPipelineDefinition& definition)
 {
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferBaseDesc = baseDesc;
-    gbufferBaseDesc.InputLayout = {definition.inputLayout.elements, definition.inputLayout.count};
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MyDx12Util::CreateGBufferPSODesc(gbufferBaseDesc,
-                                                                               definition.shaders.vertex.data,
-                                                                               definition.shaders.vertex.size,
-                                                                               definition.shaders.pixel.data,
-                                                                               definition.shaders.pixel.size,
-                                                                               m_gbuffer.formats,
-                                                                               Engine::GBuffer::kCount);
+    const D3D12_GRAPHICS_PIPELINE_STATE_DESC desc =
+        Engine::CreateGBufferPipelineDesc(baseDesc, definition, m_gbuffer.formats, Engine::GBuffer::kCount);
     const PipelineKey key = PipelineId(definition.name);
     ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.Device(), key, desc));
 }
@@ -1367,14 +1338,7 @@ void HelloTextureEngine::RegisterGBufferPipeline(const D3D12_GRAPHICS_PIPELINE_S
 void HelloTextureEngine::RegisterDepthPrePassPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
                                                       const DepthPrePassPipelineDefinition& definition)
 {
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = baseDesc;
-    desc.InputLayout = {definition.inputLayout.elements, definition.inputLayout.count};
-    desc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
-    desc.VS = CD3DX12_SHADER_BYTECODE(definition.shaders.vertex.data, definition.shaders.vertex.size);
-    desc.PS = {};
-    desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-    desc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0;
-    desc.NumRenderTargets = 0;
+    const D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = Engine::CreateDepthPrePassPipelineDesc(baseDesc, definition);
     const PipelineKey key = PipelineId(definition.name);
     ThrowIfFailed(m_renderGraphRuntime.Pipelines().Create(m_graphicsDevice.Device(), key, desc));
 }
@@ -1596,7 +1560,7 @@ void HelloTextureEngine::BeginFrame()
     // list, that command list can then be reset at any time and must be before
     // re-recording.
     ThrowIfFailed(m_commandList->Reset(m_frameResources[m_currentFrameIndex].commandAllocator.Get(),
-                                       GetPipelineState(PipelineId(Pipe::Main))));
+                                       GetPipelineState(PipelineId(Pipe::Forward))));
 
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -1635,13 +1599,13 @@ void HelloTextureEngine::ExecuteGBufferPass(const RenderPass& pass)
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Pass");
 }
 
-void HelloTextureEngine::ExecuteMainPass(const RenderPass& pass)
+void HelloTextureEngine::ExecuteForwardPass(const RenderPass& pass)
 {
-    Engine::MainPassDesc passDesc = {};
+    Engine::ForwardPassDesc passDesc = {};
     passDesc.renderTargets = ResolveRenderTargets(pass.renderTargets);
     passDesc.geometryDraw = MakeSceneGeometryDrawDesc();
 
-    Engine::RecordMainPass(m_commandList.Get(), passDesc);
+    Engine::RecordForwardPass(m_commandList.Get(), passDesc);
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Main Pass");
 }
 

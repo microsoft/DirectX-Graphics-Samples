@@ -143,7 +143,7 @@ Examples:
 
 At execution time, `BindPassRenderTargets()` resolves keys through `ResolveRtv()` and `ResolveDsv()`, then calls `OMSetRenderTargets(...)`.
 
-`clearColor` does not clear automatically. It is data for the operation implementation. For example, `RecordClear()` requires it, and `RecordMainPass()` uses it when present.
+`clearColor` does not clear automatically. It is data for the operation implementation. For example, `RecordClear()` requires it, and `RecordForwardPass()` uses it when present.
 
 When adding a new target key:
 

@@ -144,6 +144,7 @@
     <ClInclude Include="Renderer\LightingPass.h" />
     <ClInclude Include="Renderer\Material.h" />
     <ClInclude Include="Renderer\MaterialBuffer.h" />
+    <ClInclude Include="Renderer\PipelineFactory.h" />
     <ClInclude Include="Renderer\RenderPassExecution.h" />
     <ClInclude Include="Renderer\RenderPassGraph.h" />
     <ClInclude Include="Renderer\RenderPassKeys.h" />
@@ -173,6 +174,7 @@
     <ClCompile Include="Renderer\HdrOutput.cpp" />
     <ClCompile Include="Renderer\LightingPass.cpp" />
     <ClCompile Include="Renderer\MaterialBuffer.cpp" />
+    <ClCompile Include="Renderer\PipelineFactory.cpp" />
     <ClCompile Include="Renderer\SceneGeometryPass.cpp" />
     <ClCompile Include="Renderer\ToneMap.cpp" />
     <ClCompile Include="Win32Application.cpp" />
