@@ -1685,66 +1685,33 @@ void HelloTextureEngine::ExecuteImGuiPass(const RenderPass& pass)
     RecordImGuiPass();
 }
 
-void HelloTextureEngine::CreateDebugDumpReadback(ID3D12Resource* source,
-                                                 ComPtr<ID3D12Resource>& readback,
-                                                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout)
-{
-    D3D12_RESOURCE_DESC desc = source->GetDesc();
-    UINT numRows = 0;
-    UINT64 rowSizeInBytes = 0;
-    UINT64 totalBytes = 0;
-    m_graphicsDevice.Device()->GetCopyableFootprints(&desc, 0, 1, 0, &layout, &numRows, &rowSizeInBytes, &totalBytes);
-
-    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
-                                                                     D3D12_HEAP_FLAG_NONE,
-                                                                     &CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
-                                                                     D3D12_RESOURCE_STATE_COPY_DEST,
-                                                                     nullptr,
-                                                                     IID_PPV_ARGS(&readback)));
-}
-
 void HelloTextureEngine::RecordDebugDumpPass()
 {
-    PIXBeginEvent(m_commandList.Get(), 0, L"DebugDump");
-
-    CreateDebugDumpReadback(m_lightPassRenderTarget.Get(), m_lightPassDebugDumpReadback, m_lightPassDebugDumpLayout);
-    CreateDebugDumpReadback(
-        m_renderTargets[m_currentFrameIndex].Get(), m_backBufferDebugDumpReadback, m_backBufferDebugDumpLayout);
-
-    CD3DX12_TEXTURE_COPY_LOCATION lightDst(m_lightPassDebugDumpReadback.Get(), m_lightPassDebugDumpLayout);
-    CD3DX12_TEXTURE_COPY_LOCATION lightSrc(m_lightPassRenderTarget.Get(), 0);
-    m_commandList->CopyTextureRegion(&lightDst, 0, 0, 0, &lightSrc, nullptr);
-
-    CD3DX12_TEXTURE_COPY_LOCATION backBufferDst(m_backBufferDebugDumpReadback.Get(), m_backBufferDebugDumpLayout);
-    CD3DX12_TEXTURE_COPY_LOCATION backBufferSrc(m_renderTargets[m_currentFrameIndex].Get(), 0);
-    m_commandList->CopyTextureRegion(&backBufferDst, 0, 0, 0, &backBufferSrc, nullptr);
+    Engine::RecordDebugDumpCapture(m_commandList.Get(),
+                                   m_graphicsDevice.Device(),
+                                   m_lightPassRenderTarget.Get(),
+                                   m_renderTargets[m_currentFrameIndex].Get(),
+                                   m_debugDumpCapture);
 
     m_debugViewSettings.hdrDumpPending = true;
-
-    PIXEndEvent(m_commandList.Get());
 
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Debug Dump");
 }
 
 void HelloTextureEngine::PrintDebugDump()
 {
-    if (!m_lightPassDebugDumpReadback || !m_backBufferDebugDumpReadback)
+    if (!m_debugDumpCapture.IsReady())
     {
         return;
     }
 
-    UINT8* lightData = nullptr;
-    UINT8* backBufferData = nullptr;
-    const D3D12_RANGE lightReadRange = {0, static_cast<SIZE_T>(m_lightPassDebugDumpReadback->GetDesc().Width)};
-    const D3D12_RANGE backBufferReadRange = {0, static_cast<SIZE_T>(m_backBufferDebugDumpReadback->GetDesc().Width)};
-    ThrowIfFailed(m_lightPassDebugDumpReadback->Map(0, &lightReadRange, reinterpret_cast<void**>(&lightData)));
-    ThrowIfFailed(
-        m_backBufferDebugDumpReadback->Map(0, &backBufferReadRange, reinterpret_cast<void**>(&backBufferData)));
+    Engine::DebugDumpMappedCapture mappedCapture = {};
+    Engine::MapDebugDumpCapture(m_debugDumpCapture, mappedCapture);
 
-    const UINT lightWidth = static_cast<UINT>(m_lightPassDebugDumpLayout.Footprint.Width);
-    const UINT lightHeight = m_lightPassDebugDumpLayout.Footprint.Height;
-    const UINT backBufferWidth = static_cast<UINT>(m_backBufferDebugDumpLayout.Footprint.Width);
-    const UINT backBufferHeight = m_backBufferDebugDumpLayout.Footprint.Height;
+    const UINT lightWidth = mappedCapture.lightPass.width;
+    const UINT lightHeight = mappedCapture.lightPass.height;
+    const UINT backBufferWidth = mappedCapture.backBuffer.width;
+    const UINT backBufferHeight = mappedCapture.backBuffer.height;
     const UINT sampleYs[] = {lightHeight > 0 ? lightHeight / 4 : 0, lightHeight > 0 ? (lightHeight * 3) / 4 : 0};
     const char* bandNames[] = {"SDR[0,1]", "HDR[0,9]"};
     const UINT bandCount = m_lightingPassDebugGradientEnabled ? 2 : 1;
@@ -1787,23 +1754,10 @@ void HelloTextureEngine::PrintDebugDump()
             const UINT backBufferX = backBufferWidth > 0 ? (std::min)(lightX, backBufferWidth - 1) : 0;
             const UINT backBufferY = backBufferHeight > 0 ? (std::min)(sampleY, backBufferHeight - 1) : 0;
 
-            const UINT8* lightRow = lightData + m_lightPassDebugDumpLayout.Offset +
-                                    static_cast<size_t>(sampleY) * m_lightPassDebugDumpLayout.Footprint.RowPitch;
-            const UINT16* lightHalf = reinterpret_cast<const UINT16*>(lightRow + static_cast<size_t>(lightX) * 8);
-            const float lightR = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[0]);
-            const float lightG = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[1]);
-            const float lightB = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[2]);
-            const float lightA = DirectX::PackedVector::XMConvertHalfToFloat(lightHalf[3]);
-
-            const UINT8* backBufferRow =
-                backBufferData + m_backBufferDebugDumpLayout.Offset +
-                static_cast<size_t>(backBufferY) * m_backBufferDebugDumpLayout.Footprint.RowPitch;
-            const UINT backBufferRaw =
-                *reinterpret_cast<const UINT*>(backBufferRow + static_cast<size_t>(backBufferX) * 4);
-            const float outR = static_cast<float>(backBufferRaw & 0x3ff) / 1023.0f;
-            const float outG = static_cast<float>((backBufferRaw >> 10) & 0x3ff) / 1023.0f;
-            const float outB = static_cast<float>((backBufferRaw >> 20) & 0x3ff) / 1023.0f;
-            const float outA = static_cast<float>((backBufferRaw >> 30) & 0x3) / 3.0f;
+            const Engine::DebugDumpLightSample lightSample =
+                Engine::ReadLightPassDebugSample(mappedCapture.lightPass, lightX, sampleY);
+            const Engine::DebugDumpBackBufferSample backBufferSample =
+                Engine::ReadBackBufferDebugSample(mappedCapture.backBuffer, backBufferX, backBufferY);
 
             const float expectedU = lightWidth > 0 ? (static_cast<float>(lightX) + 0.5f) / lightWidth : 0.0f;
             const float expectedV = lightHeight > 0 ? (static_cast<float>(sampleY) + 0.5f) / lightHeight : 0.0f;
@@ -1812,10 +1766,10 @@ void HelloTextureEngine::PrintDebugDump()
                        sampleNames[i],
                        lightX,
                        sampleY,
-                       lightR,
-                       lightG,
-                       lightB,
-                       lightA);
+                       lightSample.r,
+                       lightSample.g,
+                       lightSample.b,
+                       lightSample.a);
 
             if (m_lightingPassDebugGradientEnabled)
             {
@@ -1844,14 +1798,14 @@ void HelloTextureEngine::PrintDebugDump()
                            sampleNames[i],
                            backBufferX,
                            backBufferY,
-                           outR,
-                           outG,
-                           outB,
-                           outA,
-                           backBufferRaw,
-                           St2084PqToNits(outR),
-                           St2084PqToNits(outG),
-                           St2084PqToNits(outB));
+                           backBufferSample.r,
+                           backBufferSample.g,
+                           backBufferSample.b,
+                           backBufferSample.a,
+                           backBufferSample.raw,
+                           St2084PqToNits(backBufferSample.r),
+                           St2084PqToNits(backBufferSample.g),
+                           St2084PqToNits(backBufferSample.b));
             }
             else
             {
@@ -1861,24 +1815,22 @@ void HelloTextureEngine::PrintDebugDump()
                            sampleNames[i],
                            backBufferX,
                            backBufferY,
-                           outR,
-                           outG,
-                           outB,
-                           outA,
-                           backBufferRaw,
-                           SrgbToLinear(outR),
-                           SrgbToLinear(outG),
-                           SrgbToLinear(outB),
-                           SrgbToLinear(outR) * m_toneMapPass.settings.paperWhiteNits,
-                           SrgbToLinear(outG) * m_toneMapPass.settings.paperWhiteNits,
-                           SrgbToLinear(outB) * m_toneMapPass.settings.paperWhiteNits);
+                           backBufferSample.r,
+                           backBufferSample.g,
+                           backBufferSample.b,
+                           backBufferSample.a,
+                           backBufferSample.raw,
+                           SrgbToLinear(backBufferSample.r),
+                           SrgbToLinear(backBufferSample.g),
+                           SrgbToLinear(backBufferSample.b),
+                           SrgbToLinear(backBufferSample.r) * m_toneMapPass.settings.paperWhiteNits,
+                           SrgbToLinear(backBufferSample.g) * m_toneMapPass.settings.paperWhiteNits,
+                           SrgbToLinear(backBufferSample.b) * m_toneMapPass.settings.paperWhiteNits);
             }
         }
     }
 
-    const D3D12_RANGE writtenRange = {0, 0};
-    m_lightPassDebugDumpReadback->Unmap(0, &writtenRange);
-    m_backBufferDebugDumpReadback->Unmap(0, &writtenRange);
+    Engine::UnmapDebugDumpCapture(m_debugDumpCapture);
 }
 
 auto HelloTextureEngine::MakeSceneGeometryDrawDesc() const -> Engine::SceneGeometryDrawDesc

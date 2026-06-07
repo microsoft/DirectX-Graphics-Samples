@@ -14,6 +14,7 @@
 #include "GraphicsDevice.h"
 #include "MyDx12Utils.h"
 #include "Renderer/ClearPass.h"
+#include "Renderer/DebugDumpCapture.h"
 #include "Renderer/GBuffer.h"
 #include "Renderer/HdrOutput.h"
 #include "Renderer/LightingPass.h"
@@ -335,10 +336,7 @@ private:
     DXGI_FORMAT m_backBufferFormat = kBackBufferFormat;
     HdrOutputPolicy m_hdrOutputPolicy;
     DebugViewSettings m_debugViewSettings;
-    ComPtr<ID3D12Resource> m_lightPassDebugDumpReadback;
-    ComPtr<ID3D12Resource> m_backBufferDebugDumpReadback;
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_lightPassDebugDumpLayout = {};
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_backBufferDebugDumpLayout = {};
+    Engine::DebugDumpCapture m_debugDumpCapture;
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
 
     DescriptorHeapHandle m_textureTableStart;
@@ -593,9 +591,6 @@ private:
     void RecordDebugDumpPass();
     void RecordImGuiPass();
     void EndFrame();
-    void CreateDebugDumpReadback(ID3D12Resource* source,
-                                 ComPtr<ID3D12Resource>& readback,
-                                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout);
     void PrintDebugDump();
 
     Engine::SceneGeometryDrawDesc MakeSceneGeometryDrawDesc() const;
