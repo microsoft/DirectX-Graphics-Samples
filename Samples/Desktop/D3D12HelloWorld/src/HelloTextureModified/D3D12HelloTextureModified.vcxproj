@@ -137,6 +137,7 @@
     <ClInclude Include="MyDx12Utils.h" />
     <ClInclude Include="Renderer\ClearPass.h" />
     <ClInclude Include="Renderer\DebugDumpCapture.h" />
+    <ClInclude Include="Renderer\DebugDumpReport.h" />
     <ClInclude Include="Renderer\FullscreenTriangle.h" />
     <ClInclude Include="Renderer\GBuffer.h" />
     <ClInclude Include="Renderer\HdrOutput.h" />
@@ -166,6 +167,7 @@
     <ClCompile Include="GraphicsDevice.cpp" />
     <ClCompile Include="Renderer\ClearPass.cpp" />
     <ClCompile Include="Renderer\DebugDumpCapture.cpp" />
+    <ClCompile Include="Renderer\DebugDumpReport.cpp" />
     <ClCompile Include="Renderer\FullscreenTriangle.cpp" />
     <ClCompile Include="Renderer\GBuffer.cpp" />
     <ClCompile Include="Renderer\HdrOutput.cpp" />

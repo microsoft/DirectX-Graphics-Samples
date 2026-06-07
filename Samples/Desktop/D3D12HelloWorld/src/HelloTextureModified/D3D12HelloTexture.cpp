@@ -17,13 +17,13 @@
 
 #include "D3D12HelloTexture.h"
 
-#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <DirectXPackedVector.h>
 #include <windows.h>
 
 #include "MyDx12Utils.h"
+#include "Renderer/DebugDumpReport.h"
 
 #include <pix3.h>
 
@@ -36,12 +36,6 @@ int rand_0_255()
     static std::mt19937 gen(std::random_device{}());
     static std::uniform_int_distribution<int> dist(0, 0xFF);
     return dist(gen);
-}
-
-float SrgbToLinear(float value)
-{
-    value = (std::clamp)(value, 0.0f, 1.0f);
-    return value <= 0.04045f ? value / 12.92f : std::pow((value + 0.055f) / 1.055f, 2.4f);
 }
 
 extern "C"
@@ -1671,6 +1665,11 @@ void HelloTextureEngine::ExecuteToneMapPass(const RenderPass& pass)
 
 void HelloTextureEngine::ExecuteDebugDumpPass(const RenderPass& pass)
 {
+    if (!m_lightingPassDebugGradientEnabled)
+    {
+        return;
+    }
+
     RecordDebugDumpPass();
 }
 
@@ -1700,6 +1699,11 @@ void HelloTextureEngine::RecordDebugDumpPass()
 
 void HelloTextureEngine::PrintDebugDump()
 {
+    if (!m_lightingPassDebugGradientEnabled)
+    {
+        return;
+    }
+
     if (!m_debugDumpCapture.IsReady())
     {
         return;
@@ -1708,127 +1712,12 @@ void HelloTextureEngine::PrintDebugDump()
     Engine::DebugDumpMappedCapture mappedCapture = {};
     Engine::MapDebugDumpCapture(m_debugDumpCapture, mappedCapture);
 
-    const UINT lightWidth = mappedCapture.lightPass.width;
-    const UINT lightHeight = mappedCapture.lightPass.height;
-    const UINT backBufferWidth = mappedCapture.backBuffer.width;
-    const UINT backBufferHeight = mappedCapture.backBuffer.height;
-    const UINT sampleYs[] = {lightHeight > 0 ? lightHeight / 4 : 0, lightHeight > 0 ? (lightHeight * 3) / 4 : 0};
-    const char* bandNames[] = {"SDR[0,1]", "HDR[0,9]"};
-    const UINT bandCount = m_lightingPassDebugGradientEnabled ? 2 : 1;
-    const UINT sampleXs[] = {0, lightWidth / 4, lightWidth / 2, lightWidth > 0 ? lightWidth - 1 : 0};
-    const char* sampleNames[] = {"left", "25%", "50%", "right"};
-
-    DebugPrint("HDR DebugDump: LightPass=%ux%u BackBuffer=%ux%u hdr10=%d gradient=%d toneMap=%d exposure=%.3f "
-               "paperWhite=%.1f maxDisplay=%.1f\n",
-               lightWidth,
-               lightHeight,
-               backBufferWidth,
-               backBufferHeight,
-               m_hdrOutputPolicy.settings.hdr10Enabled ? 1 : 0,
-               m_lightingPassDebugGradientEnabled ? 1 : 0,
-               m_toneMapPass.settings.operatorIndex,
-               m_toneMapPass.settings.exposure,
-               m_toneMapPass.settings.paperWhiteNits,
-               m_toneMapPass.settings.maxDisplayNits);
-    if (m_lightingPassDebugGradientEnabled)
-    {
-        const float displayMaxSceneLinear =
-            m_toneMapPass.settings.maxDisplayNits / (std::max)(m_toneMapPass.settings.paperWhiteNits, 1.0f);
-        const float displayMaxMarkerX = std::pow((std::clamp)(displayMaxSceneLinear / 9.0f, 0.0f, 1.0f), 1.0f / 2.2f);
-        DebugPrint("  HDR[0,9] display-max marker: sceneLinear=%.4f nits=%.1f x=%.4f%s\n",
-                   displayMaxSceneLinear,
-                   m_toneMapPass.settings.maxDisplayNits,
-                   displayMaxMarkerX,
-                   displayMaxSceneLinear >= 9.0f ? " (outside ramp)" : "");
-    }
-
-    for (UINT band = 0; band < bandCount; ++band)
-    {
-        const UINT sampleY =
-            m_lightingPassDebugGradientEnabled ? sampleYs[band] : (lightHeight > 0 ? lightHeight / 2 : 0);
-        const char* bandName = m_lightingPassDebugGradientEnabled ? bandNames[band] : "Scene";
-
-        for (UINT i = 0; i < _countof(sampleXs); ++i)
-        {
-            const UINT lightX = (std::min)(sampleXs[i], lightWidth > 0 ? lightWidth - 1 : 0);
-            const UINT backBufferX = backBufferWidth > 0 ? (std::min)(lightX, backBufferWidth - 1) : 0;
-            const UINT backBufferY = backBufferHeight > 0 ? (std::min)(sampleY, backBufferHeight - 1) : 0;
-
-            const Engine::DebugDumpLightSample lightSample =
-                Engine::ReadLightPassDebugSample(mappedCapture.lightPass, lightX, sampleY);
-            const Engine::DebugDumpBackBufferSample backBufferSample =
-                Engine::ReadBackBufferDebugSample(mappedCapture.backBuffer, backBufferX, backBufferY);
-
-            const float expectedU = lightWidth > 0 ? (static_cast<float>(lightX) + 0.5f) / lightWidth : 0.0f;
-            const float expectedV = lightHeight > 0 ? (static_cast<float>(sampleY) + 0.5f) / lightHeight : 0.0f;
-            DebugPrint("  %s %s x=%u y=%u LightPass RGBA=(%.4f, %.4f, %.4f, %.4f)\n",
-                       bandName,
-                       sampleNames[i],
-                       lightX,
-                       sampleY,
-                       lightSample.r,
-                       lightSample.g,
-                       lightSample.b,
-                       lightSample.a);
-
-            if (m_lightingPassDebugGradientEnabled)
-            {
-                const float expectedRampInput = (std::clamp)(expectedU, 0.0f, 1.0f);
-                const float expectedMaxLinear = expectedV < 0.5f ? 1.0f : 9.0f;
-                const float expectedPerceptualMax = std::pow(expectedMaxLinear, 1.0f / 2.2f);
-                const float expectedPerceptualValue = expectedRampInput * expectedPerceptualMax;
-                const float expectedSceneLinear = std::pow(expectedPerceptualValue, 2.2f);
-                DebugPrint("  %s %s expected uv=(%.4f, %.4f) perceptual=(%.4f/%.4f) sceneLinear=%.4f "
-                           "nits=%.1f\n",
-                           bandName,
-                           sampleNames[i],
-                           expectedU,
-                           expectedV,
-                           expectedPerceptualValue,
-                           expectedPerceptualMax,
-                           expectedSceneLinear,
-                           expectedSceneLinear * m_toneMapPass.settings.paperWhiteNits);
-            }
-
-            if (m_hdrOutputPolicy.settings.hdr10Enabled)
-            {
-                DebugPrint("  %s %s x=%u y=%u BackBuffer R10G10B10A2=(%.4f, %.4f, %.4f, %.4f) raw=0x%08x "
-                           "PQ-nits=(%.1f, %.1f, %.1f)\n",
-                           bandName,
-                           sampleNames[i],
-                           backBufferX,
-                           backBufferY,
-                           backBufferSample.r,
-                           backBufferSample.g,
-                           backBufferSample.b,
-                           backBufferSample.a,
-                           backBufferSample.raw,
-                           St2084PqToNits(backBufferSample.r),
-                           St2084PqToNits(backBufferSample.g),
-                           St2084PqToNits(backBufferSample.b));
-            }
-            else
-            {
-                DebugPrint("  %s %s x=%u y=%u BackBuffer R10G10B10A2=(%.4f, %.4f, %.4f, %.4f) raw=0x%08x "
-                           "SDR-linear=(%.4f, %.4f, %.4f) SDR-nits=(%.1f, %.1f, %.1f)\n",
-                           bandName,
-                           sampleNames[i],
-                           backBufferX,
-                           backBufferY,
-                           backBufferSample.r,
-                           backBufferSample.g,
-                           backBufferSample.b,
-                           backBufferSample.a,
-                           backBufferSample.raw,
-                           SrgbToLinear(backBufferSample.r),
-                           SrgbToLinear(backBufferSample.g),
-                           SrgbToLinear(backBufferSample.b),
-                           SrgbToLinear(backBufferSample.r) * m_toneMapPass.settings.paperWhiteNits,
-                           SrgbToLinear(backBufferSample.g) * m_toneMapPass.settings.paperWhiteNits,
-                           SrgbToLinear(backBufferSample.b) * m_toneMapPass.settings.paperWhiteNits);
-            }
-        }
-    }
+    const Engine::DebugDumpReportDesc reportDesc = {
+        mappedCapture,
+        m_hdrOutputPolicy.settings,
+        m_toneMapPass.settings,
+    };
+    Engine::PrintDebugDumpReport(reportDesc);
 
     Engine::UnmapDebugDumpCapture(m_debugDumpCapture);
 }

@@ -263,11 +263,6 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     m_renderingPath = static_cast<RenderingPath>(renderingPath);
 
     const bool deferredRendering = m_renderingPath == RenderingPath::Deferred;
-    if (ImGui::Button("Dump HDR Buffers"))
-    {
-        m_requestHdrDump = true;
-    }
-
     int renderViewMode = static_cast<int>(m_renderViewMode);
     ImGui::Text("Render View");
     ImGui::BeginDisabled(!deferredRendering);
@@ -294,6 +289,14 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     ImGui::BeginDisabled(!lightPassView);
     ImGui::Checkbox("Debug LightPass Gradient", &m_lightingPassDebugGradient);
     ImGui::EndDisabled();
+
+    if (lightPassView && m_lightingPassDebugGradient)
+    {
+        if (ImGui::Button("Validate HDR Gradient"))
+        {
+            m_requestHdrDump = true;
+        }
+    }
 
     ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", context.cpuFrameTime, 1000.0f / context.cpuFrameTime);
 

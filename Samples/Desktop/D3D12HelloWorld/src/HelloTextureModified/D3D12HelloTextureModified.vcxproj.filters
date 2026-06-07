@@ -57,6 +57,9 @@
     <ClInclude Include="Renderer\DebugDumpCapture.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\DebugDumpReport.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer\FullscreenTriangle.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
@@ -144,6 +147,9 @@
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\DebugDumpCapture.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\DebugDumpReport.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\FullscreenTriangle.cpp">
