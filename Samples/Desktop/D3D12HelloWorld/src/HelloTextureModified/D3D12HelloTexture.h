@@ -24,6 +24,7 @@
 #include "Renderer/RenderPassExecution.h"
 #include "Renderer/RenderPassGraph.h"
 #include "Renderer/RenderPassResources.h"
+#include "Renderer/RootSignatureLayout.h"
 #include "Renderer/SceneGeometryPass.h"
 #include "Renderer/SimpleDescriptorHeapAllocator.h"
 #include "Renderer/ToneMap.h"
@@ -61,6 +62,7 @@ using ForwardPipelineDefinition = Engine::ForwardPipelineDefinition;
 using GBufferPipelineDefinition = Engine::GBufferPipelineDefinition;
 using DepthPrePassPipelineDefinition = Engine::DepthPrePassPipelineDefinition;
 using FullscreenPipelineDefinition = Engine::FullscreenPipelineDefinition;
+namespace RootSignatureLayout = Engine::RootSignatureLayout;
 
 struct EngineInitDesc
 {
@@ -402,19 +404,6 @@ private:
     static constexpr const char* kLightPassRenderTargetResourceName = "LightPass.RenderTarget";
     static constexpr const char* kGBufferResourceNames[Engine::GBuffer::kCount] = {
         "GBuffer.Albedo", "GBuffer.Normal", "GBuffer.Material", "GBuffer.MotionVector", "GBuffer.PBRParams"};
-
-    enum RootParameterIndex
-    {
-        RootParam_TextureTable = 0,
-        RootParam_InstanceSrv,
-        RootParam_MaterialSrv,
-        RootParam_ConstantBuffer,
-        RootParam_GBufferSrvBase,
-        RootParam_LightConstants,
-        RootParam_GBufferDebugConstants,
-        RootParam_ToneMapSceneColor,
-        RootParam_ToneMapConstants
-    };
 
     using TransientResourceState = Engine::TransientResourceState;
 

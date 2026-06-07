@@ -150,6 +150,8 @@
     <ClInclude Include="Renderer\RenderPassKeys.h" />
     <ClInclude Include="Renderer\RenderPassResources.h" />
     <ClInclude Include="Renderer\ResolvedRenderTargets.h" />
+    <ClInclude Include="Renderer\RootSignatureFactory.h" />
+    <ClInclude Include="Renderer\RootSignatureLayout.h" />
     <ClInclude Include="Renderer\SceneGeometryPass.h" />
     <ClInclude Include="Renderer\SimpleDescriptorHeapAllocator.h" />
     <ClInclude Include="Renderer\ToneMap.h" />
@@ -175,6 +177,7 @@
     <ClCompile Include="Renderer\LightingPass.cpp" />
     <ClCompile Include="Renderer\MaterialBuffer.cpp" />
     <ClCompile Include="Renderer\PipelineFactory.cpp" />
+    <ClCompile Include="Renderer\RootSignatureFactory.cpp" />
     <ClCompile Include="Renderer\SceneGeometryPass.cpp" />
     <ClCompile Include="Renderer\ToneMap.cpp" />
     <ClCompile Include="Win32Application.cpp" />

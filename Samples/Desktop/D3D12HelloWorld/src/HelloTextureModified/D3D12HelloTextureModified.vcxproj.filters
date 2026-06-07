@@ -96,6 +96,12 @@
     <ClInclude Include="Renderer\ResolvedRenderTargets.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\RootSignatureFactory.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\RootSignatureLayout.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer\SceneGeometryPass.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
@@ -171,6 +177,9 @@
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\PipelineFactory.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\RootSignatureFactory.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\SceneGeometryPass.cpp">

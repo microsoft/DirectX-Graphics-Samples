@@ -1,4 +1,4 @@
-﻿//*********************************************************
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -120,8 +120,8 @@ auto HelloTextureEngine::MakeDepthPrePass() -> RenderPass
         .CreatePass(L"Depth PrePass")
         .Pipeline(Pipe::DepthPrePass)
         .Writes({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
-        .Descriptor(RootParam_InstanceSrv, Desc::InstanceBufferSrv)
-        .Descriptor(RootParam_ConstantBuffer, Desc::CameraCbv)
+        .Descriptor(RootSignatureLayout::InstanceSrv, Desc::InstanceBufferSrv)
+        .Descriptor(RootSignatureLayout::CameraConstants, Desc::CameraCbv)
         .Dsv(DsvName::Depth)
         .Operation(Op::DepthPrePass, &HelloTextureEngine::ExecuteDepthPrePass)
         .Build();
@@ -138,10 +138,10 @@ auto HelloTextureEngine::MakeGBufferPass() -> RenderPass
                  {kGBufferResourceNames[Engine::GBuffer::Material], D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kGBufferResourceNames[Engine::GBuffer::MotionVector], D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kGBufferResourceNames[Engine::GBuffer::PBRParams], D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_TextureTable, Desc::TextureTable)
-        .Descriptor(RootParam_InstanceSrv, Desc::InstanceBufferSrv)
-        .Descriptor(RootParam_MaterialSrv, Desc::MaterialBufferSrv)
-        .Descriptor(RootParam_ConstantBuffer, Desc::CameraCbv)
+        .Descriptor(RootSignatureLayout::TextureTable, Desc::TextureTable)
+        .Descriptor(RootSignatureLayout::InstanceSrv, Desc::InstanceBufferSrv)
+        .Descriptor(RootSignatureLayout::MaterialSrv, Desc::MaterialBufferSrv)
+        .Descriptor(RootSignatureLayout::CameraConstants, Desc::CameraCbv)
         .Rtvs({RtvName::GBufferAlbedo,
                RtvName::GBufferNormal,
                RtvName::GBufferMaterial,
@@ -159,11 +159,11 @@ auto HelloTextureEngine::MakeForwardPass() -> RenderPass
         .Pipeline(Pipe::Forward)
         .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE}})
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_TextureTable, Desc::TextureTable)
-        .Descriptor(RootParam_InstanceSrv, Desc::InstanceBufferSrv)
-        .Descriptor(RootParam_MaterialSrv, Desc::MaterialBufferSrv)
-        .Descriptor(RootParam_ConstantBuffer, Desc::CameraCbv)
-        .Descriptor(RootParam_LightConstants, Desc::LightCbv)
+        .Descriptor(RootSignatureLayout::TextureTable, Desc::TextureTable)
+        .Descriptor(RootSignatureLayout::InstanceSrv, Desc::InstanceBufferSrv)
+        .Descriptor(RootSignatureLayout::MaterialSrv, Desc::MaterialBufferSrv)
+        .Descriptor(RootSignatureLayout::CameraConstants, Desc::CameraCbv)
+        .Descriptor(RootSignatureLayout::LightConstants, Desc::LightCbv)
         .Rtv(RtvName::LightPass)
         .Dsv(DsvName::Depth)
         .ClearColor({0.0f, 0.0f, 0.0f, 1.0f})
@@ -178,10 +178,10 @@ auto HelloTextureEngine::MakeLightingPass() -> RenderPass
         .Pipeline(Pipe::Lighting)
         .Reads(MakeGBufferReadUsages())
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_GBufferSrvBase, Desc::GBufferAlbedoSrv)
-        .Descriptor(RootParam_MaterialSrv, Desc::MaterialBufferSrv)
-        .Descriptor(RootParam_ConstantBuffer, Desc::CameraCbv)
-        .Descriptor(RootParam_LightConstants, Desc::LightCbv)
+        .Descriptor(RootSignatureLayout::GBufferSrvBase, Desc::GBufferAlbedoSrv)
+        .Descriptor(RootSignatureLayout::MaterialSrv, Desc::MaterialBufferSrv)
+        .Descriptor(RootSignatureLayout::CameraConstants, Desc::CameraCbv)
+        .Descriptor(RootSignatureLayout::LightConstants, Desc::LightCbv)
         .Rtv(RtvName::LightPass)
         .Operation(Op::Lighting, &HelloTextureEngine::ExecuteLightingPass)
         .Build();
@@ -194,13 +194,13 @@ auto HelloTextureEngine::MakeLightingDebugGradientPass() -> RenderPass
         .Pipeline(Pipe::LightingDebugGradient)
         .Reads(MakeGBufferReadUsages())
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_GBufferSrvBase, Desc::GBufferAlbedoSrv)
-        .Descriptor(RootParam_MaterialSrv, Desc::MaterialBufferSrv)
-        .Descriptor(RootParam_ConstantBuffer, Desc::CameraCbv)
-        .Descriptor(RootParam_LightConstants, Desc::LightCbv)
+        .Descriptor(RootSignatureLayout::GBufferSrvBase, Desc::GBufferAlbedoSrv)
+        .Descriptor(RootSignatureLayout::MaterialSrv, Desc::MaterialBufferSrv)
+        .Descriptor(RootSignatureLayout::CameraConstants, Desc::CameraCbv)
+        .Descriptor(RootSignatureLayout::LightConstants, Desc::LightCbv)
         .Rtv(RtvName::LightPass)
         .Operation(Op::LightingDebugGradient, &HelloTextureEngine::ExecuteLightingDebugGradientPass)
-        .Constants(RootParam_ToneMapConstants, ConstName::ToneMap)
+        .Constants(RootSignatureLayout::ToneMapConstants, ConstName::ToneMap)
         .Build();
 }
 
@@ -211,10 +211,10 @@ auto HelloTextureEngine::MakeToneMapPass() -> RenderPass
         .Pipeline(Pipe::ToneMap)
         .Reads({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}})
         .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_ToneMapSceneColor, Desc::ToneMapSceneColorSrv)
+        .Descriptor(RootSignatureLayout::ToneMapSceneColor, Desc::ToneMapSceneColorSrv)
         .Rtv(RtvName::BackBuffer)
         .Operation(Op::ToneMap, &HelloTextureEngine::ExecuteToneMapPass)
-        .Constants(RootParam_ToneMapConstants, ConstName::ToneMap)
+        .Constants(RootSignatureLayout::ToneMapConstants, ConstName::ToneMap)
         .Build();
 }
 
@@ -235,10 +235,10 @@ auto HelloTextureEngine::MakeGBufferDebugPass() -> RenderPass
         .Pipeline(Pipe::GBufferDebug)
         .Reads(MakeGBufferReadUsages())
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-        .Descriptor(RootParam_GBufferSrvBase, Desc::GBufferAlbedoSrv)
+        .Descriptor(RootSignatureLayout::GBufferSrvBase, Desc::GBufferAlbedoSrv)
         .Rtv(RtvName::LightPass)
         .Operation(Op::GBufferDebug, &HelloTextureEngine::ExecuteGBufferDebugPass)
-        .Constants(RootParam_GBufferDebugConstants, ConstName::GBufferDebugTarget)
+        .Constants(RootSignatureLayout::GBufferDebugConstants, ConstName::GBufferDebugTarget)
         .Build();
 }
 

@@ -1,4 +1,4 @@
-﻿# Render Pass Authoring Guide
+# Render Pass Authoring Guide
 
 This note describes how to add or modify a render pass in `D3D12HelloTexture`.
 The pass graph is intentionally data-first: a `RenderPass` describes resources, bindings, output targets, GPU pipeline selection, and the operation to record.
@@ -105,7 +105,7 @@ Root descriptor table bindings to set before the operation records commands.
 Each entry maps a root parameter index to a logical descriptor key:
 
 ```cpp
-{{RootParam_ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv)}}
+{{RootSignatureLayout::ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv)}}
 ```
 
 At execution time, `BindPassDescriptors()` calls `ResolveDescriptor(binding.descriptor)` and then `SetGraphicsRootDescriptorTable(...)`.
@@ -172,7 +172,7 @@ Root 32-bit constant bindings to set before operation recording.
 Each entry maps a root parameter index to a logical constants key:
 
 ```cpp
-{{RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap)}}
+{{RootSignatureLayout::ToneMapConstants, ConstantsId(ConstName::ToneMap)}}
 ```
 
 At execution time, `BindPassConstants()` resolves the constants key and calls `SetGraphicsRoot32BitConstants(...)`.
@@ -206,10 +206,10 @@ return RenderPassBuilder(L"ToneMapPass")
     .Pipeline(PipelineId(Pipe::ToneMap))
     .Reads({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}})
     .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-    .Descriptor(RootParam_ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv))
+    .Descriptor(RootSignatureLayout::ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv))
     .Rtv(RtvId(RtvName::BackBuffer))
     .Operation(RegisterPassOperation(Op::ToneMap, &D3D12HelloTexture::ExecuteToneMapPass))
-    .Constants(RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap))
+    .Constants(RootSignatureLayout::ToneMapConstants, ConstantsId(ConstName::ToneMap))
     .Build();
 ```
 

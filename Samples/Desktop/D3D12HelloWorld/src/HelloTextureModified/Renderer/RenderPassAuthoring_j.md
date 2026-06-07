@@ -1,4 +1,4 @@
-﻿# Render Pass Authoring Guide 日本語版
+# Render Pass Authoring Guide 日本語版
 
 このメモは、`D3D12HelloTexture` に render pass を追加、または変更するときの作業手順を説明します。
 現在の pass graph は data-first の設計です。`RenderPass` は、リソース、バインディング、出力先、GPU pipeline の選択、そして実際に記録する operation をまとめて記述します。
@@ -105,7 +105,7 @@ operation が command を記録する前に設定する root descriptor table bi
 各要素は、root parameter index と logical descriptor key の対応です。
 
 ```cpp
-{{RootParam_ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv)}}
+{{RootSignatureLayout::ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv)}}
 ```
 
 実行時には、`BindPassDescriptors()` が `ResolveDescriptor(binding.descriptor)` を呼び、その結果を `SetGraphicsRootDescriptorTable(...)` に渡します。
@@ -172,7 +172,7 @@ operation 記録前に設定する root 32-bit constants binding です。
 各要素は、root parameter index と logical constants key の対応です。
 
 ```cpp
-{{RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap)}}
+{{RootSignatureLayout::ToneMapConstants, ConstantsId(ConstName::ToneMap)}}
 ```
 
 実行時には、`BindPassConstants()` が constants key を解決し、`SetGraphicsRoot32BitConstants(...)` を呼びます。
@@ -206,10 +206,10 @@ return RenderPassBuilder(L"ToneMapPass")
     .Pipeline(PipelineId(Pipe::ToneMap))
     .Reads({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}})
     .Writes({{kBackBufferResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
-    .Descriptor(RootParam_ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv))
+    .Descriptor(RootSignatureLayout::ToneMapSceneColor, DescriptorId(Desc::ToneMapSceneColorSrv))
     .Rtv(RtvId(RtvName::BackBuffer))
     .Operation(RegisterPassOperation(Op::ToneMap, &D3D12HelloTexture::ExecuteToneMapPass))
-    .Constants(RootParam_ToneMapConstants, ConstantsId(ConstName::ToneMap))
+    .Constants(RootSignatureLayout::ToneMapConstants, ConstantsId(ConstName::ToneMap))
     .Build();
 ```
 
