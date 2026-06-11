@@ -18,7 +18,7 @@
 
 SampleApp::SampleApp(UINT width, UINT height, std::wstring name)
     : DXSample(width, height, name), m_prevTime(std::chrono::steady_clock::now()),
-      m_engine(width, height, m_graphicsDevice)
+      m_engine(m_graphicsDevice)
 {
 }
 
@@ -50,10 +50,7 @@ void SampleApp::OnInit()
     m_engine.SetToneMapParams(m_toneMapParams);
     m_engine.SetRenderViewMode(m_renderViewMode);
 
-    EngineInitDesc initDesc = {};
-    initDesc.initialWidth = GetWidth();
-    initDesc.initialHeight = GetHeight();
-    m_engine.Initialize(initDesc);
+    m_engine.Initialize(GetWidth(), GetHeight());
 }
 
 void SampleApp::UpdateSampleState()

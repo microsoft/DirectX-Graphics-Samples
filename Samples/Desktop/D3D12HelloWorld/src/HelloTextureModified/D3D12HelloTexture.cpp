@@ -50,12 +50,9 @@ extern "C"
     __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
 }
 
-HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice)
-    : m_graphicsDevice(graphicsDevice), m_width(width), m_height(height),
-      m_aspectRatio(static_cast<float>(width) / static_cast<float>(height)), m_previousFrameIndex(0),
-      m_currentFrameIndex(0), m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
-      m_scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)), m_rtvDescriptorSize(0),
-      m_descriptorSize(0)
+HelloTextureEngine::HelloTextureEngine(GraphicsDevice& graphicsDevice)
+    : m_graphicsDevice(graphicsDevice), m_width(0), m_height(0), m_aspectRatio(1.0f),
+      m_previousFrameIndex(0), m_currentFrameIndex(0), m_rtvDescriptorSize(0), m_descriptorSize(0)
 {
     WCHAR assetsPath[512];
     GetAssetsPath(assetsPath, _countof(assetsPath));
@@ -66,13 +63,13 @@ HelloTextureEngine::HelloTextureEngine(UINT width, UINT height, GraphicsDevice& 
     RegisterResourceResolvers();
 }
 
-void HelloTextureEngine::Initialize(const EngineInitDesc& desc)
+void HelloTextureEngine::Initialize(UINT width, UINT height)
 {
     assert(m_graphicsDevice.Device() != nullptr);
     assert(m_graphicsDevice.HasSwapChain());
 
-    m_width = desc.initialWidth;
-    m_height = desc.initialHeight;
+    m_width = width;
+    m_height = height;
     m_aspectRatio = static_cast<float>(m_width) / static_cast<float>(m_height);
     m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
     m_scissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height));

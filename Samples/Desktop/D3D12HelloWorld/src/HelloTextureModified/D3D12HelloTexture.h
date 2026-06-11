@@ -64,12 +64,6 @@ using DepthPrePassPipelineDefinition = Engine::DepthPrePassPipelineDefinition;
 using FullscreenPipelineDefinition = Engine::FullscreenPipelineDefinition;
 namespace RootSignatureLayout = Engine::RootSignatureLayout;
 
-struct EngineInitDesc
-{
-    UINT initialWidth = 0;
-    UINT initialHeight = 0;
-};
-
 class HelloTextureEngine
 {
 public:
@@ -134,13 +128,13 @@ public:
     static constexpr UINT kSwapChainBufferCount = 2;
     static constexpr DXGI_FORMAT kSwapChainFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
 
-    HelloTextureEngine(UINT width, UINT height, GraphicsDevice& graphicsDevice);
+    HelloTextureEngine(GraphicsDevice& graphicsDevice);
 
     void HandleMouseDown(UINT8 button, int x, int y);
     void HandleMouseUp(UINT8 button, int x, int y);
     void HandleMouseMove(int x, int y);
     void RequestResize(UINT width, UINT height);
-    void Initialize(const EngineInitDesc& desc);
+    void Initialize(UINT width, UINT height);
     void RenderFrame();
     void RunFrame();
     void Shutdown();
