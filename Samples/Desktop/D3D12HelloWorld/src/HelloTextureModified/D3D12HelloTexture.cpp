@@ -1545,6 +1545,11 @@ void HelloTextureEngine::CollectGarbageTransientResources()
         {
             m_depthStencil.Reset();
         }
+
+        if (name == kLightPassRenderTargetResourceName)
+        {
+            m_lightPassRenderTarget.Reset();
+        }
     }
 }
 
