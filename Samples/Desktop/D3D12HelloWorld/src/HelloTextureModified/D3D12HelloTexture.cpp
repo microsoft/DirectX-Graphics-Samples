@@ -34,12 +34,6 @@
 #define IMGUI_IMPL 1
 
 #include <random>
-int rand_0_255()
-{
-    static std::mt19937 gen(std::random_device{}());
-    static std::uniform_int_distribution<int> dist(0, 0xFF);
-    return dist(gen);
-}
 
 extern "C"
 {
@@ -52,7 +46,7 @@ extern "C"
 
 HelloTextureEngine::HelloTextureEngine(GraphicsDevice& graphicsDevice)
     : m_graphicsDevice(graphicsDevice), m_width(0), m_height(0), m_aspectRatio(1.0f),
-      m_previousFrameIndex(0), m_currentFrameIndex(0), m_rtvDescriptorSize(0), m_descriptorSize(0)
+      m_previousFrameIndex(0), m_currentFrameIndex(0), m_rtvDescriptorSize(0)
 {
     WCHAR assetsPath[512];
     GetAssetsPath(assetsPath, _countof(assetsPath));
@@ -226,9 +220,6 @@ void HelloTextureEngine::LoadPipeline()
         imguiHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         ThrowIfFailed(m_graphicsDevice.Device()->CreateDescriptorHeap(&imguiHeapDesc, IID_PPV_ARGS(&m_imguiHeap)));
         m_ImGuiDescriptorHeapAllocator.Init(m_graphicsDevice.Device(), m_imguiHeap.Get());
-
-        m_descriptorSize =
-            m_graphicsDevice.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
 
     // create render target views (RTVs) for the swap chain back buffers.
@@ -875,9 +866,11 @@ std::vector<UINT8> HelloTextureEngine::GenerateCheckerboardTextureData()
     std::vector<UINT8> data(textureSize);
     UINT8* pData = &data[0];
 
-    UINT8 R = rand_0_255();
-    UINT8 G = rand_0_255();
-    UINT8 B = rand_0_255();
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<int> dist(0, 0xFF);
+    UINT8 R = static_cast<UINT8>(dist(gen));
+    UINT8 G = static_cast<UINT8>(dist(gen));
+    UINT8 B = static_cast<UINT8>(dist(gen));
 
     // DBG_PRINT("R=%d G=%d B=%d\n", R, G, B);
 

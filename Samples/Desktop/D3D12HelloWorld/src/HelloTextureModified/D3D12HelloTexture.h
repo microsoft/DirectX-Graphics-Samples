@@ -349,7 +349,6 @@ private:
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
-    UINT m_descriptorSize;
     DXGI_FORMAT m_backBufferFormat = kBackBufferFormat;
     HdrOutputPolicy m_hdrOutputPolicy;
     DebugViewSettings m_debugViewSettings;

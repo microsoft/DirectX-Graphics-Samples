@@ -47,7 +47,7 @@ public:
     }
 
 private:
-    float m_cpuFrameTime;
+    float m_cpuFrameTime = 0.0f;
 
     std::vector<CheckPoint> m_timePoints;
 };
