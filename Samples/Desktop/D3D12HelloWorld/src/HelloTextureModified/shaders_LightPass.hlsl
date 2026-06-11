@@ -125,6 +125,8 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float3 diffuseBrdf = (1.0 - fresnel) * (1.0 - metallic) * albedo / PI;
     float3 radiance = lightColor * diffuseIntensity;
     float3 directLighting = (diffuseBrdf + specularBrdf) * radiance * ndotl * receiveLighting;
+    // Indirect Occlusion affects environment lighting only; direct light remains controlled separately.
+    // TODO: Split specular occlusion from diffuse AO when proper specular IBL is introduced.
     float3 environmentDiffuse = g_environmentMap.Sample(g_sampler, normal).rgb;
     float3 iblDiffuse = environmentDiffuse * albedo * (1.0 - metallic) * ambientIntensity * occlusion;
     float3 reflectionDir = reflect(-viewDir, normal);

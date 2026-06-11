@@ -236,31 +236,31 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     ImGui::SliderInt("Display Instance Count", &m_displayInstanceCount, 0, static_cast<int>(kMaxInstanceCount));
     ImGui::SliderFloat("Mesh Scale", &m_meshScale, 0.1f, 2.0f);
     ImGui::SliderFloat("Camera FovH", &m_scene.camera.fov, 20.f, 150.f);
-    ImGui::ColorEdit4("BackBuffer Clear", m_backBufferClearColor.data());
+    ImGui::ColorEdit4("Background Color", m_backBufferClearColor.data());
     ImGui::SliderFloat3("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f);
     ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
-    ImGui::SliderFloat("Ambient", &m_lightingParams.ambientIntensity, 0.0f, 1.0f);
-    ImGui::SliderFloat("Diffuse", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f);
+    ImGui::SliderFloat("IBL Intensity", &m_lightingParams.ambientIntensity, 0.0f, 2.0f);
+    ImGui::SliderFloat("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f);
 
     if (!m_sceneMesh.materials.empty())
     {
-        ImGui::Text("Material");
+        ImGui::Text("Material Controls");
         const int materialCount = static_cast<int>(m_sceneMesh.materials.size());
         if (m_selectedMaterialIndex >= materialCount)
         {
             m_selectedMaterialIndex = materialCount - 1;
         }
-        ImGui::SliderInt("Material Index", &m_selectedMaterialIndex, 0, materialCount - 1);
+        ImGui::SliderInt("Material", &m_selectedMaterialIndex, 0, materialCount - 1);
 
         Engine::SceneMaterial& material = m_sceneMesh.materials[m_selectedMaterialIndex];
         bool materialChanged = false;
-        materialChanged |= ImGui::SliderFloat("Roughness Factor", &material.roughnessFactor, 0.04f, 1.0f);
-        materialChanged |= ImGui::SliderFloat("Metallic Factor", &material.metallicFactor, 0.0f, 1.0f);
-        materialChanged |= ImGui::SliderFloat("Ambient Occlusion", &material.ambientOcclusionFactor, 0.0f, 1.0f);
-        materialChanged |= ImGui::SliderFloat("Emissive Scale", &material.emissiveScale, 0.0f, 10.0f);
+        materialChanged |= ImGui::SliderFloat("Roughness", &material.roughnessFactor, 0.04f, 1.0f);
+        materialChanged |= ImGui::SliderFloat("Metallic", &material.metallicFactor, 0.0f, 1.0f);
+        materialChanged |= ImGui::SliderFloat("Indirect Occlusion", &material.ambientOcclusionFactor, 0.0f, 1.0f);
+        materialChanged |= ImGui::SliderFloat("Emissive Luminance", &material.emissiveScale, 0.0f, 4.0f);
 
         const float f0 = 0.04f * (1.0f - material.metallicFactor) + material.metallicFactor;
-        ImGui::Text("F0: %.2f", f0);
+        ImGui::Text("Specular F0: %.2f", f0);
 
         if (materialChanged)
         {
@@ -273,7 +273,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
         }
     }
 
-    ImGui::Text("ToneMap");
+    ImGui::Text("Tone Mapping");
     ImGui::RadioButton("None", &m_toneMapParams.operatorIndex, 0);
     ImGui::SameLine();
     ImGui::RadioButton("Reinhard", &m_toneMapParams.operatorIndex, 1);
@@ -292,9 +292,9 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
 
     const bool deferredRendering = m_renderingPath == RenderingPath::Deferred;
     int renderViewMode = static_cast<int>(m_renderViewMode);
-    ImGui::Text("Render View");
+    ImGui::Text("Debug View");
     ImGui::BeginDisabled(!deferredRendering);
-    ImGui::RadioButton("LightPass", &renderViewMode, static_cast<int>(RenderViewMode::LightPass));
+    ImGui::RadioButton("Lit", &renderViewMode, static_cast<int>(RenderViewMode::LightPass));
     ImGui::RadioButton("Albedo", &renderViewMode, static_cast<int>(RenderViewMode::GBufferAlbedo));
     ImGui::SameLine();
     ImGui::RadioButton("Normal", &renderViewMode, static_cast<int>(RenderViewMode::GBufferNormal));
@@ -302,7 +302,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     ImGui::RadioButton("Material", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMaterial));
     ImGui::RadioButton("MotionVector", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMotionVector));
     ImGui::SameLine();
-    ImGui::RadioButton("PBRParams", &renderViewMode, static_cast<int>(RenderViewMode::GBufferPBRParams));
+    ImGui::RadioButton("PBR Params", &renderViewMode, static_cast<int>(RenderViewMode::GBufferPBRParams));
     ImGui::SameLine();
     ImGui::RadioButton("Depth", &renderViewMode, static_cast<int>(RenderViewMode::Depth));
     m_renderViewMode = static_cast<RenderViewMode>(renderViewMode);

@@ -126,8 +126,9 @@ GBufferOutput PSMain(PSInput input)
 
     float metallic = saturate(metallicRoughness.b * mat.metallicFactor);
     float roughness = saturate(metallicRoughness.g * mat.roughnessFactor);
+    // Indirect Occlusion is an artist/debug multiplier applied after glTF occlusionStrength.
     float ambientOcclusion = saturate(lerp(1.0, occlusion, mat.occlusionStrength) * mat.ambientOcclusionFactor);
-    float emissiveLuminance = dot(emissive, float3(0.2126, 0.7152, 0.0722)) * mat.emissiveScale;
+    float emissiveLuminance = saturate(dot(emissive, float3(0.2126, 0.7152, 0.0722)) * mat.emissiveScale);
     output.pbrParams = float4(metallic, roughness, ambientOcclusion, emissiveLuminance);
     
     return output;
