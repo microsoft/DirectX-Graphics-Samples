@@ -15,6 +15,7 @@ struct DescriptorRanges
     CD3DX12_DESCRIPTOR_RANGE1 instanceSrv;
     CD3DX12_DESCRIPTOR_RANGE1 materialSrv;
     CD3DX12_DESCRIPTOR_RANGE1 gbufferAndDepthSrvs;
+    CD3DX12_DESCRIPTOR_RANGE1 environmentMapSrv;
     CD3DX12_DESCRIPTOR_RANGE1 toneMapSceneColorSrv;
     CD3DX12_DESCRIPTOR_RANGE1 cameraCbv;
     CD3DX12_DESCRIPTOR_RANGE1 lightCbv;
@@ -61,12 +62,19 @@ DescriptorRanges CreateDescriptorRanges(UINT textureSrvCount, UINT gbufferSrvCou
                             RootSignatureLayout::kMaterialSrvSpace,
                             D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-    // t0 - t3 : GBuffer SRVs, t4 : depth SRV, space 3
+    // t0 - t4 : GBuffer SRVs, t5 : depth SRV, space 3
     ranges.gbufferAndDepthSrvs.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
                                     gbufferSrvCount,
                                     RootSignatureLayout::kBaseRegister,
                                     RootSignatureLayout::kGBufferSrvSpace,
                                     D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
+
+    // t0 : Environment cubemap SRV, space 5
+    ranges.environmentMapSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                                  1,
+                                  RootSignatureLayout::kBaseRegister,
+                                  RootSignatureLayout::kEnvironmentMapSrvSpace,
+                                  D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
     // t0 : HDR scene color SRV, space 4
     ranges.toneMapSceneColorSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
@@ -103,6 +111,8 @@ void CreateRootParameters(const DescriptorRanges& ranges,
         1, &ranges.cameraCbv, D3D12_SHADER_VISIBILITY_ALL); // Camera constants
     rootParameters[RootSignatureLayout::GBufferSrvBase].InitAsDescriptorTable(
         1, &ranges.gbufferAndDepthSrvs, D3D12_SHADER_VISIBILITY_PIXEL); // GBuffer and depth SRVs
+    rootParameters[RootSignatureLayout::EnvironmentMap].InitAsDescriptorTable(
+        1, &ranges.environmentMapSrv, D3D12_SHADER_VISIBILITY_PIXEL); // Environment cubemap
     rootParameters[RootSignatureLayout::LightConstants].InitAsDescriptorTable(
         1, &ranges.lightCbv, D3D12_SHADER_VISIBILITY_PIXEL); // Light constants
     rootParameters[RootSignatureLayout::GBufferDebugConstants].InitAsConstants(

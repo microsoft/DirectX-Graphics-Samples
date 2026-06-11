@@ -1,4 +1,4 @@
-//*********************************************************
+﻿//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -34,6 +34,7 @@ void SampleApp::OnInit()
     m_engine.SetBackBufferClearColor(m_backBufferClearColor);
 
     m_scene.mesh = &m_sceneMesh;
+    m_scene.camera.pos = {0.f, 0.f, -10.f};
     m_engine.SetScene(m_scene);
 
     m_engine.SetDisplayInstanceCount(m_displayInstanceCount);
@@ -209,6 +210,8 @@ Engine::SceneMesh SampleApp::ConvertToSceneMesh(const GltfMeshData& mesh)
         sceneMaterial.roughnessFactor = material.roughnessFactor;
         sceneMaterial.metallicFactor = material.metallicFactor;
         sceneMaterial.occlusionStrength = material.occlusionStrength;
+        sceneMaterial.ambientOcclusionFactor = 1.0f;
+        sceneMaterial.emissiveScale = 1.0f;
         sceneMesh.materials.push_back(std::move(sceneMaterial));
     }
 
@@ -244,6 +247,37 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
     ImGui::SliderFloat("Ambient", &m_lightingParams.ambientIntensity, 0.0f, 1.0f);
     ImGui::SliderFloat("Diffuse", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f);
+
+    if (!m_sceneMesh.materials.empty())
+    {
+        ImGui::Text("Material");
+        const int materialCount = static_cast<int>(m_sceneMesh.materials.size());
+        if (m_selectedMaterialIndex >= materialCount)
+        {
+            m_selectedMaterialIndex = materialCount - 1;
+        }
+        ImGui::SliderInt("Material Index", &m_selectedMaterialIndex, 0, materialCount - 1);
+
+        Engine::SceneMaterial& material = m_sceneMesh.materials[m_selectedMaterialIndex];
+        bool materialChanged = false;
+        materialChanged |= ImGui::SliderFloat("Roughness Factor", &material.roughnessFactor, 0.04f, 1.0f);
+        materialChanged |= ImGui::SliderFloat("Metallic Factor", &material.metallicFactor, 0.0f, 1.0f);
+        materialChanged |= ImGui::SliderFloat("Ambient Occlusion", &material.ambientOcclusionFactor, 0.0f, 1.0f);
+        materialChanged |= ImGui::SliderFloat("Emissive Scale", &material.emissiveScale, 0.0f, 10.0f);
+
+        const float f0 = 0.04f * (1.0f - material.metallicFactor) + material.metallicFactor;
+        ImGui::Text("F0: %.2f", f0);
+
+        if (materialChanged)
+        {
+            HelloTextureEngine::MaterialParams params = {};
+            params.roughnessFactor = material.roughnessFactor;
+            params.metallicFactor = material.metallicFactor;
+            params.ambientOcclusionFactor = material.ambientOcclusionFactor;
+            params.emissiveScale = material.emissiveScale;
+            m_engine.SetMaterialParams(static_cast<UINT>(m_selectedMaterialIndex), params);
+        }
+    }
 
     ImGui::Text("ToneMap");
     ImGui::RadioButton("None", &m_toneMapParams.operatorIndex, 0);
@@ -332,15 +366,6 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     m_requestHdrDump = false;
 }
 
-XMFLOAT3 SampleApp::InstanceIdToXYZ(int instanceId)
-{
-    const int dimX = 10, dimY = 10, dimZ = 10;
-    const int x = instanceId % dimX - (kMaxInstanceCount / dimZ / dimY) / 2;
-    const int y = (instanceId / dimX) % dimY - (kMaxInstanceCount / dimX / dimY) / 2;
-    const int z = -instanceId / (dimX * dimY) + (kMaxInstanceCount / dimX / dimY) / 2;
-    return XMFLOAT3(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
-}
-
 void SampleApp::InitInstanceData(const Engine::SceneMesh& mesh)
 {
     m_scene.instances.resize(kMaxInstanceCount);
@@ -407,4 +432,70 @@ void SampleApp::UpdateInstanceData(float deltaTime)
             m_scene.instances[i].prevWorld = m_scene.instances[i].world;
         }
     }
+}
+
+XMFLOAT3 SampleApp::InstanceIdToXYZ(int instanceId)
+{
+    constexpr int dimX = 10;
+    constexpr int dimY = 10;
+    constexpr int dimZ = 10;
+    constexpr int maxInstanceCount = dimX * dimY * dimZ;
+
+    struct GridPoint
+    {
+        int x;
+        int y;
+        int z;
+        int dist2;
+    };
+
+    static const std::vector<GridPoint> points = []
+    {
+        std::vector<GridPoint> result;
+        result.reserve(maxInstanceCount);
+
+        constexpr int halfDimX = dimX / 2;
+        constexpr int halfDimY = dimY / 2;
+        constexpr int halfDimZ = dimZ / 2;
+
+        constexpr int centerX = 0;
+        constexpr int centerY = 0;
+        constexpr int startZ = -halfDimZ;
+
+        for (int z = -halfDimZ; z <= halfDimZ; ++z)
+        {
+            for (int y = -halfDimY; y <= halfDimY; ++y)
+            {
+                for (int x = -halfDimX; x <= halfDimX; ++x)
+                {
+                    const int dx = x - centerX;
+                    const int dy = y - centerY;
+                    const int dz = z - startZ;
+                    const int dist2 = dx * dx + dy * dy + dz * dz;
+                    result.push_back({x, y, z, dist2});
+                }
+            }
+        }
+
+        std::sort(result.begin(),
+                  result.end(),
+                  [](const GridPoint& a, const GridPoint& b)
+                  {
+                      if (a.dist2 != b.dist2)
+                          return a.dist2 < b.dist2;
+                      if (a.z != b.z)
+                          return a.z > b.z; // Zが大きい方を優先
+                      if (a.y != b.y)
+                          return a.y < b.y;
+                      return a.x < b.x;
+                  });
+
+        return result;
+    }();
+
+    instanceId = std::clamp(instanceId, 1, maxInstanceCount);
+
+    const GridPoint& p = points[instanceId - 1];
+
+    return XMFLOAT3(static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z));
 }

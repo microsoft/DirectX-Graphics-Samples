@@ -17,6 +17,8 @@ struct Material
     float roughnessFactor;
     float metallicFactor;
     float occlusionStrength;
+    float ambientOcclusionFactor;
+    float emissiveScale;
     UINT flags;
 };
 

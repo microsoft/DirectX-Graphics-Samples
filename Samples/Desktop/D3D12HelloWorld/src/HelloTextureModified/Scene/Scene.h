@@ -42,6 +42,8 @@ struct SceneMaterial
     float roughnessFactor = 1.0f;
     float metallicFactor = 1.0f;
     float occlusionStrength = 1.0f;
+    float ambientOcclusionFactor = 1.0f;
+    float emissiveScale = 1.0f;
 };
 
 struct SceneMesh

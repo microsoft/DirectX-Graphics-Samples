@@ -16,6 +16,7 @@ public:
     void Create(ID3D12Device* device,
                 SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
                 const std::vector<Material>& materials);
+    void Update(const std::vector<Material>& materials);
 
     DescriptorHeapHandle Srv() const
     {

@@ -17,6 +17,8 @@
 
 #include "D3D12HelloTexture.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <DirectXPackedVector.h>
@@ -104,6 +106,21 @@ void HelloTextureEngine::SetUpdateHandler(UpdateHandler handler)
 void HelloTextureEngine::SetLightingParams(const LightingParams& params)
 {
     m_lightingParams = params;
+}
+
+void HelloTextureEngine::SetMaterialParams(UINT materialIndex, const MaterialParams& params)
+{
+    if (materialIndex >= m_materialData.size())
+    {
+        return;
+    }
+
+    Engine::Material& material = m_materialData[materialIndex];
+    material.roughnessFactor = params.roughnessFactor;
+    material.metallicFactor = params.metallicFactor;
+    material.ambientOcclusionFactor = params.ambientOcclusionFactor;
+    material.emissiveScale = params.emissiveScale;
+    m_materialBuffer.Update(m_materialData);
 }
 
 auto HelloTextureEngine::MakeLightingConstants() const -> LightingConstants
@@ -301,6 +318,129 @@ DescriptorHeapHandle HelloTextureEngine::CreateTextureFromRGBA8(
     return AllocateTextureSRV(texture.Get());
 }
 
+void HelloTextureEngine::CreateEnvironmentMapResource(ComPtr<ID3D12Resource>& environmentMapUploadHeap)
+{
+    D3D12_RESOURCE_DESC textureDesc = {};
+    textureDesc.MipLevels = 1;
+    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.Width = kEnvironmentMapSize;
+    textureDesc.Height = kEnvironmentMapSize;
+    textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    textureDesc.DepthOrArraySize = kEnvironmentMapFaceCount;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.SampleDesc.Quality = 0;
+    textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                                                                     D3D12_HEAP_FLAG_NONE,
+                                                                     &textureDesc,
+                                                                     D3D12_RESOURCE_STATE_COPY_DEST,
+                                                                     nullptr,
+                                                                     IID_PPV_ARGS(&m_environmentMap)));
+
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_environmentMap.Get(), 0, kEnvironmentMapFaceCount);
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                                                                     D3D12_HEAP_FLAG_NONE,
+                                                                     &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+                                                                     D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                                     nullptr,
+                                                                     IID_PPV_ARGS(&environmentMapUploadHeap)));
+
+    std::vector<std::vector<UINT8>> facePixels(kEnvironmentMapFaceCount);
+    std::vector<D3D12_SUBRESOURCE_DATA> subresources(kEnvironmentMapFaceCount);
+    const auto normalize = [](XMFLOAT3 v) -> XMFLOAT3
+    {
+        const float length = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+        return {v.x / length, v.y / length, v.z / length};
+    };
+    const auto directionForFace = [](UINT face, float u, float v) -> XMFLOAT3
+    {
+        switch (face)
+        {
+            case 0:
+                return {1.0f, v, -u};
+            case 1:
+                return {-1.0f, v, u};
+            case 2:
+                return {u, 1.0f, -v};
+            case 3:
+                return {u, -1.0f, v};
+            case 4:
+                return {u, v, 1.0f};
+            default:
+                return {-u, v, -1.0f};
+        }
+    };
+    const auto clamp01 = [](float value) -> float
+    {
+        if (value < 0.0f)
+        {
+            return 0.0f;
+        }
+        if (value > 1.0f)
+        {
+            return 1.0f;
+        }
+        return value;
+    };
+    const auto writeColor = [clamp01](UINT8* dst, XMFLOAT3 color)
+    {
+        dst[0] = static_cast<UINT8>(clamp01(color.x) * 255.0f);
+        dst[1] = static_cast<UINT8>(clamp01(color.y) * 255.0f);
+        dst[2] = static_cast<UINT8>(clamp01(color.z) * 255.0f);
+        dst[3] = 255;
+    };
+
+    const XMFLOAT3 sunDirection = normalize({0.35f, 0.75f, 0.25f});
+    for (UINT face = 0; face < kEnvironmentMapFaceCount; ++face)
+    {
+        facePixels[face].resize(kEnvironmentMapSize * kEnvironmentMapSize * kTexturePixelSize);
+        for (UINT y = 0; y < kEnvironmentMapSize; ++y)
+        {
+            for (UINT x = 0; x < kEnvironmentMapSize; ++x)
+            {
+                const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(kEnvironmentMapSize) * 2.0f - 1.0f;
+                const float v = 1.0f - (static_cast<float>(y) + 0.5f) / static_cast<float>(kEnvironmentMapSize) * 2.0f;
+                const XMFLOAT3 direction = normalize(directionForFace(face, u, v));
+                const float skyBlend = clamp01(direction.y * 0.5f + 0.5f);
+                const float sunDot =
+                    clamp01(direction.x * sunDirection.x + direction.y * sunDirection.y + direction.z * sunDirection.z);
+                const float sun = std::pow(sunDot, 96.0f);
+                XMFLOAT3 color = {
+                    0.03f + 0.38f * skyBlend + 0.65f * sun,
+                    0.04f + 0.50f * skyBlend + 0.58f * sun,
+                    0.05f + 0.72f * skyBlend + 0.42f * sun,
+                };
+                if (direction.y < -0.05f)
+                {
+                    const float groundBlend = clamp01((-direction.y - 0.05f) / 0.95f);
+                    color = {0.06f + 0.08f * groundBlend, 0.055f + 0.08f * groundBlend, 0.045f + 0.05f * groundBlend};
+                }
+
+                writeColor(&facePixels[face][(y * kEnvironmentMapSize + x) * kTexturePixelSize], color);
+            }
+        }
+
+        subresources[face].pData = facePixels[face].data();
+        subresources[face].RowPitch = kEnvironmentMapSize * kTexturePixelSize;
+        subresources[face].SlicePitch = subresources[face].RowPitch * kEnvironmentMapSize;
+    }
+
+    UpdateSubresources(m_commandList.Get(),
+                       m_environmentMap.Get(),
+                       environmentMapUploadHeap.Get(),
+                       0,
+                       0,
+                       kEnvironmentMapFaceCount,
+                       subresources.data());
+
+    m_commandList->ResourceBarrier(1,
+                                   &CD3DX12_RESOURCE_BARRIER::Transition(m_environmentMap.Get(),
+                                                                         D3D12_RESOURCE_STATE_COPY_DEST,
+                                                                         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+    m_environmentMapSrv = AllocateTextureCubeSRV(m_environmentMap.Get());
+}
+
 // Load the sample assets.
 void HelloTextureEngine::LoadAssets()
 {
@@ -311,7 +451,9 @@ void HelloTextureEngine::LoadAssets()
     CreateSceneGeometryBuffers();
 
     std::vector<ComPtr<ID3D12Resource>> textureUploadHeap;
+    ComPtr<ID3D12Resource> environmentMapUploadHeap;
     CreateSceneTextureResources(textureUploadHeap);
+    CreateEnvironmentMapResource(environmentMapUploadHeap);
     PrepareSceneInstanceData();
     CreateSceneMaterialResources();
     CreateInstanceBuffers();
@@ -545,6 +687,8 @@ void HelloTextureEngine::CreateSceneMaterialResources()
         m.roughnessFactor = 0.2f + 0.6f * static_cast<float>(i % 16) / 15.0f;
         m.metallicFactor = (i % 8 == 0) ? 1.0f : 0.0f;
         m.occlusionStrength = 1.0f;
+        m.ambientOcclusionFactor = 1.0f;
+        m.emissiveScale = 1.0f;
         m.flags = 0;
 
         if (m_sceneHasMaterials)
@@ -561,6 +705,8 @@ void HelloTextureEngine::CreateSceneMaterialResources()
                 m.roughnessFactor = gltfMaterial.roughnessFactor;
                 m.metallicFactor = gltfMaterial.metallicFactor;
                 m.occlusionStrength = gltfMaterial.occlusionStrength;
+                m.ambientOcclusionFactor = gltfMaterial.ambientOcclusionFactor;
+                m.emissiveScale = gltfMaterial.emissiveScale;
             }
         }
 
@@ -702,6 +848,20 @@ DescriptorHeapHandle HelloTextureEngine::AllocateTextureSRV(ID3D12Resource* text
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Texture2D.MipLevels = 1;
+    m_graphicsDevice.Device()->CreateShaderResourceView(texture, &srvDesc, handle.cpu);
+
+    return handle;
+}
+
+DescriptorHeapHandle HelloTextureEngine::AllocateTextureCubeSRV(ID3D12Resource* texture)
+{
+    DescriptorHeapHandle handle = m_descriptorHeapAllocator.AllocWithHandle();
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = texture->GetDesc().Format;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.TextureCube.MipLevels = 1;
     m_graphicsDevice.Device()->CreateShaderResourceView(texture, &srvDesc, handle.cpu);
 
     return handle;
@@ -910,6 +1070,8 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
         [this]() { return m_frameResources[m_currentFrameIndex].instanceBufferSrv.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::MaterialBufferSrv),
                                                        [this]() { return m_materialBuffer.Srv().gpu; });
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::EnvironmentMapSrv),
+                                                       [this]() { return m_environmentMapSrv.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(
         m_renderGraphRuntime.RegisterDescriptor(Desc::CameraCbv),
         [this]() { return m_frameResources[m_currentFrameIndex].cameraCB.cbv.gpu; });

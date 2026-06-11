@@ -24,6 +24,15 @@ void MaterialBuffer::Create(ID3D12Device* device,
     m_srv = descriptorHeapAllocator.AllocWithHandle();
     device->CreateShaderResourceView(m_buffer.Get(), &srvDesc, m_srv.cpu);
 
+    Update(materials);
+}
+
+void MaterialBuffer::Update(const std::vector<Material>& materials)
+{
+    assert(materials.size() >= kMaterialCount);
+    assert(m_buffer != nullptr);
+    const UINT materialBufferSize = sizeof(Material) * kMaterialCount;
+
     Material* pMaterialDataBegin = nullptr;
     m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&pMaterialDataBegin));
     memcpy(pMaterialDataBegin, materials.data(), materialBufferSize);

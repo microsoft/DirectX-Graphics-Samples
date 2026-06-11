@@ -1,4 +1,4 @@
-﻿struct Material
+struct Material
 {
     uint albedoTexIndex;
     uint metallicRoughnessTexIndex;
@@ -8,6 +8,8 @@
     float roughnessFactor;
     float metallicFactor;
     float occlusionStrength;
+    float ambientOcclusionFactor;
+    float emissiveScale;
     uint flags;
 };
 
@@ -50,6 +52,11 @@ Texture2D g_texture[] : register(t0, space0);
 SamplerState g_sampler : register(s0);
 StructuredBuffer<InstanceData> g_instanceData : register(t0, space1);
 StructuredBuffer<Material> g_materialData : register(t0, space2);
+
+float3 SrgbToLinear(float3 color)
+{
+    return pow(saturate(color), 2.2);
+}
 
 float3x3 BuildFallbackTangentFrame(float3 normal)
 {
@@ -100,7 +107,8 @@ GBufferOutput PSMain(PSInput input)
     Material mat = g_materialData[inst.materialId];
 
     GBufferOutput output;
-    output.albedo = g_texture[mat.albedoTexIndex].Sample(g_sampler, input.uv);
+    float4 albedo = g_texture[mat.albedoTexIndex].Sample(g_sampler, input.uv);
+    output.albedo = float4(SrgbToLinear(albedo.rgb), albedo.a);
 
     float3 baseNormal = normalize(input.normal); // We should use the interpolated normal from vertex shader as the base normal for normal mapping, otherwise the normal map will not work correctly on flat surfaces.
     float3 normalTex = g_texture[mat.normalTexIndex].Sample(g_sampler, input.uv).xyz * 2.0 - 1.0;
@@ -114,12 +122,12 @@ GBufferOutput PSMain(PSInput input)
 
     float4 metallicRoughness = g_texture[mat.metallicRoughnessTexIndex].Sample(g_sampler, input.uv);
     float occlusion = g_texture[mat.occlusionTexIndex].Sample(g_sampler, input.uv).r;
-    float3 emissive = g_texture[mat.emissiveTexIndex].Sample(g_sampler, input.uv).rgb;
+    float3 emissive = SrgbToLinear(g_texture[mat.emissiveTexIndex].Sample(g_sampler, input.uv).rgb);
 
     float metallic = saturate(metallicRoughness.b * mat.metallicFactor);
     float roughness = saturate(metallicRoughness.g * mat.roughnessFactor);
-    float ambientOcclusion = lerp(1.0, occlusion, mat.occlusionStrength);
-    float emissiveLuminance = dot(emissive, float3(0.2126, 0.7152, 0.0722));
+    float ambientOcclusion = saturate(lerp(1.0, occlusion, mat.occlusionStrength) * mat.ambientOcclusionFactor);
+    float emissiveLuminance = dot(emissive, float3(0.2126, 0.7152, 0.0722)) * mat.emissiveScale;
     output.pbrParams = float4(metallic, roughness, ambientOcclusion, emissiveLuminance);
     
     return output;

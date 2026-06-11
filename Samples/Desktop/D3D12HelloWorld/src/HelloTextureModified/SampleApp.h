@@ -75,6 +75,7 @@ private:
     HelloTextureEngine::LightingParams m_lightingParams;
     HelloTextureEngine::RenderingPath m_renderingPath = HelloTextureEngine::RenderingPath::Deferred;
     bool m_lightingPassDebugGradient = false;
+    int m_selectedMaterialIndex = 0;
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
     HelloTextureEngine::ToneMapParams m_toneMapParams;
     HelloTextureEngine::RenderViewMode m_renderViewMode = HelloTextureEngine::RenderViewMode::LightPass;

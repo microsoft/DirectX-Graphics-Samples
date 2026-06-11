@@ -19,6 +19,7 @@ enum RootParameterIndex
 
     // GBuffer debug and lighting pass inputs.
     GBufferSrvBase,
+    EnvironmentMap,
 
     // Lighting pass constants.
     LightConstants,
@@ -41,6 +42,7 @@ static constexpr UINT kInstanceSrvSpace = 1;
 static constexpr UINT kMaterialSrvSpace = 2;
 static constexpr UINT kGBufferSrvSpace = 3;
 static constexpr UINT kToneMapSceneColorSrvSpace = 4;
+static constexpr UINT kEnvironmentMapSrvSpace = 5;
 
 // Per-frame and per-pass CBVs.
 static constexpr UINT kCameraCbvRegister = 0;

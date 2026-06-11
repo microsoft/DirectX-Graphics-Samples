@@ -1,4 +1,4 @@
-﻿#include "FullscreenTriangle.hlsli"
+#include "FullscreenTriangle.hlsli"
 
 struct Material
 {
@@ -10,6 +10,8 @@ struct Material
     float roughnessFactor;
     float metallicFactor;
     float occlusionStrength;
+    float ambientOcclusionFactor;
+    float emissiveScale;
     uint flags;
 };
 
@@ -18,8 +20,11 @@ Texture2D<float4> g_normal : register(t1, space3);
 Texture2D<uint> g_material : register(t2, space3);
 Texture2D<float4> g_pbrParams : register(t4, space3);
 Texture2D<float> g_depth : register(t5, space3);
+TextureCube<float4> g_environmentMap : register(t0, space5);
 SamplerState g_sampler : register(s0);
 StructuredBuffer<Material> g_materialData : register(t0, space2);
+
+static const float PI = 3.14159265;
 
 cbuffer ConstantBuffer : register(b0)
 {
@@ -57,7 +62,7 @@ float DistributionGGX(float ndoth, float roughness)
     float a = roughness * roughness;
     float a2 = a * a;
     float denom = ndoth * ndoth * (a2 - 1.0) + 1.0;
-    return a2 / max(3.14159265 * denom * denom, 0.000001);
+    return a2 / max(PI * denom * denom, 0.000001);
 }
 
 float GeometrySchlickGGX(float ndotx, float roughness)
@@ -75,6 +80,12 @@ float GeometrySmith(float ndotv, float ndotl, float roughness)
 float3 FresnelSchlick(float cosTheta, float3 f0)
 {
     return f0 + (1.0 - f0) * pow(saturate(1.0 - cosTheta), 5.0);
+}
+
+float3 FresnelSchlickRoughness(float cosTheta, float3 f0, float roughness)
+{
+    return f0 + (max(float3(1.0 - roughness, 1.0 - roughness, 1.0 - roughness), f0) - f0) *
+                    pow(saturate(1.0 - cosTheta), 5.0);
 }
 
 float4 PSMain(FullscreenVSOutput input) : SV_TARGET
@@ -95,6 +106,7 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float metallic = pbrParams.r;
     float roughness = max(pbrParams.g, 0.04);
     float occlusion = pbrParams.b;
+    float emissive = pbrParams.a;
     float3 worldPos = ReconstructWorldPosition(input.uv, depth);
     float3 lightDir = normalize(-lightDirection);
     float3 viewDir = normalize(cameraPosition - worldPos);
@@ -104,14 +116,21 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float ndoth = saturate(dot(normal, halfDir));
     float vdoth = saturate(dot(viewDir, halfDir));
 
-    float3 ambient = albedo * ambientIntensity * occlusion;
     float receiveLighting = (material.flags & 1) ? 0.0 : 1.0;
-    float3 diffuse = albedo * lightColor * ndotl * diffuseIntensity * (1.0 - metallic) * receiveLighting;
     float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
     float3 fresnel = FresnelSchlick(vdoth, f0);
     float distribution = DistributionGGX(ndoth, roughness);
     float geometry = GeometrySmith(ndotv, ndotl, roughness);
     float3 specularBrdf = distribution * geometry * fresnel / max(4.0 * ndotv * ndotl, 0.0001);
-    float3 specular = lightColor * diffuseIntensity * specularBrdf * ndotl * receiveLighting;
-    return float4(ambient + diffuse + specular, 1.0);
+    float3 diffuseBrdf = (1.0 - fresnel) * (1.0 - metallic) * albedo / PI;
+    float3 radiance = lightColor * diffuseIntensity;
+    float3 directLighting = (diffuseBrdf + specularBrdf) * radiance * ndotl * receiveLighting;
+    float3 environmentDiffuse = g_environmentMap.Sample(g_sampler, normal).rgb;
+    float3 iblDiffuse = environmentDiffuse * albedo * (1.0 - metallic) * ambientIntensity * occlusion;
+    float3 reflectionDir = reflect(-viewDir, normal);
+    float3 environmentSpecular = g_environmentMap.Sample(g_sampler, reflectionDir).rgb;
+    float3 specularFresnel = FresnelSchlickRoughness(ndotv, f0, roughness);
+    float specularRoughnessWeight = 1.0 - roughness * 0.65;
+    float3 iblSpecular = environmentSpecular * specularFresnel * specularRoughnessWeight * ambientIntensity * occlusion;
+    return float4(iblDiffuse + iblSpecular + directLighting + emissive.xxx, 1.0);
 }

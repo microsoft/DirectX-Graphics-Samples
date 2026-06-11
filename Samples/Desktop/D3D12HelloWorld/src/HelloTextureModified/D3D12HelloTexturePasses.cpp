@@ -180,6 +180,7 @@ auto HelloTextureEngine::MakeLightingPass() -> RenderPass
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
         .Descriptor(RootSignatureLayout::GBufferSrvBase, Desc::GBufferAlbedoSrv)
         .Descriptor(RootSignatureLayout::MaterialSrv, Desc::MaterialBufferSrv)
+        .Descriptor(RootSignatureLayout::EnvironmentMap, Desc::EnvironmentMapSrv)
         .Descriptor(RootSignatureLayout::CameraConstants, Desc::CameraCbv)
         .Descriptor(RootSignatureLayout::LightConstants, Desc::LightCbv)
         .Rtv(RtvName::LightPass)

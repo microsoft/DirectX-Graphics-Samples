@@ -98,6 +98,14 @@ public:
         float diffuseIntensity = 1.0f;
     };
 
+    struct MaterialParams
+    {
+        float roughnessFactor = 1.0f;
+        float metallicFactor = 1.0f;
+        float ambientOcclusionFactor = 1.0f;
+        float emissiveScale = 1.0f;
+    };
+
     using Scene = Engine::Scene;
     using CameraState = Engine::CameraState;
 
@@ -140,6 +148,7 @@ public:
     void SetDebugUiHandler(DebugUiHandler handler);
     void SetUpdateHandler(UpdateHandler handler);
     void SetLightingParams(const LightingParams& params);
+    void SetMaterialParams(UINT materialIndex, const MaterialParams& params);
     void SetRenderingPath(RenderingPath renderingPath);
     void SetLightingPassDebugGradient(bool enabled);
     void SetBackBufferClearColor(const std::array<float, 4>& color);
@@ -174,6 +183,7 @@ private:
             static constexpr const char* TextureTable = "TextureTable";
             static constexpr const char* InstanceBufferSrv = "InstanceBufferSrv";
             static constexpr const char* MaterialBufferSrv = "MaterialBufferSrv";
+            static constexpr const char* EnvironmentMapSrv = "EnvironmentMapSrv";
             static constexpr const char* CameraCbv = "CameraCbv";
             static constexpr const char* LightCbv = "LightCbv";
             static constexpr const char* GBufferAlbedoSrv = "GBufferAlbedoSrv";
@@ -231,11 +241,14 @@ private:
 
     static constexpr UINT kTextureCount = 1020;
     static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
+    static constexpr UINT kEnvironmentMapSize = 64;
+    static constexpr UINT kEnvironmentMapFaceCount = 6;
 
     static constexpr DXGI_FORMAT kBackBufferFormat = kSwapChainFormat;
 
     static constexpr UINT kInstanceBufferCount = kFrameCount;
     static constexpr UINT kMaterialBufferCount = 1;
+    static constexpr UINT kEnvironmentMapDescriptorCount = 1;
     static constexpr UINT kConstantBufferCount = kFrameCount;
     static constexpr UINT kLightConstantBufferCount = kFrameCount;
 
@@ -243,8 +256,8 @@ private:
     // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, texture table, instance buffers,
     // material buffer, constant buffer, light constant buffer.
     static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
-                                                     kConstantBufferCount + kLightConstantBufferCount +
-                                                     Engine::GBuffer::kCount + 2;
+                                                     kEnvironmentMapDescriptorCount + kConstantBufferCount +
+                                                     kLightConstantBufferCount + Engine::GBuffer::kCount + 2;
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
 
@@ -350,6 +363,7 @@ private:
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
 
     DescriptorHeapHandle m_textureTableStart;
+    DescriptorHeapHandle m_environmentMapSrv;
     UINT m_texIndex[kTextureCount] = {};
 
     Engine::Scene m_scene;
@@ -365,6 +379,7 @@ private:
     UINT m_sceneTextureCount = 0;
 
     std::vector<ComPtr<ID3D12Resource>> m_texture;
+    ComPtr<ID3D12Resource> m_environmentMap;
 
     UINT m_vertexCountPerInstance = 0;
     UINT m_indexCountPerInstance = 0;
@@ -459,6 +474,7 @@ private:
     void CreateInitialCommandList();
     void CreateSceneGeometryBuffers();
     void CreateSceneTextureResources(std::vector<ComPtr<ID3D12Resource>>& textureUploadHeap);
+    void CreateEnvironmentMapResource(ComPtr<ID3D12Resource>& environmentMapUploadHeap);
     void PrepareSceneInstanceData();
     void CreateSceneMaterialResources();
     void CreateInstanceBuffers();
@@ -533,6 +549,7 @@ private:
                                                 UINT height,
                                                 ComPtr<ID3D12Resource>& texture,
                                                 ComPtr<ID3D12Resource>& uploadHeap);
+    DescriptorHeapHandle AllocateTextureCubeSRV(ID3D12Resource* texture);
 
     void ReleaseResourcesAfterPass(int passIndex);
     void ResetResourceStates();
