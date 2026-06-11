@@ -77,6 +77,19 @@ void HelloTextureEngine::InitializeFrameResources()
     LoadPipeline();
     LoadAssets();
     InitImGui();
+    InitResourceDefaultStates();
+}
+
+void HelloTextureEngine::InitResourceDefaultStates()
+{
+    m_resourceDefaultStates.clear();
+    m_resourceDefaultStates.push_back({kBackBufferResourceName, D3D12_RESOURCE_STATE_PRESENT});
+    m_resourceDefaultStates.push_back({kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE});
+    m_resourceDefaultStates.push_back({kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET});
+    for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
+    {
+        m_resourceDefaultStates.push_back({kGBufferResourceNames[i], D3D12_RESOURCE_STATE_RENDER_TARGET});
+    }
 }
 
 std::wstring HelloTextureEngine::GetAssetFullPath(LPCWSTR assetName)
@@ -1550,12 +1563,10 @@ void HelloTextureEngine::CollectGarbageTransientResources()
 
 void HelloTextureEngine::ResetResourceStates()
 {
-    m_resourceRegistry.ResetStates({{kBackBufferResourceName, D3D12_RESOURCE_STATE_PRESENT},
-                                    {kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE},
-                                    {kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}});
-    for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
+    m_resourceRegistry.states.clear();
+    for (const auto& usage : m_resourceDefaultStates)
     {
-        SetResourceState(kGBufferResourceNames[i], D3D12_RESOURCE_STATE_RENDER_TARGET);
+        m_resourceRegistry.SetState(usage.name, usage.state);
     }
 }
 
@@ -1789,18 +1800,10 @@ void HelloTextureEngine::EndFrame()
 {
     m_gpuWorkMeter.EndGpu(m_commandList.Get());
 
-    for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
+    for (const auto& usage : m_resourceDefaultStates)
     {
-        TransitionResource({kGBufferResourceNames[i], D3D12_RESOURCE_STATE_RENDER_TARGET});
+        TransitionResource(usage);
     }
-    TransitionResource({kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE});
-
-    // TODO: TransientResource refactor:
-    // This manual restore keeps ResetResourceStates() consistent with the actual resource state.
-    // Move next-frame/start-state handling into the transient resource or render graph metadata.
-    TransitionResource({kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET});
-
-    TransitionResource({kBackBufferResourceName, D3D12_RESOURCE_STATE_PRESENT});
 
     ThrowIfFailed(m_commandList->Close());
 }

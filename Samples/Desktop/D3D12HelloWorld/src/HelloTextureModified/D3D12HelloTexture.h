@@ -442,6 +442,7 @@ private:
     using RenderPassGraph = Engine::RenderPassGraph;
 
     ResourceRegistry m_resourceRegistry;
+    std::vector<ResourceUsage> m_resourceDefaultStates;
     using PassOperationHandler = void (HelloTextureEngine::*)(const RenderPass& pass);
     using RenderGraphRuntime = Engine::RenderGraphRuntime<PassOperationHandler>;
     RenderGraphRuntime m_renderGraphRuntime;
@@ -475,6 +476,7 @@ private:
     void ExecuteInitialGpuSetup();
     std::wstring GetAssetFullPath(LPCWSTR assetName);
     void InitializeFrameResources();
+    void InitResourceDefaultStates();
     void UpdateFrame();
     void DestroyFrameResources();
     void RegisterFullscreenPipeline(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& baseDesc,
