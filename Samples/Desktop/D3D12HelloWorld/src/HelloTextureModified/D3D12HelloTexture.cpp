@@ -1280,12 +1280,6 @@ void HelloTextureEngine::RunFrame()
     m_cpuFrameTime = m_workMeter.GetCpuFrameTimeMs();
 }
 
-void HelloTextureEngine::HandleMouseDown(UINT8, int, int) {}
-
-void HelloTextureEngine::HandleMouseUp(UINT8, int, int) {}
-
-void HelloTextureEngine::HandleMouseMove(int, int) {}
-
 void HelloTextureEngine::ApplyResize(UINT width, UINT height)
 {
     DBG_PRINT("HelloTextureEngine::ApplyResize() %d %d\n", width, height);

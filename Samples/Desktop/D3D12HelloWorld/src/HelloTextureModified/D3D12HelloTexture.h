@@ -130,9 +130,6 @@ public:
 
     HelloTextureEngine(GraphicsDevice& graphicsDevice);
 
-    void HandleMouseDown(UINT8 button, int x, int y);
-    void HandleMouseUp(UINT8 button, int x, int y);
-    void HandleMouseMove(int x, int y);
     void RequestResize(UINT width, UINT height);
     void Initialize(UINT width, UINT height);
     void RenderFrame();
