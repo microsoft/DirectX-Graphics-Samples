@@ -1,4 +1,4 @@
-﻿//*********************************************************
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -11,6 +11,7 @@
 
 #include "stdafx.h"
 
+#include <algorithm>
 #include "CubeMesh.h"
 #include "SampleApp.h"
 #include "imgui.h"
@@ -123,6 +124,20 @@ void SampleApp::OnMouseMove(int x, int y)
         m_dragRotation.y += static_cast<float>(dx) * kMouseRotationSpeed;
         m_dragRotation.x += static_cast<float>(dy) * kMouseRotationSpeed;
     }
+}
+
+void SampleApp::OnMouseWheel(int wheelDelta)
+{
+    auto& camera = m_scene.camera;
+    const float wheelSteps = static_cast<float>(wheelDelta) / static_cast<float>(WHEEL_DELTA);
+
+    if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+    {
+        camera.fov = std::clamp(camera.fov - wheelSteps * kMouseWheelFovSpeed, 20.0f, 150.0f);
+        return;
+    }
+
+    camera.pos.z = std::clamp(camera.pos.z + wheelSteps * kMouseWheelCameraSpeed, kCameraMinZ, kCameraMaxZ);
 }
 
 void SampleApp::OnWindowSizeChanged(UINT width, UINT height)

@@ -164,6 +164,17 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
             }
             return 0;
 
+        case WM_MOUSEWHEEL:
+            if (pSample)
+            {
+                if (ImGui::GetIO().WantCaptureMouse)
+                {
+                    return 0;
+                }
+                pSample->OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam));
+            }
+            return 0;
+
         case WM_PAINT:
             if (pSample)
             {

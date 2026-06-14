@@ -31,6 +31,7 @@ public:
     virtual void OnMouseDown(UINT8 /*button*/, int /*x*/, int /*y*/) {}
     virtual void OnMouseUp(UINT8 /*button*/, int /*x*/, int /*y*/) {}
     virtual void OnMouseMove(int /*x*/, int /*y*/) {}
+    virtual void OnMouseWheel(int /*wheelDelta*/) {}
     virtual void OnWindowSizeChanged(UINT, UINT) {}
     virtual void OnIdle() {}
 

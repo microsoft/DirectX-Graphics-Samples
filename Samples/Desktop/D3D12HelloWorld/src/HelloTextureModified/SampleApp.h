@@ -30,6 +30,7 @@ public:
     void OnMouseDown(UINT8 button, int x, int y) override;
     void OnMouseUp(UINT8 button, int x, int y) override;
     void OnMouseMove(int x, int y) override;
+    void OnMouseWheel(int wheelDelta) override;
     void OnWindowSizeChanged(UINT width, UINT height) override;
     void OnIdle() override;
 
@@ -58,6 +59,10 @@ private:
     static constexpr float kRotationSpeed = kPI / 180.f / 3.f;
     static constexpr float kOffsetBounds = 5.f;
     static constexpr float kMouseRotationSpeed = 0.01f;
+    static constexpr float kMouseWheelCameraSpeed = 0.25f;
+    static constexpr float kMouseWheelFovSpeed = 1.0f;
+    static constexpr float kCameraMinZ = -100.0f;
+    static constexpr float kCameraMaxZ = 100.0f;
 
     struct InstanceDataForCPU
     {
