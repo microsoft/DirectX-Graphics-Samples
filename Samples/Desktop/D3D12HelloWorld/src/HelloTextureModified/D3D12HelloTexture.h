@@ -91,7 +91,7 @@ public:
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
         float iblIntensity = 0.10f;
         float diffuseIntensity = 1.0f;
-        bool skyboxPreview = true;
+        bool skyboxPreview = false;
     };
 
     struct MaterialParams

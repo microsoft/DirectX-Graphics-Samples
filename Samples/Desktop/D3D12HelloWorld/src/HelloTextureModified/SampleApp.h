@@ -59,6 +59,7 @@ private:
     static constexpr float kRotationSpeed = kPI / 180.f / 3.f;
     static constexpr float kOffsetBounds = 5.f;
     static constexpr float kMouseRotationSpeed = 0.01f;
+    static constexpr float kMousePanSpeed = 0.01f;
     static constexpr float kMouseWheelCameraSpeed = 0.25f;
     static constexpr float kMouseWheelFovSpeed = 1.0f;
     static constexpr float kCameraMinZ = -100.0f;
@@ -92,9 +93,11 @@ private:
     bool m_isPlaying = false;
 
     bool m_isDragging = false;
+    bool m_isMiddleDragging = false;
     int m_lastMouseX = 0;
     int m_lastMouseY = 0;
     XMFLOAT2 m_dragRotation = {0.0f, 0.0f};
+    XMFLOAT2 m_dragPan = {0.0f, 0.0f};
 
     std::chrono::steady_clock::time_point m_prevTime;
 

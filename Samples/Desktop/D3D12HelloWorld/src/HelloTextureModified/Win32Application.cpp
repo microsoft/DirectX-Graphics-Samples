@@ -157,6 +157,26 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
             }
             return 0;
 
+        case WM_MBUTTONDOWN:
+            if (pSample)
+            {
+                if (ImGui::GetIO().WantCaptureMouse)
+                {
+                    return 0;
+                }
+                SetCapture(hWnd);
+                pSample->OnMouseDown(VK_MBUTTON, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            }
+            return 0;
+
+        case WM_MBUTTONUP:
+            if (pSample)
+            {
+                ReleaseCapture();
+                pSample->OnMouseUp(VK_MBUTTON, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            }
+            return 0;
+
         case WM_MOUSEMOVE:
             if (pSample)
             {

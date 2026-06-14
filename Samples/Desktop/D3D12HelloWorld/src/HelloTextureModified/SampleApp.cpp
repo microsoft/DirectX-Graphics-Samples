@@ -103,6 +103,12 @@ void SampleApp::OnMouseDown(UINT8 button, int x, int y)
         m_lastMouseX = x;
         m_lastMouseY = y;
     }
+    else if (button == VK_MBUTTON)
+    {
+        m_isMiddleDragging = true;
+        m_lastMouseX = x;
+        m_lastMouseY = y;
+    }
 }
 
 void SampleApp::OnMouseUp(UINT8 button, int x, int y)
@@ -110,6 +116,10 @@ void SampleApp::OnMouseUp(UINT8 button, int x, int y)
     if (button == VK_LBUTTON)
     {
         m_isDragging = false;
+    }
+    else if (button == VK_MBUTTON)
+    {
+        m_isMiddleDragging = false;
     }
 }
 
@@ -123,6 +133,17 @@ void SampleApp::OnMouseMove(int x, int y)
         m_lastMouseY = y;
         m_dragRotation.y += static_cast<float>(dx) * kMouseRotationSpeed;
         m_dragRotation.x += static_cast<float>(dy) * kMouseRotationSpeed;
+    }
+    else if (m_isMiddleDragging)
+    {
+        const int dx = x - m_lastMouseX;
+        const int dy = y - m_lastMouseY;
+        m_lastMouseX = x;
+        m_lastMouseY = y;
+
+        auto& camera = m_scene.camera;
+        camera.pos.x += static_cast<float>(dx) * kMousePanSpeed;
+        camera.pos.y -= static_cast<float>(dy) * kMousePanSpeed;
     }
 }
 
@@ -502,7 +523,7 @@ XMFLOAT3 SampleApp::InstanceIdToXYZ(int instanceId)
                       if (a.dist2 != b.dist2)
                           return a.dist2 < b.dist2;
                       if (a.z != b.z)
-                          return a.z > b.z; // ZãŒå¤§ãã„æ–¹ã‚’å„ªå…ˆ
+                          return a.z > b.z; // ZÃ£ÂÅ’Ã¥Â¤Â§Ã£ÂÂÃ£Ââ€žÃ¦â€“Â¹Ã£â€šâ€™Ã¥â€žÂªÃ¥â€¦Ë†
                       if (a.y != b.y)
                           return a.y < b.y;
                       return a.x < b.x;
