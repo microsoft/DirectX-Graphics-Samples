@@ -57,6 +57,13 @@ float3 ReconstructWorldPosition(float2 uv, float depth)
     return worldPos.xyz / worldPos.w;
 }
 
+float3 SampleSkybox(float2 uv)
+{
+    float3 worldPos = ReconstructWorldPosition(uv, 1.0);
+    float3 viewDir = normalize(worldPos - cameraPosition);
+    return g_environmentMap.Sample(g_sampler, viewDir).rgb;
+}
+
 float DistributionGGX(float ndoth, float roughness)
 {
     float a = roughness * roughness;
@@ -95,7 +102,7 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     // If depth is 1.0, it means the pixel is background, so we can skip lighting.
     if (depth >= 1.0)
     {
-        return backgroundColor;
+        return float4(SampleSkybox(input.uv), backgroundColor.a);
     }
 
     float3 albedo = g_albedo.Sample(g_sampler, input.uv).rgb;
