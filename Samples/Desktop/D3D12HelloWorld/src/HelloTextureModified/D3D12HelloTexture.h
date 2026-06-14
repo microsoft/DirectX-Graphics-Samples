@@ -91,6 +91,7 @@ public:
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
         float iblIntensity = 0.10f;
         float diffuseIntensity = 1.0f;
+        bool skyboxPreview = true;
     };
 
     struct MaterialParams
@@ -266,6 +267,7 @@ private:
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
         float diffuseIntensity = 1.0f;
         XMFLOAT4 backgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
+        float skyboxPreview = 0.0f;
     };
 
     LightingConstants MakeLightingConstants() const;

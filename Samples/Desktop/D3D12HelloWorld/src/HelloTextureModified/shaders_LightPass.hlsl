@@ -42,6 +42,7 @@ cbuffer LightingConstants : register(b2)
     float3 lightColor;
     float diffuseIntensity;
     float4 backgroundColor;
+    float skyboxPreview;
 };
 
 FullscreenVSOutput VSMain(uint vertexId : SV_VertexID)
@@ -100,7 +101,7 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float depth = g_depth.Load(int3(input.position.xy, 0));
     
     // If depth is 1.0, it means the pixel is background, so we can skip lighting.
-    if (depth >= 1.0)
+    if (skyboxPreview > 0.5 || depth >= 1.0)
     {
         return float4(SampleSkybox(input.uv), backgroundColor.a);
     }

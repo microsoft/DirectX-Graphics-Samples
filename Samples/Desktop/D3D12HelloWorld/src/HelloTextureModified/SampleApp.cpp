@@ -258,6 +258,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     ImGui::BeginDisabled(!m_iblEnabled);
     ImGui::SliderFloat("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f);
     ImGui::EndDisabled();
+    ImGui::Checkbox("Skybox Preview", &m_lightingParams.skyboxPreview);
     ImGui::SliderFloat("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f);
 
     if (!m_sceneMesh.materials.empty())
@@ -501,7 +502,7 @@ XMFLOAT3 SampleApp::InstanceIdToXYZ(int instanceId)
                       if (a.dist2 != b.dist2)
                           return a.dist2 < b.dist2;
                       if (a.z != b.z)
-                          return a.z > b.z; // Zが大きい方を優先
+                          return a.z > b.z; // ZãŒå¤§ãã„æ–¹ã‚’å„ªå…ˆ
                       if (a.y != b.y)
                           return a.y < b.y;
                       return a.x < b.x;

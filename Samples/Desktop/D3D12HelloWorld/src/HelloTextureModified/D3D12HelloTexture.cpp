@@ -135,6 +135,7 @@ auto HelloTextureEngine::MakeLightingConstants() const -> LightingConstants
         m_lightingParams.lightColor,
         m_lightingParams.diffuseIntensity,
         {m_backBufferClearColor[0], m_backBufferClearColor[1], m_backBufferClearColor[2], m_backBufferClearColor[3]},
+        m_lightingParams.skyboxPreview ? 1.0f : 0.0f,
     };
 }
 
