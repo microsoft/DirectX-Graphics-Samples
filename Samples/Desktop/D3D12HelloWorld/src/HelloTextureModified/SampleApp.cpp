@@ -239,7 +239,10 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     ImGui::ColorEdit4("Background Color", m_backBufferClearColor.data());
     ImGui::SliderFloat3("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f);
     ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
-    ImGui::SliderFloat("IBL Intensity", &m_lightingParams.ambientIntensity, 0.0f, 2.0f);
+    ImGui::Checkbox("IBL Enabled", &m_iblEnabled);
+    ImGui::BeginDisabled(!m_iblEnabled);
+    ImGui::SliderFloat("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f);
+    ImGui::EndDisabled();
     ImGui::SliderFloat("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f);
 
     if (!m_sceneMesh.materials.empty())
@@ -349,7 +352,12 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
 
     ImGui::End();
 
-    m_engine.SetLightingParams(m_lightingParams);
+    HelloTextureEngine::LightingParams lightingParams = m_lightingParams;
+    if (!m_iblEnabled)
+    {
+        lightingParams.iblIntensity = 0.0f;
+    }
+    m_engine.SetLightingParams(lightingParams);
     m_engine.SetRenderingPath(m_renderingPath);
     m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
     m_engine.SetBackBufferClearColor(m_backBufferClearColor);

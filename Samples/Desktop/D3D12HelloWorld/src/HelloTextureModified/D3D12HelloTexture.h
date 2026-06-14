@@ -15,6 +15,7 @@
 #include "MyDx12Utils.h"
 #include "Renderer/ClearPass.h"
 #include "Renderer/DebugDumpCapture.h"
+#include "Renderer/EnvironmentMap.h"
 #include "Renderer/GBuffer.h"
 #include "Renderer/HdrOutput.h"
 #include "Renderer/LightingPass.h"
@@ -88,7 +89,7 @@ public:
     {
         XMFLOAT3 lightDirection = {0.4f, 0.7f, 0.6f};
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
-        float ambientIntensity = 0.10f;
+        float iblIntensity = 0.10f;
         float diffuseIntensity = 1.0f;
     };
 
@@ -232,9 +233,6 @@ private:
 
     static constexpr UINT kTextureCount = 1020;
     static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
-    static constexpr UINT kEnvironmentMapSize = 64;
-    static constexpr UINT kEnvironmentMapFaceCount = 6;
-
     static constexpr DXGI_FORMAT kBackBufferFormat = kSwapChainFormat;
 
     static constexpr UINT kInstanceBufferCount = kFrameCount;
@@ -264,7 +262,7 @@ private:
     struct alignas(256) LightingConstants
     {
         XMFLOAT3 lightDirection = {0.4f, 0.7f, 0.6f};
-        float ambientIntensity = 0.10f;
+        float iblIntensity = 0.10f;
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
         float diffuseIntensity = 1.0f;
         XMFLOAT4 backgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
@@ -353,7 +351,6 @@ private:
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
 
     DescriptorHeapHandle m_textureTableStart;
-    DescriptorHeapHandle m_environmentMapSrv;
     UINT m_texIndex[kTextureCount] = {};
 
     Engine::Scene m_scene;
@@ -369,7 +366,7 @@ private:
     UINT m_sceneTextureCount = 0;
 
     std::vector<ComPtr<ID3D12Resource>> m_texture;
-    ComPtr<ID3D12Resource> m_environmentMap;
+    Engine::EnvironmentMap m_environmentMap;
 
     UINT m_vertexCountPerInstance = 0;
     UINT m_indexCountPerInstance = 0;
@@ -541,7 +538,6 @@ private:
                                                 UINT height,
                                                 ComPtr<ID3D12Resource>& texture,
                                                 ComPtr<ID3D12Resource>& uploadHeap);
-    DescriptorHeapHandle AllocateTextureCubeSRV(ID3D12Resource* texture);
 
     void ReleaseResourcesAfterPass(int passIndex);
     void ResetResourceStates();

@@ -38,7 +38,7 @@ cbuffer ConstantBuffer : register(b0)
 cbuffer LightingConstants : register(b2)
 {
     float3 lightDirection;
-    float ambientIntensity;
+    float iblIntensity;
     float3 lightColor;
     float diffuseIntensity;
     float4 backgroundColor;
@@ -128,11 +128,11 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     // Indirect Occlusion affects environment lighting only; direct light remains controlled separately.
     // TODO: Split specular occlusion from diffuse AO when proper specular IBL is introduced.
     float3 environmentDiffuse = g_environmentMap.Sample(g_sampler, normal).rgb;
-    float3 iblDiffuse = environmentDiffuse * albedo * (1.0 - metallic) * ambientIntensity * occlusion;
+    float3 iblDiffuse = environmentDiffuse * albedo * (1.0 - metallic) * iblIntensity * occlusion;
     float3 reflectionDir = reflect(-viewDir, normal);
     float3 environmentSpecular = g_environmentMap.Sample(g_sampler, reflectionDir).rgb;
     float3 specularFresnel = FresnelSchlickRoughness(ndotv, f0, roughness);
     float specularRoughnessWeight = 1.0 - roughness * 0.65;
-    float3 iblSpecular = environmentSpecular * specularFresnel * specularRoughnessWeight * ambientIntensity * occlusion;
+    float3 iblSpecular = environmentSpecular * specularFresnel * specularRoughnessWeight * iblIntensity * occlusion;
     return float4(iblDiffuse + iblSpecular + directLighting + emissive.xxx, 1.0);
 }
