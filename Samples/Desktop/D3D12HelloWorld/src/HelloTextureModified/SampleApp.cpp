@@ -495,9 +495,9 @@ XMFLOAT3 SampleApp::InstanceIdToXYZ(int instanceId)
         return result;
     }();
 
-    instanceId = std::clamp(instanceId, 1, maxInstanceCount);
+    instanceId = std::clamp(instanceId, 0, maxInstanceCount - 1);
 
-    const GridPoint& p = points[instanceId - 1];
+    const GridPoint& p = points[instanceId];
 
     return XMFLOAT3(static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z));
 }
