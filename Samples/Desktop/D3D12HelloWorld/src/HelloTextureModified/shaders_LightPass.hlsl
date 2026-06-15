@@ -21,6 +21,7 @@ Texture2D<uint> g_material : register(t2, space3);
 Texture2D<float4> g_pbrParams : register(t4, space3);
 Texture2D<float> g_depth : register(t5, space3);
 TextureCube<float4> g_environmentMap : register(t0, space5);
+TextureCube<float4> g_diffuseIrradianceMap : register(t1, space5);
 SamplerState g_sampler : register(s0);
 StructuredBuffer<Material> g_materialData : register(t0, space2);
 
@@ -42,7 +43,9 @@ cbuffer LightingConstants : register(b2)
     float3 lightColor;
     float diffuseIntensity;
     float4 backgroundColor;
+    float skyboxEnabled;
     float skyboxPreview;
+    float skyboxPreviewExposure;
 };
 
 FullscreenVSOutput VSMain(uint vertexId : SV_VertexID)
@@ -62,7 +65,7 @@ float3 SampleSkybox(float2 uv)
 {
     float3 worldPos = ReconstructWorldPosition(uv, 1.0);
     float3 viewDir = normalize(worldPos - cameraPosition);
-    return g_environmentMap.Sample(g_sampler, viewDir).rgb;
+    return g_environmentMap.Sample(g_sampler, viewDir).rgb * skyboxPreviewExposure;
 }
 
 float DistributionGGX(float ndoth, float roughness)
@@ -100,10 +103,20 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
 {
     float depth = g_depth.Load(int3(input.position.xy, 0));
     
-    // If depth is 1.0, it means the pixel is background, so we can skip lighting.
-    if (skyboxPreview > 0.5 || depth >= 1.0)
+    if (skyboxPreview > 0.5)
     {
         return float4(SampleSkybox(input.uv), backgroundColor.a);
+    }
+
+    // If depth is 1.0, it means the pixel is background, so we can skip lighting.
+    if (depth >= 1.0)
+    {
+        if (skyboxEnabled > 0.5)
+        {
+            return float4(SampleSkybox(input.uv), backgroundColor.a);
+        }
+
+        return backgroundColor;
     }
 
     float3 albedo = g_albedo.Sample(g_sampler, input.uv).rgb;
@@ -135,8 +148,8 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float3 directLighting = (diffuseBrdf + specularBrdf) * radiance * ndotl * receiveLighting;
     // Indirect Occlusion affects environment lighting only; direct light remains controlled separately.
     // TODO: Split specular occlusion from diffuse AO when proper specular IBL is introduced.
-    float3 environmentDiffuse = g_environmentMap.Sample(g_sampler, normal).rgb;
-    float3 iblDiffuse = environmentDiffuse * albedo * (1.0 - metallic) * iblIntensity * occlusion;
+    float3 irradiance = g_diffuseIrradianceMap.Sample(g_sampler, normal).rgb;
+    float3 iblDiffuse = irradiance * albedo * (1.0 - metallic) * iblIntensity * occlusion / PI;
     float3 reflectionDir = reflect(-viewDir, normal);
     float3 environmentSpecular = g_environmentMap.Sample(g_sampler, reflectionDir).rgb;
     float3 specularFresnel = FresnelSchlickRoughness(ndotv, f0, roughness);

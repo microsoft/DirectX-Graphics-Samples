@@ -91,7 +91,9 @@ public:
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
         float iblIntensity = 0.10f;
         float diffuseIntensity = 1.0f;
+        bool skyboxEnabled = true;
         bool skyboxPreview = false;
+        float skyboxPreviewExposure = 1.0f;
     };
 
     struct MaterialParams
@@ -155,6 +157,8 @@ private:
     static constexpr UINT kTextureWidth = 256;
     static constexpr UINT kTextureHeight = 256;
     static constexpr UINT kTexturePixelSize = 4; // The number of bytes used to represent a pixel in the texture.
+    static constexpr UINT kEnvironmentMapCubeSize = 128;
+    static constexpr UINT kDiffuseIrradianceCubeSize = 32;
 
     struct PassKeyNames
     {
@@ -238,13 +242,13 @@ private:
 
     static constexpr UINT kInstanceBufferCount = kFrameCount;
     static constexpr UINT kMaterialBufferCount = 1;
-    static constexpr UINT kEnvironmentMapDescriptorCount = 1;
+    static constexpr UINT kEnvironmentMapDescriptorCount = 2;
     static constexpr UINT kConstantBufferCount = kFrameCount;
     static constexpr UINT kLightConstantBufferCount = kFrameCount;
 
     // Descriptor allocation order is tracked by DescriptorHeapHandle.
-    // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, texture table, instance buffers,
-    // material buffer, constant buffer, light constant buffer.
+    // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, environment map SRVs,
+    // texture table, instance buffers, material buffer, constant buffer, light constant buffer.
     static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
                                                      kEnvironmentMapDescriptorCount + kConstantBufferCount +
                                                      kLightConstantBufferCount + Engine::GBuffer::kCount + 2;
@@ -267,7 +271,9 @@ private:
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
         float diffuseIntensity = 1.0f;
         XMFLOAT4 backgroundColor = {0.0f, 0.2f, 0.4f, 1.0f};
+        float skyboxEnabled = 1.0f;
         float skyboxPreview = 0.0f;
+        float skyboxPreviewExposure = 1.0f;
     };
 
     LightingConstants MakeLightingConstants() const;
@@ -319,6 +325,7 @@ private:
     UINT m_height = 0;
     float m_aspectRatio = 0.0f;
     std::wstring m_assetsPath;
+    std::wstring m_shaderPath;
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
     Engine::GBuffer m_gbuffer;
@@ -369,6 +376,7 @@ private:
 
     std::vector<ComPtr<ID3D12Resource>> m_texture;
     Engine::EnvironmentMap m_environmentMap;
+    Engine::EnvironmentMap m_diffuseIrradianceMap;
 
     UINT m_vertexCountPerInstance = 0;
     UINT m_indexCountPerInstance = 0;
@@ -464,13 +472,16 @@ private:
     void CreateInitialCommandList();
     void CreateSceneGeometryBuffers();
     void CreateSceneTextureResources(std::vector<ComPtr<ID3D12Resource>>& textureUploadHeap);
-    void CreateEnvironmentMapResource(ComPtr<ID3D12Resource>& environmentMapUploadHeap);
+    void CreateEnvironmentMapResources(ComPtr<ID3D12Resource>& environmentMapUploadHeap,
+                                       ComPtr<ID3D12Resource>& diffuseIrradianceUploadHeap);
+    void ValidateEnvironmentMapDescriptorTable() const;
     void PrepareSceneInstanceData();
     void CreateSceneMaterialResources();
     void CreateInstanceBuffers();
     void CreateFrameConstantBuffers();
     void ExecuteInitialGpuSetup();
     std::wstring GetAssetFullPath(LPCWSTR assetName);
+    std::wstring GetShaderFullPath(LPCWSTR shaderName);
     void InitializeFrameResources();
     void InitResourceDefaultStates();
     void UpdateFrame();

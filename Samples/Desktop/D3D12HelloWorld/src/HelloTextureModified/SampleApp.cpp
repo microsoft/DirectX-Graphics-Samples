@@ -279,7 +279,11 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     ImGui::BeginDisabled(!m_iblEnabled);
     ImGui::SliderFloat("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f);
     ImGui::EndDisabled();
+    ImGui::Checkbox("Show Skybox", &m_lightingParams.skyboxEnabled);
     ImGui::Checkbox("Skybox Preview", &m_lightingParams.skyboxPreview);
+    ImGui::BeginDisabled(!m_lightingParams.skyboxPreview);
+    ImGui::SliderFloat("Skybox Preview Exposure", &m_lightingParams.skyboxPreviewExposure, 0.0f, 2.0f);
+    ImGui::EndDisabled();
     ImGui::SliderFloat("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f);
 
     if (!m_sceneMesh.materials.empty())

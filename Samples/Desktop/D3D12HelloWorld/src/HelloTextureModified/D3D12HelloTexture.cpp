@@ -18,22 +18,54 @@
 #include "D3D12HelloTexture.h"
 
 #include <algorithm>
-#include <cmath>
-#include <cstdarg>
-#include <cstdio>
-#include <DirectXPackedVector.h>
 #include <windows.h>
 
 #include "MyDx12Utils.h"
 #include "Renderer/DebugDumpReport.h"
 #include "Renderer/RootSignatureFactory.h"
 
-#include <pix3.h>
-
 // ImGui
 #define IMGUI_IMPL 1
 
 #include <random>
+#include <combaseapi.h>
+#include <DirectXMath.h>
+#include <DirectXMathConvert.inl>
+#include <DirectXMathMatrix.inl>
+#include <wrl\client.h>
+#include <array>
+#include <cassert>
+#include <chrono>
+#include <climits>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <initializer_list>
+#include <string>
+#include <utility>
+#include <vector>
+#include "DXSampleHelper.h"
+#include "GraphicsDevice.h"
+#include "Renderer\ClearPass.h"
+#include "Renderer\DebugDumpCapture.h"
+#include "Renderer\GBuffer.h"
+#include "Renderer\LightingPass.h"
+#include "Renderer\Material.h"
+#include "Renderer\PipelineFactory.h"
+#include "Renderer\RenderPassExecution.h"
+#include "Renderer\RenderPassResources.h"
+#include "Renderer\ResolvedRenderTargets.h"
+#include "Renderer\SceneGeometryPass.h"
+#include "Renderer\SimpleDescriptorHeapAllocator.h"
+#include "Renderer\ToneMap.h"
+#include "Scene\Scene.h"
+#include <d3d12.h>
+#include <d3dx12_barriers.h>
+#include <d3dx12_core.h>
+#include <d3dx12_resource_helpers.h>
+#include <d3dx12_root_signature.h>
+#include <dxgiformat.h>
+#include <pix3.h>
 
 extern "C"
 {
@@ -45,12 +77,11 @@ extern "C"
 }
 
 HelloTextureEngine::HelloTextureEngine(GraphicsDevice& graphicsDevice)
-    : m_graphicsDevice(graphicsDevice), m_width(0), m_height(0), m_aspectRatio(1.0f),
-      m_previousFrameIndex(0), m_currentFrameIndex(0), m_rtvDescriptorSize(0)
+    : m_graphicsDevice(graphicsDevice), m_width(0), m_height(0), m_aspectRatio(1.0f), m_previousFrameIndex(0),
+      m_currentFrameIndex(0), m_rtvDescriptorSize(0)
 {
-    WCHAR assetsPath[512];
-    GetAssetsPath(assetsPath, _countof(assetsPath));
-    m_assetsPath = assetsPath;
+    m_assetsPath = L"./Assets\\";
+    m_shaderPath = L"./bin\\x64\\Debug\\";
 
     RegisterPassBindingResolvers();
     RegisterPassConstantsHandlers();
@@ -97,6 +128,11 @@ std::wstring HelloTextureEngine::GetAssetFullPath(LPCWSTR assetName)
     return m_assetsPath + assetName;
 }
 
+std::wstring HelloTextureEngine::GetShaderFullPath(LPCWSTR shaderName)
+{
+    return m_shaderPath + shaderName;
+}
+
 void HelloTextureEngine::SetDebugUiHandler(DebugUiHandler handler)
 {
     m_debugUiHandler = std::move(handler);
@@ -135,7 +171,9 @@ auto HelloTextureEngine::MakeLightingConstants() const -> LightingConstants
         m_lightingParams.lightColor,
         m_lightingParams.diffuseIntensity,
         {m_backBufferClearColor[0], m_backBufferClearColor[1], m_backBufferClearColor[2], m_backBufferClearColor[3]},
+        m_lightingParams.skyboxEnabled ? 1.0f : 0.0f,
         m_lightingParams.skyboxPreview ? 1.0f : 0.0f,
+        m_lightingParams.skyboxPreviewExposure,
     };
 }
 
@@ -320,13 +358,64 @@ DescriptorHeapHandle HelloTextureEngine::CreateTextureFromRGBA8(
     return AllocateTextureSRV(texture.Get());
 }
 
-void HelloTextureEngine::CreateEnvironmentMapResource(ComPtr<ID3D12Resource>& environmentMapUploadHeap)
+void HelloTextureEngine::CreateEnvironmentMapResources(ComPtr<ID3D12Resource>& environmentMapUploadHeap,
+                                                       ComPtr<ID3D12Resource>& diffuseIrradianceUploadHeap)
 {
-    m_environmentMap.CreateFromDdsOrProceduralFallback(m_graphicsDevice.Device(),
-                                                       m_commandList.Get(),
-                                                       m_descriptorHeapAllocator,
-                                                       L"Assets\\Environment\\default_environment.dds",
-                                                       environmentMapUploadHeap);
+    const std::wstring hdrPath = GetAssetFullPath(L"Environment\\default_environment.hdr");
+    Engine::HdrImage hdrImage = {};
+    if (Engine::TryLoadHdrImage(hdrPath.c_str(), hdrImage))
+    {
+        WCHAR debugMessage[256] = {};
+        swprintf_s(debugMessage, L"Loaded HDRI: %s (%u x %u)\n", hdrPath.c_str(), hdrImage.width, hdrImage.height);
+        OutputDebugStringW(debugMessage);
+
+        const bool environmentMapCreated =
+            m_environmentMap.TryCreateFromHdrEquirectangular(m_graphicsDevice.Device(),
+                                                             m_commandList.Get(),
+                                                             m_descriptorHeapAllocator,
+                                                             hdrImage,
+                                                             kEnvironmentMapCubeSize,
+                                                             false,
+                                                             environmentMapUploadHeap);
+        const bool diffuseIrradianceCreated =
+            m_diffuseIrradianceMap.TryCreateFromHdrEquirectangular(m_graphicsDevice.Device(),
+                                                                   m_commandList.Get(),
+                                                                   m_descriptorHeapAllocator,
+                                                                   hdrImage,
+                                                                   kDiffuseIrradianceCubeSize,
+                                                                   true,
+                                                                   diffuseIrradianceUploadHeap);
+        if (environmentMapCreated && diffuseIrradianceCreated)
+        {
+            return;
+        }
+    }
+
+    WCHAR fallbackMessage[256] = {};
+    swprintf_s(fallbackMessage, L"Falling back to procedural envmap: %s\n", hdrPath.c_str());
+    OutputDebugStringW(fallbackMessage);
+
+    m_environmentMap.CreateProceduralFallback(
+        m_graphicsDevice.Device(), m_commandList.Get(), m_descriptorHeapAllocator, environmentMapUploadHeap);
+    m_diffuseIrradianceMap.CreateProceduralFallback(
+        m_graphicsDevice.Device(), m_commandList.Get(), m_descriptorHeapAllocator, diffuseIrradianceUploadHeap);
+}
+
+void HelloTextureEngine::ValidateEnvironmentMapDescriptorTable() const
+{
+    const UINT environmentMapIndex = m_environmentMap.Srv().Index;
+    const UINT diffuseIrradianceMapIndex = m_diffuseIrradianceMap.Srv().Index;
+    const bool descriptorsAreContiguous = diffuseIrradianceMapIndex == environmentMapIndex + 1;
+
+    WCHAR message[160] = {};
+    swprintf_s(message,
+               L"Environment descriptor table: env=%u diffuse=%u contiguous=%s\n",
+               environmentMapIndex,
+               diffuseIrradianceMapIndex,
+               descriptorsAreContiguous ? L"true" : L"false");
+    OutputDebugStringW(message);
+
+    assert(descriptorsAreContiguous && "Environment map and diffuse irradiance descriptors must be contiguous.");
 }
 
 // Load the sample assets.
@@ -340,8 +429,10 @@ void HelloTextureEngine::LoadAssets()
 
     std::vector<ComPtr<ID3D12Resource>> textureUploadHeap;
     ComPtr<ID3D12Resource> environmentMapUploadHeap;
+    ComPtr<ID3D12Resource> diffuseIrradianceUploadHeap;
     CreateSceneTextureResources(textureUploadHeap);
-    CreateEnvironmentMapResource(environmentMapUploadHeap);
+    CreateEnvironmentMapResources(environmentMapUploadHeap, diffuseIrradianceUploadHeap);
+    ValidateEnvironmentMapDescriptorTable();
     PrepareSceneInstanceData();
     CreateSceneMaterialResources();
     CreateInstanceBuffers();
@@ -358,7 +449,7 @@ auto HelloTextureEngine::LoadShaderBytecode(LPCWSTR assetName) -> ShaderBytecode
 {
     UINT8* data = nullptr;
     UINT size = 0;
-    ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(assetName).c_str(), &data, &size));
+    ThrowIfFailed(ReadDataFromFile(GetShaderFullPath(assetName).c_str(), &data, &size));
     return {data, size};
 }
 
