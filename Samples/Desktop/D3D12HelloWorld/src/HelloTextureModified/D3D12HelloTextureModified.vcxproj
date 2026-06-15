@@ -157,6 +157,7 @@
     <ClInclude Include="Renderer\SimpleDescriptorHeapAllocator.h" />
     <ClInclude Include="Renderer\ToneMap.h" />
     <ClInclude Include="Scene\Scene.h" />
+    <ClInclude Include="Scene\SampleScene.h" />
     <ClInclude Include="SampleApp.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12HelloTexture.h" />
@@ -182,6 +183,7 @@
     <ClCompile Include="Renderer\RootSignatureFactory.cpp" />
     <ClCompile Include="Renderer\SceneGeometryPass.cpp" />
     <ClCompile Include="Renderer\ToneMap.cpp" />
+    <ClCompile Include="Scene\SampleScene.cpp" />
     <ClCompile Include="Win32Application.cpp" />
     <ClCompile Include="D3D12HelloTexture.cpp" />
     <ClCompile Include="D3D12HelloTexturePasses.cpp" />

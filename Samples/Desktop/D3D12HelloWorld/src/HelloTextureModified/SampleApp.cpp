@@ -12,21 +12,18 @@
 #include "stdafx.h"
 
 #include <algorithm>
-#include "CubeMesh.h"
 #include "SampleApp.h"
 #include "imgui.h"
-#include <cmath>
 
 SampleApp::SampleApp(UINT width, UINT height, std::wstring name)
-    : DXSample(width, height, name), m_prevTime(std::chrono::steady_clock::now()),
-      m_engine(m_graphicsDevice)
+    : DXSample(width, height, name), m_prevTime(std::chrono::steady_clock::now()), m_engine(m_graphicsDevice)
 {
 }
 
 void SampleApp::OnInit()
 {
-    LoadSceneAssets();
-    InitInstanceData(m_sceneMesh);
+    CreateSampleScenes();
+    ActivateSampleScene(kDefaultSceneIndex);
 
     GraphicsDeviceDesc deviceDesc = {};
     deviceDesc.hwnd = Win32Application::GetHwnd();
@@ -37,9 +34,7 @@ void SampleApp::OnInit()
     deviceDesc.useWarpDevice = m_useWarpDevice;
     m_graphicsDevice.Initialize(deviceDesc);
 
-    m_scene.mesh = &m_sceneMesh;
-    m_scene.camera.pos = {0.f, 0.f, -10.f};
-    m_engine.SetScene(m_scene);
+    m_engine.SetScene(ActiveScene().GetScene());
 
     m_engine.SetDebugUiHandler([this](const HelloTextureEngine::DebugUiContext& context) { DrawDebugUi(context); });
     m_engine.SetUpdateHandler([this]() { UpdateSampleState(); });
@@ -63,7 +58,7 @@ void SampleApp::UpdateSampleState()
     static constexpr float kCameraMoveSpeed = 0.01f;
     if (GetForegroundWindow() == Win32Application::GetHwnd())
     {
-        auto& camera = m_scene.camera;
+        auto& camera = ActiveScene().GetScene().camera;
 
         if (GetAsyncKeyState('A') & 0x8000)
             camera.pos.x -= kCameraMoveSpeed;
@@ -79,10 +74,14 @@ void SampleApp::UpdateSampleState()
             camera.pos.z -= kCameraMoveSpeed;
     }
 
-    UpdateInstanceData(deltaTime);
+    Engine::SampleSceneUpdateContext sceneUpdate = {};
+    sceneUpdate.isPlaying = m_isPlaying;
+    sceneUpdate.meshScale = m_meshScale;
+    sceneUpdate.dragRotation = m_dragRotation;
+    ActiveScene().Update(deltaTime, sceneUpdate);
 
-    m_engine.SetScene(m_scene);
-    m_engine.SetDisplayInstanceCount(m_displayInstanceCount);
+    m_engine.SetScene(ActiveScene().GetScene());
+    m_engine.SetDisplayInstanceCount(ActiveScene().DisplayInstanceCount());
 }
 
 void SampleApp::OnKeyDown(UINT8 key)
@@ -141,7 +140,7 @@ void SampleApp::OnMouseMove(int x, int y)
         m_lastMouseX = x;
         m_lastMouseY = y;
 
-        auto& camera = m_scene.camera;
+        auto& camera = ActiveScene().GetScene().camera;
         camera.pos.x += static_cast<float>(dx) * kMousePanSpeed;
         camera.pos.y -= static_cast<float>(dy) * kMousePanSpeed;
     }
@@ -149,7 +148,7 @@ void SampleApp::OnMouseMove(int x, int y)
 
 void SampleApp::OnMouseWheel(int wheelDelta)
 {
-    auto& camera = m_scene.camera;
+    auto& camera = ActiveScene().GetScene().camera;
     const float wheelSteps = static_cast<float>(wheelDelta) / static_cast<float>(WHEEL_DELTA);
 
     if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
@@ -198,65 +197,37 @@ void SampleApp::OnDestroy()
     m_engine.Shutdown();
 }
 
-void SampleApp::LoadSceneAssets()
+void SampleApp::CreateSampleScenes()
 {
-    switch (kMeshSource)
-    {
-        case MeshSource::Gltf:
-            m_sceneMesh = ConvertToSceneMesh(LoadGltfScene());
-            break;
-        case MeshSource::Cube:
-            m_sceneMesh = ConvertToSceneMesh(CreateCubeMesh());
-            break;
-    }
-
-    assert(!m_sceneMesh.vertices.empty());
+    m_sampleScenes.clear();
+    m_sampleScenes.push_back(std::make_unique<Engine::GltfGridScene>(static_cast<int>(kMaxInstanceCount)));
+    m_sampleScenes.push_back(
+        std::make_unique<Engine::MetallicRoughnessSphereScene>(static_cast<int>(kMaxInstanceCount)));
 }
 
-GltfMeshData SampleApp::LoadGltfScene() const
+void SampleApp::ActivateSampleScene(int sceneIndex)
 {
-    GltfMeshData mesh;
-    const bool loaded = LoadGltfMesh("Assets\\Models\\DamagedHelmet\\glTF\\DamagedHelmet.gltf", mesh);
-    assert(loaded);
-    return mesh;
+    assert(sceneIndex >= 0 && sceneIndex < static_cast<int>(m_sampleScenes.size()));
+
+    m_activeSceneIndex = sceneIndex;
+    m_activeScene = m_sampleScenes[static_cast<size_t>(m_activeSceneIndex)].get();
+    m_activeScene->Load();
+    m_meshScale = m_activeScene->DefaultMeshScale();
+    m_displayInstanceCount = m_activeScene->DisplayInstanceCount();
+    m_selectedMaterialIndex = 0;
+    m_dragRotation = {0.0f, 0.0f};
 }
 
-Engine::SceneMesh SampleApp::ConvertToSceneMesh(const GltfMeshData& mesh)
+Engine::SampleScene& SampleApp::ActiveScene()
 {
-    Engine::SceneMesh sceneMesh = {};
-    sceneMesh.vertices = mesh.vertices;
-    sceneMesh.indices = mesh.indices;
-    sceneMesh.materialIndex = mesh.materialIndex;
+    assert(m_activeScene != nullptr);
+    return *m_activeScene;
+}
 
-    sceneMesh.materials.reserve(mesh.materials.size());
-    for (const GltfMaterial& material : mesh.materials)
-    {
-        Engine::SceneMaterial sceneMaterial = {};
-        sceneMaterial.albedoTexIndex = material.albedoTexIndex;
-        sceneMaterial.metallicRoughnessTexIndex = material.metallicRoughnessTexIndex;
-        sceneMaterial.emissiveTexIndex = material.emissiveTexIndex;
-        sceneMaterial.occlusionTexIndex = material.occlusionTexIndex;
-        sceneMaterial.normalTexIndex = material.normalTexIndex;
-        sceneMaterial.roughnessFactor = material.roughnessFactor;
-        sceneMaterial.metallicFactor = material.metallicFactor;
-        sceneMaterial.occlusionStrength = material.occlusionStrength;
-        sceneMaterial.ambientOcclusionFactor = 1.0f;
-        sceneMaterial.emissiveScale = 1.0f;
-        sceneMesh.materials.push_back(std::move(sceneMaterial));
-    }
-
-    sceneMesh.textures.reserve(mesh.textures.size());
-    for (const GltfTextureData& texture : mesh.textures)
-    {
-        Engine::SceneTexture sceneTexture = {};
-        sceneTexture.width = texture.width;
-        sceneTexture.height = texture.height;
-        sceneTexture.component = texture.component;
-        sceneTexture.pixels = texture.pixels;
-        sceneMesh.textures.push_back(std::move(sceneTexture));
-    }
-
-    return sceneMesh;
+const Engine::SampleScene& SampleApp::ActiveScene() const
+{
+    assert(m_activeScene != nullptr);
+    return *m_activeScene;
 }
 
 void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
@@ -267,11 +238,17 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     ImGui::SetNextWindowSize(ImVec2(400, 140), ImGuiCond_FirstUseEver);
     ImGui::Begin("Debug");
 
+    Engine::SampleScene& activeScene = ActiveScene();
+    Engine::SceneMesh& sceneMesh = activeScene.GetMesh();
+
     ImGui::Text("Hello ImGui");
+    ImGui::Text("Scene: %s", activeScene.Name());
+    ImGui::Text("Scene Index: %d", m_activeSceneIndex);
     ImGui::Text("FrameIndex: %d", context.frameIndex);
-    ImGui::SliderInt("Display Instance Count", &m_displayInstanceCount, 0, static_cast<int>(kMaxInstanceCount));
+    ImGui::SliderInt("Display Instance Count", &m_displayInstanceCount, 0, activeScene.MaxDisplayInstanceCount());
+    activeScene.SetDisplayInstanceCount(m_displayInstanceCount);
     ImGui::SliderFloat("Mesh Scale", &m_meshScale, 0.1f, 2.0f);
-    ImGui::SliderFloat("Camera FovH", &m_scene.camera.fov, 20.f, 150.f);
+    ImGui::SliderFloat("Camera FovH", &activeScene.GetScene().camera.fov, 20.f, 150.f);
     ImGui::ColorEdit4("Background Color", m_backBufferClearColor.data());
     ImGui::SliderFloat3("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f);
     ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
@@ -286,17 +263,17 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     ImGui::EndDisabled();
     ImGui::SliderFloat("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f);
 
-    if (!m_sceneMesh.materials.empty())
+    if (!sceneMesh.materials.empty())
     {
         ImGui::Text("Material Controls");
-        const int materialCount = static_cast<int>(m_sceneMesh.materials.size());
+        const int materialCount = static_cast<int>(sceneMesh.materials.size());
         if (m_selectedMaterialIndex >= materialCount)
         {
             m_selectedMaterialIndex = materialCount - 1;
         }
         ImGui::SliderInt("Material", &m_selectedMaterialIndex, 0, materialCount - 1);
 
-        Engine::SceneMaterial& material = m_sceneMesh.materials[m_selectedMaterialIndex];
+        Engine::SceneMaterial& material = sceneMesh.materials[m_selectedMaterialIndex];
         bool materialChanged = false;
         materialChanged |= ImGui::SliderFloat("Roughness", &material.roughnessFactor, 0.04f, 1.0f);
         materialChanged |= ImGui::SliderFloat("Metallic", &material.metallicFactor, 0.0f, 1.0f);
@@ -402,143 +379,9 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     m_engine.SetRenderingPath(m_renderingPath);
     m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
     m_engine.SetBackBufferClearColor(m_backBufferClearColor);
-    m_engine.SetDisplayInstanceCount(m_displayInstanceCount);
+    m_engine.SetDisplayInstanceCount(activeScene.DisplayInstanceCount());
     m_engine.SetToneMapParams(m_toneMapParams);
     m_engine.SetRenderViewMode(m_renderViewMode);
     m_engine.SetRequestHdrDump(m_requestHdrDump);
     m_requestHdrDump = false;
-}
-
-void SampleApp::InitInstanceData(const Engine::SceneMesh& mesh)
-{
-    m_scene.instances.resize(kMaxInstanceCount);
-    m_instanceDataForCPU.clear();
-    for (int i = 0; i < static_cast<int>(kMaxInstanceCount); i++)
-    {
-        const XMFLOAT3 pos = InstanceIdToXYZ(i);
-        m_instanceDataForCPU.emplace_back(pos, XMFLOAT3(0.0f, 0.0f, 0.0f));
-
-        auto& d = m_scene.instances[i];
-        const UINT gltfMaterialCount = static_cast<UINT>(mesh.materials.size());
-        d.materialId = gltfMaterialCount > 0 ? i % gltfMaterialCount : 0;
-
-        const XMMATRIX scaleMat = XMMatrixScaling(m_meshScale, m_meshScale, m_meshScale);
-        const XMMATRIX transMat = XMMatrixTranslation(pos.x, pos.y, pos.z);
-        XMStoreFloat4x4(&d.world, XMMatrixTranspose(scaleMat * transMat));
-        d.prevWorld = d.world;
-    }
-}
-
-void SampleApp::UpdateInstanceData(float deltaTime)
-{
-    static float accumTime = 0.f;
-    if (m_isPlaying)
-    {
-        accumTime += deltaTime;
-        if (accumTime > 1.0f)
-        {
-            accumTime = 0.f;
-        }
-    }
-
-    for (int i = 0; i < static_cast<int>(kMaxInstanceCount); i++)
-    {
-        m_scene.instances[i].prevWorld = m_scene.instances[i].world;
-        bool resetMotionVector = false;
-
-        if (m_isPlaying)
-        {
-            m_instanceDataForCPU[i].pos.x += kTranslationSpeed;
-        }
-        if (m_instanceDataForCPU[i].pos.x > kOffsetBounds)
-        {
-            m_instanceDataForCPU[i].pos.x = -kOffsetBounds;
-            resetMotionVector = true;
-        }
-        if (m_isPlaying)
-        {
-            auto& rot = m_instanceDataForCPU[i].rot;
-            rot.x = std::fmod(rot.x + kRotationSpeed, 2.0f * kPI);
-            rot.y = std::fmod(rot.y + kRotationSpeed, 2.0f * kPI);
-            rot.z = std::fmod(rot.z + kRotationSpeed, 2.0f * kPI);
-        }
-
-        const XMMATRIX scaleMat = XMMatrixScaling(m_meshScale, m_meshScale, m_meshScale);
-        const XMMATRIX transMat = XMMatrixTranslation(
-            m_instanceDataForCPU[i].pos.x, m_instanceDataForCPU[i].pos.y, m_instanceDataForCPU[i].pos.z);
-        const XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(
-            m_instanceDataForCPU[i].rot.x, m_instanceDataForCPU[i].rot.y, m_instanceDataForCPU[i].rot.z);
-        const XMMATRIX dragRotMat = XMMatrixRotationRollPitchYaw(m_dragRotation.x, m_dragRotation.y, 0.0f);
-        XMStoreFloat4x4(&m_scene.instances[i].world, XMMatrixTranspose(scaleMat * rotMat * dragRotMat * transMat));
-        if (resetMotionVector)
-        {
-            m_scene.instances[i].prevWorld = m_scene.instances[i].world;
-        }
-    }
-}
-
-XMFLOAT3 SampleApp::InstanceIdToXYZ(int instanceId)
-{
-    constexpr int dimX = 10;
-    constexpr int dimY = 10;
-    constexpr int dimZ = 10;
-    constexpr int maxInstanceCount = dimX * dimY * dimZ;
-
-    struct GridPoint
-    {
-        int x;
-        int y;
-        int z;
-        int dist2;
-    };
-
-    static const std::vector<GridPoint> points = []
-    {
-        std::vector<GridPoint> result;
-        result.reserve(maxInstanceCount);
-
-        constexpr int halfDimX = dimX / 2;
-        constexpr int halfDimY = dimY / 2;
-        constexpr int halfDimZ = dimZ / 2;
-
-        constexpr int centerX = 0;
-        constexpr int centerY = 0;
-        constexpr int startZ = -halfDimZ;
-
-        for (int z = -halfDimZ; z <= halfDimZ; ++z)
-        {
-            for (int y = -halfDimY; y <= halfDimY; ++y)
-            {
-                for (int x = -halfDimX; x <= halfDimX; ++x)
-                {
-                    const int dx = x - centerX;
-                    const int dy = y - centerY;
-                    const int dz = z - startZ;
-                    const int dist2 = dx * dx + dy * dy + dz * dz;
-                    result.push_back({x, y, z, dist2});
-                }
-            }
-        }
-
-        std::sort(result.begin(),
-                  result.end(),
-                  [](const GridPoint& a, const GridPoint& b)
-                  {
-                      if (a.dist2 != b.dist2)
-                          return a.dist2 < b.dist2;
-                      if (a.z != b.z)
-                          return a.z > b.z; // ZÃ£ÂÅ’Ã¥Â¤Â§Ã£ÂÂÃ£Ââ€žÃ¦â€“Â¹Ã£â€šâ€™Ã¥â€žÂªÃ¥â€¦Ë†
-                      if (a.y != b.y)
-                          return a.y < b.y;
-                      return a.x < b.x;
-                  });
-
-        return result;
-    }();
-
-    instanceId = std::clamp(instanceId, 0, maxInstanceCount - 1);
-
-    const GridPoint& p = points[instanceId];
-
-    return XMFLOAT3(static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z));
 }

@@ -13,8 +13,10 @@
 
 #include "D3D12HelloTexture.h"
 #include "DXSample.h"
+#include "Scene/SampleScene.h"
+
 #include <chrono>
-#include "Scene/Scene.h"
+#include <memory>
 
 class SampleApp : public DXSample
 {
@@ -37,27 +39,15 @@ public:
     void UpdateSampleState();
 
 private:
-    enum class MeshSource
-    {
-        Gltf,
-        Cube,
-    };
+    static constexpr int kDefaultSceneIndex = 0;
 
-    static constexpr MeshSource kMeshSource = MeshSource::Gltf;
-
-    void LoadSceneAssets();
+    void CreateSampleScenes();
+    void ActivateSampleScene(int sceneIndex);
+    Engine::SampleScene& ActiveScene();
+    const Engine::SampleScene& ActiveScene() const;
     void DrawDebugUi(const HelloTextureEngine::DebugUiContext& context);
-    void InitInstanceData(const Engine::SceneMesh& mesh);
-    void UpdateInstanceData(float deltaTime);
-
-    GltfMeshData LoadGltfScene() const;
-    static Engine::SceneMesh ConvertToSceneMesh(const GltfMeshData& mesh);
 
     static constexpr UINT kMaxInstanceCount = HelloTextureEngine::kMaxInstanceCount;
-    static constexpr float kTranslationSpeed = 0.005f;
-    static constexpr float kPI = 3.141592f;
-    static constexpr float kRotationSpeed = kPI / 180.f / 3.f;
-    static constexpr float kOffsetBounds = 5.f;
     static constexpr float kMouseRotationSpeed = 0.01f;
     static constexpr float kMousePanSpeed = 0.01f;
     static constexpr float kMouseWheelCameraSpeed = 0.25f;
@@ -65,18 +55,9 @@ private:
     static constexpr float kCameraMinZ = -100.0f;
     static constexpr float kCameraMaxZ = 100.0f;
 
-    struct InstanceDataForCPU
-    {
-        InstanceDataForCPU(XMFLOAT3 pos, XMFLOAT3 rot) : pos(pos), rot(rot) {}
-        XMFLOAT3 pos;
-        XMFLOAT3 rot;
-    };
-
-    static XMFLOAT3 InstanceIdToXYZ(int instanceId);
-
-    Engine::Scene m_scene;
-    Engine::SceneMesh m_sceneMesh;
-    std::vector<InstanceDataForCPU> m_instanceDataForCPU;
+    std::vector<std::unique_ptr<Engine::SampleScene>> m_sampleScenes;
+    Engine::SampleScene* m_activeScene = nullptr;
+    int m_activeSceneIndex = -1;
 
     HelloTextureEngine::LightingParams m_lightingParams;
     HelloTextureEngine::RenderingPath m_renderingPath = HelloTextureEngine::RenderingPath::Deferred;
