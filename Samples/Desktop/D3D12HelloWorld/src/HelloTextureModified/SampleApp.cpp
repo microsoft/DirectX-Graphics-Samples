@@ -14,6 +14,7 @@
 #include <algorithm>
 #include "SampleApp.h"
 #include "imgui.h"
+#include "ImGuiWidgets.h"
 
 SampleApp::SampleApp(UINT width, UINT height, std::wstring name)
     : DXSample(width, height, name), m_prevTime(std::chrono::steady_clock::now()), m_engine(m_graphicsDevice)
@@ -364,23 +365,30 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         ImGui::End();
         return;
     }
-    ImGui::SliderInt("Display Instance Count", &m_displayInstanceCount, 0, loadedScene.MaxDisplayInstanceCount());
+    ImGuiWidgets::SliderIntWithControls("Display Instance Count", &m_displayInstanceCount, 0,
+                                         loadedScene.MaxDisplayInstanceCount(), 1, 0);
     loadedScene.SetDisplayInstanceCount(m_displayInstanceCount);
-    ImGui::SliderFloat("Mesh Scale", &m_meshScale, 0.1f, 2.0f);
-    ImGui::SliderFloat("Camera FovH", &loadedScene.GetScene().camera.fov, 20.f, 150.f);
+    ImGuiWidgets::SliderFloatWithControls("Mesh Scale", &m_meshScale, 0.1f, 2.0f, 0.05f, 0.5f);
+    ImGuiWidgets::SliderFloatWithControls("Camera FovH", &loadedScene.GetScene().camera.fov, 20.f, 150.f, 5.f, 60.f);
     ImGui::ColorEdit4("Background Color", m_backBufferClearColor.data());
-    ImGui::SliderFloat3("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f);
+    {
+        static constexpr float defaultDir[] = {0.4f, 0.7f, 0.6f};
+        ImGuiWidgets::SliderFloat3WithControls("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f,
+                                               0.05f, defaultDir);
+    }
     ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
     ImGui::Checkbox("IBL Enabled", &m_iblEnabled);
     ImGui::BeginDisabled(!m_iblEnabled);
-    ImGui::SliderFloat("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f);
+    ImGuiWidgets::SliderFloatWithControls("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f, 0.05f, 1.0f);
     ImGui::EndDisabled();
     ImGui::Checkbox("Show Skybox", &m_lightingParams.skyboxEnabled);
     ImGui::Checkbox("Skybox Preview", &m_lightingParams.skyboxPreview);
     ImGui::BeginDisabled(!m_lightingParams.skyboxPreview);
-    ImGui::SliderFloat("Skybox Preview Exposure", &m_lightingParams.skyboxPreviewExposure, 0.0f, 2.0f);
+    ImGuiWidgets::SliderFloatWithControls("Skybox Preview Exposure", &m_lightingParams.skyboxPreviewExposure, 0.0f,
+                                          2.0f, 0.05f, 1.0f);
     ImGui::EndDisabled();
-    ImGui::SliderFloat("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f);
+    ImGuiWidgets::SliderFloatWithControls("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f,
+                                          0.1f, 1.0f);
 
     if (!sceneMesh.materials.empty())
     {
@@ -394,10 +402,15 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
 
         Engine::SceneMaterial& material = sceneMesh.materials[m_selectedMaterialIndex];
         bool materialChanged = false;
-        materialChanged |= ImGui::SliderFloat("Roughness", &material.roughnessFactor, 0.04f, 1.0f);
-        materialChanged |= ImGui::SliderFloat("Metallic", &material.metallicFactor, 0.0f, 1.0f);
-        materialChanged |= ImGui::SliderFloat("Indirect Occlusion", &material.ambientOcclusionFactor, 0.0f, 1.0f);
-        materialChanged |= ImGui::SliderFloat("Emissive Luminance", &material.emissiveScale, 0.0f, 4.0f);
+        materialChanged |= ImGuiWidgets::SliderFloatWithControls("Roughness", &material.roughnessFactor, 0.04f, 1.0f,
+                                                                 0.02f, 0.5f);
+        materialChanged |= ImGuiWidgets::SliderFloatWithControls("Metallic", &material.metallicFactor, 0.0f, 1.0f,
+                                                                 0.05f, 0.0f);
+        materialChanged |= ImGuiWidgets::SliderFloatWithControls("Indirect Occlusion",
+                                                                 &material.ambientOcclusionFactor, 0.0f, 1.0f,
+                                                                 0.05f, 1.0f);
+        materialChanged |= ImGuiWidgets::SliderFloatWithControls("Emissive Luminance", &material.emissiveScale, 0.0f,
+                                                                 4.0f, 0.1f, 1.0f);
 
         const float f0 = 0.04f * (1.0f - material.metallicFactor) + material.metallicFactor;
         ImGui::Text("Specular F0: %.2f", f0);
@@ -419,9 +432,11 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
     ImGui::RadioButton("Reinhard", &m_toneMapParams.operatorIndex, 1);
     ImGui::SameLine();
     ImGui::RadioButton("ACES", &m_toneMapParams.operatorIndex, 2);
-    ImGui::SliderFloat("Exposure", &m_toneMapParams.exposure, 0.0f, 4.0f);
-    ImGui::SliderFloat("Paper White", &m_toneMapParams.paperWhiteNits, 80.0f, 500.0f, "%.0f nits");
-    ImGui::SliderFloat("Display Max", &m_toneMapParams.maxDisplayNits, 100.0f, 4000.0f, "%.0f nits");
+    ImGuiWidgets::SliderFloatWithControls("Exposure", &m_toneMapParams.exposure, 0.0f, 4.0f, 0.1f, 1.0f);
+    ImGuiWidgets::SliderFloatWithControls("Paper White", &m_toneMapParams.paperWhiteNits, 80.0f, 500.0f, 10.f,
+                                          300.0f, "%.0f nits");
+    ImGuiWidgets::SliderFloatWithControls("Display Max", &m_toneMapParams.maxDisplayNits, 100.0f, 4000.0f, 50.f,
+                                          1000.0f, "%.0f nits");
 
     int renderingPath = static_cast<int>(m_renderingPath);
     ImGui::Text("Rendering Path");
