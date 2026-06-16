@@ -76,6 +76,7 @@ private:
     bool m_sceneResourcesLoaded = false;
 
     HelloTextureEngine::LightingParams m_lightingParams;
+    Engine::ProceduralEnvironmentSettings m_environmentSettings;
     HelloTextureEngine::RenderingPath m_renderingPath = HelloTextureEngine::RenderingPath::Deferred;
     bool m_iblEnabled = true;
     bool m_lightingPassDebugGradient = false;

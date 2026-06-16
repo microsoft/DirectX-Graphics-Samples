@@ -16,6 +16,30 @@
 #include "imgui.h"
 #include "ImGuiWidgets.h"
 
+namespace
+{
+
+const char* EnvironmentSourceLabel(Engine::EnvironmentSource source)
+{
+    switch (source)
+    {
+        case Engine::EnvironmentSource::AssetHdr:
+            return "Asset HDR";
+        case Engine::EnvironmentSource::ProceduralStudio:
+            return "Procedural Studio";
+        case Engine::EnvironmentSource::ProceduralSun:
+            return "Procedural Sun";
+        case Engine::EnvironmentSource::ProceduralColorPanels:
+            return "Procedural Color Panels";
+        case Engine::EnvironmentSource::ProceduralHorizon:
+            return "Procedural Horizon";
+        default:
+            return "Unknown";
+    }
+}
+
+} // namespace
+
 SampleApp::SampleApp(UINT width, UINT height, std::wstring name)
     : DXSample(width, height, name), m_prevTime(std::chrono::steady_clock::now()), m_engine(m_graphicsDevice)
 {
@@ -293,6 +317,17 @@ void SampleApp::InitializeImGui()
 
 void SampleApp::UpdateUiFrame()
 {
+    const auto& hdrSettings = m_engine.GetHdrOutputSettings();
+    if (hdrSettings.hdr10Enabled)
+    {
+        const float hdrScale = m_toneMapParams.paperWhiteNits / 10000.0f;
+        m_imguiSystem.SetHdrScale(hdrScale);
+    }
+    else
+    {
+        m_imguiSystem.SetHdrScale(1.0f);
+    }
+
     m_imguiSystem.BeginFrame();
     DrawDebugUi(m_engine.GetUiFrameContext());
     m_imguiSystem.EndFrame();
@@ -381,6 +416,41 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
     ImGui::BeginDisabled(!m_iblEnabled);
     ImGuiWidgets::SliderFloatWithControls("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f, 0.05f, 1.0f);
     ImGui::EndDisabled();
+    ImGui::Text("Environment Map");
+    int environmentSource = static_cast<int>(m_environmentSettings.source);
+    if (ImGui::Combo("Source",
+                     &environmentSource,
+                     "Asset HDR\0Procedural Studio\0Procedural Sun\0Procedural Color Panels\0Procedural Horizon\0"))
+    {
+        m_environmentSettings.source = static_cast<Engine::EnvironmentSource>(environmentSource);
+    }
+    if (m_environmentSettings.source != Engine::EnvironmentSource::AssetHdr)
+    {
+        ImGui::ColorEdit3("Sky Color", &m_environmentSettings.skyColor.x);
+        ImGui::ColorEdit3("Ground Color", &m_environmentSettings.groundColor.x);
+        ImGui::ColorEdit3("Env Light Color", &m_environmentSettings.lightColor.x);
+        static constexpr float defaultEnvLightDir[] = {0.35f, 0.75f, 0.25f};
+        ImGuiWidgets::SliderFloat3WithControls("Env Light Direction", &m_environmentSettings.lightDirection.x, -1.0f,
+                                               1.0f, 0.05f, defaultEnvLightDir);
+        ImGuiWidgets::SliderFloatWithControls("Env Background", &m_environmentSettings.backgroundIntensity, 0.0f, 4.0f,
+                                              0.05f, 0.6f);
+        ImGuiWidgets::SliderFloatWithControls("Env Light Intensity", &m_environmentSettings.lightIntensity, 0.0f,
+                                              40.0f, 0.5f, 6.0f);
+        ImGuiWidgets::SliderFloatWithControls("Env Light Size", &m_environmentSettings.lightSize, 0.01f, 0.8f, 0.01f,
+                                              0.12f);
+        ImGuiWidgets::SliderFloatWithControls("Env Fill", &m_environmentSettings.fillIntensity, 0.0f, 2.0f, 0.05f,
+                                              0.12f);
+        ImGuiWidgets::SliderFloatWithControls("Color Panel Intensity", &m_environmentSettings.colorPanelIntensity, 0.0f,
+                                              8.0f, 0.1f, 1.5f);
+        ImGuiWidgets::SliderFloatWithControls("Horizon Width", &m_environmentSettings.horizonSharpness, 0.01f, 0.5f,
+                                              0.01f, 0.08f);
+    }
+    if (ImGui::Button("Apply Environment"))
+    {
+        m_engine.ReloadEnvironmentResources(m_environmentSettings);
+    }
+    ImGui::SameLine();
+    ImGui::Text("%s", EnvironmentSourceLabel(m_environmentSettings.source));
     ImGui::Checkbox("Show Skybox", &m_lightingParams.skyboxEnabled);
     ImGui::Checkbox("Skybox Preview", &m_lightingParams.skyboxPreview);
     ImGui::BeginDisabled(!m_lightingParams.skyboxPreview);

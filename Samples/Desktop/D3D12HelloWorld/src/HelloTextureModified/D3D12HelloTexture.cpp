@@ -241,6 +241,11 @@ void HelloTextureEngine::SetToneMapParams(const ToneMapParams& params)
     m_toneMapPass.settings.maxDisplayNits = params.maxDisplayNits;
 }
 
+const HdrOutputSettings& HelloTextureEngine::GetHdrOutputSettings() const
+{
+    return m_hdrOutputPolicy.settings;
+}
+
 void HelloTextureEngine::SetRenderViewMode(RenderViewMode mode)
 {
     m_debugViewSettings.renderViewMode = mode;
@@ -249,6 +254,27 @@ void HelloTextureEngine::SetRenderViewMode(RenderViewMode mode)
 void HelloTextureEngine::SetRequestHdrDump(bool request)
 {
     m_debugViewSettings.requestHdrDump = request;
+}
+
+void HelloTextureEngine::ReloadEnvironmentResources(const Engine::ProceduralEnvironmentSettings& settings)
+{
+    m_environmentSettings = settings;
+
+    WaitForGpu();
+    ThrowIfFailed(m_frameResources[m_currentFrameIndex].commandAllocator->Reset());
+    ThrowIfFailed(m_commandList->Reset(m_frameResources[m_currentFrameIndex].commandAllocator.Get(), nullptr));
+
+    ReleaseEnvironmentMapResources();
+
+    ComPtr<ID3D12Resource> environmentMapUploadHeap;
+    ComPtr<ID3D12Resource> diffuseIrradianceUploadHeap;
+    CreateEnvironmentMapResources(environmentMapUploadHeap, diffuseIrradianceUploadHeap);
+    ValidateEnvironmentMapDescriptorTable();
+
+    ThrowIfFailed(m_commandList->Close());
+    ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
+    m_graphicsDevice.ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    WaitForGpu();
 }
 
 void HelloTextureEngine::UpdateCameraConstantBuffer()
@@ -386,44 +412,70 @@ DescriptorAllocation HelloTextureEngine::CreateTextureFromRGBA8(
 void HelloTextureEngine::CreateEnvironmentMapResources(ComPtr<ID3D12Resource>& environmentMapUploadHeap,
                                                        ComPtr<ID3D12Resource>& diffuseIrradianceUploadHeap)
 {
-    const std::wstring hdrPath = GetAssetFullPath(L"Environment\\default_environment.hdr");
-    Engine::HdrImage hdrImage = {};
-    if (Engine::TryLoadHdrImage(hdrPath.c_str(), hdrImage))
+    if (m_environmentSettings.source == Engine::EnvironmentSource::AssetHdr)
     {
-        WCHAR debugMessage[256] = {};
-        swprintf_s(debugMessage, L"Loaded HDRI: %s (%u x %u)\n", hdrPath.c_str(), hdrImage.width, hdrImage.height);
-        OutputDebugStringW(debugMessage);
-
-        const bool environmentMapCreated =
-            m_environmentMap.TryCreateFromHdrEquirectangular(m_graphicsDevice.Device(),
-                                                             m_commandList.Get(),
-                                                             m_descriptorHeapAllocator,
-                                                             hdrImage,
-                                                             kEnvironmentMapCubeSize,
-                                                             false,
-                                                             environmentMapUploadHeap);
-        const bool diffuseIrradianceCreated =
-            m_diffuseIrradianceMap.TryCreateFromHdrEquirectangular(m_graphicsDevice.Device(),
-                                                                   m_commandList.Get(),
-                                                                   m_descriptorHeapAllocator,
-                                                                   hdrImage,
-                                                                   kDiffuseIrradianceCubeSize,
-                                                                   true,
-                                                                   diffuseIrradianceUploadHeap);
-        if (environmentMapCreated && diffuseIrradianceCreated)
+        const std::wstring hdrPath = GetAssetFullPath(L"Environment\\default_environment.hdr");
+        Engine::HdrImage hdrImage = {};
+        if (Engine::TryLoadHdrImage(hdrPath.c_str(), hdrImage))
         {
-            return;
+            WCHAR debugMessage[256] = {};
+            swprintf_s(debugMessage, L"Loaded HDRI: %s (%u x %u)\n", hdrPath.c_str(), hdrImage.width, hdrImage.height);
+            OutputDebugStringW(debugMessage);
+
+            const bool environmentMapCreated =
+                m_environmentMap.TryCreateFromHdrEquirectangular(m_graphicsDevice.Device(),
+                                                                 m_commandList.Get(),
+                                                                 m_descriptorHeapAllocator,
+                                                                 hdrImage,
+                                                                 kEnvironmentMapCubeSize,
+                                                                 false,
+                                                                 environmentMapUploadHeap);
+            const bool diffuseIrradianceCreated =
+                m_diffuseIrradianceMap.TryCreateFromHdrEquirectangular(m_graphicsDevice.Device(),
+                                                                       m_commandList.Get(),
+                                                                       m_descriptorHeapAllocator,
+                                                                       hdrImage,
+                                                                       kDiffuseIrradianceCubeSize,
+                                                                       true,
+                                                                       diffuseIrradianceUploadHeap);
+            if (environmentMapCreated && diffuseIrradianceCreated)
+            {
+                return;
+            }
         }
+
+        WCHAR fallbackMessage[256] = {};
+        swprintf_s(fallbackMessage, L"Falling back to procedural envmap: %s\n", hdrPath.c_str());
+        OutputDebugStringW(fallbackMessage);
     }
 
-    WCHAR fallbackMessage[256] = {};
-    swprintf_s(fallbackMessage, L"Falling back to procedural envmap: %s\n", hdrPath.c_str());
-    OutputDebugStringW(fallbackMessage);
+    Engine::ProceduralEnvironmentSettings fallbackSettings = m_environmentSettings;
+    if (fallbackSettings.source == Engine::EnvironmentSource::AssetHdr)
+    {
+        fallbackSettings.source = Engine::EnvironmentSource::ProceduralSun;
+    }
 
-    m_environmentMap.CreateProceduralFallback(
-        m_graphicsDevice.Device(), m_commandList.Get(), m_descriptorHeapAllocator, environmentMapUploadHeap);
-    m_diffuseIrradianceMap.CreateProceduralFallback(
-        m_graphicsDevice.Device(), m_commandList.Get(), m_descriptorHeapAllocator, diffuseIrradianceUploadHeap);
+    m_environmentMap.CreateProcedural(m_graphicsDevice.Device(),
+                                      m_commandList.Get(),
+                                      m_descriptorHeapAllocator,
+                                      fallbackSettings,
+                                      kEnvironmentMapCubeSize,
+                                      false,
+                                      environmentMapUploadHeap);
+    m_diffuseIrradianceMap.CreateProcedural(m_graphicsDevice.Device(),
+                                            m_commandList.Get(),
+                                            m_descriptorHeapAllocator,
+                                            fallbackSettings,
+                                            kDiffuseIrradianceCubeSize,
+                                            true,
+                                            diffuseIrradianceUploadHeap);
+}
+
+void HelloTextureEngine::ReleaseEnvironmentMapResources()
+{
+    // Free diffuse first so the simple LIFO allocator gives Environment and Diffuse descriptors back contiguously.
+    m_diffuseIrradianceMap.Release(m_descriptorHeapAllocator);
+    m_environmentMap.Release(m_descriptorHeapAllocator);
 }
 
 void HelloTextureEngine::ValidateEnvironmentMapDescriptorTable() const

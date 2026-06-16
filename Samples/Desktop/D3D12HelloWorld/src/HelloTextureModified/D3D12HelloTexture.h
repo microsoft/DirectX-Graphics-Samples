@@ -151,8 +151,10 @@ public:
     void SetBackBufferClearColor(const std::array<float, 4>& color);
     void SetDisplayInstanceCount(int count);
     void SetToneMapParams(const ToneMapParams& params);
+    const HdrOutputSettings& GetHdrOutputSettings() const;
     void SetRenderViewMode(RenderViewMode mode);
     void SetRequestHdrDump(bool request);
+    void ReloadEnvironmentResources(const Engine::ProceduralEnvironmentSettings& settings);
 
 private:
     static constexpr UINT kFrameCount = kSwapChainBufferCount;
@@ -361,6 +363,7 @@ private:
     Engine::Scene m_scene;
     std::vector<Engine::Material> m_materialData;
     LightingParams m_lightingParams;
+    Engine::ProceduralEnvironmentSettings m_environmentSettings;
 
     ComPtr<ID3D12Resource> m_vertexBuffer;
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
@@ -472,6 +475,7 @@ private:
     void CreateSceneTextureResources(std::vector<ComPtr<ID3D12Resource>>& textureUploadHeap);
     void CreateEnvironmentMapResources(ComPtr<ID3D12Resource>& environmentMapUploadHeap,
                                        ComPtr<ID3D12Resource>& diffuseIrradianceUploadHeap);
+    void ReleaseEnvironmentMapResources();
     void ValidateEnvironmentMapDescriptorTable() const;
     void PrepareSceneInstanceData();
     void CreateSceneMaterialResources();

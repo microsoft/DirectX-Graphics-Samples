@@ -56,6 +56,19 @@ void ImGuiSystem::BeginFrame()
         return;
     }
 
+    ImGui::StyleColorsDark();
+
+    if (m_hdrScale < 1.0f)
+    {
+        ImGuiStyle& style = ImGui::GetStyle();
+        for (int i = 0; i < ImGuiCol_COUNT; i++)
+        {
+            style.Colors[i].x *= m_hdrScale;
+            style.Colors[i].y *= m_hdrScale;
+            style.Colors[i].z *= m_hdrScale;
+        }
+    }
+
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
@@ -92,6 +105,11 @@ void ImGuiSystem::SetDisplaySize(UINT width, UINT height)
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
+}
+
+void ImGuiSystem::SetHdrScale(float hdrScale)
+{
+    m_hdrScale = hdrScale;
 }
 
 void ImGuiSystem::Shutdown()
