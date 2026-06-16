@@ -16,6 +16,9 @@
     <Filter Include="Source Files\Scene">
       <UniqueIdentifier>{5b2353bf-299f-44f2-bc5d-23c109e7af58}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Ui">
+      <UniqueIdentifier>{b7cda286-3ee3-47f5-8538-10f048e2db52}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CubeMesh.h">
@@ -120,6 +123,9 @@
     <ClInclude Include="Scene\SampleScene.h">
       <Filter>Source Files\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="Ui\ImGuiSystem.h">
+      <Filter>Source Files\Ui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CubeMesh.cpp">
@@ -199,6 +205,9 @@
     </ClCompile>
     <ClCompile Include="Scene\SampleScene.cpp">
       <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Ui\ImGuiSystem.cpp">
+      <Filter>Source Files\Ui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

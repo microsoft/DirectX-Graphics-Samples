@@ -11,10 +11,6 @@
 
 #include "stdafx.h"
 
-#include "imgui.h"
-#include "imgui_impl_dx12.h"
-#include "imgui_impl_win32.h"
-
 #include "D3D12HelloTexture.h"
 
 #include <algorithm>
@@ -23,9 +19,6 @@
 #include "MyDx12Utils.h"
 #include "Renderer/DebugDumpReport.h"
 #include "Renderer/RootSignatureFactory.h"
-
-// ImGui
-#define IMGUI_IMPL 1
 
 #include <random>
 #include <combaseapi.h>
@@ -107,7 +100,6 @@ void HelloTextureEngine::InitializeFrameResources()
     m_prevTime = std::chrono::steady_clock::now();
     LoadPipeline();
     LoadAssets();
-    InitImGui();
     InitResourceDefaultStates();
 }
 
@@ -133,9 +125,11 @@ std::wstring HelloTextureEngine::GetShaderFullPath(LPCWSTR shaderName)
     return m_shaderPath + shaderName;
 }
 
-void HelloTextureEngine::SetDebugUiHandler(DebugUiHandler handler)
+HelloTextureEngine::UiFrameContext HelloTextureEngine::GetUiFrameContext() const
 {
-    m_debugUiHandler = std::move(handler);
+    return {static_cast<int>(m_currentFrameIndex),
+            m_cpuFrameTime,
+            m_frameResources[m_previousFrameIndex].gpuWorkMeterCheckPoints};
 }
 
 void HelloTextureEngine::SetUpdateHandler(UpdateHandler handler)
@@ -195,6 +189,43 @@ void HelloTextureEngine::SetBackBufferClearColor(const std::array<float, 4>& col
 void HelloTextureEngine::SetScene(const Scene& scene)
 {
     m_scene = scene;
+}
+
+void HelloTextureEngine::ReloadSceneResources(const Scene& scene)
+{
+    WaitForGpu();
+    ReleaseSceneResources();
+    SetScene(scene);
+
+    ThrowIfFailed(m_frameResources[m_currentFrameIndex].commandAllocator->Reset());
+    ThrowIfFailed(m_commandList->Reset(m_frameResources[m_currentFrameIndex].commandAllocator.Get(),
+                                       GetPipelineState(PipelineId(Pipe::Forward))));
+
+    CreateSceneGeometryBuffers();
+
+    std::vector<ComPtr<ID3D12Resource>> textureUploadHeap;
+    CreateSceneTextureResources(textureUploadHeap);
+    PrepareSceneInstanceData();
+    CreateSceneMaterialResources();
+    CreateInstanceBuffers();
+
+    UpdateCameraConstantBuffer();
+    m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
+    for (FrameResource& frameResource : m_frameResources)
+    {
+        memcpy(frameResource.cameraCB.mappedData, &m_constantBufferData, sizeof(m_constantBufferData));
+    }
+
+    ThrowIfFailed(m_commandList->Close());
+    ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
+    m_graphicsDevice.ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    WaitForGpu();
+}
+
+void HelloTextureEngine::CloseSceneResources()
+{
+    WaitForGpu();
+    ReleaseSceneResources();
 }
 
 void HelloTextureEngine::SetDisplayInstanceCount(int count)
@@ -266,12 +297,6 @@ void HelloTextureEngine::LoadPipeline()
         // Create a descriptor allocator to manage the descriptors in the heap.
         m_descriptorHeapAllocator.Init(m_graphicsDevice.Device(), m_heap.Get());
 
-        D3D12_DESCRIPTOR_HEAP_DESC imguiHeapDesc = {};
-        imguiHeapDesc.NumDescriptors = kHeapDescriptorCount;
-        imguiHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        imguiHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_graphicsDevice.Device()->CreateDescriptorHeap(&imguiHeapDesc, IID_PPV_ARGS(&m_imguiHeap)));
-        m_ImGuiDescriptorHeapAllocator.Init(m_graphicsDevice.Device(), m_imguiHeap.Get());
     }
 
     // create render target views (RTVs) for the swap chain back buffers.
@@ -312,7 +337,7 @@ void HelloTextureEngine::UpdateHdr10DisplayMode()
     m_hdrOutputPolicy.Update(m_graphicsDevice.DxgiFactory(), m_graphicsDevice.SwapChain(), m_graphicsDevice.Hwnd());
 }
 
-DescriptorHeapHandle HelloTextureEngine::CreateTextureFromRGBA8(
+DescriptorAllocation HelloTextureEngine::CreateTextureFromRGBA8(
     const UINT8* pixels, UINT width, UINT height, ComPtr<ID3D12Resource>& texture, ComPtr<ID3D12Resource>& uploadHeap)
 {
     D3D12_RESOURCE_DESC textureDesc = {};
@@ -425,17 +450,11 @@ void HelloTextureEngine::LoadAssets()
     CreatePipelineStates();
     CreateGBuffer();
     CreateInitialCommandList();
-    CreateSceneGeometryBuffers();
 
-    std::vector<ComPtr<ID3D12Resource>> textureUploadHeap;
     ComPtr<ID3D12Resource> environmentMapUploadHeap;
     ComPtr<ID3D12Resource> diffuseIrradianceUploadHeap;
-    CreateSceneTextureResources(textureUploadHeap);
     CreateEnvironmentMapResources(environmentMapUploadHeap, diffuseIrradianceUploadHeap);
     ValidateEnvironmentMapDescriptorTable();
-    PrepareSceneInstanceData();
-    CreateSceneMaterialResources();
-    CreateInstanceBuffers();
     CreateFrameConstantBuffers();
     ExecuteInitialGpuSetup();
 }
@@ -588,6 +607,7 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
     textureUploadHeap.resize(kTextureCount);
 
     m_texture.resize(kTextureCount);
+    m_textureSrvs.resize(kTextureCount);
 
     std::vector<std::vector<UINT8>> texture(kTextureTypes);
 
@@ -618,12 +638,13 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
             DBG_PRINT("[%d] CheckerBoardTexture :width %d height %d\n", i, kTextureWidth, kTextureHeight);
         }
 
-        DescriptorHeapHandle srv = CreateTextureFromRGBA8(pixels, width, height, m_texture[i], textureUploadHeap[i]);
+        DescriptorAllocation srv = CreateTextureFromRGBA8(pixels, width, height, m_texture[i], textureUploadHeap[i]);
+        m_textureSrvs[i] = std::move(srv);
         if (i == 0)
         {
-            m_textureTableStart = srv;
+            m_textureTableStart = m_textureSrvs[i].Handle();
         }
-        m_texIndex[i] = srv.Index - m_textureTableStart.Index;
+        m_texIndex[i] = m_textureSrvs[i].Handle().Index - m_textureTableStart.Index;
         DBG_PRINT("Texture %d SRV index: %d\n", i, m_texIndex[i]);
     }
 }
@@ -713,14 +734,56 @@ void HelloTextureEngine::CreateInstanceBuffers()
         srvDesc.Buffer.NumElements = kMaxInstanceCount;
         srvDesc.Buffer.StructureByteStride = sizeof(InstanceData);
 
-        m_frameResources[n].instanceBufferSrv = m_descriptorHeapAllocator.AllocWithHandle();
+        m_frameResources[n].instanceBufferSrv = m_descriptorHeapAllocator.Allocate();
         m_graphicsDevice.Device()->CreateShaderResourceView(
-            m_frameResources[n].instanceBuffer.Get(), &srvDesc, m_frameResources[n].instanceBufferSrv.cpu);
+            m_frameResources[n].instanceBuffer.Get(), &srvDesc, m_frameResources[n].instanceBufferSrv.Cpu());
 
         m_frameResources[n].instanceBuffer->Map(
             0, nullptr, reinterpret_cast<void**>(&m_frameResources[n].pSrvDataBegin));
         memcpy(m_frameResources[n].pSrvDataBegin, m_scene.instances.data(), instanceBufferSize);
         m_frameResources[n].instanceBuffer->Unmap(0, nullptr);
+    }
+
+    m_sceneResourcesAvailable = true;
+}
+
+void HelloTextureEngine::ReleaseSceneResources()
+{
+    m_displayInstanceCount = 0;
+    m_sceneResourcesAvailable = false;
+
+    m_vertexBuffer.Reset();
+    m_indexBuffer.Reset();
+    m_vertexBufferView = {};
+    m_indexBufferView = {};
+
+    m_vertexCountPerInstance = 0;
+    m_indexCountPerInstance = 0;
+    m_usesIndexedDraw = false;
+    m_sceneHasMaterials = false;
+    m_sceneTextureCount = 0;
+
+    m_materialBuffer.Reset();
+    for (FrameResource& frameResource : m_frameResources)
+    {
+        frameResource.instanceBufferSrv.Reset();
+    }
+
+    for (auto it = m_textureSrvs.rbegin(); it != m_textureSrvs.rend(); ++it)
+    {
+        it->Reset();
+    }
+
+    m_texture.clear();
+    m_textureSrvs.clear();
+    m_materialData.clear();
+    m_textureTableStart = {};
+    std::fill(std::begin(m_texIndex), std::end(m_texIndex), 0);
+
+    for (FrameResource& frameResource : m_frameResources)
+    {
+        frameResource.instanceBuffer.Reset();
+        frameResource.pSrvDataBegin = nullptr;
     }
 }
 
@@ -757,42 +820,6 @@ void HelloTextureEngine::ExecuteInitialGpuSetup()
     }
 }
 
-static SimpleDescriptorHeapAllocator* g_allocator = nullptr;
-
-void HelloTextureEngine::InitImGui()
-{
-#if IMGUI_IMPL > 0
-    g_allocator = &m_ImGuiDescriptorHeapAllocator;
-
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGui::StyleColorsDark();
-
-    // Setup Platform/Renderer backends
-    ImGui_ImplWin32_Init(m_graphicsDevice.Hwnd());
-
-    ImGui_ImplDX12_InitInfo init_info = {};
-    init_info.Device = m_graphicsDevice.Device();
-    init_info.CommandQueue = m_graphicsDevice.CommandQueue();
-    init_info.NumFramesInFlight = kFrameCount;
-    init_info.RTVFormat = m_backBufferFormat;
-    init_info.DSVFormat = DXGI_FORMAT_UNKNOWN;
-    // Allocating SRV descriptors (for textures) is up to the application, so we provide callbacks.
-    // (current version of the backend will only allocate one descriptor, future versions will need to allocate
-    // more)
-    init_info.SrvDescriptorHeap = m_imguiHeap.Get();
-    init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo*,
-                                        D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle,
-                                        D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
-    { g_allocator->Alloc(out_cpu_handle, out_gpu_handle); };
-    init_info.SrvDescriptorFreeFn =
-        [](ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
-    { g_allocator->Free(&cpu_handle, &gpu_handle); };
-    ImGui_ImplDX12_Init(&init_info);
-#endif
-}
-
 void HelloTextureEngine::CreateConstantBuffer(ConstantBufferResource& constantBuffer,
                                               const void* initialData,
                                               UINT sizeInBytes)
@@ -818,16 +845,16 @@ void HelloTextureEngine::CreateConstantBuffer(ConstantBufferResource& constantBu
     memcpy(constantBuffer.mappedData, initialData, sizeInBytes);
 }
 
-DescriptorHeapHandle HelloTextureEngine::AllocateTextureSRV(ID3D12Resource* texture)
+DescriptorAllocation HelloTextureEngine::AllocateTextureSRV(ID3D12Resource* texture)
 {
-    DescriptorHeapHandle handle = m_descriptorHeapAllocator.AllocWithHandle();
+    DescriptorAllocation handle = m_descriptorHeapAllocator.Allocate();
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = texture->GetDesc().Format;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Texture2D.MipLevels = 1;
-    m_graphicsDevice.Device()->CreateShaderResourceView(texture, &srvDesc, handle.cpu);
+    m_graphicsDevice.Device()->CreateShaderResourceView(texture, &srvDesc, handle.Cpu());
 
     return handle;
 }
@@ -1034,7 +1061,7 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
                                                        [this]() { return m_textureTableStart.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(
         m_renderGraphRuntime.RegisterDescriptor(Desc::InstanceBufferSrv),
-        [this]() { return m_frameResources[m_currentFrameIndex].instanceBufferSrv.gpu; });
+        [this]() { return m_frameResources[m_currentFrameIndex].instanceBufferSrv.Gpu(); });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::MaterialBufferSrv),
                                                        [this]() { return m_materialBuffer.Srv().gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::EnvironmentMapSrv),
@@ -1140,12 +1167,15 @@ void HelloTextureEngine::UpdateFrame()
         m_updateHandler();
     }
 
-    m_frameResources[m_currentFrameIndex].instanceBuffer->Map(
-        0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_currentFrameIndex].pSrvDataBegin));
-    memcpy(m_frameResources[m_currentFrameIndex].pSrvDataBegin,
-           m_scene.instances.data(),
-           sizeof(InstanceData) * kMaxInstanceCount);
-    m_frameResources[m_currentFrameIndex].instanceBuffer->Unmap(0, nullptr);
+    if (m_sceneResourcesAvailable)
+    {
+        m_frameResources[m_currentFrameIndex].instanceBuffer->Map(
+            0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_currentFrameIndex].pSrvDataBegin));
+        memcpy(m_frameResources[m_currentFrameIndex].pSrvDataBegin,
+               m_scene.instances.data(),
+               sizeof(InstanceData) * kMaxInstanceCount);
+        m_frameResources[m_currentFrameIndex].instanceBuffer->Unmap(0, nullptr);
+    }
 
     m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
     UpdateCameraConstantBuffer();
@@ -1155,43 +1185,34 @@ void HelloTextureEngine::UpdateFrame()
     PIXEndEvent();
 }
 
-void HelloTextureEngine::UpdateImGui()
+void HelloTextureEngine::UpdatePerFrameRenderSettings()
 {
-    ImGui_ImplDX12_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-    if (m_debugUiHandler)
-    {
-        DebugUiContext context{static_cast<int>(m_currentFrameIndex),
-                               m_cpuFrameTime,
-                               m_frameResources[m_previousFrameIndex].gpuWorkMeterCheckPoints};
-        m_debugUiHandler(context);
-    }
-
     m_toneMapPass.settings.Normalize();
     const LightingConstants lightingConstants = MakeLightingConstants();
     memcpy(m_frameResources[m_currentFrameIndex].lightCB.mappedData, &lightingConstants, sizeof(lightingConstants));
-
-    ImGui::Render();
 }
 
 UINT HelloTextureEngine::GetVisibleCubeCount() const
 {
+    if (!m_sceneResourcesAvailable)
+    {
+        return 0;
+    }
+
     return static_cast<UINT>(m_displayInstanceCount);
 }
 
 // Render the scene.
-void HelloTextureEngine::RenderFrame()
+void HelloTextureEngine::RenderFrame(const UiRenderHandler& uiRenderHandler)
 {
     PIXBeginEvent(0, L"RenderFrame");
 
-    // ImGui frame update
-#if IMGUI_IMPL > 0
-    UpdateImGui();
-#endif
+    UpdatePerFrameRenderSettings();
+    m_activeUiRenderHandler = &uiRenderHandler;
 
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList();
+    m_activeUiRenderHandler = nullptr;
 
     // Execute the command list.
     ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
@@ -1227,7 +1248,7 @@ void HelloTextureEngine::RequestResize(UINT width, UINT height)
     m_pendingResizeHeight = height;
 }
 
-void HelloTextureEngine::RunFrame()
+void HelloTextureEngine::RunFrame(const UiRenderHandler& uiRenderHandler)
 {
     if (m_pendingResize)
     {
@@ -1239,7 +1260,7 @@ void HelloTextureEngine::RunFrame()
 
     m_workMeter.Start();
     UpdateFrame();
-    RenderFrame();
+    RenderFrame(uiRenderHandler);
     m_workMeter.End();
     m_cpuFrameTime = m_workMeter.GetCpuFrameTimeMs();
 }
@@ -1305,9 +1326,6 @@ void HelloTextureEngine::ApplyResize(UINT width, UINT height)
         0.0f, 0.0f, static_cast<FLOAT>(m_width), static_cast<FLOAT>(m_height), D3D12_MIN_DEPTH, D3D12_MAX_DEPTH);
     m_scissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height));
 
-    // Imgui
-    ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2(static_cast<float>(m_width), static_cast<float>(m_height));
 }
 
 void HelloTextureEngine::Shutdown()
@@ -1744,18 +1762,13 @@ auto HelloTextureEngine::ResolveRenderTargets(const PassRenderTargetBinding& ren
 
 void HelloTextureEngine::RecordImGuiPass()
 {
-#if IMGUI_IMPL > 0
+    if (m_activeUiRenderHandler != nullptr && *m_activeUiRenderHandler)
     {
         m_commandList->RSSetViewports(1, &m_viewport);
         m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
-        ID3D12DescriptorHeap* imguiHeaps[] = {m_imguiHeap.Get()};
-
-        m_commandList->SetDescriptorHeaps(1, imguiHeaps);
-
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList.Get());
+        (*m_activeUiRenderHandler)(m_commandList.Get());
     }
-#endif
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ImGUI");
 }
 

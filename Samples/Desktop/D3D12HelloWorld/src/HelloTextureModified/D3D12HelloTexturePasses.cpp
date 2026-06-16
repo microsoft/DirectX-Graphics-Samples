@@ -19,13 +19,17 @@ void HelloTextureEngine::BuildRenderPasses()
     m_renderGraphRuntime.Operations().Clear();
 
     AddPass(MakeClearPass());
-    AddPass(MakeDepthPrePass());
-    AddSceneRenderPasses();
-    AddPass(MakeToneMapPass());
 
-    if (m_debugViewSettings.requestHdrDump)
+    if (m_sceneResourcesAvailable)
     {
-        AddPass(MakeDebugDumpPass());
+        AddPass(MakeDepthPrePass());
+        AddSceneRenderPasses();
+        AddPass(MakeToneMapPass());
+
+        if (m_debugViewSettings.requestHdrDump)
+        {
+            AddPass(MakeDebugDumpPass());
+        }
     }
 
     AddPass(MakeImGuiPass());

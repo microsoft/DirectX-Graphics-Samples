@@ -14,6 +14,7 @@
 #include "D3D12HelloTexture.h"
 #include "DXSample.h"
 #include "Scene/SampleScene.h"
+#include "Ui/ImGuiSystem.h"
 
 #include <chrono>
 #include <memory>
@@ -39,13 +40,24 @@ public:
     void UpdateSampleState();
 
 private:
+    enum class AppMode
+    {
+        SceneSelect,
+        Running,
+    };
+
     static constexpr int kDefaultSceneIndex = 0;
 
     void CreateSampleScenes();
-    void ActivateSampleScene(int sceneIndex);
-    Engine::SampleScene& ActiveScene();
-    const Engine::SampleScene& ActiveScene() const;
-    void DrawDebugUi(const HelloTextureEngine::DebugUiContext& context);
+    void LoadSceneCpuData(int sceneIndex);
+    void OpenSelectedScene();
+    void CloseRunningScene();
+    void InitializeImGui();
+    void UpdateUiFrame();
+    Engine::SampleScene& LoadedScene();
+    const Engine::SampleScene& LoadedScene() const;
+    void DrawDebugUi(const HelloTextureEngine::UiFrameContext& context);
+    void DrawSceneSelectUi();
 
     static constexpr UINT kMaxInstanceCount = HelloTextureEngine::kMaxInstanceCount;
     static constexpr float kMouseRotationSpeed = 0.01f;
@@ -54,10 +66,14 @@ private:
     static constexpr float kMouseWheelFovSpeed = 1.0f;
     static constexpr float kCameraMinZ = -100.0f;
     static constexpr float kCameraMaxZ = 100.0f;
+    static constexpr UINT kImGuiDescriptorCount = 100;
 
     std::vector<std::unique_ptr<Engine::SampleScene>> m_sampleScenes;
-    Engine::SampleScene* m_activeScene = nullptr;
-    int m_activeSceneIndex = -1;
+    Engine::SampleScene* m_loadedScene = nullptr;
+    int m_loadedSceneIndex = -1;
+    int m_selectedSceneIndex = kDefaultSceneIndex;
+    AppMode m_appMode = AppMode::SceneSelect;
+    bool m_sceneResourcesLoaded = false;
 
     HelloTextureEngine::LightingParams m_lightingParams;
     HelloTextureEngine::RenderingPath m_renderingPath = HelloTextureEngine::RenderingPath::Deferred;
@@ -83,6 +99,8 @@ private:
     std::chrono::steady_clock::time_point m_prevTime;
 
     GraphicsDevice m_graphicsDevice;
+    ComPtr<ID3D12DescriptorHeap> m_imguiHeap;
+    Engine::ImGuiSystem m_imguiSystem;
 
     // The engine receives the graphics device so DXSample ownership can stay in SampleApp.
     HelloTextureEngine m_engine;

@@ -119,14 +119,14 @@ public:
         float maxDisplayNits = 1000.0f;
     };
 
-    struct DebugUiContext
+    struct UiFrameContext
     {
         int frameIndex;
         float cpuFrameTime;
         const std::vector<MyDx12Util::GpuWorkMeter::CheckPoint>& gpuCheckPoints;
     };
 
-    using DebugUiHandler = std::function<void(const DebugUiContext&)>;
+    using UiRenderHandler = std::function<void(ID3D12GraphicsCommandList*)>;
     using UpdateHandler = std::function<void()>;
 
     static constexpr UINT kSwapChainBufferCount = 2;
@@ -136,11 +136,13 @@ public:
 
     void RequestResize(UINT width, UINT height);
     void Initialize(UINT width, UINT height);
-    void RenderFrame();
-    void RunFrame();
+    void RenderFrame(const UiRenderHandler& uiRenderHandler);
+    void RunFrame(const UiRenderHandler& uiRenderHandler);
     void Shutdown();
     void SetScene(const Scene& scene);
-    void SetDebugUiHandler(DebugUiHandler handler);
+    void ReloadSceneResources(const Scene& scene);
+    void CloseSceneResources();
+    UiFrameContext GetUiFrameContext() const;
     void SetUpdateHandler(UpdateHandler handler);
     void SetLightingParams(const LightingParams& params);
     void SetMaterialParams(UINT materialIndex, const MaterialParams& params);
@@ -233,9 +235,6 @@ private:
     using Op = PassKeyNames::Operation;
     using ConstName = PassKeyNames::Constants;
 
-    static constexpr UINT kHeapDescriptorCount = 100;
-    // 0 - 99 : ImGui (new)
-
     static constexpr UINT kTextureCount = 1020;
     static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
     static constexpr DXGI_FORMAT kBackBufferFormat = kSwapChainFormat;
@@ -289,7 +288,7 @@ private:
     {
         ComPtr<ID3D12CommandAllocator> commandAllocator;
         ComPtr<ID3D12Resource> instanceBuffer;
-        DescriptorHeapHandle instanceBufferSrv;
+        DescriptorAllocation instanceBufferSrv;
         InstanceData* pSrvDataBegin = nullptr;
         ConstantBufferResource cameraCB;
         ConstantBufferResource lightCB;
@@ -344,9 +343,6 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_heap;                     // CBV/SRV/UAV heap
     SimpleDescriptorHeapAllocator m_descriptorHeapAllocator; // Allocator for CBV/SRV/UAV heap
 
-    ComPtr<ID3D12DescriptorHeap> m_imguiHeap;
-    SimpleDescriptorHeapAllocator m_ImGuiDescriptorHeapAllocator;
-
     RenderingPath m_renderingPath = RenderingPath::Deferred;
     bool m_lightingPassDebugGradientEnabled = false;
     Engine::ToneMapPass m_toneMapPass;
@@ -375,6 +371,7 @@ private:
     UINT m_sceneTextureCount = 0;
 
     std::vector<ComPtr<ID3D12Resource>> m_texture;
+    std::vector<DescriptorAllocation> m_textureSrvs;
     Engine::EnvironmentMap m_environmentMap;
     Engine::EnvironmentMap m_diffuseIrradianceMap;
 
@@ -382,6 +379,7 @@ private:
     UINT m_indexCountPerInstance = 0;
     bool m_usesIndexedDraw = false;
     bool m_sceneHasMaterials = false;
+    bool m_sceneResourcesAvailable = false;
 
     int m_displayInstanceCount = static_cast<int>(kMaxInstanceCount);
 
@@ -409,7 +407,7 @@ private:
 
     // GPU work meter
     MyDx12Util::GpuWorkMeter m_gpuWorkMeter;
-    DebugUiHandler m_debugUiHandler;
+    const UiRenderHandler* m_activeUiRenderHandler = nullptr;
     UpdateHandler m_updateHandler;
     static constexpr const char* kBackBufferResourceName = "BackBuffer";
     static constexpr const char* kDepthStencilResourceName = "DepthStencil";
@@ -478,6 +476,7 @@ private:
     void PrepareSceneInstanceData();
     void CreateSceneMaterialResources();
     void CreateInstanceBuffers();
+    void ReleaseSceneResources();
     void CreateFrameConstantBuffers();
     void ExecuteInitialGpuSetup();
     std::wstring GetAssetFullPath(LPCWSTR assetName);
@@ -498,7 +497,6 @@ private:
                                       const DepthPrePassPipelineDefinition& definition);
     void UpdateHdr10DisplayMode();
     void UpdateCameraConstantBuffer();
-    void InitImGui();
     void CreateConstantBuffer(ConstantBufferResource& constantBuffer, const void* initialData, UINT sizeInBytes);
     void CreateDepthStencil(UINT width, UINT height);
     void RegisterDepthStencil(UINT width, UINT height);
@@ -546,7 +544,7 @@ private:
 
     void CreateGBuffer();
 
-    DescriptorHeapHandle CreateTextureFromRGBA8(const UINT8* pixels,
+    DescriptorAllocation CreateTextureFromRGBA8(const UINT8* pixels,
                                                 UINT width,
                                                 UINT height,
                                                 ComPtr<ID3D12Resource>& texture,
@@ -566,7 +564,7 @@ private:
     void MarkPendingTransientResources(UINT64 fenceValue);
     void CollectGarbageTransientResources();
 
-    void UpdateImGui();
+    void UpdatePerFrameRenderSettings();
     UINT GetVisibleCubeCount() const;
 
     void BeginFrame();
@@ -594,5 +592,5 @@ private:
     UINT64 MoveToNextFrame();
     void FlushGpu();
 
-    DescriptorHeapHandle AllocateTextureSRV(ID3D12Resource* texture);
+    DescriptorAllocation AllocateTextureSRV(ID3D12Resource* texture);
 };

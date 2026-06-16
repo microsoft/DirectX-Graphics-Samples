@@ -21,8 +21,8 @@ void MaterialBuffer::Create(ID3D12Device* device,
     srvDesc.Buffer.NumElements = kMaterialCount;
     srvDesc.Buffer.StructureByteStride = sizeof(Material);
 
-    m_srv = descriptorHeapAllocator.AllocWithHandle();
-    device->CreateShaderResourceView(m_buffer.Get(), &srvDesc, m_srv.cpu);
+    m_srv = descriptorHeapAllocator.Allocate();
+    device->CreateShaderResourceView(m_buffer.Get(), &srvDesc, m_srv.Cpu());
 
     Update(materials);
 }
@@ -37,6 +37,12 @@ void MaterialBuffer::Update(const std::vector<Material>& materials)
     m_buffer->Map(0, nullptr, reinterpret_cast<void**>(&pMaterialDataBegin));
     memcpy(pMaterialDataBegin, materials.data(), materialBufferSize);
     m_buffer->Unmap(0, nullptr);
+}
+
+void MaterialBuffer::Reset()
+{
+    m_buffer.Reset();
+    m_srv.Reset();
 }
 
 } // namespace Engine

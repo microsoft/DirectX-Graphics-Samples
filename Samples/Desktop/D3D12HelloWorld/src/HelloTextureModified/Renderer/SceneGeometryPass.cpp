@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 
 #include "SceneGeometryPass.h"
 
@@ -9,6 +9,11 @@ namespace Engine
 
 void RecordSceneGeometryDraw(ID3D12GraphicsCommandList* commandList, const SceneGeometryDrawDesc& drawDesc)
 {
+    if (drawDesc.instanceCount == 0)
+    {
+        return;
+    }
+
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &drawDesc.vertexBufferView);
 

@@ -17,15 +17,16 @@ public:
                 SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
                 const std::vector<Material>& materials);
     void Update(const std::vector<Material>& materials);
+    void Reset();
 
     DescriptorHeapHandle Srv() const
     {
-        return m_srv;
+        return m_srv.Handle();
     }
 
 private:
     ComPtr<ID3D12Resource> m_buffer;
-    DescriptorHeapHandle m_srv;
+    DescriptorAllocation m_srv;
 };
 
 } // namespace Engine

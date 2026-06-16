@@ -11,6 +11,53 @@ struct DescriptorHeapHandle
     UINT Index = UINT_MAX;
     D3D12_CPU_DESCRIPTOR_HANDLE cpu{};
     D3D12_GPU_DESCRIPTOR_HANDLE gpu{};
+
+    bool IsValid() const
+    {
+        return Index != UINT_MAX;
+    }
+};
+
+struct SimpleDescriptorHeapAllocator;
+
+class DescriptorAllocation
+{
+public:
+    DescriptorAllocation() = default;
+    DescriptorAllocation(SimpleDescriptorHeapAllocator* allocator, DescriptorHeapHandle handle);
+    ~DescriptorAllocation();
+
+    DescriptorAllocation(const DescriptorAllocation&) = delete;
+    DescriptorAllocation& operator=(const DescriptorAllocation&) = delete;
+
+    DescriptorAllocation(DescriptorAllocation&& other) noexcept;
+    DescriptorAllocation& operator=(DescriptorAllocation&& other) noexcept;
+
+    const DescriptorHeapHandle& Handle() const
+    {
+        return m_handle;
+    }
+
+    D3D12_CPU_DESCRIPTOR_HANDLE Cpu() const
+    {
+        return m_handle.cpu;
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE Gpu() const
+    {
+        return m_handle.gpu;
+    }
+
+    bool IsValid() const
+    {
+        return m_handle.IsValid();
+    }
+
+    void Reset();
+
+private:
+    SimpleDescriptorHeapAllocator* m_allocator = nullptr;
+    DescriptorHeapHandle m_handle;
 };
 
 // Simple free list based allocator
@@ -69,6 +116,21 @@ struct SimpleDescriptorHeapAllocator
         return handle;
     }
 
+    DescriptorAllocation Allocate()
+    {
+        return DescriptorAllocation(this, AllocWithHandle());
+    }
+
+    void Free(DescriptorHeapHandle handle)
+    {
+        if (!handle.IsValid())
+        {
+            return;
+        }
+
+        FreeIndices.push_back(handle.Index);
+    }
+
     // For ImGui
     void Free(D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle,
               D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle = nullptr)
@@ -89,3 +151,45 @@ struct SimpleDescriptorHeapAllocator
         FreeIndices.push_back(idx);
     }
 };
+
+inline DescriptorAllocation::DescriptorAllocation(SimpleDescriptorHeapAllocator* allocator, DescriptorHeapHandle handle)
+    : m_allocator(allocator), m_handle(handle)
+{
+}
+
+inline DescriptorAllocation::~DescriptorAllocation()
+{
+    Reset();
+}
+
+inline DescriptorAllocation::DescriptorAllocation(DescriptorAllocation&& other) noexcept
+    : m_allocator(other.m_allocator), m_handle(other.m_handle)
+{
+    other.m_allocator = nullptr;
+    other.m_handle = {};
+}
+
+inline DescriptorAllocation& DescriptorAllocation::operator=(DescriptorAllocation&& other) noexcept
+{
+    if (this != &other)
+    {
+        Reset();
+        m_allocator = other.m_allocator;
+        m_handle = other.m_handle;
+        other.m_allocator = nullptr;
+        other.m_handle = {};
+    }
+
+    return *this;
+}
+
+inline void DescriptorAllocation::Reset()
+{
+    if (m_allocator != nullptr && m_handle.IsValid())
+    {
+        m_allocator->Free(m_handle);
+    }
+
+    m_allocator = nullptr;
+    m_handle = {};
+}

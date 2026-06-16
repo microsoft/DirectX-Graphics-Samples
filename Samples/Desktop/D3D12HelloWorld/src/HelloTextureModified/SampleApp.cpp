@@ -23,7 +23,7 @@ SampleApp::SampleApp(UINT width, UINT height, std::wstring name)
 void SampleApp::OnInit()
 {
     CreateSampleScenes();
-    ActivateSampleScene(kDefaultSceneIndex);
+    LoadSceneCpuData(kDefaultSceneIndex);
 
     GraphicsDeviceDesc deviceDesc = {};
     deviceDesc.hwnd = Win32Application::GetHwnd();
@@ -34,15 +34,13 @@ void SampleApp::OnInit()
     deviceDesc.useWarpDevice = m_useWarpDevice;
     m_graphicsDevice.Initialize(deviceDesc);
 
-    m_engine.SetScene(ActiveScene().GetScene());
-
-    m_engine.SetDebugUiHandler([this](const HelloTextureEngine::DebugUiContext& context) { DrawDebugUi(context); });
+    InitializeImGui();
     m_engine.SetUpdateHandler([this]() { UpdateSampleState(); });
     m_engine.SetLightingParams(m_lightingParams);
     m_engine.SetRenderingPath(m_renderingPath);
     m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
     m_engine.SetBackBufferClearColor(m_backBufferClearColor);
-    m_engine.SetDisplayInstanceCount(m_displayInstanceCount);
+    m_engine.SetDisplayInstanceCount(0);
     m_engine.SetToneMapParams(m_toneMapParams);
     m_engine.SetRenderViewMode(m_renderViewMode);
 
@@ -55,10 +53,16 @@ void SampleApp::UpdateSampleState()
     const float deltaTime = std::chrono::duration<float>(now - m_prevTime).count();
     m_prevTime = now;
 
+    if (m_appMode == AppMode::SceneSelect)
+    {
+        m_engine.SetDisplayInstanceCount(0);
+        return;
+    }
+
     static constexpr float kCameraMoveSpeed = 0.01f;
     if (GetForegroundWindow() == Win32Application::GetHwnd())
     {
-        auto& camera = ActiveScene().GetScene().camera;
+        auto& camera = LoadedScene().GetScene().camera;
 
         if (GetAsyncKeyState('A') & 0x8000)
             camera.pos.x -= kCameraMoveSpeed;
@@ -78,15 +82,15 @@ void SampleApp::UpdateSampleState()
     sceneUpdate.isPlaying = m_isPlaying;
     sceneUpdate.meshScale = m_meshScale;
     sceneUpdate.dragRotation = m_dragRotation;
-    ActiveScene().Update(deltaTime, sceneUpdate);
+    LoadedScene().Update(deltaTime, sceneUpdate);
 
-    m_engine.SetScene(ActiveScene().GetScene());
-    m_engine.SetDisplayInstanceCount(ActiveScene().DisplayInstanceCount());
+    m_engine.SetScene(LoadedScene().GetScene());
+    m_engine.SetDisplayInstanceCount(LoadedScene().DisplayInstanceCount());
 }
 
 void SampleApp::OnKeyDown(UINT8 key)
 {
-    if (key == VK_SPACE)
+    if (m_appMode == AppMode::Running && key == VK_SPACE)
     {
         m_isPlaying = !m_isPlaying;
     }
@@ -96,6 +100,11 @@ void SampleApp::OnKeyUp(UINT8 key) {}
 
 void SampleApp::OnMouseDown(UINT8 button, int x, int y)
 {
+    if (m_appMode == AppMode::SceneSelect)
+    {
+        return;
+    }
+
     if (button == VK_LBUTTON)
     {
         m_isDragging = true;
@@ -124,6 +133,11 @@ void SampleApp::OnMouseUp(UINT8 button, int x, int y)
 
 void SampleApp::OnMouseMove(int x, int y)
 {
+    if (m_appMode == AppMode::SceneSelect)
+    {
+        return;
+    }
+
     if (m_isDragging)
     {
         const int dx = x - m_lastMouseX;
@@ -140,7 +154,7 @@ void SampleApp::OnMouseMove(int x, int y)
         m_lastMouseX = x;
         m_lastMouseY = y;
 
-        auto& camera = ActiveScene().GetScene().camera;
+        auto& camera = LoadedScene().GetScene().camera;
         camera.pos.x += static_cast<float>(dx) * kMousePanSpeed;
         camera.pos.y -= static_cast<float>(dy) * kMousePanSpeed;
     }
@@ -148,7 +162,12 @@ void SampleApp::OnMouseMove(int x, int y)
 
 void SampleApp::OnMouseWheel(int wheelDelta)
 {
-    auto& camera = ActiveScene().GetScene().camera;
+    if (m_appMode == AppMode::SceneSelect)
+    {
+        return;
+    }
+
+    auto& camera = LoadedScene().GetScene().camera;
     const float wheelSteps = static_cast<float>(wheelDelta) / static_cast<float>(WHEEL_DELTA);
 
     if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
@@ -163,11 +182,13 @@ void SampleApp::OnMouseWheel(int wheelDelta)
 void SampleApp::OnWindowSizeChanged(UINT width, UINT height)
 {
     m_engine.RequestResize(width, height);
+    m_imguiSystem.SetDisplaySize(width, height);
 }
 
 void SampleApp::OnIdle()
 {
-    m_engine.RunFrame();
+    UpdateUiFrame();
+    m_engine.RunFrame([this](ID3D12GraphicsCommandList* commandList) { m_imguiSystem.Render(commandList); });
 }
 
 void SampleApp::OnUpdate()
@@ -189,12 +210,15 @@ void SampleApp::OnRender()
     // render path after its frame update.
     // Keep this override for the DXSample interface. If Win32Application starts
     // calling OnRender() in the future, delegate to the engine render path.
-    m_engine.RenderFrame(); // currently this is not called.
+    UpdateUiFrame();
+    m_engine.RenderFrame([this](ID3D12GraphicsCommandList* commandList) { m_imguiSystem.Render(commandList); });
 }
 
 void SampleApp::OnDestroy()
 {
     m_engine.Shutdown();
+    m_imguiSystem.Shutdown();
+    m_imguiHeap.Reset();
 }
 
 void SampleApp::CreateSampleScenes()
@@ -205,50 +229,145 @@ void SampleApp::CreateSampleScenes()
         std::make_unique<Engine::MetallicRoughnessSphereScene>(static_cast<int>(kMaxInstanceCount)));
 }
 
-void SampleApp::ActivateSampleScene(int sceneIndex)
+void SampleApp::LoadSceneCpuData(int sceneIndex)
 {
     assert(sceneIndex >= 0 && sceneIndex < static_cast<int>(m_sampleScenes.size()));
 
-    m_activeSceneIndex = sceneIndex;
-    m_activeScene = m_sampleScenes[static_cast<size_t>(m_activeSceneIndex)].get();
-    m_activeScene->Load();
-    m_meshScale = m_activeScene->DefaultMeshScale();
-    m_displayInstanceCount = m_activeScene->DisplayInstanceCount();
+    m_loadedSceneIndex = sceneIndex;
+    m_loadedScene = m_sampleScenes[static_cast<size_t>(m_loadedSceneIndex)].get();
+    m_selectedSceneIndex = m_loadedSceneIndex;
+    m_loadedScene->Load();
+    m_meshScale = m_loadedScene->DefaultMeshScale();
+    m_displayInstanceCount = m_loadedScene->DisplayInstanceCount();
     m_selectedMaterialIndex = 0;
     m_dragRotation = {0.0f, 0.0f};
+    m_sceneResourcesLoaded = false;
 }
 
-Engine::SampleScene& SampleApp::ActiveScene()
+void SampleApp::OpenSelectedScene()
 {
-    assert(m_activeScene != nullptr);
-    return *m_activeScene;
+    if (m_selectedSceneIndex != m_loadedSceneIndex)
+    {
+        LoadSceneCpuData(m_selectedSceneIndex);
+    }
+
+    if (!m_sceneResourcesLoaded)
+    {
+        m_engine.ReloadSceneResources(LoadedScene().GetScene());
+        m_sceneResourcesLoaded = true;
+    }
+
+    m_displayInstanceCount = LoadedScene().DisplayInstanceCount();
+    m_engine.SetDisplayInstanceCount(m_displayInstanceCount);
+    m_appMode = AppMode::Running;
 }
 
-const Engine::SampleScene& SampleApp::ActiveScene() const
+void SampleApp::CloseRunningScene()
 {
-    assert(m_activeScene != nullptr);
-    return *m_activeScene;
+    m_appMode = AppMode::SceneSelect;
+    m_isPlaying = false;
+    m_isDragging = false;
+    m_isMiddleDragging = false;
+    m_selectedSceneIndex = m_loadedSceneIndex;
+    m_displayInstanceCount = 0;
+    m_sceneResourcesLoaded = false;
+    m_engine.SetDisplayInstanceCount(0);
+    m_engine.CloseSceneResources();
 }
 
-void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
+void SampleApp::InitializeImGui()
+{
+    D3D12_DESCRIPTOR_HEAP_DESC imguiHeapDesc = {};
+    imguiHeapDesc.NumDescriptors = kImGuiDescriptorCount;
+    imguiHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    imguiHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateDescriptorHeap(&imguiHeapDesc, IID_PPV_ARGS(&m_imguiHeap)));
+
+    m_imguiSystem.Initialize(Win32Application::GetHwnd(),
+                             m_graphicsDevice,
+                             m_imguiHeap.Get(),
+                             HelloTextureEngine::kSwapChainBufferCount,
+                             HelloTextureEngine::kSwapChainFormat);
+}
+
+void SampleApp::UpdateUiFrame()
+{
+    m_imguiSystem.BeginFrame();
+    DrawDebugUi(m_engine.GetUiFrameContext());
+    m_imguiSystem.EndFrame();
+}
+
+Engine::SampleScene& SampleApp::LoadedScene()
+{
+    assert(m_loadedScene != nullptr);
+    return *m_loadedScene;
+}
+
+const Engine::SampleScene& SampleApp::LoadedScene() const
+{
+    assert(m_loadedScene != nullptr);
+    return *m_loadedScene;
+}
+
+void SampleApp::DrawSceneSelectUi()
+{
+    ImGui::SetNextWindowSize(ImVec2(360, 180), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Scene Select");
+
+    for (int i = 0; i < static_cast<int>(m_sampleScenes.size()); i++)
+    {
+        ImGui::RadioButton(m_sampleScenes[static_cast<size_t>(i)]->Name(), &m_selectedSceneIndex, i);
+    }
+
+    if (ImGui::Button("Load Scene"))
+    {
+        OpenSelectedScene();
+    }
+
+    const bool selectedSceneIsLoaded = m_selectedSceneIndex == m_loadedSceneIndex;
+    if (!selectedSceneIsLoaded)
+    {
+        ImGui::Text("Scene CPU data will reload");
+    }
+    else if (!m_sceneResourcesLoaded)
+    {
+        ImGui::Text("Scene GPU resources unloaded");
+    }
+
+    ImGui::End();
+}
+
+void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
 {
     using RenderingPath = HelloTextureEngine::RenderingPath;
     using RenderViewMode = HelloTextureEngine::RenderViewMode;
 
+    if (m_appMode == AppMode::SceneSelect)
+    {
+        DrawSceneSelectUi();
+        return;
+    }
+
     ImGui::SetNextWindowSize(ImVec2(400, 140), ImGuiCond_FirstUseEver);
     ImGui::Begin("Debug");
 
-    Engine::SampleScene& activeScene = ActiveScene();
-    Engine::SceneMesh& sceneMesh = activeScene.GetMesh();
+    Engine::SampleScene& loadedScene = LoadedScene();
+    Engine::SceneMesh& sceneMesh = loadedScene.GetMesh();
 
     ImGui::Text("Hello ImGui");
-    ImGui::Text("Scene: %s", activeScene.Name());
-    ImGui::Text("Scene Index: %d", m_activeSceneIndex);
+    ImGui::Text("Scene: %s", loadedScene.Name());
+    ImGui::Text("Loaded Scene Index: %d", m_loadedSceneIndex);
     ImGui::Text("FrameIndex: %d", context.frameIndex);
-    ImGui::SliderInt("Display Instance Count", &m_displayInstanceCount, 0, activeScene.MaxDisplayInstanceCount());
-    activeScene.SetDisplayInstanceCount(m_displayInstanceCount);
+    if (ImGui::Button("Close Scene"))
+    {
+        CloseRunningScene();
+        ImGui::End();
+        return;
+    }
+    ImGui::SliderInt("Display Instance Count", &m_displayInstanceCount, 0, loadedScene.MaxDisplayInstanceCount());
+    loadedScene.SetDisplayInstanceCount(m_displayInstanceCount);
     ImGui::SliderFloat("Mesh Scale", &m_meshScale, 0.1f, 2.0f);
-    ImGui::SliderFloat("Camera FovH", &activeScene.GetScene().camera.fov, 20.f, 150.f);
+    ImGui::SliderFloat("Camera FovH", &loadedScene.GetScene().camera.fov, 20.f, 150.f);
     ImGui::ColorEdit4("Background Color", m_backBufferClearColor.data());
     ImGui::SliderFloat3("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f);
     ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
@@ -379,7 +498,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::DebugUiContext& context)
     m_engine.SetRenderingPath(m_renderingPath);
     m_engine.SetLightingPassDebugGradient(m_lightingPassDebugGradient);
     m_engine.SetBackBufferClearColor(m_backBufferClearColor);
-    m_engine.SetDisplayInstanceCount(activeScene.DisplayInstanceCount());
+    m_engine.SetDisplayInstanceCount(loadedScene.DisplayInstanceCount());
     m_engine.SetToneMapParams(m_toneMapParams);
     m_engine.SetRenderViewMode(m_renderViewMode);
     m_engine.SetRequestHdrDump(m_requestHdrDump);
