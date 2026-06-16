@@ -134,6 +134,7 @@
     <ClInclude Include="CubeMesh.h" />
     <ClInclude Include="GltfLoader.h" />
     <ClInclude Include="GraphicsDevice.h" />
+    <ClInclude Include="ImGuiWidgets.h" />
     <ClInclude Include="MyDx12Utils.h" />
     <ClInclude Include="Renderer\ClearPass.h" />
     <ClInclude Include="Renderer\DebugDumpCapture.h" />

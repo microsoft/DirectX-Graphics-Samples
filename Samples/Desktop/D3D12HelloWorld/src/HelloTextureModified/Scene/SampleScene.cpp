@@ -256,7 +256,6 @@ XMFLOAT3 GltfGridScene::InstanceIdToXYZ(int instanceId)
 
         constexpr int centerX = 0;
         constexpr int centerY = 0;
-        constexpr int startZ = -halfDimZ;
 
         for (int z = -halfDimZ; z <= halfDimZ; z++)
         {
@@ -266,8 +265,7 @@ XMFLOAT3 GltfGridScene::InstanceIdToXYZ(int instanceId)
                 {
                     const int dx = x - centerX;
                     const int dy = y - centerY;
-                    const int dz = z - startZ;
-                    const int dist2 = dx * dx + dy * dy + dz * dz;
+                    const int dist2 = dx * dx + dy * dy;
                     result.push_back({x, y, z, dist2});
                 }
             }
@@ -275,13 +273,13 @@ XMFLOAT3 GltfGridScene::InstanceIdToXYZ(int instanceId)
 
         std::sort(result.begin(), result.end(), [](const GridPoint& a, const GridPoint& b)
         {
+            if (a.z != b.z)
+            {
+                return a.z < b.z;
+            }
             if (a.dist2 != b.dist2)
             {
                 return a.dist2 < b.dist2;
-            }
-            if (a.z != b.z)
-            {
-                return a.z > b.z;
             }
             if (a.y != b.y)
             {

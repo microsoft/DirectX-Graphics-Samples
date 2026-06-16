@@ -126,6 +126,9 @@
     <ClInclude Include="Ui\ImGuiSystem.h">
       <Filter>Source Files\Ui</Filter>
     </ClInclude>
+    <ClInclude Include="ImGuiWidgets.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CubeMesh.cpp">

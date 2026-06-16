@@ -6,9 +6,33 @@
 namespace ImGuiWidgets
 {
 
+static constexpr float kMinControlLabelWidth = 180.0f;
+
 inline float CalcButtonWidth(const char* text)
 {
     return ImGui::CalcTextSize(text).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+}
+
+inline float BeginSliderControl(const char* label, float totalButtonsWidth)
+{
+    const ImGuiStyle& s = ImGui::GetStyle();
+    const float labelWidth = (std::max)(kMinControlLabelWidth, ImGui::CalcTextSize(label).x) + s.ItemSpacing.x;
+
+    ImGui::PushID(label);
+
+    return (std::max)(1.0f, ImGui::GetContentRegionAvail().x - totalButtonsWidth - labelWidth);
+}
+
+inline void DrawSliderControlLabel(const char* label)
+{
+    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(label);
+}
+
+inline void EndSliderControl()
+{
+    ImGui::PopID();
 }
 
 inline bool SliderFloatWithControls(const char* label,
@@ -18,16 +42,14 @@ inline bool SliderFloatWithControls(const char* label,
                                     float delta,
                                     float defaultValue,
                                     const char* format = "%.3f",
-                                    float power = 1.0f)
+                                    ImGuiSliderFlags flags = 0)
 {
-    const ImGuiStyle& s = ImGui::GetStyle();
-    const float windowWidth = ImGui::GetContentRegionAvail().x;
     const float btnW = CalcButtonWidth(">");
-    const float totalButtons = btnW * 3.0f + s.ItemSpacing.x * 2.0f;
-    const float sliderWidth = windowWidth - totalButtons;
+    const float totalButtons = btnW * 3.0f;
+    const float sliderWidth = BeginSliderControl(label, totalButtons);
 
     ImGui::PushItemWidth(sliderWidth);
-    bool changed = ImGui::SliderFloat(label, value, min, max, format, power);
+    bool changed = ImGui::SliderFloat("##slider", value, min, max, format, flags);
     ImGui::PopItemWidth();
 
     ImGui::SameLine(0.0f, 0.0f);
@@ -51,25 +73,20 @@ inline bool SliderFloatWithControls(const char* label,
         changed = true;
     }
 
+    DrawSliderControlLabel(label);
+    EndSliderControl();
     return changed;
 }
 
-inline bool SliderIntWithControls(const char* label,
-                                   int* value,
-                                   int min,
-                                   int max,
-                                   int delta,
-                                   int defaultValue,
-                                   const char* format = "%d")
+inline bool SliderIntWithControls(
+    const char* label, int* value, int min, int max, int delta, int defaultValue, const char* format = "%d")
 {
-    const ImGuiStyle& s = ImGui::GetStyle();
-    const float windowWidth = ImGui::GetContentRegionAvail().x;
     const float btnW = CalcButtonWidth(">");
-    const float totalButtons = btnW * 3.0f + s.ItemSpacing.x * 2.0f;
-    const float sliderWidth = windowWidth - totalButtons;
+    const float totalButtons = btnW * 3.0f;
+    const float sliderWidth = BeginSliderControl(label, totalButtons);
 
     ImGui::PushItemWidth(sliderWidth);
-    bool changed = ImGui::SliderInt(label, value, min, max, format);
+    bool changed = ImGui::SliderInt("##slider", value, min, max, format);
     ImGui::PopItemWidth();
 
     ImGui::SameLine(0.0f, 0.0f);
@@ -93,6 +110,8 @@ inline bool SliderIntWithControls(const char* label,
         changed = true;
     }
 
+    DrawSliderControlLabel(label);
+    EndSliderControl();
     return changed;
 }
 
@@ -103,16 +122,14 @@ inline bool SliderFloat3WithControls(const char* label,
                                      float delta,
                                      const float* defaultValue,
                                      const char* format = "%.3f",
-                                     float power = 1.0f)
+                                     ImGuiSliderFlags flags = 0)
 {
-    const ImGuiStyle& s = ImGui::GetStyle();
-    const float windowWidth = ImGui::GetContentRegionAvail().x;
     const float btnW = CalcButtonWidth(">");
-    const float totalButtons = btnW * 3.0f + s.ItemSpacing.x * 2.0f;
-    const float sliderWidth = windowWidth - totalButtons;
+    const float totalButtons = btnW * 3.0f;
+    const float sliderWidth = BeginSliderControl(label, totalButtons);
 
     ImGui::PushItemWidth(sliderWidth);
-    bool changed = ImGui::SliderFloat3(label, v, v_min, v_max, format, power);
+    bool changed = ImGui::SliderFloat3("##slider", v, v_min, v_max, format, flags);
     ImGui::PopItemWidth();
 
     ImGui::SameLine(0.0f, 0.0f);
@@ -142,6 +159,8 @@ inline bool SliderFloat3WithControls(const char* label,
         changed = true;
     }
 
+    DrawSliderControlLabel(label);
+    EndSliderControl();
     return changed;
 }
 
