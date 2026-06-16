@@ -2,21 +2,13 @@
 
 #include "imgui.h"
 #include <algorithm>
-#include <cstring>
 
 namespace ImGuiWidgets
 {
 
-struct SliderStyle
+inline float CalcButtonWidth(const char* text)
 {
-    float buttonWidth = 18.0f;
-    float buttonHeight = 0.0f; // 0 = use default
-};
-
-inline SliderStyle& GetStyle()
-{
-    static SliderStyle style;
-    return style;
+    return ImGui::CalcTextSize(text).x + ImGui::GetStyle().FramePadding.x * 2.0f;
 }
 
 inline bool SliderFloatWithControls(const char* label,
@@ -28,33 +20,32 @@ inline bool SliderFloatWithControls(const char* label,
                                     const char* format = "%.3f",
                                     float power = 1.0f)
 {
-    const SliderStyle& s = GetStyle();
-    const ImGuiStyle& imguiStyle = ImGui::GetStyle();
-    const float spacing = imguiStyle.ItemSpacing.x;
+    const ImGuiStyle& s = ImGui::GetStyle();
     const float windowWidth = ImGui::GetContentRegionAvail().x;
-    const float totalButtonWidth = s.buttonWidth * 3.0f + spacing * 2.0f;
-    const float sliderWidth = windowWidth - totalButtonWidth - spacing;
+    const float btnW = CalcButtonWidth(">");
+    const float totalButtons = btnW * 3.0f + s.ItemSpacing.x * 2.0f;
+    const float sliderWidth = windowWidth - totalButtons;
 
     ImGui::PushItemWidth(sliderWidth);
     bool changed = ImGui::SliderFloat(label, value, min, max, format, power);
     ImGui::PopItemWidth();
 
     ImGui::SameLine(0.0f, 0.0f);
-    if (ImGui::Button("<", ImVec2(s.buttonWidth, s.buttonHeight)))
+    if (ImGui::Button("<", ImVec2(btnW, 0.0f)))
     {
         *value = std::clamp(*value - delta, min, max);
         changed = true;
     }
 
     ImGui::SameLine(0.0f, 0.0f);
-    if (ImGui::Button(">", ImVec2(s.buttonWidth, s.buttonHeight)))
+    if (ImGui::Button(">", ImVec2(btnW, 0.0f)))
     {
         *value = std::clamp(*value + delta, min, max);
         changed = true;
     }
 
     ImGui::SameLine(0.0f, 0.0f);
-    if (ImGui::Button("|", ImVec2(s.buttonWidth, s.buttonHeight)))
+    if (ImGui::Button("|", ImVec2(btnW, 0.0f)))
     {
         *value = defaultValue;
         changed = true;
@@ -71,33 +62,32 @@ inline bool SliderIntWithControls(const char* label,
                                    int defaultValue,
                                    const char* format = "%d")
 {
-    const SliderStyle& s = GetStyle();
-    const ImGuiStyle& imguiStyle = ImGui::GetStyle();
-    const float spacing = imguiStyle.ItemSpacing.x;
+    const ImGuiStyle& s = ImGui::GetStyle();
     const float windowWidth = ImGui::GetContentRegionAvail().x;
-    const float totalButtonWidth = s.buttonWidth * 3.0f + spacing * 2.0f;
-    const float sliderWidth = windowWidth - totalButtonWidth - spacing;
+    const float btnW = CalcButtonWidth(">");
+    const float totalButtons = btnW * 3.0f + s.ItemSpacing.x * 2.0f;
+    const float sliderWidth = windowWidth - totalButtons;
 
     ImGui::PushItemWidth(sliderWidth);
     bool changed = ImGui::SliderInt(label, value, min, max, format);
     ImGui::PopItemWidth();
 
     ImGui::SameLine(0.0f, 0.0f);
-    if (ImGui::Button("<", ImVec2(s.buttonWidth, s.buttonHeight)))
+    if (ImGui::Button("<", ImVec2(btnW, 0.0f)))
     {
         *value = std::clamp(*value - delta, min, max);
         changed = true;
     }
 
     ImGui::SameLine(0.0f, 0.0f);
-    if (ImGui::Button(">", ImVec2(s.buttonWidth, s.buttonHeight)))
+    if (ImGui::Button(">", ImVec2(btnW, 0.0f)))
     {
         *value = std::clamp(*value + delta, min, max);
         changed = true;
     }
 
     ImGui::SameLine(0.0f, 0.0f);
-    if (ImGui::Button("|", ImVec2(s.buttonWidth, s.buttonHeight)))
+    if (ImGui::Button("|", ImVec2(btnW, 0.0f)))
     {
         *value = defaultValue;
         changed = true;
@@ -115,19 +105,18 @@ inline bool SliderFloat3WithControls(const char* label,
                                      const char* format = "%.3f",
                                      float power = 1.0f)
 {
-    const SliderStyle& s = GetStyle();
-    const ImGuiStyle& imguiStyle = ImGui::GetStyle();
-    const float spacing = imguiStyle.ItemSpacing.x;
+    const ImGuiStyle& s = ImGui::GetStyle();
     const float windowWidth = ImGui::GetContentRegionAvail().x;
-    const float totalButtonWidth = s.buttonWidth * 3.0f + spacing * 2.0f;
-    const float sliderWidth = windowWidth - totalButtonWidth - spacing;
+    const float btnW = CalcButtonWidth(">");
+    const float totalButtons = btnW * 3.0f + s.ItemSpacing.x * 2.0f;
+    const float sliderWidth = windowWidth - totalButtons;
 
     ImGui::PushItemWidth(sliderWidth);
     bool changed = ImGui::SliderFloat3(label, v, v_min, v_max, format, power);
     ImGui::PopItemWidth();
 
     ImGui::SameLine(0.0f, 0.0f);
-    if (ImGui::Button("<", ImVec2(s.buttonWidth, s.buttonHeight)))
+    if (ImGui::Button("<", ImVec2(btnW, 0.0f)))
     {
         v[0] = std::clamp(v[0] - delta, v_min, v_max);
         v[1] = std::clamp(v[1] - delta, v_min, v_max);
@@ -136,7 +125,7 @@ inline bool SliderFloat3WithControls(const char* label,
     }
 
     ImGui::SameLine(0.0f, 0.0f);
-    if (ImGui::Button(">", ImVec2(s.buttonWidth, s.buttonHeight)))
+    if (ImGui::Button(">", ImVec2(btnW, 0.0f)))
     {
         v[0] = std::clamp(v[0] + delta, v_min, v_max);
         v[1] = std::clamp(v[1] + delta, v_min, v_max);
@@ -145,7 +134,7 @@ inline bool SliderFloat3WithControls(const char* label,
     }
 
     ImGui::SameLine(0.0f, 0.0f);
-    if (ImGui::Button("|", ImVec2(s.buttonWidth, s.buttonHeight)))
+    if (ImGui::Button("|", ImVec2(btnW, 0.0f)))
     {
         v[0] = defaultValue[0];
         v[1] = defaultValue[1];
