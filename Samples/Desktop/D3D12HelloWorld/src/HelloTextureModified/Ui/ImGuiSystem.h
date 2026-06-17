@@ -18,14 +18,12 @@ public:
     void EndFrame();
     void Render(ID3D12GraphicsCommandList* commandList);
     void SetDisplaySize(UINT width, UINT height);
-    void SetHdrScale(float hdrScale);
     void Shutdown();
 
 private:
     SimpleDescriptorHeapAllocator m_descriptorHeapAllocator;
     ID3D12DescriptorHeap* m_srvHeap = nullptr;
     bool m_initialized = false;
-    float m_hdrScale = 1.0f;
 };
 
 } // namespace Engine

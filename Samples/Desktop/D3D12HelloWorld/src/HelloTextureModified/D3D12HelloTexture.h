@@ -151,7 +151,6 @@ public:
     void SetBackBufferClearColor(const std::array<float, 4>& color);
     void SetDisplayInstanceCount(int count);
     void SetToneMapParams(const ToneMapParams& params);
-    const HdrOutputSettings& GetHdrOutputSettings() const;
     void SetRenderViewMode(RenderViewMode mode);
     void SetRequestHdrDump(bool request);
     void ReloadEnvironmentResources(const Engine::ProceduralEnvironmentSettings& settings);

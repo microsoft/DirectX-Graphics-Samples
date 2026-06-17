@@ -384,17 +384,6 @@ void SampleApp::InitializeImGui()
 
 void SampleApp::UpdateUiFrame()
 {
-    const auto& hdrSettings = m_engine.GetHdrOutputSettings();
-    if (hdrSettings.hdr10Enabled)
-    {
-        const float hdrScale = m_toneMapParams.paperWhiteNits / 10000.0f;
-        m_imguiSystem.SetHdrScale(hdrScale);
-    }
-    else
-    {
-        m_imguiSystem.SetHdrScale(1.0f);
-    }
-
     m_imguiSystem.BeginFrame();
     DrawDebugUi(m_engine.GetUiFrameContext());
     m_imguiSystem.EndFrame();

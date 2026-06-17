@@ -265,11 +265,6 @@ void HelloTextureEngine::SetToneMapParams(const ToneMapParams& params)
     m_toneMapPass.settings.maxDisplayNits = params.maxDisplayNits;
 }
 
-const HdrOutputSettings& HelloTextureEngine::GetHdrOutputSettings() const
-{
-    return m_hdrOutputPolicy.settings;
-}
-
 void HelloTextureEngine::SetRenderViewMode(RenderViewMode mode)
 {
     m_debugViewSettings.renderViewMode = mode;
