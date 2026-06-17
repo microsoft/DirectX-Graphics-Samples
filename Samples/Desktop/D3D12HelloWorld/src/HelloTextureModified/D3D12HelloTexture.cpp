@@ -69,6 +69,30 @@ extern "C"
     __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
 }
 
+namespace
+{
+
+const wchar_t* EnvironmentSourceName(Engine::EnvironmentSource source)
+{
+    switch (source)
+    {
+        case Engine::EnvironmentSource::AssetHdr:
+            return L"AssetHdr";
+        case Engine::EnvironmentSource::ProceduralStudio:
+            return L"ProceduralStudio";
+        case Engine::EnvironmentSource::ProceduralSun:
+            return L"ProceduralSun";
+        case Engine::EnvironmentSource::ProceduralColorPanels:
+            return L"ProceduralColorPanels";
+        case Engine::EnvironmentSource::ProceduralHorizon:
+            return L"ProceduralHorizon";
+        default:
+            return L"Unknown";
+    }
+}
+
+} // namespace
+
 HelloTextureEngine::HelloTextureEngine(GraphicsDevice& graphicsDevice)
     : m_graphicsDevice(graphicsDevice), m_width(0), m_height(0), m_aspectRatio(1.0f), m_previousFrameIndex(0),
       m_currentFrameIndex(0), m_rtvDescriptorSize(0)
@@ -259,6 +283,10 @@ void HelloTextureEngine::SetRequestHdrDump(bool request)
 void HelloTextureEngine::ReloadEnvironmentResources(const Engine::ProceduralEnvironmentSettings& settings)
 {
     m_environmentSettings = settings;
+
+    WCHAR debugMessage[160] = {};
+    swprintf_s(debugMessage, L"ReloadEnvironmentResources source=%s\n", EnvironmentSourceName(settings.source));
+    OutputDebugStringW(debugMessage);
 
     WaitForGpu();
     ThrowIfFailed(m_frameResources[m_currentFrameIndex].commandAllocator->Reset());
@@ -454,6 +482,10 @@ void HelloTextureEngine::CreateEnvironmentMapResources(ComPtr<ID3D12Resource>& e
     {
         fallbackSettings.source = Engine::EnvironmentSource::ProceduralSun;
     }
+
+    WCHAR debugMessage[160] = {};
+    swprintf_s(debugMessage, L"Creating procedural environment source=%s\n", EnvironmentSourceName(fallbackSettings.source));
+    OutputDebugStringW(debugMessage);
 
     m_environmentMap.CreateProcedural(m_graphicsDevice.Device(),
                                       m_commandList.Get(),
@@ -754,6 +786,10 @@ void HelloTextureEngine::CreateSceneMaterialResources()
                 m.emissiveTexIndex = resolveTextureIndex(gltfMaterial.emissiveTexIndex, fallbackTexIndex);
                 m.occlusionTexIndex = resolveTextureIndex(gltfMaterial.occlusionTexIndex, fallbackTexIndex);
                 m.normalTexIndex = resolveTextureIndex(gltfMaterial.normalTexIndex, fallbackTexIndex);
+                if (gltfMaterial.normalTexIndex >= 0)
+                {
+                    m.flags |= Engine::kMaterialFlagHasNormalTexture;
+                }
                 m.roughnessFactor = gltfMaterial.roughnessFactor;
                 m.metallicFactor = gltfMaterial.metallicFactor;
                 m.occlusionStrength = gltfMaterial.occlusionStrength;

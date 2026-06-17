@@ -38,6 +38,61 @@ const char* EnvironmentSourceLabel(Engine::EnvironmentSource source)
     }
 }
 
+void ApplyEnvironmentPreset(Engine::ProceduralEnvironmentSettings& settings, Engine::EnvironmentSource source)
+{
+    settings = {};
+    settings.source = source;
+
+    switch (source)
+    {
+        case Engine::EnvironmentSource::ProceduralStudio:
+            settings.skyColor = {0.50f, 0.52f, 0.54f};
+            settings.groundColor = {0.16f, 0.16f, 0.15f};
+            settings.lightColor = {1.0f, 0.98f, 0.92f};
+            settings.lightDirection = {0.25f, 0.85f, 0.35f};
+            settings.backgroundIntensity = 0.35f;
+            settings.lightIntensity = 4.0f;
+            settings.lightSize = 0.22f;
+            settings.fillIntensity = 0.08f;
+            break;
+        case Engine::EnvironmentSource::ProceduralSun:
+            settings.skyColor = {0.25f, 0.43f, 0.75f};
+            settings.groundColor = {0.09f, 0.075f, 0.055f};
+            settings.lightColor = {1.0f, 0.82f, 0.52f};
+            settings.lightDirection = {0.22f, 0.72f, 0.66f};
+            settings.backgroundIntensity = 0.20f;
+            settings.lightIntensity = 32.0f;
+            settings.lightSize = 0.035f;
+            settings.fillIntensity = 0.03f;
+            break;
+        case Engine::EnvironmentSource::ProceduralColorPanels:
+            settings.skyColor = {0.02f, 0.02f, 0.025f};
+            settings.groundColor = {0.015f, 0.015f, 0.015f};
+            settings.lightColor = {1.0f, 1.0f, 1.0f};
+            settings.lightDirection = {0.35f, 0.75f, 0.25f};
+            settings.backgroundIntensity = 0.05f;
+            settings.lightIntensity = 0.0f;
+            settings.lightSize = 0.12f;
+            settings.fillIntensity = 0.02f;
+            settings.colorPanelIntensity = 3.5f;
+            break;
+        case Engine::EnvironmentSource::ProceduralHorizon:
+            settings.skyColor = {0.34f, 0.50f, 0.86f};
+            settings.groundColor = {0.18f, 0.15f, 0.10f};
+            settings.lightColor = {1.0f, 0.86f, 0.62f};
+            settings.lightDirection = {0.1f, 0.08f, 0.99f};
+            settings.backgroundIntensity = 0.45f;
+            settings.lightIntensity = 5.0f;
+            settings.lightSize = 0.12f;
+            settings.fillIntensity = 0.03f;
+            settings.horizonSharpness = 0.035f;
+            break;
+        case Engine::EnvironmentSource::AssetHdr:
+        default:
+            break;
+    }
+}
+
 } // namespace
 
 SampleApp::SampleApp(UINT width, UINT height, std::wstring name)
@@ -115,6 +170,18 @@ void SampleApp::UpdateSampleState()
 
 void SampleApp::OnKeyDown(UINT8 key)
 {
+    if (m_appMode == AppMode::SceneSelect && key == VK_ESCAPE)
+    {
+        DestroyWindow(Win32Application::GetHwnd());
+        return;
+    }
+
+    if (m_appMode == AppMode::Running && key == VK_ESCAPE)
+    {
+        CloseRunningScene();
+        return;
+    }
+
     if (m_appMode == AppMode::Running && key == VK_SPACE)
     {
         m_isPlaying = !m_isPlaying;
@@ -416,41 +483,82 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
     ImGui::BeginDisabled(!m_iblEnabled);
     ImGuiWidgets::SliderFloatWithControls("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f, 0.05f, 1.0f);
     ImGui::EndDisabled();
-    ImGui::Text("Environment Map");
-    int environmentSource = static_cast<int>(m_environmentSettings.source);
-    if (ImGui::Combo("Source",
-                     &environmentSource,
-                     "Asset HDR\0Procedural Studio\0Procedural Sun\0Procedural Color Panels\0Procedural Horizon\0"))
+    if (ImGui::CollapsingHeader("Environment Map", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        m_environmentSettings.source = static_cast<Engine::EnvironmentSource>(environmentSource);
+        bool environmentApplyRequested = false;
+        int environmentSource = static_cast<int>(m_environmentSettings.source);
+        if (ImGui::Combo("Source",
+                         &environmentSource,
+                         "Asset HDR\0Procedural Studio\0Procedural Sun\0Procedural Color Panels\0Procedural Horizon\0"))
+        {
+            ApplyEnvironmentPreset(m_environmentSettings, static_cast<Engine::EnvironmentSource>(environmentSource));
+            environmentApplyRequested = true;
+        }
+        if (m_environmentSettings.source != Engine::EnvironmentSource::AssetHdr)
+        {
+            ImGui::ColorEdit3("Sky Color", &m_environmentSettings.skyColor.x);
+            ImGui::ColorEdit3("Ground Color", &m_environmentSettings.groundColor.x);
+            const bool colorPanels = m_environmentSettings.source == Engine::EnvironmentSource::ProceduralColorPanels;
+            if (!colorPanels)
+            {
+                ImGui::ColorEdit3("Env Light Color", &m_environmentSettings.lightColor.x);
+                static constexpr float defaultEnvLightDir[] = {0.35f, 0.75f, 0.25f};
+                ImGuiWidgets::SliderFloat3WithControls("Env Light Direction", &m_environmentSettings.lightDirection.x,
+                                                       -1.0f, 1.0f, 0.05f, defaultEnvLightDir);
+            }
+            ImGuiWidgets::SliderFloatWithControls("Env Background",
+                                                  &m_environmentSettings.backgroundIntensity,
+                                                  0.0f,
+                                                  4.0f,
+                                                  0.05f,
+                                                  0.6f);
+            if (!colorPanels)
+            {
+                ImGuiWidgets::SliderFloatWithControls("Env Light Intensity",
+                                                      &m_environmentSettings.lightIntensity,
+                                                      0.0f,
+                                                      40.0f,
+                                                      0.5f,
+                                                      6.0f);
+                ImGuiWidgets::SliderFloatWithControls("Env Light Size",
+                                                      &m_environmentSettings.lightSize,
+                                                      0.01f,
+                                                      0.8f,
+                                                      0.01f,
+                                                      0.12f);
+            }
+            ImGuiWidgets::SliderFloatWithControls(
+                "Env Fill", &m_environmentSettings.fillIntensity, 0.0f, 2.0f, 0.05f, 0.12f);
+            if (colorPanels)
+            {
+                ImGuiWidgets::SliderFloatWithControls("Color Panel Intensity",
+                                                      &m_environmentSettings.colorPanelIntensity,
+                                                      0.0f,
+                                                      8.0f,
+                                                      0.1f,
+                                                      1.5f);
+            }
+            if (m_environmentSettings.source == Engine::EnvironmentSource::ProceduralHorizon)
+            {
+                ImGuiWidgets::SliderFloatWithControls("Horizon Width",
+                                                      &m_environmentSettings.horizonSharpness,
+                                                      0.01f,
+                                                      0.5f,
+                                                      0.01f,
+                                                      0.08f);
+            }
+        }
+        if (ImGui::Button("Apply Environment"))
+        {
+            environmentApplyRequested = true;
+        }
+        ImGui::SameLine();
+        ImGui::Text("%s", EnvironmentSourceLabel(m_environmentSettings.source));
+        if (environmentApplyRequested)
+        {
+            m_engine.ReloadEnvironmentResources(m_environmentSettings);
+        }
     }
-    if (m_environmentSettings.source != Engine::EnvironmentSource::AssetHdr)
-    {
-        ImGui::ColorEdit3("Sky Color", &m_environmentSettings.skyColor.x);
-        ImGui::ColorEdit3("Ground Color", &m_environmentSettings.groundColor.x);
-        ImGui::ColorEdit3("Env Light Color", &m_environmentSettings.lightColor.x);
-        static constexpr float defaultEnvLightDir[] = {0.35f, 0.75f, 0.25f};
-        ImGuiWidgets::SliderFloat3WithControls("Env Light Direction", &m_environmentSettings.lightDirection.x, -1.0f,
-                                               1.0f, 0.05f, defaultEnvLightDir);
-        ImGuiWidgets::SliderFloatWithControls("Env Background", &m_environmentSettings.backgroundIntensity, 0.0f, 4.0f,
-                                              0.05f, 0.6f);
-        ImGuiWidgets::SliderFloatWithControls("Env Light Intensity", &m_environmentSettings.lightIntensity, 0.0f,
-                                              40.0f, 0.5f, 6.0f);
-        ImGuiWidgets::SliderFloatWithControls("Env Light Size", &m_environmentSettings.lightSize, 0.01f, 0.8f, 0.01f,
-                                              0.12f);
-        ImGuiWidgets::SliderFloatWithControls("Env Fill", &m_environmentSettings.fillIntensity, 0.0f, 2.0f, 0.05f,
-                                              0.12f);
-        ImGuiWidgets::SliderFloatWithControls("Color Panel Intensity", &m_environmentSettings.colorPanelIntensity, 0.0f,
-                                              8.0f, 0.1f, 1.5f);
-        ImGuiWidgets::SliderFloatWithControls("Horizon Width", &m_environmentSettings.horizonSharpness, 0.01f, 0.5f,
-                                              0.01f, 0.08f);
-    }
-    if (ImGui::Button("Apply Environment"))
-    {
-        m_engine.ReloadEnvironmentResources(m_environmentSettings);
-    }
-    ImGui::SameLine();
-    ImGui::Text("%s", EnvironmentSourceLabel(m_environmentSettings.source));
     ImGui::Checkbox("Show Skybox", &m_lightingParams.skyboxEnabled);
     ImGui::Checkbox("Skybox Preview", &m_lightingParams.skyboxPreview);
     ImGui::BeginDisabled(!m_lightingParams.skyboxPreview);
@@ -468,7 +576,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         {
             m_selectedMaterialIndex = materialCount - 1;
         }
-        ImGui::SliderInt("Material", &m_selectedMaterialIndex, 0, materialCount - 1);
+        ImGuiWidgets::IntStepperWithControls("Material", &m_selectedMaterialIndex, 0, materialCount - 1, 1, 0);
 
         Engine::SceneMaterial& material = sceneMesh.materials[m_selectedMaterialIndex];
         bool materialChanged = false;

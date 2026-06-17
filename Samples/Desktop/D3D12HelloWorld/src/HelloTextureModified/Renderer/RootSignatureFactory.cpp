@@ -74,7 +74,8 @@ DescriptorRanges CreateDescriptorRanges(UINT textureSrvCount, UINT gbufferSrvCou
                                   2,
                                   RootSignatureLayout::kBaseRegister,
                                   RootSignatureLayout::kEnvironmentMapSrvSpace,
-                                  D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+                                  D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE |
+                                      D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
     // t0 : HDR scene color SRV, space 4
     ranges.toneMapSceneColorSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,

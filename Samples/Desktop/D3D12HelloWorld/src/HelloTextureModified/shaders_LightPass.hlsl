@@ -15,6 +15,8 @@ struct Material
     uint flags;
 };
 
+static const uint MaterialFlagUnlit = 1u << 0;
+
 Texture2D<float4> g_albedo : register(t0, space3);
 Texture2D<float4> g_normal : register(t1, space3);
 Texture2D<uint> g_material : register(t2, space3);
@@ -65,7 +67,8 @@ float3 SampleSkybox(float2 uv)
 {
     float3 worldPos = ReconstructWorldPosition(uv, 1.0);
     float3 viewDir = normalize(worldPos - cameraPosition);
-    return g_environmentMap.Sample(g_sampler, viewDir).rgb * skyboxPreviewExposure;
+    float3 skyboxDir = float3(-viewDir.x, -viewDir.y, viewDir.z);
+    return g_environmentMap.Sample(g_sampler, skyboxDir).rgb * skyboxPreviewExposure;
 }
 
 float DistributionGGX(float ndoth, float roughness)
@@ -137,7 +140,7 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float ndoth = saturate(dot(normal, halfDir));
     float vdoth = saturate(dot(viewDir, halfDir));
 
-    float receiveLighting = (material.flags & 1) ? 0.0 : 1.0;
+    float receiveLighting = (material.flags & MaterialFlagUnlit) ? 0.0 : 1.0;
     float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
     float3 fresnel = FresnelSchlick(vdoth, f0);
     float distribution = DistributionGGX(ndoth, roughness);

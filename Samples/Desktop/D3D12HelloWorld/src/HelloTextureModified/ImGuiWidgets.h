@@ -115,6 +115,45 @@ inline bool SliderIntWithControls(
     return changed;
 }
 
+inline bool IntStepperWithControls(const char* label, int* value, int min, int max, int delta, int defaultValue)
+{
+    const float btnW = CalcButtonWidth(">");
+
+    ImGui::PushID(label);
+
+    bool changed = false;
+    if (ImGui::Button("<", ImVec2(btnW, 0.0f)))
+    {
+        *value = std::clamp(*value - delta, min, max);
+        changed = true;
+    }
+
+    ImGui::SameLine(0.0f, 0.0f);
+    if (ImGui::Button(">", ImVec2(btnW, 0.0f)))
+    {
+        *value = std::clamp(*value + delta, min, max);
+        changed = true;
+    }
+
+    ImGui::SameLine(0.0f, 0.0f);
+    if (ImGui::Button("|", ImVec2(btnW, 0.0f)))
+    {
+        *value = std::clamp(defaultValue, min, max);
+        changed = true;
+    }
+
+    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x);
+    *value = std::clamp(*value, min, max);
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("%d / %d", *value, max);
+
+    ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x);
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(label);
+    EndSliderControl();
+    return changed;
+}
+
 inline bool SliderFloat3WithControls(const char* label,
                                      float* v,
                                      float v_min,

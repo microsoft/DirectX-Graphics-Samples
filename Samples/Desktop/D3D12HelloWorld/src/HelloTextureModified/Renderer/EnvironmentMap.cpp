@@ -35,7 +35,6 @@ namespace
 {
 static constexpr UINT kEnvironmentMapSize = 64;
 static constexpr UINT kEnvironmentMapFaceCount = 6;
-static constexpr UINT kTexturePixelSize = 4;
 static constexpr UINT kDdsMagic = 0x20534444;
 static constexpr UINT kDdsFourCcDx10 = 0x30315844;
 static constexpr UINT kDdsResourceMiscTextureCube = 0x4;
@@ -143,6 +142,12 @@ XMFLOAT3 DirectionForCubeFace(UINT face, float u, float v)
     }
 }
 
+XMFLOAT3 ToEnvironmentSourceDirection(XMFLOAT3 direction)
+{
+    // Match the source environment convention used by the debug panels and HDR equirectangular assets.
+    return {-direction.x, -direction.y, direction.z};
+}
+
 float Clamp01(float value)
 {
     if (value < 0.0f)
@@ -154,14 +159,6 @@ float Clamp01(float value)
         return 1.0f;
     }
     return value;
-}
-
-void WriteColor(UINT8* dst, XMFLOAT3 color)
-{
-    dst[0] = static_cast<UINT8>(Clamp01(color.x) * 255.0f);
-    dst[1] = static_cast<UINT8>(Clamp01(color.y) * 255.0f);
-    dst[2] = static_cast<UINT8>(Clamp01(color.z) * 255.0f);
-    dst[3] = 255;
 }
 
 XMFLOAT3 Add(const XMFLOAT3& a, const XMFLOAT3& b)
@@ -182,6 +179,22 @@ XMFLOAT3 Cross(const XMFLOAT3& a, const XMFLOAT3& b)
 float Dot(const XMFLOAT3& a, const XMFLOAT3& b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+float Lerp(float a, float b, float t)
+{
+    return a + (b - a) * t;
+}
+
+XMFLOAT3 Lerp(const XMFLOAT3& a, const XMFLOAT3& b, float t)
+{
+    return {Lerp(a.x, b.x, t), Lerp(a.y, b.y, t), Lerp(a.z, b.z, t)};
+}
+
+float SmoothStep(float edge0, float edge1, float x)
+{
+    const float t = Clamp01((x - edge0) / (edge1 - edge0));
+    return t * t * (3.0f - 2.0f * t);
 }
 
 std::string ReadLine(const std::string& text, size_t& pos)
@@ -384,6 +397,7 @@ XMFLOAT2 Hammersley(UINT i, UINT n)
 
 XMFLOAT3 SampleEquirectangular(const HdrImage& image, XMFLOAT3 direction)
 {
+    direction = ToEnvironmentSourceDirection(direction);
     direction = Normalize(direction);
     const float pi = 3.1415926535f;
     float u = std::atan2(direction.z, direction.x) / (2.0f * pi) + 0.5f;
@@ -451,6 +465,91 @@ XMFLOAT3 ComputeDiffuseIrradiance(const HdrImage& image, const XMFLOAT3& normal)
         const float sinTheta = std::sqrt(xi.y);
         const XMFLOAT3 local = {std::cos(phi) * sinTheta, std::sin(phi) * sinTheta, cosTheta};
         irradiance = Add(irradiance, SampleEnvironment(image, ToWorld(tangent, bitangent, normal, local)));
+    }
+
+    return Multiply(irradiance, kPi / static_cast<float>(kSampleCount));
+}
+
+XMFLOAT3 SampleProceduralEnvironment(const ProceduralEnvironmentSettings& settings, XMFLOAT3 direction)
+{
+    direction = ToEnvironmentSourceDirection(direction);
+    direction = Normalize(direction);
+    const XMFLOAT3 lightDirection = Normalize(settings.lightDirection);
+    const float skyBlend = Clamp01(direction.y * 0.5f + 0.5f);
+    const float horizonWidth = (std::max)(0.01f, settings.horizonSharpness);
+    const float horizonBlend = SmoothStep(-horizonWidth, horizonWidth, direction.y);
+    const XMFLOAT3 baseHorizon = Lerp(settings.groundColor, settings.skyColor, horizonBlend);
+    const XMFLOAT3 baseSky = Lerp(settings.groundColor, settings.skyColor, skyBlend);
+    const float lightDot = Clamp01(Dot(direction, lightDirection));
+    const float lightSize = (std::max)(0.01f, settings.lightSize);
+    const float lightSpot = std::pow(lightDot, 1.0f / lightSize);
+
+    switch (settings.source)
+    {
+        case EnvironmentSource::ProceduralSun:
+        {
+            const XMFLOAT3 background = Multiply(baseSky, settings.backgroundIntensity);
+            const XMFLOAT3 sun = Multiply(settings.lightColor, lightSpot * settings.lightIntensity);
+            return Add(background, sun);
+        }
+        case EnvironmentSource::ProceduralColorPanels:
+        {
+            XMFLOAT3 panelColor = {};
+            const float ax = std::abs(direction.x);
+            const float ay = std::abs(direction.y);
+            const float az = std::abs(direction.z);
+            if (ax >= ay && ax >= az)
+            {
+                panelColor = direction.x > 0.0f ? XMFLOAT3{1.0f, 0.12f, 0.08f} : XMFLOAT3{0.05f, 0.55f, 1.0f};
+            }
+            else if (ay >= ax && ay >= az)
+            {
+                panelColor = direction.y > 0.0f ? XMFLOAT3{1.0f, 1.0f, 1.0f} : XMFLOAT3{0.18f, 0.15f, 0.12f};
+            }
+            else
+            {
+                panelColor = direction.z > 0.0f ? XMFLOAT3{0.10f, 1.0f, 0.22f} : XMFLOAT3{1.0f, 0.82f, 0.08f};
+            }
+
+            const XMFLOAT3 background = Multiply(baseHorizon, settings.fillIntensity);
+            return Add(background, Multiply(panelColor, settings.colorPanelIntensity));
+        }
+        case EnvironmentSource::ProceduralHorizon:
+        {
+            const float horizonLine = 1.0f - SmoothStep(0.0f, horizonWidth, std::abs(direction.y));
+            const XMFLOAT3 horizonLight = Multiply(settings.lightColor, horizonLine * settings.lightIntensity * 0.25f);
+            return Add(Multiply(baseHorizon, settings.backgroundIntensity), horizonLight);
+        }
+        case EnvironmentSource::ProceduralStudio:
+        case EnvironmentSource::AssetHdr:
+        default:
+        {
+            const XMFLOAT3 background = Multiply(baseHorizon, settings.backgroundIntensity);
+            const XMFLOAT3 softbox = Multiply(settings.lightColor, lightSpot * settings.lightIntensity);
+            const XMFLOAT3 fill = Multiply(settings.skyColor, settings.fillIntensity * skyBlend);
+            return Add(Add(background, softbox), fill);
+        }
+    }
+}
+
+XMFLOAT3 ComputeDiffuseIrradiance(const ProceduralEnvironmentSettings& settings, const XMFLOAT3& normal)
+{
+    static constexpr UINT kSampleCount = 64;
+    static constexpr float kPi = 3.1415926535f;
+
+    XMFLOAT3 tangent = {};
+    XMFLOAT3 bitangent = {};
+    BuildTangentFrame(normal, tangent, bitangent);
+
+    XMFLOAT3 irradiance = {0.0f, 0.0f, 0.0f};
+    for (UINT i = 0; i < kSampleCount; ++i)
+    {
+        const XMFLOAT2 xi = Hammersley(i, kSampleCount);
+        const float phi = 2.0f * kPi * xi.x;
+        const float cosTheta = std::sqrt(1.0f - xi.y);
+        const float sinTheta = std::sqrt(xi.y);
+        const XMFLOAT3 local = {std::cos(phi) * sinTheta, std::sin(phi) * sinTheta, cosTheta};
+        irradiance = Add(irradiance, SampleProceduralEnvironment(settings, ToWorld(tangent, bitangent, normal, local)));
     }
 
     return Multiply(irradiance, kPi / static_cast<float>(kSampleCount));
@@ -542,6 +641,77 @@ bool CreateCubeFromHdrImage(ID3D12Device* device,
     srv = AllocateTextureCubeSRV(device, descriptorHeapAllocator, resource.Get());
     return true;
 }
+
+bool CreateCubeFromProceduralEnvironment(ID3D12Device* device,
+                                         ID3D12GraphicsCommandList* commandList,
+                                         SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
+                                         const ProceduralEnvironmentSettings& settings,
+                                         UINT outputSize,
+                                         bool createDiffuseIrradiance,
+                                         ComPtr<ID3D12Resource>& uploadHeap,
+                                         ComPtr<ID3D12Resource>& resource,
+                                         DescriptorHeapHandle& srv)
+{
+    D3D12_RESOURCE_DESC textureDesc = {};
+    textureDesc.MipLevels = 1;
+    textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    textureDesc.Width = outputSize;
+    textureDesc.Height = outputSize;
+    textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    textureDesc.DepthOrArraySize = kEnvironmentMapFaceCount;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.SampleDesc.Quality = 0;
+    textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                                                  D3D12_HEAP_FLAG_NONE,
+                                                  &textureDesc,
+                                                  D3D12_RESOURCE_STATE_COPY_DEST,
+                                                  nullptr,
+                                                  IID_PPV_ARGS(&resource)));
+
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(resource.Get(), 0, kEnvironmentMapFaceCount);
+    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                                                  D3D12_HEAP_FLAG_NONE,
+                                                  &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                  nullptr,
+                                                  IID_PPV_ARGS(&uploadHeap)));
+
+    std::vector<std::vector<XMHALF4>> facePixels(kEnvironmentMapFaceCount);
+    std::vector<D3D12_SUBRESOURCE_DATA> subresources(kEnvironmentMapFaceCount);
+
+    for (UINT face = 0; face < kEnvironmentMapFaceCount; ++face)
+    {
+        facePixels[face].resize(static_cast<size_t>(outputSize) * outputSize);
+        for (UINT y = 0; y < outputSize; ++y)
+        {
+            for (UINT x = 0; x < outputSize; ++x)
+            {
+                const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(outputSize) * 2.0f - 1.0f;
+                const float v = 1.0f - (static_cast<float>(y) + 0.5f) / static_cast<float>(outputSize) * 2.0f;
+                const XMFLOAT3 direction = Normalize(DirectionForCubeFace(face, u, v));
+                const XMFLOAT3 color = createDiffuseIrradiance ? ComputeDiffuseIrradiance(settings, direction)
+                                                               : SampleProceduralEnvironment(settings, direction);
+                facePixels[face][static_cast<size_t>(y) * outputSize + x] = XMHALF4(color.x, color.y, color.z, 1.0f);
+            }
+        }
+
+        subresources[face].pData = facePixels[face].data();
+        subresources[face].RowPitch = outputSize * sizeof(XMHALF4);
+        subresources[face].SlicePitch = subresources[face].RowPitch * outputSize;
+    }
+
+    UpdateSubresources(
+        commandList, resource.Get(), uploadHeap.Get(), 0, 0, kEnvironmentMapFaceCount, subresources.data());
+
+    commandList->ResourceBarrier(1,
+                                 &CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(),
+                                                                       D3D12_RESOURCE_STATE_COPY_DEST,
+                                                                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+    srv = AllocateTextureCubeSRV(device, descriptorHeapAllocator, resource.Get());
+    return true;
+}
 } // namespace
 
 void EnvironmentMap::CreateFromDdsOrProceduralFallback(ID3D12Device* device,
@@ -580,6 +750,25 @@ bool EnvironmentMap::TryCreateFromHdrEquirectangular(ID3D12Device* device,
                                   uploadHeap,
                                   m_resource,
                                   m_srv);
+}
+
+void EnvironmentMap::CreateProcedural(ID3D12Device* device,
+                                      ID3D12GraphicsCommandList* commandList,
+                                      SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
+                                      const ProceduralEnvironmentSettings& settings,
+                                      UINT outputSize,
+                                      bool createDiffuseIrradiance,
+                                      ComPtr<ID3D12Resource>& uploadHeap)
+{
+    CreateCubeFromProceduralEnvironment(device,
+                                        commandList,
+                                        descriptorHeapAllocator,
+                                        settings,
+                                        outputSize,
+                                        createDiffuseIrradiance,
+                                        uploadHeap,
+                                        m_resource,
+                                        m_srv);
 }
 
 bool EnvironmentMap::TryCreateFromDds(ID3D12Device* device,
@@ -706,78 +895,20 @@ void EnvironmentMap::CreateProceduralFallback(ID3D12Device* device,
                                               SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
                                               ComPtr<ID3D12Resource>& uploadHeap)
 {
-    D3D12_RESOURCE_DESC textureDesc = {};
-    textureDesc.MipLevels = 1;
-    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    textureDesc.Width = kEnvironmentMapSize;
-    textureDesc.Height = kEnvironmentMapSize;
-    textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-    textureDesc.DepthOrArraySize = kEnvironmentMapFaceCount;
-    textureDesc.SampleDesc.Count = 1;
-    textureDesc.SampleDesc.Quality = 0;
-    textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    ProceduralEnvironmentSettings settings = {};
+    settings.source = EnvironmentSource::ProceduralSun;
+    CreateProcedural(device, commandList, descriptorHeapAllocator, settings, kEnvironmentMapSize, false, uploadHeap);
+}
 
-    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-                                                  D3D12_HEAP_FLAG_NONE,
-                                                  &textureDesc,
-                                                  D3D12_RESOURCE_STATE_COPY_DEST,
-                                                  nullptr,
-                                                  IID_PPV_ARGS(&m_resource)));
-
-    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(m_resource.Get(), 0, kEnvironmentMapFaceCount);
-    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-                                                  D3D12_HEAP_FLAG_NONE,
-                                                  &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                  nullptr,
-                                                  IID_PPV_ARGS(&uploadHeap)));
-
-    std::vector<std::vector<UINT8>> facePixels(kEnvironmentMapFaceCount);
-    std::vector<D3D12_SUBRESOURCE_DATA> subresources(kEnvironmentMapFaceCount);
-    const XMFLOAT3 sunDirection = Normalize({0.35f, 0.75f, 0.25f});
-
-    for (UINT face = 0; face < kEnvironmentMapFaceCount; ++face)
+void EnvironmentMap::Release(SimpleDescriptorHeapAllocator& descriptorHeapAllocator)
+{
+    if (m_srv.IsValid())
     {
-        facePixels[face].resize(kEnvironmentMapSize * kEnvironmentMapSize * kTexturePixelSize);
-        for (UINT y = 0; y < kEnvironmentMapSize; ++y)
-        {
-            for (UINT x = 0; x < kEnvironmentMapSize; ++x)
-            {
-                const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(kEnvironmentMapSize) * 2.0f - 1.0f;
-                const float v = 1.0f - (static_cast<float>(y) + 0.5f) / static_cast<float>(kEnvironmentMapSize) * 2.0f;
-                const XMFLOAT3 direction = Normalize(DirectionForCubeFace(face, u, v));
-                const float skyBlend = Clamp01(direction.y * 0.5f + 0.5f);
-                const float sunDot =
-                    Clamp01(direction.x * sunDirection.x + direction.y * sunDirection.y + direction.z * sunDirection.z);
-                const float sun = std::pow(sunDot, 96.0f);
-                XMFLOAT3 color = {
-                    0.03f + 0.38f * skyBlend + 0.65f * sun,
-                    0.04f + 0.50f * skyBlend + 0.58f * sun,
-                    0.05f + 0.72f * skyBlend + 0.42f * sun,
-                };
-                if (direction.y < -0.05f)
-                {
-                    const float groundBlend = Clamp01((-direction.y - 0.05f) / 0.95f);
-                    color = {0.06f + 0.08f * groundBlend, 0.055f + 0.08f * groundBlend, 0.045f + 0.05f * groundBlend};
-                }
-
-                WriteColor(&facePixels[face][(y * kEnvironmentMapSize + x) * kTexturePixelSize], color);
-            }
-        }
-
-        subresources[face].pData = facePixels[face].data();
-        subresources[face].RowPitch = kEnvironmentMapSize * kTexturePixelSize;
-        subresources[face].SlicePitch = subresources[face].RowPitch * kEnvironmentMapSize;
+        descriptorHeapAllocator.Free(m_srv);
+        m_srv = {};
     }
 
-    UpdateSubresources(
-        commandList, m_resource.Get(), uploadHeap.Get(), 0, 0, kEnvironmentMapFaceCount, subresources.data());
-
-    commandList->ResourceBarrier(1,
-                                 &CD3DX12_RESOURCE_BARRIER::Transition(m_resource.Get(),
-                                                                       D3D12_RESOURCE_STATE_COPY_DEST,
-                                                                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-    m_srv = AllocateTextureCubeSRV(device, descriptorHeapAllocator, m_resource.Get());
+    m_resource.Reset();
 }
 
 DescriptorHeapHandle EnvironmentMap::AllocateTextureCubeSRV(ID3D12Device* device,

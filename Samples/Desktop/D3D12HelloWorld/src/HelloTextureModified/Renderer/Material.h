@@ -6,6 +6,8 @@ namespace Engine
 {
 
 static constexpr UINT kMaterialCount = 256;
+static constexpr UINT kMaterialFlagUnlit = 1u << 0;
+static constexpr UINT kMaterialFlagHasNormalTexture = 1u << 1;
 
 struct Material
 {

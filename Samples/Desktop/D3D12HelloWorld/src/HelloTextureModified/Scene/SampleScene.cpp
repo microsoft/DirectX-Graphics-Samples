@@ -439,7 +439,7 @@ void MetallicRoughnessSphereScene::CreateMaterialArray()
             material.metallicRoughnessTexIndex = 0;
             material.emissiveTexIndex = 0;
             material.occlusionTexIndex = 0;
-            material.normalTexIndex = 0;
+            material.normalTexIndex = -1;
             material.roughnessFactor = roughness;
             material.metallicFactor = metallic;
             material.occlusionStrength = 1.0f;

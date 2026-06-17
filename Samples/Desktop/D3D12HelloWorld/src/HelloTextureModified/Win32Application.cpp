@@ -62,18 +62,25 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 
     // Main sample loop.
     MSG msg = {};
-    while (true)
+    bool shouldQuit = false;
+    while (!shouldQuit)
     {
         // Process any messages in the queue.
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
         {
             if (msg.message == WM_QUIT)
             {
+                shouldQuit = true;
                 break;
             }
             // DBG_PRINT("msg = %u\n", msg.message);
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+        }
+
+        if (shouldQuit)
+        {
+            break;
         }
 
         // DBG_PRINT("idle\n", msg.message);
@@ -89,12 +96,6 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 // Main message handler for the sample.
 LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    if (message == WM_KEYDOWN && wParam == VK_ESCAPE)
-    {
-        DestroyWindow(hWnd);
-        return 0;
-    }
-
     if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
         return true;
 
@@ -126,7 +127,11 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
         case WM_KEYDOWN:
             if (pSample)
             {
-                pSample->OnKeyDown(static_cast<UINT8>(wParam));
+                const bool wasKeyDown = (lParam & (1 << 30)) != 0;
+                if (!wasKeyDown)
+                {
+                    pSample->OnKeyDown(static_cast<UINT8>(wParam));
+                }
             }
             return 0;
 

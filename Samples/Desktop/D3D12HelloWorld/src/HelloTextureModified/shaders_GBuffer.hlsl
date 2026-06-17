@@ -13,6 +13,8 @@ struct Material
     uint flags;
 };
 
+static const uint MaterialFlagHasNormalTexture = 1u << 1;
+
 struct InstanceData
 {
     float4x4 world;
@@ -111,8 +113,12 @@ GBufferOutput PSMain(PSInput input)
     output.albedo = float4(SrgbToLinear(albedo.rgb), albedo.a);
 
     float3 baseNormal = normalize(input.normal); // We should use the interpolated normal from vertex shader as the base normal for normal mapping, otherwise the normal map will not work correctly on flat surfaces.
-    float3 normalTex = g_texture[mat.normalTexIndex].Sample(g_sampler, input.uv).xyz * 2.0 - 1.0;
-    float3 mappedNormal = normalize(mul(normalTex, BuildTangentFrame(baseNormal, input.tangent)));
+    float3 mappedNormal = baseNormal;
+    if ((mat.flags & MaterialFlagHasNormalTexture) != 0)
+    {
+        float3 normalTex = g_texture[mat.normalTexIndex].Sample(g_sampler, input.uv).xyz * 2.0 - 1.0;
+        mappedNormal = normalize(mul(normalTex, BuildTangentFrame(baseNormal, input.tangent)));
+    }
     output.normal = float4(mappedNormal, 1.0);
     output.material = inst.materialId;
     
