@@ -565,7 +565,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         {
             m_selectedMaterialIndex = materialCount - 1;
         }
-        ImGuiWidgets::IntStepperWithControls("Material", &m_selectedMaterialIndex, 0, materialCount - 1, 1, 0);
+        ImGuiWidgets::SliderIntWithControls("Material", &m_selectedMaterialIndex, 0, materialCount - 1, 1, 0);
 
         Engine::SceneMaterial& material = sceneMesh.materials[m_selectedMaterialIndex];
         bool materialChanged = false;
