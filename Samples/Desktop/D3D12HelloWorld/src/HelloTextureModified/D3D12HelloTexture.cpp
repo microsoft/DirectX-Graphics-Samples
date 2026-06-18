@@ -602,9 +602,10 @@ void HelloTextureEngine::RetireActiveEnvironmentResources(UINT64 retireFenceValu
     pending.retireFenceValue = retireFenceValue;
     pending.descriptorTable = m_environmentDescriptorTable;
 
-    m_environmentMap.Detach(pending.environmentMap, pending.environmentSrv);
-    m_diffuseIrradianceMap.Detach(pending.diffuseIrradianceMap, pending.diffuseIrradianceSrv);
-    m_specularPrefilterMap.Detach(pending.specularPrefilterMap, pending.specularPrefilterSrv);
+    DescriptorHeapHandle srv = {};
+    m_environmentMap.Detach(pending.environmentMap, srv);
+    m_diffuseIrradianceMap.Detach(pending.diffuseIrradianceMap, srv);
+    m_specularPrefilterMap.Detach(pending.specularPrefilterMap, srv);
     m_environmentDescriptorTable = {};
 
     m_pendingEnvironmentResources.push_back(std::move(pending));
@@ -640,12 +641,6 @@ void HelloTextureEngine::CollectGarbageEnvironmentResources()
         if (iter->descriptorTable.IsValid())
         {
             FreeEnvironmentDescriptorTable(iter->descriptorTable);
-        }
-        else
-        {
-            m_descriptorHeapAllocator.Free(iter->specularPrefilterSrv);
-            m_descriptorHeapAllocator.Free(iter->diffuseIrradianceSrv);
-            m_descriptorHeapAllocator.Free(iter->environmentSrv);
         }
 
         iter = m_pendingEnvironmentResources.erase(iter);

@@ -442,9 +442,6 @@ private:
         ComPtr<ID3D12Resource> diffuseIrradianceMap;
         ComPtr<ID3D12Resource> specularPrefilterMap;
         EnvironmentDescriptorTable descriptorTable;
-        DescriptorHeapHandle environmentSrv;
-        DescriptorHeapHandle diffuseIrradianceSrv;
-        DescriptorHeapHandle specularPrefilterSrv;
         ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator;
         ComPtr<ID3D12DescriptorHeap> proceduralEnvUavHeap;
         ComPtr<ID3D12Resource> proceduralEnvSettingsBuffer;

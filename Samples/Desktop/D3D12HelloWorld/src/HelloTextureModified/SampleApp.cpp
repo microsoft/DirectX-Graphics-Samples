@@ -509,28 +509,15 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         ImGui::End();
         return;
     }
-    ImGuiWidgets::SliderIntWithControls("Display Instance Count", &m_displayInstanceCount, 0,
-                                         loadedScene.MaxDisplayInstanceCount(), 1, 0);
-    loadedScene.SetDisplayInstanceCount(m_displayInstanceCount);
-    ImGuiWidgets::SliderFloatWithControls("Mesh Scale", &m_meshScale, 0.1f, 2.0f, 0.05f, 0.5f);
-    ImGuiWidgets::SliderFloatWithControls("Camera FovH", &loadedScene.GetScene().camera.fov, 20.f, 150.f, 5.f, 60.f);
-    ImGui::ColorEdit4("Background Color", m_backBufferClearColor.data());
+    if (ImGui::CollapsingHeader("Direct Light", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        static constexpr float defaultDir[] = {0.4f, 0.7f, 0.6f};
-        ImGuiWidgets::SliderFloat3WithControls("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f,
-                                               0.05f, defaultDir);
+        ImGuiWidgets::SliderIntWithControls("Display Instance Count", &m_displayInstanceCount, 0,
+                                             loadedScene.MaxDisplayInstanceCount(), 1, 0);
+        loadedScene.SetDisplayInstanceCount(m_displayInstanceCount);
+        ImGuiWidgets::SliderFloatWithControls("Mesh Scale", &m_meshScale, 0.1f, 2.0f, 0.05f, 0.5f);
+        ImGuiWidgets::SliderFloatWithControls("Camera FovH", &loadedScene.GetScene().camera.fov, 20.f, 150.f, 5.f, 60.f);
+        ImGui::ColorEdit4("Background Color", m_backBufferClearColor.data());
     }
-    ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
-    ImGui::Checkbox("IBL Enabled", &m_iblEnabled);
-    ImGui::BeginDisabled(!m_iblEnabled);
-    ImGuiWidgets::SliderFloatWithControls("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f, 0.05f, 1.0f);
-    ImGui::Checkbox("Diffuse IBL", &m_lightingParams.diffuseIblEnabled);
-    ImGui::SameLine();
-    ImGui::Checkbox("Specular IBL", &m_lightingParams.specularIblEnabled);
-    ImGui::EndDisabled();
-    ImGui::Checkbox("Direct Light", &m_lightingParams.directLightEnabled);
-    ImGui::SameLine();
-    ImGui::Checkbox("Emissive", &m_lightingParams.emissiveEnabled);
     if (ImGui::CollapsingHeader("Environment Map", ImGuiTreeNodeFlags_DefaultOpen))
     {
         bool environmentApplyRequested = false;
@@ -621,6 +608,31 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
                 }
             }
         }
+        ImGui::Checkbox("Show Skybox", &m_lightingParams.skyboxEnabled);
+        ImGui::Checkbox("Skybox Preview", &m_lightingParams.skyboxPreview);
+        ImGui::BeginDisabled(!m_lightingParams.skyboxPreview);
+        ImGuiWidgets::SliderFloatWithControls("Skybox Preview Exposure", &m_lightingParams.skyboxPreviewExposure, 0.0f,
+                                              2.0f, 0.05f, 1.0f);
+        ImGui::EndDisabled();
+        {
+            static constexpr float defaultDir[] = {0.4f, 0.7f, 0.6f};
+            ImGuiWidgets::SliderFloat3WithControls("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f,
+                                                   0.05f, defaultDir);
+        }
+        ImGui::SameLine();
+        ImGuiWidgets::SliderFloatWithControls("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f,
+                                              0.1f, 1.0f);
+        ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
+        ImGui::Checkbox("IBL Enabled", &m_iblEnabled);
+        ImGui::BeginDisabled(!m_iblEnabled);
+        ImGuiWidgets::SliderFloatWithControls("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f, 0.05f, 1.0f);
+        ImGui::Checkbox("Diffuse IBL", &m_lightingParams.diffuseIblEnabled);
+        ImGui::SameLine();
+        ImGui::Checkbox("Specular IBL", &m_lightingParams.specularIblEnabled);
+        ImGui::EndDisabled();
+        ImGui::Checkbox("Direct Light", &m_lightingParams.directLightEnabled);
+        ImGui::SameLine();
+        ImGui::Checkbox("Emissive", &m_lightingParams.emissiveEnabled);
         if (environmentApplyRequested)
         {
             m_environmentReloadPending = true;
@@ -631,127 +643,124 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
             m_environmentReloadPending = false;
         }
     }
-    ImGui::Checkbox("Show Skybox", &m_lightingParams.skyboxEnabled);
-    ImGui::Checkbox("Skybox Preview", &m_lightingParams.skyboxPreview);
-    ImGui::BeginDisabled(!m_lightingParams.skyboxPreview);
-    ImGuiWidgets::SliderFloatWithControls("Skybox Preview Exposure", &m_lightingParams.skyboxPreviewExposure, 0.0f,
-                                          2.0f, 0.05f, 1.0f);
-    ImGui::EndDisabled();
-    ImGuiWidgets::SliderFloatWithControls("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f,
-                                          0.1f, 1.0f);
 
     if (!sceneMesh.materials.empty())
     {
-        ImGui::Text("Material Controls");
-        const int materialCount = static_cast<int>(sceneMesh.materials.size());
-        if (m_selectedMaterialIndex >= materialCount)
+        if (ImGui::CollapsingHeader("Material Controls", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            m_selectedMaterialIndex = materialCount - 1;
-        }
-        ImGuiWidgets::SliderIntWithControls("Material", &m_selectedMaterialIndex, 0, materialCount - 1, 1, 0);
+            const int materialCount = static_cast<int>(sceneMesh.materials.size());
+            if (m_selectedMaterialIndex >= materialCount)
+            {
+                m_selectedMaterialIndex = materialCount - 1;
+            }
+            ImGuiWidgets::SliderIntWithControls("Material", &m_selectedMaterialIndex, 0, materialCount - 1, 1, 0);
 
-        Engine::SceneMaterial& material = sceneMesh.materials[m_selectedMaterialIndex];
-        bool materialChanged = false;
-        materialChanged |= ImGuiWidgets::SliderFloatWithControls("Roughness", &material.roughnessFactor, 0.04f, 1.0f,
-                                                                 0.02f, 0.5f);
-        materialChanged |= ImGuiWidgets::SliderFloatWithControls("Metallic", &material.metallicFactor, 0.0f, 1.0f,
-                                                                 0.05f, 0.0f);
-        materialChanged |= ImGuiWidgets::SliderFloatWithControls("Indirect Occlusion",
-                                                                 &material.ambientOcclusionFactor, 0.0f, 1.0f,
-                                                                 0.05f, 1.0f);
-        materialChanged |= ImGuiWidgets::SliderFloatWithControls("Emissive Luminance", &material.emissiveScale, 0.0f,
-                                                                 4.0f, 0.1f, 1.0f);
+            Engine::SceneMaterial& material = sceneMesh.materials[m_selectedMaterialIndex];
+            bool materialChanged = false;
+            materialChanged |= ImGuiWidgets::SliderFloatWithControls("Roughness", &material.roughnessFactor, 0.04f, 1.0f,
+                                                                      0.02f, 0.5f);
+            materialChanged |= ImGuiWidgets::SliderFloatWithControls("Metallic", &material.metallicFactor, 0.0f, 1.0f,
+                                                                      0.05f, 0.0f);
+            materialChanged |= ImGuiWidgets::SliderFloatWithControls("Indirect Occlusion",
+                                                                      &material.ambientOcclusionFactor, 0.0f, 1.0f,
+                                                                      0.05f, 1.0f);
+            materialChanged |= ImGuiWidgets::SliderFloatWithControls("Emissive Luminance", &material.emissiveScale, 0.0f,
+                                                                      4.0f, 0.1f, 1.0f);
 
-        const float f0 = 0.04f * (1.0f - material.metallicFactor) + material.metallicFactor;
-        ImGui::Text("Specular F0: %.2f", f0);
+            const float f0 = 0.04f * (1.0f - material.metallicFactor) + material.metallicFactor;
+            ImGui::Text("Specular F0: %.2f", f0);
 
-        if (materialChanged)
-        {
-            HelloTextureEngine::MaterialParams params = {};
-            params.roughnessFactor = material.roughnessFactor;
-            params.metallicFactor = material.metallicFactor;
-            params.ambientOcclusionFactor = material.ambientOcclusionFactor;
-            params.emissiveScale = material.emissiveScale;
-            m_engine.SetMaterialParams(static_cast<UINT>(m_selectedMaterialIndex), params);
+            if (materialChanged)
+            {
+                HelloTextureEngine::MaterialParams params = {};
+                params.roughnessFactor = material.roughnessFactor;
+                params.metallicFactor = material.metallicFactor;
+                params.ambientOcclusionFactor = material.ambientOcclusionFactor;
+                params.emissiveScale = material.emissiveScale;
+                m_engine.SetMaterialParams(static_cast<UINT>(m_selectedMaterialIndex), params);
+            }
         }
     }
 
-    ImGui::Text("Tone Mapping");
-    ImGui::RadioButton("None", &m_toneMapParams.operatorIndex, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("Reinhard", &m_toneMapParams.operatorIndex, 1);
-    ImGui::SameLine();
-    ImGui::RadioButton("ACES", &m_toneMapParams.operatorIndex, 2);
-    ImGuiWidgets::SliderFloatWithControls("Exposure", &m_toneMapParams.exposure, 0.0f, 4.0f, 0.1f, 1.0f);
-    ImGuiWidgets::SliderFloatWithControls("Paper White", &m_toneMapParams.paperWhiteNits, 80.0f, 500.0f, 10.f,
-                                          300.0f, "%.0f nits");
-    ImGuiWidgets::SliderFloatWithControls("Display Max", &m_toneMapParams.maxDisplayNits, 100.0f, 4000.0f, 50.f,
-                                          1000.0f, "%.0f nits");
-
-    int renderingPath = static_cast<int>(m_renderingPath);
-    ImGui::Text("Rendering Path");
-    ImGui::RadioButton("Forward", &renderingPath, static_cast<int>(RenderingPath::Forward));
-    ImGui::SameLine();
-    ImGui::RadioButton("Deferred", &renderingPath, static_cast<int>(RenderingPath::Deferred));
-    m_renderingPath = static_cast<RenderingPath>(renderingPath);
-
-    const bool deferredRendering = m_renderingPath == RenderingPath::Deferred;
-    int renderViewMode = static_cast<int>(m_renderViewMode);
-    ImGui::Text("Debug View");
-    ImGui::BeginDisabled(!deferredRendering);
-    ImGui::RadioButton("Lit", &renderViewMode, static_cast<int>(RenderViewMode::LightPass));
-    ImGui::RadioButton("Albedo", &renderViewMode, static_cast<int>(RenderViewMode::GBufferAlbedo));
-    ImGui::SameLine();
-    ImGui::RadioButton("Normal", &renderViewMode, static_cast<int>(RenderViewMode::GBufferNormal));
-    ImGui::SameLine();
-    ImGui::RadioButton("Material", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMaterial));
-    ImGui::RadioButton("MotionVector", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMotionVector));
-    ImGui::SameLine();
-    ImGui::RadioButton("PBR Params", &renderViewMode, static_cast<int>(RenderViewMode::GBufferPBRParams));
-    ImGui::SameLine();
-    ImGui::RadioButton("Depth", &renderViewMode, static_cast<int>(RenderViewMode::Depth));
-    ImGui::SameLine();
-    ImGui::RadioButton("ReflectionDir", &renderViewMode, static_cast<int>(RenderViewMode::ReflectionDirection));
-    ImGui::RadioButton("ViewDir", &renderViewMode, static_cast<int>(RenderViewMode::ViewDirection));
-    ImGui::SameLine();
-    ImGui::RadioButton("WorldPos", &renderViewMode, static_cast<int>(RenderViewMode::WorldPosition));
-    ImGui::SameLine();
-    ImGui::RadioButton("NdotV", &renderViewMode, static_cast<int>(RenderViewMode::NdotV));
-    ImGui::RadioButton("EnvMap", &renderViewMode, static_cast<int>(RenderViewMode::IblEnvironment));
-    ImGui::SameLine();
-    ImGui::RadioButton("Irradiance", &renderViewMode, static_cast<int>(RenderViewMode::IblDiffuseIrradiance));
-    ImGui::SameLine();
-    ImGui::RadioButton("Prefilter", &renderViewMode, static_cast<int>(RenderViewMode::IblSpecularPrefilter));
-    ImGui::SameLine();
-    ImGui::RadioButton("BRDF LUT", &renderViewMode, static_cast<int>(RenderViewMode::IblBrdfLut));
-    m_renderViewMode = static_cast<RenderViewMode>(renderViewMode);
-    const bool iblDebugView = m_renderViewMode == RenderViewMode::IblEnvironment ||
-        m_renderViewMode == RenderViewMode::IblDiffuseIrradiance ||
-        m_renderViewMode == RenderViewMode::IblSpecularPrefilter;
-    ImGui::BeginDisabled(!iblDebugView);
-    ImGuiWidgets::SliderFloatWithControls(
-        "IBL Debug Exposure", &m_lightingParams.iblDebugExposure, 0.01f, 2.0f, 0.05f, 0.25f);
-    ImGui::EndDisabled();
-    ImGui::BeginDisabled(m_renderViewMode != RenderViewMode::IblSpecularPrefilter);
-    ImGuiWidgets::SliderFloatWithControls("Prefilter Mip", &m_lightingParams.iblDebugMip, 0.0f, 5.0f, 1.0f, 0.0f);
-    ImGui::EndDisabled();
-    ImGui::EndDisabled();
-
-    if (!deferredRendering)
+    if (ImGui::CollapsingHeader("Tone Mapping", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        m_renderViewMode = RenderViewMode::LightPass;
+        ImGui::RadioButton("None", &m_toneMapParams.operatorIndex, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("Reinhard", &m_toneMapParams.operatorIndex, 1);
+        ImGui::SameLine();
+        ImGui::RadioButton("ACES", &m_toneMapParams.operatorIndex, 2);
+        ImGuiWidgets::SliderFloatWithControls("Exposure", &m_toneMapParams.exposure, 0.0f, 4.0f, 0.1f, 1.0f);
+        ImGuiWidgets::SliderFloatWithControls("Paper White", &m_toneMapParams.paperWhiteNits, 80.0f, 500.0f, 10.f,
+                                              300.0f, "%.0f nits");
+        ImGuiWidgets::SliderFloatWithControls("Display Max", &m_toneMapParams.maxDisplayNits, 100.0f, 4000.0f, 50.f,
+                                              1000.0f, "%.0f nits");
     }
 
-    const bool lightPassView = deferredRendering && m_renderViewMode == RenderViewMode::LightPass;
-    ImGui::BeginDisabled(!lightPassView);
-    ImGui::Checkbox("Debug LightPass Gradient", &m_lightingPassDebugGradient);
-    ImGui::EndDisabled();
-
-    if (lightPassView && m_lightingPassDebugGradient)
+    if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (ImGui::Button("Validate HDR Gradient"))
+        int renderingPath = static_cast<int>(m_renderingPath);
+        ImGui::RadioButton("Forward", &renderingPath, static_cast<int>(RenderingPath::Forward));
+        ImGui::SameLine();
+        ImGui::RadioButton("Deferred", &renderingPath, static_cast<int>(RenderingPath::Deferred));
+        m_renderingPath = static_cast<RenderingPath>(renderingPath);
+
+        const bool deferredRendering = m_renderingPath == RenderingPath::Deferred;
+        int renderViewMode = static_cast<int>(m_renderViewMode);
+        ImGui::BeginDisabled(!deferredRendering);
+        ImGui::RadioButton("Lit", &renderViewMode, static_cast<int>(RenderViewMode::LightPass));
+        ImGui::RadioButton("Albedo", &renderViewMode, static_cast<int>(RenderViewMode::GBufferAlbedo));
+        ImGui::SameLine();
+        ImGui::RadioButton("Normal", &renderViewMode, static_cast<int>(RenderViewMode::GBufferNormal));
+        ImGui::SameLine();
+        ImGui::RadioButton("Material", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMaterial));
+        ImGui::RadioButton("MotionVector", &renderViewMode, static_cast<int>(RenderViewMode::GBufferMotionVector));
+        ImGui::SameLine();
+        ImGui::RadioButton("PBR Params", &renderViewMode, static_cast<int>(RenderViewMode::GBufferPBRParams));
+        ImGui::SameLine();
+        ImGui::RadioButton("Depth", &renderViewMode, static_cast<int>(RenderViewMode::Depth));
+        ImGui::SameLine();
+        ImGui::RadioButton("ReflectionDir", &renderViewMode, static_cast<int>(RenderViewMode::ReflectionDirection));
+        ImGui::RadioButton("ViewDir", &renderViewMode, static_cast<int>(RenderViewMode::ViewDirection));
+        ImGui::SameLine();
+        ImGui::RadioButton("WorldPos", &renderViewMode, static_cast<int>(RenderViewMode::WorldPosition));
+        ImGui::SameLine();
+        ImGui::RadioButton("NdotV", &renderViewMode, static_cast<int>(RenderViewMode::NdotV));
+        ImGui::RadioButton("EnvMap", &renderViewMode, static_cast<int>(RenderViewMode::IblEnvironment));
+        ImGui::SameLine();
+        ImGui::RadioButton("Irradiance", &renderViewMode, static_cast<int>(RenderViewMode::IblDiffuseIrradiance));
+        ImGui::SameLine();
+        ImGui::RadioButton("Prefilter", &renderViewMode, static_cast<int>(RenderViewMode::IblSpecularPrefilter));
+        ImGui::SameLine();
+        ImGui::RadioButton("BRDF LUT", &renderViewMode, static_cast<int>(RenderViewMode::IblBrdfLut));
+        m_renderViewMode = static_cast<RenderViewMode>(renderViewMode);
+        const bool iblDebugView = m_renderViewMode == RenderViewMode::IblEnvironment ||
+            m_renderViewMode == RenderViewMode::IblDiffuseIrradiance ||
+            m_renderViewMode == RenderViewMode::IblSpecularPrefilter;
+        ImGui::BeginDisabled(!iblDebugView);
+        ImGuiWidgets::SliderFloatWithControls(
+            "IBL Debug Exposure", &m_lightingParams.iblDebugExposure, 0.01f, 2.0f, 0.05f, 0.25f);
+        ImGui::EndDisabled();
+        ImGui::BeginDisabled(m_renderViewMode != RenderViewMode::IblSpecularPrefilter);
+        ImGuiWidgets::SliderFloatWithControls("Prefilter Mip", &m_lightingParams.iblDebugMip, 0.0f, 5.0f, 1.0f, 0.0f);
+        ImGui::EndDisabled();
+        ImGui::EndDisabled();
+
+        if (!deferredRendering)
         {
-            m_requestHdrDump = true;
+            m_renderViewMode = RenderViewMode::LightPass;
+        }
+
+        const bool lightPassView = deferredRendering && m_renderViewMode == RenderViewMode::LightPass;
+        ImGui::BeginDisabled(!lightPassView);
+        ImGui::Checkbox("Debug LightPass Gradient", &m_lightingPassDebugGradient);
+        ImGui::EndDisabled();
+
+        if (lightPassView && m_lightingPassDebugGradient)
+        {
+            if (ImGui::Button("Validate HDR Gradient"))
+            {
+                m_requestHdrDump = true;
+            }
         }
     }
 
