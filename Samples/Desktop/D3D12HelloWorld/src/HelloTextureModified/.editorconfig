@@ -3,6 +3,8 @@ root = true
 
 [*.{c++,cc,cpp,cppm,cxx,h,h++,hh,hpp,hxx,inl,ipp,ixx,tlh,tli}]
 
+end_of_line = crlf
+
 # Visual C++ Code Style settings
 
 cpp_generate_documentation_comments = xml

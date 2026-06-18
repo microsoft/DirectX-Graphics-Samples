@@ -10,6 +10,8 @@
 namespace Engine
 {
 
+constexpr bool kUseGpuProceduralEnvMap = true;
+
 struct HdrImage
 {
     UINT width = 0;
@@ -54,6 +56,14 @@ public:
                                          bool createDiffuseIrradiance,
                                          ComPtr<ID3D12Resource>& uploadHeap);
 
+    bool TryCreateSpecularPrefilterFromHdrEquirectangular(ID3D12Device* device,
+                                                          ID3D12GraphicsCommandList* commandList,
+                                                          SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
+                                                          const HdrImage& image,
+                                                          UINT outputSize,
+                                                          UINT mipCount,
+                                                          ComPtr<ID3D12Resource>& uploadHeap);
+
     void CreateFromDdsOrProceduralFallback(ID3D12Device* device,
                                            ID3D12GraphicsCommandList* commandList,
                                            SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
@@ -73,7 +83,29 @@ public:
                           bool createDiffuseIrradiance,
                           ComPtr<ID3D12Resource>& uploadHeap);
 
+    void CreateSpecularPrefilterProcedural(ID3D12Device* device,
+                                           ID3D12GraphicsCommandList* commandList,
+                                           SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
+                                           const ProceduralEnvironmentSettings& settings,
+                                           UINT outputSize,
+                                           UINT mipCount,
+                                           ComPtr<ID3D12Resource>& uploadHeap);
+
     void Release(SimpleDescriptorHeapAllocator& descriptorHeapAllocator);
+
+    void Attach(ComPtr<ID3D12Resource> resource, DescriptorHeapHandle srv)
+    {
+        m_resource = resource;
+        m_srv = srv;
+    }
+
+    void Detach(ComPtr<ID3D12Resource>& resource, DescriptorHeapHandle& srv)
+    {
+        resource = m_resource;
+        srv = m_srv;
+        m_resource.Reset();
+        m_srv = {};
+    }
 
     DescriptorHeapHandle Srv() const
     {

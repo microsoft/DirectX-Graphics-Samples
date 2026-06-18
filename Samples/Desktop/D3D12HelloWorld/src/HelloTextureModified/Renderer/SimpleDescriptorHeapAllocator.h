@@ -68,6 +68,7 @@ struct SimpleDescriptorHeapAllocator
     D3D12_CPU_DESCRIPTOR_HANDLE HeapStartCpu;
     D3D12_GPU_DESCRIPTOR_HANDLE HeapStartGpu;
     UINT HeapHandleIncrement;
+    UINT Capacity = 0;
     std::vector<UINT> FreeIndices;
 
     // Initialize the allocator with a descriptor heap.
@@ -81,6 +82,7 @@ struct SimpleDescriptorHeapAllocator
         HeapStartCpu = Heap->GetCPUDescriptorHandleForHeapStart();
         HeapStartGpu = Heap->GetGPUDescriptorHandleForHeapStart();
         HeapHandleIncrement = device->GetDescriptorHandleIncrementSize(HeapType);
+        Capacity = desc.NumDescriptors;
         FreeIndices.reserve((int)desc.NumDescriptors);
         for (int n = desc.NumDescriptors; n > 0; n--)
         {
@@ -90,7 +92,17 @@ struct SimpleDescriptorHeapAllocator
     void Destroy()
     {
         Heap = nullptr;
+        Capacity = 0;
         FreeIndices.clear();
+    }
+
+    DescriptorHeapHandle HandleFromIndex(UINT idx) const
+    {
+        DescriptorHeapHandle handle = {};
+        handle.Index = idx;
+        handle.cpu.ptr = HeapStartCpu.ptr + (idx * HeapHandleIncrement);
+        handle.gpu.ptr = HeapStartGpu.ptr + (idx * HeapHandleIncrement);
+        return handle;
     }
 
     // For ImGui
@@ -100,10 +112,11 @@ struct SimpleDescriptorHeapAllocator
         assert(FreeIndices.size() > 0);
         UINT idx = FreeIndices.back();
         FreeIndices.pop_back();
+        DescriptorHeapHandle handle = HandleFromIndex(idx);
         if (out_cpu_desc_handle)
-            out_cpu_desc_handle->ptr = HeapStartCpu.ptr + (idx * HeapHandleIncrement);
+            *out_cpu_desc_handle = handle.cpu;
         if (out_gpu_desc_handle)
-            out_gpu_desc_handle->ptr = HeapStartGpu.ptr + (idx * HeapHandleIncrement);
+            *out_gpu_desc_handle = handle.gpu;
 
         DBG_PRINT("[SimpleDescriptorHeapAllocator] Alloc() returns idx=%d\n", idx);
         return idx;
@@ -114,6 +127,58 @@ struct SimpleDescriptorHeapAllocator
         DescriptorHeapHandle handle = {};
         handle.Index = Alloc(&handle.cpu, &handle.gpu);
         return handle;
+    }
+
+    DescriptorHeapHandle AllocContiguous(UINT count)
+    {
+        assert(count > 0);
+        assert(FreeIndices.size() >= count);
+
+        for (UINT start = 0; start + count <= Capacity; ++start)
+        {
+            bool foundRange = true;
+            for (UINT offset = 0; offset < count; ++offset)
+            {
+                bool foundIndex = false;
+                for (UINT freeIndex : FreeIndices)
+                {
+                    if (freeIndex == start + offset)
+                    {
+                        foundIndex = true;
+                        break;
+                    }
+                }
+
+                if (!foundIndex)
+                {
+                    foundRange = false;
+                    break;
+                }
+            }
+
+            if (!foundRange)
+            {
+                continue;
+            }
+
+            for (UINT offset = 0; offset < count; ++offset)
+            {
+                const UINT indexToRemove = start + offset;
+                for (auto iter = FreeIndices.begin(); iter != FreeIndices.end(); ++iter)
+                {
+                    if (*iter == indexToRemove)
+                    {
+                        FreeIndices.erase(iter);
+                        break;
+                    }
+                }
+            }
+
+            return HandleFromIndex(start);
+        }
+
+        assert(false && "No contiguous descriptor range available.");
+        return {};
     }
 
     DescriptorAllocation Allocate()

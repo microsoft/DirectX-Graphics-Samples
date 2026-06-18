@@ -69,9 +69,9 @@ DescriptorRanges CreateDescriptorRanges(UINT textureSrvCount, UINT gbufferSrvCou
                                     RootSignatureLayout::kGBufferSrvSpace,
                                     D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
-    // t0 - t1 : Environment cubemap SRV + diffuse irradiance cubemap SRV, space 5
+    // t0 - t3 : Environment cubemap SRV + diffuse irradiance cubemap SRV + specular prefilter cubemap SRV + BRDF LUT, space 5
     ranges.environmentMapSrv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-                                  2,
+                                  4,
                                   RootSignatureLayout::kBaseRegister,
                                   RootSignatureLayout::kEnvironmentMapSrvSpace,
                                   D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE |

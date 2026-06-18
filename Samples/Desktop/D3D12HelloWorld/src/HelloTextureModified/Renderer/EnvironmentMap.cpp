@@ -142,12 +142,6 @@ XMFLOAT3 DirectionForCubeFace(UINT face, float u, float v)
     }
 }
 
-XMFLOAT3 ToEnvironmentSourceDirection(XMFLOAT3 direction)
-{
-    // Match the source environment convention used by the debug panels and HDR equirectangular assets.
-    return {-direction.x, -direction.y, direction.z};
-}
-
 float Clamp01(float value)
 {
     if (value < 0.0f)
@@ -395,9 +389,14 @@ XMFLOAT2 Hammersley(UINT i, UINT n)
     return {static_cast<float>(i) / static_cast<float>(n), RadicalInverseVdC(i)};
 }
 
+XMFLOAT3 Reflect(const XMFLOAT3& incident, const XMFLOAT3& normal)
+{
+    const float scale = 2.0f * Dot(incident, normal);
+    return {incident.x - scale * normal.x, incident.y - scale * normal.y, incident.z - scale * normal.z};
+}
+
 XMFLOAT3 SampleEquirectangular(const HdrImage& image, XMFLOAT3 direction)
 {
-    direction = ToEnvironmentSourceDirection(direction);
     direction = Normalize(direction);
     const float pi = 3.1415926535f;
     float u = std::atan2(direction.z, direction.x) / (2.0f * pi) + 0.5f;
@@ -447,6 +446,21 @@ XMFLOAT3 ToWorld(const XMFLOAT3& tangent, const XMFLOAT3& bitangent, const XMFLO
             tangent.z * local.x + bitangent.z * local.y + normal.z * local.z};
 }
 
+XMFLOAT3 ImportanceSampleGGX(const XMFLOAT2& xi,
+                             float roughness,
+                             const XMFLOAT3& tangent,
+                             const XMFLOAT3& bitangent,
+                             const XMFLOAT3& normal)
+{
+    static constexpr float kPi = 3.1415926535f;
+    const float a = roughness * roughness;
+    const float phi = 2.0f * kPi * xi.x;
+    const float cosTheta = std::sqrt((1.0f - xi.y) / (1.0f + (a * a - 1.0f) * xi.y));
+    const float sinTheta = std::sqrt((std::max)(0.0f, 1.0f - cosTheta * cosTheta));
+    const XMFLOAT3 local = {std::cos(phi) * sinTheta, std::sin(phi) * sinTheta, cosTheta};
+    return Normalize(ToWorld(tangent, bitangent, normal, local));
+}
+
 XMFLOAT3 ComputeDiffuseIrradiance(const HdrImage& image, const XMFLOAT3& normal)
 {
     static constexpr UINT kSampleCount = 64;
@@ -470,9 +484,40 @@ XMFLOAT3 ComputeDiffuseIrradiance(const HdrImage& image, const XMFLOAT3& normal)
     return Multiply(irradiance, kPi / static_cast<float>(kSampleCount));
 }
 
+XMFLOAT3 ComputeSpecularPrefilter(const HdrImage& image, const XMFLOAT3& reflectionDir, float roughness)
+{
+    static constexpr UINT kSampleCount = 64;
+
+    if (roughness <= 0.001f)
+    {
+        return SampleEnvironment(image, reflectionDir);
+    }
+
+    XMFLOAT3 tangent = {};
+    XMFLOAT3 bitangent = {};
+    BuildTangentFrame(reflectionDir, tangent, bitangent);
+
+    const XMFLOAT3 viewDir = reflectionDir;
+    XMFLOAT3 prefiltered = {0.0f, 0.0f, 0.0f};
+    float totalWeight = 0.0f;
+    for (UINT i = 0; i < kSampleCount; ++i)
+    {
+        const XMFLOAT2 xi = Hammersley(i, kSampleCount);
+        const XMFLOAT3 halfVector = ImportanceSampleGGX(xi, roughness, tangent, bitangent, reflectionDir);
+        const XMFLOAT3 lightDir = Normalize(Reflect({-viewDir.x, -viewDir.y, -viewDir.z}, halfVector));
+        const float ndotl = Clamp01(Dot(reflectionDir, lightDir));
+        if (ndotl > 0.0f)
+        {
+            prefiltered = Add(prefiltered, Multiply(SampleEnvironment(image, lightDir), ndotl));
+            totalWeight += ndotl;
+        }
+    }
+
+    return totalWeight > 0.0f ? Multiply(prefiltered, 1.0f / totalWeight) : SampleEnvironment(image, reflectionDir);
+}
+
 XMFLOAT3 SampleProceduralEnvironment(const ProceduralEnvironmentSettings& settings, XMFLOAT3 direction)
 {
-    direction = ToEnvironmentSourceDirection(direction);
     direction = Normalize(direction);
     const XMFLOAT3 lightDirection = Normalize(settings.lightDirection);
     const float skyBlend = Clamp01(direction.y * 0.5f + 0.5f);
@@ -553,6 +598,41 @@ XMFLOAT3 ComputeDiffuseIrradiance(const ProceduralEnvironmentSettings& settings,
     }
 
     return Multiply(irradiance, kPi / static_cast<float>(kSampleCount));
+}
+
+XMFLOAT3 ComputeSpecularPrefilter(const ProceduralEnvironmentSettings& settings,
+                                  const XMFLOAT3& reflectionDir,
+                                  float roughness)
+{
+    static constexpr UINT kSampleCount = 64;
+
+    if (roughness <= 0.001f)
+    {
+        return SampleProceduralEnvironment(settings, reflectionDir);
+    }
+
+    XMFLOAT3 tangent = {};
+    XMFLOAT3 bitangent = {};
+    BuildTangentFrame(reflectionDir, tangent, bitangent);
+
+    const XMFLOAT3 viewDir = reflectionDir;
+    XMFLOAT3 prefiltered = {0.0f, 0.0f, 0.0f};
+    float totalWeight = 0.0f;
+    for (UINT i = 0; i < kSampleCount; ++i)
+    {
+        const XMFLOAT2 xi = Hammersley(i, kSampleCount);
+        const XMFLOAT3 halfVector = ImportanceSampleGGX(xi, roughness, tangent, bitangent, reflectionDir);
+        const XMFLOAT3 lightDir = Normalize(Reflect({-viewDir.x, -viewDir.y, -viewDir.z}, halfVector));
+        const float ndotl = Clamp01(Dot(reflectionDir, lightDir));
+        if (ndotl > 0.0f)
+        {
+            prefiltered = Add(prefiltered, Multiply(SampleProceduralEnvironment(settings, lightDir), ndotl));
+            totalWeight += ndotl;
+        }
+    }
+
+    return totalWeight > 0.0f ? Multiply(prefiltered, 1.0f / totalWeight)
+                              : SampleProceduralEnvironment(settings, reflectionDir);
 }
 
 DescriptorHeapHandle AllocateTextureCubeSRV(ID3D12Device* device,
@@ -712,6 +792,162 @@ bool CreateCubeFromProceduralEnvironment(ID3D12Device* device,
     srv = AllocateTextureCubeSRV(device, descriptorHeapAllocator, resource.Get());
     return true;
 }
+
+bool CreateSpecularPrefilterCubeFromHdrImage(ID3D12Device* device,
+                                             ID3D12GraphicsCommandList* commandList,
+                                             SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
+                                             const HdrImage& image,
+                                             UINT outputSize,
+                                             UINT mipCount,
+                                             ComPtr<ID3D12Resource>& uploadHeap,
+                                             ComPtr<ID3D12Resource>& resource,
+                                             DescriptorHeapHandle& srv)
+{
+    D3D12_RESOURCE_DESC textureDesc = {};
+    textureDesc.MipLevels = static_cast<UINT16>(mipCount);
+    textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    textureDesc.Width = outputSize;
+    textureDesc.Height = outputSize;
+    textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    textureDesc.DepthOrArraySize = kEnvironmentMapFaceCount;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.SampleDesc.Quality = 0;
+    textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                                                  D3D12_HEAP_FLAG_NONE,
+                                                  &textureDesc,
+                                                  D3D12_RESOURCE_STATE_COPY_DEST,
+                                                  nullptr,
+                                                  IID_PPV_ARGS(&resource)));
+
+    const UINT subresourceCount = kEnvironmentMapFaceCount * mipCount;
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(resource.Get(), 0, subresourceCount);
+    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                                                  D3D12_HEAP_FLAG_NONE,
+                                                  &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                  nullptr,
+                                                  IID_PPV_ARGS(&uploadHeap)));
+
+    std::vector<std::vector<XMHALF4>> subresourcePixels(subresourceCount);
+    std::vector<D3D12_SUBRESOURCE_DATA> subresources(subresourceCount);
+
+    for (UINT face = 0; face < kEnvironmentMapFaceCount; ++face)
+    {
+        for (UINT mip = 0; mip < mipCount; ++mip)
+        {
+            const UINT mipSize = (std::max)(1u, outputSize >> mip);
+            const float roughness = mipCount > 1 ? static_cast<float>(mip) / static_cast<float>(mipCount - 1) : 0.0f;
+            const UINT subresourceIndex = face * mipCount + mip;
+            subresourcePixels[subresourceIndex].resize(static_cast<size_t>(mipSize) * mipSize);
+
+            for (UINT y = 0; y < mipSize; ++y)
+            {
+                for (UINT x = 0; x < mipSize; ++x)
+                {
+                    const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(mipSize) * 2.0f - 1.0f;
+                    const float v = 1.0f - (static_cast<float>(y) + 0.5f) / static_cast<float>(mipSize) * 2.0f;
+                    const XMFLOAT3 direction = Normalize(DirectionForCubeFace(face, u, v));
+                    const XMFLOAT3 color = ComputeSpecularPrefilter(image, direction, roughness);
+                    subresourcePixels[subresourceIndex][static_cast<size_t>(y) * mipSize + x] =
+                        XMHALF4(color.x, color.y, color.z, 1.0f);
+                }
+            }
+
+            subresources[subresourceIndex].pData = subresourcePixels[subresourceIndex].data();
+            subresources[subresourceIndex].RowPitch = mipSize * sizeof(XMHALF4);
+            subresources[subresourceIndex].SlicePitch = subresources[subresourceIndex].RowPitch * mipSize;
+        }
+    }
+
+    UpdateSubresources(commandList, resource.Get(), uploadHeap.Get(), 0, 0, subresourceCount, subresources.data());
+
+    commandList->ResourceBarrier(1,
+                                 &CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(),
+                                                                       D3D12_RESOURCE_STATE_COPY_DEST,
+                                                                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+    srv = AllocateTextureCubeSRV(device, descriptorHeapAllocator, resource.Get());
+    return true;
+}
+
+bool CreateSpecularPrefilterCubeFromProceduralEnvironment(ID3D12Device* device,
+                                                          ID3D12GraphicsCommandList* commandList,
+                                                          SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
+                                                          const ProceduralEnvironmentSettings& settings,
+                                                          UINT outputSize,
+                                                          UINT mipCount,
+                                                          ComPtr<ID3D12Resource>& uploadHeap,
+                                                          ComPtr<ID3D12Resource>& resource,
+                                                          DescriptorHeapHandle& srv)
+{
+    D3D12_RESOURCE_DESC textureDesc = {};
+    textureDesc.MipLevels = static_cast<UINT16>(mipCount);
+    textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    textureDesc.Width = outputSize;
+    textureDesc.Height = outputSize;
+    textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    textureDesc.DepthOrArraySize = kEnvironmentMapFaceCount;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.SampleDesc.Quality = 0;
+    textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                                                  D3D12_HEAP_FLAG_NONE,
+                                                  &textureDesc,
+                                                  D3D12_RESOURCE_STATE_COPY_DEST,
+                                                  nullptr,
+                                                  IID_PPV_ARGS(&resource)));
+
+    const UINT subresourceCount = kEnvironmentMapFaceCount * mipCount;
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(resource.Get(), 0, subresourceCount);
+    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                                                  D3D12_HEAP_FLAG_NONE,
+                                                  &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                  nullptr,
+                                                  IID_PPV_ARGS(&uploadHeap)));
+
+    std::vector<std::vector<XMHALF4>> subresourcePixels(subresourceCount);
+    std::vector<D3D12_SUBRESOURCE_DATA> subresources(subresourceCount);
+
+    for (UINT face = 0; face < kEnvironmentMapFaceCount; ++face)
+    {
+        for (UINT mip = 0; mip < mipCount; ++mip)
+        {
+            const UINT mipSize = (std::max)(1u, outputSize >> mip);
+            const float roughness = mipCount > 1 ? static_cast<float>(mip) / static_cast<float>(mipCount - 1) : 0.0f;
+            const UINT subresourceIndex = face * mipCount + mip;
+            subresourcePixels[subresourceIndex].resize(static_cast<size_t>(mipSize) * mipSize);
+
+            for (UINT y = 0; y < mipSize; ++y)
+            {
+                for (UINT x = 0; x < mipSize; ++x)
+                {
+                    const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(mipSize) * 2.0f - 1.0f;
+                    const float v = 1.0f - (static_cast<float>(y) + 0.5f) / static_cast<float>(mipSize) * 2.0f;
+                    const XMFLOAT3 direction = Normalize(DirectionForCubeFace(face, u, v));
+                    const XMFLOAT3 color = ComputeSpecularPrefilter(settings, direction, roughness);
+                    subresourcePixels[subresourceIndex][static_cast<size_t>(y) * mipSize + x] =
+                        XMHALF4(color.x, color.y, color.z, 1.0f);
+                }
+            }
+
+            subresources[subresourceIndex].pData = subresourcePixels[subresourceIndex].data();
+            subresources[subresourceIndex].RowPitch = mipSize * sizeof(XMHALF4);
+            subresources[subresourceIndex].SlicePitch = subresources[subresourceIndex].RowPitch * mipSize;
+        }
+    }
+
+    UpdateSubresources(commandList, resource.Get(), uploadHeap.Get(), 0, 0, subresourceCount, subresources.data());
+
+    commandList->ResourceBarrier(1,
+                                 &CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(),
+                                                                       D3D12_RESOURCE_STATE_COPY_DEST,
+                                                                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+    srv = AllocateTextureCubeSRV(device, descriptorHeapAllocator, resource.Get());
+    return true;
+}
 } // namespace
 
 void EnvironmentMap::CreateFromDdsOrProceduralFallback(ID3D12Device* device,
@@ -752,6 +988,31 @@ bool EnvironmentMap::TryCreateFromHdrEquirectangular(ID3D12Device* device,
                                   m_srv);
 }
 
+bool EnvironmentMap::TryCreateSpecularPrefilterFromHdrEquirectangular(
+    ID3D12Device* device,
+    ID3D12GraphicsCommandList* commandList,
+    SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
+    const HdrImage& image,
+    UINT outputSize,
+    UINT mipCount,
+    ComPtr<ID3D12Resource>& uploadHeap)
+{
+    if (image.width == 0 || image.height == 0 || image.pixels.empty())
+    {
+        return false;
+    }
+
+    return CreateSpecularPrefilterCubeFromHdrImage(device,
+                                                   commandList,
+                                                   descriptorHeapAllocator,
+                                                   image,
+                                                   outputSize,
+                                                   mipCount,
+                                                   uploadHeap,
+                                                   m_resource,
+                                                   m_srv);
+}
+
 void EnvironmentMap::CreateProcedural(ID3D12Device* device,
                                       ID3D12GraphicsCommandList* commandList,
                                       SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
@@ -769,6 +1030,25 @@ void EnvironmentMap::CreateProcedural(ID3D12Device* device,
                                         uploadHeap,
                                         m_resource,
                                         m_srv);
+}
+
+void EnvironmentMap::CreateSpecularPrefilterProcedural(ID3D12Device* device,
+                                                       ID3D12GraphicsCommandList* commandList,
+                                                       SimpleDescriptorHeapAllocator& descriptorHeapAllocator,
+                                                       const ProceduralEnvironmentSettings& settings,
+                                                       UINT outputSize,
+                                                       UINT mipCount,
+                                                       ComPtr<ID3D12Resource>& uploadHeap)
+{
+    CreateSpecularPrefilterCubeFromProceduralEnvironment(device,
+                                                         commandList,
+                                                         descriptorHeapAllocator,
+                                                         settings,
+                                                         outputSize,
+                                                         mipCount,
+                                                         uploadHeap,
+                                                         m_resource,
+                                                         m_srv);
 }
 
 bool EnvironmentMap::TryCreateFromDds(ID3D12Device* device,

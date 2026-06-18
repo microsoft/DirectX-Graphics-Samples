@@ -14,6 +14,7 @@
 #include "GraphicsDevice.h"
 #include "MyDx12Utils.h"
 #include "Renderer/ClearPass.h"
+#include "Renderer/BrdfLut.h"
 #include "Renderer/DebugDumpCapture.h"
 #include "Renderer/EnvironmentMap.h"
 #include "Renderer/GBuffer.h"
@@ -77,6 +78,14 @@ public:
         GBufferMotionVector,
         GBufferPBRParams,
         Depth,
+        ReflectionDirection,
+        ViewDirection,
+        WorldPosition,
+        NdotV,
+        IblEnvironment,
+        IblDiffuseIrradiance,
+        IblSpecularPrefilter,
+        IblBrdfLut,
     };
 
     enum class RenderingPath
@@ -94,6 +103,12 @@ public:
         bool skyboxEnabled = true;
         bool skyboxPreview = false;
         float skyboxPreviewExposure = 1.0f;
+        bool directLightEnabled = true;
+        bool diffuseIblEnabled = true;
+        bool specularIblEnabled = true;
+        bool emissiveEnabled = true;
+        float iblDebugMip = 0.0f;
+        float iblDebugExposure = 0.25f;
     };
 
     struct MaterialParams
@@ -162,6 +177,9 @@ private:
     static constexpr UINT kTexturePixelSize = 4; // The number of bytes used to represent a pixel in the texture.
     static constexpr UINT kEnvironmentMapCubeSize = 128;
     static constexpr UINT kDiffuseIrradianceCubeSize = 32;
+    static constexpr UINT kSpecularPrefilterCubeSize = 128;
+    static constexpr UINT kSpecularPrefilterMipCount = 6;
+    static constexpr UINT kBrdfLutSize = 256;
 
     struct PassKeyNames
     {
@@ -242,7 +260,12 @@ private:
 
     static constexpr UINT kInstanceBufferCount = kFrameCount;
     static constexpr UINT kMaterialBufferCount = 1;
-    static constexpr UINT kEnvironmentMapDescriptorCount = 2;
+    // Procedural environment reloads keep the previous descriptor table alive until its fence retires.
+    // Each table is env / diffuse irradiance / specular prefilter / BRDF LUT, plus m_brdfLut owns one SRV.
+    static constexpr UINT kEnvironmentDescriptorTableSize = 4;
+    static constexpr UINT kEnvironmentDescriptorTableCapacity = 4;
+    static constexpr UINT kEnvironmentMapDescriptorCount =
+        kEnvironmentDescriptorTableSize * kEnvironmentDescriptorTableCapacity + 1;
     static constexpr UINT kConstantBufferCount = kFrameCount;
     static constexpr UINT kLightConstantBufferCount = kFrameCount;
 
@@ -274,6 +297,13 @@ private:
         float skyboxEnabled = 1.0f;
         float skyboxPreview = 0.0f;
         float skyboxPreviewExposure = 1.0f;
+        float lightPassDebugViewMode = 0.0f;
+        float directLightEnabled = 1.0f;
+        float diffuseIblEnabled = 1.0f;
+        float specularIblEnabled = 1.0f;
+        float emissiveEnabled = 1.0f;
+        float iblDebugMip = 0.0f;
+        float iblDebugExposure = 0.25f;
     };
 
     LightingConstants MakeLightingConstants() const;
@@ -310,7 +340,18 @@ private:
 
         bool IsGBufferDebugView() const
         {
-            return renderViewMode != RenderViewMode::LightPass;
+            return renderViewMode != RenderViewMode::LightPass && !IsLightPassDebugView();
+        }
+        bool IsLightPassDebugView() const
+        {
+            return renderViewMode == RenderViewMode::ReflectionDirection ||
+                   renderViewMode == RenderViewMode::ViewDirection ||
+                   renderViewMode == RenderViewMode::WorldPosition ||
+                   renderViewMode == RenderViewMode::NdotV ||
+                   renderViewMode == RenderViewMode::IblEnvironment ||
+                   renderViewMode == RenderViewMode::IblDiffuseIrradiance ||
+                   renderViewMode == RenderViewMode::IblSpecularPrefilter ||
+                   renderViewMode == RenderViewMode::IblBrdfLut;
         }
         UINT GetGBufferDebugTarget() const
         {
@@ -336,13 +377,19 @@ private:
     DescriptorHeapHandle m_lightPassColorSrv;
 
     ComPtr<ID3D12RootSignature> m_rootSignature;
+    ComPtr<ID3D12RootSignature> m_proceduralEnvRootSignature;
     ComPtr<ID3D12RootSignature> m_lightingRootSignature; // not used in this sample but created for future use
+
+    ComPtr<ID3D12PipelineState> m_proceduralEnvPipeline;
 
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 
     ComPtr<ID3D12DescriptorHeap> m_heap;                     // CBV/SRV/UAV heap
     SimpleDescriptorHeapAllocator m_descriptorHeapAllocator; // Allocator for CBV/SRV/UAV heap
+    ComPtr<ID3D12DescriptorHeap> m_proceduralEnvUavHeap;
+    ComPtr<ID3D12Resource> m_proceduralEnvSettingsBuffer;
+    MyDx12Util::GpuTimestampPair m_proceduralEnvGpuTimer;
 
     RenderingPath m_renderingPath = RenderingPath::Deferred;
     bool m_lightingPassDebugGradientEnabled = false;
@@ -374,8 +421,41 @@ private:
 
     std::vector<ComPtr<ID3D12Resource>> m_texture;
     std::vector<DescriptorAllocation> m_textureSrvs;
+
+    struct EnvironmentDescriptorTable
+    {
+        DescriptorHeapHandle environment;
+        DescriptorHeapHandle diffuseIrradiance;
+        DescriptorHeapHandle specularPrefilter;
+        DescriptorHeapHandle brdfLut;
+
+        bool IsValid() const
+        {
+            return environment.IsValid();
+        }
+    };
+
+    struct PendingEnvironmentResources
+    {
+        UINT64 retireFenceValue = 0;
+        ComPtr<ID3D12Resource> environmentMap;
+        ComPtr<ID3D12Resource> diffuseIrradianceMap;
+        ComPtr<ID3D12Resource> specularPrefilterMap;
+        EnvironmentDescriptorTable descriptorTable;
+        DescriptorHeapHandle environmentSrv;
+        DescriptorHeapHandle diffuseIrradianceSrv;
+        DescriptorHeapHandle specularPrefilterSrv;
+        ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator;
+        ComPtr<ID3D12DescriptorHeap> proceduralEnvUavHeap;
+        ComPtr<ID3D12Resource> proceduralEnvSettingsBuffer;
+    };
+
     Engine::EnvironmentMap m_environmentMap;
     Engine::EnvironmentMap m_diffuseIrradianceMap;
+    Engine::EnvironmentMap m_specularPrefilterMap;
+    Engine::BrdfLut m_brdfLut;
+    EnvironmentDescriptorTable m_environmentDescriptorTable;
+    std::vector<PendingEnvironmentResources> m_pendingEnvironmentResources;
 
     UINT m_vertexCountPerInstance = 0;
     UINT m_indexCountPerInstance = 0;
@@ -460,11 +540,13 @@ private:
         GraphicsPipelineShaderSet lighting;
         GraphicsPipelineShaderSet lightingDebugGradient;
         GraphicsPipelineShaderSet toneMap;
+        ShaderBytecode proceduralEnv;
     };
 
     void LoadPipeline();
     void LoadAssets();
     void CreateRootSignature();
+    void CreateProceduralEnvRootSignature();
     void CreatePipelineStates();
     ShaderBytecode LoadShaderBytecode(LPCWSTR assetName);
     PipelineShaderBytecode LoadPipelineShaderBytecode();
@@ -473,8 +555,23 @@ private:
     void CreateSceneGeometryBuffers();
     void CreateSceneTextureResources(std::vector<ComPtr<ID3D12Resource>>& textureUploadHeap);
     void CreateEnvironmentMapResources(ComPtr<ID3D12Resource>& environmentMapUploadHeap,
-                                       ComPtr<ID3D12Resource>& diffuseIrradianceUploadHeap);
+                                       ComPtr<ID3D12Resource>& diffuseIrradianceUploadHeap,
+                                       ComPtr<ID3D12Resource>& specularPrefilterUploadHeap);
+    void CreateEnvironmentMapResourcesGpu(ComPtr<ID3D12Resource>& diffuseIrradianceUploadHeap,
+                                          ComPtr<ID3D12Resource>& specularPrefilterUploadHeap);
     void ReleaseEnvironmentMapResources();
+    UINT64 SignalFenceForQueuedGpuWork();
+    void RetireActiveEnvironmentResources(UINT64 retireFenceValue);
+    void RetireProceduralEnvGenerationResources(UINT64 retireFenceValue,
+                                                ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator);
+    void CollectGarbageEnvironmentResources();
+    EnvironmentDescriptorTable AllocateEnvironmentDescriptorTable();
+    void FreeEnvironmentDescriptorTable(const EnvironmentDescriptorTable& table);
+    void CreateEnvironmentDescriptorTableSrvs(ID3D12Resource* environmentMap,
+                                              ID3D12Resource* diffuseIrradianceMap,
+                                              ID3D12Resource* specularPrefilterMap,
+                                              const EnvironmentDescriptorTable& table);
+    void CreateEnvironmentBrdfLutSrv(const EnvironmentDescriptorTable& table);
     void ValidateEnvironmentMapDescriptorTable() const;
     void PrepareSceneInstanceData();
     void CreateSceneMaterialResources();

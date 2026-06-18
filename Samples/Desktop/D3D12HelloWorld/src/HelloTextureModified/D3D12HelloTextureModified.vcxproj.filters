@@ -54,6 +54,9 @@
     <ClInclude Include="GraphicsDevice.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\BrdfLut.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer\ClearPass.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
@@ -166,6 +169,9 @@
     </ClCompile>
     <ClCompile Include="GraphicsDevice.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\BrdfLut.cpp">
+      <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\ClearPass.cpp">
       <Filter>Source Files\Renderer</Filter>

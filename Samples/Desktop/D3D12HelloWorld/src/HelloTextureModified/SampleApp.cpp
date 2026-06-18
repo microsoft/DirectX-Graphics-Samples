@@ -12,6 +12,7 @@
 #include "stdafx.h"
 
 #include <algorithm>
+#include <cmath>
 #include "SampleApp.h"
 #include "imgui.h"
 #include "ImGuiWidgets.h"
@@ -91,6 +92,55 @@ void ApplyEnvironmentPreset(Engine::ProceduralEnvironmentSettings& settings, Eng
         default:
             break;
     }
+}
+
+XMFLOAT3 ProjectToArcball(int x, int y, UINT width, UINT height)
+{
+    const float minDimension = static_cast<float>((std::max)(1u, (std::min)(width, height)));
+    const float sx = (2.0f * static_cast<float>(x) - static_cast<float>(width)) / minDimension;
+    const float sy = (static_cast<float>(height) - 2.0f * static_cast<float>(y)) / minDimension;
+    const float lengthSquared = sx * sx + sy * sy;
+
+    XMVECTOR projected = {};
+    if (lengthSquared <= 1.0f)
+    {
+        projected = XMVectorSet(sx, sy, std::sqrt(1.0f - lengthSquared), 0.0f);
+    }
+    else
+    {
+        projected = XMVector3Normalize(XMVectorSet(sx, sy, 0.0f, 0.0f));
+    }
+
+    XMFLOAT3 result = {};
+    XMStoreFloat3(&result, projected);
+    return result;
+}
+
+XMFLOAT4 ArcballDeltaQuaternion(const XMFLOAT3& from, const XMFLOAT3& to)
+{
+    const XMVECTOR fromVec = XMVector3Normalize(XMLoadFloat3(&from));
+    const XMVECTOR toVec = XMVector3Normalize(XMLoadFloat3(&to));
+    const float dot = XMVectorGetX(XMVector3Dot(fromVec, toVec));
+
+    if (dot > 0.9999f)
+    {
+        return {0.0f, 0.0f, 0.0f, 1.0f};
+    }
+
+    XMVECTOR axis = XMVector3Cross(fromVec, toVec);
+    if (dot < -0.9999f)
+    {
+        axis = XMVector3Cross(fromVec, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+        if (XMVectorGetX(XMVector3LengthSq(axis)) < 0.0001f)
+        {
+            axis = XMVector3Cross(fromVec, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+        }
+    }
+
+    const XMVECTOR quaternion = XMQuaternionNormalize(XMVectorSetW(axis, 1.0f + dot));
+    XMFLOAT4 result = {};
+    XMStoreFloat4(&result, quaternion);
+    return result;
 }
 
 } // namespace
@@ -202,6 +252,7 @@ void SampleApp::OnMouseDown(UINT8 button, int x, int y)
         m_isDragging = true;
         m_lastMouseX = x;
         m_lastMouseY = y;
+        m_lastArcballVector = ProjectToArcball(x, y, GetWidth(), GetHeight());
     }
     else if (button == VK_MBUTTON)
     {
@@ -232,12 +283,13 @@ void SampleApp::OnMouseMove(int x, int y)
 
     if (m_isDragging)
     {
-        const int dx = x - m_lastMouseX;
-        const int dy = y - m_lastMouseY;
         m_lastMouseX = x;
         m_lastMouseY = y;
-        m_dragRotation.y += static_cast<float>(dx) * kMouseRotationSpeed;
-        m_dragRotation.x += static_cast<float>(dy) * kMouseRotationSpeed;
+        const XMFLOAT3 currentArcballVector = ProjectToArcball(x, y, GetWidth(), GetHeight());
+        const XMFLOAT4 deltaRotation = ArcballDeltaQuaternion(currentArcballVector, m_lastArcballVector);
+        m_lastArcballVector = currentArcballVector;
+        const XMVECTOR rotation = XMQuaternionMultiply(XMLoadFloat4(&m_dragRotation), XMLoadFloat4(&deltaRotation));
+        XMStoreFloat4(&m_dragRotation, XMQuaternionNormalize(rotation));
     }
     else if (m_isMiddleDragging)
     {
@@ -332,7 +384,8 @@ void SampleApp::LoadSceneCpuData(int sceneIndex)
     m_meshScale = m_loadedScene->DefaultMeshScale();
     m_displayInstanceCount = m_loadedScene->DisplayInstanceCount();
     m_selectedMaterialIndex = 0;
-    m_dragRotation = {0.0f, 0.0f};
+    m_lastArcballVector = {0.0f, 0.0f, 1.0f};
+    m_dragRotation = {0.0f, 0.0f, 0.0f, 1.0f};
     m_sceneResourcesLoaded = false;
 }
 
@@ -471,7 +524,13 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
     ImGui::Checkbox("IBL Enabled", &m_iblEnabled);
     ImGui::BeginDisabled(!m_iblEnabled);
     ImGuiWidgets::SliderFloatWithControls("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f, 0.05f, 1.0f);
+    ImGui::Checkbox("Diffuse IBL", &m_lightingParams.diffuseIblEnabled);
+    ImGui::SameLine();
+    ImGui::Checkbox("Specular IBL", &m_lightingParams.specularIblEnabled);
     ImGui::EndDisabled();
+    ImGui::Checkbox("Direct Light", &m_lightingParams.directLightEnabled);
+    ImGui::SameLine();
+    ImGui::Checkbox("Emissive", &m_lightingParams.emissiveEnabled);
     if (ImGui::CollapsingHeader("Environment Map", ImGuiTreeNodeFlags_DefaultOpen))
     {
         bool environmentApplyRequested = false;
@@ -483,69 +542,93 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
             ApplyEnvironmentPreset(m_environmentSettings, static_cast<Engine::EnvironmentSource>(environmentSource));
             environmentApplyRequested = true;
         }
+        ImGui::SameLine();
+        ImGui::Text("%s", EnvironmentSourceLabel(m_environmentSettings.source));
         if (m_environmentSettings.source != Engine::EnvironmentSource::AssetHdr)
         {
-            ImGui::ColorEdit3("Sky Color", &m_environmentSettings.skyColor.x);
-            ImGui::ColorEdit3("Ground Color", &m_environmentSettings.groundColor.x);
+            ImGui::SameLine();
+            ImGui::Checkbox("Update", &m_environmentAutoUpdate);
+            environmentApplyRequested |= ImGui::ColorEdit3("Sky Color", &m_environmentSettings.skyColor.x);
+            environmentApplyRequested |= ImGui::ColorEdit3("Ground Color", &m_environmentSettings.groundColor.x);
             const bool colorPanels = m_environmentSettings.source == Engine::EnvironmentSource::ProceduralColorPanels;
             if (!colorPanels)
             {
-                ImGui::ColorEdit3("Env Light Color", &m_environmentSettings.lightColor.x);
+                environmentApplyRequested |= ImGui::ColorEdit3("Env Light Color", &m_environmentSettings.lightColor.x);
                 static constexpr float defaultEnvLightDir[] = {0.35f, 0.75f, 0.25f};
-                ImGuiWidgets::SliderFloat3WithControls("Env Light Direction", &m_environmentSettings.lightDirection.x,
-                                                       -1.0f, 1.0f, 0.05f, defaultEnvLightDir);
+                if (ImGuiWidgets::SliderFloat3WithControls("Env Light Direction", &m_environmentSettings.lightDirection.x,
+                                                       -1.0f, 1.0f, 0.05f, defaultEnvLightDir))
+                {
+                    environmentApplyRequested = true;
+                }
             }
-            ImGuiWidgets::SliderFloatWithControls("Env Background",
+            if (ImGuiWidgets::SliderFloatWithControls("Env Background",
                                                   &m_environmentSettings.backgroundIntensity,
                                                   0.0f,
                                                   4.0f,
                                                   0.05f,
-                                                  0.6f);
+                                                  0.6f))
+            {
+                environmentApplyRequested = true;
+            }
             if (!colorPanels)
             {
-                ImGuiWidgets::SliderFloatWithControls("Env Light Intensity",
+                if (ImGuiWidgets::SliderFloatWithControls("Env Light Intensity",
                                                       &m_environmentSettings.lightIntensity,
                                                       0.0f,
                                                       40.0f,
                                                       0.5f,
-                                                      6.0f);
-                ImGuiWidgets::SliderFloatWithControls("Env Light Size",
+                                                      6.0f))
+                {
+                    environmentApplyRequested = true;
+                }
+                if (ImGuiWidgets::SliderFloatWithControls("Env Light Size",
                                                       &m_environmentSettings.lightSize,
                                                       0.01f,
                                                       0.8f,
                                                       0.01f,
-                                                      0.12f);
+                                                      0.12f))
+                {
+                    environmentApplyRequested = true;
+                }
             }
-            ImGuiWidgets::SliderFloatWithControls(
-                "Env Fill", &m_environmentSettings.fillIntensity, 0.0f, 2.0f, 0.05f, 0.12f);
+            if (ImGuiWidgets::SliderFloatWithControls(
+                "Env Fill", &m_environmentSettings.fillIntensity, 0.0f, 2.0f, 0.05f, 0.12f))
+            {
+                environmentApplyRequested = true;
+            }
             if (colorPanels)
             {
-                ImGuiWidgets::SliderFloatWithControls("Color Panel Intensity",
+                if (ImGuiWidgets::SliderFloatWithControls("Color Panel Intensity",
                                                       &m_environmentSettings.colorPanelIntensity,
                                                       0.0f,
                                                       8.0f,
                                                       0.1f,
-                                                      1.5f);
+                                                      1.5f))
+                {
+                    environmentApplyRequested = true;
+                }
             }
             if (m_environmentSettings.source == Engine::EnvironmentSource::ProceduralHorizon)
             {
-                ImGuiWidgets::SliderFloatWithControls("Horizon Width",
+                if (ImGuiWidgets::SliderFloatWithControls("Horizon Width",
                                                       &m_environmentSettings.horizonSharpness,
                                                       0.01f,
                                                       0.5f,
                                                       0.01f,
-                                                      0.08f);
+                                                      0.08f))
+                {
+                    environmentApplyRequested = true;
+                }
             }
         }
-        if (ImGui::Button("Apply Environment"))
-        {
-            environmentApplyRequested = true;
-        }
-        ImGui::SameLine();
-        ImGui::Text("%s", EnvironmentSourceLabel(m_environmentSettings.source));
         if (environmentApplyRequested)
         {
+            m_environmentReloadPending = true;
+        }
+        if (m_environmentReloadPending && m_environmentAutoUpdate && !ImGui::IsAnyItemActive())
+        {
             m_engine.ReloadEnvironmentResources(m_environmentSettings);
+            m_environmentReloadPending = false;
         }
     }
     ImGui::Checkbox("Show Skybox", &m_lightingParams.skyboxEnabled);
@@ -627,7 +710,31 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
     ImGui::RadioButton("PBR Params", &renderViewMode, static_cast<int>(RenderViewMode::GBufferPBRParams));
     ImGui::SameLine();
     ImGui::RadioButton("Depth", &renderViewMode, static_cast<int>(RenderViewMode::Depth));
+    ImGui::SameLine();
+    ImGui::RadioButton("ReflectionDir", &renderViewMode, static_cast<int>(RenderViewMode::ReflectionDirection));
+    ImGui::RadioButton("ViewDir", &renderViewMode, static_cast<int>(RenderViewMode::ViewDirection));
+    ImGui::SameLine();
+    ImGui::RadioButton("WorldPos", &renderViewMode, static_cast<int>(RenderViewMode::WorldPosition));
+    ImGui::SameLine();
+    ImGui::RadioButton("NdotV", &renderViewMode, static_cast<int>(RenderViewMode::NdotV));
+    ImGui::RadioButton("EnvMap", &renderViewMode, static_cast<int>(RenderViewMode::IblEnvironment));
+    ImGui::SameLine();
+    ImGui::RadioButton("Irradiance", &renderViewMode, static_cast<int>(RenderViewMode::IblDiffuseIrradiance));
+    ImGui::SameLine();
+    ImGui::RadioButton("Prefilter", &renderViewMode, static_cast<int>(RenderViewMode::IblSpecularPrefilter));
+    ImGui::SameLine();
+    ImGui::RadioButton("BRDF LUT", &renderViewMode, static_cast<int>(RenderViewMode::IblBrdfLut));
     m_renderViewMode = static_cast<RenderViewMode>(renderViewMode);
+    const bool iblDebugView = m_renderViewMode == RenderViewMode::IblEnvironment ||
+        m_renderViewMode == RenderViewMode::IblDiffuseIrradiance ||
+        m_renderViewMode == RenderViewMode::IblSpecularPrefilter;
+    ImGui::BeginDisabled(!iblDebugView);
+    ImGuiWidgets::SliderFloatWithControls(
+        "IBL Debug Exposure", &m_lightingParams.iblDebugExposure, 0.01f, 2.0f, 0.05f, 0.25f);
+    ImGui::EndDisabled();
+    ImGui::BeginDisabled(m_renderViewMode != RenderViewMode::IblSpecularPrefilter);
+    ImGuiWidgets::SliderFloatWithControls("Prefilter Mip", &m_lightingParams.iblDebugMip, 0.0f, 5.0f, 1.0f, 0.0f);
+    ImGui::EndDisabled();
     ImGui::EndDisabled();
 
     if (!deferredRendering)

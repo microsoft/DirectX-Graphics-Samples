@@ -136,6 +136,7 @@
     <ClInclude Include="GraphicsDevice.h" />
     <ClInclude Include="ImGuiWidgets.h" />
     <ClInclude Include="MyDx12Utils.h" />
+    <ClInclude Include="Renderer\BrdfLut.h" />
     <ClInclude Include="Renderer\ClearPass.h" />
     <ClInclude Include="Renderer\DebugDumpCapture.h" />
     <ClInclude Include="Renderer\DebugDumpReport.h" />
@@ -172,6 +173,7 @@
     <ClCompile Include="CubeMesh.cpp" />
     <ClCompile Include="GltfLoader.cpp" />
     <ClCompile Include="GraphicsDevice.cpp" />
+    <ClCompile Include="Renderer\BrdfLut.cpp" />
     <ClCompile Include="Renderer\ClearPass.cpp" />
     <ClCompile Include="Renderer\DebugDumpCapture.cpp" />
     <ClCompile Include="Renderer\DebugDumpReport.cpp" />
@@ -305,6 +307,17 @@ dxc.exe -nologo -Tps_6_0 -E"PSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_P
 dxc.exe -nologo -Tps_6_0 -E"PSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_PSMain.cso" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename)_VSMain.cso;$(OutDir)%(Filename)_PSMain.cso</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename)_VSMain.cso;$(OutDir)%(Filename)_PSMain.cso</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="shaders_ProceduralEnvMap.hlsl">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+      <FileType>Document</FileType>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Identity)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Identity)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -Tcs_6_0 -E"CSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_CSMain.cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -Tcs_6_0 -E"CSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_CSMain.cso" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename)_CSMain.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename)_CSMain.cso</Outputs>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -11,7 +11,7 @@ struct SampleSceneUpdateContext
 {
     bool isPlaying = false;
     float meshScale = 1.0f;
-    DirectX::XMFLOAT2 dragRotation = {0.0f, 0.0f};
+    DirectX::XMFLOAT4 dragRotation = {0.0f, 0.0f, 0.0f, 1.0f};
 };
 
 class SampleScene
@@ -90,7 +90,7 @@ public:
 
 private:
     void CreateSphereMesh();
-    void CreateMaterialArray();
+    void CreateMaterialArray(int neutralTextureIndex, int blackTextureIndex);
     void CreateInstances(const SampleSceneUpdateContext& context);
 
     int m_maxInstanceCount = 0;

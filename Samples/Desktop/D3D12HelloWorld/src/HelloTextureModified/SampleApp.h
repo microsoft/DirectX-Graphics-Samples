@@ -60,7 +60,6 @@ private:
     void DrawSceneSelectUi();
 
     static constexpr UINT kMaxInstanceCount = HelloTextureEngine::kMaxInstanceCount;
-    static constexpr float kMouseRotationSpeed = 0.01f;
     static constexpr float kMousePanSpeed = 0.01f;
     static constexpr float kMouseWheelCameraSpeed = 0.25f;
     static constexpr float kMouseWheelFovSpeed = 1.0f;
@@ -77,6 +76,8 @@ private:
 
     HelloTextureEngine::LightingParams m_lightingParams;
     Engine::ProceduralEnvironmentSettings m_environmentSettings;
+    bool m_environmentAutoUpdate = Engine::kUseGpuProceduralEnvMap;
+    bool m_environmentReloadPending = false;
     HelloTextureEngine::RenderingPath m_renderingPath = HelloTextureEngine::RenderingPath::Deferred;
     bool m_iblEnabled = true;
     bool m_lightingPassDebugGradient = false;
@@ -94,7 +95,8 @@ private:
     bool m_isMiddleDragging = false;
     int m_lastMouseX = 0;
     int m_lastMouseY = 0;
-    XMFLOAT2 m_dragRotation = {0.0f, 0.0f};
+    XMFLOAT3 m_lastArcballVector = {0.0f, 0.0f, 1.0f};
+    XMFLOAT4 m_dragRotation = {0.0f, 0.0f, 0.0f, 1.0f};
     XMFLOAT2 m_dragPan = {0.0f, 0.0f};
 
     std::chrono::steady_clock::time_point m_prevTime;

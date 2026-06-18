@@ -58,6 +58,7 @@
 #include <d3dx12_resource_helpers.h>
 #include <d3dx12_root_signature.h>
 #include <dxgiformat.h>
+#include <d3dcompiler.h>
 #include <pix3.h>
 
 extern "C"
@@ -192,6 +193,16 @@ auto HelloTextureEngine::MakeLightingConstants() const -> LightingConstants
         m_lightingParams.skyboxEnabled ? 1.0f : 0.0f,
         m_lightingParams.skyboxPreview ? 1.0f : 0.0f,
         m_lightingParams.skyboxPreviewExposure,
+        m_debugViewSettings.IsLightPassDebugView()
+            ? static_cast<float>(static_cast<int>(m_debugViewSettings.renderViewMode) -
+                                 static_cast<int>(RenderViewMode::ReflectionDirection) + 1)
+            : 0.0f,
+        m_lightingParams.directLightEnabled ? 1.0f : 0.0f,
+        m_lightingParams.diffuseIblEnabled ? 1.0f : 0.0f,
+        m_lightingParams.specularIblEnabled ? 1.0f : 0.0f,
+        m_lightingParams.emissiveEnabled ? 1.0f : 0.0f,
+        m_lightingParams.iblDebugMip,
+        m_lightingParams.iblDebugExposure,
     };
 }
 
@@ -277,13 +288,49 @@ void HelloTextureEngine::SetRequestHdrDump(bool request)
 
 void HelloTextureEngine::ReloadEnvironmentResources(const Engine::ProceduralEnvironmentSettings& settings)
 {
+    MyDx12Util::ScopedTimer _reloadTimer("ReloadEnvironmentResources total");
+
     m_environmentSettings = settings;
 
     WCHAR debugMessage[160] = {};
     swprintf_s(debugMessage, L"ReloadEnvironmentResources source=%s\n", EnvironmentSourceName(settings.source));
     OutputDebugStringW(debugMessage);
 
-    WaitForGpu();
+    if constexpr (Engine::kUseGpuProceduralEnvMap)
+    {
+        if (m_environmentSettings.source != Engine::EnvironmentSource::AssetHdr)
+        {
+            CollectGarbageEnvironmentResources();
+            if (m_environmentMap.Resource() != nullptr)
+            {
+                const UINT64 retireFenceValue = SignalFenceForQueuedGpuWork();
+                RetireActiveEnvironmentResources(retireFenceValue);
+            }
+
+            ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator;
+            ThrowIfFailed(m_graphicsDevice.Device()->CreateCommandAllocator(
+                D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&proceduralEnvCommandAllocator)));
+            ThrowIfFailed(m_commandList->Reset(proceduralEnvCommandAllocator.Get(), nullptr));
+
+            ComPtr<ID3D12Resource> diffuseIrradianceUploadHeap;
+            ComPtr<ID3D12Resource> specularPrefilterUploadHeap;
+            CreateEnvironmentMapResourcesGpu(diffuseIrradianceUploadHeap,
+                                             specularPrefilterUploadHeap);
+
+            ThrowIfFailed(m_commandList->Close());
+            ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
+            m_graphicsDevice.ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+            const UINT64 generationFenceValue = SignalFenceForQueuedGpuWork();
+            RetireProceduralEnvGenerationResources(generationFenceValue, proceduralEnvCommandAllocator);
+            return;
+        }
+    }
+
+    {
+        MyDx12Util::ScopedTimer _waitGpu("  WaitForGpu (before reload)");
+        WaitForGpu();
+    }
+    CollectGarbageEnvironmentResources();
     ThrowIfFailed(m_frameResources[m_currentFrameIndex].commandAllocator->Reset());
     ThrowIfFailed(m_commandList->Reset(m_frameResources[m_currentFrameIndex].commandAllocator.Get(), nullptr));
 
@@ -291,13 +338,19 @@ void HelloTextureEngine::ReloadEnvironmentResources(const Engine::ProceduralEnvi
 
     ComPtr<ID3D12Resource> environmentMapUploadHeap;
     ComPtr<ID3D12Resource> diffuseIrradianceUploadHeap;
-    CreateEnvironmentMapResources(environmentMapUploadHeap, diffuseIrradianceUploadHeap);
-    ValidateEnvironmentMapDescriptorTable();
+    ComPtr<ID3D12Resource> specularPrefilterUploadHeap;
+    {
+        MyDx12Util::ScopedTimer _cpuPath("  CreateEnvironmentMapResources (CPU path)");
+        CreateEnvironmentMapResources(environmentMapUploadHeap, diffuseIrradianceUploadHeap, specularPrefilterUploadHeap);
+    }
 
     ThrowIfFailed(m_commandList->Close());
     ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
     m_graphicsDevice.ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-    WaitForGpu();
+    {
+        MyDx12Util::ScopedTimer _waitGpu("  WaitForGpu (CPU path)");
+        WaitForGpu();
+    }
 }
 
 void HelloTextureEngine::UpdateCameraConstantBuffer()
@@ -345,7 +398,6 @@ void HelloTextureEngine::LoadPipeline()
         ThrowIfFailed(m_graphicsDevice.Device()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_heap)));
         // Create a descriptor allocator to manage the descriptors in the heap.
         m_descriptorHeapAllocator.Init(m_graphicsDevice.Device(), m_heap.Get());
-
     }
 
     // create render target views (RTVs) for the swap chain back buffers.
@@ -378,6 +430,8 @@ void HelloTextureEngine::LoadPipeline()
     //
     m_gpuWorkMeter.Init(m_graphicsDevice.Device(),
                         kGpuWorkMeterQueryCount); // Initialize GPU work meter with a maximum of 100 timestamp queries.
+
+    m_proceduralEnvGpuTimer.Init(m_graphicsDevice.Device());
 }
 
 void HelloTextureEngine::UpdateHdr10DisplayMode()
@@ -433,7 +487,8 @@ DescriptorAllocation HelloTextureEngine::CreateTextureFromRGBA8(
 }
 
 void HelloTextureEngine::CreateEnvironmentMapResources(ComPtr<ID3D12Resource>& environmentMapUploadHeap,
-                                                       ComPtr<ID3D12Resource>& diffuseIrradianceUploadHeap)
+                                                       ComPtr<ID3D12Resource>& diffuseIrradianceUploadHeap,
+                                                       ComPtr<ID3D12Resource>& specularPrefilterUploadHeap)
 {
     if (m_environmentSettings.source == Engine::EnvironmentSource::AssetHdr)
     {
@@ -461,7 +516,15 @@ void HelloTextureEngine::CreateEnvironmentMapResources(ComPtr<ID3D12Resource>& e
                                                                        kDiffuseIrradianceCubeSize,
                                                                        true,
                                                                        diffuseIrradianceUploadHeap);
-            if (environmentMapCreated && diffuseIrradianceCreated)
+            const bool specularPrefilterCreated =
+                m_specularPrefilterMap.TryCreateSpecularPrefilterFromHdrEquirectangular(m_graphicsDevice.Device(),
+                                                                                        m_commandList.Get(),
+                                                                                        m_descriptorHeapAllocator,
+                                                                                        hdrImage,
+                                                                                        kSpecularPrefilterCubeSize,
+                                                                                        kSpecularPrefilterMipCount,
+                                                                                        specularPrefilterUploadHeap);
+            if (environmentMapCreated && diffuseIrradianceCreated && specularPrefilterCreated)
             {
                 return;
             }
@@ -479,7 +542,8 @@ void HelloTextureEngine::CreateEnvironmentMapResources(ComPtr<ID3D12Resource>& e
     }
 
     WCHAR debugMessage[160] = {};
-    swprintf_s(debugMessage, L"Creating procedural environment source=%s\n", EnvironmentSourceName(fallbackSettings.source));
+    swprintf_s(
+        debugMessage, L"Creating procedural environment source=%s\n", EnvironmentSourceName(fallbackSettings.source));
     OutputDebugStringW(debugMessage);
 
     m_environmentMap.CreateProcedural(m_graphicsDevice.Device(),
@@ -496,43 +560,432 @@ void HelloTextureEngine::CreateEnvironmentMapResources(ComPtr<ID3D12Resource>& e
                                             kDiffuseIrradianceCubeSize,
                                             true,
                                             diffuseIrradianceUploadHeap);
+    m_specularPrefilterMap.CreateSpecularPrefilterProcedural(m_graphicsDevice.Device(),
+                                                             m_commandList.Get(),
+                                                             m_descriptorHeapAllocator,
+                                                             fallbackSettings,
+                                                             kSpecularPrefilterCubeSize,
+                                                             kSpecularPrefilterMipCount,
+                                                             specularPrefilterUploadHeap);
 }
 
 void HelloTextureEngine::ReleaseEnvironmentMapResources()
 {
-    // Free diffuse first so the simple LIFO allocator gives Environment and Diffuse descriptors back contiguously.
+    if (m_environmentDescriptorTable.IsValid())
+    {
+        ComPtr<ID3D12Resource> resource;
+        DescriptorHeapHandle srv;
+        m_specularPrefilterMap.Detach(resource, srv);
+        m_diffuseIrradianceMap.Detach(resource, srv);
+        m_environmentMap.Detach(resource, srv);
+        FreeEnvironmentDescriptorTable(m_environmentDescriptorTable);
+        m_environmentDescriptorTable = {};
+        return;
+    }
+
+    m_specularPrefilterMap.Release(m_descriptorHeapAllocator);
     m_diffuseIrradianceMap.Release(m_descriptorHeapAllocator);
     m_environmentMap.Release(m_descriptorHeapAllocator);
+}
+
+UINT64 HelloTextureEngine::SignalFenceForQueuedGpuWork()
+{
+    const UINT64 fenceValue = m_frameResources[m_currentFrameIndex].fenceValue;
+    m_graphicsDevice.SignalFence(fenceValue);
+    m_frameResources[m_currentFrameIndex].fenceValue++;
+    return fenceValue;
+}
+
+void HelloTextureEngine::RetireActiveEnvironmentResources(UINT64 retireFenceValue)
+{
+    PendingEnvironmentResources pending = {};
+    pending.retireFenceValue = retireFenceValue;
+    pending.descriptorTable = m_environmentDescriptorTable;
+
+    m_environmentMap.Detach(pending.environmentMap, pending.environmentSrv);
+    m_diffuseIrradianceMap.Detach(pending.diffuseIrradianceMap, pending.diffuseIrradianceSrv);
+    m_specularPrefilterMap.Detach(pending.specularPrefilterMap, pending.specularPrefilterSrv);
+    m_environmentDescriptorTable = {};
+
+    m_pendingEnvironmentResources.push_back(std::move(pending));
+}
+
+void HelloTextureEngine::RetireProceduralEnvGenerationResources(
+    UINT64 retireFenceValue,
+    ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator)
+{
+    PendingEnvironmentResources pending = {};
+    pending.retireFenceValue = retireFenceValue;
+    pending.proceduralEnvCommandAllocator = proceduralEnvCommandAllocator;
+    pending.proceduralEnvUavHeap = m_proceduralEnvUavHeap;
+    pending.proceduralEnvSettingsBuffer = m_proceduralEnvSettingsBuffer;
+    m_proceduralEnvUavHeap.Reset();
+    m_proceduralEnvSettingsBuffer.Reset();
+
+    m_pendingEnvironmentResources.push_back(std::move(pending));
+}
+
+void HelloTextureEngine::CollectGarbageEnvironmentResources()
+{
+    const UINT64 completedFenceValue = m_graphicsDevice.CompletedFenceValue();
+    auto iter = m_pendingEnvironmentResources.begin();
+    while (iter != m_pendingEnvironmentResources.end())
+    {
+        if (completedFenceValue < iter->retireFenceValue)
+        {
+            ++iter;
+            continue;
+        }
+
+        if (iter->descriptorTable.IsValid())
+        {
+            FreeEnvironmentDescriptorTable(iter->descriptorTable);
+        }
+        else
+        {
+            m_descriptorHeapAllocator.Free(iter->specularPrefilterSrv);
+            m_descriptorHeapAllocator.Free(iter->diffuseIrradianceSrv);
+            m_descriptorHeapAllocator.Free(iter->environmentSrv);
+        }
+
+        iter = m_pendingEnvironmentResources.erase(iter);
+    }
+}
+
+auto HelloTextureEngine::AllocateEnvironmentDescriptorTable() -> EnvironmentDescriptorTable
+{
+    EnvironmentDescriptorTable table = {};
+    table.environment = m_descriptorHeapAllocator.AllocContiguous(kEnvironmentDescriptorTableSize);
+    table.diffuseIrradiance = m_descriptorHeapAllocator.HandleFromIndex(table.environment.Index + 1);
+    table.specularPrefilter = m_descriptorHeapAllocator.HandleFromIndex(table.environment.Index + 2);
+    table.brdfLut = m_descriptorHeapAllocator.HandleFromIndex(table.environment.Index + 3);
+    return table;
+}
+
+void HelloTextureEngine::FreeEnvironmentDescriptorTable(const EnvironmentDescriptorTable& table)
+{
+    if (!table.IsValid())
+    {
+        return;
+    }
+
+    m_descriptorHeapAllocator.Free(table.brdfLut);
+    m_descriptorHeapAllocator.Free(table.specularPrefilter);
+    m_descriptorHeapAllocator.Free(table.diffuseIrradiance);
+    m_descriptorHeapAllocator.Free(table.environment);
+}
+
+void HelloTextureEngine::CreateEnvironmentDescriptorTableSrvs(ID3D12Resource* environmentMap,
+                                                              ID3D12Resource* diffuseIrradianceMap,
+                                                              ID3D12Resource* specularPrefilterMap,
+                                                              const EnvironmentDescriptorTable& table)
+{
+    auto* device = m_graphicsDevice.Device();
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC cubeSrvDesc = {};
+    cubeSrvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    cubeSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+    cubeSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    cubeSrvDesc.TextureCube.MostDetailedMip = 0;
+
+    cubeSrvDesc.TextureCube.MipLevels = 1;
+    device->CreateShaderResourceView(environmentMap, &cubeSrvDesc, table.environment.cpu);
+    device->CreateShaderResourceView(diffuseIrradianceMap, &cubeSrvDesc, table.diffuseIrradiance.cpu);
+
+    cubeSrvDesc.TextureCube.MipLevels = kSpecularPrefilterMipCount;
+    device->CreateShaderResourceView(specularPrefilterMap, &cubeSrvDesc, table.specularPrefilter.cpu);
+
+    CreateEnvironmentBrdfLutSrv(table);
+}
+
+void HelloTextureEngine::CreateEnvironmentBrdfLutSrv(const EnvironmentDescriptorTable& table)
+{
+    if (!table.IsValid() || m_brdfLut.Resource() == nullptr)
+    {
+        return;
+    }
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC brdfSrvDesc = {};
+    brdfSrvDesc.Format = DXGI_FORMAT_R16G16_FLOAT;
+    brdfSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    brdfSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    brdfSrvDesc.Texture2D.MipLevels = 1;
+    m_graphicsDevice.Device()->CreateShaderResourceView(m_brdfLut.Resource(), &brdfSrvDesc, table.brdfLut.cpu);
+}
+
+void HelloTextureEngine::CreateEnvironmentMapResourcesGpu(ComPtr<ID3D12Resource>& diffuseIrradianceUploadHeap,
+                                                          ComPtr<ID3D12Resource>& specularPrefilterUploadHeap)
+{
+    MyDx12Util::ScopedTimer _total("  CreateEnvironmentMapResourcesGpu total");
+    (void)diffuseIrradianceUploadHeap;
+    (void)specularPrefilterUploadHeap;
+
+    auto* device = m_graphicsDevice.Device();
+    auto* commandList = m_commandList.Get();
+
+    Engine::ProceduralEnvironmentSettings settings = m_environmentSettings;
+    if (settings.source == Engine::EnvironmentSource::AssetHdr)
+    {
+        settings.source = Engine::EnvironmentSource::ProceduralSun;
+    }
+
+    static constexpr UINT kEnvironmentMapFaceCount = 6;
+    static constexpr int kGenerateEnvironment = 0;
+    static constexpr int kGenerateDiffuseIrradiance = 1;
+    static constexpr int kGenerateSpecularPrefilter = 2;
+
+    ComPtr<ID3D12Resource> environmentMap;
+    ComPtr<ID3D12Resource> diffuseIrradianceMap;
+    ComPtr<ID3D12Resource> specularPrefilterMap;
+    {
+        MyDx12Util::ScopedTimer _createRes("    Create texture resources");
+
+        auto createUavCubeResource = [device](UINT size, UINT mipCount, ComPtr<ID3D12Resource>& resource)
+        {
+            D3D12_RESOURCE_DESC textureDesc = {};
+            textureDesc.MipLevels = static_cast<UINT16>(mipCount);
+            textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            textureDesc.Width = size;
+            textureDesc.Height = size;
+            textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+            textureDesc.DepthOrArraySize = kEnvironmentMapFaceCount;
+            textureDesc.SampleDesc.Count = 1;
+            textureDesc.SampleDesc.Quality = 0;
+            textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+            ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                                                          D3D12_HEAP_FLAG_NONE,
+                                                          &textureDesc,
+                                                          D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                                          nullptr,
+                                                          IID_PPV_ARGS(&resource)));
+        };
+
+        createUavCubeResource(kEnvironmentMapCubeSize, 1, environmentMap);
+        createUavCubeResource(kDiffuseIrradianceCubeSize, 1, diffuseIrradianceMap);
+        createUavCubeResource(kSpecularPrefilterCubeSize, kSpecularPrefilterMipCount, specularPrefilterMap);
+    }
+
+    struct alignas(16) GpuSettings
+    {
+        int source;
+        int pad0[3];
+        DirectX::XMFLOAT4 skyColor;
+        DirectX::XMFLOAT4 groundColor;
+        DirectX::XMFLOAT4 lightColor;
+        DirectX::XMFLOAT4 lightDirection;
+        float backgroundIntensity;
+        float lightIntensity;
+        float lightSize;
+        float fillIntensity;
+        float colorPanelIntensity;
+        float horizonSharpness;
+        int outputSize;
+        int generationMode;
+        float roughness;
+        int pad2;
+    };
+
+    static_assert(sizeof(GpuSettings) % 16 == 0);
+    const UINT gpuSettingsStride = (sizeof(GpuSettings) + 255u) & ~255u;
+    const UINT dispatchCount = 2 + kSpecularPrefilterMipCount;
+    std::vector<GpuSettings> gpuSettings(dispatchCount);
+
+    auto makeGpuSettings = [&settings](int generationMode, UINT outputSize, float roughness)
+    {
+        GpuSettings result = {};
+        result.source = static_cast<int>(settings.source);
+        result.skyColor = DirectX::XMFLOAT4(settings.skyColor.x, settings.skyColor.y, settings.skyColor.z, 0.0f);
+        result.groundColor =
+            DirectX::XMFLOAT4(settings.groundColor.x, settings.groundColor.y, settings.groundColor.z, 0.0f);
+        result.lightColor =
+            DirectX::XMFLOAT4(settings.lightColor.x, settings.lightColor.y, settings.lightColor.z, 0.0f);
+        result.lightDirection =
+            DirectX::XMFLOAT4(settings.lightDirection.x, settings.lightDirection.y, settings.lightDirection.z, 0.0f);
+        result.backgroundIntensity = settings.backgroundIntensity;
+        result.lightIntensity = settings.lightIntensity;
+        result.lightSize = settings.lightSize;
+        result.fillIntensity = settings.fillIntensity;
+        result.colorPanelIntensity = settings.colorPanelIntensity;
+        result.horizonSharpness = settings.horizonSharpness;
+        result.outputSize = static_cast<int>(outputSize);
+        result.generationMode = generationMode;
+        result.roughness = roughness;
+        return result;
+    };
+
+    gpuSettings[0] = makeGpuSettings(kGenerateEnvironment, kEnvironmentMapCubeSize, 0.0f);
+    gpuSettings[1] = makeGpuSettings(kGenerateDiffuseIrradiance, kDiffuseIrradianceCubeSize, 0.0f);
+    for (UINT mip = 0; mip < kSpecularPrefilterMipCount; ++mip)
+    {
+        const UINT mipSize = (std::max)(1u, kSpecularPrefilterCubeSize >> mip);
+        const float roughness = kSpecularPrefilterMipCount > 1
+                                    ? static_cast<float>(mip) / static_cast<float>(kSpecularPrefilterMipCount - 1)
+                                    : 0.0f;
+        gpuSettings[2 + mip] = makeGpuSettings(kGenerateSpecularPrefilter, mipSize, roughness);
+    }
+
+    {
+        MyDx12Util::ScopedTimer _createCb("    Create cbuffer");
+
+        const UINT cbSize = gpuSettingsStride * dispatchCount;
+        ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                                                      D3D12_HEAP_FLAG_NONE,
+                                                      &CD3DX12_RESOURCE_DESC::Buffer(cbSize),
+                                                      D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                      nullptr,
+                                                      IID_PPV_ARGS(&m_proceduralEnvSettingsBuffer)));
+
+        void* mappedData = nullptr;
+        ThrowIfFailed(m_proceduralEnvSettingsBuffer->Map(0, nullptr, &mappedData));
+        auto* mappedBytes = static_cast<UINT8*>(mappedData);
+        for (UINT i = 0; i < dispatchCount; ++i)
+        {
+            memcpy(mappedBytes + gpuSettingsStride * i, &gpuSettings[i], sizeof(GpuSettings));
+        }
+        m_proceduralEnvSettingsBuffer->Unmap(0, nullptr);
+    }
+
+    D3D12_DESCRIPTOR_HEAP_DESC uavHeapDesc = {};
+    uavHeapDesc.NumDescriptors = dispatchCount;
+    uavHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    uavHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    ThrowIfFailed(device->CreateDescriptorHeap(&uavHeapDesc, IID_PPV_ARGS(&m_proceduralEnvUavHeap)));
+
+    const UINT uavDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    const CD3DX12_CPU_DESCRIPTOR_HANDLE uavCpuStart(m_proceduralEnvUavHeap->GetCPUDescriptorHandleForHeapStart());
+    const CD3DX12_GPU_DESCRIPTOR_HANDLE uavGpuStart(m_proceduralEnvUavHeap->GetGPUDescriptorHandleForHeapStart());
+
+    auto createTextureCubeUav =
+        [device, uavCpuStart, uavDescriptorSize](ID3D12Resource* resource, UINT mip, UINT descriptorIndex)
+    {
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+        uavDesc.Texture2DArray.MipSlice = mip;
+        uavDesc.Texture2DArray.FirstArraySlice = 0;
+        uavDesc.Texture2DArray.ArraySize = kEnvironmentMapFaceCount;
+        device->CreateUnorderedAccessView(
+            resource,
+            nullptr,
+            &uavDesc,
+            CD3DX12_CPU_DESCRIPTOR_HANDLE(uavCpuStart, descriptorIndex, uavDescriptorSize));
+    };
+
+    createTextureCubeUav(environmentMap.Get(), 0, 0);
+    createTextureCubeUav(diffuseIrradianceMap.Get(), 0, 1);
+    for (UINT mip = 0; mip < kSpecularPrefilterMipCount; ++mip)
+    {
+        createTextureCubeUav(specularPrefilterMap.Get(), mip, 2 + mip);
+    }
+
+    ID3D12DescriptorHeap* const descriptorHeaps[] = {m_proceduralEnvUavHeap.Get()};
+    commandList->SetComputeRootSignature(m_proceduralEnvRootSignature.Get());
+    commandList->SetPipelineState(m_proceduralEnvPipeline.Get());
+    commandList->SetDescriptorHeaps(1, descriptorHeaps);
+
+    {
+        MyDx12Util::ScopedTimer _dispatch("    Dispatch environment + irradiance + prefilter");
+
+        auto dispatchProceduralEnv = [commandList,
+                                      uavGpuStart,
+                                      uavDescriptorSize,
+                                      settingsBuffer = m_proceduralEnvSettingsBuffer.Get(),
+                                      gpuSettingsStride](UINT descriptorIndex, UINT settingsIndex, UINT outputSize)
+        {
+            const UINT dispatchX = (outputSize + 7) / 8;
+            const UINT dispatchY = (outputSize + 7) / 8;
+            commandList->SetComputeRootDescriptorTable(
+                0, CD3DX12_GPU_DESCRIPTOR_HANDLE(uavGpuStart, descriptorIndex, uavDescriptorSize));
+            commandList->SetComputeRootConstantBufferView(
+                1, settingsBuffer->GetGPUVirtualAddress() + gpuSettingsStride * settingsIndex);
+            commandList->Dispatch(dispatchX, dispatchY, kEnvironmentMapFaceCount);
+        };
+
+        dispatchProceduralEnv(0, 0, kEnvironmentMapCubeSize);
+        dispatchProceduralEnv(1, 1, kDiffuseIrradianceCubeSize);
+        for (UINT mip = 0; mip < kSpecularPrefilterMipCount; ++mip)
+        {
+            const UINT mipSize = (std::max)(1u, kSpecularPrefilterCubeSize >> mip);
+            dispatchProceduralEnv(2 + mip, 2 + mip, mipSize);
+        }
+
+        CD3DX12_RESOURCE_BARRIER barriers[] = {
+            CD3DX12_RESOURCE_BARRIER::Transition(environmentMap.Get(),
+                                                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+            CD3DX12_RESOURCE_BARRIER::Transition(diffuseIrradianceMap.Get(),
+                                                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+            CD3DX12_RESOURCE_BARRIER::Transition(specularPrefilterMap.Get(),
+                                                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+        };
+        commandList->ResourceBarrier(_countof(barriers), barriers);
+    }
+
+    m_environmentDescriptorTable = AllocateEnvironmentDescriptorTable();
+    CreateEnvironmentDescriptorTableSrvs(environmentMap.Get(),
+                                         diffuseIrradianceMap.Get(),
+                                         specularPrefilterMap.Get(),
+                                         m_environmentDescriptorTable);
+
+    m_environmentMap.Attach(environmentMap, m_environmentDescriptorTable.environment);
+    m_diffuseIrradianceMap.Attach(diffuseIrradianceMap, m_environmentDescriptorTable.diffuseIrradiance);
+    m_specularPrefilterMap.Attach(specularPrefilterMap, m_environmentDescriptorTable.specularPrefilter);
 }
 
 void HelloTextureEngine::ValidateEnvironmentMapDescriptorTable() const
 {
     const UINT environmentMapIndex = m_environmentMap.Srv().Index;
     const UINT diffuseIrradianceMapIndex = m_diffuseIrradianceMap.Srv().Index;
-    const bool descriptorsAreContiguous = diffuseIrradianceMapIndex == environmentMapIndex + 1;
+    const UINT specularPrefilterMapIndex = m_specularPrefilterMap.Srv().Index;
+    const UINT brdfLutIndex =
+        m_environmentDescriptorTable.IsValid() ? m_environmentDescriptorTable.brdfLut.Index : m_brdfLut.Srv().Index;
+    const bool descriptorsAreContiguous = diffuseIrradianceMapIndex == environmentMapIndex + 1 &&
+                                          specularPrefilterMapIndex == diffuseIrradianceMapIndex + 1 &&
+                                          brdfLutIndex == specularPrefilterMapIndex + 1;
 
     WCHAR message[160] = {};
     swprintf_s(message,
-               L"Environment descriptor table: env=%u diffuse=%u contiguous=%s\n",
+               L"Environment descriptor table: env=%u diffuse=%u specular=%u brdf=%u contiguous=%s\n",
                environmentMapIndex,
                diffuseIrradianceMapIndex,
+               specularPrefilterMapIndex,
+               brdfLutIndex,
                descriptorsAreContiguous ? L"true" : L"false");
     OutputDebugStringW(message);
 
-    assert(descriptorsAreContiguous && "Environment map and diffuse irradiance descriptors must be contiguous.");
+    assert(descriptorsAreContiguous &&
+           "Environment, diffuse irradiance, specular prefilter, and BRDF LUT descriptors must be contiguous.");
 }
 
 // Load the sample assets.
 void HelloTextureEngine::LoadAssets()
 {
     CreateRootSignature();
+    CreateProceduralEnvRootSignature();
     CreatePipelineStates();
     CreateGBuffer();
     CreateInitialCommandList();
 
-    ComPtr<ID3D12Resource> environmentMapUploadHeap;
-    ComPtr<ID3D12Resource> diffuseIrradianceUploadHeap;
-    CreateEnvironmentMapResources(environmentMapUploadHeap, diffuseIrradianceUploadHeap);
+    // Close the initial command list so ReloadEnvironmentResources can reset it.
+    ThrowIfFailed(m_commandList->Close());
+
+    // Create fence early so WaitForGpu() can be called during resource creation.
+    m_graphicsDevice.CreateFence(0);
+    m_frameResources[m_currentFrameIndex].fenceValue = 1;
+
+    ReloadEnvironmentResources(m_environmentSettings);
+
+    // ReloadEnvironmentResources closes the command list after execution.
+    // Reopen for remaining setup commands.
+    ThrowIfFailed(m_commandList->Reset(m_frameResources[m_currentFrameIndex].commandAllocator.Get(), nullptr));
+
+    ComPtr<ID3D12Resource> brdfLutUploadHeap;
+    m_brdfLut.Create(
+        m_graphicsDevice.Device(), m_commandList.Get(), m_descriptorHeapAllocator, kBrdfLutSize, brdfLutUploadHeap);
+    CreateEnvironmentBrdfLutSrv(m_environmentDescriptorTable);
     ValidateEnvironmentMapDescriptorTable();
     CreateFrameConstantBuffers();
     ExecuteInitialGpuSetup();
@@ -541,6 +994,25 @@ void HelloTextureEngine::LoadAssets()
 void HelloTextureEngine::CreateRootSignature()
 {
     Engine::CreateRootSignature(m_graphicsDevice.Device(), kTextureCount, Engine::GBuffer::kCount + 1, m_rootSignature);
+}
+
+void HelloTextureEngine::CreateProceduralEnvRootSignature()
+{
+    CD3DX12_DESCRIPTOR_RANGE1 uavRange = {};
+    uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+
+    CD3DX12_ROOT_PARAMETER1 rootParameters[2] = {};
+    rootParameters[0].InitAsDescriptorTable(1, &uavRange); // g_output (RWTexture2DArray)
+    rootParameters[1].InitAsConstantBufferView(0);         // g_settings (b0)
+
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+    rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
+
+    ComPtr<ID3DBlob> signature;
+    ComPtr<ID3DBlob> error;
+    ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateRootSignature(
+        0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_proceduralEnvRootSignature)));
 }
 
 auto HelloTextureEngine::LoadShaderBytecode(LPCWSTR assetName) -> ShaderBytecode
@@ -566,6 +1038,7 @@ auto HelloTextureEngine::LoadPipelineShaderBytecode() -> PipelineShaderBytecode
                                      LoadShaderBytecode(L"shaders_LightPassDebugGradient_PSMain.cso")};
     shaders.toneMap = {LoadShaderBytecode(L"shaders_ToneMap_VSMain.cso"),
                        LoadShaderBytecode(L"shaders_ToneMap_PSMain.cso")};
+    shaders.proceduralEnv = LoadShaderBytecode(L"shaders_ProceduralEnvMap_CSMain.cso");
     return shaders;
 }
 
@@ -573,6 +1046,12 @@ void HelloTextureEngine::CreatePipelineStates()
 {
     const PipelineShaderBytecode shaders = LoadPipelineShaderBytecode();
     RegisterPipelineStates(shaders);
+
+    D3D12_COMPUTE_PIPELINE_STATE_DESC computeDesc = {};
+    computeDesc.pRootSignature = m_proceduralEnvRootSignature.Get();
+    computeDesc.CS = CD3DX12_SHADER_BYTECODE(shaders.proceduralEnv.data, shaders.proceduralEnv.size);
+    ThrowIfFailed(
+        m_graphicsDevice.Device()->CreateComputePipelineState(&computeDesc, IID_PPV_ARGS(&m_proceduralEnvPipeline)));
 }
 
 void HelloTextureEngine::RegisterPipelineStates(const PipelineShaderBytecode& shaders)
@@ -891,16 +1370,10 @@ void HelloTextureEngine::ExecuteInitialGpuSetup()
     ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
     m_graphicsDevice.ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-    // Create synchronization objects and wait until assets have been uploaded to the GPU.
-    {
-        m_graphicsDevice.CreateFence(0);
-        m_frameResources[m_currentFrameIndex].fenceValue = 1;
-
-        // Wait for the command list to execute; we are reusing the same command
-        // list in our main loop but for now, we just want to wait for setup to
-        // complete before continuing.
-        WaitForGpu();
-    }
+    // Wait for the command list to execute; we are reusing the same command
+    // list in our main loop but for now, we just want to wait for setup to
+    // complete before continuing.
+    WaitForGpu();
 }
 
 void HelloTextureEngine::CreateConstantBuffer(ConstantBufferResource& constantBuffer,
@@ -1318,6 +1791,7 @@ void HelloTextureEngine::RenderFrame(const UiRenderHandler& uiRenderHandler)
     MarkPendingTransientResources(submittedFenceValue);
 
     CollectGarbageTransientResources();
+    CollectGarbageEnvironmentResources();
 
     m_gpuWorkMeter.ReadbackData(m_graphicsDevice.CommandQueue());
 
@@ -1408,7 +1882,6 @@ void HelloTextureEngine::ApplyResize(UINT width, UINT height)
     m_viewport = CD3DX12_VIEWPORT(
         0.0f, 0.0f, static_cast<FLOAT>(m_width), static_cast<FLOAT>(m_height), D3D12_MIN_DEPTH, D3D12_MAX_DEPTH);
     m_scissorRect = CD3DX12_RECT(0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height));
-
 }
 
 void HelloTextureEngine::Shutdown()

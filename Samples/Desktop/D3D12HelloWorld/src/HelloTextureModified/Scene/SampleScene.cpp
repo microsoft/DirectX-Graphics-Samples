@@ -10,11 +10,13 @@
 
 using DirectX::XMFLOAT2;
 using DirectX::XMFLOAT3;
+using DirectX::XMMatrixRotationQuaternion;
 using DirectX::XMMatrixRotationRollPitchYaw;
 using DirectX::XMMatrixScaling;
 using DirectX::XMMatrixTranslation;
 using DirectX::XMMatrixTranspose;
 using DirectX::XMStoreFloat4x4;
+using DirectX::XMLoadFloat4;
 using DirectX::XMMATRIX;
 
 namespace Engine
@@ -77,14 +79,15 @@ SceneMesh ConvertToSceneMesh(const GltfMeshData& mesh)
     return sceneMesh;
 }
 
-void AddWhiteTexture(SceneMesh& mesh)
+int AddSolidTexture(SceneMesh& mesh, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
     SceneTexture texture = {};
     texture.width = 1;
     texture.height = 1;
     texture.component = 4;
-    texture.pixels = {255, 255, 255, 255};
+    texture.pixels = {r, g, b, a};
     mesh.textures.push_back(std::move(texture));
+    return static_cast<int>(mesh.textures.size() - 1);
 }
 
 float Lerp(float a, float b, float t)
@@ -159,8 +162,7 @@ void GltfGridScene::Update(float deltaTime, const SampleSceneUpdateContext& cont
             m_instanceDataForCPU[i].pos.x, m_instanceDataForCPU[i].pos.y, m_instanceDataForCPU[i].pos.z);
         const XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(
             m_instanceDataForCPU[i].rot.x, m_instanceDataForCPU[i].rot.y, m_instanceDataForCPU[i].rot.z);
-        const XMMATRIX dragRotMat =
-            XMMatrixRotationRollPitchYaw(context.dragRotation.x, context.dragRotation.y, 0.0f);
+        const XMMATRIX dragRotMat = XMMatrixRotationQuaternion(XMLoadFloat4(&context.dragRotation));
         XMStoreFloat4x4(&m_scene.instances[i].world, XMMatrixTranspose(scaleMat * rotMat * dragRotMat * transMat));
         if (resetMotionVector)
         {
@@ -313,8 +315,9 @@ const char* MetallicRoughnessSphereScene::Name() const
 void MetallicRoughnessSphereScene::Load()
 {
     CreateSphereMesh();
-    AddWhiteTexture(m_mesh);
-    CreateMaterialArray();
+    const int neutralTextureIndex = AddSolidTexture(m_mesh, 255, 255, 255, 255);
+    const int blackTextureIndex = AddSolidTexture(m_mesh, 0, 0, 0, 255);
+    CreateMaterialArray(neutralTextureIndex, blackTextureIndex);
     m_scene.mesh = &m_mesh;
     Reset();
 }
@@ -380,6 +383,7 @@ void MetallicRoughnessSphereScene::CreateSphereMesh()
 {
     m_mesh.vertices.clear();
     m_mesh.indices.clear();
+    m_mesh.textures.clear();
     m_mesh.materialIndex = 0;
 
     for (int stack = 0; stack <= kSphereStackCount; stack++)
@@ -413,16 +417,16 @@ void MetallicRoughnessSphereScene::CreateSphereMesh()
             const uint32_t d = static_cast<uint32_t>(stack * stride + slice + 1);
 
             m_mesh.indices.push_back(a);
-            m_mesh.indices.push_back(b);
-            m_mesh.indices.push_back(d);
             m_mesh.indices.push_back(d);
             m_mesh.indices.push_back(b);
+            m_mesh.indices.push_back(d);
             m_mesh.indices.push_back(c);
+            m_mesh.indices.push_back(b);
         }
     }
 }
 
-void MetallicRoughnessSphereScene::CreateMaterialArray()
+void MetallicRoughnessSphereScene::CreateMaterialArray(int neutralTextureIndex, int blackTextureIndex)
 {
     m_mesh.materials.clear();
     m_mesh.materials.reserve(kSphereRows * kSphereColumns);
@@ -435,10 +439,10 @@ void MetallicRoughnessSphereScene::CreateMaterialArray()
                 static_cast<float>(column) / static_cast<float>(kSphereColumns - 1);
 
             SceneMaterial material = {};
-            material.albedoTexIndex = 0;
-            material.metallicRoughnessTexIndex = 0;
-            material.emissiveTexIndex = 0;
-            material.occlusionTexIndex = 0;
+            material.albedoTexIndex = neutralTextureIndex;
+            material.metallicRoughnessTexIndex = neutralTextureIndex;
+            material.emissiveTexIndex = blackTextureIndex;
+            material.occlusionTexIndex = neutralTextureIndex;
             material.normalTexIndex = -1;
             material.roughnessFactor = roughness;
             material.metallicFactor = metallic;
@@ -456,7 +460,7 @@ void MetallicRoughnessSphereScene::CreateInstances(const SampleSceneUpdateContex
     const float spacing = 1.25f;
     const float xOffset = static_cast<float>(kSphereColumns - 1) * spacing * 0.5f;
     const float yOffset = static_cast<float>(kSphereRows - 1) * spacing * 0.5f;
-    const XMMATRIX dragRotMat = XMMatrixRotationRollPitchYaw(context.dragRotation.x, context.dragRotation.y, 0.0f);
+    const XMMATRIX dragRotMat = XMMatrixRotationQuaternion(XMLoadFloat4(&context.dragRotation));
 
     for (int i = 0; i < m_maxInstanceCount; i++)
     {
