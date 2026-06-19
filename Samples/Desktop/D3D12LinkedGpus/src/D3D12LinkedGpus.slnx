@@ -1,0 +1,11 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="D3DX12AffinityLayer/D3DX12AffinityLayer.vcxproj" />
+  <Project Path="LinkedGpus/D3D12LinkedGpus.vcxproj" />
+  <Project Path="LinkedGpusAffinity/D3D12LinkedGpusAffinity.vcxproj">
+    <BuildDependency Project="D3DX12AffinityLayer/D3DX12AffinityLayer.vcxproj" />
+  </Project>
+  <Project Path="SingleGpu/D3D12SingleGpu.vcxproj" />
+</Solution>

@@ -1,0 +1,17 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Profile" />
+    <BuildType Name="Release" />
+    <Platform Name="Windows" />
+  </Configurations>
+  <Project Path="../Core/Core.vcxproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="../Model/Model.vcxproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="ModelViewer.vcxproj">
+    <Platform Project="x64" />
+  </Project>
+</Solution>

@@ -1,0 +1,46 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Profile" />
+    <BuildType Name="Release" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/MiniEngine/">
+    <Project Path="../../../../MiniEngine/Core/Core.vcxproj" />
+    <Project Path="../../../../MiniEngine/Model/Model.vcxproj" />
+  </Folder>
+  <Folder Name="/Samples/">
+    <File Path="../readme.md" />
+  </Folder>
+  <Folder Name="/Samples/Advanced/">
+    <Project Path="D3D12RaytracingMiniEngineSample/ModelViewer_VS16.vcxproj" />
+    <Project Path="D3D12RaytracingRealTimeDenoisedAmbientOcclusion/D3D12RaytracingRealTimeDenoisedAmbientOcclusion.vcxproj" />
+  </Folder>
+  <Folder Name="/Samples/Tutorials/">
+    <Project Path="D3D12OMMOfflineBaker/D3D12OMMOfflineBaker.vcxproj">
+      <BuildType Solution="Profile|*" Project="Release" />
+      <Build Project="false" />
+    </Project>
+    <Project Path="D3D12RaytracingHelloShaderExecutionReordering/D3D12RaytracingHelloShaderExecutionReordering.vcxproj">
+      <BuildType Solution="Profile|*" Project="Release" />
+    </Project>
+    <Project Path="D3D12RaytracingHelloWorld/D3D12RaytracingHelloWorld.vcxproj">
+      <BuildType Solution="Profile|*" Project="Release" />
+    </Project>
+    <Project Path="D3D12RaytracingLibrarySubobjects/D3D12RaytracingLibrarySubobjects.vcxproj">
+      <BuildType Solution="Profile|*" Project="Release" />
+    </Project>
+    <Project Path="D3D12RaytracingOpacityMicromaps/D3D12RaytracingOpacityMicromaps.vcxproj">
+      <BuildType Solution="Profile|*" Project="Release" />
+    </Project>
+    <Project Path="D3D12RaytracingProceduralGeometry/D3D12RaytracingProceduralGeometry.vcxproj">
+      <BuildType Solution="Profile|*" Project="Release" />
+    </Project>
+    <Project Path="D3D12RaytracingSakuraForestSER/D3D12RaytracingSakuraForestSER.vcxproj">
+      <BuildType Solution="Profile|*" Project="Release" />
+    </Project>
+    <Project Path="D3D12RaytracingSimpleLighting/D3D12RaytracingSimpleLighting.vcxproj">
+      <BuildType Solution="Profile|*" Project="Release" />
+    </Project>
+  </Folder>
+</Solution>
