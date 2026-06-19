@@ -9,8 +9,6 @@
     <Platform Project="x64" />
   </Project>
   <Project Path="TEMPLATE_NAME.vcxproj">
-    <BuildType Project="?" />
-    <Platform Project="?" />
-    <Build Project="false" />
+    <Platform Project="x64" />
   </Project>
 </Solution>

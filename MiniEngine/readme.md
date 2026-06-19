@@ -1,7 +1,7 @@
 # MiniEngine by Team Minigraph at Microsoft
 
 ## Getting started:
-* Open ModelViewer/ModelViewer_VS16.sln
+* Open ModelViewer/ModelViewer.slnx
 * Select configuration: Debug (full validation), Profile (instrumented), Release
 * Select platform
 * Build and run
