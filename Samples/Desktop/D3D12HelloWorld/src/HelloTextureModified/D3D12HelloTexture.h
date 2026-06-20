@@ -99,6 +99,7 @@ public:
     {
         XMFLOAT3 lightDirection = {0.4f, 0.7f, 0.6f};
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
+        // HDR environment maps are bright, so the default IBL contribution is intentionally modest.
         float iblIntensity = 0.10f;
         float diffuseIntensity = 1.0f;
         bool skyboxEnabled = true;
@@ -124,6 +125,7 @@ public:
     using CameraState = Engine::CameraState;
 
     static constexpr UINT kMaxInstanceCount = 1000;
+    static constexpr UINT kSpecularPrefilterMipCount = 6;
 
     using InstanceData = Engine::InstanceData;
 
@@ -179,7 +181,6 @@ private:
     static constexpr UINT kEnvironmentMapCubeSize = 128;
     static constexpr UINT kDiffuseIrradianceCubeSize = 32;
     static constexpr UINT kSpecularPrefilterCubeSize = 128;
-    static constexpr UINT kSpecularPrefilterMipCount = 6;
     static constexpr UINT kBrdfLutSize = 256;
 
     struct PassKeyNames

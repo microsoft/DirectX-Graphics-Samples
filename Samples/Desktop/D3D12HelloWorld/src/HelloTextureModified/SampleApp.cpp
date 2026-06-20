@@ -518,7 +518,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         ImGuiWidgets::SliderFloatWithControls("Camera FovH", &loadedScene.GetScene().camera.fov, 20.f, 150.f, 5.f, 60.f);
         ImGui::ColorEdit4("Background Color", m_backBufferClearColor.data());
     }
-    if (ImGui::CollapsingHeader("Direct Light", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("PBR Lighting", ImGuiTreeNodeFlags_DefaultOpen))
     {
         {
             static constexpr float defaultDir[] = {0.4f, 0.7f, 0.6f};
@@ -556,7 +556,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         if (m_environmentSettings.source != Engine::EnvironmentSource::AssetHdr)
         {
             ImGui::SameLine();
-            ImGui::Checkbox("Update", &m_environmentAutoUpdate);
+            ImGui::Checkbox("Auto Update", &m_environmentAutoUpdate);
             environmentApplyRequested |= ImGui::ColorEdit3("Sky Color", &m_environmentSettings.skyColor.x);
             environmentApplyRequested |= ImGui::ColorEdit3("Ground Color", &m_environmentSettings.groundColor.x);
             const bool colorPanels = m_environmentSettings.source == Engine::EnvironmentSource::ProceduralColorPanels;
@@ -728,23 +728,28 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         ImGui::RadioButton("WorldPos", &renderViewMode, static_cast<int>(RenderViewMode::WorldPosition));
         ImGui::SameLine();
         ImGui::RadioButton("NdotV", &renderViewMode, static_cast<int>(RenderViewMode::NdotV));
-        ImGui::RadioButton("EnvMap", &renderViewMode, static_cast<int>(RenderViewMode::IblEnvironment));
+        ImGui::RadioButton("IBL Env", &renderViewMode, static_cast<int>(RenderViewMode::IblEnvironment));
         ImGui::SameLine();
-        ImGui::RadioButton("Irradiance", &renderViewMode, static_cast<int>(RenderViewMode::IblDiffuseIrradiance));
+        ImGui::RadioButton("IBL Irradiance", &renderViewMode, static_cast<int>(RenderViewMode::IblDiffuseIrradiance));
         ImGui::SameLine();
-        ImGui::RadioButton("Prefilter", &renderViewMode, static_cast<int>(RenderViewMode::IblSpecularPrefilter));
+        ImGui::RadioButton("IBL Prefilter", &renderViewMode, static_cast<int>(RenderViewMode::IblSpecularPrefilter));
         ImGui::SameLine();
-        ImGui::RadioButton("BRDF LUT", &renderViewMode, static_cast<int>(RenderViewMode::IblBrdfLut));
+        ImGui::RadioButton("IBL BRDF LUT", &renderViewMode, static_cast<int>(RenderViewMode::IblBrdfLut));
         m_renderViewMode = static_cast<RenderViewMode>(renderViewMode);
         const bool iblDebugView = m_renderViewMode == RenderViewMode::IblEnvironment ||
             m_renderViewMode == RenderViewMode::IblDiffuseIrradiance ||
             m_renderViewMode == RenderViewMode::IblSpecularPrefilter;
         ImGui::BeginDisabled(!iblDebugView);
         ImGuiWidgets::SliderFloatWithControls(
-            "IBL Debug Exposure", &m_lightingParams.iblDebugExposure, 0.01f, 2.0f, 0.05f, 0.25f);
+            "IBL Cube Exposure", &m_lightingParams.iblDebugExposure, 0.01f, 2.0f, 0.05f, 0.25f);
         ImGui::EndDisabled();
         ImGui::BeginDisabled(m_renderViewMode != RenderViewMode::IblSpecularPrefilter);
-        ImGuiWidgets::SliderFloatWithControls("Prefilter Mip", &m_lightingParams.iblDebugMip, 0.0f, 5.0f, 1.0f, 0.0f);
+        ImGuiWidgets::SliderFloatWithControls("Prefilter Mip",
+                                              &m_lightingParams.iblDebugMip,
+                                              0.0f,
+                                              static_cast<float>(HelloTextureEngine::kSpecularPrefilterMipCount - 1),
+                                              1.0f,
+                                              0.0f);
         ImGui::EndDisabled();
         ImGui::EndDisabled();
 
