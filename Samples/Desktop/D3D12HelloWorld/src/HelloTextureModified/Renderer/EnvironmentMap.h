@@ -4,6 +4,7 @@
 #include "SimpleDescriptorHeapAllocator.h"
 
 #include <DirectXMath.h>
+#include <utility>
 #include <vector>
 #include <wrl.h>
 
@@ -95,15 +96,14 @@ public:
 
     void Attach(ComPtr<ID3D12Resource> resource, DescriptorHeapHandle srv)
     {
-        m_resource = resource;
+        m_resource = std::move(resource);
         m_srv = srv;
     }
 
     void Detach(ComPtr<ID3D12Resource>& resource, DescriptorHeapHandle& srv)
     {
-        resource = m_resource;
+        resource = std::move(m_resource);
         srv = m_srv;
-        m_resource.Reset();
         m_srv = {};
     }
 

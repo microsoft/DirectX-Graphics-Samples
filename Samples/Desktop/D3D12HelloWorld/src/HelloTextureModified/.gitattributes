@@ -1,0 +1,8 @@
+# Normalize EOL to CRLF for Windows C++ development
+*.cpp    eol=crlf
+*.h      eol=crlf
+*.hlsl   eol=crlf
+*.hlsli  eol=crlf
+*.c      eol=crlf
+*.hpp    eol=crlf
+*.inl    eol=crlf

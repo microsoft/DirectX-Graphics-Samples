@@ -119,7 +119,9 @@ struct SimpleDescriptorHeapAllocator
         if (out_gpu_desc_handle)
             *out_gpu_desc_handle = handle.gpu;
 
+#ifdef _DEBUG
         DBG_PRINT("[SimpleDescriptorHeapAllocator] Alloc() returns idx=%d\n", idx);
+#endif
         return idx;
     }
 

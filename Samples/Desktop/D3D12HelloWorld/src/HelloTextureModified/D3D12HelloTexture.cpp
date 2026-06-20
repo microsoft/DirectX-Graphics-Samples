@@ -300,11 +300,11 @@ void HelloTextureEngine::ReloadEnvironmentResources(const Engine::ProceduralEnvi
     {
         if (m_environmentSettings.source != Engine::EnvironmentSource::AssetHdr)
         {
-            CollectGarbageEnvironmentResources();
+            CollectDeferredGpuReleases();
             if (m_environmentMap.Resource() != nullptr)
             {
                 const UINT64 retireFenceValue = SignalFenceForQueuedGpuWork();
-                RetireActiveEnvironmentResources(retireFenceValue);
+                QueueActiveEnvironmentResourcesForRelease(retireFenceValue);
             }
 
             ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator;
@@ -321,7 +321,7 @@ void HelloTextureEngine::ReloadEnvironmentResources(const Engine::ProceduralEnvi
             ID3D12CommandList* ppCommandLists[] = {m_commandList.Get()};
             m_graphicsDevice.ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
             const UINT64 generationFenceValue = SignalFenceForQueuedGpuWork();
-            RetireProceduralEnvGenerationResources(generationFenceValue, proceduralEnvCommandAllocator);
+            QueueProceduralEnvGenerationResourcesForRelease(generationFenceValue, proceduralEnvCommandAllocator);
             return;
         }
     }
@@ -330,7 +330,7 @@ void HelloTextureEngine::ReloadEnvironmentResources(const Engine::ProceduralEnvi
         MyDx12Util::ScopedTimer _waitGpu("  WaitForGpu (before reload)");
         WaitForGpu();
     }
-    CollectGarbageEnvironmentResources();
+    CollectDeferredGpuReleases();
     ThrowIfFailed(m_frameResources[m_currentFrameIndex].commandAllocator->Reset());
     ThrowIfFailed(m_commandList->Reset(m_frameResources[m_currentFrameIndex].commandAllocator.Get(), nullptr));
 
@@ -431,7 +431,6 @@ void HelloTextureEngine::LoadPipeline()
     m_gpuWorkMeter.Init(m_graphicsDevice.Device(),
                         kGpuWorkMeterQueryCount); // Initialize GPU work meter with a maximum of 100 timestamp queries.
 
-    m_proceduralEnvGpuTimer.Init(m_graphicsDevice.Device());
 }
 
 void HelloTextureEngine::UpdateHdr10DisplayMode()
@@ -596,55 +595,82 @@ UINT64 HelloTextureEngine::SignalFenceForQueuedGpuWork()
     return fenceValue;
 }
 
-void HelloTextureEngine::RetireActiveEnvironmentResources(UINT64 retireFenceValue)
+Engine::DeferredGpuRelease HelloTextureEngine::CreateActiveEnvironmentRelease(UINT64 retireFenceValue)
 {
-    PendingEnvironmentResources pending = {};
-    pending.retireFenceValue = retireFenceValue;
-    pending.descriptorTable = m_environmentDescriptorTable;
+    Engine::DeferredGpuRelease release = {};
+    release.retireFenceValue = retireFenceValue;
 
-    DescriptorHeapHandle srv = {};
-    m_environmentMap.Detach(pending.environmentMap, srv);
-    m_diffuseIrradianceMap.Detach(pending.diffuseIrradianceMap, srv);
-    m_specularPrefilterMap.Detach(pending.specularPrefilterMap, srv);
-    m_environmentDescriptorTable = {};
+    ComPtr<ID3D12Resource> environmentMap;
+    ComPtr<ID3D12Resource> diffuseIrradianceMap;
+    ComPtr<ID3D12Resource> specularPrefilterMap;
+    DescriptorHeapHandle environmentSrv;
+    DescriptorHeapHandle diffuseIrradianceSrv;
+    DescriptorHeapHandle specularPrefilterSrv;
 
-    m_pendingEnvironmentResources.push_back(std::move(pending));
+    m_environmentMap.Detach(environmentMap, environmentSrv);
+    m_diffuseIrradianceMap.Detach(diffuseIrradianceMap, diffuseIrradianceSrv);
+    m_specularPrefilterMap.Detach(specularPrefilterMap, specularPrefilterSrv);
+
+    release.resources.push_back(std::move(environmentMap));
+    release.resources.push_back(std::move(diffuseIrradianceMap));
+    release.resources.push_back(std::move(specularPrefilterMap));
+
+    release.descriptorHandles = CreateEnvironmentDescriptorHandles(m_environmentDescriptorTable,
+                                                                   environmentSrv,
+                                                                   diffuseIrradianceSrv,
+                                                                   specularPrefilterSrv);
+
+    return release;
 }
 
-void HelloTextureEngine::RetireProceduralEnvGenerationResources(
+void HelloTextureEngine::QueueActiveEnvironmentResourcesForRelease(UINT64 retireFenceValue)
+{
+    Engine::DeferredGpuRelease release = CreateActiveEnvironmentRelease(retireFenceValue);
+    m_environmentDescriptorTable = {};
+
+    m_deferredGpuReleaseQueue.Retire(std::move(release));
+}
+
+Engine::DeferredGpuRelease HelloTextureEngine::CreateProceduralEnvGenerationRelease(
     UINT64 retireFenceValue,
     ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator)
 {
-    PendingEnvironmentResources pending = {};
-    pending.retireFenceValue = retireFenceValue;
-    pending.proceduralEnvCommandAllocator = proceduralEnvCommandAllocator;
-    pending.proceduralEnvUavHeap = m_proceduralEnvUavHeap;
-    pending.proceduralEnvSettingsBuffer = m_proceduralEnvSettingsBuffer;
-    m_proceduralEnvUavHeap.Reset();
-    m_proceduralEnvSettingsBuffer.Reset();
+    Engine::DeferredGpuRelease release = {};
+    release.retireFenceValue = retireFenceValue;
+    release.commandAllocators.push_back(std::move(proceduralEnvCommandAllocator));
+    release.descriptorHeaps.push_back(std::move(m_proceduralEnvUavHeap));
+    release.resources.push_back(std::move(m_proceduralEnvSettingsBuffer));
 
-    m_pendingEnvironmentResources.push_back(std::move(pending));
+    return release;
 }
 
-void HelloTextureEngine::CollectGarbageEnvironmentResources()
+void HelloTextureEngine::QueueProceduralEnvGenerationResourcesForRelease(
+    UINT64 retireFenceValue,
+    ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator)
+{
+    Engine::DeferredGpuRelease release =
+        CreateProceduralEnvGenerationRelease(retireFenceValue, std::move(proceduralEnvCommandAllocator));
+    m_deferredGpuReleaseQueue.Retire(std::move(release));
+}
+
+void HelloTextureEngine::CollectDeferredGpuReleases()
 {
     const UINT64 completedFenceValue = m_graphicsDevice.CompletedFenceValue();
-    auto iter = m_pendingEnvironmentResources.begin();
-    while (iter != m_pendingEnvironmentResources.end())
+    m_deferredGpuReleaseQueue.Collect(completedFenceValue, m_descriptorHeapAllocator);
+}
+
+std::vector<DescriptorHeapHandle> HelloTextureEngine::CreateEnvironmentDescriptorHandles(
+    const EnvironmentDescriptorTable& table,
+    DescriptorHeapHandle environmentSrv,
+    DescriptorHeapHandle diffuseIrradianceSrv,
+    DescriptorHeapHandle specularPrefilterSrv) const
+{
+    if (table.IsValid())
     {
-        if (completedFenceValue < iter->retireFenceValue)
-        {
-            ++iter;
-            continue;
-        }
-
-        if (iter->descriptorTable.IsValid())
-        {
-            FreeEnvironmentDescriptorTable(iter->descriptorTable);
-        }
-
-        iter = m_pendingEnvironmentResources.erase(iter);
+        return {table.environment, table.diffuseIrradiance, table.specularPrefilter, table.brdfLut};
     }
+
+    return {environmentSrv, diffuseIrradianceSrv, specularPrefilterSrv};
 }
 
 auto HelloTextureEngine::AllocateEnvironmentDescriptorTable() -> EnvironmentDescriptorTable
@@ -925,9 +951,9 @@ void HelloTextureEngine::CreateEnvironmentMapResourcesGpu(ComPtr<ID3D12Resource>
                                          specularPrefilterMap.Get(),
                                          m_environmentDescriptorTable);
 
-    m_environmentMap.Attach(environmentMap, m_environmentDescriptorTable.environment);
-    m_diffuseIrradianceMap.Attach(diffuseIrradianceMap, m_environmentDescriptorTable.diffuseIrradiance);
-    m_specularPrefilterMap.Attach(specularPrefilterMap, m_environmentDescriptorTable.specularPrefilter);
+    m_environmentMap.Attach(std::move(environmentMap), m_environmentDescriptorTable.environment);
+    m_diffuseIrradianceMap.Attach(std::move(diffuseIrradianceMap), m_environmentDescriptorTable.diffuseIrradiance);
+    m_specularPrefilterMap.Attach(std::move(specularPrefilterMap), m_environmentDescriptorTable.specularPrefilter);
 }
 
 void HelloTextureEngine::ValidateEnvironmentMapDescriptorTable() const
@@ -1786,7 +1812,7 @@ void HelloTextureEngine::RenderFrame(const UiRenderHandler& uiRenderHandler)
     MarkPendingTransientResources(submittedFenceValue);
 
     CollectGarbageTransientResources();
-    CollectGarbageEnvironmentResources();
+    CollectDeferredGpuReleases();
 
     m_gpuWorkMeter.ReadbackData(m_graphicsDevice.CommandQueue());
 

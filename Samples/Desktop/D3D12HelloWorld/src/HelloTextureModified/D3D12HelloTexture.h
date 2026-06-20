@@ -16,6 +16,7 @@
 #include "Renderer/ClearPass.h"
 #include "Renderer/BrdfLut.h"
 #include "Renderer/DebugDumpCapture.h"
+#include "Renderer/DeferredGpuReleaseQueue.h"
 #include "Renderer/EnvironmentMap.h"
 #include "Renderer/GBuffer.h"
 #include "Renderer/HdrOutput.h"
@@ -389,7 +390,6 @@ private:
     SimpleDescriptorHeapAllocator m_descriptorHeapAllocator; // Allocator for CBV/SRV/UAV heap
     ComPtr<ID3D12DescriptorHeap> m_proceduralEnvUavHeap;
     ComPtr<ID3D12Resource> m_proceduralEnvSettingsBuffer;
-    MyDx12Util::GpuTimestampPair m_proceduralEnvGpuTimer;
 
     RenderingPath m_renderingPath = RenderingPath::Deferred;
     bool m_lightingPassDebugGradientEnabled = false;
@@ -435,24 +435,12 @@ private:
         }
     };
 
-    struct PendingEnvironmentResources
-    {
-        UINT64 retireFenceValue = 0;
-        ComPtr<ID3D12Resource> environmentMap;
-        ComPtr<ID3D12Resource> diffuseIrradianceMap;
-        ComPtr<ID3D12Resource> specularPrefilterMap;
-        EnvironmentDescriptorTable descriptorTable;
-        ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator;
-        ComPtr<ID3D12DescriptorHeap> proceduralEnvUavHeap;
-        ComPtr<ID3D12Resource> proceduralEnvSettingsBuffer;
-    };
-
     Engine::EnvironmentMap m_environmentMap;
     Engine::EnvironmentMap m_diffuseIrradianceMap;
     Engine::EnvironmentMap m_specularPrefilterMap;
     Engine::BrdfLut m_brdfLut;
     EnvironmentDescriptorTable m_environmentDescriptorTable;
-    std::vector<PendingEnvironmentResources> m_pendingEnvironmentResources;
+    Engine::DeferredGpuReleaseQueue m_deferredGpuReleaseQueue;
 
     UINT m_vertexCountPerInstance = 0;
     UINT m_indexCountPerInstance = 0;
@@ -558,10 +546,20 @@ private:
                                           ComPtr<ID3D12Resource>& specularPrefilterUploadHeap);
     void ReleaseEnvironmentMapResources();
     UINT64 SignalFenceForQueuedGpuWork();
-    void RetireActiveEnvironmentResources(UINT64 retireFenceValue);
-    void RetireProceduralEnvGenerationResources(UINT64 retireFenceValue,
-                                                ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator);
-    void CollectGarbageEnvironmentResources();
+    Engine::DeferredGpuRelease CreateActiveEnvironmentRelease(UINT64 retireFenceValue);
+    void QueueActiveEnvironmentResourcesForRelease(UINT64 retireFenceValue);
+    Engine::DeferredGpuRelease CreateProceduralEnvGenerationRelease(
+        UINT64 retireFenceValue,
+        ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator);
+    void QueueProceduralEnvGenerationResourcesForRelease(
+        UINT64 retireFenceValue,
+        ComPtr<ID3D12CommandAllocator> proceduralEnvCommandAllocator);
+    void CollectDeferredGpuReleases();
+    std::vector<DescriptorHeapHandle> CreateEnvironmentDescriptorHandles(
+        const EnvironmentDescriptorTable& table,
+        DescriptorHeapHandle environmentSrv,
+        DescriptorHeapHandle diffuseIrradianceSrv,
+        DescriptorHeapHandle specularPrefilterSrv) const;
     EnvironmentDescriptorTable AllocateEnvironmentDescriptorTable();
     void FreeEnvironmentDescriptorTable(const EnvironmentDescriptorTable& table);
     void CreateEnvironmentDescriptorTableSrvs(ID3D12Resource* environmentMap,

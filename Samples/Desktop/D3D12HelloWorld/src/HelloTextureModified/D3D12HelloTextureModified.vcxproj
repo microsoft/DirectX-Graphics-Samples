@@ -140,6 +140,7 @@
     <ClInclude Include="Renderer\ClearPass.h" />
     <ClInclude Include="Renderer\DebugDumpCapture.h" />
     <ClInclude Include="Renderer\DebugDumpReport.h" />
+    <ClInclude Include="Renderer\DeferredGpuReleaseQueue.h" />
     <ClInclude Include="Renderer\EnvironmentMap.h" />
     <ClInclude Include="Renderer\FullscreenTriangle.h" />
     <ClInclude Include="Renderer\GBuffer.h" />

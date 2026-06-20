@@ -66,6 +66,9 @@
     <ClInclude Include="Renderer\DebugDumpReport.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\DeferredGpuReleaseQueue.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer\EnvironmentMap.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>

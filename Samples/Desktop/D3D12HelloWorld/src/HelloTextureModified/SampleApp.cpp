@@ -509,7 +509,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         ImGui::End();
         return;
     }
-    if (ImGui::CollapsingHeader("Direct Light", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen))
     {
         ImGuiWidgets::SliderIntWithControls("Display Instance Count", &m_displayInstanceCount, 0,
                                              loadedScene.MaxDisplayInstanceCount(), 1, 0);
@@ -517,6 +517,28 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         ImGuiWidgets::SliderFloatWithControls("Mesh Scale", &m_meshScale, 0.1f, 2.0f, 0.05f, 0.5f);
         ImGuiWidgets::SliderFloatWithControls("Camera FovH", &loadedScene.GetScene().camera.fov, 20.f, 150.f, 5.f, 60.f);
         ImGui::ColorEdit4("Background Color", m_backBufferClearColor.data());
+    }
+    if (ImGui::CollapsingHeader("Direct Light", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        {
+            static constexpr float defaultDir[] = {0.4f, 0.7f, 0.6f};
+            ImGuiWidgets::SliderFloat3WithControls("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f,
+                                                    0.05f, defaultDir);
+        }
+        ImGui::SameLine();
+        ImGuiWidgets::SliderFloatWithControls("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f,
+                                               0.1f, 1.0f);
+        ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
+        ImGui::Checkbox("IBL Enabled", &m_iblEnabled);
+        ImGui::BeginDisabled(!m_iblEnabled);
+        ImGuiWidgets::SliderFloatWithControls("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f, 0.05f, 1.0f);
+        ImGui::Checkbox("Diffuse IBL", &m_lightingParams.diffuseIblEnabled);
+        ImGui::SameLine();
+        ImGui::Checkbox("Specular IBL", &m_lightingParams.specularIblEnabled);
+        ImGui::EndDisabled();
+        ImGui::Checkbox("Direct Light", &m_lightingParams.directLightEnabled);
+        ImGui::SameLine();
+        ImGui::Checkbox("Emissive", &m_lightingParams.emissiveEnabled);
     }
     if (ImGui::CollapsingHeader("Environment Map", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -614,25 +636,6 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         ImGuiWidgets::SliderFloatWithControls("Skybox Preview Exposure", &m_lightingParams.skyboxPreviewExposure, 0.0f,
                                               2.0f, 0.05f, 1.0f);
         ImGui::EndDisabled();
-        {
-            static constexpr float defaultDir[] = {0.4f, 0.7f, 0.6f};
-            ImGuiWidgets::SliderFloat3WithControls("Light Direction", &m_lightingParams.lightDirection.x, -1.0f, 1.0f,
-                                                   0.05f, defaultDir);
-        }
-        ImGui::SameLine();
-        ImGuiWidgets::SliderFloatWithControls("Direct Light Intensity", &m_lightingParams.diffuseIntensity, 0.0f, 4.0f,
-                                              0.1f, 1.0f);
-        ImGui::ColorEdit3("Light Color", &m_lightingParams.lightColor.x);
-        ImGui::Checkbox("IBL Enabled", &m_iblEnabled);
-        ImGui::BeginDisabled(!m_iblEnabled);
-        ImGuiWidgets::SliderFloatWithControls("IBL Intensity", &m_lightingParams.iblIntensity, 0.0f, 2.0f, 0.05f, 1.0f);
-        ImGui::Checkbox("Diffuse IBL", &m_lightingParams.diffuseIblEnabled);
-        ImGui::SameLine();
-        ImGui::Checkbox("Specular IBL", &m_lightingParams.specularIblEnabled);
-        ImGui::EndDisabled();
-        ImGui::Checkbox("Direct Light", &m_lightingParams.directLightEnabled);
-        ImGui::SameLine();
-        ImGui::Checkbox("Emissive", &m_lightingParams.emissiveEnabled);
         if (environmentApplyRequested)
         {
             m_environmentReloadPending = true;
