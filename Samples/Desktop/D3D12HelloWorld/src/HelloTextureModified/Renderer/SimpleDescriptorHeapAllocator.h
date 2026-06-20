@@ -3,6 +3,7 @@
 #include "../DXSampleHelper.h"
 #include "../MyDx12Utils.h"
 
+#include <algorithm>
 #include <cassert>
 #include <vector>
 
@@ -129,52 +130,60 @@ struct SimpleDescriptorHeapAllocator
         return handle;
     }
 
+    // Remove a specific index from FreeIndices (swap-pop, O(F) find + O(1) erase)
+    void RemoveFreeIndex(UINT index)
+    {
+        auto it = std::find(FreeIndices.begin(), FreeIndices.end(), index);
+        assert(it != FreeIndices.end());
+        *it = FreeIndices.back();
+        FreeIndices.pop_back();
+    }
+
+    // Remove a contiguous range of indices from FreeIndices
+    void RemoveRange(UINT start, UINT count)
+    {
+        for (UINT offset = 0; offset < count; ++offset)
+        {
+            RemoveFreeIndex(start + offset);
+        }
+    }
+
+    // Find and allocate a contiguous block of descriptor indices.
+    // Scans sorted free indices in O(F log F + F + count * F) instead of
+    // the naive O(Capacity * count * F).
     DescriptorHeapHandle AllocContiguous(UINT count)
     {
         assert(count > 0);
         assert(FreeIndices.size() >= count);
 
-        for (UINT start = 0; start + count <= Capacity; ++start)
+        std::vector<UINT> sortedFree = FreeIndices;
+        std::sort(sortedFree.begin(), sortedFree.end());
+
+        UINT runStart = sortedFree[0];
+        UINT runLen = 1;
+        if (runLen >= count)
         {
-            bool foundRange = true;
-            for (UINT offset = 0; offset < count; ++offset)
-            {
-                bool foundIndex = false;
-                for (UINT freeIndex : FreeIndices)
-                {
-                    if (freeIndex == start + offset)
-                    {
-                        foundIndex = true;
-                        break;
-                    }
-                }
+            RemoveRange(runStart, count);
+            return HandleFromIndex(runStart);
+        }
 
-                if (!foundIndex)
-                {
-                    foundRange = false;
-                    break;
-                }
+        for (size_t i = 1; i < sortedFree.size(); ++i)
+        {
+            if (sortedFree[i] == sortedFree[i - 1] + 1)
+            {
+                ++runLen;
+            }
+            else
+            {
+                runStart = sortedFree[i];
+                runLen = 1;
             }
 
-            if (!foundRange)
+            if (runLen >= count)
             {
-                continue;
+                RemoveRange(runStart, count);
+                return HandleFromIndex(runStart);
             }
-
-            for (UINT offset = 0; offset < count; ++offset)
-            {
-                const UINT indexToRemove = start + offset;
-                for (auto iter = FreeIndices.begin(); iter != FreeIndices.end(); ++iter)
-                {
-                    if (*iter == indexToRemove)
-                    {
-                        FreeIndices.erase(iter);
-                        break;
-                    }
-                }
-            }
-
-            return HandleFromIndex(start);
         }
 
         assert(false && "No contiguous descriptor range available.");
