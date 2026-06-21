@@ -45,6 +45,8 @@
 #include "Renderer\LightingPass.h"
 #include "Renderer\Material.h"
 #include "Renderer\PipelineFactory.h"
+#include "Renderer\RayQueryShadowPass.h"
+#include "Renderer\RayTracingSupport.h"
 #include "Renderer\RenderPassExecution.h"
 #include "Renderer\RenderPassResources.h"
 #include "Renderer\ResolvedRenderTargets.h"
@@ -122,6 +124,15 @@ void HelloTextureEngine::Initialize(UINT width, UINT height)
 
 void HelloTextureEngine::InitializeFrameResources()
 {
+    m_rayTracingSupport = Engine::RayTracingSupportInfo::Create(m_graphicsDevice.Device());
+    wchar_t debugMessage[128] = {};
+    swprintf_s(debugMessage,
+               L"Ray tracing support: supported=%s tier=%s raw=%d\n",
+               m_rayTracingSupport.IsSupported() ? L"true" : L"false",
+               m_rayTracingSupport.TierName(),
+               static_cast<int>(m_rayTracingSupport.Tier()));
+    OutputDebugStringW(debugMessage);
+
     m_prevTime = std::chrono::steady_clock::now();
     LoadPipeline();
     LoadAssets();
@@ -134,6 +145,7 @@ void HelloTextureEngine::InitResourceDefaultStates()
     m_resourceDefaultStates.push_back({kBackBufferResourceName, D3D12_RESOURCE_STATE_PRESENT});
     m_resourceDefaultStates.push_back({kDepthStencilResourceName, D3D12_RESOURCE_STATE_DEPTH_WRITE});
     m_resourceDefaultStates.push_back({kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET});
+    m_resourceDefaultStates.push_back({kShadowMaskResourceName, D3D12_RESOURCE_STATE_UNORDERED_ACCESS});
     for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
     {
         m_resourceDefaultStates.push_back({kGBufferResourceNames[i], D3D12_RESOURCE_STATE_RENDER_TARGET});
@@ -154,6 +166,9 @@ HelloTextureEngine::UiFrameContext HelloTextureEngine::GetUiFrameContext() const
 {
     return {static_cast<int>(m_currentFrameIndex),
             m_cpuFrameTime,
+            m_rayTracingSupport.IsSupported(),
+            m_rayTracingSupport.TierName(),
+            static_cast<int>(m_rayTracingSupport.Tier()),
             m_frameResources[m_previousFrameIndex].gpuWorkMeterCheckPoints};
 }
 
@@ -986,8 +1001,10 @@ void HelloTextureEngine::LoadAssets()
 {
     CreateRootSignature();
     CreateProceduralEnvRootSignature();
+    CreateRayQueryShadowRootSignature();
     CreatePipelineStates();
     CreateGBuffer();
+    CreateShadowMask(m_width, m_height);
     CreateInitialCommandList();
 
     // Close the initial command list so ReloadEnvironmentResources can reset it.
@@ -1036,6 +1053,24 @@ void HelloTextureEngine::CreateProceduralEnvRootSignature()
         0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_proceduralEnvRootSignature)));
 }
 
+void HelloTextureEngine::CreateRayQueryShadowRootSignature()
+{
+    CD3DX12_DESCRIPTOR_RANGE1 uavRange = {};
+    uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+
+    CD3DX12_ROOT_PARAMETER1 rootParameters[1] = {};
+    rootParameters[0].InitAsDescriptorTable(1, &uavRange);
+
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+    rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
+
+    ComPtr<ID3DBlob> signature;
+    ComPtr<ID3DBlob> error;
+    ThrowIfFailed(D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error));
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateRootSignature(
+        0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rayQueryShadowRootSignature)));
+}
+
 auto HelloTextureEngine::LoadShaderBytecode(LPCWSTR assetName) -> ShaderBytecode
 {
     UINT8* data = nullptr;
@@ -1053,6 +1088,8 @@ auto HelloTextureEngine::LoadPipelineShaderBytecode() -> PipelineShaderBytecode
                        LoadShaderBytecode(L"shaders_GBuffer_PSMain.cso")};
     shaders.gbufferDebug = {LoadShaderBytecode(L"shaders_GBufferDebug_VSMain.cso"),
                             LoadShaderBytecode(L"shaders_GBufferDebug_PSMain.cso")};
+    shaders.shadowMaskDebug = {LoadShaderBytecode(L"shaders_ShadowMaskDebug_VSMain.cso"),
+                               LoadShaderBytecode(L"shaders_ShadowMaskDebug_PSMain.cso")};
     shaders.lighting = {LoadShaderBytecode(L"shaders_LightPass_VSMain.cso"),
                         LoadShaderBytecode(L"shaders_LightPass_PSMain.cso")};
     shaders.lightingDebugGradient = {LoadShaderBytecode(L"shaders_LightPassDebugGradient_VSMain.cso"),
@@ -1060,6 +1097,7 @@ auto HelloTextureEngine::LoadPipelineShaderBytecode() -> PipelineShaderBytecode
     shaders.toneMap = {LoadShaderBytecode(L"shaders_ToneMap_VSMain.cso"),
                        LoadShaderBytecode(L"shaders_ToneMap_PSMain.cso")};
     shaders.proceduralEnv = LoadShaderBytecode(L"shaders_ProceduralEnvMap_CSMain.cso");
+    shaders.rayQueryShadow = LoadShaderBytecode(L"shaders_RayQueryShadow_CSMain.cso");
     return shaders;
 }
 
@@ -1073,6 +1111,12 @@ void HelloTextureEngine::CreatePipelineStates()
     computeDesc.CS = CD3DX12_SHADER_BYTECODE(shaders.proceduralEnv.data, shaders.proceduralEnv.size);
     ThrowIfFailed(
         m_graphicsDevice.Device()->CreateComputePipelineState(&computeDesc, IID_PPV_ARGS(&m_proceduralEnvPipeline)));
+
+    D3D12_COMPUTE_PIPELINE_STATE_DESC rayQueryShadowDesc = {};
+    rayQueryShadowDesc.pRootSignature = m_rayQueryShadowRootSignature.Get();
+    rayQueryShadowDesc.CS = CD3DX12_SHADER_BYTECODE(shaders.rayQueryShadow.data, shaders.rayQueryShadow.size);
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateComputePipelineState(&rayQueryShadowDesc,
+                                                                        IID_PPV_ARGS(&m_rayQueryShadowPipeline)));
 }
 
 void HelloTextureEngine::RegisterPipelineStates(const PipelineShaderBytecode& shaders)
@@ -1108,7 +1152,8 @@ void HelloTextureEngine::RegisterPipelineStates(const PipelineShaderBytecode& sh
         {{Pipe::Lighting, shaders.lighting, DXGI_FORMAT_R16G16B16A16_FLOAT},
          {Pipe::LightingDebugGradient, shaders.lightingDebugGradient, DXGI_FORMAT_R16G16B16A16_FLOAT},
          {Pipe::ToneMap, shaders.toneMap, m_backBufferFormat},
-         {Pipe::GBufferDebug, shaders.gbufferDebug, DXGI_FORMAT_R16G16B16A16_FLOAT}});
+         {Pipe::GBufferDebug, shaders.gbufferDebug, DXGI_FORMAT_R16G16B16A16_FLOAT},
+         {Pipe::ShadowMaskDebug, shaders.shadowMaskDebug, DXGI_FORMAT_R16G16B16A16_FLOAT}});
 
     //
     // Depth PrePass PSO
@@ -1588,6 +1633,57 @@ void HelloTextureEngine::CreateDepthStencilDescriptors()
     m_graphicsDevice.Device()->CreateShaderResourceView(m_depthStencil.Get(), &srvDesc, m_depthStencilSrv.cpu);
 }
 
+void HelloTextureEngine::CreateShadowMask(UINT width, UINT height)
+{
+    m_shadowMask.Reset();
+
+    D3D12_RESOURCE_DESC desc = {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc.Width = width;
+    desc.Height = height;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.Format = DXGI_FORMAT_R8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                                                                     D3D12_HEAP_FLAG_NONE,
+                                                                     &desc,
+                                                                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                                                     nullptr,
+                                                                     IID_PPV_ARGS(&m_shadowMask)));
+    m_shadowMask->SetName(L"ShadowMask");
+
+    CreateShadowMaskDescriptors();
+}
+
+void HelloTextureEngine::CreateShadowMaskDescriptors()
+{
+    if (!m_shadowMaskSrv.IsValid())
+    {
+        m_shadowMaskSrv = m_descriptorHeapAllocator.Allocate();
+    }
+
+    if (!m_shadowMaskUav.IsValid())
+    {
+        m_shadowMaskUav = m_descriptorHeapAllocator.Allocate();
+    }
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R8_UNORM;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MipLevels = 1;
+    m_graphicsDevice.Device()->CreateShaderResourceView(m_shadowMask.Get(), &srvDesc, m_shadowMaskSrv.Cpu());
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = DXGI_FORMAT_R8_UNORM;
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+    m_graphicsDevice.Device()->CreateUnorderedAccessView(m_shadowMask.Get(), nullptr, &uavDesc, m_shadowMaskUav.Cpu());
+}
+
 D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetBackBufferRtv() const
 {
     CD3DX12_CPU_DESCRIPTOR_HANDLE h(
@@ -1655,6 +1751,10 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
     m_renderGraphRuntime.Bindings().RegisterDescriptor(
         m_renderGraphRuntime.RegisterDescriptor(Desc::ToneMapSceneColorSrv),
         [this]() { return m_lightPassColorSrv.gpu; });
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::ShadowMaskSrv),
+                                                       [this]() { return m_shadowMaskSrv.Gpu(); });
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::ShadowMaskUav),
+                                                       [this]() { return m_shadowMaskUav.Gpu(); });
 }
 
 void HelloTextureEngine::RegisterPassConstantsHandlers()
@@ -1685,6 +1785,7 @@ void HelloTextureEngine::RegisterResourceResolvers()
                                                       [this]() { return m_depthStencil.Get(); });
     m_renderGraphRuntime.Resources().RegisterResource(kLightPassRenderTargetResourceName,
                                                       [this]() { return m_lightPassRenderTarget.Get(); });
+    m_renderGraphRuntime.Resources().RegisterResource(kShadowMaskResourceName, [this]() { return m_shadowMask.Get(); });
     for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
     {
         m_renderGraphRuntime.Resources().RegisterResource(kGBufferResourceNames[i],
@@ -1890,11 +1991,13 @@ void HelloTextureEngine::ApplyResize(UINT width, UINT height)
 
     m_depthStencil.Reset();
     m_lightPassRenderTarget.Reset();
+    m_shadowMask.Reset();
     m_resourceRegistry.UnregisterTransientResource(kDepthStencilResourceName);
     m_resourceRegistry.UnregisterTransientResource(kLightPassRenderTargetResourceName);
     RegisterDepthStencil(m_width, m_height);
     RegisterLightPassRenderTarget(m_width, m_height);
     CreateGBuffer();
+    CreateShadowMask(m_width, m_height);
 
     // Camera
     UpdateCameraConstantBuffer();
@@ -2220,6 +2323,21 @@ void HelloTextureEngine::ExecuteGBufferPass(const RenderPass& pass)
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Pass");
 }
 
+void HelloTextureEngine::ExecuteRayQueryShadowPass(const RenderPass& pass)
+{
+    UNREFERENCED_PARAMETER(pass);
+
+    Engine::RayQueryShadowPassDesc passDesc = {};
+    passDesc.rootSignature = m_rayQueryShadowRootSignature.Get();
+    passDesc.pipelineState = m_rayQueryShadowPipeline.Get();
+    passDesc.shadowMaskUav = m_shadowMaskUav.Gpu();
+    passDesc.width = m_width;
+    passDesc.height = m_height;
+
+    Engine::RecordRayQueryShadowPass(m_commandList.Get(), passDesc);
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "RayQuery Shadow Pass");
+}
+
 void HelloTextureEngine::ExecuteForwardPass(const RenderPass& pass)
 {
     Engine::ForwardPassDesc passDesc = {};
@@ -2262,6 +2380,14 @@ void HelloTextureEngine::ExecuteGBufferDebugPass(const RenderPass& pass)
 {
     Engine::RecordGBufferDebugPass(m_commandList.Get());
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "GBuffer Debug Pass");
+}
+
+void HelloTextureEngine::ExecuteShadowMaskDebugPass(const RenderPass& pass)
+{
+    UNREFERENCED_PARAMETER(pass);
+
+    Engine::RecordShadowMaskDebugPass(m_commandList.Get());
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ShadowMask Debug Pass");
 }
 
 void HelloTextureEngine::ExecuteImGuiPass(const RenderPass& pass)

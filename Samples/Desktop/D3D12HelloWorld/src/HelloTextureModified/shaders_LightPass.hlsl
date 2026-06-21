@@ -1,21 +1,5 @@
 #include "FullscreenTriangle.hlsli"
-
-struct Material
-{
-    uint albedoTexIndex;
-    uint metallicRoughnessTexIndex;
-    uint emissiveTexIndex;
-    uint occlusionTexIndex;
-    uint normalTexIndex;
-    float roughnessFactor;
-    float metallicFactor;
-    float occlusionStrength;
-    float ambientOcclusionFactor;
-    float emissiveScale;
-    uint flags;
-};
-
-static const uint MaterialFlagUnlit = 1u << 0;
+#include "Material.hlsli"
 
 Texture2D<float4> g_albedo : register(t0, space3);
 Texture2D<float4> g_normal : register(t1, space3);

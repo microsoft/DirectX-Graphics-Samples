@@ -1,27 +1,5 @@
-struct Material
-{
-    uint albedoTexIndex;
-    uint metallicRoughnessTexIndex;
-    uint emissiveTexIndex;
-    uint occlusionTexIndex;
-    uint normalTexIndex;
-    float roughnessFactor;
-    float metallicFactor;
-    float occlusionStrength;
-    float ambientOcclusionFactor;
-    float emissiveScale;
-    uint flags;
-};
-
-static const uint MaterialFlagHasNormalTexture = 1u << 1;
-
-struct InstanceData
-{
-    float4x4 world;
-    float4x4 prevWorld;
-    uint materialId;
-    float padding[3];
-};
+#include "Material.hlsli"
+#include "InstanceData.hlsli"
 
 cbuffer ConstantBuffer : register(b0)
 {

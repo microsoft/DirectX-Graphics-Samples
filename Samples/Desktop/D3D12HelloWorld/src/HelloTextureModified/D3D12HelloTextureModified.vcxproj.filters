@@ -93,6 +93,15 @@
     <ClInclude Include="Renderer\PipelineFactory.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\RayQueryShadowPass.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\ShadowMaskDebugPass.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\RayTracingSupport.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer\RenderPassExecution.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
@@ -206,6 +215,15 @@
     <ClCompile Include="Renderer\PipelineFactory.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="Renderer\RayQueryShadowPass.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\ShadowMaskDebugPass.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\RayTracingSupport.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="Renderer\RootSignatureFactory.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
@@ -235,10 +253,16 @@
     <CustomBuild Include="shaders_GBufferDebug.hlsl">
       <Filter>Assets\Shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="shaders_ShadowMaskDebug.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </CustomBuild>
     <CustomBuild Include="shaders_LightPass.hlsl">
       <Filter>Assets\Shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="shaders_LightPassDebugGradient.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders_RayQueryShadow.hlsl">
       <Filter>Assets\Shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="shaders_ToneMap.hlsl">
@@ -247,6 +271,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="FullscreenTriangle.hlsli">
+      <Filter>Assets\Shaders</Filter>
+    </None>
+    <None Include="Material.hlsli">
+      <Filter>Assets\Shaders</Filter>
+    </None>
+    <None Include="InstanceData.hlsli">
       <Filter>Assets\Shaders</Filter>
     </None>
     <None Include="packages.config" />

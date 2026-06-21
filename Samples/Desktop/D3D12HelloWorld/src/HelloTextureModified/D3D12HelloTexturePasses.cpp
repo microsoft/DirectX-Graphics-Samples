@@ -44,13 +44,21 @@ void HelloTextureEngine::AddSceneRenderPasses()
     else
     {
         AddPass(MakeGBufferPass());
+        if (m_rayTracingSupport.IsSupported())
+        {
+            AddPass(MakeRayQueryShadowPass());
+        }
         AddDeferredSceneOutputPass();
     }
 }
 
 void HelloTextureEngine::AddDeferredSceneOutputPass()
 {
-    if (m_debugViewSettings.IsGBufferDebugView())
+    if (m_debugViewSettings.renderViewMode == RenderViewMode::ShadowMask)
+    {
+        AddPass(MakeShadowMaskDebugPass());
+    }
+    else if (m_debugViewSettings.IsGBufferDebugView())
     {
         AddPass(MakeGBufferDebugPass());
     }
@@ -175,6 +183,15 @@ auto HelloTextureEngine::MakeForwardPass() -> RenderPass
         .Build();
 }
 
+auto HelloTextureEngine::MakeRayQueryShadowPass() -> RenderPass
+{
+    return m_renderGraphRuntime.Authoring()
+        .CreatePass(L"RayQueryShadowPass")
+        .Writes({{kShadowMaskResourceName, D3D12_RESOURCE_STATE_UNORDERED_ACCESS}})
+        .Operation(Op::RayQueryShadow, &HelloTextureEngine::ExecuteRayQueryShadowPass)
+        .Build();
+}
+
 auto HelloTextureEngine::MakeLightingPass() -> RenderPass
 {
     return m_renderGraphRuntime.Authoring()
@@ -244,6 +261,19 @@ auto HelloTextureEngine::MakeGBufferDebugPass() -> RenderPass
         .Rtv(RtvName::LightPass)
         .Operation(Op::GBufferDebug, &HelloTextureEngine::ExecuteGBufferDebugPass)
         .Constants(RootSignatureLayout::GBufferDebugConstants, ConstName::GBufferDebugTarget)
+        .Build();
+}
+
+auto HelloTextureEngine::MakeShadowMaskDebugPass() -> RenderPass
+{
+    return m_renderGraphRuntime.Authoring()
+        .CreatePass(L"ShadowMaskDebugPass")
+        .Pipeline(Pipe::ShadowMaskDebug)
+        .Reads({{kShadowMaskResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}})
+        .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
+        .Descriptor(RootSignatureLayout::ToneMapSceneColor, Desc::ShadowMaskSrv)
+        .Rtv(RtvName::LightPass)
+        .Operation(Op::ShadowMaskDebug, &HelloTextureEngine::ExecuteShadowMaskDebugPass)
         .Build();
 }
 

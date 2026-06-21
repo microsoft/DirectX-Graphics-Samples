@@ -24,12 +24,15 @@
 #include "Renderer/Material.h"
 #include "Renderer/MaterialBuffer.h"
 #include "Renderer/PipelineFactory.h"
+#include "Renderer/RayQueryShadowPass.h"
+#include "Renderer/RayTracingSupport.h"
 #include "Renderer/RenderPassExecution.h"
 #include "Renderer/RenderPassGraph.h"
 #include "Renderer/RenderPassResources.h"
 #include "Renderer/RootSignatureLayout.h"
 #include "Renderer/SceneGeometryPass.h"
 #include "Renderer/SimpleDescriptorHeapAllocator.h"
+#include "Renderer/ShadowMaskDebugPass.h"
 #include "Renderer/ToneMap.h"
 #include "Scene/Scene.h"
 #include "WorkMeter.h"
@@ -87,6 +90,7 @@ public:
         IblDiffuseIrradiance,
         IblSpecularPrefilter,
         IblBrdfLut,
+        ShadowMask,
     };
 
     enum class RenderingPath
@@ -141,6 +145,9 @@ public:
     {
         int frameIndex;
         float cpuFrameTime;
+        bool rayTracingSupported;
+        const wchar_t* rayTracingTierName;
+        int rayTracingTierRaw;
         const std::vector<MyDx12Util::GpuWorkMeter::CheckPoint>& gpuCheckPoints;
     };
 
@@ -196,6 +203,8 @@ private:
             static constexpr const char* LightingDebugGradient = "LightingDebugGradient";
             static constexpr const char* ToneMap = "ToneMap";
             static constexpr const char* GBufferDebug = "GBufferDebug";
+            static constexpr const char* RayQueryShadow = "RayQueryShadow";
+            static constexpr const char* ShadowMaskDebug = "ShadowMaskDebug";
         };
 
         struct Descriptor
@@ -208,6 +217,8 @@ private:
             static constexpr const char* LightCbv = "LightCbv";
             static constexpr const char* GBufferAlbedoSrv = "GBufferAlbedoSrv";
             static constexpr const char* ToneMapSceneColorSrv = "ToneMapSceneColorSrv";
+            static constexpr const char* ShadowMaskSrv = "ShadowMaskSrv";
+            static constexpr const char* ShadowMaskUav = "ShadowMaskUav";
         };
 
         struct Rtv
@@ -239,6 +250,8 @@ private:
             static constexpr const char* ToneMap = "ToneMap";
             static constexpr const char* DebugDump = "DebugDump";
             static constexpr const char* GBufferDebug = "GBufferDebug";
+            static constexpr const char* ShadowMaskDebug = "ShadowMaskDebug";
+            static constexpr const char* RayQueryShadow = "RayQueryShadow";
             static constexpr const char* ImGui = "ImGui";
         };
 
@@ -270,13 +283,18 @@ private:
         kEnvironmentDescriptorTableSize * kEnvironmentDescriptorTableCapacity + 1;
     static constexpr UINT kConstantBufferCount = kFrameCount;
     static constexpr UINT kLightConstantBufferCount = kFrameCount;
+    static constexpr UINT kDepthStencilSrvDescriptorCount = 1;
+    static constexpr UINT kLightPassSrvDescriptorCount = 1;
+    static constexpr UINT kShadowMaskDescriptorCount = 2; // SRV + UAV
 
     // Descriptor allocation order is tracked by DescriptorHeapHandle.
-    // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, environment map SRVs,
+    // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, ShadowMask SRV/UAV, environment map SRVs,
     // texture table, instance buffers, material buffer, constant buffer, light constant buffer.
     static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
                                                      kEnvironmentMapDescriptorCount + kConstantBufferCount +
-                                                     kLightConstantBufferCount + Engine::GBuffer::kCount + 2;
+                                                     kLightConstantBufferCount + Engine::GBuffer::kCount +
+                                                     kDepthStencilSrvDescriptorCount + kLightPassSrvDescriptorCount +
+                                                     kShadowMaskDescriptorCount;
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
 
@@ -342,7 +360,9 @@ private:
 
         bool IsGBufferDebugView() const
         {
-            return renderViewMode != RenderViewMode::LightPass && !IsLightPassDebugView();
+            return renderViewMode != RenderViewMode::LightPass &&
+                   renderViewMode != RenderViewMode::ShadowMask &&
+                   !IsLightPassDebugView();
         }
         bool IsLightPassDebugView() const
         {
@@ -375,14 +395,19 @@ private:
     ComPtr<ID3D12Resource> m_renderTargets[kFrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12Resource> m_lightPassRenderTarget;
+    ComPtr<ID3D12Resource> m_shadowMask;
     DescriptorHeapHandle m_depthStencilSrv;
     DescriptorHeapHandle m_lightPassColorSrv;
+    DescriptorAllocation m_shadowMaskSrv;
+    DescriptorAllocation m_shadowMaskUav;
 
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12RootSignature> m_proceduralEnvRootSignature;
+    ComPtr<ID3D12RootSignature> m_rayQueryShadowRootSignature;
     ComPtr<ID3D12RootSignature> m_lightingRootSignature; // not used in this sample but created for future use
 
     ComPtr<ID3D12PipelineState> m_proceduralEnvPipeline;
+    ComPtr<ID3D12PipelineState> m_rayQueryShadowPipeline;
 
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
@@ -394,6 +419,7 @@ private:
 
     RenderingPath m_renderingPath = RenderingPath::Deferred;
     bool m_lightingPassDebugGradientEnabled = false;
+    Engine::RayTracingSupportInfo m_rayTracingSupport;
     Engine::ToneMapPass m_toneMapPass;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
@@ -482,6 +508,7 @@ private:
     static constexpr const char* kLightPassRenderTargetResourceName = "LightPass.RenderTarget";
     static constexpr const char* kGBufferResourceNames[Engine::GBuffer::kCount] = {
         "GBuffer.Albedo", "GBuffer.Normal", "GBuffer.Material", "GBuffer.MotionVector", "GBuffer.PBRParams"};
+    static constexpr const char* kShadowMaskResourceName = "ShadowMask";
 
     using TransientResourceState = Engine::TransientResourceState;
 
@@ -523,16 +550,19 @@ private:
         GraphicsPipelineShaderSet depthPrePass;
         GraphicsPipelineShaderSet gbuffer;
         GraphicsPipelineShaderSet gbufferDebug;
+        GraphicsPipelineShaderSet shadowMaskDebug;
         GraphicsPipelineShaderSet lighting;
         GraphicsPipelineShaderSet lightingDebugGradient;
         GraphicsPipelineShaderSet toneMap;
         ShaderBytecode proceduralEnv;
+        ShaderBytecode rayQueryShadow;
     };
 
     void LoadPipeline();
     void LoadAssets();
     void CreateRootSignature();
     void CreateProceduralEnvRootSignature();
+    void CreateRayQueryShadowRootSignature();
     void CreatePipelineStates();
     ShaderBytecode LoadShaderBytecode(LPCWSTR assetName);
     PipelineShaderBytecode LoadPipelineShaderBytecode();
@@ -598,6 +628,8 @@ private:
     void RegisterDepthStencil(UINT width, UINT height);
     void RegisterLightPassRenderTarget(UINT width, UINT height);
     void CreateDepthStencilDescriptors();
+    void CreateShadowMask(UINT width, UINT height);
+    void CreateShadowMaskDescriptors();
     D3D12_CPU_DESCRIPTOR_HANDLE GetBackBufferRtv() const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetDepthDsv() const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetGBufferRTV(UINT index) const;
@@ -617,12 +649,14 @@ private:
     RenderPass MakeClearPass();
     RenderPass MakeDepthPrePass();
     RenderPass MakeGBufferPass();
+    RenderPass MakeRayQueryShadowPass();
     RenderPass MakeForwardPass();
     RenderPass MakeLightingPass();
     RenderPass MakeLightingDebugGradientPass();
     RenderPass MakeToneMapPass();
     RenderPass MakeDebugDumpPass();
     RenderPass MakeGBufferDebugPass();
+    RenderPass MakeShadowMaskDebugPass();
     RenderPass MakeImGuiPass();
     void BuildRenderPasses();
     void AddSceneRenderPasses();
@@ -667,12 +701,14 @@ private:
     void ExecuteClearPass(const RenderPass& pass);
     void ExecuteDepthPrePass(const RenderPass& pass);
     void ExecuteGBufferPass(const RenderPass& pass);
+    void ExecuteRayQueryShadowPass(const RenderPass& pass);
     void ExecuteForwardPass(const RenderPass& pass);
     void ExecuteLightingPass(const RenderPass& pass);
     void ExecuteLightingDebugGradientPass(const RenderPass& pass);
     void ExecuteToneMapPass(const RenderPass& pass);
     void ExecuteDebugDumpPass(const RenderPass& pass);
     void ExecuteGBufferDebugPass(const RenderPass& pass);
+    void ExecuteShadowMaskDebugPass(const RenderPass& pass);
     void ExecuteImGuiPass(const RenderPass& pass);
     void RecordDebugDumpPass();
     void RecordImGuiPass();

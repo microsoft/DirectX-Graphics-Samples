@@ -503,6 +503,10 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
     ImGui::Text("Scene: %s", loadedScene.Name());
     ImGui::Text("Loaded Scene Index: %d", m_loadedSceneIndex);
     ImGui::Text("FrameIndex: %d", context.frameIndex);
+    ImGui::Text("Ray Tracing: %s (Tier %ls, raw=%d)",
+                context.rayTracingSupported ? "Supported" : "Not supported",
+                context.rayTracingTierName,
+                context.rayTracingTierRaw);
     if (ImGui::Button("Close Scene"))
     {
         CloseRunningScene();
@@ -735,7 +739,14 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         ImGui::RadioButton("IBL Prefilter", &renderViewMode, static_cast<int>(RenderViewMode::IblSpecularPrefilter));
         ImGui::SameLine();
         ImGui::RadioButton("IBL BRDF LUT", &renderViewMode, static_cast<int>(RenderViewMode::IblBrdfLut));
+        ImGui::BeginDisabled(!context.rayTracingSupported);
+        ImGui::RadioButton("ShadowMask", &renderViewMode, static_cast<int>(RenderViewMode::ShadowMask));
+        ImGui::EndDisabled();
         m_renderViewMode = static_cast<RenderViewMode>(renderViewMode);
+        if (!context.rayTracingSupported && m_renderViewMode == RenderViewMode::ShadowMask)
+        {
+            m_renderViewMode = RenderViewMode::LightPass;
+        }
         const bool iblDebugView = m_renderViewMode == RenderViewMode::IblEnvironment ||
             m_renderViewMode == RenderViewMode::IblDiffuseIrradiance ||
             m_renderViewMode == RenderViewMode::IblSpecularPrefilter;

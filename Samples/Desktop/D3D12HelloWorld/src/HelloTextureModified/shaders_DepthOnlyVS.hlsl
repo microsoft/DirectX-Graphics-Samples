@@ -1,17 +1,10 @@
-﻿
+#include "InstanceData.hlsli"
+
 cbuffer ConstantBuffer : register(b0)
 {
     float4x4 viewProj;
     float4x4 prevViewProj;
     float4x4 invViewProj;
-};
-
-struct InstanceData
-{
-    float4x4 world;
-    float4x4 prevWorld;
-    uint materialId;
-    float padding[3];
 };
 
 StructuredBuffer<InstanceData> g_instanceData : register(t0, space1);
