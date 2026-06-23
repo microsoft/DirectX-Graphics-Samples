@@ -10,6 +10,11 @@ struct RayQueryShadowPassDesc
     ID3D12RootSignature* rootSignature = nullptr;
     ID3D12PipelineState* pipelineState = nullptr;
     D3D12_GPU_DESCRIPTOR_HANDLE shadowMaskUav = {};
+    D3D12_GPU_DESCRIPTOR_HANDLE tlasSrv = {};
+    D3D12_GPU_DESCRIPTOR_HANDLE depthSrv = {};
+    D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = {};
+    D3D12_GPU_DESCRIPTOR_HANDLE cameraCbv = {};
+    DirectX::XMFLOAT3 lightDirection = {};
     UINT width = 0;
     UINT height = 0;
 };

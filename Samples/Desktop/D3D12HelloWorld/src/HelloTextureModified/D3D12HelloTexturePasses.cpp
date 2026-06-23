@@ -187,6 +187,8 @@ auto HelloTextureEngine::MakeRayQueryShadowPass() -> RenderPass
 {
     return m_renderGraphRuntime.Authoring()
         .CreatePass(L"RayQueryShadowPass")
+        .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE},
+                {kGBufferResourceNames[Engine::GBuffer::Normal], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE}})
         .Writes({{kShadowMaskResourceName, D3D12_RESOURCE_STATE_UNORDERED_ACCESS}})
         .Operation(Op::RayQueryShadow, &HelloTextureEngine::ExecuteRayQueryShadowPass)
         .Build();
