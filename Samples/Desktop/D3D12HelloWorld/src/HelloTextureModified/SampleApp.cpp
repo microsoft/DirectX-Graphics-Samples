@@ -17,6 +17,8 @@
 #include "imgui.h"
 #include "ImGuiWidgets.h"
 
+void RunStagedAllocatorTests(ID3D12Device* device);
+
 namespace
 {
 
@@ -780,6 +782,12 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
             {
                 m_requestHdrDump = true;
             }
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button("Run Descriptor Allocator Tests"))
+        {
+            RunStagedAllocatorTests(m_graphicsDevice.Device());
         }
     }
 

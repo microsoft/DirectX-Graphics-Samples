@@ -23,6 +23,7 @@
 #include "Renderer/LightingPass.h"
 #include "Renderer/Material.h"
 #include "Renderer/MaterialBuffer.h"
+#include "Renderer/StagedDescriptorAllocator.h"
 #include "Renderer/PipelineFactory.h"
 #include "Renderer/RayQueryShadowPass.h"
 #include "Renderer/RayTracingSupport.h"
@@ -283,18 +284,28 @@ private:
         kEnvironmentDescriptorTableSize * kEnvironmentDescriptorTableCapacity + 1;
     static constexpr UINT kConstantBufferCount = kFrameCount;
     static constexpr UINT kLightConstantBufferCount = kFrameCount;
-    static constexpr UINT kDepthStencilSrvDescriptorCount = 1;
-    static constexpr UINT kLightPassSrvDescriptorCount = 1;
-    static constexpr UINT kShadowMaskDescriptorCount = 2; // SRV + UAV
+
+    // Fixed SRV slots after the counted arrays (GBuffer SRVs, etc.).
+    // Must be allocated in enum order, immediately after the GBuffer SRVs.
+    enum PersistentSrvSlot : UINT
+    {
+        DepthStencilSrvSlot,
+        LightPassColorSrvSlot,
+
+        PersistentSrvSlotCount,
+    };
+    static constexpr UINT kShadowMaskDescriptorCount = 2; // SRV + UAV (dynamically allocated)
 
     // Descriptor allocation order is tracked by DescriptorHeapHandle.
-    // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, ShadowMask SRV/UAV, environment map SRVs,
+    // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, environment map SRVs,
     // texture table, instance buffers, material buffer, constant buffer, light constant buffer.
+    // ShadowMask descriptors live in a StagedDescriptorAllocator whose GPU
+    // copies are staged into a reserved range of the main shader-visible heap.
     static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
-                                                     kEnvironmentMapDescriptorCount + kConstantBufferCount +
-                                                     kLightConstantBufferCount + Engine::GBuffer::kCount +
-                                                     kDepthStencilSrvDescriptorCount + kLightPassSrvDescriptorCount +
-                                                     kShadowMaskDescriptorCount;
+                                                      kEnvironmentMapDescriptorCount + kConstantBufferCount +
+                                                      kLightConstantBufferCount + Engine::GBuffer::kCount +
+                                                      PersistentSrvSlotCount;
+    static constexpr UINT kStagedDescriptorReservedCount = 64;
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
 
@@ -398,8 +409,9 @@ private:
     ComPtr<ID3D12Resource> m_shadowMask;
     DescriptorHeapHandle m_depthStencilSrv;
     DescriptorHeapHandle m_lightPassColorSrv;
-    DescriptorAllocation m_shadowMaskSrv;
-    DescriptorAllocation m_shadowMaskUav;
+    StagedDescriptorRange m_shadowMaskRange;
+
+    StagedDescriptorAllocator m_stageAllocator;
 
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12RootSignature> m_proceduralEnvRootSignature;

@@ -74,7 +74,7 @@ struct SimpleDescriptorHeapAllocator
 
     // Initialize the allocator with a descriptor heap.
     // The heap must not have been used before and must not be used elsewhere after initialization.
-    void Init(ID3D12Device* device, ID3D12DescriptorHeap* heap)
+    void Init(ID3D12Device* device, ID3D12DescriptorHeap* heap, UINT capacity = UINT_MAX)
     {
         assert(Heap == nullptr && FreeIndices.empty());
         Heap = heap;
@@ -83,9 +83,9 @@ struct SimpleDescriptorHeapAllocator
         HeapStartCpu = Heap->GetCPUDescriptorHandleForHeapStart();
         HeapStartGpu = Heap->GetGPUDescriptorHandleForHeapStart();
         HeapHandleIncrement = device->GetDescriptorHandleIncrementSize(HeapType);
-        Capacity = desc.NumDescriptors;
-        FreeIndices.reserve((int)desc.NumDescriptors);
-        for (int n = desc.NumDescriptors; n > 0; n--)
+        Capacity = (std::min)(desc.NumDescriptors, capacity);
+        FreeIndices.reserve((int)Capacity);
+        for (UINT n = Capacity; n > 0; n--)
         {
             FreeIndices.push_back(n - 1);
         }

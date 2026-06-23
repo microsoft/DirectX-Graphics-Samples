@@ -19,6 +19,8 @@
 #include "MyDx12Utils.h"
 #include "Renderer/DebugDumpReport.h"
 #include "Renderer/RootSignatureFactory.h"
+// Forward declaration for the staged allocator smoke test.
+
 
 #include <random>
 #include <combaseapi.h>
@@ -405,14 +407,33 @@ void HelloTextureEngine::LoadPipeline()
         m_rtvDescriptorSize =
             m_graphicsDevice.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-        // Describe and create a heap for SRV/CBV/UAV
+        // Describe and create a single shader-visible heap for CBV/SRV/UAV.
+        // The heap is sized to hold both the regular descriptors (managed by
+        // SimpleDescriptorHeapAllocator) and a reserved tail region for staging
+        // copies (managed by StagedDescriptorAllocator).
         D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-        heapDesc.NumDescriptors = kMainHeapDescriptorCount;
+        // Total heap = regular descriptors + per-frame staged chunks.
+        heapDesc.NumDescriptors = kMainHeapDescriptorCount + kStagedDescriptorReservedCount * kFrameCount;
         heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         ThrowIfFailed(m_graphicsDevice.Device()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_heap)));
-        // Create a descriptor allocator to manage the descriptors in the heap.
-        m_descriptorHeapAllocator.Init(m_graphicsDevice.Device(), m_heap.Get());
+
+        // Create a descriptor allocator limited to the regular (non-staged) region.
+        m_descriptorHeapAllocator.Init(m_graphicsDevice.Device(), m_heap.Get(), kMainHeapDescriptorCount);
+
+        // Initialize staged descriptor allocator for ShadowMask (and future transient descriptors).
+        // The allocator owns a CPU heap and copies into a reserved range of the main GPU heap.
+        {
+            D3D12_CPU_DESCRIPTOR_HANDLE mainCpuStart = m_heap->GetCPUDescriptorHandleForHeapStart();
+            D3D12_GPU_DESCRIPTOR_HANDLE mainGpuStart = m_heap->GetGPUDescriptorHandleForHeapStart();
+            m_stageAllocator.Init(m_graphicsDevice.Device(),
+                                  D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                                  4,
+                                  mainCpuStart,
+                                  mainGpuStart,
+                                  kMainHeapDescriptorCount,
+                                  kStagedDescriptorReservedCount);
+        }
     }
 
     // create render target views (RTVs) for the swap chain back buffers.
@@ -1661,14 +1682,9 @@ void HelloTextureEngine::CreateShadowMask(UINT width, UINT height)
 
 void HelloTextureEngine::CreateShadowMaskDescriptors()
 {
-    if (!m_shadowMaskSrv.IsValid())
+    if (!m_shadowMaskRange.IsValid())
     {
-        m_shadowMaskSrv = m_descriptorHeapAllocator.Allocate();
-    }
-
-    if (!m_shadowMaskUav.IsValid())
-    {
-        m_shadowMaskUav = m_descriptorHeapAllocator.Allocate();
+        m_shadowMaskRange = m_stageAllocator.AllocContiguous(2);
     }
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1676,12 +1692,14 @@ void HelloTextureEngine::CreateShadowMaskDescriptors()
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Texture2D.MipLevels = 1;
-    m_graphicsDevice.Device()->CreateShaderResourceView(m_shadowMask.Get(), &srvDesc, m_shadowMaskSrv.Cpu());
+    m_graphicsDevice.Device()->CreateShaderResourceView(m_shadowMask.Get(), &srvDesc,
+                                                        m_stageAllocator.CpuHandle(m_shadowMaskRange.Start));
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.Format = DXGI_FORMAT_R8_UNORM;
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-    m_graphicsDevice.Device()->CreateUnorderedAccessView(m_shadowMask.Get(), nullptr, &uavDesc, m_shadowMaskUav.Cpu());
+    m_graphicsDevice.Device()->CreateUnorderedAccessView(m_shadowMask.Get(), nullptr, &uavDesc,
+                                                         m_stageAllocator.CpuHandle(m_shadowMaskRange.Start + 1));
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE HelloTextureEngine::GetBackBufferRtv() const
@@ -1752,9 +1770,13 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
         m_renderGraphRuntime.RegisterDescriptor(Desc::ToneMapSceneColorSrv),
         [this]() { return m_lightPassColorSrv.gpu; });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::ShadowMaskSrv),
-                                                       [this]() { return m_shadowMaskSrv.Gpu(); });
+                                                       [this]()
+                                                       { return m_stageAllocator.GpuHandle(m_shadowMaskRange.Start); });
     m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::ShadowMaskUav),
-                                                       [this]() { return m_shadowMaskUav.Gpu(); });
+                                                       [this]()
+                                                       {
+                                                           return m_stageAllocator.GpuHandle(m_shadowMaskRange.Start + 1);
+                                                       });
 }
 
 void HelloTextureEngine::RegisterPassConstantsHandlers()
@@ -1884,6 +1906,13 @@ UINT HelloTextureEngine::GetVisibleCubeCount() const
 void HelloTextureEngine::RenderFrame(const UiRenderHandler& uiRenderHandler)
 {
     PIXBeginEvent(0, L"RenderFrame");
+
+    // Select the per-frame chunk within the main heap's reserved range and
+    // stage descriptors from the CPU heap into that chunk.
+    // SetFrameIndex must match the current frame so that GpuHandle() (called
+    // during command recording) points to the same chunk that Stage() writes.
+    m_stageAllocator.SetFrameIndex(m_currentFrameIndex);
+    m_stageAllocator.Stage();
 
     UpdatePerFrameRenderSettings();
     m_activeUiRenderHandler = &uiRenderHandler;
@@ -2289,6 +2318,8 @@ void HelloTextureEngine::BeginFrame()
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
+    // The single shader-visible heap includes both regular descriptors and
+    // the reserved staged region, so only one heap needs to be bound.
     ID3D12DescriptorHeap* ppHeaps[] = {m_heap.Get()};
     m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
@@ -2330,7 +2361,7 @@ void HelloTextureEngine::ExecuteRayQueryShadowPass(const RenderPass& pass)
     Engine::RayQueryShadowPassDesc passDesc = {};
     passDesc.rootSignature = m_rayQueryShadowRootSignature.Get();
     passDesc.pipelineState = m_rayQueryShadowPipeline.Get();
-    passDesc.shadowMaskUav = m_shadowMaskUav.Gpu();
+    passDesc.shadowMaskUav = m_stageAllocator.GpuHandle(m_shadowMaskRange.Start + 1);
     passDesc.width = m_width;
     passDesc.height = m_height;
 

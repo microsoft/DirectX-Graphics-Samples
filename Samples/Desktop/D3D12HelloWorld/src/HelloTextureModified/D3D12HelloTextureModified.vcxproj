@@ -161,6 +161,7 @@
     <ClInclude Include="Renderer\RootSignatureLayout.h" />
     <ClInclude Include="Renderer\SceneGeometryPass.h" />
     <ClInclude Include="Renderer\SimpleDescriptorHeapAllocator.h" />
+    <ClInclude Include="Renderer\StagedDescriptorAllocator.h" />
     <ClInclude Include="Renderer\ToneMap.h" />
     <ClInclude Include="Scene\Scene.h" />
     <ClInclude Include="Scene\SampleScene.h" />
@@ -192,6 +193,7 @@
     <ClCompile Include="Renderer\RayTracingSupport.cpp" />
     <ClCompile Include="Renderer\ShadowMaskDebugPass.cpp" />
     <ClCompile Include="Renderer\RootSignatureFactory.cpp" />
+    <ClCompile Include="Renderer\StagedDescriptorAllocator_Test.cpp" />
     <ClCompile Include="Renderer\SceneGeometryPass.cpp" />
     <ClCompile Include="Renderer\ToneMap.cpp" />
     <ClCompile Include="Scene\SampleScene.cpp" />

@@ -129,6 +129,9 @@
     <ClInclude Include="Renderer\SimpleDescriptorHeapAllocator.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\StagedDescriptorAllocator.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer\ToneMap.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
@@ -225,6 +228,9 @@
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\RootSignatureFactory.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\StagedDescriptorAllocator_Test.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\SceneGeometryPass.cpp">
