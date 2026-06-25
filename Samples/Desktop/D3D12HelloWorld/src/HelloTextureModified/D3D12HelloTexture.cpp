@@ -48,6 +48,7 @@
 #include "Renderer\Material.h"
 #include "Renderer\PipelineFactory.h"
 #include "Renderer\RayQueryShadowPass.h"
+#include "Renderer\RayQueryTlasDebugPass.h"
 #include "Renderer\RayTracingSupport.h"
 #include "Renderer\RenderPassExecution.h"
 #include "Renderer\RenderPassResources.h"
@@ -1028,6 +1029,7 @@ void HelloTextureEngine::LoadAssets()
     CreateRootSignature();
     CreateProceduralEnvRootSignature();
     CreateRayQueryShadowRootSignature();
+    CreateRayQueryTlasDebugRootSignature();
     CreatePipelineStates();
     CreateGBuffer();
     CreateShadowMask(m_width, m_height);
@@ -1122,6 +1124,49 @@ void HelloTextureEngine::CreateRayQueryShadowRootSignature()
         0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rayQueryShadowRootSignature)));
 }
 
+void HelloTextureEngine::CreateRayQueryTlasDebugRootSignature()
+{
+    CD3DX12_DESCRIPTOR_RANGE1 uavRange = {};
+    uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0);
+
+    CD3DX12_DESCRIPTOR_RANGE1 tlasSrvRange = {};
+    tlasSrvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+
+    CD3DX12_DESCRIPTOR_RANGE1 depthSrvRange = {};
+    depthSrvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
+
+    CD3DX12_DESCRIPTOR_RANGE1 normalSrvRange = {};
+    normalSrvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
+
+    CD3DX12_DESCRIPTOR_RANGE1 cameraCbvRange = {};
+    cameraCbvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0);
+
+    CD3DX12_ROOT_PARAMETER1 rootParameters[6] = {};
+    rootParameters[0].InitAsDescriptorTable(1, &uavRange);       // g_tlasDebug (u0)
+    rootParameters[1].InitAsDescriptorTable(1, &tlasSrvRange);   // g_tlas (t0)
+    rootParameters[2].InitAsDescriptorTable(1, &depthSrvRange);  // g_depth (t1)
+    rootParameters[3].InitAsDescriptorTable(1, &normalSrvRange); // g_normal (t2)
+    rootParameters[4].InitAsDescriptorTable(1, &cameraCbvRange); // CameraCB (b0)
+    rootParameters[5].InitAsConstants(3, 1, 0);                  // ShadowConstants lightDirection (b1, 3 floats)
+
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+    featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+    if (FAILED(m_graphicsDevice.Device()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+    {
+        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+    }
+    const D3D_ROOT_SIGNATURE_VERSION rootSignatureVersion = featureData.HighestVersion;
+
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+    rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
+
+    ComPtr<ID3DBlob> signature;
+    ComPtr<ID3DBlob> error;
+    ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, rootSignatureVersion, &signature, &error));
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateRootSignature(
+        0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rayQueryTlasDebugRootSignature)));
+}
+
 auto HelloTextureEngine::LoadShaderBytecode(LPCWSTR assetName) -> ShaderBytecode
 {
     UINT8* data = nullptr;
@@ -1149,6 +1194,7 @@ auto HelloTextureEngine::LoadPipelineShaderBytecode() -> PipelineShaderBytecode
                        LoadShaderBytecode(L"shaders_ToneMap_PSMain.cso")};
     shaders.proceduralEnv = LoadShaderBytecode(L"shaders_ProceduralEnvMap_CSMain.cso");
     shaders.rayQueryShadow = LoadShaderBytecode(L"shaders_RayQueryShadow_CSMain.cso");
+    shaders.rayQueryTlasDebug = LoadShaderBytecode(L"shaders_RayQueryTlasDebug_CSMain.cso");
     return shaders;
 }
 
@@ -1167,7 +1213,13 @@ void HelloTextureEngine::CreatePipelineStates()
     rayQueryShadowDesc.pRootSignature = m_rayQueryShadowRootSignature.Get();
     rayQueryShadowDesc.CS = CD3DX12_SHADER_BYTECODE(shaders.rayQueryShadow.data, shaders.rayQueryShadow.size);
     ThrowIfFailed(m_graphicsDevice.Device()->CreateComputePipelineState(&rayQueryShadowDesc,
-                                                                        IID_PPV_ARGS(&m_rayQueryShadowPipeline)));
+                                                                         IID_PPV_ARGS(&m_rayQueryShadowPipeline)));
+
+    D3D12_COMPUTE_PIPELINE_STATE_DESC rayQueryTlasDebugDesc = {};
+    rayQueryTlasDebugDesc.pRootSignature = m_rayQueryTlasDebugRootSignature.Get();
+    rayQueryTlasDebugDesc.CS = CD3DX12_SHADER_BYTECODE(shaders.rayQueryTlasDebug.data, shaders.rayQueryTlasDebug.size);
+    ThrowIfFailed(m_graphicsDevice.Device()->CreateComputePipelineState(&rayQueryTlasDebugDesc,
+                                                                         IID_PPV_ARGS(&m_rayQueryTlasDebugPipeline)));
 }
 
 void HelloTextureEngine::RegisterPipelineStates(const PipelineShaderBytecode& shaders)
@@ -1826,6 +1878,11 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
                                                        {
                                                            return m_stageAllocator.GpuHandle(m_shadowMaskRange.Start + 1);
                                                        });
+    m_renderGraphRuntime.Bindings().RegisterDescriptor(m_renderGraphRuntime.RegisterDescriptor(Desc::TlasDebugUav),
+                                                       [this]()
+                                                       {
+                                                           return m_stageAllocator.GpuHandle(m_shadowMaskRange.Start + 1);
+                                                       });
 }
 
 void HelloTextureEngine::RegisterPassConstantsHandlers()
@@ -2421,6 +2478,26 @@ void HelloTextureEngine::ExecuteRayQueryShadowPass(const RenderPass& pass)
 
     Engine::RecordRayQueryShadowPass(m_commandList.Get(), passDesc);
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "RayQuery Shadow Pass");
+}
+
+void HelloTextureEngine::ExecuteRayQueryTlasDebugPass(const RenderPass& pass)
+{
+    UNREFERENCED_PARAMETER(pass);
+
+    Engine::RayQueryTlasDebugPassDesc passDesc = {};
+    passDesc.rootSignature = m_rayQueryTlasDebugRootSignature.Get();
+    passDesc.pipelineState = m_rayQueryTlasDebugPipeline.Get();
+    passDesc.tlasDebugUav = m_stageAllocator.GpuHandle(m_shadowMaskRange.Start + 1);
+    passDesc.tlasSrv = m_accelerationStructures.tlasSrv.Gpu();
+    passDesc.depthSrv = m_depthStencilSrv.gpu;
+    passDesc.normalSrv = m_gbuffer.srvHandles[Engine::GBuffer::Normal].gpu;
+    passDesc.cameraCbv = m_frameResources[m_currentFrameIndex].cameraCB.cbv.gpu;
+    passDesc.lightDirection = m_lightingParams.lightDirection;
+    passDesc.width = m_width;
+    passDesc.height = m_height;
+
+    Engine::RecordRayQueryTlasDebugPass(m_commandList.Get(), passDesc);
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "RayQuery TlasDebug Pass");
 }
 
 void HelloTextureEngine::ExecuteForwardPass(const RenderPass& pass)

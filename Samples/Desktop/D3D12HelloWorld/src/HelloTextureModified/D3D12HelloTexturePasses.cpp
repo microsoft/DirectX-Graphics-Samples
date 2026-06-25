@@ -47,6 +47,10 @@ void HelloTextureEngine::AddSceneRenderPasses()
         if (m_rayTracingSupport.IsSupported())
         {
             AddPass(MakeRayQueryShadowPass());
+            if (m_debugViewSettings.renderViewMode == RenderViewMode::TlasDebug)
+            {
+                AddPass(MakeRayQueryTlasDebugPass());
+            }
         }
         AddDeferredSceneOutputPass();
     }
@@ -54,7 +58,8 @@ void HelloTextureEngine::AddSceneRenderPasses()
 
 void HelloTextureEngine::AddDeferredSceneOutputPass()
 {
-    if (m_debugViewSettings.renderViewMode == RenderViewMode::ShadowMask)
+    if (m_debugViewSettings.renderViewMode == RenderViewMode::ShadowMask ||
+        m_debugViewSettings.renderViewMode == RenderViewMode::TlasDebug)
     {
         AddPass(MakeShadowMaskDebugPass());
     }
@@ -191,6 +196,17 @@ auto HelloTextureEngine::MakeRayQueryShadowPass() -> RenderPass
                 {kGBufferResourceNames[Engine::GBuffer::Normal], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE}})
         .Writes({{kShadowMaskResourceName, D3D12_RESOURCE_STATE_UNORDERED_ACCESS}})
         .Operation(Op::RayQueryShadow, &HelloTextureEngine::ExecuteRayQueryShadowPass)
+        .Build();
+}
+
+auto HelloTextureEngine::MakeRayQueryTlasDebugPass() -> RenderPass
+{
+    return m_renderGraphRuntime.Authoring()
+        .CreatePass(L"RayQueryTlasDebugPass")
+        .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE},
+                {kGBufferResourceNames[Engine::GBuffer::Normal], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE}})
+        .Writes({{kShadowMaskResourceName, D3D12_RESOURCE_STATE_UNORDERED_ACCESS}})
+        .Operation(Op::RayQueryTlasDebug, &HelloTextureEngine::ExecuteRayQueryTlasDebugPass)
         .Build();
 }
 

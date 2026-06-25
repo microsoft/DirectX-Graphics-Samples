@@ -743,9 +743,12 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         ImGui::RadioButton("IBL BRDF LUT", &renderViewMode, static_cast<int>(RenderViewMode::IblBrdfLut));
         ImGui::BeginDisabled(!context.rayTracingSupported);
         ImGui::RadioButton("ShadowMask", &renderViewMode, static_cast<int>(RenderViewMode::ShadowMask));
+        ImGui::SameLine();
+        ImGui::RadioButton("TLAS Debug", &renderViewMode, static_cast<int>(RenderViewMode::TlasDebug));
         ImGui::EndDisabled();
         m_renderViewMode = static_cast<RenderViewMode>(renderViewMode);
-        if (!context.rayTracingSupported && m_renderViewMode == RenderViewMode::ShadowMask)
+        if (!context.rayTracingSupported &&
+            (m_renderViewMode == RenderViewMode::ShadowMask || m_renderViewMode == RenderViewMode::TlasDebug))
         {
             m_renderViewMode = RenderViewMode::LightPass;
         }
