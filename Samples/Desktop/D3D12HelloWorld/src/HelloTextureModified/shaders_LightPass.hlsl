@@ -11,6 +11,7 @@ TextureCube<float4> g_diffuseIrradianceMap : register(t1, space5);
 TextureCube<float4> g_specularPrefilterMap : register(t2, space5);
 Texture2D<float2> g_brdfLut : register(t3, space5);
 SamplerState g_sampler : register(s0);
+Texture2D<float> g_shadowMask : register(t0, space4);
 StructuredBuffer<Material> g_materialData : register(t0, space2);
 
 static const float PI = 3.14159265;
@@ -42,6 +43,7 @@ cbuffer LightingConstants : register(b2)
     float emissiveEnabled;
     float iblDebugMip;
     float iblDebugExposure;
+    float rayTracingSupported;
 };
 
 FullscreenVSOutput VSMain(uint vertexId : SV_VertexID)
@@ -190,7 +192,12 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float3 specularBrdf = distribution * geometry * fresnel / max(4.0 * ndotv * ndotl, 0.0001);
     float3 diffuseBrdf = (1.0 - fresnel) * (1.0 - metallic) * albedo / PI;
     float3 radiance = lightColor * diffuseIntensity;
-    float3 directLighting = (diffuseBrdf + specularBrdf) * radiance * ndotl * receiveLighting * directLightEnabled;
+    float shadowMask = 1.0;
+    if (rayTracingSupported)
+    {
+        shadowMask = g_shadowMask.Sample(g_sampler, input.uv);
+    }
+    float3 directLighting = (diffuseBrdf + specularBrdf) * radiance * ndotl * receiveLighting * shadowMask * directLightEnabled;
     float3 irradiance = g_diffuseIrradianceMap.Sample(g_sampler, normal).rgb;
     float3 iblDiffuse = irradiance * albedo * (1.0 - metallic) * iblIntensity * occlusion * diffuseIblEnabled / PI;
     float3 reflectionDir = reflect(-viewDir, normal);

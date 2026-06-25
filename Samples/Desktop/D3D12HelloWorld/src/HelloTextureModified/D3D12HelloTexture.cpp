@@ -221,6 +221,7 @@ auto HelloTextureEngine::MakeLightingConstants() const -> LightingConstants
         m_lightingParams.emissiveEnabled ? 1.0f : 0.0f,
         m_lightingParams.iblDebugMip,
         m_lightingParams.iblDebugExposure,
+        m_rayTracingSupport.IsSupported() ? 1.0f : 0.0f,
     };
 }
 
