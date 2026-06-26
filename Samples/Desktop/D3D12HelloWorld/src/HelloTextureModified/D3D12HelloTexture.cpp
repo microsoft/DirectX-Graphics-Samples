@@ -185,6 +185,11 @@ void HelloTextureEngine::SetLightingParams(const LightingParams& params)
     m_lightingParams = params;
 }
 
+void HelloTextureEngine::SetShadowSettings(const ShadowSettings& settings)
+{
+    m_shadowSettings = settings;
+}
+
 void HelloTextureEngine::SetMaterialParams(UINT materialIndex, const MaterialParams& params)
 {
     if (materialIndex >= m_materialData.size())

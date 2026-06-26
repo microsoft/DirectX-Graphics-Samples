@@ -145,6 +145,14 @@ public:
         float maxDisplayNits = 1000.0f;
     };
 
+    struct ShadowSettings
+    {
+        bool enabled = true;
+        float normalBias = 0.01f;
+        float rayTMin = 0.001f;
+        float rayTMax = 10000.0f;
+    };
+
     struct UiFrameContext
     {
         int frameIndex;
@@ -174,6 +182,8 @@ public:
     UiFrameContext GetUiFrameContext() const;
     void SetUpdateHandler(UpdateHandler handler);
     void SetLightingParams(const LightingParams& params);
+    void SetShadowSettings(const ShadowSettings& settings);
+    const ShadowSettings& GetShadowSettings() const { return m_shadowSettings; }
     void SetMaterialParams(UINT materialIndex, const MaterialParams& params);
     void SetRenderingPath(RenderingPath renderingPath);
     void SetLightingPassDebugGradient(bool enabled);
@@ -463,6 +473,7 @@ private:
     Engine::Scene m_scene;
     std::vector<Engine::Material> m_materialData;
     LightingParams m_lightingParams;
+    ShadowSettings m_shadowSettings;
     Engine::ProceduralEnvironmentSettings m_environmentSettings;
 
     ComPtr<ID3D12Resource> m_vertexBuffer;
