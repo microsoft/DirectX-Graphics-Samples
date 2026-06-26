@@ -1506,6 +1506,25 @@ void HelloTextureEngine::BuildAccelerationStructures()
         m_descriptorHeapAllocator);
 }
 
+void HelloTextureEngine::RebuildAccelerationStructures()
+{
+    if (!m_sceneResourcesAvailable || !m_rayTracingSupport.IsSupported())
+    {
+        return;
+    }
+
+    const UINT instanceCount = (std::min)(
+        GetVisibleCubeCount(),
+        static_cast<UINT>(m_scene.instances.size()));
+
+    m_accelerationStructures.RebuildTlas(
+        m_graphicsDevice.Device(),
+        m_commandList.Get(),
+        m_scene.instances.data(),
+        instanceCount,
+        m_frameResources[m_currentFrameIndex].tlasInstanceBuffer.Get());
+}
+
 void HelloTextureEngine::ReleaseSceneResources()
 {
     m_displayInstanceCount = 0;
@@ -2215,6 +2234,7 @@ void HelloTextureEngine::PopulateCommandList()
 
     BeginFrame();
     ResetResourceStates();
+    RebuildAccelerationStructures();
     BuildRenderPasses();
     ValidateRenderPassGraph();
     AnalyzeResourceLifetimes();

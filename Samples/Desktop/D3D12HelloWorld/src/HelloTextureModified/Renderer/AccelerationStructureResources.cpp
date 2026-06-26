@@ -271,6 +271,55 @@ void AccelerationStructureResources::Build(
     PIXEndEvent(commandList);
 }
 
+void AccelerationStructureResources::RebuildTlas(
+    ID3D12Device* device,
+    ID3D12GraphicsCommandList* commandList,
+    const InstanceData* instances,
+    UINT instanceCount,
+    ID3D12Resource* tlasInstanceBuffer)
+{
+    if (blas == nullptr || tlas == nullptr || tlasScratch == nullptr || tlasInstanceBuffer == nullptr ||
+        instanceCount == 0)
+    {
+        return;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D12Device5> device5;
+    if (!QueryDevice5(device, device5))
+    {
+        return;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> commandList4;
+    ThrowIfFailed(commandList->QueryInterface(IID_PPV_ARGS(&commandList4)));
+
+    UINT8* mappedData = nullptr;
+    CD3DX12_RANGE readRange(0, 0);
+    ThrowIfFailed(tlasInstanceBuffer->Map(0, &readRange, reinterpret_cast<void**>(&mappedData)));
+    FillTlasInstanceDescs(
+        reinterpret_cast<D3D12_RAYTRACING_INSTANCE_DESC*>(mappedData),
+        blas.Get(),
+        instances,
+        instanceCount);
+    tlasInstanceBuffer->Unmap(0, nullptr);
+
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS tlasInputs = {};
+    tlasInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+    tlasInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+    tlasInputs.NumDescs = instanceCount;
+    tlasInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+    tlasInputs.InstanceDescs = tlasInstanceBuffer->GetGPUVirtualAddress();
+
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC tlasBuildDesc = {};
+    tlasBuildDesc.Inputs = tlasInputs;
+    tlasBuildDesc.DestAccelerationStructureData = tlas->GetGPUVirtualAddress();
+    tlasBuildDesc.ScratchAccelerationStructureData = tlasScratch->GetGPUVirtualAddress();
+    commandList4->BuildRaytracingAccelerationStructure(&tlasBuildDesc, 0, nullptr);
+    AddUavBarrier(commandList, tlas.Get());
+
+    // tlasSrv is stable because tlas resource is reused; no need to recreate SRV.
+}
+
 void AccelerationStructureResources::Release()
 {
     tlasSrv.Reset();

@@ -632,6 +632,7 @@ private:
     void CreateSceneMaterialResources();
     void CreateInstanceBuffers();
     void BuildAccelerationStructures();
+    void RebuildAccelerationStructures();
     void ReleaseSceneResources();
     void CreateFrameConstantBuffers();
     void ExecuteInitialGpuSetup();

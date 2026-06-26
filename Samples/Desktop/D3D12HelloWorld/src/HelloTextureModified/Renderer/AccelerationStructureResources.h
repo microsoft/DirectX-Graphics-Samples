@@ -28,6 +28,13 @@ struct AccelerationStructureResources
         ID3D12Resource* tlasInstanceBuffer,
         SimpleDescriptorHeapAllocator& descriptorHeapAllocator);
 
+    void RebuildTlas(
+        ID3D12Device* device,
+        ID3D12GraphicsCommandList* commandList,
+        const InstanceData* instances,
+        UINT instanceCount,
+        ID3D12Resource* tlasInstanceBuffer);
+
     void Release();
 };
 
