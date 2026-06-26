@@ -1474,6 +1474,13 @@ void HelloTextureEngine::CreateInstanceBuffers()
             0, nullptr, reinterpret_cast<void**>(&m_frameResources[n].pSrvDataBegin));
         memcpy(m_frameResources[n].pSrvDataBegin, m_scene.instances.data(), instanceBufferSize);
         m_frameResources[n].instanceBuffer->Unmap(0, nullptr);
+
+        // Create per-frame TLAS instance upload buffer.
+        {
+            const UINT tlasInstanceBufferSize = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * kMaxInstanceCount;
+            MyDx12Util::CreateUploadBuffer(
+                m_graphicsDevice.Device(), tlasInstanceBufferSize, m_frameResources[n].tlasInstanceBuffer);
+        }
     }
 
     m_sceneResourcesAvailable = true;
@@ -1495,6 +1502,7 @@ void HelloTextureEngine::BuildAccelerationStructures()
         m_usesIndexedDraw,
         m_scene.instances.data(),
         instanceCount,
+        m_frameResources[m_currentFrameIndex].tlasInstanceBuffer.Get(),
         m_descriptorHeapAllocator);
 }
 
@@ -1535,6 +1543,7 @@ void HelloTextureEngine::ReleaseSceneResources()
     {
         frameResource.instanceBuffer.Reset();
         frameResource.pSrvDataBegin = nullptr;
+        frameResource.tlasInstanceBuffer.Reset();
     }
 }
 

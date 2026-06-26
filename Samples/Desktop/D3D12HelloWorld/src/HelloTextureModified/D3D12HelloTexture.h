@@ -361,6 +361,7 @@ private:
         ComPtr<ID3D12Resource> instanceBuffer;
         DescriptorAllocation instanceBufferSrv;
         InstanceData* pSrvDataBegin = nullptr;
+        ComPtr<ID3D12Resource> tlasInstanceBuffer;
         ConstantBufferResource cameraCB;
         ConstantBufferResource lightCB;
         UINT64 fenceValue = 0;
