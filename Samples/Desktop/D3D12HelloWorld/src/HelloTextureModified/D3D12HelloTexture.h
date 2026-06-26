@@ -25,6 +25,7 @@
 #include "Renderer/MaterialBuffer.h"
 #include "Renderer/StagedDescriptorAllocator.h"
 #include "Renderer/PipelineFactory.h"
+#include "Renderer/AccelerationStructureResources.h"
 #include "Renderer/RayQueryShadowPass.h"
 #include "Renderer/RayTracingSupport.h"
 #include "Renderer/RenderPassExecution.h"
@@ -220,6 +221,7 @@ private:
             static constexpr const char* ToneMapSceneColorSrv = "ToneMapSceneColorSrv";
             static constexpr const char* ShadowMaskSrv = "ShadowMaskSrv";
             static constexpr const char* ShadowMaskUav = "ShadowMaskUav";
+            static constexpr const char* AccelerationStructureSrv = "AccelerationStructureSrv";
         };
 
         struct Rtv
@@ -295,16 +297,17 @@ private:
         PersistentSrvSlotCount,
     };
     static constexpr UINT kShadowMaskDescriptorCount = 2; // SRV + UAV (dynamically allocated)
+    static constexpr UINT kTlasDescriptorCount = 1;       // TLAS SRV
 
     // Descriptor allocation order is tracked by DescriptorHeapHandle.
-    // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, environment map SRVs,
+    // Current persistent descriptors: GBuffer SRVs, depth SRV, LightPass SRV, TLAS SRV, environment map SRVs,
     // texture table, instance buffers, material buffer, constant buffer, light constant buffer.
     // ShadowMask descriptors live in a StagedDescriptorAllocator whose GPU
     // copies are staged into a reserved range of the main shader-visible heap.
     static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
                                                       kEnvironmentMapDescriptorCount + kConstantBufferCount +
                                                       kLightConstantBufferCount + Engine::GBuffer::kCount +
-                                                      PersistentSrvSlotCount;
+                                                      PersistentSrvSlotCount + kTlasDescriptorCount;
     static constexpr UINT kStagedDescriptorReservedCount = 64;
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
@@ -412,6 +415,8 @@ private:
     StagedDescriptorRange m_shadowMaskRange;
 
     StagedDescriptorAllocator m_stageAllocator;
+
+    Engine::AccelerationStructureResources m_accelerationStructures;
 
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12RootSignature> m_proceduralEnvRootSignature;
@@ -614,6 +619,7 @@ private:
     void PrepareSceneInstanceData();
     void CreateSceneMaterialResources();
     void CreateInstanceBuffers();
+    void BuildAccelerationStructures();
     void ReleaseSceneResources();
     void CreateFrameConstantBuffers();
     void ExecuteInitialGpuSetup();

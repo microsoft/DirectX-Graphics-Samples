@@ -31,43 +31,46 @@ GBuffer ベースの deferred rendering パイプラインに RayQuery パスを
   - `kMaxInstanceCount = 1000` 定義
 - `D3D12HelloTextureModified.vcxproj` / `.filters`: 新規ファイル追加
 
-### Uncommitted: RayQuery shadow pass 配線
+### Commit 3bd805a5: Implement RayQuery shadow pass wiring and fix TLAS transform
 
-**`shaders_RayQueryShadow.hlsl`:**
-- ShadowMask 出力 UAV (`u0`), TLAS SRV (`t0`), Depth SRV (`t1`), Normal SRV (`t2`) を宣言
-- CameraCB (`b0`): `viewProj` / `prevViewProj` / `invViewProj` / `cameraPosition`
-- ShadowConstants (`b1`): `lightDirection`
-- `ReconstructWorldPosition()`: depth buffer からワールド座標を復元
-- `CSMain`: 各ピクセルからカメラレイをトレース (TLAS 検証用)
-  - 背景ピクセルも含め全ピクセルでレイトレースを実行
-  - Hit → `saturate(t / 50.0)` 濃淡表示。Miss → 0.0 (黒)
+**新規ファイル:**
+- `Renderer/RayQueryShadowPass.h`: `RayQueryShadowPassDesc` — `tlasSrv`, `depthSrv`, `normalSrv`, `cameraCbv`, `lightDirection`
+- `Renderer/RayQueryShadowPass.cpp`: `RecordRayQueryShadowPass()` — 6 つの root parameter をバインド後 Dispatch
 
-**`D3D12HelloTexture.cpp`:**
-- `CreateRayQueryShadowRootSignature()`: 6 つの root parameter を設定
-  - param 0: ShadowMask UAV (u0)
-  - param 1: TLAS SRV (t0)
-  - param 2: Depth SRV (t1)
-  - param 3: Normal SRV (t2)
-  - param 4: CameraCB (b0)
-  - param 5: ShadowConstants lightDirection (b1, 3 floats)
-- `ExecuteRayQueryShadowPass()`: passDesc に TLAS/Depth/Normal/CameraCB/Light のハンドルを設定して Record を呼び出し
+**既存ファイル変更:**
+- `shaders_RayQueryShadow.hlsl`:
+  - ShadowMask 出力 UAV (`u0`), TLAS SRV (`t0`), Depth SRV (`t1`), Normal SRV (`t2`) を宣言
+  - CameraCB (`b0`): `viewProj` / `prevViewProj` / `invViewProj` / `cameraPosition`
+  - ShadowConstants (`b1`): `lightDirection`
+  - `ReconstructWorldPosition()`: depth buffer からワールド座標を復元
+  - `CSMain`: 各ピクセルからカメラレイをトレース (TLAS 検証用)
+    - 背景ピクセルも含め全ピクセルでレイトレースを実行
+    - Hit → `saturate(t / 50.0)` 濃淡表示。Miss → 0.0 (黒)
+- `D3D12HelloTexture.cpp`:
+  - `CreateRayQueryShadowRootSignature()`: 6 つの root parameter を設定 (ShadowMask UAV, TLAS SRV, Depth SRV, Normal SRV, CameraCB, lightDirection)
+  - `ExecuteRayQueryShadowPass()`: passDesc に各ハンドルを設定して Record を呼び出し
+- `D3D12HelloTexturePasses.cpp`:
+  - `MakeRayQueryShadowPass()`: Depth と GBuffer.Normal を `NON_PIXEL_SHADER_RESOURCE` read として登録
+- `Renderer/AccelerationStructureResources.cpp`:
+  - `FillTlasInstanceDescs()` の Transform 展開バグ修正:
+    - `InstanceData::world` は `XMMatrixTranspose(M)` で格納されている
+    - 平行移動成分は `src[12..14]` ではなく `src[3][7][11]` (M._41/_42/_43 = tx/ty/tz) が正しい
+    - 参照 (`AccelerationStructureResources.cpp:126-138`)
 
-**`D3D12HelloTexturePasses.cpp`:**
-- `MakeRayQueryShadowPass()`: Depth と GBuffer.Normal を `NON_PIXEL_SHADER_RESOURCE` read として登録
+### Commit 0d4d832a: Fix rebase regression — restore missing declarations
 
-**`Renderer/RayQueryShadowPass.h`:**
-- `RayQueryShadowPassDesc` に以下を追加:
-  - `tlasSrv`, `depthSrv`, `normalSrv`, `cameraCbv` (GPU descriptor handles)
-  - `lightDirection` (XMFLOAT3)
+Rebase dropped header declarations from the original commit `269e86d4`. Restored in `D3D12HelloTexture.h`:
+- `#include "AccelerationStructureResources.h"`
+- `AccelerationStructureSrv` in `Desc::Srv`
+- `kTlasDescriptorCount` and updated `kMainHeapDescriptorCount`
+- `m_accelerationStructures` member variable
+- `BuildAccelerationStructures()` method declaration
 
-**`Renderer/RayQueryShadowPass.cpp`:**
-- `RecordRayQueryShadowPass()`: 6 つの root parameter をバインド後 Dispatch
+### Commit 446a0714: Fix rebase regression — restore vcxproj and BuildAccelerationStructures()
 
-**`Renderer/AccelerationStructureResources.cpp`:**
-- `FillTlasInstanceDescs()` の Transform 展開バグ修正:
-  - `InstanceData::world` は `XMMatrixTranspose(M)` で格納されている
-  - 平行移動成分は `src[12..14]` (M._14/_24/_34 = 0) ではなく `src[3][7][11]` (M._41/_42/_43 = tx/ty/tz) が正しい
-  - 参照 (`AccelerationStructureResources.cpp:126-138`)
+Rebase dropped the `.cpp` implementation and project entries. Restored:
+- `D3D12HelloTexture.cpp`: `BuildAccelerationStructures()` implementation, `CreateInstanceBuffers()` call in `LoadAssets()`
+- `D3D12HelloTextureModified.vcxproj` / `.filters`: `<ClCompile>` / `<ClInclude>` entries for `AccelerationStructureResources.cpp/.h` and `RayQueryShadowPass.cpp/.h`
 
 ### TLAS 更新問題 (未対応)
 

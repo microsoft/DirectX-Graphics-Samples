@@ -261,6 +261,11 @@ void HelloTextureEngine::ReloadSceneResources(const Scene& scene)
     CreateSceneMaterialResources();
     CreateInstanceBuffers();
 
+    if (m_rayTracingSupport.IsSupported())
+    {
+        BuildAccelerationStructures();
+    }
+
     UpdateCameraConstantBuffer();
     m_constantBufferData.prevViewProjection = m_constantBufferData.viewProjection;
     for (FrameResource& frameResource : m_frameResources)
@@ -1419,6 +1424,25 @@ void HelloTextureEngine::CreateInstanceBuffers()
     }
 
     m_sceneResourcesAvailable = true;
+}
+
+void HelloTextureEngine::BuildAccelerationStructures()
+{
+    const UINT instanceCount = (std::min)(
+        static_cast<UINT>(m_scene.instances.size()),
+        kMaxInstanceCount);
+
+    m_accelerationStructures.Build(
+        m_graphicsDevice.Device(),
+        m_commandList.Get(),
+        m_vertexBuffer.Get(),
+        m_indexBuffer.Get(),
+        m_vertexCountPerInstance,
+        m_indexCountPerInstance,
+        m_usesIndexedDraw,
+        m_scene.instances.data(),
+        instanceCount,
+        m_descriptorHeapAllocator);
 }
 
 void HelloTextureEngine::ReleaseSceneResources()

@@ -99,6 +99,9 @@
     <ClInclude Include="Renderer\ShadowMaskDebugPass.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\AccelerationStructureResources.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer\RayTracingSupport.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
@@ -222,6 +225,9 @@
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\ShadowMaskDebugPass.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer\AccelerationStructureResources.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Renderer\RayTracingSupport.cpp">

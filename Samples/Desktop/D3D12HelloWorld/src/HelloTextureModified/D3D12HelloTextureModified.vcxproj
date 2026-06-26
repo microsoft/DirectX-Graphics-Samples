@@ -149,6 +149,7 @@
     <ClInclude Include="Renderer\Material.h" />
     <ClInclude Include="Renderer\MaterialBuffer.h" />
     <ClInclude Include="Renderer\PipelineFactory.h" />
+    <ClInclude Include="Renderer\AccelerationStructureResources.h" />
     <ClInclude Include="Renderer\RayQueryShadowPass.h" />
     <ClInclude Include="Renderer\RayTracingSupport.h" />
     <ClInclude Include="Renderer\ShadowMaskDebugPass.h" />
@@ -189,6 +190,7 @@
     <ClCompile Include="Renderer\LightingPass.cpp" />
     <ClCompile Include="Renderer\MaterialBuffer.cpp" />
     <ClCompile Include="Renderer\PipelineFactory.cpp" />
+    <ClCompile Include="Renderer\AccelerationStructureResources.cpp" />
     <ClCompile Include="Renderer\RayQueryShadowPass.cpp" />
     <ClCompile Include="Renderer\RayTracingSupport.cpp" />
     <ClCompile Include="Renderer\ShadowMaskDebugPass.cpp" />
