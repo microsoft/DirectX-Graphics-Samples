@@ -1110,7 +1110,7 @@ void HelloTextureEngine::CreateRayQueryShadowRootSignature()
     rootParameters[2].InitAsDescriptorTable(1, &depthSrvRange);  // g_depth (t1)
     rootParameters[3].InitAsDescriptorTable(1, &normalSrvRange); // g_normal (t2)
     rootParameters[4].InitAsDescriptorTable(1, &cameraCbvRange); // CameraCB (b0)
-    rootParameters[5].InitAsConstants(3, 1, 0);                  // ShadowConstants lightDirection (b1, 3 floats)
+    rootParameters[5].InitAsConstants(7, 1, 0);                  // ShadowConstants (b1): lightDirection, normalBias, rayTMin, rayTMax, enabled
 
     D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
     featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -2508,6 +2508,10 @@ void HelloTextureEngine::ExecuteRayQueryShadowPass(const RenderPass& pass)
     passDesc.normalSrv = m_gbuffer.srvHandles[Engine::GBuffer::Normal].gpu;
     passDesc.cameraCbv = m_frameResources[m_currentFrameIndex].cameraCB.cbv.gpu;
     passDesc.lightDirection = m_lightingParams.lightDirection;
+    passDesc.normalBias = m_shadowSettings.normalBias;
+    passDesc.rayTMin = m_shadowSettings.rayTMin;
+    passDesc.rayTMax = m_shadowSettings.rayTMax;
+    passDesc.enabled = m_shadowSettings.enabled ? 1 : 0;
     passDesc.width = m_width;
     passDesc.height = m_height;
 

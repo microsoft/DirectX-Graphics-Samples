@@ -29,8 +29,8 @@ void RecordRayQueryShadowPass(ID3D12GraphicsCommandList* commandList, const RayQ
     // Root param 4: Camera CBV (contains invViewProj for world position reconstruction)
     commandList->SetComputeRootDescriptorTable(4, desc.cameraCbv);
 
-    // Root param 5: Light direction (float3) as 4 root constants (3 used + padding)
-    commandList->SetComputeRoot32BitConstants(5, 3, &desc.lightDirection, 0);
+    // Root param 5: Shadow constants: lightDirection (float3), normalBias, rayTMin, rayTMax, enabled
+    commandList->SetComputeRoot32BitConstants(5, 7, &desc.lightDirection, 0);
 
     constexpr UINT kThreadGroupSize = 8;
     const UINT dispatchX = (desc.width + kThreadGroupSize - 1) / kThreadGroupSize;
