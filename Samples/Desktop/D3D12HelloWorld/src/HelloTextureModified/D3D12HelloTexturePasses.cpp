@@ -47,6 +47,10 @@ void HelloTextureEngine::AddSceneRenderPasses()
         if (m_rayTracingSupport.IsSupported())
         {
             AddPass(MakeRayQueryShadowPass());
+            if (m_debugViewSettings.renderViewMode == RenderViewMode::TlasDebug)
+            {
+                AddPass(MakeRayQueryTlasDebugPass());
+            }
         }
         AddDeferredSceneOutputPass();
     }
@@ -54,7 +58,8 @@ void HelloTextureEngine::AddSceneRenderPasses()
 
 void HelloTextureEngine::AddDeferredSceneOutputPass()
 {
-    if (m_debugViewSettings.renderViewMode == RenderViewMode::ShadowMask)
+    if (m_debugViewSettings.renderViewMode == RenderViewMode::ShadowMask ||
+        m_debugViewSettings.renderViewMode == RenderViewMode::TlasDebug)
     {
         AddPass(MakeShadowMaskDebugPass());
     }
@@ -187,26 +192,47 @@ auto HelloTextureEngine::MakeRayQueryShadowPass() -> RenderPass
 {
     return m_renderGraphRuntime.Authoring()
         .CreatePass(L"RayQueryShadowPass")
+        .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE},
+                {kGBufferResourceNames[Engine::GBuffer::Normal], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE}})
         .Writes({{kShadowMaskResourceName, D3D12_RESOURCE_STATE_UNORDERED_ACCESS}})
         .Operation(Op::RayQueryShadow, &HelloTextureEngine::ExecuteRayQueryShadowPass)
         .Build();
 }
 
-auto HelloTextureEngine::MakeLightingPass() -> RenderPass
+auto HelloTextureEngine::MakeRayQueryTlasDebugPass() -> RenderPass
 {
     return m_renderGraphRuntime.Authoring()
+        .CreatePass(L"RayQueryTlasDebugPass")
+        .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE},
+                {kGBufferResourceNames[Engine::GBuffer::Normal], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE}})
+        .Writes({{kShadowMaskResourceName, D3D12_RESOURCE_STATE_UNORDERED_ACCESS}})
+        .Operation(Op::RayQueryTlasDebug, &HelloTextureEngine::ExecuteRayQueryTlasDebugPass)
+        .Build();
+}
+
+auto HelloTextureEngine::MakeLightingPass() -> RenderPass
+{
+    ResourceUsages reads = MakeGBufferReadUsages();
+    if (m_rayTracingSupport.IsSupported())
+    {
+        reads.push_back({kShadowMaskResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE});
+    }
+
+    auto builder = m_renderGraphRuntime.Authoring()
         .CreatePass(L"LightPass")
         .Pipeline(Pipe::Lighting)
-        .Reads(MakeGBufferReadUsages())
+        .Reads(std::move(reads))
         .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
         .Descriptor(RootSignatureLayout::GBufferSrvBase, Desc::GBufferAlbedoSrv)
         .Descriptor(RootSignatureLayout::MaterialSrv, Desc::MaterialBufferSrv)
         .Descriptor(RootSignatureLayout::EnvironmentMap, Desc::EnvironmentMapSrv)
         .Descriptor(RootSignatureLayout::CameraConstants, Desc::CameraCbv)
         .Descriptor(RootSignatureLayout::LightConstants, Desc::LightCbv)
+        .Descriptor(RootSignatureLayout::ToneMapSceneColor, Desc::ShadowMaskSrv)
         .Rtv(RtvName::LightPass)
-        .Operation(Op::Lighting, &HelloTextureEngine::ExecuteLightingPass)
-        .Build();
+        .Operation(Op::Lighting, &HelloTextureEngine::ExecuteLightingPass);
+
+    return builder.Build();
 }
 
 auto HelloTextureEngine::MakeLightingDebugGradientPass() -> RenderPass

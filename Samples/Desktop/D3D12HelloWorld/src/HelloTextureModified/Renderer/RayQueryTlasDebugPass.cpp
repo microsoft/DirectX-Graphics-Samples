@@ -1,21 +1,21 @@
 #include "stdafx.h"
 
-#include "RayQueryShadowPass.h"
+#include "RayQueryTlasDebugPass.h"
 
 #include <pix3.h>
 
 namespace Engine
 {
 
-void RecordRayQueryShadowPass(ID3D12GraphicsCommandList* commandList, const RayQueryShadowPassDesc& desc)
+void RecordRayQueryTlasDebugPass(ID3D12GraphicsCommandList* commandList, const RayQueryTlasDebugPassDesc& desc)
 {
-    PIXBeginEvent(commandList, 0, L"RayQueryShadowPass");
+    PIXBeginEvent(commandList, 0, L"RayQueryTlasDebugPass");
 
     commandList->SetComputeRootSignature(desc.rootSignature);
     commandList->SetPipelineState(desc.pipelineState);
 
-    // Root param 0: ShadowMask UAV
-    commandList->SetComputeRootDescriptorTable(0, desc.shadowMaskUav);
+    // Root param 0: TlasDebug UAV
+    commandList->SetComputeRootDescriptorTable(0, desc.tlasDebugUav);
 
     // Root param 1: TLAS SRV
     commandList->SetComputeRootDescriptorTable(1, desc.tlasSrv);
@@ -23,7 +23,7 @@ void RecordRayQueryShadowPass(ID3D12GraphicsCommandList* commandList, const RayQ
     // Root param 2: Depth SRV
     commandList->SetComputeRootDescriptorTable(2, desc.depthSrv);
 
-    // Root param 3: Normal SRV (GBuffer normal for normal-offset bias)
+    // Root param 3: Normal SRV (GBuffer normal for normal-offset bias - reserved for future use)
     commandList->SetComputeRootDescriptorTable(3, desc.normalSrv);
 
     // Root param 4: Camera CBV (contains invViewProj for world position reconstruction)

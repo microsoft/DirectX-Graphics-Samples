@@ -5,11 +5,11 @@
 namespace Engine
 {
 
-struct RayQueryShadowPassDesc
+struct RayQueryTlasDebugPassDesc
 {
     ID3D12RootSignature* rootSignature = nullptr;
     ID3D12PipelineState* pipelineState = nullptr;
-    D3D12_GPU_DESCRIPTOR_HANDLE shadowMaskUav = {};
+    D3D12_GPU_DESCRIPTOR_HANDLE tlasDebugUav = {};
     D3D12_GPU_DESCRIPTOR_HANDLE tlasSrv = {};
     D3D12_GPU_DESCRIPTOR_HANDLE depthSrv = {};
     D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = {};
@@ -19,6 +19,6 @@ struct RayQueryShadowPassDesc
     UINT height = 0;
 };
 
-void RecordRayQueryShadowPass(ID3D12GraphicsCommandList* commandList, const RayQueryShadowPassDesc& desc);
+void RecordRayQueryTlasDebugPass(ID3D12GraphicsCommandList* commandList, const RayQueryTlasDebugPassDesc& desc);
 
 } // namespace Engine
