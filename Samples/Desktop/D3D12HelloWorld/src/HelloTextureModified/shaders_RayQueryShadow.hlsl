@@ -54,8 +54,8 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
     float3 worldPos = ReconstructWorldPosition(uv, depth);
     float3 normal = normalize(g_normal.Load(int3(dtid.xy, 0)).rgb);
 
-    // Match LightPass: normalize(-lightDirection) is the surface-to-light direction.
-    float3 rayDir = normalize(-lightDirection);
+    // Match LightPass: lightDirection is treated as the surface-to-light direction.
+    float3 rayDir = normalize(lightDirection);
 
     // Offset ray origin along normal to avoid self-intersection
     float3 rayOrigin = worldPos + normal * kNormalBias;

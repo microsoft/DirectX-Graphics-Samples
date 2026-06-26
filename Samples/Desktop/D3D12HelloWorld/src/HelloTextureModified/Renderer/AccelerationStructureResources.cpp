@@ -121,25 +121,19 @@ void FillTlasInstanceDescs(
         desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
         desc.AccelerationStructure = blasAddress;
 
-        // InstanceData::world is stored as XMMatrixTranspose(M) where M = S*R*T (row-major).
-        // XMMatrixTranspose rearranges M._ij to XMFLOAT4X4._ji:
-        //   world._11=M._11 world._12=M._21 world._13=M._31 world._14=M._41  (translation x)
-        //   world._21=M._12 world._22=M._22 world._23=M._32 world._24=M._42  (translation y)
-        //   world._31=M._13 world._32=M._23 world._33=M._33 world._34=M._43  (translation z)
-        //   world._41=M._14 world._42=M._24 world._43=M._34 world._44=M._44
-        // TLAS expects a row-major 3x4 object-to-world transform:
-        //   row 0: M._11 M._12 M._13 tx   row 1: M._21 M._22 M._23 ty   row 2: M._31 M._32 M._33 tz
+        // InstanceData::world is stored as XMMatrixTranspose(M), matching the matrix used by shaders.
+        // DXR instance transforms are 3x4 object-to-world matrices, so use the first 3 rows directly.
         const float* src = reinterpret_cast<const float*>(&instances[i].world);
         desc.Transform[0][0] = src[0];
-        desc.Transform[0][1] = src[4];
-        desc.Transform[0][2] = src[8];
+        desc.Transform[0][1] = src[1];
+        desc.Transform[0][2] = src[2];
         desc.Transform[0][3] = src[3];
-        desc.Transform[1][0] = src[1];
+        desc.Transform[1][0] = src[4];
         desc.Transform[1][1] = src[5];
-        desc.Transform[1][2] = src[9];
+        desc.Transform[1][2] = src[6];
         desc.Transform[1][3] = src[7];
-        desc.Transform[2][0] = src[2];
-        desc.Transform[2][1] = src[6];
+        desc.Transform[2][0] = src[8];
+        desc.Transform[2][1] = src[9];
         desc.Transform[2][2] = src[10];
         desc.Transform[2][3] = src[11];
     }

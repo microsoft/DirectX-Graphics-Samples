@@ -99,4 +99,111 @@ private:
     SceneMesh m_mesh;
 };
 
+class ShadowTestGroundCubesScene : public SampleScene
+{
+public:
+    explicit ShadowTestGroundCubesScene(int maxInstanceCount);
+
+    const char* Name() const override;
+    void Load() override;
+    void Reset() override;
+    void Update(float deltaTime, const SampleSceneUpdateContext& context) override;
+    Scene& GetScene() override;
+    const Scene& GetScene() const override;
+    SceneMesh& GetMesh() override;
+    const SceneMesh& GetMesh() const override;
+    int DisplayInstanceCount() const override;
+    int MaxDisplayInstanceCount() const override;
+    void SetDisplayInstanceCount(int count) override;
+    float DefaultMeshScale() const override;
+
+private:
+    Scene m_scene;
+    SceneMesh m_mesh;
+    int m_maxInstanceCount = 0;
+};
+
+class AnimatedShadowGridScene : public SampleScene
+{
+public:
+    explicit AnimatedShadowGridScene(int maxInstanceCount);
+
+    const char* Name() const override;
+    void Load() override;
+    void Reset() override;
+    void Update(float deltaTime, const SampleSceneUpdateContext& context) override;
+    Scene& GetScene() override;
+    const Scene& GetScene() const override;
+    SceneMesh& GetMesh() override;
+    const SceneMesh& GetMesh() const override;
+    int DisplayInstanceCount() const override;
+    int MaxDisplayInstanceCount() const override;
+    void SetDisplayInstanceCount(int count) override;
+    float DefaultMeshScale() const override;
+
+private:
+    void InitInstances();
+    void UpdateAnimations(float deltaTime, const SampleSceneUpdateContext& context);
+
+    Scene m_scene;
+    SceneMesh m_mesh;
+    int m_maxInstanceCount = 0;
+    int m_displayInstanceCount = 0;
+    float m_accumTime = 0.0f;
+    struct InstanceAnimData
+    {
+        float phase;
+        float rotSpeed;
+    };
+    std::vector<InstanceAnimData> m_animData;
+};
+
+class ContactShadowTestScene : public SampleScene
+{
+public:
+    explicit ContactShadowTestScene(int maxInstanceCount);
+
+    const char* Name() const override;
+    void Load() override;
+    void Reset() override;
+    void Update(float deltaTime, const SampleSceneUpdateContext& context) override;
+    Scene& GetScene() override;
+    const Scene& GetScene() const override;
+    SceneMesh& GetMesh() override;
+    const SceneMesh& GetMesh() const override;
+    int DisplayInstanceCount() const override;
+    int MaxDisplayInstanceCount() const override;
+    void SetDisplayInstanceCount(int count) override;
+    float DefaultMeshScale() const override;
+
+private:
+    Scene m_scene;
+    SceneMesh m_mesh;
+    int m_maxInstanceCount = 0;
+};
+
+class OccluderWallTestScene : public SampleScene
+{
+public:
+    explicit OccluderWallTestScene(int maxInstanceCount);
+
+    const char* Name() const override;
+    void Load() override;
+    void Reset() override;
+    void Update(float deltaTime, const SampleSceneUpdateContext& context) override;
+    Scene& GetScene() override;
+    const Scene& GetScene() const override;
+    SceneMesh& GetMesh() override;
+    const SceneMesh& GetMesh() const override;
+    int DisplayInstanceCount() const override;
+    int MaxDisplayInstanceCount() const override;
+    void SetDisplayInstanceCount(int count) override;
+    float DefaultMeshScale() const override;
+
+private:
+    Scene m_scene;
+    SceneMesh m_mesh;
+    int m_maxInstanceCount = 0;
+};
+
 } // namespace Engine

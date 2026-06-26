@@ -176,7 +176,7 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float occlusion = pbrParams.b;
     float emissive = pbrParams.a;
     float3 worldPos = ReconstructWorldPosition(input.uv, depth);
-    float3 lightDir = normalize(-lightDirection);
+    float3 lightDir = normalize(lightDirection);
     float3 viewDir = normalize(cameraPosition - worldPos);
     float3 halfDir = normalize(lightDir + viewDir);
     float ndotl = saturate(dot(normal, lightDir));

@@ -61,8 +61,10 @@ private:
 
     static constexpr UINT kMaxInstanceCount = HelloTextureEngine::kMaxInstanceCount;
     static constexpr float kMousePanSpeed = 0.01f;
+    static constexpr float kMouseCameraRotationSpeed = 0.005f;
     static constexpr float kMouseWheelCameraSpeed = 0.25f;
     static constexpr float kMouseWheelFovSpeed = 1.0f;
+    static constexpr float kCameraPitchLimit = 1.5f;
     static constexpr float kCameraMinZ = -100.0f;
     static constexpr float kCameraMaxZ = 100.0f;
     static constexpr UINT kImGuiDescriptorCount = 100;
