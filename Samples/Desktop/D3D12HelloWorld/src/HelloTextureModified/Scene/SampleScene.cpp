@@ -556,12 +556,12 @@ int MetallicRoughnessSphereScene::DisplayInstanceCount() const
 
 int MetallicRoughnessSphereScene::MaxDisplayInstanceCount() const
 {
-    return kSphereRows * kSphereColumns;
+    return kMaxInstanceCount;
 }
 
 void MetallicRoughnessSphereScene::SetDisplayInstanceCount(int count)
 {
-    m_displayInstanceCount = std::clamp(count, 0, kSphereRows * kSphereColumns);
+    m_displayInstanceCount = std::clamp(count, 0, kMaxInstanceCount);
 }
 
 float MetallicRoughnessSphereScene::DefaultMeshScale() const
@@ -761,12 +761,12 @@ const SceneMesh& ShadowTestGroundCubesScene::GetMesh() const
 
 int ShadowTestGroundCubesScene::DisplayInstanceCount() const
 {
-    return 1;
+    return kMaxInstanceCount;
 }
 
 int ShadowTestGroundCubesScene::MaxDisplayInstanceCount() const
 {
-    return 1;
+    return kMaxInstanceCount;
 }
 
 void ShadowTestGroundCubesScene::SetDisplayInstanceCount(int count)
@@ -1063,12 +1063,12 @@ const SceneMesh& ContactShadowTestScene::GetMesh() const
 
 int ContactShadowTestScene::DisplayInstanceCount() const
 {
-    return 1;
+    return kMaxInstanceCount;
 }
 
 int ContactShadowTestScene::MaxDisplayInstanceCount() const
 {
-    return 1;
+    return kMaxInstanceCount;
 }
 
 void ContactShadowTestScene::SetDisplayInstanceCount(int count)
@@ -1182,12 +1182,12 @@ const SceneMesh& OccluderWallTestScene::GetMesh() const
 
 int OccluderWallTestScene::DisplayInstanceCount() const
 {
-    return 1;
+    return kMaxInstanceCount;
 }
 
 int OccluderWallTestScene::MaxDisplayInstanceCount() const
 {
-    return 1;
+    return kMaxInstanceCount;
 }
 
 void OccluderWallTestScene::SetDisplayInstanceCount(int count)

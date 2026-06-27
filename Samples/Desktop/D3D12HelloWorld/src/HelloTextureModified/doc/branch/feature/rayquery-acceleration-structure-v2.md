@@ -135,8 +135,8 @@ Combined shader `shaders_RayQueryShadow.hlsl` was split into two dedicated compu
 
 ## 現在の完成状態
 
-- **RayQuery ShadowMask**: directional-light シャドウマスク生成 (正常動作)
-- **ShadowMask Debug View**: ShadowMask テクスチャを表示するデバッグビュー (`RenderViewMode::ShadowMask`)
+- **RayQuery Shadow Mask**: directional-light シャドウマスク生成 (正常動作)
+- **Shadow Mask Debug View**: Shadow Mask テクスチャを表示するデバッグビュー (`RenderViewMode::ShadowMask`)
 - **RayQuery TLAS Debug**: カメラレイによる TLAS/BLAS 可視性デバッグパス (`RenderViewMode::TlasDebug`)
 - **TLAS per-frame rebuild**: 毎フレームのインスタンスデータから TLAS を再 Build (BLAS は安定)
 

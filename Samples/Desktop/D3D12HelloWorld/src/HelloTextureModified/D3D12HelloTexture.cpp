@@ -1477,7 +1477,14 @@ void HelloTextureEngine::CreateInstanceBuffers()
 
         m_frameResources[n].instanceBuffer->Map(
             0, nullptr, reinterpret_cast<void**>(&m_frameResources[n].pSrvDataBegin));
-        memcpy(m_frameResources[n].pSrvDataBegin, m_scene.instances.data(), instanceBufferSize);
+        memset(m_frameResources[n].pSrvDataBegin, 0, instanceBufferSize);
+        const UINT sceneInstanceCount = (std::min)(static_cast<UINT>(m_scene.instances.size()), kMaxInstanceCount);
+        if (sceneInstanceCount > 0)
+        {
+            memcpy(m_frameResources[n].pSrvDataBegin,
+                   m_scene.instances.data(),
+                   sizeof(InstanceData) * sceneInstanceCount);
+        }
         m_frameResources[n].instanceBuffer->Unmap(0, nullptr);
 
         // Create per-frame TLAS instance upload buffer.
@@ -2011,9 +2018,14 @@ void HelloTextureEngine::UpdateFrame()
     {
         m_frameResources[m_currentFrameIndex].instanceBuffer->Map(
             0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_currentFrameIndex].pSrvDataBegin));
-        memcpy(m_frameResources[m_currentFrameIndex].pSrvDataBegin,
-               m_scene.instances.data(),
-               sizeof(InstanceData) * kMaxInstanceCount);
+        memset(m_frameResources[m_currentFrameIndex].pSrvDataBegin, 0, sizeof(InstanceData) * kMaxInstanceCount);
+        const UINT sceneInstanceCount = (std::min)(static_cast<UINT>(m_scene.instances.size()), kMaxInstanceCount);
+        if (sceneInstanceCount > 0)
+        {
+            memcpy(m_frameResources[m_currentFrameIndex].pSrvDataBegin,
+                   m_scene.instances.data(),
+                   sizeof(InstanceData) * sceneInstanceCount);
+        }
         m_frameResources[m_currentFrameIndex].instanceBuffer->Unmap(0, nullptr);
     }
 
