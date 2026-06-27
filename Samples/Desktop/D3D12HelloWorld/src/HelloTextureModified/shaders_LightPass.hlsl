@@ -44,6 +44,7 @@ cbuffer LightingConstants : register(b2)
     float iblDebugMip;
     float iblDebugExposure;
     float rayTracingSupported;
+    float shadowMaskBlurEnabled;
 };
 
 FullscreenVSOutput VSMain(uint vertexId : SV_VertexID)
@@ -136,6 +137,34 @@ float ComputeSpecularOcclusion(float ndotv, float ambientOcclusion, float roughn
     return saturate(pow(ndotv + ambientOcclusion, exp2(-16.0 * roughness - 1.0)) - 1.0 + ambientOcclusion);
 }
 
+float SampleShadowMask(float2 uv, float4 position)
+{
+    if (shadowMaskBlurEnabled < 0.5)
+    {
+        return g_shadowMask.Sample(g_sampler, uv);
+    }
+
+    uint width;
+    uint height;
+    g_shadowMask.GetDimensions(width, height);
+
+    int2 pixel = int2(position.xy);
+    int2 maxPixel = int2(width - 1, height - 1);
+
+    float shadow = 0.0;
+    shadow += g_shadowMask.Load(int3(clamp(pixel + int2(-1, -1), int2(0, 0), maxPixel), 0)) * 1.0;
+    shadow += g_shadowMask.Load(int3(clamp(pixel + int2(0, -1), int2(0, 0), maxPixel), 0)) * 2.0;
+    shadow += g_shadowMask.Load(int3(clamp(pixel + int2(1, -1), int2(0, 0), maxPixel), 0)) * 1.0;
+    shadow += g_shadowMask.Load(int3(clamp(pixel + int2(-1, 0), int2(0, 0), maxPixel), 0)) * 2.0;
+    shadow += g_shadowMask.Load(int3(pixel, 0)) * 4.0;
+    shadow += g_shadowMask.Load(int3(clamp(pixel + int2(1, 0), int2(0, 0), maxPixel), 0)) * 2.0;
+    shadow += g_shadowMask.Load(int3(clamp(pixel + int2(-1, 1), int2(0, 0), maxPixel), 0)) * 1.0;
+    shadow += g_shadowMask.Load(int3(clamp(pixel + int2(0, 1), int2(0, 0), maxPixel), 0)) * 2.0;
+    shadow += g_shadowMask.Load(int3(clamp(pixel + int2(1, 1), int2(0, 0), maxPixel), 0)) * 1.0;
+
+    return shadow / 16.0;
+}
+
 float4 PSMain(FullscreenVSOutput input) : SV_TARGET
 {
     float depth = g_depth.Load(int3(input.position.xy, 0));
@@ -195,7 +224,7 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float shadowMask = 1.0;
     if (rayTracingSupported)
     {
-        shadowMask = g_shadowMask.Sample(g_sampler, input.uv);
+        shadowMask = SampleShadowMask(input.uv, input.position);
     }
     float3 directLighting = (diffuseBrdf + specularBrdf) * radiance * ndotl * receiveLighting * shadowMask * directLightEnabled;
     float3 irradiance = g_diffuseIrradianceMap.Sample(g_sampler, normal).rgb;

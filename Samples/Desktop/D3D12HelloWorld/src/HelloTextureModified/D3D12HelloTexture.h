@@ -358,6 +358,7 @@ private:
         float iblDebugMip = 0.0f;
         float iblDebugExposure = 0.25f;
         float rayTracingSupported = 0.0f;
+        float shadowMaskBlurEnabled = 0.0f;
     };
 
     LightingConstants MakeLightingConstants() const;

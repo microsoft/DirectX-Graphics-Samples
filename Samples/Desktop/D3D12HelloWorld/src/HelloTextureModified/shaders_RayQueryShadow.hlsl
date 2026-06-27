@@ -25,6 +25,23 @@ cbuffer ShadowConstants : register(b1)
     float jitterStrength;
 };
 
+// Deterministic per-pixel hash functions for blue-noise-style rotation.
+uint HashPixel(uint2 p)
+{
+    uint state = p.x * 1664525u + p.y * 1013904223u;
+    state ^= state >> 16u;
+    state *= 0x85ebca6bu;
+    state ^= state >> 13u;
+    state *= 0xc2b2ae35u;
+    state ^= state >> 16u;
+    return state;
+}
+
+float HashPixel01(uint2 p)
+{
+    return float(HashPixel(p)) / 4294967296.0; // 2^32
+}
+
 float3 ReconstructWorldPosition(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, (1.0 - uv.y) * 2.0 - 1.0);
@@ -82,13 +99,17 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
         float spread = lightAngularRadius * jitterStrength;
         uint numSamples = min(sampleCount, 16u);
 
+        float rotation = HashPixel01(dtid.xy) * 6.28318531;
+
         float totalVisibility = 0.0;
         [loop] for (uint i = 0; i < numSamples; i++)
         {
-            float angle = (i + 0.5) * 6.28318531 / numSamples;
+            float angle = (i + 0.5) * 6.28318531 / numSamples + rotation;
             float r = sqrt((i + 0.5) / numSamples) * spread;
+            float cosA, sinA;
+            sincos(angle, sinA, cosA);
 
-            float3 sampleDir = normalize(rayDir + right * cos(angle) * r + forward * sin(angle) * r);
+            float3 sampleDir = normalize(rayDir + right * cosA * r + forward * sinA * r);
 
             RayDesc ray;
             ray.Origin = rayOrigin;
