@@ -19,6 +19,10 @@ struct RayQueryShadowPassDesc
     float rayTMin = 0.001f;
     float rayTMax = 10000.0f;
     uint32_t enabled = 1;
+    uint32_t softShadowEnabled = 0;
+    uint32_t sampleCount = 1;
+    float lightAngularRadius = 0.005f;
+    float jitterStrength = 1.0f;
     UINT width = 0;
     UINT height = 0;
 };

@@ -19,6 +19,10 @@ cbuffer ShadowConstants : register(b1)
     float rayTMin;
     float rayTMax;
     uint enabled;
+    uint softShadowEnabled;
+    uint sampleCount;
+    float lightAngularRadius;
+    float jitterStrength;
 };
 
 float3 ReconstructWorldPosition(float2 uv, float depth)
@@ -68,23 +72,52 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
     // Offset ray origin along normal to avoid self-intersection
     float3 rayOrigin = worldPos + normal * normalBias;
 
-    RayDesc ray;
-    ray.Origin = rayOrigin;
-    ray.TMin = rayTMin;
-    ray.Direction = rayDir;
-    ray.TMax = rayTMax;
-
-    RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
-    q.TraceRayInline(g_tlas, 0, 0xFF, ray);
-
-    while (q.Proceed()) {}
-
-    if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+    if (softShadowEnabled && sampleCount > 1 && lightAngularRadius > 0)
     {
-        g_shadowMask[dtid.xy] = 0.0;
+        // Build orthonormal basis around the same ray direction used by the hard-shadow path.
+        float3 up = abs(rayDir.y) < 0.999 ? float3(0, 1, 0) : float3(1, 0, 0);
+        float3 right = normalize(cross(up, rayDir));
+        float3 forward = cross(rayDir, right);
+
+        float spread = lightAngularRadius * jitterStrength;
+        uint numSamples = min(sampleCount, 16u);
+
+        float totalVisibility = 0.0;
+        [loop] for (uint i = 0; i < numSamples; i++)
+        {
+            float angle = (i + 0.5) * 6.28318531 / numSamples;
+            float r = sqrt((i + 0.5) / numSamples) * spread;
+
+            float3 sampleDir = normalize(rayDir + right * cos(angle) * r + forward * sin(angle) * r);
+
+            RayDesc ray;
+            ray.Origin = rayOrigin;
+            ray.TMin = rayTMin;
+            ray.Direction = sampleDir;
+            ray.TMax = rayTMax;
+
+            RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
+            q.TraceRayInline(g_tlas, 0, 0xFF, ray);
+            while (q.Proceed()) {}
+
+            totalVisibility += (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT) ? 0.0 : 1.0;
+        }
+
+        g_shadowMask[dtid.xy] = totalVisibility / numSamples;
     }
     else
     {
-        g_shadowMask[dtid.xy] = 1.0;
+        // Hard-shadow: single ray trace
+        RayDesc ray;
+        ray.Origin = rayOrigin;
+        ray.TMin = rayTMin;
+        ray.Direction = rayDir;
+        ray.TMax = rayTMax;
+
+        RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
+        q.TraceRayInline(g_tlas, 0, 0xFF, ray);
+        while (q.Proceed()) {}
+
+        g_shadowMask[dtid.xy] = (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT) ? 0.0 : 1.0;
     }
 }

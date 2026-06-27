@@ -6,3 +6,4 @@
 - Use Allman braces.
 - Use 4 spaces indentation.
 - EOL should be CRLF.
+- Do not use emoji (✅, ❌, etc.) in any output; use text markers like [x], [ ], [*] instead.

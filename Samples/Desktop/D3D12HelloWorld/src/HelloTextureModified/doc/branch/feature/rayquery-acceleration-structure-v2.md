@@ -144,6 +144,7 @@ Combined shader `shaders_RayQueryShadow.hlsl` was split into two dedicated compu
 
 - **Bias 調整**: シャドウマスクの `kNormalBias = 0.01` は固定値。シーンやジオメトリのスケールによって調整が必要な可能性がある。
 - **シャドウ検証シーン未実装**: 専用のシャドウ検証用シーン (Ground + Cubes / Animated Shadow Test など) は未実装。デフォルトの Helmet シーンのみで確認済み。
+- **Soft-shadow settings UI**: Soft-shadow 用の設定項目 (`softShadowEnabled`, `sampleCount`, `lightAngularRadius`, `jitterStrength`) を C++ 設定構造体と ImGui UI に追加済み。実際のマルチサンプルレイトレースは未実装。
 
 ## 今後の展望 (deferred)
 

@@ -151,6 +151,10 @@ public:
         float normalBias = 0.01f;
         float rayTMin = 0.001f;
         float rayTMax = 10000.0f;
+        bool softShadowEnabled = false;
+        int sampleCount = 1;
+        float lightAngularRadius = 0.005f;
+        float jitterStrength = 1.0f;
     };
 
     struct UiFrameContext

@@ -1110,7 +1110,8 @@ void HelloTextureEngine::CreateRayQueryShadowRootSignature()
     rootParameters[2].InitAsDescriptorTable(1, &depthSrvRange);  // g_depth (t1)
     rootParameters[3].InitAsDescriptorTable(1, &normalSrvRange); // g_normal (t2)
     rootParameters[4].InitAsDescriptorTable(1, &cameraCbvRange); // CameraCB (b0)
-    rootParameters[5].InitAsConstants(7, 1, 0);                  // ShadowConstants (b1): lightDirection, normalBias, rayTMin, rayTMax, enabled
+    rootParameters[5].InitAsConstants(11, 1, 0);                 // ShadowConstants (b1): lightDirection, normalBias, rayTMin, rayTMax, enabled,
+                                                                 //                      softShadowEnabled, sampleCount, lightAngularRadius, jitterStrength
 
     D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
     featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -2524,6 +2525,10 @@ void HelloTextureEngine::ExecuteRayQueryShadowPass(const RenderPass& pass)
     passDesc.rayTMin = m_shadowSettings.rayTMin;
     passDesc.rayTMax = m_shadowSettings.rayTMax;
     passDesc.enabled = m_shadowSettings.enabled ? 1 : 0;
+    passDesc.softShadowEnabled = m_shadowSettings.softShadowEnabled ? 1 : 0;
+    passDesc.sampleCount = static_cast<uint32_t>(m_shadowSettings.sampleCount);
+    passDesc.lightAngularRadius = m_shadowSettings.lightAngularRadius;
+    passDesc.jitterStrength = m_shadowSettings.jitterStrength;
     passDesc.width = m_width;
     passDesc.height = m_height;
 

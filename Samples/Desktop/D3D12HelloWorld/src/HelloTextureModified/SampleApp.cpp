@@ -772,6 +772,18 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         changed |= ImGuiWidgets::SliderFloatWithControls(
             "Ray TMax", &shadowSettings.rayTMax, 1.0f, 10000.0f, 100.0f, 10000.0f);
 
+        ImGui::Separator();
+        changed |= ImGui::Checkbox("Soft Shadow Enable", &shadowSettings.softShadowEnabled);
+
+        changed |= ImGuiWidgets::SliderIntWithControls(
+            "Sample Count", &shadowSettings.sampleCount, 1, 16, 1, 1);
+
+        changed |= ImGuiWidgets::SliderFloatWithControls(
+            "Light Angular Radius", &shadowSettings.lightAngularRadius, 0.0f, 0.1f, 0.001f, 0.005f, "%.4f");
+
+        changed |= ImGuiWidgets::SliderFloatWithControls(
+            "Jitter Strength", &shadowSettings.jitterStrength, 0.0f, 2.0f, 0.1f, 1.0f);
+
         if (changed)
         {
             m_engine.SetShadowSettings(shadowSettings);
