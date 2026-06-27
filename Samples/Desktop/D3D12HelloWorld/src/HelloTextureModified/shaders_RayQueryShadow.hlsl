@@ -15,7 +15,10 @@ cbuffer CameraCB : register(b0)
 cbuffer ShadowConstants : register(b1)
 {
     float3 lightDirection;
-    float scPad;
+    float normalBias;
+    float rayTMin;
+    float rayTMax;
+    uint enabled;
 };
 
 float3 ReconstructWorldPosition(float2 uv, float depth)
@@ -25,8 +28,6 @@ float3 ReconstructWorldPosition(float2 uv, float depth)
     float4 worldPos = mul(clipPos, invViewProj);
     return worldPos.xyz / worldPos.w;
 }
-
-static const float kNormalBias = 0.01;
 
 [numthreads(8, 8, 1)]
 void CSMain(uint3 dtid : SV_DispatchThreadID)
@@ -57,14 +58,21 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
     // Match LightPass: lightDirection is treated as the surface-to-light direction.
     float3 rayDir = normalize(lightDirection);
 
+    // If shadow is disabled, mark fully lit and skip tracing
+    if (!enabled)
+    {
+        g_shadowMask[dtid.xy] = 1.0;
+        return;
+    }
+
     // Offset ray origin along normal to avoid self-intersection
-    float3 rayOrigin = worldPos + normal * kNormalBias;
+    float3 rayOrigin = worldPos + normal * normalBias;
 
     RayDesc ray;
     ray.Origin = rayOrigin;
-    ray.TMin = 0.001;
+    ray.TMin = rayTMin;
     ray.Direction = rayDir;
-    ray.TMax = 10000.0;
+    ray.TMax = rayTMax;
 
     RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
     q.TraceRayInline(g_tlas, 0, 0xFF, ray);

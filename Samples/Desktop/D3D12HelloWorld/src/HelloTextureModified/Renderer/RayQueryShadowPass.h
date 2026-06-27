@@ -15,6 +15,10 @@ struct RayQueryShadowPassDesc
     D3D12_GPU_DESCRIPTOR_HANDLE normalSrv = {};
     D3D12_GPU_DESCRIPTOR_HANDLE cameraCbv = {};
     DirectX::XMFLOAT3 lightDirection = {};
+    float normalBias = 0.01f;
+    float rayTMin = 0.001f;
+    float rayTMax = 10000.0f;
+    uint32_t enabled = 1;
     UINT width = 0;
     UINT height = 0;
 };

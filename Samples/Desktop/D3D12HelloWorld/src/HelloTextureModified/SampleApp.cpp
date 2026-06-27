@@ -196,18 +196,39 @@ void SampleApp::UpdateSampleState()
     {
         auto& camera = LoadedScene().GetScene().camera;
 
+        XMVECTOR localMove = XMVectorZero();
         if (GetAsyncKeyState('A') & 0x8000)
-            camera.pos.x -= kCameraMoveSpeed;
+        {
+            localMove = XMVectorAdd(localMove, XMVectorSet(-kCameraMoveSpeed, 0.0f, 0.0f, 0.0f));
+        }
         if (GetAsyncKeyState('D') & 0x8000)
-            camera.pos.x += kCameraMoveSpeed;
+        {
+            localMove = XMVectorAdd(localMove, XMVectorSet(kCameraMoveSpeed, 0.0f, 0.0f, 0.0f));
+        }
         if ((GetAsyncKeyState('W') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
-            camera.pos.y -= kCameraMoveSpeed;
+        {
+            localMove = XMVectorAdd(localMove, XMVectorSet(0.0f, -kCameraMoveSpeed, 0.0f, 0.0f));
+        }
         if ((GetAsyncKeyState('S') & 0x8000) && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
-            camera.pos.y += kCameraMoveSpeed;
+        {
+            localMove = XMVectorAdd(localMove, XMVectorSet(0.0f, kCameraMoveSpeed, 0.0f, 0.0f));
+        }
         if ((GetAsyncKeyState('W') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
-            camera.pos.z += kCameraMoveSpeed;
+        {
+            localMove = XMVectorAdd(localMove, XMVectorSet(0.0f, 0.0f, kCameraMoveSpeed, 0.0f));
+        }
         if ((GetAsyncKeyState('S') & 0x8000) && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
-            camera.pos.z -= kCameraMoveSpeed;
+        {
+            localMove = XMVectorAdd(localMove, XMVectorSet(0.0f, 0.0f, -kCameraMoveSpeed, 0.0f));
+        }
+
+        const XMMATRIX cameraRotation = XMMatrixRotationRollPitchYaw(camera.rot.x, camera.rot.y, camera.rot.z);
+        const XMVECTOR worldMove = XMVector3TransformNormal(localMove, cameraRotation);
+        XMFLOAT3 move = {};
+        XMStoreFloat3(&move, worldMove);
+        camera.pos.x += move.x;
+        camera.pos.y += move.y;
+        camera.pos.z = std::clamp(camera.pos.z + move.z, kCameraMinZ, kCameraMaxZ);
     }
 
     Engine::SampleSceneUpdateContext sceneUpdate = {};
@@ -337,7 +358,14 @@ void SampleApp::OnMouseWheel(int wheelDelta)
         return;
     }
 
-    camera.pos.z = std::clamp(camera.pos.z + wheelSteps * kMouseWheelCameraSpeed, kCameraMinZ, kCameraMaxZ);
+    const XMVECTOR localMove = XMVectorSet(0.0f, 0.0f, wheelSteps * kMouseWheelCameraSpeed, 0.0f);
+    const XMMATRIX cameraRotation = XMMatrixRotationRollPitchYaw(camera.rot.x, camera.rot.y, camera.rot.z);
+    const XMVECTOR worldMove = XMVector3TransformNormal(localMove, cameraRotation);
+    XMFLOAT3 move = {};
+    XMStoreFloat3(&move, worldMove);
+    camera.pos.x += move.x;
+    camera.pos.y += move.y;
+    camera.pos.z = std::clamp(camera.pos.z + move.z, kCameraMinZ, kCameraMaxZ);
 }
 
 void SampleApp::OnWindowSizeChanged(UINT width, UINT height)
@@ -385,13 +413,17 @@ void SampleApp::OnDestroy()
 void SampleApp::CreateSampleScenes()
 {
     m_sampleScenes.clear();
-    m_sampleScenes.push_back(std::make_unique<Engine::GltfGridScene>(static_cast<int>(kMaxInstanceCount)));
+    m_sampleScenes.push_back(std::make_unique<Engine::GltfGridScene>(Engine::GltfGridScene::kMaxInstanceCount));
+    m_sampleScenes.push_back(std::make_unique<Engine::MetallicRoughnessSphereScene>(
+        Engine::MetallicRoughnessSphereScene::kMaxInstanceCount));
+    m_sampleScenes.push_back(std::make_unique<Engine::ShadowTestGroundCubesScene>(
+        Engine::ShadowTestGroundCubesScene::kMaxInstanceCount));
     m_sampleScenes.push_back(
-        std::make_unique<Engine::MetallicRoughnessSphereScene>(static_cast<int>(kMaxInstanceCount)));
-    m_sampleScenes.push_back(std::make_unique<Engine::ShadowTestGroundCubesScene>(1));
-    m_sampleScenes.push_back(std::make_unique<Engine::AnimatedShadowGridScene>(64));
-    m_sampleScenes.push_back(std::make_unique<Engine::ContactShadowTestScene>(1));
-    m_sampleScenes.push_back(std::make_unique<Engine::OccluderWallTestScene>(1));
+        std::make_unique<Engine::AnimatedShadowGridScene>(Engine::AnimatedShadowGridScene::kMaxInstanceCount));
+    m_sampleScenes.push_back(
+        std::make_unique<Engine::ContactShadowTestScene>(Engine::ContactShadowTestScene::kMaxInstanceCount));
+    m_sampleScenes.push_back(
+        std::make_unique<Engine::OccluderWallTestScene>(Engine::OccluderWallTestScene::kMaxInstanceCount));
 }
 
 void SampleApp::LoadSceneCpuData(int sceneIndex)
@@ -724,6 +756,28 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
                                               1000.0f, "%.0f nits");
     }
 
+    if (ImGui::CollapsingHeader("RayQuery Shadow", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        auto shadowSettings = m_engine.GetShadowSettings();
+        bool changed = false;
+
+        changed |= ImGui::Checkbox("Shadow Enable", &shadowSettings.enabled);
+
+        changed |= ImGuiWidgets::SliderFloatWithControls(
+            "Normal Bias", &shadowSettings.normalBias, 0.0f, 0.1f, 0.001f, 0.01f);
+
+        changed |= ImGuiWidgets::SliderFloatWithControls(
+            "Ray TMin", &shadowSettings.rayTMin, 0.0f, 0.1f, 0.001f, 0.001f);
+
+        changed |= ImGuiWidgets::SliderFloatWithControls(
+            "Ray TMax", &shadowSettings.rayTMax, 1.0f, 10000.0f, 100.0f, 10000.0f);
+
+        if (changed)
+        {
+            m_engine.SetShadowSettings(shadowSettings);
+        }
+    }
+
     if (ImGui::CollapsingHeader("Debug", ImGuiTreeNodeFlags_DefaultOpen))
     {
         int renderingPath = static_cast<int>(m_renderingPath);
@@ -761,7 +815,7 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         ImGui::SameLine();
         ImGui::RadioButton("IBL BRDF LUT", &renderViewMode, static_cast<int>(RenderViewMode::IblBrdfLut));
         ImGui::BeginDisabled(!context.rayTracingSupported);
-        ImGui::RadioButton("ShadowMask", &renderViewMode, static_cast<int>(RenderViewMode::ShadowMask));
+        ImGui::RadioButton("Shadow Mask", &renderViewMode, static_cast<int>(RenderViewMode::ShadowMask));
         ImGui::SameLine();
         ImGui::RadioButton("TLAS Debug", &renderViewMode, static_cast<int>(RenderViewMode::TlasDebug));
         ImGui::EndDisabled();

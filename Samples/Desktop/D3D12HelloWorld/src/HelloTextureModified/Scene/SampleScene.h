@@ -36,7 +36,9 @@ public:
 class GltfGridScene : public SampleScene
 {
 public:
-    explicit GltfGridScene(int maxInstanceCount);
+    static constexpr int kMaxInstanceCount = 1000;
+
+    explicit GltfGridScene(int maxInstanceCount = kMaxInstanceCount);
 
     const char* Name() const override;
     void Load() override;
@@ -73,7 +75,9 @@ private:
 class MetallicRoughnessSphereScene : public SampleScene
 {
 public:
-    explicit MetallicRoughnessSphereScene(int maxInstanceCount);
+    static constexpr int kMaxInstanceCount = 49;
+
+    explicit MetallicRoughnessSphereScene(int maxInstanceCount = kMaxInstanceCount);
 
     const char* Name() const override;
     void Load() override;
@@ -102,7 +106,9 @@ private:
 class ShadowTestGroundCubesScene : public SampleScene
 {
 public:
-    explicit ShadowTestGroundCubesScene(int maxInstanceCount);
+    static constexpr int kMaxInstanceCount = 1;
+
+    explicit ShadowTestGroundCubesScene(int maxInstanceCount = kMaxInstanceCount);
 
     const char* Name() const override;
     void Load() override;
@@ -126,7 +132,9 @@ private:
 class AnimatedShadowGridScene : public SampleScene
 {
 public:
-    explicit AnimatedShadowGridScene(int maxInstanceCount);
+    static constexpr int kMaxInstanceCount = 64;
+
+    explicit AnimatedShadowGridScene(int maxInstanceCount = kMaxInstanceCount);
 
     const char* Name() const override;
     void Load() override;
@@ -161,7 +169,9 @@ private:
 class ContactShadowTestScene : public SampleScene
 {
 public:
-    explicit ContactShadowTestScene(int maxInstanceCount);
+    static constexpr int kMaxInstanceCount = 1;
+
+    explicit ContactShadowTestScene(int maxInstanceCount = kMaxInstanceCount);
 
     const char* Name() const override;
     void Load() override;
@@ -185,7 +195,9 @@ private:
 class OccluderWallTestScene : public SampleScene
 {
 public:
-    explicit OccluderWallTestScene(int maxInstanceCount);
+    static constexpr int kMaxInstanceCount = 1;
+
+    explicit OccluderWallTestScene(int maxInstanceCount = kMaxInstanceCount);
 
     const char* Name() const override;
     void Load() override;

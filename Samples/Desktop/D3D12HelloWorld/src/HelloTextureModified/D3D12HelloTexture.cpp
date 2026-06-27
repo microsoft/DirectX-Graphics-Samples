@@ -185,6 +185,11 @@ void HelloTextureEngine::SetLightingParams(const LightingParams& params)
     m_lightingParams = params;
 }
 
+void HelloTextureEngine::SetShadowSettings(const ShadowSettings& settings)
+{
+    m_shadowSettings = settings;
+}
+
 void HelloTextureEngine::SetMaterialParams(UINT materialIndex, const MaterialParams& params)
 {
     if (materialIndex >= m_materialData.size())
@@ -1105,7 +1110,7 @@ void HelloTextureEngine::CreateRayQueryShadowRootSignature()
     rootParameters[2].InitAsDescriptorTable(1, &depthSrvRange);  // g_depth (t1)
     rootParameters[3].InitAsDescriptorTable(1, &normalSrvRange); // g_normal (t2)
     rootParameters[4].InitAsDescriptorTable(1, &cameraCbvRange); // CameraCB (b0)
-    rootParameters[5].InitAsConstants(3, 1, 0);                  // ShadowConstants lightDirection (b1, 3 floats)
+    rootParameters[5].InitAsConstants(7, 1, 0);                  // ShadowConstants (b1): lightDirection, normalBias, rayTMin, rayTMax, enabled
 
     D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
     featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -1472,7 +1477,14 @@ void HelloTextureEngine::CreateInstanceBuffers()
 
         m_frameResources[n].instanceBuffer->Map(
             0, nullptr, reinterpret_cast<void**>(&m_frameResources[n].pSrvDataBegin));
-        memcpy(m_frameResources[n].pSrvDataBegin, m_scene.instances.data(), instanceBufferSize);
+        memset(m_frameResources[n].pSrvDataBegin, 0, instanceBufferSize);
+        const UINT sceneInstanceCount = (std::min)(static_cast<UINT>(m_scene.instances.size()), kMaxInstanceCount);
+        if (sceneInstanceCount > 0)
+        {
+            memcpy(m_frameResources[n].pSrvDataBegin,
+                   m_scene.instances.data(),
+                   sizeof(InstanceData) * sceneInstanceCount);
+        }
         m_frameResources[n].instanceBuffer->Unmap(0, nullptr);
 
         // Create per-frame TLAS instance upload buffer.
@@ -2006,9 +2018,14 @@ void HelloTextureEngine::UpdateFrame()
     {
         m_frameResources[m_currentFrameIndex].instanceBuffer->Map(
             0, nullptr, reinterpret_cast<void**>(&m_frameResources[m_currentFrameIndex].pSrvDataBegin));
-        memcpy(m_frameResources[m_currentFrameIndex].pSrvDataBegin,
-               m_scene.instances.data(),
-               sizeof(InstanceData) * kMaxInstanceCount);
+        memset(m_frameResources[m_currentFrameIndex].pSrvDataBegin, 0, sizeof(InstanceData) * kMaxInstanceCount);
+        const UINT sceneInstanceCount = (std::min)(static_cast<UINT>(m_scene.instances.size()), kMaxInstanceCount);
+        if (sceneInstanceCount > 0)
+        {
+            memcpy(m_frameResources[m_currentFrameIndex].pSrvDataBegin,
+                   m_scene.instances.data(),
+                   sizeof(InstanceData) * sceneInstanceCount);
+        }
         m_frameResources[m_currentFrameIndex].instanceBuffer->Unmap(0, nullptr);
     }
 
@@ -2503,6 +2520,10 @@ void HelloTextureEngine::ExecuteRayQueryShadowPass(const RenderPass& pass)
     passDesc.normalSrv = m_gbuffer.srvHandles[Engine::GBuffer::Normal].gpu;
     passDesc.cameraCbv = m_frameResources[m_currentFrameIndex].cameraCB.cbv.gpu;
     passDesc.lightDirection = m_lightingParams.lightDirection;
+    passDesc.normalBias = m_shadowSettings.normalBias;
+    passDesc.rayTMin = m_shadowSettings.rayTMin;
+    passDesc.rayTMax = m_shadowSettings.rayTMax;
+    passDesc.enabled = m_shadowSettings.enabled ? 1 : 0;
     passDesc.width = m_width;
     passDesc.height = m_height;
 
