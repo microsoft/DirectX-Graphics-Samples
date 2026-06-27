@@ -105,6 +105,7 @@ auto HelloTextureEngine::MakeGBufferReadUsages() const -> ResourceUsages
          {kGBufferResourceNames[Engine::GBuffer::Material], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
          {kGBufferResourceNames[Engine::GBuffer::MotionVector], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
          {kGBufferResourceNames[Engine::GBuffer::PBRParams], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
+         {kGBufferResourceNames[Engine::GBuffer::Emissive], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE},
          {kDepthStencilResourceName, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE}});
 }
 
@@ -154,7 +155,8 @@ auto HelloTextureEngine::MakeGBufferPass() -> RenderPass
                  {kGBufferResourceNames[Engine::GBuffer::Normal], D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kGBufferResourceNames[Engine::GBuffer::Material], D3D12_RESOURCE_STATE_RENDER_TARGET},
                  {kGBufferResourceNames[Engine::GBuffer::MotionVector], D3D12_RESOURCE_STATE_RENDER_TARGET},
-                 {kGBufferResourceNames[Engine::GBuffer::PBRParams], D3D12_RESOURCE_STATE_RENDER_TARGET}})
+                 {kGBufferResourceNames[Engine::GBuffer::PBRParams], D3D12_RESOURCE_STATE_RENDER_TARGET},
+                 {kGBufferResourceNames[Engine::GBuffer::Emissive], D3D12_RESOURCE_STATE_RENDER_TARGET}})
         .Descriptor(RootSignatureLayout::TextureTable, Desc::TextureTable)
         .Descriptor(RootSignatureLayout::InstanceSrv, Desc::InstanceBufferSrv)
         .Descriptor(RootSignatureLayout::MaterialSrv, Desc::MaterialBufferSrv)
@@ -163,7 +165,8 @@ auto HelloTextureEngine::MakeGBufferPass() -> RenderPass
                RtvName::GBufferNormal,
                RtvName::GBufferMaterial,
                RtvName::GBufferMotionVector,
-               RtvName::GBufferPBRParams})
+               RtvName::GBufferPBRParams,
+               RtvName::GBufferEmissive})
         .Dsv(DsvName::Depth)
         .Operation(Op::GBuffer, &HelloTextureEngine::ExecuteGBufferPass)
         .Build();

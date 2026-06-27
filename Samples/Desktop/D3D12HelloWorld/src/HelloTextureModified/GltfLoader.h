@@ -1,9 +1,12 @@
-﻿// GltfLoader.h
+// GltfLoader.h
 #pragma once
 
 #include <DirectXMath.h>
+#include <cstdint>
 #include <string>
 #include <vector>
+
+static constexpr uint32_t kGltfVertexMaterialFromInstance = 0xffffffffu;
 
 struct GltfVertex
 {
@@ -11,6 +14,7 @@ struct GltfVertex
     DirectX::XMFLOAT2 uv;
     DirectX::XMFLOAT3 normal;
     DirectX::XMFLOAT4 tangent = {0.0f, 0.0f, 0.0f, 0.0f};
+    uint32_t materialId = kGltfVertexMaterialFromInstance;
 };
 
 struct GltfMaterial

@@ -1,4 +1,4 @@
-﻿//*********************************************************
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -43,6 +43,7 @@ struct PSInput
     float2 uv : TEXCOORD;
     float3 normal : NORMAL;
     uint instanceId : SV_InstanceID;
+    nointerpolation uint materialId : TEXCOORD1;
 };
 
 
@@ -60,7 +61,12 @@ cbuffer LightingConstants : register(b2)
     float4 backgroundColor;
 };
 
-PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL, float4 tangent : TANGENT, uint instanceId : SV_InstanceID)
+PSInput VSMain(float4 position : POSITION,
+               float2 uv : TEXCOORD,
+               float3 normal : NORMAL,
+               float4 tangent : TANGENT,
+               uint vertexMaterialId : MATERIALID,
+               uint instanceId : SV_InstanceID)
 {
     PSInput result;
 
@@ -71,14 +77,14 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, float3 normal :
     result.uv = uv;
     result.normal = normalize(mul(normal, (float3x3)inst.world));
     result.instanceId = instanceId;
+    result.materialId = vertexMaterialId == 0xffffffff ? inst.materialId : vertexMaterialId;
     
     return result;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    InstanceData inst = g_instanceData[input.instanceId];
-    Material mat = g_materialData[inst.materialId];
+    Material mat = g_materialData[input.materialId];
     float4 albedo = g_texture[mat.albedoTexIndex].Sample(g_sampler, input.uv);
     float3 normal = normalize(input.normal);
     float3 lightDir = normalize(-lightDirection);

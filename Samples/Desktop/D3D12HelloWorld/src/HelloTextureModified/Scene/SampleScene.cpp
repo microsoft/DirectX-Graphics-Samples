@@ -47,14 +47,6 @@ static constexpr int kSphereColumns = 7;
 static constexpr int kSphereStackCount = 16;
 static constexpr int kSphereSliceCount = 32;
 
-GltfMeshData LoadDamagedHelmet()
-{
-    GltfMeshData mesh;
-    const bool loaded = LoadGltfMesh("Assets\\Models\\DamagedHelmet\\glTF\\DamagedHelmet.gltf", mesh);
-    assert(loaded);
-    return mesh;
-}
-
 SceneMesh ConvertToSceneMesh(const GltfMeshData& mesh)
 {
     SceneMesh sceneMesh = {};
@@ -283,36 +275,88 @@ void AppendTransformedMesh(SceneMesh& dest, const SceneMesh& src, DirectX::FXMMA
     }
 }
 
+struct MeshBounds
+{
+    DirectX::XMFLOAT3 min;
+    DirectX::XMFLOAT3 max;
+};
+
+MeshBounds ComputeMeshBounds(const SceneMesh& mesh)
+{
+    MeshBounds bounds = {};
+    if (mesh.vertices.empty())
+    {
+        bounds.min = {0.0f, 0.0f, 0.0f};
+        bounds.max = {0.0f, 0.0f, 0.0f};
+        return bounds;
+    }
+
+    DirectX::XMVECTOR vMin = XMLoadFloat3(&mesh.vertices[0].position);
+    DirectX::XMVECTOR vMax = vMin;
+
+    for (size_t i = 1; i < mesh.vertices.size(); i++)
+    {
+        DirectX::XMVECTOR p = XMLoadFloat3(&mesh.vertices[i].position);
+        vMin = DirectX::XMVectorMin(vMin, p);
+        vMax = DirectX::XMVectorMax(vMax, p);
+    }
+
+    XMStoreFloat3(&bounds.min, vMin);
+    XMStoreFloat3(&bounds.max, vMax);
+
+    return bounds;
+}
+
+float ComputeBoundingSphereRadius(const MeshBounds& bounds)
+{
+    DirectX::XMVECTOR vMin = XMLoadFloat3(&bounds.min);
+    DirectX::XMVECTOR vMax = XMLoadFloat3(&bounds.max);
+    DirectX::XMVECTOR half = DirectX::XMVectorScale(DirectX::XMVectorSubtract(vMax, vMin), 0.5f);
+    DirectX::XMVECTOR len = DirectX::XMVector3Length(half);
+    float radius;
+    DirectX::XMStoreFloat(&radius, len);
+    return radius;
+}
+
 } // namespace
 
-GltfGridScene::GltfGridScene(int maxInstanceCount)
-    : m_maxInstanceCount(maxInstanceCount), m_displayInstanceCount(maxInstanceCount)
+GltfGridBenchmarkScene::GltfGridBenchmarkScene(const GltfAssetDesc& assetDesc, int maxInstanceCount)
+    : m_assetDesc(assetDesc), m_maxInstanceCount(maxInstanceCount), m_displayInstanceCount(maxInstanceCount)
 {
 }
 
-const char* GltfGridScene::Name() const
+const char* GltfGridBenchmarkScene::Name() const
 {
-    return "glTF Grid";
+    return m_assetDesc.name;
 }
 
-void GltfGridScene::Load()
+void GltfGridBenchmarkScene::Load()
 {
-    m_mesh = ConvertToSceneMesh(LoadDamagedHelmet());
+    if (m_assetDesc.path != nullptr)
+    {
+        GltfMeshData gltfMesh;
+        const bool loaded = LoadGltfMesh(m_assetDesc.path, gltfMesh);
+        assert(loaded);
+        if (loaded)
+        {
+            m_mesh = ConvertToSceneMesh(gltfMesh);
+        }
+    }
     assert(!m_mesh.vertices.empty());
     m_scene.mesh = &m_mesh;
     Reset();
 }
 
-void GltfGridScene::Reset()
+void GltfGridBenchmarkScene::Reset()
 {
-    m_scene.camera.pos = {0.0f, 0.0f, -10.0f};
+    m_scene.camera.pos = {0.0f, 0.0f, m_assetDesc.cameraDistance};
     m_scene.camera.rot = {0.0f, 0.0f, 0.0f};
     m_scene.camera.fov = 60.0f;
     m_accumTime = 0.0f;
     InitInstanceData();
 }
 
-void GltfGridScene::Update(float deltaTime, const SampleSceneUpdateContext& context)
+void GltfGridBenchmarkScene::Update(float deltaTime, const SampleSceneUpdateContext& context)
 {
     if (context.isPlaying)
     {
@@ -359,47 +403,47 @@ void GltfGridScene::Update(float deltaTime, const SampleSceneUpdateContext& cont
     }
 }
 
-Scene& GltfGridScene::GetScene()
+Scene& GltfGridBenchmarkScene::GetScene()
 {
     return m_scene;
 }
 
-const Scene& GltfGridScene::GetScene() const
+const Scene& GltfGridBenchmarkScene::GetScene() const
 {
     return m_scene;
 }
 
-SceneMesh& GltfGridScene::GetMesh()
+SceneMesh& GltfGridBenchmarkScene::GetMesh()
 {
     return m_mesh;
 }
 
-const SceneMesh& GltfGridScene::GetMesh() const
+const SceneMesh& GltfGridBenchmarkScene::GetMesh() const
 {
     return m_mesh;
 }
 
-int GltfGridScene::DisplayInstanceCount() const
+int GltfGridBenchmarkScene::DisplayInstanceCount() const
 {
     return m_displayInstanceCount;
 }
 
-int GltfGridScene::MaxDisplayInstanceCount() const
+int GltfGridBenchmarkScene::MaxDisplayInstanceCount() const
 {
     return m_maxInstanceCount;
 }
 
-void GltfGridScene::SetDisplayInstanceCount(int count)
+void GltfGridBenchmarkScene::SetDisplayInstanceCount(int count)
 {
     m_displayInstanceCount = std::clamp(count, 0, m_maxInstanceCount);
 }
 
-float GltfGridScene::DefaultMeshScale() const
+float GltfGridBenchmarkScene::DefaultMeshScale() const
 {
-    return 0.5f;
+    return m_assetDesc.meshScale;
 }
 
-void GltfGridScene::InitInstanceData()
+void GltfGridBenchmarkScene::InitInstanceData()
 {
     m_scene.instances.resize(m_maxInstanceCount);
     m_instanceDataForCPU.clear();
@@ -420,7 +464,7 @@ void GltfGridScene::InitInstanceData()
     }
 }
 
-XMFLOAT3 GltfGridScene::InstanceIdToXYZ(int instanceId)
+XMFLOAT3 GltfGridBenchmarkScene::InstanceIdToXYZ(int instanceId)
 {
     constexpr int dimX = 10;
     constexpr int dimY = 10;
@@ -490,6 +534,114 @@ XMFLOAT3 GltfGridScene::InstanceIdToXYZ(int instanceId)
         static_cast<float>(p.y),
         static_cast<float>(p.z),
     };
+}
+
+GltfObjectViewerScene::GltfObjectViewerScene(const GltfAssetDesc& assetDesc)
+    : m_assetDesc(assetDesc)
+{
+}
+
+const char* GltfObjectViewerScene::Name() const
+{
+    return m_assetDesc.name;
+}
+
+void GltfObjectViewerScene::Load()
+{
+    if (m_assetDesc.path != nullptr)
+    {
+        GltfMeshData gltfMesh;
+        const bool loaded = LoadGltfMesh(m_assetDesc.path, gltfMesh);
+        assert(loaded);
+        if (loaded)
+        {
+            m_mesh = ConvertToSceneMesh(gltfMesh);
+        }
+    }
+    assert(!m_mesh.vertices.empty());
+    m_scene.mesh = &m_mesh;
+    Reset();
+}
+
+void GltfObjectViewerScene::Reset()
+{
+    m_scene.camera.rot = {0.0f, 0.0f, 0.0f};
+    m_scene.camera.fov = 60.0f;
+
+    // Compute mesh bounds and derive auto camera distance
+    const MeshBounds bounds = ComputeMeshBounds(m_mesh);
+    const float radius = ComputeBoundingSphereRadius(bounds);
+    const float baseScale = m_assetDesc.meshScale;
+    const float baseWorldRadius = radius * baseScale;
+    const float minSourceRadius = 0.0001f;
+    const float minViewerRadius = 0.5f;
+    const float displayScale =
+        baseWorldRadius > 0.0f ? baseScale * ((std::max)(baseWorldRadius, minViewerRadius) / baseWorldRadius)
+                               : baseScale;
+    const float effectiveRadius = (std::max)(radius * displayScale, minSourceRadius);
+    const float fovRadians = DirectX::XMConvertToRadians(m_scene.camera.fov);
+    const float distance = effectiveRadius / std::tan(fovRadians * 0.5f) * 2.5f;
+    m_scene.camera.pos = {0.0f, 0.0f, -distance};
+
+    // Center instance at bounds center so the model is viewed around its origin
+    m_scene.instances.resize(1);
+    DirectX::XMVECTOR vCenter = DirectX::XMVectorScale(
+        DirectX::XMVectorAdd(XMLoadFloat3(&bounds.min), XMLoadFloat3(&bounds.max)), 0.5f);
+    XMFLOAT3 center;
+    XMStoreFloat3(&center, vCenter);
+    const XMMATRIX transform = XMMatrixScaling(displayScale, displayScale, displayScale) *
+                               XMMatrixTranslation(-center.x * displayScale,
+                                                   -center.y * displayScale,
+                                                   -center.z * displayScale);
+    XMStoreFloat4x4(&m_scene.instances[0].world, XMMatrixTranspose(transform));
+    m_scene.instances[0].prevWorld = m_scene.instances[0].world;
+    m_scene.instances[0].materialId = 0;
+}
+
+void GltfObjectViewerScene::Update(float deltaTime, const SampleSceneUpdateContext& context)
+{
+    UNREFERENCED_PARAMETER(deltaTime);
+    UNREFERENCED_PARAMETER(context);
+}
+
+Scene& GltfObjectViewerScene::GetScene()
+{
+    return m_scene;
+}
+
+const Scene& GltfObjectViewerScene::GetScene() const
+{
+    return m_scene;
+}
+
+SceneMesh& GltfObjectViewerScene::GetMesh()
+{
+    return m_mesh;
+}
+
+const SceneMesh& GltfObjectViewerScene::GetMesh() const
+{
+    return m_mesh;
+}
+
+int GltfObjectViewerScene::DisplayInstanceCount() const
+{
+    return 1;
+}
+
+int GltfObjectViewerScene::MaxDisplayInstanceCount() const
+{
+    return kMaxInstanceCount;
+}
+
+void GltfObjectViewerScene::SetDisplayInstanceCount(int count)
+{
+    UNREFERENCED_PARAMETER(count);
+}
+
+float GltfObjectViewerScene::DefaultMeshScale() const
+{
+    return m_assetDesc.meshScale;
 }
 
 MetallicRoughnessSphereScene::MetallicRoughnessSphereScene(int maxInstanceCount)

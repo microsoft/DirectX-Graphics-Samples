@@ -84,6 +84,7 @@ public:
         GBufferMaterial,
         GBufferMotionVector,
         GBufferPBRParams,
+        GBufferEmissive,
         Depth,
         ReflectionDirection,
         ViewDirection,
@@ -105,7 +106,7 @@ public:
 
     struct LightingParams
     {
-        XMFLOAT3 lightDirection = {0.4f, 0.7f, 0.6f};
+        XMFLOAT3 lightDirection = {0.0f, 1.0f, -1.0f};
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
         // HDR environment maps are bright, so the default IBL contribution is intentionally modest.
         float iblIntensity = 0.10f;
@@ -151,10 +152,10 @@ public:
         float normalBias = 0.01f;
         float rayTMin = 0.001f;
         float rayTMax = 10000.0f;
-        bool softShadowEnabled = false;
-        int sampleCount = 1;
-        float lightAngularRadius = 0.005f;
-        float jitterStrength = 1.0f;
+        bool softShadowEnabled = true;
+        int sampleCount = 8;
+        float lightAngularRadius = 0.1f;
+        float jitterStrength = 2.0f;
     };
 
     struct UiFrameContext
@@ -250,6 +251,7 @@ private:
             static constexpr const char* GBufferMaterial = "GBufferMaterial";
             static constexpr const char* GBufferMotionVector = "GBufferMotionVector";
             static constexpr const char* GBufferPBRParams = "GBufferPBRParams";
+            static constexpr const char* GBufferEmissive = "GBufferEmissive";
             static constexpr const char* LightPass = "LightPass";
         };
 
@@ -342,7 +344,7 @@ private:
 
     struct alignas(256) LightingConstants
     {
-        XMFLOAT3 lightDirection = {0.4f, 0.7f, 0.6f};
+        XMFLOAT3 lightDirection = {0.0f, 1.0f, -1.0f};
         float iblIntensity = 0.10f;
         XMFLOAT3 lightColor = {1.0f, 1.0f, 1.0f};
         float diffuseIntensity = 1.0f;
@@ -550,7 +552,12 @@ private:
     static constexpr const char* kDepthStencilResourceName = "DepthStencil";
     static constexpr const char* kLightPassRenderTargetResourceName = "LightPass.RenderTarget";
     static constexpr const char* kGBufferResourceNames[Engine::GBuffer::kCount] = {
-        "GBuffer.Albedo", "GBuffer.Normal", "GBuffer.Material", "GBuffer.MotionVector", "GBuffer.PBRParams"};
+        "GBuffer.Albedo",
+        "GBuffer.Normal",
+        "GBuffer.Material",
+        "GBuffer.MotionVector",
+        "GBuffer.PBRParams",
+        "GBuffer.Emissive"};
     static constexpr const char* kShadowMaskResourceName = "ShadowMask";
 
     using TransientResourceState = Engine::TransientResourceState;
@@ -686,6 +693,7 @@ private:
     void RegisterResourceResolvers();
 
     std::vector<UINT8> GenerateCheckerboardTextureData();
+    std::vector<UINT8> GenerateSolidTextureData(UINT8 r, UINT8 g, UINT8 b, UINT8 a);
     void PopulateCommandList();
 
     void AddPass(RenderPass pass);

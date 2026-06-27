@@ -5,7 +5,8 @@ Texture2D<float4> g_albedo : register(t0, space3);
 Texture2D<float4> g_normal : register(t1, space3);
 Texture2D<uint> g_material : register(t2, space3);
 Texture2D<float4> g_pbrParams : register(t4, space3);
-Texture2D<float> g_depth : register(t5, space3);
+Texture2D<float4> g_emissive : register(t5, space3);
+Texture2D<float> g_depth : register(t6, space3);
 TextureCube<float4> g_environmentMap : register(t0, space5);
 TextureCube<float4> g_diffuseIrradianceMap : register(t1, space5);
 TextureCube<float4> g_specularPrefilterMap : register(t2, space5);
@@ -203,7 +204,7 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float metallic = pbrParams.r;
     float roughness = max(pbrParams.g, 0.04);
     float occlusion = pbrParams.b;
-    float emissive = pbrParams.a;
+    float3 emissive = g_emissive.Sample(g_sampler, input.uv).rgb;
     float3 worldPos = ReconstructWorldPosition(input.uv, depth);
     float3 lightDir = normalize(lightDirection);
     float3 viewDir = normalize(cameraPosition - worldPos);
@@ -255,5 +256,5 @@ float4 PSMain(FullscreenVSOutput input) : SV_TARGET
     float specularOcclusion = ComputeSpecularOcclusion(ndotv, occlusion, roughness);
     float3 iblSpecular =
         environmentSpecular * (specularFresnel * brdf.x + brdf.y) * iblIntensity * specularOcclusion * specularIblEnabled;
-    return float4(iblDiffuse + iblSpecular + directLighting + emissive.xxx * emissiveEnabled, 1.0);
+    return float4(iblDiffuse + iblSpecular + directLighting + emissive * emissiveEnabled, 1.0);
 }

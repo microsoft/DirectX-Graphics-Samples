@@ -17,6 +17,7 @@ struct PSInput
     float4 currClipPos : TEXCOORD1;
     float4 prevClipPos : TEXCOORD2;
     uint instanceId : SV_InstanceID;
+    nointerpolation uint materialId : TEXCOORD3;
 };
 
 struct GBufferOutput
@@ -26,6 +27,7 @@ struct GBufferOutput
     uint material : SV_Target2;
     float2 motionVector : SV_Target3;
     float4 pbrParams : SV_Target4;
+    float4 emissive : SV_Target5;
 };
 
 Texture2D g_texture[] : register(t0, space0);
@@ -59,7 +61,12 @@ float3x3 BuildTangentFrame(float3 normal, float4 tangent)
     return float3x3(t, bitangent, normal);
 }
 
-PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, float3 normal : NORMAL, float4 tangent : TANGENT, uint instanceId : SV_InstanceID)
+PSInput VSMain(float4 position : POSITION,
+               float2 uv : TEXCOORD,
+               float3 normal : NORMAL,
+               float4 tangent : TANGENT,
+               uint vertexMaterialId : MATERIALID,
+               uint instanceId : SV_InstanceID)
 {
     PSInput result;
 
@@ -77,14 +84,14 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, float3 normal :
     result.currClipPos = mul(worldPos, viewProj);
     result.prevClipPos = mul(prevWorldPos, prevViewProj);    
     result.instanceId = instanceId;
+    result.materialId = vertexMaterialId == 0xffffffff ? inst.materialId : vertexMaterialId;
 
     return result;
 }
 
 GBufferOutput PSMain(PSInput input)
 {
-    InstanceData inst = g_instanceData[input.instanceId];
-    Material mat = g_materialData[inst.materialId];
+    Material mat = g_materialData[input.materialId];
 
     GBufferOutput output;
     float4 albedo = g_texture[mat.albedoTexIndex].Sample(g_sampler, input.uv);
@@ -98,7 +105,7 @@ GBufferOutput PSMain(PSInput input)
         mappedNormal = normalize(mul(normalTex, BuildTangentFrame(baseNormal, input.tangent)));
     }
     output.normal = float4(mappedNormal, 1.0);
-    output.material = inst.materialId;
+    output.material = input.materialId;
     
     float2 curNdc = input.currClipPos.xy / input.currClipPos.w;
     float2 prevNdc = input.prevClipPos.xy / input.prevClipPos.w;    
@@ -112,8 +119,8 @@ GBufferOutput PSMain(PSInput input)
     float roughness = saturate(metallicRoughness.g * mat.roughnessFactor);
     // Indirect Occlusion is an artist/debug multiplier applied after glTF occlusionStrength.
     float ambientOcclusion = saturate(lerp(1.0, occlusion, mat.occlusionStrength) * mat.ambientOcclusionFactor);
-    float emissiveLuminance = saturate(dot(emissive, float3(0.2126, 0.7152, 0.0722)) * mat.emissiveScale);
-    output.pbrParams = float4(metallic, roughness, ambientOcclusion, emissiveLuminance);
+    output.pbrParams = float4(metallic, roughness, ambientOcclusion, 1.0);
+    output.emissive = float4(emissive * mat.emissiveScale, 1.0);
     
     return output;
 }

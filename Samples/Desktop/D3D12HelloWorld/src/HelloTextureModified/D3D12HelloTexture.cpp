@@ -385,11 +385,12 @@ void HelloTextureEngine::ReloadEnvironmentResources(const Engine::ProceduralEnvi
 
 void HelloTextureEngine::UpdateCameraConstantBuffer()
 {
+    m_scene.camera.fov = std::clamp(m_scene.camera.fov, 0.1f, 179.0f);
     const float aspect = static_cast<float>(m_width) / static_cast<float>(m_height);
-    const XMMATRIX rotMat =
-        XMMatrixRotationRollPitchYaw(m_scene.camera.rot.x, m_scene.camera.rot.y, m_scene.camera.rot.z);
-    const XMMATRIX transMat = XMMatrixTranslation(m_scene.camera.pos.x, m_scene.camera.pos.y, m_scene.camera.pos.z);
-    const XMMATRIX view = XMMatrixInverse(nullptr, rotMat * transMat);
+    const XMVECTOR eye = XMLoadFloat3(&m_scene.camera.pos);
+    const XMVECTOR at = XMLoadFloat3(&m_scene.camera.gazePoint);
+    const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    const XMMATRIX view = XMMatrixLookAtLH(eye, at, up);
     const XMMATRIX projection =
         XMMatrixPerspectiveFovLH(XMConvertToRadians(m_scene.camera.fov), aspect, kCameraNearZ, kCameraFarZ);
     const XMMATRIX viewProjection = XMMatrixMultiply(view, projection);
@@ -1237,7 +1238,8 @@ void HelloTextureEngine::RegisterPipelineStates(const PipelineShaderBytecode& sh
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+        {"TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"MATERIALID", 0, DXGI_FORMAT_R32_UINT, 0, 48, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 
     D3D12_INPUT_ELEMENT_DESC depthLayout[] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
@@ -1366,7 +1368,14 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
         }
         else
         {
-            texture[i] = GenerateCheckerboardTextureData();
+            if (i == mesh.textures.size())
+            {
+                texture[i] = GenerateSolidTextureData(0, 0, 0, 255);
+            }
+            else
+            {
+                texture[i] = GenerateCheckerboardTextureData();
+            }
             pixels = &texture[i % kTextureTypes][0];
             width = kTextureWidth;
             height = kTextureHeight;
@@ -1409,6 +1418,8 @@ void HelloTextureEngine::CreateSceneMaterialResources()
         }
         return fallbackIndex;
     };
+    const UINT blackFallbackTexIndex =
+        m_sceneTextureCount < kTextureCount ? m_texIndex[m_sceneTextureCount] : m_texIndex[0];
 
     for (int i = 0; i < Engine::kMaterialCount; i++)
     {
@@ -1434,7 +1445,7 @@ void HelloTextureEngine::CreateSceneMaterialResources()
                 m.albedoTexIndex = resolveTextureIndex(gltfMaterial.albedoTexIndex, fallbackTexIndex);
                 m.metallicRoughnessTexIndex =
                     resolveTextureIndex(gltfMaterial.metallicRoughnessTexIndex, fallbackTexIndex);
-                m.emissiveTexIndex = resolveTextureIndex(gltfMaterial.emissiveTexIndex, fallbackTexIndex);
+                m.emissiveTexIndex = resolveTextureIndex(gltfMaterial.emissiveTexIndex, blackFallbackTexIndex);
                 m.occlusionTexIndex = resolveTextureIndex(gltfMaterial.occlusionTexIndex, fallbackTexIndex);
                 m.normalTexIndex = resolveTextureIndex(gltfMaterial.normalTexIndex, fallbackTexIndex);
                 if (gltfMaterial.normalTexIndex >= 0)
@@ -1445,7 +1456,7 @@ void HelloTextureEngine::CreateSceneMaterialResources()
                 m.metallicFactor = gltfMaterial.metallicFactor;
                 m.occlusionStrength = gltfMaterial.occlusionStrength;
                 m.ambientOcclusionFactor = gltfMaterial.ambientOcclusionFactor;
-                m.emissiveScale = gltfMaterial.emissiveScale;
+                m.emissiveScale = gltfMaterial.emissiveTexIndex >= 0 ? gltfMaterial.emissiveScale : 0.0f;
             }
         }
 
@@ -1691,6 +1702,22 @@ std::vector<UINT8> HelloTextureEngine::GenerateCheckerboardTextureData()
     return data;
 }
 
+std::vector<UINT8> HelloTextureEngine::GenerateSolidTextureData(UINT8 r, UINT8 g, UINT8 b, UINT8 a)
+{
+    const UINT textureSize = kTextureWidth * kTextureHeight * kTexturePixelSize;
+    std::vector<UINT8> data(textureSize);
+
+    for (UINT n = 0; n < textureSize; n += kTexturePixelSize)
+    {
+        data[n + 0] = r;
+        data[n + 1] = g;
+        data[n + 2] = b;
+        data[n + 3] = a;
+    }
+
+    return data;
+}
+
 void HelloTextureEngine::CreateDsvHeap()
 {
     if (m_dsvHeap)
@@ -1886,6 +1913,8 @@ void HelloTextureEngine::RegisterPassBindingResolvers()
                                                 [this]() { return GetGBufferRTV(Engine::GBuffer::MotionVector); });
     m_renderGraphRuntime.Bindings().RegisterRtv(m_renderGraphRuntime.RegisterRtv(RtvName::GBufferPBRParams),
                                                 [this]() { return GetGBufferRTV(Engine::GBuffer::PBRParams); });
+    m_renderGraphRuntime.Bindings().RegisterRtv(m_renderGraphRuntime.RegisterRtv(RtvName::GBufferEmissive),
+                                                [this]() { return GetGBufferRTV(Engine::GBuffer::Emissive); });
     m_renderGraphRuntime.Bindings().RegisterRtv(m_renderGraphRuntime.RegisterRtv(RtvName::LightPass),
                                                 [this]() { return GetLightPassRTV(); });
 

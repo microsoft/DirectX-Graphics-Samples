@@ -62,7 +62,7 @@ DescriptorRanges CreateDescriptorRanges(UINT textureSrvCount, UINT gbufferSrvCou
                             RootSignatureLayout::kMaterialSrvSpace,
                             D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-    // t0 - t4 : GBuffer SRVs, t5 : depth SRV, space 3
+    // t0 - t(GBufferCount - 1) : GBuffer SRVs, next slot : depth SRV, space 3
     ranges.gbufferAndDepthSrvs.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
                                     gbufferSrvCount,
                                     RootSignatureLayout::kBaseRegister,
