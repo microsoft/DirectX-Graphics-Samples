@@ -294,8 +294,7 @@ private:
     using Op = PassKeyNames::Operation;
     using ConstName = PassKeyNames::Constants;
 
-    static constexpr UINT kTextureCount = 1020;
-    static constexpr UINT kTextureTypes = 1020; // Color Type : 0-9
+    static constexpr UINT kTextureDescriptorCapacity = 256;
     static constexpr DXGI_FORMAT kBackBufferFormat = kSwapChainFormat;
 
     static constexpr UINT kInstanceBufferCount = kFrameCount;
@@ -326,10 +325,11 @@ private:
     // texture table, instance buffers, material buffer, constant buffer, light constant buffer.
     // ShadowMask descriptors live in a StagedDescriptorAllocator whose GPU
     // copies are staged into a reserved range of the main shader-visible heap.
-    static constexpr UINT kMainHeapDescriptorCount = kTextureCount + kInstanceBufferCount + kMaterialBufferCount +
-                                                      kEnvironmentMapDescriptorCount + kConstantBufferCount +
-                                                      kLightConstantBufferCount + Engine::GBuffer::kCount +
-                                                      PersistentSrvSlotCount + kTlasDescriptorCount;
+    static constexpr UINT kMainHeapDescriptorCount = kTextureDescriptorCapacity + kInstanceBufferCount +
+                                                      kMaterialBufferCount + kEnvironmentMapDescriptorCount +
+                                                      kConstantBufferCount + kLightConstantBufferCount +
+                                                      Engine::GBuffer::kCount + PersistentSrvSlotCount +
+                                                      kTlasDescriptorCount;
     static constexpr UINT kStagedDescriptorReservedCount = 64;
 
     static constexpr int kGpuWorkMeterQueryCount = 100;
@@ -476,7 +476,7 @@ private:
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
 
     DescriptorHeapHandle m_textureTableStart;
-    UINT m_texIndex[kTextureCount] = {};
+    std::vector<UINT> m_texIndex;
     std::array<UINT, Engine::kTextureSemanticCount> m_semanticFallbackTexIndex = {};
 
     Engine::Scene m_scene;
