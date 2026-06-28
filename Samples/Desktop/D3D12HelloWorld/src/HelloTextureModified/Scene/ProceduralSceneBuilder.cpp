@@ -24,7 +24,9 @@ using DirectX::XMMatrixTranspose;
 using DirectX::XMVector3Normalize;
 using DirectX::XMVector3Transform;
 using DirectX::XMVector3TransformNormal;
+using DirectX::XMVectorGetX;
 using DirectX::XMVectorSet;
+using DirectX::XMVECTOR;
 
 namespace Engine
 {
@@ -43,7 +45,8 @@ SceneMesh CreateQuadMesh(
     const XMFLOAT3& v1,
     const XMFLOAT3& v2,
     const XMFLOAT3& v3,
-    const XMFLOAT3& normal)
+    const XMFLOAT3& normal,
+    bool flipWinding)
 {
     SceneMesh mesh = {};
 
@@ -53,7 +56,14 @@ SceneMesh CreateQuadMesh(
     mesh.vertices[2] = {v2, XMFLOAT2(1.0f, 0.0f), normal};
     mesh.vertices[3] = {v3, XMFLOAT2(0.0f, 0.0f), normal};
 
-    mesh.indices = {0, 2, 1, 0, 3, 2};
+    if (flipWinding)
+    {
+        mesh.indices = {0, 1, 2, 0, 2, 3};
+    }
+    else
+    {
+        mesh.indices = {0, 2, 1, 0, 3, 2};
+    }
 
     return mesh;
 }
@@ -238,7 +248,8 @@ void AddQuad(SceneMesh& mesh,
              const XMFLOAT3& center,
              const XMFLOAT3& size,
              const XMFLOAT3& normal,
-             uint32_t materialId)
+             uint32_t materialId,
+             bool flipWinding)
 {
     XMFLOAT3 axis1, axis2;
 
@@ -282,7 +293,7 @@ void AddQuad(SceneMesh& mesh,
     const XMFLOAT3 v2 = {cx + h1x + h2x, cy + h1y + h2y, cz + h1z + h2z};
     const XMFLOAT3 v3 = {cx - h1x + h2x, cy - h1y + h2y, cz - h1z + h2z};
 
-    SceneMesh quad = CreateQuadMesh(v0, v1, v2, v3, normal);
+    SceneMesh quad = CreateQuadMesh(v0, v1, v2, v3, normal, flipWinding);
     AppendMesh(mesh, quad, materialId);
 }
 

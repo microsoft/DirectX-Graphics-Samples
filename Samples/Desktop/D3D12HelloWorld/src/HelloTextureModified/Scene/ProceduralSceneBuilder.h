@@ -15,7 +15,8 @@ SceneMesh CreateQuadMesh(
     const DirectX::XMFLOAT3& v1,
     const DirectX::XMFLOAT3& v2,
     const DirectX::XMFLOAT3& v3,
-    const DirectX::XMFLOAT3& normal);
+    const DirectX::XMFLOAT3& normal,
+    bool flipWinding = false);
 
 SceneMesh CreateCubeMesh(float size);
 
@@ -32,7 +33,8 @@ void AddQuad(SceneMesh& mesh,
              const DirectX::XMFLOAT3& center,
              const DirectX::XMFLOAT3& size,
              const DirectX::XMFLOAT3& normal,
-             uint32_t materialId);
+             uint32_t materialId,
+             bool flipWinding = false);
 
 void AddSphere(SceneMesh& mesh,
                const DirectX::XMFLOAT3& position,
