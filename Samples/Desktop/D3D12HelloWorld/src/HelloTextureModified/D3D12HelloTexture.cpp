@@ -1344,50 +1344,39 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
 
     m_sceneTextureCount = static_cast<UINT>(mesh.textures.size());
     const UINT semanticFallbackBaseIndex = m_sceneTextureCount;
-    const UINT textureDescriptorCount = m_sceneTextureCount + Engine::kTextureSemanticCount;
-    assert(textureDescriptorCount <= kTextureDescriptorCapacity);
+    const UINT textureResourceCount = m_sceneTextureCount + Engine::kTextureSemanticCount;
+    assert(textureResourceCount <= kTextureDescriptorCapacity);
 
-    textureUploadHeap.resize(textureDescriptorCount);
+    // 3つの領域を定義
+    // [0, m_sceneTextureCount)              : Scene textures (from glTF)
+    // [m_sceneTextureCount, textureResourceCount) : Semantic fallback (5 types)
+    // [textureResourceCount, kTextureDescriptorCapacity) : Unused -> BaseColor fallback
 
-    m_texture.resize(textureDescriptorCount);
-    m_textureSrvs.resize(textureDescriptorCount);
-    m_texIndex.resize(textureDescriptorCount);
+    textureUploadHeap.resize(textureResourceCount);
 
-    std::vector<std::vector<UINT8>> texture(textureDescriptorCount);
+    m_texture.resize(textureResourceCount);
+    m_textureSrvs.resize(kTextureDescriptorCapacity);
+    m_texIndex.resize(textureResourceCount);
+
+    std::vector<std::vector<UINT8>> texture(textureResourceCount);
 
     DBG_PRINT("m_sceneTextureCount = %d\n", m_sceneTextureCount);
-    DBG_PRINT("textureDescriptorCount = %d\n", textureDescriptorCount);
+    DBG_PRINT("textureResourceCount = %d\n", textureResourceCount);
 
-    for (size_t i = 0; i < textureDescriptorCount; i++)
+    // ------------------------------------------------------------
+    // Region 1: Scene textures [0, m_sceneTextureCount)
+    // ------------------------------------------------------------
+    for (UINT i = 0; i < m_sceneTextureCount; ++i)
     {
-        bool useSceneTex = i < mesh.textures.size();
-        const bool useSemanticFallbackTex =
-            i >= semanticFallbackBaseIndex && i < semanticFallbackBaseIndex + Engine::kTextureSemanticCount;
-        UINT8* pixels = nullptr;
-        UINT width, height;
+        const auto& tex = mesh.textures[i];
+        UINT8* pixels = (UINT8*)tex.pixels.data();
+        UINT width = tex.width;
+        UINT height = tex.height;
 
-        if (useSceneTex)
-        {
-            const auto& tex = mesh.textures[i];
-            pixels = (UINT8*)tex.pixels.data();
-            width = tex.width;
-            height = tex.height;
-            DBG_PRINT("[%d] sceneTexture :width %d height %d\n", i, tex.width, tex.height);
-        }
-        else
-        {
-            if (useSemanticFallbackTex)
-            {
-                const auto semantic = static_cast<Engine::TextureSemantic>(i - semanticFallbackBaseIndex);
-                texture[i] = GenerateSemanticFallbackTextureData(semantic);
-            }
-            pixels = texture[i].data();
-            width = kTextureWidth;
-            height = kTextureHeight;
-            DBG_PRINT("[%d] fallback texture :width %d height %d\n", i, kTextureWidth, kTextureHeight);
-        }
+        DBG_PRINT("[%d] sceneTexture :width %d height %d\n", i, width, height);
 
-        DescriptorAllocation srv = CreateTextureFromRGBA8(pixels, width, height, m_texture[i], textureUploadHeap[i]);
+        DescriptorAllocation srv = CreateTextureFromRGBA8(pixels, width, height,
+                                                          m_texture[i], textureUploadHeap[i]);
         m_textureSrvs[i] = std::move(srv);
         if (i == 0)
         {
@@ -1395,12 +1384,43 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
         }
         m_texIndex[i] = m_textureSrvs[i].Handle().Index - m_textureTableStart.Index;
         DBG_PRINT("Texture %d SRV index: %d\n", i, m_texIndex[i]);
+    }
 
-        if (useSemanticFallbackTex)
-        {
-            const UINT semanticIndex = static_cast<UINT>(i - semanticFallbackBaseIndex);
-            m_semanticFallbackTexIndex[semanticIndex] = m_texIndex[i];
-        }
+    // ------------------------------------------------------------
+    // Region 2: Semantic fallback textures [m_sceneTextureCount, textureResourceCount)
+    // ------------------------------------------------------------
+    for (UINT i = 0; i < Engine::kTextureSemanticCount; ++i)
+    {
+        const UINT idx = semanticFallbackBaseIndex + i;
+        const auto semantic = static_cast<Engine::TextureSemantic>(i);
+        texture[idx] = GenerateSemanticFallbackTextureData(semantic);
+
+        UINT8* pixels = texture[idx].data();
+        UINT width = kTextureWidth;
+        UINT height = kTextureHeight;
+
+        DBG_PRINT("[%d] fallback texture (%s) :width %d height %d\n",
+                  idx, GetSemanticName(semantic), width, height);
+
+        DescriptorAllocation srv = CreateTextureFromRGBA8(pixels, width, height,
+                                                          m_texture[idx], textureUploadHeap[idx]);
+        m_textureSrvs[idx] = std::move(srv);
+        m_texIndex[idx] = m_textureSrvs[idx].Handle().Index - m_textureTableStart.Index;
+        DBG_PRINT("Texture %d SRV index: %d\n", idx, m_texIndex[idx]);
+
+        m_semanticFallbackTexIndex[i] = m_texIndex[idx];
+    }
+
+    // ------------------------------------------------------------
+    // Region 3: Unused slots [textureResourceCount, kTextureDescriptorCapacity)
+    // Fill with BaseColor fallback (white)
+    // ------------------------------------------------------------
+    const UINT baseColorFallbackIndex = semanticFallbackBaseIndex + static_cast<UINT>(Engine::TextureSemantic::BaseColor);
+    assert(baseColorFallbackIndex < textureResourceCount);
+
+    for (UINT i = textureResourceCount; i < kTextureDescriptorCapacity; ++i)
+    {
+        m_textureSrvs[i] = AllocateTextureSRV(m_texture[baseColorFallbackIndex].Get());
     }
 }
 
