@@ -103,15 +103,47 @@ void DXSample::SetCustomWindowText(LPCWSTR text)
     SetWindowText(Win32Application::GetHwnd(), windowText.c_str());
 }
 
+namespace
+{
+
+bool IsCommandLineArg(const WCHAR* arg, const WCHAR* expected)
+{
+    return _wcsicmp(arg, expected) == 0;
+}
+
+} // namespace
+
 // Helper function for parsing any supplied command line args.
 _Use_decl_annotations_ void DXSample::ParseCommandLineArgs(WCHAR* argv[], int argc)
 {
     for (int i = 1; i < argc; ++i)
     {
-        if (_wcsnicmp(argv[i], L"-warp", wcslen(argv[i])) == 0 || _wcsnicmp(argv[i], L"/warp", wcslen(argv[i])) == 0)
+        if (IsCommandLineArg(argv[i], L"-warp") || IsCommandLineArg(argv[i], L"/warp"))
         {
             m_useWarpDevice = true;
             m_title = m_title + L" (WARP)";
+        }
+        else if (IsCommandLineArg(argv[i], L"-LogToFile"))
+        {
+            if (i + 1 < argc)
+            {
+                m_logFilePath = argv[++i];
+            }
+        }
+        else if (IsCommandLineArg(argv[i], L"-LogFPS"))
+        {
+            if (i + 1 < argc)
+            {
+                const int logFpsInterval = _wtoi(argv[++i]);
+                if (logFpsInterval > 0)
+                {
+                    m_logFpsInterval = static_cast<UINT>(logFpsInterval);
+                }
+            }
+        }
+        else if (IsCommandLineArg(argv[i], L"-AutoSelectGltfDamagedHelmet"))
+        {
+            m_autoSelectGltfDamagedHelmet = true;
         }
     }
 }

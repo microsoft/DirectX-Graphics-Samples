@@ -16,6 +16,8 @@
 #include "Scene/SampleScene.h"
 #include "Ui/ImGuiSystem.h"
 
+#include <d3d12sdklayers.h>
+
 #include <chrono>
 #include <memory>
 
@@ -60,6 +62,8 @@ private:
     void CloseRunningScene();
     void InitializeImGui();
     void UpdateUiFrame();
+    void FlushD3D12DebugMessages();
+    void LogFpsToFile(float cpuFrameTimeMs);
     Engine::SampleScene& LoadedScene();
     const Engine::SampleScene& LoadedScene() const;
     void DrawDebugUi(const HelloTextureEngine::UiFrameContext& context);
@@ -133,4 +137,9 @@ private:
 
     // The engine receives the graphics device so DXSample ownership can stay in SampleApp.
     HelloTextureEngine m_engine;
+
+    // Debug logging to file (-LogToFile / -LogFPS).
+    ComPtr<ID3D12InfoQueue> m_d3d12InfoQueue;
+    FILE* m_logFile = nullptr;
+    UINT64 m_fpsLogFrameCounter = 0;
 };

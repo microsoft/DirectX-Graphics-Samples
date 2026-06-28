@@ -14,6 +14,8 @@
 #include "DXSampleHelper.h"
 #include "Win32Application.h"
 
+#include <string>
+
 class DXSample
 {
 public:
@@ -67,6 +69,11 @@ protected:
 
     // Adapter info.
     bool m_useWarpDevice;
+
+    // CLI-driven automation (parsed from command line args).
+    std::wstring m_logFilePath;
+    UINT m_logFpsInterval = 0;     // 0 = disabled
+    bool m_autoSelectGltfDamagedHelmet = false;
 
 private:
     // Root assets path.

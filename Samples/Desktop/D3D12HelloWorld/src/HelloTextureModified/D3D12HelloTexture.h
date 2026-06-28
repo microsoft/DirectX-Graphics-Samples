@@ -186,6 +186,7 @@ public:
     void ReloadSceneResources(const Scene& scene);
     void CloseSceneResources();
     UiFrameContext GetUiFrameContext() const;
+    float CpuFrameTimeMs() const { return m_cpuFrameTime; }
     void SetUpdateHandler(UpdateHandler handler);
     void SetLightingParams(const LightingParams& params);
     void SetShadowSettings(const ShadowSettings& settings);
