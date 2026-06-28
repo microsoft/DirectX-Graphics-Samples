@@ -38,6 +38,7 @@
 #include "Renderer/ShadowMaskDebugPass.h"
 #include "Renderer/ToneMap.h"
 #include "Scene/Scene.h"
+#include "TextureSemantic.h"
 #include "WorkMeter.h"
 #include <algorithm>
 #include <array>
@@ -476,6 +477,7 @@ private:
 
     DescriptorHeapHandle m_textureTableStart;
     UINT m_texIndex[kTextureCount] = {};
+    std::array<UINT, Engine::kTextureSemanticCount> m_semanticFallbackTexIndex = {};
 
     Engine::Scene m_scene;
     std::vector<Engine::Material> m_materialData;
@@ -694,6 +696,7 @@ private:
 
     std::vector<UINT8> GenerateCheckerboardTextureData();
     std::vector<UINT8> GenerateSolidTextureData(UINT8 r, UINT8 g, UINT8 b, UINT8 a);
+    std::vector<UINT8> GenerateSemanticFallbackTextureData(Engine::TextureSemantic semantic);
     void PopulateCommandList();
 
     void AddPass(RenderPass pass);

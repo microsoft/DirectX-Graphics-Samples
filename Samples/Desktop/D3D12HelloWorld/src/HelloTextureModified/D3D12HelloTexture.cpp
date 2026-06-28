@@ -1349,12 +1349,16 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
     std::vector<std::vector<UINT8>> texture(kTextureTypes);
 
     m_sceneTextureCount = static_cast<UINT>(mesh.textures.size());
+    const UINT semanticFallbackBaseIndex = m_sceneTextureCount;
+    assert(semanticFallbackBaseIndex + Engine::kTextureSemanticCount <= kTextureCount);
 
     DBG_PRINT("m_sceneTextureCount = %d\n", m_sceneTextureCount);
 
     for (size_t i = 0; i < kTextureCount; i++)
     {
         bool useSceneTex = i < mesh.textures.size();
+        const bool useSemanticFallbackTex =
+            i >= semanticFallbackBaseIndex && i < semanticFallbackBaseIndex + Engine::kTextureSemanticCount;
         UINT8* pixels = nullptr;
         UINT width, height;
 
@@ -1368,9 +1372,10 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
         }
         else
         {
-            if (i == mesh.textures.size())
+            if (useSemanticFallbackTex)
             {
-                texture[i] = GenerateSolidTextureData(0, 0, 0, 255);
+                const auto semantic = static_cast<Engine::TextureSemantic>(i - semanticFallbackBaseIndex);
+                texture[i] = GenerateSemanticFallbackTextureData(semantic);
             }
             else
             {
@@ -1390,6 +1395,12 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
         }
         m_texIndex[i] = m_textureSrvs[i].Handle().Index - m_textureTableStart.Index;
         DBG_PRINT("Texture %d SRV index: %d\n", i, m_texIndex[i]);
+
+        if (useSemanticFallbackTex)
+        {
+            const UINT semanticIndex = static_cast<UINT>(i - semanticFallbackBaseIndex);
+            m_semanticFallbackTexIndex[semanticIndex] = m_texIndex[i];
+        }
     }
 }
 
@@ -1410,26 +1421,23 @@ void HelloTextureEngine::CreateSceneMaterialResources()
 
     // Generate the material data.
     m_materialData.clear();
-    const auto resolveTextureIndex = [this](int sceneTextureIndex, UINT fallbackIndex) -> UINT
+    const auto resolveTextureIndex = [this](int sceneTextureIndex, Engine::TextureSemantic fallbackSemantic) -> UINT
     {
-        if (sceneTextureIndex >= 0 && sceneTextureIndex < static_cast<int>(kTextureCount))
+        if (sceneTextureIndex >= 0 && sceneTextureIndex < static_cast<int>(m_sceneTextureCount))
         {
             return m_texIndex[sceneTextureIndex];
         }
-        return fallbackIndex;
+        return m_semanticFallbackTexIndex[static_cast<UINT>(fallbackSemantic)];
     };
-    const UINT blackFallbackTexIndex =
-        m_sceneTextureCount < kTextureCount ? m_texIndex[m_sceneTextureCount] : m_texIndex[0];
 
     for (int i = 0; i < Engine::kMaterialCount; i++)
     {
-        const UINT fallbackTexIndex = m_texIndex[i % kTextureCount];
         Engine::Material m = {};
-        m.albedoTexIndex = fallbackTexIndex;
-        m.metallicRoughnessTexIndex = fallbackTexIndex;
-        m.emissiveTexIndex = fallbackTexIndex;
-        m.occlusionTexIndex = fallbackTexIndex;
-        m.normalTexIndex = fallbackTexIndex;
+        m.albedoTexIndex = resolveTextureIndex(-1, Engine::TextureSemantic::BaseColor);
+        m.metallicRoughnessTexIndex = resolveTextureIndex(-1, Engine::TextureSemantic::MetallicRoughness);
+        m.emissiveTexIndex = resolveTextureIndex(-1, Engine::TextureSemantic::Emissive);
+        m.occlusionTexIndex = resolveTextureIndex(-1, Engine::TextureSemantic::Occlusion);
+        m.normalTexIndex = resolveTextureIndex(-1, Engine::TextureSemantic::Normal);
         m.roughnessFactor = 0.2f + 0.6f * static_cast<float>(i % 16) / 15.0f;
         m.metallicFactor = (i % 8 == 0) ? 1.0f : 0.0f;
         m.occlusionStrength = 1.0f;
@@ -1442,12 +1450,16 @@ void HelloTextureEngine::CreateSceneMaterialResources()
             if (i < static_cast<int>(mesh.materials.size()))
             {
                 const auto& gltfMaterial = mesh.materials[i];
-                m.albedoTexIndex = resolveTextureIndex(gltfMaterial.albedoTexIndex, fallbackTexIndex);
+                m.albedoTexIndex =
+                    resolveTextureIndex(gltfMaterial.albedoTexIndex, Engine::TextureSemantic::BaseColor);
                 m.metallicRoughnessTexIndex =
-                    resolveTextureIndex(gltfMaterial.metallicRoughnessTexIndex, fallbackTexIndex);
-                m.emissiveTexIndex = resolveTextureIndex(gltfMaterial.emissiveTexIndex, blackFallbackTexIndex);
-                m.occlusionTexIndex = resolveTextureIndex(gltfMaterial.occlusionTexIndex, fallbackTexIndex);
-                m.normalTexIndex = resolveTextureIndex(gltfMaterial.normalTexIndex, fallbackTexIndex);
+                    resolveTextureIndex(gltfMaterial.metallicRoughnessTexIndex,
+                                        Engine::TextureSemantic::MetallicRoughness);
+                m.emissiveTexIndex =
+                    resolveTextureIndex(gltfMaterial.emissiveTexIndex, Engine::TextureSemantic::Emissive);
+                m.occlusionTexIndex =
+                    resolveTextureIndex(gltfMaterial.occlusionTexIndex, Engine::TextureSemantic::Occlusion);
+                m.normalTexIndex = resolveTextureIndex(gltfMaterial.normalTexIndex, Engine::TextureSemantic::Normal);
                 if (gltfMaterial.normalTexIndex >= 0)
                 {
                     m.flags |= Engine::kMaterialFlagHasNormalTexture;
@@ -1716,6 +1728,25 @@ std::vector<UINT8> HelloTextureEngine::GenerateSolidTextureData(UINT8 r, UINT8 g
     }
 
     return data;
+}
+
+std::vector<UINT8> HelloTextureEngine::GenerateSemanticFallbackTextureData(Engine::TextureSemantic semantic)
+{
+    switch (semantic)
+    {
+    case Engine::TextureSemantic::BaseColor:
+        return GenerateSolidTextureData(255, 255, 255, 255);
+    case Engine::TextureSemantic::MetallicRoughness:
+        return GenerateSolidTextureData(255, 255, 0, 255);
+    case Engine::TextureSemantic::Normal:
+        return GenerateSolidTextureData(128, 128, 255, 255);
+    case Engine::TextureSemantic::Occlusion:
+        return GenerateSolidTextureData(255, 255, 255, 255);
+    case Engine::TextureSemantic::Emissive:
+        return GenerateSolidTextureData(0, 0, 0, 255);
+    default:
+        return GenerateCheckerboardTextureData();
+    }
 }
 
 void HelloTextureEngine::CreateDsvHeap()

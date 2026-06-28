@@ -169,6 +169,7 @@
     <ClInclude Include="Scene\SampleScene.h" />
     <ClInclude Include="Ui\ImGuiSystem.h" />
     <ClInclude Include="SampleApp.h" />
+    <ClInclude Include="TextureSemantic.h" />
     <ClInclude Include="Win32Application.h" />
     <ClInclude Include="D3D12HelloTexture.h" />
     <ClInclude Include="DXSample.h" />
