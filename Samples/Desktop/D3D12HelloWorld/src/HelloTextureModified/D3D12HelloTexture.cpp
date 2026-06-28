@@ -1067,7 +1067,8 @@ void HelloTextureEngine::LoadAssets()
 
 void HelloTextureEngine::CreateRootSignature()
 {
-    Engine::CreateRootSignature(m_graphicsDevice.Device(), kTextureCount, Engine::GBuffer::kCount + 1, m_rootSignature);
+    Engine::CreateRootSignature(
+        m_graphicsDevice.Device(), kTextureDescriptorCapacity, Engine::GBuffer::kCount + 1, m_rootSignature);
 }
 
 void HelloTextureEngine::CreateProceduralEnvRootSignature()
@@ -1341,20 +1342,23 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
     // We will flush the GPU at the end of this method to ensure the resource is not
     // prematurely destroyed.
 
-    textureUploadHeap.resize(kTextureCount);
-
-    m_texture.resize(kTextureCount);
-    m_textureSrvs.resize(kTextureCount);
-
-    std::vector<std::vector<UINT8>> texture(kTextureTypes);
-
     m_sceneTextureCount = static_cast<UINT>(mesh.textures.size());
     const UINT semanticFallbackBaseIndex = m_sceneTextureCount;
-    assert(semanticFallbackBaseIndex + Engine::kTextureSemanticCount <= kTextureCount);
+    const UINT textureDescriptorCount = m_sceneTextureCount + Engine::kTextureSemanticCount;
+    assert(textureDescriptorCount <= kTextureDescriptorCapacity);
+
+    textureUploadHeap.resize(textureDescriptorCount);
+
+    m_texture.resize(textureDescriptorCount);
+    m_textureSrvs.resize(textureDescriptorCount);
+    m_texIndex.resize(textureDescriptorCount);
+
+    std::vector<std::vector<UINT8>> texture(textureDescriptorCount);
 
     DBG_PRINT("m_sceneTextureCount = %d\n", m_sceneTextureCount);
+    DBG_PRINT("textureDescriptorCount = %d\n", textureDescriptorCount);
 
-    for (size_t i = 0; i < kTextureCount; i++)
+    for (size_t i = 0; i < textureDescriptorCount; i++)
     {
         bool useSceneTex = i < mesh.textures.size();
         const bool useSemanticFallbackTex =
@@ -1377,14 +1381,10 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
                 const auto semantic = static_cast<Engine::TextureSemantic>(i - semanticFallbackBaseIndex);
                 texture[i] = GenerateSemanticFallbackTextureData(semantic);
             }
-            else
-            {
-                texture[i] = GenerateCheckerboardTextureData();
-            }
-            pixels = &texture[i % kTextureTypes][0];
+            pixels = texture[i].data();
             width = kTextureWidth;
             height = kTextureHeight;
-            DBG_PRINT("[%d] CheckerBoardTexture :width %d height %d\n", i, kTextureWidth, kTextureHeight);
+            DBG_PRINT("[%d] fallback texture :width %d height %d\n", i, kTextureWidth, kTextureHeight);
         }
 
         DescriptorAllocation srv = CreateTextureFromRGBA8(pixels, width, height, m_texture[i], textureUploadHeap[i]);
@@ -1593,7 +1593,8 @@ void HelloTextureEngine::ReleaseSceneResources()
     m_textureSrvs.clear();
     m_materialData.clear();
     m_textureTableStart = {};
-    std::fill(std::begin(m_texIndex), std::end(m_texIndex), 0);
+    m_texIndex.clear();
+    m_semanticFallbackTexIndex.fill(0);
 
     for (FrameResource& frameResource : m_frameResources)
     {
