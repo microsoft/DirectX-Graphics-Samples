@@ -155,7 +155,6 @@ SampleApp::SampleApp(UINT width, UINT height, std::wstring name)
 void SampleApp::OnInit()
 {
     CreateSampleScenes();
-    LoadSceneCpuData(kDefaultSceneIndex);
 
     GraphicsDeviceDesc deviceDesc = {};
     deviceDesc.hwnd = Win32Application::GetHwnd();
@@ -653,7 +652,10 @@ void SampleApp::CloseRunningScene()
     m_isPlaying = false;
     m_isDragging = false;
     m_isMiddleDragging = false;
-    m_selectedSceneIndex = m_loadedSceneIndex;
+    if (m_loadedSceneIndex >= 0)
+    {
+        m_selectedSceneIndex = m_loadedSceneIndex;
+    }
     m_displayInstanceCount = 0;
     m_sceneResourcesLoaded = false;
     m_engine.SetDisplayInstanceCount(0);
@@ -796,8 +798,13 @@ void SampleApp::DrawSceneSelectUi()
         OpenSelectedScene();
     }
 
-    const bool selectedSceneIsLoaded = m_selectedSceneIndex == m_loadedSceneIndex;
-    if (!selectedSceneIsLoaded)
+    const bool hasLoadedScene = m_loadedSceneIndex >= 0;
+    const bool selectedSceneIsLoaded = hasLoadedScene && m_selectedSceneIndex == m_loadedSceneIndex;
+    if (!hasLoadedScene)
+    {
+        ImGui::Text("Scene CPU data not loaded");
+    }
+    else if (!selectedSceneIsLoaded)
     {
         ImGui::Text("Scene CPU data will reload");
     }
