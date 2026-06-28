@@ -13,6 +13,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fcntl.h>
+#include <io.h>
+#include <share.h>
+#include <sys/stat.h>
 #include "SampleApp.h"
 #include "imgui.h"
 #include "ImGuiWidgets.h"
@@ -165,6 +169,27 @@ void SampleApp::OnInit()
     deviceDesc.useWarpDevice = m_useWarpDevice;
     m_graphicsDevice.Initialize(deviceDesc);
 
+    // Open debug log file and query ID3D12InfoQueue for D3D12 message capture.
+    if (!m_logFilePath.empty())
+    {
+        int fd;
+        errno_t err = _wsopen_s(&fd, m_logFilePath.c_str(), _O_WRONLY | _O_CREAT | _O_TRUNC | _O_TEXT,
+                                _SH_DENYNO, _S_IREAD | _S_IWRITE);
+        if (err == 0)
+        {
+            m_logFile = _fdopen(fd, "wt");
+        }
+        if (m_logFile)
+        {
+            m_graphicsDevice.Device()->QueryInterface(IID_PPV_ARGS(&m_d3d12InfoQueue));
+            if (m_d3d12InfoQueue)
+            {
+                m_d3d12InfoQueue->SetMessageCountLimit(100000);
+                FlushD3D12DebugMessages();
+            }
+        }
+    }
+
     InitializeImGui();
     m_engine.SetUpdateHandler([this]() { UpdateSampleState(); });
     m_engine.SetLightingParams(m_lightingParams);
@@ -176,6 +201,12 @@ void SampleApp::OnInit()
     m_engine.SetRenderViewMode(m_renderViewMode);
 
     m_engine.Initialize(GetWidth(), GetHeight());
+
+    if (m_autoSelectGltfDamagedHelmet)
+    {
+        m_selectedSceneIndex = kDefaultSceneIndex;
+        OpenSelectedScene();
+    }
 }
 
 void SampleApp::UpdateSampleState()
@@ -516,6 +547,23 @@ void SampleApp::OnIdle()
 {
     UpdateUiFrame();
     m_engine.RunFrame([this](ID3D12GraphicsCommandList* commandList) { m_imguiSystem.Render(commandList); });
+
+    // Poll D3D12 debug messages and FPS logging.
+    if (m_logFile)
+    {
+        if (m_d3d12InfoQueue)
+        {
+            FlushD3D12DebugMessages();
+        }
+        if (m_logFpsInterval > 0)
+        {
+            ++m_fpsLogFrameCounter;
+            if (m_fpsLogFrameCounter % m_logFpsInterval == 0)
+            {
+                LogFpsToFile(m_engine.CpuFrameTimeMs());
+            }
+        }
+    }
 }
 
 void SampleApp::OnUpdate()
@@ -543,9 +591,69 @@ void SampleApp::OnRender()
 
 void SampleApp::OnDestroy()
 {
+    if (m_logFile)
+    {
+        FlushD3D12DebugMessages();
+    }
     m_engine.Shutdown();
     m_imguiSystem.Shutdown();
     m_imguiHeap.Reset();
+    if (m_logFile)
+    {
+        FlushD3D12DebugMessages();
+        fclose(m_logFile);
+        m_logFile = nullptr;
+    }
+    m_d3d12InfoQueue.Reset();
+}
+
+void SampleApp::FlushD3D12DebugMessages()
+{
+    if (!m_d3d12InfoQueue || !m_logFile)
+    {
+        return;
+    }
+
+    const UINT64 count = m_d3d12InfoQueue->GetNumStoredMessages();
+    if (count == 0)
+    {
+        return;
+    }
+
+    for (UINT64 i = 0; i < count; ++i)
+    {
+        SIZE_T len = 0;
+        m_d3d12InfoQueue->GetMessage(static_cast<UINT>(i), nullptr, &len);
+        std::vector<BYTE> buf(len);
+        D3D12_MESSAGE* msg = reinterpret_cast<D3D12_MESSAGE*>(buf.data());
+        if (SUCCEEDED(m_d3d12InfoQueue->GetMessage(static_cast<UINT>(i), msg, &len)))
+        {
+            const char* severity = "INFO";
+            switch (msg->Severity)
+            {
+                case D3D12_MESSAGE_SEVERITY_CORRUPTION: severity = "CORRUPTION"; break;
+                case D3D12_MESSAGE_SEVERITY_ERROR:      severity = "ERROR";      break;
+                case D3D12_MESSAGE_SEVERITY_WARNING:    severity = "WARNING";    break;
+                case D3D12_MESSAGE_SEVERITY_INFO:       severity = "INFO";       break;
+                case D3D12_MESSAGE_SEVERITY_MESSAGE:    severity = "MESSAGE";    break;
+            }
+            fprintf(m_logFile, "[%s] %s\n", severity, msg->pDescription);
+        }
+    }
+    m_d3d12InfoQueue->ClearStoredMessages();
+    fflush(m_logFile);
+}
+
+void SampleApp::LogFpsToFile(float cpuFrameTimeMs)
+{
+    if (!m_logFile || cpuFrameTimeMs <= 0.0f)
+    {
+        return;
+    }
+    const float fps = 1000.0f / cpuFrameTimeMs;
+    fprintf(m_logFile, "[FPS] Frame %llu: %.1f FPS (%.2f ms)\n",
+            static_cast<unsigned long long>(m_fpsLogFrameCounter), fps, cpuFrameTimeMs);
+    fflush(m_logFile);
 }
 
 void SampleApp::CreateSampleScenes()
