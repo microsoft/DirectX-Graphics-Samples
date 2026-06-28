@@ -45,6 +45,9 @@
     <ClInclude Include="SampleApp.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="TextureSemantic.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
     <ClInclude Include="WorkMeter.h">
       <Filter>Source Files</Filter>
     </ClInclude>
