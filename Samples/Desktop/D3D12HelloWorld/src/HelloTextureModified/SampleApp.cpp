@@ -18,6 +18,7 @@
 #include <share.h>
 #include <sys/stat.h>
 #include "SampleApp.h"
+#include "Scene\SceneFactory.h"
 #include "imgui.h"
 #include "ImGuiWidgets.h"
 
@@ -696,6 +697,8 @@ void SampleApp::CreateSampleScenes()
         std::make_unique<Engine::ContactShadowTestScene>(Engine::ContactShadowTestScene::kMaxInstanceCount));
     m_sampleScenes.push_back(
         std::make_unique<Engine::OccluderWallTestScene>(Engine::OccluderWallTestScene::kMaxInstanceCount));
+
+    m_sampleScenes.push_back(Engine::SceneFactory::CreateCornellBox());
 }
 
 void SampleApp::LoadSceneCpuData(int sceneIndex)

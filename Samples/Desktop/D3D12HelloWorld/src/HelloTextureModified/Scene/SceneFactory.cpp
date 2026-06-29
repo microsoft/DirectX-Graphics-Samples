@@ -45,17 +45,17 @@ public:
 
         // Materials
         // 0: Red wall
-        m_mesh.materials.push_back(MakeMat(redTex,   whiteTex, blackTex, 0.8f,  0.0f, 0.0f));
+        m_mesh.materials.push_back(MakeMat(redTex,   whiteTex, blackTex, whiteTex, 0.8f,  0.0f, 0.0f));
         // 1: Green wall
-        m_mesh.materials.push_back(MakeMat(greenTex, whiteTex, blackTex, 0.8f,  0.0f, 0.0f));
+        m_mesh.materials.push_back(MakeMat(greenTex, whiteTex, blackTex, whiteTex, 0.8f,  0.0f, 0.0f));
         // 2: White diffuse (back wall, floor, ceiling)
-        m_mesh.materials.push_back(MakeMat(whiteTex, whiteTex, blackTex, 0.8f,  0.0f, 0.0f));
+        m_mesh.materials.push_back(MakeMat(whiteTex, whiteTex, blackTex, whiteTex, 0.8f,  0.0f, 0.0f));
         // 3: Mirror ball (metallic)
-        m_mesh.materials.push_back(MakeMat(whiteTex, whiteTex, blackTex, 0.02f, 1.0f, 0.0f));
+        m_mesh.materials.push_back(MakeMat(whiteTex, whiteTex, blackTex, whiteTex, 0.02f, 1.0f, 0.0f));
         // 4: Diffuse sphere
-        m_mesh.materials.push_back(MakeMat(whiteTex, whiteTex, blackTex, 0.9f,  0.0f, 0.0f));
+        m_mesh.materials.push_back(MakeMat(whiteTex, whiteTex, blackTex, whiteTex, 0.9f,  0.0f, 0.0f));
         // 5: Emissive panel
-        m_mesh.materials.push_back(MakeMat(whiteTex, whiteTex, whiteTex, 0.8f,  0.0f, 1.0f));
+        m_mesh.materials.push_back(MakeMat(whiteTex, whiteTex, whiteTex, whiteTex, 0.8f,  0.0f, 1.0f));
 
         m_mesh.materialIndex = 0;
 
@@ -139,13 +139,14 @@ public:
 
 private:
     static SceneMaterial MakeMat(int albedoTex, int mrTex, int emissiveTex,
+                                 int occlusionTex,
                                  float rough, float metal, float emissive)
     {
         SceneMaterial mat = {};
         mat.albedoTexIndex = albedoTex;
         mat.metallicRoughnessTexIndex = mrTex;
         mat.emissiveTexIndex = emissiveTex;
-        mat.occlusionTexIndex = albedoTex;
+        mat.occlusionTexIndex = occlusionTex;
         mat.normalTexIndex = -1;
         mat.roughnessFactor = rough;
         mat.metallicFactor = metal;

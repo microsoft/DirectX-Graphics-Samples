@@ -165,6 +165,8 @@
     <ClInclude Include="Renderer\SimpleDescriptorHeapAllocator.h" />
     <ClInclude Include="Renderer\StagedDescriptorAllocator.h" />
     <ClInclude Include="Renderer\ToneMap.h" />
+    <ClInclude Include="Scene\ProceduralSceneBuilder.h" />
+    <ClInclude Include="Scene\SceneFactory.h" />
     <ClInclude Include="Scene\Scene.h" />
     <ClInclude Include="Scene\SampleScene.h" />
     <ClInclude Include="Ui\ImGuiSystem.h" />
@@ -201,6 +203,8 @@
     <ClCompile Include="Renderer\StagedDescriptorAllocator_Test.cpp" />
     <ClCompile Include="Renderer\SceneGeometryPass.cpp" />
     <ClCompile Include="Renderer\ToneMap.cpp" />
+    <ClCompile Include="Scene\ProceduralSceneBuilder.cpp" />
+    <ClCompile Include="Scene\SceneFactory.cpp" />
     <ClCompile Include="Scene\SampleScene.cpp" />
     <ClCompile Include="Ui\ImGuiSystem.cpp" />
     <ClCompile Include="Win32Application.cpp" />
