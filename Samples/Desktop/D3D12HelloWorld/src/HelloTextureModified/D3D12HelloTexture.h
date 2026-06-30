@@ -147,6 +147,18 @@ public:
         float maxDisplayNits = 1000.0f;
     };
 
+    struct PixelPickResult
+    {
+        bool valid = false;
+        int screenX = 0;
+        int screenY = 0;
+        float depthNdc = 0.0f;
+        XMFLOAT3 normal = {0.0f, 0.0f, 0.0f};
+        XMFLOAT3 worldPos = {0.0f, 0.0f, 0.0f};
+        XMFLOAT3 viewDir = {0.0f, 0.0f, 0.0f};
+        XMFLOAT3 reflectionDir = {0.0f, 0.0f, 0.0f};
+    };
+
     struct ShadowSettings
     {
         bool enabled = true;
@@ -200,6 +212,8 @@ public:
     void SetRenderViewMode(RenderViewMode mode);
     void SetRequestHdrDump(bool request);
     void ReloadEnvironmentResources(const Engine::ProceduralEnvironmentSettings& settings);
+    void RequestPixelPick(int screenX, int screenY);
+    const PixelPickResult& GetPixelPickResult() const { return m_pixelPickResult; }
 
 private:
     static constexpr UINT kFrameCount = kSwapChainBufferCount;
@@ -274,6 +288,7 @@ private:
             static constexpr const char* LightingDebugGradient = "LightingDebugGradient";
             static constexpr const char* ToneMap = "ToneMap";
             static constexpr const char* DebugDump = "DebugDump";
+            static constexpr const char* PixelPick = "PixelPick";
             static constexpr const char* GBufferDebug = "GBufferDebug";
             static constexpr const char* ShadowMaskDebug = "ShadowMaskDebug";
             static constexpr const char* RayQueryShadow = "RayQueryShadow";
@@ -474,6 +489,18 @@ private:
     HdrOutputPolicy m_hdrOutputPolicy;
     DebugViewSettings m_debugViewSettings;
     Engine::DebugDumpCapture m_debugDumpCapture;
+
+    // Pixel pick (Ctrl+Click to inspect reflection vector)
+    bool m_pixelPickRequested = false;
+    bool m_pixelPickPending = false;
+    int m_pixelPickScreenX = 0;
+    int m_pixelPickScreenY = 0;
+    PixelPickResult m_pixelPickResult;
+    ComPtr<ID3D12Resource> m_pixelPickDepthReadback;
+    ComPtr<ID3D12Resource> m_pixelPickNormalReadback;
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_pixelPickDepthLayout = {};
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_pixelPickNormalLayout = {};
+
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
 
     DescriptorHeapHandle m_textureTableStart;
@@ -715,6 +742,7 @@ private:
     RenderPass MakeLightingDebugGradientPass();
     RenderPass MakeToneMapPass();
     RenderPass MakeDebugDumpPass();
+    RenderPass MakePixelPickPass();
     RenderPass MakeGBufferDebugPass();
     RenderPass MakeShadowMaskDebugPass();
     RenderPass MakeImGuiPass();
@@ -768,10 +796,13 @@ private:
     void ExecuteLightingDebugGradientPass(const RenderPass& pass);
     void ExecuteToneMapPass(const RenderPass& pass);
     void ExecuteDebugDumpPass(const RenderPass& pass);
+    void ExecutePixelPickPass(const RenderPass& pass);
     void ExecuteGBufferDebugPass(const RenderPass& pass);
     void ExecuteShadowMaskDebugPass(const RenderPass& pass);
     void ExecuteImGuiPass(const RenderPass& pass);
     void RecordDebugDumpPass();
+    void RecordPixelPickPass();
+    void ReadbackPixelPick();
     void RecordImGuiPass();
     void EndFrame();
     void PrintDebugDump();

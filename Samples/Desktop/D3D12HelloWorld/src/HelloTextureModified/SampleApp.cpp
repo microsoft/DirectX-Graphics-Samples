@@ -351,6 +351,11 @@ void SampleApp::OnMouseDown(UINT8 button, int x, int y)
 
     if (button == VK_LBUTTON)
     {
+        if (m_renderingPath == HelloTextureEngine::RenderingPath::Deferred && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
+        {
+            m_engine.RequestPixelPick(x, y);
+            return;
+        }
         m_isDragging = true;
         m_lastMouseX = x;
         m_lastMouseY = y;
@@ -1285,23 +1290,45 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         }
     }
 
-    ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", context.cpuFrameTime, 1000.0f / context.cpuFrameTime);
-
-    const auto& gpuCheckPoints = context.gpuCheckPoints;
-    const size_t gpuCheckPointCount = gpuCheckPoints.size();
-    if (gpuCheckPointCount >= 2)
+    if (ImGui::CollapsingHeader("Pixel Pick (Ctrl+Click)", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        for (int i = 1; i < static_cast<int>(gpuCheckPointCount); i++)
+        const auto& pick = m_engine.GetPixelPickResult();
+        if (pick.valid)
         {
-            const auto& checkPoint = gpuCheckPoints[i];
-            if (i < static_cast<int>(gpuCheckPointCount) - 1)
+            ImGui::Text("Screen: (%d, %d)", pick.screenX, pick.screenY);
+            ImGui::Text("Depth (NDC): %.4f", pick.depthNdc);
+            ImGui::Text("World Pos:   (%.3f, %.3f, %.3f)", pick.worldPos.x, pick.worldPos.y, pick.worldPos.z);
+            ImGui::Text("Normal:      (%.3f, %.3f, %.3f)", pick.normal.x, pick.normal.y, pick.normal.z);
+            ImGui::Text("View Dir:    (%.3f, %.3f, %.3f)", pick.viewDir.x, pick.viewDir.y, pick.viewDir.z);
+            ImGui::Text("Reflect Dir: (%.3f, %.3f, %.3f)", pick.reflectionDir.x, pick.reflectionDir.y,
+                         pick.reflectionDir.z);
+        }
+        else
+        {
+            ImGui::Text("Ctrl+Click on viewport to pick a pixel.");
+        }
+    }
+
+    if (ImGui::CollapsingHeader("WorkMeter"))
+    {
+        ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", context.cpuFrameTime, 1000.0f / context.cpuFrameTime);
+
+        const auto& gpuCheckPoints = context.gpuCheckPoints;
+        const size_t gpuCheckPointCount = gpuCheckPoints.size();
+        if (gpuCheckPointCount >= 2)
+        {
+            for (int i = 1; i < static_cast<int>(gpuCheckPointCount); i++)
             {
-                const float timeFromPrevious = checkPoint.timeStamp - gpuCheckPoints[i - 1].timeStamp;
-                ImGui::Text("GPU[%d] %s: %f ms", i, checkPoint.name.c_str(), timeFromPrevious);
-            }
-            else
-            {
-                ImGui::Text("GPU[%d] Total: %f ms", i, checkPoint.timeStamp);
+                const auto& checkPoint = gpuCheckPoints[i];
+                if (i < static_cast<int>(gpuCheckPointCount) - 1)
+                {
+                    const float timeFromPrevious = checkPoint.timeStamp - gpuCheckPoints[i - 1].timeStamp;
+                    ImGui::Text("GPU[%d] %s: %f ms", i, checkPoint.name.c_str(), timeFromPrevious);
+                }
+                else
+                {
+                    ImGui::Text("GPU[%d] Total: %f ms", i, checkPoint.timeStamp);
+                }
             }
         }
     }

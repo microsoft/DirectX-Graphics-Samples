@@ -25,6 +25,7 @@
 #include <random>
 #include <combaseapi.h>
 #include <DirectXMath.h>
+#include <DirectXPackedVector.h>
 #include <DirectXMathConvert.inl>
 #include <DirectXMathMatrix.inl>
 #include <wrl\client.h>
@@ -314,6 +315,14 @@ void HelloTextureEngine::SetRenderViewMode(RenderViewMode mode)
 void HelloTextureEngine::SetRequestHdrDump(bool request)
 {
     m_debugViewSettings.requestHdrDump = request;
+}
+
+void HelloTextureEngine::RequestPixelPick(int screenX, int screenY)
+{
+    m_pixelPickRequested = true;
+    m_pixelPickScreenX = screenX;
+    m_pixelPickScreenY = screenY;
+    m_pixelPickResult = {};
 }
 
 void HelloTextureEngine::ReloadEnvironmentResources(const Engine::ProceduralEnvironmentSettings& settings)
@@ -1347,7 +1356,7 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
     const UINT textureResourceCount = m_sceneTextureCount + Engine::kTextureSemanticCount;
     assert(textureResourceCount <= kTextureDescriptorCapacity);
 
-    // 3つの領域を定義
+    // 3ã¤ã®é ˜åŸŸã‚’å®šç¾©
     // [0, m_sceneTextureCount)              : Scene textures (from glTF)
     // [m_sceneTextureCount, textureResourceCount) : Semantic fallback (5 types)
     // [textureResourceCount, kTextureDescriptorCapacity) : Unused -> BaseColor fallback
@@ -1597,6 +1606,15 @@ void HelloTextureEngine::ReleaseSceneResources()
     m_usesIndexedDraw = false;
     m_sceneHasMaterials = false;
     m_sceneTextureCount = 0;
+    m_pixelPickRequested = false;
+    m_pixelPickPending = false;
+    m_pixelPickScreenX = 0;
+    m_pixelPickScreenY = 0;
+    m_pixelPickResult = {};
+    m_pixelPickDepthReadback.Reset();
+    m_pixelPickNormalReadback.Reset();
+    m_pixelPickDepthLayout = {};
+    m_pixelPickNormalLayout = {};
 
     m_materialBuffer.Reset();
     for (FrameResource& frameResource : m_frameResources)
@@ -2168,6 +2186,13 @@ void HelloTextureEngine::RenderFrame(const UiRenderHandler& uiRenderHandler)
         m_debugViewSettings.hdrDumpPending = false;
     }
 
+    if (m_pixelPickPending)
+    {
+        WaitForGpu();
+        ReadbackPixelPick();
+        m_pixelPickPending = false;
+    }
+
     // Present the frame.
     m_graphicsDevice.Present(1, 0);
 
@@ -2676,6 +2701,16 @@ void HelloTextureEngine::ExecuteDebugDumpPass(const RenderPass& pass)
     RecordDebugDumpPass();
 }
 
+void HelloTextureEngine::ExecutePixelPickPass(const RenderPass& pass)
+{
+    if (!m_pixelPickRequested)
+    {
+        return;
+    }
+
+    RecordPixelPickPass();
+}
+
 void HelloTextureEngine::ExecuteGBufferDebugPass(const RenderPass& pass)
 {
     Engine::RecordGBufferDebugPass(m_commandList.Get());
@@ -2706,6 +2741,135 @@ void HelloTextureEngine::RecordDebugDumpPass()
     m_debugViewSettings.hdrDumpPending = true;
 
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "Debug Dump");
+}
+
+void HelloTextureEngine::RecordPixelPickPass()
+{
+    PIXBeginEvent(m_commandList.Get(), 0, L"PixelPick");
+
+    auto device = m_graphicsDevice.Device();
+
+    const int clampedX = (std::max)(0, (std::min)(m_pixelPickScreenX, static_cast<int>(m_width) - 1));
+    const int clampedY = (std::max)(0, (std::min)(m_pixelPickScreenY, static_cast<int>(m_height) - 1));
+    const UINT x = static_cast<UINT>(clampedX);
+    const UINT y = static_cast<UINT>(clampedY);
+    m_pixelPickScreenX = clampedX;
+    m_pixelPickScreenY = clampedY;
+
+    // Create readback for depth (R32_TYPELESS -> 4 bytes per pixel)
+    {
+        D3D12_RESOURCE_DESC desc = m_depthStencil->GetDesc();
+        UINT numRows = 0;
+        UINT64 rowSizeInBytes = 0;
+        UINT64 totalBytes = 0;
+        device->GetCopyableFootprints(&desc, 0, 1, 0, &m_pixelPickDepthLayout, &numRows, &rowSizeInBytes, &totalBytes);
+        ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
+                                                      D3D12_HEAP_FLAG_NONE,
+                                                      &CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
+                                                      D3D12_RESOURCE_STATE_COPY_DEST,
+                                                      nullptr,
+                                                      IID_PPV_ARGS(&m_pixelPickDepthReadback)));
+    }
+
+    // Create readback for normal (R16G16B16A16_FLOAT -> 8 bytes per pixel)
+    {
+        D3D12_RESOURCE_DESC desc = m_gbuffer.resources[Engine::GBuffer::Normal]->GetDesc();
+        UINT numRows = 0;
+        UINT64 rowSizeInBytes = 0;
+        UINT64 totalBytes = 0;
+        device->GetCopyableFootprints(&desc, 0, 1, 0, &m_pixelPickNormalLayout, &numRows, &rowSizeInBytes, &totalBytes);
+        ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
+                                                      D3D12_HEAP_FLAG_NONE,
+                                                      &CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
+                                                      D3D12_RESOURCE_STATE_COPY_DEST,
+                                                      nullptr,
+                                                      IID_PPV_ARGS(&m_pixelPickNormalReadback)));
+    }
+
+    // Copy 1x1 pixel from depth stencil
+    {
+        const D3D12_BOX srcBox = {x, y, 0, x + 1, y + 1, 1};
+        CD3DX12_TEXTURE_COPY_LOCATION dst(m_pixelPickDepthReadback.Get(), m_pixelPickDepthLayout);
+        CD3DX12_TEXTURE_COPY_LOCATION src(m_depthStencil.Get(), 0);
+        m_commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, &srcBox);
+    }
+
+    // Copy 1x1 pixel from GBuffer normal
+    {
+        const D3D12_BOX srcBox = {x, y, 0, x + 1, y + 1, 1};
+        CD3DX12_TEXTURE_COPY_LOCATION dst(m_pixelPickNormalReadback.Get(), m_pixelPickNormalLayout);
+        CD3DX12_TEXTURE_COPY_LOCATION src(m_gbuffer.resources[Engine::GBuffer::Normal].Get(), 0);
+        m_commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, &srcBox);
+    }
+
+    m_pixelPickPending = true;
+    m_pixelPickRequested = false;
+
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "PixelPick");
+    PIXEndEvent(m_commandList.Get());
+}
+
+void HelloTextureEngine::ReadbackPixelPick()
+{
+    if (!m_pixelPickDepthReadback || !m_pixelPickNormalReadback)
+    {
+        return;
+    }
+
+    // Read depth (float32)
+    {
+        const D3D12_RANGE readRange = {0, static_cast<SIZE_T>(m_pixelPickDepthLayout.Footprint.RowPitch)};
+        void* data = nullptr;
+        ThrowIfFailed(m_pixelPickDepthReadback->Map(0, &readRange, &data));
+        const auto* row = static_cast<const UINT8*>(data);
+        m_pixelPickResult.depthNdc = *reinterpret_cast<const float*>(row);
+        m_pixelPickDepthReadback->Unmap(0, nullptr);
+    }
+
+    // Read normal (R16G16B16A16_FLOAT -> 4 half values)
+    {
+        const D3D12_RANGE readRange = {0, static_cast<SIZE_T>(m_pixelPickNormalLayout.Footprint.RowPitch)};
+        void* data = nullptr;
+        ThrowIfFailed(m_pixelPickNormalReadback->Map(0, &readRange, &data));
+        const auto* row = static_cast<const UINT8*>(data);
+        const auto* half4 = reinterpret_cast<const UINT16*>(row);
+        m_pixelPickResult.normal = {DirectX::PackedVector::XMConvertHalfToFloat(half4[0]),
+                                    DirectX::PackedVector::XMConvertHalfToFloat(half4[1]),
+                                    DirectX::PackedVector::XMConvertHalfToFloat(half4[2])};
+        m_pixelPickNormalReadback->Unmap(0, nullptr);
+    }
+
+    m_pixelPickResult.screenX = m_pixelPickScreenX;
+    m_pixelPickResult.screenY = m_pixelPickScreenY;
+
+    // Reconstruct world position from depth using inverse view-projection
+    const float ndcX = (2.0f * static_cast<float>(m_pixelPickResult.screenX)) / static_cast<float>(m_width) - 1.0f;
+    const float ndcY = 1.0f - (2.0f * static_cast<float>(m_pixelPickResult.screenY)) / static_cast<float>(m_height);
+
+    const XMMATRIX invVP = XMLoadFloat4x4(&m_constantBufferData.invViewProjection);
+    const XMVECTOR clipPos = XMVectorSet(ndcX, ndcY, m_pixelPickResult.depthNdc, 1.0f);
+    XMVECTOR worldPos = XMVector4Transform(clipPos, invVP);
+    worldPos = XMVectorDivide(worldPos, XMVectorSplatW(worldPos));
+    XMStoreFloat3(&m_pixelPickResult.worldPos, worldPos);
+
+    // View direction: camera -> pixel
+    const XMVECTOR camPos = XMLoadFloat3(&m_constantBufferData.cameraPosition);
+    const XMVECTOR viewDir = XMVector3Normalize(XMVectorSubtract(worldPos, camPos));
+    XMStoreFloat3(&m_pixelPickResult.viewDir, viewDir);
+
+    // Normal (world space from GBuffer)
+    const XMVECTOR normal = XMVector3Normalize(XMLoadFloat3(&m_pixelPickResult.normal));
+
+    // Match LightPass: CPU viewDir is camera -> pixel, so this is equivalent to shader reflect(-viewDir, normal)
+    // where shader viewDir is pixel -> camera.
+    const XMVECTOR reflection = XMVector3Reflect(viewDir, normal);
+    XMStoreFloat3(&m_pixelPickResult.reflectionDir, reflection);
+
+    m_pixelPickResult.valid = true;
+
+    // Release readback resources
+    m_pixelPickDepthReadback.Reset();
+    m_pixelPickNormalReadback.Reset();
 }
 
 void HelloTextureEngine::PrintDebugDump()
