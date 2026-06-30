@@ -24,6 +24,7 @@ void HelloTextureEngine::BuildRenderPasses()
     {
         AddPass(MakeDepthPrePass());
         AddSceneRenderPasses();
+        AddPass(MakeDebugLinePass());
         AddPass(MakeToneMapPass());
 
         if (m_debugViewSettings.requestHdrDump)
@@ -317,6 +318,16 @@ auto HelloTextureEngine::MakeShadowMaskDebugPass() -> RenderPass
         .Descriptor(RootSignatureLayout::ToneMapSceneColor, Desc::ShadowMaskSrv)
         .Rtv(RtvName::LightPass)
         .Operation(Op::ShadowMaskDebug, &HelloTextureEngine::ExecuteShadowMaskDebugPass)
+        .Build();
+}
+
+auto HelloTextureEngine::MakeDebugLinePass() -> RenderPass
+{
+    return m_renderGraphRuntime.Authoring()
+        .CreatePass(L"DebugLinePass")
+        .Writes({{kLightPassRenderTargetResourceName, D3D12_RESOURCE_STATE_RENDER_TARGET}})
+        .Rtv(RtvName::LightPass)
+        .Operation(Op::DebugLine, &HelloTextureEngine::ExecuteDebugLinePass)
         .Build();
 }
 

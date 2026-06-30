@@ -144,6 +144,9 @@
     <ClInclude Include="Renderer\ToneMap.h">
       <Filter>Source Files\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Renderer\DebugLinePass.h">
+      <Filter>Source Files\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="Scene\Scene.h">
       <Filter>Source Files\Scene</Filter>
     </ClInclude>
@@ -260,6 +263,9 @@
     <ClCompile Include="Renderer\ToneMap.cpp">
       <Filter>Source Files\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="Renderer\DebugLinePass.cpp">
+      <Filter>Source Files\Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="Scene\SampleScene.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
@@ -302,6 +308,9 @@
       <Filter>Assets\Shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="shaders_ToneMap.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders_DebugLine.hlsl">
       <Filter>Assets\Shaders</Filter>
     </CustomBuild>
   </ItemGroup>

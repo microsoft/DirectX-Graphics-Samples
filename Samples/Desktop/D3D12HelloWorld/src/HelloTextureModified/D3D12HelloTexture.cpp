@@ -1047,6 +1047,14 @@ void HelloTextureEngine::LoadAssets()
     CreateProceduralEnvRootSignature();
     CreateRayQueryShadowRootSignature();
     CreateRayQueryTlasDebugRootSignature();
+    {
+        const ShaderBytecode debugLineVs = LoadShaderBytecode(L"shaders_DebugLine_VSMain.cso");
+        const ShaderBytecode debugLinePs = LoadShaderBytecode(L"shaders_DebugLine_PSMain.cso");
+        m_debugLinePass.Create(
+            m_graphicsDevice.Device(),
+            CD3DX12_SHADER_BYTECODE(debugLineVs.data, debugLineVs.size),
+            CD3DX12_SHADER_BYTECODE(debugLinePs.data, debugLinePs.size));
+    }
     CreatePipelineStates();
     CreateGBuffer();
     CreateShadowMask(m_width, m_height);
@@ -1356,7 +1364,7 @@ void HelloTextureEngine::CreateSceneTextureResources(std::vector<ComPtr<ID3D12Re
     const UINT textureResourceCount = m_sceneTextureCount + Engine::kTextureSemanticCount;
     assert(textureResourceCount <= kTextureDescriptorCapacity);
 
-    // 3ã¤ã®é ˜åŸŸã‚’å®šç¾©
+    // 3つの領域を定義
     // [0, m_sceneTextureCount)              : Scene textures (from glTF)
     // [m_sceneTextureCount, textureResourceCount) : Semantic fallback (5 types)
     // [textureResourceCount, kTextureDescriptorCapacity) : Unused -> BaseColor fallback
@@ -1611,6 +1619,7 @@ void HelloTextureEngine::ReleaseSceneResources()
     m_pixelPickScreenX = 0;
     m_pixelPickScreenY = 0;
     m_pixelPickResult = {};
+    m_debugLineVertices.clear();
     m_pixelPickDepthReadback.Reset();
     m_pixelPickNormalReadback.Reset();
     m_pixelPickDepthLayout = {};
@@ -2725,6 +2734,22 @@ void HelloTextureEngine::ExecuteShadowMaskDebugPass(const RenderPass& pass)
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "ShadowMask Debug Pass");
 }
 
+void HelloTextureEngine::ExecuteDebugLinePass(const RenderPass& pass)
+{
+    UNREFERENCED_PARAMETER(pass);
+
+    if (m_debugLineVertices.empty())
+    {
+        return;
+    }
+
+    m_debugLinePass.UpdateLines(m_debugLineVertices, m_commandList.Get());
+    m_debugLinePass.RecordDraw(m_commandList.Get(),
+                                m_frameResources[m_currentFrameIndex].cameraCB.buffer->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "DebugLine Pass");
+}
+
 void HelloTextureEngine::ExecuteImGuiPass(const RenderPass& pass)
 {
     RecordImGuiPass();
@@ -2843,33 +2868,78 @@ void HelloTextureEngine::ReadbackPixelPick()
     m_pixelPickResult.screenY = m_pixelPickScreenY;
 
     // Reconstruct world position from depth using inverse view-projection
-    const float ndcX = (2.0f * static_cast<float>(m_pixelPickResult.screenX)) / static_cast<float>(m_width) - 1.0f;
-    const float ndcY = 1.0f - (2.0f * static_cast<float>(m_pixelPickResult.screenY)) / static_cast<float>(m_height);
+    const float pixelCenterX = static_cast<float>(m_pixelPickResult.screenX) + 0.5f;
+    const float pixelCenterY = static_cast<float>(m_pixelPickResult.screenY) + 0.5f;
+    const float ndcX = (2.0f * pixelCenterX) / static_cast<float>(m_width) - 1.0f;
+    const float ndcY = 1.0f - (2.0f * pixelCenterY) / static_cast<float>(m_height);
 
-    const XMMATRIX invVP = XMLoadFloat4x4(&m_constantBufferData.invViewProjection);
+    const XMMATRIX invVP = XMMatrixTranspose(XMLoadFloat4x4(&m_constantBufferData.invViewProjection));
     const XMVECTOR clipPos = XMVectorSet(ndcX, ndcY, m_pixelPickResult.depthNdc, 1.0f);
     XMVECTOR worldPos = XMVector4Transform(clipPos, invVP);
     worldPos = XMVectorDivide(worldPos, XMVectorSplatW(worldPos));
     XMStoreFloat3(&m_pixelPickResult.worldPos, worldPos);
 
-    // View direction: camera -> pixel
+    // View direction: hit point -> camera, matching the lighting shader convention.
     const XMVECTOR camPos = XMLoadFloat3(&m_constantBufferData.cameraPosition);
-    const XMVECTOR viewDir = XMVector3Normalize(XMVectorSubtract(worldPos, camPos));
+    const XMVECTOR viewDir = XMVector3Normalize(XMVectorSubtract(camPos, worldPos));
     XMStoreFloat3(&m_pixelPickResult.viewDir, viewDir);
 
     // Normal (world space from GBuffer)
     const XMVECTOR normal = XMVector3Normalize(XMLoadFloat3(&m_pixelPickResult.normal));
 
-    // Match LightPass: CPU viewDir is camera -> pixel, so this is equivalent to shader reflect(-viewDir, normal)
-    // where shader viewDir is pixel -> camera.
-    const XMVECTOR reflection = XMVector3Reflect(viewDir, normal);
+    const XMVECTOR reflection = XMVector3Reflect(XMVectorNegate(viewDir), normal);
     XMStoreFloat3(&m_pixelPickResult.reflectionDir, reflection);
 
     m_pixelPickResult.valid = true;
 
+    UpdateDebugLines();
+
     // Release readback resources
     m_pixelPickDepthReadback.Reset();
     m_pixelPickNormalReadback.Reset();
+}
+
+void HelloTextureEngine::UpdateDebugLines()
+{
+    m_debugLineVertices.clear();
+
+    if (!m_pixelPickResult.valid)
+    {
+        return;
+    }
+
+    const XMFLOAT3& origin = m_pixelPickResult.worldPos;
+    constexpr float kLineLength = 1.0f;
+
+    // View ray: yellow
+    {
+        const XMFLOAT3& dir = m_pixelPickResult.viewDir;
+        XMFLOAT3 end = {origin.x + dir.x * kLineLength,
+                        origin.y + dir.y * kLineLength,
+                        origin.z + dir.z * kLineLength};
+        m_debugLineVertices.push_back({origin, {1.0f, 1.0f, 0.0f, 1.0f}});
+        m_debugLineVertices.push_back({end,   {1.0f, 1.0f, 0.0f, 1.0f}});
+    }
+
+    // Picked normal: blue
+    {
+        const XMFLOAT3& dir = m_pixelPickResult.normal;
+        XMFLOAT3 end = {origin.x + dir.x * kLineLength,
+                        origin.y + dir.y * kLineLength,
+                        origin.z + dir.z * kLineLength};
+        m_debugLineVertices.push_back({origin, {0.0f, 0.0f, 1.0f, 1.0f}});
+        m_debugLineVertices.push_back({end,   {0.0f, 0.0f, 1.0f, 1.0f}});
+    }
+
+    // Reflection ray: magenta
+    {
+        const XMFLOAT3& dir = m_pixelPickResult.reflectionDir;
+        XMFLOAT3 end = {origin.x + dir.x * kLineLength,
+                        origin.y + dir.y * kLineLength,
+                        origin.z + dir.z * kLineLength};
+        m_debugLineVertices.push_back({origin, {1.0f, 0.0f, 1.0f, 1.0f}});
+        m_debugLineVertices.push_back({end,   {1.0f, 0.0f, 1.0f, 1.0f}});
+    }
 }
 
 void HelloTextureEngine::PrintDebugDump()

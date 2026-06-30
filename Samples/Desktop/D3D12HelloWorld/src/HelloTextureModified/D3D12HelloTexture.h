@@ -36,6 +36,7 @@
 #include "Renderer/SceneGeometryPass.h"
 #include "Renderer/SimpleDescriptorHeapAllocator.h"
 #include "Renderer/ShadowMaskDebugPass.h"
+#include "Renderer/DebugLinePass.h"
 #include "Renderer/ToneMap.h"
 #include "Scene/Scene.h"
 #include "TextureSemantic.h"
@@ -241,6 +242,7 @@ private:
             static constexpr const char* RayQueryShadow = "RayQueryShadow";
             static constexpr const char* RayQueryTlasDebug = "RayQueryTlasDebug";
             static constexpr const char* ShadowMaskDebug = "ShadowMaskDebug";
+            static constexpr const char* DebugLine = "DebugLine";
         };
 
         struct Descriptor
@@ -291,6 +293,7 @@ private:
             static constexpr const char* PixelPick = "PixelPick";
             static constexpr const char* GBufferDebug = "GBufferDebug";
             static constexpr const char* ShadowMaskDebug = "ShadowMaskDebug";
+            static constexpr const char* DebugLine = "DebugLine";
             static constexpr const char* RayQueryShadow = "RayQueryShadow";
             static constexpr const char* RayQueryTlasDebug = "RayQueryTlasDebug";
             static constexpr const char* ImGui = "ImGui";
@@ -482,6 +485,7 @@ private:
     bool m_lightingPassDebugGradientEnabled = false;
     Engine::RayTracingSupportInfo m_rayTracingSupport;
     Engine::ToneMapPass m_toneMapPass;
+    Engine::DebugLinePass m_debugLinePass;
 
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
@@ -500,6 +504,10 @@ private:
     ComPtr<ID3D12Resource> m_pixelPickNormalReadback;
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_pixelPickDepthLayout = {};
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_pixelPickNormalLayout = {};
+
+    // Debug line data derived from the picked pixel.
+    std::vector<Engine::DebugLineVertex> m_debugLineVertices;
+    void UpdateDebugLines();
 
     std::array<float, 4> m_backBufferClearColor = {0.0f, 0.2f, 0.4f, 1.0f};
 
@@ -745,6 +753,7 @@ private:
     RenderPass MakePixelPickPass();
     RenderPass MakeGBufferDebugPass();
     RenderPass MakeShadowMaskDebugPass();
+    RenderPass MakeDebugLinePass();
     RenderPass MakeImGuiPass();
     void BuildRenderPasses();
     void AddSceneRenderPasses();
@@ -799,6 +808,7 @@ private:
     void ExecutePixelPickPass(const RenderPass& pass);
     void ExecuteGBufferDebugPass(const RenderPass& pass);
     void ExecuteShadowMaskDebugPass(const RenderPass& pass);
+    void ExecuteDebugLinePass(const RenderPass& pass);
     void ExecuteImGuiPass(const RenderPass& pass);
     void RecordDebugDumpPass();
     void RecordPixelPickPass();

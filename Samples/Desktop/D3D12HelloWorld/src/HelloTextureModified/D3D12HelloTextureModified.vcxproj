@@ -165,6 +165,7 @@
     <ClInclude Include="Renderer\SimpleDescriptorHeapAllocator.h" />
     <ClInclude Include="Renderer\StagedDescriptorAllocator.h" />
     <ClInclude Include="Renderer\ToneMap.h" />
+    <ClInclude Include="Renderer\DebugLinePass.h" />
     <ClInclude Include="Scene\ProceduralSceneBuilder.h" />
     <ClInclude Include="Scene\SceneFactory.h" />
     <ClInclude Include="Scene\Scene.h" />
@@ -203,6 +204,7 @@
     <ClCompile Include="Renderer\StagedDescriptorAllocator_Test.cpp" />
     <ClCompile Include="Renderer\SceneGeometryPass.cpp" />
     <ClCompile Include="Renderer\ToneMap.cpp" />
+    <ClCompile Include="Renderer\DebugLinePass.cpp" />
     <ClCompile Include="Scene\ProceduralSceneBuilder.cpp" />
     <ClCompile Include="Scene\SceneFactory.cpp" />
     <ClCompile Include="Scene\SampleScene.cpp" />
@@ -374,6 +376,19 @@ dxc.exe -nologo -Tps_6_0 -E"PSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_P
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -Tcs_6_5 -E"CSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_CSMain.cso" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename)_CSMain.cso</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename)_CSMain.cso</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="shaders_DebugLine.hlsl">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+      <FileType>Document</FileType>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Identity)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Identity)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -Tvs_6_0 -E"VSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_VSMain.cso" "%(FullPath)"
+dxc.exe -nologo -Tps_6_0 -E"PSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_PSMain.cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -Tvs_6_0 -E"VSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_VSMain.cso" "%(FullPath)"
+dxc.exe -nologo -Tps_6_0 -E"PSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_PSMain.cso" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename)_VSMain.cso;$(OutDir)%(Filename)_PSMain.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename)_VSMain.cso;$(OutDir)%(Filename)_PSMain.cso</Outputs>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
