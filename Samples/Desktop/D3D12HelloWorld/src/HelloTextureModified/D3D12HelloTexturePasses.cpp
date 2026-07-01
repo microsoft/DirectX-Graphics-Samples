@@ -48,6 +48,10 @@ void HelloTextureEngine::AddSceneRenderPasses()
         if (m_rayTracingSupport.IsSupported())
         {
             AddPass(MakeRayQueryShadowPass());
+            if (m_specularDebugRayQueryRequested)
+            {
+                AddPass(MakeSpecularDebugRayQueryPass());
+            }
             if (m_debugViewSettings.renderViewMode == RenderViewMode::TlasDebug)
             {
                 AddPass(MakeRayQueryTlasDebugPass());
@@ -204,6 +208,14 @@ auto HelloTextureEngine::MakeRayQueryShadowPass() -> RenderPass
                 {kGBufferResourceNames[Engine::GBuffer::Normal], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE}})
         .Writes({{kShadowMaskResourceName, D3D12_RESOURCE_STATE_UNORDERED_ACCESS}})
         .Operation(Op::RayQueryShadow, &HelloTextureEngine::ExecuteRayQueryShadowPass)
+        .Build();
+}
+
+auto HelloTextureEngine::MakeSpecularDebugRayQueryPass() -> RenderPass
+{
+    return m_renderGraphRuntime.Authoring()
+        .CreatePass(L"SpecularDebugRayQueryPass")
+        .Operation(Op::SpecularDebugRayQuery, &HelloTextureEngine::ExecuteSpecularDebugRayQueryPass)
         .Build();
 }
 

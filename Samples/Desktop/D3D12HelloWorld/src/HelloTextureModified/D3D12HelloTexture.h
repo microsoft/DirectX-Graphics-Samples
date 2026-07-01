@@ -27,6 +27,7 @@
 #include "Renderer/PipelineFactory.h"
 #include "Renderer/AccelerationStructureResources.h"
 #include "Renderer/RayQueryShadowPass.h"
+#include "Renderer/SpecularDebugRayQueryPass.h"
 #include "Renderer/RayQueryTlasDebugPass.h"
 #include "Renderer/RayTracingSupport.h"
 #include "Renderer/RenderPassExecution.h"
@@ -165,6 +166,9 @@ public:
         XMFLOAT3 worldPos = {0.0f, 0.0f, 0.0f};
         XMFLOAT3 viewDir = {0.0f, 0.0f, 0.0f};
         XMFLOAT3 reflectionDir = {0.0f, 0.0f, 0.0f};
+        bool reflectionHit = false;
+        float reflectionHitDistance = 0.0f;
+        XMFLOAT3 reflectionHitWorldPos = {0.0f, 0.0f, 0.0f};
     };
 
     struct ShadowSettings
@@ -258,6 +262,7 @@ private:
             static constexpr const char* ToneMap = "ToneMap";
             static constexpr const char* GBufferDebug = "GBufferDebug";
             static constexpr const char* RayQueryShadow = "RayQueryShadow";
+            static constexpr const char* SpecularDebugRayQuery = "SpecularDebugRayQuery";
             static constexpr const char* RayQueryTlasDebug = "RayQueryTlasDebug";
             static constexpr const char* ShadowMaskDebug = "ShadowMaskDebug";
             static constexpr const char* DebugLine = "DebugLine";
@@ -313,6 +318,7 @@ private:
             static constexpr const char* ShadowMaskDebug = "ShadowMaskDebug";
             static constexpr const char* DebugLine = "DebugLine";
             static constexpr const char* RayQueryShadow = "RayQueryShadow";
+            static constexpr const char* SpecularDebugRayQuery = "SpecularDebugRayQuery";
             static constexpr const char* RayQueryTlasDebug = "RayQueryTlasDebug";
             static constexpr const char* ImGui = "ImGui";
         };
@@ -484,11 +490,13 @@ private:
     ComPtr<ID3D12RootSignature> m_rootSignature;
     ComPtr<ID3D12RootSignature> m_proceduralEnvRootSignature;
     ComPtr<ID3D12RootSignature> m_rayQueryShadowRootSignature;
+    ComPtr<ID3D12RootSignature> m_specularDebugRayQueryRootSignature;
     ComPtr<ID3D12RootSignature> m_rayQueryTlasDebugRootSignature;
     ComPtr<ID3D12RootSignature> m_lightingRootSignature; // not used in this sample but created for future use
 
     ComPtr<ID3D12PipelineState> m_proceduralEnvPipeline;
     ComPtr<ID3D12PipelineState> m_rayQueryShadowPipeline;
+    ComPtr<ID3D12PipelineState> m_specularDebugRayQueryPipeline;
     ComPtr<ID3D12PipelineState> m_rayQueryTlasDebugPipeline;
 
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
@@ -526,6 +534,11 @@ private:
     PixelPickReadback m_pixelPickDepthReadback;
     std::array<PixelPickReadback, Engine::GBuffer::kCount> m_pixelPickGBufferReadbacks;
     PixelPickReadback m_pixelPickShadowMaskReadback;
+
+    bool m_specularDebugRayQueryRequested = false;
+    bool m_specularDebugRayQueryPending = false;
+    ComPtr<ID3D12Resource> m_specularDebugRayQueryResult;
+    ComPtr<ID3D12Resource> m_specularDebugRayQueryReadback;
 
     // Debug line data derived from the picked pixel.
     std::vector<Engine::DebugLineVertex> m_debugLineVertices;
@@ -667,6 +680,7 @@ private:
         GraphicsPipelineShaderSet toneMap;
         ShaderBytecode proceduralEnv;
         ShaderBytecode rayQueryShadow;
+        ShaderBytecode specularDebugRayQuery;
         ShaderBytecode rayQueryTlasDebug;
     };
 
@@ -675,7 +689,9 @@ private:
     void CreateRootSignature();
     void CreateProceduralEnvRootSignature();
     void CreateRayQueryShadowRootSignature();
+    void CreateSpecularDebugRayQueryRootSignature();
     void CreateRayQueryTlasDebugRootSignature();
+    void CreateSpecularDebugRayQueryResources();
     void CreatePipelineStates();
     ShaderBytecode LoadShaderBytecode(LPCWSTR assetName);
     PipelineShaderBytecode LoadPipelineShaderBytecode();
@@ -767,6 +783,7 @@ private:
     RenderPass MakeDepthPrePass();
     RenderPass MakeGBufferPass();
     RenderPass MakeRayQueryShadowPass();
+    RenderPass MakeSpecularDebugRayQueryPass();
     RenderPass MakeRayQueryTlasDebugPass();
     RenderPass MakeForwardPass();
     RenderPass MakeLightingPass();
@@ -822,6 +839,7 @@ private:
     void ExecuteDepthPrePass(const RenderPass& pass);
     void ExecuteGBufferPass(const RenderPass& pass);
     void ExecuteRayQueryShadowPass(const RenderPass& pass);
+    void ExecuteSpecularDebugRayQueryPass(const RenderPass& pass);
     void ExecuteRayQueryTlasDebugPass(const RenderPass& pass);
     void ExecuteForwardPass(const RenderPass& pass);
     void ExecuteLightingPass(const RenderPass& pass);
@@ -836,6 +854,7 @@ private:
     void RecordDebugDumpPass();
     void RecordPixelPickPass();
     void ReadbackPixelPick();
+    void ReadbackSpecularDebugRayQuery();
     void ResetPixelPickReadbacks();
     void CreatePixelPickReadback(ID3D12Resource* source, PixelPickReadback& readback) const;
     void CopyPixelPickSource(ID3D12Resource* source, const PixelPickReadback& readback, UINT x, UINT y);

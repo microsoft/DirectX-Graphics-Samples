@@ -151,6 +151,7 @@
     <ClInclude Include="Renderer\PipelineFactory.h" />
     <ClInclude Include="Renderer\AccelerationStructureResources.h" />
     <ClInclude Include="Renderer\RayQueryShadowPass.h" />
+    <ClInclude Include="Renderer\SpecularDebugRayQueryPass.h" />
     <ClInclude Include="Renderer\RayQueryTlasDebugPass.h" />
     <ClInclude Include="Renderer\RayTracingSupport.h" />
     <ClInclude Include="Renderer\ShadowMaskDebugPass.h" />
@@ -197,6 +198,7 @@
     <ClCompile Include="Renderer\PipelineFactory.cpp" />
     <ClCompile Include="Renderer\AccelerationStructureResources.cpp" />
     <ClCompile Include="Renderer\RayQueryShadowPass.cpp" />
+    <ClCompile Include="Renderer\SpecularDebugRayQueryPass.cpp" />
     <ClCompile Include="Renderer\RayQueryTlasDebugPass.cpp" />
     <ClCompile Include="Renderer\RayTracingSupport.cpp" />
     <ClCompile Include="Renderer\ShadowMaskDebugPass.cpp" />
@@ -367,6 +369,17 @@ dxc.exe -nologo -Tps_6_0 -E"PSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_P
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename)_CSMain.cso</Outputs>
     </CustomBuild>
     <CustomBuild Include="shaders_RayQueryTlasDebug.hlsl">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+      <FileType>Document</FileType>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Identity)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Identity)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -Tcs_6_5 -E"CSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_CSMain.cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -Tcs_6_5 -E"CSMain" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename)_CSMain.cso" "%(FullPath)"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename)_CSMain.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename)_CSMain.cso</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="shaders_SpecularDebugRayQuery.hlsl">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
       <FileType>Document</FileType>
