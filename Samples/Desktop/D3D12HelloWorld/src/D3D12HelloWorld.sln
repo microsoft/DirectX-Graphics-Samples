@@ -33,6 +33,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloTightAlignment", 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloPartialGraphicsPrograms", "HelloPartialGraphicsPrograms\D3D12HelloPartialGraphicsPrograms.vcxproj", "{FF87D9C7-631E-4409-A52B-EA14739E3FEC}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3D12HelloMeshShaderPartialPrograms", "HelloMeshShaderPartialPrograms\D3D12HelloMeshShaderPartialPrograms.vcxproj", "{F4E511F2-3C9D-4F29-BF15-908FCCB8781C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -99,6 +101,10 @@ Global
 		{FF87D9C7-631E-4409-A52B-EA14739E3FEC}.Debug|x64.Build.0 = Debug|x64
 		{FF87D9C7-631E-4409-A52B-EA14739E3FEC}.Release|x64.ActiveCfg = Release|x64
 		{FF87D9C7-631E-4409-A52B-EA14739E3FEC}.Release|x64.Build.0 = Release|x64
+		{F4E511F2-3C9D-4F29-BF15-908FCCB8781C}.Debug|x64.ActiveCfg = Debug|x64
+		{F4E511F2-3C9D-4F29-BF15-908FCCB8781C}.Debug|x64.Build.0 = Debug|x64
+		{F4E511F2-3C9D-4F29-BF15-908FCCB8781C}.Release|x64.ActiveCfg = Release|x64
+		{F4E511F2-3C9D-4F29-BF15-908FCCB8781C}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

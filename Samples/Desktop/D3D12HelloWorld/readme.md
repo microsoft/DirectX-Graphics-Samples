@@ -77,5 +77,13 @@ See the [D3D12 work graphs blog post](https://devblogs.microsoft.com/directx/d3d
 
 In particular, descriptions of the samples are in that post [here](https://devblogs.microsoft.com/directx/d3d12-work-graphs/#Samples).
 
+## Hello, Mesh Shader Partial Programs! sample
+
+This sample shows how to drive a mesh shader from partial graphics programs. It compiles a mesh shader and a pixel shader once into a state object collection, exposing the mesh shader as a pre-rasterization partial program and the pixel shader as a pixel-shader partial program. It then late-links three different blend states to produce three generic programs that share the same shader code, and uses AddToStateObject() to add the third blend permutation without recompiling any shaders.
+
+To exercise both features at once, the mesh shader procedurally generates a solid, spinning 3D spur gear every frame: a single thread group builds the whole gear - front and back faces, the outer tooth wall, and the inner hub-hole wall - with per-vertex lighting and no vertex or index buffer (mesh-shader geometry amplification). A depth buffer resolves the 3D self-occlusion. That same gear is then drawn three times, layered front-to-back and overlapping, each time with a different late-linked blend mode (opaque, additive, and source-alpha) via SetProgram() and DispatchMesh().
+
+See the [Partial Graphics Programs spec](https://github.com/microsoft/DirectX-Specs/blob/master/d3d/PartialGraphicsPrograms.md) for details.
+
 ### Optional features
 The Texture and Constant Buffer samples have been updated to build against the Windows 10 Anniversary Update SDK. In this SDK a new revision of Root Signatures is available for Direct3D 12 apps to use. Root Signature 1.1 allows for apps to declare when descriptors in a descriptor heap won't change or the data descriptors point to won't change.  This allows the option for drivers to make optimizations that might be possible knowing that something (like a descriptor or the memory it points to) is static for some period of time.
