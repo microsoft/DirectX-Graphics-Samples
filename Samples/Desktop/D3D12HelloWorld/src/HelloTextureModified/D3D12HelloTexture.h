@@ -836,6 +836,9 @@ private:
     void RecordDebugDumpPass();
     void RecordPixelPickPass();
     void ReadbackPixelPick();
+    void ResetPixelPickReadbacks();
+    void CreatePixelPickReadback(ID3D12Resource* source, PixelPickReadback& readback) const;
+    void CopyPixelPickSource(ID3D12Resource* source, const PixelPickReadback& readback, UINT x, UINT y);
     void RecordImGuiPass();
     void EndFrame();
     void PrintDebugDump();

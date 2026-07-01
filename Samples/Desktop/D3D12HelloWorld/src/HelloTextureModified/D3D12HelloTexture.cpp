@@ -1628,9 +1628,7 @@ void HelloTextureEngine::ReleaseSceneResources()
     m_pixelPickScreenY = 0;
     m_pixelPickResult = {};
     m_debugLineVertices.clear();
-    m_pixelPickDepthReadback = {};
-    m_pixelPickGBufferReadbacks = {};
-    m_pixelPickShadowMaskReadback = {};
+    ResetPixelPickReadbacks();
 
     m_materialBuffer.Reset();
     for (FrameResource& frameResource : m_frameResources)
@@ -2779,8 +2777,6 @@ void HelloTextureEngine::RecordPixelPickPass()
 {
     PIXBeginEvent(m_commandList.Get(), 0, L"PixelPick");
 
-    auto device = m_graphicsDevice.Device();
-
     const int clampedX = (std::max)(0, (std::min)(m_pixelPickScreenX, static_cast<int>(m_width) - 1));
     const int clampedY = (std::max)(0, (std::min)(m_pixelPickScreenY, static_cast<int>(m_height) - 1));
     const UINT x = static_cast<UINT>(clampedX);
@@ -2788,43 +2784,19 @@ void HelloTextureEngine::RecordPixelPickPass()
     m_pixelPickScreenX = clampedX;
     m_pixelPickScreenY = clampedY;
 
-    auto createReadback = [device](ID3D12Resource* source, PixelPickReadback& readback)
-    {
-        D3D12_RESOURCE_DESC desc = source->GetDesc();
-        UINT numRows = 0;
-        UINT64 rowSizeInBytes = 0;
-        UINT64 totalBytes = 0;
-        readback = {};
-        device->GetCopyableFootprints(&desc, 0, 1, 0, &readback.layout, &numRows, &rowSizeInBytes, &totalBytes);
-        ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
-                                                      D3D12_HEAP_FLAG_NONE,
-                                                      &CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
-                                                      D3D12_RESOURCE_STATE_COPY_DEST,
-                                                      nullptr,
-                                                      IID_PPV_ARGS(&readback.resource)));
-    };
-
-    auto copyPixel = [this, x, y](ID3D12Resource* source, const PixelPickReadback& readback)
-    {
-        const D3D12_BOX srcBox = {x, y, 0, x + 1, y + 1, 1};
-        CD3DX12_TEXTURE_COPY_LOCATION dst(readback.resource.Get(), readback.layout);
-        CD3DX12_TEXTURE_COPY_LOCATION src(source, 0);
-        m_commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, &srcBox);
-    };
-
-    createReadback(m_depthStencil.Get(), m_pixelPickDepthReadback);
-    copyPixel(m_depthStencil.Get(), m_pixelPickDepthReadback);
+    CreatePixelPickReadback(m_depthStencil.Get(), m_pixelPickDepthReadback);
+    CopyPixelPickSource(m_depthStencil.Get(), m_pixelPickDepthReadback, x, y);
 
     for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
     {
-        createReadback(m_gbuffer.resources[i].Get(), m_pixelPickGBufferReadbacks[i]);
-        copyPixel(m_gbuffer.resources[i].Get(), m_pixelPickGBufferReadbacks[i]);
+        CreatePixelPickReadback(m_gbuffer.resources[i].Get(), m_pixelPickGBufferReadbacks[i]);
+        CopyPixelPickSource(m_gbuffer.resources[i].Get(), m_pixelPickGBufferReadbacks[i], x, y);
     }
 
     if (m_shadowMask)
     {
-        createReadback(m_shadowMask.Get(), m_pixelPickShadowMaskReadback);
-        copyPixel(m_shadowMask.Get(), m_pixelPickShadowMaskReadback);
+        CreatePixelPickReadback(m_shadowMask.Get(), m_pixelPickShadowMaskReadback);
+        CopyPixelPickSource(m_shadowMask.Get(), m_pixelPickShadowMaskReadback, x, y);
     }
 
     m_pixelPickPending = true;
@@ -2832,6 +2804,46 @@ void HelloTextureEngine::RecordPixelPickPass()
 
     m_gpuWorkMeter.SetCheckPoint(m_commandList.Get(), "PixelPick");
     PIXEndEvent(m_commandList.Get());
+}
+
+void HelloTextureEngine::ResetPixelPickReadbacks()
+{
+    m_pixelPickDepthReadback = {};
+    m_pixelPickGBufferReadbacks = {};
+    m_pixelPickShadowMaskReadback = {};
+}
+
+void HelloTextureEngine::CreatePixelPickReadback(ID3D12Resource* source, PixelPickReadback& readback) const
+{
+    assert(source != nullptr);
+
+    auto device = m_graphicsDevice.Device();
+    D3D12_RESOURCE_DESC desc = source->GetDesc();
+    UINT numRows = 0;
+    UINT64 rowSizeInBytes = 0;
+    UINT64 totalBytes = 0;
+    readback = {};
+    device->GetCopyableFootprints(&desc, 0, 1, 0, &readback.layout, &numRows, &rowSizeInBytes, &totalBytes);
+    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
+                                                  D3D12_HEAP_FLAG_NONE,
+                                                  &CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
+                                                  D3D12_RESOURCE_STATE_COPY_DEST,
+                                                  nullptr,
+                                                  IID_PPV_ARGS(&readback.resource)));
+}
+
+void HelloTextureEngine::CopyPixelPickSource(ID3D12Resource* source,
+                                             const PixelPickReadback& readback,
+                                             UINT x,
+                                             UINT y)
+{
+    assert(source != nullptr);
+    assert(readback.resource != nullptr);
+
+    const D3D12_BOX srcBox = {x, y, 0, x + 1, y + 1, 1};
+    CD3DX12_TEXTURE_COPY_LOCATION dst(readback.resource.Get(), readback.layout);
+    CD3DX12_TEXTURE_COPY_LOCATION src(source, 0);
+    m_commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, &srcBox);
 }
 
 void HelloTextureEngine::ReadbackPixelPick()
@@ -2948,8 +2960,7 @@ void HelloTextureEngine::ReadbackPixelPick()
 
     UpdateDebugLines();
 
-    m_pixelPickGBufferReadbacks = {};
-    m_pixelPickShadowMaskReadback = {};
+    ResetPixelPickReadbacks();
 }
 
 void HelloTextureEngine::UpdateDebugLines()
