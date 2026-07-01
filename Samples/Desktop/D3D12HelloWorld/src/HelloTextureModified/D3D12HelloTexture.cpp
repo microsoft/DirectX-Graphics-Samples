@@ -325,6 +325,14 @@ void HelloTextureEngine::RequestPixelPick(int screenX, int screenY)
     m_pixelPickResult = {};
 }
 
+void HelloTextureEngine::SetSpecularDebugLineSettings(const SpecularDebugLineSettings& settings)
+{
+    m_specularDebugLineSettings = settings;
+    m_specularDebugLineSettings.lineLength =
+        (std::max)(0.01f, m_specularDebugLineSettings.lineLength);
+    UpdateDebugLines();
+}
+
 void HelloTextureEngine::ReloadEnvironmentResources(const Engine::ProceduralEnvironmentSettings& settings)
 {
     MyDx12Util::ScopedTimer _reloadTimer("ReloadEnvironmentResources total");
@@ -2908,35 +2916,43 @@ void HelloTextureEngine::UpdateDebugLines()
         return;
     }
 
+    if (!m_specularDebugLineSettings.enabled)
+    {
+        return;
+    }
+
     const XMFLOAT3& origin = m_pixelPickResult.worldPos;
-    constexpr float kLineLength = 1.0f;
+    const float lineLength = m_specularDebugLineSettings.lineLength;
 
     // View ray: yellow
+    if (m_specularDebugLineSettings.showViewRay)
     {
         const XMFLOAT3& dir = m_pixelPickResult.viewDir;
-        XMFLOAT3 end = {origin.x + dir.x * kLineLength,
-                        origin.y + dir.y * kLineLength,
-                        origin.z + dir.z * kLineLength};
+        XMFLOAT3 end = {origin.x + dir.x * lineLength,
+                        origin.y + dir.y * lineLength,
+                        origin.z + dir.z * lineLength};
         m_debugLineVertices.push_back({origin, {1.0f, 1.0f, 0.0f, 1.0f}});
         m_debugLineVertices.push_back({end,   {1.0f, 1.0f, 0.0f, 1.0f}});
     }
 
     // Picked normal: blue
+    if (m_specularDebugLineSettings.showNormal)
     {
         const XMFLOAT3& dir = m_pixelPickResult.normal;
-        XMFLOAT3 end = {origin.x + dir.x * kLineLength,
-                        origin.y + dir.y * kLineLength,
-                        origin.z + dir.z * kLineLength};
+        XMFLOAT3 end = {origin.x + dir.x * lineLength,
+                        origin.y + dir.y * lineLength,
+                        origin.z + dir.z * lineLength};
         m_debugLineVertices.push_back({origin, {0.0f, 0.0f, 1.0f, 1.0f}});
         m_debugLineVertices.push_back({end,   {0.0f, 0.0f, 1.0f, 1.0f}});
     }
 
     // Reflection ray: magenta
+    if (m_specularDebugLineSettings.showReflection)
     {
         const XMFLOAT3& dir = m_pixelPickResult.reflectionDir;
-        XMFLOAT3 end = {origin.x + dir.x * kLineLength,
-                        origin.y + dir.y * kLineLength,
-                        origin.z + dir.z * kLineLength};
+        XMFLOAT3 end = {origin.x + dir.x * lineLength,
+                        origin.y + dir.y * lineLength,
+                        origin.z + dir.z * lineLength};
         m_debugLineVertices.push_back({origin, {1.0f, 0.0f, 1.0f, 1.0f}});
         m_debugLineVertices.push_back({end,   {1.0f, 0.0f, 1.0f, 1.0f}});
     }

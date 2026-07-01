@@ -172,6 +172,15 @@ public:
         float jitterStrength = 2.0f;
     };
 
+    struct SpecularDebugLineSettings
+    {
+        bool enabled = true;
+        float lineLength = 1.0f;
+        bool showViewRay = true;
+        bool showNormal = true;
+        bool showReflection = true;
+    };
+
     struct UiFrameContext
     {
         int frameIndex;
@@ -215,6 +224,8 @@ public:
     void ReloadEnvironmentResources(const Engine::ProceduralEnvironmentSettings& settings);
     void RequestPixelPick(int screenX, int screenY);
     const PixelPickResult& GetPixelPickResult() const { return m_pixelPickResult; }
+    void SetSpecularDebugLineSettings(const SpecularDebugLineSettings& settings);
+    const SpecularDebugLineSettings& GetSpecularDebugLineSettings() const { return m_specularDebugLineSettings; }
 
 private:
     static constexpr UINT kFrameCount = kSwapChainBufferCount;
@@ -519,6 +530,7 @@ private:
     std::vector<Engine::Material> m_materialData;
     LightingParams m_lightingParams;
     ShadowSettings m_shadowSettings;
+    SpecularDebugLineSettings m_specularDebugLineSettings;
     Engine::ProceduralEnvironmentSettings m_environmentSettings;
 
     ComPtr<ID3D12Resource> m_vertexBuffer;

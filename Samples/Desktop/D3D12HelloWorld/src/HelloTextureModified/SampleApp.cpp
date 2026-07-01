@@ -1309,6 +1309,34 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         }
     }
 
+    if (ImGui::CollapsingHeader("Specular Debug Lines", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        auto debugLines = m_engine.GetSpecularDebugLineSettings();
+
+        ImGui::Checkbox("Enable Debug Lines", &debugLines.enabled);
+        ImGui::SliderFloat("Line Length", &debugLines.lineLength, 0.1f, 5.0f, "%.1f");
+
+        ImGui::Checkbox("View Ray (yellow)", &debugLines.showViewRay);
+        ImGui::Checkbox("Normal (blue)", &debugLines.showNormal);
+        ImGui::Checkbox("Reflection (magenta)", &debugLines.showReflection);
+
+        // Compact legend
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "---");
+        ImGui::SameLine();
+        ImGui::Text("View Ray");
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.0f, 0.0f, 1.0f, 1.0f), "---");
+        ImGui::SameLine();
+        ImGui::Text("Normal");
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 1.0f, 1.0f), "---");
+        ImGui::SameLine();
+        ImGui::Text("Reflection");
+
+        m_engine.SetSpecularDebugLineSettings(debugLines);
+    }
+
     if (ImGui::CollapsingHeader("WorkMeter"))
     {
         ImGui::Text("CPU Frame: %.2f ms (%.1f FPS)", context.cpuFrameTime, 1000.0f / context.cpuFrameTime);
