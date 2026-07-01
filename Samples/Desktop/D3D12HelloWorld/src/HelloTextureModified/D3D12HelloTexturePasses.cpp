@@ -45,10 +45,6 @@ void HelloTextureEngine::AddSceneRenderPasses()
     else
     {
         AddPass(MakeGBufferPass());
-        if (m_pixelPickRequested)
-        {
-            AddPass(MakePixelPickPass());
-        }
         if (m_rayTracingSupport.IsSupported())
         {
             AddPass(MakeRayQueryShadowPass());
@@ -56,6 +52,10 @@ void HelloTextureEngine::AddSceneRenderPasses()
             {
                 AddPass(MakeRayQueryTlasDebugPass());
             }
+        }
+        if (m_pixelPickRequested)
+        {
+            AddPass(MakePixelPickPass());
         }
         AddDeferredSceneOutputPass();
     }
@@ -286,10 +286,16 @@ auto HelloTextureEngine::MakeDebugDumpPass() -> RenderPass
 
 auto HelloTextureEngine::MakePixelPickPass() -> RenderPass
 {
+    Engine::ResourceUsages reads = {{kDepthStencilResourceName, D3D12_RESOURCE_STATE_COPY_SOURCE},
+                                    {kShadowMaskResourceName, D3D12_RESOURCE_STATE_COPY_SOURCE}};
+    for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
+    {
+        reads.push_back({kGBufferResourceNames[i], D3D12_RESOURCE_STATE_COPY_SOURCE});
+    }
+
     return m_renderGraphRuntime.Authoring()
         .CreatePass(L"PixelPick")
-        .Reads({{kDepthStencilResourceName, D3D12_RESOURCE_STATE_COPY_SOURCE},
-                {kGBufferResourceNames[Engine::GBuffer::Normal], D3D12_RESOURCE_STATE_COPY_SOURCE}})
+        .Reads(std::move(reads))
         .Operation(Op::PixelPick, &HelloTextureEngine::ExecutePixelPickPass)
         .Build();
 }

@@ -1295,13 +1295,26 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
         const auto& pick = m_engine.GetPixelPickResult();
         if (pick.valid)
         {
-            ImGui::Text("Screen: (%d, %d)", pick.screenX, pick.screenY);
-            ImGui::Text("Depth (NDC): %.4f", pick.depthNdc);
-            ImGui::Text("World Pos:   (%.3f, %.3f, %.3f)", pick.worldPos.x, pick.worldPos.y, pick.worldPos.z);
-            ImGui::Text("Normal:      (%.3f, %.3f, %.3f)", pick.normal.x, pick.normal.y, pick.normal.z);
-            ImGui::Text("View Dir:    (%.3f, %.3f, %.3f)", pick.viewDir.x, pick.viewDir.y, pick.viewDir.z);
-            ImGui::Text("Reflect Dir: (%.3f, %.3f, %.3f)", pick.reflectionDir.x, pick.reflectionDir.y,
+            ImGui::Text("Screen / Depth / Material");
+            ImGui::Text("  Screen: (%d, %d)  Mat ID: %u", pick.screenX, pick.screenY, pick.materialId);
+            ImGui::Text("  Depth (NDC): %.4f", pick.depthNdc);
+            ImGui::Separator();
+            ImGui::Text("World Vectors");
+            ImGui::Text("  World Pos:   (%.3f, %.3f, %.3f)", pick.worldPos.x, pick.worldPos.y, pick.worldPos.z);
+            ImGui::Text("  Normal:      (%.3f, %.3f, %.3f)", pick.normal.x, pick.normal.y, pick.normal.z);
+            ImGui::Text("  View Dir:    (%.3f, %.3f, %.3f)", pick.viewDir.x, pick.viewDir.y, pick.viewDir.z);
+            ImGui::Text("  Reflect Dir: (%.3f, %.3f, %.3f)", pick.reflectionDir.x, pick.reflectionDir.y,
                          pick.reflectionDir.z);
+            ImGui::Separator();
+            ImGui::Text("GBuffer Material");
+            ImGui::Text("  Albedo:      (%.3f, %.3f, %.3f, %.3f)", pick.albedo.x, pick.albedo.y, pick.albedo.z,
+                         pick.albedo.w);
+            ImGui::Text("  Metallic:    %.3f", pick.metallic);
+            ImGui::Text("  Roughness:   %.3f", pick.roughness);
+            ImGui::Text("  AO:          %.3f", pick.ambientOcclusion);
+            ImGui::Text("  Emissive:    (%.3f, %.3f, %.3f)", pick.emissive.x, pick.emissive.y, pick.emissive.z);
+            ImGui::Separator();
+            ImGui::Text("Shadow Mask:   %.3f", pick.shadowMask);
         }
         else
         {

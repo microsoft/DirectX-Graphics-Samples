@@ -1628,10 +1628,9 @@ void HelloTextureEngine::ReleaseSceneResources()
     m_pixelPickScreenY = 0;
     m_pixelPickResult = {};
     m_debugLineVertices.clear();
-    m_pixelPickDepthReadback.Reset();
-    m_pixelPickNormalReadback.Reset();
-    m_pixelPickDepthLayout = {};
-    m_pixelPickNormalLayout = {};
+    m_pixelPickDepthReadback = {};
+    m_pixelPickGBufferReadbacks = {};
+    m_pixelPickShadowMaskReadback = {};
 
     m_materialBuffer.Reset();
     for (FrameResource& frameResource : m_frameResources)
@@ -2789,50 +2788,43 @@ void HelloTextureEngine::RecordPixelPickPass()
     m_pixelPickScreenX = clampedX;
     m_pixelPickScreenY = clampedY;
 
-    // Create readback for depth (R32_TYPELESS -> 4 bytes per pixel)
+    auto createReadback = [device](ID3D12Resource* source, PixelPickReadback& readback)
     {
-        D3D12_RESOURCE_DESC desc = m_depthStencil->GetDesc();
+        D3D12_RESOURCE_DESC desc = source->GetDesc();
         UINT numRows = 0;
         UINT64 rowSizeInBytes = 0;
         UINT64 totalBytes = 0;
-        device->GetCopyableFootprints(&desc, 0, 1, 0, &m_pixelPickDepthLayout, &numRows, &rowSizeInBytes, &totalBytes);
+        readback = {};
+        device->GetCopyableFootprints(&desc, 0, 1, 0, &readback.layout, &numRows, &rowSizeInBytes, &totalBytes);
         ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
                                                       D3D12_HEAP_FLAG_NONE,
                                                       &CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
                                                       D3D12_RESOURCE_STATE_COPY_DEST,
                                                       nullptr,
-                                                      IID_PPV_ARGS(&m_pixelPickDepthReadback)));
-    }
+                                                      IID_PPV_ARGS(&readback.resource)));
+    };
 
-    // Create readback for normal (R16G16B16A16_FLOAT -> 8 bytes per pixel)
-    {
-        D3D12_RESOURCE_DESC desc = m_gbuffer.resources[Engine::GBuffer::Normal]->GetDesc();
-        UINT numRows = 0;
-        UINT64 rowSizeInBytes = 0;
-        UINT64 totalBytes = 0;
-        device->GetCopyableFootprints(&desc, 0, 1, 0, &m_pixelPickNormalLayout, &numRows, &rowSizeInBytes, &totalBytes);
-        ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
-                                                      D3D12_HEAP_FLAG_NONE,
-                                                      &CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
-                                                      D3D12_RESOURCE_STATE_COPY_DEST,
-                                                      nullptr,
-                                                      IID_PPV_ARGS(&m_pixelPickNormalReadback)));
-    }
-
-    // Copy 1x1 pixel from depth stencil
+    auto copyPixel = [this, x, y](ID3D12Resource* source, const PixelPickReadback& readback)
     {
         const D3D12_BOX srcBox = {x, y, 0, x + 1, y + 1, 1};
-        CD3DX12_TEXTURE_COPY_LOCATION dst(m_pixelPickDepthReadback.Get(), m_pixelPickDepthLayout);
-        CD3DX12_TEXTURE_COPY_LOCATION src(m_depthStencil.Get(), 0);
+        CD3DX12_TEXTURE_COPY_LOCATION dst(readback.resource.Get(), readback.layout);
+        CD3DX12_TEXTURE_COPY_LOCATION src(source, 0);
         m_commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, &srcBox);
+    };
+
+    createReadback(m_depthStencil.Get(), m_pixelPickDepthReadback);
+    copyPixel(m_depthStencil.Get(), m_pixelPickDepthReadback);
+
+    for (UINT i = 0; i < Engine::GBuffer::kCount; ++i)
+    {
+        createReadback(m_gbuffer.resources[i].Get(), m_pixelPickGBufferReadbacks[i]);
+        copyPixel(m_gbuffer.resources[i].Get(), m_pixelPickGBufferReadbacks[i]);
     }
 
-    // Copy 1x1 pixel from GBuffer normal
+    if (m_shadowMask)
     {
-        const D3D12_BOX srcBox = {x, y, 0, x + 1, y + 1, 1};
-        CD3DX12_TEXTURE_COPY_LOCATION dst(m_pixelPickNormalReadback.Get(), m_pixelPickNormalLayout);
-        CD3DX12_TEXTURE_COPY_LOCATION src(m_gbuffer.resources[Engine::GBuffer::Normal].Get(), 0);
-        m_commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, &srcBox);
+        createReadback(m_shadowMask.Get(), m_pixelPickShadowMaskReadback);
+        copyPixel(m_shadowMask.Get(), m_pixelPickShadowMaskReadback);
     }
 
     m_pixelPickPending = true;
@@ -2844,33 +2836,87 @@ void HelloTextureEngine::RecordPixelPickPass()
 
 void HelloTextureEngine::ReadbackPixelPick()
 {
-    if (!m_pixelPickDepthReadback || !m_pixelPickNormalReadback)
+    if (!m_pixelPickDepthReadback.resource ||
+        !m_pixelPickGBufferReadbacks[Engine::GBuffer::Normal].resource)
     {
         return;
     }
 
-    // Read depth (float32)
+    auto readPixel = [](PixelPickReadback& readback, auto&& read)
     {
-        const D3D12_RANGE readRange = {0, static_cast<SIZE_T>(m_pixelPickDepthLayout.Footprint.RowPitch)};
+        if (!readback.resource)
+        {
+            return;
+        }
+
+        const D3D12_RANGE readRange = {0, static_cast<SIZE_T>(readback.layout.Footprint.RowPitch)};
         void* data = nullptr;
-        ThrowIfFailed(m_pixelPickDepthReadback->Map(0, &readRange, &data));
-        const auto* row = static_cast<const UINT8*>(data);
-        m_pixelPickResult.depthNdc = *reinterpret_cast<const float*>(row);
-        m_pixelPickDepthReadback->Unmap(0, nullptr);
-    }
+        ThrowIfFailed(readback.resource->Map(0, &readRange, &data));
+        read(static_cast<const UINT8*>(data));
+        readback.resource->Unmap(0, nullptr);
+        readback = {};
+    };
+
+    // Read depth (float32)
+    readPixel(m_pixelPickDepthReadback,
+              [this](const UINT8* row)
+              {
+                  m_pixelPickResult.depthNdc = *reinterpret_cast<const float*>(row);
+              });
+
+    // Read albedo (R8G8B8A8_UNORM, already linear from GBuffer)
+    readPixel(m_pixelPickGBufferReadbacks[Engine::GBuffer::Albedo],
+              [this](const UINT8* row)
+              {
+                  m_pixelPickResult.albedo = {static_cast<float>(row[0]) / 255.0f,
+                                              static_cast<float>(row[1]) / 255.0f,
+                                              static_cast<float>(row[2]) / 255.0f,
+                                              static_cast<float>(row[3]) / 255.0f};
+              });
 
     // Read normal (R16G16B16A16_FLOAT -> 4 half values)
-    {
-        const D3D12_RANGE readRange = {0, static_cast<SIZE_T>(m_pixelPickNormalLayout.Footprint.RowPitch)};
-        void* data = nullptr;
-        ThrowIfFailed(m_pixelPickNormalReadback->Map(0, &readRange, &data));
-        const auto* row = static_cast<const UINT8*>(data);
-        const auto* half4 = reinterpret_cast<const UINT16*>(row);
-        m_pixelPickResult.normal = {DirectX::PackedVector::XMConvertHalfToFloat(half4[0]),
-                                    DirectX::PackedVector::XMConvertHalfToFloat(half4[1]),
-                                    DirectX::PackedVector::XMConvertHalfToFloat(half4[2])};
-        m_pixelPickNormalReadback->Unmap(0, nullptr);
-    }
+    readPixel(m_pixelPickGBufferReadbacks[Engine::GBuffer::Normal],
+              [this](const UINT8* row)
+              {
+                  const auto* half4 = reinterpret_cast<const UINT16*>(row);
+                  m_pixelPickResult.normal = {DirectX::PackedVector::XMConvertHalfToFloat(half4[0]),
+                                              DirectX::PackedVector::XMConvertHalfToFloat(half4[1]),
+                                              DirectX::PackedVector::XMConvertHalfToFloat(half4[2])};
+              });
+
+    // Read material id (R32_UINT)
+    readPixel(m_pixelPickGBufferReadbacks[Engine::GBuffer::Material],
+              [this](const UINT8* row)
+              {
+                  m_pixelPickResult.materialId = *reinterpret_cast<const UINT*>(row);
+              });
+
+    // Read PBR params (R8G8B8A8_UNORM: metallic, roughness, ambient occlusion)
+    readPixel(m_pixelPickGBufferReadbacks[Engine::GBuffer::PBRParams],
+              [this](const UINT8* row)
+              {
+                  m_pixelPickResult.metallic = static_cast<float>(row[0]) / 255.0f;
+                  m_pixelPickResult.roughness = static_cast<float>(row[1]) / 255.0f;
+                  m_pixelPickResult.ambientOcclusion = static_cast<float>(row[2]) / 255.0f;
+              });
+
+    // Read emissive (R16G16B16A16_FLOAT)
+    readPixel(m_pixelPickGBufferReadbacks[Engine::GBuffer::Emissive],
+              [this](const UINT8* row)
+              {
+                  const auto* half4 = reinterpret_cast<const UINT16*>(row);
+                  m_pixelPickResult.emissive = {DirectX::PackedVector::XMConvertHalfToFloat(half4[0]),
+                                                DirectX::PackedVector::XMConvertHalfToFloat(half4[1]),
+                                                DirectX::PackedVector::XMConvertHalfToFloat(half4[2])};
+              });
+
+    // Read shadow mask (R8_UNORM)
+    m_pixelPickResult.shadowMask = 1.0f;
+    readPixel(m_pixelPickShadowMaskReadback,
+              [this](const UINT8* row)
+              {
+                  m_pixelPickResult.shadowMask = static_cast<float>(row[0]) / 255.0f;
+              });
 
     m_pixelPickResult.screenX = m_pixelPickScreenX;
     m_pixelPickResult.screenY = m_pixelPickScreenY;
@@ -2902,9 +2948,8 @@ void HelloTextureEngine::ReadbackPixelPick()
 
     UpdateDebugLines();
 
-    // Release readback resources
-    m_pixelPickDepthReadback.Reset();
-    m_pixelPickNormalReadback.Reset();
+    m_pixelPickGBufferReadbacks = {};
+    m_pixelPickShadowMaskReadback = {};
 }
 
 void HelloTextureEngine::UpdateDebugLines()

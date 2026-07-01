@@ -154,7 +154,14 @@ public:
         int screenX = 0;
         int screenY = 0;
         float depthNdc = 0.0f;
+        XMFLOAT4 albedo = {0.0f, 0.0f, 0.0f, 1.0f};
         XMFLOAT3 normal = {0.0f, 0.0f, 0.0f};
+        UINT materialId = 0;
+        float metallic = 0.0f;
+        float roughness = 0.0f;
+        float ambientOcclusion = 0.0f;
+        XMFLOAT3 emissive = {0.0f, 0.0f, 0.0f};
+        float shadowMask = 1.0f;
         XMFLOAT3 worldPos = {0.0f, 0.0f, 0.0f};
         XMFLOAT3 viewDir = {0.0f, 0.0f, 0.0f};
         XMFLOAT3 reflectionDir = {0.0f, 0.0f, 0.0f};
@@ -511,10 +518,14 @@ private:
     int m_pixelPickScreenX = 0;
     int m_pixelPickScreenY = 0;
     PixelPickResult m_pixelPickResult;
-    ComPtr<ID3D12Resource> m_pixelPickDepthReadback;
-    ComPtr<ID3D12Resource> m_pixelPickNormalReadback;
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_pixelPickDepthLayout = {};
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_pixelPickNormalLayout = {};
+    struct PixelPickReadback
+    {
+        ComPtr<ID3D12Resource> resource;
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout = {};
+    };
+    PixelPickReadback m_pixelPickDepthReadback;
+    std::array<PixelPickReadback, Engine::GBuffer::kCount> m_pixelPickGBufferReadbacks;
+    PixelPickReadback m_pixelPickShadowMaskReadback;
 
     // Debug line data derived from the picked pixel.
     std::vector<Engine::DebugLineVertex> m_debugLineVertices;
