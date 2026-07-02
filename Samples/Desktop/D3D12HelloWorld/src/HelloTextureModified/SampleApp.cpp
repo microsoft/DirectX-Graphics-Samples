@@ -1316,13 +1316,20 @@ void SampleApp::DrawDebugUi(const HelloTextureEngine::UiFrameContext& context)
             ImGui::Separator();
             ImGui::Text("Shadow Mask:   %.3f", pick.shadowMask);
             ImGui::Separator();
-            ImGui::Text("Specular Reflection Ray");
-            ImGui::Text("  Hit:         %s", pick.reflectionHit ? "yes" : "no");
-            ImGui::Text("  Hit Dist:    %.4f", pick.reflectionHitDistance);
-            ImGui::Text("  Hit World:   (%.3f, %.3f, %.3f)",
-                         pick.reflectionHitWorldPos.x,
-                         pick.reflectionHitWorldPos.y,
-                         pick.reflectionHitWorldPos.z);
+            if (ImGui::TreeNodeEx("Specular Reflection", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Text("Status: %s", pick.reflectionHit ? "Hit" : "Miss");
+                if (pick.reflectionHit)
+                {
+                    ImGui::Text("Dist: %.3f", pick.reflectionHitDistance);
+                    ImGui::Text("Pos:  (%.3f, %.3f, %.3f)",
+                                pick.reflectionHitWorldPos.x,
+                                pick.reflectionHitWorldPos.y,
+                                pick.reflectionHitWorldPos.z);
+                }
+                ImGui::TreePop();
+            }
+
         }
         else
         {
