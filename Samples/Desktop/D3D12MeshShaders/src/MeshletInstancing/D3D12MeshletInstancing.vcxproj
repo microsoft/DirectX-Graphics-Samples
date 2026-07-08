@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\Microsoft.Direct3D.DXC.1.8.2505.32\build\native\Microsoft.Direct3D.DXC.props" Condition="Exists('..\packages\Microsoft.Direct3D.DXC.1.8.2505.32\build\native\Microsoft.Direct3D.DXC.props')" />
   <Import Project="..\packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.props" Condition="Exists('..\packages\Microsoft.Direct3D.D3D12.1.618.3\build\native\Microsoft.Direct3D.D3D12.props')" />
@@ -15,9 +15,17 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|x64">
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -28,28 +36,41 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -67,7 +88,13 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
@@ -75,11 +102,39 @@
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+    </ClCompile>
+    <FXCompile>
+      <ShaderModel>6.0</ShaderModel>
+      <EnableDebuggingInformation>true</EnableDebuggingInformation>
+      <AdditionalOptions>/Fd "$(OutDir)%(Filename).pdb" %(AdditionalOptions)</AdditionalOptions>
+    </FXCompile>
+    <Link>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
@@ -155,6 +210,25 @@
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="D3D12MeshletInstancing.cpp" />
     <ClCompile Include="DXSample.cpp" />
@@ -163,7 +237,9 @@
     <ClCompile Include="SimpleCamera.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Win32Application.cpp" />
   </ItemGroup>
@@ -187,20 +263,32 @@
     <CustomBuild Include="MeshletMS.hlsl">
       <FileType>Document</FileType>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">$(OutDir)%(Filename).cso</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">$(OutDir)%(Filename).cso</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Identity)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">%(Identity)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Identity)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">%(Identity)</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -Tms_6_5 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">dxc.exe -nologo -Tms_6_5 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -Tms_6_5 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">dxc.exe -nologo -Tms_6_5 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
     </CustomBuild>
     <CustomBuild Include="MeshletPS.hlsl">
       <FileType>Document</FileType>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">$(OutDir)%(Filename).cso</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">$(OutDir)%(Filename).cso</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Identity)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">%(Identity)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Identity)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">%(Identity)</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">dxc.exe -nologo -Tps_6_3 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">dxc.exe -nologo -Tps_6_3 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">dxc.exe -nologo -Tps_6_3 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">dxc.exe -nologo -Tps_6_3 -E"main" -Zi -Qembed_debug -Fo"$(OutDir)%(Filename).cso" "%(FullPath)"</Command>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

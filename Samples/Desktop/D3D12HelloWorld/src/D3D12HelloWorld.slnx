@@ -1,6 +1,7 @@
 <Solution>
   <Configurations>
     <Platform Name="x64" />
+    <Platform Name="ARM64" />
   </Configurations>
   <Project Path="HelloBundles/D3D12HelloBundles.vcxproj" />
   <Project Path="HelloConstBuffers/D3D12HelloConstBuffers.vcxproj" />
