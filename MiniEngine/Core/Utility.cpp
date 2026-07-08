@@ -15,8 +15,40 @@
 #include "Utility.h"
 #include <string>
 #include <locale>
+#if defined(_M_ARM64)
+#include <arm_neon.h>
+#endif
 
-// A faster version of memcopy that uses SSE instructions.  TODO:  Write an ARM variant if necessary.
+#if defined(_M_ARM64)
+
+// NEON variant.  The SSE path below uses non-temporal (streaming) stores; on ARM64 we use
+// ordinary NEON 128-bit loads/stores, which is sufficient for correctness.
+void SIMDMemCopy( void* __restrict _Dest, const void* __restrict _Source, size_t NumQuadwords )
+{
+    ASSERT(Math::IsAligned(_Dest, 16));
+    ASSERT(Math::IsAligned(_Source, 16));
+
+    const uint32_t* __restrict Source = (const uint32_t* __restrict)_Source;
+    uint32_t* __restrict Dest = (uint32_t* __restrict)_Dest;
+
+    for (size_t i = 0; i < NumQuadwords; ++i)
+        vst1q_u32(Dest + i * 4, vld1q_u32(Source + i * 4));
+}
+
+void SIMDMemFill( void* __restrict _Dest, DirectX::XMVECTOR FillVector, size_t NumQuadwords )
+{
+    ASSERT(Math::IsAligned(_Dest, 16));
+
+    const float32x4_t Source = FillVector;
+    float* __restrict Dest = (float* __restrict)_Dest;
+
+    for (size_t i = 0; i < NumQuadwords; ++i)
+        vst1q_f32(Dest + i * 4, Source);
+}
+
+#else // SSE
+
+// A faster version of memcopy that uses SSE instructions.
 void SIMDMemCopy( void* __restrict _Dest, const void* __restrict _Source, size_t NumQuadwords )
 {
     ASSERT(Math::IsAligned(_Dest, 16));
@@ -96,7 +128,7 @@ void SIMDMemCopy( void* __restrict _Dest, const void* __restrict _Source, size_t
     _mm_sfence();
 }
 
-void SIMDMemFill( void* __restrict _Dest, __m128 FillVector, size_t NumQuadwords )
+void SIMDMemFill( void* __restrict _Dest, DirectX::XMVECTOR FillVector, size_t NumQuadwords )
 {
     ASSERT(Math::IsAligned(_Dest, 16));
 
@@ -135,6 +167,8 @@ void SIMDMemFill( void* __restrict _Dest, __m128 FillVector, size_t NumQuadwords
 
     _mm_sfence();
 }
+
+#endif // _M_ARM64
 
 std::wstring Utility::UTF8ToWideString( const std::string& str )
 {
