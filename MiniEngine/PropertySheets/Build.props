@@ -58,6 +58,8 @@
     </Lib>
     <FxCompile>
       <ShaderType>Compute</ShaderType>
+      <!-- Shader model 6.x routes FxCompile to DXC, required for the HLSL 2021 features (-HV 2021 below). -->
+      <ShaderModel>6.0</ShaderModel>
       <VariableName>g_p%(Filename)</VariableName>
       <HeaderFileOutput>$(SolutionDir)..\Build\$(Platform)\$(Configuration)\Output\$(ProjectName)\CompiledShaders\%(Filename).h</HeaderFileOutput>
       <DisableOptimizations>false</DisableOptimizations>
