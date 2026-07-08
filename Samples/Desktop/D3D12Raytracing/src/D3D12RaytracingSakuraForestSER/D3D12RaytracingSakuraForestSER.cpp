@@ -223,9 +223,9 @@ void D3D12RaytracingSakuraForestSER::InitializeScene()
     {
         // Initialize the view and projection inverse matrices.
         // m_eye currently at the middle of the forest
-        m_eye = { 0.0f, 2.2f, -2.0f, 1.0f };
-        m_at = { 1.0f, 2.5f, -6.0f, 1.0f };
-        XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
+        m_eye = XMVectorSet(0.0f, 2.2f, -2.0f, 1.0f);
+        m_at = XMVectorSet(1.0f, 2.5f, -6.0f, 1.0f);
+        XMVECTOR right = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
 
         XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
         m_up = XMVector3Normalize(XMVector3Cross(direction, right));
@@ -235,7 +235,7 @@ void D3D12RaytracingSakuraForestSER::InitializeScene()
         m_eye = XMVector3Transform(m_eye, rotate);
 
         // Keep the camera upright
-        m_up = { 0.0f, 1.0f, 0.0f, 0.0f };
+        m_up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
         UpdateCameraMatrices();
     }
 
@@ -785,9 +785,9 @@ void D3D12RaytracingSakuraForestSER::BuildTreeGeometry()
     std::vector<Index> bushIndices;
 
     {
-        XMVECTOR xAxis = { 1, 0, 0 };
-        XMVECTOR yAxis = { 0, 1, 0 };
-        XMVECTOR zAxis = { 0, 0, 1 };
+        XMVECTOR xAxis = XMVectorSet(1, 0, 0, 0);
+        XMVECTOR yAxis = XMVectorSet(0, 1, 0, 0);
+        XMVECTOR zAxis = XMVectorSet(0, 0, 1, 0);
         XMMATRIX transform = XMMatrixRotationAxis(xAxis, 3.14159f / 2.0f) * XMMatrixRotationAxis(yAxis, 3.14159f / 12.0f) * XMMatrixRotationAxis(zAxis, 3.14159f) * XMMatrixTranslation(-1.5f, 0, 0);
         m_ObjModelLoader.GetObjectVerticesAndIndices(
             "tree",
