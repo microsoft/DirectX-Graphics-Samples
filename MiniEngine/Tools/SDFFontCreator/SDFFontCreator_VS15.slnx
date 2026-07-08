@@ -1,0 +1,8 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Windows" />
+  </Configurations>
+  <Project Path="SDFFontCreator_VS15.vcxproj">
+    <Platform Project="x64" />
+  </Project>
+</Solution>

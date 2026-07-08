@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="StateObjectDatabase Sample.vcxproj">
+    <Platform Solution="*|x86" Project="Win32" />
+  </Project>
+</Solution>

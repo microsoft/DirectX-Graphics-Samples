@@ -1,0 +1,20 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="HelloBundles/D3D12HelloBundles.vcxproj" />
+  <Project Path="HelloConstBuffers/D3D12HelloConstBuffers.vcxproj" />
+  <Project Path="HelloFrameBuffering/D3D12HelloFrameBuffering.vcxproj" />
+  <Project Path="HelloGenericPrograms/D3D12HelloGenericPrograms.vcxproj" />
+  <Project Path="HelloMeshNodes/D3D12HelloMeshNodes.vcxproj" />
+  <Project Path="HelloPartialGraphicsPrograms/D3D12HelloPartialGraphicsPrograms.vcxproj" />
+  <Project Path="HelloTexture/D3D12HelloTexture.vcxproj" />
+  <Project Path="HelloTightAlignment/D3D12HelloTightAlignment.vcxproj" />
+  <Project Path="HelloTriangle/D3D12HelloTriangle.vcxproj" />
+  <Project Path="HelloVADecode/D3D12HelloVADecode.vcxproj" />
+  <Project Path="HelloVAEncode/D3D12HelloVAEncode.vcxproj" />
+  <Project Path="HelloVAResourceInterop/D3D12HelloVAResourceInterop.vcxproj" />
+  <Project Path="HelloWindow/D3D12HelloWindow.vcxproj" />
+  <Project Path="HelloWorkGraphs/D3D12HelloWorkGraphs.vcxproj" />
+  <Project Path="WorkGraphsSandbox/D3D12WorkGraphsSandbox.vcxproj" />
+</Solution>

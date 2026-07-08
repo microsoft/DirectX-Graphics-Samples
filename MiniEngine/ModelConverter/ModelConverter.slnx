@@ -1,0 +1,8 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="../Core/Core.vcxproj" />
+  <Project Path="../Model/Model.vcxproj" />
+  <Project Path="ModelConverter.vcxproj" />
+</Solution>

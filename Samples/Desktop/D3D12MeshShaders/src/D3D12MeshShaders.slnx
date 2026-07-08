@@ -1,0 +1,13 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="DynamicLOD/D3D12DynamicLOD.vcxproj" />
+  <Project Path="MeshletCull/D3D12MeshletCull.vcxproj" />
+  <Project Path="MeshletGenerator/D3D12MeshletGenerator.vcxproj" />
+  <Project Path="MeshletInstancing/D3D12MeshletInstancing.vcxproj" />
+  <Project Path="MeshletRender/D3D12MeshletRender.vcxproj" />
+  <Project Path="WavefrontConverter/D3D12WavefrontConverter.vcxproj">
+    <BuildDependency Project="MeshletGenerator/D3D12MeshletGenerator.vcxproj" />
+  </Project>
+</Solution>
