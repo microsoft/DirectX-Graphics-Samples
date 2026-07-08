@@ -4,6 +4,7 @@
     <BuildType Name="Profile" />
     <BuildType Name="Release" />
     <Platform Name="x64" />
+    <Platform Name="ARM64" />
   </Configurations>
   <Folder Name="/MiniEngine/">
     <Project Path="../../../../MiniEngine/Core/Core.vcxproj" />
