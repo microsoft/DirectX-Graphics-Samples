@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shared vcpkg enablement for samples that consume the static-lib DirectX helper
+  libraries (DirectXTK12, DirectXTex, DirectXMesh). Import this near the top of a
+  consumer .vcxproj, right after <Import ...Microsoft.Cpp.props/>, and import the
+  companion DirectX.vcpkg.targets after <Import ...Microsoft.Cpp.targets/>.
+
+  The triplet is derived automatically from $(Platform): x64 -> x64-windows-static-md,
+  ARM64 -> arm64-windows-static-md (a static lib linked against the dynamic CRT /MD,
+  matching the samples). Building these libraries from source with the same toolset
+  the samples use avoids the STL/ABI skew that the deprecated prebuilt NuGet packages
+  hit on ARM64.
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="VcpkgSettings">
+    <VcpkgEnabled>true</VcpkgEnabled>
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
+    <VcpkgUseStatic>true</VcpkgUseStatic>
+    <VcpkgUseMD>true</VcpkgUseMD>
+    <!--
+      MiniEngine (and similar projects) set RuntimeLibrary directly without setting
+      UseDebugLibraries, so vcpkg's default heuristic mis-detects them as Release and links the
+      release (MD / _ITERATOR_DEBUG_LEVEL=0) libraries into a debug (MDd / IDL=2) build -> LNK2038.
+      Derive VcpkgConfiguration from the configuration name so the correct libraries are selected.
+    -->
+    <VcpkgConfiguration Condition="'$(VcpkgConfiguration)' == '' and $(Configuration.Contains('Debug'))">Debug</VcpkgConfiguration>
+    <VcpkgConfiguration Condition="'$(VcpkgConfiguration)' == ''">Release</VcpkgConfiguration>
+    <!-- Prefer an explicit VCPKG_ROOT; otherwise use the vcpkg bundled with Visual Studio. -->
+    <VcpkgRoot Condition="'$(VcpkgRoot)' == '' and '$(VCPKG_ROOT)' != ''">$(VCPKG_ROOT)</VcpkgRoot>
+    <VcpkgRoot Condition="'$(VcpkgRoot)' == ''">$(VsInstallRoot)\vc\vcpkg\</VcpkgRoot>
+    <VcpkgRoot Condition="'$(VcpkgRoot)' != '' and !HasTrailingSlash('$(VcpkgRoot)')">$(VcpkgRoot)\</VcpkgRoot>
+    <!-- Surface the vcpkg property page in Visual Studio. -->
+    <VcpkgPageSchema Condition="'$(VcpkgPageSchema)' == ''">$(VcpkgRoot)scripts\buildsystems\msbuild\vcpkg-general.xml</VcpkgPageSchema>
+  </PropertyGroup>
+  <Import Project="$(VcpkgRoot)scripts\buildsystems\msbuild\vcpkg.props" Condition="Exists('$(VcpkgRoot)scripts\buildsystems\msbuild\vcpkg.props')" />
+</Project>

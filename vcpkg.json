@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "directx-graphics-samples",
+  "version-string": "1.0.0",
+  "builtin-baseline": "3af1d1e60af2b2abf55760538cd607829029b07a",
+  "dependencies": [
+    { "name": "directxtk12", "default-features": false },
+    { "name": "directxtex", "features": [ "dx12" ] },
+    { "name": "directxmesh", "features": [ "dx12" ] }
+  ]
+}

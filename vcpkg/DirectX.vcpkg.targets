@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Companion to DirectX.vcpkg.props. Import this after <Import ...Microsoft.Cpp.targets/>
+  in a consumer .vcxproj. It runs the manifest install (building DirectXTK12/DirectXTex/
+  DirectXMesh from source for the current triplet) and auto-links the produced libraries
+  and include directories.
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Fail early with an actionable message if the vcpkg Visual Studio component is missing. -->
+  <Target Name="EnsureVCPKG" BeforeTargets="_CheckForInvalidConfigurationAndPlatform">
+    <PropertyGroup>
+      <ErrorText>This project requires the vcpkg integration support in Visual Studio. Add the Microsoft.VisualStudio.Component.Vcpkg component to your install (or set VCPKG_ROOT).</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(VcpkgRoot)')" Text="$(ErrorText)" />
+  </Target>
+  <Import Project="$(VcpkgRoot)scripts\buildsystems\msbuild\vcpkg.targets" Condition="Exists('$(VcpkgRoot)scripts\buildsystems\msbuild\vcpkg.targets')" />
+  <!--
+    vcpkg's directxtk12 port installs its headers under include\directxtk12\ (e.g.
+    DDSTextureLoader.h, ResourceUploadBatch.h), whereas the old NuGet package placed them
+    flat in include\. Add that subdirectory so the samples' existing #include "DDSTextureLoader.h"
+    style keeps resolving. DirectXTex/DirectXMesh headers are installed flat and need nothing extra.
+  -->
+  <ItemDefinitionGroup Condition="'$(VcpkgEnableManifest)' == 'true'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(_ZVcpkgCurrentInstalledDir)include\directxtk12</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

@@ -1,6 +1,7 @@
 <Solution>
   <Configurations>
     <Platform Name="x64" />
+    <Platform Name="ARM64" />
   </Configurations>
   <Project Path="DynamicLOD/D3D12DynamicLOD.vcxproj" />
   <Project Path="MeshletCull/D3D12MeshletCull.vcxproj" />

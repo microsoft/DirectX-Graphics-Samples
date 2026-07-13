@@ -29,3 +29,6 @@ Samples/Desktop/D3D12HelloWorld/src/HelloVAEncode/*.h264
 /Samples/Desktop/D3D12Raytracing/src/D3D12OMMOfflineBaker/jacaranda_tree_4k.obj
 
 /Samples/Desktop/**/x64
+
+# vcpkg manifest-mode install tree
+vcpkg_installed/

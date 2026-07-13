@@ -1,6 +1,7 @@
 <Solution>
   <Configurations>
     <Platform Name="x64" />
+    <Platform Name="ARM64" />
   </Configurations>
   <Project Path="D3DX12AffinityLayer/D3DX12AffinityLayer.vcxproj" />
   <Project Path="LinkedGpus/D3D12LinkedGpus.vcxproj" />

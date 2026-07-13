@@ -4,14 +4,15 @@
     <BuildType Name="Profile" />
     <BuildType Name="Release" />
     <Platform Name="Windows" />
+    <Platform Name="ARM64" />
   </Configurations>
   <Project Path="../Core/Core.vcxproj">
-    <Platform Project="x64" />
+    <Platform Solution="*|Windows" Project="x64" />
   </Project>
   <Project Path="../Model/Model.vcxproj">
-    <Platform Project="x64" />
+    <Platform Solution="*|Windows" Project="x64" />
   </Project>
   <Project Path="ModelViewer.vcxproj">
-    <Platform Project="x64" />
+    <Platform Solution="*|Windows" Project="x64" />
   </Project>
 </Solution>
