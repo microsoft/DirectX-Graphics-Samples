@@ -9,18 +9,15 @@
 //
 //*********************************************************
 
-// Desc: Calculate Local Mean and Variance via a separable kernel and using wave intrinsics.
-// Requirements:
-//  - Wave lane size 16 or higher.
-//  - WaveReadLaneAt() with any to any to wave read lane support.
+// Desc: Calculate Local Mean and Variance via a separable kernel. Per-row values are
+//   exchanged through groupshared memory so correctness is independent of wave size and
+//   lane-to-SV_GroupIndex ordering.
 // Supports:
 //  - up to 9x9 kernels.
 //  - checkerboard ON/OFF input. If enabled, outputs only for active pixels.
 //     Active pixel is a pixel on the checkerboard pattern and has a valid / 
 //     generated value for it. The kernel is stretched in y direction 
 //    to sample only from active pixels. 
-// Performance:
-// - 4K, 2080Ti, 9x9 kernel: 0.37ms (separable) -> 0.305 ms (separable + wave intrinsics)
 
 #define HLSL
 #include "RaytracingHlslCompat.h"
@@ -50,6 +47,10 @@ int2 GetActivePixelIndex(int2 pixel)
         ? pixel + int2(0, 1)
         : pixel;
 }
+// Cache loaded input values so each output thread can read its kernel-window
+// neighbours without relying on wave-lane ordering.
+groupshared float ValueCache[16][16];                   // [row][column] loaded input values.
+
 // Load up to 16x16 pixels and filter them horizontally.
 // The output is cached in Shared Memory and contains NumRows x 8 results.
 void FilterHorizontally(in uint2 Gid, in uint GI)
@@ -63,86 +64,55 @@ void FilterHorizontally(in uint2 Gid, in uint GI)
     uint2 GTid4x16_row0 = uint2(GI % 16, GI / 16);
     const int2 KernelBasePixel = (Gid * GroupDim - int(cb.kernelRadius)) * int2(1, cb.pixelStepY);
     const uint NumRowsToLoadPerThread = 4;
-    const uint Row_BaseWaveLaneIndex = (WaveGetLaneIndex() / 16) * 16;
 
+    // Exchange each row's values through groupshared memory.
+    // This is independent of wave size and lane-to-SV_GroupIndex ordering.
+
+    // Phase 1: cooperatively load up to 16x16 input values into shared memory.
     [unroll]
     for (uint i = 0; i < NumRowsToLoadPerThread; i++)
     {
         uint2 GTid4x16 = GTid4x16_row0 + uint2(0, i * 4);
-        if (GTid4x16.y >= NumValuesToLoadPerRowOrColumn)
+        if (GTid4x16.y < NumValuesToLoadPerRowOrColumn)
         {
-            if (GTid4x16.x < GroupDim.x)
+            int2 pixel = GetActivePixelIndex(KernelBasePixel + GTid4x16 * int2(1, cb.pixelStepY));
+            float value = RTAO::InvalidAOCoefficientValue;
+            if (GTid4x16.x < NumValuesToLoadPerRowOrColumn && IsWithinBounds(pixel, cb.textureDim))
             {
-                NumValuesCache[GTid4x16.y][GTid4x16.x] = 0;
+                value = g_inValue[pixel];
             }
-            break;
+            ValueCache[GTid4x16.y][GTid4x16.x] = value;
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    // Phase 2: accumulate the whole kernel width for the first GroupDim (8) columns of each row.
+    [unroll]
+    for (uint j = 0; j < NumRowsToLoadPerThread; j++)
+    {
+        uint2 GTid4x16 = GTid4x16_row0 + uint2(0, j * 4);
+        if (GTid4x16.y >= NumValuesToLoadPerRowOrColumn || GTid4x16.x >= GroupDim.x)
+        {
+            continue;
         }
 
-        // Load all the contributing columns for each row.
-        int2 pixel = GetActivePixelIndex(KernelBasePixel + GTid4x16 * int2(1, cb.pixelStepY));
-        float value = RTAO::InvalidAOCoefficientValue;
+        float valueSum = 0;
+        float squaredValueSum = 0;
+        uint numValues = 0;
 
-        // The lane is out of bounds of the GroupDim + kernel, 
-        // but could be within bounds of the input texture,
-        // so don't read it from the texture.
-        // However, we need to keep it as an active lane for a below split sum.
-        if (GTid4x16.x < NumValuesToLoadPerRowOrColumn && IsWithinBounds(pixel, cb.textureDim))
+        for (uint c = 0; c < cb.kernelWidth; c++)
         {
-            value = g_inValue[pixel];
-        }
-
-        // Filter the values for the first GroupDim columns.
-        {
-            // Accumulate for the whole kernel width.
-            float valueSum = 0;
-            float squaredValueSum = 0;
-            uint numValues = 0;
-
-            // Since a row uses 16 lanes, but we only need to calculate the aggregate for the first half (8) lanes,
-            // split the kernel wide aggregation among the first 8 and the second 8 lanes, and then combine them.
-            
-            // Initialize the first 8 lanes to the first cell contribution of the kernel. 
-            // This covers the remainder of 1 in cb.kernelWidth / 2 used in the loop below. 
-            if (GTid4x16.x < GroupDim.x && value != RTAO::InvalidAOCoefficientValue)
+            float cValue = ValueCache[GTid4x16.y][GTid4x16.x + c];
+            if (cValue != RTAO::InvalidAOCoefficientValue)
             {
-                valueSum = value;
-                squaredValueSum = value * value;
+                valueSum += cValue;
+                squaredValueSum += cValue * cValue;
                 numValues++;
             }
-
-            // Get the lane index that has the first value for a kernel in this lane.
-            uint Row_KernelStartLaneIndex =
-                Row_BaseWaveLaneIndex
-                + 1     // Skip over the already accumulated first cell of the kernel.
-                + (GTid4x16.x < GroupDim.x
-                    ? GTid4x16.x
-                    : (GTid4x16.x - GroupDim.x) + cb.kernelRadius);
-
-            for (uint c = 0; c < cb.kernelRadius; c++)
-            {
-                uint laneToReadFrom = Row_KernelStartLaneIndex + c;
-                float cValue = WaveReadLaneAt(value, laneToReadFrom);
-                if (cValue != RTAO::InvalidAOCoefficientValue)
-                {
-                    valueSum += cValue;
-                    squaredValueSum += cValue * cValue;
-                    numValues++;
-                }
-            }
-            
-            // Combine the sub-results.
-            uint laneToReadFrom = min(WaveGetLaneCount() - 1, Row_BaseWaveLaneIndex + GTid4x16.x + GroupDim.x);
-            valueSum += WaveReadLaneAt(valueSum, laneToReadFrom);
-            squaredValueSum += WaveReadLaneAt(squaredValueSum, laneToReadFrom);
-            numValues += WaveReadLaneAt(numValues, laneToReadFrom);
-
-            // Store only the valid results, i.e. first GroupDim columns.
-            if (GTid4x16.x < GroupDim.x)
-            {
-                PackedRowResultCache[GTid4x16.y][GTid4x16.x] = Float2ToHalf(float2(valueSum, squaredValueSum));
-                NumValuesCache[GTid4x16.y][GTid4x16.x] = numValues;
-            }
         }
+
+        PackedRowResultCache[GTid4x16.y][GTid4x16.x] = Float2ToHalf(float2(valueSum, squaredValueSum));
+        NumValuesCache[GTid4x16.y][GTid4x16.x] = numValues;
     }
 }
 

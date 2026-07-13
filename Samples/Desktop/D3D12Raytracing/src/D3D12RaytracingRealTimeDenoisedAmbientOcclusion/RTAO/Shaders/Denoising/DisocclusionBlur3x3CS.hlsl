@@ -17,9 +17,6 @@
 // is more relaxed than the one used in AtrousWaveletTransform filter.
 // It still however does a relaxed depth test to prevent blending surfaces too far apart.
 // Supports up to 9x9 kernels.
-// Requirements:
-//  - Wave lane size 16 or higher.
-//  - WaveReadLaneAt() with any to any to wave read lane support.
 
 #define HLSL
 #include "RaytracingHlslCompat.h"
@@ -46,6 +43,10 @@ static const uint NumValuesToLoadPerRowOrColumn =
 groupshared uint PackedValueDepthCache[NumValuesToLoadPerRowOrColumn][8];   // 16bit float value, depth.
 groupshared float FilteredResultCache[NumValuesToLoadPerRowOrColumn][8];    // 32 bit float filteredValue.
 
+// Cache loaded (value, depth) pairs so each output thread can read its
+// kernel-window neighbours without relying on wave-lane ordering.
+groupshared float2 ValueDepthCache[NumValuesToLoadPerRowOrColumn][NumValuesToLoadPerRowOrColumn];
+
 
 // Find a DTID with steps in between the group threads and groups interleaved to cover all pixels.
 uint2 GetPixelIndex(in uint2 Gid, in uint2 GTid)
@@ -70,123 +71,98 @@ void FilterHorizontally(in uint2 Gid, in uint GI)
     uint2 GTid4x16_row0 = uint2(GI % 16, GI / 16);
     int2 GroupKernelBasePixel = GetPixelIndex(Gid, 0) - int(FilterKernel::Radius * cb.step);
     const uint NumRowsToLoadPerThread = 4;
-    const uint Row_BaseWaveLaneIndex = (WaveGetLaneIndex() / 16) * 16;
 
+    // Exchange each row's (value, depth) pairs through groupshared memory.
+    // This is independent of wave size and lane-to-SV_GroupIndex ordering.
+
+    // Phase 1: cooperatively load values/depths into shared memory and cache kernel centers.
     [unroll]
     for (uint i = 0; i < NumRowsToLoadPerThread; i++)
     {
         uint2 GTid4x16 = GTid4x16_row0 + uint2(0, i * 4);
-        if (GTid4x16.y >= NumValuesToLoadPerRowOrColumn)
+        if (GTid4x16.y < NumValuesToLoadPerRowOrColumn && GTid4x16.x < NumValuesToLoadPerRowOrColumn)
         {
-            break;
-        }
-
-        // Load all the contributing columns for each row.
-        int2 pixel = GroupKernelBasePixel + GTid4x16 * cb.step;
-        float value = RTAO::InvalidAOCoefficientValue;
-        float depth = 0;
-
-        // The lane is out of bounds of the GroupDim + kernel, 
-        // but could be within bounds of the input texture,
-        // so don't read it from the texture.
-        // However, we need to keep it as an active lane for a below split sum.
-        if (GTid4x16.x < NumValuesToLoadPerRowOrColumn && IsWithinBounds(pixel, cb.textureDim))
-        {
-            value = g_inOutValue[pixel];
-            depth = g_inDepth[pixel];
-        }
-
-        // Cache the kernel center values.
-        if (IsInRange(GTid4x16.x, FilterKernel::Radius, FilterKernel::Radius + GroupDim.x - 1))
-        {
-            PackedValueDepthCache[GTid4x16.y][GTid4x16.x - FilterKernel::Radius] = Float2ToHalf(float2(value, depth));
-        }
-
-        // Filter the values for the first GroupDim columns.
-        {
-            // Accumulate for the whole kernel width.
-            float weightedValueSum = 0;
-            float weightSum = 0;
-            float gaussianWeightedValueSum = 0;
-            float gaussianWeightedSum = 0;
-
-            // Since a row uses 16 lanes, but we only need to calculate the aggregate for the first half (8) lanes,
-            // split the kernel wide aggregation among the first 8 and the second 8 lanes, and then combine them.
-
-
-            // Get the lane index that has the first value for a kernel in this lane.
-            uint Row_KernelStartLaneIndex =
-                (Row_BaseWaveLaneIndex + GTid4x16.x)
-                - (GTid4x16.x < GroupDim.x
-                    ? 0
-                    : GroupDim.x);
-
-            // Get values for the kernel center.
-            uint kcLaneIndex = Row_KernelStartLaneIndex + FilterKernel::Radius;
-            float kcValue = WaveReadLaneAt(value, kcLaneIndex);
-            float kcDepth = WaveReadLaneAt(depth, kcLaneIndex);
-
-            // Initialize the first 8 lanes to the center cell contribution of the kernel. 
-            // This covers the remainder of 1 in FilterKernel::Width / 2 used in the loop below. 
-            if (GTid4x16.x < GroupDim.x && kcValue != RTAO::InvalidAOCoefficientValue && kcDepth != HitDistanceOnMiss)
+            int2 pixel = GroupKernelBasePixel + GTid4x16 * cb.step;
+            float value = RTAO::InvalidAOCoefficientValue;
+            float depth = 0;
+            if (IsWithinBounds(pixel, cb.textureDim))
             {
-                float w_h = FilterKernel::Kernel1D[FilterKernel::Radius];
-                gaussianWeightedValueSum = w_h * kcValue;
-                gaussianWeightedSum = w_h;
-                weightedValueSum = gaussianWeightedValueSum;
-                weightSum = w_h;
+                value = g_inOutValue[pixel];
+                depth = g_inDepth[pixel];
             }
+            ValueDepthCache[GTid4x16.y][GTid4x16.x] = float2(value, depth);
 
-            // Second 8 lanes start just past the kernel center.
-            uint KernelCellIndexOffset =
-                GTid4x16.x < GroupDim.x
-                ? 0
-                : (FilterKernel::Radius + 1); // Skip over the already accumulated center cell of the kernel.
-
-
-            // For all columns in the kernel.
-            for (uint c = 0; c < FilterKernel::Radius; c++)
+            // Cache the kernel center values for the vertical pass.
+            if (IsInRange(GTid4x16.x, FilterKernel::Radius, FilterKernel::Radius + GroupDim.x - 1))
             {
-                uint kernelCellIndex = KernelCellIndexOffset + c;
-
-                uint laneToReadFrom = Row_KernelStartLaneIndex + kernelCellIndex;
-                float cValue = WaveReadLaneAt(value, laneToReadFrom);
-                float cDepth = WaveReadLaneAt(depth, laneToReadFrom);
-
-                if (cValue != RTAO::InvalidAOCoefficientValue && kcDepth != HitDistanceOnMiss && cDepth != HitDistanceOnMiss)
-                {
-                    float w_h = FilterKernel::Kernel1D[kernelCellIndex];
-
-                    // Simple depth test with tolerance growing as the kernel radius increases.
-                    // Goal is to prevent values too far apart to blend together, while having 
-                    // the test being relaxed enough to get a strong blurring result.
-                    float depthThreshold = 0.05 + cb.step * 0.001 * abs(int(FilterKernel::Radius) - c);
-                    float w_d = abs(kcDepth - cDepth) <= depthThreshold * kcDepth;
-                    float w = w_h * w_d;
-
-                    weightedValueSum += w * cValue;
-                    weightSum += w;
-                    gaussianWeightedValueSum += w_h * cValue;
-                    gaussianWeightedSum += w_h;
-                }
-            }
-
-            // Combine the sub-results.
-            uint laneToReadFrom = min(WaveGetLaneCount() - 1, Row_BaseWaveLaneIndex + GTid4x16.x + GroupDim.x);
-            weightedValueSum += WaveReadLaneAt(weightedValueSum, laneToReadFrom);
-            weightSum += WaveReadLaneAt(weightSum, laneToReadFrom);
-            gaussianWeightedValueSum += WaveReadLaneAt(gaussianWeightedValueSum, laneToReadFrom);
-            gaussianWeightedSum += WaveReadLaneAt(gaussianWeightedSum, laneToReadFrom);
-
-            // Store only the valid results, i.e. first GroupDim columns.
-            if (GTid4x16.x < GroupDim.x)
-            {
-                float gaussianFilteredValue = gaussianWeightedSum > 1e-6 ? gaussianWeightedValueSum / gaussianWeightedSum : RTAO::InvalidAOCoefficientValue;
-                float filteredValue = weightSum > 1e-6 ? weightedValueSum / weightSum : gaussianFilteredValue;
-
-                FilteredResultCache[GTid4x16.y][GTid4x16.x] = filteredValue;
+                PackedValueDepthCache[GTid4x16.y][GTid4x16.x - FilterKernel::Radius] = Float2ToHalf(float2(value, depth));
             }
         }
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    // Phase 2: depth-aware gaussian accumulation for the first GroupDim (8) columns of each row.
+    [unroll]
+    for (uint j = 0; j < NumRowsToLoadPerThread; j++)
+    {
+        uint2 GTid4x16 = GTid4x16_row0 + uint2(0, j * 4);
+        if (GTid4x16.y >= NumValuesToLoadPerRowOrColumn || GTid4x16.x >= GroupDim.x)
+        {
+            continue;
+        }
+
+        // Kernel center values.
+        float2 kc = ValueDepthCache[GTid4x16.y][GTid4x16.x + FilterKernel::Radius];
+        float kcValue = kc.x;
+        float kcDepth = kc.y;
+
+        float weightedValueSum = 0;
+        float weightSum = 0;
+        float gaussianWeightedValueSum = 0;
+        float gaussianWeightedSum = 0;
+
+        // Kernel center contribution.
+        if (kcValue != RTAO::InvalidAOCoefficientValue && kcDepth != HitDistanceOnMiss)
+        {
+            float w_h = FilterKernel::Kernel1D[FilterKernel::Radius];
+            gaussianWeightedValueSum = w_h * kcValue;
+            gaussianWeightedSum = w_h;
+            weightedValueSum = gaussianWeightedValueSum;
+            weightSum = w_h;
+        }
+
+        // Remaining kernel cells.
+        for (uint k = 0; k < FilterKernel::Width; k++)
+        {
+            if (k == FilterKernel::Radius)
+            {
+                continue;   // center already accumulated
+            }
+
+            float2 cvd = ValueDepthCache[GTid4x16.y][GTid4x16.x + k];
+            float cValue = cvd.x;
+            float cDepth = cvd.y;
+
+            if (cValue != RTAO::InvalidAOCoefficientValue && kcDepth != HitDistanceOnMiss && cDepth != HitDistanceOnMiss)
+            {
+                float w_h = FilterKernel::Kernel1D[k];
+
+                // Simple depth test with tolerance growing as the kernel radius increases.
+                float depthThreshold = 0.05 + cb.step * 0.001 * abs(int(FilterKernel::Radius) - int(k));
+                float w_d = abs(kcDepth - cDepth) <= depthThreshold * kcDepth;
+                float w = w_h * w_d;
+
+                weightedValueSum += w * cValue;
+                weightSum += w;
+                gaussianWeightedValueSum += w_h * cValue;
+                gaussianWeightedSum += w_h;
+            }
+        }
+
+        float gaussianFilteredValue = gaussianWeightedSum > 1e-6 ? gaussianWeightedValueSum / gaussianWeightedSum : RTAO::InvalidAOCoefficientValue;
+        float filteredValue = weightSum > 1e-6 ? weightedValueSum / weightSum : gaussianFilteredValue;
+
+        FilteredResultCache[GTid4x16.y][GTid4x16.x] = filteredValue;
     }
 }
 
