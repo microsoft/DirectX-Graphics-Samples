@@ -16,7 +16,7 @@
 D3D12Multithreading* D3D12Multithreading::s_app = nullptr;
 bool D3D12Multithreading::s_bIsEnhancedBarriersEnabled = false;
 
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 619; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 
 D3D12Multithreading::D3D12Multithreading(UINT width, UINT height, std::wstring name) :
@@ -1282,3 +1282,4 @@ void D3D12Multithreading::SetCommonPipelineState(ID3D12GraphicsCommandList* pCom
     // SRVs are set elsewhere because they change based on the object 
     // being drawn.
 }
+
