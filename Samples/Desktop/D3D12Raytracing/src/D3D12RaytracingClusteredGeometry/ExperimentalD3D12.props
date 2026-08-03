@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ExperimentalD3D12.props
+
+  Hooks the D3D12 Raytracing Clustered Geometry sample up to a local build of an
+  experimental D3D12 runtime + DXC compiler that supports DXR2 (clustered geometry,
+  partitioned TLAS, and indirect AS operations).
+
+  When a real Agility SDK NuGet package ships with DXR2 support, drop this file from
+  the project and reference the NuGet package the same way the sibling raytracing
+  samples do (see e.g. D3D12RaytracingOpacityMicromaps.vcxproj for the pattern).
+
+  The props file expects an experimental D3D12 install layout like this (matches the
+  output of the internal D3D12 build into install\windows\x64\debug\):
+
+    $(DxrExperimentalRoot)\install\windows\x64\debug\
+      d3d12.lib                  - link against
+      D3D12Core.dll              - copied to bin\$(Configuration)\D3D12\
+      D3D12SDKLayers.dll         - copied to bin\$(Configuration)\D3D12\
+      include\d3d12.h            - additional include path
+      include\d3dx12_*.h         - additional include path
+      include\D3D12SDKVersion.ver
+
+  And an experimental DXC drop:
+    $(DxrExperimentalDxcRoot)\dxc.exe         - used by FxCompile
+    $(DxrExperimentalDxcRoot)\dxcompiler.dll  - copied to bin\$(Configuration)\
+    $(DxrExperimentalDxcRoot)\dxil.dll        - copied to bin\$(Configuration)\
+
+  Override the roots by setting either env vars or msbuild properties:
+    set DxrExperimentalRoot=d:\my\d3d12
+    msbuild /p:DxrExperimentalRoot=d:\my\d3d12 /p:DxrExperimentalDxcRoot=d:\my\dxc
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <!-- Defaults match the canonical internal D3D12 build/install layout. -->
+    <DxrExperimentalRoot Condition="'$(DxrExperimentalRoot)' == ''">d:\experimental</DxrExperimentalRoot>
+    <DxrExperimentalInstallDir>$(DxrExperimentalRoot)\install\windows\x64\debug</DxrExperimentalInstallDir>
+    <DxrExperimentalDxcRoot Condition="'$(DxrExperimentalDxcRoot)' == ''">$(DxrExperimentalRoot)\packages\OSS\dxcbin_preview\bin\sdk\amd64</DxrExperimentalDxcRoot>
+  </PropertyGroup>
+
+  <!-- Compile-time: pick up experimental d3d12.h before the Windows SDK one. -->
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(DxrExperimentalInstallDir)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>DXR_EXPERIMENTAL_BUILD=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(DxrExperimentalInstallDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <FxCompile>
+      <!-- Use the experimental dxc.exe directly. The MSBuild FxCompile task supports
+           overriding the dxc executable path via DxcCompilerPath. -->
+      <DxcCompilerPath>$(DxrExperimentalDxcRoot)\dxc.exe</DxcCompilerPath>
+    </FxCompile>
+  </ItemDefinitionGroup>
+
+  <!-- Make sure the experimental tree exists - otherwise emit a clear error. -->
+  <Target Name="DxrExperimentalCheckPaths" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(DxrExperimentalInstallDir)\include\d3d12.h')"
+           Text="Experimental D3D12 install not found at $(DxrExperimentalInstallDir). Set DxrExperimentalRoot env var or msbuild /p:DxrExperimentalRoot=&lt;path&gt; to point at your local D3D12 build root (the directory containing install\windows\x64\debug\)." />
+    <Error Condition="!Exists('$(DxrExperimentalDxcRoot)\dxc.exe')"
+           Text="Experimental DXC not found at $(DxrExperimentalDxcRoot)\dxc.exe. Set DxrExperimentalDxcRoot env var or msbuild /p:DxrExperimentalDxcRoot=&lt;path&gt; to point at a directory containing dxc.exe + dxcompiler.dll + dxil.dll with SM 6.10 support." />
+  </Target>
+
+  <!-- Runtime: copy the Agility SDK runtime (D3D12Core + SDKLayers) into bin\$(Configuration)\D3D12\
+       so the system d3d12.dll loader picks them up via the D3D12SDKVersion/D3D12SDKPath
+       exports declared in Main.cpp. The system d3d12.dll itself stays the system one - we
+       only override D3D12Core. -->
+  <Target Name="DxrExperimentalCopyRuntime"
+          AfterTargets="Build"
+          Inputs="$(DxrExperimentalInstallDir)\D3D12Core.dll;$(DxrExperimentalInstallDir)\D3D12SDKLayers.dll;$(DxrExperimentalInstallDir)\d3d10warp.dll;$(DxrExperimentalDxcRoot)\dxcompiler.dll;$(DxrExperimentalDxcRoot)\dxil.dll"
+          Outputs="$(OutDir)D3D12\D3D12Core.dll;$(OutDir)D3D12\D3D12SDKLayers.dll;$(OutDir)d3d10warp.dll;$(OutDir)dxcompiler.dll;$(OutDir)dxil.dll">
+    <MakeDir Directories="$(OutDir)D3D12" />
+    <Copy SourceFiles="$(DxrExperimentalInstallDir)\D3D12Core.dll"      DestinationFolder="$(OutDir)D3D12\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(DxrExperimentalInstallDir)\D3D12SDKLayers.dll" DestinationFolder="$(OutDir)D3D12\" SkipUnchangedFiles="true" />
+    <!-- WARP. User opts in via 'd3dconfig device force-warp=true'. When d3d12.dll
+         creates the WARP device it does LoadLibrary("d3d10warp.dll") which uses
+         the standard search order: exe dir first, then System32. The system
+         d3d10warp.dll is the OS-shipped build (much older, no DXR2 cluster
+         support), so we copy our experimental 46MB WARP to the exe directory
+         (not the D3D12\ Agility-SDK subdir like D3D12Core/SDKLayers) so THAT
+         one wins the search. Without this you get force-warp=true +
+         ClustersAndPTLASSupported=NO and the sample faults on the first
+         ExecuteIndirectRTASOperations call. -->
+    <Copy SourceFiles="$(DxrExperimentalInstallDir)\d3d10warp.dll"      DestinationFolder="$(OutDir)"      SkipUnchangedFiles="true" />
+    <!-- Optional PDBs for symbol resolution during debugging. Tolerated as missing. -->
+    <Copy SourceFiles="$(DxrExperimentalInstallDir)\D3D12Core.pdb"      DestinationFolder="$(OutDir)D3D12\" SkipUnchangedFiles="true" Condition="Exists('$(DxrExperimentalInstallDir)\D3D12Core.pdb')" ContinueOnError="true" />
+    <Copy SourceFiles="$(DxrExperimentalInstallDir)\D3D12SDKLayers.pdb" DestinationFolder="$(OutDir)D3D12\" SkipUnchangedFiles="true" Condition="Exists('$(DxrExperimentalInstallDir)\D3D12SDKLayers.pdb')" ContinueOnError="true" />
+    <Copy SourceFiles="$(DxrExperimentalInstallDir)\d3d10warp.pdb"      DestinationFolder="$(OutDir)"      SkipUnchangedFiles="true" Condition="Exists('$(DxrExperimentalInstallDir)\d3d10warp.pdb')" ContinueOnError="true" />
+    <!-- DXC runtime DLLs: needed if shaders are compiled at runtime (not done in this
+         sample - shaders are FxCompile'd at build time - but we copy them anyway so
+         tools like a future runtime-recompile path or PIX shader replay work). -->
+    <Copy SourceFiles="$(DxrExperimentalDxcRoot)\dxcompiler.dll"        DestinationFolder="$(OutDir)"      SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(DxrExperimentalDxcRoot)\dxil.dll"              DestinationFolder="$(OutDir)"      SkipUnchangedFiles="true" />
+    <Message Text="Copied experimental D3D12 runtime + WARP (d3d10warp.dll to exe dir, others to D3D12\)" Importance="high" />
+  </Target>
+</Project>

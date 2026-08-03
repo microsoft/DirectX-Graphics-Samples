@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Framework">
+      <UniqueIdentifier>{4D3F1A8A-1234-4f6c-9f58-12345abcdef0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="D3D12RaytracingClusteredGeometry.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="stdafx.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="DeviceResources.cpp"><Filter>Framework</Filter></ClCompile>
+    <ClCompile Include="Win32Application.cpp"><Filter>Framework</Filter></ClCompile>
+    <ClCompile Include="DXSample.cpp"><Filter>Framework</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="D3D12RaytracingClusteredGeometry.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="HlslCompat.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="ProceduralGeometry.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="Compressed1.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="RaytracingHlslCompat.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="SampleLog.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="stdafx.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="DeviceResources.h"><Filter>Framework</Filter></ClInclude>
+    <ClInclude Include="DirectXRaytracingHelper.h"><Filter>Framework</Filter></ClInclude>
+    <ClInclude Include="DXSample.h"><Filter>Framework</Filter></ClInclude>
+    <ClInclude Include="DXSampleHelper.h"><Filter>Framework</Filter></ClInclude>
+    <ClInclude Include="StepTimer.h"><Filter>Framework</Filter></ClInclude>
+    <ClInclude Include="Win32Application.h"><Filter>Framework</Filter></ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="Raytracing.hlsl"><Filter>Shaders</Filter></CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+    <None Include="readme.md" />
+    <None Include="ExperimentalD3D12.props" />
+  </ItemGroup>
+</Project>
