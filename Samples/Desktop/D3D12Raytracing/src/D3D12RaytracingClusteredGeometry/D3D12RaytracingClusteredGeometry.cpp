@@ -823,7 +823,7 @@ void D3D12RaytracingClusteredGeometry::BuildClusterShaderSideBuffers()
     auto device = m_deviceResources->GetD3DDevice();
 
     // Animated sphere clusters are reachable via templated INSTANTIATE with
-    // kAnimatedClusterIdOffset, so register the same IDs in the side tables.
+    // m_animatedClusterIdOffset, so register the same IDs in the side tables.
     // Pass 1: figure out the offset-table size.
     UINT maxClusterID = 0;
     for (const auto& obj : m_objects)
@@ -831,8 +831,10 @@ void D3D12RaytracingClusteredGeometry::BuildClusterShaderSideBuffers()
             maxClusterID = std::max(maxClusterID, c.clusterID);
     if (m_animatedObjectEnabled)
         for (const auto& c : m_animatedObject.mesh.clusters)
-            maxClusterID = std::max(maxClusterID, c.clusterID + kAnimatedClusterIdOffset);
+            maxClusterID = std::max(maxClusterID, c.clusterID + m_animatedClusterIdOffset);
 
+    ThrowIfFalse(m_animatedClusterIdOffset >= m_totalClusterCount,
+        L"Animated ClusterID range overlaps static CLAS IDs.\n");
     const UINT offsetTableSize = maxClusterID + 1;
 
     std::vector<XMFLOAT4> normals;            // 16 bytes per normal (.w padding) to match HLSL's
@@ -857,7 +859,7 @@ void D3D12RaytracingClusteredGeometry::BuildClusterShaderSideBuffers()
 
     if (m_animatedObjectEnabled)
         for (const auto& c : m_animatedObject.mesh.clusters)
-            appendCluster(c, c.clusterID + kAnimatedClusterIdOffset);
+            appendCluster(c, c.clusterID + m_animatedClusterIdOffset);
 
     AllocateUploadBuffer(device, normals.data(), normals.size() * sizeof(DirectX::XMFLOAT4),
                          &m_clusterNormalsBuffer, L"Cluster vertex normals (per-vertex side channel)");
@@ -909,8 +911,10 @@ void D3D12RaytracingClusteredGeometry::BuildClusterMetadata()
             maxClusterID = std::max(maxClusterID, c.clusterID);
     if (m_animatedObjectEnabled)
         for (const auto& c : m_animatedObject.mesh.clusters)
-            maxClusterID = std::max(maxClusterID, c.clusterID + kAnimatedClusterIdOffset);
+            maxClusterID = std::max(maxClusterID, c.clusterID + m_animatedClusterIdOffset);
 
+    ThrowIfFalse(m_animatedClusterIdOffset >= m_totalClusterCount,
+        L"Animated ClusterID range overlaps static CLAS IDs.\n");
     const UINT metaCount = maxClusterID + 1;
     std::vector<ClusterMeta> meta(metaCount, ClusterMeta{});
 
@@ -992,7 +996,7 @@ void D3D12RaytracingClusteredGeometry::BuildClusterMetadata()
         checker.oddParity.overrideRefl  = 0.0f;    // translucent clusters: no reflection
         checker.oddParity.overrideRefr  = -1.0f;   // keep baseline refractivity (0.78)
         checker.oddParity.overrideIor   = -1.0f;   // keep baseline ior (2.4)
-        fillFromMesh(m_animatedObject.mesh, kAnimatedClusterIdOffset,
+        fillFromMesh(m_animatedObject.mesh, m_animatedClusterIdOffset,
                      checker, /*surf*/1.0f, /*refr*/0.75f, /*refl*/1.20f,
                      m_animatedObject.instanceID);
     }
@@ -2758,7 +2762,7 @@ void D3D12RaytracingClusteredGeometry::BuildTradCidLookup()
     // Cluster order matches the order BuildAnimatedTraditionalAS walks them
     // in (linear over m_animatedObject.mesh.clusters), so the per-tri lookup
     // stays in lock-step with the flat IB the trad BLAS sees.  cid is
-    // offset by kAnimatedClusterIdOffset to match BuildClusterMetadata's
+    // offset by m_animatedClusterIdOffset to match BuildClusterMetadata's
     // layout, so g_clusterMeta lookups for the animated ball's per-cluster
     // checker overrides hit the right slots.
     if (m_animatedObjectEnabled)
@@ -2769,7 +2773,7 @@ void D3D12RaytracingClusteredGeometry::BuildTradCidLookup()
         {
             const UINT triCount = (UINT)(cl.indices.size() / 3);
             for (UINT t = 0; t < triCount; ++t)
-                triToCidLocal.push_back(XMUINT2(cl.clusterID + kAnimatedClusterIdOffset, t));
+                triToCidLocal.push_back(XMUINT2(cl.clusterID + m_animatedClusterIdOffset, t));
         }
         // Anim clones share source's tradBlasGPUVA (or per-clone BLAS pool
         // slots that were built from the source's geometry).  Either way
@@ -2908,6 +2912,10 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticBlasPerFrame()
     opDesc.Inputs                = opInputs;
     opDesc.pBatchedOperationData = &batched;
 
+    // Order prior TLAS/DispatchRays reads and the preceding use of shared
+    // scratch before overwriting the static BLAS pool again.
+    auto preOverwrite = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
+    m_dxrCommandList->ResourceBarrier(1, &preOverwrite);
     m_dxr2CommandList->ExecuteIndirectRTASOperations(1, &opDesc, D3D12_EXECUTE_INDIRECT_RTAS_OPERATIONS_FLAG_NONE);
 
     // One pool-level UAV barrier covers all per-object BLAS writes
@@ -2956,12 +2964,15 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticClasPerFrame()
     opInputs.Type                  = D3D12_RTAS_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
     opInputs.pClusterTrianglesDesc = &clasDesc;
 
-    // Persistent address output normally stays read-only for BLAS builds.
-    // This CLAS rebuild overwrites it, so return it to UAV first.
-    auto addressToUav = CD3DX12_RESOURCE_BARRIER::Transition(m_clasAddressArray.Get(),
-        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    m_dxrCommandList->ResourceBarrier(1, &addressToUav);
+    // Order the previous frame's CLAS/BLAS/TLAS/raytracing accesses and
+    // shared-scratch reuse, then return the address output to UAV state.
+    D3D12_RESOURCE_BARRIER preOverwrite[] = {
+        CD3DX12_RESOURCE_BARRIER::UAV(nullptr),
+        CD3DX12_RESOURCE_BARRIER::Transition(m_clasAddressArray.Get(),
+            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
+    };
+    m_dxrCommandList->ResourceBarrier(_countof(preOverwrite), preOverwrite);
 
     D3D12_RTAS_BATCHED_OPERATION_DATA batched = {};
     batched.AddressResolutionFlags    = D3D12_RTAS_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
@@ -3028,9 +3039,9 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticClasPerFrame()
 //   └────────────────────────────────────────────────────────────────────────┘
 //
 // CLUSTER ID OFFSET: the animated object's clusters get unique IDs by setting
-// ClusterIdOffset=kAnimatedClusterIdOffset in the instantiate args. So the shader
-// sees the same ClusterColor() palette but at a different region of the
-// rainbow than the 6 static objects (which use ClusterIDs 0..505).
+// ClusterIdOffset=m_animatedClusterIdOffset in the instantiate args. The
+// dynamic base is allocated after all active source/clone IDs, so animated
+// template hits can never alias static shader-side table entries.
 // =====================================================================================
 void D3D12RaytracingClusteredGeometry::BuildAnimatedObjectSetup()
 {
@@ -3552,7 +3563,7 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedObjectSetup()
         cb.pfVbLo           = (UINT)(pfVbGPUVA & 0xFFFFFFFFu);
         cb.pfVbHi           = (UINT)(pfVbGPUVA >> 32);
         cb.clusterCount     = obj.clusterCount;
-        cb.clusterIdOffset  = kAnimatedClusterIdOffset;
+        cb.clusterIdOffset  = m_animatedClusterIdOffset;
         cb.vertexStride     = (UINT)sizeof(XMFLOAT3);
         cmdList->SetComputeRoot32BitConstants(0, sizeof(cb) / 4, &cb, 0);
 
@@ -4362,25 +4373,19 @@ void D3D12RaytracingClusteredGeometry::UpdateAnimatedObjectPerFrame(UINT pfTimes
     const UINT groups = (obj.totalVertexCount + kThreadsPerGroup - 1) / kThreadsPerGroup;
     cl->Dispatch(groups, 1, 1);
 
-    // DispatchRays in the previous frame read these acceleration structures.
-    // Order those reads before overwriting the same storage this frame; the
-    // post-build barriers below provide the opposite write-to-read edge.
+    // DispatchRays and the preceding TLAS/BLAS/CLAS builds can still be in
+    // flight when this command list reaches the next frame. A legacy NULL UAV
+    // barrier is global: it orders every prior acceleration-structure read/write
+    // and scratch UAV access before all overwrites below. The address array has
+    // a real resource-state change as well because INSTANTIATE writes it.
     {
-        D3D12_RESOURCE_BARRIER reuseBarriers[4] = {
-            CD3DX12_RESOURCE_BARRIER::UAV(obj.perFrameClasResultBuffer.Get()),
-            CD3DX12_RESOURCE_BARRIER::UAV(obj.blasStorage.Get()),
+        D3D12_RESOURCE_BARRIER reuseBarriers[] = {
+            CD3DX12_RESOURCE_BARRIER::UAV(nullptr),
             CD3DX12_RESOURCE_BARRIER::Transition(obj.perFrameClasAddressArray.Get(),
                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
-            CD3DX12_RESOURCE_BARRIER::UAV(obj.blasStorage.Get()),
         };
-        UINT reuseBarrierCount = 3;
-        if (m_animClonesBlasPool)
-        {
-            reuseBarriers[3] = CD3DX12_RESOURCE_BARRIER::UAV(m_animClonesBlasPool.Get());
-            reuseBarrierCount = 4;
-        }
-        cl->ResourceBarrier(reuseBarrierCount, reuseBarriers);
+        cl->ResourceBarrier(_countof(reuseBarriers), reuseBarriers);
     }
 
     // UAV barrier + transition to NON_PIXEL_SHADER_RESOURCE so INSTANTIATE
@@ -4800,6 +4805,10 @@ void D3D12RaytracingClusteredGeometry::RebuildTlasPerFrame()
     buildDesc.Inputs                             = tlasInputs;
     buildDesc.DestAccelerationStructureData      = m_tlasBuffer->GetGPUVirtualAddress();
     buildDesc.ScratchAccelerationStructureData   = m_tlasScratchBuffer->GetGPUVirtualAddress();
+    // Order the preceding DispatchRays/TLAS read and scratch use before the
+    // in-place TLAS rebuild. A NULL UAV barrier covers both AS and scratch.
+    auto preOverwrite = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
+    m_dxrCommandList->ResourceBarrier(1, &preOverwrite);
     m_dxrCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 
     auto barrier = CD3DX12_RESOURCE_BARRIER::UAV(m_tlasBuffer.Get());

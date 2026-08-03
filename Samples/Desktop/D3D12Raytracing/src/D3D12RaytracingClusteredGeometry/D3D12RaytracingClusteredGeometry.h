@@ -224,9 +224,10 @@ private:
     // Padding for the flat per-(InstIdx, GeomIdx) layout.  Bump if a
     // future object grows past it.
     static constexpr UINT                kMaxGeomsPerInstance = 8;
-    // One source of truth for template instantiation and every ClusterID()-
-    // indexed shader-side table used by the animated object.
-    static constexpr UINT                kAnimatedClusterIdOffset = 800;
+    // Animated IDs are allocated immediately after the active static range.
+    // This is recomputed whenever [N] regenerates clones; keeping it dynamic
+    // prevents template-instantiated IDs from colliding with clone CLAS IDs.
+    UINT                                 m_animatedClusterIdOffset = 0;
 
     // Vertex format for cluster builds. Toggle via --vertex-format float|compressed.
     // Default is FLOAT32_3; both formats are validated on experimental WARP.

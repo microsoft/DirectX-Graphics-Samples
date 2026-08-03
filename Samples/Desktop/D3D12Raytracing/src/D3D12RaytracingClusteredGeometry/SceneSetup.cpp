@@ -159,6 +159,17 @@ void D3D12RaytracingClusteredGeometry::BuildScene()
         runningOffset         += obj.clusterCount;
     }
     m_totalClusterCount = runningOffset;
+    // BuildAnimatedObjectSetup creates local animated IDs starting at zero.
+    // RegenerateWorkloadCloneInstances will move this base after any clone IDs.
+    UINT maxStaticClusterId = 0;
+    bool anyStaticClusters = false;
+    for (const auto& obj : m_objects)
+    for (const auto& cluster : obj.mesh.clusters)
+    {
+        maxStaticClusterId = std::max(maxStaticClusterId, cluster.clusterID);
+        anyStaticClusters = true;
+    }
+    m_animatedClusterIdOffset = anyStaticClusters ? maxStaticClusterId + 1u : 0u;
     m_totalTriangleCount = 0;
     for (const auto& obj : m_objects)
         m_totalTriangleCount += obj.mesh.totalTriangles;

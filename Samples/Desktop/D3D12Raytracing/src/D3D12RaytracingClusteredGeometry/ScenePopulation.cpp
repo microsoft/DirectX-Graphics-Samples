@@ -212,10 +212,76 @@ void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
     }
     m_animatedClones.clear();
 
+    // Preserve authored source IDs (their intentional gaps make source colors
+    // stable), but assign every generated clone a unique range after the
+    // highest source ID. globalClusterStart remains a dense array offset and
+    // is independent of shader-visible ClusterID().
+    auto finalizeClusterIdsAndCounts = [&]()
+    {
+        UINT nextClusterId = 0;
+        bool anySourceClusters = false;
+        for (UINT oi = 0; oi < m_sourceObjectCount; ++oi)
+        for (const auto& cluster : m_objects[oi].mesh.clusters)
+        {
+            ThrowIfFalse(cluster.clusterID != UINT_MAX,
+                L"Source ClusterID leaves no room for generated ranges.\n");
+            nextClusterId = std::max(nextClusterId, cluster.clusterID + 1u);
+            anySourceClusters = true;
+        }
+        if (!anySourceClusters) nextClusterId = 0;
+
+        UINT runningOffset = 0;
+        for (UINT oi = 0; oi < (UINT)m_objects.size(); ++oi)
+        {
+            auto& obj = m_objects[oi];
+            obj.globalClusterStart = runningOffset;
+            obj.clusterCount = (UINT)obj.mesh.clusters.size();
+
+            if (oi >= m_sourceObjectCount && !obj.mesh.clusters.empty())
+            {
+                const UINT localFirstClusterID = obj.mesh.clusters.front().clusterID;
+                UINT localMaxClusterID = localFirstClusterID;
+                for (const auto& cluster : obj.mesh.clusters)
+                    localMaxClusterID = std::max(localMaxClusterID, cluster.clusterID);
+                const UINT64 idSpan = UINT64(localMaxClusterID) - localFirstClusterID + 1ull;
+                ThrowIfFalse(idSpan <= UINT64(UINT_MAX) - nextClusterId + 1ull,
+                    L"Generated static ClusterID range overflows UINT.\n");
+
+                for (auto& cluster : obj.mesh.clusters)
+                {
+                    ThrowIfFalse(cluster.clusterID >= localFirstClusterID &&
+                                 cluster.matchedColorCid >= localFirstClusterID,
+                        L"Clone cluster color reference precedes its local ID range.\n");
+                    cluster.clusterID = nextClusterId
+                        + (cluster.clusterID - localFirstClusterID);
+                    cluster.matchedColorCid = nextClusterId
+                        + (cluster.matchedColorCid - localFirstClusterID);
+                }
+                nextClusterId += (UINT)idSpan;
+            }
+            runningOffset += obj.clusterCount;
+        }
+
+        m_totalClusterCount = runningOffset;
+        m_animatedClusterIdOffset = nextClusterId;
+        UINT animatedMaxLocalId = 0;
+        for (const auto& cluster : m_animatedObject.mesh.clusters)
+            animatedMaxLocalId = std::max(animatedMaxLocalId, cluster.clusterID);
+        ThrowIfFalse(m_animatedObject.mesh.clusters.empty() ||
+                     m_animatedClusterIdOffset <= UINT_MAX - animatedMaxLocalId,
+            L"Animated ClusterID range overflows UINT.\n");
+
+        m_totalTriangleCount = 0;
+        for (const auto& obj : m_objects)
+            m_totalTriangleCount += obj.mesh.totalTriangles;
+    };
+
     const UINT N_extra = ExtraInstancesCount();
     if (N_extra == 0)
     {
-        SampleLog::LogF(L"[clones] N=0 (no extras)\n");
+        finalizeClusterIdsAndCounts();
+        SampleLog::LogF(L"[clones] N=0 (no extras); animated cluster-ID base=%u\n",
+                        m_animatedClusterIdOffset);
         return;
     }
 
@@ -531,30 +597,9 @@ void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
         m_objects.push_back(std::move(clone));
     }
 
-    // Recompute global cluster offsets and assign scene-unique IDs.  LOD
-    // generators start IDs at zero; without rebasing, their ClusterID()-keyed
-    // shader data aliases the full-detail source mesh.
-    UINT runningOffset = 0;
-    for (auto& obj : m_objects)
-    {
-        obj.globalClusterStart = runningOffset;
-        obj.clusterCount       = (UINT)obj.mesh.clusters.size();
-        if (!obj.mesh.clusters.empty())
-        {
-            const UINT localFirstClusterID = obj.mesh.clusters.front().clusterID;
-            for (auto& cluster : obj.mesh.clusters)
-            {
-                cluster.clusterID = runningOffset + (cluster.clusterID - localFirstClusterID);
-                cluster.matchedColorCid = runningOffset
-                    + (cluster.matchedColorCid - localFirstClusterID);
-            }
-        }
-        runningOffset += obj.clusterCount;
-    }
-    m_totalClusterCount = runningOffset;
-    m_totalTriangleCount = 0;
-    for (const auto& obj : m_objects)
-        m_totalTriangleCount += obj.mesh.totalTriangles;
+    // LOD generators start IDs at their source-local values. Assign generated
+    // clones non-overlapping ranges and place animated template IDs after them.
+    finalizeClusterIdsAndCounts();
 
     SampleLog::LogF(L"[clones] N=%u extra; %zu static clones + %zu animated clones "
                     L"(LOD %s); m_objects=%zu, m_totalClusterCount=%u, m_totalTriangleCount=%u\n",
@@ -564,4 +609,8 @@ void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
                     kLodEnabled ? L"on" : L"off",
                     m_objects.size(),
                     m_totalClusterCount, m_totalTriangleCount);
+    SampleLog::LogF(L"[cluster IDs] static IDs below %u; animated=[%u,%u)\n",
+                    m_animatedClusterIdOffset,
+                    m_animatedClusterIdOffset,
+                    m_animatedClusterIdOffset + (UINT)m_animatedObject.mesh.clusters.size());
 }
