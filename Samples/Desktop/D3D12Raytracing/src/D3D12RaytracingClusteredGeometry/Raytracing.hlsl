@@ -14,8 +14,8 @@
 //                                          on a miss)
 //
 // Pipeline ALLOW_CLUSTERED_GEOMETRY enables ClusterID() in any-hit and
-// closest-hit shaders. CLAS builds use ALLOW_DATA_ACCESS so
-// TriangleObjectPositions() can return source positions for normal compute.
+// closest-hit shaders. Smooth normals come from the explicit per-cluster
+// normal/index side channel below.
 
 #define HLSL
 #include "RaytracingHlslCompat.h"
@@ -167,11 +167,6 @@ float3 ClusterColor(uint cid)
     float3 c = float3(1.00, 1.00, 1.00);
     float3 d = float3(0.00, 0.33, 0.67);
     return a + b * cos(6.28318530718 * (c * t + d));
-}
-
-float3 GeometricNormalObj(BuiltInTrianglePositions tri)
-{
-    return normalize(cross(tri.p1 - tri.p0, tri.p2 - tri.p0));
 }
 
 // Cheap per-triangle hash for stochastic translucency. Stable across frames so

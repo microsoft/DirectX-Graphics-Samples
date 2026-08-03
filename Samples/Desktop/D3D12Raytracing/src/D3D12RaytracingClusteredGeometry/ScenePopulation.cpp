@@ -455,12 +455,6 @@ void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
             // Animated clone: lives in the SAME spiral as the static
             // clones (every 5th slot in the cycle is the anim variant).
             // Same spiralPos, same per-clone random rotation + scale.
-            //
-            // ⚠ KNOWN ISSUE: anim clones DON'T currently render because
-            // RebuildTlasPerFrame's NumDescs OMITS m_animatedClones.size().
-            // Adding it triggers TDR for reasons under investigation.
-            // See D3D12RaytracingClusteredGeometry.cpp RebuildTlasPerFrame
-            // comment block for details.
             AnimatedCloneInstance ac;
             ac.worldPos             = spiralPos;
             ac.worldRotEuler        = randRot;
@@ -518,13 +512,9 @@ void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
                 if (lodLevel >= chainSize) lodLevel = chainSize - 1;
                 if (lodLevel > 0)
                 {
-                    // Swap to the lower-LOD mesh.  Drop the COMPRESSED1
-                    // encoded blob too (the source's encoded data is
-                    // for the full-tess mesh; an LOD'd clone using
-                    // FLOAT32_3 vertex path doesn't read it and the
-                    // COMPRESSED1 vertex path on a LOD'd clone would
-                    // upload mismatched data -- known limitation,
-                    // FLOAT32_3 path is the default).
+                    // Swap to the lower-LOD mesh.  The rebuild path rebases
+                    // its cluster IDs, refreshes shader-side tables, and
+                    // re-encodes COMPRESSED1 from this mesh.
                     clone.mesh = it->second[lodLevel];
                     clone.encoded.clear();
                 }
@@ -541,14 +531,25 @@ void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
         m_objects.push_back(std::move(clone));
     }
 
-    // Recompute global cluster offsets + counts so the build code sees
-    // the correct totals for the expanded m_objects vector.
+    // Recompute global cluster offsets and assign scene-unique IDs.  LOD
+    // generators start IDs at zero; without rebasing, their ClusterID()-keyed
+    // shader data aliases the full-detail source mesh.
     UINT runningOffset = 0;
     for (auto& obj : m_objects)
     {
         obj.globalClusterStart = runningOffset;
         obj.clusterCount       = (UINT)obj.mesh.clusters.size();
-        runningOffset         += obj.clusterCount;
+        if (!obj.mesh.clusters.empty())
+        {
+            const UINT localFirstClusterID = obj.mesh.clusters.front().clusterID;
+            for (auto& cluster : obj.mesh.clusters)
+            {
+                cluster.clusterID = runningOffset + (cluster.clusterID - localFirstClusterID);
+                cluster.matchedColorCid = runningOffset
+                    + (cluster.matchedColorCid - localFirstClusterID);
+            }
+        }
+        runningOffset += obj.clusterCount;
     }
     m_totalClusterCount = runningOffset;
     m_totalTriangleCount = 0;

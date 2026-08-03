@@ -224,6 +224,9 @@ private:
     // Padding for the flat per-(InstIdx, GeomIdx) layout.  Bump if a
     // future object grows past it.
     static constexpr UINT                kMaxGeomsPerInstance = 8;
+    // One source of truth for template instantiation and every ClusterID()-
+    // indexed shader-side table used by the animated object.
+    static constexpr UINT                kAnimatedClusterIdOffset = 800;
 
     // Vertex format for cluster builds. Toggle via --vertex-format float|compressed.
     // Default is FLOAT32_3; both formats are validated on experimental WARP.
@@ -438,9 +441,8 @@ private:
     //   cluster (DXR2) ExecuteIndirectRTASOperations flags use
     //     D3D12_RTAS_OPERATION_FLAG_*
     // BuildFlagModeDxr1() / BuildFlagModeRtas() return the right enum
-    // for each path; ALLOW_UPDATE (trad anim refit) and
-    // ALLOW_DATA_ACCESS (cluster CLAS / template) are OR-ed in
-    // separately where the build needs them.
+    // for each path; ALLOW_UPDATE is OR-ed in separately for traditional
+    // animated refits where the build needs it.
     //
     // Toggling this MUST trigger a full RebuildStaticAccelerationStructures
     // since every BLAS / CLAS / template was built with the previous
