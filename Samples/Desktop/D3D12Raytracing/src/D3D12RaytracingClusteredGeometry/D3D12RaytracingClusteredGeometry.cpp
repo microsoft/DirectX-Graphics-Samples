@@ -48,8 +48,59 @@ static_assert(sizeof(D3D12_RTAS_OPERATION_BUILD_BLAS_FROM_CLAS_ARGS) == 16,
     "Update FillBlasFromClasArgs.hlsl for the current d3d12.h layout");
 static_assert(sizeof(D3D12_RTAS_OPERATION_MOVE_CLUSTER_OBJECTS_ARGS) == 8,
     "Update FillMoveClusterArgs.hlsl for the current d3d12.h layout");
+
+// Size checks alone miss same-size field reorders. Lock every offset written by
+// the raw ByteAddressBuffer shaders to the corresponding public C++ member.
+#define CHECK_FIELD_OFFSET(type, member, expected) \
+    static_assert(offsetof(type, member) == expected, \
+        "Update the GPU argument writer for " #type "::" #member)
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, ClusterID, 0);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, ClusterFlags, 4);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, TriangleCount, 8);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, VertexCount, 10);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, BaseGeometryIndexAndFlags, 12);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, OpacityMicromapBaseLocation, 16);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, VertexBufferStride, 20);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, IndexBufferStride, 22);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, OpacityMicromapIndexBufferStride, 24);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, GeometryIndexAndFlagsArrayStride, 26);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, PositionTruncateBitCount, 28);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, ReservedPadding, 30);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, VertexBuffer, 32);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, IndexBuffer, 40);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, GeometryIndexAndFlagsArray, 48);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, GeometryIndexAndFlagsIndexBuffer, 56);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, OpacityMicromapArray, 64);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, OpacityMicromapIndexBuffer, 72);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES_ARGS, TrianglesArgs, 0);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES_ARGS, InstantiationBoundingBoxLimit, 80);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES_ARGS, Compressed1, 88);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_INSTANTIATE_CLUSTER_TEMPLATES_ARGS, GeometryIndexOffset, 0);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_INSTANTIATE_CLUSTER_TEMPLATES_ARGS, ClusterIdOffset, 4);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_INSTANTIATE_CLUSTER_TEMPLATES_ARGS, ClusterTemplate, 8);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_INSTANTIATE_CLUSTER_TEMPLATES_ARGS, VertexBuffer, 16);
+CHECK_FIELD_OFFSET(D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE, StartAddress, 0);
+CHECK_FIELD_OFFSET(D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE, StrideInBytes, 8);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_BLAS_FROM_CLAS_ARGS, ClasAddressCount, 0);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_BLAS_FROM_CLAS_ARGS, ClasAddressStride, 4);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_BLAS_FROM_CLAS_ARGS, ClasAddressArray, 8);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_MOVE_CLUSTER_OBJECTS_ARGS, SourceAccelerationStructure, 0);
+#undef CHECK_FIELD_OFFSET
+
 static_assert(sizeof(ClusterMeta) == 48,
     "Update Raytracing.hlsl LoadClusterMeta for the current CPU layout");
+static_assert(offsetof(ClusterMeta, colorIndex) == 0);
+static_assert(offsetof(ClusterMeta, flags) == 4);
+static_assert(offsetof(ClusterMeta, overrideRefl) == 8);
+static_assert(offsetof(ClusterMeta, overrideRefr) == 12);
+static_assert(offsetof(ClusterMeta, overrideIor) == 16);
+static_assert(offsetof(ClusterMeta, baseColorScale) == 20);
+static_assert(offsetof(ClusterMeta, surfTintMul) == 24);
+static_assert(offsetof(ClusterMeta, refrTintMul) == 28);
+static_assert(offsetof(ClusterMeta, reflTintMul) == 32);
+static_assert(offsetof(ClusterMeta, materialSlot) == 36);
+static_assert(offsetof(ClusterMeta, _pad0) == 40);
+static_assert(offsetof(ClusterMeta, _pad1) == 44);
 
 // ==== Shader entry-point names (must match Raytracing.hlsl) ====
 const wchar_t* D3D12RaytracingClusteredGeometry::c_raygenName            = L"RayGen";
