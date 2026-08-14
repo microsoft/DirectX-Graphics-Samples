@@ -40,7 +40,10 @@ D3D12SM6WaveIntrinsics::D3D12SM6WaveIntrinsics(UINT width, UINT height, std::wst
     m_constantBufferData{},
     m_mousePosition{ width*0.5f, height*0.5f },
     m_mouseLeftButtonDown(false),
-    m_rendermode{ 1 }
+    m_rendermode{ 1 },
+    m_bIsEnhancedBarriersEnabled(false)
+    m_rendermode{ 1 },
+    m_bIsEnhancedBarriersEnabled(false)
 {
     ThrowIfFailed(DXGIDeclareAdapterRemovalSupport());
 }
@@ -133,6 +136,11 @@ void D3D12SM6WaveIntrinsics::LoadPipeline()
         }
     }    
     
+    // Query the level of support of Enhanced Barriers.
+    D3D12_FEATURE_DATA_D3D12_OPTIONS12 options12 = {};
+    ThrowIfFailed(m_d3d12Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &options12, sizeof(options12)));
+    m_bIsEnhancedBarriersEnabled = static_cast<bool>(options12.EnhancedBarriersSupported);
+
     // Describe and create the command queue.
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -525,13 +533,26 @@ void D3D12SM6WaveIntrinsics::LoadSizeDependentResources()
             const float ccolor[4] = { 0, 0, 0, 0 };
             CD3DX12_CLEAR_VALUE clearValue(DXGI_FORMAT_R8G8B8A8_UNORM, ccolor);
 
-            m_d3d12Device->CreateCommittedResource(
-                &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-                D3D12_HEAP_FLAG_NONE,
-                &textureDesc,
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-                &clearValue,
-                IID_PPV_ARGS(&m_renderPass1RenderTargets));
+            if (m_bIsEnhancedBarriersEnabled)
+            {
+                ThrowIfFailed(m_d3d12Device->CreateCommittedResource3(
+                    &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                    D3D12_HEAP_FLAG_NONE,
+                    &CD3DX12_RESOURCE_DESC1(textureDesc),
+                    D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,
+                    &clearValue, nullptr, 0, nullptr,
+                    IID_PPV_ARGS(&m_renderPass1RenderTargets)));
+            }
+            else
+            {
+                m_d3d12Device->CreateCommittedResource(
+                    &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+                    D3D12_HEAP_FLAG_NONE,
+                    &textureDesc,
+                    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                    &clearValue,
+                    IID_PPV_ARGS(&m_renderPass1RenderTargets));
+            }
             NAME_D3D12_OBJECT(m_renderPass1RenderTargets);
 
             // Create RTV for the texture
@@ -709,7 +730,28 @@ void D3D12SM6WaveIntrinsics::RenderScene()
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
     // Set up render target
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderPass1RenderTargets.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    if (m_bIsEnhancedBarriersEnabled)
+    {
+        D3D12_TEXTURE_BARRIER barriers[] =
+        {
+            CD3DX12_TEXTURE_BARRIER(
+                D3D12_BARRIER_SYNC_PIXEL_SHADING,
+                D3D12_BARRIER_SYNC_RENDER_TARGET,
+                D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
+                D3D12_BARRIER_ACCESS_RENDER_TARGET,
+                D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,
+                D3D12_BARRIER_LAYOUT_RENDER_TARGET,
+                m_renderPass1RenderTargets.Get(),
+                CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),
+                D3D12_TEXTURE_BARRIER_FLAG_NONE)
+        };
+        D3D12_BARRIER_GROUP groups[] = { CD3DX12_BARRIER_GROUP(_countof(barriers), barriers) };
+        m_commandList->Barrier(_countof(groups), groups);
+    }
+    else
+    {
+        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderPass1RenderTargets.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    }
     CD3DX12_CPU_DESCRIPTOR_HANDLE renderPass1RtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), 2, m_rtvDescriptorSize);
     m_commandList->OMSetRenderTargets(1, &renderPass1RtvHandle, FALSE, nullptr);
 
@@ -720,7 +762,36 @@ void D3D12SM6WaveIntrinsics::RenderScene()
     m_commandList->IASetVertexBuffers(0, 1, &m_renderPass1VertexBufferView);
     m_commandList->DrawInstanced(3, 1, 0, 0);
 
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderPass1RenderTargets.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+    // Begin split barrier for RT→PSR transition on the pass 1 render target.
+    // Starting early allows the GPU to overlap cache operations with the pass 2 setup below.
+    if (m_bIsEnhancedBarriersEnabled)
+    {
+        D3D12_TEXTURE_BARRIER barriers[] =
+        {
+            CD3DX12_TEXTURE_BARRIER(
+                D3D12_BARRIER_SYNC_RENDER_TARGET,
+                D3D12_BARRIER_SYNC_SPLIT,
+                D3D12_BARRIER_ACCESS_RENDER_TARGET,
+                D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
+                D3D12_BARRIER_LAYOUT_RENDER_TARGET,
+                D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,
+                m_renderPass1RenderTargets.Get(),
+                CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),
+                D3D12_TEXTURE_BARRIER_FLAG_NONE)
+        };
+        D3D12_BARRIER_GROUP groups[] = { CD3DX12_BARRIER_GROUP(_countof(barriers), barriers) };
+        m_commandList->Barrier(_countof(groups), groups);
+    }
+    else
+    {
+        m_commandList->ResourceBarrier(1,
+            &CD3DX12_RESOURCE_BARRIER::Transition(
+                m_renderPass1RenderTargets.Get(),
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                0,
+                D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY));
+    }
 
     // Render Pass 2: Merge UI layer and the intermediate texture from render pass 1 together.
     m_commandList->SetPipelineState(m_renderPass2PSO.Get());
@@ -733,20 +804,94 @@ void D3D12SM6WaveIntrinsics::RenderScene()
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
     // Set up render target
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderPass2RenderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    if (m_bIsEnhancedBarriersEnabled)
+    {
+        D3D12_TEXTURE_BARRIER barriers[] =
+        {
+            CD3DX12_TEXTURE_BARRIER(
+                D3D12_BARRIER_SYNC_NONE,
+                D3D12_BARRIER_SYNC_RENDER_TARGET,
+                D3D12_BARRIER_ACCESS_NO_ACCESS,
+                D3D12_BARRIER_ACCESS_RENDER_TARGET,
+                D3D12_BARRIER_LAYOUT_PRESENT,
+                D3D12_BARRIER_LAYOUT_RENDER_TARGET,
+                m_renderPass2RenderTargets[m_frameIndex].Get(),
+                CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),
+                D3D12_TEXTURE_BARRIER_FLAG_NONE)
+        };
+        D3D12_BARRIER_GROUP groups[] = { CD3DX12_BARRIER_GROUP(_countof(barriers), barriers) };
+        m_commandList->Barrier(_countof(groups), groups);
+    }
+    else
+    {
+        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderPass2RenderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    }
     CD3DX12_CPU_DESCRIPTOR_HANDLE pass2RtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
     m_commandList->OMSetRenderTargets(1, &pass2RtvHandle, FALSE, nullptr);
 
     // Record commands.
     m_commandList->ClearRenderTargetView(pass2RtvHandle, clearColor, 0, nullptr);
+
+    // End split barrier: complete the RT→PSR transition before pass 2 reads the texture.
+    if (m_bIsEnhancedBarriersEnabled)
+    {
+        D3D12_TEXTURE_BARRIER barriers[] =
+        {
+            CD3DX12_TEXTURE_BARRIER(
+                D3D12_BARRIER_SYNC_SPLIT,
+                D3D12_BARRIER_SYNC_PIXEL_SHADING,
+                D3D12_BARRIER_ACCESS_RENDER_TARGET,
+                D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
+                D3D12_BARRIER_LAYOUT_RENDER_TARGET,
+                D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,
+                m_renderPass1RenderTargets.Get(),
+                CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),
+                D3D12_TEXTURE_BARRIER_FLAG_NONE)
+        };
+        D3D12_BARRIER_GROUP groups[] = { CD3DX12_BARRIER_GROUP(_countof(barriers), barriers) };
+        m_commandList->Barrier(_countof(groups), groups);
+    }
+    else
+    {
+        m_commandList->ResourceBarrier(1,
+            &CD3DX12_RESOURCE_BARRIER::Transition(
+                m_renderPass1RenderTargets.Get(),
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                0,
+                D3D12_RESOURCE_BARRIER_FLAG_END_ONLY));
+    }
+
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_renderPass2VertexBufferView);
     m_commandList->DrawInstanced(6, 2, 0, 0);
 
     // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderPass2RenderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    if (m_bIsEnhancedBarriersEnabled)
+    {
+        D3D12_TEXTURE_BARRIER barriers[] =
+        {
+            CD3DX12_TEXTURE_BARRIER(
+                D3D12_BARRIER_SYNC_RENDER_TARGET,
+                D3D12_BARRIER_SYNC_NONE,
+                D3D12_BARRIER_ACCESS_RENDER_TARGET,
+                D3D12_BARRIER_ACCESS_NO_ACCESS,
+                D3D12_BARRIER_LAYOUT_RENDER_TARGET,
+                D3D12_BARRIER_LAYOUT_PRESENT,
+                m_renderPass2RenderTargets[m_frameIndex].Get(),
+                CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff),
+                D3D12_TEXTURE_BARRIER_FLAG_NONE)
+        };
+        D3D12_BARRIER_GROUP groups[] = { CD3DX12_BARRIER_GROUP(_countof(barriers), barriers) };
+        m_commandList->Barrier(_countof(groups), groups);
+    }
+    else
+    {
+        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderPass2RenderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    }
 
     // Transit the ui texture back to render target from pixel shader resource.
+    // Uses legacy ResourceBarrier for compatibility with D3D11On12.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_uiRenderTarget.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     ThrowIfFailed(m_commandList->Close());
