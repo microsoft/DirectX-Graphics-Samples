@@ -1,5 +1,16 @@
 //*********************************************************
 //
+// Copyright (c) Microsoft. All rights reserved.
+// This code is licensed under the MIT License (MIT).
+// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
+// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
+// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
+// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
+//
+//*********************************************************
+
+//*********************************************************
+//
 // D3D12AsyncCommands
 //
 // Demonstrates the D3D12 "Batched Asynchronous Command List APIs"
@@ -12,9 +23,16 @@
 //      ClearRenderTargetView. The result is read back and verified.
 //   2. Benchmarks the async batched commands against their legacy,
 //      implicitly-serialized counterparts using GPU timestamp queries:
-//        - FillBuffers            vs  ClearUnorderedAccessViewUint
-//        - CopyBufferRegions      vs  CopyBufferRegion
-//        - ClearTextureSubresources vs ClearRenderTargetView
+//        - FillBuffers                   vs  ClearUnorderedAccessViewUint
+//        - CopyBufferRegions             vs  CopyBufferRegion
+//        - CopyResources                 vs  CopyResource
+//        - CopyTextureRegions            vs  CopyTextureRegion
+//        - CopyTilesAsync                vs  CopyTiles
+//        - ResolveSubresourceRegionAsync vs  ResolveSubresourceRegion
+//        - ResolveQueryDataAsync         vs  ResolveQueryData
+//        - ClearTextureSubresources      vs  ClearRenderTargetView
+//        - ClearBoundRenderTargetViews   vs  ClearRenderTargetView
+//        - ClearBoundDepthStencilView    vs  ClearDepthStencilView
 //      Both GPU time and CPU command-recording time are reported.
 //
 // The async commands remove the implicit serialization contract of the
