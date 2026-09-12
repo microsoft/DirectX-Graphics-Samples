@@ -108,5 +108,20 @@ On startup the sample reports which implementation it obtained:
 
 ## Running the sample
 
-Build `src\D3D12AsyncCommands.slnx` (x64 or ARM64) and run the console app. Pass `-warp` on the
-command line to force the WARP software adapter.
+Build `src\D3D12AsyncCommands.slnx` (x64 or ARM64) and run the console app.
+
+| Option | Effect |
+|---|---|
+| *(none)* | Use the default adapter, falling back to WARP if it has no native support |
+| `-warp` | Force the WARP software adapter |
+| `-fallback` | Force the runtime async-commands fallback (requires **Developer Mode**) |
+
+`-fallback` opts into `D3D12ExperimentalForceAsyncCommandsFallback`, which makes the runtime lower
+the async commands onto their legacy counterparts. This is useful for seeing the behaviour a driver
+without native support would give — expect roughly 1.0x everywhere, since both sides then perform
+the same work.
+
+Only `CopyBufferRegions`, `CopyResources`, `CopyTextureRegions`, and `ResolveQueryDataAsync` have a
+runtime lowering. The rest reject the call when the fallback is forced, so `-fallback` exercises
+just those four and skips the others, including the triangle in part 1 (it clears with
+`ClearBoundRenderTargetViews`).

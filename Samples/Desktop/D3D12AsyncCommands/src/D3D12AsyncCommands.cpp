@@ -76,6 +76,7 @@ extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; 
     PRINT(_os.str()); throw _hr; } }
 
 bool g_useWarpDevice = false;
+bool g_forceFallback = false;
 
 struct D3DContext
 {
@@ -1047,6 +1048,8 @@ int main(int argc, char** argv)
     {
         if (_stricmp(argv[i], "-warp") == 0 || _stricmp(argv[i], "/warp") == 0)
             g_useWarpDevice = true;
+        else if (_stricmp(argv[i], "-fallback") == 0 || _stricmp(argv[i], "/fallback") == 0)
+            g_forceFallback = true;
     }
 
     try
@@ -1055,6 +1058,19 @@ int main(int argc, char** argv)
         PRINT(" D3D12 Async Commands (Batched Asynchronous Command List APIs)");
         PRINT(" Agility SDK 620");
         PRINT("==================================================================================\n");
+
+        // Opting into the runtime fallback makes the async commands lower onto their legacy
+        // counterparts, which is how they behave on a driver without native support.
+        if (g_forceFallback)
+        {
+            UUID fallbackFeature[] = { D3D12ExperimentalForceAsyncCommandsFallback };
+            if (FAILED(D3D12EnableExperimentalFeatures(1, fallbackFeature, nullptr, nullptr)))
+            {
+                PRINT(" Could not enable D3D12ExperimentalForceAsyncCommandsFallback (is Developer Mode on?).");
+                return -1;
+            }
+            PRINT(" Forcing the runtime async-commands fallback.\n");
+        }
 
         // Debug layer.
 #if defined(_DEBUG)
@@ -1095,7 +1111,8 @@ int main(int argc, char** argv)
             PRINT(" path on this adapter, so the comparisons below measure the same work twice.\n");
         }
 
-        RenderTriangleWithAsyncClear(D3D);
+        if (!g_forceFallback)
+            RenderTriangleWithAsyncClear(D3D);
 
         PRINT("[2] Benchmarking async batched commands vs legacy serialized commands");
         {
@@ -1106,6 +1123,29 @@ int main(int argc, char** argv)
         }
 
         BenchResult fill, copyRegions, copyResources, copyTex, resolve, resolveQuery, texClear, boundRtv, boundDsv, tiles;
+
+        // Only Copy*/ResolveQueryDataAsync have a runtime lowering onto their legacy counterparts.
+        // The remaining commands reject the call when the fallback is forced, so skip them.
+        if (g_forceFallback)
+        {
+            BenchmarkCopy(D3D, copyRegions);
+            PrintBench("Buffer region copy", "CopyBufferRegion x N", "CopyBufferRegions (batched)", copyRegions);
+            PRINT("");
+            BenchmarkCopyResources(D3D, copyResources, kBufferSize);
+            PrintBench("Whole-resource copy", "CopyResource x N", "CopyResources (batched)", copyResources);
+            PRINT("");
+            BenchmarkCopyTextureRegions(D3D, copyTex);
+            PrintBench("Texture region copy", "CopyTextureRegion x N", "CopyTextureRegions (batched)", copyTex);
+            PRINT("");
+            BenchmarkResolveQueryData(D3D, resolveQuery);
+            PrintBench("Query resolve", "ResolveQueryData x N", "ResolveQueryDataAsync x N", resolveQuery);
+
+            PRINT("\n  Skipped (no runtime fallback): FillBuffers, ClearTextureSubresources,");
+            PRINT("  ClearBoundRenderTargetViews, ClearBoundDepthStencilView,");
+            PRINT("  ResolveSubresourceRegionAsync, CopyTilesAsync.");
+            PRINT("\n Done.");
+            return 0;
+        }
 
         BenchmarkFillVsUavClear(D3D, fill);
         PrintBench("Buffer fill", "ClearUnorderedAccessViewUint x N", "FillBuffers (batched)", fill);
