@@ -14,8 +14,8 @@ extendedZipContent:
 
 # Direct3D 12 Async Commands sample
 
-This sample demonstrates the **Batched Asynchronous Command List APIs** (a.k.a. *Async Commands*)
-introduced in the DirectX 12 **Agility SDK 720 preview**.
+This sample demonstrates the **Batched Asynchronous Command List APIs** (a.k.a. *Async Commands*),
+part of the retail DirectX 12 **Agility SDK 620** surface on `ID3D12GraphicsCommandList12`.
 
 The legacy `CopyBufferRegion`, `ClearUnorderedAccessView*`, `ResolveSubresource`, and similar
 commands execute strictly in series because the old `ResourceBarrier` model has no way to express
@@ -28,7 +28,7 @@ batched call can overlap on the GPU, and the developer opts into explicit synchr
 [enhanced barriers](https://microsoft.github.io/DirectX-Specs/d3d/D3D12EnhancedBarriers.html) only
 where a true data hazard exists.
 
-The new commands, all on the `ID3D12CommandListAsyncCommands` interface (obtained by
+The new commands, all on the `ID3D12GraphicsCommandList12` interface (obtained by
 `QueryInterface` from a graphics command list):
 
 | Async command | Legacy counterpart it replaces |
@@ -52,7 +52,7 @@ The new commands, all on the `ID3D12CommandListAsyncCommands` interface (obtaine
 
 2. **Performance comparison.** It benchmarks each async command against its legacy counterpart
    using GPU timestamp queries over a set of independent resources, reporting both GPU time and
-   CPU command-recording time. **All ten** methods of `ID3D12CommandListAsyncCommands` are exercised:
+   CPU command-recording time. **All ten** async methods of `ID3D12GraphicsCommandList12` are exercised:
    - `FillBuffers` vs. N x `ClearUnorderedAccessViewUint`
    - `CopyBufferRegions` vs. N x `CopyBufferRegion`
    - `CopyResources` vs. N x `CopyResource`
@@ -70,20 +70,20 @@ The new commands, all on the `ID3D12CommandListAsyncCommands` interface (obtaine
    like the output merger), so their benefit is ergonomics — in/mid-render-pass clears, batching all
    bound render targets in a single call, and lower CPU-record cost — rather than GPU overlap.
 
-Sample console output (running on the Agility SDK 720 preview WARP software renderer; absolute numbers
+Sample console output (running on the preview WARP software renderer; absolute numbers
 depend heavily on the driver and hardware):
 
 ```
-  Buffer fill         ClearUnorderedAccessViewUint xN -> FillBuffers                  GPU 3.16x
-  Buffer region copy  CopyBufferRegion xN             -> CopyBufferRegions            GPU 4.65x
-  Whole-resource copy CopyResource xN                 -> CopyResources                GPU 1.00x
-  Texture region copy CopyTextureRegion xN            -> CopyTextureRegions           GPU 6.20x
-  MSAA resolve        ResolveSubresourceRegion xN     -> ResolveSubresourceRegionAsync GPU 5.07x
-  Query resolve       ResolveQueryData xN             -> ResolveQueryDataAsync        GPU 0.99x
-  Texture clear       ClearRenderTargetView xN        -> ClearTextureSubresources     GPU 3.02x
+  Buffer fill         ClearUnorderedAccessViewUint xN -> FillBuffers                  GPU 3.01x
+  Buffer region copy  CopyBufferRegion xN             -> CopyBufferRegions            GPU 5.03x
+  Whole-resource copy CopyResource xN                 -> CopyResources                GPU 0.99x
+  Texture region copy CopyTextureRegion xN            -> CopyTextureRegions           GPU 5.79x
+  MSAA resolve        ResolveSubresourceRegion xN     -> ResolveSubresourceRegionAsync GPU 4.70x
+  Query resolve       ResolveQueryData xN             -> ResolveQueryDataAsync        GPU 0.88x
+  Texture clear       ClearRenderTargetView xN        -> ClearTextureSubresources     GPU 3.11x
   Bound RTV clear     ClearRenderTargetView xN        -> ClearBoundRenderTargetViews  GPU 0.97x (raster-ordered)
   Bound DSV clear     ClearDepthStencilView xN        -> ClearBoundDepthStencilView   GPU 1.01x (raster-ordered)
-  Tiled copy          CopyTiles xN                    -> CopyTilesAsync               GPU 3.98x
+  Tiled copy          CopyTiles xN                    -> CopyTilesAsync               GPU 4.22x
 ```
 
 On this software renderer the overlap-oriented commands show large GPU wins (up to ~6x), while
@@ -93,14 +93,18 @@ show additional overlap on the independent work.
 
 ## Requirements
 
-* DirectX 12 **Agility SDK 720 preview** (`Microsoft.Direct3D.D3D12` `1.720.0-preview`), restored
-  automatically via NuGet.
-* Async Commands is an **experimental** preview feature. The sample enables it with
-  `D3D12EnableExperimentalFeatures(D3D12AsyncCommandsExperiment)`, which requires **Developer Mode**
-  to be enabled on the machine.
+* DirectX 12 **Agility SDK 620** (`Microsoft.Direct3D.D3D12`), restored automatically via NuGet.
+  Async Commands is part of the retail surface from this version on — no experimental opt-in and no
+  Developer Mode requirement.
 * A driver that implements async commands. If the hardware driver does not yet support the feature,
   the sample automatically falls back to the preview **WARP** software renderer
   (`Microsoft.Direct3D.WARP` `1.65535.20-preview`), which does support it.
+
+On startup the sample reports which implementation it obtained:
+
+* `NATIVE` — the driver implements async commands, so independent work can genuinely overlap.
+* `FALLBACK` — the runtime lowers the async commands onto the legacy serialized path. The benchmark
+  still runs, but it is measuring the same work twice, so the comparisons are not meaningful.
 
 ## Running the sample
 

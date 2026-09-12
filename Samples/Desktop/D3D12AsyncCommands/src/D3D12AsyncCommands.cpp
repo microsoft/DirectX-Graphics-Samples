@@ -14,7 +14,8 @@
 // D3D12AsyncCommands
 //
 // Demonstrates the D3D12 "Batched Asynchronous Command List APIs"
-// (Async Commands) introduced in the DirectX 12 Agility SDK 720 preview.
+// (Async Commands), part of the retail surface from Agility SDK 620 on
+// ID3D12GraphicsCommandList12.
 //
 // The sample does two things:
 //   1. Renders a real triangle into an offscreen render target, using the
@@ -60,9 +61,9 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
-// Export the Agility SDK version and redist paths. Version 720 is the preview
-// Agility SDK that introduced the Async Commands feature.
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 720; }
+// Export the Agility SDK version and redist paths. Async Commands is part of the
+// retail surface from SDK version 620.
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 620; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; }
 
@@ -82,15 +83,14 @@ struct D3DContext
     CComPtr<IDXGIAdapter3>                     spAdapter;
     CComPtr<ID3D12CommandQueue>               spQueue;
     CComPtr<ID3D12CommandAllocator>           spAllocator;
-    CComPtr<ID3D12GraphicsCommandList7>       spList;      // for enhanced Barrier() and legacy commands
-    CComPtr<ID3D12CommandListAsyncCommands>   spAsync;     // the new async command interface
+    CComPtr<ID3D12GraphicsCommandList12>      spList;      // enhanced Barrier(), legacy commands, and async commands
     CComPtr<ID3D12Fence>                      spFence;
     HANDLE                                     hFenceEvent = nullptr;
     UINT64                                     fenceValue = 0;
     UINT64                                     gpuTimestampFrequency = 0;
     CComPtr<ID3D12QueryHeap>                  spTimestampHeap;
     CComPtr<ID3D12Resource>                   spTimestampReadback;
-    bool                                       bAsyncSupported = false;
+    D3D12_ASYNC_COMMANDS_IMPL                  asyncImpl = D3D12_ASYNC_COMMANDS_IMPL_NOT_SUPPORTED;
 };
 
 static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp)
@@ -123,9 +123,9 @@ static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp)
     // Query async command support.
     D3D12_FEATURE_DATA_ASYNC_COMMANDS asyncData = {};
     if (SUCCEEDED(D3D.spDevice->CheckFeatureSupport(D3D12_FEATURE_ASYNC_COMMANDS, &asyncData, sizeof(asyncData))))
-        D3D.bAsyncSupported = asyncData.Supported != FALSE;
+        D3D.asyncImpl = asyncData.Impl;
 
-    if (!D3D.bAsyncSupported)
+    if (D3D.asyncImpl == D3D12_ASYNC_COMMANDS_IMPL_NOT_SUPPORTED)
         return false;
 
     // Command queue / allocator / list.
@@ -139,12 +139,7 @@ static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp)
     VERIFY_SUCCEEDED(spBaseList->Close());
     if (FAILED(spBaseList.QueryInterface(&D3D.spList)))
     {
-        PRINT("ID3D12GraphicsCommandList7 (enhanced barriers) not available.");
-        return false;
-    }
-    if (FAILED(spBaseList.QueryInterface(&D3D.spAsync)))
-    {
-        PRINT("ID3D12CommandListAsyncCommands not available on the command list.");
+        PRINT("ID3D12GraphicsCommandList12 (async commands) not available on the command list.");
         return false;
     }
 
@@ -419,7 +414,7 @@ static void RenderTriangleWithAsyncClear(D3DContext& D3D)
     clearValues[0].Floats[1] = 0.2f;
     clearValues[0].Floats[2] = 0.4f;
     clearValues[0].Floats[3] = 1.0f;
-    D3D.spAsync->ClearBoundRenderTargetViews(0x1 /* slot 0 */, clearValues, nullptr, nullptr);
+    D3D.spList->ClearBoundRenderTargetViews(0x1 /* slot 0 */, clearValues, nullptr, nullptr);
 
     D3D.spList->SetGraphicsRootSignature(rootSig);
     D3D.spList->SetPipelineState(pso);
@@ -538,7 +533,7 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
     }
     auto async = [&](D3DContext& d)
     {
-        d.spAsync->FillBuffers(kNumResources, fillDescs.data());
+        d.spList->FillBuffers(kNumResources, fillDescs.data());
     };
 
     // Warm up then average.
@@ -579,7 +574,7 @@ static void BenchmarkCopy(D3DContext& D3D, BenchResult& out)
     for (UINT i = 0; i < kNumResources; ++i) { destPtrs[i] = dests[i]; srcPtrs[i] = source; }
     auto async = [&](D3DContext& d)
     {
-        d.spAsync->CopyBufferRegions(kNumResources, destPtrs.data(), destOffsets.data(),
+        d.spList->CopyBufferRegions(kNumResources, destPtrs.data(), destOffsets.data(),
             srcPtrs.data(), srcOffsets.data(), sizes.data());
     };
 
@@ -673,7 +668,7 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
     }
     auto async = [&](D3DContext& d)
     {
-        d.spAsync->ClearTextureSubresources(kNumResources, clearDescs.data());
+        d.spList->ClearTextureSubresources(kNumResources, clearDescs.data());
     };
 
     // Warm-up (each path flips layout to what it needs and back).
@@ -744,7 +739,7 @@ static void BenchmarkCopyResources(D3DContext& D3D, BenchResult& out, UINT64 buf
     }
 
     auto legacy = [&](D3DContext& d) { for (UINT i = 0; i < kNumResources; ++i) d.spList->CopyResource(dests[i], source); };
-    auto async = [&](D3DContext& d) { d.spAsync->CopyResources(kNumResources, destPtrs.data(), srcPtrs.data()); };
+    auto async = [&](D3DContext& d) { d.spList->CopyResources(kNumResources, destPtrs.data(), srcPtrs.data()); };
     out = RunLoop(D3D, kIterations, legacy, async);
 }
 
@@ -787,7 +782,7 @@ static void BenchmarkCopyTextureRegions(D3DContext& D3D, BenchResult& out)
         c.TextureTextureCopy.pSource = src[i];
         c.TextureTextureCopy.SourceSubresourceIndex = 0;
     }
-    auto async = [&](D3DContext& d) { d.spAsync->CopyTextureRegions(kNumResources, descs.data()); };
+    auto async = [&](D3DContext& d) { d.spList->CopyTextureRegions(kNumResources, descs.data()); };
     out = RunLoop(D3D, kIterations, legacy, async);
 }
 
@@ -838,7 +833,7 @@ static void BenchmarkResolve(D3DContext& D3D, BenchResult& out)
     auto async = [&](D3DContext& d)
     {
         for (UINT i = 0; i < N; ++i)
-            d.spAsync->ResolveSubresourceRegionAsync(dst[i], 0, 0, 0, ms[i], 0, nullptr, fmt, D3D12_RESOLVE_MODE_AVERAGE);
+            d.spList->ResolveSubresourceRegionAsync(dst[i], 0, 0, 0, ms[i], 0, nullptr, fmt, D3D12_RESOLVE_MODE_AVERAGE);
     };
     out = RunLoop(D3D, iters, legacy, async);
 }
@@ -868,7 +863,7 @@ static void BenchmarkResolveQueryData(D3DContext& D3D, BenchResult& out)
     auto async = [&](D3DContext& d)
     {
         for (UINT i = 0; i < N; ++i)
-            d.spAsync->ResolveQueryDataAsync(qh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, dst, (UINT64)i * sizeof(UINT64));
+            d.spList->ResolveQueryDataAsync(qh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, dst, (UINT64)i * sizeof(UINT64));
     };
     out = RunLoop(D3D, kIterations, legacy, async);
 }
@@ -921,7 +916,7 @@ static void BenchmarkClearBoundRTVs(D3DContext& D3D, BenchResult& out)
                 handles[k] = CD3DX12_CPU_DESCRIPTOR_HANDLE(heap->GetCPUDescriptorHandleForHeapStart(), base + k, rtvSize);
             d.spList->OMSetRenderTargets(count, handles, FALSE, nullptr);
             const UINT mask = (count >= 8) ? 0xFF : ((1u << count) - 1);
-            d.spAsync->ClearBoundRenderTargetViews(mask, cd, nullptr, nullptr);
+            d.spList->ClearBoundRenderTargetViews(mask, cd, nullptr, nullptr);
         }
     };
     out = RunLoop(D3D, kIterations, legacy, async);
@@ -985,7 +980,7 @@ static void BenchmarkClearBoundDSV(D3DContext& D3D, BenchResult& out)
         {
             CD3DX12_CPU_DESCRIPTOR_HANDLE h(heap->GetCPUDescriptorHandleForHeapStart(), i, dsvSize);
             d.spList->OMSetRenderTargets(0, nullptr, FALSE, &h);
-            d.spAsync->ClearBoundDepthStencilView(D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+            d.spList->ClearBoundDepthStencilView(D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
         }
     };
     out = RunLoop(D3D, kIterations, legacy, async);
@@ -1038,7 +1033,7 @@ static bool BenchmarkCopyTiles(D3DContext& D3D, BenchResult& out)
         {
             D3D12_TILED_RESOURCE_COORDINATE c = { i, 0, 0, 0 };
             D3D12_TILE_REGION_SIZE sz = {}; sz.NumTiles = 1; sz.UseBox = FALSE;
-            d.spAsync->CopyTilesAsync(tiled, &c, &sz, srcBuf, 0, D3D12_TILE_COPY_FLAG_NONE);
+            d.spList->CopyTilesAsync(tiled, &c, &sz, srcBuf, 0, D3D12_TILE_COPY_FLAG_NONE);
         }
     };
     out = RunLoop(D3D, kIterations, legacy, async);
@@ -1058,15 +1053,8 @@ int main(int argc, char** argv)
     {
         PRINT("==================================================================================");
         PRINT(" D3D12 Async Commands (Batched Asynchronous Command List APIs)");
-        PRINT(" Agility SDK 720 preview");
+        PRINT(" Agility SDK 620");
         PRINT("==================================================================================\n");
-
-        // Enable the experimental async commands feature before creating any device.
-        UUID experimentalFeatures[] = { D3D12AsyncCommandsExperiment };
-        HRESULT hrExp = D3D12EnableExperimentalFeatures(1, experimentalFeatures, nullptr, nullptr);
-        PRINT((SUCCEEDED(hrExp)
-            ? " Enabled experimental feature: D3D12AsyncCommandsExperiment"
-            : " WARNING: could not enable D3D12AsyncCommandsExperiment (is Developer Mode on?)"));
 
         // Debug layer.
 #if defined(_DEBUG)
@@ -1089,13 +1077,23 @@ int main(int argc, char** argv)
         if (!ok)
         {
             PRINT(" Async commands are not supported on this hardware driver or the installed WARP. Aborting.");
-            PRINT(" (Requires the Agility SDK 720 preview WARP or a driver that implements async commands.)");
+            PRINT(" (Requires WARP or a driver that implements async commands.)");
             return 0;
         }
 
         DXGI_ADAPTER_DESC adesc = {};
         D3D.spAdapter->GetDesc(&adesc);
-        std::wcout << L" Running on: " << adesc.Description << L"\n\n" << std::flush;
+        std::wcout << L" Running on: " << adesc.Description << L"\n" << std::flush;
+
+        if (D3D.asyncImpl == D3D12_ASYNC_COMMANDS_IMPL_NATIVE)
+        {
+            PRINT(" Async commands: NATIVE (driver-implemented)\n");
+        }
+        else
+        {
+            PRINT(" Async commands: FALLBACK - the runtime lowers them onto the legacy serialized");
+            PRINT(" path on this adapter, so the comparisons below measure the same work twice.\n");
+        }
 
         RenderTriangleWithAsyncClear(D3D);
 
