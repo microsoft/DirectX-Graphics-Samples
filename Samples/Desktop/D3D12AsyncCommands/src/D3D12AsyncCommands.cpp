@@ -13,33 +13,21 @@
 //
 // D3D12AsyncCommands
 //
-// Demonstrates the D3D12 "Batched Asynchronous Command List APIs"
-// (Async Commands), part of the retail surface from Agility SDK 620 on
+// Demonstrates the D3D12 Batched Asynchronous Command List APIs (Async
+// Commands), part of the retail surface from Agility SDK 620 on
 // ID3D12GraphicsCommandList12.
 //
-// The sample does two things:
-//   1. Renders a real triangle into an offscreen render target, using the
-//      new ClearBoundRenderTargetViews (an async command) to clear the RTV
-//      as an in-render-pass raster operation instead of the legacy
-//      ClearRenderTargetView. The result is read back and verified.
-//   2. Benchmarks the async batched commands against their legacy,
-//      implicitly-serialized counterparts using GPU timestamp queries:
-//        - FillBuffers                   vs  ClearUnorderedAccessViewUint
-//        - CopyBufferRegions             vs  CopyBufferRegion
-//        - CopyResources                 vs  CopyResource
-//        - CopyTextureRegions            vs  CopyTextureRegion
-//        - CopyTilesAsync                vs  CopyTiles
-//        - ResolveSubresourceRegionAsync vs  ResolveSubresourceRegion
-//        - ResolveQueryDataAsync         vs  ResolveQueryData
-//        - ClearTextureSubresources      vs  ClearRenderTargetView
-//        - ClearBoundRenderTargetViews   vs  ClearRenderTargetView
-//        - ClearBoundDepthStencilView    vs  ClearDepthStencilView
-//      Both GPU time and CPU command-recording time are reported.
+// The legacy Copy*/Clear*/Resolve* commands execute strictly in series,
+// because the old ResourceBarrier model cannot express a dependency between
+// two operations of the same type. The async commands drop that implicit
+// serialization contract, so independent work can overlap, and the caller
+// expresses real data hazards with enhanced barriers instead.
 //
-// The async commands remove the implicit serialization contract of the
-// legacy Copy*/Clear*/Resolve* commands, letting independent work overlap.
-// Explicit synchronization is expressed with enhanced barriers only where a
-// true data hazard exists.
+// The sample renders a triangle whose render target is cleared with the async
+// ClearBoundRenderTargetViews, then benchmarks all ten async commands against
+// their legacy counterparts using GPU timestamp queries.
+//
+// Usage: D3D12AsyncCommands [-warp] [-fallback]
 //
 //*********************************************************
 
@@ -48,6 +36,7 @@
 #include <iomanip>
 #include <sstream>
 #include <vector>
+#include <array>
 #include <chrono>
 #include <functional>
 #include <initguid.h>
@@ -61,8 +50,7 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
-// Export the Agility SDK version and redist paths. Async Commands is part of the
-// retail surface from SDK version 620.
+// Version 620 is the first Agility SDK with async commands on the retail surface.
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 620; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; }
@@ -70,7 +58,7 @@ extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; 
 //======================================================================================================================
 // Helpers
 //======================================================================================================================
-#define PRINT(text) do { std::cout << text << "\n" << std::flush; } while(0)
+#define PRINT(text) do { std::cout << (text) << "\n" << std::flush; } while(0)
 #define VERIFY_SUCCEEDED(hr) { HRESULT _hr = (hr); if (FAILED(_hr)) { \
     std::ostringstream _os; _os << "Error at " << __FILE__ << ":" << __LINE__ << " HRESULT=0x" << std::hex << _hr; \
     PRINT(_os.str()); throw _hr; } }
@@ -80,23 +68,40 @@ bool g_forceFallback = false;
 
 struct D3DContext
 {
-    CComPtr<ID3D12Device10>                   spDevice;
-    CComPtr<IDXGIAdapter3>                     spAdapter;
-    CComPtr<ID3D12CommandQueue>               spQueue;
-    CComPtr<ID3D12CommandAllocator>           spAllocator;
-    CComPtr<ID3D12GraphicsCommandList12>      spList;      // enhanced Barrier(), legacy commands, and async commands
-    CComPtr<ID3D12Fence>                      spFence;
-    HANDLE                                     hFenceEvent = nullptr;
-    UINT64                                     fenceValue = 0;
-    UINT64                                     gpuTimestampFrequency = 0;
-    CComPtr<ID3D12QueryHeap>                  spTimestampHeap;
-    CComPtr<ID3D12Resource>                   spTimestampReadback;
-    D3D12_ASYNC_COMMANDS_IMPL                  asyncImpl = D3D12_ASYNC_COMMANDS_IMPL_NOT_SUPPORTED;
+    CComPtr<ID3D12Device10>              spDevice;
+    CComPtr<IDXGIAdapter3>               spAdapter;
+    CComPtr<ID3D12CommandQueue>          spQueue;
+    CComPtr<ID3D12CommandAllocator>      spAllocator;
+    CComPtr<ID3D12GraphicsCommandList12> spList;
+    CComPtr<ID3D12Fence>                 spFence;
+    CHandle                              hFenceEvent;
+    UINT64                               fenceValue = 0;
+    UINT64                               gpuTimestampFrequency = 0;
+    CComPtr<ID3D12QueryHeap>             spTimestampHeap;
+    CComPtr<ID3D12Resource>              spTimestampReadback;
+    D3D12_ASYNC_COMMANDS_IMPL            asyncImpl = D3D12_ASYNC_COMMANDS_IMPL_NOT_SUPPORTED;
+
+    // CComPtr asserts on rebinding a live pointer, so release everything between device attempts.
+    void Reset()
+    {
+        spTimestampReadback.Release();
+        spTimestampHeap.Release();
+        spFence.Release();
+        spList.Release();
+        spAllocator.Release();
+        spQueue.Release();
+        spAdapter.Release();
+        spDevice.Release();
+        hFenceEvent.Close();
+        fenceValue = 0;
+        gpuTimestampFrequency = 0;
+        asyncImpl = D3D12_ASYNC_COMMANDS_IMPL_NOT_SUPPORTED;
+    }
 };
 
 static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp)
 {
-    D3D = D3DContext();
+    D3D.Reset();
 
     D3D_FEATURE_LEVEL FL = D3D_FEATURE_LEVEL_11_0;
     CComPtr<ID3D12Device> spBaseDevice;
@@ -115,13 +120,13 @@ static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp)
         if (FAILED(D3D12CreateDevice(nullptr, FL, IID_PPV_ARGS(&spBaseDevice))))
             return false;
         LUID luid = spBaseDevice->GetAdapterLuid();
-        factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&D3D.spAdapter));
+        if (FAILED(factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&D3D.spAdapter))))
+            return false;
     }
 
     if (FAILED(spBaseDevice.QueryInterface(&D3D.spDevice)))
         return false;
 
-    // Query async command support.
     D3D12_FEATURE_DATA_ASYNC_COMMANDS asyncData = {};
     if (SUCCEEDED(D3D.spDevice->CheckFeatureSupport(D3D12_FEATURE_ASYNC_COMMANDS, &asyncData, sizeof(asyncData))))
         D3D.asyncImpl = asyncData.Impl;
@@ -129,7 +134,6 @@ static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp)
     if (D3D.asyncImpl == D3D12_ASYNC_COMMANDS_IMPL_NOT_SUPPORTED)
         return false;
 
-    // Command queue / allocator / list.
     D3D12_COMMAND_QUEUE_DESC qDesc = {};
     qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     VERIFY_SUCCEEDED(D3D.spDevice->CreateCommandQueue(&qDesc, IID_PPV_ARGS(&D3D.spQueue)));
@@ -140,14 +144,15 @@ static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp)
     VERIFY_SUCCEEDED(spBaseList->Close());
     if (FAILED(spBaseList.QueryInterface(&D3D.spList)))
     {
-        PRINT("ID3D12GraphicsCommandList12 (async commands) not available on the command list.");
+        PRINT(" ID3D12GraphicsCommandList12 is not available on this command list.");
         return false;
     }
 
     VERIFY_SUCCEEDED(D3D.spDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&D3D.spFence)));
-    D3D.hFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    D3D.hFenceEvent.Attach(CreateEvent(nullptr, FALSE, FALSE, nullptr));
+    if (!D3D.hFenceEvent)
+        VERIFY_SUCCEEDED(HRESULT_FROM_WIN32(GetLastError()));
 
-    // GPU timestamp query resources.
     VERIFY_SUCCEEDED(D3D.spQueue->GetTimestampFrequency(&D3D.gpuTimestampFrequency));
     D3D12_QUERY_HEAP_DESC qhDesc = {};
     qhDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -278,7 +283,7 @@ static const char* g_triangleShader =
 "  PSInput r; r.position = float4(position, 1.0f); r.color = color; return r; }\n"
 "float4 PSMain(PSInput input) : SV_TARGET { return input.color; }\n";
 
-static void RenderTriangleWithAsyncClear(D3DContext& D3D)
+static bool RenderTriangleWithAsyncClear(D3DContext& D3D)
 {
     PRINT("[1] Rendering a triangle into an offscreen render target...");
     PRINT("    The RTV is cleared with the async ClearBoundRenderTargetViews (an in-render-pass raster clear),");
@@ -299,7 +304,6 @@ static void RenderTriangleWithAsyncClear(D3DContext& D3D)
     VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&defaultProps, D3D12_HEAP_FLAG_NONE, &rtDesc,
         D3D12_BARRIER_LAYOUT_UNDEFINED, &optClear, nullptr, 0, nullptr, IID_PPV_ARGS(&rt)));
 
-    // RTV descriptor heap + view.
     CComPtr<ID3D12DescriptorHeap> rtvHeap;
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
     rtvHeapDesc.NumDescriptors = 1;
@@ -308,7 +312,6 @@ static void RenderTriangleWithAsyncClear(D3DContext& D3D)
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtvHeap->GetCPUDescriptorHandleForHeapStart();
     D3D.spDevice->CreateRenderTargetView(rt, nullptr, rtvHandle);
 
-    // Empty root signature + graphics PSO.
     CComPtr<ID3D12RootSignature> rootSig;
     {
         CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
@@ -351,7 +354,6 @@ static void RenderTriangleWithAsyncClear(D3DContext& D3D)
     CComPtr<ID3D12PipelineState> pso;
     VERIFY_SUCCEEDED(D3D.spDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
 
-    // Vertex buffer (upload heap).
     struct Vertex { float pos[3]; float color[4]; };
     Vertex verts[] =
     {
@@ -372,7 +374,6 @@ static void RenderTriangleWithAsyncClear(D3DContext& D3D)
     }
     D3D12_VERTEX_BUFFER_VIEW vbv = { vb->GetGPUVirtualAddress(), sizeof(verts), sizeof(Vertex) };
 
-    // Readback buffer for verification.
     UINT64 rbSize = 0;
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
     CD3DX12_RESOURCE_DESC rtDesc0 = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height, 1, 1);
@@ -383,10 +384,9 @@ static void RenderTriangleWithAsyncClear(D3DContext& D3D)
     VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&readbackProps, D3D12_HEAP_FLAG_NONE, &rbDesc,
         D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback)));
 
-    // Record.
     ResetList(D3D);
 
-    // Initialize the RT metadata and move it to RENDER_TARGET layout (DISCARD required for first use).
+    // A texture's first use needs DISCARD to initialize its metadata.
     D3D12_TEXTURE_BARRIER toRt = {};
     toRt.SyncBefore = D3D12_BARRIER_SYNC_NONE;
     toRt.SyncAfter = D3D12_BARRIER_SYNC_RENDER_TARGET;
@@ -409,7 +409,7 @@ static void RenderTriangleWithAsyncClear(D3DContext& D3D)
     D3D.spList->RSSetScissorRects(1, &sc);
     D3D.spList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
-    // *** Async command: clear the currently-bound RTV in the render pass. ***
+    // The async clear of the bound RTV, in place of ClearRenderTargetView.
     D3D12_CLEAR_DATA clearValues[8] = {};
     clearValues[0].Floats[0] = 0.0f;
     clearValues[0].Floats[1] = 0.2f;
@@ -423,7 +423,6 @@ static void RenderTriangleWithAsyncClear(D3DContext& D3D)
     D3D.spList->IASetVertexBuffers(0, 1, &vbv);
     D3D.spList->DrawInstanced(3, 1, 0, 0);
 
-    // Transition RT -> COPY_SOURCE and copy to readback.
     D3D12_TEXTURE_BARRIER toCopy = {};
     toCopy.SyncBefore = D3D12_BARRIER_SYNC_RENDER_TARGET;
     toCopy.SyncAfter = D3D12_BARRIER_SYNC_COPY;
@@ -445,24 +444,45 @@ static void RenderTriangleWithAsyncClear(D3DContext& D3D)
 
     ExecuteAndWait(D3D);
 
-    // Verify the center pixel is not the clear color (i.e. the triangle drew).
     void* pData = nullptr;
     D3D12_RANGE readRange = { 0, (SIZE_T)rbSize };
     VERIFY_SUCCEEDED(readback->Map(0, &readRange, &pData));
-    const BYTE* rowBase = reinterpret_cast<const BYTE*>(pData) + footprint.Footprint.RowPitch * (height / 2);
-    const BYTE* centerPixel = rowBase + (width / 2) * 4;
-    BYTE r8 = centerPixel[0], g8 = centerPixel[1], b8 = centerPixel[2], a8 = centerPixel[3];
+    auto pixelAt = [&](UINT x, UINT y)
+    {
+        const BYTE* p = reinterpret_cast<const BYTE*>(pData) + footprint.Footprint.RowPitch * y + x * 4;
+        return std::array<BYTE, 4>{ p[0], p[1], p[2], p[3] };
+    };
+    // The triangle spans the middle of the target, so a corner still shows the cleared background.
+    const std::array<BYTE, 4> corner = pixelAt(2, 2);
+    const std::array<BYTE, 4> center = pixelAt(width / 2, height / 2);
     D3D12_RANGE emptyRange = { 0, 0 };
     readback->Unmap(0, &emptyRange);
 
-    std::ostringstream os;
-    os << "    Center pixel RGBA = (" << (int)r8 << ", " << (int)g8 << ", " << (int)b8 << ", " << (int)a8 << ")";
-    PRINT(os.str());
-    const bool isClearColor = (r8 == 0 && g8 <= 52 && b8 >= 90 && b8 <= 116);
-    if (!isClearColor && (r8 > 0 || g8 > 60 || b8 < 90))
-        PRINT("    PASS: triangle rendered over the async-cleared background.\n");
-    else
-        PRINT("    NOTE: center pixel matched the clear color.\n");
+    const std::array<BYTE, 4> expectedClear = { 0, 51, 102, 255 };
+    auto matches = [](const std::array<BYTE, 4>& a, const std::array<BYTE, 4>& b)
+    {
+        for (size_t i = 0; i < 4; ++i)
+            if (abs(static_cast<int>(a[i]) - static_cast<int>(b[i])) > 2)
+                return false;
+        return true;
+    };
+    auto rgba = [](const std::array<BYTE, 4>& c)
+    {
+        std::ostringstream os;
+        os << "(" << (int)c[0] << ", " << (int)c[1] << ", " << (int)c[2] << ", " << (int)c[3] << ")";
+        return os.str();
+    };
+
+    const bool clearApplied = matches(corner, expectedClear);
+    const bool triangleDrawn = !matches(center, expectedClear);
+
+    PRINT("    Corner pixel RGBA = " + rgba(corner) + (clearApplied ? "  (cleared)" : "  EXPECTED " + rgba(expectedClear)));
+    PRINT("    Center pixel RGBA = " + rgba(center) + (triangleDrawn ? "  (triangle)" : "  EXPECTED not the clear color"));
+
+    const bool pass = clearApplied && triangleDrawn;
+    PRINT(pass ? "    PASS: triangle rendered over the async-cleared background.\n"
+               : "    FAIL: render target contents are not as expected.\n");
+    return pass;
 }
 
 //======================================================================================================================
@@ -482,7 +502,7 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&buffers[i])));
 
-    // Descriptor heaps for the legacy UAV clear path (the "descriptor gymnastics").
+    // The legacy path needs a shader-visible and a non-shader-visible descriptor per resource.
     const UINT descSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     CComPtr<ID3D12DescriptorHeap> gpuHeap, cpuHeap;
     D3D12_DESCRIPTOR_HEAP_DESC hd = {};
@@ -506,7 +526,6 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
         D3D.spDevice->CreateUnorderedAccessView(buffers[i], nullptr, &uav, c);
     }
 
-    // Legacy: N serialized ClearUnorderedAccessViewUint calls.
     const UINT clearVals[4] = { 0xAABBCCDD, 0xAABBCCDD, 0xAABBCCDD, 0xAABBCCDD };
     auto legacy = [&](D3DContext& d)
     {
@@ -520,7 +539,7 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
         }
     };
 
-    // Async: a single batched FillBuffers call - no descriptors required.
+    // FillBuffers takes resource pointers, so it needs no descriptors at all.
     std::vector<D3D12_FILL_BUFFER_DESC> fillDescs(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
     {
@@ -537,7 +556,6 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
         d.spList->FillBuffers(kNumResources, fillDescs.data());
     };
 
-    // Warm up then average.
     TimeGpu(D3D, legacy); TimeGpu(D3D, async);
     double lg = 0, ag = 0, lc = 0, ac = 0, tmp = 0;
     for (UINT it = 0; it < kIterations; ++it)
@@ -606,7 +624,6 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_BARRIER_LAYOUT_RENDER_TARGET, &optClear, nullptr, 0, nullptr, IID_PPV_ARGS(&textures[i])));
 
-    // RTV heap for the legacy path.
     const UINT rtvSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CComPtr<ID3D12DescriptorHeap> rtvHeap;
     D3D12_DESCRIPTOR_HEAP_DESC hd = {};
@@ -643,7 +660,6 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
 
     const float clearColor[4] = { 0.1f, 0.2f, 0.3f, 1.0f };
 
-    // Legacy: textures already in RENDER_TARGET layout; N serialized ClearRenderTargetView calls.
     auto legacy = [&](D3DContext& d)
     {
         for (UINT i = 0; i < kNumResources; ++i)
@@ -653,7 +669,8 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
         }
     };
 
-    // Async: one batched ClearTextureSubresources call - no RTVs required.
+    // ClearTextureSubresources clears by resource pointer and format, so it needs no RTVs, but it
+    // requires the COPY_DEST layout rather than RENDER_TARGET.
     std::vector<D3D12_CLEAR_TEXTURE_DESC> clearDescs(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
     {
@@ -672,11 +689,10 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
         d.spList->ClearTextureSubresources(kNumResources, clearDescs.data());
     };
 
-    // Warm-up (each path flips layout to what it needs and back).
+    // Warm-up.
     {
         double dummy;
         TimeGpu(D3D, [&](D3DContext& d) { legacy(d); }, &dummy);
-        // Move to COPY_DEST for the async path.
         TimeGpu(D3D, [&](D3DContext& d)
         {
             transitionAll(d, D3D12_BARRIER_LAYOUT_RENDER_TARGET, D3D12_BARRIER_LAYOUT_COPY_DEST,
@@ -695,10 +711,9 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
     double lg = 0, ag = 0, lc = 0, ac = 0, tmp = 0;
     for (UINT it = 0; it < kIterations; ++it)
     {
-        // Legacy path (RENDER_TARGET layout).
         lg += TimeGpu(D3D, legacy, &tmp); lc += tmp;
 
-        // Flip to COPY_DEST (untimed) for the async path.
+        // The layout flips run in their own submissions so they stay out of the measurements.
         TimeGpu(D3D, [&](D3DContext& d)
         {
             transitionAll(d, D3D12_BARRIER_LAYOUT_RENDER_TARGET, D3D12_BARRIER_LAYOUT_COPY_DEST,
@@ -708,7 +723,6 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
 
         ag += TimeGpu(D3D, async, &tmp); ac += tmp;
 
-        // Flip back to RENDER_TARGET (untimed).
         TimeGpu(D3D, [&](D3DContext& d)
         {
             transitionAll(d, D3D12_BARRIER_LAYOUT_COPY_DEST, D3D12_BARRIER_LAYOUT_RENDER_TARGET,
@@ -904,7 +918,7 @@ static void BenchmarkClearBoundRTVs(D3DContext& D3D, BenchResult& out)
         }
     };
 
-    // Async: bind up to 8 RTVs and clear them all with a single ClearBoundRenderTargetViews call.
+    // ClearBoundRenderTargetViews clears every bound RTV in one call, up to the 8-slot limit.
     D3D12_CLEAR_DATA cd[8] = {};
     for (int k = 0; k < 8; ++k) { cd[k].Floats[0] = col[0]; cd[k].Floats[1] = col[1]; cd[k].Floats[2] = col[2]; cd[k].Floats[3] = col[3]; }
     auto async = [&](D3DContext& d)
@@ -974,7 +988,6 @@ static void BenchmarkClearBoundDSV(D3DContext& D3D, BenchResult& out)
         }
     };
 
-    // Async: bind each DSV and clear it with ClearBoundDepthStencilView (raster-ordered, no barriers needed).
     auto async = [&](D3DContext& d)
     {
         for (UINT i = 0; i < kNumResources; ++i)
@@ -1072,7 +1085,6 @@ int main(int argc, char** argv)
             PRINT(" Forcing the runtime async-commands fallback.\n");
         }
 
-        // Debug layer.
 #if defined(_DEBUG)
         CComPtr<ID3D12Debug1> debug;
         if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug))))
@@ -1111,8 +1123,9 @@ int main(int argc, char** argv)
             PRINT(" path on this adapter, so the comparisons below measure the same work twice.\n");
         }
 
+        bool pass = true;
         if (!g_forceFallback)
-            RenderTriangleWithAsyncClear(D3D);
+            pass = RenderTriangleWithAsyncClear(D3D);
 
         PRINT("[2] Benchmarking async batched commands vs legacy serialized commands");
         {
@@ -1122,74 +1135,73 @@ int main(int argc, char** argv)
             PRINT(os.str());
         }
 
-        BenchResult fill, copyRegions, copyResources, copyTex, resolve, resolveQuery, texClear, boundRtv, boundDsv, tiles;
+        // Only these four async commands have a runtime lowering onto their legacy counterparts;
+        // the rest reject the call when the fallback is forced.
+        struct Benchmark
+        {
+            const char* title;
+            const char* legacyName;
+            const char* asyncName;
+            bool        hasRuntimeFallback;
+            const char* note;
+            std::function<bool(D3DContext&, BenchResult&)> run;
+        };
 
-        // Only Copy*/ResolveQueryDataAsync have a runtime lowering onto their legacy counterparts.
-        // The remaining commands reject the call when the fallback is forced, so skip them.
+        const Benchmark benchmarks[] =
+        {
+            { "Buffer fill", "ClearUnorderedAccessViewUint x N", "FillBuffers (batched)", false, nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkFillVsUavClear(d, r); return true; } },
+            { "Buffer region copy", "CopyBufferRegion x N", "CopyBufferRegions (batched)", true, nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkCopy(d, r); return true; } },
+            { "Whole-resource copy", "CopyResource x N", "CopyResources (batched)", true, nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkCopyResources(d, r, kBufferSize); return true; } },
+            { "Texture region copy", "CopyTextureRegion x N", "CopyTextureRegions (batched)", true, nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkCopyTextureRegions(d, r); return true; } },
+            { "MSAA resolve", "ResolveSubresourceRegion x N", "ResolveSubresourceRegionAsync x N", false, nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkResolve(d, r); return true; } },
+            { "Query resolve", "ResolveQueryData x N", "ResolveQueryDataAsync x N", true, nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkResolveQueryData(d, r); return true; } },
+            { "Texture clear", "ClearRenderTargetView x N", "ClearTextureSubresources (batched)", false, nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkTextureClear(d, r); return true; } },
+            { "Bound RTV clear", "ClearRenderTargetView x N", "ClearBoundRenderTargetViews (8/call)", false,
+              "  ClearBound* are raster-ordered (serialized with Draw* by design), so their benefit is\n"
+              "  ergonomics - in/mid-render-pass clears, batching bound targets, lower CPU-record cost -\n"
+              "  rather than GPU overlap.",
+              [](D3DContext& d, BenchResult& r) { BenchmarkClearBoundRTVs(d, r); return true; } },
+            { "Bound DSV clear", "ClearDepthStencilView x N", "ClearBoundDepthStencilView x N", false, nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkClearBoundDSV(d, r); return true; } },
+            { "Tiled copy", "CopyTiles x N", "CopyTilesAsync x N", false, nullptr,
+              [](D3DContext& d, BenchResult& r)
+              {
+                  try { return BenchmarkCopyTiles(d, r); }
+                  catch (HRESULT) { return false; }
+              } },
+        };
+
+        for (const Benchmark& b : benchmarks)
+        {
+            if (g_forceFallback && !b.hasRuntimeFallback)
+                continue;
+            if (b.note)
+                PRINT(b.note);
+
+            BenchResult r;
+            if (b.run(D3D, r))
+                PrintBench(b.title, b.legacyName, b.asyncName, r);
+            else
+                PRINT(std::string("  ") + b.title + ": skipped (not supported on this adapter).");
+            PRINT("");
+        }
+
         if (g_forceFallback)
         {
-            BenchmarkCopy(D3D, copyRegions);
-            PrintBench("Buffer region copy", "CopyBufferRegion x N", "CopyBufferRegions (batched)", copyRegions);
-            PRINT("");
-            BenchmarkCopyResources(D3D, copyResources, kBufferSize);
-            PrintBench("Whole-resource copy", "CopyResource x N", "CopyResources (batched)", copyResources);
-            PRINT("");
-            BenchmarkCopyTextureRegions(D3D, copyTex);
-            PrintBench("Texture region copy", "CopyTextureRegion x N", "CopyTextureRegions (batched)", copyTex);
-            PRINT("");
-            BenchmarkResolveQueryData(D3D, resolveQuery);
-            PrintBench("Query resolve", "ResolveQueryData x N", "ResolveQueryDataAsync x N", resolveQuery);
-
-            PRINT("\n  Skipped (no runtime fallback): FillBuffers, ClearTextureSubresources,");
+            PRINT("  Skipped - no runtime fallback: FillBuffers, ClearTextureSubresources,");
             PRINT("  ClearBoundRenderTargetViews, ClearBoundDepthStencilView,");
-            PRINT("  ResolveSubresourceRegionAsync, CopyTilesAsync.");
-            PRINT("\n Done.");
-            return 0;
+            PRINT("  ResolveSubresourceRegionAsync, CopyTilesAsync.\n");
         }
 
-        BenchmarkFillVsUavClear(D3D, fill);
-        PrintBench("Buffer fill", "ClearUnorderedAccessViewUint x N", "FillBuffers (batched)", fill);
-        PRINT("");
-        BenchmarkCopy(D3D, copyRegions);
-        PrintBench("Buffer region copy", "CopyBufferRegion x N", "CopyBufferRegions (batched)", copyRegions);
-        PRINT("");
-        BenchmarkCopyResources(D3D, copyResources, kBufferSize);
-        PrintBench("Whole-resource copy", "CopyResource x N", "CopyResources (batched)", copyResources);
-        PRINT("");
-        BenchmarkCopyTextureRegions(D3D, copyTex);
-        PrintBench("Texture region copy", "CopyTextureRegion x N", "CopyTextureRegions (batched)", copyTex);
-        PRINT("");
-        BenchmarkResolve(D3D, resolve);
-        PrintBench("MSAA resolve", "ResolveSubresourceRegion x N", "ResolveSubresourceRegionAsync x N", resolve);
-        PRINT("");
-        BenchmarkResolveQueryData(D3D, resolveQuery);
-        PrintBench("Query resolve", "ResolveQueryData x N", "ResolveQueryDataAsync x N", resolveQuery);
-        PRINT("");
-        BenchmarkTextureClear(D3D, texClear);
-        PrintBench("Texture clear", "ClearRenderTargetView x N", "ClearTextureSubresources (batched)", texClear);
-        PRINT("");
-        PRINT("  Note: ClearBound* are raster-ordered (serialized with Draw* by design), so their");
-        PRINT("  benefit is ergonomics - in/mid-render-pass clears and batching bound targets / lower");
-        PRINT("  CPU-record cost - rather than GPU overlap.");
-        BenchmarkClearBoundRTVs(D3D, boundRtv);
-        PrintBench("Bound RTV clear", "ClearRenderTargetView x N", "ClearBoundRenderTargetViews (8/call)", boundRtv);
-        PRINT("");
-        BenchmarkClearBoundDSV(D3D, boundDsv);
-        PrintBench("Bound DSV clear", "ClearDepthStencilView x N", "ClearBoundDepthStencilView x N", boundDsv);
-        PRINT("");
-        try
-        {
-            if (BenchmarkCopyTiles(D3D, tiles))
-                PrintBench("Tiled copy", "CopyTiles x N", "CopyTilesAsync x N", tiles);
-            else
-                PRINT("  Tiled copy: skipped (tiled resources not supported on this adapter).");
-        }
-        catch (HRESULT)
-        {
-            PRINT("  Tiled copy: skipped (CopyTiles/CopyTilesAsync unavailable on this adapter).");
-        }
-
-        PRINT("\n Done.");
+        PRINT(pass ? " Done." : " Done, with failures.");
+        return pass ? 0 : -1;
     }
     catch (HRESULT)
     {

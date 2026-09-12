@@ -86,7 +86,7 @@ depend heavily on the driver and hardware):
   Tiled copy          CopyTiles xN                    -> CopyTilesAsync               GPU 4.22x
 ```
 
-On this software renderer the overlap-oriented commands show large GPU wins (up to ~6x), while
+On this software renderer the overlap-oriented commands show large GPU wins (up to ~5.8x), while
 `CopyResources`, `ResolveQueryData`, and the raster-ordered `ClearBound*` commands show parity — the
 software renderer does not reorder those. Real hardware that implements async commands is expected to
 show additional overlap on the independent work.
