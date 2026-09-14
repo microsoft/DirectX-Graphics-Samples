@@ -7,40 +7,40 @@
     <Platform Name="ARM64" />
   </Configurations>
   <Folder Name="/MiniEngine/">
-    <Project Path="../../../../MiniEngine/Core/Core.vcxproj" />
-    <Project Path="../../../../MiniEngine/Model/Model.vcxproj" />
+    <Project Path="../../../../MiniEngine/Core/Core.vcxproj" Id="86a58508-0d6a-4786-a32f-01a301fdc6f3" />
+    <Project Path="../../../../MiniEngine/Model/Model.vcxproj" Id="5d3aeefb-8789-48e5-9bd9-09c667052d09" />
   </Folder>
   <Folder Name="/Samples/">
     <File Path="../readme.md" />
   </Folder>
   <Folder Name="/Samples/Advanced/">
-    <Project Path="D3D12RaytracingMiniEngineSample/ModelViewer_VS16.vcxproj" />
-    <Project Path="D3D12RaytracingRealTimeDenoisedAmbientOcclusion/D3D12RaytracingRealTimeDenoisedAmbientOcclusion.vcxproj" />
+    <Project Path="D3D12RaytracingMiniEngineSample/ModelViewer_VS16.vcxproj" Id="315a1e1b-3732-41fe-9b4a-6a1e103ba2f5" />
+    <Project Path="D3D12RaytracingRealTimeDenoisedAmbientOcclusion/D3D12RaytracingRealTimeDenoisedAmbientOcclusion.vcxproj" Id="19585c81-fb12-4a4b-b700-cce253bdba02" />
   </Folder>
   <Folder Name="/Samples/Tutorials/">
-    <Project Path="D3D12OMMOfflineBaker/D3D12OMMOfflineBaker.vcxproj">
+    <Project Path="D3D12OMMOfflineBaker/D3D12OMMOfflineBaker.vcxproj" Id="2f201b6c-24b7-498c-a92a-07d4086ef6e9">
       <BuildType Solution="Profile|*" Project="Release" />
       <Build Project="false" />
     </Project>
-    <Project Path="D3D12RaytracingHelloShaderExecutionReordering/D3D12RaytracingHelloShaderExecutionReordering.vcxproj">
+    <Project Path="D3D12RaytracingHelloShaderExecutionReordering/D3D12RaytracingHelloShaderExecutionReordering.vcxproj" Id="390a4d56-ff1b-4ca0-81ca-ac8ed273bfc9">
       <BuildType Solution="Profile|*" Project="Release" />
     </Project>
-    <Project Path="D3D12RaytracingHelloWorld/D3D12RaytracingHelloWorld.vcxproj">
+    <Project Path="D3D12RaytracingHelloWorld/D3D12RaytracingHelloWorld.vcxproj" Id="5018f6a3-6533-4744-b1fd-727d199fd2e9">
       <BuildType Solution="Profile|*" Project="Release" />
     </Project>
-    <Project Path="D3D12RaytracingLibrarySubobjects/D3D12RaytracingLibrarySubobjects.vcxproj">
+    <Project Path="D3D12RaytracingLibrarySubobjects/D3D12RaytracingLibrarySubobjects.vcxproj" Id="0af699f0-99a8-4493-9ff7-1ffde2900100">
       <BuildType Solution="Profile|*" Project="Release" />
     </Project>
-    <Project Path="D3D12RaytracingOpacityMicromaps/D3D12RaytracingOpacityMicromaps.vcxproj">
+    <Project Path="D3D12RaytracingOpacityMicromaps/D3D12RaytracingOpacityMicromaps.vcxproj" Id="a62c42da-dafa-47db-b370-d2ec5dab762d">
       <BuildType Solution="Profile|*" Project="Release" />
     </Project>
-    <Project Path="D3D12RaytracingProceduralGeometry/D3D12RaytracingProceduralGeometry.vcxproj">
+    <Project Path="D3D12RaytracingProceduralGeometry/D3D12RaytracingProceduralGeometry.vcxproj" Id="0c266269-ac0c-41b0-9d25-0117dc23cfc7">
       <BuildType Solution="Profile|*" Project="Release" />
     </Project>
-    <Project Path="D3D12RaytracingSakuraForestSER/D3D12RaytracingSakuraForestSER.vcxproj">
+    <Project Path="D3D12RaytracingSakuraForestSER/D3D12RaytracingSakuraForestSER.vcxproj" Id="8a6f63fd-e766-476b-9748-9c14737297b7">
       <BuildType Solution="Profile|*" Project="Release" />
     </Project>
-    <Project Path="D3D12RaytracingSimpleLighting/D3D12RaytracingSimpleLighting.vcxproj">
+    <Project Path="D3D12RaytracingSimpleLighting/D3D12RaytracingSimpleLighting.vcxproj" Id="a0848c98-f5aa-431c-9e76-7f1e7efa368c">
       <BuildType Solution="Profile|*" Project="Release" />
     </Project>
   </Folder>
