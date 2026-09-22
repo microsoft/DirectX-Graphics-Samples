@@ -49,7 +49,6 @@ struct [raypayload] RayPayload
 {
     float4 color : write(caller, closesthit, miss) : read(caller);
     uint recursionDepth : write(caller) : read(closesthit);
-    uint reflectHint : write(caller) : read(closesthit, caller);
 };
     
 
@@ -96,15 +95,16 @@ inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 directi
 }
     
     
-// Configure reflection hints based on material properties
-void ConfigureReflectionHints(in HitObject hit, in float3 origin, in float3 rayDir, inout RayPayload payload)
+// Compute reflection hint based on material properties.
+uint ComputeReflectionHint(in HitObject hit, in float3 origin, in float3 rayDir)
 {
     // Only process hints for material-based sorting modes
     if (g_sceneCB.sortMode != SORTMODE_BY_MATERIAL && g_sceneCB.sortMode != SORTMODE_BY_BOTH)
-        return;
+        return 0;
     if (hit.IsMiss())
-        return;
-    
+        return 0;
+
+    uint hint = 0;
     uint materialID = hit.LoadLocalRootTableConstant(16);
     
     // Check for reflective floor material
@@ -119,19 +119,20 @@ void ConfigureReflectionHints(in HitObject hit, in float3 origin, in float3 rayD
         float4 texColor = TrunkTexture.SampleLevel(TrunkSampler, uv, 0);
         if (all(texColor.rgb < 0.1))
         {
-            payload.reflectHint = 1;
+            hint = 1;
         }
     }
     // Check for reflective cube
     else if (materialID == 1) // Reflective cube
     {
-        payload.reflectHint = 1;
+        hint = 1;
     }
+    return hint;
 }
     
 
 // Apply thread reordering based on sort mode
-void ApplyThreadReordering(in HitObject hit, in RayPayload payload)
+void ApplyThreadReordering(in HitObject hit, in uint hint)
 {
     const uint numHintBits = 1;
     switch (g_sceneCB.sortMode)
@@ -141,11 +142,11 @@ void ApplyThreadReordering(in HitObject hit, in RayPayload payload)
             break;
             
         case SORTMODE_BY_MATERIAL:
-            dx::MaybeReorderThread(payload.reflectHint, numHintBits);
+            dx::MaybeReorderThread(hint, numHintBits);
             break;
             
         case SORTMODE_BY_BOTH:
-            dx::MaybeReorderThread(hit, payload.reflectHint, numHintBits);
+            dx::MaybeReorderThread(hit, hint, numHintBits);
             break;
     }
 }
@@ -167,7 +168,7 @@ void MyRaygenShader()
     ray.TMax = 10000.0;
 
     // Initialize payload
-    RayPayload payload = { float4(0, 0, 0, 0), 1, 0 };
+    RayPayload payload = { float4(0, 0, 0, 0), 1 };
 
     if (g_sceneCB.sortMode == SORTMODE_OFF)
     {
@@ -179,11 +180,11 @@ void MyRaygenShader()
         // SER is on
         HitObject hit = HitObject::TraceRay(Scene, 0, ~0, 0, 1, 0, ray, payload);
         
-        // Configure reflection hints for material-based sorting
-        ConfigureReflectionHints(hit, origin, rayDir, payload);
+        // Configure reflection hint for material-based sorting
+        uint hint = ComputeReflectionHint(hit, origin, rayDir);
         
         // Apply thread reordering based on sort mode
-        ApplyThreadReordering(hit, payload);
+        ApplyThreadReordering(hit, hint);
         
         // Execute the hit shader
         HitObject::Invoke(hit, payload);
@@ -223,7 +224,7 @@ float4 TraceRadianceRay(in Ray ray, in int currentRayRecursionDepth)
     // Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
     rayDesc.TMin = 0.001;
     rayDesc.TMax = 10000;
-    RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1, 0 };
+    RayPayload rayPayload = { float4(0, 0, 0, 0), currentRayRecursionDepth + 1 };
     TraceRay(Scene, 0, ~0, 0, 1, 0, rayDesc, rayPayload);
 
     return rayPayload.color;
