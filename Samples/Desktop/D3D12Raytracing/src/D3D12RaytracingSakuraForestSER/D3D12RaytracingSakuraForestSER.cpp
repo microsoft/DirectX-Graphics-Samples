@@ -1030,12 +1030,12 @@ void D3D12RaytracingSakuraForestSER::BuildAccelerationStructures()
 	float treeSpacing = 1.9f; // Spacing between trees
 
 	// Create random number generator for random offsets
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    // Use fixed seed to ensure deterministic foliage placement
+    uint32_t seed = 42;
+    std::mt19937 gen(seed);
     std::uniform_real_distribution<float> randomOffset(-0.1f, 0.7f);
 
-    std::random_device rdBush;
-    std::mt19937 genBush(rdBush());
+    std::mt19937 genBush(seed);
     std::uniform_real_distribution<float> randomOffsetBush(0.7f, 0.75f);
 
     // Larger cubes for the floor
