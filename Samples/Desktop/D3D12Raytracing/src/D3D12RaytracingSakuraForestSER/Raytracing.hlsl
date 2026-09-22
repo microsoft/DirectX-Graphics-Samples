@@ -102,6 +102,8 @@ void ConfigureReflectionHints(in HitObject hit, in float3 origin, in float3 rayD
     // Only process hints for material-based sorting modes
     if (g_sceneCB.sortMode != SORTMODE_BY_MATERIAL && g_sceneCB.sortMode != SORTMODE_BY_BOTH)
         return;
+    if (hit.IsMiss())
+        return;
     
     uint materialID = hit.LoadLocalRootTableConstant(16);
     
@@ -109,7 +111,7 @@ void ConfigureReflectionHints(in HitObject hit, in float3 origin, in float3 rayD
     if (materialID == 0) // Floor
     {
         // Calculate floor intersection point
-        float t = -origin.y / rayDir.y;
+        float t = -(origin.y - 2) / rayDir.y; // -2 because the floor is on height 2
         float3 estimatedHit = origin + t * rayDir;
         float2 uv = frac(estimatedHit.xz);
         
