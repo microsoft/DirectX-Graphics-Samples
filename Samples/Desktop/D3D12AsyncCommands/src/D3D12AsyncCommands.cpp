@@ -102,6 +102,15 @@ static std::string DriverVersion(IDXGIAdapter1* adapter)
     return os.str();
 }
 
+static std::string AdapterLuidString(const LUID& luid)
+{
+    std::ostringstream os;
+    os << "0x" << std::hex << std::uppercase << std::setfill('0')
+       << std::setw(8) << static_cast<UINT>(luid.HighPart) << ":"
+       << std::setw(8) << luid.LowPart;
+    return os.str();
+}
+
 static void PrintAdapterDetails(IDXGIAdapter1* adapter)
 {
     DXGI_ADAPTER_DESC1 desc = {};
@@ -115,6 +124,7 @@ static void PrintAdapterDetails(IDXGIAdapter1* adapter)
        << ")  device 0x" << desc.DeviceId << "  rev 0x" << desc.Revision;
     PRINT(os.str());
     PRINT("   Driver (UMD)   : " + DriverVersion(adapter));
+    PRINT("   Adapter LUID   : " + AdapterLuidString(desc.AdapterLuid));
 
     std::ostringstream mem;
     mem << "   Dedicated VRAM : " << (desc.DedicatedVideoMemory >> 20) << " MB";
