@@ -65,6 +65,84 @@ extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; 
 
 bool g_useWarpDevice = false;
 bool g_forceFallback = false;
+bool g_listAdapters = false;
+int  g_adapterIndex = -1;
+
+static std::string Narrow(const WCHAR* text)
+{
+    const int count = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
+    if (count <= 1)
+        return std::string();
+    std::string out(static_cast<size_t>(count) - 1, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, text, -1, out.data(), count, nullptr, nullptr);
+    return out;
+}
+
+static const char* VendorName(UINT vendorId)
+{
+    switch (vendorId)
+    {
+    case 0x10DE: return "NVIDIA";
+    case 0x1002: return "AMD";
+    case 0x8086: return "Intel";
+    case 0x1414: return "Microsoft";
+    default:     return "unknown vendor";
+    }
+}
+
+// The user-mode driver version, which is what identifies a specific IHV driver build.
+static std::string DriverVersion(IDXGIAdapter1* adapter)
+{
+    LARGE_INTEGER umd = {};
+    if (FAILED(adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd)))
+        return "not available";
+    std::ostringstream os;
+    os << HIWORD(umd.HighPart) << "." << LOWORD(umd.HighPart) << "."
+       << HIWORD(umd.LowPart) << "." << LOWORD(umd.LowPart);
+    return os.str();
+}
+
+static void PrintAdapterDetails(IDXGIAdapter1* adapter)
+{
+    DXGI_ADAPTER_DESC1 desc = {};
+    if (FAILED(adapter->GetDesc1(&desc)))
+        return;
+
+    std::ostringstream os;
+    os << std::hex << std::uppercase;
+    PRINT("   Adapter        : " + Narrow(desc.Description));
+    os << "   Vendor / Device: " << VendorName(desc.VendorId) << " (0x" << desc.VendorId
+       << ")  device 0x" << desc.DeviceId << "  rev 0x" << desc.Revision;
+    PRINT(os.str());
+    PRINT("   Driver (UMD)   : " + DriverVersion(adapter));
+
+    std::ostringstream mem;
+    mem << "   Dedicated VRAM : " << (desc.DedicatedVideoMemory >> 20) << " MB";
+    PRINT(mem.str());
+    if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+        PRINT("   Type           : software adapter (WARP)");
+}
+
+static void ListAdapters()
+{
+    CComPtr<IDXGIFactory4> factory;
+    VERIFY_SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)));
+
+    PRINT(" Available adapters:\n");
+    for (UINT i = 0; ; ++i)
+    {
+        CComPtr<IDXGIAdapter1> adapter;
+        if (factory->EnumAdapters1(i, &adapter) == DXGI_ERROR_NOT_FOUND)
+            break;
+
+        std::ostringstream os;
+        os << " [" << i << "]";
+        PRINT(os.str());
+        PrintAdapterDetails(adapter);
+        PRINT("");
+    }
+}
+
 
 struct D3DContext
 {
@@ -99,7 +177,8 @@ struct D3DContext
     }
 };
 
-static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp)
+// useWarp selects WARP, adapterIndex >= 0 selects that adapter, otherwise the default is used.
+static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp, int adapterIndex)
 {
     D3D.Reset();
 
@@ -112,6 +191,21 @@ static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp)
     {
         if (FAILED(factory->EnumWarpAdapter(IID_PPV_ARGS(&D3D.spAdapter))))
             return false;
+    }
+    else if (adapterIndex >= 0)
+    {
+        CComPtr<IDXGIAdapter1> selected;
+        if (factory->EnumAdapters1(static_cast<UINT>(adapterIndex), &selected) == DXGI_ERROR_NOT_FOUND)
+        {
+            PRINT(" No adapter at that index. Run with -list to see the available adapters.");
+            return false;
+        }
+        if (FAILED(selected.QueryInterface(&D3D.spAdapter)))
+            return false;
+    }
+
+    if (D3D.spAdapter)
+    {
         if (FAILED(D3D12CreateDevice(D3D.spAdapter, FL, IID_PPV_ARGS(&spBaseDevice))))
             return false;
     }
@@ -1063,6 +1157,16 @@ int main(int argc, char** argv)
             g_useWarpDevice = true;
         else if (_stricmp(argv[i], "-fallback") == 0 || _stricmp(argv[i], "/fallback") == 0)
             g_forceFallback = true;
+        else if (_stricmp(argv[i], "-list") == 0 || _stricmp(argv[i], "/list") == 0)
+            g_listAdapters = true;
+        else if ((_stricmp(argv[i], "-adapter") == 0 || _stricmp(argv[i], "/adapter") == 0) && i + 1 < argc)
+            g_adapterIndex = atoi(argv[++i]);
+        else
+        {
+            PRINT(std::string(" Unrecognized option: ") + argv[i]);
+            PRINT(" Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback]");
+            return -1;
+        }
     }
 
     try
@@ -1071,6 +1175,12 @@ int main(int argc, char** argv)
         PRINT(" D3D12 Async Commands (Batched Asynchronous Command List APIs)");
         PRINT(" Agility SDK 620");
         PRINT("==================================================================================\n");
+
+        if (g_listAdapters)
+        {
+            ListAdapters();
+            return 0;
+        }
 
         // Opting into the runtime fallback makes the async commands lower onto their legacy
         // counterparts, which is how they behave on a driver without native support.
@@ -1092,35 +1202,41 @@ int main(int argc, char** argv)
 #endif
 
         D3DContext D3D;
-        bool ok = false;
-        if (!g_useWarpDevice)
+
+        // An explicitly named adapter is never silently swapped for WARP; that would hide a driver
+        // that does not implement the feature, which is the thing a driver test needs to catch.
+        const bool adapterWasRequested = g_useWarpDevice || g_adapterIndex >= 0;
+        bool ok = InitDeviceAndContext(D3D, g_useWarpDevice, g_adapterIndex);
+
+        if (!ok && adapterWasRequested)
         {
-            ok = InitDeviceAndContext(D3D, false);
-            if (!ok)
-                PRINT(" Async commands not supported on the hardware device/driver. Falling back to WARP...\n");
+            PRINT(" The requested adapter does not support async commands. Aborting.");
+            PRINT(" Run with -list to see the available adapters.");
+            return -1;
         }
         if (!ok)
-            ok = InitDeviceAndContext(D3D, true);
-
+        {
+            PRINT(" Async commands not supported on the default adapter. Falling back to WARP...\n");
+            ok = InitDeviceAndContext(D3D, true, -1);
+        }
         if (!ok)
         {
-            PRINT(" Async commands are not supported on this hardware driver or the installed WARP. Aborting.");
+            PRINT(" Async commands are not supported on this driver or the installed WARP. Aborting.");
             PRINT(" (Requires WARP or a driver that implements async commands.)");
-            return 0;
+            return -1;
         }
 
-        DXGI_ADAPTER_DESC adesc = {};
-        D3D.spAdapter->GetDesc(&adesc);
-        std::wcout << L" Running on: " << adesc.Description << L"\n" << std::flush;
+        PRINT(" Device under test:");
+        PrintAdapterDetails(D3D.spAdapter);
 
         if (D3D.asyncImpl == D3D12_ASYNC_COMMANDS_IMPL_NATIVE)
         {
-            PRINT(" Async commands: NATIVE (driver-implemented)\n");
+            PRINT("   Async commands : NATIVE (driver-implemented)\n");
         }
         else
         {
-            PRINT(" Async commands: FALLBACK - the runtime lowers them onto the legacy serialized");
-            PRINT(" path on this adapter, so the comparisons below measure the same work twice.\n");
+            PRINT("   Async commands : FALLBACK - the runtime lowers them onto the legacy serialized");
+            PRINT("                    path, so the comparisons below measure the same work twice.\n");
         }
 
         bool pass = true;

@@ -113,8 +113,17 @@ Build `src\D3D12AsyncCommands.slnx` (x64 or ARM64) and run the console app.
 | Option | Effect |
 |---|---|
 | *(none)* | Use the default adapter, falling back to WARP if it has no native support |
+| `-list` | List every adapter with its vendor, device ID and driver version, then exit |
+| `-adapter <index>` | Use a specific adapter from `-list` |
 | `-warp` | Force the WARP software adapter |
 | `-fallback` | Force the runtime async-commands fallback (requires **Developer Mode**) |
+
+The sample prints the adapter description, vendor and device IDs, user-mode driver version, and the
+implementation tier it obtained, so the output records exactly which driver produced the numbers.
+
+When an adapter is named explicitly with `-adapter` or `-warp`, the sample **never** silently
+substitutes WARP; if that adapter does not support async commands it reports the fact and exits
+non-zero. Only the default (no-argument) path falls back to WARP.
 
 `-fallback` opts into `D3D12ExperimentalForceAsyncCommandsFallback`, which makes the runtime lower
 the async commands onto their legacy counterparts. This is useful for seeing the behaviour a driver
