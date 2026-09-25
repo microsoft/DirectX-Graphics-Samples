@@ -91,6 +91,11 @@ On this software renderer the overlap-oriented commands show large GPU wins (up 
 software renderer does not reorder those. Real hardware that implements async commands is expected to
 show additional overlap on the independent work.
 
+3. **Optional end-to-end frame benchmark (`-e2e`).** In addition to the microbenchmarks above, the
+sample can measure a practical mixed workload where independent resource-update commands and
+render-draw work are recorded together in one submission. This highlights whether async batching
+improves whole-frame behavior, not just isolated command latency.
+
 ## Requirements
 
 * DirectX 12 **Agility SDK 620** (`Microsoft.Direct3D.D3D12`), restored automatically via NuGet.
@@ -117,8 +122,9 @@ Build `src\D3D12AsyncCommands.slnx` (x64 or ARM64) and run the console app.
 | `-adapter <index>` | Use a specific adapter from `-list` |
 | `-warp` | Force the WARP software adapter |
 | `-fallback` | Force the runtime async-commands fallback (requires **Developer Mode**) |
+| `-e2e` | Run an additional end-to-end mixed-frame benchmark (updates + rendering together) |
 
-The sample prints the adapter description, vendor and device IDs, user-mode driver version, and the
+The sample prints the adapter description, vendor and device IDs, adapter LUID, user-mode driver version, and the
 implementation tier it obtained, so the output records exactly which driver produced the numbers.
 
 When an adapter is named explicitly with `-adapter` or `-warp`, the sample **never** silently
@@ -134,3 +140,6 @@ Only `CopyBufferRegions`, `CopyResources`, `CopyTextureRegions`, and `ResolveQue
 runtime lowering. The rest reject the call when the fallback is forced, so `-fallback` exercises
 just those four and skips the others, including the triangle in part 1 (it clears with
 `ClearBoundRenderTargetViews`).
+
+For `-e2e` in forced fallback mode, the sample runs the fallback-compatible subset
+(copy/resolve/render) for both legacy and async paths to keep the comparison fair.

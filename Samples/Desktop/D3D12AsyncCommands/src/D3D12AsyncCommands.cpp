@@ -27,7 +27,7 @@
 // ClearBoundRenderTargetViews, then benchmarks all ten async commands against
 // their legacy counterparts using GPU timestamp queries.
 //
-// Usage: D3D12AsyncCommands [-warp] [-fallback]
+// Usage: D3D12AsyncCommands [-warp] [-fallback] [-e2e]
 //
 //*********************************************************
 
@@ -67,6 +67,7 @@ bool g_useWarpDevice = false;
 bool g_forceFallback = false;
 bool g_listAdapters = false;
 int  g_adapterIndex = -1;
+bool g_runEndToEnd = false;
 
 static std::string Narrow(const WCHAR* text)
 {
@@ -1158,6 +1159,247 @@ static bool BenchmarkCopyTiles(D3DContext& D3D, BenchResult& out)
     return true;
 }
 
+// ---- End-to-end mixed frame: independent data updates + real rendering in one submission. ----
+static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool& includesNativeOnlyOps)
+{
+    const UINT kE2EResources = 128;
+    const UINT kE2EIterations = 12;
+    const UINT kE2EDrawCalls = 256;
+    const UINT64 kE2EBufferBytes = 512u * 1024u;
+
+    includesNativeOnlyOps = (D3D.asyncImpl == D3D12_ASYNC_COMMANDS_IMPL_NATIVE);
+
+    CD3DX12_HEAP_PROPERTIES defaultProps(D3D12_HEAP_TYPE_DEFAULT);
+    CD3DX12_RESOURCE_DESC uavDesc = CD3DX12_RESOURCE_DESC::Buffer(kE2EBufferBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    std::vector<CComPtr<ID3D12Resource>> fillBuffers;
+    std::vector<D3D12_FILL_BUFFER_DESC> fillDescs;
+    CComPtr<ID3D12DescriptorHeap> fillGpuHeap;
+    CComPtr<ID3D12DescriptorHeap> fillCpuHeap;
+    UINT fillDescSize = 0;
+    if (includesNativeOnlyOps)
+    {
+        fillBuffers.resize(kE2EResources);
+        for (UINT i = 0; i < kE2EResources; ++i)
+            VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &uavDesc,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&fillBuffers[i])));
+
+        fillDescSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        D3D12_DESCRIPTOR_HEAP_DESC hd = {};
+        hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        hd.NumDescriptors = kE2EResources;
+        hd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        VERIFY_SUCCEEDED(D3D.spDevice->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&fillGpuHeap)));
+        hd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        VERIFY_SUCCEEDED(D3D.spDevice->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&fillCpuHeap)));
+
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uav = {};
+        uav.Format = DXGI_FORMAT_R32_TYPELESS;
+        uav.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+        uav.Buffer.NumElements = static_cast<UINT>(kE2EBufferBytes / 4);
+        uav.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+        for (UINT i = 0; i < kE2EResources; ++i)
+        {
+            CD3DX12_CPU_DESCRIPTOR_HANDLE g(fillGpuHeap->GetCPUDescriptorHandleForHeapStart(), i, fillDescSize);
+            CD3DX12_CPU_DESCRIPTOR_HANDLE c(fillCpuHeap->GetCPUDescriptorHandleForHeapStart(), i, fillDescSize);
+            D3D.spDevice->CreateUnorderedAccessView(fillBuffers[i], nullptr, &uav, g);
+            D3D.spDevice->CreateUnorderedAccessView(fillBuffers[i], nullptr, &uav, c);
+        }
+
+        fillDescs.resize(kE2EResources);
+        for (UINT i = 0; i < kE2EResources; ++i)
+        {
+            D3D12_FILL_BUFFER_DESC& f = fillDescs[i];
+            f.pBuffer = fillBuffers[i];
+            f.Offset = 0;
+            f.FillValue.Uints[0] = 0xDEADBEEF;
+            f.Format = DXGI_FORMAT_R32_UINT;
+            f.RawPatternSizeInBytes = 0;
+            f.RepeatCount = static_cast<UINT>(kE2EBufferBytes / 4);
+        }
+    }
+
+    CD3DX12_RESOURCE_DESC copyDesc = CD3DX12_RESOURCE_DESC::Buffer(kE2EBufferBytes);
+    CComPtr<ID3D12Resource> regionSource;
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &copyDesc,
+        D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&regionSource)));
+    std::vector<CComPtr<ID3D12Resource>> regionDests(kE2EResources);
+    for (UINT i = 0; i < kE2EResources; ++i)
+        VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &copyDesc,
+            D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&regionDests[i])));
+    std::vector<ID3D12Resource*> regionDestPtrs(kE2EResources), regionSrcPtrs(kE2EResources, regionSource);
+    std::vector<UINT64> regionDestOffsets(kE2EResources, 0), regionSrcOffsets(kE2EResources, 0), regionSizes(kE2EResources, kE2EBufferBytes);
+    for (UINT i = 0; i < kE2EResources; ++i)
+        regionDestPtrs[i] = regionDests[i];
+
+    CComPtr<ID3D12Resource> wholeSource;
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &copyDesc,
+        D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&wholeSource)));
+    std::vector<CComPtr<ID3D12Resource>> wholeDests(kE2EResources);
+    std::vector<ID3D12Resource*> wholeDestPtrs(kE2EResources), wholeSrcPtrs(kE2EResources, wholeSource);
+    for (UINT i = 0; i < kE2EResources; ++i)
+    {
+        VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &copyDesc,
+            D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&wholeDests[i])));
+        wholeDestPtrs[i] = wholeDests[i];
+    }
+
+    CComPtr<ID3D12QueryHeap> resolveQh;
+    D3D12_QUERY_HEAP_DESC qd = {};
+    qd.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+    qd.Count = kE2EResources;
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateQueryHeap(&qd, IID_PPV_ARGS(&resolveQh)));
+    CComPtr<ID3D12Resource> resolveDst;
+    CD3DX12_RESOURCE_DESC resolveDesc = CD3DX12_RESOURCE_DESC::Buffer((UINT64)kE2EResources * sizeof(UINT64));
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &resolveDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resolveDst)));
+
+    const UINT width = 1280;
+    const UINT height = 720;
+    const DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    CD3DX12_RESOURCE_DESC1 rtDesc = CD3DX12_RESOURCE_DESC1::Tex2D(format, width, height, 1, 1);
+    rtDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    D3D12_CLEAR_VALUE optClear = {};
+    optClear.Format = format;
+    CComPtr<ID3D12Resource> rt;
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&defaultProps, D3D12_HEAP_FLAG_NONE, &rtDesc,
+        D3D12_BARRIER_LAYOUT_RENDER_TARGET, &optClear, nullptr, 0, nullptr, IID_PPV_ARGS(&rt)));
+
+    CComPtr<ID3D12DescriptorHeap> rtvHeap;
+    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+    rtvHeapDesc.NumDescriptors = 1;
+    rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = rtvHeap->GetCPUDescriptorHandleForHeapStart();
+    D3D.spDevice->CreateRenderTargetView(rt, nullptr, rtvHandle);
+
+    CComPtr<ID3D12RootSignature> rootSig;
+    {
+        CD3DX12_ROOT_SIGNATURE_DESC rsDesc;
+        rsDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        CComPtr<ID3DBlob> sig, err;
+        VERIFY_SUCCEEDED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &err));
+        VERIFY_SUCCEEDED(D3D.spDevice->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&rootSig)));
+    }
+
+    CComPtr<ID3DBlob> vs, ps, err;
+    UINT compileFlags = 0;
+#if defined(_DEBUG)
+    compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+    VERIFY_SUCCEEDED(D3DCompile(g_triangleShader, strlen(g_triangleShader), "triangle", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vs, &err));
+    VERIFY_SUCCEEDED(D3DCompile(g_triangleShader, strlen(g_triangleShader), "triangle", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &ps, &err));
+
+    D3D12_INPUT_ELEMENT_DESC inputLayout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    };
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    psoDesc.InputLayout = { inputLayout, _countof(inputLayout) };
+    psoDesc.pRootSignature = rootSig;
+    psoDesc.VS = CD3DX12_SHADER_BYTECODE(vs);
+    psoDesc.PS = CD3DX12_SHADER_BYTECODE(ps);
+    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    psoDesc.DepthStencilState.DepthEnable = FALSE;
+    psoDesc.DepthStencilState.StencilEnable = FALSE;
+    psoDesc.SampleMask = UINT_MAX;
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.NumRenderTargets = 1;
+    psoDesc.RTVFormats[0] = format;
+    psoDesc.SampleDesc.Count = 1;
+    CComPtr<ID3D12PipelineState> pso;
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
+
+    struct Vertex { float pos[3]; float color[4]; };
+    Vertex verts[] =
+    {
+        { {  0.0f,  0.75f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+        { {  0.75f, -0.75f, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+        { { -0.75f, -0.75f, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } },
+    };
+    CComPtr<ID3D12Resource> vb;
+    CD3DX12_HEAP_PROPERTIES uploadProps(D3D12_HEAP_TYPE_UPLOAD);
+    CD3DX12_RESOURCE_DESC vbDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(verts));
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&uploadProps, D3D12_HEAP_FLAG_NONE, &vbDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vb)));
+    {
+        void* p = nullptr;
+        D3D12_RANGE empty = { 0, 0 };
+        VERIFY_SUCCEEDED(vb->Map(0, &empty, &p));
+        memcpy(p, verts, sizeof(verts));
+        vb->Unmap(0, nullptr);
+    }
+    D3D12_VERTEX_BUFFER_VIEW vbv = { vb->GetGPUVirtualAddress(), sizeof(verts), sizeof(Vertex) };
+
+    D3D12_VIEWPORT vp = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
+    D3D12_RECT sc = { 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
+    const UINT legacyFillVals[4] = { 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF };
+    const float clearColor[4] = { 0.01f, 0.01f, 0.08f, 1.0f };
+
+    auto recordRender = [&](D3DContext& d)
+    {
+        d.spList->RSSetViewports(1, &vp);
+        d.spList->RSSetScissorRects(1, &sc);
+        d.spList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+        d.spList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+        d.spList->SetGraphicsRootSignature(rootSig);
+        d.spList->SetPipelineState(pso);
+        d.spList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        d.spList->IASetVertexBuffers(0, 1, &vbv);
+        for (UINT draw = 0; draw < kE2EDrawCalls; ++draw)
+            d.spList->DrawInstanced(3, 1, 0, 0);
+    };
+
+    auto legacy = [&](D3DContext& d)
+    {
+        if (includesNativeOnlyOps)
+        {
+            ID3D12DescriptorHeap* heaps[] = { fillGpuHeap };
+            d.spList->SetDescriptorHeaps(1, heaps);
+            for (UINT i = 0; i < kE2EResources; ++i)
+            {
+                CD3DX12_GPU_DESCRIPTOR_HANDLE g(fillGpuHeap->GetGPUDescriptorHandleForHeapStart(), i, fillDescSize);
+                CD3DX12_CPU_DESCRIPTOR_HANDLE c(fillCpuHeap->GetCPUDescriptorHandleForHeapStart(), i, fillDescSize);
+                d.spList->ClearUnorderedAccessViewUint(g, c, fillBuffers[i], legacyFillVals, 0, nullptr);
+            }
+        }
+
+        for (UINT i = 0; i < kE2EResources; ++i)
+            d.spList->CopyBufferRegion(regionDests[i], 0, regionSource, 0, kE2EBufferBytes);
+
+        for (UINT i = 0; i < kE2EResources; ++i)
+            d.spList->CopyResource(wholeDests[i], wholeSource);
+
+        for (UINT i = 0; i < kE2EResources; ++i)
+            d.spList->EndQuery(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i);
+        for (UINT i = 0; i < kE2EResources; ++i)
+            d.spList->ResolveQueryData(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, resolveDst, static_cast<UINT64>(i) * sizeof(UINT64));
+
+        recordRender(d);
+    };
+
+    auto async = [&](D3DContext& d)
+    {
+        if (includesNativeOnlyOps)
+            d.spList->FillBuffers(kE2EResources, fillDescs.data());
+
+        d.spList->CopyBufferRegions(kE2EResources, regionDestPtrs.data(), regionDestOffsets.data(),
+            regionSrcPtrs.data(), regionSrcOffsets.data(), regionSizes.data());
+        d.spList->CopyResources(kE2EResources, wholeDestPtrs.data(), wholeSrcPtrs.data());
+
+        for (UINT i = 0; i < kE2EResources; ++i)
+            d.spList->EndQuery(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i);
+        for (UINT i = 0; i < kE2EResources; ++i)
+            d.spList->ResolveQueryDataAsync(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, resolveDst, static_cast<UINT64>(i) * sizeof(UINT64));
+
+        recordRender(d);
+    };
+
+    out = RunLoop(D3D, kE2EIterations, legacy, async);
+}
+
 //======================================================================================================================
 int main(int argc, char** argv)
 {
@@ -1169,12 +1411,14 @@ int main(int argc, char** argv)
             g_forceFallback = true;
         else if (_stricmp(argv[i], "-list") == 0 || _stricmp(argv[i], "/list") == 0)
             g_listAdapters = true;
+        else if (_stricmp(argv[i], "-e2e") == 0 || _stricmp(argv[i], "/e2e") == 0)
+            g_runEndToEnd = true;
         else if ((_stricmp(argv[i], "-adapter") == 0 || _stricmp(argv[i], "/adapter") == 0) && i + 1 < argc)
             g_adapterIndex = atoi(argv[++i]);
         else
         {
             PRINT(std::string(" Unrecognized option: ") + argv[i]);
-            PRINT(" Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback]");
+            PRINT(" Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback] [-e2e]");
             return -1;
         }
     }
@@ -1324,6 +1568,32 @@ int main(int argc, char** argv)
             PRINT("  Skipped - no runtime fallback: FillBuffers, ClearTextureSubresources,");
             PRINT("  ClearBoundRenderTargetViews, ClearBoundDepthStencilView,");
             PRINT("  ResolveSubresourceRegionAsync, CopyTilesAsync.\n");
+        }
+
+        if (g_runEndToEnd)
+        {
+            PRINT("[3] End-to-end mixed frame: data updates + rendering in one submission");
+            PRINT("    This path models practical frame work (resource updates plus draw calls),");
+            PRINT("    then compares serialized legacy recording against batched async APIs.\n");
+
+            bool includesNativeOnlyOps = false;
+            BenchResult e2e = {};
+            BenchmarkEndToEndMixedFrame(D3D, e2e, includesNativeOnlyOps);
+            PrintBench("End-to-end mixed frame",
+                includesNativeOnlyOps ? "Legacy: ClearUAV + Copy + ResolveQuery + Draw"
+                                      : "Legacy: Copy + ResolveQuery + Draw",
+                includesNativeOnlyOps ? "Async: FillBuffers + Copy* + ResolveQueryAsync + Draw"
+                                      : "Async: Copy* + ResolveQueryAsync + Draw",
+                e2e);
+            if (!includesNativeOnlyOps)
+            {
+                PRINT("    Note: FillBuffers has no runtime fallback lowering, so fallback mode");
+                PRINT("          uses the shared copy/resolve/render subset for a fair comparison.\n");
+            }
+            else
+            {
+                PRINT("");
+            }
         }
 
         PRINT(pass ? " Done." : " Done, with failures.");
