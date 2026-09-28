@@ -9,27 +9,8 @@
 //
 //*********************************************************
 
-//*********************************************************
-//
-// D3D12AsyncCommands
-//
-// Demonstrates the D3D12 Batched Asynchronous Command List APIs (Async
-// Commands), part of the retail surface from Agility SDK 620 on
-// ID3D12GraphicsCommandList12.
-//
-// The legacy Copy*/Clear*/Resolve* commands execute strictly in series,
-// because the old ResourceBarrier model cannot express a dependency between
-// two operations of the same type. The async commands drop that implicit
-// serialization contract, so independent work can overlap, and the caller
-// expresses real data hazards with enhanced barriers instead.
-//
-// The sample renders a triangle whose render target is cleared with the async
-// ClearBoundRenderTargetViews, then benchmarks all ten async commands against
-// their legacy counterparts using GPU timestamp queries.
-//
-// Usage: D3D12AsyncCommands [-warp] [-fallback] [-e2e]
-//
-//*********************************************************
+// D3D12AsyncCommands sample.
+// Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback] [-e2e]
 
 #include <windows.h>
 #include <iostream>
@@ -50,7 +31,7 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
-// Version 620 is the first Agility SDK with async commands on the retail surface.
+// Agility SDK 620 is the first retail SDK surface with async commands.
 extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 620; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; }
@@ -91,7 +72,7 @@ static const char* VendorName(UINT vendorId)
     }
 }
 
-// The user-mode driver version, which is what identifies a specific IHV driver build.
+// User-mode driver version identifies the IHV driver build.
 static std::string DriverVersion(IDXGIAdapter1* adapter)
 {
     LARGE_INTEGER umd = {};
@@ -188,7 +169,6 @@ struct D3DContext
     }
 };
 
-// useWarp selects WARP, adapterIndex >= 0 selects that adapter, otherwise the default is used.
 static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp, int adapterIndex)
 {
     D3D.Reset();
@@ -292,8 +272,7 @@ static void ExecuteAndWait(D3DContext& D3D)
     }
 }
 
-// Records the work produced by 'record' inside a GPU-timestamped, isolated submission.
-// Returns GPU elapsed milliseconds; optionally reports CPU recording milliseconds.
+// Records one isolated, timestamped submission and returns GPU milliseconds.
 template <typename TRecord>
 static double TimeGpu(D3DContext& D3D, TRecord&& record, double* cpuRecordMs = nullptr)
 {
@@ -344,7 +323,6 @@ static void PrintBench(const std::string& title, const char* legacyName, const c
     PRINT(os.str());
 }
 
-// Records 'record' in an isolated submission with no timestamps (used for untimed setup/layout flips).
 static void RunUntimed(D3DContext& D3D, const std::function<void(D3DContext&)>& record)
 {
     ResetList(D3D);
@@ -352,15 +330,12 @@ static void RunUntimed(D3DContext& D3D, const std::function<void(D3DContext&)>& 
     ExecuteAndWait(D3D);
 }
 
-// Averages a legacy-vs-async comparison over 'iterations'. Optional untimed prep lambdas run before
-// each timed measurement (e.g. to flip resource layouts between the two paths).
 static BenchResult RunLoop(D3DContext& D3D, UINT iterations,
     const std::function<void(D3DContext&)>& legacy,
     const std::function<void(D3DContext&)>& async,
     const std::function<void(D3DContext&)>& legacyPrep = nullptr,
     const std::function<void(D3DContext&)>& asyncPrep = nullptr)
 {
-    // Warm-up (untimed).
     if (legacyPrep) RunUntimed(D3D, legacyPrep);
     TimeGpu(D3D, legacy);
     if (asyncPrep) RunUntimed(D3D, asyncPrep);
@@ -397,7 +372,6 @@ static bool RenderTriangleWithAsyncClear(D3DContext& D3D)
     const UINT width = 256, height = 256;
     const DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-    // Offscreen render target created for the enhanced-barrier model (UNDEFINED initial layout).
     CD3DX12_HEAP_PROPERTIES defaultProps(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC1 rtDesc = CD3DX12_RESOURCE_DESC1::Tex2D(format, width, height, 1, 1);
     rtDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
@@ -514,7 +488,6 @@ static bool RenderTriangleWithAsyncClear(D3DContext& D3D)
     D3D.spList->RSSetScissorRects(1, &sc);
     D3D.spList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
-    // The async clear of the bound RTV, in place of ClearRenderTargetView.
     D3D12_CLEAR_DATA clearValues[8] = {};
     clearValues[0].Floats[0] = 0.0f;
     clearValues[0].Floats[1] = 0.2f;
@@ -557,7 +530,6 @@ static bool RenderTriangleWithAsyncClear(D3DContext& D3D)
         const BYTE* p = reinterpret_cast<const BYTE*>(pData) + footprint.Footprint.RowPitch * y + x * 4;
         return std::array<BYTE, 4>{ p[0], p[1], p[2], p[3] };
     };
-    // The triangle spans the middle of the target, so a corner still shows the cleared background.
     const std::array<BYTE, 4> corner = pixelAt(2, 2);
     const std::array<BYTE, 4> center = pixelAt(width / 2, height / 2);
     D3D12_RANGE emptyRange = { 0, 0 };
@@ -607,7 +579,6 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&buffers[i])));
 
-    // The legacy path needs a shader-visible and a non-shader-visible descriptor per resource.
     const UINT descSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     CComPtr<ID3D12DescriptorHeap> gpuHeap, cpuHeap;
     D3D12_DESCRIPTOR_HEAP_DESC hd = {};
@@ -644,7 +615,6 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
         }
     };
 
-    // FillBuffers takes resource pointers, so it needs no descriptors at all.
     std::vector<D3D12_FILL_BUFFER_DESC> fillDescs(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
     {
@@ -741,7 +711,6 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
         D3D.spDevice->CreateRenderTargetView(textures[i], nullptr, h);
     }
 
-    // Barrier helper to flip all textures between RENDER_TARGET and COPY_DEST layouts.
     auto transitionAll = [&](D3DContext& d, D3D12_BARRIER_LAYOUT before, D3D12_BARRIER_LAYOUT after,
                              D3D12_BARRIER_SYNC syncB, D3D12_BARRIER_SYNC syncA,
                              D3D12_BARRIER_ACCESS accB, D3D12_BARRIER_ACCESS accA)
@@ -774,8 +743,7 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
         }
     };
 
-    // ClearTextureSubresources clears by resource pointer and format, so it needs no RTVs, but it
-    // requires the COPY_DEST layout rather than RENDER_TARGET.
+    // ClearTextureSubresources requires COPY_DEST layout.
     std::vector<D3D12_CLEAR_TEXTURE_DESC> clearDescs(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
     {
@@ -794,7 +762,6 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
         d.spList->ClearTextureSubresources(kNumResources, clearDescs.data());
     };
 
-    // Warm-up.
     {
         double dummy;
         TimeGpu(D3D, [&](D3DContext& d) { legacy(d); }, &dummy);
@@ -818,7 +785,6 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
     {
         lg += TimeGpu(D3D, legacy, &tmp); lc += tmp;
 
-        // The layout flips run in their own submissions so they stay out of the measurements.
         TimeGpu(D3D, [&](D3DContext& d)
         {
             transitionAll(d, D3D12_BARRIER_LAYOUT_RENDER_TARGET, D3D12_BARRIER_LAYOUT_COPY_DEST,
@@ -928,7 +894,6 @@ static void BenchmarkResolve(D3DContext& D3D, BenchResult& out)
             D3D12_BARRIER_LAYOUT_RESOLVE_DEST, nullptr, nullptr, 0, nullptr, IID_PPV_ARGS(&dst[i])));
     }
 
-    // One-time: initialize MSAA metadata (DISCARD) and move to RESOLVE_SOURCE layout.
     RunUntimed(D3D, [&](D3DContext& d)
     {
         std::vector<D3D12_TEXTURE_BARRIER> bs(N);
@@ -972,7 +937,6 @@ static void BenchmarkResolveQueryData(D3DContext& D3D, BenchResult& out)
     VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&dp, D3D12_HEAP_FLAG_NONE, &bd,
         D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&dst)));
 
-    // Populate all queries once so there is valid data to resolve.
     RunUntimed(D3D, [&](D3DContext& d) { for (UINT i = 0; i < N; ++i) d.spList->EndQuery(qh, D3D12_QUERY_TYPE_TIMESTAMP, i); });
 
     auto legacy = [&](D3DContext& d)
@@ -1023,7 +987,6 @@ static void BenchmarkClearBoundRTVs(D3DContext& D3D, BenchResult& out)
         }
     };
 
-    // ClearBoundRenderTargetViews clears every bound RTV in one call, up to the 8-slot limit.
     D3D12_CLEAR_DATA cd[8] = {};
     for (int k = 0; k < 8; ++k) { cd[k].Floats[0] = col[0]; cd[k].Floats[1] = col[1]; cd[k].Floats[2] = col[2]; cd[k].Floats[3] = col[3]; }
     auto async = [&](D3DContext& d)
@@ -1067,7 +1030,6 @@ static void BenchmarkClearBoundDSV(D3DContext& D3D, BenchResult& out)
         D3D.spDevice->CreateDepthStencilView(tex[i], nullptr, h);
     }
 
-    // One-time: initialize depth metadata (DISCARD) and move to DEPTH_STENCIL_WRITE.
     RunUntimed(D3D, [&](D3DContext& d)
     {
         std::vector<D3D12_TEXTURE_BARRIER> bs(kNumResources);
@@ -1436,8 +1398,6 @@ int main(int argc, char** argv)
             return 0;
         }
 
-        // Opting into the runtime fallback makes the async commands lower onto their legacy
-        // counterparts, which is how they behave on a driver without native support.
         if (g_forceFallback)
         {
             UUID fallbackFeature[] = { D3D12ExperimentalForceAsyncCommandsFallback };
@@ -1457,8 +1417,6 @@ int main(int argc, char** argv)
 
         D3DContext D3D;
 
-        // An explicitly named adapter is never silently swapped for WARP; that would hide a driver
-        // that does not implement the feature, which is the thing a driver test needs to catch.
         const bool adapterWasRequested = g_useWarpDevice || g_adapterIndex >= 0;
         bool ok = InitDeviceAndContext(D3D, g_useWarpDevice, g_adapterIndex);
 
@@ -1505,8 +1463,6 @@ int main(int argc, char** argv)
             PRINT(os.str());
         }
 
-        // Only these four async commands have a runtime lowering onto their legacy counterparts;
-        // the rest reject the call when the fallback is forced.
         struct Benchmark
         {
             const char* title;
@@ -1572,9 +1528,8 @@ int main(int argc, char** argv)
 
         if (g_runEndToEnd)
         {
-            PRINT("[3] End-to-end mixed frame: data updates + rendering in one submission");
-            PRINT("    This path models practical frame work (resource updates plus draw calls),");
-            PRINT("    then compares serialized legacy recording against batched async APIs.\n");
+            PRINT("[3] End-to-end mixed-frame benchmark");
+            PRINT("    Mixed workload: updates plus rendering in one submission.\n");
 
             bool includesNativeOnlyOps = false;
             BenchResult e2e = {};
@@ -1587,8 +1542,8 @@ int main(int argc, char** argv)
                 e2e);
             if (!includesNativeOnlyOps)
             {
-                PRINT("    Note: FillBuffers has no runtime fallback lowering, so fallback mode");
-                PRINT("          uses the shared copy/resolve/render subset for a fair comparison.\n");
+                PRINT("    Note: FillBuffers has no runtime fallback lowering; fallback mode");
+                PRINT("          uses the shared copy/resolve/render subset.\n");
             }
             else
             {

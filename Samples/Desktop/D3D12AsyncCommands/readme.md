@@ -92,9 +92,9 @@ software renderer does not reorder those. Real hardware that implements async co
 show additional overlap on the independent work.
 
 3. **Optional end-to-end frame benchmark (`-e2e`).** In addition to the microbenchmarks above, the
-sample can measure a practical mixed workload where independent resource-update commands and
-render-draw work are recorded together in one submission. This highlights whether async batching
-improves whole-frame behavior, not just isolated command latency.
+   sample can measure a mixed workload where independent resource-update commands and rendering work
+   are recorded together in one submission. This highlights whether async batching improves
+   whole-frame behavior, not just isolated command latency.
 
 ## Requirements
 
@@ -124,15 +124,16 @@ Build `src\D3D12AsyncCommands.slnx` (x64 or ARM64) and run the console app.
 | `-fallback` | Force the runtime async-commands fallback (requires **Developer Mode**) |
 | `-e2e` | Run an additional end-to-end mixed-frame benchmark (updates + rendering together) |
 
-The sample prints the adapter description, vendor and device IDs, adapter LUID, user-mode driver version, and the
-implementation tier it obtained, so the output records exactly which driver produced the numbers.
+The sample prints adapter description, vendor and device IDs, adapter LUID, user-mode driver
+version, and the implementation tier it obtained, so the output records exactly which driver
+produced the numbers.
 
 When an adapter is named explicitly with `-adapter` or `-warp`, the sample **never** silently
 substitutes WARP; if that adapter does not support async commands it reports the fact and exits
 non-zero. Only the default (no-argument) path falls back to WARP.
 
 `-fallback` opts into `D3D12ExperimentalForceAsyncCommandsFallback`, which makes the runtime lower
-the async commands onto their legacy counterparts. This is useful for seeing the behaviour a driver
+the async commands onto their legacy counterparts. This is useful for seeing the behavior a driver
 without native support would give — expect roughly 1.0x everywhere, since both sides then perform
 the same work.
 
@@ -142,4 +143,4 @@ just those four and skips the others, including the triangle in part 1 (it clear
 `ClearBoundRenderTargetViews`).
 
 For `-e2e` in forced fallback mode, the sample runs the fallback-compatible subset
-(copy/resolve/render) for both legacy and async paths to keep the comparison fair.
+(copy/resolve/render) for both legacy and async paths.
