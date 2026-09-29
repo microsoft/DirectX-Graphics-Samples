@@ -80,7 +80,7 @@ private:
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
     ComPtr<IDXGISwapChain3> m_swapChain;
-    ComPtr<ID3D12Device> m_d3d12Device;
+    ComPtr<ID3D12Device10> m_d3d12Device;
     ComPtr<ID3D12Resource> m_renderPass1RenderTargets;
     ComPtr<ID3D12Resource> m_renderPass2RenderTargets[FrameCount];
     ComPtr<ID3D12Resource> m_uiRenderTarget;
@@ -92,7 +92,7 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_cbSrvHeap;
     ComPtr<ID3D12PipelineState> m_renderPass1PSO;
     ComPtr<ID3D12PipelineState> m_renderPass2PSO;
-    ComPtr<ID3D12GraphicsCommandList> m_commandList;
+    ComPtr<ID3D12GraphicsCommandList8> m_commandList;
     UINT m_rtvDescriptorSize;
     UINT m_cbSrvDescriptorSize;
 
@@ -116,6 +116,7 @@ private:
     // Shader Model 6 feature support result
     D3D12_FEATURE_DATA_D3D12_OPTIONS1 m_WaveIntrinsicsSupport;
     UINT m_rendermode;
+    bool m_bIsEnhancedBarriersEnabled;
 
     // UILayer
     std::shared_ptr<UILayer> m_uiLayer;
