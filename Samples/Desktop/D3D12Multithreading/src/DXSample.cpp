@@ -25,10 +25,45 @@ DXSample::DXSample(UINT width, UINT height, std::wstring name) :
     m_assetsPath = assetsPath;
 
     m_aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+
+    SetApplicationIdentity(name);
 }
 
 DXSample::~DXSample()
 {
+}
+
+// The Application Identity API allows drivers to recognize specific applications
+// and apply targeted optimizations, replacing fragile exe-name-based detection
+// with a reliable, application-controlled identification mechanism.
+// See: https://microsoft.github.io/DirectX-Specs/d3d/D3D12ApplicationIdentity.html
+void DXSample::SetApplicationIdentity(std::wstring& name)
+{
+    ComPtr<ID3D12ApplicationIdentity> pApplicationIdentity;
+    HRESULT hr = D3D12GetInterface(CLSID_D3D12ApplicationIdentity, IID_PPV_ARGS(&pApplicationIdentity));
+    if (E_NOINTERFACE == hr)
+    {
+        return;
+    }
+
+    D3D12_APPLICATION_DESC appDesc;
+    appDesc.pExeFilename = nullptr; // If unspecified, exe filename is filled by GetModuleFileName with a NULL handle.
+    appDesc.pName = name.c_str();
+    appDesc.Version.Version = 0x0001000000000000; // 1.0.0.0
+
+    // If EngineName is NULL, then engine version must be 0
+    appDesc.pEngineName = nullptr;
+    appDesc.EngineVersion.Version = 0x0000000000000000; // 0.0.0.0
+
+    // Create GUID from VS: Tools -> Create GUID -> Select the format
+    GUID DXSampleID = { /* 8367fc8a-d739-485a-a473-12dfaa190567 */
+        0x8367fc8a,
+        0xd739,
+        0x485a,
+        { 0xa4, 0x73, 0x12, 0xdf, 0xaa, 0x19, 0x05, 0x67 }
+    };
+
+    hr = pApplicationIdentity->SetApplicationIdentity(&appDesc, DXSampleID);
 }
 
 // Helper function for resolving the full path of assets.
