@@ -72,6 +72,7 @@ static const char* VendorName(UINT vendorId)
     case 0x10DE: return "NVIDIA";
     case 0x1002: return "AMD";
     case 0x8086: return "Intel";
+    case 0x5143: return "Qualcomm";
     case 0x1414: return "Microsoft";
     default:     return "unknown vendor";
     }
