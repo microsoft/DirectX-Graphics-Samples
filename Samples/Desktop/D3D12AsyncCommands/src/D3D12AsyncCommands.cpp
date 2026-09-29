@@ -713,7 +713,7 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
 
     for (UINT i = 0; i < kNumResources; ++i)
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
-            D3D12_BARRIER_LAYOUT_RENDER_TARGET, &optClear, nullptr, 0, nullptr, IID_PPV_ARGS(&textures[i])));
+            D3D12_BARRIER_LAYOUT_COPY_DEST, &optClear, nullptr, 0, nullptr, IID_PPV_ARGS(&textures[i])));
 
     const UINT rtvSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CComPtr<ID3D12DescriptorHeap> rtvHeap;
@@ -778,47 +778,20 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
         d.spList->ClearTextureSubresources(kNumResources, clearDescs.data());
     };
 
+    auto legacyPrep = [&](D3DContext& d)
     {
-        double dummy;
-        TimeGpu(D3D, [&](D3DContext& d) { legacy(d); }, &dummy);
-        TimeGpu(D3D, [&](D3DContext& d)
-        {
-            transitionAll(d, D3D12_BARRIER_LAYOUT_RENDER_TARGET, D3D12_BARRIER_LAYOUT_COPY_DEST,
-                D3D12_BARRIER_SYNC_RENDER_TARGET, D3D12_BARRIER_SYNC_COPY,
-                D3D12_BARRIER_ACCESS_RENDER_TARGET, D3D12_BARRIER_ACCESS_COPY_DEST);
-        }, &dummy);
-        TimeGpu(D3D, [&](D3DContext& d) { async(d); }, &dummy);
-        TimeGpu(D3D, [&](D3DContext& d)
-        {
-            transitionAll(d, D3D12_BARRIER_LAYOUT_COPY_DEST, D3D12_BARRIER_LAYOUT_RENDER_TARGET,
-                D3D12_BARRIER_SYNC_COPY, D3D12_BARRIER_SYNC_RENDER_TARGET,
-                D3D12_BARRIER_ACCESS_COPY_DEST, D3D12_BARRIER_ACCESS_RENDER_TARGET);
-        }, &dummy);
-    }
-
-    double lg = 0, ag = 0, lc = 0, ac = 0, tmp = 0;
-    for (UINT it = 0; it < kIterations; ++it)
+        transitionAll(d, D3D12_BARRIER_LAYOUT_COPY_DEST, D3D12_BARRIER_LAYOUT_RENDER_TARGET,
+            D3D12_BARRIER_SYNC_COPY, D3D12_BARRIER_SYNC_RENDER_TARGET,
+            D3D12_BARRIER_ACCESS_COPY_DEST, D3D12_BARRIER_ACCESS_RENDER_TARGET);
+    };
+    auto asyncPrep = [&](D3DContext& d)
     {
-        lg += TimeGpu(D3D, legacy, &tmp); lc += tmp;
+        transitionAll(d, D3D12_BARRIER_LAYOUT_RENDER_TARGET, D3D12_BARRIER_LAYOUT_COPY_DEST,
+            D3D12_BARRIER_SYNC_RENDER_TARGET, D3D12_BARRIER_SYNC_COPY,
+            D3D12_BARRIER_ACCESS_RENDER_TARGET, D3D12_BARRIER_ACCESS_COPY_DEST);
+    };
 
-        TimeGpu(D3D, [&](D3DContext& d)
-        {
-            transitionAll(d, D3D12_BARRIER_LAYOUT_RENDER_TARGET, D3D12_BARRIER_LAYOUT_COPY_DEST,
-                D3D12_BARRIER_SYNC_RENDER_TARGET, D3D12_BARRIER_SYNC_COPY,
-                D3D12_BARRIER_ACCESS_RENDER_TARGET, D3D12_BARRIER_ACCESS_COPY_DEST);
-        });
-
-        ag += TimeGpu(D3D, async, &tmp); ac += tmp;
-
-        TimeGpu(D3D, [&](D3DContext& d)
-        {
-            transitionAll(d, D3D12_BARRIER_LAYOUT_COPY_DEST, D3D12_BARRIER_LAYOUT_RENDER_TARGET,
-                D3D12_BARRIER_SYNC_COPY, D3D12_BARRIER_SYNC_RENDER_TARGET,
-                D3D12_BARRIER_ACCESS_COPY_DEST, D3D12_BARRIER_ACCESS_RENDER_TARGET);
-        });
-    }
-    out.legacyGpuMs = lg / kIterations; out.asyncGpuMs = ag / kIterations;
-    out.legacyCpuMs = lc / kIterations; out.asyncCpuMs = ac / kIterations;
+    out = RunLoop(D3D, kIterations, legacy, async, legacyPrep, asyncPrep);
 }
 
 // ---- Whole-resource copy: CopyResources vs CopyResource ----
