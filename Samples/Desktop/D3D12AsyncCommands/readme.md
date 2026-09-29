@@ -31,7 +31,7 @@ where a true data hazard exists.
 The new commands, all on the `ID3D12GraphicsCommandList12` interface (obtained by
 `QueryInterface` from a graphics command list):
 
-| Async command | Legacy counterpart it replaces |
+| Async command | Legacy baseline used for comparison in this sample |
 |---|---|
 | `CopyBufferRegions` | `CopyBufferRegion` (batched, independent copies overlap) |
 | `CopyTextureRegions` | `CopyTextureRegion` |
@@ -50,7 +50,7 @@ The new commands, all on the `ID3D12GraphicsCommandList12` interface (obtained b
    render target with the async `ClearBoundRenderTargetViews` — an in-render-pass raster clear — in
    place of the legacy `ClearRenderTargetView`. The result is read back and verified.
 
-2. **Performance comparison.** It benchmarks each async command against its legacy counterpart
+2. **Performance comparison.** It benchmarks each async command against a legacy baseline
    using GPU timestamp queries over a set of independent resources, reporting both GPU time and
    CPU command-recording time. **All ten** async methods of `ID3D12GraphicsCommandList12` are exercised:
    - `FillBuffers` vs. N x `ClearUnorderedAccessViewUint`
@@ -137,10 +137,8 @@ the async commands onto their legacy counterparts. This is useful for seeing the
 without native support would give — expect roughly 1.0x everywhere, since both sides then perform
 the same work.
 
-Only `CopyBufferRegions`, `CopyResources`, `CopyTextureRegions`, and `ResolveQueryDataAsync` have a
-runtime lowering. The rest reject the call when the fallback is forced, so `-fallback` exercises
-just those four and skips the others, including the triangle in part 1 (it clears with
-`ClearBoundRenderTargetViews`).
+In fallback mode, the sample attempts each benchmark and reports any unsupported async commands as
+skipped for the current adapter/runtime combination.
 
 For `-e2e` in forced fallback mode, the sample runs the fallback-compatible subset
-(copy/resolve/render) for both legacy and async paths.
+(copy/resolve/render) if `FillBuffers` fallback support is unavailable on that system.

@@ -20,6 +20,7 @@
 #include <array>
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <initguid.h>
 #include <atlbase.h>
 #include "d3d12.h"
@@ -39,10 +40,14 @@ extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; 
 //======================================================================================================================
 // Helpers
 //======================================================================================================================
+static bool g_quietExpectedErrors = false;
+
 #define PRINT(text) do { std::cout << (text) << "\n" << std::flush; } while(0)
 #define VERIFY_SUCCEEDED(hr) { HRESULT _hr = (hr); if (FAILED(_hr)) { \
-    std::ostringstream _os; _os << "Error at " << __FILE__ << ":" << __LINE__ << " HRESULT=0x" << std::hex << _hr; \
-    PRINT(_os.str()); throw _hr; } }
+    if (!g_quietExpectedErrors) { \
+        std::ostringstream _os; _os << "Error at " << __FILE__ << ":" << __LINE__ << " HRESULT=0x" << std::hex << _hr; \
+        PRINT(_os.str()); } \
+    throw _hr; } }
 
 bool g_useWarpDevice = false;
 bool g_forceFallback = false;
@@ -1122,14 +1127,12 @@ static bool BenchmarkCopyTiles(D3DContext& D3D, BenchResult& out)
 }
 
 // ---- End-to-end mixed frame: independent data updates + real rendering in one submission. ----
-static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool& includesNativeOnlyOps)
+static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool includeFillBench)
 {
     const UINT kE2EResources = 128;
     const UINT kE2EIterations = 12;
     const UINT kE2EDrawCalls = 256;
     const UINT64 kE2EBufferBytes = 512u * 1024u;
-
-    includesNativeOnlyOps = (D3D.asyncImpl == D3D12_ASYNC_COMMANDS_IMPL_NATIVE);
 
     CD3DX12_HEAP_PROPERTIES defaultProps(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC uavDesc = CD3DX12_RESOURCE_DESC::Buffer(kE2EBufferBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -1138,7 +1141,7 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool&
     CComPtr<ID3D12DescriptorHeap> fillGpuHeap;
     CComPtr<ID3D12DescriptorHeap> fillCpuHeap;
     UINT fillDescSize = 0;
-    if (includesNativeOnlyOps)
+    if (includeFillBench)
     {
         fillBuffers.resize(kE2EResources);
         for (UINT i = 0; i < kE2EResources; ++i)
@@ -1316,7 +1319,7 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool&
 
     auto legacy = [&](D3DContext& d)
     {
-        if (includesNativeOnlyOps)
+        if (includeFillBench)
         {
             ID3D12DescriptorHeap* heaps[] = { fillGpuHeap };
             d.spList->SetDescriptorHeaps(1, heaps);
@@ -1344,7 +1347,7 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool&
 
     auto async = [&](D3DContext& d)
     {
-        if (includesNativeOnlyOps)
+        if (includeFillBench)
             d.spList->FillBuffers(kE2EResources, fillDescs.data());
 
         d.spList->CopyBufferRegions(kE2EResources, regionDestPtrs.data(), regionDestOffsets.data(),
@@ -1438,6 +1441,17 @@ int main(int argc, char** argv)
             return -1;
         }
 
+        auto InitBenchmarkContext = [&]() -> std::unique_ptr<D3DContext>
+        {
+            std::unique_ptr<D3DContext> bench = std::make_unique<D3DContext>();
+            bool benchOk = InitDeviceAndContext(*bench, g_useWarpDevice, g_adapterIndex);
+            if (!benchOk && !adapterWasRequested)
+                benchOk = InitDeviceAndContext(*bench, true, -1);
+            if (!benchOk)
+                return nullptr;
+            return bench;
+        };
+
         PRINT(" Device under test:");
         PrintAdapterDetails(D3D.spAdapter);
 
@@ -1468,62 +1482,71 @@ int main(int argc, char** argv)
             const char* title;
             const char* legacyName;
             const char* asyncName;
-            bool        hasRuntimeFallback;
             const char* note;
             std::function<bool(D3DContext&, BenchResult&)> run;
         };
 
         const Benchmark benchmarks[] =
         {
-            { "Buffer fill", "ClearUnorderedAccessViewUint x N", "FillBuffers (batched)", false, nullptr,
+            { "Buffer fill", "ClearUnorderedAccessViewUint x N", "FillBuffers (batched)", nullptr,
               [](D3DContext& d, BenchResult& r) { BenchmarkFillVsUavClear(d, r); return true; } },
-            { "Buffer region copy", "CopyBufferRegion x N", "CopyBufferRegions (batched)", true, nullptr,
+            { "Buffer region copy", "CopyBufferRegion x N", "CopyBufferRegions (batched)", nullptr,
               [](D3DContext& d, BenchResult& r) { BenchmarkCopy(d, r); return true; } },
-            { "Whole-resource copy", "CopyResource x N", "CopyResources (batched)", true, nullptr,
+            { "Whole-resource copy", "CopyResource x N", "CopyResources (batched)", nullptr,
               [](D3DContext& d, BenchResult& r) { BenchmarkCopyResources(d, r, kBufferSize); return true; } },
-            { "Texture region copy", "CopyTextureRegion x N", "CopyTextureRegions (batched)", true, nullptr,
+            { "Texture region copy", "CopyTextureRegion x N", "CopyTextureRegions (batched)", nullptr,
               [](D3DContext& d, BenchResult& r) { BenchmarkCopyTextureRegions(d, r); return true; } },
-            { "MSAA resolve", "ResolveSubresourceRegion x N", "ResolveSubresourceRegionAsync x N", false, nullptr,
+            { "MSAA resolve", "ResolveSubresourceRegion x N", "ResolveSubresourceRegionAsync x N", nullptr,
               [](D3DContext& d, BenchResult& r) { BenchmarkResolve(d, r); return true; } },
-            { "Query resolve", "ResolveQueryData x N", "ResolveQueryDataAsync x N", true, nullptr,
+            { "Query resolve", "ResolveQueryData x N", "ResolveQueryDataAsync x N", nullptr,
               [](D3DContext& d, BenchResult& r) { BenchmarkResolveQueryData(d, r); return true; } },
-            { "Texture clear", "ClearRenderTargetView x N", "ClearTextureSubresources (batched)", false, nullptr,
+            { "Texture clear", "ClearRenderTargetView x N", "ClearTextureSubresources (batched)", nullptr,
               [](D3DContext& d, BenchResult& r) { BenchmarkTextureClear(d, r); return true; } },
-            { "Bound RTV clear", "ClearRenderTargetView x N", "ClearBoundRenderTargetViews (8/call)", false,
+            { "Bound RTV clear", "ClearRenderTargetView x N", "ClearBoundRenderTargetViews (8/call)",
               "  ClearBound* are raster-ordered (serialized with Draw* by design), so their benefit is\n"
               "  ergonomics - in/mid-render-pass clears, batching bound targets, lower CPU-record cost -\n"
               "  rather than GPU overlap.",
               [](D3DContext& d, BenchResult& r) { BenchmarkClearBoundRTVs(d, r); return true; } },
-            { "Bound DSV clear", "ClearDepthStencilView x N", "ClearBoundDepthStencilView x N", false, nullptr,
+            { "Bound DSV clear", "ClearDepthStencilView x N", "ClearBoundDepthStencilView x N", nullptr,
               [](D3DContext& d, BenchResult& r) { BenchmarkClearBoundDSV(d, r); return true; } },
-            { "Tiled copy", "CopyTiles x N", "CopyTilesAsync x N", false, nullptr,
-              [](D3DContext& d, BenchResult& r)
-              {
-                  try { return BenchmarkCopyTiles(d, r); }
-                  catch (HRESULT) { return false; }
-              } },
+            { "Tiled copy", "CopyTiles x N", "CopyTilesAsync x N", nullptr,
+              [](D3DContext& d, BenchResult& r) { return BenchmarkCopyTiles(d, r); } },
         };
 
         for (const Benchmark& b : benchmarks)
         {
-            if (g_forceFallback && !b.hasRuntimeFallback)
-                continue;
             if (b.note)
                 PRINT(b.note);
 
             BenchResult r;
-            if (b.run(D3D, r))
+            bool ran = false;
+            if (g_forceFallback)
+            {
+                auto bench = InitBenchmarkContext();
+                if (bench)
+                {
+                    g_quietExpectedErrors = true;
+                    try { ran = b.run(*bench, r); }
+                    catch (HRESULT) { ran = false; }
+                    g_quietExpectedErrors = false;
+                }
+                else
+                {
+                    ran = false;
+                }
+            }
+            else
+            {
+                ran = b.run(D3D, r);
+            }
+
+            if (ran)
                 PrintBench(b.title, b.legacyName, b.asyncName, r);
+            else if (g_forceFallback)
+                PRINT(std::string("  ") + b.title + ": skipped (not supported in fallback on this adapter/runtime).");
             else
                 PRINT(std::string("  ") + b.title + ": skipped (not supported on this adapter).");
             PRINT("");
-        }
-
-        if (g_forceFallback)
-        {
-            PRINT("  Skipped - no runtime fallback: FillBuffers, ClearTextureSubresources,");
-            PRINT("  ClearBoundRenderTargetViews, ClearBoundDepthStencilView,");
-            PRINT("  ResolveSubresourceRegionAsync, CopyTilesAsync.\n");
         }
 
         if (g_runEndToEnd)
@@ -1531,19 +1554,57 @@ int main(int argc, char** argv)
             PRINT("[3] End-to-end mixed-frame benchmark");
             PRINT("    Mixed workload: updates plus rendering in one submission.\n");
 
-            bool includesNativeOnlyOps = false;
             BenchResult e2e = {};
-            BenchmarkEndToEndMixedFrame(D3D, e2e, includesNativeOnlyOps);
-            PrintBench("End-to-end mixed frame",
-                includesNativeOnlyOps ? "Legacy: ClearUAV + Copy + ResolveQuery + Draw"
-                                      : "Legacy: Copy + ResolveQuery + Draw",
-                includesNativeOnlyOps ? "Async: FillBuffers + Copy* + ResolveQueryAsync + Draw"
-                                      : "Async: Copy* + ResolveQueryAsync + Draw",
-                e2e);
-            if (!includesNativeOnlyOps)
+            bool includeFillBench = true;
+            if (g_forceFallback)
             {
-                PRINT("    Note: FillBuffers has no runtime fallback lowering; fallback mode");
-                PRINT("          uses the shared copy/resolve/render subset.\n");
+                bool ranE2E = false;
+                if (auto full = InitBenchmarkContext())
+                {
+                    g_quietExpectedErrors = true;
+                    try
+                    {
+                        BenchmarkEndToEndMixedFrame(*full, e2e, true);
+                        ranE2E = true;
+                    }
+                    catch (HRESULT)
+                    {
+                        ranE2E = false;
+                    }
+                    g_quietExpectedErrors = false;
+                }
+
+                if (!ranE2E)
+                {
+                    if (auto subset = InitBenchmarkContext())
+                    {
+                        BenchmarkEndToEndMixedFrame(*subset, e2e, false);
+                        includeFillBench = false;
+                        ranE2E = true;
+                    }
+                }
+
+                if (!ranE2E)
+                {
+                    PRINT("  End-to-end mixed frame: skipped (could not initialize benchmark context).\n");
+                    PRINT(pass ? " Done." : " Done, with failures.");
+                    return pass ? 0 : -1;
+                }
+            }
+            else
+            {
+                BenchmarkEndToEndMixedFrame(D3D, e2e, true);
+            }
+            PrintBench("End-to-end mixed frame",
+                includeFillBench ? "Legacy: ClearUAV + Copy + ResolveQuery + Draw"
+                                 : "Legacy: Copy + ResolveQuery + Draw",
+                includeFillBench ? "Async: FillBuffers + Copy* + ResolveQueryAsync + Draw"
+                                 : "Async: Copy* + ResolveQueryAsync + Draw",
+                e2e);
+            if (!includeFillBench)
+            {
+                PRINT("    Note: FillBuffers is not supported in fallback on this adapter/runtime.");
+                PRINT("          End-to-end fallback measurement used the shared copy/resolve/render subset.\n");
             }
             else
             {
