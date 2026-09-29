@@ -1459,11 +1459,11 @@ int main(int argc, char** argv)
             PRINT(" Forcing the runtime async-commands fallback.\n");
         }
 
-        bool wantDebugLayer = g_enableDebugLayer;
+        bool shouldEnableDebugLayer = g_enableDebugLayer;
 #if defined(_DEBUG)
-        wantDebugLayer = true;
+        shouldEnableDebugLayer = true;
 #endif
-        if (wantDebugLayer)
+        if (shouldEnableDebugLayer)
         {
             CComPtr<ID3D12Debug1> debug;
             if (FAILED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug))))
