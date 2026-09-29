@@ -10,7 +10,7 @@
 //*********************************************************
 
 // D3D12AsyncCommands sample.
-// Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback] [-e2e]
+// Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback] [-e2e] [-debuglayer]
 
 #include <windows.h>
 #include <iostream>
@@ -54,6 +54,7 @@ bool g_forceFallback = false;
 bool g_listAdapters = false;
 int  g_adapterIndex = -1;
 bool g_runEndToEnd = false;
+bool g_enableDebugLayer = false;
 
 static std::string Narrow(const WCHAR* text)
 {
@@ -583,7 +584,7 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
     CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     for (UINT i = 0; i < kNumResources; ++i)
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
-            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&buffers[i])));
+            D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&buffers[i])));
 
     const UINT descSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     CComPtr<ID3D12DescriptorHeap> gpuHeap, cpuHeap;
@@ -637,7 +638,32 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
         d.spList->FillBuffers(kNumResources, fillDescs.data());
     };
 
-    out = RunLoop(D3D, kIterations, legacy, async);
+    auto transitionAll = [&](D3DContext& d, D3D12_BARRIER_SYNC syncBefore, D3D12_BARRIER_SYNC syncAfter,
+                             D3D12_BARRIER_ACCESS accessBefore, D3D12_BARRIER_ACCESS accessAfter)
+    {
+        std::vector<CD3DX12_BUFFER_BARRIER> barriers(kNumResources);
+        for (UINT i = 0; i < kNumResources; ++i)
+        {
+            barriers[i] = CD3DX12_BUFFER_BARRIER(syncBefore, syncAfter, accessBefore, accessAfter, buffers[i]);
+        }
+        CD3DX12_BARRIER_GROUP group(static_cast<UINT32>(barriers.size()), barriers.data());
+        d.spList->Barrier(1, &group);
+    };
+
+    auto legacyPrep = [&](D3DContext& d)
+    {
+        transitionAll(d,
+            D3D12_BARRIER_SYNC_COPY, D3D12_BARRIER_SYNC_CLEAR_UNORDERED_ACCESS_VIEW,
+            D3D12_BARRIER_ACCESS_COPY_DEST, D3D12_BARRIER_ACCESS_UNORDERED_ACCESS);
+    };
+    auto asyncPrep = [&](D3DContext& d)
+    {
+        transitionAll(d,
+            D3D12_BARRIER_SYNC_CLEAR_UNORDERED_ACCESS_VIEW, D3D12_BARRIER_SYNC_COPY,
+            D3D12_BARRIER_ACCESS_UNORDERED_ACCESS, D3D12_BARRIER_ACCESS_COPY_DEST);
+    };
+
+    out = RunLoop(D3D, kIterations, legacy, async, legacyPrep, asyncPrep);
 }
 
 // ---- Buffer copy: CopyBufferRegions vs CopyBufferRegion ----
@@ -1091,20 +1117,22 @@ static bool BenchmarkCopyTiles(D3DContext& D3D, BenchResult& out)
 
     auto legacy = [&](D3DContext& d)
     {
+        constexpr D3D12_TILE_COPY_FLAGS tileCopyFlags = D3D12_TILE_COPY_FLAG_LINEAR_BUFFER_TO_SWIZZLED_TILED_RESOURCE;
         for (UINT i = 0; i < numTiles; ++i)
         {
             D3D12_TILED_RESOURCE_COORDINATE c = { i, 0, 0, 0 };
             D3D12_TILE_REGION_SIZE sz = {}; sz.NumTiles = 1; sz.UseBox = FALSE;
-            d.spList->CopyTiles(tiled, &c, &sz, srcBuf, 0, D3D12_TILE_COPY_FLAG_NONE);
+            d.spList->CopyTiles(tiled, &c, &sz, srcBuf, 0, tileCopyFlags);
         }
     };
     auto async = [&](D3DContext& d)
     {
+        constexpr D3D12_TILE_COPY_FLAGS tileCopyFlags = D3D12_TILE_COPY_FLAG_LINEAR_BUFFER_TO_SWIZZLED_TILED_RESOURCE;
         for (UINT i = 0; i < numTiles; ++i)
         {
             D3D12_TILED_RESOURCE_COORDINATE c = { i, 0, 0, 0 };
             D3D12_TILE_REGION_SIZE sz = {}; sz.NumTiles = 1; sz.UseBox = FALSE;
-            d.spList->CopyTilesAsync(tiled, &c, &sz, srcBuf, 0, D3D12_TILE_COPY_FLAG_NONE);
+            d.spList->CopyTilesAsync(tiled, &c, &sz, srcBuf, 0, tileCopyFlags);
         }
     };
     out = RunLoop(D3D, kIterations, legacy, async);
@@ -1131,7 +1159,7 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
         fillBuffers.resize(kE2EResources);
         for (UINT i = 0; i < kE2EResources; ++i)
             VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &uavDesc,
-                D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&fillBuffers[i])));
+                D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&fillBuffers[i])));
 
         fillDescSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         D3D12_DESCRIPTOR_HEAP_DESC hd = {};
@@ -1347,7 +1375,39 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
         recordRender(d);
     };
 
-    out = RunLoop(D3D, kE2EIterations, legacy, async);
+    if (includeFillBench)
+    {
+        auto transitionFill = [&](D3DContext& d, D3D12_BARRIER_SYNC syncBefore, D3D12_BARRIER_SYNC syncAfter,
+                                  D3D12_BARRIER_ACCESS accessBefore, D3D12_BARRIER_ACCESS accessAfter)
+        {
+            std::vector<CD3DX12_BUFFER_BARRIER> barriers(kE2EResources);
+            for (UINT i = 0; i < kE2EResources; ++i)
+            {
+                barriers[i] = CD3DX12_BUFFER_BARRIER(syncBefore, syncAfter, accessBefore, accessAfter, fillBuffers[i]);
+            }
+            CD3DX12_BARRIER_GROUP group(static_cast<UINT32>(barriers.size()), barriers.data());
+            d.spList->Barrier(1, &group);
+        };
+
+        auto legacyPrep = [&](D3DContext& d)
+        {
+            transitionFill(d,
+                D3D12_BARRIER_SYNC_COPY, D3D12_BARRIER_SYNC_CLEAR_UNORDERED_ACCESS_VIEW,
+                D3D12_BARRIER_ACCESS_COPY_DEST, D3D12_BARRIER_ACCESS_UNORDERED_ACCESS);
+        };
+        auto asyncPrep = [&](D3DContext& d)
+        {
+            transitionFill(d,
+                D3D12_BARRIER_SYNC_CLEAR_UNORDERED_ACCESS_VIEW, D3D12_BARRIER_SYNC_COPY,
+                D3D12_BARRIER_ACCESS_UNORDERED_ACCESS, D3D12_BARRIER_ACCESS_COPY_DEST);
+        };
+
+        out = RunLoop(D3D, kE2EIterations, legacy, async, legacyPrep, asyncPrep);
+    }
+    else
+    {
+        out = RunLoop(D3D, kE2EIterations, legacy, async);
+    }
 }
 
 //======================================================================================================================
@@ -1363,12 +1423,14 @@ int main(int argc, char** argv)
             g_listAdapters = true;
         else if (_stricmp(argv[i], "-e2e") == 0 || _stricmp(argv[i], "/e2e") == 0)
             g_runEndToEnd = true;
+        else if (_stricmp(argv[i], "-debuglayer") == 0 || _stricmp(argv[i], "/debuglayer") == 0)
+            g_enableDebugLayer = true;
         else if ((_stricmp(argv[i], "-adapter") == 0 || _stricmp(argv[i], "/adapter") == 0) && i + 1 < argc)
             g_adapterIndex = atoi(argv[++i]);
         else
         {
             PRINT(std::string(" Unrecognized option: ") + argv[i]);
-            PRINT(" Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback] [-e2e]");
+            PRINT(" Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback] [-e2e] [-debuglayer]");
             return -1;
         }
     }
@@ -1397,11 +1459,29 @@ int main(int argc, char** argv)
             PRINT(" Forcing the runtime async-commands fallback.\n");
         }
 
+        bool wantDebugLayer = g_enableDebugLayer;
 #if defined(_DEBUG)
-        CComPtr<ID3D12Debug1> debug;
-        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug))))
-            debug->EnableDebugLayer();
+        wantDebugLayer = true;
 #endif
+        if (wantDebugLayer)
+        {
+            CComPtr<ID3D12Debug1> debug;
+            if (FAILED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug))))
+            {
+                if (g_enableDebugLayer)
+                {
+                    PRINT(" Could not enable the D3D12 debug layer.");
+                    PRINT(" Install Graphics Tools (Optional Features), then retry with -debuglayer.");
+                    return -1;
+                }
+            }
+            else
+            {
+                debug->EnableDebugLayer();
+                if (g_enableDebugLayer)
+                    PRINT(" D3D12 debug layer is enabled.\n");
+            }
+        }
 
         D3DContext D3D;
 

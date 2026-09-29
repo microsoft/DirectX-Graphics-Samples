@@ -123,6 +123,7 @@ Build `src\D3D12AsyncCommands.slnx` (x64 or ARM64) and run the console app.
 | `-warp` | Force the WARP software adapter |
 | `-fallback` | Force the runtime async-commands fallback (requires **Developer Mode**) |
 | `-e2e` | Run an additional end-to-end mixed-frame benchmark (updates + rendering together) |
+| `-debuglayer` | Enable the D3D12 debug layer explicitly (fails fast if debug layer is unavailable) |
 
 The sample prints adapter description, vendor and device IDs, adapter LUID, user-mode driver
 version, and the implementation tier it obtained, so the output records exactly which driver
@@ -142,3 +143,7 @@ skipped for the current adapter/runtime combination.
 
 For `-e2e` in forced fallback mode, the sample runs the fallback-compatible subset
 (copy/resolve/render) if `FillBuffers` fallback support is unavailable on that system.
+
+Use `-debuglayer` when validating debug-layer cleanliness in test runs (for example on Release
+binaries copied to another machine). If `-debuglayer` is specified and the debug layer cannot be
+enabled, the sample exits with a clear error instead of silently continuing.
