@@ -65,7 +65,6 @@ private:
     ID3D12Fence* m_pFence;
     uint64_t m_NextFenceValue;
     uint64_t m_LastCompletedFenceValue;
-    HANDLE m_FenceEventHandle;
 
 };
 

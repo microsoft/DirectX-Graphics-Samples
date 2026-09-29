@@ -36,8 +36,6 @@ void CommandQueue::Shutdown()
 
     m_AllocatorPool.Shutdown();
 
-    CloseHandle(m_FenceEventHandle);
-
     m_pFence->Release();
     m_pFence = nullptr;
 
@@ -80,9 +78,6 @@ void CommandQueue::Create(ID3D12Device* pDevice)
     ASSERT_SUCCEEDED(pDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, MY_IID_PPV_ARGS(&m_pFence)));
     m_pFence->SetName(L"CommandListManager::m_pFence");
     m_pFence->Signal((uint64_t)m_Type << 56);
-
-    m_FenceEventHandle = CreateEvent(nullptr, false, false, nullptr);
-    ASSERT(m_FenceEventHandle != NULL);
 
     m_AllocatorPool.Create(pDevice);
 
@@ -171,17 +166,8 @@ void CommandQueue::WaitForFence(uint64_t FenceValue)
     if (IsFenceComplete(FenceValue))
         return;
 
-    // TODO:  Think about how this might affect a multi-threaded situation.  Suppose thread A
-    // wants to wait for fence 100, then thread B comes along and wants to wait for 99.  If
-    // the fence can only have one event set on completion, then thread B has to wait for 
-    // 100 before it knows 99 is ready.  Maybe insert sequential events?
-    {
-        std::lock_guard<std::mutex> LockGuard(m_EventMutex);
-
-        m_pFence->SetEventOnCompletion(FenceValue, m_FenceEventHandle);
-        WaitForSingleObject(m_FenceEventHandle, INFINITE);
-        m_LastCompletedFenceValue = FenceValue;
-    }
+    m_pFence->SetEventOnCompletion(FenceValue, NULL);
+    m_LastCompletedFenceValue = FenceValue;
 }
 
 void CommandListManager::WaitForFence(uint64_t FenceValue)
