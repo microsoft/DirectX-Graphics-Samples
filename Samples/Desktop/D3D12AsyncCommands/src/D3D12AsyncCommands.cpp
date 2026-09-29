@@ -637,15 +637,7 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
         d.spList->FillBuffers(kNumResources, fillDescs.data());
     };
 
-    TimeGpu(D3D, legacy); TimeGpu(D3D, async);
-    double lg = 0, ag = 0, lc = 0, ac = 0, tmp = 0;
-    for (UINT it = 0; it < kIterations; ++it)
-    {
-        lg += TimeGpu(D3D, legacy, &tmp); lc += tmp;
-        ag += TimeGpu(D3D, async, &tmp);  ac += tmp;
-    }
-    out.legacyGpuMs = lg / kIterations; out.asyncGpuMs = ag / kIterations;
-    out.legacyCpuMs = lc / kIterations; out.asyncCpuMs = ac / kIterations;
+    out = RunLoop(D3D, kIterations, legacy, async);
 }
 
 // ---- Buffer copy: CopyBufferRegions vs CopyBufferRegion ----
@@ -678,15 +670,7 @@ static void BenchmarkCopy(D3DContext& D3D, BenchResult& out)
             srcPtrs.data(), srcOffsets.data(), sizes.data());
     };
 
-    TimeGpu(D3D, legacy); TimeGpu(D3D, async);
-    double lg = 0, ag = 0, lc = 0, ac = 0, tmp = 0;
-    for (UINT it = 0; it < kIterations; ++it)
-    {
-        lg += TimeGpu(D3D, legacy, &tmp); lc += tmp;
-        ag += TimeGpu(D3D, async, &tmp);  ac += tmp;
-    }
-    out.legacyGpuMs = lg / kIterations; out.asyncGpuMs = ag / kIterations;
-    out.legacyCpuMs = lc / kIterations; out.asyncCpuMs = ac / kIterations;
+    out = RunLoop(D3D, kIterations, legacy, async);
 }
 
 // ---- Texture clear: ClearTextureSubresources vs ClearRenderTargetView ----
