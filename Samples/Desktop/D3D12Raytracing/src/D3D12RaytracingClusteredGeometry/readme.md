@@ -9,14 +9,22 @@ formats) and the animated path (`BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES` + per-f
 
 ## Build
 
-Use Visual Studio 2022 with the Desktop development with C++ workload and a
-Windows SDK. Enable Windows Developer Mode for the experimental SM 6.10 shaders.
+Use Visual Studio 2022 with the Desktop development with C++ workload, a
+Windows SDK, and the **vcpkg package manager** component
+(`Microsoft.VisualStudio.Component.Vcpkg`). Alternatively, set `VCPKG_ROOT`
+to your vcpkg installation. Enable Windows Developer Mode for the experimental
+SM 6.10 shaders.
 The sample restores these native NuGet dependencies into the repository's
 `Packages` directory:
 
 - `Microsoft.Direct3D.D3D12` **1.722.0-160058127-preview** (DXR2 preview).
 - `Microsoft.Direct3D.DXC` **1.10.2605.37-preview** (SM 6.10 compiler).
-- `directxtk12_desktop_2019` **2024.10.29.1** (text overlay).
+
+DirectXTK12 (text overlay) is built from source through the repository's shared
+`vcpkg.json` manifest and `vcpkg\DirectX.vcpkg.props` / `.targets` integration,
+matching the other raytracing samples. MSBuild automatically installs the
+manifest dependencies for `x64-windows-static-md`, using the appropriate Debug
+or Release libraries. No prebuilt DirectXTK NuGet package is required.
 
 Until the Agility package is published, add the folder containing its `.nupkg`
 as a **local package source** in Visual Studio's NuGet Package Manager settings,

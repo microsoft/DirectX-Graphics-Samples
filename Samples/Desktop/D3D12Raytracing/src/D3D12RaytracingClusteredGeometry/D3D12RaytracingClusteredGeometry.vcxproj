@@ -38,6 +38,7 @@
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', 'vcpkg.json'))\vcpkg\DirectX.vcpkg.props" />
 
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -153,14 +154,11 @@
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', 'vcpkg.json'))\vcpkg\DirectX.vcpkg.targets" />
 
-  <!-- DirectXTK12 (SpriteBatch + SpriteFont) for on-screen overlay text.
-       packages.config drives nuget restore; this Import is the build-time
-       hook that actually wires the lib + headers into the project. -->
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.targets')" />
     <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets')" />
-    <Import Project="..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets" Condition="Exists('..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -170,6 +168,5 @@
     <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.targets'))" />
     <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.props'))" />
     <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets'))" />
-    <Error Condition="!Exists('..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets'))" />
   </Target>
 </Project>
