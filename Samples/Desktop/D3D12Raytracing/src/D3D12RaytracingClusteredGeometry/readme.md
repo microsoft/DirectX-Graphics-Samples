@@ -57,7 +57,7 @@ D3D12RaytracingClusteredGeometry.exe [-forceAdapter <ID>] [--screenshot N path.p
 `--screenshot N path.png` renders `N` frames, dumps the back buffer to PNG,
 and exits. Useful for unattended visual verification.
 
-### Testing on WARP / NVIDIA / etc.
+### Testing on hardware / WARP
 
 The sample selects a hardware adapter by default; `-forceAdapter <ID>` overrides
 its DXGI adapter index. Use `d3dconfig` to force software rendering:
@@ -114,22 +114,6 @@ D3D12RaytracingClusteredGeometry.exe --geometry-mode clusters --vertex-format co
 Use `--exit-after-frames N` for a frame-count smoke test. The command
 `--screenshot-at S path.png` jumps the camera/animation time to `S`, warms up
 the swap chain, saves a PNG, and exits.
-
-### Historical stress-test sweep (RTX 4090, N=10K, ~10M tris)
-
-These measurements came from an earlier experimental runtime/driver combination
-that exposed clustered geometry on the RTX 4090. They are historical results,
-not measurements of the preview NuGet package or a claim about other hardware.
-
-| Mode    | BLAS time / frame | FPS  | What it shows                                                  |
-| ------- | ----------------- | ---- | -------------------------------------------------------------- |
-| cluster | 0.78 ms (2001 builds) | 43 | DXR2 batched `ExecuteIndirectRTASOperations` — one driver call covering 2K BLAS builds. |
-| trad    | 640 ms (2001 builds)  | 1.5 | DXR1 baseline — 2K separate `BuildRaytracingAccelerationStructure` calls. |
-
-→ ~800× faster per-frame BLAS work in the DXR2 path on the same scene
-with the same per-clone animated geometry.  The cluster-mode N=10K
-result spends most of its frame time on ray traversal, not on AS work
-anymore.
 
 ### Scheduled actions
 
