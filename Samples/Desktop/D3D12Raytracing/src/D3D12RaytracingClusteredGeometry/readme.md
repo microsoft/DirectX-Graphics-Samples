@@ -9,33 +9,36 @@ formats) and the animated path (`BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES` + per-f
 
 ## Build
 
-The sample requires an **experimental D3D12 build** (no public Agility SDK
-NuGet supports DXR2 yet). The expected layout is:
+Use Visual Studio 2022 with the Desktop development with C++ workload and a
+Windows SDK. Enable Windows Developer Mode for the experimental SM 6.10 shaders.
+The sample restores these native NuGet dependencies into the repository's
+`Packages` directory:
 
+- `Microsoft.Direct3D.D3D12` **1.722.0-160058127-preview** (DXR2 preview).
+- `Microsoft.Direct3D.DXC` **1.10.2605.37-preview** (SM 6.10 compiler).
+- `directxtk12_desktop_2019` **2024.10.29.1** (text overlay).
+
+Until the Agility package is published, add the folder containing its `.nupkg`
+as a **local package source** in Visual Studio's NuGet Package Manager settings,
+alongside nuget.org. Alternatively, configure it in your user-level
+`NuGet.Config`. The feed location is machine-specific and is not encoded in the
+project; `packages.config` and the `.vcxproj` encode only package versions.
+When the public Agility version is available, update its version in those two
+files and restore normally from nuget.org.
+
+Open `D3D12RaytracingClusteredGeometry.sln` and restore/build **Debug|x64** or
+**Release|x64**. From a VS 2022 Developer PowerShell:
+
+```powershell
+msbuild D3D12RaytracingClusteredGeometry.sln /restore /p:RestorePackagesConfig=true /p:Configuration=Debug /p:Platform=x64
 ```
-<root>\install\windows\x64\debug\
-    d3d12.lib, D3D12Core.dll, D3D12SDKLayers.dll
-    include\d3d12.h, d3dx12.h, ...
-<root>\packages\OSS\dxcbin_preview\bin\sdk\amd64\
-    dxc.exe, dxcompiler.dll, dxil.dll      (must support lib_6_10)
-```
 
-Defaults assume `<root>=d:\experimental`. Override:
-
-```
-set DxrExperimentalRoot=d:\my\d3d12
-set DxrExperimentalDxcRoot=d:\my\dxc
-msbuild D3D12RaytracingClusteredGeometry.sln /p:Configuration=Debug /p:Platform=x64
-```
-
-The build copies `D3D12Core.dll` + `D3D12SDKLayers.dll` into
-`bin\<cfg>\D3D12\` and `dxcompiler.dll` + `dxil.dll` next to the EXE. The
-system `d3d12.dll` loads the experimental `D3D12Core.dll` via the standard
-Agility SDK loader (`D3D12SDKVersion` + `D3D12SDKPath` exports in `Main.cpp`).
-
-When a public Agility SDK NuGet shipping DXR2 is available, replace
-`ExperimentalD3D12.props` with the standard NuGet-based pattern (see e.g.
-`D3D12RaytracingOpacityMicromaps.vcxproj`).
+NuGet copies `D3D12Core.dll` and `D3D12SDKLayers.dll` into
+`bin\x64\<Configuration>\D3D12\`, and the DXC DLLs next to the EXE.
+`Main.cpp` exports `D3D12_PREVIEW_SDK_VERSION` and `D3D12SDKPath` so the system
+loader uses the matching preview runtime. No private D3D12 build is required.
+The sample enables `D3D12RaytracingPreview` before device creation and queries
+`D3D12_FEATURE_D3D12_OPTIONS_RAYTRACING2` to check clustered-geometry support.
 
 ## Run
 
@@ -48,18 +51,25 @@ and exits. Useful for unattended visual verification.
 
 ### Testing on WARP / NVIDIA / etc.
 
-This sample doesn't pick the adapter. Use `d3dconfig` to switch:
+The sample selects a hardware adapter by default; `-forceAdapter <ID>` overrides
+its DXGI adapter index. Use `d3dconfig` to force software rendering:
 
 ```
-d3dconfig device force-warp=true     # use WARP (CPU rasteriser, supports DXR2)
+d3dconfig device force-warp=true     # requires a DXR2-capable preview WARP
 d3dconfig device force-warp=false    # use the system's hardware adapter
 ```
 
-Currently exercised against:
-- **Experimental WARP**: FLOAT32_3 and COMPRESSED1 clustered paths.
+The Agility package does not include WARP. Software DXR2 testing requires a
+compatible preview `d3d10warp.dll` next to the EXE; the OS-provided WARP may not
+support clustered geometry. Ensure that the executable's directory is in
+`d3dconfig`'s application paths before changing its settings, and restore
+`force-warp=false` after software testing.
 
-On the current NVIDIA RTX 4090 setup, the runtime reports clustered geometry as
-unsupported and the sample falls back to the traditional BLAS path.
+On a supported preview driver, the sample uses clustered geometry. If the
+adapter reports no clustered-geometry support, the sample logs the unsupported
+capability, visibly labels the fallback, and uses traditional BLAS instead.
+Diagnostic output goes to `%TEMP%\D3D12RaytracingClusteredGeometry.log`, or the
+path specified by the `SAMPLE_LOG` environment variable.
 
 ### Runtime controls
 
@@ -100,9 +110,8 @@ the swap chain, saves a PNG, and exits.
 ### Historical stress-test sweep (RTX 4090, N=10K, ~10M tris)
 
 These measurements came from an earlier experimental runtime/driver combination
-that exposed clustered geometry on the RTX 4090. The current setup described
-above reports clustered geometry unsupported and therefore cannot reproduce the
-cluster row on hardware.
+that exposed clustered geometry on the RTX 4090. They are historical results,
+not measurements of the preview NuGet package or a claim about other hardware.
 
 | Mode    | BLAS time / frame | FPS  | What it shows                                                  |
 | ------- | ----------------- | ---- | -------------------------------------------------------------- |

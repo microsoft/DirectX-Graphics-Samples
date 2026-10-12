@@ -178,7 +178,7 @@ private:
     static const UINT FrameCount = 3;
 
     // ---------- DXR1 + DXR2 device / cmdlist interfaces ----------
-    ComPtr<ID3D12Device5>                m_dxrDevice;
+    ComPtr<ID3D12Device16>               m_dxrDevice;
     ComPtr<ID3D12GraphicsCommandList4>   m_dxrCommandList;
     ComPtr<ID3D12DeviceRaytracing2>      m_dxr2Device;
     ComPtr<ID3D12CommandListRaytracing2> m_dxr2CommandList;

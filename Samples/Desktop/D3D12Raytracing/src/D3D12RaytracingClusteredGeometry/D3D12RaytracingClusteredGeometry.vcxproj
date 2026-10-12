@@ -1,16 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  D3D12RaytracingClusteredGeometry sample.
-
-  This project intentionally diverges from the sibling raytracing samples in that it
-  does NOT use the Microsoft.Direct3D.D3D12 / Microsoft.Direct3D.DXC NuGet packages.
-  Both runtime + compiler components are sourced from a local experimental D3D12
-  build via ExperimentalD3D12.props (see that file for what it expects).
-
-  Once a real Agility SDK NuGet package shipping DXR2 is available, switch this
-  project back to the standard pattern (see D3D12RaytracingOpacityMicromaps.vcxproj).
--->
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.props" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.props')" />
+  <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.props" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -48,9 +39,6 @@
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
 
-  <!-- Pull in the experimental D3D12 runtime + DXC compiler hookup. -->
-  <Import Project="ExperimentalD3D12.props" />
-
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -60,6 +48,8 @@
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
+    <DxcDirectory>$(MSBuildThisFileDirectory)..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\bin\x64</DxcDirectory>
+    <DxcDebugArguments Condition="'$(Configuration)'=='Debug'">-Zi -Qembed_debug</DxcDebugArguments>
   </PropertyGroup>
 
   <ItemDefinitionGroup>
@@ -87,6 +77,14 @@
            reporting (matches sibling samples). -->
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
+    <CustomBuild>
+      <FileType>Document</FileType>
+      <Message>Compiling %(Filename).hlsl to $(IntDir)CompiledShaders\%(Filename).hlsl.h (cs_6_6)</Message>
+      <Command>if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
+"$(DxcDirectory)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 $(DxcDebugArguments) -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
+      <Outputs>$(IntDir)CompiledShaders\%(Filename).hlsl.h</Outputs>
+      <AdditionalInputs>$(DxcDirectory)\dxc.exe;$(DxcDirectory)\dxcompiler.dll;$(DxcDirectory)\dxil.dll;$(MSBuildProjectFullPath);RaytracingHlslCompat.h;HlslCompat.h</AdditionalInputs>
+    </CustomBuild>
   </ItemDefinitionGroup>
 
   <!-- Source / header files. -->
@@ -127,96 +125,25 @@
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
 
-  <!-- HLSL shader compiled with the experimental dxc.exe to a C-array header.
-       The default FxCompile task in the Microsoft.Cpp.targets calls fxc.exe and
-       cannot target lib_6_10. We use a CustomBuild step instead, which is what
-       the Microsoft.Direct3D.DXC NuGet does internally too. -->
+  <!-- CustomBuild uses the packaged DXC for SM 6.10 and emits C-array headers. -->
   <ItemGroup>
     <CustomBuild Include="Raytracing.hlsl">
-      <FileType>Document</FileType>
-      <Message>Compiling Raytracing.hlsl -> $(IntDir)CompiledShaders\%(Filename).hlsl.h (lib_6_10)</Message>
-      <Command Condition="'$(Configuration)'=='Debug'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T lib_6_10 -HV 2021 -Zi -Qembed_debug -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)'=='Release'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T lib_6_10 -HV 2021 -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Outputs>$(IntDir)CompiledShaders\%(Filename).hlsl.h</Outputs>
-      <AdditionalInputs>$(DxrExperimentalDxcRoot)\dxc.exe;$(DxrExperimentalDxcRoot)\dxcompiler.dll;$(DxrExperimentalDxcRoot)\dxil.dll</AdditionalInputs>
+      <Message>Compiling Raytracing.hlsl to $(IntDir)CompiledShaders\%(Filename).hlsl.h (lib_6_10)</Message>
+      <Command>if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
+"$(DxcDirectory)\dxc.exe" -nologo -T lib_6_10 -HV 2021 $(DxcDebugArguments) -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
     </CustomBuild>
-    <!-- Compute shader for animating the showpiece ball.  Compiled to cs_6_6
-         (SM 6.6 has all the intrinsics we use; no need for the 6.10 set the
-         raytracing module requires).  Same dxc binary, different target. -->
-    <CustomBuild Include="AnimateBall.hlsl">
-      <FileType>Document</FileType>
-      <Message>Compiling AnimateBall.hlsl -> $(IntDir)CompiledShaders\%(Filename).hlsl.h (cs_6_6)</Message>
-      <Command Condition="'$(Configuration)'=='Debug'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Zi -Qembed_debug -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)'=='Release'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Outputs>$(IntDir)CompiledShaders\%(Filename).hlsl.h</Outputs>
-      <AdditionalInputs>$(DxrExperimentalDxcRoot)\dxc.exe;$(DxrExperimentalDxcRoot)\dxcompiler.dll;$(DxrExperimentalDxcRoot)\dxil.dll</AdditionalInputs>
-    </CustomBuild>
-    <!-- Compute shader that GPU-fills the per-cluster
-         INSTANTIATE_CLUSTER_TEMPLATES_ARGS array (replaces a CPU-side
-         readback + loop).  See FillInstantiateArgs.hlsl. -->
-    <CustomBuild Include="FillInstantiateArgs.hlsl">
-      <FileType>Document</FileType>
-      <Message>Compiling FillInstantiateArgs.hlsl -> $(IntDir)CompiledShaders\%(Filename).hlsl.h (cs_6_6)</Message>
-      <Command Condition="'$(Configuration)'=='Debug'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Zi -Qembed_debug -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)'=='Release'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Outputs>$(IntDir)CompiledShaders\%(Filename).hlsl.h</Outputs>
-      <AdditionalInputs>$(DxrExperimentalDxcRoot)\dxc.exe;$(DxrExperimentalDxcRoot)\dxcompiler.dll;$(DxrExperimentalDxcRoot)\dxil.dll</AdditionalInputs>
-    </CustomBuild>
-    <!-- GPU args-fill shaders for the remaining RTAS op types. Same compile
-         recipe as FillInstantiateArgs above; see each .hlsl for purpose. -->
-    <CustomBuild Include="FillMoveClusterArgs.hlsl">
-      <FileType>Document</FileType>
-      <Message>Compiling FillMoveClusterArgs.hlsl -> $(IntDir)CompiledShaders\%(Filename).hlsl.h (cs_6_6)</Message>
-      <Command Condition="'$(Configuration)'=='Debug'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Zi -Qembed_debug -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)'=='Release'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Outputs>$(IntDir)CompiledShaders\%(Filename).hlsl.h</Outputs>
-      <AdditionalInputs>$(DxrExperimentalDxcRoot)\dxc.exe;$(DxrExperimentalDxcRoot)\dxcompiler.dll;$(DxrExperimentalDxcRoot)\dxil.dll</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="FillBlasFromClasArgs.hlsl">
-      <FileType>Document</FileType>
-      <Message>Compiling FillBlasFromClasArgs.hlsl -> $(IntDir)CompiledShaders\%(Filename).hlsl.h (cs_6_6)</Message>
-      <Command Condition="'$(Configuration)'=='Debug'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Zi -Qembed_debug -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)'=='Release'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Outputs>$(IntDir)CompiledShaders\%(Filename).hlsl.h</Outputs>
-      <AdditionalInputs>$(DxrExperimentalDxcRoot)\dxc.exe;$(DxrExperimentalDxcRoot)\dxcompiler.dll;$(DxrExperimentalDxcRoot)\dxil.dll</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="FillClasFromTrianglesArgs.hlsl">
-      <FileType>Document</FileType>
-      <Message>Compiling FillClasFromTrianglesArgs.hlsl -> $(IntDir)CompiledShaders\%(Filename).hlsl.h (cs_6_6)</Message>
-      <Command Condition="'$(Configuration)'=='Debug'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Zi -Qembed_debug -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)'=='Release'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Outputs>$(IntDir)CompiledShaders\%(Filename).hlsl.h</Outputs>
-      <AdditionalInputs>$(DxrExperimentalDxcRoot)\dxc.exe;$(DxrExperimentalDxcRoot)\dxcompiler.dll;$(DxrExperimentalDxcRoot)\dxil.dll</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="FillClusterTemplateArgs.hlsl">
-      <FileType>Document</FileType>
-      <Message>Compiling FillClusterTemplateArgs.hlsl -> $(IntDir)CompiledShaders\%(Filename).hlsl.h (cs_6_6)</Message>
-      <Command Condition="'$(Configuration)'=='Debug'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Zi -Qembed_debug -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)'=='Release'">if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
-"$(DxrExperimentalDxcRoot)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
-      <Outputs>$(IntDir)CompiledShaders\%(Filename).hlsl.h</Outputs>
-      <AdditionalInputs>$(DxrExperimentalDxcRoot)\dxc.exe;$(DxrExperimentalDxcRoot)\dxcompiler.dll;$(DxrExperimentalDxcRoot)\dxil.dll</AdditionalInputs>
-    </CustomBuild>
+    <CustomBuild Include="AnimateBall.hlsl" />
+    <CustomBuild Include="FillInstantiateArgs.hlsl" />
+    <CustomBuild Include="FillMoveClusterArgs.hlsl" />
+    <CustomBuild Include="FillBlasFromClasArgs.hlsl" />
+    <CustomBuild Include="FillClasFromTrianglesArgs.hlsl" />
+    <CustomBuild Include="FillClusterTemplateArgs.hlsl" />
   </ItemGroup>
 
   <!-- Loose files visible in IDE. -->
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="readme.md" />
-    <None Include="ExperimentalD3D12.props" />
     <!-- DirectXTK sprite-font asset for the on-screen overlay (see RenderUI()).
          CopyToOutputDirectory ensures it lands next to the exe; SpriteFont
          opens it at runtime by relative filename. -->
@@ -231,12 +158,18 @@
        packages.config drives nuget restore; this Import is the build-time
        hook that actually wires the lib + headers into the project. -->
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.targets')" />
+    <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets')" />
     <Import Project="..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets" Condition="Exists('..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.props'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\Microsoft.Direct3D.D3D12.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.props'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets'))" />
     <Error Condition="!Exists('..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\directxtk12_desktop_2019.2024.10.29.1\build\native\directxtk12_desktop_2019.targets'))" />
   </Target>
 </Project>

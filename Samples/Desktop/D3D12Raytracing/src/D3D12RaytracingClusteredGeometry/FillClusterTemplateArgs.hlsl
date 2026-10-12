@@ -81,7 +81,7 @@ void main(uint3 tid : SV_DispatchThreadID)
     // --- TrianglesArgs sub-struct (80 bytes) ------------------------------
     g_argsOut.Store (baseByte +  0, idx);                                   // ClusterID = thread index
     g_argsOut.Store (baseByte +  4, 0u);                                    // ClusterFlags
-    g_argsOut.Store (baseByte +  8, pack16(triCount, vertCount));           // TriCount/VertCount
+    g_argsOut.Store (baseByte +  8, pack16(triCount, vertCount));           // TriangleCount/UniqueVertexIndexCount
     // The animated ball is single-region, so its geometry index and flags are zero.
     g_argsOut.Store (baseByte + 12, 0u);                                    // BaseGeometryIndexAndFlags
     g_argsOut.Store (baseByte + 16, 0u);                                    // OpacityMicromapBaseLocation

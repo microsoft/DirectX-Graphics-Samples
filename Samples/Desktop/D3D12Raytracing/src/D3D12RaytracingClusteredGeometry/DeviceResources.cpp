@@ -190,7 +190,10 @@ void DeviceResources::CreateDeviceResources()
         _countof(s_featureLevels), s_featureLevels, D3D_FEATURE_LEVEL_11_0
     };
 
-    HRESULT hr = m_d3dDevice->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &featLevels, sizeof(featLevels));
+    ComPtr<ID3D12Device16> versionedDevice;
+    ThrowIfFailed(m_d3dDevice.As(&versionedDevice));
+    HRESULT hr = versionedDevice->CheckFeatureSupport1(
+        D3D12_FEATURE_FEATURE_LEVELS, &featLevels, sizeof(featLevels), D3D12_PREVIEW_SDK_VERSION);
     if (SUCCEEDED(hr))
     {
         m_d3dFeatureLevel = featLevels.MaxSupportedFeatureLevel;

@@ -36,7 +36,7 @@
 #include <algorithm>
 #include <assert.h>
 
-// DXGI / D3D12 (uses experimental d3d12.h via ExperimentalD3D12.props's include path)
+// DXGI / D3D12 (headers supplied by the Agility SDK NuGet package)
 #include <dxgi1_6.h>
 #include <d3d12.h>
 #include "d3dx12.h"

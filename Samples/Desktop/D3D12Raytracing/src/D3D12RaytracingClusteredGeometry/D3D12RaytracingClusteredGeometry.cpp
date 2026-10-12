@@ -57,7 +57,7 @@ static_assert(sizeof(D3D12_RTAS_OPERATION_MOVE_CLUSTER_OBJECTS_ARGS) == 8,
 CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, ClusterID, 0);
 CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, ClusterFlags, 4);
 CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, TriangleCount, 8);
-CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, VertexCount, 10);
+CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, UniqueVertexIndexCount, 10);
 CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, BaseGeometryIndexAndFlags, 12);
 CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, OpacityMicromapBaseLocation, 16);
 CHECK_FIELD_OFFSET(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS, VertexBufferStride, 20);
@@ -152,14 +152,9 @@ void D3D12RaytracingClusteredGeometry::OnInit()
             SampleLog::LogF(L"OnInit: DRED unavailable hr=0x%08X\n", (unsigned)hrDred);
         }
     }
-    // ---- DXR2 experimental-features opt-in ----
-    // The runtime requires D3D12RaytracingExperiment to be enabled BEFORE any
-    // D3D12CreateDevice call in this process. Without it, ClustersAndPTLAS
-    // GetRTASOperationPrebuildInfo() calls silently return zero sizes even when
-    // the cap reports YES. (D3D12ExperimentalShaderModels is needed for the
-    // SM 6.10 raygen/closesthit shaders.)
+    // Opt in to DXR2 and SM 6.10 before creating any device.
     {
-        UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels, D3D12RaytracingExperiment };
+        UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels, D3D12RaytracingPreview };
         HRESULT hrExp = D3D12EnableExperimentalFeatures(_countof(experimentalFeatures),
                                                         experimentalFeatures, nullptr, nullptr);
         SampleLog::LogF(L"OnInit: D3D12EnableExperimentalFeatures -> hr=0x%08X (%s)\n",
@@ -188,15 +183,16 @@ void D3D12RaytracingClusteredGeometry::OnInit()
 
     SampleLog::Write(L"OnInit: checking DXR support\n");
     {
-        ComPtr<ID3D12Device> testDevice;
+        ComPtr<ID3D12Device16> testDevice;
         HRESULT hrCreate = D3D12CreateDevice(m_deviceResources->GetAdapter(),
                                              D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice));
         SampleLog::LogF(L"  D3D12CreateDevice(adapter, FL11_0) -> hr=0x%08X (%s)\n",
                         (unsigned)hrCreate, SUCCEEDED(hrCreate) ? L"OK" : L"FAIL");
         ThrowIfFailed(hrCreate);
         D3D12_FEATURE_DATA_D3D12_OPTIONS5 opts5 = {};
-        HRESULT hrFeat = testDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &opts5, sizeof(opts5));
-        SampleLog::LogF(L"  CheckFeatureSupport(OPTIONS5) hr=0x%08X, RaytracingTier=0x%X\n",
+        HRESULT hrFeat = testDevice->CheckFeatureSupport1(
+            D3D12_FEATURE_D3D12_OPTIONS5, &opts5, sizeof(opts5), D3D12_PREVIEW_SDK_VERSION);
+        SampleLog::LogF(L"  CheckFeatureSupport1(OPTIONS5) hr=0x%08X, RaytracingTier=0x%X\n",
                         (unsigned)hrFeat, (unsigned)opts5.RaytracingTier);
         ThrowIfFalse(SUCCEEDED(hrFeat) && opts5.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED,
             L"ERROR: DirectX Raytracing tier 1.0+ is required.\n\n");
@@ -214,11 +210,11 @@ void D3D12RaytracingClusteredGeometry::CreateDeviceDependentResources()
     auto commandList = m_deviceResources->GetCommandList();
 
     ThrowIfFailed(device->QueryInterface(IID_PPV_ARGS(&m_dxrDevice)),
-        L"ERROR: ID3D12Device5 not available.\n");
+        L"ERROR: ID3D12Device16 not available - is the preview Agility SDK loaded?\n");
     ThrowIfFailed(commandList->QueryInterface(IID_PPV_ARGS(&m_dxrCommandList)),
         L"ERROR: ID3D12GraphicsCommandList4 not available.\n");
     ThrowIfFailed(device->QueryInterface(IID_PPV_ARGS(&m_dxr2Device)),
-        L"ERROR: ID3D12DeviceRaytracing2 not available - is the experimental D3D12Core loaded?\n");
+        L"ERROR: ID3D12DeviceRaytracing2 not available - is the preview Agility SDK loaded?\n");
     ThrowIfFailed(commandList->QueryInterface(IID_PPV_ARGS(&m_dxr2CommandList)),
         L"ERROR: ID3D12CommandListRaytracing2 not available.\n");
 
@@ -357,13 +353,15 @@ void D3D12RaytracingClusteredGeometry::CreateDeviceDependentResources()
 
 void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
 {
-    auto device = m_deviceResources->GetD3DDevice();
-    D3D12_FEATURE_DATA_D3D12_OPTIONS_EXPERIMENTAL opts = {};
-    HRESULT hr = device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS_EXPERIMENTAL, &opts, sizeof(opts));
-    m_clustersAndPtlasSupported = SUCCEEDED(hr) && opts.ClustersAndPTLASSupported;
+    D3D12_FEATURE_DATA_D3D12_OPTIONS_RAYTRACING2 opts = {};
+    HRESULT hr = m_dxrDevice->CheckFeatureSupport1(
+        D3D12_FEATURE_D3D12_OPTIONS_RAYTRACING2, &opts, sizeof(opts), D3D12_PREVIEW_SDK_VERSION);
+    ThrowIfFailed(hr, L"ERROR: DXR2 capability query failed.\n");
+    m_clustersAndPtlasSupported = opts.ClustersAndPTLASSupported != FALSE;
 
     D3D12_FEATURE_DATA_D3D12_OPTIONS5 opts5 = {};
-    device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &opts5, sizeof(opts5));
+    ThrowIfFailed(m_dxrDevice->CheckFeatureSupport1(
+        D3D12_FEATURE_D3D12_OPTIONS5, &opts5, sizeof(opts5), D3D12_PREVIEW_SDK_VERSION));
 
     SampleLog::LogF(L"\n[DXR2] adapter: %s\n", m_deviceResources->GetAdapterDescription());
     SampleLog::LogF(L"  driver: %s   VID:%04X  PID:%04X   dedicatedVRAM: %.0f MB\n",
@@ -374,6 +372,8 @@ void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
     SampleLog::LogF(L"  D3D12_RAYTRACING_TIER: 0x%X\n", (unsigned)opts5.RaytracingTier);
     SampleLog::LogF(L"  ClustersAndPTLASSupported: %s   (hr=0x%08X)\n",
                     m_clustersAndPtlasSupported ? L"YES" : L"NO", (unsigned)hr);
+    SampleLog::LogF(L"  TemplateInstancePrefersCOMPRESSED1: %s\n",
+                    opts.TemplateInstancePrefersCOMPRESSED1 ? L"YES" : L"NO");
 
     // Resolve the auto-default for m_aaSamplesPerPixel now that the adapter
     // description is known.  Sentinel 0 in the header means "not set by
@@ -1332,9 +1332,9 @@ static void BuildSharedClusterTrianglesInputs(
     outLimits.MaxTriangleCountPerCluster                    = maxTris;
     // Use the exact scene bound required by the current API contract.  The
     // final-tree FLOAT32_3 and COMPRESSED1 paths are validated on WARP.
-    outLimits.MaxVertexCountPerCluster                      = maxVerts;
+    outLimits.MaxUniqueVertexIndexCountPerCluster           = maxVerts;
     outLimits.MaxTotalTriangleCount                         = totalTris;
-    outLimits.MaxTotalVertexCount                           = totalVerts;
+    outLimits.MaxSumOfUniqueVertexIndexCounts                = totalVerts;
     outLimits.MaxOpacityMicromapIndicesPerCluster           = 0;
 
     outClasDesc = {};
@@ -3279,9 +3279,9 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedObjectSetup()
     limits.MaxGeometryIndexValue                         = 0;
     limits.MaxUniqueGeometryIndexAndFlagsCountPerCluster = 1;
     limits.MaxTriangleCountPerCluster                    = obj.maxTrisPerCluster;
-    limits.MaxVertexCountPerCluster                      = obj.maxVertsPerCluster;
+    limits.MaxUniqueVertexIndexCountPerCluster           = obj.maxVertsPerCluster;
     limits.MaxTotalTriangleCount                         = obj.mesh.totalTriangles;
-    limits.MaxTotalVertexCount                           = obj.totalVertexCount;
+    limits.MaxSumOfUniqueVertexIndexCounts                = obj.totalVertexCount;
 
     // ==================================================================
     // CLUSTER-MODE-ONLY: template build + per-frame CLAS/BLAS storage
@@ -4286,9 +4286,9 @@ void D3D12RaytracingClusteredGeometry::MeasureAnimatedClasBytesOneShot()
     limits.MaxArgCount                                   = obj.clusterCount;
     limits.MaxUniqueGeometryIndexAndFlagsCountPerCluster = 1;
     limits.MaxTriangleCountPerCluster                    = obj.maxTrisPerCluster;
-    limits.MaxVertexCountPerCluster                      = obj.maxVertsPerCluster;
+    limits.MaxUniqueVertexIndexCountPerCluster           = obj.maxVertsPerCluster;
     limits.MaxTotalTriangleCount                         = obj.mesh.totalTriangles;
-    limits.MaxTotalVertexCount                           = obj.totalVertexCount;
+    limits.MaxSumOfUniqueVertexIndexCounts                = obj.totalVertexCount;
 
     D3D12_RTAS_INSTANTIATE_CLUSTER_TEMPLATE_INPUTS_DESC instDesc = {};
     instDesc.ClusterLimits      = limits;
@@ -4460,9 +4460,9 @@ void D3D12RaytracingClusteredGeometry::UpdateAnimatedObjectPerFrame(UINT pfTimes
     limits.MaxArgCount                                   = obj.clusterCount;
     limits.MaxUniqueGeometryIndexAndFlagsCountPerCluster = 1;
     limits.MaxTriangleCountPerCluster                    = obj.maxTrisPerCluster;
-    limits.MaxVertexCountPerCluster                      = obj.maxVertsPerCluster;
+    limits.MaxUniqueVertexIndexCountPerCluster           = obj.maxVertsPerCluster;
     limits.MaxTotalTriangleCount                         = obj.mesh.totalTriangles;
-    limits.MaxTotalVertexCount                           = obj.totalVertexCount;
+    limits.MaxSumOfUniqueVertexIndexCounts                = obj.totalVertexCount;
 
     D3D12_RTAS_INSTANTIATE_CLUSTER_TEMPLATE_INPUTS_DESC instDesc = {};
     instDesc.ClusterLimits      = limits;

@@ -29,7 +29,7 @@
 //   offset  0 (4 B)   UINT   ClusterID
 //   offset  4 (4 B)   UINT   ClusterFlags                       = 0
 //   offset  8 (2 B)   UINT16 TriangleCount
-//   offset 10 (2 B)   UINT16 VertexCount
+//   offset 10 (2 B)   UINT16 UniqueVertexIndexCount
 //   offset 12 (4 B)   UINT   BaseGeometryIndexAndFlags          = matRegionIdx | opaqueFlag
 //   offset 16 (4 B)   UINT   OpacityMicromapBaseLocation        = 0
 //   offset 20 (2 B)   UINT16 VertexBufferStride                 = g_vertexBufferStride
@@ -118,7 +118,7 @@ void main(uint3 tid : SV_DispatchThreadID)
     const uint baseByte = idx * 80u;
     g_argsOut.Store (baseByte +  0, clusterID);                                                // ClusterID
     g_argsOut.Store (baseByte +  4, 0u);                                                       // ClusterFlags
-    g_argsOut.Store (baseByte +  8, pack16(triCount, vertCount));                              // TriCount/VertCount
+    g_argsOut.Store (baseByte +  8, pack16(triCount, vertCount));                              // TriangleCount/UniqueVertexIndexCount
     g_argsOut.Store (baseByte + 12, baseGeomIdxAndFlags);                                      // BaseGeometryIndexAndFlags
     g_argsOut.Store (baseByte + 16, 0u);                                                       // OpacityMicromapBaseLocation
     g_argsOut.Store (baseByte + 20, pack16(g_vertexBufferStride, 1u));                         // VBStride/IBStride

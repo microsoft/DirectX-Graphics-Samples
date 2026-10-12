@@ -43,6 +43,5 @@
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="readme.md" />
-    <None Include="ExperimentalD3D12.props" />
   </ItemGroup>
 </Project>
