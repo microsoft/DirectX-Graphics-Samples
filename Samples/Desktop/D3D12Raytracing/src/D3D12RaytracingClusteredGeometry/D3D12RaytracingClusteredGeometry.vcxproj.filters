@@ -39,6 +39,7 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Raytracing.hlsl"><Filter>Shaders</Filter></CustomBuild>
+    <CustomBuild Include="RaytracingTraditional.hlsl"><Filter>Shaders</Filter></CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

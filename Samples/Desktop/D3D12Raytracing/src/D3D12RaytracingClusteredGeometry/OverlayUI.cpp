@@ -99,7 +99,7 @@ void D3D12RaytracingClusteredGeometry::RefreshOverlayStatsCurrent()
     // Static
     s.staticClasAllocBytes   = m_totalClasBytes;
     s.staticClasActualBytes  = m_clasMemStats.sumActualBytes;
-    s.staticClasScratchBytes = m_clasMemStats.scratchBytesPhase1;
+    s.staticClasScratchBytes = sizeOf(m_clasScratchBuffer);
     UINT64 blasSum = 0;
     if (m_clusterBlasPoolBuffer)
         blasSum += m_clusterBlasPoolBuffer->GetDesc().Width;
@@ -177,7 +177,7 @@ void D3D12RaytracingClusteredGeometry::RefreshOverlayStatsCurrent()
         // Compact even after the worst-case temp is dropped).
         s.traditionalBlasTotalBytes   = m_traditionalStaticTotalResultBytes;
         s.traditionalBlasActualBytes  = m_traditionalStaticTotalActualBytes;
-        s.traditionalBlasScratchBytes = m_traditionalStaticTotalScratchBytes;
+        s.traditionalBlasScratchBytes = sizeOf(m_tradBlasSharedScratch);
         UINT64 tradVbSum = 0, tradIbSum = 0;
         for (const auto& obj : m_objects)
         {

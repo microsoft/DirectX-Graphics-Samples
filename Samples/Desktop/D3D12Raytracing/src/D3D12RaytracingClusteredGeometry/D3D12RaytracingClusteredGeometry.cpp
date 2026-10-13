@@ -13,6 +13,7 @@
 #include "D3D12RaytracingClusteredGeometry.h"
 #include "DirectXRaytracingHelper.h"
 #include "CompiledShaders\\Raytracing.hlsl.h"
+#include "CompiledShaders\\RaytracingTraditional.hlsl.h"
 #include "CompiledShaders\\AnimateBall.hlsl.h"
 #include "CompiledShaders\\FillInstantiateArgs.hlsl.h"
 #include "CompiledShaders\\FillMoveClusterArgs.hlsl.h"
@@ -326,28 +327,12 @@ void D3D12RaytracingClusteredGeometry::CreateDeviceDependentResources()
     // the same one-shot here so headless / scripted runs honour the
     // CLI flag without needing a scheduled [N] press.
     //
-    // The initial BuildAccelerationStructures captured GPU timestamps for
-    // m_clasBuildMs / m_blasBuildMs / m_tlasBuildMs / m_totalBuildMs --
-    // but that was the BASELINE 8-object build, not the with-clones build
-    // we're about to do.  Wall-clock time the rebuild and OVERWRITE
-    // m_totalBuildMs with the bigger number so the benchmark JSON reports
-    // a build time representative of what was actually built.  The
-    // per-pass breakdown (clas/blas/tlas) stays as the GPU-timestamp
-    // measurement of the initial build -- those would need timestamp
-    // queries in RebuildStaticAccelerationStructures to be accurate at
-    // scale, and the headline metric users care about is total time.
+    // The rebuild refreshes all build timestamps for the scaled workload.
     if (m_extraInstancesMode != ExtraInstancesMode::None)
     {
         SampleLog::LogF(L">>> applying --extra-instances %ls (one-shot rebuild)\n",
                         ExtraInstancesModeName());
-        auto t0 = std::chrono::steady_clock::now();
         RebuildStaticAccelerationStructures(L"--extra-instances startup");
-        auto t1 = std::chrono::steady_clock::now();
-        const double rebuildMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        SampleLog::LogF(L"  rebuild wall-clock: %.1f ms (was %.1f ms for baseline; "
-                        L"using rebuild as build_times_ms.total)\n",
-                        rebuildMs, m_totalBuildMs);
-        m_totalBuildMs = rebuildMs;
     }
 }
 
@@ -357,7 +342,20 @@ void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
     HRESULT hr = m_dxrDevice->CheckFeatureSupport1(
         D3D12_FEATURE_D3D12_OPTIONS_RAYTRACING2, &opts, sizeof(opts), D3D12_PREVIEW_SDK_VERSION);
     ThrowIfFailed(hr, L"ERROR: DXR2 capability query failed.\n");
-    m_clustersAndPtlasSupported = opts.ClustersAndPTLASSupported != FALSE;
+    D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = { D3D_SHADER_MODEL_6_10 };
+    HRESULT hrShaderModel = m_dxrDevice->CheckFeatureSupport1(
+        D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel), D3D12_PREVIEW_SDK_VERSION);
+    if (hrShaderModel == E_INVALIDARG)
+    {
+        shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_6;
+        hrShaderModel = m_dxrDevice->CheckFeatureSupport1(
+            D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel), D3D12_PREVIEW_SDK_VERSION);
+    }
+    ThrowIfFailed(hrShaderModel, L"ERROR: shader-model capability query failed.\n");
+    ThrowIfFalse(shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_6,
+        L"ERROR: this sample requires Shader Model 6.6 or later for traditional rendering and compute.\n");
+    m_clustersAndPtlasSupported = opts.ClustersAndPTLASSupported != FALSE &&
+        shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_10;
 
     D3D12_FEATURE_DATA_D3D12_OPTIONS5 opts5 = {};
     ThrowIfFailed(m_dxrDevice->CheckFeatureSupport1(
@@ -374,6 +372,9 @@ void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
                     m_clustersAndPtlasSupported ? L"YES" : L"NO", (unsigned)hr);
     SampleLog::LogF(L"  TemplateInstancePrefersCOMPRESSED1: %s\n",
                     opts.TemplateInstancePrefersCOMPRESSED1 ? L"YES" : L"NO");
+    SampleLog::LogF(L"  Shader Model: %u.%u\n",
+        (unsigned)shaderModel.HighestShaderModel >> 4,
+        (unsigned)shaderModel.HighestShaderModel & 0xfu);
 
     // Resolve the auto-default for m_aaSamplesPerPixel now that the adapter
     // description is known.  Sentinel 0 in the header means "not set by
@@ -430,7 +431,7 @@ void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
         // overlay even renders.  All cluster-path init / per-frame work
         // is gated on m_clustersAndPtlasSupported below.
         m_geometryMode = GeometryMode::Traditional;
-        SampleLog::Write(L"  -> clusters unsupported; falling back to traditional BLAS, [T] toggle disabled.\n");
+        SampleLog::Write(L"  -> clustered rendering unavailable; falling back to SM 6.6 traditional BLAS, [T] toggle disabled.\n");
         SetCustomWindowText(L"clusters not supported on this adapter -- traditional BLAS fallback");
     }
 }
@@ -798,7 +799,6 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
     m_animClonesTradBlasScratch.Reset();
     m_traditionalStaticTotalResultBytes  = 0;
     m_traditionalStaticTotalActualBytes  = 0;
-    m_traditionalStaticTotalScratchBytes = 0;
     m_traditionalStaticBuildMs           = 0.0;
 
     // 4) Drop TLAS storage.  Per-frame rebuild path keys off these, so they
@@ -812,12 +812,16 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
     ThrowIfFailed(commandAllocator->Reset());
     ThrowIfFailed(commandList->Reset(commandAllocator, nullptr));
 
+    commandList->EndQuery(m_buildQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
     if (m_geometryMode == GeometryMode::Clusters)
     {
         EncodeCompressedClusters();
         UploadClusterInputs();
         BuildClasIndirect();
+        commandList->EndQuery(m_buildQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
+        commandList->EndQuery(m_buildQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 2);
         BuildBlasFromClasIndirect();
+        commandList->EndQuery(m_buildQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 3);
         if (m_animatedObjectEnabled)
         {
             BuildAnimatedObjectSetup();
@@ -829,7 +833,10 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
     {
         // Traditional path: per-object DXR1 BLAS + per-frame animated
         // ball (DXR1 rebuild/refit via [F]).
+        commandList->EndQuery(m_buildQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
+        commandList->EndQuery(m_buildQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 2);
         BuildTraditionalStaticAS();
+        commandList->EndQuery(m_buildQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 3);
         if (m_animatedObjectEnabled)
         {
             BuildAnimatedObjectSetup();
@@ -847,10 +854,17 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
     // Per-(InstIdx, GeomIdx) material table must track the animated-
     // enabled state (which flips between modes).
     BuildPerInstGeomMaterialTable();
+    commandList->EndQuery(m_buildQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 4);
     BuildTlasClassic();
+    commandList->EndQuery(m_buildQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 5);
+    commandList->ResolveQueryData(m_buildQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP,
+        0, 6, m_buildQueryReadback.Get(), 0);
 
     m_deviceResources->ExecuteCommandList();
     m_deviceResources->WaitForGpu();
+    ReadBuildTimestamps();
+    if (m_pipelineGeometryMode != m_geometryMode)
+        CreateRaytracingPipelineAndShaderTables();
 
     // 6) Refresh the stats that feed the title bar.  m_totalClasBytes is the
     //    live result buffer size; the per-build CPU-wall stats already landed
@@ -859,7 +873,7 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
 
     SampleLog::LogF(L"<<< RebuildStaticAccelerationStructures done.  CLAS=%.1f MB, scratch=%.1f MB\n",
                     m_totalClasBytes / (1024.0 * 1024.0),
-                    m_clasMemStats.scratchBytesPhase1 / (1024.0 * 1024.0));
+                    (m_clasScratchBuffer ? m_clasScratchBuffer->GetDesc().Width : 0ull) / (1024.0 * 1024.0));
 
     // Snapshot all the displayed numbers (except per-frame ms) into
     // m_overlayStats so the overlay reads from a cached struct instead of
@@ -2212,7 +2226,6 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
     const auto t0 = std::chrono::steady_clock::now();
     UINT64 totalResultBytes  = 0;   // sum of worst-case sizes (== "alloc bytes" in overlay)
     UINT64 totalActualBytes  = 0;   // sum of per-BLAS final-storage sizes (compacted in Compact mode)
-    UINT64 totalScratchBytes = 0;
     UINT64 totalVbBytes      = 0;
     UINT64 totalIbBytes      = 0;
     UINT   totalGeomDescs    = 0;
@@ -2433,7 +2446,6 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
         info[oi].geomDescs    = std::move(geomDescs);
         const UINT64 alignedResult = (prebuild.ResultDataMaxSizeInBytes + kAlign - 1) & ~(kAlign - 1);
         totalResultBytes  += alignedResult;
-        totalScratchBytes += prebuild.ScratchDataSizeInBytes;
         maxScratchBytes    = std::max(maxScratchBytes, prebuild.ScratchDataSizeInBytes);
 
         obj.tradBlasResultBytes   = prebuild.ResultDataMaxSizeInBytes;
@@ -2500,6 +2512,7 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
                       L"Traditional BLAS scratch (shared)");
     const D3D12_GPU_VIRTUAL_ADDRESS worstcasePoolBase = m_tradBlasWorstcasePool->GetGPUVirtualAddress();
     const D3D12_GPU_VIRTUAL_ADDRESS sharedScratchGVA  = m_tradBlasSharedScratch->GetGPUVirtualAddress();
+    const UINT64 sharedScratchBytes = m_tradBlasSharedScratch->GetDesc().Width;
 
     // -------- PASS C: actually run the per-object builds into pool slots --------
     // Each build writes its BLAS into worstcasePoolBase + info[oi].resultOffset.
@@ -2558,13 +2571,12 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
                         L"result=%llu  scratch=%llu  vb=%llu  ib=%llu (bytes) -- CPU=%.3f ms\n",
                         m_objects.size(), totalGeomDescs,
                         (unsigned long long)totalResultBytes,
-                        (unsigned long long)totalScratchBytes,
+                        (unsigned long long)sharedScratchBytes,
                         (unsigned long long)totalVbBytes,
                         (unsigned long long)totalIbBytes,
                         cpuMs);
         m_traditionalStaticTotalResultBytes  = totalResultBytes;
         m_traditionalStaticTotalActualBytes  = totalActualBytes;
-        m_traditionalStaticTotalScratchBytes = totalScratchBytes;
         m_traditionalStaticBuildMs           = cpuMs;
         // Per-tri cid lookup (matches the cluster-sort order we just used).
         BuildTradCidLookup();
@@ -2687,13 +2699,12 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
                     (unsigned long long)totalResultBytes,
                     (unsigned long long)totalActualBytes,
                     100.0 * (double)totalActualBytes / (double)totalResultBytes,
-                    (unsigned long long)totalScratchBytes,
+                    (unsigned long long)sharedScratchBytes,
                     (unsigned long long)totalVbBytes,
                     (unsigned long long)totalIbBytes,
                     cpuMs);
     m_traditionalStaticTotalResultBytes  = totalResultBytes;
     m_traditionalStaticTotalActualBytes  = totalActualBytes;
-    m_traditionalStaticTotalScratchBytes = totalScratchBytes;
     m_traditionalStaticBuildMs           = cpuMs;
 
     // Build the per-triangle cid lookup + per-(InstIdx, GeomIdx) tri-base
@@ -4911,7 +4922,7 @@ void D3D12RaytracingClusteredGeometry::DumpClusterStatsAsync()
 
 // ---------------------------------------------------------------------------------
 // Read back the AS build timestamps from m_buildQueryReadback and compute
-// per-operation wall-clock times. Called once after init (post-WaitForGpu).
+// per-operation wall-clock times after each completed scene build.
 // ---------------------------------------------------------------------------------
 void D3D12RaytracingClusteredGeometry::ReadBuildTimestamps()
 {
@@ -5073,7 +5084,11 @@ void D3D12RaytracingClusteredGeometry::CreateRaytracingPipelineAndShaderTables()
         ->SetRootSignature(m_localRootSignature.Get());
 
     auto lib = pipeline.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
-    D3D12_SHADER_BYTECODE libdxil = CD3DX12_SHADER_BYTECODE((void*)g_pRaytracing, ARRAYSIZE(g_pRaytracing));
+    const bool clusteredPipeline = m_geometryMode == GeometryMode::Clusters;
+    D3D12_SHADER_BYTECODE libdxil = clusteredPipeline
+        ? CD3DX12_SHADER_BYTECODE((void*)g_pRaytracing, ARRAYSIZE(g_pRaytracing))
+        : CD3DX12_SHADER_BYTECODE((void*)g_pRaytracingTraditional, ARRAYSIZE(g_pRaytracingTraditional));
+    SampleLog::LogF(L"  [raytracing library] %s\n", clusteredPipeline ? L"lib_6_10 clustered" : L"lib_6_6 traditional");
     lib->SetDXILLibrary(&libdxil);
     lib->DefineExport(c_raygenName);
     lib->DefineExport(c_opaqueClosestHitName);
@@ -5140,13 +5155,16 @@ void D3D12RaytracingClusteredGeometry::CreateRaytracingPipelineAndShaderTables()
     //   safety               -> recursion 8 (unused headroom)
     // The closesthit gates refraction at myDepth <= 4 to stay well under
     // this budget while still letting 4+ glass volumes compose visually.
-    pipelineConfig->Config(16, D3D12_RAYTRACING_PIPELINE_FLAG_ALLOW_CLUSTERED_GEOMETRY);
+    pipelineConfig->Config(16, clusteredPipeline
+        ? D3D12_RAYTRACING_PIPELINE_FLAG_ALLOW_CLUSTERED_GEOMETRY
+        : D3D12_RAYTRACING_PIPELINE_FLAG_NONE);
 
     SampleLog::Write(L"  >>> CreateStateObject\n");
     HRESULT hrCSO = m_dxrDevice->CreateStateObject(pipeline, IID_PPV_ARGS(&m_dxrStateObject));
     SampleLog::LogF(L"  CreateStateObject -> hr=0x%08X\n", (unsigned)hrCSO);
     ThrowIfFailed(hrCSO, L"CreateStateObject failed\n");
-    m_dxrStateObject->SetName(L"RT pipeline (cluster-aware)");
+    m_dxrStateObject->SetName(clusteredPipeline ? L"RT pipeline (cluster-aware)" : L"RT pipeline (traditional)");
+    m_pipelineGeometryMode = m_geometryMode;
 
     SampleLog::Write(L"  >>> Build shader tables\n");
     ComPtr<ID3D12StateObjectProperties> props;
@@ -6241,7 +6259,6 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     m_clasMemStats = ClasMemStats{};
     m_traditionalStaticTotalResultBytes = 0;
     m_traditionalStaticTotalActualBytes = 0;
-    m_traditionalStaticTotalScratchBytes = 0;
     m_traditionalStaticBuildMs = 0.0;
     m_overlayStats = OverlayStats{};
     m_overlayStatsPrev = OverlayStats{};
@@ -6381,8 +6398,8 @@ void D3D12RaytracingClusteredGeometry::CaptureBackBufferToFile(const std::wstrin
     D3D12_RANGE writeRange = { 0, 0 };
     readback->Unmap(0, &writeRange);
 
-    SampleLog::LogF(L"[screenshot] %s %ux%u -> %s\n",
-        SUCCEEDED(hrSave) ? L"wrote" : L"FAILED to write", width, height, path.c_str());
+    SampleLog::LogF(L"[screenshot] %s %ux%u -> %s (camera=%.6f s)\n",
+        SUCCEEDED(hrSave) ? L"wrote" : L"FAILED to write", width, height, path.c_str(), m_cameraSeconds);
     ThrowIfFailed(hrSave);
 }
 

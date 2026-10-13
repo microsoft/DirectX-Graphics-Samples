@@ -188,7 +188,6 @@ private:
     // CLAS+BLAS totals.  See BuildTraditionalStaticAS.
     UINT64 m_traditionalStaticTotalResultBytes  = 0;   // sum of obj.tradBlasResultBytes (== alloc bytes)
     UINT64 m_traditionalStaticTotalActualBytes  = 0;   // == result bytes in Implicit; sum of compacted sizes in Compact
-    UINT64 m_traditionalStaticTotalScratchBytes = 0;
     double m_traditionalStaticBuildMs            = 0.0;
     // Per-triangle cluster-ID lookup table for the traditional-BLAS
     // closest-hit.  Indexed by a (per-instance, per-geom) tri base +
@@ -316,6 +315,7 @@ private:
     //                  triangle data (DXR1 path)
     enum class GeometryMode { Clusters, Traditional };
     GeometryMode                         m_geometryMode = GeometryMode::Clusters;
+    GeometryMode                         m_pipelineGeometryMode = GeometryMode::Clusters;
     const wchar_t*                       GeometryModeName() const
     {
         switch (m_geometryMode)

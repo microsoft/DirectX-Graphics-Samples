@@ -133,6 +133,12 @@
       <Command>if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
 "$(DxcDirectory)\dxc.exe" -nologo -T lib_6_10 -HV 2021 $(DxcDebugArguments) -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
     </CustomBuild>
+    <CustomBuild Include="RaytracingTraditional.hlsl">
+      <Message>Compiling RaytracingTraditional.hlsl to $(IntDir)CompiledShaders\%(Filename).hlsl.h (lib_6_6)</Message>
+      <Command>if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
+"$(DxcDirectory)\dxc.exe" -nologo -T lib_6_6 -HV 2021 $(DxcDebugArguments) -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
+      <AdditionalInputs>Raytracing.hlsl;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
     <CustomBuild Include="AnimateBall.hlsl" />
     <CustomBuild Include="FillInstantiateArgs.hlsl" />
     <CustomBuild Include="FillMoveClusterArgs.hlsl" />

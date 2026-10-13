@@ -76,9 +76,13 @@ support clustered geometry. Ensure that the executable's directory is in
 `d3dconfig`'s application paths before changing its settings, and restore
 `force-warp=false` after software testing.
 
-On a supported preview driver, the sample uses clustered geometry. If the
-adapter reports no clustered-geometry support, the sample logs the unsupported
-capability, visibly labels the fallback, and uses traditional BLAS instead.
+Clustered rendering requires a supported preview driver and Shader Model 6.10.
+The traditional BLAS path uses a separate SM 6.6 library with no DXR2 intrinsics
+or clustered-pipeline flag. The sample checks shader-model support before
+creating its pipelines and requires SM 6.6 or later for rendering and compute.
+If clustered geometry or SM 6.10 is unavailable, it logs and visibly labels the
+traditional fallback and disables the `[T]` toggle. On capable adapters, `[T]`
+switches both the geometry and its matching shader pipeline.
 Diagnostic output goes to `%TEMP%\D3D12RaytracingClusteredGeometry.log`, or the
 path specified by the `SAMPLE_LOG` environment variable.
 
@@ -122,9 +126,15 @@ payload sizes remain available as separate fields.
 Screenshot and benchmark output failures are logged and produce a nonzero exit
 code on both hardware and WARP.
 
+Scratch fields report the currently allocated work buffers, not the sum of
+per-object requirements or temporary sizing from an earlier build phase.
+`build_times_ms` contains GPU-timestamp measurements of the latest completed
+scene build; configuration and workload rebuilds refresh all four values.
+
 Use `--exit-after-frames N` for a frame-count smoke test. The command
-`--screenshot-at S path.png` jumps the camera time to `S`, warms up
-the swap chain, saves a PNG, and exits.
+`--screenshot-at S path.png` holds the camera time at `S` throughout the
+80-frame warm-up, saves a PNG, and exits. `Space` can explicitly resume camera
+motion. Animation remains independent; use `--anim-paused` for a frozen scene.
 
 ### Scheduled actions
 

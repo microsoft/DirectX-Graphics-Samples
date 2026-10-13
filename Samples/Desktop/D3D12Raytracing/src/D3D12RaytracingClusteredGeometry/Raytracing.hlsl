@@ -82,6 +82,13 @@ ByteAddressBuffer                 g_perInstGeomMaterial : register(t8);
 // visually distinct without per-clone material tables.
 StructuredBuffer<uint>            g_instanceMatOverride : register(t9);
 
+uint2 LoadTraditionalHitIndices()
+{
+    const uint geomBase = g_tradGeomTriBase.Load(
+        (InstanceIndex() * MAX_GEOMS_PER_INSTANCE + GeometryIndex()) * 4);
+    return g_tradTriToCid.Load2((geomBase + PrimitiveIndex()) * 8);
+}
+
 ClusterMeta LoadClusterMeta(uint cid)
 {
     // Stride = 48 bytes (matches CPU-side sizeof(ClusterMeta)).  Plain
@@ -109,6 +116,15 @@ ClusterMeta LoadClusterMeta(uint cid)
 // needed -- the same per-cluster overrides, palette tints, and interior-
 // surface flags apply, so visuals are identical between paths.
 
+#ifdef TRADITIONAL_ONLY
+struct Payload
+{
+    float4 color;
+    uint depth;
+    uint inGlass;
+};
+struct ShadowPayload { bool inShadow; };
+#else
 struct [raypayload] Payload
 {
     float4 color : write(miss, closesthit) : read(caller);
@@ -141,6 +157,7 @@ struct [raypayload] ShadowPayload
 {
     bool inShadow : write(miss, caller) : read(caller);
 };
+#endif
 struct Attribs { float2 bary; };
 
 // ============================================================================
@@ -394,7 +411,11 @@ void GlassAnyHit(inout Payload p, in Attribs a)
     MaterialDesc mat = g_materials[InstanceID()];
     if (mat.translucency > 0.0)
     {
+#ifdef TRADITIONAL_ONLY
+        uint cid = LoadTraditionalHitIndices().x;
+#else
         uint cid = ClusterID();
+#endif
         float r = Hash(cid, a.bary);
         if (r < mat.translucency)
             IgnoreHit();
@@ -444,22 +465,26 @@ void LoadHitContext(in Attribs a, in bool allowBackFaceFlip, out HitContext ctx)
     // Either way the SAME (cid, primIdx) pair comes out, so g_clusterMeta
     // + g_clusterNormals + g_clusterIndices + g_clusterOffsets are
     // queried identically below.
+#ifdef TRADITIONAL_ONLY
+    const bool isTraditional = true;
+#else
     const bool isTraditional = (g_scene.runtimeParams.z != 0u);
+#endif
     uint cid;
     uint primIdx;
     if (isTraditional)
     {
-        const uint geomBase = g_tradGeomTriBase.Load(
-            (InstanceIndex() * MAX_GEOMS_PER_INSTANCE + GeometryIndex()) * 4);
-        const uint2 cidAndLocal = g_tradTriToCid.Load2((geomBase + PrimitiveIndex()) * 8);
+        const uint2 cidAndLocal = LoadTraditionalHitIndices();
         cid     = cidAndLocal.x;
         primIdx = cidAndLocal.y;
     }
+#ifndef TRADITIONAL_ONLY
     else
     {
         cid     = ClusterID();
         primIdx = PrimitiveIndex();
     }
+#endif
 
     ctx.meta = LoadClusterMeta(cid);
     {

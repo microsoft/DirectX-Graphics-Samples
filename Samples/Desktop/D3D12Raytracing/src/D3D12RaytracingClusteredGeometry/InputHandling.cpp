@@ -44,12 +44,13 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
         }
         else if (_wcsicmp(argv[i], L"--screenshot-at") == 0 && i + 2 < argc)
         {
-            // --screenshot-at <seconds> <path> : jump m_animSeconds to <seconds>
-            // on frame 0 and capture once the swap chain has warmed up. Useful
+            // Hold the camera at the requested orbit time through warm-up.
+            // Space can explicitly resume camera motion during the run. Useful
             // for verifying the time-based camera orbit at known angles
             // (orbit period is 30s).
             m_screenshotAtSeconds = _wtof(argv[i + 1]);
             m_screenshotPath      = argv[i + 2];
+            m_cameraPaused        = true;
             i += 2;
         }
         else if (_wcsicmp(argv[i], L"--vertex-format") == 0 && i + 1 < argc)
