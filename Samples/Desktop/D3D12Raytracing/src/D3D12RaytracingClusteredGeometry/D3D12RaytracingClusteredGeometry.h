@@ -500,12 +500,12 @@ private:
     UINT                                 m_positionTruncateBits = 12;
 
     // ANTIALIASING / SUPERSAMPLING.  How many primary rays per output pixel,
-    // Anti-aliasing samples per pixel for the raygen shader.  Each pixel
+    // Primary rays per pixel for the raygen shader. Each pixel
     // gets N jittered primary rays; supported values are 1, 2, 4.
     //   Default 0 = AUTO (resolved in OnInit once the adapter is known):
     //     - WARP / Basic Render -> 1 to limit per-pixel ray cost.
     //     - Hardware -> 4 for smoother reflective/refractive surfaces.
-    //   Explicit override via --aa-samples N takes precedence over the
+    //   Explicit override via --rays-per-pixel N takes precedence over the
     //   auto-default and skips the OnInit resolve below.
     // Pass-through to the raygen shader is via SceneConstantBuffer.miscParams.z.
     UINT                                 m_aaSamplesPerPixel = 0;

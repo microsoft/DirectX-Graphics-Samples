@@ -107,6 +107,7 @@ On-screen overlay (right column) lists the active value for each toggle.
 |          | sunflower pattern; distance-based LOD swaps the source mesh for a lower-tessellation    |
 |          | variant as radius grows, so the back rings stay cheap.                                  |
 | `,` `.`  | Bounce slider — reflection + refraction depth (held +2 apart, range 0..5).              |
+| `/`      | Primary rays/pixel — cycle `1` → `2` → `4` → `1` for anti-aliasing.                    |
 | `[` `]`  | Vertex precision slider — fewer / more position bits (`FLOAT32_3` truncate-bits or      |
 |          | `COMPRESSED1` bits/component). Rebuilds static CLAS and animated templates together.    |
 
@@ -117,6 +118,11 @@ For a timed run that writes a JSON snapshot and exits:
 ```
 D3D12RaytracingClusteredGeometry.exe --geometry-mode clusters --vertex-format compressed --bench-seconds 5 --bench-out result.json
 ```
+
+Use `--rays-per-pixel 1`, `2`, or `4` to set the primary ray count at startup.
+The default is four on hardware and one on WARP. Secondary shadow, reflection,
+and refraction rays are additional to this count. `--aa-samples` remains a
+compatibility alias for existing scripts.
 
 The snapshot's `memory_bytes.total_as` matches the overlay's resident AS-memory
 total: static and animated BVH allocations (including cluster templates,

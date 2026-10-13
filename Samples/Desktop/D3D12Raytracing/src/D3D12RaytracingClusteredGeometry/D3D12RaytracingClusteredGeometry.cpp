@@ -396,7 +396,7 @@ void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
 
     // Resolve the auto-default for m_aaSamplesPerPixel now that the adapter
     // description is known.  Sentinel 0 in the header means "not set by
-    // CLI"; an explicit --aa-samples N takes precedence and skips this
+    // CLI"; an explicit --rays-per-pixel N takes precedence and skips this
     // branch.  WARP / Basic Render -> 1 (4x on a software rasterizer
     // pushes a 1280x720 frame to seconds-per-frame); HW -> 4.
     if (m_aaSamplesPerPixel == 0)
@@ -405,7 +405,7 @@ void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
         const bool isSoftware = (wcsstr(desc, L"WARP") != nullptr) ||
                                 (wcsstr(desc, L"Basic Render") != nullptr);
         m_aaSamplesPerPixel = isSoftware ? 1u : 4u;
-        SampleLog::LogF(L"  auto AA samples-per-pixel: %u  (%ls adapter)\n",
+        SampleLog::LogF(L"  auto rays/pixel: %u  (%ls adapter)\n",
                         m_aaSamplesPerPixel, isSoftware ? L"software" : L"hardware");
     }
     // Same auto-resolve for the per-frame timing snapshot window.  60

@@ -1435,6 +1435,9 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
                ReflectionBounces(), RefractionBounces());
     drawKeyLine(L", .", kbuf);
 
+    swprintf_s(kbuf, L"   rays/pixel:       %u", m_aaSamplesPerPixel);
+    drawKeyLine(L"/", kbuf);
+
     // [M] animation + [Space] camera pause -- two independent toggles
     // (decoupled in the pause-fix refactor).  Side-by-side at the bottom of
     // the key list.  [Space] is the absolute bottom because it's the most

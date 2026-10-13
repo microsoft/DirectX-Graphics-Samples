@@ -278,7 +278,7 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
         {
             // COMPRESSED1 mode only - bits per component for the shared-exponent
             // quantizer. Range 1 (extreme - 1 bit each axis) to 16 (max).
-            // Same value the [/] runtime slider drives.  Ignored under
+            // Same value the [ ] runtime slider drives. Ignored under
             // --vertex-format float.
             int n = _wtoi(argv[i+1]);
             if (n < 1)  n = 1;
@@ -286,11 +286,11 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             m_compressedBitsPerComponent = (UINT)n;
             i += 1;
         }
-        else if (_wcsicmp(argv[i], L"--aa-samples") == 0 && i + 1 < argc)
+        else if ((_wcsicmp(argv[i], L"--rays-per-pixel") == 0 ||
+                  _wcsicmp(argv[i], L"--aa-samples") == 0) && i + 1 < argc)
         {
-            // Anti-aliasing samples per pixel.  The raygen shader traces N
-            // jittered primary rays per pixel and averages.  N must be 1,
-            // 2, or 4 (clamped to nearest valid).  Default is 4.
+            // Primary rays per pixel, averaged for anti-aliasing.
+            // Keep --aa-samples as a compatibility alias for existing scripts.
             int n = _wtoi(argv[i+1]);
             if (n <= 1) n = 1;
             else if (n <= 2) n = 2;
@@ -478,6 +478,12 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
         ++m_bounceSlider;
         SampleLog::LogF(L"[input] bounce slider %d -> refl %u  refr %u\n",
                         m_bounceSlider, ReflectionBounces(), RefractionBounces());
+    }
+    else if (key == VK_OEM_2)               // '/'
+    {
+        m_aaSamplesPerPixel = m_aaSamplesPerPixel == 1u ? 2u
+            : m_aaSamplesPerPixel == 2u ? 4u : 1u;
+        SampleLog::LogF(L"[input] rays/pixel -> %u\n", m_aaSamplesPerPixel);
     }
     // ----- '[' / ']' = per-cluster precision slider.  Direction is the same
     //   in both modes: '[' -> LESS precision, ']' -> MORE precision.
