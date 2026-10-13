@@ -20,6 +20,7 @@
 #include <mutex>
 #include <functional>
 #include <deque>
+#include <exception>
 
 namespace DX
 {
@@ -114,6 +115,7 @@ namespace DX
         void EnableAsyncDisplay(AsyncRenderCallback render,
                                 AsyncResizeCallback resize);
         void DisableAsyncDisplay();
+        void RethrowAsyncFailure() const;
         bool IsAsyncDisplayActive() const { return m_asyncDisplay; }
         // Called from UI thread WM_SIZE in async mode.  Stashes the new
         // client size; the worker thread picks it up before its next
@@ -235,6 +237,8 @@ namespace DX
         AsyncResizeCallback                                 m_asyncResizeCallback;
         std::thread                                         m_asyncWorkerThread;
         std::atomic<bool>                                   m_asyncWorkerStop{false};
+        std::exception_ptr                                  m_asyncFailure;
+        std::atomic<bool>                                   m_asyncWorkerFailed{false};
         // Pending-resize state, written by UI thread on WM_SIZE, read by
         // worker thread between iterations.  Mutex-protected because the
         // members can't be atomically updated as a group.

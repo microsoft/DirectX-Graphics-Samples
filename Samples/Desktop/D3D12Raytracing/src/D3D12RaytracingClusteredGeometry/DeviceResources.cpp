@@ -621,6 +621,8 @@ void DeviceResources::EnableAsyncDisplay(AsyncRenderCallback render,
     m_asyncCallback = std::move(render);
     m_asyncResizeCallback = std::move(resize);
     m_asyncResizePending = false;
+    m_asyncFailure = nullptr;
+    m_asyncWorkerFailed.store(false, std::memory_order_relaxed);
     m_asyncDisplay = true;
     m_asyncWorkerStop = false;
     m_asyncWorkerThread = std::thread(&DeviceResources::AsyncWorkerThreadProc, this);
@@ -637,6 +639,14 @@ void DeviceResources::DisableAsyncDisplay()
     m_asyncDisplay = false;
     m_asyncCallback = nullptr;
     m_asyncResizeCallback = nullptr;
+    std::lock_guard<std::mutex> lock(m_asyncActionsMutex);
+    m_pendingAsyncActions.clear();
+}
+
+void DeviceResources::RethrowAsyncFailure() const
+{
+    if (m_asyncWorkerFailed.load(std::memory_order_acquire))
+        std::rethrow_exception(m_asyncFailure);
 }
 
 void DeviceResources::RequestAsyncResize(UINT width, UINT height, bool minimized)
@@ -652,63 +662,54 @@ void DeviceResources::RequestAsyncResize(UINT width, UINT height, bool minimized
 void DeviceResources::AsyncWorkerThreadProc()
 {
     t_isAsyncWorker = true;
-    while (!m_asyncWorkerStop.load(std::memory_order_acquire))
+    try
     {
-        // 1. If the UI thread has requested a resize, handle it here on
-        //    the worker thread BEFORE the next render.  This means UI
-        //    thread WM_SIZE returns instantly (it just sets the request
-        //    flag) and the resize cost is absorbed inside the worker's
-        //    inter-frame gap rather than blocking the UI message pump.
-        bool doResize = false;
-        UINT w = 0, h = 0;
-        bool minimized = false;
+        while (!m_asyncWorkerStop.load(std::memory_order_acquire))
         {
-            std::lock_guard<std::mutex> lock(m_asyncResizeMutex);
-            if (m_asyncResizePending)
+            // 1. Handle a pending resize before the next render, without
+            // blocking the UI message pump on the worker's GPU work.
+            bool doResize = false;
+            UINT w = 0, h = 0;
+            bool minimized = false;
             {
-                doResize = true;
-                w = m_asyncResizeWidth;
-                h = m_asyncResizeHeight;
-                minimized = m_asyncResizeMinimized;
-                m_asyncResizePending = false;
+                std::lock_guard<std::mutex> lock(m_asyncResizeMutex);
+                if (m_asyncResizePending)
+                {
+                    doResize = true;
+                    w = m_asyncResizeWidth;
+                    h = m_asyncResizeHeight;
+                    minimized = m_asyncResizeMinimized;
+                    m_asyncResizePending = false;
+                }
             }
-        }
-        if (doResize && m_asyncResizeCallback)
-        {
-            try { m_asyncResizeCallback(w, h, minimized); }
-            catch (...) { break; }
-        }
+            if (doResize && m_asyncResizeCallback)
+            {
+                m_asyncResizeCallback(w, h, minimized);
+            }
 
-        // 2. Drain pending UI-thread actions (e.g. WM_KEYDOWN dispatches
-        //    from Win32Application).  Run them on THIS thread, before
-        //    rendering, so the closures (which typically call into
-        //    OnKeyDown -> RebuildStaticAccelerationStructures and tear
-        //    down/rebuild D3D12 resources) execute on the same thread
-        //    that owns all the per-frame D3D12 work -- no cross-thread
-        //    resource lifetime issues, no need for a mutex around CL
-        //    composition.  Swap the queue out under lock so we don't
-        //    hold the lock while running user code (could re-enqueue).
-        std::deque<std::function<void()>> actions;
-        {
-            std::lock_guard<std::mutex> lk(m_asyncActionsMutex);
-            actions.swap(m_pendingAsyncActions);
-        }
-        for (auto& a : actions)
-        {
-            try { a(); }
-            catch (...) { /* swallow per-action; next frame still runs */ }
-        }
+            // 2. Run queued inputs on the same thread as the renderer.
+            // Release the queue lock before callbacks can enqueue more work.
+            std::deque<std::function<void()>> actions;
+            {
+                std::lock_guard<std::mutex> lk(m_asyncActionsMutex);
+                actions.swap(m_pendingAsyncActions);
+            }
+            for (auto& a : actions)
+            {
+                a();
+            }
 
-        // 3. Run the sample's per-frame render (which calls Present on
-        //    this same thread -- the real swap-chain Present).
-        try {
+            // 3. Render and present on this worker.
             if (m_asyncCallback) m_asyncCallback();
-        } catch (...) {
-            // Sample throws are fatal in async mode: the worker would
-            // otherwise spin retrying the same throw forever.  Break out
-            // and let DisableAsyncDisplay tear down.
-            break;
         }
+    }
+    catch (...)
+    {
+        // The UI loop observes this release and rethrows the original failure
+        // through Run's logged error/cleanup path. It also checks after joining.
+        m_asyncFailure = std::current_exception();
+        m_asyncWorkerStop.store(true, std::memory_order_relaxed);
+        m_asyncWorkerFailed.store(true, std::memory_order_release);
     }
 }
 

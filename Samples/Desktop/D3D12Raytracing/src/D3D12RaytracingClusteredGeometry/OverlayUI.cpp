@@ -297,7 +297,7 @@ void D3D12RaytracingClusteredGeometry::CreateUIFont()
         ResourceUploadBatch fontUpload(device);
         fontUpload.Begin();
         m_uiFont = std::make_unique<SpriteFont>(device, fontUpload,
-            L"SegoeUI_24.spritefont",
+            GetAssetFullPath(L"SegoeUI_24.spritefont").c_str(),
             fontCpu, fontGpu);
         // Defensive: if we ever try to render a character that isn't in the
         // sprite font (e.g. a non-ASCII codepoint baked into a log message
@@ -724,9 +724,7 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
     // apples-to-apples comparison against the OTHER mode's last value
     // (cluster: CLAS+BLAS vs trad: BLAS).
     auto sectionStaticTotalBytes = [](const OverlayStats& x) -> UINT64 {
-        return (x.geometryMode == (int)GeometryMode::Clusters)
-            ? (x.staticClasAllocBytes + x.staticBlasTotalBytes)
-            : x.traditionalBlasActualBytes;
+        return x.StaticAsBytes();
     };
     draw(L"STATIC:", pos, kAccent);
     pos.y += kLineH;
@@ -866,10 +864,7 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
         // Resident BVH memory for the animated source AND every anim clone.
         // Cluster path: templates + per-frame CLAS + source BLAS + per-clone BLAS pool.
         // Trad   path: source DXR1 BLAS + per-clone DXR1 BLAS pool.
-        return (x.geometryMode == (int)GeometryMode::Clusters)
-            ? (x.animatedTemplateBytes + x.animatedPerFrameClasAllocBytes
-               + x.animatedBlasBytes   + x.animClonesBlasPoolBytes)
-            : (x.animatedTradBlasBytes + x.animClonesTradBlasPoolBytes);
+        return x.AnimatedAsBytes();
     };
     if (m_animatedObjectEnabled)
     {
@@ -1048,30 +1043,16 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
         //                 per-clone BLAS pool
         //                 OR trad-path source BLAS + per-clone BLAS pool
         //                 (mode-exclusive: only one mode's fields are non-zero).
-        const UINT64 animatedTotal     = s.animatedTemplateBytes
-                                       + s.animatedPerFrameClasAllocBytes
-                                       + s.animatedBlasBytes
-                                       + s.animatedTradBlasBytes
-                                       + s.animClonesBlasPoolBytes
-                                       + s.animClonesTradBlasPoolBytes;
-        const UINT64 prevAnimatedTotal = p.animatedTemplateBytes
-                                       + p.animatedPerFrameClasAllocBytes
-                                       + p.animatedBlasBytes
-                                       + p.animatedTradBlasBytes
-                                       + p.animClonesBlasPoolBytes
-                                       + p.animClonesTradBlasPoolBytes;
+        const UINT64 animatedTotal     = s.AnimatedAsBytes();
+        const UINT64 prevAnimatedTotal = p.AnimatedAsBytes();
         // TOTAL line shows the bytes currently RESIDENT in GPU memory.
         // For Compact traditional, the worst-case temp buffer is freed
         // after the build, so the resident total uses the compacted
         // (actual) size, not the original prebuild alloc.
-        const UINT64 staticTotal       = isTraditional
-            ? s.traditionalBlasActualBytes
-            : (s.staticClasAllocBytes + s.staticBlasTotalBytes);
-        const UINT64 prevStaticTotal   = (p.geometryMode != (int)GeometryMode::Clusters)
-            ? p.traditionalBlasActualBytes
-            : (p.staticClasAllocBytes + p.staticBlasTotalBytes);
-        const UINT64 grandTotal     = staticTotal + animatedTotal + s.tlasBytes;
-        const UINT64 prevGrandTotal = prevStaticTotal + prevAnimatedTotal + p.tlasBytes;
+        const UINT64 staticTotal       = s.StaticAsBytes();
+        const UINT64 prevStaticTotal   = p.StaticAsBytes();
+        const UINT64 grandTotal     = s.ResidentAsBytes();
+        const UINT64 prevGrandTotal = p.ResidentAsBytes();
 
         draw(L"TOTAL:", pos, kAccent);
         pos.y += kLineH;

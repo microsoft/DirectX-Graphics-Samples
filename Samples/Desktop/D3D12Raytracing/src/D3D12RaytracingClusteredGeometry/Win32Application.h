@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <exception>
+
 #include "DXSample.h"
 
 class DXSample;
@@ -27,10 +29,12 @@ public:
 
 protected:
     static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    static LRESULT HandleWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
     static HWND m_hwnd;
     static DWORD m_uiThreadId;
+    static std::exception_ptr m_windowFailure;
     static bool m_fullscreenMode;
     static const UINT m_windowStyle = WS_OVERLAPPEDWINDOW;
     static RECT m_windowRect;

@@ -1184,6 +1184,24 @@ private:
         // Cluster + tri counts (only change when geometry changes; updated at rebuild).
         UINT   totalClusterCount         = 0;
         UINT   totalTriangleCount        = 0;
+
+        UINT64 StaticAsBytes() const
+        {
+            return geometryMode == (int)GeometryMode::Clusters
+                ? staticClasAllocBytes + staticBlasTotalBytes
+                : traditionalBlasActualBytes;
+        }
+        UINT64 AnimatedAsBytes() const
+        {
+            return geometryMode == (int)GeometryMode::Clusters
+                ? animatedTemplateBytes + animatedPerFrameClasAllocBytes
+                    + animatedBlasBytes + animClonesBlasPoolBytes
+                : animatedTradBlasBytes + animClonesTradBlasPoolBytes;
+        }
+        UINT64 ResidentAsBytes() const
+        {
+            return StaticAsBytes() + AnimatedAsBytes() + tlasBytes;
+        }
     };
     OverlayStats m_overlayStats;
     // Previous-snapshot copy so the overlay can colour each number red/green

@@ -5505,6 +5505,7 @@ void D3D12RaytracingClusteredGeometry::CreateDescriptorHeapAndRaytracingOutput()
     heapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     heapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     ThrowIfFailed(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_descriptorHeap)));
+    m_descriptorsAllocated = 0;
     m_descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     auto bbDesc = m_deviceResources->GetRenderTarget()->GetDesc();
@@ -6156,11 +6157,17 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     // now DEFAULT-heap UAVs (GPU-filled), no maps to release.
     m_animatedObject = AnimatedObject{};
     m_animatedObjectEnabled = false;
+    m_animatedClones.clear();
+    m_cloneSourceLodMeshes.clear();
+    m_animatedClusterIdOffset = 0;
 
     // Drop our refs to D3D12 objects in dependency order so destruction is
     // deterministic. (Without this the order is the member-decl order, which
     // would release the device first - DXGI doesn't love that.)
     m_objects.clear();
+    m_sourceObjectCount = 0;
+    m_totalClusterCount = 0;
+    m_totalTriangleCount = 0;
     m_clusterInputBuffer.Reset();
     m_clasArgsMetaBuffer.Reset();
     m_clasArgsBuffer.Reset();
@@ -6169,6 +6176,8 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     m_clasAddressArray.Reset();
     m_clasSizeArray.Reset();
     m_clasMoveArgsBuffer.Reset();
+    m_clasArgsArrayGPUVA = 0;
+    m_clasArgsStride = 0;
     m_blasScratchBuffer.Reset();
     m_blasArgsBuffer.Reset();
     m_blasArgsMeta.Reset();
@@ -6210,6 +6219,39 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     m_descriptorHeap.Reset();
     m_raytracingOutput.Reset();
     m_sceneCB.Reset();
+    m_materialsBuffer.Reset();
+    m_clusterNormalsBuffer.Reset();
+    m_clusterIndicesBuffer.Reset();
+    m_clusterOffsetsBuffer.Reset();
+    m_clusterMetaBuffer.Reset();
+    m_tradTriToCidBuffer.Reset();
+    m_tradGeomTriBaseBuffer.Reset();
+    m_perInstGeomMaterialBuffer.Reset();
+    m_instanceMaterialOverrideBuffer.Reset();
+    m_localRootSignature.Reset();
+    m_buildQueryHeap.Reset();
+    m_buildQueryReadback.Reset();
+    m_pfQueryHeap.Reset();
+    m_pfQueryReadback.Reset();
+    m_pfWriteSlot = 0;
+    m_pfFramesCaptured = 0;
+    m_pfInstantiateMs = m_pfBlasRebuildMs = m_pfTlasRebuildMs = 0.0;
+    m_pfStaticBlasMs = m_pfStaticClasMs = 0.0;
+    m_totalClasBytes = m_totalBlasBytes = 0;
+    m_clasMemStats = ClasMemStats{};
+    m_traditionalStaticTotalResultBytes = 0;
+    m_traditionalStaticTotalActualBytes = 0;
+    m_traditionalStaticTotalScratchBytes = 0;
+    m_traditionalStaticBuildMs = 0.0;
+    m_overlayStats = OverlayStats{};
+    m_overlayStatsPrev = OverlayStats{};
+    m_overlayStatsLastInCluster = OverlayStats{};
+    m_overlayStatsLastInTrad = OverlayStats{};
+    m_overlayStatsHasPrev = false;
+    m_overlayStatsHasLastInCluster = false;
+    m_overlayStatsHasLastInTrad = false;
+    m_overlayStatsDeltaUntil = std::chrono::steady_clock::time_point::min();
+    m_pfTimingSettlingAfterToggle = false;
     // DirectXTK UI resources (must be torn down before the device that
     // owns their backing GPU resources is released).
     m_uiFont.reset();
@@ -6341,6 +6383,7 @@ void D3D12RaytracingClusteredGeometry::CaptureBackBufferToFile(const std::wstrin
 
     SampleLog::LogF(L"[screenshot] %s %ux%u -> %s\n",
         SUCCEEDED(hrSave) ? L"wrote" : L"FAILED to write", width, height, path.c_str());
+    ThrowIfFailed(hrSave);
 }
 
 HRESULT D3D12RaytracingClusteredGeometry::SaveBGRAToPng(const std::wstring& path,
@@ -6613,23 +6656,9 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     kvB("pf_timing_valid",      m_overlayStats.pfTimingValid, /*last=*/true);
     o << "  },\n";
 
-    // Total AS memory: shared field for cross-mode comparisons.  In cluster
-    // mode that's static CLAS actual + static BLAS + animated CLAS + animated
-    // BLAS + TLAS + clone pool.  In trad mode it's static traditional BLAS
-    // actual + animated trad BLAS + TLAS + clone pool.  Mode-specific fields
-    // are also exposed below so a wrapper can drill down.
-    UINT64 totalAsBytes = m_overlayStats.tlasBytes;
-    if (m_overlayStats.geometryMode == (int)GeometryMode::Clusters) {
-        totalAsBytes += m_overlayStats.staticClasActualBytes
-                      + m_overlayStats.staticBlasTotalBytes
-                      + m_overlayStats.animatedPerFrameClasActualBytes
-                      + m_overlayStats.animatedBlasBytes
-                      + m_overlayStats.animClonesBlasPoolBytes;
-    } else {
-        totalAsBytes += m_overlayStats.traditionalBlasActualBytes
-                      + m_overlayStats.animatedTradBlasBytes
-                      + m_overlayStats.animClonesTradBlasPoolBytes;
-    }
+    // Same resident BVH allocations as the overlay, including templates and
+    // allocated CLAS capacity. Scratch and source inputs are separate fields.
+    const UINT64 totalAsBytes = m_overlayStats.ResidentAsBytes();
 
     o << "  \"memory_bytes\": {\n";
     kvU("total_as",                       totalAsBytes);
@@ -6699,11 +6728,16 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     if (!out)
     {
         SampleLog::LogF(L"[bench] FAILED to open %ls for write\n", m_benchOutPath.c_str());
-        return;
+        throw std::runtime_error("Failed to open benchmark output.");
     }
     const std::string s = o.str();
     out.write(s.data(), (std::streamsize)s.size());
     out.close();
+    if (!out)
+    {
+        SampleLog::LogF(L"[bench] FAILED to write %ls\n", m_benchOutPath.c_str());
+        throw std::runtime_error("Failed to write benchmark output.");
+    }
     SampleLog::LogF(L"[bench] snapshot written: %ls  (%zu bytes)\n",
                     m_benchOutPath.c_str(), s.size());
 }

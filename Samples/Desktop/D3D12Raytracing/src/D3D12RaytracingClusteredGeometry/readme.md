@@ -43,6 +43,8 @@ msbuild D3D12RaytracingClusteredGeometry.sln /restore /p:RestorePackagesConfig=t
 
 NuGet copies `D3D12Core.dll` and `D3D12SDKLayers.dll` into
 `bin\x64\<Configuration>\D3D12\`, and the DXC DLLs next to the EXE.
+The project also deploys `SegoeUI_24.spritefont` next to the EXE; the sample
+resolves it there regardless of the process working directory.
 `Main.cpp` exports `D3D12_PREVIEW_SDK_VERSION` and `D3D12SDKPath` so the system
 loader uses the matching preview runtime. No private D3D12 build is required.
 The sample enables `D3D12RaytracingPreview` before device creation and queries
@@ -111,6 +113,14 @@ For a timed run that writes a JSON snapshot and exits:
 ```
 D3D12RaytracingClusteredGeometry.exe --geometry-mode clusters --vertex-format compressed --bench-seconds 5 --bench-out result.json
 ```
+
+The snapshot's `memory_bytes.total_as` matches the overlay's resident AS-memory
+total: static and animated BVH allocations (including cluster templates,
+allocated CLAS capacity, and clone BLAS pools) plus TLAS. Scratch and source
+inputs are reported separately and excluded from this total. Per-CLAS actual
+payload sizes remain available as separate fields.
+Screenshot and benchmark output failures are logged and produce a nonzero exit
+code on both hardware and WARP.
 
 Use `--exit-after-frames N` for a frame-count smoke test. The command
 `--screenshot-at S path.png` jumps the camera time to `S`, warms up

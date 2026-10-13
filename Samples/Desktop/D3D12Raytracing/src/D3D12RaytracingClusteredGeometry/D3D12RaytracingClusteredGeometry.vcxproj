@@ -147,7 +147,7 @@
     <None Include="readme.md" />
     <!-- DirectXTK sprite-font asset for the on-screen overlay (see RenderUI()).
          CopyToOutputDirectory ensures it lands next to the exe; SpriteFont
-         opens it at runtime by relative filename. -->
+         resolves it from the executable's asset directory. -->
     <None Include="SegoeUI_24.spritefont">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

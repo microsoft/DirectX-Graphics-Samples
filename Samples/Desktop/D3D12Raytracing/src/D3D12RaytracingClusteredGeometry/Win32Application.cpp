@@ -15,6 +15,7 @@
 
 HWND Win32Application::m_hwnd = nullptr;
 DWORD Win32Application::m_uiThreadId = 0;
+std::exception_ptr Win32Application::m_windowFailure;
 bool Win32Application::m_fullscreenMode = false;
 RECT Win32Application::m_windowRect;
 using Microsoft::WRL::ComPtr;
@@ -22,6 +23,7 @@ using Microsoft::WRL::ComPtr;
 int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 {
     m_uiThreadId = GetCurrentThreadId();
+    m_windowFailure = nullptr;
     try
     {
         // Parse the command line parameters
@@ -56,6 +58,8 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
             nullptr,        // We aren't using menus.
             hInstance,
             pSample);
+        if (m_windowFailure)
+            std::rethrow_exception(m_windowFailure);
 
         // Initialize the sample. OnInit is defined in each child-implementation of DXSample.
         pSample->OnInit();
@@ -66,6 +70,8 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         ShowWindow(m_hwnd, pSample->ShouldMaximizeWindowOnLaunch()
                                ? SW_MAXIMIZE
                                : SW_NORMAL);
+        if (m_windowFailure)
+            std::rethrow_exception(m_windowFailure);
 
         // On software adapters (WARP / Basic Render), spin up the async
         // display worker: the sample's OnRender (slow on a CPU rasterizer
@@ -94,6 +100,9 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         MSG msg = {};
         while (msg.message != WM_QUIT)
         {
+            if (m_windowFailure)
+                std::rethrow_exception(m_windowFailure);
+            pSample->GetDeviceResources()->RethrowAsyncFailure();
             // Process any messages in the queue.
             if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
             {
@@ -103,22 +112,34 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         }
 
         pSample->GetDeviceResources()->DisableAsyncDisplay();
+        pSample->GetDeviceResources()->RethrowAsyncFailure();
         pSample->OnDestroy();
 
         // Return this part of the WM_QUIT message to Windows.
         return static_cast<char>(msg.wParam);
     }
-    catch (std::exception& e)
+    catch (...)
     {
         OutputDebugString(L"Application hit a problem: ");
-        OutputDebugStringA(e.what());
-        OutputDebugString(L"\nTerminating.\n");
-
         // Mirror to log file so unattended runs (e.g. --screenshot mode) leave a trace.
         SampleLog::Write(L"Application hit a problem: ");
-        wchar_t wbuf[1024]; size_t cv;
-        mbstowcs_s(&cv, wbuf, e.what(), _TRUNCATE);
-        SampleLog::Write(wbuf);
+        try
+        {
+            throw;
+        }
+        catch (const std::exception& e)
+        {
+            OutputDebugStringA(e.what());
+            wchar_t wbuf[1024]; size_t cv;
+            mbstowcs_s(&cv, wbuf, e.what(), _TRUNCATE);
+            SampleLog::Write(wbuf);
+        }
+        catch (...)
+        {
+            OutputDebugString(L"Unknown exception");
+            SampleLog::Write(L"Unknown exception");
+        }
+        OutputDebugString(L"\nTerminating.\n");
         SampleLog::Write(L"\nTerminating.\n");
 
         if (auto* deviceResources = pSample->GetDeviceResources())
@@ -227,8 +248,25 @@ void Win32Application::SetWindowZorderToTopMost(bool setToTopMost)
         SWP_FRAMECHANGED | SWP_NOACTIVATE);
 }
 
-// Main message handler for the sample.
 LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    // Exceptions cannot unwind through a Windows callback. Transfer them to
+    // Run's error handler outside DispatchMessage instead.
+    try
+    {
+        if (m_windowFailure)
+            return DefWindowProc(hWnd, message, wParam, lParam);
+        return HandleWindowMessage(hWnd, message, wParam, lParam);
+    }
+    catch (...)
+    {
+        m_windowFailure = std::current_exception();
+        return 0;
+    }
+}
+
+// Main message handler for the sample.
+LRESULT Win32Application::HandleWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     DXSample* pSample = reinterpret_cast<DXSample*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
